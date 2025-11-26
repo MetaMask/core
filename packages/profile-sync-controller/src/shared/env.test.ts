@@ -14,6 +14,35 @@ describe('getEnvUrls', () => {
       'invalid environment configuration',
     );
   });
+
+  it('should return URLs with version suffix when authApiVersion is provided', () => {
+    const urls = getEnvUrls(Env.PRD, { authApiVersion: 'v2' });
+    expect(urls.authApiUrl).toBe(
+      'https://authentication.api.cx.metamask.io/v2',
+    );
+    expect(urls.oidcApiUrl).toBe('https://oidc.api.cx.metamask.io');
+    expect(urls.userStorageApiUrl).toBe(
+      'https://user-storage.api.cx.metamask.io',
+    );
+  });
+
+  it('should return URLs without version suffix when authApiVersion is not provided', () => {
+    const urls = getEnvUrls(Env.DEV);
+    expect(urls.authApiUrl).toBe(
+      'https://authentication.dev-api.cx.metamask.io',
+    );
+    expect(urls.oidcApiUrl).toBe('https://oidc.dev-api.cx.metamask.io');
+    expect(urls.userStorageApiUrl).toBe(
+      'https://user-storage.dev-api.cx.metamask.io',
+    );
+  });
+
+  it('should handle custom version suffixes', () => {
+    const urls = getEnvUrls(Env.UAT, { authApiVersion: 'v3/beta' });
+    expect(urls.authApiUrl).toBe(
+      'https://authentication.uat-api.cx.metamask.io/v3/beta',
+    );
+  });
 });
 
 describe('getOidcClientId', () => {

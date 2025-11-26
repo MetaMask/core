@@ -39,14 +39,29 @@ const ENV_URLS: Record<Env, EnvUrlsEntry> = {
  * Validates and returns correct environment endpoints
  *
  * @param env - environment field
- * @returns the correct environment url
+ * @param options - optional configuration
+ * @param options.authApiVersion - optional version suffix for the auth API URL (e.g., 'v2')
+ * @returns the correct environment urls
  * @throws on invalid environment passed
  */
-export function getEnvUrls(env: Env): EnvUrlsEntry {
+export function getEnvUrls(
+  env: Env,
+  options?: { authApiVersion?: string },
+): EnvUrlsEntry {
   if (!ENV_URLS[env]) {
     throw new Error('invalid environment configuration');
   }
-  return ENV_URLS[env];
+
+  const urls = ENV_URLS[env];
+
+  if (options?.authApiVersion) {
+    return {
+      ...urls,
+      authApiUrl: `${urls.authApiUrl}/${options.authApiVersion}`,
+    };
+  }
+
+  return urls;
 }
 
 /**

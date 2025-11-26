@@ -7,6 +7,10 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+### Added
+
+- Add `authApiVersion` option to `getEnvUrls` function to support versioned authentication API endpoints ([#XXXX](https://github.com/MetaMask/core/pull/XXXX))
+
 ### Changed
 
 - Move peer dependencies for controller and service packages to direct dependencies ([#7209](https://github.com/MetaMask/core/pull/7209))
