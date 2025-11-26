@@ -375,8 +375,7 @@ describe('BridgeController', function () {
         quoteRequest: { ...quoteRequest, walletAddress: '0x123' },
         quotes: DEFAULT_BRIDGE_CONTROLLER_STATE.quotes,
         quotesLastFetched: DEFAULT_BRIDGE_CONTROLLER_STATE.quotesLastFetched,
-        quotesLoadingStatus:
-          DEFAULT_BRIDGE_CONTROLLER_STATE.quotesLoadingStatus,
+        quotesLoadingStatus: RequestStatus.LOADING,
       }),
     );
 
@@ -495,8 +494,7 @@ describe('BridgeController', function () {
         quoteRequest: { ...quoteRequest, walletAddress: '0x123' },
         quotes: DEFAULT_BRIDGE_CONTROLLER_STATE.quotes,
         quotesLastFetched: DEFAULT_BRIDGE_CONTROLLER_STATE.quotesLastFetched,
-        quotesLoadingStatus:
-          DEFAULT_BRIDGE_CONTROLLER_STATE.quotesLoadingStatus,
+        quotesLoadingStatus: RequestStatus.LOADING,
       }),
     );
 
@@ -998,8 +996,7 @@ describe('BridgeController', function () {
         quotes: DEFAULT_BRIDGE_CONTROLLER_STATE.quotes,
         quotesLastFetched: DEFAULT_BRIDGE_CONTROLLER_STATE.quotesLastFetched,
         quotesInitialLoadTime: null,
-        quotesLoadingStatus:
-          DEFAULT_BRIDGE_CONTROLLER_STATE.quotesLoadingStatus,
+        quotesLoadingStatus: RequestStatus.LOADING,
       }),
     );
 
@@ -1508,8 +1505,7 @@ describe('BridgeController', function () {
           quoteRequest,
           quotes: DEFAULT_BRIDGE_CONTROLLER_STATE.quotes,
           quotesLastFetched: DEFAULT_BRIDGE_CONTROLLER_STATE.quotesLastFetched,
-          quotesLoadingStatus:
-            DEFAULT_BRIDGE_CONTROLLER_STATE.quotesLoadingStatus,
+          quotesLoadingStatus: RequestStatus.LOADING,
         }),
       );
 
@@ -2677,7 +2673,7 @@ describe('BridgeController', function () {
       expect(trackMetaMetricsFn).toHaveBeenCalledTimes(0);
       expect(errorSpy).toHaveBeenCalledTimes(1);
       expect(errorSpy).toHaveBeenCalledWith(
-        'Error tracking cross-chain swaps MetaMetrics event',
+        'Error tracking cross-chain swaps MetaMetrics event Unified SwapBridge Quotes Received',
         new TypeError("Cannot read properties of undefined (reading 'type')"),
       );
     });
