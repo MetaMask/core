@@ -9,7 +9,7 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ### Added
 
-- Add `submitDirectRevocation` method for already-disabled delegations that don't require an on-chain transaction ([#TBD](https://github.com/MetaMask/core/pull/TBD))
+- Add `submitDirectRevocation` method for already-disabled delegations that don't require an on-chain transaction ([#7244](https://github.com/MetaMask/core/pull/7244))
 
 ### Changed
 
