@@ -2058,6 +2058,7 @@ describe('RpcServiceChain', () => {
           params: [],
         })
         .reply(200, () => {
+          clock.tick(DEFAULT_DEGRADED_THRESHOLD + 1);
           return {
             id: 1,
             jsonrpc: '2.0',
@@ -2083,10 +2084,12 @@ describe('RpcServiceChain', () => {
           endpointUrl,
         },
       ]);
+      const onDegradedListener = jest.fn();
       const onAvailableListener = jest.fn();
       rpcServiceChain.onServiceRetry(() => {
         clock.next();
       });
+      rpcServiceChain.onDegraded(onDegradedListener);
       rpcServiceChain.onAvailable(onAvailableListener);
 
       const jsonRpcRequest = {
@@ -2098,11 +2101,24 @@ describe('RpcServiceChain', () => {
       await rpcServiceChain.request(jsonRpcRequest);
       await rpcServiceChain.request(jsonRpcRequest);
 
+      // Verify degradation occurred after the first (slow) request
+      expect(onDegradedListener).toHaveBeenCalledTimes(1);
+      expect(onDegradedListener).toHaveBeenCalledWith({
+        primaryEndpointUrl: `${endpointUrl}/`,
+        endpointUrl: `${endpointUrl}/`,
+      });
+
+      // Verify recovery occurred after the second (fast) request
       expect(onAvailableListener).toHaveBeenCalledTimes(1);
       expect(onAvailableListener).toHaveBeenCalledWith({
         primaryEndpointUrl: `${endpointUrl}/`,
         endpointUrl: `${endpointUrl}/`,
       });
+
+      // Verify onDegraded was called before onAvailable (degradation then recovery)
+      expect(onDegradedListener.mock.invocationCallOrder[0]).toBeLessThan(
+        onAvailableListener.mock.invocationCallOrder[0],
+      );
     });
   });
 });
