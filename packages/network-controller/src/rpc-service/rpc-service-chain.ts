@@ -382,7 +382,6 @@ export class RpcServiceChain {
     for (const [i, service] of this.#services.entries()) {
       log(`Trying service #${i + 1}...`);
       const previousCircuitState = service.getCircuitState();
-      const previousStatus = this.#status;
 
       try {
         // Try making the request through the service.
@@ -412,7 +411,7 @@ export class RpcServiceChain {
 
           if (
             previousCircuitState !== CircuitState.Open &&
-            previousStatus !== STATUSES.Unavailable &&
+            this.#status !== STATUSES.Unavailable &&
             lastError !== undefined
           ) {
             // If the service's circuit just broke and it's the last one in the
