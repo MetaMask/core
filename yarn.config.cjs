@@ -228,6 +228,14 @@ module.exports = defineConfig({
         dependenciesByIdentAndType,
       );
 
+      // Disallow workspace packages from listing other workspace packages via
+      // peer dependencies.
+      expectDependenciesForControllersAndServices(
+        Yarn,
+        workspace,
+        dependenciesByIdentAndType,
+      );
+
       // The root workspace (and only the root workspace) must specify the Yarn
       // version required for development.
       if (isChildWorkspace) {
@@ -633,7 +641,7 @@ function expectUpToDateWorkspaceDependenciesAndDevDependencies(
     const prodDependency = dependencyInstancesByType.get('dependencies');
     const peerDependency = dependencyInstancesByType.get('peerDependencies');
 
-    if (devDependency || (prodDependency && !peerDependency)) {
+    if ((devDependency || prodDependency) && !peerDependency) {
       const dependency = devDependency ?? prodDependency;
 
       const ignoredRanges = ALLOWED_INCONSISTENT_DEPENDENCIES[dependencyIdent];
@@ -728,10 +736,8 @@ function expectDependenciesNotInBothProdAndDevOrPeer(
 }
 
 /**
- * Expect that if the workspace package lists another package in its
- * `peerDependencies`, the package is also listed in the workspace's
- * `devDependencies`. If the other package is a workspace package, also expect
- * that the dev dependency matches the current version of the package.
+ * Expect that if a non-workspace package lists another package in its
+ * `peerDependencies`, the package is also listed in `devDependencies`.
  *
  * @param {Yarn} Yarn - The Yarn "global".
  * @param {Workspace} workspace - The workspace to check.
@@ -747,20 +753,80 @@ function expectPeerDependenciesAlsoListedAsDevDependencies(
     dependencyIdent,
     dependencyInstancesByType,
   ] of dependenciesByIdentAndType.entries()) {
-    if (!dependencyInstancesByType.has('peerDependencies')) {
+    const peerDependency = dependencyInstancesByType.get('peerDependencies');
+
+    if (!peerDependency) {
       continue;
     }
 
     const dependencyWorkspace = Yarn.workspace({ ident: dependencyIdent });
 
+    if (!dependencyWorkspace) {
+      expectWorkspaceField(workspace, `devDependencies["${dependencyIdent}"]`);
+    }
+  }
+}
+
+/**
+ * Expect that if packages which contain controllers or services are listed as
+ * peer+dev dependencies they are instead listed as direct dependencies.
+ *
+ * @param {Yarn} Yarn - The Yarn "global".
+ * @param {Workspace} workspace - The workspace to check.
+ * @param {Map<string, Map<DependencyType, Dependency>>} dependenciesByIdentAndType - Map of
+ * dependency ident to dependency type and dependency.
+ */
+function expectDependenciesForControllersAndServices(
+  Yarn,
+  workspace,
+  dependenciesByIdentAndType,
+) {
+  for (const [
+    dependencyIdent,
+    dependencyInstancesByType,
+  ] of dependenciesByIdentAndType.entries()) {
+    if (dependencyIdent === '@metamask/eth-block-tracker') {
+      // Some packages have a peer dependency on this package, and we are still
+      // working through removing this peer dependency across packages.
+      continue;
+    }
+
+    const peerDependency = dependencyInstancesByType.get('peerDependencies');
+    const devDependency = dependencyInstancesByType.get('devDependencies');
+
+    if (!peerDependency) {
+      continue;
+    }
+
+    const dependencyWorkspace = Yarn.workspace({ ident: peerDependency.ident });
+    /** @type {string | undefined} */
+    let targetVersion;
     if (dependencyWorkspace) {
+      targetVersion = `^${dependencyWorkspace.manifest.version}`;
+    } else if (/-(?:controller|service)s?$/u.test(dependencyIdent)) {
+      targetVersion = peerDependency.range;
+    }
+
+    if (targetVersion === undefined) {
+      continue;
+    }
+
+    expectWorkspaceField(
+      workspace,
+      `dependencies["${dependencyIdent}"]`,
+      targetVersion,
+    );
+
+    peerDependency.delete();
+
+    if (devDependency) {
+      devDependency.delete();
+    } else {
       expectWorkspaceField(
         workspace,
         `devDependencies["${dependencyIdent}"]`,
-        `^${dependencyWorkspace.manifest.version}`,
+        null,
       );
-    } else {
-      expectWorkspaceField(workspace, `devDependencies["${dependencyIdent}"]`);
     }
   }
 }

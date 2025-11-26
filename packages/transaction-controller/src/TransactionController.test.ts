@@ -1686,7 +1686,6 @@ describe('TransactionController', () => {
         batchId: undefined,
         chainId: expect.any(String),
         dappSuggestedGasFees: undefined,
-        delegationAddress: undefined,
         deviceConfirmedOn: undefined,
         disableGasBuffer: undefined,
         id: expect.any(String),

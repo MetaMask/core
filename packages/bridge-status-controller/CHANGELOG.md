@@ -7,6 +7,28 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+## [63.1.0]
+
+### Changed
+
+- Bump `@metamask/bridge-controller` from `^63.1.0` to `^63.2.0` ([#7245](https://github.com/MetaMask/core/pull/7245))
+- Move peer dependencies for controller and service packages to direct dependencies ([#7209](https://github.com/MetaMask/core/pull/7209), [#7220](https://github.com/MetaMask/core/pull/7220), [#7236](https://github.com/MetaMask/core/pull/7236))
+  - The dependencies moved are:
+    - `@metamask/accounts-controller` (^35.0.0)
+    - `@metamask/bridge-controller` (^63.0.0)
+    - `@metamask/gas-fee-controller` (^26.0.0)
+    - `@metamask/network-controller` (^26.0.0)
+    - `@metamask/snaps-controllers` (^14.0.1)
+    - `@metamask/transaction-controller` (^62.3.0)
+  - In clients, it is now possible for multiple versions of these packages to exist in the dependency tree.
+    - For example, this scenario would be valid: a client relies on `@metamask/controller-a` 1.0.0 and `@metamask/controller-b` 1.0.0, and `@metamask/controller-b` depends on `@metamask/controller-a` 1.1.0.
+  - Note, however, that the versions specified in the client's `package.json` always "win", and you are expected to keep them up to date so as not to break controller and service intercommunication.
+- Bump `@metamask/bridge-controller` from `^63.0.0` to `^63.1.0` ([#7238](https://github.com/MetaMask/core/pull/7238))
+
+### Removed
+
+- Remove direct QuotesReceived event publishing to avoid race conditions that can happen when clients navigate and reset state. Update `submitTx` to accept quotesReceivedContext (replace isLoading/warnings) and propagate context to the BridgeController through the `stopPollingForQuotes call ([#7242](https://github.com/MetaMask/core/pull/7242))
+
 ## [63.0.0]
 
 ### Changed
@@ -777,7 +799,8 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 - Initial release ([#5317](https://github.com/MetaMask/core/pull/5317))
 
-[Unreleased]: https://github.com/MetaMask/core/compare/@metamask/bridge-status-controller@63.0.0...HEAD
+[Unreleased]: https://github.com/MetaMask/core/compare/@metamask/bridge-status-controller@63.1.0...HEAD
+[63.1.0]: https://github.com/MetaMask/core/compare/@metamask/bridge-status-controller@63.0.0...@metamask/bridge-status-controller@63.1.0
 [63.0.0]: https://github.com/MetaMask/core/compare/@metamask/bridge-status-controller@62.0.0...@metamask/bridge-status-controller@63.0.0
 [62.0.0]: https://github.com/MetaMask/core/compare/@metamask/bridge-status-controller@61.0.0...@metamask/bridge-status-controller@62.0.0
 [61.0.0]: https://github.com/MetaMask/core/compare/@metamask/bridge-status-controller@60.1.0...@metamask/bridge-status-controller@61.0.0
