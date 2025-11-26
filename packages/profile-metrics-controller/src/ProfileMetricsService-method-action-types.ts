@@ -6,18 +6,18 @@
 import type { ProfileMetricsService } from './ProfileMetricsService';
 
 /**
- * Makes a request to the API in order to update the user profile.
+ * Submit metrics to the API.
  *
- * @param data - The data to send in the profile update request.
+ * @param data - The data to send in the metrics update request.
  * @returns The response from the API.
  */
-export type ProfileMetricsServiceUpdateProfileAction = {
-  type: `ProfileMetricsService:updateProfile`;
-  handler: ProfileMetricsService['updateProfile'];
+export type ProfileMetricsServiceSubmitMetricsAction = {
+  type: `ProfileMetricsService:submitMetrics`;
+  handler: ProfileMetricsService['submitMetrics'];
 };
 
 /**
  * Union of all ProfileMetricsService action types.
  */
 export type ProfileMetricsServiceMethodActions =
-  ProfileMetricsServiceUpdateProfileAction;
+  ProfileMetricsServiceSubmitMetricsAction;

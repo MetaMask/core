@@ -25,9 +25,9 @@ export type AccountWithScopes = {
 };
 
 /**
- * The shape of the request object for updating the user profile.
+ * The shape of the request object for submitting metrics.
  */
-export type ProfileMetricsUpdateRequest = {
+export type ProfileMetricsSubmitRequest = {
   metametricsId: string;
   entropySourceId?: string | null;
   accounts: AccountWithScopes[];
@@ -35,7 +35,7 @@ export type ProfileMetricsUpdateRequest = {
 
 // === MESSENGER ===
 
-const MESSENGER_EXPOSED_METHODS = ['updateProfile'] as const;
+const MESSENGER_EXPOSED_METHODS = ['submitMetrics'] as const;
 
 /**
  * Actions that {@link ProfileMetricsService} exposes to other consumers.
@@ -190,12 +190,12 @@ export class ProfileMetricsService {
   }
 
   /**
-   * Makes a request to the API in order to update the user profile.
+   * Submit metrics to the API.
    *
-   * @param data - The data to send in the profile update request.
+   * @param data - The data to send in the metrics update request.
    * @returns The response from the API.
    */
-  async updateProfile(data: ProfileMetricsUpdateRequest): Promise<void> {
+  async submitMetrics(data: ProfileMetricsSubmitRequest): Promise<void> {
     const authToken = await this.#messenger.call(
       'AuthenticationController:getBearerToken',
       data.entropySourceId || undefined,
