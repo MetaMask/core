@@ -4,9 +4,12 @@ import type {
 } from '@metamask/controller-utils';
 import { createServicePolicy, HttpError } from '@metamask/controller-utils';
 import type { Messenger } from '@metamask/messenger';
-import type { AuthenticationController } from '@metamask/profile-sync-controller';
+import {
+  type AuthenticationController,
+  SDK,
+} from '@metamask/profile-sync-controller';
 
-import { type ProfileMetricsServiceMethodActions, Env, getEnvUrl } from '.';
+import { type ProfileMetricsServiceMethodActions } from '.';
 
 // === GENERAL ===
 
@@ -25,9 +28,9 @@ export type AccountWithScopes = {
 };
 
 /**
- * The shape of the request object for updating the user profile.
+ * The shape of the request object for submitting metrics.
  */
-export type ProfileMetricsUpdateRequest = {
+export type ProfileMetricsSubmitMetricsRequest = {
   metametricsId: string;
   entropySourceId?: string | null;
   accounts: AccountWithScopes[];
@@ -35,7 +38,7 @@ export type ProfileMetricsUpdateRequest = {
 
 // === MESSENGER ===
 
-const MESSENGER_EXPOSED_METHODS = ['updateProfile'] as const;
+const MESSENGER_EXPOSED_METHODS = ['submitMetrics'] as const;
 
 /**
  * Actions that {@link ProfileMetricsService} exposes to other consumers.
@@ -120,18 +123,18 @@ export class ProfileMetricsService {
     messenger,
     fetch: fetchFunction,
     policyOptions = {},
-    env = Env.DEV,
+    env = SDK.Env.DEV,
   }: {
     messenger: ProfileMetricsServiceMessenger;
     fetch: typeof fetch;
     policyOptions?: CreateServicePolicyOptions;
-    env?: Env;
+    env?: SDK.Env;
   }) {
     this.name = serviceName;
     this.#messenger = messenger;
     this.#fetch = fetchFunction;
     this.#policy = createServicePolicy(policyOptions);
-    this.#baseURL = getEnvUrl(env);
+    this.#baseURL = getAuthUrl(env);
 
     this.#messenger.registerMethodActionHandlers(
       this,
@@ -190,12 +193,12 @@ export class ProfileMetricsService {
   }
 
   /**
-   * Makes a request to the API in order to update the user profile.
+   * Submit metrics to the API.
    *
-   * @param data - The data to send in the profile update request.
+   * @param data - The data to send in the metrics update request.
    * @returns The response from the API.
    */
-  async updateProfile(data: ProfileMetricsUpdateRequest): Promise<void> {
+  async submitMetrics(data: ProfileMetricsSubmitMetricsRequest): Promise<void> {
     const authToken = await this.#messenger.call(
       'AuthenticationController:getBearerToken',
       data.entropySourceId || undefined,
@@ -222,4 +225,14 @@ export class ProfileMetricsService {
       return localResponse;
     });
   }
+}
+
+/**
+ * Returns the base URL for the given environment.
+ *
+ * @param env - The environment to get the URL for.
+ * @returns The base URL for the environment.
+ */
+export function getAuthUrl(env: SDK.Env): string {
+  return `${SDK.getEnvUrls(env).authApiUrl}/api/v2`;
 }

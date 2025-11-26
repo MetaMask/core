@@ -5,19 +5,19 @@ import {
   type MessengerActions,
   type MessengerEvents,
 } from '@metamask/messenger';
+import { SDK } from '@metamask/profile-sync-controller';
 import nock from 'nock';
 import { type SinonFakeTimers, useFakeTimers } from 'sinon';
 
 import {
   ProfileMetricsService,
-  type ProfileMetricsUpdateRequest,
+  type ProfileMetricsSubmitMetricsRequest,
   type ProfileMetricsServiceMessenger,
-  Env,
-  getEnvUrl,
 } from '.';
+import { getAuthUrl } from './ProfileMetricsService';
 import { HttpError } from '../../controller-utils/src/util';
 
-const defaultBaseEndpoint = getEnvUrl(Env.DEV);
+const defaultBaseEndpoint = getAuthUrl(SDK.Env.DEV);
 
 /**
  * Creates a mock request object for testing purposes.
@@ -26,8 +26,8 @@ const defaultBaseEndpoint = getEnvUrl(Env.DEV);
  * @returns A mock request object.
  */
 function createMockRequest(
-  override?: Partial<ProfileMetricsUpdateRequest>,
-): ProfileMetricsUpdateRequest {
+  override?: Partial<ProfileMetricsSubmitMetricsRequest>,
+): ProfileMetricsSubmitMetricsRequest {
   return {
     metametricsId: 'mock-meta-metrics-id',
     entropySourceId: 'mock-entropy-source-id',
@@ -61,7 +61,7 @@ describe('ProfileMetricsService', () => {
     });
   });
 
-  describe('ProfileMetricsService:updateProfile', () => {
+  describe('ProfileMetricsService:submitMetrics', () => {
     it('resolves when there is a successful response from the API and the accounts have an entropy source id', async () => {
       nock(defaultBaseEndpoint)
         .put('/profile/accounts')
@@ -72,12 +72,12 @@ describe('ProfileMetricsService', () => {
         });
       const { rootMessenger } = getService();
 
-      const updateProfileResponse = await rootMessenger.call(
-        'ProfileMetricsService:updateProfile',
+      const submitMetricsResponse = await rootMessenger.call(
+        'ProfileMetricsService:submitMetrics',
         createMockRequest(),
       );
 
-      expect(updateProfileResponse).toBeUndefined();
+      expect(submitMetricsResponse).toBeUndefined();
     });
 
     it('resolves when there is a successful response from the API and the accounts do not have an entropy source id', async () => {
@@ -92,12 +92,12 @@ describe('ProfileMetricsService', () => {
 
       const request = createMockRequest({ entropySourceId: null });
 
-      const updateProfileResponse = await rootMessenger.call(
-        'ProfileMetricsService:updateProfile',
+      const submitMetricsResponse = await rootMessenger.call(
+        'ProfileMetricsService:submitMetrics',
         request,
       );
 
-      expect(updateProfileResponse).toBeUndefined();
+      expect(submitMetricsResponse).toBeUndefined();
     });
 
     it('calls onDegraded listeners if the request takes longer than 5 seconds to resolve', async () => {
@@ -116,7 +116,7 @@ describe('ProfileMetricsService', () => {
       service.onDegraded(onDegradedListener);
 
       await rootMessenger.call(
-        'ProfileMetricsService:updateProfile',
+        'ProfileMetricsService:submitMetrics',
         createMockRequest(),
       );
 
@@ -143,7 +143,7 @@ describe('ProfileMetricsService', () => {
       service.onDegraded(onDegradedListener);
 
       await rootMessenger.call(
-        'ProfileMetricsService:updateProfile',
+        'ProfileMetricsService:submitMetrics',
         createMockRequest(),
       );
 
@@ -157,7 +157,7 @@ describe('ProfileMetricsService', () => {
 
       await expect(
         rootMessenger.call(
-          'ProfileMetricsService:updateProfile',
+          'ProfileMetricsService:submitMetrics',
           createMockRequest(),
         ),
       ).rejects.toThrow(
@@ -174,7 +174,7 @@ describe('ProfileMetricsService', () => {
 
       await expect(
         rootMessenger.call(
-          'ProfileMetricsService:updateProfile',
+          'ProfileMetricsService:submitMetrics',
           createMockRequest(),
         ),
       ).rejects.toThrow(
@@ -193,7 +193,7 @@ describe('ProfileMetricsService', () => {
       // Should make 4 requests
       await expect(
         rootMessenger.call(
-          'ProfileMetricsService:updateProfile',
+          'ProfileMetricsService:submitMetrics',
           createMockRequest(),
         ),
       ).rejects.toThrow(
@@ -202,7 +202,7 @@ describe('ProfileMetricsService', () => {
       // Should make 4 requests
       await expect(
         rootMessenger.call(
-          'ProfileMetricsService:updateProfile',
+          'ProfileMetricsService:submitMetrics',
           createMockRequest(),
         ),
       ).rejects.toThrow(
@@ -211,7 +211,7 @@ describe('ProfileMetricsService', () => {
       // Should make 4 requests
       await expect(
         rootMessenger.call(
-          'ProfileMetricsService:updateProfile',
+          'ProfileMetricsService:submitMetrics',
           createMockRequest(),
         ),
       ).rejects.toThrow(
@@ -221,7 +221,7 @@ describe('ProfileMetricsService', () => {
       // above)
       await expect(
         rootMessenger.call(
-          'ProfileMetricsService:updateProfile',
+          'ProfileMetricsService:submitMetrics',
           createMockRequest(),
         ),
       ).rejects.toThrow(
@@ -256,7 +256,7 @@ describe('ProfileMetricsService', () => {
 
       await expect(
         rootMessenger.call(
-          'ProfileMetricsService:updateProfile',
+          'ProfileMetricsService:submitMetrics',
           createMockRequest(),
         ),
       ).rejects.toThrow(
@@ -264,7 +264,7 @@ describe('ProfileMetricsService', () => {
       );
       await expect(
         rootMessenger.call(
-          'ProfileMetricsService:updateProfile',
+          'ProfileMetricsService:submitMetrics',
           createMockRequest(),
         ),
       ).rejects.toThrow(
@@ -272,7 +272,7 @@ describe('ProfileMetricsService', () => {
       );
       await expect(
         rootMessenger.call(
-          'ProfileMetricsService:updateProfile',
+          'ProfileMetricsService:submitMetrics',
           createMockRequest(),
         ),
       ).rejects.toThrow(
@@ -280,20 +280,20 @@ describe('ProfileMetricsService', () => {
       );
       await expect(
         rootMessenger.call(
-          'ProfileMetricsService:updateProfile',
+          'ProfileMetricsService:submitMetrics',
           createMockRequest(),
         ),
       ).rejects.toThrow(
         'Execution prevented because the circuit breaker is open',
       );
       await clock.tickAsync(circuitBreakDuration);
-      const updateProfileResponse =
-        await service.updateProfile(createMockRequest());
-      expect(updateProfileResponse).toBeUndefined();
+      const submitMetricsResponse =
+        await service.submitMetrics(createMockRequest());
+      expect(submitMetricsResponse).toBeUndefined();
     });
   });
 
-  describe('updateProfile', () => {
+  describe('submitMetrics', () => {
     it('does the same thing as the messenger action', async () => {
       nock(defaultBaseEndpoint)
         .put('/profile/accounts')
@@ -304,10 +304,10 @@ describe('ProfileMetricsService', () => {
         });
       const { service } = getService();
 
-      const updateProfileResponse =
-        await service.updateProfile(createMockRequest());
+      const submitMetricsResponse =
+        await service.submitMetrics(createMockRequest());
 
-      expect(updateProfileResponse).toBeUndefined();
+      expect(submitMetricsResponse).toBeUndefined();
     });
   });
 });
