@@ -161,6 +161,7 @@ describe('BridgeController SSE', function () {
       ...DEFAULT_BRIDGE_CONTROLLER_STATE,
       quoteRequest,
       assetExchangeRates,
+      quotesLoadingStatus: RequestStatus.LOADING,
     };
     expect(bridgeController.state).toStrictEqual(expectedState);
 
@@ -418,6 +419,7 @@ describe('BridgeController SSE', function () {
     expect(t5).toBeGreaterThan(t2!);
     const expectedState = {
       ...DEFAULT_BRIDGE_CONTROLLER_STATE,
+      quotesLoadingStatus: RequestStatus.LOADING,
       quoteRequest: {
         ...quoteRequest,
         srcTokenAmount: '10',
@@ -724,6 +726,7 @@ describe('BridgeController SSE', function () {
       ...DEFAULT_BRIDGE_CONTROLLER_STATE,
       quoteRequest,
       assetExchangeRates,
+      quotesLoadingStatus: RequestStatus.LOADING,
     };
     expect(bridgeController.state).toStrictEqual(expectedState);
 

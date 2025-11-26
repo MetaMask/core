@@ -4,11 +4,7 @@ import type { Json } from '@metamask/utils';
 import { createModuleLogger } from '@metamask/utils';
 import { BigNumber } from 'bignumber.js';
 
-import {
-  CHAIN_ID_HYPERCORE,
-  RELAY_FALLBACK_GAS_LIMIT,
-  RELAY_URL_QUOTE,
-} from './constants';
+import { CHAIN_ID_HYPERCORE } from './constants';
 import type { RelayQuote } from './types';
 import { TransactionPayStrategy } from '../..';
 import type { TransactionMeta } from '../../../../transaction-controller/src';
@@ -27,6 +23,7 @@ import type {
   TransactionPayControllerMessenger,
   TransactionPayQuote,
 } from '../../types';
+import { getFeatureFlags } from '../../utils/feature-flags';
 import { calculateGasCost, calculateGasFeeTokenCost } from '../../utils/gas';
 import {
   getNativeToken,
@@ -357,27 +354,6 @@ function getFiatRates(
 }
 
 /**
- * Gets feature flags for Relay quotes.
- *
- * @param messenger - Controller messenger.
- * @returns Feature flags.
- */
-function getFeatureFlags(messenger: TransactionPayControllerMessenger) {
-  const featureFlagState = messenger.call(
-    'RemoteFeatureFlagController:getState',
-  );
-
-  const featureFlags = featureFlagState.remoteFeatureFlags
-    ?.confirmations_pay as Record<string, string> | undefined;
-
-  const relayQuoteUrl = featureFlags?.relayQuoteUrl ?? RELAY_URL_QUOTE;
-
-  return {
-    relayQuoteUrl,
-  };
-}
-
-/**
  * Calculates source network cost from a Relay quote.
  *
  * @param quote - Relay quote.
@@ -396,18 +372,39 @@ async function calculateSourceNetworkCost(
 > {
   const { from, sourceChainId, sourceTokenAddress } = request;
   const allParams = quote.steps.flatMap((s) => s.items).map((i) => i.data);
-  const { chainId, data, to, value } = allParams[0];
-  const totalGasLimit = calculateSourceNetworkGasLimit(allParams);
+
+  const { chainId, data, maxFeePerGas, maxPriorityFeePerGas, to, value } =
+    allParams[0];
+
+  const totalGasLimitEstimate = calculateSourceNetworkGasLimit(
+    allParams,
+    messenger,
+    {
+      isMax: false,
+    },
+  );
+
+  const totalGasLimitMax = calculateSourceNetworkGasLimit(
+    allParams,
+    messenger,
+    {
+      isMax: true,
+    },
+  );
 
   const estimate = calculateGasCost({
     chainId,
-    gas: totalGasLimit,
+    gas: totalGasLimitEstimate,
+    maxFeePerGas,
+    maxPriorityFeePerGas,
     messenger,
   });
 
   const max = calculateGasCost({
     chainId,
-    gas: totalGasLimit,
+    gas: totalGasLimitMax,
+    maxFeePerGas,
+    maxPriorityFeePerGas,
     messenger,
     isMax: true,
   });
@@ -462,14 +459,14 @@ async function calculateSourceNetworkCost(
       16,
     );
 
-    const finalAmountValue = gasRate.multipliedBy(totalGasLimit);
+    const finalAmountValue = gasRate.multipliedBy(totalGasLimitEstimate);
 
     finalAmount = toHex(finalAmountValue.toFixed(0));
 
     log('Estimated gas fee token amount for batch', {
       finalAmount: finalAmountValue.toString(10),
       gasRate: gasRate.toString(10),
-      totalGasLimit,
+      totalGasLimitEstimate,
     });
   }
 
@@ -500,10 +497,15 @@ async function calculateSourceNetworkCost(
  * Calculate the total gas limit for the source network transactions.
  *
  * @param params - Array of transaction parameters.
+ * @param messenger - Controller messenger.
+ * @param options - Options.
+ * @param options.isMax - Whether to calculate the maximum gas limit.
  * @returns - Total gas limit.
  */
 function calculateSourceNetworkGasLimit(
   params: RelayQuote['steps'][0]['items'][0]['data'][],
+  messenger: TransactionPayControllerMessenger,
+  { isMax }: { isMax: boolean },
 ): number {
   const allParamsHasGas = params.every((p) => p.gas !== undefined);
 
@@ -517,11 +519,14 @@ function calculateSourceNetworkGasLimit(
   // In future, call `TransactionController:estimateGas`
   // or `TransactionController:estimateGasBatch` based on params length.
 
-  return params.reduce(
-    (total, p) =>
-      total + new BigNumber(p.gas ?? RELAY_FALLBACK_GAS_LIMIT).toNumber(),
-    0,
-  );
+  const fallbackGas = getFeatureFlags(messenger).relayFallbackGas;
+
+  return params.reduce((total, p) => {
+    const fallback = isMax ? fallbackGas.max : fallbackGas.estimate;
+    const gas = p.gas ?? fallback;
+
+    return total + new BigNumber(gas).toNumber();
+  }, 0);
 }
 
 /**
