@@ -234,5 +234,5 @@ export class ProfileMetricsService {
  * @returns The base URL for the environment.
  */
 export function getAuthUrl(env: SDK.Env): string {
-  return `${SDK.getEnvUrls(env).authApiUrl}/v2`;
+  return `${SDK.getEnvUrls(env).authApiUrl}/api/v2`;
 }
