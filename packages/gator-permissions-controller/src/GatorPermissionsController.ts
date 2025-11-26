@@ -372,7 +372,8 @@ export default class GatorPermissionsController extends BaseController<
     this.update((state) => {
       state.pendingRevocations = state.pendingRevocations.filter(
         (pendingRevocations) =>
-          pendingRevocations.permissionContext !== permissionContext,
+          pendingRevocations.permissionContext.toLowerCase() !==
+          permissionContext.toLowerCase(),
       );
     });
   }
