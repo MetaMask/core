@@ -705,7 +705,6 @@ describe('RpcServiceChain', () => {
 
       expect(onBreakListener).toHaveBeenCalledTimes(1);
       expect(onBreakListener).toHaveBeenCalledWith({
-        primaryEndpointUrl: `${primaryEndpointUrl}/`,
         endpointUrl: `${secondaryEndpointUrl}/`,
         error: new Error("Fetch failed with status '503'"),
       });
@@ -801,12 +800,10 @@ describe('RpcServiceChain', () => {
 
       expect(onBreakListener).toHaveBeenCalledTimes(2);
       expect(onBreakListener).toHaveBeenNthCalledWith(1, {
-        primaryEndpointUrl: `${primaryEndpointUrl}/`,
         endpointUrl: `${secondaryEndpointUrl}/`,
         error: new Error("Fetch failed with status '503'"),
       });
       expect(onBreakListener).toHaveBeenNthCalledWith(2, {
-        primaryEndpointUrl: `${primaryEndpointUrl}/`,
         endpointUrl: `${secondaryEndpointUrl}/`,
         error: new Error("Fetch failed with status '503'"),
       });
@@ -903,12 +900,10 @@ describe('RpcServiceChain', () => {
 
       expect(onBreakListener).toHaveBeenCalledTimes(2);
       expect(onBreakListener).toHaveBeenNthCalledWith(1, {
-        primaryEndpointUrl: `${primaryEndpointUrl}/`,
         endpointUrl: `${secondaryEndpointUrl}/`,
         error: new Error("Fetch failed with status '503'"),
       });
       expect(onBreakListener).toHaveBeenNthCalledWith(2, {
-        primaryEndpointUrl: `${primaryEndpointUrl}/`,
         endpointUrl: `${secondaryEndpointUrl}/`,
         error: new Error("Fetch failed with status '503'"),
       });
@@ -1075,7 +1070,6 @@ describe('RpcServiceChain', () => {
 
       expect(onDegradedListener).toHaveBeenCalledTimes(1);
       expect(onDegradedListener).toHaveBeenCalledWith({
-        primaryEndpointUrl: `${endpointUrl}/`,
         endpointUrl: `${endpointUrl}/`,
         error: expectedDegradedError,
       });
@@ -1123,7 +1117,6 @@ describe('RpcServiceChain', () => {
 
       expect(onDegradedListener).toHaveBeenCalledTimes(1);
       expect(onDegradedListener).toHaveBeenCalledWith({
-        primaryEndpointUrl: `${endpointUrl}/`,
         endpointUrl: `${endpointUrl}/`,
       });
     });
@@ -1197,7 +1190,6 @@ describe('RpcServiceChain', () => {
 
       expect(onDegradedListener).toHaveBeenCalledTimes(1);
       expect(onDegradedListener).toHaveBeenCalledWith({
-        primaryEndpointUrl: `${endpointUrl}/`,
         endpointUrl: `${endpointUrl}/`,
         error: expectedDegradedError,
       });
@@ -1273,7 +1265,6 @@ describe('RpcServiceChain', () => {
 
       expect(onDegradedListener).toHaveBeenCalledTimes(1);
       expect(onDegradedListener).toHaveBeenCalledWith({
-        primaryEndpointUrl: `${primaryEndpointUrl}/`,
         endpointUrl: `${primaryEndpointUrl}/`,
         error: expectedDegradedError,
       });
@@ -1346,12 +1337,10 @@ describe('RpcServiceChain', () => {
 
       expect(onDegradedListener).toHaveBeenCalledTimes(2);
       expect(onDegradedListener).toHaveBeenNthCalledWith(1, {
-        primaryEndpointUrl: `${endpointUrl}/`,
         endpointUrl: `${endpointUrl}/`,
         error: expectedDegradedError,
       });
       expect(onDegradedListener).toHaveBeenNthCalledWith(2, {
-        primaryEndpointUrl: `${endpointUrl}/`,
         endpointUrl: `${endpointUrl}/`,
       });
     });
@@ -1447,12 +1436,10 @@ describe('RpcServiceChain', () => {
 
       expect(onDegradedListener).toHaveBeenCalledTimes(2);
       expect(onDegradedListener).toHaveBeenNthCalledWith(1, {
-        primaryEndpointUrl: `${primaryEndpointUrl}/`,
         endpointUrl: `${primaryEndpointUrl}/`,
         error: expectedDegradedError,
       });
       expect(onDegradedListener).toHaveBeenNthCalledWith(2, {
-        primaryEndpointUrl: `${primaryEndpointUrl}/`,
         endpointUrl: `${primaryEndpointUrl}/`,
       });
     });
@@ -1974,7 +1961,6 @@ describe('RpcServiceChain', () => {
 
       expect(onAvailableListener).toHaveBeenCalledTimes(1);
       expect(onAvailableListener).toHaveBeenCalledWith({
-        primaryEndpointUrl: `${endpointUrl}/`,
         endpointUrl: `${endpointUrl}/`,
       });
     });
@@ -2043,7 +2029,6 @@ describe('RpcServiceChain', () => {
 
       expect(onAvailableListener).toHaveBeenCalledTimes(1);
       expect(onAvailableListener).toHaveBeenNthCalledWith(1, {
-        primaryEndpointUrl: `${primaryEndpointUrl}/`,
         endpointUrl: `${secondaryEndpointUrl}/`,
       });
     });
@@ -2104,14 +2089,12 @@ describe('RpcServiceChain', () => {
       // Verify degradation occurred after the first (slow) request
       expect(onDegradedListener).toHaveBeenCalledTimes(1);
       expect(onDegradedListener).toHaveBeenCalledWith({
-        primaryEndpointUrl: `${endpointUrl}/`,
         endpointUrl: `${endpointUrl}/`,
       });
 
       // Verify recovery occurred after the second (fast) request
       expect(onAvailableListener).toHaveBeenCalledTimes(1);
       expect(onAvailableListener).toHaveBeenCalledWith({
-        primaryEndpointUrl: `${endpointUrl}/`,
         endpointUrl: `${endpointUrl}/`,
       });
 

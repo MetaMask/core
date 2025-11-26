@@ -12,9 +12,7 @@ import type {
 import { RpcService } from './rpc-service';
 import type { RpcServiceOptions } from './rpc-service';
 import type {
-  CockatielEventToEventEmitterWithData,
   CockatielEventToEventListenerWithData,
-  ExtendCockatielEventData,
   ExtractCockatielEventData,
   FetchOptions,
 } from './shared';
@@ -47,25 +45,22 @@ export class RpcServiceChain {
   /**
    * The event emitter for the `onBreak` event.
    */
-  readonly #onAvailableEventEmitter: CockatielEventToEventEmitterWithData<
-    RpcService['onAvailable'],
-    { primaryEndpointUrl: string }
+  readonly #onAvailableEventEmitter: CockatielEventEmitter<
+    ExtractCockatielEventData<RpcService['onAvailable']>
   >;
 
   /**
    * The event emitter for the `onBreak` event.
    */
-  readonly #onBreakEventEmitter: CockatielEventToEventEmitterWithData<
-    RpcService['onBreak'],
-    { primaryEndpointUrl: string }
+  readonly #onBreakEventEmitter: CockatielEventEmitter<
+    ExtractCockatielEventData<RpcService['onBreak']>
   >;
 
   /**
    * The event emitter for the `onBreak` event.
    */
-  readonly #onDegradedEventEmitter: CockatielEventToEventEmitterWithData<
-    RpcService['onDegraded'],
-    { primaryEndpointUrl: string }
+  readonly #onDegradedEventEmitter: CockatielEventEmitter<
+    ExtractCockatielEventData<RpcService['onDegraded']>
   >;
 
   /**
@@ -100,36 +95,31 @@ export class RpcServiceChain {
 
     this.#status = STATUSES.Unknown;
     this.#onBreakEventEmitter = new CockatielEventEmitter<
-      ExtendCockatielEventData<
-        ExtractCockatielEventData<RpcService['onBreak']>,
-        { primaryEndpointUrl: string }
-      >
+      ExtractCockatielEventData<RpcService['onBreak']>
     >();
 
-    this.#onDegradedEventEmitter = new CockatielEventEmitter();
+    this.#onDegradedEventEmitter = new CockatielEventEmitter<
+      ExtractCockatielEventData<RpcService['onDegraded']>
+    >();
     for (const service of this.#services) {
       service.onDegraded((data) => {
         if (this.#status !== STATUSES.Degraded) {
           log('Updating status to "degraded"', data);
           this.#status = STATUSES.Degraded;
-          this.#onDegradedEventEmitter.emit({
-            ...data,
-            primaryEndpointUrl: this.#primaryService.endpointUrl.toString(),
-          });
+          this.#onDegradedEventEmitter.emit(data);
         }
       });
     }
 
-    this.#onAvailableEventEmitter = new CockatielEventEmitter();
+    this.#onAvailableEventEmitter = new CockatielEventEmitter<
+      ExtractCockatielEventData<RpcService['onAvailable']>
+    >();
     for (const service of this.#services) {
       service.onAvailable((data) => {
         if (this.#status !== STATUSES.Available) {
           log('Updating status to "available"', data);
           this.#status = STATUSES.Available;
-          this.#onAvailableEventEmitter.emit({
-            ...data,
-            primaryEndpointUrl: this.#primaryService.endpointUrl.toString(),
-          });
+          this.#onAvailableEventEmitter.emit(data);
         }
       });
     }
@@ -181,10 +171,7 @@ export class RpcServiceChain {
    * the callback.
    */
   onBreak(
-    listener: CockatielEventToEventListenerWithData<
-      RpcService['onBreak'],
-      { primaryEndpointUrl: string }
-    >,
+    listener: (data: ExtractCockatielEventData<RpcService['onBreak']>) => void,
   ) {
     return this.#onBreakEventEmitter.addListener(listener);
   }
@@ -245,10 +232,9 @@ export class RpcServiceChain {
    * the callback.
    */
   onDegraded(
-    listener: CockatielEventToEventListenerWithData<
-      RpcService['onDegraded'],
-      { primaryEndpointUrl: string }
-    >,
+    listener: (
+      data: ExtractCockatielEventData<RpcService['onDegraded']>,
+    ) => void,
   ) {
     return this.#onDegradedEventEmitter.addListener(listener);
   }
@@ -312,10 +298,9 @@ export class RpcServiceChain {
    * the callback.
    */
   onAvailable(
-    listener: CockatielEventToEventListenerWithData<
-      RpcService['onAvailable'],
-      { primaryEndpointUrl: string }
-    >,
+    listener: (
+      data: ExtractCockatielEventData<RpcService['onAvailable']>,
+    ) => void,
   ) {
     return this.#onAvailableEventEmitter.addListener(listener);
   }
@@ -423,7 +408,6 @@ export class RpcServiceChain {
             this.#status = STATUSES.Unavailable;
             this.#onBreakEventEmitter.emit({
               error: lastError,
-              primaryEndpointUrl: this.#primaryService.endpointUrl.toString(),
               endpointUrl: service.endpointUrl.toString(),
             });
           }
