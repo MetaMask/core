@@ -1041,11 +1041,12 @@ export class BridgeStatusController extends StaticIntervalPollingController<Brid
     isStxEnabledOnClient: boolean,
     quotesReceivedContext?: RequiredEventContextFromClient[UnifiedSwapBridgeEventName.QuotesReceived],
   ): Promise<TransactionMeta & Partial<SolanaTransactionMeta>> => {
-    // If trade is submitted before all quotes are loaded, publish QuotesReceived event
     this.messenger.call(
       'BridgeController:stopPollingForQuotes',
       AbortReason.TransactionSubmitted,
-      quotesReceivedContext,
+      // If trade is submitted before all quotes are loaded, the QuotesReceived event is published
+      // If the trade has a featureId, it means it was submitted outside of the Unified Swap and Bridge experience, so no QuotesReceived event is published
+      quoteResponse.featureId ? undefined : quotesReceivedContext,
     );
 
     const selectedAccount = this.#getMultichainSelectedAccount(accountAddress);
