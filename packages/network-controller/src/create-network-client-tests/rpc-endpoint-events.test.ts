@@ -303,7 +303,7 @@ describe('createNetworkClient - RPC endpoint events', () => {
                         },
                       }),
                     },
-                    async ({ makeRpcCall, clock, chainId, rpcUrl }) => {
+                    async ({ makeRpcCall, clock, chainId }) => {
                       // The first time a block-cacheable request is made, the
                       // latest block number is retrieved through the block
                       // tracker first.
@@ -359,7 +359,6 @@ describe('createNetworkClient - RPC endpoint events', () => {
                         rpcEndpointChainDegradedEventHandler,
                       ).toHaveBeenCalledWith({
                         chainId,
-                        endpointUrl: rpcUrl,
                         error: expectedDegradedError,
                         networkClientId: 'AAAA-AAAA-AAAA-AAAA',
                       });
@@ -411,7 +410,7 @@ describe('createNetworkClient - RPC endpoint events', () => {
                         },
                       }),
                     },
-                    async ({ makeRpcCall, clock, chainId, rpcUrl }) => {
+                    async ({ makeRpcCall, clock, chainId }) => {
                       // The first time a block-cacheable request is made, the
                       // latest block number is retrieved through the block
                       // tracker first.
@@ -475,7 +474,6 @@ describe('createNetworkClient - RPC endpoint events', () => {
                         rpcEndpointChainDegradedEventHandler,
                       ).toHaveBeenCalledWith({
                         chainId,
-                        endpointUrl: rpcUrl,
                         error: expectedDegradedError,
                         networkClientId: 'AAAA-AAAA-AAAA-AAAA',
                       });
@@ -855,7 +853,6 @@ describe('createNetworkClient - RPC endpoint events', () => {
                         rpcEndpointChainAvailableEventHandler,
                       ).toHaveBeenCalledWith({
                         chainId,
-                        endpointUrl: failoverEndpointUrl,
                         networkClientId: 'AAAA-AAAA-AAAA-AAAA',
                       });
                     },
@@ -913,7 +910,7 @@ describe('createNetworkClient - RPC endpoint events', () => {
                     },
                   }),
                 },
-                async ({ makeRpcCall, clock, chainId, rpcUrl }) => {
+                async ({ makeRpcCall, clock, chainId }) => {
                   messenger.subscribe(
                     'NetworkController:rpcEndpointRetried',
                     () => {
@@ -944,7 +941,6 @@ describe('createNetworkClient - RPC endpoint events', () => {
                     rpcEndpointChainDegradedEventHandler,
                   ).toHaveBeenCalledWith({
                     chainId,
-                    endpointUrl: rpcUrl,
                     error: expectedDegradedError,
                     networkClientId: 'AAAA-AAAA-AAAA-AAAA',
                   });
@@ -983,7 +979,7 @@ describe('createNetworkClient - RPC endpoint events', () => {
                     },
                   }),
                 },
-                async ({ makeRpcCall, clock, chainId, rpcUrl }) => {
+                async ({ makeRpcCall, clock, chainId }) => {
                   // The first time a block-cacheable request is made, the
                   // latest block number is retrieved through the block
                   // tracker first.
@@ -1020,7 +1016,6 @@ describe('createNetworkClient - RPC endpoint events', () => {
                     rpcEndpointChainDegradedEventHandler,
                   ).toHaveBeenCalledWith({
                     chainId,
-                    endpointUrl: rpcUrl,
                     error: undefined,
                     networkClientId: 'AAAA-AAAA-AAAA-AAAA',
                   });
@@ -1247,7 +1242,7 @@ describe('createNetworkClient - RPC endpoint events', () => {
                     },
                   }),
                 },
-                async ({ makeRpcCall, chainId, rpcUrl }) => {
+                async ({ makeRpcCall, chainId }) => {
                   await makeRpcCall(request);
 
                   expect(
@@ -1257,7 +1252,6 @@ describe('createNetworkClient - RPC endpoint events', () => {
                     rpcEndpointChainAvailableEventHandler,
                   ).toHaveBeenCalledWith({
                     chainId,
-                    endpointUrl: rpcUrl,
                     networkClientId: 'AAAA-AAAA-AAAA-AAAA',
                   });
                 },

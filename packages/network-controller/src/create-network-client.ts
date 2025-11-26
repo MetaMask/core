@@ -249,8 +249,8 @@ function createRpcServiceChain({
     ...rpcServiceConfigurations.slice(1),
   ]);
 
-  rpcServiceChain.onBreak(({ endpointUrl, ...rest }) => {
-    const error = getError(rest);
+  rpcServiceChain.onBreak((data) => {
+    const error = getError(data);
 
     if (error === undefined) {
       // This error shouldn't happen in practice because we never call `.isolate`
@@ -289,12 +289,11 @@ function createRpcServiceChain({
     },
   );
 
-  rpcServiceChain.onDegraded(({ endpointUrl, ...rest }) => {
-    const error = getError(rest);
+  rpcServiceChain.onDegraded((data) => {
+    const error = getError(data);
     messenger.publish('NetworkController:rpcEndpointChainDegraded', {
       chainId: configuration.chainId,
       networkClientId: id,
-      endpointUrl,
       error,
     });
   });
@@ -316,11 +315,10 @@ function createRpcServiceChain({
     },
   );
 
-  rpcServiceChain.onAvailable(({ endpointUrl }) => {
+  rpcServiceChain.onAvailable(() => {
     messenger.publish('NetworkController:rpcEndpointChainAvailable', {
       chainId: configuration.chainId,
       networkClientId: id,
-      endpointUrl,
     });
   });
 
