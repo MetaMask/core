@@ -5,12 +5,14 @@ A platform-agnostic service for storing large, infrequently accessed controller 
 ## When to Use
 
 ✅ **Use StorageService for:**
+
 - Large data (> 100 KB)
 - Infrequently accessed data
 - Data that doesn't need to be in Redux state
 - Examples: Snap source code, cached API responses
 
 ❌ **Don't use for:**
+
 - Frequently accessed data (use controller state)
 - Small data (< 10 KB - overhead not worth it)
 - Data needed for UI rendering
@@ -106,6 +108,7 @@ export type StorageAdapter = {
 ```
 
 Adapters are responsible for:
+
 - Building the full storage key (e.g., `storageService:namespace:key`)
 - Wrapping data with metadata before serialization
 - Serializing/deserializing data

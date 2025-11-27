@@ -6,4 +6,3 @@
   "references": [{ "path": "../messenger" }],
   "include": ["../../types", "./src"]
 }
-
