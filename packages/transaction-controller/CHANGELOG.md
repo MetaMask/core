@@ -10,7 +10,7 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 ### Fixed
 
 - Fail required transactions of any approved and signed transactions during initialisation ([#7251](https://github.com/MetaMask/core/pull/7251))
-  - Include `isExternalSign` when fetching gas fee tokens in messenger action or before publish check. 
+  - Include `isExternalSign` when fetching gas fee tokens in messenger action or before publish check.
 
 ## [62.3.0]
 
