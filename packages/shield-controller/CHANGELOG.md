@@ -7,6 +7,12 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+## [3.1.0]
+
+### Added
+
+- Added `AuthorizationList` in transaction init and log requests for 7702 transactions. ([#7246](https://github.com/MetaMask/core/pull/7246))
+
 ### Changed
 
 - Move peer dependencies for controller and service packages to direct dependencies ([#7209](https://github.com/MetaMask/core/pull/7209), [#7220](https://github.com/MetaMask/core/pull/7220), [#7236](https://github.com/MetaMask/core/pull/7236))
@@ -156,7 +162,8 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 - Initial release of the shield-controller package ([#6137](https://github.com/MetaMask/core/pull/6137)
 
-[Unreleased]: https://github.com/MetaMask/core/compare/@metamask/shield-controller@3.0.0...HEAD
+[Unreleased]: https://github.com/MetaMask/core/compare/@metamask/shield-controller@3.1.0...HEAD
+[3.1.0]: https://github.com/MetaMask/core/compare/@metamask/shield-controller@3.0.0...@metamask/shield-controller@3.1.0
 [3.0.0]: https://github.com/MetaMask/core/compare/@metamask/shield-controller@2.1.1...@metamask/shield-controller@3.0.0
 [2.1.1]: https://github.com/MetaMask/core/compare/@metamask/shield-controller@2.1.0...@metamask/shield-controller@2.1.1
 [2.1.0]: https://github.com/MetaMask/core/compare/@metamask/shield-controller@2.0.0...@metamask/shield-controller@2.1.0
