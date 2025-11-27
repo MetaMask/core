@@ -7,11 +7,6 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
-### Changed
-
-- Fix `license` field of `package.json` ([#7256](https://github.com/MetaMask/core/pull/7256))
-  - Previously it listed MIT as the license, but this package is dual-licensed under MIT or Apache 2.0
-
 ### Added
 
 - Initial release of @metamask/analytics-controller. ([#7017](https://github.com/MetaMask/core/pull/7017), [#7202](https://github.com/MetaMask/core/pull/7202))
