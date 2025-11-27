@@ -54,7 +54,7 @@
     "@metamask/messenger": "^0.3.0",
     "@metamask/multichain-network-controller": "^3.0.0",
     "@metamask/network-controller": "^26.0.0",
-    "@metamask/transaction-controller": "^62.3.0",
+    "@metamask/transaction-controller": "^62.3.1",
     "@metamask/utils": "^11.8.1",
     "reselect": "^5.1.1"
   },
