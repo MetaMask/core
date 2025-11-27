@@ -4208,6 +4208,7 @@ __metadata:
     "@types/lodash": "npm:^4.14.191"
     "@types/node-fetch": "npm:^2.6.12"
     async-mutex: "npm:^0.5.0"
+    cockatiel: "npm:^3.1.2"
     deep-freeze-strict: "npm:^1.1.1"
     deepmerge: "npm:^4.2.2"
     fast-deep-equal: "npm:^3.1.3"
