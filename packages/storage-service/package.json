@@ -4,9 +4,7 @@
   "description": "Platform-agnostic service for storing large, infrequently accessed controller data",
   "keywords": [
     "MetaMask",
-    "Ethereum",
-    "Storage",
-    "Service"
+    "Ethereum"
   ],
   "homepage": "https://github.com/MetaMask/core/tree/main/packages/storage-service#readme",
   "bugs": {
