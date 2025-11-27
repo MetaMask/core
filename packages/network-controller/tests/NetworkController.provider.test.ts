@@ -357,7 +357,7 @@ describe('NetworkController provider tests', () => {
     );
   });
 
-  it('does not transition the status of a network client from "degraded" the first time a failover is activated but it does not return a 2xx response', async () => {
+  it('does not transition the status of a network client from "degraded" the first time a failover is activated if it returns a non-2xx response', async () => {
     const primaryEndpointUrl = 'https://first.endpoint';
     const secondaryEndpointUrl = 'https://second.endpoint';
     const networkClientId = 'AAAA-AAAA-AAAA-AAAA';
@@ -441,7 +441,7 @@ describe('NetworkController provider tests', () => {
     );
   });
 
-  it('does not transition the status of a network client from "degraded" the first time a failover is activated but requests are slow to complete', async () => {
+  it('does not transition the status of a network client from "degraded" the first time a failover is activated if requests are slow to complete', async () => {
     const primaryEndpointUrl = 'https://first.endpoint';
     const secondaryEndpointUrl = 'https://second.endpoint';
     const networkClientId = 'AAAA-AAAA-AAAA-AAAA';
