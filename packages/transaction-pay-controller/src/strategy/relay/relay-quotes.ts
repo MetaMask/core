@@ -372,6 +372,7 @@ async function calculateSourceNetworkCost(
 > {
   const { from, sourceChainId, sourceTokenAddress } = request;
   const allParams = quote.steps.flatMap((s) => s.items).map((i) => i.data);
+  const { relayDisabledGasStationChains } = getFeatureFlags(messenger);
 
   const { chainId, data, maxFeePerGas, maxPriorityFeePerGas, to, value } =
     allParams[0];
@@ -417,6 +418,15 @@ async function calculateSourceNetworkCost(
   );
 
   if (new BigNumber(nativeBalance).isGreaterThanOrEqualTo(max.raw)) {
+    return { estimate, max };
+  }
+
+  if (relayDisabledGasStationChains.includes(sourceChainId)) {
+    log('Skipping gas station as disabled chain', {
+      sourceChainId,
+      disabledChainIds: relayDisabledGasStationChains,
+    });
+
     return { estimate, max };
   }
 
