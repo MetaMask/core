@@ -127,7 +127,9 @@ function createMessengerMock() {
  * @returns The mock hash of the delegation (not real hash)
  */
 function hashDelegationMock(delegation: Delegation): Hex {
-  return `0x${delegation.delegator.slice(2)}${delegation.delegate.slice(2)}${delegation.authority.slice(2)}${delegation.salt.slice(2)}`;
+  return `0x${delegation.delegator.slice(2)}${delegation.delegate.slice(
+    2,
+  )}${delegation.authority.slice(2)}${delegation.salt.slice(2)}`;
 }
 
 /**
@@ -702,7 +704,7 @@ describe(`${controllerName}`, () => {
           controller.metadata,
           'includeInDebugSnapshot',
         ),
-      ).toMatchInlineSnapshot(`Object {}`);
+      ).toMatchInlineSnapshot(`{}`);
     });
 
     it('includes expected state in state logs', () => {
@@ -714,7 +716,7 @@ describe(`${controllerName}`, () => {
           controller.metadata,
           'includeInStateLogs',
         ),
-      ).toMatchInlineSnapshot(`Object {}`);
+      ).toMatchInlineSnapshot(`{}`);
     });
 
     it('persists expected state', () => {
@@ -727,8 +729,8 @@ describe(`${controllerName}`, () => {
           'persist',
         ),
       ).toMatchInlineSnapshot(`
-        Object {
-          "delegations": Object {},
+        {
+          "delegations": {},
         }
       `);
     });
@@ -742,7 +744,7 @@ describe(`${controllerName}`, () => {
           controller.metadata,
           'usedInUi',
         ),
-      ).toMatchInlineSnapshot(`Object {}`);
+      ).toMatchInlineSnapshot(`{}`);
     });
   });
 });

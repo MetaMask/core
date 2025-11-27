@@ -1388,7 +1388,7 @@ describe('MultichainAssetsController', () => {
           controller.metadata,
           'includeInDebugSnapshot',
         ),
-      ).toMatchInlineSnapshot(`Object {}`);
+      ).toMatchInlineSnapshot(`{}`);
     });
 
     it('includes expected state in state logs', () => {
@@ -1400,7 +1400,7 @@ describe('MultichainAssetsController', () => {
           controller.metadata,
           'includeInStateLogs',
         ),
-      ).toMatchInlineSnapshot(`Object {}`);
+      ).toMatchInlineSnapshot(`{}`);
     });
 
     it('persists expected state', () => {
@@ -1413,10 +1413,10 @@ describe('MultichainAssetsController', () => {
           'persist',
         ),
       ).toMatchInlineSnapshot(`
-        Object {
-          "accountsAssets": Object {},
-          "allIgnoredAssets": Object {},
-          "assetsMetadata": Object {},
+        {
+          "accountsAssets": {},
+          "allIgnoredAssets": {},
+          "assetsMetadata": {},
         }
       `);
     });
@@ -1431,10 +1431,10 @@ describe('MultichainAssetsController', () => {
           'usedInUi',
         ),
       ).toMatchInlineSnapshot(`
-        Object {
-          "accountsAssets": Object {},
-          "allIgnoredAssets": Object {},
-          "assetsMetadata": Object {},
+        {
+          "accountsAssets": {},
+          "allIgnoredAssets": {},
+          "assetsMetadata": {},
         }
       `);
     });

@@ -388,7 +388,7 @@ describe('MultichainAccountWallet', () => {
         'ErrorReportingService:captureException',
         new Error('Unable to create account with provider "Mocked Provider 0"'),
       );
-      expect(callSpy.mock.lastCall[1]).toHaveProperty('cause', providerError);
+      expect(callSpy.mock.lastCall?.[1]).toHaveProperty('cause', providerError);
     });
 
     it('aggregates non-EVM failures when waiting for all providers', async () => {
@@ -745,7 +745,7 @@ describe('MultichainAccountWallet', () => {
         'ErrorReportingService:captureException',
         new Error('Unable to discover accounts'),
       );
-      expect(callSpy.mock.lastCall[1]).toHaveProperty('cause', providerError);
+      expect(callSpy.mock.lastCall?.[1]).toHaveProperty('cause', providerError);
     });
   });
 });

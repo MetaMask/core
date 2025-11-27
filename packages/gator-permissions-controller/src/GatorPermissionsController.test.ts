@@ -435,7 +435,7 @@ describe('GatorPermissionsController', () => {
           controller.metadata,
           'includeInDebugSnapshot',
         ),
-      ).toMatchInlineSnapshot(`Object {}`);
+      ).toMatchInlineSnapshot(`{}`);
     });
 
     it('includes expected state in state logs', () => {
@@ -450,12 +450,12 @@ describe('GatorPermissionsController', () => {
           'includeInStateLogs',
         ),
       ).toMatchInlineSnapshot(`
-        Object {
-          "gatorPermissionsMapSerialized": "{\\"native-token-stream\\":{},\\"native-token-periodic\\":{},\\"erc20-token-stream\\":{},\\"erc20-token-periodic\\":{},\\"other\\":{}}",
+        {
+          "gatorPermissionsMapSerialized": "{"native-token-stream":{},"native-token-periodic":{},"erc20-token-stream":{},"erc20-token-periodic":{},"other":{}}",
           "gatorPermissionsProviderSnapId": "npm:@metamask/gator-permissions-snap",
           "isFetchingGatorPermissions": false,
           "isGatorPermissionsEnabled": false,
-          "pendingRevocations": Array [],
+          "pendingRevocations": [],
         }
       `);
     });
@@ -472,8 +472,8 @@ describe('GatorPermissionsController', () => {
           'persist',
         ),
       ).toMatchInlineSnapshot(`
-        Object {
-          "gatorPermissionsMapSerialized": "{\\"native-token-stream\\":{},\\"native-token-periodic\\":{},\\"erc20-token-stream\\":{},\\"erc20-token-periodic\\":{},\\"other\\":{}}",
+        {
+          "gatorPermissionsMapSerialized": "{"native-token-stream":{},"native-token-periodic":{},"erc20-token-stream":{},"erc20-token-periodic":{},"other":{}}",
           "isGatorPermissionsEnabled": false,
         }
       `);
@@ -491,9 +491,9 @@ describe('GatorPermissionsController', () => {
           'usedInUi',
         ),
       ).toMatchInlineSnapshot(`
-        Object {
-          "gatorPermissionsMapSerialized": "{\\"native-token-stream\\":{},\\"native-token-periodic\\":{},\\"erc20-token-stream\\":{},\\"erc20-token-periodic\\":{},\\"other\\":{}}",
-          "pendingRevocations": Array [],
+        {
+          "gatorPermissionsMapSerialized": "{"native-token-stream":{},"native-token-periodic":{},"erc20-token-stream":{},"erc20-token-periodic":{},"other":{}}",
+          "pendingRevocations": [],
         }
       `);
     });

@@ -384,7 +384,7 @@ describe('SubjectMetadataController', () => {
           controller.metadata,
           'includeInDebugSnapshot',
         ),
-      ).toMatchInlineSnapshot(`Object {}`);
+      ).toMatchInlineSnapshot(`{}`);
     });
 
     it('includes expected state in state logs', () => {
@@ -401,8 +401,8 @@ describe('SubjectMetadataController', () => {
           'includeInStateLogs',
         ),
       ).toMatchInlineSnapshot(`
-        Object {
-          "subjectMetadata": Object {},
+        {
+          "subjectMetadata": {},
         }
       `);
     });
@@ -421,8 +421,8 @@ describe('SubjectMetadataController', () => {
           'persist',
         ),
       ).toMatchInlineSnapshot(`
-        Object {
-          "subjectMetadata": Object {},
+        {
+          "subjectMetadata": {},
         }
       `);
     });
@@ -441,8 +441,8 @@ describe('SubjectMetadataController', () => {
           'usedInUi',
         ),
       ).toMatchInlineSnapshot(`
-        Object {
-          "subjectMetadata": Object {},
+        {
+          "subjectMetadata": {},
         }
       `);
     });

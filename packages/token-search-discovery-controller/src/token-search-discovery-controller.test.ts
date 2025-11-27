@@ -317,7 +317,7 @@ describe('TokenSearchDiscoveryController', () => {
           mainController.metadata,
           'includeInDebugSnapshot',
         ),
-      ).toMatchInlineSnapshot(`Object {}`);
+      ).toMatchInlineSnapshot(`{}`);
     });
 
     it('includes expected state in state logs', () => {
@@ -328,9 +328,9 @@ describe('TokenSearchDiscoveryController', () => {
           'includeInStateLogs',
         ),
       ).toMatchInlineSnapshot(`
-        Object {
+        {
           "lastSearchTimestamp": null,
-          "recentSearches": Array [],
+          "recentSearches": [],
         }
       `);
     });
@@ -343,9 +343,9 @@ describe('TokenSearchDiscoveryController', () => {
           'persist',
         ),
       ).toMatchInlineSnapshot(`
-        Object {
+        {
           "lastSearchTimestamp": null,
-          "recentSearches": Array [],
+          "recentSearches": [],
         }
       `);
     });
@@ -358,9 +358,9 @@ describe('TokenSearchDiscoveryController', () => {
           'usedInUi',
         ),
       ).toMatchInlineSnapshot(`
-        Object {
+        {
           "lastSearchTimestamp": null,
-          "recentSearches": Array [],
+          "recentSearches": [],
         }
       `);
     });

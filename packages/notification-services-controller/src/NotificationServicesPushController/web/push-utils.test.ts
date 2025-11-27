@@ -294,7 +294,7 @@ describe('createSubscribeToPushNotifications() tests', () => {
     await actCreateSubscription(mocks);
 
     const firebaseCallback = mocks.mockOnBackgroundMessage.mock
-      .lastCall[1] as FirebaseMessagingModule.NextFn<FirebaseMessagingSWModule.MessagePayload>;
+      .lastCall?.[1] as FirebaseMessagingModule.NextFn<FirebaseMessagingSWModule.MessagePayload>;
     const payload = {
       data: {
         data: testData,
@@ -331,7 +331,7 @@ describe('createSubscribeToPushNotifications() tests', () => {
     await actCreateSubscription(mocks);
 
     const firebaseCallback = mocks.mockOnBackgroundMessage.mock
-      .lastCall[1] as FirebaseMessagingModule.NextFn<FirebaseMessagingSWModule.MessagePayload>;
+      .lastCall?.[1] as FirebaseMessagingModule.NextFn<FirebaseMessagingSWModule.MessagePayload>;
     const payload = {
       data: {
         data: JSON.stringify({ badNotification: 'bad' }),

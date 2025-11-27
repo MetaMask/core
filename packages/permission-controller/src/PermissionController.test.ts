@@ -6302,8 +6302,8 @@ describe('PermissionController', () => {
           'includeInDebugSnapshot',
         ),
       ).toMatchInlineSnapshot(`
-        Object {
-          "subjects": Object {},
+        {
+          "subjects": {},
         }
       `);
     });
@@ -6318,8 +6318,8 @@ describe('PermissionController', () => {
           'includeInStateLogs',
         ),
       ).toMatchInlineSnapshot(`
-        Object {
-          "subjects": Object {},
+        {
+          "subjects": {},
         }
       `);
     });
@@ -6334,8 +6334,8 @@ describe('PermissionController', () => {
           'persist',
         ),
       ).toMatchInlineSnapshot(`
-        Object {
-          "subjects": Object {},
+        {
+          "subjects": {},
         }
       `);
     });
@@ -6350,8 +6350,8 @@ describe('PermissionController', () => {
           'usedInUi',
         ),
       ).toMatchInlineSnapshot(`
-        Object {
-          "subjects": Object {},
+        {
+          "subjects": {},
         }
       `);
     });

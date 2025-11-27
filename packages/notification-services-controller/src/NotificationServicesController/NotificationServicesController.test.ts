@@ -1270,12 +1270,12 @@ describe('NotificationServicesController', () => {
           'includeInDebugSnapshot',
         ),
       ).toMatchInlineSnapshot(`
-        Object {
-          "metamaskNotificationsList": Array [],
-          "metamaskNotificationsReadList": Array [],
-          "subscriptionAccountsSeen": Array [],
+        {
+          "metamaskNotificationsList": [],
+          "metamaskNotificationsReadList": [],
+          "subscriptionAccountsSeen": [],
         }
-        `);
+      `);
     });
 
     it('includes expected state in state logs', () => {
@@ -1292,14 +1292,14 @@ describe('NotificationServicesController', () => {
           'includeInStateLogs',
         ),
       ).toMatchInlineSnapshot(`
-          Object {
-            "isFeatureAnnouncementsEnabled": false,
-            "isMetamaskNotificationsFeatureSeen": false,
-            "isNotificationServicesEnabled": false,
-            "metamaskNotificationsList": Array [],
-            "subscriptionAccountsSeen": Array [],
-          }
-        `);
+        {
+          "isFeatureAnnouncementsEnabled": false,
+          "isMetamaskNotificationsFeatureSeen": false,
+          "isNotificationServicesEnabled": false,
+          "metamaskNotificationsList": [],
+          "subscriptionAccountsSeen": [],
+        }
+      `);
     });
 
     it('persists expected state', () => {
@@ -1316,13 +1316,13 @@ describe('NotificationServicesController', () => {
           'persist',
         ),
       ).toMatchInlineSnapshot(`
-        Object {
+        {
           "isFeatureAnnouncementsEnabled": false,
           "isMetamaskNotificationsFeatureSeen": false,
           "isNotificationServicesEnabled": false,
-          "metamaskNotificationsList": Array [],
-          "metamaskNotificationsReadList": Array [],
-          "subscriptionAccountsSeen": Array [],
+          "metamaskNotificationsList": [],
+          "metamaskNotificationsReadList": [],
+          "subscriptionAccountsSeen": [],
         }
       `);
     });
@@ -1341,17 +1341,17 @@ describe('NotificationServicesController', () => {
           'usedInUi',
         ),
       ).toMatchInlineSnapshot(`
-        Object {
+        {
           "isCheckingAccountsPresence": false,
           "isFeatureAnnouncementsEnabled": false,
           "isFetchingMetamaskNotifications": false,
           "isMetamaskNotificationsFeatureSeen": false,
           "isNotificationServicesEnabled": false,
           "isUpdatingMetamaskNotifications": false,
-          "isUpdatingMetamaskNotificationsAccount": Array [],
-          "metamaskNotificationsList": Array [],
-          "metamaskNotificationsReadList": Array [],
-          "subscriptionAccountsSeen": Array [],
+          "isUpdatingMetamaskNotificationsAccount": [],
+          "metamaskNotificationsList": [],
+          "metamaskNotificationsReadList": [],
+          "subscriptionAccountsSeen": [],
         }
       `);
     });

@@ -919,7 +919,7 @@ describe('TokenSearchDiscoveryDataController', () => {
             controller.metadata,
             'includeInDebugSnapshot',
           ),
-        ).toMatchInlineSnapshot(`Object {}`);
+        ).toMatchInlineSnapshot(`{}`);
       });
     });
 
@@ -931,7 +931,7 @@ describe('TokenSearchDiscoveryDataController', () => {
             controller.metadata,
             'includeInStateLogs',
           ),
-        ).toMatchInlineSnapshot(`Object {}`);
+        ).toMatchInlineSnapshot(`{}`);
       });
     });
 
@@ -944,9 +944,9 @@ describe('TokenSearchDiscoveryDataController', () => {
             'persist',
           ),
         ).toMatchInlineSnapshot(`
-          Object {
-            "swapsTokenAddressesByChainId": Object {},
-            "tokenDisplayData": Array [],
+          {
+            "swapsTokenAddressesByChainId": {},
+            "tokenDisplayData": [],
           }
         `);
       });
@@ -961,9 +961,9 @@ describe('TokenSearchDiscoveryDataController', () => {
             'usedInUi',
           ),
         ).toMatchInlineSnapshot(`
-          Object {
-            "swapsTokenAddressesByChainId": Object {},
-            "tokenDisplayData": Array [],
+          {
+            "swapsTokenAddressesByChainId": {},
+            "tokenDisplayData": [],
           }
         `);
       });

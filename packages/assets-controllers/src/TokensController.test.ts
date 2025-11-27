@@ -3545,7 +3545,7 @@ describe('TokensController', () => {
             controller.metadata,
             'includeInDebugSnapshot',
           ),
-        ).toMatchInlineSnapshot(`Object {}`);
+        ).toMatchInlineSnapshot(`{}`);
       });
     });
 
@@ -3557,7 +3557,7 @@ describe('TokensController', () => {
             controller.metadata,
             'includeInStateLogs',
           ),
-        ).toMatchInlineSnapshot(`Object {}`);
+        ).toMatchInlineSnapshot(`{}`);
       });
     });
 
@@ -3570,10 +3570,10 @@ describe('TokensController', () => {
             'persist',
           ),
         ).toMatchInlineSnapshot(`
-          Object {
-            "allDetectedTokens": Object {},
-            "allIgnoredTokens": Object {},
-            "allTokens": Object {},
+          {
+            "allDetectedTokens": {},
+            "allIgnoredTokens": {},
+            "allTokens": {},
           }
         `);
       });
@@ -3588,10 +3588,10 @@ describe('TokensController', () => {
             'usedInUi',
           ),
         ).toMatchInlineSnapshot(`
-          Object {
-            "allDetectedTokens": Object {},
-            "allIgnoredTokens": Object {},
-            "allTokens": Object {},
+          {
+            "allDetectedTokens": {},
+            "allIgnoredTokens": {},
+            "allTokens": {},
           }
         `);
       });

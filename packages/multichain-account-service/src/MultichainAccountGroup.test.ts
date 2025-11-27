@@ -236,7 +236,7 @@ describe('MultichainAccount', () => {
         'ErrorReportingService:captureException',
         new Error('Unable to align accounts with provider "Mocked Provider"'),
       );
-      expect(callSpy.mock.lastCall[1]).toHaveProperty('cause', providerError);
+      expect(callSpy.mock.lastCall?.[1]).toHaveProperty('cause', providerError);
     });
   });
 });

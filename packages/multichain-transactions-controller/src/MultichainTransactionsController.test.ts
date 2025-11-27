@@ -1011,7 +1011,7 @@ describe('MultichainTransactionsController', () => {
           controller.metadata,
           'includeInDebugSnapshot',
         ),
-      ).toMatchInlineSnapshot(`Object {}`);
+      ).toMatchInlineSnapshot(`{}`);
     });
 
     it('includes expected state in state logs', () => {
@@ -1024,8 +1024,8 @@ describe('MultichainTransactionsController', () => {
           'includeInStateLogs',
         ),
       ).toMatchInlineSnapshot(`
-        Object {
-          "nonEvmTransactions": Object {},
+        {
+          "nonEvmTransactions": {},
         }
       `);
     });
@@ -1040,8 +1040,8 @@ describe('MultichainTransactionsController', () => {
           'persist',
         ),
       ).toMatchInlineSnapshot(`
-        Object {
-          "nonEvmTransactions": Object {},
+        {
+          "nonEvmTransactions": {},
         }
       `);
     });
@@ -1056,8 +1056,8 @@ describe('MultichainTransactionsController', () => {
           'usedInUi',
         ),
       ).toMatchInlineSnapshot(`
-        Object {
-          "nonEvmTransactions": Object {},
+        {
+          "nonEvmTransactions": {},
         }
       `);
     });

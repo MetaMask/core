@@ -2088,20 +2088,20 @@ describe('TokenRatesController', () => {
             });
 
             expect(controller.state).toMatchInlineSnapshot(`
-                        Object {
-                          "marketData": Object {
-                            "0x1": Object {
-                              "0x0000000000000000000000000000000000000001": Object {
+                        {
+                          "marketData": {
+                            "0x1": {
+                              "0x0000000000000000000000000000000000000001": {
                                 "currency": "ETH",
                                 "tokenAddress": "0x0000000000000000000000000000000000000001",
                                 "value": 0.001,
                               },
-                              "0x0000000000000000000000000000000000000002": Object {
+                              "0x0000000000000000000000000000000000000002": {
                                 "currency": "ETH",
                                 "tokenAddress": "0x0000000000000000000000000000000000000002",
                                 "value": 0.002,
                               },
-                              "0x0000000000000000000000000000000000000003": Object {
+                              "0x0000000000000000000000000000000000000003": {
                                 "currency": "ETH",
                                 "tokenAddress": "0x0000000000000000000000000000000000000003",
                                 "value": 0.003,
@@ -2170,23 +2170,23 @@ describe('TokenRatesController', () => {
               });
 
               expect(controller.state).toMatchInlineSnapshot(`
-                            Object {
-                              "marketData": Object {
-                                "0x2": Object {
-                                  "0x0000000000000000000000000000000000000001": Object {
-                                    "currency": "ETH",
-                                    "tokenAddress": "0x0000000000000000000000000000000000000001",
-                                    "value": 0.001,
-                                  },
-                                  "0x0000000000000000000000000000000000000002": Object {
-                                    "currency": "ETH",
-                                    "tokenAddress": "0x0000000000000000000000000000000000000002",
-                                    "value": 0.002,
-                                  },
-                                },
-                              },
-                            }
-                        `);
+                {
+                  "marketData": {
+                    "0x2": {
+                      "0x0000000000000000000000000000000000000001": {
+                        "currency": "ETH",
+                        "tokenAddress": "0x0000000000000000000000000000000000000001",
+                        "value": 0.001,
+                      },
+                      "0x0000000000000000000000000000000000000002": {
+                        "currency": "ETH",
+                        "tokenAddress": "0x0000000000000000000000000000000000000002",
+                        "value": 0.002,
+                      },
+                    },
+                  },
+                }
+              `);
             },
           );
         });
@@ -2330,10 +2330,10 @@ describe('TokenRatesController', () => {
 
             // token value in terms of matic should be (token value in eth) * (eth value in matic)
             expect(controller.state).toMatchInlineSnapshot(`
-                        Object {
-                          "marketData": Object {
-                            "0x89": Object {
-                              "0x0000000000000000000000000000000000000001": Object {
+                        {
+                          "marketData": {
+                            "0x89": {
+                              "0x0000000000000000000000000000000000000001": {
                                 "allTimeHigh": undefined,
                                 "allTimeLow": undefined,
                                 "circulatingSupply": 0,
@@ -2355,7 +2355,7 @@ describe('TokenRatesController', () => {
                                 "tokenAddress": "0x0000000000000000000000000000000000000001",
                                 "totalVolume": undefined,
                               },
-                              "0x0000000000000000000000000000000000000002": Object {
+                              "0x0000000000000000000000000000000000000002": {
                                 "allTimeHigh": undefined,
                                 "allTimeLow": undefined,
                                 "circulatingSupply": 0,
@@ -2586,9 +2586,9 @@ describe('TokenRatesController', () => {
             });
 
             expect(controller.state).toMatchInlineSnapshot(`
-                        Object {
-                          "marketData": Object {
-                            "0x3e7": Object {
+                        {
+                          "marketData": {
+                            "0x3e7": {
                               "0x0000000000000000000000000000000000000001": undefined,
                               "0x0000000000000000000000000000000000000002": undefined,
                             },
@@ -2709,15 +2709,15 @@ describe('TokenRatesController', () => {
             expect(fetchTokenPricesMock).toHaveBeenCalledTimes(1);
 
             expect(controller.state).toMatchInlineSnapshot(`
-                        Object {
-                          "marketData": Object {
-                            "0x1": Object {
-                              "0x0000000000000000000000000000000000000001": Object {
+                        {
+                          "marketData": {
+                            "0x1": {
+                              "0x0000000000000000000000000000000000000001": {
                                 "currency": "ETH",
                                 "tokenAddress": "0x0000000000000000000000000000000000000001",
                                 "value": 0.001,
                               },
-                              "0x0000000000000000000000000000000000000002": Object {
+                              "0x0000000000000000000000000000000000000002": {
                                 "currency": "ETH",
                                 "tokenAddress": "0x0000000000000000000000000000000000000002",
                                 "value": 0.002,
@@ -2880,7 +2880,7 @@ describe('TokenRatesController', () => {
             controller.metadata,
             'includeInDebugSnapshot',
           ),
-        ).toMatchInlineSnapshot(`Object {}`);
+        ).toMatchInlineSnapshot(`{}`);
       });
     });
 
@@ -2892,7 +2892,7 @@ describe('TokenRatesController', () => {
             controller.metadata,
             'includeInStateLogs',
           ),
-        ).toMatchInlineSnapshot(`Object {}`);
+        ).toMatchInlineSnapshot(`{}`);
       });
     });
 
@@ -2905,8 +2905,8 @@ describe('TokenRatesController', () => {
             'persist',
           ),
         ).toMatchInlineSnapshot(`
-          Object {
-            "marketData": Object {},
+          {
+            "marketData": {},
           }
         `);
       });
@@ -2921,8 +2921,8 @@ describe('TokenRatesController', () => {
             'usedInUi',
           ),
         ).toMatchInlineSnapshot(`
-          Object {
-            "marketData": Object {},
+          {
+            "marketData": {},
           }
         `);
       });

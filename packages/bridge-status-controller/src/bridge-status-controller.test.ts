@@ -532,42 +532,52 @@ const getMessengerMock = ({
   srcChainId = 42161,
   txHash = '0xsrcTxHash1',
   txMetaId = 'bridgeTxMetaId1',
-} = {}) =>
-  ({
-    call: jest.fn((method: string) => {
-      if (method === 'AccountsController:getSelectedMultichainAccount') {
-        return {
-          address: account,
-          metadata: { snap: { id: 'snapId' } },
-          options: { scope: 'scope' },
-        };
-      } else if (method === 'NetworkController:findNetworkClientIdByChainId') {
-        return 'networkClientId';
-      } else if (method === 'NetworkController:getState') {
-        return { selectedNetworkClientId: 'networkClientId' };
-      } else if (method === 'NetworkController:getNetworkClientById') {
-        return {
-          configuration: {
-            chainId: numberToHex(srcChainId),
+} = {}) => {
+  const mockCall = jest.fn((method: string) => {
+    if (method === 'AccountsController:getSelectedMultichainAccount') {
+      return {
+        address: account,
+        metadata: { snap: { id: 'snapId' } },
+        options: { scope: 'scope' },
+      };
+    } else if (method === 'NetworkController:findNetworkClientIdByChainId') {
+      return 'networkClientId';
+    } else if (method === 'NetworkController:getState') {
+      return { selectedNetworkClientId: 'networkClientId' };
+    } else if (method === 'NetworkController:getNetworkClientById') {
+      return {
+        configuration: {
+          chainId: numberToHex(srcChainId),
+        },
+      };
+    } else if (method === 'TransactionController:getState') {
+      return {
+        transactions: [
+          {
+            id: txMetaId,
+            hash: txHash,
           },
-        };
-      } else if (method === 'TransactionController:getState') {
-        return {
-          transactions: [
-            {
-              id: txMetaId,
-              hash: txHash,
-            },
-          ],
-        };
-      }
-      return null;
-    }),
+        ],
+      };
+    }
+    return null;
+  });
+
+  const mockPublish = jest.fn();
+
+  const messenger = {
+    call: mockCall,
     subscribe: mockMessengerSubscribe,
-    publish: jest.fn(),
+    publish: mockPublish,
     registerActionHandler: jest.fn(),
     registerInitialEventPayload: jest.fn(),
-  }) as unknown as jest.Mocked<BridgeStatusControllerMessenger>;
+  } as unknown as jest.Mocked<BridgeStatusControllerMessenger> & {
+    call: typeof mockCall;
+    publish: typeof mockPublish;
+  };
+
+  return messenger;
+};
 
 const executePollingWithPendingStatus = async () => {
   // Setup
@@ -803,8 +813,8 @@ describe('BridgeStatusController', () => {
 
       bridgeStatusController.stopAllPolling();
       expect(consoleFnSpy.mock.calls).toMatchInlineSnapshot(`
-        Array [
-          Array [
+        [
+          [
             "Failed to fetch bridge tx status",
             [Error: Network error],
           ],
@@ -860,32 +870,32 @@ describe('BridgeStatusController', () => {
       );
       bridgeStatusController.stopAllPolling();
       expect(consoleFnSpy.mock.calls).toMatchInlineSnapshot(`
-        Array [
-          Array [
+        [
+          [
             "Failed to fetch bridge tx status",
             [Error: Persistent error],
           ],
-          Array [
+          [
             "Failed to fetch bridge tx status",
             [Error: Persistent error],
           ],
-          Array [
+          [
             "Failed to fetch bridge tx status",
             [Error: Persistent error],
           ],
-          Array [
+          [
             "Failed to fetch bridge tx status",
             [Error: Persistent error],
           ],
-          Array [
+          [
             "Failed to fetch bridge tx status",
             [Error: Persistent error],
           ],
-          Array [
+          [
             "Failed to fetch bridge tx status",
             [Error: Persistent error],
           ],
-          Array [
+          [
             "Failed to fetch bridge tx status",
             [Error: Persistent error],
           ],
@@ -947,7 +957,7 @@ describe('BridgeStatusController', () => {
       });
       const messengerMock = getMessengerMock();
       const bridgeStatusController = new BridgeStatusController({
-        messenger: messengerMock,
+        messenger: messengerMock as unknown as BridgeStatusControllerMessenger,
         clientId: BridgeClientId.EXTENSION,
         fetchFn: jest.fn(),
         addTransactionFn: jest.fn(),
@@ -995,46 +1005,49 @@ describe('BridgeStatusController', () => {
       // Setup
       jest.useFakeTimers();
 
-      const messengerMock = {
-        call: jest.fn((method: string) => {
-          if (method === 'AccountsController:getSelectedMultichainAccount') {
-            return { address: '0xaccount1' };
-          } else if (
-            method === 'NetworkController:findNetworkClientIdByChainId'
-          ) {
-            return 'networkClientId';
-          } else if (method === 'NetworkController:getState') {
-            return { selectedNetworkClientId: 'networkClientId' };
-          } else if (method === 'NetworkController:getNetworkClientById') {
-            return {
-              configuration: {
-                chainId: numberToHex(42161),
+      const mockCall = jest.fn((method: string) => {
+        if (method === 'AccountsController:getSelectedMultichainAccount') {
+          return { address: '0xaccount1' };
+        } else if (
+          method === 'NetworkController:findNetworkClientIdByChainId'
+        ) {
+          return 'networkClientId';
+        } else if (method === 'NetworkController:getState') {
+          return { selectedNetworkClientId: 'networkClientId' };
+        } else if (method === 'NetworkController:getNetworkClientById') {
+          return {
+            configuration: {
+              chainId: numberToHex(42161),
+            },
+          };
+        } else if (method === 'TransactionController:getState') {
+          return {
+            transactions: [
+              {
+                id: 'bridgeTxMetaId1',
+                hash: undefined,
               },
-            };
-          } else if (method === 'TransactionController:getState') {
-            return {
-              transactions: [
-                {
-                  id: 'bridgeTxMetaId1',
-                  hash: undefined,
-                },
-              ],
-            };
-          }
-          return null;
-        }),
+            ],
+          };
+        }
+        return null;
+      });
+      const messengerMock = {
+        call: mockCall,
         subscribe: mockMessengerSubscribe,
         publish: jest.fn(),
         registerActionHandler: jest.fn(),
         registerInitialEventPayload: jest.fn(),
-      } as unknown as jest.Mocked<BridgeStatusControllerMessenger>;
+      } as unknown as jest.Mocked<BridgeStatusControllerMessenger> & {
+        call: typeof mockCall;
+      };
 
       const fetchBridgeTxStatusSpy = jest.spyOn(
         bridgeStatusUtils,
         'fetchBridgeTxStatus',
       );
       const bridgeStatusController = new BridgeStatusController({
-        messenger: messengerMock,
+        messenger: messengerMock as unknown as BridgeStatusControllerMessenger,
         clientId: BridgeClientId.EXTENSION,
         fetchFn: jest.fn(),
         addTransactionFn: jest.fn(),
@@ -1075,7 +1088,7 @@ describe('BridgeStatusController', () => {
 
       const messengerMock = getMessengerMock();
       const bridgeStatusController = new BridgeStatusController({
-        messenger: messengerMock,
+        messenger: messengerMock as unknown as BridgeStatusControllerMessenger,
         clientId: BridgeClientId.EXTENSION,
         fetchFn: jest.fn(),
         addTransactionFn: jest.fn(),
@@ -1124,7 +1137,7 @@ describe('BridgeStatusController', () => {
           };
         });
       const bridgeStatusController = new BridgeStatusController({
-        messenger: messengerMock,
+        messenger: messengerMock as unknown as BridgeStatusControllerMessenger,
         clientId: BridgeClientId.EXTENSION,
         fetchFn: jest.fn(),
         addTransactionFn: jest.fn(),
@@ -1156,40 +1169,43 @@ describe('BridgeStatusController', () => {
       jest.useFakeTimers();
       let getStateCallCount = 0;
 
-      const messengerMock = {
-        call: jest.fn((method: string) => {
-          if (method === 'AccountsController:getSelectedMultichainAccount') {
-            return { address: '0xaccount1' };
-          } else if (
-            method === 'NetworkController:findNetworkClientIdByChainId'
-          ) {
-            return 'networkClientId';
-          } else if (method === 'NetworkController:getState') {
-            return { selectedNetworkClientId: 'networkClientId' };
-          } else if (method === 'NetworkController:getNetworkClientById') {
-            return {
-              configuration: {
-                chainId: numberToHex(42161),
+      const mockCall = jest.fn((method: string) => {
+        if (method === 'AccountsController:getSelectedMultichainAccount') {
+          return { address: '0xaccount1' };
+        } else if (
+          method === 'NetworkController:findNetworkClientIdByChainId'
+        ) {
+          return 'networkClientId';
+        } else if (method === 'NetworkController:getState') {
+          return { selectedNetworkClientId: 'networkClientId' };
+        } else if (method === 'NetworkController:getNetworkClientById') {
+          return {
+            configuration: {
+              chainId: numberToHex(42161),
+            },
+          };
+        } else if (method === 'TransactionController:getState') {
+          getStateCallCount += 1;
+          return {
+            transactions: [
+              {
+                id: 'bridgeTxMetaId1',
+                hash: getStateCallCount === 0 ? undefined : '0xnewTxHash',
               },
-            };
-          } else if (method === 'TransactionController:getState') {
-            getStateCallCount += 1;
-            return {
-              transactions: [
-                {
-                  id: 'bridgeTxMetaId1',
-                  hash: getStateCallCount === 0 ? undefined : '0xnewTxHash',
-                },
-              ],
-            };
-          }
-          return null;
-        }),
+            ],
+          };
+        }
+        return null;
+      });
+      const messengerMock = {
+        call: mockCall,
         subscribe: mockMessengerSubscribe,
         publish: jest.fn(),
         registerActionHandler: jest.fn(),
         registerInitialEventPayload: jest.fn(),
-      } as unknown as jest.Mocked<BridgeStatusControllerMessenger>;
+      } as unknown as jest.Mocked<BridgeStatusControllerMessenger> & {
+        call: typeof mockCall;
+      };
 
       const bridgeStatusController = new BridgeStatusController({
         messenger: messengerMock,
@@ -1345,44 +1361,47 @@ describe('BridgeStatusController', () => {
       jest.useFakeTimers();
 
       let getSelectedMultichainAccountCalledTimes = 0;
-      const messengerMock = {
-        call: jest.fn((method: string) => {
-          if (method === 'AccountsController:getSelectedMultichainAccount') {
-            let account;
+      const mockCall = jest.fn((method: string) => {
+        if (method === 'AccountsController:getSelectedMultichainAccount') {
+          let account;
 
-            if (getSelectedMultichainAccountCalledTimes === 0) {
-              account = '0xaccount1';
-            } else {
-              account = '0xaccount2';
-            }
-            getSelectedMultichainAccountCalledTimes += 1;
-            return { address: account };
-          } else if (
-            method === 'NetworkController:findNetworkClientIdByChainId'
-          ) {
-            return 'networkClientId';
-          } else if (method === 'NetworkController:getState') {
-            return { selectedNetworkClientId: 'networkClientId' };
-          } else if (method === 'NetworkController:getNetworkClientById') {
-            return {
-              configuration: {
-                chainId: numberToHex(42161),
-              },
-            };
-          } else if (method === 'TransactionController:getState') {
-            return {
-              transactions: [{ id: 'bridgeTxMetaId1', hash: '0xsrcTxHash1' }],
-            };
+          if (getSelectedMultichainAccountCalledTimes === 0) {
+            account = '0xaccount1';
+          } else {
+            account = '0xaccount2';
           }
-          return null;
-        }),
+          getSelectedMultichainAccountCalledTimes += 1;
+          return { address: account };
+        } else if (
+          method === 'NetworkController:findNetworkClientIdByChainId'
+        ) {
+          return 'networkClientId';
+        } else if (method === 'NetworkController:getState') {
+          return { selectedNetworkClientId: 'networkClientId' };
+        } else if (method === 'NetworkController:getNetworkClientById') {
+          return {
+            configuration: {
+              chainId: numberToHex(42161),
+            },
+          };
+        } else if (method === 'TransactionController:getState') {
+          return {
+            transactions: [{ id: 'bridgeTxMetaId1', hash: '0xsrcTxHash1' }],
+          };
+        }
+        return null;
+      });
+      const messengerMock = {
+        call: mockCall,
         subscribe: mockMessengerSubscribe,
         publish: jest.fn(),
         registerActionHandler: jest.fn(),
         registerInitialEventPayload: jest.fn(),
-      } as unknown as jest.Mocked<BridgeStatusControllerMessenger>;
+      } as unknown as jest.Mocked<BridgeStatusControllerMessenger> & {
+        call: typeof mockCall;
+      };
       const bridgeStatusController = new BridgeStatusController({
-        messenger: messengerMock,
+        messenger: messengerMock as unknown as BridgeStatusControllerMessenger,
         clientId: BridgeClientId.EXTENSION,
         fetchFn: jest.fn(),
         addTransactionFn: jest.fn(),
@@ -1452,36 +1471,39 @@ describe('BridgeStatusController', () => {
     it('wipes the bridge status for all networks if ignoreNetwork is true', () => {
       // Setup
       jest.useFakeTimers();
+      const mockCall = jest.fn((method: string) => {
+        if (method === 'AccountsController:getSelectedMultichainAccount') {
+          return { address: '0xaccount1' };
+        } else if (
+          method === 'NetworkController:findNetworkClientIdByChainId'
+        ) {
+          return 'networkClientId';
+        } else if (method === 'NetworkController:getState') {
+          return { selectedNetworkClientId: 'networkClientId' };
+        } else if (method === 'NetworkController:getNetworkClientById') {
+          return {
+            configuration: {
+              chainId: numberToHex(42161),
+            },
+          };
+        } else if (method === 'TransactionController:getState') {
+          return {
+            transactions: [{ id: 'bridgeTxMetaId1', hash: '0xsrcTxHash1' }],
+          };
+        }
+        return null;
+      });
       const messengerMock = {
-        call: jest.fn((method: string) => {
-          if (method === 'AccountsController:getSelectedMultichainAccount') {
-            return { address: '0xaccount1' };
-          } else if (
-            method === 'NetworkController:findNetworkClientIdByChainId'
-          ) {
-            return 'networkClientId';
-          } else if (method === 'NetworkController:getState') {
-            return { selectedNetworkClientId: 'networkClientId' };
-          } else if (method === 'NetworkController:getNetworkClientById') {
-            return {
-              configuration: {
-                chainId: numberToHex(42161),
-              },
-            };
-          } else if (method === 'TransactionController:getState') {
-            return {
-              transactions: [{ id: 'bridgeTxMetaId1', hash: '0xsrcTxHash1' }],
-            };
-          }
-          return null;
-        }),
+        call: mockCall,
         subscribe: mockMessengerSubscribe,
         publish: jest.fn(),
         registerActionHandler: jest.fn(),
         registerInitialEventPayload: jest.fn(),
-      } as unknown as jest.Mocked<BridgeStatusControllerMessenger>;
+      } as unknown as jest.Mocked<BridgeStatusControllerMessenger> & {
+        call: typeof mockCall;
+      };
       const bridgeStatusController = new BridgeStatusController({
-        messenger: messengerMock,
+        messenger: messengerMock as unknown as BridgeStatusControllerMessenger,
         clientId: BridgeClientId.EXTENSION,
         fetchFn: jest.fn(),
         addTransactionFn: jest.fn(),
@@ -1564,37 +1586,40 @@ describe('BridgeStatusController', () => {
     it('wipes the bridge status only for the current network if ignoreNetwork is false', () => {
       // Setup
       jest.useFakeTimers();
+      const mockCall = jest.fn((method: string) => {
+        if (method === 'AccountsController:getSelectedMultichainAccount') {
+          return { address: '0xaccount1' };
+        } else if (
+          method === 'NetworkController:findNetworkClientIdByChainId'
+        ) {
+          return 'networkClientId';
+        } else if (method === 'NetworkController:getState') {
+          return { selectedNetworkClientId: 'networkClientId' };
+        } else if (method === 'NetworkController:getNetworkClientById') {
+          return {
+            configuration: {
+              // This is what controls the selectedNetwork and what gets wiped in this test
+              chainId: numberToHex(42161),
+            },
+          };
+        } else if (method === 'TransactionController:getState') {
+          return {
+            transactions: [{ id: 'bridgeTxMetaId1', hash: '0xsrcTxHash1' }],
+          };
+        }
+        return null;
+      });
       const messengerMock = {
-        call: jest.fn((method: string) => {
-          if (method === 'AccountsController:getSelectedMultichainAccount') {
-            return { address: '0xaccount1' };
-          } else if (
-            method === 'NetworkController:findNetworkClientIdByChainId'
-          ) {
-            return 'networkClientId';
-          } else if (method === 'NetworkController:getState') {
-            return { selectedNetworkClientId: 'networkClientId' };
-          } else if (method === 'NetworkController:getNetworkClientById') {
-            return {
-              configuration: {
-                // This is what controls the selectedNetwork and what gets wiped in this test
-                chainId: numberToHex(42161),
-              },
-            };
-          } else if (method === 'TransactionController:getState') {
-            return {
-              transactions: [{ id: 'bridgeTxMetaId1', hash: '0xsrcTxHash1' }],
-            };
-          }
-          return null;
-        }),
+        call: mockCall,
         subscribe: mockMessengerSubscribe,
         publish: jest.fn(),
         registerActionHandler: jest.fn(),
         registerInitialEventPayload: jest.fn(),
-      } as unknown as jest.Mocked<BridgeStatusControllerMessenger>;
+      } as unknown as jest.Mocked<RootMessenger> & {
+        call: typeof mockCall;
+      };
       const bridgeStatusController = new BridgeStatusController({
-        messenger: messengerMock,
+        messenger: messengerMock as unknown as BridgeStatusControllerMessenger,
         clientId: BridgeClientId.EXTENSION,
         fetchFn: jest.fn(),
         addTransactionFn: jest.fn(),
@@ -3197,7 +3222,7 @@ describe('BridgeStatusController', () => {
 
       const { txParams, ...resultsToCheck } = result;
       expect(resultsToCheck).toMatchInlineSnapshot(`
-        Object {
+        {
           "batchId": "batchId1",
           "chainId": "0xa4b1",
           "hash": "0xevmTxHash",
@@ -4194,7 +4219,7 @@ describe('BridgeStatusController', () => {
           controller.metadata,
           'includeInDebugSnapshot',
         ),
-      ).toMatchInlineSnapshot(`Object {}`);
+      ).toMatchInlineSnapshot(`{}`);
     });
 
     it('includes expected state in state logs', () => {
@@ -4207,8 +4232,8 @@ describe('BridgeStatusController', () => {
           'includeInStateLogs',
         ),
       ).toMatchInlineSnapshot(`
-        Object {
-          "txHistory": Object {},
+        {
+          "txHistory": {},
         }
       `);
     });
@@ -4223,8 +4248,8 @@ describe('BridgeStatusController', () => {
           'persist',
         ),
       ).toMatchInlineSnapshot(`
-        Object {
-          "txHistory": Object {},
+        {
+          "txHistory": {},
         }
       `);
     });
@@ -4239,8 +4264,8 @@ describe('BridgeStatusController', () => {
           'usedInUi',
         ),
       ).toMatchInlineSnapshot(`
-        Object {
-          "txHistory": Object {},
+        {
+          "txHistory": {},
         }
       `);
     });

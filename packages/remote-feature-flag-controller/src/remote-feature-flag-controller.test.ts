@@ -359,9 +359,9 @@ describe('RemoteFeatureFlagController', () => {
           'includeInDebugSnapshot',
         ),
       ).toMatchInlineSnapshot(`
-        Object {
+        {
           "cacheTimestamp": 0,
-          "remoteFeatureFlags": Object {},
+          "remoteFeatureFlags": {},
         }
       `);
     });
@@ -376,9 +376,9 @@ describe('RemoteFeatureFlagController', () => {
           'includeInStateLogs',
         ),
       ).toMatchInlineSnapshot(`
-        Object {
+        {
           "cacheTimestamp": 0,
-          "remoteFeatureFlags": Object {},
+          "remoteFeatureFlags": {},
         }
       `);
     });
@@ -393,9 +393,9 @@ describe('RemoteFeatureFlagController', () => {
           'persist',
         ),
       ).toMatchInlineSnapshot(`
-        Object {
+        {
           "cacheTimestamp": 0,
-          "remoteFeatureFlags": Object {},
+          "remoteFeatureFlags": {},
         }
       `);
     });
@@ -410,8 +410,8 @@ describe('RemoteFeatureFlagController', () => {
           'usedInUi',
         ),
       ).toMatchInlineSnapshot(`
-        Object {
-          "remoteFeatureFlags": Object {},
+        {
+          "remoteFeatureFlags": {},
         }
       `);
     });
