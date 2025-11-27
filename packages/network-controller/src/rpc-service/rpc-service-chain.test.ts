@@ -8,8 +8,36 @@ import nock from 'nock';
 import { useFakeTimers } from 'sinon';
 import type { SinonFakeTimers } from 'sinon';
 
-import { DEFAULT_MAX_CONSECUTIVE_FAILURES } from './rpc-service';
+import {
+  DEFAULT_MAX_CONSECUTIVE_FAILURES,
+  DEFAULT_MAX_RETRIES,
+} from './rpc-service';
 import { RpcServiceChain } from './rpc-service-chain';
+
+/**
+ * The number of fetch requests made for a single request to an RPC service, using default max
+ * retry attempts.
+ */
+const DEFAULT_REQUEST_ATTEMPTS = 1 + DEFAULT_MAX_RETRIES;
+
+/**
+ * Number of attempts required to break the circuit of an RPC service using default retry attempts
+ * and max consecutive failures.
+ *
+ * Note: This calculation and later ones assume that there is no remainder.
+ */
+const DEFAULT_RPC_SERVICE_ATTEMPTS_UNTIL_BREAK =
+  DEFAULT_MAX_CONSECUTIVE_FAILURES / DEFAULT_REQUEST_ATTEMPTS;
+
+/**
+ * Number of attempts required to break the circuit of an RPC service chain (with a single
+ * failover) that uses default retry attempts and max consecutive failures.
+ *
+ * The value is one less than double the number of attempts needed to break a single circuit
+ * because on failure of the primary, the request gets forwarded to the failover immediately.
+ */
+const DEFAULT_RPC_CHAIN_ATTEMPTS_UNTIL_BREAK =
+  2 * DEFAULT_RPC_SERVICE_ATTEMPTS_UNTIL_BREAK - 1;
 
 describe('RpcServiceChain', () => {
   let clock: SinonFakeTimers;
@@ -677,8 +705,6 @@ describe('RpcServiceChain', () => {
 
       expect(onBreakListener).toHaveBeenCalledTimes(1);
       expect(onBreakListener).toHaveBeenCalledWith({
-        primaryEndpointUrl: `${primaryEndpointUrl}/`,
-        endpointUrl: `${secondaryEndpointUrl}/`,
         error: new Error("Fetch failed with status '503'"),
       });
     });
@@ -754,7 +780,7 @@ describe('RpcServiceChain', () => {
       };
       // Retry the first endpoint until its circuit breaks, then retry the
       // second endpoint until *its* circuit breaks.
-      for (let i = 0; i < 5; i++) {
+      for (let i = 0; i < DEFAULT_RPC_CHAIN_ATTEMPTS_UNTIL_BREAK; i++) {
         await expect(rpcServiceChain.request(jsonRpcRequest)).rejects.toThrow(
           expectedError,
         );
@@ -765,7 +791,7 @@ describe('RpcServiceChain', () => {
       await rpcServiceChain.request(jsonRpcRequest);
       // Do it again: retry the first endpoint until its circuit breaks, then
       // retry the second endpoint until *its* circuit breaks.
-      for (let i = 0; i < 5; i++) {
+      for (let i = 0; i < DEFAULT_RPC_CHAIN_ATTEMPTS_UNTIL_BREAK; i++) {
         await expect(rpcServiceChain.request(jsonRpcRequest)).rejects.toThrow(
           expectedError,
         );
@@ -773,13 +799,9 @@ describe('RpcServiceChain', () => {
 
       expect(onBreakListener).toHaveBeenCalledTimes(2);
       expect(onBreakListener).toHaveBeenNthCalledWith(1, {
-        primaryEndpointUrl: `${primaryEndpointUrl}/`,
-        endpointUrl: `${secondaryEndpointUrl}/`,
         error: new Error("Fetch failed with status '503'"),
       });
       expect(onBreakListener).toHaveBeenNthCalledWith(2, {
-        primaryEndpointUrl: `${primaryEndpointUrl}/`,
-        endpointUrl: `${secondaryEndpointUrl}/`,
         error: new Error("Fetch failed with status '503'"),
       });
     });
@@ -856,7 +878,7 @@ describe('RpcServiceChain', () => {
       };
       // Retry the first endpoint until its circuit breaks, then retry the
       // second endpoint until *its* circuit breaks.
-      for (let i = 0; i < 5; i++) {
+      for (let i = 0; i < DEFAULT_RPC_CHAIN_ATTEMPTS_UNTIL_BREAK; i++) {
         await expect(rpcServiceChain.request(jsonRpcRequest)).rejects.toThrow(
           expectedError,
         );
@@ -867,7 +889,7 @@ describe('RpcServiceChain', () => {
       await rpcServiceChain.request(jsonRpcRequest);
       // Do it again: retry the first endpoint until its circuit breaks, then
       // retry the second endpoint until *its* circuit breaks.
-      for (let i = 0; i < 5; i++) {
+      for (let i = 0; i < DEFAULT_RPC_CHAIN_ATTEMPTS_UNTIL_BREAK; i++) {
         await expect(rpcServiceChain.request(jsonRpcRequest)).rejects.toThrow(
           expectedError,
         );
@@ -875,13 +897,9 @@ describe('RpcServiceChain', () => {
 
       expect(onBreakListener).toHaveBeenCalledTimes(2);
       expect(onBreakListener).toHaveBeenNthCalledWith(1, {
-        primaryEndpointUrl: `${primaryEndpointUrl}/`,
-        endpointUrl: `${secondaryEndpointUrl}/`,
         error: new Error("Fetch failed with status '503'"),
       });
       expect(onBreakListener).toHaveBeenNthCalledWith(2, {
-        primaryEndpointUrl: `${primaryEndpointUrl}/`,
-        endpointUrl: `${secondaryEndpointUrl}/`,
         error: new Error("Fetch failed with status '503'"),
       });
     });
@@ -889,7 +907,7 @@ describe('RpcServiceChain', () => {
     it('calls onServiceBreak each time the circuit of an RPC service in the chain breaks', async () => {
       const primaryEndpointUrl = 'https://first.endpoint';
       const secondaryEndpointUrl = 'https://second.endpoint';
-      const tertiaryEndpointUrl = 'https://second.endpoint';
+      const tertiaryEndpointUrl = 'https://third.endpoint';
       nock(primaryEndpointUrl)
         .post('/', {
           id: 1,
@@ -975,7 +993,7 @@ describe('RpcServiceChain', () => {
       await expect(rpcServiceChain.request(jsonRpcRequest)).rejects.toThrow(
         expectedError,
       );
-      // Retry the second endpoint for a third time, until max retries is hit.
+      // Retry the third endpoint for a third time, until max retries is hit.
       // The circuit will break on the last time.
       await expect(rpcServiceChain.request(jsonRpcRequest)).rejects.toThrow(
         expectedError,
@@ -1047,8 +1065,6 @@ describe('RpcServiceChain', () => {
 
       expect(onDegradedListener).toHaveBeenCalledTimes(1);
       expect(onDegradedListener).toHaveBeenCalledWith({
-        primaryEndpointUrl: `${endpointUrl}/`,
-        endpointUrl: `${endpointUrl}/`,
         error: expectedDegradedError,
       });
     });
@@ -1094,10 +1110,7 @@ describe('RpcServiceChain', () => {
       await rpcServiceChain.request(jsonRpcRequest);
 
       expect(onDegradedListener).toHaveBeenCalledTimes(1);
-      expect(onDegradedListener).toHaveBeenCalledWith({
-        primaryEndpointUrl: `${endpointUrl}/`,
-        endpointUrl: `${endpointUrl}/`,
-      });
+      expect(onDegradedListener).toHaveBeenCalledWith({});
     });
 
     it('calls onDegraded only once even if a service runs out of retries and then responds successfully but slowly, or vice versa', async () => {
@@ -1169,8 +1182,6 @@ describe('RpcServiceChain', () => {
 
       expect(onDegradedListener).toHaveBeenCalledTimes(1);
       expect(onDegradedListener).toHaveBeenCalledWith({
-        primaryEndpointUrl: `${endpointUrl}/`,
-        endpointUrl: `${endpointUrl}/`,
         error: expectedDegradedError,
       });
     });
@@ -1245,8 +1256,6 @@ describe('RpcServiceChain', () => {
 
       expect(onDegradedListener).toHaveBeenCalledTimes(1);
       expect(onDegradedListener).toHaveBeenCalledWith({
-        primaryEndpointUrl: `${primaryEndpointUrl}/`,
-        endpointUrl: `${primaryEndpointUrl}/`,
         error: expectedDegradedError,
       });
     });
@@ -1318,14 +1327,9 @@ describe('RpcServiceChain', () => {
 
       expect(onDegradedListener).toHaveBeenCalledTimes(2);
       expect(onDegradedListener).toHaveBeenNthCalledWith(1, {
-        primaryEndpointUrl: `${endpointUrl}/`,
-        endpointUrl: `${endpointUrl}/`,
         error: expectedDegradedError,
       });
-      expect(onDegradedListener).toHaveBeenNthCalledWith(2, {
-        primaryEndpointUrl: `${endpointUrl}/`,
-        endpointUrl: `${endpointUrl}/`,
-      });
+      expect(onDegradedListener).toHaveBeenNthCalledWith(2, {});
     });
 
     it("calls onDegraded again when a failover service's underlying circuit breaks, and then after waiting, the primary responds successfully but slowly", async () => {
@@ -1419,14 +1423,9 @@ describe('RpcServiceChain', () => {
 
       expect(onDegradedListener).toHaveBeenCalledTimes(2);
       expect(onDegradedListener).toHaveBeenNthCalledWith(1, {
-        primaryEndpointUrl: `${primaryEndpointUrl}/`,
-        endpointUrl: `${primaryEndpointUrl}/`,
         error: expectedDegradedError,
       });
-      expect(onDegradedListener).toHaveBeenNthCalledWith(2, {
-        primaryEndpointUrl: `${primaryEndpointUrl}/`,
-        endpointUrl: `${primaryEndpointUrl}/`,
-      });
+      expect(onDegradedListener).toHaveBeenNthCalledWith(2, {});
     });
 
     it('calls onServiceDegraded each time a service continually runs out of retries (but before its circuit breaks)', async () => {
@@ -1945,10 +1944,7 @@ describe('RpcServiceChain', () => {
       await rpcServiceChain.request(jsonRpcRequest);
 
       expect(onAvailableListener).toHaveBeenCalledTimes(1);
-      expect(onAvailableListener).toHaveBeenCalledWith({
-        primaryEndpointUrl: `${endpointUrl}/`,
-        endpointUrl: `${endpointUrl}/`,
-      });
+      expect(onAvailableListener).toHaveBeenCalledWith({});
     });
 
     it("calls onAvailable once, after the primary service's circuit has broken, the request to the failover succeeds", async () => {
@@ -2014,10 +2010,7 @@ describe('RpcServiceChain', () => {
       await rpcServiceChain.request(jsonRpcRequest);
 
       expect(onAvailableListener).toHaveBeenCalledTimes(1);
-      expect(onAvailableListener).toHaveBeenNthCalledWith(1, {
-        primaryEndpointUrl: `${primaryEndpointUrl}/`,
-        endpointUrl: `${secondaryEndpointUrl}/`,
-      });
+      expect(onAvailableListener).toHaveBeenNthCalledWith(1, {});
     });
 
     it('calls onAvailable when a service becomes degraded by responding slowly, and then recovers', async () => {
@@ -2030,6 +2023,7 @@ describe('RpcServiceChain', () => {
           params: [],
         })
         .reply(200, () => {
+          clock.tick(DEFAULT_DEGRADED_THRESHOLD + 1);
           return {
             id: 1,
             jsonrpc: '2.0',
@@ -2055,10 +2049,12 @@ describe('RpcServiceChain', () => {
           endpointUrl,
         },
       ]);
+      const onDegradedListener = jest.fn();
       const onAvailableListener = jest.fn();
       rpcServiceChain.onServiceRetry(() => {
         clock.next();
       });
+      rpcServiceChain.onDegraded(onDegradedListener);
       rpcServiceChain.onAvailable(onAvailableListener);
 
       const jsonRpcRequest = {
@@ -2070,11 +2066,18 @@ describe('RpcServiceChain', () => {
       await rpcServiceChain.request(jsonRpcRequest);
       await rpcServiceChain.request(jsonRpcRequest);
 
+      // Verify degradation occurred after the first (slow) request
+      expect(onDegradedListener).toHaveBeenCalledTimes(1);
+      expect(onDegradedListener).toHaveBeenCalledWith({});
+
+      // Verify recovery occurred after the second (fast) request
       expect(onAvailableListener).toHaveBeenCalledTimes(1);
-      expect(onAvailableListener).toHaveBeenCalledWith({
-        primaryEndpointUrl: `${endpointUrl}/`,
-        endpointUrl: `${endpointUrl}/`,
-      });
+      expect(onAvailableListener).toHaveBeenCalledWith({});
+
+      // Verify onDegraded was called before onAvailable (degradation then recovery)
+      expect(onDegradedListener.mock.invocationCallOrder[0]).toBeLessThan(
+        onAvailableListener.mock.invocationCallOrder[0],
+      );
     });
   });
 });

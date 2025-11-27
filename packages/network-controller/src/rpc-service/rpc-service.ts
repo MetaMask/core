@@ -240,6 +240,12 @@ export class RpcService implements AbstractRpcService {
   readonly endpointUrl: URL;
 
   /**
+   * The last error that the retry policy captured (or `undefined` if the last
+   * execution of the service was successful).
+   */
+  lastError: Error | undefined;
+
+  /**
    * The function used to make an HTTP request.
    */
   readonly #fetch: typeof fetch;
@@ -248,8 +254,6 @@ export class RpcService implements AbstractRpcService {
    * A common set of options that the request options will extend.
    */
   readonly #fetchOptions: FetchOptions;
-
-  #lastError: unknown;
 
   /**
    * A `loglevel` logger.
@@ -327,16 +331,6 @@ export class RpcService implements AbstractRpcService {
   }
 
   /**
-   * @returns The last failure reason that the retry policy captured (or
-   * `undefined` if the last execution of the service was successful).
-   */
-  getLastInnerFailureReason(): { error: unknown } | undefined {
-    return this.#lastError === undefined
-      ? undefined
-      : { error: this.#lastError };
-  }
-
-  /**
    * Listens for when the RPC service retries the request.
    *
    * @param listener - The callback to be called when the retry occurs.
@@ -359,6 +353,17 @@ export class RpcService implements AbstractRpcService {
    */
   onBreak(listener: Parameters<AbstractRpcService['onBreak']>[0]) {
     return this.#policy.onBreak((data) => {
+      // `{ isolated: true }` is a special object that shows up when `isolate`
+      // is called on the circuit breaker. Usually `isolate` is used to hold the
+      // circuit open, but we (ab)use this method in `createServicePolicy` to
+      // reset the circuit breaker policy. When we do this, we don't want to
+      // call `onBreak` handlers, because then it causes
+      // `NetworkController:rpcEndpointUnavailable` and
+      // `NetworkController:rpcEndpointChainUnavailable` to be published. So we
+      // have to ignore that object here. The consequence is that `isolate`
+      // doesn't function the way it is intended, at least in the context of an
+      // RpcService. However, we are making a bet that we won't need to use it
+      // other than how we are already using it.
       if (!('isolated' in data)) {
         listener({ ...data, endpointUrl: this.endpointUrl.toString() });
       }
@@ -528,36 +533,39 @@ export class RpcService implements AbstractRpcService {
     let response: Response | undefined;
     try {
       log(
-        `[RpcService: ${this.endpointUrl}] Circuit state`,
+        `[${this.endpointUrl}] Circuit state`,
         this.#policy.getCircuitState(),
       );
-      const jsonDecodedResponse = await this.#policy.execute(async (data) => {
-        log(
-          'REQUEST INITIATED:',
-          this.endpointUrl.toString(),
-          '::',
-          fetchOptions,
-          // @ts-expect-error This property _is_ here, the type of ServicePolicy
-          // is just wrong.
-          `(attempt ${data.attempt + 1})`,
-        );
-        response = await this.#fetch(this.endpointUrl, fetchOptions);
-        if (!response.ok) {
-          throw new HttpError(response.status);
-        }
-        log(
-          'REQUEST SUCCESSFUL:',
-          this.endpointUrl.toString(),
-          response.status,
-        );
-        return await response.json();
-      });
-      this.#lastError = undefined;
+      const jsonDecodedResponse = await this.#policy.execute(
+        async (context) => {
+          log(
+            'REQUEST INITIATED:',
+            this.endpointUrl.toString(),
+            '::',
+            fetchOptions,
+            // @ts-expect-error This property _is_ here, the type of
+            // ServicePolicy is just wrong.
+            `(attempt ${context.attempt + 1})`,
+          );
+          response = await this.#fetch(this.endpointUrl, fetchOptions);
+          if (!response.ok) {
+            throw new HttpError(response.status);
+          }
+          log(
+            'REQUEST SUCCESSFUL:',
+            this.endpointUrl.toString(),
+            response.status,
+          );
+          return await response.json();
+        },
+      );
+      this.lastError = undefined;
       return jsonDecodedResponse;
     } catch (error) {
       log('REQUEST ERROR:', this.endpointUrl.toString(), error);
 
-      this.#lastError = error;
+      this.lastError =
+        error instanceof Error ? error : new Error(getErrorMessage(error));
 
       if (error instanceof HttpError) {
         const status = error.httpStatus;

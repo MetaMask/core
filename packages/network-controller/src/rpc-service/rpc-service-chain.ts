@@ -12,9 +12,8 @@ import type {
 import { RpcService } from './rpc-service';
 import type { RpcServiceOptions } from './rpc-service';
 import type {
-  CockatielEventToEventEmitterWithData,
   CockatielEventToEventListenerWithData,
-  ExtendCockatielEventData,
+  ExcludeCockatielEventData,
   ExtractCockatielEventData,
   FetchOptions,
 } from './shared';
@@ -37,8 +36,6 @@ const STATUSES = {
  */
 type Status = (typeof STATUSES)[keyof typeof STATUSES];
 
-type RpcServiceConfiguration = Omit<RpcServiceOptions, 'failoverService'>;
-
 /**
  * This class constructs and manages requests to a chain of RpcService objects
  * which represent RPC endpoints with which to access a particular network. The
@@ -47,27 +44,33 @@ type RpcServiceConfiguration = Omit<RpcServiceOptions, 'failoverService'>;
  */
 export class RpcServiceChain {
   /**
-   * The event emitter for the `onBreak` event.
+   * The event emitter for the `onAvailable` event.
    */
-  readonly #onAvailableEventEmitter: CockatielEventToEventEmitterWithData<
-    RpcService['onAvailable'],
-    { primaryEndpointUrl: string }
+  readonly #onAvailableEventEmitter: CockatielEventEmitter<
+    ExcludeCockatielEventData<
+      ExtractCockatielEventData<RpcService['onAvailable']>,
+      'endpointUrl'
+    >
   >;
 
   /**
    * The event emitter for the `onBreak` event.
    */
-  readonly #onBreakEventEmitter: CockatielEventToEventEmitterWithData<
-    RpcService['onBreak'],
-    { primaryEndpointUrl: string }
+  readonly #onBreakEventEmitter: CockatielEventEmitter<
+    ExcludeCockatielEventData<
+      ExtractCockatielEventData<RpcService['onBreak']>,
+      'endpointUrl'
+    >
   >;
 
   /**
-   * The event emitter for the `onBreak` event.
+   * The event emitter for the `onDegraded` event.
    */
-  readonly #onDegradedEventEmitter: CockatielEventToEventEmitterWithData<
-    RpcService['onDegraded'],
-    { primaryEndpointUrl: string }
+  readonly #onDegradedEventEmitter: CockatielEventEmitter<
+    ExcludeCockatielEventData<
+      ExtractCockatielEventData<RpcService['onDegraded']>,
+      'endpointUrl'
+    >
   >;
 
   /**
@@ -93,10 +96,7 @@ export class RpcServiceChain {
    * {@link RpcServiceOptions}.
    */
   constructor(
-    rpcServiceConfigurations: [
-      RpcServiceConfiguration,
-      ...RpcServiceConfiguration[],
-    ],
+    rpcServiceConfigurations: [RpcServiceOptions, ...RpcServiceOptions[]],
   ) {
     this.#services = rpcServiceConfigurations.map(
       (rpcServiceConfiguration) => new RpcService(rpcServiceConfiguration),
@@ -105,36 +105,42 @@ export class RpcServiceChain {
 
     this.#status = STATUSES.Unknown;
     this.#onBreakEventEmitter = new CockatielEventEmitter<
-      ExtendCockatielEventData<
+      ExcludeCockatielEventData<
         ExtractCockatielEventData<RpcService['onBreak']>,
-        { primaryEndpointUrl: string }
+        'endpointUrl'
       >
     >();
 
-    this.#onDegradedEventEmitter = new CockatielEventEmitter();
+    this.#onDegradedEventEmitter = new CockatielEventEmitter<
+      ExcludeCockatielEventData<
+        ExtractCockatielEventData<RpcService['onDegraded']>,
+        'endpointUrl'
+      >
+    >();
     for (const service of this.#services) {
       service.onDegraded((data) => {
         if (this.#status !== STATUSES.Degraded) {
           log('Updating status to "degraded"', data);
           this.#status = STATUSES.Degraded;
-          this.#onDegradedEventEmitter.emit({
-            ...data,
-            primaryEndpointUrl: this.#primaryService.endpointUrl.toString(),
-          });
+          const { endpointUrl, ...rest } = data;
+          this.#onDegradedEventEmitter.emit(rest);
         }
       });
     }
 
-    this.#onAvailableEventEmitter = new CockatielEventEmitter();
+    this.#onAvailableEventEmitter = new CockatielEventEmitter<
+      ExcludeCockatielEventData<
+        ExtractCockatielEventData<RpcService['onAvailable']>,
+        'endpointUrl'
+      >
+    >();
     for (const service of this.#services) {
       service.onAvailable((data) => {
         if (this.#status !== STATUSES.Available) {
           log('Updating status to "available"', data);
           this.#status = STATUSES.Available;
-          this.#onAvailableEventEmitter.emit({
-            ...data,
-            primaryEndpointUrl: this.#primaryService.endpointUrl.toString(),
-          });
+          const { endpointUrl, ...rest } = data;
+          this.#onAvailableEventEmitter.emit(rest);
         }
       });
     }
@@ -186,10 +192,12 @@ export class RpcServiceChain {
    * the callback.
    */
   onBreak(
-    listener: CockatielEventToEventListenerWithData<
-      RpcService['onBreak'],
-      { primaryEndpointUrl: string }
-    >,
+    listener: (
+      data: ExcludeCockatielEventData<
+        ExtractCockatielEventData<RpcService['onBreak']>,
+        'endpointUrl'
+      >,
+    ) => void,
   ) {
     return this.#onBreakEventEmitter.addListener(listener);
   }
@@ -250,10 +258,12 @@ export class RpcServiceChain {
    * the callback.
    */
   onDegraded(
-    listener: CockatielEventToEventListenerWithData<
-      RpcService['onDegraded'],
-      { primaryEndpointUrl: string }
-    >,
+    listener: (
+      data: ExcludeCockatielEventData<
+        ExtractCockatielEventData<RpcService['onDegraded']>,
+        'endpointUrl'
+      >,
+    ) => void,
   ) {
     return this.#onDegradedEventEmitter.addListener(listener);
   }
@@ -317,10 +327,12 @@ export class RpcServiceChain {
    * the callback.
    */
   onAvailable(
-    listener: CockatielEventToEventListenerWithData<
-      RpcService['onAvailable'],
-      { primaryEndpointUrl: string }
-    >,
+    listener: (
+      data: ExcludeCockatielEventData<
+        ExtractCockatielEventData<RpcService['onAvailable']>,
+        'endpointUrl'
+      >,
+    ) => void,
   ) {
     return this.#onAvailableEventEmitter.addListener(listener);
   }
@@ -401,18 +413,10 @@ export class RpcServiceChain {
         // Oops, that didn't work.
         // Capture this error so that we can handle it later.
 
-        const lastFailureReason = service.getLastInnerFailureReason();
+        const { lastError } = service;
         const isCircuitOpen = service.getCircuitState() === CircuitState.Open;
 
-        log('Service failed!', error, lastFailureReason);
-        log(
-          'Circuit state',
-          service.getCircuitState(),
-          'Previous circuit state',
-          previousCircuitState,
-          'state',
-          this.#status,
-        );
+        log('Service failed! error =', error, 'lastError = ', lastError);
 
         if (isCircuitOpen) {
           if (i < this.#services.length - 1) {
@@ -425,7 +429,7 @@ export class RpcServiceChain {
           if (
             previousCircuitState !== CircuitState.Open &&
             this.#status !== STATUSES.Unavailable &&
-            lastFailureReason !== undefined
+            lastError !== undefined
           ) {
             // If the service's circuit just broke and it's the last one in the
             // chain, then trigger the onBreak event. (But if for some reason we
@@ -435,9 +439,7 @@ export class RpcServiceChain {
             );
             this.#status = STATUSES.Unavailable;
             this.#onBreakEventEmitter.emit({
-              ...lastFailureReason,
-              primaryEndpointUrl: this.#primaryService.endpointUrl.toString(),
-              endpointUrl: service.endpointUrl.toString(),
+              error: lastError,
             });
           }
         }
@@ -445,20 +447,19 @@ export class RpcServiceChain {
         // The service failed, and we throw whatever the error is. The calling
         // code can try again if it so desires.
         log(
-          `${isCircuitOpen ? "This service's circuit is open, but for some reason it wasn't handled above. " : "This service's circuit is closed. "}Re-throwing error.`,
+          `${isCircuitOpen ? '' : "This service's circuit is closed. "}Re-throwing error.`,
         );
         throw error;
       }
     }
 
     if (response) {
-      // If one of the services returned a successful response, assume that we
-      // won't need to hit any of the failover services following it and reset
-      // all of the policies of the following services. In particularly this
-      // means that if any of the failover services' circuits was open when
-      // requests were diverted back to the available service, that circuit will
-      // now be reset so that if we start hitting it again we don't get a
-      // "circuit broken" error.
+      // If one of the services is available, reset all of the circuits of the
+      // following services. If we didn't do this and the service became
+      // unavailable in the future, and any of the failovers' circuits were
+      // open (due to previous failures), we would receive a "circuit broken"
+      // error when we attempted to divert traffic to the failovers again.
+      //
       if (availableServiceIndex !== undefined) {
         for (const [i, service] of [...this.#services.entries()].slice(
           availableServiceIndex + 1,

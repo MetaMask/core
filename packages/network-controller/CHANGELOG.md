@@ -16,14 +16,15 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 - **BREAKING:** Split up and update payload data for `NetworkController:rpcEndpointDegraded` and `NetworkController:rpcEndpointUnavailable` ([#7166](https://github.com/MetaMask/core/pull/7166))
   - `NetworkController:rpcEndpointDegraded` and `NetworkController:rpcEndpointUnavailable` still exist and retain the same behavior as before.
-  - New events are `NetworkController:rpcEndpointChainDegraded` and `NetworkController:rpcEndpointChainUnavailable`, and are designed to represent an entire chain of endpoints. They are also guaranteed to not be published multiple times in a row. In particular, `NetworkController:rpcEndpointUnavailable` is published only after trying all of the endpoints for a chain and when the underlying circuit for the last endpoint breaks, not as each primary's or failover's circuit breaks.
-  - The event payloads for all events have been changed as well: `failoverEndpointUrl` has been renamed to `endpointUrl`, and `endpointUrl` has been renamed to `primaryEndpointUrl`. In addition, `networkClientId` has been added to the payload.
+  - New events are `NetworkController:rpcEndpointChainDegraded` and `NetworkController:rpcEndpointChainUnavailable`, and are designed to represent an entire chain of endpoints. They are also guaranteed to not be published multiple times in a row. In particular, `NetworkController:rpcEndpointChainUnavailable` is published only after trying all of the endpoints for a chain and when the underlying circuit for the last endpoint breaks, not as each primary's or failover's circuit breaks.
+  - The event payloads have been changed:
+    - For individual endpoint events (`NetworkController:rpcEndpointUnavailable`, `NetworkController:rpcEndpointDegraded`): `failoverEndpointUrl` has been removed, and `primaryEndpointUrl` has been added. In addition, `networkClientId` has been added to the payload.
+    - For chain-level events (`NetworkController:rpcEndpointChainUnavailable`, `NetworkController:rpcEndpointChainDegraded`, `NetworkController:rpcEndpointChainAvailable`): These include `chainId`, `networkClientId`, and event-specific fields (e.g., `error`, `endpointUrl`) but do not include `primaryEndpointUrl`. Consumers can derive endpoint information from the `networkClientId` using `NetworkController:getNetworkClientById` or `NetworkController:getNetworkConfigurationByNetworkClientId`.
 - **BREAKING:** Rename and update payload data for `NetworkController:rpcEndpointRequestRetried` ([#7166](https://github.com/MetaMask/core/pull/7166))
   - This event is now called `NetworkController:rpcEndpointRetried`.
-  - The event payload has been changed as well: `failoverEndpointUrl` has been renamed to `endpointUrl`, and `endpointUrl` has been renamed to `primaryEndpointUrl`. In addition, `networkClientId` and `attempt` have been added to the payload.
+  - The event payload has been changed as well: `failoverEndpointUrl` has been removed, and `primaryEndpointUrl` has been added. In addition, `networkClientId` and `attempt` have been added to the payload.
 - **BREAKING:** Update `AbstractRpcService`/`RpcServiceRequestable` to remove `{ isolated: true }` from the `onBreak` event data type ([#7166](https://github.com/MetaMask/core/pull/7166))
-  - This represented the error produced when `.isolate` is called on a Cockatiel circuit breaker policy, which we never do.
-- Statuses of networks (captured in the NetworkController `networksMetadata` state property) are now kept up to date as requests are made ([#7186](https://github.com/MetaMask/core/pull/7186))
+  - This represented the error produced when `isolate` is called on a Cockatiel circuit breaker policy. This never happens for our service (we use `isolate` internally, but this error is suppressed and cannot trigger `onBreak`)
 - Move peer dependencies for controller and service packages to direct dependencies ([#7209](https://github.com/MetaMask/core/pull/7209))
   - The dependencies moved are:
     - `@metamask/error-reporting-service` (^3.0.0)

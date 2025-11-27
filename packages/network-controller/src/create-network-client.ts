@@ -1,4 +1,7 @@
-import type { InfuraNetworkType } from '@metamask/controller-utils';
+import type {
+  CockatielFailureReason,
+  InfuraNetworkType,
+} from '@metamask/controller-utils';
 import { ChainId } from '@metamask/controller-utils';
 import type { PollingBlockTrackerOptions } from '@metamask/eth-block-tracker';
 import { PollingBlockTracker } from '@metamask/eth-block-tracker';
@@ -207,13 +210,32 @@ function createRpcServiceChain({
   const availableEndpointUrls: [string, ...string[]] = isRpcFailoverEnabled
     ? [primaryEndpointUrl, ...(configuration.failoverRpcUrls ?? [])]
     : [primaryEndpointUrl];
-  const buildRpcServiceConfiguration = (endpointUrl: string) => ({
+  const rpcServiceConfigurations = availableEndpointUrls.map((endpointUrl) => ({
     ...getRpcServiceOptions(endpointUrl),
     endpointUrl,
     logger,
-  });
+  }));
 
-  const getError = (value: object) => {
+  /**
+   * Extracts the error from Cockatiel's `FailureReason` type received in
+   * circuit breaker event handlers.
+   *
+   * The `FailureReason` object can have two possible shapes:
+   * - `{ error: Error }` - When the RPC service throws an error (the common
+   * case for RPC failures).
+   * - `{ value: T }` - When the RPC service returns a value that the retry
+   * filter policy considers a failure.
+   *
+   * @param value - The event data object from the circuit breaker event
+   * listener (after destructuring known properties like `endpointUrl`). This
+   * represents Cockatiel's `FailureReason` type.
+   * @returns The error or failure value, or `undefined` if neither property
+   * exists (which shouldn't happen in practice unless the circuit breaker is
+   * manually isolated).
+   */
+  const getError = (
+    value: CockatielFailureReason<unknown> | Record<never, never>,
+  ) => {
     if ('error' in value) {
       return value.error;
     } else if ('value' in value) {
@@ -223,11 +245,27 @@ function createRpcServiceChain({
   };
 
   const rpcServiceChain = new RpcServiceChain([
-    buildRpcServiceConfiguration(availableEndpointUrls[0]),
-    ...availableEndpointUrls.slice(1).map(buildRpcServiceConfiguration),
+    rpcServiceConfigurations[0],
+    ...rpcServiceConfigurations.slice(1),
   ]);
 
-  rpcServiceChain.onBreak(
+  rpcServiceChain.onBreak((data) => {
+    const error = getError(data);
+
+    if (error === undefined) {
+      // This error shouldn't happen in practice because we never call `.isolate`
+      // on the circuit breaker policy, but we need to appease TypeScript.
+      throw new Error('Could not make request to endpoint.');
+    }
+
+    messenger.publish('NetworkController:rpcEndpointChainUnavailable', {
+      chainId: configuration.chainId,
+      networkClientId: id,
+      error,
+    });
+  });
+
+  rpcServiceChain.onServiceBreak(
     ({
       endpointUrl,
       primaryEndpointUrl: primaryEndpointUrlFromEvent,
@@ -241,22 +279,6 @@ function createRpcServiceChain({
         throw new Error('Could not make request to endpoint.');
       }
 
-      messenger.publish('NetworkController:rpcEndpointChainUnavailable', {
-        chainId: configuration.chainId,
-        networkClientId: id,
-        primaryEndpointUrl: primaryEndpointUrlFromEvent,
-        error,
-      });
-    },
-  );
-
-  rpcServiceChain.onServiceBreak(
-    ({
-      endpointUrl,
-      primaryEndpointUrl: primaryEndpointUrlFromEvent,
-      ...rest
-    }) => {
-      const error = getError(rest);
       messenger.publish('NetworkController:rpcEndpointUnavailable', {
         chainId: configuration.chainId,
         networkClientId: id,
@@ -267,22 +289,14 @@ function createRpcServiceChain({
     },
   );
 
-  rpcServiceChain.onDegraded(
-    ({
-      endpointUrl,
-      primaryEndpointUrl: primaryEndpointUrlFromEvent,
-      ...rest
-    }) => {
-      const error = getError(rest);
-      messenger.publish('NetworkController:rpcEndpointChainDegraded', {
-        chainId: configuration.chainId,
-        networkClientId: id,
-        primaryEndpointUrl: primaryEndpointUrlFromEvent,
-        endpointUrl,
-        error,
-      });
-    },
-  );
+  rpcServiceChain.onDegraded((data) => {
+    const error = getError(data);
+    messenger.publish('NetworkController:rpcEndpointChainDegraded', {
+      chainId: configuration.chainId,
+      networkClientId: id,
+      error,
+    });
+  });
 
   rpcServiceChain.onServiceDegraded(
     ({
@@ -301,16 +315,12 @@ function createRpcServiceChain({
     },
   );
 
-  rpcServiceChain.onAvailable(
-    ({ endpointUrl, primaryEndpointUrl: primaryEndpointUrlFromEvent }) => {
-      messenger.publish('NetworkController:rpcEndpointChainAvailable', {
-        chainId: configuration.chainId,
-        networkClientId: id,
-        primaryEndpointUrl: primaryEndpointUrlFromEvent,
-        endpointUrl,
-      });
-    },
-  );
+  rpcServiceChain.onAvailable(() => {
+    messenger.publish('NetworkController:rpcEndpointChainAvailable', {
+      chainId: configuration.chainId,
+      networkClientId: id,
+    });
+  });
 
   rpcServiceChain.onServiceRetry(
     ({
