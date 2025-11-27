@@ -1425,7 +1425,6 @@ describe('SubscriptionController', () => {
     const MOCK_SUBSCRIPTION_ELIGIBILITY: SubscriptionEligibility = {
       product: PRODUCT_TYPES.SHIELD,
       canSubscribe: true,
-      minBalanceUSD: 100,
       canViewEntryModal: true,
       modalType: MODAL_TYPE.A,
       cohorts: [],
