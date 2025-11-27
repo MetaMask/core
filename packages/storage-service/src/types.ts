@@ -1,5 +1,7 @@
 import type { Messenger } from '@metamask/messenger';
 
+import type { StorageServiceMethodActions } from './StorageService-method-action-types';
+
 /**
  * Platform-agnostic storage adapter interface.
  * Each client (mobile, extension) implements this interface
@@ -114,56 +116,10 @@ export const SERVICE_NAME = 'StorageService';
 export const STORAGE_KEY_PREFIX = 'storageService:';
 
 /**
- * Action for storing data in the storage service.
- */
-export type StorageServiceSetItemAction = {
-  type: `${typeof SERVICE_NAME}:setItem`;
-  handler: (namespace: string, key: string, value: unknown) => Promise<void>;
-};
-
-/**
- * Action for retrieving data from the storage service.
- * Returns `unknown` since there's no schema validation.
- * Callers should validate/cast the result.
- */
-export type StorageServiceGetItemAction = {
-  type: `${typeof SERVICE_NAME}:getItem`;
-  handler: (namespace: string, key: string) => Promise<unknown>;
-};
-
-/**
- * Action for removing data from the storage service.
- */
-export type StorageServiceRemoveItemAction = {
-  type: `${typeof SERVICE_NAME}:removeItem`;
-  handler: (namespace: string, key: string) => Promise<void>;
-};
-
-/**
- * Action for getting all keys for a namespace.
- */
-export type StorageServiceGetAllKeysAction = {
-  type: `${typeof SERVICE_NAME}:getAllKeys`;
-  handler: (namespace: string) => Promise<string[]>;
-};
-
-/**
- * Action for clearing all data for a namespace.
- */
-export type StorageServiceClearAction = {
-  type: `${typeof SERVICE_NAME}:clear`;
-  handler: (namespace: string) => Promise<void>;
-};
-
-/**
  * All actions that {@link StorageService} exposes to other consumers.
+ * Action types are auto-generated from the service methods.
  */
-export type StorageServiceActions =
-  | StorageServiceSetItemAction
-  | StorageServiceGetItemAction
-  | StorageServiceRemoveItemAction
-  | StorageServiceGetAllKeysAction
-  | StorageServiceClearAction;
+export type StorageServiceActions = StorageServiceMethodActions;
 
 /**
  * Event published when a storage item is set.

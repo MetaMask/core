@@ -6,6 +6,16 @@ import type {
 } from './types';
 import { SERVICE_NAME } from './types';
 
+// === MESSENGER ===
+
+const MESSENGER_EXPOSED_METHODS = [
+  'setItem',
+  'getItem',
+  'removeItem',
+  'getAllKeys',
+  'clear',
+] as const;
+
 /**
  * StorageService provides a platform-agnostic way for controllers to store
  * large, infrequently accessed data outside of memory/Redux state.
@@ -116,25 +126,9 @@ export class StorageService {
     }
 
     // Register messenger actions
-    this.#messenger.registerActionHandler(
-      `${SERVICE_NAME}:setItem`,
-      this.setItem.bind(this),
-    );
-    this.#messenger.registerActionHandler(
-      `${SERVICE_NAME}:getItem`,
-      this.getItem.bind(this),
-    );
-    this.#messenger.registerActionHandler(
-      `${SERVICE_NAME}:removeItem`,
-      this.removeItem.bind(this),
-    );
-    this.#messenger.registerActionHandler(
-      `${SERVICE_NAME}:getAllKeys`,
-      this.getAllKeys.bind(this),
-    );
-    this.#messenger.registerActionHandler(
-      `${SERVICE_NAME}:clear`,
-      this.clear.bind(this),
+    this.#messenger.registerMethodActionHandlers(
+      this,
+      MESSENGER_EXPOSED_METHODS,
     );
   }
 
