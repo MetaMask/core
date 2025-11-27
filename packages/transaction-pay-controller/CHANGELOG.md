@@ -7,6 +7,10 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+### Added
+
+- Use `relayDisabledGasStationChains` feature flag to disable gas station on specific source chains in Relay strategy ([#7255](https://github.com/MetaMask/core/pull/7255))
+
 ### Changed
 
 - Bump `@metamask/transaction-controller` from `^62.2.0` to `^62.3.0` ([#7236](https://github.com/MetaMask/core/pull/7236))
