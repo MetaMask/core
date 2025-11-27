@@ -262,16 +262,14 @@ export class ProfileMetricsController extends StaticIntervalPollingController()<
       const newGroupedAccounts = groupAccountsByEntropySourceId(
         this.messenger.call('AccountsController:listAccounts'),
       );
-      const queuedAddresses = { ...this.state.syncQueue };
-      for (const key of Object.keys(newGroupedAccounts)) {
-        if (!queuedAddresses[key]) {
-          queuedAddresses[key] = [];
-        }
-        queuedAddresses[key].push(...newGroupedAccounts[key]);
-      }
       this.update((state) => {
+        for (const key of Object.keys(newGroupedAccounts)) {
+          if (!state.syncQueue[key]) {
+            state.syncQueue[key] = [];
+          }
+          state.syncQueue[key].push(...newGroupedAccounts[key]);
+        }
         state.firstSyncCompleted = true;
-        state.syncQueue = queuedAddresses;
       });
     });
   }
