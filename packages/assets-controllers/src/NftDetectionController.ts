@@ -72,6 +72,7 @@ const supportedNftDetectionNetworks: Set<Hex> = new Set([
   '0x1', // Mainnet
   '0xe708', // Linea Mainnet
   '0x531', // Sei
+  '0x8f', // Monad
 ]);
 
 /**
