@@ -72,7 +72,7 @@ describe('ProfileMetricsController', () => {
         });
       });
 
-      describe('when `firstSyncCompleted` is false', () => {
+      describe('when `initialEnqueueCompleted` is false', () => {
         it('adds existing accounts to the queue if the user opted in', async () => {
           await withController(
             { options: { assertUserOptedIn: () => true } },
@@ -91,7 +91,7 @@ describe('ProfileMetricsController', () => {
               // Wait for async operations to complete.
               await Promise.resolve();
 
-              expect(controller.state.firstSyncCompleted).toBe(true);
+              expect(controller.state.initialEnqueueCompleted).toBe(true);
               expect(controller.state.syncQueue).toStrictEqual({
                 'entropy-0xAccount1': [
                   { address: '0xAccount1', scopes: ['eip155:1'] },
@@ -120,14 +120,14 @@ describe('ProfileMetricsController', () => {
               // Wait for async operations to complete.
               await Promise.resolve();
 
-              expect(controller.state.firstSyncCompleted).toBe(false);
+              expect(controller.state.initialEnqueueCompleted).toBe(false);
               expect(controller.state.syncQueue).toStrictEqual({});
             },
           );
         });
       });
 
-      describe('when `firstSyncCompleted` is true', () => {
+      describe('when `initialEnqueueCompleted` is true', () => {
         it.each([{ assertUserOptedIn: true }, { assertUserOptedIn: false }])(
           'does not add existing accounts to the queue when `assertUserOptedIn` is $assertUserOptedIn',
           async ({ assertUserOptedIn }) => {
@@ -135,7 +135,7 @@ describe('ProfileMetricsController', () => {
               {
                 options: {
                   assertUserOptedIn: () => assertUserOptedIn,
-                  state: { firstSyncCompleted: true },
+                  state: { initialEnqueueCompleted: true },
                 },
               },
               async ({ controller, rootMessenger }) => {
@@ -153,7 +153,7 @@ describe('ProfileMetricsController', () => {
                 // Wait for async operations to complete.
                 await Promise.resolve();
 
-                expect(controller.state.firstSyncCompleted).toBe(true);
+                expect(controller.state.initialEnqueueCompleted).toBe(true);
                 expect(controller.state.syncQueue).toStrictEqual({});
               },
             );
@@ -422,7 +422,7 @@ describe('ProfileMetricsController', () => {
           ),
         ).toMatchInlineSnapshot(`
           Object {
-            "firstSyncCompleted": false,
+            "initialEnqueueCompleted": false,
           }
         `);
       });
@@ -438,7 +438,7 @@ describe('ProfileMetricsController', () => {
           ),
         ).toMatchInlineSnapshot(`
           Object {
-            "firstSyncCompleted": false,
+            "initialEnqueueCompleted": false,
             "syncQueue": Object {},
           }
         `);
@@ -455,7 +455,7 @@ describe('ProfileMetricsController', () => {
           ),
         ).toMatchInlineSnapshot(`
           Object {
-            "firstSyncCompleted": false,
+            "initialEnqueueCompleted": false,
             "syncQueue": Object {},
           }
         `);

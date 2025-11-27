@@ -32,9 +32,10 @@ export const controllerName = 'ProfileMetricsController';
  */
 export type ProfileMetricsControllerState = {
   /**
-   * Whether the first sync has been completed.
+   * Whether existing accounts have been added
+   * to the queue.
    */
-  firstSyncCompleted: boolean;
+  initialEnqueueCompleted: boolean;
   /**
    * The queue of accounts to be synced.
    * Each key is an entropy source ID, and each value is an array of account
@@ -48,7 +49,7 @@ export type ProfileMetricsControllerState = {
  * The metadata for each property in {@link ProfileMetricsControllerState}.
  */
 const profileMetricsControllerMetadata = {
-  firstSyncCompleted: {
+  initialEnqueueCompleted: {
     persist: true,
     includeInDebugSnapshot: true,
     includeInStateLogs: true,
@@ -72,7 +73,7 @@ const profileMetricsControllerMetadata = {
  */
 export function getDefaultProfileMetricsControllerState(): ProfileMetricsControllerState {
   return {
-    firstSyncCompleted: false,
+    initialEnqueueCompleted: false,
     syncQueue: {},
   };
 }
@@ -256,7 +257,7 @@ export class ProfileMetricsController extends StaticIntervalPollingController()<
    */
   async #queueFirstSyncIfNeeded() {
     await this.#mutex.runExclusive(async () => {
-      if (this.state.firstSyncCompleted || !this.#assertUserOptedIn()) {
+      if (this.state.initialEnqueueCompleted || !this.#assertUserOptedIn()) {
         return;
       }
       const newGroupedAccounts = groupAccountsByEntropySourceId(
@@ -269,7 +270,7 @@ export class ProfileMetricsController extends StaticIntervalPollingController()<
           }
           state.syncQueue[key].push(...newGroupedAccounts[key]);
         }
-        state.firstSyncCompleted = true;
+        state.initialEnqueueCompleted = true;
       });
     });
   }
