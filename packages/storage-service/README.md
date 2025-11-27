@@ -85,7 +85,7 @@ Subscribe to storage changes:
 ```typescript
 this.messenger.subscribe(
   'StorageService:itemSet:MyController',
-  (value, key) => {
+  (key, value) => {
     console.log(`Data stored: ${key}`);
   },
 );

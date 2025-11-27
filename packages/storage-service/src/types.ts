@@ -127,9 +127,9 @@ export type StorageServiceActions = StorageServiceMethodActions;
  *
  * @example
  * Subscribe to all changes in TokenListController:
- * messenger.subscribe('StorageService:itemSet:TokenListController', (value, key) => {
- *   // value = the data that was set
+ * messenger.subscribe('StorageService:itemSet:TokenListController', (key, value) => {
  *   // key = 'cache:0x1', 'cache:0x38', etc.
+ *   // value = the data that was set
  *   if (key.startsWith('cache:')) {
  *     const chainId = key.replace('cache:', '');
  *     // React to cache change for specific chain
@@ -138,7 +138,7 @@ export type StorageServiceActions = StorageServiceMethodActions;
  */
 export type StorageServiceItemSetEvent = {
   type: `${typeof SERVICE_NAME}:itemSet:${string}`;
-  payload: [value: unknown, key: string];
+  payload: [key: string, value: unknown];
 };
 
 /**

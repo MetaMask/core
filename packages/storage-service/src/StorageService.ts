@@ -161,11 +161,11 @@ export class StorageService {
 
     // Publish event so other controllers can react to changes
     // Event type: StorageService:itemSet:namespace
-    // Payload: [value, key]
+    // Payload: [key, value]
     this.#messenger.publish(
       `${SERVICE_NAME}:itemSet:${namespace}` as const,
-      value,
       key,
+      value,
     );
   }
 
