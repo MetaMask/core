@@ -31,6 +31,9 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
   - In clients, it is now possible for multiple versions of these packages to exist in the dependency tree.
     - For example, this scenario would be valid: a client relies on `@metamask/controller-a` 1.0.0 and `@metamask/controller-b` 1.0.0, and `@metamask/controller-b` depends on `@metamask/controller-a` 1.1.0.
   - Note, however, that the versions specified in the client's `package.json` always "win", and you are expected to keep them up to date so as not to break controller and service intercommunication.
+- Automatically update network status metadata when chain-level RPC events are published ([#7186](https://github.com/MetaMask/core/pull/7186))
+  - `NetworkController` now automatically subscribes to `NetworkController:rpcEndpointChainUnavailable`, `NetworkController:rpcEndpointChainDegraded`, and `NetworkController:rpcEndpointChainAvailable` events and updates the corresponding network's status metadata in state when these events are published.
+  - This enables real-time network status updates without requiring explicit `lookupNetwork` calls, providing more accurate and timely network availability information.
 
 ## [26.0.0]
 
