@@ -1,3 +1,5 @@
+import type { Json } from '@metamask/utils';
+
 import { InMemoryStorageAdapter } from './InMemoryStorageAdapter';
 import type {
   StorageAdapter,
@@ -133,7 +135,7 @@ export class StorageService {
   }
 
   /**
-   * Store large data in storage.
+   * Store large JSON data in storage.
    *
    * ⚠️ **Designed for large values (100KB+), not many small ones.**
    * Each storage operation has I/O overhead. For best performance,
@@ -153,9 +155,9 @@ export class StorageService {
    *
    * @param namespace - Controller namespace (e.g., 'SnapController').
    * @param key - Storage key (e.g., 'npm:@metamask/example-snap:sourceCode').
-   * @param value - Data to store (should be 100KB+ for optimal use).
+   * @param value - JSON data to store (should be 100KB+ for optimal use).
    */
-  async setItem(namespace: string, key: string, value: unknown): Promise<void> {
+  async setItem(namespace: string, key: string, value: Json): Promise<void> {
     // Adapter handles serialization and wrapping with metadata
     await this.#storage.setItem(namespace, key, value);
 
@@ -170,16 +172,13 @@ export class StorageService {
   }
 
   /**
-   * Retrieve data from storage.
-   *
-   * Returns `unknown` since there's no schema validation.
-   * Callers should validate or cast the result to the expected type.
+   * Retrieve JSON data from storage.
    *
    * @param namespace - Controller namespace (e.g., 'SnapController').
    * @param key - Storage key (e.g., 'npm:@metamask/example-snap:sourceCode').
-   * @returns Parsed data or null if not found. Type is `unknown` - caller must validate.
+   * @returns Parsed JSON data or null if not found.
    */
-  async getItem(namespace: string, key: string): Promise<unknown> {
+  async getItem(namespace: string, key: string): Promise<Json | null> {
     // Adapter handles deserialization and unwrapping
     return await this.#storage.getItem(namespace, key);
   }

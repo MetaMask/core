@@ -1,4 +1,5 @@
 import type { Messenger } from '@metamask/messenger';
+import type { Json } from '@metamask/utils';
 
 import type { StorageServiceMethodActions } from './StorageService-method-action-types';
 
@@ -30,12 +31,12 @@ export type StorageAdapter = {
    *
    * @param namespace - The controller namespace (e.g., 'SnapController').
    * @param key - The data key (e.g., 'snap-id:sourceCode').
-   * @returns The value as a string, or null if not found.
+   * @returns The JSON value, or null if not found.
    */
-  getItem(namespace: string, key: string): Promise<unknown>;
+  getItem(namespace: string, key: string): Promise<Json | null>;
 
   /**
-   * Store a large value in storage.
+   * Store a large JSON value in storage.
    *
    * ⚠️ **Store large values, not many small ones.**
    * Each storage operation has I/O overhead. For best performance:
@@ -44,14 +45,13 @@ export type StorageAdapter = {
    *
    * Adapter is responsible for:
    * - Building the full storage key
-   * - Wrapping value with metadata (timestamp, etc.)
    * - Serializing to string (JSON.stringify)
    *
    * @param namespace - The controller namespace (e.g., 'SnapController').
    * @param key - The data key (e.g., 'snap-id:sourceCode').
-   * @param value - The value to store (will be wrapped and serialized by adapter).
+   * @param value - The JSON value to store.
    */
-  setItem(namespace: string, key: string, value: unknown): Promise<void>;
+  setItem(namespace: string, key: string, value: Json): Promise<void>;
 
   /**
    * Remove an item from storage.
@@ -138,7 +138,7 @@ export type StorageServiceActions = StorageServiceMethodActions;
  */
 export type StorageServiceItemSetEvent = {
   type: `${typeof SERVICE_NAME}:itemSet:${string}`;
-  payload: [key: string, value: unknown];
+  payload: [key: string, value: Json];
 };
 
 /**

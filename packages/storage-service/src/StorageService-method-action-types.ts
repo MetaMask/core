@@ -6,7 +6,7 @@
 import type { StorageService } from './StorageService';
 
 /**
- * Store large data in storage.
+ * Store large JSON data in storage.
  *
  * ⚠️ **Designed for large values (100KB+), not many small ones.**
  * Each storage operation has I/O overhead. For best performance,
@@ -26,7 +26,7 @@ import type { StorageService } from './StorageService';
  *
  * @param namespace - Controller namespace (e.g., 'SnapController').
  * @param key - Storage key (e.g., 'npm:@metamask/example-snap:sourceCode').
- * @param value - Data to store (should be 100KB+ for optimal use).
+ * @param value - JSON data to store (should be 100KB+ for optimal use).
  */
 export type StorageServiceSetItemAction = {
   type: `StorageService:setItem`;
@@ -34,14 +34,11 @@ export type StorageServiceSetItemAction = {
 };
 
 /**
- * Retrieve data from storage.
- *
- * Returns `unknown` since there's no schema validation.
- * Callers should validate or cast the result to the expected type.
+ * Retrieve JSON data from storage.
  *
  * @param namespace - Controller namespace (e.g., 'SnapController').
  * @param key - Storage key (e.g., 'npm:@metamask/example-snap:sourceCode').
- * @returns Parsed data or null if not found. Type is `unknown` - caller must validate.
+ * @returns Parsed JSON data or null if not found.
  */
 export type StorageServiceGetItemAction = {
   type: `StorageService:getItem`;

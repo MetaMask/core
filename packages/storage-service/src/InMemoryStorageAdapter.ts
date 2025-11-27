@@ -1,16 +1,7 @@
+import type { Json } from '@metamask/utils';
+
 import type { StorageAdapter } from './types';
 import { STORAGE_KEY_PREFIX } from './types';
-
-/**
- * Wrapper for stored data with metadata.
- * Each adapter can define its own wrapper structure.
- */
-type StoredDataWrapper<T = unknown> = {
-  /** Timestamp when data was stored (milliseconds since epoch). */
-  timestamp: number;
-  /** The actual data being stored. */
-  data: T;
-};
 
 /**
  * In-memory storage adapter (default fallback).
@@ -30,8 +21,8 @@ type StoredDataWrapper<T = unknown> = {
  * @example
  * ```typescript
  * const adapter = new InMemoryStorageAdapter();
- * await adapter.setItem('key', 'value');
- * const value = await adapter.getItem('key'); // Returns 'value'
+ * await adapter.setItem('SnapController', 'snap-id:sourceCode', 'const x = 1;');
+ * const value = await adapter.getItem('SnapController', 'snap-id:sourceCode'); // 'const x = 1;'
  * // After restart: data is lost
  * ```
  */
@@ -51,13 +42,13 @@ export class InMemoryStorageAdapter implements StorageAdapter {
 
   /**
    * Retrieve an item from in-memory storage.
-   * Deserializes and unwraps the stored data.
+   * Deserializes JSON data from storage.
    *
    * @param namespace - The controller namespace.
    * @param key - The data key.
-   * @returns The unwrapped data, or null if not found.
+   * @returns The parsed JSON data, or null if not found.
    */
-  async getItem(namespace: string, key: string): Promise<unknown> {
+  async getItem(namespace: string, key: string): Promise<Json | null> {
     const fullKey = `${STORAGE_KEY_PREFIX}${namespace}:${key}`;
     const serialized = this.#storage.get(fullKey);
 
@@ -66,8 +57,7 @@ export class InMemoryStorageAdapter implements StorageAdapter {
     }
 
     try {
-      const wrapper: StoredDataWrapper = JSON.parse(serialized);
-      return wrapper.data;
+      return JSON.parse(serialized) as Json;
     } catch (error) {
       // istanbul ignore next - defensive error handling for corrupted data
       console.error(`Failed to parse stored data for ${fullKey}:`, error);
@@ -78,19 +68,15 @@ export class InMemoryStorageAdapter implements StorageAdapter {
 
   /**
    * Store an item in in-memory storage.
-   * Wraps with metadata and serializes to string.
+   * Serializes JSON data to string.
    *
    * @param namespace - The controller namespace.
    * @param key - The data key.
-   * @param value - The value to store (will be wrapped and serialized).
+   * @param value - The JSON value to store.
    */
-  async setItem(namespace: string, key: string, value: unknown): Promise<void> {
+  async setItem(namespace: string, key: string, value: Json): Promise<void> {
     const fullKey = `${STORAGE_KEY_PREFIX}${namespace}:${key}`;
-    const wrapper: StoredDataWrapper = {
-      timestamp: Date.now(),
-      data: value,
-    };
-    this.#storage.set(fullKey, JSON.stringify(wrapper));
+    this.#storage.set(fullKey, JSON.stringify(value));
   }
 
   /**
