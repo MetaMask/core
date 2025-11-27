@@ -9,6 +9,17 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ### Changed
 
+- Bump `@metamask/transaction-controller` from `^62.3.0` to `^62.3.1` ([#7257](https://github.com/MetaMask/core/pull/7257))
+- Bump `@metamask/assets-controllers` from `^91.0.0` to `^92.0.0` ([#7253](https://github.com/MetaMask/core/pull/7253))
+
+### Fixed
+
+- Add missing MON (Monad) and SEI (Sei) to integer chain IDs ([#7252](https://github.com/MetaMask/core/pull/7252))
+
+## [63.2.0]
+
+### Changed
+
 - Update `stopPollingForQuotes` to accept metrics context for the QuotesReceived event. If context is provided and quotes are still loading when the handler is called, the `Unified SwapBridge Quotes Received` is published before the poll is cancelled ([#7242](https://github.com/MetaMask/core/pull/7242))
 
 ## [63.1.0]
@@ -900,7 +911,8 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 - Initial release ([#5317](https://github.com/MetaMask/core/pull/5317))
 
-[Unreleased]: https://github.com/MetaMask/core/compare/@metamask/bridge-controller@63.1.0...HEAD
+[Unreleased]: https://github.com/MetaMask/core/compare/@metamask/bridge-controller@63.2.0...HEAD
+[63.2.0]: https://github.com/MetaMask/core/compare/@metamask/bridge-controller@63.1.0...@metamask/bridge-controller@63.2.0
 [63.1.0]: https://github.com/MetaMask/core/compare/@metamask/bridge-controller@63.0.0...@metamask/bridge-controller@63.1.0
 [63.0.0]: https://github.com/MetaMask/core/compare/@metamask/bridge-controller@62.0.0...@metamask/bridge-controller@63.0.0
 [62.0.0]: https://github.com/MetaMask/core/compare/@metamask/bridge-controller@61.0.0...@metamask/bridge-controller@62.0.0

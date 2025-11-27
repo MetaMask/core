@@ -4637,6 +4637,7 @@ describe('NetworkController', () => {
               expect(createAutoManagedNetworkClientSpy).toHaveBeenNthCalledWith(
                 2,
                 {
+                  networkClientId: infuraNetworkType,
                   networkClientConfiguration: {
                     infuraProjectId,
                     failoverRpcUrls: ['https://first.failover.endpoint'],
@@ -4654,6 +4655,7 @@ describe('NetworkController', () => {
               expect(createAutoManagedNetworkClientSpy).toHaveBeenNthCalledWith(
                 3,
                 {
+                  networkClientId: 'BBBB-BBBB-BBBB-BBBB',
                   networkClientConfiguration: {
                     chainId: infuraChainId,
                     failoverRpcUrls: ['https://second.failover.endpoint'],
@@ -4670,6 +4672,7 @@ describe('NetworkController', () => {
               expect(createAutoManagedNetworkClientSpy).toHaveBeenNthCalledWith(
                 4,
                 {
+                  networkClientId: 'CCCC-CCCC-CCCC-CCCC',
                   networkClientConfiguration: {
                     chainId: infuraChainId,
                     failoverRpcUrls: ['https://third.failover.endpoint'],
@@ -6047,6 +6050,7 @@ describe('NetworkController', () => {
                 expect(
                   createAutoManagedNetworkClientSpy,
                 ).toHaveBeenNthCalledWith(3, {
+                  networkClientId: infuraNetworkType,
                   networkClientConfiguration: {
                     chainId: infuraChainId,
                     failoverRpcUrls: ['https://failover.endpoint'],
@@ -6278,6 +6282,7 @@ describe('NetworkController', () => {
                 expect(
                   createAutoManagedNetworkClientSpy,
                 ).toHaveBeenNthCalledWith(3, {
+                  networkClientId: 'AAAA-AAAA-AAAA-AAAA',
                   networkClientConfiguration: {
                     chainId: infuraChainId,
                     failoverRpcUrls: ['https://first.failover.endpoint'],
@@ -6293,6 +6298,7 @@ describe('NetworkController', () => {
                 expect(
                   createAutoManagedNetworkClientSpy,
                 ).toHaveBeenNthCalledWith(4, {
+                  networkClientId: 'BBBB-BBBB-BBBB-BBBB',
                   networkClientConfiguration: {
                     chainId: infuraChainId,
                     failoverRpcUrls: ['https://second.failover.endpoint'],
@@ -7265,6 +7271,7 @@ describe('NetworkController', () => {
                 expect(
                   createAutoManagedNetworkClientSpy,
                 ).toHaveBeenNthCalledWith(3, {
+                  networkClientId: 'BBBB-BBBB-BBBB-BBBB',
                   networkClientConfiguration: {
                     chainId: infuraChainId,
                     failoverRpcUrls: ['https://failover.endpoint'],
@@ -8135,6 +8142,7 @@ describe('NetworkController', () => {
               expect(createAutoManagedNetworkClientSpy).toHaveBeenNthCalledWith(
                 3,
                 {
+                  networkClientId: 'BBBB-BBBB-BBBB-BBBB',
                   networkClientConfiguration: {
                     chainId: '0x1337',
                     failoverRpcUrls: ['https://first.failover.endpoint'],
@@ -8151,6 +8159,7 @@ describe('NetworkController', () => {
               expect(createAutoManagedNetworkClientSpy).toHaveBeenNthCalledWith(
                 4,
                 {
+                  networkClientId: 'CCCC-CCCC-CCCC-CCCC',
                   networkClientConfiguration: {
                     chainId: '0x1337',
                     failoverRpcUrls: ['https://second.failover.endpoint'],
@@ -9136,6 +9145,7 @@ describe('NetworkController', () => {
               });
 
               expect(createAutoManagedNetworkClientSpy).toHaveBeenCalledWith({
+                networkClientId: 'BBBB-BBBB-BBBB-BBBB',
                 networkClientConfiguration: {
                   chainId: '0x1337',
                   failoverRpcUrls: ['https://failover.endpoint'],
@@ -10292,6 +10302,7 @@ describe('NetworkController', () => {
                 expect(
                   createAutoManagedNetworkClientSpy,
                 ).toHaveBeenNthCalledWith(4, {
+                  networkClientId: 'CCCC-CCCC-CCCC-CCCC',
                   networkClientConfiguration: {
                     chainId: infuraChainId,
                     failoverRpcUrls: ['https://first.failover.endpoint'],
@@ -10307,6 +10318,7 @@ describe('NetworkController', () => {
                 expect(
                   createAutoManagedNetworkClientSpy,
                 ).toHaveBeenNthCalledWith(5, {
+                  networkClientId: 'DDDD-DDDD-DDDD-DDDD',
                   networkClientConfiguration: {
                     chainId: infuraChainId,
                     failoverRpcUrls: ['https://second.failover.endpoint'],
@@ -11008,6 +11020,7 @@ describe('NetworkController', () => {
                 );
 
                 expect(createAutoManagedNetworkClientSpy).toHaveBeenCalledWith({
+                  networkClientId: 'CCCC-CCCC-CCCC-CCCC',
                   networkClientConfiguration: {
                     chainId: '0x1337',
                     failoverRpcUrls: ['https://first.failover.endpoint'],
@@ -11021,6 +11034,7 @@ describe('NetworkController', () => {
                   isRpcFailoverEnabled: true,
                 });
                 expect(createAutoManagedNetworkClientSpy).toHaveBeenCalledWith({
+                  networkClientId: 'DDDD-DDDD-DDDD-DDDD',
                   networkClientConfiguration: {
                     chainId: '0x1337',
                     failoverRpcUrls: ['https://second.failover.endpoint'],
@@ -11737,6 +11751,7 @@ describe('NetworkController', () => {
                 expect(
                   createAutoManagedNetworkClientSpy,
                 ).toHaveBeenNthCalledWith(6, {
+                  networkClientId: 'CCCC-CCCC-CCCC-CCCC',
                   networkClientConfiguration: {
                     chainId: anotherInfuraChainId,
                     failoverRpcUrls: ['https://first.failover.endpoint'],
@@ -11752,6 +11767,7 @@ describe('NetworkController', () => {
                 expect(
                   createAutoManagedNetworkClientSpy,
                 ).toHaveBeenNthCalledWith(7, {
+                  networkClientId: 'DDDD-DDDD-DDDD-DDDD',
                   networkClientConfiguration: {
                     chainId: anotherInfuraChainId,
                     failoverRpcUrls: ['https://second.failover.endpoint'],
@@ -12434,6 +12450,7 @@ describe('NetworkController', () => {
             expect(createAutoManagedNetworkClientSpy).toHaveBeenNthCalledWith(
               4,
               {
+                networkClientId: 'CCCC-CCCC-CCCC-CCCC',
                 networkClientConfiguration: {
                   chainId: '0x2448',
                   failoverRpcUrls: ['https://first.failover.endpoint'],
@@ -12450,6 +12467,7 @@ describe('NetworkController', () => {
             expect(createAutoManagedNetworkClientSpy).toHaveBeenNthCalledWith(
               5,
               {
+                networkClientId: 'DDDD-DDDD-DDDD-DDDD',
                 networkClientConfiguration: {
                   chainId: '0x2448',
                   failoverRpcUrls: ['https://second.failover.endpoint'],

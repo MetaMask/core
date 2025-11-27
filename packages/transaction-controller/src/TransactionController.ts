@@ -2996,6 +2996,27 @@ export class TransactionController extends BaseController<
         transactionMeta,
         new Error('Transaction incomplete at startup'),
       );
+
+      const requiredTransactionIds =
+        transactionMeta.requiredTransactionIds ?? [];
+
+      for (const requiredTransactionId of requiredTransactionIds) {
+        const requiredTransactionMeta = this.#getTransaction(
+          requiredTransactionId,
+        );
+
+        if (
+          !requiredTransactionMeta ||
+          this.#isFinalState(requiredTransactionMeta.status)
+        ) {
+          continue;
+        }
+
+        this.#failTransaction(
+          requiredTransactionMeta,
+          new Error('Parent transaction incomplete at startup'),
+        );
+      }
     }
   }
 
@@ -3422,7 +3443,8 @@ export class TransactionController extends BaseController<
     return (
       status === TransactionStatus.rejected ||
       status === TransactionStatus.confirmed ||
-      status === TransactionStatus.failed
+      status === TransactionStatus.failed ||
+      status === TransactionStatus.dropped
     );
   }
 
@@ -4737,6 +4759,7 @@ export class TransactionController extends BaseController<
     const transaction = {
       chainId,
       delegationAddress,
+      isExternalSign: true,
       txParams: {
         data,
         from,
