@@ -443,9 +443,46 @@ export type NetworkControllerNetworkRemovedEvent = {
 };
 
 /**
- * `rpcEndpointUnavailable` is published after an attempt to make a request to
- * an RPC endpoint fails too many times in a row (because of a connection error
- * or an unusable response).
+ * `NetworkController:rpcEndpointChainUnavailable` is published when, after
+ * trying all endpoints in an endpoint chain, the last failover reaches a
+ * maximum number of consecutive 5xx responses, breaking the underlying circuit.
+ *
+ * In other words, this event will not be published if a failover is available,
+ * even if the primary is not.
+ *
+ * @param payload - The event payload.
+ * @param payload.chainId - The target network's chain ID.
+ * @param payload.error - The last error produced by the last failover in the
+ * endpoint chain.
+ * @param payload.networkClientId - The target network's client ID.
+ */
+export type NetworkControllerRpcEndpointChainUnavailableEvent = {
+  type: 'NetworkController:rpcEndpointChainUnavailable';
+  payload: [
+    {
+      chainId: Hex;
+      error: unknown;
+      networkClientId: NetworkClientId;
+    },
+  ];
+};
+
+/**
+ * `NetworkController:rpcEndpointUnavailable` is published when any
+ * endpoint in an endpoint chain reaches a maximum number of consecutive 5xx
+ * responses, breaking the underlying circuit.
+ *
+ * In other words, this event will be published if a primary is not available,
+ * even if a failover is.
+ *
+ * @param payload - The event payload.
+ * @param payload.chainId - The target network's chain ID.
+ * @param payload.endpointUrl - The URL of the endpoint which reached the
+ * maximum number of consecutive 5xx responses. You can compare this to
+ * `primaryEndpointUrl` to know whether it was a failover or a primary.
+ * @param payload.error - The last error produced by the endpoint.
+ * @param payload.networkClientId - The target network's client ID.
+ * @param payload.primaryEndpointUrl - The endpoint chain's primary URL.
  */
 export type NetworkControllerRpcEndpointUnavailableEvent = {
   type: 'NetworkController:rpcEndpointUnavailable';
@@ -453,15 +490,65 @@ export type NetworkControllerRpcEndpointUnavailableEvent = {
     {
       chainId: Hex;
       endpointUrl: string;
-      failoverEndpointUrl?: string;
       error: unknown;
+      networkClientId: NetworkClientId;
+      primaryEndpointUrl: string;
     },
   ];
 };
 
 /**
- * `rpcEndpointDegraded` is published after a request to an RPC endpoint
- * responds successfully but takes too long.
+ * `NetworkController:rpcEndpointChainDegraded` is published for any of the
+ * endpoints in an endpoint chain when one of the following two conditions hold
+ * (and the chain is not already in a degraded state):
+ *
+ * 1. A successful (2xx) request, even after being retried, cannot be made to
+ * the endpoint.
+ * 2. A successful (2xx) request can be made to the endpoint, but it takes
+ * longer than expected to complete.
+ *
+ * Note that this event will be published even if there are local connectivity
+ * issues which prevent requests from being initiated. This is intentional.
+ *
+ * @param payload - The event payload.
+ * @param payload.chainId - The target network's chain ID.
+ * @param payload.error - The last error produced by the endpoint (or
+ * `undefined` if the request was slow).
+ * @param payload.networkClientId - The target network's client ID.
+ */
+export type NetworkControllerRpcEndpointChainDegradedEvent = {
+  type: 'NetworkController:rpcEndpointChainDegraded';
+  payload: [
+    {
+      chainId: Hex;
+      error: unknown;
+      networkClientId: NetworkClientId;
+    },
+  ];
+};
+
+/**
+ *
+ * `NetworkController:rpcEndpointDegraded` is published for any of the endpoints
+ * in an endpoint chain when:
+ *
+ * 1. A successful (2xx) request, even after being retried, cannot be made to
+ * the endpoint.
+ * 2. A successful (2xx) request can be made to the endpoint, but it takes
+ * longer than expected to complete.
+ *
+ * Note that this event will be published even if there are local connectivity
+ * issues which prevent requests from being initiated. This is intentional.
+ *
+ * @param payload - The event payload.
+ * @param payload.chainId - The target network's chain ID.
+ * @param payload.endpointUrl - The URL of the endpoint for which requests
+ * failed or were slow to complete. You can compare this to `primaryEndpointUrl`
+ * to know whether it was a failover or a primary.
+ * @param payload.error - The last error produced by the endpoint (or
+ * `undefined` if the request was slow).
+ * @param payload.networkClientId - The target network's client ID.
+ * @param payload.primaryEndpointUrl - The endpoint chain's primary URL.
  */
 export type NetworkControllerRpcEndpointDegradedEvent = {
   type: 'NetworkController:rpcEndpointDegraded';
@@ -470,20 +557,59 @@ export type NetworkControllerRpcEndpointDegradedEvent = {
       chainId: Hex;
       endpointUrl: string;
       error: unknown;
+      networkClientId: NetworkClientId;
+      primaryEndpointUrl: string;
     },
   ];
 };
 
 /**
- * `rpcEndpointRequestRetried` is published after a request to an RPC endpoint
- * is retried following a connection error or an unusable response.
+ * `NetworkController:rpcEndpointChainAvailable` is published in one of two
+ * cases:
+ *
+ * 1. The first time that a 2xx request is made to any of the endpoints in an
+ * endpoint chain.
+ * 2. When requests to any of the endpoints previously failed (placing the
+ * endpoint in a degraded or unavailable status), but are now succeeding again.
+ *
+ * @param payload - The event payload.
+ * @param payload.chainId - The target network's chain ID.
+ * @param payload.networkClientId - The target network's client ID.
  */
-export type NetworkControllerRpcEndpointRequestRetriedEvent = {
-  type: 'NetworkController:rpcEndpointRequestRetried';
+export type NetworkControllerRpcEndpointChainAvailableEvent = {
+  type: 'NetworkController:rpcEndpointChainAvailable';
   payload: [
     {
-      endpointUrl: string;
+      chainId: Hex;
+      networkClientId: NetworkClientId;
+    },
+  ];
+};
+
+/**
+ * `NetworkController:rpcEndpointRetried` is published before a request to any
+ * endpoint in an endpoint chain is retried.
+ *
+ * This is mainly useful for tests.
+ *
+ * @param payload - The event payload.
+ * @param payload.attempt - The current attempt counter for the endpoint
+ * (starting from 0).
+ * @param payload.chainId - The target network's chain ID.
+ * @param payload.endpointUrl - The URL of the endpoint being retried.
+ * @param payload.networkClientId - The target network's client ID.
+ * @param payload.primaryEndpointUrl - The endpoint chain's primary URL.
+ * @see {@link RpcService} for the list of retriable errors.
+ */
+export type NetworkControllerRpcEndpointRetriedEvent = {
+  type: 'NetworkController:rpcEndpointRetried';
+  payload: [
+    {
       attempt: number;
+      chainId: Hex;
+      endpointUrl: string;
+      networkClientId: NetworkClientId;
+      primaryEndpointUrl: string;
     },
   ];
 };
@@ -496,9 +622,12 @@ export type NetworkControllerEvents =
   | NetworkControllerInfuraIsUnblockedEvent
   | NetworkControllerNetworkAddedEvent
   | NetworkControllerNetworkRemovedEvent
+  | NetworkControllerRpcEndpointChainUnavailableEvent
   | NetworkControllerRpcEndpointUnavailableEvent
+  | NetworkControllerRpcEndpointChainDegradedEvent
   | NetworkControllerRpcEndpointDegradedEvent
-  | NetworkControllerRpcEndpointRequestRetriedEvent;
+  | NetworkControllerRpcEndpointChainAvailableEvent
+  | NetworkControllerRpcEndpointRetriedEvent;
 
 /**
  * All events that {@link NetworkController} calls internally.
@@ -2800,6 +2929,7 @@ export class NetworkController extends BaseController<
         autoManagedNetworkClientRegistry[NetworkClientType.Infura][
           addedRpcEndpoint.networkClientId
         ] = createAutoManagedNetworkClient({
+          networkClientId: addedRpcEndpoint.networkClientId,
           networkClientConfiguration: {
             type: NetworkClientType.Infura,
             chainId: networkFields.chainId,
@@ -2818,6 +2948,7 @@ export class NetworkController extends BaseController<
         autoManagedNetworkClientRegistry[NetworkClientType.Custom][
           addedRpcEndpoint.networkClientId
         ] = createAutoManagedNetworkClient({
+          networkClientId: addedRpcEndpoint.networkClientId,
           networkClientConfiguration: {
             type: NetworkClientType.Custom,
             chainId: networkFields.chainId,
@@ -2980,6 +3111,7 @@ export class NetworkController extends BaseController<
           return [
             rpcEndpoint.networkClientId,
             createAutoManagedNetworkClient({
+              networkClientId: rpcEndpoint.networkClientId,
               networkClientConfiguration: {
                 type: NetworkClientType.Infura,
                 network: infuraNetworkName,
@@ -2999,6 +3131,7 @@ export class NetworkController extends BaseController<
         return [
           rpcEndpoint.networkClientId,
           createAutoManagedNetworkClient({
+            networkClientId: rpcEndpoint.networkClientId,
             networkClientConfiguration: {
               type: NetworkClientType.Custom,
               chainId: networkConfiguration.chainId,
