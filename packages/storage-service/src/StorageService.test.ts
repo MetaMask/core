@@ -111,6 +111,37 @@ describe('StorageService', () => {
         service.setItem('TestController', 'key', 'value'),
       ).rejects.toThrow('Storage quota exceeded');
     });
+
+    it('publishes itemSet event with key and value', async () => {
+      const { service, rootMessenger } = getService();
+      const eventHandler = jest.fn();
+
+      rootMessenger.subscribe(
+        'StorageService:itemSet:TestController' as `StorageService:itemSet:${string}`,
+        eventHandler,
+      );
+
+      await service.setItem('TestController', 'myKey', { data: 'test' });
+
+      expect(eventHandler).toHaveBeenCalledTimes(1);
+      expect(eventHandler).toHaveBeenCalledWith('myKey', { data: 'test' });
+    });
+
+    it('publishes itemSet event only for matching namespace', async () => {
+      const { service, rootMessenger } = getService();
+      const controller1Handler = jest.fn();
+
+      rootMessenger.subscribe(
+        'StorageService:itemSet:Controller1' as `StorageService:itemSet:${string}`,
+        controller1Handler,
+      );
+
+      await service.setItem('Controller1', 'key', 'value1');
+      await service.setItem('Controller2', 'key', 'value2');
+
+      expect(controller1Handler).toHaveBeenCalledTimes(1);
+      expect(controller1Handler).toHaveBeenCalledWith('key', 'value1');
+    });
   });
 
   describe('getItem', () => {
