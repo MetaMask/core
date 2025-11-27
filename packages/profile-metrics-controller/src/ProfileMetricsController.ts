@@ -47,7 +47,7 @@ export type ProfileMetricsControllerState = {
 /**
  * The metadata for each property in {@link ProfileMetricsControllerState}.
  */
-const userProfileControllerMetadata = {
+const profileMetricsControllerMetadata = {
   firstSyncCompleted: {
     persist: true,
     includeInDebugSnapshot: true,
@@ -177,7 +177,7 @@ export class ProfileMetricsController extends StaticIntervalPollingController()<
   }) {
     super({
       messenger,
-      metadata: userProfileControllerMetadata,
+      metadata: profileMetricsControllerMetadata,
       name: controllerName,
       state: {
         ...getDefaultProfileMetricsControllerState(),
