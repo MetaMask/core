@@ -118,10 +118,7 @@ describe('StorageService', () => {
       const { service } = getService();
 
       await service.setItem('TestController', 'testKey', { data: 'test' });
-      const result = await service.getItem<{ data: string }>(
-        'TestController',
-        'testKey',
-      );
+      const result = await service.getItem('TestController', 'testKey');
 
       expect(result).toStrictEqual({ data: 'test' });
     });
@@ -174,7 +171,7 @@ describe('StorageService', () => {
       const { service } = getService();
 
       await service.setItem('TestController', 'string', 'simple string');
-      const result = await service.getItem<string>('TestController', 'string');
+      const result = await service.getItem('TestController', 'string');
 
       expect(result).toBe('simple string');
     });
@@ -183,7 +180,7 @@ describe('StorageService', () => {
       const { service } = getService();
 
       await service.setItem('TestController', 'number', 42);
-      const result = await service.getItem<number>('TestController', 'number');
+      const result = await service.getItem('TestController', 'number');
 
       expect(result).toBe(42);
     });
@@ -193,7 +190,7 @@ describe('StorageService', () => {
       const array = [1, 2, 3];
 
       await service.setItem('TestController', 'array', array);
-      const result = await service.getItem<number[]>('TestController', 'array');
+      const result = await service.getItem('TestController', 'array');
 
       expect(result).toStrictEqual(array);
     });
@@ -466,7 +463,7 @@ describe('StorageService', () => {
       expect(keys).toHaveLength(5);
 
       // Retrieve specific snap source code
-      const bitcoinSource = await service.getItem<string>(
+      const bitcoinSource = await service.getItem(
         'SnapController',
         'npm:@metamask/bitcoin-wallet-snap:sourceCode',
       );

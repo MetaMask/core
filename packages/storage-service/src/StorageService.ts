@@ -46,11 +46,12 @@ import { SERVICE_NAME } from './types';
  *   }
  *
  *   async getSnapSourceCode(snapId: string): Promise<string | null> {
- *     return await this.messenger.call(
+ *     const result = await this.messenger.call(
  *       'StorageService:getItem',
  *       'SnapController',
  *       `${snapId}:sourceCode`,
  *     );
+ *     return result as string | null; // Caller must validate/cast
  *   }
  * }
  * ```
@@ -159,11 +160,10 @@ export class StorageService {
    * @param namespace - Controller namespace (e.g., 'SnapController').
    * @param key - Storage key (e.g., 'npm:@metamask/example-snap:sourceCode').
    * @param value - Data to store (should be 100KB+ for optimal use).
-   * @template T - The type of the value being stored.
    */
-  async setItem<T>(namespace: string, key: string, value: T): Promise<void> {
+  async setItem(namespace: string, key: string, value: unknown): Promise<void> {
     // Adapter handles serialization and wrapping with metadata
-    await this.#storage.setItem(namespace, key, value as never);
+    await this.#storage.setItem(namespace, key, value);
 
     // Publish event so other controllers can react to changes
     // Event type: StorageService:itemSet:namespace
@@ -178,15 +178,16 @@ export class StorageService {
   /**
    * Retrieve data from storage.
    *
+   * Returns `unknown` since there's no schema validation.
+   * Callers should validate or cast the result to the expected type.
+   *
    * @param namespace - Controller namespace (e.g., 'SnapController').
    * @param key - Storage key (e.g., 'npm:@metamask/example-snap:sourceCode').
-   * @returns Parsed data or null if not found.
-   * @template T - The type of the value being retrieved.
+   * @returns Parsed data or null if not found. Type is `unknown` - caller must validate.
    */
-  async getItem<T>(namespace: string, key: string): Promise<T | null> {
+  async getItem(namespace: string, key: string): Promise<unknown> {
     // Adapter handles deserialization and unwrapping
-    const result = await this.#storage.getItem(namespace, key);
-    return result as T | null;
+    return await this.#storage.getItem(namespace, key);
   }
 
   /**

@@ -118,15 +118,17 @@ export const STORAGE_KEY_PREFIX = 'storageService:';
  */
 export type StorageServiceSetItemAction = {
   type: `${typeof SERVICE_NAME}:setItem`;
-  handler: <T>(namespace: string, key: string, value: T) => Promise<void>;
+  handler: (namespace: string, key: string, value: unknown) => Promise<void>;
 };
 
 /**
  * Action for retrieving data from the storage service.
+ * Returns `unknown` since there's no schema validation.
+ * Callers should validate/cast the result.
  */
 export type StorageServiceGetItemAction = {
   type: `${typeof SERVICE_NAME}:getItem`;
-  handler: <T>(namespace: string, key: string) => Promise<T | null>;
+  handler: (namespace: string, key: string) => Promise<unknown>;
 };
 
 /**
