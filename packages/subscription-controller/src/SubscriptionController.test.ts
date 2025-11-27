@@ -2167,7 +2167,10 @@ describe('SubscriptionController', () => {
         async ({ controller, mockService }) => {
           mockService.getSubscriptions.mockResolvedValue({
             subscriptions: [
-              { ...MOCK_SUBSCRIPTION, status: SUBSCRIPTION_STATUSES.incomplete },
+              {
+                ...MOCK_SUBSCRIPTION,
+                status: SUBSCRIPTION_STATUSES.incomplete,
+              },
             ],
             trialedProducts: [],
           });
