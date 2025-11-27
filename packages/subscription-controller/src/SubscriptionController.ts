@@ -33,6 +33,7 @@ import type {
   CachedLastSelectedPaymentMethod,
   SubmitSponsorshipIntentsMethodParams,
   RecurringInterval,
+  SubscriptionStatus,
 } from './types';
 import {
   PAYMENT_TYPES,
@@ -520,10 +521,12 @@ export class SubscriptionController extends StaticIntervalPollingController()<
     const currentSubscription = this.state.subscriptions.find((subscription) =>
       subscription.products.some((p) => p.name === PRODUCT_TYPES.SHIELD),
     );
-    // is shield subscription is active, this transaction is for changing payment method
-    const isChangePaymentMethod =
-      Boolean(currentSubscription) &&
-      currentSubscription?.status !== SUBSCRIPTION_STATUSES.canceled;
+
+    this.#assertValidSubscriptionStateForCryptoApproval({
+      product: PRODUCT_TYPES.SHIELD,
+    });
+    // if shield subscription exists, this transaction is for changing payment method
+    const isChangePaymentMethod = Boolean(currentSubscription);
 
     if (isChangePaymentMethod) {
       await this.updatePaymentMethod({
@@ -820,6 +823,34 @@ export class SubscriptionController extends StaticIntervalPollingController()<
       throw new Error(SubscriptionControllerErrorMessage.ProductPriceNotFound);
     }
     return productPrice;
+  }
+
+  #assertValidSubscriptionStateForCryptoApproval({
+    product,
+  }: {
+    product: ProductType;
+  }) {
+    const subscription = this.state.subscriptions.find((sub) =>
+      sub.products.some((p) => p.name === product),
+    );
+
+    const isValid =
+      !subscription ||
+      (
+        [
+          SUBSCRIPTION_STATUSES.pastDue,
+          SUBSCRIPTION_STATUSES.unpaid,
+          SUBSCRIPTION_STATUSES.paused,
+          SUBSCRIPTION_STATUSES.provisional,
+          SUBSCRIPTION_STATUSES.active,
+          SUBSCRIPTION_STATUSES.trialing,
+        ] as SubscriptionStatus[]
+      ).includes(subscription.status);
+    if (!isValid) {
+      throw new Error(
+        SubscriptionControllerErrorMessage.SubscriptionNotValidForCryptoApproval,
+      );
+    }
   }
 
   #assertIsUserNotSubscribed({ products }: { products: ProductType[] }) {

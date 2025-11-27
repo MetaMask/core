@@ -2146,5 +2146,52 @@ describe('SubscriptionController', () => {
         },
       );
     });
+
+    it('should throw error when subscription status is not valid for crypto approval', async () => {
+      await withController(
+        {
+          state: {
+            pricing: MOCK_PRICE_INFO_RESPONSE,
+            trialedProducts: [],
+            subscriptions: [],
+            lastSelectedPaymentMethod: {
+              [PRODUCT_TYPES.SHIELD]: {
+                type: PAYMENT_TYPES.byCrypto,
+                paymentTokenAddress: '0xtoken',
+                paymentTokenSymbol: 'USDT',
+                plan: RECURRING_INTERVALS.month,
+              },
+            },
+          },
+        },
+        async ({ controller, mockService }) => {
+          mockService.getSubscriptions.mockResolvedValue({
+            subscriptions: [
+              { ...MOCK_SUBSCRIPTION, status: SUBSCRIPTION_STATUSES.incomplete },
+            ],
+            trialedProducts: [],
+          });
+
+          const txMeta = {
+            ...generateMockTxMeta(),
+            type: TransactionType.shieldSubscriptionApprove,
+            chainId: '0x1' as Hex,
+            rawTx: '0x123',
+            txParams: {
+              data: '0x456',
+              from: '0x1234567890123456789012345678901234567890',
+              to: '0xtoken',
+            },
+            status: TransactionStatus.submitted,
+          };
+
+          await expect(
+            controller.submitShieldSubscriptionCryptoApproval(txMeta),
+          ).rejects.toThrow(
+            SubscriptionControllerErrorMessage.SubscriptionNotValidForCryptoApproval,
+          );
+        },
+      );
+    });
   });
 });
