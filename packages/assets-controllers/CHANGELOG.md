@@ -17,6 +17,8 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
   - JWT token is included in `Authorization: Bearer <token>` header when provided
   - Backward compatible: token parameter is optional and APIs work without authentication
 
+- Support for Monad in NFT assets-controllers, [#7254](https://github.com/MetaMask/core/pull/7254)
+
 ### Changed
 
 - Move peer dependencies for controller and service packages to direct dependencies ([#7209](https://github.com/MetaMask/core/pull/7209), [#7220](https://github.com/MetaMask/core/pull/7220), [#7236](https://github.com/MetaMask/core/pull/7236))
