@@ -935,9 +935,7 @@ export default class GatorPermissionsController extends BaseController<
               },
             );
           })
-          .finally(() => {
-            refreshPermissions('transaction confirmed');
-          });
+          .finally(() => refreshPermissions('transaction confirmed'));
 
         cleanup(transactionMeta.id);
       }
