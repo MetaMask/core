@@ -286,7 +286,7 @@ export class ShieldRemoteBackend implements ShieldBackend {
  * @param txMeta - The transaction metadata.
  * @returns The body for the init coverage check request.
  */
-function makeInitCoverageCheckBody(
+export function makeInitCoverageCheckBody(
   txMeta: TransactionMeta,
 ): InitCoverageCheckRequest {
   return {
