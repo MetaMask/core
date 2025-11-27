@@ -20,8 +20,7 @@ import type { TransactionMeta } from '../types';
 import { TransactionType, TransactionStatus } from '../types';
 
 jest.mock('@metamask/controller-utils');
-jest.useFakeTimers({
-});
+jest.useFakeTimers({});
 
 describe('updateSwapsTransaction', () => {
   let transactionMeta: TransactionMeta;

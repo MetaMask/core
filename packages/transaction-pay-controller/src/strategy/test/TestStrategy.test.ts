@@ -2,15 +2,14 @@ import type { TransactionMeta } from '@metamask/transaction-controller';
 
 import { TestStrategy } from './TestStrategy';
 import { TransactionPayStrategy } from '../..';
+import { flushPromises } from '../../../../../tests/helpers';
 import type {
   QuoteRequest,
   TransactionPayControllerMessenger,
   TransactionPayQuote,
 } from '../../types';
-import { flushPromises } from '../../../../../tests/helpers';
 
-jest.useFakeTimers({
-});
+jest.useFakeTimers({});
 
 const REQUEST_MOCK = {} as QuoteRequest;
 const QUOTE_MOCK = {} as TransactionPayQuote<void>;

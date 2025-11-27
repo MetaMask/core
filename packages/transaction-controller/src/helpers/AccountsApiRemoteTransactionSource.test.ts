@@ -13,8 +13,7 @@ import { TransactionType, type RemoteTransactionSourceRequest } from '../types';
 jest.mock('../api/accounts-api');
 jest.mock('../utils/transaction-type');
 
-jest.useFakeTimers({
-});
+jest.useFakeTimers({});
 
 const ADDRESS_MOCK = '0x123';
 const ONE_DAY_MS = 1000 * 60 * 60 * 24;
