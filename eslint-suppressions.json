@@ -284,10 +284,5 @@
     "@typescript-eslint/prefer-promise-reject-errors": {
       "count": 1
     }
-  },
-  "tests/setupAfterEnv/nock.ts": {
-    "import-x/no-named-as-default-member": {
-      "count": 3
-    }
   }
 }

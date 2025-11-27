@@ -23,9 +23,7 @@ import { getTokenFiatRate } from '../../utils/token';
 jest.mock('../../utils/token');
 jest.mock('../../utils/gas');
 
-jest.useFakeTimers({
-  legacyFakeTimers: true,
-});
+jest.useFakeTimers({});
 
 const QUOTE_REQUEST_1_MOCK: QuoteRequest = {
   from: '0x123',

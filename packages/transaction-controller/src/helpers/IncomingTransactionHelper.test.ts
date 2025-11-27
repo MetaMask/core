@@ -11,9 +11,7 @@ import {
 } from '../types';
 import { getIncomingTransactionsPollingInterval } from '../utils/feature-flags';
 
-jest.useFakeTimers({
-  legacyFakeTimers: true,
-});
+jest.useFakeTimers({});
 
 jest.mock('../utils/feature-flags');
 

@@ -2,15 +2,14 @@ import type { TransactionMeta } from '@metamask/transaction-controller';
 
 import { TestStrategy } from './TestStrategy';
 import { TransactionPayStrategy } from '../..';
+import { flushPromises } from '../../../../../tests/helpers';
 import type {
   QuoteRequest,
   TransactionPayControllerMessenger,
   TransactionPayQuote,
 } from '../../types';
 
-jest.useFakeTimers({
-  legacyFakeTimers: true,
-});
+jest.useFakeTimers({});
 
 const REQUEST_MOCK = {} as QuoteRequest;
 const QUOTE_MOCK = {} as TransactionPayQuote<void>;
@@ -25,7 +24,10 @@ describe('TestStrategy', () => {
         transaction: TRANSACTION_META_MOCK,
       });
 
-      jest.runAllTimers();
+      // Run pending timers to trigger the setTimeout (5000ms delay)
+      // With legacy fake timers, we need to advance by the exact timeout duration
+      jest.advanceTimersByTime(5000);
+      await flushPromises();
 
       const quotes = await quotesPromise;
 
@@ -83,7 +85,9 @@ describe('TestStrategy', () => {
         transaction: {} as TransactionMeta,
       });
 
-      jest.runAllTimers();
+      // Advance timers to trigger the setTimeout (5000ms delay)
+      jest.advanceTimersByTime(5000);
+      await flushPromises();
 
       expect(await executePromise).toStrictEqual({
         transactionHash: undefined,

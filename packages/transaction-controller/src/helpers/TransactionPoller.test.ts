@@ -5,9 +5,7 @@ import { flushPromises } from '../../../../tests/helpers';
 import type { TransactionControllerMessenger } from '../TransactionController';
 import type { TransactionMeta } from '../types';
 
-jest.useFakeTimers({
-  legacyFakeTimers: true,
-});
+jest.useFakeTimers();
 
 const BLOCK_NUMBER_MOCK = '0x123';
 const CHAIN_ID_MOCK = '0x1';
@@ -61,6 +59,10 @@ describe('TransactionPoller', () => {
       const listener = jest.fn();
       poller.start(listener);
 
+      // Advance timers by 0 to trigger initial timer setup with Jest 28
+      jest.advanceTimersByTime(0);
+      await flushPromises();
+
       expect(jest.getTimerCount()).toBe(1);
 
       jest.runOnlyPendingTimers();
@@ -78,6 +80,10 @@ describe('TransactionPoller', () => {
 
       const listener = jest.fn();
       poller.start(listener);
+
+      // Advance timers by 0 to trigger initial timer setup with Jest 28
+      jest.advanceTimersByTime(0);
+      await flushPromises();
 
       for (let i = 0; i < DEFAULT_ACCELERATED_COUNT_MAX * 3; i++) {
         jest.runOnlyPendingTimers();

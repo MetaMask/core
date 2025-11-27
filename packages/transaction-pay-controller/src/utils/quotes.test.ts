@@ -25,9 +25,7 @@ jest.mock('./strategy');
 jest.mock('./transaction');
 jest.mock('./totals');
 
-jest.useFakeTimers({
-  legacyFakeTimers: true,
-});
+jest.useFakeTimers({});
 
 const TRANSACTION_ID_MOCK = '123-456';
 
