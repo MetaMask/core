@@ -1,6 +1,6 @@
 {
   "name": "@metamask/subscription-controller",
-  "version": "5.0.0",
+  "version": "5.1.0",
   "description": "Handle user subscription",
   "keywords": [
     "MetaMask",
@@ -53,7 +53,7 @@
     "@metamask/messenger": "^0.3.0",
     "@metamask/polling-controller": "^16.0.0",
     "@metamask/profile-sync-controller": "^27.0.0",
-    "@metamask/transaction-controller": "^62.1.0",
+    "@metamask/transaction-controller": "^62.3.1",
     "@metamask/utils": "^11.8.1",
     "bignumber.js": "^9.1.2"
   },

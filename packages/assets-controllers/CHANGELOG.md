@@ -7,8 +7,15 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+### Changed
+
+- Bump `@metamask/transaction-controller` from `^62.3.0` to `^62.3.1` ([#7257](https://github.com/MetaMask/core/pull/7257))
+
+## [92.0.0]
+
 ### Added
 
+- Support for optionally fetching market data when calling searchTokens ([#7226](https://github.com/MetaMask/core/pull/7226))
 - **BREAKING:** Add optional JWT token authentication to multi-chain accounts API calls ([#7165](https://github.com/MetaMask/core/pull/7165))
   - `fetchMultiChainBalances` and `fetchMultiChainBalancesV4` now accept an optional `jwtToken` parameter
   - `TokenDetectionController` fetches and passes JWT token from `AuthenticationController` when using Accounts API
@@ -18,7 +25,7 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ### Changed
 
-- Move peer dependencies for controller and service packages to direct dependencies ([#7209](https://github.com/MetaMask/core/pull/7209))
+- Move peer dependencies for controller and service packages to direct dependencies ([#7209](https://github.com/MetaMask/core/pull/7209), [#7220](https://github.com/MetaMask/core/pull/7220), [#7236](https://github.com/MetaMask/core/pull/7236))
   - The dependencies moved are:
     - `@metamask/account-tree-controller` (^4.0.0)
     - `@metamask/accounts-controller` (^35.0.0)
@@ -32,14 +39,16 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
     - `@metamask/preferences-controller` (^22.0.0)
     - `@metamask/profile-sync-controller` (^27.0.0)
     - `@metamask/snaps-controllers` (^14.0.1)
-    - `@metamask/transaction-controller` (^62.1.0)
+    - `@metamask/transaction-controller` (^62.3.0)
   - In clients, it is now possible for multiple versions of these packages to exist in the dependency tree.
     - For example, this scenario would be valid: a client relies on `@metamask/controller-a` 1.0.0 and `@metamask/controller-b` 1.0.0, and `@metamask/controller-b` depends on `@metamask/controller-a` 1.1.0.
   - Note, however, that the versions specified in the client's `package.json` always "win", and you are expected to keep them up to date so as not to break controller and service intercommunication.
 
 ### Fixed
 
+- Fix `TokenBalancesController` state that store both lowercase and checksum account addresses ([#7217](https://github.com/MetaMask/core/pull/7217))
 - `TokenBalancesController`: state inconsistency by ensuring all account addresses are stored in lowercase format ([#7216](https://github.com/MetaMask/core/pull/7216))
+- Add MON (Monad) to supported currencies list in token prices service ([#7250](https://github.com/MetaMask/core/pull/7250))
 
 ## [91.0.0]
 
@@ -2350,7 +2359,8 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 - Use Ethers for AssetsContractController ([#845](https://github.com/MetaMask/core/pull/845))
 
-[Unreleased]: https://github.com/MetaMask/core/compare/@metamask/assets-controllers@91.0.0...HEAD
+[Unreleased]: https://github.com/MetaMask/core/compare/@metamask/assets-controllers@92.0.0...HEAD
+[92.0.0]: https://github.com/MetaMask/core/compare/@metamask/assets-controllers@91.0.0...@metamask/assets-controllers@92.0.0
 [91.0.0]: https://github.com/MetaMask/core/compare/@metamask/assets-controllers@90.0.0...@metamask/assets-controllers@91.0.0
 [90.0.0]: https://github.com/MetaMask/core/compare/@metamask/assets-controllers@89.0.1...@metamask/assets-controllers@90.0.0
 [89.0.1]: https://github.com/MetaMask/core/compare/@metamask/assets-controllers@89.0.0...@metamask/assets-controllers@89.0.1

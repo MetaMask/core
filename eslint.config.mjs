@@ -18,6 +18,11 @@ const config = createConfig([
     ],
   },
   {
+    linterOptions: {
+      reportUnusedDisableDirectives: 'error',
+    },
+  },
+  {
     rules: {
       // Left disabled because various properties throughough this repo are snake_case because the
       // names come from external sources or must comply with standards
