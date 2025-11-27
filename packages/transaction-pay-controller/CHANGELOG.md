@@ -7,6 +7,8 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+## [10.2.0]
+
 ### Added
 
 - Use `relayDisabledGasStationChains` feature flag to disable gas station on specific source chains in Relay strategy ([#7255](https://github.com/MetaMask/core/pull/7255))
@@ -15,7 +17,7 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 - Bump `@metamask/assets-controllers` from `^91.0.0` to `^92.0.0` ([#7253](https://github.com/MetaMask/core/pull/7253))
 - Bump `@metamask/bridge-status-controller` from `^63.0.0` to `^63.1.0` ([#7245](https://github.com/MetaMask/core/pull/7245))
-- Bump `@metamask/transaction-controller` from `^62.2.0` to `^62.3.0` ([#7236](https://github.com/MetaMask/core/pull/7236))
+- Bump `@metamask/transaction-controller` from `^62.2.0` to `^62.3.1` ([#7236](https://github.com/MetaMask/core/pull/7236), [#7257](https://github.com/MetaMask/core/pull/7257))
 - Bump `@metamask/bridge-controller` from `^63.0.0` to `^63.2.0` ([#7238](https://github.com/MetaMask/core/pull/7238), [#7245](https://github.com/MetaMask/core/pull/7245))
 
 ## [10.1.0]
@@ -170,7 +172,8 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 - Initial release ([#6820](https://github.com/MetaMask/core/pull/6820))
 
-[Unreleased]: https://github.com/MetaMask/core/compare/@metamask/transaction-pay-controller@10.1.0...HEAD
+[Unreleased]: https://github.com/MetaMask/core/compare/@metamask/transaction-pay-controller@10.2.0...HEAD
+[10.2.0]: https://github.com/MetaMask/core/compare/@metamask/transaction-pay-controller@10.1.0...@metamask/transaction-pay-controller@10.2.0
 [10.1.0]: https://github.com/MetaMask/core/compare/@metamask/transaction-pay-controller@10.0.0...@metamask/transaction-pay-controller@10.1.0
 [10.0.0]: https://github.com/MetaMask/core/compare/@metamask/transaction-pay-controller@9.0.0...@metamask/transaction-pay-controller@10.0.0
 [9.0.0]: https://github.com/MetaMask/core/compare/@metamask/transaction-pay-controller@8.0.0...@metamask/transaction-pay-controller@9.0.0
