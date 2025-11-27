@@ -643,7 +643,7 @@ describe('decodePermission', () => {
         expect(hexToBigInt(data.initialAmount)).toBe(initialAmount);
       });
 
-      it('returns null when expiry timestamp is 0', () => {
+      it('rejects when expiry timestamp is 0', () => {
         const caveats = [
           {
             enforcer: TimestampEnforcer,
@@ -668,14 +668,15 @@ describe('decodePermission', () => {
           } as const,
         ];
 
-        const { expiry, data } = getPermissionDataAndExpiry({
-          contracts,
-          caveats,
-          permissionType,
-        });
-
-        expect(expiry).toBeNull();
-        expect(hexToBigInt(data.initialAmount)).toBe(initialAmount);
+        expect(() =>
+          getPermissionDataAndExpiry({
+            contracts,
+            caveats,
+            permissionType,
+          }),
+        ).toThrow(
+          'Invalid expiry: timestampBeforeThreshold must be greater than 0',
+        );
       });
     });
 

@@ -86,10 +86,11 @@ export const identifyPermissionByEnforcers = ({
  * - Last 16 bytes (32 hex chars): timestampBeforeThreshold (uint128) - this is the expiry
  *
  * @param terms - The hex-encoded terms from a TimestampEnforcer caveat
- * @returns The expiry timestamp in seconds, or null if no valid expiry exists
- * @throws If the terms are not exactly 32 bytes or if the timestampAfterThreshold is non-zero
+ * @returns The expiry timestamp in seconds
+ * @throws If the terms are not exactly 32 bytes, if the timestampAfterThreshold is non-zero,
+ * or if the timestampBeforeThreshold is zero
  */
-const extractExpiryFromCaveatTerms = (terms: Hex): number | null => {
+const extractExpiryFromCaveatTerms = (terms: Hex): number => {
   // Validate terms length: must be exactly 32 bytes (64 hex chars + '0x' prefix = 66 chars)
   if (terms.length !== 66) {
     throw new Error(
@@ -105,7 +106,13 @@ const extractExpiryFromCaveatTerms = (terms: Hex): number | null => {
 
   const expiry = hexToNumber(before);
 
-  return expiry === 0 ? null : expiry;
+  if (expiry === 0) {
+    throw new Error(
+      'Invalid expiry: timestampBeforeThreshold must be greater than 0',
+    );
+  }
+
+  return expiry;
 };
 
 /**
