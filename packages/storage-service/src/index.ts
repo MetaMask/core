@@ -17,7 +17,6 @@ export type {
   StorageServiceGetAllKeysAction,
   StorageServiceClearAction,
   StorageServiceItemSetEvent,
-  StorageServiceItemRemovedEvent,
 } from './types';
 
 // Export service name and storage key prefix constants

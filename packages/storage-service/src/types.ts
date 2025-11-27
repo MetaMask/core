@@ -184,20 +184,9 @@ export type StorageServiceItemSetEvent = {
 };
 
 /**
- * Event published when a storage item is removed.
- * Event type includes namespace only, key passed in payload.
- */
-export type StorageServiceItemRemovedEvent = {
-  type: `${typeof SERVICE_NAME}:itemRemoved:${string}`;
-  payload: [key: string];
-};
-
-/**
  * All events that {@link StorageService} publishes.
  */
-export type StorageServiceEvents =
-  | StorageServiceItemSetEvent
-  | StorageServiceItemRemovedEvent;
+export type StorageServiceEvents = StorageServiceItemSetEvent;
 
 /**
  * Actions from other messengers that {@link StorageService} calls.

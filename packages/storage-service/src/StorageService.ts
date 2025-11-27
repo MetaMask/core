@@ -198,14 +198,6 @@ export class StorageService {
   async removeItem(namespace: string, key: string): Promise<void> {
     // Adapter builds full storage key (e.g., mobile: 'storageService:namespace:key')
     await this.#storage.removeItem(namespace, key);
-
-    // Publish event so other controllers can react to removal
-    // Event type: StorageService:itemRemoved:namespace
-    // Payload: [key]
-    this.#messenger.publish(
-      `${SERVICE_NAME}:itemRemoved:${namespace}` as `${typeof SERVICE_NAME}:itemRemoved:${string}`,
-      key,
-    );
   }
 
   /**
@@ -221,7 +213,6 @@ export class StorageService {
 
   /**
    * Clear all data for a namespace.
-   * Delegates to storage adapter which handles clearing.
    *
    * @param namespace - Controller namespace (e.g., 'SnapController').
    */

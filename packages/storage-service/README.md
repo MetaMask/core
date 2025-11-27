@@ -47,8 +47,6 @@ StorageService publishes events when data changes, enabling reactive patterns:
 **Events published**:
 - `StorageService:itemSet:{namespace}` - When data is stored
   - Payload: `[value, key]`
-- `StorageService:itemRemoved:{namespace}` - When data is removed
-  - Payload: `[key]`
 
 **Example - Subscribe to changes**:
 ```typescript
