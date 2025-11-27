@@ -273,7 +273,6 @@ export type Cohort = {
 export type SubscriptionEligibility = {
   product: ProductType;
   canSubscribe: boolean;
-  minBalanceUSD: number;
   canViewEntryModal: boolean;
   modalType?: ModalType;
   cohorts: Cohort[];
