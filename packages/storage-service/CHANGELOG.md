@@ -10,13 +10,5 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 ### Added
 
 - Initial release of `@metamask/storage-service`
-- Add `StorageService` class for platform-agnostic storage
-- Add `StorageAdapter` interface for platform-specific implementations
-- Add `InMemoryStorageAdapter` as default storage (for tests/dev)
-- Add namespace-based key isolation
-- Add support for `setItem`, `getItem`, `removeItem`, `getAllKeys`, and `clear` operations
-- Add messenger integration for cross-controller communication
-- Add `STORAGE_KEY_PREFIX` constant for consistent key prefixing across adapters
-- Add comprehensive test coverage
 
 [Unreleased]: https://github.com/MetaMask/core/
