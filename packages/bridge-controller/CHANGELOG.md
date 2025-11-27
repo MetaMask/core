@@ -7,6 +7,10 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+### Changed
+
+- Bump `@metamask/assets-controllers` from `^91.0.0` to `^92.0.0` ([#7253](https://github.com/MetaMask/core/pull/7253))
+
 ### Fixed
 
 - Add missing MON (Monad) and SEI (Sei) to integer chain IDs ([#7252](https://github.com/MetaMask/core/pull/7252))

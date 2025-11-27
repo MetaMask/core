@@ -13,6 +13,7 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ### Changed
 
+- Bump `@metamask/assets-controllers` from `^91.0.0` to `^92.0.0` ([#7253](https://github.com/MetaMask/core/pull/7253))
 - Bump `@metamask/bridge-status-controller` from `^63.0.0` to `^63.1.0` ([#7245](https://github.com/MetaMask/core/pull/7245))
 - Bump `@metamask/transaction-controller` from `^62.2.0` to `^62.3.0` ([#7236](https://github.com/MetaMask/core/pull/7236))
 - Bump `@metamask/bridge-controller` from `^63.0.0` to `^63.2.0` ([#7238](https://github.com/MetaMask/core/pull/7238), [#7245](https://github.com/MetaMask/core/pull/7245))
