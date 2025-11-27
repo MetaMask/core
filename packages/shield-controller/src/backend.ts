@@ -9,6 +9,7 @@ import {
   type SignatureRequest,
 } from '@metamask/signature-controller';
 import type { TransactionMeta } from '@metamask/transaction-controller';
+import type { AuthorizationList } from '@metamask/transaction-controller';
 import type { Json } from '@metamask/utils';
 
 import { SignTypedDataVersion } from './constants';
@@ -26,6 +27,7 @@ import type {
 export type InitCoverageCheckRequest = {
   txParams: [
     {
+      authorizationList?: AuthorizationList;
       from: string;
       to?: string;
       value?: string;
@@ -284,12 +286,13 @@ export class ShieldRemoteBackend implements ShieldBackend {
  * @param txMeta - The transaction metadata.
  * @returns The body for the init coverage check request.
  */
-function makeInitCoverageCheckBody(
+export function makeInitCoverageCheckBody(
   txMeta: TransactionMeta,
 ): InitCoverageCheckRequest {
   return {
     txParams: [
       {
+        authorizationList: txMeta.txParams.authorizationList,
         from: txMeta.txParams.from,
         to: txMeta.txParams.to,
         value: txMeta.txParams.value,
