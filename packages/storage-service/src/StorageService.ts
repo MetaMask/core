@@ -169,7 +169,7 @@ export class StorageService {
     // Event type: StorageService:itemSet:namespace
     // Payload: [value, key]
     this.#messenger.publish(
-      `${SERVICE_NAME}:itemSet:${namespace}` as `${typeof SERVICE_NAME}:itemSet:${string}`,
+      `${SERVICE_NAME}:itemSet:${namespace}` as const,
       value,
       key,
     );
