@@ -31,9 +31,7 @@ describe('InMemoryStorageAdapter', () => {
 
     it('returns { error } when stored data is corrupted', async () => {
       const adapter = new InMemoryStorageAdapter();
-      const consoleErrorSpy = jest
-        .spyOn(console, 'error')
-        .mockImplementation();
+      const consoleErrorSpy = jest.spyOn(console, 'error').mockImplementation();
       const parseError = new SyntaxError('Unexpected token');
 
       // Store valid data first
