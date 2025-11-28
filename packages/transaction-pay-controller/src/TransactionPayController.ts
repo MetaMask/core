@@ -4,10 +4,12 @@ import type { TransactionMeta } from '@metamask/transaction-controller';
 import type { Draft } from 'immer';
 import { noop } from 'lodash';
 
+import { clearQuotes, getAbortSignal } from './actions/clear-quotes';
 import { updatePaymentToken } from './actions/update-payment-token';
 import { CONTROLLER_NAME, TransactionPayStrategy } from './constants';
 import { QuoteRefresher } from './helpers/QuoteRefresher';
 import type {
+  ClearQuotesRequest,
   GetDelegationTransactionCallback,
   TransactionData,
   TransactionPayControllerMessenger,
@@ -73,6 +75,13 @@ export class TransactionPayController extends BaseController<
     });
   }
 
+  clearQuotes(request: ClearQuotesRequest) {
+    clearQuotes(request, {
+      messenger: this.messenger,
+      updateTransactionData: this.#updateTransactionData.bind(this),
+    });
+  }
+
   updatePaymentToken(request: UpdatePaymentTokenRequest) {
     updatePaymentToken(request, {
       messenger: this.messenger,
@@ -122,7 +131,10 @@ export class TransactionPayController extends BaseController<
     });
 
     if (shouldUpdateQuotes) {
+      const abortSignal = getAbortSignal(transactionId);
+
       updateQuotes({
+        abortSignal,
         messenger: this.messenger,
         transactionData: this.state.transactionData[transactionId],
         transactionId,
@@ -132,6 +144,11 @@ export class TransactionPayController extends BaseController<
   }
 
   #registerActionHandlers() {
+    this.messenger.registerActionHandler(
+      'TransactionPayController:clearQuotes',
+      this.clearQuotes.bind(this),
+    );
+
     this.messenger.registerActionHandler(
       'TransactionPayController:getDelegationTransaction',
       this.#getDelegationTransaction.bind(this),

@@ -27,6 +27,7 @@ const DEFAULT_REFRESH_INTERVAL = 30 * 1000; // 30 Seconds
 const log = createModuleLogger(projectLogger, 'quotes');
 
 export type UpdateQuotesRequest = {
+  abortSignal?: AbortSignal;
   messenger: TransactionPayControllerMessenger;
   transactionData: TransactionData | undefined;
   transactionId: string;
@@ -42,8 +43,13 @@ export type UpdateQuotesRequest = {
 export async function updateQuotes(
   request: UpdateQuotesRequest,
 ): Promise<boolean> {
-  const { messenger, transactionData, transactionId, updateTransactionData } =
-    request;
+  const {
+    abortSignal,
+    messenger,
+    transactionData,
+    transactionId,
+    updateTransactionData,
+  } = request;
 
   const transaction = getTransaction(transactionId, messenger);
 
@@ -69,6 +75,7 @@ export async function updateQuotes(
 
   updateTransactionData(transactionId, (data) => {
     data.isLoading = true;
+    data.quotes = undefined;
   });
 
   try {
@@ -76,7 +83,17 @@ export async function updateQuotes(
       transaction,
       requests,
       messenger,
+      abortSignal,
     );
+
+    if (abortSignal?.aborted) {
+      log('Update quotes aborted', {
+        transactionId,
+        reason: abortSignal.reason,
+      });
+
+      return false;
+    }
 
     const totals = calculateTotals({
       quotes: quotes as TransactionPayQuote<unknown>[],
@@ -162,10 +179,12 @@ function syncTransaction({
  *
  * @param messenger - Messenger instance.
  * @param updateTransactionData - Callback to update transaction data.
+ * @param abortSignal - Optional abort signal to cancel the quote refresh.
  */
 export async function refreshQuotes(
   messenger: TransactionPayControllerMessenger,
   updateTransactionData: UpdateTransactionDataCallback,
+  abortSignal?: AbortSignal,
 ) {
   const state = messenger.call('TransactionPayController:getState');
   const transactionIds = Object.keys(state.transactionData);
@@ -194,6 +213,7 @@ export async function refreshQuotes(
     }
 
     const isUpdated = await updateQuotes({
+      abortSignal,
       messenger,
       transactionData,
       transactionId,
@@ -264,12 +284,14 @@ function buildQuoteRequests({
  * @param transaction - Transaction metadata.
  * @param requests - Quote requests.
  * @param messenger - Controller messenger.
+ * @param abortSignal - Optional abort signal to cancel the quote retrieval.
  * @returns An object containing batch transactions and quotes.
  */
 async function getQuotes(
   transaction: TransactionMeta,
   requests: QuoteRequest[],
   messenger: TransactionPayControllerMessenger,
+  abortSignal?: AbortSignal,
 ) {
   const { id: transactionId } = transaction;
   const strategy = getStrategy(messenger as never, transaction);
@@ -278,6 +300,7 @@ async function getQuotes(
   try {
     quotes = requests?.length
       ? ((await strategy.getQuotes({
+          abortSignal,
           messenger,
           requests,
           transaction,

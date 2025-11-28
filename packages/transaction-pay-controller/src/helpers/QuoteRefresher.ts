@@ -14,6 +14,8 @@ const CHECK_INTERVAL = 1000; // 1 Second
 const log = createModuleLogger(projectLogger, 'quote-refresh');
 
 export class QuoteRefresher {
+  #abortController: AbortController;
+
   #isRunning: boolean;
 
   #isUpdating: boolean;
@@ -31,6 +33,7 @@ export class QuoteRefresher {
     messenger: TransactionPayControllerMessenger;
     updateTransactionData: UpdateTransactionDataCallback;
   }) {
+    this.#abortController = new AbortController();
     this.#messenger = messenger;
     this.#isRunning = false;
     this.#isUpdating = false;
@@ -61,6 +64,9 @@ export class QuoteRefresher {
 
     this.#isRunning = false;
 
+    this.#abortController.abort();
+    this.#abortController = new AbortController();
+
     log('Stopped');
   }
 
@@ -68,7 +74,11 @@ export class QuoteRefresher {
     this.#isUpdating = true;
 
     try {
-      await refreshQuotes(this.#messenger, this.#updateTransactionData);
+      await refreshQuotes(
+        this.#messenger,
+        this.#updateTransactionData,
+        this.#abortController.signal,
+      );
     } catch (error) {
       log('Error refreshing quotes', error);
     } finally {
