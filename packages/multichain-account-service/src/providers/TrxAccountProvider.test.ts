@@ -68,6 +68,11 @@ class MockTronKeyring {
   // Add discoverAccounts method to match the provider's usage
   discoverAccounts = jest.fn().mockResolvedValue([]);
 }
+class MockTrxAccountProvider extends TrxAccountProvider {
+  override async ensureSnapPlatformIsReady(): Promise<void> {
+    // Override to avoid waiting during tests.
+  }
+}
 
 /**
  * Sets up a TrxAccountProvider for testing.
@@ -132,7 +137,7 @@ function setup({
   const multichainMessenger = getMultichainAccountServiceMessenger(messenger);
   const provider = new AccountProviderWrapper(
     multichainMessenger,
-    new TrxAccountProvider(multichainMessenger),
+    new MockTrxAccountProvider(multichainMessenger),
   );
 
   return {
@@ -334,7 +339,7 @@ describe('TrxAccountProvider', () => {
 
       const multichainMessenger =
         getMultichainAccountServiceMessenger(messenger);
-      const trxProvider = new TrxAccountProvider(
+      const trxProvider = new MockTrxAccountProvider(
         multichainMessenger,
         undefined,
         mockTrace,
@@ -388,7 +393,7 @@ describe('TrxAccountProvider', () => {
 
       const multichainMessenger =
         getMultichainAccountServiceMessenger(messenger);
-      const trxProvider = new TrxAccountProvider(
+      const trxProvider = new MockTrxAccountProvider(
         multichainMessenger,
         undefined,
         mockTrace,
@@ -421,7 +426,7 @@ describe('TrxAccountProvider', () => {
 
       const multichainMessenger =
         getMultichainAccountServiceMessenger(messenger);
-      const trxProvider = new TrxAccountProvider(
+      const trxProvider = new MockTrxAccountProvider(
         multichainMessenger,
         undefined,
         mockTrace,

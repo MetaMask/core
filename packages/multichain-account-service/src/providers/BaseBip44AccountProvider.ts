@@ -62,6 +62,23 @@ export abstract class BaseBip44AccountProvider implements Bip44AccountProvider {
 
   abstract getName(): string;
 
+  protected getAnyAccount(): Bip44Account<KeyringAccount> | undefined {
+    const anyAccount = this.messenger
+      .call(
+        // NOTE: Even though the name is misleading, this only fetches all internal
+        // accounts, including EVM and non-EVM. We might wanna change this action
+        // name once we fully support multichain accounts.
+        'AccountsController:listMultichainAccounts',
+      )
+      .find((account) => {
+        return isBip44Account(account) && this.isAccountCompatible(account);
+      });
+
+    // We cast here since `.find` will return a `InternalAccount | undefined`
+    // despite having the `isBip44Account` check.
+    return anyAccount as Bip44Account<KeyringAccount> | undefined;
+  }
+
   #getAccounts(
     filter: (account: KeyringAccount) => boolean = () => true,
   ): Bip44Account<KeyringAccount>[] {

@@ -1,17 +1,23 @@
 import { type Bip44Account } from '@metamask/account-api';
 import type { TraceCallback, TraceRequest } from '@metamask/controller-utils';
 import type { SnapKeyring } from '@metamask/eth-snap-keyring';
-import type { EntropySourceId, KeyringAccount } from '@metamask/keyring-api';
+import {
+  KeyringRpcMethod,
+  type EntropySourceId,
+  type KeyringAccount,
+} from '@metamask/keyring-api';
 import type { KeyringMetadata } from '@metamask/keyring-controller';
 import { KeyringTypes } from '@metamask/keyring-controller';
 import type { InternalAccount } from '@metamask/keyring-internal-api';
 import { KeyringClient } from '@metamask/keyring-snap-client';
 import type { Json, JsonRpcRequest, SnapId } from '@metamask/snaps-sdk';
 import { HandlerType } from '@metamask/snaps-utils';
+import { createDeferredPromise } from '@metamask/utils';
 import { Semaphore } from 'async-mutex';
 
 import { BaseBip44AccountProvider } from './BaseBip44AccountProvider';
 import { traceFallback } from '../analytics';
+import { projectLogger as log } from '../logger';
 import type { MultichainAccountServiceMessenger } from '../types';
 import { createSentryError } from '../utils';
 
@@ -42,6 +48,9 @@ export abstract class SnapAccountProvider extends BaseBip44AccountProvider {
 
   readonly #trace: TraceCallback;
 
+  protected static ensureSnapPlatformIsReadyPromise: Promise<void> | null =
+    null;
+
   constructor(
     snapId: SnapId,
     messenger: MultichainAccountServiceMessenger,
@@ -53,6 +62,11 @@ export abstract class SnapAccountProvider extends BaseBip44AccountProvider {
 
     this.snapId = snapId;
     this.client = this.#getKeyringClientFromSnapId(snapId);
+
+    // All Snap requests are queued until the Snap platform is ready, so we use a basic "get"
+    // request to detect that and make sure any request to the client will wait for that first.
+    // eslint-disable-next-line no-void
+    void this.ensureSnapPlatformIsReady();
 
     const maxConcurrency = config.maxConcurrency ?? Infinity;
     this.config = {
@@ -66,6 +80,60 @@ export abstract class SnapAccountProvider extends BaseBip44AccountProvider {
     }
 
     this.#trace = trace;
+  }
+
+  async ensureSnapPlatformIsReady(): Promise<void> {
+    // Use a static property to ensure we only create one promise for all instances of any
+    // Snap providers.
+    if (!SnapAccountProvider.ensureSnapPlatformIsReadyPromise) {
+      // We create the deferred promise here to ensure that any request to the Snap platform
+      // will go through once it's ready. The platform is considered ready when the onboarding
+      // is complete.
+      const ensureSnapPlatformIsReadyDeferred = createDeferredPromise<void>();
+      SnapAccountProvider.ensureSnapPlatformIsReadyPromise =
+        ensureSnapPlatformIsReadyDeferred.promise;
+
+      log('Waiting for Snap platform to be ready...');
+
+      // We just need to make a simple request to ensure the Snap platform is ready.
+      // eslint-disable-next-line no-void
+      void this.#ping().finally(() => {
+        log('Snap platform is ready!');
+        // No matter if the request succeeded or failed, we consider the Snap platform
+        // is ready to process requests.
+        ensureSnapPlatformIsReadyDeferred.resolve();
+      });
+    }
+
+    return SnapAccountProvider.ensureSnapPlatformIsReadyPromise;
+  }
+
+  async #ping(): Promise<void> {
+    // Can be used to ping and check if the Snap is responsive.
+    // NOTE: We're trying to do this the fastest way possible, so we check for 1 account
+    // if any exists, or just list accounts (which would be 0 in that case).
+    const account = this.getAnyAccount();
+    if (account) {
+      log(
+        `Ping (used "${KeyringRpcMethod.GetAccount}" and "${account.id}" with Snap: ${this.snapId}`,
+      );
+      await this.client.getAccount(account.id);
+    } else {
+      log(
+        `Ping (used "${KeyringRpcMethod.ListAccounts}" with Snap: ${this.snapId}`,
+      );
+      await this.client.listAccounts();
+    }
+  }
+
+  protected async withClient(
+    operation: (client: KeyringClient) => Promise<void>,
+  ): Promise<void> {
+    // This will make sure the Snap platform is ready before sending any request
+    // to the Snap.
+    await this.ensureSnapPlatformIsReady();
+
+    return operation(this.client);
   }
 
   /**
@@ -93,6 +161,8 @@ export abstract class SnapAccountProvider extends BaseBip44AccountProvider {
   }
 
   protected async getRestrictedSnapAccountCreator(): Promise<RestrictedSnapKeyringCreateAccount> {
+    await this.ensureSnapPlatformIsReady();
+
     // NOTE: We're not supposed to make the keyring instance escape `withKeyring` but
     // we have to use the `SnapKeyring` instance to be able to create Solana account
     // without triggering UI confirmation.
