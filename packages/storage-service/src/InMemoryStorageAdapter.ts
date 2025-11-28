@@ -48,7 +48,7 @@ export class InMemoryStorageAdapter implements StorageAdapter {
    * @param key - The data key.
    * @returns The parsed JSON data, or null if not found.
    */
-  async getItem(namespace: string, key: string): Promise<Json | null> {
+  async getItem(namespace: string, key: string): Promise<Json> {
     const fullKey = `${STORAGE_KEY_PREFIX}${namespace}:${key}`;
     const serialized = this.#storage.get(fullKey);
 
