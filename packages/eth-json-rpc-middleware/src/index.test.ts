@@ -13,6 +13,7 @@ describe('index module', () => {
         "createRetryOnEmptyMiddleware": [Function],
         "createWalletMiddleware": [Function],
         "providerAsMiddleware": [Function],
+        "providerAsMiddlewareV2": [Function],
       }
     `);
   });

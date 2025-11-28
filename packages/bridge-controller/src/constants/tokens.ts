@@ -1,4 +1,4 @@
-import { BtcScope, SolScope } from '@metamask/keyring-api';
+import { BtcScope, SolScope, TrxScope } from '@metamask/keyring-api';
 
 import type { AllowedBridgeChainIds } from './bridge';
 import { CHAIN_IDS } from './chains';
@@ -54,6 +54,7 @@ const CURRENCY_SYMBOLS = {
   SOL: 'SOL',
   SEI: 'SEI',
   BTC: 'BTC',
+  TRX: 'TRX',
   MON: 'MON',
 } as const;
 
@@ -157,6 +158,14 @@ const SEI_SWAPS_TOKEN_OBJECT = {
   iconUrl: '',
 } as const;
 
+const TRX_SWAPS_TOKEN_OBJECT = {
+  symbol: CURRENCY_SYMBOLS.TRX,
+  name: 'Tron',
+  address: DEFAULT_TOKEN_ADDRESS,
+  decimals: 6,
+  iconUrl: '',
+} as const;
+
 const MONAD_SWAPS_TOKEN_OBJECT = {
   symbol: CURRENCY_SYMBOLS.MON,
   name: 'Mon',
@@ -185,6 +194,7 @@ export const SWAPS_CHAINID_DEFAULT_TOKEN_MAP = {
   [SolScope.Mainnet]: SOLANA_SWAPS_TOKEN_OBJECT,
   [SolScope.Devnet]: SOLANA_SWAPS_TOKEN_OBJECT,
   [BtcScope.Mainnet]: BTC_SWAPS_TOKEN_OBJECT,
+  [TrxScope.Mainnet]: TRX_SWAPS_TOKEN_OBJECT,
 } as const;
 
 export type SupportedSwapsNativeCurrencySymbols =
@@ -208,5 +218,6 @@ export const SYMBOL_TO_SLIP44_MAP: Record<
   AVAX: 'slip44:9000',
   TESTETH: 'slip44:60',
   SEI: 'slip44:19000118',
+  TRX: 'slip44:195',
   MON: 'slip44:268435779',
 };

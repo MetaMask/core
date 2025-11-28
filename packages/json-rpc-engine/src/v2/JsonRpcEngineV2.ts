@@ -44,7 +44,7 @@ export type Next<Request extends JsonRpcCall> = (
 
 export type MiddlewareParams<
   Request extends JsonRpcCall = JsonRpcCall,
-  Context extends MiddlewareContext = MiddlewareContext,
+  Context extends ContextConstraint = MiddlewareContext,
 > = {
   request: Readonly<Request>;
   context: Context;

@@ -20,7 +20,6 @@ enum DirectiveTerminus {
 }
 
 export enum DirectiveCommand {
-  // eslint-disable-next-line @typescript-eslint/naming-convention
   ONLY_INCLUDE_IF = 'ONLY_INCLUDE_IF',
 }
 

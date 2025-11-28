@@ -16,13 +16,20 @@ import type { Messenger } from '@metamask/messenger';
 import type { NetworkControllerFindNetworkClientIdByChainIdAction } from '@metamask/network-controller';
 import type { NetworkControllerGetNetworkClientByIdAction } from '@metamask/network-controller';
 import type { RemoteFeatureFlagControllerGetStateAction } from '@metamask/remote-feature-flag-controller';
-import type { TransactionControllerUnapprovedTransactionAddedEvent } from '@metamask/transaction-controller';
-import type { TransactionControllerGetStateAction } from '@metamask/transaction-controller';
-import type { TransactionControllerStateChangeEvent } from '@metamask/transaction-controller';
-import type { TransactionMeta } from '@metamask/transaction-controller';
-import type { TransactionControllerAddTransactionAction } from '@metamask/transaction-controller';
-import type { TransactionControllerUpdateTransactionAction } from '@metamask/transaction-controller';
-import type { BatchTransaction } from '@metamask/transaction-controller';
+import type {
+  AuthorizationList,
+  TransactionControllerAddTransactionBatchAction,
+  TransactionControllerUnapprovedTransactionAddedEvent,
+} from '@metamask/transaction-controller';
+import type {
+  BatchTransaction,
+  TransactionControllerAddTransactionAction,
+  TransactionControllerGetGasFeeTokensAction,
+  TransactionControllerGetStateAction,
+  TransactionControllerStateChangeEvent,
+  TransactionControllerUpdateTransactionAction,
+  TransactionMeta,
+} from '@metamask/transaction-controller';
 import type { Hex, Json } from '@metamask/utils';
 import type { Draft } from 'immer';
 
@@ -42,6 +49,8 @@ export type AllowedActions =
   | TokenRatesControllerGetStateAction
   | TokensControllerGetStateAction
   | TransactionControllerAddTransactionAction
+  | TransactionControllerAddTransactionBatchAction
+  | TransactionControllerGetGasFeeTokensAction
   | TransactionControllerGetStateAction
   | TransactionControllerUpdateTransactionAction;
 
@@ -55,10 +64,15 @@ export type TransactionPayControllerGetStateAction = ControllerGetStateAction<
   TransactionPayControllerState
 >;
 
+export type TransactionPayControllerGetDelegationTransactionAction = {
+  type: `${typeof CONTROLLER_NAME}:getDelegationTransaction`;
+  handler: GetDelegationTransactionCallback;
+};
+
 /** Action to get the pay strategy type used for a transaction. */
 export type TransactionPayControllerGetStrategyAction = {
   type: `${typeof CONTROLLER_NAME}:getStrategy`;
-  handler: (transaction: TransactionMeta) => Promise<TransactionPayStrategy>;
+  handler: (transaction: TransactionMeta) => TransactionPayStrategy;
 };
 
 /** Action to update the payment token for a transaction. */
@@ -74,6 +88,7 @@ export type TransactionPayControllerStateChangeEvent =
   >;
 
 export type TransactionPayControllerActions =
+  | TransactionPayControllerGetDelegationTransactionAction
   | TransactionPayControllerGetStateAction
   | TransactionPayControllerGetStrategyAction
   | TransactionPayControllerUpdatePaymentTokenAction;
@@ -89,10 +104,11 @@ export type TransactionPayControllerMessenger = Messenger<
 
 /** Options for the TransactionPayController. */
 export type TransactionPayControllerOptions = {
+  /** Callback to convert a transaction into a redeem delegation. */
+  getDelegationTransaction: GetDelegationTransactionCallback;
+
   /** Callback to select the PayStrategy for a transaction. */
-  getStrategy?: (
-    transaction: TransactionMeta,
-  ) => Promise<TransactionPayStrategy>;
+  getStrategy?: (transaction: TransactionMeta) => TransactionPayStrategy;
 
   /** Controller messenger. */
   messenger: TransactionPayControllerMessenger;
@@ -261,11 +277,20 @@ export type QuoteRequest = {
 
 /** Fees associated with a transaction pay quote. */
 export type TransactionPayFees = {
+  /** Whether a gas fee token is used to pay source network fees. */
+  isSourceGasFeeToken?: boolean;
+
+  /** Whether a gas fee token is used to pay target network fees. */
+  isTargetGasFeeToken?: boolean;
+
   /** Fee charged by the quote provider. */
   provider: FiatValue;
 
   /** Network fee for transactions on the source network. */
-  sourceNetwork: FiatValue;
+  sourceNetwork: {
+    estimate: Amount;
+    max: Amount;
+  };
 
   /** Network fee for transactions on the target network. */
   targetNetwork: FiatValue;
@@ -287,6 +312,9 @@ export type TransactionPayQuote<OriginalQuote> = {
 
   /** Associated quote request. */
   request: QuoteRequest;
+
+  /** Amount of source token required. */
+  sourceAmount: Amount;
 
   /** Name of the strategy used to retrieve the quote. */
   strategy: TransactionPayStrategy;
@@ -380,6 +408,9 @@ export type TransactionPayTotals = {
   /** Total fees for the target transaction and all quotes. */
   fees: TransactionPayFees;
 
+  /** Total amount of source token required. */
+  sourceAmount: Amount;
+
   /** Overall total cost for the target transaction and all quotes. */
   total: FiatValue;
 };
@@ -394,4 +425,25 @@ export type UpdatePaymentTokenRequest = {
 
   /** Chain ID of the new payment token. */
   chainId: Hex;
+};
+
+/** Callback to convert a transaction to a redeem delegation. */
+export type GetDelegationTransactionCallback = ({
+  transaction,
+}: {
+  transaction: TransactionMeta;
+}) => Promise<{
+  authorizationList?: AuthorizationList;
+  data: Hex;
+  to: Hex;
+  value: Hex;
+}>;
+
+/** Single amount in alternate formats. */
+export type Amount = FiatValue & {
+  /** Amount in human-readable format factoring token decimals. */
+  human: string;
+
+  /** Amount in atomic format without factoring token decimals. */
+  raw: string;
 };

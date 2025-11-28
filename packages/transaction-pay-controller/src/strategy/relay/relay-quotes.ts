@@ -1,26 +1,35 @@
+import { Interface } from '@ethersproject/abi';
 import { successfulFetch, toHex } from '@metamask/controller-utils';
+import type { Json } from '@metamask/utils';
 import { createModuleLogger } from '@metamask/utils';
 import { BigNumber } from 'bignumber.js';
 
+import { CHAIN_ID_HYPERCORE } from './constants';
+import type { RelayQuote } from './types';
+import { TransactionPayStrategy } from '../..';
+import type { TransactionMeta } from '../../../../transaction-controller/src';
 import {
   ARBITRUM_USDC_ADDRESS,
   CHAIN_ID_ARBITRUM,
   CHAIN_ID_POLYGON,
-  RELAY_URL_QUOTE,
-} from './constants';
-import type { RelayQuote } from './types';
-import { TransactionPayStrategy } from '../..';
-import { NATIVE_TOKEN_ADDRESS } from '../../constants';
+  NATIVE_TOKEN_ADDRESS,
+} from '../../constants';
 import { projectLogger } from '../../logger';
 import type {
+  Amount,
   FiatValue,
   PayStrategyGetQuotesRequest,
   QuoteRequest,
   TransactionPayControllerMessenger,
   TransactionPayQuote,
 } from '../../types';
-import { calculateGasCost, calculateTransactionGasCost } from '../../utils/gas';
-import { getNativeToken, getTokenFiatRate } from '../../utils/token';
+import { getFeatureFlags } from '../../utils/feature-flags';
+import { calculateGasCost, calculateGasFeeTokenCost } from '../../utils/gas';
+import {
+  getNativeToken,
+  getTokenBalance,
+  getTokenFiatRate,
+} from '../../utils/token';
 
 const log = createModuleLogger(projectLogger, 'relay-strategy');
 
@@ -38,20 +47,15 @@ export async function getRelayQuotes(
   log('Fetching quotes', requests);
 
   try {
-    const result = requests
+    const normalizedRequests = requests
       // Ignore gas fee token requests
       .filter((r) => r.targetAmountMinimum !== '0')
       .map((r) => normalizeRequest(r));
 
-    const normalizedRequests = result.map((r) => r.request);
-    const isSkipTransaction = result.some((r) => r.isSkipTransaction);
-
-    log('Normalized requests', { normalizedRequests, isSkipTransaction });
+    log('Normalized requests', normalizedRequests);
 
     return await Promise.all(
-      normalizedRequests.map((r) =>
-        getSingleQuote(r, isSkipTransaction, request),
-      ),
+      normalizedRequests.map((r) => getSingleQuote(r, request)),
     );
   } catch (error) {
     log('Error fetching quotes', { error });
@@ -63,16 +67,14 @@ export async function getRelayQuotes(
  * Fetches a single Relay quote.
  *
  * @param request  - Quote request.
- * @param isSkipTransaction - Whether to skip the transaction.
  * @param fullRequest - Full quotes request.
  * @returns  Single quote.
  */
 async function getSingleQuote(
   request: QuoteRequest,
-  isSkipTransaction: boolean,
   fullRequest: PayStrategyGetQuotesRequest,
 ): Promise<TransactionPayQuote<RelayQuote>> {
-  const { messenger } = fullRequest;
+  const { messenger, transaction } = fullRequest;
 
   try {
     const body = {
@@ -86,7 +88,11 @@ async function getSingleQuote(
       user: request.from,
     };
 
+    await processTransactions(transaction, request, body, messenger);
+
     const url = getFeatureFlags(messenger).relayQuoteUrl;
+
+    log('Request body', { body, url });
 
     const response = await successfulFetch(url, {
       method: 'POST',
@@ -95,15 +101,79 @@ async function getSingleQuote(
     });
 
     const quote = (await response.json()) as RelayQuote;
-    quote.skipTransaction = isSkipTransaction;
 
-    log('Fetched relay quote', { quote, url });
+    log('Fetched relay quote', quote);
 
     return normalizeQuote(quote, request, fullRequest);
   } catch (e) {
     log('Error fetching relay quote', e);
     throw e;
   }
+}
+
+/**
+ * Add tranasction data to request body if needed.
+ *
+ * @param transaction - Transaction metadata.
+ * @param request - Quote request.
+ * @param requestBody  - Request body to populate.
+ * @param messenger  - Controller messenger.
+ */
+async function processTransactions(
+  transaction: TransactionMeta,
+  request: QuoteRequest,
+  requestBody: Record<string, Json | undefined>,
+  messenger: TransactionPayControllerMessenger,
+) {
+  const { data, value } = transaction.txParams;
+
+  /* istanbul ignore next */
+  const hasNoParams = (!data || data === '0x') && (!value || value === '0x0');
+
+  const skipDelegation =
+    hasNoParams || request.targetChainId === CHAIN_ID_HYPERCORE;
+
+  if (skipDelegation) {
+    log('Skipping delegation as no transaction data');
+    return;
+  }
+
+  const delegation = await messenger.call(
+    'TransactionPayController:getDelegationTransaction',
+    { transaction },
+  );
+
+  const normalizedAuthorizationList = delegation.authorizationList?.map(
+    (a) => ({
+      ...a,
+      chainId: Number(a.chainId),
+      nonce: Number(a.nonce),
+      yParity: Number(a.yParity),
+    }),
+  );
+
+  const tokenTransferData = new Interface([
+    'function transfer(address to, uint256 amount)',
+  ]).encodeFunctionData('transfer', [
+    request.from,
+    request.targetAmountMinimum,
+  ]);
+
+  requestBody.authorizationList = normalizedAuthorizationList;
+  requestBody.tradeType = 'EXACT_OUTPUT';
+
+  requestBody.txs = [
+    {
+      to: request.targetTokenAddress,
+      data: tokenTransferData,
+      value: '0x0',
+    },
+    {
+      to: delegation.to,
+      data: delegation.data,
+      value: delegation.value,
+    },
+  ];
 }
 
 /**
@@ -127,7 +197,9 @@ function normalizeRequest(request: QuoteRequest) {
     sourceTokenAddress: isPolygonNativeSource
       ? NATIVE_TOKEN_ADDRESS
       : request.sourceTokenAddress,
-    targetChainId: isHyperliquidDeposit ? toHex(1337) : request.targetChainId,
+    targetChainId: isHyperliquidDeposit
+      ? CHAIN_ID_HYPERCORE
+      : request.targetChainId,
     targetTokenAddress: isHyperliquidDeposit
       ? '0x00000000000000000000000000000000'
       : request.targetTokenAddress,
@@ -143,10 +215,7 @@ function normalizeRequest(request: QuoteRequest) {
     });
   }
 
-  return {
-    request: requestOutput,
-    isSkipTransaction: isHyperliquidDeposit,
-  };
+  return requestOutput;
 }
 
 /**
@@ -157,14 +226,14 @@ function normalizeRequest(request: QuoteRequest) {
  * @param fullRequest - Full quotes request.
  * @returns Normalized quote.
  */
-function normalizeQuote(
+async function normalizeQuote(
   quote: RelayQuote,
   request: QuoteRequest,
   fullRequest: PayStrategyGetQuotesRequest,
-): TransactionPayQuote<RelayQuote> {
-  const { messenger, transaction } = fullRequest;
+): Promise<TransactionPayQuote<RelayQuote>> {
+  const { messenger } = fullRequest;
   const { details } = quote;
-  const { currencyIn, currencyOut } = details;
+  const { currencyIn } = details;
 
   const { usdToFiatRate } = getFiatRates(messenger, request);
 
@@ -174,29 +243,36 @@ function normalizeQuote(
   );
 
   const provider = getFiatValueFromUsd(
-    new BigNumber(currencyIn.amountUsd).minus(currencyOut.amountUsd),
+    calculateProviderFee(quote),
     usdToFiatRate,
   );
 
-  const sourceNetwork = calculateSourceNetworkCost(quote, messenger);
+  const { isGasFeeToken: isSourceGasFeeToken, ...sourceNetwork } =
+    await calculateSourceNetworkCost(quote, messenger, request);
 
-  const targetNetwork = quote.skipTransaction
-    ? {
-        usd: '0',
-        fiat: '0',
-      }
-    : calculateTransactionGasCost(transaction, messenger);
+  const targetNetwork = {
+    usd: '0',
+    fiat: '0',
+  };
+
+  const sourceAmount: Amount = {
+    human: currencyIn.amountFormatted,
+    raw: currencyIn.amount,
+    ...getFiatValueFromUsd(new BigNumber(currencyIn.amountUsd), usdToFiatRate),
+  };
 
   return {
     dust,
     estimatedDuration: details.timeEstimate,
     fees: {
+      isSourceGasFeeToken,
       provider,
       sourceNetwork,
       targetNetwork,
     },
     original: quote,
     request,
+    sourceAmount,
     strategy: TransactionPayStrategy.Relay,
   };
 }
@@ -278,58 +354,203 @@ function getFiatRates(
 }
 
 /**
- * Gets feature flags for Relay quotes.
- *
- * @param messenger - Controller messenger.
- * @returns Feature flags.
- */
-function getFeatureFlags(messenger: TransactionPayControllerMessenger) {
-  const featureFlagState = messenger.call(
-    'RemoteFeatureFlagController:getState',
-  );
-
-  const featureFlags = featureFlagState.remoteFeatureFlags
-    ?.confirmations_pay as Record<string, string> | undefined;
-
-  const relayQuoteUrl = featureFlags?.relayQuoteUrl ?? RELAY_URL_QUOTE;
-
-  return {
-    relayQuoteUrl,
-  };
-}
-
-/**
  * Calculates source network cost from a Relay quote.
  *
  * @param quote - Relay quote.
  * @param messenger - Controller messenger.
+ * @param request - Quote request.
  * @returns Total source network cost in USD and fiat.
  */
-function calculateSourceNetworkCost(
+async function calculateSourceNetworkCost(
   quote: RelayQuote,
   messenger: TransactionPayControllerMessenger,
-) {
-  const allParams = quote.steps.flatMap((s) => s.items.map((i) => i.data));
+  request: QuoteRequest,
+): Promise<
+  TransactionPayQuote<RelayQuote>['fees']['sourceNetwork'] & {
+    isGasFeeToken?: boolean;
+  }
+> {
+  const { from, sourceChainId, sourceTokenAddress } = request;
+  const allParams = quote.steps.flatMap((s) => s.items).map((i) => i.data);
+  const { relayDisabledGasStationChains } = getFeatureFlags(messenger);
 
-  const result = allParams.reduce(
-    (total, params) => {
-      const gasCost = calculateGasCost({
-        ...params,
-        maxFeePerGas: undefined,
-        maxPriorityFeePerGas: undefined,
-        messenger,
-      });
+  const { chainId, data, maxFeePerGas, maxPriorityFeePerGas, to, value } =
+    allParams[0];
 
-      return {
-        usd: new BigNumber(total.usd).plus(gasCost.usd),
-        fiat: new BigNumber(total.fiat).plus(gasCost.fiat),
-      };
+  const totalGasLimitEstimate = calculateSourceNetworkGasLimit(
+    allParams,
+    messenger,
+    {
+      isMax: false,
     },
-    { usd: new BigNumber(0), fiat: new BigNumber(0) },
   );
 
+  const totalGasLimitMax = calculateSourceNetworkGasLimit(
+    allParams,
+    messenger,
+    {
+      isMax: true,
+    },
+  );
+
+  const estimate = calculateGasCost({
+    chainId,
+    gas: totalGasLimitEstimate,
+    maxFeePerGas,
+    maxPriorityFeePerGas,
+    messenger,
+  });
+
+  const max = calculateGasCost({
+    chainId,
+    gas: totalGasLimitMax,
+    maxFeePerGas,
+    maxPriorityFeePerGas,
+    messenger,
+    isMax: true,
+  });
+
+  const nativeBalance = getTokenBalance(
+    messenger,
+    from,
+    sourceChainId,
+    getNativeToken(sourceChainId),
+  );
+
+  if (new BigNumber(nativeBalance).isGreaterThanOrEqualTo(max.raw)) {
+    return { estimate, max };
+  }
+
+  if (relayDisabledGasStationChains.includes(sourceChainId)) {
+    log('Skipping gas station as disabled chain', {
+      sourceChainId,
+      disabledChainIds: relayDisabledGasStationChains,
+    });
+
+    return { estimate, max };
+  }
+
+  log('Checking gas fee tokens as insufficient native balance', {
+    nativeBalance,
+    max: max.raw,
+  });
+
+  const gasFeeTokens = await messenger.call(
+    'TransactionController:getGasFeeTokens',
+    {
+      chainId: sourceChainId,
+      data,
+      from,
+      to,
+      value: toHex(value ?? '0'),
+    },
+  );
+
+  log('Source gas fee tokens', { gasFeeTokens });
+
+  const gasFeeToken = gasFeeTokens.find(
+    (t) => t.tokenAddress.toLowerCase() === sourceTokenAddress.toLowerCase(),
+  );
+
+  if (!gasFeeToken) {
+    log('No matching gas fee token found', {
+      sourceTokenAddress,
+      gasFeeTokens,
+    });
+
+    return { estimate, max };
+  }
+
+  let finalAmount = gasFeeToken.amount;
+
+  if (allParams.length > 1) {
+    const gasRate = new BigNumber(gasFeeToken.amount, 16).dividedBy(
+      gasFeeToken.gas,
+      16,
+    );
+
+    const finalAmountValue = gasRate.multipliedBy(totalGasLimitEstimate);
+
+    finalAmount = toHex(finalAmountValue.toFixed(0));
+
+    log('Estimated gas fee token amount for batch', {
+      finalAmount: finalAmountValue.toString(10),
+      gasRate: gasRate.toString(10),
+      totalGasLimitEstimate,
+    });
+  }
+
+  const finalGasFeeToken = { ...gasFeeToken, amount: finalAmount };
+
+  const gasFeeTokenCost = calculateGasFeeTokenCost({
+    chainId: sourceChainId,
+    gasFeeToken: finalGasFeeToken,
+    messenger,
+  });
+
+  if (!gasFeeTokenCost) {
+    return { estimate, max };
+  }
+
+  log('Using gas fee token for source network', {
+    gasFeeTokenCost,
+  });
+
   return {
-    usd: result.usd.toString(10),
-    fiat: result.fiat.toString(10),
+    isGasFeeToken: true,
+    estimate: gasFeeTokenCost,
+    max: gasFeeTokenCost,
   };
+}
+
+/**
+ * Calculate the total gas limit for the source network transactions.
+ *
+ * @param params - Array of transaction parameters.
+ * @param messenger - Controller messenger.
+ * @param options - Options.
+ * @param options.isMax - Whether to calculate the maximum gas limit.
+ * @returns - Total gas limit.
+ */
+function calculateSourceNetworkGasLimit(
+  params: RelayQuote['steps'][0]['items'][0]['data'][],
+  messenger: TransactionPayControllerMessenger,
+  { isMax }: { isMax: boolean },
+): number {
+  const allParamsHasGas = params.every((p) => p.gas !== undefined);
+
+  if (allParamsHasGas) {
+    return params.reduce(
+      (total, p) => total + new BigNumber(p.gas as string).toNumber(),
+      0,
+    );
+  }
+
+  // In future, call `TransactionController:estimateGas`
+  // or `TransactionController:estimateGasBatch` based on params length.
+
+  const fallbackGas = getFeatureFlags(messenger).relayFallbackGas;
+
+  return params.reduce((total, p) => {
+    const fallback = isMax ? fallbackGas.max : fallbackGas.estimate;
+    const gas = p.gas ?? fallback;
+
+    return total + new BigNumber(gas).toNumber();
+  }, 0);
+}
+
+/**
+ * Calculate the provider fee for a Relay quote.
+ *
+ * @param quote - Relay quote.
+ * @returns - Provider fee in USD.
+ */
+function calculateProviderFee(quote: RelayQuote) {
+  const relayerFee = new BigNumber(quote.fees.relayer.amountUsd);
+
+  const valueLoss = new BigNumber(quote.details.currencyIn.amountUsd).minus(
+    quote.details.currencyOut.amountUsd,
+  );
+
+  return relayerFee.gt(valueLoss) ? relayerFee : valueLoss;
 }

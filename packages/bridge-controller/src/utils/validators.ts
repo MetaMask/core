@@ -265,11 +265,34 @@ export const BitcoinTradeDataSchema = type({
   inputsToSign: nullable(array(type({}))),
 });
 
+export const TronTradeDataSchema = type({
+  raw_data_hex: string(),
+  visible: optional(boolean()),
+  raw_data: optional(
+    nullable(
+      type({
+        contract: optional(
+          array(
+            type({
+              type: optional(string()),
+            }),
+          ),
+        ),
+      }),
+    ),
+  ),
+});
+
 export const QuoteResponseSchema = type({
   quote: QuoteSchema,
   estimatedProcessingTimeInSeconds: number(),
-  approval: optional(TxDataSchema),
-  trade: union([TxDataSchema, BitcoinTradeDataSchema, string()]),
+  approval: optional(union([TxDataSchema, TronTradeDataSchema])),
+  trade: union([
+    TxDataSchema,
+    BitcoinTradeDataSchema,
+    TronTradeDataSchema,
+    string(),
+  ]),
 });
 
 export const validateQuoteResponse = (

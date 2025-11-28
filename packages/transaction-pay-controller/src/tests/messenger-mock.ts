@@ -14,13 +14,18 @@ import type { NetworkControllerFindNetworkClientIdByChainIdAction } from '@metam
 import type { RemoteFeatureFlagControllerGetStateAction } from '@metamask/remote-feature-flag-controller';
 import type {
   TransactionControllerAddTransactionAction,
+  TransactionControllerAddTransactionBatchAction,
+  TransactionControllerGetGasFeeTokensAction,
   TransactionControllerGetStateAction,
 } from '@metamask/transaction-controller';
 import type { TransactionControllerUpdateTransactionAction } from '@metamask/transaction-controller';
 
 import type { TransactionPayControllerMessenger } from '..';
 import type { BridgeStatusControllerSubmitTxAction } from '../../../bridge-status-controller/src/types';
-import type { TransactionPayControllerGetStrategyAction } from '../types';
+import type {
+  TransactionPayControllerGetDelegationTransactionAction,
+  TransactionPayControllerGetStrategyAction,
+} from '../types';
 import { type TransactionPayControllerGetStateAction } from '../types';
 
 type AllActions = MessengerActions<TransactionPayControllerMessenger>;
@@ -51,6 +56,10 @@ export function getMessengerMock({
 
   const addTransactionMock: jest.MockedFn<
     TransactionControllerAddTransactionAction['handler']
+  > = jest.fn();
+
+  const addTransactionBatchMock: jest.MockedFn<
+    TransactionControllerAddTransactionBatchAction['handler']
   > = jest.fn();
 
   const findNetworkClientIdByChainIdMock: jest.MockedFn<
@@ -99,6 +108,14 @@ export function getMessengerMock({
     NetworkControllerGetNetworkClientByIdAction['handler']
   > = jest.fn();
 
+  const getDelegationTransactionMock: jest.MockedFn<
+    TransactionPayControllerGetDelegationTransactionAction['handler']
+  > = jest.fn();
+
+  const getGasFeeTokensMock: jest.MockedFn<
+    TransactionControllerGetGasFeeTokensAction['handler']
+  > = jest.fn();
+
   const messenger: RootMessenger = new Messenger({
     namespace: MOCK_ANY_NAMESPACE,
   });
@@ -122,6 +139,11 @@ export function getMessengerMock({
     messenger.registerActionHandler(
       'TransactionController:addTransaction',
       addTransactionMock,
+    );
+
+    messenger.registerActionHandler(
+      'TransactionController:addTransactionBatch',
+      addTransactionBatchMock,
     );
 
     messenger.registerActionHandler(
@@ -188,19 +210,32 @@ export function getMessengerMock({
       'NetworkController:getNetworkClientById',
       getNetworkClientByIdMock,
     );
+
+    messenger.registerActionHandler(
+      'TransactionPayController:getDelegationTransaction',
+      getDelegationTransactionMock,
+    );
+
+    messenger.registerActionHandler(
+      'TransactionController:getGasFeeTokens',
+      getGasFeeTokensMock,
+    );
   }
 
   const publish = messenger.publish.bind(messenger);
 
   return {
     addTransactionMock,
+    addTransactionBatchMock,
     fetchQuotesMock,
     findNetworkClientIdByChainIdMock,
     getAccountTrackerControllerStateMock,
     getBridgeStatusControllerStateMock,
     getControllerStateMock,
     getCurrencyRateControllerStateMock,
+    getDelegationTransactionMock,
     getGasFeeControllerStateMock,
+    getGasFeeTokensMock,
     getNetworkClientByIdMock,
     getRemoteFeatureFlagControllerStateMock,
     getStrategyMock,

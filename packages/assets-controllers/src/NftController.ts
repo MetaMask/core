@@ -525,8 +525,6 @@ export class NftController extends BaseController<
   }
 
   #getNftCollectionApi(): string {
-    // False negative.
-
     return `${NFT_API_BASE_URL}/collections`;
   }
 

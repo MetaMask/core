@@ -198,6 +198,65 @@ export const DEFAULT_CHAIN_ID_TO_NAME = {
   '0x82': 'unichain',
   '0x7e4': 'ronin',
   '0x127': 'hedera',
+  '0x12c': 'zksync-sepolia',
+  '0xaa36a7': 'ethereum-sepolia',
+  '0xa869': 'avalanche-fuji',
+  '0x343b': 'immutable-zkevm',
+  '0x34a1': 'immutable-zkevm-testnet',
+  '0x64': 'gnosis',
+  '0x1e0': 'worldchain',
+  '0x8173': 'apechain',
+  '0x138c5': 'berachain-bartio',
+  '0xdef1': 'ink',
+  '0xba5ed': 'ink-sepolia',
+  '0x2b74': 'abstract-testnet',
+  '0x531': 'sei',
+  '0x2eb': 'flow-evm',
+  '0x8f': 'monad',
 } as const;
 
 export type ChainIdToNameMap = typeof DEFAULT_CHAIN_ID_TO_NAME;
+
+/**
+ * Result type of an address scan
+ */
+export enum AddressScanResultType {
+  /**
+   * Address is benign/safe
+   */
+  Benign = 'Benign',
+  /**
+   * Address has warning indicators
+   */
+  Warning = 'Warning',
+  /**
+   * Address is malicious
+   */
+  Malicious = 'Malicious',
+  /**
+   * Error occurred during scan
+   */
+  ErrorResult = 'ErrorResult',
+}
+
+/**
+ * Result of an address security scan
+ */
+export type AddressScanResult = {
+  /**
+   * The result type indicating the security assessment
+   */
+  result_type: AddressScanResultType;
+  /**
+   * Additional label or description for the result
+   */
+  label: string;
+};
+
+/**
+ * Address data stored in cache (minimal data needed)
+ */
+export type AddressScanCacheData = {
+  result_type: AddressScanResultType;
+  label: string;
+};

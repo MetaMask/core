@@ -531,6 +531,8 @@ exports[`BridgeStatusController submitTx: EVM bridge should call handleMobileHar
 Array [
   Array [
     "BridgeController:stopPollingForQuotes",
+    "Transaction submitted",
+    undefined,
   ],
   Array [
     "AccountsController:getAccountByAddress",
@@ -764,6 +766,8 @@ exports[`BridgeStatusController submitTx: EVM bridge should delay after submitti
 Array [
   Array [
     "BridgeController:stopPollingForQuotes",
+    "Transaction submitted",
+    undefined,
   ],
   Array [
     "AccountsController:getAccountByAddress",
@@ -997,6 +1001,8 @@ exports[`BridgeStatusController submitTx: EVM bridge should delay after submitti
 Array [
   Array [
     "BridgeController:stopPollingForQuotes",
+    "Transaction submitted",
+    undefined,
   ],
   Array [
     "AccountsController:getAccountByAddress",
@@ -1081,7 +1087,7 @@ Array [
 ]
 `;
 
-exports[`BridgeStatusController submitTx: EVM bridge should handle smart transactions 1`] = `
+exports[`BridgeStatusController submitTx: EVM bridge should handle smart transactions and include quotesReceivedContext 1`] = `
 Object {
   "batchId": "batchId1",
   "chainId": "0xa4b1",
@@ -1105,7 +1111,7 @@ Object {
 }
 `;
 
-exports[`BridgeStatusController submitTx: EVM bridge should handle smart transactions 2`] = `
+exports[`BridgeStatusController submitTx: EVM bridge should handle smart transactions and include quotesReceivedContext 2`] = `
 Object {
   "account": "0xaccount1",
   "approvalTxId": undefined,
@@ -1227,7 +1233,7 @@ Object {
 }
 `;
 
-exports[`BridgeStatusController submitTx: EVM bridge should handle smart transactions 3`] = `
+exports[`BridgeStatusController submitTx: EVM bridge should handle smart transactions and include quotesReceivedContext 3`] = `
 Array [
   Array [
     Object {
@@ -1245,7 +1251,7 @@ Array [
 ]
 `;
 
-exports[`BridgeStatusController submitTx: EVM bridge should handle smart transactions 4`] = `
+exports[`BridgeStatusController submitTx: EVM bridge should handle smart transactions and include quotesReceivedContext 4`] = `
 Array [
   Array [
     Object {
@@ -1279,10 +1285,25 @@ Array [
 ]
 `;
 
-exports[`BridgeStatusController submitTx: EVM bridge should handle smart transactions 5`] = `
+exports[`BridgeStatusController submitTx: EVM bridge should handle smart transactions and include quotesReceivedContext 5`] = `
 Array [
   Array [
     "BridgeController:stopPollingForQuotes",
+    "Transaction submitted",
+    Object {
+      "best_quote_provider": "lifi_across",
+      "can_submit": true,
+      "gas_included": false,
+      "gas_included_7702": false,
+      "price_impact": 0,
+      "provider": "lifi_across",
+      "quoted_time_minutes": 0.25,
+      "usd_quoted_gas": 2.5778,
+      "usd_quoted_return": 0.134214,
+      "warnings": Array [
+        "low_return",
+      ],
+    },
   ],
   Array [
     "AccountsController:getAccountByAddress",
@@ -1477,6 +1498,8 @@ exports[`BridgeStatusController submitTx: EVM bridge should not call handleMobil
 Array [
   Array [
     "BridgeController:stopPollingForQuotes",
+    "Transaction submitted",
+    undefined,
   ],
   Array [
     "AccountsController:getAccountByAddress",
@@ -1710,6 +1733,8 @@ exports[`BridgeStatusController submitTx: EVM bridge should not call handleMobil
 Array [
   Array [
     "BridgeController:stopPollingForQuotes",
+    "Transaction submitted",
+    undefined,
   ],
   Array [
     "AccountsController:getAccountByAddress",
@@ -2058,6 +2083,8 @@ exports[`BridgeStatusController submitTx: EVM bridge should reset USDT allowance
 Array [
   Array [
     "BridgeController:stopPollingForQuotes",
+    "Transaction submitted",
+    undefined,
   ],
   Array [
     "AccountsController:getAccountByAddress",
@@ -2330,6 +2357,8 @@ exports[`BridgeStatusController submitTx: EVM bridge should successfully submit 
 Array [
   Array [
     "BridgeController:stopPollingForQuotes",
+    "Transaction submitted",
+    undefined,
   ],
   Array [
     "AccountsController:getAccountByAddress",
@@ -2583,6 +2612,8 @@ exports[`BridgeStatusController submitTx: EVM bridge should successfully submit 
 Array [
   Array [
     "BridgeController:stopPollingForQuotes",
+    "Transaction submitted",
+    undefined,
   ],
   Array [
     "AccountsController:getAccountByAddress",
@@ -2657,6 +2688,8 @@ exports[`BridgeStatusController submitTx: EVM bridge should throw an error if ap
 Array [
   Array [
     "BridgeController:stopPollingForQuotes",
+    "Transaction submitted",
+    undefined,
   ],
   Array [
     "AccountsController:getAccountByAddress",
@@ -2728,6 +2761,8 @@ exports[`BridgeStatusController submitTx: EVM bridge should throw an error if ap
 Array [
   Array [
     "BridgeController:stopPollingForQuotes",
+    "Transaction submitted",
+    undefined,
   ],
   Array [
     "AccountsController:getAccountByAddress",
@@ -2996,6 +3031,8 @@ exports[`BridgeStatusController submitTx: EVM swap should handle smart transacti
 Array [
   Array [
     "BridgeController:stopPollingForQuotes",
+    "Transaction submitted",
+    undefined,
   ],
   Array [
     "AccountsController:getAccountByAddress",
@@ -3086,6 +3123,8 @@ exports[`BridgeStatusController submitTx: EVM swap should successfully submit an
 Array [
   Array [
     "BridgeController:stopPollingForQuotes",
+    "Transaction submitted",
+    undefined,
   ],
   Array [
     "AccountsController:getAccountByAddress",
@@ -3267,6 +3306,8 @@ exports[`BridgeStatusController submitTx: EVM swap should successfully submit an
 Array [
   Array [
     "BridgeController:stopPollingForQuotes",
+    "Transaction submitted",
+    undefined,
   ],
   Array [
     "AccountsController:getAccountByAddress",
@@ -3316,6 +3357,8 @@ exports[`BridgeStatusController submitTx: Solana bridge should handle snap contr
 Array [
   Array [
     "BridgeController:stopPollingForQuotes",
+    "Transaction submitted",
+    undefined,
   ],
   Array [
     "AccountsController:getAccountByAddress",
@@ -3393,6 +3436,8 @@ exports[`BridgeStatusController submitTx: Solana bridge should successfully subm
 Array [
   Array [
     "BridgeController:stopPollingForQuotes",
+    "Transaction submitted",
+    undefined,
   ],
   Array [
     "AccountsController:getAccountByAddress",
@@ -3584,6 +3629,8 @@ exports[`BridgeStatusController submitTx: Solana bridge should throw error when 
 Array [
   Array [
     "BridgeController:stopPollingForQuotes",
+    "Transaction submitted",
+    undefined,
   ],
   Array [
     "AccountsController:getAccountByAddress",
@@ -3643,6 +3690,8 @@ exports[`BridgeStatusController submitTx: Solana swap should handle snap control
 Array [
   Array [
     "BridgeController:stopPollingForQuotes",
+    "Transaction submitted",
+    undefined,
   ],
   Array [
     "AccountsController:getAccountByAddress",
@@ -3720,6 +3769,8 @@ exports[`BridgeStatusController submitTx: Solana swap should successfully submit
 Array [
   Array [
     "BridgeController:stopPollingForQuotes",
+    "Transaction submitted",
+    undefined,
   ],
   Array [
     "AccountsController:getAccountByAddress",
@@ -3910,6 +3961,8 @@ exports[`BridgeStatusController submitTx: Solana swap should throw error when ac
 Array [
   Array [
     "BridgeController:stopPollingForQuotes",
+    "Transaction submitted",
+    undefined,
   ],
   Array [
     "AccountsController:getAccountByAddress",
@@ -3922,6 +3975,8 @@ exports[`BridgeStatusController submitTx: Solana swap should throw error when sn
 Array [
   Array [
     "BridgeController:stopPollingForQuotes",
+    "Transaction submitted",
+    undefined,
   ],
   Array [
     "AccountsController:getAccountByAddress",
@@ -3975,6 +4030,524 @@ Array [
     },
   ],
 ]
+`;
+
+exports[`BridgeStatusController submitTx: Tron swap with approval should handle approval transaction errors 1`] = `
+Array [
+  Array [
+    "BridgeController:stopPollingForQuotes",
+    "Transaction submitted",
+    undefined,
+  ],
+  Array [
+    "AccountsController:getAccountByAddress",
+    "TRXaccountAddress",
+  ],
+  Array [
+    "BridgeController:trackUnifiedSwapBridgeEvent",
+    "Unified SwapBridge Submitted",
+    Object {
+      "action_type": "swapbridge-v1",
+      "chain_id_destination": "tron:728126428",
+      "chain_id_source": "tron:728126428",
+      "custom_slippage": false,
+      "gas_included": false,
+      "gas_included_7702": false,
+      "is_hardware_wallet": false,
+      "price_impact": 0,
+      "provider": "test-bridge_undefined",
+      "quoted_time_minutes": 0.5,
+      "stx_enabled": false,
+      "swap_type": "single_chain",
+      "token_symbol_destination": "TRX",
+      "token_symbol_source": "USDT",
+      "usd_amount_source": 1,
+      "usd_quoted_gas": 0.005,
+      "usd_quoted_return": 499.99,
+    },
+  ],
+  Array [
+    "SnapController:handleRequest",
+    Object {
+      "handler": "onClientRequest",
+      "origin": "metamask",
+      "request": Object {
+        "id": "test-uuid-1234",
+        "jsonrpc": "2.0",
+        "method": "signAndSendTransaction",
+        "params": Object {
+          "accountId": "tron-account-1",
+          "options": Object {
+            "type": undefined,
+            "visible": undefined,
+          },
+          "scope": "tron:728126428",
+          "transaction": "CgKquyIITd6G0PaK4+VAOmgIAbJjCjF0eXBlLmdvb2dsZWFwaXMuY29tL3Byb3RvY29sLlRyaWdnZXJTbWFydENvbnRyYWN0EjMKFUGPfqjM6fi7pn165ZzUmhll1hfnGhIVQaYU+AO2/XgJhqQseOycf3fm3tE8",
+        },
+      },
+      "snapId": "npm:@metamask/tron-snap",
+    },
+  ],
+  Array [
+    "BridgeController:trackUnifiedSwapBridgeEvent",
+    "Unified SwapBridge Failed",
+    Object {
+      "action_type": "swapbridge-v1",
+      "chain_id_destination": "tron:728126428",
+      "chain_id_source": "tron:728126428",
+      "custom_slippage": false,
+      "error_message": "Approval transaction failed",
+      "gas_included": false,
+      "gas_included_7702": false,
+      "is_hardware_wallet": false,
+      "price_impact": 0,
+      "provider": "test-bridge_undefined",
+      "quoted_time_minutes": 0.5,
+      "stx_enabled": false,
+      "swap_type": "single_chain",
+      "token_symbol_destination": "TRX",
+      "token_symbol_source": "USDT",
+      "usd_amount_source": 1,
+      "usd_quoted_gas": 0.005,
+      "usd_quoted_return": 499.99,
+    },
+  ],
+]
+`;
+
+exports[`BridgeStatusController submitTx: Tron swap with approval should successfully submit a Tron bridge with approval transaction 1`] = `
+Array [
+  Array [
+    "BridgeController:stopPollingForQuotes",
+    "Transaction submitted",
+    undefined,
+  ],
+  Array [
+    "AccountsController:getAccountByAddress",
+    "TRXaccountAddress",
+  ],
+  Array [
+    "BridgeController:trackUnifiedSwapBridgeEvent",
+    "Unified SwapBridge Submitted",
+    Object {
+      "action_type": "swapbridge-v1",
+      "chain_id_destination": "eip155:1",
+      "chain_id_source": "tron:728126428",
+      "custom_slippage": false,
+      "gas_included": false,
+      "gas_included_7702": false,
+      "is_hardware_wallet": false,
+      "price_impact": 0,
+      "provider": "test-bridge_undefined",
+      "quoted_time_minutes": 0.5,
+      "stx_enabled": false,
+      "swap_type": "crosschain",
+      "token_symbol_destination": "TRX",
+      "token_symbol_source": "USDT",
+      "usd_amount_source": 1,
+      "usd_quoted_gas": 0.005,
+      "usd_quoted_return": 499.99,
+    },
+  ],
+  Array [
+    "SnapController:handleRequest",
+    Object {
+      "handler": "onClientRequest",
+      "origin": "metamask",
+      "request": Object {
+        "id": "test-uuid-1234",
+        "jsonrpc": "2.0",
+        "method": "signAndSendTransaction",
+        "params": Object {
+          "accountId": "tron-account-1",
+          "options": Object {
+            "type": undefined,
+            "visible": undefined,
+          },
+          "scope": "tron:728126428",
+          "transaction": "CgKquyIITd6G0PaK4+VAOmgIAbJjCjF0eXBlLmdvb2dsZWFwaXMuY29tL3Byb3RvY29sLlRyaWdnZXJTbWFydENvbnRyYWN0EjMKFUGPfqjM6fi7pn165ZzUmhll1hfnGhIVQaYU+AO2/XgJhqQseOycf3fm3tE8",
+        },
+      },
+      "snapId": "npm:@metamask/tron-snap",
+    },
+  ],
+  Array [
+    "SnapController:handleRequest",
+    Object {
+      "handler": "onClientRequest",
+      "origin": "metamask",
+      "request": Object {
+        "id": "test-uuid-1234",
+        "jsonrpc": "2.0",
+        "method": "signAndSendTransaction",
+        "params": Object {
+          "accountId": "tron-account-1",
+          "options": Object {
+            "type": undefined,
+            "visible": undefined,
+          },
+          "scope": "tron:728126428",
+          "transaction": "CgKquyIITd6G0PaK4+VAOmgIAbJjCjF0eXBlLmdvb2dsZWFwaXMuY29tL3Byb3RvY29sLlRyaWdnZXJTbWFydENvbnRyYWN0EjMKFUGPfqjM6fi7pn165ZzUmhll1hfnGxIVQaYU+AO2/XgJhqQseOycf3fm3tE8",
+        },
+      },
+      "snapId": "npm:@metamask/tron-snap",
+    },
+  ],
+]
+`;
+
+exports[`BridgeStatusController submitTx: Tron swap with approval should successfully submit a Tron bridge with approval transaction 2`] = `
+Object {
+  "approvalTxId": undefined,
+  "chainId": "0x2b6653dc",
+  "destinationChainId": "0x1",
+  "destinationTokenAddress": "native",
+  "destinationTokenAmount": "500000000",
+  "destinationTokenDecimals": 6,
+  "destinationTokenSymbol": "TRX",
+  "hash": "bridge-signature",
+  "id": "bridge-signature",
+  "isBridgeTx": true,
+  "isSolana": true,
+  "networkClientId": "npm:@metamask/tron-snap",
+  "origin": "npm:@metamask/tron-snap",
+  "sourceTokenAddress": "TR7NHqjeKQxGTCi8q8ZY4pL8otSzgjLj6t",
+  "sourceTokenAmount": "1000000",
+  "sourceTokenDecimals": 6,
+  "sourceTokenSymbol": "USDT",
+  "status": "submitted",
+  "swapTokenValue": "1",
+  "time": 1234567890,
+  "txParams": Object {
+    "data": "CgKquyIITd6G0PaK4+VAOmgIAbJjCjF0eXBlLmdvb2dsZWFwaXMuY29tL3Byb3RvY29sLlRyaWdnZXJTbWFydENvbnRyYWN0EjMKFUGPfqjM6fi7pn165ZzUmhll1hfnGxIVQaYU+AO2/XgJhqQseOycf3fm3tE8",
+    "from": "TRX123...",
+  },
+  "type": "bridge",
+}
+`;
+
+exports[`BridgeStatusController submitTx: Tron swap with approval should successfully submit a Tron bridge with approval transaction 3`] = `
+Object {
+  "bridgeTxMetaId": "bridge-signature",
+}
+`;
+
+exports[`BridgeStatusController submitTx: Tron swap with approval should successfully submit a Tron bridge with approval transaction 4`] = `
+Object {
+  "account": "TRX123...",
+  "approvalTxId": "approval-signature",
+  "batchId": undefined,
+  "estimatedProcessingTimeInSeconds": 30,
+  "featureId": undefined,
+  "hasApprovalTx": true,
+  "initialDestAssetBalance": undefined,
+  "isStxEnabled": false,
+  "pricingData": Object {
+    "amountSent": "1",
+    "amountSentInUsd": "1",
+    "quotedGasAmount": "0.005",
+    "quotedGasInUsd": "0.005",
+    "quotedReturnInUsd": "500",
+  },
+  "quote": Object {
+    "bridgeId": "test-bridge",
+    "bridges": Array [],
+    "destAsset": Object {
+      "address": "native",
+      "assetId": "tron:728126428/slip44:195",
+      "chainId": 728126428,
+      "decimals": 6,
+      "name": "Tron",
+      "symbol": "TRX",
+    },
+    "destChainId": 1,
+    "destTokenAmount": "500000000",
+    "feeData": Object {
+      "metabridge": Object {
+        "amount": "10000",
+        "asset": Object {
+          "address": "native",
+          "assetId": "tron:728126428/slip44:195",
+          "chainId": 728126428,
+          "decimals": 6,
+          "name": "Tron",
+          "symbol": "TRX",
+        },
+      },
+    },
+    "minDestTokenAmount": "475000000",
+    "requestId": "123",
+    "srcAsset": Object {
+      "address": "TR7NHqjeKQxGTCi8q8ZY4pL8otSzgjLj6t",
+      "assetId": "tron:728126428/slip44:195",
+      "chainId": 728126428,
+      "decimals": 6,
+      "name": "Tether USD",
+      "symbol": "USDT",
+    },
+    "srcChainId": 728126428,
+    "srcTokenAmount": "1000000",
+    "steps": Array [
+      Object {
+        "action": "swap",
+        "destAmount": "500000000",
+        "destAsset": Object {
+          "address": "native",
+          "assetId": "tron:728126428/slip44:195",
+          "chainId": 728126428,
+          "decimals": 6,
+          "name": "Tron",
+          "symbol": "TRX",
+        },
+        "destChainId": 728126428,
+        "protocol": Object {
+          "displayName": "Test Protocol",
+          "icon": "test-icon",
+          "name": "test-protocol",
+        },
+        "srcAmount": "1000000",
+        "srcAsset": Object {
+          "address": "TR7NHqjeKQxGTCi8q8ZY4pL8otSzgjLj6t",
+          "assetId": "tron:728126428/slip44:195",
+          "chainId": 728126428,
+          "decimals": 6,
+          "name": "Tether USD",
+          "symbol": "USDT",
+        },
+        "srcChainId": 728126428,
+      },
+    ],
+  },
+  "slippagePercentage": 0,
+  "startTime": 1234567890,
+  "status": Object {
+    "srcChain": Object {
+      "chainId": 728126428,
+      "txHash": "bridge-signature",
+    },
+    "status": "PENDING",
+  },
+  "targetContractAddress": undefined,
+  "txMetaId": "bridge-signature",
+}
+`;
+
+exports[`BridgeStatusController submitTx: Tron swap with approval should successfully submit a Tron swap with approval transaction 1`] = `
+Array [
+  Array [
+    "BridgeController:stopPollingForQuotes",
+    "Transaction submitted",
+    undefined,
+  ],
+  Array [
+    "AccountsController:getAccountByAddress",
+    "TRXaccountAddress",
+  ],
+  Array [
+    "BridgeController:trackUnifiedSwapBridgeEvent",
+    "Unified SwapBridge Submitted",
+    Object {
+      "action_type": "swapbridge-v1",
+      "chain_id_destination": "tron:728126428",
+      "chain_id_source": "tron:728126428",
+      "custom_slippage": false,
+      "gas_included": false,
+      "gas_included_7702": false,
+      "is_hardware_wallet": false,
+      "price_impact": 0,
+      "provider": "test-bridge_undefined",
+      "quoted_time_minutes": 0.5,
+      "stx_enabled": false,
+      "swap_type": "single_chain",
+      "token_symbol_destination": "TRX",
+      "token_symbol_source": "USDT",
+      "usd_amount_source": 1,
+      "usd_quoted_gas": 0.005,
+      "usd_quoted_return": 499.99,
+    },
+  ],
+  Array [
+    "SnapController:handleRequest",
+    Object {
+      "handler": "onClientRequest",
+      "origin": "metamask",
+      "request": Object {
+        "id": "test-uuid-1234",
+        "jsonrpc": "2.0",
+        "method": "signAndSendTransaction",
+        "params": Object {
+          "accountId": "tron-account-1",
+          "options": Object {
+            "type": undefined,
+            "visible": undefined,
+          },
+          "scope": "tron:728126428",
+          "transaction": "CgKquyIITd6G0PaK4+VAOmgIAbJjCjF0eXBlLmdvb2dsZWFwaXMuY29tL3Byb3RvY29sLlRyaWdnZXJTbWFydENvbnRyYWN0EjMKFUGPfqjM6fi7pn165ZzUmhll1hfnGhIVQaYU+AO2/XgJhqQseOycf3fm3tE8",
+        },
+      },
+      "snapId": "npm:@metamask/tron-snap",
+    },
+  ],
+  Array [
+    "SnapController:handleRequest",
+    Object {
+      "handler": "onClientRequest",
+      "origin": "metamask",
+      "request": Object {
+        "id": "test-uuid-1234",
+        "jsonrpc": "2.0",
+        "method": "signAndSendTransaction",
+        "params": Object {
+          "accountId": "tron-account-1",
+          "options": Object {
+            "type": undefined,
+            "visible": undefined,
+          },
+          "scope": "tron:728126428",
+          "transaction": "CgKquyIITd6G0PaK4+VAOmgIAbJjCjF0eXBlLmdvb2dsZWFwaXMuY29tL3Byb3RvY29sLlRyaWdnZXJTbWFydENvbnRyYWN0EjMKFUGPfqjM6fi7pn165ZzUmhll1hfnGxIVQaYU+AO2/XgJhqQseOycf3fm3tE8",
+        },
+      },
+      "snapId": "npm:@metamask/tron-snap",
+    },
+  ],
+  Array [
+    "AccountsController:getAccountByAddress",
+    "TRX123...",
+  ],
+  Array [
+    "TransactionController:getState",
+  ],
+]
+`;
+
+exports[`BridgeStatusController submitTx: Tron swap with approval should successfully submit a Tron swap with approval transaction 2`] = `
+Object {
+  "approvalTxId": undefined,
+  "chainId": "0x2b6653dc",
+  "destinationChainId": "0x2b6653dc",
+  "destinationTokenAddress": "native",
+  "destinationTokenAmount": "500000000",
+  "destinationTokenDecimals": 6,
+  "destinationTokenSymbol": "TRX",
+  "hash": "swap-signature",
+  "id": "swap-signature",
+  "isBridgeTx": false,
+  "isSolana": true,
+  "networkClientId": "npm:@metamask/tron-snap",
+  "origin": "npm:@metamask/tron-snap",
+  "sourceTokenAddress": "TR7NHqjeKQxGTCi8q8ZY4pL8otSzgjLj6t",
+  "sourceTokenAmount": "1000000",
+  "sourceTokenDecimals": 6,
+  "sourceTokenSymbol": "USDT",
+  "status": "submitted",
+  "swapTokenValue": "1",
+  "time": 1234567890,
+  "txParams": Object {
+    "data": "CgKquyIITd6G0PaK4+VAOmgIAbJjCjF0eXBlLmdvb2dsZWFwaXMuY29tL3Byb3RvY29sLlRyaWdnZXJTbWFydENvbnRyYWN0EjMKFUGPfqjM6fi7pn165ZzUmhll1hfnGxIVQaYU+AO2/XgJhqQseOycf3fm3tE8",
+    "from": "TRX123...",
+  },
+  "type": "swap",
+}
+`;
+
+exports[`BridgeStatusController submitTx: Tron swap with approval should successfully submit a Tron swap with approval transaction 3`] = `
+Object {
+  "account": "TRX123...",
+  "approvalTxId": "approval-signature",
+  "batchId": undefined,
+  "estimatedProcessingTimeInSeconds": 30,
+  "featureId": undefined,
+  "hasApprovalTx": true,
+  "initialDestAssetBalance": undefined,
+  "isStxEnabled": false,
+  "pricingData": Object {
+    "amountSent": "1",
+    "amountSentInUsd": "1",
+    "quotedGasAmount": "0.005",
+    "quotedGasInUsd": "0.005",
+    "quotedReturnInUsd": "500",
+  },
+  "quote": Object {
+    "bridgeId": "test-bridge",
+    "bridges": Array [],
+    "destAsset": Object {
+      "address": "native",
+      "assetId": "tron:728126428/slip44:195",
+      "chainId": 728126428,
+      "decimals": 6,
+      "name": "Tron",
+      "symbol": "TRX",
+    },
+    "destChainId": 728126428,
+    "destTokenAmount": "500000000",
+    "feeData": Object {
+      "metabridge": Object {
+        "amount": "10000",
+        "asset": Object {
+          "address": "native",
+          "assetId": "tron:728126428/slip44:195",
+          "chainId": 728126428,
+          "decimals": 6,
+          "name": "Tron",
+          "symbol": "TRX",
+        },
+      },
+    },
+    "minDestTokenAmount": "475000000",
+    "requestId": "123",
+    "srcAsset": Object {
+      "address": "TR7NHqjeKQxGTCi8q8ZY4pL8otSzgjLj6t",
+      "assetId": "tron:728126428/slip44:195",
+      "chainId": 728126428,
+      "decimals": 6,
+      "name": "Tether USD",
+      "symbol": "USDT",
+    },
+    "srcChainId": 728126428,
+    "srcTokenAmount": "1000000",
+    "steps": Array [
+      Object {
+        "action": "swap",
+        "destAmount": "500000000",
+        "destAsset": Object {
+          "address": "native",
+          "assetId": "tron:728126428/slip44:195",
+          "chainId": 728126428,
+          "decimals": 6,
+          "name": "Tron",
+          "symbol": "TRX",
+        },
+        "destChainId": 728126428,
+        "protocol": Object {
+          "displayName": "Test Protocol",
+          "icon": "test-icon",
+          "name": "test-protocol",
+        },
+        "srcAmount": "1000000",
+        "srcAsset": Object {
+          "address": "TR7NHqjeKQxGTCi8q8ZY4pL8otSzgjLj6t",
+          "assetId": "tron:728126428/slip44:195",
+          "chainId": 728126428,
+          "decimals": 6,
+          "name": "Tether USD",
+          "symbol": "USDT",
+        },
+        "srcChainId": 728126428,
+      },
+    ],
+  },
+  "slippagePercentage": 0,
+  "startTime": 1234567890,
+  "status": Object {
+    "srcChain": Object {
+      "chainId": 728126428,
+      "txHash": "swap-signature",
+    },
+    "status": "PENDING",
+  },
+  "targetContractAddress": undefined,
+  "txMetaId": "swap-signature",
+}
 `;
 
 exports[`BridgeStatusController subscription handlers TransactionController:transactionConfirmed should not start polling for bridge tx if tx is not in txHistory 1`] = `Array []`;

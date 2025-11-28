@@ -1,5 +1,6 @@
 import { keccak256AndHexify } from '@metamask/auth-network-utils';
 import { BaseController, type StateMetadata } from '@metamask/base-controller';
+import type * as encryptionUtils from '@metamask/browser-passworder';
 import type {
   KeyPair,
   RecoverEncryptionKeyResult,
@@ -223,12 +224,18 @@ const seedlessOnboardingMetadata: StateMetadata<SeedlessOnboardingControllerStat
     },
   };
 
-export class SeedlessOnboardingController<EncryptionKey> extends BaseController<
+export class SeedlessOnboardingController<
+  EncryptionKey,
+  SupportedKeyDerivationOptions = encryptionUtils.KeyDerivationOptions,
+> extends BaseController<
   typeof controllerName,
   SeedlessOnboardingControllerState,
   SeedlessOnboardingControllerMessenger
 > {
-  readonly #vaultEncryptor: VaultEncryptor<EncryptionKey>;
+  readonly #vaultEncryptor: VaultEncryptor<
+    EncryptionKey,
+    SupportedKeyDerivationOptions
+  >;
 
   readonly #controllerOperationMutex = new Mutex();
 
@@ -285,7 +292,10 @@ export class SeedlessOnboardingController<EncryptionKey> extends BaseController<
     revokeRefreshToken,
     renewRefreshToken,
     passwordOutdatedCacheTTL = PASSWORD_OUTDATED_CACHE_TTL_MS,
-  }: SeedlessOnboardingControllerOptions<EncryptionKey>) {
+  }: SeedlessOnboardingControllerOptions<
+    EncryptionKey,
+    SupportedKeyDerivationOptions
+  >) {
     super({
       name: controllerName,
       metadata: seedlessOnboardingMetadata,
@@ -1973,9 +1983,7 @@ export class SeedlessOnboardingController<EncryptionKey> extends BaseController<
   #isAuthTokenError(error: unknown): boolean {
     if (error instanceof TOPRFError) {
       return (
-        // eslint-disable-next-line @typescript-eslint/no-unsafe-enum-comparison
         error.code === TOPRFErrorCode.AuthTokenExpired ||
-        // eslint-disable-next-line @typescript-eslint/no-unsafe-enum-comparison
         error.code === TOPRFErrorCode.InvalidAuthToken
       );
     }

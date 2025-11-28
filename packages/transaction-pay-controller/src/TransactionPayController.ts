@@ -8,6 +8,7 @@ import { updatePaymentToken } from './actions/update-payment-token';
 import { CONTROLLER_NAME, TransactionPayStrategy } from './constants';
 import { QuoteRefresher } from './helpers/QuoteRefresher';
 import type {
+  GetDelegationTransactionCallback,
   TransactionData,
   TransactionPayControllerMessenger,
   TransactionPayControllerOptions,
@@ -36,11 +37,14 @@ export class TransactionPayController extends BaseController<
   TransactionPayControllerState,
   TransactionPayControllerMessenger
 > {
+  readonly #getDelegationTransaction: GetDelegationTransactionCallback;
+
   readonly #getStrategy?: (
     transaction: TransactionMeta,
-  ) => Promise<TransactionPayStrategy>;
+  ) => TransactionPayStrategy;
 
   constructor({
+    getDelegationTransaction,
     getStrategy,
     messenger,
     state,
@@ -52,6 +56,7 @@ export class TransactionPayController extends BaseController<
       state: { ...getDefaultState(), ...state },
     });
 
+    this.#getDelegationTransaction = getDelegationTransaction;
     this.#getStrategy = getStrategy;
 
     this.#registerActionHandlers();
@@ -128,8 +133,13 @@ export class TransactionPayController extends BaseController<
 
   #registerActionHandlers() {
     this.messenger.registerActionHandler(
+      'TransactionPayController:getDelegationTransaction',
+      this.#getDelegationTransaction.bind(this),
+    );
+
+    this.messenger.registerActionHandler(
       'TransactionPayController:getStrategy',
-      this.#getStrategy ?? (async () => TransactionPayStrategy.Relay),
+      this.#getStrategy ?? (() => TransactionPayStrategy.Relay),
     );
 
     this.messenger.registerActionHandler(

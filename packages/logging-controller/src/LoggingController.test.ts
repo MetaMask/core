@@ -15,8 +15,6 @@ import { SigningMethod, SigningStage } from './logTypes/EthSignLog';
 
 jest.mock('uuid', () => {
   return {
-    // We need to use this name as this is what Jest recognizes.
-    // eslint-disable-next-line @typescript-eslint/naming-convention
     __esModule: true,
     ...jest.requireActual('uuid'),
   };

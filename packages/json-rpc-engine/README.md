@@ -12,8 +12,10 @@ or
 
 ## Usage
 
-> [!NOTE]
+> [!TIP]
 > For the legacy `JsonRpcEngine`, see [its readme](./src/README.md).
+>
+> For how to migrate from the legacy `JsonRpcEngine` to `JsonRpcEngineV2`, see [Migrating from `JsonRpcEngine`](#migrating-from-jsonrpcengine).
 
 ```ts
 import { JsonRpcEngineV2 } from '@metamask/json-rpc-engine/v2';
@@ -783,6 +785,59 @@ to the response object via the `error` property.
 > but not both. If you do so, it is your responsibility to ensure that the server is only used with the
 > appropriate request objects. `JsonRpcServer.handle()` will not type error at compile time if you attempt to pass
 > it an unsupported request object.
+
+## Migrating from `JsonRpcEngine`
+
+Migrating from the legacy `JsonRpcEngine` to `JsonRpcEngineV2` is generally straightforward.
+For an example, see [MetaMask/core#7065](https://github.com/MetaMask/core/pull/7065).
+There are a couple of pitfalls to watch out for:
+
+### `MiddlewareContext` vs. non-JSON-RPC string properties
+
+The legacy `JsonRpcEngine` allowed non-JSON-RPC string properties to be attached to the request object.
+`JsonRpcEngineV2` does not allow this, and instead you must use the `context` object to pass data between middleware.
+While it's easy to migrate a middleware function body to use the `context` object, injected dependencies
+of the middleware function may need to be updated.
+
+For example if you have a legacy middleware implementation like this:
+
+```ts
+const createFooMiddleware =
+  (processFoo: (req: JsonRpcRequest) => string) => (req, res, next, end) => {
+    if (req.method === 'foo') {
+      const fooResult = processFoo(req); // May expect non-JSON-RPC properties on the request object!
+      res.result = fooResult;
+      end();
+    } else {
+      next();
+    }
+  };
+```
+
+`processFoo` may expect non-JSON-RPC properties on the request object. To fully migrate the middleware, you need to
+investigate the implementation of `processFoo` and potentially update it to accept a `context` object.
+
+### Frozen requests
+
+In the legacy `JsonRpcEngine`, request and response objects are mutable and shared between all middleware.
+In `JsonRpcEngineV2`, response objects are not visible to middleware, and request objects are deeply frozen.
+If injected dependencies mutate the request object, it will cause an error.
+
+For example, if you have a legacy middleware implementation like this:
+
+```ts
+const createBarMiddleware =
+  (processBar: (req: JsonRpcRequest) => string) => (req, _res, next, _end) => {
+    if (req.method === 'bar') {
+      processBar(req); // May mutate the request object!
+    }
+    next();
+  };
+```
+
+`processBar` may mutate the request object. To fully migrate the middleware, you need to
+investigate the implementation of `processBar` and update it to not directly mutate the request object.
+See [Request modification](#request-modification) for how to modify the request object in `JsonRpcEngineV2`.
 
 ## Contributing
 

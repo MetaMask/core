@@ -594,6 +594,57 @@ describe('AccountTrackerController', () => {
           },
         );
       });
+
+      it('should create account entry when applying staked balance without native balance (line 743)', async () => {
+        // Mock returning staked balance for ADDRESS_1 and native balance for ADDRESS_2
+        // but NO native balance for ADDRESS_1 - this tests the defensive check on line 743
+        // Use lowercase addresses since queryAllAccounts: true uses lowercase
+        mockedGetTokenBalancesForMultipleAddresses.mockResolvedValueOnce({
+          tokenBalances: {
+            '0x0000000000000000000000000000000000000000': {
+              // Only ADDRESS_2 has native balance, ADDRESS_1 doesn't
+              [ADDRESS_2]: new BN('100', 16),
+            },
+          },
+          stakedBalances: {
+            // ADDRESS_1 has staked balance but no native balance
+            [ADDRESS_1]: new BN('2', 16), // 0x2
+            [ADDRESS_2]: new BN('3', 16), // 0x3
+          },
+        });
+
+        await withController(
+          {
+            options: {
+              includeStakedAssets: true,
+              getStakedBalanceForChain: mockGetStakedBalanceForChain,
+            },
+            isMultiAccountBalancesEnabled: true,
+            selectedAccount: ACCOUNT_1,
+            listAccounts: [ACCOUNT_1, ACCOUNT_2],
+          },
+          async ({ controller, refresh }) => {
+            await refresh(clock, ['mainnet'], true);
+
+            // Line 743 should have created an account entry with balance '0x0' for ADDRESS_1
+            // when applying staked balance without a native balance entry
+            expect(controller.state).toStrictEqual({
+              accountsByChainId: {
+                '0x1': {
+                  [CHECKSUM_ADDRESS_1]: {
+                    balance: '0x0', // Created by line 743 (defensive check)
+                    stakedBalance: '0x2',
+                  },
+                  [CHECKSUM_ADDRESS_2]: {
+                    balance: '0x100',
+                    stakedBalance: '0x3',
+                  },
+                },
+              },
+            });
+          },
+        );
+      });
     });
 
     describe('with networkClientId', () => {

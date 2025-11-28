@@ -1,7 +1,7 @@
+import { EtherscanNameProvider } from './etherscan';
 import { CHAIN_IDS } from '../constants';
 import { NameType } from '../types';
 import { handleFetch } from '../util';
-import { EtherscanNameProvider } from './etherscan';
 
 jest.mock('../util');
 

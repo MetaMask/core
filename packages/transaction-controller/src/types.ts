@@ -268,6 +268,9 @@ export type TransactionMeta = {
   /** Whether MetaMask will be compensated for the gas fee by the transaction. */
   isGasFeeIncluded?: boolean;
 
+  /** Whether the `selectedGasFeeToken` is only used if the user has insufficient native balance. */
+  isGasFeeTokenIgnoredIfBalance?: boolean;
+
   /** Whether the intent of the transaction was achieved via an alternate route or chain. */
   isIntentComplete?: boolean;
 
@@ -748,6 +751,11 @@ export enum TransactionType {
    * A transaction that withdraws tokens from a lending contract.
    */
   lendingWithdraw = 'lendingWithdraw',
+
+  /**
+   * A transaction that converts tokens to mUSD.
+   */
+  musdConversion = 'musdConversion',
 
   /**
    * Deposit funds to be available for trading via Perps.
@@ -1720,8 +1728,14 @@ export type TransactionBatchRequest = {
   /** Whether to disable batch transaction via sequential transactions. */
   disableSequential?: boolean;
 
+  /** Whether to disable upgrading the account to an EIP-7702. */
+  disableUpgrade?: boolean;
+
   /** Address of the account to submit the transaction batch. */
   from: Hex;
+
+  /** Address of an ERC-20 token to pay for the gas fee, if the user has insufficient native balance. */
+  gasFeeToken?: Hex;
 
   /** Whether MetaMask will be compensated for the gas fee by the transaction. */
   isGasFeeIncluded?: boolean;
@@ -1740,6 +1754,9 @@ export type TransactionBatchRequest = {
 
   /** Security alert ID to persist on the transaction. */
   securityAlertId?: string;
+
+  /** Whether to skip the initial gas calculation and rely only on the polling. */
+  skipInitialGasEstimate?: boolean;
 
   /** Transactions to be submitted as part of the batch. */
   transactions: TransactionBatchSingleRequest[];
@@ -2061,6 +2078,9 @@ export type AddTransactionOptions = {
   /** Whether to disable the gas estimation buffer. */
   disableGasBuffer?: boolean;
 
+  /** Address of an ERC-20 token to pay for the gas fee, if the user has insufficient native balance. */
+  gasFeeToken?: Hex;
+
   /** Whether MetaMask will be compensated for the gas fee by the transaction. */
   isGasFeeIncluded?: boolean;
 
@@ -2091,6 +2111,9 @@ export type AddTransactionOptions = {
   /** Entries to add to the `sendFlowHistory`. */
   sendFlowHistory?: SendFlowHistoryEntry[];
 
+  /** Whether to skip the initial gas calculation and rely only on the polling. */
+  skipInitialGasEstimate?: boolean;
+
   /** Options for swaps transactions. */
   swaps?: {
     /** Whether the transaction has an approval transaction. */
@@ -2105,4 +2128,24 @@ export type AddTransactionOptions = {
 
   /** Type of transaction to add, such as 'cancel' or 'swap'. */
   type?: TransactionType;
+};
+
+/**
+ * Request to get gas fee tokens.
+ */
+export type GetGasFeeTokensRequest = {
+  /** ID of the chain. */
+  chainId: Hex;
+
+  /** Data of the transaction. */
+  data?: Hex;
+
+  /** Address of the sender. */
+  from: Hex;
+
+  /** Address of the recipient. */
+  to: Hex;
+
+  /** Value of the transaction. */
+  value?: Hex;
 };

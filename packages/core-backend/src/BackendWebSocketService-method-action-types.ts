@@ -6,7 +6,15 @@
 import type { BackendWebSocketService } from './BackendWebSocketService';
 
 /**
- * Establishes WebSocket connection
+ * Establishes WebSocket connection with smart reconnection behavior
+ *
+ * Connection Requirements (all must be true):
+ * 1. Feature enabled (isEnabled() = true)
+ * 2. Wallet unlocked (checked by getBearerToken)
+ * 3. User signed in (checked by getBearerToken)
+ *
+ * Platform code should call this when app opens/foregrounds.
+ * Automatically called on KeyringController:unlock event.
  *
  * @returns Promise that resolves when connection is established
  */
@@ -17,8 +25,6 @@ export type BackendWebSocketServiceConnectAction = {
 
 /**
  * Closes WebSocket connection
- *
- * @returns Promise that resolves when disconnection is complete
  */
 export type BackendWebSocketServiceDisconnectAction = {
   type: `BackendWebSocketService:disconnect`;
@@ -47,10 +53,21 @@ export type BackendWebSocketServiceForceReconnectionAction = {
 };
 
 /**
- * Sends a message through the WebSocket
+ * Sends a message through the WebSocket (fire-and-forget, no response expected)
+ *
+ * This is a low-level method for sending messages without waiting for a response.
+ * Most consumers should use `sendRequest()` instead, which handles request-response
+ * correlation and provides proper error handling with timeouts.
+ *
+ * Use this method only when:
+ * - You don't need a response from the server
+ * - You're implementing custom message protocols
+ * - You need fine-grained control over message timing
  *
  * @param message - The message to send
- * @returns Promise that resolves when message is sent
+ * @throws Error if WebSocket is not connected or send fails
+ *
+ * @see sendRequest for request-response pattern with automatic correlation
  */
 export type BackendWebSocketServiceSendMessageAction = {
   type: `BackendWebSocketService:sendMessage`;
@@ -58,10 +75,20 @@ export type BackendWebSocketServiceSendMessageAction = {
 };
 
 /**
- * Sends a request and waits for a correlated response
+ * Sends a request and waits for a correlated response (recommended for most use cases)
  *
- * @param message - The request message
+ * This is the recommended high-level method for request-response communication.
+ * It automatically handles:
+ * - Request ID generation and correlation
+ * - Response matching with timeout protection
+ * - Automatic reconnection on timeout
+ * - Proper cleanup of pending requests
+ *
+ * @param message - The request message (can include optional requestId for testing)
  * @returns Promise that resolves with the response data
+ * @throws Error if WebSocket is not connected, request times out, or response indicates failure
+ *
+ * @see sendMessage for fire-and-forget messaging without response handling
  */
 export type BackendWebSocketServiceSendRequestAction = {
   type: `BackendWebSocketService:sendRequest`;
@@ -112,7 +139,26 @@ export type BackendWebSocketServiceFindSubscriptionsByChannelPrefixAction = {
 };
 
 /**
- * Register a callback for specific channels
+ * Register a callback for specific channels (local callback only, no server subscription)
+ *
+ * **Key Difference from `subscribe()`:**
+ * - `addChannelCallback()`: Registers a local callback without creating a server-side subscription.
+ * The callback triggers on ANY message matching the channel name, regardless of subscriptionId.
+ * Useful for system-wide notifications or when you don't control the subscription lifecycle.
+ *
+ * - `subscribe()`: Creates a proper server-side subscription with a subscriptionId.
+ * The callback only triggers for messages with the matching subscriptionId.
+ * Includes proper lifecycle management (unsubscribe, automatic cleanup on disconnect).
+ *
+ * **When to use `addChannelCallback()`:**
+ * - Listening to system-wide notifications (e.g., 'system-notifications.v1')
+ * - Monitoring channels where subscriptions are managed elsewhere
+ * - Debug/logging scenarios where you want to observe all channel messages
+ *
+ * **When to use `subscribe()` instead:**
+ * - Creating new subscriptions that need server-side registration
+ * - When you need proper cleanup via unsubscribe
+ * - Most application use cases (recommended approach)
  *
  * @param options - Channel callback configuration
  * @param options.channelName - Channel name to match exactly
@@ -120,22 +166,22 @@ export type BackendWebSocketServiceFindSubscriptionsByChannelPrefixAction = {
  *
  * @example
  * ```typescript
- * // Listen to specific account activity channel
- * webSocketService.addChannelCallback({
- * channelName: 'account-activity.v1.eip155:0:0x1234...',
- * callback: (notification) => {
- * console.log('Account activity:', notification.data);
- * }
- * });
- *
- * // Listen to system notifications channel
+ * // Listen to system notifications (no server subscription needed)
  * webSocketService.addChannelCallback({
  * channelName: 'system-notifications.v1',
  * callback: (notification) => {
  * console.log('System notification:', notification.data);
  * }
  * });
+ *
+ * // For account-specific subscriptions, use subscribe() instead:
+ * // const sub = await webSocketService.subscribe({
+ * //   channels: ['account-activity.v1.eip155:0:0x1234...'],
+ * //   callback: (notification) => { ... }
+ * // });
  * ```
+ *
+ * @see subscribe for creating proper server-side subscriptions with lifecycle management
  */
 export type BackendWebSocketServiceAddChannelCallbackAction = {
   type: `BackendWebSocketService:addChannelCallback`;
@@ -145,7 +191,7 @@ export type BackendWebSocketServiceAddChannelCallbackAction = {
 /**
  * Remove a channel callback
  *
- * @param channelName - The channel name to remove callback for
+ * @param channelName - The channel name returned from addChannelCallback
  * @returns True if callback was found and removed, false otherwise
  */
 export type BackendWebSocketServiceRemoveChannelCallbackAction = {
@@ -155,6 +201,8 @@ export type BackendWebSocketServiceRemoveChannelCallbackAction = {
 
 /**
  * Get all registered channel callbacks (for debugging)
+ *
+ * @returns Array of all registered channel callbacks
  */
 export type BackendWebSocketServiceGetChannelCallbacksAction = {
   type: `BackendWebSocketService:getChannelCallbacks`;
@@ -162,12 +210,50 @@ export type BackendWebSocketServiceGetChannelCallbacksAction = {
 };
 
 /**
- * Create and manage a subscription with direct callback routing
+ * Create and manage a subscription with server-side registration (recommended for most use cases)
+ *
+ * This is the recommended subscription API for high-level services. It creates a proper
+ * server-side subscription and routes notifications based on subscriptionId.
+ *
+ * **Key Features:**
+ * - Creates server-side subscription with unique subscriptionId
+ * - Callback triggered only for messages with matching subscriptionId
+ * - Automatic lifecycle management (cleanup on disconnect)
+ * - Includes unsubscribe method for proper cleanup
+ * - Request-response pattern with error handling
+ *
+ * **When to use `subscribe()`:**
+ * - Creating new subscriptions (account activity, price updates, etc.)
+ * - When you need proper cleanup/unsubscribe functionality
+ * - Most application use cases
+ *
+ * **When to use `addChannelCallback()` instead:**
+ * - System-wide notifications without server-side subscription
+ * - Observing channels managed elsewhere
+ * - Debug/logging scenarios
  *
  * @param options - Subscription configuration
  * @param options.channels - Array of channel names to subscribe to
  * @param options.callback - Callback function for handling notifications
- * @returns Promise that resolves with subscription object containing unsubscribe method
+ * @param options.requestId - Optional request ID for testing (will generate UUID if not provided)
+ * @param options.channelType - Channel type identifier
+ * @returns Subscription object with unsubscribe method
+ *
+ * @example
+ * ```typescript
+ * // AccountActivityService usage
+ * const subscription = await webSocketService.subscribe({
+ * channels: ['account-activity.v1.eip155:0:0x1234...'],
+ * callback: (notification) => {
+ * this.handleAccountActivity(notification.data);
+ * }
+ * });
+ *
+ * // Later, clean up
+ * await subscription.unsubscribe();
+ * ```
+ *
+ * @see addChannelCallback for local callbacks without server-side subscription
  */
 export type BackendWebSocketServiceSubscribeAction = {
   type: `BackendWebSocketService:subscribe`;

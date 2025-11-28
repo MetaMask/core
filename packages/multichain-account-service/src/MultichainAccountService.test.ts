@@ -996,6 +996,16 @@ describe('MultichainAccountService', () => {
       expect(wallet).toBeDefined();
       expect(wallet.entropySource).toBe('abc');
     });
+
+    it('resync accounts with MultichainAccountService:resyncAccounts', async () => {
+      const { messenger, service } = await setup({
+        accounts: [MOCK_HD_ACCOUNT_1],
+      });
+
+      const resyncAccountsSpy = jest.spyOn(service, 'resyncAccounts');
+      await messenger.call('MultichainAccountService:resyncAccounts');
+      expect(resyncAccountsSpy).toHaveBeenCalled();
+    });
   });
 
   describe('resyncAccounts', () => {

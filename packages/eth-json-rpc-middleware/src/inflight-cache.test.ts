@@ -1,44 +1,43 @@
-import { JsonRpcEngine } from '@metamask/json-rpc-engine';
-import pify from 'pify';
+import { JsonRpcEngineV2 } from '@metamask/json-rpc-engine/v2';
 
 import { createInflightCacheMiddleware } from '.';
+import { createRequest } from '../test/util/helpers';
 
 describe('inflight cache', () => {
   it('should cache an inflight request and only hit provider once', async () => {
-    const engine = new JsonRpcEngine();
     let hitCount = 0;
-
-    // add inflight cache
-    engine.push(createInflightCacheMiddleware());
-
-    // add stalling result handler for `test_blockCache`
-    engine.push((_req, res, _next, end) => {
-      hitCount += 1;
-      res.result = true;
-      // eslint-disable-next-line jest/no-conditional-in-test
-      if (hitCount === 1) {
-        setTimeout(() => end(), 100);
-      }
+    const engine = JsonRpcEngineV2.create({
+      middleware: [
+        createInflightCacheMiddleware(),
+        async () => {
+          hitCount += 1;
+          if (hitCount === 1) {
+            await new Promise((resolve) => setTimeout(resolve, 100));
+          }
+          return true;
+        },
+      ],
     });
 
     const results = await Promise.all([
-      pify(engine.handle).call(engine, {
-        id: 1,
-        jsonrpc: '2.0',
-        method: 'test_blockCache',
-        params: [],
-      }),
-      pify(engine.handle).call(engine, {
-        id: 2,
-        jsonrpc: '2.0',
-        method: 'test_blockCache',
-        params: [],
-      }),
+      engine.handle(
+        createRequest({
+          id: 1,
+          method: 'test_blockCache',
+          params: [],
+        }),
+      ),
+      engine.handle(
+        createRequest({
+          id: 2,
+          method: 'test_blockCache',
+          params: [],
+        }),
+      ),
     ]);
 
-    expect(results[0].result).toBe(true);
-    expect(results[1].result).toBe(true);
-    expect(results[0]).not.toStrictEqual(results[1]); // make sure they are unique responses
+    expect(results[0]).toBe(true);
+    expect(results[1]).toBe(true);
     expect(hitCount).toBe(1); // check result handler was only hit once
   });
 });

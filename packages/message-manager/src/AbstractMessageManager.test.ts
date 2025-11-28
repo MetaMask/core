@@ -11,7 +11,7 @@ import {
   type AbstractMessage,
   type AbstractMessageParams,
   type MessageManagerState,
-  type OriginalRequest,
+  type MessageRequest,
   type SecurityProviderRequest,
 } from './AbstractMessageManager';
 
@@ -50,7 +50,7 @@ class AbstractTestManager extends AbstractMessageManager<
 > {
   addRequestToMessageParams<MessageParams extends AbstractMessageParams>(
     messageParams: MessageParams,
-    req?: OriginalRequest,
+    req?: MessageRequest,
   ) {
     return super.addRequestToMessageParams(messageParams, req);
   }
@@ -58,7 +58,7 @@ class AbstractTestManager extends AbstractMessageManager<
   createUnapprovedMessage<MessageParams extends AbstractMessageParams>(
     messageParams: MessageParams,
     type: ApprovalType,
-    req?: OriginalRequest,
+    req?: MessageRequest,
   ) {
     return super.createUnapprovedMessage(messageParams, type, req);
   }

@@ -3,22 +3,31 @@ import {
   successfulFetch,
   toHex,
 } from '@metamask/controller-utils';
-import type { TransactionParams } from '@metamask/transaction-controller';
+import {
+  TransactionType,
+  type TransactionParams,
+} from '@metamask/transaction-controller';
 import type { TransactionMeta } from '@metamask/transaction-controller';
 import type { Hex } from '@metamask/utils';
 import { createModuleLogger } from '@metamask/utils';
 
-import { RELAY_URL_BASE } from './constants';
+import { RELAY_POLLING_INTERVAL, RELAY_URL_BASE } from './constants';
 import type { RelayQuote, RelayStatus } from './types';
 import { projectLogger } from '../../logger';
 import type {
   PayStrategyExecuteRequest,
   TransactionPayControllerMessenger,
+  TransactionPayQuote,
 } from '../../types';
+import { getFeatureFlags } from '../../utils/feature-flags';
 import {
+  collectTransactionIds,
+  getTransaction,
   updateTransaction,
   waitForTransactionConfirmed,
 } from '../../utils/transaction';
+
+const FALLBACK_HASH = '0x0' as Hex;
 
 const log = createModuleLogger(projectLogger, 'relay-strategy');
 
@@ -39,20 +48,13 @@ export async function submitRelayQuotes(
 
   for (const quote of quotes) {
     ({ transactionHash } = await executeSingleQuote(
-      quote.original,
+      quote,
       messenger,
       transaction,
     ));
   }
 
-  const isSkipTransaction = quotes.some((q) => q.original.skipTransaction);
-
-  if (isSkipTransaction) {
-    log('Skipping original transaction', transactionHash);
-    return { transactionHash };
-  }
-
-  return { transactionHash: undefined };
+  return { transactionHash };
 }
 
 /**
@@ -64,103 +66,41 @@ export async function submitRelayQuotes(
  * @returns An object containing the transaction hash if available.
  */
 async function executeSingleQuote(
-  quote: RelayQuote,
+  quote: TransactionPayQuote<RelayQuote>,
   messenger: TransactionPayControllerMessenger,
   transaction: TransactionMeta,
 ) {
   log('Executing single quote', quote);
 
-  const { kind } = quote.steps[0];
-
-  if (kind !== 'transaction') {
-    throw new Error(`Unsupported step kind: ${kind as string}`);
-  }
-
-  const transactionParams = quote.steps[0].items[0].data;
-  const chainId = toHex(transactionParams.chainId);
-  const normalizedParams = normalizeParams(transactionParams);
-
-  const networkClientId = messenger.call(
-    'NetworkController:findNetworkClientIdByChainId',
-    chainId,
-  );
-
-  log('Adding transaction', {
-    chainId,
-    normalizedParams,
-    networkClientId,
-  });
-
-  if (quote.skipTransaction) {
-    updateTransaction(
-      {
-        transactionId: transaction.id,
-        messenger,
-        note: 'Remove nonce from skipped transaction',
-      },
-      (tx) => {
-        tx.txParams.nonce = undefined;
-      },
-    );
-  }
-
-  const result = await messenger.call(
-    'TransactionController:addTransaction',
-    normalizedParams,
+  updateTransaction(
     {
-      networkClientId,
-      origin: ORIGIN_METAMASK,
-      requireApproval: false,
+      transactionId: transaction.id,
+      messenger,
+      note: 'Remove nonce from skipped transaction',
+    },
+    (tx) => {
+      tx.txParams.nonce = undefined;
     },
   );
 
-  const { transactionMeta, result: transactionHashPromise } = result;
+  await submitTransactions(quote, transaction.id, messenger);
+
+  const targetHash = await waitForRelayCompletion(quote.original);
+
+  log('Relay request completed', targetHash);
 
   updateTransaction(
     {
       transactionId: transaction.id,
       messenger,
-      note: 'Add required transaction ID',
+      note: 'Intent complete after Relay completion',
     },
     (tx) => {
-      if (!tx.requiredTransactionIds) {
-        tx.requiredTransactionIds = [];
-      }
-
-      tx.requiredTransactionIds.push(transactionMeta.id);
+      tx.isIntentComplete = true;
     },
   );
 
-  log('Added transaction', transactionMeta);
-
-  const transactionHash = (await transactionHashPromise) as Hex;
-
-  log('Submitted transaction', transactionHash);
-
-  await waitForTransactionConfirmed(transactionMeta.id, messenger);
-
-  log('Transaction confirmed', transactionMeta.id);
-
-  await waitForRelayCompletion(quote);
-
-  log('Relay request completed');
-
-  if (quote.skipTransaction) {
-    log('Updating intent complete flag on transaction', transaction.id);
-
-    updateTransaction(
-      {
-        transactionId: transaction.id,
-        messenger,
-        note: 'Intent complete after Relay completion',
-      },
-      (tx) => {
-        tx.isIntentComplete = true;
-      },
-    );
-  }
-
-  return { transactionHash };
+  return { transactionHash: targetHash };
 }
 
 /**
@@ -169,8 +109,19 @@ async function executeSingleQuote(
  * @param quote - Relay quote associated with the request.
  * @returns A promise that resolves when the Relay request is complete.
  */
-async function waitForRelayCompletion(quote: RelayQuote) {
-  const { endpoint, method } = quote.steps[0].items[0].check;
+async function waitForRelayCompletion(quote: RelayQuote): Promise<Hex> {
+  if (
+    quote.details.currencyIn.currency.chainId ===
+    quote.details.currencyOut.currency.chainId
+  ) {
+    log('Skipping polling as same chain');
+    return FALLBACK_HASH;
+  }
+
+  const { endpoint, method } = quote.steps
+    .slice(-1)[0]
+    .items.slice(-1)[0].check;
+
   const url = `${RELAY_URL_BASE}${endpoint}`;
 
   while (true) {
@@ -180,14 +131,15 @@ async function waitForRelayCompletion(quote: RelayQuote) {
     log('Polled status', status.status, status);
 
     if (status.status === 'success') {
-      return;
+      const targetHash = status.txHashes?.slice(-1)[0] as Hex;
+      return targetHash ?? FALLBACK_HASH;
     }
 
-    if (['failure', 'refund'].includes(status.status)) {
+    if (['failure', 'refund', 'fallback'].includes(status.status)) {
       throw new Error(`Relay request failed with status: ${status.status}`);
     }
 
-    await new Promise((resolve) => setTimeout(resolve, 1000));
+    await new Promise((resolve) => setTimeout(resolve, RELAY_POLLING_INTERVAL));
   }
 }
 
@@ -195,18 +147,140 @@ async function waitForRelayCompletion(quote: RelayQuote) {
  * Normalize the parameters from a relay quote step to match TransactionParams.
  *
  * @param params - Parameters from a relay quote step.
+ * @param messenger - Controller messenger.
  * @returns Normalized transaction parameters.
  */
 function normalizeParams(
   params: RelayQuote['steps'][0]['items'][0]['data'],
+  messenger: TransactionPayControllerMessenger,
 ): TransactionParams {
+  const featureFlags = getFeatureFlags(messenger);
+
   return {
     data: params.data,
     from: params.from,
-    gas: toHex(params.gas),
+    gas: toHex(params.gas ?? featureFlags.relayFallbackGas.max),
     maxFeePerGas: toHex(params.maxFeePerGas),
     maxPriorityFeePerGas: toHex(params.maxPriorityFeePerGas),
     to: params.to,
     value: toHex(params.value ?? '0'),
   };
+}
+
+/**
+ * Submit transactions for a relay quote.
+ *
+ * @param quote - Relay quote.
+ * @param parentTransactionId - ID of the parent transaction.
+ * @param messenger - Controller messenger.
+ * @returns Hash of the last submitted transaction.
+ */
+async function submitTransactions(
+  quote: TransactionPayQuote<RelayQuote>,
+  parentTransactionId: string,
+  messenger: TransactionPayControllerMessenger,
+): Promise<Hex> {
+  const { steps } = quote.original;
+  const params = steps.flatMap((s) => s.items).map((i) => i.data);
+  const invalidKind = steps.find((s) => s.kind !== 'transaction')?.kind;
+
+  if (invalidKind) {
+    throw new Error(`Unsupported step kind: ${invalidKind}`);
+  }
+
+  const normalizedParams = params.map((p) => normalizeParams(p, messenger));
+
+  const transactionIds: string[] = [];
+  const { from, sourceChainId, sourceTokenAddress } = quote.request;
+
+  const networkClientId = messenger.call(
+    'NetworkController:findNetworkClientIdByChainId',
+    sourceChainId,
+  );
+
+  log('Adding transactions', {
+    normalizedParams,
+    sourceChainId,
+    from,
+    networkClientId,
+  });
+
+  const { end } = collectTransactionIds(
+    sourceChainId,
+    from,
+    messenger,
+    (transactionId) => {
+      transactionIds.push(transactionId);
+
+      updateTransaction(
+        {
+          transactionId: parentTransactionId,
+          messenger,
+          note: 'Add required transaction ID from Relay submission',
+        },
+        (tx) => {
+          if (!tx.requiredTransactionIds) {
+            tx.requiredTransactionIds = [];
+          }
+
+          tx.requiredTransactionIds.push(transactionId);
+        },
+      );
+    },
+  );
+
+  let result: { result: Promise<string> } | undefined;
+
+  const gasFeeToken = quote.fees.isSourceGasFeeToken
+    ? sourceTokenAddress
+    : undefined;
+
+  if (params.length === 1) {
+    result = await messenger.call(
+      'TransactionController:addTransaction',
+      normalizedParams[0],
+      {
+        gasFeeToken,
+        networkClientId,
+        origin: ORIGIN_METAMASK,
+        requireApproval: false,
+      },
+    );
+  } else {
+    await messenger.call('TransactionController:addTransactionBatch', {
+      from,
+      gasFeeToken,
+      networkClientId,
+      origin: ORIGIN_METAMASK,
+      requireApproval: false,
+      transactions: normalizedParams.map((p, i) => ({
+        params: {
+          data: p.data as Hex,
+          gas: p.gas as Hex,
+          to: p.to as Hex,
+          value: p.value as Hex,
+        },
+        type: i === 0 ? TransactionType.tokenMethodApprove : undefined,
+      })),
+    });
+  }
+
+  end();
+
+  log('Added transactions', transactionIds);
+
+  if (result) {
+    const txHash = await result.result;
+    log('Submitted transaction', txHash);
+  }
+
+  await Promise.all(
+    transactionIds.map((txId) => waitForTransactionConfirmed(txId, messenger)),
+  );
+
+  log('All transactions confirmed', transactionIds);
+
+  const hash = getTransaction(transactionIds.slice(-1)[0], messenger)?.hash;
+
+  return hash as Hex;
 }

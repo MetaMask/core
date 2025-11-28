@@ -1,5 +1,5 @@
 import type { PollingBlockTracker } from '@metamask/eth-block-tracker';
-import { JsonRpcEngine } from '@metamask/json-rpc-engine';
+import { JsonRpcEngineV2 } from '@metamask/json-rpc-engine/v2';
 import type { JsonRpcRequest } from '@metamask/utils';
 
 import { createBlockRefRewriteMiddleware } from './block-ref-rewrite';
@@ -27,12 +27,14 @@ describe('createBlockRefRewriteMiddleware', () => {
     const mockBlockTracker = createMockBlockTracker();
     const getLatestBlockSpy = jest.spyOn(mockBlockTracker, 'getLatestBlock');
 
-    const engine = new JsonRpcEngine();
-    engine.push(
-      createBlockRefRewriteMiddleware({
-        blockTracker: mockBlockTracker,
-      }),
-    );
+    const engine = JsonRpcEngineV2.create({
+      middleware: [
+        createBlockRefRewriteMiddleware({
+          blockTracker: mockBlockTracker,
+        }),
+        createFinalMiddlewareWithDefaultResult(),
+      ],
+    });
 
     const originalRequest = createRequest({
       method: 'eth_chainId',
@@ -48,12 +50,14 @@ describe('createBlockRefRewriteMiddleware', () => {
     const mockBlockTracker = createMockBlockTracker();
     const getLatestBlockSpy = jest.spyOn(mockBlockTracker, 'getLatestBlock');
 
-    const engine = new JsonRpcEngine();
-    engine.push(
-      createBlockRefRewriteMiddleware({
-        blockTracker: mockBlockTracker,
-      }),
-    );
+    const engine = JsonRpcEngineV2.create({
+      middleware: [
+        createBlockRefRewriteMiddleware({
+          blockTracker: mockBlockTracker,
+        }),
+        createFinalMiddlewareWithDefaultResult(),
+      ],
+    });
 
     const originalRequest = createRequest({
       method: 'eth_getBalance',
@@ -72,20 +76,20 @@ describe('createBlockRefRewriteMiddleware', () => {
       .spyOn(mockBlockTracker, 'getLatestBlock')
       .mockResolvedValue('0xabc123');
 
-    const engine = new JsonRpcEngine();
-    engine.push(
-      createBlockRefRewriteMiddleware({
-        blockTracker: mockBlockTracker,
-      }),
-    );
-
     // Mock a middleware that captures the request after modification
     let capturedRequest: JsonRpcRequest | undefined;
-    engine.push(async (req, _res, next) => {
-      capturedRequest = { ...req };
-      return next();
+    const engine = JsonRpcEngineV2.create({
+      middleware: [
+        createBlockRefRewriteMiddleware({
+          blockTracker: mockBlockTracker,
+        }),
+        async ({ request, next }) => {
+          capturedRequest = { ...request } as JsonRpcRequest;
+          return next();
+        },
+        createFinalMiddlewareWithDefaultResult(),
+      ],
     });
-    engine.push(createFinalMiddlewareWithDefaultResult());
 
     const originalRequest = createRequest({
       method: 'eth_getBalance',
@@ -107,17 +111,18 @@ describe('createBlockRefRewriteMiddleware', () => {
       .spyOn(mockBlockTracker, 'getLatestBlock')
       .mockResolvedValue('0x111222');
 
-    const engine = new JsonRpcEngine();
-    engine.push(
-      createBlockRefRewriteMiddleware({
-        blockTracker: mockBlockTracker,
-      }),
-    );
-
     let capturedRequest: JsonRpcRequest | undefined;
-    engine.push(async (req, _res, next) => {
-      capturedRequest = { ...req };
-      return next();
+    const engine = JsonRpcEngineV2.create({
+      middleware: [
+        createBlockRefRewriteMiddleware({
+          blockTracker: mockBlockTracker,
+        }),
+        async ({ request, next }) => {
+          capturedRequest = { ...request } as JsonRpcRequest;
+          return next();
+        },
+        createFinalMiddlewareWithDefaultResult(),
+      ],
     });
 
     const originalRequest = createRequest({
@@ -140,19 +145,19 @@ describe('createBlockRefRewriteMiddleware', () => {
       .spyOn(mockBlockTracker, 'getLatestBlock')
       .mockResolvedValue('0xffffff');
 
-    const engine = new JsonRpcEngine();
-    engine.push(
-      createBlockRefRewriteMiddleware({
-        blockTracker: mockBlockTracker,
-      }),
-    );
-
     let capturedRequest: JsonRpcRequest | undefined;
-    engine.push(async (req, _res, next) => {
-      capturedRequest = { ...req };
-      return next();
+    const engine = JsonRpcEngineV2.create({
+      middleware: [
+        createBlockRefRewriteMiddleware({
+          blockTracker: mockBlockTracker,
+        }),
+        async ({ request, next }) => {
+          capturedRequest = { ...request } as JsonRpcRequest;
+          return next();
+        },
+        createFinalMiddlewareWithDefaultResult(),
+      ],
     });
-    engine.push(createFinalMiddlewareWithDefaultResult());
 
     const originalRequest = createRequest({
       method: 'eth_getBalance',

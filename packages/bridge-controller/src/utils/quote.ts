@@ -158,7 +158,7 @@ export const calcSentAmount = (
 };
 
 export const calcRelayerFee = (
-  quoteResponse: QuoteResponse<TxData>,
+  quoteResponse: QuoteResponse<TxData, TxData>,
   { exchangeRate, usdExchangeRate }: ExchangeRate,
 ) => {
   const { quote, trade } = quoteResponse;
@@ -237,7 +237,7 @@ export const calcEstimatedAndMaxTotalGasFee = ({
   exchangeRate: nativeToDisplayCurrencyExchangeRate,
   usdExchangeRate: nativeToUsdExchangeRate,
 }: {
-  bridgeQuote: QuoteResponse<TxData> & L1GasFees;
+  bridgeQuote: QuoteResponse<TxData, TxData> & L1GasFees;
   estimatedBaseFeeInDecGwei: string;
   maxFeePerGasInDecGwei: string;
   maxPriorityFeePerGasInDecGwei: string;

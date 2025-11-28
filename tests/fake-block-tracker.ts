@@ -20,7 +20,7 @@ export class FakeBlockTracker<
     });
     // Don't start the polling loop
     // TODO: Replace `any` with type
-    // eslint-disable-next-line @typescript-eslint/no-empty-function, @typescript-eslint/no-explicit-any
+    // eslint-disable-next-line @typescript-eslint/no-explicit-any
     (this as any).start = () => {};
   }
 

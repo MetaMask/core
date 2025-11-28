@@ -69,8 +69,10 @@ const TOTALS_MOCK = {
       usd: '8.90',
     },
     sourceNetwork: {
-      fiat: '9.01',
-      usd: '1.12',
+      estimate: {
+        fiat: '9.01',
+        usd: '1.12',
+      },
     },
   },
   total: {
@@ -114,7 +116,7 @@ describe('Quotes Utils', () => {
     jest.resetAllMocks();
     jest.clearAllTimers();
 
-    getStrategyMock.mockResolvedValue({
+    getStrategyMock.mockReturnValue({
       execute: jest.fn(),
       getQuotes: getQuotesMock,
       getBatchTransactions: getBatchTransactionsMock,
@@ -299,7 +301,7 @@ describe('Quotes Utils', () => {
         metamaskPay: {
           bridgeFeeFiat: TOTALS_MOCK.fees.provider.usd,
           chainId: TRANSACTION_DATA_MOCK.paymentToken?.chainId,
-          networkFeeFiat: TOTALS_MOCK.fees.sourceNetwork.usd,
+          networkFeeFiat: TOTALS_MOCK.fees.sourceNetwork.estimate.usd,
           tokenAddress: TRANSACTION_DATA_MOCK.paymentToken?.address,
           totalFiat: TOTALS_MOCK.total.usd,
         },

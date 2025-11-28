@@ -1483,7 +1483,11 @@ describe('Bridge Status Controller Transaction Utils', () => {
         },
       } as never;
 
-      const result = getClientRequest(mockQuoteResponse, mockAccount);
+      const result = getClientRequest(
+        mockQuoteResponse.trade,
+        mockQuoteResponse.quote.srcChainId,
+        mockAccount,
+      );
 
       expect(result).toMatchObject({
         origin: 'metamask',
@@ -1540,7 +1544,7 @@ describe('Bridge Status Controller Transaction Utils', () => {
         includeApproval?: boolean;
         includeResetApproval?: boolean;
       } = {},
-    ): QuoteResponse<TxData> &
+    ): QuoteResponse<TxData, TxData> &
       QuoteMetadata & { approval?: TxData; resetApproval?: TxData } =>
       ({
         quote: {

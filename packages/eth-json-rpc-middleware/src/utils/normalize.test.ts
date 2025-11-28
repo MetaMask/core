@@ -1,3 +1,6 @@
+import deepFreeze from 'deep-freeze-strict';
+import { klona } from 'klona';
+
 import { normalizeTypedMessage } from './normalize';
 
 const MESSAGE_DATA_MOCK = {
@@ -74,6 +77,19 @@ describe('normalizeTypedMessage', () => {
       },
     };
     const normalizedData = parseNormalizerResult(msgMock);
+    expect(normalizedData.domain.verifyingContract).toBe(
+      '0xae7ab96520de3a18e5e111b5eaab095312d7fe84',
+    );
+  });
+
+  it('should normalize verifyingContract address in readonly data', () => {
+    const data = klona(MESSAGE_DATA_MOCK);
+    data.domain.verifyingContract =
+      '0Xae7ab96520de3a18e5e111b5eaab095312d7fe84';
+    deepFreeze(data);
+
+    const normalizedData = parseNormalizerResult(data);
+
     expect(normalizedData.domain.verifyingContract).toBe(
       '0xae7ab96520de3a18e5e111b5eaab095312d7fe84',
     );

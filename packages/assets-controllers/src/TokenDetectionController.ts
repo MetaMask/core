@@ -13,8 +13,10 @@ import {
   ChainId,
   ERC20,
   safelyExecute,
+  safelyExecuteWithTimeout,
   isEqualCaseInsensitive,
   toChecksumHexAddress,
+  toHex,
 } from '@metamask/controller-utils';
 import type {
   KeyringControllerGetStateAction,
@@ -35,6 +37,7 @@ import type {
   PreferencesControllerGetStateAction,
   PreferencesControllerStateChangeEvent,
 } from '@metamask/preferences-controller';
+import type { AuthenticationController } from '@metamask/profile-sync-controller';
 import type { TransactionControllerTransactionConfirmedEvent } from '@metamask/transaction-controller';
 import type { Hex } from '@metamask/utils';
 import { hexToNumber } from '@metamask/utils';
@@ -60,6 +63,7 @@ import type {
 } from './TokensController';
 
 const DEFAULT_INTERVAL = 180000;
+const ACCOUNTS_API_TIMEOUT_MS = 10000;
 
 type LegacyToken = {
   name: string;
@@ -141,7 +145,8 @@ export type AllowedActions =
   | TokensControllerGetStateAction
   | TokensControllerAddDetectedTokensAction
   | TokensControllerAddTokensAction
-  | NetworkControllerFindNetworkClientIdByChainIdAction;
+  | NetworkControllerFindNetworkClientIdByChainIdAction
+  | AuthenticationController.AuthenticationControllerGetBearerToken;
 
 export type TokenDetectionControllerStateChangeEvent =
   ControllerStateChangeEvent<typeof controllerName, TokenDetectionState>;
@@ -244,6 +249,7 @@ export class TokenDetectionController extends StaticIntervalPollingController<To
       address: string,
       chainIds: Hex[],
       supportedNetworks: number[] | null,
+      jwtToken?: string,
     ) {
       const chainIdNumbers = chainIds.map((chainId) => hexToNumber(chainId));
 
@@ -263,9 +269,11 @@ export class TokenDetectionController extends StaticIntervalPollingController<To
           networks: chainIdNumbers,
         },
         this.platform,
+        jwtToken,
       );
 
-      return result.balances;
+      // Return the full response including unprocessedNetworks
+      return result;
     },
   };
 
@@ -602,12 +610,26 @@ export class TokenDetectionController extends StaticIntervalPollingController<To
     chainsToDetectUsingAccountAPI: Hex[],
     addressToDetect: string,
     supportedNetworks: number[] | null,
+    jwtToken?: string,
   ) {
-    return await this.#addDetectedTokensViaAPI({
-      chainIds: chainsToDetectUsingAccountAPI,
-      selectedAddress: addressToDetect,
-      supportedNetworks,
-    });
+    const result = await safelyExecuteWithTimeout(
+      async () => {
+        return this.#addDetectedTokensViaAPI({
+          chainIds: chainsToDetectUsingAccountAPI,
+          selectedAddress: addressToDetect,
+          supportedNetworks,
+          jwtToken,
+        });
+      },
+      false,
+      ACCOUNTS_API_TIMEOUT_MS,
+    );
+
+    if (!result) {
+      return { result: 'failed' } as const;
+    }
+
+    return result;
   }
 
   #addChainsToRpcDetection(
@@ -705,6 +727,14 @@ export class TokenDetectionController extends StaticIntervalPollingController<To
     const addressToDetect = selectedAddress ?? this.#getSelectedAddress();
     const clientNetworks = this.#getCorrectNetworkClientIdByChainId(chainIds);
 
+    const jwtToken = await safelyExecuteWithTimeout<string | undefined>(
+      () => {
+        return this.messenger.call('AuthenticationController:getBearerToken');
+      },
+      false,
+      5000,
+    );
+
     let supportedNetworks;
     if (this.#accountsAPI.isAccountsAPIEnabled && this.#useExternalServices()) {
       supportedNetworks = await this.#accountsAPI.getSupportedNetworks();
@@ -718,13 +748,28 @@ export class TokenDetectionController extends StaticIntervalPollingController<To
         chainsToDetectUsingAccountAPI,
         addressToDetect,
         supportedNetworks,
+        jwtToken,
       );
 
-      // If the account API call failed, have those chains fall back to RPC detection
-      if (apiResult?.result === 'failed') {
+      // If the account API call failed or returned undefined, have those chains fall back to RPC detection
+      if (!apiResult || apiResult.result === 'failed') {
         this.#addChainsToRpcDetection(
           chainsToDetectUsingRpc,
           chainsToDetectUsingAccountAPI,
+          clientNetworks,
+        );
+      } else if (
+        apiResult?.result === 'success' &&
+        apiResult.unprocessedNetworks &&
+        apiResult.unprocessedNetworks.length > 0
+      ) {
+        // Handle unprocessed networks by adding them to RPC detection
+        const unprocessedChainIds = apiResult.unprocessedNetworks.map(
+          (chainId: number) => toHex(chainId),
+        ) as Hex[];
+        this.#addChainsToRpcDetection(
+          chainsToDetectUsingRpc,
+          unprocessedChainIds,
           clientNetworks,
         );
       }
@@ -813,26 +858,36 @@ export class TokenDetectionController extends StaticIntervalPollingController<To
    * @param options.selectedAddress - address to check against
    * @param options.chainIds - array of chainIds to check tokens for
    * @param options.supportedNetworks - array of chainIds to check tokens for
+   * @param options.jwtToken - JWT token for authentication
    * @returns a success or failed object
    */
   async #addDetectedTokensViaAPI({
     selectedAddress,
     chainIds,
     supportedNetworks,
+    jwtToken,
   }: {
     selectedAddress: string;
     chainIds: Hex[];
     supportedNetworks: number[] | null;
+    jwtToken?: string;
   }) {
     return await safelyExecute(async () => {
       // Fetch balances for multiple chain IDs at once
-      const tokenBalancesByChain = await this.#accountsAPI
-        .getMultiNetworksBalances(selectedAddress, chainIds, supportedNetworks)
+      const apiResponse = await this.#accountsAPI
+        .getMultiNetworksBalances(
+          selectedAddress,
+          chainIds,
+          supportedNetworks,
+          jwtToken,
+        )
         .catch(() => null);
 
-      if (tokenBalancesByChain === null) {
+      if (apiResponse === null) {
         return { result: 'failed' } as const;
       }
+
+      const tokenBalancesByChain = apiResponse.balances;
 
       // Process each chain ID individually
       for (const chainId of chainIds) {
@@ -893,7 +948,10 @@ export class TokenDetectionController extends StaticIntervalPollingController<To
         }
       }
 
-      return { result: 'success' } as const;
+      return {
+        result: 'success',
+        unprocessedNetworks: apiResponse.unprocessedNetworks,
+      } as const;
     });
   }
 

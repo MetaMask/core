@@ -7,8 +7,48 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+## [27.0.0]
+
+### Added
+
+- Add `NetworkController:rpcEndpointChainAvailable` messenger event ([#7166](https://github.com/MetaMask/core/pull/7166))
+  - This is a counterpart to the (new) `NetworkController:rpcEndpointChainUnavailable` and `NetworkController:rpcEndpointChainDegraded` events, but is published when a successful request to an endpoint within a chain of endpoints is made either initially or following a previously established degraded or unavailable status.
+
 ### Changed
 
+- **BREAKING:** Split up and update payload data for `NetworkController:rpcEndpointDegraded` and `NetworkController:rpcEndpointUnavailable` ([#7166](https://github.com/MetaMask/core/pull/7166))
+  - `NetworkController:rpcEndpointDegraded` and `NetworkController:rpcEndpointUnavailable` still exist and retain the same behavior as before.
+  - New events are `NetworkController:rpcEndpointChainDegraded` and `NetworkController:rpcEndpointChainUnavailable`, and are designed to represent an entire chain of endpoints. They are also guaranteed to not be published multiple times in a row. In particular, `NetworkController:rpcEndpointChainUnavailable` is published only after trying all of the endpoints for a chain and when the underlying circuit for the last endpoint breaks, not as each primary's or failover's circuit breaks.
+  - The event payloads have been changed:
+    - For individual endpoint events (`NetworkController:rpcEndpointUnavailable`, `NetworkController:rpcEndpointDegraded`): `failoverEndpointUrl` has been removed, and `primaryEndpointUrl` has been added. In addition, `networkClientId` has been added to the payload.
+    - For chain-level events (`NetworkController:rpcEndpointChainUnavailable`, `NetworkController:rpcEndpointChainDegraded`, `NetworkController:rpcEndpointChainAvailable`): These include `chainId`, `networkClientId`, and event-specific fields (e.g., `error`, `endpointUrl`) but do not include `primaryEndpointUrl`. Consumers can derive endpoint information from the `networkClientId` using `NetworkController:getNetworkClientById` or `NetworkController:getNetworkConfigurationByNetworkClientId`.
+- **BREAKING:** Rename and update payload data for `NetworkController:rpcEndpointRequestRetried` ([#7166](https://github.com/MetaMask/core/pull/7166))
+  - This event is now called `NetworkController:rpcEndpointRetried`.
+  - The event payload has been changed as well: `failoverEndpointUrl` has been removed, and `primaryEndpointUrl` has been added. In addition, `networkClientId` and `attempt` have been added to the payload.
+- **BREAKING:** Update `AbstractRpcService`/`RpcServiceRequestable` to remove `{ isolated: true }` from the `onBreak` event data type ([#7166](https://github.com/MetaMask/core/pull/7166))
+  - This represented the error produced when `isolate` is called on a Cockatiel circuit breaker policy. This never happens for our service (we use `isolate` internally, but this error is suppressed and cannot trigger `onBreak`)
+- Move peer dependencies for controller and service packages to direct dependencies ([#7209](https://github.com/MetaMask/core/pull/7209))
+  - The dependencies moved are:
+    - `@metamask/error-reporting-service` (^3.0.0)
+  - In clients, it is now possible for multiple versions of these packages to exist in the dependency tree.
+    - For example, this scenario would be valid: a client relies on `@metamask/controller-a` 1.0.0 and `@metamask/controller-b` 1.0.0, and `@metamask/controller-b` depends on `@metamask/controller-a` 1.1.0.
+  - Note, however, that the versions specified in the client's `package.json` always "win", and you are expected to keep them up to date so as not to break controller and service intercommunication.
+- Automatically update network status metadata when chain-level RPC events are published ([#7186](https://github.com/MetaMask/core/pull/7186))
+  - `NetworkController` now automatically subscribes to `NetworkController:rpcEndpointChainUnavailable`, `NetworkController:rpcEndpointChainDegraded`, and `NetworkController:rpcEndpointChainAvailable` events and updates the corresponding network's status metadata in state when these events are published.
+  - This enables real-time network status updates without requiring explicit `lookupNetwork` calls, providing more accurate and timely network availability information.
+
+## [26.0.0]
+
+### Added
+
+- Add infura supported networks ([#6972](https://github.com/MetaMask/core/pull/6972))
+
+### Changed
+
+- Bump `@metamask/json-rpc-engine` from `^10.1.1` to `^10.2.0` ([#7202](https://github.com/MetaMask/core/pull/7202))
+- Bump `@metamask/eth-json-rpc-provider` from `^5.0.1` to `^6.0.0` ([#7202](https://github.com/MetaMask/core/pull/7202))
+- Bump `@metamask/eth-json-rpc-middleware` from `^21.0.0` to `^22.0.0` ([#7202](https://github.com/MetaMask/core/pull/7202))
+- Bump `@metamask/eth-block-tracker` from `^14.0.0` to `^15.0.0` ([#7202](https://github.com/MetaMask/core/pull/7202))
 - **BREAKING:** Use `InternalProvider` instead of `SafeEventEmitterProvider` ([#6796](https://github.com/MetaMask/core/pull/6796))
   - Providers accessible either via network clients or global proxies no longer emit events (or inherit from EventEmitter, for that matter).
 - **BREAKING:** Make `Provider` type more specific ([#7061](https://github.com/MetaMask/core/pull/7061))
@@ -17,7 +57,10 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
   - The network client middleware, via `@metamask/eth-json-rpc-middleware`, will now throw an error if it encounters an
     `undefined` result when dispatching a request with a later block number than the originally requested block number.
   - In practice, this should happen rarely if ever.
-- Bump `@metamask/controller-utils` from `^11.14.1` to `^11.15.0` ([#7003](https://github.com/MetaMask/core/pull/7003))
+- **BREAKING:** Migrate `NetworkClient` to `JsonRpcEngineV2` ([#7065](https://github.com/MetaMask/core/pull/7065))
+  - This ought to be unobservable, but we mark it as breaking out of an abundance of caution.
+- **BREAKING:** Update signature of `request` in `AbstractRpcService` and `RpcServiceRequestable` so that the JSON-RPC request must be frozen ([#7138](https://github.com/MetaMask/core/pull/7138))
+- Bump `@metamask/controller-utils` from `^11.15.0` to `^11.16.0` ([#7003](https://github.com/MetaMask/core/pull/7003), [#7202](https://github.com/MetaMask/core/pull/7202))
 
 ### Fixed
 
@@ -1002,7 +1045,9 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
     All changes listed after this point were applied to this package following the monorepo conversion.
 
-[Unreleased]: https://github.com/MetaMask/core/compare/@metamask/network-controller@25.0.0...HEAD
+[Unreleased]: https://github.com/MetaMask/core/compare/@metamask/network-controller@27.0.0...HEAD
+[27.0.0]: https://github.com/MetaMask/core/compare/@metamask/network-controller@26.0.0...@metamask/network-controller@27.0.0
+[26.0.0]: https://github.com/MetaMask/core/compare/@metamask/network-controller@25.0.0...@metamask/network-controller@26.0.0
 [25.0.0]: https://github.com/MetaMask/core/compare/@metamask/network-controller@24.3.1...@metamask/network-controller@25.0.0
 [24.3.1]: https://github.com/MetaMask/core/compare/@metamask/network-controller@24.3.0...@metamask/network-controller@24.3.1
 [24.3.0]: https://github.com/MetaMask/core/compare/@metamask/network-controller@24.2.2...@metamask/network-controller@24.3.0

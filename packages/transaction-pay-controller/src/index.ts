@@ -1,6 +1,7 @@
 export type {
   TransactionPayControllerActions,
   TransactionPayControllerEvents,
+  TransactionPayControllerGetDelegationTransactionAction,
   TransactionPayControllerGetStateAction,
   TransactionPayControllerGetStrategyAction,
   TransactionPayControllerMessenger,

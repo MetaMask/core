@@ -32,12 +32,6 @@ import nock from 'nock';
 import * as sinon from 'sinon';
 import { v1 as uuidV1 } from 'uuid';
 
-import { FakeProvider } from '../../../tests/fake-provider';
-import { createMockInternalAccount } from '../../accounts-controller/src/tests/mocks';
-import {
-  buildCustomNetworkClientConfiguration,
-  buildMockGetNetworkClientById,
-} from '../../network-controller/tests/helpers';
 import { ERC20Standard } from './Standards/ERC20Standard';
 import { ERC1155Standard } from './Standards/NftStandards/ERC1155/ERC1155Standard';
 import { TOKEN_END_POINT_API } from './token-service';
@@ -47,6 +41,12 @@ import type {
   TokensControllerMessenger,
   TokensControllerState,
 } from './TokensController';
+import { FakeProvider } from '../../../tests/fake-provider';
+import { createMockInternalAccount } from '../../accounts-controller/src/tests/mocks';
+import {
+  buildCustomNetworkClientConfiguration,
+  buildMockGetNetworkClientById,
+} from '../../network-controller/tests/helpers';
 
 jest.mock('@ethersproject/contracts');
 jest.mock('uuid', () => ({
@@ -1620,8 +1620,6 @@ describe('TokensController', () => {
           const fullErrorMessage = `TokenService Error: ${error}`;
           nock(TOKEN_END_POINT_API)
             .get(
-              // TODO: Either fix this lint violation or explain why it's necessary to ignore.
-              // eslint-disable-next-line @typescript-eslint/restrict-template-expressions
               `/token/${convertHexToDecimal(
                 chainId,
               )}?address=${dummyTokenAddress}`,

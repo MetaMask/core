@@ -37,6 +37,7 @@ type SuggestedGasFees = {
 
 /**
  * Populates the gas fee properties for a user operation.
+ *
  * @param request - The request to update the gas fees.
  * @param request.getGasFeeEstimates - A callback to get gas fee estimates.
  * @param request.metadata - The metadata for the user operation.
@@ -80,6 +81,7 @@ export async function updateGasFees(request: UpdateGasFeesRequest) {
 
 /**
  * Gets the maxFeePerGas for a user operation.
+ *
  * @param originalRequest - The original request to add the user operation.
  * @param getGetFasEstimates - A callback to get gas fee estimates.
  * @param transaction - The transaction that created the user operation.
@@ -116,6 +118,7 @@ async function getMaxFeePerGas(
 
 /**
  * Gets the maxPriorityFeePerGas for a user operation.
+ *
  * @param originalRequest - The original request to add the user operation.
  * @param getGetFasEstimates - A callback to get gas fee estimates.
  * @param userOperation - The user operation being updated.
@@ -160,6 +163,7 @@ async function getMaxPriorityFeePerGas(
 
 /**
  * Gets the userFeeLevel for a user operation.
+ *
  * @param metadata - The metadata for the user operation.
  * @param originalRequest - The original request to add the user operation.
  * @param suggestedGasFees - The suggested gas fees, if any.
@@ -208,6 +212,7 @@ function getUserFeeLevel(
 
 /**
  * Gets suggested gas fees.
+ *
  * @param request - The request to update the gas fees.
  * @param request.getGasFeeEstimates - A callback to get gas fee estimates.
  * @param request.provider - A provider to query the network.
@@ -281,6 +286,7 @@ async function getSuggestedGasFees(
 
 /**
  * Converts a GWEI decimal string to a WEI hexadecimal string.
+ *
  * @param value - The GWEI decimal string to convert.
  * @returns The WEI hexadecimal string.
  */
@@ -290,6 +296,7 @@ function gweiDecimalToWeiHex(value: string) {
 
 /**
  * Checks if a gas fee property is empty.
+ *
  * @param value - The gas fee value to check.
  * @returns Whether the gas fee property is empty.
  */

@@ -7,6 +7,20 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+### Changed
+
+- Bump `@metamask/controller-utils` from `^11.15.0` to `^11.16.0` ([#7202](https://github.com/MetaMask/core/pull/7202))
+
+## [0.2.0]
+
+### Added
+
+- Added new public method, `fetchClaimsConfigurations` to fetch the claims configuration from the Claims backend. ([#7109](https://github.com/MetaMask/core/pull/7109))
+- Added new states fields, `claimsConfigurations` to the controller state. ([#7109](https://github.com/MetaMask/core/pull/7109))
+  - `validSubmissionWindowDays` - number of days the claim is valid for submission.
+  - `supportedNetworks` - supported networks for the claim submission.
+- Exported `CreateClaimRequest` and `SubmitClaimConfig` types from the controller. ([#7109](https://github.com/MetaMask/core/pull/7109))
+
 ## [0.1.0]
 
 ### Added
@@ -21,5 +35,6 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
   - `generateMessageForClaimSignature`: generate message to sign for the claim signature.
   - `verifyClaimSignature`: verify claim signature produced by user.
 
-[Unreleased]: https://github.com/MetaMask/core/compare/@metamask/claims-controller@0.1.0...HEAD
+[Unreleased]: https://github.com/MetaMask/core/compare/@metamask/claims-controller@0.2.0...HEAD
+[0.2.0]: https://github.com/MetaMask/core/compare/@metamask/claims-controller@0.1.0...@metamask/claims-controller@0.2.0
 [0.1.0]: https://github.com/MetaMask/core/releases/tag/@metamask/claims-controller@0.1.0

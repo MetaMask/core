@@ -37,21 +37,26 @@ const getDefaultState = () => ({
 });
 
 /**
- * @type OriginalRequest
- *
- * Represents the original request object for adding a message.
- * @property origin? - Is it is specified, represents the origin
+ * Represents the request adding a message.
  */
-export type OriginalRequest = {
-  id?: number;
+export type MessageRequest = {
+  id?: string | number;
   origin?: string;
   securityAlertResponse?: Record<string, Json>;
 };
 
 /**
+ * Represents the request adding a message.
+ *
+ * @deprecated Please use `MessageRequest` instead.
+ */
+export type OriginalRequest = MessageRequest;
+
+/**
  * @type AbstractMessage
  *
  * Represents and contains data about a signing type signature request.
+ *
  * @property id - An id to track and identify the message object
  * @property type - The json-prc signing method for which a signature request has been made.
  * A 'Message' which always has a signing type
@@ -83,7 +88,7 @@ export type AbstractMessage = {
 export type AbstractMessageParams = {
   from: string;
   origin?: string;
-  requestId?: number;
+  requestId?: string | number;
   deferSetAsSigned?: boolean;
 };
 
@@ -92,6 +97,7 @@ export type AbstractMessageParams = {
  *
  * Represents the parameters to pass to the signing method once the signature request is approved
  * plus data added by MetaMask.
+ *
  * @property metamaskId - Added for tracking and identification within MetaMask
  * @property from - Address from which the message is processed
  * @property origin? - Added for request origin identification
@@ -104,6 +110,7 @@ export type AbstractMessageParamsMetamask = AbstractMessageParams & {
  * @type MessageManagerState
  *
  * Message Manager state
+ *
  * @property unapprovedMessages - A collection of all Messages in the 'unapproved' state
  * @property unapprovedMessagesCount - The count of all Messages in this.unapprovedMessages
  */
@@ -205,13 +212,14 @@ export abstract class AbstractMessageManager<
 
   /**
    * Adds request props to the message params and returns a new messageParams object.
+   *
    * @param messageParams - The messageParams to add the request props to.
    * @param req - The original request object.
    * @returns The messageParams with the request props added.
    */
   protected addRequestToMessageParams<
     MessageParams extends AbstractMessageParams,
-  >(messageParams: MessageParams, req?: OriginalRequest) {
+  >(messageParams: MessageParams, req?: MessageRequest) {
     const updatedMessageParams = {
       ...messageParams,
     };
@@ -226,6 +234,7 @@ export abstract class AbstractMessageManager<
 
   /**
    * Creates a new Message with a random id and an 'unapproved' status.
+   *
    * @param messageParams - The messageParams to add the request props to.
    * @param type - The approval type of the message.
    * @param req - The original request object.
@@ -233,7 +242,7 @@ export abstract class AbstractMessageManager<
    */
   protected createUnapprovedMessage<
     MessageParams extends AbstractMessageParams,
-  >(messageParams: MessageParams, type: ApprovalType, req?: OriginalRequest) {
+  >(messageParams: MessageParams, type: ApprovalType, req?: MessageRequest) {
     const messageId = random();
 
     return {
@@ -519,7 +528,7 @@ export abstract class AbstractMessageManager<
    */
   abstract addUnapprovedMessage(
     messageParams: ParamsMetamask,
-    request: OriginalRequest,
+    request: MessageRequest,
     version?: string,
   ): Promise<string>;
 

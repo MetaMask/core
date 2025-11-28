@@ -294,7 +294,7 @@ describe('AccountsApiBalanceFetcher', () => {
         allAccounts: MOCK_INTERNAL_ACCOUNTS,
       });
 
-      expect(result).toStrictEqual([]);
+      expect(result).toStrictEqual({ balances: [] });
       expect(mockFetchMultiChainBalancesV4).not.toHaveBeenCalled();
     });
 
@@ -306,7 +306,7 @@ describe('AccountsApiBalanceFetcher', () => {
         allAccounts: MOCK_INTERNAL_ACCOUNTS,
       });
 
-      expect(result).toStrictEqual([]);
+      expect(result).toStrictEqual({ balances: [] });
       expect(mockFetchMultiChainBalancesV4).not.toHaveBeenCalled();
     });
 
@@ -358,17 +358,18 @@ describe('AccountsApiBalanceFetcher', () => {
           ],
         },
         'extension',
+        undefined,
       );
 
-      expect(result).toHaveLength(2);
-      expect(result[0]).toStrictEqual({
+      expect(result.balances).toHaveLength(2);
+      expect(result.balances[0]).toStrictEqual({
         success: true,
         value: new BN('1500000000000000000'),
         account: MOCK_ADDRESS_1,
         token: '0x0000000000000000000000000000000000000000',
         chainId: '0x1',
       });
-      expect(result[1]).toStrictEqual({
+      expect(result.balances[1]).toStrictEqual({
         success: true,
         value: new BN('100000000000000000000'),
         account: MOCK_ADDRESS_1,
@@ -395,9 +396,48 @@ describe('AccountsApiBalanceFetcher', () => {
           ],
         },
         'extension',
+        undefined,
       );
 
-      expect(result).toHaveLength(3);
+      expect(result.balances).toHaveLength(3);
+    });
+
+    it('should convert unprocessedNetworks from decimal to hex chain IDs (line 294)', async () => {
+      const responseWithUnprocessed = {
+        count: 1,
+        balances: [
+          {
+            object: 'token',
+            address: '0x0000000000000000000000000000000000000000',
+            symbol: 'ETH',
+            name: 'Ether',
+            decimals: 18,
+            chainId: 1,
+            balance: '1.0',
+            accountAddress:
+              'eip155:1:0xd8dA6BF26964aF9D7eEd9e03E53415D37aA96045',
+          },
+        ],
+        unprocessedNetworks: [137, 42161, 10, 8453], // Polygon, Arbitrum, Optimism, Base (in decimal)
+      };
+
+      mockFetchMultiChainBalancesV4.mockResolvedValue(responseWithUnprocessed);
+
+      const result = await balanceFetcher.fetch({
+        chainIds: [MOCK_CHAIN_ID],
+        queryAllAccounts: false,
+        selectedAccount: MOCK_ADDRESS_1 as ChecksumAddress,
+        allAccounts: MOCK_INTERNAL_ACCOUNTS,
+      });
+
+      // Verify conversion from decimal to hex (line 294)
+      expect(result.unprocessedChainIds).toBeDefined();
+      expect(result.unprocessedChainIds).toStrictEqual([
+        '0x89', // 137 -> 0x89 (Polygon)
+        '0xa4b1', // 42161 -> 0xa4b1 (Arbitrum)
+        '0xa', // 10 -> 0xa (Optimism)
+        '0x2105', // 8453 -> 0x2105 (Base)
+      ]);
     });
 
     it('should handle large batch requests using reduceInBatchesSerially', async () => {
@@ -461,14 +501,94 @@ describe('AccountsApiBalanceFetcher', () => {
 
       expect(mockReduceInBatchesSerially).toHaveBeenCalledWith({
         values: caipAddresses,
-        batchSize: 50,
+        batchSize: 20,
         eachBatch: expect.any(Function),
         initialResult: [],
       });
 
       expect(mockFetchMultiChainBalancesV4).toHaveBeenCalledTimes(2);
       // Should have more results due to native token guarantees for all 60 accounts
-      expect(result.length).toBeGreaterThan(3);
+      expect(result.balances.length).toBeGreaterThan(3);
+    });
+
+    it('should collect unprocessedNetworks from multiple batches (line 241)', async () => {
+      // Create a large number of CAIP addresses to exceed ACCOUNTS_API_BATCH_SIZE (50)
+      const largeAccountList: InternalAccount[] = [];
+      const caipAddresses: string[] = [];
+
+      for (let i = 0; i < 60; i++) {
+        const address =
+          `0x${'0'.repeat(39)}${i.toString().padStart(1, '0')}` as ChecksumAddress;
+        largeAccountList.push({
+          id: i.toString(),
+          address,
+          type: 'eip155:eoa',
+          options: {},
+          methods: [],
+          scopes: [],
+          metadata: {
+            name: `Account ${i}`,
+            importTime: Date.now(),
+            keyring: { type: 'HD Key Tree' },
+          },
+        });
+        caipAddresses.push(`eip155:1:${address}`);
+      }
+
+      // Mock reduceInBatchesSerially to simulate batching behavior
+      mockReduceInBatchesSerially.mockImplementation(
+        async ({
+          eachBatch,
+          initialResult,
+        }: {
+          eachBatch: (
+            result: unknown,
+            batch: unknown,
+            index: number,
+          ) => Promise<unknown>;
+          initialResult: unknown;
+        }) => {
+          const batch1 = caipAddresses.slice(0, 50);
+          const batch2 = caipAddresses.slice(50);
+
+          let result = initialResult;
+          result = await eachBatch(result, batch1, 0);
+          result = await eachBatch(result, batch2, 1);
+
+          return result;
+        },
+      );
+
+      // Mock the API to return different unprocessedNetworks for each batch
+      mockFetchMultiChainBalancesV4
+        .mockResolvedValueOnce({
+          count: 0,
+          balances: [],
+          unprocessedNetworks: [137, 42161], // Batch 1: Polygon and Arbitrum
+        })
+        .mockResolvedValueOnce({
+          count: 0,
+          balances: [],
+          unprocessedNetworks: [10, 137], // Batch 2: Optimism and Polygon (duplicate)
+        });
+
+      const result = await balanceFetcher.fetch({
+        chainIds: [MOCK_CHAIN_ID],
+        queryAllAccounts: true,
+        selectedAccount: MOCK_ADDRESS_1 as ChecksumAddress,
+        allAccounts: largeAccountList,
+      });
+
+      // Should have been called twice (2 batches)
+      expect(mockFetchMultiChainBalancesV4).toHaveBeenCalledTimes(2);
+
+      // Line 241 should have collected all unique networks from both batches
+      // The Set deduplicates 137 (Polygon) which appears in both batches
+      expect(result.unprocessedChainIds).toBeDefined();
+      expect(result.unprocessedChainIds).toStrictEqual(
+        expect.arrayContaining(['0x89', '0xa4b1', '0xa']),
+      );
+      expect(result.unprocessedChainIds).toHaveLength(3); // No duplicates
     });
 
     it('should handle missing account address in response', async () => {
@@ -501,10 +621,10 @@ describe('AccountsApiBalanceFetcher', () => {
       });
 
       // Should have native token guarantee even with missing account address
-      expect(result).toHaveLength(1);
-      expect(result[0].token).toBe(ZERO_ADDRESS);
-      expect(result[0].success).toBe(true);
-      expect(result[0].value).toStrictEqual(new BN('0'));
+      expect(result.balances).toHaveLength(1);
+      expect(result.balances[0].token).toBe(ZERO_ADDRESS);
+      expect(result.balances[0].success).toBe(true);
+      expect(result.balances[0].value).toStrictEqual(new BN('0'));
     });
 
     it('should correctly convert balance values with different decimals', async () => {
@@ -548,12 +668,12 @@ describe('AccountsApiBalanceFetcher', () => {
         allAccounts: MOCK_INTERNAL_ACCOUNTS,
       });
 
-      expect(result).toHaveLength(3); // 2 tokens + native token guarantee
+      expect(result.balances).toHaveLength(3); // 2 tokens + native token guarantee
 
       // DAI with 18 decimals: 123.456789 -> using string-based conversion
       // Convert received hex value to decimal to get the correct expected value
       const expectedDaiValue = new BN('6b14e9f7e4f5a5000', 16);
-      expect(result[0]).toStrictEqual({
+      expect(result.balances[0]).toStrictEqual({
         success: true,
         value: expectedDaiValue,
         account: MOCK_ADDRESS_1,
@@ -562,7 +682,7 @@ describe('AccountsApiBalanceFetcher', () => {
       });
 
       // USDC with 6 decimals: 100.5 * 10^6
-      expect(result[1]).toStrictEqual({
+      expect(result.balances[1]).toStrictEqual({
         success: true,
         value: new BN('100500000'),
         account: MOCK_ADDRESS_1,
@@ -598,6 +718,7 @@ describe('AccountsApiBalanceFetcher', () => {
           ],
         },
         'extension',
+        undefined,
       );
     });
 
@@ -619,6 +740,7 @@ describe('AccountsApiBalanceFetcher', () => {
           ],
         },
         'mobile',
+        undefined,
       );
     });
   });
@@ -657,17 +779,19 @@ describe('AccountsApiBalanceFetcher', () => {
         allAccounts: MOCK_INTERNAL_ACCOUNTS,
       });
 
-      expect(result).toHaveLength(2); // DAI token + native token (zero balance)
+      expect(result.balances).toHaveLength(2); // DAI token + native token (zero balance)
 
       // Should include the DAI token
-      const daiBalance = result.find(
+      const daiBalance = result.balances.find(
         (r) => r.token === '0x6B175474E89094C44Da98b954EedeAC495271d0F',
       );
       expect(daiBalance).toBeDefined();
       expect(daiBalance?.success).toBe(true);
 
       // Should include native token with zero balance
-      const nativeBalance = result.find((r) => r.token === ZERO_ADDRESS);
+      const nativeBalance = result.balances.find(
+        (r) => r.token === ZERO_ADDRESS,
+      );
       expect(nativeBalance).toBeDefined();
       expect(nativeBalance?.success).toBe(true);
       expect(nativeBalance?.value).toStrictEqual(new BN('0'));
@@ -718,10 +842,12 @@ describe('AccountsApiBalanceFetcher', () => {
       });
 
       // Should have 4 entries: ETH for addr1, DAI for addr2, and native (0) for addr2
-      expect(result).toHaveLength(3);
+      expect(result.balances).toHaveLength(3);
 
       // Verify native balances for both addresses
-      const nativeBalances = result.filter((r) => r.token === ZERO_ADDRESS);
+      const nativeBalances = result.balances.filter(
+        (r) => r.token === ZERO_ADDRESS,
+      );
       expect(nativeBalances).toHaveLength(2);
 
       const nativeAddr1 = nativeBalances.find(
@@ -789,10 +915,10 @@ describe('AccountsApiBalanceFetcher', () => {
       });
 
       // Should include API balances + staked balance
-      expect(result.length).toBeGreaterThan(3); // Original 3 + staked balances
+      expect(result.balances.length).toBeGreaterThan(3); // Original 3 + staked balances
 
       // Check for staked balance
-      const stakedBalance = result.find(
+      const stakedBalance = result.balances.find(
         (r) => r.token === STAKING_CONTRACT_ADDRESS,
       );
       expect(stakedBalance).toBeDefined();
@@ -818,7 +944,7 @@ describe('AccountsApiBalanceFetcher', () => {
       });
 
       // Should include staked balance entry with zero value when shares are zero
-      const stakedBalance = result.find(
+      const stakedBalance = result.balances.find(
         (r) => r.token === STAKING_CONTRACT_ADDRESS,
       );
       expect(stakedBalance).toBeDefined();
@@ -842,8 +968,8 @@ describe('AccountsApiBalanceFetcher', () => {
       });
 
       // Should still return API balances + native token guarantee, but failed staked balance
-      expect(result.length).toBeGreaterThan(2); // API results + native token + failed staking
-      const stakedBalance = result.find(
+      expect(result.balances.length).toBeGreaterThan(2); // API results + native token + failed staking
+      const stakedBalance = result.balances.find(
         (r) => r.token === STAKING_CONTRACT_ADDRESS,
       );
       expect(stakedBalance).toBeDefined();
@@ -882,7 +1008,7 @@ describe('AccountsApiBalanceFetcher', () => {
       expect(mockProvider.call).not.toHaveBeenCalled();
 
       // Should not include staked balance
-      const stakedBalance = result.find(
+      const stakedBalance = result.balances.find(
         (r) => r.token === STAKING_CONTRACT_ADDRESS,
       );
       expect(stakedBalance).toBeUndefined();
@@ -920,14 +1046,16 @@ describe('AccountsApiBalanceFetcher', () => {
       });
 
       // Should include native token but no staked balance for Polygon
-      expect(result.length).toBeGreaterThan(0);
-      const stakedBalance = result.find(
+      expect(result.balances.length).toBeGreaterThan(0);
+      const stakedBalance = result.balances.find(
         (r) => r.token === STAKING_CONTRACT_ADDRESS,
       );
       expect(stakedBalance).toBeUndefined(); // No staked balance for unsupported staking chain
 
       // Should have native token balance
-      const nativeBalance = result.find((r) => r.token === ZERO_ADDRESS);
+      const nativeBalance = result.balances.find(
+        (r) => r.token === ZERO_ADDRESS,
+      );
       expect(nativeBalance).toBeDefined();
     });
 
@@ -991,14 +1119,16 @@ describe('AccountsApiBalanceFetcher', () => {
         });
 
         // Should include native token but no staked balance due to missing contract address
-        expect(result.length).toBeGreaterThan(0);
-        const stakedBalance = result.find(
+        expect(result.balances.length).toBeGreaterThan(0);
+        const stakedBalance = result.balances.find(
           (r) => r.token === STAKING_CONTRACT_ADDRESS,
         );
         expect(stakedBalance).toBeUndefined(); // No staked balance due to missing contract address
 
         // Should have native token balance
-        const nativeBalance = result.find((r) => r.token === ZERO_ADDRESS);
+        const nativeBalance = result.balances.find(
+          (r) => r.token === ZERO_ADDRESS,
+        );
         expect(nativeBalance).toBeDefined();
       } finally {
         // Restore original mocks
@@ -1048,7 +1178,7 @@ describe('AccountsApiBalanceFetcher', () => {
         });
 
         // Should still return API balances and native token guarantee, but no staked balances
-        expect(result.length).toBeGreaterThan(0);
+        expect(result.balances.length).toBeGreaterThan(0);
 
         // Verify console.error was called with contract setup error
         expect(consoleSpy).toHaveBeenCalledWith(
@@ -1059,7 +1189,7 @@ describe('AccountsApiBalanceFetcher', () => {
         );
 
         // Should not have any staked balance due to contract setup failure
-        const stakedBalance = result.find(
+        const stakedBalance = result.balances.find(
           (r) => r.token === STAKING_CONTRACT_ADDRESS,
         );
         expect(stakedBalance).toBeUndefined();
@@ -1084,8 +1214,8 @@ describe('AccountsApiBalanceFetcher', () => {
       });
 
       // Should return API balances plus native token guarantee (but no staked balances)
-      expect(result).toHaveLength(3); // Original API results + native token
-      const stakedBalance = result.find(
+      expect(result.balances).toHaveLength(3); // Original API results + native token
+      const stakedBalance = result.balances.find(
         (r) => r.token === STAKING_CONTRACT_ADDRESS,
       );
       expect(stakedBalance).toBeUndefined();
@@ -1135,7 +1265,7 @@ describe('AccountsApiBalanceFetcher', () => {
         MOCK_CHAIN_ID,
         MOCK_ADDRESS_1,
       );
-      expect(result.length).toBeGreaterThan(0);
+      expect(result.balances.length).toBeGreaterThan(0);
     });
 
     it('should handle balance parsing errors gracefully (covers try-catch in line 298)', async () => {
@@ -1167,9 +1297,9 @@ describe('AccountsApiBalanceFetcher', () => {
       });
 
       // Should have native token (guaranteed) and failed balance
-      expect(result).toHaveLength(2);
+      expect(result.balances).toHaveLength(2);
 
-      const failedBalance = result.find(
+      const failedBalance = result.balances.find(
         (r) => r.token === '0x6B175474E89094C44Da98b954EedeAC495271d0F',
       );
       expect(failedBalance?.success).toBe(false);
@@ -1216,7 +1346,7 @@ describe('AccountsApiBalanceFetcher', () => {
       // Verify both API balances and staked balance processing occurred
       expect(mockFetchMultiChainBalancesV4).toHaveBeenCalled();
       expect(mockGetProvider).toHaveBeenCalledWith(MOCK_CHAIN_ID);
-      expect(result.length).toBeGreaterThan(0);
+      expect(result.balances.length).toBeGreaterThan(0);
     });
 
     it('should handle native balance tracking and guarantee (lines 304-306, 322-338)', async () => {
@@ -1263,7 +1393,9 @@ describe('AccountsApiBalanceFetcher', () => {
       });
 
       // Should have guaranteed native balances for both addresses
-      const nativeBalances = result.filter((r) => r.token === ZERO_ADDRESS);
+      const nativeBalances = result.balances.filter(
+        (r) => r.token === ZERO_ADDRESS,
+      );
       expect(nativeBalances).toHaveLength(2);
 
       const addr1Native = nativeBalances.find(
@@ -1336,7 +1468,7 @@ describe('AccountsApiBalanceFetcher', () => {
       });
 
       // Should include staked balance
-      const stakedBalance = result.find(
+      const stakedBalance = result.balances.find(
         (r) => r.token === STAKING_CONTRACT_ADDRESS,
       );
       expect(stakedBalance).toBeDefined();
@@ -1362,7 +1494,7 @@ describe('AccountsApiBalanceFetcher', () => {
       });
 
       // Should include failed staked balance when contract calls fail
-      const stakedBalance = result.find(
+      const stakedBalance = result.balances.find(
         (r) => r.token === STAKING_CONTRACT_ADDRESS,
       );
       expect(stakedBalance).toBeDefined();
@@ -1396,7 +1528,7 @@ describe('AccountsApiBalanceFetcher', () => {
       });
 
       // Should include failed staked balance when conversion fails
-      const stakedBalance = result.find(
+      const stakedBalance = result.balances.find(
         (r) => r.token === STAKING_CONTRACT_ADDRESS,
       );
       expect(stakedBalance).toBeDefined();
@@ -1425,7 +1557,7 @@ describe('AccountsApiBalanceFetcher', () => {
       });
 
       // Should include staked balance with zero value when shares are zero
-      const stakedBalance = result.find(
+      const stakedBalance = result.balances.find(
         (r) => r.token === STAKING_CONTRACT_ADDRESS,
       );
       expect(stakedBalance).toBeDefined();
@@ -1466,7 +1598,7 @@ describe('AccountsApiBalanceFetcher', () => {
       });
 
       // Should include staked balance entries for both addresses
-      const stakedBalances = result.filter(
+      const stakedBalances = result.balances.filter(
         (r) => r.token === STAKING_CONTRACT_ADDRESS,
       );
       expect(stakedBalances).toHaveLength(2);
@@ -1494,11 +1626,8 @@ describe('AccountsApiBalanceFetcher', () => {
       balanceFetcher = new AccountsApiBalanceFetcher('extension');
     });
 
-    it('should not throw error when API fails but staked balances succeed', async () => {
-      // Mock console.error to suppress error logging
-      const consoleSpy = jest.spyOn(console, 'error').mockImplementation();
-
-      // Setup successful staking contract
+    it('should throw error when API fails (error propagates for RPC fallback)', async () => {
+      // Setup successful staking contract (but it won't be reached)
       const mockShares = {
         toString: () => '1000000000000000000',
         gt: jest.fn().mockReturnValue(true),
@@ -1525,34 +1654,18 @@ describe('AccountsApiBalanceFetcher', () => {
         mockGetProvider,
       );
 
-      // Make API fail but staking succeed
+      // Make API fail - safelyExecuteWithTimeout will return undefined
       mockFetchMultiChainBalancesV4.mockRejectedValue(new Error('API failure'));
 
-      try {
-        const result = await fetcherWithProvider.fetch({
+      // Should now throw error immediately to allow RPC fallback in TokenBalancesController
+      await expect(
+        fetcherWithProvider.fetch({
           chainIds: [MOCK_CHAIN_ID],
           queryAllAccounts: false,
           selectedAccount: MOCK_ADDRESS_1 as ChecksumAddress,
           allAccounts: MOCK_INTERNAL_ACCOUNTS,
-        });
-
-        // With safelyExecuteWithTimeout, API failures are handled gracefully
-        // We should have successful staked balance + native token guarantee (no explicit error entries)
-        const successfulEntries = result.filter((r) => r.success);
-        const stakedEntries = result.filter(
-          (r) => r.token === STAKING_CONTRACT_ADDRESS,
-        );
-        const nativeEntries = result.filter((r) => r.token === ZERO_ADDRESS);
-
-        expect(successfulEntries.length).toBeGreaterThan(0); // Staked balance + native token succeeded
-        expect(stakedEntries).toHaveLength(1); // Should have staked balance entry
-        expect(nativeEntries).toHaveLength(1); // Should have native token guarantee
-
-        // Should not throw since we have some successful results
-        expect(result.length).toBeGreaterThan(0);
-      } finally {
-        consoleSpy.mockRestore();
-      }
+        }),
+      ).rejects.toThrow('Accounts API request timed out or failed');
     });
   });
 
@@ -1590,9 +1703,9 @@ describe('AccountsApiBalanceFetcher', () => {
         allAccounts: MOCK_INTERNAL_ACCOUNTS,
       });
 
-      expect(result).toHaveLength(2); // PEPE token + native token guarantee
+      expect(result.balances).toHaveLength(2); // PEPE token + native token guarantee
 
-      const pepeBalance = result.find(
+      const pepeBalance = result.balances.find(
         (r) => r.token === '0x25d887ce7a35172c62febfd67a1856f20faebb00',
       );
       expect(pepeBalance).toBeDefined();
@@ -1635,7 +1748,7 @@ describe('AccountsApiBalanceFetcher', () => {
         allAccounts: MOCK_INTERNAL_ACCOUNTS,
       });
 
-      const daiBalance = result.find(
+      const daiBalance = result.balances.find(
         (r) => r.token === '0x6B175474E89094C44Da98b954EedeAC495271d0F',
       );
       expect(daiBalance?.success).toBe(true);
@@ -1674,7 +1787,7 @@ describe('AccountsApiBalanceFetcher', () => {
         allAccounts: MOCK_INTERNAL_ACCOUNTS,
       });
 
-      const usdcBalance = result.find(
+      const usdcBalance = result.balances.find(
         (r) => r.token === '0xA0b86a33E6441c86c33E1C6B9cD964c0BA2A86B',
       );
       expect(usdcBalance?.success).toBe(true);
@@ -1713,7 +1826,7 @@ describe('AccountsApiBalanceFetcher', () => {
         allAccounts: MOCK_INTERNAL_ACCOUNTS,
       });
 
-      const usdcBalance = result.find(
+      const usdcBalance = result.balances.find(
         (r) => r.token === '0xA0b86a33E6441c86c33E1C6B9cD964c0BA2A86B',
       );
       expect(usdcBalance?.success).toBe(true);
@@ -1750,7 +1863,7 @@ describe('AccountsApiBalanceFetcher', () => {
         allAccounts: MOCK_INTERNAL_ACCOUNTS,
       });
 
-      const shibBalance = result.find(
+      const shibBalance = result.balances.find(
         (r) => r.token === '0x95aD61b0a150d79219dCF64E1E6Cc01f0B64C4cE',
       );
       expect(shibBalance?.success).toBe(true);
@@ -1790,7 +1903,7 @@ describe('AccountsApiBalanceFetcher', () => {
         allAccounts: MOCK_INTERNAL_ACCOUNTS,
       });
 
-      const daiBalance = result.find(
+      const daiBalance = result.balances.find(
         (r) => r.token === '0x6B175474E89094C44Da98b954EedeAC495271d0F',
       );
       expect(daiBalance?.success).toBe(true);
@@ -1825,7 +1938,7 @@ describe('AccountsApiBalanceFetcher', () => {
         allAccounts: MOCK_INTERNAL_ACCOUNTS,
       });
 
-      const daiBalance = result.find(
+      const daiBalance = result.balances.find(
         (r) => r.token === '0x6B175474E89094C44Da98b954EedeAC495271d0F',
       );
       expect(daiBalance?.success).toBe(true);
@@ -1863,7 +1976,7 @@ describe('AccountsApiBalanceFetcher', () => {
         allAccounts: MOCK_INTERNAL_ACCOUNTS,
       });
 
-      const daiBalance = result.find(
+      const daiBalance = result.balances.find(
         (r) => r.token === '0x6B175474E89094C44Da98b954EedeAC495271d0F',
       );
       expect(daiBalance?.success).toBe(true);
@@ -1888,20 +2001,272 @@ describe('AccountsApiBalanceFetcher', () => {
       expect(oldMethodCalculation.toString()).toContain('e+'); // Should be in scientific notation
     });
 
-    it('should throw error when API fails and no successful results exist (line 400)', async () => {
-      const mockApiError = new Error('Complete API failure');
+    it('should handle balance string with only integer part (covers line 346 default values)', async () => {
+      // Test the default destructuring values when balance has no decimal point
+      const responseWithZeroBalance: GetBalancesResponse = {
+        count: 1,
+        balances: [
+          {
+            object: 'token',
+            address: '0x0000000000000000000000000000000000000000',
+            symbol: 'ETH',
+            name: 'Ether',
+            decimals: 18,
+            chainId: 1,
+            balance: '0', // Just "0", no decimal point - tests integerPart='0', decimalPart=''
+            accountAddress:
+              'eip155:1:0xd8dA6BF26964aF9D7eEd9e03E53415D37aA96045',
+          },
+        ],
+        unprocessedNetworks: [],
+      };
 
-      // Mock safelyExecuteWithTimeout to throw (this will trigger the catch block and set apiError = true)
-      mockSafelyExecuteWithTimeout.mockImplementation(async () => {
-        throw mockApiError;
+      mockFetchMultiChainBalancesV4.mockResolvedValue(responseWithZeroBalance);
+
+      const result = await balanceFetcher.fetch({
+        chainIds: [MOCK_CHAIN_ID],
+        queryAllAccounts: false,
+        selectedAccount: MOCK_ADDRESS_1 as ChecksumAddress,
+        allAccounts: MOCK_INTERNAL_ACCOUNTS,
       });
 
-      // Create a balance fetcher WITHOUT staking provider to avoid successful staked balances
+      const ethBalance = result.balances.find((r) => r.token === ZERO_ADDRESS);
+      expect(ethBalance?.success).toBe(true);
+      expect(ethBalance?.value).toStrictEqual(new BN('0'));
+    });
+
+    it('should accumulate balances correctly in batch processing (covers line 248)', async () => {
+      // This test explicitly verifies that line 248's accumulation logic works
+      // by ensuring balances from multiple batches are combined correctly
+      const largeAccountList: InternalAccount[] = [];
+      const caipAddresses: string[] = [];
+
+      // Create 60 accounts to force batching (50 per batch)
+      for (let i = 0; i < 60; i++) {
+        const address =
+          `0x${i.toString(16).padStart(40, '0')}` as ChecksumAddress;
+        largeAccountList.push({
+          id: i.toString(),
+          address,
+          type: 'eip155:eoa',
+          options: {},
+          methods: [],
+          scopes: [],
+          metadata: {
+            name: `Account ${i}`,
+            importTime: Date.now(),
+            keyring: { type: 'HD Key Tree' },
+          },
+        });
+        caipAddresses.push(`eip155:1:${address}`);
+      }
+
+      // Mock batching behavior
+      mockReduceInBatchesSerially.mockImplementation(
+        async ({
+          eachBatch,
+          initialResult,
+        }: {
+          eachBatch: (
+            result: unknown,
+            batch: unknown,
+            index: number,
+          ) => Promise<unknown>;
+          initialResult: unknown;
+        }) => {
+          const batch1 = caipAddresses.slice(0, 50);
+          const batch2 = caipAddresses.slice(50);
+
+          // First batch: workingResult will be [] (initialResult)
+          let result = await eachBatch(initialResult, batch1, 0);
+          // Second batch: workingResult will be the result from batch1
+          // This tests line 248: [...(workingResult || []), ...response.balances]
+          result = await eachBatch(result, batch2, 1);
+
+          return result;
+        },
+      );
+
+      const batch1Response: GetBalancesResponse = {
+        count: 1,
+        balances: [
+          {
+            object: 'token',
+            address: '0x0000000000000000000000000000000000000000',
+            symbol: 'ETH',
+            name: 'Ether',
+            decimals: 18,
+            chainId: 1,
+            balance: '1.0',
+            accountAddress: `eip155:1:${caipAddresses[0].split(':')[2]}`,
+          },
+        ],
+        unprocessedNetworks: [],
+      };
+
+      const batch2Response: GetBalancesResponse = {
+        count: 1,
+        balances: [
+          {
+            object: 'token',
+            address: '0x0000000000000000000000000000000000000000',
+            symbol: 'ETH',
+            name: 'Ether',
+            decimals: 18,
+            chainId: 1,
+            balance: '2.0',
+            accountAddress: `eip155:1:${caipAddresses[50].split(':')[2]}`,
+          },
+        ],
+        unprocessedNetworks: [],
+      };
+
+      mockFetchMultiChainBalancesV4
+        .mockResolvedValueOnce(batch1Response)
+        .mockResolvedValueOnce(batch2Response);
+
+      const result = await balanceFetcher.fetch({
+        chainIds: [MOCK_CHAIN_ID],
+        queryAllAccounts: true,
+        selectedAccount: MOCK_ADDRESS_1 as ChecksumAddress,
+        allAccounts: largeAccountList,
+      });
+
+      // Should have called API twice (2 batches)
+      expect(mockFetchMultiChainBalancesV4).toHaveBeenCalledTimes(2);
+
+      // Should have balances from both batches accumulated via line 248
+      // The batching logic at line 248 combines results from multiple API calls
+      const ethBalances = result.balances.filter(
+        (r) => r.token === ZERO_ADDRESS,
+      );
+
+      // Should have at least 2 native token balances (from both batches + guarantees for all accounts)
+      expect(ethBalances.length).toBeGreaterThanOrEqual(2);
+
+      // Verify that we have successful balance entries
+      const successfulBalances = ethBalances.filter((b) => b.success);
+      expect(successfulBalances.length).toBeGreaterThan(0);
+    });
+
+    it('should handle falsy workingResult in batch accumulation (covers line 248 "|| []" branch)', async () => {
+      // This test explicitly covers the "|| []" fallback on line 248
+      // when workingResult is undefined/null (first batch)
+      const largeAccountList: InternalAccount[] = [];
+      const caipAddresses: string[] = [];
+
+      // Create 55 accounts to force batching
+      for (let i = 0; i < 55; i++) {
+        const address =
+          `0x${i.toString(16).padStart(40, '0')}` as ChecksumAddress;
+        largeAccountList.push({
+          id: i.toString(),
+          address,
+          type: 'eip155:eoa',
+          options: {},
+          methods: [],
+          scopes: [],
+          metadata: {
+            name: `Account ${i}`,
+            importTime: Date.now(),
+            keyring: { type: 'HD Key Tree' },
+          },
+        });
+        caipAddresses.push(`eip155:1:${address}`);
+      }
+
+      // Mock batching to pass undefined/null as workingResult for first batch
+      mockReduceInBatchesSerially.mockImplementation(
+        async ({
+          eachBatch,
+        }: {
+          eachBatch: (
+            result: unknown,
+            batch: unknown,
+            index: number,
+          ) => Promise<unknown>;
+          initialResult: unknown;
+        }) => {
+          const batch1 = caipAddresses.slice(0, 50);
+          const batch2 = caipAddresses.slice(50);
+
+          // Pass undefined as first argument to test "|| []" branch
+          // This simulates the case where workingResult might be undefined
+          let result = await eachBatch(undefined, batch1, 0);
+          result = await eachBatch(result, batch2, 1);
+
+          return result;
+        },
+      );
+
+      const batch1Response: GetBalancesResponse = {
+        count: 1,
+        balances: [
+          {
+            object: 'token',
+            address: '0x0000000000000000000000000000000000000000',
+            symbol: 'ETH',
+            name: 'Ether',
+            decimals: 18,
+            chainId: 1,
+            balance: '5.0',
+            accountAddress: `eip155:1:${caipAddresses[0].split(':')[2]}`,
+          },
+        ],
+        unprocessedNetworks: [],
+      };
+
+      const batch2Response: GetBalancesResponse = {
+        count: 1,
+        balances: [
+          {
+            object: 'token',
+            address: '0x0000000000000000000000000000000000000000',
+            symbol: 'ETH',
+            name: 'Ether',
+            decimals: 18,
+            chainId: 1,
+            balance: '10.0',
+            accountAddress: `eip155:1:${caipAddresses[50].split(':')[2]}`,
+          },
+        ],
+        unprocessedNetworks: [],
+      };
+
+      mockFetchMultiChainBalancesV4
+        .mockResolvedValueOnce(batch1Response)
+        .mockResolvedValueOnce(batch2Response);
+
+      const result = await balanceFetcher.fetch({
+        chainIds: [MOCK_CHAIN_ID],
+        queryAllAccounts: true,
+        selectedAccount: MOCK_ADDRESS_1 as ChecksumAddress,
+        allAccounts: largeAccountList,
+      });
+
+      // Line 248: [...(workingResult || []), ...response.balances]
+      // When workingResult is undefined, it uses [] via the "|| []" fallback
+      expect(mockFetchMultiChainBalancesV4).toHaveBeenCalledTimes(2);
+
+      // Should still have balances from both batches despite undefined workingResult
+      const ethBalances = result.balances.filter(
+        (r) => r.token === ZERO_ADDRESS,
+      );
+      expect(ethBalances.length).toBeGreaterThan(0);
+    });
+
+    it('should throw error when API fails (safelyExecuteWithTimeout returns undefined)', async () => {
+      const mockApiError = new Error('Complete API failure');
+
+      // Mock fetchMultiChainBalancesV4 to throw - safelyExecuteWithTimeout will catch and return undefined
+      mockFetchMultiChainBalancesV4.mockRejectedValue(mockApiError);
+
+      // Create a balance fetcher WITHOUT staking provider
       const balanceFetcherNoStaking = new AccountsApiBalanceFetcher(
         'extension',
       );
 
-      // This should trigger the error throw on line 400
+      // Should throw immediately when apiResponse is undefined
       await expect(
         balanceFetcherNoStaking.fetch({
           chainIds: [MOCK_CHAIN_ID],
@@ -1909,7 +2274,7 @@ describe('AccountsApiBalanceFetcher', () => {
           selectedAccount: MOCK_ADDRESS_1 as ChecksumAddress,
           allAccounts: MOCK_INTERNAL_ACCOUNTS,
         }),
-      ).rejects.toThrow('Failed to fetch any balance data due to API error');
+      ).rejects.toThrow('Accounts API request timed out or failed');
     });
   });
 });

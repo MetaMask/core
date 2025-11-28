@@ -32,9 +32,13 @@ export function normalizeTypedMessage(messageData: string) {
     return messageData;
   }
 
-  data.domain.verifyingContract = normalizeContractAddress(verifyingContract);
-
-  return JSON.stringify(data);
+  return JSON.stringify({
+    ...data,
+    domain: {
+      ...data.domain,
+      verifyingContract: normalizeContractAddress(verifyingContract),
+    },
+  });
 }
 
 /**

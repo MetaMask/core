@@ -78,10 +78,12 @@ const supportedNftDetectionNetworks: Set<Hex> = new Set([
  * @type ApiNft
  *
  * NFT object coming from OpenSea api
+ *
  * @property token_id - The NFT identifier
  * @property num_sales - Number of sales
  * @property background_color - The background color to be displayed with the item
  * @property image_url - URI of an image associated with this NFT
+ *
  * @property image_preview_url - URI of a smaller image associated with this NFT
  * @property image_thumbnail_url - URI of a thumbnail image associated with this NFT
  * @property image_original_url - URI of the original image associated with this NFT
@@ -95,44 +97,20 @@ const supportedNftDetectionNetworks: Set<Hex> = new Set([
  * @property lastSale - When this item was last sold
  */
 export type ApiNft = {
-  // TODO: Either fix this lint violation or explain why it's necessary to ignore.
-  // eslint-disable-next-line @typescript-eslint/naming-convention
   token_id: string;
-  // TODO: Either fix this lint violation or explain why it's necessary to ignore.
-  // eslint-disable-next-line @typescript-eslint/naming-convention
   num_sales: number | null;
-  // TODO: Either fix this lint violation or explain why it's necessary to ignore.
-  // eslint-disable-next-line @typescript-eslint/naming-convention
   background_color: string | null;
-  // TODO: Either fix this lint violation or explain why it's necessary to ignore.
-  // eslint-disable-next-line @typescript-eslint/naming-convention
   image_url: string | null;
-  // TODO: Either fix this lint violation or explain why it's necessary to ignore.
-  // eslint-disable-next-line @typescript-eslint/naming-convention
   image_preview_url: string | null;
-  // TODO: Either fix this lint violation or explain why it's necessary to ignore.
-  // eslint-disable-next-line @typescript-eslint/naming-convention
   image_thumbnail_url: string | null;
-  // TODO: Either fix this lint violation or explain why it's necessary to ignore.
-  // eslint-disable-next-line @typescript-eslint/naming-convention
   image_original_url: string | null;
-  // TODO: Either fix this lint violation or explain why it's necessary to ignore.
-  // eslint-disable-next-line @typescript-eslint/naming-convention
   animation_url: string | null;
-  // TODO: Either fix this lint violation or explain why it's necessary to ignore.
-  // eslint-disable-next-line @typescript-eslint/naming-convention
   animation_original_url: string | null;
   name: string | null;
   description: string | null;
-  // TODO: Either fix this lint violation or explain why it's necessary to ignore.
-  // eslint-disable-next-line @typescript-eslint/naming-convention
   external_link: string | null;
-  // TODO: Either fix this lint violation or explain why it's necessary to ignore.
-  // eslint-disable-next-line @typescript-eslint/naming-convention
   asset_contract: ApiNftContract;
   creator: ApiNftCreator;
-  // TODO: Either fix this lint violation or explain why it's necessary to ignore.
-  // eslint-disable-next-line @typescript-eslint/naming-convention
   last_sale: ApiNftLastSale | null;
 };
 
@@ -140,6 +118,7 @@ export type ApiNft = {
  * @type ApiNftContract
  *
  * NFT contract object coming from OpenSea api
+ *
  * @property address - Address of the NFT contract
  * @property asset_contract_type - The NFT type, it could be `semi-fungible` or `non-fungible`
  * @property created_date - Creation date
@@ -152,27 +131,15 @@ export type ApiNft = {
  */
 export type ApiNftContract = {
   address: string;
-  // TODO: Either fix this lint violation or explain why it's necessary to ignore.
-  // eslint-disable-next-line @typescript-eslint/naming-convention
   asset_contract_type: string | null;
-  // TODO: Either fix this lint violation or explain why it's necessary to ignore.
-  // eslint-disable-next-line @typescript-eslint/naming-convention
   created_date: string | null;
-  // TODO: Either fix this lint violation or explain why it's necessary to ignore.
-  // eslint-disable-next-line @typescript-eslint/naming-convention
   schema_name: string | null;
   symbol: string | null;
-  // TODO: Either fix this lint violation or explain why it's necessary to ignore.
-  // eslint-disable-next-line @typescript-eslint/naming-convention
   total_supply: string | null;
   description: string | null;
-  // TODO: Either fix this lint violation or explain why it's necessary to ignore.
-  // eslint-disable-next-line @typescript-eslint/naming-convention
   external_link: string | null;
   collection: {
     name: string | null;
-    // TODO: Either fix this lint violation or explain why it's necessary to ignore.
-    // eslint-disable-next-line @typescript-eslint/naming-convention
     image_url?: string | null;
     tokenCount?: string | null;
   };
@@ -182,19 +149,14 @@ export type ApiNftContract = {
  * @type ApiNftLastSale
  *
  * NFT sale object coming from OpenSea api
+ *
  * @property event_timestamp - Object containing a `username`
  * @property total_price - URI of NFT image associated with this owner
  * @property transaction - Object containing transaction_hash and block_hash
  */
 export type ApiNftLastSale = {
-  // TODO: Either fix this lint violation or explain why it's necessary to ignore.
-  // eslint-disable-next-line @typescript-eslint/naming-convention
   event_timestamp: string;
-  // TODO: Either fix this lint violation or explain why it's necessary to ignore.
-  // eslint-disable-next-line @typescript-eslint/naming-convention
   total_price: string;
-  // TODO: Either fix this lint violation or explain why it's necessary to ignore.
-  // eslint-disable-next-line @typescript-eslint/naming-convention
   transaction: { transaction_hash: string; block_hash: string };
 };
 
@@ -202,14 +164,13 @@ export type ApiNftLastSale = {
  * @type ApiNftCreator
  *
  * NFT creator object coming from OpenSea api
+ *
  * @property user - Object containing a `username`
  * @property profile_img_url - URI of NFT image associated with this owner
  * @property address - The owner address
  */
 export type ApiNftCreator = {
   user: { username: string };
-  // TODO: Either fix this lint violation or explain why it's necessary to ignore.
-  // eslint-disable-next-line @typescript-eslint/naming-convention
   profile_img_url: string;
   address: string;
 };
@@ -236,14 +197,8 @@ export enum BlockaidResultType {
 export type Blockaid = {
   contract: string;
   chainId: number;
-  // TODO: Either fix this lint violation or explain why it's necessary to ignore.
-  // eslint-disable-next-line @typescript-eslint/naming-convention
   result_type: BlockaidResultType;
-  // TODO: Either fix this lint violation or explain why it's necessary to ignore.
-  // eslint-disable-next-line @typescript-eslint/naming-convention
   malicious_score: string;
-  // TODO: Either fix this lint violation or explain why it's necessary to ignore.
-  // eslint-disable-next-line @typescript-eslint/naming-convention
   attack_types: object;
 };
 
@@ -535,6 +490,7 @@ export class NftDetectionController extends BaseController<
 
   /**
    * Handles the state change of the preference controller.
+   *
    * @param preferencesState - The new state of the preference controller.
    * @param preferencesState.useNftDetection - Boolean indicating user preference on NFT detection.
    */

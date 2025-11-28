@@ -42,6 +42,7 @@ import type {
   RecurringInterval,
 } from './types';
 import {
+  MODAL_TYPE,
   PAYMENT_TYPES,
   PRODUCT_TYPES,
   RECURRING_INTERVALS,
@@ -80,6 +81,7 @@ const MOCK_SUBSCRIPTION: Subscription = {
       last4: '1234',
     },
   },
+  isEligibleForSupport: true,
 };
 
 const MOCK_PRODUCT_PRICE: ProductPricing = {
@@ -133,6 +135,21 @@ const MOCK_GET_SUBSCRIPTIONS_RESPONSE = {
   subscriptions: [MOCK_SUBSCRIPTION],
   trialedProducts: [],
 };
+
+const MOCK_COHORTS = [
+  {
+    cohort: 'post_tx',
+    eligibilityRate: 0.8,
+    priority: 1,
+    eligible: true,
+  },
+  {
+    cohort: 'wallet_home',
+    eligibilityRate: 0.2,
+    priority: 2,
+    eligible: true,
+  },
+];
 
 /**
  * Creates a custom subscription messenger, in case tests need different permissions
@@ -218,6 +235,7 @@ function createMockSubscriptionService() {
   const mockGetSubscriptionsEligibilities = jest.fn();
   const mockSubmitUserEvent = jest.fn();
   const mockSubmitSponsorshipIntents = jest.fn();
+  const mockAssignUserToCohort = jest.fn();
 
   const mockService = {
     getSubscriptions: mockGetSubscriptions,
@@ -232,6 +250,7 @@ function createMockSubscriptionService() {
     getSubscriptionsEligibilities: mockGetSubscriptionsEligibilities,
     submitUserEvent: mockSubmitUserEvent,
     submitSponsorshipIntents: mockSubmitSponsorshipIntents,
+    assignUserToCohort: mockAssignUserToCohort,
   };
 
   return {
@@ -245,6 +264,7 @@ function createMockSubscriptionService() {
     mockUpdatePaymentMethodCard,
     mockUpdatePaymentMethodCrypto,
     mockSubmitSponsorshipIntents,
+    mockAssignUserToCohort,
   };
 }
 
@@ -542,6 +562,30 @@ describe('SubscriptionController', () => {
           expect(controller.state.trialedProducts).toStrictEqual([
             PRODUCT_TYPES.SHIELD,
           ]);
+        },
+      );
+    });
+
+    it('should update state when lastSubscription changes from undefined to defined', async () => {
+      await withController(
+        {
+          state: {
+            lastSubscription: undefined,
+          },
+        },
+        async ({ controller, mockService }) => {
+          mockService.getSubscriptions.mockResolvedValue({
+            customerId: 'cus_1',
+            subscriptions: [],
+            trialedProducts: [],
+            lastSubscription: MOCK_SUBSCRIPTION,
+          });
+
+          await controller.getSubscriptions();
+
+          expect(controller.state.lastSubscription).toStrictEqual(
+            MOCK_SUBSCRIPTION,
+          );
         },
       );
     });
@@ -1251,7 +1295,6 @@ describe('SubscriptionController', () => {
           ),
         ).toMatchInlineSnapshot(`
         Object {
-          "subscriptions": Array [],
           "trialedProducts": Array [],
         }
       `);
@@ -1382,8 +1425,11 @@ describe('SubscriptionController', () => {
     const MOCK_SUBSCRIPTION_ELIGIBILITY: SubscriptionEligibility = {
       product: PRODUCT_TYPES.SHIELD,
       canSubscribe: true,
-      minBalanceUSD: 100,
       canViewEntryModal: true,
+      modalType: MODAL_TYPE.A,
+      cohorts: [],
+      assignedCohort: null,
+      hasAssignedCohortExpired: false,
     };
 
     it('should get the subscriptions eligibilities', async () => {
@@ -1394,6 +1440,29 @@ describe('SubscriptionController', () => {
 
         const result = await controller.getSubscriptionsEligibilities();
         expect(result).toStrictEqual([MOCK_SUBSCRIPTION_ELIGIBILITY]);
+      });
+    });
+
+    it('should get the subscriptions eligibilities with balanceCategory parameter', async () => {
+      await withController(async ({ controller, mockService }) => {
+        const mockEligibilityWithCohorts: SubscriptionEligibility = {
+          ...MOCK_SUBSCRIPTION_ELIGIBILITY,
+          cohorts: MOCK_COHORTS,
+          assignedCohort: 'post_tx',
+        };
+
+        mockService.getSubscriptionsEligibilities.mockResolvedValue([
+          mockEligibilityWithCohorts,
+        ]);
+
+        const balanceCategory = '1k-9.9k';
+        const result = await controller.getSubscriptionsEligibilities({
+          balanceCategory,
+        });
+        expect(result).toStrictEqual([mockEligibilityWithCohorts]);
+        expect(mockService.getSubscriptionsEligibilities).toHaveBeenCalledWith({
+          balanceCategory,
+        });
       });
     });
 
@@ -1425,6 +1494,26 @@ describe('SubscriptionController', () => {
         expect(submitUserEventSpy).toHaveBeenCalledWith({
           event: SubscriptionUserEvent.ShieldEntryModalViewed,
         });
+        expect(submitUserEventSpy).toHaveBeenCalledTimes(1);
+      });
+    });
+
+    it('should submit user event with cohort successfully', async () => {
+      await withController(async ({ controller, mockService }) => {
+        const submitUserEventSpy = jest
+          .spyOn(mockService, 'submitUserEvent')
+          .mockResolvedValue(undefined);
+
+        const result = await controller.submitUserEvent({
+          event: SubscriptionUserEvent.ShieldCohortAssigned,
+          cohort: 'post_tx',
+        });
+        expect(result).toBeUndefined();
+        expect(submitUserEventSpy).toHaveBeenCalledWith({
+          event: SubscriptionUserEvent.ShieldCohortAssigned,
+          cohort: 'post_tx',
+        });
+        expect(submitUserEventSpy).toHaveBeenCalledTimes(1);
       });
     });
 
@@ -1439,6 +1528,38 @@ describe('SubscriptionController', () => {
           controller.submitUserEvent({
             event: SubscriptionUserEvent.ShieldEntryModalViewed,
           }),
+        ).rejects.toThrow(SubscriptionServiceError);
+      });
+    });
+  });
+
+  describe('assignUserToCohort', () => {
+    it('should assign user to cohort successfully', async () => {
+      await withController(async ({ controller, mockService }) => {
+        const assignUserToCohortSpy = jest
+          .spyOn(mockService, 'assignUserToCohort')
+          .mockResolvedValue(undefined);
+
+        const result = await controller.assignUserToCohort({
+          cohort: 'post_tx',
+        });
+        expect(result).toBeUndefined();
+        expect(assignUserToCohortSpy).toHaveBeenCalledWith({
+          cohort: 'post_tx',
+        });
+        expect(assignUserToCohortSpy).toHaveBeenCalledTimes(1);
+      });
+    });
+
+    it('should handle subscription service errors', async () => {
+      await withController(async ({ controller, mockService }) => {
+        const errorMessage = 'Failed to assign user to cohort';
+        mockService.assignUserToCohort.mockRejectedValue(
+          new SubscriptionServiceError(errorMessage),
+        );
+
+        await expect(
+          controller.assignUserToCohort({ cohort: 'post_tx' }),
         ).rejects.toThrow(SubscriptionServiceError);
       });
     });
@@ -1769,9 +1890,12 @@ describe('SubscriptionController', () => {
             status: SUBSCRIPTION_STATUSES.trialing,
           });
 
-          mockService.getSubscriptions.mockResolvedValue(
-            MOCK_GET_SUBSCRIPTIONS_RESPONSE,
-          );
+          mockService.getSubscriptions
+            .mockResolvedValueOnce({
+              subscriptions: [],
+              trialedProducts: [],
+            })
+            .mockResolvedValue(MOCK_GET_SUBSCRIPTIONS_RESPONSE);
 
           // Create a shield subscription approval transaction
           const txMeta = {
@@ -1970,6 +2094,104 @@ describe('SubscriptionController', () => {
           expect(
             mockService.startSubscriptionWithCrypto,
           ).not.toHaveBeenCalled();
+        },
+      );
+    });
+
+    it('should update payment method when user has active subscription', async () => {
+      await withController(
+        {
+          state: {
+            pricing: MOCK_PRICE_INFO_RESPONSE,
+            trialedProducts: [],
+            subscriptions: [MOCK_SUBSCRIPTION],
+            lastSelectedPaymentMethod: {
+              [PRODUCT_TYPES.SHIELD]: {
+                type: PAYMENT_TYPES.byCrypto,
+                paymentTokenAddress: '0xtoken',
+                paymentTokenSymbol: 'USDT',
+                plan: RECURRING_INTERVALS.month,
+              },
+            },
+          },
+        },
+        async ({ controller, mockService }) => {
+          mockService.updatePaymentMethodCrypto.mockResolvedValue({});
+          mockService.getSubscriptions.mockResolvedValue(
+            MOCK_GET_SUBSCRIPTIONS_RESPONSE,
+          );
+
+          const txMeta = {
+            ...generateMockTxMeta(),
+            type: TransactionType.shieldSubscriptionApprove,
+            chainId: '0x1' as Hex,
+            rawTx: '0x123',
+            txParams: {
+              data: '0x456',
+              from: '0x1234567890123456789012345678901234567890',
+              to: '0xtoken',
+            },
+            status: TransactionStatus.submitted,
+          };
+
+          await controller.submitShieldSubscriptionCryptoApproval(txMeta);
+
+          expect(mockService.updatePaymentMethodCrypto).toHaveBeenCalledTimes(
+            1,
+          );
+          expect(
+            mockService.startSubscriptionWithCrypto,
+          ).not.toHaveBeenCalled();
+        },
+      );
+    });
+
+    it('should throw error when subscription status is not valid for crypto approval', async () => {
+      await withController(
+        {
+          state: {
+            pricing: MOCK_PRICE_INFO_RESPONSE,
+            trialedProducts: [],
+            subscriptions: [],
+            lastSelectedPaymentMethod: {
+              [PRODUCT_TYPES.SHIELD]: {
+                type: PAYMENT_TYPES.byCrypto,
+                paymentTokenAddress: '0xtoken',
+                paymentTokenSymbol: 'USDT',
+                plan: RECURRING_INTERVALS.month,
+              },
+            },
+          },
+        },
+        async ({ controller, mockService }) => {
+          mockService.getSubscriptions.mockResolvedValue({
+            subscriptions: [
+              {
+                ...MOCK_SUBSCRIPTION,
+                status: SUBSCRIPTION_STATUSES.incomplete,
+              },
+            ],
+            trialedProducts: [],
+          });
+
+          const txMeta = {
+            ...generateMockTxMeta(),
+            type: TransactionType.shieldSubscriptionApprove,
+            chainId: '0x1' as Hex,
+            rawTx: '0x123',
+            txParams: {
+              data: '0x456',
+              from: '0x1234567890123456789012345678901234567890',
+              to: '0xtoken',
+            },
+            status: TransactionStatus.submitted,
+          };
+
+          await expect(
+            controller.submitShieldSubscriptionCryptoApproval(txMeta),
+          ).rejects.toThrow(
+            SubscriptionControllerErrorMessage.SubscriptionNotValidForCryptoApproval,
+          );
         },
       );
     });

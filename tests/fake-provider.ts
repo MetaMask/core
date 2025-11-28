@@ -124,9 +124,9 @@ export class FakeProvider
 {
   calledStubs: FakeProviderStub[];
 
-  #originalStubs: FakeProviderStub[];
+  readonly #originalStubs: FakeProviderStub[];
 
-  #stubs: FakeProviderStub[];
+  readonly #stubs: FakeProviderStub[];
 
   /**
    * Makes a new instance of the fake provider.

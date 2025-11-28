@@ -1,5 +1,12 @@
-import { ORIGIN_METAMASK, successfulFetch } from '@metamask/controller-utils';
-import type { TransactionMeta } from '@metamask/transaction-controller';
+import {
+  ORIGIN_METAMASK,
+  successfulFetch,
+  toHex,
+} from '@metamask/controller-utils';
+import {
+  TransactionType,
+  type TransactionMeta,
+} from '@metamask/transaction-controller';
 import type { Hex } from '@metamask/utils';
 import { cloneDeep } from 'lodash';
 
@@ -12,12 +19,17 @@ import type {
   TransactionPayControllerMessenger,
   TransactionPayQuote,
 } from '../../types';
+import type { FeatureFlags } from '../../utils/feature-flags';
+import { getFeatureFlags } from '../../utils/feature-flags';
 import {
+  collectTransactionIds,
+  getTransaction,
   updateTransaction,
   waitForTransactionConfirmed,
 } from '../../utils/transaction';
 
 jest.mock('../../utils/transaction');
+jest.mock('../../utils/feature-flags');
 
 jest.mock('@metamask/controller-utils', () => ({
   ...jest.requireActual('@metamask/controller-utils'),
@@ -28,12 +40,28 @@ const NETWORK_CLIENT_ID_MOCK = 'networkClientIdMock';
 const TRANSACTION_HASH_MOCK = '0x1234';
 const ENDPOINT_MOCK = '/test123';
 const ORIGINAL_TRANSACTION_ID_MOCK = '456-789';
+const FROM_MOCK = '0xabcde' as Hex;
+const CHAIN_ID_MOCK = '0x1' as Hex;
+const TOKEN_ADDRESS_MOCK = '0x123' as Hex;
 
 const TRANSACTION_META_MOCK = {
   id: '123-456',
+  hash: TRANSACTION_HASH_MOCK,
 } as TransactionMeta;
 
 const ORIGINAL_QUOTE_MOCK = {
+  details: {
+    currencyIn: {
+      currency: {
+        chainId: 1,
+      },
+    },
+    currencyOut: {
+      currency: {
+        chainId: 2,
+      },
+    },
+  },
   steps: [
     {
       kind: 'transaction',
@@ -46,7 +74,7 @@ const ORIGINAL_QUOTE_MOCK = {
           data: {
             chainId: 1,
             data: '0x1234' as Hex,
-            from: '0xabcde' as Hex,
+            from: FROM_MOCK,
             gas: '21000',
             maxFeePerGas: '25000000000',
             maxPriorityFeePerGas: '1000000000',
@@ -60,10 +88,23 @@ const ORIGINAL_QUOTE_MOCK = {
   ],
 } as RelayQuote;
 
+const STATUS_RESPONSE_MOCK = {
+  status: 'success',
+  txHashes: [TRANSACTION_HASH_MOCK],
+};
+
 const REQUEST_MOCK: PayStrategyExecuteRequest<RelayQuote> = {
   quotes: [
     {
+      fees: {
+        sourceNetwork: {},
+      },
       original: ORIGINAL_QUOTE_MOCK,
+      request: {
+        from: FROM_MOCK,
+        sourceChainId: CHAIN_ID_MOCK,
+        sourceTokenAddress: TOKEN_ADDRESS_MOCK,
+      },
     } as TransactionPayQuote<RelayQuote>,
   ],
   messenger: {} as TransactionPayControllerMessenger,
@@ -76,9 +117,16 @@ const REQUEST_MOCK: PayStrategyExecuteRequest<RelayQuote> = {
 describe('Relay Submit Utils', () => {
   const updateTransactionMock = jest.mocked(updateTransaction);
   const successfulFetchMock = jest.mocked(successfulFetch);
+  const getTransactionMock = jest.mocked(getTransaction);
+  const collectTransactionIdsMock = jest.mocked(collectTransactionIds);
+  const getFeatureFlagsMock = jest.mocked(getFeatureFlags);
 
-  const { addTransactionMock, findNetworkClientIdByChainIdMock, messenger } =
-    getMessengerMock();
+  const {
+    addTransactionMock,
+    addTransactionBatchMock,
+    findNetworkClientIdByChainIdMock,
+    messenger,
+  } = getMessengerMock();
 
   let request: PayStrategyExecuteRequest<RelayQuote>;
 
@@ -97,9 +145,23 @@ describe('Relay Submit Utils', () => {
     });
 
     waitForTransactionConfirmedMock.mockResolvedValue();
+    getTransactionMock.mockReturnValue(TRANSACTION_META_MOCK);
+
+    getFeatureFlagsMock.mockReturnValue({
+      relayFallbackGas: {
+        max: 123,
+      },
+    } as FeatureFlags);
+
+    collectTransactionIdsMock.mockImplementation(
+      (_chainId, _from, _messenger, fn) => {
+        fn(TRANSACTION_META_MOCK.id);
+        return { end: jest.fn() };
+      },
+    );
 
     successfulFetchMock.mockResolvedValue({
-      json: async () => ({ status: 'success' }),
+      json: async () => STATUS_RESPONSE_MOCK,
     } as Response);
 
     request = cloneDeep(REQUEST_MOCK);
@@ -129,8 +191,77 @@ describe('Relay Submit Utils', () => {
       );
     });
 
+    it('adds transaction with gas fee token if isSourceGasFeeToken', async () => {
+      request.quotes[0].fees.isSourceGasFeeToken = true;
+
+      await submitRelayQuotes(request);
+
+      expect(addTransactionMock).toHaveBeenCalledTimes(1);
+      expect(addTransactionMock).toHaveBeenCalledWith(
+        expect.anything(),
+        expect.objectContaining({
+          gasFeeToken: TOKEN_ADDRESS_MOCK,
+        }),
+      );
+    });
+
+    it('adds transaction batch if multiple params', async () => {
+      request.quotes[0].original.steps[0].items.push({
+        ...request.quotes[0].original.steps[0].items[0],
+      });
+
+      await submitRelayQuotes(request);
+
+      expect(addTransactionBatchMock).toHaveBeenCalledTimes(1);
+      expect(addTransactionBatchMock).toHaveBeenCalledWith({
+        from: FROM_MOCK,
+        networkClientId: NETWORK_CLIENT_ID_MOCK,
+        origin: ORIGIN_METAMASK,
+        requireApproval: false,
+        transactions: [
+          {
+            params: {
+              data: '0x1234',
+              gas: '0x5208',
+              to: '0xfedcb',
+              value: '0x4d2',
+            },
+            type: TransactionType.tokenMethodApprove,
+          },
+          {
+            params: {
+              data: '0x1234',
+              gas: '0x5208',
+              to: '0xfedcb',
+              value: '0x4d2',
+            },
+          },
+        ],
+      });
+    });
+
+    it('adds transaction batch with gas fee token if isSourceGasFeeToken', async () => {
+      request.quotes[0].original.steps[0].items.push({
+        ...request.quotes[0].original.steps[0].items[0],
+      });
+
+      request.quotes[0].fees.isSourceGasFeeToken = true;
+
+      await submitRelayQuotes(request);
+
+      expect(addTransactionBatchMock).toHaveBeenCalledTimes(1);
+      expect(addTransactionBatchMock).toHaveBeenCalledWith(
+        expect.objectContaining({
+          gasFeeToken: TOKEN_ADDRESS_MOCK,
+        }),
+      );
+    });
+
     it('adds transaction if params missing', async () => {
       request.quotes[0].original.steps[0].items[0].data.value =
+        undefined as never;
+
+      request.quotes[0].original.steps[0].items[0].data.gas =
         undefined as never;
 
       await submitRelayQuotes(request);
@@ -138,6 +269,7 @@ describe('Relay Submit Utils', () => {
       expect(addTransactionMock).toHaveBeenCalledTimes(1);
       expect(addTransactionMock).toHaveBeenCalledWith(
         expect.objectContaining({
+          gas: toHex(123),
           value: '0x0',
         }),
         expect.anything(),
@@ -168,6 +300,14 @@ describe('Relay Submit Utils', () => {
       );
     });
 
+    it('does not wait for relay status if same chain', async () => {
+      request.quotes[0].original.details.currencyOut.currency.chainId = 1;
+
+      await submitRelayQuotes(request);
+
+      expect(successfulFetchMock).toHaveBeenCalledTimes(0);
+    });
+
     it('throws if transaction fails to confirm', async () => {
       waitForTransactionConfirmedMock.mockRejectedValue(
         new Error('Transaction failed'),
@@ -191,9 +331,7 @@ describe('Relay Submit Utils', () => {
       },
     );
 
-    it('updates transaction if skipTransaction is true', async () => {
-      request.quotes[0].original.skipTransaction = true;
-
+    it('updates transaction', async () => {
       await submitRelayQuotes(request);
 
       expect(updateTransactionMock).toHaveBeenCalledWith(
@@ -217,23 +355,28 @@ describe('Relay Submit Utils', () => {
       });
     });
 
-    it('returns hash if skipTransaction is true', async () => {
-      request.quotes[0].original.skipTransaction = true;
+    it('returns target hash', async () => {
       const result = await submitRelayQuotes(request);
       expect(result.transactionHash).toBe(TRANSACTION_HASH_MOCK);
     });
 
-    it('does not return hash if skipTransaction is false', async () => {
+    it('returns fallback hash if none included', async () => {
+      successfulFetchMock.mockResolvedValue({
+        json: async () => ({
+          ...STATUS_RESPONSE_MOCK,
+          txHashes: [],
+        }),
+      } as Response);
+
       const result = await submitRelayQuotes(request);
-      expect(result.transactionHash).toBeUndefined();
+      expect(result.transactionHash).toBe('0x0');
     });
 
     it('adds required transaction IDs', async () => {
       await submitRelayQuotes(request);
 
-      const updateFn = updateTransactionMock.mock.calls[0][1];
-      const txDraft = {} as TransactionMeta;
-      updateFn(txDraft);
+      const txDraft = { txParams: {} } as TransactionMeta;
+      updateTransactionMock.mock.calls.map((call) => call[1](txDraft));
 
       expect(txDraft.requiredTransactionIds).toStrictEqual([
         TRANSACTION_META_MOCK.id,

@@ -403,7 +403,7 @@ Array [
       "usd_quoted_gas": 0,
       "usd_quoted_return": 100,
       "warnings": Array [
-        "warning1",
+        "insufficient_balance",
       ],
     },
   ],
@@ -494,7 +494,7 @@ Array [
       "usd_quoted_gas": 0,
       "usd_quoted_return": 100,
       "warnings": Array [
-        "warning1",
+        "low_return",
       ],
     },
   ],
@@ -787,7 +787,7 @@ Object {
   "quotes": Array [],
   "quotesInitialLoadTime": null,
   "quotesLastFetched": null,
-  "quotesLoadingStatus": null,
+  "quotesLoadingStatus": 0,
   "quotesRefreshCount": 0,
 }
 `;
