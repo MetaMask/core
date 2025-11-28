@@ -58,7 +58,7 @@ export class InMemoryStorageAdapter implements StorageAdapter {
     }
 
     try {
-      const result = JSON.parse(serialized) as Json;
+      const result = JSON.parse(serialized);
       return { result };
     } catch (error) {
       console.error(`Failed to parse stored data for ${fullKey}:`, error);
