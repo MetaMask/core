@@ -154,63 +154,55 @@ describe('ProfileMetricsController', () => {
     });
 
     describe('when AccountsController:accountAdded is published', () => {
-      it('adds the new account to the sync queue if the user has opted in and the account has an entropy source id', async () => {
-        await withController(
-          { options: { assertUserOptedIn: () => true } },
-          async ({ controller, rootMessenger }) => {
-            const newAccount = createMockAccount('0xNewAccount');
+      describe.each([
+        { assertUserOptedIn: true },
+        { assertUserOptedIn: false },
+      ])(
+        'when assertUserOptedIn is $assertUserOptedIn',
+        ({ assertUserOptedIn }) => {
+          it('adds the new account to the sync queue if the account has an entropy source id', async () => {
+            await withController(
+              { options: { assertUserOptedIn: () => assertUserOptedIn } },
+              async ({ controller, rootMessenger }) => {
+                const newAccount = createMockAccount('0xNewAccount');
 
-            rootMessenger.publish(
-              'AccountsController:accountAdded',
-              newAccount,
+                rootMessenger.publish(
+                  'AccountsController:accountAdded',
+                  newAccount,
+                );
+                // Wait for async operations to complete.
+                await Promise.resolve();
+
+                expect(controller.state.syncQueue).toStrictEqual({
+                  'entropy-0xNewAccount': [
+                    { address: '0xNewAccount', scopes: ['eip155:1'] },
+                  ],
+                });
+              },
             );
-            // Wait for async operations to complete.
-            await Promise.resolve();
+          });
 
-            expect(controller.state.syncQueue).toStrictEqual({
-              'entropy-0xNewAccount': [
-                { address: '0xNewAccount', scopes: ['eip155:1'] },
-              ],
-            });
-          },
-        );
-      });
+          it('adds the new account to the sync queue under `null` if the account has no entropy source id', async () => {
+            await withController(
+              { options: { assertUserOptedIn: () => assertUserOptedIn } },
+              async ({ controller, rootMessenger }) => {
+                const newAccount = createMockAccount('0xNewAccount', false);
 
-      it('adds the new account to the sync queue under `null` if the user has opted in and the account has no entropy source id', async () => {
-        await withController(
-          { options: { assertUserOptedIn: () => true } },
-          async ({ controller, rootMessenger }) => {
-            const newAccount = createMockAccount('0xNewAccount', false);
+                rootMessenger.publish(
+                  'AccountsController:accountAdded',
+                  newAccount,
+                );
+                // Wait for async operations to complete.
+                await Promise.resolve();
 
-            rootMessenger.publish(
-              'AccountsController:accountAdded',
-              newAccount,
+                expect(controller.state.syncQueue).toStrictEqual({
+                  null: [{ address: '0xNewAccount', scopes: ['eip155:1'] }],
+                });
+              },
             );
-            // Wait for async operations to complete.
-            await Promise.resolve();
-
-            expect(controller.state.syncQueue).toStrictEqual({
-              null: [{ address: '0xNewAccount', scopes: ['eip155:1'] }],
-            });
-          },
-        );
-      });
-
-      it('does not add the new account to the sync queue if the user has not opted in', async () => {
-        await withController(
-          { options: { assertUserOptedIn: () => false } },
-          async ({ controller, rootMessenger }) => {
-            const newAccount = createMockAccount('0xNewAccount');
-
-            rootMessenger.publish(
-              'AccountsController:accountAdded',
-              newAccount,
-            );
-
-            expect(controller.state.syncQueue).toStrictEqual({});
-          },
-        );
-      });
+          });
+        },
+      );
     });
 
     describe('when AccountsController:accountRemoved is published', () => {
