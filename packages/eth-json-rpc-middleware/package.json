@@ -73,11 +73,11 @@
     "@metamask/network-controller": "^27.0.0",
     "@ts-bridge/cli": "^0.6.4",
     "@types/deep-freeze-strict": "^1.1.0",
-    "@types/jest": "^27.4.1",
+    "@types/jest": "^28.0.0",
     "@types/pify": "^5.0.2",
     "deep-freeze-strict": "^1.1.1",
     "deepmerge": "^4.2.2",
-    "jest": "^27.5.1",
+    "jest": "^28.0.0",
     "tsd": "^0.31.2",
     "typedoc": "^0.24.8",
     "typescript": "~5.3.3"

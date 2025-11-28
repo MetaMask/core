@@ -24,6 +24,8 @@ ignores:
   - 'jest-silent-reporter'
   - 'prettier-plugin-packagejson'
   - 'typescript-eslint'
+  # Jest environment referenced in `jest.config.scripts.js`
+  - 'jest-environment-node'
   # Ignore dependencies imported implicitly by tools
   - 'eslint-import-resolver-typescript'
   # Ignore dependencies which plug into the NPM lifecycle
