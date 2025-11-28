@@ -178,7 +178,7 @@ export class StorageService {
    * @param key - Storage key (e.g., 'npm:@metamask/example-snap:sourceCode').
    * @returns Parsed JSON data or null if not found.
    */
-  async getItem(namespace: string, key: string): Promise<Json | null> {
+  async getItem(namespace: string, key: string): Promise<Json> {
     // Adapter handles deserialization and unwrapping
     return await this.#storage.getItem(namespace, key);
   }
