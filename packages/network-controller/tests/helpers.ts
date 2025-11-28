@@ -22,13 +22,13 @@ import { FakeProvider } from '../../../tests/fake-provider';
 import type { FakeProviderStub } from '../../../tests/fake-provider';
 import { buildTestObject } from '../../../tests/helpers';
 import {
+  NetworkController,
   type BuiltInNetworkClientId,
   type CustomNetworkClientId,
   type NetworkClient,
   type NetworkClientConfiguration,
   type NetworkClientId,
   type NetworkConfiguration,
-  type NetworkController,
 } from '../src';
 import type { AutoManagedNetworkClient } from '../src/create-auto-managed-network-client';
 import type {
@@ -37,6 +37,7 @@ import type {
   CustomRpcEndpoint,
   InfuraRpcEndpoint,
   NetworkControllerMessenger,
+  NetworkControllerOptions,
   UpdateNetworkCustomRpcEndpointFields,
 } from '../src/NetworkController';
 import { RpcEndpointType } from '../src/NetworkController';
@@ -597,4 +598,51 @@ function generateCustomRpcEndpointUrl(): string {
   const url = `https://test.endpoint/${testEndpointCounter}`;
   testEndpointCounter += 1;
   return url;
+}
+
+type WithControllerCallback<ReturnValue> = ({
+  controller,
+}: {
+  controller: NetworkController;
+  messenger: RootMessenger;
+  networkControllerMessenger: NetworkControllerMessenger;
+}) => Promise<ReturnValue> | ReturnValue;
+
+type WithControllerOptions = Partial<NetworkControllerOptions>;
+
+type WithControllerArgs<ReturnValue> =
+  | [WithControllerCallback<ReturnValue>]
+  | [WithControllerOptions, WithControllerCallback<ReturnValue>];
+
+/**
+ * Builds a controller based on the given options, and calls the given function
+ * with that controller.
+ *
+ * @param args - Either a function, or an options bag + a function. The options
+ * bag is equivalent to the options that NetworkController takes (although
+ * `messenger` and `infuraProjectId` are  filled in if not given); the function
+ * will be called with the built controller.
+ * @returns Whatever the callback returns.
+ */
+export async function withController<ReturnValue>(
+  ...args: WithControllerArgs<ReturnValue>
+): Promise<ReturnValue> {
+  const [{ ...rest }, fn] = args.length === 2 ? args : [{}, args[0]];
+  const messenger = buildRootMessenger();
+  const networkControllerMessenger = buildNetworkControllerMessenger(messenger);
+  const controller = new NetworkController({
+    messenger: networkControllerMessenger,
+    infuraProjectId: 'infura-project-id',
+    getRpcServiceOptions: () => ({
+      fetch,
+      btoa,
+    }),
+    ...rest,
+  });
+  try {
+    return await fn({ controller, messenger, networkControllerMessenger });
+  } finally {
+    const { blockTracker } = controller.getProviderAndBlockTracker();
+    await blockTracker?.destroy();
+  }
 }
