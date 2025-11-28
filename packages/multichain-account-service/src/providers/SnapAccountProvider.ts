@@ -115,12 +115,12 @@ export abstract class SnapAccountProvider extends BaseBip44AccountProvider {
     const account = this.getAnyAccount();
     if (account) {
       log(
-        `Ping (used "${KeyringRpcMethod.GetAccount}" and "${account.id}" with Snap: ${this.snapId}`,
+        `Ping (used "${KeyringRpcMethod.GetAccount}" with "${account.id}") with Snap: ${this.snapId}`,
       );
       await this.client.getAccount(account.id);
     } else {
       log(
-        `Ping (used "${KeyringRpcMethod.ListAccounts}" with Snap: ${this.snapId}`,
+        `Ping (used "${KeyringRpcMethod.ListAccounts}") with Snap: ${this.snapId}`,
       );
       await this.client.listAccounts();
     }
