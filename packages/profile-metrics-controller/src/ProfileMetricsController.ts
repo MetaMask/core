@@ -225,6 +225,9 @@ export class ProfileMetricsController extends StaticIntervalPollingController()<
    */
   async _executePoll(): Promise<void> {
     await this.#mutex.runExclusive(async () => {
+      if (!this.#assertUserOptedIn()) {
+        return;
+      }
       for (const [entropySourceId, accounts] of Object.entries(
         this.state.syncQueue,
       )) {
@@ -257,7 +260,7 @@ export class ProfileMetricsController extends StaticIntervalPollingController()<
    */
   async #queueFirstSyncIfNeeded() {
     await this.#mutex.runExclusive(async () => {
-      if (this.state.initialEnqueueCompleted || !this.#assertUserOptedIn()) {
+      if (this.state.initialEnqueueCompleted) {
         return;
       }
       const newGroupedAccounts = groupAccountsByEntropySourceId(
@@ -282,9 +285,6 @@ export class ProfileMetricsController extends StaticIntervalPollingController()<
    */
   async #addAccountToQueue(account: InternalAccount) {
     await this.#mutex.runExclusive(async () => {
-      if (!this.#assertUserOptedIn()) {
-        return;
-      }
       this.update((state) => {
         const entropySourceId = getAccountEntropySourceId(account) || 'null';
         if (!state.syncQueue[entropySourceId]) {

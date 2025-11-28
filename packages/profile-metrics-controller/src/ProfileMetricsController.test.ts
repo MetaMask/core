@@ -73,58 +73,37 @@ describe('ProfileMetricsController', () => {
       });
 
       describe('when `initialEnqueueCompleted` is false', () => {
-        it('adds existing accounts to the queue if the user opted in', async () => {
-          await withController(
-            { options: { assertUserOptedIn: () => true } },
-            async ({ controller, rootMessenger }) => {
-              rootMessenger.registerActionHandler(
-                'AccountsController:listAccounts',
-                () => {
-                  return [
-                    createMockAccount('0xAccount1'),
-                    createMockAccount('0xAccount2', false),
-                  ];
-                },
-              );
+        it.each([{ assertUserOptedIn: true }, { assertUserOptedIn: false }])(
+          'adds existing accounts to the queue when `assertUserOptedIn` is $assertUserOptedIn',
+          async ({ assertUserOptedIn }) => {
+            await withController(
+              { options: { assertUserOptedIn: () => assertUserOptedIn } },
+              async ({ controller, rootMessenger }) => {
+                rootMessenger.registerActionHandler(
+                  'AccountsController:listAccounts',
+                  () => {
+                    return [
+                      createMockAccount('0xAccount1'),
+                      createMockAccount('0xAccount2', false),
+                    ];
+                  },
+                );
 
-              rootMessenger.publish('KeyringController:unlock');
-              // Wait for async operations to complete.
-              await Promise.resolve();
+                rootMessenger.publish('KeyringController:unlock');
+                // Wait for async operations to complete.
+                await Promise.resolve();
 
-              expect(controller.state.initialEnqueueCompleted).toBe(true);
-              expect(controller.state.syncQueue).toStrictEqual({
-                'entropy-0xAccount1': [
-                  { address: '0xAccount1', scopes: ['eip155:1'] },
-                ],
-                null: [{ address: '0xAccount2', scopes: ['eip155:1'] }],
-              });
-            },
-          );
-        });
-
-        it('does not add existing accounts to the queue if the user has not opted in', async () => {
-          await withController(
-            { options: { assertUserOptedIn: () => false } },
-            async ({ controller, rootMessenger }) => {
-              rootMessenger.registerActionHandler(
-                'AccountsController:listAccounts',
-                () => {
-                  return [
-                    createMockAccount('0xAccount1'),
-                    createMockAccount('0xAccount2'),
-                  ];
-                },
-              );
-
-              rootMessenger.publish('KeyringController:unlock');
-              // Wait for async operations to complete.
-              await Promise.resolve();
-
-              expect(controller.state.initialEnqueueCompleted).toBe(false);
-              expect(controller.state.syncQueue).toStrictEqual({});
-            },
-          );
-        });
+                expect(controller.state.initialEnqueueCompleted).toBe(true);
+                expect(controller.state.syncQueue).toStrictEqual({
+                  'entropy-0xAccount1': [
+                    { address: '0xAccount1', scopes: ['eip155:1'] },
+                  ],
+                  null: [{ address: '0xAccount2', scopes: ['eip155:1'] }],
+                });
+              },
+            );
+          },
+        );
       });
 
       describe('when `initialEnqueueCompleted` is true', () => {
@@ -309,105 +288,129 @@ describe('ProfileMetricsController', () => {
   });
 
   describe('_executePoll', () => {
-    it('processes the sync queue on each poll', async () => {
-      const accounts: Record<string, AccountWithScopes[]> = {
-        id1: [{ address: '0xAccount1', scopes: ['eip155:1'] }],
-      };
-      await withController(
-        {
-          options: { state: { syncQueue: accounts } },
-        },
-        async ({ controller, getMetaMetricsId, mockUpdateProfile }) => {
-          await controller._executePoll();
+    describe('when the user has not opted in to profile metrics', () => {
+      it('does not process the sync queue', async () => {
+        const accounts: Record<string, AccountWithScopes[]> = {
+          id1: [{ address: '0xAccount1', scopes: ['eip155:1'] }],
+        };
+        await withController(
+          {
+            options: {
+              assertUserOptedIn: () => false,
+              state: { syncQueue: accounts },
+            },
+          },
+          async ({ controller, mockSubmitMetrics }) => {
+            await controller._executePoll();
 
-          expect(mockUpdateProfile).toHaveBeenCalledTimes(1);
-          expect(mockUpdateProfile).toHaveBeenCalledWith({
-            metametricsId: getMetaMetricsId(),
-            entropySourceId: 'id1',
-            accounts: [{ address: '0xAccount1', scopes: ['eip155:1'] }],
-          });
-          expect(controller.state.syncQueue).toStrictEqual({});
-        },
-      );
+            expect(mockSubmitMetrics).not.toHaveBeenCalled();
+            expect(controller.state.syncQueue).toStrictEqual(accounts);
+          },
+        );
+      });
     });
 
-    it('processes the sync queue in batches grouped by entropySourceId', async () => {
-      const accounts: Record<string, AccountWithScopes[]> = {
-        id1: [
-          { address: '0xAccount1', scopes: ['eip155:1'] },
-          { address: '0xAccount2', scopes: ['eip155:1'] },
-        ],
-        id2: [{ address: '0xAccount3', scopes: ['eip155:1'] }],
-        null: [{ address: '0xAccount4', scopes: ['eip155:1'] }],
-      };
-      await withController(
-        {
-          options: { state: { syncQueue: accounts } },
-        },
-        async ({ controller, getMetaMetricsId, mockUpdateProfile }) => {
-          await controller._executePoll();
+    describe('when the user has opted in to profile metrics', () => {
+      it('processes the sync queue on each poll', async () => {
+        const accounts: Record<string, AccountWithScopes[]> = {
+          id1: [{ address: '0xAccount1', scopes: ['eip155:1'] }],
+        };
+        await withController(
+          {
+            options: { state: { syncQueue: accounts } },
+          },
+          async ({ controller, getMetaMetricsId, mockSubmitMetrics }) => {
+            await controller._executePoll();
 
-          expect(mockUpdateProfile).toHaveBeenCalledTimes(3);
-          expect(mockUpdateProfile).toHaveBeenNthCalledWith(1, {
-            metametricsId: getMetaMetricsId(),
-            entropySourceId: 'id1',
-            accounts: [
-              { address: '0xAccount1', scopes: ['eip155:1'] },
-              { address: '0xAccount2', scopes: ['eip155:1'] },
-            ],
-          });
-          expect(mockUpdateProfile).toHaveBeenNthCalledWith(2, {
-            metametricsId: getMetaMetricsId(),
-            entropySourceId: 'id2',
-            accounts: [{ address: '0xAccount3', scopes: ['eip155:1'] }],
-          });
-          expect(mockUpdateProfile).toHaveBeenNthCalledWith(3, {
-            metametricsId: getMetaMetricsId(),
-            entropySourceId: null,
-            accounts: [{ address: '0xAccount4', scopes: ['eip155:1'] }],
-          });
-          expect(controller.state.syncQueue).toStrictEqual({});
-        },
-      );
-    });
+            expect(mockSubmitMetrics).toHaveBeenCalledTimes(1);
+            expect(mockSubmitMetrics).toHaveBeenCalledWith({
+              metametricsId: getMetaMetricsId(),
+              entropySourceId: 'id1',
+              accounts: [{ address: '0xAccount1', scopes: ['eip155:1'] }],
+            });
+            expect(controller.state.syncQueue).toStrictEqual({});
+          },
+        );
+      });
 
-    it('skips one of the batches if the :submitMetrics call fails, but continues processing the rest', async () => {
-      const accounts: Record<string, AccountWithScopes[]> = {
-        id1: [{ address: '0xAccount1', scopes: ['eip155:1'] }],
-        id2: [{ address: '0xAccount2', scopes: ['eip155:1'] }],
-      };
-      await withController(
-        {
-          options: { state: { syncQueue: accounts } },
-        },
-        async ({ controller, getMetaMetricsId, mockUpdateProfile }) => {
-          const consoleErrorSpy = jest.spyOn(console, 'error');
-          mockUpdateProfile.mockImplementationOnce(() => {
-            throw new Error('Network error');
-          });
+      it('processes the sync queue in batches grouped by entropySourceId', async () => {
+        const accounts: Record<string, AccountWithScopes[]> = {
+          id1: [
+            { address: '0xAccount1', scopes: ['eip155:1'] },
+            { address: '0xAccount2', scopes: ['eip155:1'] },
+          ],
+          id2: [{ address: '0xAccount3', scopes: ['eip155:1'] }],
+          null: [{ address: '0xAccount4', scopes: ['eip155:1'] }],
+        };
+        await withController(
+          {
+            options: { state: { syncQueue: accounts } },
+          },
+          async ({ controller, getMetaMetricsId, mockSubmitMetrics }) => {
+            await controller._executePoll();
 
-          await controller._executePoll();
+            expect(mockSubmitMetrics).toHaveBeenCalledTimes(3);
+            expect(mockSubmitMetrics).toHaveBeenNthCalledWith(1, {
+              metametricsId: getMetaMetricsId(),
+              entropySourceId: 'id1',
+              accounts: [
+                { address: '0xAccount1', scopes: ['eip155:1'] },
+                { address: '0xAccount2', scopes: ['eip155:1'] },
+              ],
+            });
+            expect(mockSubmitMetrics).toHaveBeenNthCalledWith(2, {
+              metametricsId: getMetaMetricsId(),
+              entropySourceId: 'id2',
+              accounts: [{ address: '0xAccount3', scopes: ['eip155:1'] }],
+            });
+            expect(mockSubmitMetrics).toHaveBeenNthCalledWith(3, {
+              metametricsId: getMetaMetricsId(),
+              entropySourceId: null,
+              accounts: [{ address: '0xAccount4', scopes: ['eip155:1'] }],
+            });
+            expect(controller.state.syncQueue).toStrictEqual({});
+          },
+        );
+      });
 
-          expect(mockUpdateProfile).toHaveBeenCalledTimes(2);
-          expect(mockUpdateProfile).toHaveBeenNthCalledWith(1, {
-            metametricsId: getMetaMetricsId(),
-            entropySourceId: 'id1',
-            accounts: [{ address: '0xAccount1', scopes: ['eip155:1'] }],
-          });
-          expect(mockUpdateProfile).toHaveBeenNthCalledWith(2, {
-            metametricsId: getMetaMetricsId(),
-            entropySourceId: 'id2',
-            accounts: [{ address: '0xAccount2', scopes: ['eip155:1'] }],
-          });
-          expect(controller.state.syncQueue).toStrictEqual({
-            id1: [{ address: '0xAccount1', scopes: ['eip155:1'] }],
-          });
-          expect(consoleErrorSpy).toHaveBeenCalledWith(
-            'Failed to submit profile metrics for entropy source ID id1:',
-            expect.any(Error),
-          );
-        },
-      );
+      it('skips one of the batches if the :submitMetrics call fails, but continues processing the rest', async () => {
+        const accounts: Record<string, AccountWithScopes[]> = {
+          id1: [{ address: '0xAccount1', scopes: ['eip155:1'] }],
+          id2: [{ address: '0xAccount2', scopes: ['eip155:1'] }],
+        };
+        await withController(
+          {
+            options: { state: { syncQueue: accounts } },
+          },
+          async ({ controller, getMetaMetricsId, mockSubmitMetrics }) => {
+            const consoleErrorSpy = jest.spyOn(console, 'error');
+            mockSubmitMetrics.mockImplementationOnce(() => {
+              throw new Error('Network error');
+            });
+
+            await controller._executePoll();
+
+            expect(mockSubmitMetrics).toHaveBeenCalledTimes(2);
+            expect(mockSubmitMetrics).toHaveBeenNthCalledWith(1, {
+              metametricsId: getMetaMetricsId(),
+              entropySourceId: 'id1',
+              accounts: [{ address: '0xAccount1', scopes: ['eip155:1'] }],
+            });
+            expect(mockSubmitMetrics).toHaveBeenNthCalledWith(2, {
+              metametricsId: getMetaMetricsId(),
+              entropySourceId: 'id2',
+              accounts: [{ address: '0xAccount2', scopes: ['eip155:1'] }],
+            });
+            expect(controller.state.syncQueue).toStrictEqual({
+              id1: [{ address: '0xAccount1', scopes: ['eip155:1'] }],
+            });
+            expect(consoleErrorSpy).toHaveBeenCalledWith(
+              'Failed to submit profile metrics for entropy source ID id1:',
+              expect.any(Error),
+            );
+          },
+        );
+      });
     });
   });
 
@@ -495,7 +498,7 @@ type WithControllerCallback<ReturnValue> = (payload: {
   messenger: ProfileMetricsControllerMessenger;
   assertUserOptedIn: jest.Mock<boolean, []>;
   getMetaMetricsId: jest.Mock<string, []>;
-  mockUpdateProfile: jest.Mock<
+  mockSubmitMetrics: jest.Mock<
     Promise<void>,
     [ProfileMetricsSubmitMetricsRequest]
   >;
@@ -566,14 +569,14 @@ async function withController<ReturnValue>(
 ): Promise<ReturnValue> {
   const [{ options = {} }, testFunction] =
     args.length === 2 ? args : [{}, args[0]];
-  const mockUpdateProfile = jest.fn();
+  const mockSubmitMetrics = jest.fn();
   const mockAssertUserOptedIn = jest.fn().mockReturnValue(true);
   const mockGetMetaMetricsId = jest.fn().mockReturnValue('test-metrics-id');
 
   const rootMessenger = getRootMessenger();
   rootMessenger.registerActionHandler(
     'ProfileMetricsService:submitMetrics',
-    mockUpdateProfile,
+    mockSubmitMetrics,
   );
 
   const messenger = getMessenger(rootMessenger);
@@ -590,6 +593,6 @@ async function withController<ReturnValue>(
     messenger,
     assertUserOptedIn: mockAssertUserOptedIn,
     getMetaMetricsId: mockGetMetaMetricsId,
-    mockUpdateProfile,
+    mockSubmitMetrics,
   });
 }
