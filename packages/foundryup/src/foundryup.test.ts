@@ -55,7 +55,21 @@ jest.mock('fs/promises', () => {
 jest.mock('fs');
 jest.mock('yaml');
 jest.mock('os', () => ({
+  __esModule: true,
   homedir: jest.fn().mockReturnValue('/home/user'),
+  platform: jest.fn().mockReturnValue('linux'),
+  arch: jest.fn().mockReturnValue('x64'),
+}));
+jest.mock('node:os', () => ({
+  __esModule: true,
+  homedir: jest.fn().mockReturnValue('/home/user'),
+  platform: jest.fn().mockReturnValue('linux'),
+  arch: jest.fn().mockReturnValue('x64'),
+}));
+
+jest.mock('./utils', () => ({
+  ...jest.requireActual('./utils'),
+  normalizeSystemArchitecture: jest.fn().mockReturnValue('x64'),
 }));
 
 jest.mock('./options', () => ({

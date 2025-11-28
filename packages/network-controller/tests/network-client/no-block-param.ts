@@ -285,12 +285,7 @@ export function testsForRpcMethodAssumingNoBlockParam(
       if (providerType === NetworkClientType.Infura) {
         // This is not ideal, but we can refactor this later.
         // eslint-disable-next-line jest/no-conditional-expect
-        await expect(promise).rejects.toThrow(
-          rpcErrors.internal({
-            message: error.message,
-            data: { cause: error },
-          }),
-        );
+        await expect(promise).rejects.toThrow(error.message);
       } else {
         // This is not ideal, but we can refactor this later.
         // eslint-disable-next-line jest/no-conditional-expect

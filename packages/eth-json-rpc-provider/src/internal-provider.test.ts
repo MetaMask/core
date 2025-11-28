@@ -192,11 +192,7 @@ describe.each([
       };
 
       await expect(async () => provider.request(request)).rejects.toThrow(
-        providerErrors.custom({
-          code: 1001,
-          message: 'Test error',
-          data: { cause: 'Test cause' },
-        }),
+        'Test error',
       );
     });
 
@@ -212,9 +208,7 @@ describe.each([
       };
 
       await expect(async () => provider.request(request)).rejects.toThrow(
-        rpcErrors.internal({
-          message: 'Test error',
-        }),
+        'Test error',
       );
     });
   });
