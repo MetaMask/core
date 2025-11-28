@@ -6,8 +6,8 @@ import type {
 import type { Hex } from '@metamask/utils';
 import { cloneDeep } from 'lodash';
 
-import { getRelayQuotes } from './relay-quotes';
 import { CHAIN_ID_HYPERCORE } from './constants';
+import { getRelayQuotes } from './relay-quotes';
 import type { RelayQuote } from './types';
 import {
   ARBITRUM_USDC_ADDRESS,
