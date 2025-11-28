@@ -499,7 +499,7 @@ describe('Token service', () => {
 
       nock(TOKEN_END_POINT_API)
         .get(
-          `/tokens/search?chainIds=${encodeURIComponent(sampleCaipChainId)}&query=${searchQuery}&limit=10&includeMarketData=false`,
+          `/tokens/search?networks=${encodeURIComponent(sampleCaipChainId)}&query=${searchQuery}&limit=10&includeMarketData=false`,
         )
         .reply(200, mockResponse)
         .persist();
@@ -523,7 +523,7 @@ describe('Token service', () => {
 
       nock(TOKEN_END_POINT_API)
         .get(
-          `/tokens/search?chainIds=${encodeURIComponent(sampleCaipChainId)}&query=${searchQuery}&limit=${customLimit}&includeMarketData=false`,
+          `/tokens/search?networks=${encodeURIComponent(sampleCaipChainId)}&query=${searchQuery}&limit=${customLimit}&includeMarketData=false`,
         )
         .reply(200, mockResponse)
         .persist();
@@ -549,7 +549,7 @@ describe('Token service', () => {
 
       nock(TOKEN_END_POINT_API)
         .get(
-          `/tokens/search?chainIds=${encodeURIComponent(sampleCaipChainId)}&query=${encodedQuery}&limit=10&includeMarketData=false`,
+          `/tokens/search?networks=${encodeURIComponent(sampleCaipChainId)}&query=${encodedQuery}&limit=10&includeMarketData=false`,
         )
         .reply(200, mockResponse)
         .persist();
@@ -575,7 +575,7 @@ describe('Token service', () => {
 
       nock(TOKEN_END_POINT_API)
         .get(
-          `/tokens/search?chainIds=${encodedChainIds}&query=${searchQuery}&limit=10&includeMarketData=false`,
+          `/tokens/search?networks=${encodedChainIds}&query=${searchQuery}&limit=10&includeMarketData=false`,
         )
         .reply(200, mockResponse)
         .persist();
@@ -595,7 +595,7 @@ describe('Token service', () => {
       const searchQuery = 'USD';
       nock(TOKEN_END_POINT_API)
         .get(
-          `/tokens/search?chainIds=${encodeURIComponent(sampleCaipChainId)}&query=${searchQuery}&limit=10&includeMarketData=false`,
+          `/tokens/search?networks=${encodeURIComponent(sampleCaipChainId)}&query=${searchQuery}&limit=10&includeMarketData=false`,
         )
         .replyWithError('Example network error')
         .persist();
@@ -609,7 +609,7 @@ describe('Token service', () => {
       const searchQuery = 'USD';
       nock(TOKEN_END_POINT_API)
         .get(
-          `/tokens/search?chainIds=${encodeURIComponent(sampleCaipChainId)}&query=${searchQuery}&limit=10&includeMarketData=false`,
+          `/tokens/search?networks=${encodeURIComponent(sampleCaipChainId)}&query=${searchQuery}&limit=10&includeMarketData=false`,
         )
         .reply(400, { error: 'Bad Request' })
         .persist();
@@ -623,7 +623,7 @@ describe('Token service', () => {
       const searchQuery = 'USD';
       nock(TOKEN_END_POINT_API)
         .get(
-          `/tokens/search?chainIds=${encodeURIComponent(sampleCaipChainId)}&query=${searchQuery}&limit=10&includeMarketData=false`,
+          `/tokens/search?networks=${encodeURIComponent(sampleCaipChainId)}&query=${searchQuery}&limit=10&includeMarketData=false`,
         )
         .reply(500)
         .persist();
@@ -643,7 +643,7 @@ describe('Token service', () => {
 
       nock(TOKEN_END_POINT_API)
         .get(
-          `/tokens/search?chainIds=${encodeURIComponent(sampleCaipChainId)}&query=${searchQuery}&limit=10&includeMarketData=false`,
+          `/tokens/search?networks=${encodeURIComponent(sampleCaipChainId)}&query=${searchQuery}&limit=10&includeMarketData=false`,
         )
         .reply(200, mockResponse)
         .persist();
@@ -663,7 +663,7 @@ describe('Token service', () => {
 
       nock(TOKEN_END_POINT_API)
         .get(
-          `/tokens/search?chainIds=&query=${searchQuery}&limit=10&includeMarketData=false`,
+          `/tokens/search?networks=&query=${searchQuery}&limit=10&includeMarketData=false`,
         )
         .reply(200, mockResponse)
         .persist();
@@ -678,7 +678,7 @@ describe('Token service', () => {
       const errorResponse = { error: 'Invalid search query' };
       nock(TOKEN_END_POINT_API)
         .get(
-          `/tokens/search?chainIds=${encodeURIComponent(sampleCaipChainId)}&query=${searchQuery}&limit=10&includeMarketData=false`,
+          `/tokens/search?networks=${encodeURIComponent(sampleCaipChainId)}&query=${searchQuery}&limit=10&includeMarketData=false`,
         )
         .reply(200, errorResponse)
         .persist();
@@ -711,7 +711,7 @@ describe('Token service', () => {
 
       nock(TOKEN_END_POINT_API)
         .get(
-          `/tokens/search?chainIds=${encodedChainIds}&query=${searchQuery}&limit=10&includeMarketData=false`,
+          `/tokens/search?networks=${encodedChainIds}&query=${searchQuery}&limit=10&includeMarketData=false`,
         )
         .reply(200, mockResponse)
         .persist();
@@ -734,7 +734,7 @@ describe('Token service', () => {
 
       nock(TOKEN_END_POINT_API)
         .get(
-          `/tokens/search?chainIds=${encodeURIComponent(sampleCaipChainId)}&query=${searchQuery}&limit=10&includeMarketData=true`,
+          `/tokens/search?networks=${encodeURIComponent(sampleCaipChainId)}&query=${searchQuery}&limit=10&includeMarketData=true`,
         )
         .reply(200, mockResponse)
         .persist();
