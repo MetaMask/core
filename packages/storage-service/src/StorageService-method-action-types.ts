@@ -38,7 +38,7 @@ export type StorageServiceSetItemAction = {
  *
  * @param namespace - Controller namespace (e.g., 'SnapController').
  * @param key - Storage key (e.g., 'npm:@metamask/example-snap:sourceCode').
- * @returns Parsed JSON data or null if not found.
+ * @returns StorageGetResult: { result } if found, {} if not found, { error } on failure.
  */
 export type StorageServiceGetItemAction = {
   type: `StorageService:getItem`;
