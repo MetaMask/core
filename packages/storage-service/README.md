@@ -50,12 +50,17 @@ class MyController extends BaseController<...> {
     );
   }
 
-  async getData(id: string): Promise<unknown> {
-    return await this.messenger.call(
+  async getData(id: string): Promise<string | undefined> {
+    const { result, error } = await this.messenger.call(
       'StorageService:getItem',
       'MyController',
       `${id}:data`,
     );
+    if (error) {
+      throw error;
+    }
+    // result is undefined if key doesn't exist
+    return result as string | undefined;
   }
 }
 ```
@@ -98,9 +103,17 @@ this.messenger.subscribe(
 Implement this interface to provide platform-specific storage:
 
 ```typescript
+import type { Json } from '@metamask/utils';
+
+// Response type for getItem - distinguishes found, not found, and error
+type StorageGetResult =
+  | { result: Json; error?: never }  // Data found
+  | { result?: never; error: Error } // Error occurred
+  | Record<string, never>;            // Key doesn't exist (empty object)
+
 export type StorageAdapter = {
-  getItem(namespace: string, key: string): Promise<unknown>;
-  setItem(namespace: string, key: string, value: unknown): Promise<void>;
+  getItem(namespace: string, key: string): Promise<StorageGetResult>;
+  setItem(namespace: string, key: string, value: Json): Promise<void>;
   removeItem(namespace: string, key: string): Promise<void>;
   getAllKeys(namespace: string): Promise<string[]>;
   clear(namespace: string): Promise<void>;
@@ -110,8 +123,8 @@ export type StorageAdapter = {
 Adapters are responsible for:
 
 - Building the full storage key (e.g., `storageService:namespace:key`)
-- Wrapping data with metadata before serialization
-- Serializing/deserializing data
+- Serializing/deserializing JSON data
+- Returning the correct response format for getItem
 
 ## Contributing
 

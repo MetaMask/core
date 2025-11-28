@@ -1,6 +1,6 @@
 import type { Json } from '@metamask/utils';
 
-import type { StorageAdapter } from './types';
+import type { StorageAdapter, StorageGetResult } from './types';
 import { STORAGE_KEY_PREFIX } from './types';
 
 /**
@@ -46,23 +46,23 @@ export class InMemoryStorageAdapter implements StorageAdapter {
    *
    * @param namespace - The controller namespace.
    * @param key - The data key.
-   * @returns The parsed JSON data, or null if not found.
+   * @returns StorageGetResult: { result } if found, {} if not found, { error } on failure.
    */
-  async getItem(namespace: string, key: string): Promise<Json | null> {
+  async getItem(namespace: string, key: string): Promise<StorageGetResult> {
     const fullKey = `${STORAGE_KEY_PREFIX}${namespace}:${key}`;
     const serialized = this.#storage.get(fullKey);
 
-    if (!serialized) {
-      return null;
+    // Key not found - return empty object
+    if (serialized === undefined) {
+      return {};
     }
 
     try {
-      return JSON.parse(serialized) as Json;
+      const result = JSON.parse(serialized) as Json;
+      return { result };
     } catch (error) {
-      // istanbul ignore next - defensive error handling for corrupted data
       console.error(`Failed to parse stored data for ${fullKey}:`, error);
-      // istanbul ignore next
-      return null;
+      return { error: error as Error };
     }
   }
 

@@ -7,6 +7,7 @@ export { InMemoryStorageAdapter } from './InMemoryStorageAdapter';
 // Export types from types.ts
 export type {
   StorageAdapter,
+  StorageGetResult,
   StorageServiceOptions,
   StorageServiceActions,
   StorageServiceEvents,

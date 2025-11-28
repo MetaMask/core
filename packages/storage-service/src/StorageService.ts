@@ -3,6 +3,7 @@ import type { Json } from '@metamask/utils';
 import { InMemoryStorageAdapter } from './InMemoryStorageAdapter';
 import type {
   StorageAdapter,
+  StorageGetResult,
   StorageServiceMessenger,
   StorageServiceOptions,
 } from './types';
@@ -57,13 +58,16 @@ const MESSENGER_EXPOSED_METHODS = [
  *     );
  *   }
  *
- *   async getSnapSourceCode(snapId: string): Promise<string | null> {
- *     const result = await this.messenger.call(
+ *   async getSnapSourceCode(snapId: string): Promise<string | undefined> {
+ *     const { result, error } = await this.messenger.call(
  *       'StorageService:getItem',
  *       'SnapController',
  *       `${snapId}:sourceCode`,
  *     );
- *     return result as string | null; // Caller must validate/cast
+ *     if (error) {
+ *       throw error; // Handle error
+ *     }
+ *     return result as string | undefined; // undefined if not found
  *   }
  * }
  * ```
@@ -176,9 +180,9 @@ export class StorageService {
    *
    * @param namespace - Controller namespace (e.g., 'SnapController').
    * @param key - Storage key (e.g., 'npm:@metamask/example-snap:sourceCode').
-   * @returns Parsed JSON data or null if not found.
+   * @returns StorageGetResult: { result } if found, {} if not found, { error } on failure.
    */
-  async getItem(namespace: string, key: string): Promise<Json | null> {
+  async getItem(namespace: string, key: string): Promise<StorageGetResult> {
     // Adapter handles deserialization and unwrapping
     return await this.#storage.getItem(namespace, key);
   }

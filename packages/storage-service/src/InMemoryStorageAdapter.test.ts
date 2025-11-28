@@ -2,32 +2,71 @@ import { InMemoryStorageAdapter } from './InMemoryStorageAdapter';
 
 describe('InMemoryStorageAdapter', () => {
   describe('getItem', () => {
-    it('returns null for non-existent keys', async () => {
+    it('returns empty object {} for non-existent keys', async () => {
       const adapter = new InMemoryStorageAdapter();
 
-      const result = await adapter.getItem('TestNamespace', 'nonExistent');
+      const response = await adapter.getItem('TestNamespace', 'nonExistent');
 
-      expect(result).toBeNull();
+      expect(response).toStrictEqual({});
     });
 
-    it('retrieves previously stored values', async () => {
+    it('returns { result } with previously stored values', async () => {
       const adapter = new InMemoryStorageAdapter();
 
       await adapter.setItem('TestNamespace', 'testKey', 'testValue');
-      const result = await adapter.getItem('TestNamespace', 'testKey');
+      const response = await adapter.getItem('TestNamespace', 'testKey');
 
-      expect(result).toBe('testValue');
+      expect(response).toStrictEqual({ result: 'testValue' });
+    });
+
+    it('returns { result: null } when null was explicitly stored', async () => {
+      const adapter = new InMemoryStorageAdapter();
+
+      await adapter.setItem('TestNamespace', 'nullKey', null);
+      const response = await adapter.getItem('TestNamespace', 'nullKey');
+
+      // This is different from {} - data WAS found, and it was null
+      expect(response).toStrictEqual({ result: null });
+    });
+
+    it('returns { error } when stored data is corrupted', async () => {
+      const adapter = new InMemoryStorageAdapter();
+      const consoleErrorSpy = jest
+        .spyOn(console, 'error')
+        .mockImplementation();
+      const parseError = new SyntaxError('Unexpected token');
+
+      // Store valid data first
+      await adapter.setItem('TestNamespace', 'corruptKey', 'validValue');
+
+      // Mock JSON.parse to throw on the next call (simulating corruption)
+      const originalParse = JSON.parse;
+      jest.spyOn(JSON, 'parse').mockImplementationOnce(() => {
+        throw parseError;
+      });
+
+      const response = await adapter.getItem('TestNamespace', 'corruptKey');
+
+      expect(response).toStrictEqual({ error: parseError });
+      expect(consoleErrorSpy).toHaveBeenCalledWith(
+        expect.stringContaining('Failed to parse stored data'),
+        parseError,
+      );
+
+      // Restore
+      JSON.parse = originalParse;
+      consoleErrorSpy.mockRestore();
     });
   });
 
   describe('setItem', () => {
-    it('stores a value with wrapper', async () => {
+    it('stores a value that can be retrieved', async () => {
       const adapter = new InMemoryStorageAdapter();
 
       await adapter.setItem('TestNamespace', 'key', 'value');
-      const result = await adapter.getItem('TestNamespace', 'key');
+      const response = await adapter.getItem('TestNamespace', 'key');
 
-      expect(result).toBe('value');
+      expect(response).toStrictEqual({ result: 'value' });
     });
 
     it('stores objects', async () => {
@@ -35,36 +74,36 @@ describe('InMemoryStorageAdapter', () => {
       const obj = { foo: 'bar', num: 123 };
 
       await adapter.setItem('TestNamespace', 'key', obj);
-      const result = await adapter.getItem('TestNamespace', 'key');
+      const response = await adapter.getItem('TestNamespace', 'key');
 
-      expect(result).toStrictEqual(obj);
+      expect(response).toStrictEqual({ result: obj });
     });
 
     it('stores strings', async () => {
       const adapter = new InMemoryStorageAdapter();
 
       await adapter.setItem('TestNamespace', 'key', 'string value');
-      const result = await adapter.getItem('TestNamespace', 'key');
+      const response = await adapter.getItem('TestNamespace', 'key');
 
-      expect(result).toBe('string value');
+      expect(response).toStrictEqual({ result: 'string value' });
     });
 
     it('stores numbers', async () => {
       const adapter = new InMemoryStorageAdapter();
 
       await adapter.setItem('TestNamespace', 'key', 42);
-      const result = await adapter.getItem('TestNamespace', 'key');
+      const response = await adapter.getItem('TestNamespace', 'key');
 
-      expect(result).toBe(42);
+      expect(response).toStrictEqual({ result: 42 });
     });
 
     it('stores booleans', async () => {
       const adapter = new InMemoryStorageAdapter();
 
       await adapter.setItem('TestNamespace', 'key', true);
-      const result = await adapter.getItem('TestNamespace', 'key');
+      const response = await adapter.getItem('TestNamespace', 'key');
 
-      expect(result).toBe(true);
+      expect(response).toStrictEqual({ result: true });
     });
 
     it('overwrites existing values', async () => {
@@ -72,9 +111,9 @@ describe('InMemoryStorageAdapter', () => {
 
       await adapter.setItem('TestNamespace', 'key', 'oldValue');
       await adapter.setItem('TestNamespace', 'key', 'newValue');
-      const result = await adapter.getItem('TestNamespace', 'key');
+      const response = await adapter.getItem('TestNamespace', 'key');
 
-      expect(result).toBe('newValue');
+      expect(response).toStrictEqual({ result: 'newValue' });
     });
   });
 
@@ -84,9 +123,10 @@ describe('InMemoryStorageAdapter', () => {
 
       await adapter.setItem('TestNamespace', 'key', 'value');
       await adapter.removeItem('TestNamespace', 'key');
-      const result = await adapter.getItem('TestNamespace', 'key');
+      const response = await adapter.getItem('TestNamespace', 'key');
 
-      expect(result).toBeNull();
+      // After removal, key doesn't exist - returns empty object
+      expect(response).toStrictEqual({});
     });
 
     it('does not throw when removing non-existent key', async () => {
@@ -157,8 +197,10 @@ describe('InMemoryStorageAdapter', () => {
 
       await adapter.clear('Namespace1');
 
-      expect(await adapter.getItem('Namespace1', 'key')).toBeNull();
-      expect(await adapter.getItem('Namespace2', 'key')).toBe('value2');
+      expect(await adapter.getItem('Namespace1', 'key')).toStrictEqual({});
+      expect(await adapter.getItem('Namespace2', 'key')).toStrictEqual({
+        result: 'value2',
+      });
     });
   });
 
@@ -170,8 +212,12 @@ describe('InMemoryStorageAdapter', () => {
       await adapter1.setItem('TestNamespace', 'key', 'value1');
       await adapter2.setItem('TestNamespace', 'key', 'value2');
 
-      expect(await adapter1.getItem('TestNamespace', 'key')).toBe('value1');
-      expect(await adapter2.getItem('TestNamespace', 'key')).toBe('value2');
+      expect(await adapter1.getItem('TestNamespace', 'key')).toStrictEqual({
+        result: 'value1',
+      });
+      expect(await adapter2.getItem('TestNamespace', 'key')).toStrictEqual({
+        result: 'value2',
+      });
     });
   });
 
@@ -186,7 +232,4 @@ describe('InMemoryStorageAdapter', () => {
       expect(typeof adapter.clear).toBe('function');
     });
   });
-
-  // Note: Error handling for corrupted data is covered by istanbul ignore
-  // since private fields (#storage) can't be accessed to inject bad data
 });

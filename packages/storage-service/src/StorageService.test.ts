@@ -145,27 +145,26 @@ describe('StorageService', () => {
   });
 
   describe('getItem', () => {
-    it('retrieves and parses stored data', async () => {
+    it('returns { result } with stored data when key exists', async () => {
       const { service } = getService();
 
       await service.setItem('TestController', 'testKey', { data: 'test' });
-      const result = await service.getItem('TestController', 'testKey');
+      const response = await service.getItem('TestController', 'testKey');
 
-      expect(result).toStrictEqual({ data: 'test' });
+      expect(response).toStrictEqual({ result: { data: 'test' } });
     });
 
-    it('returns null for non-existent keys', async () => {
+    it('returns empty object {} for non-existent keys', async () => {
       const { service } = getService();
 
-      const result = await service.getItem('TestController', 'nonExistent');
+      const response = await service.getItem('TestController', 'nonExistent');
 
-      expect(result).toBeNull();
+      expect(response).toStrictEqual({});
     });
 
-    it('returns what adapter returns (adapter handles parsing)', async () => {
-      // Adapter now handles parsing internally and returns null for corrupt data
+    it('returns empty object {} when adapter returns not found', async () => {
       const mockStorage: StorageAdapter = {
-        getItem: jest.fn().mockResolvedValue(null), // Adapter returns null for corrupt data
+        getItem: jest.fn().mockResolvedValue({}), // Adapter returns {} for not found
         setItem: jest.fn(),
         removeItem: jest.fn(),
         getAllKeys: jest.fn().mockResolvedValue([]),
@@ -173,57 +172,67 @@ describe('StorageService', () => {
       };
       const { service } = getService({ storage: mockStorage });
 
-      const result = await service.getItem('TestController', 'corrupt');
+      const response = await service.getItem('TestController', 'missing');
 
-      expect(result).toBeNull();
-    });
-
-    it('handles storage returning null', async () => {
-      const mockStorage: StorageAdapter = {
-        getItem: jest.fn().mockResolvedValue(null),
-        setItem: jest.fn(),
-        removeItem: jest.fn(),
-        getAllKeys: jest.fn().mockResolvedValue([]),
-        clear: jest.fn().mockResolvedValue(undefined),
-      };
-      const { service } = getService({ storage: mockStorage });
-
-      const result = await service.getItem('TestController', 'missing');
-
-      expect(result).toBeNull();
-      // Adapter receives namespace and key separately
+      expect(response).toStrictEqual({});
       expect(mockStorage.getItem).toHaveBeenCalledWith(
         'TestController',
         'missing',
       );
     });
 
-    it('retrieves string values', async () => {
+    it('returns { error } when adapter returns error', async () => {
+      const testError = new Error('Parse error');
+      const mockStorage: StorageAdapter = {
+        getItem: jest.fn().mockResolvedValue({ error: testError }),
+        setItem: jest.fn(),
+        removeItem: jest.fn(),
+        getAllKeys: jest.fn().mockResolvedValue([]),
+        clear: jest.fn().mockResolvedValue(undefined),
+      };
+      const { service } = getService({ storage: mockStorage });
+
+      const response = await service.getItem('TestController', 'corrupt');
+
+      expect(response).toStrictEqual({ error: testError });
+    });
+
+    it('returns { result } with string values', async () => {
       const { service } = getService();
 
       await service.setItem('TestController', 'string', 'simple string');
-      const result = await service.getItem('TestController', 'string');
+      const response = await service.getItem('TestController', 'string');
 
-      expect(result).toBe('simple string');
+      expect(response).toStrictEqual({ result: 'simple string' });
     });
 
-    it('retrieves number values', async () => {
+    it('returns { result } with number values', async () => {
       const { service } = getService();
 
       await service.setItem('TestController', 'number', 42);
-      const result = await service.getItem('TestController', 'number');
+      const response = await service.getItem('TestController', 'number');
 
-      expect(result).toBe(42);
+      expect(response).toStrictEqual({ result: 42 });
     });
 
-    it('retrieves array values', async () => {
+    it('returns { result } with array values', async () => {
       const { service } = getService();
       const array = [1, 2, 3];
 
       await service.setItem('TestController', 'array', array);
-      const result = await service.getItem('TestController', 'array');
+      const response = await service.getItem('TestController', 'array');
 
-      expect(result).toStrictEqual(array);
+      expect(response).toStrictEqual({ result: array });
+    });
+
+    it('returns { result: null } when null was explicitly stored', async () => {
+      const { service } = getService();
+
+      await service.setItem('TestController', 'nullValue', null);
+      const response = await service.getItem('TestController', 'nullValue');
+
+      // This is different from {} - data WAS found, and it was null
+      expect(response).toStrictEqual({ result: null });
     });
   });
 
@@ -233,9 +242,10 @@ describe('StorageService', () => {
 
       await service.setItem('TestController', 'toRemove', 'value');
       await service.removeItem('TestController', 'toRemove');
-      const result = await service.getItem('TestController', 'toRemove');
+      const response = await service.getItem('TestController', 'toRemove');
 
-      expect(result).toBeNull();
+      // After removal, key doesn't exist - returns empty object
+      expect(response).toStrictEqual({});
     });
 
     it('removes key from registry', async () => {
@@ -348,9 +358,13 @@ describe('StorageService', () => {
 
       await service.clear('Controller2');
 
-      expect(await service.getItem('Controller1', 'key')).toBe('value1');
-      expect(await service.getItem('Controller2', 'key')).toBeNull();
-      expect(await service.getItem('Controller3', 'key')).toBe('value3');
+      expect(await service.getItem('Controller1', 'key')).toStrictEqual({
+        result: 'value1',
+      });
+      expect(await service.getItem('Controller2', 'key')).toStrictEqual({});
+      expect(await service.getItem('Controller3', 'key')).toStrictEqual({
+        result: 'value3',
+      });
     });
   });
 
@@ -361,11 +375,11 @@ describe('StorageService', () => {
       await service.setItem('Controller1', 'sameKey', 'value1');
       await service.setItem('Controller2', 'sameKey', 'value2');
 
-      const value1 = await service.getItem('Controller1', 'sameKey');
-      const value2 = await service.getItem('Controller2', 'sameKey');
+      const response1 = await service.getItem('Controller1', 'sameKey');
+      const response2 = await service.getItem('Controller2', 'sameKey');
 
-      expect(value1).toBe('value1');
-      expect(value2).toBe('value2');
+      expect(response1).toStrictEqual({ result: 'value1' });
+      expect(response2).toStrictEqual({ result: 'value2' });
     });
 
     it('getAllKeys only returns keys for specified namespace', async () => {
@@ -397,13 +411,13 @@ describe('StorageService', () => {
         'value',
       );
 
-      const result = await rootMessenger.call(
+      const response = await rootMessenger.call(
         'StorageService:getItem',
         'TestController',
         'key',
       );
 
-      expect(result).toBe('value');
+      expect(response).toStrictEqual({ result: 'value' });
     });
 
     it('exposes getItem as messenger action', async () => {
@@ -411,13 +425,13 @@ describe('StorageService', () => {
 
       await service.setItem('TestController', 'key', 'value');
 
-      const result = await rootMessenger.call(
+      const response = await rootMessenger.call(
         'StorageService:getItem',
         'TestController',
         'key',
       );
 
-      expect(result).toBe('value');
+      expect(response).toStrictEqual({ result: 'value' });
     });
 
     it('exposes removeItem as messenger action', async () => {
@@ -430,9 +444,9 @@ describe('StorageService', () => {
         'key',
       );
 
-      const result = await service.getItem('TestController', 'key');
+      const response = await service.getItem('TestController', 'key');
 
-      expect(result).toBeNull();
+      expect(response).toStrictEqual({});
     });
 
     it('exposes getAllKeys as messenger action', async () => {
@@ -494,14 +508,14 @@ describe('StorageService', () => {
       expect(keys).toHaveLength(5);
 
       // Retrieve specific snap source code
-      const bitcoinSource = await service.getItem(
+      const response = await service.getItem(
         'SnapController',
         'npm:@metamask/bitcoin-wallet-snap:sourceCode',
       );
 
-      expect(bitcoinSource).toBe(
-        snaps['npm:@metamask/bitcoin-wallet-snap'].sourceCode,
-      );
+      expect(response).toStrictEqual({
+        result: snaps['npm:@metamask/bitcoin-wallet-snap'].sourceCode,
+      });
 
       // Clear all snap data
       await service.clear('SnapController');
@@ -512,7 +526,7 @@ describe('StorageService', () => {
 
     it('delegates getAllKeys to adapter', async () => {
       const mockStorage: StorageAdapter = {
-        getItem: jest.fn().mockResolvedValue(null),
+        getItem: jest.fn().mockResolvedValue({}),
         setItem: jest.fn(),
         removeItem: jest.fn(),
         getAllKeys: jest
@@ -530,7 +544,7 @@ describe('StorageService', () => {
 
     it('adapter handles namespace filtering', async () => {
       const mockStorage: StorageAdapter = {
-        getItem: jest.fn().mockResolvedValue(null),
+        getItem: jest.fn().mockResolvedValue({}),
         setItem: jest.fn(),
         removeItem: jest.fn(),
         getAllKeys: jest.fn().mockImplementation((namespace) => {

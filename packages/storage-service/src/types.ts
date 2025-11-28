@@ -4,6 +4,19 @@ import type { Json } from '@metamask/utils';
 import type { StorageServiceMethodActions } from './StorageService-method-action-types';
 
 /**
+ * Result type for getItem operations.
+ * Distinguishes between: found data, not found, and error conditions.
+ *
+ * - `{ result: Json }` - Data was found and successfully retrieved
+ * - `{}` (empty object) - No data stored with that key
+ * - `{ error: Error }` - Error occurred during retrieval
+ */
+export type StorageGetResult =
+  | { result: Json; error?: never }
+  | { result?: never; error: Error }
+  | Record<string, never>;
+
+/**
  * Platform-agnostic storage adapter interface.
  * Each client (mobile, extension) implements this interface
  * with their preferred storage mechanism.
@@ -31,9 +44,9 @@ export type StorageAdapter = {
    *
    * @param namespace - The controller namespace (e.g., 'SnapController').
    * @param key - The data key (e.g., 'snap-id:sourceCode').
-   * @returns The JSON value, or null if not found.
+   * @returns StorageGetResult: { result } if found, {} if not found, { error } on failure.
    */
-  getItem(namespace: string, key: string): Promise<Json | null>;
+  getItem(namespace: string, key: string): Promise<StorageGetResult>;
 
   /**
    * Store a large JSON value in storage.
