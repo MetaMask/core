@@ -189,6 +189,10 @@ const setup = ({
       ),
   );
 
+  // We reset this state, since it's a static field, so each tests would start
+  // with a fresh state.
+  MockSnapAccountProvider.resetEnsureSnapPlatformIsReady();
+
   const serviceMessenger = getMultichainAccountServiceMessenger(messenger);
   const config = {
     ...(maxConcurrency !== undefined && { maxConcurrency }),
@@ -211,10 +215,6 @@ const setup = ({
 };
 
 describe('SnapAccountProvider', () => {
-  beforeEach(() => {
-    MockSnapAccountProvider.resetEnsureSnapPlatformIsReady();
-  });
-
   describe('constructor default parameters', () => {
     const mockMessenger = {
       call: jest.fn().mockResolvedValue({}),
