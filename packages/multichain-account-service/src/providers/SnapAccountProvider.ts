@@ -126,16 +126,6 @@ export abstract class SnapAccountProvider extends BaseBip44AccountProvider {
     }
   }
 
-  protected async withClient(
-    operation: (client: KeyringClient) => Promise<void>,
-  ): Promise<void> {
-    // This will make sure the Snap platform is ready before sending any request
-    // to the Snap.
-    await this.ensureSnapPlatformIsReady();
-
-    return operation(this.client);
-  }
-
   /**
    * Wraps an async operation with concurrency limiting based on maxConcurrency config.
    * If maxConcurrency is Infinity (the default), the operation runs immediately without throttling.
@@ -201,6 +191,8 @@ export abstract class SnapAccountProvider extends BaseBip44AccountProvider {
   async resyncAccounts(
     accounts: Bip44Account<InternalAccount>[],
   ): Promise<void> {
+    await this.ensureSnapPlatformIsReady();
+
     const localSnapAccounts = accounts.filter(
       (account) =>
         account.metadata.snap && account.metadata.snap.id === this.snapId,
@@ -284,6 +276,8 @@ export abstract class SnapAccountProvider extends BaseBip44AccountProvider {
       metadata: KeyringMetadata;
     }) => Promise<CallbackResult>,
   ): Promise<CallbackResult> {
+    await this.ensureSnapPlatformIsReady();
+
     return this.withKeyring<SnapKeyring, CallbackResult>(
       { type: KeyringTypes.snap },
       (args) => {
@@ -292,14 +286,32 @@ export abstract class SnapAccountProvider extends BaseBip44AccountProvider {
     );
   }
 
+  async createAccounts(options: {
+    entropySource: EntropySourceId;
+    groupIndex: number;
+  }): Promise<Bip44Account<KeyringAccount>[]> {
+    await this.ensureSnapPlatformIsReady();
+
+    return await this.runCreateAccounts(options);
+  }
+
+  async discoverAccounts(options: {
+    entropySource: EntropySourceId;
+    groupIndex: number;
+  }): Promise<Bip44Account<KeyringAccount>[]> {
+    await this.ensureSnapPlatformIsReady();
+
+    return await this.runDiscoverAccounts(options);
+  }
+
   abstract isAccountCompatible(account: Bip44Account<InternalAccount>): boolean;
 
-  abstract createAccounts(options: {
+  abstract runCreateAccounts(options: {
     entropySource: EntropySourceId;
     groupIndex: number;
   }): Promise<Bip44Account<KeyringAccount>[]>;
 
-  abstract discoverAccounts(options: {
+  abstract runDiscoverAccounts(options: {
     entropySource: EntropySourceId;
     groupIndex: number;
   }): Promise<Bip44Account<KeyringAccount>[]>;

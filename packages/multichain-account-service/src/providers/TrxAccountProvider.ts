@@ -53,7 +53,7 @@ export class TrxAccountProvider extends SnapAccountProvider {
     );
   }
 
-  async createAccounts({
+  async runCreateAccounts({
     entropySource,
     groupIndex: index,
   }: {
@@ -78,7 +78,7 @@ export class TrxAccountProvider extends SnapAccountProvider {
     });
   }
 
-  async discoverAccounts({
+  async runDiscoverAccounts({
     entropySource,
     groupIndex,
   }: {

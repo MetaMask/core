@@ -52,7 +52,7 @@ export class BtcAccountProvider extends SnapAccountProvider {
     );
   }
 
-  async createAccounts({
+  async runCreateAccounts({
     entropySource,
     groupIndex: index,
   }: {
@@ -77,7 +77,7 @@ export class BtcAccountProvider extends SnapAccountProvider {
     });
   }
 
-  async discoverAccounts({
+  async runDiscoverAccounts({
     entropySource,
     groupIndex,
   }: {

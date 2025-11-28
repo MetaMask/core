@@ -75,11 +75,11 @@ class MockSnapAccountProvider extends SnapAccountProvider {
     return true;
   }
 
-  async discoverAccounts(): Promise<Bip44Account<KeyringAccount>[]> {
+  async runDiscoverAccounts(): Promise<Bip44Account<KeyringAccount>[]> {
     return [];
   }
 
-  async createAccounts(options: {
+  async runCreateAccounts(options: {
     entropySource: EntropySourceId;
     groupIndex: number;
   }): Promise<Bip44Account<KeyringAccount>[]> {
