@@ -50,7 +50,7 @@
   "dependencies": {
     "@metamask/messenger": "^0.3.0",
     "@metamask/superstruct": "^3.1.0",
-    "@metamask/transaction-controller": "^62.2.0",
+    "@metamask/transaction-controller": "^62.3.1",
     "@metamask/utils": "^11.8.1",
     "lodash": "^4.17.21",
     "uuid": "^8.3.2"

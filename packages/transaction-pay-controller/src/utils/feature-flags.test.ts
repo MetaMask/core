@@ -9,6 +9,7 @@ import { getMessengerMock } from '../tests/messenger-mock';
 const GAS_FALLBACK_ESTIMATE_MOCK = 123;
 const GAS_FALLBACK_MAX_MOCK = 456;
 const RELAY_QUOTE_URL_MOCK = 'https://test.com/test';
+const RELAY_GAS_STATION_DISABLED_CHAINS_MOCK = ['0x1', '0x2'];
 
 describe('Feature Flags Utils', () => {
   const { messenger, getRemoteFeatureFlagControllerStateMock } =
@@ -28,6 +29,7 @@ describe('Feature Flags Utils', () => {
       const featureFlags = getFeatureFlags(messenger);
 
       expect(featureFlags).toStrictEqual({
+        relayDisabledGasStationChains: [],
         relayFallbackGas: {
           estimate: DEFAULT_RELAY_FALLBACK_GAS_ESTIMATE,
           max: DEFAULT_RELAY_FALLBACK_GAS_MAX,
@@ -41,6 +43,8 @@ describe('Feature Flags Utils', () => {
         cacheTimestamp: 0,
         remoteFeatureFlags: {
           confirmations_pay: {
+            relayDisabledGasStationChains:
+              RELAY_GAS_STATION_DISABLED_CHAINS_MOCK,
             relayFallbackGas: {
               estimate: GAS_FALLBACK_ESTIMATE_MOCK,
               max: GAS_FALLBACK_MAX_MOCK,
@@ -53,6 +57,7 @@ describe('Feature Flags Utils', () => {
       const featureFlags = getFeatureFlags(messenger);
 
       expect(featureFlags).toStrictEqual({
+        relayDisabledGasStationChains: RELAY_GAS_STATION_DISABLED_CHAINS_MOCK,
         relayFallbackGas: {
           estimate: GAS_FALLBACK_ESTIMATE_MOCK,
           max: GAS_FALLBACK_MAX_MOCK,

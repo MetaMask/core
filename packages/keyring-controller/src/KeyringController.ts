@@ -199,6 +199,11 @@ export type KeyringControllerAddNewKeyringAction = {
   handler: KeyringController['addNewKeyring'];
 };
 
+export type KeyringControllerRemoveAccountAction = {
+  type: `${typeof name}:removeAccount`;
+  handler: KeyringController['removeAccount'];
+};
+
 export type KeyringControllerStateChangeEvent = {
   type: `${typeof name}:stateChange`;
   payload: [KeyringControllerState, Patch[]];
@@ -238,7 +243,8 @@ export type KeyringControllerActions =
   | KeyringControllerWithKeyringAction
   | KeyringControllerAddNewKeyringAction
   | KeyringControllerCreateNewVaultAndKeychainAction
-  | KeyringControllerCreateNewVaultAndRestoreAction;
+  | KeyringControllerCreateNewVaultAndRestoreAction
+  | KeyringControllerRemoveAccountAction;
 
 export type KeyringControllerEvents =
   | KeyringControllerStateChangeEvent
@@ -1816,6 +1822,11 @@ export class KeyringController<
     this.messenger.registerActionHandler(
       `${name}:createNewVaultAndRestore`,
       this.createNewVaultAndRestore.bind(this),
+    );
+
+    this.messenger.registerActionHandler(
+      `${name}:removeAccount`,
+      this.removeAccount.bind(this),
     );
   }
 
