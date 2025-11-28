@@ -151,8 +151,6 @@ export abstract class SnapAccountProvider extends BaseBip44AccountProvider {
   }
 
   protected async getRestrictedSnapAccountCreator(): Promise<RestrictedSnapKeyringCreateAccount> {
-    await this.ensureSnapPlatformIsReady();
-
     // NOTE: We're not supposed to make the keyring instance escape `withKeyring` but
     // we have to use the `SnapKeyring` instance to be able to create Solana account
     // without triggering UI confirmation.
