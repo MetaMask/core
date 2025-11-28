@@ -46,10 +46,6 @@ const config = createConfig([
       'no-restricted-syntax': 'off',
       radix: 'off',
       'require-atomic-updates': 'off',
-      'jsdoc/match-description': [
-        'off',
-        { matchDescription: '^[A-Z`\\d_][\\s\\S]*[.?!`>)}]$' },
-      ],
     },
     settings: {
       jsdoc: {
