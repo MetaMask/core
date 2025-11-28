@@ -878,7 +878,7 @@ describe('PermissionController:stateChange', () => {
           controller.metadata,
           'includeInDebugSnapshot',
         ),
-      ).toMatchInlineSnapshot(`Object {}`);
+      ).toMatchInlineSnapshot(`{}`);
     });
 
     it('includes expected state in state logs', () => {
@@ -891,8 +891,8 @@ describe('PermissionController:stateChange', () => {
           'includeInStateLogs',
         ),
       ).toMatchInlineSnapshot(`
-        Object {
-          "domains": Object {},
+        {
+          "domains": {},
         }
       `);
     });
@@ -907,8 +907,8 @@ describe('PermissionController:stateChange', () => {
           'persist',
         ),
       ).toMatchInlineSnapshot(`
-        Object {
-          "domains": Object {},
+        {
+          "domains": {},
         }
       `);
     });
@@ -923,8 +923,8 @@ describe('PermissionController:stateChange', () => {
           'usedInUi',
         ),
       ).toMatchInlineSnapshot(`
-        Object {
-          "domains": Object {},
+        {
+          "domains": {},
         }
       `);
     });

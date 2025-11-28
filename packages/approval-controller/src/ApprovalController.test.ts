@@ -1724,8 +1724,8 @@ describe('approval controller', () => {
           'includeInDebugSnapshot',
         ),
       ).toMatchInlineSnapshot(`
-        Object {
-          "pendingApprovals": Object {},
+        {
+          "pendingApprovals": {},
         }
       `);
     });
@@ -1738,10 +1738,10 @@ describe('approval controller', () => {
           'includeInStateLogs',
         ),
       ).toMatchInlineSnapshot(`
-        Object {
-          "approvalFlows": Array [],
+        {
+          "approvalFlows": [],
           "pendingApprovalCount": 0,
-          "pendingApprovals": Object {},
+          "pendingApprovals": {},
         }
       `);
     });
@@ -1753,7 +1753,7 @@ describe('approval controller', () => {
           approvalController.metadata,
           'persist',
         ),
-      ).toMatchInlineSnapshot(`Object {}`);
+      ).toMatchInlineSnapshot(`{}`);
     });
 
     it('exposes expected state to UI', () => {
@@ -1764,10 +1764,10 @@ describe('approval controller', () => {
           'usedInUi',
         ),
       ).toMatchInlineSnapshot(`
-        Object {
-          "approvalFlows": Array [],
+        {
+          "approvalFlows": [],
           "pendingApprovalCount": 0,
-          "pendingApprovals": Object {},
+          "pendingApprovals": {},
         }
       `);
     });

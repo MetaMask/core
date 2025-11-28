@@ -358,9 +358,8 @@ describe('properties', () => {
         },
       });
 
-      expect(result).toMatchInlineSnapshot(
-        `
-        Object {
+      expect(result).toMatchInlineSnapshot(`
+        {
           "best_quote_provider": "bridge2_bridge2",
           "can_submit": false,
           "gas_included": false,
@@ -370,10 +369,9 @@ describe('properties', () => {
           "quoted_time_minutes": 1,
           "usd_quoted_gas": 0,
           "usd_quoted_return": 0,
-          "warnings": Array [],
+          "warnings": [],
         }
-      `,
-      );
+      `);
     });
   });
 });

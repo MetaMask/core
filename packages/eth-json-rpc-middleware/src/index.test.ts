@@ -3,7 +3,7 @@ import * as indexModule from '.';
 describe('index module', () => {
   it('has expected JavaScript exports', () => {
     expect(indexModule).toMatchInlineSnapshot(`
-      Object {
+      {
         "createBlockCacheMiddleware": [Function],
         "createBlockRefMiddleware": [Function],
         "createBlockRefRewriteMiddleware": [Function],

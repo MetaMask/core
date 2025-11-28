@@ -78,13 +78,16 @@ const SIGN_USER_OPERATION_RESPONSE_MOCK: Awaited<
  * @returns The mock instance.
  */
 function createMessengerMock() {
+  const mockCall = jest.fn();
   return {
-    call: jest.fn(),
-  } as unknown as jest.Mocked<UserOperationControllerMessenger>;
+    call: mockCall,
+  } as unknown as jest.Mocked<UserOperationControllerMessenger> & {
+    call: typeof mockCall;
+  };
 }
 
 describe('SnapSmartContractAccount', () => {
-  let messengerMock: jest.Mocked<UserOperationControllerMessenger>;
+  let messengerMock: ReturnType<typeof createMessengerMock>;
   let prepareMock: jest.MockedFn<KeyringController['prepareUserOperation']>;
   let patchMock: jest.MockedFn<KeyringController['patchUserOperation']>;
   let signMock: jest.MockedFn<KeyringController['signUserOperation']>;
@@ -95,24 +98,28 @@ describe('SnapSmartContractAccount', () => {
     patchMock = jest.fn();
     signMock = jest.fn();
 
-    messengerMock.call.mockImplementation(async (method: string, ...args) => {
-      switch (method) {
-        case 'KeyringController:prepareUserOperation':
-          return prepareMock(
-            ...(args as Parameters<KeyringController['prepareUserOperation']>),
-          );
-        case 'KeyringController:patchUserOperation':
-          return patchMock(
-            ...(args as Parameters<KeyringController['patchUserOperation']>),
-          );
-        case 'KeyringController:signUserOperation':
-          return signMock(
-            ...(args as Parameters<KeyringController['signUserOperation']>),
-          );
-        default:
-          throw new Error(`Unexpected method: ${method}`);
-      }
-    });
+    messengerMock.call.mockImplementation(
+      async (method: string, ...args: unknown[]) => {
+        switch (method) {
+          case 'KeyringController:prepareUserOperation':
+            return prepareMock(
+              ...(args as Parameters<
+                KeyringController['prepareUserOperation']
+              >),
+            );
+          case 'KeyringController:patchUserOperation':
+            return patchMock(
+              ...(args as Parameters<KeyringController['patchUserOperation']>),
+            );
+          case 'KeyringController:signUserOperation':
+            return signMock(
+              ...(args as Parameters<KeyringController['signUserOperation']>),
+            );
+          default:
+            throw new Error(`Unexpected method: ${method}`);
+        }
+      },
+    );
 
     prepareMock.mockResolvedValue(PREPARE_USER_OPERATION_RESPONSE_MOCK);
     patchMock.mockResolvedValue(PATCH_USER_OPERATION_RESPONSE_MOCK);

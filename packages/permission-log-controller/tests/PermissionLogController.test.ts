@@ -862,7 +862,7 @@ describe('PermissionLogController', () => {
           controller.metadata,
           'includeInDebugSnapshot',
         ),
-      ).toMatchInlineSnapshot(`Object {}`);
+      ).toMatchInlineSnapshot(`{}`);
     });
 
     it('includes expected state in state logs', () => {
@@ -877,9 +877,9 @@ describe('PermissionLogController', () => {
           'includeInStateLogs',
         ),
       ).toMatchInlineSnapshot(`
-        Object {
-          "permissionActivityLog": Array [],
-          "permissionHistory": Object {},
+        {
+          "permissionActivityLog": [],
+          "permissionHistory": {},
         }
       `);
     });
@@ -896,8 +896,8 @@ describe('PermissionLogController', () => {
           'persist',
         ),
       ).toMatchInlineSnapshot(`
-        Object {
-          "permissionHistory": Object {},
+        {
+          "permissionHistory": {},
         }
       `);
     });
@@ -914,8 +914,8 @@ describe('PermissionLogController', () => {
           'usedInUi',
         ),
       ).toMatchInlineSnapshot(`
-        Object {
-          "permissionHistory": Object {},
+        {
+          "permissionHistory": {},
         }
       `);
     });

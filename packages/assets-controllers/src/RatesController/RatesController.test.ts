@@ -423,18 +423,18 @@ describe('RatesController', () => {
           'includeInDebugSnapshot',
         ),
       ).toMatchInlineSnapshot(`
-        Object {
-          "cryptocurrencies": Array [
+        {
+          "cryptocurrencies": [
             "btc",
             "sol",
           ],
           "fiatCurrency": "usd",
-          "rates": Object {
-            "btc": Object {
+          "rates": {
+            "btc": {
               "conversionDate": 0,
               "conversionRate": 0,
             },
-            "sol": Object {
+            "sol": {
               "conversionDate": 0,
               "conversionRate": 0,
             },
@@ -458,8 +458,8 @@ describe('RatesController', () => {
           'includeInStateLogs',
         ),
       ).toMatchInlineSnapshot(`
-        Object {
-          "cryptocurrencies": Array [
+        {
+          "cryptocurrencies": [
             "btc",
             "sol",
           ],
@@ -483,18 +483,18 @@ describe('RatesController', () => {
           'persist',
         ),
       ).toMatchInlineSnapshot(`
-        Object {
-          "cryptocurrencies": Array [
+        {
+          "cryptocurrencies": [
             "btc",
             "sol",
           ],
           "fiatCurrency": "usd",
-          "rates": Object {
-            "btc": Object {
+          "rates": {
+            "btc": {
               "conversionDate": 0,
               "conversionRate": 0,
             },
-            "sol": Object {
+            "sol": {
               "conversionDate": 0,
               "conversionRate": 0,
             },
@@ -518,14 +518,14 @@ describe('RatesController', () => {
           'usedInUi',
         ),
       ).toMatchInlineSnapshot(`
-        Object {
+        {
           "fiatCurrency": "usd",
-          "rates": Object {
-            "btc": Object {
+          "rates": {
+            "btc": {
               "conversionDate": 0,
               "conversionRate": 0,
             },
-            "sol": Object {
+            "sol": {
               "conversionDate": 0,
               "conversionRate": 0,
             },

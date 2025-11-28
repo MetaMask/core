@@ -157,13 +157,11 @@ describe('utils', () => {
 
       // Verify response
       expect(result.status).toStrictEqual(mockInvalidResponse);
-      expect(result.validationFailures).toMatchInlineSnapshot(
-        `
-        Array [
+      expect(result.validationFailures).toMatchInlineSnapshot(`
+        [
           "socket|status",
         ]
-      `,
-      );
+      `);
     });
 
     it('should throw error when response validation fails', async () => {
@@ -186,7 +184,7 @@ describe('utils', () => {
       expect(result.validationFailures).toMatchInlineSnapshot(
         ['socket|status', 'socket|srcChain'],
         `
-        Array [
+        [
           "socket|status",
           "socket|srcChain",
         ]

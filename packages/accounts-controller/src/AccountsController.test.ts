@@ -3954,7 +3954,7 @@ describe('AccountsController', () => {
           controller.metadata,
           'includeInDebugSnapshot',
         ),
-      ).toMatchInlineSnapshot(`Object {}`);
+      ).toMatchInlineSnapshot(`{}`);
     });
 
     it('includes expected state in state logs', () => {
@@ -3967,9 +3967,9 @@ describe('AccountsController', () => {
           'includeInStateLogs',
         ),
       ).toMatchInlineSnapshot(`
-        Object {
-          "internalAccounts": Object {
-            "accounts": Object {},
+        {
+          "internalAccounts": {
+            "accounts": {},
             "selectedAccount": "",
           },
         }
@@ -3986,9 +3986,9 @@ describe('AccountsController', () => {
           'persist',
         ),
       ).toMatchInlineSnapshot(`
-        Object {
-          "internalAccounts": Object {
-            "accounts": Object {},
+        {
+          "internalAccounts": {
+            "accounts": {},
             "selectedAccount": "",
           },
         }
@@ -4005,9 +4005,9 @@ describe('AccountsController', () => {
           'usedInUi',
         ),
       ).toMatchInlineSnapshot(`
-        Object {
-          "internalAccounts": Object {
-            "accounts": Object {},
+        {
+          "internalAccounts": {
+            "accounts": {},
             "selectedAccount": "",
           },
         }

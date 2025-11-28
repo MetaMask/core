@@ -48,10 +48,13 @@ jest.mock('@metamask/controller-utils', () => ({
  * @returns The mock user operation messenger.
  */
 function createMessengerMock() {
+  const mockCall = jest.fn();
   return {
-    call: jest.fn(),
+    call: mockCall,
     registerInitialEventPayload: jest.fn(),
-  } as unknown as jest.Mocked<UserOperationControllerMessenger>;
+  } as unknown as jest.Mocked<UserOperationControllerMessenger> & {
+    call: typeof mockCall;
+  };
 }
 
 /**

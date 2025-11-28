@@ -52,12 +52,15 @@ jest.mock('uuid', () => ({
   v4: () => 'test-uuid-1234',
 }));
 
+const mockCall = jest.fn();
 const messengerMock = {
-  call: jest.fn(),
+  call: mockCall,
   registerActionHandler: jest.fn(),
   registerInitialEventPayload: jest.fn(),
   publish: jest.fn(),
-} as unknown as jest.Mocked<BridgeControllerMessenger>;
+} as unknown as jest.Mocked<BridgeControllerMessenger> & {
+  call: typeof mockCall;
+};
 
 jest.mock('@ethersproject/contracts', () => {
   return {
@@ -2772,14 +2775,14 @@ describe('BridgeController', function () {
 
       expect(fetchBridgeQuotesSpy).toHaveBeenCalledTimes(1);
       expect(fetchBridgeQuotesSpy.mock.calls).toMatchInlineSnapshot(`
-        Array [
-          Array [
-            Object {
-              "aggIds": Array [
+        [
+          [
+            {
+              "aggIds": [
                 "debridge",
                 "socket",
               ],
-              "bridgeIds": Array [
+              "bridgeIds": [
                 "bridge1",
                 "bridge2",
               ],
@@ -2867,14 +2870,14 @@ describe('BridgeController', function () {
 
       expect(fetchBridgeQuotesSpy).toHaveBeenCalledTimes(1);
       expect(fetchBridgeQuotesSpy.mock.calls).toMatchInlineSnapshot(`
-        Array [
-          Array [
-            Object {
-              "aggIds": Array [
+        [
+          [
+            {
+              "aggIds": [
                 "debridge",
                 "socket",
               ],
-              "bridgeIds": Array [
+              "bridgeIds": [
                 "bridge1",
                 "bridge2",
               ],
@@ -2928,9 +2931,9 @@ describe('BridgeController', function () {
 
       expect(fetchBridgeQuotesSpy).toHaveBeenCalledTimes(1);
       expect(fetchBridgeQuotesSpy.mock.calls).toMatchInlineSnapshot(`
-        Array [
-          Array [
-            Object {
+        [
+          [
+            {
               "destChainId": "1",
               "destTokenAddress": "0x1234",
               "gasIncluded": false,
@@ -2990,7 +2993,7 @@ describe('BridgeController', function () {
           bridgeController.metadata,
           'includeInDebugSnapshot',
         ),
-      ).toMatchInlineSnapshot(`Object {}`);
+      ).toMatchInlineSnapshot(`{}`);
     });
 
     it('includes expected state in state logs', () => {
@@ -3001,14 +3004,14 @@ describe('BridgeController', function () {
           'includeInStateLogs',
         ),
       ).toMatchInlineSnapshot(`
-        Object {
-          "assetExchangeRates": Object {},
+        {
+          "assetExchangeRates": {},
           "minimumBalanceForRentExemptionInLamports": "0",
           "quoteFetchError": null,
-          "quoteRequest": Object {
+          "quoteRequest": {
             "srcTokenAddress": "0x0000000000000000000000000000000000000000",
           },
-          "quotes": Array [],
+          "quotes": [],
           "quotesInitialLoadTime": null,
           "quotesLastFetched": null,
           "quotesLoadingStatus": null,
@@ -3024,7 +3027,7 @@ describe('BridgeController', function () {
           bridgeController.metadata,
           'persist',
         ),
-      ).toMatchInlineSnapshot(`Object {}`);
+      ).toMatchInlineSnapshot(`{}`);
     });
 
     it('exposes expected state to UI', () => {
@@ -3035,14 +3038,14 @@ describe('BridgeController', function () {
           'usedInUi',
         ),
       ).toMatchInlineSnapshot(`
-        Object {
-          "assetExchangeRates": Object {},
+        {
+          "assetExchangeRates": {},
           "minimumBalanceForRentExemptionInLamports": "0",
           "quoteFetchError": null,
-          "quoteRequest": Object {
+          "quoteRequest": {
             "srcTokenAddress": "0x0000000000000000000000000000000000000000",
           },
-          "quotes": Array [],
+          "quotes": [],
           "quotesInitialLoadTime": null,
           "quotesLastFetched": null,
           "quotesLoadingStatus": null,

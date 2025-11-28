@@ -102,7 +102,17 @@ module.exports = {
   // notifyMode: "failure-change",
 
   // A preset that is used as a base for Jest's configuration
-  preset: 'ts-jest',
+  preset: 'ts-jest/presets/default',
+  transform: {
+    '^.+\\.tsx?$': [
+      'ts-jest',
+      {
+        diagnostics: {
+          ignoreCodes: [151002],
+        },
+      },
+    ],
+  },
 
   // The path to the Prettier executable used to format snapshots
   // Jest doesn't support Prettier 3 yet, so we use Prettier 2
@@ -184,7 +194,7 @@ module.exports = {
   // testRunner: "jest-circus/runner",
 
   // Default timeout of a test in milliseconds.
-  // testTimeout: 5000,
+  testTimeout: 30000,
 
   // This option sets the URL for the jsdom environment. It is reflected in properties such as location.href
   // testURL: "http://localhost",

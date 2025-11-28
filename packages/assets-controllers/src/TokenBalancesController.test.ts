@@ -5225,7 +5225,7 @@ describe('TokenBalancesController', () => {
           controller.metadata,
           'includeInDebugSnapshot',
         ),
-      ).toMatchInlineSnapshot(`Object {}`);
+      ).toMatchInlineSnapshot(`{}`);
     });
 
     it('includes expected state in state logs', () => {
@@ -5237,7 +5237,7 @@ describe('TokenBalancesController', () => {
           controller.metadata,
           'includeInStateLogs',
         ),
-      ).toMatchInlineSnapshot(`Object {}`);
+      ).toMatchInlineSnapshot(`{}`);
     });
 
     it('persists expected state', () => {
@@ -5250,8 +5250,8 @@ describe('TokenBalancesController', () => {
           'persist',
         ),
       ).toMatchInlineSnapshot(`
-        Object {
-          "tokenBalances": Object {},
+        {
+          "tokenBalances": {},
         }
       `);
     });
@@ -5266,8 +5266,8 @@ describe('TokenBalancesController', () => {
           'usedInUi',
         ),
       ).toMatchInlineSnapshot(`
-        Object {
-          "tokenBalances": Object {},
+        {
+          "tokenBalances": {},
         }
       `);
     });

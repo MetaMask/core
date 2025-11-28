@@ -1118,9 +1118,9 @@ describe('MultichainAssetsRatesController', () => {
           'includeInDebugSnapshot',
         ),
       ).toMatchInlineSnapshot(`
-        Object {
-          "conversionRates": Object {},
-          "historicalPrices": Object {},
+        {
+          "conversionRates": {},
+          "historicalPrices": {},
         }
       `);
     });
@@ -1134,7 +1134,7 @@ describe('MultichainAssetsRatesController', () => {
           controller.metadata,
           'includeInStateLogs',
         ),
-      ).toMatchInlineSnapshot(`Object {}`);
+      ).toMatchInlineSnapshot(`{}`);
     });
 
     it('persists expected state', () => {
@@ -1147,8 +1147,8 @@ describe('MultichainAssetsRatesController', () => {
           'persist',
         ),
       ).toMatchInlineSnapshot(`
-        Object {
-          "conversionRates": Object {},
+        {
+          "conversionRates": {},
         }
       `);
     });
@@ -1163,9 +1163,9 @@ describe('MultichainAssetsRatesController', () => {
           'usedInUi',
         ),
       ).toMatchInlineSnapshot(`
-        Object {
-          "conversionRates": Object {},
-          "historicalPrices": Object {},
+        {
+          "conversionRates": {},
+          "historicalPrices": {},
         }
       `);
     });

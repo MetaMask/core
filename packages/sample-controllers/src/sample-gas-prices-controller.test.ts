@@ -37,8 +37,8 @@ describe('SampleGasPricesController', () => {
     it('fills in missing initial state with defaults', async () => {
       await withController(({ controller }) => {
         expect(controller.state).toMatchInlineSnapshot(`
-          Object {
-            "gasPricesByChainId": Object {},
+          {
+            "gasPricesByChainId": {},
           }
         `);
       });
@@ -301,7 +301,7 @@ describe('SampleGasPricesController', () => {
             controller.metadata,
             'includeInDebugSnapshot',
           ),
-        ).toMatchInlineSnapshot(`Object {}`);
+        ).toMatchInlineSnapshot(`{}`);
       });
     });
 
@@ -314,8 +314,8 @@ describe('SampleGasPricesController', () => {
             'includeInStateLogs',
           ),
         ).toMatchInlineSnapshot(`
-          Object {
-            "gasPricesByChainId": Object {},
+          {
+            "gasPricesByChainId": {},
           }
         `);
       });
@@ -330,8 +330,8 @@ describe('SampleGasPricesController', () => {
             'persist',
           ),
         ).toMatchInlineSnapshot(`
-          Object {
-            "gasPricesByChainId": Object {},
+          {
+            "gasPricesByChainId": {},
           }
         `);
       });
@@ -346,8 +346,8 @@ describe('SampleGasPricesController', () => {
             'usedInUi',
           ),
         ).toMatchInlineSnapshot(`
-          Object {
-            "gasPricesByChainId": Object {},
+          {
+            "gasPricesByChainId": {},
           }
         `);
       });

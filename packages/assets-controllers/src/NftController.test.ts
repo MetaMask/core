@@ -5960,7 +5960,7 @@ describe('NftController', () => {
           controller.metadata,
           'includeInDebugSnapshot',
         ),
-      ).toMatchInlineSnapshot(`Object {}`);
+      ).toMatchInlineSnapshot(`{}`);
     });
 
     it('includes expected state in state logs', () => {
@@ -5972,7 +5972,7 @@ describe('NftController', () => {
           controller.metadata,
           'includeInStateLogs',
         ),
-      ).toMatchInlineSnapshot(`Object {}`);
+      ).toMatchInlineSnapshot(`{}`);
     });
 
     it('persists expected state', () => {
@@ -5985,10 +5985,10 @@ describe('NftController', () => {
           'persist',
         ),
       ).toMatchInlineSnapshot(`
-        Object {
-          "allNftContracts": Object {},
-          "allNfts": Object {},
-          "ignoredNfts": Array [],
+        {
+          "allNftContracts": {},
+          "allNfts": {},
+          "ignoredNfts": [],
         }
       `);
     });
@@ -6003,9 +6003,9 @@ describe('NftController', () => {
           'usedInUi',
         ),
       ).toMatchInlineSnapshot(`
-        Object {
-          "allNftContracts": Object {},
-          "allNfts": Object {},
+        {
+          "allNftContracts": {},
+          "allNfts": {},
         }
       `);
     });

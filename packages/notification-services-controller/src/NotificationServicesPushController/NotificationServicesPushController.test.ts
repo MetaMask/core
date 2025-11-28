@@ -286,12 +286,12 @@ describe('NotificationServicesPushController', () => {
           'includeInDebugSnapshot',
         ),
       ).toMatchInlineSnapshot(`
-        Object {
+        {
           "fcmToken": "",
           "isPushEnabled": true,
           "isUpdatingFCMToken": false,
         }
-        `);
+      `);
     });
 
     it('includes expected state in state logs', () => {
@@ -304,10 +304,10 @@ describe('NotificationServicesPushController', () => {
           'includeInStateLogs',
         ),
       ).toMatchInlineSnapshot(`
-        Object {
+        {
           "isPushEnabled": true,
         }
-        `);
+      `);
     });
 
     it('persists expected state', () => {
@@ -320,11 +320,11 @@ describe('NotificationServicesPushController', () => {
           'persist',
         ),
       ).toMatchInlineSnapshot(`
-        Object {
+        {
           "fcmToken": "",
           "isPushEnabled": true,
         }
-        `);
+      `);
     });
 
     it('includes expected state in UI', () => {
@@ -337,12 +337,12 @@ describe('NotificationServicesPushController', () => {
           'usedInUi',
         ),
       ).toMatchInlineSnapshot(`
-        Object {
+        {
           "fcmToken": "",
           "isPushEnabled": true,
           "isUpdatingFCMToken": false,
         }
-        `);
+      `);
     });
   });
 });

@@ -189,14 +189,14 @@ describe('announcement controller', () => {
           'includeInDebugSnapshot',
         ),
       ).toMatchInlineSnapshot(`
-        Object {
-          "announcements": Object {
-            "1": Object {
+        {
+          "announcements": {
+            "1": {
               "date": "12/8/2020",
               "id": 1,
               "isShown": false,
             },
-            "2": Object {
+            "2": {
               "date": "12/8/2020",
               "id": 2,
               "isShown": false,
@@ -219,14 +219,14 @@ describe('announcement controller', () => {
           'includeInStateLogs',
         ),
       ).toMatchInlineSnapshot(`
-        Object {
-          "announcements": Object {
-            "1": Object {
+        {
+          "announcements": {
+            "1": {
               "date": "12/8/2020",
               "id": 1,
               "isShown": false,
             },
-            "2": Object {
+            "2": {
               "date": "12/8/2020",
               "id": 2,
               "isShown": false,
@@ -249,14 +249,14 @@ describe('announcement controller', () => {
           'persist',
         ),
       ).toMatchInlineSnapshot(`
-        Object {
-          "announcements": Object {
-            "1": Object {
+        {
+          "announcements": {
+            "1": {
               "date": "12/8/2020",
               "id": 1,
               "isShown": false,
             },
-            "2": Object {
+            "2": {
               "date": "12/8/2020",
               "id": 2,
               "isShown": false,
@@ -279,14 +279,14 @@ describe('announcement controller', () => {
           'usedInUi',
         ),
       ).toMatchInlineSnapshot(`
-        Object {
-          "announcements": Object {
-            "1": Object {
+        {
+          "announcements": {
+            "1": {
               "date": "12/8/2020",
               "id": 1,
               "isShown": false,
             },
-            "2": Object {
+            "2": {
               "date": "12/8/2020",
               "id": 2,
               "isShown": false,

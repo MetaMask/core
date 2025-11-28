@@ -761,7 +761,7 @@ describe('MultichainBalancesController', () => {
           controller.metadata,
           'includeInDebugSnapshot',
         ),
-      ).toMatchInlineSnapshot(`Object {}`);
+      ).toMatchInlineSnapshot(`{}`);
     });
 
     it('includes expected state in state logs', () => {
@@ -773,7 +773,7 @@ describe('MultichainBalancesController', () => {
           controller.metadata,
           'includeInStateLogs',
         ),
-      ).toMatchInlineSnapshot(`Object {}`);
+      ).toMatchInlineSnapshot(`{}`);
     });
 
     it('persists expected state', () => {
@@ -786,8 +786,8 @@ describe('MultichainBalancesController', () => {
           'persist',
         ),
       ).toMatchInlineSnapshot(`
-        Object {
-          "balances": Object {},
+        {
+          "balances": {},
         }
       `);
     });
@@ -802,8 +802,8 @@ describe('MultichainBalancesController', () => {
           'usedInUi',
         ),
       ).toMatchInlineSnapshot(`
-        Object {
-          "balances": Object {},
+        {
+          "balances": {},
         }
       `);
     });

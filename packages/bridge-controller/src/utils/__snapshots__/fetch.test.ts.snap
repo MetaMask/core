@@ -1,10 +1,10 @@
 // Jest Snapshot v1, https://goo.gl/fbAQLP
 
 exports[`fetch fetchBridgeQuotes should filter out malformed bridge quotes 2`] = `
-Array [
-  Array [
+[
+  [
     "Quote validation failed",
-    Array [
+    [
       "unknown|quote",
       "lifi|quote.requestId",
       "lifi|quote.srcChainId",

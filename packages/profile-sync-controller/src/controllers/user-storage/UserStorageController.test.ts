@@ -769,7 +769,7 @@ describe('metadata', () => {
         'includeInDebugSnapshot',
       ),
     ).toMatchInlineSnapshot(`
-      Object {
+      {
         "isAccountSyncingEnabled": true,
         "isBackupAndSyncEnabled": true,
         "isContactSyncingEnabled": true,
@@ -789,7 +789,7 @@ describe('metadata', () => {
         'includeInStateLogs',
       ),
     ).toMatchInlineSnapshot(`
-      Object {
+      {
         "isAccountSyncingEnabled": true,
         "isBackupAndSyncEnabled": true,
         "isContactSyncingEnabled": true,
@@ -805,7 +805,7 @@ describe('metadata', () => {
     expect(
       deriveStateFromMetadata(controller.state, controller.metadata, 'persist'),
     ).toMatchInlineSnapshot(`
-      Object {
+      {
         "isAccountSyncingEnabled": true,
         "isBackupAndSyncEnabled": true,
         "isContactSyncingEnabled": true,
@@ -825,7 +825,7 @@ describe('metadata', () => {
         'usedInUi',
       ),
     ).toMatchInlineSnapshot(`
-      Object {
+      {
         "isAccountSyncingEnabled": true,
         "isBackupAndSyncEnabled": true,
         "isBackupAndSyncUpdateLoading": false,

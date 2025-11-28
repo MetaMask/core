@@ -102,12 +102,15 @@ const ADD_USER_OPERATION_OPTIONS_MOCK: AddUserOperationOptions = {
  * @returns The mock user operation messenger.
  */
 function createMessengerMock() {
+  const mockCall = jest.fn();
   return {
-    call: jest.fn(),
+    call: mockCall,
     publish: jest.fn(),
     registerActionHandler: jest.fn(),
     registerInitialEventPayload: jest.fn(),
-  } as unknown as jest.Mocked<UserOperationControllerMessenger>;
+  } as unknown as jest.Mocked<UserOperationControllerMessenger> & {
+    call: typeof mockCall;
+  };
 }
 
 /**
@@ -1457,7 +1460,7 @@ describe('UserOperationController', () => {
           controller.metadata,
           'includeInDebugSnapshot',
         ),
-      ).toMatchInlineSnapshot(`Object {}`);
+      ).toMatchInlineSnapshot(`{}`);
     });
 
     it('includes expected state in state logs', () => {
@@ -1470,8 +1473,8 @@ describe('UserOperationController', () => {
           'includeInStateLogs',
         ),
       ).toMatchInlineSnapshot(`
-        Object {
-          "userOperations": Object {},
+        {
+          "userOperations": {},
         }
       `);
     });
@@ -1486,8 +1489,8 @@ describe('UserOperationController', () => {
           'persist',
         ),
       ).toMatchInlineSnapshot(`
-        Object {
-          "userOperations": Object {},
+        {
+          "userOperations": {},
         }
       `);
     });
@@ -1502,8 +1505,8 @@ describe('UserOperationController', () => {
           'usedInUi',
         ),
       ).toMatchInlineSnapshot(`
-        Object {
-          "userOperations": Object {},
+        {
+          "userOperations": {},
         }
       `);
     });

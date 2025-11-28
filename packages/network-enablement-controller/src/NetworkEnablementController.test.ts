@@ -2461,14 +2461,14 @@ describe('NetworkEnablementController', () => {
           'includeInDebugSnapshot',
         ),
       ).toMatchInlineSnapshot(`
-        Object {
-          "enabledNetworkMap": Object {
-            "bip122": Object {
+        {
+          "enabledNetworkMap": {
+            "bip122": {
               "bip122:000000000019d6689c085ae165831e93": true,
               "bip122:000000000933ea01ad0ee984209779ba": false,
               "bip122:00000008819873e925422c1ff0f99f7c": false,
             },
-            "eip155": Object {
+            "eip155": {
               "0x1": true,
               "0x2105": true,
               "0x38": true,
@@ -2478,12 +2478,12 @@ describe('NetworkEnablementController', () => {
               "0xa4b1": true,
               "0xe708": true,
             },
-            "solana": Object {
+            "solana": {
               "solana:4uhcVJyU9pJkvQyS88uRDiswHXSCkY3z": false,
               "solana:5eykt4UsFv8P8NJdTREpY1vzqKqZKvdp": true,
               "solana:EtWTRABZaYq6iMfeYKouRu166VU2xqa1": false,
             },
-            "tron": Object {
+            "tron": {
               "tron:2494104990": false,
               "tron:3448148188": false,
               "tron:728126428": true,
@@ -2503,14 +2503,14 @@ describe('NetworkEnablementController', () => {
           'includeInStateLogs',
         ),
       ).toMatchInlineSnapshot(`
-        Object {
-          "enabledNetworkMap": Object {
-            "bip122": Object {
+        {
+          "enabledNetworkMap": {
+            "bip122": {
               "bip122:000000000019d6689c085ae165831e93": true,
               "bip122:000000000933ea01ad0ee984209779ba": false,
               "bip122:00000008819873e925422c1ff0f99f7c": false,
             },
-            "eip155": Object {
+            "eip155": {
               "0x1": true,
               "0x2105": true,
               "0x38": true,
@@ -2520,12 +2520,12 @@ describe('NetworkEnablementController', () => {
               "0xa4b1": true,
               "0xe708": true,
             },
-            "solana": Object {
+            "solana": {
               "solana:4uhcVJyU9pJkvQyS88uRDiswHXSCkY3z": false,
               "solana:5eykt4UsFv8P8NJdTREpY1vzqKqZKvdp": true,
               "solana:EtWTRABZaYq6iMfeYKouRu166VU2xqa1": false,
             },
-            "tron": Object {
+            "tron": {
               "tron:2494104990": false,
               "tron:3448148188": false,
               "tron:728126428": true,
@@ -2545,14 +2545,14 @@ describe('NetworkEnablementController', () => {
           'persist',
         ),
       ).toMatchInlineSnapshot(`
-        Object {
-          "enabledNetworkMap": Object {
-            "bip122": Object {
+        {
+          "enabledNetworkMap": {
+            "bip122": {
               "bip122:000000000019d6689c085ae165831e93": true,
               "bip122:000000000933ea01ad0ee984209779ba": false,
               "bip122:00000008819873e925422c1ff0f99f7c": false,
             },
-            "eip155": Object {
+            "eip155": {
               "0x1": true,
               "0x2105": true,
               "0x38": true,
@@ -2562,12 +2562,12 @@ describe('NetworkEnablementController', () => {
               "0xa4b1": true,
               "0xe708": true,
             },
-            "solana": Object {
+            "solana": {
               "solana:4uhcVJyU9pJkvQyS88uRDiswHXSCkY3z": false,
               "solana:5eykt4UsFv8P8NJdTREpY1vzqKqZKvdp": true,
               "solana:EtWTRABZaYq6iMfeYKouRu166VU2xqa1": false,
             },
-            "tron": Object {
+            "tron": {
               "tron:2494104990": false,
               "tron:3448148188": false,
               "tron:728126428": true,
@@ -2587,14 +2587,14 @@ describe('NetworkEnablementController', () => {
           'usedInUi',
         ),
       ).toMatchInlineSnapshot(`
-        Object {
-          "enabledNetworkMap": Object {
-            "bip122": Object {
+        {
+          "enabledNetworkMap": {
+            "bip122": {
               "bip122:000000000019d6689c085ae165831e93": true,
               "bip122:000000000933ea01ad0ee984209779ba": false,
               "bip122:00000008819873e925422c1ff0f99f7c": false,
             },
-            "eip155": Object {
+            "eip155": {
               "0x1": true,
               "0x2105": true,
               "0x38": true,
@@ -2604,12 +2604,12 @@ describe('NetworkEnablementController', () => {
               "0xa4b1": true,
               "0xe708": true,
             },
-            "solana": Object {
+            "solana": {
               "solana:4uhcVJyU9pJkvQyS88uRDiswHXSCkY3z": false,
               "solana:5eykt4UsFv8P8NJdTREpY1vzqKqZKvdp": true,
               "solana:EtWTRABZaYq6iMfeYKouRu166VU2xqa1": false,
             },
-            "tron": Object {
+            "tron": {
               "tron:2494104990": false,
               "tron:3448148188": false,
               "tron:728126428": true,
