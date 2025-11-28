@@ -9,6 +9,6 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ### Added
 
-- Initial release of `@metamask/storage-service`
+- Initial release of `@metamask/storage-service` ([#7192](https://github.com/MetaMask/core/pull/7192))
 
 [Unreleased]: https://github.com/MetaMask/core/
