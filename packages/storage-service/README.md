@@ -107,9 +107,9 @@ import type { Json } from '@metamask/utils';
 
 // Response type for getItem - distinguishes found, not found, and error
 type StorageGetResult =
-  | { result: Json; error?: never }  // Data found
+  | { result: Json; error?: never } // Data found
   | { result?: never; error: Error } // Error occurred
-  | Record<string, never>;            // Key doesn't exist (empty object)
+  | Record<string, never>; // Key doesn't exist (empty object)
 
 export type StorageAdapter = {
   getItem(namespace: string, key: string): Promise<StorageGetResult>;
