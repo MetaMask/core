@@ -67,7 +67,7 @@ function getTokenSearchURL(
   const encodedChainIds = chainIds
     .map((id) => encodeURIComponent(id))
     .join(',');
-  return `${TOKEN_END_POINT_API}/tokens/search?chainIds=${encodedChainIds}&query=${encodedQuery}&limit=${limit}&includeMarketData=${includeMarketData}`;
+  return `${TOKEN_END_POINT_API}/tokens/search?networks=${encodedChainIds}&query=${encodedQuery}&limit=${limit}&includeMarketData=${includeMarketData}`;
 }
 
 /**
