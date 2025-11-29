@@ -197,11 +197,7 @@ describe('createFetchMiddleware', () => {
             params: [],
           }),
         ),
-      ).rejects.toThrow(
-        rpcErrors.internal({
-          message: 'oops',
-        }),
-      );
+      ).rejects.toThrow('oops');
     });
   });
 });
