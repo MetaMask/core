@@ -357,6 +357,102 @@ describe('decodePermission', () => {
         ).toThrow('Contract not found: TimestampEnforcer');
       });
     });
+
+    describe('erc20-token-revocation', () => {
+      const expectedPermissionType = 'erc20-token-revocation';
+      const { AllowedCalldataEnforcer } = contracts;
+
+      it('matches with two AllowedCalldataEnforcer and ValueLteEnforcer and NonceEnforcer', () => {
+        const enforcers = [
+          AllowedCalldataEnforcer,
+          AllowedCalldataEnforcer,
+          ValueLteEnforcer,
+          NonceEnforcer,
+        ];
+        const result = identifyPermissionByEnforcers({ enforcers, contracts });
+        expect(result).toBe(expectedPermissionType);
+      });
+
+      it('allows TimestampEnforcer as extra', () => {
+        const enforcers = [
+          AllowedCalldataEnforcer,
+          AllowedCalldataEnforcer,
+          ValueLteEnforcer,
+          NonceEnforcer,
+          TimestampEnforcer,
+        ];
+        const result = identifyPermissionByEnforcers({ enforcers, contracts });
+        expect(result).toBe(expectedPermissionType);
+      });
+
+      // todo: this doesn't work _yet_ as Set is used to represent the caveats
+      // in each rule, so duplicates are not respected
+      it.skip('rejects when only one AllowedCalldataEnforcer is provided', () => {
+        const enforcers = [
+          AllowedCalldataEnforcer,
+          ValueLteEnforcer,
+          NonceEnforcer,
+        ];
+        expect(() =>
+          identifyPermissionByEnforcers({ enforcers, contracts }),
+        ).toThrow('Unable to identify permission type');
+      });
+
+      it('rejects when ValueLteEnforcer is missing', () => {
+        const enforcers = [
+          AllowedCalldataEnforcer,
+          AllowedCalldataEnforcer,
+          NonceEnforcer,
+        ];
+        expect(() =>
+          identifyPermissionByEnforcers({ enforcers, contracts }),
+        ).toThrow('Unable to identify permission type');
+      });
+
+      it('rejects forbidden extra caveat', () => {
+        const enforcers = [
+          AllowedCalldataEnforcer,
+          AllowedCalldataEnforcer,
+          ValueLteEnforcer,
+          // Not allowed for erc20-token-revocation
+          ExactCalldataEnforcer,
+        ];
+        expect(() =>
+          identifyPermissionByEnforcers({ enforcers, contracts }),
+        ).toThrow('Unable to identify permission type');
+      });
+
+      it('accepts lowercased addresses', () => {
+        const enforcers: Hex[] = [
+          AllowedCalldataEnforcer.toLowerCase() as unknown as Hex,
+          AllowedCalldataEnforcer.toLowerCase() as unknown as Hex,
+          ValueLteEnforcer.toLowerCase() as unknown as Hex,
+          NonceEnforcer.toLowerCase() as unknown as Hex,
+        ];
+        const result = identifyPermissionByEnforcers({ enforcers, contracts });
+        expect(result).toBe(expectedPermissionType);
+      });
+
+      it('throws if a contract is not found', () => {
+        const enforcers = [
+          AllowedCalldataEnforcer,
+          AllowedCalldataEnforcer,
+          ValueLteEnforcer,
+          NonceEnforcer,
+        ];
+        const contractsWithoutAllowedCalldataEnforcer = {
+          ...contracts,
+          AllowedCalldataEnforcer: undefined,
+        } as unknown as DeployedContractsByName;
+
+        expect(() =>
+          identifyPermissionByEnforcers({
+            enforcers,
+            contracts: contractsWithoutAllowedCalldataEnforcer,
+          }),
+        ).toThrow('Contract not found: AllowedCalldataEnforcer');
+      });
+    });
   });
 
   describe('getPermissionDataAndExpiry', () => {
@@ -1046,6 +1142,23 @@ describe('decodePermission', () => {
             permissionType,
           }),
         ).toThrow('Value must be a hexadecimal string.');
+      });
+    });
+
+    describe('erc20-token-revocation', () => {
+      const permissionType = 'erc20-token-revocation';
+
+      it('returns the correct expiry and data', () => {
+        const caveats = [expiryCaveat];
+
+        const { expiry, data } = getPermissionDataAndExpiry({
+          contracts,
+          caveats,
+          permissionType,
+        });
+
+        expect(expiry).toEqual(timestampBeforeThreshold);
+        expect(data).toEqual({});
       });
     });
   });

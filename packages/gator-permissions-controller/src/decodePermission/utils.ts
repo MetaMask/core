@@ -25,6 +25,7 @@ const ENFORCER_CONTRACT_NAMES = {
   TimestampEnforcer: 'TimestampEnforcer',
   ValueLteEnforcer: 'ValueLteEnforcer',
   NonceEnforcer: 'NonceEnforcer',
+  AllowedCalldataEnforcer: 'AllowedCalldataEnforcer',
 };
 
 /**
@@ -76,6 +77,10 @@ export const getChecksumEnforcersByChainId = (
     ENFORCER_CONTRACT_NAMES.NonceEnforcer,
   );
 
+  const allowedCalldataEnforcer = getChecksumContractAddress(
+    ENFORCER_CONTRACT_NAMES.AllowedCalldataEnforcer,
+  );
+
   return {
     erc20StreamingEnforcer,
     erc20PeriodicEnforcer,
@@ -85,6 +90,7 @@ export const getChecksumEnforcersByChainId = (
     valueLteEnforcer,
     timestampEnforcer,
     nonceEnforcer,
+    allowedCalldataEnforcer,
   };
 };
 
@@ -111,6 +117,7 @@ export const createPermissionRulesForChainId: (
     valueLteEnforcer,
     timestampEnforcer,
     nonceEnforcer,
+    allowedCalldataEnforcer,
   } = getChecksumEnforcersByChainId(contracts);
 
   // the allowed enforcers are the same for all permission types
@@ -152,6 +159,15 @@ export const createPermissionRulesForChainId: (
       ]),
       allowedEnforcers,
       permissionType: 'erc20-token-periodic',
+    },
+    {
+      requiredEnforcers: new Set<Hex>([
+        allowedCalldataEnforcer,
+        valueLteEnforcer,
+        nonceEnforcer,
+      ]),
+      allowedEnforcers,
+      permissionType: 'erc20-token-revocation',
     },
   ];
 

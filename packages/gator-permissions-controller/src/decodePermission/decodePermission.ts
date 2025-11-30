@@ -249,6 +249,10 @@ export const getPermissionDataAndExpiry = ({
       };
       break;
     }
+    case 'erc20-token-revocation': {
+      data = {};
+      break;
+    }
     default:
       throw new Error('Invalid permission type');
   }

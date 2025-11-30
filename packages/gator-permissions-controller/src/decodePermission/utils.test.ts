@@ -12,18 +12,18 @@ import {
 } from './utils';
 
 // Helper to build a contracts map with lowercase addresses
-const buildContracts = (): DeployedContractsByName =>
-  ({
-    ERC20PeriodTransferEnforcer: '0x1111111111111111111111111111111111111111',
-    ERC20StreamingEnforcer: '0x2222222222222222222222222222222222222222',
-    ExactCalldataEnforcer: '0x3333333333333333333333333333333333333333',
-    NativeTokenPeriodTransferEnforcer:
-      '0x4444444444444444444444444444444444444444',
-    NativeTokenStreamingEnforcer: '0x5555555555555555555555555555555555555555',
-    TimestampEnforcer: '0x6666666666666666666666666666666666666666',
-    ValueLteEnforcer: '0x7777777777777777777777777777777777777777',
-    NonceEnforcer: '0x8888888888888888888888888888888888888888',
-  }) as unknown as DeployedContractsByName;
+const buildContracts = (): DeployedContractsByName => ({
+  ERC20PeriodTransferEnforcer: '0x1111111111111111111111111111111111111111',
+  ERC20StreamingEnforcer: '0x2222222222222222222222222222222222222222',
+  ExactCalldataEnforcer: '0x3333333333333333333333333333333333333333',
+  NativeTokenPeriodTransferEnforcer:
+    '0x4444444444444444444444444444444444444444',
+  NativeTokenStreamingEnforcer: '0x5555555555555555555555555555555555555555',
+  TimestampEnforcer: '0x6666666666666666666666666666666666666666',
+  ValueLteEnforcer: '0x7777777777777777777777777777777777777777',
+  NonceEnforcer: '0x8888888888888888888888888888888888888888',
+  AllowedCalldataEnforcer: '0x9999999999999999999999999999999999999999',
+});
 
 describe('getChecksumEnforcersByChainId', () => {
   it('returns checksummed addresses for all known enforcers', () => {
@@ -49,6 +49,9 @@ describe('getChecksumEnforcersByChainId', () => {
       valueLteEnforcer: getChecksumAddress(contracts.ValueLteEnforcer),
       timestampEnforcer: getChecksumAddress(contracts.TimestampEnforcer),
       nonceEnforcer: getChecksumAddress(contracts.NonceEnforcer),
+      allowedCalldataEnforcer: getChecksumAddress(
+        contracts.AllowedCalldataEnforcer,
+      ),
     });
   });
 
@@ -73,10 +76,17 @@ describe('createPermissionRulesForChainId', () => {
       valueLteEnforcer,
       timestampEnforcer,
       nonceEnforcer,
+      allowedCalldataEnforcer,
     } = getChecksumEnforcersByChainId(contracts);
 
+    // erc20-token-stream
+    // erc20-token-periodic
+    // native-token-stream
+    // native-token-periodic
+    // erc20-token-revocation
+    const permissionTypeCount = 5;
     const rules = createPermissionRulesForChainId(contracts);
-    expect(rules).toHaveLength(4);
+    expect(rules).toHaveLength(permissionTypeCount);
 
     const byType = Object.fromEntries(rules.map((r) => [r.permissionType, r]));
 
@@ -142,6 +152,20 @@ describe('createPermissionRulesForChainId', () => {
     expect(byType['erc20-token-periodic'].requiredEnforcers.size).toBe(3);
     expect(byType['erc20-token-periodic'].requiredEnforcers).toStrictEqual(
       new Set<Hex>([erc20PeriodicEnforcer, valueLteEnforcer, nonceEnforcer]),
+    );
+
+    // erc20-token-revocation
+    expect(byType['erc20-token-revocation']).toBeDefined();
+    expect(byType['erc20-token-revocation'].permissionType).toBe(
+      'erc20-token-revocation',
+    );
+    expect(byType['erc20-token-revocation'].allowedEnforcers.size).toBe(1);
+    expect(
+      byType['erc20-token-revocation'].allowedEnforcers.has(timestampEnforcer),
+    ).toBe(true);
+    expect(byType['erc20-token-revocation'].requiredEnforcers.size).toBe(3);
+    expect(byType['erc20-token-revocation'].requiredEnforcers).toStrictEqual(
+      new Set<Hex>([allowedCalldataEnforcer, valueLteEnforcer, nonceEnforcer]),
     );
   });
 });
