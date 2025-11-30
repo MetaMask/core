@@ -9,16 +9,17 @@ import type {
 import type { AbstractClientConfigApiService } from './client-config-api-service/abstract-client-config-api-service';
 import {
   RemoteFeatureFlagController,
+  controllerName,
   DEFAULT_CACHE_DURATION,
   getDefaultRemoteFeatureFlagControllerState,
 } from './remote-feature-flag-controller';
 import type {
+  RemoteFeatureFlagControllerActions,
   RemoteFeatureFlagControllerMessenger,
   RemoteFeatureFlagControllerState,
+  RemoteFeatureFlagControllerStateChangeEvent,
 } from './remote-feature-flag-controller';
 import type { FeatureFlags } from './remote-feature-flag-controller-types';
-
-const controllerName = 'RemoteFeatureFlagController';
 
 const MOCK_FLAGS: FeatureFlags = {
   feature1: true,
@@ -86,6 +87,8 @@ describe('RemoteFeatureFlagController', () => {
 
       expect(controller.state).toStrictEqual({
         remoteFeatureFlags: {},
+        localOverrides: {},
+        abTestRawFlags: {},
         cacheTimestamp: 0,
       });
     });
@@ -95,6 +98,8 @@ describe('RemoteFeatureFlagController', () => {
 
       expect(controller.state).toStrictEqual({
         remoteFeatureFlags: {},
+        localOverrides: {},
+        abTestRawFlags: {},
         cacheTimestamp: 0,
       });
     });
@@ -638,7 +643,419 @@ describe('RemoteFeatureFlagController', () => {
     it('should return default state', () => {
       expect(getDefaultRemoteFeatureFlagControllerState()).toStrictEqual({
         remoteFeatureFlags: {},
+        localOverrides: {},
+        abTestRawFlags: {},
         cacheTimestamp: 0,
+      });
+    });
+  });
+
+  describe('override functionality', () => {
+    describe('setFlagOverride', () => {
+      it('sets a local override for a feature flag', () => {
+        const controller = createController();
+
+        controller.setFlagOverride('testFlag', true);
+
+        expect(controller.state.localOverrides).toStrictEqual({
+          testFlag: true,
+        });
+      });
+
+      it('overwrites existing override for the same flag', () => {
+        const controller = createController();
+
+        controller.setFlagOverride('testFlag', true);
+        controller.setFlagOverride('testFlag', false);
+
+        expect(controller.state.localOverrides).toStrictEqual({
+          testFlag: false,
+        });
+      });
+
+      it('preserves other overrides when setting a new one', () => {
+        const controller = createController();
+
+        controller.setFlagOverride('flag1', 'value1');
+        controller.setFlagOverride('flag2', 'value2');
+
+        expect(controller.state.localOverrides).toStrictEqual({
+          flag1: 'value1',
+          flag2: 'value2',
+        });
+      });
+    });
+
+    describe('getFlagOverride', () => {
+      it('returns the override value for an existing override', () => {
+        const controller = createController();
+
+        controller.setFlagOverride('testFlag', 'overrideValue');
+
+        expect(controller.getFlagOverride('testFlag')).toBe('overrideValue');
+      });
+
+      it('returns undefined for a non-existent override', () => {
+        const controller = createController();
+
+        expect(controller.getFlagOverride('nonExistentFlag')).toBeUndefined();
+      });
+    });
+
+    describe('clearFlagOverride', () => {
+      it('removes a specific override', () => {
+        const controller = createController();
+
+        controller.setFlagOverride('flag1', 'value1');
+        controller.setFlagOverride('flag2', 'value2');
+        controller.clearFlagOverride('flag1');
+
+        expect(controller.state.localOverrides).toStrictEqual({
+          flag2: 'value2',
+        });
+      });
+
+      it('does not affect state when clearing non-existent override', () => {
+        const controller = createController();
+
+        controller.setFlagOverride('flag1', 'value1');
+        controller.clearFlagOverride('nonExistentFlag');
+
+        expect(controller.state.localOverrides).toStrictEqual({
+          flag1: 'value1',
+        });
+      });
+    });
+
+    describe('clearAllOverrides', () => {
+      it('removes all overrides', () => {
+        const controller = createController();
+
+        controller.setFlagOverride('flag1', 'value1');
+        controller.setFlagOverride('flag2', 'value2');
+        controller.clearAllOverrides();
+
+        expect(controller.state.localOverrides).toStrictEqual({});
+      });
+
+      it('does not affect state when no overrides exist', () => {
+        const controller = createController();
+
+        controller.clearAllOverrides();
+
+        expect(controller.state.localOverrides).toStrictEqual({});
+      });
+    });
+
+    describe('getFlag', () => {
+      it('returns override value when both remote and override exist', async () => {
+        const clientConfigApiService = buildClientConfigApiService({
+          remoteFeatureFlags: { testFlag: 'remoteValue' },
+        });
+        const controller = createController({ clientConfigApiService });
+
+        await controller.updateRemoteFeatureFlags();
+        controller.setFlagOverride('testFlag', 'overrideValue');
+
+        expect(controller.getFlag('testFlag')).toBe('overrideValue');
+      });
+
+      it('returns remote value when only remote flag exists', async () => {
+        const clientConfigApiService = buildClientConfigApiService({
+          remoteFeatureFlags: { testFlag: 'remoteValue' },
+        });
+        const controller = createController({ clientConfigApiService });
+
+        await controller.updateRemoteFeatureFlags();
+
+        expect(controller.getFlag('testFlag')).toBe('remoteValue');
+      });
+
+      it('returns override value when only override exists', () => {
+        const controller = createController();
+
+        controller.setFlagOverride('testFlag', 'overrideValue');
+
+        expect(controller.getFlag('testFlag')).toBe('overrideValue');
+      });
+
+      it('returns undefined when neither remote nor override exists', () => {
+        const controller = createController();
+
+        expect(controller.getFlag('nonExistentFlag')).toBeUndefined();
+      });
+    });
+
+    describe('getAllFlags', () => {
+      it('returns combined flags with overrides taking precedence', async () => {
+        const clientConfigApiService = buildClientConfigApiService({
+          remoteFeatureFlags: {
+            remoteOnly: 'remoteValue',
+            sharedFlag: 'remoteValue',
+          },
+        });
+        const controller = createController({ clientConfigApiService });
+
+        await controller.updateRemoteFeatureFlags();
+        controller.setFlagOverride('overrideOnly', 'overrideValue');
+        controller.setFlagOverride('sharedFlag', 'overrideValue');
+
+        const allFlags = controller.getAllFlags();
+
+        expect(allFlags).toStrictEqual({
+          remoteOnly: 'remoteValue',
+          sharedFlag: 'overrideValue', // Override takes precedence
+          overrideOnly: 'overrideValue',
+        });
+      });
+
+      it('returns only remote flags when no overrides exist', async () => {
+        const clientConfigApiService = buildClientConfigApiService({
+          remoteFeatureFlags: MOCK_FLAGS,
+        });
+        const controller = createController({ clientConfigApiService });
+
+        await controller.updateRemoteFeatureFlags();
+
+        expect(controller.getAllFlags()).toStrictEqual(MOCK_FLAGS);
+      });
+
+      it('returns only overrides when no remote flags exist', () => {
+        const controller = createController();
+
+        controller.setFlagOverride('flag1', 'value1');
+        controller.setFlagOverride('flag2', 'value2');
+
+        expect(controller.getAllFlags()).toStrictEqual({
+          flag1: 'value1',
+          flag2: 'value2',
+        });
+      });
+
+      it('returns empty object when no flags or overrides exist', () => {
+        const controller = createController();
+
+        expect(controller.getAllFlags()).toStrictEqual({});
+      });
+    });
+
+    describe('integration with remote flags', () => {
+      it('preserves overrides when remote flags are updated', async () => {
+        const clientConfigApiService = buildClientConfigApiService({
+          remoteFeatureFlags: { remoteFlag: 'initialRemoteValue' },
+        });
+        const controller = createController({ clientConfigApiService });
+
+        // Set override before fetching remote flags
+        controller.setFlagOverride('overrideFlag', 'overrideValue');
+
+        await controller.updateRemoteFeatureFlags();
+
+        // Mock different remote response for second fetch
+        jest
+          .spyOn(clientConfigApiService, 'fetchRemoteFeatureFlags')
+          .mockResolvedValueOnce({
+            remoteFeatureFlags: { remoteFlag: 'updatedRemoteValue' },
+            cacheTimestamp: Date.now(),
+          });
+
+        // Force cache expiration and update
+        jest.spyOn(Date, 'now').mockReturnValue(Date.now() + DEFAULT_CACHE_DURATION + 1000);
+        await controller.updateRemoteFeatureFlags();
+
+        // Overrides should be preserved
+        expect(controller.state.localOverrides).toStrictEqual({
+          overrideFlag: 'overrideValue',
+        });
+
+        // Remote flags should be updated
+        expect(controller.state.remoteFeatureFlags).toStrictEqual({
+          remoteFlag: 'updatedRemoteValue',
+        });
+      });
+
+      it('overrides work with threshold-based feature flags', async () => {
+        const clientConfigApiService = buildClientConfigApiService({
+          remoteFeatureFlags: MOCK_FLAGS_WITH_THRESHOLD,
+        });
+        const controller = createController({
+          clientConfigApiService,
+          getMetaMetricsId: () => MOCK_METRICS_ID,
+        });
+
+        await controller.updateRemoteFeatureFlags();
+
+        // Override the threshold flag
+        controller.setFlagOverride('testFlagForThreshold', 'overriddenValue');
+
+        expect(controller.getFlag('testFlagForThreshold')).toBe('overriddenValue');
+        expect(controller.getAllFlags().testFlagForThreshold).toBe('overriddenValue');
+      });
+    });
+  });
+
+  describe('A/B Test visibility functionality', () => {
+    describe('getAvailableABTestGroups', () => {
+      it('returns available A/B test groups for threshold flags', async () => {
+        const clientConfigApiService = buildClientConfigApiService({
+          remoteFeatureFlags: MOCK_FLAGS_WITH_THRESHOLD,
+        });
+        const controller = createController({ clientConfigApiService });
+
+        await controller.updateRemoteFeatureFlags();
+
+        const groups = controller.getAvailableABTestGroups('testFlagForThreshold');
+
+        expect(groups).toStrictEqual([
+          {
+            name: 'groupA',
+            scope: { type: 'threshold', value: 0.3 },
+            value: 'valueA',
+          },
+          {
+            name: 'groupB',
+            scope: { type: 'threshold', value: 0.5 },
+            value: 'valueB',
+          },
+          {
+            name: 'groupC',
+            scope: { type: 'threshold', value: 1 },
+            value: 'valueC',
+          },
+        ]);
+      });
+
+      it('returns undefined for non-array flags', async () => {
+        const clientConfigApiService = buildClientConfigApiService({
+          remoteFeatureFlags: { simpleFlag: true },
+        });
+        const controller = createController({ clientConfigApiService });
+
+        await controller.updateRemoteFeatureFlags();
+
+        expect(controller.getAvailableABTestGroups('simpleFlag')).toBeUndefined();
+      });
+
+      it('returns undefined for non-existent flags', () => {
+        const controller = createController();
+
+        expect(controller.getAvailableABTestGroups('nonExistentFlag')).toBeUndefined();
+      });
+    });
+
+    describe('getAllABTestFlags', () => {
+      it('returns all flags that have A/B test groups', async () => {
+        const clientConfigApiService = buildClientConfigApiService({
+          remoteFeatureFlags: {
+            ...MOCK_FLAGS,
+            testFlagForThreshold: MOCK_FLAGS_WITH_THRESHOLD.testFlagForThreshold,
+            anotherThresholdFlag: [
+              {
+                name: 'optionA',
+                scope: { type: 'threshold', value: 0.5 },
+                value: 'A',
+              },
+              {
+                name: 'optionB',
+                scope: { type: 'threshold', value: 1 },
+                value: 'B',
+              },
+            ],
+          },
+        });
+        const controller = createController({ clientConfigApiService });
+
+        await controller.updateRemoteFeatureFlags();
+
+        const abTestFlags = controller.getAllABTestFlags();
+
+        expect(Object.keys(abTestFlags)).toContain('testFlagForThreshold');
+        expect(Object.keys(abTestFlags)).toContain('anotherThresholdFlag');
+        expect(Object.keys(abTestFlags)).not.toContain('feature1'); // Simple flag, not A/B test
+        expect(abTestFlags.testFlagForThreshold).toHaveLength(3);
+        expect(abTestFlags.anotherThresholdFlag).toHaveLength(2);
+      });
+
+      it('returns empty object when no A/B test flags exist', async () => {
+        const clientConfigApiService = buildClientConfigApiService({
+          remoteFeatureFlags: MOCK_FLAGS, // No A/B test flags
+        });
+        const controller = createController({ clientConfigApiService });
+
+        await controller.updateRemoteFeatureFlags();
+
+        expect(controller.getAllABTestFlags()).toStrictEqual({});
+      });
+
+      it('returns empty object when no flags exist', () => {
+        const controller = createController();
+
+        expect(controller.getAllABTestFlags()).toStrictEqual({});
+      });
+    });
+
+    describe('A/B test storage efficiency', () => {
+      it('only stores raw values for A/B test flags, not simple flags', async () => {
+        const clientConfigApiService = buildClientConfigApiService({
+          remoteFeatureFlags: {
+            simpleFlag: true,
+            anotherSimpleFlag: 'value',
+            testFlagForThreshold: MOCK_FLAGS_WITH_THRESHOLD.testFlagForThreshold,
+          },
+        });
+        const controller = createController({ clientConfigApiService });
+
+        await controller.updateRemoteFeatureFlags();
+
+        // Only A/B test flags should be stored in abTestRawFlags
+        expect(Object.keys(controller.state.abTestRawFlags)).toStrictEqual(['testFlagForThreshold']);
+        expect(controller.state.abTestRawFlags.testFlagForThreshold).toStrictEqual(
+          MOCK_FLAGS_WITH_THRESHOLD.testFlagForThreshold
+        );
+
+        // Simple flags should not be in abTestRawFlags
+        expect(controller.state.abTestRawFlags.simpleFlag).toBeUndefined();
+        expect(controller.state.abTestRawFlags.anotherSimpleFlag).toBeUndefined();
+      });
+    });
+
+    describe('integration with overrides', () => {
+      it('allows overriding with specific A/B test group values', async () => {
+        const clientConfigApiService = buildClientConfigApiService({
+          remoteFeatureFlags: MOCK_FLAGS_WITH_THRESHOLD,
+        });
+        const controller = createController({
+          clientConfigApiService,
+          getMetaMetricsId: () => MOCK_METRICS_ID,
+        });
+
+        await controller.updateRemoteFeatureFlags();
+
+        // Get available groups
+        const groups = controller.getAvailableABTestGroups('testFlagForThreshold');
+        expect(groups).toBeDefined();
+
+        // Override with a specific group value
+        controller.setFlagOverride('testFlagForThreshold', groups![0].value); // groupA value
+
+        expect(controller.getFlag('testFlagForThreshold')).toBe('valueA');
+      });
+
+      it('preserves A/B test raw flags when overrides are set', async () => {
+        const clientConfigApiService = buildClientConfigApiService({
+          remoteFeatureFlags: MOCK_FLAGS_WITH_THRESHOLD,
+        });
+        const controller = createController({ clientConfigApiService });
+
+        await controller.updateRemoteFeatureFlags();
+        controller.setFlagOverride('testFlagForThreshold', 'overrideValue');
+
+        // A/B test raw flags should still be available
+        const groups = controller.getAvailableABTestGroups('testFlagForThreshold');
+        expect(groups).toHaveLength(3);
+        expect(controller.state.abTestRawFlags.testFlagForThreshold).toStrictEqual(
+          MOCK_FLAGS_WITH_THRESHOLD.testFlagForThreshold
+        );
       });
     });
   });
@@ -655,7 +1072,9 @@ describe('RemoteFeatureFlagController', () => {
         ),
       ).toMatchInlineSnapshot(`
         Object {
+          "abTestRawFlags": Object {},
           "cacheTimestamp": 0,
+          "localOverrides": Object {},
           "remoteFeatureFlags": Object {},
         }
       `);
@@ -672,7 +1091,9 @@ describe('RemoteFeatureFlagController', () => {
         ),
       ).toMatchInlineSnapshot(`
         Object {
+          "abTestRawFlags": Object {},
           "cacheTimestamp": 0,
+          "localOverrides": Object {},
           "remoteFeatureFlags": Object {},
         }
       `);
@@ -689,7 +1110,9 @@ describe('RemoteFeatureFlagController', () => {
         ),
       ).toMatchInlineSnapshot(`
         Object {
+          "abTestRawFlags": Object {},
           "cacheTimestamp": 0,
+          "localOverrides": Object {},
           "remoteFeatureFlags": Object {},
         }
       `);
@@ -706,6 +1129,7 @@ describe('RemoteFeatureFlagController', () => {
         ),
       ).toMatchInlineSnapshot(`
         Object {
+          "localOverrides": Object {},
           "remoteFeatureFlags": Object {},
         }
       `);
