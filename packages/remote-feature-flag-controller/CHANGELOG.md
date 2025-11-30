@@ -26,6 +26,11 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ### Changed
 
+- Add custom backoff interval support in `ClientConfigApiService` ([#6922](https://github.com/MetaMask/core/pull/6922))
+  - New `customBackoffInterval` parameter allows specifying exact retry intervals in seconds
+  - Example: `[100, 200, 300]` means 1st retry after 100s, 2nd after 200s, 3rd after 300s
+  - Falls back to default exponential backoff when no custom intervals provided
+  - Includes validation to ensure intervals array is compatible with retry configuration
 - Bump `@metamask/base-controller` from `^8.4.1` to `^8.4.2` ([#6917](https://github.com/MetaMask/core/pull/6917))
 
 ## [1.9.0]
