@@ -12,7 +12,9 @@ import type {
   FeatureFlags,
   ServiceResponse,
   FeatureFlagScopeValue,
+  FeatureFlagScope,
 } from './remote-feature-flag-controller-types';
+import type { Json } from '@metamask/utils';
 import {
   generateDeterministicRandomNumber,
   isFeatureFlagWithScopeValue,
@@ -21,13 +23,15 @@ import { isVersionFeatureFlag, getVersionData } from './utils/version';
 
 // === GENERAL ===
 
-const controllerName = 'RemoteFeatureFlagController';
+export const controllerName = 'RemoteFeatureFlagController';
 export const DEFAULT_CACHE_DURATION = 24 * 60 * 60 * 1000; // 1 day
 
 // === STATE ===
 
 export type RemoteFeatureFlagControllerState = {
   remoteFeatureFlags: FeatureFlags;
+  localOverrides: FeatureFlags;
+  abTestRawFlags: FeatureFlags;
   cacheTimestamp: number;
 };
 
@@ -37,6 +41,18 @@ const remoteFeatureFlagControllerMetadata = {
     persist: true,
     includeInDebugSnapshot: true,
     usedInUi: true,
+  },
+  localOverrides: {
+    includeInStateLogs: true,
+    persist: true,
+    includeInDebugSnapshot: true,
+    usedInUi: true,
+  },
+  abTestRawFlags: {
+    includeInStateLogs: true,
+    persist: true,
+    includeInDebugSnapshot: true,
+    usedInUi: false,
   },
   cacheTimestamp: {
     includeInStateLogs: true,
@@ -62,9 +78,57 @@ export type RemoteFeatureFlagControllerUpdateRemoteFeatureFlagsAction = {
   handler: RemoteFeatureFlagController['updateRemoteFeatureFlags'];
 };
 
+export type RemoteFeatureFlagControllerSetFlagOverrideAction = {
+  type: `${typeof controllerName}:setFlagOverride`;
+  handler: RemoteFeatureFlagController['setFlagOverride'];
+};
+
+export type RemoteFeatureFlagControllerGetFlagOverrideAction = {
+  type: `${typeof controllerName}:getFlagOverride`;
+  handler: RemoteFeatureFlagController['getFlagOverride'];
+};
+
+export type RemoteFeatureFlagControllerClearFlagOverrideAction = {
+  type: `${typeof controllerName}:clearFlagOverride`;
+  handler: RemoteFeatureFlagController['clearFlagOverride'];
+};
+
+export type RemoteFeatureFlagControllerClearAllOverridesAction = {
+  type: `${typeof controllerName}:clearAllOverrides`;
+  handler: RemoteFeatureFlagController['clearAllOverrides'];
+};
+
+export type RemoteFeatureFlagControllerGetFlagAction = {
+  type: `${typeof controllerName}:getFlag`;
+  handler: RemoteFeatureFlagController['getFlag'];
+};
+
+export type RemoteFeatureFlagControllerGetAllFlagsAction = {
+  type: `${typeof controllerName}:getAllFlags`;
+  handler: RemoteFeatureFlagController['getAllFlags'];
+};
+
+export type RemoteFeatureFlagControllerGetAvailableABTestGroupsAction = {
+  type: `${typeof controllerName}:getAvailableABTestGroups`;
+  handler: RemoteFeatureFlagController['getAvailableABTestGroups'];
+};
+
+export type RemoteFeatureFlagControllerGetAllABTestFlagsAction = {
+  type: `${typeof controllerName}:getAllABTestFlags`;
+  handler: RemoteFeatureFlagController['getAllABTestFlags'];
+};
+
 export type RemoteFeatureFlagControllerActions =
   | RemoteFeatureFlagControllerGetStateAction
-  | RemoteFeatureFlagControllerUpdateRemoteFeatureFlagsAction;
+  | RemoteFeatureFlagControllerUpdateRemoteFeatureFlagsAction
+  | RemoteFeatureFlagControllerSetFlagOverrideAction
+  | RemoteFeatureFlagControllerGetFlagOverrideAction
+  | RemoteFeatureFlagControllerClearFlagOverrideAction
+  | RemoteFeatureFlagControllerClearAllOverridesAction
+  | RemoteFeatureFlagControllerGetFlagAction
+  | RemoteFeatureFlagControllerGetAllFlagsAction
+  | RemoteFeatureFlagControllerGetAvailableABTestGroupsAction
+  | RemoteFeatureFlagControllerGetAllABTestFlagsAction;
 
 export type RemoteFeatureFlagControllerStateChangeEvent =
   ControllerStateChangeEvent<
@@ -89,6 +153,8 @@ export type RemoteFeatureFlagControllerMessenger = Messenger<
 export function getDefaultRemoteFeatureFlagControllerState(): RemoteFeatureFlagControllerState {
   return {
     remoteFeatureFlags: {},
+    localOverrides: {},
+    abTestRawFlags: {},
     cacheTimestamp: 0,
   };
 }
@@ -213,11 +279,13 @@ export class RemoteFeatureFlagController extends BaseController<
    * @param remoteFeatureFlags - The new feature flags to cache.
    */
   async #updateCache(remoteFeatureFlags: FeatureFlags) {
-    const processedRemoteFeatureFlags =
+    const { processedFlags, abTestRawFlags } =
       await this.#processRemoteFeatureFlags(remoteFeatureFlags);
     this.update(() => {
       return {
-        remoteFeatureFlags: processedRemoteFeatureFlags,
+        remoteFeatureFlags: processedFlags,
+        localOverrides: this.state.localOverrides,
+        abTestRawFlags,
         cacheTimestamp: Date.now(),
       };
     });
@@ -239,8 +307,9 @@ export class RemoteFeatureFlagController extends BaseController<
 
   async #processRemoteFeatureFlags(
     remoteFeatureFlags: FeatureFlags,
-  ): Promise<FeatureFlags> {
+  ): Promise<{ processedFlags: FeatureFlags; abTestRawFlags: FeatureFlags }> {
     const processedRemoteFeatureFlags: FeatureFlags = {};
+    const abTestRawFlags: FeatureFlags = {};
     const metaMetricsId = this.#getMetaMetricsId();
     const thresholdValue = generateDeterministicRandomNumber(metaMetricsId);
 
@@ -256,6 +325,9 @@ export class RemoteFeatureFlagController extends BaseController<
       }
 
       if (Array.isArray(processedValue) && thresholdValue) {
+        // Store the raw A/B test array for later use
+        abTestRawFlags[remoteFeatureFlagName] = remoteFeatureFlagValue;
+        
         const selectedGroup = processedValue.find(
           (featureFlag): featureFlag is FeatureFlagScopeValue => {
             if (!isFeatureFlagWithScopeValue(featureFlag)) {
@@ -275,7 +347,7 @@ export class RemoteFeatureFlagController extends BaseController<
 
       processedRemoteFeatureFlags[remoteFeatureFlagName] = processedValue;
     }
-    return processedRemoteFeatureFlags;
+    return { processedFlags: processedRemoteFeatureFlags, abTestRawFlags };
   }
 
   /**
@@ -290,5 +362,143 @@ export class RemoteFeatureFlagController extends BaseController<
    */
   disable(): void {
     this.#disabled = true;
+  }
+
+  /**
+   * Sets a local override for a specific feature flag.
+   *
+   * @param flagName - The name of the feature flag to override.
+   * @param value - The override value for the feature flag.
+   */
+  setFlagOverride(flagName: string, value: Json): void {
+    this.update(() => {
+      return {
+        remoteFeatureFlags: this.state.remoteFeatureFlags,
+        localOverrides: {
+          ...this.state.localOverrides,
+          [flagName]: value,
+        },
+        abTestRawFlags: this.state.abTestRawFlags,
+        cacheTimestamp: this.state.cacheTimestamp,
+      };
+    });
+  }
+
+  /**
+   * Gets the current override value for a specific feature flag.
+   *
+   * @param flagName - The name of the feature flag.
+   * @returns The override value if it exists, undefined otherwise.
+   */
+  getFlagOverride(flagName: string): Json | undefined {
+    return this.state.localOverrides[flagName];
+  }
+
+  /**
+   * Clears the local override for a specific feature flag.
+   *
+   * @param flagName - The name of the feature flag to clear.
+   */
+  clearFlagOverride(flagName: string): void {
+    const newOverrides = { ...this.state.localOverrides };
+    delete newOverrides[flagName];
+    this.update(() => {
+      return {
+        remoteFeatureFlags: this.state.remoteFeatureFlags,
+        localOverrides: newOverrides,
+        abTestRawFlags: this.state.abTestRawFlags,
+        cacheTimestamp: this.state.cacheTimestamp,
+      };
+    });
+  }
+
+  /**
+   * Clears all local feature flag overrides.
+   */
+  clearAllOverrides(): void {
+    this.update(() => {
+      return {
+        remoteFeatureFlags: this.state.remoteFeatureFlags,
+        localOverrides: {},
+        abTestRawFlags: this.state.abTestRawFlags,
+        cacheTimestamp: this.state.cacheTimestamp,
+      };
+    });
+  }
+
+  /**
+   * Gets the effective value of a feature flag, considering both remote flags and local overrides.
+   * Local overrides take precedence over remote flags.
+   *
+   * @param flagName - The name of the feature flag.
+   * @returns The effective flag value (override if exists, otherwise remote flag).
+   */
+  getFlag(flagName: string): Json | undefined {
+    // Check local overrides first
+    if (flagName in this.state.localOverrides) {
+      return this.state.localOverrides[flagName];
+    }
+    // Fall back to remote flags
+    return this.state.remoteFeatureFlags[flagName];
+  }
+
+  /**
+   * Gets all effective feature flags, combining remote flags with local overrides.
+   * Local overrides take precedence over remote flags with the same name.
+   *
+   * @returns An object containing all effective feature flags.
+   */
+  getAllFlags(): FeatureFlags {
+    return {
+      ...this.state.remoteFeatureFlags,
+      ...this.state.localOverrides,
+    };
+  }
+
+  /**
+   * Gets available A/B test groups for a specific feature flag.
+   * Returns all available options that can be used for overriding.
+   *
+   * @param flagName - The name of the feature flag.
+   * @returns Array of available A/B test groups with their names and values, or undefined if not an A/B test flag.
+   */
+  getAvailableABTestGroups(flagName: string): Array<{name: string; value: Json; scope?: FeatureFlagScope}> | undefined {
+    const rawFlag = this.state.abTestRawFlags[flagName];
+    
+    if (!Array.isArray(rawFlag)) {
+      return undefined;
+    }
+
+    return rawFlag
+      .filter((item): item is FeatureFlagScopeValue => 
+        typeof item === 'object' && 
+        item !== null && 
+        'name' in item && 
+        'value' in item
+      )
+      .map((group) => ({
+        name: group.name,
+        value: group.value,
+        scope: group.scope,
+      }));
+  }
+
+  /**
+   * Gets all feature flags that have A/B test groups available.
+   * Useful for discovering which flags can be overridden with specific group values.
+   *
+   * @returns Object mapping flag names to their available A/B test groups.
+   */
+  getAllABTestFlags(): Record<string, Array<{name: string; value: Json; scope?: FeatureFlagScope}>> {
+    const abTestFlags: Record<string, Array<{name: string; value: Json; scope?: FeatureFlagScope}>> = {};
+    
+    for (const [flagName] of Object.entries(this.state.abTestRawFlags)) {
+      const groups = this.getAvailableABTestGroups(flagName);
+      if (groups) {
+        abTestFlags[flagName] = groups;
+      }
+    }
+    
+    return abTestFlags;
   }
 }
