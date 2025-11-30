@@ -11,7 +11,6 @@ import {
   createPermissionRulesForChainId,
   getChecksumEnforcersByChainId,
   getTermsByEnforcer,
-  isSubset,
   splitHex,
 } from './utils';
 
@@ -40,7 +39,12 @@ export const identifyPermissionByEnforcers = ({
   enforcers: Hex[];
   contracts: DeployedContractsByName;
 }): PermissionType => {
-  const enforcersSet = new Set(enforcers.map(getChecksumAddress));
+  // Build frequency map for enforcers (using checksummed addresses)
+  const counts = new Map<Hex, number>();
+  for (const addr of enforcers.map(getChecksumAddress)) {
+    counts.set(addr, (counts.get(addr) ?? 0) + 1);
+  }
+  const enforcersSet = new Set(counts.keys());
 
   const permissionRules = createPermissionRulesForChainId(contracts);
 
@@ -51,18 +55,31 @@ export const identifyPermissionByEnforcers = ({
     requiredEnforcers,
     permissionType,
   } of permissionRules) {
-    const hasAllRequiredEnforcers = isSubset(requiredEnforcers, enforcersSet);
+    // union of allowed + required (by address) for forbidden checks
+    const union = new Set<Hex>([
+      ...allowedEnforcers,
+      ...requiredEnforcers.keys(),
+    ]);
 
     let hasForbiddenEnforcers = false;
 
     for (const caveat of enforcersSet) {
-      if (!allowedEnforcers.has(caveat) && !requiredEnforcers.has(caveat)) {
+      if (!union.has(caveat)) {
         hasForbiddenEnforcers = true;
         break;
       }
     }
 
-    if (hasAllRequiredEnforcers && !hasForbiddenEnforcers) {
+    // exact multiplicity match for required enforcers
+    let meetsRequiredCounts = true;
+    for (const [addr, requiredCount] of requiredEnforcers.entries()) {
+      if ((counts.get(addr) ?? 0) !== requiredCount) {
+        meetsRequiredCounts = false;
+        break;
+      }
+    }
+
+    if (meetsRequiredCounts && !hasForbiddenEnforcers) {
       if (matchingPermissionType) {
         throw new Error('Multiple permission types match');
       }

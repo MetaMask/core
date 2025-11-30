@@ -385,10 +385,21 @@ describe('decodePermission', () => {
         expect(result).toBe(expectedPermissionType);
       });
 
-      // todo: this doesn't work _yet_ as Set is used to represent the caveats
-      // in each rule, so duplicates are not respected
-      it.skip('rejects when only one AllowedCalldataEnforcer is provided', () => {
+      it('rejects when only one AllowedCalldataEnforcer is provided', () => {
         const enforcers = [
+          AllowedCalldataEnforcer,
+          ValueLteEnforcer,
+          NonceEnforcer,
+        ];
+        expect(() =>
+          identifyPermissionByEnforcers({ enforcers, contracts }),
+        ).toThrow('Unable to identify permission type');
+      });
+
+      it('rejects when three AllowedCalldataEnforcer are provided', () => {
+        const enforcers = [
+          AllowedCalldataEnforcer,
+          AllowedCalldataEnforcer,
           AllowedCalldataEnforcer,
           ValueLteEnforcer,
           NonceEnforcer,

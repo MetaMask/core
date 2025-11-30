@@ -9,7 +9,7 @@ import type { DeployedContractsByName, PermissionType } from './types';
  */
 export type PermissionRule = {
   permissionType: PermissionType;
-  requiredEnforcers: Set<Hex>;
+  requiredEnforcers: Map<Hex, number>;
   allowedEnforcers: Set<Hex>;
 };
 
@@ -125,46 +125,46 @@ export const createPermissionRulesForChainId: (
 
   const permissionRules: PermissionRule[] = [
     {
-      requiredEnforcers: new Set<Hex>([
-        nativeTokenStreamingEnforcer,
-        exactCalldataEnforcer,
-        nonceEnforcer,
+      requiredEnforcers: new Map<Hex, number>([
+        [nativeTokenStreamingEnforcer, 1],
+        [exactCalldataEnforcer, 1],
+        [nonceEnforcer, 1],
       ]),
       allowedEnforcers,
       permissionType: 'native-token-stream',
     },
     {
-      requiredEnforcers: new Set<Hex>([
-        nativeTokenPeriodicEnforcer,
-        exactCalldataEnforcer,
-        nonceEnforcer,
+      requiredEnforcers: new Map<Hex, number>([
+        [nativeTokenPeriodicEnforcer, 1],
+        [exactCalldataEnforcer, 1],
+        [nonceEnforcer, 1],
       ]),
       allowedEnforcers,
       permissionType: 'native-token-periodic',
     },
     {
-      requiredEnforcers: new Set<Hex>([
-        erc20StreamingEnforcer,
-        valueLteEnforcer,
-        nonceEnforcer,
+      requiredEnforcers: new Map<Hex, number>([
+        [erc20StreamingEnforcer, 1],
+        [valueLteEnforcer, 1],
+        [nonceEnforcer, 1],
       ]),
       allowedEnforcers,
       permissionType: 'erc20-token-stream',
     },
     {
-      requiredEnforcers: new Set<Hex>([
-        erc20PeriodicEnforcer,
-        valueLteEnforcer,
-        nonceEnforcer,
+      requiredEnforcers: new Map<Hex, number>([
+        [erc20PeriodicEnforcer, 1],
+        [valueLteEnforcer, 1],
+        [nonceEnforcer, 1],
       ]),
       allowedEnforcers,
       permissionType: 'erc20-token-periodic',
     },
     {
-      requiredEnforcers: new Set<Hex>([
-        allowedCalldataEnforcer,
-        valueLteEnforcer,
-        nonceEnforcer,
+      requiredEnforcers: new Map<Hex, number>([
+        [allowedCalldataEnforcer, 2],
+        [valueLteEnforcer, 1],
+        [nonceEnforcer, 1],
       ]),
       allowedEnforcers,
       permissionType: 'erc20-token-revocation',
