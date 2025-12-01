@@ -1,6 +1,6 @@
 {
   "name": "@metamask/network-controller",
-  "version": "26.0.0",
+  "version": "27.0.0",
   "description": "Provides an interface to the currently selected network via a MetaMask-compatible provider object",
   "keywords": [
     "MetaMask",
@@ -78,6 +78,7 @@
     "@types/jest-when": "^2.7.3",
     "@types/lodash": "^4.14.191",
     "@types/node-fetch": "^2.6.12",
+    "cockatiel": "^3.1.2",
     "deep-freeze-strict": "^1.1.1",
     "deepmerge": "^4.2.2",
     "jest": "^27.5.1",

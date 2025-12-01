@@ -834,8 +834,8 @@ function expectDependenciesForControllersAndServices(
 /**
  * Filter out dependency ranges which are not to be considered in `expectConsistentDependenciesAndDevDependencies`.
  *
- * @param {string} dependencyIdent - The dependency being filtered for
- * @param {Map<string, Dependency>} dependenciesByRange - Dependencies by range
+ * @param {string} dependencyIdent - The dependency being filtered for.
+ * @param {Map<string, Dependency>} dependenciesByRange - Dependencies by range.
  * @returns {Map<string, Dependency>} The resulting map.
  */
 function getInconsistentDependenciesAndDevDependencies(

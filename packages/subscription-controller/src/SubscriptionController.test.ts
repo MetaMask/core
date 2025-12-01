@@ -94,6 +94,7 @@ const MOCK_PRODUCT_PRICE: ProductPricing = {
       unitDecimals: 2,
       trialPeriodDays: 0,
       minBillingCycles: 12,
+      minBillingCyclesForBalance: 1,
     },
     {
       interval: 'year',
@@ -102,6 +103,7 @@ const MOCK_PRODUCT_PRICE: ProductPricing = {
       currency: 'usd',
       trialPeriodDays: 14,
       minBillingCycles: 1,
+      minBillingCyclesForBalance: 1,
     },
   ],
 };
@@ -1114,6 +1116,7 @@ describe('SubscriptionController', () => {
                       unitDecimals: 18,
                       trialPeriodDays: 0,
                       minBillingCycles: 1,
+                      minBillingCyclesForBalance: 1,
                     },
                   ],
                 },
@@ -1255,6 +1258,45 @@ describe('SubscriptionController', () => {
           ).toThrow('Conversion rate not found');
         },
       );
+    });
+  });
+
+  describe('getTokenMinimumBalanceAmount', () => {
+    it('returns correct minimum balance amount for token', async () => {
+      await withController(async ({ controller }) => {
+        const [price] = MOCK_PRODUCT_PRICE.prices;
+        const { chains } = MOCK_PRICING_PAYMENT_METHOD;
+        if (!chains || chains.length === 0) {
+          throw new Error('Mock chains not found');
+        }
+        const [tokenPaymentInfo] = chains[0].tokens;
+
+        const result = controller.getTokenMinimumBalanceAmount(
+          price,
+          tokenPaymentInfo,
+        );
+
+        expect(result).toBe('9000000000000000000');
+      });
+    });
+
+    it('throws when conversion rate not found', async () => {
+      await withController(async ({ controller }) => {
+        const price = MOCK_PRODUCT_PRICE.prices[0];
+        const tokenPaymentInfoWithoutRate = {
+          address: '0xtoken' as const,
+          decimals: 18,
+          symbol: 'USDT',
+          conversionRate: {} as { usd: string },
+        };
+
+        expect(() =>
+          controller.getTokenMinimumBalanceAmount(
+            price,
+            tokenPaymentInfoWithoutRate,
+          ),
+        ).toThrow('Conversion rate not found');
+      });
     });
   });
 
@@ -1425,7 +1467,6 @@ describe('SubscriptionController', () => {
     const MOCK_SUBSCRIPTION_ELIGIBILITY: SubscriptionEligibility = {
       product: PRODUCT_TYPES.SHIELD,
       canSubscribe: true,
-      minBalanceUSD: 100,
       canViewEntryModal: true,
       modalType: MODAL_TYPE.A,
       cohorts: [],
@@ -1891,9 +1932,12 @@ describe('SubscriptionController', () => {
             status: SUBSCRIPTION_STATUSES.trialing,
           });
 
-          mockService.getSubscriptions.mockResolvedValue(
-            MOCK_GET_SUBSCRIPTIONS_RESPONSE,
-          );
+          mockService.getSubscriptions
+            .mockResolvedValueOnce({
+              subscriptions: [],
+              trialedProducts: [],
+            })
+            .mockResolvedValue(MOCK_GET_SUBSCRIPTIONS_RESPONSE);
 
           // Create a shield subscription approval transaction
           const txMeta = {
@@ -2092,6 +2136,104 @@ describe('SubscriptionController', () => {
           expect(
             mockService.startSubscriptionWithCrypto,
           ).not.toHaveBeenCalled();
+        },
+      );
+    });
+
+    it('should update payment method when user has active subscription', async () => {
+      await withController(
+        {
+          state: {
+            pricing: MOCK_PRICE_INFO_RESPONSE,
+            trialedProducts: [],
+            subscriptions: [MOCK_SUBSCRIPTION],
+            lastSelectedPaymentMethod: {
+              [PRODUCT_TYPES.SHIELD]: {
+                type: PAYMENT_TYPES.byCrypto,
+                paymentTokenAddress: '0xtoken',
+                paymentTokenSymbol: 'USDT',
+                plan: RECURRING_INTERVALS.month,
+              },
+            },
+          },
+        },
+        async ({ controller, mockService }) => {
+          mockService.updatePaymentMethodCrypto.mockResolvedValue({});
+          mockService.getSubscriptions.mockResolvedValue(
+            MOCK_GET_SUBSCRIPTIONS_RESPONSE,
+          );
+
+          const txMeta = {
+            ...generateMockTxMeta(),
+            type: TransactionType.shieldSubscriptionApprove,
+            chainId: '0x1' as Hex,
+            rawTx: '0x123',
+            txParams: {
+              data: '0x456',
+              from: '0x1234567890123456789012345678901234567890',
+              to: '0xtoken',
+            },
+            status: TransactionStatus.submitted,
+          };
+
+          await controller.submitShieldSubscriptionCryptoApproval(txMeta);
+
+          expect(mockService.updatePaymentMethodCrypto).toHaveBeenCalledTimes(
+            1,
+          );
+          expect(
+            mockService.startSubscriptionWithCrypto,
+          ).not.toHaveBeenCalled();
+        },
+      );
+    });
+
+    it('should throw error when subscription status is not valid for crypto approval', async () => {
+      await withController(
+        {
+          state: {
+            pricing: MOCK_PRICE_INFO_RESPONSE,
+            trialedProducts: [],
+            subscriptions: [],
+            lastSelectedPaymentMethod: {
+              [PRODUCT_TYPES.SHIELD]: {
+                type: PAYMENT_TYPES.byCrypto,
+                paymentTokenAddress: '0xtoken',
+                paymentTokenSymbol: 'USDT',
+                plan: RECURRING_INTERVALS.month,
+              },
+            },
+          },
+        },
+        async ({ controller, mockService }) => {
+          mockService.getSubscriptions.mockResolvedValue({
+            subscriptions: [
+              {
+                ...MOCK_SUBSCRIPTION,
+                status: SUBSCRIPTION_STATUSES.incomplete,
+              },
+            ],
+            trialedProducts: [],
+          });
+
+          const txMeta = {
+            ...generateMockTxMeta(),
+            type: TransactionType.shieldSubscriptionApprove,
+            chainId: '0x1' as Hex,
+            rawTx: '0x123',
+            txParams: {
+              data: '0x456',
+              from: '0x1234567890123456789012345678901234567890',
+              to: '0xtoken',
+            },
+            status: TransactionStatus.submitted,
+          };
+
+          await expect(
+            controller.submitShieldSubscriptionCryptoApproval(txMeta),
+          ).rejects.toThrow(
+            SubscriptionControllerErrorMessage.SubscriptionNotValidForCryptoApproval,
+          );
         },
       );
     });

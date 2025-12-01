@@ -98,7 +98,6 @@ function createMockEligibilityResponse(overrides = {}) {
   return {
     product: PRODUCT_TYPES.SHIELD,
     canSubscribe: true,
-    minBalanceUSD: 100,
     canViewEntryModal: true,
     cohorts: [],
     assignedCohort: null,
@@ -474,7 +473,6 @@ describe('SubscriptionService', () => {
         handleFetchMock.mockResolvedValue([
           {
             product: PRODUCT_TYPES.SHIELD,
-            minBalanceUSD: 100,
           },
         ]);
 

@@ -108,6 +108,8 @@ export const SUPPORTED_CURRENCIES = [
   'mxn',
   // Malaysian Ringgit
   'myr',
+  // Monad
+  'mon',
   // Nigerian Naira
   'ngn',
   // Norwegian Krone
