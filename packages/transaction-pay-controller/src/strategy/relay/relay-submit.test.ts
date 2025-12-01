@@ -62,6 +62,7 @@ const ORIGINAL_QUOTE_MOCK = {
       },
     },
   },
+  request: {},
   steps: [
     {
       kind: 'transaction',
@@ -202,6 +203,89 @@ describe('Relay Submit Utils', () => {
         expect.objectContaining({
           gasFeeToken: TOKEN_ADDRESS_MOCK,
         }),
+      );
+    });
+
+    it('adds transaction with authorization list if same chain and authorization list present', async () => {
+      request.quotes[0].original.details.currencyOut.currency.chainId = 1;
+      request.quotes[0].original.request = {
+        authorizationList: [
+          {
+            address: '0xabc' as Hex,
+            chainId: 1,
+            nonce: 2,
+            r: '0xr' as Hex,
+            s: '0xs' as Hex,
+            yParity: 1,
+          },
+          {
+            address: '0xdef' as Hex,
+            chainId: 1,
+            nonce: 3,
+            r: '0xr2' as Hex,
+            s: '0xs2' as Hex,
+            yParity: 0,
+          },
+        ],
+      } as never;
+
+      await submitRelayQuotes(request);
+
+      expect(addTransactionMock).toHaveBeenCalledTimes(1);
+      expect(addTransactionMock).toHaveBeenCalledWith(
+        expect.objectContaining({
+          authorizationList: [
+            {
+              address: '0xabc',
+              chainId: '0x1',
+            },
+            {
+              address: '0xdef',
+              chainId: '0x1',
+            },
+          ],
+        }),
+        expect.anything(),
+      );
+    });
+
+    it('does not add authorization list if different chains', async () => {
+      request.quotes[0].original.request = {
+        authorizationList: [
+          {
+            address: '0xabc' as Hex,
+            chainId: 1,
+            nonce: 2,
+            r: '0xr' as Hex,
+            s: '0xs' as Hex,
+            yParity: 1,
+          },
+        ],
+      } as never;
+
+      await submitRelayQuotes(request);
+
+      expect(addTransactionMock).toHaveBeenCalledTimes(1);
+      expect(addTransactionMock).toHaveBeenCalledWith(
+        expect.not.objectContaining({
+          authorizationList: expect.anything(),
+        }),
+        expect.anything(),
+      );
+    });
+
+    it('does not add authorization list if same chain but no authorization list', async () => {
+      request.quotes[0].original.details.currencyOut.currency.chainId = 1;
+      request.quotes[0].original.request = {} as never;
+
+      await submitRelayQuotes(request);
+
+      expect(addTransactionMock).toHaveBeenCalledTimes(1);
+      expect(addTransactionMock).toHaveBeenCalledWith(
+        expect.not.objectContaining({
+          authorizationList: expect.anything(),
+        }),
+        expect.anything(),
       );
     });
 

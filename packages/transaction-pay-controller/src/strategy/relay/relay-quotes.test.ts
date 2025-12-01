@@ -267,6 +267,29 @@ describe('Relay Quotes Utils', () => {
       );
     });
 
+    it('includes request in quote', async () => {
+      successfulFetchMock.mockResolvedValue({
+        json: async () => QUOTE_MOCK,
+      } as never);
+
+      const result = await getRelayQuotes({
+        messenger,
+        requests: [QUOTE_REQUEST_MOCK],
+        transaction: TRANSACTION_META_MOCK,
+      });
+
+      expect(result[0].original.request).toStrictEqual({
+        amount: QUOTE_REQUEST_MOCK.targetAmountMinimum,
+        destinationChainId: 2,
+        destinationCurrency: QUOTE_REQUEST_MOCK.targetTokenAddress,
+        originChainId: 1,
+        originCurrency: QUOTE_REQUEST_MOCK.sourceTokenAddress,
+        recipient: QUOTE_REQUEST_MOCK.from,
+        tradeType: 'EXPECTED_OUTPUT',
+        user: QUOTE_REQUEST_MOCK.from,
+      });
+    });
+
     it('sends request to url from feature flag', async () => {
       successfulFetchMock.mockResolvedValue({
         json: async () => QUOTE_MOCK,
