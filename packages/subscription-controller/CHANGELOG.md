@@ -7,6 +7,11 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+### Added
+
+- Added `minBillingCyclesForBalance` property to `ProductPrice` type ([#7269](https://github.com/MetaMask/core/pull/7269))
+- Added `getTokenMinimumBalanceAmount` method to `SubscriptonController` ([#7269](https://github.com/MetaMask/core/pull/7269))
+
 ### Changed
 
 - Bump `@metamask/transaction-controller` from `^62.3.0` to `^62.3.1` ([#7257](https://github.com/MetaMask/core/pull/7257))
