@@ -18,19 +18,16 @@ describe('analyticsControllerSelectors', () => {
   });
 
   describe('selectOptedIn', () => {
-    it.each([[true], [false]])(
-      'returns %s when optedIn is %s',
-      (optedIn) => {
-        const state: AnalyticsControllerState = {
-          optedIn,
-          analyticsId: defaultAnalyticsId,
-        };
+    it.each([[true], [false]])('returns %s when optedIn is %s', (optedIn) => {
+      const state: AnalyticsControllerState = {
+        optedIn,
+        analyticsId: defaultAnalyticsId,
+      };
 
-        const result = analyticsControllerSelectors.selectOptedIn(state);
+      const result = analyticsControllerSelectors.selectOptedIn(state);
 
-        expect(result).toBe(optedIn);
-      },
-    );
+      expect(result).toBe(optedIn);
+    });
   });
 
   describe('selectEnabled', () => {
@@ -56,10 +53,8 @@ describe('analyticsControllerSelectors', () => {
           analyticsId: defaultAnalyticsId,
         };
 
-        const optedInResult =
-          analyticsControllerSelectors.selectOptedIn(state);
-        const enabledResult =
-          analyticsControllerSelectors.selectEnabled(state);
+        const optedInResult = analyticsControllerSelectors.selectOptedIn(state);
+        const enabledResult = analyticsControllerSelectors.selectEnabled(state);
 
         expect(enabledResult).toBe(optedInResult);
       },

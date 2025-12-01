@@ -30,8 +30,6 @@ export function validateAnalyticsControllerState(
   state: AnalyticsControllerState,
 ): void {
   if (!state.analyticsId || !isValidUUIDv4(state.analyticsId)) {
-    throw new Error(
-      `Invalid analyticsId: expected a valid UUIDv4, but got ${JSON.stringify(state.analyticsId)}`,
-    );
+    throw new Error('Invalid analyticsId');
   }
 }

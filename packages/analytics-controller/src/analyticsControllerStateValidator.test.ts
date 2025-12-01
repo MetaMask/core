@@ -22,28 +22,16 @@ describe('analyticsControllerStateValidator', () => {
       ['12345'],
       ['550e8400-e29b-41d4-a716'],
       ['c232ab00-9414-11e8-8eb2-f2801f1b9fd1'],
-    ])(
-      'throws with correct error message format for invalid input: %s',
-      (analyticsId) => {
-        let expectedMessage: string;
-        if (analyticsId === undefined) {
-          expectedMessage = 'undefined';
-        } else if (analyticsId === null) {
-          expectedMessage = 'null';
-        } else {
-          expectedMessage = JSON.stringify(analyticsId);
-        }
+    ])('throws error for invalid input: %s', (analyticsId) => {
+      const state = {
+        optedIn: false,
+        analyticsId,
+      } as unknown as AnalyticsControllerState;
 
-        const state = {
-          optedIn: false,
-          analyticsId,
-        } as unknown as AnalyticsControllerState;
-
-        expect(() => validateAnalyticsControllerState(state)).toThrow(
-          `Invalid analyticsId: expected a valid UUIDv4, but got ${expectedMessage}`,
-        );
-      },
-    );
+      expect(() => validateAnalyticsControllerState(state)).toThrow(
+        'Invalid analyticsId',
+      );
+    });
 
     it.each([
       ['550e8400-e29b-41d4-a716-446655440000'],

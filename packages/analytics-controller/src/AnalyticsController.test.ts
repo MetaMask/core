@@ -244,7 +244,7 @@ describe('AnalyticsController', () => {
             optedIn: false,
           } as AnalyticsControllerState,
         });
-      }).toThrow('Invalid analyticsId: expected a valid UUIDv4, but got');
+      }).toThrow('Invalid analyticsId');
     });
 
     it('throws error when analyticsId is invalid format', () => {
@@ -275,9 +275,7 @@ describe('AnalyticsController', () => {
             analyticsId: 'not-a-valid-uuid',
           },
         });
-      }).toThrow(
-        'Invalid analyticsId: expected a valid UUIDv4, but got "not-a-valid-uuid"',
-      );
+      }).toThrow('Invalid analyticsId');
     });
 
     it('throws error when analyticsId is empty string', () => {
@@ -308,7 +306,7 @@ describe('AnalyticsController', () => {
             analyticsId: '',
           },
         });
-      }).toThrow('Invalid analyticsId: expected a valid UUIDv4, but got ""');
+      }).toThrow('Invalid analyticsId');
     });
 
     it('accepts different valid UUIDv4 values', () => {
