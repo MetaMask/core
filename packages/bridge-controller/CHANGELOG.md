@@ -7,6 +7,77 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+### Changed
+
+- Bump `@metamask/network-controller` from `^26.0.0` to `^27.0.0` ([#7258](https://github.com/MetaMask/core/pull/7258))
+- Bump `@metamask/transaction-controller` from `^62.3.0` to `^62.3.1` ([#7257](https://github.com/MetaMask/core/pull/7257))
+- Bump `@metamask/assets-controllers` from `^91.0.0` to `^92.0.0` ([#7253](https://github.com/MetaMask/core/pull/7253))
+
+### Fixed
+
+- Add missing MON (Monad) and SEI (Sei) to integer chain IDs ([#7252](https://github.com/MetaMask/core/pull/7252))
+
+## [63.2.0]
+
+### Changed
+
+- Update `stopPollingForQuotes` to accept metrics context for the QuotesReceived event. If context is provided and quotes are still loading when the handler is called, the `Unified SwapBridge Quotes Received` is published before the poll is cancelled ([#7242](https://github.com/MetaMask/core/pull/7242))
+
+## [63.1.0]
+
+### Added
+
+- Port the following constants from `SwapsController` and export them: `SWAPS_TESTNET_CHAIN_ID`, `SWAPS_CONTRACT_ADDRESSES`, `SWAPS_WRAPPED_TOKENS_ADDRESSES`, `ALLOWED_CONTRACT_ADDRESSES` ([#7233](https://github.com/MetaMask/core/pull/7233))
+- Port the following utils from `SwapsController` and export them: `isValidSwapsContractAddress`, `getSwapsContractAddress` ([#7233](https://github.com/MetaMask/core/pull/7233))
+
+### Changed
+
+- Move peer dependencies for controller and service packages to direct dependencies ([#7209](https://github.com/MetaMask/core/pull/7209), [#7220](https://github.com/MetaMask/core/pull/7220), [#7236](https://github.com/MetaMask/core/pull/7236))
+  - The dependencies moved are:
+    - `@metamask/accounts-controller` (^35.0.0)
+    - `@metamask/assets-controllers` (^91.0.0)
+    - `@metamask/network-controller` (^26.0.0)
+    - `@metamask/remote-feature-flag-controller` (^2.0.1)
+    - `@metamask/snaps-controllers` (^14.0.0)
+    - `@metamask/transaction-controller` (^62.3.0)
+  - In clients, it is now possible for multiple versions of these packages to exist in the dependency tree.
+    - For example, this scenario would be valid: a client relies on `@metamask/controller-a` 1.0.0 and `@metamask/controller-b` 1.0.0, and `@metamask/controller-b` depends on `@metamask/controller-a` 1.1.0.
+  - Note, however, that the versions specified in the client's `package.json` always "win", and you are expected to keep them up to date so as not to break controller and service intercommunication.
+
+### Fixed
+
+- Update `quotesLoadingStatus` to "LOADING" if a balance fetch is needed before fetching quotes ((https://github.com/MetaMask/core/pull/7227)[#7227])
+- Wait for async SSE message handlers before updating `quotesLoadingStatus` to prevent clients from displaying "No quotes" warnings ((https://github.com/MetaMask/core/pull/7227)[#7227])
+
+## [63.0.0]
+
+### Changed
+
+- **BREAKING:** Bump `@metamask/assets-controllers` from `^90.0.0` to `^91.0.0` ([#7207](https://github.com/MetaMask/core/pull/7207))
+
+## [62.0.0]
+
+### Added
+
+- Add and export `getQuotesReceivedProperties` utility to build the metrics payload for clients ([#7182](https://github.com/MetaMask/core/pull/7182))
+
+### Changed
+
+- Bump `@metamask/polling-controller` from `^15.0.0` to `^16.0.0` ([#7202](https://github.com/MetaMask/core/pull/7202))
+- Bump `@metamask/multichain-network-controller` from `^2.0.0` to `^3.0.0` ([#7202](https://github.com/MetaMask/core/pull/7202))
+- Bump `@metamask/gas-fee-controller` from `^25.0.0` to `^26.0.0` ([#7202](https://github.com/MetaMask/core/pull/7202))
+- Bump `@metamask/controller-utils` from `^11.15.0` to `^11.16.0` ([#7202](https://github.com/MetaMask/core/pull/7202))
+- **BREAKING:** Bump `@metamask/transaction-controller` from `^61.0.0` to `^62.0.0` ([#7202](https://github.com/MetaMask/core/pull/7202))
+- **BREAKING:** Bump `@metamask/network-controller` from `^25.0.0` to `^26.0.0` ([#7202](https://github.com/MetaMask/core/pull/7202))
+- **BREAKING:** Bump `@metamask/assets-controllers` from `^89.0.0` to `^90.0.0` ([#7202](https://github.com/MetaMask/core/pull/7202))
+- **BREAKING:** Bump `@metamask/accounts-controller` from `^34.0.0` to `^35.0.0` ([#7202](https://github.com/MetaMask/core/pull/7202))
+
+## [61.0.0]
+
+### Changed
+
+- **BREAKING:** Bump `@metamask/assets-controller` from `^88.0.0` to `^89.0.0` ([#7179](https://github.com/MetaMask/core/pull/7179))
+
 ## [60.1.0]
 
 ### Added
@@ -841,7 +912,12 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 - Initial release ([#5317](https://github.com/MetaMask/core/pull/5317))
 
-[Unreleased]: https://github.com/MetaMask/core/compare/@metamask/bridge-controller@60.1.0...HEAD
+[Unreleased]: https://github.com/MetaMask/core/compare/@metamask/bridge-controller@63.2.0...HEAD
+[63.2.0]: https://github.com/MetaMask/core/compare/@metamask/bridge-controller@63.1.0...@metamask/bridge-controller@63.2.0
+[63.1.0]: https://github.com/MetaMask/core/compare/@metamask/bridge-controller@63.0.0...@metamask/bridge-controller@63.1.0
+[63.0.0]: https://github.com/MetaMask/core/compare/@metamask/bridge-controller@62.0.0...@metamask/bridge-controller@63.0.0
+[62.0.0]: https://github.com/MetaMask/core/compare/@metamask/bridge-controller@61.0.0...@metamask/bridge-controller@62.0.0
+[61.0.0]: https://github.com/MetaMask/core/compare/@metamask/bridge-controller@60.1.0...@metamask/bridge-controller@61.0.0
 [60.1.0]: https://github.com/MetaMask/core/compare/@metamask/bridge-controller@60.0.0...@metamask/bridge-controller@60.1.0
 [60.0.0]: https://github.com/MetaMask/core/compare/@metamask/bridge-controller@59.0.0...@metamask/bridge-controller@60.0.0
 [59.0.0]: https://github.com/MetaMask/core/compare/@metamask/bridge-controller@58.0.0...@metamask/bridge-controller@59.0.0

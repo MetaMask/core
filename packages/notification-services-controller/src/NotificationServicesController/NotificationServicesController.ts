@@ -27,6 +27,7 @@ import {
   processAndFilterNotifications,
   safeProcessNotification,
 } from './processors/process-notifications';
+import type { ENV } from './services/api-notifications';
 import {
   getAPINotifications,
   getNotificationsApiConfigCached,
@@ -509,6 +510,8 @@ export default class NotificationServicesController extends BaseController<
 
   readonly #featureAnnouncementEnv: FeatureAnnouncementEnv;
 
+  readonly #env: ENV;
+
   /**
    * Creates a NotificationServicesController instance.
    *
@@ -518,6 +521,7 @@ export default class NotificationServicesController extends BaseController<
    * @param args.env - environment variables for a given controller.
    * @param args.env.featureAnnouncements - env variables for feature announcements.
    * @param args.env.locale - users locale for better dynamic server notifications
+   * @param args.env.env - the environment to use for the controller
    */
   constructor({
     messenger,
@@ -529,6 +533,7 @@ export default class NotificationServicesController extends BaseController<
     env: {
       featureAnnouncements: FeatureAnnouncementEnv;
       locale?: () => string;
+      env?: ENV;
     };
   }) {
     super({
@@ -540,6 +545,7 @@ export default class NotificationServicesController extends BaseController<
 
     this.#featureAnnouncementEnv = env.featureAnnouncements;
     this.#locale = env.locale ?? (() => 'en');
+    this.#env = env.env ?? 'prd';
     this.#registerMessageHandlers();
     this.#clearLoadingStates();
   }
@@ -705,6 +711,7 @@ export default class NotificationServicesController extends BaseController<
       const addressesWithNotifications = await getNotificationsApiConfigCached(
         bearerToken,
         accounts,
+        this.#env,
       );
       const addresses = addressesWithNotifications
         .filter((a) => Boolean(a.enabled))
@@ -735,6 +742,7 @@ export default class NotificationServicesController extends BaseController<
       const addressesWithNotifications = await getNotificationsApiConfigCached(
         bearerToken,
         accounts,
+        this.#env,
       );
 
       const result: Record<string, boolean> = {};
@@ -797,6 +805,7 @@ export default class NotificationServicesController extends BaseController<
       const addressesWithNotifications = await getNotificationsApiConfigCached(
         bearerToken,
         accounts,
+        this.#env,
       );
 
       // Notifications API can return array with addresses set to false
@@ -810,6 +819,7 @@ export default class NotificationServicesController extends BaseController<
         await updateOnChainNotifications(
           bearerToken,
           accounts.map((address) => ({ address, enabled: true })),
+          this.#env,
         );
         accountsWithNotifications = accounts;
       }
@@ -911,6 +921,7 @@ export default class NotificationServicesController extends BaseController<
       await updateOnChainNotifications(
         bearerToken,
         accounts.map((address) => ({ address, enabled: false })),
+        this.#env,
       );
     } catch (err) {
       log.error('Failed to delete OnChain triggers', err);
@@ -943,6 +954,7 @@ export default class NotificationServicesController extends BaseController<
       await updateOnChainNotifications(
         bearerToken,
         accounts.map((address) => ({ address, enabled: true })),
+        this.#env,
       );
     } catch (err) {
       log.error('Failed to update OnChain triggers', err);
@@ -988,7 +1000,11 @@ export default class NotificationServicesController extends BaseController<
           const { bearerToken } = await this.#getBearerToken();
           const { accounts } = this.#accounts.listAccounts();
           const addressesWithNotifications = (
-            await getNotificationsApiConfigCached(bearerToken, accounts)
+            await getNotificationsApiConfigCached(
+              bearerToken,
+              accounts,
+              this.#env,
+            )
           )
             .filter((a) => Boolean(a.enabled))
             .map((a) => a.address);
@@ -997,6 +1013,7 @@ export default class NotificationServicesController extends BaseController<
             addressesWithNotifications,
             this.#locale(),
             this.#featureAnnouncementEnv.platform,
+            this.#env,
           ).catch(() => []);
           rawOnChainNotifications.push(...notifications);
         } catch {
@@ -1171,6 +1188,7 @@ export default class NotificationServicesController extends BaseController<
           await markNotificationsAsRead(
             bearerToken,
             onchainNotificationIds,
+            this.#env,
           ).catch(() => {
             onchainNotificationIds = [];
             log.warn('Unable to mark onchain notifications as read');

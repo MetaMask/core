@@ -54,14 +54,20 @@ export type SortTrendingBy =
  * @param chainIds - Array of CAIP format chain IDs (e.g., 'eip155:1', 'solana:5eykt4UsFv8P8NJdTREpY1vzqKqZKvdp').
  * @param query - The search query (token name, symbol, or address).
  * @param limit - Optional limit for the number of results (defaults to 10).
+ * @param includeMarketData - Optional flag to include market data in the results (defaults to false).
  * @returns The token search URL.
  */
-function getTokenSearchURL(chainIds: CaipChainId[], query: string, limit = 10) {
+function getTokenSearchURL(
+  chainIds: CaipChainId[],
+  query: string,
+  limit = 10,
+  includeMarketData = false,
+) {
   const encodedQuery = encodeURIComponent(query);
   const encodedChainIds = chainIds
     .map((id) => encodeURIComponent(id))
     .join(',');
-  return `${TOKEN_END_POINT_API}/tokens/search?chainIds=${encodedChainIds}&query=${encodedQuery}&limit=${limit}`;
+  return `${TOKEN_END_POINT_API}/tokens/search?networks=${encodedChainIds}&query=${encodedQuery}&limit=${limit}&includeMarketData=${includeMarketData}`;
 }
 
 /**
@@ -144,14 +150,20 @@ export async function fetchTokenListByChainId(
  * @param query - The search query (token name, symbol, or address).
  * @param options - Additional fetch options.
  * @param options.limit - The maximum number of results to return.
+ * @param options.includeMarketData - Optional flag to include market data in the results (defaults to false).
  * @returns Object containing count and data array. Returns { count: 0, data: [] } if request fails.
  */
 export async function searchTokens(
   chainIds: CaipChainId[],
   query: string,
-  { limit = 10 } = {},
+  { limit = 10, includeMarketData = false } = {},
 ): Promise<{ count: number; data: unknown[] }> {
-  const tokenSearchURL = getTokenSearchURL(chainIds, query, limit);
+  const tokenSearchURL = getTokenSearchURL(
+    chainIds,
+    query,
+    limit,
+    includeMarketData,
+  );
 
   try {
     const result = await handleFetch(tokenSearchURL);

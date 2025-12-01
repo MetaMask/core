@@ -15,6 +15,7 @@ import type { RemoteFeatureFlagControllerGetStateAction } from '@metamask/remote
 import type {
   TransactionControllerAddTransactionAction,
   TransactionControllerAddTransactionBatchAction,
+  TransactionControllerGetGasFeeTokensAction,
   TransactionControllerGetStateAction,
 } from '@metamask/transaction-controller';
 import type { TransactionControllerUpdateTransactionAction } from '@metamask/transaction-controller';
@@ -109,6 +110,10 @@ export function getMessengerMock({
 
   const getDelegationTransactionMock: jest.MockedFn<
     TransactionPayControllerGetDelegationTransactionAction['handler']
+  > = jest.fn();
+
+  const getGasFeeTokensMock: jest.MockedFn<
+    TransactionControllerGetGasFeeTokensAction['handler']
   > = jest.fn();
 
   const messenger: RootMessenger = new Messenger({
@@ -210,6 +215,11 @@ export function getMessengerMock({
       'TransactionPayController:getDelegationTransaction',
       getDelegationTransactionMock,
     );
+
+    messenger.registerActionHandler(
+      'TransactionController:getGasFeeTokens',
+      getGasFeeTokensMock,
+    );
   }
 
   const publish = messenger.publish.bind(messenger);
@@ -225,6 +235,7 @@ export function getMessengerMock({
     getCurrencyRateControllerStateMock,
     getDelegationTransactionMock,
     getGasFeeControllerStateMock,
+    getGasFeeTokensMock,
     getNetworkClientByIdMock,
     getRemoteFeatureFlagControllerStateMock,
     getStrategyMock,

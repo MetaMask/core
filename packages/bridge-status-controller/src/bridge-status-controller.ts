@@ -1,11 +1,11 @@
 import type { AccountsControllerState } from '@metamask/accounts-controller';
 import type { StateMetadata } from '@metamask/base-controller';
-import type {
-  QuoteMetadata,
-  RequiredEventContextFromClient,
-  TxData,
-  QuoteResponse,
-  Trade,
+import {
+  type QuoteMetadata,
+  type RequiredEventContextFromClient,
+  type TxData,
+  type QuoteResponse,
+  type Trade,
 } from '@metamask/bridge-controller';
 import {
   formatChainIdToHex,
@@ -18,6 +18,7 @@ import {
   MetricsActionType,
   isBitcoinTrade,
   isTronTrade,
+  AbortReason,
 } from '@metamask/bridge-controller';
 import type { TraceCallback } from '@metamask/controller-utils';
 import { toHex } from '@metamask/controller-utils';
@@ -1031,14 +1032,22 @@ export class BridgeStatusController extends StaticIntervalPollingController<Brid
    * @param accountAddress - The address of the account to submit the transaction for
    * @param quoteResponse - The quote response
    * @param isStxEnabledOnClient - Whether smart transactions are enabled on the client, for example the getSmartTransactionsEnabled selector value from the extension
+   * @param quotesReceivedContext - The context for the QuotesReceived event
    * @returns The transaction meta
    */
   submitTx = async (
     accountAddress: string,
     quoteResponse: QuoteResponse<Trade, Trade> & QuoteMetadata,
     isStxEnabledOnClient: boolean,
+    quotesReceivedContext?: RequiredEventContextFromClient[UnifiedSwapBridgeEventName.QuotesReceived],
   ): Promise<TransactionMeta & Partial<SolanaTransactionMeta>> => {
-    this.messenger.call('BridgeController:stopPollingForQuotes');
+    this.messenger.call(
+      'BridgeController:stopPollingForQuotes',
+      AbortReason.TransactionSubmitted,
+      // If trade is submitted before all quotes are loaded, the QuotesReceived event is published
+      // If the trade has a featureId, it means it was submitted outside of the Unified Swap and Bridge experience, so no QuotesReceived event is published
+      quoteResponse.featureId ? undefined : quotesReceivedContext,
+    );
 
     const selectedAccount = this.#getMultichainSelectedAccount(accountAddress);
     if (!selectedAccount) {

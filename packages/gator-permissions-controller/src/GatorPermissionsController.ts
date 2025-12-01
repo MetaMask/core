@@ -11,9 +11,11 @@ import type { HandleSnapRequest, HasSnap } from '@metamask/snaps-controllers';
 import type { SnapId } from '@metamask/snaps-sdk';
 import { HandlerType } from '@metamask/snaps-utils';
 import type {
+  TransactionControllerTransactionApprovedEvent,
   TransactionControllerTransactionConfirmedEvent,
   TransactionControllerTransactionDroppedEvent,
   TransactionControllerTransactionFailedEvent,
+  TransactionControllerTransactionRejectedEvent,
 } from '@metamask/transaction-controller';
 import type { Hex, Json } from '@metamask/utils';
 
@@ -226,6 +228,23 @@ export type GatorPermissionsControllerAddPendingRevocationAction = {
 };
 
 /**
+ * The action which can be used to submit a revocation directly without requiring
+ * an on-chain transaction (for already-disabled delegations).
+ */
+export type GatorPermissionsControllerSubmitDirectRevocationAction = {
+  type: `${typeof controllerName}:submitDirectRevocation`;
+  handler: GatorPermissionsController['submitDirectRevocation'];
+};
+
+/**
+ * The action which can be used to check if a permission context is pending revocation.
+ */
+export type GatorPermissionsControllerIsPendingRevocationAction = {
+  type: `${typeof controllerName}:isPendingRevocation`;
+  handler: GatorPermissionsController['isPendingRevocation'];
+};
+
+/**
  * All actions that {@link GatorPermissionsController} registers, to be called
  * externally.
  */
@@ -236,7 +255,9 @@ export type GatorPermissionsControllerActions =
   | GatorPermissionsControllerDisableGatorPermissionsAction
   | GatorPermissionsControllerDecodePermissionFromPermissionContextForOriginAction
   | GatorPermissionsControllerSubmitRevocationAction
-  | GatorPermissionsControllerAddPendingRevocationAction;
+  | GatorPermissionsControllerAddPendingRevocationAction
+  | GatorPermissionsControllerSubmitDirectRevocationAction
+  | GatorPermissionsControllerIsPendingRevocationAction;
 
 /**
  * All actions that {@link GatorPermissionsController} calls internally.
@@ -267,6 +288,8 @@ export type GatorPermissionsControllerEvents =
  */
 type AllowedEvents =
   | GatorPermissionsControllerStateChangeEvent
+  | TransactionControllerTransactionApprovedEvent
+  | TransactionControllerTransactionRejectedEvent
   | TransactionControllerTransactionConfirmedEvent
   | TransactionControllerTransactionFailedEvent
   | TransactionControllerTransactionDroppedEvent;
@@ -349,7 +372,8 @@ export default class GatorPermissionsController extends BaseController<
     this.update((state) => {
       state.pendingRevocations = state.pendingRevocations.filter(
         (pendingRevocations) =>
-          pendingRevocations.permissionContext !== permissionContext,
+          pendingRevocations.permissionContext.toLowerCase() !==
+          permissionContext.toLowerCase(),
       );
     });
   }
@@ -385,6 +409,16 @@ export default class GatorPermissionsController extends BaseController<
     this.messenger.registerActionHandler(
       `${controllerName}:addPendingRevocation`,
       this.addPendingRevocation.bind(this),
+    );
+
+    this.messenger.registerActionHandler(
+      `${controllerName}:submitDirectRevocation`,
+      this.submitDirectRevocation.bind(this),
+    );
+
+    this.messenger.registerActionHandler(
+      `${controllerName}:isPendingRevocation`,
+      this.isPendingRevocation.bind(this),
     );
   }
 
@@ -721,33 +755,50 @@ export default class GatorPermissionsController extends BaseController<
 
     this.#assertGatorPermissionsEnabled();
 
-    try {
-      const snapRequest = {
-        snapId: this.state.gatorPermissionsProviderSnapId,
-        origin: 'metamask',
-        handler: HandlerType.OnRpcRequest,
-        request: {
-          jsonrpc: '2.0',
-          method:
-            GatorPermissionsSnapRpcMethod.PermissionProviderSubmitRevocation,
-          params: revocationParams,
-        },
-      };
+    const snapRequest = {
+      snapId: this.state.gatorPermissionsProviderSnapId,
+      origin: 'metamask',
+      handler: HandlerType.OnRpcRequest,
+      request: {
+        jsonrpc: '2.0',
+        method:
+          GatorPermissionsSnapRpcMethod.PermissionProviderSubmitRevocation,
+        params: revocationParams,
+      },
+    };
 
+    try {
       const result = await this.messenger.call(
         'SnapController:handleRequest',
         snapRequest,
       );
 
-      this.#removePendingRevocationFromStateByPermissionContext(
-        revocationParams.permissionContext,
-      );
+      // Refresh list first (permission removed from list)
+      await this.fetchAndUpdateGatorPermissions({ isRevoked: false });
 
       controllerLog('Successfully submitted revocation', {
         permissionContext: revocationParams.permissionContext,
         result,
       });
     } catch (error) {
+      // If it's a GatorPermissionsFetchError, revocation succeeded but refresh failed
+      if (error instanceof GatorPermissionsFetchError) {
+        controllerLog(
+          'Revocation submitted successfully but failed to refresh permissions list',
+          {
+            error,
+            permissionContext: revocationParams.permissionContext,
+          },
+        );
+        // Wrap with a more specific message indicating revocation succeeded
+        throw new GatorPermissionsFetchError({
+          message:
+            'Failed to refresh permissions list after successful revocation',
+          cause: error as Error,
+        });
+      }
+
+      // Otherwise, revocation failed - wrap in provider error
       controllerLog('Failed to submit revocation', {
         error,
         permissionContext: revocationParams.permissionContext,
@@ -758,14 +809,25 @@ export default class GatorPermissionsController extends BaseController<
           GatorPermissionsSnapRpcMethod.PermissionProviderSubmitRevocation,
         cause: error as Error,
       });
+    } finally {
+      this.#removePendingRevocationFromStateByPermissionContext(
+        revocationParams.permissionContext,
+      );
     }
   }
 
   /**
    * Adds a pending revocation that will be submitted once the transaction is confirmed.
    *
-   * This method sets up listeners for terminal transaction states (confirmed, failed, dropped)
-   * and includes a timeout safety net to prevent memory leaks if the transaction never
+   * This method sets up listeners for the user's approval/rejection decision and
+   * terminal transaction states (confirmed, failed, dropped). The flow is:
+   * 1. Wait for user to approve or reject the transaction
+   * 2. If approved, add to pending revocations state
+   * 3. If rejected, cleanup without adding to state
+   * 4. If confirmed, submit the revocation
+   * 5. If failed or dropped, cleanup
+   *
+   * Includes a timeout safety net to prevent memory leaks if the transaction never
    * reaches a terminal state.
    *
    * @param params - The pending revocation parameters.
@@ -782,9 +844,14 @@ export default class GatorPermissionsController extends BaseController<
     });
 
     this.#assertGatorPermissionsEnabled();
-    this.#addPendingRevocationToState(txId, permissionContext);
 
     type PendingRevocationHandlers = {
+      approved?: (
+        ...args: TransactionControllerTransactionApprovedEvent['payload']
+      ) => void;
+      rejected?: (
+        ...args: TransactionControllerTransactionRejectedEvent['payload']
+      ) => void;
       confirmed?: (
         ...args: TransactionControllerTransactionConfirmedEvent['payload']
       ) => void;
@@ -799,14 +866,35 @@ export default class GatorPermissionsController extends BaseController<
 
     // Track handlers and timeout for cleanup
     const handlers: PendingRevocationHandlers = {
+      approved: undefined,
+      rejected: undefined,
       confirmed: undefined,
       failed: undefined,
       dropped: undefined,
       timeoutId: undefined,
     };
 
+    // Helper to unsubscribe from approval/rejection events after decision is made
+    const cleanupApprovalHandlers = () => {
+      if (handlers.approved) {
+        this.messenger.unsubscribe(
+          'TransactionController:transactionApproved',
+          handlers.approved,
+        );
+        handlers.approved = undefined;
+      }
+      if (handlers.rejected) {
+        this.messenger.unsubscribe(
+          'TransactionController:transactionRejected',
+          handlers.rejected,
+        );
+        handlers.rejected = undefined;
+      }
+    };
+
     // Cleanup function to unsubscribe from all events and clear timeout
-    const cleanup = (txIdToRemove: string) => {
+    const cleanup = (txIdToRemove: string, removeFromState = true) => {
+      cleanupApprovalHandlers();
       if (handlers.confirmed) {
         this.messenger.unsubscribe(
           'TransactionController:transactionConfirmed',
@@ -829,8 +917,41 @@ export default class GatorPermissionsController extends BaseController<
         clearTimeout(handlers.timeoutId);
       }
 
-      // Remove the pending revocation from the state
-      this.#removePendingRevocationFromStateByTxId(txIdToRemove);
+      // Remove the pending revocation from the state (only if it was added)
+      if (removeFromState) {
+        this.#removePendingRevocationFromStateByTxId(txIdToRemove);
+      }
+    };
+
+    // Handle approved transaction - add to pending revocations state
+    handlers.approved = (payload) => {
+      if (payload.transactionMeta.id === txId) {
+        controllerLog(
+          'Transaction approved by user, adding to pending revocations',
+          {
+            txId,
+            permissionContext,
+          },
+        );
+
+        this.#addPendingRevocationToState(txId, permissionContext);
+
+        // Unsubscribe from approval/rejection events since decision is made
+        cleanupApprovalHandlers();
+      }
+    };
+
+    // Handle rejected transaction - cleanup without adding to state
+    handlers.rejected = (payload) => {
+      if (payload.transactionMeta.id === txId) {
+        controllerLog('Transaction rejected by user, cleaning up listeners', {
+          txId,
+          permissionContext,
+        });
+
+        // Don't remove from state since it was never added
+        cleanup(payload.transactionMeta.id, false);
+      }
     };
 
     // Handle confirmed transaction - submit revocation
@@ -881,6 +1002,16 @@ export default class GatorPermissionsController extends BaseController<
       }
     };
 
+    // Subscribe to user approval/rejection events
+    this.messenger.subscribe(
+      'TransactionController:transactionApproved',
+      handlers.approved,
+    );
+    this.messenger.subscribe(
+      'TransactionController:transactionRejected',
+      handlers.rejected,
+    );
+
     // Subscribe to terminal transaction events
     this.messenger.subscribe(
       'TransactionController:transactionConfirmed',
@@ -903,5 +1034,50 @@ export default class GatorPermissionsController extends BaseController<
       });
       cleanup(txId);
     }, PENDING_REVOCATION_TIMEOUT);
+  }
+
+  /**
+   * Submits a revocation directly without requiring an on-chain transaction.
+   * Used for already-disabled delegations that don't require an on-chain transaction.
+   *
+   * This method:
+   * 1. Adds the permission context to pending revocations state (disables UI button)
+   * 2. Immediately calls submitRevocation to remove from snap storage
+   * 3. On success, removes from pending revocations state (re-enables UI button)
+   * 4. On failure, keeps in pending revocations so UI can show error/retry state
+   *
+   * @param params - The revocation parameters containing the permission context.
+   * @returns A promise that resolves when the revocation is submitted successfully.
+   * @throws {GatorPermissionsNotEnabledError} If the gator permissions are not enabled.
+   * @throws {GatorPermissionsProviderError} If the snap request fails.
+   */
+  public async submitDirectRevocation(params: RevocationParams): Promise<void> {
+    this.#assertGatorPermissionsEnabled();
+
+    // Use a placeholder txId that doesn't conflict with real transaction IDs
+    const placeholderTxId = `no-tx-${params.permissionContext}`;
+
+    // Add to pending revocations state first (disables UI button immediately)
+    this.#addPendingRevocationToState(
+      placeholderTxId,
+      params.permissionContext,
+    );
+
+    // Immediately submit the revocation (will remove from pending on success)
+    await this.submitRevocation(params);
+  }
+
+  /**
+   * Checks if a permission context is in the pending revocations list.
+   *
+   * @param permissionContext - The permission context to check.
+   * @returns `true` if the permission context is pending revocation, `false` otherwise.
+   */
+  public isPendingRevocation(permissionContext: Hex): boolean {
+    return this.state.pendingRevocations.some(
+      (pendingRevocation) =>
+        pendingRevocation.permissionContext.toLowerCase() ===
+        permissionContext.toLowerCase(),
+    );
   }
 }

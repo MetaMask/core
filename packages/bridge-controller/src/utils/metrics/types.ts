@@ -70,6 +70,15 @@ export type InputValues = {
   slippage: number;
 };
 
+export type QuoteWarning =
+  | 'low_return'
+  | 'no_quotes'
+  | 'insufficient_gas_balance'
+  | 'insufficient_gas_for_selected_quote'
+  | 'insufficient_balance'
+  | 'price_impact'
+  | 'tx_alert';
+
 /**
  * Properties that are required to be provided when trackUnifiedSwapBridgeEvent is called
  */
@@ -104,7 +113,7 @@ export type RequiredEventContextFromClient = {
     token_symbol_destination: RequestParams['token_symbol_destination'];
   };
   [UnifiedSwapBridgeEventName.QuotesReceived]: TradeData & {
-    warnings: string[]; // TODO standardize warnings
+    warnings: QuoteWarning[];
     best_quote_provider: QuoteFetchData['best_quote_provider'];
     price_impact: QuoteFetchData['price_impact'];
     can_submit: QuoteFetchData['can_submit'];

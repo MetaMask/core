@@ -417,7 +417,7 @@ describe('Gas Fee Tokens Utils', () => {
       );
     });
 
-    it('updates gas fee tokens if undefined', async () => {
+    it('updates gas fee tokens', async () => {
       request.transaction.isGasFeeTokenIgnoredIfBalance = true;
       request.transaction.selectedGasFeeToken = TOKEN_ADDRESS_1_MOCK;
       request.transaction.gasFeeTokens = undefined;
@@ -431,6 +431,53 @@ describe('Gas Fee Tokens Utils', () => {
       await checkGasFeeTokenBeforePublish(request);
 
       expect(request.fetchGasFeeTokens).toHaveBeenCalledTimes(1);
+      expect(request.fetchGasFeeTokens).toHaveBeenCalledWith(
+        expect.objectContaining({
+          isExternalSign: true,
+        }),
+      );
+    });
+
+    it('sets external sign to true if gas fee token found', async () => {
+      request.transaction.isGasFeeTokenIgnoredIfBalance = true;
+      request.transaction.selectedGasFeeToken = TOKEN_ADDRESS_1_MOCK;
+      request.transaction.gasFeeTokens = [];
+      request.transaction.isExternalSign = false;
+
+      jest.mocked(request.fetchGasFeeTokens).mockResolvedValueOnce([
+        {
+          tokenAddress: TOKEN_ADDRESS_1_MOCK,
+        } as GasFeeToken,
+      ]);
+
+      await checkGasFeeTokenBeforePublish(request);
+
+      jest
+        .mocked(request.updateTransaction)
+        .mock.calls[0][1](request.transaction);
+
+      expect(request.transaction.isExternalSign).toBe(true);
+    });
+
+    it('removes nonce if gas fee token found', async () => {
+      request.transaction.isGasFeeTokenIgnoredIfBalance = true;
+      request.transaction.selectedGasFeeToken = TOKEN_ADDRESS_1_MOCK;
+      request.transaction.gasFeeTokens = [];
+      request.transaction.txParams.nonce = '0x1';
+
+      jest.mocked(request.fetchGasFeeTokens).mockResolvedValueOnce([
+        {
+          tokenAddress: TOKEN_ADDRESS_1_MOCK,
+        } as GasFeeToken,
+      ]);
+
+      await checkGasFeeTokenBeforePublish(request);
+
+      jest
+        .mocked(request.updateTransaction)
+        .mock.calls[0][1](request.transaction);
+
+      expect(request.transaction.txParams.nonce).toBeUndefined();
     });
 
     it('removes selected gas fee token if native balance sufficient', async () => {
