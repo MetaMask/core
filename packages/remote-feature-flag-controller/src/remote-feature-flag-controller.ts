@@ -462,19 +462,24 @@ export class RemoteFeatureFlagController extends BaseController<
    * @param flagName - The name of the feature flag.
    * @returns Array of available A/B test groups with their names and values, or undefined if not an A/B test flag.
    */
-  getAvailableABTestGroups(flagName: string): Array<{name: string; value: Json; scope?: FeatureFlagScope}> | undefined {
+  getAvailableABTestGroups(
+    flagName: string,
+  ):
+    | Array<{ name: string; value: Json; scope?: FeatureFlagScope }>
+    | undefined {
     const rawFlag = this.state.abTestRawFlags[flagName];
-    
+
     if (!Array.isArray(rawFlag)) {
       return undefined;
     }
 
     return rawFlag
-      .filter((item): item is FeatureFlagScopeValue => 
-        typeof item === 'object' && 
-        item !== null && 
-        'name' in item && 
-        'value' in item
+      .filter(
+        (item): item is FeatureFlagScopeValue =>
+          typeof item === 'object' &&
+          item !== null &&
+          'name' in item &&
+          'value' in item,
       )
       .map((group) => ({
         name: group.name,
@@ -489,16 +494,22 @@ export class RemoteFeatureFlagController extends BaseController<
    *
    * @returns Object mapping flag names to their available A/B test groups.
    */
-  getAllABTestFlags(): Record<string, Array<{name: string; value: Json; scope?: FeatureFlagScope}>> {
-    const abTestFlags: Record<string, Array<{name: string; value: Json; scope?: FeatureFlagScope}>> = {};
-    
+  getAllABTestFlags(): Record<
+    string,
+    Array<{ name: string; value: Json; scope?: FeatureFlagScope }>
+  > {
+    const abTestFlags: Record<
+      string,
+      Array<{ name: string; value: Json; scope?: FeatureFlagScope }>
+    > = {};
+
     for (const [flagName] of Object.entries(this.state.abTestRawFlags)) {
       const groups = this.getAvailableABTestGroups(flagName);
       if (groups) {
         abTestFlags[flagName] = groups;
       }
     }
-    
+
     return abTestFlags;
   }
 }

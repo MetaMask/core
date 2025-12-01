@@ -14,10 +14,8 @@ import {
   getDefaultRemoteFeatureFlagControllerState,
 } from './remote-feature-flag-controller';
 import type {
-  RemoteFeatureFlagControllerActions,
   RemoteFeatureFlagControllerMessenger,
   RemoteFeatureFlagControllerState,
-  RemoteFeatureFlagControllerStateChangeEvent,
 } from './remote-feature-flag-controller';
 import type { FeatureFlags } from './remote-feature-flag-controller-types';
 
@@ -860,7 +858,9 @@ describe('RemoteFeatureFlagController', () => {
           });
 
         // Force cache expiration and update
-        jest.spyOn(Date, 'now').mockReturnValue(Date.now() + DEFAULT_CACHE_DURATION + 1000);
+        jest
+          .spyOn(Date, 'now')
+          .mockReturnValue(Date.now() + DEFAULT_CACHE_DURATION + 1000);
         await controller.updateRemoteFeatureFlags();
 
         // Overrides should be preserved
@@ -888,8 +888,12 @@ describe('RemoteFeatureFlagController', () => {
         // Override the threshold flag
         controller.setFlagOverride('testFlagForThreshold', 'overriddenValue');
 
-        expect(controller.getFlag('testFlagForThreshold')).toBe('overriddenValue');
-        expect(controller.getAllFlags().testFlagForThreshold).toBe('overriddenValue');
+        expect(controller.getFlag('testFlagForThreshold')).toBe(
+          'overriddenValue',
+        );
+        expect(controller.getAllFlags().testFlagForThreshold).toBe(
+          'overriddenValue',
+        );
       });
     });
   });
@@ -904,7 +908,9 @@ describe('RemoteFeatureFlagController', () => {
 
         await controller.updateRemoteFeatureFlags();
 
-        const groups = controller.getAvailableABTestGroups('testFlagForThreshold');
+        const groups = controller.getAvailableABTestGroups(
+          'testFlagForThreshold',
+        );
 
         expect(groups).toStrictEqual([
           {
@@ -933,13 +939,17 @@ describe('RemoteFeatureFlagController', () => {
 
         await controller.updateRemoteFeatureFlags();
 
-        expect(controller.getAvailableABTestGroups('simpleFlag')).toBeUndefined();
+        expect(
+          controller.getAvailableABTestGroups('simpleFlag'),
+        ).toBeUndefined();
       });
 
       it('returns undefined for non-existent flags', () => {
         const controller = createController();
 
-        expect(controller.getAvailableABTestGroups('nonExistentFlag')).toBeUndefined();
+        expect(
+          controller.getAvailableABTestGroups('nonExistentFlag'),
+        ).toBeUndefined();
       });
     });
 
@@ -948,7 +958,8 @@ describe('RemoteFeatureFlagController', () => {
         const clientConfigApiService = buildClientConfigApiService({
           remoteFeatureFlags: {
             ...MOCK_FLAGS,
-            testFlagForThreshold: MOCK_FLAGS_WITH_THRESHOLD.testFlagForThreshold,
+            testFlagForThreshold:
+              MOCK_FLAGS_WITH_THRESHOLD.testFlagForThreshold,
             anotherThresholdFlag: [
               {
                 name: 'optionA',
@@ -1000,7 +1011,8 @@ describe('RemoteFeatureFlagController', () => {
           remoteFeatureFlags: {
             simpleFlag: true,
             anotherSimpleFlag: 'value',
-            testFlagForThreshold: MOCK_FLAGS_WITH_THRESHOLD.testFlagForThreshold,
+            testFlagForThreshold:
+              MOCK_FLAGS_WITH_THRESHOLD.testFlagForThreshold,
           },
         });
         const controller = createController({ clientConfigApiService });
@@ -1008,14 +1020,18 @@ describe('RemoteFeatureFlagController', () => {
         await controller.updateRemoteFeatureFlags();
 
         // Only A/B test flags should be stored in abTestRawFlags
-        expect(Object.keys(controller.state.abTestRawFlags)).toStrictEqual(['testFlagForThreshold']);
-        expect(controller.state.abTestRawFlags.testFlagForThreshold).toStrictEqual(
-          MOCK_FLAGS_WITH_THRESHOLD.testFlagForThreshold
-        );
+        expect(Object.keys(controller.state.abTestRawFlags)).toStrictEqual([
+          'testFlagForThreshold',
+        ]);
+        expect(
+          controller.state.abTestRawFlags.testFlagForThreshold,
+        ).toStrictEqual(MOCK_FLAGS_WITH_THRESHOLD.testFlagForThreshold);
 
         // Simple flags should not be in abTestRawFlags
         expect(controller.state.abTestRawFlags.simpleFlag).toBeUndefined();
-        expect(controller.state.abTestRawFlags.anotherSimpleFlag).toBeUndefined();
+        expect(
+          controller.state.abTestRawFlags.anotherSimpleFlag,
+        ).toBeUndefined();
       });
     });
 
@@ -1032,7 +1048,9 @@ describe('RemoteFeatureFlagController', () => {
         await controller.updateRemoteFeatureFlags();
 
         // Get available groups
-        const groups = controller.getAvailableABTestGroups('testFlagForThreshold');
+        const groups = controller.getAvailableABTestGroups(
+          'testFlagForThreshold',
+        );
         expect(groups).toBeDefined();
 
         // Override with a specific group value
@@ -1051,11 +1069,13 @@ describe('RemoteFeatureFlagController', () => {
         controller.setFlagOverride('testFlagForThreshold', 'overrideValue');
 
         // A/B test raw flags should still be available
-        const groups = controller.getAvailableABTestGroups('testFlagForThreshold');
-        expect(groups).toHaveLength(3);
-        expect(controller.state.abTestRawFlags.testFlagForThreshold).toStrictEqual(
-          MOCK_FLAGS_WITH_THRESHOLD.testFlagForThreshold
+        const groups = controller.getAvailableABTestGroups(
+          'testFlagForThreshold',
         );
+        expect(groups).toHaveLength(3);
+        expect(
+          controller.state.abTestRawFlags.testFlagForThreshold,
+        ).toStrictEqual(MOCK_FLAGS_WITH_THRESHOLD.testFlagForThreshold);
       });
     });
   });
