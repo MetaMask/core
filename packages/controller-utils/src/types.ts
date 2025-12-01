@@ -195,7 +195,7 @@ export const NetworkNickname = {
    * @deprecated `MegaETHTestnet` is migrated to `MegaETHTestnetV2`.
    */
   [BuiltInNetworkName.MegaETHTestnet]: 'Mega Testnet',
-  [BuiltInNetworkName.MegaETHTestnetV2]: 'MegaEth Testnet',
+  [BuiltInNetworkName.MegaETHTestnetV2]: 'MegaETH Testnet',
   [BuiltInNetworkName.MonadTestnet]: 'Monad Testnet',
   [BuiltInNetworkName.BaseMainnet]: 'Base Mainnet',
   [BuiltInNetworkName.ArbitrumOne]: 'Arbitrum One',
