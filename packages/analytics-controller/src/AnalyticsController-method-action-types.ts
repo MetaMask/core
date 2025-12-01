@@ -39,39 +39,21 @@ export type AnalyticsControllerTrackViewAction = {
 };
 
 /**
- * Opt in to analytics for regular account.
- * This updates the user's opt-in status for regular account.
+ * Opt in to analytics.
+ * This updates the user's opt-in status.
  */
-export type AnalyticsControllerOptInForRegularAccountAction = {
-  type: `AnalyticsController:optInForRegularAccount`;
-  handler: AnalyticsController['optInForRegularAccount'];
+export type AnalyticsControllerOptInAction = {
+  type: `AnalyticsController:optIn`;
+  handler: AnalyticsController['optIn'];
 };
 
 /**
- * Opt out of analytics for regular account.
- * This updates the user's opt-in status for regular account.
+ * Opt out of analytics.
+ * This updates the user's opt-in status.
  */
-export type AnalyticsControllerOptOutForRegularAccountAction = {
-  type: `AnalyticsController:optOutForRegularAccount`;
-  handler: AnalyticsController['optOutForRegularAccount'];
-};
-
-/**
- * Opt in to analytics for social account.
- * This updates the user's opt-in status for social account.
- */
-export type AnalyticsControllerOptInForSocialAccountAction = {
-  type: `AnalyticsController:optInForSocialAccount`;
-  handler: AnalyticsController['optInForSocialAccount'];
-};
-
-/**
- * Opt out of analytics for social account.
- * This updates the user's opt-in status for social account.
- */
-export type AnalyticsControllerOptOutForSocialAccountAction = {
-  type: `AnalyticsController:optOutForSocialAccount`;
-  handler: AnalyticsController['optOutForSocialAccount'];
+export type AnalyticsControllerOptOutAction = {
+  type: `AnalyticsController:optOut`;
+  handler: AnalyticsController['optOut'];
 };
 
 /**
@@ -81,7 +63,5 @@ export type AnalyticsControllerMethodActions =
   | AnalyticsControllerTrackEventAction
   | AnalyticsControllerIdentifyAction
   | AnalyticsControllerTrackViewAction
-  | AnalyticsControllerOptInForRegularAccountAction
-  | AnalyticsControllerOptOutForRegularAccountAction
-  | AnalyticsControllerOptInForSocialAccountAction
-  | AnalyticsControllerOptOutForSocialAccountAction;
+  | AnalyticsControllerOptInAction
+  | AnalyticsControllerOptOutAction;

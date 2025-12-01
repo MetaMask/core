@@ -33,14 +33,9 @@ export const controllerName = 'AnalyticsController';
  */
 export type AnalyticsControllerState = {
   /**
-   * Whether the user has opted in to analytics for regular account.
+   * Whether the user has opted in to analytics.
    */
-  optedInForRegularAccount: boolean;
-
-  /**
-   * Whether the user has opted in to analytics for social account.
-   */
-  optedInForSocialAccount: boolean;
+  optedIn: boolean;
 
   /**
    * User's UUIDv4 analytics identifier.
@@ -63,8 +58,7 @@ export function getDefaultAnalyticsControllerState(): Omit<
   'analyticsId'
 > {
   return {
-    optedInForRegularAccount: false,
-    optedInForSocialAccount: false,
+    optedIn: false,
   };
 }
 
@@ -75,13 +69,7 @@ export function getDefaultAnalyticsControllerState(): Omit<
  * is responsible for persistence via the `stateChange` event listener.
  */
 const analyticsControllerMetadata = {
-  optedInForRegularAccount: {
-    includeInStateLogs: true,
-    persist: false,
-    includeInDebugSnapshot: true,
-    usedInUi: true,
-  },
-  optedInForSocialAccount: {
+  optedIn: {
     includeInStateLogs: true,
     persist: false,
     includeInDebugSnapshot: true,
@@ -101,10 +89,8 @@ const MESSENGER_EXPOSED_METHODS = [
   'trackEvent',
   'identify',
   'trackView',
-  'optInForRegularAccount',
-  'optOutForRegularAccount',
-  'optInForSocialAccount',
-  'optOutForSocialAccount',
+  'optIn',
+  'optOut',
 ] as const;
 
 /**
@@ -236,8 +222,7 @@ export class AnalyticsController extends BaseController<
 
     projectLogger('AnalyticsController initialized and ready', {
       enabled: analyticsControllerSelectors.selectEnabled(this.state),
-      optedIn: this.state.optedInForRegularAccount,
-      socialOptedIn: this.state.optedInForSocialAccount,
+      optedIn: this.state.optedIn,
       analyticsId: this.state.analyticsId,
     });
 
@@ -324,42 +309,22 @@ export class AnalyticsController extends BaseController<
   }
 
   /**
-   * Opt in to analytics for regular account.
-   * This updates the user's opt-in status for regular account.
+   * Opt in to analytics.
+   * This updates the user's opt-in status.
    */
-  optInForRegularAccount(): void {
+  optIn(): void {
     this.update((state) => {
-      state.optedInForRegularAccount = true;
+      state.optedIn = true;
     });
   }
 
   /**
-   * Opt out of analytics for regular account.
-   * This updates the user's opt-in status for regular account.
+   * Opt out of analytics.
+   * This updates the user's opt-in status.
    */
-  optOutForRegularAccount(): void {
+  optOut(): void {
     this.update((state) => {
-      state.optedInForRegularAccount = false;
-    });
-  }
-
-  /**
-   * Opt in to analytics for social account.
-   * This updates the user's opt-in status for social account.
-   */
-  optInForSocialAccount(): void {
-    this.update((state) => {
-      state.optedInForSocialAccount = true;
-    });
-  }
-
-  /**
-   * Opt out of analytics for social account.
-   * This updates the user's opt-in status for social account.
-   */
-  optOutForSocialAccount(): void {
-    this.update((state) => {
-      state.optedInForSocialAccount = false;
+      state.optedIn = false;
     });
   }
 }

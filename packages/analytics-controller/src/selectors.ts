@@ -10,34 +10,26 @@ const selectAnalyticsId = (state: AnalyticsControllerState): string =>
   state.analyticsId;
 
 /**
- * Selects the opted-in status for regular account from the controller state.
+ * Selects the opted-in status from the controller state.
+ * Use this selector to read the user's opt-in preference (e.g., for UI display).
  *
  * @param state - The controller state
- * @returns Whether the user has opted in for regular account
+ * @returns Whether the user has opted in to analytics
  */
-const selectOptedInForRegularAccount = (
-  state: AnalyticsControllerState,
-): boolean => state.optedInForRegularAccount;
+const selectOptedIn = (state: AnalyticsControllerState): boolean =>
+  state.optedIn;
 
 /**
- * Selects the opted-in status for social account from the controller state.
- *
- * @param state - The controller state
- * @returns Whether the user has opted in for social account
- */
-const selectOptedInForSocialAccount = (
-  state: AnalyticsControllerState,
-): boolean => state.optedInForSocialAccount;
-
-/**
- * Selects the enabled status from the controller state.
- * Analytics is enabled if the user has opted in for regular account OR social account.
+ * Selects whether analytics tracking is enabled.
+ * Use this selector to determine if tracking should occur (e.g., in controller methods).
+ * Currently returns the same value as selectOptedIn, but may diverge in the future
+ * if additional enablement logic is added (e.g., feature flags, platform restrictions).
  *
  * @param state - The controller state
  * @returns Whether analytics tracking is enabled
  */
 const selectEnabled = (state: AnalyticsControllerState): boolean =>
-  state.optedInForRegularAccount || state.optedInForSocialAccount;
+  state.optedIn;
 
 /**
  * Selectors for the AnalyticsController state.
@@ -45,7 +37,6 @@ const selectEnabled = (state: AnalyticsControllerState): boolean =>
  */
 export const analyticsControllerSelectors = {
   selectAnalyticsId,
-  selectOptedInForRegularAccount,
-  selectOptedInForSocialAccount,
+  selectOptedIn,
   selectEnabled,
 };

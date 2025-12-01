@@ -7,8 +7,7 @@ describe('analyticsControllerSelectors', () => {
   describe('selectAnalyticsId', () => {
     it('returns the analyticsId from state', () => {
       const state: AnalyticsControllerState = {
-        optedInForRegularAccount: false,
-        optedInForSocialAccount: false,
+        optedIn: false,
         analyticsId: defaultAnalyticsId,
       };
 
@@ -18,90 +17,51 @@ describe('analyticsControllerSelectors', () => {
     });
   });
 
-  describe('selectOptedInForRegularAccount', () => {
-    it('returns true when optedInForRegularAccount is true', () => {
-      const state: AnalyticsControllerState = {
-        optedInForRegularAccount: true,
-        optedInForSocialAccount: false,
-        analyticsId: defaultAnalyticsId,
-      };
-
-      const result =
-        analyticsControllerSelectors.selectOptedInForRegularAccount(state);
-
-      expect(result).toBe(true);
-    });
-
-    it('returns false when optedInForRegularAccount is false', () => {
-      const state: AnalyticsControllerState = {
-        optedInForRegularAccount: false,
-        optedInForSocialAccount: false,
-        analyticsId: defaultAnalyticsId,
-      };
-
-      const result =
-        analyticsControllerSelectors.selectOptedInForRegularAccount(state);
-
-      expect(result).toBe(false);
-    });
-
-    it('returns false even when optedInForSocialAccount is true', () => {
-      const state: AnalyticsControllerState = {
-        optedInForRegularAccount: false,
-        optedInForSocialAccount: true,
-        analyticsId: defaultAnalyticsId,
-      };
-
-      const result =
-        analyticsControllerSelectors.selectOptedInForRegularAccount(state);
-
-      expect(result).toBe(false);
-    });
-  });
-
-  describe('selectOptedInForSocialAccount', () => {
+  describe('selectOptedIn', () => {
     it.each([[true], [false]])(
-      'returns %s when optedInForSocialAccount is %s',
-      (optedInForSocialAccount) => {
+      'returns %s when optedIn is %s',
+      (optedIn) => {
         const state: AnalyticsControllerState = {
-          optedInForRegularAccount: false,
-          optedInForSocialAccount,
+          optedIn,
           analyticsId: defaultAnalyticsId,
         };
 
-        const result =
-          analyticsControllerSelectors.selectOptedInForSocialAccount(state);
+        const result = analyticsControllerSelectors.selectOptedIn(state);
 
-        expect(result).toBe(optedInForSocialAccount);
+        expect(result).toBe(optedIn);
       },
     );
   });
 
   describe('selectEnabled', () => {
-    /**
-     * Tests all combinations of opt-in states:
-     * 1. Neither account opted in -> analytics disabled
-     * 2. Only regular account opted in -> analytics enabled
-     * 3. Only social account opted in -> analytics enabled
-     * 4. Both accounts opted in -> analytics enabled
-     */
     it.each([
-      [false, false, false],
-      [true, false, true],
-      [false, true, true],
-      [true, true, true],
-    ])(
-      'when optedInForRegularAccount=%s and optedInForSocialAccount=%s, returns %s',
-      (optedInForRegularAccount, optedInForSocialAccount, expected) => {
+      [false, false],
+      [true, true],
+    ])('when optedIn=%s, returns %s', (optedIn, expected) => {
+      const state: AnalyticsControllerState = {
+        optedIn,
+        analyticsId: defaultAnalyticsId,
+      };
+
+      const result = analyticsControllerSelectors.selectEnabled(state);
+
+      expect(result).toBe(expected);
+    });
+
+    it.each([[false], [true]])(
+      'returns the same value as selectOptedIn when optedIn=%s (currently equivalent)',
+      (optedIn) => {
         const state: AnalyticsControllerState = {
-          optedInForRegularAccount,
-          optedInForSocialAccount,
+          optedIn,
           analyticsId: defaultAnalyticsId,
         };
 
-        const result = analyticsControllerSelectors.selectEnabled(state);
+        const optedInResult =
+          analyticsControllerSelectors.selectOptedIn(state);
+        const enabledResult =
+          analyticsControllerSelectors.selectEnabled(state);
 
-        expect(result).toBe(expected);
+        expect(enabledResult).toBe(optedInResult);
       },
     );
   });

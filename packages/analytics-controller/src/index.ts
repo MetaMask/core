@@ -37,9 +37,7 @@ export type {
   AnalyticsControllerTrackEventAction,
   AnalyticsControllerIdentifyAction,
   AnalyticsControllerTrackViewAction,
-  AnalyticsControllerOptInForRegularAccountAction,
-  AnalyticsControllerOptOutForRegularAccountAction,
-  AnalyticsControllerOptInForSocialAccountAction,
-  AnalyticsControllerOptOutForSocialAccountAction,
+  AnalyticsControllerOptInAction,
+  AnalyticsControllerOptOutAction,
   AnalyticsControllerMethodActions,
 } from './AnalyticsController-method-action-types';

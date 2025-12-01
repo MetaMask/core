@@ -66,12 +66,10 @@ import {
 
 async function loadAnalyticsSettings(): Promise<AnalyticsControllerState> {
   // Load from platform storage (e.g., MMKV, AsyncStorage, localStorage)
-  const [savedAnalyticsId, savedOptedInRegular, savedOptedInSocial] =
-    await Promise.all([
-      storage.getItem('analytics.id'),
-      storage.getItem('analytics.optedInForRegularAccount'),
-      storage.getItem('analytics.optedInForSocialAccount'),
-    ]);
+  const [savedAnalyticsId, savedOptedIn] = await Promise.all([
+    storage.getItem('analytics.id'),
+    storage.getItem('analytics.optedIn'),
+  ]);
 
   const defaults = getDefaultAnalyticsControllerState();
 
@@ -84,20 +82,12 @@ async function loadAnalyticsSettings(): Promise<AnalyticsControllerState> {
   }
 
   // Parse boolean values (stored as strings)
-  const optedInForRegularAccount =
-    savedOptedInRegular !== null
-      ? savedOptedInRegular === 'true'
-      : defaults.optedInForRegularAccount;
-
-  const optedInForSocialAccount =
-    savedOptedInSocial !== null
-      ? savedOptedInSocial === 'true'
-      : defaults.optedInForSocialAccount;
+  const optedIn =
+    savedOptedIn !== null ? savedOptedIn === 'true' : defaults.optedIn;
 
   return {
     analyticsId,
-    optedInForRegularAccount,
-    optedInForSocialAccount,
+    optedIn,
   };
 }
 ```
@@ -115,14 +105,7 @@ import {
 // Persist state changes to storage (fire-and-forget)
 function persistAnalyticsSettings(state: AnalyticsControllerState): void {
   storage.setItem('analytics.id', state.analyticsId);
-  storage.setItem(
-    'analytics.optedInForRegularAccount',
-    String(state.optedInForRegularAccount),
-  );
-  storage.setItem(
-    'analytics.optedInForSocialAccount',
-    String(state.optedInForSocialAccount),
-  );
+  storage.setItem('analytics.optedIn', String(state.optedIn));
 }
 
 async function initializeAnalyticsController(
@@ -175,7 +158,7 @@ controller.trackEvent({
   saveDataRecording: true,
 });
 
-// Events are filtered when analytics is disabled (both opt-ins are false)
+// Events are filtered when analytics is disabled (optedIn is false)
 ```
 
 ### 6. Identify Users
@@ -201,13 +184,9 @@ controller.trackView('home', {
 ### 8. Manage Analytics Preferences
 
 ```typescript
-// Opt in/out for regular account
-controller.optInForRegularAccount();
-controller.optOutForRegularAccount();
-
-// Opt in/out for social account
-controller.optInForSocialAccount();
-controller.optOutForSocialAccount();
+// Opt in/out
+controller.optIn();
+controller.optOut();
 
 // Changes trigger stateChange event → platform persists to storage
 ```
@@ -224,7 +203,7 @@ messenger.call('AnalyticsController:trackEvent', {
   saveDataRecording: true,
 });
 
-messenger.call('AnalyticsController:optInForRegularAccount');
+messenger.call('AnalyticsController:optIn');
 ```
 
 ## State Management
@@ -237,17 +216,16 @@ Use `getDefaultAnalyticsControllerState()` to get default values for opt-in pref
 import { getDefaultAnalyticsControllerState } from '@metamask/analytics-controller';
 
 const defaults = getDefaultAnalyticsControllerState();
-// Returns: { optedInForRegularAccount: false, optedInForSocialAccount: false }
+// Returns: { optedIn: false }
 // Note: analyticsId is NOT included - platform must provide it
 ```
 
 ### State Structure
 
-| Field                      | Type      | Description                            |
-| -------------------------- | --------- | -------------------------------------- |
-| `analyticsId`              | `string`  | UUIDv4 identifier (platform-generated) |
-| `optedInForRegularAccount` | `boolean` | User opt-in status for regular account |
-| `optedInForSocialAccount`  | `boolean` | User opt-in status for social account  |
+| Field         | Type      | Description                            |
+| ------------- | --------- | -------------------------------------- |
+| `analyticsId` | `string`  | UUIDv4 identifier (platform-generated) |
+| `optedIn`     | `boolean` | User opt-in status                     |
 
 ### Why `analyticsId` Has No Default
 

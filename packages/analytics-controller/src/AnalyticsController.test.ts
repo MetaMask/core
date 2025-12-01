@@ -127,8 +127,7 @@ describe('AnalyticsController', () => {
       const defaults = getDefaultAnalyticsControllerState();
 
       expect(defaults).toStrictEqual({
-        optedInForRegularAccount: false,
-        optedInForSocialAccount: false,
+        optedIn: false,
       });
       expect('analyticsId' in defaults).toBe(false);
     });
@@ -173,8 +172,7 @@ describe('AnalyticsController', () => {
       const analyticsId = '550e8400-e29b-41d4-a716-446655440000';
       const { controller } = setupController({
         state: {
-          optedInForRegularAccount: true,
-          optedInForSocialAccount: false,
+          optedIn: true,
           analyticsId,
         },
       });
@@ -182,8 +180,7 @@ describe('AnalyticsController', () => {
       expect(analyticsControllerSelectors.selectEnabled(controller.state)).toBe(
         true,
       );
-      expect(controller.state.optedInForRegularAccount).toBe(true);
-      expect(controller.state.optedInForSocialAccount).toBe(false);
+      expect(controller.state.optedIn).toBe(true);
       expect(controller.state.analyticsId).toBe(analyticsId);
     });
 
@@ -196,8 +193,7 @@ describe('AnalyticsController', () => {
         },
       });
 
-      expect(controller.state.optedInForRegularAccount).toBe(false);
-      expect(controller.state.optedInForSocialAccount).toBe(false);
+      expect(controller.state.optedIn).toBe(false);
       expect(controller.state.analyticsId).toBe(analyticsId);
     });
 
@@ -245,8 +241,7 @@ describe('AnalyticsController', () => {
           messenger,
           platformAdapter: adapter,
           state: {
-            optedInForRegularAccount: false,
-            optedInForSocialAccount: false,
+            optedIn: false,
           } as AnalyticsControllerState,
         });
       }).toThrow('Invalid analyticsId: expected a valid UUIDv4, but got');
@@ -276,8 +271,7 @@ describe('AnalyticsController', () => {
           messenger,
           platformAdapter: adapter,
           state: {
-            optedInForRegularAccount: false,
-            optedInForSocialAccount: false,
+            optedIn: false,
             analyticsId: 'not-a-valid-uuid',
           },
         });
@@ -310,8 +304,7 @@ describe('AnalyticsController', () => {
           messenger,
           platformAdapter: adapter,
           state: {
-            optedInForRegularAccount: false,
-            optedInForSocialAccount: false,
+            optedIn: false,
             analyticsId: '',
           },
         });
@@ -426,32 +419,12 @@ describe('AnalyticsController', () => {
   });
 
   describe('trackEvent', () => {
-    it('calls platform adapter to track event when enabled via regular opt-in', () => {
+    it('calls platform adapter to track event when enabled', () => {
       const mockAdapter = createMockAdapter();
       const { controller } = setupController({
         state: {
-          optedInForRegularAccount: true,
-          optedInForSocialAccount: false,
+          optedIn: true,
           analyticsId: '66666666-6666-4666-a666-666666666666',
-        },
-        platformAdapter: mockAdapter,
-      });
-
-      const event = createTestEvent('test_event', { prop: 'value' });
-      controller.trackEvent(event);
-
-      expect(mockAdapter.track).toHaveBeenCalledWith('test_event', {
-        prop: 'value',
-      });
-    });
-
-    it('tracks event via platform adapter when enabled via social opt-in', () => {
-      const mockAdapter = createMockAdapter();
-      const { controller } = setupController({
-        state: {
-          optedInForRegularAccount: false,
-          optedInForSocialAccount: true,
-          analyticsId: '77777777-7777-4777-b777-777777777777',
         },
         platformAdapter: mockAdapter,
       });
@@ -468,8 +441,7 @@ describe('AnalyticsController', () => {
       const mockAdapter = createMockAdapter();
       const { controller } = setupController({
         state: {
-          optedInForRegularAccount: true,
-          optedInForSocialAccount: false,
+          optedIn: true,
           analyticsId: '88888888-8888-4888-8888-888888888888',
         },
         platformAdapter: mockAdapter,
@@ -485,8 +457,7 @@ describe('AnalyticsController', () => {
       const mockAdapter = createMockAdapter();
       const { controller } = setupController({
         state: {
-          optedInForRegularAccount: true,
-          optedInForSocialAccount: false,
+          optedIn: true,
           analyticsId: '99999999-9999-4999-9999-999999999999',
         },
         platformAdapter: mockAdapter,
@@ -514,8 +485,7 @@ describe('AnalyticsController', () => {
       const mockAdapter = createMockAdapter();
       const { controller } = setupController({
         state: {
-          optedInForRegularAccount: true,
-          optedInForSocialAccount: false,
+          optedIn: true,
           analyticsId: 'aaaaaaaa-aaaa-4aaa-aaaa-aaaaaaaaaaaa',
         },
         platformAdapter: mockAdapter,
@@ -540,8 +510,7 @@ describe('AnalyticsController', () => {
       const mockAdapter = createMockAdapter();
       const { controller } = setupController({
         state: {
-          optedInForRegularAccount: false,
-          optedInForSocialAccount: false,
+          optedIn: false,
           analyticsId: 'bbbbbbbb-bbbb-4bbb-8bbb-bbbbbbbbbbbb',
         },
         platformAdapter: mockAdapter,
@@ -561,8 +530,7 @@ describe('AnalyticsController', () => {
       const { controller } = setupController({
         state: {
           analyticsId,
-          optedInForRegularAccount: true,
-          optedInForSocialAccount: false,
+          optedIn: true,
         },
         platformAdapter: mockAdapter,
       });
@@ -584,8 +552,7 @@ describe('AnalyticsController', () => {
       const { controller } = setupController({
         state: {
           analyticsId,
-          optedInForRegularAccount: true,
-          optedInForSocialAccount: false,
+          optedIn: true,
         },
         platformAdapter: mockAdapter,
       });
@@ -599,8 +566,7 @@ describe('AnalyticsController', () => {
       const mockAdapter = createMockAdapter();
       const { controller } = setupController({
         state: {
-          optedInForRegularAccount: false,
-          optedInForSocialAccount: false,
+          optedIn: false,
           analyticsId: 'eeeeeeee-eeee-4eee-beee-eeeeeeeeeeee',
         },
         platformAdapter: mockAdapter,
@@ -618,31 +584,12 @@ describe('AnalyticsController', () => {
   });
 
   describe('trackView', () => {
-    it('calls platform adapter to track view when enabled via regular opt-in', () => {
+    it('calls platform adapter to track view when enabled', () => {
       const mockAdapter = createMockAdapter();
       const { controller } = setupController({
         state: {
-          optedInForRegularAccount: true,
-          optedInForSocialAccount: false,
+          optedIn: true,
           analyticsId: 'ffffffff-ffff-4fff-8fff-ffffffffffff',
-        },
-        platformAdapter: mockAdapter,
-      });
-
-      controller.trackView('home', { referrer: 'test' });
-
-      expect(mockAdapter.view).toHaveBeenCalledWith('home', {
-        referrer: 'test',
-      });
-    });
-
-    it('calls platform adapter to track view when enabled via social opt-in', () => {
-      const mockAdapter = createMockAdapter();
-      const { controller } = setupController({
-        state: {
-          optedInForRegularAccount: false,
-          optedInForSocialAccount: true,
-          analyticsId: '12345678-1234-4234-9234-123456789012',
         },
         platformAdapter: mockAdapter,
       });
@@ -658,8 +605,7 @@ describe('AnalyticsController', () => {
       const mockAdapter = createMockAdapter();
       const { controller } = setupController({
         state: {
-          optedInForRegularAccount: false,
-          optedInForSocialAccount: false,
+          optedIn: false,
           analyticsId: 'abcdef01-2345-4678-9abc-def012345678',
         },
         platformAdapter: mockAdapter,
@@ -671,8 +617,8 @@ describe('AnalyticsController', () => {
     });
   });
 
-  describe('optInForRegularAccount', () => {
-    it('sets optedInForRegularAccount to true', () => {
+  describe('optIn', () => {
+    it('sets optedIn to true', () => {
       const { controller } = setupController({
         state: {
           ...getDefaultAnalyticsControllerState(),
@@ -680,56 +626,24 @@ describe('AnalyticsController', () => {
         },
       });
 
-      controller.optInForRegularAccount();
+      controller.optIn();
 
-      expect(controller.state.optedInForRegularAccount).toBe(true);
+      expect(controller.state.optedIn).toBe(true);
     });
   });
 
-  describe('optOutForRegularAccount', () => {
-    it('sets optedInForRegularAccount to false', () => {
+  describe('optOut', () => {
+    it('sets optedIn to false', () => {
       const { controller } = setupController({
         state: {
-          optedInForRegularAccount: true,
-          optedInForSocialAccount: false,
+          optedIn: true,
           analyticsId: '01234567-89ab-4cde-8f01-23456789abcd',
         },
       });
 
-      controller.optOutForRegularAccount();
+      controller.optOut();
 
-      expect(controller.state.optedInForRegularAccount).toBe(false);
-    });
-  });
-
-  describe('optInForSocialAccount', () => {
-    it('sets optedInForSocialAccount to true', () => {
-      const { controller } = setupController({
-        state: {
-          ...getDefaultAnalyticsControllerState(),
-          analyticsId: '98765432-10fe-4dcb-a987-654321fedcba',
-        },
-      });
-
-      controller.optInForSocialAccount();
-
-      expect(controller.state.optedInForSocialAccount).toBe(true);
-    });
-  });
-
-  describe('optOutForSocialAccount', () => {
-    it('sets optedInForSocialAccount to false', () => {
-      const { controller } = setupController({
-        state: {
-          optedInForRegularAccount: false,
-          optedInForSocialAccount: true,
-          analyticsId: 'deadbeef-cafe-4bad-babe-beefcafebabe',
-        },
-      });
-
-      controller.optOutForSocialAccount();
-
-      expect(controller.state.optedInForSocialAccount).toBe(false);
+      expect(controller.state.optedIn).toBe(false);
     });
   });
 
@@ -746,12 +660,12 @@ describe('AnalyticsController', () => {
       const listener = jest.fn();
       messenger.subscribe('AnalyticsController:stateChange', listener);
 
-      controller.optInForRegularAccount();
+      controller.optIn();
 
       expect(listener).toHaveBeenCalledTimes(1);
       expect(listener).toHaveBeenCalledWith(
         expect.objectContaining({
-          optedInForRegularAccount: true,
+          optedIn: true,
           analyticsId,
         }),
         expect.any(Array),

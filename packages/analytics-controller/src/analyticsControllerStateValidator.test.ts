@@ -7,8 +7,7 @@ describe('analyticsControllerStateValidator', () => {
 
     it('does not throw when analyticsId is a valid UUIDv4', () => {
       const state: AnalyticsControllerState = {
-        optedInForRegularAccount: false,
-        optedInForSocialAccount: false,
+        optedIn: false,
         analyticsId: validUUIDv4,
       };
 
@@ -36,8 +35,7 @@ describe('analyticsControllerStateValidator', () => {
         }
 
         const state = {
-          optedInForRegularAccount: false,
-          optedInForSocialAccount: false,
+          optedIn: false,
           analyticsId,
         } as unknown as AnalyticsControllerState;
 
@@ -54,8 +52,7 @@ describe('analyticsControllerStateValidator', () => {
       ['ffffffff-ffff-4fff-8fff-ffffffffffff'],
     ])('validates valid UUIDv4 format: %s', (uuid) => {
       const state: AnalyticsControllerState = {
-        optedInForRegularAccount: false,
-        optedInForSocialAccount: false,
+        optedIn: false,
         analyticsId: uuid,
       };
 
