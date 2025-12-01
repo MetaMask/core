@@ -1139,7 +1139,6 @@ describe('CurrencyRateController', () => {
       jest
         .spyOn(tokenPricesService, 'fetchTokenPrices')
         .mockImplementation(async ({ assets }) => {
-          // eslint-disable-next-line jest/no-conditional-in-test
           if (assets.some((asset) => asset.chainId === '0x1')) {
             return [
               {
@@ -1168,7 +1167,7 @@ describe('CurrencyRateController', () => {
               },
             ];
           }
-          // eslint-disable-next-line jest/no-conditional-in-test
+
           if (assets.some((asset) => asset.chainId === '0x89')) {
             return [
               {
@@ -1262,11 +1261,9 @@ describe('CurrencyRateController', () => {
       const fetchTokenPricesSpy = jest
         .spyOn(tokenPricesService, 'fetchTokenPrices')
         .mockImplementation(async ({ assets }) => {
-          // eslint-disable-next-line jest/no-conditional-in-test
           if (
             assets.some(
               (asset) =>
-                // eslint-disable-next-line jest/no-conditional-in-test
                 asset.chainId === '0x1' || asset.chainId === '0xaa36a7',
             )
           ) {
@@ -1358,7 +1355,6 @@ describe('CurrencyRateController', () => {
       jest
         .spyOn(tokenPricesService, 'fetchTokenPrices')
         .mockImplementation(async ({ assets }) => {
-          // eslint-disable-next-line jest/no-conditional-in-test
           if (assets.some((asset) => asset.chainId === '0x1')) {
             // ETH succeeds
             return [
@@ -1498,7 +1494,6 @@ describe('CurrencyRateController', () => {
       const fetchTokenPricesSpy = jest
         .spyOn(tokenPricesService, 'fetchTokenPrices')
         .mockImplementation(async ({ assets }) => {
-          // eslint-disable-next-line jest/no-conditional-in-test
           if (assets.some((asset) => asset.chainId === '0x1')) {
             return [
               {

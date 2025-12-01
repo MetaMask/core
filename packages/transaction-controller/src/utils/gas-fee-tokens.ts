@@ -166,7 +166,10 @@ export async function checkGasFeeTokenBeforePublish({
     return;
   }
 
-  const gasFeeTokens = await fetchGasFeeTokens(transaction);
+  const gasFeeTokens = await fetchGasFeeTokens({
+    ...transaction,
+    isExternalSign: true,
+  });
 
   updateTransaction(transaction.id, (tx) => {
     tx.gasFeeTokens = gasFeeTokens;

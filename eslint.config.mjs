@@ -18,6 +18,11 @@ const config = createConfig([
     ],
   },
   {
+    linterOptions: {
+      reportUnusedDisableDirectives: 'error',
+    },
+  },
+  {
     rules: {
       // Left disabled because various properties throughough this repo are snake_case because the
       // names come from external sources or must comply with standards
@@ -26,25 +31,15 @@ const config = createConfig([
       'id-length': 'off',
 
       // TODO: re-enble most of these rules
-      'function-paren-newline': 'off',
       'id-denylist': 'off',
-      'implicit-arrow-linebreak': 'off',
-      'import-x/no-anonymous-default-export': 'off',
       'import-x/no-unassigned-import': 'off',
-      'lines-around-comment': 'off',
       'no-async-promise-executor': 'off',
       'no-case-declarations': 'off',
-      'no-invalid-this': 'off',
       'no-negated-condition': 'off',
       'no-new': 'off',
       'no-param-reassign': 'off',
       'no-restricted-syntax': 'off',
-      radix: 'off',
       'require-atomic-updates': 'off',
-      'jsdoc/match-description': [
-        'off',
-        { matchDescription: '^[A-Z`\\d_][\\s\\S]*[.?!`>)}]$' },
-      ],
     },
     settings: {
       jsdoc: {
@@ -114,14 +109,6 @@ const config = createConfig([
       },
     },
     rules: {
-      // These rules have been customized from their defaults.
-      '@typescript-eslint/switch-exhaustiveness-check': [
-        'error',
-        {
-          considerDefaultExhaustiveForUnions: true,
-        },
-      ],
-
       // TODO: Disable in `eslint-config-typescript`, tracked here: https://github.com/MetaMask/eslint-config/issues/413
       '@typescript-eslint/no-unnecessary-type-arguments': 'off',
 

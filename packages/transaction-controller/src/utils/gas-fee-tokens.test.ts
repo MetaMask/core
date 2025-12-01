@@ -431,6 +431,11 @@ describe('Gas Fee Tokens Utils', () => {
       await checkGasFeeTokenBeforePublish(request);
 
       expect(request.fetchGasFeeTokens).toHaveBeenCalledTimes(1);
+      expect(request.fetchGasFeeTokens).toHaveBeenCalledWith(
+        expect.objectContaining({
+          isExternalSign: true,
+        }),
+      );
     });
 
     it('sets external sign to true if gas fee token found', async () => {
