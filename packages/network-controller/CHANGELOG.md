@@ -8,6 +8,7 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 ## [Unreleased]
 
 ### Added
+
 - Add MegaETH Testnet V2 support ([#7272](https://github.com/MetaMask/core/pull/7272))
   - Add `megaeth-testnet-v2` in method `getDefaultCustomNetworkConfigurationsByChainId`
   - Add `megaeth-testnet-v2` in type `AdditionalDefaultNetwork`
