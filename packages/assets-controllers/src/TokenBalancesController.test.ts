@@ -106,6 +106,7 @@ const setupController = ({
       'KeyringController:accountRemoved',
       'AccountActivityService:balanceUpdated',
       'AccountActivityService:statusChanged',
+      'AccountsController:selectedEvmAccountChange',
     ],
   });
 
@@ -1578,6 +1579,82 @@ describe('TokenBalancesController', () => {
           },
         },
       });
+    });
+  });
+
+  describe('when selectedEvmAccountChange is published', () => {
+    it('calls updateBalances when account changes and tokens exist', async () => {
+      const chainId = '0x1';
+      const accountAddress = '0x0000000000000000000000000000000000000001';
+      const tokenAddress = '0x0000000000000000000000000000000000000010';
+      const account = createMockInternalAccount({
+        address: accountAddress,
+      });
+
+      const tokens = {
+        allDetectedTokens: {},
+        allTokens: {
+          [chainId]: {
+            [accountAddress]: [
+              { address: tokenAddress, symbol: 'TEST', decimals: 18 },
+            ],
+          },
+        },
+      };
+
+      const updateBalancesSpy = jest
+        .spyOn(TokenBalancesController.prototype, 'updateBalances')
+        .mockResolvedValue(undefined);
+
+      const { messenger } = setupController({
+        config: {
+          accountsApiChainIds: () => [],
+          allowExternalServices: () => true,
+        },
+        tokens,
+        listAccounts: [account],
+      });
+
+      // Publish account change event
+      messenger.publish('AccountsController:selectedEvmAccountChange', account);
+
+      // Verify updateBalances was called with correct chainIds
+      expect(updateBalancesSpy).toHaveBeenCalledWith({
+        chainIds: [chainId],
+      });
+
+      updateBalancesSpy.mockRestore();
+    });
+
+    it('does not call updateBalances when no tokens exist', async () => {
+      const account = createMockInternalAccount({
+        address: '0x0000000000000000000000000000000000000001',
+      });
+
+      const updateBalancesSpy = jest.spyOn(
+        TokenBalancesController.prototype,
+        'updateBalances',
+      );
+
+      const { messenger } = setupController({
+        config: {
+          accountsApiChainIds: () => [],
+          allowExternalServices: () => true,
+        },
+        tokens: {
+          allTokens: {},
+          allDetectedTokens: {},
+        },
+        listAccounts: [account],
+      });
+
+      // Publish account change event
+      messenger.publish('AccountsController:selectedEvmAccountChange', account);
+
+      // Should not call updateBalances when there are no chains with tokens
+      expect(updateBalancesSpy).not.toHaveBeenCalled();
+
+      updateBalancesSpy.mockRestore();
     });
   });
 
