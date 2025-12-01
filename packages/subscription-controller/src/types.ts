@@ -171,7 +171,10 @@ export type ProductPrice = {
   /** only usd for now */
   currency: Currency;
   trialPeriodDays: number;
+  /** min billing cycles for approval */
   minBillingCycles: number;
+  /** min billing cycles for account balance check */
+  minBillingCyclesForBalance: number;
 };
 
 export type ProductPricing = {
