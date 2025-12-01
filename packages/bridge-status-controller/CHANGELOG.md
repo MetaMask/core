@@ -7,6 +7,11 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+### Changed
+
+- Bump `@metamask/network-controller` from `^26.0.0` to `^27.0.0` ([#7258](https://github.com/MetaMask/core/pull/7258))
+- Bump `@metamask/transaction-controller` from `^62.3.0` to `^62.3.1` ([#7257](https://github.com/MetaMask/core/pull/7257))
+
 ## [63.1.0]
 
 ### Changed

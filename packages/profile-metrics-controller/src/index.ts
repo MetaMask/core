@@ -1,4 +1,16 @@
 export type {
+  ProfileMetricsControllerActions,
+  ProfileMetricsControllerEvents,
+  ProfileMetricsControllerGetStateAction,
+  ProfileMetricsControllerMessenger,
+  ProfileMetricsControllerState,
+  ProfileMetricsControllerStateChangeEvent,
+} from './ProfileMetricsController';
+export {
+  ProfileMetricsController,
+  getDefaultProfileMetricsControllerState,
+} from './ProfileMetricsController';
+export type {
   ProfileMetricsServiceActions,
   ProfileMetricsServiceEvents,
   ProfileMetricsServiceMessenger,

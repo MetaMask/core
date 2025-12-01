@@ -645,6 +645,46 @@ describe('Relay Quotes Utils', () => {
           }),
         );
       });
+
+      it('not using gas fee token cost if chain disabled in feature flag', async () => {
+        successfulFetchMock.mockResolvedValue({
+          json: async () => QUOTE_MOCK,
+        } as never);
+
+        getTokenBalanceMock.mockReturnValue('1724999999999999');
+        getGasFeeTokensMock.mockResolvedValue([GAS_FEE_TOKEN_MOCK]);
+
+        getRemoteFeatureFlagControllerStateMock.mockReturnValue({
+          cacheTimestamp: 0,
+          remoteFeatureFlags: {
+            confirmations_pay: {
+              relayDisabledGasStationChains: [QUOTE_REQUEST_MOCK.sourceChainId],
+            },
+          },
+        });
+
+        const result = await getRelayQuotes({
+          messenger,
+          requests: [QUOTE_REQUEST_MOCK],
+          transaction: TRANSACTION_META_MOCK,
+        });
+
+        expect(result[0].fees.isSourceGasFeeToken).toBeUndefined();
+        expect(result[0].fees.sourceNetwork).toStrictEqual({
+          estimate: {
+            fiat: '4.56',
+            human: '1.725',
+            raw: '1725000000000000',
+            usd: '3.45',
+          },
+          max: {
+            fiat: '4.56',
+            human: '1.725',
+            raw: '1725000000000000',
+            usd: '3.45',
+          },
+        });
+      });
     });
 
     it('includes target network fee in quote', async () => {

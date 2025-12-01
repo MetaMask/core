@@ -7,6 +7,18 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+### Changed
+
+- Bump `@metamask/network-controller` from `^26.0.0` to `^27.0.0` ([#7258](https://github.com/MetaMask/core/pull/7258))
+- Bump `@metamask/transaction-controller` from `^62.3.0` to `^62.3.1` ([#7257](https://github.com/MetaMask/core/pull/7257))
+
+### Fixed
+
+- Fix 2dp value in `CurrencyRateController`([#7276](https://github.com/MetaMask/core/pull/7276))
+- Fix token search API to use correct `networks` query parameter instead of `chainIds` ([#7261](https://github.com/MetaMask/core/pull/7261))
+
+## [92.0.0]
+
 ### Added
 
 - Support for optionally fetching market data when calling searchTokens ([#7226](https://github.com/MetaMask/core/pull/7226))
@@ -42,6 +54,7 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 - Fix `TokenBalancesController` state that store both lowercase and checksum account addresses ([#7217](https://github.com/MetaMask/core/pull/7217))
 - `TokenBalancesController`: state inconsistency by ensuring all account addresses are stored in lowercase format ([#7216](https://github.com/MetaMask/core/pull/7216))
+- Add MON (Monad) to supported currencies list in token prices service ([#7250](https://github.com/MetaMask/core/pull/7250))
 
 ## [91.0.0]
 
@@ -2352,7 +2365,8 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 - Use Ethers for AssetsContractController ([#845](https://github.com/MetaMask/core/pull/845))
 
-[Unreleased]: https://github.com/MetaMask/core/compare/@metamask/assets-controllers@91.0.0...HEAD
+[Unreleased]: https://github.com/MetaMask/core/compare/@metamask/assets-controllers@92.0.0...HEAD
+[92.0.0]: https://github.com/MetaMask/core/compare/@metamask/assets-controllers@91.0.0...@metamask/assets-controllers@92.0.0
 [91.0.0]: https://github.com/MetaMask/core/compare/@metamask/assets-controllers@90.0.0...@metamask/assets-controllers@91.0.0
 [90.0.0]: https://github.com/MetaMask/core/compare/@metamask/assets-controllers@89.0.1...@metamask/assets-controllers@90.0.0
 [89.0.1]: https://github.com/MetaMask/core/compare/@metamask/assets-controllers@89.0.0...@metamask/assets-controllers@89.0.1
