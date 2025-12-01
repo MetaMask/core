@@ -279,8 +279,8 @@ const MULTICALL_CONTRACT_BY_CHAINID = {
   '0xab5': '0xF9cda624FBC7e059355ce98a31693d299FACd963',
   // Berachain, contract found but not in multicall3 repo
   '0x138de': '0xcA11bde05977b3631167028862bE2a173976CA11',
-  // MegaETH TESTNET V2
-  '0x18c7': '0xcA11bde05977b3631167028862bE2a173976CA11',
+  // MegaETH TESTNET
+  '0x18c6': '0xcA11bde05977b3631167028862bE2a173976CA11',
   // Apechain
   '0x8173': '0xcA11bde05977b3631167028862bE2a173976CA11',
   // Matchain, contract found but not in multicall3 repo
