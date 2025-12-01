@@ -21,7 +21,7 @@ import {
  * A permission type matches when:
  * - All of its required enforcers are present in the provided list; and
  * - No provided enforcer falls outside the union of the type's required and
- * allowed enforcers (currently only `TimestampEnforcer` is allowed extra).
+ * optional enforcers (currently only `TimestampEnforcer` is allowed extra).
  *
  * If exactly one permission type matches, its identifier is returned.
  *
@@ -51,20 +51,20 @@ export const identifyPermissionByEnforcers = ({
   let matchingPermissionType: PermissionType | null = null;
 
   for (const {
-    allowedEnforcers,
+    optionalEnforcers,
     requiredEnforcers,
     permissionType,
   } of permissionRules) {
-    // union of allowed + required (by address) for forbidden checks
-    const union = new Set<Hex>([
-      ...allowedEnforcers,
+    // union of optional + required enforcers. Any other address is forbidden.
+    const allowedEnforcers = new Set<Hex>([
+      ...optionalEnforcers,
       ...requiredEnforcers.keys(),
     ]);
 
     let hasForbiddenEnforcers = false;
 
     for (const caveat of enforcersSet) {
-      if (!union.has(caveat)) {
+      if (!allowedEnforcers.has(caveat)) {
         hasForbiddenEnforcers = true;
         break;
       }

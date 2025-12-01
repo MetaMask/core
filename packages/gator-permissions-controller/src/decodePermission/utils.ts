@@ -10,7 +10,7 @@ import type { DeployedContractsByName, PermissionType } from './types';
 export type PermissionRule = {
   permissionType: PermissionType;
   requiredEnforcers: Map<Hex, number>;
-  allowedEnforcers: Set<Hex>;
+  optionalEnforcers: Set<Hex>;
 };
 
 /**
@@ -98,7 +98,7 @@ export const getChecksumEnforcersByChainId = (
  * Builds the canonical set of permission matching rules for a chain.
  *
  * Each rule specifies the `permissionType`, the set of `requiredEnforcers`
- * that must be present, and the set of `allowedEnforcers` that may appear in
+ * that must be present, and the set of `optionalEnforcers` that may appear in
  * addition to the required set.
  *
  * @param contracts - The deployed contracts for the chain.
@@ -120,8 +120,8 @@ export const createPermissionRulesForChainId: (
     allowedCalldataEnforcer,
   } = getChecksumEnforcersByChainId(contracts);
 
-  // the allowed enforcers are the same for all permission types
-  const allowedEnforcers = new Set<Hex>([timestampEnforcer]);
+  // the optional enforcers are the same for all permission types
+  const optionalEnforcers = new Set<Hex>([timestampEnforcer]);
 
   const permissionRules: PermissionRule[] = [
     {
@@ -130,7 +130,7 @@ export const createPermissionRulesForChainId: (
         [exactCalldataEnforcer, 1],
         [nonceEnforcer, 1],
       ]),
-      allowedEnforcers,
+      optionalEnforcers,
       permissionType: 'native-token-stream',
     },
     {
@@ -139,7 +139,7 @@ export const createPermissionRulesForChainId: (
         [exactCalldataEnforcer, 1],
         [nonceEnforcer, 1],
       ]),
-      allowedEnforcers,
+      optionalEnforcers,
       permissionType: 'native-token-periodic',
     },
     {
@@ -148,7 +148,7 @@ export const createPermissionRulesForChainId: (
         [valueLteEnforcer, 1],
         [nonceEnforcer, 1],
       ]),
-      allowedEnforcers,
+      optionalEnforcers,
       permissionType: 'erc20-token-stream',
     },
     {
@@ -157,7 +157,7 @@ export const createPermissionRulesForChainId: (
         [valueLteEnforcer, 1],
         [nonceEnforcer, 1],
       ]),
-      allowedEnforcers,
+      optionalEnforcers,
       permissionType: 'erc20-token-periodic',
     },
     {
@@ -166,7 +166,7 @@ export const createPermissionRulesForChainId: (
         [valueLteEnforcer, 1],
         [nonceEnforcer, 1],
       ]),
-      allowedEnforcers,
+      optionalEnforcers,
       permissionType: 'erc20-token-revocation',
     },
   ];

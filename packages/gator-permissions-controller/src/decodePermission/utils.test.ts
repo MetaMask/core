@@ -95,9 +95,9 @@ describe('createPermissionRulesForChainId', () => {
     expect(byType['native-token-stream'].permissionType).toBe(
       'native-token-stream',
     );
-    expect(byType['native-token-stream'].allowedEnforcers.size).toBe(1);
+    expect(byType['native-token-stream'].optionalEnforcers.size).toBe(1);
     expect(
-      byType['native-token-stream'].allowedEnforcers.has(timestampEnforcer),
+      byType['native-token-stream'].optionalEnforcers.has(timestampEnforcer),
     ).toBe(true);
     expect(byType['native-token-stream'].requiredEnforcers.size).toBe(3);
     expect(
@@ -115,9 +115,9 @@ describe('createPermissionRulesForChainId', () => {
     expect(byType['native-token-periodic'].permissionType).toBe(
       'native-token-periodic',
     );
-    expect(byType['native-token-periodic'].allowedEnforcers.size).toBe(1);
+    expect(byType['native-token-periodic'].optionalEnforcers.size).toBe(1);
     expect(
-      byType['native-token-periodic'].allowedEnforcers.has(timestampEnforcer),
+      byType['native-token-periodic'].optionalEnforcers.has(timestampEnforcer),
     ).toBe(true);
     expect(byType['native-token-periodic'].requiredEnforcers.size).toBe(3);
     expect(
@@ -135,9 +135,9 @@ describe('createPermissionRulesForChainId', () => {
     expect(byType['erc20-token-stream'].permissionType).toBe(
       'erc20-token-stream',
     );
-    expect(byType['erc20-token-stream'].allowedEnforcers.size).toBe(1);
+    expect(byType['erc20-token-stream'].optionalEnforcers.size).toBe(1);
     expect(
-      byType['erc20-token-stream'].allowedEnforcers.has(timestampEnforcer),
+      byType['erc20-token-stream'].optionalEnforcers.has(timestampEnforcer),
     ).toBe(true);
     expect(byType['erc20-token-stream'].requiredEnforcers.size).toBe(3);
     expect(
@@ -155,9 +155,9 @@ describe('createPermissionRulesForChainId', () => {
     expect(byType['erc20-token-periodic'].permissionType).toBe(
       'erc20-token-periodic',
     );
-    expect(byType['erc20-token-periodic'].allowedEnforcers.size).toBe(1);
+    expect(byType['erc20-token-periodic'].optionalEnforcers.size).toBe(1);
     expect(
-      byType['erc20-token-periodic'].allowedEnforcers.has(timestampEnforcer),
+      byType['erc20-token-periodic'].optionalEnforcers.has(timestampEnforcer),
     ).toBe(true);
     expect(byType['erc20-token-periodic'].requiredEnforcers.size).toBe(3);
     expect(
@@ -175,9 +175,9 @@ describe('createPermissionRulesForChainId', () => {
     expect(byType['erc20-token-revocation'].permissionType).toBe(
       'erc20-token-revocation',
     );
-    expect(byType['erc20-token-revocation'].allowedEnforcers.size).toBe(1);
+    expect(byType['erc20-token-revocation'].optionalEnforcers.size).toBe(1);
     expect(
-      byType['erc20-token-revocation'].allowedEnforcers.has(timestampEnforcer),
+      byType['erc20-token-revocation'].optionalEnforcers.has(timestampEnforcer),
     ).toBe(true);
     expect(byType['erc20-token-revocation'].requiredEnforcers.size).toBe(3);
     expect(
