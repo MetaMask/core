@@ -7,8 +7,16 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+### Added
+
+- Wait for Snap platform to be ready before any wallet/group operations ([#7266](https://github.com/MetaMask/core/pull/7266))
+
 ### Changed
 
+- **BREAKING:** Abstract method `SnapAccountProvider.createAccounts` has been renamed `runCreateAccounts` ([#7266](https://github.com/MetaMask/core/pull/7266))
+  - `SnapAccountProvider.createAccounts` is now implemented by `SnapAccountProvider` directly and automatically wait for the Snap platform to be ready before calling `runCreateAccounts`.
+- **BREAKING:** Abstract method `SnapAccountProvider.discoverAccounts` has been renamed `runDiscoverAccounts` ([#7266](https://github.com/MetaMask/core/pull/7266))
+  - `SnapAccountProvider.discoverAccounts` is now implemented by `SnapAccountProvider` directly and automatically wait for the Snap platform to be ready before calling `runDiscoverAccounts`.
 - Move peer dependencies for controller and service packages to direct dependencies ([#7209](https://github.com/MetaMask/core/pull/7209))
   - The dependencies moved are:
     - `@metamask/accounts-controller` (^35.0.0)
