@@ -24,6 +24,12 @@ export enum EnvironmentType {
   Exp = 'exp',
 }
 
+/** Type representing a version gated feature flag */
+export type VersionedFeatureFlagValue = {
+  fromVersion: string;
+  value: Json;
+};
+
 /** Type representing the feature flags collection */
 export type FeatureFlags = {
   [key: string]: Json;

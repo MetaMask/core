@@ -65,6 +65,7 @@ function createController(
     clientConfigApiService: AbstractClientConfigApiService;
     disabled: boolean;
     getMetaMetricsId: () => string;
+    appVersion: string;
   }> = {},
 ) {
   return new RemoteFeatureFlagController({
@@ -74,6 +75,7 @@ function createController(
       options.clientConfigApiService ?? buildClientConfigApiService(),
     disabled: options.disabled,
     getMetaMetricsId: options.getMetaMetricsId ?? (() => MOCK_METRICS_ID),
+    appVersion: options.appVersion ?? '13.10.0',
   });
 }
 
@@ -336,6 +338,77 @@ describe('RemoteFeatureFlagController', () => {
       await controller.updateRemoteFeatureFlags();
       expect(controller.state.remoteFeatureFlags).toStrictEqual(MOCK_FLAGS);
       expect(controller.state.remoteFeatureFlags).toStrictEqual(MOCK_FLAGS);
+    });
+  });
+
+  describe('version gated feature flags', () => {
+    it('includes feature flags when app version meets minimum requirement', async () => {
+      const mockApiService = buildClientConfigApiService();
+      const mockFlags = {
+        featureA: { fromVersion: '13.10', value: { flagX: 'X' } },
+        featureB: { fromVersion: '13.5.2', value: { enabled: true } },
+        featureWithoutVersion: { enabled: true },
+        simpleFeature: true,
+      };
+
+      jest.spyOn(mockApiService, 'fetchRemoteFeatureFlags').mockResolvedValue({
+        remoteFeatureFlags: mockFlags,
+        cacheTimestamp: Date.now(),
+      });
+
+      const controller = createController({
+        clientConfigApiService: mockApiService,
+        appVersion: '13.10.0',
+      });
+
+      await controller.updateRemoteFeatureFlags();
+
+      const { featureA, featureB, featureWithoutVersion, simpleFeature } =
+        controller.state.remoteFeatureFlags;
+      expect(featureA).toStrictEqual({ flagX: 'X' });
+      expect(featureB).toStrictEqual({ enabled: true });
+      expect(featureWithoutVersion).toStrictEqual({
+        enabled: true,
+      });
+      expect(simpleFeature).toBe(true);
+    });
+
+    it('excludes feature flags when app version is below minimum requirement', async () => {
+      const mockApiService = buildClientConfigApiService();
+      const mockFlags = {
+        featureA: { fromVersion: '13.10', value: { flagX: 'X' } },
+        featureB: { fromVersion: '13.5.2', value: { enabled: true } },
+        featureC: { fromVersion: '14.0.0', value: 'newFeature' },
+        featureWithoutVersion: { enabled: true },
+        simpleFeature: true,
+      };
+
+      jest.spyOn(mockApiService, 'fetchRemoteFeatureFlags').mockResolvedValue({
+        remoteFeatureFlags: mockFlags,
+        cacheTimestamp: Date.now(),
+      });
+
+      const controller = createController({
+        clientConfigApiService: mockApiService,
+        appVersion: '13.9.5',
+      });
+
+      await controller.updateRemoteFeatureFlags();
+
+      const {
+        featureA,
+        featureB,
+        featureC,
+        featureWithoutVersion,
+        simpleFeature,
+      } = controller.state.remoteFeatureFlags;
+      expect(featureA).toBeUndefined();
+      expect(featureC).toBeUndefined();
+      expect(featureB).toStrictEqual({ enabled: true });
+      expect(featureWithoutVersion).toStrictEqual({
+        enabled: true,
+      });
+      expect(simpleFeature).toBe(true);
     });
   });
 

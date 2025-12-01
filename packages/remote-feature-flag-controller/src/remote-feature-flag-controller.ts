@@ -15,6 +15,10 @@ import {
   generateDeterministicRandomNumber,
   isFeatureFlagWithScopeValue,
 } from './utils/user-segmentation-utils';
+import {
+  isVersionAtLeast,
+  isVersionGatedFeatureFlagValue,
+} from './utils/version-utils';
 
 // === GENERAL ===
 
@@ -111,6 +115,8 @@ export class RemoteFeatureFlagController extends BaseController<
 
   readonly #getMetaMetricsId: () => string;
 
+  readonly #appVersion: string;
+
   /**
    * Constructs a new RemoteFeatureFlagController instance.
    *
@@ -121,6 +127,7 @@ export class RemoteFeatureFlagController extends BaseController<
    * @param options.fetchInterval - The interval in milliseconds before cached flags expire. Defaults to 1 day.
    * @param options.disabled - Determines if the controller should be disabled initially. Defaults to false.
    * @param options.getMetaMetricsId - Returns metaMetricsId.
+   * @param options.appVersion - The current application version for version-based feature flag filtering.
    */
   constructor({
     messenger,
@@ -129,6 +136,7 @@ export class RemoteFeatureFlagController extends BaseController<
     fetchInterval = DEFAULT_CACHE_DURATION,
     disabled = false,
     getMetaMetricsId,
+    appVersion,
   }: {
     messenger: RemoteFeatureFlagControllerMessenger;
     state?: Partial<RemoteFeatureFlagControllerState>;
@@ -136,6 +144,7 @@ export class RemoteFeatureFlagController extends BaseController<
     getMetaMetricsId: () => string;
     fetchInterval?: number;
     disabled?: boolean;
+    appVersion: string;
   }) {
     super({
       name: controllerName,
@@ -151,6 +160,7 @@ export class RemoteFeatureFlagController extends BaseController<
     this.#disabled = disabled;
     this.#clientConfigApiService = clientConfigApiService;
     this.#getMetaMetricsId = getMetaMetricsId;
+    this.#appVersion = appVersion;
   }
 
   /**
@@ -220,6 +230,16 @@ export class RemoteFeatureFlagController extends BaseController<
       remoteFeatureFlagValue,
     ] of Object.entries(remoteFeatureFlags)) {
       let processedValue = remoteFeatureFlagValue;
+
+      if (isVersionGatedFeatureFlagValue(remoteFeatureFlagValue)) {
+        const { fromVersion, value } = remoteFeatureFlagValue;
+
+        if (!isVersionAtLeast(this.#appVersion, fromVersion)) {
+          continue;
+        }
+
+        processedValue = value;
+      }
 
       if (Array.isArray(remoteFeatureFlagValue) && thresholdValue) {
         const selectedGroup = remoteFeatureFlagValue.find(
