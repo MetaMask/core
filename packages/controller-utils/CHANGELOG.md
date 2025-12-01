@@ -7,11 +7,10 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
-<<<<<<< HEAD
-### Changed
+### Added
 
 - Add `monad-testnet` to `InfuraNetworkType` ([#7067](https://github.com/MetaMask/core/pull/7067))
-=======
+
 ## [11.16.0]
 
 ### Added
@@ -24,7 +23,6 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
   - This can be used when working with a chain of services to reset the state of the circuit breaker policy (e.g. if a primary recovers and we want to reset the failovers).
 - Export `CockatielEventEmitter` and `CockatielFailureReason` from Cockatiel ([#7164](https://github.com/MetaMask/core/pull/7164))
   - These can be used to further transform types for event emitters/listeners.
->>>>>>> main
 
 ## [11.15.0]
 
