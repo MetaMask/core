@@ -1,7 +1,6 @@
 import * as FirebaseAppModule from 'firebase/app';
 import * as FirebaseMessagingModule from 'firebase/messaging';
 import * as FirebaseMessagingSWModule from 'firebase/messaging/sw';
-import log from 'loglevel';
 
 import {
   createRegToken,
@@ -320,28 +319,20 @@ describe('createSubscribeToPushNotifications() tests', () => {
     expect(mocks.mockOnClickHandler).not.toHaveBeenCalled();
   });
 
-  it('should fail to invoke handler if notification received has no data', async () => {
-    const mocks = await arrangeActNotificationReceived(undefined);
-    expect(mocks.mockOnReceivedHandler).not.toHaveBeenCalled();
-  });
+  const invalidNotificationDataPayloadsTests = [
+    { data: undefined },
+    { data: null },
+    { data: 'not an object' },
+    { data: { id: 'test-id', payload: { data: 'unexpected shape' } } },
+  ];
 
-  it('should throw error if unable to process a received push notification', async () => {
-    jest.spyOn(log, 'error').mockImplementation(jest.fn());
-    const mocks = arrange();
-    await actCreateSubscription(mocks);
-
-    const firebaseCallback = mocks.mockOnBackgroundMessage.mock
-      .lastCall[1] as FirebaseMessagingModule.NextFn<FirebaseMessagingSWModule.MessagePayload>;
-    const payload = {
-      data: {
-        data: JSON.stringify({ badNotification: 'bad' }),
-      },
-    } as unknown as FirebaseMessagingSWModule.MessagePayload;
-
-    await expect(() => firebaseCallback(payload)).rejects.toThrow(
-      expect.any(Error),
-    );
-  });
+  it.each(invalidNotificationDataPayloadsTests)(
+    'should fail to invoke handler if provided invalid push notification data payload - data $data',
+    async () => {
+      const mocks = await arrangeActNotificationReceived(undefined);
+      expect(mocks.mockOnReceivedHandler).not.toHaveBeenCalled();
+    },
+  );
 
   it('should invoke handler when notifications are clicked', async () => {
     const mocks = arrange();
