@@ -328,8 +328,8 @@ describe('createSubscribeToPushNotifications() tests', () => {
 
   it.each(invalidNotificationDataPayloadsTests)(
     'should fail to invoke handler if provided invalid push notification data payload - data $data',
-    async () => {
-      const mocks = await arrangeActNotificationReceived(undefined);
+    async ({ data }) => {
+      const mocks = await arrangeActNotificationReceived(data);
       expect(mocks.mockOnReceivedHandler).not.toHaveBeenCalled();
     },
   );
