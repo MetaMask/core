@@ -200,12 +200,8 @@ export class CurrencyRateController extends StaticIntervalPollingController<Curr
 
           acc[nativeCurrency] = {
             conversionDate: rate !== undefined ? Date.now() / 1000 : null,
-            conversionRate: rate?.value
-              ? Number((1 / rate?.value).toFixed(2))
-              : null,
-            usdConversionRate: rate?.usd
-              ? Number((1 / rate?.usd).toFixed(2))
-              : null,
+            conversionRate: rate?.value ? Number(1 / rate?.value) : null,
+            usdConversionRate: rate?.usd ? Number(1 / rate?.usd) : null,
           };
           return acc;
         },
