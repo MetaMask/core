@@ -167,4 +167,6 @@ export { BRIDGE_DEFAULT_SLIPPAGE } from './utils/slippage';
 export {
   isValidSwapsContractAddress,
   getSwapsContractAddress,
+  fetchTokens,
+  type SwapsToken,
 } from './utils/swaps';
