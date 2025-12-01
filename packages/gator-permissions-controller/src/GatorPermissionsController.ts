@@ -874,6 +874,19 @@ export default class GatorPermissionsController extends BaseController<
       timeoutId: undefined,
     };
 
+    // Helper to refresh permissions after transaction state change
+    const refreshPermissions = (context: string) => {
+      this.fetchAndUpdateGatorPermissions({ isRevoked: false }).catch(
+        (error) => {
+          controllerLog(`Failed to refresh permissions after ${context}`, {
+            txId,
+            permissionContext,
+            error,
+          });
+        },
+      );
+    };
+
     // Helper to unsubscribe from approval/rejection events after decision is made
     const cleanupApprovalHandlers = () => {
       if (handlers.approved) {
@@ -962,16 +975,18 @@ export default class GatorPermissionsController extends BaseController<
           permissionContext,
         });
 
-        this.submitRevocation({ permissionContext }).catch((error) => {
-          controllerLog(
-            'Failed to submit revocation after transaction confirmed',
-            {
-              txId,
-              permissionContext,
-              error,
-            },
-          );
-        });
+        this.submitRevocation({ permissionContext })
+          .catch((error) => {
+            controllerLog(
+              'Failed to submit revocation after transaction confirmed',
+              {
+                txId,
+                permissionContext,
+                error,
+              },
+            );
+          })
+          .finally(() => refreshPermissions('transaction confirmed'));
 
         cleanup(transactionMeta.id);
       }
@@ -987,6 +1002,8 @@ export default class GatorPermissionsController extends BaseController<
         });
 
         cleanup(payload.transactionMeta.id);
+
+        refreshPermissions('transaction failed');
       }
     };
 
@@ -999,6 +1016,8 @@ export default class GatorPermissionsController extends BaseController<
         });
 
         cleanup(payload.transactionMeta.id);
+
+        refreshPermissions('transaction dropped');
       }
     };
 
