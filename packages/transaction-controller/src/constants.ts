@@ -30,7 +30,11 @@ export const CHAIN_IDS = {
   ZORA: '0x76adf1',
   SCROLL: '0x82750',
   SCROLL_SEPOLIA: '0x8274f',
+  /**
+   * @deprecated `MEGAETH_TESTNET` is migrated to `MEGAETH_TESTNET_V2`.
+   */
   MEGAETH_TESTNET: '0x18c6',
+  MEGAETH_TESTNET_V2: '0x18c7',
   SEI: '0x531',
 } as const;
 
