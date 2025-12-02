@@ -35,7 +35,6 @@ import type {
   RecurringInterval,
   SubscriptionStatus,
   LinkRewardsRequest,
-  SubscriptionApiGeneralResponse,
 } from './types';
 import {
   PAYMENT_TYPES,
@@ -758,17 +757,24 @@ export class SubscriptionController extends StaticIntervalPollingController()<
    * Link rewards to a subscription.
    *
    * @param request - Request object containing the reward subscription ID.
-   * @example { rewardSubscriptionId: '1234567890' }
-   * @returns The response from the API.
+   * @param request.subscriptionId - The ID of the subscription to link rewards to.
+   * @param request.rewardSubscriptionId - The ID of the reward subscription to link to the subscription.
+   * @example { subscriptionId: '1234567890', rewardSubscriptionId: '1234567890' }
+   * @returns Resolves when the rewards are linked successfully.
    */
   async linkRewards(
-    request: LinkRewardsRequest,
-  ): Promise<SubscriptionApiGeneralResponse> {
-    const response = await this.#subscriptionService.linkRewards(request);
+    request: LinkRewardsRequest & { subscriptionId: string },
+  ): Promise<void> {
+    // assert that the user is subscribed to the subscription
+    this.#assertIsUserSubscribed({ subscriptionId: request.subscriptionId });
+
+    // link rewards to the subscription
+    const response = await this.#subscriptionService.linkRewards({
+      rewardSubscriptionId: request.rewardSubscriptionId,
+    });
     if (!response.success) {
       throw new Error(SubscriptionControllerErrorMessage.LinkRewardsFailed);
     }
-    return response;
   }
 
   async _executePoll(): Promise<void> {

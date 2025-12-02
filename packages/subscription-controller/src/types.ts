@@ -159,6 +159,11 @@ export type StartCryptoSubscriptionRequest = {
   rawTransaction: Hex;
   isSponsored?: boolean;
   useTestClock?: boolean;
+  /**
+   * The optional ID of the reward subscription to be opt in along with the main `shield` subscription.
+   * This is required if user wants to opt in to the reward subscription during the `shield` subscription creation.
+   */
+  rewardSubscriptionId?: string;
 };
 
 export type StartCryptoSubscriptionResponse = {
