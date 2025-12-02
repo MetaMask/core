@@ -9,20 +9,20 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ### Added
 
-- Add override functionality to remote feature flags
+- Add override functionality to remote feature flags ([#7271](https://github.com/MetaMask/core/pull/7271))
   - `setFlagOverride(flagName, value)` - Set a local override for a specific feature flag
   - `getFlagOverride(flagName)` - Get the current override value for a specific feature flag
   - `clearFlagOverride(flagName)` - Clear the local override for a specific feature flag
   - `clearAllOverrides()` - Clear all local feature flag overrides
   - `getFlag(flagName)` - Get the effective value of a feature flag (override takes precedence over remote)
   - `getAllFlags()` - Get all effective feature flags, combining remote flags with local overrides
-- Add A/B test visibility functionality
+- Add A/B test visibility functionality ([#7271](https://github.com/MetaMask/core/pull/7271))
   - `getAvailableABTestGroups(flagName)` - Get available A/B test groups for a specific feature flag
   - `getAllABTestFlags()` - Get all feature flags that have A/B test groups available
-- Add new controller state properties:
+- Add new controller state properties ([#7271](https://github.com/MetaMask/core/pull/7271))
   - `localOverrides` - Local overrides for feature flags that take precedence over remote flags
   - `abTestRawFlags` - Raw A/B test flag arrays for flags that were processed from arrays to single values
-- Export additional controller action types:
+- Export additional controller action types ([#7271](https://github.com/MetaMask/core/pull/7271))
   - `RemoteFeatureFlagControllerSetFlagOverrideAction`
   - `RemoteFeatureFlagControllerGetFlagOverrideAction`
   - `RemoteFeatureFlagControllerClearFlagOverrideAction`
@@ -34,9 +34,9 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ### Changed
 
-- Enhanced feature flag processing to preserve raw A/B test arrays for visibility and override capabilities
-- Local overrides now take precedence over remote feature flags when both exist
-- Controller state now includes metadata for new properties with appropriate persistence and logging settings
+- Enhanced feature flag processing to preserve raw A/B test arrays for visibility and override capabilities ([#7271](https://github.com/MetaMask/core/pull/7271))
+- Local overrides now take precedence over remote feature flags when both exist ([#7271](https://github.com/MetaMask/core/pull/7271))
+- Controller state now includes metadata for new properties with appropriate persistence and logging settings ([#7271](https://github.com/MetaMask/core/pull/7271))
 
 ## [3.0.0]
 
