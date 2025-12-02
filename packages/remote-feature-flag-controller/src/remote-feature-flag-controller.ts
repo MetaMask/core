@@ -464,9 +464,7 @@ export class RemoteFeatureFlagController extends BaseController<
    */
   getAvailableABTestGroups(
     flagName: string,
-  ):
-    | { name: string; value: Json; scope?: FeatureFlagScope }[]
-    | undefined {
+  ): { name: string; value: Json; scope?: FeatureFlagScope }[] | undefined {
     const rawFlag = this.state.abTestRawFlags[flagName];
 
     if (!Array.isArray(rawFlag)) {
