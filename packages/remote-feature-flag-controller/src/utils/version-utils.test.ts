@@ -129,6 +129,7 @@ describe('isMultiVersionFeatureFlagValue', () => {
 describe('selectVersionFromMultiVersionFlag', () => {
   const multiVersionFlag = {
     versions: [
+      // Leave in this order to test the sorting logic
       { fromVersion: '13.0.5', value: { x: '11' } },
       { fromVersion: '13.2.0', value: { x: '13' } },
       { fromVersion: '13.1.0', value: { x: '12' } },
