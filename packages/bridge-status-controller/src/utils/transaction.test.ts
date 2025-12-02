@@ -1271,7 +1271,9 @@ describe('Bridge Status Controller Transaction Utils', () => {
       } as unknown as QuoteResponse;
 
       // Create a promise that will resolve after the delay
-      const delayPromise = handleApprovalDelay(mockQuoteResponse);
+      const delayPromise = handleApprovalDelay(
+        mockQuoteResponse.quote.srcChainId,
+      );
 
       // Verify that the timer was set with the correct delay
       expect(jest.getTimerCount()).toBe(1);
@@ -1309,7 +1311,9 @@ describe('Bridge Status Controller Transaction Utils', () => {
       } as unknown as QuoteResponse;
 
       // Create a promise that will resolve after the delay
-      const delayPromise = handleApprovalDelay(mockQuoteResponse);
+      const delayPromise = handleApprovalDelay(
+        mockQuoteResponse.quote.srcChainId,
+      );
 
       // Verify that the timer was set with the correct delay
       expect(jest.getTimerCount()).toBe(1);
@@ -1347,7 +1351,9 @@ describe('Bridge Status Controller Transaction Utils', () => {
       } as unknown as QuoteResponse;
 
       // Create a promise that will resolve after the delay
-      const delayPromise = handleApprovalDelay(mockQuoteResponse);
+      const delayPromise = handleApprovalDelay(
+        mockQuoteResponse.quote.srcChainId,
+      );
 
       // Verify that no timer was set
       expect(jest.getTimerCount()).toBe(0);

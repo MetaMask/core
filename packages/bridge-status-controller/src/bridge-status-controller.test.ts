@@ -2610,12 +2610,66 @@ describe('BridgeStatusController', () => {
       expect(addTransactionFn).not.toHaveBeenCalled();
     });
 
+    it('should throw an error if EVM trade data is not valid', async () => {
+      setupEventTrackingMocks(mockMessengerCall);
+      mockMessengerCall.mockReturnValueOnce(undefined);
+
+      const { controller, startPollingForBridgeTxStatusSpy } =
+        getController(mockMessengerCall);
+      const { approval, ...quoteWithoutApproval } = mockEvmQuoteResponse;
+
+      await expect(
+        controller.submitTx(
+          (quoteWithoutApproval.trade as TxData).from,
+          {
+            ...quoteWithoutApproval,
+            trade: (quoteWithoutApproval.trade as TxData).data,
+          },
+          false,
+        ),
+      ).rejects.toThrow(
+        'Failed to submit cross-chain swap transaction: trade is not an EVM transaction',
+      );
+      controller.stopAllPolling();
+
+      expect(startPollingForBridgeTxStatusSpy).toHaveBeenCalledTimes(0);
+      expect(addTransactionFn).not.toHaveBeenCalled();
+    });
+
+    it('should throw an error if Solana trade data is not valid', async () => {
+      setupEventTrackingMocks(mockMessengerCall);
+      mockMessengerCall.mockReturnValueOnce(undefined);
+
+      const { controller, startPollingForBridgeTxStatusSpy } =
+        getController(mockMessengerCall);
+      const { approval, ...quoteWithoutApproval } = mockEvmQuoteResponse;
+
+      await expect(
+        controller.submitTx(
+          (quoteWithoutApproval.trade as TxData).from,
+          {
+            ...quoteWithoutApproval,
+            quote: {
+              ...quoteWithoutApproval.quote,
+              srcChainId: ChainId.SOLANA,
+            },
+          },
+          false,
+        ),
+      ).rejects.toThrow(
+        'Failed to submit cross-chain swap transaction: trade is not a non-EVM transaction',
+      );
+      controller.stopAllPolling();
+
+      expect(startPollingForBridgeTxStatusSpy).toHaveBeenCalledTimes(0);
+      expect(addTransactionFn).not.toHaveBeenCalled();
+    });
+
     it('should reset USDT allowance', async () => {
       setupEventTrackingMocks(mockMessengerCall);
       mockIsEthUsdt.mockReturnValueOnce(true);
 
       // USDT approval reset
-      mockMessengerCall.mockReturnValueOnce('1');
       setupApprovalMocks(mockMessengerCall);
 
       // Approval tx
@@ -2628,7 +2682,17 @@ describe('BridgeStatusController', () => {
         getController(mockMessengerCall);
       const result = await controller.submitTx(
         (mockEvmQuoteResponse.trade as TxData).from,
-        mockEvmQuoteResponse,
+        {
+          ...mockEvmQuoteResponse,
+          resetApproval: {
+            chainId: 1,
+            data: '0x095ea7b3000000000000000000000000881d40237659c251811cec9c364ef91dc08d300c0000000000000000000000000000000000000000000000000000000000000000',
+            from: '0xaccount1',
+            gasLimit: 21000,
+            to: '0xtokenContract',
+            value: '0x0',
+          },
+        },
         false,
       );
       controller.stopAllPolling();
@@ -2643,10 +2707,6 @@ describe('BridgeStatusController', () => {
 
     it('should handle smart transactions with USDT reset', async () => {
       setupEventTrackingMocks(mockMessengerCall);
-      // USDT approval reset
-      mockIsEthUsdt.mockReturnValueOnce(true);
-      mockMessengerCall.mockReturnValueOnce('1');
-
       mockMessengerCall.mockReturnValueOnce(mockSelectedAccount);
       mockMessengerCall.mockReturnValueOnce('arbitrum');
       mockMessengerCall.mockReturnValueOnce({
@@ -2673,7 +2733,17 @@ describe('BridgeStatusController', () => {
         getController(mockMessengerCall);
       const result = await controller.submitTx(
         (mockEvmQuoteResponse.trade as TxData).from,
-        mockEvmQuoteResponse,
+        {
+          ...mockEvmQuoteResponse,
+          resetApproval: {
+            chainId: 1,
+            data: '0x095ea7b3000000000000000000000000881d40237659c251811cec9c364ef91dc08d300c0000000000000000000000000000000000000000000000000000000000000000',
+            from: '0xaccount1',
+            gasLimit: 21000,
+            to: '0xtokenContract',
+            value: '0x0',
+          },
+        },
         true,
       );
       controller.stopAllPolling();
@@ -2687,7 +2757,7 @@ describe('BridgeStatusController', () => {
       expect(estimateGasFeeFn).toHaveBeenCalledTimes(3);
       expect(addTransactionFn).not.toHaveBeenCalled();
       expect(addTransactionBatchFn).toHaveBeenCalledTimes(1);
-      expect(mockMessengerCall).toHaveBeenCalledTimes(10);
+      expect(mockMessengerCall).toHaveBeenCalledTimes(9);
     });
 
     it('should throw an error if approval tx fails', async () => {
