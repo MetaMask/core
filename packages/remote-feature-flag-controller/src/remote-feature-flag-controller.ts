@@ -14,7 +14,6 @@ import type {
   FeatureFlagScopeValue,
   FeatureFlagScope,
 } from './remote-feature-flag-controller-types';
-
 import {
   generateDeterministicRandomNumber,
   isFeatureFlagWithScopeValue,
