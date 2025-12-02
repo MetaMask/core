@@ -1303,8 +1303,17 @@ export class SeedlessOnboardingController<
         SecretMetadata.compareByTimestamp(a.secret, b.secret, 'asc'),
       );
 
-      // validate the primary secret data is a mnemonic (SRP)
-      if (!SecretMetadata.matchesType(results[0].secret, SecretType.Mnemonic)) {
+      // Validate the first item is the primary SRP
+      const firstItem = results[0];
+      const isDataTypePrimary =
+        firstItem.dataType === undefined || // Legacy data (before dataType was introduced)
+        firstItem.dataType === EncAccountDataType.PrimarySrp;
+      const isMnemonic = SecretMetadata.matchesType(
+        firstItem.secret,
+        SecretType.Mnemonic,
+      );
+
+      if (!isDataTypePrimary || !isMnemonic) {
         throw new Error(
           SeedlessOnboardingControllerErrorMessage.InvalidPrimarySecretDataType,
         );
