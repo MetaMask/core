@@ -1,6 +1,9 @@
 import type { Json } from '@metamask/utils';
 
-import type { VersionedFeatureFlagValue } from '../remote-feature-flag-controller-types';
+import type {
+  MultiVersionFeatureFlagValue,
+  VersionEntry,
+} from '../remote-feature-flag-controller-types';
 
 /**
  * Compares two semantic version strings.
@@ -41,19 +44,47 @@ export function isVersionAtLeast(
 }
 
 /**
- * Checks if a feature flag value is a version gated (contains fromVersion and value properties).
+ * Checks if a feature flag value is a multi-version gated flag (contains versions array).
  *
  * @param value - The feature flag value to check
- * @returns true if the value is a versioned feature flag, false otherwise
+ * @returns true if the value is a multi-version feature flag, false otherwise
  */
-export function isVersionGatedFeatureFlagValue(
+export function isMultiVersionFeatureFlagValue(
   value: Json,
-): value is VersionedFeatureFlagValue {
+): value is MultiVersionFeatureFlagValue {
   return (
     typeof value === 'object' &&
     value !== null &&
     !Array.isArray(value) &&
-    'fromVersion' in value &&
-    'value' in value
+    'versions' in value &&
+    Array.isArray(value.versions)
   );
+}
+
+/**
+ * Selects the appropriate version value from a multi-version feature flag based on current app version.
+ * Returns the value from the highest version that the app version meets or exceeds.
+ *
+ * @param multiVersionFlag - The multi-version feature flag
+ * @param currentAppVersion - The current application version
+ * @returns The selected version entry, or null if no version requirements are met
+ */
+export function selectVersionFromMultiVersionFlag(
+  multiVersionFlag: MultiVersionFeatureFlagValue,
+  currentAppVersion: string,
+): VersionEntry | null {
+  // Filter versions where current app version meets the requirement
+  const eligibleVersions = multiVersionFlag.versions.filter((versionEntry) =>
+    isVersionAtLeast(currentAppVersion, versionEntry.fromVersion),
+  );
+
+  if (eligibleVersions.length === 0) {
+    return null;
+  }
+
+  // Sort by fromVersion in descending order and return the highest version
+  return eligibleVersions.sort((a, b) => {
+    // Compare versions - we want the highest version that still qualifies
+    return isVersionAtLeast(a.fromVersion, b.fromVersion) ? -1 : 1;
+  })[0];
 }

@@ -1,6 +1,7 @@
 import {
   isVersionAtLeast,
-  isVersionGatedFeatureFlagValue,
+  isMultiVersionFeatureFlagValue,
+  selectVersionFromMultiVersionFlag,
 } from './version-utils';
 
 describe('isVersionAtLeast', () => {
@@ -40,48 +41,108 @@ describe('isVersionAtLeast', () => {
   });
 });
 
-describe('isVersionGatedFeatureFlagValue', () => {
-  it('returns true for valid versioned feature flag', () => {
-    const versionedFlag = { fromVersion: '13.10.0', value: true };
-    expect(isVersionGatedFeatureFlagValue(versionedFlag)).toBe(true);
+describe('isMultiVersionFeatureFlagValue', () => {
+  it('returns true for valid multi-version feature flag', () => {
+    const multiVersionFlag = {
+      versions: [
+        { fromVersion: '13.2.0', value: { x: '13' } },
+        { fromVersion: '13.1.0', value: { x: '12' } },
+      ],
+    };
+    expect(isMultiVersionFeatureFlagValue(multiVersionFlag)).toBe(true);
   });
 
-  it('returns true for versioned feature flag with object value', () => {
-    const versionedFlag = { fromVersion: '13.10.0', value: { enabled: true } };
-    expect(isVersionGatedFeatureFlagValue(versionedFlag)).toBe(true);
+  it('returns false for empty versions array', () => {
+    const flag = { versions: [] };
+    expect(isMultiVersionFeatureFlagValue(flag)).toBe(true); // Still valid structure
   });
 
   it('returns false for null', () => {
-    expect(isVersionGatedFeatureFlagValue(null)).toBe(false);
+    expect(isMultiVersionFeatureFlagValue(null)).toBe(false);
   });
 
   it('returns false for primitives', () => {
-    expect(isVersionGatedFeatureFlagValue(true)).toBe(false);
-    expect(isVersionGatedFeatureFlagValue('string')).toBe(false);
-    expect(isVersionGatedFeatureFlagValue(42)).toBe(false);
+    expect(isMultiVersionFeatureFlagValue(true)).toBe(false);
+    expect(isMultiVersionFeatureFlagValue('string')).toBe(false);
   });
 
-  it('returns false for arrays', () => {
-    expect(isVersionGatedFeatureFlagValue([1, 2, 3])).toBe(false);
+  it('returns false when versions is not an array', () => {
+    const flag = { versions: 'not-an-array' };
+    expect(isMultiVersionFeatureFlagValue(flag)).toBe(false);
   });
 
-  it('returns false for objects missing fromVersion', () => {
-    const flag = { value: true };
-    expect(isVersionGatedFeatureFlagValue(flag)).toBe(false);
+  it('returns false when missing versions property', () => {
+    const flag = { otherProperty: [] };
+    expect(isMultiVersionFeatureFlagValue(flag)).toBe(false);
+  });
+});
+
+describe('selectVersionFromMultiVersionFlag', () => {
+  const multiVersionFlag = {
+    versions: [
+      { fromVersion: '13.2.0', value: { x: '13' } },
+      { fromVersion: '13.1.0', value: { x: '12' } },
+      { fromVersion: '13.0.5', value: { x: '11' } },
+    ],
+  };
+
+  it('returns highest eligible version when multiple versions qualify', () => {
+    const result = selectVersionFromMultiVersionFlag(
+      multiVersionFlag,
+      '13.2.5',
+    );
+    expect(result).toStrictEqual({ fromVersion: '13.2.0', value: { x: '13' } });
   });
 
-  it('returns false for objects missing value', () => {
-    const flag = { fromVersion: '13.10.0' };
-    expect(isVersionGatedFeatureFlagValue(flag)).toBe(false);
+  it('returns appropriate version when only some versions qualify', () => {
+    const result = selectVersionFromMultiVersionFlag(
+      multiVersionFlag,
+      '13.1.5',
+    );
+    expect(result).toStrictEqual({ fromVersion: '13.1.0', value: { x: '12' } });
   });
 
-  it('returns false for objects with extra properties but missing required ones', () => {
-    const flag = { fromVersion: '13.10.0', enabled: true }; // missing 'value'
-    expect(isVersionGatedFeatureFlagValue(flag)).toBe(false);
+  it('returns lowest version when app version is very high', () => {
+    const result = selectVersionFromMultiVersionFlag(
+      multiVersionFlag,
+      '14.0.0',
+    );
+    expect(result).toStrictEqual({ fromVersion: '13.2.0', value: { x: '13' } });
   });
 
-  it('returns true for objects with extra properties and required ones', () => {
-    const flag = { fromVersion: '13.10.0', value: true, extra: 'data' };
-    expect(isVersionGatedFeatureFlagValue(flag)).toBe(true);
+  it('returns null when no versions qualify', () => {
+    const result = selectVersionFromMultiVersionFlag(
+      multiVersionFlag,
+      '13.0.0',
+    );
+    expect(result).toBeNull();
+  });
+
+  it('returns exact match when app version equals fromVersion', () => {
+    const result = selectVersionFromMultiVersionFlag(
+      multiVersionFlag,
+      '13.1.0',
+    );
+    expect(result).toStrictEqual({ fromVersion: '13.1.0', value: { x: '12' } });
+  });
+
+  it('handles single version in array', () => {
+    const singleVersionFlag = {
+      versions: [{ fromVersion: '13.1.0', value: { x: '12' } }],
+    };
+    const result = selectVersionFromMultiVersionFlag(
+      singleVersionFlag,
+      '13.1.5',
+    );
+    expect(result).toStrictEqual({ fromVersion: '13.1.0', value: { x: '12' } });
+  });
+
+  it('returns null for empty versions array', () => {
+    const emptyVersionFlag = { versions: [] };
+    const result = selectVersionFromMultiVersionFlag(
+      emptyVersionFlag,
+      '13.1.0',
+    );
+    expect(result).toBeNull();
   });
 });

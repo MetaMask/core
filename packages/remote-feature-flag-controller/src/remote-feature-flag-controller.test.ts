@@ -341,14 +341,13 @@ describe('RemoteFeatureFlagController', () => {
     });
   });
 
-  describe('version gated feature flags', () => {
-    it('includes feature flags when app version meets minimum requirement', async () => {
+  describe('Multi-version feature flags', () => {
+    it('handles single version in versions array', async () => {
       const mockApiService = buildClientConfigApiService();
       const mockFlags = {
-        featureA: { fromVersion: '13.10', value: { flagX: 'X' } },
-        featureB: { fromVersion: '13.5.2', value: { enabled: true } },
-        featureWithoutVersion: { enabled: true },
-        simpleFeature: true,
+        singleVersionInArray: {
+          versions: [{ fromVersion: '13.1.0', value: { x: '12' } }],
+        },
       };
 
       jest.spyOn(mockApiService, 'fetchRemoteFeatureFlags').mockResolvedValue({
@@ -358,28 +357,118 @@ describe('RemoteFeatureFlagController', () => {
 
       const controller = createController({
         clientConfigApiService: mockApiService,
-        appVersion: '13.10.0',
+        appVersion: '13.2.0',
       });
 
       await controller.updateRemoteFeatureFlags();
 
-      const { featureA, featureB, featureWithoutVersion, simpleFeature } =
-        controller.state.remoteFeatureFlags;
-      expect(featureA).toStrictEqual({ flagX: 'X' });
-      expect(featureB).toStrictEqual({ enabled: true });
-      expect(featureWithoutVersion).toStrictEqual({
-        enabled: true,
-      });
-      expect(simpleFeature).toBe(true);
+      const { singleVersionInArray } = controller.state.remoteFeatureFlags;
+      expect(singleVersionInArray).toStrictEqual({ x: '12' });
     });
 
-    it('excludes feature flags when app version is below minimum requirement', async () => {
+    it('selects highest version when app version qualifies for multiple', async () => {
       const mockApiService = buildClientConfigApiService();
       const mockFlags = {
-        featureA: { fromVersion: '13.10', value: { flagX: 'X' } },
-        featureB: { fromVersion: '13.5.2', value: { enabled: true } },
-        featureC: { fromVersion: '14.0.0', value: 'newFeature' },
-        featureWithoutVersion: { enabled: true },
+        multiVersionFeature: {
+          versions: [
+            { fromVersion: '13.2.0', value: { x: '13' } },
+            { fromVersion: '13.1.0', value: { x: '12' } },
+            { fromVersion: '13.0.5', value: { x: '11' } },
+          ],
+        },
+      };
+
+      jest.spyOn(mockApiService, 'fetchRemoteFeatureFlags').mockResolvedValue({
+        remoteFeatureFlags: mockFlags,
+        cacheTimestamp: Date.now(),
+      });
+
+      const controller = createController({
+        clientConfigApiService: mockApiService,
+        appVersion: '13.2.5',
+      });
+
+      await controller.updateRemoteFeatureFlags();
+
+      const { multiVersionFeature } = controller.state.remoteFeatureFlags;
+      // Should get version 13.2.0 (highest version that 13.2.5 qualifies for)
+      expect(multiVersionFeature).toStrictEqual({ x: '13' });
+    });
+
+    it('selects appropriate version based on app version', async () => {
+      const mockApiService = buildClientConfigApiService();
+      const mockFlags = {
+        multiVersionFeature: {
+          versions: [
+            { fromVersion: '13.2.0', value: { x: '13' } },
+            { fromVersion: '13.1.0', value: { x: '12' } },
+            { fromVersion: '13.0.5', value: { x: '11' } },
+          ],
+        },
+        regularFeature: true,
+      };
+
+      jest.spyOn(mockApiService, 'fetchRemoteFeatureFlags').mockResolvedValue({
+        remoteFeatureFlags: mockFlags,
+        cacheTimestamp: Date.now(),
+      });
+
+      const controller = createController({
+        clientConfigApiService: mockApiService,
+        appVersion: '13.1.5',
+      });
+
+      await controller.updateRemoteFeatureFlags();
+
+      const { multiVersionFeature, regularFeature } =
+        controller.state.remoteFeatureFlags;
+      // Should get version 13.1.0 (highest version that 13.1.5 qualifies for)
+      expect(multiVersionFeature).toStrictEqual({ x: '12' });
+      expect(regularFeature).toBe(true);
+    });
+
+    it('excludes multi-version feature when no versions qualify', async () => {
+      const mockApiService = buildClientConfigApiService();
+      const mockFlags = {
+        multiVersionFeature: {
+          versions: [
+            { fromVersion: '13.2.0', value: { x: '13' } },
+            { fromVersion: '13.1.0', value: { x: '12' } },
+          ],
+        },
+        regularFeature: true,
+      };
+
+      jest.spyOn(mockApiService, 'fetchRemoteFeatureFlags').mockResolvedValue({
+        remoteFeatureFlags: mockFlags,
+        cacheTimestamp: Date.now(),
+      });
+
+      const controller = createController({
+        clientConfigApiService: mockApiService,
+        appVersion: '13.0.0',
+      });
+
+      await controller.updateRemoteFeatureFlags();
+
+      const { multiVersionFeature, regularFeature } =
+        controller.state.remoteFeatureFlags;
+      // Multi-version feature should be excluded (app version too low)
+      expect(multiVersionFeature).toBeUndefined();
+      // Regular feature should still be included
+      expect(regularFeature).toBe(true);
+    });
+
+    it('handles mixed regular and multi-version flags', async () => {
+      const mockApiService = buildClientConfigApiService();
+      const mockFlags = {
+        multiVersionFeature: {
+          versions: [
+            { fromVersion: '13.2.0', value: { x: '13' } },
+            { fromVersion: '13.0.0', value: { x: '11' } },
+          ],
+        },
+        regularFeature: { enabled: true },
         simpleFeature: true,
       };
 
@@ -390,24 +479,15 @@ describe('RemoteFeatureFlagController', () => {
 
       const controller = createController({
         clientConfigApiService: mockApiService,
-        appVersion: '13.9.5',
+        appVersion: '13.1.5',
       });
 
       await controller.updateRemoteFeatureFlags();
 
-      const {
-        featureA,
-        featureB,
-        featureC,
-        featureWithoutVersion,
-        simpleFeature,
-      } = controller.state.remoteFeatureFlags;
-      expect(featureA).toBeUndefined();
-      expect(featureC).toBeUndefined();
-      expect(featureB).toStrictEqual({ enabled: true });
-      expect(featureWithoutVersion).toStrictEqual({
-        enabled: true,
-      });
+      const { multiVersionFeature, regularFeature, simpleFeature } =
+        controller.state.remoteFeatureFlags;
+      expect(multiVersionFeature).toStrictEqual({ x: '11' });
+      expect(regularFeature).toStrictEqual({ enabled: true });
       expect(simpleFeature).toBe(true);
     });
   });

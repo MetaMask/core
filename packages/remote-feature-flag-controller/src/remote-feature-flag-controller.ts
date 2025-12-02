@@ -16,8 +16,8 @@ import {
   isFeatureFlagWithScopeValue,
 } from './utils/user-segmentation-utils';
 import {
-  isVersionAtLeast,
-  isVersionGatedFeatureFlagValue,
+  isMultiVersionFeatureFlagValue,
+  selectVersionFromMultiVersionFlag,
 } from './utils/version-utils';
 
 // === GENERAL ===
@@ -231,14 +231,17 @@ export class RemoteFeatureFlagController extends BaseController<
     ] of Object.entries(remoteFeatureFlags)) {
       let processedValue = remoteFeatureFlagValue;
 
-      if (isVersionGatedFeatureFlagValue(remoteFeatureFlagValue)) {
-        const { fromVersion, value } = remoteFeatureFlagValue;
+      if (isMultiVersionFeatureFlagValue(remoteFeatureFlagValue)) {
+        const selectedVersion = selectVersionFromMultiVersionFlag(
+          remoteFeatureFlagValue,
+          this.#appVersion,
+        );
 
-        if (!isVersionAtLeast(this.#appVersion, fromVersion)) {
+        if (!selectedVersion) {
           continue;
         }
 
-        processedValue = value;
+        processedValue = selectedVersion.value;
       }
 
       if (Array.isArray(remoteFeatureFlagValue) && thresholdValue) {
