@@ -20,6 +20,7 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ### Fixed
 
+- **BREAKING:** Add `usd_amount_source` to QuotesRequested event properties. Clients will need to add this value to the quoteRequest context ([#7294](https://github.com/MetaMask/core/pull/7294))
 - Add missing MON (Monad) and SEI (Sei) to integer chain IDs ([#7252](https://github.com/MetaMask/core/pull/7252))
 
 ## [63.2.0]
