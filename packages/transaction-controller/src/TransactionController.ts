@@ -3078,21 +3078,10 @@ export class TransactionController extends BaseController<
           const updatedTransactionMeta = this.#getTransaction(
             transactionId,
           ) as TransactionMeta;
-
-          // need to check status of updatedTransactionMeta to see if it is approved
-          // for special case like user reject request in hardware wallet, the transactionMeta is failed with error "user rejected request"
-          if (updatedTransactionMeta.status === TransactionStatus.failed) {
-            this.messenger.publish(`${controllerName}:transactionFailed`, {
-              transactionMeta: updatedTransactionMeta,
-              actionId,
-              error: updatedTransactionMeta?.error?.message ?? 'Unknown error',
-            });
-          } else {
-            this.messenger.publish(`${controllerName}:transactionApproved`, {
-              transactionMeta: updatedTransactionMeta,
-              actionId,
-            });
-          }
+          this.messenger.publish(`${controllerName}:transactionApproved`, {
+            transactionMeta: updatedTransactionMeta,
+            actionId,
+          });
         }
       } catch (rawError: unknown) {
         const error = rawError as Error & { code?: number; data?: Json };
