@@ -1,4 +1,7 @@
 {
+  /**
+   * This configuration is extended by the `tsconfig.build.json` configuration in each package.
+   */
   "extends": "./tsconfig.packages.json",
   "compilerOptions": {
     "declaration": true,

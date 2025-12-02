@@ -1,17 +1,22 @@
 {
+  /**
+   * This configuration is intended for the `scripts/` directory, both for linting and for editor
+   * TypeScript-related features.
+   *
+   * It's currently not actually used for that purpose, but it will be in a future PR.
+   *
+   * This is also extended by the `tsconfig.json` file in `scripts/create-package/`, which _is_
+   * actively used to support TypeScript-related editor features in that directory.
+   */
+  "extends": "./tsconfig.base.json",
   "compilerOptions": {
     "baseUrl": "./",
-    "esModuleInterop": true,
     "exactOptionalPropertyTypes": true,
     "forceConsistentCasingInFileNames": true,
     "lib": ["ES2020"],
-    "module": "Node16",
-    "moduleResolution": "Node16",
     "noEmit": true,
     "noErrorTruncation": true,
-    "noUncheckedIndexedAccess": true,
-    "strict": true,
-    "target": "es2020"
+    "noUncheckedIndexedAccess": true
   },
   "include": ["./scripts/**/*.ts"],
   "exclude": ["**/node_modules"]

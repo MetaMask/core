@@ -9,14 +9,26 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ### Added
 
+- Port `fetchTokens` and `type SwapsToken` from `@metamask/swaps-controller` and export them to allow deprecating `swaps-controller` while still supporting downstream consumers ([#7278](https://github.com/MetaMask/core/pull/7278))
 - Handle edge case in which approvals fail if an EVM account has an insufficient non-zero USDT allowance on mainnet ([#7228](https://github.com/MetaMask/core/pull/7228))
   - Set quoteRequest `resetApproval` parameter by calculating the wallet's USDT allowance on mainnet for the swap or bridge spender
   - When a valid quote is received, append the `resetApproval` trade data to set the wallet's USDT allowance to `0`
   - Include the `resetApproval` tx in network fee calculations
 
+### Changed
+
+- **BREAKING:** Remove `SWAPS_TESTNET_CHAIN_ID` export and use `CHAIN_IDS.LOCALHOST` instead ([#7278](https://github.com/MetaMask/core/pull/7278))
+- Bump `@metamask/network-controller` from `^26.0.0` to `^27.0.0` ([#7258](https://github.com/MetaMask/core/pull/7258))
+- Bump `@metamask/transaction-controller` from `^62.3.0` to `^62.4.0` ([#7257](https://github.com/MetaMask/core/pull/7257), [#7289](https://github.com/MetaMask/core/pull/7289))
+- Bump `@metamask/assets-controllers` from `^91.0.0` to `^92.0.0` ([#7253](https://github.com/MetaMask/core/pull/7253))
+
 ### Removed
 
 - **BREAKING** Remove public `getBridgeERC20Allowance` action to prevent consumers from using it. This handler is only applicable to Swap and Bridge txs involving USDT on mainnet ([#7228](https://github.com/MetaMask/core/pull/7228))
+
+### Fixed
+
+- Add missing MON (Monad) and SEI (Sei) to integer chain IDs ([#7252](https://github.com/MetaMask/core/pull/7252))
 
 ## [63.2.0]
 

@@ -33,10 +33,13 @@ import type {
   CachedLastSelectedPaymentMethod,
   SubmitSponsorshipIntentsMethodParams,
   RecurringInterval,
+  SubscriptionStatus,
+  LinkRewardsRequest,
 } from './types';
 import {
   PAYMENT_TYPES,
   PRODUCT_TYPES,
+  SUBSCRIPTION_STATUSES,
   type ISubscriptionService,
   type PricingResponse,
   type ProductType,
@@ -509,26 +512,50 @@ export class SubscriptionController extends StaticIntervalPollingController()<
       lastSelectedPaymentMethod[PRODUCT_TYPES.SHIELD];
     this.#assertIsPaymentMethodCrypto(lastSelectedPaymentMethodShield);
 
-    const isTrialed = trialedProducts?.includes(PRODUCT_TYPES.SHIELD);
-
     const productPrice = this.#getProductPriceByProductAndPlan(
       PRODUCT_TYPES.SHIELD,
       lastSelectedPaymentMethodShield.plan,
     );
+    const isTrialed = trialedProducts?.includes(PRODUCT_TYPES.SHIELD);
+    // get the latest subscriptions state to check if the user has an active shield subscription
+    await this.getSubscriptions();
+    const currentSubscription = this.state.subscriptions.find((subscription) =>
+      subscription.products.some((p) => p.name === PRODUCT_TYPES.SHIELD),
+    );
 
-    const params = {
-      products: [PRODUCT_TYPES.SHIELD],
-      isTrialRequested: !isTrialed,
-      recurringInterval: productPrice.interval,
-      billingCycles: productPrice.minBillingCycles,
-      chainId,
-      payerAddress: txMeta.txParams.from as Hex,
-      tokenSymbol: lastSelectedPaymentMethodShield.paymentTokenSymbol,
-      rawTransaction: rawTx as Hex,
-      isSponsored,
-      useTestClock: lastSelectedPaymentMethodShield.useTestClock,
-    };
-    await this.startSubscriptionWithCrypto(params);
+    this.#assertValidSubscriptionStateForCryptoApproval({
+      product: PRODUCT_TYPES.SHIELD,
+    });
+    // if shield subscription exists, this transaction is for changing payment method
+    const isChangePaymentMethod = Boolean(currentSubscription);
+
+    if (isChangePaymentMethod) {
+      await this.updatePaymentMethod({
+        paymentType: PAYMENT_TYPES.byCrypto,
+        subscriptionId: (currentSubscription as Subscription).id,
+        chainId,
+        payerAddress: txMeta.txParams.from as Hex,
+        tokenSymbol: lastSelectedPaymentMethodShield.paymentTokenSymbol,
+        rawTransaction: rawTx as Hex,
+        recurringInterval: productPrice.interval,
+        billingCycles: productPrice.minBillingCycles,
+      });
+    } else {
+      const params = {
+        products: [PRODUCT_TYPES.SHIELD],
+        isTrialRequested: !isTrialed,
+        recurringInterval: productPrice.interval,
+        billingCycles: productPrice.minBillingCycles,
+        chainId,
+        payerAddress: txMeta.txParams.from as Hex,
+        tokenSymbol: lastSelectedPaymentMethodShield.paymentTokenSymbol,
+        rawTransaction: rawTx as Hex,
+        isSponsored,
+        useTestClock: lastSelectedPaymentMethodShield.useTestClock,
+      };
+      await this.startSubscriptionWithCrypto(params);
+    }
+
     // update the subscriptions state after subscription created in server
     await this.getSubscriptions();
   }
@@ -726,12 +753,36 @@ export class SubscriptionController extends StaticIntervalPollingController()<
     await this.#subscriptionService.assignUserToCohort(request);
   }
 
+  /**
+   * Link rewards to a subscription.
+   *
+   * @param request - Request object containing the reward subscription ID.
+   * @param request.subscriptionId - The ID of the subscription to link rewards to.
+   * @param request.rewardSubscriptionId - The ID of the reward subscription to link to the subscription.
+   * @example { subscriptionId: '1234567890', rewardSubscriptionId: '1234567890' }
+   * @returns Resolves when the rewards are linked successfully.
+   */
+  async linkRewards(
+    request: LinkRewardsRequest & { subscriptionId: string },
+  ): Promise<void> {
+    // assert that the user is subscribed to the subscription
+    this.#assertIsUserSubscribed({ subscriptionId: request.subscriptionId });
+
+    // link rewards to the subscription
+    const response = await this.#subscriptionService.linkRewards({
+      rewardSubscriptionId: request.rewardSubscriptionId,
+    });
+    if (!response.success) {
+      throw new Error(SubscriptionControllerErrorMessage.LinkRewardsFailed);
+    }
+  }
+
   async _executePoll(): Promise<void> {
     await this.getSubscriptions();
   }
 
   /**
-   * Calculate total subscription price amount from price info
+   * Calculate total subscription price amount (approval amount) from price info
    * e.g: $8 per month * 12 months min billing cycles = $96
    *
    * @param price - The price info
@@ -742,6 +793,21 @@ export class SubscriptionController extends StaticIntervalPollingController()<
     const amount = new BigNumber(price.unitAmount)
       .div(10 ** price.unitDecimals)
       .multipliedBy(price.minBillingCycles)
+      .toString();
+    return amount;
+  }
+
+  /**
+   * Calculate minimum subscription balance amount from price info
+   *
+   * @param price - The price info
+   * @returns The balance amount
+   */
+  #getSubscriptionBalanceAmount(price: ProductPrice) {
+    // no need to use BigInt since max unitDecimals are always 2 for price
+    const amount = new BigNumber(price.unitAmount)
+      .div(10 ** price.unitDecimals)
+      .multipliedBy(price.minBillingCyclesForBalance)
       .toString();
     return amount;
   }
@@ -775,6 +841,35 @@ export class SubscriptionController extends StaticIntervalPollingController()<
   }
 
   /**
+   * Calculate token minimum balance amount from price info
+   *
+   * @param price - The price info
+   * @param tokenPaymentInfo - The token price info
+   * @returns The token balance amount
+   */
+  getTokenMinimumBalanceAmount(
+    price: ProductPrice,
+    tokenPaymentInfo: TokenPaymentInfo,
+  ): string {
+    const conversionRate =
+      tokenPaymentInfo.conversionRate[
+        price.currency as keyof typeof tokenPaymentInfo.conversionRate
+      ];
+    if (!conversionRate) {
+      throw new Error('Conversion rate not found');
+    }
+    const balanceAmount = new BigNumber(
+      this.#getSubscriptionBalanceAmount(price),
+    );
+
+    const tokenDecimal = new BigNumber(10).pow(tokenPaymentInfo.decimals);
+    const tokenAmount = balanceAmount
+      .multipliedBy(tokenDecimal)
+      .div(conversionRate);
+    return tokenAmount.toFixed(0);
+  }
+
+  /**
    * Triggers an access token refresh.
    */
   triggerAccessTokenRefresh() {
@@ -797,6 +892,34 @@ export class SubscriptionController extends StaticIntervalPollingController()<
       throw new Error(SubscriptionControllerErrorMessage.ProductPriceNotFound);
     }
     return productPrice;
+  }
+
+  #assertValidSubscriptionStateForCryptoApproval({
+    product,
+  }: {
+    product: ProductType;
+  }) {
+    const subscription = this.state.subscriptions.find((sub) =>
+      sub.products.some((p) => p.name === product),
+    );
+
+    const isValid =
+      !subscription ||
+      (
+        [
+          SUBSCRIPTION_STATUSES.pastDue,
+          SUBSCRIPTION_STATUSES.unpaid,
+          SUBSCRIPTION_STATUSES.paused,
+          SUBSCRIPTION_STATUSES.provisional,
+          SUBSCRIPTION_STATUSES.active,
+          SUBSCRIPTION_STATUSES.trialing,
+        ] as SubscriptionStatus[]
+      ).includes(subscription.status);
+    if (!isValid) {
+      throw new Error(
+        SubscriptionControllerErrorMessage.SubscriptionNotValidForCryptoApproval,
+      );
+    }
   }
 
   #assertIsUserNotSubscribed({ products }: { products: ProductType[] }) {

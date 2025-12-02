@@ -289,6 +289,8 @@ export enum ChainId {
   SOLANA = 1151111081099710,
   BTC = 20000000000001,
   TRON = 728126428,
+  SEI = 1329,
+  MONAD = 143,
 }
 
 export type FeatureFlagsPlatformConfig = Infer<typeof PlatformConfigSchema>;

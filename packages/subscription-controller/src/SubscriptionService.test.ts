@@ -98,7 +98,6 @@ function createMockEligibilityResponse(overrides = {}) {
   return {
     product: PRODUCT_TYPES.SHIELD,
     canSubscribe: true,
-    minBalanceUSD: 100,
     canViewEntryModal: true,
     cohorts: [],
     assignedCohort: null,
@@ -474,7 +473,6 @@ describe('SubscriptionService', () => {
         handleFetchMock.mockResolvedValue([
           {
             product: PRODUCT_TYPES.SHIELD,
-            minBalanceUSD: 100,
           },
         ]);
 
@@ -633,6 +631,29 @@ describe('SubscriptionService', () => {
               recurringInterval: RECURRING_INTERVALS.month,
               billingCycles: 12,
               paymentTokenSymbol: 'USDT',
+            }),
+          },
+        );
+      });
+    });
+  });
+
+  describe('linkRewards', () => {
+    it('should link rewards successfully', async () => {
+      await withMockSubscriptionService(async ({ service, config }) => {
+        handleFetchMock.mockResolvedValue({});
+
+        await service.linkRewards({
+          rewardSubscriptionId: 'reward_sub_123',
+        });
+
+        expect(handleFetchMock).toHaveBeenCalledWith(
+          SUBSCRIPTION_URL(config.env, 'rewards/link'),
+          {
+            method: 'POST',
+            headers: MOCK_HEADERS,
+            body: JSON.stringify({
+              rewardSubscriptionId: 'reward_sub_123',
             }),
           },
         );

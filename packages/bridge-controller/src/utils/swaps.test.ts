@@ -1,11 +1,22 @@
-import { CHAIN_IDS } from '@metamask/transaction-controller';
 import type { Hex } from '@metamask/utils';
 
-import { getSwapsContractAddress, isValidSwapsContractAddress } from './swaps';
+import {
+  API_BASE_URL,
+  fetchTokens,
+  getSwapsContractAddress,
+  isValidSwapsContractAddress,
+  type SwapsToken,
+} from './swaps';
+import { CHAIN_IDS } from '../constants/chains';
 import {
   ALLOWED_CONTRACT_ADDRESSES,
   SWAPS_CONTRACT_ADDRESSES,
 } from '../constants/swaps';
+import {
+  DEFAULT_TOKEN_ADDRESS,
+  SWAPS_CHAINID_DEFAULT_TOKEN_MAP,
+} from '../constants/tokens';
+import type { FetchFunction } from '../types';
 
 describe('Swaps utils', () => {
   beforeEach(() => {
@@ -118,6 +129,103 @@ describe('Swaps utils', () => {
         const address = getSwapsContractAddress(chainId as Hex);
         expect(address).toBe(SWAPS_CONTRACT_ADDRESSES[chainId as Hex]);
       });
+    });
+  });
+
+  describe('fetchTokens', () => {
+    const mockTokens: SwapsToken[] = [
+      {
+        address: DEFAULT_TOKEN_ADDRESS,
+        symbol: 'ETH',
+        name: 'Ether',
+        decimals: 18,
+        iconUrl: 'https://example.com/eth.png',
+      },
+      {
+        address: '0xa0b86991c6218b36c1d19d4a2e9eb0ce3606eb48',
+        symbol: 'USDC',
+        name: 'USD Coin',
+        decimals: 6,
+        iconUrl: 'https://example.com/usdc.png',
+      },
+      {
+        address: '0xdac17f958d2ee523a2206206994597c13d831ec7',
+        symbol: 'USDT',
+        name: 'Tether USD',
+        decimals: 6,
+        iconUrl: 'https://example.com/usdt.png',
+      },
+    ];
+
+    it('fetches and returns tokens with native token', async () => {
+      const mockFetchFn = jest.fn().mockResolvedValue(mockTokens);
+
+      const result = await fetchTokens(
+        CHAIN_IDS.MAINNET,
+        mockFetchFn as unknown as FetchFunction,
+      );
+
+      expect(mockFetchFn).toHaveBeenCalledWith(
+        `${API_BASE_URL}/networks/1/tokens`,
+        {
+          headers: undefined,
+        },
+      );
+
+      // Should filter out the default token address and add native token
+      expect(result).toHaveLength(3);
+      expect(result[0].address).toBe(
+        '0xa0b86991c6218b36c1d19d4a2e9eb0ce3606eb48',
+      );
+      expect(result[1].address).toBe(
+        '0xdac17f958d2ee523a2206206994597c13d831ec7',
+      );
+      expect(result[2]).toStrictEqual(
+        SWAPS_CHAINID_DEFAULT_TOKEN_MAP[CHAIN_IDS.MAINNET],
+      );
+    });
+
+    it('includes client ID header when provided', async () => {
+      const mockFetchFn = jest.fn().mockResolvedValue(mockTokens);
+      const clientId = 'test-client-id';
+
+      await fetchTokens(
+        CHAIN_IDS.MAINNET,
+        mockFetchFn as unknown as FetchFunction,
+        clientId,
+      );
+
+      expect(mockFetchFn).toHaveBeenCalledWith(
+        `${API_BASE_URL}/networks/1/tokens`,
+        {
+          headers: { 'X-Client-Id': clientId },
+        },
+      );
+    });
+
+    it('does not include client ID header when not provided', async () => {
+      const mockFetchFn = jest.fn().mockResolvedValue(mockTokens);
+
+      await fetchTokens(
+        CHAIN_IDS.MAINNET,
+        mockFetchFn as unknown as FetchFunction,
+      );
+
+      expect(mockFetchFn).toHaveBeenCalledWith(
+        `${API_BASE_URL}/networks/1/tokens`,
+        {
+          headers: undefined,
+        },
+      );
+    });
+
+    it('propagates fetch errors', async () => {
+      const mockError = new Error('Network error');
+      const mockFetchFn = jest.fn().mockRejectedValue(mockError);
+
+      await expect(
+        fetchTokens(CHAIN_IDS.MAINNET, mockFetchFn as unknown as FetchFunction),
+      ).rejects.toThrow('Network error');
     });
   });
 });

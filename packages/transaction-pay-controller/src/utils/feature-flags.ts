@@ -1,3 +1,4 @@
+import type { Hex } from '@metamask/utils';
 import { createModuleLogger } from '@metamask/utils';
 
 import type { TransactionPayControllerMessenger } from '..';
@@ -11,6 +12,7 @@ export const DEFAULT_RELAY_FALLBACK_GAS_MAX = 1500000;
 export const DEFAULT_RELAY_QUOTE_URL = `${RELAY_URL_BASE}/quote`;
 
 type FeatureFlagsRaw = {
+  relayDisabledGasStationChains?: Hex[];
   relayFallbackGas?: {
     estimate?: number;
     max?: number;
@@ -19,6 +21,7 @@ type FeatureFlagsRaw = {
 };
 
 export type FeatureFlags = {
+  relayDisabledGasStationChains: Hex[];
   relayFallbackGas: {
     estimate: number;
     max: number;
@@ -49,7 +52,11 @@ export function getFeatureFlags(
 
   const relayQuoteUrl = featureFlags.relayQuoteUrl ?? DEFAULT_RELAY_QUOTE_URL;
 
+  const relayDisabledGasStationChains =
+    featureFlags.relayDisabledGasStationChains ?? [];
+
   const result = {
+    relayDisabledGasStationChains,
     relayFallbackGas: {
       estimate,
       max,
