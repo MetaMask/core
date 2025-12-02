@@ -7,9 +7,11 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+## [93.0.0]
+
 ### Added
 
-- `TokenBalancesController` now subscribes to `AccountsController:selectedEvmAccountChange` event to trigger immediate balance updates when users switch accounts ([#7279](https://github.com/MetaMask/core/pull/7279))
+- **BREAKING:** `TokenBalancesController` now subscribes to `AccountsController:selectedEvmAccountChange` event to trigger immediate balance updates when users switch accounts ([#7279](https://github.com/MetaMask/core/pull/7279))
 
 ### Changed
 
@@ -2370,7 +2372,8 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 - Use Ethers for AssetsContractController ([#845](https://github.com/MetaMask/core/pull/845))
 
-[Unreleased]: https://github.com/MetaMask/core/compare/@metamask/assets-controllers@92.0.0...HEAD
+[Unreleased]: https://github.com/MetaMask/core/compare/@metamask/assets-controllers@93.0.0...HEAD
+[93.0.0]: https://github.com/MetaMask/core/compare/@metamask/assets-controllers@92.0.0...@metamask/assets-controllers@93.0.0
 [92.0.0]: https://github.com/MetaMask/core/compare/@metamask/assets-controllers@91.0.0...@metamask/assets-controllers@92.0.0
 [91.0.0]: https://github.com/MetaMask/core/compare/@metamask/assets-controllers@90.0.0...@metamask/assets-controllers@91.0.0
 [90.0.0]: https://github.com/MetaMask/core/compare/@metamask/assets-controllers@89.0.1...@metamask/assets-controllers@90.0.0

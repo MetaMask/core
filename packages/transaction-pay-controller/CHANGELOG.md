@@ -7,6 +7,10 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+### Changed
+
+- Bump `@metamask/assets-controllers` from `^92.0.0` to `^93.0.0` ([#7291](https://github.com/MetaMask/core/pull/7291))
+
 ## [10.3.0]
 
 ### Changed
