@@ -133,6 +133,12 @@ export type StartSubscriptionRequest = {
   recurringInterval: RecurringInterval;
   successUrl?: string;
   useTestClock?: boolean;
+
+  /**
+   * The optional ID of the reward subscription to be opt in along with the main `shield` subscription.
+   * This is required if user wants to opt in to the reward subscription during the `shield` subscription creation.
+   */
+  rewardSubscriptionId?: string;
 };
 
 export type StartSubscriptionResponse = {
@@ -158,6 +164,21 @@ export type StartCryptoSubscriptionRequest = {
 export type StartCryptoSubscriptionResponse = {
   subscriptionId: string;
   status: SubscriptionStatus;
+};
+
+/**
+ * General response type for the subscription API requests
+ * which doesn't require any specific response data.
+ */
+export type SubscriptionApiGeneralResponse = {
+  /**
+   * Whether the request was successful.
+   */
+  success: boolean;
+  /**
+   * The message of the response.
+   */
+  message?: string;
 };
 
 export type AuthUtils = {
@@ -350,6 +371,13 @@ export type ISubscriptionService = {
   assignUserToCohort(request: AssignCohortRequest): Promise<void>;
 
   /**
+   * Link rewards to a subscription.
+   */
+  linkRewards(
+    request: LinkRewardsRequest,
+  ): Promise<SubscriptionApiGeneralResponse>;
+
+  /**
    * Submit sponsorship intents to the Subscription Service backend.
    *
    * This is intended to be used together with the crypto subscription flow.
@@ -421,4 +449,14 @@ export type CachedLastSelectedPaymentMethod = {
   paymentTokenSymbol?: string;
   plan: RecurringInterval;
   useTestClock?: boolean;
+};
+
+/**
+ * Request object for linking rewards to a subscription.
+ */
+export type LinkRewardsRequest = {
+  /**
+   * The ID of the reward subscription to be linked to the subscription.
+   */
+  rewardSubscriptionId: string;
 };
