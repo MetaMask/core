@@ -497,7 +497,7 @@ describe('RemoteFeatureFlagController', () => {
         invalidVersionFlag: {
           versions: [
             { fromVersion: 123, value: { x: '12' } }, // invalid: fromVersion not string
-            { value: { x: '13' } }, // invalid: missing fromVersion
+            { fromVersion: null, value: { x: '13' } }, // invalid: fromVersion is null
           ],
         },
         validFlag: {
@@ -524,7 +524,7 @@ describe('RemoteFeatureFlagController', () => {
       expect(invalidVersionFlag).toStrictEqual({
         versions: [
           { fromVersion: 123, value: { x: '12' } },
-          { value: { x: '13' } },
+          { fromVersion: null, value: { x: '13' } },
         ],
       });
       // Valid version flag should be processed
