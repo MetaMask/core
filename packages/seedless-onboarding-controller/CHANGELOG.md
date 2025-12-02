@@ -7,8 +7,25 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+### Added
+
+- Add optional `dataType` parameter to `createToprfKeyAndBackupSeedPhrase` method (defaults to `PrimarySrp` for backward compatibility)
+- Add optional `dataType` parameter to `addNewSecretData` method for categorizing secret data on insert
+- Add `updateSecretDataItem` method to update fields for existing items by `itemId`
+- Add `batchUpdateSecretDataItems` method to batch update fields for multiple items
+- Add `SecretDataItemWithMetadata` type for storage-level metadata (`itemId`, `dataType`)
+- Add `SecretMetadata.compareByTimestamp` static method for comparing metadata by timestamp
+- Add `SecretMetadata.matchesType` static method for checking if metadata matches a given type
+- Re-export `EncAccountDataType` from `@metamask/toprf-secure-backup`
+
 ### Changed
 
+- **BREAKING:** Update `fetchAllSecretData` to return `SecretDataItemWithMetadata[]` instead of `SecretMetadata[]`
+  - Consumers must now access secret data via the `secret` property (e.g., `result[0].secret.data` instead of `result[0].data`)
+- **BREAKING:** Remove `parseSecretsFromMetadataStore`, `fromBatch`, and `sort` methods from `SecretMetadata`
+  - Use `SecretMetadata.compareByTimestamp` for sorting
+  - Use `SecretMetadata.matchesType` for filtering
+- Bump `@metamask/toprf-secure-backup` from `^0.10.0` to `^0.11.0`
 - Move peer dependencies for controller and service packages to direct dependencies ([#7209](https://github.com/MetaMask/core/pull/7209))
   - The dependencies moved are:
     - `@metamask/keyring-controller` (^25.0.0)

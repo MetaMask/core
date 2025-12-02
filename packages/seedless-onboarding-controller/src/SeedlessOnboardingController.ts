@@ -5,11 +5,13 @@ import type {
   KeyPair,
   RecoverEncryptionKeyResult,
   SEC1EncodedPublicKey,
+  FetchedSecretDataItem,
 } from '@metamask/toprf-secure-backup';
 import {
   ToprfSecureBackup,
   TOPRFErrorCode,
   TOPRFError,
+  EncAccountDataType,
 } from '@metamask/toprf-secure-backup';
 import {
   base64ToBytes,
@@ -51,6 +53,7 @@ import type {
   RenewRefreshToken,
   VaultData,
   DeserializedVaultData,
+  SecretDataItemWithMetadata,
 } from './types';
 import {
   decodeJWTToken,
@@ -438,12 +441,14 @@ export class SeedlessOnboardingController<
    * @param password - The password used to create new wallet and seedphrase
    * @param seedPhrase - The initial seed phrase (Mnemonic) created together with the wallet.
    * @param keyringId - The keyring id of the backup seed phrase
+   * @param dataType - Optional data type for categorizing the secret data. Defaults to PrimarySrp.
    * @returns A promise that resolves to the encrypted seed phrase and the encryption key.
    */
   async createToprfKeyAndBackupSeedPhrase(
     password: string,
     seedPhrase: Uint8Array,
     keyringId: string,
+    dataType: EncAccountDataType = EncAccountDataType.PrimarySrp,
   ): Promise<void> {
     return await this.#withControllerLock(async () => {
       // to make sure that fail fast,
@@ -464,6 +469,7 @@ export class SeedlessOnboardingController<
           authKeyPair,
           options: {
             keyringId,
+            dataType,
           },
         });
 
@@ -495,6 +501,7 @@ export class SeedlessOnboardingController<
    * @param type - The type of the secret data.
    * @param options - Optional options object, which includes optional data to be added to the metadata store.
    * @param options.keyringId - The keyring id of the backup keyring (SRP).
+   * @param options.dataType - Optional data type for categorizing the secret data.
    * @returns A promise that resolves to the success of the operation.
    */
   async addNewSecretData(
@@ -502,6 +509,7 @@ export class SeedlessOnboardingController<
     type: SecretType,
     options?: {
       keyringId?: string;
+      dataType?: EncAccountDataType;
     },
   ): Promise<void> {
     return await this.#withControllerLock(async () => {
@@ -532,14 +540,113 @@ export class SeedlessOnboardingController<
   }
 
   /**
-   * Fetches all encrypted secret data and metadata for user's account from the metadata store.
+   * Update fields for an existing secret data item by itemId.
+   *
+   * This method updates metadata fields for an existing secret data item
+   * without modifying the encrypted data itself.
+   *
+   * @param params - The parameters for updating the secret data item.
+   * @param params.itemId - The item ID of the secret data to update.
+   * @param params.dataType - The data type to set for the item.
+   * @returns A promise that resolves when the update is complete.
+   */
+  async updateSecretDataItem(params: {
+    itemId: string;
+    dataType: EncAccountDataType;
+  }): Promise<void> {
+    return await this.#withControllerLock(async () => {
+      this.#assertIsUnlocked();
+
+      await this.#assertPasswordInSync({
+        skipCache: true,
+        skipLock: true, // skip lock since we already have the lock
+      });
+
+      const performUpdate = async (): Promise<void> => {
+        const { toprfAuthKeyPair } = await this.#unlockVaultAndGetVaultData();
+
+        try {
+          await this.toprfClient.updateSecretDataItem({
+            itemId: params.itemId,
+            dataType: params.dataType,
+            authKeyPair: toprfAuthKeyPair,
+          });
+        } catch (error) {
+          if (this.#isAuthTokenError(error)) {
+            throw error;
+          }
+          log('Error updating secret data item', error);
+          throw new Error(
+            SeedlessOnboardingControllerErrorMessage.FailedToUpdateSecretDataItem,
+          );
+        }
+      };
+
+      await this.#executeWithTokenRefresh(
+        performUpdate,
+        'updateSecretDataItem',
+      );
+    });
+  }
+
+  /**
+   * Batch update fields for multiple existing secret data items by their itemIds.
+   *
+   * This method updates metadata fields for multiple existing secret data items
+   * without modifying the encrypted data itself.
+   *
+   * @param params - The parameters for batch updating secret data items.
+   * @param params.updates - Array of objects containing itemId and fields to update.
+   * @returns A promise that resolves when all updates are complete.
+   */
+  async batchUpdateSecretDataItems(params: {
+    updates: { itemId: string; dataType: EncAccountDataType }[];
+  }): Promise<void> {
+    return await this.#withControllerLock(async () => {
+      this.#assertIsUnlocked();
+
+      await this.#assertPasswordInSync({
+        skipCache: true,
+        skipLock: true, // skip lock since we already have the lock
+      });
+
+      const performBatchUpdate = async (): Promise<void> => {
+        const { toprfAuthKeyPair } = await this.#unlockVaultAndGetVaultData();
+
+        try {
+          await this.toprfClient.batchUpdateSecretDataItems({
+            updateItems: params.updates,
+            authKeyPair: toprfAuthKeyPair,
+          });
+        } catch (error) {
+          if (this.#isAuthTokenError(error)) {
+            throw error;
+          }
+          log('Error batch updating secret data items', error);
+          throw new Error(
+            SeedlessOnboardingControllerErrorMessage.FailedToBatchUpdateSecretDataItems,
+          );
+        }
+      };
+
+      await this.#executeWithTokenRefresh(
+        performBatchUpdate,
+        'batchUpdateSecretDataItems',
+      );
+    });
+  }
+
+  /**
+   * Fetches all secret data items from the metadata store.
    *
    * Decrypts the secret data and returns the decrypted secret data using the recovered encryption key from the password.
    *
    * @param password - The optional password used to create new wallet. If not provided, `cached Encryption Key` will be used.
-   * @returns A promise that resolves to the secret data.
+   * @returns A promise that resolves to the secret data items with metadata.
    */
-  async fetchAllSecretData(password?: string): Promise<SecretMetadata[]> {
+  async fetchAllSecretData(
+    password?: string,
+  ): Promise<SecretDataItemWithMetadata[]> {
     return await this.#withControllerLock(async () => {
       return await this.#executeWithTokenRefresh(async () => {
         // assert that the user is authenticated before fetching the secret data
@@ -1161,11 +1268,11 @@ export class SeedlessOnboardingController<
   async #fetchAllSecretDataFromMetadataStore(
     encKey: Uint8Array,
     authKeyPair: KeyPair,
-  ) {
-    let secretData: Uint8Array[] = [];
+  ): Promise<SecretDataItemWithMetadata[]> {
+    let secretDataItems: FetchedSecretDataItem[] = [];
     try {
       // fetch and decrypt the secret data from the metadata store
-      secretData = await this.toprfClient.fetchAllSecretDataItems({
+      secretDataItems = await this.toprfClient.fetchAllSecretDataItems({
         decKey: encKey,
         authKeyPair,
       });
@@ -1180,16 +1287,27 @@ export class SeedlessOnboardingController<
     }
 
     // user must have at least one secret data
-    if (secretData?.length > 0) {
-      const secrets = SecretMetadata.parseSecretsFromMetadataStore(secretData);
+    if (secretDataItems?.length > 0) {
+      const results: SecretDataItemWithMetadata[] = secretDataItems.map(
+        (item) => ({
+          secret: SecretMetadata.fromRawMetadata(item.data),
+          itemId: item.itemId,
+          dataType: item.dataType,
+        }),
+      );
+
+      // Sort by timestamp (oldest first)
+      results.sort((a, b) =>
+        SecretMetadata.compareByTimestamp(a.secret, b.secret, 'asc'),
+      );
+
       // validate the primary secret data is a mnemonic (SRP)
-      const primarySecret = secrets[0];
-      if (primarySecret.type !== SecretType.Mnemonic) {
+      if (!SecretMetadata.matchesType(results[0].secret, SecretType.Mnemonic)) {
         throw new Error(
           SeedlessOnboardingControllerErrorMessage.InvalidPrimarySecretDataType,
         );
       }
-      return secrets;
+      return results;
     }
 
     throw new Error(SeedlessOnboardingControllerErrorMessage.NoSecretDataFound);
@@ -1258,6 +1376,7 @@ export class SeedlessOnboardingController<
    * @param params.authKeyPair - The authentication key pair to store.
    * @param params.options - Optional options object, which includes optional data to be added to the metadata store.
    * @param params.options.keyringId - The keyring id of the backup keyring (SRP).
+   * @param params.options.dataType - Optional data type for categorizing the secret data.
    *
    * @returns A promise that resolves to the success of the operation.
    */
@@ -1268,6 +1387,7 @@ export class SeedlessOnboardingController<
     authKeyPair: KeyPair;
     options?: {
       keyringId?: string;
+      dataType?: EncAccountDataType;
     };
   }): Promise<void> {
     const { options, data, encKey, authKeyPair, type } = params;
@@ -1296,6 +1416,7 @@ export class SeedlessOnboardingController<
           encKey,
           secretData,
           authKeyPair,
+          dataType: options?.dataType,
         });
         return {
           keyringId,
