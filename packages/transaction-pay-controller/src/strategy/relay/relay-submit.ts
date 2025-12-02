@@ -7,7 +7,10 @@ import {
   TransactionType,
   type TransactionParams,
 } from '@metamask/transaction-controller';
-import type { TransactionMeta } from '@metamask/transaction-controller';
+import type {
+  AuthorizationList,
+  TransactionMeta,
+} from '@metamask/transaction-controller';
 import type { Hex } from '@metamask/utils';
 import { createModuleLogger } from '@metamask/utils';
 
@@ -235,10 +238,22 @@ async function submitTransactions(
     ? sourceTokenAddress
     : undefined;
 
+  const isSameChain =
+    quote.original.details.currencyIn.currency.chainId ===
+    quote.original.details.currencyOut.currency.chainId;
+
+  const authorizationList: AuthorizationList | undefined =
+    isSameChain && quote.original.request.authorizationList?.length
+      ? quote.original.request.authorizationList.map((a) => ({
+          address: a.address,
+          chainId: toHex(a.chainId),
+        }))
+      : undefined;
+
   if (params.length === 1) {
     result = await messenger.call(
       'TransactionController:addTransaction',
-      normalizedParams[0],
+      { ...normalizedParams[0], authorizationList },
       {
         gasFeeToken,
         networkClientId,
@@ -252,6 +267,7 @@ async function submitTransactions(
       gasFeeToken,
       networkClientId,
       origin: ORIGIN_METAMASK,
+      overwriteUpgrade: true,
       requireApproval: false,
       transactions: normalizedParams.map((p, i) => ({
         params: {

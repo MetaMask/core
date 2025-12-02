@@ -11,6 +11,7 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 - **BREAKING:** Permission decoding now rejects `TimestampEnforcer` caveats with zero `timestampBeforeThreshold` values ([#7195](https://github.com/MetaMask/core/pull/7195))
 - Validation errors for `TimestampEnforcer` include: invalid terms length, non-zero `timestampAfterThreshold`, and zero `timestampBeforeThreshold` ([#7195](https://github.com/MetaMask/core/pull/7195))
+- Bump `@metamask/transaction-controller` from `^62.3.1` to `^62.4.0` ([#7289](https://github.com/MetaMask/core/pull/7289))
 
 ## [0.7.0]
 

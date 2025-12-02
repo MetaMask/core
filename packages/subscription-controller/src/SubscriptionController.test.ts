@@ -238,6 +238,7 @@ function createMockSubscriptionService() {
   const mockSubmitUserEvent = jest.fn();
   const mockSubmitSponsorshipIntents = jest.fn();
   const mockAssignUserToCohort = jest.fn();
+  const mockLinkRewards = jest.fn();
 
   const mockService = {
     getSubscriptions: mockGetSubscriptions,
@@ -253,6 +254,7 @@ function createMockSubscriptionService() {
     submitUserEvent: mockSubmitUserEvent,
     submitSponsorshipIntents: mockSubmitSponsorshipIntents,
     assignUserToCohort: mockAssignUserToCohort,
+    linkRewards: mockLinkRewards,
   };
 
   return {
@@ -2233,6 +2235,67 @@ describe('SubscriptionController', () => {
             controller.submitShieldSubscriptionCryptoApproval(txMeta),
           ).rejects.toThrow(
             SubscriptionControllerErrorMessage.SubscriptionNotValidForCryptoApproval,
+          );
+        },
+      );
+    });
+  });
+
+  describe('linkRewards', () => {
+    it('should link rewards successfully', async () => {
+      await withController(
+        {
+          state: {
+            subscriptions: [MOCK_SUBSCRIPTION],
+          },
+        },
+        async ({ controller, mockService }) => {
+          const linkRewardsSpy = jest
+            .spyOn(mockService, 'linkRewards')
+            .mockResolvedValue({
+              success: true,
+            });
+          await controller.linkRewards({
+            subscriptionId: 'sub_123456789',
+            rewardSubscriptionId: 'reward_sub_1234567890',
+          });
+          expect(linkRewardsSpy).toHaveBeenCalledWith({
+            rewardSubscriptionId: 'reward_sub_1234567890',
+          });
+          expect(linkRewardsSpy).toHaveBeenCalledTimes(1);
+        },
+      );
+    });
+
+    it('should throw error when user is not subscribed', async () => {
+      await withController(async ({ controller }) => {
+        await expect(
+          controller.linkRewards({
+            subscriptionId: 'sub_123456789',
+            rewardSubscriptionId: 'reward_sub_1234567890',
+          }),
+        ).rejects.toThrow(SubscriptionControllerErrorMessage.UserNotSubscribed);
+      });
+    });
+
+    it('should throw error when link rewards fails', async () => {
+      await withController(
+        {
+          state: {
+            subscriptions: [MOCK_SUBSCRIPTION],
+          },
+        },
+        async ({ controller, mockService }) => {
+          mockService.linkRewards.mockResolvedValue({
+            success: false,
+          });
+          await expect(
+            controller.linkRewards({
+              subscriptionId: 'sub_123456789',
+              rewardSubscriptionId: 'reward_sub_1234567890',
+            }),
+          ).rejects.toThrow(
+            SubscriptionControllerErrorMessage.LinkRewardsFailed,
           );
         },
       );
