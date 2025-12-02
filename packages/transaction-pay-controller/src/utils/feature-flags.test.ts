@@ -23,6 +23,8 @@ describe('Feature Flags Utils', () => {
     getRemoteFeatureFlagControllerStateMock.mockReturnValue({
       cacheTimestamp: 0,
       remoteFeatureFlags: {},
+      abTestRawFlags: {},
+      localOverrides: {},
     });
   });
 
@@ -56,6 +58,8 @@ describe('Feature Flags Utils', () => {
             slippage: SLIPPAGE_MOCK,
           },
         },
+        abTestRawFlags: {},
+        localOverrides: {},
       });
 
       const featureFlags = getFeatureFlags(messenger);
