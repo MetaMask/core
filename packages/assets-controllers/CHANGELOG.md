@@ -10,6 +10,7 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 ### Added
 
 - `TokenBalancesController` now subscribes to `AccountsController:selectedEvmAccountChange` event to trigger immediate balance updates when users switch accounts ([#7279](https://github.com/MetaMask/core/pull/7279))
+- Support for Monad in NFT assets-controllers, [#7254](https://github.com/MetaMask/core/pull/7254)
 
 ### Changed
 
