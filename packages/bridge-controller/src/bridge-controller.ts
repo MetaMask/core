@@ -15,7 +15,6 @@ import {
   BRIDGE_PROD_API_BASE_URL,
   DEFAULT_BRIDGE_CONTROLLER_STATE,
   METABRIDGE_ETHEREUM_ADDRESS,
-  METASWAP_ETHEREUM_ADDRESS,
   REFRESH_INTERVAL_MS,
 } from './constants/bridge';
 import { CHAIN_IDS } from './constants/chains';
@@ -79,6 +78,7 @@ import { isValidQuoteRequest, sortQuotes } from './utils/quote';
 import { appendFeesToQuotes } from './utils/quote-fees';
 import { getMinimumBalanceForRentExemptionInLamports } from './utils/snaps';
 import type { FeatureId } from './utils/validators';
+import { SWAPS_CONTRACT_ADDRESSES } from './constants/swaps';
 
 const metadata: StateMetadata<BridgeControllerState> = {
   quoteRequest: {
@@ -1040,7 +1040,7 @@ export class BridgeController extends StaticIntervalPollingController<BridgePoll
     const contract = new Contract(contractAddress, abiERC20, ethersProvider);
     const spenderAddress = isCrossChain(CHAIN_IDS.MAINNET, destinationChainId)
       ? METABRIDGE_ETHEREUM_ADDRESS
-      : METASWAP_ETHEREUM_ADDRESS;
+      : SWAPS_CONTRACT_ADDRESSES[CHAIN_IDS.MAINNET];
     const allowance: BigNumber = await contract.allowance(
       walletAddress,
       spenderAddress,
