@@ -378,14 +378,14 @@ export type Aggregate3Result = {
 };
 
 // Constants for encoded strings and addresses
-const ZERO_ADDRESS = '0x0000000000000000000000000000000000000000';
+export const ZERO_ADDRESS = '0x0000000000000000000000000000000000000000';
 const BALANCE_OF_FUNCTION = 'balanceOf(address)';
 const GET_ETH_BALANCE_FUNCTION = 'getEthBalance';
 const GET_SHARES_FUNCTION = 'getShares';
 const CONVERT_TO_ASSETS_FUNCTION = 'convertToAssets';
 
 // ERC20 balanceOf ABI
-const ERC20_BALANCE_OF_ABI = [
+export const ERC20_BALANCE_OF_ABI = [
   {
     name: 'balanceOf',
     type: 'function',
@@ -393,7 +393,7 @@ const ERC20_BALANCE_OF_ABI = [
     outputs: [{ name: '', type: 'uint256' }],
     stateMutability: 'view',
   },
-];
+] as const;
 
 // Multicall3 getEthBalance ABI
 const MULTICALL3_GET_ETH_BALANCE_ABI = [

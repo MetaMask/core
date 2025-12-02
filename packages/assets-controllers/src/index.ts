@@ -29,6 +29,7 @@ export type {
   AssetsContractControllerTransferSingleERC1155Action,
   AssetsContractControllerGetTokenStandardAndDetailsAction,
   AssetsContractControllerGetBalancesInSingleCallAction,
+  AssetsContractControllerGetBalancesUsingMulticallAction,
   AssetsContractControllerMessenger,
   BalanceMap,
 } from './AssetsContractController';

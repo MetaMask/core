@@ -212,7 +212,7 @@ export class TokenDetectionController extends StaticIntervalPollingController<To
 
   readonly #useExternalServices: () => boolean;
 
-  readonly #getBalancesInSingleCall: AssetsContractController['getBalancesInSingleCall'];
+  readonly #getBalancesUsingMulticall: AssetsContractController['getBalancesUsingMulticall'];
 
   readonly #trackMetaMetricsEvent: (options: {
     event: string;
@@ -284,7 +284,7 @@ export class TokenDetectionController extends StaticIntervalPollingController<To
    * @param options.messenger - The controller messenger.
    * @param options.disabled - If set to true, all network requests are blocked.
    * @param options.interval - Polling interval used to fetch new token rates
-   * @param options.getBalancesInSingleCall - Gets the balances of a list of tokens for the given address.
+   * @param options.getBalancesUsingMulticall - Gets the balances of a list of tokens using Multicall3 (supports 270+ chains).
    * @param options.trackMetaMetricsEvent - Sets options for MetaMetrics event tracking.
    * @param options.useAccountsAPI - Feature Switch for using the accounts API when detecting tokens (default: true)
    * @param options.useTokenDetection - Feature Switch for using token detection (default: true)
@@ -294,7 +294,7 @@ export class TokenDetectionController extends StaticIntervalPollingController<To
   constructor({
     interval = DEFAULT_INTERVAL,
     disabled = true,
-    getBalancesInSingleCall,
+    getBalancesUsingMulticall,
     trackMetaMetricsEvent,
     messenger,
     useAccountsAPI = true,
@@ -304,7 +304,7 @@ export class TokenDetectionController extends StaticIntervalPollingController<To
   }: {
     interval?: number;
     disabled?: boolean;
-    getBalancesInSingleCall: AssetsContractController['getBalancesInSingleCall'];
+    getBalancesUsingMulticall: AssetsContractController['getBalancesUsingMulticall'];
     trackMetaMetricsEvent: (options: {
       event: string;
       category: string;
@@ -348,7 +348,7 @@ export class TokenDetectionController extends StaticIntervalPollingController<To
     );
     this.#isDetectionEnabledFromPreferences = defaultUseTokenDetection;
 
-    this.#getBalancesInSingleCall = getBalancesInSingleCall;
+    this.#getBalancesUsingMulticall = getBalancesUsingMulticall;
 
     this.#trackMetaMetricsEvent = trackMetaMetricsEvent;
 
@@ -1033,7 +1033,7 @@ export class TokenDetectionController extends StaticIntervalPollingController<To
     chainId: Hex;
   }): Promise<void> {
     await safelyExecute(async () => {
-      const balances = await this.#getBalancesInSingleCall(
+      const balances = await this.#getBalancesUsingMulticall(
         selectedAddress,
         tokensSlice,
         networkClientId,
