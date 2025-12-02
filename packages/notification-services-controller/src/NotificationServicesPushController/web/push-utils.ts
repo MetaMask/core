@@ -13,7 +13,10 @@ import type { Messaging, MessagePayload } from 'firebase/messaging/sw';
 import log from 'loglevel';
 
 import type { Types } from '../../NotificationServicesController';
-import { Processors } from '../../NotificationServicesController';
+import {
+  isOnChainRawNotification,
+  safeProcessNotification,
+} from '../../NotificationServicesController';
 import { toRawAPINotification } from '../../shared/to-raw-notification';
 import type { NotificationServicesPushControllerMessenger } from '../NotificationServicesPushController';
 import type { PushNotificationEnv } from '../types/firebase';
@@ -116,7 +119,7 @@ export async function deleteRegToken(
  */
 async function listenToPushNotificationsReceived(
   env: PushNotificationEnv,
-  handler: (notification: Types.INotification) => void | Promise<void>,
+  handler?: (notification: Types.INotification) => void | Promise<void>,
 ): Promise<(() => void) | null> {
   const messaging = await getFirebaseMessaging(env);
   if (!messaging) {
@@ -128,25 +131,33 @@ async function listenToPushNotificationsReceived(
     // eslint-disable-next-line @typescript-eslint/no-misused-promises
     async (payload: MessagePayload) => {
       try {
-        const data: Types.UnprocessedRawNotification | undefined = payload?.data
-          ?.data
-          ? JSON.parse(payload?.data?.data)
-          : undefined;
+        // MessagePayload shapes are not known
+        // TODO - provide open-api unfied backend/frontend types
+        // TODO - we will replace the underlying Data payload with the same Notification payload used by mobile
+        const data: unknown | null = JSON.parse(payload?.data?.data ?? 'null');
 
         if (!data) {
           return;
         }
 
+        if (!isOnChainRawNotification(data)) {
+          return;
+        }
+
         const notificationData = toRawAPINotification(data);
-        const notification = Processors.processNotification(notificationData);
-        await handler(notification);
+        const notification = safeProcessNotification(notificationData);
+
+        if (!notification) {
+          return;
+        }
+
+        await handler?.(notification);
       } catch (error) {
         // Do Nothing, cannot parse a bad notification
         log.error('Unable to send push notification:', {
           notification: payload?.data?.data,
           error,
         });
-        throw new Error('Unable to send push notification');
       }
     },
   );

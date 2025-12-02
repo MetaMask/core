@@ -14,22 +14,13 @@ module.exports = merge(baseConfig, {
   // The display name when running multiple projects
   displayName,
 
-  // An array of regexp pattern strings used to skip coverage collection
-  coveragePathIgnorePatterns: [
-    ...baseConfig.coveragePathIgnorePatterns,
-    '/__fixtures__/',
-  ],
-
   // An object that configures minimum threshold enforcement for coverage results
   coverageThreshold: {
     global: {
-      branches: 90.5,
-      functions: 98,
-      lines: 98,
-      statements: 98,
+      branches: 100,
+      functions: 100,
+      lines: 100,
+      statements: 100,
     },
   },
-
-  // We rely on `window` to make requests
-  testEnvironment: '<rootDir>/jest.environment.js',
 });

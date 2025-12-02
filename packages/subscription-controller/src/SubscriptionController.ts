@@ -757,7 +757,7 @@ export class SubscriptionController extends StaticIntervalPollingController()<
   }
 
   /**
-   * Calculate total subscription price amount from price info
+   * Calculate total subscription price amount (approval amount) from price info
    * e.g: $8 per month * 12 months min billing cycles = $96
    *
    * @param price - The price info
@@ -768,6 +768,21 @@ export class SubscriptionController extends StaticIntervalPollingController()<
     const amount = new BigNumber(price.unitAmount)
       .div(10 ** price.unitDecimals)
       .multipliedBy(price.minBillingCycles)
+      .toString();
+    return amount;
+  }
+
+  /**
+   * Calculate minimum subscription balance amount from price info
+   *
+   * @param price - The price info
+   * @returns The balance amount
+   */
+  #getSubscriptionBalanceAmount(price: ProductPrice) {
+    // no need to use BigInt since max unitDecimals are always 2 for price
+    const amount = new BigNumber(price.unitAmount)
+      .div(10 ** price.unitDecimals)
+      .multipliedBy(price.minBillingCyclesForBalance)
       .toString();
     return amount;
   }
@@ -795,6 +810,35 @@ export class SubscriptionController extends StaticIntervalPollingController()<
 
     const tokenDecimal = new BigNumber(10).pow(tokenPaymentInfo.decimals);
     const tokenAmount = priceAmount
+      .multipliedBy(tokenDecimal)
+      .div(conversionRate);
+    return tokenAmount.toFixed(0);
+  }
+
+  /**
+   * Calculate token minimum balance amount from price info
+   *
+   * @param price - The price info
+   * @param tokenPaymentInfo - The token price info
+   * @returns The token balance amount
+   */
+  getTokenMinimumBalanceAmount(
+    price: ProductPrice,
+    tokenPaymentInfo: TokenPaymentInfo,
+  ): string {
+    const conversionRate =
+      tokenPaymentInfo.conversionRate[
+        price.currency as keyof typeof tokenPaymentInfo.conversionRate
+      ];
+    if (!conversionRate) {
+      throw new Error('Conversion rate not found');
+    }
+    const balanceAmount = new BigNumber(
+      this.#getSubscriptionBalanceAmount(price),
+    );
+
+    const tokenDecimal = new BigNumber(10).pow(tokenPaymentInfo.decimals);
+    const tokenAmount = balanceAmount
       .multipliedBy(tokenDecimal)
       .div(conversionRate);
     return tokenAmount.toFixed(0);
