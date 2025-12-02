@@ -7,10 +7,15 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+### Added
+
+- `TokenBalancesController` now subscribes to `AccountsController:selectedEvmAccountChange` event to trigger immediate balance updates when users switch accounts ([#7279](https://github.com/MetaMask/core/pull/7279))
+
 ### Changed
 
 - Bump `@metamask/network-controller` from `^26.0.0` to `^27.0.0` ([#7258](https://github.com/MetaMask/core/pull/7258))
 - Bump `@metamask/transaction-controller` from `^62.3.0` to `^62.3.1` ([#7257](https://github.com/MetaMask/core/pull/7257))
+- `AccountTrackerController` now normalizes addresses to lowercase internally before calling balance fetchers to match `TokenBalancesController` and enable HTTP request caching ([#7279](https://github.com/MetaMask/core/pull/7279))
 
 ### Fixed
 

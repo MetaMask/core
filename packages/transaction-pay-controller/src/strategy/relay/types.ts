@@ -1,5 +1,29 @@
 import type { Hex } from '@metamask/utils';
 
+export type RelayQuoteRequest = {
+  amount: string;
+  authorizationList?: {
+    address: Hex;
+    chainId: number;
+    nonce: number;
+    r: Hex;
+    s: Hex;
+    yParity: number;
+  }[];
+  destinationChainId: number;
+  destinationCurrency: Hex;
+  originChainId: number;
+  originCurrency: Hex;
+  recipient: Hex;
+  tradeType: 'EXPECTED_OUTPUT' | 'EXACT_OUTPUT';
+  txs?: {
+    to: Hex;
+    data: Hex;
+    value: Hex;
+  }[];
+  user: Hex;
+};
+
 export type RelayQuote = {
   details: {
     currencyIn: {
@@ -27,6 +51,7 @@ export type RelayQuote = {
       amountUsd: string;
     };
   };
+  request: RelayQuoteRequest;
   steps: {
     items: {
       check: {

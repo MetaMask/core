@@ -34,6 +34,7 @@ import type {
   SubmitSponsorshipIntentsMethodParams,
   RecurringInterval,
   SubscriptionStatus,
+  LinkRewardsRequest,
 } from './types';
 import {
   PAYMENT_TYPES,
@@ -750,6 +751,30 @@ export class SubscriptionController extends StaticIntervalPollingController()<
    */
   async assignUserToCohort(request: AssignCohortRequest): Promise<void> {
     await this.#subscriptionService.assignUserToCohort(request);
+  }
+
+  /**
+   * Link rewards to a subscription.
+   *
+   * @param request - Request object containing the reward subscription ID.
+   * @param request.subscriptionId - The ID of the subscription to link rewards to.
+   * @param request.rewardSubscriptionId - The ID of the reward subscription to link to the subscription.
+   * @example { subscriptionId: '1234567890', rewardSubscriptionId: '1234567890' }
+   * @returns Resolves when the rewards are linked successfully.
+   */
+  async linkRewards(
+    request: LinkRewardsRequest & { subscriptionId: string },
+  ): Promise<void> {
+    // assert that the user is subscribed to the subscription
+    this.#assertIsUserSubscribed({ subscriptionId: request.subscriptionId });
+
+    // link rewards to the subscription
+    const response = await this.#subscriptionService.linkRewards({
+      rewardSubscriptionId: request.rewardSubscriptionId,
+    });
+    if (!response.success) {
+      throw new Error(SubscriptionControllerErrorMessage.LinkRewardsFailed);
+    }
   }
 
   async _executePoll(): Promise<void> {
