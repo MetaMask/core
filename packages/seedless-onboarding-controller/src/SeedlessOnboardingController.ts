@@ -1298,10 +1298,20 @@ export class SeedlessOnboardingController<
         }),
       );
 
-      // Sort by timestamp (oldest first)
-      results.sort((a, b) =>
-        SecretMetadata.compareByTimestamp(a.secret, b.secret, 'asc'),
-      );
+      // Sort: PrimarySrp first, then by timestamp (oldest first)
+      // - New data: has explicit dataType, PrimarySrp should be first
+      // - Legacy data: no dataType, fall back to timestamp ordering
+      results.sort((a, b) => {
+        // PrimarySrp always comes first
+        if (a.dataType === EncAccountDataType.PrimarySrp) {
+          return -1;
+        }
+        if (b.dataType === EncAccountDataType.PrimarySrp) {
+          return 1;
+        }
+        // Fall back to timestamp ordering (oldest first)
+        return SecretMetadata.compareByTimestamp(a.secret, b.secret, 'asc');
+      });
 
       // Validate the first item is the primary SRP
       const firstItem = results[0];
