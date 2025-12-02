@@ -502,7 +502,7 @@ export class RemoteFeatureFlagController extends BaseController<
 
     for (const [flagName] of Object.entries(this.state.abTestRawFlags)) {
       const groups = this.getAvailableABTestGroups(flagName);
-      if (groups) {
+      if (groups && groups.length > 0) {
         abTestFlags[flagName] = groups;
       }
     }

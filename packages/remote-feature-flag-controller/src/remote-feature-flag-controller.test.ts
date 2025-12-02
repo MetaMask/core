@@ -106,6 +106,8 @@ describe('RemoteFeatureFlagController', () => {
       const customState = {
         remoteFeatureFlags: MOCK_FLAGS_TWO,
         cacheTimestamp: 123456789,
+        abTestRawFlags: {},
+        localOverrides: {},
       };
 
       const controller = createController({ state: customState });
@@ -1056,7 +1058,7 @@ describe('RemoteFeatureFlagController', () => {
         if (!groups) {
           throw new Error('Expected groups to be defined');
         }
-        expect(groups).toHaveLength(2); // Expecting 2 groups based on MOCK_FLAGS_WITH_THRESHOLD
+        expect(groups).toHaveLength(3); // Expecting 3 groups based on MOCK_FLAGS_WITH_THRESHOLD
 
         // Override with a specific group value
         controller.setFlagOverride('testFlagForThreshold', groups[0].value); // groupA value
