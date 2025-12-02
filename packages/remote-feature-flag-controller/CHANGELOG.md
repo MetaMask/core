@@ -9,10 +9,16 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ### Added
 
-- **BREAKING:** Add version-gated feature flags with multi-version support ([#7227](https://github.com/MetaMask/core/pull/7277))
-  - New required `appVersion` parameter in constructor for version-based filtering (expects semantic version string of client app)
+- Add version-gated feature flags with multi-version support ([#7227](https://github.com/MetaMask/core/pull/7227))
   - Support for feature flags with multiple version entries: `{ versions: [{ fromVersion: "13.1.0", value: {...} }] }`
   - Automatic selection of highest qualifying version based on semantic version comparison
+  - New utility functions: `isMultiVersionFeatureFlagValue()`, `selectVersionFromMultiVersionFlag()`, `isVersionAtLeast()`
+  - Enhanced type safety with `VersionEntry` and `MultiVersionFeatureFlagValue` types
+  - Comprehensive validation ensures only properly structured version entries are processed
+
+### Changed
+
+- **BREAKING:** Add required `appVersion` parameter to constructor for version-based filtering (expects semantic version string of client app) ([#7227](https://github.com/MetaMask/core/pull/7227))
 
 ## [2.0.1]
 
