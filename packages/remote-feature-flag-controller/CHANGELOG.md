@@ -7,6 +7,37 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+### Added
+
+- Add override functionality to remote feature flags
+  - `setFlagOverride(flagName, value)` - Set a local override for a specific feature flag
+  - `getFlagOverride(flagName)` - Get the current override value for a specific feature flag
+  - `clearFlagOverride(flagName)` - Clear the local override for a specific feature flag
+  - `clearAllOverrides()` - Clear all local feature flag overrides
+  - `getFlag(flagName)` - Get the effective value of a feature flag (override takes precedence over remote)
+  - `getAllFlags()` - Get all effective feature flags, combining remote flags with local overrides
+- Add A/B test visibility functionality
+  - `getAvailableABTestGroups(flagName)` - Get available A/B test groups for a specific feature flag
+  - `getAllABTestFlags()` - Get all feature flags that have A/B test groups available
+- Add new controller state properties:
+  - `localOverrides` - Local overrides for feature flags that take precedence over remote flags
+  - `abTestRawFlags` - Raw A/B test flag arrays for flags that were processed from arrays to single values
+- Export additional controller action types:
+  - `RemoteFeatureFlagControllerSetFlagOverrideAction`
+  - `RemoteFeatureFlagControllerGetFlagOverrideAction`
+  - `RemoteFeatureFlagControllerClearFlagOverrideAction`
+  - `RemoteFeatureFlagControllerClearAllOverridesAction`
+  - `RemoteFeatureFlagControllerGetFlagAction`
+  - `RemoteFeatureFlagControllerGetAllFlagsAction`
+  - `RemoteFeatureFlagControllerGetAvailableABTestGroupsAction`
+  - `RemoteFeatureFlagControllerGetAllABTestFlagsAction`
+
+### Changed
+
+- Enhanced feature flag processing to preserve raw A/B test arrays for visibility and override capabilities
+- Local overrides now take precedence over remote feature flags when both exist
+- Controller state now includes metadata for new properties with appropriate persistence and logging settings
+
 ## [3.0.0]
 
 ### Added
