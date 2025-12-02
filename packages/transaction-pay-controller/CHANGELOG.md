@@ -11,6 +11,10 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 - Bump `@metamask/network-controller` from `^26.0.0` to `^27.0.0` ([#7258](https://github.com/MetaMask/core/pull/7258))
 
+### Fixed
+
+- Include `authorizationList` in Relay deposit tranasction if source and target chain are the same, and EIP-7702 upgrade is needed ([#7281](https://github.com/MetaMask/core/pull/7281))
+
 ## [10.2.0]
 
 ### Added

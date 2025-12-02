@@ -5,7 +5,7 @@ import { createModuleLogger } from '@metamask/utils';
 import { BigNumber } from 'bignumber.js';
 
 import { CHAIN_ID_HYPERCORE } from './constants';
-import type { RelayQuote } from './types';
+import type { RelayQuote, RelayQuoteRequest } from './types';
 import { TransactionPayStrategy } from '../..';
 import type { TransactionMeta } from '../../../../transaction-controller/src';
 import {
@@ -77,7 +77,7 @@ async function getSingleQuote(
   const { messenger, transaction } = fullRequest;
 
   try {
-    const body = {
+    const body: RelayQuoteRequest = {
       amount: request.targetAmountMinimum,
       destinationChainId: Number(request.targetChainId),
       destinationCurrency: request.targetTokenAddress,
@@ -101,6 +101,7 @@ async function getSingleQuote(
     });
 
     const quote = (await response.json()) as RelayQuote;
+    quote.request = body;
 
     log('Fetched relay quote', quote);
 
