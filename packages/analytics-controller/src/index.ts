@@ -2,6 +2,7 @@
 export {
   AnalyticsController,
   getDefaultAnalyticsControllerState,
+  controllerName,
 } from './AnalyticsController';
 export type { AnalyticsControllerOptions } from './AnalyticsController';
 
@@ -31,7 +32,6 @@ export type {
   AnalyticsControllerEvents,
   AnalyticsControllerGetStateAction,
   AnalyticsControllerStateChangeEvent,
-  controllerName,
 } from './AnalyticsController';
 export type {
   AnalyticsControllerTrackEventAction,
