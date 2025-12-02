@@ -35,7 +35,6 @@ export function selectVersionFromMultiVersionFlag(
   multiVersionFlag: MultiVersionFeatureFlagValue,
   currentAppVersion: string,
 ): VersionEntry | null {
-  // Filter versions where current app version meets the requirement
   const eligibleVersions = multiVersionFlag.versions.filter((versionEntry) =>
     isVersionAtLeast(currentAppVersion, versionEntry.fromVersion),
   );
@@ -44,9 +43,8 @@ export function selectVersionFromMultiVersionFlag(
     return null;
   }
 
-  // Sort by fromVersion in descending order and return the highest version
+  // Compare versions - we want the highest version that still qualifies hence the first sort is descending
   return eligibleVersions.sort((a, b) => {
-    // Compare versions - we want the highest version that still qualifies
     return isVersionAtLeast(a.fromVersion, b.fromVersion) ? -1 : 1;
   })[0];
 }
