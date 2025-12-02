@@ -68,7 +68,7 @@ const mockGetStakedBalanceForChain = async (addresses: string[]) =>
 const ADDRESS_1 = '0xc38bf1ad06ef69f0c04e29dbeb4152b4175f0a8d';
 const CHECKSUM_ADDRESS_1 = toChecksumHexAddress(ADDRESS_1);
 const ACCOUNT_1 = createMockInternalAccount({ address: ADDRESS_1 });
-const ADDRESS_2 = '0x742d35Cc6634C0532925a3b844Bc454e4438f44e';
+const ADDRESS_2 = '0x742d35cc6634c0532925a3b844bc454e4438f44e'; // lowercase for consistent caching
 const CHECKSUM_ADDRESS_2 = toChecksumHexAddress(ADDRESS_2);
 const ACCOUNT_2 = createMockInternalAccount({ address: ADDRESS_2 });
 const EMPTY_ACCOUNT = {
@@ -250,7 +250,7 @@ describe('AccountTrackerController', () => {
         mockedGetTokenBalancesForMultipleAddresses.mockResolvedValueOnce({
           tokenBalances: {
             '0x0000000000000000000000000000000000000000': {
-              [CHECKSUM_ADDRESS_1]: new BN('abcdef', 16),
+              [ADDRESS_1]: new BN('abcdef', 16),
             },
           },
           stakedBalances: {},
@@ -280,7 +280,7 @@ describe('AccountTrackerController', () => {
         mockedGetTokenBalancesForMultipleAddresses.mockResolvedValueOnce({
           tokenBalances: {
             '0x0000000000000000000000000000000000000000': {
-              [CHECKSUM_ADDRESS_1]: new BN('abcdef', 16),
+              [ADDRESS_1]: new BN('abcdef', 16),
             },
           },
           stakedBalances: {},
@@ -403,7 +403,7 @@ describe('AccountTrackerController', () => {
         mockedGetTokenBalancesForMultipleAddresses.mockResolvedValueOnce({
           tokenBalances: {
             '0x0000000000000000000000000000000000000000': {
-              [CHECKSUM_ADDRESS_1]: new BN('acac5457a3517e', 16), // checksum format when multi-account disabled
+              [ADDRESS_1]: new BN('acac5457a3517e', 16), // lowercase
             },
           },
           stakedBalances: {},
@@ -469,11 +469,11 @@ describe('AccountTrackerController', () => {
         mockedGetTokenBalancesForMultipleAddresses.mockResolvedValueOnce({
           tokenBalances: {
             '0x0000000000000000000000000000000000000000': {
-              [CHECKSUM_ADDRESS_1]: new BN('acac5457a3517e', 16),
+              [ADDRESS_1]: new BN('acac5457a3517e', 16),
             },
           },
           stakedBalances: {
-            [CHECKSUM_ADDRESS_1]: new BN('1', 16),
+            [ADDRESS_1]: new BN('1', 16),
           },
         });
 
@@ -509,11 +509,11 @@ describe('AccountTrackerController', () => {
 
       it('should not update staked balance when includeStakedAssets is disabled', async () => {
         // Mock for single address balance update (no staked balances)
-        // When multi-account is disabled, the fetcher requests checksum addresses
+        // Use lowercase addresses for consistent caching across controllers
         mockedGetTokenBalancesForMultipleAddresses.mockResolvedValueOnce({
           tokenBalances: {
             '0x0000000000000000000000000000000000000000': {
-              [CHECKSUM_ADDRESS_1]: new BN('acac5457a3517e', 16), // checksum format when multi-account disabled
+              [ADDRESS_1]: new BN('acac5457a3517e', 16), // lowercase
             },
           },
           stakedBalances: {}, // No staked balances when includeStakedAssets is false
@@ -757,7 +757,7 @@ describe('AccountTrackerController', () => {
         mockedGetTokenBalancesForMultipleAddresses.mockResolvedValueOnce({
           tokenBalances: {
             '0x0000000000000000000000000000000000000000': {
-              [CHECKSUM_ADDRESS_1]: new BN('10', 16), // checksum format when multi-account disabled
+              [ADDRESS_1]: new BN('10', 16), // lowercase
             },
           },
           stakedBalances: {},
@@ -843,11 +843,11 @@ describe('AccountTrackerController', () => {
         mockedGetTokenBalancesForMultipleAddresses.mockResolvedValueOnce({
           tokenBalances: {
             '0x0000000000000000000000000000000000000000': {
-              [CHECKSUM_ADDRESS_1]: new BN('acac5457a3517e', 16),
+              [ADDRESS_1]: new BN('acac5457a3517e', 16),
             },
           },
           stakedBalances: {
-            [CHECKSUM_ADDRESS_1]: new BN('1', 16),
+            [ADDRESS_1]: new BN('1', 16),
           },
         });
 
@@ -890,11 +890,11 @@ describe('AccountTrackerController', () => {
 
       it('should not update staked balance when includeStakedAssets is disabled', async () => {
         // Mock for single address balance update (no staked balances)
-        // When multi-account is disabled, the fetcher requests checksum addresses
+        // Use lowercase addresses for consistent caching across controllers
         mockedGetTokenBalancesForMultipleAddresses.mockResolvedValueOnce({
           tokenBalances: {
             '0x0000000000000000000000000000000000000000': {
-              [CHECKSUM_ADDRESS_1]: new BN('acac5457a3517e', 16), // checksum format when multi-account disabled
+              [ADDRESS_1]: new BN('acac5457a3517e', 16), // lowercase
             },
           },
           stakedBalances: {}, // No staked balances when includeStakedAssets is false

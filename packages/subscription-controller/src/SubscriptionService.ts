@@ -25,6 +25,8 @@ import type {
   UpdatePaymentMethodCardResponse,
   UpdatePaymentMethodCryptoRequest,
   SubmitSponsorshipIntentsRequest,
+  LinkRewardsRequest,
+  SubscriptionApiGeneralResponse,
 } from './types';
 
 export type SubscriptionServiceConfig = {
@@ -173,6 +175,24 @@ export class SubscriptionService implements ISubscriptionService {
   ): Promise<void> {
     const path = 'transaction-sponsorship/intents';
     await this.#makeRequest(path, 'POST', request);
+  }
+
+  /**
+   * Link rewards to a subscription.
+   *
+   * @param request - Request object containing the reward subscription ID.
+   * @example { rewardSubscriptionId: '1234567890' }
+   * @returns The response from the API.
+   */
+  async linkRewards(
+    request: LinkRewardsRequest,
+  ): Promise<SubscriptionApiGeneralResponse> {
+    const path = 'rewards/link';
+    return await this.#makeRequest<SubscriptionApiGeneralResponse>(
+      path,
+      'POST',
+      request,
+    );
   }
 
   async #makeRequest<Result>(
