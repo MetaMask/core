@@ -1208,10 +1208,7 @@ export class BridgeStatusController extends StaticIntervalPollingController<Brid
             quoteResponse.approval && isEvmTxData(quoteResponse.approval)
               ? quoteResponse.approval
               : undefined,
-            quoteResponse.resetApproval &&
-              isEvmTxData(quoteResponse.resetApproval)
-              ? quoteResponse.resetApproval
-              : undefined,
+            quoteResponse.resetApproval,
             requireApproval,
           );
 
