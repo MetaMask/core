@@ -75,6 +75,55 @@ describe('isMultiVersionFeatureFlagValue', () => {
     const flag = { otherProperty: [] };
     expect(isMultiVersionFeatureFlagValue(flag)).toBe(false);
   });
+
+  it('returns false when versions array contains invalid entries', () => {
+    const flagWithInvalidEntry = {
+      versions: [
+        { fromVersion: '13.1.0', value: { x: '12' } }, // valid
+        { fromVersion: 123, value: true }, // invalid: fromVersion is not string
+      ],
+    };
+    expect(isMultiVersionFeatureFlagValue(flagWithInvalidEntry)).toBe(false);
+  });
+
+  it('returns false when versions array contains entries missing required properties', () => {
+    const flagMissingFromVersion = {
+      versions: [
+        { value: { x: '12' } }, // missing fromVersion
+      ],
+    };
+    expect(isMultiVersionFeatureFlagValue(flagMissingFromVersion)).toBe(false);
+
+    const flagMissingValue = {
+      versions: [
+        { fromVersion: '13.1.0' }, // missing value
+      ],
+    };
+    expect(isMultiVersionFeatureFlagValue(flagMissingValue)).toBe(false);
+  });
+
+  it('returns false when versions array contains non-object entries', () => {
+    const flagWithPrimitives = {
+      versions: ['not-an-object', { fromVersion: '13.1.0', value: true }],
+    };
+    expect(isMultiVersionFeatureFlagValue(flagWithPrimitives)).toBe(false);
+
+    const flagWithNull = {
+      versions: [null, { fromVersion: '13.1.0', value: true }],
+    };
+    expect(isMultiVersionFeatureFlagValue(flagWithNull)).toBe(false);
+  });
+
+  it('returns true when all entries in versions array are valid', () => {
+    const validFlag = {
+      versions: [
+        { fromVersion: '13.1.0', value: { x: '12' } },
+        { fromVersion: '13.2.0', value: true },
+        { fromVersion: '13.0.5', value: 'string-value' },
+      ],
+    };
+    expect(isMultiVersionFeatureFlagValue(validFlag)).toBe(true);
+  });
 });
 
 describe('selectVersionFromMultiVersionFlag', () => {

@@ -19,7 +19,8 @@ export function isMultiVersionFeatureFlagValue(
     value !== null &&
     !Array.isArray(value) &&
     'versions' in value &&
-    Array.isArray(value.versions)
+    Array.isArray(value.versions) &&
+    value.versions.every(isValidVersionEntry)
   );
 }
 
@@ -91,4 +92,21 @@ export function isVersionAtLeast(
  */
 function normalizeVersion(version: string): number[] {
   return version.split('.').map(Number);
+}
+
+/**
+ * Checks if an object is a valid VersionEntry.
+ *
+ * @param entry - The object to check
+ * @returns true if the entry is a valid VersionEntry, false otherwise
+ */
+function isValidVersionEntry(entry: unknown): entry is VersionEntry {
+  return (
+    typeof entry === 'object' &&
+    entry !== null &&
+    !Array.isArray(entry) &&
+    'fromVersion' in entry &&
+    'value' in entry &&
+    typeof entry.fromVersion === 'string'
+  );
 }

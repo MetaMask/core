@@ -490,6 +490,48 @@ describe('RemoteFeatureFlagController', () => {
       expect(regularFeature).toStrictEqual({ enabled: true });
       expect(simpleFeature).toBe(true);
     });
+
+    it('excludes feature flags with invalid version entries', async () => {
+      const mockApiService = buildClientConfigApiService();
+      const mockFlags = {
+        invalidVersionFlag: {
+          versions: [
+            { fromVersion: 123, value: { x: '12' } }, // invalid: fromVersion not string
+            { value: { x: '13' } }, // invalid: missing fromVersion
+          ],
+        },
+        validFlag: {
+          versions: [{ fromVersion: '13.1.0', value: { x: '14' } }],
+        },
+        regularFeature: true,
+      };
+
+      jest.spyOn(mockApiService, 'fetchRemoteFeatureFlags').mockResolvedValue({
+        remoteFeatureFlags: mockFlags,
+        cacheTimestamp: Date.now(),
+      });
+
+      const controller = createController({
+        clientConfigApiService: mockApiService,
+        appVersion: '13.2.0',
+      });
+
+      await controller.updateRemoteFeatureFlags();
+
+      const { invalidVersionFlag, validFlag, regularFeature } =
+        controller.state.remoteFeatureFlags;
+      // Invalid version flag should be excluded entirely (treated as regular object)
+      expect(invalidVersionFlag).toStrictEqual({
+        versions: [
+          { fromVersion: 123, value: { x: '12' } },
+          { value: { x: '13' } },
+        ],
+      });
+      // Valid version flag should be processed
+      expect(validFlag).toStrictEqual({ x: '14' });
+      // Regular flag should remain unchanged
+      expect(regularFeature).toBe(true);
+    });
   });
 
   describe('getDefaultRemoteFeatureFlagControllerState', () => {
