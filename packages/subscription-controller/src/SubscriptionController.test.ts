@@ -238,6 +238,7 @@ function createMockSubscriptionService() {
   const mockSubmitUserEvent = jest.fn();
   const mockSubmitSponsorshipIntents = jest.fn();
   const mockAssignUserToCohort = jest.fn();
+  const mockLinkRewards = jest.fn();
 
   const mockService = {
     getSubscriptions: mockGetSubscriptions,
@@ -253,6 +254,7 @@ function createMockSubscriptionService() {
     submitUserEvent: mockSubmitUserEvent,
     submitSponsorshipIntents: mockSubmitSponsorshipIntents,
     assignUserToCohort: mockAssignUserToCohort,
+    linkRewards: mockLinkRewards,
   };
 
   return {
@@ -2236,6 +2238,41 @@ describe('SubscriptionController', () => {
           );
         },
       );
+    });
+  });
+
+  describe('linkRewards', () => {
+    it('should link rewards successfully', async () => {
+      await withController(async ({ controller, mockService }) => {
+        const linkRewardsSpy = jest
+          .spyOn(mockService, 'linkRewards')
+          .mockResolvedValue({
+            success: true,
+          });
+        const result = await controller.linkRewards({
+          rewardSubscriptionId: 'reward_sub_123',
+        });
+        expect(result).toStrictEqual({
+          success: true,
+        });
+        expect(linkRewardsSpy).toHaveBeenCalledWith({
+          rewardSubscriptionId: 'reward_sub_123',
+        });
+        expect(linkRewardsSpy).toHaveBeenCalledTimes(1);
+      });
+    });
+
+    it('should throw error when link rewards fails', async () => {
+      await withController(async ({ controller, mockService }) => {
+        mockService.linkRewards.mockResolvedValue({
+          success: false,
+        });
+        await expect(
+          controller.linkRewards({
+            rewardSubscriptionId: 'reward_sub_123',
+          }),
+        ).rejects.toThrow(SubscriptionControllerErrorMessage.LinkRewardsFailed);
+      });
     });
   });
 });

@@ -187,7 +187,7 @@ export class SubscriptionService implements ISubscriptionService {
   async linkRewards(
     request: LinkRewardsRequest,
   ): Promise<SubscriptionApiGeneralResponse> {
-    const path = 'rewards/link';
+    const path = 'subscriptions/rewards/link';
     return await this.#makeRequest<SubscriptionApiGeneralResponse>(
       path,
       'POST',

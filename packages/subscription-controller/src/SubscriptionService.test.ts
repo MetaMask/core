@@ -637,4 +637,27 @@ describe('SubscriptionService', () => {
       });
     });
   });
+
+  describe('linkRewards', () => {
+    it('should link rewards successfully', async () => {
+      await withMockSubscriptionService(async ({ service, config }) => {
+        handleFetchMock.mockResolvedValue({});
+
+        await service.linkRewards({
+          rewardSubscriptionId: 'reward_sub_123',
+        });
+
+        expect(handleFetchMock).toHaveBeenCalledWith(
+          SUBSCRIPTION_URL(config.env, 'subscriptions/rewards/link'),
+          {
+            method: 'POST',
+            headers: MOCK_HEADERS,
+            body: JSON.stringify({
+              rewardSubscriptionId: 'reward_sub_123',
+            }),
+          },
+        );
+      });
+    });
+  });
 });
