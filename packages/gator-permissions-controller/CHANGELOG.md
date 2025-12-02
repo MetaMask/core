@@ -9,8 +9,8 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ### Changed
 
-- **BREAKING:** Permission decoding now rejects `TimestampEnforcer` caveats with zero `timestampBeforeThreshold` values
-- Validation errors for `TimestampEnforcer` include: invalid terms length, non-zero `timestampAfterThreshold`, and zero `timestampBeforeThreshold`
+- **BREAKING:** Permission decoding now rejects `TimestampEnforcer` caveats with zero `timestampBeforeThreshold` values ([#7195](https://github.com/MetaMask/core/pull/7195))
+- Validation errors for `TimestampEnforcer` include: invalid terms length, non-zero `timestampAfterThreshold`, and zero `timestampBeforeThreshold` ([#7195](https://github.com/MetaMask/core/pull/7195))
 
 ## [0.7.0]
 
