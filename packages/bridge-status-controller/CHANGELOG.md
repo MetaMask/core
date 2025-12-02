@@ -11,6 +11,7 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ### Changed
 
+- **BREAKING:** Bump `@metamask/bridge-controller` from `^63.2.0` to `^64.0.0` ([#7295](https://github.com/MetaMask/core/pull/7295))
 - Improve type safety by replacing tx data type assertions with type predicates ([#7228](https://github.com/MetaMask/core/pull/7228))
 - Submit `resetApproval` tx before the tx approval if it is included in the quoteResponse ([#7228](https://github.com/MetaMask/core/pull/7228))
 - Bump `@metamask/network-controller` from `^26.0.0` to `^27.0.0` ([#7258](https://github.com/MetaMask/core/pull/7258))
