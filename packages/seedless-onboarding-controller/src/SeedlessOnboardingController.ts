@@ -441,14 +441,12 @@ export class SeedlessOnboardingController<
    * @param password - The password used to create new wallet and seedphrase
    * @param seedPhrase - The initial seed phrase (Mnemonic) created together with the wallet.
    * @param keyringId - The keyring id of the backup seed phrase
-   * @param dataType - Optional data type for categorizing the secret data. Defaults to PrimarySrp.
    * @returns A promise that resolves to the encrypted seed phrase and the encryption key.
    */
   async createToprfKeyAndBackupSeedPhrase(
     password: string,
     seedPhrase: Uint8Array,
     keyringId: string,
-    dataType: EncAccountDataType = EncAccountDataType.PrimarySrp,
   ): Promise<void> {
     return await this.#withControllerLock(async () => {
       // to make sure that fail fast,
@@ -469,7 +467,7 @@ export class SeedlessOnboardingController<
           authKeyPair,
           options: {
             keyringId,
-            dataType,
+            dataType: EncAccountDataType.PrimarySrp,
           },
         });
 

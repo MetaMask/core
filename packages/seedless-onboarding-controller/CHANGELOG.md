@@ -9,7 +9,6 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ### Added
 
-- Add optional `dataType` parameter to `createToprfKeyAndBackupSeedPhrase` method (defaults to `PrimarySrp` for backward compatibility)
 - Add optional `dataType` parameter to `addNewSecretData` method for categorizing secret data on insert
 - Add `updateSecretDataItem` method to update fields for existing items by `itemId`
 - Add `batchUpdateSecretDataItems` method to batch update fields for multiple items
