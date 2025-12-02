@@ -7,6 +7,10 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+### Uncategorized
+
+- Release 697.0.0 ([#7253](https://github.com/MetaMask/core/pull/7253))
+
 ### Added
 
 - Port `fetchTokens` and `type SwapsToken` from `@metamask/swaps-controller` and export them to allow deprecating `swaps-controller` while still supporting downstream consumers ([#7278](https://github.com/MetaMask/core/pull/7278))
