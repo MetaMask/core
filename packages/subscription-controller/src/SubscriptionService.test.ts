@@ -648,7 +648,7 @@ describe('SubscriptionService', () => {
         });
 
         expect(handleFetchMock).toHaveBeenCalledWith(
-          SUBSCRIPTION_URL(config.env, 'subscriptions/rewards/link'),
+          SUBSCRIPTION_URL(config.env, 'rewards/link'),
           {
             method: 'POST',
             headers: MOCK_HEADERS,
