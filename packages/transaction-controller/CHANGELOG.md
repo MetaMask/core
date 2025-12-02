@@ -7,6 +7,10 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+### Added
+
+- Add `overwriteUpgrade` option to `TransactionBatchRequest` to allow overwriting existing EIP-7702 delegations ([#7282](https://github.com/MetaMask/core/pull/7282))
+
 ### Changed
 
 - Bump `@metamask/network-controller` from `^26.0.0` to `^27.0.0` ([#7258](https://github.com/MetaMask/core/pull/7258))
