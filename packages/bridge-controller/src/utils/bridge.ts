@@ -14,9 +14,9 @@ import {
   DEFAULT_BRIDGE_CONTROLLER_STATE,
   ETH_USDT_ADDRESS,
   METABRIDGE_ETHEREUM_ADDRESS,
-  METASWAP_ETHEREUM_ADDRESS,
 } from '../constants/bridge';
 import { CHAIN_IDS } from '../constants/chains';
+import { SWAPS_CONTRACT_ADDRESSES } from '../constants/swaps';
 import {
   SWAPS_CHAINID_DEFAULT_TOKEN_MAP,
   SYMBOL_TO_SLIP44_MAP,
@@ -118,7 +118,7 @@ export const getEthUsdtResetData = (
 ) => {
   const spenderAddress = isCrossChain(CHAIN_IDS.MAINNET, destChainId)
     ? METABRIDGE_ETHEREUM_ADDRESS
-    : METASWAP_ETHEREUM_ADDRESS;
+    : SWAPS_CONTRACT_ADDRESSES[CHAIN_IDS.MAINNET];
   const UsdtContractInterface = new Contract(ETH_USDT_ADDRESS, abiERC20)
     .interface;
   const data = UsdtContractInterface.encodeFunctionData('approve', [

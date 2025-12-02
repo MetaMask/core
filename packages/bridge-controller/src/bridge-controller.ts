@@ -18,6 +18,7 @@ import {
   REFRESH_INTERVAL_MS,
 } from './constants/bridge';
 import { CHAIN_IDS } from './constants/chains';
+import { SWAPS_CONTRACT_ADDRESSES } from './constants/swaps';
 import { TraceName } from './constants/traces';
 import { selectIsAssetExchangeRateInState } from './selectors';
 import type { QuoteRequest } from './types';
@@ -78,7 +79,6 @@ import { isValidQuoteRequest, sortQuotes } from './utils/quote';
 import { appendFeesToQuotes } from './utils/quote-fees';
 import { getMinimumBalanceForRentExemptionInLamports } from './utils/snaps';
 import type { FeatureId } from './utils/validators';
-import { SWAPS_CONTRACT_ADDRESSES } from './constants/swaps';
 
 const metadata: StateMetadata<BridgeControllerState> = {
   quoteRequest: {
