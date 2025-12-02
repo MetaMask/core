@@ -7,13 +7,20 @@ import {
 } from './caip-formatters';
 import { fetchServerEvents } from './fetch-server-events';
 import type { FeatureId } from './validators';
-import { validateQuoteResponse, validateSwapsTokenObject } from './validators';
+import {
+  validateQuoteResponse,
+  validateSwapsAssetV2Object,
+  validateSwapsTokenObject,
+} from './validators';
 import type {
   QuoteResponse,
   FetchFunction,
   GenericQuoteRequest,
   QuoteRequest,
   BridgeAsset,
+  BridgeAssetV2,
+  TokenBalance,
+  MinimalAsset,
 } from '../types';
 
 export const getClientHeaders = (clientId: string, clientVersion?: string) => ({
@@ -38,7 +45,6 @@ export async function fetchBridgeTokens(
   bridgeApiBaseUrl: string,
   clientVersion?: string,
 ): Promise<Record<string, BridgeAsset>> {
-  // TODO make token api v2 call
   const url = `${bridgeApiBaseUrl}/getTokens?chainId=${formatChainIdToDec(chainId)}`;
 
   // TODO we will need to cache these. In Extension fetchWithCache is used. This is due to the following:
@@ -55,6 +61,146 @@ export async function fetchBridgeTokens(
     }
   });
   return transformedTokens;
+}
+
+/**
+ * Fetches a list of tokens sorted by balance, popularity and other criteria from the bridge-api
+ *
+ * @param params - The parameters for the fetchPopularTokens function
+ * @param params.chainIds - The chain IDs to fetch tokens for
+ * @param params.assetsWithBalances - The user's balances sorted by amount. This is used to add balance information to the returned tokens. These assets are returned first in the list in the same order as the input.
+ * @param params.clientId - The client ID for metrics
+ * @param params.fetchFn - The fetch function to use
+ * @param params.bridgeApiBaseUrl - The base URL for the bridge API
+ * @param params.clientVersion - The client version for metrics (optional)
+ * @param params.signal - The abort signal
+ * @returns A list of sorted tokens
+ */
+export async function fetchPopularTokens({
+  signal,
+  chainIds,
+  clientId,
+  fetchFn,
+  bridgeApiBaseUrl,
+  clientVersion,
+  assetsWithBalances,
+}: {
+  signal: AbortSignal;
+  chainIds: CaipChainId[];
+  clientId: string;
+  fetchFn: FetchFunction;
+  bridgeApiBaseUrl: string;
+  clientVersion?: string;
+  assetsWithBalances?: MinimalAsset[];
+}): Promise<BridgeAssetV2[]> {
+  const url = `${bridgeApiBaseUrl}/getTokens/popular`;
+
+  const tokens = await fetchFn(url, {
+    signal,
+    method: 'POST',
+    body: JSON.stringify({
+      chainIds,
+      includeAssets: assetsWithBalances,
+    }),
+    headers: {
+      ...getClientHeaders(clientId, clientVersion),
+      'Content-Type': 'application/json',
+    },
+  });
+
+  return tokens
+    .map((token: unknown) => (validateSwapsAssetV2Object(token) ? token : null))
+    .filter(Boolean);
+}
+
+/**
+ * Yields a list of matching tokens sorted by balance, popularity and other criteria from the bridge-api
+ *
+ * @param params - The parameters for the fetchTokensBySearchQuery function
+ * @param params.chainIds - The chain IDs to fetch tokens for
+ * @param params.query - The search query
+ * @param params.clientId - The client ID for metrics
+ * @param params.fetchFn - The fetch function to use
+ * @param params.bridgeApiBaseUrl - The base URL for the bridge API
+ * @param params.clientVersion - The client version for metrics (optional)
+ * @param params.assetsWithBalances - The assets to include in the search
+ * @param params.after - The cursor to start from
+ * @param params.signal - The abort signal
+ * @yields A list of sorted tokens
+ *
+ * @example
+ * const abortController = new AbortController();
+ * const searchResults = [];
+ * const tokens = fetchTokensBySearchQuery({
+ *   chainIds,
+ *   query,
+ *   clientId,
+ *   fetchFn,
+ *   bridgeApiBaseUrl,
+ *   clientVersion,
+ *   assetsWithBalances,
+ *   signal: abortController.signal,
+ * });
+ * for await (const tokens of tokens) {
+ *   searchResults.push(...tokens.map(addBalanceDisplayData));
+ * }
+ * return searchResults;
+ */
+export async function* fetchTokensBySearchQuery({
+  signal,
+  chainIds,
+  query,
+  clientId,
+  fetchFn,
+  bridgeApiBaseUrl,
+  clientVersion,
+  assetsWithBalances,
+  after,
+}: {
+  signal: AbortSignal;
+  chainIds: CaipChainId[];
+  query: string;
+  clientId: string;
+  fetchFn: FetchFunction;
+  bridgeApiBaseUrl: string;
+  clientVersion?: string;
+  assetsWithBalances?: MinimalAsset[];
+  after?: string;
+}): AsyncGenerator<BridgeAssetV2[]> {
+  const url = `${bridgeApiBaseUrl}/getTokens/search`;
+  const { data: tokens, pageInfo } = await fetchFn(url, {
+    method: 'POST',
+    body: JSON.stringify({
+      chainIds,
+      includeAssets: assetsWithBalances,
+      after,
+      query,
+    }),
+    signal,
+    headers: {
+      ...getClientHeaders(clientId, clientVersion),
+      'Content-Type': 'application/json',
+    },
+  });
+  const { hasNextPage, endCursor } = pageInfo;
+
+  yield tokens
+    .map((token: unknown) => (validateSwapsAssetV2Object(token) ? token : null))
+    .filter(Boolean);
+
+  if (hasNextPage) {
+    yield* fetchTokensBySearchQuery({
+      chainIds,
+      query,
+      clientId,
+      fetchFn,
+      bridgeApiBaseUrl,
+      clientVersion,
+      assetsWithBalances,
+      after: endCursor,
+      signal,
+    });
+  }
 }
 
 /**
