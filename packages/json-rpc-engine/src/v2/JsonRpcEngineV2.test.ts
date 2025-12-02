@@ -341,7 +341,7 @@ describe('JsonRpcEngineV2', () => {
           string | undefined,
           Context
         > = ({ context }) => {
-          return context.get('foo') as string | undefined;
+          return context.get('foo');
         };
         const engine = JsonRpcEngineV2.create({
           middleware: [middleware1, middleware2],

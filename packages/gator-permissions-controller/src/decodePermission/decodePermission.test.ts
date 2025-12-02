@@ -543,7 +543,7 @@ describe('decodePermission', () => {
         const caveats = [
           {
             enforcer: TimestampEnforcer,
-            terms: `0x${'0'.repeat(68)}` as Hex,
+            terms: `0x${'0'.repeat(68)}` as const,
             args: '0x',
           } as const,
           {

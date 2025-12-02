@@ -426,12 +426,7 @@ function ensureProperTransactionEnvelopeTypeProvided(
       break;
     case 'maxFeePerGas':
     case 'maxPriorityFeePerGas':
-      if (
-        type &&
-        !TRANSACTION_ENVELOPE_TYPES_FEE_MARKET.includes(
-          type as TransactionEnvelopeType,
-        )
-      ) {
+      if (type && !TRANSACTION_ENVELOPE_TYPES_FEE_MARKET.includes(type)) {
         throw rpcErrors.invalidParams(
           `Invalid transaction envelope type: specified type "${type}" but including maxFeePerGas and maxPriorityFeePerGas requires type: "${TRANSACTION_ENVELOPE_TYPES_FEE_MARKET.join(', ')}"`,
         );
@@ -439,12 +434,7 @@ function ensureProperTransactionEnvelopeTypeProvided(
       break;
     case 'gasPrice':
     default:
-      if (
-        type &&
-        TRANSACTION_ENVELOPE_TYPES_FEE_MARKET.includes(
-          type as TransactionEnvelopeType,
-        )
-      ) {
+      if (type && TRANSACTION_ENVELOPE_TYPES_FEE_MARKET.includes(type)) {
         throw rpcErrors.invalidParams(
           `Invalid transaction envelope type: specified type "${type}" but included a gasPrice instead of maxFeePerGas and maxPriorityFeePerGas`,
         );

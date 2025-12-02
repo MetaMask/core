@@ -217,8 +217,7 @@ describe('MultichainTrackingHelper', () => {
     it('refreshes the tracking map', () => {
       const { options, helper } = newMultichainTrackingHelper();
 
-      // eslint-disable-next-line @typescript-eslint/no-explicit-any
-      (options.onNetworkStateChange as any).mock.calls[0][0]({}, []);
+      options.onNetworkStateChange.mock.calls[0][0]({}, []);
 
       expect(options.getNetworkClientRegistry).toHaveBeenCalledTimes(1);
       expect(helper.has('mainnet')).toBe(true);
@@ -230,8 +229,7 @@ describe('MultichainTrackingHelper', () => {
     it('refreshes the tracking map and excludes removed networkClientIds in the patches', () => {
       const { options, helper } = newMultichainTrackingHelper();
 
-      // eslint-disable-next-line @typescript-eslint/no-explicit-any
-      (options.onNetworkStateChange as any).mock.calls[0][0]({}, [
+      options.onNetworkStateChange.mock.calls[0][0]({}, [
         {
           op: 'remove',
           path: ['networkConfigurations', 'mainnet'],

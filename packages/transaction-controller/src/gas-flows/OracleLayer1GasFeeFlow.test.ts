@@ -264,7 +264,7 @@ describe('OracleLayer1GasFeeFlow', () => {
               .add(bnFromHex(OPERATOR_FEE_MOCK))
               .toString(16),
           ),
-        ) as Hex,
+        ),
       });
     });
 

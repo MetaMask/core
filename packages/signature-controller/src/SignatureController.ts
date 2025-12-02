@@ -414,7 +414,7 @@ export class SignatureController extends BaseController<
 
     const normalizedMessageParams = normalizeTypedMessageParams(
       messageParams,
-      version as SignTypedDataVersion,
+      version,
     );
 
     return this.#processSignatureRequest({

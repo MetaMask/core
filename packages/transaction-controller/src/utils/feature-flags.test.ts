@@ -350,7 +350,7 @@ describe('Feature Flags Utils', () => {
       mockFeatureFlags({});
 
       const params = getAcceleratedPollingParams(
-        CHAIN_ID_MOCK as Hex,
+        CHAIN_ID_MOCK,
         controllerMessenger,
       );
 
@@ -375,7 +375,7 @@ describe('Feature Flags Utils', () => {
       });
 
       const params = getAcceleratedPollingParams(
-        CHAIN_ID_MOCK as Hex,
+        CHAIN_ID_MOCK,
         controllerMessenger,
       );
 
@@ -396,7 +396,7 @@ describe('Feature Flags Utils', () => {
       });
 
       const params = getAcceleratedPollingParams(
-        CHAIN_ID_MOCK as Hex,
+        CHAIN_ID_MOCK,
         controllerMessenger,
       );
 
@@ -423,7 +423,7 @@ describe('Feature Flags Utils', () => {
       });
 
       const params = getAcceleratedPollingParams(
-        CHAIN_ID_MOCK as Hex,
+        CHAIN_ID_MOCK,
         controllerMessenger,
       );
 
@@ -450,7 +450,7 @@ describe('Feature Flags Utils', () => {
       });
 
       const params = getAcceleratedPollingParams(
-        CHAIN_ID_MOCK as Hex,
+        CHAIN_ID_MOCK,
         controllerMessenger,
       );
 
@@ -477,7 +477,7 @@ describe('Feature Flags Utils', () => {
       });
 
       const params = getAcceleratedPollingParams(
-        CHAIN_ID_MOCK as Hex,
+        CHAIN_ID_MOCK,
         controllerMessenger,
       );
 

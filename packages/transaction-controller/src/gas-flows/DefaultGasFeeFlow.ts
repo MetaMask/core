@@ -44,15 +44,11 @@ export class DefaultGasFeeFlow implements GasFeeFlow {
         break;
       case GAS_ESTIMATE_TYPES.LEGACY:
         log('Using legacy estimates', gasFeeEstimates);
-        response = this.#getLegacyEstimates(
-          gasFeeEstimates as LegacyGasPriceEstimate,
-        );
+        response = this.#getLegacyEstimates(gasFeeEstimates);
         break;
       case GAS_ESTIMATE_TYPES.ETH_GASPRICE:
         log('Using eth_gasPrice estimates', gasFeeEstimates);
-        response = this.#getGasPriceEstimates(
-          gasFeeEstimates as EthGasPriceEstimate,
-        );
+        response = this.#getGasPriceEstimates(gasFeeEstimates);
         break;
       default:
         throw new Error(`Unsupported gas estimate type: ${gasEstimateType}`);
