@@ -1,4 +1,8 @@
-import { ORIGIN_METAMASK, successfulFetch } from '@metamask/controller-utils';
+import {
+  ORIGIN_METAMASK,
+  successfulFetch,
+  toHex,
+} from '@metamask/controller-utils';
 import {
   TransactionType,
   type TransactionMeta,
@@ -15,6 +19,8 @@ import type {
   TransactionPayControllerMessenger,
   TransactionPayQuote,
 } from '../../types';
+import type { FeatureFlags } from '../../utils/feature-flags';
+import { getFeatureFlags } from '../../utils/feature-flags';
 import {
   collectTransactionIds,
   getTransaction,
@@ -23,6 +29,7 @@ import {
 } from '../../utils/transaction';
 
 jest.mock('../../utils/transaction');
+jest.mock('../../utils/feature-flags');
 
 jest.mock('@metamask/controller-utils', () => ({
   ...jest.requireActual('@metamask/controller-utils'),
@@ -55,6 +62,7 @@ const ORIGINAL_QUOTE_MOCK = {
       },
     },
   },
+  request: {},
   steps: [
     {
       kind: 'transaction',
@@ -112,6 +120,7 @@ describe('Relay Submit Utils', () => {
   const successfulFetchMock = jest.mocked(successfulFetch);
   const getTransactionMock = jest.mocked(getTransaction);
   const collectTransactionIdsMock = jest.mocked(collectTransactionIds);
+  const getFeatureFlagsMock = jest.mocked(getFeatureFlags);
 
   const {
     addTransactionMock,
@@ -138,6 +147,12 @@ describe('Relay Submit Utils', () => {
 
     waitForTransactionConfirmedMock.mockResolvedValue();
     getTransactionMock.mockReturnValue(TRANSACTION_META_MOCK);
+
+    getFeatureFlagsMock.mockReturnValue({
+      relayFallbackGas: {
+        max: 123,
+      },
+    } as FeatureFlags);
 
     collectTransactionIdsMock.mockImplementation(
       (_chainId, _from, _messenger, fn) => {
@@ -188,6 +203,89 @@ describe('Relay Submit Utils', () => {
         expect.objectContaining({
           gasFeeToken: TOKEN_ADDRESS_MOCK,
         }),
+      );
+    });
+
+    it('adds transaction with authorization list if same chain and authorization list present', async () => {
+      request.quotes[0].original.details.currencyOut.currency.chainId = 1;
+      request.quotes[0].original.request = {
+        authorizationList: [
+          {
+            address: '0xabc' as Hex,
+            chainId: 1,
+            nonce: 2,
+            r: '0xr' as Hex,
+            s: '0xs' as Hex,
+            yParity: 1,
+          },
+          {
+            address: '0xdef' as Hex,
+            chainId: 1,
+            nonce: 3,
+            r: '0xr2' as Hex,
+            s: '0xs2' as Hex,
+            yParity: 0,
+          },
+        ],
+      } as never;
+
+      await submitRelayQuotes(request);
+
+      expect(addTransactionMock).toHaveBeenCalledTimes(1);
+      expect(addTransactionMock).toHaveBeenCalledWith(
+        expect.objectContaining({
+          authorizationList: [
+            {
+              address: '0xabc',
+              chainId: '0x1',
+            },
+            {
+              address: '0xdef',
+              chainId: '0x1',
+            },
+          ],
+        }),
+        expect.anything(),
+      );
+    });
+
+    it('does not add authorization list if different chains', async () => {
+      request.quotes[0].original.request = {
+        authorizationList: [
+          {
+            address: '0xabc' as Hex,
+            chainId: 1,
+            nonce: 2,
+            r: '0xr' as Hex,
+            s: '0xs' as Hex,
+            yParity: 1,
+          },
+        ],
+      } as never;
+
+      await submitRelayQuotes(request);
+
+      expect(addTransactionMock).toHaveBeenCalledTimes(1);
+      expect(addTransactionMock).toHaveBeenCalledWith(
+        expect.not.objectContaining({
+          authorizationList: expect.anything(),
+        }),
+        expect.anything(),
+      );
+    });
+
+    it('does not add authorization list if same chain but no authorization list', async () => {
+      request.quotes[0].original.details.currencyOut.currency.chainId = 1;
+      request.quotes[0].original.request = {} as never;
+
+      await submitRelayQuotes(request);
+
+      expect(addTransactionMock).toHaveBeenCalledTimes(1);
+      expect(addTransactionMock).toHaveBeenCalledWith(
+        expect.not.objectContaining({
+          authorizationList: expect.anything(),
+        }),
+        expect.anything(),
       );
     });
 
@@ -255,7 +353,7 @@ describe('Relay Submit Utils', () => {
       expect(addTransactionMock).toHaveBeenCalledTimes(1);
       expect(addTransactionMock).toHaveBeenCalledWith(
         expect.objectContaining({
-          gas: '0xdbba0',
+          gas: toHex(123),
           value: '0x0',
         }),
         expect.anything(),

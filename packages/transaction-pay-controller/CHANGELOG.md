@@ -7,6 +7,49 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+### Changed
+
+- Bump `@metamask/network-controller` from `^26.0.0` to `^27.0.0` ([#7258](https://github.com/MetaMask/core/pull/7258))
+
+### Fixed
+
+- Include `authorizationList` in Relay deposit tranasction if source and target chain are the same, and EIP-7702 upgrade is needed ([#7281](https://github.com/MetaMask/core/pull/7281))
+
+## [10.2.0]
+
+### Added
+
+- Use `relayDisabledGasStationChains` feature flag to disable gas station on specific source chains in Relay strategy ([#7255](https://github.com/MetaMask/core/pull/7255))
+
+### Changed
+
+- Bump `@metamask/assets-controllers` from `^91.0.0` to `^92.0.0` ([#7253](https://github.com/MetaMask/core/pull/7253))
+- Bump `@metamask/bridge-status-controller` from `^63.0.0` to `^63.1.0` ([#7245](https://github.com/MetaMask/core/pull/7245))
+- Bump `@metamask/transaction-controller` from `^62.2.0` to `^62.3.1` ([#7236](https://github.com/MetaMask/core/pull/7236), [#7257](https://github.com/MetaMask/core/pull/7257))
+- Bump `@metamask/bridge-controller` from `^63.0.0` to `^63.2.0` ([#7238](https://github.com/MetaMask/core/pull/7238), [#7245](https://github.com/MetaMask/core/pull/7245))
+
+## [10.1.0]
+
+### Added
+
+- Use new feature flags to configure gas limit fallback for Relay quotes ([#7229](https://github.com/MetaMask/core/pull/7229))
+  - Use gas fee properties from Relay quotes.
+
+### Changed
+
+- Move peer dependencies for controller and service packages to direct dependencies ([#7209](https://github.com/MetaMask/core/pull/7209), [#7220](https://github.com/MetaMask/core/pull/7220))
+  - The dependencies moved are:
+    - `@metamask/assets-controllers` (^91.0.0)
+    - `@metamask/bridge-controller` (^63.0.0)
+    - `@metamask/bridge-status-controller` (^63.0.0)
+    - `@metamask/gas-fee-controller` (^26.0.0)
+    - `@metamask/network-controller` (^26.0.0)
+    - `@metamask/remote-feature-flag-controller` (^2.0.1)
+    - `@metamask/transaction-controller` (^62.2.0)
+  - In clients, it is now possible for multiple versions of these packages to exist in the dependency tree.
+    - For example, this scenario would be valid: a client relies on `@metamask/controller-a` 1.0.0 and `@metamask/controller-b` 1.0.0, and `@metamask/controller-b` depends on `@metamask/controller-a` 1.1.0.
+  - Note, however, that the versions specified in the client's `package.json` always "win", and you are expected to keep them up to date so as not to break controller and service intercommunication.
+
 ## [10.0.0]
 
 ### Added
@@ -137,7 +180,9 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 - Initial release ([#6820](https://github.com/MetaMask/core/pull/6820))
 
-[Unreleased]: https://github.com/MetaMask/core/compare/@metamask/transaction-pay-controller@10.0.0...HEAD
+[Unreleased]: https://github.com/MetaMask/core/compare/@metamask/transaction-pay-controller@10.2.0...HEAD
+[10.2.0]: https://github.com/MetaMask/core/compare/@metamask/transaction-pay-controller@10.1.0...@metamask/transaction-pay-controller@10.2.0
+[10.1.0]: https://github.com/MetaMask/core/compare/@metamask/transaction-pay-controller@10.0.0...@metamask/transaction-pay-controller@10.1.0
 [10.0.0]: https://github.com/MetaMask/core/compare/@metamask/transaction-pay-controller@9.0.0...@metamask/transaction-pay-controller@10.0.0
 [9.0.0]: https://github.com/MetaMask/core/compare/@metamask/transaction-pay-controller@8.0.0...@metamask/transaction-pay-controller@9.0.0
 [8.0.0]: https://github.com/MetaMask/core/compare/@metamask/transaction-pay-controller@7.0.0...@metamask/transaction-pay-controller@8.0.0

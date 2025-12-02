@@ -2,6 +2,7 @@ import { Web3Provider } from '@ethersproject/providers';
 import type {
   AccountsControllerGetSelectedAccountAction,
   AccountsControllerListAccountsAction,
+  AccountsControllerSelectedEvmAccountChangeEvent,
 } from '@metamask/accounts-controller';
 import type {
   ControllerGetStateAction,
@@ -11,6 +12,7 @@ import type {
 import {
   BNToHex,
   isValidHexAddress,
+  safelyExecuteWithTimeout,
   toChecksumHexAddress,
   toHex,
 } from '@metamask/controller-utils';
@@ -32,6 +34,7 @@ import type {
   PreferencesControllerGetStateAction,
   PreferencesControllerStateChangeEvent,
 } from '@metamask/preferences-controller';
+import type { AuthenticationController } from '@metamask/profile-sync-controller';
 import type { Hex } from '@metamask/utils';
 import {
   isCaipAssetType,
@@ -130,7 +133,8 @@ export type AllowedActions =
   | AccountsControllerListAccountsAction
   | AccountTrackerControllerGetStateAction
   | AccountTrackerUpdateNativeBalancesAction
-  | AccountTrackerUpdateStakedBalancesAction;
+  | AccountTrackerUpdateStakedBalancesAction
+  | AuthenticationController.AuthenticationControllerGetBearerToken;
 
 export type AllowedEvents =
   | TokensControllerStateChangeEvent
@@ -138,7 +142,8 @@ export type AllowedEvents =
   | NetworkControllerStateChangeEvent
   | KeyringControllerAccountRemovedEvent
   | AccountActivityServiceBalanceUpdatedEvent
-  | AccountActivityServiceStatusChangedEvent;
+  | AccountActivityServiceStatusChangedEvent
+  | AccountsControllerSelectedEvmAccountChangeEvent;
 
 export type TokenBalancesControllerMessenger = Messenger<
   typeof CONTROLLER,
@@ -303,6 +308,9 @@ export class TokenBalancesController extends StaticIntervalPollingController<{
       state: { tokenBalances: {}, ...state },
     });
 
+    // Normalize all account addresses to lowercase in existing state
+    this.#normalizeAccountAddresses();
+
     this.#platform = platform ?? 'extension';
     this.#queryAllAccounts = queryMultipleAccounts;
     this.#accountsApiChainIds = accountsApiChainIds;
@@ -346,6 +354,10 @@ export class TokenBalancesController extends StaticIntervalPollingController<{
       'KeyringController:accountRemoved',
       this.#onAccountRemoved,
     );
+    this.messenger.subscribe(
+      'AccountsController:selectedEvmAccountChange',
+      this.#onAccountChanged,
+    );
 
     // Register action handlers for polling interval control
     this.messenger.registerActionHandler(
@@ -369,6 +381,54 @@ export class TokenBalancesController extends StaticIntervalPollingController<{
       'AccountActivityService:statusChanged',
       this.#onAccountActivityStatusChanged.bind(this),
     );
+  }
+
+  /**
+   * Normalize all account addresses to lowercase and merge duplicates
+   * This handles migration from old state where addresses might be checksummed
+   */
+  #normalizeAccountAddresses() {
+    const currentState = this.state.tokenBalances;
+    const normalizedBalances: TokenBalances = {};
+
+    // Iterate through all accounts and normalize to lowercase
+    for (const address of Object.keys(currentState)) {
+      const lowercaseAddress = address.toLowerCase() as ChecksumAddress;
+      const accountBalances = currentState[address as ChecksumAddress];
+
+      if (!accountBalances) {
+        continue;
+      }
+
+      // If this lowercase address doesn't exist yet, create it
+      if (!normalizedBalances[lowercaseAddress]) {
+        normalizedBalances[lowercaseAddress] = {};
+      }
+
+      // Merge chain data
+      for (const chainId of Object.keys(accountBalances)) {
+        const chainIdKey = chainId as ChainIdHex;
+
+        if (!normalizedBalances[lowercaseAddress][chainIdKey]) {
+          normalizedBalances[lowercaseAddress][chainIdKey] = {};
+        }
+
+        // Merge token balances (later values override earlier ones if duplicates exist)
+        Object.assign(
+          normalizedBalances[lowercaseAddress][chainIdKey],
+          accountBalances[chainIdKey],
+        );
+      }
+    }
+
+    // Only update if there were changes
+    if (
+      Object.keys(currentState).length !==
+        Object.keys(normalizedBalances).length ||
+      Object.keys(currentState).some((addr) => addr !== addr.toLowerCase())
+    ) {
+      this.update(() => ({ tokenBalances: normalizedBalances }));
+    }
   }
 
   #chainIdsWithTokens(): ChainIdHex[] {
@@ -640,6 +700,14 @@ export class TokenBalancesController extends StaticIntervalPollingController<{
     );
     const allAccounts = this.messenger.call('AccountsController:listAccounts');
 
+    const jwtToken = await safelyExecuteWithTimeout<string | undefined>(
+      () => {
+        return this.messenger.call('AuthenticationController:getBearerToken');
+      },
+      false,
+      5000,
+    );
+
     const aggregated: ProcessedBalance[] = [];
     let remainingChains = [...targetChains];
 
@@ -658,6 +726,7 @@ export class TokenBalancesController extends StaticIntervalPollingController<{
           queryAllAccounts: queryAllAccounts ?? this.#queryAllAccounts,
           selectedAccount: selected as ChecksumAddress,
           allAccounts,
+          jwtToken,
         });
 
         if (result.balances && result.balances.length > 0) {
@@ -744,17 +813,18 @@ export class TokenBalancesController extends StaticIntervalPollingController<{
       // Update with actual fetched balances only if the value has changed
       aggregated.forEach(({ success, value, account, token, chainId }) => {
         if (success && value !== undefined) {
+          // Ensure all accounts we add/update are in lower-case
+          const lowerCaseAccount = account.toLowerCase() as ChecksumAddress;
           const newBalance = toHex(value);
           const tokenAddress = checksum(token);
           const currentBalance =
-            d.tokenBalances[account as ChecksumAddress]?.[chainId]?.[
-              tokenAddress
-            ];
+            d.tokenBalances[lowerCaseAccount]?.[chainId]?.[tokenAddress];
 
           // Only update if the balance has actually changed
           if (currentBalance !== newBalance) {
-            ((d.tokenBalances[account as ChecksumAddress] ??= {})[chainId] ??=
-              {})[tokenAddress] = newBalance;
+            ((d.tokenBalances[lowerCaseAccount] ??= {})[chainId] ??= {})[
+              tokenAddress
+            ] = newBalance;
           }
         }
       });
@@ -1021,6 +1091,21 @@ export class TokenBalancesController extends StaticIntervalPollingController<{
     this.update((s) => {
       delete s.tokenBalances[addr as ChecksumAddress];
     });
+  };
+
+  /**
+   * Handle account selection changes
+   * Triggers immediate balance fetch to ensure we have the latest balances
+   * since WebSocket only provides updates for changes going forward
+   */
+  readonly #onAccountChanged = () => {
+    // Fetch balances for all chains with tokens when account changes
+    const chainIds = this.#chainIdsWithTokens();
+    if (chainIds.length > 0) {
+      this.updateBalances({ chainIds }).catch(() => {
+        // Silently handle polling errors
+      });
+    }
   };
 
   // ────────────────────────────────────────────────────────────────────────────

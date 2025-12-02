@@ -7,15 +7,14 @@ import {
   TransactionType,
   type TransactionParams,
 } from '@metamask/transaction-controller';
-import type { TransactionMeta } from '@metamask/transaction-controller';
+import type {
+  AuthorizationList,
+  TransactionMeta,
+} from '@metamask/transaction-controller';
 import type { Hex } from '@metamask/utils';
 import { createModuleLogger } from '@metamask/utils';
 
-import {
-  RELAY_FALLBACK_GAS_LIMIT,
-  RELAY_POLLING_INTERVAL,
-  RELAY_URL_BASE,
-} from './constants';
+import { RELAY_POLLING_INTERVAL, RELAY_URL_BASE } from './constants';
 import type { RelayQuote, RelayStatus } from './types';
 import { projectLogger } from '../../logger';
 import type {
@@ -23,6 +22,7 @@ import type {
   TransactionPayControllerMessenger,
   TransactionPayQuote,
 } from '../../types';
+import { getFeatureFlags } from '../../utils/feature-flags';
 import {
   collectTransactionIds,
   getTransaction,
@@ -150,15 +150,19 @@ async function waitForRelayCompletion(quote: RelayQuote): Promise<Hex> {
  * Normalize the parameters from a relay quote step to match TransactionParams.
  *
  * @param params - Parameters from a relay quote step.
+ * @param messenger - Controller messenger.
  * @returns Normalized transaction parameters.
  */
 function normalizeParams(
   params: RelayQuote['steps'][0]['items'][0]['data'],
+  messenger: TransactionPayControllerMessenger,
 ): TransactionParams {
+  const featureFlags = getFeatureFlags(messenger);
+
   return {
     data: params.data,
     from: params.from,
-    gas: toHex(params.gas ?? RELAY_FALLBACK_GAS_LIMIT),
+    gas: toHex(params.gas ?? featureFlags.relayFallbackGas.max),
     maxFeePerGas: toHex(params.maxFeePerGas),
     maxPriorityFeePerGas: toHex(params.maxPriorityFeePerGas),
     to: params.to,
@@ -187,7 +191,7 @@ async function submitTransactions(
     throw new Error(`Unsupported step kind: ${invalidKind}`);
   }
 
-  const normalizedParams = params.map(normalizeParams);
+  const normalizedParams = params.map((p) => normalizeParams(p, messenger));
 
   const transactionIds: string[] = [];
   const { from, sourceChainId, sourceTokenAddress } = quote.request;
@@ -234,10 +238,22 @@ async function submitTransactions(
     ? sourceTokenAddress
     : undefined;
 
+  const isSameChain =
+    quote.original.details.currencyIn.currency.chainId ===
+    quote.original.details.currencyOut.currency.chainId;
+
+  const authorizationList: AuthorizationList | undefined =
+    isSameChain && quote.original.request.authorizationList?.length
+      ? quote.original.request.authorizationList.map((a) => ({
+          address: a.address,
+          chainId: toHex(a.chainId),
+        }))
+      : undefined;
+
   if (params.length === 1) {
     result = await messenger.call(
       'TransactionController:addTransaction',
-      normalizedParams[0],
+      { ...normalizedParams[0], authorizationList },
       {
         gasFeeToken,
         networkClientId,

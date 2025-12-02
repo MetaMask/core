@@ -76,6 +76,7 @@
 /packages/polling-controller           @MetaMask/core-platform
 /packages/preferences-controller       @MetaMask/core-platform
 /packages/rate-limit-controller        @MetaMask/core-platform
+/packages/profile-metrics-controller   @MetaMask/core-platform
 
 ## Web3Auth Team
 /packages/seedless-onboarding-controller @MetaMask/web3auth
@@ -99,6 +100,7 @@
 /packages/permission-controller                 @MetaMask/wallet-integrations @MetaMask/core-platform
 /packages/permission-log-controller             @MetaMask/wallet-integrations @MetaMask/core-platform
 /packages/remote-feature-flag-controller        @MetaMask/extension-platform @MetaMask/mobile-platform @MetaMask/core-platform
+/packages/storage-service                       @MetaMask/extension-platform @MetaMask/mobile-platform @MetaMask/core-platform
 
 ## Package Release related
 /packages/account-tree-controller/package.json  @MetaMask/accounts-engineers @MetaMask/core-platform
@@ -167,6 +169,8 @@
 /packages/bridge-controller/CHANGELOG.md                 @MetaMask/swaps-engineers @MetaMask/core-platform
 /packages/remote-feature-flag-controller/package.json @MetaMask/extension-platform @MetaMask/mobile-platform @MetaMask/core-platform
 /packages/remote-feature-flag-controller/CHANGELOG.md @MetaMask/extension-platform @MetaMask/mobile-platform @MetaMask/core-platform
+/packages/storage-service/package.json @MetaMask/extension-platform @MetaMask/mobile-platform @MetaMask/core-platform
+/packages/storage-service/CHANGELOG.md @MetaMask/extension-platform @MetaMask/mobile-platform @MetaMask/core-platform
 /packages/bridge-status-controller/package.json         @MetaMask/swaps-engineers @MetaMask/core-platform
 /packages/bridge-status-controller/CHANGELOG.md         @MetaMask/swaps-engineers @MetaMask/core-platform
 /packages/app-metadata-controller/package.json        @MetaMask/mobile-platform @MetaMask/core-platform
