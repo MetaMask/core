@@ -1052,9 +1052,14 @@ describe('RemoteFeatureFlagController', () => {
           'testFlagForThreshold',
         );
         expect(groups).toBeDefined();
+        // Ensure groups is not undefined before accessing array elements
+        if (!groups) {
+          throw new Error('Expected groups to be defined');
+        }
+        expect(groups).toHaveLength(2); // Expecting 2 groups based on MOCK_FLAGS_WITH_THRESHOLD
 
         // Override with a specific group value
-        controller.setFlagOverride('testFlagForThreshold', groups![0].value); // groupA value
+        controller.setFlagOverride('testFlagForThreshold', groups[0].value); // groupA value
 
         expect(controller.getFlag('testFlagForThreshold')).toBe('valueA');
       });

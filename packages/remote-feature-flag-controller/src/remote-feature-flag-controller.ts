@@ -14,7 +14,7 @@ import type {
   FeatureFlagScopeValue,
   FeatureFlagScope,
 } from './remote-feature-flag-controller-types';
-import type { Json } from '@metamask/utils';
+
 import {
   generateDeterministicRandomNumber,
   isFeatureFlagWithScopeValue,
@@ -465,7 +465,7 @@ export class RemoteFeatureFlagController extends BaseController<
   getAvailableABTestGroups(
     flagName: string,
   ):
-    | Array<{ name: string; value: Json; scope?: FeatureFlagScope }>
+    | { name: string; value: Json; scope?: FeatureFlagScope }[]
     | undefined {
     const rawFlag = this.state.abTestRawFlags[flagName];
 
@@ -496,11 +496,11 @@ export class RemoteFeatureFlagController extends BaseController<
    */
   getAllABTestFlags(): Record<
     string,
-    Array<{ name: string; value: Json; scope?: FeatureFlagScope }>
+    { name: string; value: Json; scope?: FeatureFlagScope }[]
   > {
     const abTestFlags: Record<
       string,
-      Array<{ name: string; value: Json; scope?: FeatureFlagScope }>
+      { name: string; value: Json; scope?: FeatureFlagScope }[]
     > = {};
 
     for (const [flagName] of Object.entries(this.state.abTestRawFlags)) {
