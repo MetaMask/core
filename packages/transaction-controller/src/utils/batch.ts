@@ -299,6 +299,7 @@ async function addTransactionBatchWith7702(
     gasFeeToken,
     networkClientId,
     origin,
+    overwriteUpgrade,
     requireApproval,
     securityAlertId,
     skipInitialGasEstimate,
@@ -332,12 +333,18 @@ async function addTransactionBatchWith7702(
 
     log('Account', { delegationAddress, isSupported });
 
-    if (!isSupported && delegationAddress) {
+    if (!isSupported && delegationAddress && !overwriteUpgrade) {
       log('Account upgraded to unsupported contract', from, delegationAddress);
       throw rpcErrors.internal('Account upgraded to unsupported contract');
     }
 
     requiresUpgrade = !isSupported;
+
+    if (requiresUpgrade && delegationAddress) {
+      log('Overwriting authorization as already upgraded', {
+        current: delegationAddress,
+      });
+    }
   }
 
   const nestedTransactions = await Promise.all(

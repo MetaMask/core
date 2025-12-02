@@ -301,6 +301,7 @@ describe('Relay Submit Utils', () => {
         from: FROM_MOCK,
         networkClientId: NETWORK_CLIENT_ID_MOCK,
         origin: ORIGIN_METAMASK,
+        overwriteUpgrade: true,
         requireApproval: false,
         transactions: [
           {
