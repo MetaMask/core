@@ -12,6 +12,10 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 - Added new method, `linkRewards` to link rewards to the existing subscription. ([#7283](https://github.com/MetaMask/core/pull/7283))
 - Added an optional param, `rewardSubscriptionId` to start subscription requests to opt in to rewards together with the main subscription. ([#7283](https://github.com/MetaMask/core/pull/7283))
 
+### Changed
+
+- Bump `@metamask/transaction-controller` from `^62.3.1` to `^62.4.0` ([#7289](https://github.com/MetaMask/core/pull/7289))
+
 ## [5.2.0]
 
 ### Added
