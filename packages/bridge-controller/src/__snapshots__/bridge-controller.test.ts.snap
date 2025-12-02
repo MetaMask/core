@@ -955,6 +955,7 @@ Array [
       "token_address_source": "eip155:1/slip44:60",
       "token_symbol_destination": "USDC",
       "token_symbol_source": "ETH",
+      "usd_amount_source": 100,
     },
   ],
 ]

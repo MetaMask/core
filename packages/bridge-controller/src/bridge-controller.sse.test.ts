@@ -434,6 +434,7 @@ describe('BridgeController SSE', function () {
         token_symbol_source: 'ETH',
         token_symbol_destination: 'USDC',
         security_warnings: [],
+        usd_amount_source: 100,
       },
     );
     // Right after state update, before fetch has started
@@ -579,6 +580,7 @@ describe('BridgeController SSE', function () {
         token_symbol_source: 'ETH',
         token_symbol_destination: 'USDC',
         security_warnings: [],
+        usd_amount_source: 100,
       },
     );
 
