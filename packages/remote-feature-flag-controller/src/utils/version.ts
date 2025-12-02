@@ -1,9 +1,14 @@
 import type { Json } from '@metamask/utils';
 
-import type {
-  MultiVersionFeatureFlagValue,
-  VersionEntry,
-} from '../remote-feature-flag-controller-types';
+import type { MultiVersionFeatureFlagValue } from '../remote-feature-flag-controller-types';
+
+/**
+ * Constants for MultiVersionFeatureFlagValue property names
+ * to ensure consistency across validation, type checking, and other usage.
+ */
+export const MULTI_VERSION_FLAG_KEYS = {
+  VERSIONS: 'versions',
+} as const;
 
 /**
  * Checks if a feature flag value is a multi-version gated flag (contains versions array).
@@ -11,16 +16,26 @@ import type {
  * @param value - The feature flag value to check
  * @returns true if the value is a multi-version feature flag, false otherwise
  */
-export function isMultiVersionFeatureFlagValue(
+export function isVersionFeatureFlag(
   value: Json,
 ): value is MultiVersionFeatureFlagValue {
+  if (
+    typeof value !== 'object' ||
+    value === null ||
+    Array.isArray(value) ||
+    !(MULTI_VERSION_FLAG_KEYS.VERSIONS in value)
+  ) {
+    return false;
+  }
+
+  const versions = (value as Record<string, unknown>)[
+    MULTI_VERSION_FLAG_KEYS.VERSIONS
+  ];
+
   return (
-    typeof value === 'object' &&
-    value !== null &&
-    !Array.isArray(value) &&
-    'versions' in value &&
-    Array.isArray(value.versions) &&
-    value.versions.every(isValidVersionEntry)
+    typeof versions === 'object' &&
+    versions !== null &&
+    !Array.isArray(versions)
   );
 }
 
@@ -30,24 +45,25 @@ export function isMultiVersionFeatureFlagValue(
  *
  * @param multiVersionFlag - The multi-version feature flag
  * @param currentAppVersion - The current application version
- * @returns The selected version entry, or null if no version requirements are met
+ * @returns The selected version value, or null if no version requirements are met
  */
-export function selectVersionFromMultiVersionFlag(
+export function getVersionData(
   multiVersionFlag: MultiVersionFeatureFlagValue,
   currentAppVersion: string,
-): VersionEntry | null {
-  const eligibleVersions = multiVersionFlag.versions.filter((versionEntry) =>
-    isVersionAtLeast(currentAppVersion, versionEntry.fromVersion),
+): Json | null {
+  const sortedVersions = Object.entries(multiVersionFlag.versions).sort(
+    ([versionA], [versionB]) => {
+      return isVersionAtLeast(versionA, versionB) ? -1 : 1;
+    },
   );
 
-  if (eligibleVersions.length === 0) {
-    return null;
+  for (const [version, data] of sortedVersions) {
+    if (isVersionAtLeast(currentAppVersion, version)) {
+      return data;
+    }
   }
 
-  // Compare versions - we want the highest version that still qualifies hence the first sort is descending
-  return eligibleVersions.sort((a, b) => {
-    return isVersionAtLeast(a.fromVersion, b.fromVersion) ? -1 : 1;
-  })[0];
+  return null;
 }
 
 /**
@@ -92,21 +108,4 @@ export function isVersionAtLeast(
  */
 function normalizeVersion(version: string): number[] {
   return version.split('.').map(Number);
-}
-
-/**
- * Checks if an object is a valid VersionEntry.
- *
- * @param entry - The object to check
- * @returns true if the entry is a valid VersionEntry, false otherwise
- */
-function isValidVersionEntry(entry: unknown): entry is VersionEntry {
-  return (
-    typeof entry === 'object' &&
-    entry !== null &&
-    !Array.isArray(entry) &&
-    'fromVersion' in entry &&
-    'value' in entry &&
-    typeof entry.fromVersion === 'string'
-  );
 }

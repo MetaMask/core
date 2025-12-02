@@ -16,9 +16,9 @@ import {
   isFeatureFlagWithScopeValue,
 } from './utils/user-segmentation-utils';
 import {
-  isMultiVersionFeatureFlagValue,
-  selectVersionFromMultiVersionFlag,
-} from './utils/version-utils';
+  isVersionFeatureFlag,
+  getVersionData,
+} from './utils/version';
 
 // === GENERAL ===
 
@@ -115,7 +115,7 @@ export class RemoteFeatureFlagController extends BaseController<
 
   readonly #getMetaMetricsId: () => string;
 
-  readonly #appVersion: string;
+  readonly #clientVersion: string;
 
   /**
    * Constructs a new RemoteFeatureFlagController instance.
@@ -127,7 +127,7 @@ export class RemoteFeatureFlagController extends BaseController<
    * @param options.fetchInterval - The interval in milliseconds before cached flags expire. Defaults to 1 day.
    * @param options.disabled - Determines if the controller should be disabled initially. Defaults to false.
    * @param options.getMetaMetricsId - Returns metaMetricsId.
-   * @param options.appVersion - The current application version for version-based feature flag filtering.
+   * @param options.clientVersion - The current application version for version-based feature flag filtering.
    */
   constructor({
     messenger,
@@ -136,7 +136,7 @@ export class RemoteFeatureFlagController extends BaseController<
     fetchInterval = DEFAULT_CACHE_DURATION,
     disabled = false,
     getMetaMetricsId,
-    appVersion,
+    clientVersion,
   }: {
     messenger: RemoteFeatureFlagControllerMessenger;
     state?: Partial<RemoteFeatureFlagControllerState>;
@@ -144,7 +144,7 @@ export class RemoteFeatureFlagController extends BaseController<
     getMetaMetricsId: () => string;
     fetchInterval?: number;
     disabled?: boolean;
-    appVersion: string;
+    clientVersion: string;
   }) {
     super({
       name: controllerName,
@@ -160,7 +160,7 @@ export class RemoteFeatureFlagController extends BaseController<
     this.#disabled = disabled;
     this.#clientConfigApiService = clientConfigApiService;
     this.#getMetaMetricsId = getMetaMetricsId;
-    this.#appVersion = appVersion;
+    this.#clientVersion = clientVersion;
   }
 
   /**
@@ -231,17 +231,17 @@ export class RemoteFeatureFlagController extends BaseController<
     ] of Object.entries(remoteFeatureFlags)) {
       let processedValue = remoteFeatureFlagValue;
 
-      if (isMultiVersionFeatureFlagValue(remoteFeatureFlagValue)) {
-        const selectedVersion = selectVersionFromMultiVersionFlag(
+      if (isVersionFeatureFlag(remoteFeatureFlagValue)) {
+        const selectedValue = getVersionData(
           remoteFeatureFlagValue,
-          this.#appVersion,
+          this.#clientVersion,
         );
 
-        if (!selectedVersion) {
+        if (!selectedValue) {
           continue;
         }
 
-        processedValue = selectedVersion.value;
+        processedValue = selectedValue;
       }
 
       if (Array.isArray(remoteFeatureFlagValue) && thresholdValue) {

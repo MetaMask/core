@@ -65,7 +65,7 @@ function createController(
     clientConfigApiService: AbstractClientConfigApiService;
     disabled: boolean;
     getMetaMetricsId: () => string;
-    appVersion: string;
+    clientVersion: string;
   }> = {},
 ) {
   return new RemoteFeatureFlagController({
@@ -75,7 +75,7 @@ function createController(
       options.clientConfigApiService ?? buildClientConfigApiService(),
     disabled: options.disabled,
     getMetaMetricsId: options.getMetaMetricsId ?? (() => MOCK_METRICS_ID),
-    appVersion: options.appVersion ?? '13.10.0',
+    clientVersion: options.clientVersion ?? '13.10.0',
   });
 }
 
@@ -346,7 +346,7 @@ describe('RemoteFeatureFlagController', () => {
       const mockApiService = buildClientConfigApiService();
       const mockFlags = {
         singleVersionInArray: {
-          versions: [{ fromVersion: '13.1.0', value: { x: '12' } }],
+          versions: { '13.1.0': { x: '12' } },
         },
       };
 
@@ -357,7 +357,7 @@ describe('RemoteFeatureFlagController', () => {
 
       const controller = createController({
         clientConfigApiService: mockApiService,
-        appVersion: '13.2.0',
+        clientVersion: '13.2.0',
       });
 
       await controller.updateRemoteFeatureFlags();
@@ -370,11 +370,11 @@ describe('RemoteFeatureFlagController', () => {
       const mockApiService = buildClientConfigApiService();
       const mockFlags = {
         multiVersionFeature: {
-          versions: [
-            { fromVersion: '13.2.0', value: { x: '13' } },
-            { fromVersion: '13.1.0', value: { x: '12' } },
-            { fromVersion: '13.0.5', value: { x: '11' } },
-          ],
+          versions: {
+            '13.2.0': { x: '13' },
+            '13.1.0': { x: '12' },
+            '13.0.5': { x: '11' },
+          },
         },
       };
 
@@ -385,7 +385,7 @@ describe('RemoteFeatureFlagController', () => {
 
       const controller = createController({
         clientConfigApiService: mockApiService,
-        appVersion: '13.2.5',
+        clientVersion: '13.2.5',
       });
 
       await controller.updateRemoteFeatureFlags();
@@ -399,11 +399,11 @@ describe('RemoteFeatureFlagController', () => {
       const mockApiService = buildClientConfigApiService();
       const mockFlags = {
         multiVersionFeature: {
-          versions: [
-            { fromVersion: '13.2.0', value: { x: '13' } },
-            { fromVersion: '13.1.0', value: { x: '12' } },
-            { fromVersion: '13.0.5', value: { x: '11' } },
-          ],
+          versions: {
+            '13.2.0': { x: '13' },
+            '13.1.0': { x: '12' },
+            '13.0.5': { x: '11' },
+          },
         },
         regularFeature: true,
       };
@@ -415,7 +415,7 @@ describe('RemoteFeatureFlagController', () => {
 
       const controller = createController({
         clientConfigApiService: mockApiService,
-        appVersion: '13.1.5',
+        clientVersion: '13.1.5',
       });
 
       await controller.updateRemoteFeatureFlags();
@@ -431,10 +431,10 @@ describe('RemoteFeatureFlagController', () => {
       const mockApiService = buildClientConfigApiService();
       const mockFlags = {
         multiVersionFeature: {
-          versions: [
-            { fromVersion: '13.2.0', value: { x: '13' } },
-            { fromVersion: '13.1.0', value: { x: '12' } },
-          ],
+          versions: {
+            '13.2.0': { x: '13' },
+            '13.1.0': { x: '12' },
+          },
         },
         regularFeature: true,
       };
@@ -446,7 +446,7 @@ describe('RemoteFeatureFlagController', () => {
 
       const controller = createController({
         clientConfigApiService: mockApiService,
-        appVersion: '13.0.0',
+        clientVersion: '13.0.0',
       });
 
       await controller.updateRemoteFeatureFlags();
@@ -463,10 +463,10 @@ describe('RemoteFeatureFlagController', () => {
       const mockApiService = buildClientConfigApiService();
       const mockFlags = {
         multiVersionFeature: {
-          versions: [
-            { fromVersion: '13.2.0', value: { x: '13' } },
-            { fromVersion: '13.0.0', value: { x: '11' } },
-          ],
+          versions: {
+            '13.2.0': { x: '13' },
+            '13.0.0': { x: '11' },
+          },
         },
         regularFeature: { enabled: true },
         simpleFeature: true,
@@ -479,7 +479,7 @@ describe('RemoteFeatureFlagController', () => {
 
       const controller = createController({
         clientConfigApiService: mockApiService,
-        appVersion: '13.1.5',
+        clientVersion: '13.1.5',
       });
 
       await controller.updateRemoteFeatureFlags();
@@ -491,17 +491,20 @@ describe('RemoteFeatureFlagController', () => {
       expect(simpleFeature).toBe(true);
     });
 
-    it('excludes feature flags with invalid version entries', async () => {
+    it('excludes feature flags with invalid version structure and processes valid ones', async () => {
       const mockApiService = buildClientConfigApiService();
       const mockFlags = {
         invalidVersionFlag: {
-          versions: [
-            { fromVersion: 123, value: { x: '12' } }, // invalid: fromVersion not string
-            { fromVersion: null, value: { x: '13' } }, // invalid: fromVersion is null
-          ],
+          versions: 'not-an-object', // Invalid: versions should be an object
+        },
+        validVersionFlag: {
+          versions: {
+            '13.1.0': { x: '12' },
+            '13.2.0': { x: '13' },
+          },
         },
         validFlag: {
-          versions: [{ fromVersion: '13.1.0', value: { x: '14' } }],
+          versions: { '13.1.0': { x: '14' } },
         },
         regularFeature: true,
       };
@@ -513,20 +516,22 @@ describe('RemoteFeatureFlagController', () => {
 
       const controller = createController({
         clientConfigApiService: mockApiService,
-        appVersion: '13.2.0',
+        clientVersion: '13.2.0',
       });
 
       await controller.updateRemoteFeatureFlags();
 
-      const { invalidVersionFlag, validFlag, regularFeature } =
-        controller.state.remoteFeatureFlags;
-      // Invalid version flag should be excluded entirely (treated as regular object)
+      const {
+        invalidVersionFlag,
+        validVersionFlag,
+        validFlag,
+        regularFeature,
+      } = controller.state.remoteFeatureFlags;
       expect(invalidVersionFlag).toStrictEqual({
-        versions: [
-          { fromVersion: 123, value: { x: '12' } },
-          { fromVersion: null, value: { x: '13' } },
-        ],
+        versions: 'not-an-object', // Should remain unprocessed
       });
+      // Valid version flag should be processed and return highest eligible version
+      expect(validVersionFlag).toStrictEqual({ x: '13' });
       // Valid version flag should be processed
       expect(validFlag).toStrictEqual({ x: '14' });
       // Regular flag should remain unchanged

@@ -24,15 +24,9 @@ export enum EnvironmentType {
   Exp = 'exp',
 }
 
-/** Type representing a single version entry in a version-gated feature flag */
-export type VersionEntry = {
-  fromVersion: string;
-  value: Json;
-};
-
 /** Type representing a feature flag with multiple version entries */
 export type MultiVersionFeatureFlagValue = {
-  versions: VersionEntry[];
+  versions: Record<string, Json>;
 };
 
 /** Type representing the feature flags collection */
