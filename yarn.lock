@@ -3053,8 +3053,8 @@ __metadata:
     "@types/lodash": "npm:^4.14.191"
     "@types/node": "npm:^16.18.54"
     "@types/semver": "npm:^7"
-    "@typescript-eslint/eslint-plugin": "npm:^8.39.0"
-    "@typescript-eslint/parser": "npm:^8.39.0"
+    "@typescript-eslint/eslint-plugin": "npm:^8.48.0"
+    "@typescript-eslint/parser": "npm:^8.48.0"
     "@yarnpkg/types": "npm:^4.0.0"
     babel-jest: "npm:^29.7.0"
     depcheck: "npm:^1.4.7"
@@ -3081,7 +3081,7 @@ __metadata:
     simple-git-hooks: "npm:^2.8.0"
     tsx: "npm:^4.20.5"
     typescript: "npm:~5.3.3"
-    typescript-eslint: "npm:^8.39.0"
+    typescript-eslint: "npm:^8.48.0"
     yargs: "npm:^17.7.2"
   languageName: unknown
   linkType: soft
@@ -6197,7 +6197,7 @@ __metadata:
   languageName: node
   linkType: hard
 
-"@typescript-eslint/eslint-plugin@npm:8.48.0, @typescript-eslint/eslint-plugin@npm:^8.39.0":
+"@typescript-eslint/eslint-plugin@npm:8.48.0, @typescript-eslint/eslint-plugin@npm:^8.48.0":
   version: 8.48.0
   resolution: "@typescript-eslint/eslint-plugin@npm:8.48.0"
   dependencies:
@@ -6218,7 +6218,7 @@ __metadata:
   languageName: node
   linkType: hard
 
-"@typescript-eslint/parser@npm:8.48.0, @typescript-eslint/parser@npm:^8.39.0":
+"@typescript-eslint/parser@npm:8.48.0, @typescript-eslint/parser@npm:^8.48.0":
   version: 8.48.0
   resolution: "@typescript-eslint/parser@npm:8.48.0"
   dependencies:
@@ -13834,7 +13834,7 @@ __metadata:
   languageName: node
   linkType: hard
 
-"typescript-eslint@npm:^8.39.0":
+"typescript-eslint@npm:^8.48.0":
   version: 8.48.0
   resolution: "typescript-eslint@npm:8.48.0"
   dependencies:
