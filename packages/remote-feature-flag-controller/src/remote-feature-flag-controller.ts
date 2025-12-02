@@ -4,6 +4,7 @@ import {
   type ControllerStateChangeEvent,
 } from '@metamask/base-controller';
 import type { Messenger } from '@metamask/messenger';
+import type { Json } from '@metamask/utils';
 
 import type { AbstractClientConfigApiService } from './client-config-api-service/abstract-client-config-api-service';
 import type {
@@ -15,10 +16,7 @@ import {
   generateDeterministicRandomNumber,
   isFeatureFlagWithScopeValue,
 } from './utils/user-segmentation-utils';
-import {
-  isVersionFeatureFlag,
-  getVersionData,
-} from './utils/version';
+import { isVersionFeatureFlag, getVersionData } from './utils/version';
 
 // === GENERAL ===
 
@@ -218,6 +216,20 @@ export class RemoteFeatureFlagController extends BaseController<
     });
   }
 
+  /**
+   * Processes a version-based feature flag to get the appropriate value for the current client version.
+   *
+   * @param flagValue - The feature flag value to process
+   * @returns The processed value, or null if no version qualifies (skip this flag)
+   */
+  #processVersionBasedFlag(flagValue: Json): Json | null {
+    if (!isVersionFeatureFlag(flagValue)) {
+      return flagValue;
+    }
+
+    return getVersionData(flagValue, this.#clientVersion);
+  }
+
   async #processRemoteFeatureFlags(
     remoteFeatureFlags: FeatureFlags,
   ): Promise<FeatureFlags> {
@@ -231,18 +243,13 @@ export class RemoteFeatureFlagController extends BaseController<
     ] of Object.entries(remoteFeatureFlags)) {
       let processedValue = remoteFeatureFlagValue;
 
-      if (isVersionFeatureFlag(remoteFeatureFlagValue)) {
-        const selectedValue = getVersionData(
-          remoteFeatureFlagValue,
-          this.#clientVersion,
-        );
-
-        if (!selectedValue) {
-          continue;
-        }
-
-        processedValue = selectedValue;
+      const versionBasedValue = this.#processVersionBasedFlag(
+        remoteFeatureFlagValue,
+      );
+      if (versionBasedValue === null) {
+        continue;
       }
+      processedValue = versionBasedValue;
 
       if (Array.isArray(remoteFeatureFlagValue) && thresholdValue) {
         const selectedGroup = remoteFeatureFlagValue.find(
