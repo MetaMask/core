@@ -267,6 +267,7 @@ async function submitTransactions(
       gasFeeToken,
       networkClientId,
       origin: ORIGIN_METAMASK,
+      overwriteUpgrade: true,
       requireApproval: false,
       transactions: normalizedParams.map((p, i) => ({
         params: {
