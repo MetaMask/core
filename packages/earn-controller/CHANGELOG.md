@@ -7,14 +7,6 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
-### Uncategorized
-
-- Release 703.0.0 ([#7289](https://github.com/MetaMask/core/pull/7289))
-- Release 698.0.0 ([#7257](https://github.com/MetaMask/core/pull/7257))
-- Release 693.0.0 ([#7236](https://github.com/MetaMask/core/pull/7236))
-- Release/691.0.0 ([#7220](https://github.com/MetaMask/core/pull/7220))
-- Release 690.0.0 ([#7215](https://github.com/MetaMask/core/pull/7215))
-
 ### Changed
 
 - Move peer dependencies for controller and service packages to direct dependencies ([#7209](https://github.com/MetaMask/core/pull/7209), [#7258](https://github.com/MetaMask/core/pull/7258))
