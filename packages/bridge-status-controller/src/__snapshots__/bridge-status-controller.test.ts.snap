@@ -1968,11 +1968,11 @@ exports[`BridgeStatusController submitTx: EVM bridge should reset USDT allowance
 Array [
   Array [
     Object {
-      "chainId": "0xa4b1",
+      "chainId": "0x1",
       "networkClientId": "arbitrum-client-id",
       "transactionParams": Object {
-        "chainId": "0xa4b1",
-        "data": "0x095ea7b30000000000000000000000000439e60f02a8900a951603950d8d4527f400c3f10000000000000000000000000000000000000000000000000000000000000000",
+        "chainId": "0x1",
+        "data": "0x095ea7b3000000000000000000000000881d40237659c251811cec9c364ef91dc08d300c0000000000000000000000000000000000000000000000000000000000000000",
         "from": "0xaccount1",
         "gas": "21000",
         "gasLimit": "21000",
@@ -2018,8 +2018,8 @@ exports[`BridgeStatusController submitTx: EVM bridge should reset USDT allowance
 Array [
   Array [
     Object {
-      "chainId": "0xa4b1",
-      "data": "0x095ea7b30000000000000000000000000439e60f02a8900a951603950d8d4527f400c3f10000000000000000000000000000000000000000000000000000000000000000",
+      "chainId": "0x1",
+      "data": "0x095ea7b3000000000000000000000000881d40237659c251811cec9c364ef91dc08d300c0000000000000000000000000000000000000000000000000000000000000000",
       "from": "0xaccount1",
       "gas": "0x5208",
       "gasLimit": "21000",
@@ -2114,17 +2114,12 @@ Array [
     },
   ],
   Array [
-    "BridgeController:getBridgeERC20Allowance",
-    "0x0000000000000000000000000000000000000000",
-    "0xa4b1",
-  ],
-  Array [
     "AccountsController:getAccountByAddress",
     "0xaccount1",
   ],
   Array [
     "NetworkController:findNetworkClientIdByChainId",
-    "0xa4b1",
+    "0x1",
   ],
   Array [
     "GasFeeController:getState",
