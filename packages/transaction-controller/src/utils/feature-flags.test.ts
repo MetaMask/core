@@ -71,6 +71,8 @@ describe('Feature Flags Utils', () => {
     getFeatureFlagsMock.mockReturnValue({
       cacheTimestamp: 0,
       remoteFeatureFlags: featureFlags,
+      abTestRawFlags: {},
+      localOverrides: {},
     });
   }
 
