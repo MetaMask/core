@@ -72,7 +72,7 @@ describe('JsonRpcEngineV2', () => {
       // between these two cases:
       // - JsonRpcMiddleware<JsonRpcRequest> | JsonRpcMiddleware<JsonRpcNotification> (invalid)
       // - JsonRpcMiddleware<JsonRpcRequest> | JsonRpcMiddleware<JsonRpcCall> (valid)
-      expect(await engine.handle(makeRequest() as JsonRpcRequest)).toBe('foo');
+      expect(await engine.handle(makeRequest())).toBe('foo');
     });
   });
 
@@ -811,9 +811,10 @@ describe('JsonRpcEngineV2', () => {
 
       it('eagerly processes requests in parallel, i.e. without queueing them', async () => {
         const queue = makeArbitraryQueue(3);
-        const middleware: JsonRpcMiddleware<
-          JsonRpcRequest & { id: number }
-        > = async ({ request }) => {
+        type NumericIdRequest = JsonRpcRequest & { id: number };
+        const middleware: JsonRpcMiddleware<NumericIdRequest> = async ({
+          request,
+        }) => {
           await queue.enqueue(request.id);
           return null;
         };
@@ -821,9 +822,9 @@ describe('JsonRpcEngineV2', () => {
           middleware: [middleware],
         });
 
-        const p0 = engine.handle(makeRequest({ id: 0 }));
-        const p1 = engine.handle(makeRequest({ id: 1 }));
-        const p2 = engine.handle(makeRequest({ id: 2 }));
+        const p0 = engine.handle(makeRequest<NumericIdRequest>({ id: 0 }));
+        const p1 = engine.handle(makeRequest<NumericIdRequest>({ id: 1 }));
+        const p2 = engine.handle(makeRequest<NumericIdRequest>({ id: 2 }));
 
         await queue.filled();
 
@@ -1210,7 +1211,7 @@ describe('JsonRpcEngineV2', () => {
         );
         await expect(
           // @ts-expect-error - Invalid at runtime and should cause a type error
-          engine.handle(makeRequest() as JsonRpcRequest),
+          engine.handle(makeRequest<JsonRpcRequest>()),
         ).rejects.toThrow(
           new JsonRpcEngineError(
             `Nothing ended request: ${stringify(makeRequest())}`,
