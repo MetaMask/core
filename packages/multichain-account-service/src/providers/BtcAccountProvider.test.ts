@@ -96,6 +96,11 @@ class MockBtcKeyring {
       return account;
     });
 }
+class MockBtcAccountProvider extends BtcAccountProvider {
+  override async ensureSnapPlatformIsReady(): Promise<void> {
+    // Override to avoid waiting during tests.
+  }
+}
 
 /**
  * Sets up a BtcAccountProvider for testing.
@@ -153,7 +158,7 @@ function setup({
   const multichainMessenger = getMultichainAccountServiceMessenger(messenger);
   const provider = new AccountProviderWrapper(
     multichainMessenger,
-    new BtcAccountProvider(multichainMessenger),
+    new MockBtcAccountProvider(multichainMessenger),
   );
 
   return {
@@ -348,7 +353,7 @@ describe('BtcAccountProvider', () => {
 
       const multichainMessenger =
         getMultichainAccountServiceMessenger(messenger);
-      const btcProvider = new BtcAccountProvider(
+      const btcProvider = new MockBtcAccountProvider(
         multichainMessenger,
         undefined,
         mockTrace,
@@ -400,7 +405,7 @@ describe('BtcAccountProvider', () => {
 
       const multichainMessenger =
         getMultichainAccountServiceMessenger(messenger);
-      const btcProvider = new BtcAccountProvider(
+      const btcProvider = new MockBtcAccountProvider(
         multichainMessenger,
         undefined,
         mockTrace,
@@ -433,7 +438,7 @@ describe('BtcAccountProvider', () => {
 
       const multichainMessenger =
         getMultichainAccountServiceMessenger(messenger);
-      const btcProvider = new BtcAccountProvider(
+      const btcProvider = new MockBtcAccountProvider(
         multichainMessenger,
         undefined,
         mockTrace,
