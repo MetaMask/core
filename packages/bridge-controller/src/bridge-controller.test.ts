@@ -589,6 +589,7 @@ describe('BridgeController', function () {
         token_symbol_source: 'ETH',
         token_symbol_destination: 'USDC',
         security_warnings: [],
+        usd_amount_source: 100,
       },
     );
     await flushPromises();
@@ -2205,6 +2206,7 @@ describe('BridgeController', function () {
           security_warnings: [],
           token_symbol_source: 'ETH',
           token_symbol_destination: 'USDC',
+          usd_amount_source: 100,
         },
       );
       jest.clearAllMocks();
@@ -2652,6 +2654,7 @@ describe('BridgeController', function () {
           stx_enabled: false,
           security_warnings: [],
           token_symbol_source: 'ETH',
+          usd_amount_source: 100,
           token_symbol_destination: 'USDC',
         },
       );
