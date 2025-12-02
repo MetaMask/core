@@ -34,6 +34,7 @@ import {
   MISSING_PROVIDER_ERROR,
 } from './AssetsContractController';
 import { SupportedTokenDetectionNetworks } from './assetsUtil';
+import * as multicallModule from './multicall';
 import { mockNetwork } from '../../../tests/mock-network';
 import { buildInfuraNetworkClientConfiguration } from '../../network-controller/tests/helpers';
 
@@ -1163,6 +1164,102 @@ describe('AssetsContractController', () => {
       [ERC20_SAI_ADDRESS],
     );
     expect(noBalances).toStrictEqual({});
+    messenger.clearEventSubscriptions('NetworkController:networkDidChange');
+  });
+
+  it('should get balance of ERC-20 tokens using multicall with broader chain support', async () => {
+    const { assetsContract, messenger, provider } =
+      await setupAssetContractControllers();
+    assetsContract.setProvider(provider);
+
+    // Mock aggregate3 to return successful results
+    jest.spyOn(multicallModule, 'aggregate3').mockResolvedValue([
+      {
+        success: true,
+        returnData:
+          '0x000000000000000000000000000000000000000000000733ed8ef4c4a0155d09',
+      },
+      {
+        success: true,
+        returnData:
+          '0x000000000000000000000000000000000000000000000a0155d09733ed8ef4c4',
+      },
+    ]);
+
+    const balances = await messenger.call(
+      'AssetsContractController:getBalancesUsingMulticall',
+      TEST_ACCOUNT_PUBLIC_ADDRESS,
+      [ERC20_SAI_ADDRESS, ERC20_DAI_ADDRESS],
+    );
+
+    expect(balances[ERC20_SAI_ADDRESS]).toBeDefined();
+    expect(balances[ERC20_DAI_ADDRESS]).toBeDefined();
+    messenger.clearEventSubscriptions('NetworkController:networkDidChange');
+  });
+
+  it('should return empty object when no tokens provided to multicall', async () => {
+    const { assetsContract, messenger, provider } =
+      await setupAssetContractControllers();
+    assetsContract.setProvider(provider);
+
+    const balances = await messenger.call(
+      'AssetsContractController:getBalancesUsingMulticall',
+      TEST_ACCOUNT_PUBLIC_ADDRESS,
+      [],
+    );
+
+    expect(balances).toStrictEqual({});
+    // Verify the method was called with correct params
+    expect(assetsContract.getBalancesUsingMulticall).toBeDefined();
+  });
+
+  it('should filter out zero balances when using multicall', async () => {
+    const { assetsContract, messenger, provider } =
+      await setupAssetContractControllers();
+    assetsContract.setProvider(provider);
+
+    // Mock aggregate3 with one zero balance and one non-zero balance
+    jest.spyOn(multicallModule, 'aggregate3').mockResolvedValue([
+      {
+        success: true,
+        returnData:
+          '0x0000000000000000000000000000000000000000000000000000000000000000', // Zero balance
+      },
+      {
+        success: true,
+        returnData:
+          '0x000000000000000000000000000000000000000000000733ed8ef4c4a0155d09',
+      },
+    ]);
+
+    const balances = await messenger.call(
+      'AssetsContractController:getBalancesUsingMulticall',
+      TEST_ACCOUNT_PUBLIC_ADDRESS,
+      [ERC20_UNI_ADDRESS, ERC20_SAI_ADDRESS],
+    );
+
+    expect(balances[ERC20_UNI_ADDRESS]).toBeUndefined();
+    expect(balances[ERC20_SAI_ADDRESS]).toBeDefined();
+    messenger.clearEventSubscriptions('NetworkController:networkDidChange');
+  });
+
+  it('should handle multicall errors gracefully and return empty object', async () => {
+    const { assetsContract, messenger, provider } =
+      await setupAssetContractControllers();
+    assetsContract.setProvider(provider);
+
+    // Mock aggregate3 to throw an error
+    jest
+      .spyOn(multicallModule, 'aggregate3')
+      .mockRejectedValue(new Error('Multicall contract reverted'));
+
+    const balances = await messenger.call(
+      'AssetsContractController:getBalancesUsingMulticall',
+      TEST_ACCOUNT_PUBLIC_ADDRESS,
+      [ERC20_SAI_ADDRESS],
+    );
+
+    expect(balances).toStrictEqual({});
     messenger.clearEventSubscriptions('NetworkController:networkDidChange');
   });
 
