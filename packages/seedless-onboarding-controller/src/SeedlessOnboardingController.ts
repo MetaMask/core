@@ -538,14 +538,17 @@ export class SeedlessOnboardingController<
   }
 
   /**
-   * Update fields for an existing secret data item by itemId.
+   * Update the dataType for an existing secret data item.
    *
-   * This method updates metadata fields for an existing secret data item
-   * without modifying the encrypted data itself.
+   * This is used for migrating legacy data that was stored before the dataType
+   * field was introduced. When users created wallets with older SDK versions,
+   * their secrets were stored without dataType classification. This method allows
+   * clients to retroactively assign the correct dataType (e.g., PrimarySrp,
+   * ImportedSrp) when the wallet is unlocked.
    *
    * @param params - The parameters for updating the secret data item.
-   * @param params.itemId - The item ID of the secret data to update.
-   * @param params.dataType - The data type to set for the item.
+   * @param params.itemId - The server-assigned item ID from fetchAllSecretData.
+   * @param params.dataType - The data type classification to assign.
    * @returns A promise that resolves when the update is complete.
    */
   async updateSecretDataItem(params: {
@@ -588,13 +591,14 @@ export class SeedlessOnboardingController<
   }
 
   /**
-   * Batch update fields for multiple existing secret data items by their itemIds.
+   * Batch update the dataType for multiple existing secret data items.
    *
-   * This method updates metadata fields for multiple existing secret data items
-   * without modifying the encrypted data itself.
+   * This is the batch version of updateSecretDataItem, used for migrating
+   * multiple legacy secrets in a single operation. Useful when a user with
+   * multiple SRPs/private keys upgrades from an older SDK version.
    *
    * @param params - The parameters for batch updating secret data items.
-   * @param params.updates - Array of objects containing itemId and fields to update.
+   * @param params.updates - Array of objects containing itemId and dataType to assign.
    * @returns A promise that resolves when all updates are complete.
    */
   async batchUpdateSecretDataItems(params: {
