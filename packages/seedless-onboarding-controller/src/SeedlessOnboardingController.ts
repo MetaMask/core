@@ -346,6 +346,20 @@ export class SeedlessOnboardingController<
   }
 
   /**
+   * Gets the node details for the TOPRF operations.
+   * This function can be called to get the node endpoints, indexes and pubkeys and cache them locally.
+   *
+   * @returns A promise that resolves to the node details.
+   */
+  async fetchNodeDetails() {
+    try {
+      await this.toprfClient.getNodeDetails();
+    } catch {
+      log('Failed to fetch node details');
+    }
+  }
+
+  /**
    * Authenticate OAuth user using the seedless onboarding flow
    * and determine if the user is already registered or not.
    *
