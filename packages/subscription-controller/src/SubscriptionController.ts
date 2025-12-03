@@ -108,6 +108,11 @@ export type SubscriptionControllerSubmitSponsorshipIntentsAction = {
   handler: SubscriptionController['submitSponsorshipIntents'];
 };
 
+export type SubscriptionControllerLinkRewardsAction = {
+  type: `${typeof controllerName}:linkRewards`;
+  handler: SubscriptionController['linkRewards'];
+};
+
 export type SubscriptionControllerSubmitShieldSubscriptionCryptoApprovalAction =
   {
     type: `${typeof controllerName}:submitShieldSubscriptionCryptoApproval`;
@@ -130,7 +135,8 @@ export type SubscriptionControllerActions =
   | SubscriptionControllerUpdatePaymentMethodAction
   | SubscriptionControllerGetBillingPortalUrlAction
   | SubscriptionControllerSubmitSponsorshipIntentsAction
-  | SubscriptionControllerSubmitShieldSubscriptionCryptoApprovalAction;
+  | SubscriptionControllerSubmitShieldSubscriptionCryptoApprovalAction
+  | SubscriptionControllerLinkRewardsAction;
 
 export type AllowedActions =
   | AuthenticationController.AuthenticationControllerGetBearerToken
@@ -333,6 +339,11 @@ export class SubscriptionController extends StaticIntervalPollingController()<
       `${controllerName}:submitShieldSubscriptionCryptoApproval`,
       this.submitShieldSubscriptionCryptoApproval.bind(this),
     );
+
+    this.messenger.registerActionHandler(
+      `${controllerName}:linkRewards`,
+      this.linkRewards.bind(this),
+    );
   }
 
   /**
@@ -486,11 +497,13 @@ export class SubscriptionController extends StaticIntervalPollingController()<
    *
    * @param txMeta - The transaction metadata.
    * @param isSponsored - Whether the transaction is sponsored.
+   * @param rewardSubscriptionId - The ID of the reward subscription to link to the shield subscription.
    * @returns void
    */
   async submitShieldSubscriptionCryptoApproval(
     txMeta: TransactionMeta,
     isSponsored?: boolean,
+    rewardSubscriptionId?: string,
   ) {
     if (txMeta.type !== TransactionType.shieldSubscriptionApprove) {
       return;
@@ -552,6 +565,7 @@ export class SubscriptionController extends StaticIntervalPollingController()<
         rawTransaction: rawTx as Hex,
         isSponsored,
         useTestClock: lastSelectedPaymentMethodShield.useTestClock,
+        rewardSubscriptionId,
       };
       await this.startSubscriptionWithCrypto(params);
     }

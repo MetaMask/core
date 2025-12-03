@@ -220,9 +220,7 @@ export class FakeProvider
 
       throw new Error(message);
     } else {
-      // We are already checking that this stub exists above.
-      // eslint-disable-next-line @typescript-eslint/no-non-null-assertion
-      const stub = this.#stubs[index]!;
+      const stub = this.#stubs[index];
 
       if (stub.discardAfterMatching !== false) {
         this.#stubs.splice(index, 1);

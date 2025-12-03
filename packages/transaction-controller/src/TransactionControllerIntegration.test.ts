@@ -1181,7 +1181,7 @@ describe('TransactionController Integration', () => {
       ),
     ).rejects.toThrow(
       `Network client not found - ${
-        networkConfiguration.rpcEndpoints[0].networkClientId as string
+        networkConfiguration.rpcEndpoints[0].networkClientId
       }`,
     );
 

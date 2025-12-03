@@ -11,6 +11,7 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 - Bump `@metamask/bridge-controller` from `^63.2.0` to `^64.0.0` ([#7295](https://github.com/MetaMask/core/pull/7295))
 - Bump `@metamask/bridge-status-controller` from `^63.1.0` to `^64.0.0` ([#7295](https://github.com/MetaMask/core/pull/7295))
+- Skip delegation in Relay quotes if token transfer only ([#7262](https://github.com/MetaMask/core/pull/7262))
 - Bump `@metamask/assets-controllers` from `^92.0.0` to `^93.0.0` ([#7291](https://github.com/MetaMask/core/pull/7291))
 
 ## [10.3.0]

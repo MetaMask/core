@@ -130,7 +130,6 @@ const config = createConfig([
 
       // TODO: re-enable most of these rules
       '@typescript-eslint/naming-convention': 'off',
-      '@typescript-eslint/no-unnecessary-type-assertion': 'off',
       '@typescript-eslint/unbound-method': 'off',
       '@typescript-eslint/prefer-enum-initializers': 'off',
       '@typescript-eslint/prefer-nullish-coalescing': 'off',

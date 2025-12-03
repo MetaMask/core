@@ -48,9 +48,7 @@ export function processNotification(
   };
 
   if (isFeatureAnnouncement(notification)) {
-    const n = processFeatureAnnouncement(
-      notification as FeatureAnnouncementRawNotification,
-    );
+    const n = processFeatureAnnouncement(notification);
     n.isRead = isFeatureAnnouncementRead(n, readNotifications);
     return n;
   }
@@ -63,7 +61,7 @@ export function processNotification(
     return processAPINotifications(notification);
   }
 
-  return exhaustedAllCases(notification as never);
+  return exhaustedAllCases(notification);
 }
 
 /**

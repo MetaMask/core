@@ -128,7 +128,7 @@ export abstract class OracleLayer1GasFeeFlow implements Layer1GasFeeFlow {
       return {
         layer1Fee: add0x(
           padHexToEvenLength(oracleFee.add(operatorFee).toString(16)),
-        ) as Hex,
+        ),
       };
     } catch (error) {
       log('Failed to get oracle layer 1 gas fee', error);

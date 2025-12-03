@@ -76,9 +76,7 @@ export async function determineTransactionType(
     TransactionType.tokenMethodTransferFrom,
     TransactionType.tokenMethodSafeTransferFrom,
     TransactionType.tokenMethodIncreaseAllowance,
-  ].find(
-    (methodName) => methodName.toLowerCase() === (name as string).toLowerCase(),
-  );
+  ].find((methodName) => methodName.toLowerCase() === name.toLowerCase());
 
   if (tokenMethodName) {
     return { type: tokenMethodName, getCodeResponse };

@@ -7,6 +7,10 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+### Added
+
+- Add multicall address for Chains: `MegaETH Testnet V2`, `MegaETH Mainnet` ([#7287](https://github.com/MetaMask/core/pull/7287))
+
 ## [93.0.0]
 
 ### Added

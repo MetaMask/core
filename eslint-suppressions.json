@@ -190,6 +190,9 @@
     }
   },
   "packages/keyring-controller/src/KeyringController.ts": {
+    "@typescript-eslint/await-thenable": {
+      "count": 1
+    },
     "@typescript-eslint/no-unused-vars": {
       "count": 1
     }

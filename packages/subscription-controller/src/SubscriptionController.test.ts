@@ -1964,6 +1964,73 @@ describe('SubscriptionController', () => {
       );
     });
 
+    it('should handle subscription crypto approval when shield subscription transaction is submitted with reward subscription ID', async () => {
+      await withController(
+        {
+          state: {
+            pricing: MOCK_PRICE_INFO_RESPONSE,
+            trialedProducts: [],
+            subscriptions: [],
+            lastSelectedPaymentMethod: {
+              [PRODUCT_TYPES.SHIELD]: {
+                type: PAYMENT_TYPES.byCrypto,
+                paymentTokenAddress: '0xtoken',
+                paymentTokenSymbol: 'USDT',
+                plan: RECURRING_INTERVALS.month,
+              },
+            },
+          },
+        },
+        async ({ controller, mockService }) => {
+          mockService.startSubscriptionWithCrypto.mockResolvedValue({
+            subscriptionId: 'sub_123',
+            status: SUBSCRIPTION_STATUSES.trialing,
+          });
+
+          mockService.getSubscriptions
+            .mockResolvedValueOnce({
+              subscriptions: [],
+              trialedProducts: [],
+            })
+            .mockResolvedValue(MOCK_GET_SUBSCRIPTIONS_RESPONSE);
+
+          // Create a shield subscription approval transaction
+          const txMeta = {
+            ...generateMockTxMeta(),
+            type: TransactionType.shieldSubscriptionApprove,
+            chainId: '0x1' as Hex,
+            rawTx: '0x123',
+            txParams: {
+              data: '0x456',
+              from: '0x1234567890123456789012345678901234567890',
+              to: '0xtoken',
+            },
+            status: TransactionStatus.submitted,
+          };
+
+          await controller.submitShieldSubscriptionCryptoApproval(
+            txMeta,
+            false, // isSponsored
+            'reward_sub_1234567890',
+          );
+
+          expect(mockService.startSubscriptionWithCrypto).toHaveBeenCalledWith({
+            products: [PRODUCT_TYPES.SHIELD],
+            isTrialRequested: true,
+            recurringInterval: RECURRING_INTERVALS.month,
+            billingCycles: 12,
+            chainId: '0x1',
+            payerAddress: '0x1234567890123456789012345678901234567890',
+            tokenSymbol: 'USDT',
+            rawTransaction: '0x123',
+            isSponsored: false,
+            useTestClock: undefined,
+            rewardSubscriptionId: 'reward_sub_1234567890',
+          });
+        },
+      );
+    });
+
     it('should not handle subscription crypto approval when pricing is not found', async () => {
       await withController(
         {

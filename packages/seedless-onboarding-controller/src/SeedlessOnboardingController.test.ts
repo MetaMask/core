@@ -808,6 +808,33 @@ describe('SeedlessOnboardingController', () => {
     });
   });
 
+  describe('fetchNodeDetails', () => {
+    it('should be able to fetch the node details', async () => {
+      await withController(async ({ controller, toprfClient }) => {
+        const getNodeDetailsSpy = jest
+          .spyOn(toprfClient, 'getNodeDetails')
+          .mockResolvedValue({
+            // @ts-expect-error - test node details
+            nodeDetails: [],
+          });
+
+        await controller.preloadToprfNodeDetails();
+
+        expect(getNodeDetailsSpy).toHaveBeenCalled();
+      });
+    });
+
+    it('should not throw an error if the node details fetch fails', async () => {
+      await withController(async ({ controller, toprfClient }) => {
+        const getNodeDetailsSpy = jest
+          .spyOn(toprfClient, 'getNodeDetails')
+          .mockRejectedValueOnce(new Error('Failed to fetch node details'));
+        await controller.preloadToprfNodeDetails();
+        expect(getNodeDetailsSpy).toHaveBeenCalled();
+      });
+    });
+  });
+
   describe('authenticate', () => {
     it('should be able to register a new user', async () => {
       await withController(async ({ controller, toprfClient }) => {

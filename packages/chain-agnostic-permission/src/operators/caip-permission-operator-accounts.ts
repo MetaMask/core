@@ -244,7 +244,7 @@ const setNonSCACaipAccountIdsInScopesObject = (
   const updatedScopesObject: InternalScopesObject = {};
 
   for (const [scopeString, scopeObject] of Object.entries(scopesObject)) {
-    const { namespace, reference } = parseScopeString(scopeString as string);
+    const { namespace, reference } = parseScopeString(scopeString);
 
     let caipAccounts: CaipAccountId[] = [];
 
@@ -252,7 +252,7 @@ const setNonSCACaipAccountIdsInScopesObject = (
       const addressSet = accountsByNamespace.get(namespace);
       if (addressSet) {
         caipAccounts = Array.from(addressSet).map(
-          (address) => `${namespace}:${reference}:${address}` as CaipAccountId,
+          (address) => `${namespace}:${reference}:${address}` as const,
         );
       }
     }
