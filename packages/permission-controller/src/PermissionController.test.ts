@@ -6066,6 +6066,46 @@ describe('PermissionController', () => {
         },
       });
     });
+
+    it('action: PermissionController:getCaveat', async () => {
+      const messenger = getRootMessenger();
+      const state = {
+        subjects: {
+          'metamask.io': {
+            origin: 'metamask.io',
+            permissions: {
+              wallet_getSecretArray: {
+                id: 'escwEx9JrOxGZKZk3RkL4',
+                parentCapability: 'wallet_getSecretArray',
+                invoker: 'metamask.io',
+                caveats: [
+                  { type: CaveatTypes.filterArrayResponse, value: ['bar'] },
+                ],
+                date: 1632618373085,
+              },
+            },
+          },
+        },
+      };
+      const options = getPermissionControllerOptions({
+        messenger: getPermissionControllerMessenger(messenger),
+        state,
+      });
+
+      new PermissionController<
+        DefaultPermissionSpecifications,
+        DefaultCaveatSpecifications
+      >(options);
+
+      const result = messenger.call(
+        'PermissionController:getCaveat',
+        'metamask.io',
+        'wallet_getSecretArray',
+        CaveatTypes.filterArrayResponse,
+      );
+
+      expect(result).toBe(state.subjects['metamask.io'].permissions['wallet_getSecretArray'].caveats[0]);
+    });
   });
 
   describe('permission middleware', () => {
