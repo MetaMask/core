@@ -297,6 +297,10 @@ const MULTICALL_CONTRACT_BY_CHAINID = {
   '0x8f': '0xcA11bde05977b3631167028862bE2a173976CA11',
   // XDC, contract found but not in multicall3 repo
   '0x32': '0x0B1795ccA8E4eC4df02346a082df54D437F8D9aF',
+  // MegaETH TESTNET v2 (timothy chain ID 6343)
+  '0x18c7': '0xcA11bde05977b3631167028862bE2a173976CA11',
+  // MegaETH mainnet, contract found matching multicall3 bytecode
+  '0x10e6': '0xcA11bde05977b3631167028862bE2a173976CA11',
 } as Record<Hex, Hex>;
 
 const multicallAbi = [
