@@ -31,8 +31,9 @@
 /packages/user-operation-controller         @MetaMask/confirmations
 
 ## Delegation Team
-/packages/gator-permissions-controller @MetaMask/delegation
-/packages/eip-7702-internal-rpc-middleware @MetaMask/delegation @MetaMask/core-platform
+/packages/delegation-controller             @MetaMask/delegation
+/packages/gator-permissions-controller      @MetaMask/delegation
+/packages/eip-7702-internal-rpc-middleware  @MetaMask/delegation @MetaMask/core-platform
 
 ## Earn Team
 /packages/earn-controller                   @MetaMask/earn
@@ -53,9 +54,6 @@
 
 ## Portfolio Team
 /packages/token-search-discovery-controller      @MetaMask/portfolio
-
-## Vault Team
-/packages/delegation-controller           @MetaMask/vault
 
 ## Wallet Integrations Team
 /packages/chain-agnostic-permission        @MetaMask/wallet-integrations
