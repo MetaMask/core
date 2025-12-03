@@ -14,7 +14,6 @@ export type {
   SeedlessOnboardingControllerEvents,
   ToprfKeyDeriver,
   RecoveryErrorData,
-  SecretDataItemWithMetadata,
 } from './types';
 export {
   Web3AuthNetwork,

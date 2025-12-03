@@ -12,15 +12,13 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 - Add optional `dataType` parameter to `addNewSecretData` method for categorizing secret data on insert
 - Add `updateSecretDataItem` method to update fields for existing items by `itemId`
 - Add `batchUpdateSecretDataItems` method to batch update fields for multiple items
-- Add `SecretDataItemWithMetadata` type for storage-level metadata (`itemId`, `dataType`, `createdAt`)
+- Add `itemId`, `dataType`, and `createdAt` storage-level properties to `SecretMetadata`
 - Add `SecretMetadata.compareByTimestamp` static method for comparing metadata by timestamp
 - Add `SecretMetadata.matchesType` static method for checking if metadata matches a given type
 - Re-export `EncAccountDataType` from `@metamask/toprf-secure-backup`
 
 ### Changed
 
-- **BREAKING:** Update `fetchAllSecretData` to return `SecretDataItemWithMetadata[]` instead of `SecretMetadata[]`
-  - Consumers must now access secret data via the `secret` property (e.g., `result[0].secret.data` instead of `result[0].data`)
 - **BREAKING:** Remove `parseSecretsFromMetadataStore`, `fromBatch`, and `sort` methods from `SecretMetadata`
   - Use `SecretMetadata.compareByTimestamp` for sorting
   - Use `SecretMetadata.matchesType` for filtering

@@ -53,7 +53,6 @@ import type {
   RenewRefreshToken,
   VaultData,
   DeserializedVaultData,
-  SecretDataItemWithMetadata,
 } from './types';
 import {
   decodeJWTToken,
@@ -644,11 +643,9 @@ export class SeedlessOnboardingController<
    * Decrypts the secret data and returns the decrypted secret data using the recovered encryption key from the password.
    *
    * @param password - The optional password used to create new wallet. If not provided, `cached Encryption Key` will be used.
-   * @returns A promise that resolves to the secret data items with metadata.
+   * @returns A promise that resolves to the secret metadata items.
    */
-  async fetchAllSecretData(
-    password?: string,
-  ): Promise<SecretDataItemWithMetadata[]> {
+  async fetchAllSecretData(password?: string): Promise<SecretMetadata[]> {
     return await this.#withControllerLock(async () => {
       return await this.#executeWithTokenRefresh(async () => {
         // assert that the user is authenticated before fetching the secret data
@@ -1270,7 +1267,7 @@ export class SeedlessOnboardingController<
   async #fetchAllSecretDataFromMetadataStore(
     encKey: Uint8Array,
     authKeyPair: KeyPair,
-  ): Promise<SecretDataItemWithMetadata[]> {
+  ): Promise<SecretMetadata[]> {
     let secretDataItems: FetchedSecretDataItem[] = [];
     try {
       // fetch and decrypt the secret data from the metadata store
@@ -1290,9 +1287,8 @@ export class SeedlessOnboardingController<
 
     // user must have at least one secret data
     if (secretDataItems?.length > 0) {
-      const results: SecretDataItemWithMetadata[] = secretDataItems.map(
-        (item) => ({
-          secret: SecretMetadata.fromRawMetadata(item.data),
+      const results: SecretMetadata[] = secretDataItems.map((item) =>
+        SecretMetadata.fromRawMetadata(item.data, {
           itemId: item.itemId,
           dataType: item.dataType,
           createdAt: item.createdAt,
@@ -1313,7 +1309,7 @@ export class SeedlessOnboardingController<
           return a.createdAt.localeCompare(b.createdAt);
         }
         // Fall back to client-side timestamp
-        return SecretMetadata.compareByTimestamp(a.secret, b.secret, 'asc');
+        return SecretMetadata.compareByTimestamp(a, b, 'asc');
       });
 
       // Validate the first item is the primary SRP
@@ -1322,7 +1318,7 @@ export class SeedlessOnboardingController<
         firstItem.dataType === undefined || // Legacy data (before dataType was introduced)
         firstItem.dataType === EncAccountDataType.PrimarySrp;
       const isMnemonic = SecretMetadata.matchesType(
-        firstItem.secret,
+        firstItem,
         SecretType.Mnemonic,
       );
 

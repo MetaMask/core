@@ -1,3 +1,4 @@
+import type { EncAccountDataType } from '@metamask/toprf-secure-backup';
 import {
   base64ToBytes,
   bytesToBase64,
@@ -42,6 +43,15 @@ type SecretMetadataJson<DataType extends SecretDataType> = Omit<
  * const secretMetadata = new SecretMetadata(secret);
  * ```
  */
+/**
+ * Storage-level metadata from the metadata store (not encrypted).
+ */
+type StorageMetadata = {
+  itemId?: string;
+  dataType?: EncAccountDataType;
+  createdAt?: string;
+};
+
 export class SecretMetadata<DataType extends SecretDataType = Uint8Array>
   implements ISecretMetadata<DataType>
 {
@@ -53,6 +63,13 @@ export class SecretMetadata<DataType extends SecretDataType = Uint8Array>
 
   readonly #version: SecretMetadataVersion;
 
+  // Storage-level metadata (not encrypted)
+  readonly #itemId?: string;
+
+  readonly #dataType?: EncAccountDataType;
+
+  readonly #createdAt?: string;
+
   /**
    * Create a new SecretMetadata instance.
    *
@@ -60,12 +77,21 @@ export class SecretMetadata<DataType extends SecretDataType = Uint8Array>
    * @param options - The options for the secret metadata.
    * @param options.timestamp - The timestamp when the secret was created.
    * @param options.type - The type of the secret.
+   * @param options.version - The version of the secret metadata.
+   * @param storageMetadata - Storage-level metadata from the metadata store.
    */
-  constructor(data: DataType, options?: Partial<SecretMetadataOptions>) {
+  constructor(
+    data: DataType,
+    options?: Partial<SecretMetadataOptions>,
+    storageMetadata?: StorageMetadata,
+  ) {
     this.#data = data;
     this.#timestamp = options?.timestamp ?? Date.now();
     this.#type = options?.type ?? SecretType.Mnemonic;
     this.#version = options?.version ?? SecretMetadataVersion.V1;
+    this.#itemId = storageMetadata?.itemId;
+    this.#dataType = storageMetadata?.dataType;
+    this.#createdAt = storageMetadata?.createdAt;
   }
 
   /**
@@ -95,10 +121,12 @@ export class SecretMetadata<DataType extends SecretDataType = Uint8Array>
    * Parse and create the SecretMetadata instance from the raw metadata bytes.
    *
    * @param rawMetadata - The raw metadata.
+   * @param storageMetadata - Storage-level metadata from the metadata store.
    * @returns The parsed secret metadata.
    */
   static fromRawMetadata<DataType extends SecretDataType>(
     rawMetadata: Uint8Array,
+    storageMetadata?: StorageMetadata,
   ): SecretMetadata<DataType> {
     const serializedMetadata = bytesToString(rawMetadata);
     const parsedMetadata = JSON.parse(serializedMetadata);
@@ -116,11 +144,15 @@ export class SecretMetadata<DataType extends SecretDataType = Uint8Array>
       data = parsedMetadata.data as DataType;
     }
 
-    return new SecretMetadata<DataType>(data, {
-      timestamp: parsedMetadata.timestamp,
-      type,
-      version,
-    });
+    return new SecretMetadata<DataType>(
+      data,
+      {
+        timestamp: parsedMetadata.timestamp,
+        type,
+        version,
+      },
+      storageMetadata,
+    );
   }
 
   /**
@@ -169,6 +201,18 @@ export class SecretMetadata<DataType extends SecretDataType = Uint8Array>
 
   get version() {
     return this.#version;
+  }
+
+  get itemId() {
+    return this.#itemId;
+  }
+
+  get dataType() {
+    return this.#dataType;
+  }
+
+  get createdAt() {
+    return this.#createdAt;
   }
 
   /**
