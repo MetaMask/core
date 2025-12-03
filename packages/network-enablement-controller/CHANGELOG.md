@@ -20,7 +20,7 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ### Fixed
 
-- Add missing HyperEVM to POPULARE_NETWORKS list ([#7286](https://github.com/MetaMask/core/pull/7286))
+- Add missing MegaETH to POPULARE_NETWORKS list ([#7286](https://github.com/MetaMask/core/pull/7286))
 
 ## [4.0.0]
 
