@@ -425,6 +425,7 @@ describe('decodePermission', () => {
           AllowedCalldataEnforcer,
           AllowedCalldataEnforcer,
           ValueLteEnforcer,
+          NonceEnforcer,
           // Not allowed for erc20-token-revocation
           ExactCalldataEnforcer,
         ];
