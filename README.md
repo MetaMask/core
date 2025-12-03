@@ -71,6 +71,7 @@ Each package in this repository has its own README where you can find installati
 - [`@metamask/preferences-controller`](packages/preferences-controller)
 - [`@metamask/profile-metrics-controller`](packages/profile-metrics-controller)
 - [`@metamask/profile-sync-controller`](packages/profile-sync-controller)
+- [`@metamask/ramps-controller`](packages/ramps-controller)
 - [`@metamask/rate-limit-controller`](packages/rate-limit-controller)
 - [`@metamask/remote-feature-flag-controller`](packages/remote-feature-flag-controller)
 - [`@metamask/sample-controllers`](packages/sample-controllers)
@@ -143,6 +144,7 @@ linkStyle default opacity:0.5
   preferences_controller(["@metamask/preferences-controller"]);
   profile_metrics_controller(["@metamask/profile-metrics-controller"]);
   profile_sync_controller(["@metamask/profile-sync-controller"]);
+  ramps_controller(["@metamask/ramps-controller"]);
   rate_limit_controller(["@metamask/rate-limit-controller"]);
   remote_feature_flag_controller(["@metamask/remote-feature-flag-controller"]);
   sample_controllers(["@metamask/sample-controllers"]);
