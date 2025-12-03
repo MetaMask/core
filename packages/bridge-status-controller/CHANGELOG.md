@@ -7,6 +7,10 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+### Fixed
+
+- Fix MAX native token swap failing with "insufficient gas" when STX is off by using quote's `txFee` instead of re-estimating gas when `gasIncluded` is true ([#7306](https://github.com/MetaMask/core/pull/7306))
+
 ## [64.0.0]
 
 ### Changed

@@ -3319,6 +3319,136 @@ describe('BridgeStatusController', () => {
       expect(mockMessengerCall.mock.calls).toMatchSnapshot();
     });
 
+    it('should use quote txFee when gasIncluded is true and STX is off (Max native token swap)', async () => {
+      setupEventTrackingMocks(mockMessengerCall);
+      // Setup for single tx path - no gas estimation needed since gasIncluded=true
+      mockMessengerCall.mockReturnValueOnce(mockSelectedAccount);
+      mockMessengerCall.mockReturnValueOnce('arbitrum');
+      // Skip GasFeeController mock since we use quote's txFee directly
+      addTransactionFn.mockResolvedValueOnce({
+        transactionMeta: mockEvmTxMeta,
+        result: Promise.resolve('0xevmTxHash'),
+      });
+      mockMessengerCall.mockReturnValueOnce({
+        transactions: [mockEvmTxMeta],
+      });
+      mockMessengerCall.mockReturnValueOnce(mockSelectedAccount);
+
+      const { controller, startPollingForBridgeTxStatusSpy } =
+        getController(mockMessengerCall);
+
+      const { approval, ...quoteWithoutApproval } = mockEvmQuoteResponse;
+      const result = await controller.submitTx(
+        (mockEvmQuoteResponse.trade as TxData).from,
+        {
+          ...quoteWithoutApproval,
+          quote: {
+            ...quoteWithoutApproval.quote,
+            gasIncluded: true,
+            gasIncluded7702: false,
+            feeData: {
+              ...quoteWithoutApproval.quote.feeData,
+              txFee: {
+                maxFeePerGas: '1395348', // Decimal string from quote
+                maxPriorityFeePerGas: '1000001',
+              },
+            },
+          },
+        } as never,
+        false, // isStxEnabledOnClient = FALSE (key for this test)
+      );
+      controller.stopAllPolling();
+
+      // Should use single tx path (addTransactionFn), NOT batch path
+      expect(addTransactionFn).toHaveBeenCalledTimes(1);
+      expect(addTransactionBatchFn).not.toHaveBeenCalled();
+
+      // Should NOT estimate gas (uses quote's txFee instead)
+      expect(estimateGasFeeFn).not.toHaveBeenCalled();
+
+      // Verify the tx params have hex-converted gas fees from quote
+      const txParams = addTransactionFn.mock.calls[0][0];
+      expect(txParams.maxFeePerGas).toBe('0x154a94'); // toHex(1395348)
+      expect(txParams.maxPriorityFeePerGas).toBe('0xf4241'); // toHex(1000001)
+
+      expect(result).toMatchSnapshot();
+      expect(startPollingForBridgeTxStatusSpy).toHaveBeenCalledTimes(0);
+      expect(controller.state.txHistory[result.id]).toMatchSnapshot();
+    });
+
+    it('should estimate gas when gasIncluded is false and STX is off', async () => {
+      setupEventTrackingMocks(mockMessengerCall);
+      setupBridgeMocks();
+
+      const { controller, startPollingForBridgeTxStatusSpy } =
+        getController(mockMessengerCall);
+
+      const { approval, ...quoteWithoutApproval } = mockEvmQuoteResponse;
+      const result = await controller.submitTx(
+        (mockEvmQuoteResponse.trade as TxData).from,
+        {
+          ...quoteWithoutApproval,
+          quote: {
+            ...quoteWithoutApproval.quote,
+            gasIncluded: false,
+            gasIncluded7702: false,
+          },
+        },
+        false, // STX off
+      );
+      controller.stopAllPolling();
+
+      // Should estimate gas since gasIncluded is false
+      expect(estimateGasFeeFn).toHaveBeenCalledTimes(1);
+      expect(addTransactionFn).toHaveBeenCalledTimes(1);
+      expect(addTransactionBatchFn).not.toHaveBeenCalled();
+      expect(startPollingForBridgeTxStatusSpy).toHaveBeenCalledTimes(0);
+      expect(result).toMatchSnapshot();
+    });
+
+    it('should use batch path when gasIncluded7702 is true regardless of STX setting', async () => {
+      setupEventTrackingMocks(mockMessengerCall);
+      mockMessengerCall.mockReturnValueOnce(mockSelectedAccount);
+      mockMessengerCall.mockReturnValueOnce('arbitrum');
+      addTransactionBatchFn.mockResolvedValueOnce({
+        batchId: 'batchId1',
+      });
+      mockMessengerCall.mockReturnValueOnce({
+        transactions: [{ ...mockEvmTxMeta, batchId: 'batchId1' }],
+      });
+
+      const { controller, startPollingForBridgeTxStatusSpy } =
+        getController(mockMessengerCall);
+
+      const { approval, ...quoteWithoutApproval } = mockEvmQuoteResponse;
+      const result = await controller.submitTx(
+        (mockEvmQuoteResponse.trade as TxData).from,
+        {
+          ...quoteWithoutApproval,
+          quote: {
+            ...quoteWithoutApproval.quote,
+            gasIncluded: true,
+            gasIncluded7702: true, // 7702 takes precedence → batch path
+            feeData: {
+              ...quoteWithoutApproval.quote.feeData,
+              txFee: {
+                maxFeePerGas: '1395348',
+                maxPriorityFeePerGas: '1000001',
+              },
+            },
+          },
+        } as never,
+        false, // STX off, but gasIncluded7702 = true forces batch path
+      );
+      controller.stopAllPolling();
+
+      // Should use batch path because gasIncluded7702 = true
+      expect(addTransactionBatchFn).toHaveBeenCalledTimes(1);
+      expect(addTransactionFn).not.toHaveBeenCalled();
+      expect(startPollingForBridgeTxStatusSpy).toHaveBeenCalledTimes(0);
+      expect(result).toMatchSnapshot();
+    });
+
     it('should handle smart transactions', async () => {
       setupEventTrackingMocks(mockMessengerCall);
       mockMessengerCall.mockReturnValueOnce(mockSelectedAccount);
