@@ -61,6 +61,7 @@ export const MULTIPLE_MOCK_SECRET_METADATA = [
     type: SecretType.Mnemonic,
     itemId: 'srp-1',
     dataType: EncAccountDataType.PrimarySrp,
+    createdAt: '00000000-0000-1000-8000-000000000001',
   },
   {
     data: new Uint8Array(Buffer.from('seedPhrase3', 'utf-8')),
@@ -68,6 +69,7 @@ export const MULTIPLE_MOCK_SECRET_METADATA = [
     type: SecretType.Mnemonic,
     itemId: 'srp-3',
     dataType: EncAccountDataType.ImportedSrp,
+    createdAt: '00000000-0000-1000-8000-000000000003',
   },
   {
     data: new Uint8Array(Buffer.from('seedPhrase2', 'utf-8')),
@@ -75,6 +77,7 @@ export const MULTIPLE_MOCK_SECRET_METADATA = [
     type: SecretType.Mnemonic,
     itemId: 'srp-2',
     dataType: EncAccountDataType.ImportedSrp,
+    createdAt: '00000000-0000-1000-8000-000000000002',
   },
 ];
 
@@ -83,7 +86,8 @@ type MockSecretDataInput = {
   timestamp?: number;
   type?: SecretType;
   itemId: string;
-  dataType: EncAccountDataType;
+  dataType?: EncAccountDataType;
+  createdAt?: string;
 };
 
 /**
@@ -99,14 +103,16 @@ export function createMockSecretDataGetResponse(
 ) {
   const mockToprfEncryptor = new MockToprfEncryptorDecryptor();
   const ids: string[] = [];
-  const dataTypes: EncAccountDataType[] = [];
+  const dataTypes: (EncAccountDataType | null)[] = [];
+  const createdAt: (string | null)[] = [];
 
   const encryptedSecretData = secretDataArr.map((secretData) => {
     const b64SecretData = Buffer.from(secretData.data).toString('base64');
     const timestamp = secretData.timestamp ?? Date.now();
 
     ids.push(secretData.itemId);
-    dataTypes.push(secretData.dataType);
+    dataTypes.push(secretData.dataType ?? null);
+    createdAt.push(secretData.createdAt ?? null);
 
     const metadata = JSON.stringify({
       data: b64SecretData,
@@ -125,5 +131,6 @@ export function createMockSecretDataGetResponse(
     data: encryptedSecretData,
     ids,
     dataTypes,
+    createdAt,
   };
 }

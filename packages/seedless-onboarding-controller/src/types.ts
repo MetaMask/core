@@ -40,6 +40,11 @@ export type SecretDataItemWithMetadata<
    * The client-assigned data type classification.
    */
   dataType?: EncAccountDataType;
+
+  /**
+   * The server-assigned creation timestamp (TIMEUUID string).
+   */
+  createdAt?: string;
 };
 
 /**

@@ -1295,12 +1295,11 @@ export class SeedlessOnboardingController<
           secret: SecretMetadata.fromRawMetadata(item.data),
           itemId: item.itemId,
           dataType: item.dataType,
+          createdAt: item.createdAt,
         }),
       );
 
-      // Sort: PrimarySrp first, then by timestamp (oldest first)
-      // - New data: has explicit dataType, PrimarySrp should be first
-      // - Legacy data: no dataType, fall back to timestamp ordering
+      // Sort: PrimarySrp first, then by createdAt/timestamp (oldest first)
       results.sort((a, b) => {
         // PrimarySrp always comes first
         if (a.dataType === EncAccountDataType.PrimarySrp) {
@@ -1309,7 +1308,11 @@ export class SeedlessOnboardingController<
         if (b.dataType === EncAccountDataType.PrimarySrp) {
           return 1;
         }
-        // Fall back to timestamp ordering (oldest first)
+        // Use server-side createdAt if available (TIMEUUID is lexicographically sortable)
+        if (a.createdAt && b.createdAt) {
+          return a.createdAt.localeCompare(b.createdAt);
+        }
+        // Fall back to client-side timestamp
         return SecretMetadata.compareByTimestamp(a.secret, b.secret, 'asc');
       });
 

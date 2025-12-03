@@ -2136,12 +2136,14 @@ describe('SeedlessOnboardingController', () => {
                   type: SecretType.Mnemonic,
                   itemId: 'srp-item-id',
                   dataType: EncAccountDataType.PrimarySrp,
+                  createdAt: '00000000-0000-1000-8000-000000000001',
                 },
                 {
                   data: MOCK_PRIVATE_KEY,
                   type: SecretType.PrivateKey,
                   itemId: 'pk-item-id',
                   dataType: EncAccountDataType.ImportedPrivateKey,
+                  createdAt: '00000000-0000-1000-8000-000000000002',
                 },
               ],
               MOCK_PASSWORD,
@@ -2162,9 +2164,15 @@ describe('SeedlessOnboardingController', () => {
           // Verify storage metadata
           expect(secretData[0].itemId).toBe('srp-item-id');
           expect(secretData[0].dataType).toBe(EncAccountDataType.PrimarySrp);
+          expect(secretData[0].createdAt).toBe(
+            '00000000-0000-1000-8000-000000000001',
+          );
           expect(secretData[1].itemId).toBe('pk-item-id');
           expect(secretData[1].dataType).toBe(
             EncAccountDataType.ImportedPrivateKey,
+          );
+          expect(secretData[1].createdAt).toBe(
+            '00000000-0000-1000-8000-000000000002',
           );
 
           expect(controller.state.vault).toBeDefined();
@@ -2226,22 +2234,31 @@ describe('SeedlessOnboardingController', () => {
             ),
           ).toBe(true);
 
-          // Sorted by timestamp ascending: seedPhrase1 (10), seedPhrase2 (20), seedPhrase3 (60)
+          // Sorted: PrimarySrp first, then by createdAt
           expect(secretData[0].secret.data).toStrictEqual(
             stringToBytes('seedPhrase1'),
           );
           expect(secretData[0].itemId).toBe('srp-1');
           expect(secretData[0].dataType).toBe(EncAccountDataType.PrimarySrp);
+          expect(secretData[0].createdAt).toBe(
+            '00000000-0000-1000-8000-000000000001',
+          );
           expect(secretData[1].secret.data).toStrictEqual(
             stringToBytes('seedPhrase2'),
           );
           expect(secretData[1].itemId).toBe('srp-2');
           expect(secretData[1].dataType).toBe(EncAccountDataType.ImportedSrp);
+          expect(secretData[1].createdAt).toBe(
+            '00000000-0000-1000-8000-000000000002',
+          );
           expect(secretData[2].secret.data).toStrictEqual(
             stringToBytes('seedPhrase3'),
           );
           expect(secretData[2].itemId).toBe('srp-3');
           expect(secretData[2].dataType).toBe(EncAccountDataType.ImportedSrp);
+          expect(secretData[2].createdAt).toBe(
+            '00000000-0000-1000-8000-000000000003',
+          );
 
           // verify the vault data
           const { encryptedMockVault } = await createMockVault(
@@ -2294,6 +2311,7 @@ describe('SeedlessOnboardingController', () => {
                   type: SecretType.Mnemonic,
                   itemId: 'primary-srp-id',
                   dataType: EncAccountDataType.PrimarySrp,
+                  createdAt: '00000000-0000-1000-8000-000000000001',
                 },
               ],
               MOCK_PASSWORD,
@@ -2307,6 +2325,9 @@ describe('SeedlessOnboardingController', () => {
           expect(secretData[0].secret.data).toStrictEqual(MOCK_SEED_PHRASE);
           expect(secretData[0].itemId).toBe('primary-srp-id');
           expect(secretData[0].dataType).toBe(EncAccountDataType.PrimarySrp);
+          expect(secretData[0].createdAt).toBe(
+            '00000000-0000-1000-8000-000000000001',
+          );
 
           expect(controller.state.vault).toBeDefined();
           expect(controller.state.vault).not.toBe(initialState.vault);
@@ -2452,6 +2473,7 @@ describe('SeedlessOnboardingController', () => {
                   type: SecretType.Mnemonic,
                   itemId: 'primary-srp-id',
                   dataType: EncAccountDataType.PrimarySrp,
+                  createdAt: '00000000-0000-1000-8000-000000000001',
                 },
               ],
               MOCK_PASSWORD,
@@ -2467,6 +2489,9 @@ describe('SeedlessOnboardingController', () => {
           expect(secretData[0].secret.data).toStrictEqual(MOCK_SEED_PHRASE);
           expect(secretData[0].itemId).toBe('primary-srp-id');
           expect(secretData[0].dataType).toBe(EncAccountDataType.PrimarySrp);
+          expect(secretData[0].createdAt).toBe(
+            '00000000-0000-1000-8000-000000000001',
+          );
         },
       );
     });
@@ -2676,6 +2701,146 @@ describe('SeedlessOnboardingController', () => {
                   type: SecretType.PrivateKey,
                   itemId: 'pk-id',
                   dataType: EncAccountDataType.ImportedPrivateKey,
+                },
+              ],
+              MOCK_PASSWORD,
+            ),
+          });
+
+          await expect(
+            controller.fetchAllSecretData(MOCK_PASSWORD),
+          ).rejects.toThrow(
+            SeedlessOnboardingControllerErrorMessage.InvalidPrimarySecretDataType,
+          );
+
+          expect(mockSecretDataGet.isDone()).toBe(true);
+        },
+      );
+    });
+
+    it('should sort PrimarySrp first regardless of createdAt order', async () => {
+      await withController(
+        {
+          state: getMockInitialControllerState({
+            withMockAuthenticatedUser: true,
+          }),
+        },
+        async ({ controller, toprfClient }) => {
+          mockRecoverEncKey(toprfClient, MOCK_PASSWORD);
+
+          // PrimarySrp has later createdAt but should still come first
+          const mockSecretDataGet = handleMockSecretDataGet({
+            status: 200,
+            body: createMockSecretDataGetResponse(
+              [
+                {
+                  data: new Uint8Array(Buffer.from('importedSrp', 'utf-8')),
+                  type: SecretType.Mnemonic,
+                  itemId: 'imported-srp-id',
+                  dataType: EncAccountDataType.ImportedSrp,
+                  createdAt: '00000000-0000-1000-8000-000000000001', // Earlier
+                },
+                {
+                  data: new Uint8Array(Buffer.from('primarySrp', 'utf-8')),
+                  type: SecretType.Mnemonic,
+                  itemId: 'primary-srp-id',
+                  dataType: EncAccountDataType.PrimarySrp,
+                  createdAt: '00000000-0000-1000-8000-000000000002', // Later
+                },
+              ],
+              MOCK_PASSWORD,
+            ),
+          });
+
+          const secretData = await controller.fetchAllSecretData(MOCK_PASSWORD);
+
+          expect(mockSecretDataGet.isDone()).toBe(true);
+          expect(secretData).toHaveLength(2);
+          // PrimarySrp should be first despite having later createdAt
+          expect(secretData[0].dataType).toBe(EncAccountDataType.PrimarySrp);
+          expect(secretData[0].secret.data).toStrictEqual(
+            stringToBytes('primarySrp'),
+          );
+          expect(secretData[1].dataType).toBe(EncAccountDataType.ImportedSrp);
+          expect(secretData[1].secret.data).toStrictEqual(
+            stringToBytes('importedSrp'),
+          );
+        },
+      );
+    });
+
+    it('should fall back to timestamp sorting when createdAt is null (legacy data)', async () => {
+      await withController(
+        {
+          state: getMockInitialControllerState({
+            withMockAuthenticatedUser: true,
+          }),
+        },
+        async ({ controller, toprfClient }) => {
+          mockRecoverEncKey(toprfClient, MOCK_PASSWORD);
+
+          // Legacy data without createdAt - should sort by timestamp
+          const mockSecretDataGet = handleMockSecretDataGet({
+            status: 200,
+            body: createMockSecretDataGetResponse(
+              [
+                {
+                  data: new Uint8Array(Buffer.from('srp2', 'utf-8')),
+                  timestamp: 200, // Later
+                  type: SecretType.Mnemonic,
+                  itemId: 'srp-2',
+                  // No dataType or createdAt (legacy)
+                },
+                {
+                  data: new Uint8Array(Buffer.from('srp1', 'utf-8')),
+                  timestamp: 100, // Earlier
+                  type: SecretType.Mnemonic,
+                  itemId: 'srp-1',
+                  // No dataType or createdAt (legacy)
+                },
+              ],
+              MOCK_PASSWORD,
+            ),
+          });
+
+          const secretData = await controller.fetchAllSecretData(MOCK_PASSWORD);
+
+          expect(mockSecretDataGet.isDone()).toBe(true);
+          expect(secretData).toHaveLength(2);
+          // Should be sorted by timestamp (oldest first)
+          expect(secretData[0].secret.data).toStrictEqual(
+            stringToBytes('srp1'),
+          );
+          expect(secretData[0].dataType).toBeUndefined();
+          expect(secretData[0].createdAt).toBeUndefined();
+          expect(secretData[1].secret.data).toStrictEqual(
+            stringToBytes('srp2'),
+          );
+        },
+      );
+    });
+
+    it('should throw an error if the first item has non-primary dataType', async () => {
+      await withController(
+        {
+          state: getMockInitialControllerState({
+            withMockAuthenticatedUser: true,
+          }),
+        },
+        async ({ controller, toprfClient }) => {
+          mockRecoverEncKey(toprfClient, MOCK_PASSWORD);
+
+          // ImportedSrp as first item (no PrimarySrp) - should throw
+          const mockSecretDataGet = handleMockSecretDataGet({
+            status: 200,
+            body: createMockSecretDataGetResponse(
+              [
+                {
+                  data: MOCK_SEED_PHRASE,
+                  type: SecretType.Mnemonic,
+                  itemId: 'imported-srp-id',
+                  dataType: EncAccountDataType.ImportedSrp,
+                  createdAt: '00000000-0000-1000-8000-000000000001',
                 },
               ],
               MOCK_PASSWORD,
@@ -5720,6 +5885,7 @@ describe('SeedlessOnboardingController', () => {
                 ),
                 itemId: 'primary-srp-id',
                 dataType: EncAccountDataType.PrimarySrp,
+                createdAt: '00000000-0000-1000-8000-000000000001',
               },
               {
                 data: stringToBytes(
@@ -5732,6 +5898,7 @@ describe('SeedlessOnboardingController', () => {
                 ),
                 itemId: 'pk-id',
                 dataType: EncAccountDataType.ImportedPrivateKey,
+                createdAt: '00000000-0000-1000-8000-000000000002',
               },
             ]);
 
@@ -5742,6 +5909,9 @@ describe('SeedlessOnboardingController', () => {
           expect(secretData[0].secret.data).toStrictEqual(MOCK_SEED_PHRASE);
           expect(secretData[0].itemId).toBe('primary-srp-id');
           expect(secretData[0].dataType).toBe(EncAccountDataType.PrimarySrp);
+          expect(secretData[0].createdAt).toBe(
+            '00000000-0000-1000-8000-000000000001',
+          );
           expect(secretData[1].secret.type).toStrictEqual(
             SecretType.PrivateKey,
           );
@@ -5750,8 +5920,9 @@ describe('SeedlessOnboardingController', () => {
           expect(secretData[1].dataType).toBe(
             EncAccountDataType.ImportedPrivateKey,
           );
-
-          // expect(mockSecretDataGet.isDone()).toBe(true);
+          expect(secretData[1].createdAt).toBe(
+            '00000000-0000-1000-8000-000000000002',
+          );
         },
       );
     });
