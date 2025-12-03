@@ -108,6 +108,11 @@ export type SubscriptionControllerSubmitSponsorshipIntentsAction = {
   handler: SubscriptionController['submitSponsorshipIntents'];
 };
 
+export type SubscriptionControllerLinkRewardsAction = {
+  type: `${typeof controllerName}:linkRewards`;
+  handler: SubscriptionController['linkRewards'];
+};
+
 export type SubscriptionControllerSubmitShieldSubscriptionCryptoApprovalAction =
   {
     type: `${typeof controllerName}:submitShieldSubscriptionCryptoApproval`;
@@ -130,7 +135,8 @@ export type SubscriptionControllerActions =
   | SubscriptionControllerUpdatePaymentMethodAction
   | SubscriptionControllerGetBillingPortalUrlAction
   | SubscriptionControllerSubmitSponsorshipIntentsAction
-  | SubscriptionControllerSubmitShieldSubscriptionCryptoApprovalAction;
+  | SubscriptionControllerSubmitShieldSubscriptionCryptoApprovalAction
+  | SubscriptionControllerLinkRewardsAction;
 
 export type AllowedActions =
   | AuthenticationController.AuthenticationControllerGetBearerToken
@@ -332,6 +338,11 @@ export class SubscriptionController extends StaticIntervalPollingController()<
     this.messenger.registerActionHandler(
       `${controllerName}:submitShieldSubscriptionCryptoApproval`,
       this.submitShieldSubscriptionCryptoApproval.bind(this),
+    );
+
+    this.messenger.registerActionHandler(
+      `${controllerName}:linkRewards`,
+      this.linkRewards.bind(this),
     );
   }
 
