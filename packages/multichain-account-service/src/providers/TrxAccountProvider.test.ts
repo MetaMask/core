@@ -98,8 +98,16 @@ function setup({
   const keyring = new MockTronKeyring(accounts);
 
   messenger.registerActionHandler(
-    'AccountsController:listMultichainAccounts',
+    'AccountsController:getAccounts',
     () => accounts,
+  );
+
+  const mockGetAccount = jest.fn().mockImplementation((id) => {
+    return keyring.accounts.find((account) => account.id === id);
+  });
+  messenger.registerActionHandler(
+    'AccountsController:getAccount',
+    mockGetAccount,
   );
 
   const mockHandleRequest = jest.fn().mockImplementation((request) => {
@@ -130,10 +138,10 @@ function setup({
   );
 
   const multichainMessenger = getMultichainAccountServiceMessenger(messenger);
-  const provider = new AccountProviderWrapper(
-    multichainMessenger,
-    new TrxAccountProvider(multichainMessenger),
-  );
+  const trxProvider = new TrxAccountProvider(multichainMessenger);
+  const accountIds = accounts.map((account) => account.id);
+  trxProvider.init(accountIds);
+  const provider = new AccountProviderWrapper(multichainMessenger, trxProvider);
 
   return {
     provider,
@@ -183,6 +191,22 @@ describe('TrxAccountProvider', () => {
     expect(() => provider.getAccount(unknownAccount.id)).toThrow(
       `Unable to find account: ${unknownAccount.id}`,
     );
+  });
+
+  it('returns true if an account is compatible', () => {
+    const account = MOCK_TRX_ACCOUNT_1;
+    const { provider } = setup({
+      accounts: [account],
+    });
+    expect(provider.isAccountCompatible(account)).toBe(true);
+  });
+
+  it('returns false if an account is not compatible', () => {
+    const account = MOCK_HD_ACCOUNT_1;
+    const { provider } = setup({
+      accounts: [account],
+    });
+    expect(provider.isAccountCompatible(account)).toBe(false);
   });
 
   it('creates accounts', async () => {
