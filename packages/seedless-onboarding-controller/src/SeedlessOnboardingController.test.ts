@@ -818,7 +818,7 @@ describe('SeedlessOnboardingController', () => {
             nodeDetails: [],
           });
 
-        await controller.fetchNodeDetails();
+        await controller.preloadToprfNodeDetails();
 
         expect(getNodeDetailsSpy).toHaveBeenCalled();
       });
@@ -829,7 +829,7 @@ describe('SeedlessOnboardingController', () => {
         const getNodeDetailsSpy = jest
           .spyOn(toprfClient, 'getNodeDetails')
           .mockRejectedValueOnce(new Error('Failed to fetch node details'));
-        await controller.fetchNodeDetails();
+        await controller.preloadToprfNodeDetails();
         expect(getNodeDetailsSpy).toHaveBeenCalled();
       });
     });

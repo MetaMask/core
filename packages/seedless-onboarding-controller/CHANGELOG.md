@@ -9,7 +9,7 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ### Added
 
-- Added new public method,`fetchNodeDetails` to pre-fetch the TROPF Node details. ([#7300](https://github.com/MetaMask/core/pull/7300))
+- Added new public method,`preloadToprfNodeDetails` to pre-load the TROPF Node details. ([#7300](https://github.com/MetaMask/core/pull/7300))
 
 ### Changed
 

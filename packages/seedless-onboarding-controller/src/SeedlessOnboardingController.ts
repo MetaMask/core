@@ -348,10 +348,8 @@ export class SeedlessOnboardingController<
   /**
    * Gets the node details for the TOPRF operations.
    * This function can be called to get the node endpoints, indexes and pubkeys and cache them locally.
-   *
-   * @returns A promise that resolves to the node details.
    */
-  async fetchNodeDetails() {
+  async preloadToprfNodeDetails() {
     try {
       await this.toprfClient.getNodeDetails();
     } catch {
