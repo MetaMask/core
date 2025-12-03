@@ -265,7 +265,7 @@ describe('Token Utils', () => {
 
       const result = getTokenFiatRate(
         messenger,
-        TOKEN_ADDRESS_MOCK as Hex,
+        TOKEN_ADDRESS_MOCK,
         CHAIN_ID_MOCK,
       );
 
@@ -281,7 +281,7 @@ describe('Token Utils', () => {
 
       const result = getTokenFiatRate(
         messenger,
-        TOKEN_ADDRESS_MOCK as Hex,
+        TOKEN_ADDRESS_MOCK,
         CHAIN_ID_MOCK,
       );
 
@@ -303,7 +303,7 @@ describe('Token Utils', () => {
 
       const result = getTokenFiatRate(
         messenger,
-        TOKEN_ADDRESS_MOCK as Hex,
+        TOKEN_ADDRESS_MOCK,
         CHAIN_ID_MOCK,
       );
 
@@ -333,7 +333,7 @@ describe('Token Utils', () => {
 
       const result = getTokenFiatRate(
         messenger,
-        TOKEN_ADDRESS_MOCK as Hex,
+        TOKEN_ADDRESS_MOCK,
         CHAIN_ID_MOCK,
       );
 

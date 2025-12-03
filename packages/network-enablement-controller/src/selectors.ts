@@ -65,7 +65,7 @@ export const createSelectorForEnabledNetworksForNamespace = (
 export const selectAllEnabledNetworks = createSelector(
   selectEnabledNetworkMap,
   (enabledNetworkMap) => {
-    return (Object.keys(enabledNetworkMap) as CaipNamespace[]).reduce(
+    return Object.keys(enabledNetworkMap).reduce(
       (acc, ns) => {
         acc[ns] = Object.entries(enabledNetworkMap[ns])
           .filter(([, enabled]) => enabled)

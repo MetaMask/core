@@ -766,7 +766,7 @@ export class TokenDetectionController extends StaticIntervalPollingController<To
         // Handle unprocessed networks by adding them to RPC detection
         const unprocessedChainIds = apiResult.unprocessedNetworks.map(
           (chainId: number) => toHex(chainId),
-        ) as Hex[];
+        );
         this.#addChainsToRpcDetection(
           chainsToDetectUsingRpc,
           unprocessedChainIds,

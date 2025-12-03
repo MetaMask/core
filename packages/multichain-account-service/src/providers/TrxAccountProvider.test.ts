@@ -143,7 +143,7 @@ function setup({
       handleRequest: mockHandleRequest,
       keyring: {
         createAccount: keyring.createAccount as jest.Mock,
-        discoverAccounts: keyring.discoverAccounts as jest.Mock,
+        discoverAccounts: keyring.discoverAccounts,
       },
     },
   };

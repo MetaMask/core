@@ -1,10 +1,10 @@
 import { Interface } from '@ethersproject/abi';
 import { successfulFetch, toHex } from '@metamask/controller-utils';
-import type { Json } from '@metamask/utils';
+import type { Hex, Json } from '@metamask/utils';
 import { createModuleLogger } from '@metamask/utils';
 import { BigNumber } from 'bignumber.js';
 
-import { CHAIN_ID_HYPERCORE } from './constants';
+import { CHAIN_ID_HYPERCORE, TOKEN_TRANSFER_FOUR_BYTE } from './constants';
 import type { RelayQuote, RelayQuoteRequest } from './types';
 import { TransactionPayStrategy } from '../..';
 import type { TransactionMeta } from '../../../../transaction-controller/src';
@@ -126,16 +126,32 @@ async function processTransactions(
   requestBody: Record<string, Json | undefined>,
   messenger: TransactionPayControllerMessenger,
 ) {
-  const { data, value } = transaction.txParams;
+  const { nestedTransactions, txParams } = transaction;
+  const { data } = txParams;
+  let newRecipient: Hex | undefined;
 
-  /* istanbul ignore next */
-  const hasNoParams = (!data || data === '0x') && (!value || value === '0x0');
+  const singleData =
+    nestedTransactions?.length === 1 ? nestedTransactions[0].data : data;
 
-  const skipDelegation =
-    hasNoParams || request.targetChainId === CHAIN_ID_HYPERCORE;
+  const isHypercore = request.targetChainId === CHAIN_ID_HYPERCORE;
+
+  const isTokenTransfer =
+    !isHypercore && singleData?.startsWith(TOKEN_TRANSFER_FOUR_BYTE);
+
+  if (isTokenTransfer) {
+    newRecipient = new Interface([
+      'function transfer(address to, uint256 amount)',
+    ]).decodeFunctionData('transfer', singleData as Hex).to;
+
+    log('Updating recipient as token transfer', newRecipient);
+
+    requestBody.recipient = newRecipient?.toLowerCase();
+  }
+
+  const skipDelegation = isTokenTransfer || isHypercore;
 
   if (skipDelegation) {
-    log('Skipping delegation as no transaction data');
+    log('Skipping delegation as token transfer or Hypercore deposit');
     return;
   }
 
@@ -184,6 +200,10 @@ async function processTransactions(
  * @returns Normalized request.
  */
 function normalizeRequest(request: QuoteRequest) {
+  const newRequest = {
+    ...request,
+  };
+
   const isHyperliquidDeposit =
     request.targetChainId === CHAIN_ID_ARBITRUM &&
     request.targetTokenAddress.toLowerCase() ===
@@ -193,30 +213,24 @@ function normalizeRequest(request: QuoteRequest) {
     request.sourceChainId === CHAIN_ID_POLYGON &&
     request.sourceTokenAddress === getNativeToken(request.sourceChainId);
 
-  const requestOutput: QuoteRequest = {
-    ...request,
-    sourceTokenAddress: isPolygonNativeSource
-      ? NATIVE_TOKEN_ADDRESS
-      : request.sourceTokenAddress,
-    targetChainId: isHyperliquidDeposit
-      ? CHAIN_ID_HYPERCORE
-      : request.targetChainId,
-    targetTokenAddress: isHyperliquidDeposit
-      ? '0x00000000000000000000000000000000'
-      : request.targetTokenAddress,
-    targetAmountMinimum: isHyperliquidDeposit
-      ? new BigNumber(request.targetAmountMinimum).shiftedBy(2).toString(10)
-      : request.targetAmountMinimum,
-  };
+  if (isPolygonNativeSource) {
+    newRequest.sourceTokenAddress = NATIVE_TOKEN_ADDRESS;
+  }
 
   if (isHyperliquidDeposit) {
+    newRequest.targetChainId = CHAIN_ID_HYPERCORE;
+    newRequest.targetTokenAddress = '0x00000000000000000000000000000000';
+    newRequest.targetAmountMinimum = new BigNumber(request.targetAmountMinimum)
+      .shiftedBy(2)
+      .toString(10);
+
     log('Converting Arbitrum Hyperliquid deposit to direct deposit', {
       originalRequest: request,
-      normalizedRequest: requestOutput,
+      normalizedRequest: newRequest,
     });
   }
 
-  return requestOutput;
+  return newRequest;
 }
 
 /**

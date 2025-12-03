@@ -413,12 +413,12 @@ describe(`${controllerName}`, () => {
       const { controller } = createController();
       const parentDelegation = {
         ...DELEGATION_MOCK,
-        authority: ROOT_AUTHORITY as Hex,
+        authority: ROOT_AUTHORITY,
       };
       const parentHash = hashDelegationMock(parentDelegation);
       const childDelegation = {
         ...DELEGATION_MOCK,
-        authority: parentHash as Hex,
+        authority: parentHash,
       };
       const childHash = hashDelegationMock(childDelegation);
       const parentEntry = {
@@ -473,7 +473,7 @@ describe(`${controllerName}`, () => {
       const { controller } = createController();
       const rootDelegation = {
         ...DELEGATION_MOCK,
-        authority: ROOT_AUTHORITY as Hex,
+        authority: ROOT_AUTHORITY,
       };
       const rootEntry = {
         ...DELEGATION_ENTRY_MOCK,
@@ -481,7 +481,7 @@ describe(`${controllerName}`, () => {
       };
       controller.store({ entry: rootEntry });
 
-      const result = controller.chain(ROOT_AUTHORITY as Hex);
+      const result = controller.chain(ROOT_AUTHORITY);
 
       expect(result).toBeNull();
     });
@@ -504,12 +504,12 @@ describe(`${controllerName}`, () => {
       const { controller } = createController();
       const parentDelegation = {
         ...DELEGATION_MOCK,
-        authority: ROOT_AUTHORITY as Hex,
+        authority: ROOT_AUTHORITY,
       };
       const parentHash = hashDelegationMock(parentDelegation);
       const childDelegation = {
         ...DELEGATION_MOCK,
-        authority: parentHash as Hex,
+        authority: parentHash,
       };
       const childHash = hashDelegationMock(childDelegation);
       const parentEntry = {
@@ -534,7 +534,7 @@ describe(`${controllerName}`, () => {
       const { controller } = createController();
       const parentDelegation = {
         ...DELEGATION_MOCK,
-        authority: ROOT_AUTHORITY as Hex,
+        authority: ROOT_AUTHORITY,
       };
       const parentHash = hashDelegationMock(parentDelegation);
       const child1Delegation = {
@@ -585,7 +585,7 @@ describe(`${controllerName}`, () => {
       //                           -> child2 -> grandchild2
       const rootDelegation = {
         ...DELEGATION_MOCK,
-        authority: ROOT_AUTHORITY as Hex,
+        authority: ROOT_AUTHORITY,
         salt: '0x0' as Hex,
       };
       const rootHash = hashDelegationMock(rootDelegation);

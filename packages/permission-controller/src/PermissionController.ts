@@ -346,6 +346,14 @@ export type UpdateCaveat = {
 };
 
 /**
+ * Get a caveat value for a specified caveat type belonging to a specific target and origin.
+ */
+export type GetCaveat = {
+  type: `${typeof controllerName}:getCaveat`;
+  handler: GenericPermissionController['getCaveat'];
+};
+
+/**
  * Clears all permissions from the {@link PermissionController}.
  */
 export type ClearPermissions = {
@@ -379,7 +387,8 @@ export type PermissionControllerActions =
   | RevokeAllPermissions
   | RevokePermissionForAllSubjects
   | RevokePermissions
-  | UpdateCaveat;
+  | UpdateCaveat
+  | GetCaveat;
 
 /**
  * The generic state change event of the {@link PermissionController}.
@@ -890,6 +899,16 @@ export class PermissionController<
           caveatValue,
         );
       },
+    );
+
+    this.messenger.registerActionHandler(
+      `${controllerName}:getCaveat` as const,
+      (origin, target, caveatType) =>
+        this.getCaveat(
+          origin,
+          target,
+          caveatType as ExtractAllowedCaveatTypes<ControllerPermissionSpecification>,
+        ),
     );
   }
 

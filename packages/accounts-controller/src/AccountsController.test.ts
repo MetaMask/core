@@ -2386,7 +2386,7 @@ describe('AccountsController', () => {
           name: `${keyringTypeToName(keyringType)} 1`,
           id: 'mock-id',
           address: mockAddress1,
-          keyringType: keyringType as KeyringTypes,
+          keyringType,
           options: createMockInternalAccountOptions(0, keyringType, 0),
         }),
       ];

@@ -149,10 +149,9 @@ export async function fetchMultiExchangeRate(
   handleErrorResponse(response);
 
   const rates: Record<string, Record<string, number>> = {};
-  for (const [cryptocurrency, values] of Object.entries(response) as [
-    string,
-    Record<string, number>,
-  ][]) {
+  for (const [cryptocurrency, values] of Object.entries<Record<string, number>>(
+    response,
+  )) {
     const key = getKeyByValue(nativeSymbolOverrides, cryptocurrency);
     rates[key?.toLowerCase() ?? cryptocurrency.toLowerCase()] = {
       [fiatCurrency.toLowerCase()]: values[fiatCurrency.toUpperCase()],

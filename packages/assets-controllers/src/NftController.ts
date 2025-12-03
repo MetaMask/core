@@ -1052,7 +1052,7 @@ export class NftController extends BaseController<
         configuration: { chainId },
       } = this.messenger.call(
         'NetworkController:getNetworkClientById',
-        networkClientId as NetworkClientId,
+        networkClientId,
       );
 
       const nftContracts = allNftContracts[userAddress]?.[chainId] || [];
@@ -1676,7 +1676,7 @@ export class NftController extends BaseController<
       configuration: { chainId },
     } = this.messenger.call(
       'NetworkController:getNetworkClientById',
-      networkClientId as NetworkClientId,
+      networkClientId,
     );
 
     const checksumHexAddress = toChecksumHexAddress(address);
@@ -1718,7 +1718,7 @@ export class NftController extends BaseController<
       configuration: { chainId },
     } = this.messenger.call(
       'NetworkController:getNetworkClientById',
-      networkClientId as NetworkClientId,
+      networkClientId,
     );
     const checksumHexAddress = toChecksumHexAddress(address);
     this.#removeAndIgnoreIndividualNft(checksumHexAddress, tokenId, {
@@ -1769,7 +1769,7 @@ export class NftController extends BaseController<
       configuration: { chainId },
     } = this.messenger.call(
       'NetworkController:getNetworkClientById',
-      networkClientId as NetworkClientId,
+      networkClientId,
     );
     const { address, tokenId } = nft;
     let isOwned = nft.isCurrentlyOwned;
@@ -1845,7 +1845,7 @@ export class NftController extends BaseController<
       configuration: { chainId },
     } = this.messenger.call(
       'NetworkController:getNetworkClientById',
-      networkClientId as NetworkClientId,
+      networkClientId,
     );
     const { allNfts } = this.state;
     const nfts = allNfts[addressToSearch]?.[chainId] || [];
@@ -1896,7 +1896,7 @@ export class NftController extends BaseController<
       configuration: { chainId },
     } = this.messenger.call(
       'NetworkController:getNetworkClientById',
-      networkClientId as NetworkClientId,
+      networkClientId,
     );
     const { allNfts } = this.state;
     const nfts = [...(allNfts[addressToSearch]?.[chainId] || [])];

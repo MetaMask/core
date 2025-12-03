@@ -183,7 +183,7 @@ export function randomiseDecimalGWEIAndConvertToHex(
 
   // Handle the case when the value is 0 or too small
   if (Number(weiDecimalValue) === 0 || effectiveDigitsToRandomise <= 0) {
-    return `0x${Number(weiDecimalValue).toString(16)}` as Hex;
+    return `0x${Number(weiDecimalValue).toString(16)}` as const;
   }
 
   // Use string manipulation to get the base part (significant digits)
