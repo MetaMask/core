@@ -247,15 +247,12 @@ export class RemoteFeatureFlagController extends BaseController<
       remoteFeatureFlagName,
       remoteFeatureFlagValue,
     ] of Object.entries(remoteFeatureFlags)) {
-      let processedValue = remoteFeatureFlagValue;
-
-      const versionBasedValue = this.#processVersionBasedFlag(
+      let processedValue = this.#processVersionBasedFlag(
         remoteFeatureFlagValue,
       );
-      if (versionBasedValue === null) {
+      if (processedValue === null) {
         continue;
       }
-      processedValue = versionBasedValue;
 
       if (Array.isArray(remoteFeatureFlagValue) && thresholdValue) {
         const selectedGroup = remoteFeatureFlagValue.find(
