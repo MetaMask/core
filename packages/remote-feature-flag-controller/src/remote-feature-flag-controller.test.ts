@@ -569,6 +569,69 @@ describe('RemoteFeatureFlagController', () => {
       // Regular flag should remain unchanged
       expect(regularFeature).toBe(true);
     });
+
+    it('combines multi-version flags with A/B testing (threshold-based scoped values)', async () => {
+      const mockApiService = buildClientConfigApiService();
+      const mockFlags = {
+        multiVersionABFlag: {
+          versions: {
+            '13.1.0': [
+              {
+                name: 'groupA',
+                scope: { type: 'threshold', value: 0.3 },
+                value: { feature: 'A', enabled: true },
+              },
+              {
+                name: 'groupB',
+                scope: { type: 'threshold', value: 0.7 },
+                value: { feature: 'B', enabled: false },
+              },
+              {
+                name: 'groupC',
+                scope: { type: 'threshold', value: 1.0 },
+                value: { feature: 'C', enabled: true },
+              },
+            ],
+            '13.2.0': [
+              {
+                name: 'newGroupA',
+                scope: { type: 'threshold', value: 0.5 },
+                value: { feature: 'NewA', enabled: false },
+              },
+              {
+                name: 'newGroupB',
+                scope: { type: 'threshold', value: 1.0 },
+                value: { feature: 'NewB', enabled: true },
+              },
+            ],
+          },
+        },
+        regularFlag: true,
+      };
+
+      jest.spyOn(mockApiService, 'fetchRemoteFeatureFlags').mockResolvedValue({
+        remoteFeatureFlags: mockFlags,
+        cacheTimestamp: Date.now(),
+      });
+
+      const controller = createController({
+        clientConfigApiService: mockApiService,
+        clientVersion: '13.1.5', // Qualifies for 13.1.0 version but not 13.2.0
+        getMetaMetricsId: () => MOCK_METRICS_ID, // This generates threshold > 0.7
+      });
+
+      await controller.updateRemoteFeatureFlags();
+
+      const { multiVersionABFlag, regularFlag } =
+        controller.state.remoteFeatureFlags;
+      // Should select 13.1.0 version and then apply A/B testing to that array
+      // With MOCK_METRICS_ID threshold, should select groupC (threshold 1.0)
+      expect(multiVersionABFlag).toStrictEqual({
+        name: 'groupC',
+        value: { feature: 'C', enabled: true },
+      });
+      expect(regularFlag).toBe(true);
+    });
   });
 
   describe('getDefaultRemoteFeatureFlagControllerState', () => {

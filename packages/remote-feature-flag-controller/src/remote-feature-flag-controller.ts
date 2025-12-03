@@ -254,8 +254,8 @@ export class RemoteFeatureFlagController extends BaseController<
         continue;
       }
 
-      if (Array.isArray(remoteFeatureFlagValue) && thresholdValue) {
-        const selectedGroup = remoteFeatureFlagValue.find(
+      if (Array.isArray(processedValue) && thresholdValue) {
+        const selectedGroup = processedValue.find(
           (featureFlag): featureFlag is FeatureFlagScopeValue => {
             if (!isFeatureFlagWithScopeValue(featureFlag)) {
               return false;
