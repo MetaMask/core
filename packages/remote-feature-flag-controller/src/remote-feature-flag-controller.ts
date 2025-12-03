@@ -154,8 +154,6 @@ export class RemoteFeatureFlagController extends BaseController<
       );
     }
 
-    const validatedClientVersion = clientVersion as SemVerVersion;
-
     super({
       name: controllerName,
       metadata: remoteFeatureFlagControllerMetadata,
@@ -170,7 +168,7 @@ export class RemoteFeatureFlagController extends BaseController<
     this.#disabled = disabled;
     this.#clientConfigApiService = clientConfigApiService;
     this.#getMetaMetricsId = getMetaMetricsId;
-    this.#clientVersion = validatedClientVersion;
+    this.#clientVersion = clientVersion;
   }
 
   /**
