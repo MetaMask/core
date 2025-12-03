@@ -450,7 +450,7 @@ async function estimateGasUpgradeWithDataToSelf(
 
   try {
     executeGas = await simulateGas({
-      chainId: chainId as Hex,
+      chainId,
       delegationAddress,
       getSimulationConfig,
       transaction: txParams,
@@ -519,7 +519,7 @@ async function simulateGas({
       },
     ],
     overrides: {
-      [transaction.from as string]: {
+      [transaction.from]: {
         code:
           delegationAddress &&
           ((DELEGATION_PREFIX + remove0x(delegationAddress)) as Hex),
@@ -577,7 +577,7 @@ function estimateGasNode(
     params.push('latest');
 
     params.push({
-      [from as string]: {
+      [from]: {
         code: DELEGATION_PREFIX + remove0x(delegationAddress),
       },
     });

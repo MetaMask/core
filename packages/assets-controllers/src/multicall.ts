@@ -801,10 +801,7 @@ const getStakedBalancesFallback = async (
 ): Promise<Record<string, BN>> => {
   const stakedBalanceMap: Record<string, BN> = {};
 
-  const stakingContractAddress =
-    STAKING_CONTRACT_ADDRESS_BY_CHAINID[
-      chainId as keyof typeof STAKING_CONTRACT_ADDRESS_BY_CHAINID
-    ];
+  const stakingContractAddress = STAKING_CONTRACT_ADDRESS_BY_CHAINID[chainId];
 
   if (!stakingContractAddress) {
     // No staking support for this chain
@@ -854,10 +851,7 @@ export const getStakedBalancesForAddresses = async (
   chainId: Hex,
   provider: Web3Provider,
 ): Promise<Record<string, BN>> => {
-  const stakingContractAddress =
-    STAKING_CONTRACT_ADDRESS_BY_CHAINID[
-      chainId as keyof typeof STAKING_CONTRACT_ADDRESS_BY_CHAINID
-    ];
+  const stakingContractAddress = STAKING_CONTRACT_ADDRESS_BY_CHAINID[chainId];
 
   if (!stakingContractAddress) {
     return {};
@@ -978,11 +972,7 @@ export const getTokenBalancesForMultipleAddresses = async (
   );
 
   // Check if Multicall3 is supported on this chain
-  if (
-    !MULTICALL_CONTRACT_BY_CHAINID[
-      chainId as keyof typeof MULTICALL_CONTRACT_BY_CHAINID
-    ]
-  ) {
+  if (!MULTICALL_CONTRACT_BY_CHAINID[chainId]) {
     // Fallback to individual balance calls when Multicall3 is not supported
     const tokenBalances = await getTokenBalancesFallback(
       uniqueTokenAddresses,

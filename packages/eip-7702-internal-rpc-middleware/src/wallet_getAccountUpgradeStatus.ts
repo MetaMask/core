@@ -42,7 +42,7 @@ const isAccountUpgraded = async (
   }
 
   // Extract the 20-byte address (40 hex characters after the prefix)
-  const upgradedAddress = `0x${code.slice(8, 48)}` as Hex;
+  const upgradedAddress = `0x${code.slice(8, 48)}` as const;
 
   return { isUpgraded: true, upgradedAddress };
 };

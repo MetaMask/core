@@ -234,7 +234,7 @@ export function splitHex(value: Hex, lengths: number[]): Hex[] {
     const partCharLength = partLength * 2;
     const part = value.slice(start, start + partCharLength);
     start += partCharLength;
-    parts.push(`0x${part}` as Hex);
+    parts.push(`0x${part}` as const);
   }
   return parts;
 }

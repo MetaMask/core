@@ -277,7 +277,7 @@ async function getSuggestedGasFees(
     return {};
   }
 
-  const maxFeePerGas = add0x(gasPriceDecimal.toString(16)) as Hex;
+  const maxFeePerGas = add0x(gasPriceDecimal.toString(16));
 
   log('Using gasPrice from network as fallback', maxFeePerGas);
 

@@ -299,10 +299,7 @@ export abstract class AbstractMessageManager<
       status === 'errored' ||
       this.additionalFinishStatuses.includes(status)
     ) {
-      this.internalEvents.emit(
-        `${messageId as string}:finished`,
-        updatedMessage,
-      );
+      this.internalEvents.emit(`${messageId}:finished`, updatedMessage);
     }
   }
 

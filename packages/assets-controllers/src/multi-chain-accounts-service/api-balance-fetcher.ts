@@ -95,7 +95,7 @@ export class AccountsApiBalanceFetcher implements BalanceFetcher {
 
     for (const caipAddr of addrs) {
       const [, chainRef, address] = caipAddr.split(':');
-      const chainId = toHex(parseInt(chainRef, 10)) as ChainIdHex;
+      const chainId = toHex(parseInt(chainRef, 10));
       const checksumAddress = checksum(address);
 
       if (!addressesByChain[chainId]) {
@@ -123,10 +123,7 @@ export class AccountsApiBalanceFetcher implements BalanceFetcher {
         continue;
       }
 
-      const contractAddress =
-        STAKING_CONTRACT_ADDRESS_BY_CHAINID[
-          chainIdHex as keyof typeof STAKING_CONTRACT_ADDRESS_BY_CHAINID
-        ];
+      const contractAddress = STAKING_CONTRACT_ADDRESS_BY_CHAINID[chainIdHex];
       const provider = this.#getProvider(chainIdHex);
 
       const abi = [
@@ -173,7 +170,7 @@ export class AccountsApiBalanceFetcher implements BalanceFetcher {
                   success: true,
                   value: new BN((assets as BigNumber).toString()),
                   account: address,
-                  token: checksum(contractAddress) as ChecksumAddress,
+                  token: checksum(contractAddress),
                   chainId: chainIdHex,
                 });
               }
@@ -183,7 +180,7 @@ export class AccountsApiBalanceFetcher implements BalanceFetcher {
                 success: true,
                 value: new BN('0'),
                 account: address,
-                token: checksum(contractAddress) as ChecksumAddress,
+                token: checksum(contractAddress),
                 chainId: chainIdHex,
               });
             }
@@ -196,7 +193,7 @@ export class AccountsApiBalanceFetcher implements BalanceFetcher {
             results.push({
               success: false,
               account: address,
-              token: checksum(contractAddress) as ChecksumAddress,
+              token: checksum(contractAddress),
               chainId: chainIdHex,
             });
           }
@@ -298,9 +295,7 @@ export class AccountsApiBalanceFetcher implements BalanceFetcher {
     // Extract unprocessed networks and convert to hex chain IDs
     const unprocessedChainIds: ChainIdHex[] | undefined =
       apiResponse.unprocessedNetworks
-        ? apiResponse.unprocessedNetworks.map(
-            (chainId) => toHex(chainId) as ChainIdHex,
-          )
+        ? apiResponse.unprocessedNetworks.map((chainId) => toHex(chainId))
         : undefined;
 
     const stakedBalances = await this.#fetchStakedBalances(caipAddrs);
@@ -311,7 +306,7 @@ export class AccountsApiBalanceFetcher implements BalanceFetcher {
     const addressChainMap = new Map<string, Set<ChainIdHex>>();
     caipAddrs.forEach((caipAddr) => {
       const [, chainRef, address] = caipAddr.split(':');
-      const chainId = toHex(parseInt(chainRef, 10)) as ChainIdHex;
+      const chainId = toHex(parseInt(chainRef, 10));
       const checksumAddress = checksum(address);
 
       if (!addressChainMap.has(checksumAddress)) {
@@ -339,7 +334,7 @@ export class AccountsApiBalanceFetcher implements BalanceFetcher {
         // by mgrating tokenBalancesController to checksum addresses
         const finalAccount: ChecksumAddress | string =
           token === ZERO_ADDRESS ? account : addressPart;
-        const chainId = toHex(b.chainId) as ChainIdHex;
+        const chainId = toHex(b.chainId);
 
         let value: BN | undefined;
         try {
