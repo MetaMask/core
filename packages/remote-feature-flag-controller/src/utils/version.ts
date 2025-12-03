@@ -1,4 +1,5 @@
-import type { Json } from '@metamask/utils';
+import { gtVersion, isValidSemVerVersion } from '@metamask/utils';
+import type { Json, SemVerVersion } from '@metamask/utils';
 
 import type { MultiVersionFeatureFlagValue } from '../remote-feature-flag-controller-types';
 
@@ -11,10 +12,10 @@ export const MULTI_VERSION_FLAG_KEYS = {
 } as const;
 
 /**
- * Checks if a feature flag value is a multi-version gated flag (contains versions array).
+ * Checks if a feature flag value is a multi-version gated flag (contains versions object with valid SemVer keys).
  *
  * @param value - The feature flag value to check
- * @returns true if the value is a multi-version feature flag, false otherwise
+ * @returns true if the value is a multi-version feature flag with valid SemVer version keys, false otherwise
  */
 export function isVersionFeatureFlag(
   value: Json,
@@ -32,11 +33,17 @@ export function isVersionFeatureFlag(
     MULTI_VERSION_FLAG_KEYS.VERSIONS
   ];
 
-  return (
-    typeof versions === 'object' &&
-    versions !== null &&
-    !Array.isArray(versions)
-  );
+  if (
+    typeof versions !== 'object' ||
+    versions === null ||
+    Array.isArray(versions)
+  ) {
+    return false;
+  }
+
+  // Validate that all version keys are valid SemVer versions
+  const versionKeys = Object.keys(versions);
+  return versionKeys.every((versionKey) => isValidSemVerVersion(versionKey));
 }
 
 /**
@@ -68,44 +75,19 @@ export function getVersionData(
 
 /**
  * Compares two semantic version strings.
+ * Both versions are expected to be valid SemVer format (e.g., "13.9.5").
  *
  * @param currentVersion - The current version (e.g., "13.9.5")
  * @param requiredVersion - The required minimum version (e.g., "13.10.0")
  * @returns true if currentVersion >= requiredVersion, false otherwise
  */
-export function isVersionAtLeast(
+function isVersionAtLeast(
   currentVersion: string,
   requiredVersion: string,
 ): boolean {
-  const current = normalizeVersion(currentVersion);
-  const required = normalizeVersion(requiredVersion);
+  // Both versions are guaranteed to be valid SemVer strings - validated by isVersionFeatureFlag()
+  const current = currentVersion as SemVerVersion;
+  const required = requiredVersion as SemVerVersion;
 
-  const maxLength = Math.max(current.length, required.length);
-  while (current.length < maxLength) {
-    current.push(0);
-  }
-  while (required.length < maxLength) {
-    required.push(0);
-  }
-
-  for (let i = 0; i < maxLength; i++) {
-    if (current[i] > required[i]) {
-      return true;
-    }
-    if (current[i] < required[i]) {
-      return false;
-    }
-  }
-
-  return true;
-}
-
-/**
- * Normalizes a version string to an array of numbers.
- *
- * @param version - The version string to normalize
- * @returns The normalized version as an array of numbers
- */
-function normalizeVersion(version: string): number[] {
-  return version.split('.').map(Number);
+  return current === required || gtVersion(current, required);
 }

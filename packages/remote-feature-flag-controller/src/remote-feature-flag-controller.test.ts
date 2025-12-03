@@ -109,6 +109,38 @@ describe('RemoteFeatureFlagController', () => {
 
       expect(controller.state).toStrictEqual(customState);
     });
+
+    it('accepts valid 3-part SemVer clientVersion', () => {
+      expect(() =>
+        createController({ clientVersion: '13.10.0' }),
+      ).not.toThrow();
+      expect(() => createController({ clientVersion: '1.0.0' })).not.toThrow();
+      expect(() => createController({ clientVersion: '14.5.2' })).not.toThrow();
+    });
+
+    it('throws error for invalid clientVersion formats', () => {
+      expect(() => createController({ clientVersion: '13.10' })).toThrow(
+        'Invalid clientVersion: "13.10". Must be a valid 3-part SemVer version string',
+      );
+
+      expect(() => createController({ clientVersion: '13' })).toThrow(
+        'Invalid clientVersion: "13". Must be a valid 3-part SemVer version string',
+      );
+
+      expect(() => createController({ clientVersion: '13.10.0.1' })).toThrow(
+        'Invalid clientVersion: "13.10.0.1". Must be a valid 3-part SemVer version string',
+      );
+
+      expect(() =>
+        createController({ clientVersion: 'invalid-version' }),
+      ).toThrow(
+        'Invalid clientVersion: "invalid-version". Must be a valid 3-part SemVer version string',
+      );
+
+      expect(() => createController({ clientVersion: '' })).toThrow(
+        'Invalid clientVersion: "". Must be a valid 3-part SemVer version string',
+      );
+    });
   });
 
   describe('updateRemoteFeatureFlags', () => {

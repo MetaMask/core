@@ -4,7 +4,7 @@ import {
   type ControllerStateChangeEvent,
 } from '@metamask/base-controller';
 import type { Messenger } from '@metamask/messenger';
-import type { Json } from '@metamask/utils';
+import { isValidSemVerVersion, type Json } from '@metamask/utils';
 
 import type { AbstractClientConfigApiService } from './client-config-api-service/abstract-client-config-api-service';
 import type {
@@ -125,7 +125,7 @@ export class RemoteFeatureFlagController extends BaseController<
    * @param options.fetchInterval - The interval in milliseconds before cached flags expire. Defaults to 1 day.
    * @param options.disabled - Determines if the controller should be disabled initially. Defaults to false.
    * @param options.getMetaMetricsId - Returns metaMetricsId.
-   * @param options.clientVersion - The current application version for version-based feature flag filtering.
+   * @param options.clientVersion - The current client version for version-based feature flag filtering. Must be a valid 3-part SemVer version string.
    */
   constructor({
     messenger,
@@ -144,6 +144,12 @@ export class RemoteFeatureFlagController extends BaseController<
     disabled?: boolean;
     clientVersion: string;
   }) {
+    if (!isValidSemVerVersion(clientVersion)) {
+      throw new Error(
+        `Invalid clientVersion: "${clientVersion}". Must be a valid 3-part SemVer version string`,
+      );
+    }
+
     super({
       name: controllerName,
       metadata: remoteFeatureFlagControllerMetadata,

@@ -1,45 +1,4 @@
-import {
-  isVersionAtLeast,
-  isVersionFeatureFlag,
-  getVersionData,
-} from './version';
-
-describe('isVersionAtLeast', () => {
-  it('returns true when current version is greater than required version', () => {
-    expect(isVersionAtLeast('13.10.0', '13.9.0')).toBe(true);
-    expect(isVersionAtLeast('14.0.0', '13.10.0')).toBe(true);
-    expect(isVersionAtLeast('13.9.6', '13.9.5')).toBe(true);
-  });
-
-  it('returns false when current version is less than required version', () => {
-    expect(isVersionAtLeast('13.9.0', '13.10.0')).toBe(false);
-    expect(isVersionAtLeast('13.5.0', '13.5.2')).toBe(false);
-    expect(isVersionAtLeast('12.0.0', '13.0.0')).toBe(false);
-  });
-
-  it('returns true when versions are equal', () => {
-    expect(isVersionAtLeast('13.10.0', '13.10.0')).toBe(true);
-    expect(isVersionAtLeast('1.0.0', '1.0.0')).toBe(true);
-  });
-
-  it('handles versions with different number of components', () => {
-    expect(isVersionAtLeast('13.10', '13.10.0')).toBe(true);
-    expect(isVersionAtLeast('13.10.0', '13.10')).toBe(true);
-    expect(isVersionAtLeast('13.9', '13.10.0')).toBe(false);
-    expect(isVersionAtLeast('13.11', '13.10.0')).toBe(true);
-  });
-
-  it('handle single component versions', () => {
-    expect(isVersionAtLeast('14', '13')).toBe(true);
-    expect(isVersionAtLeast('13', '14')).toBe(false);
-    expect(isVersionAtLeast('13', '13')).toBe(true);
-  });
-
-  it('handle versions with more than 3 components', () => {
-    expect(isVersionAtLeast('13.10.0.1', '13.10.0.0')).toBe(true);
-    expect(isVersionAtLeast('13.10.0.0', '13.10.0.1')).toBe(false);
-  });
-});
+import { isVersionFeatureFlag, getVersionData } from './version';
 
 describe('isVersionFeatureFlag', () => {
   it('returns true for valid multi-version feature flag', () => {
@@ -105,7 +64,7 @@ describe('isVersionFeatureFlag', () => {
     expect(isVersionFeatureFlag(flagWithNumber)).toBe(false);
   });
 
-  it('returns true when versions is a valid object', () => {
+  it('returns true when versions is a valid object with valid SemVer keys', () => {
     const validFlag = {
       versions: {
         '13.1.0': { x: '12' },
@@ -114,6 +73,46 @@ describe('isVersionFeatureFlag', () => {
       },
     };
     expect(isVersionFeatureFlag(validFlag)).toBe(true);
+  });
+
+  it('returns false when version keys are not valid SemVer', () => {
+    const flagWithInvalidVersions = {
+      versions: {
+        '13.10': { x: '12' }, // Not valid SemVer (missing patch)
+        '13.2.0': { x: '13' },
+      },
+    };
+    expect(isVersionFeatureFlag(flagWithInvalidVersions)).toBe(false);
+  });
+
+  it('returns false when version keys contain single component versions', () => {
+    const flagWithSingleComponent = {
+      versions: {
+        '13': { x: '12' }, // Not valid SemVer
+        '14.0.0': { x: '13' },
+      },
+    };
+    expect(isVersionFeatureFlag(flagWithSingleComponent)).toBe(false);
+  });
+
+  it('returns false when version keys contain 4+ component versions', () => {
+    const flagWithFourComponents = {
+      versions: {
+        '13.10.0.1': { x: '12' }, // Not valid SemVer
+        '13.2.0': { x: '13' },
+      },
+    };
+    expect(isVersionFeatureFlag(flagWithFourComponents)).toBe(false);
+  });
+
+  it('returns false when version keys are invalid strings', () => {
+    const flagWithInvalidStrings = {
+      versions: {
+        'invalid-version': { x: '12' },
+        '13.2.0': { x: '13' },
+      },
+    };
+    expect(isVersionFeatureFlag(flagWithInvalidStrings)).toBe(false);
   });
 });
 
