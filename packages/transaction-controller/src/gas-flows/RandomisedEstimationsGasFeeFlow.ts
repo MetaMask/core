@@ -1,6 +1,7 @@
 import type { GasFeeEstimates as FeeMarketGasPriceEstimate } from '@metamask/gas-fee-controller';
 import { GAS_ESTIMATE_TYPES } from '@metamask/gas-fee-controller';
-import { add0x, createModuleLogger, type Hex } from '@metamask/utils';
+import { add0x, createModuleLogger } from '@metamask/utils';
+import type { Hex } from '@metamask/utils';
 
 import { DefaultGasFeeFlow } from './DefaultGasFeeFlow';
 import { projectLogger } from '../logger';

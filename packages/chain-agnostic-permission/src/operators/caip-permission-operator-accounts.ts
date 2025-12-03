@@ -2,13 +2,15 @@ import { isEqualCaseInsensitive } from '@metamask/controller-utils';
 import type { InternalAccount } from '@metamask/keyring-internal-api';
 import {
   assertIsStrictHexString,
-  type CaipAccountAddress,
-  type CaipAccountId,
-  type CaipNamespace,
-  type CaipReference,
-  type Hex,
   KnownCaipNamespace,
   parseCaipAccountId,
+} from '@metamask/utils';
+import type {
+  CaipAccountAddress,
+  CaipAccountId,
+  CaipNamespace,
+  CaipReference,
+  Hex,
 } from '@metamask/utils';
 
 import type { Caip25CaveatValue } from '../caip25Permission';

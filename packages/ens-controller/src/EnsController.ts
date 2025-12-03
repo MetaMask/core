@@ -1,9 +1,9 @@
 import { Web3Provider } from '@ethersproject/providers';
-import {
-  BaseController,
-  type StateMetadata,
-  type ControllerGetStateAction,
-  type ControllerStateChangeEvent,
+import { BaseController } from '@metamask/base-controller';
+import type {
+  StateMetadata,
+  ControllerGetStateAction,
+  ControllerStateChangeEvent,
 } from '@metamask/base-controller';
 import type { ChainId } from '@metamask/controller-utils';
 import {

@@ -1,4 +1,3 @@
-/* eslint-disable jsdoc/require-jsdoc */
 import type { Bip44Account } from '@metamask/account-api';
 import {
   AccountGroupType,
@@ -10,7 +9,6 @@ import type { InternalAccount } from '@metamask/keyring-internal-api';
 
 import { MultichainAccountGroup } from './MultichainAccountGroup';
 import { MultichainAccountWallet } from './MultichainAccountWallet';
-import type { MockAccountProvider } from './tests';
 import {
   MOCK_SNAP_ACCOUNT_2,
   MOCK_WALLET_1_BTC_P2TR_ACCOUNT,
@@ -21,8 +19,9 @@ import {
   setupNamedAccountProvider,
   getMultichainAccountServiceMessenger,
   getRootMessenger,
-  type RootMessenger,
 } from './tests';
+import type { MockAccountProvider } from './tests';
+import type { RootMessenger } from './tests';
 import type { MultichainAccountServiceMessenger } from './types';
 
 function setup({

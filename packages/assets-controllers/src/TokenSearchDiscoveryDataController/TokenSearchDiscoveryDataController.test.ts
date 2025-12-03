@@ -1,13 +1,12 @@
 import { deriveStateFromMetadata } from '@metamask/base-controller';
 import { ChainId } from '@metamask/controller-utils';
-import {
-  MOCK_ANY_NAMESPACE,
-  Messenger,
-  type MessengerActions,
-  type MessengerEvents,
-  type MockAnyNamespace,
+import { MOCK_ANY_NAMESPACE, Messenger } from '@metamask/messenger';
+import type {
+  MessengerActions,
+  MessengerEvents,
+  MockAnyNamespace,
 } from '@metamask/messenger';
-import { type Hex } from '@metamask/utils';
+import type { Hex } from '@metamask/utils';
 import assert from 'assert';
 import { useFakeTimers } from 'sinon';
 
@@ -16,8 +15,10 @@ import {
   TokenSearchDiscoveryDataController,
   controllerName,
   MAX_TOKEN_DISPLAY_DATA_LENGTH,
-  type TokenSearchDiscoveryDataControllerMessenger,
-  type TokenSearchDiscoveryDataControllerState,
+} from './TokenSearchDiscoveryDataController';
+import type {
+  TokenSearchDiscoveryDataControllerMessenger,
+  TokenSearchDiscoveryDataControllerState,
 } from './TokenSearchDiscoveryDataController';
 import type { NotFoundTokenDisplayData, FoundTokenDisplayData } from './types';
 import { advanceTime } from '../../../../tests/helpers';

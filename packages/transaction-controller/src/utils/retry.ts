@@ -3,7 +3,7 @@ import type { Hex } from '@metamask/utils';
 import { add0x } from '@metamask/utils';
 
 import type { FeeMarketEIP1559Values, GasPriceValue } from '../types';
-import { type TransactionParams } from '../types';
+import type { TransactionParams } from '../types';
 
 /**
  * Returns new transaction parameters with increased gas fees.

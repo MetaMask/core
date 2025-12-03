@@ -1,7 +1,8 @@
 import { rpcErrors } from '@metamask/rpc-errors';
 import type { JsonRpcRequest, PendingJsonRpcResponse } from '@metamask/utils';
 
-import { type GetCallsStatusHook, GetCallsStatusStruct } from '../types';
+import { GetCallsStatusStruct } from '../types';
+import type { GetCallsStatusHook } from '../types';
 import { validateParams } from '../utils';
 
 /**

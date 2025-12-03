@@ -1,4 +1,4 @@
-import { type Bip44Account } from '@metamask/account-api';
+import type { Bip44Account } from '@metamask/account-api';
 import type { TraceCallback, TraceRequest } from '@metamask/controller-utils';
 import type { SnapKeyring } from '@metamask/eth-snap-keyring';
 import type { EntropySourceId, KeyringAccount } from '@metamask/keyring-api';

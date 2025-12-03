@@ -30,6 +30,11 @@ const config = createConfig([
       camelcase: 'off',
       'id-length': 'off',
 
+      // TODO: Re-enable this rule
+      // Enabling it with error suppression breaks `--fix`, because the autofixer for this rule
+      // does not work very well.
+      'jsdoc/require-jsdoc': 'off',
+
       // TODO: re-enble most of these rules
       'id-denylist': 'off',
       'import-x/no-unassigned-import': 'off',
@@ -123,10 +128,11 @@ const config = createConfig([
       // TODO: auto-fix breaks stuff
       '@typescript-eslint/promise-function-async': 'off',
 
-      // TODO: Re-enable this rule
-      // Enabling it with error suppression breaks `--fix`, because the autofixer for this rule
-      // does not work very well.
+      // TODO: Re-enable these rules
+      // Enabling them with error suppression breaks `--fix`, because the autofixer for these rules
+      // do not work very well.
       'jsdoc/check-tag-names': 'off',
+      'jsdoc/require-jsdoc': 'off',
 
       // TODO: re-enable most of these rules
       '@typescript-eslint/naming-convention': 'off',

@@ -1,11 +1,8 @@
 import type { Patch } from 'immer';
 import sinon from 'sinon';
 
-import {
-  type MockAnyNamespace,
-  Messenger,
-  MOCK_ANY_NAMESPACE,
-} from './Messenger';
+import { Messenger, MOCK_ANY_NAMESPACE } from './Messenger';
+import type { MockAnyNamespace } from './Messenger';
 
 describe('Messenger', () => {
   afterEach(() => {

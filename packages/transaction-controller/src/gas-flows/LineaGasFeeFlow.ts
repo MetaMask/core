@@ -1,6 +1,7 @@
 import { ChainId, hexToBN, query, toHex } from '@metamask/controller-utils';
 import type EthQuery from '@metamask/eth-query';
-import { createModuleLogger, type Hex } from '@metamask/utils';
+import { createModuleLogger } from '@metamask/utils';
+import type { Hex } from '@metamask/utils';
 import type BN from 'bn.js';
 
 import { DefaultGasFeeFlow } from './DefaultGasFeeFlow';

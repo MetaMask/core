@@ -1,13 +1,13 @@
-import {
-  type ControllerGetStateAction,
-  type ControllerStateChangeEvent,
-  BaseController,
+import { BaseController } from '@metamask/base-controller';
+import type {
+  ControllerGetStateAction,
+  ControllerStateChangeEvent,
 } from '@metamask/base-controller';
-import {
-  type SnapKeyringAccountAssetListUpdatedEvent,
-  type SnapKeyringAccountBalancesUpdatedEvent,
-  type SnapKeyringAccountTransactionsUpdatedEvent,
-  SnapKeyring,
+import { SnapKeyring } from '@metamask/eth-snap-keyring';
+import type {
+  SnapKeyringAccountAssetListUpdatedEvent,
+  SnapKeyringAccountBalancesUpdatedEvent,
+  SnapKeyringAccountTransactionsUpdatedEvent,
 } from '@metamask/eth-snap-keyring';
 import type { KeyringAccountEntropyOptions } from '@metamask/keyring-api';
 import {
@@ -17,13 +17,13 @@ import {
   isEvmAccountType,
   KeyringAccountEntropyTypeOption,
 } from '@metamask/keyring-api';
+import { KeyringTypes } from '@metamask/keyring-controller';
 import type { KeyringObject } from '@metamask/keyring-controller';
-import {
-  type KeyringControllerState,
-  type KeyringControllerGetKeyringsByTypeAction,
-  type KeyringControllerStateChangeEvent,
-  type KeyringControllerGetStateAction,
-  KeyringTypes,
+import type {
+  KeyringControllerState,
+  KeyringControllerGetKeyringsByTypeAction,
+  KeyringControllerStateChangeEvent,
+  KeyringControllerGetStateAction,
 } from '@metamask/keyring-controller';
 import type { InternalAccount } from '@metamask/keyring-internal-api';
 import { isScopeEqualToAny } from '@metamask/keyring-utils';
@@ -34,7 +34,8 @@ import type {
   SnapStateChange,
 } from '@metamask/snaps-controllers';
 import type { SnapId } from '@metamask/snaps-sdk';
-import { type CaipChainId, isCaipChainId } from '@metamask/utils';
+import { isCaipChainId } from '@metamask/utils';
+import type { CaipChainId } from '@metamask/utils';
 import type { WritableDraft } from 'immer/dist/internal.js';
 import { cloneDeep } from 'lodash';
 

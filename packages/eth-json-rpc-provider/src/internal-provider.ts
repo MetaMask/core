@@ -1,17 +1,18 @@
-import { asV2Middleware, type JsonRpcEngine } from '@metamask/json-rpc-engine';
-import {
-  type HandleOptions,
-  type ContextConstraint,
-  type MiddlewareContext,
-  JsonRpcEngineV2,
+import { asV2Middleware } from '@metamask/json-rpc-engine';
+import type { JsonRpcEngine } from '@metamask/json-rpc-engine';
+import { JsonRpcEngineV2 } from '@metamask/json-rpc-engine/v2';
+import type {
+  HandleOptions,
+  ContextConstraint,
+  MiddlewareContext,
 } from '@metamask/json-rpc-engine/v2';
 import type { JsonRpcSuccess } from '@metamask/utils';
-import {
-  type Json,
-  type JsonRpcId,
-  type JsonRpcParams,
-  type JsonRpcRequest,
-  type JsonRpcVersion2,
+import type {
+  Json,
+  JsonRpcId,
+  JsonRpcParams,
+  JsonRpcRequest,
+  JsonRpcVersion2,
 } from '@metamask/utils';
 import { nanoid } from 'nanoid';
 

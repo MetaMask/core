@@ -1,5 +1,6 @@
 import type { Caveat } from '@metamask/delegation-core';
-import { getChecksumAddress, type Hex } from '@metamask/utils';
+import { getChecksumAddress } from '@metamask/utils';
+import type { Hex } from '@metamask/utils';
 
 import type { DeployedContractsByName } from './types';
 import {

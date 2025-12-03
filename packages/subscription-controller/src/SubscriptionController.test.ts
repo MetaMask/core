@@ -1,10 +1,9 @@
 import { deriveStateFromMetadata } from '@metamask/base-controller';
-import {
-  Messenger,
-  MOCK_ANY_NAMESPACE,
-  type MessengerActions,
-  type MessengerEvents,
-  type MockAnyNamespace,
+import { Messenger, MOCK_ANY_NAMESPACE } from '@metamask/messenger';
+import type {
+  MessengerActions,
+  MessengerEvents,
+  MockAnyNamespace,
 } from '@metamask/messenger';
 import {
   TransactionStatus,
@@ -21,10 +20,12 @@ import { SubscriptionServiceError } from './errors';
 import {
   getDefaultSubscriptionControllerState,
   SubscriptionController,
-  type AllowedEvents,
-  type SubscriptionControllerMessenger,
-  type SubscriptionControllerOptions,
-  type SubscriptionControllerState,
+} from './SubscriptionController';
+import type {
+  AllowedEvents,
+  SubscriptionControllerMessenger,
+  SubscriptionControllerOptions,
+  SubscriptionControllerState,
 } from './SubscriptionController';
 import type {
   Subscription,

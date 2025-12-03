@@ -1,23 +1,21 @@
 import { deriveStateFromMetadata } from '@metamask/base-controller';
 import { InfuraNetworkType } from '@metamask/controller-utils';
-import type { AnyAccountType } from '@metamask/keyring-api';
 import {
   BtcScope,
   SolScope,
   EthAccountType,
   BtcAccountType,
   SolAccountType,
-  type KeyringAccountType,
-  type CaipChainId,
   EthScope,
   TrxAccountType,
 } from '@metamask/keyring-api';
-import {
-  Messenger,
-  MOCK_ANY_NAMESPACE,
-  type MessengerActions,
-  type MessengerEvents,
-  type MockAnyNamespace,
+import type { AnyAccountType } from '@metamask/keyring-api';
+import type { KeyringAccountType, CaipChainId } from '@metamask/keyring-api';
+import { Messenger, MOCK_ANY_NAMESPACE } from '@metamask/messenger';
+import type {
+  MessengerActions,
+  MessengerEvents,
+  MockAnyNamespace,
 } from '@metamask/messenger';
 import type {
   NetworkControllerGetStateAction,
@@ -26,11 +24,12 @@ import type {
   NetworkControllerRemoveNetworkAction,
   NetworkControllerFindNetworkClientIdByChainIdAction,
 } from '@metamask/network-controller';
-import { KnownCaipNamespace, type CaipAccountId } from '@metamask/utils';
+import { KnownCaipNamespace } from '@metamask/utils';
+import type { CaipAccountId } from '@metamask/utils';
 
 import { MultichainNetworkController } from './MultichainNetworkController';
 import { createMockInternalAccount } from '../../tests/utils';
-import { type ActiveNetworksResponse } from '../api/accounts-api';
+import type { ActiveNetworksResponse } from '../api/accounts-api';
 import { getDefaultMultichainNetworkControllerState } from '../constants';
 import type { AbstractMultichainNetworkService } from '../MultichainNetworkService/AbstractMultichainNetworkService';
 import type { MultichainNetworkControllerMessenger } from '../types';

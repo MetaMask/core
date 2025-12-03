@@ -6,12 +6,11 @@ import {
   toHex,
   InfuraNetworkType,
 } from '@metamask/controller-utils';
-import {
-  Messenger,
-  MOCK_ANY_NAMESPACE,
-  type MessengerActions,
-  type MessengerEvents,
-  type MockAnyNamespace,
+import { Messenger, MOCK_ANY_NAMESPACE } from '@metamask/messenger';
+import type {
+  MessengerActions,
+  MessengerEvents,
+  MockAnyNamespace,
 } from '@metamask/messenger';
 import type { NetworkState } from '@metamask/network-controller';
 import type { Hex } from '@metamask/utils';

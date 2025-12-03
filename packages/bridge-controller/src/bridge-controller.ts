@@ -21,16 +21,16 @@ import { CHAIN_IDS } from './constants/chains';
 import { SWAPS_CONTRACT_ADDRESSES } from './constants/swaps';
 import { TraceName } from './constants/traces';
 import { selectIsAssetExchangeRateInState } from './selectors';
+import { RequestStatus } from './types';
 import type { QuoteRequest } from './types';
-import {
-  type L1GasFees,
-  type GenericQuoteRequest,
-  type NonEvmFees,
-  type QuoteResponse,
-  type BridgeControllerState,
-  type BridgeControllerMessenger,
-  type FetchFunction,
-  RequestStatus,
+import type {
+  L1GasFees,
+  GenericQuoteRequest,
+  NonEvmFees,
+  QuoteResponse,
+  BridgeControllerState,
+  BridgeControllerMessenger,
+  FetchFunction,
 } from './types';
 import { getAssetIdsForToken, toExchangeRates } from './utils/assets';
 import { hasSufficientBalance } from './utils/balance';
@@ -74,7 +74,7 @@ import type {
   RequestMetadata,
   RequiredEventContextFromClient,
 } from './utils/metrics/types';
-import { type CrossChainSwapsEventProperties } from './utils/metrics/types';
+import type { CrossChainSwapsEventProperties } from './utils/metrics/types';
 import { isValidQuoteRequest, sortQuotes } from './utils/quote';
 import { appendFeesToQuotes } from './utils/quote-fees';
 import { getMinimumBalanceForRentExemptionInLamports } from './utils/snaps';

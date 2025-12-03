@@ -8,12 +8,9 @@ import type {
   RequestParams,
 } from './types';
 import { DEFAULT_BRIDGE_CONTROLLER_STATE } from '../../constants/bridge';
+import { ChainId } from '../../types';
 import type { QuoteMetadata, QuoteResponse, TxData } from '../../types';
-import {
-  ChainId,
-  type GenericQuoteRequest,
-  type QuoteRequest,
-} from '../../types';
+import type { GenericQuoteRequest, QuoteRequest } from '../../types';
 import { getNativeAssetForChainId, isCrossChain } from '../bridge';
 import {
   formatAddressToAssetId,

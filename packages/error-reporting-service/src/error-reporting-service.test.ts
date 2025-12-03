@@ -1,8 +1,5 @@
-import {
-  Messenger,
-  type MessengerActions,
-  type MessengerEvents,
-} from '@metamask/messenger';
+import { Messenger } from '@metamask/messenger';
+import type { MessengerActions, MessengerEvents } from '@metamask/messenger';
 import { captureException as sentryCaptureException } from '@sentry/core';
 
 import type { ErrorReportingServiceMessenger } from './error-reporting-service';

@@ -1,13 +1,13 @@
 import type { AccountsControllerState } from '@metamask/accounts-controller';
 import type { StateMetadata } from '@metamask/base-controller';
-import {
-  type QuoteMetadata,
-  type RequiredEventContextFromClient,
-  type TxData,
-  type QuoteResponse,
-  type Trade,
-  isEvmTxData,
+import type {
+  QuoteMetadata,
+  RequiredEventContextFromClient,
+  TxData,
+  QuoteResponse,
+  Trade,
 } from '@metamask/bridge-controller';
+import { isEvmTxData } from '@metamask/bridge-controller';
 import {
   formatChainIdToHex,
   isNonEvmChainId,
@@ -24,16 +24,17 @@ import {
 import type { TraceCallback } from '@metamask/controller-utils';
 import { toHex } from '@metamask/controller-utils';
 import { StaticIntervalPollingController } from '@metamask/polling-controller';
+import {
+  TransactionStatus,
+  TransactionType,
+} from '@metamask/transaction-controller';
 import type {
   TransactionController,
   TransactionParams,
 } from '@metamask/transaction-controller';
-import {
-  TransactionStatus,
-  TransactionType,
-  type TransactionMeta,
-} from '@metamask/transaction-controller';
-import { numberToHex, type Hex } from '@metamask/utils';
+import type { TransactionMeta } from '@metamask/transaction-controller';
+import { numberToHex } from '@metamask/utils';
+import type { Hex } from '@metamask/utils';
 
 import {
   BRIDGE_PROD_API_BASE_URL,
@@ -50,7 +51,7 @@ import type {
   SolanaTransactionMeta,
   BridgeHistoryItem,
 } from './types';
-import { type BridgeStatusControllerMessenger } from './types';
+import type { BridgeStatusControllerMessenger } from './types';
 import { BridgeClientId } from './types';
 import {
   fetchBridgeTxStatus,

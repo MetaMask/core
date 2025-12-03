@@ -2,8 +2,9 @@ import { AddressZero } from '@ethersproject/constants';
 import { Contract } from '@ethersproject/contracts';
 import { BtcScope, SolScope, TrxScope } from '@metamask/keyring-api';
 import { abiERC20 } from '@metamask/metamask-eth-abis';
+import { isCaipChainId, isStrictHexString } from '@metamask/utils';
 import type { CaipAssetType, CaipChainId } from '@metamask/utils';
-import { isCaipChainId, isStrictHexString, type Hex } from '@metamask/utils';
+import type { Hex } from '@metamask/utils';
 
 import {
   formatChainIdToCaip,
@@ -20,8 +21,8 @@ import { SWAPS_CONTRACT_ADDRESSES } from '../constants/swaps';
 import {
   SWAPS_CHAINID_DEFAULT_TOKEN_MAP,
   SYMBOL_TO_SLIP44_MAP,
-  type SupportedSwapsNativeCurrencySymbols,
 } from '../constants/tokens';
+import type { SupportedSwapsNativeCurrencySymbols } from '../constants/tokens';
 import type {
   BridgeAsset,
   BridgeControllerState,

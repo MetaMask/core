@@ -2,8 +2,9 @@ import type { JsonRpcMiddleware } from '@metamask/json-rpc-engine/v2';
 import { rpcErrors } from '@metamask/rpc-errors';
 import type { Infer } from '@metamask/superstruct';
 import { object } from '@metamask/superstruct';
+import { StrictHexStruct } from '@metamask/utils';
 import type { Json } from '@metamask/utils';
-import { type JsonRpcRequest, StrictHexStruct } from '@metamask/utils';
+import type { JsonRpcRequest } from '@metamask/utils';
 
 import { validateParams } from '../utils/validation';
 import type { WalletMiddlewareContext } from '../wallet';

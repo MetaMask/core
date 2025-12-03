@@ -1,5 +1,6 @@
 import { Contract } from '@ethersproject/contracts';
-import { Web3Provider, type ExternalProvider } from '@ethersproject/providers';
+import { Web3Provider } from '@ethersproject/providers';
+import type { ExternalProvider } from '@ethersproject/providers';
 import type { Hex } from '@metamask/utils';
 import { add0x, createModuleLogger } from '@metamask/utils';
 import BN from 'bn.js';

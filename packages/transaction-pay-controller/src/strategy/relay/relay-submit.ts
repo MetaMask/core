@@ -3,10 +3,8 @@ import {
   successfulFetch,
   toHex,
 } from '@metamask/controller-utils';
-import {
-  TransactionType,
-  type TransactionParams,
-} from '@metamask/transaction-controller';
+import { TransactionType } from '@metamask/transaction-controller';
+import type { TransactionParams } from '@metamask/transaction-controller';
 import type {
   AuthorizationList,
   TransactionMeta,

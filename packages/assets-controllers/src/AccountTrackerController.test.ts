@@ -1,26 +1,24 @@
 import { deriveStateFromMetadata } from '@metamask/base-controller';
 import { query, toChecksumHexAddress } from '@metamask/controller-utils';
 import type { InternalAccount } from '@metamask/keyring-internal-api';
-import {
-  MOCK_ANY_NAMESPACE,
-  Messenger,
-  type MessengerActions,
-  type MessengerEvents,
-  type MockAnyNamespace,
+import { MOCK_ANY_NAMESPACE, Messenger } from '@metamask/messenger';
+import type {
+  MessengerActions,
+  MessengerEvents,
+  MockAnyNamespace,
 } from '@metamask/messenger';
+import { getDefaultNetworkControllerState } from '@metamask/network-controller';
 import type { NetworkConfiguration } from '@metamask/network-controller';
-import {
-  type NetworkClientId,
-  type NetworkClientConfiguration,
-  getDefaultNetworkControllerState,
+import type {
+  NetworkClientId,
+  NetworkClientConfiguration,
 } from '@metamask/network-controller';
 import { getDefaultPreferencesState } from '@metamask/preferences-controller';
-import {
-  TransactionStatus,
-  type TransactionMeta,
-} from '@metamask/transaction-controller';
+import { TransactionStatus } from '@metamask/transaction-controller';
+import type { TransactionMeta } from '@metamask/transaction-controller';
 import BN from 'bn.js';
-import { useFakeTimers, type SinonFakeTimers } from 'sinon';
+import { useFakeTimers } from 'sinon';
+import type { SinonFakeTimers } from 'sinon';
 
 import type { AccountTrackerControllerMessenger } from './AccountTrackerController';
 import { AccountTrackerController } from './AccountTrackerController';

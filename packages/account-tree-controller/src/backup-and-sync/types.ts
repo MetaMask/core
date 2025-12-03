@@ -6,15 +6,15 @@ import type {
 } from '@metamask/account-api';
 import type { TraceCallback } from '@metamask/controller-utils';
 import type { InternalAccount } from '@metamask/keyring-internal-api';
-import type { Infer } from '@metamask/superstruct';
 import {
   object,
   string,
   boolean,
   number,
   optional,
-  type Struct,
 } from '@metamask/superstruct';
+import type { Infer } from '@metamask/superstruct';
+import type { Struct } from '@metamask/superstruct';
 
 import type { BackupAndSyncEmitAnalyticsEventParams } from './analytics';
 import type { AccountTreeController } from '../AccountTreeController';

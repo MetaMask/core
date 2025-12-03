@@ -4,12 +4,10 @@ import type {
 } from '@metamask/controller-utils';
 import { createServicePolicy, HttpError } from '@metamask/controller-utils';
 import type { Messenger } from '@metamask/messenger';
-import {
-  type AuthenticationController,
-  SDK,
-} from '@metamask/profile-sync-controller';
+import { SDK } from '@metamask/profile-sync-controller';
+import type { AuthenticationController } from '@metamask/profile-sync-controller';
 
-import { type ProfileMetricsServiceMethodActions } from '.';
+import type { ProfileMetricsServiceMethodActions } from '.';
 
 // === GENERAL ===
 
@@ -169,7 +167,6 @@ export class ProfileMetricsService {
     return this.#policy.onBreak(listener);
   }
 
-  /* eslint-disable jsdoc/check-indentation */
   /**
    * Registers a handler that will be called under one of two circumstances:
    *
@@ -187,7 +184,7 @@ export class ProfileMetricsService {
    * @returns An object that can be used to unregister the handler. See
    * {@link CockatielEvent}.
    */
-  /* eslint-enable jsdoc/check-indentation */
+
   onDegraded(listener: Parameters<ServicePolicy['onDegraded']>[0]) {
     return this.#policy.onDegraded(listener);
   }

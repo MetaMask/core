@@ -1,4 +1,3 @@
-/* eslint-disable jsdoc/require-jsdoc */
 import type { Bip44Account } from '@metamask/account-api';
 import {
   AccountWalletType,
@@ -7,15 +6,11 @@ import {
   toMultichainAccountGroupId,
   toMultichainAccountWalletId,
 } from '@metamask/account-api';
-import {
-  EthAccountType,
-  SolAccountType,
-  type EntropySourceId,
-} from '@metamask/keyring-api';
+import { EthAccountType, SolAccountType } from '@metamask/keyring-api';
+import type { EntropySourceId } from '@metamask/keyring-api';
 import type { InternalAccount } from '@metamask/keyring-internal-api';
 
 import { MultichainAccountWallet } from './MultichainAccountWallet';
-import type { MockAccountProvider } from './tests';
 import {
   MOCK_HD_ACCOUNT_1,
   MOCK_HD_KEYRING_1,
@@ -30,8 +25,9 @@ import {
   setupNamedAccountProvider,
   getMultichainAccountServiceMessenger,
   getRootMessenger,
-  type RootMessenger,
 } from './tests';
+import type { MockAccountProvider } from './tests';
+import type { RootMessenger } from './tests';
 import type { MultichainAccountServiceMessenger } from './types';
 
 function setup({

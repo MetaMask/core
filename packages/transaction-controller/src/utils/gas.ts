@@ -15,15 +15,12 @@ import { getGasEstimateBuffer, getGasEstimateFallback } from './feature-flags';
 import { simulateTransactions } from '../api/simulation-api';
 import { projectLogger } from '../logger';
 import type { TransactionControllerMessenger } from '../TransactionController';
+import { TransactionEnvelopeType } from '../types';
 import type {
   GetSimulationConfig,
   TransactionBatchSingleRequest,
 } from '../types';
-import {
-  TransactionEnvelopeType,
-  type TransactionMeta,
-  type TransactionParams,
-} from '../types';
+import type { TransactionMeta, TransactionParams } from '../types';
 
 export type UpdateGasRequest = {
   chainId: Hex;

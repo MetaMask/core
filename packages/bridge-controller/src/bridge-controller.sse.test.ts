@@ -10,12 +10,9 @@ import {
   DEFAULT_BRIDGE_CONTROLLER_STATE,
   ETH_USDT_ADDRESS,
 } from './constants/bridge';
+import { ChainId, RequestStatus } from './types';
 import type { QuoteResponse, TxData } from './types';
-import {
-  ChainId,
-  RequestStatus,
-  type BridgeControllerMessenger,
-} from './types';
+import type { BridgeControllerMessenger } from './types';
 import * as balanceUtils from './utils/balance';
 import { formatChainIdToDec } from './utils/caip-formatters';
 import * as featureFlagUtils from './utils/feature-flags';

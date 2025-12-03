@@ -24,7 +24,8 @@ import {
   WARNING_PREFIX,
 } from './logger';
 import { MultichainAccountGroup } from './MultichainAccountGroup';
-import { EvmAccountProvider, type Bip44AccountProvider } from './providers';
+import { EvmAccountProvider } from './providers';
+import type { Bip44AccountProvider } from './providers';
 import type { MultichainAccountServiceMessenger } from './types';
 import { createSentryError, toRejectedErrorMessage } from './utils';
 

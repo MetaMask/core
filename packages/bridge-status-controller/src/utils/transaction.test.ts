@@ -3,9 +3,11 @@ import {
   FeeType,
   formatChainIdToCaip,
   formatChainIdToHex,
-  type QuoteMetadata,
-  type QuoteResponse,
-  type TxData,
+} from '@metamask/bridge-controller';
+import type {
+  QuoteMetadata,
+  QuoteResponse,
+  TxData,
 } from '@metamask/bridge-controller';
 import {
   TransactionStatus,

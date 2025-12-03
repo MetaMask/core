@@ -6,12 +6,9 @@ import type { Hex } from '@metamask/utils';
 import { isStrictHexString, remove0x } from '@metamask/utils';
 
 import { isEIP1559Transaction } from './utils';
+import { TransactionEnvelopeType, TransactionType } from '../types';
 import type { Authorization, TransactionBatchRequest } from '../types';
-import {
-  TransactionEnvelopeType,
-  TransactionType,
-  type TransactionParams,
-} from '../types';
+import type { TransactionParams } from '../types';
 
 export enum ErrorCode {
   DuplicateBundleId = 5720,

@@ -5,15 +5,14 @@ import {
   toHex,
   toChecksumHexAddress,
 } from '@metamask/controller-utils';
-import { add0x, type Hex } from '@metamask/utils';
+import { add0x } from '@metamask/utils';
+import type { Hex } from '@metamask/utils';
 
 import * as assetsUtil from './assetsUtil';
 import { TOKEN_PRICES_BATCH_SIZE } from './assetsUtil';
 import type { Nft, NftMetadata } from './NftController';
-import {
-  getNativeTokenAddress,
-  type AbstractTokenPricesService,
-} from './token-prices-service';
+import { getNativeTokenAddress } from './token-prices-service';
+import type { AbstractTokenPricesService } from './token-prices-service';
 
 const DEFAULT_IPFS_URL_FORMAT = 'ipfs://';
 const ALTERNATIVE_IPFS_URL_FORMAT = 'ipfs://ipfs/';

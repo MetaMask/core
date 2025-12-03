@@ -5,9 +5,8 @@ import type {
   TxData,
   TronTradeData,
 } from '@metamask/bridge-controller';
+import type { QuoteResponse, QuoteMetadata } from '@metamask/bridge-controller';
 import {
-  type QuoteResponse,
-  type QuoteMetadata,
   StatusTypes,
   BridgeController,
   getNativeAssetForChainId,
@@ -16,12 +15,11 @@ import {
 } from '@metamask/bridge-controller';
 import { ChainId } from '@metamask/bridge-controller';
 import { ActionTypes, FeeType } from '@metamask/bridge-controller';
-import {
-  Messenger,
-  MOCK_ANY_NAMESPACE,
-  type MessengerActions,
-  type MessengerEvents,
-  type MockAnyNamespace,
+import { Messenger, MOCK_ANY_NAMESPACE } from '@metamask/messenger';
+import type {
+  MessengerActions,
+  MessengerEvents,
+  MockAnyNamespace,
 } from '@metamask/messenger';
 import {
   TransactionType,
@@ -40,14 +38,14 @@ import {
   DEFAULT_BRIDGE_STATUS_CONTROLLER_STATE,
   MAX_ATTEMPTS,
 } from './constants';
+import { BridgeClientId } from './types';
 import type { StatusResponse } from './types';
-import {
-  type BridgeId,
-  type StartPollingForBridgeTxStatusArgsSerialized,
-  type BridgeHistoryItem,
-  type BridgeStatusControllerState,
-  type BridgeStatusControllerMessenger,
-  BridgeClientId,
+import type {
+  BridgeId,
+  StartPollingForBridgeTxStatusArgsSerialized,
+  BridgeHistoryItem,
+  BridgeStatusControllerState,
+  BridgeStatusControllerMessenger,
 } from './types';
 import * as bridgeStatusUtils from './utils/bridge-status';
 import * as transactionUtils from './utils/transaction';
