@@ -23,6 +23,7 @@
     { "path": "./packages/chain-agnostic-permission" },
     { "path": "./packages/claims-controller" },
     { "path": "./packages/composable-controller" },
+    { "path": "./packages/config-registry-controller" },
     { "path": "./packages/controller-utils" },
     { "path": "./packages/core-backend" },
     { "path": "./packages/delegation-controller" },

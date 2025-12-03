@@ -35,6 +35,7 @@ Each package in this repository has its own README where you can find installati
 - [`@metamask/chain-agnostic-permission`](packages/chain-agnostic-permission)
 - [`@metamask/claims-controller`](packages/claims-controller)
 - [`@metamask/composable-controller`](packages/composable-controller)
+- [`@metamask/config-registry-controller`](packages/config-registry-controller)
 - [`@metamask/controller-utils`](packages/controller-utils)
 - [`@metamask/core-backend`](packages/core-backend)
 - [`@metamask/delegation-controller`](packages/delegation-controller)
@@ -78,6 +79,7 @@ Each package in this repository has its own README where you can find installati
 - [`@metamask/selected-network-controller`](packages/selected-network-controller)
 - [`@metamask/shield-controller`](packages/shield-controller)
 - [`@metamask/signature-controller`](packages/signature-controller)
+- [`@metamask/storage-service`](packages/storage-service)
 - [`@metamask/subscription-controller`](packages/subscription-controller)
 - [`@metamask/token-search-discovery-controller`](packages/token-search-discovery-controller)
 - [`@metamask/transaction-controller`](packages/transaction-controller)
@@ -107,6 +109,7 @@ linkStyle default opacity:0.5
   chain_agnostic_permission(["@metamask/chain-agnostic-permission"]);
   claims_controller(["@metamask/claims-controller"]);
   composable_controller(["@metamask/composable-controller"]);
+  config_registry_controller(["@metamask/config-registry-controller"]);
   controller_utils(["@metamask/controller-utils"]);
   core_backend(["@metamask/core-backend"]);
   delegation_controller(["@metamask/delegation-controller"]);
@@ -150,6 +153,7 @@ linkStyle default opacity:0.5
   selected_network_controller(["@metamask/selected-network-controller"]);
   shield_controller(["@metamask/shield-controller"]);
   signature_controller(["@metamask/signature-controller"]);
+  storage_service(["@metamask/storage-service"]);
   subscription_controller(["@metamask/subscription-controller"]);
   token_search_discovery_controller(["@metamask/token-search-discovery-controller"]);
   transaction_controller(["@metamask/transaction-controller"]);
@@ -343,9 +347,12 @@ linkStyle default opacity:0.5
   preferences_controller --> controller_utils;
   preferences_controller --> keyring_controller;
   preferences_controller --> messenger;
+  profile_metrics_controller --> accounts_controller;
   profile_metrics_controller --> base_controller;
   profile_metrics_controller --> controller_utils;
+  profile_metrics_controller --> keyring_controller;
   profile_metrics_controller --> messenger;
+  profile_metrics_controller --> polling_controller;
   profile_metrics_controller --> profile_sync_controller;
   profile_sync_controller --> address_book_controller;
   profile_sync_controller --> base_controller;
@@ -382,6 +389,7 @@ linkStyle default opacity:0.5
   signature_controller --> logging_controller;
   signature_controller --> messenger;
   signature_controller --> network_controller;
+  storage_service --> messenger;
   subscription_controller --> base_controller;
   subscription_controller --> controller_utils;
   subscription_controller --> messenger;
