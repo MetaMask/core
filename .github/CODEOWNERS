@@ -117,8 +117,8 @@
 /packages/assets-controllers/CHANGELOG.md         @MetaMask/metamask-assets @MetaMask/core-platform
 /packages/chain-agnostic-permission/package.json  @MetaMask/wallet-integrations @MetaMask/core-platform
 /packages/chain-agnostic-permission/CHANGELOG.md  @MetaMask/wallet-integrations @MetaMask/core-platform
-/packages/delegation-controller/package.json      @MetaMask/vault @MetaMask/core-platform
-/packages/delegation-controller/CHANGELOG.md      @MetaMask/vault @MetaMask/core-platform
+/packages/delegation-controller/package.json      @MetaMask/delegation @MetaMask/core-platform
+/packages/delegation-controller/CHANGELOG.md      @MetaMask/delegation @MetaMask/core-platform
 /packages/earn-controller/package.json            @MetaMask/earn @MetaMask/core-platform
 /packages/earn-controller/CHANGELOG.md            @MetaMask/earn @MetaMask/core-platform
 /packages/eip-5792-middleware/package.json        @MetaMask/wallet-integrations @MetaMask/core-platform
