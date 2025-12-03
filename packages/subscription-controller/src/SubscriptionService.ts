@@ -1,10 +1,7 @@
 import { handleFetch } from '@metamask/controller-utils';
 
-import {
-  getEnvUrls,
-  SubscriptionControllerErrorMessage,
-  type Env,
-} from './constants';
+import { getEnvUrls, SubscriptionControllerErrorMessage } from './constants';
+import type { Env } from './constants';
 import { SubscriptionServiceError } from './errors';
 import type {
   AssignCohortRequest,

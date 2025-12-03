@@ -1,11 +1,8 @@
 import type { InternalAccount } from '@metamask/keyring-internal-api';
 import BN from 'bn.js';
 
-import {
-  AccountsApiBalanceFetcher,
-  type ChainIdHex,
-  type ChecksumAddress,
-} from './api-balance-fetcher';
+import { AccountsApiBalanceFetcher } from './api-balance-fetcher';
+import type { ChainIdHex, ChecksumAddress } from './api-balance-fetcher';
 import type { GetBalancesResponse } from './types';
 import { SUPPORTED_NETWORKS_ACCOUNTS_API_V4 } from '../constants';
 

@@ -1,7 +1,5 @@
-import {
-  parseAccountGroupId,
-  type AccountGroupId,
-} from '@metamask/account-api';
+import { parseAccountGroupId } from '@metamask/account-api';
+import type { AccountGroupId } from '@metamask/account-api';
 import type { AccountTreeControllerState } from '@metamask/account-tree-controller';
 import type { AccountsControllerState } from '@metamask/accounts-controller';
 import { isEvmAccountType } from '@metamask/keyring-api';

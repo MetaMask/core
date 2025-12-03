@@ -6,8 +6,8 @@ import {
 import {
   EthMethod,
   SignatureRequestType,
-  type SignatureRequest,
 } from '@metamask/signature-controller';
+import type { SignatureRequest } from '@metamask/signature-controller';
 import type { TransactionMeta } from '@metamask/transaction-controller';
 import type { AuthorizationList } from '@metamask/transaction-controller';
 import type { Json } from '@metamask/utils';

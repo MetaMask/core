@@ -5,11 +5,11 @@ import type {
   AccountsControllerGetSelectedAccountAction,
 } from '@metamask/accounts-controller';
 import type { AddApprovalRequest } from '@metamask/approval-controller';
-import {
-  BaseController,
-  type ControllerStateChangeEvent,
-  type ControllerGetStateAction,
-  type StateMetadata,
+import { BaseController } from '@metamask/base-controller';
+import type {
+  ControllerStateChangeEvent,
+  ControllerGetStateAction,
+  StateMetadata,
 } from '@metamask/base-controller';
 import {
   safelyExecute,
@@ -26,7 +26,7 @@ import {
   convertHexToDecimal,
   toHex,
 } from '@metamask/controller-utils';
-import { type InternalAccount } from '@metamask/keyring-internal-api';
+import type { InternalAccount } from '@metamask/keyring-internal-api';
 import type { Messenger } from '@metamask/messenger';
 import type {
   NetworkClientId,

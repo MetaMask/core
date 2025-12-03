@@ -2,15 +2,13 @@ import { platform } from 'node:os';
 import { argv, stdout } from 'node:process';
 import yargs from 'yargs/yargs';
 
-import {
-  type Checksums,
-  type ParsedOptions,
-  type ArchitecturesTuple,
-  type BinariesTuple,
-  type PlatformsTuple,
-  Architecture,
-  Binary,
-  Platform,
+import { Architecture, Binary, Platform } from './types';
+import type {
+  Checksums,
+  ParsedOptions,
+  ArchitecturesTuple,
+  BinariesTuple,
+  PlatformsTuple,
 } from './types';
 import { normalizeSystemArchitecture } from './utils';
 

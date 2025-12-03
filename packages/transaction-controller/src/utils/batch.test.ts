@@ -1,4 +1,5 @@
-import { ORIGIN_METAMASK, type AddResult } from '@metamask/approval-controller';
+import { ORIGIN_METAMASK } from '@metamask/approval-controller';
+import type { AddResult } from '@metamask/approval-controller';
 import { ApprovalType } from '@metamask/controller-utils';
 import { rpcErrors, errorCodes } from '@metamask/rpc-errors';
 import { cloneDeep } from 'lodash';
@@ -20,16 +21,18 @@ import {
 } from './feature-flags';
 import { simulateGasBatch } from './gas';
 import { validateBatchRequest } from './validation';
-import type { TransactionControllerState } from '..';
 import {
   TransactionEnvelopeType,
-  type TransactionControllerMessenger,
-  type TransactionMeta,
   determineTransactionType,
   TransactionType,
   GasFeeEstimateLevel,
   GasFeeEstimateType,
   TransactionStatus,
+} from '..';
+import type {
+  TransactionControllerMessenger,
+  TransactionControllerState,
+  TransactionMeta,
 } from '..';
 import { flushPromises } from '../../../../tests/helpers';
 import { DefaultGasFeeFlow } from '../gas-flows/DefaultGasFeeFlow';

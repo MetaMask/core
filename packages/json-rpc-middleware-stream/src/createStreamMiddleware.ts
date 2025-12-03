@@ -4,12 +4,12 @@ import type {
   JsonRpcMiddleware,
 } from '@metamask/json-rpc-engine';
 import SafeEventEmitter from '@metamask/safe-event-emitter';
-import {
-  hasProperty,
-  type JsonRpcNotification,
-  type JsonRpcParams,
-  type JsonRpcRequest,
-  type PendingJsonRpcResponse,
+import { hasProperty } from '@metamask/utils';
+import type {
+  JsonRpcNotification,
+  JsonRpcParams,
+  JsonRpcRequest,
+  PendingJsonRpcResponse,
 } from '@metamask/utils';
 import { Duplex } from 'readable-stream';
 

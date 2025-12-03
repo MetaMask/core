@@ -1,17 +1,13 @@
-import {
-  Messenger,
-  MOCK_ANY_NAMESPACE,
-  type MockAnyNamespace,
-} from '@metamask/messenger';
+import { Messenger, MOCK_ANY_NAMESPACE } from '@metamask/messenger';
+import type { MockAnyNamespace } from '@metamask/messenger';
 import { validate as uuidValidate, version as uuidVersion } from 'uuid';
 
-import {
-  AnalyticsController,
-  type AnalyticsControllerMessenger,
-  type AnalyticsControllerActions,
-  type AnalyticsControllerEvents,
-  type AnalyticsPlatformAdapter,
-  getDefaultAnalyticsControllerState,
+import { AnalyticsController, getDefaultAnalyticsControllerState } from '.';
+import type {
+  AnalyticsControllerMessenger,
+  AnalyticsControllerActions,
+  AnalyticsControllerEvents,
+  AnalyticsPlatformAdapter,
 } from '.';
 import type { AnalyticsControllerState } from '.';
 

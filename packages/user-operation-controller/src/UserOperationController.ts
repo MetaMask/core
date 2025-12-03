@@ -3,10 +3,10 @@ import type {
   AddApprovalRequest,
   AddResult,
 } from '@metamask/approval-controller';
-import {
-  BaseController,
-  type ControllerGetStateAction,
-  type ControllerStateChangeEvent,
+import { BaseController } from '@metamask/base-controller';
+import type {
+  ControllerGetStateAction,
+  ControllerStateChangeEvent,
 } from '@metamask/base-controller';
 import { ApprovalType } from '@metamask/controller-utils';
 import EthQuery from '@metamask/eth-query';
@@ -22,11 +22,11 @@ import type {
   Provider,
 } from '@metamask/network-controller';
 import { errorCodes } from '@metamask/rpc-errors';
-import {
-  determineTransactionType,
-  type TransactionMeta,
-  type TransactionParams,
-  type TransactionType,
+import { determineTransactionType } from '@metamask/transaction-controller';
+import type {
+  TransactionMeta,
+  TransactionParams,
+  TransactionType,
 } from '@metamask/transaction-controller';
 import { add0x } from '@metamask/utils';
 // This package purposefully relies on Node's EventEmitter module.

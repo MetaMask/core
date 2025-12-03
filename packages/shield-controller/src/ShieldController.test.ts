@@ -1,14 +1,10 @@
 import { deriveStateFromMetadata } from '@metamask/base-controller';
+import { SignatureRequestStatus } from '@metamask/signature-controller';
 import type { SignatureRequest } from '@metamask/signature-controller';
-import {
-  SignatureRequestStatus,
-  type SignatureControllerState,
-} from '@metamask/signature-controller';
+import type { SignatureControllerState } from '@metamask/signature-controller';
+import { TransactionStatus } from '@metamask/transaction-controller';
 import type { TransactionMeta } from '@metamask/transaction-controller';
-import {
-  TransactionStatus,
-  type TransactionControllerState,
-} from '@metamask/transaction-controller';
+import type { TransactionControllerState } from '@metamask/transaction-controller';
 
 import { ShieldController } from './ShieldController';
 import type { NormalizeSignatureRequestFn } from './types';

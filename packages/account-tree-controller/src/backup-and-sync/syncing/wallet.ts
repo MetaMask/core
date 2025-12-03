@@ -3,11 +3,8 @@ import { backupAndSyncLogger } from '../../logger';
 import type { AccountWalletEntropyObject } from '../../wallet';
 import { BackupAndSyncAnalyticsEvent } from '../analytics';
 import type { ProfileId } from '../authentication';
-import {
-  UserStorageSyncedWalletSchema,
-  type BackupAndSyncContext,
-  type UserStorageSyncedWallet,
-} from '../types';
+import { UserStorageSyncedWalletSchema } from '../types';
+import type { BackupAndSyncContext, UserStorageSyncedWallet } from '../types';
 import { pushWalletToUserStorage } from '../user-storage/network-operations';
 
 /**

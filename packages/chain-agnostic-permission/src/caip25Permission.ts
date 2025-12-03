@@ -11,14 +11,18 @@ import {
   CaveatMutatorOperation,
   PermissionType,
 } from '@metamask/permission-controller';
-import type { CaipAccountId, CaipChainId, Json } from '@metamask/utils';
 import {
   hasProperty,
   KnownCaipNamespace,
   parseCaipAccountId,
   isObject,
-  type Hex,
-  type NonEmptyArray,
+} from '@metamask/utils';
+import type {
+  CaipAccountId,
+  CaipChainId,
+  Json,
+  Hex,
+  NonEmptyArray,
 } from '@metamask/utils';
 import { cloneDeep, isEqual, pick } from 'lodash';
 
@@ -38,11 +42,11 @@ import {
   isSupportedSessionProperty,
 } from './scope/supported';
 import { mergeInternalScopes } from './scope/transform';
-import {
-  parseScopeString,
-  type ExternalScopeString,
-  type InternalScopeObject,
-  type InternalScopesObject,
+import { parseScopeString } from './scope/types';
+import type {
+  ExternalScopeString,
+  InternalScopeObject,
+  InternalScopesObject,
 } from './scope/types';
 
 /**

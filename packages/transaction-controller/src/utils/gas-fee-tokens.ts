@@ -12,11 +12,11 @@ import type {
   TransactionControllerMessenger,
   TransactionMeta,
 } from '..';
+import { simulateTransactions } from '../api/simulation-api';
 import type { SimulationRequestTransaction } from '../api/simulation-api';
-import {
-  simulateTransactions,
-  type SimulationResponse,
-  type SimulationResponseTransaction,
+import type {
+  SimulationResponse,
+  SimulationResponseTransaction,
 } from '../api/simulation-api';
 import { projectLogger } from '../logger';
 import type { GetSimulationConfig } from '../types';

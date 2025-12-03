@@ -38,7 +38,8 @@ import type {
   Provider,
 } from '@metamask/network-controller';
 import { rpcErrors } from '@metamask/rpc-errors';
-import { isStrictHexString, type Hex } from '@metamask/utils';
+import { isStrictHexString } from '@metamask/utils';
+import type { Hex } from '@metamask/utils';
 import { Mutex } from 'async-mutex';
 import type { Patch } from 'immer';
 import { cloneDeep } from 'lodash';

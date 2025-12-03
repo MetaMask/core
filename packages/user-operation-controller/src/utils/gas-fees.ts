@@ -5,10 +5,8 @@ import {
   toHex,
 } from '@metamask/controller-utils';
 import EthQuery from '@metamask/eth-query';
-import {
-  GAS_ESTIMATE_TYPES,
-  type GasFeeState,
-} from '@metamask/gas-fee-controller';
+import { GAS_ESTIMATE_TYPES } from '@metamask/gas-fee-controller';
+import type { GasFeeState } from '@metamask/gas-fee-controller';
 import type { Provider } from '@metamask/network-controller';
 import type { TransactionParams } from '@metamask/transaction-controller';
 import { UserFeeLevel } from '@metamask/transaction-controller';

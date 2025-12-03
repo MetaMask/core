@@ -9,17 +9,17 @@ import {
   CHAIN_ID,
   DELEGATOR_CONTRACTS,
 } from '@metamask/delegation-deployments';
-import {
-  MOCK_ANY_NAMESPACE,
-  Messenger,
-  type MessengerActions,
-  type MessengerEvents,
-  type MockAnyNamespace,
+import { MOCK_ANY_NAMESPACE, Messenger } from '@metamask/messenger';
+import type {
+  MessengerActions,
+  MessengerEvents,
+  MockAnyNamespace,
 } from '@metamask/messenger';
 import type { HandleSnapRequest, HasSnap } from '@metamask/snaps-controllers';
 import type { SnapId } from '@metamask/snaps-sdk';
 import type { TransactionMeta } from '@metamask/transaction-controller';
-import { hexToBigInt, numberToHex, type Hex } from '@metamask/utils';
+import { hexToBigInt, numberToHex } from '@metamask/utils';
+import type { Hex } from '@metamask/utils';
 
 import { DELEGATION_FRAMEWORK_VERSION } from './constants';
 import { GatorPermissionsFetchError } from './errors';

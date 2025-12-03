@@ -1,17 +1,14 @@
 import { deriveStateFromMetadata } from '@metamask/base-controller';
 import type { InternalAccount } from '@metamask/keyring-internal-api';
-import {
-  Messenger,
-  MOCK_ANY_NAMESPACE,
-  type MockAnyNamespace,
-  type MessengerActions,
-  type MessengerEvents,
+import { Messenger, MOCK_ANY_NAMESPACE } from '@metamask/messenger';
+import type {
+  MockAnyNamespace,
+  MessengerActions,
+  MessengerEvents,
 } from '@metamask/messenger';
 
-import {
-  ProfileMetricsController,
-  type ProfileMetricsControllerMessenger,
-} from './ProfileMetricsController';
+import { ProfileMetricsController } from './ProfileMetricsController';
+import type { ProfileMetricsControllerMessenger } from './ProfileMetricsController';
 import type {
   ProfileMetricsSubmitMetricsRequest,
   AccountWithScopes,

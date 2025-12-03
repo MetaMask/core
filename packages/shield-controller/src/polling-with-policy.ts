@@ -1,8 +1,7 @@
-import {
-  createServicePolicy,
-  HttpError,
-  type CreateServicePolicyOptions,
-  type ServicePolicy,
+import { createServicePolicy, HttpError } from '@metamask/controller-utils';
+import type {
+  CreateServicePolicyOptions,
+  ServicePolicy,
 } from '@metamask/controller-utils';
 import { handleWhen } from 'cockatiel';
 

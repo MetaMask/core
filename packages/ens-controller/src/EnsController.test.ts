@@ -5,17 +5,16 @@ import {
   toHex,
   InfuraNetworkType,
 } from '@metamask/controller-utils';
-import {
-  Messenger,
-  MOCK_ANY_NAMESPACE,
-  type MessengerActions,
-  type MessengerEvents,
-  type MockAnyNamespace,
+import { Messenger, MOCK_ANY_NAMESPACE } from '@metamask/messenger';
+import type {
+  MessengerActions,
+  MessengerEvents,
+  MockAnyNamespace,
 } from '@metamask/messenger';
-import {
-  type NetworkController,
-  type NetworkState,
-  getDefaultNetworkControllerState,
+import { getDefaultNetworkControllerState } from '@metamask/network-controller';
+import type {
+  NetworkController,
+  NetworkState,
 } from '@metamask/network-controller';
 
 import { EnsController, DEFAULT_ENS_NETWORK_MAP } from './EnsController';

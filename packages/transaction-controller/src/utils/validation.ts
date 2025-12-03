@@ -6,11 +6,11 @@ import type { Hex } from '@metamask/utils';
 import { isStrictHexString, remove0x } from '@metamask/utils';
 
 import { isEIP1559Transaction } from './utils';
-import type { Authorization, TransactionBatchRequest } from '../types';
-import {
-  TransactionEnvelopeType,
-  TransactionType,
-  type TransactionParams,
+import { TransactionEnvelopeType, TransactionType } from '../types';
+import type {
+  Authorization,
+  TransactionBatchRequest,
+  TransactionParams,
 } from '../types';
 
 export enum ErrorCode {

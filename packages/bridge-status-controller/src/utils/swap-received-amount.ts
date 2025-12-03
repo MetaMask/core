@@ -1,6 +1,6 @@
 import type { TokenAmountValues } from '@metamask/bridge-controller';
 import { isNativeAddress } from '@metamask/bridge-controller';
-import { type TransactionMeta } from '@metamask/transaction-controller';
+import type { TransactionMeta } from '@metamask/transaction-controller';
 import { BigNumber } from 'bignumber.js';
 
 import type { BridgeHistoryItem } from '../types';
