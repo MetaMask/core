@@ -29,9 +29,7 @@ export function isVersionFeatureFlag(
     return false;
   }
 
-  const versions = (value as Record<string, unknown>)[
-    MULTI_VERSION_FLAG_KEYS.VERSIONS
-  ];
+  const versions = value[MULTI_VERSION_FLAG_KEYS.VERSIONS];
 
   if (
     typeof versions !== 'object' ||
@@ -56,9 +54,9 @@ export function isVersionFeatureFlag(
  */
 export function getVersionData(
   multiVersionFlag: MultiVersionFeatureFlagValue,
-  currentAppVersion: string,
+  currentAppVersion: SemVerVersion,
 ): Json | null {
-  const sortedVersions = Object.entries(multiVersionFlag.versions).sort(
+  const sortedVersions = getObjectEntries(multiVersionFlag.versions).sort(
     ([versionA], [versionB]) => {
       return isVersionAtLeast(versionA, versionB) ? -1 : 1;
     },
@@ -82,12 +80,24 @@ export function getVersionData(
  * @returns true if currentVersion >= requiredVersion, false otherwise
  */
 function isVersionAtLeast(
-  currentVersion: string,
-  requiredVersion: string,
+  currentVersion: SemVerVersion,
+  requiredVersion: SemVerVersion,
 ): boolean {
-  // Both versions are guaranteed to be valid SemVer strings - validated by isVersionFeatureFlag()
-  const current = currentVersion as SemVerVersion;
-  const required = requiredVersion as SemVerVersion;
+  return (
+    currentVersion === requiredVersion ||
+    gtVersion(currentVersion, requiredVersion)
+  );
+}
 
-  return current === required || gtVersion(current, required);
+/**
+ * A utility function that calls `Object.entries` while preserving the index type.
+ *
+ * @param input - The object to get the entries of.
+ * @returns - The object entries.
+ */
+function getObjectEntries<Input extends Record<string, unknown>>(
+  input: Input,
+): [keyof Input, Input[keyof Input]][] {
+  // Use cast to preserve index type. Object.entries always widens to string.
+  return Object.entries(input) as [keyof Input, Input[keyof Input]][];
 }

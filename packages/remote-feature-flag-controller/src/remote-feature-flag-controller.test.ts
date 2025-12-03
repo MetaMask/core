@@ -47,6 +47,7 @@ const MOCK_FLAGS_WITH_THRESHOLD = {
 };
 
 const MOCK_METRICS_ID = 'f9e8d7c6-b5a4-4210-9876-543210fedcba';
+const MOCK_BASE_VERSION = '13.10.0';
 
 /**
  * Creates a controller instance with default parameters for testing
@@ -75,7 +76,7 @@ function createController(
       options.clientConfigApiService ?? buildClientConfigApiService(),
     disabled: options.disabled,
     getMetaMetricsId: options.getMetaMetricsId ?? (() => MOCK_METRICS_ID),
-    clientVersion: options.clientVersion ?? '13.10.0',
+    clientVersion: options.clientVersion ?? MOCK_BASE_VERSION,
   });
 }
 
@@ -112,7 +113,7 @@ describe('RemoteFeatureFlagController', () => {
 
     it('accepts valid 3-part SemVer clientVersion', () => {
       expect(() =>
-        createController({ clientVersion: '13.10.0' }),
+        createController({ clientVersion: MOCK_BASE_VERSION }),
       ).not.toThrow();
       expect(() => createController({ clientVersion: '1.0.0' })).not.toThrow();
       expect(() => createController({ clientVersion: '14.5.2' })).not.toThrow();

@@ -4,7 +4,11 @@ import {
   type ControllerStateChangeEvent,
 } from '@metamask/base-controller';
 import type { Messenger } from '@metamask/messenger';
-import { isValidSemVerVersion, type Json } from '@metamask/utils';
+import {
+  isValidSemVerVersion,
+  type Json,
+  type SemVerVersion,
+} from '@metamask/utils';
 
 import type { AbstractClientConfigApiService } from './client-config-api-service/abstract-client-config-api-service';
 import type {
@@ -113,7 +117,7 @@ export class RemoteFeatureFlagController extends BaseController<
 
   readonly #getMetaMetricsId: () => string;
 
-  readonly #clientVersion: string;
+  readonly #clientVersion: SemVerVersion;
 
   /**
    * Constructs a new RemoteFeatureFlagController instance.
@@ -150,6 +154,8 @@ export class RemoteFeatureFlagController extends BaseController<
       );
     }
 
+    const validatedClientVersion = clientVersion as SemVerVersion;
+
     super({
       name: controllerName,
       metadata: remoteFeatureFlagControllerMetadata,
@@ -164,7 +170,7 @@ export class RemoteFeatureFlagController extends BaseController<
     this.#disabled = disabled;
     this.#clientConfigApiService = clientConfigApiService;
     this.#getMetaMetricsId = getMetaMetricsId;
-    this.#clientVersion = clientVersion;
+    this.#clientVersion = validatedClientVersion;
   }
 
   /**

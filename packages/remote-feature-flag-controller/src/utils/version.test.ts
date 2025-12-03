@@ -1,3 +1,5 @@
+import type { SemVerVersion } from '@metamask/utils';
+
 import { isVersionFeatureFlag, getVersionData } from './version';
 
 describe('isVersionFeatureFlag', () => {
@@ -127,27 +129,27 @@ describe('getVersionData', () => {
   };
 
   it('returns highest eligible version when multiple versions qualify', () => {
-    const result = getVersionData(multiVersionFlag, '13.2.5');
+    const result = getVersionData(multiVersionFlag, '13.2.5' as SemVerVersion);
     expect(result).toStrictEqual({ x: '13' });
   });
 
   it('returns appropriate version when only some versions qualify', () => {
-    const result = getVersionData(multiVersionFlag, '13.1.5');
+    const result = getVersionData(multiVersionFlag, '13.1.5' as SemVerVersion);
     expect(result).toStrictEqual({ x: '12' });
   });
 
   it('returns lowest version when app version is very high', () => {
-    const result = getVersionData(multiVersionFlag, '14.0.0');
+    const result = getVersionData(multiVersionFlag, '14.0.0' as SemVerVersion);
     expect(result).toStrictEqual({ x: '13' });
   });
 
   it('returns null when no versions qualify', () => {
-    const result = getVersionData(multiVersionFlag, '13.0.0');
+    const result = getVersionData(multiVersionFlag, '13.0.0' as SemVerVersion);
     expect(result).toBeNull();
   });
 
   it('returns exact match when app version equals fromVersion', () => {
-    const result = getVersionData(multiVersionFlag, '13.1.0');
+    const result = getVersionData(multiVersionFlag, '13.1.0' as SemVerVersion);
     expect(result).toStrictEqual({ x: '12' });
   });
 
@@ -155,13 +157,13 @@ describe('getVersionData', () => {
     const singleVersionFlag = {
       versions: { '13.1.0': { x: '12' } },
     };
-    const result = getVersionData(singleVersionFlag, '13.1.5');
+    const result = getVersionData(singleVersionFlag, '13.1.5' as SemVerVersion);
     expect(result).toStrictEqual({ x: '12' });
   });
 
   it('returns null for empty versions object', () => {
     const emptyVersionFlag = { versions: {} };
-    const result = getVersionData(emptyVersionFlag, '13.1.0');
+    const result = getVersionData(emptyVersionFlag, '13.1.0' as SemVerVersion);
     expect(result).toBeNull();
   });
 });
