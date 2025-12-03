@@ -7,6 +7,8 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+## [64.0.1]
+
 ### Fixed
 
 - Fix MAX native token swap failing with "insufficient gas" when STX is off by using quote's `txFee` instead of re-estimating gas when `gasIncluded` is true ([#7306](https://github.com/MetaMask/core/pull/7306))
@@ -813,7 +815,8 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 - Initial release ([#5317](https://github.com/MetaMask/core/pull/5317))
 
-[Unreleased]: https://github.com/MetaMask/core/compare/@metamask/bridge-status-controller@64.0.0...HEAD
+[Unreleased]: https://github.com/MetaMask/core/compare/@metamask/bridge-status-controller@64.0.1...HEAD
+[64.0.1]: https://github.com/MetaMask/core/compare/@metamask/bridge-status-controller@64.0.0...@metamask/bridge-status-controller@64.0.1
 [64.0.0]: https://github.com/MetaMask/core/compare/@metamask/bridge-status-controller@63.1.0...@metamask/bridge-status-controller@64.0.0
 [63.1.0]: https://github.com/MetaMask/core/compare/@metamask/bridge-status-controller@63.0.0...@metamask/bridge-status-controller@63.1.0
 [63.0.0]: https://github.com/MetaMask/core/compare/@metamask/bridge-status-controller@62.0.0...@metamask/bridge-status-controller@63.0.0
