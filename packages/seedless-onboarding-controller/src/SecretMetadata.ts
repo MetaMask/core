@@ -69,37 +69,6 @@ export class SecretMetadata<DataType extends SecretDataType = Uint8Array>
   }
 
   /**
-   * Create an Array of SecretMetadata instances from an array of secrets.
-   *
-   * To respect the order of the secrets, we add the index to the timestamp
-   * so that the first secret backup will have the oldest timestamp
-   * and the last secret backup will have the newest timestamp.
-   *
-   * @param data - The data to add metadata to.
-   * @param data.value - The SeedPhrase/PrivateKey to add metadata to.
-   * @param data.options - The options for the seed phrase metadata.
-   * @returns The SecretMetadata instances.
-   */
-  static fromBatch<DataType extends SecretDataType = Uint8Array>(
-    data: {
-      value: DataType;
-      options?: Partial<SecretMetadataOptions>;
-    }[],
-  ): SecretMetadata<DataType>[] {
-    const timestamp = Date.now();
-    return data.map((d, index) => {
-      // To respect the order of the seed phrases, we add the index to the timestamp
-      // so that the first seed phrase backup will have the oldest timestamp
-      // and the last seed phrase backup will have the newest timestamp
-      const backupCreatedAt = d.options?.timestamp ?? timestamp + index * 5;
-      return new SecretMetadata(d.value, {
-        timestamp: backupCreatedAt,
-        type: d.options?.type,
-      });
-    });
-  }
-
-  /**
    * Assert that the provided value is a valid seed phrase metadata.
    *
    * @param value - The value to check.
@@ -120,34 +89,6 @@ export class SecretMetadata<DataType extends SecretDataType = Uint8Array>
         SeedlessOnboardingControllerErrorMessage.InvalidSecretMetadata,
       );
     }
-  }
-
-  /**
-   * Parse the SecretMetadata from the metadata store and return the array of SecretMetadata instances.
-   *
-   * This method also sorts the secrets by timestamp in ascending order, i.e. the oldest secret will be the first element in the array.
-   *
-   * @param secretMetadataArr - The array of SecretMetadata from the metadata store.
-   * @param filterType - The type of the secret to filter.
-   * @returns The array of SecretMetadata instances.
-   */
-  static parseSecretsFromMetadataStore<
-    DataType extends SecretDataType = Uint8Array,
-  >(
-    secretMetadataArr: Uint8Array[],
-    filterType?: SecretType,
-  ): SecretMetadata<DataType>[] {
-    const parsedSecertMetadata = secretMetadataArr.map((metadata) =>
-      SecretMetadata.fromRawMetadata<DataType>(metadata),
-    );
-
-    const secrets = SecretMetadata.sort(parsedSecertMetadata);
-
-    if (filterType) {
-      return secrets.filter((secret) => secret.type === filterType);
-    }
-
-    return secrets;
   }
 
   /**
@@ -183,23 +124,35 @@ export class SecretMetadata<DataType extends SecretDataType = Uint8Array>
   }
 
   /**
-   * Sort the seed phrases by timestamp.
+   * Compare two SecretMetadata instances by timestamp.
    *
-   * @param data - The secret metadata array to sort.
-   * @param order - The order to sort the seed phrases. Default is `desc`.
-   *
-   * @returns The sorted secret metadata array.
+   * @param a - The first SecretMetadata instance.
+   * @param b - The second SecretMetadata instance.
+   * @param order - The sort order. Default is 'asc'.
+   * @returns A negative number if a < b, positive if a > b, zero if equal.
    */
-  static sort<DataType extends SecretDataType = Uint8Array>(
-    data: SecretMetadata<DataType>[],
+  static compareByTimestamp<DataType extends SecretDataType = SecretDataType>(
+    a: SecretMetadata<DataType>,
+    b: SecretMetadata<DataType>,
     order: 'asc' | 'desc' = 'asc',
-  ): SecretMetadata<DataType>[] {
-    return data.sort((a, b) => {
-      if (order === 'asc') {
-        return a.timestamp - b.timestamp;
-      }
-      return b.timestamp - a.timestamp;
-    });
+  ): number {
+    return order === 'asc'
+      ? a.timestamp - b.timestamp
+      : b.timestamp - a.timestamp;
+  }
+
+  /**
+   * Check if a SecretMetadata instance matches the given type.
+   *
+   * @param secret - The SecretMetadata instance to check.
+   * @param type - The type to match against.
+   * @returns True if the secret matches the type.
+   */
+  static matchesType<DataType extends SecretDataType = SecretDataType>(
+    secret: SecretMetadata<DataType>,
+    type: SecretType,
+  ): boolean {
+    return secret.type === type;
   }
 
   get data(): DataType {

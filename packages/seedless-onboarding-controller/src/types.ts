@@ -4,7 +4,11 @@ import type {
 } from '@metamask/base-controller';
 import type { Encryptor } from '@metamask/keyring-controller';
 import type { Messenger } from '@metamask/messenger';
-import type { KeyPair, NodeAuthTokens } from '@metamask/toprf-secure-backup';
+import type {
+  KeyPair,
+  NodeAuthTokens,
+  EncAccountDataType,
+} from '@metamask/toprf-secure-backup';
 import type { MutexInterface } from 'async-mutex';
 
 import type {
@@ -14,6 +18,29 @@ import type {
   SecretType,
   Web3AuthNetwork,
 } from './constants';
+import type { SecretMetadata } from './SecretMetadata';
+
+/**
+ * A secret data item with storage-level metadata from the metadata store.
+ */
+export type SecretDataItemWithMetadata<
+  DataType extends SecretDataType = SecretDataType,
+> = {
+  /**
+   * The parsed secret metadata (serialized data).
+   */
+  secret: SecretMetadata<DataType>;
+
+  /**
+   * The server-assigned item ID for this row.
+   */
+  itemId?: string;
+
+  /**
+   * The client-assigned data type classification.
+   */
+  dataType?: EncAccountDataType;
+};
 
 /**
  * The backup state of the secret data.

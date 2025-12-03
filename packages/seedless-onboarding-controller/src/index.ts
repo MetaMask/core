@@ -14,6 +14,7 @@ export type {
   SeedlessOnboardingControllerEvents,
   ToprfKeyDeriver,
   RecoveryErrorData,
+  SecretDataItemWithMetadata,
 } from './types';
 export {
   Web3AuthNetwork,
@@ -23,3 +24,5 @@ export {
 } from './constants';
 export { SecretMetadata } from './SecretMetadata';
 export { RecoveryError } from './errors';
+
+export { EncAccountDataType } from '@metamask/toprf-secure-backup';
