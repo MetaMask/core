@@ -7,7 +7,6 @@ import type {
   QuoteResponse,
   Trade,
 } from '@metamask/bridge-controller';
-import { isEvmTxData } from '@metamask/bridge-controller';
 import {
   formatChainIdToHex,
   isNonEvmChainId,
@@ -15,6 +14,7 @@ import {
   UnifiedSwapBridgeEventName,
   formatChainIdToCaip,
   isCrossChain,
+  isEvmTxData,
   isHardwareWallet,
   MetricsActionType,
   isBitcoinTrade,
@@ -30,9 +30,9 @@ import {
 } from '@metamask/transaction-controller';
 import type {
   TransactionController,
+  TransactionMeta,
   TransactionParams,
 } from '@metamask/transaction-controller';
-import type { TransactionMeta } from '@metamask/transaction-controller';
 import { numberToHex } from '@metamask/utils';
 import type { Hex } from '@metamask/utils';
 

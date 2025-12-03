@@ -1,7 +1,9 @@
 import { Contract } from '@ethersproject/contracts';
 import { ApprovalController } from '@metamask/approval-controller';
-import type { ApprovalControllerMessenger } from '@metamask/approval-controller';
-import type { ApprovalControllerState } from '@metamask/approval-controller';
+import type {
+  ApprovalControllerMessenger,
+  ApprovalControllerState,
+} from '@metamask/approval-controller';
 import { deriveStateFromMetadata } from '@metamask/base-controller';
 import contractMaps from '@metamask/contract-metadata';
 import {

@@ -184,7 +184,6 @@ export class ProfileMetricsService {
    * @returns An object that can be used to unregister the handler. See
    * {@link CockatielEvent}.
    */
-
   onDegraded(listener: Parameters<ServicePolicy['onDegraded']>[0]) {
     return this.#policy.onDegraded(listener);
   }

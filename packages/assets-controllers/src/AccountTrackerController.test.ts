@@ -8,10 +8,10 @@ import type {
   MockAnyNamespace,
 } from '@metamask/messenger';
 import { getDefaultNetworkControllerState } from '@metamask/network-controller';
-import type { NetworkConfiguration } from '@metamask/network-controller';
 import type {
   NetworkClientId,
   NetworkClientConfiguration,
+  NetworkConfiguration,
 } from '@metamask/network-controller';
 import { getDefaultPreferencesState } from '@metamask/preferences-controller';
 import { TransactionStatus } from '@metamask/transaction-controller';

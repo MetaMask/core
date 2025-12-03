@@ -22,11 +22,11 @@ import { SWAPS_CONTRACT_ADDRESSES } from './constants/swaps';
 import { TraceName } from './constants/traces';
 import { selectIsAssetExchangeRateInState } from './selectors';
 import { RequestStatus } from './types';
-import type { QuoteRequest } from './types';
 import type {
   L1GasFees,
   GenericQuoteRequest,
   NonEvmFees,
+  QuoteRequest,
   QuoteResponse,
   BridgeControllerState,
   BridgeControllerMessenger,

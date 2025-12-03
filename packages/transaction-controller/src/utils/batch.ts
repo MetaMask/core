@@ -36,11 +36,12 @@ import {
   GasFeeEstimateLevel,
   TransactionStatus,
 } from '..';
-import type { GetSimulationConfig, TransactionControllerState } from '..';
 import type {
   BatchTransactionParams,
+  GetSimulationConfig,
   TransactionController,
   TransactionControllerMessenger,
+  TransactionControllerState,
   TransactionMeta,
 } from '..';
 import { DefaultGasFeeFlow } from '../gas-flows/DefaultGasFeeFlow';

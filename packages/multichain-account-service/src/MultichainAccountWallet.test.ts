@@ -26,8 +26,7 @@ import {
   getMultichainAccountServiceMessenger,
   getRootMessenger,
 } from './tests';
-import type { MockAccountProvider } from './tests';
-import type { RootMessenger } from './tests';
+import type { MockAccountProvider, RootMessenger } from './tests';
 import type { MultichainAccountServiceMessenger } from './types';
 
 function setup({

@@ -17,8 +17,13 @@ import {
   parseCaipAccountId,
   isObject,
 } from '@metamask/utils';
-import type { CaipAccountId, CaipChainId, Json } from '@metamask/utils';
-import type { Hex, NonEmptyArray } from '@metamask/utils';
+import type {
+  CaipAccountId,
+  CaipChainId,
+  Json,
+  Hex,
+  NonEmptyArray,
+} from '@metamask/utils';
 import { cloneDeep, isEqual, pick } from 'lodash';
 
 import { CaveatTypes, PermissionKeys } from './constants';

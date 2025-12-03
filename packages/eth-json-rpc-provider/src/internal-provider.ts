@@ -6,11 +6,11 @@ import type {
   ContextConstraint,
   MiddlewareContext,
 } from '@metamask/json-rpc-engine/v2';
-import type { JsonRpcSuccess } from '@metamask/utils';
 import type {
   Json,
   JsonRpcId,
   JsonRpcParams,
+  JsonRpcSuccess,
   JsonRpcRequest,
   JsonRpcVersion2,
 } from '@metamask/utils';

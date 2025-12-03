@@ -3,8 +3,7 @@ import { Contract } from '@ethersproject/contracts';
 import { BtcScope, SolScope, TrxScope } from '@metamask/keyring-api';
 import { abiERC20 } from '@metamask/metamask-eth-abis';
 import { isCaipChainId, isStrictHexString } from '@metamask/utils';
-import type { CaipAssetType, CaipChainId } from '@metamask/utils';
-import type { Hex } from '@metamask/utils';
+import type { CaipAssetType, CaipChainId, Hex } from '@metamask/utils';
 
 import {
   formatChainIdToCaip,

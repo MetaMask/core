@@ -1,7 +1,12 @@
 import { serializeError } from '@metamask/rpc-errors';
 import { hasProperty } from '@metamask/utils';
-import type { JsonRpcFailure, JsonRpcResponse } from '@metamask/utils';
-import type { Json, JsonRpcParams, JsonRpcRequest } from '@metamask/utils';
+import type {
+  Json,
+  JsonRpcFailure,
+  JsonRpcParams,
+  JsonRpcRequest,
+  JsonRpcResponse,
+} from '@metamask/utils';
 
 import type {
   JsonRpcEngine,

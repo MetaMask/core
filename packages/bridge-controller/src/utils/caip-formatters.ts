@@ -12,8 +12,7 @@ import {
   isCaipAssetType,
   CaipAssetTypeStruct,
 } from '@metamask/utils';
-import type { CaipAssetType } from '@metamask/utils';
-import type { Hex, CaipChainId } from '@metamask/utils';
+import type { CaipAssetType, CaipChainId, Hex } from '@metamask/utils';
 
 import {
   getNativeAssetForChainId,

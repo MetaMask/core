@@ -13,11 +13,9 @@ import {
   MetricsSwapType,
 } from '@metamask/bridge-controller';
 import type {
-  QuoteResponse,
-  QuoteMetadata,
   QuoteFetchData,
-} from '@metamask/bridge-controller';
-import type {
+  QuoteMetadata,
+  QuoteResponse,
   TxStatusData,
   RequestParams,
   TradeData,

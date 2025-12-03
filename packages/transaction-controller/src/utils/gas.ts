@@ -19,8 +19,9 @@ import { TransactionEnvelopeType } from '../types';
 import type {
   GetSimulationConfig,
   TransactionBatchSingleRequest,
+  TransactionMeta,
+  TransactionParams,
 } from '../types';
-import type { TransactionMeta, TransactionParams } from '../types';
 
 export type UpdateGasRequest = {
   chainId: Hex;

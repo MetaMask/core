@@ -13,8 +13,7 @@ import {
   number,
   optional,
 } from '@metamask/superstruct';
-import type { Infer } from '@metamask/superstruct';
-import type { Struct } from '@metamask/superstruct';
+import type { Infer, Struct } from '@metamask/superstruct';
 
 import type { BackupAndSyncEmitAnalyticsEventParams } from './analytics';
 import type { AccountTreeController } from '../AccountTreeController';

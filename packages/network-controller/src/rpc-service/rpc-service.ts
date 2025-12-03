@@ -10,8 +10,12 @@ import {
 } from '@metamask/controller-utils';
 import { JsonRpcError, rpcErrors } from '@metamask/rpc-errors';
 import { Duration, getErrorMessage, hasProperty } from '@metamask/utils';
-import type { JsonRpcRequest } from '@metamask/utils';
-import type { Json, JsonRpcParams, JsonRpcResponse } from '@metamask/utils';
+import type {
+  Json,
+  JsonRpcParams,
+  JsonRpcRequest,
+  JsonRpcResponse,
+} from '@metamask/utils';
 import deepmerge from 'deepmerge';
 import type { Logger } from 'loglevel';
 

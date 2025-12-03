@@ -1,3 +1,8 @@
+import type {
+  AccountGroupId,
+  AccountWalletId,
+  Bip44Account,
+} from '@metamask/account-api';
 import {
   AccountGroupType,
   AccountWalletType,
@@ -6,8 +11,6 @@ import {
   toMultichainAccountGroupId,
   toMultichainAccountWalletId,
 } from '@metamask/account-api';
-import type { AccountWalletId, Bip44Account } from '@metamask/account-api';
-import type { AccountGroupId } from '@metamask/account-api';
 import type { AccountId } from '@metamask/accounts-controller';
 import { deriveStateFromMetadata } from '@metamask/base-controller';
 import {

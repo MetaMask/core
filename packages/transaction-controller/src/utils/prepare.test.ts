@@ -6,8 +6,7 @@ import {
 
 import { prepareTransaction, serializeTransaction } from './prepare';
 import { TransactionEnvelopeType } from '../types';
-import type { Authorization } from '../types';
-import type { TransactionParams } from '../types';
+import type { Authorization, TransactionParams } from '../types';
 
 const CHAIN_ID_MOCK = '0x123';
 

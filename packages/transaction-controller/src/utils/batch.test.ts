@@ -29,8 +29,11 @@ import {
   GasFeeEstimateType,
   TransactionStatus,
 } from '..';
-import type { TransactionControllerState } from '..';
-import type { TransactionControllerMessenger, TransactionMeta } from '..';
+import type {
+  TransactionControllerMessenger,
+  TransactionControllerState,
+  TransactionMeta,
+} from '..';
 import { flushPromises } from '../../../../tests/helpers';
 import { DefaultGasFeeFlow } from '../gas-flows/DefaultGasFeeFlow';
 import { SequentialPublishBatchHook } from '../hooks/SequentialPublishBatchHook';

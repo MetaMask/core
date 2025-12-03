@@ -1080,7 +1080,6 @@ type NoopNetworkClientOperation = {
  *   - a network client that should be unchanged for an RPC endpoint that was
  *   also unchanged.
  */
-
 type NetworkClientOperation =
   | AddNetworkClientOperation
   | RemoveNetworkClientOperation

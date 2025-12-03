@@ -18,12 +18,12 @@ import {
   KeyringAccountEntropyTypeOption,
 } from '@metamask/keyring-api';
 import { KeyringTypes } from '@metamask/keyring-controller';
-import type { KeyringObject } from '@metamask/keyring-controller';
 import type {
   KeyringControllerState,
   KeyringControllerGetKeyringsByTypeAction,
   KeyringControllerStateChangeEvent,
   KeyringControllerGetStateAction,
+  KeyringObject,
 } from '@metamask/keyring-controller';
 import type { InternalAccount } from '@metamask/keyring-internal-api';
 import { isScopeEqualToAny } from '@metamask/keyring-utils';

@@ -13,8 +13,10 @@ import {
   SECURITY_ALERTS_BASE_URL,
   TOKEN_BULK_SCANNING_ENDPOINT,
 } from './PhishingController';
-import type { PhishingControllerMessenger } from './PhishingController';
-import type { PhishingControllerOptions } from './PhishingController';
+import type {
+  PhishingControllerMessenger,
+  PhishingControllerOptions,
+} from './PhishingController';
 import { TokenScanResultType } from './types';
 import type { BulkTokenScanRequest, TokenScanApiResponse } from './types';
 

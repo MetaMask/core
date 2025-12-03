@@ -9,8 +9,11 @@ import {
   EthScope,
   TrxAccountType,
 } from '@metamask/keyring-api';
-import type { AnyAccountType } from '@metamask/keyring-api';
-import type { KeyringAccountType, CaipChainId } from '@metamask/keyring-api';
+import type {
+  AnyAccountType,
+  KeyringAccountType,
+  CaipChainId,
+} from '@metamask/keyring-api';
 import { Messenger, MOCK_ANY_NAMESPACE } from '@metamask/messenger';
 import type {
   MessengerActions,
