@@ -12,6 +12,7 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 - Added new method, `linkRewards` to link rewards to the existing subscription. ([#7283](https://github.com/MetaMask/core/pull/7283))
 - Added an optional param, `rewardSubscriptionId` to start subscription requests to opt in to rewards together with the main subscription. ([#7283](https://github.com/MetaMask/core/pull/7283))
 - Added an option param, `rewardSubscriptionId` in `submitShieldSubscriptionCryptoApproval` to support rewards with crypto subscriptions. ([#7298](https://github.com/MetaMask/core/pull/7298))
+- Added `SubscriptionControllerSubmitShieldSubscriptionCryptoApprovalAction` and `SubscriptionControllerLinkRewardsAction` to exports. ([#7298](https://github.com/MetaMask/core/pull/7298))
 
 ### Changed
 
