@@ -9,7 +9,7 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ### Added
 
- - Add `PermissionController:getCaveat` action ([#7303](https://github.com/MetaMask/core/pull/7303)) 
+- Add `PermissionController:getCaveat` action ([#7303](https://github.com/MetaMask/core/pull/7303))
 
 ### Changed
 
