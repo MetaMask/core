@@ -903,7 +903,12 @@ export class PermissionController<
 
     this.messenger.registerActionHandler(
       `${controllerName}:getCaveat` as const,
-      (origin, target, caveatType) => this.getCaveat(origin, target, caveatType as ExtractAllowedCaveatTypes<ControllerPermissionSpecification>),
+      (origin, target, caveatType) =>
+        this.getCaveat(
+          origin,
+          target,
+          caveatType as ExtractAllowedCaveatTypes<ControllerPermissionSpecification>,
+        ),
     );
   }
 

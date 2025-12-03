@@ -6104,7 +6104,10 @@ describe('PermissionController', () => {
         CaveatTypes.filterArrayResponse,
       );
 
-      expect(result).toBe(state.subjects['metamask.io'].permissions['wallet_getSecretArray'].caveats[0]);
+      expect(result).toBe(
+        state.subjects['metamask.io'].permissions.wallet_getSecretArray
+          .caveats[0],
+      );
     });
   });
 
