@@ -24,27 +24,10 @@ const config = createConfig([
   },
   {
     rules: {
-      // Left disabled because various properties throughough this repo are snake_case because the
-      // names come from external sources or must comply with standards
-      // e.g. `txreceipt_status`, `signTypedData_v4`, `token_id`
-      camelcase: 'off',
-      'id-length': 'off',
-
       // TODO: Re-enable this rule
       // Enabling it with error suppression breaks `--fix`, because the autofixer for this rule
       // does not work very well.
       'jsdoc/require-jsdoc': 'off',
-
-      // TODO: re-enble most of these rules
-      'id-denylist': 'off',
-      'import-x/no-unassigned-import': 'off',
-      'no-async-promise-executor': 'off',
-      'no-case-declarations': 'off',
-      'no-negated-condition': 'off',
-      'no-new': 'off',
-      'no-param-reassign': 'off',
-      'no-restricted-syntax': 'off',
-      'require-atomic-updates': 'off',
     },
     settings: {
       jsdoc: {
@@ -62,10 +45,6 @@ const config = createConfig([
       'scripts/create-package/**/*.ts',
     ],
     extends: [nodejs],
-    rules: {
-      // TODO: Re-enable this
-      'n/no-sync': 'off',
-    },
   },
   {
     files: ['**/*.test.{js,ts}', '**/tests/**/*.{js,ts}'],
@@ -76,9 +55,6 @@ const config = createConfig([
       'jest/no-alias-methods': 'error',
       'jest/no-commented-out-tests': 'error',
       'jest/no-disabled-tests': 'error',
-
-      // TODO: Re-enable this rule
-      'jest/unbound-method': 'off',
     },
     settings: {
       node: {
@@ -133,15 +109,6 @@ const config = createConfig([
       // do not work very well.
       'jsdoc/check-tag-names': 'off',
       'jsdoc/require-jsdoc': 'off',
-
-      // TODO: re-enable most of these rules
-      '@typescript-eslint/naming-convention': 'off',
-      '@typescript-eslint/unbound-method': 'off',
-      '@typescript-eslint/prefer-enum-initializers': 'off',
-      '@typescript-eslint/prefer-nullish-coalescing': 'off',
-      'no-restricted-syntax': 'off',
-      'no-restricted-globals': 'off',
-      '@typescript-eslint/explicit-function-return-type': 'off',
     },
   },
   {
