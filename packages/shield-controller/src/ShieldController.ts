@@ -1,18 +1,18 @@
-import {
-  BaseController,
-  type ControllerGetStateAction,
-  type ControllerStateChangeEvent,
+import { BaseController } from '@metamask/base-controller';
+import type {
+  ControllerGetStateAction,
+  ControllerStateChangeEvent,
 } from '@metamask/base-controller';
 import type { Messenger } from '@metamask/messenger';
-import {
-  SignatureRequestStatus,
-  type SignatureRequest,
-  type SignatureStateChange,
+import { SignatureRequestStatus } from '@metamask/signature-controller';
+import type {
+  SignatureRequest,
+  SignatureStateChange,
 } from '@metamask/signature-controller';
-import {
-  TransactionStatus,
-  type TransactionControllerStateChangeEvent,
-  type TransactionMeta,
+import { TransactionStatus } from '@metamask/transaction-controller';
+import type {
+  TransactionControllerStateChangeEvent,
+  TransactionMeta,
 } from '@metamask/transaction-controller';
 import { cloneDeep, isEqual } from 'lodash';
 

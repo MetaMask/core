@@ -1,4 +1,4 @@
-import type { Json } from '@metamask/utils';
+import type { Json, SemVerVersion } from '@metamask/utils';
 
 // Define accepted values for client, distribution, and environment
 export enum ClientType {
@@ -23,6 +23,11 @@ export enum EnvironmentType {
   Test = 'test',
   Exp = 'exp',
 }
+
+/** Type representing a feature flag with multiple version entries */
+export type MultiVersionFeatureFlagValue = {
+  versions: Record<SemVerVersion, Json>;
+};
 
 /** Type representing the feature flags collection */
 export type FeatureFlags = {

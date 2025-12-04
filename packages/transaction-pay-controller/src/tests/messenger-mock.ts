@@ -26,7 +26,7 @@ import type {
   TransactionPayControllerGetDelegationTransactionAction,
   TransactionPayControllerGetStrategyAction,
 } from '../types';
-import { type TransactionPayControllerGetStateAction } from '../types';
+import type { TransactionPayControllerGetStateAction } from '../types';
 
 type AllActions = MessengerActions<TransactionPayControllerMessenger>;
 type AllEvents = MessengerEvents<TransactionPayControllerMessenger>;

@@ -1,8 +1,8 @@
 import {
   TransactionStatus,
-  type TransactionMeta,
   TransactionType,
 } from '@metamask/transaction-controller';
+import type { TransactionMeta } from '@metamask/transaction-controller';
 import type { TransactionControllerState } from '@metamask/transaction-controller';
 import type { Hex } from '@metamask/utils';
 import { noop } from 'lodash';

@@ -1,9 +1,9 @@
-import {
-  type Json,
-  type JsonRpcRequest,
-  type JsonRpcNotification,
-  type NonEmptyArray,
-  hasProperty,
+import { hasProperty } from '@metamask/utils';
+import type {
+  Json,
+  JsonRpcRequest,
+  JsonRpcNotification,
+  NonEmptyArray,
 } from '@metamask/utils';
 import deepFreeze from 'deep-freeze-strict';
 

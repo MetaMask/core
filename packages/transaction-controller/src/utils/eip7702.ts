@@ -2,7 +2,8 @@ import { defaultAbiCoder } from '@ethersproject/abi';
 import { Contract } from '@ethersproject/contracts';
 import { query, toHex } from '@metamask/controller-utils';
 import type EthQuery from '@metamask/eth-query';
-import { createModuleLogger, type Hex, add0x } from '@metamask/utils';
+import { createModuleLogger, add0x } from '@metamask/utils';
+import type { Hex } from '@metamask/utils';
 
 import {
   getEIP7702ContractAddresses,

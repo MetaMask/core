@@ -1,8 +1,8 @@
 import { Contract } from '@ethersproject/contracts';
-import type { ApprovalControllerMessenger } from '@metamask/approval-controller';
-import {
-  ApprovalController,
-  type ApprovalControllerState,
+import { ApprovalController } from '@metamask/approval-controller';
+import type {
+  ApprovalControllerMessenger,
+  ApprovalControllerState,
 } from '@metamask/approval-controller';
 import { deriveStateFromMetadata } from '@metamask/base-controller';
 import contractMaps from '@metamask/contract-metadata';
@@ -14,12 +14,11 @@ import {
   InfuraNetworkType,
 } from '@metamask/controller-utils';
 import type { InternalAccount } from '@metamask/keyring-internal-api';
-import {
-  Messenger,
-  MOCK_ANY_NAMESPACE,
-  type MockAnyNamespace,
-  type MessengerActions,
-  type MessengerEvents,
+import { Messenger, MOCK_ANY_NAMESPACE } from '@metamask/messenger';
+import type {
+  MockAnyNamespace,
+  MessengerActions,
+  MessengerEvents,
 } from '@metamask/messenger';
 import type {
   NetworkClientConfiguration,

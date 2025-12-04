@@ -12,13 +12,8 @@ import {
   union,
   unknown,
 } from '@metamask/superstruct';
-import {
-  HexChecksumAddressStruct,
-  type Hex,
-  type Json,
-  type JsonRpcRequest,
-  StrictHexStruct,
-} from '@metamask/utils';
+import { HexChecksumAddressStruct, StrictHexStruct } from '@metamask/utils';
+import type { Hex, Json, JsonRpcRequest } from '@metamask/utils';
 
 import { validateParams } from '../utils/validation';
 import type { WalletMiddlewareContext } from '../wallet';

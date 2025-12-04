@@ -1,14 +1,14 @@
-import {
-  type StateMetadata,
-  type ControllerStateChangeEvent,
-  type ControllerGetStateAction,
+import type {
+  StateMetadata,
+  ControllerStateChangeEvent,
+  ControllerGetStateAction,
 } from '@metamask/base-controller';
 import type { Messenger } from '@metamask/messenger';
 import { StaticIntervalPollingController } from '@metamask/polling-controller';
 import type { AuthenticationController } from '@metamask/profile-sync-controller';
 import type { TransactionMeta } from '@metamask/transaction-controller';
 import { TransactionType } from '@metamask/transaction-controller';
-import { type Hex } from '@metamask/utils';
+import type { Hex } from '@metamask/utils';
 import { BigNumber } from 'bignumber.js';
 
 import {
@@ -17,6 +17,7 @@ import {
   DEFAULT_POLLING_INTERVAL,
   SubscriptionControllerErrorMessage,
 } from './constants';
+import { PAYMENT_TYPES, PRODUCT_TYPES, SUBSCRIPTION_STATUSES } from './types';
 import type {
   AssignCohortRequest,
   BillingPortalResponse,
@@ -36,15 +37,12 @@ import type {
   SubscriptionStatus,
   LinkRewardsRequest,
 } from './types';
-import {
-  PAYMENT_TYPES,
-  PRODUCT_TYPES,
-  SUBSCRIPTION_STATUSES,
-  type ISubscriptionService,
-  type PricingResponse,
-  type ProductType,
-  type StartSubscriptionRequest,
-  type Subscription,
+import type {
+  ISubscriptionService,
+  PricingResponse,
+  ProductType,
+  StartSubscriptionRequest,
+  Subscription,
 } from './types';
 
 export type SubscriptionControllerState = {

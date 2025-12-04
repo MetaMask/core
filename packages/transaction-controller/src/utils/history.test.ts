@@ -6,11 +6,11 @@ import {
   MAX_TRANSACTION_HISTORY_LENGTH,
   updateTransactionHistory,
 } from './history';
-import {
-  type TransactionHistory,
-  TransactionStatus,
-  type TransactionMeta,
-  type TransactionHistoryEntry,
+import { TransactionStatus } from '../types';
+import type {
+  TransactionHistory,
+  TransactionMeta,
+  TransactionHistoryEntry,
 } from '../types';
 
 describe('History', () => {

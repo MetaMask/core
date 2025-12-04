@@ -1,7 +1,7 @@
-import {
-  BaseController,
-  type ControllerStateChangeEvent,
-  type ControllerGetStateAction,
+import { BaseController } from '@metamask/base-controller';
+import type {
+  ControllerStateChangeEvent,
+  ControllerGetStateAction,
 } from '@metamask/base-controller';
 import type { ApprovalType } from '@metamask/controller-utils';
 import type {

@@ -10,14 +10,10 @@ import { rpcErrors } from '@metamask/rpc-errors';
 import { isValidHexAddress } from '@metamask/utils';
 import type { JsonRpcRequest, Json, Hex } from '@metamask/utils';
 
-import {
-  createWalletRequestExecutionPermissionsHandler,
-  type ProcessRequestExecutionPermissionsHook,
-} from './methods/wallet-request-execution-permissions';
-import {
-  type ProcessRevokeExecutionPermissionHook,
-  createWalletRevokeExecutionPermissionHandler,
-} from './methods/wallet-revoke-execution-permission';
+import { createWalletRequestExecutionPermissionsHandler } from './methods/wallet-request-execution-permissions';
+import type { ProcessRequestExecutionPermissionsHook } from './methods/wallet-request-execution-permissions';
+import { createWalletRevokeExecutionPermissionHandler } from './methods/wallet-revoke-execution-permission';
+import type { ProcessRevokeExecutionPermissionHook } from './methods/wallet-revoke-execution-permission';
 import { stripArrayTypeIfPresent } from './utils/common';
 import { normalizeTypedMessage, parseTypedMessage } from './utils/normalize';
 import {

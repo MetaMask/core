@@ -6,14 +6,8 @@ import type { JsonRpcMiddleware, ResultConstraint } from './JsonRpcEngineV2';
 import { JsonRpcEngineV2 } from './JsonRpcEngineV2';
 import type { EmptyContext } from './MiddlewareContext';
 import { MiddlewareContext } from './MiddlewareContext';
-import {
-  isRequest,
-  JsonRpcEngineError,
-  stringify,
-  type JsonRpcCall,
-  type JsonRpcNotification,
-  type JsonRpcRequest,
-} from './utils';
+import { isRequest, JsonRpcEngineError, stringify } from './utils';
+import type { JsonRpcCall, JsonRpcNotification, JsonRpcRequest } from './utils';
 import {
   makeNotification,
   makeNotificationMiddleware,

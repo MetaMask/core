@@ -1,5 +1,4 @@
 // Omitting jsdoc because mock is only internal and simple enough.
-/* eslint-disable jsdoc/require-jsdoc */
 
 import type {
   DetailedDecryptResult,

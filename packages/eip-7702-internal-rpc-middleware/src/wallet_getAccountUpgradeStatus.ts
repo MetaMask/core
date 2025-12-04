@@ -1,9 +1,9 @@
 import { JsonRpcError, rpcErrors } from '@metamask/rpc-errors';
-import {
-  type JsonRpcRequest,
-  type PendingJsonRpcResponse,
-  type Hex,
-  getErrorMessage,
+import { getErrorMessage } from '@metamask/utils';
+import type {
+  JsonRpcRequest,
+  PendingJsonRpcResponse,
+  Hex,
 } from '@metamask/utils';
 
 import { DELEGATION_INDICATOR_PREFIX } from './constants';

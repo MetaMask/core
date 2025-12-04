@@ -1,27 +1,27 @@
 import type { AccountsControllerState } from '@metamask/accounts-controller';
-import type { TxData } from '@metamask/bridge-controller';
 import {
   ChainId,
+  extractTradeData,
+  isTronTrade,
   formatChainIdToCaip,
   formatChainIdToHex,
   isCrossChain,
-  type QuoteMetadata,
-  type QuoteResponse,
 } from '@metamask/bridge-controller';
-import {
-  extractTradeData,
-  isTronTrade,
-  type Trade,
+import type {
+  QuoteMetadata,
+  QuoteResponse,
+  Trade,
+  TxData,
 } from '@metamask/bridge-controller';
 import { toHex } from '@metamask/controller-utils';
-import type {
-  BatchTransactionParams,
-  TransactionController,
-} from '@metamask/transaction-controller';
 import {
   TransactionStatus,
   TransactionType,
-  type TransactionMeta,
+} from '@metamask/transaction-controller';
+import type {
+  BatchTransactionParams,
+  TransactionController,
+  TransactionMeta,
 } from '@metamask/transaction-controller';
 import { createProjectLogger } from '@metamask/utils';
 import { v4 as uuid } from 'uuid';

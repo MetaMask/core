@@ -17,14 +17,11 @@ import {
 } from './constants/bridge';
 import { SWAPS_API_V2_BASE_URL } from './constants/swaps';
 import * as selectors from './selectors';
-import {
-  ChainId,
-  RequestStatus,
-  SortOrder,
-  StatusTypes,
-  type BridgeControllerMessenger,
-  type QuoteResponse,
-  type GenericQuoteRequest,
+import { ChainId, RequestStatus, SortOrder, StatusTypes } from './types';
+import type {
+  BridgeControllerMessenger,
+  QuoteResponse,
+  GenericQuoteRequest,
 } from './types';
 import * as balanceUtils from './utils/balance';
 import { getNativeAssetForChainId, isSolanaChainId } from './utils/bridge';

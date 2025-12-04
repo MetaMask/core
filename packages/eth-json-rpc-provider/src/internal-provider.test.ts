@@ -8,7 +8,7 @@ import type {
 } from '@metamask/json-rpc-engine/v2';
 import { JsonRpcEngineV2 } from '@metamask/json-rpc-engine/v2';
 import { providerErrors, rpcErrors } from '@metamask/rpc-errors';
-import { type JsonRpcRequest, type Json } from '@metamask/utils';
+import type { JsonRpcRequest, Json } from '@metamask/utils';
 import { BrowserProvider } from 'ethers';
 import { promisify } from 'util';
 

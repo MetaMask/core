@@ -1,17 +1,18 @@
 import {
   BaseController,
-  type ControllerStateChangeEvent,
-  type ControllerGetStateAction,
-  type StateConstraint,
   deriveStateFromMetadata,
 } from '@metamask/base-controller';
+import type {
+  ControllerStateChangeEvent,
+  ControllerGetStateAction,
+  StateConstraint,
+} from '@metamask/base-controller';
 import { JsonRpcEngine } from '@metamask/json-rpc-engine';
-import {
-  MOCK_ANY_NAMESPACE,
-  Messenger,
-  type MessengerActions,
-  type MessengerEvents,
-  type MockAnyNamespace,
+import { MOCK_ANY_NAMESPACE, Messenger } from '@metamask/messenger';
+import type {
+  MessengerActions,
+  MessengerEvents,
+  MockAnyNamespace,
 } from '@metamask/messenger';
 import type { Patch } from 'immer';
 import * as sinon from 'sinon';

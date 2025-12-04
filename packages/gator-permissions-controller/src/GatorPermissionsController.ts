@@ -34,15 +34,15 @@ import {
   PermissionDecodingError,
 } from './errors';
 import { controllerLog } from './logger';
+import { GatorPermissionsSnapRpcMethod } from './types';
 import type { StoredGatorPermissionSanitized } from './types';
-import {
-  GatorPermissionsSnapRpcMethod,
-  type GatorPermissionsMap,
-  type PermissionTypesWithCustom,
-  type StoredGatorPermission,
-  type DelegationDetails,
-  type RevocationParams,
-  type PendingRevocationParams,
+import type {
+  GatorPermissionsMap,
+  PermissionTypesWithCustom,
+  StoredGatorPermission,
+  DelegationDetails,
+  RevocationParams,
+  PendingRevocationParams,
 } from './types';
 import {
   deserializeGatorPermissionsMap,

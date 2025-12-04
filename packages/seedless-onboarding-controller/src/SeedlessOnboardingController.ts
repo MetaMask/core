@@ -1,5 +1,6 @@
 import { keccak256AndHexify } from '@metamask/auth-network-utils';
-import { BaseController, type StateMetadata } from '@metamask/base-controller';
+import { BaseController } from '@metamask/base-controller';
+import type { StateMetadata } from '@metamask/base-controller';
 import type * as encryptionUtils from '@metamask/browser-passworder';
 import type {
   KeyPair,

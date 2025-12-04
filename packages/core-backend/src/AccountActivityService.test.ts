@@ -1,17 +1,16 @@
 import type { InternalAccount } from '@metamask/keyring-internal-api';
-import {
-  Messenger,
-  MOCK_ANY_NAMESPACE,
-  type MessengerActions,
-  type MessengerEvents,
-  type MockAnyNamespace,
+import { Messenger, MOCK_ANY_NAMESPACE } from '@metamask/messenger';
+import type {
+  MessengerActions,
+  MessengerEvents,
+  MockAnyNamespace,
 } from '@metamask/messenger';
 import type { Hex } from '@metamask/utils';
 
-import {
-  AccountActivityService,
-  type AccountActivityServiceMessenger,
-  type SubscriptionOptions,
+import { AccountActivityService } from './AccountActivityService';
+import type {
+  AccountActivityServiceMessenger,
+  SubscriptionOptions,
 } from './AccountActivityService';
 import type { ServerNotificationMessage } from './BackendWebSocketService';
 import { WebSocketState } from './BackendWebSocketService';

@@ -15,15 +15,14 @@ import {
   generateSalt as generateSaltBrowserPassworder,
   keyFromPassword as keyFromPasswordBrowserPassworder,
 } from '@metamask/browser-passworder';
-import {
-  TOPRFError,
-  type FetchAuthPubKeyResult,
-  type SEC1EncodedPublicKey,
-  type ChangeEncryptionKeyResult,
-  type KeyPair,
-  type RecoverEncryptionKeyResult,
-  type ToprfSecureBackup,
-  TOPRFErrorCode,
+import { TOPRFError, TOPRFErrorCode } from '@metamask/toprf-secure-backup';
+import type {
+  FetchAuthPubKeyResult,
+  SEC1EncodedPublicKey,
+  ChangeEncryptionKeyResult,
+  KeyPair,
+  RecoverEncryptionKeyResult,
+  ToprfSecureBackup,
 } from '@metamask/toprf-secure-backup';
 import {
   base64ToBytes,

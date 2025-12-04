@@ -9,9 +9,9 @@ import type {
   AccountsControllerSelectedAccountChangeEvent,
   AccountsControllerSetSelectedAccountAction,
 } from '@metamask/accounts-controller';
-import {
-  type ControllerGetStateAction,
-  type ControllerStateChangeEvent,
+import type {
+  ControllerGetStateAction,
+  ControllerStateChangeEvent,
 } from '@metamask/base-controller';
 import type { TraceCallback } from '@metamask/controller-utils';
 import type { KeyringControllerGetStateAction } from '@metamask/keyring-controller';

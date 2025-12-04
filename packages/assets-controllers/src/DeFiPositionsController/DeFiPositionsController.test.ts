@@ -1,11 +1,10 @@
 import { deriveStateFromMetadata } from '@metamask/base-controller';
 import { BtcAccountType, EthAccountType } from '@metamask/keyring-api';
-import {
-  MOCK_ANY_NAMESPACE,
-  Messenger,
-  type MessengerActions,
-  type MessengerEvents,
-  type MockAnyNamespace,
+import { MOCK_ANY_NAMESPACE, Messenger } from '@metamask/messenger';
+import type {
+  MessengerActions,
+  MessengerEvents,
+  MockAnyNamespace,
 } from '@metamask/messenger';
 
 import * as calculateDefiMetrics from './calculate-defi-metrics';

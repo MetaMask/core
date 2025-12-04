@@ -5,12 +5,11 @@ import {
   toHex,
 } from '@metamask/controller-utils';
 import EthQuery from '@metamask/eth-query';
-import {
-  Messenger,
-  MOCK_ANY_NAMESPACE,
-  type MessengerActions,
-  type MessengerEvents,
-  type MockAnyNamespace,
+import { Messenger, MOCK_ANY_NAMESPACE } from '@metamask/messenger';
+import type {
+  MessengerActions,
+  MessengerEvents,
+  MockAnyNamespace,
 } from '@metamask/messenger';
 import { NetworkController, NetworkStatus } from '@metamask/network-controller';
 import type {

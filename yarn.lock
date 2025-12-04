@@ -2794,7 +2794,7 @@ __metadata:
   languageName: unknown
   linkType: soft
 
-"@metamask/bridge-controller@npm:^63.2.0, @metamask/bridge-controller@workspace:packages/bridge-controller":
+"@metamask/bridge-controller@npm:^64.0.0, @metamask/bridge-controller@workspace:packages/bridge-controller":
   version: 0.0.0-use.local
   resolution: "@metamask/bridge-controller@workspace:packages/bridge-controller"
   dependencies:
@@ -2838,14 +2838,14 @@ __metadata:
   languageName: unknown
   linkType: soft
 
-"@metamask/bridge-status-controller@npm:^63.1.0, @metamask/bridge-status-controller@workspace:packages/bridge-status-controller":
+"@metamask/bridge-status-controller@npm:^64.0.1, @metamask/bridge-status-controller@workspace:packages/bridge-status-controller":
   version: 0.0.0-use.local
   resolution: "@metamask/bridge-status-controller@workspace:packages/bridge-status-controller"
   dependencies:
     "@metamask/accounts-controller": "npm:^35.0.0"
     "@metamask/auto-changelog": "npm:^3.4.4"
     "@metamask/base-controller": "npm:^9.0.0"
-    "@metamask/bridge-controller": "npm:^63.2.0"
+    "@metamask/bridge-controller": "npm:^64.0.0"
     "@metamask/controller-utils": "npm:^11.16.0"
     "@metamask/gas-fee-controller": "npm:^26.0.0"
     "@metamask/network-controller": "npm:^27.0.0"
@@ -3039,10 +3039,10 @@ __metadata:
     "@lavamoat/allow-scripts": "npm:^3.0.4"
     "@lavamoat/preinstall-always-fail": "npm:^2.1.0"
     "@metamask/create-release-branch": "npm:^4.1.3"
-    "@metamask/eslint-config": "npm:^14.1.0"
-    "@metamask/eslint-config-jest": "npm:^14.1.0"
-    "@metamask/eslint-config-nodejs": "npm:^14.0.0"
-    "@metamask/eslint-config-typescript": "npm:^14.1.0"
+    "@metamask/eslint-config": "npm:^15.0.0"
+    "@metamask/eslint-config-jest": "npm:^15.0.0"
+    "@metamask/eslint-config-nodejs": "npm:^15.0.0"
+    "@metamask/eslint-config-typescript": "npm:^15.0.0"
     "@metamask/eth-block-tracker": "npm:^15.0.0"
     "@metamask/eth-json-rpc-provider": "npm:^6.0.0"
     "@metamask/json-rpc-engine": "npm:^10.2.0"
@@ -3287,54 +3287,54 @@ __metadata:
   languageName: unknown
   linkType: soft
 
-"@metamask/eslint-config-jest@npm:^14.1.0":
-  version: 14.1.0
-  resolution: "@metamask/eslint-config-jest@npm:14.1.0"
+"@metamask/eslint-config-jest@npm:^15.0.0":
+  version: 15.0.0
+  resolution: "@metamask/eslint-config-jest@npm:15.0.0"
   dependencies:
     "@eslint/js": "npm:^9.11.0"
     globals: "npm:^15.9.0"
   peerDependencies:
-    "@metamask/eslint-config": ^14.1.0
+    "@metamask/eslint-config": ^15.0.0
     eslint: ^9.11.0
     eslint-plugin-jest: ^28.8.3
-  checksum: 10/2c5bd99fb4470206b47360566f1681c93ed2254080297e2fa34392eb5ae64470138e2f67171a09bb6051e6a4a69eaf430f68b82ef8886604b368cc4129c80462
+  checksum: 10/4728c6b80bed48b9e369ed538de2a1f099a74825f08e7a1c0c5df53901905ce6d54fb7c77da4454ed640af7fd873845ab0f084a4f370fe26ccb4455e683e6bba
   languageName: node
   linkType: hard
 
-"@metamask/eslint-config-nodejs@npm:^14.0.0":
-  version: 14.0.0
-  resolution: "@metamask/eslint-config-nodejs@npm:14.0.0"
+"@metamask/eslint-config-nodejs@npm:^15.0.0":
+  version: 15.0.0
+  resolution: "@metamask/eslint-config-nodejs@npm:15.0.0"
   dependencies:
     "@eslint/js": "npm:^9.11.0"
     globals: "npm:^15.9.0"
   peerDependencies:
-    "@metamask/eslint-config": ^14.0.0
+    "@metamask/eslint-config": ^15.0.0
     eslint: ^9.11.0
     eslint-plugin-n: ^17.10.3
-  checksum: 10/62a69e0a258b6b0ef8cbb844a3420115ff213648f55e1b3863dd29fa5892de8013f8157317e8279f68b7e82c69c97edc15c0040ad49469756393a711d91b0fff
+  checksum: 10/541a2df5a21e3e73abd8b5b175fd2c3604bfa8694d7e8e7e48891f01d38396267f1cf92cb88cb181ddd7931dee3c7bf39de59d2cb1f30971a245551d575674a1
   languageName: node
   linkType: hard
 
-"@metamask/eslint-config-typescript@npm:^14.1.0":
-  version: 14.1.0
-  resolution: "@metamask/eslint-config-typescript@npm:14.1.0"
+"@metamask/eslint-config-typescript@npm:^15.0.0":
+  version: 15.0.0
+  resolution: "@metamask/eslint-config-typescript@npm:15.0.0"
   dependencies:
     "@eslint/js": "npm:^9.11.0"
   peerDependencies:
-    "@metamask/eslint-config": ^14.1.0
+    "@metamask/eslint-config": ^15.0.0
     eslint: ^9.11.0
     eslint-import-resolver-typescript: ^3.6.3
     eslint-plugin-import-x: ^4.3.0
     eslint-plugin-jsdoc: ^50.2.4
-    typescript: ">=4.8.4 <5.9.0"
-    typescript-eslint: ^8.24
-  checksum: 10/697b61648969f5f53179b8cf83ffb1aa1dbe5ce9ad4f7f4ed0bc4e436c510f1d28543e764467fd880ccb2579b5810e78eee63f972daa55f1b599844b53ea13ca
+    typescript: ">=4.8.4 <6"
+    typescript-eslint: ^8.39.0
+  checksum: 10/5ff44e8970a67f87da92a65b8478d22374713ca94feb671ba462b87441ae8b47e427857b363b79b50e6078856c0f482c3965de7f2ee38fe0b40f8f4e27891540
   languageName: node
   linkType: hard
 
-"@metamask/eslint-config@npm:^14.1.0":
-  version: 14.1.0
-  resolution: "@metamask/eslint-config@npm:14.1.0"
+"@metamask/eslint-config@npm:^15.0.0":
+  version: 15.0.0
+  resolution: "@metamask/eslint-config@npm:15.0.0"
   dependencies:
     "@eslint/js": "npm:^9.11.0"
     globals: "npm:^15.9.0"
@@ -3346,7 +3346,7 @@ __metadata:
     eslint-plugin-prettier: ^5.2.1
     eslint-plugin-promise: ^7.1.0
     prettier: ^3.3.3
-  checksum: 10/c6313391ea09130ae7254356069c8c28621d8dac668278291cba4436e95d4d5b8a43e11d7ce98ade96b2e4c7706171eba9c966ce7ba439fe888576bb32930b06
+  checksum: 10/93eb41bd61f3f4a0cf930a3d83e8893455f4f03339e91b21ef5a2835d24532db7c2916138a3e1b64777b5fb95cbe4ac90107697ac6f962c11ea7a99955cc75e4
   languageName: node
   linkType: hard
 
@@ -5078,8 +5078,8 @@ __metadata:
     "@metamask/assets-controllers": "npm:^93.0.0"
     "@metamask/auto-changelog": "npm:^3.4.4"
     "@metamask/base-controller": "npm:^9.0.0"
-    "@metamask/bridge-controller": "npm:^63.2.0"
-    "@metamask/bridge-status-controller": "npm:^63.1.0"
+    "@metamask/bridge-controller": "npm:^64.0.0"
+    "@metamask/bridge-status-controller": "npm:^64.0.1"
     "@metamask/controller-utils": "npm:^11.16.0"
     "@metamask/gas-fee-controller": "npm:^26.0.0"
     "@metamask/messenger": "npm:^0.3.0"

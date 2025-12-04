@@ -1,12 +1,11 @@
 import type { AccountsControllerState } from '@metamask/accounts-controller';
 import type { StateMetadata } from '@metamask/base-controller';
-import {
-  type QuoteMetadata,
-  type RequiredEventContextFromClient,
-  type TxData,
-  type QuoteResponse,
-  type Trade,
-  isEvmTxData,
+import type {
+  QuoteMetadata,
+  RequiredEventContextFromClient,
+  TxData,
+  QuoteResponse,
+  Trade,
 } from '@metamask/bridge-controller';
 import {
   formatChainIdToHex,
@@ -15,6 +14,7 @@ import {
   UnifiedSwapBridgeEventName,
   formatChainIdToCaip,
   isCrossChain,
+  isEvmTxData,
   isHardwareWallet,
   MetricsActionType,
   isBitcoinTrade,
@@ -24,16 +24,17 @@ import {
 import type { TraceCallback } from '@metamask/controller-utils';
 import { toHex } from '@metamask/controller-utils';
 import { StaticIntervalPollingController } from '@metamask/polling-controller';
-import type {
-  TransactionController,
-  TransactionParams,
-} from '@metamask/transaction-controller';
 import {
   TransactionStatus,
   TransactionType,
-  type TransactionMeta,
 } from '@metamask/transaction-controller';
-import { numberToHex, type Hex } from '@metamask/utils';
+import type {
+  TransactionController,
+  TransactionMeta,
+  TransactionParams,
+} from '@metamask/transaction-controller';
+import { numberToHex } from '@metamask/utils';
+import type { Hex } from '@metamask/utils';
 
 import {
   BRIDGE_PROD_API_BASE_URL,
@@ -50,7 +51,7 @@ import type {
   SolanaTransactionMeta,
   BridgeHistoryItem,
 } from './types';
-import { type BridgeStatusControllerMessenger } from './types';
+import type { BridgeStatusControllerMessenger } from './types';
 import { BridgeClientId } from './types';
 import {
   fetchBridgeTxStatus,
@@ -869,16 +870,21 @@ export class BridgeStatusController extends StaticIntervalPollingController<Brid
    * @param params.transactionType - The type of transaction to submit
    * @param params.trade - The trade data to confirm
    * @param params.requireApproval - Whether to require approval for the transaction
+   * @param params.txFee - Optional gas fee parameters from the quote (used when gasIncluded is true)
+   * @param params.txFee.maxFeePerGas - The maximum fee per gas from the quote
+   * @param params.txFee.maxPriorityFeePerGas - The maximum priority fee per gas from the quote
    * @returns The transaction meta
    */
   readonly #handleEvmTransaction = async ({
     transactionType,
     trade,
     requireApproval = false,
+    txFee,
   }: {
     transactionType: TransactionType;
     trade: TxData;
     requireApproval?: boolean;
+    txFee?: { maxFeePerGas: string; maxPriorityFeePerGas: string };
   }): Promise<TransactionMeta> => {
     const actionId = generateActionId().toString();
 
@@ -918,6 +924,7 @@ export class BridgeStatusController extends StaticIntervalPollingController<Brid
         transactionParams,
         networkClientId,
         hexChainId,
+        txFee,
       )),
     };
 
@@ -942,7 +949,20 @@ export class BridgeStatusController extends StaticIntervalPollingController<Brid
     transactionParams: TransactionParams,
     networkClientId: string,
     chainId: Hex,
+    txFee?: { maxFeePerGas: string; maxPriorityFeePerGas: string },
   ) => {
+    const maxGasLimit = toHex(transactionParams.gas ?? 0);
+
+    // If txFee is provided (gasIncluded case), use the quote's gas fees
+    // Convert to hex since txFee values from the quote are decimal strings
+    if (txFee) {
+      return {
+        maxFeePerGas: toHex(txFee.maxFeePerGas ?? 0),
+        maxPriorityFeePerGas: toHex(txFee.maxPriorityFeePerGas ?? 0),
+        gas: maxGasLimit,
+      };
+    }
+
     const { gasFeeEstimates } = this.messenger.call(
       'GasFeeController:getState',
     );
@@ -955,7 +975,6 @@ export class BridgeStatusController extends StaticIntervalPollingController<Brid
       networkGasFeeEstimates: gasFeeEstimates,
       txGasFeeEstimates,
     });
-    const maxGasLimit = toHex(transactionParams.gas ?? 0);
 
     return {
       maxFeePerGas,
@@ -1216,12 +1235,17 @@ export class BridgeStatusController extends StaticIntervalPollingController<Brid
 
           await handleMobileHardwareWalletDelay(requireApproval);
 
+          // Pass txFee when gasIncluded is true to use the quote's gas fees
+          // instead of re-estimating (which would fail for max native token swaps)
           return await this.#handleEvmTransaction({
             transactionType: isBridgeTx
               ? TransactionType.bridge
               : TransactionType.swap,
             trade: quoteResponse.trade,
             requireApproval,
+            txFee: quoteResponse.quote.gasIncluded
+              ? quoteResponse.quote.feeData.txFee
+              : undefined,
           });
         },
       );

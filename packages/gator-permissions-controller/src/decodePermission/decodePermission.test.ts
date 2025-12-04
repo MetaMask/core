@@ -5,8 +5,8 @@ import {
   createERC20TokenPeriodTransferTerms,
   createTimestampTerms,
   ROOT_AUTHORITY,
-  type Hex,
 } from '@metamask/delegation-core';
+import type { Hex } from '@metamask/delegation-core';
 import {
   CHAIN_ID,
   DELEGATOR_CONTRACTS,

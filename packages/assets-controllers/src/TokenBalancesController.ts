@@ -52,10 +52,10 @@ import type {
   AccountTrackerUpdateStakedBalancesAction,
 } from './AccountTrackerController';
 import { STAKING_CONTRACT_ADDRESS_BY_CHAINID } from './AssetsContractController';
-import {
-  AccountsApiBalanceFetcher,
-  type BalanceFetcher,
-  type ProcessedBalance,
+import { AccountsApiBalanceFetcher } from './multi-chain-accounts-service/api-balance-fetcher';
+import type {
+  BalanceFetcher,
+  ProcessedBalance,
 } from './multi-chain-accounts-service/api-balance-fetcher';
 import { RpcBalanceFetcher } from './rpc-service/rpc-balance-fetcher';
 import type { TokenDetectionControllerAddDetectedTokensViaWsAction } from './TokenDetectionController';

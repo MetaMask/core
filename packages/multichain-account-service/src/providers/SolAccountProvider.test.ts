@@ -20,8 +20,8 @@ import {
   MOCK_SOL_ACCOUNT_1,
   MOCK_SOL_DISCOVERED_ACCOUNT_1,
   MockAccountBuilder,
-  type RootMessenger,
 } from '../tests';
+import type { RootMessenger } from '../tests';
 
 class MockSolanaKeyring {
   readonly type = 'MockSolanaKeyring';

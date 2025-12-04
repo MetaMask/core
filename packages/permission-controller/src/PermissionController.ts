@@ -25,7 +25,8 @@ import { JsonRpcError } from '@metamask/rpc-errors';
 import { hasProperty } from '@metamask/utils';
 import type { Json, Mutable } from '@metamask/utils';
 import deepFreeze from 'deep-freeze-strict';
-import { castDraft, produce as immerProduce, type Draft } from 'immer';
+import { castDraft, produce as immerProduce } from 'immer';
+import type { Draft } from 'immer';
 import { nanoid } from 'nanoid';
 
 import type {

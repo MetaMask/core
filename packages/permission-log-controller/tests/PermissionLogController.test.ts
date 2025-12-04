@@ -3,27 +3,23 @@ import type {
   JsonRpcEngineReturnHandler,
   JsonRpcEngineNextCallback,
 } from '@metamask/json-rpc-engine';
-import {
-  Messenger,
-  MOCK_ANY_NAMESPACE,
-  type MessengerActions,
-  type MessengerEvents,
-  type MockAnyNamespace,
+import { Messenger, MOCK_ANY_NAMESPACE } from '@metamask/messenger';
+import type {
+  MessengerActions,
+  MessengerEvents,
+  MockAnyNamespace,
 } from '@metamask/messenger';
-import {
-  type PendingJsonRpcResponse,
-  type JsonRpcRequest,
-  PendingJsonRpcResponseStruct,
-} from '@metamask/utils';
+import { PendingJsonRpcResponseStruct } from '@metamask/utils';
+import type { PendingJsonRpcResponse, JsonRpcRequest } from '@metamask/utils';
 import { nanoid } from 'nanoid';
 
 import { constants, getters, noop } from './helpers';
 import { LOG_LIMIT, LOG_METHOD_TYPES } from '../src/enums';
-import {
-  PermissionLogController,
-  type Permission,
-  type PermissionLogControllerState,
-  type PermissionLogControllerMessenger,
+import { PermissionLogController } from '../src/PermissionLogController';
+import type {
+  Permission,
+  PermissionLogControllerState,
+  PermissionLogControllerMessenger,
 } from '../src/PermissionLogController';
 
 const { PERMS, RPC_REQUESTS } = getters;

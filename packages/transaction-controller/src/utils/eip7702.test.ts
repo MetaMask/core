@@ -1,11 +1,10 @@
 import { query } from '@metamask/controller-utils';
 import type EthQuery from '@metamask/eth-query';
-import {
-  Messenger,
-  type MockAnyNamespace,
-  type MessengerActions,
-  type MessengerEvents,
-  MOCK_ANY_NAMESPACE,
+import { Messenger, MOCK_ANY_NAMESPACE } from '@metamask/messenger';
+import type {
+  MockAnyNamespace,
+  MessengerActions,
+  MessengerEvents,
 } from '@metamask/messenger';
 import type { Hex } from '@metamask/utils';
 import { remove0x } from '@metamask/utils';
@@ -24,8 +23,9 @@ import {
 } from './feature-flags';
 import type { KeyringControllerSignEip7702AuthorizationAction } from '../../../keyring-controller/src';
 import type { TransactionControllerMessenger } from '../TransactionController';
+import { TransactionStatus } from '../types';
 import type { AuthorizationList } from '../types';
-import { TransactionStatus, type TransactionMeta } from '../types';
+import type { TransactionMeta } from '../types';
 
 jest.mock('../utils/feature-flags');
 
