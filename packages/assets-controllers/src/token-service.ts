@@ -75,7 +75,7 @@ function getTokenSearchURL(
  *
  * @param options - Options for getting trending tokens.
  * @param options.chainIds - Array of CAIP format chain IDs (e.g., ['eip155:1', 'eip155:137', 'solana:5eykt4UsFv8P8NJdTREpY1vzqKqZKvdp']).
- * @param options.sortBy - The sort by field.
+ * @param options.sort - The sort field.
  * @param options.minLiquidity - The minimum liquidity.
  * @param options.minVolume24hUsd - The minimum volume 24h in USD.
  * @param options.maxVolume24hUsd - The maximum volume 24h in USD.
@@ -85,7 +85,7 @@ function getTokenSearchURL(
  */
 function getTrendingTokensURL(options: {
   chainIds: CaipChainId[];
-  sortBy?: SortTrendingBy;
+  sort?: SortTrendingBy;
   minLiquidity?: number;
   minVolume24hUsd?: number;
   maxVolume24hUsd?: number;
@@ -245,7 +245,7 @@ export async function getTrendingTokens({
 
   const trendingTokensURL = getTrendingTokensURL({
     chainIds,
-    sortBy,
+    sort: sortBy,
     minLiquidity,
     minVolume24hUsd,
     maxVolume24hUsd,

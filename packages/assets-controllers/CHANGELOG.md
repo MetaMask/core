@@ -11,6 +11,10 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 - Add multicall address for Chains: `MegaETH Testnet V2`, `MegaETH Mainnet` ([#7287](https://github.com/MetaMask/core/pull/7287))
 
+### Fixed
+
+- Fix trending tokens API request to use correct `sort` query parameter instead of `sortBy` ([#7310](https://github.com/MetaMask/core/pull/7310))
+
 ## [93.0.0]
 
 ### Added
