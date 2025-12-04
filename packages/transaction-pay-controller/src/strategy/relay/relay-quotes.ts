@@ -131,7 +131,6 @@ async function processTransactions(
 ) {
   const { nestedTransactions, txParams } = transaction;
   const data = txParams?.data as Hex | undefined;
-  let newRecipient: Hex | undefined;
 
   const singleData =
     nestedTransactions?.length === 1 ? nestedTransactions[0].data : data;
@@ -142,11 +141,9 @@ async function processTransactions(
     !isHypercore && singleData?.startsWith(TOKEN_TRANSFER_FOUR_BYTE);
 
   if (isTokenTransfer) {
-    newRecipient = getTransferRecipient(singleData as Hex);
+    requestBody.recipient = getTransferRecipient(singleData as Hex);
 
-    log('Updating recipient as token transfer', newRecipient);
-
-    requestBody.recipient = newRecipient?.toLowerCase();
+    log('Updating recipient as token transfer', requestBody.recipient);
   }
 
   const skipDelegation = isTokenTransfer || isHypercore;
@@ -589,7 +586,7 @@ function buildTokenTransferData(recipient: Hex, amountRaw: string) {
  * @returns Transfer recipient.
  */
 function getTransferRecipient(data: Hex): Hex | undefined {
-  return new Interface([
-    'function transfer(address to, uint256 amount)',
-  ]).decodeFunctionData('transfer', data).to;
+  return new Interface(['function transfer(address to, uint256 amount)'])
+    .decodeFunctionData('transfer', data)
+    .to.toLowerCase();
 }
