@@ -128,7 +128,9 @@ export class OnRampService {
   /**
    * The messenger suited for this service.
    */
-  readonly #messenger: ConstructorParameters<typeof OnRampService>[0]['messenger'];
+  readonly #messenger: ConstructorParameters<
+    typeof OnRampService
+  >[0]['messenger'];
 
   /**
    * A function that can be used to make an HTTP request.
@@ -260,4 +262,3 @@ export class OnRampService {
     throw new Error('Malformed response received from geolocation API');
   }
 }
-

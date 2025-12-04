@@ -76,7 +76,6 @@ describe('OnRampService', () => {
       ).rejects.toThrow('Malformed response received from geolocation API');
     });
 
-
     it('calls onDegraded listeners if the request takes longer than 5 seconds to resolve', async () => {
       nock('https://on-ramp.uat-api.cx.metamask.io')
         .get('/geolocation')
@@ -108,6 +107,16 @@ describe('OnRampService', () => {
       ).rejects.toThrow(
         "Fetching 'https://on-ramp.uat-api.cx.metamask.io/geolocation' failed with status '500'",
       );
+    });
+
+    it('allows registering onBreak listeners', () => {
+      const { service } = getService();
+      const onBreakListener = jest.fn();
+
+      const subscription = service.onBreak(onBreakListener);
+
+      expect(subscription).toBeDefined();
+      expect(subscription.dispose).toBeDefined();
     });
   });
 

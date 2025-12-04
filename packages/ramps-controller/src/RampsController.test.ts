@@ -36,16 +36,13 @@ describe('RampsController', () => {
     });
 
     it('fills in missing initial state with defaults', async () => {
-      await withController(
-        { options: { state: {} } },
-        ({ controller }) => {
-          expect(controller.state).toMatchInlineSnapshot(`
+      await withController({ options: { state: {} } }, ({ controller }) => {
+        expect(controller.state).toMatchInlineSnapshot(`
             Object {
               "geolocation": null,
             }
           `);
-        },
-      );
+      });
     });
   });
 
@@ -137,7 +134,8 @@ describe('RampsController', () => {
  */
 type RootMessenger = Messenger<
   MockAnyNamespace,
-  MessengerActions<RampsControllerMessenger> | OnRampServiceGetGeolocationAction,
+  | MessengerActions<RampsControllerMessenger>
+  | OnRampServiceGetGeolocationAction,
   MessengerEvents<RampsControllerMessenger>
 >;
 
@@ -174,9 +172,7 @@ function getRootMessenger(): RootMessenger {
  * events required by the controller's messenger.
  * @returns The controller-specific messenger.
  */
-function getMessenger(
-  rootMessenger: RootMessenger,
-): RampsControllerMessenger {
+function getMessenger(rootMessenger: RootMessenger): RampsControllerMessenger {
   const messenger: RampsControllerMessenger = new Messenger({
     namespace: 'RampsController',
     parent: rootMessenger,
