@@ -76,7 +76,10 @@ async function getSingleQuote(
 ): Promise<TransactionPayQuote<RelayQuote>> {
   const { messenger, transaction } = fullRequest;
   const { slippage: slippageDecimal } = getFeatureFlags(messenger);
-  const slippageTolerance = String(slippageDecimal * 100 * 100);
+
+  const slippageTolerance = new BigNumber(slippageDecimal * 100 * 100).toFixed(
+    0,
+  );
 
   try {
     const body: RelayQuoteRequest = {
