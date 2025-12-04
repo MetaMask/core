@@ -12,4 +12,3 @@ export type OnRampServiceGetGeolocationAction = {
  * Union of all OnRampService action types.
  */
 export type OnRampServiceMethodActions = OnRampServiceGetGeolocationAction;
-
