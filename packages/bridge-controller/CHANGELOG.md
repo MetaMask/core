@@ -7,6 +7,11 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+### Changed
+
+- Bump `@metamask/assets-controllers` from `^93.0.0` to `^93.1.0` ([#7309](https://github.com/MetaMask/core/pull/7309)
+- Bump `@metamask/remote-feature-flag-controller` from `^2.0.1` to `^3.0.0` ([#7309](https://github.com/MetaMask/core/pull/7309)
+
 ## [64.0.0]
 
 ### Added
