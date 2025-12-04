@@ -1,4 +1,3 @@
-/* eslint-disable jsdoc/require-jsdoc */
 import type { Bip44Account } from '@metamask/account-api';
 import { isBip44Account } from '@metamask/account-api';
 import type {
@@ -23,6 +22,7 @@ import {
 } from '@metamask/keyring-api';
 import { KeyringTypes } from '@metamask/keyring-controller';
 import type { InternalAccount } from '@metamask/keyring-internal-api';
+import type { SnapId } from '@metamask/snaps-sdk';
 import { v4 as uuid } from 'uuid';
 
 export const ETH_EOA_METHODS = [
@@ -278,6 +278,28 @@ export const MOCK_HARDWARE_ACCOUNT_1: InternalAccount = {
   },
 };
 
+export function isInternalAccount(
+  account: KeyringAccount,
+): account is InternalAccount {
+  // Meant to be used for testing, so we keep this simple.
+  return Object.prototype.hasOwnProperty.call(account, 'metadata');
+}
+
+export function asKeyringAccount<Account extends KeyringAccount>(
+  account: Account,
+): KeyringAccount {
+  const { id, type, address, scopes, options, methods } = account;
+
+  return {
+    id,
+    type,
+    address,
+    scopes,
+    options,
+    methods,
+  };
+}
+
 export class MockAccountBuilder<Account extends KeyringAccount> {
   readonly #account: Account;
 
@@ -317,6 +339,17 @@ export class MockAccountBuilder<Account extends KeyringAccount> {
   withGroupIndex(groupIndex: number) {
     if (isBip44Account(this.#account)) {
       this.#account.options.entropy.groupIndex = groupIndex;
+    }
+    return this;
+  }
+
+  withSnapId(snapId: SnapId) {
+    if (isInternalAccount(this.#account)) {
+      this.#account.metadata.snap = {
+        enabled: true,
+        id: snapId,
+        name: `Name: ${snapId}`,
+      };
     }
     return this;
   }

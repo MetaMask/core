@@ -1,27 +1,29 @@
 import type { AccountsControllerState } from '@metamask/accounts-controller';
-import type { TxData } from '@metamask/bridge-controller';
 import {
   ChainId,
+  extractTradeData,
+  isTronTrade,
   formatChainIdToCaip,
   formatChainIdToHex,
-  getEthUsdtResetData,
   isCrossChain,
-  isEthUsdt,
-  type QuoteMetadata,
-  type QuoteResponse,
+} from '@metamask/bridge-controller';
+import type {
+  QuoteMetadata,
+  QuoteResponse,
+  Trade,
+  TxData,
 } from '@metamask/bridge-controller';
 import { toHex } from '@metamask/controller-utils';
-import type {
-  BatchTransactionParams,
-  TransactionController,
-} from '@metamask/transaction-controller';
 import {
   TransactionStatus,
   TransactionType,
-  type TransactionMeta,
+} from '@metamask/transaction-controller';
+import type {
+  BatchTransactionParams,
+  TransactionController,
+  TransactionMeta,
 } from '@metamask/transaction-controller';
 import { createProjectLogger } from '@metamask/utils';
-import { BigNumber } from 'bignumber.js';
 import { v4 as uuid } from 'uuid';
 
 import { calculateGasFees } from './gas';
@@ -35,31 +37,6 @@ import type {
 
 export const generateActionId = () => (Date.now() + Math.random()).toString();
 
-export const getUSDTAllowanceResetTx = async (
-  messenger: BridgeStatusControllerMessenger,
-  quoteResponse: QuoteResponse & Partial<QuoteMetadata>,
-) => {
-  const hexChainId = formatChainIdToHex(quoteResponse.quote.srcChainId);
-  if (
-    quoteResponse.approval &&
-    isEthUsdt(hexChainId, quoteResponse.quote.srcAsset.address)
-  ) {
-    const allowance = new BigNumber(
-      await messenger.call(
-        'BridgeController:getBridgeERC20Allowance',
-        quoteResponse.quote.srcAsset.address,
-        hexChainId,
-      ),
-    );
-    const shouldResetApproval =
-      allowance.lt(quoteResponse.sentAmount?.amount ?? '0') && allowance.gt(0);
-    if (shouldResetApproval) {
-      return { ...quoteResponse.approval, data: getEthUsdtResetData() };
-    }
-  }
-  return undefined;
-};
-
 export const getStatusRequestParams = (quoteResponse: QuoteResponse) => {
   return {
     bridgeId: quoteResponse.quote.bridgeId,
@@ -72,7 +49,7 @@ export const getStatusRequestParams = (quoteResponse: QuoteResponse) => {
 };
 
 export const getTxMetaFields = (
-  quoteResponse: Omit<QuoteResponse<string | TxData>, 'approval' | 'trade'> &
+  quoteResponse: Omit<QuoteResponse<Trade, Trade>, 'approval' | 'trade'> &
     QuoteMetadata,
   approvalTxId?: string,
 ): Omit<
@@ -123,11 +100,7 @@ export const handleNonEvmTxResponse = (
     | { transactionId: string } // New unified interface response
     | { result: Record<string, string> }
     | { signature: string },
-  quoteResponse: Omit<
-    QuoteResponse<string | { unsignedPsbtBase64: string }>,
-    'approval'
-  > &
-    QuoteMetadata,
+  quoteResponse: Omit<QuoteResponse<Trade>, 'approval'> & QuoteMetadata,
   selectedAccount: AccountsControllerState['internalAccounts']['accounts'][string],
 ): TransactionMeta & SolanaTransactionMeta => {
   const selectedAccountAddress = selectedAccount.address;
@@ -175,10 +148,7 @@ export const handleNonEvmTxResponse = (
   }
 
   // Extract the transaction data for storage
-  const tradeData =
-    typeof quoteResponse.trade === 'string'
-      ? quoteResponse.trade
-      : quoteResponse.trade.unsignedPsbtBase64;
+  const tradeData = extractTradeData(quoteResponse.trade);
 
   // Create a transaction meta object with bridge-specific fields
   return {
@@ -198,8 +168,10 @@ export const handleNonEvmTxResponse = (
   };
 };
 
-export const handleApprovalDelay = async (quoteResponse: QuoteResponse) => {
-  if ([ChainId.LINEA, ChainId.BASE].includes(quoteResponse.quote.srcChainId)) {
+export const handleApprovalDelay = async (
+  srcChainId: QuoteResponse['quote']['srcChainId'],
+) => {
+  if ([ChainId.LINEA, ChainId.BASE].includes(srcChainId)) {
     const debugLog = createProjectLogger('bridge');
     debugLog(
       'Delaying submitting bridge tx to make Linea and Base confirmation more likely',
@@ -233,25 +205,27 @@ export const handleMobileHardwareWalletDelay = async (
  * Creates a request to sign and send a transaction for non-EVM chains
  * Uses the new unified ClientRequest:signAndSendTransaction interface
  *
- * @param quoteResponse - The quote response containing trade details and metadata
+ * @param trade - The trade data
+ * @param srcChainId - The source chain ID
  * @param selectedAccount - The selected account information
  * @returns The snap request object for signing and sending transaction
  */
 export const getClientRequest = (
-  quoteResponse: Omit<
-    QuoteResponse<string | { unsignedPsbtBase64: string }>,
-    'approval'
-  > &
-    QuoteMetadata,
+  trade: Trade,
+  srcChainId: number,
   selectedAccount: AccountsControllerState['internalAccounts']['accounts'][string],
 ) => {
-  const scope = formatChainIdToCaip(quoteResponse.quote.srcChainId);
+  const scope = formatChainIdToCaip(srcChainId);
 
-  // Extract the transaction data - Bitcoin uses unsignedPsbtBase64, others use string
-  const transactionData =
-    typeof quoteResponse.trade === 'string'
-      ? quoteResponse.trade
-      : quoteResponse.trade.unsignedPsbtBase64;
+  const transactionData = extractTradeData(trade);
+
+  // Tron trades need the visible flag and contract type to be included in the request options
+  const options = isTronTrade(trade)
+    ? {
+        visible: trade.visible,
+        type: trade.raw_data?.contract?.[0]?.type,
+      }
+    : undefined;
 
   // Use the new unified interface
   return createClientTransactionRequest(
@@ -259,6 +233,7 @@ export const getClientRequest = (
     transactionData,
     scope,
     selectedAccount.id,
+    options,
   );
 };
 
@@ -300,6 +275,7 @@ export const getAddTransactionBatchParams = async ({
       feeData: { txFee },
       gasIncluded,
       gasIncluded7702,
+      gasSponsored,
     },
     sentAmount,
     toTokenAmount,
@@ -393,6 +369,7 @@ export const getAddTransactionBatchParams = async ({
   >[0] = {
     disable7702,
     isGasFeeIncluded: Boolean(gasIncluded7702),
+    isGasFeeSponsored: Boolean(gasSponsored),
     networkClientId,
     requireApproval,
     origin: 'metamask',

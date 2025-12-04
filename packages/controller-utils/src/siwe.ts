@@ -40,9 +40,10 @@ function msgHexToText(hex: string): string {
  * @type WrappedSIWERequest
  *
  * Sign-In With Ethereum (SIWE)(EIP-4361) message with request metadata
- * @property {string} from - Subject account address
- * @property {string} origin - The RFC 3986 originating authority of the signing request, including scheme
- * @property {ParsedMessage} siwe - The data parsed from the message
+ *
+ * @property from - Subject account address
+ * @property origin - The RFC 3986 originating authority of the signing request, including scheme
+ * @property siwe - The data parsed from the message
  */
 // This interface was created before this ESLint rule was added.
 // Convert to a `type` in a future major version.

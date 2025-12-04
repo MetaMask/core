@@ -1,6 +1,6 @@
 {
   "name": "@metamask/transaction-pay-controller",
-  "version": "3.1.0",
+  "version": "10.3.0",
   "description": "Manages alternate payment strategies to provide required funds for transactions in MetaMask",
   "keywords": [
     "MetaMask",
@@ -51,10 +51,17 @@
   "dependencies": {
     "@ethersproject/abi": "^5.7.0",
     "@ethersproject/contracts": "^5.7.0",
+    "@metamask/assets-controllers": "^93.1.0",
     "@metamask/base-controller": "^9.0.0",
-    "@metamask/controller-utils": "^11.15.0",
+    "@metamask/bridge-controller": "^64.0.0",
+    "@metamask/bridge-status-controller": "^64.0.1",
+    "@metamask/controller-utils": "^11.16.0",
+    "@metamask/gas-fee-controller": "^26.0.0",
     "@metamask/messenger": "^0.3.0",
     "@metamask/metamask-eth-abis": "^3.1.1",
+    "@metamask/network-controller": "^27.0.0",
+    "@metamask/remote-feature-flag-controller": "^3.0.0",
+    "@metamask/transaction-controller": "^62.4.0",
     "@metamask/utils": "^11.8.1",
     "bignumber.js": "^9.1.2",
     "bn.js": "^5.2.1",
@@ -62,14 +69,7 @@
     "lodash": "^4.17.21"
   },
   "devDependencies": {
-    "@metamask/assets-controllers": "^87.1.0",
     "@metamask/auto-changelog": "^3.4.4",
-    "@metamask/bridge-controller": "^59.0.0",
-    "@metamask/bridge-status-controller": "^59.0.0",
-    "@metamask/gas-fee-controller": "^25.0.0",
-    "@metamask/network-controller": "^25.0.0",
-    "@metamask/remote-feature-flag-controller": "^2.0.0",
-    "@metamask/transaction-controller": "^61.1.0",
     "@ts-bridge/cli": "^0.6.4",
     "@types/jest": "^27.4.1",
     "deepmerge": "^4.2.2",
@@ -78,15 +78,6 @@
     "typedoc": "^0.24.8",
     "typedoc-plugin-missing-exports": "^2.0.0",
     "typescript": "~5.3.3"
-  },
-  "peerDependencies": {
-    "@metamask/assets-controllers": "^87.0.0",
-    "@metamask/bridge-controller": "^59.0.0",
-    "@metamask/bridge-status-controller": "^59.0.0",
-    "@metamask/gas-fee-controller": "^25.0.0",
-    "@metamask/network-controller": "^25.0.0",
-    "@metamask/remote-feature-flag-controller": "^2.0.0",
-    "@metamask/transaction-controller": "^61.0.0"
   },
   "engines": {
     "node": "^18.18 || >=20"

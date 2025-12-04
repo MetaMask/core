@@ -1,10 +1,10 @@
-import { removeFencedCode } from '..';
-import type { FeatureLabels } from '..';
 import {
   DirectiveCommand,
   multiSplice,
   validateCommand,
 } from './remove-fenced-code';
+import { removeFencedCode } from '..';
+import type { FeatureLabels } from '..';
 
 const FEATURE_A = 'feature-a';
 const FEATURE_B = 'feature-b';

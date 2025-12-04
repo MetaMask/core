@@ -4,12 +4,12 @@ import type {
   JsonRpcMiddleware,
 } from '@metamask/json-rpc-engine';
 import SafeEventEmitter from '@metamask/safe-event-emitter';
-import {
-  hasProperty,
-  type JsonRpcNotification,
-  type JsonRpcParams,
-  type JsonRpcRequest,
-  type PendingJsonRpcResponse,
+import { hasProperty } from '@metamask/utils';
+import type {
+  JsonRpcNotification,
+  JsonRpcParams,
+  JsonRpcRequest,
+  PendingJsonRpcResponse,
 } from '@metamask/utils';
 import { Duplex } from 'readable-stream';
 
@@ -121,8 +121,6 @@ export default function createStreamMiddleware(options: Options = {}) {
     Object.assign(context.res, res);
     // run callback on empty stack,
     // prevent internal stream-handler from catching errors
-    // TODO: remove eslint-disable once issue #1989 is resolved.
-    // eslint-disable-next-line @typescript-eslint/no-implied-eval
     setTimeout(context.end);
   }
 

@@ -1,12 +1,9 @@
 import { getAddress } from '@ethersproject/address';
 import { AddressZero } from '@ethersproject/constants';
 import { convertHexToDecimal } from '@metamask/controller-utils';
-import { BtcScope, SolScope } from '@metamask/keyring-api';
+import { BtcScope, SolScope, TrxScope } from '@metamask/keyring-api';
 import { toEvmCaipChainId } from '@metamask/multichain-network-controller';
-import type { CaipAssetType } from '@metamask/utils';
 import {
-  type Hex,
-  type CaipChainId,
   isCaipChainId,
   isStrictHexString,
   parseCaipChainId,
@@ -15,12 +12,14 @@ import {
   isCaipAssetType,
   CaipAssetTypeStruct,
 } from '@metamask/utils';
+import type { CaipAssetType, CaipChainId, Hex } from '@metamask/utils';
 
 import {
   getNativeAssetForChainId,
   isBitcoinChainId,
   isNativeAddress,
   isSolanaChainId,
+  isTronChainId,
 } from './bridge';
 import type { GenericQuoteRequest } from '../types';
 import { ChainId } from '../types';
@@ -46,6 +45,9 @@ export const formatChainIdToCaip = (
   if (isBitcoinChainId(chainId)) {
     return BtcScope.Mainnet;
   }
+  if (isTronChainId(chainId)) {
+    return TrxScope.Mainnet;
+  }
   return toEvmCaipChainId(numberToHex(Number(chainId)));
 };
 
@@ -66,6 +68,9 @@ export const formatChainIdToDec = (
   }
   if (chainId === BtcScope.Mainnet) {
     return ChainId.BTC;
+  }
+  if (chainId === TrxScope.Mainnet) {
+    return ChainId.TRON;
   }
   if (isCaipChainId(chainId)) {
     return Number(chainId.split(':').at(-1));

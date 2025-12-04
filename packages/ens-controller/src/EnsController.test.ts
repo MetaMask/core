@@ -5,28 +5,27 @@ import {
   toHex,
   InfuraNetworkType,
 } from '@metamask/controller-utils';
-import {
-  Messenger,
-  MOCK_ANY_NAMESPACE,
-  type MessengerActions,
-  type MessengerEvents,
-  type MockAnyNamespace,
+import { Messenger, MOCK_ANY_NAMESPACE } from '@metamask/messenger';
+import type {
+  MessengerActions,
+  MessengerEvents,
+  MockAnyNamespace,
 } from '@metamask/messenger';
-import {
-  type NetworkController,
-  type NetworkState,
-  getDefaultNetworkControllerState,
+import { getDefaultNetworkControllerState } from '@metamask/network-controller';
+import type {
+  NetworkController,
+  NetworkState,
 } from '@metamask/network-controller';
 
-import {
-  buildMockGetNetworkClientById,
-  buildCustomNetworkClientConfiguration,
-} from '../../network-controller/tests/helpers';
 import { EnsController, DEFAULT_ENS_NETWORK_MAP } from './EnsController';
 import type {
   EnsControllerState,
   EnsControllerMessenger,
 } from './EnsController';
+import {
+  buildMockGetNetworkClientById,
+  buildCustomNetworkClientConfiguration,
+} from '../../network-controller/tests/helpers';
 
 const defaultState: EnsControllerState = {
   ensEntries: {},
@@ -49,8 +48,6 @@ jest.mock('@ethersproject/providers', () => {
   const originalModule = jest.requireActual('@ethersproject/providers');
 
   return {
-    // TODO: Either fix this lint violation or explain why it's necessary to ignore.
-    // eslint-disable-next-line @typescript-eslint/naming-convention
     __esModule: true,
     ...originalModule,
   };

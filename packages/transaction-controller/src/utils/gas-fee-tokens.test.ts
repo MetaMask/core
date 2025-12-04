@@ -1,10 +1,17 @@
+import type EthQuery from '@metamask/eth-query';
+import type { Hex } from '@metamask/utils';
 import { cloneDeep } from 'lodash';
 
+import { isNativeBalanceSufficientForGas } from './balance';
 import { doesChainSupportEIP7702 } from './eip7702';
 import { getEIP7702UpgradeContractAddress } from './feature-flags';
 import type { GetGasFeeTokensRequest } from './gas-fee-tokens';
-import { getGasFeeTokens } from './gas-fee-tokens';
+import {
+  checkGasFeeTokenBeforePublish,
+  getGasFeeTokens,
+} from './gas-fee-tokens';
 import type {
+  GasFeeToken,
   GetSimulationConfig,
   TransactionControllerMessenger,
   TransactionMeta,
@@ -14,12 +21,23 @@ import { simulateTransactions } from '../api/simulation-api';
 jest.mock('../api/simulation-api');
 jest.mock('./eip7702');
 jest.mock('./feature-flags');
+jest.mock('./balance');
 
 const CHAIN_ID_MOCK = '0x1';
-const TOKEN_ADDRESS_1_MOCK = '0x1234567890abcdef1234567890abcdef12345678';
+const TOKEN_ADDRESS_1_MOCK =
+  '0x1234567890abcdef1234567890abcdef12345678' as Hex;
 const TOKEN_ADDRESS_2_MOCK = '0xabcdef1234567890abcdef1234567890abcdef12';
 const UPGRADE_CONTRACT_ADDRESS_MOCK =
   '0xabcdefabcdefabcdefabcdefabcdefabcdefabcdef';
+
+const TRANSACTION_META_MOCK = {
+  txParams: {
+    from: '0xabcdefabcdefabcdefabcdefabcdefabcdefabcdef',
+    to: '0x1234567890abcdef1234567890abcdef1234567a',
+    value: '0x1000000000000000000',
+    data: '0x',
+  },
+} as TransactionMeta;
 
 const REQUEST_MOCK: GetGasFeeTokensRequest = {
   chainId: CHAIN_ID_MOCK,
@@ -27,19 +45,17 @@ const REQUEST_MOCK: GetGasFeeTokensRequest = {
   getSimulationConfig: jest.fn(),
   messenger: {} as TransactionControllerMessenger,
   publicKeyEIP7702: '0x123',
-  transactionMeta: {
-    txParams: {
-      from: '0xabcdefabcdefabcdefabcdefabcdefabcdefabcdef',
-      to: '0x1234567890abcdef1234567890abcdef1234567a',
-      value: '0x1000000000000000000',
-      data: '0x',
-    },
-  } as TransactionMeta,
+  transactionMeta: TRANSACTION_META_MOCK,
 };
 
 describe('Gas Fee Tokens Utils', () => {
   const simulateTransactionsMock = jest.mocked(simulateTransactions);
   const doesChainSupportEIP7702Mock = jest.mocked(doesChainSupportEIP7702);
+
+  const isNativeBalanceSufficientForGasMock = jest.mocked(
+    isNativeBalanceSufficientForGas,
+  );
+
   const getEIP7702UpgradeContractAddressMock = jest.mocked(
     getEIP7702UpgradeContractAddress,
   );
@@ -50,6 +66,8 @@ describe('Gas Fee Tokens Utils', () => {
     getEIP7702UpgradeContractAddressMock.mockReturnValue(
       UPGRADE_CONTRACT_ADDRESS_MOCK,
     );
+
+    isNativeBalanceSufficientForGasMock.mockResolvedValue(false);
   });
 
   describe('getGasFeeTokens', () => {
@@ -374,6 +392,124 @@ describe('Gas Fee Tokens Utils', () => {
           getSimulationConfig: getSimulationConfigMock,
         }),
       );
+    });
+  });
+
+  describe('checkGasFeeTokenBeforePublish', () => {
+    let request: Parameters<typeof checkGasFeeTokenBeforePublish>[0];
+
+    beforeEach(() => {
+      request = {
+        ethQuery: {} as EthQuery,
+        fetchGasFeeTokens: jest.fn(),
+        transaction: cloneDeep(TRANSACTION_META_MOCK),
+        updateTransaction: jest.fn(),
+      };
+    });
+
+    it('throws if gas fee token not found in gas fee tokens', async () => {
+      request.transaction.isGasFeeTokenIgnoredIfBalance = true;
+      request.transaction.selectedGasFeeToken = TOKEN_ADDRESS_1_MOCK;
+      request.transaction.gasFeeTokens = [];
+
+      await expect(checkGasFeeTokenBeforePublish(request)).rejects.toThrow(
+        'Gas fee token not found and insufficient native balance',
+      );
+    });
+
+    it('updates gas fee tokens', async () => {
+      request.transaction.isGasFeeTokenIgnoredIfBalance = true;
+      request.transaction.selectedGasFeeToken = TOKEN_ADDRESS_1_MOCK;
+      request.transaction.gasFeeTokens = undefined;
+
+      jest.mocked(request.fetchGasFeeTokens).mockResolvedValueOnce([
+        {
+          tokenAddress: TOKEN_ADDRESS_1_MOCK,
+        } as GasFeeToken,
+      ]);
+
+      await checkGasFeeTokenBeforePublish(request);
+
+      expect(request.fetchGasFeeTokens).toHaveBeenCalledTimes(1);
+      expect(request.fetchGasFeeTokens).toHaveBeenCalledWith(
+        expect.objectContaining({
+          isExternalSign: true,
+        }),
+      );
+    });
+
+    it('sets external sign to true if gas fee token found', async () => {
+      request.transaction.isGasFeeTokenIgnoredIfBalance = true;
+      request.transaction.selectedGasFeeToken = TOKEN_ADDRESS_1_MOCK;
+      request.transaction.gasFeeTokens = [];
+      request.transaction.isExternalSign = false;
+
+      jest.mocked(request.fetchGasFeeTokens).mockResolvedValueOnce([
+        {
+          tokenAddress: TOKEN_ADDRESS_1_MOCK,
+        } as GasFeeToken,
+      ]);
+
+      await checkGasFeeTokenBeforePublish(request);
+
+      jest
+        .mocked(request.updateTransaction)
+        .mock.calls[0][1](request.transaction);
+
+      expect(request.transaction.isExternalSign).toBe(true);
+    });
+
+    it('removes nonce if gas fee token found', async () => {
+      request.transaction.isGasFeeTokenIgnoredIfBalance = true;
+      request.transaction.selectedGasFeeToken = TOKEN_ADDRESS_1_MOCK;
+      request.transaction.gasFeeTokens = [];
+      request.transaction.txParams.nonce = '0x1';
+
+      jest.mocked(request.fetchGasFeeTokens).mockResolvedValueOnce([
+        {
+          tokenAddress: TOKEN_ADDRESS_1_MOCK,
+        } as GasFeeToken,
+      ]);
+
+      await checkGasFeeTokenBeforePublish(request);
+
+      jest
+        .mocked(request.updateTransaction)
+        .mock.calls[0][1](request.transaction);
+
+      expect(request.transaction.txParams.nonce).toBeUndefined();
+    });
+
+    it('removes selected gas fee token if native balance sufficient', async () => {
+      request.transaction.isGasFeeTokenIgnoredIfBalance = true;
+      request.transaction.selectedGasFeeToken = TOKEN_ADDRESS_1_MOCK;
+      request.transaction.isExternalSign = true;
+
+      isNativeBalanceSufficientForGasMock.mockResolvedValueOnce(true);
+
+      await checkGasFeeTokenBeforePublish(request);
+
+      jest
+        .mocked(request.updateTransaction)
+        .mock.calls[0][1](request.transaction);
+
+      expect(request.transaction.selectedGasFeeToken).toBeUndefined();
+      expect(request.transaction.isExternalSign).toBe(false);
+    });
+
+    it('does nothing if no selected gas fee token', async () => {
+      await checkGasFeeTokenBeforePublish(request);
+
+      expect(request.updateTransaction).not.toHaveBeenCalled();
+    });
+
+    it('does nothing if not ignoring gas fee token when native balance sufficient', async () => {
+      request.transaction.selectedGasFeeToken = TOKEN_ADDRESS_1_MOCK;
+      request.transaction.isGasFeeTokenIgnoredIfBalance = false;
+
+      await checkGasFeeTokenBeforePublish(request);
+
+      expect(request.updateTransaction).not.toHaveBeenCalled();
     });
   });
 });

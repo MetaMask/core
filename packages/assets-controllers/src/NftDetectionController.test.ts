@@ -4,12 +4,11 @@ import {
   ChainId,
   InfuraNetworkType,
 } from '@metamask/controller-utils';
-import {
-  MOCK_ANY_NAMESPACE,
-  Messenger,
-  type MessengerActions,
-  type MessengerEvents,
-  type MockAnyNamespace,
+import { MOCK_ANY_NAMESPACE, Messenger } from '@metamask/messenger';
+import type {
+  MessengerActions,
+  MessengerEvents,
+  MockAnyNamespace,
 } from '@metamask/messenger';
 import {
   getDefaultNetworkControllerState,
@@ -22,13 +21,18 @@ import type {
   NetworkController,
   NetworkState,
 } from '@metamask/network-controller';
-import {
-  getDefaultPreferencesState,
-  type PreferencesState,
-} from '@metamask/preferences-controller';
+import { getDefaultPreferencesState } from '@metamask/preferences-controller';
+import type { PreferencesState } from '@metamask/preferences-controller';
 import nock from 'nock';
 import * as sinon from 'sinon';
 
+import { Source } from './constants';
+import { getDefaultNftControllerState } from './NftController';
+import {
+  NftDetectionController,
+  BlockaidResultType,
+} from './NftDetectionController';
+import type { NftDetectionControllerMessenger } from './NftDetectionController';
 import { FakeBlockTracker } from '../../../tests/fake-block-tracker';
 import { FakeProvider } from '../../../tests/fake-provider';
 import { advanceTime } from '../../../tests/helpers';
@@ -37,13 +41,6 @@ import {
   buildMockFindNetworkClientIdByChainId,
   buildMockGetNetworkClientById,
 } from '../../network-controller/tests/helpers';
-import { Source } from './constants';
-import { getDefaultNftControllerState } from './NftController';
-import {
-  NftDetectionController,
-  BlockaidResultType,
-  type NftDetectionControllerMessenger,
-} from './NftDetectionController';
 
 type AllActions = MessengerActions<NftDetectionControllerMessenger>;
 
@@ -222,8 +219,6 @@ describe('NftDetectionController', () => {
               },
             },
             blockaidResult: {
-              // TODO: Either fix this lint violation or explain why it's necessary to ignore.
-              // eslint-disable-next-line @typescript-eslint/naming-convention
               result_type: BlockaidResultType.Benign,
             },
           },
@@ -247,8 +242,6 @@ describe('NftDetectionController', () => {
               },
             },
             blockaidResult: {
-              // TODO: Either fix this lint violation or explain why it's necessary to ignore.
-              // eslint-disable-next-line @typescript-eslint/naming-convention
               result_type: BlockaidResultType.Benign,
             },
           },
@@ -279,8 +272,6 @@ describe('NftDetectionController', () => {
               },
             },
             blockaidResult: {
-              // TODO: Either fix this lint violation or explain why it's necessary to ignore.
-              // eslint-disable-next-line @typescript-eslint/naming-convention
               result_type: BlockaidResultType.Benign,
             },
           },
@@ -321,8 +312,6 @@ describe('NftDetectionController', () => {
               isSpam: false,
             },
             blockaidResult: {
-              // TODO: Either fix this lint violation or explain why it's necessary to ignore.
-              // eslint-disable-next-line @typescript-eslint/naming-convention
               result_type: BlockaidResultType.Malicious,
             },
           },
@@ -343,8 +332,6 @@ describe('NftDetectionController', () => {
               isSpam: true,
             },
             blockaidResult: {
-              // TODO: Either fix this lint violation or explain why it's necessary to ignore.
-              // eslint-disable-next-line @typescript-eslint/naming-convention
               result_type: BlockaidResultType.Benign,
             },
           },
@@ -365,8 +352,6 @@ describe('NftDetectionController', () => {
               isSpam: true,
             },
             blockaidResult: {
-              // TODO: Either fix this lint violation or explain why it's necessary to ignore.
-              // eslint-disable-next-line @typescript-eslint/naming-convention
               result_type: BlockaidResultType.Malicious,
             },
           },
@@ -845,8 +830,6 @@ describe('NftDetectionController', () => {
   it('should not call addNFt when the request to Nft API call throws', async () => {
     const selectedAccount = createMockInternalAccount({ address: '0x3' });
     nock(NFT_API_BASE_URL)
-      // ESLint is confused; this is a string.
-      // eslint-disable-next-line @typescript-eslint/restrict-template-expressions
       .get(`/users/${selectedAccount.address}/tokens`)
       .query({
         continuation: '',

@@ -6,12 +6,11 @@ import {
 } from '@metamask/controller-utils';
 import type { KeyringControllerState } from '@metamask/keyring-controller';
 import type { InternalAccount } from '@metamask/keyring-internal-api';
-import {
-  MOCK_ANY_NAMESPACE,
-  Messenger,
-  type MessengerActions,
-  type MessengerEvents,
-  type MockAnyNamespace,
+import { MOCK_ANY_NAMESPACE, Messenger } from '@metamask/messenger';
+import type {
+  MessengerActions,
+  MessengerEvents,
+  MockAnyNamespace,
 } from '@metamask/messenger';
 import {
   getDefaultNetworkControllerState,
@@ -25,10 +24,8 @@ import type {
   AutoManagedNetworkClient,
   CustomNetworkClientConfiguration,
 } from '@metamask/network-controller';
-import {
-  getDefaultPreferencesState,
-  type PreferencesState,
-} from '@metamask/preferences-controller';
+import { getDefaultPreferencesState } from '@metamask/preferences-controller';
+import type { PreferencesState } from '@metamask/preferences-controller';
 import type { Hex } from '@metamask/utils';
 import BN from 'bn.js';
 import nock from 'nock';
@@ -49,11 +46,11 @@ import {
   controllerName,
   mapChainIdWithTokenListMap,
 } from './TokenDetectionController';
-import {
-  getDefaultTokenListState,
-  type TokenListMap,
-  type TokenListState,
-  type TokenListToken,
+import { getDefaultTokenListState } from './TokenListController';
+import type {
+  TokenListMap,
+  TokenListState,
+  TokenListToken,
 } from './TokenListController';
 import type { Token } from './TokenRatesController';
 import type {
@@ -204,6 +201,7 @@ function buildTokenDetectionControllerMessenger(
       'PreferencesController:getState',
       'TokensController:addTokens',
       'NetworkController:findNetworkClientIdByChainId',
+      'AuthenticationController:getBearerToken',
     ],
     events: [
       'AccountsController:selectedEvmAccountChange',
@@ -1192,6 +1190,7 @@ describe('TokenDetectionController', () => {
                 '0xa',
                 '0x89',
                 '0x531',
+                '0x279f',
               ],
               selectedAddress: secondSelectedAccount.address,
             });
@@ -2628,11 +2627,7 @@ describe('TokenDetectionController', () => {
             category: 'Wallet',
             properties: {
               tokens: [`${sampleTokenA.symbol} - ${sampleTokenA.address}`],
-              // TODO: Either fix this lint violation or explain why it's necessary to ignore.
-
               token_standard: 'ERC20',
-              // TODO: Either fix this lint violation or explain why it's necessary to ignore.
-
               asset_type: 'TOKEN',
             },
           });
@@ -2764,6 +2759,172 @@ describe('TokenDetectionController', () => {
           });
           expect(callActionSpy).not.toHaveBeenCalledWith(
             'TokensController:addDetectedTokens',
+          );
+        },
+      );
+    });
+
+    it('should timeout and fallback to RPC when Accounts API call takes longer than 30 seconds', async () => {
+      // Use fake timers to simulate the 30-second timeout
+      const clock = sinon.useFakeTimers();
+
+      try {
+        // Arrange - RPC Tokens Flow - Uses sampleTokenA
+        const mockGetBalancesInSingleCall = jest.fn().mockResolvedValue({
+          [sampleTokenA.address]: new BN(1),
+        });
+
+        // Mock a hanging API call that never resolves (simulates network timeout)
+        const mockAPI = mockMultiChainAccountsService();
+        mockAPI.mockFetchSupportedNetworks.mockResolvedValue([1]);
+        mockAPI.mockFetchMultiChainBalances.mockImplementation(
+          () =>
+            new Promise(() => {
+              // Promise that never resolves (simulating a hanging request)
+            }),
+        );
+
+        // Arrange - Selected Account
+        const selectedAccount = createMockInternalAccount({
+          address: '0x0000000000000000000000000000000000000001',
+        });
+
+        // Arrange / Act - withController setup
+        await withController(
+          {
+            options: {
+              disabled: false,
+              getBalancesInSingleCall: mockGetBalancesInSingleCall,
+              useAccountsAPI: true, // USING ACCOUNTS API
+            },
+            mocks: {
+              getSelectedAccount: selectedAccount,
+              getAccount: selectedAccount,
+            },
+          },
+          async ({ controller, mockTokenListGetState, callActionSpy }) => {
+            mockTokenListGetState({
+              ...getDefaultTokenListState(),
+              tokensChainsCache: {
+                '0x1': {
+                  timestamp: 0,
+                  data: {
+                    [sampleTokenA.address]: {
+                      name: sampleTokenA.name,
+                      symbol: sampleTokenA.symbol,
+                      decimals: sampleTokenA.decimals,
+                      address: sampleTokenA.address,
+                      occurrences: 1,
+                      aggregators: sampleTokenA.aggregators,
+                      iconUrl: sampleTokenA.image,
+                    },
+                  },
+                },
+              },
+            });
+
+            // Start the detection process (don't await yet so we can advance time)
+            const detectPromise = controller.detectTokens({
+              chainIds: ['0x1'],
+              selectedAddress: selectedAccount.address,
+            });
+
+            // Fast-forward time by 30 seconds to trigger the timeout
+            // This simulates the API call taking longer than the ACCOUNTS_API_TIMEOUT_MS (30000ms)
+            await advanceTime({ clock, duration: 30000 });
+
+            // Now await the result after the timeout has been triggered
+            await detectPromise;
+
+            // Verify that the API was initially called
+            expect(mockAPI.mockFetchMultiChainBalances).toHaveBeenCalled();
+
+            // Verify that after timeout, RPC fallback was triggered
+            expect(mockGetBalancesInSingleCall).toHaveBeenCalled();
+
+            // Verify that tokens were added via RPC fallback method
+            expect(callActionSpy).toHaveBeenCalledWith(
+              'TokensController:addTokens',
+              [sampleTokenA],
+              'mainnet',
+            );
+          },
+        );
+      } finally {
+        clock.restore();
+      }
+    });
+
+    it('should fallback to RPC when Accounts API call fails with an error (safelyExecute returns undefined)', async () => {
+      // Arrange - RPC Tokens Flow - Uses sampleTokenA
+      const mockGetBalancesInSingleCall = jest.fn().mockResolvedValue({
+        [sampleTokenA.address]: new BN(1),
+      });
+
+      // Mock an API call that throws an error inside safelyExecute
+      // This simulates a scenario where the API throws an error (network failure, parsing error, etc.)
+      const mockAPI = mockMultiChainAccountsService();
+      mockAPI.mockFetchSupportedNetworks.mockResolvedValue([1]);
+      mockAPI.mockFetchMultiChainBalances.mockRejectedValue(
+        new Error('API Network Error'),
+      );
+
+      // Arrange - Selected Account
+      const selectedAccount = createMockInternalAccount({
+        address: '0x0000000000000000000000000000000000000001',
+      });
+
+      // Arrange / Act - withController setup
+      await withController(
+        {
+          options: {
+            disabled: false,
+            getBalancesInSingleCall: mockGetBalancesInSingleCall,
+            useAccountsAPI: true, // USING ACCOUNTS API
+          },
+          mocks: {
+            getSelectedAccount: selectedAccount,
+            getAccount: selectedAccount,
+          },
+        },
+        async ({ controller, mockTokenListGetState, callActionSpy }) => {
+          mockTokenListGetState({
+            ...getDefaultTokenListState(),
+            tokensChainsCache: {
+              '0x1': {
+                timestamp: 0,
+                data: {
+                  [sampleTokenA.address]: {
+                    name: sampleTokenA.name,
+                    symbol: sampleTokenA.symbol,
+                    decimals: sampleTokenA.decimals,
+                    address: sampleTokenA.address,
+                    occurrences: 1,
+                    aggregators: sampleTokenA.aggregators,
+                    iconUrl: sampleTokenA.image,
+                  },
+                },
+              },
+            },
+          });
+
+          // Execute detection
+          await controller.detectTokens({
+            chainIds: ['0x1'],
+            selectedAddress: selectedAccount.address,
+          });
+
+          // Verify that the API was initially called
+          expect(mockAPI.mockFetchMultiChainBalances).toHaveBeenCalled();
+
+          // Verify that after API error (safelyExecute returns undefined), RPC fallback was triggered
+          expect(mockGetBalancesInSingleCall).toHaveBeenCalled();
+
+          // Verify that tokens were added via RPC fallback method
+          expect(callActionSpy).toHaveBeenCalledWith(
+            'TokensController:addTokens',
+            [sampleTokenA],
+            'mainnet',
           );
         },
       );
@@ -3586,15 +3747,7 @@ describe('TokenDetectionController', () => {
           options: {
             disabled: false,
           },
-        },
-        async ({
-          controller,
-          mockTokenListGetState,
-          callActionSpy,
-          triggerTokenListStateChange,
-        }) => {
-          const tokenListState = {
-            ...getDefaultTokenListState(),
+          mockTokenListState: {
             tokensChainsCache: {
               [chainId]: {
                 timestamp: 0,
@@ -3611,11 +3764,9 @@ describe('TokenDetectionController', () => {
                 },
               },
             },
-          };
-
-          mockTokenListGetState(tokenListState);
-          triggerTokenListStateChange(tokenListState);
-
+          },
+        },
+        async ({ controller, callActionSpy }) => {
           await controller.addDetectedTokensViaWs({
             tokensSlice: [mockTokenAddress],
             chainId: chainId as Hex,
@@ -3651,27 +3802,16 @@ describe('TokenDetectionController', () => {
           options: {
             disabled: false,
           },
-        },
-        async ({
-          controller,
-          mockTokenListGetState,
-          callActionSpy,
-          triggerTokenListStateChange,
-        }) => {
-          // Empty token cache - token not found
-          const tokenListState = {
-            ...getDefaultTokenListState(),
+          mockTokenListState: {
             tokensChainsCache: {
               [chainId]: {
                 timestamp: 0,
                 data: {},
               },
             },
-          };
-
-          mockTokenListGetState(tokenListState);
-          triggerTokenListStateChange(tokenListState);
-
+          },
+        },
+        async ({ controller, callActionSpy }) => {
           await controller.addDetectedTokensViaWs({
             tokensSlice: [mockTokenAddress],
             chainId: chainId as Hex,
@@ -3715,16 +3855,7 @@ describe('TokenDetectionController', () => {
             getSelectedAccount: selectedAccount,
             getAccount: selectedAccount,
           },
-        },
-        async ({
-          controller,
-          mockTokenListGetState,
-          callActionSpy,
-          triggerTokenListStateChange,
-        }) => {
-          // Set up token list with both tokens
-          const tokenListState = {
-            ...getDefaultTokenListState(),
+          mockTokenListState: {
             tokensChainsCache: {
               [chainId]: {
                 timestamp: 0,
@@ -3750,11 +3881,9 @@ describe('TokenDetectionController', () => {
                 },
               },
             },
-          };
-
-          mockTokenListGetState(tokenListState);
-          triggerTokenListStateChange(tokenListState);
-
+          },
+        },
+        async ({ controller, callActionSpy }) => {
           // Add both tokens via websocket
           await controller.addDetectedTokensViaWs({
             tokensSlice: [mockTokenAddress, secondTokenAddress],
@@ -3803,15 +3932,7 @@ describe('TokenDetectionController', () => {
             disabled: false,
             trackMetaMetricsEvent: mockTrackMetricsEvent,
           },
-        },
-        async ({
-          controller,
-          mockTokenListGetState,
-          callActionSpy,
-          triggerTokenListStateChange,
-        }) => {
-          const tokenListState = {
-            ...getDefaultTokenListState(),
+          mockTokenListState: {
             tokensChainsCache: {
               [chainId]: {
                 timestamp: 0,
@@ -3828,11 +3949,9 @@ describe('TokenDetectionController', () => {
                 },
               },
             },
-          };
-
-          mockTokenListGetState(tokenListState);
-          triggerTokenListStateChange(tokenListState);
-
+          },
+        },
+        async ({ controller, callActionSpy }) => {
           await controller.addDetectedTokensViaWs({
             tokensSlice: [mockTokenAddress],
             chainId: chainId as Hex,
@@ -3869,15 +3988,7 @@ describe('TokenDetectionController', () => {
           options: {
             disabled: false,
           },
-        },
-        async ({
-          controller,
-          mockTokenListGetState,
-          callActionSpy,
-          triggerTokenListStateChange,
-        }) => {
-          const tokenListState = {
-            ...getDefaultTokenListState(),
+          mockTokenListState: {
             tokensChainsCache: {
               [chainId]: {
                 timestamp: 0,
@@ -3894,11 +4005,9 @@ describe('TokenDetectionController', () => {
                 },
               },
             },
-          };
-
-          mockTokenListGetState(tokenListState);
-          triggerTokenListStateChange(tokenListState);
-
+          },
+        },
+        async ({ controller, callActionSpy }) => {
           // Call the public method directly on the controller instance
           await controller.addDetectedTokensViaWs({
             tokensSlice: [mockTokenAddress],
@@ -3995,7 +4104,9 @@ type WithControllerOptions = {
   mocks?: {
     getAccount?: InternalAccount;
     getSelectedAccount?: InternalAccount;
+    getBearerToken?: string;
   };
+  mockTokenListState?: Partial<TokenListState>;
 };
 
 type WithControllerArgs<ReturnValue> =
@@ -4015,7 +4126,7 @@ async function withController<ReturnValue>(
   ...args: WithControllerArgs<ReturnValue>
 ): Promise<ReturnValue> {
   const [{ ...rest }, fn] = args.length === 2 ? args : [{}, args[0]];
-  const { options, isKeyringUnlocked, mocks } = rest;
+  const { options, isKeyringUnlocked, mocks, mockTokenListState } = rest;
   const messenger = buildRootMessenger();
 
   const mockGetAccount = jest.fn<InternalAccount, []>();
@@ -4078,10 +4189,13 @@ async function withController<ReturnValue>(
     'TokensController:getState',
     mockTokensState.mockReturnValue({ ...getDefaultTokensState() }),
   );
-  const mockTokenListState = jest.fn<TokenListState, []>();
+  const mockTokenListStateFunc = jest.fn<TokenListState, []>();
   messenger.registerActionHandler(
     'TokenListController:getState',
-    mockTokenListState.mockReturnValue({ ...getDefaultTokenListState() }),
+    mockTokenListStateFunc.mockReturnValue({
+      ...getDefaultTokenListState(),
+      ...mockTokenListState,
+    }),
   );
   const mockPreferencesState = jest.fn<PreferencesState, []>();
   messenger.registerActionHandler(
@@ -4089,6 +4203,14 @@ async function withController<ReturnValue>(
     mockPreferencesState.mockReturnValue({
       ...getDefaultPreferencesState(),
     }),
+  );
+
+  const mockGetBearerToken = jest.fn<Promise<string>, []>();
+  messenger.registerActionHandler(
+    'AuthenticationController:getBearerToken',
+    mockGetBearerToken.mockResolvedValue(
+      mocks?.getBearerToken ?? 'mock-jwt-token',
+    ),
   );
 
   const mockFindNetworkClientIdByChainId = jest.fn<NetworkClientId, [Hex]>();
@@ -4150,7 +4272,7 @@ async function withController<ReturnValue>(
         mockPreferencesState.mockReturnValue(state);
       },
       mockTokenListGetState: (state: TokenListState) => {
-        mockTokenListState.mockReturnValue(state);
+        mockTokenListStateFunc.mockReturnValue(state);
       },
       mockGetNetworkClientById: (
         handler: (

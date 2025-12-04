@@ -6,16 +6,17 @@ import type {
   Provider,
 } from '@metamask/network-controller';
 import { BlockTrackerPollingControllerOnly } from '@metamask/polling-controller';
-import { createModuleLogger, type Hex } from '@metamask/utils';
+import { createModuleLogger } from '@metamask/utils';
+import type { Hex } from '@metamask/utils';
 // This package purposefully relies on Node's EventEmitter module.
 // eslint-disable-next-line import-x/no-nodejs-modules
 import EventEmitter from 'events';
 
+import { Bundler } from './Bundler';
 import { projectLogger } from '../logger';
 import type { UserOperationMetadata, UserOperationReceipt } from '../types';
 import { UserOperationStatus } from '../types';
 import type { UserOperationControllerMessenger } from '../UserOperationController';
-import { Bundler } from './Bundler';
 
 const log = createModuleLogger(projectLogger, 'pending-user-operations');
 
@@ -26,22 +27,16 @@ type Events = {
 };
 
 export type PendingUserOperationTrackerEventEmitter = EventEmitter & {
-  // TODO: Either fix this lint violation or explain why it's necessary to ignore.
-  // eslint-disable-next-line @typescript-eslint/naming-convention
   on<T extends keyof Events>(
     eventName: T,
     listener: (...args: Events[T]) => void,
   ): PendingUserOperationTrackerEventEmitter;
 
-  // TODO: Either fix this lint violation or explain why it's necessary to ignore.
-  // eslint-disable-next-line @typescript-eslint/naming-convention
   once<T extends keyof Events>(
     eventName: T,
     listener: (...args: Events[T]) => void,
   ): PendingUserOperationTrackerEventEmitter;
 
-  // TODO: Either fix this lint violation or explain why it's necessary to ignore.
-  // eslint-disable-next-line @typescript-eslint/naming-convention
   emit<T extends keyof Events>(eventName: T, ...args: Events[T]): boolean;
 };
 
@@ -57,9 +52,9 @@ type PendingUserOperationPollingInput = {
 export class PendingUserOperationTracker extends BlockTrackerPollingControllerOnly<PendingUserOperationPollingInput>() {
   hub: PendingUserOperationTrackerEventEmitter;
 
-  #getUserOperations: () => UserOperationMetadata[];
+  readonly #getUserOperations: () => UserOperationMetadata[];
 
-  #messenger: UserOperationControllerMessenger;
+  readonly #messenger: UserOperationControllerMessenger;
 
   constructor({
     getUserOperations,

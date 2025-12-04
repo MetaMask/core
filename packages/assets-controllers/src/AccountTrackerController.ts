@@ -31,19 +31,20 @@ import type {
   TransactionControllerUnapprovedTransactionAddedEvent,
   TransactionMeta,
 } from '@metamask/transaction-controller';
-import { assert, type Hex } from '@metamask/utils';
+import { assert } from '@metamask/utils';
+import type { Hex } from '@metamask/utils';
 import { Mutex } from 'async-mutex';
 import { cloneDeep, isEqual } from 'lodash';
 
-import {
-  STAKING_CONTRACT_ADDRESS_BY_CHAINID,
-  type AssetsContractController,
-  type StakedBalance,
+import { STAKING_CONTRACT_ADDRESS_BY_CHAINID } from './AssetsContractController';
+import type {
+  AssetsContractController,
+  StakedBalance,
 } from './AssetsContractController';
-import {
-  AccountsApiBalanceFetcher,
-  type BalanceFetcher,
-  type ProcessedBalance,
+import { AccountsApiBalanceFetcher } from './multi-chain-accounts-service/api-balance-fetcher';
+import type {
+  BalanceFetcher,
+  ProcessedBalance,
 } from './multi-chain-accounts-service/api-balance-fetcher';
 import { RpcBalanceFetcher } from './rpc-service/rpc-balance-fetcher';
 
@@ -91,14 +92,19 @@ function createAccountTrackerRpcBalanceFetcher(
     },
 
     async fetch(params) {
-      const balances = await rpcBalanceFetcher.fetch(params);
+      const result = await rpcBalanceFetcher.fetch(params);
 
       if (!includeStakedAssets) {
         // Filter out staked balances from the results
-        return balances.filter((balance) => balance.token === ZERO_ADDRESS);
+        return {
+          balances: result.balances.filter(
+            (balance) => balance.token === ZERO_ADDRESS,
+          ),
+          unprocessedChainIds: result.unprocessedChainIds,
+        };
       }
 
-      return balances;
+      return result;
     },
   };
 }
@@ -620,6 +626,14 @@ export class AccountTrackerController extends StaticIntervalPollingController<Ac
       const aggregated: ProcessedBalance[] = [];
       let remainingChains = [...chainIds] as ChainIdHex[];
 
+      // Temporary normalization to lowercase for balance fetching to match TokenBalancesController and enable HTTP caching
+      const lowerCaseSelectedAccount =
+        selectedAccount.toLowerCase() as ChecksumAddress;
+      const lowerCaseAllAccounts = allAccounts.map((account) => ({
+        ...account,
+        address: account.address.toLowerCase(),
+      }));
+
       // Try each fetcher in order, removing successfully processed chains
       for (const fetcher of this.#balanceFetchers) {
         const supportedChains = remainingChains.filter((c) =>
@@ -630,20 +644,37 @@ export class AccountTrackerController extends StaticIntervalPollingController<Ac
         }
 
         try {
-          const balances = await fetcher.fetch({
+          const result = await fetcher.fetch({
             chainIds: supportedChains,
             queryAllAccounts,
-            selectedAccount,
-            allAccounts,
+            selectedAccount: lowerCaseSelectedAccount,
+            allAccounts: lowerCaseAllAccounts,
           });
 
-          if (balances && balances.length > 0) {
-            aggregated.push(...balances);
+          if (result.balances && result.balances.length > 0) {
+            aggregated.push(...result.balances);
             // Remove chains that were successfully processed
-            const processedChains = new Set(balances.map((b) => b.chainId));
+            const processedChains = new Set(
+              result.balances.map((b) => b.chainId),
+            );
             remainingChains = remainingChains.filter(
               (chain) => !processedChains.has(chain),
             );
+          }
+
+          // Add unprocessed chains back to remainingChains for next fetcher
+          if (
+            result.unprocessedChainIds &&
+            result.unprocessedChainIds.length > 0
+          ) {
+            // Only add chains that were originally requested and aren't already in remainingChains
+            const currentRemainingChains = remainingChains;
+            const chainsToAdd = result.unprocessedChainIds.filter(
+              (chainId) =>
+                supportedChains.includes(chainId) &&
+                !currentRemainingChains.includes(chainId),
+            );
+            remainingChains.push(...chainsToAdd);
           }
         } catch (error) {
           console.warn(

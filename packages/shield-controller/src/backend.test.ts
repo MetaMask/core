@@ -3,7 +3,11 @@ import {
   SignatureRequestType,
 } from '@metamask/signature-controller';
 
-import { parseSignatureRequestMethod, ShieldRemoteBackend } from './backend';
+import {
+  makeInitCoverageCheckBody,
+  parseSignatureRequestMethod,
+  ShieldRemoteBackend,
+} from './backend';
 import { SignTypedDataVersion } from './constants';
 import {
   generateMockSignatureRequest,
@@ -51,6 +55,10 @@ function setup({
 }
 
 describe('ShieldRemoteBackend', () => {
+  beforeEach(() => {
+    jest.clearAllMocks();
+  });
+
   it('should check coverage', async () => {
     const { backend, fetchMock, getAccessToken } = setup();
 
@@ -70,14 +78,24 @@ describe('ShieldRemoteBackend', () => {
 
     const txMeta = generateMockTxMeta();
     const coverageResult = await backend.checkCoverage({ txMeta });
-    expect(coverageResult).toStrictEqual({ coverageId, ...result });
+    expect({
+      coverageId: coverageResult.coverageId,
+      message: result.message,
+      reasonCode: result.reasonCode,
+      status: result.status,
+    }).toStrictEqual({
+      coverageId,
+      ...result,
+    });
+    expect(typeof coverageResult.metrics.latency).toBe('number');
     expect(fetchMock).toHaveBeenCalledTimes(2);
     expect(getAccessToken).toHaveBeenCalledTimes(2);
   });
 
   it('should check coverage with delay', async () => {
+    const pollInterval = 100;
     const { backend, fetchMock, getAccessToken } = setup({
-      getCoverageResultPollInterval: 100,
+      getCoverageResultPollInterval: pollInterval,
     });
 
     // Mock init coverage check.
@@ -101,13 +119,38 @@ describe('ShieldRemoteBackend', () => {
     } as unknown as Response);
 
     const txMeta = generateMockTxMeta();
-    const coverageResult = await backend.checkCoverage({ txMeta });
-    expect(coverageResult).toStrictEqual({
-      coverageId,
-      ...result,
+
+    // generateMockTxMeta also use Date.now() to set the time, only do this after generateMockTxMeta
+    // Mock Date.now() to control latency measurement
+    // Simulate latency that includes the retry delay (poll interval + processing time)
+    let callCount = 0;
+    const startTime = 1000;
+    const expectedLatency = pollInterval + 50; // poll interval + processing time
+    const nowSpy = jest.spyOn(Date, 'now').mockImplementation(() => {
+      callCount += 1;
+      // First call: start of #getCoverageResult
+      if (callCount === 1) {
+        return startTime;
+      }
+      // Final call: end of #getCoverageResult (after retry delay)
+      return startTime + expectedLatency;
     });
+
+    const coverageResult = await backend.checkCoverage({ txMeta });
+
+    expect(coverageResult).toMatchObject({
+      coverageId,
+      status: result.status,
+      message: result.message,
+      reasonCode: result.reasonCode,
+    });
+    expect(coverageResult.metrics.latency).toBe(expectedLatency);
+    // Latency should include the retry delay (at least the poll interval)
+    expect(coverageResult.metrics.latency).toBeGreaterThanOrEqual(pollInterval);
     expect(fetchMock).toHaveBeenCalledTimes(3);
     expect(getAccessToken).toHaveBeenCalledTimes(2);
+
+    nowSpy.mockRestore();
   });
 
   it('should throw on init coverage check failure', async () => {
@@ -187,6 +230,66 @@ describe('ShieldRemoteBackend', () => {
     await new Promise((resolve) => setTimeout(resolve, 10));
   });
 
+  it('returns latency in coverageResult', async () => {
+    const { backend, fetchMock } = setup();
+
+    fetchMock.mockResolvedValueOnce({
+      status: 200,
+      json: jest.fn().mockResolvedValue({ coverageId: 'coverageId' }),
+    } as unknown as Response);
+
+    const result = { status: 'covered', message: 'ok', reasonCode: 'E104' };
+    fetchMock.mockResolvedValueOnce({
+      status: 200,
+      json: jest.fn().mockResolvedValue(result),
+    } as unknown as Response);
+
+    let nowValue = 1000;
+    const latencyMs = 123;
+    const nowSpy = jest.spyOn(Date, 'now').mockImplementation(() => {
+      const val = nowValue;
+      nowValue += latencyMs;
+      return val;
+    });
+
+    const txMeta = generateMockTxMeta();
+    const coverageResult = await backend.checkCoverage({ txMeta });
+    expect(coverageResult.metrics.latency).toBe(latencyMs);
+
+    nowSpy.mockRestore();
+  });
+
+  it('returns latency in signatureCoverageResult', async () => {
+    const { backend, fetchMock } = setup();
+
+    fetchMock.mockResolvedValueOnce({
+      status: 200,
+      json: jest.fn().mockResolvedValue({ coverageId: 'coverageId' }),
+    } as unknown as Response);
+
+    const result = { status: 'covered', message: 'ok', reasonCode: 'E104' };
+    fetchMock.mockResolvedValueOnce({
+      status: 200,
+      json: jest.fn().mockResolvedValue(result),
+    } as unknown as Response);
+
+    let nowValue = 2000;
+    const latencyMs = 456;
+    const nowSpy = jest.spyOn(Date, 'now').mockImplementation(() => {
+      const val = nowValue;
+      nowValue += latencyMs;
+      return val;
+    });
+
+    const signatureRequest = generateMockSignatureRequest();
+    const coverageResult = await backend.checkSignatureCoverage({
+      signatureRequest,
+    });
+    expect(coverageResult.metrics.latency).toBe(latencyMs);
+
+    nowSpy.mockRestore();
+  });
+
   describe('checkSignatureCoverage', () => {
     it('should check signature coverage', async () => {
       const { backend, fetchMock, getAccessToken } = setup();
@@ -209,10 +312,16 @@ describe('ShieldRemoteBackend', () => {
       const coverageResult = await backend.checkSignatureCoverage({
         signatureRequest,
       });
-      expect(coverageResult).toStrictEqual({
+      expect({
+        coverageId: coverageResult.coverageId,
+        message: result.message,
+        reasonCode: result.reasonCode,
+        status: result.status,
+      }).toStrictEqual({
         coverageId,
         ...result,
       });
+      expect(typeof coverageResult.metrics.latency).toBe('number');
       expect(fetchMock).toHaveBeenCalledTimes(2);
       expect(getAccessToken).toHaveBeenCalledTimes(2);
     });
@@ -257,6 +366,7 @@ describe('ShieldRemoteBackend', () => {
       await backend.logTransaction({
         txMeta: generateMockTxMeta(),
         transactionHash: '0x00',
+        rawTransactionHex: '0xdeadbeef',
         status: 'shown',
       });
       expect(fetchMock).toHaveBeenCalledTimes(1);
@@ -272,6 +382,7 @@ describe('ShieldRemoteBackend', () => {
         backend.logTransaction({
           txMeta: generateMockTxMeta(),
           transactionHash: '0x00',
+          rawTransactionHex: '0xdeadbeef',
           status: 'shown',
         }),
       ).rejects.toThrow('Failed to log transaction: 500');
@@ -314,6 +425,43 @@ describe('ShieldRemoteBackend', () => {
       expect(parseSignatureRequestMethod(signatureRequest)).toBe(
         EthMethod.SignTypedDataV4,
       );
+    });
+  });
+
+  describe('makeInitCoverageCheckBody', () => {
+    it('makes init coverage check body', () => {
+      const txMeta = generateMockTxMeta();
+      const body = makeInitCoverageCheckBody(txMeta);
+      expect(body).toMatchObject({
+        txParams: [txMeta.txParams],
+      });
+    });
+
+    it('makes init coverage check body with authorization list', () => {
+      const txMeta = generateMockTxMeta();
+      const body = makeInitCoverageCheckBody({
+        ...txMeta,
+        txParams: {
+          ...txMeta.txParams,
+          authorizationList: [
+            {
+              address: '0x0000000000000000000000000000000000000000',
+            },
+          ],
+        },
+      });
+      expect(body).toMatchObject({
+        txParams: [
+          {
+            ...txMeta.txParams,
+            authorizationList: [
+              {
+                address: '0x0000000000000000000000000000000000000000',
+              },
+            ],
+          },
+        ],
+      });
     });
   });
 });

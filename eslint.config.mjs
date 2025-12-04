@@ -18,6 +18,11 @@ const config = createConfig([
     ],
   },
   {
+    linterOptions: {
+      reportUnusedDisableDirectives: 'error',
+    },
+  },
+  {
     rules: {
       // Left disabled because various properties throughough this repo are snake_case because the
       // names come from external sources or must comply with standards
@@ -25,32 +30,21 @@ const config = createConfig([
       camelcase: 'off',
       'id-length': 'off',
 
+      // TODO: Re-enable this rule
+      // Enabling it with error suppression breaks `--fix`, because the autofixer for this rule
+      // does not work very well.
+      'jsdoc/require-jsdoc': 'off',
+
       // TODO: re-enble most of these rules
-      'function-paren-newline': 'off',
       'id-denylist': 'off',
-      'implicit-arrow-linebreak': 'off',
-      'import-x/no-anonymous-default-export': 'off',
       'import-x/no-unassigned-import': 'off',
-      'lines-around-comment': 'off',
       'no-async-promise-executor': 'off',
       'no-case-declarations': 'off',
-      'no-invalid-this': 'off',
       'no-negated-condition': 'off',
       'no-new': 'off',
       'no-param-reassign': 'off',
       'no-restricted-syntax': 'off',
-      radix: 'off',
       'require-atomic-updates': 'off',
-      'jsdoc/match-description': [
-        'off',
-        { matchDescription: '^[A-Z`\\d_][\\s\\S]*[.?!`>)}]$' },
-      ],
-
-      // TODO: These rules created more errors after the upgrade to ESLint 9.
-      // Re-enable these rules and address any lint violations.
-      'import-x/no-named-as-default-member': 'warn',
-      'prettier/prettier': 'warn',
-      'no-empty-function': 'warn',
     },
     settings: {
       jsdoc: {
@@ -71,20 +65,20 @@ const config = createConfig([
     rules: {
       // TODO: Re-enable this
       'n/no-sync': 'off',
-      // TODO: These rules created more errors after the upgrade to ESLint 9.
-      // Re-enable these rules and address any lint violations.
-      'n/no-unsupported-features/node-builtins': 'warn',
     },
   },
   {
     files: ['**/*.test.{js,ts}', '**/tests/**/*.{js,ts}'],
     extends: [jest],
     rules: {
-      // TODO: These rules created more errors after the upgrade to ESLint 9.
-      // Re-enable these rules and address any lint violations.
-      'jest/no-conditional-in-test': 'warn',
-      'jest/prefer-lowercase-title': 'warn',
-      'jest/prefer-strict-equal': 'warn',
+      // TODO: Upgrade these from warning to error in shared config
+      'jest/expect-expect': 'error',
+      'jest/no-alias-methods': 'error',
+      'jest/no-commented-out-tests': 'error',
+      'jest/no-disabled-tests': 'error',
+
+      // TODO: Re-enable this rule
+      'jest/unbound-method': 'off',
     },
     settings: {
       node: {
@@ -117,22 +111,9 @@ const config = createConfig([
     languageOptions: {
       parserOptions: {
         tsconfigRootDir: import.meta.dirname,
-        project: './tsconfig.packages.json',
-        // Disable `projectService` because we run into out-of-memory issues.
-        // See this ticket for inspiration out how to solve this:
-        // <https://github.com/typescript-eslint/typescript-eslint/issues/1192>
-        projectService: false,
       },
     },
     rules: {
-      // These rules have been customized from their defaults.
-      '@typescript-eslint/switch-exhaustiveness-check': [
-        'error',
-        {
-          considerDefaultExhaustiveForUnions: true,
-        },
-      ],
-
       // TODO: Disable in `eslint-config-typescript`, tracked here: https://github.com/MetaMask/eslint-config/issues/413
       '@typescript-eslint/no-unnecessary-type-arguments': 'off',
 
@@ -147,9 +128,14 @@ const config = createConfig([
       // TODO: auto-fix breaks stuff
       '@typescript-eslint/promise-function-async': 'off',
 
+      // TODO: Re-enable these rules
+      // Enabling them with error suppression breaks `--fix`, because the autofixer for these rules
+      // do not work very well.
+      'jsdoc/check-tag-names': 'off',
+      'jsdoc/require-jsdoc': 'off',
+
       // TODO: re-enable most of these rules
       '@typescript-eslint/naming-convention': 'off',
-      '@typescript-eslint/no-unnecessary-type-assertion': 'off',
       '@typescript-eslint/unbound-method': 'off',
       '@typescript-eslint/prefer-enum-initializers': 'off',
       '@typescript-eslint/prefer-nullish-coalescing': 'off',
@@ -157,29 +143,7 @@ const config = createConfig([
       '@typescript-eslint/prefer-reduce-type-parameter': 'off',
       'no-restricted-syntax': 'off',
       'no-restricted-globals': 'off',
-
-      // TODO: These rules created more errors after the upgrade to ESLint 9.
-      // Re-enable these rules and address any lint violations.
-      '@typescript-eslint/consistent-type-exports': 'warn',
       '@typescript-eslint/explicit-function-return-type': 'off',
-      '@typescript-eslint/no-base-to-string': 'warn',
-      '@typescript-eslint/no-duplicate-enum-values': 'warn',
-      '@typescript-eslint/no-misused-promises': 'warn',
-      '@typescript-eslint/no-unsafe-enum-comparison': 'warn',
-      '@typescript-eslint/no-unused-vars': 'warn',
-      '@typescript-eslint/only-throw-error': 'warn',
-      '@typescript-eslint/prefer-promise-reject-errors': 'warn',
-      '@typescript-eslint/prefer-readonly': 'warn',
-      'import-x/namespace': 'warn',
-      'import-x/no-named-as-default': 'warn',
-      'import-x/order': 'warn',
-      'jsdoc/check-tag-names': 'warn',
-      'jsdoc/require-returns': 'warn',
-      'jsdoc/tag-lines': 'warn',
-      'no-unused-private-class-members': 'warn',
-      'promise/always-return': 'warn',
-      'promise/catch-or-return': 'warn',
-      'promise/param-names': 'warn',
     },
   },
   {
@@ -192,7 +156,6 @@ const config = createConfig([
   {
     files: ['**/*.d.ts'],
     rules: {
-      '@typescript-eslint/naming-convention': 'warn',
       'import-x/unambiguous': 'off',
     },
   },
@@ -208,41 +171,12 @@ const config = createConfig([
     rules: {
       // These files run under Node, and thus `require(...)` is expected.
       'n/global-require': 'off',
-
-      // TODO: These rules created more errors after the upgrade to ESLint 9.
-      // Re-enable these rules and address any lint violations.
-      'n/prefer-global/text-encoder': 'warn',
-      'n/prefer-global/text-decoder': 'warn',
-      'no-shadow': 'warn',
     },
   },
   {
     files: ['**/*.mjs'],
     languageOptions: {
       sourceType: 'module',
-    },
-  },
-  {
-    files: ['packages/eth-block-tracker/**/*.ts'],
-    rules: {
-      // TODO: Re-enable these rules or add inline ignores for warranted cases
-      '@typescript-eslint/prefer-nullish-coalescing': 'warn',
-      'no-restricted-syntax': 'warn',
-      '@typescript-eslint/naming-convention': 'warn',
-      '@typescript-eslint/no-explicit-any': 'warn',
-      '@typescript-eslint/unbound-method': 'warn',
-      '@typescript-eslint/consistent-type-definitions': 'warn',
-    },
-  },
-  {
-    files: ['packages/eth-json-rpc-middleware/**/*.ts'],
-    rules: {
-      // TODO: Re-enable these rules or add inline ignores for warranted cases
-      '@typescript-eslint/no-explicit-any': 'warn',
-      '@typescript-eslint/prefer-nullish-coalescing': 'warn',
-      'jsdoc/match-description': 'warn',
-      'jsdoc/require-jsdoc': 'warn',
-      'no-restricted-syntax': 'warn',
     },
   },
   {
@@ -253,6 +187,43 @@ const config = createConfig([
       'n/no-missing-import': 'off',
       'n/no-restricted-import': 'off',
       'n/no-deprecated-api': 'off',
+    },
+  },
+  {
+    files: [
+      'packages/notification-services-controller/src/NotificationServicesPushController/services/push/*-web.ts',
+      'packages/notification-services-controller/src/NotificationServicesPushController/web/**/*.ts',
+    ],
+    rules: {
+      // These files use `self` because they're written for a service worker context.
+      // TODO: Move these files to the extension repository, `core` is just for platform-agnostic code.
+      'consistent-this': 'off',
+    },
+  },
+  {
+    files: [
+      'packages/assets-controllers/src/NftDetectionController.ts',
+      'packages/assets-controllers/src/TokenRatesController.ts',
+      'packages/assets-controllers/src/TokensController.ts',
+      'packages/controller-utils/src/siwe.ts',
+      'packages/ens-controller/src/EnsController.ts',
+      'packages/gas-fee-controller/src/GasFeeController.ts',
+      'packages/logging-controller/src/LoggingController.ts',
+      'packages/message-manager/src/AbstractMessageManager.ts',
+      'packages/message-manager/src/DecryptMessageManager.ts',
+      'packages/message-manager/src/EncryptionPublicKeyManager.ts',
+      'packages/permission-log-controller/src/PermissionLogController.ts',
+      'packages/phishing-controller/src/PhishingController.ts',
+      'packages/rate-limit-controller/src/RateLimitController.ts',
+      'tests/fake-provider.ts',
+      'tests/mock-network.ts',
+    ],
+    rules: {
+      // TODO: Re-enable this rule
+      // This has been temporarily disabled because the auto-fix mangles pre-existing JSDoc blocks
+      // for types that don't follow TSDoc properly.
+      // See https://github.com/gajus/eslint-plugin-jsdoc/issues/1054
+      'jsdoc/check-tag-names': 'off',
     },
   },
 ]);

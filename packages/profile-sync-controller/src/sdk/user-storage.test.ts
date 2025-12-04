@@ -10,7 +10,7 @@ import {
   handleMockUserStorageDelete,
   handleMockUserStorageBatchDelete,
 } from './__fixtures__/userstorage';
-import { type IBaseAuth } from './authentication-jwt-bearer/types';
+import type { IBaseAuth } from './authentication-jwt-bearer/types';
 import { NotFoundError, UserStorageError } from './errors';
 import {
   MOCK_NOTIFICATIONS_DATA,
@@ -110,7 +110,6 @@ describe('User Storage', () => {
     const mockPut = handleMockUserStoragePut(
       undefined,
       async (_, requestBody) => {
-        // eslint-disable-next-line jest/no-conditional-in-test
         if (typeof requestBody === 'string') {
           return;
         }
@@ -179,7 +178,6 @@ describe('User Storage', () => {
     const mockPut = handleMockUserStoragePut(
       undefined,
       async (_, requestBody) => {
-        // eslint-disable-next-line jest/no-conditional-in-test
         if (typeof requestBody === 'string') {
           return;
         }
@@ -225,7 +223,6 @@ describe('User Storage', () => {
     const mockPut = handleMockUserStoragePut(
       undefined,
       async (_, requestBody) => {
-        // eslint-disable-next-line jest/no-conditional-in-test
         if (typeof requestBody === 'string') {
           return;
         }
@@ -371,7 +368,6 @@ describe('User Storage', () => {
     const mockPut = handleMockUserStorageBatchDelete(
       undefined,
       async (_, requestBody) => {
-        // eslint-disable-next-line jest/no-conditional-in-test
         if (typeof requestBody === 'string') {
           return;
         }

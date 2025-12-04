@@ -5,10 +5,8 @@ import {
   toHex,
 } from '@metamask/controller-utils';
 import EthQuery from '@metamask/eth-query';
-import {
-  GAS_ESTIMATE_TYPES,
-  type GasFeeState,
-} from '@metamask/gas-fee-controller';
+import { GAS_ESTIMATE_TYPES } from '@metamask/gas-fee-controller';
+import type { GasFeeState } from '@metamask/gas-fee-controller';
 import type { Provider } from '@metamask/network-controller';
 import type { TransactionParams } from '@metamask/transaction-controller';
 import { UserFeeLevel } from '@metamask/transaction-controller';
@@ -37,6 +35,7 @@ type SuggestedGasFees = {
 
 /**
  * Populates the gas fee properties for a user operation.
+ *
  * @param request - The request to update the gas fees.
  * @param request.getGasFeeEstimates - A callback to get gas fee estimates.
  * @param request.metadata - The metadata for the user operation.
@@ -80,6 +79,7 @@ export async function updateGasFees(request: UpdateGasFeesRequest) {
 
 /**
  * Gets the maxFeePerGas for a user operation.
+ *
  * @param originalRequest - The original request to add the user operation.
  * @param getGetFasEstimates - A callback to get gas fee estimates.
  * @param transaction - The transaction that created the user operation.
@@ -116,6 +116,7 @@ async function getMaxFeePerGas(
 
 /**
  * Gets the maxPriorityFeePerGas for a user operation.
+ *
  * @param originalRequest - The original request to add the user operation.
  * @param getGetFasEstimates - A callback to get gas fee estimates.
  * @param userOperation - The user operation being updated.
@@ -160,6 +161,7 @@ async function getMaxPriorityFeePerGas(
 
 /**
  * Gets the userFeeLevel for a user operation.
+ *
  * @param metadata - The metadata for the user operation.
  * @param originalRequest - The original request to add the user operation.
  * @param suggestedGasFees - The suggested gas fees, if any.
@@ -208,6 +210,7 @@ function getUserFeeLevel(
 
 /**
  * Gets suggested gas fees.
+ *
  * @param request - The request to update the gas fees.
  * @param request.getGasFeeEstimates - A callback to get gas fee estimates.
  * @param request.provider - A provider to query the network.
@@ -272,7 +275,7 @@ async function getSuggestedGasFees(
     return {};
   }
 
-  const maxFeePerGas = add0x(gasPriceDecimal.toString(16)) as Hex;
+  const maxFeePerGas = add0x(gasPriceDecimal.toString(16));
 
   log('Using gasPrice from network as fallback', maxFeePerGas);
 
@@ -281,6 +284,7 @@ async function getSuggestedGasFees(
 
 /**
  * Converts a GWEI decimal string to a WEI hexadecimal string.
+ *
  * @param value - The GWEI decimal string to convert.
  * @returns The WEI hexadecimal string.
  */
@@ -290,6 +294,7 @@ function gweiDecimalToWeiHex(value: string) {
 
 /**
  * Checks if a gas fee property is empty.
+ *
  * @param value - The gas fee value to check.
  * @returns Whether the gas fee property is empty.
  */

@@ -10,7 +10,6 @@ import { fetchTokenBalance } from './balance';
 import { FakeProvider } from '../../../../tests/fake-provider';
 
 declare global {
-  // eslint-disable-next-line no-var
   var ethereumProvider: Provider;
 }
 

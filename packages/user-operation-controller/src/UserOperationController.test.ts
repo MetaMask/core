@@ -4,21 +4,21 @@ import { errorCodes } from '@metamask/rpc-errors';
 import {
   determineTransactionType,
   TransactionType,
-  type TransactionParams,
 } from '@metamask/transaction-controller';
+import type { TransactionParams } from '@metamask/transaction-controller';
 import { EventEmitter } from 'stream';
 
 import { ADDRESS_ZERO, EMPTY_BYTES, VALUE_ZERO } from './constants';
 import * as BundlerHelper from './helpers/Bundler';
 import * as PendingUserOperationTrackerHelper from './helpers/PendingUserOperationTracker';
 import { SnapSmartContractAccount } from './helpers/SnapSmartContractAccount';
+import { UserOperationStatus } from './types';
 import type { UserOperationMetadata } from './types';
-import {
-  UserOperationStatus,
-  type PrepareUserOperationResponse,
-  type SignUserOperationResponse,
-  type SmartContractAccount,
-  type UpdateUserOperationResponse,
+import type {
+  PrepareUserOperationResponse,
+  SignUserOperationResponse,
+  SmartContractAccount,
+  UpdateUserOperationResponse,
 } from './types';
 import type {
   AddUserOperationOptions,
@@ -98,6 +98,7 @@ const ADD_USER_OPERATION_OPTIONS_MOCK: AddUserOperationOptions = {
 
 /**
  * Creates a mock user operation messenger.
+ *
  * @returns The mock user operation messenger.
  */
 function createMessengerMock() {
@@ -111,6 +112,7 @@ function createMessengerMock() {
 
 /**
  * Creates a mock smart contract account.
+ *
  * @returns The mock smart contract account.
  */
 function createSmartContractAccountMock() {
@@ -123,6 +125,7 @@ function createSmartContractAccountMock() {
 
 /**
  * Creates a mock bundler.
+ *
  * @returns The mock bundler.
  */
 function createBundlerMock() {
@@ -134,6 +137,7 @@ function createBundlerMock() {
 
 /**
  * Creates a mock PendingUserOperationTracker.
+ *
  * @returns The mock PendingUserOperationTracker.
  */
 function createPendingUserOperationTrackerMock() {
@@ -237,8 +241,6 @@ describe('UserOperationController', () => {
           return approvalControllerAddRequestMock();
         }
 
-        // TODO: Either fix this lint violation or explain why it's necessary to ignore.
-        // eslint-disable-next-line @typescript-eslint/restrict-template-expressions
         throw new Error(`Unexpected mock messenger action: ${action}`);
       },
     );

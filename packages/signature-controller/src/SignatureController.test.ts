@@ -873,7 +873,7 @@ describe('SignatureController', () => {
             data: JSON.stringify({ test: 123 }),
           },
           REQUEST_MOCK,
-          version as SignTypedDataVersion,
+          version,
           { parseJsonData: true },
         );
 

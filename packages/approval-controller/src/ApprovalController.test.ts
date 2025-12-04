@@ -1,17 +1,15 @@
 /* eslint-disable jest/expect-expect */
 
 import { deriveStateFromMetadata } from '@metamask/base-controller';
-import {
-  MOCK_ANY_NAMESPACE,
-  Messenger,
-  type MessengerActions,
-  type MessengerEvents,
-  type MockAnyNamespace,
+import { MOCK_ANY_NAMESPACE, Messenger } from '@metamask/messenger';
+import type {
+  MessengerActions,
+  MessengerEvents,
+  MockAnyNamespace,
 } from '@metamask/messenger';
 import { errorCodes, JsonRpcError } from '@metamask/rpc-errors';
 import { nanoid } from 'nanoid';
 
-import { flushPromises } from '../../../tests/helpers';
 import type {
   AddApprovalOptions,
   ApprovalControllerActions,
@@ -33,6 +31,7 @@ import {
   MissingApprovalFlowError,
   NoApprovalFlowsError,
 } from './errors';
+import { flushPromises } from '../../../tests/helpers';
 
 jest.mock('nanoid');
 

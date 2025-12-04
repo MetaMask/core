@@ -11,6 +11,7 @@ import type {
   AccountsControllerGetAccountByAddressAction,
   AccountsControllerListMultichainAccountsAction,
 } from '@metamask/accounts-controller';
+import type { TraceCallback } from '@metamask/controller-utils';
 import type { ErrorReportingServiceCaptureExceptionAction } from '@metamask/error-reporting-service';
 import type { KeyringAccount } from '@metamask/keyring-api';
 import type {
@@ -82,6 +83,11 @@ export type MultichainAccountServiceCreateMultichainAccountWalletAction = {
   handler: MultichainAccountService['createMultichainAccountWallet'];
 };
 
+export type MultichainAccountServiceResyncAccountsAction = {
+  type: `${typeof serviceName}:resyncAccounts`;
+  handler: MultichainAccountService['resyncAccounts'];
+};
+
 /**
  * All actions that {@link MultichainAccountService} registers so that other
  * modules can call them.
@@ -96,7 +102,8 @@ export type MultichainAccountServiceActions =
   | MultichainAccountServiceSetBasicFunctionalityAction
   | MultichainAccountServiceAlignWalletAction
   | MultichainAccountServiceAlignWalletsAction
-  | MultichainAccountServiceCreateMultichainAccountWalletAction;
+  | MultichainAccountServiceCreateMultichainAccountWalletAction
+  | MultichainAccountServiceResyncAccountsAction;
 
 export type MultichainAccountServiceMultichainAccountGroupCreatedEvent = {
   type: `${typeof serviceName}:multichainAccountGroupCreated`;
@@ -157,3 +164,7 @@ export type MultichainAccountServiceMessenger = Messenger<
   MultichainAccountServiceActions | AllowedActions,
   MultichainAccountServiceEvents | AllowedEvents
 >;
+
+export type MultichainAccountServiceConfig = {
+  trace?: TraceCallback;
+};

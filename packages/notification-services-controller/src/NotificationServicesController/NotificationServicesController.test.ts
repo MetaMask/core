@@ -1,16 +1,15 @@
 import { deriveStateFromMetadata } from '@metamask/base-controller';
 import * as ControllerUtils from '@metamask/controller-utils';
-import {
-  KeyringTypes,
-  type KeyringControllerGetStateAction,
-  type KeyringControllerState,
+import { KeyringTypes } from '@metamask/keyring-controller';
+import type {
+  KeyringControllerGetStateAction,
+  KeyringControllerState,
 } from '@metamask/keyring-controller';
-import {
-  Messenger,
-  MOCK_ANY_NAMESPACE,
-  type MessengerActions,
-  type MessengerEvents,
-  type MockAnyNamespace,
+import { Messenger, MOCK_ANY_NAMESPACE } from '@metamask/messenger';
+import type {
+  MessengerActions,
+  MessengerEvents,
+  MockAnyNamespace,
 } from '@metamask/messenger';
 import { AuthenticationController } from '@metamask/profile-sync-controller';
 import log from 'loglevel';
@@ -20,7 +19,7 @@ import { ADDRESS_1, ADDRESS_2 } from './__fixtures__/mockAddresses';
 import {
   mockGetOnChainNotificationsConfig,
   mockUpdateOnChainNotifications,
-  mockGetOnChainNotifications,
+  mockGetAPINotifications,
   mockFetchFeatureAnnouncementNotifications,
   mockMarkNotificationsAsRead,
   mockCreatePerpNotification,
@@ -594,7 +593,7 @@ describe('NotificationServicesController', () => {
       const mockOnChainNotificationsAPIResult = [
         createMockNotificationEthSent(),
       ];
-      const mockOnChainNotificationsAPI = mockGetOnChainNotifications({
+      const mockOnChainNotificationsAPI = mockGetAPINotifications({
         status: 200,
         body: mockOnChainNotificationsAPIResult,
       });
@@ -705,7 +704,7 @@ describe('NotificationServicesController', () => {
 
       // Mock APIs to fail
       mockFetchFeatureAnnouncementNotifications({ status: 500 });
-      mockGetOnChainNotifications({ status: 500 });
+      mockGetAPINotifications({ status: 500 });
 
       const controller = arrangeController(messenger);
 

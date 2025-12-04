@@ -1,9 +1,9 @@
 import { AddressZero } from '@ethersproject/constants';
 import { Contract } from '@ethersproject/contracts';
-import { BtcScope, SolScope } from '@metamask/keyring-api';
+import { BtcScope, SolScope, TrxScope } from '@metamask/keyring-api';
 import { abiERC20 } from '@metamask/metamask-eth-abis';
-import type { CaipAssetType, CaipChainId } from '@metamask/utils';
-import { isCaipChainId, isStrictHexString, type Hex } from '@metamask/utils';
+import { isCaipChainId, isStrictHexString } from '@metamask/utils';
+import type { CaipAssetType, CaipChainId, Hex } from '@metamask/utils';
 
 import {
   formatChainIdToCaip,
@@ -16,11 +16,12 @@ import {
   METABRIDGE_ETHEREUM_ADDRESS,
 } from '../constants/bridge';
 import { CHAIN_IDS } from '../constants/chains';
+import { SWAPS_CONTRACT_ADDRESSES } from '../constants/swaps';
 import {
   SWAPS_CHAINID_DEFAULT_TOKEN_MAP,
   SYMBOL_TO_SLIP44_MAP,
-  type SupportedSwapsNativeCurrencySymbols,
 } from '../constants/tokens';
+import type { SupportedSwapsNativeCurrencySymbols } from '../constants/tokens';
 import type {
   BridgeAsset,
   BridgeControllerState,
@@ -29,6 +30,27 @@ import type {
   TxData,
 } from '../types';
 import { ChainId } from '../types';
+
+/**
+ * Checks whether the transaction is a cross-chain transaction by comparing the source and destination chainIds
+ *
+ * @param srcChainId - The source chainId
+ * @param destChainId - The destination chainId
+ * @returns Whether the transaction is a cross-chain transaction
+ */
+export const isCrossChain = (
+  srcChainId: GenericQuoteRequest['srcChainId'],
+  destChainId?: GenericQuoteRequest['destChainId'],
+) => {
+  try {
+    if (!destChainId) {
+      return false;
+    }
+    return formatChainIdToCaip(srcChainId) !== formatChainIdToCaip(destChainId);
+  } catch {
+    return false;
+  }
+};
 
 export const getDefaultBridgeControllerState = (): BridgeControllerState => {
   return DEFAULT_BRIDGE_CONTROLLER_STATE;
@@ -88,21 +110,30 @@ export const getNativeAssetForChainId = (
 /**
  * A function to return the txParam data for setting allowance to 0 for USDT on Ethereum
  *
+ * @param destChainId - The destination chain ID
  * @returns The txParam data that will reset allowance to 0, combine it with the approval tx params received from Bridge API
  */
-export const getEthUsdtResetData = () => {
+export const getEthUsdtResetData = (
+  destChainId: GenericQuoteRequest['destChainId'],
+) => {
+  const spenderAddress = isCrossChain(CHAIN_IDS.MAINNET, destChainId)
+    ? METABRIDGE_ETHEREUM_ADDRESS
+    : SWAPS_CONTRACT_ADDRESSES[CHAIN_IDS.MAINNET];
   const UsdtContractInterface = new Contract(ETH_USDT_ADDRESS, abiERC20)
     .interface;
   const data = UsdtContractInterface.encodeFunctionData('approve', [
-    METABRIDGE_ETHEREUM_ADDRESS,
+    spenderAddress,
     '0',
   ]);
 
   return data;
 };
 
-export const isEthUsdt = (chainId: Hex, address: string) =>
-  chainId === CHAIN_IDS.MAINNET &&
+export const isEthUsdt = (
+  chainId: GenericQuoteRequest['srcChainId'],
+  address: string,
+) =>
+  formatChainIdToDec(chainId) === ChainId.ETH &&
   address.toLowerCase() === ETH_USDT_ADDRESS.toLowerCase();
 
 export const sumHexes = (...hexStrings: string[]): Hex => {
@@ -192,9 +223,16 @@ export const isBitcoinChainId = (
   return chainId.toString() === ChainId.BTC.toString();
 };
 
+export const isTronChainId = (chainId: Hex | number | CaipChainId | string) => {
+  if (isCaipChainId(chainId)) {
+    return chainId === TrxScope.Mainnet.toString();
+  }
+  return chainId.toString() === ChainId.TRON.toString();
+};
+
 /**
  * Checks if a chain ID represents a non-EVM blockchain supported by swaps
- * Currently supports Solana and Bitcoin
+ * Currently supports Solana, Bitcoin and Tron
  *
  * @param chainId - The chain ID to check
  * @returns True if the chain is a supported non-EVM chain, false otherwise
@@ -202,32 +240,15 @@ export const isBitcoinChainId = (
 export const isNonEvmChainId = (
   chainId: GenericQuoteRequest['srcChainId'],
 ): boolean => {
-  return isSolanaChainId(chainId) || isBitcoinChainId(chainId);
+  return (
+    isSolanaChainId(chainId) ||
+    isBitcoinChainId(chainId) ||
+    isTronChainId(chainId)
+  );
 };
 
 export const isEvmQuoteResponse = (
   quoteResponse: QuoteResponse,
-): quoteResponse is QuoteResponse<TxData> => {
+): quoteResponse is QuoteResponse<TxData, TxData> => {
   return !isNonEvmChainId(quoteResponse.quote.srcChainId);
-};
-
-/**
- * Checks whether the transaction is a cross-chain transaction by comparing the source and destination chainIds
- *
- * @param srcChainId - The source chainId
- * @param destChainId - The destination chainId
- * @returns Whether the transaction is a cross-chain transaction
- */
-export const isCrossChain = (
-  srcChainId: GenericQuoteRequest['srcChainId'],
-  destChainId?: GenericQuoteRequest['destChainId'],
-) => {
-  try {
-    if (!destChainId) {
-      return false;
-    }
-    return formatChainIdToCaip(srcChainId) !== formatChainIdToCaip(destChainId);
-  } catch {
-    return false;
-  }
 };

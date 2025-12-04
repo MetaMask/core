@@ -1,7 +1,7 @@
-import {
-  BaseController,
-  type ControllerGetStateAction,
-  type ControllerStateChangeEvent,
+import { BaseController } from '@metamask/base-controller';
+import type {
+  ControllerGetStateAction,
+  ControllerStateChangeEvent,
 } from '@metamask/base-controller';
 import type { Messenger, ActionConstraint } from '@metamask/messenger';
 import { rpcErrors } from '@metamask/rpc-errors';
@@ -217,8 +217,6 @@ export class RateLimitController<
       Object.assign(state, {
         requests: {
           ...(state.requests as RateLimitedRequests<RateLimitedApis>),
-          // TODO: Either fix this lint violation or explain why it's necessary to ignore.
-          // eslint-disable-next-line @typescript-eslint/restrict-plus-operands
           [api]: { [origin]: previous + 1 },
         },
       });

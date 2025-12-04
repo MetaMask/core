@@ -16,6 +16,7 @@ import type {
   TransactionPayQuote,
 } from '../../types';
 import {
+  collectTransactionIds,
   updateTransaction,
   waitForTransactionConfirmed,
 } from '../../utils/transaction';
@@ -221,45 +222,4 @@ async function waitForBridgeCompletion(
       (state) => state.txHistory[bridgeTransactionId],
     );
   });
-}
-
-/**
- * Collect all new transactions until `end` is called.
- *
- * @param chainId - The chain ID to filter transactions by.
- * @param from - The address to filter transactions by.
- * @param messenger - The controller messenger.
- * @param onTransaction - Callback called with each matching transaction ID.
- * @returns An object with an `end` method to stop collecting transactions.
- */
-function collectTransactionIds(
-  chainId: Hex,
-  from: Hex,
-  messenger: TransactionPayControllerMessenger,
-  onTransaction: (transactionId: string) => void,
-): { end: () => void } {
-  const listener = (tx: TransactionMeta) => {
-    if (
-      tx.chainId !== chainId ||
-      tx.txParams.from.toLowerCase() !== from.toLowerCase()
-    ) {
-      return;
-    }
-
-    onTransaction(tx.id);
-  };
-
-  messenger.subscribe(
-    'TransactionController:unapprovedTransactionAdded',
-    listener,
-  );
-
-  const end = () => {
-    messenger.unsubscribe(
-      'TransactionController:unapprovedTransactionAdded',
-      listener,
-    );
-  };
-
-  return { end };
 }

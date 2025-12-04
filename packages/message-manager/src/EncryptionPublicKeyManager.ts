@@ -10,7 +10,7 @@ import type {
   AbstractMessageParams,
   AbstractMessageParamsMetamask,
   MessageManagerState,
-  OriginalRequest,
+  MessageRequest,
   SecurityProviderRequest,
 } from './AbstractMessageManager';
 import { AbstractMessageManager } from './AbstractMessageManager';
@@ -62,6 +62,7 @@ type EncryptionPublicKeyManagerOptions = {
  *
  * Represents and contains data about a 'eth_getEncryptionPublicKey' type request.
  * These are created when an encryption public key is requested.
+ *
  * @property id - An id to track and identify the message object
  * @property messageParams - The parameters to pass to the eth_getEncryptionPublicKey method once the request is approved
  * @property type - The json-prc method for which an encryption public key request has been made.
@@ -86,6 +87,7 @@ export type EncryptionPublicKeyParams = AbstractMessageParams;
  *
  * Represents the parameters to pass to the eth_getEncryptionPublicKey method once the request is approved
  * plus data added by MetaMask.
+ *
  * @property metamaskId - Added for tracking and identification within MetaMask
  * @property data - Encryption public key
  * @property from - Address from which to extract the encryption public key
@@ -131,7 +133,7 @@ export class EncryptionPublicKeyManager extends AbstractMessageManager<
    */
   async addUnapprovedMessageAsync(
     messageParams: EncryptionPublicKeyParams,
-    req?: OriginalRequest,
+    req?: MessageRequest,
   ): Promise<string> {
     validateEncryptionPublicKeyMessageData(messageParams);
     const messageId = await this.addUnapprovedMessage(messageParams, req);
@@ -175,7 +177,7 @@ export class EncryptionPublicKeyManager extends AbstractMessageManager<
    */
   async addUnapprovedMessage(
     messageParams: EncryptionPublicKeyParams,
-    req?: OriginalRequest,
+    req?: MessageRequest,
   ): Promise<string> {
     const updatedMessageParams = this.addRequestToMessageParams(
       messageParams,

@@ -4,6 +4,7 @@ on:
   push:
     branches: [main]
   pull_request:
+  merge_group:
 
 concurrency:
   group: ${{ github.workflow }}-${{ github.ref == 'refs/heads/main' && github.sha || github.ref }}
@@ -62,6 +63,20 @@ jobs:
     needs: check-workflows
     uses: ./.github/workflows/lint-build-test.yml
 
+  check-release:
+    name: Check release
+    needs: check-workflows
+    runs-on: ubuntu-latest
+    permissions:
+      contents: read
+      pull-requests: write
+    steps:
+      - name: Checkout repository
+        uses: actions/checkout@v5
+      - name: Check release
+        if: github.event_name != 'push'
+        uses: ./.github/actions/check-release
+
   is-release:
     name: Determine whether this is a release merge commit
     needs: lint-build-test
@@ -99,6 +114,7 @@ jobs:
     runs-on: ubuntu-latest
     needs:
       - analyse-code
+      - check-release
       - lint-build-test
     outputs:
       passed: ${{ steps.set-output.outputs.passed }}

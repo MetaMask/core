@@ -1,4 +1,4 @@
-import type { JsonRpcRequest, PendingJsonRpcResponse } from '@metamask/utils';
+import type { JsonRpcRequest } from '@metamask/utils';
 import { klona } from 'klona';
 
 import type {
@@ -6,7 +6,8 @@ import type {
   RequestExecutionPermissionsRequestParams,
   RequestExecutionPermissionsResult,
 } from './wallet-request-execution-permissions';
-import { walletRequestExecutionPermissions } from './wallet-request-execution-permissions';
+import { createWalletRequestExecutionPermissionsHandler } from './wallet-request-execution-permissions';
+import type { WalletMiddlewareParams } from '../wallet';
 
 const ADDRESS_MOCK = '0x123abc123abc123abc123abc123abc123abc123a';
 const CHAIN_ID_MOCK = '0x1';
@@ -66,14 +67,14 @@ const RESULT_MOCK: RequestExecutionPermissionsResult = [
 describe('wallet_requestExecutionPermissions', () => {
   let request: JsonRpcRequest;
   let params: RequestExecutionPermissionsRequestParams;
-  let response: PendingJsonRpcResponse;
   let processRequestExecutionPermissionsMock: jest.MockedFunction<ProcessRequestExecutionPermissionsHook>;
 
   const callMethod = async () => {
-    return walletRequestExecutionPermissions(request, response, {
+    const handler = createWalletRequestExecutionPermissionsHandler({
       processRequestExecutionPermissions:
         processRequestExecutionPermissionsMock,
     });
+    return handler({ request } as WalletMiddlewareParams);
   };
 
   beforeEach(() => {
@@ -81,7 +82,6 @@ describe('wallet_requestExecutionPermissions', () => {
 
     request = klona(REQUEST_MOCK);
     params = request.params as RequestExecutionPermissionsRequestParams;
-    response = {} as PendingJsonRpcResponse;
 
     processRequestExecutionPermissionsMock = jest.fn();
     processRequestExecutionPermissionsMock.mockResolvedValue(RESULT_MOCK);
@@ -96,8 +96,8 @@ describe('wallet_requestExecutionPermissions', () => {
   });
 
   it('returns result from hook', async () => {
-    await callMethod();
-    expect(response.result).toStrictEqual(RESULT_MOCK);
+    const result = await callMethod();
+    expect(result).toStrictEqual(RESULT_MOCK);
   });
 
   it('supports null rules', async () => {
@@ -124,7 +124,9 @@ describe('wallet_requestExecutionPermissions', () => {
 
   it('throws if no hook', async () => {
     await expect(
-      walletRequestExecutionPermissions(request, response, {}),
+      createWalletRequestExecutionPermissionsHandler({})({
+        request,
+      } as WalletMiddlewareParams),
     ).rejects.toThrow(
       `wallet_requestExecutionPermissions - no middleware configured`,
     );

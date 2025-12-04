@@ -2,18 +2,16 @@ import type { LogDescription } from '@ethersproject/abi';
 import { Interface } from '@ethersproject/abi';
 import { query } from '@metamask/controller-utils';
 import type EthQuery from '@metamask/eth-query';
-import { type Hex } from '@metamask/utils';
+import type { Hex } from '@metamask/utils';
 
 import type { GetBalanceChangesRequest } from './balance-changes';
 import { getBalanceChanges, SupportedToken } from './balance-changes';
+import { simulateTransactions } from '../api/simulation-api';
 import type {
   SimulationResponseLog,
   SimulationResponseTransaction,
 } from '../api/simulation-api';
-import {
-  simulateTransactions,
-  type SimulationResponse,
-} from '../api/simulation-api';
+import type { SimulationResponse } from '../api/simulation-api';
 import {
   SimulationInvalidResponseError,
   SimulationRevertedError,
@@ -282,7 +280,7 @@ function mockParseLog({
   }
 }
 
-describe('Simulation Utils', () => {
+describe('Balance Change Utils', () => {
   const simulateTransactionsMock = jest.mocked(simulateTransactions);
   const queryMock = jest.mocked(query);
 

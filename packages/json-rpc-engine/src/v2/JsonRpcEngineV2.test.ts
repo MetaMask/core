@@ -6,14 +6,8 @@ import type { JsonRpcMiddleware, ResultConstraint } from './JsonRpcEngineV2';
 import { JsonRpcEngineV2 } from './JsonRpcEngineV2';
 import type { EmptyContext } from './MiddlewareContext';
 import { MiddlewareContext } from './MiddlewareContext';
-import {
-  isRequest,
-  JsonRpcEngineError,
-  stringify,
-  type JsonRpcCall,
-  type JsonRpcNotification,
-  type JsonRpcRequest,
-} from './utils';
+import { isRequest, JsonRpcEngineError, stringify } from './utils';
+import type { JsonRpcCall, JsonRpcNotification, JsonRpcRequest } from './utils';
 import {
   makeNotification,
   makeNotificationMiddleware,
@@ -72,7 +66,7 @@ describe('JsonRpcEngineV2', () => {
       // between these two cases:
       // - JsonRpcMiddleware<JsonRpcRequest> | JsonRpcMiddleware<JsonRpcNotification> (invalid)
       // - JsonRpcMiddleware<JsonRpcRequest> | JsonRpcMiddleware<JsonRpcCall> (valid)
-      expect(await engine.handle(makeRequest() as JsonRpcRequest)).toBe('foo');
+      expect(await engine.handle(makeRequest())).toBe('foo');
     });
   });
 
@@ -341,7 +335,7 @@ describe('JsonRpcEngineV2', () => {
           string | undefined,
           Context
         > = ({ context }) => {
-          return context.get('foo') as string | undefined;
+          return context.get('foo');
         };
         const engine = JsonRpcEngineV2.create({
           middleware: [middleware1, middleware2],
@@ -765,7 +759,6 @@ describe('JsonRpcEngineV2', () => {
           Json,
           Context
         > = async ({ context, next, request }) => {
-          // eslint-disable-next-line jest/no-conditional-in-test
           context.set('id', context.get('id') ?? request.id);
 
           inFlight += 1;
@@ -812,9 +805,10 @@ describe('JsonRpcEngineV2', () => {
 
       it('eagerly processes requests in parallel, i.e. without queueing them', async () => {
         const queue = makeArbitraryQueue(3);
-        const middleware: JsonRpcMiddleware<
-          JsonRpcRequest & { id: number }
-        > = async ({ request }) => {
+        type NumericIdRequest = JsonRpcRequest & { id: number };
+        const middleware: JsonRpcMiddleware<NumericIdRequest> = async ({
+          request,
+        }) => {
           await queue.enqueue(request.id);
           return null;
         };
@@ -822,9 +816,9 @@ describe('JsonRpcEngineV2', () => {
           middleware: [middleware],
         });
 
-        const p0 = engine.handle(makeRequest({ id: 0 }));
-        const p1 = engine.handle(makeRequest({ id: 1 }));
-        const p2 = engine.handle(makeRequest({ id: 2 }));
+        const p0 = engine.handle(makeRequest<NumericIdRequest>({ id: 0 }));
+        const p1 = engine.handle(makeRequest<NumericIdRequest>({ id: 1 }));
+        const p2 = engine.handle(makeRequest<NumericIdRequest>({ id: 2 }));
 
         await queue.filled();
 
@@ -1211,7 +1205,7 @@ describe('JsonRpcEngineV2', () => {
         );
         await expect(
           // @ts-expect-error - Invalid at runtime and should cause a type error
-          engine.handle(makeRequest() as JsonRpcRequest),
+          engine.handle(makeRequest<JsonRpcRequest>()),
         ).rejects.toThrow(
           new JsonRpcEngineError(
             `Nothing ended request: ${stringify(makeRequest())}`,
@@ -1221,7 +1215,6 @@ describe('JsonRpcEngineV2', () => {
 
       it('constructs a mixed engine', async () => {
         const mixedMiddleware: JsonRpcMiddleware = ({ request }) => {
-          // eslint-disable-next-line jest/no-conditional-in-test
           return isRequest(request) ? null : undefined;
         };
         const engine = JsonRpcEngineV2.create({
@@ -1245,7 +1238,6 @@ describe('JsonRpcEngineV2', () => {
         const orchestratorEngine = JsonRpcEngineV2.create({
           middleware: [
             ({ request, context }) =>
-              // eslint-disable-next-line jest/no-conditional-in-test
               isRequest(request)
                 ? requestEngine.handle(request, { context })
                 : notificationEngine.handle(request as JsonRpcNotification, {

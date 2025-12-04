@@ -1,5 +1,6 @@
 import type { Caveat } from '@metamask/delegation-core';
-import { getChecksumAddress, type Hex } from '@metamask/utils';
+import { getChecksumAddress } from '@metamask/utils';
+import type { Hex } from '@metamask/utils';
 
 import type { DeployedContractsByName } from './types';
 import {
@@ -31,23 +32,23 @@ describe('getChecksumEnforcersByChainId', () => {
 
     expect(result).toStrictEqual({
       erc20StreamingEnforcer: getChecksumAddress(
-        contracts.ERC20StreamingEnforcer as Hex,
+        contracts.ERC20StreamingEnforcer,
       ),
       erc20PeriodicEnforcer: getChecksumAddress(
-        contracts.ERC20PeriodTransferEnforcer as Hex,
+        contracts.ERC20PeriodTransferEnforcer,
       ),
       nativeTokenStreamingEnforcer: getChecksumAddress(
-        contracts.NativeTokenStreamingEnforcer as Hex,
+        contracts.NativeTokenStreamingEnforcer,
       ),
       nativeTokenPeriodicEnforcer: getChecksumAddress(
-        contracts.NativeTokenPeriodTransferEnforcer as Hex,
+        contracts.NativeTokenPeriodTransferEnforcer,
       ),
       exactCalldataEnforcer: getChecksumAddress(
-        contracts.ExactCalldataEnforcer as Hex,
+        contracts.ExactCalldataEnforcer,
       ),
-      valueLteEnforcer: getChecksumAddress(contracts.ValueLteEnforcer as Hex),
-      timestampEnforcer: getChecksumAddress(contracts.TimestampEnforcer as Hex),
-      nonceEnforcer: getChecksumAddress(contracts.NonceEnforcer as Hex),
+      valueLteEnforcer: getChecksumAddress(contracts.ValueLteEnforcer),
+      timestampEnforcer: getChecksumAddress(contracts.TimestampEnforcer),
+      nonceEnforcer: getChecksumAddress(contracts.NonceEnforcer),
     });
   });
 

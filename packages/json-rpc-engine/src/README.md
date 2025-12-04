@@ -4,6 +4,11 @@ The deprecated, original `JsonRpcEngine` implementation.
 
 To be removed once the rest of MetaMask's codebase has been migrated to `JsonRpcEngineV2`.
 
+> [!TIP]
+> For the new `JsonRpcEngineV2`, see [the package readme](../README.md).
+>
+> For how to migrate from the legacy `JsonRpcEngine` to `JsonRpcEngineV2`, see [this package readme section](../README.md#migrating-from-jsonrpcengine).
+
 ## Usage
 
 ```js

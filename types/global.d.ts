@@ -5,7 +5,7 @@ declare global {
     // We're using `interface` here so that we can extend and not override it.
     // In addition, we must use the generic parameter name `R` to match the
     // Jest types.
-    // eslint-disable-next-line @typescript-eslint/consistent-type-definitions,@typescript-eslint/naming-convention
+    // eslint-disable-next-line @typescript-eslint/consistent-type-definitions
     interface Matchers<R> {
       toBeFulfilled(): Promise<R>;
       toNeverResolve(): Promise<R>;

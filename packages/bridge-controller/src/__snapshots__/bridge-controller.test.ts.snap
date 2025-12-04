@@ -14,6 +14,7 @@ Object {
     "destChainId": "0x1",
     "destTokenAddress": "0x0000000000000000000000000000000000000000",
     "insufficientBal": false,
+    "resetApproval": false,
     "srcChainId": "0xa",
     "srcTokenAddress": "0x4200000000000000000000000000000000000006",
     "srcTokenAmount": "991250000000000000",
@@ -39,6 +40,7 @@ Object {
     "destChainId": "0x1",
     "destTokenAddress": "0x0000000000000000000000000000000000000000",
     "insufficientBal": false,
+    "resetApproval": false,
     "srcChainId": "0xa",
     "srcTokenAddress": "0x4200000000000000000000000000000000000006",
     "srcTokenAmount": "991250000000000000",
@@ -403,7 +405,7 @@ Array [
       "usd_quoted_gas": 0,
       "usd_quoted_return": 100,
       "warnings": Array [
-        "warning1",
+        "insufficient_balance",
       ],
     },
   ],
@@ -494,7 +496,7 @@ Array [
       "usd_quoted_gas": 0,
       "usd_quoted_return": 100,
       "warnings": Array [
-        "warning1",
+        "low_return",
       ],
     },
   ],
@@ -603,6 +605,32 @@ Array [
   Array [
     "SnapController:handleRequest",
     Object {
+      "handler": "onProtocolRequest",
+      "origin": "metamask",
+      "request": Object {
+        "jsonrpc": "2.0",
+        "method": " ",
+        "params": Object {
+          "request": Object {
+            "id": "test-uuid-1234",
+            "jsonrpc": "2.0",
+            "method": "getMinimumBalanceForRentExemption",
+            "params": Array [
+              0,
+              Object {
+                "commitment": "confirmed",
+              },
+            ],
+          },
+          "scope": "solana:5eykt4UsFv8P8NJdTREpY1vzqKqZKvdp",
+        },
+      },
+      "snapId": "npm:@metamask/solana-snap",
+    },
+  ],
+  Array [
+    "SnapController:handleRequest",
+    Object {
       "handler": "onClientRequest",
       "origin": "metamask",
       "request": Object {
@@ -631,32 +659,6 @@ Array [
           "accountId": "account1",
           "scope": "solana:5eykt4UsFv8P8NJdTREpY1vzqKqZKvdp",
           "transaction": "AQAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAACAAQAIEnLY8oVRIwA8ZdRSGjM5RIZJW8Wv+Twyw3NqU4Hov+OHz7U6VQBhniAZG564p5JhG+y5+5uEABjxPtimE61bsqsz4TFeaDdmFmlW16xBf2qhUAUla7cIQjqp3HfLznM1aZqWVDV+zzkmftkF//DpbXxqeH8obNXHFR7pUlxG9uNVZ0EED+QHqrBQRqB+cbMfYZjXZcTe9r+CfdbguirL8P49t1pWG6qWtPmFmciR1xbrt4IW+b1nNcz2N5abYbCcsDgByJFz/oyJeNAhYJfn7erTZs6xJHjnuAV0v/cuH6iQNCzB1ajK9lOERjgtFNI8XDODau1kgDlDaRIGFfFNP09KMWgsU3Ye36HzgEdq38sqvZDFOifcDzPxfPOcDxeZgLShtMST0fB39lSGQI7f01fZv+JVg5S4qIF2zdmCAhSAAwZGb+UhFzL/7K26csOb57yM5bvF9xJrLEObOkAAAACMlyWPTiSJ8bs9ECkUjg2DC1oTmdr/EIQEjnvY2+n4WQAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAABt324ddloZPZy+FGzut5rBy0he1fWzeROoz1hX7/AKkEedVb8jHAbu50xW7OaBUH/bGy3qP0jlECsc2iVrwTj1E+LF26QsO9gzDavYNO6ZflUDWJ+gBV9eCQ5OcuzAMStD/6J/XX9kp0wJsfKVh53ksJqzbfyd1RSzIap7OM5egJanTpAxnCBLW4j9Mn+DAuluhVY4cEgRJ9Pah1VqYQXzWdRJXp28EMpR0GPlVtcnRtTGlBHjaRvhFYLMMzzMD6CQoABQLAXBUACgAJA0ANAwAAAAAACwYAAQIbDA0ACwYAAwAcDA0BAQwCAAMMAgAAAFBGFTsAAAAADQEDAREOKQ0PAAMEBQEcGw4OEA4dDx4SBAYTFBUNBxYICQ4fDwYFFxgZGiAhIiMNKMEgmzNB1pyBAwIAAAAaZAABOGQBAlBGFTsAAAAAP4hnBwAAAABkAAANAwMAAAEJEQUAAgEbDLwBj+v8wtNahk0AAAAAAAAAAAAAAAAUHTKomh4KXvNgA0ovYKS5F8GIOCjcXQcAAAAAAAAAAAAAAACUXhgAAAAAABb1AwAAAAAAGABuuH/gY8j1t421m3ekiET/qFVeKhVA3SJVS5OH/NW+oQMAAAAAAAAAAAAAAABCAAAAAAAAAAAAAAAAAAAAAAAAQrPV80YDAAAACwLaZwAAAAAAAAAAAAAAAAAAAAClqm4hcbQW4dJ+xTyowT2z+RqJzQADWk6DVOZO8lMFQg2r0dgfltD6tRL/B1hH3u00UzZdgqkAARE9whapJMxiYg1Y/S9bROWrjXfldZCFcyME/snbeFkkhAUXFisYKQMaKiVZfTkrqqg0GkW+iGFAaIHEbhkRX4YCBLoWvHI1OH2T2gSmTlKhBREUDA0H",
-        },
-      },
-      "snapId": "npm:@metamask/solana-snap",
-    },
-  ],
-  Array [
-    "SnapController:handleRequest",
-    Object {
-      "handler": "onProtocolRequest",
-      "origin": "metamask",
-      "request": Object {
-        "jsonrpc": "2.0",
-        "method": " ",
-        "params": Object {
-          "request": Object {
-            "id": "test-uuid-1234",
-            "jsonrpc": "2.0",
-            "method": "getMinimumBalanceForRentExemption",
-            "params": Array [
-              0,
-              Object {
-                "commitment": "confirmed",
-              },
-            ],
-          },
-          "scope": "solana:5eykt4UsFv8P8NJdTREpY1vzqKqZKvdp",
         },
       },
       "snapId": "npm:@metamask/solana-snap",
@@ -787,7 +789,7 @@ Object {
   "quotes": Array [],
   "quotesInitialLoadTime": null,
   "quotesLastFetched": null,
-  "quotesLoadingStatus": null,
+  "quotesLoadingStatus": 0,
   "quotesRefreshCount": 0,
 }
 `;
@@ -807,13 +809,14 @@ Object {
     "destTokenAddress": "123d1",
     "destWalletAddress": "SolanaWalletAddres1234",
     "insufficientBal": false,
+    "resetApproval": false,
     "slippage": 0.5,
     "srcChainId": "0x1",
     "srcTokenAddress": "0x0000000000000000000000000000000000000000",
     "srcTokenAmount": "10",
     "walletAddress": "0x123",
   },
-  "quotesInitialLoadTime": 15000,
+  "quotesInitialLoadTime": 10000,
   "quotesLoadingStatus": 1,
   "quotesRefreshCount": 1,
 }
@@ -955,6 +958,7 @@ Array [
       "token_address_source": "eip155:1/slip44:60",
       "token_symbol_destination": "USDC",
       "token_symbol_source": "ETH",
+      "usd_amount_source": 100,
     },
   ],
 ]

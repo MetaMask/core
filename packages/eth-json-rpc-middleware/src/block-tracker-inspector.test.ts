@@ -1,5 +1,6 @@
 import type { PollingBlockTracker } from '@metamask/eth-block-tracker';
-import { JsonRpcEngine } from '@metamask/json-rpc-engine';
+import { JsonRpcEngineV2 } from '@metamask/json-rpc-engine/v2';
+import { rpcErrors } from '@metamask/rpc-errors';
 
 import { createBlockTrackerInspectorMiddleware } from './block-tracker-inspector';
 import {
@@ -27,19 +28,16 @@ describe('createBlockTrackerInspectorMiddleware', () => {
         'checkForLatestBlock',
       );
 
-      const engine = new JsonRpcEngine();
-      engine.push(
-        createBlockTrackerInspectorMiddleware({
-          blockTracker: mockBlockTracker,
-        }),
-      );
-
-      engine.push((_req, res, _next, end) => {
-        res.result = {
-          blockNumber: '0x123', // Same as current block
-          hash: '0xabc',
-        };
-        return end();
+      const engine = JsonRpcEngineV2.create({
+        middleware: [
+          createBlockTrackerInspectorMiddleware({
+            blockTracker: mockBlockTracker,
+          }),
+          () => ({
+            blockNumber: '0x123', // Same as current block
+            hash: '0xabc',
+          }),
+        ],
       });
 
       const request = createRequest({
@@ -64,19 +62,16 @@ describe('createBlockTrackerInspectorMiddleware', () => {
         'checkForLatestBlock',
       );
 
-      const engine = new JsonRpcEngine();
-      engine.push(
-        createBlockTrackerInspectorMiddleware({
-          blockTracker: mockBlockTracker,
-        }),
-      );
-
-      engine.push((_req, res, _next, end) => {
-        res.result = {
-          blockNumber: '0x123', // Same as current block
-          transactionHash: '0xdef',
-        };
-        return end();
+      const engine = JsonRpcEngineV2.create({
+        middleware: [
+          createBlockTrackerInspectorMiddleware({
+            blockTracker: mockBlockTracker,
+          }),
+          () => ({
+            blockNumber: '0x123', // Same as current block
+            transactionHash: '0xdef',
+          }),
+        ],
       });
 
       const request = createRequest({
@@ -101,13 +96,14 @@ describe('createBlockTrackerInspectorMiddleware', () => {
         'checkForLatestBlock',
       );
 
-      const engine = new JsonRpcEngine();
-      engine.push(
-        createBlockTrackerInspectorMiddleware({
-          blockTracker: mockBlockTracker,
-        }),
-      );
-      engine.push(createFinalMiddlewareWithDefaultResult());
+      const engine = JsonRpcEngineV2.create({
+        middleware: [
+          createBlockTrackerInspectorMiddleware({
+            blockTracker: mockBlockTracker,
+          }),
+          createFinalMiddlewareWithDefaultResult(),
+        ],
+      });
 
       const request = createRequest({
         method: 'eth_chainId', // Not in futureBlockRefRequests
@@ -129,24 +125,19 @@ describe('createBlockTrackerInspectorMiddleware', () => {
         'checkForLatestBlock',
       );
 
-      const engine = new JsonRpcEngine();
-      engine.push(
-        createBlockTrackerInspectorMiddleware({
-          blockTracker: mockBlockTracker,
-        }),
-      );
-
-      engine.push((_req, res, _next, end) => {
-        res.result = {
-          blockNumber: '0x200', // Higher than current block (0x100)
-          hash: '0xabc',
-        };
-        return end();
+      const engine = JsonRpcEngineV2.create({
+        middleware: [
+          createBlockTrackerInspectorMiddleware({
+            blockTracker: mockBlockTracker,
+          }),
+          () => ({
+            blockNumber: '0x200', // Higher than current block (0x100)
+            hash: '0xabc',
+          }),
+        ],
       });
 
       const request = createRequest({
-        id: 1,
-        jsonrpc: '2.0',
         method: 'eth_getTransactionByHash',
         params: ['0xhash'],
       });
@@ -164,19 +155,16 @@ describe('createBlockTrackerInspectorMiddleware', () => {
         'checkForLatestBlock',
       );
 
-      const engine = new JsonRpcEngine();
-      engine.push(
-        createBlockTrackerInspectorMiddleware({
-          blockTracker: mockBlockTracker,
-        }),
-      );
-
-      engine.push((_req, res, _next, end) => {
-        res.result = {
-          blockNumber: '0x100', // Equals current block (0x100)
-          hash: '0xabc',
-        };
-        return end();
+      const engine = JsonRpcEngineV2.create({
+        middleware: [
+          createBlockTrackerInspectorMiddleware({
+            blockTracker: mockBlockTracker,
+          }),
+          () => ({
+            blockNumber: '0x100', // Equals current block (0x100)
+            hash: '0xabc',
+          }),
+        ],
       });
 
       const request = createRequest({
@@ -197,19 +185,16 @@ describe('createBlockTrackerInspectorMiddleware', () => {
         'checkForLatestBlock',
       );
 
-      const engine = new JsonRpcEngine();
-      engine.push(
-        createBlockTrackerInspectorMiddleware({
-          blockTracker: mockBlockTracker,
-        }),
-      );
-
-      engine.push((_req, res, _next, end) => {
-        res.result = {
-          blockNumber: '0x100', // Lower than current block (0x200)
-          hash: '0xabc',
-        };
-        return end();
+      const engine = JsonRpcEngineV2.create({
+        middleware: [
+          createBlockTrackerInspectorMiddleware({
+            blockTracker: mockBlockTracker,
+          }),
+          () => ({
+            blockNumber: '0x100', // Lower than current block (0x200)
+            hash: '0xabc',
+          }),
+        ],
       });
 
       const request = createRequest({
@@ -232,20 +217,16 @@ describe('createBlockTrackerInspectorMiddleware', () => {
         'checkForLatestBlock',
       );
 
-      const engine = new JsonRpcEngine();
-      engine.push(
-        createBlockTrackerInspectorMiddleware({
-          blockTracker: mockBlockTracker,
-        }),
-      );
-
-      // Add a middleware that provides a block number
-      engine.push((_req, res, _next, end) => {
-        res.result = {
-          blockNumber: '0x100',
-          hash: '0xabc',
-        };
-        return end();
+      const engine = JsonRpcEngineV2.create({
+        middleware: [
+          createBlockTrackerInspectorMiddleware({
+            blockTracker: mockBlockTracker,
+          }),
+          () => ({
+            blockNumber: '0x100',
+            hash: '0xabc',
+          }),
+        ],
       });
 
       const request = createRequest({
@@ -271,19 +252,15 @@ describe('createBlockTrackerInspectorMiddleware', () => {
         mockBlockTracker,
         'checkForLatestBlock',
       );
-      const engine = new JsonRpcEngine();
-      engine.push(
-        createBlockTrackerInspectorMiddleware({
-          blockTracker: mockBlockTracker,
-        }),
-      );
-
-      engine.push((_req, res, _next, end) => {
-        res.error = {
-          code: -32000,
-          message: 'Internal error',
-        };
-        return end();
+      const engine = JsonRpcEngineV2.create({
+        middleware: [
+          createBlockTrackerInspectorMiddleware({
+            blockTracker: mockBlockTracker,
+          }),
+          () => {
+            throw rpcErrors.internal('Internal error');
+          },
+        ],
       });
 
       const request = createRequest({
@@ -291,7 +268,9 @@ describe('createBlockTrackerInspectorMiddleware', () => {
         params: ['0xhash'],
       });
 
-      await engine.handle(request);
+      await expect(engine.handle(request)).rejects.toThrow(
+        rpcErrors.internal('Internal error'),
+      );
 
       expect(getCurrentBlockSpy).not.toHaveBeenCalled();
       expect(checkForLatestBlockSpy).not.toHaveBeenCalled();
@@ -312,16 +291,13 @@ describe('createBlockTrackerInspectorMiddleware', () => {
           mockBlockTracker,
           'checkForLatestBlock',
         );
-        const engine = new JsonRpcEngine();
-        engine.push(
-          createBlockTrackerInspectorMiddleware({
-            blockTracker: mockBlockTracker,
-          }),
-        );
-
-        engine.push((_req, res, _next, end) => {
-          res.result = result;
-          return end();
+        const engine = JsonRpcEngineV2.create({
+          middleware: [
+            createBlockTrackerInspectorMiddleware({
+              blockTracker: mockBlockTracker,
+            }),
+            () => result,
+          ],
         });
 
         const request = createRequest({
@@ -345,19 +321,17 @@ describe('createBlockTrackerInspectorMiddleware', () => {
         mockBlockTracker,
         'checkForLatestBlock',
       );
-      const engine = new JsonRpcEngine();
-      engine.push(
-        createBlockTrackerInspectorMiddleware({
-          blockTracker: mockBlockTracker,
-        }),
-      );
 
-      engine.push((_req, res, _next, end) => {
-        res.result = {
-          blockNumber: 123,
-          hash: '0xabc',
-        };
-        return end();
+      const engine = JsonRpcEngineV2.create({
+        middleware: [
+          createBlockTrackerInspectorMiddleware({
+            blockTracker: mockBlockTracker,
+          }),
+          () => ({
+            blockNumber: 123,
+            hash: '0xabc',
+          }),
+        ],
       });
 
       const request = createRequest({
@@ -379,20 +353,16 @@ describe('createBlockTrackerInspectorMiddleware', () => {
         'checkForLatestBlock',
       );
 
-      const engine = new JsonRpcEngine();
-      engine.push(
-        createBlockTrackerInspectorMiddleware({
-          blockTracker: mockBlockTracker,
-        }),
-      );
-
-      // Add a middleware that provides malformed hex
-      engine.push((_req, res, _next, end) => {
-        res.result = {
-          blockNumber: 'not-a-hex-number',
-          hash: '0xabc',
-        };
-        return end();
+      const engine = JsonRpcEngineV2.create({
+        middleware: [
+          createBlockTrackerInspectorMiddleware({
+            blockTracker: mockBlockTracker,
+          }),
+          () => ({
+            blockNumber: 'not-a-hex-number',
+            hash: '0xabc',
+          }),
+        ],
       });
 
       const request = createRequest({

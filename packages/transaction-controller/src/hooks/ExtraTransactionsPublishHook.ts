@@ -1,8 +1,5 @@
-import {
-  createDeferredPromise,
-  createModuleLogger,
-  type Hex,
-} from '@metamask/utils';
+import { createDeferredPromise, createModuleLogger } from '@metamask/utils';
+import type { Hex } from '@metamask/utils';
 
 import type { TransactionController } from '..';
 import { projectLogger } from '../logger';

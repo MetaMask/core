@@ -1,4 +1,6 @@
-import { assertIsBip44Account, type Bip44Account } from '@metamask/account-api';
+import { assertIsBip44Account } from '@metamask/account-api';
+import type { Bip44Account } from '@metamask/account-api';
+import type { TraceCallback } from '@metamask/controller-utils';
 import type { EntropySourceId, KeyringAccount } from '@metamask/keyring-api';
 import { SolScope } from '@metamask/keyring-api';
 import {
@@ -7,16 +9,13 @@ import {
 } from '@metamask/keyring-api';
 import { KeyringTypes } from '@metamask/keyring-controller';
 import type { InternalAccount } from '@metamask/keyring-internal-api';
-import { KeyringClient } from '@metamask/keyring-snap-client';
 import type { SnapId } from '@metamask/snaps-sdk';
-import { HandlerType } from '@metamask/snaps-utils';
-import type { Json, JsonRpcRequest } from '@metamask/utils';
 
-import {
-  SnapAccountProvider,
-  type SnapAccountProviderConfig,
-} from './SnapAccountProvider';
+import { SnapAccountProvider } from './SnapAccountProvider';
+import type { SnapAccountProviderConfig } from './SnapAccountProvider';
 import { withRetry, withTimeout } from './utils';
+import { traceFallback } from '../analytics';
+import { TraceName } from '../constants/traces';
 import type { MultichainAccountServiceMessenger } from '../types';
 
 export type SolAccountProviderConfig = SnapAccountProviderConfig;
@@ -27,8 +26,6 @@ export class SolAccountProvider extends SnapAccountProvider {
   static NAME = SOL_ACCOUNT_PROVIDER_NAME;
 
   static SOLANA_SNAP_ID = 'npm:@metamask/solana-wallet-snap' as SnapId;
-
-  readonly #client: KeyringClient;
 
   constructor(
     messenger: MultichainAccountServiceMessenger,
@@ -43,32 +40,13 @@ export class SolAccountProvider extends SnapAccountProvider {
         timeoutMs: 3000,
       },
     },
+    trace: TraceCallback = traceFallback,
   ) {
-    super(SolAccountProvider.SOLANA_SNAP_ID, messenger, config);
-    this.#client = this.#getKeyringClientFromSnapId(
-      SolAccountProvider.SOLANA_SNAP_ID,
-    );
+    super(SolAccountProvider.SOLANA_SNAP_ID, messenger, config, trace);
   }
 
   getName(): string {
     return SolAccountProvider.NAME;
-  }
-
-  #getKeyringClientFromSnapId(snapId: string): KeyringClient {
-    return new KeyringClient({
-      send: async (request: JsonRpcRequest) => {
-        const response = await this.messenger.call(
-          'SnapController:handleRequest',
-          {
-            snapId: snapId as SnapId,
-            origin: 'metamask',
-            handler: HandlerType.OnKeyringRequest,
-            request,
-          },
-        );
-        return response as Json;
-      },
-    });
   }
 
   isAccountCompatible(account: Bip44Account<InternalAccount>): boolean {
@@ -131,36 +109,46 @@ export class SolAccountProvider extends SnapAccountProvider {
     entropySource: EntropySourceId;
     groupIndex: number;
   }): Promise<Bip44Account<KeyringAccount>[]> {
-    const discoveredAccounts = await withRetry(
-      () =>
-        withTimeout(
-          this.#client.discoverAccounts(
-            [SolScope.Mainnet],
-            entropySource,
-            groupIndex,
-          ),
-          this.config.discovery.timeoutMs,
-        ),
+    return await super.trace(
       {
-        maxAttempts: this.config.discovery.maxAttempts,
-        backOffMs: this.config.discovery.backOffMs,
+        name: TraceName.SnapDiscoverAccounts,
+        data: {
+          provider: this.getName(),
+        },
+      },
+      async () => {
+        const discoveredAccounts = await withRetry(
+          () =>
+            withTimeout(
+              this.client.discoverAccounts(
+                [SolScope.Mainnet],
+                entropySource,
+                groupIndex,
+              ),
+              this.config.discovery.timeoutMs,
+            ),
+          {
+            maxAttempts: this.config.discovery.maxAttempts,
+            backOffMs: this.config.discovery.backOffMs,
+          },
+        );
+
+        if (!discoveredAccounts.length) {
+          return [];
+        }
+
+        const createdAccounts = await Promise.all(
+          discoveredAccounts.map((d) =>
+            this.#createAccount({
+              entropySource,
+              groupIndex,
+              derivationPath: d.derivationPath,
+            }),
+          ),
+        );
+
+        return createdAccounts;
       },
     );
-
-    if (!discoveredAccounts.length) {
-      return [];
-    }
-
-    const createdAccounts = await Promise.all(
-      discoveredAccounts.map((d) =>
-        this.#createAccount({
-          entropySource,
-          groupIndex,
-          derivationPath: d.derivationPath,
-        }),
-      ),
-    );
-
-    return createdAccounts;
   }
 }

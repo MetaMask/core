@@ -1,20 +1,21 @@
 {
-  "extends": "../../tsconfig.packages.build.json",
+  "extends": "../../tsconfig.packages.json",
   "compilerOptions": {
-    "baseUrl": "./",
-    "outDir": "./dist",
-    "rootDir": "./src"
+    "baseUrl": "./"
   },
   "references": [
     {
-      "path": "../base-controller/tsconfig.build.json"
+      "path": "../base-controller/tsconfig.json"
     },
     {
-      "path": "../messenger/tsconfig.build.json"
+      "path": "../messenger/tsconfig.json"
     },
     {
-      "path": "../profile-sync-controller/tsconfig.build.json"
+      "path": "../profile-sync-controller/tsconfig.json"
+    },
+    {
+      "path": "../keyring-controller/tsconfig.json"
     }
   ],
-  "include": ["../../types", "./src"]
+  "include": ["../../types", "./src", "./tests"]
 }

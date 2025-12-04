@@ -1,7 +1,5 @@
-import {
-  TransactionStatus,
-  type BatchTransaction,
-} from '@metamask/transaction-controller';
+import { TransactionStatus } from '@metamask/transaction-controller';
+import type { BatchTransaction } from '@metamask/transaction-controller';
 import type { TransactionMeta } from '@metamask/transaction-controller';
 import type { Hex, Json } from '@metamask/utils';
 import { createModuleLogger } from '@metamask/utils';
@@ -149,7 +147,7 @@ function syncTransaction({
       tx.metamaskPay = {
         bridgeFeeFiat: totals.fees.provider.usd,
         chainId: paymentToken.chainId,
-        networkFeeFiat: totals.fees.sourceNetwork.usd,
+        networkFeeFiat: totals.fees.sourceNetwork.estimate.usd,
         tokenAddress: paymentToken.address,
         totalFiat: totals.total.usd,
       };
@@ -272,7 +270,7 @@ async function getQuotes(
   messenger: TransactionPayControllerMessenger,
 ) {
   const { id: transactionId } = transaction;
-  const strategy = await getStrategy(messenger as never, transaction);
+  const strategy = getStrategy(messenger as never, transaction);
   let quotes: TransactionPayQuote<Json>[] | undefined = [];
 
   try {

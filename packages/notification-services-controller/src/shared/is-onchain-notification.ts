@@ -15,8 +15,7 @@ export function isOnChainRawNotification(
   // It is safe enough just to check "some" fields, and catch any errors down the line if the shape is bad.
   const isValidEnoughToBeOnChainNotification = [
     assumed?.id,
-    assumed?.data,
-    assumed?.trigger_id,
+    assumed?.payload?.data,
   ].every((field) => field !== undefined);
   return isValidEnoughToBeOnChainNotification;
 }

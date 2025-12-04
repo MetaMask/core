@@ -4,11 +4,11 @@ import type {
   AccountsControllerListMultichainAccountsAction,
   AccountsControllerAccountBalancesUpdatesEvent,
 } from '@metamask/accounts-controller';
-import {
-  BaseController,
-  type StateMetadata,
-  type ControllerGetStateAction,
-  type ControllerStateChangeEvent,
+import { BaseController } from '@metamask/base-controller';
+import type {
+  StateMetadata,
+  ControllerGetStateAction,
+  ControllerStateChangeEvent,
 } from '@metamask/base-controller';
 import { isEvmAccountType } from '@metamask/keyring-api';
 import type {
@@ -239,11 +239,11 @@ export class MultichainBalancesController extends BaseController<
 
           const assetsWithoutBalance = new Set(acc?.assets || []);
 
-          for (const assetId in accountBalances) {
+          for (const assetId of Object.keys(accountBalances)) {
             if (!state.balances[accountId][assetId]) {
               state.balances[accountId][assetId] = accountBalances[assetId];
-              assetsWithoutBalance.delete(assetId as CaipAssetType);
             }
+            assetsWithoutBalance.delete(assetId as CaipAssetType);
           }
 
           // Triggered when an asset is added to the accountAssets list manually

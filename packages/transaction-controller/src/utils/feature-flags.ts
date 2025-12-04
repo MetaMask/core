@@ -1,4 +1,5 @@
-import { createModuleLogger, type Hex } from '@metamask/utils';
+import { createModuleLogger } from '@metamask/utils';
+import type { Hex } from '@metamask/utils';
 
 import { isValidSignature } from './signature';
 import { padHexToEvenLength } from './utils';

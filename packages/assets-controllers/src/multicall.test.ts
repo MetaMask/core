@@ -10,8 +10,8 @@ import {
   aggregate3,
   getTokenBalancesForMultipleAddresses,
   getStakedBalancesForAddresses,
-  type Aggregate3Call,
 } from './multicall';
+import type { Aggregate3Call } from './multicall';
 
 const provider = new Web3Provider(jest.fn());
 
@@ -71,12 +71,10 @@ describe('multicall', () => {
       expect(results).toMatchObject([
         {
           success: true,
-          // eslint-disable-next-line @typescript-eslint/naming-convention
           value: { _hex: '0x01' },
         },
         {
           success: true,
-          // eslint-disable-next-line @typescript-eslint/naming-convention
           value: { _hex: '0x02' },
         },
       ]);
@@ -126,12 +124,10 @@ describe('multicall', () => {
       expect(results).toMatchObject([
         {
           success: true,
-          // eslint-disable-next-line @typescript-eslint/naming-convention
           value: { _hex: '0x01' },
         },
         {
           success: true,
-          // eslint-disable-next-line @typescript-eslint/naming-convention
           value: { _hex: '0x02' },
         },
       ]);
@@ -166,7 +162,6 @@ describe('multicall', () => {
       expect(results).toMatchObject([
         {
           success: true,
-          // eslint-disable-next-line @typescript-eslint/naming-convention
           value: { _hex: '0x01' },
         },
       ]);

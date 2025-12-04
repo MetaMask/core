@@ -4,12 +4,8 @@ import type {
   MiddlewareContext,
 } from '@metamask/json-rpc-engine/v2';
 import SafeEventEmitter from '@metamask/safe-event-emitter';
-import {
-  createDeferredPromise,
-  type DeferredPromise,
-  getErrorMessage,
-  type JsonRpcRequest,
-} from '@metamask/utils';
+import { createDeferredPromise, getErrorMessage } from '@metamask/utils';
+import type { DeferredPromise, JsonRpcRequest } from '@metamask/utils';
 import getCreateRandomId from 'json-rpc-random-id';
 
 import type { BlockTracker } from './BlockTracker';

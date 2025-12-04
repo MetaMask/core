@@ -1,21 +1,25 @@
+import { processAPINotifications } from './process-api-notifications';
 import {
   isFeatureAnnouncementRead,
   processFeatureAnnouncement,
 } from './process-feature-announcement';
-import { processOnChainNotification } from './process-onchain-notifications';
 import { processSnapNotification } from './process-snap-notifications';
-import { TRIGGER_TYPES } from '../constants/notification-schema';
+import {
+  TRIGGER_TYPES,
+  NOTIFICATION_API_TRIGGER_TYPES_SET,
+} from '../constants/notification-schema';
 import type { FeatureAnnouncementRawNotification } from '../types/feature-announcement/feature-announcement';
 import type {
   INotification,
   RawNotificationUnion,
 } from '../types/notification/notification';
-import type { OnChainRawNotification } from '../types/on-chain-notification/on-chain-notification';
+import type { NormalisedAPINotification } from '../types/notification-api/notification-api';
 import type { RawSnapNotification } from '../types/snaps';
 
 const isOnChainNotification = (
   n: RawNotificationUnion,
-): n is OnChainRawNotification => Object.values(TRIGGER_TYPES).includes(n.type);
+): n is NormalisedAPINotification =>
+  NOTIFICATION_API_TRIGGER_TYPES_SET.has(n.type);
 
 const isFeatureAnnouncement = (
   n: RawNotificationUnion,
@@ -44,9 +48,7 @@ export function processNotification(
   };
 
   if (isFeatureAnnouncement(notification)) {
-    const n = processFeatureAnnouncement(
-      notification as FeatureAnnouncementRawNotification,
-    );
+    const n = processFeatureAnnouncement(notification);
     n.isRead = isFeatureAnnouncementRead(n, readNotifications);
     return n;
   }
@@ -56,10 +58,10 @@ export function processNotification(
   }
 
   if (isOnChainNotification(notification)) {
-    return processOnChainNotification(notification);
+    return processAPINotifications(notification);
   }
 
-  return exhaustedAllCases(notification as never);
+  return exhaustedAllCases(notification);
 }
 
 /**

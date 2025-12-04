@@ -3,11 +3,8 @@ import type { InternalAccount } from '@metamask/keyring-internal-api';
 import type { NetworkClient } from '@metamask/network-controller';
 import BN from 'bn.js';
 
-import {
-  RpcBalanceFetcher,
-  type ChainIdHex,
-  type ChecksumAddress,
-} from './rpc-balance-fetcher';
+import { RpcBalanceFetcher } from './rpc-balance-fetcher';
+import type { ChainIdHex, ChecksumAddress } from './rpc-balance-fetcher';
 import type { TokensControllerState } from '../TokensController';
 
 const MOCK_ADDRESS_1 = '0xd8dA6BF26964aF9D7eEd9e03E53415D37aA96045';
@@ -231,7 +228,7 @@ describe('RpcBalanceFetcher', () => {
         allAccounts: MOCK_INTERNAL_ACCOUNTS,
       });
 
-      expect(result).toStrictEqual([]);
+      expect(result).toStrictEqual({ balances: [] });
       expect(mockGetTokensState).not.toHaveBeenCalled();
       expect(mockGetProvider).not.toHaveBeenCalled();
     });
@@ -282,10 +279,10 @@ describe('RpcBalanceFetcher', () => {
       );
 
       // Should return all balances from the mock (DAI for both accounts + USDC + ETH for both)
-      expect(result.length).toBeGreaterThan(0);
+      expect(result.balances.length).toBeGreaterThan(0);
 
       // Check that we get balances for the selected account
-      const address1Balances = result.filter(
+      const address1Balances = result.balances.filter(
         (r) => r.account === MOCK_ADDRESS_1,
       );
       expect(address1Balances.length).toBeGreaterThan(0);
@@ -322,7 +319,7 @@ describe('RpcBalanceFetcher', () => {
       );
 
       // Should return all balances from the mock
-      expect(result.length).toBeGreaterThan(0);
+      expect(result.balances.length).toBeGreaterThan(0);
     });
 
     it('should handle multiple chain IDs', async () => {
@@ -347,7 +344,7 @@ describe('RpcBalanceFetcher', () => {
       });
 
       // Check that we have failed balances (null values)
-      const failedBalances = result.filter((r) => !r.success);
+      const failedBalances = result.balances.filter((r) => !r.success);
       expect(failedBalances.length).toBeGreaterThan(0);
 
       // Verify the failed balance structure
@@ -375,7 +372,7 @@ describe('RpcBalanceFetcher', () => {
       });
 
       // Even with no tokens, native token and staked balances will still be processed
-      expect(result.length).toBeGreaterThan(0);
+      expect(result.balances.length).toBeGreaterThan(0);
       expect(mockGetProvider).toHaveBeenCalled();
       expect(mockGetTokenBalancesForMultipleAddresses).toHaveBeenCalled();
     });
@@ -407,7 +404,7 @@ describe('RpcBalanceFetcher', () => {
 
       // With parallel processing and safelyExecuteWithTimeout, errors are caught gracefully
       // and an empty array is returned for failed chains
-      expect(result).toStrictEqual([]);
+      expect(result).toStrictEqual({ balances: [] });
     });
 
     it('should handle multicall errors gracefully', async () => {
@@ -424,7 +421,7 @@ describe('RpcBalanceFetcher', () => {
 
       // With parallel processing and safelyExecuteWithTimeout, errors are caught gracefully
       // and an empty array is returned for failed chains
-      expect(result).toStrictEqual([]);
+      expect(result).toStrictEqual({ balances: [] });
     });
 
     it('should handle timeout gracefully when safelyExecuteWithTimeout returns undefined', async () => {
@@ -439,7 +436,7 @@ describe('RpcBalanceFetcher', () => {
       });
 
       // Should return empty array when timeout occurs
-      expect(result).toStrictEqual([]);
+      expect(result).toStrictEqual({ balances: [] });
       expect(mockSafelyExecuteWithTimeout).toHaveBeenCalled();
     });
 
@@ -460,8 +457,10 @@ describe('RpcBalanceFetcher', () => {
       });
 
       // Should return results only from the successful chain
-      expect(result.length).toBeGreaterThan(0);
-      expect(result.every((r) => r.chainId === MOCK_CHAIN_ID_2)).toBe(true);
+      expect(result.balances.length).toBeGreaterThan(0);
+      expect(result.balances.every((r) => r.chainId === MOCK_CHAIN_ID_2)).toBe(
+        true,
+      );
     });
   });
 
@@ -480,7 +479,7 @@ describe('RpcBalanceFetcher', () => {
       });
 
       // Even with no tokens, native token and staked balances will still be processed
-      expect(result.length).toBeGreaterThan(0);
+      expect(result.balances.length).toBeGreaterThan(0);
       expect(mockGetTokenBalancesForMultipleAddresses).toHaveBeenCalled();
     });
 
@@ -679,7 +678,7 @@ describe('RpcBalanceFetcher', () => {
       });
 
       // Should include staked balance for the selected account only (queryAllAccounts: false)
-      const stakingResults = result.filter(
+      const stakingResults = result.balances.filter(
         (r) => r.token === STAKING_CONTRACT_ADDRESS,
       );
       const stakedBalance1 = stakingResults.find(
@@ -714,7 +713,7 @@ describe('RpcBalanceFetcher', () => {
       });
 
       // Should still include staked balance entries with zero values
-      const stakingResults = result.filter(
+      const stakingResults = result.balances.filter(
         (r) => r.token === STAKING_CONTRACT_ADDRESS,
       );
       const stakedBalance = stakingResults.find(
@@ -735,7 +734,7 @@ describe('RpcBalanceFetcher', () => {
       });
 
       // Should include staked balances for all accounts when queryAllAccounts: true
-      const stakedBalances = result.filter(
+      const stakedBalances = result.balances.filter(
         (r) => r.token === STAKING_CONTRACT_ADDRESS,
       );
 
@@ -765,7 +764,7 @@ describe('RpcBalanceFetcher', () => {
       });
 
       // Should not include any staking balances for unsupported chains
-      const stakedBalances = result.filter(
+      const stakedBalances = result.balances.filter(
         (r) => r.token === STAKING_CONTRACT_ADDRESS,
       );
 
@@ -792,7 +791,9 @@ describe('RpcBalanceFetcher', () => {
       });
 
       // Should still include native token entry with zero value
-      const nativeResults = result.filter((r) => r.token === ZERO_ADDRESS);
+      const nativeResults = result.balances.filter(
+        (r) => r.token === ZERO_ADDRESS,
+      );
       const nativeBalance = nativeResults.find(
         (r) => r.account === MOCK_ADDRESS_1,
       );
@@ -811,7 +812,9 @@ describe('RpcBalanceFetcher', () => {
       });
 
       // Should include native balances for all accounts
-      const nativeBalances = result.filter((r) => r.token === ZERO_ADDRESS);
+      const nativeBalances = result.balances.filter(
+        (r) => r.token === ZERO_ADDRESS,
+      );
 
       expect(nativeBalances).toHaveLength(2);
 

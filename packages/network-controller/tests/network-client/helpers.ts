@@ -3,13 +3,16 @@ import type { InfuraNetworkType } from '@metamask/controller-utils';
 import { BUILT_IN_NETWORKS } from '@metamask/controller-utils';
 import type { BlockTracker } from '@metamask/eth-block-tracker';
 import EthQuery from '@metamask/eth-query';
-import type { Hex } from '@metamask/utils';
+import type { Hex, JsonRpcRequest } from '@metamask/utils';
 import nock, { isDone as nockIsDone } from 'nock';
 import type { Scope as NockScope } from 'nock';
 import { useFakeTimers } from 'sinon';
 
 import { createNetworkClient } from '../../src/create-network-client';
-import type { NetworkControllerOptions } from '../../src/NetworkController';
+import type {
+  NetworkClientId,
+  NetworkControllerOptions,
+} from '../../src/NetworkController';
 import type { NetworkClientConfiguration, Provider } from '../../src/types';
 import { NetworkClientType } from '../../src/types';
 import type { RootMessenger } from '../helpers';
@@ -85,7 +88,10 @@ type Response = {
   result?: any;
   httpStatus?: number;
 };
-export type MockResponse = { body: JSONRPCResponse | string } | Response;
+export type MockResponse =
+  | { body: JSONRPCResponse | string }
+  | Response
+  | (() => Response | Promise<Response>);
 type CurriedMockRpcCallOptions = {
   request: MockRequest;
   // The response data.
@@ -147,22 +153,12 @@ function mockRpcCall({
   // eth-query always passes `params`, so even if we don't supply this property,
   // for consistency with makeRpcCall, assume that the `body` contains it
   const { method, params = [], ...rest } = request;
-  let httpStatus = 200;
-  let completeResponse: JSONRPCResponse | string = { id: 2, jsonrpc: '2.0' };
-  if (response !== undefined) {
-    if ('body' in response) {
-      completeResponse = response.body;
-    } else {
-      if (response.error) {
-        completeResponse.error = response.error;
-      } else {
-        completeResponse.result = response.result;
-      }
-      if (response.httpStatus) {
-        httpStatus = response.httpStatus;
-      }
-    }
-  }
+  const httpStatus =
+    (typeof response === 'object' &&
+      'httpStatus' in response &&
+      response.httpStatus) ||
+    200;
+
   /* @ts-expect-error The types for Nock do not include `basePath` in the interface for Nock.Scope. */
   const url = nockScope.basePath.includes('infura.io')
     ? `/v3/${MOCK_INFURA_PROJECT_ID}`
@@ -196,26 +192,42 @@ function mockRpcCall({
 
   if (error !== undefined) {
     return nockRequest.replyWithError(error);
-  } else if (completeResponse !== undefined) {
-    // TODO: Replace `any` with type
-    // eslint-disable-next-line @typescript-eslint/no-explicit-any
-    return nockRequest.reply(httpStatus, (_, requestBody: any) => {
-      if (typeof completeResponse === 'string') {
-        return completeResponse;
-      }
-
-      if (response !== undefined && !('body' in response)) {
-        if (response.id === undefined) {
-          completeResponse.id = requestBody.id;
-        } else {
-          completeResponse.id = response.id;
-        }
-      }
-      debug('Nock returning Response', completeResponse);
-      return completeResponse;
-    });
   }
-  return nockRequest;
+
+  return nockRequest.reply(async (_uri, requestBody) => {
+    const jsonRpcRequest = requestBody as JsonRpcRequest;
+    let resolvedResponse: Response | string | JSONRPCResponse | undefined;
+    if (typeof response === 'function') {
+      resolvedResponse = await response();
+    } else if (response !== undefined && 'body' in response) {
+      resolvedResponse = response.body;
+    } else {
+      resolvedResponse = response;
+    }
+
+    if (
+      typeof resolvedResponse === 'string' ||
+      resolvedResponse === undefined
+    ) {
+      return [httpStatus, resolvedResponse];
+    }
+
+    const {
+      id: jsonRpcId = jsonRpcRequest.id,
+      jsonrpc: jsonRpcVersion = jsonRpcRequest.jsonrpc,
+      result: jsonRpcResult,
+      error: jsonRpcError,
+    } = resolvedResponse;
+
+    const completeResponse = {
+      id: jsonRpcId,
+      jsonrpc: jsonRpcVersion,
+      result: jsonRpcResult,
+      error: jsonRpcError,
+    };
+    debug('Nock returning Response', completeResponse);
+    return [httpStatus, completeResponse];
+  });
 }
 
 type MockBlockTrackerRequestOptions = {
@@ -316,6 +328,7 @@ export type MockOptions = {
   getBlockTrackerOptions?: NetworkControllerOptions['getBlockTrackerOptions'];
   expectedHeaders?: Record<string, string>;
   messenger?: RootMessenger;
+  networkClientId?: NetworkClientId;
   isRpcFailoverEnabled?: boolean;
 };
 
@@ -430,8 +443,6 @@ export async function waitForPromiseToBeFulfilledAfterRunningAllTimers(
   let hasPromiseBeenFulfilled = false;
   let numTimesClockHasBeenAdvanced = 0;
 
-  // This is a mistake, we are catching this promise.
-  // eslint-disable-next-line promise/catch-or-return
   promise
     // TODO: Replace `any` with type
     // eslint-disable-next-line @typescript-eslint/no-explicit-any
@@ -476,6 +487,7 @@ export async function waitForPromiseToBeFulfilledAfterRunningAllTimers(
  * @param options.getRpcServiceOptions - RPC service options factory.
  * @param options.getBlockTrackerOptions - Block tracker options factory.
  * @param options.messenger - The root messenger to use in tests.
+ * @param options.networkClientId - The ID of the new network client.
  * @param options.isRpcFailoverEnabled - Whether or not the RPC failover
  * functionality is enabled.
  * @param fn - A function which will be called with an object that allows
@@ -493,6 +505,7 @@ export async function withNetworkClient(
     getRpcServiceOptions = () => ({ fetch, btoa }),
     getBlockTrackerOptions = () => ({}),
     messenger = buildRootMessenger(),
+    networkClientId = 'some-network-client-id',
     isRpcFailoverEnabled = false,
   }: MockOptions,
   // TODO: Replace `any` with type
@@ -542,6 +555,7 @@ export async function withNetworkClient(
       : `https://${infuraNetwork}.infura.io/v3/${MOCK_INFURA_PROJECT_ID}`;
 
   const networkClient = createNetworkClient({
+    id: networkClientId,
     configuration: networkClientConfiguration,
     getRpcServiceOptions,
     getBlockTrackerOptions,

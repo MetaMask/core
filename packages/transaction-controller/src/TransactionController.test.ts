@@ -15,12 +15,11 @@ import {
 import type { InternalProvider } from '@metamask/eth-json-rpc-provider';
 import EthQuery from '@metamask/eth-query';
 import HttpProvider from '@metamask/ethjs-provider-http';
-import {
-  Messenger,
-  type MockAnyNamespace,
-  type MessengerActions,
-  type MessengerEvents,
-  MOCK_ANY_NAMESPACE,
+import { Messenger, MOCK_ANY_NAMESPACE } from '@metamask/messenger';
+import type {
+  MockAnyNamespace,
+  MessengerActions,
+  MessengerEvents,
 } from '@metamask/messenger';
 import type {
   BlockTracker,
@@ -1131,6 +1130,72 @@ describe('TransactionController', () => {
       expect(transactions[5].status).toBe(TransactionStatus.failed);
     });
 
+    it('fails required transactions of approved and signed transactions', async () => {
+      const mockTransactionMeta = {
+        from: ACCOUNT_MOCK,
+        txParams: {
+          from: ACCOUNT_MOCK,
+          to: ACCOUNT_2_MOCK,
+        },
+      };
+      const mockedTransactions = [
+        {
+          id: '123',
+          history: [{ ...mockTransactionMeta, id: '123' }],
+          chainId: toHex(5),
+          status: TransactionStatus.approved,
+          requiredTransactionIds: ['222', '333'],
+          ...mockTransactionMeta,
+        },
+        {
+          id: '111',
+          history: [{ ...mockTransactionMeta, id: '111' }],
+          chainId: toHex(5),
+          status: TransactionStatus.signed,
+          ...mockTransactionMeta,
+        },
+        {
+          id: '222',
+          history: [{ ...mockTransactionMeta, id: '222' }],
+          chainId: toHex(1),
+          status: TransactionStatus.confirmed,
+          ...mockTransactionMeta,
+        },
+        {
+          id: '333',
+          history: [{ ...mockTransactionMeta, id: '333' }],
+          chainId: toHex(16),
+          status: TransactionStatus.submitted,
+          ...mockTransactionMeta,
+        },
+      ];
+
+      const mockedControllerState = {
+        transactions: mockedTransactions,
+        methodData: {},
+        lastFetchedBlockNumbers: {},
+      };
+
+      const { controller } = setupController({
+        options: {
+          // TODO: Replace `any` with type
+          // eslint-disable-next-line @typescript-eslint/no-explicit-any
+          state: mockedControllerState as any,
+        },
+      });
+
+      await flushPromises();
+
+      const { transactions } = controller.state;
+
+      expect(transactions.map((t) => [t.id, t.status])).toStrictEqual([
+        ['333', TransactionStatus.failed],
+        ['222', TransactionStatus.confirmed],
+        ['111', TransactionStatus.failed],
+        ['123', TransactionStatus.failed],
+      ]);
+    });
+
     it('removes unapproved transactions', async () => {
       const mockTransactionMeta = {
         from: ACCOUNT_MOCK,
@@ -1686,16 +1751,18 @@ describe('TransactionController', () => {
         batchId: undefined,
         chainId: expect.any(String),
         dappSuggestedGasFees: undefined,
-        delegationAddress: undefined,
         deviceConfirmedOn: undefined,
         disableGasBuffer: undefined,
         id: expect.any(String),
         isFirstTimeInteraction: undefined,
         isGasFeeIncluded: undefined,
+        isGasFeeSponsored: undefined,
+        isGasFeeTokenIgnoredIfBalance: false,
         nestedTransactions: undefined,
         networkClientId: NETWORK_CLIENT_ID_MOCK,
         origin: undefined,
         securityAlertResponse: undefined,
+        selectedGasFeeToken: undefined,
         sendFlowHistory: expect.any(Array),
         status: TransactionStatus.unapproved as const,
         time: expect.any(Number),
@@ -8470,6 +8537,58 @@ describe('TransactionController', () => {
         );
 
         expect(controller.state.transactions[0].txParams.value).toBe('0x1');
+      });
+    });
+
+    describe('TransactionController:getGasFeeTokens', () => {
+      it('returns gas fee tokens', async () => {
+        const { messenger } = setupController();
+
+        getGasFeeTokensMock.mockResolvedValueOnce({
+          gasFeeTokens: [GAS_FEE_TOKEN_MOCK],
+          isGasFeeSponsored: false,
+        });
+
+        const result = await messenger.call(
+          'TransactionController:getGasFeeTokens',
+          {
+            chainId: CHAIN_ID_MOCK,
+            data: DATA_MOCK,
+            from: ACCOUNT_MOCK,
+            to: ACCOUNT_2_MOCK,
+            value: VALUE_MOCK,
+          },
+        );
+
+        expect(result).toStrictEqual([GAS_FEE_TOKEN_MOCK]);
+      });
+
+      it('includes delegation address and isExternalSign in request', async () => {
+        const { messenger } = setupController();
+
+        getGasFeeTokensMock.mockResolvedValueOnce({
+          gasFeeTokens: [GAS_FEE_TOKEN_MOCK],
+          isGasFeeSponsored: false,
+        });
+
+        getDelegationAddressMock.mockResolvedValue(ACCOUNT_2_MOCK);
+
+        await messenger.call('TransactionController:getGasFeeTokens', {
+          chainId: CHAIN_ID_MOCK,
+          data: DATA_MOCK,
+          from: ACCOUNT_MOCK,
+          to: ACCOUNT_MOCK,
+          value: VALUE_MOCK,
+        });
+
+        expect(getGasFeeTokensMock).toHaveBeenCalledWith(
+          expect.objectContaining({
+            transactionMeta: expect.objectContaining({
+              delegationAddress: ACCOUNT_2_MOCK,
+              isExternalSign: true,
+            }),
+          }),
+        );
       });
     });
   });

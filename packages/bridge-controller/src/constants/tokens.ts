@@ -1,4 +1,4 @@
-import { BtcScope, SolScope } from '@metamask/keyring-api';
+import { BtcScope, SolScope, TrxScope } from '@metamask/keyring-api';
 
 import type { AllowedBridgeChainIds } from './bridge';
 import { CHAIN_IDS } from './chains';
@@ -26,7 +26,8 @@ export type SwapsTokenObject = {
   iconUrl: string;
 };
 
-const DEFAULT_TOKEN_ADDRESS = '0x0000000000000000000000000000000000000000';
+export const DEFAULT_TOKEN_ADDRESS =
+  '0x0000000000000000000000000000000000000000';
 
 const CURRENCY_SYMBOLS = {
   ARBITRUM: 'ETH',
@@ -54,6 +55,7 @@ const CURRENCY_SYMBOLS = {
   SOL: 'SOL',
   SEI: 'SEI',
   BTC: 'BTC',
+  TRX: 'TRX',
   MON: 'MON',
 } as const;
 
@@ -157,6 +159,14 @@ const SEI_SWAPS_TOKEN_OBJECT = {
   iconUrl: '',
 } as const;
 
+const TRX_SWAPS_TOKEN_OBJECT = {
+  symbol: CURRENCY_SYMBOLS.TRX,
+  name: 'Tron',
+  address: DEFAULT_TOKEN_ADDRESS,
+  decimals: 6,
+  iconUrl: '',
+} as const;
+
 const MONAD_SWAPS_TOKEN_OBJECT = {
   symbol: CURRENCY_SYMBOLS.MON,
   name: 'Mon',
@@ -165,11 +175,9 @@ const MONAD_SWAPS_TOKEN_OBJECT = {
   iconUrl: '',
 } as const;
 
-const SWAPS_TESTNET_CHAIN_ID = '0x539';
-
 export const SWAPS_CHAINID_DEFAULT_TOKEN_MAP = {
   [CHAIN_IDS.MAINNET]: ETH_SWAPS_TOKEN_OBJECT,
-  [SWAPS_TESTNET_CHAIN_ID]: TEST_ETH_SWAPS_TOKEN_OBJECT,
+  [CHAIN_IDS.LOCALHOST]: TEST_ETH_SWAPS_TOKEN_OBJECT,
   [CHAIN_IDS.BSC]: BNB_SWAPS_TOKEN_OBJECT,
   [CHAIN_IDS.POLYGON]: MATIC_SWAPS_TOKEN_OBJECT,
   [CHAIN_IDS.GOERLI]: GOERLI_SWAPS_TOKEN_OBJECT,
@@ -185,12 +193,13 @@ export const SWAPS_CHAINID_DEFAULT_TOKEN_MAP = {
   [SolScope.Mainnet]: SOLANA_SWAPS_TOKEN_OBJECT,
   [SolScope.Devnet]: SOLANA_SWAPS_TOKEN_OBJECT,
   [BtcScope.Mainnet]: BTC_SWAPS_TOKEN_OBJECT,
+  [TrxScope.Mainnet]: TRX_SWAPS_TOKEN_OBJECT,
 } as const;
 
 export type SupportedSwapsNativeCurrencySymbols =
   (typeof SWAPS_CHAINID_DEFAULT_TOKEN_MAP)[
     | AllowedBridgeChainIds
-    | typeof SWAPS_TESTNET_CHAIN_ID]['symbol'];
+    | typeof CHAIN_IDS.LOCALHOST]['symbol'];
 
 /**
  * A map of native currency symbols to their SLIP-44 representation
@@ -208,5 +217,6 @@ export const SYMBOL_TO_SLIP44_MAP: Record<
   AVAX: 'slip44:9000',
   TESTETH: 'slip44:60',
   SEI: 'slip44:19000118',
+  TRX: 'slip44:195',
   MON: 'slip44:268435779',
 };

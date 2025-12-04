@@ -214,7 +214,7 @@ export function bnFromHex(hex: string | Hex): BN {
  */
 export function toBN(value: unknown): BN {
   if (value instanceof BN) {
-    return value as BN;
+    return value;
   }
   if (
     typeof (BN as unknown as { isBN?: (v: unknown) => boolean }).isBN ===

@@ -8,7 +8,7 @@ import type {
 } from '@metamask/json-rpc-engine/v2';
 import { JsonRpcEngineV2 } from '@metamask/json-rpc-engine/v2';
 import { providerErrors, rpcErrors } from '@metamask/rpc-errors';
-import { type JsonRpcRequest, type Json } from '@metamask/utils';
+import type { JsonRpcRequest, Json } from '@metamask/utils';
 import { BrowserProvider } from 'ethers';
 import { promisify } from 'util';
 
@@ -255,7 +255,6 @@ describe.each([
     it('forwards the context to the JSON-RPC handler', async () => {
       const rpcHandler = createRpcHandler('test', (request, context) => {
         // @ts-expect-error - Intentional type abuse.
-        // eslint-disable-next-line jest/no-conditional-in-test
         return context?.assertGet('foo') ?? request.foo;
       });
       const provider = new InternalProvider({ engine: rpcHandler });
@@ -327,7 +326,6 @@ describe.each([
       // Transform the engine into a server so we can mock the "handle" method.
       // The "handle" method should never throw, but we should be resilient to it anyway.
       rpcHandler =
-        // eslint-disable-next-line jest/no-conditional-in-test
         'push' in rpcHandler
           ? JsonRpcEngineV2.create({ middleware: [asV2Middleware(rpcHandler)] })
           : rpcHandler;

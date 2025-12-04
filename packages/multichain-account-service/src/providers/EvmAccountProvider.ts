@@ -1,5 +1,6 @@
 import { publicToAddress } from '@ethereumjs/util';
 import type { Bip44Account } from '@metamask/account-api';
+import type { TraceCallback } from '@metamask/controller-utils';
 import type { HdKeyring } from '@metamask/eth-hd-keyring';
 import type { EntropySourceId, KeyringAccount } from '@metamask/keyring-api';
 import { EthAccountType } from '@metamask/keyring-api';
@@ -9,7 +10,8 @@ import type {
   InternalAccount,
 } from '@metamask/keyring-internal-api';
 import type { Provider } from '@metamask/network-controller';
-import { add0x, assert, bytesToHex, type Hex } from '@metamask/utils';
+import { add0x, assert, bytesToHex } from '@metamask/utils';
+import type { Hex } from '@metamask/utils';
 
 import {
   assertAreBip44Accounts,
@@ -17,6 +19,8 @@ import {
   BaseBip44AccountProvider,
 } from './BaseBip44AccountProvider';
 import { withRetry, withTimeout } from './utils';
+import { traceFallback } from '../analytics';
+import { TraceName } from '../constants/traces';
 import type { MultichainAccountServiceMessenger } from '../types';
 
 const ETH_MAINNET_CHAIN_ID = '0x1';
@@ -50,6 +54,8 @@ export class EvmAccountProvider extends BaseBip44AccountProvider {
 
   readonly #config: EvmAccountProviderConfig;
 
+  readonly #trace: TraceCallback;
+
   constructor(
     messenger: MultichainAccountServiceMessenger,
     config: EvmAccountProviderConfig = {
@@ -59,9 +65,11 @@ export class EvmAccountProvider extends BaseBip44AccountProvider {
         backOffMs: 500,
       },
     },
+    trace?: TraceCallback,
   ) {
     super(messenger);
     this.#config = config;
+    this.#trace = trace ?? traceFallback;
   }
 
   isAccountCompatible(account: Bip44Account<InternalAccount>): boolean {
@@ -213,38 +221,53 @@ export class EvmAccountProvider extends BaseBip44AccountProvider {
     entropySource: EntropySourceId;
     groupIndex: number;
   }): Promise<Bip44Account<KeyringAccount>[]> {
-    const provider = this.getEvmProvider();
-    const { entropySource, groupIndex } = opts;
+    return this.#trace(
+      {
+        name: TraceName.EvmDiscoverAccounts,
+        data: {
+          provider: this.getName(),
+        },
+      },
+      async () => {
+        const provider = this.getEvmProvider();
+        const { entropySource, groupIndex } = opts;
 
-    const addressFromGroupIndex = await this.#getAddressFromGroupIndex({
-      entropySource,
-      groupIndex,
-    });
+        const addressFromGroupIndex = await this.#getAddressFromGroupIndex({
+          entropySource,
+          groupIndex,
+        });
 
-    const count = await this.#getTransactionCount(
-      provider,
-      addressFromGroupIndex,
+        const count = await this.#getTransactionCount(
+          provider,
+          addressFromGroupIndex,
+        );
+        if (count === 0) {
+          return [];
+        }
+
+        // We have some activity on this address, we try to create the account.
+        const [address] = await this.#createAccount({
+          entropySource,
+          groupIndex,
+        });
+        assert(
+          addressFromGroupIndex === address,
+          'Created account does not match address from group index.',
+        );
+
+        const account = this.messenger.call(
+          'AccountsController:getAccountByAddress',
+          address,
+        );
+        assertInternalAccountExists(account);
+        assertIsBip44Account(account);
+        return [account];
+      },
     );
-    if (count === 0) {
-      return [];
-    }
+  }
 
-    // We have some activity on this address, we try to create the account.
-    const [address] = await this.#createAccount({
-      entropySource,
-      groupIndex,
-    });
-    assert(
-      addressFromGroupIndex === address,
-      'Created account does not match address from group index.',
-    );
-
-    const account = this.messenger.call(
-      'AccountsController:getAccountByAddress',
-      address,
-    );
-    assertInternalAccountExists(account);
-    assertIsBip44Account(account);
-    return [account];
+  async resyncAccounts(): Promise<void> {
+    // No-op for the EVM account provider, since keyring accounts are already on
+    // the MetaMask side.
   }
 }

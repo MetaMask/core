@@ -4,11 +4,11 @@ import type {
   JsonRpcEngineEndCallback,
 } from '@metamask/json-rpc-engine';
 import { invalidParams, MethodNames } from '@metamask/permission-controller';
-import {
-  isNonEmptyArray,
-  type Json,
-  type JsonRpcRequest,
-  type PendingJsonRpcResponse,
+import { isNonEmptyArray } from '@metamask/utils';
+import type {
+  Json,
+  JsonRpcRequest,
+  PendingJsonRpcResponse,
 } from '@metamask/utils';
 
 import { EndowmentTypes, RestrictedMethods } from './types';

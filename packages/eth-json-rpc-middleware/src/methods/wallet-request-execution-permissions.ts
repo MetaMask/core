@@ -1,3 +1,4 @@
+import type { JsonRpcMiddleware } from '@metamask/json-rpc-engine/v2';
 import { rpcErrors } from '@metamask/rpc-errors';
 import type { Infer } from '@metamask/superstruct';
 import {
@@ -11,16 +12,11 @@ import {
   union,
   unknown,
 } from '@metamask/superstruct';
-import {
-  HexChecksumAddressStruct,
-  type Hex,
-  type Json,
-  type JsonRpcRequest,
-  type PendingJsonRpcResponse,
-  StrictHexStruct,
-} from '@metamask/utils';
+import { HexChecksumAddressStruct, StrictHexStruct } from '@metamask/utils';
+import type { Hex, Json, JsonRpcRequest } from '@metamask/utils';
 
 import { validateParams } from '../utils/validation';
+import type { WalletMiddlewareContext } from '../wallet';
 
 const PermissionStruct = object({
   type: string(),
@@ -66,24 +62,31 @@ export type ProcessRequestExecutionPermissionsHook = (
   req: JsonRpcRequest,
 ) => Promise<RequestExecutionPermissionsResult>;
 
-export async function walletRequestExecutionPermissions(
-  req: JsonRpcRequest,
-  res: PendingJsonRpcResponse,
-  {
-    processRequestExecutionPermissions,
-  }: {
-    processRequestExecutionPermissions?: ProcessRequestExecutionPermissionsHook;
-  },
-): Promise<void> {
-  if (!processRequestExecutionPermissions) {
-    throw rpcErrors.methodNotSupported(
-      'wallet_requestExecutionPermissions - no middleware configured',
-    );
-  }
+/**
+ * Creates a handler for the `wallet_requestExecutionPermissions` JSON-RPC method.
+ *
+ * @param options - The options for the handler.
+ * @param options.processRequestExecutionPermissions - The function to process the
+ * request execution permissions request.
+ * @returns A JSON-RPC middleware function that handles the
+ * `wallet_requestExecutionPermissions` JSON-RPC method.
+ */
+export function createWalletRequestExecutionPermissionsHandler({
+  processRequestExecutionPermissions,
+}: {
+  processRequestExecutionPermissions?: ProcessRequestExecutionPermissionsHook;
+}): JsonRpcMiddleware<JsonRpcRequest, Json, WalletMiddlewareContext> {
+  return async ({ request }) => {
+    if (!processRequestExecutionPermissions) {
+      throw rpcErrors.methodNotSupported(
+        'wallet_requestExecutionPermissions - no middleware configured',
+      );
+    }
 
-  const { params } = req;
+    const { params } = request;
 
-  validateParams(params, RequestExecutionPermissionsStruct);
+    validateParams(params, RequestExecutionPermissionsStruct);
 
-  res.result = await processRequestExecutionPermissions(params, req);
+    return await processRequestExecutionPermissions(params, request);
+  };
 }

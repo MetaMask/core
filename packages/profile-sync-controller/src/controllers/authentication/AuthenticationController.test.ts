@@ -1,10 +1,9 @@
 import { deriveStateFromMetadata } from '@metamask/base-controller';
-import {
-  Messenger,
-  MOCK_ANY_NAMESPACE,
-  type MessengerActions,
-  type MessengerEvents,
-  type MockAnyNamespace,
+import { Messenger, MOCK_ANY_NAMESPACE } from '@metamask/messenger';
+import type {
+  MessengerActions,
+  MessengerEvents,
+  MockAnyNamespace,
 } from '@metamask/messenger';
 
 import AuthenticationController from './AuthenticationController';
@@ -298,7 +297,6 @@ describe('AuthenticationController', () => {
       const { messenger } = createMockAuthenticationMessenger();
       mockAuthenticationFlowEndpoints();
       const originalState = mockSignedInState();
-      // eslint-disable-next-line jest/no-conditional-in-test
       if (originalState.srpSessionData) {
         originalState.srpSessionData[
           MOCK_ENTROPY_SOURCE_IDS[0]
@@ -332,7 +330,6 @@ describe('AuthenticationController', () => {
 
       // Invalid/old state
       const originalState = mockSignedInState();
-      // eslint-disable-next-line jest/no-conditional-in-test
       if (originalState.srpSessionData) {
         originalState.srpSessionData[
           MOCK_ENTROPY_SOURCE_IDS[0]
@@ -406,7 +403,6 @@ describe('AuthenticationController', () => {
       const { messenger } = createMockAuthenticationMessenger();
       mockAuthenticationFlowEndpoints();
       const originalState = mockSignedInState();
-      // eslint-disable-next-line jest/no-conditional-in-test
       if (originalState.srpSessionData) {
         originalState.srpSessionData[
           MOCK_ENTROPY_SOURCE_IDS[0]
@@ -443,7 +439,6 @@ describe('AuthenticationController', () => {
 
       // Invalid/old state
       const originalState = mockSignedInState();
-      // eslint-disable-next-line jest/no-conditional-in-test
       if (originalState.srpSessionData) {
         originalState.srpSessionData[
           MOCK_ENTROPY_SOURCE_IDS[0]

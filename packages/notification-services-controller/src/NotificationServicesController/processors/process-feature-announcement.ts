@@ -1,13 +1,6 @@
 import type { FeatureAnnouncementRawNotification } from '../types/feature-announcement/feature-announcement';
 import type { INotification } from '../types/notification/notification';
-
-const ONE_DAY_MS = 1000 * 60 * 60 * 24;
-
-const shouldAutoExpire = (oldDate: Date) => {
-  const differenceInTime = Date.now() - oldDate.getTime();
-  const differenceInDays = differenceInTime / ONE_DAY_MS;
-  return differenceInDays >= 90;
-};
+import { shouldAutoExpire } from '../utils/should-auto-expire';
 
 /**
  * Checks if a feature announcement should be read.

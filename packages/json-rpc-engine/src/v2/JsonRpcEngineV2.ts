@@ -1,9 +1,9 @@
-import {
-  type Json,
-  type JsonRpcRequest,
-  type JsonRpcNotification,
-  type NonEmptyArray,
-  hasProperty,
+import { hasProperty } from '@metamask/utils';
+import type {
+  Json,
+  JsonRpcRequest,
+  JsonRpcNotification,
+  NonEmptyArray,
 } from '@metamask/utils';
 import deepFreeze from 'deep-freeze-strict';
 
@@ -44,7 +44,7 @@ export type Next<Request extends JsonRpcCall> = (
 
 export type MiddlewareParams<
   Request extends JsonRpcCall = JsonRpcCall,
-  Context extends MiddlewareContext = MiddlewareContext,
+  Context extends ContextConstraint = MiddlewareContext,
 > = {
   request: Readonly<Request>;
   context: Context;

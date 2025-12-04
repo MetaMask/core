@@ -5,6 +5,7 @@ import { numberToHex } from '@metamask/utils';
 import { isNonEvmChainId, sumHexes } from './bridge';
 import { formatChainIdToCaip } from './caip-formatters';
 import { computeFeeRequest } from './snaps';
+import { extractTradeData, isTronTrade } from './trade-utils';
 import { CHAIN_IDS } from '../constants/chains';
 import type {
   QuoteResponse,
@@ -12,7 +13,6 @@ import type {
   NonEvmFees,
   TxData,
   BridgeControllerMessenger,
-  BitcoinTradeData,
 } from '../types';
 
 /**
@@ -23,9 +23,9 @@ import type {
  * @returns Array of quotes with fees appended, or undefined if quotes are for non-EVM chains
  */
 const appendL1GasFees = async (
-  quotes: QuoteResponse[],
+  quotes: QuoteResponse<TxData, TxData>[],
   getLayer1GasFee: typeof TransactionController.prototype.getLayer1GasFee,
-): Promise<(QuoteResponse & L1GasFees)[] | undefined> => {
+): Promise<(QuoteResponse<TxData, TxData> & L1GasFees)[] | undefined> => {
   // Indicates whether some of the quotes are not for optimism or base
   const hasInvalidQuotes = quotes.some(({ quote }) => {
     const chainId = formatChainIdToCaip(quote.srcChainId);
@@ -74,7 +74,7 @@ const appendL1GasFees = async (
   );
 
   const quotesWithL1GasFees = (await l1GasFeePromises).reduce<
-    (QuoteResponse & L1GasFees)[]
+    (QuoteResponse<TxData, TxData> & L1GasFees)[]
   >((acc, result) => {
     if (result.status === 'fulfilled' && result.value) {
       acc.push(result.value);
@@ -98,7 +98,7 @@ const appendL1GasFees = async (
 const appendNonEvmFees = async (
   quotes: QuoteResponse[],
   messenger: BridgeControllerMessenger,
-  selectedAccount: InternalAccount,
+  selectedAccount?: InternalAccount,
 ): Promise<(QuoteResponse & NonEvmFees)[] | undefined> => {
   if (
     quotes.some(({ quote: { srcChainId } }) => !isNonEvmChainId(srcChainId))
@@ -118,21 +118,24 @@ const appendNonEvmFees = async (
       try {
         const scope = formatChainIdToCaip(quote.srcChainId);
 
-        // Normalize trade data to string format expected by snap
-        // Solana: trade is already a base64 transaction string
-        // Bitcoin: extract unsignedPsbtBase64 from trade object
-        const transaction =
-          typeof trade === 'string'
-            ? trade
-            : (trade as BitcoinTradeData).unsignedPsbtBase64;
+        const transaction = extractTradeData(trade);
+
+        // Tron trades need the visible flag and contract type to be included in the request options
+        const options = isTronTrade(trade)
+          ? {
+              visible: trade.visible,
+              type: trade.raw_data?.contract?.[0]?.type,
+            }
+          : undefined;
 
         const response = (await messenger.call(
           'SnapController:handleRequest',
           computeFeeRequest(
-            selectedAccount.metadata.snap?.id,
+            selectedAccount?.metadata?.snap?.id,
             transaction,
-            selectedAccount.id,
+            selectedAccount?.id,
             scope,
+            options,
           ),
         )) as {
           type: 'base' | 'priority';
@@ -175,8 +178,6 @@ const appendNonEvmFees = async (
   >((acc, result) => {
     if (result.status === 'fulfilled' && result.value) {
       acc.push(result.value);
-    } else if (result.status === 'rejected') {
-      console.error('Error calculating non-EVM fees for quote', result.reason);
     }
     return acc;
   }, []);
@@ -197,9 +198,13 @@ export const appendFeesToQuotes = async (
   quotes: QuoteResponse[],
   messenger: BridgeControllerMessenger,
   getLayer1GasFee: typeof TransactionController.prototype.getLayer1GasFee,
-  selectedAccount: InternalAccount,
+  selectedAccount?: InternalAccount,
 ): Promise<(QuoteResponse & L1GasFees & NonEvmFees)[]> => {
-  const quotesWithL1GasFees = await appendL1GasFees(quotes, getLayer1GasFee);
+  // Safe to cast: appendL1GasFees checks if all quotes are EVM and returns undefined otherwise
+  const quotesWithL1GasFees = await appendL1GasFees(
+    quotes as QuoteResponse<TxData, TxData>[],
+    getLayer1GasFee,
+  );
   const quotesWithNonEvmFees = await appendNonEvmFees(
     quotes,
     messenger,

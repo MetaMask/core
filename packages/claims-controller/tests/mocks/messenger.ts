@@ -1,9 +1,8 @@
-import {
-  Messenger,
-  MOCK_ANY_NAMESPACE,
-  type MessengerActions,
-  type MessengerEvents,
-  type MockAnyNamespace,
+import { Messenger, MOCK_ANY_NAMESPACE } from '@metamask/messenger';
+import type {
+  MessengerActions,
+  MessengerEvents,
+  MockAnyNamespace,
 } from '@metamask/messenger';
 
 import type {
@@ -31,6 +30,7 @@ export type RootControllerMessenger = Messenger<
  * @param params.mockClaimServiceGenerateMessageForClaimSignature - A mock function for the claim service generate message for claim signature.
  * @param params.mockKeyringControllerSignPersonalMessage - A mock function for the keyring controller sign personal message.
  * @param params.mockClaimsServiceGetClaims - A mock function for the claim service get claims.
+ * @param params.mockClaimsServiceFetchClaimsConfigurations - A mock function for the claim service fetch claims configurations.
  * @returns A mock messenger.
  */
 export function createMockClaimsControllerMessenger({
@@ -39,12 +39,14 @@ export function createMockClaimsControllerMessenger({
   mockClaimServiceGenerateMessageForClaimSignature,
   mockKeyringControllerSignPersonalMessage,
   mockClaimsServiceGetClaims,
+  mockClaimsServiceFetchClaimsConfigurations,
 }: {
   mockClaimServiceRequestHeaders: jest.Mock;
   mockClaimServiceGetClaimsApiUrl: jest.Mock;
   mockClaimServiceGenerateMessageForClaimSignature: jest.Mock;
   mockKeyringControllerSignPersonalMessage: jest.Mock;
   mockClaimsServiceGetClaims: jest.Mock;
+  mockClaimsServiceFetchClaimsConfigurations: jest.Mock;
 }): {
   rootMessenger: RootControllerMessenger;
   messenger: ClaimsControllerMessenger;
@@ -57,6 +59,10 @@ export function createMockClaimsControllerMessenger({
     namespace: MOCK_ANY_NAMESPACE,
   });
 
+  rootMessenger.registerActionHandler(
+    `${SERVICE_NAME}:fetchClaimsConfigurations`,
+    mockClaimsServiceFetchClaimsConfigurations,
+  );
   rootMessenger.registerActionHandler(
     `${SERVICE_NAME}:getRequestHeaders`,
     mockClaimServiceRequestHeaders,
@@ -91,6 +97,7 @@ export function createMockClaimsControllerMessenger({
     messenger,
     events: [],
     actions: [
+      `${SERVICE_NAME}:fetchClaimsConfigurations`,
       `${SERVICE_NAME}:getRequestHeaders`,
       `${SERVICE_NAME}:getClaimsApiUrl`,
       `${SERVICE_NAME}:generateMessageForClaimSignature`,

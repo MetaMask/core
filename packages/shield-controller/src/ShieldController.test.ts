@@ -1,14 +1,10 @@
 import { deriveStateFromMetadata } from '@metamask/base-controller';
+import { SignatureRequestStatus } from '@metamask/signature-controller';
 import type { SignatureRequest } from '@metamask/signature-controller';
-import {
-  SignatureRequestStatus,
-  type SignatureControllerState,
-} from '@metamask/signature-controller';
+import type { SignatureControllerState } from '@metamask/signature-controller';
+import { TransactionStatus } from '@metamask/transaction-controller';
 import type { TransactionMeta } from '@metamask/transaction-controller';
-import {
-  TransactionStatus,
-  type TransactionControllerState,
-} from '@metamask/transaction-controller';
+import type { TransactionControllerState } from '@metamask/transaction-controller';
 
 import { ShieldController } from './ShieldController';
 import type { NormalizeSignatureRequestFn } from './types';
@@ -461,6 +457,7 @@ describe('ShieldController', () => {
         txMeta: updatedTxMeta,
         status: 'shown',
         transactionHash: '0x00',
+        rawTransactionHex: '0xdeadbeef',
       });
     });
 
@@ -478,6 +475,7 @@ describe('ShieldController', () => {
       expect(components.backend.logTransaction).toHaveBeenCalledWith({
         status: 'not_shown',
         transactionHash: '0x00',
+        rawTransactionHex: '0xdeadbeef',
         txMeta: updatedTxMeta,
       });
     });
@@ -487,6 +485,17 @@ describe('ShieldController', () => {
 
       await runTest(components, {
         updateTransaction: (txMeta) => delete txMeta.hash,
+      });
+
+      // Check that backend was not called
+      expect(components.backend.logTransaction).not.toHaveBeenCalled();
+    });
+
+    it('does not log when raw transaction hex is missing', async () => {
+      const components = setup();
+
+      await runTest(components, {
+        updateTransaction: (txMeta) => delete txMeta.rawTx,
       });
 
       // Check that backend was not called

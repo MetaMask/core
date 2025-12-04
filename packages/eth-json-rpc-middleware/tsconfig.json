@@ -18,7 +18,10 @@
     },
     {
       "path": "../network-controller"
+    },
+    {
+      "path": "../message-manager"
     }
   ],
-  "include": ["../../types", "./src", "./test", "./types"]
+  "include": ["../../types", "./src", "./test"]
 }

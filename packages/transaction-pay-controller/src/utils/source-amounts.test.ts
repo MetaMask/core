@@ -1,9 +1,14 @@
 import { updateSourceAmounts } from './source-amounts';
 import { getTokenFiatRate } from './token';
+import { getTransaction } from './transaction';
+import { TransactionPayStrategy } from '..';
 import type { TransactionPaymentToken } from '..';
+import { ARBITRUM_USDC_ADDRESS, CHAIN_ID_ARBITRUM } from '../constants';
+import { getMessengerMock } from '../tests/messenger-mock';
 import type { TransactionData, TransactionPayRequiredToken } from '../types';
 
 jest.mock('./token');
+jest.mock('./transaction');
 
 const PAYMENT_TOKEN_MOCK: TransactionPaymentToken = {
   address: '0x123',
@@ -37,11 +42,15 @@ const TRANSACTION_ID_MOCK = '123-456';
 
 describe('Source Amounts Utils', () => {
   const getTokenFiatRateMock = jest.mocked(getTokenFiatRate);
+  const getTransactionMock = jest.mocked(getTransaction);
+  const { messenger, getStrategyMock } = getMessengerMock();
 
   beforeEach(() => {
     jest.resetAllMocks();
 
     getTokenFiatRateMock.mockReturnValue({ fiatRate: '2.0', usdRate: '3.0' });
+    getStrategyMock.mockReturnValue(TransactionPayStrategy.Test);
+    getTransactionMock.mockReturnValue({ id: TRANSACTION_ID_MOCK } as never);
   });
 
   describe('updateSourceAmounts', () => {
@@ -52,7 +61,7 @@ describe('Source Amounts Utils', () => {
         tokens: [TRANSACTION_TOKEN_MOCK],
       };
 
-      updateSourceAmounts(TRANSACTION_ID_MOCK, transactionData, {} as never);
+      updateSourceAmounts(TRANSACTION_ID_MOCK, transactionData, messenger);
 
       expect(transactionData.sourceAmounts).toStrictEqual([
         {
@@ -76,9 +85,33 @@ describe('Source Amounts Utils', () => {
         ],
       };
 
-      updateSourceAmounts(TRANSACTION_ID_MOCK, transactionData, {} as never);
+      updateSourceAmounts(TRANSACTION_ID_MOCK, transactionData, messenger);
 
       expect(transactionData.sourceAmounts).toStrictEqual([]);
+    });
+
+    it('does not return empty array if payment token matches but hyperliquid deposit and relay strategy', () => {
+      getStrategyMock.mockReturnValue(TransactionPayStrategy.Relay);
+
+      const transactionData: TransactionData = {
+        isLoading: false,
+        paymentToken: {
+          ...PAYMENT_TOKEN_MOCK,
+          address: ARBITRUM_USDC_ADDRESS,
+          chainId: CHAIN_ID_ARBITRUM,
+        },
+        tokens: [
+          {
+            ...TRANSACTION_TOKEN_MOCK,
+            address: ARBITRUM_USDC_ADDRESS,
+            chainId: CHAIN_ID_ARBITRUM,
+          },
+        ],
+      };
+
+      updateSourceAmounts(TRANSACTION_ID_MOCK, transactionData, messenger);
+
+      expect(transactionData.sourceAmounts).toHaveLength(1);
     });
 
     it('returns empty array if skipIfBalance and has balance', () => {
@@ -94,7 +127,7 @@ describe('Source Amounts Utils', () => {
         ],
       };
 
-      updateSourceAmounts(TRANSACTION_ID_MOCK, transactionData, {} as never);
+      updateSourceAmounts(TRANSACTION_ID_MOCK, transactionData, messenger);
 
       expect(transactionData.sourceAmounts).toStrictEqual([]);
     });
@@ -108,7 +141,7 @@ describe('Source Amounts Utils', () => {
 
       getTokenFiatRateMock.mockReturnValue(undefined);
 
-      updateSourceAmounts(TRANSACTION_ID_MOCK, transactionData, {} as never);
+      updateSourceAmounts(TRANSACTION_ID_MOCK, transactionData, messenger);
 
       expect(transactionData.sourceAmounts).toStrictEqual([]);
     });
@@ -125,7 +158,7 @@ describe('Source Amounts Utils', () => {
         ],
       };
 
-      updateSourceAmounts(TRANSACTION_ID_MOCK, transactionData, {} as never);
+      updateSourceAmounts(TRANSACTION_ID_MOCK, transactionData, messenger);
 
       expect(transactionData.sourceAmounts).toStrictEqual([]);
     });
@@ -136,7 +169,7 @@ describe('Source Amounts Utils', () => {
         tokens: [TRANSACTION_TOKEN_MOCK],
       };
 
-      updateSourceAmounts(TRANSACTION_ID_MOCK, transactionData, {} as never);
+      updateSourceAmounts(TRANSACTION_ID_MOCK, transactionData, messenger);
 
       expect(transactionData.sourceAmounts).toBeUndefined();
     });
@@ -148,14 +181,14 @@ describe('Source Amounts Utils', () => {
         tokens: [],
       };
 
-      updateSourceAmounts(TRANSACTION_ID_MOCK, transactionData, {} as never);
+      updateSourceAmounts(TRANSACTION_ID_MOCK, transactionData, messenger);
 
       expect(transactionData.sourceAmounts).toBeUndefined();
     });
 
     // eslint-disable-next-line jest/expect-expect
     it('does nothing if no transaction data', () => {
-      updateSourceAmounts(TRANSACTION_ID_MOCK, undefined, {} as never);
+      updateSourceAmounts(TRANSACTION_ID_MOCK, undefined, messenger);
     });
   });
 });

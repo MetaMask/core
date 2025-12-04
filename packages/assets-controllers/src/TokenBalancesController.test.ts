@@ -1,19 +1,20 @@
 import { deriveStateFromMetadata } from '@metamask/base-controller';
-import { toHex } from '@metamask/controller-utils';
+import { toChecksumHexAddress, toHex } from '@metamask/controller-utils';
 import type { InternalAccount } from '@metamask/keyring-internal-api';
-import {
-  Messenger,
-  MOCK_ANY_NAMESPACE,
-  type MessengerActions,
-  type MessengerEvents,
-  type MockAnyNamespace,
+import { Messenger, MOCK_ANY_NAMESPACE } from '@metamask/messenger';
+import type {
+  MessengerActions,
+  MessengerEvents,
+  MockAnyNamespace,
 } from '@metamask/messenger';
 import type { NetworkState } from '@metamask/network-controller';
 import type { PreferencesState } from '@metamask/preferences-controller';
 import { CHAIN_IDS } from '@metamask/transaction-controller';
+import type { Hex } from '@metamask/utils';
 import BN from 'bn.js';
 import { useFakeTimers } from 'sinon';
 
+import { mockAPI_accountsAPI_MultichainAccountBalances } from './__fixtures__/account-api-v4-mocks';
 import * as multicall from './multicall';
 import { RpcBalanceFetcher } from './rpc-service/rpc-balance-fetcher';
 import type {
@@ -95,6 +96,7 @@ const setupController = ({
       'AccountTrackerController:getState',
       'AccountTrackerController:updateNativeBalances',
       'AccountTrackerController:updateStakedBalances',
+      'AuthenticationController:getBearerToken',
     ],
     events: [
       'NetworkController:stateChange',
@@ -103,6 +105,7 @@ const setupController = ({
       'KeyringController:accountRemoved',
       'AccountActivityService:balanceUpdated',
       'AccountActivityService:statusChanged',
+      'AccountsController:selectedEvmAccountChange',
     ],
   });
 
@@ -312,6 +315,179 @@ describe('TokenBalancesController', () => {
   it('should set default state', () => {
     const { controller } = setupController();
     expect(controller.state).toStrictEqual({ tokenBalances: {} });
+  });
+
+  describe('account address normalization', () => {
+    it('should normalize mixed-case account addresses to lowercase on initialization', () => {
+      const account = '0x393a8d3f7710047324d369a7cb368c0570c335b8';
+      const checksummedAccount = '0x393A8D3f7710047324D369a7cB368C0570C335b8';
+      const usdcToken = '0xA0b86991c6218b36c1d19D4a2e9Eb0cE3606eB48';
+      const usdtToken = '0xdAC17F958D2ee523a2206206994597C13D831ec7';
+      const daiToken = '0x6B175474E89094C44Da98b954EedeAC495271d0F';
+
+      // Create state with duplicate accounts - one lowercase, one checksummed
+      const initialState: TokenBalancesControllerState = {
+        tokenBalances: {
+          [account as ChecksumAddress]: {
+            '0x1': {
+              [usdcToken]: '0x100',
+              [usdtToken]: '0x200',
+            },
+          },
+          [checksummedAccount as ChecksumAddress]: {
+            '0x1': {
+              [daiToken]: '0x300',
+            },
+            '0x89': {
+              [usdtToken]: '0x400',
+            },
+          },
+        },
+      };
+
+      const { controller } = setupController({
+        config: { state: initialState },
+      });
+
+      // After normalization, should only have lowercase account
+      const state = controller.state.tokenBalances;
+      const lowercaseAccount = account.toLowerCase() as ChecksumAddress;
+
+      // Should have only one account (lowercase)
+      expect(Object.keys(state)).toHaveLength(1);
+      expect(state[lowercaseAccount]).toBeDefined();
+      expect(state[checksummedAccount as ChecksumAddress]).toBeUndefined();
+
+      // Should merge balances from both versions
+      expect(state[lowercaseAccount]['0x1'][usdcToken]).toBe('0x100'); // From lowercase
+      expect(state[lowercaseAccount]['0x1'][usdtToken]).toBe('0x200'); // From lowercase
+      expect(state[lowercaseAccount]['0x1'][daiToken]).toBe('0x300'); // From checksummed
+      expect(state[lowercaseAccount]['0x89'][usdtToken]).toBe('0x400'); // From checksummed
+
+      // Should have all tokens from both versions
+      expect(Object.keys(state[lowercaseAccount]['0x1'])).toHaveLength(3);
+    });
+
+    it('should not update state if all accounts are already lowercase', () => {
+      const account = '0x393a8d3f7710047324d369a7cb368c0570c335b8';
+      const token = '0xA0b86991c6218b36c1d19D4a2e9Eb0cE3606eB48';
+
+      const initialState: TokenBalancesControllerState = {
+        tokenBalances: {
+          [account as ChecksumAddress]: {
+            '0x1': {
+              [token]: '0x100',
+            },
+          },
+        },
+      };
+
+      const { controller } = setupController({
+        config: { state: initialState },
+      });
+
+      expect(controller.state.tokenBalances).toStrictEqual(
+        initialState.tokenBalances,
+      );
+      expect(Object.keys(controller.state.tokenBalances)).toHaveLength(1);
+      expect(Object.keys(controller.state.tokenBalances)[0]).toBe(account);
+      expect(
+        Object.keys(controller.state.tokenBalances).every(
+          (addr) => addr === addr.toLowerCase(),
+        ),
+      ).toBe(true);
+    });
+
+    it('should handle empty state without errors', () => {
+      const initialState: TokenBalancesControllerState = {
+        tokenBalances: {},
+      };
+
+      expect(() => {
+        setupController({
+          config: { state: initialState },
+        });
+      }).not.toThrow();
+    });
+
+    it('should handle multiple different accounts with mixed casing', () => {
+      const account1 = '0x393a8d3f7710047324d369a7cb368c0570c335b8';
+      const account1Checksum = '0x393A8D3f7710047324D369a7cB368C0570C335b8';
+      const account2 = '0x372effc9bd72a008ce4601f4446dad715e455f97';
+      const account2Checksum = '0x372EffC9BD72A008Ce4601F4446DAD715e455F97';
+      const usdcToken = '0xA0b86991c6218b36c1d19D4a2e9Eb0cE3606eB48';
+      const daiToken = '0x6B175474E89094C44Da98b954EedeAC495271d0F';
+
+      const initialState: TokenBalancesControllerState = {
+        tokenBalances: {
+          [account1 as ChecksumAddress]: {
+            '0x1': { [usdcToken]: '0x100' },
+          },
+          [account1Checksum as ChecksumAddress]: {
+            '0x89': { [usdcToken]: '0x200' },
+          },
+          [account2 as ChecksumAddress]: {
+            '0x1': { [usdcToken]: '0x300' },
+          },
+          [account2Checksum as ChecksumAddress]: {
+            '0x1': { [daiToken]: '0x400' }, // Different token to avoid conflict
+          },
+        },
+      };
+
+      const { controller } = setupController({
+        config: { state: initialState },
+      });
+
+      const state = controller.state.tokenBalances;
+
+      // Should have exactly 2 accounts (both lowercase)
+      expect(Object.keys(state)).toHaveLength(2);
+      expect(state[account1.toLowerCase() as ChecksumAddress]).toBeDefined();
+      expect(state[account2.toLowerCase() as ChecksumAddress]).toBeDefined();
+
+      expect(
+        state[account1.toLowerCase() as ChecksumAddress]['0x1'][usdcToken],
+      ).toBe('0x100');
+      expect(
+        state[account1.toLowerCase() as ChecksumAddress]['0x89'][usdcToken],
+      ).toBe('0x200');
+
+      // Check merged balances for account2 (both tokens should exist)
+      expect(
+        state[account2.toLowerCase() as ChecksumAddress]['0x1'][usdcToken],
+      ).toBe('0x300');
+      expect(
+        state[account2.toLowerCase() as ChecksumAddress]['0x1'][daiToken],
+      ).toBe('0x400');
+    });
+
+    it('should preserve token addresses in checksum format while normalizing account addresses', () => {
+      const account = '0x393A8D3f7710047324D369a7cB368C0570C335b8';
+      const token = '0xA0b86991c6218b36c1d19D4a2e9Eb0cE3606eB48';
+
+      const initialState: TokenBalancesControllerState = {
+        tokenBalances: {
+          [account as ChecksumAddress]: {
+            '0x1': {
+              [token]: '0x100',
+            },
+          },
+        },
+      };
+
+      const { controller } = setupController({
+        config: { state: initialState },
+      });
+
+      const state = controller.state.tokenBalances;
+      const lowercaseAccount = account.toLowerCase() as ChecksumAddress;
+
+      // Token address should remain as-is (checksummed)
+      expect(state[lowercaseAccount]['0x1'][token]).toBe('0x100');
+      // Check that the exact token address key exists
+      expect(Object.keys(state[lowercaseAccount]['0x1'])).toContain(token);
+    });
   });
 
   it('should poll and update balances in the right interval', async () => {
@@ -1405,6 +1581,82 @@ describe('TokenBalancesController', () => {
     });
   });
 
+  describe('when selectedEvmAccountChange is published', () => {
+    it('calls updateBalances when account changes and tokens exist', async () => {
+      const chainId = '0x1';
+      const accountAddress = '0x0000000000000000000000000000000000000001';
+      const tokenAddress = '0x0000000000000000000000000000000000000010';
+      const account = createMockInternalAccount({
+        address: accountAddress,
+      });
+
+      const tokens = {
+        allDetectedTokens: {},
+        allTokens: {
+          [chainId]: {
+            [accountAddress]: [
+              { address: tokenAddress, symbol: 'TEST', decimals: 18 },
+            ],
+          },
+        },
+      };
+
+      const updateBalancesSpy = jest
+        .spyOn(TokenBalancesController.prototype, 'updateBalances')
+        .mockResolvedValue(undefined);
+
+      const { messenger } = setupController({
+        config: {
+          accountsApiChainIds: () => [],
+          allowExternalServices: () => true,
+        },
+        tokens,
+        listAccounts: [account],
+      });
+
+      // Publish account change event
+      messenger.publish('AccountsController:selectedEvmAccountChange', account);
+
+      // Verify updateBalances was called with correct chainIds
+      expect(updateBalancesSpy).toHaveBeenCalledWith({
+        chainIds: [chainId],
+      });
+
+      updateBalancesSpy.mockRestore();
+    });
+
+    it('does not call updateBalances when no tokens exist', async () => {
+      const account = createMockInternalAccount({
+        address: '0x0000000000000000000000000000000000000001',
+      });
+
+      const updateBalancesSpy = jest.spyOn(
+        TokenBalancesController.prototype,
+        'updateBalances',
+      );
+
+      const { messenger } = setupController({
+        config: {
+          accountsApiChainIds: () => [],
+          allowExternalServices: () => true,
+        },
+        tokens: {
+          allTokens: {},
+          allDetectedTokens: {},
+        },
+        listAccounts: [account],
+      });
+
+      // Publish account change event
+      messenger.publish('AccountsController:selectedEvmAccountChange', account);
+
+      // Should not call updateBalances when there are no chains with tokens
+      expect(updateBalancesSpy).not.toHaveBeenCalled();
+
+      updateBalancesSpy.mockRestore();
+    });
+  });
+
   describe('multicall integration', () => {
     it('should use getTokenBalancesForMultipleAddresses when available', async () => {
       const mockGetTokenBalances = jest
@@ -1459,7 +1711,7 @@ describe('TokenBalancesController', () => {
 
       // Mock the RPC balance fetcher's fetch method to verify the parameter
       const mockRpcFetch = jest.spyOn(RpcBalanceFetcher.prototype, 'fetch');
-      mockRpcFetch.mockResolvedValueOnce([]);
+      mockRpcFetch.mockResolvedValueOnce({ balances: [] });
 
       const { controller } = setupController({
         config: {
@@ -1771,7 +2023,7 @@ describe('TokenBalancesController', () => {
     // Mock empty aggregated results
     const mockFetcher = {
       supports: jest.fn().mockReturnValue(true),
-      fetch: jest.fn().mockResolvedValue([]), // Return empty array
+      fetch: jest.fn().mockResolvedValue({ balances: [] }), // Return empty result
     };
 
     // Replace the balance fetchers with our mock
@@ -4250,7 +4502,7 @@ describe('TokenBalancesController', () => {
 
       // Mock AccountsApiBalanceFetcher to track when line 320 logic is executed
       const mockSupports = jest.fn().mockReturnValue(true);
-      const mockApiFetch = jest.fn().mockResolvedValue([]);
+      const mockApiFetch = jest.fn().mockResolvedValue({ balances: [] });
 
       const apiBalanceFetcher = jest.requireActual(
         './multi-chain-accounts-service/api-balance-fetcher',
@@ -4277,6 +4529,7 @@ describe('TokenBalancesController', () => {
         ok: true,
         json: () => Promise.resolve([]),
       });
+      const originalFetch = global.fetch;
       global.fetch = mockGlobalFetch;
 
       // Create controller with accountsApiChainIds to enable AccountsApi fetcher
@@ -4311,8 +4564,7 @@ describe('TokenBalancesController', () => {
       supportsSpy.mockRestore();
       fetchSpy.mockRestore();
       mockedSafelyExecuteWithTimeout.mockRestore();
-      // @ts-expect-error - deleting global fetch for test cleanup
-      delete global.fetch;
+      global.fetch = originalFetch;
     });
   });
 
@@ -5212,6 +5464,48 @@ describe('TokenBalancesController', () => {
 
       jest.useRealTimers();
       clearTimeoutSpy.mockRestore();
+    });
+  });
+
+  describe('TokenBalancesController - AccountsAPI integration', () => {
+    const accountAddress = '0x393a8d3f7710047324d369a7cb368c0570c335b8';
+    const checksumAccountAddress = toChecksumHexAddress(accountAddress) as Hex;
+    const chainId = '0x89';
+
+    const arrange = () => {
+      const mockAccountsAPI =
+        mockAPI_accountsAPI_MultichainAccountBalances(accountAddress);
+
+      const account = createMockInternalAccount({ address: accountAddress });
+
+      const { controller } = setupController({
+        config: {
+          accountsApiChainIds: () => [chainId], // Enable Accounts API for this chain
+          allowExternalServices: () => true,
+        },
+        listAccounts: [account],
+      });
+
+      return {
+        mockAccountsAPI,
+        controller,
+      };
+    };
+
+    it('calls Accounts API and stores data with lowercased account address', async () => {
+      const { mockAccountsAPI, controller } = arrange();
+
+      await controller.updateBalances({
+        chainIds: [chainId],
+        queryAllAccounts: true,
+      });
+
+      expect(controller.state.tokenBalances[accountAddress]).toBeDefined();
+      expect(
+        controller.state.tokenBalances[checksumAccountAddress],
+      ).toBeUndefined();
+
+      expect(mockAccountsAPI.isDone()).toBe(true);
     });
   });
 

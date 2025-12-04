@@ -1,14 +1,13 @@
 import { handleFetch } from '@metamask/controller-utils';
 
-import {
-  getEnvUrls,
-  SubscriptionControllerErrorMessage,
-  type Env,
-} from './constants';
+import { getEnvUrls, SubscriptionControllerErrorMessage } from './constants';
+import type { Env } from './constants';
 import { SubscriptionServiceError } from './errors';
 import type {
+  AssignCohortRequest,
   AuthUtils,
   BillingPortalResponse,
+  GetSubscriptionsEligibilitiesRequest,
   GetSubscriptionsResponse,
   ISubscriptionService,
   PricingResponse,
@@ -23,6 +22,8 @@ import type {
   UpdatePaymentMethodCardResponse,
   UpdatePaymentMethodCryptoRequest,
   SubmitSponsorshipIntentsRequest,
+  LinkRewardsRequest,
+  SubscriptionApiGeneralResponse,
 } from './types';
 
 export type SubscriptionServiceConfig = {
@@ -107,15 +108,31 @@ export class SubscriptionService implements ISubscriptionService {
   /**
    * Get the eligibility for a shield subscription.
    *
+   * @param request - Optional request object containing user balance category to check cohort eligibility
    * @returns The eligibility for a shield subscription
    */
-  async getSubscriptionsEligibilities(): Promise<SubscriptionEligibility[]> {
+  async getSubscriptionsEligibilities(
+    request?: GetSubscriptionsEligibilitiesRequest,
+  ): Promise<SubscriptionEligibility[]> {
     const path = 'subscriptions/eligibility';
-    const results = await this.#makeRequest<SubscriptionEligibility[]>(path);
+    let query: Record<string, string> | undefined;
+    if (request?.balanceCategory !== undefined) {
+      query = { balanceCategory: request.balanceCategory };
+    }
+    const results = await this.#makeRequest<SubscriptionEligibility[]>(
+      path,
+      'GET',
+      undefined,
+      query,
+    );
+
     return results.map((result) => ({
       ...result,
       canSubscribe: result.canSubscribe || false,
       canViewEntryModal: result.canViewEntryModal || false,
+      cohorts: result.cohorts || [],
+      assignedCohort: result.assignedCohort || null,
+      hasAssignedCohortExpired: result.hasAssignedCohortExpired || false,
     }));
   }
 
@@ -123,10 +140,21 @@ export class SubscriptionService implements ISubscriptionService {
    * Submit a user event. (e.g. shield modal viewed)
    *
    * @param request - Request object containing the event to submit.
-   * @example { event: SubscriptionUserEvent.ShieldEntryModalViewed }
+   * @example { event: SubscriptionUserEvent.ShieldEntryModalViewed, cohort: 'post_tx' }
    */
   async submitUserEvent(request: SubmitUserEventRequest): Promise<void> {
     const path = 'user-events';
+    await this.#makeRequest(path, 'POST', request);
+  }
+
+  /**
+   * Assign user to a cohort.
+   *
+   * @param request - Request object containing the cohort to assign the user to.
+   * @example { cohort: 'post_tx' }
+   */
+  async assignUserToCohort(request: AssignCohortRequest): Promise<void> {
+    const path = 'cohorts/assign';
     await this.#makeRequest(path, 'POST', request);
   }
 
@@ -146,14 +174,39 @@ export class SubscriptionService implements ISubscriptionService {
     await this.#makeRequest(path, 'POST', request);
   }
 
+  /**
+   * Link rewards to a subscription.
+   *
+   * @param request - Request object containing the reward account ID.
+   * @example { rewardAccountId: 'eip155:1:0x1234567890123456789012345678901234567890' }
+   * @returns The response from the API.
+   */
+  async linkRewards(
+    request: LinkRewardsRequest,
+  ): Promise<SubscriptionApiGeneralResponse> {
+    const path = 'rewards/link';
+    return await this.#makeRequest<SubscriptionApiGeneralResponse>(
+      path,
+      'POST',
+      request,
+    );
+  }
+
   async #makeRequest<Result>(
     path: string,
     method: 'GET' | 'POST' | 'DELETE' | 'PUT' | 'PATCH' = 'GET',
     body?: Record<string, unknown>,
+    queryParams?: Record<string, string>,
   ): Promise<Result> {
     try {
       const headers = await this.#getAuthorizationHeader();
       const url = new URL(SUBSCRIPTION_URL(this.#env, path));
+
+      if (queryParams) {
+        Object.entries(queryParams).forEach(([key, value]) => {
+          url.searchParams.append(key, value);
+        });
+      }
 
       const response = await handleFetch(url.toString(), {
         method,

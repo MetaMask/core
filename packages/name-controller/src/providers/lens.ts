@@ -34,7 +34,7 @@ type LensResponse = {
 };
 
 export class LensNameProvider implements NameProvider {
-  #isEnabled: () => boolean;
+  readonly #isEnabled: () => boolean;
 
   constructor({ isEnabled }: { isEnabled?: () => boolean } = {}) {
     this.#isEnabled = isEnabled || (() => true);

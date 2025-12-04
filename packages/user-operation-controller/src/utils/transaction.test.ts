@@ -1,3 +1,4 @@
+import { getTransactionMetadata } from './transaction';
 import type { TransactionParams } from '../../../transaction-controller/src';
 import {
   TransactionStatus,
@@ -5,9 +6,9 @@ import {
   UserFeeLevel,
 } from '../../../transaction-controller/src';
 import { EMPTY_BYTES, VALUE_ZERO } from '../constants';
+import { UserOperationStatus } from '../types';
 import type { UserOperation } from '../types';
-import { UserOperationStatus, type UserOperationMetadata } from '../types';
-import { getTransactionMetadata } from './transaction';
+import type { UserOperationMetadata } from '../types';
 
 const USER_OPERATION_METADATA_MOCK: UserOperationMetadata = {
   id: 'testUserOperationId',

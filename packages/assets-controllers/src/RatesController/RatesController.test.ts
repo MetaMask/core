@@ -1,21 +1,20 @@
 import { deriveStateFromMetadata } from '@metamask/base-controller';
-import {
-  MOCK_ANY_NAMESPACE,
-  Messenger,
-  type MessengerActions,
-  type MessengerEvents,
-  type MockAnyNamespace,
+import { MOCK_ANY_NAMESPACE, Messenger } from '@metamask/messenger';
+import type {
+  MessengerActions,
+  MessengerEvents,
+  MockAnyNamespace,
 } from '@metamask/messenger';
 import { useFakeTimers } from 'sinon';
 
-import type { RatesControllerMessenger, RatesControllerState } from './types';
-import { advanceTime } from '../../../../tests/helpers';
-import type { fetchMultiExchangeRate as defaultFetchExchangeRate } from '../crypto-compare-service';
 import {
   Cryptocurrency,
   RatesController,
   name as ratesControllerName,
 } from './RatesController';
+import type { RatesControllerMessenger, RatesControllerState } from './types';
+import { advanceTime } from '../../../../tests/helpers';
+import type { fetchMultiExchangeRate as defaultFetchExchangeRate } from '../crypto-compare-service';
 
 type AllActions = MessengerActions<RatesControllerMessenger>;
 
@@ -27,6 +26,7 @@ const MOCK_TIMESTAMP = 1709983353;
 
 /**
  * Returns a stubbed date based on a predefined timestamp.
+ *
  * @returns The stubbed date in milliseconds.
  */
 function getStubbedDate(): number {
@@ -59,6 +59,7 @@ function buildRatesControllerMessenger(
 
 /**
  * Sets up and returns a new instance of RatesController with the provided configuration.
+ *
  * @param config - The configuration object for the RatesController.
  * @param config.interval - Polling interval.
  * @param config.initialState - Initial state of the controller.

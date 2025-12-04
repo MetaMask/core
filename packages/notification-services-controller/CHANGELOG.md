@@ -7,6 +7,50 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+### Changed
+
+- Move peer dependencies for controller and service packages to direct dependencies ([#7209](https://github.com/MetaMask/core/pull/7209))
+  - The dependencies moved are:
+    - `@metamask/keyring-controller` (^25.0.0)
+    - `@metamask/profile-sync-controller` (^27.0.0)
+  - In clients, it is now possible for multiple versions of these packages to exist in the dependency tree.
+    - For example, this scenario would be valid: a client relies on `@metamask/controller-a` 1.0.0 and `@metamask/controller-b` 1.0.0, and `@metamask/controller-b` depends on `@metamask/controller-a` 1.1.0.
+  - Note, however, that the versions specified in the client's `package.json` always "win", and you are expected to keep them up to date so as not to break controller and service intercommunication.
+- Modified background push utilities to handle more edgecases and not throw errors ([#7275](https://github.com/MetaMask/core/pull/7275))
+
+## [21.0.0]
+
+### Changed
+
+- Bump `@metamask/controller-utils` from `^11.15.0` to `^11.16.0` ([#7202](https://github.com/MetaMask/core/pull/7202))
+- **BREAKING:** Bump `@metamask/profile-sync-controller` from `^26.0.0` to `^27.0.0` ([#7202](https://github.com/MetaMask/core/pull/7202))
+- **BREAKING:** Bump `@metamask/keyring-controller` from `^24.0.0` to `^25.0.0` ([#7202](https://github.com/MetaMask/core/pull/7202))
+- Add optional `env` parameter to the `NotificationServicesController` and `NotificationServicesPushController`
+  to support different environments (`prd`, `uat`, `dev`). ([#7175](https://github.com/MetaMask/core/pull/7175))
+
+## [20.0.0]
+
+### Changed
+
+- **BREAKING:** Moved Notification API from v2 to v3 ([#7102](https://github.com/MetaMask/core/pull/7102))
+  - API Endpoint Changes: Updated from `/api/v2/notifications` to `/api/v3/notifications` for listing notifications and marking as read
+  - Request Format: The list notifications endpoint now expects `{ addresses: string[], locale?: string }` instead of `{ address: string }[]`
+  - Response Structure: Notifications now include a `notification_type` field ('on-chain' or 'platform') and nested payload structure
+    - On-chain notifications: data moved from root level to `payload.data`
+    - Platform notifications: new type with `template` containing localized content (`title`, `body`, `image_url`, `cta`)
+  - Type System Overhaul:
+    - `OnChainRawNotification` → `NormalisedAPINotification` (union of on-chain and platform)
+    - `UnprocessedOnChainRawNotification` → `UnprocessedRawNotification`
+    - Removed specific DeFi notification types (Aave, ENS, Lido rewards, etc.) - now will be handled generically
+    - Added `TRIGGER_TYPES.PLATFORM` for platform notifications
+  - Function Signatures:
+    - `getOnChainNotifications()` → `getAPINotifications()` with new `locale` parameter
+    - `getOnChainNotificationsConfigCached()` → `getNotificationsApiConfigCached()`
+    - `processOnChainNotification()` → `processAPINotifications()`
+  - Service Imports: Update imports from `onchain-notifications` to `api-notifications`
+  - Auto-expiry: Reduced from 90 days to 30 days for notification auto-expiry
+  - Locale Support: Added locale parameter to controller constructor for localized server notifications
+
 ## [19.0.0]
 
 ### Changed
@@ -164,7 +208,6 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 ### Removed
 
 - **BREAKING:** Migrated to notification v2 endpoints ([#5945](https://github.com/MetaMask/core/pull/5945))
-
   - removed `NotificationServicesPushController:updateTriggerPushNotifications` action from `NotificationServicesController`
   - removed `UserStorageController:getStorageKey` action from `NotificationServicesController`
   - removed `UserStorageController:performGetStorage` action from `NotificationServicesController`
@@ -597,7 +640,9 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 - Initial release
 
-[Unreleased]: https://github.com/MetaMask/core/compare/@metamask/notification-services-controller@19.0.0...HEAD
+[Unreleased]: https://github.com/MetaMask/core/compare/@metamask/notification-services-controller@21.0.0...HEAD
+[21.0.0]: https://github.com/MetaMask/core/compare/@metamask/notification-services-controller@20.0.0...@metamask/notification-services-controller@21.0.0
+[20.0.0]: https://github.com/MetaMask/core/compare/@metamask/notification-services-controller@19.0.0...@metamask/notification-services-controller@20.0.0
 [19.0.0]: https://github.com/MetaMask/core/compare/@metamask/notification-services-controller@18.3.1...@metamask/notification-services-controller@19.0.0
 [18.3.1]: https://github.com/MetaMask/core/compare/@metamask/notification-services-controller@18.3.0...@metamask/notification-services-controller@18.3.1
 [18.3.0]: https://github.com/MetaMask/core/compare/@metamask/notification-services-controller@18.2.0...@metamask/notification-services-controller@18.3.0

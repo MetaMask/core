@@ -7,9 +7,15 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+### Added
+
+- Add `TronAccountChangedNotifications` property in `KnownSessionProperties` enum ([#7304](https://github.com/MetaMask/core/pull/7304))
+
 ### Changed
 
-- Bump `@metamask/permission-controller` from `^12.0.0` to `^12.1.0` ([#6988](https://github.com/MetaMask/core/pull/6988))
+- Bump `@metamask/network-controller` from `^26.0.0` to `^27.0.0` ([#7202](https://github.com/MetaMask/core/pull/7202), [#7258](https://github.com/MetaMask/core/pull/7258))
+- Bump `@metamask/controller-utils` from `^11.15.0` to `^11.16.0` ([#7202](https://github.com/MetaMask/core/pull/7202))
+- Bump `@metamask/permission-controller` from `^12.1.0` to `^12.1.1` ([#6988](https://github.com/MetaMask/core/pull/6988), [#7202](https://github.com/MetaMask/core/pull/7202))
 
 ## [1.2.2]
 

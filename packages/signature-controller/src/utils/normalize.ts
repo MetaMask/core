@@ -1,5 +1,6 @@
 import { SignTypedDataVersion } from '@metamask/keyring-controller';
-import { add0x, bytesToHex, type Json, remove0x } from '@metamask/utils';
+import { add0x, bytesToHex, remove0x } from '@metamask/utils';
+import type { Json } from '@metamask/utils';
 
 import type { MessageParamsPersonal, MessageParamsTyped } from '../types';
 

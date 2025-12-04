@@ -1,18 +1,18 @@
-import {
-  deriveStateFromMetadata,
-  type ControllerGetStateAction,
-  type ControllerStateChangeEvent,
+import { deriveStateFromMetadata } from '@metamask/base-controller';
+import type {
+  ControllerGetStateAction,
+  ControllerStateChangeEvent,
 } from '@metamask/base-controller';
 import { ApprovalType } from '@metamask/controller-utils';
 import type { Messenger } from '@metamask/messenger';
 
-import {
-  AbstractMessageManager,
-  type AbstractMessage,
-  type AbstractMessageParams,
-  type MessageManagerState,
-  type OriginalRequest,
-  type SecurityProviderRequest,
+import { AbstractMessageManager } from './AbstractMessageManager';
+import type {
+  AbstractMessage,
+  AbstractMessageParams,
+  MessageManagerState,
+  MessageRequest,
+  SecurityProviderRequest,
 } from './AbstractMessageManager';
 
 type ConcreteMessage = AbstractMessage & {
@@ -50,7 +50,7 @@ class AbstractTestManager extends AbstractMessageManager<
 > {
   addRequestToMessageParams<MessageParams extends AbstractMessageParams>(
     messageParams: MessageParams,
-    req?: OriginalRequest,
+    req?: MessageRequest,
   ) {
     return super.addRequestToMessageParams(messageParams, req);
   }
@@ -58,7 +58,7 @@ class AbstractTestManager extends AbstractMessageManager<
   createUnapprovedMessage<MessageParams extends AbstractMessageParams>(
     messageParams: MessageParams,
     type: ApprovalType,
-    req?: OriginalRequest,
+    req?: MessageRequest,
   ) {
     return super.createUnapprovedMessage(messageParams, type, req);
   }

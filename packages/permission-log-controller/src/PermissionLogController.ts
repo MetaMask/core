@@ -1,16 +1,16 @@
-import {
-  BaseController,
-  type ControllerGetStateAction,
-  type ControllerStateChangeEvent,
+import { BaseController } from '@metamask/base-controller';
+import type {
+  ControllerGetStateAction,
+  ControllerStateChangeEvent,
 } from '@metamask/base-controller';
 import type { JsonRpcMiddleware } from '@metamask/json-rpc-engine';
 import type { Messenger } from '@metamask/messenger';
-import {
-  type Json,
-  type JsonRpcRequest,
-  type JsonRpcParams,
-  type PendingJsonRpcResponse,
-  hasProperty,
+import { hasProperty } from '@metamask/utils';
+import type {
+  Json,
+  JsonRpcRequest,
+  JsonRpcParams,
+  PendingJsonRpcResponse,
 } from '@metamask/utils';
 
 import {
@@ -58,6 +58,7 @@ export type PermissionHistory = Record<string, PermissionEntry>;
 /**
  *
  * Permission log controller state
+ *
  * @property permissionHistory - permission history
  * @property permissionActivityLog - permission activity logs
  */
@@ -108,7 +109,7 @@ export class PermissionLogController extends BaseController<
   PermissionLogControllerState,
   PermissionLogControllerMessenger
 > {
-  #restrictedMethods: Set<string>;
+  readonly #restrictedMethods: Set<string>;
 
   constructor({
     messenger,
@@ -151,8 +152,6 @@ export class PermissionLogController extends BaseController<
       return;
     }
     const newEntries = {
-      // TODO: Either fix this lint violation or explain why it's necessary to ignore.
-      // eslint-disable-next-line @typescript-eslint/naming-convention
       eth_accounts: {
         accounts: this.#getAccountToTimeMap(accounts, Date.now()),
       },
@@ -319,8 +318,6 @@ export class PermissionLogController extends BaseController<
       // a set of accounts if the RPC method is "eth_requestAccounts".
       const accounts = result as string[];
       newEntries = {
-        // TODO: Either fix this lint violation or explain why it's necessary to ignore.
-        // eslint-disable-next-line @typescript-eslint/naming-convention
         eth_accounts: {
           accounts: this.#getAccountToTimeMap(accounts, time),
           lastApproved: time,

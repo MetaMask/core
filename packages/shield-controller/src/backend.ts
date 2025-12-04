@@ -6,9 +6,10 @@ import {
 import {
   EthMethod,
   SignatureRequestType,
-  type SignatureRequest,
 } from '@metamask/signature-controller';
+import type { SignatureRequest } from '@metamask/signature-controller';
 import type { TransactionMeta } from '@metamask/transaction-controller';
+import type { AuthorizationList } from '@metamask/transaction-controller';
 import type { Json } from '@metamask/utils';
 
 import { SignTypedDataVersion } from './constants';
@@ -26,6 +27,7 @@ import type {
 export type InitCoverageCheckRequest = {
   txParams: [
     {
+      authorizationList?: AuthorizationList;
       from: string;
       to?: string;
       value?: string;
@@ -57,6 +59,9 @@ export type GetCoverageResultResponse = {
   message?: string;
   reasonCode?: string;
   status: CoverageStatus;
+  metrics: {
+    latency?: number;
+  };
 };
 
 export class ShieldRemoteBackend implements ShieldBackend {
@@ -117,6 +122,7 @@ export class ShieldRemoteBackend implements ShieldBackend {
       message: coverageResult.message,
       reasonCode: coverageResult.reasonCode,
       status: coverageResult.status,
+      metrics: coverageResult.metrics,
     };
   }
 
@@ -143,6 +149,7 @@ export class ShieldRemoteBackend implements ShieldBackend {
       message: coverageResult.message,
       reasonCode: coverageResult.reasonCode,
       status: coverageResult.status,
+      metrics: coverageResult.metrics,
     };
   }
 
@@ -172,8 +179,10 @@ export class ShieldRemoteBackend implements ShieldBackend {
 
   async logTransaction(req: LogTransactionRequest): Promise<void> {
     const initBody = makeInitCoverageCheckBody(req.txMeta);
+
     const body = {
       transactionHash: req.transactionHash,
+      rawTransactionHex: req.rawTransactionHex,
       status: req.status,
       ...initBody,
     };
@@ -220,6 +229,9 @@ export class ShieldRemoteBackend implements ShieldBackend {
 
     const headers = await this.#createHeaders();
 
+    // Start measuring total end-to-end latency including retries and delays
+    const startTime = Date.now();
+
     const getCoverageResultFn = async (signal: AbortSignal) => {
       const res = await this.#fetch(coverageResultUrl, {
         method: 'POST',
@@ -227,8 +239,10 @@ export class ShieldRemoteBackend implements ShieldBackend {
         body: JSON.stringify(reqBody),
         signal,
       });
+
       if (res.status === 200) {
-        return (await res.json()) as GetCoverageResultResponse;
+        // Return the result without latency here - we'll add total latency after polling completes
+        return (await res.json()) as Omit<GetCoverageResultResponse, 'metrics'>;
       }
 
       // parse the error message from the response body
@@ -242,7 +256,19 @@ export class ShieldRemoteBackend implements ShieldBackend {
       throw new HttpError(res.status, errorMessage);
     };
 
-    return this.#pollingPolicy.start(requestId, getCoverageResultFn);
+    const result = await this.#pollingPolicy.start(
+      requestId,
+      getCoverageResultFn,
+    );
+
+    // Calculate total end-to-end latency including all retries and delays
+    const now = Date.now();
+    const totalLatency = now - startTime;
+
+    return {
+      ...result,
+      metrics: { latency: totalLatency },
+    } as GetCoverageResultResponse;
   }
 
   async #createHeaders() {
@@ -260,12 +286,13 @@ export class ShieldRemoteBackend implements ShieldBackend {
  * @param txMeta - The transaction metadata.
  * @returns The body for the init coverage check request.
  */
-function makeInitCoverageCheckBody(
+export function makeInitCoverageCheckBody(
   txMeta: TransactionMeta,
 ): InitCoverageCheckRequest {
   return {
     txParams: [
       {
+        authorizationList: txMeta.txParams.authorizationList,
         from: txMeta.txParams.from,
         to: txMeta.txParams.to,
         value: txMeta.txParams.value,

@@ -1,10 +1,9 @@
 import { deriveStateFromMetadata } from '@metamask/base-controller';
-import {
-  Messenger,
-  MOCK_ANY_NAMESPACE,
-  type MessengerActions,
-  type MessengerEvents,
-  type MockAnyNamespace,
+import { Messenger, MOCK_ANY_NAMESPACE } from '@metamask/messenger';
+import type {
+  MessengerActions,
+  MessengerEvents,
+  MockAnyNamespace,
 } from '@metamask/messenger';
 import * as uuid from 'uuid';
 
@@ -15,8 +14,6 @@ import { SigningMethod, SigningStage } from './logTypes/EthSignLog';
 
 jest.mock('uuid', () => {
   return {
-    // We need to use this name as this is what Jest recognizes.
-    // eslint-disable-next-line @typescript-eslint/naming-convention
     __esModule: true,
     ...jest.requireActual('uuid'),
   };

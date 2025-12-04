@@ -1,5 +1,6 @@
 import type { Caveat } from '@metamask/delegation-core';
-import { getChecksumAddress, type Hex } from '@metamask/utils';
+import { getChecksumAddress } from '@metamask/utils';
+import type { Hex } from '@metamask/utils';
 
 import type { DeployedContractsByName, PermissionType } from './types';
 
@@ -234,7 +235,7 @@ export function splitHex(value: Hex, lengths: number[]): Hex[] {
     const partCharLength = partLength * 2;
     const part = value.slice(start, start + partCharLength);
     start += partCharLength;
-    parts.push(`0x${part}` as Hex);
+    parts.push(`0x${part}` as const);
   }
   return parts;
 }

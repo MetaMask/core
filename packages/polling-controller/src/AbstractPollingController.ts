@@ -17,8 +17,6 @@ export const getKey = <PollingInput>(input: PollingInput): PollingTokenSetId =>
  * @param Base - The base class to mix onto.
  * @returns The composed class.
  */
-// TODO: Either fix this lint violation or explain why it's necessary to ignore.
-// eslint-disable-next-line @typescript-eslint/naming-convention
 export function AbstractPollingControllerBaseMixin<
   TBase extends Constructor,
   PollingInput extends Json,
@@ -29,8 +27,10 @@ export function AbstractPollingControllerBaseMixin<
   {
     readonly #pollingTokenSets: Map<PollingTokenSetId, Set<string>> = new Map();
 
-    #callbacks: Map<PollingTokenSetId, Set<(input: PollingInput) => void>> =
-      new Map();
+    readonly #callbacks: Map<
+      PollingTokenSetId,
+      Set<(input: PollingInput) => void>
+    > = new Map();
 
     abstract _executePoll(input: PollingInput): Promise<void>;
 
