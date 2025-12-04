@@ -7,9 +7,9 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
-### Uncategorized
+### Changed
 
-- chore: Update ESLint config packages to v15 ([#7305](https://github.com/MetaMask/core/pull/7305))
+- Bump `@metamask/assets-controllers` from `^93.0.0` to `^93.1.0` ([#7309](https://github.com/MetaMask/core/pull/7309)
 
 ## [64.0.0]
 

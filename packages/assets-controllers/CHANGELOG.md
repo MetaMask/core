@@ -7,10 +7,7 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
-### Uncategorized
-
-- chore: Update ESLint config packages to v15 ([#7305](https://github.com/MetaMask/core/pull/7305))
-- chore: Re-enable `@typescript-eslint/no-unnecessary-type-assertions` ([#7296](https://github.com/MetaMask/core/pull/7296))
+## [93.1.0]
 
 ### Added
 
@@ -19,6 +16,11 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 ### Fixed
 
 - Fix trending tokens API request to use correct `sort` query parameter instead of `sortBy` ([#7310](https://github.com/MetaMask/core/pull/7310))
+
+### Changed
+
+- chore: Update ESLint config packages to v15 ([#7305](https://github.com/MetaMask/core/pull/7305))
+- chore: Re-enable `@typescript-eslint/no-unnecessary-type-assertions` ([#7296](https://github.com/MetaMask/core/pull/7296))
 
 ## [93.0.0]
 
@@ -2385,7 +2387,8 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 - Use Ethers for AssetsContractController ([#845](https://github.com/MetaMask/core/pull/845))
 
-[Unreleased]: https://github.com/MetaMask/core/compare/@metamask/assets-controllers@93.0.0...HEAD
+[Unreleased]: https://github.com/MetaMask/core/compare/@metamask/assets-controllers@93.1.0...HEAD
+[93.1.0]: https://github.com/MetaMask/core/compare/@metamask/assets-controllers@93.0.0...@metamask/assets-controllers@93.1.0
 [93.0.0]: https://github.com/MetaMask/core/compare/@metamask/assets-controllers@92.0.0...@metamask/assets-controllers@93.0.0
 [92.0.0]: https://github.com/MetaMask/core/compare/@metamask/assets-controllers@91.0.0...@metamask/assets-controllers@92.0.0
 [91.0.0]: https://github.com/MetaMask/core/compare/@metamask/assets-controllers@90.0.0...@metamask/assets-controllers@91.0.0
