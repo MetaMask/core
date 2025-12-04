@@ -7,6 +7,11 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+### Changed
+
+- Renamed parameters related to rewards linking with shield. ([#7311](https://github.com/MetaMask/core/pull/7311))
+  - Renamed from `rewardSubscriptionId` to `rewardAccountId`
+
 ## [5.3.0]
 
 ### Added
