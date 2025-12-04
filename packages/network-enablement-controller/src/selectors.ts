@@ -65,15 +65,14 @@ export const createSelectorForEnabledNetworksForNamespace = (
 export const selectAllEnabledNetworks = createSelector(
   selectEnabledNetworkMap,
   (enabledNetworkMap) => {
-    return Object.keys(enabledNetworkMap).reduce(
-      (acc, ns) => {
-        acc[ns] = Object.entries(enabledNetworkMap[ns])
-          .filter(([, enabled]) => enabled)
-          .map(([id]) => id);
-        return acc;
-      },
-      {} as Record<CaipNamespace, string[]>,
-    );
+    return Object.keys(enabledNetworkMap).reduce<
+      Record<CaipNamespace, string[]>
+    >((acc, ns) => {
+      acc[ns] = Object.entries(enabledNetworkMap[ns])
+        .filter(([, enabled]) => enabled)
+        .map(([id]) => id);
+      return acc;
+    }, {});
   },
 );
 

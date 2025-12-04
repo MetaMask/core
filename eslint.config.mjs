@@ -139,7 +139,6 @@ const config = createConfig([
       '@typescript-eslint/unbound-method': 'off',
       '@typescript-eslint/prefer-enum-initializers': 'off',
       '@typescript-eslint/prefer-nullish-coalescing': 'off',
-      '@typescript-eslint/prefer-reduce-type-parameter': 'off',
       'no-restricted-syntax': 'off',
       'no-restricted-globals': 'off',
       '@typescript-eslint/explicit-function-return-type': 'off',
