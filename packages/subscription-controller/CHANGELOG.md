@@ -7,10 +7,12 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+## [5.3.1]
+
 ### Changed
 
 - Renamed parameters related to rewards linking with shield. ([#7311](https://github.com/MetaMask/core/pull/7311))
-  - Renamed from `rewardSubscriptionId` to `rewardAccountId`
+  - Renamed from `rewardSubscriptionId` to `rewardAccountId`.
 
 ## [5.3.0]
 
@@ -246,7 +248,8 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 - Bump `@metamask/controller-utils` from `^11.12.0` to `^11.14.0` ([#6620](https://github.com/MetaMask/core/pull/6620), [#6629](https://github.com/MetaMask/core/pull/6629))
 - Bump `@metamask/utils` from `^11.4.2` to `^11.8.0` ([#6588](https://github.com/MetaMask/core/pull/6588))
 
-[Unreleased]: https://github.com/MetaMask/core/compare/@metamask/subscription-controller@5.3.0...HEAD
+[Unreleased]: https://github.com/MetaMask/core/compare/@metamask/subscription-controller@5.3.1...HEAD
+[5.3.1]: https://github.com/MetaMask/core/compare/@metamask/subscription-controller@5.3.0...@metamask/subscription-controller@5.3.1
 [5.3.0]: https://github.com/MetaMask/core/compare/@metamask/subscription-controller@5.2.0...@metamask/subscription-controller@5.3.0
 [5.2.0]: https://github.com/MetaMask/core/compare/@metamask/subscription-controller@5.1.0...@metamask/subscription-controller@5.2.0
 [5.1.0]: https://github.com/MetaMask/core/compare/@metamask/subscription-controller@5.0.0...@metamask/subscription-controller@5.1.0
