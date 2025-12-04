@@ -9,8 +9,8 @@ import type { DeployedContractsByName, PermissionType } from './types';
  */
 export type PermissionRule = {
   permissionType: PermissionType;
-  requiredEnforcers: Set<Hex>;
-  allowedEnforcers: Set<Hex>;
+  requiredEnforcers: Map<Hex, number>;
+  optionalEnforcers: Set<Hex>;
 };
 
 /**
@@ -25,6 +25,7 @@ const ENFORCER_CONTRACT_NAMES = {
   TimestampEnforcer: 'TimestampEnforcer',
   ValueLteEnforcer: 'ValueLteEnforcer',
   NonceEnforcer: 'NonceEnforcer',
+  AllowedCalldataEnforcer: 'AllowedCalldataEnforcer',
 };
 
 /**
@@ -76,6 +77,10 @@ export const getChecksumEnforcersByChainId = (
     ENFORCER_CONTRACT_NAMES.NonceEnforcer,
   );
 
+  const allowedCalldataEnforcer = getChecksumContractAddress(
+    ENFORCER_CONTRACT_NAMES.AllowedCalldataEnforcer,
+  );
+
   return {
     erc20StreamingEnforcer,
     erc20PeriodicEnforcer,
@@ -85,6 +90,7 @@ export const getChecksumEnforcersByChainId = (
     valueLteEnforcer,
     timestampEnforcer,
     nonceEnforcer,
+    allowedCalldataEnforcer,
   };
 };
 
@@ -92,7 +98,7 @@ export const getChecksumEnforcersByChainId = (
  * Builds the canonical set of permission matching rules for a chain.
  *
  * Each rule specifies the `permissionType`, the set of `requiredEnforcers`
- * that must be present, and the set of `allowedEnforcers` that may appear in
+ * that must be present, and the set of `optionalEnforcers` that may appear in
  * addition to the required set.
  *
  * @param contracts - The deployed contracts for the chain.
@@ -111,47 +117,57 @@ export const createPermissionRulesForChainId: (
     valueLteEnforcer,
     timestampEnforcer,
     nonceEnforcer,
+    allowedCalldataEnforcer,
   } = getChecksumEnforcersByChainId(contracts);
 
-  // the allowed enforcers are the same for all permission types
-  const allowedEnforcers = new Set<Hex>([timestampEnforcer]);
+  // the optional enforcers are the same for all permission types
+  const optionalEnforcers = new Set<Hex>([timestampEnforcer]);
 
   const permissionRules: PermissionRule[] = [
     {
-      requiredEnforcers: new Set<Hex>([
-        nativeTokenStreamingEnforcer,
-        exactCalldataEnforcer,
-        nonceEnforcer,
+      requiredEnforcers: new Map<Hex, number>([
+        [nativeTokenStreamingEnforcer, 1],
+        [exactCalldataEnforcer, 1],
+        [nonceEnforcer, 1],
       ]),
-      allowedEnforcers,
+      optionalEnforcers,
       permissionType: 'native-token-stream',
     },
     {
-      requiredEnforcers: new Set<Hex>([
-        nativeTokenPeriodicEnforcer,
-        exactCalldataEnforcer,
-        nonceEnforcer,
+      requiredEnforcers: new Map<Hex, number>([
+        [nativeTokenPeriodicEnforcer, 1],
+        [exactCalldataEnforcer, 1],
+        [nonceEnforcer, 1],
       ]),
-      allowedEnforcers,
+      optionalEnforcers,
       permissionType: 'native-token-periodic',
     },
     {
-      requiredEnforcers: new Set<Hex>([
-        erc20StreamingEnforcer,
-        valueLteEnforcer,
-        nonceEnforcer,
+      requiredEnforcers: new Map<Hex, number>([
+        [erc20StreamingEnforcer, 1],
+        [valueLteEnforcer, 1],
+        [nonceEnforcer, 1],
       ]),
-      allowedEnforcers,
+      optionalEnforcers,
       permissionType: 'erc20-token-stream',
     },
     {
-      requiredEnforcers: new Set<Hex>([
-        erc20PeriodicEnforcer,
-        valueLteEnforcer,
-        nonceEnforcer,
+      requiredEnforcers: new Map<Hex, number>([
+        [erc20PeriodicEnforcer, 1],
+        [valueLteEnforcer, 1],
+        [nonceEnforcer, 1],
       ]),
-      allowedEnforcers,
+      optionalEnforcers,
       permissionType: 'erc20-token-periodic',
+    },
+    {
+      requiredEnforcers: new Map<Hex, number>([
+        [allowedCalldataEnforcer, 2],
+        [valueLteEnforcer, 1],
+        [nonceEnforcer, 1],
+      ]),
+      optionalEnforcers,
+      permissionType: 'erc20-token-revocation',
     },
   ];
 
