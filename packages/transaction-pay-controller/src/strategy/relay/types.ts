@@ -15,6 +15,7 @@ export type RelayQuoteRequest = {
   originChainId: number;
   originCurrency: Hex;
   recipient: Hex;
+  refundTo?: Hex;
   slippageTolerance?: string;
   tradeType: 'EXPECTED_OUTPUT' | 'EXACT_OUTPUT';
   txs?: {

@@ -130,7 +130,7 @@ async function processTransactions(
   messenger: TransactionPayControllerMessenger,
 ) {
   const { nestedTransactions, txParams } = transaction;
-  const { data } = txParams;
+  const data = txParams?.data as Hex | undefined;
   let newRecipient: Hex | undefined;
 
   const singleData =
@@ -142,9 +142,7 @@ async function processTransactions(
     !isHypercore && singleData?.startsWith(TOKEN_TRANSFER_FOUR_BYTE);
 
   if (isTokenTransfer) {
-    newRecipient = new Interface([
-      'function transfer(address to, uint256 amount)',
-    ]).decodeFunctionData('transfer', singleData as Hex).to;
+    newRecipient = getTransferRecipient(singleData as Hex);
 
     log('Updating recipient as token transfer', newRecipient);
 
@@ -172,20 +170,24 @@ async function processTransactions(
     }),
   );
 
-  const tokenTransferData = new Interface([
-    'function transfer(address to, uint256 amount)',
-  ]).encodeFunctionData('transfer', [
-    request.from,
-    request.targetAmountMinimum,
-  ]);
-
   requestBody.authorizationList = normalizedAuthorizationList;
   requestBody.tradeType = 'EXACT_OUTPUT';
+
+  const tokenTransferData = nestedTransactions?.find((t) =>
+    t.data?.startsWith(TOKEN_TRANSFER_FOUR_BYTE),
+  )?.data;
+
+  // If the transactions include a token transfer, change the recipient
+  // so any extra dust is also sent to the same address, rather than back to the user.
+  if (tokenTransferData) {
+    requestBody.recipient = getTransferRecipient(tokenTransferData);
+    requestBody.refundTo = request.from;
+  }
 
   requestBody.txs = [
     {
       to: request.targetTokenAddress,
-      data: tokenTransferData,
+      data: buildTokenTransferData(request.from, request.targetAmountMinimum),
       value: '0x0',
     },
     {
@@ -565,4 +567,29 @@ function calculateSourceNetworkGasLimit(
  */
 function calculateProviderFee(quote: RelayQuote) {
   return new BigNumber(quote.details.totalImpact.usd).abs();
+}
+
+/**
+ * Build token transfer data.
+ *
+ * @param recipient - Recipient address.
+ * @param amountRaw - Amount in raw format.
+ * @returns Token transfer data.
+ */
+function buildTokenTransferData(recipient: Hex, amountRaw: string) {
+  return new Interface([
+    'function transfer(address to, uint256 amount)',
+  ]).encodeFunctionData('transfer', [recipient, amountRaw]);
+}
+
+/**
+ * Get transfer recipient from token transfer data.
+ *
+ * @param data - Token transfer data.
+ * @returns Transfer recipient.
+ */
+function getTransferRecipient(data: Hex): Hex | undefined {
+  return new Interface([
+    'function transfer(address to, uint256 amount)',
+  ]).decodeFunctionData('transfer', data).to;
 }

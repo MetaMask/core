@@ -385,6 +385,7 @@ describe('Relay Quotes Utils', () => {
               yParity: 1,
             },
           ],
+          recipient: QUOTE_REQUEST_MOCK.from,
           tradeType: 'EXACT_OUTPUT',
           txs: [
             {
@@ -452,6 +453,38 @@ describe('Relay Quotes Utils', () => {
       );
 
       expect(body.recipient).toBe(TOKEN_TRANSFER_RECIPIENT_MOCK.toLowerCase());
+    });
+
+    it('extracts recipient and sets refundTo when nested transactions include token transfer with delegation', async () => {
+      successfulFetchMock.mockResolvedValue({
+        json: async () => QUOTE_MOCK,
+      } as never);
+
+      await getRelayQuotes({
+        messenger,
+        requests: [QUOTE_REQUEST_MOCK],
+        transaction: {
+          ...TRANSACTION_META_MOCK,
+          nestedTransactions: [
+            {
+              data: NESTED_TRANSACTION_DATA_MOCK,
+            },
+            {
+              data: TOKEN_TRANSFER_DATA_MOCK,
+            },
+          ],
+          txParams: {
+            data: '0xabc' as Hex,
+          },
+        } as TransactionMeta,
+      });
+
+      const body = JSON.parse(
+        successfulFetchMock.mock.calls[0][1]?.body as string,
+      );
+
+      expect(body.recipient).toBe(TOKEN_TRANSFER_RECIPIENT_MOCK);
+      expect(body.refundTo).toBe(QUOTE_REQUEST_MOCK.from);
     });
 
     it('skips delegation for Hypercore deposits', async () => {
