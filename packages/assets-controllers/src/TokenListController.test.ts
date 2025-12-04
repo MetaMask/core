@@ -102,13 +102,11 @@ const sampleMainnetTokenList = [
   },
 ];
 
-const sampleMainnetTokensChainsCache = sampleMainnetTokenList.reduce(
-  (output, current) => {
+const sampleMainnetTokensChainsCache =
+  sampleMainnetTokenList.reduce<TokenListMap>((output, current) => {
     output[current.address] = current;
     return output;
-  },
-  {} as TokenListMap,
-);
+  }, {});
 
 const sampleBinanceTokenList = [
   {
@@ -146,13 +144,11 @@ const sampleBinanceTokenList = [
   },
 ];
 
-const sampleBinanceTokensChainsCache = sampleBinanceTokenList.reduce(
-  (output, current) => {
+const sampleBinanceTokensChainsCache =
+  sampleBinanceTokenList.reduce<TokenListMap>((output, current) => {
     output[current.address] = current;
     return output;
-  },
-  {} as TokenListMap,
-);
+  }, {});
 
 const sampleSingleChainState = {
   tokenList: {
@@ -315,13 +311,11 @@ const sampleSepoliaTokenList = [
   },
 ];
 
-const sampleSepoliaTokensChainCache = sampleSepoliaTokenList.reduce(
-  (output, current) => {
+const sampleSepoliaTokensChainCache =
+  sampleSepoliaTokenList.reduce<TokenListMap>((output, current) => {
     output[current.address] = current;
     return output;
-  },
-  {} as TokenListMap,
-);
+  }, {});
 
 const sampleTwoChainState = {
   tokenList: {

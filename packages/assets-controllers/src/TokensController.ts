@@ -519,13 +519,10 @@ export class TokensController extends BaseController<
       ...(allTokens[interactingChainId]?.[this.#getSelectedAccount().address] ||
         []),
       ...tokensToImport,
-    ].reduce(
-      (output, token) => {
-        output[toChecksumHexAddress(token.address)] = token;
-        return output;
-      },
-      {} as { [address: string]: Token },
-    );
+    ].reduce<{ [address: string]: Token }>((output, token) => {
+      output[toChecksumHexAddress(token.address)] = token;
+      return output;
+    }, {});
     try {
       tokensToImport.forEach((tokenToAdd) => {
         const { address, symbol, decimals, image, aggregators, name } =

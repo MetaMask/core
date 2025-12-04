@@ -26,17 +26,16 @@ export const toExchangeRates = (
     [assetId: CaipAssetType]: { [currency: string]: string } | undefined;
   },
 ) => {
-  const exchangeRates = Object.entries(pricesByAssetId).reduce(
-    (acc, [assetId, prices]) => {
-      if (prices) {
-        acc[assetId as CaipAssetType] = {
-          exchangeRate: prices[currency],
-          usdExchangeRate: prices.usd,
-        };
-      }
-      return acc;
-    },
-    {} as Record<CaipAssetType, ExchangeRate>,
-  );
+  const exchangeRates = Object.entries(pricesByAssetId).reduce<
+    Record<CaipAssetType, ExchangeRate>
+  >((acc, [assetId, prices]) => {
+    if (prices) {
+      acc[assetId as CaipAssetType] = {
+        exchangeRate: prices[currency],
+        usdExchangeRate: prices.usd,
+      };
+    }
+    return acc;
+  }, {});
   return exchangeRates;
 };
