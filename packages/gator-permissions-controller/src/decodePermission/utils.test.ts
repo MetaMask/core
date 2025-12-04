@@ -102,7 +102,7 @@ describe('createPermissionRulesForChainId', () => {
     expect(byType['native-token-stream'].requiredEnforcers.size).toBe(3);
     expect(
       Array.from(byType['native-token-stream'].requiredEnforcers.entries()),
-    ).toEqual(
+    ).toStrictEqual(
       expect.arrayContaining([
         [nativeTokenStreamingEnforcer, 1],
         [exactCalldataEnforcer, 1],
@@ -122,7 +122,7 @@ describe('createPermissionRulesForChainId', () => {
     expect(byType['native-token-periodic'].requiredEnforcers.size).toBe(3);
     expect(
       Array.from(byType['native-token-periodic'].requiredEnforcers.entries()),
-    ).toEqual(
+    ).toStrictEqual(
       expect.arrayContaining([
         [nativeTokenPeriodicEnforcer, 1],
         [exactCalldataEnforcer, 1],
@@ -142,7 +142,7 @@ describe('createPermissionRulesForChainId', () => {
     expect(byType['erc20-token-stream'].requiredEnforcers.size).toBe(3);
     expect(
       Array.from(byType['erc20-token-stream'].requiredEnforcers.entries()),
-    ).toEqual(
+    ).toStrictEqual(
       expect.arrayContaining([
         [erc20StreamingEnforcer, 1],
         [valueLteEnforcer, 1],
@@ -162,7 +162,7 @@ describe('createPermissionRulesForChainId', () => {
     expect(byType['erc20-token-periodic'].requiredEnforcers.size).toBe(3);
     expect(
       Array.from(byType['erc20-token-periodic'].requiredEnforcers.entries()),
-    ).toEqual(
+    ).toStrictEqual(
       expect.arrayContaining([
         [erc20PeriodicEnforcer, 1],
         [valueLteEnforcer, 1],
@@ -182,7 +182,7 @@ describe('createPermissionRulesForChainId', () => {
     expect(byType['erc20-token-revocation'].requiredEnforcers.size).toBe(3);
     expect(
       Array.from(byType['erc20-token-revocation'].requiredEnforcers.entries()),
-    ).toEqual(
+    ).toStrictEqual(
       expect.arrayContaining([
         [allowedCalldataEnforcer, 2],
         [valueLteEnforcer, 1],

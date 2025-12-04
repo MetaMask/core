@@ -1169,8 +1169,8 @@ describe('decodePermission', () => {
           permissionType,
         });
 
-        expect(expiry).toEqual(timestampBeforeThreshold);
-        expect(data).toEqual({});
+        expect(expiry).toStrictEqual(timestampBeforeThreshold);
+        expect(data).toStrictEqual({});
       });
     });
   });
