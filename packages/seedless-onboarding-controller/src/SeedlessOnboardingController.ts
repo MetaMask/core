@@ -2153,7 +2153,7 @@ function assertIsValidPassword(password: unknown): asserts password is string {
     throw new Error(SeedlessOnboardingControllerErrorMessage.WrongPasswordType);
   }
 
-  if (!password || !password.length) {
+  if (!password?.length) {
     throw new Error(
       SeedlessOnboardingControllerErrorMessage.InvalidEmptyPassword,
     );

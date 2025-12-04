@@ -333,7 +333,7 @@ export class ProfileMetricsController extends StaticIntervalPollingController()<
  * @returns The entropy source ID, or null if it does not exist.
  */
 function getAccountEntropySourceId(account: InternalAccount): string | null {
-  if (account.options.entropy && account.options.entropy.type === 'mnemonic') {
+  if (account.options.entropy?.type === 'mnemonic') {
     return account.options.entropy.id;
   }
   return null;
