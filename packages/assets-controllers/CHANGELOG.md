@@ -17,11 +17,6 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 - Fix trending tokens API request to use correct `sort` query parameter instead of `sortBy` ([#7310](https://github.com/MetaMask/core/pull/7310))
 
-### Changed
-
-- chore: Update ESLint config packages to v15 ([#7305](https://github.com/MetaMask/core/pull/7305))
-- chore: Re-enable `@typescript-eslint/no-unnecessary-type-assertions` ([#7296](https://github.com/MetaMask/core/pull/7296))
-
 ## [93.0.0]
 
 ### Added
