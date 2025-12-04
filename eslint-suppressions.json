@@ -1,4 +1,9 @@
 {
+  "packages/account-tree-controller/src/rules/snap.ts": {
+    "@typescript-eslint/prefer-optional-chain": {
+      "count": 1
+    }
+  },
   "packages/accounts-controller/src/AccountsController.test.ts": {
     "import-x/namespace": {
       "count": 1
@@ -48,6 +53,9 @@
   "packages/assets-controllers/src/NftController.ts": {
     "@typescript-eslint/no-misused-promises": {
       "count": 2
+    },
+    "@typescript-eslint/prefer-optional-chain": {
+      "count": 1
     }
   },
   "packages/assets-controllers/src/NftDetectionController.test.ts": {
@@ -88,6 +96,9 @@
   "packages/assets-controllers/src/TokensController.ts": {
     "@typescript-eslint/no-unused-vars": {
       "count": 1
+    },
+    "@typescript-eslint/prefer-optional-chain": {
+      "count": 4
     }
   },
   "packages/assets-controllers/src/multicall.test.ts": {
