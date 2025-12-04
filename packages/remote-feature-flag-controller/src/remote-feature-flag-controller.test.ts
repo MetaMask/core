@@ -783,7 +783,9 @@ describe('RemoteFeatureFlagController', () => {
         controller.setFlagOverride('testFlagForThreshold', 'overriddenValue');
 
         // Access flag value with override taking precedence
-        const flagValue = controller.state.localOverrides['testFlagForThreshold'] ?? controller.state.remoteFeatureFlags['testFlagForThreshold'];
+        const flagValue =
+          controller.state.localOverrides.testFlagForThreshold ??
+          controller.state.remoteFeatureFlags.testFlagForThreshold;
         expect(flagValue).toBe('overriddenValue');
       });
     });
@@ -799,9 +801,8 @@ describe('RemoteFeatureFlagController', () => {
 
         await controller.updateRemoteFeatureFlags();
 
-        const groups = controller.state.rawProcessedRemoteFeatureFlags[
-          'testFlagForThreshold'
-        ];
+        const groups =
+          controller.state.rawProcessedRemoteFeatureFlags.testFlagForThreshold;
 
         expect(groups).toStrictEqual([
           {
@@ -831,7 +832,7 @@ describe('RemoteFeatureFlagController', () => {
         await controller.updateRemoteFeatureFlags();
 
         expect(
-          controller.state.rawProcessedRemoteFeatureFlags['simpleFlag']
+          controller.state.rawProcessedRemoteFeatureFlags.simpleFlag,
         ).toBeUndefined();
       });
 
@@ -839,7 +840,7 @@ describe('RemoteFeatureFlagController', () => {
         const controller = createController();
 
         expect(
-          controller.state.rawProcessedRemoteFeatureFlags['nonExistentFlag']
+          controller.state.rawProcessedRemoteFeatureFlags.nonExistentFlag,
         ).toBeUndefined();
       });
     });
@@ -886,13 +887,17 @@ describe('RemoteFeatureFlagController', () => {
 
         await controller.updateRemoteFeatureFlags();
 
-        expect(controller.state.rawProcessedRemoteFeatureFlags).toStrictEqual({});
+        expect(controller.state.rawProcessedRemoteFeatureFlags).toStrictEqual(
+          {},
+        );
       });
 
       it('returns empty object when no flags exist', () => {
         const controller = createController();
 
-        expect(controller.state.rawProcessedRemoteFeatureFlags).toStrictEqual({});
+        expect(controller.state.rawProcessedRemoteFeatureFlags).toStrictEqual(
+          {},
+        );
       });
     });
 
@@ -911,15 +916,17 @@ describe('RemoteFeatureFlagController', () => {
         await controller.updateRemoteFeatureFlags();
 
         // Only A/B test flags should be stored in rawProcessedRemoteFeatureFlags
-        expect(Object.keys(controller.state.rawProcessedRemoteFeatureFlags)).toStrictEqual([
-          'testFlagForThreshold',
-        ]);
+        expect(
+          Object.keys(controller.state.rawProcessedRemoteFeatureFlags),
+        ).toStrictEqual(['testFlagForThreshold']);
         expect(
           controller.state.rawProcessedRemoteFeatureFlags.testFlagForThreshold,
         ).toStrictEqual(MOCK_FLAGS_WITH_THRESHOLD.testFlagForThreshold);
 
         // Simple flags should not be in rawProcessedRemoteFeatureFlags
-        expect(controller.state.rawProcessedRemoteFeatureFlags.simpleFlag).toBeUndefined();
+        expect(
+          controller.state.rawProcessedRemoteFeatureFlags.simpleFlag,
+        ).toBeUndefined();
         expect(
           controller.state.rawProcessedRemoteFeatureFlags.anotherSimpleFlag,
         ).toBeUndefined();
@@ -939,9 +946,8 @@ describe('RemoteFeatureFlagController', () => {
         await controller.updateRemoteFeatureFlags();
 
         // Get available groups
-        const groups = controller.state.rawProcessedRemoteFeatureFlags[
-          'testFlagForThreshold'
-        ];
+        const groups =
+          controller.state.rawProcessedRemoteFeatureFlags.testFlagForThreshold;
         expect(groups).toBeDefined();
         // Ensure groups is not undefined before accessing array elements
         if (!groups) {
@@ -950,12 +956,18 @@ describe('RemoteFeatureFlagController', () => {
         expect(groups).toHaveLength(3); // Expecting 3 groups based on MOCK_FLAGS_WITH_THRESHOLD
 
         // Override with a specific group value
-        const firstGroup = Array.isArray(groups) && groups.length > 0 ? groups[0] : null;
-        const groupValue = firstGroup && typeof firstGroup === 'object' && 'value' in firstGroup ? firstGroup.value : 'valueA';
+        const firstGroup =
+          Array.isArray(groups) && groups.length > 0 ? groups[0] : null;
+        const groupValue =
+          firstGroup && typeof firstGroup === 'object' && 'value' in firstGroup
+            ? firstGroup.value
+            : 'valueA';
         controller.setFlagOverride('testFlagForThreshold', groupValue); // groupA value
 
         // Access flag value with override taking precedence
-        const flagValue = controller.state.localOverrides['testFlagForThreshold'] ?? controller.state.remoteFeatureFlags['testFlagForThreshold'];
+        const flagValue =
+          controller.state.localOverrides.testFlagForThreshold ??
+          controller.state.remoteFeatureFlags.testFlagForThreshold;
         expect(flagValue).toBe('valueA');
       });
 
@@ -969,9 +981,8 @@ describe('RemoteFeatureFlagController', () => {
         controller.setFlagOverride('testFlagForThreshold', 'overrideValue');
 
         // A/B test raw flags should still be available
-        const groups = controller.state.rawProcessedRemoteFeatureFlags[
-          'testFlagForThreshold'
-        ];
+        const groups =
+          controller.state.rawProcessedRemoteFeatureFlags.testFlagForThreshold;
         expect(groups).toHaveLength(3);
         expect(
           controller.state.rawProcessedRemoteFeatureFlags.testFlagForThreshold,

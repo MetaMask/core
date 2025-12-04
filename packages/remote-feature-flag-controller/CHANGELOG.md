@@ -11,14 +11,8 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 - Add override functionality to remote feature flags ([#7271](https://github.com/MetaMask/core/pull/7271))
   - `setFlagOverride(flagName, value)` - Set a local override for a specific feature flag
-  - `getFlagOverride(flagName)` - Get the current override value for a specific feature flag
   - `clearFlagOverride(flagName)` - Clear the local override for a specific feature flag
   - `clearAllOverrides()` - Clear all local feature flag overrides
-  - `getFlag(flagName)` - Get the effective value of a feature flag (override takes precedence over remote)
-  - `getAllFlags()` - Get all effective feature flags, combining remote flags with local overrides
-- Add A/B test visibility functionality ([#7271](https://github.com/MetaMask/core/pull/7271))
-  - `getAvailableABTestGroups(flagName)` - Get available A/B test groups for a specific feature flag
-  - `getAllABTestFlags()` - Get all feature flags that have A/B test groups available
 - Add new controller state properties ([#7271](https://github.com/MetaMask/core/pull/7271))
   - `localOverrides` - Local overrides for feature flags that take precedence over remote flags
   - `rawProcessedRemoteFeatureFlags` - Raw flag value for arrays that were processed from arrays to single value

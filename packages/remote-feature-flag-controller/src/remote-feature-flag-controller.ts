@@ -12,7 +12,6 @@ import type {
   FeatureFlags,
   ServiceResponse,
   FeatureFlagScopeValue,
-  FeatureFlagScope,
 } from './remote-feature-flag-controller-types';
 import {
   generateDeterministicRandomNumber,
@@ -97,7 +96,7 @@ export type RemoteFeatureFlagControllerActions =
   | RemoteFeatureFlagControllerUpdateRemoteFeatureFlagsAction
   | RemoteFeatureFlagControllerSetFlagOverrideAction
   | RemoteFeatureFlagControllerClearFlagOverrideAction
-  | RemoteFeatureFlagControllerClearAllOverridesAction
+  | RemoteFeatureFlagControllerClearAllOverridesAction;
 
 export type RemoteFeatureFlagControllerStateChangeEvent =
   ControllerStateChangeEvent<
@@ -274,9 +273,10 @@ export class RemoteFeatureFlagController extends BaseController<
     return getVersionData(flagValue, this.#clientVersion);
   }
 
-  async #processRemoteFeatureFlags(
-    remoteFeatureFlags: FeatureFlags,
-  ): Promise<{ processedFlags: FeatureFlags; rawProcessedRemoteFeatureFlags: FeatureFlags }> {
+  async #processRemoteFeatureFlags(remoteFeatureFlags: FeatureFlags): Promise<{
+    processedFlags: FeatureFlags;
+    rawProcessedRemoteFeatureFlags: FeatureFlags;
+  }> {
     const processedRemoteFeatureFlags: FeatureFlags = {};
     const rawProcessedRemoteFeatureFlags: FeatureFlags = {};
     const metaMetricsId = this.#getMetaMetricsId();
@@ -295,7 +295,8 @@ export class RemoteFeatureFlagController extends BaseController<
 
       if (Array.isArray(processedValue) && thresholdValue) {
         // Store the raw A/B test array for later use
-        rawProcessedRemoteFeatureFlags[remoteFeatureFlagName] = remoteFeatureFlagValue;
+        rawProcessedRemoteFeatureFlags[remoteFeatureFlagName] =
+          remoteFeatureFlagValue;
         
         const selectedGroup = processedValue.find(
           (featureFlag): featureFlag is FeatureFlagScopeValue => {
@@ -316,7 +317,10 @@ export class RemoteFeatureFlagController extends BaseController<
 
       processedRemoteFeatureFlags[remoteFeatureFlagName] = processedValue;
     }
-    return { processedFlags: processedRemoteFeatureFlags, rawProcessedRemoteFeatureFlags };
+    return {
+      processedFlags: processedRemoteFeatureFlags,
+      rawProcessedRemoteFeatureFlags,
+    };
   }
 
   /**
@@ -347,12 +351,13 @@ export class RemoteFeatureFlagController extends BaseController<
           ...this.state.localOverrides,
           [flagName]: value,
         },
-        rawProcessedRemoteFeatureFlags: this.state.rawProcessedRemoteFeatureFlags,
+        rawProcessedRemoteFeatureFlags:
+          this.state.rawProcessedRemoteFeatureFlags,
         cacheTimestamp: this.state.cacheTimestamp,
       };
     });
   }
-  
+
   /**
    * Clears the local override for a specific feature flag.
    *
@@ -365,7 +370,8 @@ export class RemoteFeatureFlagController extends BaseController<
       return {
         remoteFeatureFlags: this.state.remoteFeatureFlags,
         localOverrides: newOverrides,
-        rawProcessedRemoteFeatureFlags: this.state.rawProcessedRemoteFeatureFlags,
+        rawProcessedRemoteFeatureFlags:
+          this.state.rawProcessedRemoteFeatureFlags,
         cacheTimestamp: this.state.cacheTimestamp,
       };
     });
@@ -379,7 +385,8 @@ export class RemoteFeatureFlagController extends BaseController<
       return {
         remoteFeatureFlags: this.state.remoteFeatureFlags,
         localOverrides: {},
-        rawProcessedRemoteFeatureFlags: this.state.rawProcessedRemoteFeatureFlags,
+        rawProcessedRemoteFeatureFlags:
+          this.state.rawProcessedRemoteFeatureFlags,
         cacheTimestamp: this.state.cacheTimestamp,
       };
     });
