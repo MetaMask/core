@@ -8,7 +8,7 @@ import { StaticIntervalPollingController } from '@metamask/polling-controller';
 import type { AuthenticationController } from '@metamask/profile-sync-controller';
 import type { TransactionMeta } from '@metamask/transaction-controller';
 import { TransactionType } from '@metamask/transaction-controller';
-import type { Hex } from '@metamask/utils';
+import type { CaipAccountId, Hex } from '@metamask/utils';
 import { BigNumber } from 'bignumber.js';
 
 import {
@@ -495,13 +495,13 @@ export class SubscriptionController extends StaticIntervalPollingController()<
    *
    * @param txMeta - The transaction metadata.
    * @param isSponsored - Whether the transaction is sponsored.
-   * @param rewardSubscriptionId - The ID of the reward subscription to link to the shield subscription.
+   * @param rewardAccountId - The account ID of the reward subscription to link to the shield subscription.
    * @returns void
    */
   async submitShieldSubscriptionCryptoApproval(
     txMeta: TransactionMeta,
     isSponsored?: boolean,
-    rewardSubscriptionId?: string,
+    rewardAccountId?: CaipAccountId,
   ) {
     if (txMeta.type !== TransactionType.shieldSubscriptionApprove) {
       return;
@@ -563,7 +563,7 @@ export class SubscriptionController extends StaticIntervalPollingController()<
         rawTransaction: rawTx as Hex,
         isSponsored,
         useTestClock: lastSelectedPaymentMethodShield.useTestClock,
-        rewardSubscriptionId,
+        rewardAccountId,
       };
       await this.startSubscriptionWithCrypto(params);
     }
@@ -770,8 +770,8 @@ export class SubscriptionController extends StaticIntervalPollingController()<
    *
    * @param request - Request object containing the reward subscription ID.
    * @param request.subscriptionId - The ID of the subscription to link rewards to.
-   * @param request.rewardSubscriptionId - The ID of the reward subscription to link to the subscription.
-   * @example { subscriptionId: '1234567890', rewardSubscriptionId: '1234567890' }
+   * @param request.rewardAccountId - The account ID of the reward subscription to link to the subscription.
+   * @example { subscriptionId: '1234567890', rewardAccountId: 'eip155:1:0x1234567890123456789012345678901234567890' }
    * @returns Resolves when the rewards are linked successfully.
    */
   async linkRewards(
@@ -782,7 +782,7 @@ export class SubscriptionController extends StaticIntervalPollingController()<
 
     // link rewards to the subscription
     const response = await this.#subscriptionService.linkRewards({
-      rewardSubscriptionId: request.rewardSubscriptionId,
+      rewardAccountId: request.rewardAccountId,
     });
     if (!response.success) {
       throw new Error(SubscriptionControllerErrorMessage.LinkRewardsFailed);
