@@ -14,6 +14,13 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 - Skip delegation in Relay quotes if token transfer only ([#7262](https://github.com/MetaMask/core/pull/7262))
 - Bump `@metamask/assets-controllers` from `^92.0.0` to `^93.0.0` ([#7291](https://github.com/MetaMask/core/pull/7291))
 
+### Fixed
+
+- Improve Relay provider fees ([#7313](https://github.com/MetaMask/core/pull/7313))
+  - Include slippage from feature flag.
+  - Read fee from `totalImpact` property.
+  - Send dust in transaction quotes to token transfer recipient, if available.
+
 ## [10.3.0]
 
 ### Changed
