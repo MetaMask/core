@@ -10,3 +10,10 @@ export {
   RampsController,
   getDefaultRampsControllerState,
 } from './RampsController';
+export type {
+  OnRampServiceActions,
+  OnRampServiceEvents,
+  OnRampServiceMessenger,
+} from './OnRampService';
+export { OnRampService, OnRampEnvironment, serviceName } from './OnRampService';
+export type { OnRampServiceGetGeolocationAction } from './OnRampService-method-action-types';

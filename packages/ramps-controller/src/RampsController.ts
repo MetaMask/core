@@ -6,6 +6,8 @@ import type {
 import { BaseController } from '@metamask/base-controller';
 import type { Messenger } from '@metamask/messenger';
 
+import type { OnRampServiceGetGeolocationAction } from './OnRampService-method-action-types';
+
 // === GENERAL ===
 
 /**
@@ -22,17 +24,16 @@ export const controllerName = 'RampsController';
  */
 export type RampsControllerState = {
   /**
-   * Placeholder state property for future expansion.
-   * This can be replaced with actual ramps-related state as needed.
+   * The user's country code determined by geolocation.
    */
-  placeholderData: string;
+  geolocation: string | null;
 };
 
 /**
  * The metadata for each property in {@link RampsControllerState}.
  */
 const rampsControllerMetadata = {
-  placeholderData: {
+  geolocation: {
     persist: true,
     includeInDebugSnapshot: true,
     includeInStateLogs: true,
@@ -50,7 +51,7 @@ const rampsControllerMetadata = {
  */
 export function getDefaultRampsControllerState(): RampsControllerState {
   return {
-    placeholderData: '',
+    geolocation: null,
   };
 }
 
@@ -70,6 +71,11 @@ export type RampsControllerGetStateAction = ControllerGetStateAction<
 export type RampsControllerActions = RampsControllerGetStateAction;
 
 /**
+ * Actions from other messengers that {@link RampsController} calls.
+ */
+type AllowedActions = OnRampServiceGetGeolocationAction;
+
+/**
  * Published when the state of {@link RampsController} changes.
  */
 export type RampsControllerStateChangeEvent = ControllerStateChangeEvent<
@@ -83,13 +89,18 @@ export type RampsControllerStateChangeEvent = ControllerStateChangeEvent<
 export type RampsControllerEvents = RampsControllerStateChangeEvent;
 
 /**
+ * Events from other messengers that {@link RampsController} subscribes to.
+ */
+type AllowedEvents = never;
+
+/**
  * The messenger restricted to actions and events accessed by
  * {@link RampsController}.
  */
 export type RampsControllerMessenger = Messenger<
   typeof controllerName,
-  RampsControllerActions,
-  RampsControllerEvents
+  RampsControllerActions | AllowedActions,
+  RampsControllerEvents | AllowedEvents
 >;
 
 // === CONTROLLER DEFINITION ===
@@ -127,5 +138,19 @@ export class RampsController extends BaseController<
       },
     });
   }
-}
 
+  /**
+   * Updates the user's geolocation.
+   * This method calls the OnRampService to get the geolocation
+   * and stores the result in state.
+   */
+  async updateGeolocation(): Promise<void> {
+    const geolocation = await this.messenger.call(
+      'OnRampService:getGeolocation',
+    );
+
+    this.update((state) => {
+      state.geolocation = geolocation;
+    });
+  }
+}

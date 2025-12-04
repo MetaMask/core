@@ -15,7 +15,7 @@ describe('RampsController', () => {
       await withController(({ controller }) => {
         expect(controller.state).toMatchInlineSnapshot(`
           Object {
-            "placeholderData": "",
+            "geolocation": null,
           }
         `);
       });
@@ -23,7 +23,7 @@ describe('RampsController', () => {
 
     it('accepts initial state', async () => {
       const givenState = {
-        placeholderData: 'test data',
+        geolocation: 'US',
       };
 
       await withController(
@@ -40,7 +40,7 @@ describe('RampsController', () => {
         ({ controller }) => {
           expect(controller.state).toMatchInlineSnapshot(`
             Object {
-              "placeholderData": "",
+              "geolocation": null,
             }
           `);
         },
@@ -59,7 +59,7 @@ describe('RampsController', () => {
           ),
         ).toMatchInlineSnapshot(`
           Object {
-            "placeholderData": "",
+            "geolocation": null,
           }
         `);
       });
@@ -75,7 +75,7 @@ describe('RampsController', () => {
           ),
         ).toMatchInlineSnapshot(`
           Object {
-            "placeholderData": "",
+            "geolocation": null,
           }
         `);
       });
@@ -91,7 +91,7 @@ describe('RampsController', () => {
           ),
         ).toMatchInlineSnapshot(`
           Object {
-            "placeholderData": "",
+            "geolocation": null,
           }
         `);
       });
@@ -107,9 +107,24 @@ describe('RampsController', () => {
           ),
         ).toMatchInlineSnapshot(`
           Object {
-            "placeholderData": "",
+            "geolocation": null,
           }
         `);
+      });
+    });
+  });
+
+  describe('updateGeolocation', () => {
+    it('updates geolocation state when geolocation is fetched', async () => {
+      await withController(async ({ controller, rootMessenger }) => {
+        rootMessenger.registerActionHandler(
+          'OnRampService:getGeolocation',
+          async () => 'US',
+        );
+
+        await controller.updateGeolocation();
+
+        expect(controller.state.geolocation).toBe('US');
       });
     });
   });
@@ -194,4 +209,3 @@ async function withController<ReturnValue>(
   });
   return await testFunction({ controller, rootMessenger, messenger });
 }
-
