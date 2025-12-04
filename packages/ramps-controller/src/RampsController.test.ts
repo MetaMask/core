@@ -6,6 +6,7 @@ import type {
   MessengerEvents,
 } from '@metamask/messenger';
 
+import type { OnRampServiceGetGeolocationAction } from './OnRampService-method-action-types';
 import type { RampsControllerMessenger } from './RampsController';
 import { RampsController } from './RampsController';
 
@@ -136,7 +137,7 @@ describe('RampsController', () => {
  */
 type RootMessenger = Messenger<
   MockAnyNamespace,
-  MessengerActions<RampsControllerMessenger>,
+  MessengerActions<RampsControllerMessenger> | OnRampServiceGetGeolocationAction,
   MessengerEvents<RampsControllerMessenger>
 >;
 
@@ -179,6 +180,10 @@ function getMessenger(
   const messenger: RampsControllerMessenger = new Messenger({
     namespace: 'RampsController',
     parent: rootMessenger,
+  });
+  rootMessenger.delegate({
+    messenger,
+    actions: ['OnRampService:getGeolocation'],
   });
   return messenger;
 }

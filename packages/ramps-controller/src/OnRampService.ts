@@ -4,7 +4,6 @@ import type {
 } from '@metamask/controller-utils';
 import { createServicePolicy, HttpError } from '@metamask/controller-utils';
 import type { Messenger } from '@metamask/messenger';
-import { hasProperty, isPlainObject } from '@metamask/utils';
 
 import type { OnRampServiceMethodActions } from './OnRampService-method-action-types';
 
@@ -60,13 +59,6 @@ export type OnRampServiceMessenger = Messenger<
 >;
 
 // === SERVICE DEFINITION ===
-
-/**
- * What the geolocation API endpoint returns.
- */
-type GeolocationResponse = {
-  country: string;
-};
 
 /**
  * Gets the base URL for API requests based on the environment.
@@ -243,7 +235,7 @@ export class OnRampService {
    * Makes a request to the API in order to retrieve the user's geolocation
    * based on their IP address.
    *
-   * @returns The user's country code.
+   * @returns The user's country/region code (e.g., "US-UT" for Utah, USA).
    */
   async getGeolocation(): Promise<string> {
     const response = await this.#policy.execute(async () => {
@@ -257,14 +249,12 @@ export class OnRampService {
       }
       return localResponse;
     });
-    const jsonResponse = await response.json();
 
-    if (
-      isPlainObject(jsonResponse) &&
-      hasProperty(jsonResponse, 'country') &&
-      typeof jsonResponse.country === 'string'
-    ) {
-      return jsonResponse.country;
+    const textResponse = await response.text();
+    const trimmedResponse = textResponse.trim();
+
+    if (typeof trimmedResponse === 'string' && trimmedResponse.length > 0) {
+      return trimmedResponse;
     }
 
     throw new Error('Malformed response received from geolocation API');

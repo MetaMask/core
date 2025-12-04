@@ -4,6 +4,7 @@ import type {
   MessengerActions,
   MessengerEvents,
 } from '@metamask/messenger';
+import 'isomorphic-fetch';
 import nock from 'nock';
 import { useFakeTimers } from 'sinon';
 import type { SinonFakeTimers } from 'sinon';
@@ -23,27 +24,23 @@ describe('OnRampService', () => {
   });
 
   describe('OnRampService:getGeolocation', () => {
-    it('returns the country from the API', async () => {
+    it('returns the geolocation from the API', async () => {
       nock('https://on-ramp.uat-api.cx.metamask.io')
         .get('/geolocation')
-        .reply(200, {
-          country: 'US',
-        });
+        .reply(200, 'US-TX');
       const { rootMessenger } = getService();
 
       const geolocationResponse = await rootMessenger.call(
         'OnRampService:getGeolocation',
       );
 
-      expect(geolocationResponse).toBe('US');
+      expect(geolocationResponse).toBe('US-TX');
     });
 
     it('uses the production URL when environment is Production', async () => {
       nock('https://on-ramp.api.cx.metamask.io')
         .get('/geolocation')
-        .reply(200, {
-          country: 'GB',
-        });
+        .reply(200, 'US-TX');
       const { rootMessenger } = getService({
         options: { environment: OnRampEnvironment.Production },
       });
@@ -52,15 +49,11 @@ describe('OnRampService', () => {
         'OnRampService:getGeolocation',
       );
 
-      expect(geolocationResponse).toBe('GB');
+      expect(geolocationResponse).toBe('US-TX');
     });
 
     it('uses localhost URL when environment is Development', async () => {
-      nock('http://localhost:3000')
-        .get('/geolocation')
-        .reply(200, {
-          country: 'CA',
-        });
+      nock('http://localhost:3000').get('/geolocation').reply(200, 'US-TX');
       const { rootMessenger } = getService({
         options: { environment: OnRampEnvironment.Development },
       });
@@ -69,36 +62,27 @@ describe('OnRampService', () => {
         'OnRampService:getGeolocation',
       );
 
-      expect(geolocationResponse).toBe('CA');
+      expect(geolocationResponse).toBe('US-TX');
     });
 
-    it.each([
-      'not an object',
-      { missing: 'country' },
-      { country: 123 },
-      { country: null },
-    ])(
-      'throws if the API returns a malformed response %o',
-      async (response) => {
-        nock('https://on-ramp.uat-api.cx.metamask.io')
-          .get('/geolocation')
-          .reply(200, JSON.stringify(response));
-        const { rootMessenger } = getService();
+    it('throws if the API returns an empty response', async () => {
+      nock('https://on-ramp.uat-api.cx.metamask.io')
+        .get('/geolocation')
+        .reply(200, '');
+      const { rootMessenger } = getService();
 
-        await expect(
-          rootMessenger.call('OnRampService:getGeolocation'),
-        ).rejects.toThrow('Malformed response received from geolocation API');
-      },
-    );
+      await expect(
+        rootMessenger.call('OnRampService:getGeolocation'),
+      ).rejects.toThrow('Malformed response received from geolocation API');
+    });
+
 
     it('calls onDegraded listeners if the request takes longer than 5 seconds to resolve', async () => {
       nock('https://on-ramp.uat-api.cx.metamask.io')
         .get('/geolocation')
         .reply(200, () => {
           clock.tick(6000);
-          return {
-            country: 'US',
-          };
+          return 'US-TX';
         });
       const { service, rootMessenger } = getService();
       const onDegradedListener = jest.fn();
@@ -131,14 +115,12 @@ describe('OnRampService', () => {
     it('does the same thing as the messenger action', async () => {
       nock('https://on-ramp.uat-api.cx.metamask.io')
         .get('/geolocation')
-        .reply(200, {
-          country: 'US',
-        });
+        .reply(200, 'US-TX');
       const { service } = getService();
 
       const geolocationResponse = await service.getGeolocation();
 
-      expect(geolocationResponse).toBe('US');
+      expect(geolocationResponse).toBe('US-TX');
     });
   });
 });
@@ -198,11 +180,10 @@ function getService({
   const rootMessenger = getRootMessenger();
   const messenger = getMessenger(rootMessenger);
   const service = new OnRampService({
-    fetch,
+    fetch: fetch as typeof globalThis.fetch,
     messenger,
     ...options,
   });
 
   return { service, rootMessenger, messenger };
 }
-
