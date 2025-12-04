@@ -21,16 +21,11 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
   - `getAllABTestFlags()` - Get all feature flags that have A/B test groups available
 - Add new controller state properties ([#7271](https://github.com/MetaMask/core/pull/7271))
   - `localOverrides` - Local overrides for feature flags that take precedence over remote flags
-  - `abTestRawFlags` - Raw A/B test flag arrays for flags that were processed from arrays to single values
+  - `rawProcessedRemoteFeatureFlags` - Raw flag value for arrays that were processed from arrays to single value
 - Export additional controller action types ([#7271](https://github.com/MetaMask/core/pull/7271))
   - `RemoteFeatureFlagControllerSetFlagOverrideAction`
-  - `RemoteFeatureFlagControllerGetFlagOverrideAction`
   - `RemoteFeatureFlagControllerClearFlagOverrideAction`
   - `RemoteFeatureFlagControllerClearAllOverridesAction`
-  - `RemoteFeatureFlagControllerGetFlagAction`
-  - `RemoteFeatureFlagControllerGetAllFlagsAction`
-  - `RemoteFeatureFlagControllerGetAvailableABTestGroupsAction`
-  - `RemoteFeatureFlagControllerGetAllABTestFlagsAction`
 
 ### Changed
 

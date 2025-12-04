@@ -6,13 +6,8 @@ export type {
   RemoteFeatureFlagControllerGetStateAction,
   RemoteFeatureFlagControllerUpdateRemoteFeatureFlagsAction,
   RemoteFeatureFlagControllerSetFlagOverrideAction,
-  RemoteFeatureFlagControllerGetFlagOverrideAction,
   RemoteFeatureFlagControllerClearFlagOverrideAction,
   RemoteFeatureFlagControllerClearAllOverridesAction,
-  RemoteFeatureFlagControllerGetFlagAction,
-  RemoteFeatureFlagControllerGetAllFlagsAction,
-  RemoteFeatureFlagControllerGetAvailableABTestGroupsAction,
-  RemoteFeatureFlagControllerGetAllABTestFlagsAction,
   RemoteFeatureFlagControllerEvents,
   RemoteFeatureFlagControllerStateChangeEvent,
 } from './remote-feature-flag-controller';
