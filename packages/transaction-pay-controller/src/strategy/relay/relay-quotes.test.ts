@@ -70,6 +70,9 @@ const QUOTE_MOCK = {
       minimumAmount: '125',
     },
     timeEstimate: 300,
+    totalImpact: {
+      usd: '1.11',
+    },
   },
   fees: {
     relayer: {
@@ -299,6 +302,7 @@ describe('Relay Quotes Utils', () => {
         originChainId: 1,
         originCurrency: QUOTE_REQUEST_MOCK.sourceTokenAddress,
         recipient: QUOTE_REQUEST_MOCK.from,
+        slippageTolerance: '50',
         tradeType: 'EXACT_OUTPUT',
         txs: expect.any(Array),
         user: QUOTE_REQUEST_MOCK.from,
@@ -381,6 +385,7 @@ describe('Relay Quotes Utils', () => {
               yParity: 1,
             },
           ],
+          recipient: QUOTE_REQUEST_MOCK.from,
           tradeType: 'EXACT_OUTPUT',
           txs: [
             {
@@ -448,6 +453,38 @@ describe('Relay Quotes Utils', () => {
       );
 
       expect(body.recipient).toBe(TOKEN_TRANSFER_RECIPIENT_MOCK.toLowerCase());
+    });
+
+    it('extracts recipient and sets refundTo when nested transactions include token transfer with delegation', async () => {
+      successfulFetchMock.mockResolvedValue({
+        json: async () => QUOTE_MOCK,
+      } as never);
+
+      await getRelayQuotes({
+        messenger,
+        requests: [QUOTE_REQUEST_MOCK],
+        transaction: {
+          ...TRANSACTION_META_MOCK,
+          nestedTransactions: [
+            {
+              data: NESTED_TRANSACTION_DATA_MOCK,
+            },
+            {
+              data: TOKEN_TRANSFER_DATA_MOCK,
+            },
+          ],
+          txParams: {
+            data: '0xabc' as Hex,
+          },
+        } as TransactionMeta,
+      });
+
+      const body = JSON.parse(
+        successfulFetchMock.mock.calls[0][1]?.body as string,
+      );
+
+      expect(body.recipient).toBe(TOKEN_TRANSFER_RECIPIENT_MOCK);
+      expect(body.refundTo).toBe(QUOTE_REQUEST_MOCK.from);
     });
 
     it('skips delegation for Hypercore deposits', async () => {
@@ -558,7 +595,7 @@ describe('Relay Quotes Utils', () => {
       expect(result[0].estimatedDuration).toBe(300);
     });
 
-    it('includes provider fee from relayer fee', async () => {
+    it('includes provider fee', async () => {
       successfulFetchMock.mockResolvedValue({
         json: async () => QUOTE_MOCK,
       } as never);
@@ -572,26 +609,6 @@ describe('Relay Quotes Utils', () => {
       expect(result[0].fees.provider).toStrictEqual({
         usd: '1.11',
         fiat: '2.22',
-      });
-    });
-
-    it('includes provider fee from usd change if greater', async () => {
-      const quote = cloneDeep(QUOTE_MOCK);
-      quote.details.currencyIn.amountUsd = '3.00';
-
-      successfulFetchMock.mockResolvedValue({
-        json: async () => quote,
-      } as never);
-
-      const result = await getRelayQuotes({
-        messenger,
-        requests: [QUOTE_REQUEST_MOCK],
-        transaction: TRANSACTION_META_MOCK,
-      });
-
-      expect(result[0].fees.provider).toStrictEqual({
-        usd: '1.77',
-        fiat: '3.54',
       });
     });
 
