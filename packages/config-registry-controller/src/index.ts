@@ -7,6 +7,8 @@ export type {
   ConfigRegistryControllerSetConfigAction,
   ConfigRegistryControllerGetAllConfigsAction,
   ConfigRegistryControllerGetStateAction,
+  ConfigRegistryControllerStartPollingAction,
+  ConfigRegistryControllerStopPollingAction,
   ConfigRegistryControllerEvents,
   ConfigRegistryControllerStateChangeEvent,
   ConfigRegistryMessenger,

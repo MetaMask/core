@@ -7,7 +7,8 @@
   },
   "references": [
     { "path": "../base-controller/tsconfig.build.json" },
-    { "path": "../messenger/tsconfig.build.json" }
+    { "path": "../messenger/tsconfig.build.json" },
+    { "path": "../polling-controller/tsconfig.build.json" }
   ],
   "include": ["../../types", "./src"]
 }
