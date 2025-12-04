@@ -75,6 +75,8 @@ async function getSingleQuote(
   fullRequest: PayStrategyGetQuotesRequest,
 ): Promise<TransactionPayQuote<RelayQuote>> {
   const { messenger, transaction } = fullRequest;
+  const { slippage: slippageDecimal } = getFeatureFlags(messenger);
+  const slippageTolerance = String(slippageDecimal * 100 * 100);
 
   try {
     const body: RelayQuoteRequest = {
@@ -84,6 +86,7 @@ async function getSingleQuote(
       originChainId: Number(request.sourceChainId),
       originCurrency: request.sourceTokenAddress,
       recipient: request.from,
+      slippageTolerance,
       tradeType: 'EXPECTED_OUTPUT',
       user: request.from,
     };
@@ -561,11 +564,5 @@ function calculateSourceNetworkGasLimit(
  * @returns - Provider fee in USD.
  */
 function calculateProviderFee(quote: RelayQuote) {
-  const relayerFee = new BigNumber(quote.fees.relayer.amountUsd);
-
-  const valueLoss = new BigNumber(quote.details.currencyIn.amountUsd).minus(
-    quote.details.currencyOut.amountUsd,
-  );
-
-  return relayerFee.gt(valueLoss) ? relayerFee : valueLoss;
+  return new BigNumber(quote.details.totalImpact.usd).abs();
 }
