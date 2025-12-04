@@ -9,14 +9,10 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [5.3.1]
 
-### Uncategorized
-
-- chore: Update ESLint config packages to v15 ([#7305](https://github.com/MetaMask/core/pull/7305))
-
 ### Changed
 
 - Renamed parameters related to rewards linking with shield. ([#7311](https://github.com/MetaMask/core/pull/7311))
-  - Renamed from `rewardSubscriptionId` to `rewardAccountId`
+  - Renamed from `rewardSubscriptionId` to `rewardAccountId`.
 
 ## [5.3.0]
 
