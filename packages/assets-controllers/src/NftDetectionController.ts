@@ -305,10 +305,6 @@ export type Attributes = {
   createdAt?: string;
 };
 
-export type GetCollectionsResponse = {
-  collections: CollectionResponse[];
-};
-
 export type CollectionResponse = {
   id?: string;
   chainId?: number;
