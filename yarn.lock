@@ -2816,7 +2816,7 @@ __metadata:
     "@metamask/multichain-network-controller": "npm:^3.0.0"
     "@metamask/network-controller": "npm:^27.0.0"
     "@metamask/polling-controller": "npm:^16.0.0"
-    "@metamask/remote-feature-flag-controller": "npm:^2.0.1"
+    "@metamask/remote-feature-flag-controller": "npm:^3.0.0"
     "@metamask/snaps-controllers": "npm:^14.0.1"
     "@metamask/superstruct": "npm:^3.1.0"
     "@metamask/transaction-controller": "npm:^62.4.0"
@@ -4600,7 +4600,7 @@ __metadata:
   languageName: unknown
   linkType: soft
 
-"@metamask/remote-feature-flag-controller@npm:^2.0.1, @metamask/remote-feature-flag-controller@workspace:packages/remote-feature-flag-controller":
+"@metamask/remote-feature-flag-controller@npm:^3.0.0, @metamask/remote-feature-flag-controller@workspace:packages/remote-feature-flag-controller":
   version: 0.0.0-use.local
   resolution: "@metamask/remote-feature-flag-controller@workspace:packages/remote-feature-flag-controller"
   dependencies:
@@ -5040,7 +5040,7 @@ __metadata:
     "@metamask/metamask-eth-abis": "npm:^3.1.1"
     "@metamask/network-controller": "npm:^27.0.0"
     "@metamask/nonce-tracker": "npm:^6.0.0"
-    "@metamask/remote-feature-flag-controller": "npm:^2.0.1"
+    "@metamask/remote-feature-flag-controller": "npm:^3.0.0"
     "@metamask/rpc-errors": "npm:^7.0.2"
     "@metamask/utils": "npm:^11.8.1"
     "@ts-bridge/cli": "npm:^0.6.4"
@@ -5085,7 +5085,7 @@ __metadata:
     "@metamask/messenger": "npm:^0.3.0"
     "@metamask/metamask-eth-abis": "npm:^3.1.1"
     "@metamask/network-controller": "npm:^27.0.0"
-    "@metamask/remote-feature-flag-controller": "npm:^2.0.1"
+    "@metamask/remote-feature-flag-controller": "npm:^3.0.0"
     "@metamask/transaction-controller": "npm:^62.4.0"
     "@metamask/utils": "npm:^11.8.1"
     "@ts-bridge/cli": "npm:^0.6.4"

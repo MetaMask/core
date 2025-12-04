@@ -14,6 +14,7 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 - Skip delegation in Relay quotes if token transfer only ([#7262](https://github.com/MetaMask/core/pull/7262))
 - Bump `@metamask/assets-controllers` from `^92.0.0` to `^93.0.0` ([#7291](https://github.com/MetaMask/core/pull/7291))
 - Bump `@metamask/assets-controllers` from `^93.0.0` to `^93.1.0` ([#7309](https://github.com/MetaMask/core/pull/7309)
+- Bump `@metamask/remote-feature-flag-controller` from `^2.0.1` to `^3.0.0` ([#7309](https://github.com/MetaMask/core/pull/7309)
 
 ## [10.3.0]
 
