@@ -1,4 +1,4 @@
-import type { Hex } from '@metamask/utils';
+import type { CaipAccountId, Hex } from '@metamask/utils';
 
 export const PRODUCT_TYPES = {
   SHIELD: 'shield',
@@ -137,8 +137,12 @@ export type StartSubscriptionRequest = {
   /**
    * The optional ID of the reward subscription to be opt in along with the main `shield` subscription.
    * This is required if user wants to opt in to the reward subscription during the `shield` subscription creation.
+   *
+   * @example {
+   *   rewardAccountId: 'eip155:1:0x1234567890123456789012345678901234567890',
+   * }
    */
-  rewardSubscriptionId?: string;
+  rewardAccountId?: CaipAccountId;
 };
 
 export type StartSubscriptionResponse = {
@@ -162,8 +166,12 @@ export type StartCryptoSubscriptionRequest = {
   /**
    * The optional ID of the reward subscription to be opt in along with the main `shield` subscription.
    * This is required if user wants to opt in to the reward subscription during the `shield` subscription creation.
+   *
+   * @example {
+   *   rewardAccountId: 'eip155:1:0x1234567890123456789012345678901234567890',
+   * }
    */
-  rewardSubscriptionId?: string;
+  rewardAccountId?: CaipAccountId;
 };
 
 export type StartCryptoSubscriptionResponse = {
@@ -462,6 +470,10 @@ export type CachedLastSelectedPaymentMethod = {
 export type LinkRewardsRequest = {
   /**
    * The ID of the reward subscription to be linked to the subscription.
+   *
+   * @example {
+   *   rewardAccountId: 'eip155:1:0x1234567890123456789012345678901234567890',
+   * }
    */
-  rewardSubscriptionId: string;
+  rewardAccountId: CaipAccountId;
 };

@@ -2012,7 +2012,7 @@ describe('SubscriptionController', () => {
           await controller.submitShieldSubscriptionCryptoApproval(
             txMeta,
             false, // isSponsored
-            'reward_sub_1234567890',
+            'eip155:1:0x1234567890123456789012345678901234567890',
           );
 
           expect(mockService.startSubscriptionWithCrypto).toHaveBeenCalledWith({
@@ -2026,7 +2026,8 @@ describe('SubscriptionController', () => {
             rawTransaction: '0x123',
             isSponsored: false,
             useTestClock: undefined,
-            rewardSubscriptionId: 'reward_sub_1234567890',
+            rewardAccountId:
+              'eip155:1:0x1234567890123456789012345678901234567890',
           });
         },
       );
@@ -2325,10 +2326,12 @@ describe('SubscriptionController', () => {
             });
           await controller.linkRewards({
             subscriptionId: 'sub_123456789',
-            rewardSubscriptionId: 'reward_sub_1234567890',
+            rewardAccountId:
+              'eip155:1:0x1234567890123456789012345678901234567890',
           });
           expect(linkRewardsSpy).toHaveBeenCalledWith({
-            rewardSubscriptionId: 'reward_sub_1234567890',
+            rewardAccountId:
+              'eip155:1:0x1234567890123456789012345678901234567890',
           });
           expect(linkRewardsSpy).toHaveBeenCalledTimes(1);
         },
@@ -2340,7 +2343,8 @@ describe('SubscriptionController', () => {
         await expect(
           controller.linkRewards({
             subscriptionId: 'sub_123456789',
-            rewardSubscriptionId: 'reward_sub_1234567890',
+            rewardAccountId:
+              'eip155:1:0x1234567890123456789012345678901234567890',
           }),
         ).rejects.toThrow(SubscriptionControllerErrorMessage.UserNotSubscribed);
       });
@@ -2360,7 +2364,8 @@ describe('SubscriptionController', () => {
           await expect(
             controller.linkRewards({
               subscriptionId: 'sub_123456789',
-              rewardSubscriptionId: 'reward_sub_1234567890',
+              rewardAccountId:
+                'eip155:1:0x1234567890123456789012345678901234567890',
             }),
           ).rejects.toThrow(
             SubscriptionControllerErrorMessage.LinkRewardsFailed,
