@@ -256,7 +256,7 @@ export class AnalyticsController extends BaseController<
     // Call onSetupCompleted lifecycle hook after initialization
     // State is already validated, so analyticsId is guaranteed to be a valid UUIDv4
     try {
-      await this.#platformAdapter.onSetupCompleted(this.state.analyticsId);
+      this.#platformAdapter.onSetupCompleted(this.state.analyticsId);
     } catch (error) {
       // Log error but don't throw - adapter setup failure shouldn't break controller
       projectLogger('Error calling platformAdapter.onSetupCompleted', error);

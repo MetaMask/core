@@ -36,7 +36,7 @@ const platformAdapter: AnalyticsPlatformAdapter = {
   view: (name: string, properties?: Record<string, unknown>) => {
     segment.page(name, properties);
   },
-  onSetupCompleted: async (analyticsId: string) => {
+  onSetupCompleted: (analyticsId: string) => {
     // Lifecycle hook called after controller initialization
     // The analyticsId is guaranteed to be set when this method is called
     // Use this for platform-specific setup that requires the analytics ID
@@ -271,7 +271,7 @@ The `analyticsId` is an **identity** (unique per user), not a **preference** (st
 Called once after controller initialization with guaranteed valid `analyticsId`:
 
 ```typescript
-onSetupCompleted: async (analyticsId: string) => {
+onSetupCompleted: (analyticsId: string) => {
   // analyticsId is guaranteed to be a valid UUIDv4
   client.add({ plugin: new PrivacyPlugin(analyticsId) });
 },

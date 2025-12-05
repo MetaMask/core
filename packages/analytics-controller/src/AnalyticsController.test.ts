@@ -49,7 +49,7 @@ async function setupController(
       track: jest.fn(),
       identify: jest.fn(),
       view: jest.fn(),
-      onSetupCompleted: jest.fn().mockResolvedValue(undefined),
+      onSetupCompleted: jest.fn(),
     } satisfies AnalyticsPlatformAdapter);
 
   const rootMessenger = new Messenger<
@@ -122,7 +122,7 @@ function createMockAdapter(): AnalyticsPlatformAdapter {
     track: jest.fn(),
     identify: jest.fn(),
     view: jest.fn(),
-    onSetupCompleted: jest.fn().mockResolvedValue(undefined),
+    onSetupCompleted: jest.fn(),
   };
 }
 
@@ -406,27 +406,13 @@ describe('AnalyticsController', () => {
       expect(mockAdapter.onSetupCompleted).toHaveBeenCalledWith(
         controller.state.analyticsId,
       );
-
-      const mockFn = mockAdapter.onSetupCompleted as jest.MockedFunction<
-        (analyticsId: string) => Promise<void>
-      >;
-      const promise = mockFn.mock.results[0]?.value;
-      expect(await promise).toBeUndefined();
     });
 
-    it('waits for onSetupCompleted promise to resolve', async () => {
-      let resolvePromise: (() => void) | undefined;
-      const promise = new Promise<void>((resolve) => {
-        resolvePromise = resolve;
-      });
-
+    it('calls onSetupCompleted synchronously', async () => {
       const mockAdapter = createMockAdapter();
-      jest.spyOn(mockAdapter, 'onSetupCompleted').mockReturnValue(promise);
-
       const analyticsId = '44444444-4444-4444-8444-444444444444';
       
-      // Start setupController (which calls init() and waits for the promise)
-      const setupPromise = setupController({
+      const { controller } = await setupController({
         state: {
           ...getDefaultAnalyticsControllerState(),
           analyticsId,
@@ -434,20 +420,10 @@ describe('AnalyticsController', () => {
         platformAdapter: mockAdapter,
       });
 
-      // Verify onSetupCompleted was called
+      // Verify onSetupCompleted was called synchronously
       expect(mockAdapter.onSetupCompleted).toHaveBeenCalledTimes(1);
-      
-      // Resolve the promise
-      if (resolvePromise) {
-        resolvePromise();
-      }
-      
-      // Wait for setupController to complete (it should now finish since promise resolved)
-      const { controller } = await setupPromise;
-      
       expect(controller).toBeDefined();
       expect(controller.state.analyticsId).toBeDefined();
-      await promise;
     });
 
     it('ignores errors thrown by onSetupCompleted', async () => {
@@ -459,10 +435,11 @@ describe('AnalyticsController', () => {
         'Failed to add privacy plugin to Segment client',
         cause,
       );
-      const rejectedPromise = Promise.reject(error);
       jest
         .spyOn(mockAdapter, 'onSetupCompleted')
-        .mockReturnValue(rejectedPromise);
+        .mockImplementation(() => {
+          throw error;
+        });
 
       const analyticsId = '55555555-5555-4555-9555-555555555555';
       const { controller } = await setupController({
@@ -475,9 +452,6 @@ describe('AnalyticsController', () => {
 
       expect(controller).toBeDefined();
       expect(mockAdapter.onSetupCompleted).toHaveBeenCalledTimes(1);
-
-      await expect(rejectedPromise).rejects.toThrow(error);
-
       expect(controller.state.analyticsId).toBeDefined();
     });
   });
