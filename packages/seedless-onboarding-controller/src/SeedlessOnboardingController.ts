@@ -57,6 +57,7 @@ import type {
 import {
   decodeJWTToken,
   decodeNodeAuthToken,
+  compareTimeuuid,
   deserializeVaultData,
   serializeVaultData,
 } from './utils';
@@ -1304,9 +1305,9 @@ export class SeedlessOnboardingController<
         if (b.dataType === EncAccountDataType.PrimarySrp) {
           return 1;
         }
-        // Use server-side createdAt if available (TIMEUUID is lexicographically sortable)
+        // Use server-side createdAt if available (TIMEUUID requires timestamp extraction)
         if (a.createdAt && b.createdAt) {
-          return a.createdAt.localeCompare(b.createdAt);
+          return compareTimeuuid(a.createdAt, b.createdAt);
         }
         // Fall back to client-side timestamp
         return SecretMetadata.compareByTimestamp(a, b, 'asc');

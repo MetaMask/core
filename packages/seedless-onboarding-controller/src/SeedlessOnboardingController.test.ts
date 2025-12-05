@@ -2137,14 +2137,14 @@ describe('SeedlessOnboardingController', () => {
                   type: SecretType.Mnemonic,
                   itemId: 'srp-item-id',
                   dataType: EncAccountDataType.PrimarySrp,
-                  createdAt: '00000000-0000-1000-8000-000000000001',
+                  createdAt: '00000001-0000-1000-8000-000000000001',
                 },
                 {
                   data: MOCK_PRIVATE_KEY,
                   type: SecretType.PrivateKey,
                   itemId: 'pk-item-id',
                   dataType: EncAccountDataType.ImportedPrivateKey,
-                  createdAt: '00000000-0000-1000-8000-000000000002',
+                  createdAt: '00000002-0000-1000-8000-000000000002',
                 },
               ],
               MOCK_PASSWORD,
@@ -2164,14 +2164,14 @@ describe('SeedlessOnboardingController', () => {
           expect(secretData[0].itemId).toBe('srp-item-id');
           expect(secretData[0].dataType).toBe(EncAccountDataType.PrimarySrp);
           expect(secretData[0].createdAt).toBe(
-            '00000000-0000-1000-8000-000000000001',
+            '00000001-0000-1000-8000-000000000001',
           );
           expect(secretData[1].itemId).toBe('pk-item-id');
           expect(secretData[1].dataType).toBe(
             EncAccountDataType.ImportedPrivateKey,
           );
           expect(secretData[1].createdAt).toBe(
-            '00000000-0000-1000-8000-000000000002',
+            '00000002-0000-1000-8000-000000000002',
           );
 
           expect(controller.state.vault).toBeDefined();
@@ -2231,14 +2231,14 @@ describe('SeedlessOnboardingController', () => {
             secretData.every((item) => item.type === SecretType.Mnemonic),
           ).toBe(true);
 
-          // Sorted: PrimarySrp first, then by createdAt
+          // Sorted: PrimarySrp first, then by createdAt (TIMEUUID timestamp)
           expect(secretData[0].data).toStrictEqual(
             stringToBytes('seedPhrase1'),
           );
           expect(secretData[0].itemId).toBe('srp-1');
           expect(secretData[0].dataType).toBe(EncAccountDataType.PrimarySrp);
           expect(secretData[0].createdAt).toBe(
-            '00000000-0000-1000-8000-000000000001',
+            '00000001-0000-1000-8000-000000000001',
           );
           expect(secretData[1].data).toStrictEqual(
             stringToBytes('seedPhrase2'),
@@ -2246,7 +2246,7 @@ describe('SeedlessOnboardingController', () => {
           expect(secretData[1].itemId).toBe('srp-2');
           expect(secretData[1].dataType).toBe(EncAccountDataType.ImportedSrp);
           expect(secretData[1].createdAt).toBe(
-            '00000000-0000-1000-8000-000000000002',
+            '00000002-0000-1000-8000-000000000002',
           );
           expect(secretData[2].data).toStrictEqual(
             stringToBytes('seedPhrase3'),
@@ -2254,7 +2254,7 @@ describe('SeedlessOnboardingController', () => {
           expect(secretData[2].itemId).toBe('srp-3');
           expect(secretData[2].dataType).toBe(EncAccountDataType.ImportedSrp);
           expect(secretData[2].createdAt).toBe(
-            '00000000-0000-1000-8000-000000000003',
+            '00000003-0000-1000-8000-000000000003',
           );
 
           // verify the vault data
@@ -2308,7 +2308,7 @@ describe('SeedlessOnboardingController', () => {
                   type: SecretType.Mnemonic,
                   itemId: 'primary-srp-id',
                   dataType: EncAccountDataType.PrimarySrp,
-                  createdAt: '00000000-0000-1000-8000-000000000001',
+                  createdAt: '00000001-0000-1000-8000-000000000001',
                 },
               ],
               MOCK_PASSWORD,
@@ -2323,7 +2323,7 @@ describe('SeedlessOnboardingController', () => {
           expect(secretData[0].itemId).toBe('primary-srp-id');
           expect(secretData[0].dataType).toBe(EncAccountDataType.PrimarySrp);
           expect(secretData[0].createdAt).toBe(
-            '00000000-0000-1000-8000-000000000001',
+            '00000001-0000-1000-8000-000000000001',
           );
 
           expect(controller.state.vault).toBeDefined();
@@ -2470,7 +2470,7 @@ describe('SeedlessOnboardingController', () => {
                   type: SecretType.Mnemonic,
                   itemId: 'primary-srp-id',
                   dataType: EncAccountDataType.PrimarySrp,
-                  createdAt: '00000000-0000-1000-8000-000000000001',
+                  createdAt: '00000001-0000-1000-8000-000000000001',
                 },
               ],
               MOCK_PASSWORD,
@@ -2487,7 +2487,7 @@ describe('SeedlessOnboardingController', () => {
           expect(secretData[0].itemId).toBe('primary-srp-id');
           expect(secretData[0].dataType).toBe(EncAccountDataType.PrimarySrp);
           expect(secretData[0].createdAt).toBe(
-            '00000000-0000-1000-8000-000000000001',
+            '00000001-0000-1000-8000-000000000001',
           );
         },
       );
@@ -2735,14 +2735,14 @@ describe('SeedlessOnboardingController', () => {
                   type: SecretType.Mnemonic,
                   itemId: 'imported-srp-id',
                   dataType: EncAccountDataType.ImportedSrp,
-                  createdAt: '00000000-0000-1000-8000-000000000001', // Earlier
+                  createdAt: '00000001-0000-1000-8000-000000000001',
                 },
                 {
                   data: new Uint8Array(Buffer.from('primarySrp', 'utf-8')),
                   type: SecretType.Mnemonic,
                   itemId: 'primary-srp-id',
                   dataType: EncAccountDataType.PrimarySrp,
-                  createdAt: '00000000-0000-1000-8000-000000000002', // Later
+                  createdAt: '00000002-0000-1000-8000-000000000002',
                 },
               ],
               MOCK_PASSWORD,
@@ -2781,14 +2781,14 @@ describe('SeedlessOnboardingController', () => {
               [
                 {
                   data: new Uint8Array(Buffer.from('srp2', 'utf-8')),
-                  timestamp: 200, // Later
+                  timestamp: 200,
                   type: SecretType.Mnemonic,
                   itemId: 'srp-2',
                   // No dataType or createdAt (legacy)
                 },
                 {
                   data: new Uint8Array(Buffer.from('srp1', 'utf-8')),
-                  timestamp: 100, // Earlier
+                  timestamp: 100,
                   type: SecretType.Mnemonic,
                   itemId: 'srp-1',
                   // No dataType or createdAt (legacy)
@@ -2831,7 +2831,7 @@ describe('SeedlessOnboardingController', () => {
                   type: SecretType.Mnemonic,
                   itemId: 'imported-srp-id',
                   dataType: EncAccountDataType.ImportedSrp,
-                  createdAt: '00000000-0000-1000-8000-000000000001',
+                  createdAt: '00000001-0000-1000-8000-000000000001',
                 },
               ],
               MOCK_PASSWORD,
@@ -3822,7 +3822,7 @@ describe('SeedlessOnboardingController', () => {
       const storageMetadata = {
         itemId: 'test-item-id',
         dataType: EncAccountDataType.PrimarySrp,
-        createdAt: '00000000-0000-1000-8000-000000000001',
+        createdAt: '00000001-0000-1000-8000-000000000001',
       };
 
       const secretMetadata = new SecretMetadata(
@@ -3836,7 +3836,7 @@ describe('SeedlessOnboardingController', () => {
       expect(secretMetadata.itemId).toBe('test-item-id');
       expect(secretMetadata.dataType).toBe(EncAccountDataType.PrimarySrp);
       expect(secretMetadata.createdAt).toBe(
-        '00000000-0000-1000-8000-000000000001',
+        '00000001-0000-1000-8000-000000000001',
       );
     });
 
@@ -3853,7 +3853,7 @@ describe('SeedlessOnboardingController', () => {
       const storageMetadata = {
         itemId: 'test-item-id',
         dataType: EncAccountDataType.PrimarySrp,
-        createdAt: '00000000-0000-1000-8000-000000000001',
+        createdAt: '00000001-0000-1000-8000-000000000001',
       };
 
       const secretMetadata = new SecretMetadata(
@@ -3886,7 +3886,7 @@ describe('SeedlessOnboardingController', () => {
       const storageMetadata = {
         itemId: 'server-assigned-id',
         dataType: EncAccountDataType.ImportedSrp,
-        createdAt: '00000000-0000-1000-8000-000000000002',
+        createdAt: '00000002-0000-1000-8000-000000000002',
       };
 
       const parsedMetadata = SecretMetadata.fromRawMetadata(
@@ -3899,7 +3899,7 @@ describe('SeedlessOnboardingController', () => {
       expect(parsedMetadata.itemId).toBe('server-assigned-id');
       expect(parsedMetadata.dataType).toBe(EncAccountDataType.ImportedSrp);
       expect(parsedMetadata.createdAt).toBe(
-        '00000000-0000-1000-8000-000000000002',
+        '00000002-0000-1000-8000-000000000002',
       );
     });
   });
@@ -5961,7 +5961,7 @@ describe('SeedlessOnboardingController', () => {
                 ),
                 itemId: 'primary-srp-id',
                 dataType: EncAccountDataType.PrimarySrp,
-                createdAt: '00000000-0000-1000-8000-000000000001',
+                createdAt: '00000001-0000-1000-8000-000000000001',
               },
               {
                 data: stringToBytes(
@@ -5974,7 +5974,7 @@ describe('SeedlessOnboardingController', () => {
                 ),
                 itemId: 'pk-id',
                 dataType: EncAccountDataType.ImportedPrivateKey,
-                createdAt: '00000000-0000-1000-8000-000000000002',
+                createdAt: '00000002-0000-1000-8000-000000000002',
               },
             ]);
 
@@ -5986,7 +5986,7 @@ describe('SeedlessOnboardingController', () => {
           expect(secretData[0].itemId).toBe('primary-srp-id');
           expect(secretData[0].dataType).toBe(EncAccountDataType.PrimarySrp);
           expect(secretData[0].createdAt).toBe(
-            '00000000-0000-1000-8000-000000000001',
+            '00000001-0000-1000-8000-000000000001',
           );
           expect(secretData[1].type).toStrictEqual(SecretType.PrivateKey);
           expect(secretData[1].data).toStrictEqual(MOCK_PRIVATE_KEY);
@@ -5995,7 +5995,7 @@ describe('SeedlessOnboardingController', () => {
             EncAccountDataType.ImportedPrivateKey,
           );
           expect(secretData[1].createdAt).toBe(
-            '00000000-0000-1000-8000-000000000002',
+            '00000002-0000-1000-8000-000000000002',
           );
         },
       );

@@ -61,7 +61,7 @@ export const MULTIPLE_MOCK_SECRET_METADATA = [
     type: SecretType.Mnemonic,
     itemId: 'srp-1',
     dataType: EncAccountDataType.PrimarySrp,
-    createdAt: '00000000-0000-1000-8000-000000000001',
+    createdAt: '00000001-0000-1000-8000-000000000001',
   },
   {
     data: new Uint8Array(Buffer.from('seedPhrase3', 'utf-8')),
@@ -69,7 +69,7 @@ export const MULTIPLE_MOCK_SECRET_METADATA = [
     type: SecretType.Mnemonic,
     itemId: 'srp-3',
     dataType: EncAccountDataType.ImportedSrp,
-    createdAt: '00000000-0000-1000-8000-000000000003',
+    createdAt: '00000003-0000-1000-8000-000000000003',
   },
   {
     data: new Uint8Array(Buffer.from('seedPhrase2', 'utf-8')),
@@ -77,7 +77,7 @@ export const MULTIPLE_MOCK_SECRET_METADATA = [
     type: SecretType.Mnemonic,
     itemId: 'srp-2',
     dataType: EncAccountDataType.ImportedSrp,
-    createdAt: '00000000-0000-1000-8000-000000000002',
+    createdAt: '00000002-0000-1000-8000-000000000002',
   },
 ];
 
