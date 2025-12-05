@@ -93,6 +93,7 @@ export type Subscription = {
   /** Whether the user is eligible for support features (priority support and filing claims). True for active subscriptions and inactive subscriptions within grace period. */
   isEligibleForSupport: boolean;
   billingCycles?: number;
+  rewardAccountId?: CaipAccountId;
 };
 
 export type SubscriptionCardPaymentMethod = {
