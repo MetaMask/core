@@ -163,6 +163,7 @@ export type AnalyticsControllerOptions = {
 
   /**
    * Whether the anonymous events feature is enabled.
+   *
    * @default false
    */
   anonymousEventsFeature?: boolean;
@@ -189,7 +190,9 @@ export class AnalyticsController extends BaseController<
   AnalyticsControllerMessenger
 > {
   readonly #platformAdapter: AnalyticsPlatformAdapter;
+
   readonly #anonymousEventsFeature: boolean;
+
   #initialized: boolean;
 
   /**
@@ -200,6 +203,7 @@ export class AnalyticsController extends BaseController<
    * Use `getDefaultAnalyticsControllerState()` for default opt-in preferences.
    * @param options.messenger - Messenger used to communicate with BaseController
    * @param options.platformAdapter - Platform adapter implementation for tracking
+   * @param options.anonymousEventsFeature - Whether the anonymous events feature is enabled
    * @throws Error if state.analyticsId is missing or not a valid UUIDv4
    * @remarks After construction, call {@link AnalyticsController.init} to complete initialization.
    */
@@ -207,7 +211,7 @@ export class AnalyticsController extends BaseController<
     state,
     messenger,
     platformAdapter,
-    anonymousEventsFeature=false,
+    anonymousEventsFeature = false,
   }: AnalyticsControllerOptions) {
 
     const initialState: AnalyticsControllerState = {
@@ -222,7 +226,7 @@ export class AnalyticsController extends BaseController<
       metadata: analyticsControllerMetadata,
       state: initialState,
       messenger,
-    });
+    }); 
 
     this.#anonymousEventsFeature = anonymousEventsFeature;
     this.#platformAdapter = platformAdapter;
@@ -302,7 +306,6 @@ export class AnalyticsController extends BaseController<
         ...(hasSensitiveProperties && { anonymous: true }),
       });
     }
-
   }
 
   /**
