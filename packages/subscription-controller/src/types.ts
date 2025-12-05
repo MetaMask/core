@@ -93,7 +93,6 @@ export type Subscription = {
   /** Whether the user is eligible for support features (priority support and filing claims). True for active subscriptions and inactive subscriptions within grace period. */
   isEligibleForSupport: boolean;
   billingCycles?: number;
-  rewardAccountId?: CaipAccountId;
 };
 
 export type SubscriptionCardPaymentMethod = {
@@ -126,6 +125,8 @@ export type GetSubscriptionsResponse = {
   trialedProducts: ProductType[];
   /** The last subscription that user has subscribed to if any. */
   lastSubscription?: Subscription;
+  /** The reward account ID if user has linked rewards to the subscription. */
+  rewardAccountId?: CaipAccountId;
 };
 
 export type StartSubscriptionRequest = {
