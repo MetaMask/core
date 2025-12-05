@@ -9,7 +9,7 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ### Changed
 
-- Updated `GetSubscriptionsResponse` to include `rewardAccountId` property ([#7319](https://github.com/MetaMask/core/pull/7319))
+- Updated `GetSubscriptionsResponse` and controller state to include `rewardAccountId` property ([#7319](https://github.com/MetaMask/core/pull/7319))
 
 ## [5.3.1]
 
