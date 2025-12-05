@@ -14,6 +14,10 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
   - Expands token detection support from 18 chains to 270+ chains
   - `TokenDetectionController` now uses `getBalancesUsingMulticall` for RPC-based token balance detection
 
+### Changed
+
+- Bump `@metamask/transaction-controller` from `^62.4.0` to `^62.5.0` ([#7325](https://github.com/MetaMask/core/pull/7325))
+
 ## [93.1.0]
 
 ### Added
