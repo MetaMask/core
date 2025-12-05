@@ -52,6 +52,8 @@ export type SubscriptionControllerState = {
   pricing?: PricingResponse;
   /** The last subscription that user has subscribed to if any. */
   lastSubscription?: Subscription;
+  /** The reward account ID if user has linked rewards to the subscription. */
+  rewardAccountId?: CaipAccountId;
   /**
    * The last selected payment method for the user.
    * This is used to display the last selected payment method in the UI.
@@ -221,6 +223,12 @@ const subscriptionControllerMetadata: StateMetadata<SubscriptionControllerState>
       includeInDebugSnapshot: false,
       usedInUi: true,
     },
+    rewardAccountId: {
+      includeInStateLogs: true,
+      persist: true,
+      includeInDebugSnapshot: false,
+      usedInUi: true,
+    },
     trialedProducts: {
       includeInStateLogs: true,
       persist: true,
@@ -362,11 +370,14 @@ export class SubscriptionController extends StaticIntervalPollingController()<
     const currentTrialedProducts = this.state.trialedProducts;
     const currentCustomerId = this.state.customerId;
     const currentLastSubscription = this.state.lastSubscription;
+    const currentRewardAccountId = this.state.rewardAccountId;
+
     const {
       customerId: newCustomerId,
       subscriptions: newSubscriptions,
       trialedProducts: newTrialedProducts,
       lastSubscription: newLastSubscription,
+      rewardAccountId: newRewardAccountId,
     } = await this.#subscriptionService.getSubscriptions();
 
     // check if the new subscriptions are different from the current subscriptions
@@ -386,20 +397,23 @@ export class SubscriptionController extends StaticIntervalPollingController()<
     );
 
     const areCustomerIdsEqual = currentCustomerId === newCustomerId;
-
+    const areRewardAccountIdsEqual =
+      currentRewardAccountId === newRewardAccountId;
     // only update the state if the subscriptions or trialed products are different
     // this prevents unnecessary state updates events, easier for the clients to handle
     if (
       !areSubscriptionsEqual ||
       !isLastSubscriptionEqual ||
       !areTrialedProductsEqual ||
-      !areCustomerIdsEqual
+      !areCustomerIdsEqual ||
+      !areRewardAccountIdsEqual
     ) {
       this.update((state) => {
         state.subscriptions = newSubscriptions;
         state.customerId = newCustomerId;
         state.trialedProducts = newTrialedProducts;
         state.lastSubscription = newLastSubscription;
+        state.rewardAccountId = newRewardAccountId;
       });
       // trigger access token refresh to ensure the user has the latest access token if subscription state change
       this.triggerAccessTokenRefresh();

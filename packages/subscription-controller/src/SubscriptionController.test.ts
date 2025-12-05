@@ -594,6 +594,66 @@ describe('SubscriptionController', () => {
         },
       );
     });
+
+    it('should update state when rewardAccountId changes from undefined to defined', async () => {
+      await withController(
+        {
+          state: {
+            rewardAccountId: undefined,
+          },
+        },
+        async ({ controller, mockService }) => {
+          mockService.getSubscriptions.mockResolvedValue({
+            customerId: 'cus_1',
+            subscriptions: [],
+            trialedProducts: [],
+            rewardAccountId:
+              'eip155:1:0x1234567890123456789012345678901234567890',
+          });
+
+          await controller.getSubscriptions();
+
+          expect(controller.state.rewardAccountId).toBe(
+            'eip155:1:0x1234567890123456789012345678901234567890',
+          );
+        },
+      );
+    });
+
+    it('should not update state when rewardAccountId is the same', async () => {
+      const mockRewardAccountId =
+        'eip155:1:0x1234567890123456789012345678901234567890';
+
+      await withController(
+        {
+          state: {
+            customerId: 'cus_1',
+            subscriptions: [],
+            trialedProducts: [],
+            rewardAccountId: mockRewardAccountId,
+          },
+        },
+        async ({ controller, mockService, rootMessenger }) => {
+          mockService.getSubscriptions.mockResolvedValue({
+            customerId: 'cus_1',
+            subscriptions: [],
+            trialedProducts: [],
+            rewardAccountId: mockRewardAccountId,
+          });
+
+          const stateChangeListener = jest.fn();
+          rootMessenger.subscribe(
+            'SubscriptionController:stateChange',
+            stateChangeListener,
+          );
+
+          await controller.getSubscriptions();
+
+          // State should not have changed since rewardAccountId is the same
+          expect(stateChangeListener).not.toHaveBeenCalled();
+        },
+      );
+    });
   });
 
   describe('getSubscriptionByProduct', () => {
