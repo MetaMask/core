@@ -100,8 +100,8 @@ type CurrencyRatePollingInput = {
   nativeCurrencies: string[];
 };
 
-const boundedPrecisionNumber = (n: number, precision = 9): number =>
-  Number(n.toFixed(precision));
+const boundedPrecisionNumber = (value: number, precision = 9): number =>
+  Number(value.toFixed(precision));
 
 /**
  * Controller that passively polls on a set interval for an exchange rate from the current network
@@ -198,24 +198,21 @@ export class CurrencyRateController extends StaticIntervalPollingController<Curr
 
       const ratesPriceApi = Object.entries(nativeCurrenciesToFetch).reduce<
         CurrencyRateState['currencyRates']
-      >(
-        (acc, [nativeCurrency, fetchedCurrency]) => {
-          const rate =
-            priceApiExchangeRatesResponse[fetchedCurrency.toLowerCase()];
+      >((acc, [nativeCurrency, fetchedCurrency]) => {
+        const rate =
+          priceApiExchangeRatesResponse[fetchedCurrency.toLowerCase()];
 
-          acc[nativeCurrency] = {
-            conversionDate: rate !== undefined ? Date.now() / 1000 : null,
-            conversionRate: rate?.value
-              ? boundedPrecisionNumber(1 / rate.value)
-              : null,
-            usdConversionRate: rate?.usd
-              ? boundedPrecisionNumber(1 / rate.usd)
-              : null,
-          };
-          return acc;
-        },
-        {} as CurrencyRateState['currencyRates'],
-      );
+        acc[nativeCurrency] = {
+          conversionDate: rate !== undefined ? Date.now() / 1000 : null,
+          conversionRate: rate?.value
+            ? boundedPrecisionNumber(1 / rate.value)
+            : null,
+          usdConversionRate: rate?.usd
+            ? boundedPrecisionNumber(1 / rate.usd)
+            : null,
+        };
+        return acc;
+      }, {});
       return ratesPriceApi;
     } catch (error) {
       console.error('Failed to fetch exchange rates.', error);
