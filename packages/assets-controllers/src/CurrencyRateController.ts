@@ -100,6 +100,9 @@ type CurrencyRatePollingInput = {
   nativeCurrencies: string[];
 };
 
+const boundedPrecisionNumber = (value: number, precision = 9): number =>
+  Number(value.toFixed(precision));
+
 /**
  * Controller that passively polls on a set interval for an exchange rate from the current network
  * asset to the user's preferred currency.
@@ -201,8 +204,12 @@ export class CurrencyRateController extends StaticIntervalPollingController<Curr
 
         acc[nativeCurrency] = {
           conversionDate: rate !== undefined ? Date.now() / 1000 : null,
-          conversionRate: rate?.value ? Number(1 / rate?.value) : null,
-          usdConversionRate: rate?.usd ? Number(1 / rate?.usd) : null,
+          conversionRate: rate?.value
+            ? boundedPrecisionNumber(1 / rate.value)
+            : null,
+          usdConversionRate: rate?.usd
+            ? boundedPrecisionNumber(1 / rate.usd)
+            : null,
         };
         return acc;
       }, {});
@@ -263,7 +270,9 @@ export class CurrencyRateController extends StaticIntervalPollingController<Curr
           return {
             nativeCurrency,
             conversionDate: tokenPrice ? Date.now() / 1000 : null,
-            conversionRate: tokenPrice?.price ?? null,
+            conversionRate: tokenPrice?.price
+              ? boundedPrecisionNumber(tokenPrice.price)
+              : null,
             usdConversionRate: null, // Token prices service doesn't provide USD rate in this context
           };
         }),
@@ -291,8 +300,12 @@ export class CurrencyRateController extends StaticIntervalPollingController<Curr
       >((acc, rate) => {
         acc[rate.nativeCurrency] = {
           conversionDate: rate.conversionDate,
-          conversionRate: rate.conversionRate,
-          usdConversionRate: rate.usdConversionRate,
+          conversionRate: rate.conversionRate
+            ? boundedPrecisionNumber(rate.conversionRate)
+            : null,
+          usdConversionRate: rate.usdConversionRate
+            ? boundedPrecisionNumber(rate.usdConversionRate)
+            : null,
         };
         return acc;
       }, {});
