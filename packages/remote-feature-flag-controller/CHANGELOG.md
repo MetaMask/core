@@ -7,6 +7,26 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+### Added
+
+- Add override functionality to remote feature flags ([#7271](https://github.com/MetaMask/core/pull/7271))
+  - `setFlagOverride(flagName, value)` - Set a local override for a specific feature flag
+  - `clearFlagOverride(flagName)` - Clear the local override for a specific feature flag
+  - `clearAllOverrides()` - Clear all local feature flag overrides
+- Add new controller state properties ([#7271](https://github.com/MetaMask/core/pull/7271))
+  - `localOverrides` - Local overrides for feature flags that take precedence over remote flags
+  - `rawProcessedRemoteFeatureFlags` - Raw flag value for arrays that were processed from arrays to single value
+- Export additional controller action types ([#7271](https://github.com/MetaMask/core/pull/7271))
+  - `RemoteFeatureFlagControllerSetFlagOverrideAction`
+  - `RemoteFeatureFlagControllerClearFlagOverrideAction`
+  - `RemoteFeatureFlagControllerClearAllOverridesAction`
+
+### Changed
+
+- Enhanced feature flag processing to preserve raw A/B test arrays for visibility and override capabilities ([#7271](https://github.com/MetaMask/core/pull/7271))
+- Local overrides now take precedence over remote feature flags when both exist ([#7271](https://github.com/MetaMask/core/pull/7271))
+- Controller state now includes metadata for new properties with appropriate persistence and logging settings ([#7271](https://github.com/MetaMask/core/pull/7271))
+
 ## [3.0.0]
 
 ### Added

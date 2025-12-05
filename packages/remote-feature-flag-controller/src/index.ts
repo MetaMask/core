@@ -5,6 +5,9 @@ export type {
   RemoteFeatureFlagControllerActions,
   RemoteFeatureFlagControllerGetStateAction,
   RemoteFeatureFlagControllerUpdateRemoteFeatureFlagsAction,
+  RemoteFeatureFlagControllerSetFlagOverrideAction,
+  RemoteFeatureFlagControllerClearFlagOverrideAction,
+  RemoteFeatureFlagControllerClearAllOverridesAction,
   RemoteFeatureFlagControllerEvents,
   RemoteFeatureFlagControllerStateChangeEvent,
 } from './remote-feature-flag-controller';

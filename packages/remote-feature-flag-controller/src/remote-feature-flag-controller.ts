@@ -21,13 +21,15 @@ import { isVersionFeatureFlag, getVersionData } from './utils/version';
 
 // === GENERAL ===
 
-const controllerName = 'RemoteFeatureFlagController';
+export const controllerName = 'RemoteFeatureFlagController';
 export const DEFAULT_CACHE_DURATION = 24 * 60 * 60 * 1000; // 1 day
 
 // === STATE ===
 
 export type RemoteFeatureFlagControllerState = {
   remoteFeatureFlags: FeatureFlags;
+  localOverrides: FeatureFlags;
+  rawProcessedRemoteFeatureFlags: FeatureFlags;
   cacheTimestamp: number;
 };
 
@@ -37,6 +39,18 @@ const remoteFeatureFlagControllerMetadata = {
     persist: true,
     includeInDebugSnapshot: true,
     usedInUi: true,
+  },
+  localOverrides: {
+    includeInStateLogs: true,
+    persist: true,
+    includeInDebugSnapshot: true,
+    usedInUi: true,
+  },
+  rawProcessedRemoteFeatureFlags: {
+    includeInStateLogs: true,
+    persist: true,
+    includeInDebugSnapshot: true,
+    usedInUi: false,
   },
   cacheTimestamp: {
     includeInStateLogs: true,
@@ -62,9 +76,27 @@ export type RemoteFeatureFlagControllerUpdateRemoteFeatureFlagsAction = {
   handler: RemoteFeatureFlagController['updateRemoteFeatureFlags'];
 };
 
+export type RemoteFeatureFlagControllerSetFlagOverrideAction = {
+  type: `${typeof controllerName}:setFlagOverride`;
+  handler: RemoteFeatureFlagController['setFlagOverride'];
+};
+
+export type RemoteFeatureFlagControllerClearFlagOverrideAction = {
+  type: `${typeof controllerName}:clearFlagOverride`;
+  handler: RemoteFeatureFlagController['clearFlagOverride'];
+};
+
+export type RemoteFeatureFlagControllerClearAllOverridesAction = {
+  type: `${typeof controllerName}:clearAllOverrides`;
+  handler: RemoteFeatureFlagController['clearAllOverrides'];
+};
+
 export type RemoteFeatureFlagControllerActions =
   | RemoteFeatureFlagControllerGetStateAction
-  | RemoteFeatureFlagControllerUpdateRemoteFeatureFlagsAction;
+  | RemoteFeatureFlagControllerUpdateRemoteFeatureFlagsAction
+  | RemoteFeatureFlagControllerSetFlagOverrideAction
+  | RemoteFeatureFlagControllerClearFlagOverrideAction
+  | RemoteFeatureFlagControllerClearAllOverridesAction;
 
 export type RemoteFeatureFlagControllerStateChangeEvent =
   ControllerStateChangeEvent<
@@ -89,6 +121,8 @@ export type RemoteFeatureFlagControllerMessenger = Messenger<
 export function getDefaultRemoteFeatureFlagControllerState(): RemoteFeatureFlagControllerState {
   return {
     remoteFeatureFlags: {},
+    localOverrides: {},
+    rawProcessedRemoteFeatureFlags: {},
     cacheTimestamp: 0,
   };
 }
@@ -213,11 +247,13 @@ export class RemoteFeatureFlagController extends BaseController<
    * @param remoteFeatureFlags - The new feature flags to cache.
    */
   async #updateCache(remoteFeatureFlags: FeatureFlags) {
-    const processedRemoteFeatureFlags =
+    const { processedFlags, rawProcessedRemoteFeatureFlags } =
       await this.#processRemoteFeatureFlags(remoteFeatureFlags);
     this.update(() => {
       return {
-        remoteFeatureFlags: processedRemoteFeatureFlags,
+        remoteFeatureFlags: processedFlags,
+        localOverrides: this.state.localOverrides,
+        rawProcessedRemoteFeatureFlags,
         cacheTimestamp: Date.now(),
       };
     });
@@ -237,10 +273,12 @@ export class RemoteFeatureFlagController extends BaseController<
     return getVersionData(flagValue, this.#clientVersion);
   }
 
-  async #processRemoteFeatureFlags(
-    remoteFeatureFlags: FeatureFlags,
-  ): Promise<FeatureFlags> {
+  async #processRemoteFeatureFlags(remoteFeatureFlags: FeatureFlags): Promise<{
+    processedFlags: FeatureFlags;
+    rawProcessedRemoteFeatureFlags: FeatureFlags;
+  }> {
     const processedRemoteFeatureFlags: FeatureFlags = {};
+    const rawProcessedRemoteFeatureFlags: FeatureFlags = {};
     const metaMetricsId = this.#getMetaMetricsId();
     const thresholdValue = generateDeterministicRandomNumber(metaMetricsId);
 
@@ -256,6 +294,10 @@ export class RemoteFeatureFlagController extends BaseController<
       }
 
       if (Array.isArray(processedValue) && thresholdValue) {
+        // Store the raw A/B test array for later use
+        rawProcessedRemoteFeatureFlags[remoteFeatureFlagName] =
+          remoteFeatureFlagValue;
+        
         const selectedGroup = processedValue.find(
           (featureFlag): featureFlag is FeatureFlagScopeValue => {
             if (!isFeatureFlagWithScopeValue(featureFlag)) {
@@ -275,7 +317,10 @@ export class RemoteFeatureFlagController extends BaseController<
 
       processedRemoteFeatureFlags[remoteFeatureFlagName] = processedValue;
     }
-    return processedRemoteFeatureFlags;
+    return {
+      processedFlags: processedRemoteFeatureFlags,
+      rawProcessedRemoteFeatureFlags,
+    };
   }
 
   /**
@@ -290,5 +335,60 @@ export class RemoteFeatureFlagController extends BaseController<
    */
   disable(): void {
     this.#disabled = true;
+  }
+
+  /**
+   * Sets a local override for a specific feature flag.
+   *
+   * @param flagName - The name of the feature flag to override.
+   * @param value - The override value for the feature flag.
+   */
+  setFlagOverride(flagName: string, value: Json): void {
+    this.update(() => {
+      return {
+        remoteFeatureFlags: this.state.remoteFeatureFlags,
+        localOverrides: {
+          ...this.state.localOverrides,
+          [flagName]: value,
+        },
+        rawProcessedRemoteFeatureFlags:
+          this.state.rawProcessedRemoteFeatureFlags,
+        cacheTimestamp: this.state.cacheTimestamp,
+      };
+    });
+  }
+
+  /**
+   * Clears the local override for a specific feature flag.
+   *
+   * @param flagName - The name of the feature flag to clear.
+   */
+  clearFlagOverride(flagName: string): void {
+    const newOverrides = { ...this.state.localOverrides };
+    delete newOverrides[flagName];
+    this.update(() => {
+      return {
+        remoteFeatureFlags: this.state.remoteFeatureFlags,
+        localOverrides: newOverrides,
+        rawProcessedRemoteFeatureFlags:
+          this.state.rawProcessedRemoteFeatureFlags,
+        cacheTimestamp: this.state.cacheTimestamp,
+      };
+    });
+  }
+
+  /**
+   * Clears all local feature flag overrides.
+   */
+  clearAllOverrides(): void {
+    this.update(() => {
+      return {
+        remoteFeatureFlags: this.state.remoteFeatureFlags,
+        localOverrides: {},
+        rawProcessedRemoteFeatureFlags:
+          this.state.rawProcessedRemoteFeatureFlags,
+        cacheTimestamp: this.state.cacheTimestamp,
+      };
+    });
   }
 }

@@ -130,6 +130,8 @@ describe('Bridge Quotes Utils', () => {
       remoteFeatureFlags: {
         confirmations_pay: getFeatureFlagsMock(),
       },
+      abTestRawFlags: {},
+      localOverrides: {},
     }));
 
     getFeatureFlagsMock.mockReturnValue(FEATURE_FLAGS_MOCK);
@@ -1019,6 +1021,8 @@ describe('Bridge Quotes Utils', () => {
             },
           },
         },
+        abTestRawFlags: {},
+        localOverrides: {},
       });
 
       const result = getBridgeRefreshInterval({
@@ -1042,6 +1046,8 @@ describe('Bridge Quotes Utils', () => {
             refreshRate: 456000,
           },
         },
+        abTestRawFlags: {},
+        localOverrides: {},
       });
 
       const result = getBridgeRefreshInterval({
@@ -1064,6 +1070,8 @@ describe('Bridge Quotes Utils', () => {
             },
           },
         },
+        abTestRawFlags: {},
+        localOverrides: {},
       });
 
       const result = getBridgeRefreshInterval({
