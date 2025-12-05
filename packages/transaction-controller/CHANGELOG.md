@@ -9,6 +9,7 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ### Changed
 
+- Use gas fee properties from first transaction in EIP-7702 transactions ([#7323](https://github.com/MetaMask/core/pull/7323))
 - Bump `@metamask/remote-feature-flag-controller` from `^2.0.1` to `^3.0.0` ([#7309](https://github.com/MetaMask/core/pull/7309)
 
 ## [62.4.0]
