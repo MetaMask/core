@@ -98,8 +98,8 @@ describe('OnRampService', () => {
         .times(4)
         .reply(500);
       const { service, rootMessenger } = getService();
-      service.onRetry(async () => {
-        await clock.nextAsync();
+      service.onRetry(() => {
+        clock.nextAsync().catch(() => undefined);
       });
 
       await expect(
@@ -189,7 +189,7 @@ function getService({
   const rootMessenger = getRootMessenger();
   const messenger = getMessenger(rootMessenger);
   const service = new OnRampService({
-    fetch: fetch as typeof globalThis.fetch,
+    fetch,
     messenger,
     ...options,
   });

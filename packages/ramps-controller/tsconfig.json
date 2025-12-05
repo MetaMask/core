@@ -3,10 +3,7 @@
   "compilerOptions": {
     "baseUrl": "./"
   },
-  "references": [
-    { "path": "../base-controller" },
-    { "path": "../messenger" }
-  ],
+  "references": [{ "path": "../base-controller" }, { "path": "../messenger" }],
   "include": ["../../types", "./src"],
   "paths": {
     "@metamask/*": ["../*/src"]
