@@ -271,6 +271,8 @@ async function submitTransactions(
         params: {
           data: p.data as Hex,
           gas: p.gas as Hex,
+          maxFeePerGas: p.maxFeePerGas as Hex,
+          maxPriorityFeePerGas: p.maxPriorityFeePerGas as Hex,
           to: p.to as Hex,
           value: p.value as Hex,
         },
