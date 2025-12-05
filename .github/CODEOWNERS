@@ -38,6 +38,9 @@
 ## Earn Team
 /packages/earn-controller                   @MetaMask/earn
 
+## Ramp Team
+/packages/ramps-controller                  @MetaMask/ramp
+
 ## Notifications Team
 /packages/notification-services-controller     @MetaMask/notifications
 
@@ -147,6 +150,8 @@
 /packages/notification-services-controller/CHANGELOG.md @MetaMask/notifications @MetaMask/core-platform
 /packages/phishing-controller/package.json    @MetaMask/product-safety @MetaMask/core-platform
 /packages/phishing-controller/CHANGELOG.md    @MetaMask/product-safety @MetaMask/core-platform
+/packages/ramps-controller/package.json       @MetaMask/ramp @MetaMask/core-platform
+/packages/ramps-controller/CHANGELOG.md       @MetaMask/ramp @MetaMask/core-platform
 /packages/profile-sync-controller/package.json    @MetaMask/accounts-engineers @MetaMask/core-platform
 /packages/profile-sync-controller/CHANGELOG.md    @MetaMask/accounts-engineers @MetaMask/core-platform
 /packages/selected-network-controller/package.json @MetaMask/wallet-integrations @MetaMask/core-platform
