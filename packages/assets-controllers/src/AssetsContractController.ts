@@ -16,15 +16,20 @@ import type {
 import type { PreferencesControllerStateChangeEvent } from '@metamask/preferences-controller';
 import { getKnownPropertyNames } from '@metamask/utils';
 import type { Hex } from '@metamask/utils';
-import type BN from 'bn.js';
+import BN from 'bn.js';
 import abiSingleCallBalancesContract from 'single-call-balance-checker-abi';
 
 import {
   SupportedStakedBalanceNetworks,
   SupportedTokenDetectionNetworks,
 } from './assetsUtil';
-import type { Call } from './multicall';
-import { multicallOrFallback } from './multicall';
+import type { Call, Aggregate3Result } from './multicall';
+import {
+  multicallOrFallback,
+  aggregate3,
+  ZERO_ADDRESS,
+  ERC20_BALANCE_OF_ABI,
+} from './multicall';
 import { ERC20Standard } from './Standards/ERC20Standard';
 import { ERC1155Standard } from './Standards/NftStandards/ERC1155/ERC1155Standard';
 import { ERC721Standard } from './Standards/NftStandards/ERC721/ERC721Standard';
@@ -179,6 +184,9 @@ export type AssetsContractControllerGetTokenStandardAndDetailsAction =
 export type AssetsContractControllerGetBalancesInSingleCallAction =
   AssetsContractControllerActionsMap['getBalancesInSingleCall'];
 
+export type AssetsContractControllerGetBalancesUsingMulticallAction =
+  AssetsContractControllerActionsMap['getBalancesUsingMulticall'];
+
 /**
  * The union of all internal messenger events available to the {@link AssetsContractControllerMessenger}.
  */
@@ -277,7 +285,7 @@ export class AssetsContractController {
     );
   }
 
-  #registerEventSubscriptions() {
+  #registerEventSubscriptions(): void {
     this.messenger.subscribe(
       `PreferencesController:stateChange`,
       ({ ipfsGateway }) => {
@@ -304,15 +312,15 @@ export class AssetsContractController {
    *
    * @param provider - Provider used to create a new underlying Web3 instance
    */
-  setProvider(provider: Provider | undefined) {
+  setProvider(provider: Provider | undefined): void {
     this.#provider = provider;
   }
 
-  get ipfsGateway() {
+  get ipfsGateway(): string {
     return this.#ipfsGateway;
   }
 
-  get chainId() {
+  get chainId(): Hex {
     return this.#chainId;
   }
 
@@ -662,6 +670,9 @@ export class AssetsContractController {
    * Get the token balance for a list of token addresses in a single call. Only non-zero balances
    * are returned.
    *
+   * Uses the legacy single-call-balances contract which supports 18 chains.
+   * For broader chain support (270+ chains), use getBalancesUsingMulticall instead.
+   *
    * @param selectedAddress - The address to check token balances for.
    * @param tokensToDetect - The token addresses to detect balances for.
    * @param networkClientId - Network Client ID to fetch the provider with.
@@ -671,7 +682,7 @@ export class AssetsContractController {
     selectedAddress: string,
     tokensToDetect: string[],
     networkClientId?: NetworkClientId,
-  ) {
+  ): Promise<BalanceMap> {
     const chainId = this.#getCorrectChainId(networkClientId);
     const provider = this.#getCorrectProvider(networkClientId);
     if (
@@ -701,6 +712,77 @@ export class AssetsContractController {
       });
     }
     return nonZeroBalances;
+  }
+
+  /**
+   * Get the token balance for a list of token addresses using Multicall3.
+   * Only non-zero balances are returned.
+   *
+   * Uses Multicall3's aggregate3 function which supports 270+ chains,
+   * providing significantly broader chain coverage than the legacy
+   * single-call-balances contract (which only supported 18 chains).
+   *
+   * @param selectedAddress - The address to check token balances for.
+   * @param tokensToDetect - The token addresses to detect balances for.
+   * @param networkClientId - Network Client ID to fetch the provider with.
+   * @returns The list of non-zero token balances.
+   */
+  async getBalancesUsingMulticall(
+    selectedAddress: string,
+    tokensToDetect: string[],
+    networkClientId?: NetworkClientId,
+  ): Promise<BalanceMap> {
+    const chainId = this.#getCorrectChainId(networkClientId);
+    const provider = this.#getCorrectProvider(networkClientId);
+
+    if (tokensToDetect.length === 0) {
+      return {};
+    }
+
+    // Create a temporary ERC20 contract for encoding balanceOf calls
+    const tempContract = new Contract(
+      ZERO_ADDRESS,
+      ERC20_BALANCE_OF_ABI,
+      provider,
+    );
+
+    // Create aggregate3 calls for all tokens
+    const calls = tokensToDetect.map((tokenAddress) => ({
+      target: tokenAddress as Hex,
+      allowFailure: true,
+      callData: tempContract.interface.encodeFunctionData('balanceOf', [
+        selectedAddress,
+      ]) as Hex,
+    }));
+
+    try {
+      const results = await aggregate3(calls, chainId, provider);
+
+      const nonZeroBalances: BalanceMap = {};
+      results.forEach((result: Aggregate3Result, index: number) => {
+        if (result.success && result.returnData !== '0x') {
+          const tokenAddress = tokensToDetect[index];
+          const balanceRaw = tempContract.interface.decodeFunctionResult(
+            'balanceOf',
+            result.returnData,
+          )[0];
+          const balance = new BN(balanceRaw.toString());
+
+          /* istanbul ignore else */
+          if (balance.toString() !== '0') {
+            nonZeroBalances[tokenAddress] = balance;
+          }
+        }
+      });
+
+      return nonZeroBalances;
+    } catch (error) {
+      console.error(
+        `Failed to fetch token balances via multicall on chain ${chainId}:`,
+        error,
+      );
+      return {};
+    }
   }
 
   /**

@@ -377,7 +377,7 @@ describe('TokenDetectionController', () => {
       await withController(
         {
           options: {
-            getBalancesInSingleCall: mockGetBalancesInSingleCall,
+            getBalancesUsingMulticall: mockGetBalancesInSingleCall,
             useAccountsAPI: true, // USING ACCOUNTS API
           },
           mocks: {
@@ -412,7 +412,7 @@ describe('TokenDetectionController', () => {
       await withController(
         {
           options: {
-            getBalancesInSingleCall: mockGetBalancesInSingleCall,
+            getBalancesUsingMulticall: mockGetBalancesInSingleCall,
             useAccountsAPI: true, // USING ACCOUNTS API
           },
           mocks: {
@@ -465,7 +465,7 @@ describe('TokenDetectionController', () => {
       await withController(
         {
           options: {
-            getBalancesInSingleCall: mockGetBalancesInSingleCall,
+            getBalancesUsingMulticall: mockGetBalancesInSingleCall,
             useAccountsAPI: true, // USING ACCOUNTS API
           },
           mocks: {
@@ -538,7 +538,7 @@ describe('TokenDetectionController', () => {
       await withController(
         {
           options: {
-            getBalancesInSingleCall: mockGetBalancesInSingleCall,
+            getBalancesUsingMulticall: mockGetBalancesInSingleCall,
             useAccountsAPI: true, // USING ACCOUNTS API
           },
           mocks: {
@@ -609,7 +609,7 @@ describe('TokenDetectionController', () => {
       await withController(
         {
           options: {
-            getBalancesInSingleCall: mockGetBalancesInSingleCall,
+            getBalancesUsingMulticall: mockGetBalancesInSingleCall,
             interval,
           },
           mocks: {
@@ -672,7 +672,7 @@ describe('TokenDetectionController', () => {
       await withController(
         {
           options: {
-            getBalancesInSingleCall: mockGetBalancesInSingleCall,
+            getBalancesUsingMulticall: mockGetBalancesInSingleCall,
             useAccountsAPI: true, // USING ACCOUNTS API
           },
           mocks: {
@@ -726,7 +726,7 @@ describe('TokenDetectionController', () => {
       await withController(
         {
           options: {
-            getBalancesInSingleCall: mockGetBalancesInSingleCall,
+            getBalancesUsingMulticall: mockGetBalancesInSingleCall,
             useAccountsAPI: true, // USING ACCOUNTS API
           },
           mocks: {
@@ -790,7 +790,7 @@ describe('TokenDetectionController', () => {
           {
             options: {
               disabled: false,
-              getBalancesInSingleCall: mockGetBalancesInSingleCall,
+              getBalancesUsingMulticall: mockGetBalancesInSingleCall,
               useAccountsAPI: true, // USING ACCOUNTS API
             },
             mocks: {
@@ -848,7 +848,7 @@ describe('TokenDetectionController', () => {
           {
             options: {
               disabled: false,
-              getBalancesInSingleCall: mockGetBalancesInSingleCall,
+              getBalancesUsingMulticall: mockGetBalancesInSingleCall,
               useAccountsAPI: true, // USING ACCOUNTS API
             },
             mocks: {
@@ -908,7 +908,7 @@ describe('TokenDetectionController', () => {
             {
               options: {
                 disabled: false,
-                getBalancesInSingleCall: mockGetBalancesInSingleCall,
+                getBalancesUsingMulticall: mockGetBalancesInSingleCall,
               },
               mocks: {
                 getSelectedAccount: firstSelectedAccount,
@@ -969,7 +969,7 @@ describe('TokenDetectionController', () => {
           {
             options: {
               disabled: true,
-              getBalancesInSingleCall: mockGetBalancesInSingleCall,
+              getBalancesUsingMulticall: mockGetBalancesInSingleCall,
               useAccountsAPI: true, // USING ACCOUNTS API
             },
             mocks: {
@@ -1040,7 +1040,7 @@ describe('TokenDetectionController', () => {
           {
             options: {
               disabled: false,
-              getBalancesInSingleCall: mockGetBalancesInSingleCall,
+              getBalancesUsingMulticall: mockGetBalancesInSingleCall,
               useAccountsAPI: true, // USING ACCOUNTS API
             },
             mocks: {
@@ -1128,7 +1128,7 @@ describe('TokenDetectionController', () => {
           {
             options: {
               disabled: false,
-              getBalancesInSingleCall: mockGetBalancesInSingleCall,
+              getBalancesUsingMulticall: mockGetBalancesInSingleCall,
               useAccountsAPI: true, // USING ACCOUNTS API
             },
             mocks: {
@@ -1209,7 +1209,7 @@ describe('TokenDetectionController', () => {
           {
             options: {
               disabled: false,
-              getBalancesInSingleCall: mockGetBalancesInSingleCall,
+              getBalancesUsingMulticall: mockGetBalancesInSingleCall,
               useAccountsAPI: true, // USING ACCOUNTS API
             },
             mocks: {
@@ -1279,7 +1279,7 @@ describe('TokenDetectionController', () => {
           {
             options: {
               disabled: false,
-              getBalancesInSingleCall: mockGetBalancesInSingleCall,
+              getBalancesUsingMulticall: mockGetBalancesInSingleCall,
               useAccountsAPI: true, // USING ACCOUNTS API
             },
             mocks: {
@@ -1341,7 +1341,7 @@ describe('TokenDetectionController', () => {
           {
             options: {
               disabled: false,
-              getBalancesInSingleCall: mockGetBalancesInSingleCall,
+              getBalancesUsingMulticall: mockGetBalancesInSingleCall,
             },
             mocks: {
               getAccount: selectedAccount,
@@ -1402,7 +1402,7 @@ describe('TokenDetectionController', () => {
           {
             options: {
               disabled: false,
-              getBalancesInSingleCall: mockGetBalancesInSingleCall,
+              getBalancesUsingMulticall: mockGetBalancesInSingleCall,
             },
             mocks: {
               getSelectedAccount: firstSelectedAccount,
@@ -1463,7 +1463,7 @@ describe('TokenDetectionController', () => {
           {
             options: {
               disabled: false,
-              getBalancesInSingleCall: mockGetBalancesInSingleCall,
+              getBalancesUsingMulticall: mockGetBalancesInSingleCall,
             },
             isKeyringUnlocked: false,
             mocks: {
@@ -1531,7 +1531,7 @@ describe('TokenDetectionController', () => {
           {
             options: {
               disabled: true,
-              getBalancesInSingleCall: mockGetBalancesInSingleCall,
+              getBalancesUsingMulticall: mockGetBalancesInSingleCall,
             },
             mocks: {
               getAccount: firstSelectedAccount,
@@ -1591,7 +1591,7 @@ describe('TokenDetectionController', () => {
           {
             options: {
               disabled: true,
-              getBalancesInSingleCall: mockGetBalancesInSingleCall,
+              getBalancesUsingMulticall: mockGetBalancesInSingleCall,
             },
             mocks: {
               getAccount: selectedAccount,
@@ -1666,7 +1666,7 @@ describe('TokenDetectionController', () => {
           {
             options: {
               disabled: false,
-              getBalancesInSingleCall: mockGetBalancesInSingleCall,
+              getBalancesUsingMulticall: mockGetBalancesInSingleCall,
             },
             mocks: {
               getAccount: selectedAccount,
@@ -1722,7 +1722,7 @@ describe('TokenDetectionController', () => {
           {
             options: {
               disabled: false,
-              getBalancesInSingleCall: mockGetBalancesInSingleCall,
+              getBalancesUsingMulticall: mockGetBalancesInSingleCall,
             },
             mocks: {
               getAccount: selectedAccount,
@@ -1779,7 +1779,7 @@ describe('TokenDetectionController', () => {
             {
               options: {
                 disabled: false,
-                getBalancesInSingleCall: mockGetBalancesInSingleCall,
+                getBalancesUsingMulticall: mockGetBalancesInSingleCall,
               },
               isKeyringUnlocked: false,
               mocks: {
@@ -1839,7 +1839,7 @@ describe('TokenDetectionController', () => {
           {
             options: {
               disabled: true,
-              getBalancesInSingleCall: mockGetBalancesInSingleCall,
+              getBalancesUsingMulticall: mockGetBalancesInSingleCall,
             },
             mocks: {
               getAccount: selectedAccount,
@@ -1908,7 +1908,7 @@ describe('TokenDetectionController', () => {
           {
             options: {
               disabled: false,
-              getBalancesInSingleCall: mockGetBalancesInSingleCall,
+              getBalancesUsingMulticall: mockGetBalancesInSingleCall,
               useAccountsAPI: true, // USING ACCOUNTS API
             },
             mocks: {
@@ -1967,7 +1967,7 @@ describe('TokenDetectionController', () => {
           {
             options: {
               disabled: false,
-              getBalancesInSingleCall: mockGetBalancesInSingleCall,
+              getBalancesUsingMulticall: mockGetBalancesInSingleCall,
             },
             mocks: {
               getSelectedAccount: selectedAccount,
@@ -2007,7 +2007,7 @@ describe('TokenDetectionController', () => {
             {
               options: {
                 disabled: false,
-                getBalancesInSingleCall: mockGetBalancesInSingleCall,
+                getBalancesUsingMulticall: mockGetBalancesInSingleCall,
               },
               isKeyringUnlocked: false,
               mocks: {
@@ -2065,7 +2065,7 @@ describe('TokenDetectionController', () => {
           {
             options: {
               disabled: true,
-              getBalancesInSingleCall: mockGetBalancesInSingleCall,
+              getBalancesUsingMulticall: mockGetBalancesInSingleCall,
             },
             mocks: {
               getSelectedAccount: selectedAccount,
@@ -2121,7 +2121,7 @@ describe('TokenDetectionController', () => {
           {
             options: {
               disabled: false,
-              getBalancesInSingleCall: mockGetBalancesInSingleCall,
+              getBalancesUsingMulticall: mockGetBalancesInSingleCall,
               useAccountsAPI: true, // USING ACCOUNTS API
             },
             mocks: {
@@ -2182,7 +2182,7 @@ describe('TokenDetectionController', () => {
           {
             options: {
               disabled: false,
-              getBalancesInSingleCall: mockGetBalancesInSingleCall,
+              getBalancesUsingMulticall: mockGetBalancesInSingleCall,
               useAccountsAPI: true, // USING ACCOUNTS API
             },
             mocks: {
@@ -2261,7 +2261,7 @@ describe('TokenDetectionController', () => {
           {
             options: {
               disabled: false,
-              getBalancesInSingleCall: mockGetBalancesInSingleCall,
+              getBalancesUsingMulticall: mockGetBalancesInSingleCall,
               useAccountsAPI: true, // USING ACCOUNTS API
             },
             mocks: {
@@ -2351,7 +2351,7 @@ describe('TokenDetectionController', () => {
         {
           options: {
             disabled: false,
-            getBalancesInSingleCall: mockGetBalancesInSingleCall,
+            getBalancesUsingMulticall: mockGetBalancesInSingleCall,
           },
           mocks: {
             getSelectedAccount: selectedAccount,
@@ -2430,7 +2430,7 @@ describe('TokenDetectionController', () => {
         {
           options: {
             disabled: false,
-            getBalancesInSingleCall: mockGetBalancesInSingleCall,
+            getBalancesUsingMulticall: mockGetBalancesInSingleCall,
             useAccountsAPI: true, // USING ACCOUNTS API
           },
           mocks: {
@@ -2481,7 +2481,7 @@ describe('TokenDetectionController', () => {
         {
           options: {
             disabled: false,
-            getBalancesInSingleCall: mockGetBalancesInSingleCall,
+            getBalancesUsingMulticall: mockGetBalancesInSingleCall,
           },
           mocks: {
             getSelectedAccount: selectedAccount,
@@ -2529,7 +2529,7 @@ describe('TokenDetectionController', () => {
         {
           options: {
             disabled: false,
-            getBalancesInSingleCall: mockGetBalancesInSingleCall,
+            getBalancesUsingMulticall: mockGetBalancesInSingleCall,
             useAccountsAPI: true, // USING ACCOUNTS API
           },
           mocks: {
@@ -2586,7 +2586,7 @@ describe('TokenDetectionController', () => {
         {
           options: {
             disabled: false,
-            getBalancesInSingleCall: mockGetBalancesInSingleCall,
+            getBalancesUsingMulticall: mockGetBalancesInSingleCall,
             trackMetaMetricsEvent: mockTrackMetaMetricsEvent,
             useAccountsAPI: true, // USING ACCOUNTS API
           },
@@ -2646,7 +2646,7 @@ describe('TokenDetectionController', () => {
         {
           options: {
             disabled: false,
-            getBalancesInSingleCall: mockGetBalancesInSingleCall,
+            getBalancesUsingMulticall: mockGetBalancesInSingleCall,
             trackMetaMetricsEvent: mockTrackMetaMetricsEvent,
             useAccountsAPI: true, // USING ACCOUNTS API
           },
@@ -2727,7 +2727,7 @@ describe('TokenDetectionController', () => {
         {
           options: {
             disabled: false,
-            getBalancesInSingleCall: mockGetBalancesInSingleCall,
+            getBalancesUsingMulticall: mockGetBalancesInSingleCall,
             useAccountsAPI: true, // USING ACCOUNTS API
           },
           mocks: {
@@ -2794,7 +2794,7 @@ describe('TokenDetectionController', () => {
           {
             options: {
               disabled: false,
-              getBalancesInSingleCall: mockGetBalancesInSingleCall,
+              getBalancesUsingMulticall: mockGetBalancesInSingleCall,
               useAccountsAPI: true, // USING ACCOUNTS API
             },
             mocks: {
@@ -2879,7 +2879,7 @@ describe('TokenDetectionController', () => {
         {
           options: {
             disabled: false,
-            getBalancesInSingleCall: mockGetBalancesInSingleCall,
+            getBalancesUsingMulticall: mockGetBalancesInSingleCall,
             useAccountsAPI: true, // USING ACCOUNTS API
           },
           mocks: {
@@ -2978,7 +2978,7 @@ describe('TokenDetectionController', () => {
         {
           options: {
             disabled: false,
-            getBalancesInSingleCall: mockGetBalancesInSingleCall,
+            getBalancesUsingMulticall: mockGetBalancesInSingleCall,
             useAccountsAPI: true, // USING ACCOUNTS API
           },
           mocks: {
@@ -3215,7 +3215,7 @@ describe('TokenDetectionController', () => {
         {
           options: {
             disabled: false,
-            getBalancesInSingleCall: mockGetBalancesInSingleCall,
+            getBalancesUsingMulticall: mockGetBalancesInSingleCall,
             useAccountsAPI: true, // USING ACCOUNTS API
           },
           mocks: {
@@ -3276,7 +3276,7 @@ describe('TokenDetectionController', () => {
             options: {
               useTokenDetection: () => false,
               disabled: false,
-              getBalancesInSingleCall: mockGetBalancesInSingleCall,
+              getBalancesUsingMulticall: mockGetBalancesInSingleCall,
             },
             mocks: {
               getSelectedAccount: defaultSelectedAccount,
@@ -3286,7 +3286,7 @@ describe('TokenDetectionController', () => {
             // Try to detect tokens
             await controller.detectTokens();
 
-            // Should not call getBalancesInSingleCall when useTokenDetection is false
+            // Should not call getBalancesUsingMulticall when useTokenDetection is false
             expect(mockGetBalancesInSingleCall).not.toHaveBeenCalled();
           },
         );
@@ -3300,7 +3300,7 @@ describe('TokenDetectionController', () => {
             options: {
               useTokenDetection: () => true,
               disabled: false,
-              getBalancesInSingleCall: mockGetBalancesInSingleCall,
+              getBalancesUsingMulticall: mockGetBalancesInSingleCall,
             },
             mocks: {
               getSelectedAccount: defaultSelectedAccount,
@@ -3330,7 +3330,7 @@ describe('TokenDetectionController', () => {
             // Try to detect tokens
             await controller.detectTokens();
 
-            // Should call getBalancesInSingleCall when useTokenDetection is true
+            // Should call getBalancesUsingMulticall when useTokenDetection is true
             expect(mockGetBalancesInSingleCall).toHaveBeenCalled();
           },
         );
@@ -3344,7 +3344,7 @@ describe('TokenDetectionController', () => {
             options: {
               useTokenDetection: () => false,
               disabled: false,
-              getBalancesInSingleCall: mockGetBalancesInSingleCall,
+              getBalancesUsingMulticall: mockGetBalancesInSingleCall,
             },
             mocks: {
               getSelectedAccount: defaultSelectedAccount,
@@ -3353,7 +3353,7 @@ describe('TokenDetectionController', () => {
           async ({ controller }) => {
             await controller.start();
 
-            // Should not call getBalancesInSingleCall during start when useTokenDetection is false
+            // Should not call getBalancesUsingMulticall during start when useTokenDetection is false
             expect(mockGetBalancesInSingleCall).not.toHaveBeenCalled();
           },
         );
@@ -3367,7 +3367,7 @@ describe('TokenDetectionController', () => {
             options: {
               useTokenDetection: () => true,
               disabled: false,
-              getBalancesInSingleCall: mockGetBalancesInSingleCall,
+              getBalancesUsingMulticall: mockGetBalancesInSingleCall,
             },
             mocks: {
               getSelectedAccount: defaultSelectedAccount,
@@ -3396,7 +3396,7 @@ describe('TokenDetectionController', () => {
 
             await controller.start();
 
-            // Should call getBalancesInSingleCall during start when useTokenDetection is true
+            // Should call getBalancesUsingMulticall during start when useTokenDetection is true
             expect(mockGetBalancesInSingleCall).toHaveBeenCalled();
           },
         );
@@ -3601,7 +3601,7 @@ describe('TokenDetectionController', () => {
               useExternalServices: () => true,
               useAccountsAPI: true,
               disabled: false,
-              getBalancesInSingleCall: mockGetBalancesInSingleCall,
+              getBalancesUsingMulticall: mockGetBalancesInSingleCall,
             },
             mocks: {
               getSelectedAccount: defaultSelectedAccount,
@@ -4245,7 +4245,7 @@ async function withController<ReturnValue>(
   const callActionSpy = jest.spyOn(tokenDetectionControllerMessenger, 'call');
 
   const controller = new TokenDetectionController({
-    getBalancesInSingleCall: jest.fn(),
+    getBalancesUsingMulticall: jest.fn(),
     trackMetaMetricsEvent: jest.fn(),
     messenger: tokenDetectionControllerMessenger,
     useAccountsAPI: false,

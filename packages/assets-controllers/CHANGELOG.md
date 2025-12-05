@@ -7,6 +7,13 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+### Added
+
+- Add `getBalancesUsingMulticall` method to `AssetsContractController` for improved chain coverage in RPC token detection ([#7290](https://github.com/MetaMask/core/pull/7290))
+  - Uses Multicall3's `aggregate3` function instead of single-call-balances contract
+  - Expands token detection support from 18 chains to 270+ chains
+  - `TokenDetectionController` now uses `getBalancesUsingMulticall` for RPC-based token balance detection
+
 ### Changed
 
 - Bump `@metamask/transaction-controller` from `^62.4.0` to `^62.5.0` ([#7325](https://github.com/MetaMask/core/pull/7325))
