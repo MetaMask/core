@@ -16,7 +16,7 @@ import type {
 import type { PreferencesControllerStateChangeEvent } from '@metamask/preferences-controller';
 import { getKnownPropertyNames } from '@metamask/utils';
 import type { Hex } from '@metamask/utils';
-import type BN from 'bn.js';
+import BN from 'bn.js';
 import abiSingleCallBalancesContract from 'single-call-balance-checker-abi';
 
 import {
