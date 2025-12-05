@@ -273,8 +273,6 @@ const setupController = async (
   );
 
   const options: TransactionControllerOptions = {
-    disableHistory: false,
-    disableSendFlowHistory: false,
     disableSwaps: false,
     isAutomaticGasFeeUpdateEnabled: () => true,
     getCurrentNetworkEIP1559Compatibility: async (
@@ -295,7 +293,6 @@ const setupController = async (
       isResubmitEnabled: () => false,
     },
     sign: async (transaction: TypedTransaction) => transaction,
-    transactionHistoryLimit: 40,
     ...givenOptions,
   };
 
@@ -398,7 +395,6 @@ describe('TransactionController Integration', () => {
                 estimateType: 'dappSuggested',
               },
               userFeeLevel: 'dappSuggested',
-              sendFlowHistory: [],
             },
             {
               actionId: undefined,
@@ -433,7 +429,6 @@ describe('TransactionController Integration', () => {
                 estimateType: 'dappSuggested',
               },
               userFeeLevel: 'dappSuggested',
-              sendFlowHistory: [],
             },
           ],
         },
@@ -655,13 +650,13 @@ describe('TransactionController Integration', () => {
           'confirmed',
         );
         expect(
-          transactionController.state.transactions[0].networkClientId,
+          transactionController.state.transactions[1].networkClientId,
         ).toBe('sepolia');
         expect(transactionController.state.transactions[1].status).toBe(
           'confirmed',
         );
         expect(
-          transactionController.state.transactions[1].networkClientId,
+          transactionController.state.transactions[0].networkClientId,
         ).toBe('linea-sepolia');
         transactionController.destroy();
       });

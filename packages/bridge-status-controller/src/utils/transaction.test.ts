@@ -1851,7 +1851,6 @@ describe('Bridge Status Controller Transaction Utils', () => {
           id: 'tx1',
           type: TransactionType.swap,
         }),
-        'Update tx type to swap',
       );
 
       // Should update the approval transaction
@@ -1860,7 +1859,6 @@ describe('Bridge Status Controller Transaction Utils', () => {
           id: 'tx2',
           type: TransactionType.swapApproval,
         }),
-        'Update tx type to swapApproval',
       );
     });
 
@@ -1895,7 +1893,6 @@ describe('Bridge Status Controller Transaction Utils', () => {
           id: 'tx1',
           type: TransactionType.swap,
         }),
-        'Update tx type to swap',
       );
     });
 
@@ -1929,7 +1926,6 @@ describe('Bridge Status Controller Transaction Utils', () => {
           id: 'tx1',
           type: TransactionType.swapApproval,
         }),
-        'Update tx type to swapApproval',
       );
     });
 
@@ -1967,7 +1963,6 @@ describe('Bridge Status Controller Transaction Utils', () => {
           id: 'tx1',
           type: TransactionType.bridge,
         }),
-        'Update tx type to bridge',
       );
 
       expect(mockUpdateTransactionFn).toHaveBeenCalledWith(
@@ -1975,7 +1970,6 @@ describe('Bridge Status Controller Transaction Utils', () => {
           id: 'tx2',
           type: TransactionType.bridgeApproval,
         }),
-        'Update tx type to bridgeApproval',
       );
     });
 

@@ -77,7 +77,6 @@ export type {
   SavedGasFees,
   SecurityAlertResponse,
   SecurityProviderRequest,
-  SendFlowHistoryEntry,
   SimulationBalanceChange,
   SimulationData,
   SimulationError,
@@ -87,8 +86,6 @@ export type {
   TransactionBatchRequest,
   TransactionBatchResult,
   TransactionError,
-  TransactionHistory,
-  TransactionHistoryEntry,
   TransactionMeta,
   TransactionParams,
   TransactionReceipt,
@@ -106,10 +103,6 @@ export {
   UserFeeLevel,
   WalletDevice,
 } from './types';
-export {
-  DISPLAYED_TRANSACTION_HISTORY_PATHS,
-  MAX_TRANSACTION_HISTORY_LENGTH,
-} from './utils/history';
 export { determineTransactionType } from './utils/transaction-type';
 export { mergeGasFeeEstimates } from './utils/gas-flow';
 export {

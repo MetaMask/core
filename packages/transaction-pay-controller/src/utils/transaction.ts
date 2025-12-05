@@ -172,11 +172,9 @@ export function updateTransaction(
   {
     transactionId,
     messenger,
-    note,
   }: {
     transactionId: string;
     messenger: TransactionPayControllerMessenger;
-    note: string;
   },
   fn: (draft: TransactionMeta) => void,
 ) {
@@ -190,11 +188,7 @@ export function updateTransaction(
 
   fn(newTransaction);
 
-  messenger.call(
-    'TransactionController:updateTransaction',
-    newTransaction,
-    note,
-  );
+  messenger.call('TransactionController:updateTransaction', newTransaction);
 }
 
 /**
