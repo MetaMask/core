@@ -77,7 +77,6 @@ async function executeSingleQuote(
     {
       transactionId: transaction.id,
       messenger,
-      note: 'Remove nonce from skipped transaction',
     },
     (tx) => {
       tx.txParams.nonce = undefined;
@@ -94,7 +93,6 @@ async function executeSingleQuote(
     {
       transactionId: transaction.id,
       messenger,
-      note: 'Intent complete after Relay completion',
     },
     (tx) => {
       tx.isIntentComplete = true;
@@ -217,7 +215,6 @@ async function submitTransactions(
         {
           transactionId: parentTransactionId,
           messenger,
-          note: 'Add required transaction ID from Relay submission',
         },
         (tx) => {
           if (!tx.requiredTransactionIds) {

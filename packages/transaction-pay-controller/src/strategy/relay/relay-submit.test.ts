@@ -421,7 +421,6 @@ describe('Relay Submit Utils', () => {
         {
           transactionId: ORIGINAL_TRANSACTION_ID_MOCK,
           messenger,
-          note: expect.any(String),
         },
         expect.any(Function),
       );

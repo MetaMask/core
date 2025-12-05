@@ -106,7 +106,6 @@ async function submitBridgeTransaction(
         {
           transactionId: transaction.id,
           messenger,
-          note: 'Add required transaction ID',
         },
         (transactionMeta) => {
           if (!transactionMeta.requiredTransactionIds) {
