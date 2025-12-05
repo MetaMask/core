@@ -19,6 +19,7 @@ import type {
 } from '@metamask/transaction-controller';
 import type { Hex, Json } from '@metamask/utils';
 
+import { DELEGATION_FRAMEWORK_VERSION } from './constants';
 import type { DecodedPermission } from './decodePermission';
 import {
   getPermissionDataAndExpiry,
@@ -33,15 +34,15 @@ import {
   PermissionDecodingError,
 } from './errors';
 import { controllerLog } from './logger';
+import { GatorPermissionsSnapRpcMethod } from './types';
 import type { StoredGatorPermissionSanitized } from './types';
-import {
-  GatorPermissionsSnapRpcMethod,
-  type GatorPermissionsMap,
-  type PermissionTypesWithCustom,
-  type StoredGatorPermission,
-  type DelegationDetails,
-  type RevocationParams,
-  type PendingRevocationParams,
+import type {
+  GatorPermissionsMap,
+  PermissionTypesWithCustom,
+  StoredGatorPermission,
+  DelegationDetails,
+  RevocationParams,
+  PendingRevocationParams,
 } from './types';
 import {
   deserializeGatorPermissionsMap,
@@ -64,12 +65,6 @@ const defaultGatorPermissionsMap: GatorPermissionsMap = {
   'erc20-token-periodic': {},
   other: {},
 };
-
-/**
- * Delegation framework version used to select the correct deployed enforcer
- * contract addresses from `@metamask/delegation-deployments`.
- */
-export const DELEGATION_FRAMEWORK_VERSION = '1.3.0';
 
 /**
  * Timeout duration for pending revocations (2 hours in milliseconds).
@@ -481,7 +476,8 @@ export default class GatorPermissionsController extends BaseController<
   }
 
   /**
-   * Sanitizes a stored gator permission by removing the fields that are not expose to MetaMask client.
+   * Sanitizes a stored gator permission for client exposure.
+   * Removes internal fields (dependencyInfo, signer)
    *
    * @param storedGatorPermission - The stored gator permission to sanitize.
    * @returns The sanitized stored gator permission.
@@ -493,7 +489,7 @@ export default class GatorPermissionsController extends BaseController<
     >,
   ): StoredGatorPermissionSanitized<Signer, PermissionTypesWithCustom> {
     const { permissionResponse } = storedGatorPermission;
-    const { rules, dependencyInfo, signer, ...rest } = permissionResponse;
+    const { dependencyInfo, signer, ...rest } = permissionResponse;
     return {
       ...storedGatorPermission,
       permissionResponse: {
@@ -517,7 +513,7 @@ export default class GatorPermissionsController extends BaseController<
       return defaultGatorPermissionsMap;
     }
 
-    return storedGatorPermissions.reduce(
+    return storedGatorPermissions.reduce<GatorPermissionsMap>(
       (gatorPermissionsMap, storedGatorPermission) => {
         const { permissionResponse } = storedGatorPermission;
         const permissionType = permissionResponse.permission.type;
@@ -568,7 +564,7 @@ export default class GatorPermissionsController extends BaseController<
         'erc20-token-stream': {},
         'erc20-token-periodic': {},
         other: {},
-      } as GatorPermissionsMap,
+      },
     );
   }
 

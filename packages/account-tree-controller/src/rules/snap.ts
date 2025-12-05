@@ -6,7 +6,8 @@ import type { SnapId } from '@metamask/snaps-sdk';
 import { stripSnapPrefix } from '@metamask/snaps-utils';
 
 import { getAccountGroupPrefixFromKeyringType } from './keyring';
-import { BaseRule, type Rule, type RuleResult } from '../rule';
+import { BaseRule } from '../rule';
+import type { Rule, RuleResult } from '../rule';
 import type { AccountWalletObjectOf } from '../wallet';
 
 /**

@@ -1,4 +1,5 @@
-import { Interface, type TransactionDescription } from '@ethersproject/abi';
+import { Interface } from '@ethersproject/abi';
+import type { TransactionDescription } from '@ethersproject/abi';
 import EthQuery from '@metamask/eth-query';
 import {
   abiERC721,

@@ -4,12 +4,11 @@ import {
   ChainId,
   InfuraNetworkType,
 } from '@metamask/controller-utils';
-import {
-  MOCK_ANY_NAMESPACE,
-  Messenger,
-  type MessengerActions,
-  type MessengerEvents,
-  type MockAnyNamespace,
+import { MOCK_ANY_NAMESPACE, Messenger } from '@metamask/messenger';
+import type {
+  MessengerActions,
+  MessengerEvents,
+  MockAnyNamespace,
 } from '@metamask/messenger';
 import {
   getDefaultNetworkControllerState,
@@ -22,10 +21,8 @@ import type {
   NetworkController,
   NetworkState,
 } from '@metamask/network-controller';
-import {
-  getDefaultPreferencesState,
-  type PreferencesState,
-} from '@metamask/preferences-controller';
+import { getDefaultPreferencesState } from '@metamask/preferences-controller';
+import type { PreferencesState } from '@metamask/preferences-controller';
 import nock from 'nock';
 import * as sinon from 'sinon';
 
@@ -34,8 +31,8 @@ import { getDefaultNftControllerState } from './NftController';
 import {
   NftDetectionController,
   BlockaidResultType,
-  type NftDetectionControllerMessenger,
 } from './NftDetectionController';
+import type { NftDetectionControllerMessenger } from './NftDetectionController';
 import { FakeBlockTracker } from '../../../tests/fake-block-tracker';
 import { FakeProvider } from '../../../tests/fake-provider';
 import { advanceTime } from '../../../tests/helpers';

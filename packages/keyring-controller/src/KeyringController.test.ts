@@ -14,15 +14,15 @@ import {
 import SimpleKeyring from '@metamask/eth-simple-keyring';
 import type { EthKeyring } from '@metamask/keyring-internal-api';
 import type { KeyringClass } from '@metamask/keyring-utils';
-import {
-  MOCK_ANY_NAMESPACE,
-  Messenger,
-  type MessengerActions,
-  type MessengerEvents,
-  type MockAnyNamespace,
+import { MOCK_ANY_NAMESPACE, Messenger } from '@metamask/messenger';
+import type {
+  MessengerActions,
+  MessengerEvents,
+  MockAnyNamespace,
 } from '@metamask/messenger';
 import { wordlist } from '@metamask/scure-bip39/dist/wordlists/english';
-import { bytesToHex, isValidHexAddress, type Hex } from '@metamask/utils';
+import { bytesToHex, isValidHexAddress } from '@metamask/utils';
+import type { Hex } from '@metamask/utils';
 import sinon from 'sinon';
 
 import { KeyringControllerError } from './constants';

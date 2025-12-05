@@ -1,10 +1,6 @@
-import {
-  type CaipChainId,
-  BtcScope,
-  SolScope,
-  EthScope,
-} from '@metamask/keyring-api';
-import { type NetworkConfiguration } from '@metamask/network-controller';
+import { BtcScope, SolScope, EthScope } from '@metamask/keyring-api';
+import type { CaipChainId } from '@metamask/keyring-api';
+import type { NetworkConfiguration } from '@metamask/network-controller';
 import { KnownCaipNamespace } from '@metamask/utils';
 
 import {

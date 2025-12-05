@@ -5,8 +5,8 @@ import {
 } from '@ethereumjs/tx';
 
 import { prepareTransaction, serializeTransaction } from './prepare';
-import type { Authorization } from '../types';
-import { TransactionEnvelopeType, type TransactionParams } from '../types';
+import { TransactionEnvelopeType } from '../types';
+import type { Authorization, TransactionParams } from '../types';
 
 const CHAIN_ID_MOCK = '0x123';
 

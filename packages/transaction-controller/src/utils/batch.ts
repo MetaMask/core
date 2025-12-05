@@ -31,15 +31,18 @@ import {
 } from './feature-flags';
 import { simulateGasBatch } from './gas';
 import { validateBatchRequest } from './validation';
-import type { GetSimulationConfig, TransactionControllerState } from '..';
 import {
   determineTransactionType,
   GasFeeEstimateLevel,
   TransactionStatus,
-  type BatchTransactionParams,
-  type TransactionController,
-  type TransactionControllerMessenger,
-  type TransactionMeta,
+} from '..';
+import type {
+  BatchTransactionParams,
+  GetSimulationConfig,
+  TransactionController,
+  TransactionControllerMessenger,
+  TransactionControllerState,
+  TransactionMeta,
 } from '..';
 import { DefaultGasFeeFlow } from '../gas-flows/DefaultGasFeeFlow';
 import { updateTransactionGasEstimates } from '../helpers/GasFeePoller';
@@ -47,6 +50,7 @@ import type { PendingTransactionTracker } from '../helpers/PendingTransactionTra
 import { CollectPublishHook } from '../hooks/CollectPublishHook';
 import { SequentialPublishBatchHook } from '../hooks/SequentialPublishBatchHook';
 import { projectLogger } from '../logger';
+import { TransactionEnvelopeType, TransactionType } from '../types';
 import type {
   NestedTransactionMetadata,
   SecurityAlertResponse,
@@ -60,12 +64,7 @@ import type {
   IsAtomicBatchSupportedResultEntry,
   TransactionBatchMeta,
 } from '../types';
-import {
-  TransactionEnvelopeType,
-  type TransactionBatchResult,
-  type TransactionParams,
-  TransactionType,
-} from '../types';
+import type { TransactionBatchResult, TransactionParams } from '../types';
 
 type UpdateStateCallback = (
   callback: (
@@ -356,8 +355,10 @@ async function addTransactionBatchWith7702(
   const batchParams = generateEIP7702BatchTransaction(from, nestedTransactions);
 
   const txParams: TransactionParams = {
-    from,
     ...batchParams,
+    from,
+    maxFeePerGas: nestedTransactions[0]?.maxFeePerGas,
+    maxPriorityFeePerGas: nestedTransactions[0]?.maxPriorityFeePerGas,
   };
 
   if (requiresUpgrade) {

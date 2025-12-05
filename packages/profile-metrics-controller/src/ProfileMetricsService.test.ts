@@ -1,18 +1,18 @@
-import {
-  Messenger,
-  MOCK_ANY_NAMESPACE,
-  type MockAnyNamespace,
-  type MessengerActions,
-  type MessengerEvents,
+import { Messenger, MOCK_ANY_NAMESPACE } from '@metamask/messenger';
+import type {
+  MockAnyNamespace,
+  MessengerActions,
+  MessengerEvents,
 } from '@metamask/messenger';
 import { SDK } from '@metamask/profile-sync-controller';
 import nock from 'nock';
-import { type SinonFakeTimers, useFakeTimers } from 'sinon';
+import { useFakeTimers } from 'sinon';
+import type { SinonFakeTimers } from 'sinon';
 
-import {
-  ProfileMetricsService,
-  type ProfileMetricsSubmitMetricsRequest,
-  type ProfileMetricsServiceMessenger,
+import { ProfileMetricsService } from '.';
+import type {
+  ProfileMetricsSubmitMetricsRequest,
+  ProfileMetricsServiceMessenger,
 } from '.';
 import { getAuthUrl } from './ProfileMetricsService';
 import { HttpError } from '../../controller-utils/src/util';

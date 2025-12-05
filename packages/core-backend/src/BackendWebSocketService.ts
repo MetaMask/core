@@ -530,8 +530,7 @@ export class BackendWebSocketService {
     log('Forcing WebSocket reconnection to clean up subscription state');
 
     // This ensures ws.onclose will schedule a reconnect (not treat it as manual disconnect)
-    // eslint-disable-next-line @typescript-eslint/no-non-null-assertion
-    this.#ws!.close(FORCE_RECONNECT_CODE, FORCE_RECONNECT_REASON);
+    this.#ws.close(FORCE_RECONNECT_CODE, FORCE_RECONNECT_REASON);
   }
 
   /**
@@ -1130,7 +1129,7 @@ export class BackendWebSocketService {
 
     // Trigger channel callbacks for any message with a channel property
     if (this.#isChannelMessage(message)) {
-      const channelMsg = message as ServerNotificationMessage;
+      const channelMsg = message;
       this.#handleChannelMessage(channelMsg);
     }
   }

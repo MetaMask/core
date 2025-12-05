@@ -1,9 +1,8 @@
-import {
-  hasProperty,
-  isObject,
-  type JsonRpcNotification,
-  type JsonRpcParams,
-  type JsonRpcRequest,
+import { hasProperty, isObject } from '@metamask/utils';
+import type {
+  JsonRpcNotification,
+  JsonRpcParams,
+  JsonRpcRequest,
 } from '@metamask/utils';
 
 export type {

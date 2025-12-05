@@ -1,4 +1,5 @@
-import { ORIGIN_METAMASK, type AddResult } from '@metamask/approval-controller';
+import { ORIGIN_METAMASK } from '@metamask/approval-controller';
+import type { AddResult } from '@metamask/approval-controller';
 import { ApprovalType } from '@metamask/controller-utils';
 import { rpcErrors, errorCodes } from '@metamask/rpc-errors';
 import { cloneDeep } from 'lodash';
@@ -20,16 +21,18 @@ import {
 } from './feature-flags';
 import { simulateGasBatch } from './gas';
 import { validateBatchRequest } from './validation';
-import type { TransactionControllerState } from '..';
 import {
   TransactionEnvelopeType,
-  type TransactionControllerMessenger,
-  type TransactionMeta,
   determineTransactionType,
   TransactionType,
   GasFeeEstimateLevel,
   GasFeeEstimateType,
   TransactionStatus,
+} from '..';
+import type {
+  TransactionControllerMessenger,
+  TransactionControllerState,
+  TransactionMeta,
 } from '..';
 import { flushPromises } from '../../../../tests/helpers';
 import { DefaultGasFeeFlow } from '../gas-flows/DefaultGasFeeFlow';
@@ -744,6 +747,50 @@ describe('Batch Utils', () => {
             }),
           ],
         }),
+      );
+    });
+
+    it('includes gas fee properties from first nested transaction in batch transaction', async () => {
+      isAccountUpgradedToEIP7702Mock.mockResolvedValueOnce({
+        delegationAddress: undefined,
+        isSupported: true,
+      });
+
+      addTransactionMock.mockResolvedValueOnce({
+        transactionMeta: TRANSACTION_META_MOCK,
+        result: Promise.resolve(''),
+      });
+
+      generateEIP7702BatchTransactionMock.mockReturnValueOnce(
+        TRANSACTION_BATCH_PARAMS_MOCK,
+      );
+
+      request.request.transactions = [
+        {
+          params: {
+            ...TRANSACTION_BATCH_PARAMS_MOCK,
+            maxFeePerGas: MAX_FEE_PER_GAS_MOCK,
+            maxPriorityFeePerGas: MAX_PRIORITY_FEE_PER_GAS_MOCK,
+          },
+        },
+        {
+          params: {
+            ...TRANSACTION_BATCH_PARAMS_MOCK,
+            maxFeePerGas: '0x999',
+            maxPriorityFeePerGas: '0x888',
+          },
+        },
+      ];
+
+      await addTransactionBatch(request);
+
+      expect(addTransactionMock).toHaveBeenCalledTimes(1);
+      expect(addTransactionMock).toHaveBeenCalledWith(
+        expect.objectContaining({
+          maxFeePerGas: MAX_FEE_PER_GAS_MOCK,
+          maxPriorityFeePerGas: MAX_PRIORITY_FEE_PER_GAS_MOCK,
+        }),
+        expect.anything(),
       );
     });
 

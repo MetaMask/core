@@ -109,7 +109,7 @@ export async function getCapabilities(
     }
 
     const status = isSupported ? 'supported' : 'ready';
-    const hexChainId = chainId as Hex;
+    const hexChainId = chainId;
 
     if (acc[hexChainId] === undefined) {
       acc[hexChainId] = {};
@@ -186,7 +186,7 @@ async function getAlternateGasFeesCapability(
         (isSupported && relaySupportedForChain));
 
     if (alternateGasFees) {
-      acc[chainId as Hex] = {
+      acc[chainId] = {
         alternateGasFees: {
           supported: true,
         },

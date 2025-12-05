@@ -5,8 +5,8 @@ import {
   fetchTokens,
   getSwapsContractAddress,
   isValidSwapsContractAddress,
-  type SwapsToken,
 } from './swaps';
+import type { SwapsToken } from './swaps';
 import { CHAIN_IDS } from '../constants/chains';
 import {
   ALLOWED_CONTRACT_ADDRESSES,

@@ -3,12 +3,8 @@ import type { Hex } from '@metamask/utils';
 import { IncomingTransactionHelper } from './IncomingTransactionHelper';
 import type { TransactionControllerMessenger } from '..';
 import { flushPromises } from '../../../../tests/helpers';
-import {
-  TransactionStatus,
-  TransactionType,
-  type RemoteTransactionSource,
-  type TransactionMeta,
-} from '../types';
+import { TransactionStatus, TransactionType } from '../types';
+import type { RemoteTransactionSource, TransactionMeta } from '../types';
 import { getIncomingTransactionsPollingInterval } from '../utils/feature-flags';
 
 jest.useFakeTimers();

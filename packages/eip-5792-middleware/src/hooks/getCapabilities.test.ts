@@ -3,12 +3,8 @@ import type {
   AccountsControllerState,
 } from '@metamask/accounts-controller';
 import { KeyringTypes } from '@metamask/keyring-controller';
-import {
-  MOCK_ANY_NAMESPACE,
-  Messenger,
-  type MockAnyNamespace,
-  type MessengerActions,
-} from '@metamask/messenger';
+import { MOCK_ANY_NAMESPACE, Messenger } from '@metamask/messenger';
+import type { MockAnyNamespace, MessengerActions } from '@metamask/messenger';
 import type {
   PreferencesControllerGetStateAction,
   PreferencesState,

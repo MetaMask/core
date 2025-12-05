@@ -8,11 +8,11 @@ import type {
   AsyncJsonRpcEngineNextCallback,
   JsonRpcEngineEndCallback,
 } from '@metamask/json-rpc-engine';
-import {
-  type CaveatSpecificationConstraint,
-  MethodNames,
-  type PermissionController,
-  type PermissionSpecificationConstraint,
+import { MethodNames } from '@metamask/permission-controller';
+import type {
+  CaveatSpecificationConstraint,
+  PermissionController,
+  PermissionSpecificationConstraint,
 } from '@metamask/permission-controller';
 import type {
   Json,

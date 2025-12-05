@@ -52,10 +52,10 @@ import type {
   AccountTrackerUpdateStakedBalancesAction,
 } from './AccountTrackerController';
 import { STAKING_CONTRACT_ADDRESS_BY_CHAINID } from './AssetsContractController';
-import {
-  AccountsApiBalanceFetcher,
-  type BalanceFetcher,
-  type ProcessedBalance,
+import { AccountsApiBalanceFetcher } from './multi-chain-accounts-service/api-balance-fetcher';
+import type {
+  BalanceFetcher,
+  ProcessedBalance,
 } from './multi-chain-accounts-service/api-balance-fetcher';
 import { RpcBalanceFetcher } from './rpc-service/rpc-balance-fetcher';
 import type { TokenDetectionControllerAddDetectedTokensViaWsAction } from './TokenDetectionController';
@@ -875,9 +875,7 @@ export class TokenBalancesController extends StaticIntervalPollingController<{
 
         // Check if the chainId and token address match any staking contract
         const stakingContractAddress =
-          STAKING_CONTRACT_ADDRESS_BY_CHAINID[
-            r.chainId as keyof typeof STAKING_CONTRACT_ADDRESS_BY_CHAINID
-          ];
+          STAKING_CONTRACT_ADDRESS_BY_CHAINID[r.chainId];
         return (
           stakingContractAddress &&
           stakingContractAddress.toLowerCase() === r.token.toLowerCase()
@@ -1089,7 +1087,7 @@ export class TokenBalancesController extends StaticIntervalPollingController<{
       return;
     }
     this.update((s) => {
-      delete s.tokenBalances[addr as ChecksumAddress];
+      delete s.tokenBalances[addr];
     });
   };
 
@@ -1258,7 +1256,7 @@ export class TokenBalancesController extends StaticIntervalPollingController<{
           'TokenDetectionController:addDetectedTokensViaWs',
           {
             tokensSlice: newTokens,
-            chainId: chainId as Hex,
+            chainId,
           },
         );
       }

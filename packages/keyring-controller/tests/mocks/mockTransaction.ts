@@ -1,4 +1,5 @@
-import { TransactionFactory, type TypedTxData } from '@ethereumjs/tx';
+import { TransactionFactory } from '@ethereumjs/tx';
+import type { TypedTxData } from '@ethereumjs/tx';
 
 /**
  * Build a mock transaction, optionally overriding

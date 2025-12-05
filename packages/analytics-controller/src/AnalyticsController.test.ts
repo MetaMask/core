@@ -1,21 +1,20 @@
-import {
-  Messenger,
-  MOCK_ANY_NAMESPACE,
-  type MockAnyNamespace,
-} from '@metamask/messenger';
+import { Messenger, MOCK_ANY_NAMESPACE } from '@metamask/messenger';
+import type { MockAnyNamespace } from '@metamask/messenger';
 
 import {
   AnalyticsController,
-  getDefaultAnalyticsControllerState,
-  type AnalyticsControllerMessenger,
-  type AnalyticsControllerActions,
-  type AnalyticsControllerEvents,
-  type AnalyticsPlatformAdapter,
   AnalyticsPlatformAdapterSetupError,
-  type AnalyticsTrackingEvent,
+  getDefaultAnalyticsControllerState,
   analyticsControllerSelectors,
 } from '.';
-import type { AnalyticsControllerState } from '.';
+import type {
+  AnalyticsControllerMessenger,
+  AnalyticsControllerActions,
+  AnalyticsControllerEvents,
+  AnalyticsPlatformAdapter,
+  AnalyticsTrackingEvent,
+  AnalyticsControllerState,
+} from '.';
 import { isValidUUIDv4 } from './analyticsControllerStateValidator';
 
 type SetupControllerOptions = {
@@ -412,7 +411,7 @@ describe('AnalyticsController', () => {
     it('calls onSetupCompleted synchronously', async () => {
       const mockAdapter = createMockAdapter();
       const analyticsId = '44444444-4444-4444-8444-444444444444';
-      
+
       const { controller } = await setupController({
         state: {
           ...getDefaultAnalyticsControllerState(),
@@ -436,11 +435,9 @@ describe('AnalyticsController', () => {
         'Failed to add privacy plugin to Segment client',
         cause,
       );
-      jest
-        .spyOn(mockAdapter, 'onSetupCompleted')
-        .mockImplementation(() => {
-          throw error;
-        });
+      jest.spyOn(mockAdapter, 'onSetupCompleted').mockImplementation(() => {
+        throw error;
+      });
 
       const analyticsId = '55555555-5555-4555-9555-555555555555';
       const { controller } = await setupController({
@@ -723,11 +720,7 @@ describe('AnalyticsController', () => {
           anonymousEventsFeature: true,
         });
 
-        const event = createTestEvent(
-          'test_event',
-          { prop: 'value' },
-          {},
-        );
+        const event = createTestEvent('test_event', { prop: 'value' }, {});
         controller.trackEvent(event);
 
         expect(mockAdapter.track).toHaveBeenCalledTimes(1);

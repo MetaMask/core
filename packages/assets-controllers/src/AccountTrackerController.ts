@@ -31,19 +31,20 @@ import type {
   TransactionControllerUnapprovedTransactionAddedEvent,
   TransactionMeta,
 } from '@metamask/transaction-controller';
-import { assert, type Hex } from '@metamask/utils';
+import { assert } from '@metamask/utils';
+import type { Hex } from '@metamask/utils';
 import { Mutex } from 'async-mutex';
 import { cloneDeep, isEqual } from 'lodash';
 
-import {
-  STAKING_CONTRACT_ADDRESS_BY_CHAINID,
-  type AssetsContractController,
-  type StakedBalance,
+import { STAKING_CONTRACT_ADDRESS_BY_CHAINID } from './AssetsContractController';
+import type {
+  AssetsContractController,
+  StakedBalance,
 } from './AssetsContractController';
-import {
-  AccountsApiBalanceFetcher,
-  type BalanceFetcher,
-  type ProcessedBalance,
+import { AccountsApiBalanceFetcher } from './multi-chain-accounts-service/api-balance-fetcher';
+import type {
+  BalanceFetcher,
+  ProcessedBalance,
 } from './multi-chain-accounts-service/api-balance-fetcher';
 import { RpcBalanceFetcher } from './rpc-service/rpc-balance-fetcher';
 

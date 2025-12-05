@@ -15,14 +15,12 @@ import { getGasEstimateBuffer, getGasEstimateFallback } from './feature-flags';
 import { simulateTransactions } from '../api/simulation-api';
 import { projectLogger } from '../logger';
 import type { TransactionControllerMessenger } from '../TransactionController';
+import { TransactionEnvelopeType } from '../types';
 import type {
   GetSimulationConfig,
   TransactionBatchSingleRequest,
-} from '../types';
-import {
-  TransactionEnvelopeType,
-  type TransactionMeta,
-  type TransactionParams,
+  TransactionMeta,
+  TransactionParams,
 } from '../types';
 
 export type UpdateGasRequest = {
@@ -450,7 +448,7 @@ async function estimateGasUpgradeWithDataToSelf(
 
   try {
     executeGas = await simulateGas({
-      chainId: chainId as Hex,
+      chainId,
       delegationAddress,
       getSimulationConfig,
       transaction: txParams,
@@ -519,7 +517,7 @@ async function simulateGas({
       },
     ],
     overrides: {
-      [transaction.from as string]: {
+      [transaction.from]: {
         code:
           delegationAddress &&
           ((DELEGATION_PREFIX + remove0x(delegationAddress)) as Hex),
@@ -577,7 +575,7 @@ function estimateGasNode(
     params.push('latest');
 
     params.push({
-      [from as string]: {
+      [from]: {
         code: DELEGATION_PREFIX + remove0x(delegationAddress),
       },
     });
