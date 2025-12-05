@@ -750,6 +750,50 @@ describe('Batch Utils', () => {
       );
     });
 
+    it('includes gas fee properties from first nested transaction in batch transaction', async () => {
+      isAccountUpgradedToEIP7702Mock.mockResolvedValueOnce({
+        delegationAddress: undefined,
+        isSupported: true,
+      });
+
+      addTransactionMock.mockResolvedValueOnce({
+        transactionMeta: TRANSACTION_META_MOCK,
+        result: Promise.resolve(''),
+      });
+
+      generateEIP7702BatchTransactionMock.mockReturnValueOnce(
+        TRANSACTION_BATCH_PARAMS_MOCK,
+      );
+
+      request.request.transactions = [
+        {
+          params: {
+            ...TRANSACTION_BATCH_PARAMS_MOCK,
+            maxFeePerGas: MAX_FEE_PER_GAS_MOCK,
+            maxPriorityFeePerGas: MAX_PRIORITY_FEE_PER_GAS_MOCK,
+          },
+        },
+        {
+          params: {
+            ...TRANSACTION_BATCH_PARAMS_MOCK,
+            maxFeePerGas: '0x999',
+            maxPriorityFeePerGas: '0x888',
+          },
+        },
+      ];
+
+      await addTransactionBatch(request);
+
+      expect(addTransactionMock).toHaveBeenCalledTimes(1);
+      expect(addTransactionMock).toHaveBeenCalledWith(
+        expect.objectContaining({
+          maxFeePerGas: MAX_FEE_PER_GAS_MOCK,
+          maxPriorityFeePerGas: MAX_PRIORITY_FEE_PER_GAS_MOCK,
+        }),
+        expect.anything(),
+      );
+    });
+
     it('throws if chain not supported', async () => {
       doesChainSupportEIP7702Mock.mockReturnValue(false);
 
