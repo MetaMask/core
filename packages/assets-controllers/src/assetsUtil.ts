@@ -385,13 +385,10 @@ export async function fetchTokenContractExchangeRates({
           })),
           currency: nativeCurrency,
         })
-      ).reduce(
-        (acc, tokenPrice) => {
-          acc[tokenPrice.tokenAddress] = tokenPrice;
-          return acc;
-        },
-        {} as Record<Hex, EvmAssetWithMarketData>,
-      );
+      ).reduce<Record<Hex, EvmAssetWithMarketData>>((acc, tokenPrice) => {
+        acc[tokenPrice.tokenAddress] = tokenPrice;
+        return acc;
+      }, {});
 
       return {
         ...allTokenPricesByTokenAddress,

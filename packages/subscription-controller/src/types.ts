@@ -125,6 +125,8 @@ export type GetSubscriptionsResponse = {
   trialedProducts: ProductType[];
   /** The last subscription that user has subscribed to if any. */
   lastSubscription?: Subscription;
+  /** The reward account ID if user has linked rewards to the subscription. */
+  rewardAccountId?: CaipAccountId;
 };
 
 export type StartSubscriptionRequest = {

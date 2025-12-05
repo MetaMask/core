@@ -355,8 +355,10 @@ async function addTransactionBatchWith7702(
   const batchParams = generateEIP7702BatchTransaction(from, nestedTransactions);
 
   const txParams: TransactionParams = {
-    from,
     ...batchParams,
+    from,
+    maxFeePerGas: nestedTransactions[0]?.maxFeePerGas,
+    maxPriorityFeePerGas: nestedTransactions[0]?.maxPriorityFeePerGas,
   };
 
   if (requiresUpgrade) {

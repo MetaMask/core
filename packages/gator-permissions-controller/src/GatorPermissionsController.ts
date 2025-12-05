@@ -513,7 +513,7 @@ export default class GatorPermissionsController extends BaseController<
       return defaultGatorPermissionsMap;
     }
 
-    return storedGatorPermissions.reduce(
+    return storedGatorPermissions.reduce<GatorPermissionsMap>(
       (gatorPermissionsMap, storedGatorPermission) => {
         const { permissionResponse } = storedGatorPermission;
         const permissionType = permissionResponse.permission.type;
@@ -564,7 +564,7 @@ export default class GatorPermissionsController extends BaseController<
         'erc20-token-stream': {},
         'erc20-token-periodic': {},
         other: {},
-      } as GatorPermissionsMap,
+      },
     );
   }
 

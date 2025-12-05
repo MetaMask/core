@@ -2362,7 +2362,9 @@ export class PermissionController<
     const { caveatPairs, leftUniqueCaveats, rightUniqueCaveats } =
       collectUniqueAndPairedCaveats(leftPermission, rightPermission);
 
-    const [mergedCaveats, caveatDiffMap] = caveatPairs.reduce(
+    const [mergedCaveats, caveatDiffMap] = caveatPairs.reduce<
+      [CaveatConstraint[], CaveatDiffMap<CaveatConstraint>]
+    >(
       ([caveats, diffMap], [leftCaveat, rightCaveat]) => {
         const [newCaveat, diff] = this.#mergeCaveat(leftCaveat, rightCaveat);
 
@@ -2375,7 +2377,7 @@ export class PermissionController<
 
         return [caveats, diffMap];
       },
-      [[], {}] as [CaveatConstraint[], CaveatDiffMap<CaveatConstraint>],
+      [[], {}],
     );
 
     const mergedRightUniqueCaveats = rightUniqueCaveats.map((caveat) => {

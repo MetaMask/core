@@ -207,22 +207,21 @@ const fetchAssetPricesForCurrency = async (request: {
     return {};
   }
 
-  return Object.entries(priceApiResponse).reduce(
-    (acc, [assetId, currencyToPrice]) => {
-      if (!currencyToPrice) {
-        return acc;
-      }
-      if (!acc[assetId as CaipAssetType]) {
-        acc[assetId as CaipAssetType] = {};
-      }
-      if (currencyToPrice[currency]) {
-        acc[assetId as CaipAssetType][currency] =
-          currencyToPrice[currency].toString();
-      }
+  return Object.entries(priceApiResponse).reduce<
+    Record<CaipAssetType, { [currency: string]: string }>
+  >((acc, [assetId, currencyToPrice]) => {
+    if (!currencyToPrice) {
       return acc;
-    },
-    {} as Record<CaipAssetType, { [currency: string]: string }>,
-  );
+    }
+    if (!acc[assetId as CaipAssetType]) {
+      acc[assetId as CaipAssetType] = {};
+    }
+    if (currencyToPrice[currency]) {
+      acc[assetId as CaipAssetType][currency] =
+        currencyToPrice[currency].toString();
+    }
+    return acc;
+  }, {});
 };
 
 /**
@@ -246,23 +245,22 @@ export const fetchAssetPrices = async (
         await fetchAssetPricesForCurrency({ ...args, currency }),
     ),
   ).then((priceApiResponse) => {
-    return priceApiResponse.reduce(
-      (acc, result) => {
-        if (result.status === 'fulfilled') {
-          Object.entries(result.value).forEach(([assetId, currencyToPrice]) => {
-            const existingPrices = acc[assetId as CaipAssetType];
-            if (!existingPrices) {
-              acc[assetId as CaipAssetType] = {};
-            }
-            Object.entries(currencyToPrice).forEach(([currency, price]) => {
-              acc[assetId as CaipAssetType][currency] = price;
-            });
+    return priceApiResponse.reduce<
+      Record<CaipAssetType, { [currency: string]: string }>
+    >((acc, result) => {
+      if (result.status === 'fulfilled') {
+        Object.entries(result.value).forEach(([assetId, currencyToPrice]) => {
+          const existingPrices = acc[assetId as CaipAssetType];
+          if (!existingPrices) {
+            acc[assetId as CaipAssetType] = {};
+          }
+          Object.entries(currencyToPrice).forEach(([currency, price]) => {
+            acc[assetId as CaipAssetType][currency] = price;
           });
-        }
-        return acc;
-      },
-      {} as Record<CaipAssetType, { [currency: string]: string }>,
-    );
+        });
+      }
+      return acc;
+    }, {});
   });
 
   return combinedPrices;

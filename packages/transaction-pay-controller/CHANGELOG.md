@@ -15,6 +15,14 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 - Bump `@metamask/assets-controllers` from `^92.0.0` to `^93.1.0` ([#7291](https://github.com/MetaMask/core/pull/7291), [#7309](https://github.com/MetaMask/core/pull/7309))
 - Bump `@metamask/remote-feature-flag-controller` from `^2.0.1` to `^3.0.0` ([#7309](https://github.com/MetaMask/core/pull/7309)
 
+### Fixed
+
+- Fix source network fees for batch Relay deposits on EIP-7702 networks ([#7323](https://github.com/MetaMask/core/pull/7323))
+- Improve Relay provider fees ([#7313](https://github.com/MetaMask/core/pull/7313))
+  - Include slippage from feature flag.
+  - Read fee from `totalImpact` property.
+  - Send dust in transaction quotes to token transfer recipient, if available.
+
 ## [10.3.0]
 
 ### Changed
