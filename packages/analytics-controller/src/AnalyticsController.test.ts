@@ -74,7 +74,7 @@ async function setupController(
     anonymousEventsFeature,
   });
 
-  await controller.init();
+  controller.init();
 
   return {
     controller,
@@ -253,7 +253,7 @@ describe('AnalyticsController', () => {
         // anonymousEventsFeature not provided - should default to false
       });
 
-      await controller.init();
+      controller.init();
 
       // Verify default behavior: single event tracked (not split)
       const event = createTestEvent(
@@ -495,7 +495,7 @@ describe('AnalyticsController', () => {
       const { onSetupCompleted } = mockAdapter;
       expect(onSetupCompleted).not.toHaveBeenCalled();
 
-      await controller.init();
+      controller.init();
 
       expect(onSetupCompleted).toHaveBeenCalledTimes(1);
       expect(onSetupCompleted).toHaveBeenCalledWith(analyticsId);
@@ -531,9 +531,9 @@ describe('AnalyticsController', () => {
         anonymousEventsFeature: false,
       });
 
-      await controller.init();
+      controller.init();
 
-      await expect(controller.init()).rejects.toThrow(
+      expect(() => controller.init()).toThrow(
         'AnalyticsController already initialized.',
       );
     });

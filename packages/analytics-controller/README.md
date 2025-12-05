@@ -123,7 +123,7 @@ async function initializeAnalyticsController(
   });
 
   // 3. Initialize the controller (calls platform adapter's onSetupCompleted hook)
-  await controller.init();
+  controller.init();
 
   // 4. Subscribe to state changes for persistence
   messenger.subscribe('AnalyticsController:stateChange', (newState) => {
@@ -246,9 +246,7 @@ const defaults = getDefaultAnalyticsControllerState();
 
 ### Why `analyticsId` Has No Default
 
-The `analyticsId` is an **identity** (unique per user), not a **preference** (static default). A default should return the same value each call (deterministic), but a UUID must be unique each time (non-deterministic). These are mutually exclusive.
-
-**Solution:** Platform generates the UUID once on first run, persists it, and provides it to the controller.
+The `analyticsId` is used to uniquely identify the user. If the controller generated a new ID each time the client booted, the ID would be ineffective. Instead, the ID must be pre-generated or retrieved from storage and then passed into the controller.
 
 ### Platform Responsibilities
 

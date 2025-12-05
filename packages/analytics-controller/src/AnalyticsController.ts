@@ -250,7 +250,7 @@ export class AnalyticsController extends BaseController<
    *
    * @throws Error if called multiple times
    */
-  async init(): Promise<void> {
+  init(): void {
     if (this.#initialized) {
       throw new Error('AnalyticsController already initialized.');
     }
