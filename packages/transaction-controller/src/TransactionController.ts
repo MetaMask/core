@@ -89,7 +89,6 @@ import type {
   Layer1GasFeeFlow,
   SavedGasFees,
   SecurityProviderRequest,
-  SendFlowHistoryEntry,
   TransactionParams,
   TransactionMeta,
   TransactionReceipt,
@@ -144,10 +143,6 @@ import {
 } from './utils/gas-fee-tokens';
 import { updateGasFees } from './utils/gas-fees';
 import { getGasFeeFlow } from './utils/gas-flow';
-import {
-  addInitialHistorySnapshot,
-  updateTransactionHistory,
-} from './utils/history';
 import {
   getTransactionLayer1GasFee,
   updateTransactionLayer1GasFee,
@@ -417,12 +412,6 @@ export type PendingTransactionOptions = {
 
 /** TransactionController constructor options. */
 export type TransactionControllerOptions = {
-  /** Whether to disable storing history in transaction metadata. */
-  disableHistory: boolean;
-
-  /** Explicitly disable transaction metadata history. */
-  disableSendFlowHistory: boolean;
-
   /** Whether to disable additional processing on swaps transactions. */
   disableSwaps: boolean;
 
@@ -509,9 +498,6 @@ export type TransactionControllerOptions = {
 
   testGasFeeFlows?: boolean;
   trace?: TraceCallback;
-
-  /** Transaction history limit. */
-  transactionHistoryLimit: number;
 
   /** The controller hooks. */
   hooks: {
@@ -878,10 +864,6 @@ export class TransactionController extends BaseController<
 
   readonly #isFirstTimeInteractionEnabled: () => boolean;
 
-  readonly #isHistoryDisabled: boolean;
-
-  readonly #isSendFlowHistoryDisabled: boolean;
-
   readonly #isSimulationEnabled: () => boolean;
 
   readonly #isSwapsDisabled: boolean;
@@ -919,8 +901,6 @@ export class TransactionController extends BaseController<
 
   readonly #trace: TraceCallback;
 
-  readonly #transactionHistoryLimit: number;
-
   /**
    * Constructs a TransactionController.
    *
@@ -928,8 +908,6 @@ export class TransactionController extends BaseController<
    */
   constructor(options: TransactionControllerOptions) {
     const {
-      disableHistory,
-      disableSendFlowHistory,
       disableSwaps,
       getCurrentAccountEIP1559Compatibility,
       getCurrentNetworkEIP1559Compatibility,
@@ -954,7 +932,6 @@ export class TransactionController extends BaseController<
       state,
       testGasFeeFlows,
       trace,
-      transactionHistoryLimit = 40,
     } = options;
 
     super({
@@ -999,8 +976,6 @@ export class TransactionController extends BaseController<
       isEIP7702GasFeeTokensEnabled ?? (() => Promise.resolve(false));
     this.#isFirstTimeInteractionEnabled =
       isFirstTimeInteractionEnabled ?? (() => true);
-    this.#isHistoryDisabled = disableHistory ?? false;
-    this.#isSendFlowHistoryDisabled = disableSendFlowHistory ?? false;
     this.#isSimulationEnabled = isSimulationEnabled ?? (() => true);
     this.#isSwapsDisabled = disableSwaps ?? false;
     this.#pendingTransactionOptions = pendingTransactions;
@@ -1012,7 +987,6 @@ export class TransactionController extends BaseController<
     this.#sign = sign;
     this.#testGasFeeFlows = testGasFeeFlows === true;
     this.#trace = trace ?? (((_request, fn) => fn?.()) as TraceCallback);
-    this.#transactionHistoryLimit = transactionHistoryLimit;
 
     const findNetworkClientIdByChainId = (chainId: Hex) => {
       return this.messenger.call(
@@ -1091,7 +1065,6 @@ export class TransactionController extends BaseController<
       isEnabled: this.#incomingTransactionOptions.isEnabled,
       messenger: this.messenger,
       remoteTransactionSource: new AccountsApiRemoteTransactionSource(),
-      trimTransactions: this.#trimTransactionsForState.bind(this),
       updateTransactions: this.#incomingTransactionOptions.updateTransactions,
     });
 
@@ -1238,7 +1211,6 @@ export class TransactionController extends BaseController<
       publishHook,
       requireApproval,
       securityAlertResponse,
-      sendFlowHistory,
       skipInitialGasEstimate,
       swaps = {},
       traceContext,
@@ -1372,7 +1344,6 @@ export class TransactionController extends BaseController<
           this.#updateTransactionInternal(
             {
               transactionId: newTransactionMeta.id,
-              skipHistory: true,
               skipResimulateCheck: true,
               skipValidation: true,
             },
@@ -1403,14 +1374,6 @@ export class TransactionController extends BaseController<
           securityProviderResponse;
       }
 
-      if (!this.#isSendFlowHistoryDisabled) {
-        addedTransactionMeta.sendFlowHistory = sendFlowHistory ?? [];
-      }
-      // Initial history push
-      if (!this.#isHistoryDisabled) {
-        addedTransactionMeta = addInitialHistorySnapshot(addedTransactionMeta);
-      }
-
       addedTransactionMeta = updateSwapsTransaction(
         addedTransactionMeta,
         transactionType,
@@ -1429,7 +1392,6 @@ export class TransactionController extends BaseController<
           this.#updateTransactionInternal(
             {
               transactionId: addedTransactionMeta.id,
-              skipHistory: true,
               skipResimulateCheck: true,
               skipValidation: true,
             },
@@ -1777,12 +1739,11 @@ export class TransactionController extends BaseController<
    * Updates an existing transaction in state.
    *
    * @param transactionMeta - The new transaction to store in state.
-   * @param note - A note or update reason to include in the transaction history.
    */
-  updateTransaction(transactionMeta: TransactionMeta, note: string) {
+  updateTransaction(transactionMeta: TransactionMeta) {
     const { id: transactionId } = transactionMeta;
 
-    this.#updateTransactionInternal({ transactionId, note }, () => ({
+    this.#updateTransactionInternal({ transactionId }, () => ({
       ...transactionMeta,
     }));
   }
@@ -1812,10 +1773,7 @@ export class TransactionController extends BaseController<
       ...transactionMeta,
       securityAlertResponse,
     };
-    this.updateTransaction(
-      updatedTransactionMeta,
-      `${controllerName}:updatesecurityAlertResponse - securityAlertResponse updated`,
-    );
+    this.updateTransaction(updatedTransactionMeta);
   }
 
   /**
@@ -1859,7 +1817,7 @@ export class TransactionController extends BaseController<
     );
 
     this.update((state) => {
-      state.transactions = this.#trimTransactionsForState(newTransactions);
+      state.transactions = newTransactions;
     });
   }
 
@@ -1895,10 +1853,7 @@ export class TransactionController extends BaseController<
       this.#markNonceDuplicatesDropped(transactionId);
 
       // Update external provided transaction with updated gas values and confirmed status.
-      this.updateTransaction(
-        updatedTransactionMeta,
-        `${controllerName}:confirmExternalTransaction - Add external transaction`,
-      );
+      this.updateTransaction(updatedTransactionMeta);
       this.#onTransactionStatusChange(updatedTransactionMeta);
 
       // Intentional given potential duration of process.
@@ -1915,53 +1870,6 @@ export class TransactionController extends BaseController<
     } catch (error) {
       console.error('Failed to confirm external transaction', error);
     }
-  }
-
-  /**
-   * Append new send flow history to a transaction.
-   *
-   * @param transactionID - The ID of the transaction to update.
-   * @param currentSendFlowHistoryLength - The length of the current sendFlowHistory array.
-   * @param sendFlowHistoryToAdd - The sendFlowHistory entries to add.
-   * @returns The updated transactionMeta.
-   */
-  updateTransactionSendFlowHistory(
-    transactionID: string,
-    currentSendFlowHistoryLength: number,
-    sendFlowHistoryToAdd: SendFlowHistoryEntry[],
-  ): TransactionMeta {
-    if (this.#isSendFlowHistoryDisabled) {
-      throw new Error(
-        'Send flow history is disabled for the current transaction controller',
-      );
-    }
-
-    const transactionMeta = this.#getTransaction(transactionID);
-
-    if (!transactionMeta) {
-      throw new Error(
-        `Cannot update send flow history as no transaction metadata found`,
-      );
-    }
-
-    validateIfTransactionUnapproved(
-      transactionMeta,
-      'updateTransactionSendFlowHistory',
-    );
-
-    const sendFlowHistory = transactionMeta.sendFlowHistory ?? [];
-    if (currentSendFlowHistoryLength === sendFlowHistory.length) {
-      const updatedTransactionMeta = {
-        ...transactionMeta,
-        sendFlowHistory: [...sendFlowHistory, ...sendFlowHistoryToAdd],
-      };
-      this.updateTransaction(
-        updatedTransactionMeta,
-        `${controllerName}:updateTransactionSendFlowHistory - sendFlowHistory updated`,
-      );
-    }
-
-    return this.#getTransaction(transactionID) as TransactionMeta;
   }
 
   /**
@@ -2078,7 +1986,6 @@ export class TransactionController extends BaseController<
     this.#updateTransactionInternal(
       {
         transactionId,
-        note: `${controllerName}:updateTransactionGasFees - gas values updated`,
         skipResimulateCheck: true,
       },
       (draftTxMeta) => {
@@ -2143,10 +2050,7 @@ export class TransactionController extends BaseController<
     // merge updated previous gas values with existing transaction meta
     const updatedMeta = merge({}, transactionMeta, transactionPreviousGas);
 
-    this.updateTransaction(
-      updatedMeta,
-      `${controllerName}:updatePreviousGasParams - Previous gas values updated`,
-    );
+    this.updateTransaction(updatedMeta);
 
     return this.#getTransaction(transactionId) as TransactionMeta;
   }
@@ -2257,10 +2161,7 @@ export class TransactionController extends BaseController<
       transactionMeta: updatedTransaction,
     });
 
-    this.updateTransaction(
-      updatedTransaction,
-      `Update Editable Params for ${txId}`,
-    );
+    this.updateTransaction(updatedTransaction);
 
     return this.#getTransaction(txId);
   }
@@ -2281,8 +2182,6 @@ export class TransactionController extends BaseController<
     this.#updateTransactionInternal(
       {
         transactionId,
-        note: 'TransactionController#setTransactionActive - Transaction isActive updated',
-        skipHistory: true,
         skipValidation: true,
         skipResimulateCheck: true,
       },
@@ -2435,10 +2334,7 @@ export class TransactionController extends BaseController<
       delete updatedTransactionMeta.txParams.maxPriorityFeePerGas;
     }
 
-    this.updateTransaction(
-      updatedTransactionMeta,
-      `${controllerName}:updateCustodialTransaction - Custodial transaction updated`,
-    );
+    this.updateTransaction(updatedTransactionMeta);
 
     if (
       status &&
@@ -2670,7 +2566,7 @@ export class TransactionController extends BaseController<
       ({ status }) => status !== TransactionStatus.unapproved,
     );
     this.update((state) => {
-      state.transactions = this.#trimTransactionsForState(transactions);
+      state.transactions = transactions;
     });
   }
 
@@ -2727,7 +2623,6 @@ export class TransactionController extends BaseController<
     const updatedTransactionMeta = this.#updateTransactionInternal(
       {
         transactionId,
-        note: 'TransactionController#updateAtomicBatchData - Atomic batch data updated',
       },
       (transactionMeta) => {
         const { nestedTransactions, txParams } = transactionMeta;
@@ -2765,7 +2660,6 @@ export class TransactionController extends BaseController<
     this.#updateTransactionInternal(
       {
         transactionId,
-        note: 'TransactionController#updateAtomicBatchData - Gas estimate updated',
       },
       (transactionMeta) => {
         transactionMeta.txParams.gas = draftTransaction.txParams.gas;
@@ -2797,7 +2691,6 @@ export class TransactionController extends BaseController<
     this.#updateTransactionInternal(
       {
         transactionId,
-        note: 'TransactionController#updateBatchTransactions - Batch transactions updated',
       },
       (transactionMeta) => {
         transactionMeta.batchTransactions = batchTransactions;
@@ -2909,10 +2802,7 @@ export class TransactionController extends BaseController<
       });
     }
 
-    this.updateTransaction(
-      updatedTransactionMeta,
-      'Generated from user operation',
-    );
+    this.updateTransaction(updatedTransactionMeta);
 
     this.messenger.publish('TransactionController:transactionStatusUpdated', {
       transactionMeta: updatedTransactionMeta,
@@ -2922,10 +2812,7 @@ export class TransactionController extends BaseController<
   #addMetadata(transactionMeta: TransactionMeta) {
     validateTxParams(transactionMeta.txParams);
     this.update((state) => {
-      state.transactions = this.#trimTransactionsForState([
-        ...state.transactions,
-        transactionMeta,
-      ]);
+      state.transactions = [...state.transactions, transactionMeta];
     });
   }
 
@@ -3070,10 +2957,7 @@ export class TransactionController extends BaseController<
               params: updatedTransaction.txParams,
             });
 
-            this.updateTransaction(
-              updatedTransaction,
-              'TransactionController#processApproval - Updated with approval data',
-            );
+            this.updateTransaction(updatedTransaction);
           }
         }
 
@@ -3207,7 +3091,6 @@ export class TransactionController extends BaseController<
       transactionMeta = this.#updateTransactionInternal(
         {
           transactionId,
-          note: 'TransactionController#approveTransaction - Transaction approved',
         },
         (draftTxMeta) => {
           const { chainId, txParams } = draftTxMeta;
@@ -3289,7 +3172,6 @@ export class TransactionController extends BaseController<
       transactionMeta = this.#updateTransactionInternal(
         {
           transactionId,
-          note: 'TransactionController#approveTransaction - Transaction submitted',
         },
         (draftTxMeta) => {
           draftTxMeta.hash = hash;
@@ -3380,53 +3262,6 @@ export class TransactionController extends BaseController<
     });
 
     this.#onTransactionStatusChange(updatedTransactionMeta);
-  }
-
-  /**
-   * Trim the amount of transactions that are set on the state. Checks
-   * if the length of the tx history is longer then desired persistence
-   * limit and then if it is removes the oldest confirmed or rejected tx.
-   * Pending or unapproved transactions will not be removed by this
-   * operation. For safety of presenting a fully functional transaction UI
-   * representation, this function will not break apart transactions with the
-   * same nonce, created on the same day, per network. Not accounting for
-   * transactions of the same nonce, same day and network combo can result in
-   * confusing or broken experiences in the UI.
-   *
-   * @param transactions - The transactions to be applied to the state.
-   * @returns The trimmed list of transactions.
-   */
-  #trimTransactionsForState(
-    transactions: TransactionMeta[],
-  ): TransactionMeta[] {
-    const nonceNetworkSet = new Set();
-
-    const txsToKeep = [...transactions]
-      .sort((a, b) => (a.time > b.time ? -1 : 1)) // Descending time order
-      .filter((tx) => {
-        const { chainId, status, txParams, time } = tx;
-
-        if (txParams) {
-          const key = `${String(txParams.nonce)}-${convertHexToDecimal(
-            chainId,
-          )}-${new Date(time).toDateString()}`;
-
-          if (nonceNetworkSet.has(key)) {
-            return true;
-          } else if (
-            nonceNetworkSet.size < this.#transactionHistoryLimit ||
-            !this.#isFinalState(status)
-          ) {
-            nonceNetworkSet.add(key);
-            return true;
-          }
-        }
-
-        return false;
-      });
-
-    txsToKeep.reverse(); // Ascending time order
-    return txsToKeep;
   }
 
   /**
@@ -3601,10 +3436,7 @@ export class TransactionController extends BaseController<
     this.update((state) => {
       const { transactions: currentTransactions } = state;
 
-      state.transactions = this.#trimTransactionsForState([
-        ...finalTransactions,
-        ...currentTransactions,
-      ]);
+      state.transactions = [...finalTransactions, ...currentTransactions];
 
       log(
         'Added incoming transactions to state',
@@ -3685,20 +3517,11 @@ export class TransactionController extends BaseController<
       pendingTxs,
     );
 
-    // Make sure provided external transaction has non empty history array
-    const newTransactionMeta =
-      (transactionMeta.history ?? []).length === 0 && !this.#isHistoryDisabled
-        ? addInitialHistorySnapshot(transactionMeta)
-        : transactionMeta;
-
     this.update((state) => {
-      state.transactions = this.#trimTransactionsForState([
-        ...state.transactions,
-        newTransactionMeta,
-      ]);
+      state.transactions = [...state.transactions, transactionMeta];
     });
 
-    return newTransactionMeta;
+    return transactionMeta;
   }
 
   /**
@@ -3765,10 +3588,7 @@ export class TransactionController extends BaseController<
     this.messenger.publish(`${controllerName}:transactionDropped`, {
       transactionMeta: updatedTransactionMeta,
     });
-    this.updateTransaction(
-      updatedTransactionMeta,
-      'TransactionController#setTransactionStatusDropped - Transaction dropped',
-    );
+    this.updateTransaction(updatedTransactionMeta);
     this.#onTransactionStatusChange(updatedTransactionMeta);
   }
 
@@ -3846,7 +3666,7 @@ export class TransactionController extends BaseController<
 
     if (updateTransaction) {
       this.#updateTransactionInternal(
-        { transactionId, skipResimulateCheck: true, note: 'beforeSign Hook' },
+        { transactionId, skipResimulateCheck: true },
         updateTransaction,
       );
 
@@ -3921,10 +3741,7 @@ export class TransactionController extends BaseController<
     const transactionMetaFromHook = cloneDeep(finalTransactionMeta);
 
     if (!this.#afterSign(transactionMetaFromHook, signedTx)) {
-      this.updateTransaction(
-        transactionMetaFromHook,
-        'TransactionController#signTransaction - Update after sign',
-      );
+      this.updateTransaction(transactionMetaFromHook);
 
       log('Skipping signed status based on hook');
 
@@ -3937,10 +3754,7 @@ export class TransactionController extends BaseController<
       txParams: finalTxParams,
     };
 
-    this.updateTransaction(
-      transactionMetaWithRsv,
-      'TransactionController#approveTransaction - Transaction signed',
-    );
+    this.updateTransaction(transactionMetaWithRsv);
 
     this.#onTransactionStatusChange(transactionMetaWithRsv);
 
@@ -3950,10 +3764,7 @@ export class TransactionController extends BaseController<
       rawTx,
     });
 
-    this.updateTransaction(
-      transactionMetaWithRawTx,
-      'TransactionController#approveTransaction - RawTransaction added',
-    );
+    this.updateTransaction(transactionMetaWithRawTx);
 
     return rawTx;
   }
@@ -4210,14 +4021,10 @@ export class TransactionController extends BaseController<
   #updateTransactionInternal(
     {
       transactionId,
-      note,
-      skipHistory,
       skipValidation,
       skipResimulateCheck,
     }: {
       transactionId: string;
-      note?: string;
-      skipHistory?: boolean;
       skipValidation?: boolean;
       skipResimulateCheck?: boolean;
     },
@@ -4257,14 +4064,6 @@ export class TransactionController extends BaseController<
         );
       }
 
-      const shouldSkipHistory = this.#isHistoryDisabled || skipHistory;
-
-      if (!shouldSkipHistory) {
-        transactionMeta = updateTransactionHistory(
-          transactionMeta,
-          note ?? 'Transaction updated',
-        );
-      }
       state.transactions[index] = transactionMeta;
     });
 
@@ -4371,7 +4170,6 @@ export class TransactionController extends BaseController<
     const updatedTransactionMeta = this.#updateTransactionInternal(
       {
         transactionId,
-        note: 'TransactionController#updateSimulationData - Update simulation data',
         skipResimulateCheck: Boolean(blockTime),
       },
       (txMeta) => {
@@ -4401,18 +4199,15 @@ export class TransactionController extends BaseController<
     gasFeeEstimatesLoaded?: boolean;
     layer1GasFee?: Hex;
   }) {
-    this.#updateTransactionInternal(
-      { transactionId, skipHistory: true },
-      (txMeta) => {
-        updateTransactionGasProperties({
-          txMeta,
-          gasFeeEstimates,
-          gasFeeEstimatesLoaded,
-          isTxParamsGasFeeUpdatesEnabled: this.#isAutomaticGasFeeUpdateEnabled,
-          layer1GasFee,
-        });
-      },
-    );
+    this.#updateTransactionInternal({ transactionId }, (txMeta) => {
+      updateTransactionGasProperties({
+        txMeta,
+        gasFeeEstimates,
+        gasFeeEstimatesLoaded,
+        isTxParamsGasFeeUpdatesEnabled: this.#isAutomaticGasFeeUpdateEnabled,
+        layer1GasFee,
+      });
+    });
   }
 
   #onGasFeePollerTransactionBatchUpdate({
@@ -4578,7 +4373,7 @@ export class TransactionController extends BaseController<
         ({ id }) => id !== transactionId,
       );
 
-      state.transactions = this.#trimTransactionsForState(transactions);
+      state.transactions = transactions;
     });
   }
 
@@ -4617,7 +4412,6 @@ export class TransactionController extends BaseController<
       newTransactionMeta = this.#updateTransactionInternal(
         {
           transactionId: transactionMeta.id,
-          note: 'TransactionController#failTransaction - Add error message and set status to failed',
           skipValidation: true,
         },
         (draftTransactionMeta) => {
@@ -4684,7 +4478,6 @@ export class TransactionController extends BaseController<
       {
         transactionId,
         skipResimulateCheck: true,
-        note: 'afterSimulate Hook',
       },
       (txMeta) => {
         txMeta.txParamsOriginal = cloneDeep(txMeta.txParams);
