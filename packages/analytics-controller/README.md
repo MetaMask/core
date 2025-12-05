@@ -4,13 +4,10 @@ Common Analytics controller for event tracking.
 
 ## Features
 
-- Provides a unified interface for:
-  - Tracking analytics events
-  - Identifying users
-  - Managing analytics preferences (enable/disable, opt-in/opt-out)
+- Unified interface for tracking analytics events, identifying users, and managing preferences
 - Delegates platform-specific implementation to `AnalyticsPlatformAdapter`
 - Integrates with the MetaMask messenger system for inter-controller communication
-- Supports state persistence and migrations
+- Platform-managed storage: controller doesn't persist state internally
 
 ## Installation
 
@@ -24,184 +21,261 @@ or
 
 ### 1. Create a Platform Adapter
 
-The controller delegates platform-specific analytics implementation to a `AnalyticsPlatformAdapter`. You must provide an adapter that implements the required methods:
+The controller delegates platform-specific analytics implementation to an `AnalyticsPlatformAdapter`:
 
 ```typescript
 import type { AnalyticsPlatformAdapter } from '@metamask/analytics-controller';
 
 const platformAdapter: AnalyticsPlatformAdapter = {
-  trackEvent: (eventName: string, properties: Record<string, unknown>) => {
-    // Platform-specific implementation (e.g., Segment, Mixpanel, etc.)
+  track: (eventName: string, properties?: Record<string, unknown>) => {
     segment.track(eventName, properties);
   },
   identify: (userId: string, traits?: Record<string, unknown>) => {
     segment.identify(userId, traits);
   },
-  trackPage: (pageName: string, properties?: Record<string, unknown>) => {
-    segment.page(pageName, properties);
+  view: (name: string, properties?: Record<string, unknown>) => {
+    segment.page(name, properties);
+  },
+  onSetupCompleted: (analyticsId: string) => {
+    // Lifecycle hook called after controller initialization
+    // The analyticsId is guaranteed to be set when this method is called
+    // Use this for platform-specific setup that requires the analytics ID
+    // For example, adding plugins that need the analytics ID:
+    segment.add({
+      plugin: new PrivacyPlugin(analyticsId),
+    });
   },
 };
 ```
 
-### 2. Initialize the Controller
+### 2. Load Analytics Settings from Storage
 
-#### Basic Initialization (Uses Defaults)
+The platform is responsible for loading and persisting analytics settings—the controller does not handle storage internally. This design allows:
 
-The controller uses default state values when no `state` parameter is provided:
+- **Early access**: Platform can read the `analyticsId` before the controller is initialized (useful for other controllers or early startup code)
+- **Resilience**: Storing analytics settings separately from main state protects them from state corruption, allowing analytics to continue working even when main state is corrupted
+
+Load settings **before** initializing the controller:
 
 ```typescript
-import { AnalyticsController } from '@metamask/analytics-controller';
-import { Messenger } from '@metamask/messenger';
+import { v4 as uuidv4 } from 'uuid';
+import {
+  getDefaultAnalyticsControllerState,
+  type AnalyticsControllerState,
+} from '@metamask/analytics-controller';
 
-const messenger = new Messenger({ namespace: 'AnalyticsController' });
+async function loadAnalyticsSettings(): Promise<AnalyticsControllerState> {
+  // Load from platform storage (e.g., MMKV, AsyncStorage, localStorage)
+  const [savedAnalyticsId, savedOptedIn] = await Promise.all([
+    storage.getItem('analytics.id'),
+    storage.getItem('analytics.optedIn'),
+  ]);
 
-const controller = new AnalyticsController({
-  messenger,
-  platformAdapter,
-  // State defaults to:
-  // - enabled: true
-  // - optedIn: false
-  // - analyticsId: auto-generated UUIDv4 (if not provided)
-});
+  const defaults = getDefaultAnalyticsControllerState();
+
+  // Generate UUID on first run if not in storage
+  let analyticsId = savedAnalyticsId;
+  if (!analyticsId) {
+    analyticsId = uuidv4();
+    // Persist immediately - this ID must never change
+    await storage.setItem('analytics.id', analyticsId);
+  }
+
+  // Parse boolean values (stored as strings)
+  const optedIn =
+    savedOptedIn !== null ? savedOptedIn === 'true' : defaults.optedIn;
+
+  return {
+    analyticsId,
+    optedIn,
+  };
+}
 ```
 
-#### Custom Initial State
+### 3. Initialize the Controller
 
-You can provide partial state to override defaults:
+Create the controller with loaded state and subscribe to state changes for persistence:
 
 ```typescript
-const controller = new AnalyticsController({
-  messenger,
-  platformAdapter,
-  state: {
-    enabled: false, // Override default (true)
-    optedIn: true, // Override default (false)
-    analyticsId: '550e8400-e29b-41d4-a716-446655440000', // Override default
-  },
-});
+import {
+  AnalyticsController,
+  type AnalyticsControllerState,
+} from '@metamask/analytics-controller';
+
+// Persist state changes to storage (fire-and-forget)
+function persistAnalyticsSettings(state: AnalyticsControllerState): void {
+  storage.setItem('analytics.id', state.analyticsId);
+  storage.setItem('analytics.optedIn', String(state.optedIn));
+}
+
+async function initializeAnalyticsController(
+  messenger: AnalyticsControllerMessenger,
+): Promise<AnalyticsController> {
+  // 1. Load settings from storage
+  const state = await loadAnalyticsSettings();
+
+  // 2. Create controller with loaded state
+  const controller = new AnalyticsController({
+    messenger,
+    platformAdapter,
+    state, // Must include valid UUIDv4 analyticsId
+    anonymousEventsFeature: false, // Optional: enables anonymous event tracking (default: false)
+  });
+
+  // 3. Initialize the controller (calls platform adapter's onSetupCompleted hook)
+  controller.init();
+
+  // 4. Subscribe to state changes for persistence
+  messenger.subscribe('AnalyticsController:stateChange', (newState) => {
+    persistAnalyticsSettings(newState);
+  });
+
+  return controller;
+}
 ```
 
-**Important:** The `state` parameter is the single source of truth for initial values. Any properties you provide will override the defaults from `getDefaultAnalyticsControllerState()`.
+### 4. Access Analytics ID Before Controller Init
 
-### 3. Track Events
+One benefit of platform-managed storage is accessing the analytics ID before the controller is initialized:
 
 ```typescript
-// Track a simple event
-controller.trackEvent('wallet_connected', {
-  network: 'ethereum',
-  account_type: 'hd',
-});
+async function getAnalyticsId(): Promise<string | null> {
+  return storage.getItem('analytics.id');
+}
 
-// Events are automatically filtered when analytics is disabled
-controller.disable();
-controller.trackEvent('some_event'); // This will not be tracked
+// Use in other controllers or early initialization
+const analyticsId = await getAnalyticsId();
+if (analyticsId) {
+  // Use analyticsId before AnalyticsController is ready
+}
 ```
 
-### 4. Identify Users
+### 5. Track Events
 
 ```typescript
-controller.identify('550e8400-e29b-41d4-a716-446655440000', {
-  email: 'user@example.com',
-  plan: 'premium',
+// Track event with properties
+controller.trackEvent({
+  name: 'wallet_connected',
+  properties: { network: 'ethereum', account_type: 'hd' },
+  sensitiveProperties: {},
+  hasProperties: true,
+  saveDataRecording: true,
 });
 
-// The analytics ID is automatically stored in controller state
-console.log(controller.state.analyticsId); // '550e8400-e29b-41d4-a716-446655440000'
+// Events are filtered when analytics is disabled (optedIn is false)
 ```
 
-### 5. Track Page Views
+#### Anonymous Events Feature
+
+When `anonymousEventsFeature` is enabled in the constructor, events with sensitive properties are split into separate events:
+
+- **Regular properties event**: Tracked first with only `properties` (uses user ID)
+- **Sensitive properties event**: Tracked separately with both `properties` and `sensitiveProperties` (uses anonymous ID)
+
+This allows sensitive data to be tracked anonymously while maintaining user identification for regular properties.
+
+When `anonymousEventsFeature` is disabled (default), all properties are tracked in a single event.
+
+### 6. Identify Users
 
 ```typescript
-controller.trackPage('home', {
+controller.identify({
+  ENABLE_OPENSEA_API: 'ON',
+  NFT_AUTODETECTION: 'ON',
+});
+
+// Uses the analyticsId from controller state
+```
+
+### 7. Track Page Views
+
+```typescript
+controller.trackView('home', {
   referrer: 'google',
   campaign: 'summer-2024',
 });
 ```
 
-### 6. Manage Analytics State
+### 8. Manage Analytics Preferences
 
 ```typescript
-// Enable/disable analytics
-controller.enable();
-controller.disable();
-
 // Opt in/out
 controller.optIn();
 controller.optOut();
+
+// Changes trigger stateChange event → platform persists to storage
 ```
 
-### 7. Use Messenger Actions
-
-The controller exposes methods as messenger actions for inter-controller communication:
+### 9. Use Messenger Actions
 
 ```typescript
 // From another controller
-messenger.call('AnalyticsController:trackEvent', 'wallet_created', {
-  wallet_type: 'hd',
+messenger.call('AnalyticsController:trackEvent', {
+  name: 'wallet_created',
+  properties: { wallet_type: 'hd' },
+  sensitiveProperties: {},
+  hasProperties: true,
+  saveDataRecording: true,
 });
 
-messenger.call(
-  'AnalyticsController:identify',
-  '550e8400-e29b-41d4-a716-446655440000',
-  {
-    email: 'newuser@example.com',
-  },
-);
-
-messenger.call('AnalyticsController:enable');
-messenger.call('AnalyticsController:disable');
 messenger.call('AnalyticsController:optIn');
-messenger.call('AnalyticsController:optOut');
-```
-
-### 8. Subscribe to State Changes
-
-```typescript
-messenger.subscribe('AnalyticsController:stateChange', (state, prevState) => {
-  console.log('Analytics state changed:', {
-    enabled: state.enabled,
-    optedIn: state.optedIn,
-    analyticsId: state.analyticsId,
-  });
-});
 ```
 
 ## State Management
 
 ### Default State
 
-The default state is provided by `getDefaultAnalyticsControllerState()`:
+Use `getDefaultAnalyticsControllerState()` to get default values for opt-in preferences:
 
 ```typescript
 import { getDefaultAnalyticsControllerState } from '@metamask/analytics-controller';
 
-const defaultState = getDefaultAnalyticsControllerState();
-// {
-//   enabled: true,
-//   optedIn: false,
-//   analyticsId: auto-generated UUIDv4
-// }
+const defaults = getDefaultAnalyticsControllerState();
+// Returns: { optedIn: false }
+// Note: analyticsId is NOT included - platform must provide it
 ```
 
-### Initialization Strategy
+### State Structure
 
-- **No `state` parameter**: Uses defaults from `getDefaultAnalyticsControllerState()` and auto-generates `analyticsId` as UUIDv4
-- **Partial `state`**: Merges with defaults (user-provided values override defaults); `analyticsId` is auto-generated if not provided
-- **Complete `state`**: Full control for migrations and advanced use cases
+| Field         | Type      | Description                            | Persisted |
+| ------------- | --------- | -------------------------------------- | --------- |
+| `analyticsId` | `string`  | UUIDv4 identifier (platform-generated) | No        |
+| `optedIn`     | `boolean` | User opt-in status                     | Yes       |
 
-**Best Practice:** Use `state` as the single source of truth for initial values. Do not use convenience parameters—they have been removed to ensure consistency.
+**Note:** While `optedIn` is persisted by the controller, the platform should still subscribe to state changes and persist to isolated storage for resilience (see [Why Platform-Managed Storage?](#why-platform-managed-storage)).
 
-**Analytics ID:** The `analyticsId` is a UUIDv4 string. If not provided in the `state` parameter, the controller automatically generates one on initialization. This ID is persisted in state and remains consistent across restarts. If you provide an `analyticsId` in the `state` parameter, it will be used instead (useful for migrations).
+### Why `analyticsId` Has No Default
 
-## Debugging
+The `analyticsId` is used to uniquely identify the user. If the controller generated a new ID each time the client booted, the ID would be ineffective. Instead, the ID must be pre-generated or retrieved from storage and then passed into the controller.
 
-To display analytics-controller logs in the mobile app, you can add the following to your `.js.env` file:
+### Platform Responsibilities
 
-```bash
-export DEBUG="metamask:analytics-controller"
+1. **Generate UUID on first run**: Use `uuid` package or platform equivalent
+2. **Load state before controller init**: Read from storage, provide to constructor
+3. **Subscribe to state changes**: Persist changes to storage
+4. **Persist to isolated storage**: Keep analytics settings separate from main state (protects against state corruption)
+
+### Why Platform-Managed Storage?
+
+- **Access before controller init**: Other code can read analytics ID early
+- **Protection from state corruption**: Analytics settings in separate storage survive main state corruption
+- **Analytics during corruption**: Can still report issues even when main state is corrupted
+- **Platform flexibility**: Each platform uses its preferred storage mechanism
+
+## Lifecycle Hooks
+
+### `onSetupCompleted`
+
+Called once after controller initialization with guaranteed valid `analyticsId`:
+
+```typescript
+onSetupCompleted: (analyticsId: string) => {
+  // analyticsId is guaranteed to be a valid UUIDv4
+  client.add({ plugin: new PrivacyPlugin(analyticsId) });
+},
 ```
 
-This will enable debug logging for the analytics-controller, allowing you to see detailed logs of analytics events, state changes, and controller operations.
+Errors in `onSetupCompleted` are caught and logged—they don't break the controller.
 
 ## Contributing
 
