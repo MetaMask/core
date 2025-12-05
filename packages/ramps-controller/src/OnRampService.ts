@@ -195,7 +195,9 @@ export class OnRampService {
    * {@link CockatielEvent}.
    * @see {@link createServicePolicy}
    */
-  onRetry(listener: Parameters<ServicePolicy['onRetry']>[0]) {
+  onRetry(
+    listener: Parameters<ServicePolicy['onRetry']>[0],
+  ): ReturnType<ServicePolicy['onRetry']> {
     return this.#policy.onRetry(listener);
   }
 
@@ -208,7 +210,9 @@ export class OnRampService {
    * {@link CockatielEvent}.
    * @see {@link createServicePolicy}
    */
-  onBreak(listener: Parameters<ServicePolicy['onBreak']>[0]) {
+  onBreak(
+    listener: Parameters<ServicePolicy['onBreak']>[0],
+  ): ReturnType<ServicePolicy['onBreak']> {
     return this.#policy.onBreak(listener);
   }
 
@@ -229,7 +233,9 @@ export class OnRampService {
    * @returns An object that can be used to unregister the handler. See
    * {@link CockatielEvent}.
    */
-  onDegraded(listener: Parameters<ServicePolicy['onDegraded']>[0]) {
+  onDegraded(
+    listener: Parameters<ServicePolicy['onDegraded']>[0],
+  ): ReturnType<ServicePolicy['onDegraded']> {
     return this.#policy.onDegraded(listener);
   }
 
