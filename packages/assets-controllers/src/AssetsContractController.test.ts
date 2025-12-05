@@ -1208,8 +1208,6 @@ describe('AssetsContractController', () => {
     );
 
     expect(balances).toStrictEqual({});
-    // Verify the method was called with correct params
-    expect(assetsContract.getBalancesUsingMulticall).toBeDefined();
   });
 
   it('should filter out zero balances when using multicall', async () => {
