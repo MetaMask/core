@@ -4,7 +4,6 @@ import type {
   MessengerActions,
   MessengerEvents,
 } from '@metamask/messenger';
-import 'isomorphic-fetch';
 import nock from 'nock';
 import { useFakeTimers } from 'sinon';
 import type { SinonFakeTimers } from 'sinon';
