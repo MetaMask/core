@@ -3,27 +3,9 @@ import type { AccountsController } from '@metamask/accounts-controller';
 import type EthQuery from '@metamask/eth-query';
 import type { GasFeeState } from '@metamask/gas-fee-controller';
 import type { NetworkClientId, Provider } from '@metamask/network-controller';
-import type { Hex, Json } from '@metamask/utils';
-import type { Operation } from 'fast-json-patch';
+import type { Hex } from '@metamask/utils';
 
 import type { TransactionControllerMessenger } from './TransactionController';
-
-/**
- * Given a record, ensures that each property matches the `Json` type.
- */
-type MakeJsonCompatible<T> = T extends Json
-  ? T
-  : {
-      [K in keyof T]: T[K] extends Json ? T[K] : never;
-    };
-
-/**
- * `Json` from `@metamask/utils` is defined as a recursive type alias, but
- * `Operation` is defined as an interface, and the two are not compatible with
- * each other. Therefore, this is a variant of Operation from `fast-json-patch`
- * which is guaranteed to be type-compatible with `Json`.
- */
-type JsonCompatibleOperation = MakeJsonCompatible<Operation>;
 
 /**
  * Information about a single transaction such as status and block number.

@@ -18,7 +18,6 @@ import {
   query,
   ApprovalType,
   ORIGIN_METAMASK,
-  convertHexToDecimal,
 } from '@metamask/controller-utils';
 import type { TraceCallback, TraceContext } from '@metamask/controller-utils';
 import EthQuery from '@metamask/eth-query';
