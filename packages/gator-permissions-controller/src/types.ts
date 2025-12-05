@@ -8,6 +8,7 @@ import type {
   Erc20TokenPeriodicPermission,
   Rule,
   MetaMaskBasePermissionData,
+  Erc20TokenRevocationPermission,
 } from '@metamask/7715-permission-types';
 import type { Delegation } from '@metamask/delegation-core';
 import type { Hex } from '@metamask/utils';
@@ -174,6 +175,12 @@ export type StoredGatorPermissionSanitized<
  * Represents a map of gator permissions by chainId and permission type.
  */
 export type GatorPermissionsMap = {
+  'erc20-token-revocation': {
+    [chainId: Hex]: StoredGatorPermissionSanitized<
+      Signer,
+      Erc20TokenRevocationPermission
+    >[];
+  };
   'native-token-stream': {
     [chainId: Hex]: StoredGatorPermissionSanitized<
       Signer,

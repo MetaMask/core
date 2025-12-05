@@ -5,6 +5,7 @@ import {
 } from './utils';
 
 const defaultGatorPermissionsMap: GatorPermissionsMap = {
+  'erc20-token-revocation': {},
   'native-token-stream': {},
   'native-token-periodic': {},
   'erc20-token-stream': {},
@@ -24,8 +25,8 @@ describe('utils - serializeGatorPermissionsMap() tests', () => {
   });
 
   it('throws an error when serialization fails', () => {
-    // Create a valid GatorPermissionsMap structure but with circular reference
     const gatorPermissionsMap = {
+      'erc20-token-revocation': {},
       'native-token-stream': {},
       'native-token-periodic': {},
       'erc20-token-stream': {},
@@ -33,9 +34,11 @@ describe('utils - serializeGatorPermissionsMap() tests', () => {
       other: {},
     };
 
-    // Add circular reference to cause JSON.stringify to fail
-    // eslint-disable-next-line @typescript-eslint/no-explicit-any
-    (gatorPermissionsMap as any).circular = gatorPermissionsMap;
+    // explicitly cause serialization to fail
+    (gatorPermissionsMap as unknown as { toJSON: () => void }).toJSON =
+      (): void => {
+        throw new Error('Failed serialization');
+      };
 
     expect(() => {
       serializeGatorPermissionsMap(gatorPermissionsMap);
