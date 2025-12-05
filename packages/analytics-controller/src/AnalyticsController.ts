@@ -71,7 +71,7 @@ export function getDefaultAnalyticsControllerState(): Omit<
 const analyticsControllerMetadata = {
   optedIn: {
     includeInStateLogs: true,
-    persist: false,
+    persist: true,
     includeInDebugSnapshot: true,
     usedInUi: true,
   },
@@ -160,6 +160,12 @@ export type AnalyticsControllerOptions = {
    * Platform adapter implementation for tracking events.
    */
   platformAdapter: AnalyticsPlatformAdapter;
+
+  /**
+   * Whether the anonymous events feature is enabled.
+   * @default false
+   */
+  anonymousEventsFeature?: boolean;
 };
 
 /**
@@ -183,6 +189,8 @@ export class AnalyticsController extends BaseController<
   AnalyticsControllerMessenger
 > {
   readonly #platformAdapter: AnalyticsPlatformAdapter;
+  readonly #anonymousEventsFeature: boolean;
+  #initialized: boolean;
 
   /**
    * Constructs an AnalyticsController instance.
@@ -193,12 +201,15 @@ export class AnalyticsController extends BaseController<
    * @param options.messenger - Messenger used to communicate with BaseController
    * @param options.platformAdapter - Platform adapter implementation for tracking
    * @throws Error if state.analyticsId is missing or not a valid UUIDv4
+   * @remarks After construction, call {@link AnalyticsController.init} to complete initialization.
    */
   constructor({
     state,
     messenger,
     platformAdapter,
+    anonymousEventsFeature=false,
   }: AnalyticsControllerOptions) {
+
     const initialState: AnalyticsControllerState = {
       ...getDefaultAnalyticsControllerState(),
       ...state,
@@ -213,7 +224,9 @@ export class AnalyticsController extends BaseController<
       messenger,
     });
 
+    this.#anonymousEventsFeature = anonymousEventsFeature;
     this.#platformAdapter = platformAdapter;
+    this.#initialized = false;
 
     this.messenger.registerMethodActionHandlers(
       this,
@@ -225,15 +238,29 @@ export class AnalyticsController extends BaseController<
       optedIn: this.state.optedIn,
       analyticsId: this.state.analyticsId,
     });
+  }
+
+  /**
+   * Initialize the controller by calling the platform adapter's onSetupCompleted lifecycle hook.
+   * This method must be called after construction to complete the setup process.
+   *
+   * @throws Error if called multiple times (use reinit() to reinitialize)
+   */
+  async init(): Promise<void> {
+    if (this.#initialized) {
+      throw new Error('AnalyticsController already initialized. Use reinit() to reinitialize.');
+    }
+
+    this.#initialized = true;
 
     // Call onSetupCompleted lifecycle hook after initialization
     // State is already validated, so analyticsId is guaranteed to be a valid UUIDv4
-    this.#platformAdapter
-      .onSetupCompleted(this.state.analyticsId)
-      .catch((error) => {
-        // Log error but don't throw - adapter setup failure shouldn't break controller
-        projectLogger('Error calling platformAdapter.onSetupCompleted', error);
-      });
+    try {
+      await this.#platformAdapter.onSetupCompleted(this.state.analyticsId);
+    } catch (error) {
+      // Log error but don't throw - adapter setup failure shouldn't break controller
+      projectLogger('Error calling platformAdapter.onSetupCompleted', error);
+    }
   }
 
   /**
@@ -249,10 +276,6 @@ export class AnalyticsController extends BaseController<
       return;
     }
 
-    // Derive sensitivity from presence of sensitiveProperties
-    const hasSensitiveProperties =
-      Object.keys(event.sensitiveProperties).length > 0;
-
     // if event does not have properties, send event without properties
     // and return to prevent any additional processing
     if (!event.hasProperties) {
@@ -260,23 +283,25 @@ export class AnalyticsController extends BaseController<
       return;
     }
 
-    // Track regular properties (without isSensitive flag - it's the default)
-    // Note: Even if properties object is empty, we still send it to ensure
-    // an event with user ID is tracked. When only sensitiveProperties exist,
-    // this creates two events: one with empty props (user ID) and one with
-    // sensitive props (anonymous ID), which is the expected behavior.
-    this.#platformAdapter.track(event.name, {
-      ...event.properties,
-    });
+    // Track regular properties first if anonymous events feature is enabled
+    if (this.#anonymousEventsFeature) {
+      // Note: Even if regular properties object is empty, we still send it to ensure
+      // an event with user ID is tracked.
+      this.#platformAdapter.track(event.name, {
+        ...event.properties,
+      });
+    }
 
-    // Track sensitive properties in a separate event with isSensitive flag
-    if (hasSensitiveProperties) {
+    const hasSensitiveProperties =
+      Object.keys(event.sensitiveProperties).length > 0;
+
+    if (!this.#anonymousEventsFeature || hasSensitiveProperties) {
       this.#platformAdapter.track(event.name, {
         ...event.properties,
         ...event.sensitiveProperties,
-        isSensitive: true,
       });
     }
+
   }
 
   /**
@@ -310,7 +335,6 @@ export class AnalyticsController extends BaseController<
 
   /**
    * Opt in to analytics.
-   * This updates the user's opt-in status.
    */
   optIn(): void {
     this.update((state) => {
@@ -320,7 +344,6 @@ export class AnalyticsController extends BaseController<
 
   /**
    * Opt out of analytics.
-   * This updates the user's opt-in status.
    */
   optOut(): void {
     this.update((state) => {

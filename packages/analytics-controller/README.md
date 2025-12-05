@@ -119,9 +119,13 @@ async function initializeAnalyticsController(
     messenger,
     platformAdapter,
     state, // Must include valid UUIDv4 analyticsId
+    anonymousEventsFeature: false, // Optional: enables anonymous event tracking (default: false)
   });
 
-  // 3. Subscribe to state changes for persistence
+  // 3. Initialize the controller (calls platform adapter's onSetupCompleted hook)
+  await controller.init();
+
+  // 4. Subscribe to state changes for persistence
   messenger.subscribe('AnalyticsController:stateChange', (newState) => {
     persistAnalyticsSettings(newState);
   });
@@ -160,6 +164,17 @@ controller.trackEvent({
 
 // Events are filtered when analytics is disabled (optedIn is false)
 ```
+
+#### Anonymous Events Feature
+
+When `anonymousEventsFeature` is enabled in the constructor, events with sensitive properties are split into separate events:
+
+- **Regular properties event**: Tracked first with only `properties` (uses user ID)
+- **Sensitive properties event**: Tracked separately with both `properties` and `sensitiveProperties` (uses anonymous ID)
+
+This allows sensitive data to be tracked anonymously while maintaining user identification for regular properties.
+
+When `anonymousEventsFeature` is disabled (default), all properties are tracked in a single event.
 
 ### 6. Identify Users
 
@@ -222,10 +237,12 @@ const defaults = getDefaultAnalyticsControllerState();
 
 ### State Structure
 
-| Field         | Type      | Description                            |
-| ------------- | --------- | -------------------------------------- |
-| `analyticsId` | `string`  | UUIDv4 identifier (platform-generated) |
-| `optedIn`     | `boolean` | User opt-in status                     |
+| Field         | Type      | Description                            | Persisted |
+| ------------- | --------- | -------------------------------------- | --------- |
+| `analyticsId` | `string`  | UUIDv4 identifier (platform-generated) | No        |
+| `optedIn`     | `boolean` | User opt-in status                     | Yes       |
+
+**Note:** While `optedIn` is persisted by the controller, the platform should still subscribe to state changes and persist to isolated storage for resilience (see [Why Platform-Managed Storage?](#why-platform-managed-storage)).
 
 ### Why `analyticsId` Has No Default
 
@@ -261,28 +278,6 @@ onSetupCompleted: async (analyticsId: string) => {
 ```
 
 Errors in `onSetupCompleted` are caught and logged—they don't break the controller.
-
-## Debugging
-
-Enable debug logging:
-
-```bash
-export DEBUG="metamask:analytics-controller"
-```
-
-## Development
-
-### Build
-
-```bash
-yarn install && yarn workspace @metamask/analytics-controller build
-```
-
-### Test
-
-```bash
-yarn install && yarn workspace @metamask/analytics-controller test
-```
 
 ## Contributing
 

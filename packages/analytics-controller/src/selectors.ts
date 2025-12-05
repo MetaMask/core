@@ -10,7 +10,7 @@ const selectAnalyticsId = (state: AnalyticsControllerState): string =>
   state.analyticsId;
 
 /**
- * Selects the opted-in status from the controller state.
+ * Selects the opted-in user status from the controller state.
  * Use this selector to read the user's opt-in preference (e.g., for UI display).
  *
  * @param state - The controller state
@@ -22,8 +22,6 @@ const selectOptedIn = (state: AnalyticsControllerState): boolean =>
 /**
  * Selects whether analytics tracking is enabled.
  * Use this selector to determine if tracking should occur (e.g., in controller methods).
- * Currently returns the same value as selectOptedIn, but may diverge in the future
- * if additional enablement logic is added (e.g., feature flags, platform restrictions).
  *
  * @param state - The controller state
  * @returns Whether analytics tracking is enabled
