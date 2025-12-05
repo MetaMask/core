@@ -285,7 +285,7 @@ export class AssetsContractController {
     );
   }
 
-  #registerEventSubscriptions() {
+  #registerEventSubscriptions(): void {
     this.messenger.subscribe(
       `PreferencesController:stateChange`,
       ({ ipfsGateway }) => {
@@ -312,15 +312,15 @@ export class AssetsContractController {
    *
    * @param provider - Provider used to create a new underlying Web3 instance
    */
-  setProvider(provider: Provider | undefined) {
+  setProvider(provider: Provider | undefined): void {
     this.#provider = provider;
   }
 
-  get ipfsGateway() {
+  get ipfsGateway(): string {
     return this.#ipfsGateway;
   }
 
-  get chainId() {
+  get chainId(): Hex {
     return this.#chainId;
   }
 
@@ -682,7 +682,7 @@ export class AssetsContractController {
     selectedAddress: string,
     tokensToDetect: string[],
     networkClientId?: NetworkClientId,
-  ) {
+  ): Promise<BalanceMap> {
     const chainId = this.#getCorrectChainId(networkClientId);
     const provider = this.#getCorrectProvider(networkClientId);
     if (
@@ -731,7 +731,7 @@ export class AssetsContractController {
     selectedAddress: string,
     tokensToDetect: string[],
     networkClientId?: NetworkClientId,
-  ) {
+  ): Promise<BalanceMap> {
     const chainId = this.#getCorrectChainId(networkClientId);
     const provider = this.#getCorrectProvider(networkClientId);
 
