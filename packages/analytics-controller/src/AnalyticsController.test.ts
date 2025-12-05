@@ -269,6 +269,7 @@ describe('AnalyticsController', () => {
       expect(mockAdapter.track).toHaveBeenCalledWith('test_event', {
         prop: 'value',
         sensitive_prop: 'sensitive value',
+        anonymous: true,
       });
     });
 
@@ -590,6 +591,7 @@ describe('AnalyticsController', () => {
       expect(mockAdapter.track).toHaveBeenCalledWith('test_event', {
         prop: 'value',
         sensitive_prop: 'sensitive value',
+        anonymous: true,
       });
     });
 
@@ -614,6 +616,7 @@ describe('AnalyticsController', () => {
       expect(mockAdapter.track).toHaveBeenCalledTimes(1);
       expect(mockAdapter.track).toHaveBeenCalledWith('test_event', {
         sensitive_prop: 'sensitive value',
+        anonymous: true,
       });
     });
 
@@ -659,6 +662,7 @@ describe('AnalyticsController', () => {
         expect(mockAdapter.track).toHaveBeenNthCalledWith(2, 'test_event', {
           prop: 'value',
           sensitive_prop: 'sensitive value',
+          anonymous: true,
         });
       });
 
@@ -684,6 +688,7 @@ describe('AnalyticsController', () => {
         expect(mockAdapter.track).toHaveBeenNthCalledWith(1, 'test_event', {});
         expect(mockAdapter.track).toHaveBeenNthCalledWith(2, 'test_event', {
           sensitive_prop: 'sensitive value',
+          anonymous: true,
         });
       });
 

@@ -299,6 +299,7 @@ export class AnalyticsController extends BaseController<
       this.#platformAdapter.track(event.name, {
         ...event.properties,
         ...event.sensitiveProperties,
+        ...(hasSensitiveProperties && { anonymous: true }),
       });
     }
 
