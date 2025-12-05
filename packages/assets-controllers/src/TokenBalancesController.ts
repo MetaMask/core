@@ -35,6 +35,7 @@ import type {
   PreferencesControllerStateChangeEvent,
 } from '@metamask/preferences-controller';
 import type { AuthenticationController } from '@metamask/profile-sync-controller';
+import type { TransactionControllerIncomingTransactionsReceivedEvent, TransactionControllerTransactionConfirmedEvent } from '@metamask/transaction-controller';
 import type { Hex } from '@metamask/utils';
 import {
   isCaipAssetType,
@@ -143,7 +144,9 @@ export type AllowedEvents =
   | KeyringControllerAccountRemovedEvent
   | AccountActivityServiceBalanceUpdatedEvent
   | AccountActivityServiceStatusChangedEvent
-  | AccountsControllerSelectedEvmAccountChangeEvent;
+  | AccountsControllerSelectedEvmAccountChangeEvent
+  | TransactionControllerTransactionConfirmedEvent
+  | TransactionControllerIncomingTransactionsReceivedEvent;
 
 export type TokenBalancesControllerMessenger = Messenger<
   typeof CONTROLLER,
@@ -380,6 +383,36 @@ export class TokenBalancesController extends StaticIntervalPollingController<{
     this.messenger.subscribe(
       'AccountActivityService:statusChanged',
       this.#onAccountActivityStatusChanged.bind(this),
+    );
+
+    this.messenger.subscribe(
+      'TransactionController:transactionConfirmed',
+      (transactionMeta) => {
+        console.log(
+          'Transaction confirmed: ++++++++++++++++++',
+          transactionMeta,
+        );
+        this.updateBalances({
+          chainIds: [transactionMeta.chainId],
+        }).catch(() => {
+          // Silently handle balance update errors
+        });
+      },
+    );
+
+    this.messenger.subscribe(
+      'TransactionController:incomingTransactionsReceived',
+      (transactionMeta) => {
+        console.log(
+          'Incoming transaction block received: ++++++++++++++++++',
+          transactionMeta,
+        );
+        // this.updateBalances({
+        //   chainIds: [transactionMeta.chainId],
+        // }).catch(() => {
+        //   // Silently handle balance update errors
+        // });
+      },
     );
   }
 
@@ -688,8 +721,13 @@ export class TokenBalancesController extends StaticIntervalPollingController<{
 
   async updateBalances({
     chainIds,
+    tokenAddresses,
     queryAllAccounts = false,
-  }: { chainIds?: ChainIdHex[]; queryAllAccounts?: boolean } = {}) {
+  }: {
+    chainIds?: ChainIdHex[];
+    tokenAddresses?: string[];
+    queryAllAccounts?: boolean;
+  } = {}) {
     const targetChains = chainIds ?? this.#chainIdsWithTokens();
     if (!targetChains.length) {
       return;
@@ -766,6 +804,15 @@ export class TokenBalancesController extends StaticIntervalPollingController<{
       }
     }
 
+    // Filter aggregated results by tokenAddresses if provided
+    const filteredAggregated = tokenAddresses?.length
+      ? aggregated.filter((balance) =>
+          tokenAddresses.some(
+            (addr) => addr.toLowerCase() === balance.token.toLowerCase(),
+          ),
+        )
+      : aggregated;
+
     // Determine which accounts to process based on queryAllAccounts parameter
     const accountsToProcess =
       (queryAllAccounts ?? this.#queryAllAccounts)
@@ -811,29 +858,31 @@ export class TokenBalancesController extends StaticIntervalPollingController<{
       }
 
       // Update with actual fetched balances only if the value has changed
-      aggregated.forEach(({ success, value, account, token, chainId }) => {
-        if (success && value !== undefined) {
-          // Ensure all accounts we add/update are in lower-case
-          const lowerCaseAccount = account.toLowerCase() as ChecksumAddress;
-          const newBalance = toHex(value);
-          const tokenAddress = checksum(token);
-          const currentBalance =
-            d.tokenBalances[lowerCaseAccount]?.[chainId]?.[tokenAddress];
+      filteredAggregated.forEach(
+        ({ success, value, account, token, chainId }) => {
+          if (success && value !== undefined) {
+            // Ensure all accounts we add/update are in lower-case
+            const lowerCaseAccount = account.toLowerCase() as ChecksumAddress;
+            const newBalance = toHex(value);
+            const tokenAddress = checksum(token);
+            const currentBalance =
+              d.tokenBalances[lowerCaseAccount]?.[chainId]?.[tokenAddress];
 
-          // Only update if the balance has actually changed
-          if (currentBalance !== newBalance) {
-            ((d.tokenBalances[lowerCaseAccount] ??= {})[chainId] ??= {})[
-              tokenAddress
-            ] = newBalance;
+            // Only update if the balance has actually changed
+            if (currentBalance !== newBalance) {
+              ((d.tokenBalances[lowerCaseAccount] ??= {})[chainId] ??= {})[
+                tokenAddress
+              ] = newBalance;
+            }
           }
-        }
-      });
+        },
+      );
     });
 
     if (!isEqual(prev, next)) {
       this.update(() => next);
 
-      const nativeBalances = aggregated.filter(
+      const nativeBalances = filteredAggregated.filter(
         (r) => r.success && r.token === ZERO_ADDRESS,
       );
 
@@ -868,7 +917,7 @@ export class TokenBalancesController extends StaticIntervalPollingController<{
       }
 
       // Filter and update staked balances in a single batch operation for better performance
-      const stakedBalances = aggregated.filter((r) => {
+      const stakedBalances = filteredAggregated.filter((r) => {
         if (!r.success || r.token === ZERO_ADDRESS) {
           return false;
         }
@@ -904,6 +953,40 @@ export class TokenBalancesController extends StaticIntervalPollingController<{
             stakedBalanceUpdates,
           );
         }
+      }
+    }
+
+    // Check for untracked tokens and import them via TokenDetectionController
+    // Group by chainId for batch processing
+    const untrackedTokensByChain = new Map<ChainIdHex, string[]>();
+    for (const balance of filteredAggregated) {
+      if (!balance.success || balance.token === ZERO_ADDRESS) {
+        continue;
+      }
+
+      const tokenAddress = checksum(balance.token);
+      const account = balance.account.toLowerCase() as ChecksumAddress;
+
+      // Check if token is not tracked (not in allTokens or allIgnoredTokens)
+      if (!this.#isTokenTracked(tokenAddress, account, balance.chainId)) {
+        const existing = untrackedTokensByChain.get(balance.chainId) ?? [];
+        if (!existing.includes(tokenAddress)) {
+          existing.push(tokenAddress);
+          untrackedTokensByChain.set(balance.chainId, existing);
+        }
+      }
+    }
+
+    // Import untracked tokens for each chain
+    for (const [chainId, tokens] of untrackedTokensByChain) {
+      if (tokens.length > 0) {
+        await this.messenger.call(
+          'TokenDetectionController:addDetectedTokensViaWs',
+          {
+            tokensSlice: tokens,
+            chainId,
+          },
+        );
       }
     }
   }
