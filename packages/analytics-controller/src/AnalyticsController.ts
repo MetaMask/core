@@ -244,11 +244,11 @@ export class AnalyticsController extends BaseController<
    * Initialize the controller by calling the platform adapter's onSetupCompleted lifecycle hook.
    * This method must be called after construction to complete the setup process.
    *
-   * @throws Error if called multiple times (use reinit() to reinitialize)
+   * @throws Error if called multiple times
    */
   async init(): Promise<void> {
     if (this.#initialized) {
-      throw new Error('AnalyticsController already initialized. Use reinit() to reinitialize.');
+      throw new Error('AnalyticsController already initialized.');
     }
 
     this.#initialized = true;

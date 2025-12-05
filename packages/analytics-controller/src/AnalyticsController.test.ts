@@ -526,7 +526,7 @@ describe('AnalyticsController', () => {
       await controller.init();
 
       await expect(controller.init()).rejects.toThrow(
-        'AnalyticsController already initialized. Use reinit() to reinitialize.',
+        'AnalyticsController already initialized.',
       );
     });
   });
