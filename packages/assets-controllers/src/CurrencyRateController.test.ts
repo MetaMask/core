@@ -19,7 +19,7 @@ import { CurrencyRateController } from './CurrencyRateController';
 import type { AbstractTokenPricesService } from './token-prices-service';
 import { advanceTime } from '../../../tests/helpers';
 
-const namespace = 'CurrencyRateController' as const;
+const namespace = 'CurrencyRateController';
 
 type AllCurrencyRateControllerActions = MessengerActions<CurrencyRateMessenger>;
 
@@ -283,7 +283,7 @@ describe('CurrencyRateController', () => {
     expect(controller.state.currencyRates).toStrictEqual({
       ETH: {
         conversionDate: 10,
-        conversionRate: 4149.764437073889,
+        conversionRate: 4149.764437074,
         usdConversionRate: null,
       },
     });
@@ -297,7 +297,7 @@ describe('CurrencyRateController', () => {
     expect(controller.state.currencyRates).toStrictEqual({
       ETH: {
         conversionDate: 20,
-        conversionRate: 4149.764437073889,
+        conversionRate: 4149.764437074,
         usdConversionRate: null,
       },
     });
@@ -416,8 +416,8 @@ describe('CurrencyRateController', () => {
     expect(controller.state.currencyRates).toStrictEqual({
       ETH: {
         conversionDate: getStubbedDate() / 1000,
-        conversionRate: 4149.764437073889,
-        usdConversionRate: 0.009009009009009009,
+        conversionRate: 4149.764437074,
+        usdConversionRate: 0.009009009,
       },
     });
 
@@ -468,7 +468,7 @@ describe('CurrencyRateController', () => {
       },
       SepoliaETH: {
         conversionDate: getStubbedDate() / 1000,
-        conversionRate: 4149.764437073889,
+        conversionRate: 4149.764437074,
         usdConversionRate: 1000,
       },
     });
@@ -537,13 +537,13 @@ describe('CurrencyRateController', () => {
       currencyRates: {
         ETH: {
           conversionDate: getStubbedDate() / 1000,
-          conversionRate: 4149.764437073889,
-          usdConversionRate: 181.81818181818184,
+          conversionRate: 4149.764437074,
+          usdConversionRate: 181.818181818,
         },
         BTC: {
           conversionDate: getStubbedDate() / 1000,
           conversionRate: 9636.6518,
-          usdConversionRate: 454.5454545454545,
+          usdConversionRate: 454.545454545,
         },
       },
     });
@@ -616,7 +616,7 @@ describe('CurrencyRateController', () => {
       currencyRates: {
         ETH: {
           conversionDate: getStubbedDate() / 1000,
-          conversionRate: 2000.4199999999998,
+          conversionRate: 2000.42,
           usdConversionRate: null,
         },
       },
