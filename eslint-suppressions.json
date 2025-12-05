@@ -248,7 +248,7 @@
   },
   "packages/assets-controllers/src/AssetsContractController.ts": {
     "@typescript-eslint/explicit-function-return-type": {
-      "count": 6
+      "count": 1
     },
     "id-length": {
       "count": 1
