@@ -18,6 +18,7 @@ import type { Messenger } from '@metamask/messenger';
 import type { Eip1024EncryptedData, Hex, Json } from '@metamask/utils';
 import {
   add0x,
+  assert,
   assertIsStrictHexString,
   bytesToHex,
   hasProperty,
@@ -209,9 +210,14 @@ export type KeyringControllerStateChangeEvent = {
   payload: [KeyringControllerState, Patch[]];
 };
 
+export type KeyringControllerAccountAddedEvent = {
+  type: `${typeof name}:accountAdded`;
+  payload: [string, KeyringObject];
+};
+
 export type KeyringControllerAccountRemovedEvent = {
   type: `${typeof name}:accountRemoved`;
-  payload: [string];
+  payload: [string, KeyringObject];
 };
 
 export type KeyringControllerLockEvent = {
@@ -250,6 +256,7 @@ export type KeyringControllerEvents =
   | KeyringControllerStateChangeEvent
   | KeyringControllerLockEvent
   | KeyringControllerUnlockEvent
+  | KeyringControllerAccountAddedEvent
   | KeyringControllerAccountRemovedEvent;
 
 export type KeyringControllerMessenger = Messenger<
@@ -297,11 +304,11 @@ export type KeyringObject = {
  */
 export type KeyringMetadata = {
   /**
-   * Keyring ID
+   * Keyring ID.
    */
   id: string;
   /**
-   * Keyring name
+   * Keyring name.
    */
   name: string;
 };
@@ -1205,12 +1212,14 @@ export class KeyringController<
   async removeAccount(address: string): Promise<void> {
     this.#assertIsUnlocked();
 
+    const keyringIndex = this.state.keyrings.findIndex((kr) =>
+      kr.accounts.includes(address),
+    );
+    const keyringObject = this.state.keyrings[keyringIndex];
+    assert(keyringObject, 'Keyring object not found');
+
     await this.#persistOrRollback(async () => {
       const keyring = (await this.getKeyringForAccount(address)) as EthKeyring;
-
-      const keyringIndex = this.state.keyrings.findIndex((kr) =>
-        kr.accounts.includes(address),
-      );
 
       const isPrimaryKeyring = keyringIndex === 0;
       const shouldRemoveKeyring = (await keyring.getAccounts()).length === 1;
@@ -1237,7 +1246,7 @@ export class KeyringController<
       }
     });
 
-    this.messenger.publish(`${name}:accountRemoved`, address);
+    this.messenger.publish(`${name}:accountRemoved`, address, keyringObject);
   }
 
   /**
@@ -2233,53 +2242,102 @@ export class KeyringController<
    *
    * @returns A promise resolving to `true` if the operation is successful.
    */
-  #updateVault(): Promise<boolean> {
-    return this.#withVaultLock(async () => {
-      // Ensure no duplicate accounts are persisted.
-      await this.#assertNoDuplicateAccounts();
+  async #updateVault(): Promise<boolean> {
+    const updateVault = async () =>
+      this.#withVaultLock(async () => {
+        // Ensure no duplicate accounts are persisted.
+        await this.#assertNoDuplicateAccounts();
 
-      if (!this.#encryptionKey) {
-        throw new Error(KeyringControllerError.MissingCredentials);
-      }
+        if (!this.#encryptionKey) {
+          throw new Error(KeyringControllerError.MissingCredentials);
+        }
 
-      const serializedKeyrings = await this.#getSerializedKeyrings();
+        const serializedKeyrings = await this.#getSerializedKeyrings();
 
-      if (
-        !serializedKeyrings.some(
-          (keyring) => keyring.type === (KeyringTypes.hd as string),
-        )
-      ) {
-        throw new Error(KeyringControllerError.NoHdKeyring);
-      }
+        if (
+          !serializedKeyrings.some(
+            (keyring) => keyring.type === (KeyringTypes.hd as string),
+          )
+        ) {
+          throw new Error(KeyringControllerError.NoHdKeyring);
+        }
 
-      const key = await this.#encryptor.importKey(
-        this.#encryptionKey.serialized,
-      );
-      const encryptedVault = await this.#encryptor.encryptWithKey(
-        key,
-        serializedKeyrings,
-      );
-      // We need to include the salt used to derive
-      // the encryption key, to be able to derive it
-      // from password again.
-      encryptedVault.salt = this.#encryptionKey.salt;
-      const updatedState: Partial<KeyringControllerState> = {
-        vault: JSON.stringify(encryptedVault),
-        encryptionKey: this.#encryptionKey.serialized,
-        encryptionSalt: this.#encryptionKey.salt,
-      };
+        const key = await this.#encryptor.importKey(
+          this.#encryptionKey.serialized,
+        );
+        const encryptedVault = await this.#encryptor.encryptWithKey(
+          key,
+          serializedKeyrings,
+        );
+        // We need to include the salt used to derive
+        // the encryption key, to be able to derive it
+        // from password again.
+        encryptedVault.salt = this.#encryptionKey.salt;
+        const updatedState: Partial<KeyringControllerState> = {
+          vault: JSON.stringify(encryptedVault),
+          encryptionKey: this.#encryptionKey.serialized,
+          encryptionSalt: this.#encryptionKey.salt,
+        };
 
-      const updatedKeyrings = await this.#getUpdatedKeyrings();
+        const updatedKeyrings = await this.#getUpdatedKeyrings();
 
-      this.update((state) => {
-        state.vault = updatedState.vault;
-        state.keyrings = updatedKeyrings;
-        state.encryptionKey = updatedState.encryptionKey;
-        state.encryptionSalt = updatedState.encryptionSalt;
+        this.update((state) => {
+          state.vault = updatedState.vault;
+          state.keyrings = updatedKeyrings;
+          state.encryptionKey = updatedState.encryptionKey;
+          state.encryptionSalt = updatedState.encryptionSalt;
+        });
+
+        return true;
       });
 
-      return true;
-    });
+    // Keep track of the old keyring states so we can make a diff of added/removed accounts.
+    const oldKeyrings = this.state.keyrings;
+    const updated = await updateVault();
+    const newKeyrings = this.state.keyrings;
+
+    const oldAccounts = new Map<string, KeyringObject>();
+    for (const oldKeyring of oldKeyrings) {
+      for (const oldAccount of oldKeyring.accounts) {
+        oldAccounts.set(oldAccount, oldKeyring);
+      }
+    }
+
+    const newAccounts = new Map<string, KeyringObject>();
+    for (const newKeyring of newKeyrings) {
+      for (const newAccount of newKeyring.accounts) {
+        newAccounts.set(newAccount, newKeyring);
+      }
+    }
+
+    for (const newAccount of newAccounts.keys()) {
+      if (oldAccounts.has(newAccount)) {
+        // We remove accounts that intersects, this way we'll now what are the removed
+        // accounts (from `oldAccounts`) and newly added accounts (from `newAccounts`).
+        oldAccounts.delete(newAccount);
+        newAccounts.delete(newAccount);
+      }
+    }
+
+    // Those accounts got removed, since they are not part of the new set of accounts.
+    oldAccounts.forEach((keyringEventInfo, oldAccount) =>
+      this.messenger.publish(
+        'KeyringController:accountRemoved',
+        oldAccount,
+        keyringEventInfo,
+      ),
+    );
+
+    // Those accounts got added, since they were not part of the old set of accounts.
+    newAccounts.forEach((keyringEventInfo, newAccount) =>
+      this.messenger.publish(
+        'KeyringController:accountAdded',
+        newAccount,
+        keyringEventInfo,
+      ),
+    );
+
+    return updated;
   }
 
   /**
