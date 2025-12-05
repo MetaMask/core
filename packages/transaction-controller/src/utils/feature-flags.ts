@@ -155,6 +155,23 @@ export type TransactionControllerFeatureFlags = {
        */
       default?: GasEstimateFallback;
     };
+
+    /**
+     * Number of attempts to wait before automatically marking a transaction as failed
+     * if it has no receipt status and hash is not found on the network.
+     */
+    timeoutAttempts?: {
+      /** Automatic fail threshold on a per-chain basis. */
+      perChainConfig?: {
+        [chainId: Hex]: number;
+      };
+
+      /**
+       * Default automatic fail threshold.
+       * This value is used when no specific threshold is found for a chain ID.
+       */
+      default?: number;
+    };
   };
 };
 
@@ -380,6 +397,29 @@ export function getIncomingTransactionsPollingInterval(
   return (
     featureFlags?.[FeatureFlag.IncomingTransactions]?.pollingIntervalMs ??
     DEFAULT_INCOMING_TRANSACTIONS_POLLING_INTERVAL_MS
+  );
+}
+
+/**
+ * Retrieves the number of attempts to wait before automatically marking a transaction as dropped
+ * if it has no receipt status.
+ *
+ * @param chainId - The chain ID.
+ * @param messenger - The controller messenger instance.
+ * @returns The threshold number of attempts, or undefined if the feature is disabled.
+ */
+export function getTimeoutAttempts(
+  chainId: Hex,
+  messenger: TransactionControllerMessenger,
+): number | undefined {
+  const featureFlags = getFeatureFlags(messenger);
+
+  const timeoutAttemptsFlags =
+    featureFlags?.[FeatureFlag.Transactions]?.timeoutAttempts;
+
+  return (
+    timeoutAttemptsFlags?.perChainConfig?.[chainId] ??
+    timeoutAttemptsFlags?.default
   );
 }
 

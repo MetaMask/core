@@ -551,6 +551,12 @@ export type TransactionControllerOptions = {
       transactionMeta: TransactionMeta,
     ) => (TransactionMeta | undefined)[];
 
+    /**
+     * Callback to determine whether timeout checking should be enabled for a transaction.
+     * Return false to disable timeout for the transaction.
+     */
+    isTimeoutEnabled?: (transactionMeta: TransactionMeta) => boolean;
+
     /** Alternate logic to publish a transaction. */
     publish?: (
       transactionMeta: TransactionMeta,
@@ -886,6 +892,8 @@ export class TransactionController extends BaseController<
 
   readonly #isSwapsDisabled: boolean;
 
+  readonly #isTimeoutEnabled?: (transactionMeta: TransactionMeta) => boolean;
+
   readonly #layer1GasFeeFlows: Layer1GasFeeFlow[];
 
   readonly #methodDataHelper: MethodDataHelper;
@@ -979,6 +987,7 @@ export class TransactionController extends BaseController<
     this.#beforeSign = hooks?.beforeSign ?? (() => Promise.resolve({}));
     this.#getAdditionalSignArguments =
       hooks?.getAdditionalSignArguments ?? (() => []);
+    this.#isTimeoutEnabled = hooks?.isTimeoutEnabled;
     this.#getCurrentAccountEIP1559Compatibility =
       getCurrentAccountEIP1559Compatibility ?? (() => Promise.resolve(true));
     this.#getCurrentNetworkEIP1559Compatibility =
@@ -4085,6 +4094,7 @@ export class TransactionController extends BaseController<
       hooks: {
         beforeCheckPendingTransaction:
           this.#beforeCheckPendingTransaction.bind(this),
+        isTimeoutEnabled: this.#isTimeoutEnabled,
       },
     });
 
