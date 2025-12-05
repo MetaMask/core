@@ -115,7 +115,7 @@ describe('OnRampService', () => {
       const subscription = service.onBreak(onBreakListener);
 
       expect(subscription).toBeDefined();
-      expect(subscription.dispose).toBeDefined();
+      expect(subscription).toHaveProperty('dispose');
     });
   });
 
