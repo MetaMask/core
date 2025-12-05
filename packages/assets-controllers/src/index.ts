@@ -97,12 +97,17 @@ export type {
   TokenListToken,
   TokenListMap,
   TokenListStateChange,
+  TokenListCacheUpdate,
   TokenListControllerEvents,
   GetTokenListState,
+  GetTokenListForChain,
+  GetAllTokenLists,
   TokenListControllerActions,
   TokenListControllerMessenger,
+  TokensChainsCache,
 } from './TokenListController';
 export { TokenListController } from './TokenListController';
+export { TokenCacheService } from './TokenCacheService';
 export type {
   ContractExchangeRates,
   ContractMarketData,
