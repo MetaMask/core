@@ -1,9 +1,5 @@
-import {
-  Messenger,
-  MOCK_ANY_NAMESPACE,
-  type MessengerActions,
-  type MockAnyNamespace,
-} from '@metamask/messenger';
+import { Messenger, MOCK_ANY_NAMESPACE } from '@metamask/messenger';
+import type { MessengerActions, MockAnyNamespace } from '@metamask/messenger';
 import { TransactionStatus } from '@metamask/transaction-controller';
 import type {
   TransactionControllerGetStateAction,

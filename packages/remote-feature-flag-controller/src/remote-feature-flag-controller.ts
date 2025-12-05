@@ -1,9 +1,11 @@
-import {
-  BaseController,
-  type ControllerGetStateAction,
-  type ControllerStateChangeEvent,
+import { BaseController } from '@metamask/base-controller';
+import type {
+  ControllerGetStateAction,
+  ControllerStateChangeEvent,
 } from '@metamask/base-controller';
 import type { Messenger } from '@metamask/messenger';
+import { isValidSemVerVersion } from '@metamask/utils';
+import type { Json, SemVerVersion } from '@metamask/utils';
 
 import type { AbstractClientConfigApiService } from './client-config-api-service/abstract-client-config-api-service';
 import type {
@@ -15,6 +17,7 @@ import {
   generateDeterministicRandomNumber,
   isFeatureFlagWithScopeValue,
 } from './utils/user-segmentation-utils';
+import { isVersionFeatureFlag, getVersionData } from './utils/version';
 
 // === GENERAL ===
 
@@ -111,6 +114,8 @@ export class RemoteFeatureFlagController extends BaseController<
 
   readonly #getMetaMetricsId: () => string;
 
+  readonly #clientVersion: SemVerVersion;
+
   /**
    * Constructs a new RemoteFeatureFlagController instance.
    *
@@ -121,6 +126,7 @@ export class RemoteFeatureFlagController extends BaseController<
    * @param options.fetchInterval - The interval in milliseconds before cached flags expire. Defaults to 1 day.
    * @param options.disabled - Determines if the controller should be disabled initially. Defaults to false.
    * @param options.getMetaMetricsId - Returns metaMetricsId.
+   * @param options.clientVersion - The current client version for version-based feature flag filtering. Must be a valid 3-part SemVer version string.
    */
   constructor({
     messenger,
@@ -129,6 +135,7 @@ export class RemoteFeatureFlagController extends BaseController<
     fetchInterval = DEFAULT_CACHE_DURATION,
     disabled = false,
     getMetaMetricsId,
+    clientVersion,
   }: {
     messenger: RemoteFeatureFlagControllerMessenger;
     state?: Partial<RemoteFeatureFlagControllerState>;
@@ -136,7 +143,14 @@ export class RemoteFeatureFlagController extends BaseController<
     getMetaMetricsId: () => string;
     fetchInterval?: number;
     disabled?: boolean;
+    clientVersion: string;
   }) {
+    if (!isValidSemVerVersion(clientVersion)) {
+      throw new Error(
+        `Invalid clientVersion: "${clientVersion}". Must be a valid 3-part SemVer version string`,
+      );
+    }
+
     super({
       name: controllerName,
       metadata: remoteFeatureFlagControllerMetadata,
@@ -151,6 +165,7 @@ export class RemoteFeatureFlagController extends BaseController<
     this.#disabled = disabled;
     this.#clientConfigApiService = clientConfigApiService;
     this.#getMetaMetricsId = getMetaMetricsId;
+    this.#clientVersion = clientVersion;
   }
 
   /**
@@ -208,6 +223,20 @@ export class RemoteFeatureFlagController extends BaseController<
     });
   }
 
+  /**
+   * Processes a version-based feature flag to get the appropriate value for the current client version.
+   *
+   * @param flagValue - The feature flag value to process
+   * @returns The processed value, or null if no version qualifies (skip this flag)
+   */
+  #processVersionBasedFlag(flagValue: Json): Json | null {
+    if (!isVersionFeatureFlag(flagValue)) {
+      return flagValue;
+    }
+
+    return getVersionData(flagValue, this.#clientVersion);
+  }
+
   async #processRemoteFeatureFlags(
     remoteFeatureFlags: FeatureFlags,
   ): Promise<FeatureFlags> {
@@ -219,10 +248,15 @@ export class RemoteFeatureFlagController extends BaseController<
       remoteFeatureFlagName,
       remoteFeatureFlagValue,
     ] of Object.entries(remoteFeatureFlags)) {
-      let processedValue = remoteFeatureFlagValue;
+      let processedValue = this.#processVersionBasedFlag(
+        remoteFeatureFlagValue,
+      );
+      if (processedValue === null) {
+        continue;
+      }
 
-      if (Array.isArray(remoteFeatureFlagValue) && thresholdValue) {
-        const selectedGroup = remoteFeatureFlagValue.find(
+      if (Array.isArray(processedValue) && thresholdValue) {
+        const selectedGroup = processedValue.find(
           (featureFlag): featureFlag is FeatureFlagScopeValue => {
             if (!isFeatureFlagWithScopeValue(featureFlag)) {
               return false;

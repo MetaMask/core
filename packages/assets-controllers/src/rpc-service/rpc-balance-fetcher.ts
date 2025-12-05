@@ -74,9 +74,7 @@ export class RpcBalanceFetcher implements BalanceFetcher {
   }
 
   #getStakingContractAddress(chainId: ChainIdHex): string | undefined {
-    return STAKING_CONTRACT_ADDRESS_BY_CHAINID[
-      chainId as keyof typeof STAKING_CONTRACT_ADDRESS_BY_CHAINID
-    ];
+    return STAKING_CONTRACT_ADDRESS_BY_CHAINID[chainId];
   }
 
   async fetch({
@@ -136,7 +134,7 @@ export class RpcBalanceFetcher implements BalanceFetcher {
         const nativeBalance = tokenBalances[ZERO_ADDRESS]?.[address] || null;
         chainResults.push({
           success: true,
-          value: nativeBalance ? (nativeBalance as BN) : new BN('0'),
+          value: nativeBalance || new BN('0'),
           account: address as ChecksumAddress,
           token: ZERO_ADDRESS,
           chainId,
@@ -152,7 +150,7 @@ export class RpcBalanceFetcher implements BalanceFetcher {
         Object.entries(balances).forEach(([acct, bn]) => {
           chainResults.push({
             success: bn !== null,
-            value: bn as BN,
+            value: bn,
             account: acct as ChecksumAddress,
             token: checksum(tokenAddr),
             chainId,
@@ -175,7 +173,7 @@ export class RpcBalanceFetcher implements BalanceFetcher {
           const stakedBalance = stakedBalances?.[address] || null;
           chainResults.push({
             success: true,
-            value: stakedBalance ? (stakedBalance as BN) : new BN('0'),
+            value: stakedBalance || new BN('0'),
             account: address as ChecksumAddress,
             token: checksummedStakingAddress,
             chainId,
@@ -248,7 +246,7 @@ function buildAccountTokenGroupsStatic(
     if (!shouldInclude) {
       return;
     }
-    (tokens as unknown[]).forEach((t: unknown) =>
+    tokens.forEach((t: unknown) =>
       pairs.push({
         accountAddress: account as ChecksumAddress,
         tokenAddress: checksum((t as { address: string }).address),

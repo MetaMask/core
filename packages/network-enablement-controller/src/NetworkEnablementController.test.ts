@@ -1,24 +1,17 @@
 import { deriveStateFromMetadata } from '@metamask/base-controller';
 import { BuiltInNetworkName, ChainId } from '@metamask/controller-utils';
 import { BtcScope, SolScope, TrxScope } from '@metamask/keyring-api';
-import {
-  Messenger,
-  MOCK_ANY_NAMESPACE,
-  type MessengerActions,
-  type MessengerEvents,
-  type MockAnyNamespace,
+import { Messenger, MOCK_ANY_NAMESPACE } from '@metamask/messenger';
+import type {
+  MessengerActions,
+  MessengerEvents,
+  MockAnyNamespace,
 } from '@metamask/messenger';
 import { RpcEndpointType } from '@metamask/network-controller';
-import {
-  TransactionStatus,
-  type TransactionMeta,
-} from '@metamask/transaction-controller';
-import {
-  type CaipChainId,
-  type CaipNamespace,
-  type Hex,
-  KnownCaipNamespace,
-} from '@metamask/utils';
+import { TransactionStatus } from '@metamask/transaction-controller';
+import type { TransactionMeta } from '@metamask/transaction-controller';
+import { KnownCaipNamespace } from '@metamask/utils';
+import type { CaipChainId, CaipNamespace, Hex } from '@metamask/utils';
 import { useFakeTimers } from 'sinon';
 
 import { POPULAR_NETWORKS } from './constants';

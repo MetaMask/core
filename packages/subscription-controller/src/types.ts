@@ -1,4 +1,4 @@
-import type { Hex } from '@metamask/utils';
+import type { CaipAccountId, Hex } from '@metamask/utils';
 
 export const PRODUCT_TYPES = {
   SHIELD: 'shield',
@@ -125,6 +125,8 @@ export type GetSubscriptionsResponse = {
   trialedProducts: ProductType[];
   /** The last subscription that user has subscribed to if any. */
   lastSubscription?: Subscription;
+  /** The reward account ID if user has linked rewards to the subscription. */
+  rewardAccountId?: CaipAccountId;
 };
 
 export type StartSubscriptionRequest = {
@@ -133,6 +135,16 @@ export type StartSubscriptionRequest = {
   recurringInterval: RecurringInterval;
   successUrl?: string;
   useTestClock?: boolean;
+
+  /**
+   * The optional ID of the reward subscription to be opt in along with the main `shield` subscription.
+   * This is required if user wants to opt in to the reward subscription during the `shield` subscription creation.
+   *
+   * @example {
+   *   rewardAccountId: 'eip155:1:0x1234567890123456789012345678901234567890',
+   * }
+   */
+  rewardAccountId?: CaipAccountId;
 };
 
 export type StartSubscriptionResponse = {
@@ -153,11 +165,35 @@ export type StartCryptoSubscriptionRequest = {
   rawTransaction: Hex;
   isSponsored?: boolean;
   useTestClock?: boolean;
+  /**
+   * The optional ID of the reward subscription to be opt in along with the main `shield` subscription.
+   * This is required if user wants to opt in to the reward subscription during the `shield` subscription creation.
+   *
+   * @example {
+   *   rewardAccountId: 'eip155:1:0x1234567890123456789012345678901234567890',
+   * }
+   */
+  rewardAccountId?: CaipAccountId;
 };
 
 export type StartCryptoSubscriptionResponse = {
   subscriptionId: string;
   status: SubscriptionStatus;
+};
+
+/**
+ * General response type for the subscription API requests
+ * which doesn't require any specific response data.
+ */
+export type SubscriptionApiGeneralResponse = {
+  /**
+   * Whether the request was successful.
+   */
+  success: boolean;
+  /**
+   * The message of the response.
+   */
+  message?: string;
 };
 
 export type AuthUtils = {
@@ -350,6 +386,13 @@ export type ISubscriptionService = {
   assignUserToCohort(request: AssignCohortRequest): Promise<void>;
 
   /**
+   * Link rewards to a subscription.
+   */
+  linkRewards(
+    request: LinkRewardsRequest,
+  ): Promise<SubscriptionApiGeneralResponse>;
+
+  /**
    * Submit sponsorship intents to the Subscription Service backend.
    *
    * This is intended to be used together with the crypto subscription flow.
@@ -421,4 +464,18 @@ export type CachedLastSelectedPaymentMethod = {
   paymentTokenSymbol?: string;
   plan: RecurringInterval;
   useTestClock?: boolean;
+};
+
+/**
+ * Request object for linking rewards to a subscription.
+ */
+export type LinkRewardsRequest = {
+  /**
+   * The ID of the reward subscription to be linked to the subscription.
+   *
+   * @example {
+   *   rewardAccountId: 'eip155:1:0x1234567890123456789012345678901234567890',
+   * }
+   */
+  rewardAccountId: CaipAccountId;
 };

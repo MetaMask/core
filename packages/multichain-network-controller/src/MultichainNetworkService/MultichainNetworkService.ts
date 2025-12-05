@@ -3,12 +3,12 @@ import type { CaipAccountId } from '@metamask/utils';
 import { chunk } from 'lodash';
 
 import {
-  type ActiveNetworksResponse,
   ActiveNetworksResponseStruct,
   buildActiveNetworksUrl,
   MULTICHAIN_ACCOUNTS_CLIENT_HEADER,
   MULTICHAIN_ACCOUNTS_CLIENT_ID,
 } from '../api/accounts-api';
+import type { ActiveNetworksResponse } from '../api/accounts-api';
 
 /**
  * Service responsible for fetching network activity data from the API.

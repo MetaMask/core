@@ -4,12 +4,11 @@ import {
   NetworkType,
   NetworksTicker,
 } from '@metamask/controller-utils';
-import {
-  MOCK_ANY_NAMESPACE,
-  Messenger,
-  type MessengerActions,
-  type MessengerEvents,
-  type MockAnyNamespace,
+import { MOCK_ANY_NAMESPACE, Messenger } from '@metamask/messenger';
+import type {
+  MessengerActions,
+  MessengerEvents,
+  MockAnyNamespace,
 } from '@metamask/messenger';
 import type { NetworkConfiguration } from '@metamask/network-controller';
 import type { Hex } from '@metamask/utils';
@@ -284,7 +283,7 @@ describe('CurrencyRateController', () => {
     expect(controller.state.currencyRates).toStrictEqual({
       ETH: {
         conversionDate: 10,
-        conversionRate: 4149.76,
+        conversionRate: 4149.764437073889,
         usdConversionRate: null,
       },
     });
@@ -298,7 +297,7 @@ describe('CurrencyRateController', () => {
     expect(controller.state.currencyRates).toStrictEqual({
       ETH: {
         conversionDate: 20,
-        conversionRate: 4149.76,
+        conversionRate: 4149.764437073889,
         usdConversionRate: null,
       },
     });
@@ -417,8 +416,8 @@ describe('CurrencyRateController', () => {
     expect(controller.state.currencyRates).toStrictEqual({
       ETH: {
         conversionDate: getStubbedDate() / 1000,
-        conversionRate: 4149.76,
-        usdConversionRate: 0.01,
+        conversionRate: 4149.764437073889,
+        usdConversionRate: 0.009009009009009009,
       },
     });
 
@@ -469,7 +468,7 @@ describe('CurrencyRateController', () => {
       },
       SepoliaETH: {
         conversionDate: getStubbedDate() / 1000,
-        conversionRate: 4149.76,
+        conversionRate: 4149.764437073889,
         usdConversionRate: 1000,
       },
     });
@@ -538,13 +537,13 @@ describe('CurrencyRateController', () => {
       currencyRates: {
         ETH: {
           conversionDate: getStubbedDate() / 1000,
-          conversionRate: 4149.76,
-          usdConversionRate: 181.82,
+          conversionRate: 4149.764437073889,
+          usdConversionRate: 181.81818181818184,
         },
         BTC: {
           conversionDate: getStubbedDate() / 1000,
-          conversionRate: 9636.65,
-          usdConversionRate: 454.55,
+          conversionRate: 9636.6518,
+          usdConversionRate: 454.5454545454545,
         },
       },
     });
@@ -617,7 +616,7 @@ describe('CurrencyRateController', () => {
       currencyRates: {
         ETH: {
           conversionDate: getStubbedDate() / 1000,
-          conversionRate: 2000.42,
+          conversionRate: 2000.4199999999998,
           usdConversionRate: null,
         },
       },

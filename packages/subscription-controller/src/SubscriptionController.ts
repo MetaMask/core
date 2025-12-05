@@ -1,14 +1,14 @@
-import {
-  type StateMetadata,
-  type ControllerStateChangeEvent,
-  type ControllerGetStateAction,
+import type {
+  StateMetadata,
+  ControllerStateChangeEvent,
+  ControllerGetStateAction,
 } from '@metamask/base-controller';
 import type { Messenger } from '@metamask/messenger';
 import { StaticIntervalPollingController } from '@metamask/polling-controller';
 import type { AuthenticationController } from '@metamask/profile-sync-controller';
 import type { TransactionMeta } from '@metamask/transaction-controller';
 import { TransactionType } from '@metamask/transaction-controller';
-import { type Hex } from '@metamask/utils';
+import type { CaipAccountId, Hex } from '@metamask/utils';
 import { BigNumber } from 'bignumber.js';
 
 import {
@@ -17,6 +17,7 @@ import {
   DEFAULT_POLLING_INTERVAL,
   SubscriptionControllerErrorMessage,
 } from './constants';
+import { PAYMENT_TYPES, PRODUCT_TYPES, SUBSCRIPTION_STATUSES } from './types';
 import type {
   AssignCohortRequest,
   BillingPortalResponse,
@@ -34,16 +35,14 @@ import type {
   SubmitSponsorshipIntentsMethodParams,
   RecurringInterval,
   SubscriptionStatus,
+  LinkRewardsRequest,
 } from './types';
-import {
-  PAYMENT_TYPES,
-  PRODUCT_TYPES,
-  SUBSCRIPTION_STATUSES,
-  type ISubscriptionService,
-  type PricingResponse,
-  type ProductType,
-  type StartSubscriptionRequest,
-  type Subscription,
+import type {
+  ISubscriptionService,
+  PricingResponse,
+  ProductType,
+  StartSubscriptionRequest,
+  Subscription,
 } from './types';
 
 export type SubscriptionControllerState = {
@@ -53,6 +52,8 @@ export type SubscriptionControllerState = {
   pricing?: PricingResponse;
   /** The last subscription that user has subscribed to if any. */
   lastSubscription?: Subscription;
+  /** The reward account ID if user has linked rewards to the subscription. */
+  rewardAccountId?: CaipAccountId;
   /**
    * The last selected payment method for the user.
    * This is used to display the last selected payment method in the UI.
@@ -107,6 +108,11 @@ export type SubscriptionControllerSubmitSponsorshipIntentsAction = {
   handler: SubscriptionController['submitSponsorshipIntents'];
 };
 
+export type SubscriptionControllerLinkRewardsAction = {
+  type: `${typeof controllerName}:linkRewards`;
+  handler: SubscriptionController['linkRewards'];
+};
+
 export type SubscriptionControllerSubmitShieldSubscriptionCryptoApprovalAction =
   {
     type: `${typeof controllerName}:submitShieldSubscriptionCryptoApproval`;
@@ -129,7 +135,8 @@ export type SubscriptionControllerActions =
   | SubscriptionControllerUpdatePaymentMethodAction
   | SubscriptionControllerGetBillingPortalUrlAction
   | SubscriptionControllerSubmitSponsorshipIntentsAction
-  | SubscriptionControllerSubmitShieldSubscriptionCryptoApprovalAction;
+  | SubscriptionControllerSubmitShieldSubscriptionCryptoApprovalAction
+  | SubscriptionControllerLinkRewardsAction;
 
 export type AllowedActions =
   | AuthenticationController.AuthenticationControllerGetBearerToken
@@ -211,6 +218,12 @@ const subscriptionControllerMetadata: StateMetadata<SubscriptionControllerState>
       usedInUi: true,
     },
     customerId: {
+      includeInStateLogs: true,
+      persist: true,
+      includeInDebugSnapshot: false,
+      usedInUi: true,
+    },
+    rewardAccountId: {
       includeInStateLogs: true,
       persist: true,
       includeInDebugSnapshot: false,
@@ -332,6 +345,11 @@ export class SubscriptionController extends StaticIntervalPollingController()<
       `${controllerName}:submitShieldSubscriptionCryptoApproval`,
       this.submitShieldSubscriptionCryptoApproval.bind(this),
     );
+
+    this.messenger.registerActionHandler(
+      `${controllerName}:linkRewards`,
+      this.linkRewards.bind(this),
+    );
   }
 
   /**
@@ -352,11 +370,14 @@ export class SubscriptionController extends StaticIntervalPollingController()<
     const currentTrialedProducts = this.state.trialedProducts;
     const currentCustomerId = this.state.customerId;
     const currentLastSubscription = this.state.lastSubscription;
+    const currentRewardAccountId = this.state.rewardAccountId;
+
     const {
       customerId: newCustomerId,
       subscriptions: newSubscriptions,
       trialedProducts: newTrialedProducts,
       lastSubscription: newLastSubscription,
+      rewardAccountId: newRewardAccountId,
     } = await this.#subscriptionService.getSubscriptions();
 
     // check if the new subscriptions are different from the current subscriptions
@@ -376,20 +397,23 @@ export class SubscriptionController extends StaticIntervalPollingController()<
     );
 
     const areCustomerIdsEqual = currentCustomerId === newCustomerId;
-
+    const areRewardAccountIdsEqual =
+      currentRewardAccountId === newRewardAccountId;
     // only update the state if the subscriptions or trialed products are different
     // this prevents unnecessary state updates events, easier for the clients to handle
     if (
       !areSubscriptionsEqual ||
       !isLastSubscriptionEqual ||
       !areTrialedProductsEqual ||
-      !areCustomerIdsEqual
+      !areCustomerIdsEqual ||
+      !areRewardAccountIdsEqual
     ) {
       this.update((state) => {
         state.subscriptions = newSubscriptions;
         state.customerId = newCustomerId;
         state.trialedProducts = newTrialedProducts;
         state.lastSubscription = newLastSubscription;
+        state.rewardAccountId = newRewardAccountId;
       });
       // trigger access token refresh to ensure the user has the latest access token if subscription state change
       this.triggerAccessTokenRefresh();
@@ -485,11 +509,13 @@ export class SubscriptionController extends StaticIntervalPollingController()<
    *
    * @param txMeta - The transaction metadata.
    * @param isSponsored - Whether the transaction is sponsored.
+   * @param rewardAccountId - The account ID of the reward subscription to link to the shield subscription.
    * @returns void
    */
   async submitShieldSubscriptionCryptoApproval(
     txMeta: TransactionMeta,
     isSponsored?: boolean,
+    rewardAccountId?: CaipAccountId,
   ) {
     if (txMeta.type !== TransactionType.shieldSubscriptionApprove) {
       return;
@@ -551,6 +577,7 @@ export class SubscriptionController extends StaticIntervalPollingController()<
         rawTransaction: rawTx as Hex,
         isSponsored,
         useTestClock: lastSelectedPaymentMethodShield.useTestClock,
+        rewardAccountId,
       };
       await this.startSubscriptionWithCrypto(params);
     }
@@ -750,6 +777,30 @@ export class SubscriptionController extends StaticIntervalPollingController()<
    */
   async assignUserToCohort(request: AssignCohortRequest): Promise<void> {
     await this.#subscriptionService.assignUserToCohort(request);
+  }
+
+  /**
+   * Link rewards to a subscription.
+   *
+   * @param request - Request object containing the reward subscription ID.
+   * @param request.subscriptionId - The ID of the subscription to link rewards to.
+   * @param request.rewardAccountId - The account ID of the reward subscription to link to the subscription.
+   * @example { subscriptionId: '1234567890', rewardAccountId: 'eip155:1:0x1234567890123456789012345678901234567890' }
+   * @returns Resolves when the rewards are linked successfully.
+   */
+  async linkRewards(
+    request: LinkRewardsRequest & { subscriptionId: string },
+  ): Promise<void> {
+    // assert that the user is subscribed to the subscription
+    this.#assertIsUserSubscribed({ subscriptionId: request.subscriptionId });
+
+    // link rewards to the subscription
+    const response = await this.#subscriptionService.linkRewards({
+      rewardAccountId: request.rewardAccountId,
+    });
+    if (!response.success) {
+      throw new Error(SubscriptionControllerErrorMessage.LinkRewardsFailed);
+    }
   }
 
   async _executePoll(): Promise<void> {

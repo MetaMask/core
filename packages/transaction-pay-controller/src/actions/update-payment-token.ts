@@ -1,4 +1,5 @@
-import { createModuleLogger, type Hex } from '@metamask/utils';
+import { createModuleLogger } from '@metamask/utils';
+import type { Hex } from '@metamask/utils';
 import { BigNumber } from 'bignumber.js';
 
 import type { TransactionPayControllerMessenger } from '..';

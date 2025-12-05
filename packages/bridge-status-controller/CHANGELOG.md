@@ -7,10 +7,21 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+## [64.0.1]
+
+### Fixed
+
+- Fix MAX native token swap failing with "insufficient gas" when STX is off by using quote's `txFee` instead of re-estimating gas when `gasIncluded` is true ([#7306](https://github.com/MetaMask/core/pull/7306))
+
+## [64.0.0]
+
 ### Changed
 
+- **BREAKING:** Bump `@metamask/bridge-controller` from `^63.2.0` to `^64.0.0` ([#7295](https://github.com/MetaMask/core/pull/7295))
+- Improve type safety by replacing tx data type assertions with type predicates ([#7228](https://github.com/MetaMask/core/pull/7228))
+- Submit `resetApproval` tx before the tx approval if it is included in the quoteResponse ([#7228](https://github.com/MetaMask/core/pull/7228))
 - Bump `@metamask/network-controller` from `^26.0.0` to `^27.0.0` ([#7258](https://github.com/MetaMask/core/pull/7258))
-- Bump `@metamask/transaction-controller` from `^62.3.0` to `^62.3.1` ([#7257](https://github.com/MetaMask/core/pull/7257))
+- Bump `@metamask/transaction-controller` from `^62.3.0` to `^62.4.0` ([#7257](https://github.com/MetaMask/core/pull/7257), [#7289](https://github.com/MetaMask/core/pull/7289))
 
 ## [63.1.0]
 
@@ -804,7 +815,9 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 - Initial release ([#5317](https://github.com/MetaMask/core/pull/5317))
 
-[Unreleased]: https://github.com/MetaMask/core/compare/@metamask/bridge-status-controller@63.1.0...HEAD
+[Unreleased]: https://github.com/MetaMask/core/compare/@metamask/bridge-status-controller@64.0.1...HEAD
+[64.0.1]: https://github.com/MetaMask/core/compare/@metamask/bridge-status-controller@64.0.0...@metamask/bridge-status-controller@64.0.1
+[64.0.0]: https://github.com/MetaMask/core/compare/@metamask/bridge-status-controller@63.1.0...@metamask/bridge-status-controller@64.0.0
 [63.1.0]: https://github.com/MetaMask/core/compare/@metamask/bridge-status-controller@63.0.0...@metamask/bridge-status-controller@63.1.0
 [63.0.0]: https://github.com/MetaMask/core/compare/@metamask/bridge-status-controller@62.0.0...@metamask/bridge-status-controller@63.0.0
 [62.0.0]: https://github.com/MetaMask/core/compare/@metamask/bridge-status-controller@61.0.0...@metamask/bridge-status-controller@62.0.0

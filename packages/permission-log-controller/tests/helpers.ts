@@ -1,4 +1,5 @@
-import { type Json, JsonRpcRequestStruct } from '@metamask/utils';
+import { JsonRpcRequestStruct } from '@metamask/utils';
+import type { Json } from '@metamask/utils';
 import deepFreeze from 'deep-freeze-strict';
 
 import { CAVEAT_TYPES } from '../src/enums';

@@ -25,7 +25,8 @@ import { JsonRpcError } from '@metamask/rpc-errors';
 import { hasProperty } from '@metamask/utils';
 import type { Json, Mutable } from '@metamask/utils';
 import deepFreeze from 'deep-freeze-strict';
-import { castDraft, produce as immerProduce, type Draft } from 'immer';
+import { castDraft, produce as immerProduce } from 'immer';
+import type { Draft } from 'immer';
 import { nanoid } from 'nanoid';
 
 import type {
@@ -346,6 +347,14 @@ export type UpdateCaveat = {
 };
 
 /**
+ * Get a caveat value for a specified caveat type belonging to a specific target and origin.
+ */
+export type GetCaveat = {
+  type: `${typeof controllerName}:getCaveat`;
+  handler: GenericPermissionController['getCaveat'];
+};
+
+/**
  * Clears all permissions from the {@link PermissionController}.
  */
 export type ClearPermissions = {
@@ -379,7 +388,8 @@ export type PermissionControllerActions =
   | RevokeAllPermissions
   | RevokePermissionForAllSubjects
   | RevokePermissions
-  | UpdateCaveat;
+  | UpdateCaveat
+  | GetCaveat;
 
 /**
  * The generic state change event of the {@link PermissionController}.
@@ -890,6 +900,16 @@ export class PermissionController<
           caveatValue,
         );
       },
+    );
+
+    this.messenger.registerActionHandler(
+      `${controllerName}:getCaveat` as const,
+      (origin, target, caveatType) =>
+        this.getCaveat(
+          origin,
+          target,
+          caveatType as ExtractAllowedCaveatTypes<ControllerPermissionSpecification>,
+        ),
     );
   }
 
@@ -2342,7 +2362,9 @@ export class PermissionController<
     const { caveatPairs, leftUniqueCaveats, rightUniqueCaveats } =
       collectUniqueAndPairedCaveats(leftPermission, rightPermission);
 
-    const [mergedCaveats, caveatDiffMap] = caveatPairs.reduce(
+    const [mergedCaveats, caveatDiffMap] = caveatPairs.reduce<
+      [CaveatConstraint[], CaveatDiffMap<CaveatConstraint>]
+    >(
       ([caveats, diffMap], [leftCaveat, rightCaveat]) => {
         const [newCaveat, diff] = this.#mergeCaveat(leftCaveat, rightCaveat);
 
@@ -2355,7 +2377,7 @@ export class PermissionController<
 
         return [caveats, diffMap];
       },
-      [[], {}] as [CaveatConstraint[], CaveatDiffMap<CaveatConstraint>],
+      [[], {}],
     );
 
     const mergedRightUniqueCaveats = rightUniqueCaveats.map((caveat) => {

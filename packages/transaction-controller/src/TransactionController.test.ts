@@ -15,12 +15,11 @@ import {
 import type { InternalProvider } from '@metamask/eth-json-rpc-provider';
 import EthQuery from '@metamask/eth-query';
 import HttpProvider from '@metamask/ethjs-provider-http';
-import {
-  Messenger,
-  type MockAnyNamespace,
-  type MessengerActions,
-  type MessengerEvents,
-  MOCK_ANY_NAMESPACE,
+import { Messenger, MOCK_ANY_NAMESPACE } from '@metamask/messenger';
+import type {
+  MockAnyNamespace,
+  MessengerActions,
+  MessengerEvents,
 } from '@metamask/messenger';
 import type {
   BlockTracker,

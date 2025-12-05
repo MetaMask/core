@@ -1,9 +1,5 @@
-import {
-  type CaipAccountId,
-  type CaipChainId,
-  isCaipChainId,
-  KnownCaipNamespace,
-} from '@metamask/utils';
+import { isCaipChainId, KnownCaipNamespace } from '@metamask/utils';
+import type { CaipAccountId, CaipChainId } from '@metamask/utils';
 
 import type { Caip25CaveatValue } from '../caip25Permission';
 import {

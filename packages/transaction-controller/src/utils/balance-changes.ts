@@ -3,7 +3,8 @@ import { Interface } from '@ethersproject/abi';
 import { hexToBN, toHex } from '@metamask/controller-utils';
 import type EthQuery from '@metamask/eth-query';
 import { abiERC20, abiERC721, abiERC1155 } from '@metamask/metamask-eth-abis';
-import { createModuleLogger, type Hex } from '@metamask/utils';
+import { createModuleLogger } from '@metamask/utils';
+import type { Hex } from '@metamask/utils';
 import BN from 'bn.js';
 
 import { getNativeBalance } from './balance';

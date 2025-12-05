@@ -12,12 +12,11 @@ import {
   InfuraNetworkType,
   NetworkType,
 } from '@metamask/controller-utils';
-import {
-  MOCK_ANY_NAMESPACE,
-  Messenger,
-  type MockAnyNamespace,
-  type MessengerActions,
-  type MessengerEvents,
+import { MOCK_ANY_NAMESPACE, Messenger } from '@metamask/messenger';
+import type {
+  MockAnyNamespace,
+  MessengerActions,
+  MessengerEvents,
 } from '@metamask/messenger';
 import {
   NetworkController,
@@ -1181,7 +1180,7 @@ describe('TransactionController Integration', () => {
       ),
     ).rejects.toThrow(
       `Network client not found - ${
-        networkConfiguration.rpcEndpoints[0].networkClientId as string
+        networkConfiguration.rpcEndpoints[0].networkClientId
       }`,
     );
 

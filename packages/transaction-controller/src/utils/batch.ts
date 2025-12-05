@@ -31,15 +31,18 @@ import {
 } from './feature-flags';
 import { simulateGasBatch } from './gas';
 import { validateBatchRequest } from './validation';
-import type { GetSimulationConfig, TransactionControllerState } from '..';
 import {
   determineTransactionType,
   GasFeeEstimateLevel,
   TransactionStatus,
-  type BatchTransactionParams,
-  type TransactionController,
-  type TransactionControllerMessenger,
-  type TransactionMeta,
+} from '..';
+import type {
+  BatchTransactionParams,
+  GetSimulationConfig,
+  TransactionController,
+  TransactionControllerMessenger,
+  TransactionControllerState,
+  TransactionMeta,
 } from '..';
 import { DefaultGasFeeFlow } from '../gas-flows/DefaultGasFeeFlow';
 import { updateTransactionGasEstimates } from '../helpers/GasFeePoller';
@@ -47,6 +50,7 @@ import type { PendingTransactionTracker } from '../helpers/PendingTransactionTra
 import { CollectPublishHook } from '../hooks/CollectPublishHook';
 import { SequentialPublishBatchHook } from '../hooks/SequentialPublishBatchHook';
 import { projectLogger } from '../logger';
+import { TransactionEnvelopeType, TransactionType } from '../types';
 import type {
   NestedTransactionMetadata,
   SecurityAlertResponse,
@@ -60,12 +64,7 @@ import type {
   IsAtomicBatchSupportedResultEntry,
   TransactionBatchMeta,
 } from '../types';
-import {
-  TransactionEnvelopeType,
-  type TransactionBatchResult,
-  type TransactionParams,
-  TransactionType,
-} from '../types';
+import type { TransactionBatchResult, TransactionParams } from '../types';
 
 type UpdateStateCallback = (
   callback: (
@@ -299,6 +298,7 @@ async function addTransactionBatchWith7702(
     gasFeeToken,
     networkClientId,
     origin,
+    overwriteUpgrade,
     requireApproval,
     securityAlertId,
     skipInitialGasEstimate,
@@ -332,12 +332,18 @@ async function addTransactionBatchWith7702(
 
     log('Account', { delegationAddress, isSupported });
 
-    if (!isSupported && delegationAddress) {
+    if (!isSupported && delegationAddress && !overwriteUpgrade) {
       log('Account upgraded to unsupported contract', from, delegationAddress);
       throw rpcErrors.internal('Account upgraded to unsupported contract');
     }
 
     requiresUpgrade = !isSupported;
+
+    if (requiresUpgrade && delegationAddress) {
+      log('Overwriting authorization as already upgraded', {
+        current: delegationAddress,
+      });
+    }
   }
 
   const nestedTransactions = await Promise.all(

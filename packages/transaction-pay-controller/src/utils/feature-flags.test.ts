@@ -2,6 +2,7 @@ import {
   DEFAULT_RELAY_FALLBACK_GAS_ESTIMATE,
   DEFAULT_RELAY_FALLBACK_GAS_MAX,
   DEFAULT_RELAY_QUOTE_URL,
+  DEFAULT_SLIPPAGE,
   getFeatureFlags,
 } from './feature-flags';
 import { getMessengerMock } from '../tests/messenger-mock';
@@ -10,6 +11,7 @@ const GAS_FALLBACK_ESTIMATE_MOCK = 123;
 const GAS_FALLBACK_MAX_MOCK = 456;
 const RELAY_QUOTE_URL_MOCK = 'https://test.com/test';
 const RELAY_GAS_STATION_DISABLED_CHAINS_MOCK = ['0x1', '0x2'];
+const SLIPPAGE_MOCK = 0.01;
 
 describe('Feature Flags Utils', () => {
   const { messenger, getRemoteFeatureFlagControllerStateMock } =
@@ -35,6 +37,7 @@ describe('Feature Flags Utils', () => {
           max: DEFAULT_RELAY_FALLBACK_GAS_MAX,
         },
         relayQuoteUrl: DEFAULT_RELAY_QUOTE_URL,
+        slippage: DEFAULT_SLIPPAGE,
       });
     });
 
@@ -50,6 +53,7 @@ describe('Feature Flags Utils', () => {
               max: GAS_FALLBACK_MAX_MOCK,
             },
             relayQuoteUrl: RELAY_QUOTE_URL_MOCK,
+            slippage: SLIPPAGE_MOCK,
           },
         },
       });
@@ -63,6 +67,7 @@ describe('Feature Flags Utils', () => {
           max: GAS_FALLBACK_MAX_MOCK,
         },
         relayQuoteUrl: RELAY_QUOTE_URL_MOCK,
+        slippage: SLIPPAGE_MOCK,
       });
     });
   });

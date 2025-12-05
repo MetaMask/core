@@ -1,6 +1,7 @@
 import { query } from '@metamask/controller-utils';
 import type EthQuery from '@metamask/eth-query';
-import { remove0x, type Hex } from '@metamask/utils';
+import { remove0x } from '@metamask/utils';
+import type { Hex } from '@metamask/utils';
 import { cloneDeep } from 'lodash';
 
 import { DELEGATION_PREFIX } from './eip7702';
@@ -23,7 +24,8 @@ import type {
 } from '../api/simulation-api';
 import { simulateTransactions } from '../api/simulation-api';
 import type { TransactionControllerMessenger } from '../TransactionController';
-import { TransactionEnvelopeType, type TransactionMeta } from '../types';
+import { TransactionEnvelopeType } from '../types';
+import type { TransactionMeta } from '../types';
 import type {
   AuthorizationList,
   TransactionBatchSingleRequest,

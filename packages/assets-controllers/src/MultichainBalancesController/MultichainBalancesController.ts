@@ -4,11 +4,11 @@ import type {
   AccountsControllerListMultichainAccountsAction,
   AccountsControllerAccountBalancesUpdatesEvent,
 } from '@metamask/accounts-controller';
-import {
-  BaseController,
-  type StateMetadata,
-  type ControllerGetStateAction,
-  type ControllerStateChangeEvent,
+import { BaseController } from '@metamask/base-controller';
+import type {
+  StateMetadata,
+  ControllerGetStateAction,
+  ControllerStateChangeEvent,
 } from '@metamask/base-controller';
 import { isEvmAccountType } from '@metamask/keyring-api';
 import type {

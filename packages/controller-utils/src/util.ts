@@ -297,8 +297,6 @@ function toChecksumHexAddressUnmemoized(address: string): string;
  */
 function toChecksumHexAddressUnmemoized<T>(address: T): T;
 
-// Tools only see JSDocs for overloads and ignore them for the implementation.
-// eslint-disable-next-line jsdoc/require-jsdoc
 function toChecksumHexAddressUnmemoized(address: unknown) {
   if (typeof address !== 'string') {
     // Mimic behavior of `addHexPrefix` from `ethereumjs-util` (which this
@@ -344,8 +342,6 @@ export const toChecksumHexAddress: {
   <T>(address: T): T;
 } = memoize(toChecksumHexAddressUnmemoized);
 
-// JSDoc is only used for memoized version of this function that is exported
-// eslint-disable-next-line jsdoc/require-jsdoc
 function isValidHexAddressUnmemoized(
   possibleAddress: string,
   { allowNonPrefixed = true } = {},

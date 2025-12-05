@@ -249,8 +249,7 @@ export class AddressBookController extends BaseController<
     if (
       ![chainId, address].every((key) => isSafeDynamicKey(key)) ||
       !isValidHexAddress(address) ||
-      !this.state.addressBook[chainId] ||
-      !this.state.addressBook[chainId][address]
+      !this.state.addressBook[chainId]?.[address]
     ) {
       return false;
     }

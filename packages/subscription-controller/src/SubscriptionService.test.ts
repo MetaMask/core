@@ -637,4 +637,29 @@ describe('SubscriptionService', () => {
       });
     });
   });
+
+  describe('linkRewards', () => {
+    it('should link rewards successfully', async () => {
+      await withMockSubscriptionService(async ({ service, config }) => {
+        handleFetchMock.mockResolvedValue({});
+
+        await service.linkRewards({
+          rewardAccountId:
+            'eip155:1:0x1234567890123456789012345678901234567890',
+        });
+
+        expect(handleFetchMock).toHaveBeenCalledWith(
+          SUBSCRIPTION_URL(config.env, 'rewards/link'),
+          {
+            method: 'POST',
+            headers: MOCK_HEADERS,
+            body: JSON.stringify({
+              rewardAccountId:
+                'eip155:1:0x1234567890123456789012345678901234567890',
+            }),
+          },
+        );
+      });
+    });
+  });
 });

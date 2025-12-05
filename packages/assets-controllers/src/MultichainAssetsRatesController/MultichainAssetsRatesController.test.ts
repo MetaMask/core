@@ -5,19 +5,18 @@ import { SolAccountType } from '@metamask/keyring-api';
 import { KeyringTypes } from '@metamask/keyring-controller';
 import type { InternalAccount } from '@metamask/keyring-internal-api';
 import { KeyringClient } from '@metamask/keyring-snap-client';
-import {
-  MOCK_ANY_NAMESPACE,
-  Messenger,
-  type MessengerActions,
-  type MessengerEvents,
-  type MockAnyNamespace,
+import { MOCK_ANY_NAMESPACE, Messenger } from '@metamask/messenger';
+import type {
+  MessengerActions,
+  MessengerEvents,
+  MockAnyNamespace,
 } from '@metamask/messenger';
 import type { OnAssetHistoricalPriceResponse } from '@metamask/snaps-sdk';
 import { useFakeTimers } from 'sinon';
 import { v4 as uuidv4 } from 'uuid';
 
 import { MultichainAssetsRatesController } from '.';
-import { type MultichainAssetsRatesControllerMessenger } from './MultichainAssetsRatesController';
+import type { MultichainAssetsRatesControllerMessenger } from './MultichainAssetsRatesController';
 import { advanceTime } from '../../../../tests/helpers';
 
 type AllMultichainAssetsRateControllerActions =

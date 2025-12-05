@@ -107,7 +107,7 @@ export type RequiredEventContextFromClient = {
   } & Pick<RequestMetadata, 'security_warnings'>;
   [UnifiedSwapBridgeEventName.QuotesRequested]: Pick<
     RequestMetadata,
-    'stx_enabled'
+    'stx_enabled' | 'usd_amount_source'
   > & {
     token_symbol_source: RequestParams['token_symbol_source'];
     token_symbol_destination: RequestParams['token_symbol_destination'];

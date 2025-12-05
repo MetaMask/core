@@ -22,8 +22,8 @@ import {
   MOCK_HD_ACCOUNT_1,
   MOCK_HD_KEYRING_1,
   MockAccountBuilder,
-  type RootMessenger,
 } from '../tests';
+import type { RootMessenger } from '../tests';
 
 class MockBtcKeyring {
   readonly type = 'MockBtcKeyring';

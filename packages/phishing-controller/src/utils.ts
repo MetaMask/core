@@ -8,11 +8,8 @@ import type {
   PhishingDetectorList,
   PhishingDetectorConfiguration,
 } from './PhishingDetector';
-import {
-  DEFAULT_CHAIN_ID_TO_NAME,
-  type TokenScanCacheData,
-  type TokenScanResult,
-} from './types';
+import { DEFAULT_CHAIN_ID_TO_NAME } from './types';
+import type { TokenScanCacheData, TokenScanResult } from './types';
 
 const DEFAULT_TOLERANCE = 3;
 

@@ -575,7 +575,7 @@ function assertIsValidPassword(password: unknown): asserts password is string {
     throw new Error(KeyringControllerError.WrongPasswordType);
   }
 
-  if (!password || !password.length) {
+  if (!password?.length) {
     throw new Error(KeyringControllerError.InvalidEmptyPassword);
   }
 }
@@ -1172,9 +1172,9 @@ export class KeyringController<
         default:
           throw new Error(`Unexpected import strategy: '${String(strategy)}'`);
       }
-      const newKeyring = (await this.#newKeyring(KeyringTypes.simple, [
+      const newKeyring = await this.#newKeyring(KeyringTypes.simple, [
         privateKey,
-      ])) as EthKeyring;
+      ]);
       const accounts = await newKeyring.getAccounts();
       return accounts[0];
     });
@@ -2317,7 +2317,7 @@ export class KeyringController<
   async #createKeyringWithFirstAccount(type: string, opts?: unknown) {
     this.#assertControllerMutexIsLocked();
 
-    const keyring = (await this.#newKeyring(type, opts)) as EthKeyring;
+    const keyring = await this.#newKeyring(type, opts);
 
     const [firstAccount] = await keyring.getAccounts();
     if (!firstAccount) {
