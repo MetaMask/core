@@ -11,6 +11,7 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ### Changed
 
+- Updated `GetSubscriptionsResponse` to include `rewardAccountId` property ([#7319](https://github.com/MetaMask/core/pull/7319))
 - Renamed parameters related to rewards linking with shield. ([#7311](https://github.com/MetaMask/core/pull/7311))
   - Renamed from `rewardSubscriptionId` to `rewardAccountId`.
 
