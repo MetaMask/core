@@ -73,8 +73,9 @@ function getBaseUrl(environment: OnRampEnvironment): string {
     case OnRampEnvironment.Staging:
       return 'https://on-ramp.uat-api.cx.metamask.io';
     case OnRampEnvironment.Development:
-    default:
       return 'http://localhost:3000';
+    default:
+      return 'https://on-ramp.api.cx.metamask.io';
   }
 }
 
