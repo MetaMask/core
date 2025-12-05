@@ -22,6 +22,10 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
   - Read fee from `totalImpact` property.
   - Send dust in transaction quotes to token transfer recipient, if available.
 
+### Fixed
+
+- Fix source network fees for batch Relay deposits on EIP-7702 networks ([#7323](https://github.com/MetaMask/core/pull/7323))
+
 ## [10.3.0]
 
 ### Changed
