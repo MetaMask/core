@@ -64,6 +64,20 @@ describe('OnRampService', () => {
       expect(geolocationResponse).toBe('US-TX');
     });
 
+    it('uses the production URL when environment is invalid', async () => {
+      nock('https://on-ramp.api.cx.metamask.io')
+        .get('/geolocation')
+        .reply(200, 'US-TX');
+      const { rootMessenger } = getService({
+        options: { environment: 'invalid' as OnRampEnvironment },
+      });
+      const geolocationResponse = await rootMessenger.call(
+        'OnRampService:getGeolocation',
+      );
+
+      expect(geolocationResponse).toBe('US-TX');
+    });
+
     it('throws if the API returns an empty response', async () => {
       nock('https://on-ramp.uat-api.cx.metamask.io')
         .get('/geolocation')
