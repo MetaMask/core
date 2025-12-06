@@ -64,4 +64,5 @@ export type NetworkClientConfiguration =
  */
 export type AdditionalDefaultNetwork = (typeof ChainId)[
   | 'megaeth-testnet'
+  | 'megaeth-testnet-v2'
   | 'monad-testnet'];

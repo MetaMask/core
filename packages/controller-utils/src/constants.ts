@@ -50,6 +50,7 @@ export const TESTNET_TICKER_SYMBOLS = {
   LINEA_GOERLI: 'LineaETH',
   LINEA_SEPOLIA: 'LineaETH',
   MEGAETH_TESTNET: 'MegaETH',
+  MEGAETH_TESTNET_V2: 'MegaETH',
 };
 
 /**
@@ -60,7 +61,11 @@ export const BUILT_IN_CUSTOM_NETWORKS_RPC = {
    * @deprecated Please use `megaeth-testnet` instead.
    */
   MEGAETH_TESTNET: 'https://carrot.megaeth.com/rpc',
+  /**
+   * @deprecated Please use `megaeth-testnet-v2` instead.
+   */
   'megaeth-testnet': 'https://carrot.megaeth.com/rpc',
+  'megaeth-testnet-v2': 'https://timothy.megaeth.com/rpc',
   'monad-testnet': 'https://testnet-rpc.monad.xyz',
 };
 
@@ -115,6 +120,13 @@ export const BUILT_IN_NETWORKS = {
     ticker: NetworksTicker['megaeth-testnet'],
     rpcPrefs: {
       blockExplorerUrl: BlockExplorerUrl['megaeth-testnet'],
+    },
+  },
+  [NetworkType['megaeth-testnet-v2']]: {
+    chainId: ChainId['megaeth-testnet-v2'],
+    ticker: NetworksTicker['megaeth-testnet-v2'],
+    rpcPrefs: {
+      blockExplorerUrl: BlockExplorerUrl['megaeth-testnet-v2'],
     },
   },
   [NetworkType['monad-testnet']]: {
