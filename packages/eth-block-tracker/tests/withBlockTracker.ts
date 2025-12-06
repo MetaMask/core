@@ -154,7 +154,6 @@ export async function withPollingBlockTracker(
   callback: WithPollingBlockTrackerCallback,
 ): Promise<void>;
 
-/* eslint-disable-next-line jsdoc/require-jsdoc */
 export async function withPollingBlockTracker(
   ...args:
     | [WithPollingBlockTrackerOptions, WithPollingBlockTrackerCallback]

@@ -3,10 +3,7 @@ import { AddressZero } from '@ethersproject/constants';
 import { convertHexToDecimal } from '@metamask/controller-utils';
 import { BtcScope, SolScope, TrxScope } from '@metamask/keyring-api';
 import { toEvmCaipChainId } from '@metamask/multichain-network-controller';
-import type { CaipAssetType } from '@metamask/utils';
 import {
-  type Hex,
-  type CaipChainId,
   isCaipChainId,
   isStrictHexString,
   parseCaipChainId,
@@ -15,6 +12,7 @@ import {
   isCaipAssetType,
   CaipAssetTypeStruct,
 } from '@metamask/utils';
+import type { CaipAssetType, CaipChainId, Hex } from '@metamask/utils';
 
 import {
   getNativeAssetForChainId,

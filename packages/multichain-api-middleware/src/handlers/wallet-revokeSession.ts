@@ -14,11 +14,8 @@ import {
   UnrecognizedSubjectError,
 } from '@metamask/permission-controller';
 import { rpcErrors } from '@metamask/rpc-errors';
-import {
-  type JsonRpcSuccess,
-  type JsonRpcRequest,
-  isObject,
-} from '@metamask/utils';
+import { isObject } from '@metamask/utils';
+import type { JsonRpcSuccess, JsonRpcRequest } from '@metamask/utils';
 
 import type { WalletRevokeSessionHooks } from './types';
 

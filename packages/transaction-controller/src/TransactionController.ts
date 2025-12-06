@@ -1248,9 +1248,7 @@ export class TransactionController extends BaseController<
     txParams = normalizeTransactionParams(txParams);
 
     if (!this.#multichainTrackingHelper.has(networkClientId)) {
-      throw new Error(
-        `Network client not found - ${networkClientId as string}`,
-      );
+      throw new Error(`Network client not found - ${networkClientId}`);
     }
 
     const chainId = this.#getChainId(networkClientId);
@@ -2444,9 +2442,7 @@ export class TransactionController extends BaseController<
 
     if (
       status &&
-      [TransactionStatus.submitted, TransactionStatus.failed].includes(
-        status as TransactionStatus,
-      )
+      [TransactionStatus.submitted, TransactionStatus.failed].includes(status)
     ) {
       this.messenger.publish(
         `${controllerName}:transactionFinished`,
@@ -4466,7 +4462,7 @@ export class TransactionController extends BaseController<
       transactionMeta;
 
     const { networkConfigurationsByChainId } = this.#getNetworkState();
-    const networkConfiguration = networkConfigurationsByChainId[chainId as Hex];
+    const networkConfiguration = networkConfigurationsByChainId[chainId];
 
     const endpoint = networkConfiguration?.rpcEndpoints.find(
       (currentEndpoint) => currentEndpoint.networkClientId === networkClientId,

@@ -6,6 +6,7 @@ import type {
 import type { Hex } from '@metamask/utils';
 import { cloneDeep } from 'lodash';
 
+import { CHAIN_ID_HYPERCORE } from './constants';
 import { getRelayQuotes } from './relay-quotes';
 import type { RelayQuote } from './types';
 import {
@@ -39,6 +40,11 @@ jest.mock('@metamask/controller-utils', () => ({
   successfulFetch: jest.fn(),
 }));
 
+const TRANSACTION_META_MOCK = { txParams: {} } as TransactionMeta;
+const TOKEN_TRANSFER_RECIPIENT_MOCK =
+  '0x5678901234567890123456789012345678901234';
+const NESTED_TRANSACTION_DATA_MOCK = '0xdef' as Hex;
+
 const QUOTE_REQUEST_MOCK: QuoteRequest = {
   from: '0x1234567890123456789012345678901234567891',
   sourceBalanceRaw: '10000000000000000000',
@@ -64,6 +70,9 @@ const QUOTE_MOCK = {
       minimumAmount: '125',
     },
     timeEstimate: 300,
+    totalImpact: {
+      usd: '1.11',
+    },
   },
   fees: {
     relayer: {
@@ -96,8 +105,6 @@ const QUOTE_MOCK = {
   ],
 } as RelayQuote;
 
-const TRANSACTION_META_MOCK = { txParams: {} } as TransactionMeta;
-
 const DELEGATION_RESULT_MOCK = {
   authorizationList: [
     {
@@ -116,6 +123,9 @@ const GAS_FEE_TOKEN_MOCK = {
   gas: toHex(21000),
   tokenAddress: '0xabc' as Hex,
 } as GasFeeToken;
+
+const TOKEN_TRANSFER_DATA_MOCK =
+  '0xa9059cbb0000000000000000000000005678901234567890123456789012345678901234000000000000000000000000000000000000000000000000000000000000007b' as Hex;
 
 describe('Relay Quotes Utils', () => {
   const successfulFetchMock = jest.mocked(successfulFetch);
@@ -206,17 +216,23 @@ describe('Relay Quotes Utils', () => {
 
       expect(successfulFetchMock).toHaveBeenCalledWith(
         DEFAULT_RELAY_QUOTE_URL,
+        expect.anything(),
+      );
+
+      const body = JSON.parse(
+        successfulFetchMock.mock.calls[0][1]?.body as string,
+      );
+
+      expect(body).toStrictEqual(
         expect.objectContaining({
-          body: JSON.stringify({
-            amount: QUOTE_REQUEST_MOCK.targetAmountMinimum,
-            destinationChainId: 2,
-            destinationCurrency: QUOTE_REQUEST_MOCK.targetTokenAddress,
-            originChainId: 1,
-            originCurrency: QUOTE_REQUEST_MOCK.sourceTokenAddress,
-            recipient: QUOTE_REQUEST_MOCK.from,
-            tradeType: 'EXPECTED_OUTPUT',
-            user: QUOTE_REQUEST_MOCK.from,
-          }),
+          amount: QUOTE_REQUEST_MOCK.targetAmountMinimum,
+          destinationChainId: 2,
+          destinationCurrency: QUOTE_REQUEST_MOCK.targetTokenAddress,
+          originChainId: 1,
+          originCurrency: QUOTE_REQUEST_MOCK.sourceTokenAddress,
+          recipient: QUOTE_REQUEST_MOCK.from,
+          tradeType: 'EXACT_OUTPUT',
+          user: QUOTE_REQUEST_MOCK.from,
         }),
       );
     });
@@ -265,6 +281,262 @@ describe('Relay Quotes Utils', () => {
           ],
         }),
       );
+    });
+
+    it('includes request in quote', async () => {
+      successfulFetchMock.mockResolvedValue({
+        json: async () => QUOTE_MOCK,
+      } as never);
+
+      const result = await getRelayQuotes({
+        messenger,
+        requests: [QUOTE_REQUEST_MOCK],
+        transaction: TRANSACTION_META_MOCK,
+      });
+
+      expect(result[0].original.request).toStrictEqual({
+        amount: QUOTE_REQUEST_MOCK.targetAmountMinimum,
+        authorizationList: expect.any(Array),
+        destinationChainId: 2,
+        destinationCurrency: QUOTE_REQUEST_MOCK.targetTokenAddress,
+        originChainId: 1,
+        originCurrency: QUOTE_REQUEST_MOCK.sourceTokenAddress,
+        recipient: QUOTE_REQUEST_MOCK.from,
+        slippageTolerance: '50',
+        tradeType: 'EXACT_OUTPUT',
+        txs: expect.any(Array),
+        user: QUOTE_REQUEST_MOCK.from,
+      });
+    });
+
+    it('skips delegation for token transfers', async () => {
+      successfulFetchMock.mockResolvedValue({
+        json: async () => QUOTE_MOCK,
+      } as never);
+
+      await getRelayQuotes({
+        messenger,
+        requests: [QUOTE_REQUEST_MOCK],
+        transaction: {
+          ...TRANSACTION_META_MOCK,
+          txParams: {
+            data: TOKEN_TRANSFER_DATA_MOCK,
+          },
+        } as TransactionMeta,
+      });
+
+      expect(getDelegationTransactionMock).not.toHaveBeenCalled();
+    });
+
+    it('extracts recipient from token transfer', async () => {
+      successfulFetchMock.mockResolvedValue({
+        json: async () => QUOTE_MOCK,
+      } as never);
+
+      await getRelayQuotes({
+        messenger,
+        requests: [QUOTE_REQUEST_MOCK],
+        transaction: {
+          ...TRANSACTION_META_MOCK,
+          txParams: {
+            data: TOKEN_TRANSFER_DATA_MOCK,
+          },
+        } as TransactionMeta,
+      });
+
+      const body = JSON.parse(
+        successfulFetchMock.mock.calls[0][1]?.body as string,
+      );
+
+      expect(body.recipient).toBe(TOKEN_TRANSFER_RECIPIENT_MOCK.toLowerCase());
+    });
+
+    it('includes transactions from nested transactions', async () => {
+      successfulFetchMock.mockResolvedValue({
+        json: async () => QUOTE_MOCK,
+      } as never);
+
+      await getRelayQuotes({
+        messenger,
+        requests: [QUOTE_REQUEST_MOCK],
+        transaction: {
+          ...TRANSACTION_META_MOCK,
+          nestedTransactions: [
+            {
+              data: NESTED_TRANSACTION_DATA_MOCK,
+            },
+          ],
+          txParams: {
+            data: '0xabc' as Hex,
+          },
+        } as TransactionMeta,
+      });
+
+      const body = JSON.parse(
+        successfulFetchMock.mock.calls[0][1]?.body as string,
+      );
+
+      expect(body).toStrictEqual(
+        expect.objectContaining({
+          authorizationList: [
+            {
+              chainId: 1,
+              nonce: 2,
+              yParity: 1,
+            },
+          ],
+          recipient: QUOTE_REQUEST_MOCK.from,
+          tradeType: 'EXACT_OUTPUT',
+          txs: [
+            {
+              to: QUOTE_REQUEST_MOCK.targetTokenAddress,
+              data: '0xa9059cbb0000000000000000000000001234567890123456789012345678901234567891000000000000000000000000000000000000000000000000000000000000007b',
+              value: '0x0',
+            },
+            {
+              to: DELEGATION_RESULT_MOCK.to,
+              data: DELEGATION_RESULT_MOCK.data,
+              value: DELEGATION_RESULT_MOCK.value,
+            },
+          ],
+        }),
+      );
+    });
+
+    it('skips delegation for token transfers in nested transactions', async () => {
+      successfulFetchMock.mockResolvedValue({
+        json: async () => QUOTE_MOCK,
+      } as never);
+
+      await getRelayQuotes({
+        messenger,
+        requests: [QUOTE_REQUEST_MOCK],
+        transaction: {
+          ...TRANSACTION_META_MOCK,
+          nestedTransactions: [
+            {
+              data: TOKEN_TRANSFER_DATA_MOCK,
+            },
+          ],
+          txParams: {
+            data: '0xabc' as Hex,
+          },
+        } as TransactionMeta,
+      });
+
+      expect(getDelegationTransactionMock).not.toHaveBeenCalled();
+    });
+
+    it('extracts recipient from token transfer in nested transactions', async () => {
+      successfulFetchMock.mockResolvedValue({
+        json: async () => QUOTE_MOCK,
+      } as never);
+
+      await getRelayQuotes({
+        messenger,
+        requests: [QUOTE_REQUEST_MOCK],
+        transaction: {
+          ...TRANSACTION_META_MOCK,
+          nestedTransactions: [
+            {
+              data: TOKEN_TRANSFER_DATA_MOCK,
+            },
+          ],
+          txParams: {
+            data: '0xabc' as Hex,
+          },
+        } as TransactionMeta,
+      });
+
+      const body = JSON.parse(
+        successfulFetchMock.mock.calls[0][1]?.body as string,
+      );
+
+      expect(body.recipient).toBe(TOKEN_TRANSFER_RECIPIENT_MOCK.toLowerCase());
+    });
+
+    it('extracts recipient and sets refundTo when nested transactions include token transfer with delegation', async () => {
+      successfulFetchMock.mockResolvedValue({
+        json: async () => QUOTE_MOCK,
+      } as never);
+
+      await getRelayQuotes({
+        messenger,
+        requests: [QUOTE_REQUEST_MOCK],
+        transaction: {
+          ...TRANSACTION_META_MOCK,
+          nestedTransactions: [
+            {
+              data: NESTED_TRANSACTION_DATA_MOCK,
+            },
+            {
+              data: TOKEN_TRANSFER_DATA_MOCK,
+            },
+          ],
+          txParams: {
+            data: '0xabc' as Hex,
+          },
+        } as TransactionMeta,
+      });
+
+      const body = JSON.parse(
+        successfulFetchMock.mock.calls[0][1]?.body as string,
+      );
+
+      expect(body.recipient).toBe(TOKEN_TRANSFER_RECIPIENT_MOCK);
+      expect(body.refundTo).toBe(QUOTE_REQUEST_MOCK.from);
+    });
+
+    it('skips delegation for Hypercore deposits', async () => {
+      successfulFetchMock.mockResolvedValue({
+        json: async () => QUOTE_MOCK,
+      } as never);
+
+      await getRelayQuotes({
+        messenger,
+        requests: [
+          {
+            ...QUOTE_REQUEST_MOCK,
+            targetChainId: CHAIN_ID_HYPERCORE,
+          },
+        ],
+        transaction: {
+          ...TRANSACTION_META_MOCK,
+          txParams: {
+            data: '0xabc' as Hex,
+          },
+        } as TransactionMeta,
+      });
+
+      expect(getDelegationTransactionMock).not.toHaveBeenCalled();
+    });
+
+    it('does not extract recipient for Hypercore deposits with token transfer signature', async () => {
+      successfulFetchMock.mockResolvedValue({
+        json: async () => QUOTE_MOCK,
+      } as never);
+
+      await getRelayQuotes({
+        messenger,
+        requests: [
+          {
+            ...QUOTE_REQUEST_MOCK,
+            targetChainId: CHAIN_ID_HYPERCORE,
+          },
+        ],
+        transaction: {
+          ...TRANSACTION_META_MOCK,
+          txParams: {
+            data: TOKEN_TRANSFER_DATA_MOCK,
+          },
+        } as TransactionMeta,
+      });
+
+      const body = JSON.parse(
+        successfulFetchMock.mock.calls[0][1]?.body as string,
+      );
+
+      expect(body.recipient).toBe(QUOTE_REQUEST_MOCK.from);
     });
 
     it('sends request to url from feature flag', async () => {
@@ -323,7 +595,7 @@ describe('Relay Quotes Utils', () => {
       expect(result[0].estimatedDuration).toBe(300);
     });
 
-    it('includes provider fee from relayer fee', async () => {
+    it('includes provider fee', async () => {
       successfulFetchMock.mockResolvedValue({
         json: async () => QUOTE_MOCK,
       } as never);
@@ -337,26 +609,6 @@ describe('Relay Quotes Utils', () => {
       expect(result[0].fees.provider).toStrictEqual({
         usd: '1.11',
         fiat: '2.22',
-      });
-    });
-
-    it('includes provider fee from usd change if greater', async () => {
-      const quote = cloneDeep(QUOTE_MOCK);
-      quote.details.currencyIn.amountUsd = '3.00';
-
-      successfulFetchMock.mockResolvedValue({
-        json: async () => quote,
-      } as never);
-
-      const result = await getRelayQuotes({
-        messenger,
-        requests: [QUOTE_REQUEST_MOCK],
-        transaction: TRANSACTION_META_MOCK,
-      });
-
-      expect(result[0].fees.provider).toStrictEqual({
-        usd: '1.77',
-        fiat: '3.54',
       });
     });
 

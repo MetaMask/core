@@ -1066,7 +1066,6 @@ type NoopNetworkClientOperation = {
   rpcEndpoint: RpcEndpoint;
 };
 
-/* eslint-disable jsdoc/check-indentation */
 /**
  * Instructs `addNetwork`, `updateNetwork`, and `removeNetwork` how to
  * update the network client registry.
@@ -1084,7 +1083,6 @@ type NoopNetworkClientOperation = {
  *   - a network client that should be unchanged for an RPC endpoint that was
  *   also unchanged.
  */
-/* eslint-enable jsdoc/check-indentation */
 type NetworkClientOperation =
   | AddNetworkClientOperation
   | RemoveNetworkClientOperation

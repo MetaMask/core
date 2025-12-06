@@ -105,7 +105,6 @@ export {
 
 export {
   SWAPS_API_V2_BASE_URL,
-  SWAPS_TESTNET_CHAIN_ID,
   SWAPS_CONTRACT_ADDRESSES,
   SWAPS_WRAPPED_TOKENS_ADDRESSES,
   ALLOWED_CONTRACT_ADDRESSES,
@@ -114,7 +113,6 @@ export {
 export { MetricsActionType, MetricsSwapType } from './utils/metrics/constants';
 
 export {
-  getEthUsdtResetData,
   isEthUsdt,
   isNativeAddress,
   isSolanaChainId,
@@ -146,6 +144,7 @@ export {
   extractTradeData,
   isBitcoinTrade,
   isTronTrade,
+  isEvmTxData,
   type Trade,
 } from './utils/trade-utils';
 
@@ -168,4 +167,6 @@ export { BRIDGE_DEFAULT_SLIPPAGE } from './utils/slippage';
 export {
   isValidSwapsContractAddress,
   getSwapsContractAddress,
+  fetchTokens,
+  type SwapsToken,
 } from './utils/swaps';

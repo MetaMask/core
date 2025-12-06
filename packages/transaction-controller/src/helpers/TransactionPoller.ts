@@ -1,5 +1,6 @@
 import type { BlockTracker } from '@metamask/network-controller';
-import { createModuleLogger, type Hex } from '@metamask/utils';
+import { createModuleLogger } from '@metamask/utils';
+import type { Hex } from '@metamask/utils';
 import { isEqual } from 'lodash';
 
 import { projectLogger } from '../logger';

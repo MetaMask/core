@@ -18,10 +18,8 @@ import type { Hex } from '@metamask/utils';
 import { calculateDeFiPositionMetrics } from './calculate-defi-metrics';
 import type { DefiPositionResponse } from './fetch-positions';
 import { buildPositionFetcher } from './fetch-positions';
-import {
-  groupDeFiPositions,
-  type GroupedDeFiPositions,
-} from './group-defi-positions';
+import { groupDeFiPositions } from './group-defi-positions';
+import type { GroupedDeFiPositions } from './group-defi-positions';
 
 const TEN_MINUTES_IN_MS = 600_000;
 

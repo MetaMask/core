@@ -23,6 +23,7 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 - Add `NetworkController:rpcEndpointChainAvailable` messenger event ([#7166](https://github.com/MetaMask/core/pull/7166))
   - This is a counterpart to the (new) `NetworkController:rpcEndpointChainUnavailable` and `NetworkController:rpcEndpointChainDegraded` events, but is published when a successful request to an endpoint within a chain of endpoints is made either initially or following a previously established degraded or unavailable status.
+- Update `networksMetadata` state property so that networks can now have a possible status of `degraded` ([#7186](https://github.com/MetaMask/core/pull/7186))
 
 ### Changed
 

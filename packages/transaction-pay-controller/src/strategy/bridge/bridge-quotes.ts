@@ -1,7 +1,5 @@
-import {
-  FeatureId,
-  type GenericQuoteRequest,
-} from '@metamask/bridge-controller';
+import { FeatureId } from '@metamask/bridge-controller';
+import type { GenericQuoteRequest } from '@metamask/bridge-controller';
 import type { TxData } from '@metamask/bridge-controller';
 import type { QuoteResponse } from '@metamask/bridge-controller';
 import { toChecksumHexAddress, toHex } from '@metamask/controller-utils';

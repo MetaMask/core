@@ -1,7 +1,5 @@
-import {
-  NOTIFICATION_CHAINS_ID,
-  type NOTIFICATION_CHAINS_IDS,
-} from '../constants/notification-schema';
+import { NOTIFICATION_CHAINS_ID } from '../constants/notification-schema';
+import type { NOTIFICATION_CHAINS_IDS } from '../constants/notification-schema';
 
 export const NOTIFICATION_NETWORK_CURRENCY_NAME = {
   [NOTIFICATION_CHAINS_ID.ETHEREUM]: 'Ethereum',

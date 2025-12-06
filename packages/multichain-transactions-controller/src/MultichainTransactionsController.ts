@@ -4,16 +4,15 @@ import type {
   AccountsControllerListMultichainAccountsAction,
   AccountsControllerAccountTransactionsUpdatedEvent,
 } from '@metamask/accounts-controller';
-import {
-  BaseController,
-  type ControllerGetStateAction,
-  type ControllerStateChangeEvent,
+import { BaseController } from '@metamask/base-controller';
+import type {
+  ControllerGetStateAction,
+  ControllerStateChangeEvent,
 } from '@metamask/base-controller';
-import {
-  isEvmAccountType,
-  type Transaction,
-  type AccountTransactionsUpdatedEventPayload,
-  TransactionStatus,
+import { isEvmAccountType, TransactionStatus } from '@metamask/keyring-api';
+import type {
+  Transaction,
+  AccountTransactionsUpdatedEventPayload,
 } from '@metamask/keyring-api';
 import type { KeyringControllerGetStateAction } from '@metamask/keyring-controller';
 import type { InternalAccount } from '@metamask/keyring-internal-api';
@@ -22,11 +21,7 @@ import type { Messenger } from '@metamask/messenger';
 import type { HandleSnapRequest } from '@metamask/snaps-controllers';
 import type { SnapId } from '@metamask/snaps-sdk';
 import { HandlerType } from '@metamask/snaps-utils';
-import {
-  type CaipChainId,
-  type Json,
-  type JsonRpcRequest,
-} from '@metamask/utils';
+import type { CaipChainId, Json, JsonRpcRequest } from '@metamask/utils';
 import type { Draft } from 'immer';
 
 const controllerName = 'MultichainTransactionsController';

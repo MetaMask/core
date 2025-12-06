@@ -46,6 +46,7 @@ export enum SubscriptionControllerErrorMessage {
   PaymentMethodNotCrypto = `${controllerName} - Payment method is not crypto`,
   ProductPriceNotFound = `${controllerName} - Product price not found`,
   SubscriptionNotValidForCryptoApproval = `${controllerName} - Subscription is not valid for crypto approval`,
+  LinkRewardsFailed = `${controllerName} - Failed to link rewards`,
 }
 
 export const DEFAULT_POLLING_INTERVAL = 5 * 60 * 1_000; // 5 minutes

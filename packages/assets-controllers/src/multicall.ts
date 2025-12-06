@@ -297,6 +297,10 @@ const MULTICALL_CONTRACT_BY_CHAINID = {
   '0x8f': '0xcA11bde05977b3631167028862bE2a173976CA11',
   // XDC, contract found but not in multicall3 repo
   '0x32': '0x0B1795ccA8E4eC4df02346a082df54D437F8D9aF',
+  // MegaETH TESTNET v2 (timothy chain ID 6343)
+  '0x18c7': '0xcA11bde05977b3631167028862bE2a173976CA11',
+  // MegaETH mainnet, contract found matching multicall3 bytecode
+  '0x10e6': '0xcA11bde05977b3631167028862bE2a173976CA11',
 } as Record<Hex, Hex>;
 
 const multicallAbi = [
@@ -797,10 +801,7 @@ const getStakedBalancesFallback = async (
 ): Promise<Record<string, BN>> => {
   const stakedBalanceMap: Record<string, BN> = {};
 
-  const stakingContractAddress =
-    STAKING_CONTRACT_ADDRESS_BY_CHAINID[
-      chainId as keyof typeof STAKING_CONTRACT_ADDRESS_BY_CHAINID
-    ];
+  const stakingContractAddress = STAKING_CONTRACT_ADDRESS_BY_CHAINID[chainId];
 
   if (!stakingContractAddress) {
     // No staking support for this chain
@@ -850,10 +851,7 @@ export const getStakedBalancesForAddresses = async (
   chainId: Hex,
   provider: Web3Provider,
 ): Promise<Record<string, BN>> => {
-  const stakingContractAddress =
-    STAKING_CONTRACT_ADDRESS_BY_CHAINID[
-      chainId as keyof typeof STAKING_CONTRACT_ADDRESS_BY_CHAINID
-    ];
+  const stakingContractAddress = STAKING_CONTRACT_ADDRESS_BY_CHAINID[chainId];
 
   if (!stakingContractAddress) {
     return {};
@@ -974,11 +972,7 @@ export const getTokenBalancesForMultipleAddresses = async (
   );
 
   // Check if Multicall3 is supported on this chain
-  if (
-    !MULTICALL_CONTRACT_BY_CHAINID[
-      chainId as keyof typeof MULTICALL_CONTRACT_BY_CHAINID
-    ]
-  ) {
+  if (!MULTICALL_CONTRACT_BY_CHAINID[chainId]) {
     // Fallback to individual balance calls when Multicall3 is not supported
     const tokenBalances = await getTokenBalancesFallback(
       uniqueTokenAddresses,

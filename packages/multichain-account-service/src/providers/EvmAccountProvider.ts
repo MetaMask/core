@@ -10,7 +10,8 @@ import type {
   InternalAccount,
 } from '@metamask/keyring-internal-api';
 import type { Provider } from '@metamask/network-controller';
-import { add0x, assert, bytesToHex, type Hex } from '@metamask/utils';
+import { add0x, assert, bytesToHex } from '@metamask/utils';
+import type { Hex } from '@metamask/utils';
 
 import {
   assertAreBip44Accounts,

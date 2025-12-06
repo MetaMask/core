@@ -7,12 +7,21 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+### Changed
+
+- **BREAKING:** Permission decoding now rejects `TimestampEnforcer` caveats with zero `timestampBeforeThreshold` values ([#7195](https://github.com/MetaMask/core/pull/7195))
+- Permission decoding logic for `erc20-token-revocation` permission type ([#7299](https://github.com/MetaMask/core/pull/7299))
+- Validation errors for `TimestampEnforcer` include: invalid terms length, non-zero `timestampAfterThreshold`, and zero `timestampBeforeThreshold` ([#7195](https://github.com/MetaMask/core/pull/7195))
+- Bump `@metamask/transaction-controller` from `^62.3.1` to `^62.5.0` ([#7289](https://github.com/MetaMask/core/pull/7289), [#7325](https://github.com/MetaMask/core/pull/7325))
+
 ## [0.7.0]
 
 ### Added
 
+- `PermissionResponseSanitized` now includes `rules` property for stronger typing support ([#7195](https://github.com/MetaMask/core/pull/7195))
+- Export `DELEGATION_FRAMEWORK_VERSION` constant for version consistency across implementations ([#7195](https://github.com/MetaMask/core/pull/7195))
 - Refresh gator permissions map after revocation state change ([#7235](https://github.com/MetaMask/core/pull/7235))
-- Add `submitDirectRevocation` method for already-disabled delegations that don't require an on-chain transaction ([#7244](https://github.com/MetaMask/core/pull/7244))
+- New `submitDirectRevocation` method for already-disabled delegations that don't require an on-chain transaction ([#7244](https://github.com/MetaMask/core/pull/7244))
 
 ### Changed
 

@@ -12,11 +12,11 @@ import type {
   TransactionControllerMessenger,
   TransactionMeta,
 } from '..';
+import { simulateTransactions } from '../api/simulation-api';
 import type { SimulationRequestTransaction } from '../api/simulation-api';
-import {
-  simulateTransactions,
-  type SimulationResponse,
-  type SimulationResponseTransaction,
+import type {
+  SimulationResponse,
+  SimulationResponseTransaction,
 } from '../api/simulation-api';
 import { projectLogger } from '../logger';
 import type { GetSimulationConfig } from '../types';
@@ -73,13 +73,13 @@ export async function getGasFeeTokens({
     | SimulationRequestTransaction['authorizationList']
     | undefined = authorizationListRequest?.map((authorization) => ({
     address: authorization.address,
-    from: from as Hex,
+    from,
   }));
 
   if (with7702 && !delegationAddress && !authorizationList) {
     authorizationList = buildAuthorizationList({
       chainId,
-      from: from as Hex,
+      from,
       messenger,
       publicKeyEIP7702,
     });
@@ -264,7 +264,7 @@ function buildAuthorizationList({
   return [
     {
       address: upgradeAddress,
-      from: from as Hex,
+      from,
     },
   ];
 }

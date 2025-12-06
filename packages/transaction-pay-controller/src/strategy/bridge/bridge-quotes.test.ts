@@ -1,4 +1,5 @@
-import { FeatureId, type QuoteResponse } from '@metamask/bridge-controller';
+import { FeatureId } from '@metamask/bridge-controller';
+import type { QuoteResponse } from '@metamask/bridge-controller';
 import type { TxData } from '@metamask/bridge-controller';
 import { TransactionType } from '@metamask/transaction-controller';
 import type { TransactionMeta } from '@metamask/transaction-controller';
@@ -16,7 +17,7 @@ import type {
   PayStrategyGetQuotesRequest,
   TransactionPayQuote,
 } from '../../types';
-import { type QuoteRequest } from '../../types';
+import type { QuoteRequest } from '../../types';
 import { calculateGasCost, calculateTransactionGasCost } from '../../utils/gas';
 import { getTokenFiatRate } from '../../utils/token';
 

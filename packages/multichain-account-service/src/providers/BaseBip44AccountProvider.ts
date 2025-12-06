@@ -1,12 +1,9 @@
-import {
-  isBip44Account,
-  type AccountProvider,
-  type Bip44Account,
-} from '@metamask/account-api';
+import { isBip44Account } from '@metamask/account-api';
+import type { AccountProvider, Bip44Account } from '@metamask/account-api';
 import type { EntropySourceId, KeyringAccount } from '@metamask/keyring-api';
-import {
-  type KeyringMetadata,
-  type KeyringSelector,
+import type {
+  KeyringMetadata,
+  KeyringSelector,
 } from '@metamask/keyring-controller';
 import type { InternalAccount } from '@metamask/keyring-internal-api';
 

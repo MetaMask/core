@@ -2,24 +2,25 @@ import { BaseController } from '@metamask/base-controller';
 import { isEvmAccountType } from '@metamask/keyring-api';
 import type { InternalAccount } from '@metamask/keyring-internal-api';
 import type { NetworkClientId } from '@metamask/network-controller';
-import { type CaipChainId, isCaipChainId } from '@metamask/utils';
+import { isCaipChainId } from '@metamask/utils';
+import type { CaipChainId } from '@metamask/utils';
 
 import {
-  type ActiveNetworksByAddress,
   toAllowedCaipAccountIds,
   toActiveNetworksByAddress,
 } from '../api/accounts-api';
+import type { ActiveNetworksByAddress } from '../api/accounts-api';
 import {
   AVAILABLE_MULTICHAIN_NETWORK_CONFIGURATIONS,
   MULTICHAIN_NETWORK_CONTROLLER_METADATA,
   getDefaultMultichainNetworkControllerState,
 } from '../constants';
 import type { AbstractMultichainNetworkService } from '../MultichainNetworkService/AbstractMultichainNetworkService';
-import {
-  MULTICHAIN_NETWORK_CONTROLLER_NAME,
-  type MultichainNetworkControllerState,
-  type MultichainNetworkControllerMessenger,
-  type SupportedCaipChainId,
+import { MULTICHAIN_NETWORK_CONTROLLER_NAME } from '../types';
+import type {
+  MultichainNetworkControllerState,
+  MultichainNetworkControllerMessenger,
+  SupportedCaipChainId,
 } from '../types';
 import {
   checkIfSupportedCaipChainId,

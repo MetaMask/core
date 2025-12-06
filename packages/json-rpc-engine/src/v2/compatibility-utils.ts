@@ -5,7 +5,8 @@ import { hasProperty, isObject } from '@metamask/utils';
 import { klona } from 'klona';
 
 import { MiddlewareContext } from './MiddlewareContext';
-import { stringify, type JsonRpcRequest } from './utils';
+import { stringify } from './utils';
+import type { JsonRpcRequest } from './utils';
 
 // Legacy engine compatibility utils
 

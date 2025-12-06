@@ -2,10 +2,8 @@ import type { TransactionMeta } from '@metamask/transaction-controller';
 
 import { calculateTransactionGasCost } from './gas';
 import { calculateTotals } from './totals';
-import {
-  TransactionPayStrategy,
-  type TransactionPayControllerMessenger,
-} from '..';
+import { TransactionPayStrategy } from '..';
+import type { TransactionPayControllerMessenger } from '..';
 import type {
   QuoteRequest,
   TransactionPayQuote,

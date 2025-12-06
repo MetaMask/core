@@ -2,6 +2,7 @@ import { Web3Provider } from '@ethersproject/providers';
 import type {
   AccountsControllerGetSelectedAccountAction,
   AccountsControllerListAccountsAction,
+  AccountsControllerSelectedEvmAccountChangeEvent,
 } from '@metamask/accounts-controller';
 import type {
   ControllerGetStateAction,
@@ -51,10 +52,10 @@ import type {
   AccountTrackerUpdateStakedBalancesAction,
 } from './AccountTrackerController';
 import { STAKING_CONTRACT_ADDRESS_BY_CHAINID } from './AssetsContractController';
-import {
-  AccountsApiBalanceFetcher,
-  type BalanceFetcher,
-  type ProcessedBalance,
+import { AccountsApiBalanceFetcher } from './multi-chain-accounts-service/api-balance-fetcher';
+import type {
+  BalanceFetcher,
+  ProcessedBalance,
 } from './multi-chain-accounts-service/api-balance-fetcher';
 import { RpcBalanceFetcher } from './rpc-service/rpc-balance-fetcher';
 import type { TokenDetectionControllerAddDetectedTokensViaWsAction } from './TokenDetectionController';
@@ -141,7 +142,8 @@ export type AllowedEvents =
   | NetworkControllerStateChangeEvent
   | KeyringControllerAccountRemovedEvent
   | AccountActivityServiceBalanceUpdatedEvent
-  | AccountActivityServiceStatusChangedEvent;
+  | AccountActivityServiceStatusChangedEvent
+  | AccountsControllerSelectedEvmAccountChangeEvent;
 
 export type TokenBalancesControllerMessenger = Messenger<
   typeof CONTROLLER,
@@ -351,6 +353,10 @@ export class TokenBalancesController extends StaticIntervalPollingController<{
     this.messenger.subscribe(
       'KeyringController:accountRemoved',
       this.#onAccountRemoved,
+    );
+    this.messenger.subscribe(
+      'AccountsController:selectedEvmAccountChange',
+      this.#onAccountChanged,
     );
 
     // Register action handlers for polling interval control
@@ -869,9 +875,7 @@ export class TokenBalancesController extends StaticIntervalPollingController<{
 
         // Check if the chainId and token address match any staking contract
         const stakingContractAddress =
-          STAKING_CONTRACT_ADDRESS_BY_CHAINID[
-            r.chainId as keyof typeof STAKING_CONTRACT_ADDRESS_BY_CHAINID
-          ];
+          STAKING_CONTRACT_ADDRESS_BY_CHAINID[r.chainId];
         return (
           stakingContractAddress &&
           stakingContractAddress.toLowerCase() === r.token.toLowerCase()
@@ -1083,8 +1087,23 @@ export class TokenBalancesController extends StaticIntervalPollingController<{
       return;
     }
     this.update((s) => {
-      delete s.tokenBalances[addr as ChecksumAddress];
+      delete s.tokenBalances[addr];
     });
+  };
+
+  /**
+   * Handle account selection changes
+   * Triggers immediate balance fetch to ensure we have the latest balances
+   * since WebSocket only provides updates for changes going forward
+   */
+  readonly #onAccountChanged = () => {
+    // Fetch balances for all chains with tokens when account changes
+    const chainIds = this.#chainIdsWithTokens();
+    if (chainIds.length > 0) {
+      this.updateBalances({ chainIds }).catch(() => {
+        // Silently handle polling errors
+      });
+    }
   };
 
   // ────────────────────────────────────────────────────────────────────────────
@@ -1237,7 +1256,7 @@ export class TokenBalancesController extends StaticIntervalPollingController<{
           'TokenDetectionController:addDetectedTokensViaWs',
           {
             tokensSlice: newTokens,
-            chainId: chainId as Hex,
+            chainId,
           },
         );
       }

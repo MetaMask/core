@@ -1,5 +1,6 @@
 import type { Provider } from '@metamask/network-controller';
-import { createModuleLogger, type Hex } from '@metamask/utils';
+import { createModuleLogger } from '@metamask/utils';
+import type { Hex } from '@metamask/utils';
 
 import { projectLogger } from '../logger';
 import type { TransactionControllerMessenger } from '../TransactionController';
