@@ -210,7 +210,7 @@ const calcTotalGasFee = ({
 
   const l1GasFeesInDecGWei = weiHexToGweiDec(toHex(l1GasFeesInHexWei ?? '0'));
   const gasFeesInDecGwei = totalGasLimitInDec
-    .times(priorityFeePerGasInDecGwei)
+    .times(feePerGasInDecGwei)
     .plus(l1GasFeesInDecGWei);
   const gasFeesInDecEth = gasFeesInDecGwei.times(new BigNumber(10).pow(-9));
 
