@@ -1,11 +1,8 @@
 import * as sinon from 'sinon';
 
-import {
-  ListKeys,
-  ListNames,
-  type PhishingListState,
-} from './PhishingController';
-import { type TokenScanResultType } from './types';
+import { ListKeys, ListNames } from './PhishingController';
+import type { PhishingListState } from './PhishingController';
+import type { TokenScanResultType } from './types';
 import {
   applyDiffs,
   buildCacheKey,

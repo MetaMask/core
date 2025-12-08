@@ -14,8 +14,10 @@ import BN from 'bn.js';
 import { CID } from 'multiformats/cid';
 
 import type { Nft, NftMetadata } from './NftController';
+import { getNativeTokenAddress } from './token-prices-service';
 import type { AbstractTokenPricesService } from './token-prices-service';
-import { type ContractExchangeRates } from './TokenRatesController';
+import type { EvmAssetWithMarketData } from './token-prices-service/abstract-token-prices-service';
+import type { ContractExchangeRates } from './TokenRatesController';
 
 /**
  * The maximum number of token addresses that should be sent to the Price API in
@@ -370,17 +372,23 @@ export async function fetchTokenContractExchangeRates({
 
   const tokenPricesByTokenAddress = await reduceInBatchesSerially<
     Hex,
-    Awaited<ReturnType<AbstractTokenPricesService['fetchTokenPrices']>>
+    Record<Hex, EvmAssetWithMarketData>
   >({
-    values: [...tokenAddresses].sort(),
+    values: [...tokenAddresses, getNativeTokenAddress(chainId)].sort(),
     batchSize: TOKEN_PRICES_BATCH_SIZE,
     eachBatch: async (allTokenPricesByTokenAddress, batch) => {
-      const tokenPricesByTokenAddressForBatch =
+      const tokenPricesByTokenAddressForBatch = (
         await tokenPricesService.fetchTokenPrices({
-          tokenAddresses: batch,
-          chainId,
+          assets: batch.map((tokenAddress) => ({
+            chainId,
+            tokenAddress,
+          })),
           currency: nativeCurrency,
-        });
+        })
+      ).reduce<Record<Hex, EvmAssetWithMarketData>>((acc, tokenPrice) => {
+        acc[tokenPrice.tokenAddress] = tokenPrice;
+        return acc;
+      }, {});
 
       return {
         ...allTokenPricesByTokenAddress,

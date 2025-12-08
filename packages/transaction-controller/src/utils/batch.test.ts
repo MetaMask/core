@@ -1,4 +1,5 @@
-import { ORIGIN_METAMASK, type AddResult } from '@metamask/approval-controller';
+import { ORIGIN_METAMASK } from '@metamask/approval-controller';
+import type { AddResult } from '@metamask/approval-controller';
 import { ApprovalType } from '@metamask/controller-utils';
 import { rpcErrors, errorCodes } from '@metamask/rpc-errors';
 import { cloneDeep } from 'lodash';
@@ -20,16 +21,18 @@ import {
 } from './feature-flags';
 import { simulateGasBatch } from './gas';
 import { validateBatchRequest } from './validation';
-import type { TransactionControllerState } from '..';
 import {
   TransactionEnvelopeType,
-  type TransactionControllerMessenger,
-  type TransactionMeta,
   determineTransactionType,
   TransactionType,
   GasFeeEstimateLevel,
   GasFeeEstimateType,
   TransactionStatus,
+} from '..';
+import type {
+  TransactionControllerMessenger,
+  TransactionControllerState,
+  TransactionMeta,
 } from '..';
 import { flushPromises } from '../../../../tests/helpers';
 import { DefaultGasFeeFlow } from '../gas-flows/DefaultGasFeeFlow';
@@ -647,6 +650,44 @@ describe('Batch Utils', () => {
       );
     });
 
+    it('does not use type 4 if not upgraded but disableUpgrade set', async () => {
+      isAccountUpgradedToEIP7702Mock.mockResolvedValueOnce({
+        delegationAddress: undefined,
+        isSupported: false,
+      });
+
+      addTransactionMock.mockResolvedValueOnce({
+        transactionMeta: TRANSACTION_META_MOCK,
+        result: Promise.resolve(''),
+      });
+
+      generateEIP7702BatchTransactionMock.mockReturnValueOnce(
+        TRANSACTION_BATCH_PARAMS_MOCK,
+      );
+
+      getEIP7702UpgradeContractAddressMock.mockReturnValueOnce(
+        CONTRACT_ADDRESS_MOCK,
+      );
+
+      request.request.disableUpgrade = true;
+
+      await addTransactionBatch(request);
+
+      expect(addTransactionMock).toHaveBeenCalledTimes(1);
+      expect(addTransactionMock).toHaveBeenCalledWith(
+        {
+          from: FROM_MOCK,
+          to: TO_MOCK,
+          data: DATA_MOCK,
+          value: VALUE_MOCK,
+        },
+        expect.objectContaining({
+          networkClientId: NETWORK_CLIENT_ID_MOCK,
+          requireApproval: true,
+        }),
+      );
+    });
+
     it('passes nested transactions to add transaction', async () => {
       isAccountUpgradedToEIP7702Mock.mockResolvedValueOnce({
         delegationAddress: undefined,
@@ -709,6 +750,50 @@ describe('Batch Utils', () => {
       );
     });
 
+    it('includes gas fee properties from first nested transaction in batch transaction', async () => {
+      isAccountUpgradedToEIP7702Mock.mockResolvedValueOnce({
+        delegationAddress: undefined,
+        isSupported: true,
+      });
+
+      addTransactionMock.mockResolvedValueOnce({
+        transactionMeta: TRANSACTION_META_MOCK,
+        result: Promise.resolve(''),
+      });
+
+      generateEIP7702BatchTransactionMock.mockReturnValueOnce(
+        TRANSACTION_BATCH_PARAMS_MOCK,
+      );
+
+      request.request.transactions = [
+        {
+          params: {
+            ...TRANSACTION_BATCH_PARAMS_MOCK,
+            maxFeePerGas: MAX_FEE_PER_GAS_MOCK,
+            maxPriorityFeePerGas: MAX_PRIORITY_FEE_PER_GAS_MOCK,
+          },
+        },
+        {
+          params: {
+            ...TRANSACTION_BATCH_PARAMS_MOCK,
+            maxFeePerGas: '0x999',
+            maxPriorityFeePerGas: '0x888',
+          },
+        },
+      ];
+
+      await addTransactionBatch(request);
+
+      expect(addTransactionMock).toHaveBeenCalledTimes(1);
+      expect(addTransactionMock).toHaveBeenCalledWith(
+        expect.objectContaining({
+          maxFeePerGas: MAX_FEE_PER_GAS_MOCK,
+          maxPriorityFeePerGas: MAX_PRIORITY_FEE_PER_GAS_MOCK,
+        }),
+        expect.anything(),
+      );
+    });
+
     it('throws if chain not supported', async () => {
       doesChainSupportEIP7702Mock.mockReturnValue(false);
 
@@ -731,6 +816,66 @@ describe('Batch Utils', () => {
 
       await expect(addTransactionBatch(request)).rejects.toThrow(
         rpcErrors.internal('Account upgraded to unsupported contract'),
+      );
+    });
+
+    it('overwrites upgrade if account upgraded to unsupported contract and overwriteUpgrade is true', async () => {
+      isAccountUpgradedToEIP7702Mock.mockResolvedValueOnce({
+        delegationAddress: CONTRACT_ADDRESS_MOCK,
+        isSupported: false,
+      });
+
+      addTransactionMock.mockResolvedValueOnce({
+        transactionMeta: TRANSACTION_META_MOCK,
+        result: Promise.resolve(''),
+      });
+
+      generateEIP7702BatchTransactionMock.mockReturnValueOnce(
+        TRANSACTION_BATCH_PARAMS_MOCK,
+      );
+
+      getEIP7702UpgradeContractAddressMock.mockReturnValueOnce(
+        CONTRACT_ADDRESS_MOCK,
+      );
+
+      request.request.overwriteUpgrade = true;
+
+      await addTransactionBatch(request);
+
+      expect(addTransactionMock).toHaveBeenCalledTimes(1);
+      expect(addTransactionMock).toHaveBeenCalledWith(
+        expect.objectContaining({
+          authorizationList: [{ address: CONTRACT_ADDRESS_MOCK }],
+        }),
+        expect.anything(),
+      );
+    });
+
+    it('does not overwrite upgrade if account upgraded and supported', async () => {
+      isAccountUpgradedToEIP7702Mock.mockResolvedValueOnce({
+        delegationAddress: CONTRACT_ADDRESS_MOCK,
+        isSupported: true,
+      });
+
+      addTransactionMock.mockResolvedValueOnce({
+        transactionMeta: TRANSACTION_META_MOCK,
+        result: Promise.resolve(''),
+      });
+
+      generateEIP7702BatchTransactionMock.mockReturnValueOnce(
+        TRANSACTION_BATCH_PARAMS_MOCK,
+      );
+
+      request.request.overwriteUpgrade = true;
+
+      await addTransactionBatch(request);
+
+      expect(addTransactionMock).toHaveBeenCalledTimes(1);
+      expect(addTransactionMock).toHaveBeenCalledWith(
+        expect.not.objectContaining({
+          authorizationList: expect.anything(),
+        }),
+        expect.anything(),
       );
     });
 

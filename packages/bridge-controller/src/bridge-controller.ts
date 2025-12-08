@@ -1,4 +1,4 @@
-import type { BigNumber } from '@ethersproject/bignumber';
+import { BigNumber } from '@ethersproject/bignumber';
 import { Contract } from '@ethersproject/contracts';
 import { Web3Provider } from '@ethersproject/providers';
 import type { StateMetadata } from '@metamask/base-controller';
@@ -14,27 +14,30 @@ import {
   BRIDGE_CONTROLLER_NAME,
   BRIDGE_PROD_API_BASE_URL,
   DEFAULT_BRIDGE_CONTROLLER_STATE,
-  METABRIDGE_CHAIN_TO_ADDRESS_MAP,
+  METABRIDGE_ETHEREUM_ADDRESS,
   REFRESH_INTERVAL_MS,
 } from './constants/bridge';
+import { CHAIN_IDS } from './constants/chains';
+import { SWAPS_CONTRACT_ADDRESSES } from './constants/swaps';
 import { TraceName } from './constants/traces';
 import { selectIsAssetExchangeRateInState } from './selectors';
-import type { QuoteRequest } from './types';
-import {
-  type L1GasFees,
-  type GenericQuoteRequest,
-  type NonEvmFees,
-  type QuoteResponse,
-  type BridgeControllerState,
-  type BridgeControllerMessenger,
-  type FetchFunction,
-  RequestStatus,
+import { RequestStatus } from './types';
+import type {
+  L1GasFees,
+  GenericQuoteRequest,
+  NonEvmFees,
+  QuoteRequest,
+  QuoteResponse,
+  BridgeControllerState,
+  BridgeControllerMessenger,
+  FetchFunction,
 } from './types';
 import { getAssetIdsForToken, toExchangeRates } from './utils/assets';
 import { hasSufficientBalance } from './utils/balance';
 import {
   getDefaultBridgeControllerState,
   isCrossChain,
+  isEthUsdt,
   isNonEvmChainId,
   isSolanaChainId,
 } from './utils/bridge';
@@ -71,7 +74,7 @@ import type {
   RequestMetadata,
   RequiredEventContextFromClient,
 } from './utils/metrics/types';
-import { type CrossChainSwapsEventProperties } from './utils/metrics/types';
+import type { CrossChainSwapsEventProperties } from './utils/metrics/types';
 import { isValidQuoteRequest, sortQuotes } from './utils/quote';
 import { appendFeesToQuotes } from './utils/quote-fees';
 import { getMinimumBalanceForRentExemptionInLamports } from './utils/snaps';
@@ -248,10 +251,6 @@ export class BridgeController extends StaticIntervalPollingController<BridgePoll
       this.resetState.bind(this),
     );
     this.messenger.registerActionHandler(
-      `${BRIDGE_CONTROLLER_NAME}:getBridgeERC20Allowance`,
-      this.getBridgeERC20Allowance.bind(this),
-    );
-    this.messenger.registerActionHandler(
       `${BRIDGE_CONTROLLER_NAME}:trackUnifiedSwapBridgeEvent`,
       this.trackUnifiedSwapBridgeEvent.bind(this),
     );
@@ -299,6 +298,7 @@ export class BridgeController extends StaticIntervalPollingController<BridgePoll
           )?.configuration;
 
       let insufficientBal: boolean | undefined;
+      let resetApproval: boolean = Boolean(paramsToUpdate.resetApproval);
       if (isSrcChainNonEVM) {
         // If the source chain is not an EVM network, use value from params
         insufficientBal = paramsToUpdate.insufficientBal;
@@ -307,15 +307,15 @@ export class BridgeController extends StaticIntervalPollingController<BridgePoll
         // The bridge-api filters out quotes if the balance on mainnet is insufficient so this override allows quotes to always be returned
         insufficientBal = true;
       } else {
-        try {
-          // Otherwise query the src token balance from the RPC provider
-          insufficientBal =
-            paramsToUpdate.insufficientBal ??
-            !(await this.#hasSufficientBalance(updatedQuoteRequest));
-        } catch (error) {
-          console.warn('Failed to fetch balance', error);
-          insufficientBal = true;
-        }
+        // Set loading status if RPC calls are made before the quotes are fetched
+        this.update((state) => {
+          state.quotesLoadingStatus = RequestStatus.LOADING;
+        });
+        resetApproval = await this.#shouldResetApproval(updatedQuoteRequest);
+        // Otherwise query the src token balance from the RPC provider
+        insufficientBal =
+          paramsToUpdate.insufficientBal ??
+          (await this.#hasInsufficientBalance(updatedQuoteRequest));
       }
 
       // Set refresh rate based on the source chain before starting polling
@@ -324,6 +324,7 @@ export class BridgeController extends StaticIntervalPollingController<BridgePoll
         updatedQuoteRequest: {
           ...updatedQuoteRequest,
           insufficientBal,
+          resetApproval,
         },
         context,
       });
@@ -349,12 +350,13 @@ export class BridgeController extends StaticIntervalPollingController<BridgePoll
     const quoteRequestOverrides = featureId
       ? bridgeFeatureFlags.quoteRequestOverrides?.[featureId]
       : undefined;
+    const resetApproval = await this.#shouldResetApproval(quoteRequest);
 
     // If quoteRequestOverrides is specified, merge it with the quoteRequest
     const { quotes: baseQuotes, validationFailures } = await fetchBridgeQuotes(
       quoteRequestOverrides
-        ? { ...quoteRequest, ...quoteRequestOverrides }
-        : quoteRequest,
+        ? { ...quoteRequest, ...quoteRequestOverrides, resetApproval }
+        : { ...quoteRequest, resetApproval },
       abortSignal,
       this.#clientId,
       this.#fetchFn,
@@ -468,32 +470,76 @@ export class BridgeController extends StaticIntervalPollingController<BridgePoll
     });
   };
 
-  readonly #hasSufficientBalance = async (
+  readonly #hasInsufficientBalance = async (
     quoteRequest: GenericQuoteRequest,
   ) => {
-    const srcChainIdInHex = formatChainIdToHex(quoteRequest.srcChainId);
-    const provider = this.#getNetworkClientByChainId(srcChainIdInHex)?.provider;
-    const normalizedSrcTokenAddress = formatAddressToCaipReference(
-      quoteRequest.srcTokenAddress,
-    );
+    try {
+      const srcChainIdInHex = formatChainIdToHex(quoteRequest.srcChainId);
+      const provider =
+        this.#getNetworkClientByChainId(srcChainIdInHex)?.provider;
+      const normalizedSrcTokenAddress = formatAddressToCaipReference(
+        quoteRequest.srcTokenAddress,
+      );
 
-    return (
-      provider &&
-      normalizedSrcTokenAddress &&
-      quoteRequest.srcTokenAmount &&
-      srcChainIdInHex &&
-      (await hasSufficientBalance(
-        provider,
-        quoteRequest.walletAddress,
-        normalizedSrcTokenAddress,
-        quoteRequest.srcTokenAmount,
-        srcChainIdInHex,
-      ))
-    );
+      return !(
+        provider &&
+        normalizedSrcTokenAddress &&
+        quoteRequest.srcTokenAmount &&
+        srcChainIdInHex &&
+        (await hasSufficientBalance(
+          provider,
+          quoteRequest.walletAddress,
+          normalizedSrcTokenAddress,
+          quoteRequest.srcTokenAmount,
+          srcChainIdInHex,
+        ))
+      );
+    } catch (error) {
+      console.warn('Failed to set insufficientBal', error);
+      // Fall back to true so the backend returns quotes
+      return true;
+    }
   };
 
-  stopPollingForQuotes = (reason?: AbortReason) => {
+  readonly #shouldResetApproval = async (quoteRequest: GenericQuoteRequest) => {
+    if (isNonEvmChainId(quoteRequest.srcChainId)) {
+      return false;
+    }
+    try {
+      const normalizedSrcTokenAddress = formatAddressToCaipReference(
+        quoteRequest.srcTokenAddress,
+      );
+      if (isEthUsdt(quoteRequest.srcChainId, normalizedSrcTokenAddress)) {
+        const allowance = BigNumber.from(
+          await this.#getUSDTMainnetAllowance(
+            quoteRequest.walletAddress,
+            normalizedSrcTokenAddress,
+            quoteRequest.destChainId,
+          ),
+        );
+        return allowance.lt(quoteRequest.srcTokenAmount) && allowance.gt(0);
+      }
+      return false;
+    } catch (error) {
+      console.warn('Failed to set resetApproval', error);
+      // Fall back to true so the backend returns quotes
+      return true;
+    }
+  };
+
+  stopPollingForQuotes = (
+    reason?: AbortReason,
+    context?: RequiredEventContextFromClient[UnifiedSwapBridgeEventName.QuotesReceived],
+  ) => {
     this.stopAllPolling();
+    // If polling is stopped before quotes finish loading, track QuotesReceived
+    if (this.state.quotesLoadingStatus === RequestStatus.LOADING && context) {
+      this.trackUnifiedSwapBridgeEvent(
+        UnifiedSwapBridgeEventName.QuotesReceived,
+        context,
+      );
+    }
+    // Clears quotes list in state
     this.#abortController?.abort(reason);
   };
 
@@ -580,7 +626,7 @@ export class BridgeController extends StaticIntervalPollingController<BridgePoll
           // eslint-disable-next-line @typescript-eslint/no-floating-promises
           this.#setMinimumBalanceForRentExemptionInLamports(
             updatedQuoteRequest.srcChainId,
-            selectedAccount.metadata?.snap?.id,
+            selectedAccount?.metadata?.snap?.id,
           );
           // Use SSE if enabled and return early
           if (shouldStream) {
@@ -623,6 +669,7 @@ export class BridgeController extends StaticIntervalPollingController<BridgePoll
           AbortReason.ResetState,
           AbortReason.NewQuoteRequest,
           AbortReason.QuoteRequestUpdated,
+          AbortReason.TransactionSubmitted,
         ].includes(error as AbortReason)
       ) {
         // Exit the function early to prevent other state updates
@@ -671,13 +718,18 @@ export class BridgeController extends StaticIntervalPollingController<BridgePoll
 
   readonly #handleQuoteStreaming = async (
     updatedQuoteRequest: GenericQuoteRequest,
-    selectedAccount: InternalAccount,
+    selectedAccount?: InternalAccount,
   ) => {
     /**
      * Tracks the number of valid quotes received from the current stream, which is used
      * to determine when to clear the quotes list and set the initial load time
      */
     let validQuotesCounter = 0;
+    /**
+     * Tracks all pending promises from appendFeesToQuotes calls to ensure they complete
+     * before setting quotesLoadingStatus to FETCHED
+     */
+    const pendingFeeAppendPromises = new Set<Promise<void>>();
 
     await fetchBridgeQuoteStream(
       this.#fetchFn,
@@ -688,33 +740,51 @@ export class BridgeController extends StaticIntervalPollingController<BridgePoll
       {
         onValidationFailure: this.#trackResponseValidationFailures,
         onValidQuoteReceived: async (quote: QuoteResponse) => {
-          const quotesWithFees = await appendFeesToQuotes(
-            [quote],
-            this.messenger,
-            this.#getLayer1GasFee,
-            selectedAccount,
-          );
-          if (quotesWithFees.length > 0) {
-            validQuotesCounter += 1;
-          }
-          this.update((state) => {
-            // Clear previous quotes and quotes load time when first quote in the current
-            // polling loop is received
-            // This enables clients to continue showing the previous quotes while new
-            // quotes are loading
-            // Note: If there are no valid quotes until the 2nd fetch, quotesInitialLoadTime will be > refreshRate
-            if (validQuotesCounter === 1) {
-              state.quotes = DEFAULT_BRIDGE_CONTROLLER_STATE.quotes;
-              if (!state.quotesInitialLoadTime && this.#quotesFirstFetched) {
-                // Set the initial load time after the first quote is received
-                state.quotesInitialLoadTime =
-                  Date.now() - this.#quotesFirstFetched;
-              }
+          const feeAppendPromise = (async () => {
+            const quotesWithFees = await appendFeesToQuotes(
+              [quote],
+              this.messenger,
+              this.#getLayer1GasFee,
+              selectedAccount,
+            );
+            if (quotesWithFees.length > 0) {
+              validQuotesCounter += 1;
             }
-            state.quotes = [...state.quotes, ...quotesWithFees];
-          });
+            this.update((state) => {
+              // Clear previous quotes and quotes load time when first quote in the current
+              // polling loop is received
+              // This enables clients to continue showing the previous quotes while new
+              // quotes are loading
+              // Note: If there are no valid quotes until the 2nd fetch, quotesInitialLoadTime will be > refreshRate
+              if (validQuotesCounter === 1) {
+                state.quotes = DEFAULT_BRIDGE_CONTROLLER_STATE.quotes;
+                if (!state.quotesInitialLoadTime && this.#quotesFirstFetched) {
+                  // Set the initial load time after the first quote is received
+                  state.quotesInitialLoadTime =
+                    Date.now() - this.#quotesFirstFetched;
+                }
+              }
+              state.quotes = [...state.quotes, ...quotesWithFees];
+            });
+          })();
+          pendingFeeAppendPromises.add(feeAppendPromise);
+          feeAppendPromise
+            .catch((error) => {
+              // Catch errors to prevent them from breaking stream processing
+              // If appendFeesToQuotes throws, the state update never happens, so no invalid entry is added
+              console.error('Error appending fees to quote', error);
+            })
+            .finally(() => {
+              pendingFeeAppendPromises.delete(feeAppendPromise);
+            });
+          // Await the promise to ensure errors are caught and handled before continuing
+          // The promise is also tracked in pendingFeeAppendPromises for onClose to wait for
+          await feeAppendPromise;
         },
-        onClose: () => {
+        onClose: async () => {
+          // Wait for all pending appendFeesToQuotes operations to complete
+          // before setting quotesLoadingStatus to FETCHED
+          await Promise.allSettled(Array.from(pendingFeeAppendPromises));
           this.update((state) => {
             // If there are no valid quotes in the current stream, clear the quotes list
             // to remove quotes from the previous stream
@@ -755,9 +825,6 @@ export class BridgeController extends StaticIntervalPollingController<BridgePoll
       'AccountsController:getAccountByAddress',
       addressToUse,
     );
-    if (!selectedAccount) {
-      throw new Error('Account not found');
-    }
     return selectedAccount;
   }
 
@@ -945,7 +1012,7 @@ export class BridgeController extends StaticIntervalPollingController<BridgePoll
       this.#trackMetaMetricsFn(eventName, combinedPropertiesForEvent);
     } catch (error) {
       console.error(
-        'Error tracking cross-chain swaps MetaMetrics event',
+        `Error tracking cross-chain swaps MetaMetrics event ${eventName}`,
         error,
       );
     }
@@ -953,15 +1020,17 @@ export class BridgeController extends StaticIntervalPollingController<BridgePoll
 
   /**
    *
-   * @param contractAddress - The address of the ERC20 token contract
-   * @param chainId - The hex chain ID of the bridge network
+   * @param walletAddress - The address of the account to get the allowance for
+   * @param contractAddress - The address of the ERC20 token contract on mainnet
+   * @param destinationChainId - The chain ID of the destination network
    * @returns The atomic allowance of the ERC20 token contract
    */
-  getBridgeERC20Allowance = async (
+  readonly #getUSDTMainnetAllowance = async (
+    walletAddress: string,
     contractAddress: string,
-    chainId: Hex,
+    destinationChainId: GenericQuoteRequest['destChainId'],
   ): Promise<string> => {
-    const networkClient = this.#getNetworkClientByChainId(chainId);
+    const networkClient = this.#getNetworkClientByChainId(CHAIN_IDS.MAINNET);
     const provider = networkClient?.provider;
     if (!provider) {
       throw new Error('No provider found');
@@ -969,9 +1038,12 @@ export class BridgeController extends StaticIntervalPollingController<BridgePoll
 
     const ethersProvider = new Web3Provider(provider);
     const contract = new Contract(contractAddress, abiERC20, ethersProvider);
+    const spenderAddress = isCrossChain(CHAIN_IDS.MAINNET, destinationChainId)
+      ? METABRIDGE_ETHEREUM_ADDRESS
+      : SWAPS_CONTRACT_ADDRESSES[CHAIN_IDS.MAINNET];
     const allowance: BigNumber = await contract.allowance(
-      this.state.quoteRequest.walletAddress,
-      METABRIDGE_CHAIN_TO_ADDRESS_MAP[chainId],
+      walletAddress,
+      spenderAddress,
     );
     return allowance.toString();
   };

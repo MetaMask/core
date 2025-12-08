@@ -2,25 +2,26 @@
 import { deriveStateFromMetadata } from '@metamask/base-controller';
 import type {
   BridgeControllerMessenger,
+  QuoteResponse,
+  QuoteMetadata,
   TxData,
   TronTradeData,
 } from '@metamask/bridge-controller';
 import {
-  type QuoteResponse,
-  type QuoteMetadata,
+  ActionTypes,
+  ChainId,
+  FeeType,
   StatusTypes,
   BridgeController,
   getNativeAssetForChainId,
   FeatureId,
+  getQuotesReceivedProperties,
 } from '@metamask/bridge-controller';
-import { ChainId } from '@metamask/bridge-controller';
-import { ActionTypes, FeeType } from '@metamask/bridge-controller';
-import {
-  Messenger,
-  MOCK_ANY_NAMESPACE,
-  type MessengerActions,
-  type MessengerEvents,
-  type MockAnyNamespace,
+import { Messenger, MOCK_ANY_NAMESPACE } from '@metamask/messenger';
+import type {
+  MessengerActions,
+  MessengerEvents,
+  MockAnyNamespace,
 } from '@metamask/messenger';
 import {
   TransactionType,
@@ -39,14 +40,14 @@ import {
   DEFAULT_BRIDGE_STATUS_CONTROLLER_STATE,
   MAX_ATTEMPTS,
 } from './constants';
-import type { StatusResponse } from './types';
-import {
-  type BridgeId,
-  type StartPollingForBridgeTxStatusArgsSerialized,
-  type BridgeHistoryItem,
-  type BridgeStatusControllerState,
-  type BridgeStatusControllerMessenger,
-  BridgeClientId,
+import { BridgeClientId } from './types';
+import type {
+  BridgeId,
+  StartPollingForBridgeTxStatusArgsSerialized,
+  BridgeHistoryItem,
+  BridgeStatusControllerState,
+  BridgeStatusControllerMessenger,
+  StatusResponse,
 } from './types';
 import * as bridgeStatusUtils from './utils/bridge-status';
 import * as transactionUtils from './utils/transaction';
@@ -2565,7 +2566,7 @@ describe('BridgeStatusController', () => {
       expect(mockMessengerCall.mock.calls).toMatchSnapshot();
     });
 
-    it('should handle smart transactions', async () => {
+    it('should handle smart transactions and include quotesReceivedContext', async () => {
       setupEventTrackingMocks(mockMessengerCall);
       setupBridgeStxMocks(mockMessengerCall);
       addTransactionBatchFn.mockResolvedValueOnce({
@@ -2579,6 +2580,7 @@ describe('BridgeStatusController', () => {
         (quoteWithoutApproval.trade as TxData).from,
         quoteWithoutApproval,
         true,
+        getQuotesReceivedProperties(quoteWithoutApproval, ['low_return'], true),
       );
       controller.stopAllPolling();
 
@@ -2614,12 +2616,66 @@ describe('BridgeStatusController', () => {
       expect(addTransactionFn).not.toHaveBeenCalled();
     });
 
+    it('should throw an error if EVM trade data is not valid', async () => {
+      setupEventTrackingMocks(mockMessengerCall);
+      mockMessengerCall.mockReturnValueOnce(undefined);
+
+      const { controller, startPollingForBridgeTxStatusSpy } =
+        getController(mockMessengerCall);
+      const { approval, ...quoteWithoutApproval } = mockEvmQuoteResponse;
+
+      await expect(
+        controller.submitTx(
+          (quoteWithoutApproval.trade as TxData).from,
+          {
+            ...quoteWithoutApproval,
+            trade: (quoteWithoutApproval.trade as TxData).data,
+          },
+          false,
+        ),
+      ).rejects.toThrow(
+        'Failed to submit cross-chain swap transaction: trade is not an EVM transaction',
+      );
+      controller.stopAllPolling();
+
+      expect(startPollingForBridgeTxStatusSpy).toHaveBeenCalledTimes(0);
+      expect(addTransactionFn).not.toHaveBeenCalled();
+    });
+
+    it('should throw an error if Solana trade data is not valid', async () => {
+      setupEventTrackingMocks(mockMessengerCall);
+      mockMessengerCall.mockReturnValueOnce(undefined);
+
+      const { controller, startPollingForBridgeTxStatusSpy } =
+        getController(mockMessengerCall);
+      const { approval, ...quoteWithoutApproval } = mockEvmQuoteResponse;
+
+      await expect(
+        controller.submitTx(
+          (quoteWithoutApproval.trade as TxData).from,
+          {
+            ...quoteWithoutApproval,
+            quote: {
+              ...quoteWithoutApproval.quote,
+              srcChainId: ChainId.SOLANA,
+            },
+          },
+          false,
+        ),
+      ).rejects.toThrow(
+        'Failed to submit cross-chain swap transaction: trade is not a non-EVM transaction',
+      );
+      controller.stopAllPolling();
+
+      expect(startPollingForBridgeTxStatusSpy).toHaveBeenCalledTimes(0);
+      expect(addTransactionFn).not.toHaveBeenCalled();
+    });
+
     it('should reset USDT allowance', async () => {
       setupEventTrackingMocks(mockMessengerCall);
       mockIsEthUsdt.mockReturnValueOnce(true);
 
       // USDT approval reset
-      mockMessengerCall.mockReturnValueOnce('1');
       setupApprovalMocks(mockMessengerCall);
 
       // Approval tx
@@ -2632,7 +2688,17 @@ describe('BridgeStatusController', () => {
         getController(mockMessengerCall);
       const result = await controller.submitTx(
         (mockEvmQuoteResponse.trade as TxData).from,
-        mockEvmQuoteResponse,
+        {
+          ...mockEvmQuoteResponse,
+          resetApproval: {
+            chainId: 1,
+            data: '0x095ea7b3000000000000000000000000881d40237659c251811cec9c364ef91dc08d300c0000000000000000000000000000000000000000000000000000000000000000',
+            from: '0xaccount1',
+            gasLimit: 21000,
+            to: '0xtokenContract',
+            value: '0x0',
+          },
+        },
         false,
       );
       controller.stopAllPolling();
@@ -2647,10 +2713,6 @@ describe('BridgeStatusController', () => {
 
     it('should handle smart transactions with USDT reset', async () => {
       setupEventTrackingMocks(mockMessengerCall);
-      // USDT approval reset
-      mockIsEthUsdt.mockReturnValueOnce(true);
-      mockMessengerCall.mockReturnValueOnce('1');
-
       mockMessengerCall.mockReturnValueOnce(mockSelectedAccount);
       mockMessengerCall.mockReturnValueOnce('arbitrum');
       mockMessengerCall.mockReturnValueOnce({
@@ -2677,7 +2739,17 @@ describe('BridgeStatusController', () => {
         getController(mockMessengerCall);
       const result = await controller.submitTx(
         (mockEvmQuoteResponse.trade as TxData).from,
-        mockEvmQuoteResponse,
+        {
+          ...mockEvmQuoteResponse,
+          resetApproval: {
+            chainId: 1,
+            data: '0x095ea7b3000000000000000000000000881d40237659c251811cec9c364ef91dc08d300c0000000000000000000000000000000000000000000000000000000000000000',
+            from: '0xaccount1',
+            gasLimit: 21000,
+            to: '0xtokenContract',
+            value: '0x0',
+          },
+        },
         true,
       );
       controller.stopAllPolling();
@@ -2691,7 +2763,7 @@ describe('BridgeStatusController', () => {
       expect(estimateGasFeeFn).toHaveBeenCalledTimes(3);
       expect(addTransactionFn).not.toHaveBeenCalled();
       expect(addTransactionBatchFn).toHaveBeenCalledTimes(1);
-      expect(mockMessengerCall).toHaveBeenCalledTimes(10);
+      expect(mockMessengerCall).toHaveBeenCalledTimes(9);
     });
 
     it('should throw an error if approval tx fails', async () => {
@@ -3251,6 +3323,136 @@ describe('BridgeStatusController', () => {
       expect(estimateGasFeeFn).toHaveBeenCalledTimes(1);
       expect(addTransactionFn).toHaveBeenCalledTimes(1);
       expect(mockMessengerCall.mock.calls).toMatchSnapshot();
+    });
+
+    it('should use quote txFee when gasIncluded is true and STX is off (Max native token swap)', async () => {
+      setupEventTrackingMocks(mockMessengerCall);
+      // Setup for single tx path - no gas estimation needed since gasIncluded=true
+      mockMessengerCall.mockReturnValueOnce(mockSelectedAccount);
+      mockMessengerCall.mockReturnValueOnce('arbitrum');
+      // Skip GasFeeController mock since we use quote's txFee directly
+      addTransactionFn.mockResolvedValueOnce({
+        transactionMeta: mockEvmTxMeta,
+        result: Promise.resolve('0xevmTxHash'),
+      });
+      mockMessengerCall.mockReturnValueOnce({
+        transactions: [mockEvmTxMeta],
+      });
+      mockMessengerCall.mockReturnValueOnce(mockSelectedAccount);
+
+      const { controller, startPollingForBridgeTxStatusSpy } =
+        getController(mockMessengerCall);
+
+      const { approval, ...quoteWithoutApproval } = mockEvmQuoteResponse;
+      const result = await controller.submitTx(
+        (mockEvmQuoteResponse.trade as TxData).from,
+        {
+          ...quoteWithoutApproval,
+          quote: {
+            ...quoteWithoutApproval.quote,
+            gasIncluded: true,
+            gasIncluded7702: false,
+            feeData: {
+              ...quoteWithoutApproval.quote.feeData,
+              txFee: {
+                maxFeePerGas: '1395348', // Decimal string from quote
+                maxPriorityFeePerGas: '1000001',
+              },
+            },
+          },
+        } as never,
+        false, // isStxEnabledOnClient = FALSE (key for this test)
+      );
+      controller.stopAllPolling();
+
+      // Should use single tx path (addTransactionFn), NOT batch path
+      expect(addTransactionFn).toHaveBeenCalledTimes(1);
+      expect(addTransactionBatchFn).not.toHaveBeenCalled();
+
+      // Should NOT estimate gas (uses quote's txFee instead)
+      expect(estimateGasFeeFn).not.toHaveBeenCalled();
+
+      // Verify the tx params have hex-converted gas fees from quote
+      const txParams = addTransactionFn.mock.calls[0][0];
+      expect(txParams.maxFeePerGas).toBe('0x154a94'); // toHex(1395348)
+      expect(txParams.maxPriorityFeePerGas).toBe('0xf4241'); // toHex(1000001)
+
+      expect(result).toMatchSnapshot();
+      expect(startPollingForBridgeTxStatusSpy).toHaveBeenCalledTimes(0);
+      expect(controller.state.txHistory[result.id]).toMatchSnapshot();
+    });
+
+    it('should estimate gas when gasIncluded is false and STX is off', async () => {
+      setupEventTrackingMocks(mockMessengerCall);
+      setupBridgeMocks();
+
+      const { controller, startPollingForBridgeTxStatusSpy } =
+        getController(mockMessengerCall);
+
+      const { approval, ...quoteWithoutApproval } = mockEvmQuoteResponse;
+      const result = await controller.submitTx(
+        (mockEvmQuoteResponse.trade as TxData).from,
+        {
+          ...quoteWithoutApproval,
+          quote: {
+            ...quoteWithoutApproval.quote,
+            gasIncluded: false,
+            gasIncluded7702: false,
+          },
+        },
+        false, // STX off
+      );
+      controller.stopAllPolling();
+
+      // Should estimate gas since gasIncluded is false
+      expect(estimateGasFeeFn).toHaveBeenCalledTimes(1);
+      expect(addTransactionFn).toHaveBeenCalledTimes(1);
+      expect(addTransactionBatchFn).not.toHaveBeenCalled();
+      expect(startPollingForBridgeTxStatusSpy).toHaveBeenCalledTimes(0);
+      expect(result).toMatchSnapshot();
+    });
+
+    it('should use batch path when gasIncluded7702 is true regardless of STX setting', async () => {
+      setupEventTrackingMocks(mockMessengerCall);
+      mockMessengerCall.mockReturnValueOnce(mockSelectedAccount);
+      mockMessengerCall.mockReturnValueOnce('arbitrum');
+      addTransactionBatchFn.mockResolvedValueOnce({
+        batchId: 'batchId1',
+      });
+      mockMessengerCall.mockReturnValueOnce({
+        transactions: [{ ...mockEvmTxMeta, batchId: 'batchId1' }],
+      });
+
+      const { controller, startPollingForBridgeTxStatusSpy } =
+        getController(mockMessengerCall);
+
+      const { approval, ...quoteWithoutApproval } = mockEvmQuoteResponse;
+      const result = await controller.submitTx(
+        (mockEvmQuoteResponse.trade as TxData).from,
+        {
+          ...quoteWithoutApproval,
+          quote: {
+            ...quoteWithoutApproval.quote,
+            gasIncluded: true,
+            gasIncluded7702: true, // 7702 takes precedence → batch path
+            feeData: {
+              ...quoteWithoutApproval.quote.feeData,
+              txFee: {
+                maxFeePerGas: '1395348',
+                maxPriorityFeePerGas: '1000001',
+              },
+            },
+          },
+        } as never,
+        false, // STX off, but gasIncluded7702 = true forces batch path
+      );
+      controller.stopAllPolling();
+
+      // Should use batch path because gasIncluded7702 = true
+      expect(addTransactionBatchFn).toHaveBeenCalledTimes(1);
+      expect(addTransactionFn).not.toHaveBeenCalled();
+      expect(startPollingForBridgeTxStatusSpy).toHaveBeenCalledTimes(0);
+      expect(result).toMatchSnapshot();
     });
 
     it('should handle smart transactions', async () => {

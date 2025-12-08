@@ -11,16 +11,18 @@ import {
   encryptWithDetail,
   decryptWithKey as decryptWithKeyBrowserPassworder,
   importKey as importKeyBrowserPassworder,
+  exportKey as exportKeyBrowserPassworder,
+  generateSalt as generateSaltBrowserPassworder,
+  keyFromPassword as keyFromPasswordBrowserPassworder,
 } from '@metamask/browser-passworder';
-import {
-  TOPRFError,
-  type FetchAuthPubKeyResult,
-  type SEC1EncodedPublicKey,
-  type ChangeEncryptionKeyResult,
-  type KeyPair,
-  type RecoverEncryptionKeyResult,
-  type ToprfSecureBackup,
-  TOPRFErrorCode,
+import { TOPRFError, TOPRFErrorCode } from '@metamask/toprf-secure-backup';
+import type {
+  FetchAuthPubKeyResult,
+  SEC1EncodedPublicKey,
+  ChangeEncryptionKeyResult,
+  KeyPair,
+  RecoverEncryptionKeyResult,
+  ToprfSecureBackup,
 } from '@metamask/toprf-secure-backup';
 import {
   base64ToBytes,
@@ -163,6 +165,9 @@ function getDefaultSeedlessOnboardingVaultEncryptor() {
       payload: unknown,
     ) => Promise<unknown>,
     importKey: importKeyBrowserPassworder,
+    exportKey: exportKeyBrowserPassworder,
+    generateSalt: generateSaltBrowserPassworder,
+    keyFromPassword: keyFromPasswordBrowserPassworder,
   };
 }
 
@@ -799,6 +804,33 @@ describe('SeedlessOnboardingController', () => {
       }).toThrow(
         SeedlessOnboardingControllerErrorMessage.InvalidPasswordOutdatedCache,
       );
+    });
+  });
+
+  describe('fetchNodeDetails', () => {
+    it('should be able to fetch the node details', async () => {
+      await withController(async ({ controller, toprfClient }) => {
+        const getNodeDetailsSpy = jest
+          .spyOn(toprfClient, 'getNodeDetails')
+          .mockResolvedValue({
+            // @ts-expect-error - test node details
+            nodeDetails: [],
+          });
+
+        await controller.preloadToprfNodeDetails();
+
+        expect(getNodeDetailsSpy).toHaveBeenCalled();
+      });
+    });
+
+    it('should not throw an error if the node details fetch fails', async () => {
+      await withController(async ({ controller, toprfClient }) => {
+        const getNodeDetailsSpy = jest
+          .spyOn(toprfClient, 'getNodeDetails')
+          .mockRejectedValueOnce(new Error('Failed to fetch node details'));
+        await controller.preloadToprfNodeDetails();
+        expect(getNodeDetailsSpy).toHaveBeenCalled();
+      });
     });
   });
 
@@ -2451,7 +2483,7 @@ describe('SeedlessOnboardingController', () => {
     });
 
     it('should throw an error if vault unlocked has invalid authentication data', async () => {
-      const mockVault = JSON.stringify({ foo: 'bar' });
+      const mockVault = JSON.stringify({ foo: 'bar', salt: 'baz' });
 
       await withController(
         {

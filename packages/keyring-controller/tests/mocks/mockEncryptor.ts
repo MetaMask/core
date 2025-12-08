@@ -1,5 +1,4 @@
 // Omitting jsdoc because mock is only internal and simple enough.
-/* eslint-disable jsdoc/require-jsdoc */
 
 import type {
   DetailedDecryptResult,
@@ -17,6 +16,7 @@ export const MOCK_ENCRYPTION_KEY = JSON.stringify({
   password: PASSWORD,
   salt: SALT,
 });
+export const MOCK_KEY = Buffer.alloc(32);
 
 export const DECRYPTION_ERROR = 'Decryption failed.';
 
@@ -100,8 +100,16 @@ export default class MockEncryptor implements Encryptor {
     return data.value;
   }
 
+  async keyFromPassword(_password: string, _salt: string) {
+    return JSON.parse(MOCK_ENCRYPTION_KEY);
+  }
+
   async importKey(key: string) {
     return JSON.parse(key);
+  }
+
+  async exportKey(key: unknown) {
+    return JSON.stringify(key);
   }
 
   async updateVault(_vault: string, _password: string) {

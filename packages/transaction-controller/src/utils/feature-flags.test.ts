@@ -1,9 +1,8 @@
-import {
-  MOCK_ANY_NAMESPACE,
-  Messenger,
-  type MockAnyNamespace,
-  type MessengerActions,
-  type MessengerEvents,
+import { MOCK_ANY_NAMESPACE, Messenger } from '@metamask/messenger';
+import type {
+  MockAnyNamespace,
+  MessengerActions,
+  MessengerEvents,
 } from '@metamask/messenger';
 import type { RemoteFeatureFlagControllerGetStateAction } from '@metamask/remote-feature-flag-controller';
 import type { Hex } from '@metamask/utils';
@@ -350,7 +349,7 @@ describe('Feature Flags Utils', () => {
       mockFeatureFlags({});
 
       const params = getAcceleratedPollingParams(
-        CHAIN_ID_MOCK as Hex,
+        CHAIN_ID_MOCK,
         controllerMessenger,
       );
 
@@ -375,7 +374,7 @@ describe('Feature Flags Utils', () => {
       });
 
       const params = getAcceleratedPollingParams(
-        CHAIN_ID_MOCK as Hex,
+        CHAIN_ID_MOCK,
         controllerMessenger,
       );
 
@@ -396,7 +395,7 @@ describe('Feature Flags Utils', () => {
       });
 
       const params = getAcceleratedPollingParams(
-        CHAIN_ID_MOCK as Hex,
+        CHAIN_ID_MOCK,
         controllerMessenger,
       );
 
@@ -423,7 +422,7 @@ describe('Feature Flags Utils', () => {
       });
 
       const params = getAcceleratedPollingParams(
-        CHAIN_ID_MOCK as Hex,
+        CHAIN_ID_MOCK,
         controllerMessenger,
       );
 
@@ -450,7 +449,7 @@ describe('Feature Flags Utils', () => {
       });
 
       const params = getAcceleratedPollingParams(
-        CHAIN_ID_MOCK as Hex,
+        CHAIN_ID_MOCK,
         controllerMessenger,
       );
 
@@ -477,7 +476,7 @@ describe('Feature Flags Utils', () => {
       });
 
       const params = getAcceleratedPollingParams(
-        CHAIN_ID_MOCK as Hex,
+        CHAIN_ID_MOCK,
         controllerMessenger,
       );
 

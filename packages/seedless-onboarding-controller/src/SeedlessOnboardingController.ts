@@ -1,5 +1,6 @@
 import { keccak256AndHexify } from '@metamask/auth-network-utils';
-import { BaseController, type StateMetadata } from '@metamask/base-controller';
+import { BaseController } from '@metamask/base-controller';
+import type { StateMetadata } from '@metamask/base-controller';
 import type * as encryptionUtils from '@metamask/browser-passworder';
 import type {
   KeyPair,
@@ -343,6 +344,18 @@ export class SeedlessOnboardingController<
     }
 
     return { metadataAccessToken };
+  }
+
+  /**
+   * Gets the node details for the TOPRF operations.
+   * This function can be called to get the node endpoints, indexes and pubkeys and cache them locally.
+   */
+  async preloadToprfNodeDetails() {
+    try {
+      await this.toprfClient.getNodeDetails();
+    } catch {
+      log('Failed to fetch node details');
+    }
   }
 
   /**
@@ -1983,9 +1996,7 @@ export class SeedlessOnboardingController<
   #isAuthTokenError(error: unknown): boolean {
     if (error instanceof TOPRFError) {
       return (
-        // eslint-disable-next-line @typescript-eslint/no-unsafe-enum-comparison
         error.code === TOPRFErrorCode.AuthTokenExpired ||
-        // eslint-disable-next-line @typescript-eslint/no-unsafe-enum-comparison
         error.code === TOPRFErrorCode.InvalidAuthToken
       );
     }
@@ -2142,7 +2153,7 @@ function assertIsValidPassword(password: unknown): asserts password is string {
     throw new Error(SeedlessOnboardingControllerErrorMessage.WrongPasswordType);
   }
 
-  if (!password || !password.length) {
+  if (!password?.length) {
     throw new Error(
       SeedlessOnboardingControllerErrorMessage.InvalidEmptyPassword,
     );

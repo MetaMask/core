@@ -4,10 +4,10 @@ import type {
   AcceptResultCallbacks,
   AddResult,
 } from '@metamask/approval-controller';
-import {
-  BaseController,
-  type ControllerGetStateAction,
-  type ControllerStateChangeEvent,
+import { BaseController } from '@metamask/base-controller';
+import type {
+  ControllerGetStateAction,
+  ControllerStateChangeEvent,
 } from '@metamask/base-controller';
 import type { TraceCallback, TraceContext } from '@metamask/controller-utils';
 import {
@@ -29,8 +29,8 @@ import {
   SigningMethod,
   LogType,
   SigningStage,
-  type AddLog,
 } from '@metamask/logging-controller';
+import type { AddLog } from '@metamask/logging-controller';
 import type { Messenger } from '@metamask/messenger';
 import type { NetworkControllerGetNetworkClientByIdAction } from '@metamask/network-controller';
 import type { Hex, Json } from '@metamask/utils';
@@ -414,7 +414,7 @@ export class SignatureController extends BaseController<
 
     const normalizedMessageParams = normalizeTypedMessageParams(
       messageParams,
-      version as SignTypedDataVersion,
+      version,
     );
 
     return this.#processSignatureRequest({

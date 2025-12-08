@@ -881,7 +881,7 @@ export class Messenger<
     }
     for (const actionType of actions || []) {
       const delegationTargets = this.#actionDelegationTargets.get(actionType);
-      if (!delegationTargets || !delegationTargets.has(messenger)) {
+      if (!delegationTargets?.has(messenger)) {
         // Nothing to revoke
         continue;
       }

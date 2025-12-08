@@ -1,11 +1,13 @@
 import { StructError } from '@metamask/superstruct';
 import type { CaipAssetType, CaipChainId, Hex } from '@metamask/utils';
 
+import { getEthUsdtResetData } from './bridge';
 import {
   formatAddressToCaipReference,
   formatChainIdToDec,
 } from './caip-formatters';
 import { fetchServerEvents } from './fetch-server-events';
+import { isEvmTxData } from './trade-utils';
 import type { FeatureId } from './validators';
 import { validateQuoteResponse, validateSwapsTokenObject } from './validators';
 import type {
@@ -156,6 +158,15 @@ export async function fetchBridgeQuotes(
     .map((quote) => ({
       ...quote,
       featureId: featureId ?? undefined,
+      // Append the reset approval data to the quote response if the request
+      // has resetApproval set to true and the quote has an approval
+      resetApproval:
+        request.resetApproval && quote.approval && isEvmTxData(quote.approval)
+          ? {
+              ...quote.approval,
+              data: getEthUsdtResetData(request.destChainId),
+            }
+          : undefined,
     }));
 
   const validationFailures = Array.from(uniqueValidationFailures);
@@ -197,22 +208,21 @@ const fetchAssetPricesForCurrency = async (request: {
     return {};
   }
 
-  return Object.entries(priceApiResponse).reduce(
-    (acc, [assetId, currencyToPrice]) => {
-      if (!currencyToPrice) {
-        return acc;
-      }
-      if (!acc[assetId as CaipAssetType]) {
-        acc[assetId as CaipAssetType] = {};
-      }
-      if (currencyToPrice[currency]) {
-        acc[assetId as CaipAssetType][currency] =
-          currencyToPrice[currency].toString();
-      }
+  return Object.entries(priceApiResponse).reduce<
+    Record<CaipAssetType, { [currency: string]: string }>
+  >((acc, [assetId, currencyToPrice]) => {
+    if (!currencyToPrice) {
       return acc;
-    },
-    {} as Record<CaipAssetType, { [currency: string]: string }>,
-  );
+    }
+    if (!acc[assetId as CaipAssetType]) {
+      acc[assetId as CaipAssetType] = {};
+    }
+    if (currencyToPrice[currency]) {
+      acc[assetId as CaipAssetType][currency] =
+        currencyToPrice[currency].toString();
+    }
+    return acc;
+  }, {});
 };
 
 /**
@@ -236,23 +246,22 @@ export const fetchAssetPrices = async (
         await fetchAssetPricesForCurrency({ ...args, currency }),
     ),
   ).then((priceApiResponse) => {
-    return priceApiResponse.reduce(
-      (acc, result) => {
-        if (result.status === 'fulfilled') {
-          Object.entries(result.value).forEach(([assetId, currencyToPrice]) => {
-            const existingPrices = acc[assetId as CaipAssetType];
-            if (!existingPrices) {
-              acc[assetId as CaipAssetType] = {};
-            }
-            Object.entries(currencyToPrice).forEach(([currency, price]) => {
-              acc[assetId as CaipAssetType][currency] = price;
-            });
+    return priceApiResponse.reduce<
+      Record<CaipAssetType, { [currency: string]: string }>
+    >((acc, result) => {
+      if (result.status === 'fulfilled') {
+        Object.entries(result.value).forEach(([assetId, currencyToPrice]) => {
+          const existingPrices = acc[assetId as CaipAssetType];
+          if (!existingPrices) {
+            acc[assetId as CaipAssetType] = {};
+          }
+          Object.entries(currencyToPrice).forEach(([currency, price]) => {
+            acc[assetId as CaipAssetType][currency] = price;
           });
-        }
-        return acc;
-      },
-      {} as Record<CaipAssetType, { [currency: string]: string }>,
-    );
+        });
+      }
+      return acc;
+    }, {});
   });
 
   return combinedPrices;
@@ -272,7 +281,7 @@ export const fetchAssetPrices = async (
  * @param serverEventHandlers.onValidQuoteReceived - The function to handle valid quotes
  * @param serverEventHandlers.onClose - The function to run when the stream is closed and there are no thrown errors
  * @param clientVersion - The client version for metrics (optional)
- * @returns A list of bridge tx quotes
+ * @returns A list of bridge tx quote promises
  */
 export async function fetchBridgeQuoteStream(
   fetchFn: FetchFunction,
@@ -281,7 +290,7 @@ export async function fetchBridgeQuoteStream(
   clientId: string,
   bridgeApiBaseUrl: string,
   serverEventHandlers: {
-    onClose: () => void;
+    onClose: () => void | Promise<void>;
     onValidationFailure: (validationFailures: string[]) => void;
     onValidQuoteReceived: (quotes: QuoteResponse) => Promise<void>;
   },
@@ -289,14 +298,23 @@ export async function fetchBridgeQuoteStream(
 ): Promise<void> {
   const queryParams = formatQueryParams(request);
 
-  const onMessage = (quoteResponse: unknown) => {
+  const onMessage = async (quoteResponse: unknown): Promise<void> => {
     const uniqueValidationFailures: Set<string> = new Set<string>([]);
 
     try {
       if (validateQuoteResponse(quoteResponse)) {
-        // eslint-disable-next-line promise/catch-or-return, @typescript-eslint/no-floating-promises
-        serverEventHandlers.onValidQuoteReceived(quoteResponse).then((v) => {
-          return v;
+        return await serverEventHandlers.onValidQuoteReceived({
+          ...quoteResponse,
+          // Append the reset approval data to the quote response if the request has resetApproval set to true and the quote has an approval
+          resetApproval:
+            request.resetApproval &&
+            quoteResponse.approval &&
+            isEvmTxData(quoteResponse.approval)
+              ? {
+                  ...quoteResponse.approval,
+                  data: getEthUsdtResetData(request.destChainId),
+                }
+              : undefined,
         });
       }
     } catch (error) {
@@ -315,12 +333,12 @@ export async function fetchBridgeQuoteStream(
       const validationFailures = Array.from(uniqueValidationFailures);
       if (uniqueValidationFailures.size > 0) {
         console.warn('Quote validation failed', validationFailures);
-        serverEventHandlers.onValidationFailure(validationFailures);
-      } else {
-        // Rethrow any unexpected errors
-        throw error;
+        return serverEventHandlers.onValidationFailure(validationFailures);
       }
+      // Rethrow any unexpected errors
+      throw error;
     }
+    return undefined;
   };
 
   const urlStream = `${bridgeApiBaseUrl}/getQuoteStream?${queryParams}`;
@@ -335,8 +353,8 @@ export async function fetchBridgeQuoteStream(
       // Rethrow error to prevent silent fetch failures
       throw e;
     },
-    onClose: () => {
-      serverEventHandlers.onClose();
+    onClose: async () => {
+      await serverEventHandlers.onClose();
     },
     fetchFn,
   });

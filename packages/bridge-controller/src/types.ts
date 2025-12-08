@@ -270,7 +270,15 @@ export type QuoteResponse<
 > = Infer<typeof QuoteResponseSchema> & {
   trade: TxDataType;
   approval?: ApprovalType;
+  /**
+   * Appended to the quote response based on the quote request
+   */
   featureId?: FeatureId;
+  /**
+   * Appended to the quote response based on the quote request resetApproval flag
+   * If defined, the quote's total network fee will include the reset approval's gas limit.
+   */
+  resetApproval?: TxData;
 };
 
 export enum ChainId {
@@ -286,6 +294,8 @@ export enum ChainId {
   SOLANA = 1151111081099710,
   BTC = 20000000000001,
   TRON = 728126428,
+  SEI = 1329,
+  MONAD = 143,
 }
 
 export type FeatureFlagsPlatformConfig = Infer<typeof PlatformConfigSchema>;
@@ -302,7 +312,6 @@ export enum BridgeUserAction {
 export enum BridgeBackgroundAction {
   SET_CHAIN_INTERVAL_LENGTH = 'setChainIntervalLength',
   RESET_STATE = 'resetState',
-  GET_BRIDGE_ERC20_ALLOWANCE = 'getBridgeERC20Allowance',
   TRACK_METAMETRICS_EVENT = 'trackUnifiedSwapBridgeEvent',
   STOP_POLLING_FOR_QUOTES = 'stopPollingForQuotes',
   FETCH_QUOTES = 'fetchQuotes',
@@ -369,7 +378,6 @@ export type BridgeControllerActions =
   | BridgeControllerGetStateAction
   | BridgeControllerAction<BridgeBackgroundAction.SET_CHAIN_INTERVAL_LENGTH>
   | BridgeControllerAction<BridgeBackgroundAction.RESET_STATE>
-  | BridgeControllerAction<BridgeBackgroundAction.GET_BRIDGE_ERC20_ALLOWANCE>
   | BridgeControllerAction<BridgeBackgroundAction.TRACK_METAMETRICS_EVENT>
   | BridgeControllerAction<BridgeBackgroundAction.STOP_POLLING_FOR_QUOTES>
   | BridgeControllerAction<BridgeBackgroundAction.FETCH_QUOTES>

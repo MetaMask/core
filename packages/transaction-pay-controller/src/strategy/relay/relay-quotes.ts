@@ -1,31 +1,35 @@
 import { Interface } from '@ethersproject/abi';
-import { successfulFetch } from '@metamask/controller-utils';
-import type { Json } from '@metamask/utils';
+import { successfulFetch, toHex } from '@metamask/controller-utils';
+import type { Hex, Json } from '@metamask/utils';
 import { createModuleLogger } from '@metamask/utils';
 import { BigNumber } from 'bignumber.js';
 
+import { CHAIN_ID_HYPERCORE, TOKEN_TRANSFER_FOUR_BYTE } from './constants';
+import type { RelayQuote, RelayQuoteRequest } from './types';
+import { TransactionPayStrategy } from '../..';
+import type { TransactionMeta } from '../../../../transaction-controller/src';
 import {
   ARBITRUM_USDC_ADDRESS,
   CHAIN_ID_ARBITRUM,
-  CHAIN_ID_HYPERCORE,
   CHAIN_ID_POLYGON,
-  RELAY_FALLBACK_GAS_LIMIT,
-  RELAY_URL_QUOTE,
-} from './constants';
-import type { RelayQuote } from './types';
-import { TransactionPayStrategy } from '../..';
-import type { TransactionMeta } from '../../../../transaction-controller/src';
-import { NATIVE_TOKEN_ADDRESS } from '../../constants';
+  NATIVE_TOKEN_ADDRESS,
+} from '../../constants';
 import { projectLogger } from '../../logger';
 import type {
+  Amount,
   FiatValue,
   PayStrategyGetQuotesRequest,
   QuoteRequest,
   TransactionPayControllerMessenger,
   TransactionPayQuote,
 } from '../../types';
-import { calculateGasCost } from '../../utils/gas';
-import { getNativeToken, getTokenFiatRate } from '../../utils/token';
+import { getFeatureFlags } from '../../utils/feature-flags';
+import { calculateGasCost, calculateGasFeeTokenCost } from '../../utils/gas';
+import {
+  getNativeToken,
+  getTokenBalance,
+  getTokenFiatRate,
+} from '../../utils/token';
 
 const log = createModuleLogger(projectLogger, 'relay-strategy');
 
@@ -71,15 +75,21 @@ async function getSingleQuote(
   fullRequest: PayStrategyGetQuotesRequest,
 ): Promise<TransactionPayQuote<RelayQuote>> {
   const { messenger, transaction } = fullRequest;
+  const { slippage: slippageDecimal } = getFeatureFlags(messenger);
+
+  const slippageTolerance = new BigNumber(slippageDecimal * 100 * 100).toFixed(
+    0,
+  );
 
   try {
-    const body = {
+    const body: RelayQuoteRequest = {
       amount: request.targetAmountMinimum,
       destinationChainId: Number(request.targetChainId),
       destinationCurrency: request.targetTokenAddress,
       originChainId: Number(request.sourceChainId),
       originCurrency: request.sourceTokenAddress,
       recipient: request.from,
+      slippageTolerance,
       tradeType: 'EXPECTED_OUTPUT',
       user: request.from,
     };
@@ -97,6 +107,7 @@ async function getSingleQuote(
     });
 
     const quote = (await response.json()) as RelayQuote;
+    quote.request = body;
 
     log('Fetched relay quote', quote);
 
@@ -121,16 +132,27 @@ async function processTransactions(
   requestBody: Record<string, Json | undefined>,
   messenger: TransactionPayControllerMessenger,
 ) {
-  const { data, value } = transaction.txParams;
+  const { nestedTransactions, txParams } = transaction;
+  const data = txParams?.data as Hex | undefined;
 
-  /* istanbul ignore next */
-  const hasNoParams = (!data || data === '0x') && (!value || value === '0x0');
+  const singleData =
+    nestedTransactions?.length === 1 ? nestedTransactions[0].data : data;
 
-  const skipDelegation =
-    hasNoParams || request.targetChainId === CHAIN_ID_HYPERCORE;
+  const isHypercore = request.targetChainId === CHAIN_ID_HYPERCORE;
+
+  const isTokenTransfer =
+    !isHypercore && singleData?.startsWith(TOKEN_TRANSFER_FOUR_BYTE);
+
+  if (isTokenTransfer) {
+    requestBody.recipient = getTransferRecipient(singleData as Hex);
+
+    log('Updating recipient as token transfer', requestBody.recipient);
+  }
+
+  const skipDelegation = isTokenTransfer || isHypercore;
 
   if (skipDelegation) {
-    log('Skipping delegation as no transaction data');
+    log('Skipping delegation as token transfer or Hypercore deposit');
     return;
   }
 
@@ -148,20 +170,24 @@ async function processTransactions(
     }),
   );
 
-  const tokenTransferData = new Interface([
-    'function transfer(address to, uint256 amount)',
-  ]).encodeFunctionData('transfer', [
-    request.from,
-    request.targetAmountMinimum,
-  ]);
-
   requestBody.authorizationList = normalizedAuthorizationList;
   requestBody.tradeType = 'EXACT_OUTPUT';
+
+  const tokenTransferData = nestedTransactions?.find((t) =>
+    t.data?.startsWith(TOKEN_TRANSFER_FOUR_BYTE),
+  )?.data;
+
+  // If the transactions include a token transfer, change the recipient
+  // so any extra dust is also sent to the same address, rather than back to the user.
+  if (tokenTransferData) {
+    requestBody.recipient = getTransferRecipient(tokenTransferData);
+    requestBody.refundTo = request.from;
+  }
 
   requestBody.txs = [
     {
       to: request.targetTokenAddress,
-      data: tokenTransferData,
+      data: buildTokenTransferData(request.from, request.targetAmountMinimum),
       value: '0x0',
     },
     {
@@ -179,6 +205,10 @@ async function processTransactions(
  * @returns Normalized request.
  */
 function normalizeRequest(request: QuoteRequest) {
+  const newRequest = {
+    ...request,
+  };
+
   const isHyperliquidDeposit =
     request.targetChainId === CHAIN_ID_ARBITRUM &&
     request.targetTokenAddress.toLowerCase() ===
@@ -188,30 +218,24 @@ function normalizeRequest(request: QuoteRequest) {
     request.sourceChainId === CHAIN_ID_POLYGON &&
     request.sourceTokenAddress === getNativeToken(request.sourceChainId);
 
-  const requestOutput: QuoteRequest = {
-    ...request,
-    sourceTokenAddress: isPolygonNativeSource
-      ? NATIVE_TOKEN_ADDRESS
-      : request.sourceTokenAddress,
-    targetChainId: isHyperliquidDeposit
-      ? CHAIN_ID_HYPERCORE
-      : request.targetChainId,
-    targetTokenAddress: isHyperliquidDeposit
-      ? '0x00000000000000000000000000000000'
-      : request.targetTokenAddress,
-    targetAmountMinimum: isHyperliquidDeposit
-      ? new BigNumber(request.targetAmountMinimum).shiftedBy(2).toString(10)
-      : request.targetAmountMinimum,
-  };
+  if (isPolygonNativeSource) {
+    newRequest.sourceTokenAddress = NATIVE_TOKEN_ADDRESS;
+  }
 
   if (isHyperliquidDeposit) {
+    newRequest.targetChainId = CHAIN_ID_HYPERCORE;
+    newRequest.targetTokenAddress = '0x00000000000000000000000000000000';
+    newRequest.targetAmountMinimum = new BigNumber(request.targetAmountMinimum)
+      .shiftedBy(2)
+      .toString(10);
+
     log('Converting Arbitrum Hyperliquid deposit to direct deposit', {
       originalRequest: request,
-      normalizedRequest: requestOutput,
+      normalizedRequest: newRequest,
     });
   }
 
-  return requestOutput;
+  return newRequest;
 }
 
 /**
@@ -222,13 +246,14 @@ function normalizeRequest(request: QuoteRequest) {
  * @param fullRequest - Full quotes request.
  * @returns Normalized quote.
  */
-function normalizeQuote(
+async function normalizeQuote(
   quote: RelayQuote,
   request: QuoteRequest,
   fullRequest: PayStrategyGetQuotesRequest,
-): TransactionPayQuote<RelayQuote> {
+): Promise<TransactionPayQuote<RelayQuote>> {
   const { messenger } = fullRequest;
-  const { details, fees } = quote;
+  const { details } = quote;
+  const { currencyIn } = details;
 
   const { usdToFiatRate } = getFiatRates(messenger, request);
 
@@ -238,27 +263,36 @@ function normalizeQuote(
   );
 
   const provider = getFiatValueFromUsd(
-    new BigNumber(fees.relayer.amountUsd),
+    calculateProviderFee(quote),
     usdToFiatRate,
   );
 
-  const sourceNetwork = calculateSourceNetworkCost(quote, messenger);
+  const { isGasFeeToken: isSourceGasFeeToken, ...sourceNetwork } =
+    await calculateSourceNetworkCost(quote, messenger, request);
 
   const targetNetwork = {
     usd: '0',
     fiat: '0',
   };
 
+  const sourceAmount: Amount = {
+    human: currencyIn.amountFormatted,
+    raw: currencyIn.amount,
+    ...getFiatValueFromUsd(new BigNumber(currencyIn.amountUsd), usdToFiatRate),
+  };
+
   return {
     dust,
     estimatedDuration: details.timeEstimate,
     fees: {
+      isSourceGasFeeToken,
       provider,
       sourceNetwork,
       targetNetwork,
     },
     original: quote,
     request,
+    sourceAmount,
     strategy: TransactionPayStrategy.Relay,
   };
 }
@@ -340,55 +374,170 @@ function getFiatRates(
 }
 
 /**
- * Gets feature flags for Relay quotes.
- *
- * @param messenger - Controller messenger.
- * @returns Feature flags.
- */
-function getFeatureFlags(messenger: TransactionPayControllerMessenger) {
-  const featureFlagState = messenger.call(
-    'RemoteFeatureFlagController:getState',
-  );
-
-  const featureFlags = featureFlagState.remoteFeatureFlags
-    ?.confirmations_pay as Record<string, string> | undefined;
-
-  const relayQuoteUrl = featureFlags?.relayQuoteUrl ?? RELAY_URL_QUOTE;
-
-  return {
-    relayQuoteUrl,
-  };
-}
-
-/**
  * Calculates source network cost from a Relay quote.
  *
  * @param quote - Relay quote.
  * @param messenger - Controller messenger.
+ * @param request - Quote request.
  * @returns Total source network cost in USD and fiat.
  */
-function calculateSourceNetworkCost(
+async function calculateSourceNetworkCost(
   quote: RelayQuote,
   messenger: TransactionPayControllerMessenger,
-) {
-  const allParams = quote.steps[0].items.map((i) => i.data);
-  const totalGasLimit = calculateSourceNetworkGasLimit(allParams);
+  request: QuoteRequest,
+): Promise<
+  TransactionPayQuote<RelayQuote>['fees']['sourceNetwork'] & {
+    isGasFeeToken?: boolean;
+  }
+> {
+  const { from, sourceChainId, sourceTokenAddress } = request;
+  const allParams = quote.steps.flatMap((s) => s.items).map((i) => i.data);
+  const { relayDisabledGasStationChains } = getFeatureFlags(messenger);
 
-  return calculateGasCost({
-    chainId: allParams[0].chainId,
-    gas: totalGasLimit,
+  const { chainId, data, maxFeePerGas, maxPriorityFeePerGas, to, value } =
+    allParams[0];
+
+  const totalGasLimitEstimate = calculateSourceNetworkGasLimit(
+    allParams,
+    messenger,
+    {
+      isMax: false,
+    },
+  );
+
+  const totalGasLimitMax = calculateSourceNetworkGasLimit(
+    allParams,
+    messenger,
+    {
+      isMax: true,
+    },
+  );
+
+  log('Total gas limit', { totalGasLimitEstimate, totalGasLimitMax });
+
+  const estimate = calculateGasCost({
+    chainId,
+    gas: totalGasLimitEstimate,
+    maxFeePerGas,
+    maxPriorityFeePerGas,
     messenger,
   });
+
+  const max = calculateGasCost({
+    chainId,
+    gas: totalGasLimitMax,
+    maxFeePerGas,
+    maxPriorityFeePerGas,
+    messenger,
+    isMax: true,
+  });
+
+  const nativeBalance = getTokenBalance(
+    messenger,
+    from,
+    sourceChainId,
+    getNativeToken(sourceChainId),
+  );
+
+  if (new BigNumber(nativeBalance).isGreaterThanOrEqualTo(max.raw)) {
+    return { estimate, max };
+  }
+
+  if (relayDisabledGasStationChains.includes(sourceChainId)) {
+    log('Skipping gas station as disabled chain', {
+      sourceChainId,
+      disabledChainIds: relayDisabledGasStationChains,
+    });
+
+    return { estimate, max };
+  }
+
+  log('Checking gas fee tokens as insufficient native balance', {
+    nativeBalance,
+    max: max.raw,
+  });
+
+  const gasFeeTokens = await messenger.call(
+    'TransactionController:getGasFeeTokens',
+    {
+      chainId: sourceChainId,
+      data,
+      from,
+      to,
+      value: toHex(value ?? '0'),
+    },
+  );
+
+  log('Source gas fee tokens', { gasFeeTokens });
+
+  const gasFeeToken = gasFeeTokens.find(
+    (t) => t.tokenAddress.toLowerCase() === sourceTokenAddress.toLowerCase(),
+  );
+
+  if (!gasFeeToken) {
+    log('No matching gas fee token found', {
+      sourceTokenAddress,
+      gasFeeTokens,
+    });
+
+    return { estimate, max };
+  }
+
+  let finalAmount = gasFeeToken.amount;
+
+  if (allParams.length > 1) {
+    const gasRate = new BigNumber(gasFeeToken.amount, 16).dividedBy(
+      gasFeeToken.gas,
+      16,
+    );
+
+    const finalAmountValue = gasRate.multipliedBy(totalGasLimitEstimate);
+
+    finalAmount = toHex(finalAmountValue.toFixed(0));
+
+    log('Estimated gas fee token amount for batch', {
+      finalAmount: finalAmountValue.toString(10),
+      gasRate: gasRate.toString(10),
+      totalGasLimitEstimate,
+    });
+  }
+
+  const finalGasFeeToken = { ...gasFeeToken, amount: finalAmount };
+
+  const gasFeeTokenCost = calculateGasFeeTokenCost({
+    chainId: sourceChainId,
+    gasFeeToken: finalGasFeeToken,
+    messenger,
+  });
+
+  if (!gasFeeTokenCost) {
+    return { estimate, max };
+  }
+
+  log('Using gas fee token for source network', {
+    gasFeeTokenCost,
+  });
+
+  return {
+    isGasFeeToken: true,
+    estimate: gasFeeTokenCost,
+    max: gasFeeTokenCost,
+  };
 }
 
 /**
  * Calculate the total gas limit for the source network transactions.
  *
  * @param params - Array of transaction parameters.
+ * @param messenger - Controller messenger.
+ * @param options - Options.
+ * @param options.isMax - Whether to calculate the maximum gas limit.
  * @returns - Total gas limit.
  */
 function calculateSourceNetworkGasLimit(
   params: RelayQuote['steps'][0]['items'][0]['data'][],
+  messenger: TransactionPayControllerMessenger,
+  { isMax }: { isMax: boolean },
 ): number {
   const allParamsHasGas = params.every((p) => p.gas !== undefined);
 
@@ -402,9 +551,47 @@ function calculateSourceNetworkGasLimit(
   // In future, call `TransactionController:estimateGas`
   // or `TransactionController:estimateGasBatch` based on params length.
 
-  return params.reduce(
-    (total, p) =>
-      total + new BigNumber(p.gas ?? RELAY_FALLBACK_GAS_LIMIT).toNumber(),
-    0,
-  );
+  const fallbackGas = getFeatureFlags(messenger).relayFallbackGas;
+
+  return params.reduce((total, p) => {
+    const fallback = isMax ? fallbackGas.max : fallbackGas.estimate;
+    const gas = p.gas ?? fallback;
+
+    return total + new BigNumber(gas).toNumber();
+  }, 0);
+}
+
+/**
+ * Calculate the provider fee for a Relay quote.
+ *
+ * @param quote - Relay quote.
+ * @returns - Provider fee in USD.
+ */
+function calculateProviderFee(quote: RelayQuote) {
+  return new BigNumber(quote.details.totalImpact.usd).abs();
+}
+
+/**
+ * Build token transfer data.
+ *
+ * @param recipient - Recipient address.
+ * @param amountRaw - Amount in raw format.
+ * @returns Token transfer data.
+ */
+function buildTokenTransferData(recipient: Hex, amountRaw: string) {
+  return new Interface([
+    'function transfer(address to, uint256 amount)',
+  ]).encodeFunctionData('transfer', [recipient, amountRaw]);
+}
+
+/**
+ * Get transfer recipient from token transfer data.
+ *
+ * @param data - Token transfer data.
+ * @returns Transfer recipient.
+ */
+function getTransferRecipient(data: Hex): Hex | undefined {
+  return new Interface(['function transfer(address to, uint256 amount)'])
+    .decodeFunctionData('transfer', data)
+    .to.toLowerCase();
 }

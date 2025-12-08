@@ -27,6 +27,7 @@ export async function getNextNonce(
   } = txMeta;
 
   if (isExternalSign) {
+    log('Skipping nonce as signed externally');
     return [undefined, undefined];
   }
 

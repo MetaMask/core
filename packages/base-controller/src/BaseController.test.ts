@@ -1,9 +1,6 @@
 /* eslint-disable jest/no-export */
-import {
-  MOCK_ANY_NAMESPACE,
-  Messenger,
-  type MockAnyNamespace,
-} from '@metamask/messenger';
+import { MOCK_ANY_NAMESPACE, Messenger } from '@metamask/messenger';
+import type { MockAnyNamespace } from '@metamask/messenger';
 import type { Json } from '@metamask/utils';
 import type { Draft, Patch } from 'immer';
 import * as sinon from 'sinon';

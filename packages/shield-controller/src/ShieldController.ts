@@ -1,18 +1,18 @@
-import {
-  BaseController,
-  type ControllerGetStateAction,
-  type ControllerStateChangeEvent,
+import { BaseController } from '@metamask/base-controller';
+import type {
+  ControllerGetStateAction,
+  ControllerStateChangeEvent,
 } from '@metamask/base-controller';
 import type { Messenger } from '@metamask/messenger';
-import {
-  SignatureRequestStatus,
-  type SignatureRequest,
-  type SignatureStateChange,
+import { SignatureRequestStatus } from '@metamask/signature-controller';
+import type {
+  SignatureRequest,
+  SignatureStateChange,
 } from '@metamask/signature-controller';
-import {
-  TransactionStatus,
-  type TransactionControllerStateChangeEvent,
-  type TransactionMeta,
+import { TransactionStatus } from '@metamask/transaction-controller';
+import type {
+  TransactionControllerStateChangeEvent,
+  TransactionMeta,
 } from '@metamask/transaction-controller';
 import { cloneDeep, isEqual } from 'lodash';
 
@@ -284,24 +284,30 @@ export class ShieldController extends BaseController<
     for (const transaction of transactions) {
       const previousTransaction = previousTransactionsById.get(transaction.id);
 
-      // Check if the simulation data has changed.
-      const simulationDataChanged =
-        // only check if the previous transaction has simulation data and if it has changed
-        // this is to avoid checking coverage for the `TWICE` (once when it's added to the state and once when it's simulated for the first time).
-        // we only need to update the coverage result when the simulation data has changed.
-        Boolean(previousTransaction?.simulationData) &&
-        !isEqual(
-          transaction.simulationData,
-          previousTransaction?.simulationData,
-        );
+      if (
+        // We don't need to check coverage for submitted or confirmed transactions.
+        transaction.status !== TransactionStatus.submitted &&
+        transaction.status !== TransactionStatus.confirmed
+      ) {
+        // Check if the simulation data has changed.
+        const simulationDataChanged =
+          // only check if the previous transaction has simulation data and if it has changed
+          // this is to avoid checking coverage for the `TWICE` (once when it's added to the state and once when it's simulated for the first time).
+          // we only need to update the coverage result when the simulation data has changed.
+          previousTransaction?.simulationData &&
+          !isEqual(
+            transaction.simulationData,
+            previousTransaction.simulationData,
+          );
 
-      // Check coverage if the transaction is new or if the simulation data has
-      // changed.
-      if (!previousTransaction || simulationDataChanged) {
-        this.checkCoverage(transaction).catch(
-          // istanbul ignore next
-          (error) => log('Error checking coverage:', error),
-        );
+        // Check coverage if the transaction is new or if the simulation data has
+        // changed.
+        if (!previousTransaction || simulationDataChanged) {
+          this.checkCoverage(transaction).catch(
+            // istanbul ignore next
+            (error) => log('Error checking coverage:', error),
+          );
+        }
       }
 
       // Log transaction once it has been submitted.
@@ -446,11 +452,17 @@ export class ShieldController extends BaseController<
       throw new Error('Transaction hash not found');
     }
 
+    const rawTransactionHex = txMeta.rawTx;
+    if (!rawTransactionHex) {
+      throw new Error('Raw transaction hex not found');
+    }
+
     const { status } = this.#getCoverageStatus(txMeta.id);
 
     await this.#backend.logTransaction({
       txMeta,
       transactionHash,
+      rawTransactionHex,
       status,
     });
   }

@@ -7,6 +7,31 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+### Changed
+
+- Move peer dependencies for controller and service packages to direct dependencies ([#7209](https://github.com/MetaMask/core/pull/7209), [#7220](https://github.com/MetaMask/core/pull/7220), [#7236](https://github.com/MetaMask/core/pull/7236), [#7257](https://github.com/MetaMask/core/pull/7257), [#7258](https://github.com/MetaMask/core/pull/7258), [#7289](https://github.com/MetaMask/core/pull/7289))
+  - The dependencies moved are:
+    - `@metamask/multichain-network-controller` (^3.0.0)
+    - `@metamask/network-controller` (^27.0.0)
+    - `@metamask/transaction-controller` (^62.4.0)
+  - In clients, it is now possible for multiple versions of these packages to exist in the dependency tree.
+    - For example, this scenario would be valid: a client relies on `@metamask/controller-a` 1.0.0 and `@metamask/controller-b` 1.0.0, and `@metamask/controller-b` depends on `@metamask/controller-a` 1.1.0.
+  - Note, however, that the versions specified in the client's `package.json` always "win", and you are expected to keep them up to date so as not to break controller and service intercommunication.
+- Bump `@metamask/transaction-controller` from `^62.4.0` to `^62.5.0` ([#7325](https://github.com/MetaMask/core/pull/7325))
+
+### Fixed
+
+- Add missing MegaETH to POPULARE_NETWORKS list ([#7286](https://github.com/MetaMask/core/pull/7286))
+
+## [4.0.0]
+
+### Changed
+
+- Bump `@metamask/controller-utils` from `^11.15.0` to `^11.16.0` ([#7202](https://github.com/MetaMask/core/pull/7202))
+- **BREAKING:** Bump `@metamask/transaction-controller` from `^61.0.0` to `^62.0.0` ([#7202](https://github.com/MetaMask/core/pull/7202))
+- **BREAKING:** Bump `@metamask/network-controller` from `^25.0.0` to `^26.0.0` ([#7202](https://github.com/MetaMask/core/pull/7202))
+- **BREAKING:** Bump `@metamask/multichain-network-controller` from `^2.0.0` to `^3.0.0` ([#7202](https://github.com/MetaMask/core/pull/7202))
+
 ### Fixed
 
 - include additional popular networks now enabled by default ([#7014](https://github.com/MetaMask/core/pull/7014))
@@ -154,7 +179,8 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 - Initial release ([#6028](https://github.com/MetaMask/core/pull/6028))
 
-[Unreleased]: https://github.com/MetaMask/core/compare/@metamask/network-enablement-controller@3.1.0...HEAD
+[Unreleased]: https://github.com/MetaMask/core/compare/@metamask/network-enablement-controller@4.0.0...HEAD
+[4.0.0]: https://github.com/MetaMask/core/compare/@metamask/network-enablement-controller@3.1.0...@metamask/network-enablement-controller@4.0.0
 [3.1.0]: https://github.com/MetaMask/core/compare/@metamask/network-enablement-controller@3.0.0...@metamask/network-enablement-controller@3.1.0
 [3.0.0]: https://github.com/MetaMask/core/compare/@metamask/network-enablement-controller@2.1.2...@metamask/network-enablement-controller@3.0.0
 [2.1.2]: https://github.com/MetaMask/core/compare/@metamask/network-enablement-controller@2.1.1...@metamask/network-enablement-controller@2.1.2

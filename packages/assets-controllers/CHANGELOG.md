@@ -7,8 +7,130 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+### Changed
+
+- Bump `@metamask/transaction-controller` from `^62.4.0` to `^62.5.0` ([#7325](https://github.com/MetaMask/core/pull/7325))
+
 ### Fixed
 
+- Added decimal precision (default 9dp) for `CurrencyRateController` `conversionRate` and `conversionRate` properties. ([#7324](https://github.com/MetaMask/core/pull/7324))
+  - This fixes any BigNumber conversion errors due to exceeding the 15 significant digit limit
+
+## [93.1.0]
+
+### Added
+
+- Add multicall address for Chains: `MegaETH Testnet V2`, `MegaETH Mainnet` ([#7287](https://github.com/MetaMask/core/pull/7287))
+
+### Fixed
+
+- Fix trending tokens API request to use correct `sort` query parameter instead of `sortBy` ([#7310](https://github.com/MetaMask/core/pull/7310))
+
+## [93.0.0]
+
+### Added
+
+- **BREAKING:** `TokenBalancesController` now subscribes to `AccountsController:selectedEvmAccountChange` event to trigger immediate balance updates when users switch accounts ([#7279](https://github.com/MetaMask/core/pull/7279))
+
+### Changed
+
+- Bump `@metamask/network-controller` from `^26.0.0` to `^27.0.0` ([#7258](https://github.com/MetaMask/core/pull/7258))
+- Bump `@metamask/transaction-controller` from `^62.3.0` to `^62.4.0` ([#7257](https://github.com/MetaMask/core/pull/7257), [#7289](https://github.com/MetaMask/core/pull/7289))
+- `AccountTrackerController` now normalizes addresses to lowercase internally before calling balance fetchers to match `TokenBalancesController` and enable HTTP request caching ([#7279](https://github.com/MetaMask/core/pull/7279))
+
+### Fixed
+
+- Fix 2dp value in `CurrencyRateController`([#7276](https://github.com/MetaMask/core/pull/7276))
+- Fix token search API to use correct `networks` query parameter instead of `chainIds` ([#7261](https://github.com/MetaMask/core/pull/7261))
+
+## [92.0.0]
+
+### Added
+
+- Support for optionally fetching market data when calling searchTokens ([#7226](https://github.com/MetaMask/core/pull/7226))
+- **BREAKING:** Add optional JWT token authentication to multi-chain accounts API calls ([#7165](https://github.com/MetaMask/core/pull/7165))
+  - `fetchMultiChainBalances` and `fetchMultiChainBalancesV4` now accept an optional `jwtToken` parameter
+  - `TokenDetectionController` fetches and passes JWT token from `AuthenticationController` when using Accounts API
+  - `TokenBalancesController` fetches and passes JWT token through balance fetcher chain
+  - JWT token is included in `Authorization: Bearer <token>` header when provided
+  - Backward compatible: token parameter is optional and APIs work without authentication
+
+### Changed
+
+- Move peer dependencies for controller and service packages to direct dependencies ([#7209](https://github.com/MetaMask/core/pull/7209), [#7220](https://github.com/MetaMask/core/pull/7220), [#7236](https://github.com/MetaMask/core/pull/7236))
+  - The dependencies moved are:
+    - `@metamask/account-tree-controller` (^4.0.0)
+    - `@metamask/accounts-controller` (^35.0.0)
+    - `@metamask/approval-controller` (^8.0.0)
+    - `@metamask/core-backend` (^5.0.0)
+    - `@metamask/keyring-controller` (^25.0.0)
+    - `@metamask/multichain-account-service` (^4.0.0)
+    - `@metamask/network-controller` (^26.0.0)
+    - `@metamask/permission-controller` (^12.1.1)
+    - `@metamask/phishing-controller` (^16.1.0)
+    - `@metamask/preferences-controller` (^22.0.0)
+    - `@metamask/profile-sync-controller` (^27.0.0)
+    - `@metamask/snaps-controllers` (^14.0.1)
+    - `@metamask/transaction-controller` (^62.3.0)
+  - In clients, it is now possible for multiple versions of these packages to exist in the dependency tree.
+    - For example, this scenario would be valid: a client relies on `@metamask/controller-a` 1.0.0 and `@metamask/controller-b` 1.0.0, and `@metamask/controller-b` depends on `@metamask/controller-a` 1.1.0.
+  - Note, however, that the versions specified in the client's `package.json` always "win", and you are expected to keep them up to date so as not to break controller and service intercommunication.
+
+### Fixed
+
+- Fix `TokenBalancesController` state that store both lowercase and checksum account addresses ([#7217](https://github.com/MetaMask/core/pull/7217))
+- `TokenBalancesController`: state inconsistency by ensuring all account addresses are stored in lowercase format ([#7216](https://github.com/MetaMask/core/pull/7216))
+- Add MON (Monad) to supported currencies list in token prices service ([#7250](https://github.com/MetaMask/core/pull/7250))
+
+## [91.0.0]
+
+### Changed
+
+- **BREAKING:** Update `spot-prices` endpoint to use Price API v3 ([#7119](https://github.com/MetaMask/core/pull/7119))
+  - Update `AbstractTokenPricesService.fetchTokenPrices` arguments and return type
+  - Update `CodefiTokenPricesServiceV2` list of supported currencies
+  - Update `TokenRatesController` to fetch prices by native currency instead of by chain
+  - Remove legacy polling code and unused events from `TokenRatesController`
+
+## [90.0.0]
+
+### Added
+
+- Added optional filtering of Tron staking tokens (energy, bandwidth) in asset selectors `selectAssetsBySelectedAccountGroup` (defaults to `true`) ([#7198](https://github.com/MetaMask/core/pull/7198))
+
+### Changed
+
+- Bump `@metamask/polling-controller` from `^15.0.0` to `^16.0.0` ([#7202](https://github.com/MetaMask/core/pull/7202))
+- Bump `@metamask/controller-utils` from `^11.15.0` to `^11.16.0` ([#7202](https://github.com/MetaMask/core/pull/7202))
+- **BREAKING:** Bump `@metamask/transaction-controller` from `^61.0.0` to `^62.0.0` ([#7202](https://github.com/MetaMask/core/pull/7202))
+- **BREAKING:** Bump `@metamask/preferences-controller` from `^21.0.0` to `^22.0.0` ([#7202](https://github.com/MetaMask/core/pull/7202))
+- **BREAKING:** Bump `@metamask/phishing-controller` from `^15.0.0` to `^16.0.0` ([#7202](https://github.com/MetaMask/core/pull/7202))
+- **BREAKING:** Bump `@metamask/network-controller` from `^25.0.0` to `^26.0.0` ([#7202](https://github.com/MetaMask/core/pull/7202))
+- **BREAKING:** Bump `@metamask/keyring-controller` from `^24.0.0` to `^25.0.0` ([#7202](https://github.com/MetaMask/core/pull/7202))
+- **BREAKING:** Bump `@metamask/core-backend` from `^4.1.0` to `^5.0.0` ([#7202](https://github.com/MetaMask/core/pull/7202))
+- **BREAKING:** Bump `@metamask/accounts-controller` from `^34.0.0` to `^35.0.0` ([#7202](https://github.com/MetaMask/core/pull/7202))
+- **BREAKING:** Bump `@metamask/account-tree-controller` from `^3.0.0` to `^4.0.0` ([#7202](https://github.com/MetaMask/core/pull/7202))
+
+## [89.0.1]
+
+### Fixed
+
+- Fix duplicate native token address in `CurrencyRateController` spot price fallback API requests ([#7181](https://github.com/MetaMask/core/pull/7181))
+
+## [89.0.0]
+
+### Changed
+
+- **BREAKING:** Remove fallback to CryptoCompare on `CurrencyRatesController` and `TokenRatesController` ([#7167](https://github.com/MetaMask/core/pull/7167))
+- Bump `@metamask/core-backend` from `^4.0.0` to `^4.1.0`
+
+### Fixed
+
+- Enable RPC fallback when Accounts API fails or times out in `TokenBalancesController` ([#7155](https://github.com/MetaMask/core/pull/7155))
+  - Add 30-second timeout protection for Accounts API balance fetching requests
+  - Propagate API errors to `TokenBalancesController` to trigger automatic RPC fallback
+  - Remove error catching that prevented RPC fetcher from processing failed chains
+  - Ensures native and staked balances are always fetched via RPC when API is unavailable
 - Add 30-second timeout protection for Accounts API calls in `TokenDetectionController` to prevent hanging requests ([#7106](https://github.com/MetaMask/core/pull/7106))
   - Prevents token detection from hanging indefinitely on slow or unresponsive API requests
   - Automatically falls back to RPC-based token detection when API call times out or fails
@@ -227,7 +349,6 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 ### Changed
 
 - **BREAKING:** Change `accountsApiChainIds` parameter from `ChainIdHex[]` to `() => ChainIdHex[]` in both `AccountTrackerController` and `TokenBalancesController` ([#6776](https://github.com/MetaMask/core/pull/6776))
-
   - Enables dynamic configuration of chains that should use Accounts API strategy
   - Allows runtime determination of supported chain IDs instead of static array
 
@@ -283,7 +404,6 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 ### Added
 
 - Add `Monad Mainnet` support ([#6618](https://github.com/MetaMask/core/pull/6618))
-
   - Add `Monad Mainnet` balance scan contract address in `SINGLE_CALL_BALANCES_ADDRESS_BY_CHAINID`
   - Add `Monad Mainnet` in `SupportedTokenDetectionNetworks`
   - Add `Monad Mainnet` in `SUPPORTED_CHAIN_IDS`
@@ -360,7 +480,6 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 ### Changed
 
 - Improve balance fetching performance and resilience by parallelizing multi-chain operations and moving timeout handling to fetchers ([#6390](https://github.com/MetaMask/core/pull/6390))
-
   - Replace sequential `for` loops with `Promise.allSettled` in `RpcBalanceFetcher` and `AccountTrackerController` for parallel chain processing
   - Move timeout handling from controller-level `Promise.race` to fetcher-level `safelyExecuteWithTimeout` for better error isolation
   - Add `safelyExecuteWithTimeout` to both `RpcBalanceFetcher` and `AccountsApiBalanceFetcher` to prevent individual chain timeouts from blocking other chains
@@ -372,7 +491,6 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 ### Added
 
 - Enable `AccountTrackerController` to fetch native balances using AccountsAPI when `allowExternalServices` is enabled ([#6369](https://github.com/MetaMask/core/pull/6369))
-
   - Implement native balance fetching via AccountsAPI when `useAccountsAPI` and `allowExternalServices` are both true
   - Add fallback to RPC balance fetching when external services are disabled
   - Add comprehensive test coverage for both AccountsAPI and RPC balance fetching scenarios
@@ -397,7 +515,6 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
   - Add comprehensive unit tests for token address normalization scenarios
 
 - Fix TokenBalancesController timeout handling by replacing `safelyExecuteWithTimeout` with proper `Promise.race` implementation ([#6365](https://github.com/MetaMask/core/pull/6365))
-
   - Replace `safelyExecuteWithTimeout` which was silently swallowing timeout errors with direct `Promise.race` that properly throws
   - Reduce RPC timeout from 3 minutes to 15 seconds for better responsiveness and batch size
   - Enable proper fallback between API and RPC balance fetchers when timeouts occur
@@ -2274,7 +2391,14 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 - Use Ethers for AssetsContractController ([#845](https://github.com/MetaMask/core/pull/845))
 
-[Unreleased]: https://github.com/MetaMask/core/compare/@metamask/assets-controllers@88.0.0...HEAD
+[Unreleased]: https://github.com/MetaMask/core/compare/@metamask/assets-controllers@93.1.0...HEAD
+[93.1.0]: https://github.com/MetaMask/core/compare/@metamask/assets-controllers@93.0.0...@metamask/assets-controllers@93.1.0
+[93.0.0]: https://github.com/MetaMask/core/compare/@metamask/assets-controllers@92.0.0...@metamask/assets-controllers@93.0.0
+[92.0.0]: https://github.com/MetaMask/core/compare/@metamask/assets-controllers@91.0.0...@metamask/assets-controllers@92.0.0
+[91.0.0]: https://github.com/MetaMask/core/compare/@metamask/assets-controllers@90.0.0...@metamask/assets-controllers@91.0.0
+[90.0.0]: https://github.com/MetaMask/core/compare/@metamask/assets-controllers@89.0.1...@metamask/assets-controllers@90.0.0
+[89.0.1]: https://github.com/MetaMask/core/compare/@metamask/assets-controllers@89.0.0...@metamask/assets-controllers@89.0.1
+[89.0.0]: https://github.com/MetaMask/core/compare/@metamask/assets-controllers@88.0.0...@metamask/assets-controllers@89.0.0
 [88.0.0]: https://github.com/MetaMask/core/compare/@metamask/assets-controllers@87.1.1...@metamask/assets-controllers@88.0.0
 [87.1.1]: https://github.com/MetaMask/core/compare/@metamask/assets-controllers@87.1.0...@metamask/assets-controllers@87.1.1
 [87.1.0]: https://github.com/MetaMask/core/compare/@metamask/assets-controllers@87.0.0...@metamask/assets-controllers@87.1.0

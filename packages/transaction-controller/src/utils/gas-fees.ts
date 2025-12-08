@@ -145,7 +145,7 @@ function getMaxFeePerGas(request: GetGasFeeRequest): string | undefined {
   }
 
   if (savedGasFees) {
-    const maxFeePerGas = gweiDecimalToWeiHex(savedGasFees.maxBaseFee as string);
+    const maxFeePerGas = gweiDecimalToWeiHex(savedGasFees.maxBaseFee);
     log('Using maxFeePerGas from savedGasFees', maxFeePerGas);
     return maxFeePerGas;
   }

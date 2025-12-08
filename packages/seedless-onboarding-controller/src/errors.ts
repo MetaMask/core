@@ -1,8 +1,5 @@
-import {
-  type RateLimitErrorData,
-  TOPRFError,
-  TOPRFErrorCode,
-} from '@metamask/toprf-secure-backup';
+import { TOPRFError, TOPRFErrorCode } from '@metamask/toprf-secure-backup';
+import type { RateLimitErrorData } from '@metamask/toprf-secure-backup';
 
 import { SeedlessOnboardingControllerErrorMessage } from './constants';
 import type { RecoveryErrorData } from './types';

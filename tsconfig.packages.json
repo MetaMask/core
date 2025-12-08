@@ -1,10 +1,9 @@
 {
+  /**
+   * This configuration is extended by the `tsconfig.json` configuration in each package.
+   */
+  "extends": "./tsconfig.base.json",
   "compilerOptions": {
-    "composite": true,
-    "esModuleInterop": true,
-    "lib": ["ES2020", "DOM"],
-    "module": "Node16",
-    "moduleResolution": "Node16",
     /**
      * Here we ensure that TypeScript resolves `@metamask/*` imports to the
      * uncompiled source code for packages that live in this repo.
@@ -17,8 +16,6 @@
       "@metamask/intent-manager": ["../Intent-manager/dist/index"],
       "@metamask/json-rpc-engine/v2": ["../json-rpc-engine/src/v2/index.ts"],
       "@metamask/*": ["../*/src"]
-    },
-    "strict": true,
-    "target": "ES2020"
+    }
   }
 }

@@ -99,6 +99,7 @@ Array [
       "token_address_source": "eip155:1/slip44:60",
       "token_symbol_destination": "USDC",
       "token_symbol_source": "ETH",
+      "usd_amount_source": 100,
     },
   ],
 ]
@@ -167,6 +168,7 @@ Object {
     "destTokenAddress": "123d1",
     "destWalletAddress": "SolanaWalletAddres1234",
     "insufficientBal": false,
+    "resetApproval": false,
     "slippage": 0.5,
     "srcChainId": "0x1",
     "srcTokenAddress": "0x0000000000000000000000000000000000000000",
@@ -275,6 +277,7 @@ Object {
     "destTokenAddress": "123d1",
     "destWalletAddress": "SolanaWalletAddres1234",
     "insufficientBal": false,
+    "resetApproval": false,
     "slippage": 0.5,
     "srcChainId": "0x1",
     "srcTokenAddress": "0x0000000000000000000000000000000000000000",

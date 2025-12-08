@@ -98,7 +98,7 @@ const appendL1GasFees = async (
 const appendNonEvmFees = async (
   quotes: QuoteResponse[],
   messenger: BridgeControllerMessenger,
-  selectedAccount: InternalAccount,
+  selectedAccount?: InternalAccount,
 ): Promise<(QuoteResponse & NonEvmFees)[] | undefined> => {
   if (
     quotes.some(({ quote: { srcChainId } }) => !isNonEvmChainId(srcChainId))
@@ -131,9 +131,9 @@ const appendNonEvmFees = async (
         const response = (await messenger.call(
           'SnapController:handleRequest',
           computeFeeRequest(
-            selectedAccount.metadata.snap?.id,
+            selectedAccount?.metadata?.snap?.id,
             transaction,
-            selectedAccount.id,
+            selectedAccount?.id,
             scope,
             options,
           ),
@@ -178,8 +178,6 @@ const appendNonEvmFees = async (
   >((acc, result) => {
     if (result.status === 'fulfilled' && result.value) {
       acc.push(result.value);
-    } else if (result.status === 'rejected') {
-      console.error('Error calculating non-EVM fees for quote', result.reason);
     }
     return acc;
   }, []);
@@ -200,7 +198,7 @@ export const appendFeesToQuotes = async (
   quotes: QuoteResponse[],
   messenger: BridgeControllerMessenger,
   getLayer1GasFee: typeof TransactionController.prototype.getLayer1GasFee,
-  selectedAccount: InternalAccount,
+  selectedAccount?: InternalAccount,
 ): Promise<(QuoteResponse & L1GasFees & NonEvmFees)[]> => {
   // Safe to cast: appendL1GasFees checks if all quotes are EVM and returns undefined otherwise
   const quotesWithL1GasFees = await appendL1GasFees(

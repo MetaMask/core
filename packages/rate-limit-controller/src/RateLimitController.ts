@@ -1,7 +1,7 @@
-import {
-  BaseController,
-  type ControllerGetStateAction,
-  type ControllerStateChangeEvent,
+import { BaseController } from '@metamask/base-controller';
+import type {
+  ControllerGetStateAction,
+  ControllerStateChangeEvent,
 } from '@metamask/base-controller';
 import type { Messenger, ActionConstraint } from '@metamask/messenger';
 import { rpcErrors } from '@metamask/rpc-errors';
