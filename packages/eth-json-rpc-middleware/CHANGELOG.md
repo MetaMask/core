@@ -7,6 +7,11 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+### Uncategorized
+
+- chore: Update ESLint config packages to v15 ([#7305](https://github.com/MetaMask/core/pull/7305))
+- Release/699.0.0 ([#7258](https://github.com/MetaMask/core/pull/7258))
+
 ### Fixed
 
 - Include `WalletContext` in EIP-7715 requests ([#7331](https://github.com/MetaMask/core/pull/7331))
