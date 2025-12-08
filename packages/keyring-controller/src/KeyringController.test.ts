@@ -1243,16 +1243,59 @@ describe('KeyringController', () => {
   });
 
   describe('persistAllKeyrings', () => {
+    const getPrimaryKeyringFrom = (controller: KeyringController) => {
+      return controller.getKeyringsByType(KeyringTypes.hd)[0] as EthKeyring;
+    };
+
     it('should reflect changes made directly to a keyring into the KeyringController state', async () => {
       await withController(async ({ controller }) => {
-        const primaryKeyring = controller.getKeyringsByType(
-          KeyringTypes.hd,
-        )[0] as EthKeyring;
+        const primaryKeyring = getPrimaryKeyringFrom(controller);
         const [addedAccount] = await primaryKeyring.addAccounts(1);
 
         await controller.persistAllKeyrings();
 
         expect(controller.state.keyrings[0].accounts[1]).toBe(addedAccount);
+      });
+    });
+
+    it('should fire `:accountAdded` if a keyring got updated outside of a withKeyring call', async () => {
+      await withController(async ({ controller, messenger }) => {
+        const primaryKeyring = getPrimaryKeyringFrom(controller);
+        const [addedAccount] = await primaryKeyring.addAccounts(1);
+
+        const mockAccountAdded = jest.fn();
+        messenger.subscribe('KeyringController:accountAdded', mockAccountAdded);
+
+        await controller.persistAllKeyrings();
+
+        const keyringObject = controller.state.keyrings[0];
+        expect(keyringObject).toBeDefined();
+        expect(mockAccountAdded).toHaveBeenCalledWith(
+          addedAccount,
+          keyringObject,
+        );
+      });
+    });
+
+    it('should fire `:accountRemoved` if a keyring got updated outside of a withKeyring call', async () => {
+      await withController(async ({ controller, messenger }) => {
+        const primaryKeyring = getPrimaryKeyringFrom(controller);
+
+        const [addedAccount] = await primaryKeyring.addAccounts(1);
+        await controller.persistAllKeyrings();
+        expect(controller.state.keyrings[0].accounts[1]).toBe(addedAccount);
+
+        const mockAccountRemoved = jest.fn();
+        messenger.subscribe(
+          'KeyringController:accountRemoved',
+          mockAccountRemoved,
+        );
+
+        primaryKeyring.removeAccount?.(addedAccount);
+        await controller.persistAllKeyrings();
+
+        const removedAccount = addedAccount;
+        expect(mockAccountRemoved).toHaveBeenCalledWith(removedAccount);
       });
     });
 
@@ -3417,6 +3460,125 @@ describe('KeyringController', () => {
       });
     });
 
+    it('should fire `:accountAdded` if an account gets added', async () => {
+      await withController(async ({ controller, messenger }) => {
+        const mockAccountAdded = jest.fn();
+        messenger.subscribe('KeyringController:accountAdded', mockAccountAdded);
+
+        const [addedAccount] = await controller.withKeyring(
+          { type: KeyringTypes.hd },
+          async ({ keyring }) => await keyring.addAccounts(1),
+        );
+        expect(addedAccount).toBeDefined();
+
+        const keyringObject = controller.state.keyrings[0];
+        expect(keyringObject).toBeDefined();
+        expect(mockAccountAdded).toHaveBeenCalledWith(
+          addedAccount,
+          keyringObject,
+        );
+      });
+    });
+
+    it('should fire multiple `:accountAdded` if multiple accounts get added', async () => {
+      await withController(async ({ controller, messenger }) => {
+        const mockAccountAdded = jest.fn();
+        messenger.subscribe('KeyringController:accountAdded', mockAccountAdded);
+
+        const [addedAccount1, addedAccount2] = await controller.withKeyring(
+          { type: KeyringTypes.hd },
+          async ({ keyring }) => await keyring.addAccounts(2),
+        );
+        expect(addedAccount1).toBeDefined();
+        expect(addedAccount2).toBeDefined();
+
+        const keyringObject = controller.state.keyrings[0];
+        expect(keyringObject).toBeDefined();
+        expect(mockAccountAdded).toHaveBeenCalledWith(
+          addedAccount1,
+          keyringObject,
+        );
+        expect(mockAccountAdded).toHaveBeenCalledWith(
+          addedAccount2,
+          keyringObject,
+        );
+      });
+    });
+
+    it('should fire `:accountRemoved` if an account gets removed', async () => {
+      await withController(async ({ controller, messenger }) => {
+        const mockAccountRemoved = jest.fn();
+        messenger.subscribe(
+          'KeyringController:accountRemoved',
+          mockAccountRemoved,
+        );
+
+        const [addedAccount] = await controller.withKeyring(
+          { type: KeyringTypes.hd },
+          async ({ keyring }) => await keyring.addAccounts(1),
+        );
+        expect(addedAccount).toBeDefined();
+
+        await controller.withKeyring(
+          { type: KeyringTypes.hd },
+          async ({ keyring }) => keyring.removeAccount?.(addedAccount),
+        );
+
+        const removedAccount = addedAccount;
+        const keyringObject = controller.state.keyrings[0];
+        expect(keyringObject).toBeDefined();
+        expect(mockAccountRemoved).toHaveBeenCalledWith(removedAccount);
+      });
+    });
+
+    it('should fire `:accountAdded` and `:accountRemoved` if multiple operations get executed', async () => {
+      await withController(async ({ controller, messenger }) => {
+        const [addedAccount] = await controller.withKeyring(
+          { type: KeyringTypes.hd },
+          async ({ keyring }) => await keyring.addAccounts(1),
+        );
+        expect(addedAccount).toBeDefined();
+
+        const mockAccountAdded = jest.fn();
+        const mockAccountRemoved = jest.fn();
+        messenger.subscribe('KeyringController:accountAdded', mockAccountAdded);
+        messenger.subscribe(
+          'KeyringController:accountRemoved',
+          mockAccountRemoved,
+        );
+
+        const removedAccount = addedAccount;
+        const [addedAccount2, addedAccount3] = await controller.withKeyring(
+          { type: KeyringTypes.hd },
+          async ({ keyring }) => {
+            // We create more than 1 account, otherwise the serialized state would be the same between
+            // the old state and new state, thus, preventing the vault update.
+            const addedAccounts = await keyring.addAccounts(2);
+
+            // We shouldn't be allowed to remove accounts out-of-order with HD keyrings, but that's ok
+            // for test purposes.
+            keyring.removeAccount?.(removedAccount);
+
+            return addedAccounts;
+          },
+        );
+
+        const keyringObject = controller.state.keyrings[0];
+        expect(keyringObject).toBeDefined();
+        expect(mockAccountRemoved).toHaveBeenCalledWith(removedAccount);
+        expect(mockAccountAdded).toHaveBeenNthCalledWith(
+          1,
+          addedAccount2,
+          keyringObject,
+        );
+        expect(mockAccountAdded).toHaveBeenNthCalledWith(
+          2,
+          addedAccount3,
+          keyringObject,
+        );
+      });
+    });
+
     describe('when the keyring is selected by type', () => {
       it('should call the given function with the selected keyring', async () => {
         await withController(async ({ controller }) => {
@@ -4031,6 +4193,26 @@ describe('KeyringController', () => {
     });
 
     describe('withKeyring', () => {
+      it('should call withKeyring', async () => {
+        await withController(
+          { keyringBuilders: [keyringBuilderFactory(MockKeyring)] },
+          async ({ controller, messenger }) => {
+            await controller.addNewKeyring(MockKeyring.type);
+
+            const actionReturnValue = await messenger.call(
+              'KeyringController:withKeyring',
+              { type: MockKeyring.type },
+              async ({ keyring }) => {
+                expect(keyring.type).toBe(MockKeyring.type);
+                return keyring.type;
+              },
+            );
+
+            expect(actionReturnValue).toBe(MockKeyring.type);
+          },
+        );
+      });
+
       it('should call withKeyring', async () => {
         await withController(
           { keyringBuilders: [keyringBuilderFactory(MockKeyring)] },
