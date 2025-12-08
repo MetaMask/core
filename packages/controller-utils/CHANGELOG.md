@@ -11,6 +11,10 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 - Add `monad-testnet` to `InfuraNetworkType` ([#7067](https://github.com/MetaMask/core/pull/7067))
 
+### Changed
+
+- Update Monad Testnet Network Client ID  ([#7333](https://github.com/MetaMask/core/pull/7333))
+
 ## [11.16.0]
 
 ### Added
