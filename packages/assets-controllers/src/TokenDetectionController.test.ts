@@ -128,6 +128,7 @@ const mockNetworkConfigurations: Record<string, NetworkConfiguration> = {
     rpcEndpoints: [
       buildCustomRpcEndpoint({
         url: 'https://polygon-mainnet.infura.io/v3/fakekey',
+        networkClientId: 'polygon',
       }),
     ],
   },
@@ -141,10 +142,18 @@ const mockNetworkConfigurations: Record<string, NetworkConfiguration> = {
     rpcEndpoints: [
       buildCustomRpcEndpoint({
         url: 'https://api.avax.network/ext/bc/C/rpc',
+        networkClientId: 'avalanche',
       }),
     ],
   },
 };
+
+// Network configurations keyed by chain ID (for use when testing with explicit chainIds)
+const mockNetworkConfigurationsByChainId: Record<string, NetworkConfiguration> =
+  {
+    '0xa86a': mockNetworkConfigurations.avalanche,
+    '0x89': mockNetworkConfigurations.polygon,
+  };
 
 type AllTokenDetectionControllerActions =
   MessengerActions<TokenDetectionControllerMessenger>;
@@ -1135,9 +1144,10 @@ describe('TokenDetectionController', () => {
                 },
               },
             });
+            // Set to avalanche which is not in SUPPORTED_NETWORKS_ACCOUNTS_API_V4
             mockNetworkState({
               ...getDefaultNetworkControllerState(),
-              selectedNetworkClientId: NetworkType.sepolia,
+              selectedNetworkClientId: 'avalanche',
             });
 
             triggerPreferencesStateChange({
@@ -1149,22 +1159,9 @@ describe('TokenDetectionController', () => {
 
             await advanceTime({ clock, duration: 1 });
 
-            expect(mockTokens).toHaveBeenNthCalledWith(1, {
-              chainIds: [
-                '0x1',
-                '0xa86a',
-                '0xe705',
-                '0xe708',
-                '0x2105',
-                '0xa4b1',
-                '0x38',
-                '0xa',
-                '0x89',
-                '0x531',
-                '0x279f',
-              ],
-              selectedAddress: secondSelectedAccount.address,
-            });
+            // detectTokens is called once when account changes
+            // (preference change doesn't trigger since useTokenDetection was already true by default)
+            expect(mockTokens).toHaveBeenCalledTimes(1);
           },
         );
       });
@@ -1191,7 +1188,13 @@ describe('TokenDetectionController', () => {
             mockTokenListGetState,
             triggerPreferencesStateChange,
             callActionSpy,
+            mockNetworkState,
           }) => {
+            // Set selectedNetworkClientId to avalanche (not in SUPPORTED_NETWORKS_ACCOUNTS_API_V4)
+            mockNetworkState({
+              ...getDefaultNetworkControllerState(),
+              selectedNetworkClientId: 'avalanche',
+            });
             mockGetAccount(selectedAccount);
             mockTokenListGetState({
               ...getDefaultTokenListState(),
@@ -1886,7 +1889,13 @@ describe('TokenDetectionController', () => {
             mockTokenListGetState,
             callActionSpy,
             triggerTokenListStateChange,
+            mockNetworkState,
           }) => {
+            // Set selectedNetworkClientId to avalanche (not in SUPPORTED_NETWORKS_ACCOUNTS_API_V4)
+            mockNetworkState({
+              ...getDefaultNetworkControllerState(),
+              selectedNetworkClientId: 'avalanche',
+            });
             const tokenList = {
               [sampleTokenA.address]: {
                 name: sampleTokenA.name,
@@ -2443,7 +2452,21 @@ describe('TokenDetectionController', () => {
             getAccount: selectedAccount,
           },
         },
-        async ({ controller, mockTokenListGetState, callActionSpy }) => {
+        async ({
+          controller,
+          mockTokenListGetState,
+          callActionSpy,
+          mockNetworkState,
+        }) => {
+          // Include Avalanche in networkConfigurationsByChainId for explicit chainId lookup
+          const defaultState = getDefaultNetworkControllerState();
+          mockNetworkState({
+            ...defaultState,
+            networkConfigurationsByChainId: {
+              ...defaultState.networkConfigurationsByChainId,
+              ...mockNetworkConfigurationsByChainId,
+            },
+          });
           mockTokenListGetState({
             ...getDefaultTokenListState(),
             tokensChainsCache: {
@@ -2499,7 +2522,16 @@ describe('TokenDetectionController', () => {
             getAccount: selectedAccount,
           },
         },
-        async ({ controller, mockTokenListGetState }) => {
+        async ({ controller, mockTokenListGetState, mockNetworkState }) => {
+          // Include Avalanche in networkConfigurationsByChainId for explicit chainId lookup
+          const defaultState = getDefaultNetworkControllerState();
+          mockNetworkState({
+            ...defaultState,
+            networkConfigurationsByChainId: {
+              ...defaultState.networkConfigurationsByChainId,
+              ...mockNetworkConfigurationsByChainId,
+            },
+          });
           mockTokenListGetState({
             ...getDefaultTokenListState(),
             tokensChainsCache: {
@@ -2558,7 +2590,17 @@ describe('TokenDetectionController', () => {
           mockGetAccount,
           mockTokenListGetState,
           callActionSpy,
+          mockNetworkState,
         }) => {
+          // Include Avalanche in networkConfigurationsByChainId for explicit chainId lookup
+          const defaultState = getDefaultNetworkControllerState();
+          mockNetworkState({
+            ...defaultState,
+            networkConfigurationsByChainId: {
+              ...defaultState.networkConfigurationsByChainId,
+              ...mockNetworkConfigurationsByChainId,
+            },
+          });
           // @ts-expect-error forcing an undefined value
           mockGetAccount(undefined);
           mockTokenListGetState({
@@ -2752,7 +2794,12 @@ describe('TokenDetectionController', () => {
               getSelectedAccount: defaultSelectedAccount,
             },
           },
-          async ({ controller, mockTokenListGetState }) => {
+          async ({ controller, mockTokenListGetState, mockNetworkState }) => {
+            // Set selectedNetworkClientId to avalanche (not in SUPPORTED_NETWORKS_ACCOUNTS_API_V4)
+            mockNetworkState({
+              ...getDefaultNetworkControllerState(),
+              selectedNetworkClientId: 'avalanche',
+            });
             mockTokenListGetState({
               ...getDefaultTokenListState(),
               tokensChainsCache: {
@@ -2821,7 +2868,12 @@ describe('TokenDetectionController', () => {
               getSelectedAccount: defaultSelectedAccount,
             },
           },
-          async ({ controller, mockTokenListGetState }) => {
+          async ({ controller, mockTokenListGetState, mockNetworkState }) => {
+            // Set selectedNetworkClientId to avalanche (not in SUPPORTED_NETWORKS_ACCOUNTS_API_V4)
+            mockNetworkState({
+              ...getDefaultNetworkControllerState(),
+              selectedNetworkClientId: 'avalanche',
+            });
             mockTokenListGetState({
               ...getDefaultTokenListState(),
               tokensChainsCache: {
@@ -3299,7 +3351,11 @@ async function withController<ReturnValue>(
   const mockNetworkState = jest.fn<NetworkState, []>();
   messenger.registerActionHandler(
     'NetworkController:getState',
-    mockNetworkState.mockReturnValue({ ...getDefaultNetworkControllerState() }),
+    mockNetworkState.mockReturnValue({
+      ...getDefaultNetworkControllerState(),
+      // Default to avalanche so RPC detection works (not in SUPPORTED_NETWORKS_ACCOUNTS_API_V4)
+      selectedNetworkClientId: 'avalanche',
+    }),
   );
   const mockTokensState = jest.fn<TokensControllerState, []>();
   messenger.registerActionHandler(

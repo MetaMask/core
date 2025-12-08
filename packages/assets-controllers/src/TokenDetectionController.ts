@@ -318,21 +318,45 @@ export class TokenDetectionController extends StaticIntervalPollingController<To
     this.messenger.subscribe(
       'TokenListController:stateChange',
       ({ tokensChainsCache }) => {
+        const previousCache = this.#tokensChainsCache;
         this.#tokensChainsCache = tokensChainsCache;
+
+        // Trigger detection if the cache data changed (not just timestamp)
+        if (this.isActive && this.#hasTokenListChanged(previousCache)) {
+          this.detectTokens().catch(() => {
+            // Silently handle detection errors on token list change
+          });
+        }
       },
     );
 
     this.messenger.subscribe(
       'PreferencesController:stateChange',
       ({ useTokenDetection }) => {
+        const wasEnabled = this.#isDetectionEnabledFromPreferences;
         this.#isDetectionEnabledFromPreferences = useTokenDetection;
+
+        // Trigger detection if token detection was just enabled
+        if (!wasEnabled && useTokenDetection && this.isActive) {
+          this.detectTokens().catch(() => {
+            // Silently handle detection errors on preference change
+          });
+        }
       },
     );
 
     this.messenger.subscribe(
       'AccountsController:selectedEvmAccountChange',
       (selectedAccount) => {
+        const previousAccountId = this.#selectedAccountId;
         this.#selectedAccountId = selectedAccount.id;
+
+        // Trigger detection if account changed and controller is active
+        if (previousAccountId !== selectedAccount.id && this.isActive) {
+          this.detectTokens().catch(() => {
+            // Silently handle detection errors on account change
+          });
+        }
       },
     );
   }
@@ -427,6 +451,55 @@ export class TokenDetectionController extends StaticIntervalPollingController<To
             .networkClientId,
       };
     });
+  }
+
+  /**
+   * Compares the current tokensChainsCache with a previous version to determine
+   * if the token list data has changed (ignoring timestamp changes).
+   *
+   * @param previousCache - The previous tokensChainsCache to compare against.
+   * @returns True if the token list data has changed, false otherwise.
+   */
+  #hasTokenListChanged(previousCache: TokensChainsCache): boolean {
+    const currentCache = this.#tokensChainsCache;
+    if (!previousCache || !currentCache) {
+      return previousCache !== currentCache;
+    }
+
+    const previousChainIds = Object.keys(previousCache) as Hex[];
+    const currentChainIds = Object.keys(currentCache) as Hex[];
+
+    // Check if chain IDs are different
+    if (previousChainIds.length !== currentChainIds.length) {
+      return true;
+    }
+
+    // Check if any chain's data has changed (ignore timestamp)
+    for (const chainId of currentChainIds) {
+      const previousData = previousCache[chainId]?.data;
+      const currentData = currentCache[chainId]?.data;
+
+      if (!previousData && currentData) {
+        return true;
+      }
+      if (previousData && !currentData) {
+        return true;
+      }
+      if (previousData && currentData) {
+        const previousAddresses = Object.keys(previousData);
+        const currentAddresses = Object.keys(currentData);
+        if (previousAddresses.length !== currentAddresses.length) {
+          return true;
+        }
+        for (const address of currentAddresses) {
+          if (!previousData[address]) {
+            return true;
+          }
+        }
+      }
+    }
+
+    return false;
   }
 
   async _executePoll({
@@ -658,9 +731,7 @@ export class TokenDetectionController extends StaticIntervalPollingController<To
           category: 'Wallet',
           properties: {
             tokens: eventTokensDetails,
-            // eslint-disable-next-line @typescript-eslint/naming-convention
             token_standard: ERC20,
-            // eslint-disable-next-line @typescript-eslint/naming-convention
             asset_type: ASSET_TYPES.TOKEN,
           },
         });
@@ -734,9 +805,7 @@ export class TokenDetectionController extends StaticIntervalPollingController<To
         category: 'Wallet',
         properties: {
           tokens: eventTokensDetails,
-          // eslint-disable-next-line @typescript-eslint/naming-convention
           token_standard: ERC20,
-          // eslint-disable-next-line @typescript-eslint/naming-convention
           asset_type: ASSET_TYPES.TOKEN,
         },
       });
