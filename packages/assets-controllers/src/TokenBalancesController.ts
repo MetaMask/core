@@ -35,7 +35,7 @@ import type {
   PreferencesControllerStateChangeEvent,
 } from '@metamask/preferences-controller';
 import type { AuthenticationController } from '@metamask/profile-sync-controller';
-import type { TransactionControllerIncomingTransactionsReceivedEvent, TransactionControllerTransactionConfirmedEvent } from '@metamask/transaction-controller';
+import type { TransactionControllerTransactionConfirmedEvent } from '@metamask/transaction-controller';
 import type { Hex } from '@metamask/utils';
 import {
   isCaipAssetType,
@@ -145,8 +145,7 @@ export type AllowedEvents =
   | AccountActivityServiceBalanceUpdatedEvent
   | AccountActivityServiceStatusChangedEvent
   | AccountsControllerSelectedEvmAccountChangeEvent
-  | TransactionControllerTransactionConfirmedEvent
-  | TransactionControllerIncomingTransactionsReceivedEvent;
+  | TransactionControllerTransactionConfirmedEvent;
 
 export type TokenBalancesControllerMessenger = Messenger<
   typeof CONTROLLER,
@@ -397,21 +396,6 @@ export class TokenBalancesController extends StaticIntervalPollingController<{
         }).catch(() => {
           // Silently handle balance update errors
         });
-      },
-    );
-
-    this.messenger.subscribe(
-      'TransactionController:incomingTransactionsReceived',
-      (transactionMeta) => {
-        console.log(
-          'Incoming transaction block received: ++++++++++++++++++',
-          transactionMeta,
-        );
-        // this.updateBalances({
-        //   chainIds: [transactionMeta.chainId],
-        // }).catch(() => {
-        //   // Silently handle balance update errors
-        // });
       },
     );
   }
