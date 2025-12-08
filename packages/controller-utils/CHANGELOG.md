@@ -13,7 +13,14 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ### Changed
 
-- Update Monad Testnet Network Client ID  ([#7333](https://github.com/MetaMask/core/pull/7333))
+- Update Monad Testnet Infura Network Client ID from `monad-testnet` to `monad-testnet-infura`  ([#7333](https://github.com/MetaMask/core/pull/7333))
+  - Change `monad-testnet` to `monad-testnet-infura` in `InfuraNetworkType` quasi-enum
+  - Add `monad-testnet-infura` to `BUILT_IN_NETWORKS`
+  - Add `MonadTestnetInfura` to `BuiltInNetworkName` enum
+  - Add `monad-testnet-infura` to `ChainId` type
+  - Add `MonadTestnetInfura` to `NetworksTicker` enum
+  - Add `MonadTestnetInfura` to `BlockExplorerUrl` quasi-enum
+  - Add `MonadTestnetInfura` to `NetworkNickname` quasi-enum
 
 ## [11.16.0]
 
