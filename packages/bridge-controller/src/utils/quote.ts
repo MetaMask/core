@@ -229,6 +229,7 @@ const calcTotalGasFee = ({
 export const calcEstimatedAndMaxTotalGasFee = ({
   bridgeQuote: { approval, trade, l1GasFeesInHexWei, resetApproval },
   estimatedBaseFeeInDecGwei,
+  feePerGasInDecGwei,
   maxFeePerGasInDecGwei,
   exchangeRate: nativeToDisplayCurrencyExchangeRate,
   usdExchangeRate: nativeToUsdExchangeRate,
@@ -236,6 +237,7 @@ export const calcEstimatedAndMaxTotalGasFee = ({
   bridgeQuote: QuoteResponse<TxData, TxData> & L1GasFees;
   estimatedBaseFeeInDecGwei: string;
   maxFeePerGasInDecGwei: string;
+  feePerGasInDecGwei: string;
 } & ExchangeRate): QuoteMetadata['gasFee'] => {
   // Estimated gas fees spent after receiving refunds, this is shown to the user
   const {
@@ -249,7 +251,7 @@ export const calcEstimatedAndMaxTotalGasFee = ({
       resetApproval?.effectiveGas ?? resetApproval?.gasLimit,
     tradeGasLimit: trade?.effectiveGas ?? trade?.gasLimit,
     l1GasFeesInHexWei,
-    feePerGasInDecGwei: estimatedBaseFeeInDecGwei,
+    feePerGasInDecGwei: feePerGasInDecGwei,
     nativeToDisplayCurrencyExchangeRate,
     nativeToUsdExchangeRate,
   });
@@ -260,7 +262,7 @@ export const calcEstimatedAndMaxTotalGasFee = ({
     resetApprovalGasLimit: resetApproval?.gasLimit,
     tradeGasLimit: trade?.gasLimit,
     l1GasFeesInHexWei,
-    feePerGasInDecGwei: estimatedBaseFeeInDecGwei,
+    feePerGasInDecGwei,
     nativeToDisplayCurrencyExchangeRate,
     nativeToUsdExchangeRate,
   });

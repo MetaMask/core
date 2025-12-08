@@ -225,7 +225,7 @@ export const selectIsAssetExchangeRateInState = (
 const selectBridgeFeesPerGas = createStructuredBridgeSelector({
   estimatedBaseFeeInDecGwei: ({ gasFeeEstimates }) =>
     gasFeeEstimates?.estimatedBaseFee,
-  maxPriorityFeePerGasInDecGwei: ({ gasFeeEstimates }) =>
+  feePerGasInDecGwei: ({ gasFeeEstimates }) =>
     gasFeeEstimates?.[BRIDGE_PREFERRED_GAS_ESTIMATE]
       ?.suggestedMaxPriorityFeePerGas,
   maxFeePerGasInDecGwei: ({ gasFeeEstimates }) =>
