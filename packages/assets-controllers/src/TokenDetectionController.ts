@@ -137,7 +137,7 @@ export type AllowedActions =
   | TokensControllerGetStateAction
   | TokensControllerAddDetectedTokensAction
   | TokensControllerAddTokensAction
-  | NetworkControllerFindNetworkClientIdByChainIdAction
+  | NetworkControllerFindNetworkClientIdByChainIdAction;
 
 export type TokenDetectionControllerStateChangeEvent =
   ControllerStateChangeEvent<typeof controllerName, TokenDetectionState>;
@@ -200,6 +200,10 @@ export class TokenDetectionController extends StaticIntervalPollingController<To
 
   readonly #useTokenDetection: () => boolean;
 
+  readonly #useExternalServices: () => boolean;
+
+  readonly #useAccountsAPI: boolean;
+
   readonly #getBalancesInSingleCall: AssetsContractController['getBalancesInSingleCall'];
 
   readonly #trackMetaMetricsEvent: (options: {
@@ -224,6 +228,8 @@ export class TokenDetectionController extends StaticIntervalPollingController<To
    * @param options.getBalancesInSingleCall - Gets the balances of a list of tokens for the given address.
    * @param options.trackMetaMetricsEvent - Sets options for MetaMetrics event tracking.
    * @param options.useTokenDetection - Feature Switch for using token detection (default: true)
+   * @param options.useExternalServices - Feature Switch for using external services like RPC autodetection (default: true)
+   * @param options.useAccountsAPI - If true, supported chains use Account API via TokenBalancesController. If false, use RPC for all chains. (default: true)
    */
   constructor({
     interval = DEFAULT_INTERVAL,
@@ -232,6 +238,8 @@ export class TokenDetectionController extends StaticIntervalPollingController<To
     trackMetaMetricsEvent,
     messenger,
     useTokenDetection = (): boolean => true,
+    useExternalServices = (): boolean => true,
+    useAccountsAPI = true,
   }: {
     interval?: number;
     disabled?: boolean;
@@ -249,6 +257,8 @@ export class TokenDetectionController extends StaticIntervalPollingController<To
     }) => void;
     messenger: TokenDetectionControllerMessenger;
     useTokenDetection?: () => boolean;
+    useExternalServices?: () => boolean;
+    useAccountsAPI?: boolean;
   }) {
     super({
       name: controllerName,
@@ -286,6 +296,8 @@ export class TokenDetectionController extends StaticIntervalPollingController<To
     this.#isUnlocked = isUnlocked;
 
     this.#useTokenDetection = useTokenDetection;
+    this.#useExternalServices = useExternalServices;
+    this.#useAccountsAPI = useAccountsAPI;
 
     this.#registerEventListeners();
   }
@@ -531,10 +543,30 @@ export class TokenDetectionController extends StaticIntervalPollingController<To
       return;
     }
 
+    // If external services are disabled, skip all detection
+    if (!this.#useExternalServices()) {
+      return;
+    }
+
     const addressToDetect = selectedAddress ?? this.#getSelectedAddress();
     const clientNetworks = this.#getCorrectNetworkClientIdByChainId(chainIds);
 
-    await this.#detectTokensUsingRpc(clientNetworks, addressToDetect);
+    // Determine which chains should use RPC detection
+    // If useAccountsAPI is true: supported chains are handled by TokenBalancesController,
+    // only use RPC for unsupported chains
+    // If useAccountsAPI is false: use RPC for all chains
+    const chainsToDetectUsingRpc = this.#useAccountsAPI
+      ? clientNetworks.filter(
+          ({ chainId }) =>
+            !SUPPORTED_NETWORKS_ACCOUNTS_API_V4.includes(chainId),
+        )
+      : clientNetworks;
+
+    if (chainsToDetectUsingRpc.length === 0) {
+      return;
+    }
+
+    await this.#detectTokensUsingRpc(chainsToDetectUsingRpc, addressToDetect);
   }
 
   #getSlicesOfTokensToDetect({
