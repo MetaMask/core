@@ -1073,7 +1073,7 @@ export class KeyringController<
 
     const candidates = await Promise.all(
       this.#keyrings.map(async ({ keyring }) => {
-        return Promise.all([keyring, keyring.getAccounts()]);
+        return [keyring, await keyring.getAccounts()] as const;
       }),
     );
 
