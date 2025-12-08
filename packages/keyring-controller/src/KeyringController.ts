@@ -2324,11 +2324,11 @@ export class KeyringController<
     );
 
     // Those accounts got added, since they were not part of the old set of accounts.
-    newAccounts.forEach((keyringEventInfo, newAccount) =>
+    newAccounts.forEach((keyringObject, newAccount) =>
       this.messenger.publish(
         'KeyringController:accountAdded',
         newAccount,
-        keyringEventInfo,
+        keyringObject,
       ),
     );
 
