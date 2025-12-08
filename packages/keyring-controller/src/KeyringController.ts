@@ -18,7 +18,6 @@ import type { Messenger } from '@metamask/messenger';
 import type { Eip1024EncryptedData, Hex, Json } from '@metamask/utils';
 import {
   add0x,
-  assert,
   assertIsStrictHexString,
   bytesToHex,
   hasProperty,
@@ -217,7 +216,7 @@ export type KeyringControllerAccountAddedEvent = {
 
 export type KeyringControllerAccountRemovedEvent = {
   type: `${typeof name}:accountRemoved`;
-  payload: [string, KeyringObject];
+  payload: [string];
 };
 
 export type KeyringControllerLockEvent = {
@@ -1212,14 +1211,12 @@ export class KeyringController<
   async removeAccount(address: string): Promise<void> {
     this.#assertIsUnlocked();
 
-    const keyringIndex = this.state.keyrings.findIndex((kr) =>
-      kr.accounts.includes(address),
-    );
-    const keyringObject = this.state.keyrings[keyringIndex];
-    assert(keyringObject, 'Keyring object not found');
-
     await this.#persistOrRollback(async () => {
       const keyring = (await this.getKeyringForAccount(address)) as EthKeyring;
+
+      const keyringIndex = this.state.keyrings.findIndex((kr) =>
+        kr.accounts.includes(address),
+      );
 
       const isPrimaryKeyring = keyringIndex === 0;
       const shouldRemoveKeyring = (await keyring.getAccounts()).length === 1;
@@ -1246,7 +1243,7 @@ export class KeyringController<
       }
     });
 
-    this.messenger.publish(`${name}:accountRemoved`, address, keyringObject);
+    this.messenger.publish(`${name}:accountRemoved`, address);
   }
 
   /**
@@ -2322,12 +2319,8 @@ export class KeyringController<
     }
 
     // Those accounts got removed, since they are not part of the new set of accounts.
-    oldAccounts.forEach((keyringEventInfo, oldAccount) =>
-      this.messenger.publish(
-        'KeyringController:accountRemoved',
-        oldAccount,
-        keyringEventInfo,
-      ),
+    oldAccounts.forEach((_, oldAccount) =>
+      this.messenger.publish('KeyringController:accountRemoved', oldAccount),
     );
 
     // Those accounts got added, since they were not part of the old set of accounts.
