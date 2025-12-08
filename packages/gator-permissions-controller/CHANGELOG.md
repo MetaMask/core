@@ -9,18 +9,11 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [0.8.0]
 
-### Uncategorized
-
-- chore: Re-enable `@typescript-eslint/prefer-reduce-type-parameter` ([#7317](https://github.com/MetaMask/core/pull/7317))
-- chore: Update ESLint config packages to v15 ([#7305](https://github.com/MetaMask/core/pull/7305))
-- chore: Re-enable `@typescript-eslint/no-unnecessary-type-assertions` ([#7296](https://github.com/MetaMask/core/pull/7296))
-
 ### Changed
 
 - **BREAKING:** Permission decoding now rejects `TimestampEnforcer` caveats with zero `timestampBeforeThreshold` values ([#7195](https://github.com/MetaMask/core/pull/7195))
-- Permission decoding logic for `erc20-token-revocation` permission type ([#7299](https://github.com/MetaMask/core/pull/7299))
+- Permission decoding now resolves `erc20-token-revocation` permission type ([#7299](https://github.com/MetaMask/core/pull/7299))
 - Differentiate `erc20-token-revocation` permissions from `other` in controller state ([#7318](https://github.com/MetaMask/core/pull/7318))
-- Validation errors for `TimestampEnforcer` include: invalid terms length, non-zero `timestampAfterThreshold`, and zero `timestampBeforeThreshold` ([#7195](https://github.com/MetaMask/core/pull/7195))
 - Bump `@metamask/transaction-controller` from `^62.3.1` to `^62.5.0` ([#7289](https://github.com/MetaMask/core/pull/7289), [#7325](https://github.com/MetaMask/core/pull/7325))
 
 ## [0.7.0]

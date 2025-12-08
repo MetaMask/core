@@ -9,10 +9,7 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [22.0.1]
 
-### Uncategorized
-
-- chore: Update ESLint config packages to v15 ([#7305](https://github.com/MetaMask/core/pull/7305))
-- Release/699.0.0 ([#7258](https://github.com/MetaMask/core/pull/7258))
+- Bump dev-dependency `@metamask/network-controller` from `^26.0.0` to `^27.0.0` ([#7258](https://github.com/MetaMask/core/pull/7258))
 
 ### Fixed
 
