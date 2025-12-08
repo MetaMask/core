@@ -7,11 +7,6 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
-### Uncategorized
-
-- chore: Update ESLint config packages to v15 ([#7305](https://github.com/MetaMask/core/pull/7305))
-- network-controller: Mention addition of degraded status in changelog ([#7293](https://github.com/MetaMask/core/pull/7293))
-
 ### Changed
 
 - Update the default set of Infura networks to include Monad Testnet ([#7067](https://github.com/MetaMask/core/pull/7067))

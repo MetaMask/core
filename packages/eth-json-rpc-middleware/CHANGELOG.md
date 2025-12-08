@@ -7,6 +7,8 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+## [22.0.1]
+
 ### Uncategorized
 
 - chore: Update ESLint config packages to v15 ([#7305](https://github.com/MetaMask/core/pull/7305))
@@ -56,6 +58,7 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
   - See [`MetaMask/eth-json-rpc-middleware`](https://github.com/MetaMask/eth-json-rpc-middleware/blob/main/CHANGELOG.md)
     for the original changelog.
 
-[Unreleased]: https://github.com/MetaMask/core/compare/@metamask/eth-json-rpc-middleware@22.0.0...HEAD
+[Unreleased]: https://github.com/MetaMask/core/compare/@metamask/eth-json-rpc-middleware@22.0.1...HEAD
+[22.0.1]: https://github.com/MetaMask/core/compare/@metamask/eth-json-rpc-middleware@22.0.0...@metamask/eth-json-rpc-middleware@22.0.1
 [22.0.0]: https://github.com/MetaMask/core/compare/@metamask/eth-json-rpc-middleware@21.0.0...@metamask/eth-json-rpc-middleware@22.0.0
 [21.0.0]: https://github.com/MetaMask/core/releases/tag/@metamask/eth-json-rpc-middleware@21.0.0
