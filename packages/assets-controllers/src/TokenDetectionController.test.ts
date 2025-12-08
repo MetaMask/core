@@ -2931,6 +2931,227 @@ describe('TokenDetectionController', () => {
         },
       );
     });
+
+    it('should use static mainnet token list when token detection is disabled for mainnet', async () => {
+      const mockGetBalancesInSingleCall = jest.fn().mockResolvedValue({
+        '0xA0b86991c6218b36c1d19D4a2e9Eb0cE3606eB48': new BN(1), // USDC on mainnet
+      });
+      const selectedAccount = createMockInternalAccount({
+        address: '0x0000000000000000000000000000000000000001',
+      });
+      await withController(
+        {
+          options: {
+            disabled: false,
+            getBalancesInSingleCall: mockGetBalancesInSingleCall,
+          },
+          mocks: {
+            getSelectedAccount: selectedAccount,
+            getAccount: selectedAccount,
+          },
+        },
+        async ({
+          controller,
+          mockNetworkState,
+          mockFindNetworkClientIdByChainId,
+          triggerPreferencesStateChange,
+        }) => {
+          const defaultState = getDefaultNetworkControllerState();
+          mockNetworkState({
+            ...defaultState,
+            selectedNetworkClientId: 'mainnet',
+            networkConfigurationsByChainId: {
+              ...defaultState.networkConfigurationsByChainId,
+              '0x1': {
+                chainId: '0x1',
+                name: 'Ethereum Mainnet',
+                nativeCurrency: 'ETH',
+                blockExplorerUrls: [],
+                defaultBlockExplorerUrlIndex: 0,
+                defaultRpcEndpointIndex: 0,
+                rpcEndpoints: [
+                  {
+                    networkClientId: 'mainnet',
+                    type: RpcEndpointType.Custom,
+                    url: 'https://mainnet.infura.io/v3/test',
+                    failoverUrls: [],
+                  },
+                ],
+              },
+            },
+          });
+          mockFindNetworkClientIdByChainId(() => 'mainnet');
+
+          // Disable token detection - this should trigger static mainnet token list usage
+          triggerPreferencesStateChange({
+            ...getDefaultPreferencesState(),
+            useTokenDetection: false,
+          });
+
+          // Trigger detection with forceRpc to ensure we test the static token list path
+          await controller.detectTokens({
+            chainIds: [ChainId.mainnet],
+            forceRpc: true,
+          });
+
+          // The detection should have been attempted (static token list is used internally)
+          // We verify the getBalancesInSingleCall was called, indicating detection ran
+          expect(mockGetBalancesInSingleCall).toHaveBeenCalled();
+        },
+      );
+    });
+
+    it('should skip chains supported by Accounts API when forceRpc is false', async () => {
+      const mockGetBalancesInSingleCall = jest.fn().mockResolvedValue({
+        [sampleTokenA.address]: new BN(1),
+      });
+      const selectedAccount = createMockInternalAccount({
+        address: '0x0000000000000000000000000000000000000001',
+      });
+      await withController(
+        {
+          options: {
+            disabled: false,
+            getBalancesInSingleCall: mockGetBalancesInSingleCall,
+          },
+          mocks: {
+            getSelectedAccount: selectedAccount,
+            getAccount: selectedAccount,
+          },
+        },
+        async ({
+          controller,
+          mockNetworkState,
+          mockFindNetworkClientIdByChainId,
+        }) => {
+          const defaultState = getDefaultNetworkControllerState();
+          mockNetworkState({
+            ...defaultState,
+            selectedNetworkClientId: 'mainnet',
+            networkConfigurationsByChainId: {
+              ...defaultState.networkConfigurationsByChainId,
+              '0x1': {
+                chainId: '0x1',
+                name: 'Ethereum Mainnet',
+                nativeCurrency: 'ETH',
+                blockExplorerUrls: [],
+                defaultBlockExplorerUrlIndex: 0,
+                defaultRpcEndpointIndex: 0,
+                rpcEndpoints: [
+                  {
+                    networkClientId: 'mainnet',
+                    type: RpcEndpointType.Custom,
+                    url: 'https://mainnet.infura.io/v3/test',
+                    failoverUrls: [],
+                  },
+                ],
+              },
+            },
+          });
+          mockFindNetworkClientIdByChainId(() => 'mainnet');
+
+          // Call detectTokens with mainnet (which is in SUPPORTED_NETWORKS_ACCOUNTS_API_V4)
+          // Without forceRpc, it should skip mainnet
+          await controller.detectTokens({
+            chainIds: [ChainId.mainnet],
+          });
+
+          // Should NOT call getBalancesInSingleCall since mainnet is skipped
+          expect(mockGetBalancesInSingleCall).not.toHaveBeenCalled();
+        },
+      );
+    });
+
+    it('should detect tokens on Accounts API supported chains when forceRpc is true', async () => {
+      const mainnetUSDC = '0xA0b86991c6218b36c1d19D4a2e9Eb0cE3606eB48';
+      const mockGetBalancesInSingleCall = jest.fn().mockResolvedValue({
+        [mainnetUSDC]: new BN(1),
+      });
+      const selectedAccount = createMockInternalAccount({
+        address: '0x0000000000000000000000000000000000000001',
+      });
+      await withController(
+        {
+          options: {
+            disabled: false,
+            getBalancesInSingleCall: mockGetBalancesInSingleCall,
+          },
+          mocks: {
+            getSelectedAccount: selectedAccount,
+            getAccount: selectedAccount,
+          },
+        },
+        async ({
+          controller,
+          mockNetworkState,
+          mockFindNetworkClientIdByChainId,
+          mockTokenListGetState,
+          triggerPreferencesStateChange,
+        }) => {
+          const defaultState = getDefaultNetworkControllerState();
+          mockNetworkState({
+            ...defaultState,
+            selectedNetworkClientId: 'mainnet',
+            networkConfigurationsByChainId: {
+              ...defaultState.networkConfigurationsByChainId,
+              '0x1': {
+                chainId: '0x1',
+                name: 'Ethereum Mainnet',
+                nativeCurrency: 'ETH',
+                blockExplorerUrls: [],
+                defaultBlockExplorerUrlIndex: 0,
+                defaultRpcEndpointIndex: 0,
+                rpcEndpoints: [
+                  {
+                    networkClientId: 'mainnet',
+                    type: RpcEndpointType.Custom,
+                    url: 'https://mainnet.infura.io/v3/test',
+                    failoverUrls: [],
+                  },
+                ],
+              },
+            },
+          });
+          mockFindNetworkClientIdByChainId(() => 'mainnet');
+
+          // Provide token list data for mainnet
+          mockTokenListGetState({
+            ...getDefaultTokenListState(),
+            tokensChainsCache: {
+              '0x1': {
+                timestamp: 0,
+                data: {
+                  [mainnetUSDC]: {
+                    name: 'USD Coin',
+                    symbol: 'USDC',
+                    decimals: 6,
+                    address: mainnetUSDC,
+                    occurrences: 1,
+                    aggregators: [],
+                    iconUrl: '',
+                  },
+                },
+              },
+            },
+          });
+
+          // Enable token detection for mainnet
+          triggerPreferencesStateChange({
+            ...getDefaultPreferencesState(),
+            useTokenDetection: true,
+          });
+
+          // Call detectTokens with forceRpc: true to force RPC detection on mainnet
+          await controller.detectTokens({
+            chainIds: [ChainId.mainnet],
+            forceRpc: true,
+          });
+
+          // Should call getBalancesInSingleCall since forceRpc bypasses Accounts API filter
+          expect(mockGetBalancesInSingleCall).toHaveBeenCalled();
+        },
+      );
+    });
   });
 
   describe('mapChainIdWithTokenListMap', () => {

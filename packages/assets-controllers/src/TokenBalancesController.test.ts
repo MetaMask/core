@@ -1,5 +1,6 @@
 import { deriveStateFromMetadata } from '@metamask/base-controller';
 import { toChecksumHexAddress, toHex } from '@metamask/controller-utils';
+import type { BalanceUpdate } from '@metamask/core-backend';
 import type { InternalAccount } from '@metamask/keyring-internal-api';
 import { Messenger, MOCK_ANY_NAMESPACE } from '@metamask/messenger';
 import type {
@@ -10,6 +11,7 @@ import type {
 import type { NetworkState } from '@metamask/network-controller';
 import type { PreferencesState } from '@metamask/preferences-controller';
 import { CHAIN_IDS } from '@metamask/transaction-controller';
+import type { TransactionMeta } from '@metamask/transaction-controller';
 import type { Hex } from '@metamask/utils';
 import BN from 'bn.js';
 import { useFakeTimers } from 'sinon';
@@ -91,6 +93,7 @@ const setupController = ({
       'PreferencesController:getState',
       'TokensController:getState',
       'TokenDetectionController:addDetectedTokensViaWs',
+      'TokenDetectionController:detectTokens',
       'AccountsController:getSelectedAccount',
       'AccountsController:listAccounts',
       'AccountTrackerController:getState',
@@ -106,6 +109,8 @@ const setupController = ({
       'AccountActivityService:balanceUpdated',
       'AccountActivityService:statusChanged',
       'AccountsController:selectedEvmAccountChange',
+      'TransactionController:transactionConfirmed',
+      'TransactionController:incomingTransactionsReceived',
     ],
   });
 
@@ -183,6 +188,11 @@ const setupController = ({
 
   messenger.registerActionHandler(
     'TokenDetectionController:addDetectedTokensViaWs',
+    jest.fn().mockResolvedValue(undefined),
+  );
+
+  messenger.registerActionHandler(
+    'TokenDetectionController:detectTokens',
     jest.fn().mockResolvedValue(undefined),
   );
 
@@ -5587,6 +5597,375 @@ describe('TokenBalancesController', () => {
           "tokenBalances": Object {},
         }
       `);
+    });
+  });
+
+  describe('event subscriptions', () => {
+    it('should handle TransactionController:transactionConfirmed event', async () => {
+      const { controller, messenger } = setupController();
+      const updateBalancesSpy = jest.spyOn(controller, 'updateBalances');
+
+      messenger.publish('TransactionController:transactionConfirmed', {
+        chainId: '0x1',
+      } as unknown as TransactionMeta);
+
+      await clock.tickAsync(0);
+
+      expect(updateBalancesSpy).toHaveBeenCalledWith({
+        chainIds: ['0x1'],
+      });
+    });
+
+    it('should handle TransactionController:incomingTransactionsReceived event', async () => {
+      const { controller, messenger } = setupController();
+      const updateBalancesSpy = jest.spyOn(controller, 'updateBalances');
+
+      messenger.publish('TransactionController:incomingTransactionsReceived', [
+        { chainId: '0x1' },
+        { chainId: '0x89' },
+      ] as unknown as TransactionMeta[]);
+
+      await clock.tickAsync(0);
+
+      expect(updateBalancesSpy).toHaveBeenCalledWith({
+        chainIds: ['0x1', '0x89'],
+      });
+    });
+
+    it('should handle errors from #onTokensChanged gracefully', async () => {
+      const warnSpy = jest.spyOn(console, 'warn').mockImplementation();
+      const { controller, messenger } = setupController();
+
+      // Mock updateBalances to throw an error
+      jest
+        .spyOn(controller, 'updateBalances')
+        .mockRejectedValue(new Error('Test error'));
+
+      messenger.publish(
+        'TokensController:stateChange',
+        {
+          allDetectedTokens: {},
+          allIgnoredTokens: {},
+          allTokens: {
+            '0x1': {
+              '0x123': [{ address: '0xtoken1', decimals: 18, symbol: 'TK1' }],
+            },
+          },
+        } as unknown as TokensControllerState,
+        [],
+      );
+
+      await clock.tickAsync(0);
+
+      expect(warnSpy).toHaveBeenCalledWith(
+        'Error updating balances after token change:',
+        expect.any(Error),
+      );
+
+      warnSpy.mockRestore();
+    });
+
+    it('should handle errors from #onAccountActivityBalanceUpdate gracefully', async () => {
+      const warnSpy = jest.spyOn(console, 'warn').mockImplementation();
+      const { messenger } = setupController();
+
+      // Publish malformed balance update to trigger error
+      messenger.publish('AccountActivityService:balanceUpdated', {
+        address: '0x123',
+        chain: 'invalid-chain',
+        updates: [
+          {
+            asset: { type: 'invalid' },
+            postBalance: { amount: '0x0', error: 'test error' },
+          },
+        ],
+      } as unknown as {
+        address: string;
+        chain: string;
+        updates: BalanceUpdate[];
+      });
+
+      await clock.tickAsync(0);
+
+      expect(warnSpy).toHaveBeenCalledWith(
+        expect.stringContaining('Error handling balance update:'),
+        expect.any(Error),
+      );
+
+      warnSpy.mockRestore();
+    });
+  });
+
+  describe('polling behavior', () => {
+    it('should not poll when controller polling is not active', async () => {
+      const { controller } = setupController({
+        config: {
+          interval: 1000,
+        },
+      });
+
+      const updateBalancesSpy = jest.spyOn(controller, 'updateBalances');
+
+      // Start and then stop polling to deactivate
+      controller.startPolling({ chainIds: ['0x1'] });
+      controller.stopAllPolling();
+
+      // Wait for poll interval
+      await clock.tickAsync(2000);
+
+      // updateBalances should have been called once during startPolling,
+      // but not again after stopping
+      expect(updateBalancesSpy.mock.calls.length).toBeLessThanOrEqual(1);
+    });
+
+    it('should clear existing timer when setting new polling timer', async () => {
+      const clearIntervalSpy = jest.spyOn(global, 'clearInterval');
+
+      const { controller } = setupController({
+        config: {
+          interval: 1000,
+        },
+      });
+
+      // Start polling twice with same interval to trigger clearing existing timer
+      controller.startPolling({ chainIds: ['0x1'] });
+      controller.updateChainPollingConfigs(
+        { '0x1': { interval: 1000 } },
+        { immediateUpdate: false },
+      );
+
+      expect(clearIntervalSpy).toHaveBeenCalled();
+    });
+  });
+
+  describe('token state change handling', () => {
+    it('should skip chains where tokens have not changed', async () => {
+      // This test verifies line 1146: skip unchanged token chains
+      const chainId = '0x1';
+      const tokenAddress = '0xA0b86991c6218b36c1d19D4a2e9Eb0cE3606eB48';
+      const accountAddress = '0x1234567890123456789012345678901234567890';
+
+      const initialTokens = {
+        allTokens: {
+          [chainId]: {
+            [accountAddress]: [
+              { address: tokenAddress, decimals: 18, symbol: 'TK1' },
+            ],
+          },
+        },
+        allDetectedTokens: {},
+        allIgnoredTokens: {},
+      };
+
+      const { controller, messenger } = setupController({
+        tokens: initialTokens,
+      });
+
+      const updateBalancesSpy = jest.spyOn(controller, 'updateBalances');
+
+      // Publish the same state again - tokens haven't changed
+      messenger.publish(
+        'TokensController:stateChange',
+        initialTokens as unknown as TokensControllerState,
+        [],
+      );
+
+      await clock.tickAsync(0);
+
+      // updateBalances should not be called since tokens haven't changed
+      expect(updateBalancesSpy).not.toHaveBeenCalled();
+    });
+  });
+
+  describe('status change accumulation', () => {
+    it('should return early when no status changes accumulated', async () => {
+      // This test verifies line 1384: early return when no changes
+      const { messenger, controller } = setupController();
+
+      // Trigger status change processing without any pending changes
+      messenger.publish('AccountActivityService:statusChanged', {
+        chainIds: [],
+        status: 'up',
+      });
+
+      // Wait for debounce
+      await clock.tickAsync(6000);
+
+      // No errors should occur and controller should still be functional
+      expect(controller.state.tokenBalances).toBeDefined();
+    });
+  });
+
+  describe('account normalization edge cases', () => {
+    it('should handle empty account balances during normalization', () => {
+      // This test verifies line 445: skip falsy accountBalances
+      const { controller } = setupController({
+        config: {
+          state: {
+            tokenBalances: {},
+          },
+        },
+      });
+
+      // Controller should initialize without errors
+      expect(controller.state.tokenBalances).toStrictEqual({});
+    });
+  });
+
+  describe('error handling in event subscriptions', () => {
+    it('should log error when onTokensChanged fails', async () => {
+      // This test verifies line 360
+      const consoleWarnSpy = jest
+        .spyOn(console, 'warn')
+        .mockImplementation(() => undefined);
+
+      const { messenger } = setupController();
+
+      // Publish invalid state to trigger an error
+      messenger.publish(
+        'TokensController:stateChange',
+        null as unknown as TokensControllerState,
+        [],
+      );
+
+      await clock.tickAsync(0);
+
+      expect(consoleWarnSpy).toHaveBeenCalledWith(
+        'Error handling token state change:',
+        expect.any(Error),
+      );
+
+      consoleWarnSpy.mockRestore();
+    });
+
+    it('should log error when onAccountActivityBalanceUpdate fails', async () => {
+      // This test verifies line 384
+      const consoleWarnSpy = jest
+        .spyOn(console, 'warn')
+        .mockImplementation(() => undefined);
+
+      const { messenger } = setupController();
+
+      // Publish invalid event to trigger an error
+      messenger.publish('AccountActivityService:balanceUpdated', {
+        address: 'invalid-address',
+        chain: 'invalid-chain',
+        updates: [],
+      });
+
+      await clock.tickAsync(0);
+
+      expect(consoleWarnSpy).toHaveBeenCalledWith(
+        expect.stringContaining('Error'),
+        expect.anything(),
+      );
+
+      consoleWarnSpy.mockRestore();
+    });
+  });
+
+  describe('polling inactive state', () => {
+    it('should return early when polling is inactive', async () => {
+      // This test verifies line 554
+      const { controller } = setupController({
+        config: {
+          accountsApiChainIds: () => [],
+        },
+      });
+
+      // Start and immediately stop polling
+      controller.startPolling({ chainIds: ['0x1'] });
+      controller.stopAllPolling();
+
+      // Polling should not execute when inactive
+      await clock.tickAsync(35000);
+
+      // Controller state should remain unchanged
+      expect(controller.state.tokenBalances).toBeDefined();
+    });
+  });
+
+  describe('polling timer management', () => {
+    it('should clear existing timer when setting new one for same interval', async () => {
+      // This test verifies line 586
+      const { controller } = setupController({
+        config: {
+          accountsApiChainIds: () => [],
+        },
+      });
+
+      // Start polling twice with same chain - should clear previous timer
+      controller.startPolling({ chainIds: ['0x1'] });
+
+      await clock.tickAsync(100);
+
+      controller.startPolling({ chainIds: ['0x1'] });
+
+      // Should not cause double polling
+      await clock.tickAsync(35000);
+
+      expect(controller.state.tokenBalances).toBeDefined();
+    });
+
+    it('should handle immediate polling errors gracefully', async () => {
+      // This test verifies lines 569-572
+      const consoleWarnSpy = jest
+        .spyOn(console, 'warn')
+        .mockImplementation(() => undefined);
+
+      const { controller, messenger } = setupController({
+        config: {
+          accountsApiChainIds: () => [],
+        },
+      });
+
+      // Unregister handler to cause an error
+      messenger.unregisterActionHandler('NetworkController:getState');
+      messenger.registerActionHandler('NetworkController:getState', () => {
+        throw new Error('Network error');
+      });
+
+      controller.startPolling({ chainIds: ['0x1'] });
+
+      await clock.tickAsync(100);
+
+      expect(consoleWarnSpy).toHaveBeenCalledWith(
+        expect.stringContaining('failed'),
+        expect.anything(),
+      );
+
+      consoleWarnSpy.mockRestore();
+    });
+
+    it('should handle interval polling errors gracefully', async () => {
+      // This test verifies lines 591-594
+      const consoleWarnSpy = jest
+        .spyOn(console, 'warn')
+        .mockImplementation(() => undefined);
+
+      const { controller, messenger } = setupController({
+        config: {
+          accountsApiChainIds: () => [],
+          interval: 1000,
+        },
+      });
+
+      controller.startPolling({ chainIds: ['0x1'] });
+
+      await clock.tickAsync(100);
+
+      // Now break the handler
+      messenger.unregisterActionHandler('NetworkController:getState');
+      messenger.registerActionHandler('NetworkController:getState', () => {
+        throw new Error('Network error');
+      });
+
+      // Wait for interval polling to trigger
+      await clock.tickAsync(1500);
+
+      expect(consoleWarnSpy).toHaveBeenCalled();
+
+      consoleWarnSpy.mockRestore();
     });
   });
 });

@@ -13,10 +13,8 @@ import {
   ChainId,
   ERC20,
   safelyExecute,
-  safelyExecuteWithTimeout,
   isEqualCaseInsensitive,
   toChecksumHexAddress,
-  toHex,
 } from '@metamask/controller-utils';
 import type {
   KeyringControllerGetStateAction,
@@ -44,6 +42,7 @@ import { isEqual, mapValues, isObject, get } from 'lodash';
 
 import type { AssetsContractController } from './AssetsContractController';
 import { isTokenDetectionSupportedForNetwork } from './assetsUtil';
+import { SUPPORTED_NETWORKS_ACCOUNTS_API_V4 } from './constants';
 import type {
   GetTokenListState,
   TokenListMap,
@@ -123,9 +122,15 @@ export type TokenDetectionControllerAddDetectedTokensViaWsAction = {
   handler: TokenDetectionController['addDetectedTokensViaWs'];
 };
 
+export type TokenDetectionControllerDetectTokensAction = {
+  type: `TokenDetectionController:detectTokens`;
+  handler: TokenDetectionController['detectTokens'];
+};
+
 export type TokenDetectionControllerActions =
   | TokenDetectionControllerGetStateAction
-  | TokenDetectionControllerAddDetectedTokensViaWsAction;
+  | TokenDetectionControllerAddDetectedTokensViaWsAction
+  | TokenDetectionControllerDetectTokensAction;
 
 export type AllowedActions =
   | AccountsControllerGetSelectedAccountAction
@@ -265,6 +270,11 @@ export class TokenDetectionController extends StaticIntervalPollingController<To
     this.messenger.registerActionHandler(
       `${controllerName}:addDetectedTokensViaWs` as const,
       this.addDetectedTokensViaWs.bind(this),
+    );
+
+    this.messenger.registerActionHandler(
+      `${controllerName}:detectTokens` as const,
+      this.detectTokens.bind(this),
     );
 
     this.#disabled = disabled;
@@ -521,7 +531,6 @@ export class TokenDetectionController extends StaticIntervalPollingController<To
     this.setIntervalLength(DEFAULT_INTERVAL);
   }
 
-
   #shouldDetectTokens(chainId: Hex): boolean {
     if (!isTokenDetectionSupportedForNetwork(chainId)) {
       return false;
@@ -580,35 +589,50 @@ export class TokenDetectionController extends StaticIntervalPollingController<To
    * @param options - Options for token detection.
    * @param options.chainIds - The chain IDs of the network client to use.
    * @param options.selectedAddress - the selectedAddress against which to detect for token balances.
+   * @param options.forceRpc - Force RPC-based token detection for all specified chains,
+   * bypassing external services check and ensuring RPC is used even for chains
+   * that might otherwise be handled by the Accounts API.
    */
   async detectTokens({
     chainIds,
     selectedAddress,
+    forceRpc = false,
   }: {
     chainIds?: Hex[];
     selectedAddress?: string;
+    forceRpc?: boolean;
   } = {}): Promise<void> {
     if (!this.isActive) {
       return;
     }
 
-    if (!this.#useTokenDetection()) {
+    // When forceRpc is true, bypass the useTokenDetection check to ensure RPC detection runs
+    if (!forceRpc && !this.#useTokenDetection()) {
       return;
     }
 
-    // If external services are disabled, skip all detection
-    if (!this.#useExternalServices()) {
+    // If external services are disabled and not forcing RPC, skip all detection
+    if (!forceRpc && !this.#useExternalServices()) {
       return;
     }
 
     const addressToDetect = selectedAddress ?? this.#getSelectedAddress();
     const clientNetworks = this.#getCorrectNetworkClientIdByChainId(chainIds);
 
-    if (clientNetworks.length === 0) {
+    // If forceRpc is true, use RPC for all chains
+    // Otherwise, skip chains supported by Accounts API (they are handled by TokenBalancesController)
+    const chainsToDetectUsingRpc = forceRpc
+      ? clientNetworks
+      : clientNetworks.filter(
+          ({ chainId }) =>
+            !SUPPORTED_NETWORKS_ACCOUNTS_API_V4.includes(chainId),
+        );
+
+    if (chainsToDetectUsingRpc.length === 0) {
       return;
     }
 
-    await this.#detectTokensUsingRpc(clientNetworks, addressToDetect);
+    await this.#detectTokensUsingRpc(chainsToDetectUsingRpc, addressToDetect);
   }
 
   #getSlicesOfTokensToDetect({
