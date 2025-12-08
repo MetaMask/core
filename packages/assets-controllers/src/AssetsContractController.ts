@@ -762,11 +762,10 @@ export class AssetsContractController {
       results.forEach((result: Aggregate3Result, index: number) => {
         if (result.success && result.returnData !== '0x') {
           const tokenAddress = tokensToDetect[index];
-          const balanceRaw = tempContract.interface.decodeFunctionResult(
+          const balance = tempContract.interface.decodeFunctionResult(
             'balanceOf',
             result.returnData,
           )[0];
-          const balance = new BN(balanceRaw.toString());
 
           /* istanbul ignore else */
           if (balance.toString() !== '0') {
