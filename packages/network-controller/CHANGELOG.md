@@ -10,6 +10,7 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 ### Changed
 
 - Update the default set of Infura networks to include Monad Testnet ([#7067](https://github.com/MetaMask/core/pull/7067))
+- Update Monad Testnet Network Client Id ([#7333](https://github.com/MetaMask/core/pull/7333))
 
 ## [27.0.0]
 
