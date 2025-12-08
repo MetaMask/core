@@ -216,7 +216,12 @@ function calculateAmounts(
   amountRawInput: BigNumber.Value,
   decimals: number,
   fiatRates: FiatRates,
-) {
+): {
+  amountFiat: string;
+  amountHuman: string;
+  amountRaw: string;
+  amountUsd: string;
+} {
   const amountRawValue = new BigNumber(amountRawInput);
   const amountHumanValue = amountRawValue.shiftedBy(-decimals);
 
@@ -265,9 +270,9 @@ function getTokenTransferData(transactionMeta: TransactionMeta):
   );
 
   const nestedCall =
-    nestedCallIndex !== undefined
-      ? nestedTransactions?.[nestedCallIndex]
-      : undefined;
+    nestedCallIndex === undefined
+      ? undefined
+      : nestedTransactions?.[nestedCallIndex];
 
   if (nestedCall?.data && nestedCall.to) {
     return {
