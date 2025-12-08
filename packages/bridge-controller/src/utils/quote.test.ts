@@ -436,7 +436,6 @@ describe('Quote Metadata Utils', () => {
         bridgeQuote: mockBridgeQuote,
         estimatedBaseFeeInDecGwei: '50',
         maxFeePerGasInDecGwei: '100',
-        maxPriorityFeePerGasInDecGwei: '2',
         exchangeRate: '2000',
         usdExchangeRate: '1500',
       });
@@ -476,7 +475,6 @@ describe('Quote Metadata Utils', () => {
         } as QuoteResponse<TxData, TxData> & L1GasFees,
         estimatedBaseFeeInDecGwei: '50',
         maxFeePerGasInDecGwei: '100',
-        maxPriorityFeePerGasInDecGwei: '2',
         exchangeRate: '2000',
         usdExchangeRate: '1500',
       });
@@ -512,7 +510,6 @@ describe('Quote Metadata Utils', () => {
         bridgeQuote: mockBridgeQuote,
         estimatedBaseFeeInDecGwei: '50',
         maxFeePerGasInDecGwei: '100',
-        maxPriorityFeePerGasInDecGwei: '2',
         exchangeRate: undefined,
         usdExchangeRate: undefined,
       });
@@ -530,7 +527,6 @@ describe('Quote Metadata Utils', () => {
         bridgeQuote: mockBridgeQuote,
         estimatedBaseFeeInDecGwei: '50',
         maxFeePerGasInDecGwei: '100',
-        maxPriorityFeePerGasInDecGwei: '2',
         exchangeRate: '2000',
         usdExchangeRate: undefined,
       });
@@ -546,7 +542,6 @@ describe('Quote Metadata Utils', () => {
         bridgeQuote: mockBridgeQuote,
         estimatedBaseFeeInDecGwei: '50',
         maxFeePerGasInDecGwei: '100',
-        maxPriorityFeePerGasInDecGwei: '2',
         exchangeRate: undefined,
         usdExchangeRate: '1500',
       });
@@ -570,7 +565,6 @@ describe('Quote Metadata Utils', () => {
         bridgeQuote: zeroGasQuote,
         estimatedBaseFeeInDecGwei: '50',
         maxFeePerGasInDecGwei: '100',
-        maxPriorityFeePerGasInDecGwei: '2',
         exchangeRate: '2000',
         usdExchangeRate: '1500',
       });
@@ -594,7 +588,6 @@ describe('Quote Metadata Utils', () => {
         bridgeQuote: noApprovalQuote,
         estimatedBaseFeeInDecGwei: '50',
         maxFeePerGasInDecGwei: '100',
-        maxPriorityFeePerGasInDecGwei: '2',
         exchangeRate: '2000',
         usdExchangeRate: '1500',
       });
@@ -619,7 +612,6 @@ describe('Quote Metadata Utils', () => {
         bridgeQuote: noGasLimitQuote,
         estimatedBaseFeeInDecGwei: '50',
         maxFeePerGasInDecGwei: '100',
-        maxPriorityFeePerGasInDecGwei: '2',
         exchangeRate: '2000',
         usdExchangeRate: '1500',
       });
@@ -641,7 +633,6 @@ describe('Quote Metadata Utils', () => {
         bridgeQuote: largeGasQuote,
         estimatedBaseFeeInDecGwei: '100',
         maxFeePerGasInDecGwei: '200',
-        maxPriorityFeePerGasInDecGwei: '10',
         exchangeRate: '3000',
         usdExchangeRate: '2500',
       });

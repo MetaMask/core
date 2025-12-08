@@ -191,7 +191,6 @@ const calcTotalGasFee = ({
   tradeGasLimit,
   l1GasFeesInHexWei,
   feePerGasInDecGwei,
-  priorityFeePerGasInDecGwei,
   nativeToDisplayCurrencyExchangeRate,
   nativeToUsdExchangeRate,
 }: {
@@ -200,7 +199,6 @@ const calcTotalGasFee = ({
   tradeGasLimit?: number | null;
   l1GasFeesInHexWei?: string | null;
   feePerGasInDecGwei: string;
-  priorityFeePerGasInDecGwei: string;
   nativeToDisplayCurrencyExchangeRate?: string;
   nativeToUsdExchangeRate?: string;
 }) => {
@@ -232,14 +230,12 @@ export const calcEstimatedAndMaxTotalGasFee = ({
   bridgeQuote: { approval, trade, l1GasFeesInHexWei, resetApproval },
   estimatedBaseFeeInDecGwei,
   maxFeePerGasInDecGwei,
-  maxPriorityFeePerGasInDecGwei,
   exchangeRate: nativeToDisplayCurrencyExchangeRate,
   usdExchangeRate: nativeToUsdExchangeRate,
 }: {
   bridgeQuote: QuoteResponse<TxData, TxData> & L1GasFees;
   estimatedBaseFeeInDecGwei: string;
   maxFeePerGasInDecGwei: string;
-  maxPriorityFeePerGasInDecGwei: string;
 } & ExchangeRate): QuoteMetadata['gasFee'] => {
   // Estimated gas fees spent after receiving refunds, this is shown to the user
   const {
@@ -254,7 +250,6 @@ export const calcEstimatedAndMaxTotalGasFee = ({
     tradeGasLimit: trade?.effectiveGas ?? trade?.gasLimit,
     l1GasFeesInHexWei,
     feePerGasInDecGwei: estimatedBaseFeeInDecGwei,
-    priorityFeePerGasInDecGwei: maxPriorityFeePerGasInDecGwei,
     nativeToDisplayCurrencyExchangeRate,
     nativeToUsdExchangeRate,
   });
@@ -266,7 +261,6 @@ export const calcEstimatedAndMaxTotalGasFee = ({
     tradeGasLimit: trade?.gasLimit,
     l1GasFeesInHexWei,
     feePerGasInDecGwei: estimatedBaseFeeInDecGwei,
-    priorityFeePerGasInDecGwei: maxPriorityFeePerGasInDecGwei,
     nativeToDisplayCurrencyExchangeRate,
     nativeToUsdExchangeRate,
   });
@@ -282,7 +276,6 @@ export const calcEstimatedAndMaxTotalGasFee = ({
     tradeGasLimit: trade?.gasLimit,
     l1GasFeesInHexWei,
     feePerGasInDecGwei: maxFeePerGasInDecGwei,
-    priorityFeePerGasInDecGwei: maxPriorityFeePerGasInDecGwei,
     nativeToDisplayCurrencyExchangeRate,
     nativeToUsdExchangeRate,
   });
