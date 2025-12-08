@@ -4125,15 +4125,18 @@ describe('KeyringController', () => {
     it('should not cause a deadlock when subscribing to state changes', async () => {
       await withController(async ({ controller, initialState, messenger }) => {
         let executed = false;
-        const listener = jest.fn(() => {
+        const listener = jest.fn(async () => {
           if (!executed) {
             executed = true;
-            // eslint-disable-next-line no-void
-            void controller.persistAllKeyrings();
+            await controller.persistAllKeyrings();
           }
         });
 
-        messenger.subscribe('KeyringController:stateChange', listener);
+        messenger.subscribe(
+          'KeyringController:stateChange',
+          // Cast to avoid misued-promise warning.
+          listener as jest.Mocked<() => void>,
+        );
 
         await controller.submitPassword(password);
 
