@@ -83,9 +83,6 @@ module.exports = {
     '^@metamask/json-rpc-engine/v2$': [
       '<rootDir>/../json-rpc-engine/src/v2/index.ts',
     ],
-    '^@metamask/intent-manager$': [
-      '<rootDir>/../Intent-manager/src',
-    ],
     '^@metamask/(.+)$': [
       '<rootDir>/../$1/src',
       // Some @metamask/* packages we are referencing aren't in this monorepo,
