@@ -6928,13 +6928,12 @@ describe('TransactionController', () => {
 
       const updatedTransaction = controller.state.transactions[0];
       const pathParts = expectedPath.split('.');
-      let actualValue = updatedTransaction;
+      // eslint-disable-next-line @typescript-eslint/no-explicit-any
+      let actualValue: any = updatedTransaction;
 
       for (const key of pathParts) {
         // Type assertion needed since we're accessing dynamic properties
-        actualValue = actualValue[
-          key as keyof typeof actualValue
-        ] as TransactionMeta;
+        actualValue = actualValue[key as keyof typeof actualValue];
       }
 
       expect(actualValue).toStrictEqual(newValue);

@@ -4240,8 +4240,8 @@ export class TransactionController extends BaseController<
   // eslint-disable-next-line @typescript-eslint/no-explicit-any
   #isTransactionAlreadyConfirmedError(error: any): boolean {
     return (
-      error?.message?.includes('nonce too low') ??
-      error?.data?.message?.includes('nonce too low')
+      Boolean(error?.message?.includes('nonce too low')) ||
+      Boolean(error?.data?.message?.includes('nonce too low'))
     );
   }
 
