@@ -154,7 +154,7 @@ export class LineaGasFeeFlow implements GasFeeFlow {
     };
   }
 
-  #feesToString(fees: FeesByLevel) {
+  #feesToString(fees: FeesByLevel): string[] {
     return Object.values(GasFeeEstimateLevel).map((level) =>
       fees[level].toString(10),
     );
