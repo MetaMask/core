@@ -32,7 +32,7 @@ export type UpdatePaymentTokenOptions = {
 export function updatePaymentToken(
   request: UpdatePaymentTokenRequest,
   options: UpdatePaymentTokenOptions,
-) {
+): void {
   const { transactionId, tokenAddress, chainId } = request;
   const { messenger, updateTransactionData } = options;
 
