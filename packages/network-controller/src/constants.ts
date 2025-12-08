@@ -1,3 +1,5 @@
+import { InfuraNetworkType } from "@metamask/controller-utils";
+
 /**
  * Represents the availability status of an RPC endpoint. (Regrettably, the
  * name of this type is a misnomer.)
@@ -41,3 +43,13 @@ export const INFURA_BLOCKED_KEY = 'countryBlocked';
  * without the need to remove the network from constant list of controller-utils.
  */
 export const DEPRECATED_NETWORKS = new Set<string>(['0xe704', '0x5']);
+
+/**
+ * A mapping of network keys to their corresponding InfuraNetworkType keys.
+ * This is used to map the network keys to the InfuraNetworkType keys.
+ * For example, `monad-testnet` is mapped to `monad-testnet-infura`.
+ * This is used to map the network keys to the InfuraNetworkType keys.
+ */
+export const FALLBACK_INFURA_NETWORK_TYPE_MAPPING: Record<string, InfuraNetworkType> = {
+  'monad-testnet': 'monad-testnet-infura',
+}

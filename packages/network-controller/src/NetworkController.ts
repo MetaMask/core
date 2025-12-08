@@ -40,6 +40,7 @@ import { v4 as uuidV4 } from 'uuid';
 import {
   DEPRECATED_NETWORKS,
   INFURA_BLOCKED_KEY,
+  FALLBACK_INFURA_NETWORK_TYPE_MAPPING,
   NetworkStatus,
 } from './constants';
 import type {
@@ -1116,6 +1117,18 @@ function deriveInfuraNetworkNameFromRpcEndpointUrl(
   if (match?.groups) {
     if (isInfuraNetworkType(match.groups.networkName)) {
       return match.groups.networkName;
+    }
+
+    // Infura URL can be inserted by user manually,
+    // in case the network name extra from URL is not mapped to InfuraNetworkType,
+    // we should add a fallback mapping here.
+    if (
+      hasProperty(
+        FALLBACK_INFURA_NETWORK_TYPE_MAPPING,
+        match.groups.networkName,
+      )
+    ) {
+      return FALLBACK_INFURA_NETWORK_TYPE_MAPPING[match.groups.networkName];
     }
 
     throw new Error(`Unknown Infura network '${match.groups.networkName}'`);
