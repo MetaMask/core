@@ -124,6 +124,13 @@ export const BUILT_IN_NETWORKS = {
       blockExplorerUrl: BlockExplorerUrl['monad-testnet'],
     },
   },
+  [NetworkType['monad-testnet-infura']]: {
+    chainId: ChainId['monad-testnet-infura'],
+    ticker: NetworksTicker['monad-testnet-infura'],
+    rpcPrefs: {
+      blockExplorerUrl: BlockExplorerUrl['monad-testnet-infura'],
+    },
+  },
   [NetworkType['base-mainnet']]: {
     chainId: ChainId['base-mainnet'],
     ticker: NetworksTicker['base-mainnet'],

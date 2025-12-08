@@ -14,7 +14,7 @@ export const InfuraNetworkType = {
   'optimism-mainnet': 'optimism-mainnet',
   'polygon-mainnet': 'polygon-mainnet',
   'sei-mainnet': 'sei-mainnet',
-  'monad-testnet': 'monad-testnet',
+  'monad-testnet-infura': 'monad-testnet-infura',
 } as const;
 
 export type InfuraNetworkType =
@@ -88,6 +88,7 @@ export enum BuiltInNetworkName {
   Aurora = 'aurora',
   MegaETHTestnet = 'megaeth-testnet',
   MonadTestnet = 'monad-testnet',
+  MonadTestnetInfura = 'monad-testnet-infura',
   BaseMainnet = 'base-mainnet',
   ArbitrumOne = 'arbitrum-mainnet',
   BscMainnet = 'bsc-mainnet',
@@ -111,6 +112,7 @@ export const ChainId = {
   [BuiltInNetworkName.LineaMainnet]: '0xe708', // toHex(59144)
   [BuiltInNetworkName.MegaETHTestnet]: '0x18c6', // toHex(6342)
   [BuiltInNetworkName.MonadTestnet]: '0x279f', // toHex(10143)
+  [BuiltInNetworkName.MonadTestnetInfura]: '0x279f', // toHex(10143)
   [BuiltInNetworkName.BaseMainnet]: '0x2105', // toHex(8453)
   [BuiltInNetworkName.ArbitrumOne]: '0xa4b1', // toHex(42161)
   [BuiltInNetworkName.BscMainnet]: '0x38', // toHex(56)
@@ -132,6 +134,8 @@ export enum NetworksTicker {
   'megaeth-testnet' = 'MegaETH',
   'monad-testnet' = 'MON',
   // eslint-disable-next-line @typescript-eslint/no-duplicate-enum-values
+  'monad-testnet-infura' = 'MON',
+  // eslint-disable-next-line @typescript-eslint/no-duplicate-enum-values
   'base-mainnet' = 'ETH',
   // eslint-disable-next-line @typescript-eslint/no-duplicate-enum-values
   'arbitrum-mainnet' = 'ETH',
@@ -152,6 +156,7 @@ export const BlockExplorerUrl = {
   [BuiltInNetworkName.LineaMainnet]: 'https://lineascan.build',
   [BuiltInNetworkName.MegaETHTestnet]: 'https://megaexplorer.xyz',
   [BuiltInNetworkName.MonadTestnet]: 'https://testnet.monadexplorer.com',
+  [BuiltInNetworkName.MonadTestnetInfura]: 'https://testnet.monadexplorer.com',
   [BuiltInNetworkName.BaseMainnet]: 'https://basescan.org',
   [BuiltInNetworkName.ArbitrumOne]: 'https://arbiscan.io',
   [BuiltInNetworkName.BscMainnet]: 'https://bscscan.com',
@@ -171,6 +176,7 @@ export const NetworkNickname = {
   [BuiltInNetworkName.LineaMainnet]: 'Linea',
   [BuiltInNetworkName.MegaETHTestnet]: 'Mega Testnet',
   [BuiltInNetworkName.MonadTestnet]: 'Monad Testnet',
+  [BuiltInNetworkName.MonadTestnetInfura]: 'Monad Testnet',
   [BuiltInNetworkName.BaseMainnet]: 'Base Mainnet',
   [BuiltInNetworkName.ArbitrumOne]: 'Arbitrum One',
   [BuiltInNetworkName.BscMainnet]: 'BSC Mainnet',
