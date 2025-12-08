@@ -20,8 +20,8 @@ import {
   MOCK_TRX_ACCOUNT_1,
   MOCK_TRX_DISCOVERED_ACCOUNT_1,
   MockAccountBuilder,
-  type RootMessenger,
 } from '../tests';
+import type { RootMessenger } from '../tests';
 
 class MockTronKeyring {
   readonly type = 'MockTronKeyring';
@@ -143,7 +143,7 @@ function setup({
       handleRequest: mockHandleRequest,
       keyring: {
         createAccount: keyring.createAccount as jest.Mock,
-        discoverAccounts: keyring.discoverAccounts as jest.Mock,
+        discoverAccounts: keyring.discoverAccounts,
       },
     },
   };

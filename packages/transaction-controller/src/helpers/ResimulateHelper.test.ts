@@ -3,7 +3,6 @@ import type { NetworkClientId } from '@metamask/network-controller';
 import { BN } from 'bn.js';
 
 import {
-  type ResimulateHelperOptions,
   ResimulateHelper,
   BLOCK_TIME_ADDITIONAL_SECONDS,
   BLOCKAID_RESULT_TYPE_MALICIOUS,
@@ -13,6 +12,7 @@ import {
   VALUE_COMPARISON_PERCENT_THRESHOLD,
   RESIMULATE_INTERVAL_MS,
 } from './ResimulateHelper';
+import type { ResimulateHelperOptions } from './ResimulateHelper';
 import { CHAIN_IDS } from '../constants';
 import type {
   TransactionMeta,

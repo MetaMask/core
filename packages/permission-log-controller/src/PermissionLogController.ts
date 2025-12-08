@@ -1,16 +1,16 @@
-import {
-  BaseController,
-  type ControllerGetStateAction,
-  type ControllerStateChangeEvent,
+import { BaseController } from '@metamask/base-controller';
+import type {
+  ControllerGetStateAction,
+  ControllerStateChangeEvent,
 } from '@metamask/base-controller';
 import type { JsonRpcMiddleware } from '@metamask/json-rpc-engine';
 import type { Messenger } from '@metamask/messenger';
-import {
-  type Json,
-  type JsonRpcRequest,
-  type JsonRpcParams,
-  type PendingJsonRpcResponse,
-  hasProperty,
+import { hasProperty } from '@metamask/utils';
+import type {
+  Json,
+  JsonRpcRequest,
+  JsonRpcParams,
+  PendingJsonRpcResponse,
 } from '@metamask/utils';
 
 import {

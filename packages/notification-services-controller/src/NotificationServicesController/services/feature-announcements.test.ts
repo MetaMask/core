@@ -127,7 +127,7 @@ describe('Feature Announcement Notifications', () => {
         platformVersion: string | undefined,
       ) => {
         const apiResponse = createMockFeatureAnnouncementAPIResult();
-        if (apiResponse.items && apiResponse.items[0]) {
+        if (apiResponse.items?.[0]) {
           apiResponse.items[0].fields.extensionMinimumVersionNumber = undefined;
           apiResponse.items[0].fields.mobileMinimumVersionNumber = undefined;
           apiResponse.items[0].fields.extensionMaximumVersionNumber = undefined;

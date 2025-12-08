@@ -7,6 +7,19 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+## [62.5.0]
+
+### Changed
+
+- Use gas fee properties from first transaction in EIP-7702 transactions ([#7323](https://github.com/MetaMask/core/pull/7323))
+- Bump `@metamask/remote-feature-flag-controller` from `^2.0.1` to `^3.0.0` ([#7309](https://github.com/MetaMask/core/pull/7309)
+
+## [62.4.0]
+
+### Added
+
+- Add `overwriteUpgrade` option to `TransactionBatchRequest` to allow overwriting existing EIP-7702 delegations ([#7282](https://github.com/MetaMask/core/pull/7282))
+
 ### Changed
 
 - Bump `@metamask/network-controller` from `^26.0.0` to `^27.0.0` ([#7258](https://github.com/MetaMask/core/pull/7258))
@@ -1996,7 +2009,9 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
     All changes listed after this point were applied to this package following the monorepo conversion.
 
-[Unreleased]: https://github.com/MetaMask/core/compare/@metamask/transaction-controller@62.3.1...HEAD
+[Unreleased]: https://github.com/MetaMask/core/compare/@metamask/transaction-controller@62.5.0...HEAD
+[62.5.0]: https://github.com/MetaMask/core/compare/@metamask/transaction-controller@62.4.0...@metamask/transaction-controller@62.5.0
+[62.4.0]: https://github.com/MetaMask/core/compare/@metamask/transaction-controller@62.3.1...@metamask/transaction-controller@62.4.0
 [62.3.1]: https://github.com/MetaMask/core/compare/@metamask/transaction-controller@62.3.0...@metamask/transaction-controller@62.3.1
 [62.3.0]: https://github.com/MetaMask/core/compare/@metamask/transaction-controller@62.2.0...@metamask/transaction-controller@62.3.0
 [62.2.0]: https://github.com/MetaMask/core/compare/@metamask/transaction-controller@62.1.0...@metamask/transaction-controller@62.2.0

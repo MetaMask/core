@@ -7,7 +7,7 @@ import type {
   AccountGroupType,
 } from '@metamask/account-api';
 import type { MultichainAccountWalletStatus } from '@metamask/account-api';
-import { type AccountId } from '@metamask/accounts-controller';
+import type { AccountId } from '@metamask/accounts-controller';
 import type { StateMetadata } from '@metamask/base-controller';
 import { BaseController } from '@metamask/base-controller';
 import type { TraceCallback } from '@metamask/controller-utils';
@@ -40,7 +40,7 @@ import type {
   AccountTreeControllerMessenger,
   AccountTreeControllerState,
 } from './types';
-import { type AccountWalletObject, type AccountWalletObjectOf } from './wallet';
+import type { AccountWalletObject, AccountWalletObjectOf } from './wallet';
 
 export const controllerName = 'AccountTreeController';
 
@@ -198,9 +198,8 @@ export class AccountTreeController extends BaseController<
     // Initialize backup and sync config
     this.#backupAndSyncConfig = {
       emitAnalyticsEventFn: (event: BackupAndSyncEmitAnalyticsEventParams) => {
-        return (
-          config?.backupAndSync?.onBackupAndSyncEvent &&
-          config.backupAndSync.onBackupAndSyncEvent(formatAnalyticsEvent(event))
+        return config?.backupAndSync?.onBackupAndSyncEvent?.(
+          formatAnalyticsEvent(event),
         );
       },
     };
@@ -486,7 +485,7 @@ export class AccountTreeController extends BaseController<
 
     for (const id of group.accounts) {
       const account = this.messenger.call('AccountsController:getAccount', id);
-      if (!account || !account.metadata.name.length) {
+      if (!account?.metadata.name.length) {
         continue;
       }
 
@@ -1153,7 +1152,7 @@ export class AccountTreeController extends BaseController<
     const selectedAccount = this.messenger.call(
       'AccountsController:getSelectedMultichainAccount',
     );
-    if (selectedAccount && selectedAccount.id) {
+    if (selectedAccount?.id) {
       const accountMapping = this.#accountIdToContext.get(selectedAccount.id);
       if (accountMapping) {
         const { groupId } = accountMapping;

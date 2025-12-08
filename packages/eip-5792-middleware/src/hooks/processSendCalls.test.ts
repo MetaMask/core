@@ -5,12 +5,8 @@ import type {
 } from '@metamask/accounts-controller';
 import { KeyringTypes } from '@metamask/keyring-controller';
 import type { InternalAccount } from '@metamask/keyring-internal-api';
-import {
-  type MessengerActions,
-  type MockAnyNamespace,
-  Messenger,
-  MOCK_ANY_NAMESPACE,
-} from '@metamask/messenger';
+import { Messenger, MOCK_ANY_NAMESPACE } from '@metamask/messenger';
+import type { MessengerActions, MockAnyNamespace } from '@metamask/messenger';
 import type {
   AutoManagedNetworkClient,
   CustomNetworkClientConfiguration,

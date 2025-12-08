@@ -21,13 +21,13 @@ export const selectLendingMarketsForChainId = (chainId: number) =>
 export const selectLendingMarketsByProtocolAndId = createSelector(
   selectLendingMarkets,
   (markets) => {
-    return markets.reduce(
+    return markets.reduce<Record<string, Record<string, LendingMarket>>>(
       (acc, market) => {
         acc[market.protocol] = acc[market.protocol] || {};
         acc[market.protocol][market.id] = market;
         return acc;
       },
-      {} as Record<string, Record<string, LendingMarket>>,
+      {},
     );
   },
 );
@@ -44,14 +44,11 @@ export const selectLendingMarketForProtocolAndId = (
 export const selectLendingMarketsByChainId = createSelector(
   selectLendingMarkets,
   (markets) => {
-    return markets.reduce(
-      (acc, market) => {
-        acc[market.chainId] = acc[market.chainId] || [];
-        acc[market.chainId].push(market);
-        return acc;
-      },
-      {} as Record<number, LendingMarket[]>,
-    );
+    return markets.reduce<Record<number, LendingMarket[]>>((acc, market) => {
+      acc[market.chainId] = acc[market.chainId] || [];
+      acc[market.chainId].push(market);
+      return acc;
+    }, {});
   },
 );
 
@@ -72,35 +69,30 @@ export const selectLendingPositionsWithMarket = createSelector(
 export const selectLendingPositionsByChainId = createSelector(
   selectLendingPositionsWithMarket,
   (positionsWithMarket) => {
-    return positionsWithMarket.reduce(
-      (acc, position) => {
-        const chainId = position.market?.chainId;
-        if (chainId) {
-          acc[chainId] = acc[chainId] || [];
-          acc[chainId].push(position);
-        }
-        return acc;
-      },
-      {} as Record<number, LendingPositionWithMarket[]>,
-    );
+    return positionsWithMarket.reduce<
+      Record<number, LendingPositionWithMarket[]>
+    >((acc, position) => {
+      const chainId = position.market?.chainId;
+      if (chainId) {
+        acc[chainId] = acc[chainId] || [];
+        acc[chainId].push(position);
+      }
+      return acc;
+    }, {});
   },
 );
 
 export const selectLendingPositionsByProtocolChainIdMarketId = createSelector(
   selectLendingPositionsWithMarket,
   (positionsWithMarket) =>
-    positionsWithMarket.reduce(
-      (acc, position) => {
-        acc[position.protocol] ??= {};
-        acc[position.protocol][position.chainId] ??= {};
-        acc[position.protocol][position.chainId][position.marketId] = position;
-        return acc;
-      },
-      {} as Record<
-        string,
-        Record<string, Record<string, LendingPositionWithMarket>>
-      >,
-    ),
+    positionsWithMarket.reduce<
+      Record<string, Record<string, Record<string, LendingPositionWithMarket>>>
+    >((acc, position) => {
+      acc[position.protocol] ??= {};
+      acc[position.protocol][position.chainId] ??= {};
+      acc[position.protocol][position.chainId][position.marketId] = position;
+      return acc;
+    }, {}),
 );
 
 export const selectLendingMarketsWithPosition = createSelector(
@@ -122,46 +114,43 @@ export const selectLendingMarketsWithPosition = createSelector(
 export const selectLendingMarketsByTokenAddress = createSelector(
   selectLendingMarketsWithPosition,
   (marketsWithPosition) => {
-    return marketsWithPosition.reduce(
-      (acc, market) => {
-        if (market.underlying?.address) {
-          acc[market.underlying.address] = acc[market.underlying.address] || [];
-          acc[market.underlying.address].push(market);
-        }
-        return acc;
-      },
-      {} as Record<string, LendingMarketWithPosition[]>,
-    );
+    return marketsWithPosition.reduce<
+      Record<string, LendingMarketWithPosition[]>
+    >((acc, market) => {
+      if (market.underlying?.address) {
+        acc[market.underlying.address] = acc[market.underlying.address] || [];
+        acc[market.underlying.address].push(market);
+      }
+      return acc;
+    }, {});
   },
 );
 
 export const selectLendingPositionsByProtocol = createSelector(
   selectLendingPositionsWithMarket,
   (positionsWithMarket) => {
-    return positionsWithMarket.reduce(
-      (acc, position) => {
-        acc[position.protocol] = acc[position.protocol] || [];
-        acc[position.protocol].push(position);
-        return acc;
-      },
-      {} as Record<string, LendingPositionWithMarket[]>,
-    );
+    return positionsWithMarket.reduce<
+      Record<string, LendingPositionWithMarket[]>
+    >((acc, position) => {
+      acc[position.protocol] = acc[position.protocol] || [];
+      acc[position.protocol].push(position);
+      return acc;
+    }, {});
   },
 );
 
 export const selectLendingMarketByProtocolAndTokenAddress = createSelector(
   selectLendingMarketsWithPosition,
   (marketsWithPosition) => {
-    return marketsWithPosition.reduce(
-      (acc, market) => {
-        if (market.underlying?.address) {
-          acc[market.protocol] = acc[market.protocol] || {};
-          acc[market.protocol][market.underlying.address] = market;
-        }
-        return acc;
-      },
-      {} as Record<string, Record<string, LendingMarketWithPosition>>,
-    );
+    return marketsWithPosition.reduce<
+      Record<string, Record<string, LendingMarketWithPosition>>
+    >((acc, market) => {
+      if (market.underlying?.address) {
+        acc[market.protocol] = acc[market.protocol] || {};
+        acc[market.protocol][market.underlying.address] = market;
+      }
+      return acc;
+    }, {});
   },
 );
 
@@ -177,35 +166,33 @@ export const selectLendingMarketForProtocolAndTokenAddress = (
 
 export const selectLendingMarketsByChainIdAndOutputTokenAddress =
   createSelector(selectLendingMarketsWithPosition, (marketsWithPosition) =>
-    marketsWithPosition.reduce(
-      (acc, market) => {
-        if (market.outputToken?.address) {
-          acc[market.chainId] = acc?.[market.chainId] || {};
-          acc[market.chainId][market.outputToken.address] =
-            acc?.[market.chainId]?.[market.outputToken.address] || [];
-          acc[market.chainId][market.outputToken.address].push(market);
-        }
-        return acc;
-      },
-      {} as Record<string, Record<string, LendingMarketWithPosition[]>>,
-    ),
+    marketsWithPosition.reduce<
+      Record<string, Record<string, LendingMarketWithPosition[]>>
+    >((acc, market) => {
+      if (market.outputToken?.address) {
+        acc[market.chainId] = acc?.[market.chainId] || {};
+        acc[market.chainId][market.outputToken.address] =
+          acc?.[market.chainId]?.[market.outputToken.address] || [];
+        acc[market.chainId][market.outputToken.address].push(market);
+      }
+      return acc;
+    }, {}),
   );
 
 export const selectLendingMarketsByChainIdAndTokenAddress = createSelector(
   selectLendingMarketsWithPosition,
   (marketsWithPosition) =>
-    marketsWithPosition.reduce(
-      (acc, market) => {
-        if (market.underlying?.address) {
-          acc[market.chainId] = acc?.[market.chainId] || {};
-          acc[market.chainId][market.underlying.address] =
-            acc?.[market.chainId]?.[market.underlying.address] || [];
-          acc[market.chainId][market.underlying.address].push(market);
-        }
-        return acc;
-      },
-      {} as Record<string, Record<string, LendingMarketWithPosition[]>>,
-    ),
+    marketsWithPosition.reduce<
+      Record<string, Record<string, LendingMarketWithPosition[]>>
+    >((acc, market) => {
+      if (market.underlying?.address) {
+        acc[market.chainId] = acc?.[market.chainId] || {};
+        acc[market.chainId][market.underlying.address] =
+          acc?.[market.chainId]?.[market.underlying.address] || [];
+        acc[market.chainId][market.underlying.address].push(market);
+      }
+      return acc;
+    }, {}),
 );
 
 export const selectIsLendingEligible = (state: EarnControllerState) =>

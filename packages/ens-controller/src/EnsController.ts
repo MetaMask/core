@@ -1,9 +1,9 @@
 import { Web3Provider } from '@ethersproject/providers';
-import {
-  BaseController,
-  type StateMetadata,
-  type ControllerGetStateAction,
-  type ControllerStateChangeEvent,
+import { BaseController } from '@metamask/base-controller';
+import type {
+  StateMetadata,
+  ControllerGetStateAction,
+  ControllerStateChangeEvent,
 } from '@metamask/base-controller';
 import type { ChainId } from '@metamask/controller-utils';
 import {
@@ -214,8 +214,7 @@ export class EnsController extends BaseController<
     if (
       !isSafeDynamicKey(chainId) ||
       !normalizedEnsName ||
-      !this.state.ensEntries[chainId] ||
-      !this.state.ensEntries[chainId][normalizedEnsName]
+      !this.state.ensEntries[chainId]?.[normalizedEnsName]
     ) {
       return false;
     }
@@ -277,10 +276,7 @@ export class EnsController extends BaseController<
     const normalizedAddress = address ? toChecksumHexAddress(address) : null;
     const subState = this.state.ensEntries[chainId];
 
-    if (
-      subState?.[normalizedEnsName] &&
-      subState[normalizedEnsName].address === normalizedAddress
-    ) {
+    if (subState?.[normalizedEnsName]?.address === normalizedAddress) {
       return false;
     }
 
@@ -320,8 +316,7 @@ export class EnsController extends BaseController<
     );
 
     if (
-      registriesByChainId &&
-      registriesByChainId[parseInt(currentChainId, 16)] &&
+      registriesByChainId?.[parseInt(currentChainId, 16)] &&
       this.#getChainEnsSupport(currentChainId)
     ) {
       this.#ethProvider = new Web3Provider(provider, {

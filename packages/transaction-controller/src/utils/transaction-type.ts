@@ -1,4 +1,5 @@
-import { Interface, type TransactionDescription } from '@ethersproject/abi';
+import { Interface } from '@ethersproject/abi';
+import type { TransactionDescription } from '@ethersproject/abi';
 import { query } from '@metamask/controller-utils';
 import type EthQuery from '@metamask/eth-query';
 import {
@@ -76,9 +77,7 @@ export async function determineTransactionType(
     TransactionType.tokenMethodTransferFrom,
     TransactionType.tokenMethodSafeTransferFrom,
     TransactionType.tokenMethodIncreaseAllowance,
-  ].find(
-    (methodName) => methodName.toLowerCase() === (name as string).toLowerCase(),
-  );
+  ].find((methodName) => methodName.toLowerCase() === name.toLowerCase());
 
   if (tokenMethodName) {
     return { type: tokenMethodName, getCodeResponse };

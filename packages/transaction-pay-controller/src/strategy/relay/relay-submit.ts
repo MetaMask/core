@@ -3,10 +3,8 @@ import {
   successfulFetch,
   toHex,
 } from '@metamask/controller-utils';
-import {
-  TransactionType,
-  type TransactionParams,
-} from '@metamask/transaction-controller';
+import { TransactionType } from '@metamask/transaction-controller';
+import type { TransactionParams } from '@metamask/transaction-controller';
 import type {
   AuthorizationList,
   TransactionMeta,
@@ -267,11 +265,14 @@ async function submitTransactions(
       gasFeeToken,
       networkClientId,
       origin: ORIGIN_METAMASK,
+      overwriteUpgrade: true,
       requireApproval: false,
       transactions: normalizedParams.map((p, i) => ({
         params: {
           data: p.data as Hex,
           gas: p.gas as Hex,
+          maxFeePerGas: p.maxFeePerGas as Hex,
+          maxPriorityFeePerGas: p.maxPriorityFeePerGas as Hex,
           to: p.to as Hex,
           value: p.value as Hex,
         },

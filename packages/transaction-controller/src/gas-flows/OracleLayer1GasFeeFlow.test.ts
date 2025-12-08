@@ -2,17 +2,15 @@ import type { TypedTransaction } from '@ethereumjs/tx';
 import { TransactionFactory } from '@ethereumjs/tx';
 import { Contract } from '@ethersproject/contracts';
 import type { Provider } from '@metamask/network-controller';
-import { add0x, type Hex } from '@metamask/utils';
+import { add0x } from '@metamask/utils';
+import type { Hex } from '@metamask/utils';
 import BN from 'bn.js';
 
 import { OracleLayer1GasFeeFlow } from './OracleLayer1GasFeeFlow';
 import { CHAIN_IDS } from '../constants';
 import type { TransactionControllerMessenger } from '../TransactionController';
-import {
-  type Layer1GasFeeFlowRequest,
-  type TransactionMeta,
-  TransactionStatus,
-} from '../types';
+import { TransactionStatus } from '../types';
+import type { Layer1GasFeeFlowRequest, TransactionMeta } from '../types';
 import { bnFromHex, padHexToEvenLength } from '../utils/utils';
 
 jest.mock('@ethersproject/contracts', () => ({
@@ -264,7 +262,7 @@ describe('OracleLayer1GasFeeFlow', () => {
               .add(bnFromHex(OPERATOR_FEE_MOCK))
               .toString(16),
           ),
-        ) as Hex,
+        ),
       });
     });
 

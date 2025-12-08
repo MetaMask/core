@@ -644,7 +644,8 @@ describe('SubscriptionService', () => {
         handleFetchMock.mockResolvedValue({});
 
         await service.linkRewards({
-          rewardSubscriptionId: 'reward_sub_123',
+          rewardAccountId:
+            'eip155:1:0x1234567890123456789012345678901234567890',
         });
 
         expect(handleFetchMock).toHaveBeenCalledWith(
@@ -653,7 +654,8 @@ describe('SubscriptionService', () => {
             method: 'POST',
             headers: MOCK_HEADERS,
             body: JSON.stringify({
-              rewardSubscriptionId: 'reward_sub_123',
+              rewardAccountId:
+                'eip155:1:0x1234567890123456789012345678901234567890',
             }),
           },
         );

@@ -1,10 +1,9 @@
-import {
-  Messenger,
-  MOCK_ANY_NAMESPACE,
-  type MockAnyNamespace,
-  type MessengerActions,
-  type MessengerEvents,
-  type NotNamespacedBy,
+import { Messenger, MOCK_ANY_NAMESPACE } from '@metamask/messenger';
+import type {
+  MockAnyNamespace,
+  MessengerActions,
+  MessengerEvents,
+  NotNamespacedBy,
 } from '@metamask/messenger';
 
 import type {

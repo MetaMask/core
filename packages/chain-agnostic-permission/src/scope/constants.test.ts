@@ -65,6 +65,7 @@ describe('KnownSessionProperties', () => {
     expect(KnownSessionProperties).toMatchInlineSnapshot(`
       Object {
         "SolanaAccountChangedNotifications": "solana_accountChanged_notifications",
+        "TronAccountChangedNotifications": "tron_accountChanged_notifications",
       }
     `);
   });

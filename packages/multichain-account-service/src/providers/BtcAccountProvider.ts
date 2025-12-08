@@ -1,14 +1,13 @@
-import { assertIsBip44Account, type Bip44Account } from '@metamask/account-api';
+import { assertIsBip44Account } from '@metamask/account-api';
+import type { Bip44Account } from '@metamask/account-api';
 import type { TraceCallback } from '@metamask/controller-utils';
 import type { EntropySourceId, KeyringAccount } from '@metamask/keyring-api';
 import { BtcAccountType, BtcScope } from '@metamask/keyring-api';
 import type { InternalAccount } from '@metamask/keyring-internal-api';
 import type { SnapId } from '@metamask/snaps-sdk';
 
-import {
-  SnapAccountProvider,
-  type SnapAccountProviderConfig,
-} from './SnapAccountProvider';
+import { SnapAccountProvider } from './SnapAccountProvider';
+import type { SnapAccountProviderConfig } from './SnapAccountProvider';
 import { withRetry, withTimeout } from './utils';
 import { traceFallback } from '../analytics';
 import { TraceName } from '../constants/traces';

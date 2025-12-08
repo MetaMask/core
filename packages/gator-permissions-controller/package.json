@@ -48,7 +48,7 @@
     "test:watch": "NODE_OPTIONS=--experimental-vm-modules jest --watch"
   },
   "dependencies": {
-    "@metamask/7715-permission-types": "^0.3.0",
+    "@metamask/7715-permission-types": "^0.4.0",
     "@metamask/base-controller": "^9.0.0",
     "@metamask/delegation-core": "^0.2.0",
     "@metamask/delegation-deployments": "^0.12.0",
@@ -56,7 +56,7 @@
     "@metamask/snaps-controllers": "^14.0.1",
     "@metamask/snaps-sdk": "^9.0.0",
     "@metamask/snaps-utils": "^11.0.0",
-    "@metamask/transaction-controller": "^62.3.1",
+    "@metamask/transaction-controller": "^62.5.0",
     "@metamask/utils": "^11.8.1"
   },
   "devDependencies": {

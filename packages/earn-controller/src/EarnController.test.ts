@@ -1,29 +1,32 @@
 import { deriveStateFromMetadata } from '@metamask/base-controller';
 import { toHex } from '@metamask/controller-utils';
 import type { InternalAccount } from '@metamask/keyring-internal-api';
-import {
-  MOCK_ANY_NAMESPACE,
-  Messenger,
-  type MessengerActions,
-  type MessengerEvents,
-  type MockAnyNamespace,
+import { MOCK_ANY_NAMESPACE, Messenger } from '@metamask/messenger';
+import type {
+  MessengerActions,
+  MessengerEvents,
+  MockAnyNamespace,
 } from '@metamask/messenger';
 import { getDefaultNetworkControllerState } from '@metamask/network-controller';
 import {
   EarnSdk,
   EarnApiService,
-  type PooledStakingApiService,
-  type LendingApiService,
-  type LendingMarket,
   EarnEnvironments,
   ChainId,
+} from '@metamask/stake-sdk';
+import type {
+  PooledStakingApiService,
+  LendingApiService,
+  LendingMarket,
 } from '@metamask/stake-sdk';
 
 import {
   EarnController,
-  type EarnControllerState,
-  type EarnControllerMessenger,
   DEFAULT_POOLED_STAKING_CHAIN_STATE,
+} from './EarnController';
+import type {
+  EarnControllerState,
+  EarnControllerMessenger,
 } from './EarnController';
 import type { TransactionMeta } from '../../transaction-controller/src';
 import {

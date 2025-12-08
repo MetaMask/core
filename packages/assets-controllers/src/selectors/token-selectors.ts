@@ -5,7 +5,8 @@ import { convertHexToDecimal } from '@metamask/controller-utils';
 import { TrxScope } from '@metamask/keyring-api';
 import type { InternalAccount } from '@metamask/keyring-internal-api';
 import type { NetworkState } from '@metamask/network-controller';
-import { hexToBigInt, parseCaipAssetType, type Hex } from '@metamask/utils';
+import { hexToBigInt, parseCaipAssetType } from '@metamask/utils';
+import type { Hex } from '@metamask/utils';
 import { createSelector, weakMapMemoize } from 'reselect';
 
 import {

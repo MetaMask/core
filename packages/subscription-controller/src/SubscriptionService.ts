@@ -1,10 +1,7 @@
 import { handleFetch } from '@metamask/controller-utils';
 
-import {
-  getEnvUrls,
-  SubscriptionControllerErrorMessage,
-  type Env,
-} from './constants';
+import { getEnvUrls, SubscriptionControllerErrorMessage } from './constants';
+import type { Env } from './constants';
 import { SubscriptionServiceError } from './errors';
 import type {
   AssignCohortRequest,
@@ -180,8 +177,8 @@ export class SubscriptionService implements ISubscriptionService {
   /**
    * Link rewards to a subscription.
    *
-   * @param request - Request object containing the reward subscription ID.
-   * @example { rewardSubscriptionId: '1234567890' }
+   * @param request - Request object containing the reward account ID.
+   * @example { rewardAccountId: 'eip155:1:0x1234567890123456789012345678901234567890' }
    * @returns The response from the API.
    */
   async linkRewards(

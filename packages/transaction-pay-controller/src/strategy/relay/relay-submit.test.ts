@@ -3,10 +3,8 @@ import {
   successfulFetch,
   toHex,
 } from '@metamask/controller-utils';
-import {
-  TransactionType,
-  type TransactionMeta,
-} from '@metamask/transaction-controller';
+import { TransactionType } from '@metamask/transaction-controller';
+import type { TransactionMeta } from '@metamask/transaction-controller';
 import type { Hex } from '@metamask/utils';
 import { cloneDeep } from 'lodash';
 
@@ -301,12 +299,15 @@ describe('Relay Submit Utils', () => {
         from: FROM_MOCK,
         networkClientId: NETWORK_CLIENT_ID_MOCK,
         origin: ORIGIN_METAMASK,
+        overwriteUpgrade: true,
         requireApproval: false,
         transactions: [
           {
             params: {
               data: '0x1234',
               gas: '0x5208',
+              maxFeePerGas: '0x5d21dba00',
+              maxPriorityFeePerGas: '0x3b9aca00',
               to: '0xfedcb',
               value: '0x4d2',
             },
@@ -316,6 +317,8 @@ describe('Relay Submit Utils', () => {
             params: {
               data: '0x1234',
               gas: '0x5208',
+              maxFeePerGas: '0x5d21dba00',
+              maxPriorityFeePerGas: '0x3b9aca00',
               to: '0xfedcb',
               value: '0x4d2',
             },

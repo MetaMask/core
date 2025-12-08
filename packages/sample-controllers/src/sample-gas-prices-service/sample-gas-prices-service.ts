@@ -8,7 +8,8 @@ import {
   HttpError,
 } from '@metamask/controller-utils';
 import type { Messenger } from '@metamask/messenger';
-import { hasProperty, isPlainObject, type Hex } from '@metamask/utils';
+import { hasProperty, isPlainObject } from '@metamask/utils';
+import type { Hex } from '@metamask/utils';
 
 import type { SampleGasPricesServiceMethodActions } from './sample-gas-prices-service-method-action-types';
 
@@ -195,7 +196,6 @@ export class SampleGasPricesService {
     return this.#policy.onBreak(listener);
   }
 
-  /* eslint-disable jsdoc/check-indentation */
   /**
    * Registers a handler that will be called under one of two circumstances:
    *
@@ -213,7 +213,6 @@ export class SampleGasPricesService {
    * @returns An object that can be used to unregister the handler. See
    * {@link CockatielEvent}.
    */
-  /* eslint-enable jsdoc/check-indentation */
   onDegraded(listener: Parameters<ServicePolicy['onDegraded']>[0]) {
     return this.#policy.onDegraded(listener);
   }

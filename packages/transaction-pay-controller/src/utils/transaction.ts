@@ -1,7 +1,5 @@
-import {
-  TransactionStatus,
-  type TransactionMeta,
-} from '@metamask/transaction-controller';
+import { TransactionStatus } from '@metamask/transaction-controller';
+import type { TransactionMeta } from '@metamask/transaction-controller';
 import type { Hex } from '@metamask/utils';
 import { createModuleLogger } from '@metamask/utils';
 import { cloneDeep } from 'lodash';

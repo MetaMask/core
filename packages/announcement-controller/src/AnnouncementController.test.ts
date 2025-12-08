@@ -1,9 +1,6 @@
 import { deriveStateFromMetadata } from '@metamask/base-controller';
-import {
-  Messenger,
-  MOCK_ANY_NAMESPACE,
-  type MockAnyNamespace,
-} from '@metamask/messenger';
+import { Messenger, MOCK_ANY_NAMESPACE } from '@metamask/messenger';
+import type { MockAnyNamespace } from '@metamask/messenger';
 
 import type {
   AnnouncementControllerState,

@@ -1,5 +1,6 @@
 import { convertHexToDecimal } from '@metamask/controller-utils';
-import { createModuleLogger, type Hex } from '@metamask/utils';
+import { createModuleLogger } from '@metamask/utils';
+import type { Hex } from '@metamask/utils';
 import { cloneDeep } from 'lodash';
 
 import {

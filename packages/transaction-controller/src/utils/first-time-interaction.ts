@@ -4,12 +4,11 @@ import { hexToNumber } from '@metamask/utils';
 
 import { decodeTransactionData } from './transaction-type';
 import { validateParamTo } from './validation';
-import {
-  getAccountAddressRelationship,
-  type GetAccountAddressRelationshipRequest,
-} from '../api/accounts-api';
+import { getAccountAddressRelationship } from '../api/accounts-api';
+import type { GetAccountAddressRelationshipRequest } from '../api/accounts-api';
 import { projectLogger as log } from '../logger';
-import { TransactionType, type TransactionMeta } from '../types';
+import { TransactionType } from '../types';
+import type { TransactionMeta } from '../types';
 
 type UpdateFirstTimeInteractionRequest = {
   existingTransactions: TransactionMeta[];

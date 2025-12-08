@@ -17,10 +17,7 @@ import type {
   GasFeeEstimates,
   GasFeeFlow,
   GasFeeFlowRequest,
-  GasPriceGasFeeEstimates,
-  FeeMarketGasFeeEstimates,
   Layer1GasFeeFlow,
-  LegacyGasFeeEstimates,
   TransactionMeta,
   TransactionParams,
   TransactionBatchMeta,
@@ -528,8 +525,7 @@ function updateGasFeeParameters(
   if (isEIP1559Compatible) {
     // Handle EIP-1559 compatible transactions
     if (gasEstimateType === GasFeeEstimateType.FeeMarket) {
-      const feeMarketGasFeeEstimates =
-        gasFeeEstimates as FeeMarketGasFeeEstimates;
+      const feeMarketGasFeeEstimates = gasFeeEstimates;
       txParams.maxFeePerGas =
         feeMarketGasFeeEstimates[userFeeLevel]?.maxFeePerGas;
       txParams.maxPriorityFeePerGas =
@@ -537,14 +533,13 @@ function updateGasFeeParameters(
     }
 
     if (gasEstimateType === GasFeeEstimateType.GasPrice) {
-      const gasPriceGasFeeEstimates =
-        gasFeeEstimates as GasPriceGasFeeEstimates;
+      const gasPriceGasFeeEstimates = gasFeeEstimates;
       txParams.maxFeePerGas = gasPriceGasFeeEstimates.gasPrice;
       txParams.maxPriorityFeePerGas = gasPriceGasFeeEstimates.gasPrice;
     }
 
     if (gasEstimateType === GasFeeEstimateType.Legacy) {
-      const legacyGasFeeEstimates = gasFeeEstimates as LegacyGasFeeEstimates;
+      const legacyGasFeeEstimates = gasFeeEstimates;
       const gasPrice = legacyGasFeeEstimates[userFeeLevel];
       txParams.maxFeePerGas = gasPrice;
       txParams.maxPriorityFeePerGas = gasPrice;
@@ -555,19 +550,17 @@ function updateGasFeeParameters(
   } else {
     // Handle non-EIP-1559 transactions
     if (gasEstimateType === GasFeeEstimateType.FeeMarket) {
-      const feeMarketGasFeeEstimates =
-        gasFeeEstimates as FeeMarketGasFeeEstimates;
+      const feeMarketGasFeeEstimates = gasFeeEstimates;
       txParams.gasPrice = feeMarketGasFeeEstimates[userFeeLevel]?.maxFeePerGas;
     }
 
     if (gasEstimateType === GasFeeEstimateType.GasPrice) {
-      const gasPriceGasFeeEstimates =
-        gasFeeEstimates as GasPriceGasFeeEstimates;
+      const gasPriceGasFeeEstimates = gasFeeEstimates;
       txParams.gasPrice = gasPriceGasFeeEstimates.gasPrice;
     }
 
     if (gasEstimateType === GasFeeEstimateType.Legacy) {
-      const legacyGasFeeEstimates = gasFeeEstimates as LegacyGasFeeEstimates;
+      const legacyGasFeeEstimates = gasFeeEstimates;
       txParams.gasPrice = legacyGasFeeEstimates[userFeeLevel];
     }
 

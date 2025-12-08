@@ -22,23 +22,20 @@ import {
   convertHexToDecimal,
 } from '@metamask/controller-utils';
 import type { InternalAccount } from '@metamask/keyring-internal-api';
-import {
-  MOCK_ANY_NAMESPACE,
-  Messenger,
-  type MessengerActions,
-  type MessengerEvents,
-  type MockAnyNamespace,
+import { MOCK_ANY_NAMESPACE, Messenger } from '@metamask/messenger';
+import type {
+  MessengerActions,
+  MessengerEvents,
+  MockAnyNamespace,
 } from '@metamask/messenger';
-import {
-  type NetworkClientConfiguration,
-  type NetworkClientId,
+import type {
+  NetworkClientConfiguration,
+  NetworkClientId,
 } from '@metamask/network-controller';
 import type { BulkPhishingDetectionScanResponse } from '@metamask/phishing-controller';
 import { RecommendedAction } from '@metamask/phishing-controller';
-import {
-  getDefaultPreferencesState,
-  type PreferencesState,
-} from '@metamask/preferences-controller';
+import { getDefaultPreferencesState } from '@metamask/preferences-controller';
+import type { PreferencesState } from '@metamask/preferences-controller';
 import type { Hex } from '@metamask/utils';
 import BN from 'bn.js';
 import nock from 'nock';

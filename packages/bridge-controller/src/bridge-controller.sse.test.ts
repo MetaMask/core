@@ -1,21 +1,23 @@
+import { BigNumber } from '@ethersproject/bignumber';
+import * as ethersContractUtils from '@ethersproject/contracts';
 import { SolScope } from '@metamask/keyring-api';
+import { abiERC20 } from '@metamask/metamask-eth-abis';
 
 import { BridgeController } from './bridge-controller';
 import {
   BridgeClientId,
   BRIDGE_PROD_API_BASE_URL,
   DEFAULT_BRIDGE_CONTROLLER_STATE,
+  ETH_USDT_ADDRESS,
 } from './constants/bridge';
-import type { QuoteResponse, TxData } from './types';
-import {
-  ChainId,
-  RequestStatus,
-  type BridgeControllerMessenger,
-} from './types';
+import { ChainId, RequestStatus } from './types';
+import type { BridgeControllerMessenger, QuoteResponse, TxData } from './types';
 import * as balanceUtils from './utils/balance';
+import { formatChainIdToDec } from './utils/caip-formatters';
 import * as featureFlagUtils from './utils/feature-flags';
 import * as fetchUtils from './utils/fetch';
 import { flushPromises } from '../../../tests/helpers';
+import mockBridgeQuotesErc20Erc20 from '../tests/mock-quotes-erc20-erc20.json';
 import mockBridgeQuotesNativeErc20Eth from '../tests/mock-quotes-native-erc20-eth.json';
 import mockBridgeQuotesNativeErc20 from '../tests/mock-quotes-native-erc20.json';
 import {
@@ -40,6 +42,7 @@ const quoteRequest = {
   slippage: 0.5,
   walletAddress: '0x30E8ccaD5A980BDF30447f8c2C48e70989D9d294',
   destWalletAddress: 'SolanaWalletAddres1234',
+  resetApproval: false,
 };
 const metricsContext = {
   token_symbol_source: 'ETH',
@@ -153,6 +156,7 @@ describe('BridgeController SSE', function () {
       updatedQuoteRequest: {
         ...quoteRequest,
         insufficientBal: false,
+        resetApproval: false,
       },
       context: metricsContext,
     });
@@ -172,6 +176,7 @@ describe('BridgeController SSE', function () {
       {
         ...quoteRequest,
         insufficientBal: false,
+        resetApproval: false,
       },
       expect.any(AbortSignal),
       BridgeClientId.EXTENSION,
@@ -195,10 +200,15 @@ describe('BridgeController SSE', function () {
     expect(bridgeController.state).toStrictEqual({
       ...expectedState,
       quotesInitialLoadTime: 6000,
-      quoteRequest: { ...quoteRequest, insufficientBal: false },
+      quoteRequest: {
+        ...quoteRequest,
+        insufficientBal: false,
+        resetApproval: false,
+      },
       quotes: mockBridgeQuotesNativeErc20.map((quote) => ({
         ...quote,
         l1GasFeesInHexWei: '0x1',
+        resetApproval: undefined,
       })),
       quotesRefreshCount: 1,
       quotesLoadingStatus: 1,
@@ -210,6 +220,268 @@ describe('BridgeController SSE', function () {
     expect(getLayer1GasFeeMock).toHaveBeenCalledTimes(2);
     // eslint-disable-next-line jest/no-restricted-matchers
     expect(trackMetaMetricsFn.mock.calls).toMatchSnapshot();
+  });
+
+  it.each([
+    [
+      'swapping',
+      '1',
+      '0x1',
+      '0x095ea7b3000000000000000000000000881d40237659c251811cec9c364ef91dc08d300c0000000000000000000000000000000000000000000000000000000000000000',
+    ],
+    [
+      'bridging',
+      '1',
+      SolScope.Mainnet,
+      '0x095ea7b30000000000000000000000000439e60f02a8900a951603950d8d4527f400c3f10000000000000000000000000000000000000000000000000000000000000000',
+    ],
+    ['swapping', '0', '0x1', undefined, false, 1],
+  ])(
+    'should append resetApproval when %s USDT on Ethereum',
+    async function (
+      _: string,
+      allowance: string,
+      destChainId: string,
+      tradeData?: string,
+      resetApproval: boolean = true,
+      mockContractCalls: number = 3,
+      srcTokenAddress: string = ETH_USDT_ADDRESS,
+    ) {
+      const mockUSDTQuoteResponse = mockBridgeQuotesErc20Erc20.map((quote) => ({
+        ...quote,
+        quote: {
+          ...quote.quote,
+          srcTokenAddress,
+          srcChainId: 1,
+          destChainId: formatChainIdToDec(destChainId),
+        },
+      }));
+      mockFetchFn.mockImplementationOnce(async () => {
+        return mockSseEventSource(mockUSDTQuoteResponse as QuoteResponse[]);
+      });
+
+      const contractMock = new ethersContractUtils.Contract(
+        ETH_USDT_ADDRESS,
+        abiERC20,
+      );
+      const contractMockSpy = jest
+        .spyOn(ethersContractUtils, 'Contract')
+        .mockImplementation(() => {
+          return {
+            ...jest.requireActual('@ethersproject/contracts').Contract,
+            interface: contractMock.interface,
+            allowance: jest.fn().mockResolvedValue(BigNumber.from(allowance)),
+          };
+        });
+
+      const usdtQuoteRequest = {
+        ...quoteRequest,
+        srcTokenAddress,
+        srcChainId: '0x1',
+        destChainId,
+      };
+
+      await bridgeController.updateBridgeQuoteRequestParams(
+        usdtQuoteRequest,
+        metricsContext,
+      );
+
+      // Before polling starts
+      expect(stopAllPollingSpy).toHaveBeenCalledTimes(1);
+      expect(startPollingSpy).toHaveBeenCalledTimes(1);
+      expect(startPollingSpy).toHaveBeenCalledWith({
+        updatedQuoteRequest: {
+          ...usdtQuoteRequest,
+          insufficientBal: false,
+          resetApproval,
+        },
+        context: metricsContext,
+      });
+      const expectedState = {
+        ...DEFAULT_BRIDGE_CONTROLLER_STATE,
+        quoteRequest: usdtQuoteRequest,
+        assetExchangeRates,
+        quotesLoadingStatus: RequestStatus.LOADING,
+      };
+      expect(bridgeController.state).toStrictEqual(expectedState);
+
+      // Loading state
+      jest.advanceTimersByTime(1000);
+      expect(fetchBridgeQuotesSpy).toHaveBeenCalledWith(
+        mockFetchFn,
+        {
+          ...usdtQuoteRequest,
+          insufficientBal: false,
+          resetApproval,
+        },
+        expect.any(AbortSignal),
+        BridgeClientId.EXTENSION,
+        BRIDGE_PROD_API_BASE_URL,
+        {
+          onValidationFailure: expect.any(Function),
+          onValidQuoteReceived: expect.any(Function),
+          onClose: expect.any(Function),
+        },
+        '13.8.0',
+      );
+      const { quotesLastFetched: t1, quoteRequest: stateQuoteRequest } =
+        bridgeController.state;
+      expect(stateQuoteRequest).toStrictEqual({
+        ...usdtQuoteRequest,
+        insufficientBal: false,
+        resetApproval,
+      });
+      expect(t1).toBeCloseTo(Date.now() - 1000);
+
+      // After first fetch
+      jest.advanceTimersByTime(5000);
+      await flushPromises();
+      expect(bridgeController.state).toStrictEqual({
+        ...expectedState,
+        quotesInitialLoadTime: 6000,
+        quoteRequest: {
+          ...usdtQuoteRequest,
+          insufficientBal: false,
+          resetApproval,
+        },
+        quotes: mockUSDTQuoteResponse.map((quote) => ({
+          ...quote,
+          resetApproval: tradeData
+            ? {
+                ...quote.approval,
+                data: tradeData,
+              }
+            : undefined,
+        })),
+        quotesRefreshCount: 1,
+        quotesLoadingStatus: 1,
+        quotesLastFetched: t1,
+      });
+      expect(fetchBridgeQuotesSpy).toHaveBeenCalledTimes(1);
+      expect(consoleLogSpy).toHaveBeenCalledTimes(0);
+      expect(getLayer1GasFeeMock).not.toHaveBeenCalled();
+      expect(contractMockSpy.mock.calls).toHaveLength(mockContractCalls);
+    },
+  );
+
+  it('should use resetApproval and insufficientBal fallback values if provider is not found', async function () {
+    messengerMock.call.mockReturnValue({
+      address: '0x123',
+      provider: undefined,
+      currencyRates: {},
+      marketData: {},
+      conversionRates: {},
+    } as never);
+    const mockUSDTQuoteResponse = mockBridgeQuotesErc20Erc20.map((quote) => ({
+      ...quote,
+      quote: {
+        ...quote.quote,
+        srcTokenAddress: ETH_USDT_ADDRESS,
+        srcChainId: 1,
+      },
+    }));
+    mockFetchFn.mockImplementationOnce(async () => {
+      return mockSseEventSource(mockUSDTQuoteResponse as QuoteResponse[]);
+    });
+
+    const contractMock = new ethersContractUtils.Contract(
+      ETH_USDT_ADDRESS,
+      abiERC20,
+    );
+    const contractMockSpy = jest
+      .spyOn(ethersContractUtils, 'Contract')
+      .mockImplementation(() => {
+        return {
+          ...jest.requireActual('@ethersproject/contracts').Contract,
+          interface: contractMock.interface,
+          allowance: jest.fn().mockResolvedValue(BigNumber.from('1')),
+        };
+      });
+
+    const usdtQuoteRequest = {
+      ...quoteRequest,
+      srcTokenAddress: ETH_USDT_ADDRESS,
+      srcChainId: '0x1',
+    };
+
+    await bridgeController.updateBridgeQuoteRequestParams(
+      usdtQuoteRequest,
+      metricsContext,
+    );
+
+    // Before polling starts
+    expect(stopAllPollingSpy).toHaveBeenCalledTimes(1);
+    expect(startPollingSpy).toHaveBeenCalledTimes(1);
+    expect(startPollingSpy).toHaveBeenCalledWith({
+      updatedQuoteRequest: {
+        ...usdtQuoteRequest,
+        insufficientBal: true,
+        resetApproval: true,
+      },
+      context: metricsContext,
+    });
+    const expectedState = {
+      ...DEFAULT_BRIDGE_CONTROLLER_STATE,
+      quoteRequest: usdtQuoteRequest,
+      assetExchangeRates,
+      quotesLoadingStatus: RequestStatus.LOADING,
+    };
+    expect(bridgeController.state).toStrictEqual(expectedState);
+
+    // Loading state
+    jest.advanceTimersByTime(1000);
+    expect(fetchBridgeQuotesSpy).toHaveBeenCalledWith(
+      mockFetchFn,
+      {
+        ...usdtQuoteRequest,
+        insufficientBal: true,
+        resetApproval: true,
+      },
+      expect.any(AbortSignal),
+      BridgeClientId.EXTENSION,
+      BRIDGE_PROD_API_BASE_URL,
+      {
+        onValidationFailure: expect.any(Function),
+        onValidQuoteReceived: expect.any(Function),
+        onClose: expect.any(Function),
+      },
+      '13.8.0',
+    );
+    const { quotesLastFetched: t1, quoteRequest: stateQuoteRequest } =
+      bridgeController.state;
+    expect(stateQuoteRequest).toStrictEqual({
+      ...usdtQuoteRequest,
+      insufficientBal: true,
+      resetApproval: true,
+    });
+    expect(t1).toBeCloseTo(Date.now() - 1000);
+
+    // After first fetch
+    jest.advanceTimersByTime(5000);
+    await flushPromises();
+    expect(bridgeController.state).toStrictEqual({
+      ...expectedState,
+      quotesInitialLoadTime: 6000,
+      quoteRequest: {
+        ...usdtQuoteRequest,
+        insufficientBal: true,
+        resetApproval: true,
+      },
+      quotes: mockUSDTQuoteResponse.map((quote) => ({
+        ...quote,
+        resetApproval: {
+          ...quote.approval,
+          data: '0x095ea7b30000000000000000000000000439e60f02a8900a951603950d8d4527f400c3f10000000000000000000000000000000000000000000000000000000000000000',
+        },
+      })),
+      quotesRefreshCount: 1,
+      quotesLoadingStatus: 1,
+      quotesLastFetched: t1,
+    });
+    expect(fetchBridgeQuotesSpy).toHaveBeenCalledTimes(1);
+    expect(consoleLogSpy).toHaveBeenCalledTimes(0);
+    expect(getLayer1GasFeeMock).not.toHaveBeenCalled();
+    expect(contractMockSpy.mock.calls).toHaveLength(2);
   });
 
   it('should replace all stale quotes after a refresh and first quote is received', async function () {
@@ -236,6 +508,7 @@ describe('BridgeController SSE', function () {
       mockBridgeQuotesNativeErc20.map((quote) => ({
         ...quote,
         l1GasFeesInHexWei: '0x1',
+        resetApproval: undefined,
       })),
     );
     const t1 = bridgeController.state.quotesLastFetched;
@@ -249,8 +522,15 @@ describe('BridgeController SSE', function () {
     const expectedState = {
       ...DEFAULT_BRIDGE_CONTROLLER_STATE,
       quotesInitialLoadTime: FIRST_FETCH_DELAY,
-      quoteRequest: { ...quoteRequest, insufficientBal: false },
-      quotes: [mockBridgeQuotesNativeErc20Eth[0]],
+      quoteRequest: {
+        ...quoteRequest,
+        insufficientBal: false,
+        resetApproval: false,
+      },
+      quotes: [mockBridgeQuotesNativeErc20Eth[0]].map((quote) => ({
+        ...quote,
+        resetApproval: undefined,
+      })),
       quotesLoadingStatus: RequestStatus.LOADING,
       quotesRefreshCount: 1,
       assetExchangeRates,
@@ -273,7 +553,10 @@ describe('BridgeController SSE', function () {
     await advanceToNthTimerThenFlush();
     expect(bridgeController.state).toStrictEqual({
       ...expectedState,
-      quotes: mockBridgeQuotesNativeErc20Eth,
+      quotes: mockBridgeQuotesNativeErc20Eth.map((quote) => ({
+        ...quote,
+        resetApproval: undefined,
+      })),
       quotesLastFetched: t2,
       quotesRefreshCount: 2,
       quotesLoadingStatus: RequestStatus.FETCHED,
@@ -324,7 +607,10 @@ describe('BridgeController SSE', function () {
       FIRST_FETCH_DELAY,
     );
     expect(bridgeController.state.quotes).toStrictEqual(
-      mockBridgeQuotesNativeErc20Eth,
+      mockBridgeQuotesNativeErc20Eth.map((quote) => ({
+        ...quote,
+        resetApproval: undefined,
+      })),
     );
     const t2 = bridgeController.state.quotesLastFetched;
 
@@ -334,7 +620,11 @@ describe('BridgeController SSE', function () {
     expect(bridgeController.state).toStrictEqual({
       ...DEFAULT_BRIDGE_CONTROLLER_STATE,
       quotesInitialLoadTime: FIRST_FETCH_DELAY,
-      quoteRequest: { ...quoteRequest, insufficientBal: false },
+      quoteRequest: {
+        ...quoteRequest,
+        insufficientBal: false,
+        resetApproval: false,
+      },
       quotes: [],
       quotesLoadingStatus: 2,
       quoteFetchError: 'Network error',
@@ -434,6 +724,7 @@ describe('BridgeController SSE', function () {
         token_symbol_source: 'ETH',
         token_symbol_destination: 'USDC',
         security_warnings: [],
+        usd_amount_source: 100,
       },
     );
     // Right after state update, before fetch has started
@@ -445,6 +736,7 @@ describe('BridgeController SSE', function () {
         ...quoteRequest,
         srcTokenAmount: '10',
         insufficientBal: true,
+        resetApproval: false,
       },
       quotesLastFetched: Date.now(),
       quotesLoadingStatus: RequestStatus.LOADING,
@@ -455,13 +747,20 @@ describe('BridgeController SSE', function () {
     const expectedStateAfterFirstQuote = {
       ...expectedState,
       quotesInitialLoadTime: THIRD_FETCH_DELAY,
-      quotes: [{ ...mockBridgeQuotesNativeErc20[0], l1GasFeesInHexWei: '0x1' }],
+      quotes: [
+        {
+          ...mockBridgeQuotesNativeErc20[0],
+          l1GasFeesInHexWei: '0x1',
+          resetApproval: undefined,
+        },
+      ],
       quotesRefreshCount: 0,
       quotesLoadingStatus: RequestStatus.LOADING,
       quoteRequest: {
         ...quoteRequest,
         srcTokenAmount: '10',
         insufficientBal: true,
+        resetApproval: false,
       },
       quotesLastFetched: t1,
     };
@@ -486,6 +785,7 @@ describe('BridgeController SSE', function () {
       ].map((quote) => ({
         ...quote,
         l1GasFeesInHexWei: '0x1',
+        resetApproval: undefined,
       })),
     });
     expect(
@@ -579,6 +879,7 @@ describe('BridgeController SSE', function () {
         token_symbol_source: 'ETH',
         token_symbol_destination: 'USDC',
         security_warnings: [],
+        usd_amount_source: 100,
       },
     );
 
@@ -602,6 +903,7 @@ describe('BridgeController SSE', function () {
         (quote) => ({
           ...quote,
           l1GasFeesInHexWei: '0x1',
+          resetApproval: undefined,
         }),
       ),
     );
@@ -623,8 +925,12 @@ describe('BridgeController SSE', function () {
         ...quoteRequest,
         srcTokenAmount: '10',
         insufficientBal: false,
+        resetApproval: false,
       },
-      quotes: [mockBridgeQuotesNativeErc20Eth[0]],
+      quotes: [mockBridgeQuotesNativeErc20Eth[0]].map((quote) => ({
+        ...quote,
+        resetApproval: undefined,
+      })),
       quotesRefreshCount: 1,
       quoteFetchError: null,
       quotesLoadingStatus: RequestStatus.LOADING,
@@ -718,6 +1024,7 @@ describe('BridgeController SSE', function () {
       updatedQuoteRequest: {
         ...quoteRequest,
         insufficientBal: false,
+        resetApproval: false,
       },
       context: metricsContext,
     });
@@ -737,6 +1044,7 @@ describe('BridgeController SSE', function () {
       {
         ...quoteRequest,
         insufficientBal: false,
+        resetApproval: false,
       },
       expect.any(AbortSignal),
       BridgeClientId.EXTENSION,
@@ -759,7 +1067,11 @@ describe('BridgeController SSE', function () {
     await flushPromises();
     expect(bridgeController.state).toStrictEqual({
       ...expectedState,
-      quoteRequest: { ...quoteRequest, insufficientBal: false },
+      quoteRequest: {
+        ...quoteRequest,
+        insufficientBal: false,
+        resetApproval: false,
+      },
       quotesRefreshCount: 1,
       quotesLoadingStatus: 2,
       quoteFetchError: 'Bridge-api error: timeout from server',

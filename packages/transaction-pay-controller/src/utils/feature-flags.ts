@@ -10,6 +10,7 @@ const log = createModuleLogger(projectLogger, 'feature-flags');
 export const DEFAULT_RELAY_FALLBACK_GAS_ESTIMATE = 900000;
 export const DEFAULT_RELAY_FALLBACK_GAS_MAX = 1500000;
 export const DEFAULT_RELAY_QUOTE_URL = `${RELAY_URL_BASE}/quote`;
+export const DEFAULT_SLIPPAGE = 0.005;
 
 type FeatureFlagsRaw = {
   relayDisabledGasStationChains?: Hex[];
@@ -18,6 +19,7 @@ type FeatureFlagsRaw = {
     max?: number;
   };
   relayQuoteUrl?: string;
+  slippage?: number;
 };
 
 export type FeatureFlags = {
@@ -27,6 +29,7 @@ export type FeatureFlags = {
     max: number;
   };
   relayQuoteUrl: string;
+  slippage: number;
 };
 
 /**
@@ -55,6 +58,8 @@ export function getFeatureFlags(
   const relayDisabledGasStationChains =
     featureFlags.relayDisabledGasStationChains ?? [];
 
+  const slippage = featureFlags.slippage ?? DEFAULT_SLIPPAGE;
+
   const result = {
     relayDisabledGasStationChains,
     relayFallbackGas: {
@@ -62,6 +67,7 @@ export function getFeatureFlags(
       max,
     },
     relayQuoteUrl,
+    slippage,
   };
 
   log('Feature flags:', { raw: featureFlags, result });

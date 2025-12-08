@@ -2,11 +2,8 @@ import type {
   JsonRpcMiddleware,
   MiddlewareContext,
 } from '@metamask/json-rpc-engine/v2';
-import {
-  type Json,
-  type JsonRpcRequest,
-  createDeferredPromise,
-} from '@metamask/utils';
+import { createDeferredPromise } from '@metamask/utils';
+import type { Json, JsonRpcRequest } from '@metamask/utils';
 
 import { projectLogger, createModuleLogger } from './logging-utils';
 import { cacheIdentifierForRequest } from './utils/cache';

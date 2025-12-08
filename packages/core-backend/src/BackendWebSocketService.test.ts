@@ -1,17 +1,18 @@
-import {
-  Messenger,
-  MOCK_ANY_NAMESPACE,
-  type MessengerActions,
-  type MessengerEvents,
-  type MockAnyNamespace,
+import { Messenger, MOCK_ANY_NAMESPACE } from '@metamask/messenger';
+import type {
+  MessengerActions,
+  MessengerEvents,
+  MockAnyNamespace,
 } from '@metamask/messenger';
 
 import {
   BackendWebSocketService,
   getCloseReason,
   WebSocketState,
-  type BackendWebSocketServiceOptions,
-  type BackendWebSocketServiceMessenger,
+} from './BackendWebSocketService';
+import type {
+  BackendWebSocketServiceOptions,
+  BackendWebSocketServiceMessenger,
 } from './BackendWebSocketService';
 import { flushPromises } from '../../../tests/helpers';
 
