@@ -1955,26 +1955,8 @@
     }
   },
   "packages/keyring-controller/src/KeyringController.ts": {
-    "@typescript-eslint/await-thenable": {
-      "count": 1
-    },
-    "@typescript-eslint/explicit-function-return-type": {
-      "count": 10
-    },
     "@typescript-eslint/naming-convention": {
       "count": 10
-    },
-    "@typescript-eslint/no-unused-vars": {
-      "count": 1
-    },
-    "@typescript-eslint/prefer-nullish-coalescing": {
-      "count": 3
-    },
-    "id-length": {
-      "count": 2
-    },
-    "no-case-declarations": {
-      "count": 5
     }
   },
   "packages/keyring-controller/tests/mocks/mockEncryptor.ts": {
