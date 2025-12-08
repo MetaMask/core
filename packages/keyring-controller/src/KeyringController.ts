@@ -2291,24 +2291,26 @@ export class KeyringController<
         return true;
       });
 
+    const toAccountsMap = (
+      keyrings: KeyringObject[],
+    ): Map<string, KeyringObject> => {
+      const accounts = new Map();
+      for (const keyring of keyrings) {
+        for (const account of keyring.accounts) {
+          accounts.set(account, keyring);
+        }
+      }
+
+      return accounts;
+    };
+
     // Keep track of the old keyring states so we can make a diff of added/removed accounts.
     const oldKeyrings = this.state.keyrings;
     const updated = await updateVault();
     const newKeyrings = this.state.keyrings;
 
-    const oldAccounts = new Map<string, KeyringObject>();
-    for (const oldKeyring of oldKeyrings) {
-      for (const oldAccount of oldKeyring.accounts) {
-        oldAccounts.set(oldAccount, oldKeyring);
-      }
-    }
-
-    const newAccounts = new Map<string, KeyringObject>();
-    for (const newKeyring of newKeyrings) {
-      for (const newAccount of newKeyring.accounts) {
-        newAccounts.set(newAccount, newKeyring);
-      }
-    }
+    const oldAccounts = toAccountsMap(oldKeyrings);
+    const newAccounts = toAccountsMap(newKeyrings);
 
     for (const newAccount of newAccounts.keys()) {
       if (oldAccounts.has(newAccount)) {
