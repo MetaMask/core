@@ -41,6 +41,7 @@ import {
 } from './TokenDetectionController';
 import { getDefaultTokenListState } from './TokenListController';
 import type { TokenListState, TokenListToken } from './TokenListController';
+import type { Token } from './TokenRatesController';
 import type {
   TokensController,
   TokensControllerState,
@@ -217,6 +218,7 @@ function buildTokenDetectionControllerMessenger(
       'NetworkController:networkDidChange',
       'TokenListController:stateChange',
       'PreferencesController:stateChange',
+      'TransactionController:transactionConfirmed',
     ],
   });
   return tokenDetectionControllerMessenger;
@@ -791,7 +793,18 @@ describe('TokenDetectionController', () => {
             mockTokenListGetState,
             triggerSelectedAccountChange,
             callActionSpy,
+            mockNetworkState,
           }) => {
+            // Set selectedNetworkClientId to avalanche and include it in networkConfigurationsByChainId
+            const defaultState = getDefaultNetworkControllerState();
+            mockNetworkState({
+              ...defaultState,
+              selectedNetworkClientId: 'avalanche',
+              networkConfigurationsByChainId: {
+                ...defaultState.networkConfigurationsByChainId,
+                ...mockNetworkConfigurationsByChainId,
+              },
+            });
             mockTokenListGetState({
               ...getDefaultTokenListState(),
               tokensChainsCache: {
@@ -2701,6 +2714,223 @@ describe('TokenDetectionController', () => {
         },
       );
     });
+
+    it('should detect tokens when TransactionController:transactionConfirmed is triggered', async () => {
+      const mockGetBalancesInSingleCall = jest.fn().mockResolvedValue({
+        [sampleTokenA.address]: new BN(1),
+      });
+      const selectedAccount = createMockInternalAccount({
+        address: '0x0000000000000000000000000000000000000001',
+      });
+      await withController(
+        {
+          options: {
+            disabled: false,
+            getBalancesInSingleCall: mockGetBalancesInSingleCall,
+          },
+          mocks: {
+            getSelectedAccount: selectedAccount,
+            getAccount: selectedAccount,
+          },
+        },
+        async ({
+          mockTokenListGetState,
+          mockNetworkState,
+          callActionSpy,
+          triggerTransactionConfirmed,
+        }) => {
+          const defaultState = getDefaultNetworkControllerState();
+          mockNetworkState({
+            ...defaultState,
+            selectedNetworkClientId: 'avalanche',
+            networkConfigurationsByChainId: {
+              ...defaultState.networkConfigurationsByChainId,
+              ...mockNetworkConfigurationsByChainId,
+            },
+          });
+          mockTokenListGetState({
+            ...getDefaultTokenListState(),
+            tokensChainsCache: {
+              '0xa86a': {
+                timestamp: 0,
+                data: {
+                  [sampleTokenA.address]: {
+                    name: sampleTokenA.name,
+                    symbol: sampleTokenA.symbol,
+                    decimals: sampleTokenA.decimals,
+                    address: sampleTokenA.address,
+                    occurrences: 1,
+                    aggregators: sampleTokenA.aggregators,
+                    iconUrl: sampleTokenA.image,
+                  },
+                },
+              },
+            },
+          });
+
+          triggerTransactionConfirmed({ chainId: '0xa86a' });
+          // Wait for async detection to complete
+          await new Promise((resolve) => setTimeout(resolve, 10));
+
+          expect(callActionSpy).toHaveBeenCalledWith(
+            'TokensController:addTokens',
+            [sampleTokenA],
+            'avalanche',
+          );
+        },
+      );
+    });
+
+    it('should not detect tokens when useExternalServices returns false', async () => {
+      const mockGetBalancesInSingleCall = jest.fn().mockResolvedValue({
+        [sampleTokenA.address]: new BN(1),
+      });
+      const selectedAccount = createMockInternalAccount({
+        address: '0x0000000000000000000000000000000000000001',
+      });
+      await withController(
+        {
+          options: {
+            disabled: false,
+            getBalancesInSingleCall: mockGetBalancesInSingleCall,
+            useExternalServices: () => false,
+          },
+          mocks: {
+            getSelectedAccount: selectedAccount,
+            getAccount: selectedAccount,
+          },
+        },
+        async ({ controller, callActionSpy }) => {
+          await controller.detectTokens();
+
+          expect(callActionSpy).not.toHaveBeenCalledWith(
+            'TokensController:addTokens',
+          );
+          expect(callActionSpy).not.toHaveBeenCalledWith(
+            'TokensController:addDetectedTokens',
+          );
+        },
+      );
+    });
+
+    it('should not detect tokens when no client networks are found', async () => {
+      const mockGetBalancesInSingleCall = jest.fn().mockResolvedValue({
+        [sampleTokenA.address]: new BN(1),
+      });
+      const selectedAccount = createMockInternalAccount({
+        address: '0x0000000000000000000000000000000000000001',
+      });
+      await withController(
+        {
+          options: {
+            disabled: false,
+            getBalancesInSingleCall: mockGetBalancesInSingleCall,
+          },
+          mocks: {
+            getSelectedAccount: selectedAccount,
+            getAccount: selectedAccount,
+          },
+        },
+        async ({
+          controller,
+          mockNetworkState,
+          mockGetNetworkConfigurationByNetworkClientId,
+          callActionSpy,
+        }) => {
+          mockNetworkState({
+            ...getDefaultNetworkControllerState(),
+            selectedNetworkClientId: 'unknown-network',
+          });
+          // Return undefined for unknown network to simulate no network config
+          mockGetNetworkConfigurationByNetworkClientId(
+            () => undefined as never,
+          );
+
+          await controller.detectTokens();
+
+          expect(callActionSpy).not.toHaveBeenCalledWith(
+            'TokensController:addTokens',
+          );
+        },
+      );
+    });
+
+    it('should filter out tokens that are already owned by the user', async () => {
+      const mockGetBalancesInSingleCall = jest.fn().mockResolvedValue({
+        [sampleTokenA.address]: new BN(1),
+      });
+      const selectedAccount = createMockInternalAccount({
+        address: '0x0000000000000000000000000000000000000001',
+      });
+      await withController(
+        {
+          options: {
+            disabled: false,
+            getBalancesInSingleCall: mockGetBalancesInSingleCall,
+          },
+          mocks: {
+            getSelectedAccount: selectedAccount,
+            getAccount: selectedAccount,
+          },
+        },
+        async ({
+          controller,
+          mockNetworkState,
+          mockTokenListGetState,
+          mockTokensGetState,
+          callActionSpy,
+        }) => {
+          const defaultState = getDefaultNetworkControllerState();
+          mockNetworkState({
+            ...defaultState,
+            selectedNetworkClientId: 'avalanche',
+            networkConfigurationsByChainId: {
+              ...defaultState.networkConfigurationsByChainId,
+              ...mockNetworkConfigurationsByChainId,
+            },
+          });
+          mockTokenListGetState({
+            ...getDefaultTokenListState(),
+            tokensChainsCache: {
+              '0xa86a': {
+                timestamp: 0,
+                data: {
+                  [sampleTokenA.address]: {
+                    name: sampleTokenA.name,
+                    symbol: sampleTokenA.symbol,
+                    decimals: sampleTokenA.decimals,
+                    address: sampleTokenA.address,
+                    occurrences: 1,
+                    aggregators: sampleTokenA.aggregators,
+                    iconUrl: sampleTokenA.image,
+                  },
+                },
+              },
+            },
+          });
+          // Mock that the user already owns this token
+          mockTokensGetState({
+            ...getDefaultTokensState(),
+            allTokens: {
+              '0xa86a': {
+                [selectedAccount.address]: [
+                  { address: sampleTokenA.address } as Token,
+                ],
+              },
+            },
+          });
+
+          await controller.detectTokens();
+
+          // Should not call addTokens since token is already owned
+          expect(callActionSpy).not.toHaveBeenCalledWith(
+            'TokensController:addTokens',
+            expect.anything(),
+            'avalanche',
+          );
+        },
+      );
+    });
   });
 
   describe('mapChainIdWithTokenListMap', () => {
@@ -3263,6 +3493,7 @@ type WithControllerCallback<ReturnValue> = ({
   triggerPreferencesStateChange: (state: PreferencesState) => void;
   triggerSelectedAccountChange: (account: InternalAccount) => void;
   triggerNetworkDidChange: (state: NetworkState) => void;
+  triggerTransactionConfirmed: (transactionMeta: { chainId: Hex }) => void;
 }) => Promise<ReturnValue> | ReturnValue;
 
 type WithControllerOptions = {
@@ -3483,6 +3714,15 @@ async function withController<ReturnValue>(
       },
       triggerNetworkDidChange: (state: NetworkState) => {
         messenger.publish('NetworkController:networkDidChange', state);
+      },
+      triggerTransactionConfirmed: (transactionMeta: { chainId: Hex }) => {
+        messenger.publish(
+          'TransactionController:transactionConfirmed',
+          // We only need chainId for this test, so cast to satisfy the type
+          transactionMeta as unknown as Parameters<
+            typeof messenger.publish<'TransactionController:transactionConfirmed'>
+          >[1],
+        );
       },
     });
   } finally {

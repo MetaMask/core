@@ -13,15 +13,16 @@ import {
   ChainId,
   ERC20,
   safelyExecute,
+  safelyExecuteWithTimeout,
   isEqualCaseInsensitive,
   toChecksumHexAddress,
+  toHex,
 } from '@metamask/controller-utils';
 import type {
   KeyringControllerGetStateAction,
   KeyringControllerLockEvent,
   KeyringControllerUnlockEvent,
 } from '@metamask/keyring-controller';
-import type { InternalAccount } from '@metamask/keyring-internal-api';
 import type { Messenger } from '@metamask/messenger';
 import type {
   NetworkClientId,
@@ -36,12 +37,13 @@ import type {
   PreferencesControllerGetStateAction,
   PreferencesControllerStateChangeEvent,
 } from '@metamask/preferences-controller';
+import type { AuthenticationController } from '@metamask/profile-sync-controller';
+import type { TransactionControllerTransactionConfirmedEvent } from '@metamask/transaction-controller';
 import type { Hex } from '@metamask/utils';
-import { mapValues, isObject, get } from 'lodash';
+import { isEqual, mapValues, isObject, get } from 'lodash';
 
 import type { AssetsContractController } from './AssetsContractController';
 import { isTokenDetectionSupportedForNetwork } from './assetsUtil';
-import { SUPPORTED_NETWORKS_ACCOUNTS_API_V4 } from './constants';
 import type {
   GetTokenListState,
   TokenListMap,
@@ -94,11 +96,11 @@ export const STATIC_MAINNET_TOKEN_LIST = Object.entries<LegacyToken>(
  * Function that takes a TokensChainsCache object and maps chainId with TokenListMap.
  *
  * @param tokensChainsCache - TokensChainsCache input object
- * @returns The map of chainId with TokenListMap.
+ * @returns returns the map of chainId with TokenListMap
  */
 export function mapChainIdWithTokenListMap(
   tokensChainsCache: TokensChainsCache,
-): Record<string, TokenListMap | unknown> {
+) {
   return mapValues(tokensChainsCache, (value) => {
     if (isObject(value) && 'data' in value) {
       return get(value, ['data']);
@@ -137,7 +139,8 @@ export type AllowedActions =
   | TokensControllerGetStateAction
   | TokensControllerAddDetectedTokensAction
   | TokensControllerAddTokensAction
-  | NetworkControllerFindNetworkClientIdByChainIdAction;
+  | NetworkControllerFindNetworkClientIdByChainIdAction
+  | AuthenticationController.AuthenticationControllerGetBearerToken;
 
 export type TokenDetectionControllerStateChangeEvent =
   ControllerStateChangeEvent<typeof controllerName, TokenDetectionState>;
@@ -151,7 +154,8 @@ export type AllowedEvents =
   | TokenListStateChange
   | KeyringControllerLockEvent
   | KeyringControllerUnlockEvent
-  | PreferencesControllerStateChangeEvent;
+  | PreferencesControllerStateChangeEvent
+  | TransactionControllerTransactionConfirmedEvent;
 
 export type TokenDetectionControllerMessenger = Messenger<
   typeof controllerName,
@@ -202,8 +206,6 @@ export class TokenDetectionController extends StaticIntervalPollingController<To
 
   readonly #useExternalServices: () => boolean;
 
-  readonly #useAccountsAPI: boolean;
-
   readonly #getBalancesInSingleCall: AssetsContractController['getBalancesInSingleCall'];
 
   readonly #trackMetaMetricsEvent: (options: {
@@ -211,9 +213,7 @@ export class TokenDetectionController extends StaticIntervalPollingController<To
     category: string;
     properties: {
       tokens: string[];
-      // eslint-disable-next-line @typescript-eslint/naming-convention
       token_standard: string;
-      // eslint-disable-next-line @typescript-eslint/naming-convention
       asset_type: string;
     };
   }) => void;
@@ -228,8 +228,7 @@ export class TokenDetectionController extends StaticIntervalPollingController<To
    * @param options.getBalancesInSingleCall - Gets the balances of a list of tokens for the given address.
    * @param options.trackMetaMetricsEvent - Sets options for MetaMetrics event tracking.
    * @param options.useTokenDetection - Feature Switch for using token detection (default: true)
-   * @param options.useExternalServices - Feature Switch for using external services like RPC autodetection (default: true)
-   * @param options.useAccountsAPI - If true, supported chains use Account API via TokenBalancesController. If false, use RPC for all chains. (default: true)
+   * @param options.useExternalServices - Feature Switch for using external services (default: false)
    */
   constructor({
     interval = DEFAULT_INTERVAL,
@@ -237,9 +236,8 @@ export class TokenDetectionController extends StaticIntervalPollingController<To
     getBalancesInSingleCall,
     trackMetaMetricsEvent,
     messenger,
-    useTokenDetection = (): boolean => true,
-    useExternalServices = (): boolean => true,
-    useAccountsAPI = true,
+    useTokenDetection = () => true,
+    useExternalServices = () => true,
   }: {
     interval?: number;
     disabled?: boolean;
@@ -249,16 +247,13 @@ export class TokenDetectionController extends StaticIntervalPollingController<To
       category: string;
       properties: {
         tokens: string[];
-        // eslint-disable-next-line @typescript-eslint/naming-convention
         token_standard: string;
-        // eslint-disable-next-line @typescript-eslint/naming-convention
         asset_type: string;
       };
     }) => void;
     messenger: TokenDetectionControllerMessenger;
     useTokenDetection?: () => boolean;
     useExternalServices?: () => boolean;
-    useAccountsAPI?: boolean;
   }) {
     super({
       name: controllerName,
@@ -297,7 +292,6 @@ export class TokenDetectionController extends StaticIntervalPollingController<To
 
     this.#useTokenDetection = useTokenDetection;
     this.#useExternalServices = useExternalServices;
-    this.#useAccountsAPI = useAccountsAPI;
 
     this.#registerEventListeners();
   }
@@ -305,9 +299,10 @@ export class TokenDetectionController extends StaticIntervalPollingController<To
   /**
    * Constructor helper for registering this controller's messenger subscriptions to controller events.
    */
-  #registerEventListeners(): void {
-    this.messenger.subscribe('KeyringController:unlock', () => {
+  #registerEventListeners() {
+    this.messenger.subscribe('KeyringController:unlock', async () => {
       this.#isUnlocked = true;
+      await this.#restartTokenDetection();
     });
 
     this.messenger.subscribe('KeyringController:lock', () => {
@@ -317,29 +312,29 @@ export class TokenDetectionController extends StaticIntervalPollingController<To
 
     this.messenger.subscribe(
       'TokenListController:stateChange',
-      ({ tokensChainsCache }) => {
-        const previousCache = this.#tokensChainsCache;
-        this.#tokensChainsCache = tokensChainsCache;
-
-        // Trigger detection if the cache data changed (not just timestamp)
-        if (this.isActive && this.#hasTokenListChanged(previousCache)) {
-          this.detectTokens().catch(() => {
-            // Silently handle detection errors on token list change
-          });
+      async ({ tokensChainsCache }) => {
+        const isEqualValues = this.#compareTokensChainsCache(
+          tokensChainsCache,
+          this.#tokensChainsCache,
+        );
+        if (!isEqualValues) {
+          await this.#restartTokenDetection();
         }
       },
     );
 
     this.messenger.subscribe(
       'PreferencesController:stateChange',
-      ({ useTokenDetection }) => {
-        const wasEnabled = this.#isDetectionEnabledFromPreferences;
+      async ({ useTokenDetection }) => {
+        const selectedAccount = this.#getSelectedAccount();
+        const isDetectionChangedFromPreferences =
+          this.#isDetectionEnabledFromPreferences !== useTokenDetection;
+
         this.#isDetectionEnabledFromPreferences = useTokenDetection;
 
-        // Trigger detection if token detection was just enabled
-        if (!wasEnabled && useTokenDetection && this.isActive) {
-          this.detectTokens().catch(() => {
-            // Silently handle detection errors on preference change
+        if (isDetectionChangedFromPreferences) {
+          await this.#restartTokenDetection({
+            selectedAddress: selectedAccount.address,
           });
         }
       },
@@ -347,16 +342,30 @@ export class TokenDetectionController extends StaticIntervalPollingController<To
 
     this.messenger.subscribe(
       'AccountsController:selectedEvmAccountChange',
-      (selectedAccount) => {
-        const previousAccountId = this.#selectedAccountId;
-        this.#selectedAccountId = selectedAccount.id;
+      async (selectedAccount) => {
+        const { networkConfigurationsByChainId } = this.messenger.call(
+          'NetworkController:getState',
+        );
 
-        // Trigger detection if account changed and controller is active
-        if (previousAccountId !== selectedAccount.id && this.isActive) {
-          this.detectTokens().catch(() => {
-            // Silently handle detection errors on account change
+        const chainIds = Object.keys(networkConfigurationsByChainId) as Hex[];
+        const isSelectedAccountIdChanged =
+          this.#selectedAccountId !== selectedAccount.id;
+        if (isSelectedAccountIdChanged) {
+          this.#selectedAccountId = selectedAccount.id;
+          await this.#restartTokenDetection({
+            selectedAddress: selectedAccount.address,
+            chainIds,
           });
         }
+      },
+    );
+
+    this.messenger.subscribe(
+      'TransactionController:transactionConfirmed',
+      async (transactionMeta) => {
+        await this.detectTokens({
+          chainIds: [transactionMeta.chainId],
+        });
       },
     );
   }
@@ -422,6 +431,30 @@ export class TokenDetectionController extends StaticIntervalPollingController<To
     }, this.getIntervalLength());
   }
 
+  /**
+   * Compares current and previous tokensChainsCache object focusing only on the data object.
+   *
+   * @param tokensChainsCache - current tokensChainsCache input object
+   * @param previousTokensChainsCache - previous tokensChainsCache input object
+   * @returns boolean indicating if the two objects are equal
+   */
+
+  #compareTokensChainsCache(
+    tokensChainsCache: TokensChainsCache,
+    previousTokensChainsCache: TokensChainsCache,
+  ): boolean {
+    const cleanPreviousTokensChainsCache = mapChainIdWithTokenListMap(
+      previousTokensChainsCache,
+    );
+    const cleanTokensChainsCache =
+      mapChainIdWithTokenListMap(tokensChainsCache);
+    const isEqualValues = isEqual(
+      cleanTokensChainsCache,
+      cleanPreviousTokensChainsCache,
+    );
+    return isEqualValues;
+  }
+
   #getCorrectNetworkClientIdByChainId(
     chainIds: Hex[] | undefined,
   ): { chainId: Hex; networkClientId: NetworkClientId }[] {
@@ -453,55 +486,6 @@ export class TokenDetectionController extends StaticIntervalPollingController<To
     });
   }
 
-  /**
-   * Compares the current tokensChainsCache with a previous version to determine
-   * if the token list data has changed (ignoring timestamp changes).
-   *
-   * @param previousCache - The previous tokensChainsCache to compare against.
-   * @returns True if the token list data has changed, false otherwise.
-   */
-  #hasTokenListChanged(previousCache: TokensChainsCache): boolean {
-    const currentCache = this.#tokensChainsCache;
-    if (!previousCache || !currentCache) {
-      return previousCache !== currentCache;
-    }
-
-    const previousChainIds = Object.keys(previousCache) as Hex[];
-    const currentChainIds = Object.keys(currentCache) as Hex[];
-
-    // Check if chain IDs are different
-    if (previousChainIds.length !== currentChainIds.length) {
-      return true;
-    }
-
-    // Check if any chain's data has changed (ignore timestamp)
-    for (const chainId of currentChainIds) {
-      const previousData = previousCache[chainId]?.data;
-      const currentData = currentCache[chainId]?.data;
-
-      if (!previousData && currentData) {
-        return true;
-      }
-      if (previousData && !currentData) {
-        return true;
-      }
-      if (previousData && currentData) {
-        const previousAddresses = Object.keys(previousData);
-        const currentAddresses = Object.keys(currentData);
-        if (previousAddresses.length !== currentAddresses.length) {
-          return true;
-        }
-        for (const address of currentAddresses) {
-          if (!previousData[address]) {
-            return true;
-          }
-        }
-      }
-    }
-
-    return false;
-  }
-
   async _executePoll({
     chainIds,
     address,
@@ -515,12 +499,30 @@ export class TokenDetectionController extends StaticIntervalPollingController<To
     });
   }
 
-  #shouldDetectTokens(chainId: Hex): boolean {
-    // Skip detection for chains supported by Accounts API v4
-    if (SUPPORTED_NETWORKS_ACCOUNTS_API_V4.includes(chainId)) {
-      return false;
-    }
+  /**
+   * Restart token detection polling period and call detectNewTokens
+   * in case of address change or user session initialization.
+   *
+   * @param options - Options for restart token detection.
+   * @param options.selectedAddress - the selectedAddress against which to detect for token balances
+   * @param options.chainIds - The chain IDs of the network client to use.
+   */
+  async #restartTokenDetection({
+    selectedAddress,
+    chainIds,
+  }: {
+    selectedAddress?: string;
+    chainIds?: Hex[];
+  } = {}): Promise<void> {
+    await this.detectTokens({
+      chainIds,
+      selectedAddress,
+    });
+    this.setIntervalLength(DEFAULT_INTERVAL);
+  }
 
+
+  #shouldDetectTokens(chainId: Hex): boolean {
     if (!isTokenDetectionSupportedForNetwork(chainId)) {
       return false;
     }
@@ -602,22 +604,11 @@ export class TokenDetectionController extends StaticIntervalPollingController<To
     const addressToDetect = selectedAddress ?? this.#getSelectedAddress();
     const clientNetworks = this.#getCorrectNetworkClientIdByChainId(chainIds);
 
-    // Determine which chains should use RPC detection
-    // If useAccountsAPI is true: supported chains are handled by TokenBalancesController,
-    // only use RPC for unsupported chains
-    // If useAccountsAPI is false: use RPC for all chains
-    const chainsToDetectUsingRpc = this.#useAccountsAPI
-      ? clientNetworks.filter(
-          ({ chainId }) =>
-            !SUPPORTED_NETWORKS_ACCOUNTS_API_V4.includes(chainId),
-        )
-      : clientNetworks;
-
-    if (chainsToDetectUsingRpc.length === 0) {
+    if (clientNetworks.length === 0) {
       return;
     }
 
-    await this.#detectTokensUsingRpc(chainsToDetectUsingRpc, addressToDetect);
+    await this.#detectTokensUsingRpc(clientNetworks, addressToDetect);
   }
 
   #getSlicesOfTokensToDetect({
@@ -823,17 +814,17 @@ export class TokenDetectionController extends StaticIntervalPollingController<To
     }
   }
 
-  #getSelectedAccount(): InternalAccount {
+  #getSelectedAccount() {
     return this.messenger.call('AccountsController:getSelectedAccount');
   }
 
-  #getSelectedAddress(): string {
+  #getSelectedAddress() {
     // If the address is not defined (or empty), we fallback to the currently selected account's address
     const account = this.messenger.call(
       'AccountsController:getAccount',
       this.#selectedAccountId,
     );
-    return account?.address ?? '';
+    return account?.address || '';
   }
 }
 
