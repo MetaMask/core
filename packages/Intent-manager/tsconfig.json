@@ -1,9 +1,0 @@
-{
-  "extends": "../../tsconfig.packages.json",
-  "compilerOptions": {
-    "baseUrl": "./",
-    "resolveJsonModule": true
-  },
-  "references": [],
-  "include": ["../../types", "./src"]
-}
