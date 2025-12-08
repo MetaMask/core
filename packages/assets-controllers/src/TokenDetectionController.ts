@@ -442,28 +442,6 @@ export class TokenDetectionController extends StaticIntervalPollingController<To
     });
   }
 
-  /**
-   * Restart token detection polling period and call detectNewTokens
-   * in case of address change or user session initialization.
-   *
-   * @param options - Options for restart token detection.
-   * @param options.selectedAddress - the selectedAddress against which to detect for token balances
-   * @param options.chainIds - The chain IDs of the network client to use.
-   */
-  async #restartTokenDetection({
-    selectedAddress,
-    chainIds,
-  }: {
-    selectedAddress?: string;
-    chainIds?: Hex[];
-  } = {}): Promise<void> {
-    await this.detectTokens({
-      chainIds,
-      selectedAddress,
-    });
-    this.setIntervalLength(DEFAULT_INTERVAL);
-  }
-
   #shouldDetectTokens(chainId: Hex): boolean {
     // Skip detection for chains supported by Accounts API v4
     if (SUPPORTED_NETWORKS_ACCOUNTS_API_V4.includes(chainId)) {
