@@ -7,6 +7,10 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+### Fixed
+
+- Include `WalletContext` in EIP-7715 requests ([#7331](https://github.com/MetaMask/core/pull/7331))
+
 ## [22.0.0]
 
 ### Added
