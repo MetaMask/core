@@ -824,9 +824,28 @@ function getDefaultInfuraNetworkConfigurationsByChainId(): Record<
   Hex,
   NetworkConfiguration
 > {
+  const reverseFallbackInfuraNetworkTypeMapping = Object.entries(
+    FALLBACK_INFURA_NETWORK_TYPE_MAPPING,
+  ).reduce<Record<InfuraNetworkType, string>>(
+    (reversed, [key, value]) => {
+      reversed[value] = key;
+      return reversed;
+    },
+    {} as Record<InfuraNetworkType, string>,
+  );
+
   return Object.values(InfuraNetworkType).reduce<
     Record<Hex, NetworkConfiguration>
-  >((obj, infuraNetworkType) => {
+  >((obj, _infuraNetworkType) => {
+    let infuraNetworkType = _infuraNetworkType;
+    if (
+      hasProperty(reverseFallbackInfuraNetworkTypeMapping, infuraNetworkType)
+    ) {
+      infuraNetworkType = reverseFallbackInfuraNetworkTypeMapping[
+        infuraNetworkType
+      ] as InfuraNetworkType;
+    }
+
     const chainId = ChainId[infuraNetworkType];
 
     // Skip deprecated network as default network.
@@ -846,7 +865,7 @@ function getDefaultInfuraNetworkConfigurationsByChainId(): Record<
       rpcEndpoints: [
         {
           failoverUrls: [],
-          networkClientId: infuraNetworkType,
+          networkClientId: _infuraNetworkType,
           type: RpcEndpointType.Infura,
           url: rpcEndpointUrl,
         },
