@@ -35,7 +35,7 @@ import type {
   PreferencesControllerStateChangeEvent,
 } from '@metamask/preferences-controller';
 import type { AuthenticationController } from '@metamask/profile-sync-controller';
-import type { TransactionControllerTransactionConfirmedEvent } from '@metamask/transaction-controller';
+import type { TransactionControllerIncomingTransactionsReceivedEvent, TransactionControllerTransactionConfirmedEvent } from '@metamask/transaction-controller';
 import type { Hex } from '@metamask/utils';
 import {
   isCaipAssetType,
@@ -145,7 +145,8 @@ export type AllowedEvents =
   | AccountActivityServiceBalanceUpdatedEvent
   | AccountActivityServiceStatusChangedEvent
   | AccountsControllerSelectedEvmAccountChangeEvent
-  | TransactionControllerTransactionConfirmedEvent;
+  | TransactionControllerTransactionConfirmedEvent
+  | TransactionControllerIncomingTransactionsReceivedEvent;
 
 export type TokenBalancesControllerMessenger = Messenger<
   typeof CONTROLLER,
@@ -387,12 +388,19 @@ export class TokenBalancesController extends StaticIntervalPollingController<{
     this.messenger.subscribe(
       'TransactionController:transactionConfirmed',
       (transactionMeta) => {
-        console.log(
-          'Transaction confirmed: ++++++++++++++++++',
-          transactionMeta,
-        );
         this.updateBalances({
           chainIds: [transactionMeta.chainId],
+        }).catch(() => {
+          // Silently handle balance update errors
+        });
+      },
+    );
+
+    this.messenger.subscribe(
+      'TransactionController:incomingTransactionsReceived',
+      (incomingTransactions) => {
+        this.updateBalances({
+          chainIds: incomingTransactions.map((tx) => tx.chainId),
         }).catch(() => {
           // Silently handle balance update errors
         });

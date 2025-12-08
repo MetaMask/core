@@ -182,6 +182,11 @@ const setupController = ({
   );
 
   messenger.registerActionHandler(
+    'TokenDetectionController:addDetectedTokensViaWs',
+    jest.fn().mockResolvedValue(undefined),
+  );
+
+  messenger.registerActionHandler(
     'NetworkController:getNetworkClientById',
     jest.fn().mockReturnValue({
       provider: {
@@ -5051,8 +5056,11 @@ describe('TokenBalancesController', () => {
         tokens,
       });
 
-      // Register and spy on addDetectedTokensViaWs action
+      // Unregister existing handler and spy on addDetectedTokensViaWs action
       const addTokensSpy = jest.fn().mockResolvedValue(undefined);
+      messenger.unregisterActionHandler(
+        'TokenDetectionController:addDetectedTokensViaWs',
+      );
       messenger.registerActionHandler(
         'TokenDetectionController:addDetectedTokensViaWs',
         addTokensSpy,
@@ -5125,8 +5133,11 @@ describe('TokenBalancesController', () => {
         tokens,
       });
 
-      // Register spy on addDetectedTokensViaWs - should NOT be called
+      // Unregister existing handler and spy on addDetectedTokensViaWs - should NOT be called
       const addTokensSpy = jest.fn().mockResolvedValue(undefined);
+      messenger.unregisterActionHandler(
+        'TokenDetectionController:addDetectedTokensViaWs',
+      );
       messenger.registerActionHandler(
         'TokenDetectionController:addDetectedTokensViaWs',
         addTokensSpy,
@@ -5189,8 +5200,11 @@ describe('TokenBalancesController', () => {
         tokens,
       });
 
-      // Register spy on addDetectedTokensViaWs - should NOT be called
+      // Unregister existing handler and spy on addDetectedTokensViaWs - should NOT be called
       const addTokensSpy = jest.fn().mockResolvedValue(undefined);
+      messenger.unregisterActionHandler(
+        'TokenDetectionController:addDetectedTokensViaWs',
+      );
       messenger.registerActionHandler(
         'TokenDetectionController:addDetectedTokensViaWs',
         addTokensSpy,
@@ -5247,8 +5261,11 @@ describe('TokenBalancesController', () => {
         tokens,
       });
 
-      // Register spy on addDetectedTokensViaWs - should NOT be called for native tokens
+      // Unregister existing handler and spy on addDetectedTokensViaWs - should NOT be called for native tokens
       const addTokensSpy = jest.fn().mockResolvedValue(undefined);
+      messenger.unregisterActionHandler(
+        'TokenDetectionController:addDetectedTokensViaWs',
+      );
       messenger.registerActionHandler(
         'TokenDetectionController:addDetectedTokensViaWs',
         addTokensSpy,
@@ -5307,10 +5324,13 @@ describe('TokenBalancesController', () => {
 
       const consoleSpy = jest.spyOn(console, 'warn').mockImplementation();
 
-      // Register addDetectedTokensViaWs to throw an error
+      // Unregister existing handler and register addDetectedTokensViaWs to throw an error
       const addTokensSpy = jest
         .fn()
         .mockRejectedValue(new Error('Failed to add token'));
+      messenger.unregisterActionHandler(
+        'TokenDetectionController:addDetectedTokensViaWs',
+      );
       messenger.registerActionHandler(
         'TokenDetectionController:addDetectedTokensViaWs',
         addTokensSpy,
@@ -5387,6 +5407,9 @@ describe('TokenBalancesController', () => {
       });
 
       const addTokensSpy = jest.fn().mockResolvedValue(undefined);
+      messenger.unregisterActionHandler(
+        'TokenDetectionController:addDetectedTokensViaWs',
+      );
       messenger.registerActionHandler(
         'TokenDetectionController:addDetectedTokensViaWs',
         addTokensSpy,

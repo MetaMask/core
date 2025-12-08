@@ -64,8 +64,6 @@ import {
   buildCustomRpcEndpoint,
   buildInfuraNetworkConfiguration,
 } from '../../network-controller/tests/helpers';
-import type { TransactionMeta } from '../../transaction-controller/src/types';
-import { TransactionStatus } from '../../transaction-controller/src/types';
 
 const DEFAULT_INTERVAL = 180000;
 
@@ -210,7 +208,6 @@ function buildTokenDetectionControllerMessenger(
       'NetworkController:networkDidChange',
       'TokenListController:stateChange',
       'PreferencesController:stateChange',
-      'TransactionController:transactionConfirmed',
     ],
   });
   return tokenDetectionControllerMessenger;
@@ -3192,80 +3189,6 @@ describe('TokenDetectionController', () => {
     });
   });
 
-  describe('TransactionController:transactionConfirmed', () => {
-    let clock: sinon.SinonFakeTimers;
-    beforeEach(() => {
-      clock = sinon.useFakeTimers();
-    });
-
-    afterEach(() => {
-      clock.restore();
-    });
-    it('calls detectTokens when a transaction is confirmed', async () => {
-      const mockGetBalancesInSingleCall = jest.fn().mockResolvedValue({
-        [sampleTokenA.address]: new BN(1),
-      });
-      const firstSelectedAccount = createMockInternalAccount({
-        address: '0x0000000000000000000000000000000000000001',
-      });
-      const secondSelectedAccount = createMockInternalAccount({
-        address: '0x0000000000000000000000000000000000000002',
-      });
-      await withController(
-        {
-          options: {
-            disabled: false,
-            getBalancesInSingleCall: mockGetBalancesInSingleCall,
-            useAccountsAPI: true, // USING ACCOUNTS API
-          },
-          mocks: {
-            getSelectedAccount: firstSelectedAccount,
-          },
-        },
-        async ({
-          mockGetAccount,
-          mockTokenListGetState,
-          triggerTransactionConfirmed,
-          callActionSpy,
-        }) => {
-          mockMultiChainAccountsService();
-          mockTokenListGetState({
-            ...getDefaultTokenListState(),
-            tokensChainsCache: {
-              '0x1': {
-                timestamp: 0,
-                data: {
-                  [sampleTokenA.address]: {
-                    name: sampleTokenA.name,
-                    symbol: sampleTokenA.symbol,
-                    decimals: sampleTokenA.decimals,
-                    address: sampleTokenA.address,
-                    occurrences: 1,
-                    aggregators: sampleTokenA.aggregators,
-                    iconUrl: sampleTokenA.image,
-                  },
-                },
-              },
-            },
-          });
-
-          mockGetAccount(secondSelectedAccount);
-          triggerTransactionConfirmed({
-            chainId: '0x1',
-            status: TransactionStatus.confirmed,
-          } as unknown as TransactionMeta);
-          await advanceTime({ clock, duration: 1 });
-
-          expect(callActionSpy).toHaveBeenCalledWith(
-            'TokensController:addTokens',
-            [sampleTokenA],
-            'mainnet',
-          );
-        },
-      );
-    });
-  });
-
   describe('constructor options', () => {
     describe('useTokenDetection', () => {
       it('should disable token detection when useTokenDetection is false', async () => {
@@ -4066,7 +3989,6 @@ type WithControllerCallback<ReturnValue> = ({
   triggerPreferencesStateChange,
   triggerSelectedAccountChange,
   triggerNetworkDidChange,
-  triggerTransactionConfirmed,
 }: {
   controller: TokenDetectionController;
   messenger: RootMessenger;
@@ -4095,7 +4017,6 @@ type WithControllerCallback<ReturnValue> = ({
   triggerPreferencesStateChange: (state: PreferencesState) => void;
   triggerSelectedAccountChange: (account: InternalAccount) => void;
   triggerNetworkDidChange: (state: NetworkState) => void;
-  triggerTransactionConfirmed: (transactionMeta: TransactionMeta) => void;
 }) => Promise<ReturnValue> | ReturnValue;
 
 type WithControllerOptions = {
@@ -4317,12 +4238,6 @@ async function withController<ReturnValue>(
       },
       triggerNetworkDidChange: (state: NetworkState) => {
         messenger.publish('NetworkController:networkDidChange', state);
-      },
-      triggerTransactionConfirmed: (transactionMeta: TransactionMeta) => {
-        messenger.publish(
-          'TransactionController:transactionConfirmed',
-          transactionMeta,
-        );
       },
     });
   } finally {
