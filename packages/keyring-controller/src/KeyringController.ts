@@ -2243,8 +2243,8 @@ export class KeyringController<
    * @returns A promise resolving to `true` if the operation is successful.
    */
   async #updateVault(): Promise<boolean> {
-    const updateVault = async () =>
-      this.#withVaultLock(async () => {
+    const updateVault = async (): Promise<boolean> =>
+      this.#withVaultLock(async (): Promise<boolean> => {
         // Ensure no duplicate accounts are persisted.
         await this.#assertNoDuplicateAccounts();
 
