@@ -306,6 +306,8 @@ describe('Relay Submit Utils', () => {
             params: {
               data: '0x1234',
               gas: '0x5208',
+              maxFeePerGas: '0x5d21dba00',
+              maxPriorityFeePerGas: '0x3b9aca00',
               to: '0xfedcb',
               value: '0x4d2',
             },
@@ -315,6 +317,8 @@ describe('Relay Submit Utils', () => {
             params: {
               data: '0x1234',
               gas: '0x5208',
+              maxFeePerGas: '0x5d21dba00',
+              maxPriorityFeePerGas: '0x3b9aca00',
               to: '0xfedcb',
               value: '0x4d2',
             },
