@@ -297,7 +297,7 @@ export class RemoteFeatureFlagController extends BaseController<
         // Store the raw A/B test array for later use
         rawProcessedRemoteFeatureFlags[remoteFeatureFlagName] =
           remoteFeatureFlagValue;
-        
+
         const selectedGroup = processedValue.find(
           (featureFlag): featureFlag is FeatureFlagScopeValue => {
             if (!isFeatureFlagWithScopeValue(featureFlag)) {
