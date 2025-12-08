@@ -208,12 +208,9 @@ const calcTotalGasFee = ({
     .plus(approvalGasLimit?.toString() ?? '0')
     .plus(resetApprovalGasLimit?.toString() ?? '0');
 
-  const totalFeePerGasInDecGwei = new BigNumber(feePerGasInDecGwei).plus(
-    priorityFeePerGasInDecGwei,
-  );
   const l1GasFeesInDecGWei = weiHexToGweiDec(toHex(l1GasFeesInHexWei ?? '0'));
   const gasFeesInDecGwei = totalGasLimitInDec
-    .times(totalFeePerGasInDecGwei)
+    .times(priorityFeePerGasInDecGwei)
     .plus(l1GasFeesInDecGWei);
   const gasFeesInDecEth = gasFeesInDecGwei.times(new BigNumber(10).pow(-9));
 

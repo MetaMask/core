@@ -444,25 +444,25 @@ describe('Quote Metadata Utils', () => {
       expect(result).toMatchInlineSnapshot(`
         Object {
           "effective": Object {
-            "amount": "0.003584",
-            "usd": "5.376",
-            "valueInCurrency": "7.168",
+            "amount": "0.000234",
+            "usd": "0.351",
+            "valueInCurrency": "0.468",
           },
           "max": Object {
-            "amount": "0.006934",
-            "usd": "10.401",
-            "valueInCurrency": "13.868",
+            "amount": "0.000234",
+            "usd": "0.351",
+            "valueInCurrency": "0.468",
           },
           "total": Object {
-            "amount": "0.003584",
-            "usd": "5.376",
-            "valueInCurrency": "7.168",
+            "amount": "0.000234",
+            "usd": "0.351",
+            "valueInCurrency": "0.468",
           },
         }
       `);
       expect(result.total.amount).toBeDefined();
       expect(result.max.amount).toBeDefined();
-      expect(parseFloat(result.max.amount)).toBeGreaterThan(
+      expect(parseFloat(result.max.amount)).toStrictEqual(
         parseFloat(result.total.amount),
       );
     });
@@ -484,25 +484,25 @@ describe('Quote Metadata Utils', () => {
       expect(result).toMatchInlineSnapshot(`
         Object {
           "effective": Object {
-            "amount": "0.00166",
-            "usd": "2.49",
-            "valueInCurrency": "3.32",
+            "amount": "0.00016",
+            "usd": "0.24",
+            "valueInCurrency": "0.32",
           },
           "max": Object {
-            "amount": "0.006934",
-            "usd": "10.401",
-            "valueInCurrency": "13.868",
+            "amount": "0.000234",
+            "usd": "0.351",
+            "valueInCurrency": "0.468",
           },
           "total": Object {
-            "amount": "0.003584",
-            "usd": "5.376",
-            "valueInCurrency": "7.168",
+            "amount": "0.000234",
+            "usd": "0.351",
+            "valueInCurrency": "0.468",
           },
         }
       `);
       expect(result.total.amount).toBeDefined();
       expect(result.max.amount).toBeDefined();
-      expect(parseFloat(result.max.amount)).toBeGreaterThan(
+      expect(parseFloat(result.max.amount)).toStrictEqual(
         parseFloat(result.total.amount),
       );
     });
@@ -601,7 +601,7 @@ describe('Quote Metadata Utils', () => {
 
       expect(result.total.amount).toBeDefined();
       expect(result.max.amount).toBeDefined();
-      expect(parseFloat(result.max.amount)).toBeGreaterThan(
+      expect(parseFloat(result.max.amount)).toStrictEqual(
         parseFloat(result.total.amount),
       );
     });
@@ -647,7 +647,7 @@ describe('Quote Metadata Utils', () => {
       });
 
       expect(parseFloat(result.total.amount)).toBeGreaterThan(2); // Should be > 2 ETH due to L1 fees
-      expect(parseFloat(result.max.amount)).toBeGreaterThan(
+      expect(parseFloat(result.max.amount)).toStrictEqual(
         parseFloat(result.total.amount),
       );
       expect(result.total.valueInCurrency).toBeDefined();
