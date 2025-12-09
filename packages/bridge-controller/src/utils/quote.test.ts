@@ -434,7 +434,6 @@ describe('Quote Metadata Utils', () => {
     it('should calculate estimated and max gas fees correctly', () => {
       const result = calcEstimatedAndMaxTotalGasFee({
         bridgeQuote: mockBridgeQuote,
-        estimatedBaseFeeInDecGwei: '50',
         feePerGasInDecGwei: '52',
         maxFeePerGasInDecGwei: '102',
         exchangeRate: '2000',
@@ -471,7 +470,6 @@ describe('Quote Metadata Utils', () => {
           trade: { gasLimit: 21000, effectiveGas: 10000 },
           approval: { gasLimit: 46000, effectiveGas: 20000 },
         } as QuoteResponse<TxData, TxData> & L1GasFees,
-        estimatedBaseFeeInDecGwei: '50',
         feePerGasInDecGwei: '52',
         maxFeePerGasInDecGwei: '102',
         exchangeRate: '2000',
@@ -504,7 +502,6 @@ describe('Quote Metadata Utils', () => {
     it('should handle missing exchange rates', () => {
       const result = calcEstimatedAndMaxTotalGasFee({
         bridgeQuote: mockBridgeQuote,
-        estimatedBaseFeeInDecGwei: '50',
         feePerGasInDecGwei: '102',
         maxFeePerGasInDecGwei: '102',
         exchangeRate: undefined,
@@ -522,7 +519,6 @@ describe('Quote Metadata Utils', () => {
     it('should handle only display currency exchange rate', () => {
       const result = calcEstimatedAndMaxTotalGasFee({
         bridgeQuote: mockBridgeQuote,
-        estimatedBaseFeeInDecGwei: '50',
         feePerGasInDecGwei: '102',
         maxFeePerGasInDecGwei: '102',
         exchangeRate: '2000',
@@ -538,7 +534,6 @@ describe('Quote Metadata Utils', () => {
     it('should handle only USD exchange rate', () => {
       const result = calcEstimatedAndMaxTotalGasFee({
         bridgeQuote: mockBridgeQuote,
-        estimatedBaseFeeInDecGwei: '50',
         maxFeePerGasInDecGwei: '102',
         feePerGasInDecGwei: '102',
         exchangeRate: undefined,
@@ -562,7 +557,6 @@ describe('Quote Metadata Utils', () => {
 
       const result = calcEstimatedAndMaxTotalGasFee({
         bridgeQuote: zeroGasQuote,
-        estimatedBaseFeeInDecGwei: '50',
         feePerGasInDecGwei: '102',
         maxFeePerGasInDecGwei: '102',
         exchangeRate: '2000',
@@ -586,7 +580,6 @@ describe('Quote Metadata Utils', () => {
 
       const result = calcEstimatedAndMaxTotalGasFee({
         bridgeQuote: noApprovalQuote,
-        estimatedBaseFeeInDecGwei: '50',
         feePerGasInDecGwei: '102',
         maxFeePerGasInDecGwei: '102',
         exchangeRate: '2000',
@@ -611,7 +604,6 @@ describe('Quote Metadata Utils', () => {
 
       const result = calcEstimatedAndMaxTotalGasFee({
         bridgeQuote: noGasLimitQuote,
-        estimatedBaseFeeInDecGwei: '50',
         feePerGasInDecGwei: '102',
         maxFeePerGasInDecGwei: '102',
         exchangeRate: '2000',
@@ -633,7 +625,6 @@ describe('Quote Metadata Utils', () => {
 
       const result = calcEstimatedAndMaxTotalGasFee({
         bridgeQuote: largeGasQuote,
-        estimatedBaseFeeInDecGwei: '100',
         feePerGasInDecGwei: '210',
         maxFeePerGasInDecGwei: '210',
         exchangeRate: '3000',

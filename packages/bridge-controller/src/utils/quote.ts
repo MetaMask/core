@@ -228,14 +228,12 @@ const calcTotalGasFee = ({
 
 export const calcEstimatedAndMaxTotalGasFee = ({
   bridgeQuote: { approval, trade, l1GasFeesInHexWei, resetApproval },
-  estimatedBaseFeeInDecGwei,
   feePerGasInDecGwei,
   maxFeePerGasInDecGwei,
   exchangeRate: nativeToDisplayCurrencyExchangeRate,
   usdExchangeRate: nativeToUsdExchangeRate,
 }: {
   bridgeQuote: QuoteResponse<TxData, TxData> & L1GasFees;
-  estimatedBaseFeeInDecGwei: string;
   maxFeePerGasInDecGwei: string;
   feePerGasInDecGwei: string;
 } & ExchangeRate): QuoteMetadata['gasFee'] => {
@@ -251,7 +249,7 @@ export const calcEstimatedAndMaxTotalGasFee = ({
       resetApproval?.effectiveGas ?? resetApproval?.gasLimit,
     tradeGasLimit: trade?.effectiveGas ?? trade?.gasLimit,
     l1GasFeesInHexWei,
-    feePerGasInDecGwei: feePerGasInDecGwei,
+    feePerGasInDecGwei,
     nativeToDisplayCurrencyExchangeRate,
     nativeToUsdExchangeRate,
   });
