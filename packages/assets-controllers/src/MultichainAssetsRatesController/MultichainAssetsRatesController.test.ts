@@ -1180,10 +1180,13 @@ describe('MultichainAssetsRatesController', () => {
         }),
       );
 
-      messenger.registerActionHandler('CurrencyRateController:getState', () => ({
-        currentCurrency: 'USD',
-        currencyRates: {},
-      }));
+      messenger.registerActionHandler(
+        'CurrencyRateController:getState',
+        () => ({
+          currentCurrency: 'USD',
+          currencyRates: {},
+        }),
+      );
 
       const snapHandler = jest.fn().mockResolvedValue({
         conversionRates: {
@@ -1196,7 +1199,10 @@ describe('MultichainAssetsRatesController', () => {
         },
       });
 
-      messenger.registerActionHandler('SnapController:handleRequest', snapHandler);
+      messenger.registerActionHandler(
+        'SnapController:handleRequest',
+        snapHandler,
+      );
 
       const multichainAssetsRatesControllerMessenger = new Messenger<
         'MultichainAssetsRatesController',

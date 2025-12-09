@@ -277,13 +277,10 @@
   },
   "packages/assets-controllers/src/MultichainAssetsRatesController/MultichainAssetsRatesController.ts": {
     "@typescript-eslint/explicit-function-return-type": {
-      "count": 3
+      "count": 2
     },
     "@typescript-eslint/naming-convention": {
       "count": 1
-    },
-    "@typescript-eslint/no-misused-promises": {
-      "count": 2
     }
   },
   "packages/assets-controllers/src/MultichainBalancesController/MultichainBalancesController.test.ts": {
