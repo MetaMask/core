@@ -729,7 +729,7 @@ async function calculateSourceNetworkGasLimitBatch(
 
     const bufferedGasLimits = gasLimits.map((limit, index) => {
       const useBuffer =
-        gasLimits.length === 1 || paramGasLimits[index] === gasLimits[index];
+        gasLimits.length === 1 || paramGasLimits[index] !== gasLimits[index];
 
       const buffer = useBuffer ? gasBuffer : 1;
 
