@@ -15,7 +15,7 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ### Fixed
 
-- Update gas calculation logic to use the priority fee provided by the gas-api and stop adding the base fee ([#7403](https://github.com/MetaMask/core/pull/7403))
+- Update gas calculation logic to use the priority fee provided by the gas-api and stop adding the base fee ([#7403](https://github.com/MetaMask/core/pull/7403), [#7406](https://github.com/MetaMask/core/pull/7406))
 
 ## [64.0.0]
 
