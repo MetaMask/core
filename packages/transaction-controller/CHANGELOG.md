@@ -20,11 +20,6 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 - Prevent `TransactionController:transactionApproved` event firing if keyring throws during signing ([#7410](https://github.com/MetaMask/core/pull/7410))
 
-### Added
-
-- Add `estimateGasBatch` function and messenger action to estimate gas for batch transactions ([#7405](https://github.com/MetaMask/core/pull/7405))
-  - Add optional `gasLimit7702` property to `TransactionBatchRequest`.
-
 ## [62.5.0]
 
 ### Changed
