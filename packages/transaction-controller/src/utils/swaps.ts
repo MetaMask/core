@@ -455,7 +455,7 @@ function updateSwapApprovalTransaction(
  * @param chainId - The hex encoded chain ID of the default swaps token to check
  * @returns Whether the address is the provided chain's default token address
  */
-function isSwapsDefaultTokenAddress(address: string, chainId: string) {
+function isSwapsDefaultTokenAddress(address: string, chainId: string): boolean {
   if (!address || !chainId) {
     return false;
   }
@@ -474,6 +474,6 @@ function isSwapsDefaultTokenAddress(address: string, chainId: string) {
  * @param ms - Number of milliseconds to sleep
  * @returns Promise that resolves after the provided number of milliseconds
  */
-function sleep(ms: number) {
+function sleep(ms: number): Promise<void> {
   return new Promise((resolve) => setTimeout(resolve, ms));
 }

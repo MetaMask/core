@@ -42,7 +42,9 @@ export enum SupportedToken {
   ERC20 = 'erc20',
   ERC721 = 'erc721',
   ERC1155 = 'erc1155',
+  // eslint-disable-next-line @typescript-eslint/naming-convention
   ERC20_WRAPPED = 'erc20Wrapped',
+  // eslint-disable-next-line @typescript-eslint/naming-convention
   ERC721_LEGACY = 'erc721Legacy',
 }
 
@@ -237,7 +239,9 @@ function getEvents(response: SimulationResponse): ParsedEvent[] {
       }
 
       /* istanbul ignore next */
-      const inputs = event.abi.find((e) => e.name === event.name)?.inputs;
+      const inputs = event.abi.find(
+        (eventAbi) => eventAbi.name === event.name,
+      )?.inputs;
 
       /* istanbul ignore if */
       if (!inputs) {
@@ -262,7 +266,7 @@ function getEvents(response: SimulationResponse): ParsedEvent[] {
         abi: event.abi,
       };
     })
-    .filter((e) => e !== undefined) as ParsedEvent[];
+    .filter((parsedEvent) => parsedEvent !== undefined) as ParsedEvent[];
 }
 
 /**
@@ -599,9 +603,7 @@ function parseLog(
         abi,
         standard,
       };
-      // Not used
-      // eslint-disable-next-line @typescript-eslint/no-unused-vars
-    } catch (e) {
+    } catch {
       continue;
     }
   }

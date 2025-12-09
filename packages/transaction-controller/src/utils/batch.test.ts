@@ -1,3 +1,4 @@
+/* eslint-disable @typescript-eslint/unbound-method */
 import { ORIGIN_METAMASK } from '@metamask/approval-controller';
 import type { AddResult } from '@metamask/approval-controller';
 import { ApprovalType } from '@metamask/controller-utils';
@@ -183,7 +184,7 @@ function mockRequestApproval(
     rejectPromise = reject;
   });
 
-  const approveTransaction = (approvalResult?: Partial<AddResult>) => {
+  const approveTransaction = (approvalResult?: Partial<AddResult>): void => {
     resolvePromise({
       resultCallbacks: {
         success() {
@@ -201,7 +202,7 @@ function mockRequestApproval(
     rejectionError: unknown = {
       code: errorCodes.provider.userRejectedRequest,
     },
-  ) => {
+  ): void => {
     rejectPromise(rejectionError);
   };
 
@@ -1790,13 +1791,13 @@ describe('Batch Utils', () => {
 
       const setupSequentialPublishBatchHookMock = (
         hookImplementation: () => PublishBatchHook | undefined,
-      ) => {
+      ): void => {
         sequentialPublishBatchHookMock.mockReturnValue({
           getHook: hookImplementation,
         } as unknown as SequentialPublishBatchHook);
       };
 
-      const executePublishHooks = async () => {
+      const executePublishHooks = async (): Promise<void> => {
         const publishHooks = addTransactionMock.mock.calls.map(
           ([, options]) => options.publishHook,
         );
@@ -1815,7 +1816,7 @@ describe('Batch Utils', () => {
         await flushPromises();
       };
 
-      const mockSequentialPublishBatchHookResults = () => {
+      const mockSequentialPublishBatchHookResults = (): void => {
         sequentialPublishBatchHook.mockResolvedValueOnce({
           results: [
             { transactionHash: TRANSACTION_HASH_MOCK },
@@ -1824,7 +1825,7 @@ describe('Batch Utils', () => {
         });
       };
 
-      const assertSequentialPublishBatchHookCalled = () => {
+      const assertSequentialPublishBatchHookCalled = (): void => {
         expect(sequentialPublishBatchHookMock).toHaveBeenCalledTimes(1);
         expect(sequentialPublishBatchHook).toHaveBeenCalledTimes(1);
         expect(sequentialPublishBatchHook).toHaveBeenCalledWith(
