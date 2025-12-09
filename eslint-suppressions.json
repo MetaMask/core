@@ -351,9 +351,6 @@
     }
   },
   "packages/assets-controllers/src/NftController.ts": {
-    "@typescript-eslint/explicit-function-return-type": {
-      "count": 21
-    },
     "@typescript-eslint/naming-convention": {
       "count": 5
     },
