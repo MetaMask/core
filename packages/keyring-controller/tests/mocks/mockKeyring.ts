@@ -1,5 +1,5 @@
 import type { EthKeyring } from '@metamask/keyring-internal-api';
-import type { Hex } from '@metamask/utils';
+import type { Hex, Json } from '@metamask/utils';
 
 export class MockKeyring implements EthKeyring {
   static type = 'Mock Keyring';
@@ -13,7 +13,7 @@ export class MockKeyring implements EthKeyring {
     this.deserialize(options);
   }
 
-  async init() {
+  async init(): Promise<void> {
     return Promise.resolve();
   }
 
@@ -21,15 +21,15 @@ export class MockKeyring implements EthKeyring {
     return Promise.resolve(this.#accounts);
   }
 
-  async getAccounts() {
+  async getAccounts(): Promise<Hex[]> {
     return Promise.resolve(this.#accounts);
   }
 
-  async serialize() {
+  async serialize(): Promise<Json> {
     return Promise.resolve({});
   }
 
-  async deserialize(_: unknown) {
+  async deserialize(_: unknown): Promise<void> {
     return Promise.resolve();
   }
 }

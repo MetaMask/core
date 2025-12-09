@@ -55,7 +55,11 @@ export function calculateTotals({
     : transactionNetworkFee;
 
   const sourceAmount = sumAmounts(quotes.map((quote) => quote.sourceAmount));
-  const quoteTokens = tokens.filter((t) => !t.skipIfBalance);
+
+  const quoteTokens = tokens.filter(
+    (singleToken) => !singleToken.skipIfBalance,
+  );
+
   const amountFiat = sumProperty(quoteTokens, (token) => token.amountFiat);
   const amountUsd = sumProperty(quoteTokens, (token) => token.amountUsd);
 
@@ -80,7 +84,7 @@ export function calculateTotals({
   );
 
   const isTargetGasFeeToken =
-    targetNetworkFee.isGasFeeToken ||
+    Boolean(targetNetworkFee.isGasFeeToken) ||
     quotes.some((quote) => quote.fees.isTargetGasFeeToken);
 
   return {
@@ -140,9 +144,9 @@ function sumFiat(data: FiatValue[]): FiatValue {
  * @param getProperty - Function to extract the property to sum from each item.
  * @returns The summed value as a string.
  */
-function sumProperty<T>(
-  data: T[],
-  getProperty: (item: T) => BigNumber.Value,
+function sumProperty<DataType>(
+  data: DataType[],
+  getProperty: (item: DataType) => BigNumber.Value,
 ): string {
   return data
     .map(getProperty)
