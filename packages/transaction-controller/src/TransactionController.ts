@@ -139,7 +139,12 @@ import {
 } from './utils/eip7702';
 import { validateConfirmedExternalTransaction } from './utils/external-transactions';
 import { updateFirstTimeInteraction } from './utils/first-time-interaction';
-import { addGasBuffer, estimateGas, updateGas } from './utils/gas';
+import {
+  addGasBuffer,
+  estimateGas,
+  estimateGasBatch,
+  updateGas,
+} from './utils/gas';
 import {
   checkGasFeeTokenBeforePublish,
   getGasFeeTokens,
@@ -310,6 +315,11 @@ export type TransactionControllerEstimateGasAction = {
   handler: TransactionController['estimateGas'];
 };
 
+export type TransactionControllerEstimateGasBatchAction = {
+  type: `${typeof controllerName}:estimateGasBatch`;
+  handler: TransactionController['estimateGasBatch'];
+};
+
 /**
  * Adds external provided transaction to state as confirmed transaction.
  *
@@ -400,6 +410,7 @@ export type TransactionControllerActions =
   | TransactionControllerAddTransactionBatchAction
   | TransactionControllerConfirmExternalTransactionAction
   | TransactionControllerEstimateGasAction
+  | TransactionControllerEstimateGasBatchAction
   | TransactionControllerGetGasFeeTokensAction
   | TransactionControllerGetNonceLockAction
   | TransactionControllerGetStateAction
@@ -1781,6 +1792,39 @@ export class TransactionController extends BaseController<
     });
 
     return { gas: estimatedGas, simulationFails };
+  }
+
+  /**
+   * Estimates required gas for a batch of transactions.
+   *
+   * @param request - Request object.
+   * @param request.chainId - Chain ID of the transactions.
+   * @param request.from - Address of the sender.
+   * @param request.transactions - Array of transactions within a batch request.
+   * @returns Object containing the gas limit.
+   */
+  async estimateGasBatch({
+    chainId,
+    from,
+    transactions,
+  }: {
+    chainId: Hex;
+    from: Hex;
+    transactions: BatchTransactionParams[];
+  }): Promise<{ totalGasLimit: number; gasLimits: number[] }> {
+    const ethQuery = this.#getEthQuery({
+      chainId,
+    });
+
+    return estimateGasBatch({
+      chainId,
+      ethQuery,
+      from,
+      getSimulationConfig: this.#getSimulationConfig,
+      isAtomicBatchSupported: this.isAtomicBatchSupported.bind(this),
+      messenger: this.messenger,
+      transactions,
+    });
   }
 
   /**
@@ -4610,6 +4654,11 @@ export class TransactionController extends BaseController<
     this.messenger.registerActionHandler(
       `${controllerName}:estimateGas`,
       this.estimateGas.bind(this),
+    );
+
+    this.messenger.registerActionHandler(
+      `${controllerName}:estimateGasBatch`,
+      this.estimateGasBatch.bind(this),
     );
 
     this.messenger.registerActionHandler(

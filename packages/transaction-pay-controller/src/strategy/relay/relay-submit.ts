@@ -247,36 +247,56 @@ async function submitTransactions(
         }))
       : undefined;
 
+  const { gasLimits } = quote.original.metamask;
+
   if (params.length === 1) {
+    const transactionParams = {
+      ...normalizedParams[0],
+      authorizationList,
+      gas: toHex(gasLimits[0]),
+    };
+
     result = await messenger.call(
       'TransactionController:addTransaction',
-      { ...normalizedParams[0], authorizationList },
+      transactionParams,
       {
         gasFeeToken,
         networkClientId,
         origin: ORIGIN_METAMASK,
         requireApproval: false,
+        type: TransactionType.relayDeposit,
       },
     );
   } else {
+    const gasLimit7702 =
+      gasLimits.length === 1 ? toHex(gasLimits[0]) : undefined;
+
+    const transactions = normalizedParams.map((singleParams, index) => ({
+      params: {
+        data: singleParams.data as Hex,
+        gas: gasLimit7702 ? undefined : toHex(gasLimits[index]),
+        maxFeePerGas: singleParams.maxFeePerGas as Hex,
+        maxPriorityFeePerGas: singleParams.maxPriorityFeePerGas as Hex,
+        to: singleParams.to as Hex,
+        value: singleParams.value as Hex,
+      },
+      type:
+        index === 0
+          ? TransactionType.tokenMethodApprove
+          : TransactionType.relayDeposit,
+    }));
+
     await messenger.call('TransactionController:addTransactionBatch', {
       from,
+      disableHook: Boolean(gasLimit7702),
+      disableSequential: Boolean(gasLimit7702),
       gasFeeToken,
+      gasLimit7702,
       networkClientId,
       origin: ORIGIN_METAMASK,
       overwriteUpgrade: true,
       requireApproval: false,
-      transactions: normalizedParams.map((singleParams, index) => ({
-        params: {
-          data: singleParams.data as Hex,
-          gas: singleParams.gas as Hex,
-          maxFeePerGas: singleParams.maxFeePerGas as Hex,
-          maxPriorityFeePerGas: singleParams.maxPriorityFeePerGas as Hex,
-          to: singleParams.to as Hex,
-          value: singleParams.value as Hex,
-        },
-        type: index === 0 ? TransactionType.tokenMethodApprove : undefined,
-      })),
+      transactions,
     });
   }
 

@@ -9,6 +9,8 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ### Added
 
+- Add `estimateGasBatch` function and messenger action to estimate gas for batch transactions ([#7405](https://github.com/MetaMask/core/pull/7405))
+  - Add optional `gasLimit7702` property to `TransactionBatchRequest`.
 - Automatically fail pending transactions if no receipt and hash not recognised by network after multiple attempts ([#7329](https://github.com/MetaMask/core/pull/7329))
   - Add optional `isTimeoutEnabled` callback to disable for specific transactions.
   - Ignores transactions with future nonce.
@@ -17,6 +19,11 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 ### Fixed
 
 - Prevent `TransactionController:transactionApproved` event firing if keyring throws during signing ([#7410](https://github.com/MetaMask/core/pull/7410))
+
+### Added
+
+- Add `estimateGasBatch` function and messenger action to estimate gas for batch transactions ([#7405](https://github.com/MetaMask/core/pull/7405))
+  - Add optional `gasLimit7702` property to `TransactionBatchRequest`.
 
 ## [62.5.0]
 

@@ -92,6 +92,7 @@ const UPGRADE_CONTRACT_ADDRESS_MOCK =
 const NONCE_PREVIOUS_MOCK = '0x110';
 const NONCE_MOCK = '0x111';
 const NONCE_MOCK_2 = '0x112';
+const GAS_LIMIT_7702_MOCK = '0x1234';
 
 const TRANSACTION_META_MOCK = {
   id: BATCH_ID_CUSTOM_MOCK,
@@ -345,7 +346,8 @@ describe('Batch Utils', () => {
       getChainIdMock.mockReturnValue(CHAIN_ID_MOCK);
 
       simulateGasBatchMock.mockResolvedValue({
-        gasLimit: GAS_TOTAL_MOCK,
+        totalGasLimit: GAS_TOTAL_MOCK,
+        gasLimits: [GAS_TOTAL_MOCK],
       });
 
       doesChainSupportEIP7702Mock.mockReturnValue(true);
@@ -790,6 +792,34 @@ describe('Batch Utils', () => {
         expect.objectContaining({
           maxFeePerGas: MAX_FEE_PER_GAS_MOCK,
           maxPriorityFeePerGas: MAX_PRIORITY_FEE_PER_GAS_MOCK,
+        }),
+        expect.anything(),
+      );
+    });
+
+    it('includes gasLimit7702 in EIP-7702 transaction params if provided', async () => {
+      isAccountUpgradedToEIP7702Mock.mockResolvedValueOnce({
+        delegationAddress: undefined,
+        isSupported: true,
+      });
+
+      addTransactionMock.mockResolvedValueOnce({
+        transactionMeta: TRANSACTION_META_MOCK,
+        result: Promise.resolve(''),
+      });
+
+      generateEIP7702BatchTransactionMock.mockReturnValueOnce(
+        TRANSACTION_BATCH_PARAMS_MOCK,
+      );
+
+      request.request.gasLimit7702 = GAS_LIMIT_7702_MOCK;
+
+      await addTransactionBatch(request);
+
+      expect(addTransactionMock).toHaveBeenCalledTimes(1);
+      expect(addTransactionMock).toHaveBeenCalledWith(
+        expect.objectContaining({
+          gas: GAS_LIMIT_7702_MOCK,
         }),
         expect.anything(),
       );
@@ -1309,7 +1339,8 @@ describe('Batch Utils', () => {
         } as TransactionBatchSingleRequest['existingTransaction'];
 
         simulateGasBatchMock.mockResolvedValueOnce({
-          gasLimit: GAS_TOTAL_MOCK,
+          totalGasLimit: GAS_TOTAL_MOCK,
+          gasLimits: [GAS_TOTAL_MOCK],
         });
 
         addTransactionMock.mockResolvedValueOnce({
@@ -1402,7 +1433,8 @@ describe('Batch Utils', () => {
         const existingTransactionMock = {};
 
         simulateGasBatchMock.mockResolvedValueOnce({
-          gasLimit: GAS_TOTAL_MOCK,
+          totalGasLimit: GAS_TOTAL_MOCK,
+          gasLimits: [GAS_TOTAL_MOCK],
         });
 
         addTransactionMock
@@ -1496,7 +1528,8 @@ describe('Batch Utils', () => {
         } as TransactionBatchSingleRequest['existingTransaction'];
 
         simulateGasBatchMock.mockResolvedValueOnce({
-          gasLimit: GAS_TOTAL_MOCK,
+          totalGasLimit: GAS_TOTAL_MOCK,
+          gasLimits: [GAS_TOTAL_MOCK],
         });
 
         addTransactionMock.mockResolvedValue({

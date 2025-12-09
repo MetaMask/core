@@ -44,9 +44,11 @@ const TRANSACTION_META_MOCK = { txParams: {} } as TransactionMeta;
 const TOKEN_TRANSFER_RECIPIENT_MOCK =
   '0x5678901234567890123456789012345678901234';
 const NESTED_TRANSACTION_DATA_MOCK = '0xdef' as Hex;
+const FROM_MOCK = '0x1234567890123456789012345678901234567891' as Hex;
+const NETWORK_CLIENT_ID_MOCK = 'networkClientIdMock';
 
 const QUOTE_REQUEST_MOCK: QuoteRequest = {
-  from: '0x1234567890123456789012345678901234567891',
+  from: FROM_MOCK,
   sourceBalanceRaw: '10000000000000000000',
   sourceChainId: '0x1',
   sourceTokenAddress: '0xabc',
@@ -79,6 +81,9 @@ const QUOTE_MOCK = {
       amountUsd: '1.11',
     },
   },
+  metamask: {
+    gasLimits: [21000],
+  },
   steps: [
     {
       items: [
@@ -90,7 +95,7 @@ const QUOTE_MOCK = {
           data: {
             chainId: 1,
             data: '0x123' as Hex,
-            from: '0x1' as Hex,
+            from: FROM_MOCK,
             gas: '21000',
             maxFeePerGas: '1000000000',
             maxPriorityFeePerGas: '2000000000',
@@ -141,6 +146,9 @@ describe('Relay Quotes Utils', () => {
 
   const {
     messenger,
+    estimateGasMock,
+    estimateGasBatchMock,
+    findNetworkClientIdByChainIdMock,
     getDelegationTransactionMock,
     getGasFeeTokensMock,
     getRemoteFeatureFlagControllerStateMock,
@@ -182,6 +190,7 @@ describe('Relay Quotes Utils', () => {
 
     getDelegationTransactionMock.mockResolvedValue(DELEGATION_RESULT_MOCK);
     getGasFeeTokensMock.mockResolvedValue([]);
+    findNetworkClientIdByChainIdMock.mockReturnValue(NETWORK_CLIENT_ID_MOCK);
   });
 
   describe('getRelayQuotes', () => {
@@ -1043,6 +1052,200 @@ describe('Relay Quotes Utils', () => {
         expect.objectContaining({
           originCurrency: NATIVE_TOKEN_ADDRESS,
         }),
+      );
+    });
+
+    it('estimates gas for single transaction', async () => {
+      const quoteMock = cloneDeep(QUOTE_MOCK);
+      delete quoteMock.steps[0].items[0].data.gas;
+
+      successfulFetchMock.mockResolvedValue({
+        json: async () => quoteMock,
+      } as never);
+
+      estimateGasMock.mockResolvedValue({
+        gas: toHex(50000),
+        simulationFails: undefined,
+      });
+
+      await getRelayQuotes({
+        messenger,
+        requests: [QUOTE_REQUEST_MOCK],
+        transaction: TRANSACTION_META_MOCK,
+      });
+
+      expect(estimateGasMock).toHaveBeenCalledWith(
+        {
+          data: quoteMock.steps[0].items[0].data.data,
+          from: quoteMock.steps[0].items[0].data.from,
+          to: quoteMock.steps[0].items[0].data.to,
+          value: toHex(300000),
+        },
+        NETWORK_CLIENT_ID_MOCK,
+      );
+
+      expect(calculateGasCostMock).toHaveBeenCalledWith(
+        expect.objectContaining({ gas: 50000 }),
+      );
+    });
+
+    it('uses fallback gas when estimateGas throws', async () => {
+      const quoteMock = cloneDeep(QUOTE_MOCK);
+      delete quoteMock.steps[0].items[0].data.gas;
+
+      successfulFetchMock.mockResolvedValue({
+        json: async () => quoteMock,
+      } as never);
+
+      estimateGasMock.mockRejectedValue(new Error('Estimation failed'));
+
+      await getRelayQuotes({
+        messenger,
+        requests: [QUOTE_REQUEST_MOCK],
+        transaction: TRANSACTION_META_MOCK,
+      });
+
+      expect(calculateGasCostMock).toHaveBeenCalledWith(
+        expect.objectContaining({ gas: 900000 }),
+      );
+    });
+
+    it('uses fallback gas when estimation fails', async () => {
+      const quoteMock = cloneDeep(QUOTE_MOCK);
+      delete quoteMock.steps[0].items[0].data.gas;
+
+      successfulFetchMock.mockResolvedValue({
+        json: async () => quoteMock,
+      } as never);
+
+      estimateGasMock.mockResolvedValue({
+        gas: toHex(50000),
+        simulationFails: {
+          debug: {},
+        },
+      });
+
+      await getRelayQuotes({
+        messenger,
+        requests: [QUOTE_REQUEST_MOCK],
+        transaction: TRANSACTION_META_MOCK,
+      });
+
+      expect(calculateGasCostMock).toHaveBeenCalledWith(
+        expect.objectContaining({ gas: 900000 }),
+      );
+    });
+
+    it('uses estimated gas for multiple transactions', async () => {
+      const quoteMock = cloneDeep(QUOTE_MOCK);
+      quoteMock.steps[0].items.push({
+        data: {
+          chainId: 1,
+          from: FROM_MOCK,
+          to: '0x3' as Hex,
+          data: '0x456' as Hex,
+        },
+      } as never);
+
+      successfulFetchMock.mockResolvedValue({
+        json: async () => quoteMock,
+      } as never);
+
+      estimateGasBatchMock.mockResolvedValue({
+        totalGasLimit: 100000,
+        gasLimits: [50000, 50000],
+      });
+
+      await getRelayQuotes({
+        messenger,
+        requests: [QUOTE_REQUEST_MOCK],
+        transaction: TRANSACTION_META_MOCK,
+      });
+
+      expect(estimateGasBatchMock).toHaveBeenCalledWith({
+        chainId: '0x1',
+        from: FROM_MOCK,
+        transactions: [
+          expect.objectContaining({
+            data: quoteMock.steps[0].items[0].data.data,
+            to: quoteMock.steps[0].items[0].data.to,
+          }),
+          expect.objectContaining({
+            data: quoteMock.steps[0].items[1].data.data,
+            to: quoteMock.steps[0].items[1].data.to,
+          }),
+        ],
+      });
+
+      expect(calculateGasCostMock).toHaveBeenCalledWith(
+        expect.objectContaining({ gas: 100000 }),
+      );
+    });
+
+    it('uses fallback gas when estimateGasBatch fails', async () => {
+      const quoteMock = cloneDeep(QUOTE_MOCK);
+      quoteMock.steps[0].items.push({
+        data: {
+          chainId: 1,
+          from: FROM_MOCK,
+          to: '0x3' as Hex,
+          data: '0x456' as Hex,
+        },
+      } as never);
+
+      successfulFetchMock.mockResolvedValue({
+        json: async () => quoteMock,
+      } as never);
+
+      estimateGasBatchMock.mockRejectedValue(
+        new Error('Batch estimation failed'),
+      );
+
+      await getRelayQuotes({
+        messenger,
+        requests: [QUOTE_REQUEST_MOCK],
+        transaction: TRANSACTION_META_MOCK,
+      });
+
+      expect(calculateGasCostMock).toHaveBeenCalledWith(
+        expect.objectContaining({ gas: 900000 + 21000 }),
+      );
+    });
+
+    it('includes gas limits in quote', async () => {
+      successfulFetchMock.mockResolvedValue({
+        json: async () => QUOTE_MOCK,
+      } as never);
+
+      const result = await getRelayQuotes({
+        messenger,
+        requests: [QUOTE_REQUEST_MOCK],
+        transaction: TRANSACTION_META_MOCK,
+      });
+
+      expect(result[0].original.metamask).toStrictEqual({
+        gasLimits: [21000],
+      });
+    });
+
+    it('includes empty value when not defined', async () => {
+      const quoteMock = cloneDeep(QUOTE_MOCK);
+      delete quoteMock.steps[0].items[0].data.value;
+      delete quoteMock.steps[0].items[0].data.gas;
+
+      successfulFetchMock.mockResolvedValue({
+        json: async () => quoteMock,
+      } as never);
+
+      await getRelayQuotes({
+        messenger,
+        requests: [QUOTE_REQUEST_MOCK],
+        transaction: TRANSACTION_META_MOCK,
+      });
+
+      expect(estimateGasMock).toHaveBeenCalledWith(
+        expect.objectContaining({ value: '0x0' }),
+        NETWORK_CLIENT_ID_MOCK,
       );
     });
   });
