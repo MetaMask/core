@@ -21,7 +21,12 @@ import type {
   AccountActivityServiceBalanceUpdatedEvent,
   AccountActivityServiceStatusChangedEvent,
 } from '@metamask/core-backend';
-import type { KeyringControllerAccountRemovedEvent } from '@metamask/keyring-controller';
+import type {
+  KeyringControllerAccountRemovedEvent,
+  KeyringControllerGetStateAction,
+  KeyringControllerLockEvent,
+  KeyringControllerUnlockEvent,
+} from '@metamask/keyring-controller';
 import type { InternalAccount } from '@metamask/keyring-internal-api';
 import type { Messenger } from '@metamask/messenger';
 import type {
@@ -143,6 +148,7 @@ export type AllowedActions =
   | AccountTrackerControllerGetStateAction
   | AccountTrackerUpdateNativeBalancesAction
   | AccountTrackerUpdateStakedBalancesAction
+  | KeyringControllerGetStateAction
   | AuthenticationController.AuthenticationControllerGetBearerToken;
 
 export type AllowedEvents =
@@ -150,6 +156,8 @@ export type AllowedEvents =
   | PreferencesControllerStateChangeEvent
   | NetworkControllerStateChangeEvent
   | KeyringControllerAccountRemovedEvent
+  | KeyringControllerLockEvent
+  | KeyringControllerUnlockEvent
   | AccountActivityServiceBalanceUpdatedEvent
   | AccountActivityServiceStatusChangedEvent
   | AccountsControllerSelectedEvmAccountChangeEvent
@@ -288,6 +296,9 @@ export class TokenBalancesController extends StaticIntervalPollingController<{
   /** Track if controller-level polling is active */
   #isControllerPollingActive = false;
 
+  /** Track if the keyring is unlocked */
+  #isUnlocked = false;
+
   /** Store original chainIds from startPolling to preserve intent */
   #requestedChainIds: ChainIdHex[] = [];
 
@@ -345,6 +356,9 @@ export class TokenBalancesController extends StaticIntervalPollingController<{
     this.#detectedTokens = allDetectedTokens;
     this.#allIgnoredTokens = allIgnoredTokens;
 
+    const { isUnlocked } = this.messenger.call('KeyringController:getState');
+    this.#isUnlocked = isUnlocked;
+
     this.#subscribeToControllers();
     this.#registerActions();
   }
@@ -366,6 +380,14 @@ export class TokenBalancesController extends StaticIntervalPollingController<{
       'NetworkController:stateChange',
       this.#onNetworkChanged,
     );
+
+    this.messenger.subscribe('KeyringController:unlock', () => {
+      this.#isUnlocked = true;
+    });
+
+    this.messenger.subscribe('KeyringController:lock', () => {
+      this.#isUnlocked = false;
+    });
 
     this.messenger.subscribe(
       'KeyringController:accountRemoved',
@@ -428,6 +450,16 @@ export class TokenBalancesController extends StaticIntervalPollingController<{
 
   // ────────────────────────────────────────────────────────────────────────
   // Address + network helpers
+
+  /**
+   * Whether the controller is active (keyring is unlocked).
+   * When locked, balance updates should be skipped.
+   *
+   * @returns Whether the keyring is unlocked.
+   */
+  get isActive(): boolean {
+    return this.#isUnlocked;
+  }
 
   /**
    * Normalize all account addresses to lowercase and merge duplicates
@@ -675,6 +707,10 @@ export class TokenBalancesController extends StaticIntervalPollingController<{
     tokenAddresses?: string[];
     queryAllAccounts?: boolean;
   } = {}): Promise<void> {
+    if (!this.isActive) {
+      return;
+    }
+
     const targetChains = this.#getTargetChains(chainIds);
     if (!targetChains.length) {
       return;

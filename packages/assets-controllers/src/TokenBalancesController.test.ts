@@ -99,6 +99,7 @@ const setupController = ({
       'AccountTrackerController:getState',
       'AccountTrackerController:updateNativeBalances',
       'AccountTrackerController:updateStakedBalances',
+      'KeyringController:getState',
       'AuthenticationController:getBearerToken',
     ],
     events: [
@@ -106,6 +107,8 @@ const setupController = ({
       'PreferencesController:stateChange',
       'TokensController:stateChange',
       'KeyringController:accountRemoved',
+      'KeyringController:lock',
+      'KeyringController:unlock',
       'AccountActivityService:balanceUpdated',
       'AccountActivityService:statusChanged',
       'AccountsController:selectedEvmAccountChange',
@@ -194,6 +197,11 @@ const setupController = ({
   messenger.registerActionHandler(
     'TokenDetectionController:detectTokens',
     jest.fn().mockResolvedValue(undefined),
+  );
+
+  messenger.registerActionHandler(
+    'KeyringController:getState',
+    jest.fn().mockReturnValue({ isUnlocked: true }),
   );
 
   messenger.registerActionHandler(
@@ -5966,6 +5974,123 @@ describe('TokenBalancesController', () => {
       expect(consoleWarnSpy).toHaveBeenCalled();
 
       consoleWarnSpy.mockRestore();
+    });
+  });
+
+  describe('keyring lock/unlock handling', () => {
+    it('should initialize isUnlocked from KeyringController state', () => {
+      const { controller } = setupController();
+
+      // isUnlocked is initialized to true in the test setup
+      expect(controller.isActive).toBe(true);
+    });
+
+    it('should set isActive to false when KeyringController:lock is published', () => {
+      const { controller, messenger } = setupController();
+
+      expect(controller.isActive).toBe(true);
+
+      messenger.publish('KeyringController:lock');
+
+      expect(controller.isActive).toBe(false);
+    });
+
+    it('should set isActive to true when KeyringController:unlock is published', () => {
+      const { controller, messenger } = setupController();
+
+      // First lock
+      messenger.publish('KeyringController:lock');
+      expect(controller.isActive).toBe(false);
+
+      // Then unlock
+      messenger.publish('KeyringController:unlock');
+      expect(controller.isActive).toBe(true);
+    });
+
+    it('should skip updateBalances when keyring is locked', async () => {
+      const selectedAccount = createMockInternalAccount({
+        address: '0x1234567890123456789012345678901234567890',
+      });
+
+      const { controller, messenger } = setupController({
+        listAccounts: [selectedAccount],
+        config: {
+          accountsApiChainIds: () => [],
+        },
+      });
+
+      // Lock the keyring
+      messenger.publish('KeyringController:lock');
+
+      // Try to update balances - should return early
+      await controller.updateBalances({ chainIds: ['0x1'] });
+
+      // State should remain empty since updateBalances was skipped
+      expect(controller.state.tokenBalances).toStrictEqual({});
+    });
+
+    it('should not proceed with balance fetching when keyring is locked', async () => {
+      const selectedAccount = createMockInternalAccount({
+        address: '0x1234567890123456789012345678901234567890',
+      });
+
+      const { controller, messenger } = setupController({
+        listAccounts: [selectedAccount],
+        config: {
+          accountsApiChainIds: () => [],
+        },
+      });
+
+      // Lock the keyring
+      messenger.publish('KeyringController:lock');
+      expect(controller.isActive).toBe(false);
+
+      // Spy on RpcBalanceFetcher to verify it's not called
+      const fetchSpy = jest
+        .spyOn(RpcBalanceFetcher.prototype, 'fetch')
+        .mockResolvedValue({ balances: [], unprocessedChainIds: [] });
+
+      // updateBalances should return early when locked
+      await controller.updateBalances({ chainIds: ['0x1'] });
+
+      // Verify fetch was NOT called because isActive is false
+      expect(fetchSpy).not.toHaveBeenCalled();
+      expect(controller.state.tokenBalances).toStrictEqual({});
+
+      fetchSpy.mockRestore();
+    });
+
+    it('should proceed with balance fetching after unlock', async () => {
+      const selectedAccount = createMockInternalAccount({
+        address: '0x1234567890123456789012345678901234567890',
+      });
+
+      const { controller, messenger } = setupController({
+        listAccounts: [selectedAccount],
+        config: {
+          accountsApiChainIds: () => [],
+        },
+      });
+
+      // Lock and then unlock
+      messenger.publish('KeyringController:lock');
+      expect(controller.isActive).toBe(false);
+
+      messenger.publish('KeyringController:unlock');
+      expect(controller.isActive).toBe(true);
+
+      // Spy on RpcBalanceFetcher to verify it IS called after unlock
+      const fetchSpy = jest
+        .spyOn(RpcBalanceFetcher.prototype, 'fetch')
+        .mockResolvedValue({ balances: [], unprocessedChainIds: [] });
+
+      // updateBalances should proceed after unlock
+      await controller.updateBalances({ chainIds: ['0x1'] });
+
+      // Verify fetch WAS called because isActive is true
+      expect(fetchSpy).toHaveBeenCalled();
+
+      fetchSpy.mockRestore();
     });
   });
 });
