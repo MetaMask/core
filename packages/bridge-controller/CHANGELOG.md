@@ -13,6 +13,10 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 - Bump `@metamask/remote-feature-flag-controller` from `^2.0.1` to `^3.0.0` ([#7309](https://github.com/MetaMask/core/pull/7309)
 - Bump `@metamask/transaction-controller` from `^62.4.0` to `^62.5.0` ([#7325](https://github.com/MetaMask/core/pull/7325))
 
+### Fixed
+
+- Update gas calculation logic to use the priority fee provided by the gas-api and stop adding the base fee ([#7403](https://github.com/MetaMask/core/pull/7403))
+
 ## [64.0.0]
 
 ### Added

@@ -36,7 +36,7 @@ const log = createModuleLogger(projectLogger, 'eip-7702');
 export function doesChainSupportEIP7702(
   chainId: Hex,
   messenger: TransactionControllerMessenger,
-) {
+): boolean {
   const supportedChains = getEIP7702SupportedChains(messenger);
 
   return supportedChains.some(
@@ -83,7 +83,10 @@ export async function isAccountUpgradedToEIP7702(
   publicKey: Hex,
   messenger: TransactionControllerMessenger,
   ethQuery: EthQuery,
-) {
+): Promise<{
+  delegationAddress: Hex | undefined;
+  isSupported: boolean;
+}> {
   const contractAddresses = getEIP7702ContractAddresses(
     chainId,
     messenger,
@@ -224,8 +227,11 @@ async function signAuthorization(
     },
   );
 
+  // eslint-disable-next-line id-length
   const r = signature.slice(0, 66) as Hex;
+  // eslint-disable-next-line id-length
   const s = add0x(signature.slice(66, 130));
+  // eslint-disable-next-line id-length
   const v = parseInt(signature.slice(130, 132), 16);
   const yParity = toHex(v - 27 === 0 ? 0 : 1);
 
@@ -263,9 +269,7 @@ function prepareAuthorization(
   const chainId = existingChainId ?? transactionChainId;
   let nonce = existingNonce;
 
-  if (nonce === undefined) {
-    nonce = toHex(parseInt(transactionNonce as string, 16) + 1 + index);
-  }
+  nonce ??= toHex(parseInt(transactionNonce as string, 16) + 1 + index);
 
   const result = {
     ...authorization,
