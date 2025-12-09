@@ -1540,6 +1540,74 @@ export class NftController extends BaseController<
   }
 
   /**
+   * Adds multiple NFTs and respective NFT contracts to the stored NFT and NFT contracts lists.
+   *
+   * @param nfts - An array of NFT objects to add.
+   * @param nfts[].tokenAddress - Hex address of the NFT contract.
+   * @param nfts[].tokenId - The NFT identifier.
+   * @param nfts[].nftMetadata - NFT metadata including chainId.
+   * @param userAddress - The address of the current user.
+   * @param source - Whether the NFT was detected, added manually or suggested by a dapp. Defaults to Source.Custom.
+   * @returns Promise resolving to the current NFT list.
+   */
+  async addNfts(
+    nfts: {
+      tokenAddress: string;
+      tokenId: string;
+      nftMetadata: NftMetadata & { chainId: number };
+    }[],
+    userAddress: string,
+    source: Source = Source.Custom,
+  ) {
+    const addressToSearch = this.#getAddressOrSelectedAddress(userAddress);
+    if (!addressToSearch) {
+      return;
+    }
+
+    // Remember max number of urls this allows is 250
+    const sanitizedNftMetadata = await this.#bulkSanitizeNftMetadata(
+      nfts.map((nft) => nft.nftMetadata),
+    );
+
+    for (const [index, nft] of nfts.entries()) {
+      const checksumHexAddress = toChecksumHexAddress(nft.tokenAddress);
+
+      const hexChainId = toHex(nft.nftMetadata.chainId);
+
+      const networkClientId = this.messenger.call(
+        'NetworkController:findNetworkClientIdByChainId',
+        hexChainId,
+      );
+
+      const newNftContracts = await this.#addNftContract(networkClientId, {
+        tokenAddress: checksumHexAddress,
+        userAddress: addressToSearch,
+        source,
+        nftMetadata: sanitizedNftMetadata[index],
+      });
+
+      // If NFT contract was not added, do not add individual NFT
+      const nftContract = newNftContracts.find(
+        (contract) =>
+          contract.address.toLowerCase() === checksumHexAddress.toLowerCase(),
+      );
+
+      // If NFT contract information, add individual NFT
+      if (nftContract) {
+        await this.#addIndividualNft(
+          checksumHexAddress,
+          nft.tokenId,
+          sanitizedNftMetadata[index],
+          nftContract,
+          hexChainId,
+          addressToSearch,
+          source,
+        );
+      }
+    }
+  }
+
+  /**
    * Refetches NFT metadata and updates the state
    *
    * @param options - Options for refetching NFT metadata
@@ -2206,32 +2274,45 @@ export class NftController extends BaseController<
     }
 
     try {
-      // Use bulkScanUrls to check all URLs at once
-      const bulkScanResponse = await this.messenger.call(
-        'PhishingController:bulkScanUrls',
-        urlsToCheck,
-      );
+      // PhishingController has a 250 URL limit, so batch if needed
+      const MAX_URLS_PER_BATCH = 250;
+      const blockedUrls = new Set<string>();
+
+      // Process URLs in batches
+      for (let i = 0; i < urlsToCheck.length; i += MAX_URLS_PER_BATCH) {
+        const batch = urlsToCheck.slice(i, i + MAX_URLS_PER_BATCH);
+
+        // Use bulkScanUrls to check this batch
+        const bulkScanResponse = await this.messenger.call(
+          'PhishingController:bulkScanUrls',
+          batch,
+        );
+
+        // Collect blocked URLs from this batch
+        Object.entries(bulkScanResponse.results).forEach(([url, result]) => {
+          if (result.recommendedAction === RecommendedAction.Block) {
+            blockedUrls.add(url);
+          }
+        });
+      }
+
       // Apply scan results to all metadata objects
-      Object.entries(bulkScanResponse.results).forEach(([url, result]) => {
-        if (result.recommendedAction === RecommendedAction.Block) {
-          // Remove this URL from all metadata objects where it appears
-          urlMap[url].forEach(({ metadataIndex, fieldName }) => {
-            if (
-              fieldName === 'collection.externalLink' &&
-              sanitizedMetadataList[metadataIndex].collection // Check if collection exists
-            ) {
-              const { collection } = sanitizedMetadataList[metadataIndex];
-              // Ensure collection is not undefined again just to be safe before using 'in'
-              if (collection && 'externalLink' in collection) {
-                delete (collection as Record<string, unknown>).externalLink;
-              }
-            } else {
-              delete sanitizedMetadataList[metadataIndex][
-                fieldName as keyof NftMetadata
-              ];
+      blockedUrls.forEach((url) => {
+        urlMap[url].forEach(({ metadataIndex, fieldName }) => {
+          if (
+            fieldName === 'collection.externalLink' &&
+            sanitizedMetadataList[metadataIndex].collection
+          ) {
+            const { collection } = sanitizedMetadataList[metadataIndex];
+            if (collection && 'externalLink' in collection) {
+              delete (collection as Record<string, unknown>).externalLink;
             }
-          });
-        }
+          } else {
+            delete sanitizedMetadataList[metadataIndex][
+              fieldName as keyof NftMetadata
+            ];
+          }
+        });
       });
     } catch (error) {
       console.error('Error during bulk URL scanning:', error);
