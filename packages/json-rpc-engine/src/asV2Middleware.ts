@@ -1,10 +1,11 @@
 import { serializeError } from '@metamask/rpc-errors';
-import type { JsonRpcFailure, JsonRpcResponse } from '@metamask/utils';
-import {
-  hasProperty,
-  type Json,
-  type JsonRpcParams,
-  type JsonRpcRequest,
+import { hasProperty } from '@metamask/utils';
+import type {
+  Json,
+  JsonRpcFailure,
+  JsonRpcParams,
+  JsonRpcRequest,
+  JsonRpcResponse,
 } from '@metamask/utils';
 
 import type {
@@ -12,7 +13,7 @@ import type {
   JsonRpcEngineEndCallback,
   JsonRpcEngineNextCallback,
 } from './JsonRpcEngine';
-import { type JsonRpcMiddleware as LegacyMiddleware } from './JsonRpcEngine';
+import type { JsonRpcMiddleware as LegacyMiddleware } from './JsonRpcEngine';
 import { mergeMiddleware } from './mergeMiddleware';
 import type { ContextConstraint, MiddlewareContext } from './v2';
 import {

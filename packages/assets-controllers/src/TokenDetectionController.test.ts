@@ -6,12 +6,11 @@ import {
 } from '@metamask/controller-utils';
 import type { KeyringControllerState } from '@metamask/keyring-controller';
 import type { InternalAccount } from '@metamask/keyring-internal-api';
-import {
-  MOCK_ANY_NAMESPACE,
-  Messenger,
-  type MessengerActions,
-  type MessengerEvents,
-  type MockAnyNamespace,
+import { MOCK_ANY_NAMESPACE, Messenger } from '@metamask/messenger';
+import type {
+  MessengerActions,
+  MessengerEvents,
+  MockAnyNamespace,
 } from '@metamask/messenger';
 import {
   getDefaultNetworkControllerState,
@@ -25,10 +24,8 @@ import type {
   AutoManagedNetworkClient,
   CustomNetworkClientConfiguration,
 } from '@metamask/network-controller';
-import {
-  getDefaultPreferencesState,
-  type PreferencesState,
-} from '@metamask/preferences-controller';
+import { getDefaultPreferencesState } from '@metamask/preferences-controller';
+import type { PreferencesState } from '@metamask/preferences-controller';
 import type { Hex } from '@metamask/utils';
 import BN from 'bn.js';
 import nock from 'nock';
@@ -49,11 +46,11 @@ import {
   controllerName,
   mapChainIdWithTokenListMap,
 } from './TokenDetectionController';
-import {
-  getDefaultTokenListState,
-  type TokenListMap,
-  type TokenListState,
-  type TokenListToken,
+import { getDefaultTokenListState } from './TokenListController';
+import type {
+  TokenListMap,
+  TokenListState,
+  TokenListToken,
 } from './TokenListController';
 import type { Token } from './TokenRatesController';
 import type {
@@ -1193,6 +1190,7 @@ describe('TokenDetectionController', () => {
                 '0xa',
                 '0x89',
                 '0x531',
+                '0x279f',
               ],
               selectedAddress: secondSelectedAccount.address,
             });

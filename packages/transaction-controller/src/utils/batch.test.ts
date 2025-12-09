@@ -1,4 +1,6 @@
-import { ORIGIN_METAMASK, type AddResult } from '@metamask/approval-controller';
+/* eslint-disable @typescript-eslint/unbound-method */
+import { ORIGIN_METAMASK } from '@metamask/approval-controller';
+import type { AddResult } from '@metamask/approval-controller';
 import { ApprovalType } from '@metamask/controller-utils';
 import { rpcErrors, errorCodes } from '@metamask/rpc-errors';
 import { cloneDeep } from 'lodash';
@@ -20,16 +22,18 @@ import {
 } from './feature-flags';
 import { simulateGasBatch } from './gas';
 import { validateBatchRequest } from './validation';
-import type { TransactionControllerState } from '..';
 import {
   TransactionEnvelopeType,
-  type TransactionControllerMessenger,
-  type TransactionMeta,
   determineTransactionType,
   TransactionType,
   GasFeeEstimateLevel,
   GasFeeEstimateType,
   TransactionStatus,
+} from '..';
+import type {
+  TransactionControllerMessenger,
+  TransactionControllerState,
+  TransactionMeta,
 } from '..';
 import { flushPromises } from '../../../../tests/helpers';
 import { DefaultGasFeeFlow } from '../gas-flows/DefaultGasFeeFlow';
@@ -180,7 +184,7 @@ function mockRequestApproval(
     rejectPromise = reject;
   });
 
-  const approveTransaction = (approvalResult?: Partial<AddResult>) => {
+  const approveTransaction = (approvalResult?: Partial<AddResult>): void => {
     resolvePromise({
       resultCallbacks: {
         success() {
@@ -198,7 +202,7 @@ function mockRequestApproval(
     rejectionError: unknown = {
       code: errorCodes.provider.userRejectedRequest,
     },
-  ) => {
+  ): void => {
     rejectPromise(rejectionError);
   };
 
@@ -747,6 +751,50 @@ describe('Batch Utils', () => {
       );
     });
 
+    it('includes gas fee properties from first nested transaction in batch transaction', async () => {
+      isAccountUpgradedToEIP7702Mock.mockResolvedValueOnce({
+        delegationAddress: undefined,
+        isSupported: true,
+      });
+
+      addTransactionMock.mockResolvedValueOnce({
+        transactionMeta: TRANSACTION_META_MOCK,
+        result: Promise.resolve(''),
+      });
+
+      generateEIP7702BatchTransactionMock.mockReturnValueOnce(
+        TRANSACTION_BATCH_PARAMS_MOCK,
+      );
+
+      request.request.transactions = [
+        {
+          params: {
+            ...TRANSACTION_BATCH_PARAMS_MOCK,
+            maxFeePerGas: MAX_FEE_PER_GAS_MOCK,
+            maxPriorityFeePerGas: MAX_PRIORITY_FEE_PER_GAS_MOCK,
+          },
+        },
+        {
+          params: {
+            ...TRANSACTION_BATCH_PARAMS_MOCK,
+            maxFeePerGas: '0x999',
+            maxPriorityFeePerGas: '0x888',
+          },
+        },
+      ];
+
+      await addTransactionBatch(request);
+
+      expect(addTransactionMock).toHaveBeenCalledTimes(1);
+      expect(addTransactionMock).toHaveBeenCalledWith(
+        expect.objectContaining({
+          maxFeePerGas: MAX_FEE_PER_GAS_MOCK,
+          maxPriorityFeePerGas: MAX_PRIORITY_FEE_PER_GAS_MOCK,
+        }),
+        expect.anything(),
+      );
+    });
+
     it('throws if chain not supported', async () => {
       doesChainSupportEIP7702Mock.mockReturnValue(false);
 
@@ -769,6 +817,66 @@ describe('Batch Utils', () => {
 
       await expect(addTransactionBatch(request)).rejects.toThrow(
         rpcErrors.internal('Account upgraded to unsupported contract'),
+      );
+    });
+
+    it('overwrites upgrade if account upgraded to unsupported contract and overwriteUpgrade is true', async () => {
+      isAccountUpgradedToEIP7702Mock.mockResolvedValueOnce({
+        delegationAddress: CONTRACT_ADDRESS_MOCK,
+        isSupported: false,
+      });
+
+      addTransactionMock.mockResolvedValueOnce({
+        transactionMeta: TRANSACTION_META_MOCK,
+        result: Promise.resolve(''),
+      });
+
+      generateEIP7702BatchTransactionMock.mockReturnValueOnce(
+        TRANSACTION_BATCH_PARAMS_MOCK,
+      );
+
+      getEIP7702UpgradeContractAddressMock.mockReturnValueOnce(
+        CONTRACT_ADDRESS_MOCK,
+      );
+
+      request.request.overwriteUpgrade = true;
+
+      await addTransactionBatch(request);
+
+      expect(addTransactionMock).toHaveBeenCalledTimes(1);
+      expect(addTransactionMock).toHaveBeenCalledWith(
+        expect.objectContaining({
+          authorizationList: [{ address: CONTRACT_ADDRESS_MOCK }],
+        }),
+        expect.anything(),
+      );
+    });
+
+    it('does not overwrite upgrade if account upgraded and supported', async () => {
+      isAccountUpgradedToEIP7702Mock.mockResolvedValueOnce({
+        delegationAddress: CONTRACT_ADDRESS_MOCK,
+        isSupported: true,
+      });
+
+      addTransactionMock.mockResolvedValueOnce({
+        transactionMeta: TRANSACTION_META_MOCK,
+        result: Promise.resolve(''),
+      });
+
+      generateEIP7702BatchTransactionMock.mockReturnValueOnce(
+        TRANSACTION_BATCH_PARAMS_MOCK,
+      );
+
+      request.request.overwriteUpgrade = true;
+
+      await addTransactionBatch(request);
+
+      expect(addTransactionMock).toHaveBeenCalledTimes(1);
+      expect(addTransactionMock).toHaveBeenCalledWith(
+        expect.not.objectContaining({
+          authorizationList: expect.anything(),
+        }),
+        expect.anything(),
       );
     });
 
@@ -1683,13 +1791,13 @@ describe('Batch Utils', () => {
 
       const setupSequentialPublishBatchHookMock = (
         hookImplementation: () => PublishBatchHook | undefined,
-      ) => {
+      ): void => {
         sequentialPublishBatchHookMock.mockReturnValue({
           getHook: hookImplementation,
         } as unknown as SequentialPublishBatchHook);
       };
 
-      const executePublishHooks = async () => {
+      const executePublishHooks = async (): Promise<void> => {
         const publishHooks = addTransactionMock.mock.calls.map(
           ([, options]) => options.publishHook,
         );
@@ -1708,7 +1816,7 @@ describe('Batch Utils', () => {
         await flushPromises();
       };
 
-      const mockSequentialPublishBatchHookResults = () => {
+      const mockSequentialPublishBatchHookResults = (): void => {
         sequentialPublishBatchHook.mockResolvedValueOnce({
           results: [
             { transactionHash: TRANSACTION_HASH_MOCK },
@@ -1717,7 +1825,7 @@ describe('Batch Utils', () => {
         });
       };
 
-      const assertSequentialPublishBatchHookCalled = () => {
+      const assertSequentialPublishBatchHookCalled = (): void => {
         expect(sequentialPublishBatchHookMock).toHaveBeenCalledTimes(1);
         expect(sequentialPublishBatchHook).toHaveBeenCalledTimes(1);
         expect(sequentialPublishBatchHook).toHaveBeenCalledWith(

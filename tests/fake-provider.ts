@@ -1,9 +1,9 @@
 import { InternalProvider } from '@metamask/eth-json-rpc-provider';
-import {
-  JsonRpcEngineV2,
-  type JsonRpcMiddleware,
-  type MiddlewareContext,
-  type ResultConstraint,
+import { JsonRpcEngineV2 } from '@metamask/json-rpc-engine/v2';
+import type {
+  JsonRpcMiddleware,
+  MiddlewareContext,
+  ResultConstraint,
 } from '@metamask/json-rpc-engine/v2';
 import type { Provider } from '@metamask/network-controller';
 import type {
@@ -220,9 +220,7 @@ export class FakeProvider
 
       throw new Error(message);
     } else {
-      // We are already checking that this stub exists above.
-      // eslint-disable-next-line @typescript-eslint/no-non-null-assertion
-      const stub = this.#stubs[index]!;
+      const stub = this.#stubs[index];
 
       if (stub.discardAfterMatching !== false) {
         this.#stubs.splice(index, 1);

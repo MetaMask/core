@@ -1,10 +1,9 @@
 import { deriveStateFromMetadata } from '@metamask/base-controller';
-import {
-  Messenger,
-  MOCK_ANY_NAMESPACE,
-  type MessengerActions,
-  type MessengerEvents,
-  type MockAnyNamespace,
+import { Messenger, MOCK_ANY_NAMESPACE } from '@metamask/messenger';
+import type {
+  MessengerActions,
+  MessengerEvents,
+  MockAnyNamespace,
 } from '@metamask/messenger';
 import {
   TransactionStatus,
@@ -21,10 +20,12 @@ import { SubscriptionServiceError } from './errors';
 import {
   getDefaultSubscriptionControllerState,
   SubscriptionController,
-  type AllowedEvents,
-  type SubscriptionControllerMessenger,
-  type SubscriptionControllerOptions,
-  type SubscriptionControllerState,
+} from './SubscriptionController';
+import type {
+  AllowedEvents,
+  SubscriptionControllerMessenger,
+  SubscriptionControllerOptions,
+  SubscriptionControllerState,
 } from './SubscriptionController';
 import type {
   Subscription,
@@ -94,6 +95,7 @@ const MOCK_PRODUCT_PRICE: ProductPricing = {
       unitDecimals: 2,
       trialPeriodDays: 0,
       minBillingCycles: 12,
+      minBillingCyclesForBalance: 1,
     },
     {
       interval: 'year',
@@ -102,6 +104,7 @@ const MOCK_PRODUCT_PRICE: ProductPricing = {
       currency: 'usd',
       trialPeriodDays: 14,
       minBillingCycles: 1,
+      minBillingCyclesForBalance: 1,
     },
   ],
 };
@@ -236,6 +239,7 @@ function createMockSubscriptionService() {
   const mockSubmitUserEvent = jest.fn();
   const mockSubmitSponsorshipIntents = jest.fn();
   const mockAssignUserToCohort = jest.fn();
+  const mockLinkRewards = jest.fn();
 
   const mockService = {
     getSubscriptions: mockGetSubscriptions,
@@ -251,6 +255,7 @@ function createMockSubscriptionService() {
     submitUserEvent: mockSubmitUserEvent,
     submitSponsorshipIntents: mockSubmitSponsorshipIntents,
     assignUserToCohort: mockAssignUserToCohort,
+    linkRewards: mockLinkRewards,
   };
 
   return {
@@ -586,6 +591,66 @@ describe('SubscriptionController', () => {
           expect(controller.state.lastSubscription).toStrictEqual(
             MOCK_SUBSCRIPTION,
           );
+        },
+      );
+    });
+
+    it('should update state when rewardAccountId changes from undefined to defined', async () => {
+      await withController(
+        {
+          state: {
+            rewardAccountId: undefined,
+          },
+        },
+        async ({ controller, mockService }) => {
+          mockService.getSubscriptions.mockResolvedValue({
+            customerId: 'cus_1',
+            subscriptions: [],
+            trialedProducts: [],
+            rewardAccountId:
+              'eip155:1:0x1234567890123456789012345678901234567890',
+          });
+
+          await controller.getSubscriptions();
+
+          expect(controller.state.rewardAccountId).toBe(
+            'eip155:1:0x1234567890123456789012345678901234567890',
+          );
+        },
+      );
+    });
+
+    it('should not update state when rewardAccountId is the same', async () => {
+      const mockRewardAccountId =
+        'eip155:1:0x1234567890123456789012345678901234567890';
+
+      await withController(
+        {
+          state: {
+            customerId: 'cus_1',
+            subscriptions: [],
+            trialedProducts: [],
+            rewardAccountId: mockRewardAccountId,
+          },
+        },
+        async ({ controller, mockService, rootMessenger }) => {
+          mockService.getSubscriptions.mockResolvedValue({
+            customerId: 'cus_1',
+            subscriptions: [],
+            trialedProducts: [],
+            rewardAccountId: mockRewardAccountId,
+          });
+
+          const stateChangeListener = jest.fn();
+          rootMessenger.subscribe(
+            'SubscriptionController:stateChange',
+            stateChangeListener,
+          );
+
+          await controller.getSubscriptions();
+
+          // State should not have changed since rewardAccountId is the same
+          expect(stateChangeListener).not.toHaveBeenCalled();
         },
       );
     });
@@ -1114,6 +1179,7 @@ describe('SubscriptionController', () => {
                       unitDecimals: 18,
                       trialPeriodDays: 0,
                       minBillingCycles: 1,
+                      minBillingCyclesForBalance: 1,
                     },
                   ],
                 },
@@ -1255,6 +1321,45 @@ describe('SubscriptionController', () => {
           ).toThrow('Conversion rate not found');
         },
       );
+    });
+  });
+
+  describe('getTokenMinimumBalanceAmount', () => {
+    it('returns correct minimum balance amount for token', async () => {
+      await withController(async ({ controller }) => {
+        const [price] = MOCK_PRODUCT_PRICE.prices;
+        const { chains } = MOCK_PRICING_PAYMENT_METHOD;
+        if (!chains || chains.length === 0) {
+          throw new Error('Mock chains not found');
+        }
+        const [tokenPaymentInfo] = chains[0].tokens;
+
+        const result = controller.getTokenMinimumBalanceAmount(
+          price,
+          tokenPaymentInfo,
+        );
+
+        expect(result).toBe('9000000000000000000');
+      });
+    });
+
+    it('throws when conversion rate not found', async () => {
+      await withController(async ({ controller }) => {
+        const price = MOCK_PRODUCT_PRICE.prices[0];
+        const tokenPaymentInfoWithoutRate = {
+          address: '0xtoken' as const,
+          decimals: 18,
+          symbol: 'USDT',
+          conversionRate: {} as { usd: string },
+        };
+
+        expect(() =>
+          controller.getTokenMinimumBalanceAmount(
+            price,
+            tokenPaymentInfoWithoutRate,
+          ),
+        ).toThrow('Conversion rate not found');
+      });
     });
   });
 
@@ -1920,6 +2025,74 @@ describe('SubscriptionController', () => {
       );
     });
 
+    it('should handle subscription crypto approval when shield subscription transaction is submitted with reward subscription ID', async () => {
+      await withController(
+        {
+          state: {
+            pricing: MOCK_PRICE_INFO_RESPONSE,
+            trialedProducts: [],
+            subscriptions: [],
+            lastSelectedPaymentMethod: {
+              [PRODUCT_TYPES.SHIELD]: {
+                type: PAYMENT_TYPES.byCrypto,
+                paymentTokenAddress: '0xtoken',
+                paymentTokenSymbol: 'USDT',
+                plan: RECURRING_INTERVALS.month,
+              },
+            },
+          },
+        },
+        async ({ controller, mockService }) => {
+          mockService.startSubscriptionWithCrypto.mockResolvedValue({
+            subscriptionId: 'sub_123',
+            status: SUBSCRIPTION_STATUSES.trialing,
+          });
+
+          mockService.getSubscriptions
+            .mockResolvedValueOnce({
+              subscriptions: [],
+              trialedProducts: [],
+            })
+            .mockResolvedValue(MOCK_GET_SUBSCRIPTIONS_RESPONSE);
+
+          // Create a shield subscription approval transaction
+          const txMeta = {
+            ...generateMockTxMeta(),
+            type: TransactionType.shieldSubscriptionApprove,
+            chainId: '0x1' as Hex,
+            rawTx: '0x123',
+            txParams: {
+              data: '0x456',
+              from: '0x1234567890123456789012345678901234567890',
+              to: '0xtoken',
+            },
+            status: TransactionStatus.submitted,
+          };
+
+          await controller.submitShieldSubscriptionCryptoApproval(
+            txMeta,
+            false, // isSponsored
+            'eip155:1:0x1234567890123456789012345678901234567890',
+          );
+
+          expect(mockService.startSubscriptionWithCrypto).toHaveBeenCalledWith({
+            products: [PRODUCT_TYPES.SHIELD],
+            isTrialRequested: true,
+            recurringInterval: RECURRING_INTERVALS.month,
+            billingCycles: 12,
+            chainId: '0x1',
+            payerAddress: '0x1234567890123456789012345678901234567890',
+            tokenSymbol: 'USDT',
+            rawTransaction: '0x123',
+            isSponsored: false,
+            useTestClock: undefined,
+            rewardAccountId:
+              'eip155:1:0x1234567890123456789012345678901234567890',
+          });
+        },
+      );
+    });
+
     it('should not handle subscription crypto approval when pricing is not found', async () => {
       await withController(
         {
@@ -2191,6 +2364,71 @@ describe('SubscriptionController', () => {
             controller.submitShieldSubscriptionCryptoApproval(txMeta),
           ).rejects.toThrow(
             SubscriptionControllerErrorMessage.SubscriptionNotValidForCryptoApproval,
+          );
+        },
+      );
+    });
+  });
+
+  describe('linkRewards', () => {
+    it('should link rewards successfully', async () => {
+      await withController(
+        {
+          state: {
+            subscriptions: [MOCK_SUBSCRIPTION],
+          },
+        },
+        async ({ controller, mockService }) => {
+          const linkRewardsSpy = jest
+            .spyOn(mockService, 'linkRewards')
+            .mockResolvedValue({
+              success: true,
+            });
+          await controller.linkRewards({
+            subscriptionId: 'sub_123456789',
+            rewardAccountId:
+              'eip155:1:0x1234567890123456789012345678901234567890',
+          });
+          expect(linkRewardsSpy).toHaveBeenCalledWith({
+            rewardAccountId:
+              'eip155:1:0x1234567890123456789012345678901234567890',
+          });
+          expect(linkRewardsSpy).toHaveBeenCalledTimes(1);
+        },
+      );
+    });
+
+    it('should throw error when user is not subscribed', async () => {
+      await withController(async ({ controller }) => {
+        await expect(
+          controller.linkRewards({
+            subscriptionId: 'sub_123456789',
+            rewardAccountId:
+              'eip155:1:0x1234567890123456789012345678901234567890',
+          }),
+        ).rejects.toThrow(SubscriptionControllerErrorMessage.UserNotSubscribed);
+      });
+    });
+
+    it('should throw error when link rewards fails', async () => {
+      await withController(
+        {
+          state: {
+            subscriptions: [MOCK_SUBSCRIPTION],
+          },
+        },
+        async ({ controller, mockService }) => {
+          mockService.linkRewards.mockResolvedValue({
+            success: false,
+          });
+          await expect(
+            controller.linkRewards({
+              subscriptionId: 'sub_123456789',
+              rewardAccountId:
+                'eip155:1:0x1234567890123456789012345678901234567890',
+            }),
+          ).rejects.toThrow(
+            SubscriptionControllerErrorMessage.LinkRewardsFailed,
           );
         },
       );

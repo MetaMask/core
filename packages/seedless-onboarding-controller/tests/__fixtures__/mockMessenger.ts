@@ -2,16 +2,15 @@ import type {
   KeyringControllerLockEvent,
   KeyringControllerUnlockEvent,
 } from '@metamask/keyring-controller';
-import {
-  Messenger,
-  MOCK_ANY_NAMESPACE,
-  type MockAnyNamespace,
-  type MessengerActions,
-  type MessengerEvents,
+import { Messenger, MOCK_ANY_NAMESPACE } from '@metamask/messenger';
+import type {
+  MockAnyNamespace,
+  MessengerActions,
+  MessengerEvents,
 } from '@metamask/messenger';
 
 import { controllerName } from '../../src/constants';
-import { type SeedlessOnboardingControllerMessenger } from '../../src/types';
+import type { SeedlessOnboardingControllerMessenger } from '../../src/types';
 
 export type AllSeedlessOnboardingControllerActions =
   MessengerActions<SeedlessOnboardingControllerMessenger>;

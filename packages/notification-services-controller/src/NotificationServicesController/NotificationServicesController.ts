@@ -8,13 +8,13 @@ import {
   isValidHexAddress,
   toChecksumHexAddress,
 } from '@metamask/controller-utils';
-import {
-  type KeyringControllerStateChangeEvent,
-  type KeyringControllerGetStateAction,
-  type KeyringControllerLockEvent,
-  type KeyringControllerUnlockEvent,
-  KeyringTypes,
-  type KeyringControllerState,
+import { KeyringTypes } from '@metamask/keyring-controller';
+import type {
+  KeyringControllerStateChangeEvent,
+  KeyringControllerGetStateAction,
+  KeyringControllerLockEvent,
+  KeyringControllerUnlockEvent,
+  KeyringControllerState,
 } from '@metamask/keyring-controller';
 import type { Messenger } from '@metamask/messenger';
 import type { AuthenticationController } from '@metamask/profile-sync-controller';

@@ -3,17 +3,19 @@ import {
   Caip25EndowmentPermissionName,
   bucketScopes,
   validateAndNormalizeScopes,
-  type Caip25Authorization,
   getInternalScopesObject,
   getSessionScopes,
-  type NormalizedScopesObject,
   getSupportedScopeObjects,
-  type Caip25CaveatValue,
   isKnownSessionPropertyValue,
   getCaipAccountIdsFromScopesObjects,
   getAllScopesFromScopesObjects,
   setNonSCACaipAccountIdsInCaip25CaveatValue,
   isNamespaceInScopesObject,
+} from '@metamask/chain-agnostic-permission';
+import type {
+  Caip25Authorization,
+  NormalizedScopesObject,
+  Caip25CaveatValue,
 } from '@metamask/chain-agnostic-permission';
 import { isEqualCaseInsensitive } from '@metamask/controller-utils';
 import type {
@@ -21,21 +23,21 @@ import type {
   JsonRpcEngineNextCallback,
 } from '@metamask/json-rpc-engine';
 import type { NetworkController } from '@metamask/network-controller';
-import {
-  invalidParams,
-  type RequestedPermissions,
-} from '@metamask/permission-controller';
+import { invalidParams } from '@metamask/permission-controller';
+import type { RequestedPermissions } from '@metamask/permission-controller';
 import { JsonRpcError, rpcErrors } from '@metamask/rpc-errors';
 import {
-  type CaipAccountId,
-  type CaipChainId,
-  type Hex,
   isPlainObject,
-  type Json,
-  type JsonRpcRequest,
-  type JsonRpcSuccess,
   KnownCaipNamespace,
   parseCaipAccountId,
+} from '@metamask/utils';
+import type {
+  CaipAccountId,
+  CaipChainId,
+  Hex,
+  Json,
+  JsonRpcRequest,
+  JsonRpcSuccess,
 } from '@metamask/utils';
 
 import type { GrantedPermissions } from './types';

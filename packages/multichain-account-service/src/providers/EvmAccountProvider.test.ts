@@ -1,6 +1,5 @@
-/* eslint-disable jsdoc/require-jsdoc */
 import { publicToAddress } from '@ethereumjs/util';
-import { type KeyringMetadata } from '@metamask/keyring-controller';
+import type { KeyringMetadata } from '@metamask/keyring-controller';
 import type {
   EthKeyring,
   InternalAccount,
@@ -25,8 +24,8 @@ import {
   MOCK_HD_ACCOUNT_2,
   MOCK_HD_KEYRING_1,
   MockAccountBuilder,
-  type RootMessenger,
 } from '../tests';
+import type { RootMessenger } from '../tests';
 
 jest.mock('@ethereumjs/util', () => ({
   publicToAddress: jest.fn(),

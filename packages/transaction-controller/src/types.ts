@@ -1,3 +1,5 @@
+/* eslint-disable @typescript-eslint/naming-convention */
+
 import type { AccessList } from '@ethereumjs/tx';
 import type { AccountsController } from '@metamask/accounts-controller';
 import type EthQuery from '@metamask/eth-query';
@@ -1748,6 +1750,9 @@ export type TransactionBatchRequest = {
 
   /** Origin of the request, such as a dApp hostname or `ORIGIN_METAMASK` if internal. */
   origin?: string;
+
+  /** Whether to overwrite existing EIP-7702 delegation with MetaMask contract. */
+  overwriteUpgrade?: boolean;
 
   /** Whether an approval request should be created to require confirmation from the user. */
   requireApproval?: boolean;

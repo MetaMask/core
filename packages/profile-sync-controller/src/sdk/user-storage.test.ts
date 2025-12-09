@@ -10,7 +10,7 @@ import {
   handleMockUserStorageDelete,
   handleMockUserStorageBatchDelete,
 } from './__fixtures__/userstorage';
-import { type IBaseAuth } from './authentication-jwt-bearer/types';
+import type { IBaseAuth } from './authentication-jwt-bearer/types';
 import { NotFoundError, UserStorageError } from './errors';
 import {
   MOCK_NOTIFICATIONS_DATA,

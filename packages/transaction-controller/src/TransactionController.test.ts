@@ -1,4 +1,9 @@
+/* eslint-disable jest/unbound-method */
+/* eslint-disable @typescript-eslint/naming-convention */
+/* eslint-disable camelcase */
+/* eslint-disable @typescript-eslint/unbound-method */
 /* eslint-disable jest/expect-expect */
+
 import { TransactionFactory } from '@ethereumjs/tx';
 import type {
   AddApprovalRequest,
@@ -15,12 +20,11 @@ import {
 import type { InternalProvider } from '@metamask/eth-json-rpc-provider';
 import EthQuery from '@metamask/eth-query';
 import HttpProvider from '@metamask/ethjs-provider-http';
-import {
-  Messenger,
-  type MockAnyNamespace,
-  type MessengerActions,
-  type MessengerEvents,
-  MOCK_ANY_NAMESPACE,
+import { Messenger, MOCK_ANY_NAMESPACE } from '@metamask/messenger';
+import type {
+  MockAnyNamespace,
+  MessengerActions,
+  MessengerEvents,
 } from '@metamask/messenger';
 import type {
   BlockTracker,
@@ -186,7 +190,7 @@ function buildMockEthQuery(): EthQuery {
   return {
     // TODO: Replace `any` with type
     // eslint-disable-next-line @typescript-eslint/no-explicit-any
-    estimateGas: (_transaction: any, callback: any) => {
+    estimateGas: (_transaction: any, callback: any): void => {
       if (mockFlags.estimateGasError) {
         callback(new Error(mockFlags.estimateGasError));
         return;
@@ -200,7 +204,7 @@ function buildMockEthQuery(): EthQuery {
     },
     // TODO: Replace `any` with type
     // eslint-disable-next-line @typescript-eslint/no-explicit-any
-    gasPrice: (callback: any) => {
+    gasPrice: (callback: any): void => {
       callback(undefined, '0x0');
     },
     getBlockByNumber: (
@@ -211,7 +215,7 @@ function buildMockEthQuery(): EthQuery {
       // TODO: Replace `any` with type
       // eslint-disable-next-line @typescript-eslint/no-explicit-any
       callback: any,
-    ) => {
+    ): void => {
       if (mockFlags.getBlockByNumberValue) {
         callback(undefined, { gasLimit: '0x12a05f200' });
         return;
@@ -220,12 +224,12 @@ function buildMockEthQuery(): EthQuery {
     },
     // TODO: Replace `any` with type
     // eslint-disable-next-line @typescript-eslint/no-explicit-any
-    getCode: (_to: any, callback: any) => {
+    getCode: (_to: any, callback: any): void => {
       callback(undefined, '0x0');
     },
     // TODO: Replace `any` with type
     // eslint-disable-next-line @typescript-eslint/no-explicit-any
-    getTransactionByHash: (_hash: string, callback: any) => {
+    getTransactionByHash: (_hash: string, callback: any): void => {
       // TODO: Replace `any` with type
       // eslint-disable-next-line @typescript-eslint/no-explicit-any
       const txs: any = [
@@ -239,17 +243,17 @@ function buildMockEthQuery(): EthQuery {
     },
     // TODO: Replace `any` with type
     // eslint-disable-next-line @typescript-eslint/no-explicit-any
-    getTransactionCount: (_from: any, _to: any, callback: any) => {
+    getTransactionCount: (_from: any, _to: any, callback: any): void => {
       callback(undefined, '0x0');
     },
     // TODO: Replace `any` with type
     // eslint-disable-next-line @typescript-eslint/no-explicit-any
-    sendRawTransaction: (_transaction: unknown, callback: any) => {
+    sendRawTransaction: (_transaction: unknown, callback: any): void => {
       callback(undefined, TRANSACTION_HASH_MOCK);
     },
     // TODO: Replace `any` with type
     // eslint-disable-next-line @typescript-eslint/no-explicit-any
-    getTransactionReceipt: (_hash: any, callback: any) => {
+    getTransactionReceipt: (_hash: any, callback: any): void => {
       // TODO: Replace `any` with type
       // eslint-disable-next-line @typescript-eslint/no-explicit-any
       const txs: any = [
@@ -274,7 +278,7 @@ function buildMockEthQuery(): EthQuery {
     },
     // TODO: Replace `any` with type
     // eslint-disable-next-line @typescript-eslint/no-explicit-any
-    getBlockByHash: (_blockHash: any, callback: any) => {
+    getBlockByHash: (_blockHash: any, callback: any): void => {
       // TODO: Replace `any` with type
       // eslint-disable-next-line @typescript-eslint/no-explicit-any
       const blocks: any = [
@@ -295,7 +299,7 @@ function buildMockEthQuery(): EthQuery {
       );
       callback(undefined, block);
     },
-    sendAsync: () => {
+    sendAsync: (): void => {
       // do nothing
     },
   };
@@ -347,7 +351,7 @@ function waitForTransactionFinished(
     ? 'TransactionController:transactionConfirmed'
     : 'TransactionController:transactionFinished';
   return new Promise((resolve) => {
-    const subscriber = (transactionMeta: TransactionMeta) => {
+    const subscriber = (transactionMeta: TransactionMeta): void => {
       resolve(transactionMeta);
       messenger.unsubscribe(eventName, subscriber);
     };
@@ -650,7 +654,21 @@ describe('TransactionController', () => {
       NetworkClientConfiguration
     >;
     updateToInitialState?: boolean;
-  } = {}) {
+  } = {}): {
+    controller: TransactionController;
+    messenger: RootMessenger;
+    rootMessenger: RootMessenger;
+    mockTransactionApprovalRequest: {
+      promise: Promise<AddResult>;
+      approve: (approvalResult?: Partial<AddResult>) => void;
+      reject: (rejectionError: unknown) => void;
+      actionHandlerMock: jest.Mock;
+    };
+    mockGetSelectedAccount: jest.Mock;
+    changeNetwork: (params: {
+      selectedNetworkClientId: NetworkClientId;
+    }) => void;
+  } {
     let networkState = {
       ...getDefaultNetworkControllerState(),
       selectedNetworkClientId: MOCK_NETWORK.state.selectedNetworkClientId,
@@ -661,7 +679,7 @@ describe('TransactionController', () => {
       selectedNetworkClientId,
     }: {
       selectedNetworkClientId: NetworkClientId;
-    }) => {
+    }): void => {
       networkState = {
         ...networkState,
         selectedNetworkClientId,
@@ -826,7 +844,7 @@ describe('TransactionController', () => {
   } {
     const { promise, resolve, reject } = createDeferredPromise<AddResult>();
 
-    const approveTransaction = (approvalResult?: Partial<AddResult>) => {
+    const approveTransaction = (approvalResult?: Partial<AddResult>): void => {
       resolve({
         resultCallbacks: {
           success() {
@@ -844,7 +862,7 @@ describe('TransactionController', () => {
       rejectionError: unknown = {
         code: errorCodes.provider.userRejectedRequest,
       },
-    ) => {
+    ): void => {
       reject(rejectionError);
     };
 
@@ -876,7 +894,7 @@ describe('TransactionController', () => {
    *
    * @param ms - The number of milliseconds to wait.
    */
-  async function wait(ms: number) {
+  async function wait(ms: number): Promise<void> {
     await new Promise((resolve) => setTimeout(resolve, ms));
   }
 
@@ -1189,7 +1207,9 @@ describe('TransactionController', () => {
 
       const { transactions } = controller.state;
 
-      expect(transactions.map((t) => [t.id, t.status])).toStrictEqual([
+      expect(
+        transactions.map((transaction) => [transaction.id, transaction.status]),
+      ).toStrictEqual([
         ['333', TransactionStatus.failed],
         ['222', TransactionStatus.confirmed],
         ['111', TransactionStatus.failed],
@@ -1640,8 +1660,10 @@ describe('TransactionController', () => {
           maxPriorityFeePerGas: '0x1',
         },
         {
-          getCurrentNetworkEIP1559Compatibility: async () => true,
-          getCurrentAccountEIP1559Compatibility: async () => true,
+          getCurrentNetworkEIP1559Compatibility: async (): Promise<boolean> =>
+            true,
+          getCurrentAccountEIP1559Compatibility: async (): Promise<boolean> =>
+            true,
         },
       ],
       [TransactionEnvelopeType.accessList, { accessList: [] }],
@@ -3047,7 +3069,7 @@ describe('TransactionController', () => {
         async function expectTransactionToFail(
           controller: TransactionController,
           expectedError: string,
-        ) {
+        ): Promise<void> {
           const { result } = await controller.addTransaction(
             {
               from: ACCOUNT_MOCK,
@@ -5728,7 +5750,7 @@ describe('TransactionController', () => {
       // TODO: Replace `any` with type
       // eslint-disable-next-line @typescript-eslint/no-explicit-any
       ...args: any
-    ) {
+    ): void {
       (pendingTransactionTrackerMock.hub.on as jest.Mock).mock.calls.find(
         (call) => call[0] === eventName,
       )[1](...args);
@@ -6014,7 +6036,6 @@ describe('TransactionController', () => {
       };
 
       // Send the transaction to put it in the process of being signed
-      // TODO: Either fix this lint violation or explain why it's necessary to ignore.
       // eslint-disable-next-line @typescript-eslint/no-floating-promises
       controller.approveTransactionsWithSameNonce([mockTransactionParam]);
 
@@ -6907,13 +6928,12 @@ describe('TransactionController', () => {
 
       const updatedTransaction = controller.state.transactions[0];
       const pathParts = expectedPath.split('.');
-      let actualValue = updatedTransaction;
+      // eslint-disable-next-line @typescript-eslint/no-explicit-any
+      let actualValue: any = updatedTransaction;
 
       for (const key of pathParts) {
         // Type assertion needed since we're accessing dynamic properties
-        actualValue = actualValue[
-          key as keyof typeof actualValue
-        ] as typeof actualValue;
+        actualValue = actualValue[key as keyof typeof actualValue];
       }
 
       expect(actualValue).toStrictEqual(newValue);
@@ -7136,7 +7156,7 @@ describe('TransactionController', () => {
         controller.getTransactions({
           // TODO: Replace `any` with type
           // eslint-disable-next-line @typescript-eslint/no-explicit-any
-          searchCriteria: { time: (v: any) => v === 1 },
+          searchCriteria: { time: (value: any) => value === 1 },
         }),
       ).toStrictEqual([transactions[0], transactions[2]]);
     });
@@ -7816,7 +7836,10 @@ describe('TransactionController', () => {
      *
      * @returns The controller instance and function result;
      */
-    async function updateAtomicBatchDataTemplate() {
+    async function updateAtomicBatchDataTemplate(): Promise<{
+      controller: TransactionController;
+      result: Hex;
+    }> {
       const { controller } = setupController({
         options: {
           state: {

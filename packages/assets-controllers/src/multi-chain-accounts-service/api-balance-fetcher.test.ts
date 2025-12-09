@@ -1,11 +1,8 @@
 import type { InternalAccount } from '@metamask/keyring-internal-api';
 import BN from 'bn.js';
 
-import {
-  AccountsApiBalanceFetcher,
-  type ChainIdHex,
-  type ChecksumAddress,
-} from './api-balance-fetcher';
+import { AccountsApiBalanceFetcher } from './api-balance-fetcher';
+import type { ChainIdHex, ChecksumAddress } from './api-balance-fetcher';
 import type { GetBalancesResponse } from './types';
 import { SUPPORTED_NETWORKS_ACCOUNTS_API_V4 } from '../constants';
 
@@ -2043,8 +2040,7 @@ describe('AccountsApiBalanceFetcher', () => {
 
       // Create 60 accounts to force batching (50 per batch)
       for (let i = 0; i < 60; i++) {
-        const address =
-          `0x${i.toString(16).padStart(40, '0')}` as ChecksumAddress;
+        const address = `0x${i.toString(16).padStart(40, '0')}` as const;
         largeAccountList.push({
           id: i.toString(),
           address,
@@ -2157,8 +2153,7 @@ describe('AccountsApiBalanceFetcher', () => {
 
       // Create 55 accounts to force batching
       for (let i = 0; i < 55; i++) {
-        const address =
-          `0x${i.toString(16).padStart(40, '0')}` as ChecksumAddress;
+        const address = `0x${i.toString(16).padStart(40, '0')}` as const;
         largeAccountList.push({
           id: i.toString(),
           address,

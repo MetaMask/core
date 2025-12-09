@@ -1,4 +1,5 @@
-import { createModuleLogger, type Hex } from '@metamask/utils';
+import { createModuleLogger } from '@metamask/utils';
+import type { Hex } from '@metamask/utils';
 
 import { isValidSignature } from './signature';
 import { padHexToEvenLength } from './utils';
@@ -253,13 +254,13 @@ export function getAcceleratedPollingParams(
     featureFlags?.[FeatureFlag.Transactions]?.acceleratedPolling;
 
   const countMax =
-    acceleratedPollingParams?.perChainConfig?.[chainId]?.countMax ||
-    acceleratedPollingParams?.defaultCountMax ||
+    acceleratedPollingParams?.perChainConfig?.[chainId]?.countMax ??
+    acceleratedPollingParams?.defaultCountMax ??
     DEFAULT_ACCELERATED_POLLING_COUNT_MAX;
 
   const intervalMs =
-    acceleratedPollingParams?.perChainConfig?.[chainId]?.intervalMs ||
-    acceleratedPollingParams?.defaultIntervalMs ||
+    acceleratedPollingParams?.perChainConfig?.[chainId]?.intervalMs ??
+    acceleratedPollingParams?.defaultIntervalMs ??
     DEFAULT_ACCELERATED_POLLING_INTERVAL_MS;
 
   return { countMax, intervalMs };
@@ -280,10 +281,10 @@ export function getGasFeeRandomisation(
   const featureFlags = getFeatureFlags(messenger);
 
   const gasFeeRandomisation =
-    featureFlags?.[FeatureFlag.Transactions]?.gasFeeRandomisation || {};
+    featureFlags?.[FeatureFlag.Transactions]?.gasFeeRandomisation ?? {};
 
   return {
-    randomisedGasFeeDigits: gasFeeRandomisation.randomisedGasFeeDigits || {},
+    randomisedGasFeeDigits: gasFeeRandomisation.randomisedGasFeeDigits ?? {},
     preservedNumberOfDigits: gasFeeRandomisation.preservedNumberOfDigits,
   };
 }

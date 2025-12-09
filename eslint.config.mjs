@@ -24,32 +24,10 @@ const config = createConfig([
   },
   {
     rules: {
-      // Left disabled because various properties throughough this repo are snake_case because the
-      // names come from external sources or must comply with standards
-      // e.g. `txreceipt_status`, `signTypedData_v4`, `token_id`
-      camelcase: 'off',
-      'id-length': 'off',
-
-      // TODO: re-enble most of these rules
-      'function-paren-newline': 'off',
-      'id-denylist': 'off',
-      'implicit-arrow-linebreak': 'off',
-      'import-x/no-anonymous-default-export': 'off',
-      'import-x/no-unassigned-import': 'off',
-      'lines-around-comment': 'off',
-      'no-async-promise-executor': 'off',
-      'no-case-declarations': 'off',
-      'no-invalid-this': 'off',
-      'no-negated-condition': 'off',
-      'no-new': 'off',
-      'no-param-reassign': 'off',
-      'no-restricted-syntax': 'off',
-      radix: 'off',
-      'require-atomic-updates': 'off',
-      'jsdoc/match-description': [
-        'off',
-        { matchDescription: '^[A-Z`\\d_][\\s\\S]*[.?!`>)}]$' },
-      ],
+      // TODO: Re-enable this rule
+      // Enabling it with error suppression breaks `--fix`, because the autofixer for this rule
+      // does not work very well.
+      'jsdoc/require-jsdoc': 'off',
     },
     settings: {
       jsdoc: {
@@ -67,10 +45,6 @@ const config = createConfig([
       'scripts/create-package/**/*.ts',
     ],
     extends: [nodejs],
-    rules: {
-      // TODO: Re-enable this
-      'n/no-sync': 'off',
-    },
   },
   {
     files: ['**/*.test.{js,ts}', '**/tests/**/*.{js,ts}'],
@@ -81,9 +55,6 @@ const config = createConfig([
       'jest/no-alias-methods': 'error',
       'jest/no-commented-out-tests': 'error',
       'jest/no-disabled-tests': 'error',
-
-      // TODO: Re-enable this rule
-      'jest/unbound-method': 'off',
     },
     settings: {
       node: {
@@ -119,14 +90,6 @@ const config = createConfig([
       },
     },
     rules: {
-      // These rules have been customized from their defaults.
-      '@typescript-eslint/switch-exhaustiveness-check': [
-        'error',
-        {
-          considerDefaultExhaustiveForUnions: true,
-        },
-      ],
-
       // TODO: Disable in `eslint-config-typescript`, tracked here: https://github.com/MetaMask/eslint-config/issues/413
       '@typescript-eslint/no-unnecessary-type-arguments': 'off',
 
@@ -141,22 +104,11 @@ const config = createConfig([
       // TODO: auto-fix breaks stuff
       '@typescript-eslint/promise-function-async': 'off',
 
-      // TODO: Re-enable this rule
-      // Enabling it with error suppression breaks `--fix`, because the autofixer for this rule
-      // does not work very well.
+      // TODO: Re-enable these rules
+      // Enabling them with error suppression breaks `--fix`, because the autofixer for these rules
+      // do not work very well.
       'jsdoc/check-tag-names': 'off',
-
-      // TODO: re-enable most of these rules
-      '@typescript-eslint/naming-convention': 'off',
-      '@typescript-eslint/no-unnecessary-type-assertion': 'off',
-      '@typescript-eslint/unbound-method': 'off',
-      '@typescript-eslint/prefer-enum-initializers': 'off',
-      '@typescript-eslint/prefer-nullish-coalescing': 'off',
-      '@typescript-eslint/prefer-optional-chain': 'off',
-      '@typescript-eslint/prefer-reduce-type-parameter': 'off',
-      'no-restricted-syntax': 'off',
-      'no-restricted-globals': 'off',
-      '@typescript-eslint/explicit-function-return-type': 'off',
+      'jsdoc/require-jsdoc': 'off',
     },
   },
   {

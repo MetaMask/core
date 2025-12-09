@@ -1,7 +1,5 @@
-import {
-  parseAccountGroupId,
-  type AccountGroupId,
-} from '@metamask/account-api';
+import { parseAccountGroupId } from '@metamask/account-api';
+import type { AccountGroupId } from '@metamask/account-api';
 import type { AccountTreeControllerState } from '@metamask/account-tree-controller';
 import type { AccountsControllerState } from '@metamask/accounts-controller';
 import { isEvmAccountType } from '@metamask/keyring-api';
@@ -142,9 +140,7 @@ function getEvmTokenBalances(
       const { chainId, tokenAddress, balance } = tokenBalance;
 
       const stakingContractAddress =
-        STAKING_CONTRACT_ADDRESS_BY_CHAINID[
-          chainId as keyof typeof STAKING_CONTRACT_ADDRESS_BY_CHAINID
-        ];
+        STAKING_CONTRACT_ADDRESS_BY_CHAINID[chainId];
       const isNative = tokenAddress === ZERO_ADDRESS;
       const isStakedNative = stakingContractAddress
         ? tokenAddress.toLowerCase() === stakingContractAddress.toLowerCase()
@@ -163,8 +159,8 @@ function getEvmTokenBalances(
       // Get market data
       const marketDataAddress =
         isNative || isStakedNative
-          ? getNativeTokenAddress(chainId as Hex)
-          : (tokenAddress as Hex);
+          ? getNativeTokenAddress(chainId)
+          : tokenAddress;
       const tokenMarketData =
         tokenRatesState?.marketData?.[chainId]?.[marketDataAddress];
       if (!tokenMarketData?.price) {
@@ -185,9 +181,7 @@ function getEvmTokenBalances(
         const accountTokens =
           tokensState?.allTokens?.[chainId]?.[account.address];
         const token = accountTokens?.find((t) => t.address === tokenAddress);
-        decimals = isNonNaNNumber(token?.decimals)
-          ? (token?.decimals as number)
-          : 18;
+        decimals = isNonNaNNumber(token?.decimals) ? token?.decimals : 18;
       }
       const decimalBalance = parseInt(balance, 16);
       if (!isNonNaNNumber(decimalBalance)) {

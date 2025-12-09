@@ -1,6 +1,7 @@
 import { query } from '@metamask/controller-utils';
 import type EthQuery from '@metamask/eth-query';
-import { remove0x, type Hex } from '@metamask/utils';
+import { remove0x } from '@metamask/utils';
+import type { Hex } from '@metamask/utils';
 import { cloneDeep } from 'lodash';
 
 import { DELEGATION_PREFIX } from './eip7702';
@@ -23,7 +24,8 @@ import type {
 } from '../api/simulation-api';
 import { simulateTransactions } from '../api/simulation-api';
 import type { TransactionControllerMessenger } from '../TransactionController';
-import { TransactionEnvelopeType, type TransactionMeta } from '../types';
+import { TransactionEnvelopeType } from '../types';
+import type { TransactionMeta } from '../types';
 import type {
   AuthorizationList,
   TransactionBatchSingleRequest,
@@ -97,7 +99,7 @@ const UPDATE_GAS_REQUEST_MOCK = {
  * @param value - The number to convert.
  * @returns The hex string.
  */
-function toHex(value: number) {
+function toHex(value: number): Hex {
   return `0x${value.toString(16)}`;
 }
 
@@ -140,7 +142,7 @@ describe('gas', () => {
     estimateGasOverridesResponse?: any;
     // eslint-disable-next-line @typescript-eslint/no-explicit-any
     estimateGasOverridesError?: any;
-  }) {
+  }): void {
     if (getCodeResponse !== undefined) {
       queryMock.mockResolvedValueOnce(getCodeResponse);
     }
@@ -165,7 +167,7 @@ describe('gas', () => {
   /**
    * Assert that estimateGas was not called.
    */
-  function expectEstimateGasNotCalled() {
+  function expectEstimateGasNotCalled(): void {
     expect(queryMock).not.toHaveBeenCalledWith(
       expect.anything(),
       'estimateGas',
@@ -643,7 +645,7 @@ describe('gas', () => {
         simulateTransactionsMock.mockResolvedValueOnce({
           transactions: [
             {
-              gasLimit: toHex(SIMULATE_GAS_MOCK) as Hex,
+              gasLimit: toHex(SIMULATE_GAS_MOCK),
             },
           ],
         } as SimulationResponse);
@@ -698,7 +700,7 @@ describe('gas', () => {
         simulateTransactionsMock.mockResolvedValueOnce({
           transactions: [
             {
-              gasLimit: toHex(SIMULATE_GAS_MOCK) as Hex,
+              gasLimit: toHex(SIMULATE_GAS_MOCK),
             },
           ],
         } as SimulationResponse);
@@ -734,7 +736,7 @@ describe('gas', () => {
         simulateTransactionsMock.mockResolvedValueOnce({
           transactions: [
             {
-              gasUsed: toHex(SIMULATE_GAS_MOCK) as Hex,
+              gasUsed: toHex(SIMULATE_GAS_MOCK),
             },
           ],
         } as SimulationResponse);
@@ -791,7 +793,7 @@ describe('gas', () => {
         simulateTransactionsMock.mockResolvedValueOnce({
           transactions: [
             {
-              gasUsed: toHex(SIMULATE_GAS_MOCK) as Hex,
+              gasUsed: toHex(SIMULATE_GAS_MOCK),
             },
           ],
         } as SimulationResponse);

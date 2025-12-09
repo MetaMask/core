@@ -1,4 +1,5 @@
-import { type Hex, KnownCaipNamespace } from '@metamask/utils';
+import { KnownCaipNamespace } from '@metamask/utils';
+import type { Hex } from '@metamask/utils';
 import nock from 'nock';
 import { useFakeTimers } from 'sinon';
 

@@ -26,7 +26,7 @@
   "metamask/bridge-status-controller": "team-swaps-and-bridge",
   "metamask/app-metadata-controller": "team-mobile-platform",
   "metamask/token-search-discovery-controller": "team-portfolio",
-  "metamask/delegation-controller": "team-predict",
+  "metamask/delegation-controller": "team-delegation",
   "metamask/chain-agnostic-permission": "team-wallet-integrations",
   "metamask/eip1193-permission-middleware": "team-wallet-integrations",
   "metamask/multichain-api-middleware": "team-wallet-integrations",
@@ -61,5 +61,6 @@
   "metamask/permission-controller": "team-wallet-integrations,team-core-platform",
   "metamask/permission-log-controller": "team-wallet-integrations,team-core-platform",
   "metamask/analytics-controller": "team-extension-platform,team-mobile-platform",
-  "metamask/remote-feature-flag-controller": "team-extension-platform,team-mobile-platform"
+  "metamask/remote-feature-flag-controller": "team-extension-platform,team-mobile-platform",
+  "metamask/storage-service": "team-extension-platform,team-mobile-platform"
 }

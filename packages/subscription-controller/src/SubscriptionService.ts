@@ -1,10 +1,7 @@
 import { handleFetch } from '@metamask/controller-utils';
 
-import {
-  getEnvUrls,
-  SubscriptionControllerErrorMessage,
-  type Env,
-} from './constants';
+import { getEnvUrls, SubscriptionControllerErrorMessage } from './constants';
+import type { Env } from './constants';
 import { SubscriptionServiceError } from './errors';
 import type {
   AssignCohortRequest,
@@ -25,6 +22,8 @@ import type {
   UpdatePaymentMethodCardResponse,
   UpdatePaymentMethodCryptoRequest,
   SubmitSponsorshipIntentsRequest,
+  LinkRewardsRequest,
+  SubscriptionApiGeneralResponse,
 } from './types';
 
 export type SubscriptionServiceConfig = {
@@ -173,6 +172,24 @@ export class SubscriptionService implements ISubscriptionService {
   ): Promise<void> {
     const path = 'transaction-sponsorship/intents';
     await this.#makeRequest(path, 'POST', request);
+  }
+
+  /**
+   * Link rewards to a subscription.
+   *
+   * @param request - Request object containing the reward account ID.
+   * @example { rewardAccountId: 'eip155:1:0x1234567890123456789012345678901234567890' }
+   * @returns The response from the API.
+   */
+  async linkRewards(
+    request: LinkRewardsRequest,
+  ): Promise<SubscriptionApiGeneralResponse> {
+    const path = 'rewards/link';
+    return await this.#makeRequest<SubscriptionApiGeneralResponse>(
+      path,
+      'POST',
+      request,
+    );
   }
 
   async #makeRequest<Result>(

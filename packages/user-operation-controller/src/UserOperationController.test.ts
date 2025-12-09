@@ -4,21 +4,21 @@ import { errorCodes } from '@metamask/rpc-errors';
 import {
   determineTransactionType,
   TransactionType,
-  type TransactionParams,
 } from '@metamask/transaction-controller';
+import type { TransactionParams } from '@metamask/transaction-controller';
 import { EventEmitter } from 'stream';
 
 import { ADDRESS_ZERO, EMPTY_BYTES, VALUE_ZERO } from './constants';
 import * as BundlerHelper from './helpers/Bundler';
 import * as PendingUserOperationTrackerHelper from './helpers/PendingUserOperationTracker';
 import { SnapSmartContractAccount } from './helpers/SnapSmartContractAccount';
+import { UserOperationStatus } from './types';
 import type { UserOperationMetadata } from './types';
-import {
-  UserOperationStatus,
-  type PrepareUserOperationResponse,
-  type SignUserOperationResponse,
-  type SmartContractAccount,
-  type UpdateUserOperationResponse,
+import type {
+  PrepareUserOperationResponse,
+  SignUserOperationResponse,
+  SmartContractAccount,
+  UpdateUserOperationResponse,
 } from './types';
 import type {
   AddUserOperationOptions,

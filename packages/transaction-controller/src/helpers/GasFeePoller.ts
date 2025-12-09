@@ -17,10 +17,7 @@ import type {
   GasFeeEstimates,
   GasFeeFlow,
   GasFeeFlowRequest,
-  GasPriceGasFeeEstimates,
-  FeeMarketGasFeeEstimates,
   Layer1GasFeeFlow,
-  LegacyGasFeeEstimates,
   TransactionMeta,
   TransactionParams,
   TransactionBatchMeta,
@@ -130,7 +127,7 @@ export class GasFeePoller {
     });
   }
 
-  #start() {
+  #start(): void {
     if (this.#running) {
       return;
     }
@@ -144,7 +141,7 @@ export class GasFeePoller {
     log('Started polling');
   }
 
-  #stop() {
+  #stop(): void {
     if (!this.#running) {
       return;
     }
@@ -157,7 +154,7 @@ export class GasFeePoller {
     log('Stopped polling');
   }
 
-  async #onTimeout() {
+  async #onTimeout(): Promise<void> {
     await this.#updateUnapprovedTransactions();
     await this.#updateUnapprovedTransactionBatches();
 
@@ -165,7 +162,7 @@ export class GasFeePoller {
     this.#timeout = setTimeout(() => this.#onTimeout(), INTERVAL_MILLISECONDS);
   }
 
-  async #updateUnapprovedTransactions() {
+  async #updateUnapprovedTransactions(): Promise<void> {
     const unapprovedTransactions = this.#getUnapprovedTransactions();
 
     if (!unapprovedTransactions.length) {
@@ -193,7 +190,7 @@ export class GasFeePoller {
     );
   }
 
-  async #updateUnapprovedTransactionBatches() {
+  async #updateUnapprovedTransactionBatches(): Promise<void> {
     const unapprovedTransactionBatches =
       this.#getUnapprovedTransactionBatches();
 
@@ -231,7 +228,7 @@ export class GasFeePoller {
   async #updateUnapprovedTransaction(
     transactionMeta: TransactionMeta,
     gasFeeControllerData: GasFeeState,
-  ) {
+  ): Promise<void> {
     const { id } = transactionMeta;
 
     const [gasFeeEstimatesResponse, layer1GasFee] = await Promise.all([
@@ -257,7 +254,7 @@ export class GasFeePoller {
   async #updateUnapprovedTransactionBatch(
     txBatchMeta: TransactionBatchMeta,
     gasFeeControllerData: GasFeeState,
-  ) {
+  ): Promise<void> {
     const { id } = txBatchMeta;
 
     const ethQuery = new EthQuery(
@@ -374,13 +371,13 @@ export class GasFeePoller {
     return layer1GasFee;
   }
 
-  #getUnapprovedTransactions() {
+  #getUnapprovedTransactions(): TransactionMeta[] {
     return this.#getTransactions().filter(
       (tx) => tx.status === TransactionStatus.unapproved,
     );
   }
 
-  #getUnapprovedTransactionBatches() {
+  #getUnapprovedTransactionBatches(): TransactionBatchMeta[] {
     return this.#getTransactionBatches().filter(
       (batch) => batch.status === TransactionStatus.unapproved,
     );
@@ -528,8 +525,7 @@ function updateGasFeeParameters(
   if (isEIP1559Compatible) {
     // Handle EIP-1559 compatible transactions
     if (gasEstimateType === GasFeeEstimateType.FeeMarket) {
-      const feeMarketGasFeeEstimates =
-        gasFeeEstimates as FeeMarketGasFeeEstimates;
+      const feeMarketGasFeeEstimates = gasFeeEstimates;
       txParams.maxFeePerGas =
         feeMarketGasFeeEstimates[userFeeLevel]?.maxFeePerGas;
       txParams.maxPriorityFeePerGas =
@@ -537,14 +533,13 @@ function updateGasFeeParameters(
     }
 
     if (gasEstimateType === GasFeeEstimateType.GasPrice) {
-      const gasPriceGasFeeEstimates =
-        gasFeeEstimates as GasPriceGasFeeEstimates;
+      const gasPriceGasFeeEstimates = gasFeeEstimates;
       txParams.maxFeePerGas = gasPriceGasFeeEstimates.gasPrice;
       txParams.maxPriorityFeePerGas = gasPriceGasFeeEstimates.gasPrice;
     }
 
     if (gasEstimateType === GasFeeEstimateType.Legacy) {
-      const legacyGasFeeEstimates = gasFeeEstimates as LegacyGasFeeEstimates;
+      const legacyGasFeeEstimates = gasFeeEstimates;
       const gasPrice = legacyGasFeeEstimates[userFeeLevel];
       txParams.maxFeePerGas = gasPrice;
       txParams.maxPriorityFeePerGas = gasPrice;
@@ -555,19 +550,17 @@ function updateGasFeeParameters(
   } else {
     // Handle non-EIP-1559 transactions
     if (gasEstimateType === GasFeeEstimateType.FeeMarket) {
-      const feeMarketGasFeeEstimates =
-        gasFeeEstimates as FeeMarketGasFeeEstimates;
+      const feeMarketGasFeeEstimates = gasFeeEstimates;
       txParams.gasPrice = feeMarketGasFeeEstimates[userFeeLevel]?.maxFeePerGas;
     }
 
     if (gasEstimateType === GasFeeEstimateType.GasPrice) {
-      const gasPriceGasFeeEstimates =
-        gasFeeEstimates as GasPriceGasFeeEstimates;
+      const gasPriceGasFeeEstimates = gasFeeEstimates;
       txParams.gasPrice = gasPriceGasFeeEstimates.gasPrice;
     }
 
     if (gasEstimateType === GasFeeEstimateType.Legacy) {
-      const legacyGasFeeEstimates = gasFeeEstimates as LegacyGasFeeEstimates;
+      const legacyGasFeeEstimates = gasFeeEstimates;
       txParams.gasPrice = legacyGasFeeEstimates[userFeeLevel];
     }
 

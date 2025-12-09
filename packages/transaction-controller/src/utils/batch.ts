@@ -31,15 +31,19 @@ import {
 } from './feature-flags';
 import { simulateGasBatch } from './gas';
 import { validateBatchRequest } from './validation';
-import type { GetSimulationConfig, TransactionControllerState } from '..';
 import {
   determineTransactionType,
   GasFeeEstimateLevel,
   TransactionStatus,
-  type BatchTransactionParams,
-  type TransactionController,
-  type TransactionControllerMessenger,
-  type TransactionMeta,
+} from '..';
+import type {
+  BatchTransactionParams,
+  GetSimulationConfig,
+  PublishBatchHookRequest,
+  TransactionController,
+  TransactionControllerMessenger,
+  TransactionControllerState,
+  TransactionMeta,
 } from '..';
 import { DefaultGasFeeFlow } from '../gas-flows/DefaultGasFeeFlow';
 import { updateTransactionGasEstimates } from '../helpers/GasFeePoller';
@@ -47,6 +51,7 @@ import type { PendingTransactionTracker } from '../helpers/PendingTransactionTra
 import { CollectPublishHook } from '../hooks/CollectPublishHook';
 import { SequentialPublishBatchHook } from '../hooks/SequentialPublishBatchHook';
 import { projectLogger } from '../logger';
+import { TransactionEnvelopeType, TransactionType } from '../types';
 import type {
   NestedTransactionMetadata,
   SecurityAlertResponse,
@@ -60,12 +65,7 @@ import type {
   IsAtomicBatchSupportedResultEntry,
   TransactionBatchMeta,
 } from '../types';
-import {
-  TransactionEnvelopeType,
-  type TransactionBatchResult,
-  type TransactionParams,
-  TransactionType,
-} from '../types';
+import type { TransactionBatchResult, TransactionParams } from '../types';
 
 type UpdateStateCallback = (
   callback: (
@@ -283,7 +283,7 @@ async function getNestedTransactionMeta(
  */
 async function addTransactionBatchWith7702(
   request: AddTransactionBatchRequest,
-) {
+): Promise<TransactionBatchResult> {
   const {
     addTransaction,
     getChainId,
@@ -299,6 +299,7 @@ async function addTransactionBatchWith7702(
     gasFeeToken,
     networkClientId,
     origin,
+    overwriteUpgrade,
     requireApproval,
     securityAlertId,
     skipInitialGasEstimate,
@@ -332,12 +333,18 @@ async function addTransactionBatchWith7702(
 
     log('Account', { delegationAddress, isSupported });
 
-    if (!isSupported && delegationAddress) {
+    if (!isSupported && delegationAddress && !overwriteUpgrade) {
       log('Account upgraded to unsupported contract', from, delegationAddress);
       throw rpcErrors.internal('Account upgraded to unsupported contract');
     }
 
     requiresUpgrade = !isSupported;
+
+    if (requiresUpgrade && delegationAddress) {
+      log('Overwriting authorization as already upgraded', {
+        current: delegationAddress,
+      });
+    }
   }
 
   const nestedTransactions = await Promise.all(
@@ -349,8 +356,10 @@ async function addTransactionBatchWith7702(
   const batchParams = generateEIP7702BatchTransaction(from, nestedTransactions);
 
   const txParams: TransactionParams = {
-    from,
     ...batchParams,
+    from,
+    maxFeePerGas: nestedTransactions[0]?.maxFeePerGas,
+    maxPriorityFeePerGas: nestedTransactions[0]?.maxPriorityFeePerGas,
   };
 
   if (requiresUpgrade) {
@@ -548,7 +557,11 @@ async function addTransactionBatchWithHook(
       signedTx: signedTransactions[i],
     }));
 
-    const hookParams = { from, networkClientId, transactions };
+    const hookParams: PublishBatchHookRequest = {
+      from,
+      networkClientId,
+      transactions,
+    };
 
     log('Calling publish batch hook', hookParams);
 
@@ -609,7 +622,9 @@ async function processTransactionWithHook(
   request: AddTransactionBatchRequest,
   txBatchMeta: TransactionBatchMeta | undefined,
   index: number,
-) {
+): Promise<
+  Omit<PublishBatchHookTransaction, 'signedTx'> & { type?: TransactionType }
+> {
   const { assetsFiatValues, existingTransaction, params, type } =
     nestedTransaction;
 
@@ -749,7 +764,7 @@ async function requestApproval(
     'ApprovalController:addRequest',
     {
       id,
-      origin: origin || ORIGIN_METAMASK,
+      origin: origin ?? ORIGIN_METAMASK,
       requestData,
       expectsResult: true,
       type,
@@ -767,7 +782,7 @@ async function requestApproval(
 function addBatchMetadata(
   transactionBatchMeta: TransactionBatchMeta,
   update: UpdateStateCallback,
-) {
+): void {
   update((state) => {
     state.transactionBatches = [
       ...state.transactionBatches,
@@ -929,7 +944,7 @@ async function convertTransactionToEIP7702({
   };
   nestedTransactions: NestedTransactionMetadata[];
   txParams: TransactionParams;
-}) {
+}): Promise<void> {
   const { getTransaction, estimateGas, updateTransaction } = request;
   const existingTransactionMeta = getTransaction(existingTransaction.id);
 

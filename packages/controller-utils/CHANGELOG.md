@@ -7,6 +7,10 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+### Added
+
+- Add `monad-testnet` to `InfuraNetworkType` ([#7067](https://github.com/MetaMask/core/pull/7067))
+
 ### Changed
 
 - Change network nicknames ([#7045](https://github.com/MetaMask/core/pull/7045))

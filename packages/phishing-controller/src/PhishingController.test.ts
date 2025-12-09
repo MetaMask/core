@@ -1,10 +1,9 @@
 import { deriveStateFromMetadata } from '@metamask/base-controller';
-import {
-  Messenger,
-  MOCK_ANY_NAMESPACE,
-  type MessengerActions,
-  type MessengerEvents,
-  type MockAnyNamespace,
+import { Messenger, MOCK_ANY_NAMESPACE } from '@metamask/messenger';
+import type {
+  MessengerActions,
+  MessengerEvents,
+  MockAnyNamespace,
 } from '@metamask/messenger';
 import { strict as assert } from 'assert';
 import nock, { cleanAll, isDone, pendingMocks } from 'nock';
@@ -16,16 +15,18 @@ import {
   METAMASK_STALELIST_FILE,
   PhishingController,
   PHISHING_CONFIG_BASE_URL,
-  type PhishingControllerOptions,
   CLIENT_SIDE_DETECION_BASE_URL,
   C2_DOMAIN_BLOCKLIST_ENDPOINT,
   PHISHING_DETECTION_BASE_URL,
   PHISHING_DETECTION_SCAN_ENDPOINT,
   PHISHING_DETECTION_BULK_SCAN_ENDPOINT,
-  type BulkPhishingDetectionScanResponse,
-  type PhishingControllerMessenger,
   SECURITY_ALERTS_BASE_URL,
   ADDRESS_SCAN_ENDPOINT,
+} from './PhishingController';
+import type {
+  PhishingControllerOptions,
+  BulkPhishingDetectionScanResponse,
+  PhishingControllerMessenger,
 } from './PhishingController';
 import {
   createMockStateChangePayload,

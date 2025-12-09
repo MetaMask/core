@@ -12,12 +12,11 @@ import {
   InfuraNetworkType,
   NetworkType,
 } from '@metamask/controller-utils';
-import {
-  MOCK_ANY_NAMESPACE,
-  Messenger,
-  type MockAnyNamespace,
-  type MessengerActions,
-  type MessengerEvents,
+import { MOCK_ANY_NAMESPACE, Messenger } from '@metamask/messenger';
+import type {
+  MockAnyNamespace,
+  MessengerActions,
+  MessengerEvents,
 } from '@metamask/messenger';
 import {
   NetworkController,
@@ -28,6 +27,7 @@ import type {
   NetworkControllerActions,
   NetworkControllerEvents,
   NetworkClientId,
+  NetworkControllerOptions,
 } from '@metamask/network-controller';
 import type { RemoteFeatureFlagControllerGetStateAction } from '@metamask/remote-feature-flag-controller';
 import assert from 'assert';
@@ -160,7 +160,13 @@ const setupController = async (
   } = {
     selectedAccount: createMockInternalAccount({ address: '0xdeadbeef' }),
   },
-) => {
+): Promise<{
+  approvalController: ApprovalController;
+  messenger: Messenger<MockAnyNamespace, AllActions, AllEvents>;
+  mockGetSelectedAccount: jest.Mock;
+  networkController: NetworkController;
+  transactionController: TransactionController;
+}> => {
   // Mainnet network must be mocked for NetworkController instantiation
   mockNetwork({
     networkClientConfiguration: buildInfuraNetworkClientConfiguration(
@@ -188,7 +194,9 @@ const setupController = async (
   const networkController = new NetworkController({
     messenger: networkControllerMessenger,
     infuraProjectId,
-    getRpcServiceOptions: () => ({
+    getRpcServiceOptions: (): ReturnType<
+      NetworkControllerOptions['getRpcServiceOptions']
+    > => ({
       fetch,
       btoa,
     }),
@@ -1181,7 +1189,7 @@ describe('TransactionController Integration', () => {
       ),
     ).rejects.toThrow(
       `Network client not found - ${
-        networkConfiguration.rpcEndpoints[0].networkClientId as string
+        networkConfiguration.rpcEndpoints[0].networkClientId
       }`,
     );
 
@@ -1294,9 +1302,9 @@ describe('TransactionController Integration', () => {
             ACCOUNT_MOCK,
             networkClientId,
           );
-          const delay = () =>
+          const delay = (): Promise<null> =>
             // TODO: Either fix this lint violation or explain why it's necessary to ignore.
-            // eslint-disable-next-line @typescript-eslint/no-misused-promises
+            // eslint-disable-next-line @typescript-eslint/no-misused-promises, no-async-promise-executor
             new Promise<null>(async (resolve) => {
               await advanceTime({ clock, duration: 100 });
               resolve(null);
@@ -1387,9 +1395,9 @@ describe('TransactionController Integration', () => {
         ACCOUNT_MOCK,
         otherSepoliaRpcEndpoint.networkClientId,
       );
-      const delay = () =>
+      const delay = (): Promise<null> =>
         // TODO: Either fix this lint violation or explain why it's necessary to ignore.
-        // eslint-disable-next-line @typescript-eslint/no-misused-promises
+        // eslint-disable-next-line @typescript-eslint/no-misused-promises, no-async-promise-executor
         new Promise<null>(async (resolve) => {
           await advanceTime({ clock, duration: 100 });
           resolve(null);

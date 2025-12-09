@@ -1,10 +1,9 @@
 import { deriveStateFromMetadata } from '@metamask/base-controller';
-import {
-  Messenger,
-  MOCK_ANY_NAMESPACE,
-  type MessengerActions,
-  type MessengerEvents,
-  type MockAnyNamespace,
+import { Messenger, MOCK_ANY_NAMESPACE } from '@metamask/messenger';
+import type {
+  MessengerActions,
+  MessengerEvents,
+  MockAnyNamespace,
 } from '@metamask/messenger';
 
 import type { AbstractClientConfigApiService } from './client-config-api-service/abstract-client-config-api-service';
@@ -47,6 +46,7 @@ const MOCK_FLAGS_WITH_THRESHOLD = {
 };
 
 const MOCK_METRICS_ID = 'f9e8d7c6-b5a4-4210-9876-543210fedcba';
+const MOCK_BASE_VERSION = '13.10.0';
 
 /**
  * Creates a controller instance with default parameters for testing
@@ -65,6 +65,7 @@ function createController(
     clientConfigApiService: AbstractClientConfigApiService;
     disabled: boolean;
     getMetaMetricsId: () => string;
+    clientVersion: string;
   }> = {},
 ) {
   return new RemoteFeatureFlagController({
@@ -74,6 +75,7 @@ function createController(
       options.clientConfigApiService ?? buildClientConfigApiService(),
     disabled: options.disabled,
     getMetaMetricsId: options.getMetaMetricsId ?? (() => MOCK_METRICS_ID),
+    clientVersion: options.clientVersion ?? MOCK_BASE_VERSION,
   });
 }
 
@@ -106,6 +108,38 @@ describe('RemoteFeatureFlagController', () => {
       const controller = createController({ state: customState });
 
       expect(controller.state).toStrictEqual(customState);
+    });
+
+    it('accepts valid 3-part SemVer clientVersion', () => {
+      expect(() =>
+        createController({ clientVersion: MOCK_BASE_VERSION }),
+      ).not.toThrow();
+      expect(() => createController({ clientVersion: '1.0.0' })).not.toThrow();
+      expect(() => createController({ clientVersion: '14.5.2' })).not.toThrow();
+    });
+
+    it('throws error for invalid clientVersion formats', () => {
+      expect(() => createController({ clientVersion: '13.10' })).toThrow(
+        'Invalid clientVersion: "13.10". Must be a valid 3-part SemVer version string',
+      );
+
+      expect(() => createController({ clientVersion: '13' })).toThrow(
+        'Invalid clientVersion: "13". Must be a valid 3-part SemVer version string',
+      );
+
+      expect(() => createController({ clientVersion: '13.10.0.1' })).toThrow(
+        'Invalid clientVersion: "13.10.0.1". Must be a valid 3-part SemVer version string',
+      );
+
+      expect(() =>
+        createController({ clientVersion: 'invalid-version' }),
+      ).toThrow(
+        'Invalid clientVersion: "invalid-version". Must be a valid 3-part SemVer version string',
+      );
+
+      expect(() => createController({ clientVersion: '' })).toThrow(
+        'Invalid clientVersion: "". Must be a valid 3-part SemVer version string',
+      );
     });
   });
 
@@ -336,6 +370,267 @@ describe('RemoteFeatureFlagController', () => {
       await controller.updateRemoteFeatureFlags();
       expect(controller.state.remoteFeatureFlags).toStrictEqual(MOCK_FLAGS);
       expect(controller.state.remoteFeatureFlags).toStrictEqual(MOCK_FLAGS);
+    });
+  });
+
+  describe('Multi-version feature flags', () => {
+    it('handles single version in versions array', async () => {
+      const mockApiService = buildClientConfigApiService();
+      const mockFlags = {
+        singleVersionInArray: {
+          versions: { '13.1.0': { x: '12' } },
+        },
+      };
+
+      jest.spyOn(mockApiService, 'fetchRemoteFeatureFlags').mockResolvedValue({
+        remoteFeatureFlags: mockFlags,
+        cacheTimestamp: Date.now(),
+      });
+
+      const controller = createController({
+        clientConfigApiService: mockApiService,
+        clientVersion: '13.2.0',
+      });
+
+      await controller.updateRemoteFeatureFlags();
+
+      const { singleVersionInArray } = controller.state.remoteFeatureFlags;
+      expect(singleVersionInArray).toStrictEqual({ x: '12' });
+    });
+
+    it('selects highest version when app version qualifies for multiple', async () => {
+      const mockApiService = buildClientConfigApiService();
+      const mockFlags = {
+        multiVersionFeature: {
+          versions: {
+            '13.2.0': { x: '13' },
+            '13.1.0': { x: '12' },
+            '13.0.5': { x: '11' },
+          },
+        },
+      };
+
+      jest.spyOn(mockApiService, 'fetchRemoteFeatureFlags').mockResolvedValue({
+        remoteFeatureFlags: mockFlags,
+        cacheTimestamp: Date.now(),
+      });
+
+      const controller = createController({
+        clientConfigApiService: mockApiService,
+        clientVersion: '13.2.5',
+      });
+
+      await controller.updateRemoteFeatureFlags();
+
+      const { multiVersionFeature } = controller.state.remoteFeatureFlags;
+      // Should get version 13.2.0 (highest version that 13.2.5 qualifies for)
+      expect(multiVersionFeature).toStrictEqual({ x: '13' });
+    });
+
+    it('selects appropriate version based on app version', async () => {
+      const mockApiService = buildClientConfigApiService();
+      const mockFlags = {
+        multiVersionFeature: {
+          versions: {
+            '13.2.0': { x: '13' },
+            '13.1.0': { x: '12' },
+            '13.0.5': { x: '11' },
+          },
+        },
+        regularFeature: true,
+      };
+
+      jest.spyOn(mockApiService, 'fetchRemoteFeatureFlags').mockResolvedValue({
+        remoteFeatureFlags: mockFlags,
+        cacheTimestamp: Date.now(),
+      });
+
+      const controller = createController({
+        clientConfigApiService: mockApiService,
+        clientVersion: '13.1.5',
+      });
+
+      await controller.updateRemoteFeatureFlags();
+
+      const { multiVersionFeature, regularFeature } =
+        controller.state.remoteFeatureFlags;
+      // Should get version 13.1.0 (highest version that 13.1.5 qualifies for)
+      expect(multiVersionFeature).toStrictEqual({ x: '12' });
+      expect(regularFeature).toBe(true);
+    });
+
+    it('excludes multi-version feature when no versions qualify', async () => {
+      const mockApiService = buildClientConfigApiService();
+      const mockFlags = {
+        multiVersionFeature: {
+          versions: {
+            '13.2.0': { x: '13' },
+            '13.1.0': { x: '12' },
+          },
+        },
+        regularFeature: true,
+      };
+
+      jest.spyOn(mockApiService, 'fetchRemoteFeatureFlags').mockResolvedValue({
+        remoteFeatureFlags: mockFlags,
+        cacheTimestamp: Date.now(),
+      });
+
+      const controller = createController({
+        clientConfigApiService: mockApiService,
+        clientVersion: '13.0.0',
+      });
+
+      await controller.updateRemoteFeatureFlags();
+
+      const { multiVersionFeature, regularFeature } =
+        controller.state.remoteFeatureFlags;
+      // Multi-version feature should be excluded (app version too low)
+      expect(multiVersionFeature).toBeUndefined();
+      // Regular feature should still be included
+      expect(regularFeature).toBe(true);
+    });
+
+    it('handles mixed regular and multi-version flags', async () => {
+      const mockApiService = buildClientConfigApiService();
+      const mockFlags = {
+        multiVersionFeature: {
+          versions: {
+            '13.2.0': { x: '13' },
+            '13.0.0': { x: '11' },
+          },
+        },
+        regularFeature: { enabled: true },
+        simpleFeature: true,
+      };
+
+      jest.spyOn(mockApiService, 'fetchRemoteFeatureFlags').mockResolvedValue({
+        remoteFeatureFlags: mockFlags,
+        cacheTimestamp: Date.now(),
+      });
+
+      const controller = createController({
+        clientConfigApiService: mockApiService,
+        clientVersion: '13.1.5',
+      });
+
+      await controller.updateRemoteFeatureFlags();
+
+      const { multiVersionFeature, regularFeature, simpleFeature } =
+        controller.state.remoteFeatureFlags;
+      expect(multiVersionFeature).toStrictEqual({ x: '11' });
+      expect(regularFeature).toStrictEqual({ enabled: true });
+      expect(simpleFeature).toBe(true);
+    });
+
+    it('excludes feature flags with invalid version structure and processes valid ones', async () => {
+      const mockApiService = buildClientConfigApiService();
+      const mockFlags = {
+        invalidVersionFlag: {
+          versions: 'not-an-object', // Invalid: versions should be an object
+        },
+        validVersionFlag: {
+          versions: {
+            '13.1.0': { x: '12' },
+            '13.2.0': { x: '13' },
+          },
+        },
+        validFlag: {
+          versions: { '13.1.0': { x: '14' } },
+        },
+        regularFeature: true,
+      };
+
+      jest.spyOn(mockApiService, 'fetchRemoteFeatureFlags').mockResolvedValue({
+        remoteFeatureFlags: mockFlags,
+        cacheTimestamp: Date.now(),
+      });
+
+      const controller = createController({
+        clientConfigApiService: mockApiService,
+        clientVersion: '13.2.0',
+      });
+
+      await controller.updateRemoteFeatureFlags();
+
+      const {
+        invalidVersionFlag,
+        validVersionFlag,
+        validFlag,
+        regularFeature,
+      } = controller.state.remoteFeatureFlags;
+      expect(invalidVersionFlag).toStrictEqual({
+        versions: 'not-an-object', // Should remain unprocessed
+      });
+      // Valid version flag should be processed and return highest eligible version
+      expect(validVersionFlag).toStrictEqual({ x: '13' });
+      // Valid version flag should be processed
+      expect(validFlag).toStrictEqual({ x: '14' });
+      // Regular flag should remain unchanged
+      expect(regularFeature).toBe(true);
+    });
+
+    it('combines multi-version flags with A/B testing (threshold-based scoped values)', async () => {
+      const mockApiService = buildClientConfigApiService();
+      const mockFlags = {
+        multiVersionABFlag: {
+          versions: {
+            '13.1.0': [
+              {
+                name: 'groupA',
+                scope: { type: 'threshold', value: 0.3 },
+                value: { feature: 'A', enabled: true },
+              },
+              {
+                name: 'groupB',
+                scope: { type: 'threshold', value: 0.7 },
+                value: { feature: 'B', enabled: false },
+              },
+              {
+                name: 'groupC',
+                scope: { type: 'threshold', value: 1.0 },
+                value: { feature: 'C', enabled: true },
+              },
+            ],
+            '13.2.0': [
+              {
+                name: 'newGroupA',
+                scope: { type: 'threshold', value: 0.5 },
+                value: { feature: 'NewA', enabled: false },
+              },
+              {
+                name: 'newGroupB',
+                scope: { type: 'threshold', value: 1.0 },
+                value: { feature: 'NewB', enabled: true },
+              },
+            ],
+          },
+        },
+        regularFlag: true,
+      };
+
+      jest.spyOn(mockApiService, 'fetchRemoteFeatureFlags').mockResolvedValue({
+        remoteFeatureFlags: mockFlags,
+        cacheTimestamp: Date.now(),
+      });
+
+      const controller = createController({
+        clientConfigApiService: mockApiService,
+        clientVersion: '13.1.5', // Qualifies for 13.1.0 version but not 13.2.0
+        getMetaMetricsId: () => MOCK_METRICS_ID, // This generates threshold > 0.7
+      });
+
+      await controller.updateRemoteFeatureFlags();
+
+      const { multiVersionABFlag, regularFlag } =
+        controller.state.remoteFeatureFlags;
+      // Should select 13.1.0 version and then apply A/B testing to that array
+      // With MOCK_METRICS_ID threshold, should select groupC (threshold 1.0)
+      expect(multiVersionABFlag).toStrictEqual({
+        name: 'groupC',
+        value: { feature: 'C', enabled: true },
+      });
+      expect(regularFlag).toBe(true);
     });
   });
 

@@ -12,7 +12,13 @@ import type { TransactionMeta } from '..';
  * @param ethQuery - EthQuery instance to use.
  * @returns Balance in both human-readable and raw format.
  */
-export async function getNativeBalance(address: Hex, ethQuery: EthQuery) {
+export async function getNativeBalance(
+  address: Hex,
+  ethQuery: EthQuery,
+): Promise<{
+  balanceHuman: string;
+  balanceRaw: string;
+}> {
   const balanceRawHex = (await query(ethQuery, 'getBalance', [
     address,
     'latest',

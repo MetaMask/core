@@ -2,17 +2,15 @@ import type { TypedTransaction } from '@ethereumjs/tx';
 import { TransactionFactory } from '@ethereumjs/tx';
 import { Contract } from '@ethersproject/contracts';
 import type { Provider } from '@metamask/network-controller';
-import { add0x, type Hex } from '@metamask/utils';
+import { add0x } from '@metamask/utils';
+import type { Hex } from '@metamask/utils';
 import BN from 'bn.js';
 
 import { OracleLayer1GasFeeFlow } from './OracleLayer1GasFeeFlow';
 import { CHAIN_IDS } from '../constants';
 import type { TransactionControllerMessenger } from '../TransactionController';
-import {
-  type Layer1GasFeeFlowRequest,
-  type TransactionMeta,
-  TransactionStatus,
-} from '../types';
+import { TransactionStatus } from '../types';
+import type { Layer1GasFeeFlowRequest, TransactionMeta } from '../types';
 import { bnFromHex, padHexToEvenLength } from '../utils/utils';
 
 jest.mock('@ethersproject/contracts', () => ({
@@ -52,9 +50,11 @@ const DEFAULT_GAS_PRICE_ORACLE_ADDRESS =
  * @param serializedBuffer - The buffer returned by the serialize method.
  * @returns The mock TypedTransaction object.
  */
-function createMockTypedTransaction(serializedBuffer: Buffer) {
+function createMockTypedTransaction(
+  serializedBuffer: Buffer,
+): jest.Mocked<TypedTransaction> {
   const instance = {
-    serialize: () => serializedBuffer,
+    serialize: (): Buffer => serializedBuffer,
     sign: jest.fn(),
   };
 
@@ -187,6 +187,7 @@ describe('OracleLayer1GasFeeFlow', () => {
         layer1Fee: LAYER_1_FEE_MOCK,
       });
 
+      // eslint-disable-next-line @typescript-eslint/unbound-method
       expect(typedTransactionMock.sign).toHaveBeenCalledTimes(1);
       expect(contractGetOperatorFeeMock).not.toHaveBeenCalled();
     });
@@ -235,6 +236,7 @@ describe('OracleLayer1GasFeeFlow', () => {
       expect(contractMock).toHaveBeenCalledTimes(1);
       const [oracleAddress] = contractMock.mock.calls[0];
       expect(oracleAddress).toBe(DEFAULT_GAS_PRICE_ORACLE_ADDRESS);
+      // eslint-disable-next-line @typescript-eslint/unbound-method
       expect(typedTransactionMock.sign).not.toHaveBeenCalled();
     });
 
@@ -264,7 +266,7 @@ describe('OracleLayer1GasFeeFlow', () => {
               .add(bnFromHex(OPERATOR_FEE_MOCK))
               .toString(16),
           ),
-        ) as Hex,
+        ),
       });
     });
 

@@ -810,7 +810,7 @@ describe('Token service', () => {
       const testMaxMarketCap = 1000000;
       nock(TOKEN_END_POINT_API)
         .get(
-          `/v3/tokens/trending?chainIds=${encodeURIComponent(testChainId)}&sortBy=${sortBy}&minLiquidity=${testMinLiquidity}&minVolume24hUsd=${testMinVolume24hUsd}&maxVolume24hUsd=${testMaxVolume24hUsd}&minMarketCap=${testMinMarketCap}&maxMarketCap=${testMaxMarketCap}`,
+          `/v3/tokens/trending?chainIds=${encodeURIComponent(testChainId)}&sort=${sortBy}&minLiquidity=${testMinLiquidity}&minVolume24hUsd=${testMinVolume24hUsd}&maxVolume24hUsd=${testMaxVolume24hUsd}&minMarketCap=${testMinMarketCap}&maxMarketCap=${testMaxMarketCap}`,
         )
         .reply(200, sampleTrendingTokens)
         .persist();

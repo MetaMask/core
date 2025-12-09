@@ -1,9 +1,9 @@
 import type { AccountsControllerGetSelectedAccountAction } from '@metamask/accounts-controller';
 import type { AddApprovalRequest } from '@metamask/approval-controller';
-import {
-  BaseController,
-  type ControllerGetStateAction,
-  type ControllerStateChangeEvent,
+import { BaseController } from '@metamask/base-controller';
+import type {
+  ControllerGetStateAction,
+  ControllerStateChangeEvent,
 } from '@metamask/base-controller';
 import {
   toChecksumHexAddress,
@@ -26,13 +26,14 @@ import type {
   PreferencesControllerStateChangeEvent,
   PreferencesState,
 } from '@metamask/preferences-controller';
-import { createDeferredPromise, type Hex } from '@metamask/utils';
+import { createDeferredPromise } from '@metamask/utils';
+import type { Hex } from '@metamask/utils';
 
 import { Source } from './constants';
-import {
-  type NftController,
-  type NftControllerState,
-  type NftMetadata,
+import type {
+  NftController,
+  NftControllerState,
+  NftMetadata,
 } from './NftController';
 import type { NetworkControllerFindNetworkClientIdByChainIdAction } from '../../network-controller/src/NetworkController';
 
@@ -72,6 +73,7 @@ const supportedNftDetectionNetworks: Set<Hex> = new Set([
   '0x1', // Mainnet
   '0xe708', // Linea Mainnet
   '0x531', // Sei
+  '0x8f', // Monad
 ]);
 
 /**

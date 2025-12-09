@@ -8,7 +8,8 @@ import type {
   ControllerGetStateAction,
   StateMetadata,
 } from '@metamask/base-controller';
-import { type CaipAssetType, isEvmAccountType } from '@metamask/keyring-api';
+import { isEvmAccountType } from '@metamask/keyring-api';
+import type { CaipAssetType } from '@metamask/keyring-api';
 import type {
   KeyringControllerLockEvent,
   KeyringControllerUnlockEvent,

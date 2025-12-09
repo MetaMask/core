@@ -15,12 +15,11 @@ import {
 } from '@metamask/keyring-api';
 import { KeyringTypes } from '@metamask/keyring-controller';
 import type { InternalAccount } from '@metamask/keyring-internal-api';
-import {
-  MOCK_ANY_NAMESPACE,
-  Messenger,
-  type MessengerActions,
-  type MessengerEvents,
-  type MockAnyNamespace,
+import { MOCK_ANY_NAMESPACE, Messenger } from '@metamask/messenger';
+import type {
+  MessengerActions,
+  MessengerEvents,
+  MockAnyNamespace,
 } from '@metamask/messenger';
 import type { NetworkClientId } from '@metamask/network-controller';
 import type { SnapControllerState } from '@metamask/snaps-controllers';
@@ -2386,7 +2385,7 @@ describe('AccountsController', () => {
           name: `${keyringTypeToName(keyringType)} 1`,
           id: 'mock-id',
           address: mockAddress1,
-          keyringType: keyringType as KeyringTypes,
+          keyringType,
           options: createMockInternalAccountOptions(0, keyringType, 0),
         }),
       ];

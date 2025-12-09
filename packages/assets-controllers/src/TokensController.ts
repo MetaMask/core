@@ -38,7 +38,8 @@ import type {
   Provider,
 } from '@metamask/network-controller';
 import { rpcErrors } from '@metamask/rpc-errors';
-import { isStrictHexString, type Hex } from '@metamask/utils';
+import { isStrictHexString } from '@metamask/utils';
+import type { Hex } from '@metamask/utils';
 import { Mutex } from 'async-mutex';
 import type { Patch } from 'immer';
 import { cloneDeep } from 'lodash';
@@ -518,13 +519,10 @@ export class TokensController extends BaseController<
       ...(allTokens[interactingChainId]?.[this.#getSelectedAccount().address] ||
         []),
       ...tokensToImport,
-    ].reduce(
-      (output, token) => {
-        output[toChecksumHexAddress(token.address)] = token;
-        return output;
-      },
-      {} as { [address: string]: Token },
-    );
+    ].reduce<{ [address: string]: Token }>((output, token) => {
+      output[toChecksumHexAddress(token.address)] = token;
+      return output;
+    }, {});
     try {
       tokensToImport.forEach((tokenToAdd) => {
         const { address, symbol, decimals, image, aggregators, name } =

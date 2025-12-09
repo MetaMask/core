@@ -17,7 +17,7 @@ export const mockNativeTokenStreamStorageEntry = (
   chainId: Hex,
 ): StoredGatorPermission<AccountSigner, NativeTokenStreamPermission> => ({
   permissionResponse: {
-    chainId: chainId as Hex,
+    chainId,
     address: '0xB68c70159E9892DdF5659ec42ff9BD2bbC23e778',
     signer: {
       type: 'account',
@@ -53,7 +53,7 @@ export const mockNativeTokenPeriodicStorageEntry = (
   chainId: Hex,
 ): StoredGatorPermission<AccountSigner, NativeTokenPeriodicPermission> => ({
   permissionResponse: {
-    chainId: chainId as Hex,
+    chainId,
     address: '0xB68c70159E9892DdF5659ec42ff9BD2bbC23e778',
     signer: {
       type: 'account',
@@ -88,7 +88,7 @@ export const mockErc20TokenStreamStorageEntry = (
   chainId: Hex,
 ): StoredGatorPermission<AccountSigner, Erc20TokenStreamPermission> => ({
   permissionResponse: {
-    chainId: chainId as Hex,
+    chainId,
     address: '0xB68c70159E9892DdF5659ec42ff9BD2bbC23e778',
     signer: {
       type: 'account',
@@ -125,7 +125,7 @@ export const mockErc20TokenPeriodicStorageEntry = (
   chainId: Hex,
 ): StoredGatorPermission<AccountSigner, Erc20TokenPeriodicPermission> => ({
   permissionResponse: {
-    chainId: chainId as Hex,
+    chainId,
     address: '0xB68c70159E9892DdF5659ec42ff9BD2bbC23e778',
     signer: {
       type: 'account',
@@ -162,7 +162,7 @@ export const mockCustomPermissionStorageEntry = (
   data: Record<string, unknown>,
 ): StoredGatorPermission<AccountSigner, CustomPermission> => ({
   permissionResponse: {
-    chainId: chainId as Hex,
+    chainId,
     address: '0xB68c70159E9892DdF5659ec42ff9BD2bbC23e778',
     signer: {
       type: 'account',

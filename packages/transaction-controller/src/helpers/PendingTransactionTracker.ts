@@ -53,12 +53,15 @@ type Events = {
 // Convert to a `type` in a future major version.
 // eslint-disable-next-line @typescript-eslint/consistent-type-definitions
 export interface PendingTransactionTrackerEventEmitter extends EventEmitter {
-  on<T extends keyof Events>(
-    eventName: T,
-    listener: (...args: Events[T]) => void,
+  on<EventName extends keyof Events>(
+    eventName: EventName,
+    listener: (...args: Events[EventName]) => void,
   ): this;
 
-  emit<T extends keyof Events>(eventName: T, ...args: Events[T]): boolean;
+  emit<EventName extends keyof Events>(
+    eventName: EventName,
+    ...args: Events[EventName]
+  ): boolean;
 }
 
 export class PendingTransactionTracker {
@@ -136,7 +139,7 @@ export class PendingTransactionTracker {
     this.#getEthQuery = getEthQuery;
     this.#getNetworkClientId = getNetworkClientId;
     this.#getTransactions = getTransactions;
-    this.#isResubmitEnabled = isResubmitEnabled ?? (() => true);
+    this.#isResubmitEnabled = isResubmitEnabled ?? ((): boolean => true);
     this.#listener = this.#onLatestBlock.bind(this);
     this.#getGlobalLock = getGlobalLock;
     this.#publishTransaction = publishTransaction;
@@ -152,7 +155,7 @@ export class PendingTransactionTracker {
     this.#beforeCheckPendingTransaction =
       hooks?.beforeCheckPendingTransaction ??
       /* istanbul ignore next */
-      (() => Promise.resolve(true));
+      ((): Promise<boolean> => Promise.resolve(true));
 
     this.#log = createModuleLogger(
       log,
@@ -160,7 +163,7 @@ export class PendingTransactionTracker {
     );
   }
 
-  startIfPendingTransactions = () => {
+  startIfPendingTransactions = (): void => {
     const pendingTransactions = this.#getPendingTransactions();
 
     if (pendingTransactions.length) {
@@ -191,7 +194,7 @@ export class PendingTransactionTracker {
    *
    * @param txMeta - The transaction to check
    */
-  async forceCheckTransaction(txMeta: TransactionMeta) {
+  async forceCheckTransaction(txMeta: TransactionMeta): Promise<void> {
     const releaseLock = await this.#getGlobalLock();
 
     try {
@@ -204,7 +207,7 @@ export class PendingTransactionTracker {
     }
   }
 
-  #start(pendingTransactions: TransactionMeta[]) {
+  #start(pendingTransactions: TransactionMeta[]): void {
     this.#transactionPoller.setPendingTransactions(pendingTransactions);
 
     if (this.#running) {
@@ -217,7 +220,7 @@ export class PendingTransactionTracker {
     this.#log('Started polling');
   }
 
-  stop() {
+  stop(): void {
     if (!this.#running) {
       return;
     }
@@ -228,7 +231,7 @@ export class PendingTransactionTracker {
     this.#log('Stopped polling');
   }
 
-  async #onLatestBlock(latestBlockNumber: string) {
+  async #onLatestBlock(latestBlockNumber: string): Promise<void> {
     const releaseLock = await this.#getGlobalLock();
 
     try {
@@ -248,7 +251,7 @@ export class PendingTransactionTracker {
     }
   }
 
-  async #checkTransactions() {
+  async #checkTransactions(): Promise<void> {
     this.#log('Checking transactions');
 
     const pendingTransactions: TransactionMeta[] = [
@@ -271,7 +274,7 @@ export class PendingTransactionTracker {
     );
   }
 
-  async #resubmitTransactions(latestBlockNumber: string) {
+  async #resubmitTransactions(latestBlockNumber: string): Promise<void> {
     if (!this.#isResubmitEnabled() || !this.#running) {
       return;
     }
@@ -298,8 +301,8 @@ export class PendingTransactionTracker {
       } catch (error: any) {
         /* istanbul ignore next */
         const errorMessage =
-          error.value?.message?.toLowerCase() ||
-          error.message?.toLowerCase() ||
+          error.value?.message?.toLowerCase() ??
+          error.message?.toLowerCase() ??
           String(error);
 
         if (this.#isKnownTransactionError(errorMessage)) {
@@ -316,7 +319,7 @@ export class PendingTransactionTracker {
     }
   }
 
-  #isKnownTransactionError(errorMessage: string) {
+  #isKnownTransactionError(errorMessage: string): boolean {
     return KNOWN_TRANSACTION_ERRORS.some((knownError) =>
       errorMessage.includes(knownError),
     );
@@ -325,7 +328,7 @@ export class PendingTransactionTracker {
   async #resubmitTransaction(
     txMeta: TransactionMeta,
     latestBlockNumber: string,
-  ) {
+  ): Promise<void> {
     if (!this.#isResubmitDue(txMeta, latestBlockNumber)) {
       return;
     }
@@ -363,7 +366,7 @@ export class PendingTransactionTracker {
       Number.parseInt(latestBlockNumber, 16) -
       Number.parseInt(firstRetryBlockNumber, 16);
 
-    const retryCount = txMeta.retryCount || 0;
+    const retryCount = txMeta.retryCount ?? 0;
 
     // Exponential backoff to limit retries at publishing
     // Capped at ~15 minutes between retries
@@ -375,13 +378,13 @@ export class PendingTransactionTracker {
     return blocksSinceFirstRetry >= requiredBlocksSinceFirstRetry;
   }
 
-  #cleanTransactionToForcePoll(transactionId: string) {
+  #cleanTransactionToForcePoll(transactionId: string): void {
     if (this.#transactionToForcePoll?.id === transactionId) {
       this.#transactionToForcePoll = undefined;
     }
   }
 
-  async #checkTransaction(txMeta: TransactionMeta) {
+  async #checkTransaction(txMeta: TransactionMeta): Promise<void> {
     const { hash, id, isIntentComplete } = txMeta;
 
     if (isIntentComplete) {
@@ -423,7 +426,7 @@ export class PendingTransactionTracker {
         return;
       }
 
-      const { blockNumber, blockHash } = receipt || {};
+      const { blockNumber, blockHash } = receipt ?? {};
 
       if (isSuccess && blockNumber && blockHash) {
         await this.#onTransactionConfirmed(txMeta, {
@@ -456,7 +459,7 @@ export class PendingTransactionTracker {
   async #onTransactionConfirmed(
     txMeta: TransactionMeta,
     receipt?: SuccessfulTransactionReceipt,
-  ) {
+  ): Promise<void> {
     const { id } = txMeta;
     const { blockHash } = receipt ?? {};
 
@@ -494,7 +497,7 @@ export class PendingTransactionTracker {
     this.hub.emit('transaction-confirmed', updatedTxMeta);
   }
 
-  async #isTransactionDropped(txMeta: TransactionMeta) {
+  async #isTransactionDropped(txMeta: TransactionMeta): Promise<boolean> {
     const {
       hash,
       id,
@@ -557,7 +560,11 @@ export class PendingTransactionTracker {
     );
   }
 
-  #warnTransaction(txMeta: TransactionMeta, error: string, message: string) {
+  #warnTransaction(
+    txMeta: TransactionMeta,
+    error: string,
+    message: string,
+  ): void {
     this.#updateTransaction(
       {
         ...txMeta,
@@ -567,19 +574,19 @@ export class PendingTransactionTracker {
     );
   }
 
-  #failTransaction(txMeta: TransactionMeta, error: Error) {
+  #failTransaction(txMeta: TransactionMeta, error: Error): void {
     this.#log('Transaction failed', txMeta.id, error);
     this.#cleanTransactionToForcePoll(txMeta.id);
     this.hub.emit('transaction-failed', txMeta, error);
   }
 
-  #dropTransaction(txMeta: TransactionMeta) {
+  #dropTransaction(txMeta: TransactionMeta): void {
     this.#log('Transaction dropped', txMeta.id);
     this.#cleanTransactionToForcePoll(txMeta.id);
     this.hub.emit('transaction-dropped', txMeta);
   }
 
-  #updateTransaction(txMeta: TransactionMeta, note: string) {
+  #updateTransaction(txMeta: TransactionMeta, note: string): void {
     this.hub.emit('transaction-updated', txMeta, note);
   }
 
