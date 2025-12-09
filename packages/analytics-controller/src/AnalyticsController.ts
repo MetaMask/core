@@ -65,8 +65,10 @@ export function getDefaultAnalyticsControllerState(): Omit<
 /**
  * The metadata for each property in {@link AnalyticsControllerState}.
  *
- * Note: `persist` is set to `false` for all fields because the platform
- * is responsible for persistence via the `stateChange` event listener.
+ * Note: `optedIn` is persisted by the controller (`persist: true`).
+ * `analyticsId` is persisted by the platform (`persist: false`) and provided
+ * via initial state. The platform should subscribe to `stateChange` events
+ * to persist any state changes.
  */
 const analyticsControllerMetadata = {
   optedIn: {
@@ -179,10 +181,9 @@ export type AnalyticsControllerOptions = {
  * messenger system to allow other controllers and components to track analytics events.
  * It delegates platform-specific implementation to an {@link AnalyticsPlatformAdapter}.
  *
- * Note: This controller does not persist state internally (`persist: false` in metadata).
- * The platform is responsible for:
- * - Providing the initial state (including a valid UUIDv4 analyticsId)
- * - Subscribing to `AnalyticsController:stateChange` event to persist changes
+ * Note: The controller persists `optedIn` internally. The `analyticsId` is persisted
+ * by the platform and must be provided via initial state. The platform should subscribe
+ * to `AnalyticsController:stateChange` events to persist any state changes.
  */
 export class AnalyticsController extends BaseController<
   'AnalyticsController',
