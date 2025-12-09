@@ -1331,7 +1331,6 @@ describe('TokenListController', () => {
       ).toMatchInlineSnapshot(`
         Object {
           "preventPollingOnNetworkRestart": false,
-          "tokensChainsCache": Object {},
         }
       `);
     });

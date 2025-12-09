@@ -11,6 +11,11 @@ import type {
   NetworkControllerGetNetworkClientByIdAction,
 } from '@metamask/network-controller';
 import { StaticIntervalPollingController } from '@metamask/polling-controller';
+import type {
+  StorageServiceSetItemAction,
+  StorageServiceGetItemAction,
+  StorageServiceRemoveItemAction,
+} from '@metamask/storage-service';
 import type { Hex } from '@metamask/utils';
 import { Mutex } from 'async-mutex';
 
@@ -65,7 +70,11 @@ export type GetTokenListState = ControllerGetStateAction<
 
 export type TokenListControllerActions = GetTokenListState;
 
-type AllowedActions = NetworkControllerGetNetworkClientByIdAction;
+type AllowedActions =
+  | NetworkControllerGetNetworkClientByIdAction
+  | StorageServiceSetItemAction
+  | StorageServiceGetItemAction
+  | StorageServiceRemoveItemAction;
 
 type AllowedEvents = NetworkControllerStateChangeEvent;
 
@@ -78,7 +87,7 @@ export type TokenListControllerMessenger = Messenger<
 const metadata: StateMetadata<TokenListState> = {
   tokensChainsCache: {
     includeInStateLogs: false,
-    persist: true,
+    persist: false, // Persisted separately via StorageService
     includeInDebugSnapshot: true,
     usedInUi: true,
   },
@@ -110,17 +119,20 @@ export class TokenListController extends StaticIntervalPollingController<TokenLi
   TokenListState,
   TokenListControllerMessenger
 > {
-  private readonly mutex = new Mutex();
+  readonly #mutex = new Mutex();
 
-  private intervalId?: ReturnType<typeof setTimeout>;
+  // Storage key for StorageService
+  static readonly #storageKey = 'tokensChainsCache';
 
-  private readonly intervalDelay: number;
+  #intervalId?: ReturnType<typeof setTimeout>;
 
-  private readonly cacheRefreshThreshold: number;
+  readonly #intervalDelay: number;
 
-  private chainId: Hex;
+  readonly #cacheRefreshThreshold: number;
 
-  private abortController: AbortController;
+  #chainId: Hex;
+
+  #abortController: AbortController;
 
   /**
    * Creates a TokenListController instance.
@@ -159,12 +171,27 @@ export class TokenListController extends StaticIntervalPollingController<TokenLi
       messenger,
       state: { ...getDefaultTokenListState(), ...state },
     });
-    this.intervalDelay = interval;
+
+    this.#intervalDelay = interval;
     this.setIntervalLength(interval);
-    this.cacheRefreshThreshold = cacheRefreshThreshold;
-    this.chainId = chainId;
+    this.#cacheRefreshThreshold = cacheRefreshThreshold;
+    this.#chainId = chainId;
     this.updatePreventPollingOnNetworkRestart(preventPollingOnNetworkRestart);
-    this.abortController = new AbortController();
+    this.#abortController = new AbortController();
+
+    // Load cache from StorageService on initialization and handle migration
+    this.#loadCacheFromStorage()
+      .then(() => {
+        // Migrate existing cache from state to StorageService if needed
+        return this.#migrateStateToStorage();
+      })
+      .catch((error) => {
+        console.error(
+          'TokenListController: Failed to load cache from storage:',
+          error,
+        );
+      });
+
     if (onNetworkStateChange) {
       // TODO: Either fix this lint violation or explain why it's necessary to ignore.
       // eslint-disable-next-line @typescript-eslint/no-misused-promises
@@ -184,24 +211,123 @@ export class TokenListController extends StaticIntervalPollingController<TokenLi
   }
 
   /**
+   * Load tokensChainsCache from StorageService into state.
+   * Called during initialization to restore cached data.
+   *
+   * @returns A promise that resolves when loading is complete.
+   */
+  async #loadCacheFromStorage(): Promise<void> {
+    try {
+      const { result, error } = await this.messenger.call(
+        'StorageService:getItem',
+        name,
+        TokenListController.#storageKey,
+      );
+
+      if (error) {
+        console.error(
+          'TokenListController: Error loading cache from storage:',
+          error,
+        );
+        return;
+      }
+
+      if (result) {
+        // Load from StorageService into state
+        this.update((state) => {
+          state.tokensChainsCache = result as TokensChainsCache;
+        });
+      }
+    } catch (error) {
+      console.error(
+        'TokenListController: Failed to load cache from storage:',
+        error,
+      );
+    }
+  }
+
+  /**
+   * Save tokensChainsCache from state to StorageService.
+   * This persists large token data outside of the persisted state.
+   *
+   * @returns A promise that resolves when saving is complete.
+   */
+  async #saveCacheToStorage(): Promise<void> {
+    try {
+      await this.messenger.call(
+        'StorageService:setItem',
+        name,
+        TokenListController.#storageKey,
+        this.state.tokensChainsCache,
+      );
+    } catch (error) {
+      console.error(
+        'TokenListController: Failed to save cache to storage:',
+        error,
+      );
+    }
+  }
+
+  /**
+   * Migrate tokensChainsCache from old persisted state to StorageService.
+   * This handles backward compatibility for users upgrading from versions
+   * where tokensChainsCache was persisted in state.
+   *
+   * @returns A promise that resolves when migration is complete.
+   */
+  async #migrateStateToStorage(): Promise<void> {
+    try {
+      // Check if state has data (from old persisted state)
+      const hasStateData =
+        this.state.tokensChainsCache &&
+        Object.keys(this.state.tokensChainsCache).length > 0;
+
+      if (!hasStateData) {
+        return;
+      }
+
+      // Check if StorageService already has data
+      const { result } = await this.messenger.call(
+        'StorageService:getItem',
+        name,
+        TokenListController.#storageKey,
+      );
+
+      // If StorageService is empty but state has data, migrate it
+      if (!result) {
+        await this.#saveCacheToStorage();
+      }
+    } catch (error) {
+      console.error(
+        'TokenListController: Failed to migrate cache to storage:',
+        error,
+      );
+    }
+  }
+
+  /**
    * Updates state and restarts polling on changes to the network controller
    * state.
    *
    * @param networkControllerState - The updated network controller state.
    */
-  async #onNetworkControllerStateChange(networkControllerState: NetworkState) {
+  async #onNetworkControllerStateChange(
+    networkControllerState: NetworkState,
+  ): Promise<void> {
     const selectedNetworkClient = this.messenger.call(
       'NetworkController:getNetworkClientById',
       networkControllerState.selectedNetworkClientId,
     );
     const { chainId } = selectedNetworkClient.configuration;
 
-    if (this.chainId !== chainId) {
-      this.abortController.abort();
-      this.abortController = new AbortController();
-      this.chainId = chainId;
+    if (this.#chainId !== chainId) {
+      this.#abortController.abort();
+      this.#abortController = new AbortController();
+      this.#chainId = chainId;
       if (this.state.preventPollingOnNetworkRestart) {
-        this.clearingTokenListData();
+        this.clearingTokenListData().catch((error) => {
+          console.error('Failed to clear token list data:', error);
+        });
       }
     }
   }
@@ -214,8 +340,8 @@ export class TokenListController extends StaticIntervalPollingController<TokenLi
    * @deprecated This method is deprecated and will be removed in the future.
    * Consider using the new polling approach instead
    */
-  async start() {
-    if (!isTokenListSupportedForNetwork(this.chainId)) {
+  async start(): Promise<void> {
+    if (!isTokenListSupportedForNetwork(this.#chainId)) {
       return;
     }
     await this.#startDeprecatedPolling();
@@ -227,8 +353,8 @@ export class TokenListController extends StaticIntervalPollingController<TokenLi
    * @deprecated This method is deprecated and will be removed in the future.
    * Consider using the new polling approach instead
    */
-  async restart() {
-    this.stopPolling();
+  async restart(): Promise<void> {
+    this.#stopPolling();
     await this.#startDeprecatedPolling();
   }
 
@@ -238,8 +364,8 @@ export class TokenListController extends StaticIntervalPollingController<TokenLi
    * @deprecated This method is deprecated and will be removed in the future.
    * Consider using the new polling approach instead
    */
-  stop() {
-    this.stopPolling();
+  stop(): void {
+    this.#stopPolling();
   }
 
   /**
@@ -248,9 +374,9 @@ export class TokenListController extends StaticIntervalPollingController<TokenLi
    * @deprecated This method is deprecated and will be removed in the future.
    * Consider using the new polling approach instead
    */
-  override destroy() {
+  override destroy(): void {
     super.destroy();
-    this.stopPolling();
+    this.#stopPolling();
   }
 
   /**
@@ -259,9 +385,9 @@ export class TokenListController extends StaticIntervalPollingController<TokenLi
    * @deprecated This method is deprecated and will be removed in the future.
    * Consider using the new polling approach instead
    */
-  private stopPolling() {
-    if (this.intervalId) {
-      clearInterval(this.intervalId);
+  #stopPolling(): void {
+    if (this.#intervalId) {
+      clearInterval(this.#intervalId);
     }
   }
 
@@ -273,12 +399,12 @@ export class TokenListController extends StaticIntervalPollingController<TokenLi
    */
   async #startDeprecatedPolling(): Promise<void> {
     // renaming this to avoid collision with base class
-    await safelyExecute(() => this.fetchTokenList(this.chainId));
+    await safelyExecute(() => this.fetchTokenList(this.#chainId));
     // TODO: Either fix this lint violation or explain why it's necessary to ignore.
     // eslint-disable-next-line @typescript-eslint/no-misused-promises
-    this.intervalId = setInterval(async () => {
-      await safelyExecute(() => this.fetchTokenList(this.chainId));
-    }, this.intervalDelay);
+    this.#intervalId = setInterval(async () => {
+      await safelyExecute(() => this.fetchTokenList(this.#chainId));
+    }, this.#intervalDelay);
   }
 
   /**
@@ -293,12 +419,13 @@ export class TokenListController extends StaticIntervalPollingController<TokenLi
   }
 
   /**
-   * Fetching token list from the Token Service API. This will fetch tokens across chains. It will update tokensChainsCache (scoped across chains), and also the tokenList (scoped for the selected chain)
+   * Fetching token list from the Token Service API. This will fetch tokens across chains.
+   * Updates state and persists to StorageService separately.
    *
    * @param chainId - The chainId of the current chain triggering the fetch.
    */
   async fetchTokenList(chainId: Hex): Promise<void> {
-    const releaseLock = await this.mutex.acquire();
+    const releaseLock = await this.#mutex.acquire();
     try {
       if (this.isCacheValid(chainId)) {
         return;
@@ -309,7 +436,7 @@ export class TokenListController extends StaticIntervalPollingController<TokenLi
         () =>
           fetchTokenListByChainId(
             chainId,
-            this.abortController.signal,
+            this.#abortController.signal,
           ) as Promise<TokenListToken[]>,
       );
 
@@ -328,22 +455,30 @@ export class TokenListController extends StaticIntervalPollingController<TokenLi
           };
         }
 
+        // Update state
+        const newDataCache: DataCache = {
+          data: tokenList,
+          timestamp: Date.now(),
+        };
         this.update((state) => {
-          const newDataCache: DataCache = { data: {}, timestamp: Date.now() };
-          state.tokensChainsCache[chainId] ??= newDataCache;
-          state.tokensChainsCache[chainId].data = tokenList;
-          state.tokensChainsCache[chainId].timestamp = Date.now();
+          state.tokensChainsCache[chainId] = newDataCache;
         });
+
+        // Persist to StorageService (async, non-blocking)
+        await this.#saveCacheToStorage();
         return;
       }
 
       // No response - fallback to previous state, or initialise empty
       if (!tokensFromAPI) {
+        const newDataCache: DataCache = { data: {}, timestamp: Date.now() };
         this.update((state) => {
-          const newDataCache: DataCache = { data: {}, timestamp: Date.now() };
           state.tokensChainsCache[chainId] ??= newDataCache;
           state.tokensChainsCache[chainId].timestamp = Date.now();
         });
+
+        // Persist to StorageService
+        await this.#saveCacheToStorage();
       }
     } finally {
       releaseLock();
@@ -355,20 +490,33 @@ export class TokenListController extends StaticIntervalPollingController<TokenLi
     const timestamp: number | undefined = tokensChainsCache[chainId]?.timestamp;
     const now = Date.now();
     return (
-      timestamp !== undefined && now - timestamp < this.cacheRefreshThreshold
+      timestamp !== undefined && now - timestamp < this.#cacheRefreshThreshold
     );
   }
 
   /**
    * Clearing tokenList and tokensChainsCache explicitly.
+   * This clears both state and StorageService data.
    */
-  clearingTokenListData(): void {
-    this.update(() => {
-      return {
-        ...this.state,
-        tokensChainsCache: {},
-      };
+  async clearingTokenListData(): Promise<void> {
+    // Clear state
+    this.update((state) => {
+      state.tokensChainsCache = {};
     });
+
+    // Clear from StorageService
+    try {
+      await this.messenger.call(
+        'StorageService:removeItem',
+        name,
+        TokenListController.#storageKey,
+      );
+    } catch (error) {
+      console.error(
+        'TokenListController: Failed to clear cache from storage:',
+        error,
+      );
+    }
   }
 
   /**

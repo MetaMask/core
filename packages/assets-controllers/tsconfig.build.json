@@ -18,6 +18,7 @@
     { "path": "../preferences-controller/tsconfig.build.json" },
     { "path": "../polling-controller/tsconfig.build.json" },
     { "path": "../permission-controller/tsconfig.build.json" },
+    { "path": "../storage-service/tsconfig.build.json" },
     { "path": "../transaction-controller/tsconfig.build.json" },
     { "path": "../phishing-controller/tsconfig.build.json" }
   ],
