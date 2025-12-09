@@ -23,7 +23,7 @@ describe('Feature Flags Utils', () => {
     getRemoteFeatureFlagControllerStateMock.mockReturnValue({
       cacheTimestamp: 0,
       remoteFeatureFlags: {},
-      abTestRawFlags: {},
+      rawProcessedRemoteFeatureFlags: {},
       localOverrides: {},
     });
   });
@@ -58,7 +58,7 @@ describe('Feature Flags Utils', () => {
             slippage: SLIPPAGE_MOCK,
           },
         },
-        abTestRawFlags: {},
+        rawProcessedRemoteFeatureFlags: {},
         localOverrides: {},
       });
 

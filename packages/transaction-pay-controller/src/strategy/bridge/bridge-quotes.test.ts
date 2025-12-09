@@ -130,7 +130,7 @@ describe('Bridge Quotes Utils', () => {
       remoteFeatureFlags: {
         confirmations_pay: getFeatureFlagsMock(),
       },
-      abTestRawFlags: {},
+      rawProcessedRemoteFeatureFlags: {},
       localOverrides: {},
     }));
 
@@ -1021,7 +1021,7 @@ describe('Bridge Quotes Utils', () => {
             },
           },
         },
-        abTestRawFlags: {},
+        rawProcessedRemoteFeatureFlags: {},
         localOverrides: {},
       });
 
@@ -1046,7 +1046,7 @@ describe('Bridge Quotes Utils', () => {
             refreshRate: 456000,
           },
         },
-        abTestRawFlags: {},
+        rawProcessedRemoteFeatureFlags: {},
         localOverrides: {},
       });
 
@@ -1070,7 +1070,7 @@ describe('Bridge Quotes Utils', () => {
             },
           },
         },
-        abTestRawFlags: {},
+        rawProcessedRemoteFeatureFlags: {},
         localOverrides: {},
       });
 
