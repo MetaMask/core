@@ -1,3 +1,4 @@
+/* eslint-disable @typescript-eslint/unbound-method */
 import { query } from '@metamask/controller-utils';
 import type EthQuery from '@metamask/eth-query';
 import type { BlockTracker } from '@metamask/network-controller';
@@ -45,9 +46,6 @@ jest.mock('./TransactionPoller');
 
 jest.mock('@metamask/controller-utils', () => ({
   query: jest.fn(),
-  // TODO: Replace `any` with type
-  // eslint-disable-next-line @typescript-eslint/no-explicit-any
-  safelyExecute: (fn: () => any) => fn(),
 }));
 
 /**
@@ -108,7 +106,7 @@ describe('PendingTransactionTracker', () => {
   async function onPoll(
     latestBlockNumber?: string,
     transactionsOnCheck?: TransactionMeta[],
-  ) {
+  ): Promise<void> {
     options.getTransactions.mockReturnValue([
       { ...TRANSACTION_SUBMITTED_MOCK },
     ]);
@@ -266,7 +264,7 @@ describe('PendingTransactionTracker', () => {
 
           pendingTransactionTracker = new PendingTransactionTracker({
             ...options,
-            getTransactions: () =>
+            getTransactions: (): TransactionMeta[] =>
               freeze([{ ...TRANSACTION_SUBMITTED_MOCK }], true),
           });
 
@@ -296,7 +294,7 @@ describe('PendingTransactionTracker', () => {
 
           pendingTransactionTracker = new PendingTransactionTracker({
             ...options,
-            getTransactions: () =>
+            getTransactions: (): TransactionMeta[] =>
               freeze([{ ...TRANSACTION_SUBMITTED_MOCK }], true),
           });
 
@@ -326,7 +324,7 @@ describe('PendingTransactionTracker', () => {
 
           pendingTransactionTracker = new PendingTransactionTracker({
             ...options,
-            getTransactions: () =>
+            getTransactions: (): TransactionMeta[] =>
               freeze([{ ...TRANSACTION_SUBMITTED_MOCK }], true),
           });
 
@@ -363,7 +361,8 @@ describe('PendingTransactionTracker', () => {
 
           pendingTransactionTracker = new PendingTransactionTracker({
             ...options,
-            getTransactions: () => freeze([transactionMetaMock], true),
+            getTransactions: (): TransactionMeta[] =>
+              freeze([transactionMetaMock], true),
           });
 
           pendingTransactionTracker.hub.addListener(
@@ -392,9 +391,11 @@ describe('PendingTransactionTracker', () => {
 
           pendingTransactionTracker = new PendingTransactionTracker({
             ...options,
-            getTransactions: () => freeze([transactionMetaMock], true),
+            getTransactions: (): TransactionMeta[] =>
+              freeze([transactionMetaMock], true),
             hooks: {
-              beforeCheckPendingTransaction: () => Promise.resolve(false),
+              beforeCheckPendingTransaction: (): Promise<boolean> =>
+                Promise.resolve(false),
             },
           });
 
@@ -413,7 +414,7 @@ describe('PendingTransactionTracker', () => {
 
           pendingTransactionTracker = new PendingTransactionTracker({
             ...options,
-            getTransactions: () =>
+            getTransactions: (): TransactionMeta[] =>
               freeze([{ ...TRANSACTION_SUBMITTED_MOCK }], true),
           });
 
@@ -450,7 +451,7 @@ describe('PendingTransactionTracker', () => {
 
           pendingTransactionTracker = new PendingTransactionTracker({
             ...options,
-            getTransactions: () =>
+            getTransactions: (): TransactionMeta[] =>
               freeze(
                 [confirmedTransactionMetaMock, submittedTransactionMetaMock],
                 true,
@@ -473,7 +474,7 @@ describe('PendingTransactionTracker', () => {
 
           pendingTransactionTracker = new PendingTransactionTracker({
             ...options,
-            getTransactions: () =>
+            getTransactions: (): TransactionMeta[] =>
               freeze([{ ...TRANSACTION_SUBMITTED_MOCK }], true),
           });
 
@@ -511,7 +512,7 @@ describe('PendingTransactionTracker', () => {
 
           pendingTransactionTracker = new PendingTransactionTracker({
             ...options,
-            getTransactions: () => [
+            getTransactions: (): TransactionMeta[] => [
               confirmedTransactionMetaMock,
               submittedTransactionMetaMock,
             ],
@@ -550,7 +551,7 @@ describe('PendingTransactionTracker', () => {
 
           pendingTransactionTracker = new PendingTransactionTracker({
             ...options,
-            getTransactions: () => [
+            getTransactions: (): TransactionMeta[] => [
               confirmedTransactionMetaMock,
               submittedTransactionMetaMock,
             ],
@@ -582,7 +583,7 @@ describe('PendingTransactionTracker', () => {
 
           pendingTransactionTracker = new PendingTransactionTracker({
             ...options,
-            getTransactions: () => [
+            getTransactions: (): TransactionMeta[] => [
               confirmedTransactionMetaMock,
               submittedTransactionMetaMock,
             ],
@@ -780,7 +781,7 @@ describe('PendingTransactionTracker', () => {
 
           pendingTransactionTracker = new PendingTransactionTracker({
             ...options,
-            getTransactions: () =>
+            getTransactions: (): TransactionMeta[] =>
               freeze([{ ...TRANSACTION_SUBMITTED_MOCK }], true),
           });
 
@@ -859,7 +860,8 @@ describe('PendingTransactionTracker', () => {
             ...options,
             getTransactions,
             hooks: {
-              beforeCheckPendingTransaction: () => Promise.resolve(false),
+              beforeCheckPendingTransaction: (): Promise<boolean> =>
+                Promise.resolve(false),
             },
           });
 
@@ -1127,7 +1129,7 @@ describe('PendingTransactionTracker', () => {
           pendingTransactionTracker = new PendingTransactionTracker({
             ...options,
             getTransactions,
-            isResubmitEnabled: () => false,
+            isResubmitEnabled: (): boolean => false,
           });
 
           queryMock.mockResolvedValueOnce(undefined);

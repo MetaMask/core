@@ -53,7 +53,10 @@ export async function getGasFeeTokens({
   publicKeyEIP7702,
   transactionMeta,
   getSimulationConfig,
-}: GetGasFeeTokensRequest) {
+}: GetGasFeeTokensRequest): Promise<{
+  gasFeeTokens: GasFeeToken[];
+  isGasFeeSponsored: boolean;
+}> {
   const { delegationAddress, txParams } = transactionMeta;
   const { authorizationList: authorizationListRequest } = txParams;
   const data = txParams.data as Hex;
@@ -139,7 +142,7 @@ export async function checkGasFeeTokenBeforePublish({
     transactionId: string,
     fn: (tx: TransactionMeta) => void,
   ) => void;
-}) {
+}): Promise<void> {
   const { isGasFeeTokenIgnoredIfBalance, selectedGasFeeToken } = transaction;
 
   if (!selectedGasFeeToken || !isGasFeeTokenIgnoredIfBalance) {
@@ -181,7 +184,8 @@ export async function checkGasFeeTokenBeforePublish({
 
   if (
     !gasFeeTokens?.some(
-      (t) => t.tokenAddress.toLowerCase() === selectedGasFeeToken.toLowerCase(),
+      (token) =>
+        token.tokenAddress.toLowerCase() === selectedGasFeeToken.toLowerCase(),
     )
   ) {
     throw new Error('Gas fee token not found and insufficient native balance');

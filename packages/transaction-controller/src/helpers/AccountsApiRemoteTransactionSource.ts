@@ -111,7 +111,7 @@ export class AccountsApiRemoteTransactionSource
   #filterTransactions(
     request: RemoteTransactionSourceRequest,
     transactions: TransactionMeta[],
-  ) {
+  ): TransactionMeta[] {
     const { address, includeTokenTransfers, updateTransactions } = request;
 
     let filteredTransactions = transactions;
