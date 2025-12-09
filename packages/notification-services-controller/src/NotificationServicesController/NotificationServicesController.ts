@@ -836,6 +836,7 @@ export default class NotificationServicesController extends BaseController<
         // User is re-subscribing (daily resub to get latest notifications)
         if (state.isNotificationServicesEnabled) {
           // Keep their existing preferences on re-subscribe
+          // No state updates needed - preserving user's current settings
         } else {
           // User is turning on notifications from a disabled state
           state.isNotificationServicesEnabled = true;
