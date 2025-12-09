@@ -7,11 +7,6 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
-### Uncategorized
-
-- chore: Re-enable `@typescript-eslint/prefer-reduce-type-parameter` ([#7317](https://github.com/MetaMask/core/pull/7317))
-- chore: Re-enable `@typescript-eslint/prefer-optional-chain` ([#7314](https://github.com/MetaMask/core/pull/7314))
-
 ### Added
 
 - Support for Monad in NFT assets-controllers, [#7254](https://github.com/MetaMask/core/pull/7254)

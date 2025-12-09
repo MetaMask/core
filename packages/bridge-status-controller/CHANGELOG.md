@@ -7,6 +7,8 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+## [64.1.0]
+
 ### Uncategorized
 
 - chore: Re-enable `@typescript-eslint/prefer-optional-chain` ([#7314](https://github.com/MetaMask/core/pull/7314))
@@ -823,7 +825,8 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 - Initial release ([#5317](https://github.com/MetaMask/core/pull/5317))
 
-[Unreleased]: https://github.com/MetaMask/core/compare/@metamask/bridge-status-controller@64.0.1...HEAD
+[Unreleased]: https://github.com/MetaMask/core/compare/@metamask/bridge-status-controller@64.1.0...HEAD
+[64.1.0]: https://github.com/MetaMask/core/compare/@metamask/bridge-status-controller@64.0.1...@metamask/bridge-status-controller@64.1.0
 [64.0.1]: https://github.com/MetaMask/core/compare/@metamask/bridge-status-controller@64.0.0...@metamask/bridge-status-controller@64.0.1
 [64.0.0]: https://github.com/MetaMask/core/compare/@metamask/bridge-status-controller@63.1.0...@metamask/bridge-status-controller@64.0.0
 [63.1.0]: https://github.com/MetaMask/core/compare/@metamask/bridge-status-controller@63.0.0...@metamask/bridge-status-controller@63.1.0
