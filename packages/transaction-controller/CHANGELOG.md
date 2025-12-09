@@ -7,6 +7,10 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+### Fixed
+
+- Fix `TransactionController:transactionApproved` event not to be triggered when there keyring throws during signing.
+
 ## [62.5.0]
 
 ### Changed
