@@ -264,9 +264,8 @@ describe('AnalyticsController', () => {
       controller.trackEvent(event);
 
       // With default (false), should track single combined event
-      const trackSpy = jest.spyOn(mockAdapter, 'track');
-      expect(trackSpy).toHaveBeenCalledTimes(1);
-      expect(trackSpy).toHaveBeenCalledWith(
+      expect(mockAdapter.track).toHaveBeenCalledTimes(1);
+      expect(mockAdapter.track).toHaveBeenCalledWith(
         'test_event',
         expect.objectContaining({
           prop: 'value',
@@ -409,9 +408,8 @@ describe('AnalyticsController', () => {
         platformAdapter: mockAdapter,
       });
 
-      const onSetupCompletedSpy = jest.spyOn(mockAdapter, 'onSetupCompleted');
-      expect(onSetupCompletedSpy).toHaveBeenCalledTimes(1);
-      expect(onSetupCompletedSpy).toHaveBeenCalledWith(
+      expect(mockAdapter.onSetupCompleted).toHaveBeenCalledTimes(1);
+      expect(mockAdapter.onSetupCompleted).toHaveBeenCalledWith(
         controller.state.analyticsId,
       );
     });
@@ -429,8 +427,7 @@ describe('AnalyticsController', () => {
       });
 
       // Verify onSetupCompleted was called synchronously
-      const onSetupCompletedSpy = jest.spyOn(mockAdapter, 'onSetupCompleted');
-      expect(onSetupCompletedSpy).toHaveBeenCalledTimes(1);
+      expect(mockAdapter.onSetupCompleted).toHaveBeenCalledTimes(1);
       expect(controller).toBeDefined();
       expect(controller.state.analyticsId).toBeDefined();
     });
@@ -458,8 +455,7 @@ describe('AnalyticsController', () => {
       });
 
       expect(controller).toBeDefined();
-      const onSetupCompletedSpy = jest.spyOn(mockAdapter, 'onSetupCompleted');
-      expect(onSetupCompletedSpy).toHaveBeenCalledTimes(1);
+      expect(mockAdapter.onSetupCompleted).toHaveBeenCalledTimes(1);
       expect(controller.state.analyticsId).toBeDefined();
     });
   });
@@ -560,8 +556,7 @@ describe('AnalyticsController', () => {
       const event = createTestEvent('test_event', { prop: 'value' });
       controller.trackEvent(event);
 
-      const trackSpy = jest.spyOn(mockAdapter, 'track');
-      expect(trackSpy).toHaveBeenCalledWith('test_event', {
+      expect(mockAdapter.track).toHaveBeenCalledWith('test_event', {
         prop: 'value',
       });
     });
@@ -579,8 +574,7 @@ describe('AnalyticsController', () => {
       const event = createTestEvent('test_event', {}, {}, true);
       controller.trackEvent(event);
 
-      const trackSpy = jest.spyOn(mockAdapter, 'track');
-      expect(trackSpy).toHaveBeenCalledWith('test_event');
+      expect(mockAdapter.track).toHaveBeenCalledWith('test_event');
     });
 
     it('tracks single combined event when isAnonymousEventsFeatureEnabled is disabled', async () => {
@@ -601,9 +595,8 @@ describe('AnalyticsController', () => {
       );
       controller.trackEvent(event);
 
-      const trackSpy = jest.spyOn(mockAdapter, 'track');
-      expect(trackSpy).toHaveBeenCalledTimes(1);
-      expect(trackSpy).toHaveBeenCalledWith('test_event', {
+      expect(mockAdapter.track).toHaveBeenCalledTimes(1);
+      expect(mockAdapter.track).toHaveBeenCalledWith('test_event', {
         prop: 'value',
         sensitive_prop: 'sensitive value',
         anonymous: true,
@@ -628,9 +621,8 @@ describe('AnalyticsController', () => {
       );
       controller.trackEvent(event);
 
-      const trackSpy = jest.spyOn(mockAdapter, 'track');
-      expect(trackSpy).toHaveBeenCalledTimes(1);
-      expect(trackSpy).toHaveBeenCalledWith('test_event', {
+      expect(mockAdapter.track).toHaveBeenCalledTimes(1);
+      expect(mockAdapter.track).toHaveBeenCalledWith('test_event', {
         sensitive_prop: 'sensitive value',
         anonymous: true,
       });
@@ -649,8 +641,7 @@ describe('AnalyticsController', () => {
       const event = createTestEvent('test_event', { prop: 'value' });
       controller.trackEvent(event);
 
-      const trackSpy = jest.spyOn(mockAdapter, 'track');
-      expect(trackSpy).not.toHaveBeenCalled();
+      expect(mockAdapter.track).not.toHaveBeenCalled();
     });
 
     describe('isAnonymousEventsFeatureEnabled enabled', () => {
@@ -672,12 +663,11 @@ describe('AnalyticsController', () => {
         );
         controller.trackEvent(event);
 
-        const trackSpy = jest.spyOn(mockAdapter, 'track');
-        expect(trackSpy).toHaveBeenCalledTimes(2);
-        expect(trackSpy).toHaveBeenNthCalledWith(1, 'test_event', {
+        expect(mockAdapter.track).toHaveBeenCalledTimes(2);
+        expect(mockAdapter.track).toHaveBeenNthCalledWith(1, 'test_event', {
           prop: 'value',
         });
-        expect(trackSpy).toHaveBeenNthCalledWith(2, 'test_event', {
+        expect(mockAdapter.track).toHaveBeenNthCalledWith(2, 'test_event', {
           prop: 'value',
           sensitive_prop: 'sensitive value',
           anonymous: true,
@@ -702,10 +692,9 @@ describe('AnalyticsController', () => {
         );
         controller.trackEvent(event);
 
-        const trackSpy = jest.spyOn(mockAdapter, 'track');
-        expect(trackSpy).toHaveBeenCalledTimes(2);
-        expect(trackSpy).toHaveBeenNthCalledWith(1, 'test_event', {});
-        expect(trackSpy).toHaveBeenNthCalledWith(2, 'test_event', {
+        expect(mockAdapter.track).toHaveBeenCalledTimes(2);
+        expect(mockAdapter.track).toHaveBeenNthCalledWith(1, 'test_event', {});
+        expect(mockAdapter.track).toHaveBeenNthCalledWith(2, 'test_event', {
           sensitive_prop: 'sensitive value',
           anonymous: true,
         });
@@ -725,9 +714,8 @@ describe('AnalyticsController', () => {
         const event = createTestEvent('test_event', { prop: 'value' });
         controller.trackEvent(event);
 
-        const trackSpy = jest.spyOn(mockAdapter, 'track');
-        expect(trackSpy).toHaveBeenCalledTimes(1);
-        expect(trackSpy).toHaveBeenCalledWith('test_event', {
+        expect(mockAdapter.track).toHaveBeenCalledTimes(1);
+        expect(mockAdapter.track).toHaveBeenCalledWith('test_event', {
           prop: 'value',
         });
       });
@@ -746,9 +734,8 @@ describe('AnalyticsController', () => {
         const event = createTestEvent('test_event', { prop: 'value' }, {});
         controller.trackEvent(event);
 
-        const trackSpy = jest.spyOn(mockAdapter, 'track');
-        expect(trackSpy).toHaveBeenCalledTimes(1);
-        expect(trackSpy).toHaveBeenCalledWith('test_event', {
+        expect(mockAdapter.track).toHaveBeenCalledTimes(1);
+        expect(mockAdapter.track).toHaveBeenCalledWith('test_event', {
           prop: 'value',
         });
       });
@@ -775,8 +762,7 @@ describe('AnalyticsController', () => {
       controller.identify(traits);
 
       expect(controller.state.analyticsId).toBe(analyticsId);
-      const identifySpy = jest.spyOn(mockAdapter, 'identify');
-      expect(identifySpy).toHaveBeenCalledWith(analyticsId, traits);
+      expect(mockAdapter.identify).toHaveBeenCalledWith(analyticsId, traits);
     });
 
     it('identifies user without traits', async () => {
@@ -792,8 +778,7 @@ describe('AnalyticsController', () => {
 
       controller.identify();
 
-      const identifySpy = jest.spyOn(mockAdapter, 'identify');
-      expect(identifySpy).toHaveBeenCalledWith(analyticsId, undefined);
+      expect(mockAdapter.identify).toHaveBeenCalledWith(analyticsId, undefined);
     });
 
     it('does not identify when disabled', async () => {
@@ -813,8 +798,7 @@ describe('AnalyticsController', () => {
 
       controller.identify(traits);
 
-      const identifySpy = jest.spyOn(mockAdapter, 'identify');
-      expect(identifySpy).not.toHaveBeenCalled();
+      expect(mockAdapter.identify).not.toHaveBeenCalled();
     });
   });
 
@@ -831,8 +815,7 @@ describe('AnalyticsController', () => {
 
       controller.trackView('home', { referrer: 'test' });
 
-      const viewSpy = jest.spyOn(mockAdapter, 'view');
-      expect(viewSpy).toHaveBeenCalledWith('home', {
+      expect(mockAdapter.view).toHaveBeenCalledWith('home', {
         referrer: 'test',
       });
     });
@@ -849,8 +832,7 @@ describe('AnalyticsController', () => {
 
       controller.trackView('home');
 
-      const viewSpy = jest.spyOn(mockAdapter, 'view');
-      expect(viewSpy).not.toHaveBeenCalled();
+      expect(mockAdapter.view).not.toHaveBeenCalled();
     });
   });
 
