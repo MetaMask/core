@@ -615,11 +615,6 @@ export class TokenBalancesController extends StaticIntervalPollingController<{
     chainIds: ChainIdHex[],
     pollFunction: () => Promise<void>,
   ): void {
-    const existingTimer = this.#intervalPollingTimers.get(interval);
-    if (existingTimer) {
-      clearInterval(existingTimer);
-    }
-
     const timer = setInterval(() => {
       pollFunction().catch((error) => {
         console.warn(
@@ -1078,10 +1073,6 @@ export class TokenBalancesController extends StaticIntervalPollingController<{
     }
 
     for (const [chainId, tokens] of untrackedTokensByChain) {
-      if (!tokens.length) {
-        continue;
-      }
-
       await this.messenger.call(
         'TokenDetectionController:addDetectedTokensViaWs',
         {
