@@ -208,11 +208,11 @@ describe('Bridge Selectors', () => {
         estimatedBaseFee: '50',
         medium: {
           suggestedMaxPriorityFeePerGas: '75',
-          suggestedMaxFeePerGas: '75.5',
+          suggestedMaxFeePerGas: '77',
         },
         high: {
           suggestedMaxPriorityFeePerGas: '100',
-          suggestedMaxFeePerGas: '100.5',
+          suggestedMaxFeePerGas: '102',
         },
       },
     } as unknown as BridgeAppState;
@@ -391,11 +391,11 @@ describe('Bridge Selectors', () => {
         estimatedBaseFee: '0',
         medium: {
           suggestedMaxPriorityFeePerGas: '.1',
-          suggestedMaxFeePerGas: '.15',
+          suggestedMaxFeePerGas: '.2',
         },
         high: {
           suggestedMaxPriorityFeePerGas: '.1',
-          suggestedMaxFeePerGas: '.15',
+          suggestedMaxFeePerGas: '.2',
         },
       },
     } as unknown as BridgeAppState;
@@ -565,9 +565,9 @@ describe('Bridge Selectors', () => {
                 "valueInCurrency": "0.00446386226",
               },
               "max": Object {
-                "amount": "0.0000121305",
-                "usd": "0.00782562816",
-                "valueInCurrency": "0.00669579339",
+                "amount": "0.000016174",
+                "usd": "0.01043417088",
+                "valueInCurrency": "0.00892772452",
               },
               "total": Object {
                 "amount": "0.000008087",
@@ -593,9 +593,9 @@ describe('Bridge Selectors', () => {
               "valueInCurrency": "9.000000000000000000254299423511757231474",
             },
             "totalMaxNetworkFee": Object {
-              "amount": "0.0000121305",
-              "usd": "0.00782562816",
-              "valueInCurrency": "0.00669579339",
+              "amount": "0.000016174",
+              "usd": "0.01043417088",
+              "valueInCurrency": "0.00892772452",
             },
             "totalNetworkFee": Object {
               "amount": "0.000008087",
@@ -648,9 +648,9 @@ describe('Bridge Selectors', () => {
                 "valueInCurrency": "0.00446386226",
               },
               "max": Object {
-                "amount": "0.0000121305",
-                "usd": "0.00782562816",
-                "valueInCurrency": "0.00669579339",
+                "amount": "0.000016174",
+                "usd": "0.01043417088",
+                "valueInCurrency": "0.00892772452",
               },
               "total": Object {
                 "amount": "0.000008087",
@@ -676,9 +676,9 @@ describe('Bridge Selectors', () => {
               "valueInCurrency": "9.00000000000000008538",
             },
             "totalMaxNetworkFee": Object {
-              "amount": "0.0000121305",
-              "usd": "0.00782562816",
-              "valueInCurrency": "0.00669579339",
+              "amount": "0.000016174",
+              "usd": "0.01043417088",
+              "valueInCurrency": "0.00892772452",
             },
             "totalNetworkFee": Object {
               "amount": "0.000008087",
@@ -740,9 +740,9 @@ describe('Bridge Selectors', () => {
                 "valueInCurrency": "0.00446386226",
               },
               "max": Object {
-                "amount": "0.0000121305",
-                "usd": "0.00782562816",
-                "valueInCurrency": "0.00669579339",
+                "amount": "0.000016174",
+                "usd": "0.01043417088",
+                "valueInCurrency": "0.00892772452",
               },
               "total": Object {
                 "amount": "0.000008087",
@@ -772,9 +772,9 @@ describe('Bridge Selectors', () => {
               "valueInCurrency": "9.00000000000000008538",
             },
             "totalMaxNetworkFee": Object {
-              "amount": "0.0000121305",
-              "usd": "0.00782562816",
-              "valueInCurrency": "0.00669579339",
+              "amount": "0.000016174",
+              "usd": "0.01043417088",
+              "valueInCurrency": "0.00892772452",
             },
             "totalNetworkFee": Object {
               "amount": "0.000008087",
@@ -836,9 +836,9 @@ describe('Bridge Selectors', () => {
                 "valueInCurrency": "0.00446386226",
               },
               "max": Object {
-                "amount": "0.0000121305",
-                "usd": "0.00782562816",
-                "valueInCurrency": "0.00669579339",
+                "amount": "0.000016174",
+                "usd": "0.01043417088",
+                "valueInCurrency": "0.00892772452",
               },
               "total": Object {
                 "amount": "0.000008087",
@@ -868,9 +868,9 @@ describe('Bridge Selectors', () => {
               "valueInCurrency": "9.00000000000000008538",
             },
             "totalMaxNetworkFee": Object {
-              "amount": "0.0000121305",
-              "usd": "0.00782562816",
-              "valueInCurrency": "0.00669579339",
+              "amount": "0.000016174",
+              "usd": "0.01043417088",
+              "valueInCurrency": "0.00892772452",
             },
             "totalNetworkFee": Object {
               "amount": "0.000008087",
@@ -934,9 +934,9 @@ describe('Bridge Selectors', () => {
                 "valueInCurrency": "0.00446386226",
               },
               "max": Object {
-                "amount": "0.0000121305",
-                "usd": "0.00782562816",
-                "valueInCurrency": "0.00669579339",
+                "amount": "0.000016174",
+                "usd": "0.01043417088",
+                "valueInCurrency": "0.00892772452",
               },
               "total": Object {
                 "amount": "0.000008087",
@@ -966,9 +966,9 @@ describe('Bridge Selectors', () => {
               "valueInCurrency": "8.999999999999999949780980627632791914",
             },
             "totalMaxNetworkFee": Object {
-              "amount": "0.0000121305",
-              "usd": "0.00782562816",
-              "valueInCurrency": "0.00669579339",
+              "amount": "0.000016174",
+              "usd": "0.01043417088",
+              "valueInCurrency": "0.00892772452",
             },
             "totalNetworkFee": Object {
               "amount": "0.000008087",
