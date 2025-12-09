@@ -23,10 +23,11 @@ describe('analyticsControllerStateValidator', () => {
       ['550e8400-e29b-41d4-a716'],
       ['c232ab00-9414-11e8-8eb2-f2801f1b9fd1'],
     ])('throws error for invalid input: %s', (analyticsId) => {
-      const state = {
+      const state: AnalyticsControllerState = {
         optedIn: false,
+        // @ts-expect-error Invalid input.
         analyticsId,
-      } as unknown as AnalyticsControllerState;
+      };
 
       expect(() => validateAnalyticsControllerState(state)).toThrow(
         'Invalid analyticsId',

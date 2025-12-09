@@ -20,7 +20,7 @@ import { isValidUUIDv4 } from './analyticsControllerStateValidator';
 type SetupControllerOptions = {
   state: AnalyticsControllerState;
   platformAdapter?: AnalyticsPlatformAdapter;
-  anonymousEventsFeature?: boolean;
+  isAnonymousEventsFeatureEnabled?: boolean;
 };
 
 type SetupControllerReturn = {
@@ -34,13 +34,13 @@ type SetupControllerReturn = {
  * @param options - Controller options
  * @param options.state - Controller state (analyticsId required)
  * @param options.platformAdapter - Optional platform adapter
- * @param options.anonymousEventsFeature - Optional anonymous events feature flag (default: false)
+ * @param options.isAnonymousEventsFeatureEnabled - Optional anonymous events feature flag (default: false)
  * @returns The controller and messenger
  */
 async function setupController(
   options: SetupControllerOptions,
 ): Promise<SetupControllerReturn> {
-  const { state, platformAdapter, anonymousEventsFeature = false } = options;
+  const { state, platformAdapter, isAnonymousEventsFeatureEnabled = false } = options;
 
   const adapter =
     platformAdapter ??
@@ -71,7 +71,7 @@ async function setupController(
     messenger: analyticsControllerMessenger,
     platformAdapter: adapter,
     state,
-    anonymousEventsFeature,
+    isAnonymousEventsFeatureEnabled,
   });
 
   controller.init();
@@ -221,7 +221,7 @@ describe('AnalyticsController', () => {
       expect(controller1.state.analyticsId).toBe(controller2.state.analyticsId);
     });
 
-    it('uses default anonymousEventsFeature value when not provided', async () => {
+    it('uses default isAnonymousEventsFeatureEnabled value when not provided', async () => {
       const mockAdapter = createMockAdapter();
       const analyticsId = '11111111-1111-4111-8111-111111111111';
 
@@ -241,7 +241,7 @@ describe('AnalyticsController', () => {
         parent: rootMessenger,
       });
 
-      // Create controller without anonymousEventsFeature to test default value
+      // Create controller without isAnonymousEventsFeatureEnabled to test default value
       const controller = new AnalyticsController({
         messenger,
         platformAdapter: mockAdapter,
@@ -250,7 +250,7 @@ describe('AnalyticsController', () => {
           analyticsId,
           optedIn: true, // Enable tracking for this test
         },
-        // anonymousEventsFeature not provided - should default to false
+        // isAnonymousEventsFeatureEnabled not provided - should default to false
       });
 
       controller.init();
@@ -303,7 +303,7 @@ describe('AnalyticsController', () => {
           state: {
             optedIn: false,
           } as AnalyticsControllerState,
-          anonymousEventsFeature: false,
+          isAnonymousEventsFeatureEnabled: false,
         });
       }).toThrow('Invalid analyticsId');
     });
@@ -336,7 +336,7 @@ describe('AnalyticsController', () => {
             optedIn: false,
             analyticsId: 'not-a-valid-uuid',
           },
-          anonymousEventsFeature: false,
+          isAnonymousEventsFeatureEnabled: false,
         });
       }).toThrow('Invalid analyticsId');
     });
@@ -369,7 +369,7 @@ describe('AnalyticsController', () => {
             optedIn: false,
             analyticsId: '',
           },
-          anonymousEventsFeature: false,
+          isAnonymousEventsFeatureEnabled: false,
         });
       }).toThrow('Invalid analyticsId');
     });
@@ -492,7 +492,7 @@ describe('AnalyticsController', () => {
           ...getDefaultAnalyticsControllerState(),
           analyticsId,
         },
-        anonymousEventsFeature: false,
+        isAnonymousEventsFeatureEnabled: false,
       });
 
       const onSetupCompletedSpy = jest.spyOn(mockAdapter, 'onSetupCompleted');
@@ -504,7 +504,7 @@ describe('AnalyticsController', () => {
       expect(onSetupCompletedSpy).toHaveBeenCalledWith(analyticsId);
     });
 
-    it('throws error if called multiple times', async () => {
+    it('returns early if called multiple times', async () => {
       const mockAdapter = createMockAdapter();
       const analyticsId = '22222222-2222-4222-9222-222222222222';
 
@@ -531,14 +531,18 @@ describe('AnalyticsController', () => {
           ...getDefaultAnalyticsControllerState(),
           analyticsId,
         },
-        anonymousEventsFeature: false,
+        isAnonymousEventsFeatureEnabled: false,
       });
 
-      controller.init();
+      const onSetupCompletedSpy = jest.spyOn(mockAdapter, 'onSetupCompleted');
 
-      expect(() => controller.init()).toThrow(
-        'AnalyticsController already initialized.',
-      );
+      controller.init();
+      expect(onSetupCompletedSpy).toHaveBeenCalledTimes(1);
+      expect(onSetupCompletedSpy).toHaveBeenCalledWith(analyticsId);
+
+      // Calling init() again should not throw and should not call onSetupCompleted again
+      expect(() => controller.init()).not.toThrow();
+      expect(onSetupCompletedSpy).toHaveBeenCalledTimes(1);
     });
   });
 
@@ -579,7 +583,7 @@ describe('AnalyticsController', () => {
       expect(trackSpy).toHaveBeenCalledWith('test_event');
     });
 
-    it('tracks single combined event when anonymousEventsFeature is disabled', async () => {
+    it('tracks single combined event when isAnonymousEventsFeatureEnabled is disabled', async () => {
       const mockAdapter = createMockAdapter();
       const { controller } = await setupController({
         state: {
@@ -587,7 +591,7 @@ describe('AnalyticsController', () => {
           analyticsId: '99999999-9999-4999-9999-999999999999',
         },
         platformAdapter: mockAdapter,
-        anonymousEventsFeature: false,
+        isAnonymousEventsFeatureEnabled: false,
       });
 
       const event = createTestEvent(
@@ -606,7 +610,7 @@ describe('AnalyticsController', () => {
       });
     });
 
-    it('tracks single combined event when anonymousEventsFeature is disabled and only sensitiveProperties are present', async () => {
+    it('tracks single combined event when isAnonymousEventsFeatureEnabled is disabled and only sensitiveProperties are present', async () => {
       const mockAdapter = createMockAdapter();
       const { controller } = await setupController({
         state: {
@@ -614,7 +618,7 @@ describe('AnalyticsController', () => {
           analyticsId: 'aaaaaaaa-aaaa-4aaa-aaaa-aaaaaaaaaaaa',
         },
         platformAdapter: mockAdapter,
-        anonymousEventsFeature: false,
+        isAnonymousEventsFeatureEnabled: false,
       });
 
       const event = createTestEvent(
@@ -649,7 +653,7 @@ describe('AnalyticsController', () => {
       expect(trackSpy).not.toHaveBeenCalled();
     });
 
-    describe('anonymousEventsFeature enabled', () => {
+    describe('isAnonymousEventsFeatureEnabled enabled', () => {
       it('tracks regular properties first, then combined event when both regular and sensitive properties are present', async () => {
         const mockAdapter = createMockAdapter();
         const { controller } = await setupController({
@@ -658,7 +662,7 @@ describe('AnalyticsController', () => {
             analyticsId: '11111111-1111-4111-8111-111111111111',
           },
           platformAdapter: mockAdapter,
-          anonymousEventsFeature: true,
+          isAnonymousEventsFeatureEnabled: true,
         });
 
         const event = createTestEvent(
@@ -688,7 +692,7 @@ describe('AnalyticsController', () => {
             analyticsId: '22222222-2222-4222-9222-222222222222',
           },
           platformAdapter: mockAdapter,
-          anonymousEventsFeature: true,
+          isAnonymousEventsFeatureEnabled: true,
         });
 
         const event = createTestEvent(
@@ -715,7 +719,7 @@ describe('AnalyticsController', () => {
             analyticsId: '33333333-3333-4333-a333-333333333333',
           },
           platformAdapter: mockAdapter,
-          anonymousEventsFeature: true,
+          isAnonymousEventsFeatureEnabled: true,
         });
 
         const event = createTestEvent('test_event', { prop: 'value' });
@@ -736,7 +740,7 @@ describe('AnalyticsController', () => {
             analyticsId: '44444444-4444-4444-8444-444444444444',
           },
           platformAdapter: mockAdapter,
-          anonymousEventsFeature: true,
+          isAnonymousEventsFeatureEnabled: true,
         });
 
         const event = createTestEvent('test_event', { prop: 'value' }, {});

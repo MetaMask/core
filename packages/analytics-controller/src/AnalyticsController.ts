@@ -8,7 +8,7 @@ import type { Messenger } from '@metamask/messenger';
 
 import type { AnalyticsControllerMethodActions } from './AnalyticsController-method-action-types';
 import { validateAnalyticsControllerState } from './analyticsControllerStateValidator';
-import { projectLogger } from './AnalyticsLogger';
+import { projectLogger as log } from './AnalyticsLogger';
 import type {
   AnalyticsPlatformAdapter,
   AnalyticsEventProperties,
@@ -166,7 +166,7 @@ export type AnalyticsControllerOptions = {
    *
    * @default false
    */
-  anonymousEventsFeature?: boolean;
+  isAnonymousEventsFeatureEnabled?: boolean;
 };
 
 /**
@@ -191,7 +191,7 @@ export class AnalyticsController extends BaseController<
 > {
   readonly #platformAdapter: AnalyticsPlatformAdapter;
 
-  readonly #anonymousEventsFeature: boolean;
+  readonly #isAnonymousEventsFeatureEnabled: boolean;
 
   #initialized: boolean;
 
@@ -203,7 +203,7 @@ export class AnalyticsController extends BaseController<
    * Use `getDefaultAnalyticsControllerState()` for default opt-in preferences.
    * @param options.messenger - Messenger used to communicate with BaseController
    * @param options.platformAdapter - Platform adapter implementation for tracking
-   * @param options.anonymousEventsFeature - Whether the anonymous events feature is enabled
+   * @param options.isAnonymousEventsFeatureEnabled - Whether the anonymous events feature is enabled
    * @throws Error if state.analyticsId is missing or not a valid UUIDv4
    * @remarks After construction, call {@link AnalyticsController.init} to complete initialization.
    */
@@ -211,7 +211,7 @@ export class AnalyticsController extends BaseController<
     state,
     messenger,
     platformAdapter,
-    anonymousEventsFeature = false,
+    isAnonymousEventsFeatureEnabled = false,
   }: AnalyticsControllerOptions) {
     const initialState: AnalyticsControllerState = {
       ...getDefaultAnalyticsControllerState(),
@@ -227,7 +227,7 @@ export class AnalyticsController extends BaseController<
       messenger,
     });
 
-    this.#anonymousEventsFeature = anonymousEventsFeature;
+    this.#isAnonymousEventsFeatureEnabled = isAnonymousEventsFeatureEnabled;
     this.#platformAdapter = platformAdapter;
     this.#initialized = false;
 
@@ -236,7 +236,7 @@ export class AnalyticsController extends BaseController<
       MESSENGER_EXPOSED_METHODS,
     );
 
-    projectLogger('AnalyticsController initialized and ready', {
+    log('AnalyticsController initialized and ready', {
       enabled: analyticsControllerSelectors.selectEnabled(this.state),
       optedIn: this.state.optedIn,
       analyticsId: this.state.analyticsId,
@@ -246,12 +246,11 @@ export class AnalyticsController extends BaseController<
   /**
    * Initialize the controller by calling the platform adapter's onSetupCompleted lifecycle hook.
    * This method must be called after construction to complete the setup process.
-   *
-   * @throws Error if called multiple times
    */
   init(): void {
     if (this.#initialized) {
-      throw new Error('AnalyticsController already initialized.');
+      log('AnalyticsController already initialized.');
+      return;
     }
 
     this.#initialized = true;
@@ -262,7 +261,7 @@ export class AnalyticsController extends BaseController<
       this.#platformAdapter.onSetupCompleted(this.state.analyticsId);
     } catch (error) {
       // Log error but don't throw - adapter setup failure shouldn't break controller
-      projectLogger('Error calling platformAdapter.onSetupCompleted', error);
+      log('Error calling platformAdapter.onSetupCompleted', error);
     }
   }
 
@@ -287,7 +286,7 @@ export class AnalyticsController extends BaseController<
     }
 
     // Track regular properties first if anonymous events feature is enabled
-    if (this.#anonymousEventsFeature) {
+    if (this.#isAnonymousEventsFeatureEnabled) {
       // Note: Even if regular properties object is empty, we still send it to ensure
       // an event with user ID is tracked.
       this.#platformAdapter.track(event.name, {
@@ -298,7 +297,7 @@ export class AnalyticsController extends BaseController<
     const hasSensitiveProperties =
       Object.keys(event.sensitiveProperties).length > 0;
 
-    if (!this.#anonymousEventsFeature || hasSensitiveProperties) {
+    if (!this.#isAnonymousEventsFeatureEnabled || hasSensitiveProperties) {
       this.#platformAdapter.track(event.name, {
         ...event.properties,
         ...event.sensitiveProperties,

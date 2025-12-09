@@ -2,7 +2,6 @@
 export {
   AnalyticsController,
   getDefaultAnalyticsControllerState,
-  controllerName,
 } from './AnalyticsController';
 export type { AnalyticsControllerOptions } from './AnalyticsController';
 
