@@ -227,7 +227,7 @@ const selectBridgeFeesPerGas = createStructuredBridgeSelector({
     gasFeeEstimates?.estimatedBaseFee,
   feePerGasInDecGwei: ({ gasFeeEstimates }) =>
     gasFeeEstimates?.[BRIDGE_PREFERRED_GAS_ESTIMATE]
-      ?.suggestedMaxPriorityFeePerGas,
+      ?.suggestedMaxFeePerGas,
   maxFeePerGasInDecGwei: ({ gasFeeEstimates }) =>
     gasFeeEstimates?.high?.suggestedMaxFeePerGas,
 });
