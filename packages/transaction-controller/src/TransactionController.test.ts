@@ -353,11 +353,10 @@ function waitForTransactionFinished(
   });
 }
 
-const MOCK_PREFERENCES = { state: { selectedAddress: 'foo' } };
 const INFURA_PROJECT_ID = 'testinfuraid';
 const HTTP_PROVIDERS = {
   sepolia: new HttpProvider('https://sepolia.infura.io/v3/sepolia-pid'),
-  // TODO: Investigate and address why tests break when mainet has a different INFURA_PROJECT_ID
+  // TODO: Investigate and address why tests break when mainnet has a different INFURA_PROJECT_ID
   mainnet: new HttpProvider(
     `https://mainnet.infura.io/v3/${INFURA_PROJECT_ID}`,
   ),

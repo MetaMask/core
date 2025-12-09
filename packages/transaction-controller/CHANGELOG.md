@@ -9,6 +9,7 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ### Changed
 
+- **BREAKING**: Remove `history` and `sendFlowHistory` properties from `TransactionMeta` ([#7326](https://github.com/MetaMask/core/pull/7326))
 - Bump `@metamask/remote-feature-flag-controller` from `^2.0.1` to `^3.0.0` ([#7309](https://github.com/MetaMask/core/pull/7309)
 
 ## [62.4.0]

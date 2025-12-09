@@ -165,7 +165,6 @@ export function waitForTransactionConfirmed(
  * @param request - Request object.
  * @param request.transactionId - ID of the transaction to update.
  * @param request.messenger - Controller messenger.
- * @param request.note - Note describing the update.
  * @param fn - Function that applies updates to the transaction draft.
  */
 export function updateTransaction(
