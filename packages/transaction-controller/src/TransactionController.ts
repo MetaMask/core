@@ -553,6 +553,12 @@ export type TransactionControllerOptions = {
       transactionMeta: TransactionMeta,
     ) => (TransactionMeta | undefined)[];
 
+    /**
+     * Callback to determine whether timeout checking should be enabled for a transaction.
+     * Return false to disable timeout for the transaction.
+     */
+    isTimeoutEnabled?: (transactionMeta: TransactionMeta) => boolean;
+
     /** Alternate logic to publish a transaction. */
     publish?: (
       transactionMeta: TransactionMeta,
@@ -888,6 +894,8 @@ export class TransactionController extends BaseController<
 
   readonly #isSwapsDisabled: boolean;
 
+  readonly #isTimeoutEnabled: (transactionMeta: TransactionMeta) => boolean;
+
   readonly #layer1GasFeeFlows: Layer1GasFeeFlow[];
 
   readonly #methodDataHelper: MethodDataHelper;
@@ -1019,6 +1027,7 @@ export class TransactionController extends BaseController<
     this.#isSendFlowHistoryDisabled = disableSendFlowHistory ?? false;
     this.#isSimulationEnabled = isSimulationEnabled ?? ((): boolean => true);
     this.#isSwapsDisabled = disableSwaps ?? false;
+    this.#isTimeoutEnabled = hooks?.isTimeoutEnabled ?? ((): boolean => true);
     this.#pendingTransactionOptions = pendingTransactions;
     this.#publicKeyEIP7702 = publicKeyEIP7702;
     this.#publish =
@@ -4123,22 +4132,23 @@ export class TransactionController extends BaseController<
       blockTracker,
       getChainId: (): Hex => chainId,
       getEthQuery: (): EthQuery => ethQuery,
-      getNetworkClientId: (): NetworkClientId => networkClientId,
-      getTransactions: (): TransactionMeta[] => this.state.transactions,
-      isResubmitEnabled: this.#pendingTransactionOptions.isResubmitEnabled,
       getGlobalLock: (): Promise<() => void> =>
         this.#multichainTrackingHelper.acquireNonceLockForChainIdKey({
           chainId,
         }),
+      getNetworkClientId: (): NetworkClientId => networkClientId,
+      getTransactions: (): TransactionMeta[] => this.state.transactions,
+      hooks: {
+        beforeCheckPendingTransaction:
+          this.#beforeCheckPendingTransaction.bind(this),
+      },
+      isResubmitEnabled: this.#pendingTransactionOptions.isResubmitEnabled,
+      isTimeoutEnabled: this.#isTimeoutEnabled,
       messenger: this.messenger,
       publishTransaction: (_ethQuery, transactionMeta): Promise<string> =>
         this.#publishTransaction(_ethQuery, transactionMeta, {
           skipSubmitHistory: true,
         }),
-      hooks: {
-        beforeCheckPendingTransaction:
-          this.#beforeCheckPendingTransaction.bind(this),
-      },
     });
 
     this.#addPendingTransactionTrackerListeners(pendingTransactionTracker);
