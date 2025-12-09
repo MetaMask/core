@@ -42,7 +42,7 @@ export class QuoteRefresher {
     );
   }
 
-  #start() {
+  #start(): void {
     this.#isRunning = true;
 
     log('Started');
@@ -54,7 +54,7 @@ export class QuoteRefresher {
     this.#queueNextInterval();
   }
 
-  #stop() {
+  #stop(): void {
     if (this.#timeoutId) {
       clearTimeout(this.#timeoutId);
     }
@@ -64,7 +64,7 @@ export class QuoteRefresher {
     log('Stopped');
   }
 
-  async #onInterval() {
+  async #onInterval(): Promise<void> {
     this.#isUpdating = true;
 
     try {
@@ -78,7 +78,7 @@ export class QuoteRefresher {
     }
   }
 
-  #queueNextInterval() {
+  #queueNextInterval(): void {
     if (!this.#isRunning) {
       return;
     }
@@ -92,7 +92,7 @@ export class QuoteRefresher {
     }, CHECK_INTERVAL);
   }
 
-  #onStateChange(state: TransactionPayControllerState) {
+  #onStateChange(state: TransactionPayControllerState): void {
     const hasQuotes = Object.values(state.transactionData).some((transaction) =>
       Boolean(transaction.quotes?.length),
     );
