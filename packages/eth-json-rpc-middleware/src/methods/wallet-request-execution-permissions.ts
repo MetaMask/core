@@ -60,6 +60,7 @@ export type RequestExecutionPermissionsResult = Json &
 export type ProcessRequestExecutionPermissionsHook = (
   request: RequestExecutionPermissionsRequestParams,
   req: JsonRpcRequest,
+  context: WalletMiddlewareContext,
 ) => Promise<RequestExecutionPermissionsResult>;
 
 /**
@@ -76,7 +77,7 @@ export function createWalletRequestExecutionPermissionsHandler({
 }: {
   processRequestExecutionPermissions?: ProcessRequestExecutionPermissionsHook;
 }): JsonRpcMiddleware<JsonRpcRequest, Json, WalletMiddlewareContext> {
-  return async ({ request }) => {
+  return async ({ request, context }) => {
     if (!processRequestExecutionPermissions) {
       throw rpcErrors.methodNotSupported(
         'wallet_requestExecutionPermissions - no middleware configured',
@@ -87,6 +88,6 @@ export function createWalletRequestExecutionPermissionsHandler({
 
     validateParams(params, RequestExecutionPermissionsStruct);
 
-    return await processRequestExecutionPermissions(params, request);
+    return await processRequestExecutionPermissions(params, request, context);
   };
 }
