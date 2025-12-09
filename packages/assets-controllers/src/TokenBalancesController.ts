@@ -352,7 +352,7 @@ export class TokenBalancesController extends StaticIntervalPollingController<{
   // ────────────────────────────────────────────────────────────────────────
   // Init helpers
 
-  #subscribeToControllers() {
+  #subscribeToControllers(): void {
     this.messenger.subscribe(
       'TokensController:stateChange',
       (tokensState: TokensControllerState) => {
@@ -414,7 +414,7 @@ export class TokenBalancesController extends StaticIntervalPollingController<{
     );
   }
 
-  #registerActions() {
+  #registerActions(): void {
     this.messenger.registerActionHandler(
       `TokenBalancesController:updateChainPollingConfigs`,
       this.updateChainPollingConfigs.bind(this),
@@ -433,7 +433,7 @@ export class TokenBalancesController extends StaticIntervalPollingController<{
    * Normalize all account addresses to lowercase and merge duplicates
    * Handles migration from old state where addresses might be checksummed.
    */
-  #normalizeAccountAddresses() {
+  #normalizeAccountAddresses(): void {
     const currentState = this.state.tokenBalances;
     const normalizedBalances: TokenBalances = {};
 
@@ -490,7 +490,9 @@ export class TokenBalancesController extends StaticIntervalPollingController<{
     return new Web3Provider(client.provider);
   };
 
-  readonly #getNetworkClient = (chainId: ChainIdHex) => {
+  readonly #getNetworkClient = (
+    chainId: ChainIdHex,
+  ): ReturnType<NetworkControllerGetNetworkClientByIdAction['handler']> => {
     const { networkConfigurationsByChainId } = this.messenger.call(
       'NetworkController:getState',
     );
@@ -520,13 +522,13 @@ export class TokenBalancesController extends StaticIntervalPollingController<{
   // ────────────────────────────────────────────────────────────────────────
   // Polling overrides
 
-  override _startPolling({ chainIds }: { chainIds: ChainIdHex[] }) {
+  override _startPolling({ chainIds }: { chainIds: ChainIdHex[] }): void {
     this.#requestedChainIds = [...chainIds];
     this.#isControllerPollingActive = true;
     this.#startIntervalGroupPolling(chainIds, true);
   }
 
-  #startIntervalGroupPolling(chainIds: ChainIdHex[], immediate = true) {
+  #startIntervalGroupPolling(chainIds: ChainIdHex[], immediate = true): void {
     this.#intervalPollingTimers.forEach((timer) => clearInterval(timer));
     this.#intervalPollingTimers.clear();
 
@@ -548,8 +550,8 @@ export class TokenBalancesController extends StaticIntervalPollingController<{
     interval: number,
     chainIds: ChainIdHex[],
     immediate = true,
-  ) {
-    const pollFunction = async () => {
+  ): void {
+    const pollFunction = async (): Promise<void> => {
       if (!this.#isControllerPollingActive) {
         return;
       }
@@ -580,7 +582,7 @@ export class TokenBalancesController extends StaticIntervalPollingController<{
     interval: number,
     chainIds: ChainIdHex[],
     pollFunction: () => Promise<void>,
-  ) {
+  ): void {
     const existingTimer = this.#intervalPollingTimers.get(interval);
     if (existingTimer) {
       clearInterval(existingTimer);
@@ -598,7 +600,7 @@ export class TokenBalancesController extends StaticIntervalPollingController<{
     this.#intervalPollingTimers.set(interval, timer);
   }
 
-  override _stopPollingByPollingTokenSetId(tokenSetId: string) {
+  override _stopPollingByPollingTokenSetId(tokenSetId: string): void {
     let chainsToStop: ChainIdHex[] = [];
 
     try {
@@ -622,7 +624,7 @@ export class TokenBalancesController extends StaticIntervalPollingController<{
     }
   }
 
-  #stopAllPolling() {
+  #stopAllPolling(): void {
     this.#isControllerPollingActive = false;
     this.#requestedChainIds = [];
     this.#intervalPollingTimers.forEach((timer) => clearInterval(timer));
@@ -643,7 +645,7 @@ export class TokenBalancesController extends StaticIntervalPollingController<{
   }: {
     chainIds: ChainIdHex[];
     queryAllAccounts?: boolean;
-  }) {
+  }): Promise<void> {
     await this.updateBalances({ chainIds, queryAllAccounts });
   }
 
@@ -672,7 +674,7 @@ export class TokenBalancesController extends StaticIntervalPollingController<{
     chainIds?: ChainIdHex[];
     tokenAddresses?: string[];
     queryAllAccounts?: boolean;
-  } = {}) {
+  } = {}): Promise<void> {
     const targetChains = this.#getTargetChains(chainIds);
     if (!targetChains.length) {
       return;
@@ -1019,7 +1021,7 @@ export class TokenBalancesController extends StaticIntervalPollingController<{
       });
   }
 
-  async #importUntrackedTokens(balances: ProcessedBalance[]) {
+  async #importUntrackedTokens(balances: ProcessedBalance[]): Promise<void> {
     const untrackedTokensByChain = new Map<ChainIdHex, string[]>();
 
     for (const balance of balances) {
@@ -1054,7 +1056,7 @@ export class TokenBalancesController extends StaticIntervalPollingController<{
     }
   }
 
-  resetState() {
+  resetState(): void {
     this.update(() => ({ tokenBalances: {} }));
   }
 
@@ -1090,7 +1092,9 @@ export class TokenBalancesController extends StaticIntervalPollingController<{
   // ────────────────────────────────────────────────────────────────────────
   // TokensController / Network / Accounts events
 
-  readonly #onTokensChanged = async (state: TokensControllerState) => {
+  readonly #onTokensChanged = async (
+    state: TokensControllerState,
+  ): Promise<void> => {
     const changed: ChainIdHex[] = [];
     let hasChanges = false;
 
@@ -1171,7 +1175,7 @@ export class TokenBalancesController extends StaticIntervalPollingController<{
     }
   };
 
-  readonly #onNetworkChanged = (state: NetworkState) => {
+  readonly #onNetworkChanged = (state: NetworkState): void => {
     const currentNetworks = new Set(
       Object.keys(state.networkConfigurationsByChainId),
     );
@@ -1207,7 +1211,7 @@ export class TokenBalancesController extends StaticIntervalPollingController<{
     });
   };
 
-  readonly #onAccountRemoved = (addr: string) => {
+  readonly #onAccountRemoved = (addr: string): void => {
     if (!isStrictHexString(addr) || !isValidHexAddress(addr)) {
       return;
     }
@@ -1216,7 +1220,7 @@ export class TokenBalancesController extends StaticIntervalPollingController<{
     });
   };
 
-  readonly #onAccountChanged = () => {
+  readonly #onAccountChanged = (): void => {
     const chainIds = this.#chainIdsWithTokens();
     if (!chainIds.length) {
       return;
@@ -1302,7 +1306,7 @@ export class TokenBalancesController extends StaticIntervalPollingController<{
     address: string;
     chain: string;
     updates: BalanceUpdate[];
-  }) => {
+  }): Promise<void> => {
     const chainId = caipChainIdToHex(chain);
     const checksummedAccount = checksum(address);
 
@@ -1359,7 +1363,7 @@ export class TokenBalancesController extends StaticIntervalPollingController<{
   }: {
     chainIds: string[];
     status: 'up' | 'down';
-  }) => {
+  }): void => {
     for (const chainId of chainIds) {
       this.#statusChangeDebouncer.pendingChanges.set(chainId, status);
     }
