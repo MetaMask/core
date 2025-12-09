@@ -50,9 +50,11 @@ const DEFAULT_GAS_PRICE_ORACLE_ADDRESS =
  * @param serializedBuffer - The buffer returned by the serialize method.
  * @returns The mock TypedTransaction object.
  */
-function createMockTypedTransaction(serializedBuffer: Buffer) {
+function createMockTypedTransaction(
+  serializedBuffer: Buffer,
+): jest.Mocked<TypedTransaction> {
   const instance = {
-    serialize: () => serializedBuffer,
+    serialize: (): Buffer => serializedBuffer,
     sign: jest.fn(),
   };
 

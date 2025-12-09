@@ -39,6 +39,7 @@ type RootMessenger = Messenger<MockAnyNamespace, AllActions, AllEvents>;
  * @param options.skipRegister - Whether to skip registering action handlers.
  * @returns The mock messenger and associated mock functions.
  */
+// eslint-disable-next-line @typescript-eslint/explicit-function-return-type
 export function getMessengerMock({
   skipRegister,
 }: { skipRegister?: boolean } = {}) {

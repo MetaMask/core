@@ -25,7 +25,7 @@ export type UpdateLayer1GasFeeRequest = {
  */
 export async function updateTransactionLayer1GasFee(
   request: UpdateLayer1GasFeeRequest,
-) {
+): Promise<void> {
   const layer1GasFee = await getTransactionLayer1GasFee(request);
 
   if (!layer1GasFee) {

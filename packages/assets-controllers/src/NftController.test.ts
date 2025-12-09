@@ -3452,6 +3452,166 @@ describe('NftController', () => {
     });
   });
 
+  describe('addNfts', () => {
+    it('should add multiple NFTs and NFT contracts at once', async () => {
+      const { nftController } = setupController({
+        options: {},
+        getERC721AssetName: jest.fn().mockResolvedValue('Name'),
+      });
+
+      await nftController.addNfts(
+        [
+          {
+            tokenAddress: '0x01',
+            tokenId: '1',
+            nftMetadata: {
+              name: 'NFT 1',
+              image: 'image1',
+              description: 'description 1',
+              standard: 'ERC721',
+              chainId: 1,
+            },
+          },
+          {
+            tokenAddress: '0x02',
+            tokenId: '2',
+            nftMetadata: {
+              name: 'NFT 2',
+              image: 'image2',
+              description: 'description 2',
+              standard: 'ERC721',
+              chainId: 1,
+            },
+          },
+        ],
+        OWNER_ACCOUNT.address,
+      );
+
+      expect(
+        nftController.state.allNfts[OWNER_ACCOUNT.address][ChainId.mainnet],
+      ).toHaveLength(2);
+      expect(
+        nftController.state.allNfts[OWNER_ACCOUNT.address][ChainId.mainnet][0],
+      ).toStrictEqual({
+        address: '0x01',
+        chainId: convertHexToDecimal(ChainId.mainnet),
+        description: 'description 1',
+        image: 'image1',
+        name: 'NFT 1',
+        tokenId: '1',
+        standard: 'ERC721',
+        favorite: false,
+        isCurrentlyOwned: true,
+      });
+      expect(
+        nftController.state.allNfts[OWNER_ACCOUNT.address][ChainId.mainnet][1],
+      ).toStrictEqual({
+        address: '0x02',
+        chainId: convertHexToDecimal(ChainId.mainnet),
+        description: 'description 2',
+        image: 'image2',
+        name: 'NFT 2',
+        tokenId: '2',
+        standard: 'ERC721',
+        favorite: false,
+        isCurrentlyOwned: true,
+      });
+    });
+
+    it('should add NFTs with different chainIds correctly', async () => {
+      const { nftController } = setupController({
+        options: {},
+        getERC721AssetName: jest.fn().mockResolvedValue('Name'),
+      });
+
+      await nftController.addNfts(
+        [
+          {
+            tokenAddress: '0x01',
+            tokenId: '1',
+            nftMetadata: {
+              name: 'NFT Mainnet',
+              image: 'image1',
+              description: 'description 1',
+              standard: 'ERC721',
+              chainId: 1,
+            },
+          },
+          {
+            tokenAddress: '0x02',
+            tokenId: '2',
+            nftMetadata: {
+              name: 'NFT Linea',
+              image: 'image2',
+              description: 'description 2',
+              standard: 'ERC721',
+              chainId: 59144,
+            },
+          },
+        ],
+        OWNER_ACCOUNT.address,
+      );
+
+      expect(
+        nftController.state.allNfts[OWNER_ACCOUNT.address][ChainId.mainnet],
+      ).toHaveLength(1);
+      expect(
+        nftController.state.allNfts[OWNER_ACCOUNT.address][ChainId.mainnet][0],
+      ).toMatchObject({
+        address: '0x01',
+        name: 'NFT Mainnet',
+        tokenId: '1',
+      });
+
+      expect(
+        nftController.state.allNfts[OWNER_ACCOUNT.address]['0xe708'],
+      ).toHaveLength(1);
+      expect(
+        nftController.state.allNfts[OWNER_ACCOUNT.address]['0xe708'][0],
+      ).toMatchObject({
+        address: '0x02',
+        name: 'NFT Linea',
+        tokenId: '2',
+      });
+    });
+
+    it('should add NFTs to selected account when userAddress is empty', async () => {
+      const { nftController } = setupController({
+        options: {},
+        getERC721AssetName: jest.fn().mockResolvedValue('Name'),
+      });
+
+      await nftController.addNfts(
+        [
+          {
+            tokenAddress: '0x01',
+            tokenId: '1',
+            nftMetadata: {
+              name: 'NFT 1',
+              image: 'image1',
+              description: 'description 1',
+              standard: 'ERC721',
+              chainId: 1,
+            },
+          },
+        ],
+        '',
+      );
+
+      // Should add to selected account (OWNER_ACCOUNT) when userAddress is empty
+      expect(
+        nftController.state.allNfts[OWNER_ACCOUNT.address][ChainId.mainnet],
+      ).toHaveLength(1);
+      expect(
+        nftController.state.allNfts[OWNER_ACCOUNT.address][ChainId.mainnet][0],
+      ).toMatchObject({
+        address: '0x01',
+        name: 'NFT 1',
+        tokenId: '1',
+      });
+    });
+  });
+
   describe('addNftVerifyOwnership', () => {
     it('should verify ownership by selected address and add NFT', async () => {
       const tokenURI = 'https://url/';

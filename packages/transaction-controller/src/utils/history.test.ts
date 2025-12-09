@@ -1,5 +1,5 @@
 import { toHex } from '@metamask/controller-utils';
-import { add0x } from '@metamask/utils';
+import { add0x, Hex } from '@metamask/utils';
 import { cloneDeep } from 'lodash';
 
 import {
@@ -396,6 +396,6 @@ function generateMockHistory({
  * @param number - The address as a decimal number.
  * @returns The mock address
  */
-function generateAddress(number: number) {
+function generateAddress(number: number): Hex {
   return add0x(number.toString(16).padStart(40, '0'));
 }
