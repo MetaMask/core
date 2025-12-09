@@ -99,6 +99,8 @@ describe('Feature Flags Utils', () => {
             },
           },
         },
+        localOverrides: {},
+        rawProcessedRemoteFeatureFlags: {},
       });
 
       const gasBuffer = getGasBuffer(messenger, CHAIN_ID_MOCK);
@@ -122,6 +124,8 @@ describe('Feature Flags Utils', () => {
             },
           },
         },
+        localOverrides: {},
+        rawProcessedRemoteFeatureFlags: {},
       });
 
       const gasBuffer = getGasBuffer(messenger, CHAIN_ID_MOCK);
@@ -145,6 +149,8 @@ describe('Feature Flags Utils', () => {
             },
           },
         },
+        localOverrides: {},
+        rawProcessedRemoteFeatureFlags: {},
       });
 
       const gasBuffer = getGasBuffer(messenger, CHAIN_ID_DIFFERENT_MOCK);
@@ -167,6 +173,8 @@ describe('Feature Flags Utils', () => {
             },
           },
         },
+        localOverrides: {},
+        rawProcessedRemoteFeatureFlags: {},
       });
 
       const gasBuffer = getGasBuffer(messenger, CHAIN_ID_DIFFERENT_MOCK);
