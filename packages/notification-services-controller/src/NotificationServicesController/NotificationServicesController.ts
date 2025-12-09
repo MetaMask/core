@@ -837,7 +837,7 @@ export default class NotificationServicesController extends BaseController<
         if (state.isNotificationServicesEnabled) {
           // Keep their existing preferences on re-subscribe
         } else {
-          // First time enabling notifications
+          // User is turning on notifications from a disabled state
           state.isNotificationServicesEnabled = true;
           state.isFeatureAnnouncementsEnabled = true;
           state.isMetamaskNotificationsFeatureSeen = true;
