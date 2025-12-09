@@ -1,4 +1,3 @@
-/* eslint-disable @typescript-eslint/unbound-method */
 import { query } from '@metamask/controller-utils';
 import type EthQuery from '@metamask/eth-query';
 import type { BlockTracker } from '@metamask/network-controller';

@@ -187,7 +187,6 @@ describe('OracleLayer1GasFeeFlow', () => {
         layer1Fee: LAYER_1_FEE_MOCK,
       });
 
-      // eslint-disable-next-line @typescript-eslint/unbound-method
       expect(typedTransactionMock.sign).toHaveBeenCalledTimes(1);
       expect(contractGetOperatorFeeMock).not.toHaveBeenCalled();
     });
@@ -236,7 +235,6 @@ describe('OracleLayer1GasFeeFlow', () => {
       expect(contractMock).toHaveBeenCalledTimes(1);
       const [oracleAddress] = contractMock.mock.calls[0];
       expect(oracleAddress).toBe(DEFAULT_GAS_PRICE_ORACLE_ADDRESS);
-      // eslint-disable-next-line @typescript-eslint/unbound-method
       expect(typedTransactionMock.sign).not.toHaveBeenCalled();
     });
 
