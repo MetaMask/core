@@ -288,6 +288,7 @@ async function submitTransactions(
 
     await messenger.call('TransactionController:addTransactionBatch', {
       from,
+      disable7702: !gasLimit7702,
       disableHook: Boolean(gasLimit7702),
       disableSequential: Boolean(gasLimit7702),
       gasFeeToken,
