@@ -30,7 +30,7 @@ export function updateSourceAmounts(
   transactionId: string,
   transactionData: TransactionData | undefined,
   messenger: TransactionPayControllerMessenger,
-) {
+): void {
   if (!transactionData) {
     return;
   }
@@ -42,8 +42,13 @@ export function updateSourceAmounts(
   }
 
   const sourceAmounts = tokens
-    .map((t) =>
-      calculateSourceAmount(paymentToken, t, messenger, transactionId),
+    .map((singleToken) =>
+      calculateSourceAmount(
+        paymentToken,
+        singleToken,
+        messenger,
+        transactionId,
+      ),
     )
     .filter(Boolean) as TransactionPaySourceAmount[];
 
@@ -131,7 +136,7 @@ function calculateSourceAmount(
 function isQuoteAlwaysRequired(
   token: TransactionPayRequiredToken,
   strategy: TransactionPayStrategy,
-) {
+): boolean {
   const isHyperliquidDeposit =
     token.chainId === CHAIN_ID_ARBITRUM &&
     token.address.toLowerCase() === ARBITRUM_USDC_ADDRESS.toLowerCase();
@@ -149,7 +154,7 @@ function isQuoteAlwaysRequired(
 function getStrategyType(
   transactionId: string,
   messenger: TransactionPayControllerMessenger,
-) {
+): TransactionPayStrategy {
   const transaction = getTransaction(
     transactionId,
     messenger,

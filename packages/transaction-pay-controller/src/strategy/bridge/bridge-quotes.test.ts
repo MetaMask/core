@@ -154,7 +154,7 @@ describe('Bridge Quotes Utils', () => {
     it('returns quotes', async () => {
       const quotes = await getBridgeQuotes(request);
 
-      expect(quotes.map((q) => q.original)).toStrictEqual([
+      expect(quotes.map((quote) => quote.original)).toStrictEqual([
         expect.objectContaining(QUOTE_1_MOCK),
         expect.objectContaining(QUOTE_2_MOCK),
       ]);
@@ -263,7 +263,7 @@ describe('Bridge Quotes Utils', () => {
         requests: [QUOTE_REQUEST_1_MOCK],
       });
 
-      expect(quotes.map((q) => q.original)).toStrictEqual([
+      expect(quotes.map((quote) => quote.original)).toStrictEqual([
         expect.objectContaining(QUOTES[2]),
       ]);
     });
@@ -354,7 +354,7 @@ describe('Bridge Quotes Utils', () => {
         requests: [QUOTE_REQUEST_1_MOCK],
       });
 
-      expect(quotes.map((q) => q.original)).toStrictEqual([
+      expect(quotes.map((quote) => quote.original)).toStrictEqual([
         expect.objectContaining(QUOTES_ATTEMPT_2[0]),
       ]);
 
@@ -519,7 +519,7 @@ describe('Bridge Quotes Utils', () => {
         ],
       });
 
-      expect(quotes.map((q) => q.original)).toStrictEqual([
+      expect(quotes.map((quote) => quote.original)).toStrictEqual([
         expect.objectContaining(QUOTES_ATTEMPT_2[0]),
       ]);
 
@@ -662,7 +662,7 @@ describe('Bridge Quotes Utils', () => {
         ],
       });
 
-      expect(quotes.map((q) => q.original)).toStrictEqual([
+      expect(quotes.map((quote) => quote.original)).toStrictEqual([
         expect.objectContaining(QUOTES_ATTEMPT_2[0]),
         expect.objectContaining(QUOTES_ATTEMPT_3[0]),
       ]);
@@ -853,7 +853,7 @@ describe('Bridge Quotes Utils', () => {
         undefined,
       );
 
-      expect(quotes.map((q) => q.original)).toStrictEqual([
+      expect(quotes.map((quote) => quote.original)).toStrictEqual([
         expect.objectContaining(QUOTE_1_MOCK),
       ]);
     });

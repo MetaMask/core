@@ -182,13 +182,14 @@ export abstract class OracleLayer1GasFeeFlow implements Layer1GasFeeFlow {
   #buildUnserializedTransaction(
     transactionMeta: TransactionMeta,
     sign: boolean,
-  ) {
+  ): ReturnType<typeof prepareTransaction> {
     const txParams = this.#buildTransactionParams(transactionMeta);
     const { chainId } = transactionMeta;
 
     let unserializedTransaction = prepareTransaction(chainId, txParams);
 
     if (sign) {
+      // eslint-disable-next-line no-restricted-globals
       const keyBuffer = Buffer.from(DUMMY_KEY, 'hex');
       const keyBytes = Uint8Array.from(keyBuffer);
       unserializedTransaction = unserializedTransaction.sign(keyBytes);
@@ -209,7 +210,7 @@ export abstract class OracleLayer1GasFeeFlow implements Layer1GasFeeFlow {
   #getGasPriceOracleContract(
     provider: Layer1GasFeeFlowRequest['provider'],
     chainId: Hex,
-  ) {
+  ): Contract {
     return new Contract(
       this.getOracleAddressForChain(chainId),
       GAS_PRICE_ORACLE_ABI,

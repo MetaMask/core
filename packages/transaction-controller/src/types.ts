@@ -1,3 +1,5 @@
+/* eslint-disable @typescript-eslint/naming-convention */
+
 import type { AccessList } from '@ethereumjs/tx';
 import type { AccountsController } from '@metamask/accounts-controller';
 import type EthQuery from '@metamask/eth-query';
@@ -795,6 +797,11 @@ export enum TransactionType {
    * Withdraw funds from Predict.
    */
   predictWithdraw = 'predictWithdraw',
+
+  /**
+   * Deposit funds for Relay quote.
+   */
+  relayDeposit = 'relayDeposit',
 
   /**
    * When a transaction is failed it can be retried by
@@ -1736,6 +1743,9 @@ export type TransactionBatchRequest = {
 
   /** Address of an ERC-20 token to pay for the gas fee, if the user has insufficient native balance. */
   gasFeeToken?: Hex;
+
+  /** Gas limit for the transaction batch if submitted via EIP-7702. */
+  gasLimit7702?: Hex;
 
   /** Whether MetaMask will be compensated for the gas fee by the transaction. */
   isGasFeeIncluded?: boolean;
