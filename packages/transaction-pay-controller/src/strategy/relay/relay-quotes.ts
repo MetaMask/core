@@ -413,6 +413,8 @@ async function calculateSourceNetworkCost(
     },
   );
 
+  log('Total gas limit', { totalGasLimitEstimate, totalGasLimitMax });
+
   const estimate = calculateGasCost({
     chainId,
     gas: totalGasLimitEstimate,

@@ -10,6 +10,11 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 ### Changed
 
 - **BREAKING**: Remove `history` and `sendFlowHistory` properties from `TransactionMeta` ([#7326](https://github.com/MetaMask/core/pull/7326))
+
+## [62.5.0]
+
+### Changed
+
 - Bump `@metamask/remote-feature-flag-controller` from `^2.0.1` to `^3.0.0` ([#7309](https://github.com/MetaMask/core/pull/7309)
 
 ## [62.4.0]
@@ -2007,7 +2012,8 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
     All changes listed after this point were applied to this package following the monorepo conversion.
 
-[Unreleased]: https://github.com/MetaMask/core/compare/@metamask/transaction-controller@62.4.0...HEAD
+[Unreleased]: https://github.com/MetaMask/core/compare/@metamask/transaction-controller@62.5.0...HEAD
+[62.5.0]: https://github.com/MetaMask/core/compare/@metamask/transaction-controller@62.4.0...@metamask/transaction-controller@62.5.0
 [62.4.0]: https://github.com/MetaMask/core/compare/@metamask/transaction-controller@62.3.1...@metamask/transaction-controller@62.4.0
 [62.3.1]: https://github.com/MetaMask/core/compare/@metamask/transaction-controller@62.3.0...@metamask/transaction-controller@62.3.1
 [62.3.0]: https://github.com/MetaMask/core/compare/@metamask/transaction-controller@62.2.0...@metamask/transaction-controller@62.3.0
