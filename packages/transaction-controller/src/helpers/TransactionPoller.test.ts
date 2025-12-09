@@ -220,7 +220,6 @@ describe('TransactionPoller', () => {
 
       poller.stop();
 
-      // eslint-disable-next-line @typescript-eslint/unbound-method
       expect(BLOCK_TRACKER_MOCK.removeListener).toHaveBeenCalledTimes(1);
       expect(listener).toHaveBeenCalledTimes(DEFAULT_ACCELERATED_COUNT_MAX);
     });
@@ -235,7 +234,6 @@ describe('TransactionPoller', () => {
       poller.stop();
 
       expect(jest.getTimerCount()).toBe(0);
-      // eslint-disable-next-line @typescript-eslint/unbound-method
       expect(BLOCK_TRACKER_MOCK.removeListener).not.toHaveBeenCalled();
     });
   });
