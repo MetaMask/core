@@ -40,7 +40,6 @@ export type AnalyticsControllerTrackViewAction = {
 
 /**
  * Opt in to analytics.
- * This updates the user's opt-in status.
  */
 export type AnalyticsControllerOptInAction = {
   type: `AnalyticsController:optIn`;
@@ -49,7 +48,6 @@ export type AnalyticsControllerOptInAction = {
 
 /**
  * Opt out of analytics.
- * This updates the user's opt-in status.
  */
 export type AnalyticsControllerOptOutAction = {
   type: `AnalyticsController:optOut`;
