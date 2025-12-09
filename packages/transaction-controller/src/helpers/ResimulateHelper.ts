@@ -53,7 +53,7 @@ export class ResimulateHelper {
     onTransactionsUpdate(this.#onTransactionsUpdate.bind(this));
   }
 
-  #onTransactionsUpdate() {
+  #onTransactionsUpdate(): void {
     const unapprovedTransactions = this.#getTransactions().filter(
       (tx) => tx.status === TransactionStatus.unapproved,
     );
@@ -81,13 +81,13 @@ export class ResimulateHelper {
     });
   }
 
-  #start(transactionMeta: TransactionMeta) {
+  #start(transactionMeta: TransactionMeta): void {
     const { id: transactionId } = transactionMeta;
     if (this.#timeoutIds.has(transactionId)) {
       return;
     }
 
-    const listener = () => {
+    const listener = (): void => {
       this.#simulateTransaction(transactionMeta)
         .catch((error) => {
           /* istanbul ignore next */
@@ -108,12 +108,12 @@ export class ResimulateHelper {
     );
   }
 
-  #queueUpdate(transactionId: string, listener: () => void) {
+  #queueUpdate(transactionId: string, listener: () => void): void {
     const timeoutId = setTimeout(listener, RESIMULATE_INTERVAL_MS);
     this.#timeoutIds.set(transactionId, timeoutId);
   }
 
-  #stop(transactionId: string) {
+  #stop(transactionId: string): void {
     if (!this.#timeoutIds.has(transactionId)) {
       return;
     }
@@ -124,7 +124,7 @@ export class ResimulateHelper {
     );
   }
 
-  #removeListener(id: string) {
+  #removeListener(id: string): void {
     const timeoutId = this.#timeoutIds.get(id);
     if (timeoutId) {
       clearTimeout(timeoutId);
@@ -143,7 +143,7 @@ export class ResimulateHelper {
 export function shouldResimulate(
   originalTransactionMeta: TransactionMeta,
   newTransactionMeta: TransactionMeta,
-) {
+): ResimulateResponse {
   const { id: transactionId } = newTransactionMeta;
 
   const parametersUpdated = isParametersUpdated(

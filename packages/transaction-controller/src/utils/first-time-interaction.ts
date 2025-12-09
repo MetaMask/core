@@ -70,13 +70,11 @@ export async function updateFirstTimeInteraction({
     const parsedData = decodeTransactionData(data) as TransactionDescription;
     // _to is for ERC20, ERC721 and USDC
     // to is for ERC1155
-    recipient = parsedData?.args?._to || parsedData?.args?.to;
+    recipient = parsedData?.args?._to ?? parsedData?.args?.to;
   }
 
-  if (!recipient) {
-    // Use as fallback if no recipient is found from decode or no data is present
-    recipient = to;
-  }
+  // Use as fallback if no recipient is found from decode or no data is present
+  recipient ??= to;
 
   const request: GetAccountAddressRelationshipRequest = {
     chainId: hexToNumber(chainId),

@@ -68,13 +68,14 @@ describe('wallet_requestExecutionPermissions', () => {
   let request: JsonRpcRequest;
   let params: RequestExecutionPermissionsRequestParams;
   let processRequestExecutionPermissionsMock: jest.MockedFunction<ProcessRequestExecutionPermissionsHook>;
+  let context: WalletMiddlewareParams['context'];
 
   const callMethod = async () => {
     const handler = createWalletRequestExecutionPermissionsHandler({
       processRequestExecutionPermissions:
         processRequestExecutionPermissionsMock,
     });
-    return handler({ request } as WalletMiddlewareParams);
+    return handler({ request, context } as WalletMiddlewareParams);
   };
 
   beforeEach(() => {
@@ -82,6 +83,10 @@ describe('wallet_requestExecutionPermissions', () => {
 
     request = klona(REQUEST_MOCK);
     params = request.params as RequestExecutionPermissionsRequestParams;
+
+    context = new Map([
+      ['origin', 'test-origin'],
+    ]) as WalletMiddlewareParams['context'];
 
     processRequestExecutionPermissionsMock = jest.fn();
     processRequestExecutionPermissionsMock.mockResolvedValue(RESULT_MOCK);
@@ -92,6 +97,7 @@ describe('wallet_requestExecutionPermissions', () => {
     expect(processRequestExecutionPermissionsMock).toHaveBeenCalledWith(
       params,
       request,
+      context,
     );
   });
 
@@ -108,6 +114,7 @@ describe('wallet_requestExecutionPermissions', () => {
     expect(processRequestExecutionPermissionsMock).toHaveBeenCalledWith(
       params,
       request,
+      context,
     );
   });
 
@@ -119,6 +126,7 @@ describe('wallet_requestExecutionPermissions', () => {
     expect(processRequestExecutionPermissionsMock).toHaveBeenCalledWith(
       params,
       request,
+      context,
     );
   });
 

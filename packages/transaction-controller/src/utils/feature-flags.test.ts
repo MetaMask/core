@@ -67,7 +67,9 @@ describe('Feature Flags Utils', () => {
    *
    * @param featureFlags - The feature flags to mock.
    */
-  function mockFeatureFlags(featureFlags: TransactionControllerFeatureFlags) {
+  function mockFeatureFlags(
+    featureFlags: TransactionControllerFeatureFlags,
+  ): void {
     getFeatureFlagsMock.mockReturnValue({
       cacheTimestamp: 0,
       remoteFeatureFlags: featureFlags,

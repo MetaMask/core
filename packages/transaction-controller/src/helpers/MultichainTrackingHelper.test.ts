@@ -1,17 +1,25 @@
+/* eslint-disable @typescript-eslint/unbound-method */
 import { ChainId, NetworkType } from '@metamask/controller-utils';
-import type { NetworkClientId, Provider } from '@metamask/network-controller';
+import type {
+  NetworkClientId,
+  NetworkState,
+  Provider,
+} from '@metamask/network-controller';
 import type { NonceTracker } from '@metamask/nonce-tracker';
 import type { Hex } from '@metamask/utils';
 import { useFakeTimers } from 'sinon';
 
-import { MultichainTrackingHelper } from './MultichainTrackingHelper';
+import {
+  MultichainTrackingHelper,
+  MultichainTrackingHelperOptions,
+} from './MultichainTrackingHelper';
 import type { PendingTransactionTracker } from './PendingTransactionTracker';
 import { advanceTime } from '../../../../tests/helpers';
 
 jest.mock(
   '@metamask/eth-query',
   () =>
-    function (provider: Provider) {
+    function (provider: Provider): { provider: Provider } {
       return { provider };
     },
 );
@@ -22,7 +30,9 @@ jest.mock(
  * @param networkClientId - The network client ID to use for the mock provider.
  * @returns The mock provider object.
  */
-function buildMockProvider(networkClientId: NetworkClientId) {
+function buildMockProvider(networkClientId: NetworkClientId): {
+  mockProvider: NetworkClientId;
+} {
   return {
     mockProvider: networkClientId,
   };
@@ -34,7 +44,9 @@ function buildMockProvider(networkClientId: NetworkClientId) {
  * @param networkClientId - The network client ID to use for the mock block tracker.
  * @returns The mock block tracker object.
  */
-function buildMockBlockTracker(networkClientId: NetworkClientId) {
+function buildMockBlockTracker(networkClientId: NetworkClientId): {
+  mockBlockTracker: NetworkClientId;
+} {
   return {
     mockBlockTracker: networkClientId,
   };
@@ -64,7 +76,16 @@ const MOCK_PROVIDERS = {
 function newMultichainTrackingHelper(
   // eslint-disable-next-line @typescript-eslint/no-explicit-any
   opts: any = {},
-) {
+): {
+  helper: MultichainTrackingHelper;
+  options: jest.Mocked<MultichainTrackingHelperOptions>;
+  mockNonceLock: { releaseLock: jest.Mock };
+  mockNonceTrackers: Record<Hex, jest.Mocked<NonceTracker>>;
+  mockPendingTransactionTrackers: Record<
+    Hex,
+    jest.Mocked<PendingTransactionTracker>
+  >;
+} {
   const mockGetNetworkClientById = jest
     .fn()
     .mockImplementation((networkClientId) => {
@@ -217,7 +238,7 @@ describe('MultichainTrackingHelper', () => {
     it('refreshes the tracking map', () => {
       const { options, helper } = newMultichainTrackingHelper();
 
-      options.onNetworkStateChange.mock.calls[0][0]({}, []);
+      options.onNetworkStateChange.mock.calls[0][0]({} as NetworkState, []);
 
       expect(options.getNetworkClientRegistry).toHaveBeenCalledTimes(1);
       expect(helper.has('mainnet')).toBe(true);
@@ -229,7 +250,7 @@ describe('MultichainTrackingHelper', () => {
     it('refreshes the tracking map and excludes removed networkClientIds in the patches', () => {
       const { options, helper } = newMultichainTrackingHelper();
 
-      options.onNetworkStateChange.mock.calls[0][0]({}, [
+      options.onNetworkStateChange.mock.calls[0][0]({} as NetworkState, [
         {
           op: 'remove',
           path: ['networkConfigurations', 'mainnet'],
@@ -429,8 +450,8 @@ describe('MultichainTrackingHelper', () => {
         let error = '';
         try {
           await helper.getNonceLock('0xdeadbeef', 'mainnet');
-        } catch (err: unknown) {
-          error = err as string;
+        } catch (caughtError: unknown) {
+          error = caughtError as string;
         }
         expect(error).toBe('failed to acquire lock from nonceTracker');
         expect(releaseLockForChainIdKey).toHaveBeenCalled();
@@ -468,9 +489,9 @@ describe('MultichainTrackingHelper', () => {
         key: 'a',
       });
 
-      const delay = () =>
+      const delay = (): Promise<null> =>
         // TODO: Either fix this lint violation or explain why it's necessary to ignore.
-        // eslint-disable-next-line @typescript-eslint/no-misused-promises
+        // eslint-disable-next-line @typescript-eslint/no-misused-promises, no-async-promise-executor
         new Promise<null>(async (resolve) => {
           await advanceTime({ clock, duration: 100 });
           resolve(null);
