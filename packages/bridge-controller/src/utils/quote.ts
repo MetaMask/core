@@ -243,7 +243,7 @@ export const calcEstimatedAndMaxTotalGasFee = ({
     valueInCurrency: valueInCurrencyEffective,
     usd: usdEffective,
   } = calcTotalGasFee({
-    // Fallback to gasLimit if effectiveGas is not available
+    // Effective actual gas used after receiving refunds have been applied
     approvalGasLimit: approval?.effectiveGas ?? approval?.gasLimit,
     resetApprovalGasLimit:
       resetApproval?.effectiveGas ?? resetApproval?.gasLimit,
@@ -254,7 +254,7 @@ export const calcEstimatedAndMaxTotalGasFee = ({
     nativeToUsdExchangeRate,
   });
 
-  // Estimated total gas fee, including refunded fees (medium)
+  // Estimated total gas fee required, including fees that will be refunded (medium)
   const { amount, valueInCurrency, usd } = calcTotalGasFee({
     approvalGasLimit: approval?.gasLimit,
     resetApprovalGasLimit: resetApproval?.gasLimit,
@@ -303,7 +303,7 @@ export const calcEstimatedAndMaxTotalGasFee = ({
  * Calculates the total estimated network fees for the bridge transaction
  *
  * @param gasFee - The gas fee for the bridge transaction
- * @param gasFee.total - The fee to display to the user. If not available, this is equal to the gasLimit (total)
+ * @param gasFee.total - The total gas needed to submit the approval and trade transactions
  * @param relayerFee - The relayer fee paid to bridge providers
  * @returns The total estimated network fee for the bridge transaction, including the relayer fee paid to bridge providers
  */
