@@ -12,7 +12,6 @@ import {
   NFT_API_VERSION,
   convertHexToDecimal,
   handleFetch,
-  toHex,
 } from '@metamask/controller-utils';
 import type { Messenger } from '@metamask/messenger';
 import type {
@@ -424,7 +423,7 @@ export class NftDetectionController extends BaseController<
 > {
   #disabled: boolean;
 
-  readonly #addNft: NftController['addNft'];
+  readonly #addNfts: NftController['addNfts'];
 
   readonly #getNftState: () => NftControllerState;
 
@@ -436,18 +435,18 @@ export class NftDetectionController extends BaseController<
    * @param options - The controller options.
    * @param options.messenger - A reference to the messaging system.
    * @param options.disabled - Represents previous value of useNftDetection. Used to detect changes of useNftDetection. Default value is true.
-   * @param options.addNft - Add an NFT.
+   * @param options.addNfts - Add multiple NFTs.
    * @param options.getNftState - Gets the current state of the Assets controller.
    */
   constructor({
     messenger,
     disabled = false,
-    addNft,
+    addNfts,
     getNftState,
   }: {
     messenger: NftDetectionControllerMessenger;
     disabled: boolean;
-    addNft: NftController['addNft'];
+    addNfts: NftController['addNfts'];
     getNftState: () => NftControllerState;
   }) {
     super({
@@ -460,7 +459,7 @@ export class NftDetectionController extends BaseController<
     this.#inProcessNftFetchingUpdates = {};
 
     this.#getNftState = getNftState;
-    this.#addNft = addNft;
+    this.#addNfts = addNfts;
 
     this.messenger.subscribe(
       'PreferencesController:stateChange',
@@ -603,72 +602,74 @@ export class NftDetectionController extends BaseController<
         );
 
         // Proceed to add NFTs
-        const addNftPromises = apiNfts.map(async (nft) => {
-          const {
-            tokenId,
-            contract,
-            kind,
-            image: imageUrl,
-            imageSmall: imageThumbnailUrl,
-            metadata,
-            name,
-            description,
-            attributes,
-            topBid,
-            lastSale,
-            rarityRank,
-            rarityScore,
-            collection,
-            chainId,
-          } = nft.token;
+        const nftsToAdd = apiNfts
+          .map((nft) => {
+            const {
+              tokenId,
+              contract,
+              kind,
+              image: imageUrl,
+              imageSmall: imageThumbnailUrl,
+              metadata,
+              name,
+              description,
+              attributes,
+              topBid,
+              lastSale,
+              rarityRank,
+              rarityScore,
+              collection,
+              chainId,
+            } = nft.token;
 
-          // Use a fallback if metadata is null
-          const { imageOriginal: imageOriginalUrl } = metadata || {};
+            // Use a fallback if metadata is null
+            const { imageOriginal: imageOriginalUrl } = metadata || {};
 
-          let ignored;
-          /* istanbul ignore else */
-          const { ignoredNfts } = this.#getNftState();
-          if (ignoredNfts.length) {
-            ignored = ignoredNfts.find((c) => {
+            let ignored;
+            /* istanbul ignore else */
+            const { ignoredNfts } = this.#getNftState();
+            if (ignoredNfts.length) {
+              ignored = ignoredNfts.find((c) => {
+                /* istanbul ignore next */
+                return (
+                  c.address === toChecksumHexAddress(contract) &&
+                  c.tokenId === tokenId
+                );
+              });
+            }
+
+            /* istanbul ignore else */
+            if (!ignored) {
               /* istanbul ignore next */
-              return (
-                c.address === toChecksumHexAddress(contract) &&
-                c.tokenId === tokenId
-              );
-            });
-          }
+              const nftMetadata: NftMetadata & { chainId: number } =
+                Object.assign(
+                  {},
+                  { name },
+                  description && { description },
+                  imageUrl && { image: imageUrl },
+                  imageThumbnailUrl && { imageThumbnail: imageThumbnailUrl },
+                  imageOriginalUrl && { imageOriginal: imageOriginalUrl },
+                  kind && { standard: kind.toUpperCase() },
+                  lastSale && { lastSale },
+                  attributes && { attributes },
+                  topBid && { topBid },
+                  rarityRank && { rarityRank },
+                  rarityScore && { rarityScore },
+                  collection && { collection },
+                  chainId && { chainId },
+                );
 
-          /* istanbul ignore else */
-          if (!ignored) {
-            /* istanbul ignore next */
-            const nftMetadata: NftMetadata = Object.assign(
-              {},
-              { name },
-              description && { description },
-              imageUrl && { image: imageUrl },
-              imageThumbnailUrl && { imageThumbnail: imageThumbnailUrl },
-              imageOriginalUrl && { imageOriginal: imageOriginalUrl },
-              kind && { standard: kind.toUpperCase() },
-              lastSale && { lastSale },
-              attributes && { attributes },
-              topBid && { topBid },
-              rarityRank && { rarityRank },
-              rarityScore && { rarityScore },
-              collection && { collection },
-              chainId && { chainId },
-            );
-            const networkClientId = this.messenger.call(
-              'NetworkController:findNetworkClientIdByChainId',
-              toHex(chainId),
-            );
-            await this.#addNft(contract, tokenId, networkClientId, {
-              nftMetadata,
-              userAddress,
-              source: Source.Detected,
-            });
-          }
-        });
-        await Promise.all(addNftPromises);
+              return {
+                tokenAddress: contract,
+                tokenId,
+                nftMetadata,
+              };
+            }
+            return undefined;
+          })
+          .filter((nft): nft is NonNullable<typeof nft> => nft !== undefined);
+
+        await this.#addNfts(nftsToAdd, userAddress, Source.Detected);
       } while ((next = resultNftApi.continuation));
       updateSucceeded();
     } catch (error) {

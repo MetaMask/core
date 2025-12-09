@@ -100,7 +100,7 @@ describe('Quotes Utils', () => {
    * @param params - Partial params to override the defaults.
    * @returns Return value from updateQuotes.
    */
-  async function run(params?: Partial<UpdateQuotesRequest>) {
+  async function run(params?: Partial<UpdateQuotesRequest>): Promise<boolean> {
     return await updateQuotes({
       messenger,
       transactionData: cloneDeep(TRANSACTION_DATA_MOCK),
