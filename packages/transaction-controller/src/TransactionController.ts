@@ -1272,6 +1272,7 @@ export class TransactionController extends BaseController<
       requireApproval,
       securityAlertResponse,
       sendFlowHistory,
+      skipInitialGasEstimate,
       swaps = {},
       traceContext,
       type,
@@ -1389,11 +1390,6 @@ export class TransactionController extends BaseController<
       updateTransaction(addedTransactionMeta);
     }
 
-    // Skip gas estimation for intent transactions as they are not executed on-chain
-    // const isIntentTransaction = swaps?.meta?.swapMetaData?.isIntentTx === true;
-
-    // if (!isIntentTransaction) {
-    // eslint-disable-next-line no-negated-condition
     if (!skipInitialGasEstimate) {
       await this.#trace(
         { name: 'Estimate Gas Properties', parentContext: traceContext },
