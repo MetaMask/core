@@ -7,6 +7,11 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+### Uncategorized
+
+- chore(lint): Fix `@typescript-eslint/no-unbound-method` errors in tests by reordering ESLint config ([#7416](https://github.com/MetaMask/core/pull/7416))
+- chore: transaction controller linting ([#7400](https://github.com/MetaMask/core/pull/7400))
+
 ### Added
 
 - Add `estimateGasBatch` function and messenger action to estimate gas for batch transactions ([#7405](https://github.com/MetaMask/core/pull/7405))
