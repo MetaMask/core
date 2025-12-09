@@ -337,7 +337,6 @@ export type TransactionControllerGetTransactionsAction = {
  * Updates an existing transaction in state.
  *
  * @param transactionMeta - The new transaction to store in state.
- * @param note - A note or update reason to include in the transaction history.
  */
 export type TransactionControllerUpdateTransactionAction = {
   type: `${typeof controllerName}:updateTransaction`;
