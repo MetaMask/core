@@ -12,7 +12,6 @@ import {
   NFT_API_VERSION,
   convertHexToDecimal,
   handleFetch,
-  toHex,
 } from '@metamask/controller-utils';
 import type { Messenger } from '@metamask/messenger';
 import type {

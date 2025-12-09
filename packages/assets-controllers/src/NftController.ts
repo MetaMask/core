@@ -437,7 +437,7 @@ export class NftController extends BaseController<
     // TODO: Replace this type with PreferencesState once both clients use the same PreferencesController
     displayNftMedia?: boolean;
     openSeaEnabled?: boolean;
-  }) {
+  }): Promise<void> {
     const selectedAccount = this.messenger.call(
       'AccountsController:getSelectedAccount',
     );
@@ -467,7 +467,9 @@ export class NftController extends BaseController<
    *
    * @param internalAccount - The new selected account.
    */
-  async #onSelectedAccountChange(internalAccount: InternalAccount) {
+  async #onSelectedAccountChange(
+    internalAccount: InternalAccount,
+  ): Promise<void> {
     const oldSelectedAccountId = this.#selectedAccountId;
     this.#selectedAccountId = internalAccount.id;
 
@@ -481,7 +483,7 @@ export class NftController extends BaseController<
     }
   }
 
-  getNftApi() {
+  getNftApi(): string {
     return `${NFT_API_BASE_URL}/tokens`;
   }
 
@@ -503,7 +505,7 @@ export class NftController extends BaseController<
     newCollection: NftCollection,
     baseStateKey: Key,
     { userAddress, chainId }: { userAddress: string; chainId: Hex },
-  ) {
+  ): void {
     // userAddress can be an empty string if it is not set via an account change or in constructor
     // while this doesn't cause any issues, we want to ensure that we don't store assets to an empty string address
     if (!userAddress) {
@@ -1150,7 +1152,7 @@ export class NftController extends BaseController<
       chainId: Hex;
       userAddress: string;
     },
-  ) {
+  ): void {
     const checksumHexAddress = toChecksumHexAddress(address);
     const { allNfts, ignoredNfts } = this.state;
     const newIgnoredNfts = [...ignoredNfts];
@@ -1192,7 +1194,7 @@ export class NftController extends BaseController<
     address: string,
     tokenId: string,
     { chainId, userAddress }: { chainId: Hex; userAddress: string },
-  ) {
+  ): void {
     const checksumHexAddress = toChecksumHexAddress(address);
     const { allNfts } = this.state;
     const nfts = allNfts[userAddress]?.[chainId] || [];
@@ -1245,7 +1247,7 @@ export class NftController extends BaseController<
     type: NFTStandardType,
     userAddress: string,
     networkClientId: NetworkClientId,
-  ) {
+  ): Promise<void> {
     const { address: contractAddress, tokenId } = asset;
 
     // Validate parameters
@@ -1318,7 +1320,7 @@ export class NftController extends BaseController<
     }: {
       userAddress?: string;
     } = {},
-  ) {
+  ): Promise<void> {
     const addressToSearch = this.#getAddressOrSelectedAddress(userAddress);
     if (!addressToSearch) {
       return;
@@ -1435,7 +1437,7 @@ export class NftController extends BaseController<
       userAddress?: string;
       source?: Source;
     } = {},
-  ) {
+  ): Promise<void> {
     const addressToSearch = this.#getAddressOrSelectedAddress(userAddress);
 
     if (
@@ -1480,7 +1482,7 @@ export class NftController extends BaseController<
       userAddress?: string;
       source?: Source;
     } = {},
-  ) {
+  ): Promise<void> {
     const addressToSearch = this.#getAddressOrSelectedAddress(userAddress);
     if (!addressToSearch) {
       return;
@@ -1558,7 +1560,7 @@ export class NftController extends BaseController<
     }[],
     userAddress: string,
     source: Source = Source.Custom,
-  ) {
+  ): Promise<void> {
     const addressToSearch = this.#getAddressOrSelectedAddress(userAddress);
     if (!addressToSearch) {
       return;
@@ -1620,7 +1622,7 @@ export class NftController extends BaseController<
   }: {
     nfts: Nft[];
     userAddress?: string;
-  }) {
+  }): Promise<void> {
     const addressToSearch = this.#getAddressOrSelectedAddress(userAddress);
 
     const releaseLock = await this.#mutex.acquire();
@@ -1737,7 +1739,7 @@ export class NftController extends BaseController<
     tokenId: string,
     networkClientId: NetworkClientId,
     { userAddress }: { userAddress?: string } = {},
-  ) {
+  ): void {
     const addressToSearch = this.#getAddressOrSelectedAddress(userAddress);
 
     const {
@@ -1780,7 +1782,7 @@ export class NftController extends BaseController<
     tokenId: string,
     networkClientId: NetworkClientId,
     { userAddress }: { userAddress?: string } = {},
-  ) {
+  ): void {
     const addressToSearch = this.#getAddressOrSelectedAddress(userAddress);
     const {
       configuration: { chainId },
@@ -1809,7 +1811,7 @@ export class NftController extends BaseController<
   /**
    * Removes all NFTs from the ignored list.
    */
-  clearIgnoredNfts() {
+  clearIgnoredNfts(): void {
     this.update((state) => {
       state.ignoredNfts = [];
     });
@@ -1831,7 +1833,7 @@ export class NftController extends BaseController<
     batch: boolean,
     networkClientId: NetworkClientId,
     { userAddress }: { userAddress?: string } = {},
-  ) {
+  ): Promise<Nft> {
     const addressToSearch = this.#getAddressOrSelectedAddress(userAddress);
     const {
       configuration: { chainId },
@@ -1907,7 +1909,7 @@ export class NftController extends BaseController<
     }: {
       userAddress?: string;
     } = {},
-  ) {
+  ): Promise<void> {
     const addressToSearch = this.#getAddressOrSelectedAddress(userAddress);
     const {
       configuration: { chainId },
@@ -1958,7 +1960,7 @@ export class NftController extends BaseController<
     }: {
       userAddress?: string;
     } = {},
-  ) {
+  ): void {
     const addressToSearch = this.#getAddressOrSelectedAddress(userAddress);
     const {
       configuration: { chainId },
@@ -2033,7 +2035,7 @@ export class NftController extends BaseController<
     updates: Partial<Nft>,
     selectedAddress: string,
     chainId: Hex,
-  ) {
+  ): void {
     const { allNfts } = this.state;
     const nfts = allNfts[selectedAddress]?.[chainId] || [];
     const nftInfo = this.findNftByAddressAndTokenId(
@@ -2132,7 +2134,7 @@ export class NftController extends BaseController<
     });
   }
 
-  async _requestApproval(suggestedNftMeta: SuggestedNftMeta) {
+  async _requestApproval(suggestedNftMeta: SuggestedNftMeta): Promise<unknown> {
     return this.messenger.call(
       'ApprovalController:addRequest',
       {
@@ -2175,7 +2177,7 @@ export class NftController extends BaseController<
    *
    * @param account - The account to update the NFT metadata for.
    */
-  async #updateNftUpdateForAccount(account: InternalAccount) {
+  async #updateNftUpdateForAccount(account: InternalAccount): Promise<void> {
     // get all nfts for the account for all chains
     const nfts: Nft[] = Object.values(
       this.state.allNfts[account.address] || {},
@@ -2200,7 +2202,7 @@ export class NftController extends BaseController<
   /**
    * Reset the controller state to the default state.
    */
-  resetState() {
+  resetState(): void {
     this.update(() => {
       return getDefaultNftControllerState();
     });
