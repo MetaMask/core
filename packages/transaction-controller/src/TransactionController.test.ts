@@ -8615,5 +8615,53 @@ describe('TransactionController', () => {
         );
       });
     });
+
+    describe('TransactionController:transactionApproved event', () => {
+      it('does not publish transactionApproved event when keyring throws during signing', async () => {
+        const signingError = new Error('Keyring signing failed');
+        const mockSignWithError = jest.fn().mockRejectedValue(signingError);
+
+        const { controller, messenger, mockTransactionApprovalRequest } =
+          setupController({
+            options: {
+              sign: mockSignWithError,
+            },
+          });
+
+        const approvedEventListener = jest.fn();
+        const mockActionId = 'test-action-id-456';
+
+        messenger.subscribe(
+          'TransactionController:transactionApproved',
+          approvedEventListener,
+        );
+
+        const { result } = await controller.addTransaction(
+          {
+            from: ACCOUNT_MOCK,
+            gas: '0x21000',
+            gasPrice: '0x1',
+            to: ACCOUNT_MOCK,
+            value: '0x0',
+          },
+          {
+            networkClientId: NETWORK_CLIENT_ID_MOCK,
+            actionId: mockActionId,
+          },
+        );
+
+        mockTransactionApprovalRequest.approve();
+
+        await expect(result).rejects.toThrow('Keyring signing failed');
+
+        const transaction = controller.state.transactions[0];
+        expect(transaction.status).toBe(TransactionStatus.failed);
+
+        expect(mockSignWithError).toHaveBeenCalledTimes(1);
+
+        // Verify the transactionApproved event was NOT published despite approval
+        expect(approvedEventListener).not.toHaveBeenCalled();
+      });
+    });
   });
 });

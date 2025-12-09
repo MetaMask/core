@@ -3135,10 +3135,12 @@ export class TransactionController extends BaseController<
           const updatedTransactionMeta = this.#getTransaction(
             transactionId,
           ) as TransactionMeta;
-          this.messenger.publish(`${controllerName}:transactionApproved`, {
-            transactionMeta: updatedTransactionMeta,
-            actionId,
-          });
+          if (approvalResult === ApprovalState.Approved) {
+            this.messenger.publish(`${controllerName}:transactionApproved`, {
+              transactionMeta: updatedTransactionMeta,
+              actionId,
+            });
+          }
         }
       } catch (rawError: unknown) {
         const error = rawError as Error & { code?: number; data?: Json };

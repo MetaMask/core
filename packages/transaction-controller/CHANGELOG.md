@@ -7,6 +7,10 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+### Fixed
+
+- Prevent `TransactionController:transactionApproved` event firing if keyring throws during signing ([#7410](https://github.com/MetaMask/core/pull/7410))
+
 ## [62.5.0]
 
 ### Changed
