@@ -833,9 +833,15 @@ export default class NotificationServicesController extends BaseController<
 
       // Update the state of the controller
       this.update((state) => {
-        state.isNotificationServicesEnabled = true;
-        state.isFeatureAnnouncementsEnabled = true;
-        state.isMetamaskNotificationsFeatureSeen = true;
+        // User is re-subscribing (daily resub to get latest notifications)
+        if (state.isNotificationServicesEnabled) {
+          // Keep their existing preferences on re-subscribe
+        } else {
+          // First time enabling notifications
+          state.isNotificationServicesEnabled = true;
+          state.isFeatureAnnouncementsEnabled = true;
+          state.isMetamaskNotificationsFeatureSeen = true;
+        }
       });
     } catch (err) {
       log.error('Failed to create On Chain triggers', err);
