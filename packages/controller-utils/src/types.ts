@@ -121,8 +121,11 @@ export const ChainId = {
 export type ChainId = (typeof ChainId)[keyof typeof ChainId];
 
 export enum NetworksTicker {
+  // eslint-disable-next-line @typescript-eslint/naming-convention
   mainnet = 'ETH',
+  // eslint-disable-next-line @typescript-eslint/naming-convention
   goerli = 'GoerliETH',
+  // eslint-disable-next-line @typescript-eslint/naming-convention
   sepolia = 'SepoliaETH',
   'linea-goerli' = 'LineaETH',
   // eslint-disable-next-line @typescript-eslint/no-duplicate-enum-values
@@ -140,6 +143,7 @@ export enum NetworksTicker {
   'optimism-mainnet' = 'ETH',
   'polygon-mainnet' = 'POL',
   'sei-mainnet' = 'SEI',
+  // eslint-disable-next-line @typescript-eslint/naming-convention
   rpc = '',
 }
 
