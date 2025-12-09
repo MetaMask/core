@@ -1069,7 +1069,7 @@ describe('TokenListController', () => {
       state: existingState,
     });
     expect(controller.state).toStrictEqual(existingState);
-    controller.clearingTokenListData();
+    await controller.clearingTokenListData();
 
     expect(controller.state.tokensChainsCache).toStrictEqual({});
 
