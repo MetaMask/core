@@ -1810,7 +1810,7 @@ describe('NetworkController', () => {
   });
 
   describe('getNetworkClientById', () => {
-    describe('if passed an Infura network client ID', () => {
+    describe('if passed a member of InfuraNetworkType', () => {
       describe('if the ID refers to an existing Infura network client', () => {
         it('returns the network client', async () => {
           const infuraProjectId = 'some-infura-project-id';
@@ -1837,7 +1837,7 @@ describe('NetworkController', () => {
         });
       });
 
-      describe('if the ID does not refer to an existing Infura network client', () => {
+      describe('if the ID does not refer to any network clients', () => {
         it('throws', async () => {
           const infuraProjectId = 'some-infura-project-id';
 
@@ -1854,16 +1854,52 @@ describe('NetworkController', () => {
             async ({ controller }) => {
               expect(() =>
                 controller.getNetworkClientById(NetworkType.mainnet),
-              ).toThrow(
-                'No Infura network client was found with the ID "mainnet".',
+              ).toThrow('No network client was found with the ID "mainnet".');
+            },
+          );
+        });
+      });
+
+      describe('if the ID does not refer to an Infura network client, but actually refers to a custom network client', () => {
+        it('returns the network client', async () => {
+          await withController(
+            {
+              state:
+                buildNetworkControllerStateWithDefaultSelectedNetworkClientId({
+                  networkConfigurationsByChainId: {
+                    '0x1337': buildCustomNetworkConfiguration({
+                      chainId: '0x1337',
+                      nativeCurrency: 'TEST',
+                      rpcEndpoints: [
+                        buildCustomRpcEndpoint({
+                          failoverUrls: ['https://failover.endpoint'],
+                          networkClientId: NetworkType.mainnet,
+                          url: 'https://test.network',
+                        }),
+                      ],
+                    }),
+                  },
+                }),
+            },
+            async ({ controller }) => {
+              const networkClient = controller.getNetworkClientById(
+                NetworkType.mainnet,
               );
+
+              expect(networkClient.configuration).toStrictEqual({
+                chainId: '0x1337',
+                failoverRpcUrls: ['https://failover.endpoint'],
+                rpcUrl: 'https://test.network',
+                ticker: 'TEST',
+                type: NetworkClientType.Custom,
+              });
             },
           );
         });
       });
     });
 
-    describe('if passed a custom network client ID', () => {
+    describe('if passed a string that is not a member of InfuraNetworkType', () => {
       describe('if the ID refers to an existing custom network client', () => {
         it('returns the network client', async () => {
           await withController(
@@ -1918,7 +1954,7 @@ describe('NetworkController', () => {
             },
             async ({ controller }) => {
               expect(() => controller.getNetworkClientById('0x1337')).toThrow(
-                'No custom network client was found with the ID "0x1337".',
+                'No network client was found with the ID "0x1337".',
               );
             },
           );
@@ -2234,7 +2270,7 @@ describe('NetworkController', () => {
           await expect(() =>
             controller.lookupNetwork('non-existent-network-id'),
           ).rejects.toThrow(
-            'No custom network client was found with the ID "non-existent-network-id".',
+            'No network client was found with the ID "non-existent-network-id".',
           );
         });
       });

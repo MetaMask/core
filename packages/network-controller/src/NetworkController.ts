@@ -1631,26 +1631,22 @@ export class NetworkController extends BaseController<
         autoManagedNetworkClientRegistry[NetworkClientType.Infura][
           networkClientId
         ];
-      // This is impossible to reach
-      /* istanbul ignore if */
-      if (!infuraNetworkClient) {
-        throw new Error(
-          `No Infura network client was found with the ID "${networkClientId}".`,
-        );
+      if (infuraNetworkClient) {
+        return infuraNetworkClient;
       }
-      return infuraNetworkClient;
     }
 
     const customNetworkClient =
       autoManagedNetworkClientRegistry[NetworkClientType.Custom][
         networkClientId
       ];
-    if (!customNetworkClient) {
-      throw new Error(
-        `No custom network client was found with the ID "${networkClientId}".`,
-      );
+    if (customNetworkClient) {
+      return customNetworkClient;
     }
-    return customNetworkClient;
+
+    throw new Error(
+      `No network client was found with the ID "${networkClientId}".`,
+    );
   }
 
   /**

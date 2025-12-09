@@ -12,6 +12,10 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 - Update the default set of Infura networks to include Monad Testnet ([#7067](https://github.com/MetaMask/core/pull/7067))
 - Bump `@metamask/eth-json-rpc-middleware` from `^22.0.0` to `^22.0.1` ([#7330](https://github.com/MetaMask/core/pull/7330))
 
+### Fixed
+
+- Fix `getNetworkClientById` to look for a custom network client if given an Infura network client ID and an Infura network client is not found ([#7420](https://github.com/MetaMask/core/pull/7420))
+
 ## [27.0.0]
 
 ### Added

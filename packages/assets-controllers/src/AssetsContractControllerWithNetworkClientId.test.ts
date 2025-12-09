@@ -31,7 +31,7 @@ describe('AssetsContractController with NetworkClientId', () => {
           'invalidNetworkClientId',
         ),
     ).rejects.toThrow(
-      `No custom network client was found with the ID "invalidNetworkClientId".`,
+      `No network client was found with the ID "invalidNetworkClientId".`,
     );
     messenger.clearEventSubscriptions('NetworkController:networkDidChange');
   });
@@ -46,7 +46,7 @@ describe('AssetsContractController with NetworkClientId', () => {
           'invalidNetworkClientId',
         ),
     ).rejects.toThrow(
-      `No custom network client was found with the ID "invalidNetworkClientId".`,
+      `No network client was found with the ID "invalidNetworkClientId".`,
     );
     messenger.clearEventSubscriptions('NetworkController:networkDidChange');
   });
@@ -154,7 +154,7 @@ describe('AssetsContractController with NetworkClientId', () => {
           undefined,
           'invalidNetworkClientId',
         ),
-    ).rejects.toThrow('No custom network client was found');
+    ).rejects.toThrow('No network client was found');
     messenger.clearEventSubscriptions('NetworkController:networkDidChange');
   });
 
@@ -582,7 +582,7 @@ describe('AssetsContractController with NetworkClientId', () => {
           ERC721_GODS_ADDRESS,
           'invalidNetworkClientId',
         ),
-    ).rejects.toThrow('No custom network client was found');
+    ).rejects.toThrow('No network client was found');
     messenger.clearEventSubscriptions('NetworkController:networkDidChange');
   });
 
@@ -698,7 +698,7 @@ describe('AssetsContractController with NetworkClientId', () => {
           '148332',
           'invalidNetworkClientId',
         ),
-    ).rejects.toThrow('No custom network client was found');
+    ).rejects.toThrow('No network client was found');
     messenger.clearEventSubscriptions('NetworkController:networkDidChange');
   });
 
@@ -823,7 +823,7 @@ describe('AssetsContractController with NetworkClientId', () => {
           '1',
           'invalidNetworkClientId',
         ),
-    ).rejects.toThrow('No custom network client was found');
+    ).rejects.toThrow('No network client was found');
     messenger.clearEventSubscriptions('NetworkController:networkDidChange');
   });
 
@@ -873,7 +873,7 @@ describe('AssetsContractController with NetworkClientId', () => {
           ERC1155_ID,
           'invalidNetworkClientId',
         ),
-    ).rejects.toThrow('No custom network client was found');
+    ).rejects.toThrow('No network client was found');
     messenger.clearEventSubscriptions('NetworkController:networkDidChange');
   });
 
