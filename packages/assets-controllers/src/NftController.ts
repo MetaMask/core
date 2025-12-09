@@ -54,6 +54,7 @@ import {
   compareNftMetadata,
   getFormattedIpfsUrl,
   hasNewCollectionFields,
+  reduceInBatchesSerially,
 } from './assetsUtil';
 import { Source } from './constants';
 import type {
@@ -2278,25 +2279,30 @@ export class NftController extends BaseController<
     try {
       // PhishingController has a 250 URL limit, so batch if needed
       const MAX_URLS_PER_BATCH = 250;
-      const blockedUrls = new Set<string>();
 
-      // Process URLs in batches
-      for (let i = 0; i < urlsToCheck.length; i += MAX_URLS_PER_BATCH) {
-        const batch = urlsToCheck.slice(i, i + MAX_URLS_PER_BATCH);
+      // Process URLs in batches serially
+      const blockedUrls = await reduceInBatchesSerially<string, Set<string>>({
+        values: urlsToCheck,
+        batchSize: MAX_URLS_PER_BATCH,
+        eachBatch: async (workingBlockedUrls, batch) => {
+          // Use bulkScanUrls to check this batch
+          const bulkScanResponse = await this.messenger.call(
+            'PhishingController:bulkScanUrls',
+            batch,
+          );
 
-        // Use bulkScanUrls to check this batch
-        const bulkScanResponse = await this.messenger.call(
-          'PhishingController:bulkScanUrls',
-          batch,
-        );
+          // Collect blocked URLs from this batch
+          Object.entries(bulkScanResponse.results).forEach(([url, result]) => {
+            if (result.recommendedAction === RecommendedAction.Block) {
+              // Type assertion is safe here as we always initialize with a Set and return a Set
+              (workingBlockedUrls as Set<string>).add(url);
+            }
+          });
 
-        // Collect blocked URLs from this batch
-        Object.entries(bulkScanResponse.results).forEach(([url, result]) => {
-          if (result.recommendedAction === RecommendedAction.Block) {
-            blockedUrls.add(url);
-          }
-        });
-      }
+          return workingBlockedUrls;
+        },
+        initialResult: new Set<string>(),
+      });
 
       // Apply scan results to all metadata objects
       blockedUrls.forEach((url) => {
