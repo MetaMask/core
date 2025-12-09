@@ -144,7 +144,7 @@ describe('Bridge Submit Utils', () => {
 
     request = {
       from: FROM_MOCK,
-      isSmartTransaction: () => false,
+      isSmartTransaction: (): boolean => false,
       messenger,
       quotes: cloneDeep([QUOTE_MOCK, QUOTE_2_MOCK]),
       transaction: { id: TRANSACTION_ID_MOCK } as TransactionMeta,
@@ -169,7 +169,7 @@ describe('Bridge Submit Utils', () => {
     });
 
     it('indicates if smart transactions is enabled', async () => {
-      request.isSmartTransaction = () => true;
+      request.isSmartTransaction = (): boolean => true;
 
       await submitBridgeQuotes(request);
 

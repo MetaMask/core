@@ -1,4 +1,8 @@
+/* eslint-disable jest/unbound-method */
+/* eslint-disable @typescript-eslint/naming-convention */
+/* eslint-disable camelcase */
 /* eslint-disable jest/expect-expect */
+
 import { TransactionFactory } from '@ethereumjs/tx';
 import type {
   AddApprovalRequest,
@@ -92,7 +96,12 @@ import { getBalanceChanges } from './utils/balance-changes';
 import { addTransactionBatch } from './utils/batch';
 import { getDelegationAddress } from './utils/eip7702';
 import { updateFirstTimeInteraction } from './utils/first-time-interaction';
-import { addGasBuffer, estimateGas, updateGas } from './utils/gas';
+import {
+  addGasBuffer,
+  estimateGas,
+  estimateGasBatch,
+  updateGas,
+} from './utils/gas';
 import { getGasFeeTokens } from './utils/gas-fee-tokens';
 import { updateGasFees } from './utils/gas-fees';
 import { getGasFeeFlow } from './utils/gas-flow';
@@ -185,7 +194,7 @@ function buildMockEthQuery(): EthQuery {
   return {
     // TODO: Replace `any` with type
     // eslint-disable-next-line @typescript-eslint/no-explicit-any
-    estimateGas: (_transaction: any, callback: any) => {
+    estimateGas: (_transaction: any, callback: any): void => {
       if (mockFlags.estimateGasError) {
         callback(new Error(mockFlags.estimateGasError));
         return;
@@ -199,7 +208,7 @@ function buildMockEthQuery(): EthQuery {
     },
     // TODO: Replace `any` with type
     // eslint-disable-next-line @typescript-eslint/no-explicit-any
-    gasPrice: (callback: any) => {
+    gasPrice: (callback: any): void => {
       callback(undefined, '0x0');
     },
     getBlockByNumber: (
@@ -210,7 +219,7 @@ function buildMockEthQuery(): EthQuery {
       // TODO: Replace `any` with type
       // eslint-disable-next-line @typescript-eslint/no-explicit-any
       callback: any,
-    ) => {
+    ): void => {
       if (mockFlags.getBlockByNumberValue) {
         callback(undefined, { gasLimit: '0x12a05f200' });
         return;
@@ -219,12 +228,12 @@ function buildMockEthQuery(): EthQuery {
     },
     // TODO: Replace `any` with type
     // eslint-disable-next-line @typescript-eslint/no-explicit-any
-    getCode: (_to: any, callback: any) => {
+    getCode: (_to: any, callback: any): void => {
       callback(undefined, '0x0');
     },
     // TODO: Replace `any` with type
     // eslint-disable-next-line @typescript-eslint/no-explicit-any
-    getTransactionByHash: (_hash: string, callback: any) => {
+    getTransactionByHash: (_hash: string, callback: any): void => {
       // TODO: Replace `any` with type
       // eslint-disable-next-line @typescript-eslint/no-explicit-any
       const txs: any = [
@@ -238,17 +247,17 @@ function buildMockEthQuery(): EthQuery {
     },
     // TODO: Replace `any` with type
     // eslint-disable-next-line @typescript-eslint/no-explicit-any
-    getTransactionCount: (_from: any, _to: any, callback: any) => {
+    getTransactionCount: (_from: any, _to: any, callback: any): void => {
       callback(undefined, '0x0');
     },
     // TODO: Replace `any` with type
     // eslint-disable-next-line @typescript-eslint/no-explicit-any
-    sendRawTransaction: (_transaction: unknown, callback: any) => {
+    sendRawTransaction: (_transaction: unknown, callback: any): void => {
       callback(undefined, TRANSACTION_HASH_MOCK);
     },
     // TODO: Replace `any` with type
     // eslint-disable-next-line @typescript-eslint/no-explicit-any
-    getTransactionReceipt: (_hash: any, callback: any) => {
+    getTransactionReceipt: (_hash: any, callback: any): void => {
       // TODO: Replace `any` with type
       // eslint-disable-next-line @typescript-eslint/no-explicit-any
       const txs: any = [
@@ -273,7 +282,7 @@ function buildMockEthQuery(): EthQuery {
     },
     // TODO: Replace `any` with type
     // eslint-disable-next-line @typescript-eslint/no-explicit-any
-    getBlockByHash: (_blockHash: any, callback: any) => {
+    getBlockByHash: (_blockHash: any, callback: any): void => {
       // TODO: Replace `any` with type
       // eslint-disable-next-line @typescript-eslint/no-explicit-any
       const blocks: any = [
@@ -294,7 +303,7 @@ function buildMockEthQuery(): EthQuery {
       );
       callback(undefined, block);
     },
-    sendAsync: () => {
+    sendAsync: (): void => {
       // do nothing
     },
   };
@@ -346,7 +355,7 @@ function waitForTransactionFinished(
     ? 'TransactionController:transactionConfirmed'
     : 'TransactionController:transactionFinished';
   return new Promise((resolve) => {
-    const subscriber = (transactionMeta: TransactionMeta) => {
+    const subscriber = (transactionMeta: TransactionMeta): void => {
       resolve(transactionMeta);
       messenger.unsubscribe(eventName, subscriber);
     };
@@ -533,6 +542,7 @@ describe('TransactionController', () => {
   const updateGasMock = jest.mocked(updateGas);
   const updateGasFeesMock = jest.mocked(updateGasFees);
   const estimateGasMock = jest.mocked(estimateGas);
+  const estimateGasBatchMock = jest.mocked(estimateGasBatch);
   const addGasBufferMock = jest.mocked(addGasBuffer);
   const updateSwapsTransactionMock = jest.mocked(updateSwapsTransaction);
   const updatePostTransactionBalanceMock = jest.mocked(
@@ -649,7 +659,21 @@ describe('TransactionController', () => {
       NetworkClientConfiguration
     >;
     updateToInitialState?: boolean;
-  } = {}) {
+  } = {}): {
+    controller: TransactionController;
+    messenger: RootMessenger;
+    rootMessenger: RootMessenger;
+    mockTransactionApprovalRequest: {
+      promise: Promise<AddResult>;
+      approve: (approvalResult?: Partial<AddResult>) => void;
+      reject: (rejectionError: unknown) => void;
+      actionHandlerMock: jest.Mock;
+    };
+    mockGetSelectedAccount: jest.Mock;
+    changeNetwork: (params: {
+      selectedNetworkClientId: NetworkClientId;
+    }) => void;
+  } {
     let networkState = {
       ...getDefaultNetworkControllerState(),
       selectedNetworkClientId: MOCK_NETWORK.state.selectedNetworkClientId,
@@ -660,7 +684,7 @@ describe('TransactionController', () => {
       selectedNetworkClientId,
     }: {
       selectedNetworkClientId: NetworkClientId;
-    }) => {
+    }): void => {
       networkState = {
         ...networkState,
         selectedNetworkClientId,
@@ -825,7 +849,7 @@ describe('TransactionController', () => {
   } {
     const { promise, resolve, reject } = createDeferredPromise<AddResult>();
 
-    const approveTransaction = (approvalResult?: Partial<AddResult>) => {
+    const approveTransaction = (approvalResult?: Partial<AddResult>): void => {
       resolve({
         resultCallbacks: {
           success() {
@@ -843,7 +867,7 @@ describe('TransactionController', () => {
       rejectionError: unknown = {
         code: errorCodes.provider.userRejectedRequest,
       },
-    ) => {
+    ): void => {
       reject(rejectionError);
     };
 
@@ -875,7 +899,7 @@ describe('TransactionController', () => {
    *
    * @param ms - The number of milliseconds to wait.
    */
-  async function wait(ms: number) {
+  async function wait(ms: number): Promise<void> {
     await new Promise((resolve) => setTimeout(resolve, ms));
   }
 
@@ -1188,7 +1212,9 @@ describe('TransactionController', () => {
 
       const { transactions } = controller.state;
 
-      expect(transactions.map((t) => [t.id, t.status])).toStrictEqual([
+      expect(
+        transactions.map((transaction) => [transaction.id, transaction.status]),
+      ).toStrictEqual([
         ['333', TransactionStatus.failed],
         ['222', TransactionStatus.confirmed],
         ['111', TransactionStatus.failed],
@@ -1639,8 +1665,10 @@ describe('TransactionController', () => {
           maxPriorityFeePerGas: '0x1',
         },
         {
-          getCurrentNetworkEIP1559Compatibility: async () => true,
-          getCurrentAccountEIP1559Compatibility: async () => true,
+          getCurrentNetworkEIP1559Compatibility: async (): Promise<boolean> =>
+            true,
+          getCurrentAccountEIP1559Compatibility: async (): Promise<boolean> =>
+            true,
         },
       ],
       [TransactionEnvelopeType.accessList, { accessList: [] }],
@@ -3046,7 +3074,7 @@ describe('TransactionController', () => {
         async function expectTransactionToFail(
           controller: TransactionController,
           expectedError: string,
-        ) {
+        ): Promise<void> {
           const { result } = await controller.addTransaction(
             {
               from: ACCOUNT_MOCK,
@@ -5727,7 +5755,7 @@ describe('TransactionController', () => {
       // TODO: Replace `any` with type
       // eslint-disable-next-line @typescript-eslint/no-explicit-any
       ...args: any
-    ) {
+    ): void {
       (pendingTransactionTrackerMock.hub.on as jest.Mock).mock.calls.find(
         (call) => call[0] === eventName,
       )[1](...args);
@@ -6013,7 +6041,6 @@ describe('TransactionController', () => {
       };
 
       // Send the transaction to put it in the process of being signed
-      // TODO: Either fix this lint violation or explain why it's necessary to ignore.
       // eslint-disable-next-line @typescript-eslint/no-floating-promises
       controller.approveTransactionsWithSameNonce([mockTransactionParam]);
 
@@ -6906,13 +6933,12 @@ describe('TransactionController', () => {
 
       const updatedTransaction = controller.state.transactions[0];
       const pathParts = expectedPath.split('.');
-      let actualValue = updatedTransaction;
+      // eslint-disable-next-line @typescript-eslint/no-explicit-any
+      let actualValue: any = updatedTransaction;
 
       for (const key of pathParts) {
         // Type assertion needed since we're accessing dynamic properties
-        actualValue = actualValue[
-          key as keyof typeof actualValue
-        ] as typeof actualValue;
+        actualValue = actualValue[key as keyof typeof actualValue];
       }
 
       expect(actualValue).toStrictEqual(newValue);
@@ -7135,7 +7161,7 @@ describe('TransactionController', () => {
         controller.getTransactions({
           // TODO: Replace `any` with type
           // eslint-disable-next-line @typescript-eslint/no-explicit-any
-          searchCriteria: { time: (v: any) => v === 1 },
+          searchCriteria: { time: (value: any) => value === 1 },
         }),
       ).toStrictEqual([transactions[0], transactions[2]]);
     });
@@ -7815,7 +7841,10 @@ describe('TransactionController', () => {
      *
      * @returns The controller instance and function result;
      */
-    async function updateAtomicBatchDataTemplate() {
+    async function updateAtomicBatchDataTemplate(): Promise<{
+      controller: TransactionController;
+      result: Hex;
+    }> {
       const { controller } = setupController({
         options: {
           state: {
@@ -8589,6 +8618,115 @@ describe('TransactionController', () => {
             }),
           }),
         );
+      });
+    });
+
+    describe('TransactionController:transactionApproved event', () => {
+      it('does not publish transactionApproved event when keyring throws during signing', async () => {
+        const signingError = new Error('Keyring signing failed');
+        const mockSignWithError = jest.fn().mockRejectedValue(signingError);
+
+        const { controller, messenger, mockTransactionApprovalRequest } =
+          setupController({
+            options: {
+              sign: mockSignWithError,
+            },
+          });
+
+        const approvedEventListener = jest.fn();
+        const mockActionId = 'test-action-id-456';
+
+        messenger.subscribe(
+          'TransactionController:transactionApproved',
+          approvedEventListener,
+        );
+
+        const { result } = await controller.addTransaction(
+          {
+            from: ACCOUNT_MOCK,
+            gas: '0x21000',
+            gasPrice: '0x1',
+            to: ACCOUNT_MOCK,
+            value: '0x0',
+          },
+          {
+            networkClientId: NETWORK_CLIENT_ID_MOCK,
+            actionId: mockActionId,
+          },
+        );
+
+        mockTransactionApprovalRequest.approve();
+
+        await expect(result).rejects.toThrow('Keyring signing failed');
+
+        const transaction = controller.state.transactions[0];
+        expect(transaction.status).toBe(TransactionStatus.failed);
+
+        expect(mockSignWithError).toHaveBeenCalledTimes(1);
+
+        // Verify the transactionApproved event was NOT published despite approval
+        expect(approvedEventListener).not.toHaveBeenCalled();
+      });
+    });
+
+    describe('TransactionController:estimateGasBatch', () => {
+      it('calls estimateGasBatch method via messenger and returns gas estimates', async () => {
+        const { messenger } = setupController();
+
+        const totalGasLimitMock = 100000;
+        const gasLimitsMock = [50000, 50000];
+
+        estimateGasBatchMock.mockResolvedValueOnce({
+          totalGasLimit: totalGasLimitMock,
+          gasLimits: gasLimitsMock,
+        });
+
+        const result = await messenger.call(
+          'TransactionController:estimateGasBatch',
+          {
+            chainId: CHAIN_ID_MOCK,
+            from: ACCOUNT_MOCK,
+            transactions: [
+              {
+                to: ACCOUNT_2_MOCK,
+                value: VALUE_MOCK,
+                data: DATA_MOCK,
+              },
+              {
+                to: ACCOUNT_2_MOCK,
+                value: VALUE_MOCK,
+                data: DATA_MOCK,
+              },
+            ],
+          },
+        );
+
+        expect(result).toStrictEqual({
+          totalGasLimit: totalGasLimitMock,
+          gasLimits: gasLimitsMock,
+        });
+
+        expect(estimateGasBatchMock).toHaveBeenCalledTimes(1);
+        expect(estimateGasBatchMock).toHaveBeenCalledWith({
+          chainId: CHAIN_ID_MOCK,
+          ethQuery: expect.anything(),
+          from: ACCOUNT_MOCK,
+          getSimulationConfig: expect.any(Function),
+          isAtomicBatchSupported: expect.any(Function),
+          messenger: expect.anything(),
+          transactions: [
+            {
+              to: ACCOUNT_2_MOCK,
+              value: VALUE_MOCK,
+              data: DATA_MOCK,
+            },
+            {
+              to: ACCOUNT_2_MOCK,
+              value: VALUE_MOCK,
+              data: DATA_MOCK,
+            },
+          ],
+        });
       });
     });
   });

@@ -7,6 +7,11 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+### Changed
+
+- Estimate gas for Relay quotes using messenger actions ([#7405](https://github.com/MetaMask/core/pull/7405))
+  - Submit all Relay source transactions using same gas limits estimated from quote.
+
 ## [10.4.0]
 
 ### Changed

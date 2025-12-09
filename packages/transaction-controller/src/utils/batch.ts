@@ -39,6 +39,7 @@ import {
 import type {
   BatchTransactionParams,
   GetSimulationConfig,
+  PublishBatchHookRequest,
   TransactionController,
   TransactionControllerMessenger,
   TransactionControllerState,
@@ -282,7 +283,7 @@ async function getNestedTransactionMeta(
  */
 async function addTransactionBatchWith7702(
   request: AddTransactionBatchRequest,
-) {
+): Promise<TransactionBatchResult> {
   const {
     addTransaction,
     getChainId,
@@ -296,6 +297,7 @@ async function addTransactionBatchWith7702(
     disableUpgrade,
     from,
     gasFeeToken,
+    gasLimit7702,
     networkClientId,
     origin,
     overwriteUpgrade,
@@ -357,6 +359,7 @@ async function addTransactionBatchWith7702(
   const txParams: TransactionParams = {
     ...batchParams,
     from,
+    gas: gasLimit7702,
     maxFeePerGas: nestedTransactions[0]?.maxFeePerGas,
     maxPriorityFeePerGas: nestedTransactions[0]?.maxPriorityFeePerGas,
   };
@@ -556,7 +559,11 @@ async function addTransactionBatchWithHook(
       signedTx: signedTransactions[i],
     }));
 
-    const hookParams = { from, networkClientId, transactions };
+    const hookParams: PublishBatchHookRequest = {
+      from,
+      networkClientId,
+      transactions,
+    };
 
     log('Calling publish batch hook', hookParams);
 
@@ -617,7 +624,9 @@ async function processTransactionWithHook(
   request: AddTransactionBatchRequest,
   txBatchMeta: TransactionBatchMeta | undefined,
   index: number,
-) {
+): Promise<
+  Omit<PublishBatchHookTransaction, 'signedTx'> & { type?: TransactionType }
+> {
   const { assetsFiatValues, existingTransaction, params, type } =
     nestedTransaction;
 
@@ -757,7 +766,7 @@ async function requestApproval(
     'ApprovalController:addRequest',
     {
       id,
-      origin: origin || ORIGIN_METAMASK,
+      origin: origin ?? ORIGIN_METAMASK,
       requestData,
       expectsResult: true,
       type,
@@ -775,7 +784,7 @@ async function requestApproval(
 function addBatchMetadata(
   transactionBatchMeta: TransactionBatchMeta,
   update: UpdateStateCallback,
-) {
+): void {
   update((state) => {
     state.transactionBatches = [
       ...state.transactionBatches,
@@ -859,7 +868,7 @@ async function prepareApprovalData({
   log('Preparing approval data for batch');
   const chainId = getChainId(networkClientId);
 
-  const { gasLimit } = await simulateGasBatch({
+  const { totalGasLimit: gasLimit } = await simulateGasBatch({
     chainId,
     from,
     getSimulationConfig,
@@ -937,7 +946,7 @@ async function convertTransactionToEIP7702({
   };
   nestedTransactions: NestedTransactionMetadata[];
   txParams: TransactionParams;
-}) {
+}): Promise<void> {
   const { getTransaction, estimateGas, updateTransaction } = request;
   const existingTransactionMeta = getTransaction(existingTransaction.id);
 

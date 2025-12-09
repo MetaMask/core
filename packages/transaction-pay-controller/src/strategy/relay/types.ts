@@ -56,6 +56,9 @@ export type RelayQuote = {
       amountUsd: string;
     };
   };
+  metamask: {
+    gasLimits: number[];
+  };
   request: RelayQuoteRequest;
   steps: {
     items: {
@@ -71,7 +74,7 @@ export type RelayQuote = {
         maxFeePerGas: string;
         maxPriorityFeePerGas: string;
         to: Hex;
-        value: string;
+        value?: string;
       };
       status: 'complete' | 'incomplete';
     }[];

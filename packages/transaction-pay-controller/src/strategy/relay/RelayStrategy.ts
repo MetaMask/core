@@ -5,14 +5,19 @@ import type {
   PayStrategy,
   PayStrategyExecuteRequest,
   PayStrategyGetQuotesRequest,
+  TransactionPayQuote,
 } from '../../types';
 
 export class RelayStrategy implements PayStrategy<RelayQuote> {
-  async getQuotes(request: PayStrategyGetQuotesRequest) {
+  async getQuotes(
+    request: PayStrategyGetQuotesRequest,
+  ): Promise<TransactionPayQuote<RelayQuote>[]> {
     return getRelayQuotes(request);
   }
 
-  async execute(request: PayStrategyExecuteRequest<RelayQuote>) {
+  async execute(
+    request: PayStrategyExecuteRequest<RelayQuote>,
+  ): ReturnType<PayStrategy<RelayQuote>['execute']> {
     return await submitRelayQuotes(request);
   }
 }
