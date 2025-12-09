@@ -1,3 +1,4 @@
+/* eslint-disable @typescript-eslint/unbound-method */
 import type EthQuery from '@metamask/eth-query';
 import type { Hex } from '@metamask/utils';
 
@@ -64,7 +65,7 @@ describe('SequentialPublishBatchHook', () => {
   function firePendingTransactionTrackerEvent(
     eventName: string,
     ...args: unknown[]
-  ) {
+  ): void {
     eventListeners[eventName]?.forEach((callback) => callback(...args));
   }
 

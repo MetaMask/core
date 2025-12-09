@@ -25,6 +25,7 @@ export type RevokeExecutionPermissionRequestParams = Infer<
 export type ProcessRevokeExecutionPermissionHook = (
   request: RevokeExecutionPermissionRequestParams,
   req: JsonRpcRequest,
+  context: WalletMiddlewareContext,
 ) => Promise<RevokeExecutionPermissionResult>;
 
 /**
@@ -41,7 +42,7 @@ export function createWalletRevokeExecutionPermissionHandler({
 }: {
   processRevokeExecutionPermission?: ProcessRevokeExecutionPermissionHook;
 }): JsonRpcMiddleware<JsonRpcRequest, Json, WalletMiddlewareContext> {
-  return async ({ request }) => {
+  return async ({ request, context }) => {
     if (!processRevokeExecutionPermission) {
       throw rpcErrors.methodNotSupported(
         'wallet_revokeExecutionPermission - no middleware configured',
@@ -52,6 +53,6 @@ export function createWalletRevokeExecutionPermissionHandler({
 
     validateParams(params, RevokeExecutionPermissionRequestParamsStruct);
 
-    return await processRevokeExecutionPermission(params, request);
+    return await processRevokeExecutionPermission(params, request, context);
   };
 }
