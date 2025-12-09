@@ -3126,6 +3126,7 @@ export class TransactionController extends BaseController<
             traceContext,
             publishHook,
           );
+
           if (
             approvalResult === ApprovalState.SkippedViaBeforePublishHook &&
             resultCallbacks
@@ -3135,10 +3136,19 @@ export class TransactionController extends BaseController<
           const updatedTransactionMeta = this.#getTransaction(
             transactionId,
           ) as TransactionMeta;
-          this.messenger.publish(`${controllerName}:transactionApproved`, {
-            transactionMeta: updatedTransactionMeta,
-            actionId,
-          });
+
+          if (approvalResult === ApprovalState.NotApproved) {
+            this.messenger.publish(`${controllerName}:transactionFailed`, {
+              transactionMeta: updatedTransactionMeta,
+              actionId,
+              error: transactionMeta.error?.message ?? 'Transaction failed',
+            });
+          } else {
+            this.messenger.publish(`${controllerName}:transactionApproved`, {
+              transactionMeta: updatedTransactionMeta,
+              actionId,
+            });
+          }
         }
       } catch (rawError: unknown) {
         const error = rawError as Error & { code?: number; data?: Json };
