@@ -147,14 +147,14 @@ export type BridgeHistoryItem = {
 };
 
 export enum BridgeStatusAction {
-  START_POLLING_FOR_BRIDGE_TX_STATUS = 'startPollingForBridgeTxStatus',
-  WIPE_BRIDGE_STATUS = 'wipeBridgeStatus',
-  GET_STATE = 'getState',
-  RESET_STATE = 'resetState',
-  SUBMIT_TX = 'submitTx',
-  SUBMIT_INTENT = 'submitIntent',
-  RESTART_POLLING_FOR_FAILED_ATTEMPTS = 'restartPollingForFailedAttempts',
-  GET_BRIDGE_HISTORY_ITEM_BY_TX_META_ID = 'getBridgeHistoryItemByTxMetaId',
+  START_POLLING_FOR_BRIDGE_TX_STATUS = 'StartPollingForBridgeTxStatus',
+  WIPE_BRIDGE_STATUS = 'WipeBridgeStatus',
+  GET_STATE = 'GetState',
+  RESET_STATE = 'ResetState',
+  SUBMIT_TX = 'SubmitTx',
+  SUBMIT_INTENT = 'SubmitIntent',
+  RESTART_POLLING_FOR_FAILED_ATTEMPTS = 'RestartPollingForFailedAttempts',
+  GET_BRIDGE_HISTORY_ITEM_BY_TX_META_ID = 'GetBridgeHistoryItemByTxMetaId',
 }
 
 export type TokenAmountValuesSerialized = {

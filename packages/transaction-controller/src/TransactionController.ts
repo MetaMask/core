@@ -1239,7 +1239,6 @@ export class TransactionController extends BaseController<
       requireApproval,
       securityAlertResponse,
       sendFlowHistory,
-      skipInitialGasEstimate,
       swaps = {},
       traceContext,
       type,
