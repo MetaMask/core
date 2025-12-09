@@ -151,6 +151,7 @@ export async function processSendCalls(
  * @param params.messenger - Messenger instance for controller communication.
  * @param params.networkClientId - The network client ID.
  * @param params.origin - The origin of the request (optional).
+ * @param params.requestId - Unique requestId of the JSON-RPC request from DAPP.
  * @param params.securityAlertId - The security alert ID for this transaction.
  * @param params.sendCalls - The original sendCalls request.
  * @param params.transactions - Array containing the single transaction.
@@ -236,6 +237,7 @@ async function processSingleTransaction({
  * @param params.networkClientId - The network client ID.
  * @param params.messenger - Messenger instance for controller communication.
  * @param params.origin - The origin of the request (optional).
+ * @param params.requestId - Unique requestId of the JSON-RPC request from DAPP.
  * @param params.sendCalls - The original sendCalls request.
  * @param params.securityAlertId - The security alert ID for this batch.
  * @param params.transactions - Array of transactions to process.
