@@ -272,7 +272,7 @@ const setupController = async (
     () => ({
       cacheTimestamp: 0,
       remoteFeatureFlags: {},
-      abTestRawFlags: {},
+      rawProcessedRemoteFeatureFlags: {},
       localOverrides: {},
     }),
   );
