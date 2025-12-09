@@ -475,7 +475,7 @@ describe('NotificationServicesController', () => {
       expect(mockEnablePushNotifications).toHaveBeenCalled();
     });
 
-    it('preserves user preferences when re-subscribing (already enabled)', async () => {
+    it('preserves user preferences when re-subscribing using enableMetamaskNotifications', async () => {
       const {
         messenger,
         mockEnablePushNotifications,
@@ -500,7 +500,7 @@ describe('NotificationServicesController', () => {
         },
       });
 
-      await controller.createOnChainTriggers();
+      await controller.enableMetamaskNotifications();
 
       // Feature announcements should remain disabled
       expect(controller.state.isFeatureAnnouncementsEnabled).toBe(false);
