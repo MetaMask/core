@@ -40,7 +40,11 @@ type SetupControllerReturn = {
 async function setupController(
   options: SetupControllerOptions,
 ): Promise<SetupControllerReturn> {
-  const { state, platformAdapter, isAnonymousEventsFeatureEnabled = false } = options;
+  const {
+    state,
+    platformAdapter,
+    isAnonymousEventsFeatureEnabled = false,
+  } = options;
 
   const adapter =
     platformAdapter ??
