@@ -101,6 +101,8 @@ export async function processSendCalls(
   const securityAlertId = uuid();
   const validateSecurity = validateSecurityHook.bind(null, securityAlertId);
 
+  const requestId = String(req.id);
+
   let batchId: Hex;
   if (Object.keys(transactions).length === 1) {
     batchId = await processSingleTransaction({
@@ -110,6 +112,7 @@ export async function processSendCalls(
       messenger,
       networkClientId,
       origin,
+      requestId,
       securityAlertId,
       sendCalls: params,
       transactions,
@@ -126,6 +129,7 @@ export async function processSendCalls(
       messenger,
       networkClientId,
       origin,
+      requestId,
       sendCalls: params,
       securityAlertId,
       transactions,
@@ -161,6 +165,7 @@ async function processSingleTransaction({
   messenger,
   networkClientId,
   origin,
+  requestId,
   securityAlertId,
   sendCalls,
   transactions,
@@ -173,6 +178,7 @@ async function processSingleTransaction({
   messenger: EIP5792Messenger;
   networkClientId: string;
   origin?: string;
+  requestId?: string;
   securityAlertId: string;
   sendCalls: SendCallsPayload;
   transactions: { params: BatchTransactionParams }[];
@@ -209,6 +215,7 @@ async function processSingleTransaction({
   const batchId = generateBatchId();
 
   await addTransaction(txParams, {
+    requestId,
     networkClientId,
     origin,
     securityAlertResponse: { securityAlertId } as SecurityAlertResponse,
@@ -245,6 +252,7 @@ async function processMultipleTransaction({
   networkClientId,
   messenger,
   origin,
+  requestId,
   sendCalls,
   securityAlertId,
   transactions,
@@ -259,6 +267,7 @@ async function processMultipleTransaction({
   messenger: EIP5792Messenger;
   networkClientId: string;
   origin?: string;
+  requestId?: string;
   sendCalls: SendCallsPayload;
   securityAlertId: string;
   transactions: { params: BatchTransactionParams }[];
@@ -295,6 +304,7 @@ async function processMultipleTransaction({
     from,
     networkClientId,
     origin,
+    requestId,
     securityAlertId,
     transactions,
     validateSecurity,
