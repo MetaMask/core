@@ -14,9 +14,10 @@ import { CHAIN_IDS } from '@metamask/transaction-controller';
 import type { TransactionMeta } from '@metamask/transaction-controller';
 import type { Hex } from '@metamask/utils';
 import BN from 'bn.js';
+import type nock from 'nock';
 import { useFakeTimers } from 'sinon';
 
-import { mockAPI_accountsAPI_MultichainAccountBalances } from './__fixtures__/account-api-v4-mocks';
+import { mockAPI_accountsAPI_MultichainAccountBalances as mockAPIAccountsAPIMultichainAccountBalancesCamelCase } from './__fixtures__/account-api-v4-mocks';
 import * as multicall from './multicall';
 import { RpcBalanceFetcher } from './rpc-service/rpc-balance-fetcher';
 import type {
@@ -71,7 +72,12 @@ const setupController = ({
   config?: Partial<ConstructorParameters<typeof TokenBalancesController>[0]>;
   tokens?: Partial<TokensControllerState>;
   listAccounts?: InternalAccount[];
-} = {}) => {
+} = {}): {
+  controller: TokenBalancesController;
+  updateSpy: jest.SpyInstance;
+  messenger: RootMessenger;
+  tokenBalancesControllerMessenger: TokenBalancesControllerMessenger;
+} => {
   const messenger: RootMessenger = new Messenger({
     namespace: MOCK_ANY_NAMESPACE,
   });
@@ -3762,7 +3768,7 @@ describe('TokenBalancesController', () => {
       ]);
 
       // Wait for async token change processing
-      await new Promise(process.nextTick);
+      await new Promise((resolve) => process.nextTick(resolve));
       pollSpy.mockClear();
 
       // After token change, should still poll all originally requested chains
@@ -4587,7 +4593,8 @@ describe('TokenBalancesController', () => {
       supportsSpy.mockRestore();
       fetchSpy.mockRestore();
       mockedSafelyExecuteWithTimeout.mockRestore();
-      global.fetch = originalFetch;
+      (global as unknown as { fetch: typeof originalFetch }).fetch =
+        originalFetch;
     });
   });
 
@@ -5513,9 +5520,12 @@ describe('TokenBalancesController', () => {
     const checksumAccountAddress = toChecksumHexAddress(accountAddress) as Hex;
     const chainId = '0x89';
 
-    const arrange = () => {
+    const arrange = (): {
+      mockAccountsAPI: nock.Scope;
+      controller: TokenBalancesController;
+    } => {
       const mockAccountsAPI =
-        mockAPI_accountsAPI_MultichainAccountBalances(accountAddress);
+        mockAPIAccountsAPIMultichainAccountBalancesCamelCase(accountAddress);
 
       const account = createMockInternalAccount({ address: accountAddress });
 

@@ -21,6 +21,7 @@ import type {
   KeyringControllerLockEvent,
   KeyringControllerUnlockEvent,
 } from '@metamask/keyring-controller';
+import type { InternalAccount } from '@metamask/keyring-internal-api';
 import type { Messenger } from '@metamask/messenger';
 import type {
   NetworkClientId,
@@ -99,7 +100,7 @@ export const STATIC_MAINNET_TOKEN_LIST = Object.entries<LegacyToken>(
  */
 export function mapChainIdWithTokenListMap(
   tokensChainsCache: TokensChainsCache,
-) {
+): Record<string, unknown> {
   return mapValues(tokensChainsCache, (value) => {
     if (isObject(value) && 'data' in value) {
       return get(value, ['data']);
@@ -218,7 +219,9 @@ export class TokenDetectionController extends StaticIntervalPollingController<To
     category: string;
     properties: {
       tokens: string[];
+      // eslint-disable-next-line @typescript-eslint/naming-convention
       token_standard: string;
+      // eslint-disable-next-line @typescript-eslint/naming-convention
       asset_type: string;
     };
   }) => void;
@@ -241,8 +244,8 @@ export class TokenDetectionController extends StaticIntervalPollingController<To
     getBalancesInSingleCall,
     trackMetaMetricsEvent,
     messenger,
-    useTokenDetection = () => true,
-    useExternalServices = () => true,
+    useTokenDetection = (): boolean => true,
+    useExternalServices = (): boolean => true,
   }: {
     interval?: number;
     disabled?: boolean;
@@ -252,7 +255,9 @@ export class TokenDetectionController extends StaticIntervalPollingController<To
       category: string;
       properties: {
         tokens: string[];
+        // eslint-disable-next-line @typescript-eslint/naming-convention
         token_standard: string;
+        // eslint-disable-next-line @typescript-eslint/naming-convention
         asset_type: string;
       };
     }) => void;
@@ -309,10 +314,12 @@ export class TokenDetectionController extends StaticIntervalPollingController<To
   /**
    * Constructor helper for registering this controller's messenger subscriptions to controller events.
    */
-  #registerEventListeners() {
-    this.messenger.subscribe('KeyringController:unlock', async () => {
+  #registerEventListeners(): void {
+    this.messenger.subscribe('KeyringController:unlock', () => {
       this.#isUnlocked = true;
-      await this.#restartTokenDetection();
+      this.#restartTokenDetection().catch(() => {
+        // Silently handle token detection errors
+      });
     });
 
     this.messenger.subscribe('KeyringController:lock', () => {
@@ -322,20 +329,22 @@ export class TokenDetectionController extends StaticIntervalPollingController<To
 
     this.messenger.subscribe(
       'TokenListController:stateChange',
-      async ({ tokensChainsCache }) => {
+      ({ tokensChainsCache }) => {
         const isEqualValues = this.#compareTokensChainsCache(
           tokensChainsCache,
           this.#tokensChainsCache,
         );
         if (!isEqualValues) {
-          await this.#restartTokenDetection();
+          this.#restartTokenDetection().catch(() => {
+            // Silently handle token detection errors
+          });
         }
       },
     );
 
     this.messenger.subscribe(
       'PreferencesController:stateChange',
-      async ({ useTokenDetection }) => {
+      ({ useTokenDetection }) => {
         const selectedAccount = this.#getSelectedAccount();
         const isDetectionChangedFromPreferences =
           this.#isDetectionEnabledFromPreferences !== useTokenDetection;
@@ -343,8 +352,10 @@ export class TokenDetectionController extends StaticIntervalPollingController<To
         this.#isDetectionEnabledFromPreferences = useTokenDetection;
 
         if (isDetectionChangedFromPreferences) {
-          await this.#restartTokenDetection({
+          this.#restartTokenDetection({
             selectedAddress: selectedAccount.address,
+          }).catch(() => {
+            // Silently handle token detection errors
           });
         }
       },
@@ -352,7 +363,7 @@ export class TokenDetectionController extends StaticIntervalPollingController<To
 
     this.messenger.subscribe(
       'AccountsController:selectedEvmAccountChange',
-      async (selectedAccount) => {
+      (selectedAccount) => {
         const { networkConfigurationsByChainId } = this.messenger.call(
           'NetworkController:getState',
         );
@@ -362,9 +373,11 @@ export class TokenDetectionController extends StaticIntervalPollingController<To
           this.#selectedAccountId !== selectedAccount.id;
         if (isSelectedAccountIdChanged) {
           this.#selectedAccountId = selectedAccount.id;
-          await this.#restartTokenDetection({
+          this.#restartTokenDetection({
             selectedAddress: selectedAccount.address,
             chainIds,
+          }).catch(() => {
+            // Silently handle token detection errors
           });
         }
       },
@@ -372,9 +385,11 @@ export class TokenDetectionController extends StaticIntervalPollingController<To
 
     this.messenger.subscribe(
       'TransactionController:transactionConfirmed',
-      async (transactionMeta) => {
-        await this.detectTokens({
+      (transactionMeta) => {
+        this.detectTokens({
           chainIds: [transactionMeta.chainId],
+        }).catch(() => {
+          // Silently handle token detection errors
         });
       },
     );
@@ -838,17 +853,17 @@ export class TokenDetectionController extends StaticIntervalPollingController<To
     }
   }
 
-  #getSelectedAccount() {
+  #getSelectedAccount(): InternalAccount {
     return this.messenger.call('AccountsController:getSelectedAccount');
   }
 
-  #getSelectedAddress() {
+  #getSelectedAddress(): string {
     // If the address is not defined (or empty), we fallback to the currently selected account's address
     const account = this.messenger.call(
       'AccountsController:getAccount',
       this.#selectedAccountId,
     );
-    return account?.address || '';
+    return account?.address ?? '';
   }
 }
 
