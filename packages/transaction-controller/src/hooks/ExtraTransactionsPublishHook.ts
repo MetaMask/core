@@ -82,7 +82,7 @@ export class ExtraTransactionsPublishHook {
     }: {
       newSignature?: Hex;
       transactionHash?: string;
-    }) => {
+    }): void => {
       if (newSignature) {
         const latestTransactionMeta = this.#getTransaction(transactionId);
 

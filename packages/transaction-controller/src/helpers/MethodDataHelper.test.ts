@@ -22,7 +22,7 @@ const METHOD_DATA_MOCK: MethodData = {
  *
  * @returns The mocked MethodRegistry instance.
  */
-function createMethodRegistryMock() {
+function createMethodRegistryMock(): jest.Mocked<MethodRegistry> {
   return {
     lookup: jest.fn(),
     parse: jest.fn(),
@@ -40,7 +40,9 @@ describe('MethodDataHelper', () => {
     it('returns method data from cache', async () => {
       const methodDataHelper = new MethodDataHelper({
         getProvider: jest.fn(),
-        getState: () => ({ [FOUR_BYTE_PREFIX_MOCK]: METHOD_DATA_MOCK }),
+        getState: (): Record<string, MethodData> => ({
+          [FOUR_BYTE_PREFIX_MOCK]: METHOD_DATA_MOCK,
+        }),
       });
 
       const result = await methodDataHelper.lookup(
@@ -62,7 +64,7 @@ describe('MethodDataHelper', () => {
 
       const methodDataHelper = new MethodDataHelper({
         getProvider: jest.fn(),
-        getState: () => ({}),
+        getState: (): Record<string, MethodData> => ({}),
       });
 
       const result = await methodDataHelper.lookup(
@@ -81,7 +83,7 @@ describe('MethodDataHelper', () => {
 
       const methodDataHelper = new MethodDataHelper({
         getProvider: jest.fn(),
-        getState: () => ({}),
+        getState: (): Record<string, MethodData> => ({}),
       });
 
       const result = await methodDataHelper.lookup(
@@ -105,7 +107,7 @@ describe('MethodDataHelper', () => {
 
       const methodDataHelper = new MethodDataHelper({
         getProvider: getProviderMock,
-        getState: () => ({}),
+        getState: (): Record<string, MethodData> => ({}),
       });
 
       await methodDataHelper.lookup(
@@ -138,7 +140,7 @@ describe('MethodDataHelper', () => {
 
       const methodDataHelper = new MethodDataHelper({
         getProvider: jest.fn(),
-        getState: () => ({}),
+        getState: (): Record<string, MethodData> => ({}),
       });
 
       const updateListener = jest.fn();
