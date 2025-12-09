@@ -213,7 +213,6 @@ export class AnalyticsController extends BaseController<
     platformAdapter,
     anonymousEventsFeature = false,
   }: AnalyticsControllerOptions) {
-
     const initialState: AnalyticsControllerState = {
       ...getDefaultAnalyticsControllerState(),
       ...state,
@@ -226,7 +225,7 @@ export class AnalyticsController extends BaseController<
       metadata: analyticsControllerMetadata,
       state: initialState,
       messenger,
-    }); 
+    });
 
     this.#anonymousEventsFeature = anonymousEventsFeature;
     this.#platformAdapter = platformAdapter;
