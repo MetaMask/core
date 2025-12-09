@@ -330,8 +330,18 @@ const selectBridgeQuotesWithMetadata = createBridgeSelector(
         toTokenAmount,
         minToTokenAmount,
         swapRate: calcSwapRate(sentAmount.amount, toTokenAmount.amount),
+        /**
+        This is the amount required to submit the transactions
+        Includes the relayer fee or other native fees
+        Should be used for balance checks and tx submission.
+         */
         totalNetworkFee: totalEstimatedNetworkFee,
         totalMaxNetworkFee,
+        /**
+        This contains gas fee estimates for the bridge transaction
+        Does not include the relayer fee (if needed), just the gasLimit and effectiveGas returned by the bridge API
+        Should only be used for display purposes.
+         */
         gasFee,
         adjustedReturn,
         cost,
