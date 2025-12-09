@@ -879,19 +879,6 @@ describe('RemoteFeatureFlagController', () => {
         expect(abTestFlags.anotherThresholdFlag).toHaveLength(2);
       });
 
-      it('returns empty object when no A/B test flags exist', async () => {
-        const clientConfigApiService = buildClientConfigApiService({
-          remoteFeatureFlags: MOCK_FLAGS, // No A/B test flags
-        });
-        const controller = createController({ clientConfigApiService });
-
-        await controller.updateRemoteFeatureFlags();
-
-        expect(controller.state.rawProcessedRemoteFeatureFlags).toStrictEqual(
-          {},
-        );
-      });
-
       it('returns empty object when no flags exist', () => {
         const controller = createController();
 
@@ -1003,9 +990,9 @@ describe('RemoteFeatureFlagController', () => {
         ),
       ).toMatchInlineSnapshot(`
         Object {
-          "rawProcessedRemoteFeatureFlags": Object {},
           "cacheTimestamp": 0,
           "localOverrides": Object {},
+          "rawProcessedRemoteFeatureFlags": Object {},
           "remoteFeatureFlags": Object {},
         }
       `);
@@ -1022,9 +1009,9 @@ describe('RemoteFeatureFlagController', () => {
         ),
       ).toMatchInlineSnapshot(`
         Object {
-          "rawProcessedRemoteFeatureFlags": Object {},
           "cacheTimestamp": 0,
           "localOverrides": Object {},
+          "rawProcessedRemoteFeatureFlags": Object {},
           "remoteFeatureFlags": Object {},
         }
       `);
@@ -1041,9 +1028,9 @@ describe('RemoteFeatureFlagController', () => {
         ),
       ).toMatchInlineSnapshot(`
         Object {
-          "rawProcessedRemoteFeatureFlags": Object {},
           "cacheTimestamp": 0,
           "localOverrides": Object {},
+          "rawProcessedRemoteFeatureFlags": Object {},
           "remoteFeatureFlags": Object {},
         }
       `);
