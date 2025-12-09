@@ -10,6 +10,15 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 ### Changed
 
 - Bump `@metamask/transaction-controller` from `^62.4.0` to `^62.5.0` ([#7325](https://github.com/MetaMask/core/pull/7325))
+- **BREAKING:** Replace Account API v2 with Account API v4 for token auto-detection ([#7408](https://github.com/MetaMask/core/pull/7408))
+  - `TokenDetectionController` now delegates token detection for Account API v4 supported chains to `TokenBalancesController`
+  - RPC-based detection continues to be used for chains not supported by Account API v4
+  - Added `forceRpc` parameter to `TokenDetectionController.detectTokens()` to force RPC-based detection
+  - `TokenDetectionController:detectTokens` action is now registered for cross-controller communication
+- `TokenBalancesController` now triggers RPC-based token detection as fallback when Account API v4 fails or returns unprocessed chains ([#7408](https://github.com/MetaMask/core/pull/7408))
+  - Calls `TokenDetectionController:detectTokens` with `forceRpc: true` when fetcher fails
+  - Calls `TokenDetectionController:detectTokens` with `forceRpc: true` for any unprocessed chain IDs returned by the API
+- Refactored `TokenBalancesController` for improved code organization and maintainability ([#7408](https://github.com/MetaMask/core/pull/7408))
 
 ### Fixed
 
