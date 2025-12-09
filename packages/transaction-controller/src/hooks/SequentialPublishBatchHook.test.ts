@@ -1,4 +1,3 @@
-/* eslint-disable @typescript-eslint/unbound-method */
 import type EthQuery from '@metamask/eth-query';
 import type { Hex } from '@metamask/utils';
 

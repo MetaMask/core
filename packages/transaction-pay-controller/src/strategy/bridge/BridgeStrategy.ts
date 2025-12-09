@@ -1,3 +1,4 @@
+import { BatchTransaction } from '@metamask/transaction-controller';
 import type { Hex } from '@metamask/utils';
 
 import {
@@ -13,24 +14,31 @@ import type {
   PayStrategyGetBatchRequest,
   PayStrategyGetQuotesRequest,
   PayStrategyGetRefreshIntervalRequest,
+  TransactionPayQuote,
 } from '../../types';
 
 export class BridgeStrategy implements PayStrategy<TransactionPayBridgeQuote> {
-  async getQuotes(request: PayStrategyGetQuotesRequest) {
+  async getQuotes(
+    request: PayStrategyGetQuotesRequest,
+  ): Promise<TransactionPayQuote<TransactionPayBridgeQuote>[]> {
     return getBridgeQuotes(request);
   }
 
   async getBatchTransactions(
     request: PayStrategyGetBatchRequest<TransactionPayBridgeQuote>,
-  ) {
+  ): Promise<BatchTransaction[]> {
     return getBridgeBatchTransactions(request);
   }
 
-  async getRefreshInterval(request: PayStrategyGetRefreshIntervalRequest) {
+  async getRefreshInterval(
+    request: PayStrategyGetRefreshIntervalRequest,
+  ): Promise<number | undefined> {
     return getBridgeRefreshInterval(request);
   }
 
-  async execute(request: PayStrategyExecuteRequest<TransactionPayBridgeQuote>) {
+  async execute(
+    request: PayStrategyExecuteRequest<TransactionPayBridgeQuote>,
+  ): ReturnType<PayStrategy<TransactionPayBridgeQuote>['execute']> {
     const { isSmartTransaction, quotes, messenger, transaction } = request;
     const from = transaction.txParams.from as Hex;
 
