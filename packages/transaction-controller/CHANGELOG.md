@@ -16,6 +16,10 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
   - Ignores transactions with future nonce.
   - Threshold determined by feature flag.
 
+### Changed
+
+- Throw with more specific error message if publish fails ([#7418](https://github.com/MetaMask/core/pull/7418))
+
 ### Fixed
 
 - Prevent `TransactionController:transactionApproved` event firing if keyring throws during signing ([#7410](https://github.com/MetaMask/core/pull/7410))
