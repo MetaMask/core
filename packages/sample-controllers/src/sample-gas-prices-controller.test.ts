@@ -202,7 +202,7 @@ describe('SampleGasPricesController', () => {
       });
     });
 
-    it('calls `ErrorReportingService:captureException` if fetching gas prices fails', async () => {
+    it('calls `messenger.captureException` if fetching gas prices fails', async () => {
       await withController(async ({ rootMessenger }) => {
         const chainId = '0x42';
 
@@ -214,15 +214,10 @@ describe('SampleGasPricesController', () => {
           throw new Error(`Unrecognized chain ID '${givenChainId}'`);
         });
 
-        const captureException = jest.fn();
+        const captureException = jest.spyOn(rootMessenger, 'captureException');
         rootMessenger.registerActionHandler(
           'SampleGasPricesService:fetchGasPrices',
           fetchGasPrices,
-        );
-
-        rootMessenger.registerActionHandler(
-          'ErrorReportingService:captureException',
-          captureException,
         );
 
         rootMessenger.registerActionHandler(
@@ -438,7 +433,10 @@ type WithControllerOptions = {
  * @returns The root messenger.
  */
 function getRootMessenger(): RootMessenger {
-  return new Messenger({ namespace: MOCK_ANY_NAMESPACE });
+  return new Messenger({
+    namespace: MOCK_ANY_NAMESPACE,
+    captureException: jest.fn(),
+  });
 }
 
 /**
@@ -457,7 +455,6 @@ function getMessenger(
   });
   rootMessenger.delegate({
     actions: [
-      'ErrorReportingService:captureException',
       'NetworkController:getNetworkClientById',
       'SampleGasPricesService:fetchGasPrices',
     ],

@@ -4,7 +4,6 @@ import type {
   StateMetadata,
 } from '@metamask/base-controller';
 import { BaseController } from '@metamask/base-controller';
-import { ErrorReportingServiceCaptureExceptionAction } from '@metamask/error-reporting-service';
 import type { Messenger } from '@metamask/messenger';
 import type {
   NetworkClientId,
@@ -110,7 +109,6 @@ export type SampleGasPricesControllerActions =
  * Actions from other messengers that {@link SampleGasPricesMessenger} calls.
  */
 type AllowedActions =
-  | ErrorReportingServiceCaptureExceptionAction
   | NetworkControllerGetNetworkClientByIdAction
   | SampleGasPricesServiceFetchGasPricesAction;
 
@@ -308,7 +306,7 @@ export class SampleGasPricesController extends BaseController<
     if (chainId !== this.#selectedChainId) {
       this.#selectedChainId = chainId;
       this.updateGasPrices({ chainId }).catch((error) => {
-        this.messenger.call('ErrorReportingService:captureException', error);
+        this.messenger.captureException?.(error);
       });
     }
   }
