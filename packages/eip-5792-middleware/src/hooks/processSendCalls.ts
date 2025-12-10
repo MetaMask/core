@@ -101,7 +101,7 @@ export async function processSendCalls(
   const securityAlertId = uuid();
   const validateSecurity = validateSecurityHook.bind(null, securityAlertId);
 
-  const requestId = String(req.id);
+  const requestId = req.id ? String(req.id) : '';
 
   let batchId: Hex;
   if (Object.keys(transactions).length === 1) {
