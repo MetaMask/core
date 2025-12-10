@@ -3148,19 +3148,6 @@
       "count": 1
     }
   },
-  "packages/rate-limit-controller/src/RateLimitController.test.ts": {
-    "no-new": {
-      "count": 1
-    }
-  },
-  "packages/rate-limit-controller/src/RateLimitController.ts": {
-    "@typescript-eslint/explicit-function-return-type": {
-      "count": 3
-    },
-    "no-restricted-syntax": {
-      "count": 6
-    }
-  },
   "packages/remote-feature-flag-controller/src/client-config-api-service/client-config-api-service.test.ts": {
     "@typescript-eslint/explicit-function-return-type": {
       "count": 1
