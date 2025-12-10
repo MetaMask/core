@@ -8,9 +8,9 @@ import {
 import type EthQuery from '@metamask/eth-query';
 import type { Hex, Json } from '@metamask/utils';
 import { add0x, createModuleLogger, remove0x } from '@metamask/utils';
-import { BN } from 'bn.js';
+import { BigNumber } from 'bignumber.js';
 
-import { DELEGATION_PREFIX } from './eip7702';
+import { DELEGATION_PREFIX, generateEIP7702BatchTransaction } from './eip7702';
 import { getGasEstimateBuffer, getGasEstimateFallback } from './feature-flags';
 import { simulateTransactions } from '../api/simulation-api';
 import { projectLogger } from '../logger';
@@ -18,7 +18,10 @@ import type { TransactionControllerMessenger } from '../TransactionController';
 import { TransactionEnvelopeType } from '../types';
 import type {
   AuthorizationList,
+  BatchTransactionParams,
   GetSimulationConfig,
+  IsAtomicBatchSupportedRequest,
+  IsAtomicBatchSupportedResult,
   TransactionBatchSingleRequest,
   TransactionMeta,
   TransactionParams,
@@ -185,6 +188,107 @@ export async function estimateGas({
   };
 }
 
+export async function estimateGasBatch({
+  chainId,
+  ethQuery,
+  from,
+  getSimulationConfig,
+  isAtomicBatchSupported,
+  messenger,
+  transactions,
+}: {
+  chainId: Hex;
+  ethQuery: EthQuery;
+  from: Hex;
+  getSimulationConfig: GetSimulationConfig;
+  isAtomicBatchSupported: (
+    request: IsAtomicBatchSupportedRequest,
+  ) => Promise<IsAtomicBatchSupportedResult>;
+  messenger: TransactionControllerMessenger;
+  transactions: BatchTransactionParams[];
+}): Promise<{ totalGasLimit: number; gasLimits: number[] }> {
+  const is7702Result = await isAtomicBatchSupported({
+    address: from,
+    chainIds: [chainId],
+  });
+
+  const chainResult = is7702Result.find((result) => result.chainId === chainId);
+  const isUpgradeRequired = Boolean(chainResult && !chainResult.isSupported);
+
+  if (isUpgradeRequired && !chainResult?.upgradeContractAddress) {
+    throw new Error('Upgrade contract address not found');
+  }
+
+  if (chainResult) {
+    const authorizationList = isUpgradeRequired
+      ? [{ address: chainResult.upgradeContractAddress as Hex }]
+      : undefined;
+
+    const type = isUpgradeRequired
+      ? TransactionEnvelopeType.setCode
+      : undefined;
+
+    const params: TransactionParams = {
+      ...generateEIP7702BatchTransaction(from, transactions),
+      authorizationList,
+      from,
+      type,
+    };
+
+    const { estimatedGas: gasLimitHex } = await estimateGas({
+      chainId,
+      ethQuery,
+      isSimulationEnabled: true,
+      getSimulationConfig,
+      messenger,
+      txParams: params,
+    });
+
+    const totalGasLimit = new BigNumber(gasLimitHex).toNumber();
+
+    log('Estimated EIP-7702 gas limit', totalGasLimit);
+
+    return { totalGasLimit, gasLimits: [totalGasLimit] };
+  }
+
+  const allTransactionsHaveGas = transactions.every(
+    (transaction) => transaction.gas !== undefined,
+  );
+
+  if (allTransactionsHaveGas) {
+    const gasLimits = transactions.map((transaction) =>
+      new BigNumber(transaction.gas as Hex).toNumber(),
+    );
+
+    const total = gasLimits.reduce((acc, gasLimit) => acc + gasLimit, 0);
+
+    log('Using batch parameter gas limits', { gasLimits, total });
+
+    return { totalGasLimit: total, gasLimits };
+  }
+
+  const { gasLimits: gasLimitsHex } = await simulateGasBatch({
+    chainId,
+    from,
+    getSimulationConfig,
+    transactions: transactions.map((transaction) => ({
+      params: transaction,
+    })),
+  });
+
+  const gasLimits = transactions.map((transaction, index) =>
+    transaction.gas
+      ? new BigNumber(transaction.gas).toNumber()
+      : new BigNumber(gasLimitsHex[index]).toNumber(),
+  );
+
+  const totalGasLimit = gasLimits.reduce((acc, gasLimit) => acc + gasLimit, 0);
+
+  log('Simulated batch gas limits', { totalGasLimit, gasLimits });
+
+  return { totalGasLimit, gasLimits };
+}
+
 /**
  * Add a buffer to the provided estimated gas.
  * The buffer is calculated based on the block gas limit and a multiplier.
@@ -246,7 +350,7 @@ export async function simulateGasBatch({
   from: Hex;
   getSimulationConfig: GetSimulationConfig;
   transactions: TransactionBatchSingleRequest[];
-}): Promise<{ gasLimit: Hex }> {
+}): Promise<{ totalGasLimit: Hex; gasLimits: Hex[] }> {
   try {
     const response = await simulateTransactions(chainId, {
       getSimulationConfig,
@@ -263,21 +367,32 @@ export async function simulateGasBatch({
       throw new Error('Simulation response does not match transaction count');
     }
 
-    const totalGasLimit = response.transactions.reduce((acc, transaction) => {
-      const gasLimit = transaction?.gasLimit;
+    return response.transactions.reduce<{
+      totalGasLimit: Hex;
+      gasLimits: Hex[];
+    }>(
+      (acc, transaction) => {
+        const gasLimit = transaction?.gasLimit;
 
-      if (!gasLimit) {
-        throw new Error(
-          'No simulated gas returned for one of the transactions',
+        if (!gasLimit) {
+          throw new Error(
+            'No simulated gas returned for one of the transactions',
+          );
+        }
+
+        acc.gasLimits.push(gasLimit);
+
+        acc.totalGasLimit = BNToHex(
+          hexToBN(acc.totalGasLimit).add(hexToBN(gasLimit)),
         );
-      }
 
-      return acc.add(hexToBN(gasLimit));
-    }, new BN(0));
-
-    return {
-      gasLimit: BNToHex(totalGasLimit), // Return the total gas limit as a hex string
-    };
+        return acc;
+      },
+      {
+        totalGasLimit: '0x0',
+        gasLimits: [],
+      },
+    );
   } catch (error: unknown) {
     log('Error while simulating gas batch', error);
     throw new Error(

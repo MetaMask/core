@@ -475,6 +475,41 @@ describe('NotificationServicesController', () => {
       expect(mockEnablePushNotifications).toHaveBeenCalled();
     });
 
+    it('preserves user preferences when re-subscribing using enableMetamaskNotifications', async () => {
+      const {
+        messenger,
+        mockEnablePushNotifications,
+        mockGetConfig,
+        mockUpdateNotifications,
+      } = arrangeMocks({
+        // Mock existing notifications
+        mockGetConfig: () =>
+          mockGetOnChainNotificationsConfig({
+            status: 200,
+            body: [{ address: ADDRESS_1, enabled: true }],
+          }),
+      });
+
+      // User has disabled feature announcements
+      const controller = new NotificationServicesController({
+        messenger,
+        env: { featureAnnouncements: featureAnnouncementsEnv },
+        state: {
+          isNotificationServicesEnabled: true,
+          isFeatureAnnouncementsEnabled: false,
+        },
+      });
+
+      await controller.enableMetamaskNotifications();
+
+      // Feature announcements should remain disabled
+      expect(controller.state.isFeatureAnnouncementsEnabled).toBe(false);
+      expect(controller.state.isNotificationServicesEnabled).toBe(true);
+      expect(mockGetConfig.isDone()).toBe(true);
+      expect(mockUpdateNotifications.isDone()).toBe(false);
+      expect(mockEnablePushNotifications).toHaveBeenCalled();
+    });
+
     it('throws if not given a valid auth & bearer token', async () => {
       const mocks = arrangeMocks();
       mockErrorLog();
