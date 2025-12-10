@@ -10,14 +10,24 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 ### Added
 
 - Add `monad-testnet` to `InfuraNetworkType` ([#7067](https://github.com/MetaMask/core/pull/7067))
-- Add MegaETH Testnet V2 to various constants, enums, and types ([#7272](https://github.com/MetaMask/core/pull/7272))
+- Add MegaETH Testnet "v2" to various constants, enums, and types ([#7272](https://github.com/MetaMask/core/pull/7272))
   - Add `megaeth-testnet-v2` to `BUILT_IN_NETWORKS`
-  - Add `megaeth-testnet-v2` and `megaeth-testnet` to `BUILT_IN_CUSTOM_NETWORKS_RPC`
+  - Add `megaeth-testnet-v2` to `BUILT_IN_CUSTOM_NETWORKS_RPC`
   - Add `MegaETHTestnetV2` to `BuiltInNetworkName` enum
   - Add `megaeth-testnet-v2` to `ChainId` type
   - Add `MegaETHTestnetV2` to `NetworksTicker` enum
   - Add `MegaETHTestnetV2` to `BlockExplorerUrl` quasi-enum
   - Add `MegaETHTestnetV2` to `NetworkNickname` quasi-enum
+
+### Deprecated
+- Deprecate references to MegaETH Testnet "v1" in favor of "v2" ([#7272](https://github.com/MetaMask/core/pull/7272))
+  - Deprecate `BUILT_IN_CUSTOM_NETWORKS_RPC["megaeth-testnet"]`
+  - Deprecate `CustomNetworkType["megaeth-testnet"]`
+  - Deprecate `BuiltInNetworkName["megaeth-testnet"]`
+  - Deprecate `ChainId["megaeth-testnet"]`
+  - Deprecate `NetworksTicker["megaeth-testnet"]`
+  - Deprecate `BlockExplorerUrl["megaeth-testnet"]`
+  - Deprecate `NetworkNickname["megaeth-testnet"]`
 
 ## [11.16.0]
 

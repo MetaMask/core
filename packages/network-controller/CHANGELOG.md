@@ -9,9 +9,9 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ### Added
 
-- Add MegaETH Testnet V2 support ([#7272](https://github.com/MetaMask/core/pull/7272))
-  - Add `megaeth-testnet-v2` in method `getDefaultCustomNetworkConfigurationsByChainId`
-  - Add `megaeth-testnet-v2` in type `AdditionalDefaultNetwork`
+- Add MegaETH Testnet "v2" as a default custom network ([#7272](https://github.com/MetaMask/core/pull/7272))
+  - The URL for this is `https://timothy.megaeth.com/rpc` rather than `https://carrot.megaeth.com/rpc`, and the chain ID has changed from `0x18c6` to `0x18c7`.
+  - "v1" of this network has not been removed.
 
 ### Changed
 
