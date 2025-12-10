@@ -9,10 +9,6 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [10.5.0]
 
-### Uncategorized
-
-- chore: transaction pay controller linting ([#7401](https://github.com/MetaMask/core/pull/7401))
-
 ### Changed
 
 - Bump `@metamask/bridge-controller` from `^64.0.0` to `^64.1.0` ([#7422](https://github.com/MetaMask/core/pull/7422))
