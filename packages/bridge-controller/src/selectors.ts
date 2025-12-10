@@ -4,6 +4,7 @@ import type {
   MultichainAssetsRatesControllerState,
   TokenRatesControllerState,
 } from '@metamask/assets-controllers';
+import { toChecksumHexAddress } from '@metamask/controller-utils';
 import type { GasFeeEstimates } from '@metamask/gas-fee-controller';
 import type { CaipAssetType } from '@metamask/utils';
 import { isStrictHexString } from '@metamask/utils';
@@ -168,7 +169,7 @@ const getExchangeRateByChainIdAndAddress = (
   if (!isNonEvmChainId(chainId)) {
     const evmTokenExchangeRates = marketData?.[formatChainIdToHex(chainId)];
     const evmTokenExchangeRateForAddress = isStrictHexString(address)
-      ? evmTokenExchangeRates?.[address]
+      ? evmTokenExchangeRates?.[toChecksumHexAddress<`0x${string}`>(address)]
       : null;
     const nativeCurrencyRate = evmTokenExchangeRateForAddress
       ? currencyRates[evmTokenExchangeRateForAddress?.currency]
