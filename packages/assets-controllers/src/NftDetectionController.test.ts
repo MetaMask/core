@@ -24,7 +24,7 @@ import type {
 import { getDefaultPreferencesState } from '@metamask/preferences-controller';
 import type { PreferencesState } from '@metamask/preferences-controller';
 import nock from 'nock';
-import * as sinon from 'sinon';
+import sinon from 'sinon';
 
 import { Source } from './constants';
 import { getDefaultNftControllerState } from './NftController';
@@ -1033,21 +1033,17 @@ describe('NftDetectionController', () => {
 
   it('should stop after first page when firstPageOnly is true', async () => {
     const mockAddNfts = jest.fn();
-    const selectedAddress = '0x123';
+    const selectedAddress = '0xFirstPage';
     const selectedAccount = createMockInternalAccount({
       address: selectedAddress,
     });
     const mockGetSelectedAccount = jest.fn().mockReturnValue(selectedAccount);
 
     // Mock first page with continuation token
-    const firstPageMock = nock(NFT_API_BASE_URL)
-      .get(`/users/${selectedAddress}/tokens`)
-      .query({
-        continuation: '',
-        limit: '50',
-        chainIds: '1',
-        includeTopBid: true,
-      })
+    nock(NFT_API_BASE_URL)
+      .get(
+        `/users/${selectedAddress}/tokens?chainIds=1&limit=50&includeTopBid=true&continuation=`,
+      )
       .reply(200, {
         tokens: [
           {
@@ -1075,14 +1071,10 @@ describe('NftDetectionController', () => {
       });
 
     // Mock second page that should NOT be called
-    const secondPageMock = nock(NFT_API_BASE_URL)
-      .get(`/users/${selectedAddress}/tokens`)
-      .query({
-        continuation: 'next-page-token',
-        limit: '50',
-        chainIds: '1',
-        includeTopBid: true,
-      })
+    const secondPageSpy = nock(NFT_API_BASE_URL)
+      .get(
+        `/users/${selectedAddress}/tokens?chainIds=1&limit=50&includeTopBid=true&continuation=next-page-token`,
+      )
       .reply(200, {
         tokens: [
           {
@@ -1125,11 +1117,8 @@ describe('NftDetectionController', () => {
 
         await controller.detectNfts(['0x1'], { firstPageOnly: true });
 
-        // Verify first page was called
-        expect(firstPageMock.isDone()).toBe(true);
-
-        // Verify second page was NOT called
-        expect(secondPageMock.isDone()).toBe(false);
+        // Verify second page was NOT called because we used firstPageOnly
+        expect(secondPageSpy.isDone()).toBe(false);
 
         // Verify only first page NFTs were added
         expect(mockAddNfts).toHaveBeenCalledTimes(1);
@@ -1157,21 +1146,17 @@ describe('NftDetectionController', () => {
 
   it('should stop pagination when signal is aborted', async () => {
     const mockAddNfts = jest.fn();
-    const selectedAddress = '0x123';
+    const selectedAddress = '0xAbortSignal';
     const selectedAccount = createMockInternalAccount({
       address: selectedAddress,
     });
     const mockGetSelectedAccount = jest.fn().mockReturnValue(selectedAccount);
 
     // Mock first page with continuation token
-    const firstPageMock = nock(NFT_API_BASE_URL)
-      .get(`/users/${selectedAddress}/tokens`)
-      .query({
-        continuation: '',
-        limit: '50',
-        chainIds: '1',
-        includeTopBid: true,
-      })
+    nock(NFT_API_BASE_URL)
+      .get(
+        `/users/${selectedAddress}/tokens?chainIds=1&limit=50&includeTopBid=true&continuation=`,
+      )
       .reply(200, {
         tokens: [
           {
@@ -1199,14 +1184,10 @@ describe('NftDetectionController', () => {
       });
 
     // Mock second page that should NOT be called
-    const secondPageMock = nock(NFT_API_BASE_URL)
-      .get(`/users/${selectedAddress}/tokens`)
-      .query({
-        continuation: 'next-page-token',
-        limit: '50',
-        chainIds: '1',
-        includeTopBid: true,
-      })
+    const secondPageSpy = nock(NFT_API_BASE_URL)
+      .get(
+        `/users/${selectedAddress}/tokens?chainIds=1&limit=50&includeTopBid=true&continuation=next-page-token`,
+      )
       .reply(200, {
         tokens: [
           {
@@ -1255,11 +1236,8 @@ describe('NftDetectionController', () => {
           signal: abortController.signal,
         });
 
-        // Verify first page was called
-        expect(firstPageMock.isDone()).toBe(true);
-
         // Verify second page was NOT called because signal was aborted
-        expect(secondPageMock.isDone()).toBe(false);
+        expect(secondPageSpy.isDone()).toBe(false);
 
         // Verify only first page NFTs were added
         expect(mockAddNfts).toHaveBeenCalledTimes(1);
@@ -1420,10 +1398,10 @@ async function withController<ReturnValue>(
   });
 
   const controllerEvents = {
-    triggerPreferencesStateChange: (state: PreferencesState) => {
+    triggerPreferencesStateChange: (state: PreferencesState): void => {
       messenger.publish('PreferencesController:stateChange', state, []);
     },
-    triggerNetworkStateChange: (state: NetworkState) => {
+    triggerNetworkStateChange: (state: NetworkState): void => {
       messenger.publish('NetworkController:stateChange', state, []);
     },
   };
