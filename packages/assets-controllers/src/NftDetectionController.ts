@@ -546,8 +546,17 @@ export class NftDetectionController extends BaseController<
    * @param chainIds - The chain IDs to detect NFTs on.
    * @param options - Options bag.
    * @param options.userAddress - The address to detect NFTs for.
+   * @param options.firstPageOnly - Whether to only detect the first page of NFTs.
+   * @param options.signal - An optional abort signal to cancel the operation.
    */
-  async detectNfts(chainIds: Hex[], options?: { userAddress?: string }) {
+  async detectNfts(
+    chainIds: Hex[],
+    options?: {
+      userAddress?: string;
+      firstPageOnly?: boolean;
+      signal?: AbortSignal;
+    },
+  ): Promise<void> {
     const userAddress =
       options?.userAddress ??
       this.messenger.call('AccountsController:getSelectedAccount').address;
@@ -670,7 +679,11 @@ export class NftDetectionController extends BaseController<
           .filter((nft): nft is NonNullable<typeof nft> => nft !== undefined);
 
         await this.#addNfts(nftsToAdd, userAddress, Source.Detected);
-      } while ((next = resultNftApi.continuation));
+      } while (
+        (next = resultNftApi.continuation) &&
+        !options?.firstPageOnly &&
+        !options?.signal?.aborted
+      );
       updateSucceeded();
     } catch (error) {
       updateFailed(error);

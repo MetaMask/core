@@ -1030,6 +1030,260 @@ describe('NftDetectionController', () => {
       },
     );
   });
+
+  it('should stop after first page when firstPageOnly is true', async () => {
+    const mockAddNfts = jest.fn();
+    const selectedAddress = '0x123';
+    const selectedAccount = createMockInternalAccount({
+      address: selectedAddress,
+    });
+    const mockGetSelectedAccount = jest.fn().mockReturnValue(selectedAccount);
+
+    // Mock first page with continuation token
+    const firstPageMock = nock(NFT_API_BASE_URL)
+      .get(`/users/${selectedAddress}/tokens`)
+      .query({
+        continuation: '',
+        limit: '50',
+        chainIds: '1',
+        includeTopBid: true,
+      })
+      .reply(200, {
+        tokens: [
+          {
+            token: {
+              chainId: 1,
+              contract: '0xtest1',
+              kind: 'erc721',
+              name: 'ID 2574',
+              description: 'Description 2574',
+              image: 'image/2574.png',
+              tokenId: '2574',
+              metadata: {
+                imageOriginal: 'imageOriginal/2574.png',
+                imageMimeType: 'image/png',
+                tokenURI: 'tokenURITest',
+              },
+              isSpam: false,
+            },
+            blockaidResult: {
+              result_type: BlockaidResultType.Benign,
+            },
+          },
+        ],
+        continuation: 'next-page-token',
+      });
+
+    // Mock second page that should NOT be called
+    const secondPageMock = nock(NFT_API_BASE_URL)
+      .get(`/users/${selectedAddress}/tokens`)
+      .query({
+        continuation: 'next-page-token',
+        limit: '50',
+        chainIds: '1',
+        includeTopBid: true,
+      })
+      .reply(200, {
+        tokens: [
+          {
+            token: {
+              chainId: 1,
+              contract: '0xtest2',
+              kind: 'erc721',
+              name: 'ID 2575',
+              description: 'Description 2575',
+              image: 'image/2575.png',
+              tokenId: '2575',
+              metadata: {
+                imageOriginal: 'imageOriginal/2575.png',
+                imageMimeType: 'image/png',
+                tokenURI: 'tokenURITest',
+              },
+              isSpam: false,
+            },
+          },
+        ],
+      });
+
+    await withController(
+      {
+        options: { addNfts: mockAddNfts },
+        mockPreferencesState: {},
+        mockGetSelectedAccount,
+      },
+      async ({ controller, controllerEvents }) => {
+        controllerEvents.triggerPreferencesStateChange({
+          ...getDefaultPreferencesState(),
+          useNftDetection: true,
+        });
+
+        await advanceTime({
+          clock,
+          duration: 1,
+        });
+        mockAddNfts.mockReset();
+
+        await controller.detectNfts(['0x1'], { firstPageOnly: true });
+
+        // Verify first page was called
+        expect(firstPageMock.isDone()).toBe(true);
+
+        // Verify second page was NOT called
+        expect(secondPageMock.isDone()).toBe(false);
+
+        // Verify only first page NFTs were added
+        expect(mockAddNfts).toHaveBeenCalledTimes(1);
+        expect(mockAddNfts).toHaveBeenCalledWith(
+          [
+            {
+              tokenAddress: '0xtest1',
+              tokenId: '2574',
+              nftMetadata: {
+                description: 'Description 2574',
+                image: 'image/2574.png',
+                name: 'ID 2574',
+                standard: 'ERC721',
+                imageOriginal: 'imageOriginal/2574.png',
+                chainId: 1,
+              },
+            },
+          ],
+          selectedAccount.address,
+          Source.Detected,
+        );
+      },
+    );
+  });
+
+  it('should stop pagination when signal is aborted', async () => {
+    const mockAddNfts = jest.fn();
+    const selectedAddress = '0x123';
+    const selectedAccount = createMockInternalAccount({
+      address: selectedAddress,
+    });
+    const mockGetSelectedAccount = jest.fn().mockReturnValue(selectedAccount);
+
+    // Mock first page with continuation token
+    const firstPageMock = nock(NFT_API_BASE_URL)
+      .get(`/users/${selectedAddress}/tokens`)
+      .query({
+        continuation: '',
+        limit: '50',
+        chainIds: '1',
+        includeTopBid: true,
+      })
+      .reply(200, {
+        tokens: [
+          {
+            token: {
+              chainId: 1,
+              contract: '0xtest1',
+              kind: 'erc721',
+              name: 'ID 2574',
+              description: 'Description 2574',
+              image: 'image/2574.png',
+              tokenId: '2574',
+              metadata: {
+                imageOriginal: 'imageOriginal/2574.png',
+                imageMimeType: 'image/png',
+                tokenURI: 'tokenURITest',
+              },
+              isSpam: false,
+            },
+            blockaidResult: {
+              result_type: BlockaidResultType.Benign,
+            },
+          },
+        ],
+        continuation: 'next-page-token',
+      });
+
+    // Mock second page that should NOT be called
+    const secondPageMock = nock(NFT_API_BASE_URL)
+      .get(`/users/${selectedAddress}/tokens`)
+      .query({
+        continuation: 'next-page-token',
+        limit: '50',
+        chainIds: '1',
+        includeTopBid: true,
+      })
+      .reply(200, {
+        tokens: [
+          {
+            token: {
+              chainId: 1,
+              contract: '0xtest2',
+              kind: 'erc721',
+              name: 'ID 2575',
+              description: 'Description 2575',
+              image: 'image/2575.png',
+              tokenId: '2575',
+              metadata: {
+                imageOriginal: 'imageOriginal/2575.png',
+                imageMimeType: 'image/png',
+                tokenURI: 'tokenURITest',
+              },
+              isSpam: false,
+            },
+          },
+        ],
+      });
+
+    await withController(
+      {
+        options: { addNfts: mockAddNfts },
+        mockPreferencesState: {},
+        mockGetSelectedAccount,
+      },
+      async ({ controller, controllerEvents }) => {
+        controllerEvents.triggerPreferencesStateChange({
+          ...getDefaultPreferencesState(),
+          useNftDetection: true,
+        });
+
+        await advanceTime({
+          clock,
+          duration: 1,
+        });
+        mockAddNfts.mockReset();
+
+        const abortController = new AbortController();
+        // Abort the signal immediately
+        abortController.abort();
+
+        await controller.detectNfts(['0x1'], {
+          signal: abortController.signal,
+        });
+
+        // Verify first page was called
+        expect(firstPageMock.isDone()).toBe(true);
+
+        // Verify second page was NOT called because signal was aborted
+        expect(secondPageMock.isDone()).toBe(false);
+
+        // Verify only first page NFTs were added
+        expect(mockAddNfts).toHaveBeenCalledTimes(1);
+        expect(mockAddNfts).toHaveBeenCalledWith(
+          [
+            {
+              tokenAddress: '0xtest1',
+              tokenId: '2574',
+              nftMetadata: {
+                description: 'Description 2574',
+                image: 'image/2574.png',
+                name: 'ID 2574',
+                standard: 'ERC721',
+                imageOriginal: 'imageOriginal/2574.png',
+                chainId: 1,
+              },
+            },
+          ],
+          selectedAccount.address,
+          Source.Detected,
+        );
+      },
+    );
+  });
 });
 
 /**
