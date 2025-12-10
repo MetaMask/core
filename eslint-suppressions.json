@@ -2796,22 +2796,6 @@
       "count": 1
     }
   },
-  "packages/profile-metrics-controller/src/ProfileMetricsController.ts": {
-    "@typescript-eslint/explicit-function-return-type": {
-      "count": 3
-    },
-    "@typescript-eslint/prefer-nullish-coalescing": {
-      "count": 2
-    }
-  },
-  "packages/profile-metrics-controller/src/ProfileMetricsService.ts": {
-    "@typescript-eslint/explicit-function-return-type": {
-      "count": 3
-    },
-    "@typescript-eslint/prefer-nullish-coalescing": {
-      "count": 1
-    }
-  },
   "packages/profile-sync-controller/src/controllers/authentication/AuthenticationController.test.ts": {
     "@typescript-eslint/explicit-function-return-type": {
       "count": 5
