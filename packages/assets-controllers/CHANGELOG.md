@@ -17,6 +17,7 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 - Reduce severity of ERC721 metadata interface log from `console.error` to `console.warn` ([#7412](https://github.com/MetaMask/core/pull/7412))
   - Fixes [#24988](https://github.com/MetaMask/metamask-extension/issues/24988)
 - Bump `@metamask/transaction-controller` from `^62.4.0` to `^62.6.0` ([#7325](https://github.com/MetaMask/core/pull/7325), [#7430](https://github.com/MetaMask/core/pull/7430))
+- Bump `@metamask/multichain-account-service` from `^4.0.0` to `^4.0.1` ([#7437](https://github.com/MetaMask/core/pull/7437)
 
 ### Fixed
 
