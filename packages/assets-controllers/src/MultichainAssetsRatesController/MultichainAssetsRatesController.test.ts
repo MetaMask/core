@@ -1,4 +1,5 @@
 import { deriveStateFromMetadata } from '@metamask/base-controller';
+import type { CaipAssetType } from '@metamask/keyring-api';
 import { SolScope } from '@metamask/keyring-api';
 import { SolMethod } from '@metamask/keyring-api';
 import { SolAccountType } from '@metamask/keyring-api';
@@ -146,7 +147,11 @@ const setupController = ({
     ConstructorParameters<typeof MultichainAssetsRatesController>[0]
   >;
   accountsAssets?: InternalAccount[];
-} = {}) => {
+} = {}): {
+  controller: MultichainAssetsRatesController;
+  messenger: RootMessenger;
+  updateSpy: jest.SpyInstance;
+} => {
   const messenger: RootMessenger = new Messenger({
     namespace: MOCK_ANY_NAMESPACE,
   });
@@ -1113,7 +1118,7 @@ describe('MultichainAssetsRatesController', () => {
       });
 
       // Initially, MultichainAssetsController has no assets
-      let multichainAssets: Record<string, string[]> = {};
+      let multichainAssets: Record<string, CaipAssetType[]> = {};
 
       messenger.registerActionHandler(
         'MultichainAssetsController:getState',
@@ -1148,6 +1153,7 @@ describe('MultichainAssetsRatesController', () => {
                 type: KeyringTypes.snap,
               },
               snap: {
+                name: 'Test Snap',
                 id: 'test-snap',
                 enabled: true,
               },
@@ -1172,6 +1178,7 @@ describe('MultichainAssetsRatesController', () => {
               type: KeyringTypes.snap,
             },
             snap: {
+              name: 'Test Snap',
               id: 'test-snap',
               enabled: true,
             },
