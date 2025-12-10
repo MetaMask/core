@@ -3187,29 +3187,6 @@
       "count": 1
     }
   },
-  "packages/sample-controllers/src/sample-gas-prices-controller.ts": {
-    "@typescript-eslint/explicit-function-return-type": {
-      "count": 2
-    },
-    "@typescript-eslint/no-misused-promises": {
-      "count": 1
-    }
-  },
-  "packages/sample-controllers/src/sample-gas-prices-service/sample-gas-prices-service.test.ts": {
-    "@typescript-eslint/no-misused-promises": {
-      "count": 4
-    }
-  },
-  "packages/sample-controllers/src/sample-gas-prices-service/sample-gas-prices-service.ts": {
-    "@typescript-eslint/explicit-function-return-type": {
-      "count": 3
-    }
-  },
-  "packages/sample-controllers/src/sample-petnames-controller.ts": {
-    "@typescript-eslint/explicit-function-return-type": {
-      "count": 1
-    }
-  },
   "packages/seedless-onboarding-controller/jest.environment.js": {
     "n/no-unsupported-features/node-builtins": {
       "count": 1
