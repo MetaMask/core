@@ -10,9 +10,8 @@ import type {
   InternalAccount,
 } from '@metamask/keyring-internal-api';
 import type { Provider } from '@metamask/network-controller';
-import { add0x, assert, bytesToHex, isHexString, isStrictHexString } from '@metamask/utils';
+import { add0x, assert, bytesToHex, isStrictHexString } from '@metamask/utils';
 import type { Hex } from '@metamask/utils';
-import { projectLogger as log, WARNING_PREFIX } from '../logger';
 
 import {
   assertAreBip44Accounts,
@@ -22,6 +21,7 @@ import {
 import { withRetry, withTimeout } from './utils';
 import { traceFallback } from '../analytics';
 import { TraceName } from '../constants/traces';
+import { projectLogger as log, WARNING_PREFIX } from '../logger';
 import type { MultichainAccountServiceMessenger } from '../types';
 
 const ETH_MAINNET_CHAIN_ID = '0x1';
@@ -48,7 +48,7 @@ export type EvmAccountProviderConfig = {
   };
 };
 
-export const EVM_ACCOUNT_PROVIDER_NAME = 'EVM' as const;
+export const EVM_ACCOUNT_PROVIDER_NAME = 'EVM';
 
 export class EvmAccountProvider extends BaseBip44AccountProvider {
   static NAME = EVM_ACCOUNT_PROVIDER_NAME;
@@ -181,9 +181,9 @@ export class EvmAccountProvider extends BaseBip44AccountProvider {
 
     // Make sure we got the right response format, if not, we fallback to "0x0", to avoid having to deal with `NaN`.
     if (!isStrictHexString(response)) {
-      const message = `Received invalid hex response from "${method}" request: "${response}"`;
+      const message = `Received invalid hex response from "${method}" request: "${JSON.stringify(response)}"`;
 
-      log(`${WARNING_PREFIX} ${message}`)
+      log(`${WARNING_PREFIX} ${message}`);
       console.warn(message);
 
       return 0;
