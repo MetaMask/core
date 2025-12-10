@@ -2796,11 +2796,6 @@
       "count": 1
     }
   },
-  "packages/preferences-controller/src/PreferencesController.test.ts": {
-    "@typescript-eslint/explicit-function-return-type": {
-      "count": 1
-    }
-  },
   "packages/profile-metrics-controller/src/ProfileMetricsController.ts": {
     "@typescript-eslint/explicit-function-return-type": {
       "count": 3
