@@ -13,6 +13,9 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ### Changed
 
+- `TokenListController` now persists `tokensChainsCache` via `StorageService` instead of controller state to reduce memory usage ([#7413](https://github.com/MetaMask/core/pull/7413))
+  - Includes migration logic to automatically move existing cache data on first launch after upgrade
+  - `tokensChainsCache` state metadata now has `persist: false` to prevent duplicate persistence
 - Reduce severity of ERC721 metadata interface log from `console.error` to `console.warn` ([#7412](https://github.com/MetaMask/core/pull/7412))
   - Fixes [#24988](https://github.com/MetaMask/metamask-extension/issues/24988)
 - Bump `@metamask/transaction-controller` from `^62.4.0` to `^62.6.0` ([#7325](https://github.com/MetaMask/core/pull/7325), [#7430](https://github.com/MetaMask/core/pull/7430))
