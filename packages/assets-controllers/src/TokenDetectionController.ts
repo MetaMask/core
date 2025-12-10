@@ -123,6 +123,11 @@ export type TokenDetectionControllerAddDetectedTokensViaWsAction = {
   handler: TokenDetectionController['addDetectedTokensViaWs'];
 };
 
+export type TokenDetectionControllerAddDetectedTokensViaPollingAction = {
+  type: `TokenDetectionController:addDetectedTokensViaPolling`;
+  handler: TokenDetectionController['addDetectedTokensViaPolling'];
+};
+
 export type TokenDetectionControllerDetectTokensAction = {
   type: `TokenDetectionController:detectTokens`;
   handler: TokenDetectionController['detectTokens'];
@@ -131,6 +136,7 @@ export type TokenDetectionControllerDetectTokensAction = {
 export type TokenDetectionControllerActions =
   | TokenDetectionControllerGetStateAction
   | TokenDetectionControllerAddDetectedTokensViaWsAction
+  | TokenDetectionControllerAddDetectedTokensViaPollingAction
   | TokenDetectionControllerDetectTokensAction;
 
 export type AllowedActions =
@@ -275,6 +281,11 @@ export class TokenDetectionController extends StaticIntervalPollingController<To
     this.messenger.registerActionHandler(
       `${controllerName}:addDetectedTokensViaWs` as const,
       this.addDetectedTokensViaWs.bind(this),
+    );
+
+    this.messenger.registerActionHandler(
+      `${controllerName}:addDetectedTokensViaPolling` as const,
+      this.addDetectedTokensViaPolling.bind(this),
     );
 
     this.messenger.registerActionHandler(
@@ -816,6 +827,113 @@ export class TokenDetectionController extends StaticIntervalPollingController<To
       const { decimals, symbol, aggregators, iconUrl, name } = tokenData;
 
       // Push to lists with checksummed address (for allTokens storage)
+      eventTokensDetails.push(`${symbol} - ${checksummedTokenAddress}`);
+      tokensWithBalance.push({
+        address: checksummedTokenAddress,
+        decimals,
+        symbol,
+        aggregators,
+        image: iconUrl,
+        isERC721: false,
+        name,
+      });
+    }
+
+    // Perform addition
+    if (tokensWithBalance.length) {
+      this.#trackMetaMetricsEvent({
+        event: 'Token Detected',
+        category: 'Wallet',
+        properties: {
+          tokens: eventTokensDetails,
+          token_standard: ERC20,
+          asset_type: ASSET_TYPES.TOKEN,
+        },
+      });
+
+      const networkClientId = this.messenger.call(
+        'NetworkController:findNetworkClientIdByChainId',
+        chainId,
+      );
+
+      await this.messenger.call(
+        'TokensController:addTokens',
+        tokensWithBalance,
+        networkClientId,
+      );
+    }
+  }
+
+  /**
+   * Add tokens detected from polling balance updates
+   * This method:
+   * - Checks if useTokenDetection preference is enabled (skips if disabled)
+   * - Filters out tokens already in allTokens or allIgnoredTokens
+   * - Tokens are expected to be in the tokensChainsCache with full metadata
+   * - Balance fetching is skipped since balances are provided by the caller
+   *
+   * @param options - The options object
+   * @param options.tokensSlice - Array of token addresses detected from polling
+   * @param options.chainId - Hex chain ID
+   * @returns Promise that resolves when tokens are added
+   */
+  async addDetectedTokensViaPolling({
+    tokensSlice,
+    chainId,
+  }: {
+    tokensSlice: string[];
+    chainId: Hex;
+  }): Promise<void> {
+    // Check if token detection is enabled via preferences
+    if (!this.#useTokenDetection()) {
+      return;
+    }
+
+    const selectedAddress = this.#getSelectedAddress();
+
+    // Get current token states to filter out already tracked/ignored tokens
+    const { allTokens, allIgnoredTokens } = this.messenger.call(
+      'TokensController:getState',
+    );
+
+    const existingTokenAddresses = (
+      allTokens[chainId]?.[selectedAddress] ?? []
+    ).map((token) => token.address.toLowerCase());
+
+    const ignoredTokenAddresses = (
+      allIgnoredTokens[chainId]?.[selectedAddress] ?? []
+    ).map((address) => address.toLowerCase());
+
+    const tokensWithBalance: Token[] = [];
+    const eventTokensDetails: string[] = [];
+
+    for (const tokenAddress of tokensSlice) {
+      const lowercaseTokenAddress = tokenAddress.toLowerCase();
+      const checksummedTokenAddress = toChecksumHexAddress(tokenAddress);
+
+      // Skip tokens already in allTokens
+      if (existingTokenAddresses.includes(lowercaseTokenAddress)) {
+        continue;
+      }
+
+      // Skip tokens in allIgnoredTokens
+      if (ignoredTokenAddresses.includes(lowercaseTokenAddress)) {
+        continue;
+      }
+
+      // Check map of validated tokens (cache keys are lowercase)
+      const tokenData =
+        this.#tokensChainsCache[chainId]?.data?.[lowercaseTokenAddress];
+
+      if (!tokenData) {
+        console.warn(
+          `Token metadata not found in cache for ${tokenAddress} on chain ${chainId}`,
+        );
+        continue;
+      }
+
+      const { decimals, symbol, aggregators, iconUrl, name } = tokenData;
+
       eventTokensDetails.push(`${symbol} - ${checksummedTokenAddress}`);
       tokensWithBalance.push({
         address: checksummedTokenAddress,

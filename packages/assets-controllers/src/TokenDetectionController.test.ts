@@ -3653,6 +3653,351 @@ describe('TokenDetectionController', () => {
       );
     });
   });
+
+  describe('addDetectedTokensViaPolling', () => {
+    it('should add tokens detected from polling with metadata from cache', async () => {
+      const mockTokenAddress = '0xa0b86991c6218b36c1d19d4a2e9eb0ce3606eb48';
+      const checksummedTokenAddress =
+        '0xA0b86991c6218b36c1d19D4a2e9Eb0cE3606eB48';
+      const chainId = '0xa86a';
+
+      await withController(
+        {
+          options: {
+            disabled: false,
+            useTokenDetection: () => true,
+          },
+          mockTokenListState: {
+            tokensChainsCache: {
+              [chainId]: {
+                timestamp: 0,
+                data: {
+                  [mockTokenAddress]: {
+                    name: 'USD Coin',
+                    symbol: 'USDC',
+                    decimals: 6,
+                    address: mockTokenAddress,
+                    aggregators: [],
+                    iconUrl: 'https://example.com/usdc.png',
+                    occurrences: 11,
+                  },
+                },
+              },
+            },
+          },
+        },
+        async ({ controller, callActionSpy }) => {
+          await controller.addDetectedTokensViaPolling({
+            tokensSlice: [mockTokenAddress],
+            chainId: chainId as Hex,
+          });
+
+          expect(callActionSpy).toHaveBeenCalledWith(
+            'TokensController:addTokens',
+            [
+              {
+                address: checksummedTokenAddress,
+                decimals: 6,
+                symbol: 'USDC',
+                aggregators: [],
+                image: 'https://example.com/usdc.png',
+                isERC721: false,
+                name: 'USD Coin',
+              },
+            ],
+            'avalanche',
+          );
+        },
+      );
+    });
+
+    it('should skip if useTokenDetection is disabled', async () => {
+      const mockTokenAddress = '0xa0b86991c6218b36c1d19d4a2e9eb0ce3606eb48';
+      const chainId = '0xa86a';
+
+      await withController(
+        {
+          options: {
+            disabled: false,
+            useTokenDetection: () => false,
+          },
+          mockTokenListState: {
+            tokensChainsCache: {
+              [chainId]: {
+                timestamp: 0,
+                data: {
+                  [mockTokenAddress]: {
+                    name: 'USD Coin',
+                    symbol: 'USDC',
+                    decimals: 6,
+                    address: mockTokenAddress,
+                    aggregators: [],
+                    iconUrl: 'https://example.com/usdc.png',
+                    occurrences: 11,
+                  },
+                },
+              },
+            },
+          },
+        },
+        async ({ controller, callActionSpy }) => {
+          await controller.addDetectedTokensViaPolling({
+            tokensSlice: [mockTokenAddress],
+            chainId: chainId as Hex,
+          });
+
+          // Should not call addTokens when useTokenDetection is disabled
+          expect(callActionSpy).not.toHaveBeenCalledWith(
+            'TokensController:addTokens',
+            expect.anything(),
+            expect.anything(),
+          );
+        },
+      );
+    });
+
+    it('should skip tokens already in allTokens', async () => {
+      const mockTokenAddress = '0xa0b86991c6218b36c1d19d4a2e9eb0ce3606eb48';
+      const checksummedTokenAddress =
+        '0xA0b86991c6218b36c1d19D4a2e9Eb0cE3606eB48';
+      const chainId = '0xa86a';
+      const selectedAccount = createMockInternalAccount({
+        address: '0x0000000000000000000000000000000000000001',
+      });
+
+      await withController(
+        {
+          options: {
+            disabled: false,
+            useTokenDetection: () => true,
+          },
+          mocks: {
+            getAccount: selectedAccount,
+            getSelectedAccount: selectedAccount,
+          },
+          mockTokensState: {
+            allTokens: {
+              [chainId]: {
+                [selectedAccount.address]: [
+                  {
+                    address: checksummedTokenAddress,
+                    symbol: 'USDC',
+                    decimals: 6,
+                  },
+                ],
+              },
+            },
+            allDetectedTokens: {},
+            allIgnoredTokens: {},
+          },
+          mockTokenListState: {
+            tokensChainsCache: {
+              [chainId]: {
+                timestamp: 0,
+                data: {
+                  [mockTokenAddress]: {
+                    name: 'USD Coin',
+                    symbol: 'USDC',
+                    decimals: 6,
+                    address: mockTokenAddress,
+                    aggregators: [],
+                    iconUrl: 'https://example.com/usdc.png',
+                    occurrences: 11,
+                  },
+                },
+              },
+            },
+          },
+        },
+        async ({ controller, callActionSpy }) => {
+          await controller.addDetectedTokensViaPolling({
+            tokensSlice: [mockTokenAddress],
+            chainId: chainId as Hex,
+          });
+
+          // Should not call addTokens for tokens already in allTokens
+          expect(callActionSpy).not.toHaveBeenCalledWith(
+            'TokensController:addTokens',
+            expect.anything(),
+            expect.anything(),
+          );
+        },
+      );
+    });
+
+    it('should skip tokens in allIgnoredTokens', async () => {
+      const mockTokenAddress = '0xa0b86991c6218b36c1d19d4a2e9eb0ce3606eb48';
+      const checksummedTokenAddress =
+        '0xA0b86991c6218b36c1d19D4a2e9Eb0cE3606eB48';
+      const chainId = '0xa86a';
+      const selectedAccount = createMockInternalAccount({
+        address: '0x0000000000000000000000000000000000000001',
+      });
+
+      await withController(
+        {
+          options: {
+            disabled: false,
+            useTokenDetection: () => true,
+          },
+          mocks: {
+            getAccount: selectedAccount,
+            getSelectedAccount: selectedAccount,
+          },
+          mockTokensState: {
+            allTokens: {},
+            allDetectedTokens: {},
+            allIgnoredTokens: {
+              [chainId]: {
+                [selectedAccount.address]: [checksummedTokenAddress],
+              },
+            },
+          },
+          mockTokenListState: {
+            tokensChainsCache: {
+              [chainId]: {
+                timestamp: 0,
+                data: {
+                  [mockTokenAddress]: {
+                    name: 'USD Coin',
+                    symbol: 'USDC',
+                    decimals: 6,
+                    address: mockTokenAddress,
+                    aggregators: [],
+                    iconUrl: 'https://example.com/usdc.png',
+                    occurrences: 11,
+                  },
+                },
+              },
+            },
+          },
+        },
+        async ({ controller, callActionSpy }) => {
+          await controller.addDetectedTokensViaPolling({
+            tokensSlice: [mockTokenAddress],
+            chainId: chainId as Hex,
+          });
+
+          // Should not call addTokens for tokens in allIgnoredTokens
+          expect(callActionSpy).not.toHaveBeenCalledWith(
+            'TokensController:addTokens',
+            expect.anything(),
+            expect.anything(),
+          );
+        },
+      );
+    });
+
+    it('should add only untracked tokens when mixed with tracked/ignored', async () => {
+      const trackedTokenAddress = '0xa0b86991c6218b36c1d19d4a2e9eb0ce3606eb48';
+      const trackedTokenChecksummed =
+        '0xA0b86991c6218b36c1d19D4a2e9Eb0cE3606eB48';
+      const ignoredTokenAddress = '0xdac17f958d2ee523a2206206994597c13d831ec7';
+      const ignoredTokenChecksummed =
+        '0xdAC17F958D2ee523a2206206994597C13D831ec7';
+      const newTokenAddress = '0x1f573d6fb3f13d689ff844b4ce37794d79a7ff1c';
+      const newTokenChecksummed = '0x1F573D6Fb3F13d689FF844B4cE37794d79a7FF1C';
+      const chainId = '0xa86a';
+      const selectedAccount = createMockInternalAccount({
+        address: '0x0000000000000000000000000000000000000001',
+      });
+
+      await withController(
+        {
+          options: {
+            disabled: false,
+            useTokenDetection: () => true,
+          },
+          mocks: {
+            getAccount: selectedAccount,
+            getSelectedAccount: selectedAccount,
+          },
+          mockTokensState: {
+            allTokens: {
+              [chainId]: {
+                [selectedAccount.address]: [
+                  {
+                    address: trackedTokenChecksummed,
+                    symbol: 'USDC',
+                    decimals: 6,
+                  },
+                ],
+              },
+            },
+            allDetectedTokens: {},
+            allIgnoredTokens: {
+              [chainId]: {
+                [selectedAccount.address]: [ignoredTokenChecksummed],
+              },
+            },
+          },
+          mockTokenListState: {
+            tokensChainsCache: {
+              [chainId]: {
+                timestamp: 0,
+                data: {
+                  [trackedTokenAddress]: {
+                    name: 'USD Coin',
+                    symbol: 'USDC',
+                    decimals: 6,
+                    address: trackedTokenAddress,
+                    aggregators: [],
+                    iconUrl: 'https://example.com/usdc.png',
+                    occurrences: 11,
+                  },
+                  [ignoredTokenAddress]: {
+                    name: 'Tether USD',
+                    symbol: 'USDT',
+                    decimals: 6,
+                    address: ignoredTokenAddress,
+                    aggregators: [],
+                    iconUrl: 'https://example.com/usdt.png',
+                    occurrences: 11,
+                  },
+                  [newTokenAddress]: {
+                    name: 'Bancor',
+                    symbol: 'BNT',
+                    decimals: 18,
+                    address: newTokenAddress,
+                    aggregators: [],
+                    iconUrl: 'https://example.com/bnt.png',
+                    occurrences: 11,
+                  },
+                },
+              },
+            },
+          },
+        },
+        async ({ controller, callActionSpy }) => {
+          await controller.addDetectedTokensViaPolling({
+            tokensSlice: [
+              trackedTokenAddress,
+              ignoredTokenAddress,
+              newTokenAddress,
+            ],
+            chainId: chainId as Hex,
+          });
+
+          // Should only add the new untracked token
+          expect(callActionSpy).toHaveBeenCalledWith(
+            'TokensController:addTokens',
+            [
+              {
+                address: newTokenChecksummed,
+                decimals: 18,
+                symbol: 'BNT',
+                aggregators: [],
+                image: 'https://example.com/bnt.png',
+                isERC721: false,
+                name: 'Bancor',
+              },
+            ],
+            'avalanche',
+          );
+        },
+      );
+    });
+  });
 });
 
 /**
@@ -3726,6 +4071,7 @@ type WithControllerOptions = {
     getBearerToken?: string;
   };
   mockTokenListState?: Partial<TokenListState>;
+  mockTokensState?: Partial<TokensControllerState>;
 };
 
 type WithControllerArgs<ReturnValue> =
@@ -3745,7 +4091,13 @@ async function withController<ReturnValue>(
   ...args: WithControllerArgs<ReturnValue>
 ): Promise<ReturnValue> {
   const [{ ...rest }, fn] = args.length === 2 ? args : [{}, args[0]];
-  const { options, isKeyringUnlocked, mocks, mockTokenListState } = rest;
+  const {
+    options,
+    isKeyringUnlocked,
+    mocks,
+    mockTokenListState,
+    mockTokensState,
+  } = rest;
   const messenger = buildRootMessenger();
 
   const mockGetAccount = jest.fn<InternalAccount, []>();
@@ -3809,10 +4161,13 @@ async function withController<ReturnValue>(
       selectedNetworkClientId: 'avalanche',
     }),
   );
-  const mockTokensState = jest.fn<TokensControllerState, []>();
+  const mockTokensStateFunc = jest.fn<TokensControllerState, []>();
   messenger.registerActionHandler(
     'TokensController:getState',
-    mockTokensState.mockReturnValue({ ...getDefaultTokensState() }),
+    mockTokensStateFunc.mockReturnValue({
+      ...getDefaultTokensState(),
+      ...mockTokensState,
+    }),
   );
   const mockTokenListStateFunc = jest.fn<TokenListState, []>();
   messenger.registerActionHandler(
@@ -3884,7 +4239,7 @@ async function withController<ReturnValue>(
         mockKeyringState.mockReturnValue(state);
       },
       mockTokensGetState: (state: TokensControllerState) => {
-        mockTokensState.mockReturnValue(state);
+        mockTokensStateFunc.mockReturnValue(state);
       },
       mockPreferencesGetState: (state: PreferencesState) => {
         mockPreferencesState.mockReturnValue(state);

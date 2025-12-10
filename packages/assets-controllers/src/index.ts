@@ -89,6 +89,7 @@ export type {
   TokenDetectionControllerGetStateAction,
   TokenDetectionControllerDetectTokensAction,
   TokenDetectionControllerAddDetectedTokensViaWsAction,
+  TokenDetectionControllerAddDetectedTokensViaPollingAction,
   TokenDetectionControllerEvents,
   TokenDetectionControllerStateChangeEvent,
 } from './TokenDetectionController';
