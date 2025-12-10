@@ -9,7 +9,7 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ### Added
 
-- Add intent based transaction support ([#6963](https://github.com/MetaMask/core/pull/6963))
+- Add intent based transaction support ([#6547](https://github.com/MetaMask/core/pull/6547))
 
 ### Changed
 
