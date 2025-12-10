@@ -15,6 +15,8 @@ import type { RemoteFeatureFlagControllerGetStateAction } from '@metamask/remote
 import type {
   TransactionControllerAddTransactionAction,
   TransactionControllerAddTransactionBatchAction,
+  TransactionControllerEstimateGasAction,
+  TransactionControllerEstimateGasBatchAction,
   TransactionControllerGetGasFeeTokensAction,
   TransactionControllerGetStateAction,
 } from '@metamask/transaction-controller';
@@ -115,6 +117,14 @@ export function getMessengerMock({
 
   const getGasFeeTokensMock: jest.MockedFn<
     TransactionControllerGetGasFeeTokensAction['handler']
+  > = jest.fn();
+
+  const estimateGasMock: jest.MockedFn<
+    TransactionControllerEstimateGasAction['handler']
+  > = jest.fn();
+
+  const estimateGasBatchMock: jest.MockedFn<
+    TransactionControllerEstimateGasBatchAction['handler']
   > = jest.fn();
 
   const messenger: RootMessenger = new Messenger({
@@ -221,6 +231,16 @@ export function getMessengerMock({
       'TransactionController:getGasFeeTokens',
       getGasFeeTokensMock,
     );
+
+    messenger.registerActionHandler(
+      'TransactionController:estimateGas',
+      estimateGasMock,
+    );
+
+    messenger.registerActionHandler(
+      'TransactionController:estimateGasBatch',
+      estimateGasBatchMock,
+    );
   }
 
   const publish = messenger.publish.bind(messenger);
@@ -228,6 +248,8 @@ export function getMessengerMock({
   return {
     addTransactionMock,
     addTransactionBatchMock,
+    estimateGasMock,
+    estimateGasBatchMock,
     fetchQuotesMock,
     findNetworkClientIdByChainIdMock,
     getAccountTrackerControllerStateMock,

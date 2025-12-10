@@ -51,7 +51,8 @@ describe('InMemoryStorageAdapter', () => {
         parseError,
       );
 
-      // Restore
+      // Restore original `JSON.parse`.
+      // eslint-disable-next-line require-atomic-updates
       JSON.parse = originalParse;
       consoleErrorSpy.mockRestore();
     });
@@ -69,7 +70,7 @@ describe('InMemoryStorageAdapter', () => {
 
     it('stores objects', async () => {
       const adapter = new InMemoryStorageAdapter();
-      const obj = { foo: 'bar', num: 123 };
+      const obj = { foo: 'bar', number: 123 };
 
       await adapter.setItem('TestNamespace', 'key', obj);
       const response = await adapter.getItem('TestNamespace', 'key');

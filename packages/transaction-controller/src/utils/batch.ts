@@ -297,6 +297,7 @@ async function addTransactionBatchWith7702(
     disableUpgrade,
     from,
     gasFeeToken,
+    gasLimit7702,
     networkClientId,
     origin,
     overwriteUpgrade,
@@ -358,6 +359,7 @@ async function addTransactionBatchWith7702(
   const txParams: TransactionParams = {
     ...batchParams,
     from,
+    gas: gasLimit7702,
     maxFeePerGas: nestedTransactions[0]?.maxFeePerGas,
     maxPriorityFeePerGas: nestedTransactions[0]?.maxPriorityFeePerGas,
   };
@@ -866,7 +868,7 @@ async function prepareApprovalData({
   log('Preparing approval data for batch');
   const chainId = getChainId(networkClientId);
 
-  const { gasLimit } = await simulateGasBatch({
+  const { totalGasLimit: gasLimit } = await simulateGasBatch({
     chainId,
     from,
     getSimulationConfig,

@@ -13,6 +13,8 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ### Changed
 
+- Reduce severity of ERC721 metadata interface log from `console.error` to `console.warn` ([#7412](https://github.com/MetaMask/core/pull/7412))
+  - Fixes [#24988](https://github.com/MetaMask/metamask-extension/issues/24988)
 - Bump `@metamask/transaction-controller` from `^62.4.0` to `^62.5.0` ([#7325](https://github.com/MetaMask/core/pull/7325))
 
 ### Fixed
