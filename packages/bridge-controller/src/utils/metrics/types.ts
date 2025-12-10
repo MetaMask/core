@@ -204,6 +204,15 @@ export type RequiredEventContextFromClient = {
     chain_name: string;
     chain_id: string;
   };
+  [UnifiedSwapBridgeEventName.AssetPickerOpened]: {
+    location: 'source' | 'destination';
+  };
+  [UnifiedSwapBridgeEventName.AssetSelected]: {
+    token_symbol: string;
+    token_address: string;
+    chain_id: CaipChainId | null;
+    location: 'source' | 'destination';
+  };
   [UnifiedSwapBridgeEventName.QuotesValidationFailed]: {
     failures: string[];
   };
@@ -260,6 +269,8 @@ export type EventPropertiesFromControllerState = {
     QuoteFetchData &
     TradeData;
   [UnifiedSwapBridgeEventName.AssetDetailTooltipClicked]: null;
+  [UnifiedSwapBridgeEventName.AssetPickerOpened]: null;
+  [UnifiedSwapBridgeEventName.AssetSelected]: null;
   [UnifiedSwapBridgeEventName.QuotesValidationFailed]: RequestParams & {
     refresh_count: number;
   };
