@@ -48,7 +48,10 @@ describe('Accounts API', () => {
    * @param status - The status code.
    * @returns The fetch mock.
    */
-  function mockFetch(responseJson: Record<string, unknown>, status = 200) {
+  function mockFetch(
+    responseJson: Record<string, unknown>,
+    status = 200,
+  ): jest.MockedFunction<typeof successfulFetch> {
     return jest.mocked(successfulFetch).mockResolvedValueOnce({
       status,
       json: async () => responseJson,

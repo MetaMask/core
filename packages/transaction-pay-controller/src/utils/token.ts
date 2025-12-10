@@ -76,7 +76,11 @@ export function getTokenBalance(
 export function getAllTokenBalances(
   messenger: TransactionPayControllerMessenger,
   account: Hex,
-) {
+): {
+  balance: string;
+  chainId: Hex;
+  tokenAddress: Hex;
+}[] {
   const tokenBalanceControllerState = messenger.call(
     'TokenBalancesController:getState',
   );
@@ -132,7 +136,10 @@ export function getTokenInfo(
 
   const token = Object.values(controllerState.allTokens?.[chainId] ?? {})
     .flat()
-    .find((t) => t.address.toLowerCase() === normalizedTokenAddress);
+    .find(
+      (singleToken) =>
+        singleToken.address.toLowerCase() === normalizedTokenAddress,
+    );
 
   if (!token && !isNative) {
     return undefined;
@@ -220,7 +227,7 @@ export function getTokenFiatRate(
  * @param chainId - Chain ID.
  * @returns - Native token address for the given chain ID.
  */
-export function getNativeToken(chainId: Hex) {
+export function getNativeToken(chainId: Hex): Hex {
   switch (chainId) {
     case '0x89':
       return '0x0000000000000000000000000000000000001010';

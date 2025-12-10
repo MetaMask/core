@@ -7,6 +7,17 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+### Added
+
+- Automatically fail pending transactions if no receipt and hash not recognised by network after multiple attempts ([#7329](https://github.com/MetaMask/core/pull/7329))
+  - Add optional `isTimeoutEnabled` callback to disable for specific transactions.
+  - Ignores transactions with future nonce.
+  - Threshold determined by feature flag.
+
+### Fixed
+
+- Prevent `TransactionController:transactionApproved` event firing if keyring throws during signing ([#7410](https://github.com/MetaMask/core/pull/7410))
+
 ## [62.5.0]
 
 ### Changed

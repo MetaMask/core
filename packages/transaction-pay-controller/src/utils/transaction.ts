@@ -50,7 +50,7 @@ export function pollTransactionChanges(
   messenger: TransactionPayControllerMessenger,
   updateTransactionData: UpdateTransactionDataCallback,
   removeTransactionData: (transactionId: string) => void,
-) {
+): void {
   messenger.subscribe(
     'TransactionController:stateChange',
     (
@@ -110,9 +110,9 @@ export function pollTransactionChanges(
 export function waitForTransactionConfirmed(
   transactionId: string,
   messenger: TransactionPayControllerMessenger,
-) {
+): Promise<void> {
   return new Promise<void>((resolve, reject) => {
-    const isConfirmed = (tx?: TransactionMeta, fn?: () => void) => {
+    const isConfirmed = (tx?: TransactionMeta, fn?: () => void): boolean => {
       log('Checking transaction status', tx?.status, tx?.type);
 
       if (tx?.status === TransactionStatus.confirmed) {
@@ -139,15 +139,15 @@ export function waitForTransactionConfirmed(
     const initialState = messenger.call('TransactionController:getState');
 
     const initialTx = initialState.transactions.find(
-      (t) => t.id === transactionId,
+      (singleTransaction) => singleTransaction.id === transactionId,
     );
 
     if (isConfirmed(initialTx)) {
       return;
     }
 
-    const handler = (tx?: TransactionMeta) => {
-      const unsubscribe = () =>
+    const handler = (tx?: TransactionMeta): void => {
+      const unsubscribe = (): void =>
         messenger.unsubscribe('TransactionController:stateChange', handler);
 
       isConfirmed(tx, unsubscribe);
@@ -179,7 +179,7 @@ export function updateTransaction(
     note: string;
   },
   fn: (draft: TransactionMeta) => void,
-) {
+): void {
   const transaction = getTransaction(transactionId, messenger as never);
 
   if (!transaction) {
@@ -212,7 +212,7 @@ export function collectTransactionIds(
   messenger: TransactionPayControllerMessenger,
   onTransaction: (transactionId: string) => void,
 ): { end: () => void } {
-  const listener = (tx: TransactionMeta) => {
+  const listener = (tx: TransactionMeta): void => {
     if (
       tx.chainId !== chainId ||
       tx.txParams.from.toLowerCase() !== from.toLowerCase()
@@ -228,7 +228,7 @@ export function collectTransactionIds(
     listener,
   );
 
-  const end = () => {
+  const end = (): void => {
     messenger.unsubscribe(
       'TransactionController:unapprovedTransactionAdded',
       listener,
@@ -249,7 +249,7 @@ function onTransactionChange(
   transaction: TransactionMeta,
   messenger: TransactionPayControllerMessenger,
   updateTransactionData: UpdateTransactionDataCallback,
-) {
+): void {
   const tokens = parseRequiredTokens(transaction, messenger);
 
   log('Transaction changed', { transaction, tokens });
@@ -268,7 +268,7 @@ function onTransactionChange(
 function onTransactionFinalized(
   transaction: TransactionMeta,
   removeTransactionData: (transactionId: string) => void,
-) {
+): void {
   log('Transaction finalized', { transaction });
   removeTransactionData(transaction.id);
 }

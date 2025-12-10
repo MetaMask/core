@@ -17,6 +17,7 @@ import { projectLogger } from '../logger';
 import type { TransactionControllerMessenger } from '../TransactionController';
 import { TransactionEnvelopeType } from '../types';
 import type {
+  AuthorizationList,
   GetSimulationConfig,
   TransactionBatchSingleRequest,
   TransactionMeta,
@@ -48,7 +49,7 @@ export const DUMMY_AUTHORIZATION_SIGNATURE =
  *
  * @param request - The request object including the necessary parameters.
  */
-export async function updateGas(request: UpdateGasRequest) {
+export async function updateGas(request: UpdateGasRequest): Promise<void> {
   const { txMeta } = request;
   const initialParams = { ...txMeta.txParams };
 
@@ -62,10 +63,7 @@ export async function updateGas(request: UpdateGasRequest) {
     txMeta.originalGasEstimate = txMeta.txParams.gas;
   }
 
-  if (!txMeta.defaultGasEstimates) {
-    txMeta.defaultGasEstimates = {};
-  }
-
+  txMeta.defaultGasEstimates ??= {};
   txMeta.defaultGasEstimates.gas = txMeta.txParams.gas;
 }
 
@@ -99,7 +97,12 @@ export async function estimateGas({
   getSimulationConfig: GetSimulationConfig;
   messenger: TransactionControllerMessenger;
   txParams: TransactionParams;
-}) {
+}): Promise<{
+  blockGasLimit: string;
+  estimatedGas: string;
+  isUpgradeWithDataToSelf: boolean;
+  simulationFails: TransactionMeta['simulationFails'];
+}> {
   const request = { ...txParams };
   const { authorizationList, data, from, value, to } = request;
 
@@ -122,7 +125,7 @@ export async function estimateGas({
   log('Estimation fallback values', fallback);
 
   request.data = data ? add0x(data) : data;
-  request.value = value || '0x0';
+  request.value = value ?? '0x0';
 
   request.authorizationList = normalizeAuthorizationList(
     request.authorizationList,
@@ -195,7 +198,7 @@ export function addGasBuffer(
   estimatedGas: string,
   blockGasLimit: string,
   multiplier: number,
-) {
+): string {
   const estimatedGasBN = hexToBN(estimatedGas);
 
   const maxGasBN = fractionBN(
@@ -432,7 +435,7 @@ async function estimateGasUpgradeWithDataToSelf(
   ethQuery: EthQuery,
   chainId: Hex,
   getSimulationConfig: GetSimulationConfig,
-) {
+): Promise<Hex> {
   const upgradeGas = await query(ethQuery, 'estimateGas', [
     {
       ...txParams,
@@ -475,9 +478,7 @@ async function estimateGasUpgradeWithDataToSelf(
   log('Execute gas', executeGas);
 
   const total = BNToHex(
-    hexToBN(upgradeGas)
-      .add(hexToBN(executeGas as Hex))
-      .subn(INTRINSIC_GAS),
+    hexToBN(upgradeGas).add(hexToBN(executeGas)).subn(INTRINSIC_GAS),
   );
 
   log('Total type 4 gas', total);
@@ -542,9 +543,9 @@ async function simulateGas({
  * @returns The authorization list with dummy values.
  */
 function normalizeAuthorizationList(
-  authorizationList: TransactionParams['authorizationList'],
+  authorizationList: AuthorizationList | undefined,
   chainId: Hex,
-) {
+): AuthorizationList | undefined {
   return authorizationList?.map((authorization) => ({
     ...authorization,
     chainId: authorization.chainId ?? chainId,
@@ -567,7 +568,7 @@ function estimateGasNode(
   ethQuery: EthQuery,
   txParams: TransactionParams,
   delegationAddress?: Hex,
-) {
+): Promise<Hex> {
   const { from } = txParams;
   const params = [txParams] as Json[];
 

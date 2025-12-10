@@ -20,11 +20,11 @@ const TRANSACTION_META_MOCK: TransactionMeta = {
 
 describe('ScrollLayer1GasFeeFlow', () => {
   class TestableScrollLayer1GasFeeFlow extends ScrollLayer1GasFeeFlow {
-    exposeOracleAddress(chainId: Hex) {
+    exposeOracleAddress(chainId: Hex): Hex {
       return super.getOracleAddressForChain(chainId);
     }
 
-    exposeShouldSignTransaction() {
+    exposeShouldSignTransaction(): boolean {
       return super.shouldSignTransaction();
     }
   }

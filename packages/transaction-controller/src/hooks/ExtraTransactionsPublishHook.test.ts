@@ -69,7 +69,7 @@ describe('ExtraTransactionsPublishHook', () => {
    *
    * @returns The ExtraTransactionsPublishHook instance.
    */
-  function createHook() {
+  function createHook(): ExtraTransactionsPublishHook {
     return new ExtraTransactionsPublishHook({
       addTransactionBatch: addTransactionBatchMock,
       getTransaction: getTransactionMock,

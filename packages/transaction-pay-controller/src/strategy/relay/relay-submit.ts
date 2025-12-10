@@ -70,7 +70,7 @@ async function executeSingleQuote(
   quote: TransactionPayQuote<RelayQuote>,
   messenger: TransactionPayControllerMessenger,
   transaction: TransactionMeta,
-) {
+): Promise<{ transactionHash?: Hex }> {
   log('Executing single quote', quote);
 
   updateTransaction(
@@ -182,14 +182,16 @@ async function submitTransactions(
   messenger: TransactionPayControllerMessenger,
 ): Promise<Hex> {
   const { steps } = quote.original;
-  const params = steps.flatMap((s) => s.items).map((i) => i.data);
-  const invalidKind = steps.find((s) => s.kind !== 'transaction')?.kind;
+  const params = steps.flatMap((step) => step.items).map((item) => item.data);
+  const invalidKind = steps.find((step) => step.kind !== 'transaction')?.kind;
 
   if (invalidKind) {
     throw new Error(`Unsupported step kind: ${invalidKind}`);
   }
 
-  const normalizedParams = params.map((p) => normalizeParams(p, messenger));
+  const normalizedParams = params.map((singleParams) =>
+    normalizeParams(singleParams, messenger),
+  );
 
   const transactionIds: string[] = [];
   const { from, sourceChainId, sourceTokenAddress } = quote.request;
@@ -220,10 +222,7 @@ async function submitTransactions(
           note: 'Add required transaction ID from Relay submission',
         },
         (tx) => {
-          if (!tx.requiredTransactionIds) {
-            tx.requiredTransactionIds = [];
-          }
-
+          tx.requiredTransactionIds ??= [];
           tx.requiredTransactionIds.push(transactionId);
         },
       );
@@ -267,16 +266,16 @@ async function submitTransactions(
       origin: ORIGIN_METAMASK,
       overwriteUpgrade: true,
       requireApproval: false,
-      transactions: normalizedParams.map((p, i) => ({
+      transactions: normalizedParams.map((singleParams, index) => ({
         params: {
-          data: p.data as Hex,
-          gas: p.gas as Hex,
-          maxFeePerGas: p.maxFeePerGas as Hex,
-          maxPriorityFeePerGas: p.maxPriorityFeePerGas as Hex,
-          to: p.to as Hex,
-          value: p.value as Hex,
+          data: singleParams.data as Hex,
+          gas: singleParams.gas as Hex,
+          maxFeePerGas: singleParams.maxFeePerGas as Hex,
+          maxPriorityFeePerGas: singleParams.maxPriorityFeePerGas as Hex,
+          to: singleParams.to as Hex,
+          value: singleParams.value as Hex,
         },
-        type: i === 0 ? TransactionType.tokenMethodApprove : undefined,
+        type: index === 0 ? TransactionType.tokenMethodApprove : undefined,
       })),
     });
   }
