@@ -80,6 +80,12 @@ class MockSolanaKeyring {
     });
 }
 
+class MockSolAccountProvider extends SolAccountProvider {
+  override async ensureSnapPlatformIsReady(): Promise<void> {
+    // Override to avoid waiting during tests.
+  }
+}
+
 /**
  * Sets up a SolAccountProvider for testing.
  *
@@ -146,7 +152,7 @@ function setup({
   const multichainMessenger = getMultichainAccountServiceMessenger(messenger);
   const provider = new AccountProviderWrapper(
     multichainMessenger,
-    new SolAccountProvider(multichainMessenger, undefined, mockTrace),
+    new MockSolAccountProvider(multichainMessenger, undefined, mockTrace),
   );
 
   return {
@@ -333,7 +339,7 @@ describe('SolAccountProvider', () => {
 
       const multichainMessenger =
         getMultichainAccountServiceMessenger(messenger);
-      const solProvider = new SolAccountProvider(
+      const solProvider = new MockSolAccountProvider(
         multichainMessenger,
         undefined,
         mocks.trace,
@@ -376,7 +382,7 @@ describe('SolAccountProvider', () => {
 
       const multichainMessenger =
         getMultichainAccountServiceMessenger(messenger);
-      const solProvider = new SolAccountProvider(
+      const solProvider = new MockSolAccountProvider(
         multichainMessenger,
         undefined,
         mocks.trace,
@@ -405,7 +411,7 @@ describe('SolAccountProvider', () => {
 
       const multichainMessenger =
         getMultichainAccountServiceMessenger(messenger);
-      const solProvider = new SolAccountProvider(
+      const solProvider = new MockSolAccountProvider(
         multichainMessenger,
         undefined,
         mocks.trace,

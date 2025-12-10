@@ -83,7 +83,7 @@ export class SolAccountProvider extends SnapAccountProvider {
     return account;
   }
 
-  async createAccounts({
+  async runCreateAccounts({
     entropySource,
     groupIndex,
   }: {
@@ -102,7 +102,7 @@ export class SolAccountProvider extends SnapAccountProvider {
     });
   }
 
-  async discoverAccounts({
+  async runDiscoverAccounts({
     entropySource,
     groupIndex,
   }: {
