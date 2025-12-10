@@ -1,4 +1,3 @@
-/* eslint-disable @typescript-eslint/unbound-method */
 import { ChainId, NetworkType } from '@metamask/controller-utils';
 import type {
   NetworkClientId,

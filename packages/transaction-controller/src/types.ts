@@ -799,6 +799,11 @@ export enum TransactionType {
   predictWithdraw = 'predictWithdraw',
 
   /**
+   * Deposit funds for Relay quote.
+   */
+  relayDeposit = 'relayDeposit',
+
+  /**
    * When a transaction is failed it can be retried by
    * resubmitting the same transaction with a higher gas fee. This type is also used
    * to speed up pending transactions. This is accomplished by creating a new tx with
@@ -1738,6 +1743,9 @@ export type TransactionBatchRequest = {
 
   /** Address of an ERC-20 token to pay for the gas fee, if the user has insufficient native balance. */
   gasFeeToken?: Hex;
+
+  /** Gas limit for the transaction batch if submitted via EIP-7702. */
+  gasLimit7702?: Hex;
 
   /** Whether MetaMask will be compensated for the gas fee by the transaction. */
   isGasFeeIncluded?: boolean;
