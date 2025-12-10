@@ -131,7 +131,6 @@ describe('LineaGasFeeFlow', () => {
         .mockResolvedValue(DEFAULT_RESPONSE_MOCK);
 
       const defaultGasFeeFlowGetGasFeesMock = jest.mocked(
-        // eslint-disable-next-line @typescript-eslint/unbound-method
         DefaultGasFeeFlow.prototype.getGasFees,
       );
 
@@ -152,7 +151,6 @@ describe('LineaGasFeeFlow', () => {
         .mockRejectedValue(new Error('TestError'));
 
       const defaultGasFeeFlowGetGasFeesMock = jest.mocked(
-        // eslint-disable-next-line @typescript-eslint/unbound-method
         DefaultGasFeeFlow.prototype.getGasFees,
       );
 

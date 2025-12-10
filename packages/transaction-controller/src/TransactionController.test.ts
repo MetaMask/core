@@ -1,7 +1,6 @@
 /* eslint-disable jest/unbound-method */
 /* eslint-disable @typescript-eslint/naming-convention */
 /* eslint-disable camelcase */
-/* eslint-disable @typescript-eslint/unbound-method */
 /* eslint-disable jest/expect-expect */
 
 import { TransactionFactory } from '@ethereumjs/tx';
@@ -97,7 +96,12 @@ import { getBalanceChanges } from './utils/balance-changes';
 import { addTransactionBatch } from './utils/batch';
 import { getDelegationAddress } from './utils/eip7702';
 import { updateFirstTimeInteraction } from './utils/first-time-interaction';
-import { addGasBuffer, estimateGas, updateGas } from './utils/gas';
+import {
+  addGasBuffer,
+  estimateGas,
+  estimateGasBatch,
+  updateGas,
+} from './utils/gas';
 import { getGasFeeTokens } from './utils/gas-fee-tokens';
 import { updateGasFees } from './utils/gas-fees';
 import { getGasFeeFlow } from './utils/gas-flow';
@@ -457,6 +461,7 @@ const ACTION_ID_MOCK = '123456';
 const CHAIN_ID_MOCK = MOCK_NETWORK.chainId;
 const NETWORK_CLIENT_ID_MOCK = 'networkClientIdMock';
 const BATCH_ID_MOCK = '0xabcd12';
+const ERROR_MESSAGE_MOCK = 'Test Error';
 
 const TRANSACTION_META_MOCK = {
   hash: '0x1',
@@ -538,6 +543,7 @@ describe('TransactionController', () => {
   const updateGasMock = jest.mocked(updateGas);
   const updateGasFeesMock = jest.mocked(updateGasFees);
   const estimateGasMock = jest.mocked(estimateGas);
+  const estimateGasBatchMock = jest.mocked(estimateGasBatch);
   const addGasBufferMock = jest.mocked(addGasBuffer);
   const updateSwapsTransactionMock = jest.mocked(updateSwapsTransaction);
   const updatePostTransactionBalanceMock = jest.mocked(
@@ -2868,6 +2874,72 @@ describe('TransactionController', () => {
             submittedTime: expect.any(Number),
           }),
         });
+      });
+
+      it('throws with data message if publish fails', async () => {
+        const { controller } = setupController({
+          messengerOptions: {
+            addTransactionApprovalRequest: {
+              state: 'approved',
+            },
+          },
+        });
+
+        jest
+          .spyOn(mockEthQuery, 'sendRawTransaction')
+          .mockImplementation((_transaction, callback) => {
+            callback({
+              data: {
+                message: ERROR_MESSAGE_MOCK,
+              },
+            });
+          });
+
+        const { result } = await controller.addTransaction(
+          {
+            from: ACCOUNT_MOCK,
+            gas: '0x0',
+            gasPrice: '0x0',
+            to: ACCOUNT_MOCK,
+            value: '0x0',
+          },
+          {
+            networkClientId: NETWORK_CLIENT_ID_MOCK,
+          },
+        );
+
+        await expect(result).rejects.toThrow(ERROR_MESSAGE_MOCK);
+      });
+
+      it('throws with standard message if publish fails', async () => {
+        const { controller } = setupController({
+          messengerOptions: {
+            addTransactionApprovalRequest: {
+              state: 'approved',
+            },
+          },
+        });
+
+        jest
+          .spyOn(mockEthQuery, 'sendRawTransaction')
+          .mockImplementation((_transaction, callback) => {
+            callback(new Error(ERROR_MESSAGE_MOCK));
+          });
+
+        const { result } = await controller.addTransaction(
+          {
+            from: ACCOUNT_MOCK,
+            gas: '0x0',
+            gasPrice: '0x0',
+            to: ACCOUNT_MOCK,
+            value: '0x0',
+          },
+          {
+            networkClientId: NETWORK_CLIENT_ID_MOCK,
+          },
+        );
+
+        await expect(result).rejects.toThrow(ERROR_MESSAGE_MOCK);
       });
 
       it('reports success to approval acceptor', async () => {
@@ -8613,6 +8685,115 @@ describe('TransactionController', () => {
             }),
           }),
         );
+      });
+    });
+
+    describe('TransactionController:transactionApproved event', () => {
+      it('does not publish transactionApproved event when keyring throws during signing', async () => {
+        const signingError = new Error('Keyring signing failed');
+        const mockSignWithError = jest.fn().mockRejectedValue(signingError);
+
+        const { controller, messenger, mockTransactionApprovalRequest } =
+          setupController({
+            options: {
+              sign: mockSignWithError,
+            },
+          });
+
+        const approvedEventListener = jest.fn();
+        const mockActionId = 'test-action-id-456';
+
+        messenger.subscribe(
+          'TransactionController:transactionApproved',
+          approvedEventListener,
+        );
+
+        const { result } = await controller.addTransaction(
+          {
+            from: ACCOUNT_MOCK,
+            gas: '0x21000',
+            gasPrice: '0x1',
+            to: ACCOUNT_MOCK,
+            value: '0x0',
+          },
+          {
+            networkClientId: NETWORK_CLIENT_ID_MOCK,
+            actionId: mockActionId,
+          },
+        );
+
+        mockTransactionApprovalRequest.approve();
+
+        await expect(result).rejects.toThrow('Keyring signing failed');
+
+        const transaction = controller.state.transactions[0];
+        expect(transaction.status).toBe(TransactionStatus.failed);
+
+        expect(mockSignWithError).toHaveBeenCalledTimes(1);
+
+        // Verify the transactionApproved event was NOT published despite approval
+        expect(approvedEventListener).not.toHaveBeenCalled();
+      });
+    });
+
+    describe('TransactionController:estimateGasBatch', () => {
+      it('calls estimateGasBatch method via messenger and returns gas estimates', async () => {
+        const { messenger } = setupController();
+
+        const totalGasLimitMock = 100000;
+        const gasLimitsMock = [50000, 50000];
+
+        estimateGasBatchMock.mockResolvedValueOnce({
+          totalGasLimit: totalGasLimitMock,
+          gasLimits: gasLimitsMock,
+        });
+
+        const result = await messenger.call(
+          'TransactionController:estimateGasBatch',
+          {
+            chainId: CHAIN_ID_MOCK,
+            from: ACCOUNT_MOCK,
+            transactions: [
+              {
+                to: ACCOUNT_2_MOCK,
+                value: VALUE_MOCK,
+                data: DATA_MOCK,
+              },
+              {
+                to: ACCOUNT_2_MOCK,
+                value: VALUE_MOCK,
+                data: DATA_MOCK,
+              },
+            ],
+          },
+        );
+
+        expect(result).toStrictEqual({
+          totalGasLimit: totalGasLimitMock,
+          gasLimits: gasLimitsMock,
+        });
+
+        expect(estimateGasBatchMock).toHaveBeenCalledTimes(1);
+        expect(estimateGasBatchMock).toHaveBeenCalledWith({
+          chainId: CHAIN_ID_MOCK,
+          ethQuery: expect.anything(),
+          from: ACCOUNT_MOCK,
+          getSimulationConfig: expect.any(Function),
+          isAtomicBatchSupported: expect.any(Function),
+          messenger: expect.anything(),
+          transactions: [
+            {
+              to: ACCOUNT_2_MOCK,
+              value: VALUE_MOCK,
+              data: DATA_MOCK,
+            },
+            {
+              to: ACCOUNT_2_MOCK,
+              value: VALUE_MOCK,
+              data: DATA_MOCK,
+            },
+          ],
+        });
       });
     });
   });

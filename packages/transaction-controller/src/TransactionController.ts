@@ -139,7 +139,12 @@ import {
 } from './utils/eip7702';
 import { validateConfirmedExternalTransaction } from './utils/external-transactions';
 import { updateFirstTimeInteraction } from './utils/first-time-interaction';
-import { addGasBuffer, estimateGas, updateGas } from './utils/gas';
+import {
+  addGasBuffer,
+  estimateGas,
+  estimateGasBatch,
+  updateGas,
+} from './utils/gas';
 import {
   checkGasFeeTokenBeforePublish,
   getGasFeeTokens,
@@ -310,6 +315,11 @@ export type TransactionControllerEstimateGasAction = {
   handler: TransactionController['estimateGas'];
 };
 
+export type TransactionControllerEstimateGasBatchAction = {
+  type: `${typeof controllerName}:estimateGasBatch`;
+  handler: TransactionController['estimateGasBatch'];
+};
+
 /**
  * Adds external provided transaction to state as confirmed transaction.
  *
@@ -400,6 +410,7 @@ export type TransactionControllerActions =
   | TransactionControllerAddTransactionBatchAction
   | TransactionControllerConfirmExternalTransactionAction
   | TransactionControllerEstimateGasAction
+  | TransactionControllerEstimateGasBatchAction
   | TransactionControllerGetGasFeeTokensAction
   | TransactionControllerGetNonceLockAction
   | TransactionControllerGetStateAction
@@ -552,6 +563,12 @@ export type TransactionControllerOptions = {
     getAdditionalSignArguments?: (
       transactionMeta: TransactionMeta,
     ) => (TransactionMeta | undefined)[];
+
+    /**
+     * Callback to determine whether timeout checking should be enabled for a transaction.
+     * Return false to disable timeout for the transaction.
+     */
+    isTimeoutEnabled?: (transactionMeta: TransactionMeta) => boolean;
 
     /** Alternate logic to publish a transaction. */
     publish?: (
@@ -888,6 +905,8 @@ export class TransactionController extends BaseController<
 
   readonly #isSwapsDisabled: boolean;
 
+  readonly #isTimeoutEnabled: (transactionMeta: TransactionMeta) => boolean;
+
   readonly #layer1GasFeeFlows: Layer1GasFeeFlow[];
 
   readonly #methodDataHelper: MethodDataHelper;
@@ -1019,6 +1038,7 @@ export class TransactionController extends BaseController<
     this.#isSendFlowHistoryDisabled = disableSendFlowHistory ?? false;
     this.#isSimulationEnabled = isSimulationEnabled ?? ((): boolean => true);
     this.#isSwapsDisabled = disableSwaps ?? false;
+    this.#isTimeoutEnabled = hooks?.isTimeoutEnabled ?? ((): boolean => true);
     this.#pendingTransactionOptions = pendingTransactions;
     this.#publicKeyEIP7702 = publicKeyEIP7702;
     this.#publish =
@@ -1772,6 +1792,39 @@ export class TransactionController extends BaseController<
     });
 
     return { gas: estimatedGas, simulationFails };
+  }
+
+  /**
+   * Estimates required gas for a batch of transactions.
+   *
+   * @param request - Request object.
+   * @param request.chainId - Chain ID of the transactions.
+   * @param request.from - Address of the sender.
+   * @param request.transactions - Array of transactions within a batch request.
+   * @returns Object containing the gas limit.
+   */
+  async estimateGasBatch({
+    chainId,
+    from,
+    transactions,
+  }: {
+    chainId: Hex;
+    from: Hex;
+    transactions: BatchTransactionParams[];
+  }): Promise<{ totalGasLimit: number; gasLimits: number[] }> {
+    const ethQuery = this.#getEthQuery({
+      chainId,
+    });
+
+    return estimateGasBatch({
+      chainId,
+      ethQuery,
+      from,
+      getSimulationConfig: this.#getSimulationConfig,
+      isAtomicBatchSupported: this.isAtomicBatchSupported.bind(this),
+      messenger: this.messenger,
+      transactions,
+    });
   }
 
   /**
@@ -3135,10 +3188,12 @@ export class TransactionController extends BaseController<
           const updatedTransactionMeta = this.#getTransaction(
             transactionId,
           ) as TransactionMeta;
-          this.messenger.publish(`${controllerName}:transactionApproved`, {
-            transactionMeta: updatedTransactionMeta,
-            actionId,
-          });
+          if (approvalResult === ApprovalState.Approved) {
+            this.messenger.publish(`${controllerName}:transactionApproved`, {
+              transactionMeta: updatedTransactionMeta,
+              actionId,
+            });
+          }
         }
       } catch (rawError: unknown) {
         const error = rawError as Error & { code?: number; data?: Json };
@@ -3375,15 +3430,29 @@ export class TransactionController extends BaseController<
     transactionMeta: TransactionMeta,
     { skipSubmitHistory }: { skipSubmitHistory?: boolean } = {},
   ): Promise<string> {
-    const transactionHash = await query(ethQuery, 'sendRawTransaction', [
-      transactionMeta.rawTx,
-    ]);
+    try {
+      const transactionHash = await query(ethQuery, 'sendRawTransaction', [
+        transactionMeta.rawTx,
+      ]);
 
-    if (skipSubmitHistory !== true) {
-      this.#updateSubmitHistory(transactionMeta, transactionHash);
+      if (skipSubmitHistory !== true) {
+        this.#updateSubmitHistory(transactionMeta, transactionHash);
+      }
+
+      return transactionHash;
+    } catch (error: unknown) {
+      const errorObject = error as
+        | {
+            data?: { message?: string };
+            message?: string;
+          }
+        | undefined;
+
+      const errorMessage =
+        errorObject?.data?.message ?? errorObject?.message ?? String(error);
+
+      throw new Error(errorMessage);
     }
-
-    return transactionHash;
   }
 
   /**
@@ -4121,22 +4190,23 @@ export class TransactionController extends BaseController<
       blockTracker,
       getChainId: (): Hex => chainId,
       getEthQuery: (): EthQuery => ethQuery,
-      getNetworkClientId: (): NetworkClientId => networkClientId,
-      getTransactions: (): TransactionMeta[] => this.state.transactions,
-      isResubmitEnabled: this.#pendingTransactionOptions.isResubmitEnabled,
       getGlobalLock: (): Promise<() => void> =>
         this.#multichainTrackingHelper.acquireNonceLockForChainIdKey({
           chainId,
         }),
+      getNetworkClientId: (): NetworkClientId => networkClientId,
+      getTransactions: (): TransactionMeta[] => this.state.transactions,
+      hooks: {
+        beforeCheckPendingTransaction:
+          this.#beforeCheckPendingTransaction.bind(this),
+      },
+      isResubmitEnabled: this.#pendingTransactionOptions.isResubmitEnabled,
+      isTimeoutEnabled: this.#isTimeoutEnabled,
       messenger: this.messenger,
       publishTransaction: (_ethQuery, transactionMeta): Promise<string> =>
         this.#publishTransaction(_ethQuery, transactionMeta, {
           skipSubmitHistory: true,
         }),
-      hooks: {
-        beforeCheckPendingTransaction:
-          this.#beforeCheckPendingTransaction.bind(this),
-      },
     });
 
     this.#addPendingTransactionTrackerListeners(pendingTransactionTracker);
@@ -4598,6 +4668,11 @@ export class TransactionController extends BaseController<
     this.messenger.registerActionHandler(
       `${controllerName}:estimateGas`,
       this.estimateGas.bind(this),
+    );
+
+    this.messenger.registerActionHandler(
+      `${controllerName}:estimateGasBatch`,
+      this.estimateGasBatch.bind(this),
     );
 
     this.messenger.registerActionHandler(

@@ -1,5 +1,3 @@
-/* eslint-disable @typescript-eslint/unbound-method */
-
 import { toHex } from '@metamask/controller-utils';
 import type EthQuery from '@metamask/eth-query';
 import { GAS_ESTIMATE_TYPES } from '@metamask/gas-fee-controller';

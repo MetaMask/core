@@ -129,7 +129,7 @@ function syncTransaction({
   paymentToken: TransactionPaymentToken | undefined;
   totals: TransactionPayTotals;
   transactionId: string;
-}) {
+}): void {
   if (!paymentToken) {
     return;
   }
@@ -164,7 +164,7 @@ function syncTransaction({
 export async function refreshQuotes(
   messenger: TransactionPayControllerMessenger,
   updateTransactionData: UpdateTransactionDataCallback,
-) {
+): Promise<void> {
   const state = messenger.call('TransactionPayController:getState');
   const transactionIds = Object.keys(state.transactionData);
 
@@ -234,7 +234,7 @@ function buildQuoteRequests({
 
   const requests = (sourceAmounts ?? []).map((sourceAmount) => {
     const token = tokens.find(
-      (t) => t.address === sourceAmount.targetTokenAddress,
+      (singleToken) => singleToken.address === sourceAmount.targetTokenAddress,
     ) as TransactionPayRequiredToken;
 
     return {
@@ -268,7 +268,10 @@ async function getQuotes(
   transaction: TransactionMeta,
   requests: QuoteRequest[],
   messenger: TransactionPayControllerMessenger,
-) {
+): Promise<{
+  batchTransactions: BatchTransaction[];
+  quotes: TransactionPayQuote<Json>[];
+}> {
   const { id: transactionId } = transaction;
   const strategy = getStrategy(messenger as never, transaction);
   let quotes: TransactionPayQuote<Json>[] | undefined = [];

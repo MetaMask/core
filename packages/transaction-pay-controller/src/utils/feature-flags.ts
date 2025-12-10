@@ -7,12 +7,23 @@ import { RELAY_URL_BASE } from '../strategy/relay/constants';
 
 const log = createModuleLogger(projectLogger, 'feature-flags');
 
+export const DEFAULT_GAS_BUFFER = 1.0;
 export const DEFAULT_RELAY_FALLBACK_GAS_ESTIMATE = 900000;
 export const DEFAULT_RELAY_FALLBACK_GAS_MAX = 1500000;
 export const DEFAULT_RELAY_QUOTE_URL = `${RELAY_URL_BASE}/quote`;
 export const DEFAULT_SLIPPAGE = 0.005;
 
 type FeatureFlagsRaw = {
+  gasBuffer?: {
+    default?: number;
+    perChainConfig?: Record<
+      Hex,
+      {
+        name?: string;
+        buffer?: number;
+      }
+    >;
+  };
   relayDisabledGasStationChains?: Hex[];
   relayFallbackGas?: {
     estimate?: number;
@@ -41,10 +52,7 @@ export type FeatureFlags = {
 export function getFeatureFlags(
   messenger: TransactionPayControllerMessenger,
 ): FeatureFlags {
-  const state = messenger.call('RemoteFeatureFlagController:getState');
-
-  const featureFlags: FeatureFlagsRaw =
-    (state.remoteFeatureFlags.confirmations_pay as FeatureFlagsRaw) ?? {};
+  const featureFlags = getFeatureFlagsRaw(messenger);
 
   const estimate =
     featureFlags.relayFallbackGas?.estimate ??
@@ -73,4 +81,37 @@ export function getFeatureFlags(
   log('Feature flags:', { raw: featureFlags, result });
 
   return result;
+}
+
+/**
+ * Get the gas buffer value for a specific chain ID.
+ *
+ * @param messenger - Controller messenger.
+ * @param chainId - Chain ID to get gas buffer for.
+ * @returns Gas buffer value.
+ */
+export function getGasBuffer(
+  messenger: TransactionPayControllerMessenger,
+  chainId: Hex,
+): number {
+  const featureFlags = getFeatureFlagsRaw(messenger);
+
+  return (
+    featureFlags.gasBuffer?.perChainConfig?.[chainId]?.buffer ??
+    featureFlags.gasBuffer?.default ??
+    DEFAULT_GAS_BUFFER
+  );
+}
+
+/**
+ * Get the raw feature flags from the remote feature flag controller.
+ *
+ * @param messenger - Controller messenger.
+ * @returns Raw feature flags.
+ */
+function getFeatureFlagsRaw(
+  messenger: TransactionPayControllerMessenger,
+): FeatureFlagsRaw {
+  const state = messenger.call('RemoteFeatureFlagController:getState');
+  return (state.remoteFeatureFlags.confirmations_pay as FeatureFlagsRaw) ?? {};
 }
