@@ -181,7 +181,7 @@ export class EvmAccountProvider extends BaseBip44AccountProvider {
 
     // Make sure we got the right response format, if not, we fallback to "0x0", to avoid having to deal with `NaN`.
     if (!isStrictHexString(response)) {
-      const message = `Received invalid hex response from "${method}" request: "${JSON.stringify(response)}"`;
+      const message = `Received invalid hex response from "${method}" request: ${JSON.stringify(response)}`;
 
       log(`${WARNING_PREFIX} ${message}`);
       console.warn(message);
