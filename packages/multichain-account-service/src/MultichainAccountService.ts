@@ -27,7 +27,10 @@ import {
 } from './providers/AccountProviderWrapper';
 import { EvmAccountProvider } from './providers/EvmAccountProvider';
 import { SolAccountProvider } from './providers/SolAccountProvider';
-import { SOL_ACCOUNT_PROVIDER_NAME, SolAccountProviderConfig } from './providers/SolAccountProvider';
+import {
+  SOL_ACCOUNT_PROVIDER_NAME,
+  SolAccountProviderConfig,
+} from './providers/SolAccountProvider';
 import type {
   MultichainAccountServiceConfig,
   MultichainAccountServiceMessenger,
