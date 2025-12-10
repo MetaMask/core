@@ -15,6 +15,7 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
   - Add optional `isTimeoutEnabled` callback to disable for specific transactions.
   - Ignores transactions with future nonce.
   - Threshold determined by feature flag.
+- Add intent based transaction support ([#6963](https://github.com/MetaMask/core/pull/6963))
 
 ### Changed
 
