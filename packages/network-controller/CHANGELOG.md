@@ -7,6 +7,12 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+### Added
+
+- Add MegaETH Testnet "v2" as a default custom network ([#7272](https://github.com/MetaMask/core/pull/7272))
+  - The URL for this is `https://timothy.megaeth.com/rpc` rather than `https://carrot.megaeth.com/rpc`, and the chain ID has changed from `0x18c6` to `0x18c7`.
+  - "v1" of this network has not been removed.
+
 ### Changed
 
 - Update the default set of Infura networks to include Monad Testnet ([#7067](https://github.com/MetaMask/core/pull/7067))

@@ -258,7 +258,7 @@ export class ProfileMetricsController extends StaticIntervalPollingController()<
    * This method ensures that the first sync is only executed once,
    * and only if the user has opted in to user profile features.
    */
-  async #queueFirstSyncIfNeeded() {
+  async #queueFirstSyncIfNeeded(): Promise<void> {
     await this.#mutex.runExclusive(async () => {
       if (this.state.initialEnqueueCompleted) {
         return;
@@ -283,10 +283,10 @@ export class ProfileMetricsController extends StaticIntervalPollingController()<
    *
    * @param account - The account to sync.
    */
-  async #addAccountToQueue(account: InternalAccount) {
+  async #addAccountToQueue(account: InternalAccount): Promise<void> {
     await this.#mutex.runExclusive(async () => {
       this.update((state) => {
-        const entropySourceId = getAccountEntropySourceId(account) || 'null';
+        const entropySourceId = getAccountEntropySourceId(account) ?? 'null';
         if (!state.syncQueue[entropySourceId]) {
           state.syncQueue[entropySourceId] = [];
         }
@@ -303,7 +303,7 @@ export class ProfileMetricsController extends StaticIntervalPollingController()<
    *
    * @param account - The account address to remove.
    */
-  async #removeAccountFromQueue(account: string) {
+  async #removeAccountFromQueue(account: string): Promise<void> {
     await this.#mutex.runExclusive(async () => {
       this.update((state) => {
         for (const [entropySourceId, groupedAddresses] of Object.entries(
@@ -352,7 +352,7 @@ function groupAccountsByEntropySourceId(
   return accounts.reduce(
     (result: Record<string, AccountWithScopes[]>, account) => {
       const entropySourceId = getAccountEntropySourceId(account);
-      const key = entropySourceId || 'null';
+      const key = entropySourceId ?? 'null';
       if (!result[key]) {
         result[key] = [];
       }

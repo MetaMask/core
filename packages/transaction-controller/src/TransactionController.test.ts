@@ -461,6 +461,7 @@ const ACTION_ID_MOCK = '123456';
 const CHAIN_ID_MOCK = MOCK_NETWORK.chainId;
 const NETWORK_CLIENT_ID_MOCK = 'networkClientIdMock';
 const BATCH_ID_MOCK = '0xabcd12';
+const ERROR_MESSAGE_MOCK = 'Test Error';
 
 const TRANSACTION_META_MOCK = {
   hash: '0x1',
@@ -2873,6 +2874,72 @@ describe('TransactionController', () => {
             submittedTime: expect.any(Number),
           }),
         });
+      });
+
+      it('throws with data message if publish fails', async () => {
+        const { controller } = setupController({
+          messengerOptions: {
+            addTransactionApprovalRequest: {
+              state: 'approved',
+            },
+          },
+        });
+
+        jest
+          .spyOn(mockEthQuery, 'sendRawTransaction')
+          .mockImplementation((_transaction, callback) => {
+            callback({
+              data: {
+                message: ERROR_MESSAGE_MOCK,
+              },
+            });
+          });
+
+        const { result } = await controller.addTransaction(
+          {
+            from: ACCOUNT_MOCK,
+            gas: '0x0',
+            gasPrice: '0x0',
+            to: ACCOUNT_MOCK,
+            value: '0x0',
+          },
+          {
+            networkClientId: NETWORK_CLIENT_ID_MOCK,
+          },
+        );
+
+        await expect(result).rejects.toThrow(ERROR_MESSAGE_MOCK);
+      });
+
+      it('throws with standard message if publish fails', async () => {
+        const { controller } = setupController({
+          messengerOptions: {
+            addTransactionApprovalRequest: {
+              state: 'approved',
+            },
+          },
+        });
+
+        jest
+          .spyOn(mockEthQuery, 'sendRawTransaction')
+          .mockImplementation((_transaction, callback) => {
+            callback(new Error(ERROR_MESSAGE_MOCK));
+          });
+
+        const { result } = await controller.addTransaction(
+          {
+            from: ACCOUNT_MOCK,
+            gas: '0x0',
+            gasPrice: '0x0',
+            to: ACCOUNT_MOCK,
+            value: '0x0',
+          },
+          {
+            networkClientId: NETWORK_CLIENT_ID_MOCK,
+          },
+        );
+
+        await expect(result).rejects.toThrow(ERROR_MESSAGE_MOCK);
       });
 
       it('reports success to approval acceptor', async () => {
