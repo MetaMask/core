@@ -9,6 +9,7 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ### Added
 
+- Add `firstPageOnly` and `signal` options to `NftDetectionController.detectNfts()` method to allow fetching only the first page of NFTs and aborting detection operations ([#7436](https://github.com/MetaMask/core/pull/7436))
 - Support for Monad in NFT assets-controllers, [#7254](https://github.com/MetaMask/core/pull/7254)
 
 ### Changed
