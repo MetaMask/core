@@ -8,7 +8,6 @@
     "noEmit": true
   },
   "references": [
-    { "path": "./packages/Intent-manager" },
     { "path": "./packages/account-tree-controller" },
     { "path": "./packages/accounts-controller" },
     { "path": "./packages/address-book-controller" },
