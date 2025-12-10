@@ -4,12 +4,13 @@ import { remove0x } from '@metamask/utils';
 import type { Hex } from '@metamask/utils';
 import { cloneDeep } from 'lodash';
 
-import { DELEGATION_PREFIX } from './eip7702';
+import { DELEGATION_PREFIX, generateEIP7702BatchTransaction } from './eip7702';
 import { getGasEstimateBuffer, getGasEstimateFallback } from './feature-flags';
 import type { UpdateGasRequest } from './gas';
 import {
   addGasBuffer,
   estimateGas,
+  estimateGasBatch,
   updateGas,
   FIXED_GAS,
   DEFAULT_GAS_MULTIPLIER,
@@ -28,6 +29,7 @@ import { TransactionEnvelopeType } from '../types';
 import type { TransactionMeta } from '../types';
 import type {
   AuthorizationList,
+  BatchTransactionParams,
   TransactionBatchSingleRequest,
 } from '../types';
 
@@ -39,8 +41,33 @@ jest.mock('@metamask/controller-utils', () => ({
 jest.mock('./feature-flags');
 jest.mock('../api/simulation-api');
 
+jest.mock('./eip7702', () => ({
+  ...jest.requireActual('./eip7702'),
+  generateEIP7702BatchTransaction: jest.fn(),
+}));
+
 const DEFAULT_GAS_ESTIMATE_FALLBACK_MOCK = 35;
 const FIXED_ESTIMATE_GAS_MOCK = 100000;
+const GAS_MOCK = 100;
+const BLOCK_GAS_LIMIT_MOCK = 123456789;
+const BLOCK_NUMBER_MOCK = '0x5678';
+const ETH_QUERY_MOCK = {} as unknown as EthQuery;
+const FALLBACK_MULTIPLIER_35_PERCENT = 0.35;
+const GET_SIMULATION_CONFIG_MOCK = jest.fn();
+const MAX_GAS_MULTIPLIER = MAX_GAS_BLOCK_PERCENT / 100;
+const CHAIN_ID_MOCK = '0x123';
+const GAS_2_MOCK = 12345;
+const SIMULATE_GAS_MOCK = 54321;
+const FROM_MOCK = '0xabc';
+const TO_MOCK = '0xdef';
+const VALUE_MOCK = '0x1';
+const VALUE_MOCK_2 = '0x2';
+const DATA_MOCK = '0xabcdef';
+const DATA_MOCK_2 = '0x123456';
+const GAS_MOCK_1 = '0x5208';
+const GAS_MOCK_2 = '0x7a120';
+const UPGRADE_CONTRACT_ADDRESS_MOCK = '0xupgrade123';
+
 const MESSENGER_MOCK = {
   call: jest.fn().mockReturnValue({
     remoteFeatureFlags: {},
@@ -57,16 +84,54 @@ const GAS_ESTIMATE_FALLBACK_MULTIPLIER_MOCK = {
   fixed: undefined,
 };
 
-const GAS_MOCK = 100;
-const BLOCK_GAS_LIMIT_MOCK = 123456789;
-const BLOCK_NUMBER_MOCK = '0x5678';
-const ETH_QUERY_MOCK = {} as unknown as EthQuery;
-const FALLBACK_MULTIPLIER_35_PERCENT = 0.35;
-const GET_SIMULATION_CONFIG_MOCK = jest.fn();
-const MAX_GAS_MULTIPLIER = MAX_GAS_BLOCK_PERCENT / 100;
-const CHAIN_ID_MOCK = '0x123';
-const GAS_2_MOCK = 12345;
-const SIMULATE_GAS_MOCK = 54321;
+const BATCH_TX_PARAMS_MOCK: BatchTransactionParams[] = [
+  {
+    data: DATA_MOCK,
+    to: TO_MOCK,
+    value: VALUE_MOCK,
+  },
+  {
+    data: DATA_MOCK_2,
+    to: TO_MOCK,
+    value: VALUE_MOCK_2,
+  },
+];
+
+const BATCH_TX_PARAMS_WITH_GAS_MOCK: BatchTransactionParams[] = [
+  {
+    data: DATA_MOCK,
+    to: TO_MOCK,
+    value: VALUE_MOCK,
+    gas: GAS_MOCK_1,
+  },
+  {
+    data: DATA_MOCK_2,
+    to: TO_MOCK,
+    value: VALUE_MOCK_2,
+    gas: GAS_MOCK_2,
+  },
+];
+
+const TRANSACTION_BATCH_REQUEST_MOCK: TransactionBatchSingleRequest[] = [
+  {
+    params: {
+      data: DATA_MOCK,
+      to: TO_MOCK,
+      value: VALUE_MOCK,
+    },
+  },
+  {
+    params: {
+      data: DATA_MOCK_2,
+      to: TO_MOCK,
+      value: VALUE_MOCK_2,
+    },
+  },
+];
+
+const SIMULATED_TRANSACTIONS_RESPONSE_MOCK: SimulationResponse = {
+  transactions: [{ gasLimit: GAS_MOCK_1 }, { gasLimit: GAS_MOCK_2 }],
+} as unknown as SimulationResponse;
 
 const AUTHORIZATION_LIST_MOCK: AuthorizationList = [
   {
@@ -108,6 +173,9 @@ describe('gas', () => {
   const simulateTransactionsMock = jest.mocked(simulateTransactions);
   const getGasEstimateFallbackMock = jest.mocked(getGasEstimateFallback);
   const getGasEstimateBufferMock = jest.mocked(getGasEstimateBuffer);
+  const generateEIP7702BatchTransactionMock = jest.mocked(
+    generateEIP7702BatchTransaction,
+  );
 
   let updateGasRequest: UpdateGasRequest;
 
@@ -989,40 +1057,224 @@ describe('gas', () => {
     });
   });
 
-  describe('simulateGasBatch', () => {
-    const FROM_MOCK = '0xabc';
-    const TO_MOCK = '0xdef';
-    const VALUE_MOCK = '0x1';
-    const VALUE_MOCK_2 = '0x2';
-    const DATA_MOCK = '0xabcdef';
-    const DATA_MOCK_2 = '0x123456';
-    const GAS_MOCK_1 = '0x5208'; // 21000 gas
-    const GAS_MOCK_2 = '0x7a120'; // 500000 gas
-    const TRANSACTION_BATCH_REQUEST_MOCK = [
-      {
-        params: {
+  describe('estimateGasBatch', () => {
+    it('uses EIP-7702 when supported and upgrade required', async () => {
+      const isAtomicBatchSupportedMock = jest.fn().mockResolvedValue([
+        {
+          chainId: CHAIN_ID_MOCK,
+          isSupported: false,
+          upgradeContractAddress: UPGRADE_CONTRACT_ADDRESS_MOCK,
+        },
+      ]);
+
+      generateEIP7702BatchTransactionMock.mockReturnValue({
+        to: TO_MOCK,
+        data: DATA_MOCK,
+      } as BatchTransactionParams);
+
+      mockQuery({
+        getBlockByNumberResponse: { gasLimit: toHex(BLOCK_GAS_LIMIT_MOCK) },
+        estimateGasResponse: toHex(GAS_MOCK),
+      });
+
+      const result = await estimateGasBatch({
+        chainId: CHAIN_ID_MOCK,
+        ethQuery: ETH_QUERY_MOCK,
+        from: FROM_MOCK,
+        getSimulationConfig: GET_SIMULATION_CONFIG_MOCK,
+        isAtomicBatchSupported: isAtomicBatchSupportedMock,
+        messenger: MESSENGER_MOCK,
+        transactions: BATCH_TX_PARAMS_MOCK,
+      });
+
+      expect(result).toStrictEqual({
+        totalGasLimit: GAS_MOCK,
+        gasLimits: [GAS_MOCK],
+      });
+
+      expect(generateEIP7702BatchTransactionMock).toHaveBeenCalledWith(
+        FROM_MOCK,
+        BATCH_TX_PARAMS_MOCK,
+      );
+
+      expect(queryMock).toHaveBeenCalledWith(ETH_QUERY_MOCK, 'estimateGas', [
+        expect.objectContaining({
+          to: TO_MOCK,
+          data: DATA_MOCK,
+          from: FROM_MOCK,
+          authorizationList: [
+            expect.objectContaining({ address: UPGRADE_CONTRACT_ADDRESS_MOCK }),
+          ],
+          type: TransactionEnvelopeType.setCode,
+        }),
+      ]);
+    });
+
+    it('uses EIP-7702 when supported but upgrade not required', async () => {
+      const isAtomicBatchSupportedMock = jest.fn().mockResolvedValue([
+        {
+          chainId: CHAIN_ID_MOCK,
+          isSupported: true,
+          upgradeContractAddress: UPGRADE_CONTRACT_ADDRESS_MOCK,
+        },
+      ]);
+
+      generateEIP7702BatchTransactionMock.mockReturnValue({
+        to: TO_MOCK,
+        data: DATA_MOCK,
+      } as BatchTransactionParams);
+
+      mockQuery({
+        getBlockByNumberResponse: { gasLimit: toHex(BLOCK_GAS_LIMIT_MOCK) },
+        estimateGasResponse: toHex(GAS_MOCK),
+      });
+
+      const result = await estimateGasBatch({
+        chainId: CHAIN_ID_MOCK,
+        ethQuery: ETH_QUERY_MOCK,
+        from: FROM_MOCK,
+        getSimulationConfig: GET_SIMULATION_CONFIG_MOCK,
+        isAtomicBatchSupported: isAtomicBatchSupportedMock,
+        messenger: MESSENGER_MOCK,
+        transactions: BATCH_TX_PARAMS_MOCK,
+      });
+
+      expect(result).toStrictEqual({
+        totalGasLimit: GAS_MOCK,
+        gasLimits: [GAS_MOCK],
+      });
+
+      expect(queryMock).toHaveBeenCalledWith(ETH_QUERY_MOCK, 'estimateGas', [
+        expect.objectContaining({
+          to: TO_MOCK,
+          data: DATA_MOCK,
+          from: FROM_MOCK,
+          authorizationList: undefined,
+          type: undefined,
+        }),
+      ]);
+    });
+
+    it('throws error when upgrade contract address not found', async () => {
+      const isAtomicBatchSupportedMock = jest.fn().mockResolvedValue([
+        {
+          chainId: CHAIN_ID_MOCK,
+          isSupported: false,
+          upgradeContractAddress: undefined,
+        },
+      ]);
+
+      await expect(
+        estimateGasBatch({
+          chainId: CHAIN_ID_MOCK,
+          ethQuery: ETH_QUERY_MOCK,
+          from: FROM_MOCK,
+          getSimulationConfig: GET_SIMULATION_CONFIG_MOCK,
+          isAtomicBatchSupported: isAtomicBatchSupportedMock,
+          messenger: MESSENGER_MOCK,
+          transactions: BATCH_TX_PARAMS_MOCK,
+        }),
+      ).rejects.toThrow('Upgrade contract address not found');
+    });
+
+    it('uses provided gas limits when all transactions have gas', async () => {
+      const isAtomicBatchSupportedMock = jest.fn().mockResolvedValue([]);
+
+      const result = await estimateGasBatch({
+        chainId: CHAIN_ID_MOCK,
+        ethQuery: ETH_QUERY_MOCK,
+        from: FROM_MOCK,
+        getSimulationConfig: GET_SIMULATION_CONFIG_MOCK,
+        isAtomicBatchSupported: isAtomicBatchSupportedMock,
+        messenger: MESSENGER_MOCK,
+        transactions: BATCH_TX_PARAMS_WITH_GAS_MOCK,
+      });
+
+      expect(result).toStrictEqual({
+        totalGasLimit: 521000,
+        gasLimits: [21000, 500000],
+      });
+
+      expect(simulateTransactionsMock).not.toHaveBeenCalled();
+    });
+
+    it('simulates gas when not all transactions have gas', async () => {
+      const isAtomicBatchSupportedMock = jest.fn().mockResolvedValue([]);
+
+      simulateTransactionsMock.mockResolvedValue(
+        SIMULATED_TRANSACTIONS_RESPONSE_MOCK,
+      );
+
+      const result = await estimateGasBatch({
+        chainId: CHAIN_ID_MOCK,
+        ethQuery: ETH_QUERY_MOCK,
+        from: FROM_MOCK,
+        getSimulationConfig: GET_SIMULATION_CONFIG_MOCK,
+        isAtomicBatchSupported: isAtomicBatchSupportedMock,
+        messenger: MESSENGER_MOCK,
+        transactions: BATCH_TX_PARAMS_MOCK,
+      });
+
+      expect(result).toStrictEqual({
+        totalGasLimit: 521000,
+        gasLimits: [21000, 500000],
+      });
+
+      expect(simulateTransactionsMock).toHaveBeenCalledWith(CHAIN_ID_MOCK, {
+        getSimulationConfig: GET_SIMULATION_CONFIG_MOCK,
+        transactions: [
+          {
+            ...BATCH_TX_PARAMS_MOCK[0],
+            from: FROM_MOCK,
+          },
+          {
+            ...BATCH_TX_PARAMS_MOCK[1],
+            from: FROM_MOCK,
+          },
+        ],
+      });
+    });
+
+    it('prefers provided gas over simulated gas when both available', async () => {
+      const isAtomicBatchSupportedMock = jest.fn().mockResolvedValue([]);
+
+      const customGasValue = toHex(100000);
+
+      const mixedBatchParams: BatchTransactionParams[] = [
+        {
           data: DATA_MOCK,
           to: TO_MOCK,
           value: VALUE_MOCK,
+          gas: customGasValue,
         },
-      },
-      {
-        params: {
+        {
           data: DATA_MOCK_2,
           to: TO_MOCK,
           value: VALUE_MOCK_2,
         },
-      },
-    ] as TransactionBatchSingleRequest[];
+      ];
 
-    const SIMULATED_TRANSACTIONS_RESPONSE_MOCK = {
-      transactions: [{ gasLimit: GAS_MOCK_1 }, { gasLimit: GAS_MOCK_2 }],
-    } as unknown as SimulationResponse;
+      simulateTransactionsMock.mockResolvedValue(
+        SIMULATED_TRANSACTIONS_RESPONSE_MOCK,
+      );
 
-    beforeEach(() => {
-      jest.resetAllMocks();
+      const result = await estimateGasBatch({
+        chainId: CHAIN_ID_MOCK,
+        ethQuery: ETH_QUERY_MOCK,
+        from: FROM_MOCK,
+        getSimulationConfig: GET_SIMULATION_CONFIG_MOCK,
+        isAtomicBatchSupported: isAtomicBatchSupportedMock,
+        messenger: MESSENGER_MOCK,
+        transactions: mixedBatchParams,
+      });
+
+      expect(result.gasLimits[0]).toBe(100000);
+      expect(result.gasLimits[1]).toBe(500000);
+      expect(result.totalGasLimit).toBe(600000);
     });
+  });
 
+  describe('simulateGasBatch', () => {
     it('returns the total gas limit as a hex string', async () => {
       simulateTransactionsMock.mockResolvedValueOnce(
         SIMULATED_TRANSACTIONS_RESPONSE_MOCK,
@@ -1036,7 +1288,8 @@ describe('gas', () => {
       });
 
       expect(result).toStrictEqual({
-        gasLimit: '0x7f328', // Total gas limit (21000 + 500000 = 521000)
+        totalGasLimit: '0x7f328', // Total gas limit (21000 + 500000 = 521000)
+        gasLimits: ['0x5208', '0x7a120'],
       });
 
       expect(simulateTransactionsMock).toHaveBeenCalledTimes(1);
@@ -1123,7 +1376,8 @@ describe('gas', () => {
       });
 
       expect(result).toStrictEqual({
-        gasLimit: '0x0', // Total gas limit is 0
+        totalGasLimit: '0x0', // Total gas limit is 0
+        gasLimits: [],
       });
 
       expect(simulateTransactionsMock).toHaveBeenCalledTimes(1);

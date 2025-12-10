@@ -703,7 +703,7 @@ describe('AssetsContractController', () => {
       await setupAssetContractControllers();
     assetsContract.setProvider(provider);
     const errorLogSpy = jest
-      .spyOn(console, 'error')
+      .spyOn(console, 'warn')
       .mockImplementationOnce(() => {
         /**/
       });
