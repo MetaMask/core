@@ -97,8 +97,11 @@ const setupController = ({
     actions: [
       'NetworkController:getState',
       'NetworkController:getNetworkClientById',
+      'NetworkController:findNetworkClientIdByChainId',
       'PreferencesController:getState',
       'TokensController:getState',
+      'TokensController:addTokens',
+      'TokenListController:getState',
       'TokenDetectionController:addDetectedTokensViaWs',
       'TokenDetectionController:detectTokens',
       'AccountsController:getSelectedAccount',
@@ -113,6 +116,7 @@ const setupController = ({
       'NetworkController:stateChange',
       'PreferencesController:stateChange',
       'TokensController:stateChange',
+      'TokenListController:stateChange',
       'KeyringController:accountRemoved',
       'KeyringController:lock',
       'KeyringController:unlock',
@@ -160,6 +164,23 @@ const setupController = ({
   messenger.registerActionHandler(
     'TokensController:getState',
     jest.fn().mockImplementation(() => tokens),
+  );
+
+  messenger.registerActionHandler(
+    'TokensController:addTokens',
+    jest.fn().mockResolvedValue(undefined),
+  );
+
+  messenger.registerActionHandler(
+    'TokenListController:getState',
+    jest.fn().mockImplementation(() => ({
+      tokensChainsCache: {},
+    })),
+  );
+
+  messenger.registerActionHandler(
+    'NetworkController:findNetworkClientIdByChainId',
+    jest.fn().mockImplementation((chainId: string) => `${chainId}-client`),
   );
 
   messenger.registerActionHandler(

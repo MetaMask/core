@@ -30,6 +30,7 @@ import type {
 import type { InternalAccount } from '@metamask/keyring-internal-api';
 import type { Messenger } from '@metamask/messenger';
 import type {
+  NetworkControllerFindNetworkClientIdByChainIdAction,
   NetworkControllerGetNetworkClientByIdAction,
   NetworkControllerGetStateAction,
   NetworkControllerStateChangeEvent,
@@ -73,6 +74,13 @@ import type {
   TokenDetectionControllerDetectTokensAction,
 } from './TokenDetectionController';
 import type {
+  GetTokenListState,
+  TokenListStateChange,
+  TokensChainsCache,
+} from './TokenListController';
+import type { Token } from './TokenRatesController';
+import type {
+  TokensControllerAddTokensAction,
   TokensControllerGetStateAction,
   TokensControllerState,
   TokensControllerStateChangeEvent,
@@ -137,8 +145,11 @@ export type TokenBalancesControllerEvents =
   | NativeBalanceEvent;
 
 export type AllowedActions =
+  | NetworkControllerFindNetworkClientIdByChainIdAction
   | NetworkControllerGetNetworkClientByIdAction
   | NetworkControllerGetStateAction
+  | GetTokenListState
+  | TokensControllerAddTokensAction
   | TokensControllerGetStateAction
   | TokenDetectionControllerAddDetectedTokensViaWsAction
   | TokenDetectionControllerDetectTokensAction
@@ -153,6 +164,7 @@ export type AllowedActions =
 
 export type AllowedEvents =
   | TokensControllerStateChangeEvent
+  | TokenListStateChange
   | PreferencesControllerStateChangeEvent
   | NetworkControllerStateChangeEvent
   | KeyringControllerAccountRemovedEvent
@@ -281,6 +293,9 @@ export class TokenBalancesController extends StaticIntervalPollingController<{
 
   #allIgnoredTokens: TokensControllerState['allIgnoredTokens'] = {};
 
+  /** Token metadata cache from TokenListController */
+  #tokensChainsCache: TokensChainsCache = {};
+
   /** Default polling interval for chains without specific configuration */
   readonly #defaultInterval: number;
 
@@ -356,6 +371,11 @@ export class TokenBalancesController extends StaticIntervalPollingController<{
     this.#detectedTokens = allDetectedTokens;
     this.#allIgnoredTokens = allIgnoredTokens;
 
+    const { tokensChainsCache } = this.messenger.call(
+      'TokenListController:getState',
+    );
+    this.#tokensChainsCache = tokensChainsCache;
+
     const { isUnlocked } = this.messenger.call('KeyringController:getState');
     this.#isUnlocked = isUnlocked;
 
@@ -379,6 +399,13 @@ export class TokenBalancesController extends StaticIntervalPollingController<{
     this.messenger.subscribe(
       'NetworkController:stateChange',
       this.#onNetworkChanged,
+    );
+
+    this.messenger.subscribe(
+      'TokenListController:stateChange',
+      ({ tokensChainsCache }) => {
+        this.#tokensChainsCache = tokensChainsCache;
+      },
     );
 
     this.messenger.subscribe('KeyringController:unlock', () => {
@@ -1052,11 +1079,24 @@ export class TokenBalancesController extends StaticIntervalPollingController<{
       });
   }
 
+  /**
+   * Import untracked tokens that have non-zero balances.
+   * This mirrors the v2 behavior where only tokens with actual balances are added.
+   * Directly calls TokensController:addTokens for the polling flow.
+   *
+   * @param balances - Array of processed balance results from fetchers
+   */
   async #importUntrackedTokens(balances: ProcessedBalance[]): Promise<void> {
     const untrackedTokensByChain = new Map<ChainIdHex, string[]>();
 
     for (const balance of balances) {
-      if (!balance.success || balance.token === ZERO_ADDRESS) {
+      // Skip failed fetches, native tokens, and zero balances (like v2 did)
+      if (
+        !balance.success ||
+        balance.token === ZERO_ADDRESS ||
+        !balance.value ||
+        balance.value.isZero()
+      ) {
         continue;
       }
 
@@ -1072,14 +1112,47 @@ export class TokenBalancesController extends StaticIntervalPollingController<{
       }
     }
 
-    for (const [chainId, tokens] of untrackedTokensByChain) {
-      await this.messenger.call(
-        'TokenDetectionController:addDetectedTokensViaWs',
-        {
-          tokensSlice: tokens,
+    // Add detected tokens directly via TokensController:addTokens (polling flow)
+    for (const [chainId, tokenAddresses] of untrackedTokensByChain) {
+      const tokensWithMetadata: Token[] = [];
+
+      for (const tokenAddress of tokenAddresses) {
+        const lowercaseAddress = tokenAddress.toLowerCase();
+        const tokenData =
+          this.#tokensChainsCache[chainId]?.data?.[lowercaseAddress];
+
+        if (!tokenData) {
+          console.warn(
+            `Token metadata not found in cache for ${tokenAddress} on chain ${chainId}`,
+          );
+          continue;
+        }
+
+        const { decimals, symbol, aggregators, iconUrl, name } = tokenData;
+
+        tokensWithMetadata.push({
+          address: tokenAddress,
+          decimals,
+          symbol,
+          aggregators,
+          image: iconUrl,
+          isERC721: false,
+          name,
+        });
+      }
+
+      if (tokensWithMetadata.length) {
+        const networkClientId = this.messenger.call(
+          'NetworkController:findNetworkClientIdByChainId',
           chainId,
-        },
-      );
+        );
+
+        await this.messenger.call(
+          'TokensController:addTokens',
+          tokensWithMetadata,
+          networkClientId,
+        );
+      }
     }
   }
 
