@@ -270,20 +270,12 @@
       "count": 3
     }
   },
-  "packages/assets-controllers/src/MultichainAssetsRatesController/MultichainAssetsRatesController.test.ts": {
-    "@typescript-eslint/explicit-function-return-type": {
-      "count": 1
-    }
-  },
   "packages/assets-controllers/src/MultichainAssetsRatesController/MultichainAssetsRatesController.ts": {
     "@typescript-eslint/explicit-function-return-type": {
-      "count": 3
+      "count": 2
     },
     "@typescript-eslint/naming-convention": {
       "count": 1
-    },
-    "@typescript-eslint/no-misused-promises": {
-      "count": 2
     }
   },
   "packages/assets-controllers/src/MultichainBalancesController/MultichainBalancesController.test.ts": {
@@ -337,28 +329,6 @@
     },
     "no-param-reassign": {
       "count": 2
-    }
-  },
-  "packages/assets-controllers/src/NftDetectionController.test.ts": {
-    "@typescript-eslint/explicit-function-return-type": {
-      "count": 2
-    },
-    "import-x/namespace": {
-      "count": 6
-    }
-  },
-  "packages/assets-controllers/src/NftDetectionController.ts": {
-    "@typescript-eslint/explicit-function-return-type": {
-      "count": 4
-    },
-    "@typescript-eslint/naming-convention": {
-      "count": 26
-    },
-    "@typescript-eslint/prefer-nullish-coalescing": {
-      "count": 1
-    },
-    "id-length": {
-      "count": 1
     }
   },
   "packages/assets-controllers/src/RatesController/RatesController.test.ts": {
@@ -1925,22 +1895,6 @@
       "count": 1
     }
   },
-  "packages/messenger/src/Messenger.test.ts": {
-    "@typescript-eslint/explicit-function-return-type": {
-      "count": 9
-    },
-    "id-length": {
-      "count": 1
-    }
-  },
-  "packages/messenger/src/Messenger.ts": {
-    "@typescript-eslint/explicit-function-return-type": {
-      "count": 21
-    },
-    "@typescript-eslint/prefer-nullish-coalescing": {
-      "count": 4
-    }
-  },
   "packages/multichain-account-service/src/MultichainAccountService.test.ts": {
     "@typescript-eslint/explicit-function-return-type": {
       "count": 1
@@ -2812,35 +2766,6 @@
       "count": 1
     }
   },
-  "packages/preferences-controller/src/PreferencesController.test.ts": {
-    "@typescript-eslint/explicit-function-return-type": {
-      "count": 1
-    }
-  },
-  "packages/preferences-controller/src/PreferencesController.ts": {
-    "@typescript-eslint/explicit-function-return-type": {
-      "count": 24
-    },
-    "no-param-reassign": {
-      "count": 3
-    }
-  },
-  "packages/profile-metrics-controller/src/ProfileMetricsController.ts": {
-    "@typescript-eslint/explicit-function-return-type": {
-      "count": 3
-    },
-    "@typescript-eslint/prefer-nullish-coalescing": {
-      "count": 2
-    }
-  },
-  "packages/profile-metrics-controller/src/ProfileMetricsService.ts": {
-    "@typescript-eslint/explicit-function-return-type": {
-      "count": 3
-    },
-    "@typescript-eslint/prefer-nullish-coalescing": {
-      "count": 1
-    }
-  },
   "packages/profile-sync-controller/src/controllers/authentication/AuthenticationController.test.ts": {
     "@typescript-eslint/explicit-function-return-type": {
       "count": 5
@@ -3164,19 +3089,6 @@
       "count": 1
     }
   },
-  "packages/rate-limit-controller/src/RateLimitController.test.ts": {
-    "no-new": {
-      "count": 1
-    }
-  },
-  "packages/rate-limit-controller/src/RateLimitController.ts": {
-    "@typescript-eslint/explicit-function-return-type": {
-      "count": 3
-    },
-    "no-restricted-syntax": {
-      "count": 6
-    }
-  },
   "packages/remote-feature-flag-controller/src/client-config-api-service/client-config-api-service.test.ts": {
     "@typescript-eslint/explicit-function-return-type": {
       "count": 1
@@ -3199,29 +3111,6 @@
     }
   },
   "packages/remote-feature-flag-controller/src/remote-feature-flag-controller.ts": {
-    "@typescript-eslint/explicit-function-return-type": {
-      "count": 1
-    }
-  },
-  "packages/sample-controllers/src/sample-gas-prices-controller.ts": {
-    "@typescript-eslint/explicit-function-return-type": {
-      "count": 2
-    },
-    "@typescript-eslint/no-misused-promises": {
-      "count": 1
-    }
-  },
-  "packages/sample-controllers/src/sample-gas-prices-service/sample-gas-prices-service.test.ts": {
-    "@typescript-eslint/no-misused-promises": {
-      "count": 4
-    }
-  },
-  "packages/sample-controllers/src/sample-gas-prices-service/sample-gas-prices-service.ts": {
-    "@typescript-eslint/explicit-function-return-type": {
-      "count": 3
-    }
-  },
-  "packages/sample-controllers/src/sample-petnames-controller.ts": {
     "@typescript-eslint/explicit-function-return-type": {
       "count": 1
     }
