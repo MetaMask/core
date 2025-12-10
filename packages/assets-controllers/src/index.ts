@@ -87,6 +87,7 @@ export type {
   TokenDetectionControllerMessenger,
   TokenDetectionControllerActions,
   TokenDetectionControllerGetStateAction,
+  TokenDetectionControllerDetectTokensAction,
   TokenDetectionControllerAddDetectedTokensViaWsAction,
   TokenDetectionControllerEvents,
   TokenDetectionControllerStateChangeEvent,
