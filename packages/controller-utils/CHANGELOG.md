@@ -7,10 +7,6 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
-### Uncategorized
-
-- chore: Update ESLint config packages to v15 ([#7305](https://github.com/MetaMask/core/pull/7305))
-
 ### Added
 
 - Add `monad-testnet` to `InfuraNetworkType` ([#7067](https://github.com/MetaMask/core/pull/7067))

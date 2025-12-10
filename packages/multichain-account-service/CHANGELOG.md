@@ -7,6 +7,8 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+## [4.0.1]
+
 ### Uncategorized
 
 - chore: Update ESLint config packages to v15 ([#7305](https://github.com/MetaMask/core/pull/7305))
@@ -304,7 +306,8 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 - Add `MultichainAccountService` ([#6141](https://github.com/MetaMask/core/pull/6141)), ([#6165](https://github.com/MetaMask/core/pull/6165))
   - This service manages multichain accounts/wallets.
 
-[Unreleased]: https://github.com/MetaMask/core/compare/@metamask/multichain-account-service@4.0.0...HEAD
+[Unreleased]: https://github.com/MetaMask/core/compare/@metamask/multichain-account-service@4.0.1...HEAD
+[4.0.1]: https://github.com/MetaMask/core/compare/@metamask/multichain-account-service@4.0.0...@metamask/multichain-account-service@4.0.1
 [4.0.0]: https://github.com/MetaMask/core/compare/@metamask/multichain-account-service@3.0.0...@metamask/multichain-account-service@4.0.0
 [3.0.0]: https://github.com/MetaMask/core/compare/@metamask/multichain-account-service@2.1.0...@metamask/multichain-account-service@3.0.0
 [2.1.0]: https://github.com/MetaMask/core/compare/@metamask/multichain-account-service@2.0.1...@metamask/multichain-account-service@2.1.0

@@ -7,10 +7,6 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
-### Uncategorized
-
-- Remove breaking designation from version bumps in changelog ([#7419](https://github.com/MetaMask/core/pull/7419))
-
 ### Changed
 
 - Bump `@metamask/transaction-controller` from `^62.5.0` to `^62.6.0` ([#7430](https://github.com/MetaMask/core/pull/7430))
