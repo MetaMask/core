@@ -125,6 +125,7 @@ const appendNonEvmFees = async (
           ? {
               visible: trade.visible,
               type: trade.raw_data?.contract?.[0]?.type,
+              fee_limit: trade.raw_data?.fee_limit,
             }
           : undefined;
 
