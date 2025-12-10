@@ -7,6 +7,12 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+### Changed
+
+- Add deprecation notice ([#7427](https://github.com/MetaMask/core/pull/7427))
+  - This package is deprecated, and can be replaced with the
+    `Messenger.captureException` method from `@metamask/messenger`.
+
 ## [3.0.0]
 
 ### Changed
