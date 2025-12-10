@@ -2801,14 +2801,6 @@
       "count": 1
     }
   },
-  "packages/preferences-controller/src/PreferencesController.ts": {
-    "@typescript-eslint/explicit-function-return-type": {
-      "count": 24
-    },
-    "no-param-reassign": {
-      "count": 3
-    }
-  },
   "packages/profile-metrics-controller/src/ProfileMetricsController.ts": {
     "@typescript-eslint/explicit-function-return-type": {
       "count": 3
