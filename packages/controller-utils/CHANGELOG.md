@@ -20,6 +20,7 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
   - Add `MegaETHTestnetV2` to `NetworkNickname` quasi-enum
 
 ### Deprecated
+
 - Deprecate references to MegaETH Testnet "v1" in favor of "v2" ([#7272](https://github.com/MetaMask/core/pull/7272))
   - Deprecate `BUILT_IN_CUSTOM_NETWORKS_RPC["megaeth-testnet"]`
   - Deprecate `CustomNetworkType["megaeth-testnet"]`
