@@ -33,9 +33,6 @@
     "@typescript-eslint/explicit-function-return-type": {
       "count": 1
     },
-    "@typescript-eslint/unbound-method": {
-      "count": 29
-    },
     "n/no-sync": {
       "count": 22
     }
@@ -45,22 +42,12 @@
       "count": 1
     }
   },
-  "packages/account-tree-controller/src/backup-and-sync/syncing/group.test.ts": {
-    "@typescript-eslint/unbound-method": {
-      "count": 12
-    }
-  },
   "packages/account-tree-controller/src/backup-and-sync/syncing/group.ts": {
     "@typescript-eslint/explicit-function-return-type": {
       "count": 1
     },
     "id-length": {
       "count": 1
-    }
-  },
-  "packages/account-tree-controller/src/backup-and-sync/syncing/legacy.test.ts": {
-    "@typescript-eslint/unbound-method": {
-      "count": 7
     }
   },
   "packages/account-tree-controller/src/backup-and-sync/syncing/legacy.ts": {
@@ -73,22 +60,12 @@
       "count": 1
     }
   },
-  "packages/account-tree-controller/src/backup-and-sync/syncing/wallet.test.ts": {
-    "@typescript-eslint/unbound-method": {
-      "count": 1
-    }
-  },
   "packages/account-tree-controller/src/backup-and-sync/types.ts": {
     "@typescript-eslint/explicit-function-return-type": {
       "count": 1
     },
     "@typescript-eslint/naming-convention": {
       "count": 1
-    }
-  },
-  "packages/account-tree-controller/src/backup-and-sync/user-storage/network-operations.test.ts": {
-    "@typescript-eslint/unbound-method": {
-      "count": 7
     }
   },
   "packages/account-tree-controller/src/backup-and-sync/user-storage/network-utils.ts": {
@@ -102,9 +79,6 @@
     }
   },
   "packages/account-tree-controller/src/backup-and-sync/utils/controller.test.ts": {
-    "@typescript-eslint/unbound-method": {
-      "count": 1
-    },
     "id-length": {
       "count": 1
     }
@@ -137,9 +111,6 @@
   "packages/accounts-controller/src/AccountsController.test.ts": {
     "@typescript-eslint/explicit-function-return-type": {
       "count": 15
-    },
-    "@typescript-eslint/unbound-method": {
-      "count": 9
     },
     "import-x/namespace": {
       "count": 1
@@ -174,11 +145,6 @@
     },
     "no-param-reassign": {
       "count": 2
-    }
-  },
-  "packages/analytics-controller/src/AnalyticsController.test.ts": {
-    "@typescript-eslint/unbound-method": {
-      "count": 10
     }
   },
   "packages/announcement-controller/src/AnnouncementController.test.ts": {
@@ -324,9 +290,6 @@
     "@typescript-eslint/explicit-function-return-type": {
       "count": 1
     },
-    "@typescript-eslint/unbound-method": {
-      "count": 1
-    },
     "jest/unbound-method": {
       "count": 1
     }
@@ -457,9 +420,6 @@
     "@typescript-eslint/explicit-function-return-type": {
       "count": 2
     },
-    "@typescript-eslint/unbound-method": {
-      "count": 1
-    },
     "camelcase": {
       "count": 1
     },
@@ -534,9 +494,6 @@
   "packages/assets-controllers/src/TokenRatesController.test.ts": {
     "@typescript-eslint/explicit-function-return-type": {
       "count": 4
-    },
-    "@typescript-eslint/unbound-method": {
-      "count": 21
     }
   },
   "packages/assets-controllers/src/TokenRatesController.ts": {
@@ -686,9 +643,6 @@
     },
     "@typescript-eslint/prefer-promise-reject-errors": {
       "count": 2
-    },
-    "@typescript-eslint/unbound-method": {
-      "count": 2
     }
   },
   "packages/assets-controllers/src/multicall.ts": {
@@ -802,9 +756,6 @@
       "count": 2
     },
     "@typescript-eslint/prefer-nullish-coalescing": {
-      "count": 1
-    },
-    "@typescript-eslint/unbound-method": {
       "count": 1
     }
   },
@@ -972,9 +923,6 @@
   "packages/bridge-status-controller/src/bridge-status-controller.test.ts": {
     "@typescript-eslint/explicit-function-return-type": {
       "count": 15
-    },
-    "@typescript-eslint/unbound-method": {
-      "count": 1
     },
     "no-new": {
       "count": 1
@@ -1309,9 +1257,6 @@
     "@typescript-eslint/explicit-function-return-type": {
       "count": 1
     },
-    "@typescript-eslint/unbound-method": {
-      "count": 59
-    },
     "jest/unbound-method": {
       "count": 36
     }
@@ -1373,11 +1318,6 @@
   },
   "packages/eip-5792-middleware/src/methods/wallet_sendCalls.test.ts": {
     "@typescript-eslint/explicit-function-return-type": {
-      "count": 1
-    }
-  },
-  "packages/eip-5792-middleware/src/utils.test.ts": {
-    "@typescript-eslint/unbound-method": {
       "count": 1
     }
   },
@@ -1468,9 +1408,6 @@
   "packages/eth-block-tracker/src/PollingBlockTracker.test.ts": {
     "@typescript-eslint/explicit-function-return-type": {
       "count": 12
-    },
-    "@typescript-eslint/unbound-method": {
-      "count": 4
     }
   },
   "packages/eth-block-tracker/src/PollingBlockTracker.ts": {
@@ -1543,9 +1480,6 @@
   "packages/eth-json-rpc-middleware/src/block-ref-rewrite.test.ts": {
     "@typescript-eslint/explicit-function-return-type": {
       "count": 3
-    },
-    "@typescript-eslint/unbound-method": {
-      "count": 3
     }
   },
   "packages/eth-json-rpc-middleware/src/block-tracker-inspector.test.ts": {
@@ -1576,11 +1510,6 @@
   "packages/eth-json-rpc-middleware/src/methods/wallet-revoke-execution-permission.test.ts": {
     "@typescript-eslint/explicit-function-return-type": {
       "count": 1
-    }
-  },
-  "packages/eth-json-rpc-middleware/src/providerAsMiddleware.test.ts": {
-    "@typescript-eslint/unbound-method": {
-      "count": 4
     }
   },
   "packages/eth-json-rpc-middleware/src/retryOnEmpty.test.ts": {
@@ -2018,9 +1947,6 @@
     },
     "@typescript-eslint/naming-convention": {
       "count": 4
-    },
-    "@typescript-eslint/unbound-method": {
-      "count": 1
     }
   },
   "packages/multichain-account-service/src/MultichainAccountService.ts": {
@@ -2239,9 +2165,6 @@
     }
   },
   "packages/multichain-transactions-controller/src/MultichainTransactionsController.test.ts": {
-    "@typescript-eslint/unbound-method": {
-      "count": 1
-    },
     "jest/unbound-method": {
       "count": 1
     }
@@ -2252,11 +2175,6 @@
     },
     "@typescript-eslint/no-misused-promises": {
       "count": 2
-    }
-  },
-  "packages/name-controller/src/NameController.test.ts": {
-    "@typescript-eslint/unbound-method": {
-      "count": 7
     }
   },
   "packages/name-controller/src/NameController.ts": {
@@ -2412,9 +2330,6 @@
       "count": 51
     },
     "@typescript-eslint/naming-convention": {
-      "count": 1
-    },
-    "@typescript-eslint/unbound-method": {
       "count": 1
     },
     "jest/unbound-method": {
@@ -2805,9 +2720,6 @@
   "packages/phishing-controller/src/PhishingController.test.ts": {
     "@typescript-eslint/explicit-function-return-type": {
       "count": 1
-    },
-    "@typescript-eslint/unbound-method": {
-      "count": 7
     },
     "jest/unbound-method": {
       "count": 7
@@ -3284,9 +3196,6 @@
   "packages/remote-feature-flag-controller/src/remote-feature-flag-controller.test.ts": {
     "@typescript-eslint/explicit-function-return-type": {
       "count": 2
-    },
-    "@typescript-eslint/unbound-method": {
-      "count": 5
     }
   },
   "packages/remote-feature-flag-controller/src/remote-feature-flag-controller.ts": {
@@ -3336,9 +3245,6 @@
     },
     "@typescript-eslint/naming-convention": {
       "count": 1
-    },
-    "@typescript-eslint/unbound-method": {
-      "count": 16
     },
     "id-length": {
       "count": 1
@@ -3424,9 +3330,6 @@
   "packages/selected-network-controller/tests/SelectedNetworkController.test.ts": {
     "@typescript-eslint/explicit-function-return-type": {
       "count": 4
-    },
-    "@typescript-eslint/unbound-method": {
-      "count": 4
     }
   },
   "packages/shield-controller/src/ShieldController.test.ts": {
@@ -3501,11 +3404,6 @@
       "count": 1
     }
   },
-  "packages/signature-controller/src/utils/delegations.test.ts": {
-    "@typescript-eslint/unbound-method": {
-      "count": 1
-    }
-  },
   "packages/signature-controller/src/utils/normalize.ts": {
     "@typescript-eslint/explicit-function-return-type": {
       "count": 2
@@ -3537,19 +3435,6 @@
     },
     "id-length": {
       "count": 2
-    }
-  },
-  "packages/storage-service/src/InMemoryStorageAdapter.test.ts": {
-    "id-denylist": {
-      "count": 1
-    },
-    "require-atomic-updates": {
-      "count": 1
-    }
-  },
-  "packages/storage-service/src/StorageService.test.ts": {
-    "@typescript-eslint/unbound-method": {
-      "count": 8
     }
   },
   "packages/subscription-controller/src/SubscriptionController.test.ts": {
@@ -3598,9 +3483,6 @@
     "@typescript-eslint/explicit-function-return-type": {
       "count": 6
     },
-    "@typescript-eslint/unbound-method": {
-      "count": 9
-    },
     "no-new": {
       "count": 1
     }
@@ -3641,9 +3523,6 @@
   "packages/user-operation-controller/src/helpers/PendingUserOperationTracker.test.ts": {
     "@typescript-eslint/explicit-function-return-type": {
       "count": 11
-    },
-    "@typescript-eslint/unbound-method": {
-      "count": 4
     }
   },
   "packages/user-operation-controller/src/helpers/PendingUserOperationTracker.ts": {
@@ -3675,9 +3554,6 @@
   },
   "packages/user-operation-controller/src/utils/gas.test.ts": {
     "@typescript-eslint/explicit-function-return-type": {
-      "count": 2
-    },
-    "@typescript-eslint/unbound-method": {
       "count": 2
     }
   },

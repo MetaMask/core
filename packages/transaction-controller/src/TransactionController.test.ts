@@ -1,7 +1,6 @@
 /* eslint-disable jest/unbound-method */
 /* eslint-disable @typescript-eslint/naming-convention */
 /* eslint-disable camelcase */
-/* eslint-disable @typescript-eslint/unbound-method */
 /* eslint-disable jest/expect-expect */
 
 import { TransactionFactory } from '@ethereumjs/tx';
