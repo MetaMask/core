@@ -857,7 +857,6 @@ async function prepareApprovalData({
     origin,
     networkClientId,
     transactions: nestedTransactions,
-    requestId,
   } = userRequest;
 
   const ethQuery = getEthQuery(networkClientId);
@@ -885,7 +884,6 @@ async function prepareApprovalData({
     networkClientId,
     origin,
     transactions: nestedTransactions,
-    requestId,
   });
 
   const defaultGasFeeFlow = new DefaultGasFeeFlow();
