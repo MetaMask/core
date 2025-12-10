@@ -19,6 +19,11 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
     - For example, this scenario would be valid: a client relies on `@metamask/controller-a` 1.0.0 and `@metamask/controller-b` 1.0.0, and `@metamask/controller-b` depends on `@metamask/controller-a` 1.1.0.
   - Note, however, that the versions specified in the client's `package.json` always "win", and you are expected to keep them up to date so as not to break controller and service intercommunication.
 
+### Fixed
+
+- Harden EVM discovery in case of bad RPC response ([#7434](https://github.com/MetaMask/core/pull/7434))
+  - If the response was not hex-formatted, then the EVM discovery was continuously running.
+
 ## [4.0.0]
 
 ### Changed
