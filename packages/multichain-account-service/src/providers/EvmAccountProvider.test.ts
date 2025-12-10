@@ -327,6 +327,28 @@ describe('EvmAccountProvider', () => {
     expect(provider.getAccounts()).toStrictEqual([expectedAccount]);
   });
 
+  it('stops discovery gracefully if response is invalid', async () => {
+    const { provider } = setup({
+      accounts: [],
+      discovery: {
+        transactionCount: '', // Faking bad hex number.
+      },
+    });
+
+    const consoleSpy = jest.spyOn(console, 'warn').mockImplementation();
+
+    expect(
+      await provider.discoverAccounts({
+        entropySource: MOCK_HD_KEYRING_1.metadata.id,
+        groupIndex: 0,
+      }),
+    ).toStrictEqual([]);
+
+    expect(consoleSpy).toHaveBeenCalledWith(
+      'Received invalid hex response from "eth_getTransactionCount" request: ""',
+    );
+  });
+
   it('stops discovery if there is no transaction activity', async () => {
     const { provider } = setup({
       accounts: [],
