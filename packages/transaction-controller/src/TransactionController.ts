@@ -3430,15 +3430,29 @@ export class TransactionController extends BaseController<
     transactionMeta: TransactionMeta,
     { skipSubmitHistory }: { skipSubmitHistory?: boolean } = {},
   ): Promise<string> {
-    const transactionHash = await query(ethQuery, 'sendRawTransaction', [
-      transactionMeta.rawTx,
-    ]);
+    try {
+      const transactionHash = await query(ethQuery, 'sendRawTransaction', [
+        transactionMeta.rawTx,
+      ]);
 
-    if (skipSubmitHistory !== true) {
-      this.#updateSubmitHistory(transactionMeta, transactionHash);
+      if (skipSubmitHistory !== true) {
+        this.#updateSubmitHistory(transactionMeta, transactionHash);
+      }
+
+      return transactionHash;
+    } catch (error: unknown) {
+      const errorObject = error as
+        | {
+            data?: { message?: string };
+            message?: string;
+          }
+        | undefined;
+
+      const errorMessage =
+        errorObject?.data?.message ?? errorObject?.message ?? String(error);
+
+      throw new Error(errorMessage);
     }
-
-    return transactionHash;
   }
 
   /**
