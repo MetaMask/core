@@ -135,7 +135,7 @@ export function gweiDecToWEIBN(value: number | string): BN {
  * @param hexValue - The value in hex wei.
  * @returns The value in dec gwei as string.
  */
-export function weiHexToGweiDec(hexValue: string): BN {
+export function weiHexToGweiDec(hexValue: string): string {
   const hexWei = new BN(remove0x(hexValue), 16);
   return fromWei(hexWei, 'gwei');
 }
