@@ -793,7 +793,6 @@ describe('RemoteFeatureFlagController', () => {
     });
   });
 
-
   describe('metadata', () => {
     it('includes expected state in debug snapshots', () => {
       const controller = createController();
