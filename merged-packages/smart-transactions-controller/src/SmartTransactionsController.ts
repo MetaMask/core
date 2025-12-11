@@ -59,8 +59,8 @@ import {
   getTxHash,
   getSmartTransactionMetricsProperties,
   getSmartTransactionMetricsSensitiveProperties,
-  shouldMarkRegularTransactionAsFailed,
-  markRegularTransactionAsFailed,
+  shouldMarkRegularTransactionsAsFailed,
+  markRegularTransactionsAsFailed,
 } from './utils';
 
 const SECOND = 1000;
@@ -561,13 +561,13 @@ export class SmartTransactionsController extends StaticIntervalPollingController
     );
 
     if (
-      shouldMarkRegularTransactionAsFailed({
+      shouldMarkRegularTransactionsAsFailed({
         smartTransaction: nextSmartTransaction,
         clientId: this.#clientId,
         getFeatureFlags: this.#getFeatureFlags,
       })
     ) {
-      markRegularTransactionAsFailed({
+      markRegularTransactionsAsFailed({
         smartTransaction: nextSmartTransaction,
         getRegularTransactions: () =>
           this.messenger.call('TransactionController:getTransactions'),

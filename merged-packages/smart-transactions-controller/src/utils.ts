@@ -240,7 +240,7 @@ export const getReturnTxHashAsap = (
     : smartTransactionsFeatureFlags?.mobileReturnTxHashAsap;
 };
 
-export const shouldMarkRegularTransactionAsFailed = ({
+export const shouldMarkRegularTransactionsAsFailed = ({
   smartTransaction,
   clientId,
   getFeatureFlags,
@@ -271,7 +271,7 @@ export const shouldMarkRegularTransactionAsFailed = ({
   return Boolean(returnTxHashAsapEnabled && transactionId);
 };
 
-export const markRegularTransactionAsFailed = ({
+export const markRegularTransactionsAsFailed = ({
   smartTransaction,
   getRegularTransactions,
   updateTransaction,
@@ -280,23 +280,32 @@ export const markRegularTransactionAsFailed = ({
   getRegularTransactions: TransactionControllerGetTransactionsAction['handler'];
   updateTransaction: TransactionControllerUpdateTransactionAction['handler'];
 }) => {
-  const { transactionId, status } = smartTransaction;
-  const originalTransaction = getRegularTransactions().find(
-    (transaction) => transaction.id === transactionId,
+  const { transactionId, status, txHashes } = smartTransaction;
+
+  const transactionsToFail = getRegularTransactions().filter(
+    (tx) => (tx.hash && txHashes?.includes(tx.hash)) || tx.id === transactionId,
   );
-  if (!originalTransaction) {
+
+  if (!transactionsToFail.length) {
     throw new Error('Cannot find regular transaction to mark it as failed');
   }
-  if (originalTransaction.status === TransactionStatus.failed) {
-    return; // Already marked as failed.
+
+  for (const tx of transactionsToFail) {
+    if (tx.status === TransactionStatus.failed) {
+      continue; // Already marked as failed.
+    }
+    const updatedTransaction: TransactionMeta = {
+      ...tx,
+      status: TransactionStatus.failed,
+      error: {
+        name: 'SmartTransactionFailed',
+        message: `Smart transaction failed with status: ${status}`,
+      },
+    };
+
+    updateTransaction(
+      updatedTransaction,
+      `Smart transaction status: ${status}`,
+    );
   }
-  const updatedTransaction: TransactionMeta = {
-    ...originalTransaction,
-    status: TransactionStatus.failed,
-    error: {
-      name: 'SmartTransactionFailed',
-      message: `Smart transaction failed with status: ${status}`,
-    },
-  };
-  updateTransaction(updatedTransaction, `Smart transaction status: ${status}`);
 };
