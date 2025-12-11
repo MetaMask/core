@@ -53,8 +53,9 @@ import {
   TOKEN_METADATA_NO_SUPPORT_ERROR,
 } from './token-service';
 import type {
-  TokenListStateChange,
+  TokenListCacheUpdate,
   TokenListToken,
+  TokensChainsCache,
 } from './TokenListController';
 import type { Token } from './TokenRatesController';
 
@@ -155,7 +156,7 @@ export type TokensControllerEvents = TokensControllerStateChangeEvent;
 export type AllowedEvents =
   | NetworkControllerStateChangeEvent
   | NetworkControllerNetworkDidChangeEvent
-  | TokenListStateChange
+  | TokenListCacheUpdate
   | AccountsControllerSelectedEvmAccountChangeEvent
   | KeyringControllerAccountRemovedEvent;
 
@@ -253,8 +254,8 @@ export class TokensController extends BaseController<
     );
 
     this.messenger.subscribe(
-      'TokenListController:stateChange',
-      ({ tokensChainsCache }) => {
+      'TokenListController:cacheUpdate',
+      (tokensChainsCache: TokensChainsCache) => {
         const { allTokens } = this.state;
         const selectedAddress = this.#getSelectedAddress();
 

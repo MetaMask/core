@@ -51,8 +51,10 @@ import {
 } from './multi-chain-accounts-service';
 import type {
   GetTokenListState,
+  GetTokenListForChain,
+  GetAllTokenLists,
   TokenListMap,
-  TokenListStateChange,
+  TokenListCacheUpdate,
   TokensChainsCache,
 } from './TokenListController';
 import type { Token } from './TokenRatesController';
@@ -140,6 +142,8 @@ export type AllowedActions =
   | NetworkControllerGetNetworkConfigurationByNetworkClientId
   | NetworkControllerGetStateAction
   | GetTokenListState
+  | GetTokenListForChain
+  | GetAllTokenLists
   | KeyringControllerGetStateAction
   | PreferencesControllerGetStateAction
   | TokensControllerGetStateAction
@@ -157,7 +161,7 @@ export type TokenDetectionControllerEvents =
 export type AllowedEvents =
   | AccountsControllerSelectedEvmAccountChangeEvent
   | NetworkControllerNetworkDidChangeEvent
-  | TokenListStateChange
+  | TokenListCacheUpdate
   | KeyringControllerLockEvent
   | KeyringControllerUnlockEvent
   | PreferencesControllerStateChangeEvent
@@ -337,11 +341,9 @@ export class TokenDetectionController extends StaticIntervalPollingController<To
 
     this.#selectedAccountId = this.#getSelectedAccount().id;
 
-    const { tokensChainsCache } = this.messenger.call(
-      'TokenListController:getState',
+    this.#tokensChainsCache = this.messenger.call(
+      'TokenListController:getAllTokenLists',
     );
-
-    this.#tokensChainsCache = tokensChainsCache;
 
     const { useTokenDetection: defaultUseTokenDetection } = this.messenger.call(
       'PreferencesController:getState',
@@ -378,8 +380,8 @@ export class TokenDetectionController extends StaticIntervalPollingController<To
     });
 
     this.messenger.subscribe(
-      'TokenListController:stateChange',
-      async ({ tokensChainsCache }) => {
+      'TokenListController:cacheUpdate',
+      async (tokensChainsCache) => {
         const isEqualValues = this.#compareTokensChainsCache(
           tokensChainsCache,
           this.#tokensChainsCache,
@@ -666,10 +668,8 @@ export class TokenDetectionController extends StaticIntervalPollingController<To
     if (isMainnetDetectionInactive) {
       this.#tokensChainsCache = this.#getConvertedStaticMainnetTokenList();
     } else {
-      const { tokensChainsCache } = this.messenger.call(
-        'TokenListController:getState',
-      );
-      this.#tokensChainsCache = tokensChainsCache ?? {};
+      this.#tokensChainsCache =
+        this.messenger.call('TokenListController:getAllTokenLists') ?? {};
     }
 
     return true;
@@ -894,12 +894,9 @@ export class TokenDetectionController extends StaticIntervalPollingController<To
         const isTokenDetectionInactiveInMainnet =
           !this.#isDetectionEnabledFromPreferences &&
           chainId === ChainId.mainnet;
-        const { tokensChainsCache } = this.messenger.call(
-          'TokenListController:getState',
-        );
         this.#tokensChainsCache = isTokenDetectionInactiveInMainnet
           ? this.#getConvertedStaticMainnetTokenList()
-          : (tokensChainsCache ?? {});
+          : (this.messenger.call('TokenListController:getAllTokenLists') ?? {});
 
         // Generate token candidates based on chainId and selectedAddress
         const tokenCandidateSlices = this.#getSlicesOfTokensToDetect({

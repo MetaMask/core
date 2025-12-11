@@ -20,12 +20,14 @@ import {
   formatIconUrlWithProxy,
 } from './assetsUtil';
 import { fetchTokenListByChainId } from './token-service';
+import { TokenCacheService } from './TokenCacheService';
 
 const DEFAULT_INTERVAL = 24 * 60 * 60 * 1000;
 const DEFAULT_THRESHOLD = 24 * 60 * 60 * 1000;
 
 const name = 'TokenListController';
 
+// todo: move to TokenCacheService
 export type TokenListToken = {
   name: string;
   symbol: string;
@@ -47,7 +49,6 @@ export type TokensChainsCache = {
 };
 
 export type TokenListState = {
-  tokensChainsCache: TokensChainsCache;
   preventPollingOnNetworkRestart: boolean;
 };
 
@@ -56,14 +57,34 @@ export type TokenListStateChange = ControllerStateChangeEvent<
   TokenListState
 >;
 
-export type TokenListControllerEvents = TokenListStateChange;
+export type TokenListCacheUpdate = {
+  type: `${typeof name}:cacheUpdate`;
+  payload: [TokensChainsCache];
+};
+
+export type TokenListControllerEvents =
+  | TokenListStateChange
+  | TokenListCacheUpdate;
 
 export type GetTokenListState = ControllerGetStateAction<
   typeof name,
   TokenListState
 >;
 
-export type TokenListControllerActions = GetTokenListState;
+export type GetTokenListForChain = {
+  type: `${typeof name}:getTokenListForChain`;
+  handler: (chainId: Hex) => TokenListMap | undefined;
+};
+
+export type GetAllTokenLists = {
+  type: `${typeof name}:getAllTokenLists`;
+  handler: () => TokensChainsCache;
+};
+
+export type TokenListControllerActions =
+  | GetTokenListState
+  | GetTokenListForChain
+  | GetAllTokenLists;
 
 type AllowedActions = NetworkControllerGetNetworkClientByIdAction;
 
@@ -76,12 +97,6 @@ export type TokenListControllerMessenger = Messenger<
 >;
 
 const metadata: StateMetadata<TokenListState> = {
-  tokensChainsCache: {
-    includeInStateLogs: false,
-    persist: true,
-    includeInDebugSnapshot: true,
-    usedInUi: true,
-  },
   preventPollingOnNetworkRestart: {
     includeInStateLogs: false,
     persist: true,
@@ -92,7 +107,6 @@ const metadata: StateMetadata<TokenListState> = {
 
 export const getDefaultTokenListState = (): TokenListState => {
   return {
-    tokensChainsCache: {},
     preventPollingOnNetworkRestart: false,
   };
 };
@@ -121,6 +135,8 @@ export class TokenListController extends StaticIntervalPollingController<TokenLi
   private chainId: Hex;
 
   private abortController: AbortController;
+
+  private readonly cacheService: TokenCacheService;
 
   /**
    * Creates a TokenListController instance.
@@ -165,6 +181,22 @@ export class TokenListController extends StaticIntervalPollingController<TokenLi
     this.chainId = chainId;
     this.updatePreventPollingOnNetworkRestart(preventPollingOnNetworkRestart);
     this.abortController = new AbortController();
+
+    // Initialize cache service
+    this.cacheService = new TokenCacheService(cacheRefreshThreshold);
+
+    // Register messenger actions for cache access
+    this.messenger.registerActionHandler(
+      `${name}:getTokenListForChain`,
+      (requestedChainId: Hex) => {
+        return this.cacheService.get(requestedChainId)?.data;
+      },
+    );
+
+    this.messenger.registerActionHandler(`${name}:getAllTokenLists`, () => {
+      return this.cacheService.getAll();
+    });
+
     if (onNetworkStateChange) {
       // TODO: Either fix this lint violation or explain why it's necessary to ignore.
       // eslint-disable-next-line @typescript-eslint/no-misused-promises
@@ -293,7 +325,7 @@ export class TokenListController extends StaticIntervalPollingController<TokenLi
   }
 
   /**
-   * Fetching token list from the Token Service API. This will fetch tokens across chains. It will update tokensChainsCache (scoped across chains), and also the tokenList (scoped for the selected chain)
+   * Fetching token list from the Token Service API. This will fetch tokens across chains and update the cache service.
    *
    * @param chainId - The chainId of the current chain triggering the fetch.
    */
@@ -313,9 +345,9 @@ export class TokenListController extends StaticIntervalPollingController<TokenLi
           ) as Promise<TokenListToken[]>,
       );
 
-      // Have response - process and update list
+      // Have response - process and update cache
       if (tokensFromAPI) {
-        // Format tokens from API (HTTP) and update tokenList
+        // Format tokens from API (HTTP) and update cache
         const tokenList: TokenListMap = {};
         for (const token of tokensFromAPI) {
           tokenList[token.address] = {
@@ -328,22 +360,21 @@ export class TokenListController extends StaticIntervalPollingController<TokenLi
           };
         }
 
-        this.update((state) => {
-          const newDataCache: DataCache = { data: {}, timestamp: Date.now() };
-          state.tokensChainsCache[chainId] ??= newDataCache;
-          state.tokensChainsCache[chainId].data = tokenList;
-          state.tokensChainsCache[chainId].timestamp = Date.now();
-        });
+        this.cacheService.set(chainId, tokenList);
+        this.messenger.publish(
+          `${name}:cacheUpdate`,
+          this.cacheService.getAll(),
+        );
         return;
       }
 
-      // No response - fallback to previous state, or initialise empty
+      // No response - set empty cache with timestamp to prevent repeated failed fetches
       if (!tokensFromAPI) {
-        this.update((state) => {
-          const newDataCache: DataCache = { data: {}, timestamp: Date.now() };
-          state.tokensChainsCache[chainId] ??= newDataCache;
-          state.tokensChainsCache[chainId].timestamp = Date.now();
-        });
+        this.cacheService.set(chainId, {});
+        this.messenger.publish(
+          `${name}:cacheUpdate`,
+          this.cacheService.getAll(),
+        );
       }
     } finally {
       releaseLock();
@@ -351,24 +382,15 @@ export class TokenListController extends StaticIntervalPollingController<TokenLi
   }
 
   isCacheValid(chainId: Hex): boolean {
-    const { tokensChainsCache }: TokenListState = this.state;
-    const timestamp: number | undefined = tokensChainsCache[chainId]?.timestamp;
-    const now = Date.now();
-    return (
-      timestamp !== undefined && now - timestamp < this.cacheRefreshThreshold
-    );
+    return this.cacheService.isValid(chainId);
   }
 
   /**
-   * Clearing tokenList and tokensChainsCache explicitly.
+   * Clearing token list cache explicitly.
    */
   clearingTokenListData(): void {
-    this.update(() => {
-      return {
-        ...this.state,
-        tokensChainsCache: {},
-      };
-    });
+    this.cacheService.clear();
+    this.messenger.publish(`${name}:cacheUpdate`, this.cacheService.getAll());
   }
 
   /**
