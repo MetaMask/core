@@ -939,8 +939,6 @@ export class TransactionController extends BaseController<
    */
   constructor(options: TransactionControllerOptions) {
     const {
-      disableHistory,
-      disableSendFlowHistory,
       disableSwaps,
       getCurrentAccountEIP1559Compatibility,
       getCurrentNetworkEIP1559Compatibility,
@@ -965,7 +963,6 @@ export class TransactionController extends BaseController<
       state,
       testGasFeeFlows,
       trace,
-      transactionHistoryLimit = 40,
     } = options;
 
     super({
