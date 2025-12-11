@@ -348,7 +348,7 @@ export class RemoteFeatureFlagController extends BaseController<
         ...this.state,
         localOverrides: {
           ...this.state.localOverrides,
-          [flagName]: value,  
+          [flagName]: value,
         },
       };
     });
