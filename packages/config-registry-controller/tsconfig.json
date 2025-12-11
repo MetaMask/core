@@ -5,6 +5,7 @@
   },
   "references": [
     { "path": "../base-controller" },
+    { "path": "../controller-utils" },
     { "path": "../messenger" },
     { "path": "../polling-controller" }
   ],
