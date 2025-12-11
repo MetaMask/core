@@ -75,7 +75,7 @@ function getBaseUrl(environment: OnRampEnvironment): string {
     case OnRampEnvironment.Development:
       return 'http://localhost:3000';
     default:
-      return 'https://on-ramp.api.cx.metamask.io';
+      throw new Error(`Invalid environment: ${environment}`);
   }
 }
 
@@ -262,7 +262,7 @@ export class OnRampService {
     const textResponse = await response.text();
     const trimmedResponse = textResponse.trim();
 
-    if (typeof trimmedResponse === 'string' && trimmedResponse.length > 0) {
+    if (trimmedResponse.length > 0) {
       return trimmedResponse;
     }
 

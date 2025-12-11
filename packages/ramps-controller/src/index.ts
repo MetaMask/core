@@ -15,5 +15,5 @@ export type {
   OnRampServiceEvents,
   OnRampServiceMessenger,
 } from './OnRampService';
-export { OnRampService, OnRampEnvironment, serviceName } from './OnRampService';
+export { OnRampService, OnRampEnvironment } from './OnRampService';
 export type { OnRampServiceGetGeolocationAction } from './OnRampService-method-action-types';
