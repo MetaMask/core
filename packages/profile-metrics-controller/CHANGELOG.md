@@ -9,7 +9,7 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ### Changed
 
-- Polling is not started on `KeyringController:unlock` if the user hasn't opted in yet ([#7450](https://github.com/MetaMask/core/pull/7196))
+- Polling only starts on `KeyringController:unlock` if the user has opted in ([#7450](https://github.com/MetaMask/core/pull/7196))
 
 ## [1.0.0]
 
