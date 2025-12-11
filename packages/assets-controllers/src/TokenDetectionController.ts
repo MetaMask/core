@@ -788,8 +788,10 @@ export class TokenDetectionController extends StaticIntervalPollingController<To
 
   /**
    * Add tokens detected from websocket balance updates
-   * This method assumes:
-   * - Tokens are already in the tokensChainsCache with full metadata
+   * This method:
+   * - Checks if useTokenDetection preference is enabled (skips if disabled)
+   * - Checks if external services are enabled (skips if disabled)
+   * - Tokens are expected to be in the tokensChainsCache with full metadata
    * - Balance fetching is skipped since balances are provided by the websocket
    * - Ignored tokens have been filtered out by the caller
    *
@@ -805,6 +807,16 @@ export class TokenDetectionController extends StaticIntervalPollingController<To
     tokensSlice: string[];
     chainId: Hex;
   }): Promise<void> {
+    // Check if token detection is enabled via preferences
+    if (!this.#useTokenDetection()) {
+      return;
+    }
+
+    // Check if external services are enabled (websocket requires external services)
+    if (!this.#useExternalServices()) {
+      return;
+    }
+
     const tokensWithBalance: Token[] = [];
     const eventTokensDetails: string[] = [];
 
@@ -868,6 +880,7 @@ export class TokenDetectionController extends StaticIntervalPollingController<To
    * Add tokens detected from polling balance updates
    * This method:
    * - Checks if useTokenDetection preference is enabled (skips if disabled)
+   * - Checks if external services are enabled (skips if disabled)
    * - Filters out tokens already in allTokens or allIgnoredTokens
    * - Tokens are expected to be in the tokensChainsCache with full metadata
    * - Balance fetching is skipped since balances are provided by the caller
@@ -886,6 +899,11 @@ export class TokenDetectionController extends StaticIntervalPollingController<To
   }): Promise<void> {
     // Check if token detection is enabled via preferences
     if (!this.#useTokenDetection()) {
+      return;
+    }
+
+    // Check if external services are enabled (polling via API requires external services)
+    if (!this.#useExternalServices()) {
       return;
     }
 
