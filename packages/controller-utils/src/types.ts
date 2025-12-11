@@ -14,7 +14,6 @@ export const InfuraNetworkType = {
   'optimism-mainnet': 'optimism-mainnet',
   'polygon-mainnet': 'polygon-mainnet',
   'sei-mainnet': 'sei-mainnet',
-  'monad-testnet': 'monad-testnet',
 } as const;
 
 export type InfuraNetworkType =
@@ -29,9 +28,6 @@ export const CustomNetworkType = {
    */
   'megaeth-testnet': 'megaeth-testnet',
   'megaeth-testnet-v2': 'megaeth-testnet-v2',
-  /**
-   * @deprecated `monad-testnet` is supported on InfuraNetworkType instead.
-   */
   'monad-testnet': 'monad-testnet',
 } as const;
 export type CustomNetworkType =

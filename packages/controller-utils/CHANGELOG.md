@@ -9,7 +9,6 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ### Added
 
-- Add `monad-testnet` to `InfuraNetworkType` ([#7067](https://github.com/MetaMask/core/pull/7067))
 - Add MegaETH Testnet "v2" to various constants, enums, and types ([#7272](https://github.com/MetaMask/core/pull/7272))
   - Add `megaeth-testnet-v2` to `BUILT_IN_NETWORKS`
   - Add `megaeth-testnet-v2` to `BUILT_IN_CUSTOM_NETWORKS_RPC`
