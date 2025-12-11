@@ -158,7 +158,9 @@ function mockRpcCall({
   const httpStatus =
     (typeof response === 'object' &&
       'httpStatus' in response &&
-      response.httpStatus) ??
+      // Using nullish coalescing here breaks the tests.
+      // eslint-disable-next-line @typescript-eslint/prefer-nullish-coalescing
+      response.httpStatus) ||
     200;
 
   /* @ts-expect-error The types for Nock do not include `basePath` in the interface for Nock.Scope. */
@@ -597,7 +599,7 @@ export async function withNetworkClient<Type>(
 }
 
 type BuildMockParamsOptions = {
-  blockParam: Json;
+  blockParam?: Json;
   blockParamIndex: number;
 };
 
