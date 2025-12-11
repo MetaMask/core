@@ -345,14 +345,11 @@ export class RemoteFeatureFlagController extends BaseController<
   setFlagOverride(flagName: string, value: Json): void {
     this.update(() => {
       return {
-        remoteFeatureFlags: this.state.remoteFeatureFlags,
+        ...this.state,
         localOverrides: {
           ...this.state.localOverrides,
-          [flagName]: value,
+          [flagName]: value,  
         },
-        rawProcessedRemoteFeatureFlags:
-          this.state.rawProcessedRemoteFeatureFlags,
-        cacheTimestamp: this.state.cacheTimestamp,
       };
     });
   }
@@ -367,11 +364,8 @@ export class RemoteFeatureFlagController extends BaseController<
     delete newOverrides[flagName];
     this.update(() => {
       return {
-        remoteFeatureFlags: this.state.remoteFeatureFlags,
+        ...this.state,
         localOverrides: newOverrides,
-        rawProcessedRemoteFeatureFlags:
-          this.state.rawProcessedRemoteFeatureFlags,
-        cacheTimestamp: this.state.cacheTimestamp,
       };
     });
   }
@@ -382,11 +376,8 @@ export class RemoteFeatureFlagController extends BaseController<
   clearAllOverrides(): void {
     this.update(() => {
       return {
-        remoteFeatureFlags: this.state.remoteFeatureFlags,
+        ...this.state,
         localOverrides: {},
-        rawProcessedRemoteFeatureFlags:
-          this.state.rawProcessedRemoteFeatureFlags,
-        cacheTimestamp: this.state.cacheTimestamp,
       };
     });
   }
