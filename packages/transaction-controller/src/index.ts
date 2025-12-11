@@ -9,6 +9,7 @@ export type {
   TransactionControllerEmulateTransactionUpdate,
   TransactionControllerEvents,
   TransactionControllerEstimateGasAction,
+  TransactionControllerEstimateGasBatchAction,
   TransactionControllerGetGasFeeTokensAction,
   TransactionControllerGetNonceLockAction,
   TransactionControllerGetStateAction,

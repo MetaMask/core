@@ -431,7 +431,7 @@ export class PreferencesController extends BaseController<
    *
    * @param addresses - List of addresses to use to generate new identities.
    */
-  addIdentities(addresses: string[]) {
+  addIdentities(addresses: string[]): void {
     const checksummedAddresses = addresses.map((address) =>
       toChecksumHexAddress(address),
     );
@@ -457,15 +457,15 @@ export class PreferencesController extends BaseController<
    *
    * @param address - Address of the identity to remove.
    */
-  removeIdentity(address: string) {
-    address = toChecksumHexAddress(address);
+  removeIdentity(address: string): void {
+    const checksumAddress = toChecksumHexAddress(address);
     const { identities } = this.state;
-    if (!identities[address]) {
+    if (!identities[checksumAddress]) {
       return;
     }
     this.update((state) => {
-      delete state.identities[address];
-      if (address === state.selectedAddress) {
+      delete state.identities[checksumAddress];
+      if (checksumAddress === state.selectedAddress) {
         state.selectedAddress = Object.keys(state.identities)[0];
       }
     });
@@ -477,12 +477,12 @@ export class PreferencesController extends BaseController<
    * @param address - Address of the identity to associate.
    * @param label - New label to assign.
    */
-  setAccountLabel(address: string, label: string) {
-    address = toChecksumHexAddress(address);
+  setAccountLabel(address: string, label: string): void {
+    const checksumAddress = toChecksumHexAddress(address);
     this.update((state) => {
-      const identity = state.identities[address] || {};
+      const identity = state.identities[checksumAddress] || {};
       identity.name = label;
-      state.identities[address] = identity;
+      state.identities[checksumAddress] = identity;
     });
   }
 
@@ -492,7 +492,7 @@ export class PreferencesController extends BaseController<
    * @param feature - Feature to toggle.
    * @param activated - Value to assign.
    */
-  setFeatureFlag(feature: string, activated: boolean) {
+  setFeatureFlag(feature: string, activated: boolean): void {
     this.update((state) => {
       state.featureFlags[feature] = activated;
     });
@@ -503,8 +503,8 @@ export class PreferencesController extends BaseController<
    *
    * @param addresses - List of addresses corresponding to identities to sync.
    */
-  #syncIdentities(addresses: string[]) {
-    addresses = addresses.map((address: string) =>
+  #syncIdentities(addresses: string[]): void {
+    const checksumAddresses = addresses.map((address: string) =>
       toChecksumHexAddress(address),
     );
 
@@ -513,7 +513,7 @@ export class PreferencesController extends BaseController<
       const newlyLost: { [address: string]: Identity } = {};
 
       for (const [address, identity] of Object.entries(identities)) {
-        if (!addresses.includes(address)) {
+        if (!checksumAddresses.includes(address)) {
           newlyLost[address] = identity;
           delete identities[address];
         }
@@ -523,11 +523,11 @@ export class PreferencesController extends BaseController<
         state.lostIdentities[address] = identity;
       }
     });
-    this.addIdentities(addresses);
+    this.addIdentities(checksumAddresses);
 
-    if (!addresses.includes(this.state.selectedAddress)) {
+    if (!checksumAddresses.includes(this.state.selectedAddress)) {
       this.update((state) => {
-        state.selectedAddress = addresses[0];
+        state.selectedAddress = checksumAddresses[0];
       });
     }
   }
@@ -537,7 +537,7 @@ export class PreferencesController extends BaseController<
    *
    * @param selectedAddress - Ethereum address.
    */
-  setSelectedAddress(selectedAddress: string) {
+  setSelectedAddress(selectedAddress: string): void {
     this.update((state) => {
       state.selectedAddress = toChecksumHexAddress(selectedAddress);
     });
@@ -548,7 +548,7 @@ export class PreferencesController extends BaseController<
    *
    * @param ipfsGateway - IPFS gateway string.
    */
-  setIpfsGateway(ipfsGateway: string) {
+  setIpfsGateway(ipfsGateway: string): void {
     this.update((state) => {
       state.ipfsGateway = ipfsGateway;
     });
@@ -559,7 +559,7 @@ export class PreferencesController extends BaseController<
    *
    * @param useTokenDetection - Boolean indicating user preference on token detection.
    */
-  setUseTokenDetection(useTokenDetection: boolean) {
+  setUseTokenDetection(useTokenDetection: boolean): void {
     this.update((state) => {
       state.useTokenDetection = useTokenDetection;
     });
@@ -570,7 +570,7 @@ export class PreferencesController extends BaseController<
    *
    * @param useNftDetection - Boolean indicating user preference on NFT detection.
    */
-  setUseNftDetection(useNftDetection: boolean) {
+  setUseNftDetection(useNftDetection: boolean): void {
     if (useNftDetection && !this.state.displayNftMedia) {
       throw new Error(
         'useNftDetection cannot be enabled if displayNftMedia is false',
@@ -586,7 +586,7 @@ export class PreferencesController extends BaseController<
    *
    * @param displayNftMedia - Boolean indicating user preference on using OpenSea's API.
    */
-  setDisplayNftMedia(displayNftMedia: boolean) {
+  setDisplayNftMedia(displayNftMedia: boolean): void {
     this.update((state) => {
       state.displayNftMedia = displayNftMedia;
       if (!displayNftMedia) {
@@ -600,7 +600,7 @@ export class PreferencesController extends BaseController<
    *
    * @param securityAlertsEnabled - Boolean indicating user preference on using security alerts.
    */
-  setSecurityAlertsEnabled(securityAlertsEnabled: boolean) {
+  setSecurityAlertsEnabled(securityAlertsEnabled: boolean): void {
     this.update((state) => {
       state.securityAlertsEnabled = securityAlertsEnabled;
     });
@@ -611,7 +611,9 @@ export class PreferencesController extends BaseController<
    *
    * @param isMultiAccountBalancesEnabled - true to enable multiple accounts balance fetch, false to fetch only selectedAddress.
    */
-  setIsMultiAccountBalancesEnabled(isMultiAccountBalancesEnabled: boolean) {
+  setIsMultiAccountBalancesEnabled(
+    isMultiAccountBalancesEnabled: boolean,
+  ): void {
     this.update((state) => {
       state.isMultiAccountBalancesEnabled = isMultiAccountBalancesEnabled;
     });
@@ -622,7 +624,7 @@ export class PreferencesController extends BaseController<
    *
    * @param showTestNetworks - true to show test networks, false to hidden.
    */
-  setShowTestNetworks(showTestNetworks: boolean) {
+  setShowTestNetworks(showTestNetworks: boolean): void {
     this.update((state) => {
       state.showTestNetworks = showTestNetworks;
     });
@@ -633,7 +635,7 @@ export class PreferencesController extends BaseController<
    *
    * @param isIpfsGatewayEnabled - true to enable ipfs source
    */
-  setIsIpfsGatewayEnabled(isIpfsGatewayEnabled: boolean) {
+  setIsIpfsGatewayEnabled(isIpfsGatewayEnabled: boolean): void {
     this.update((state) => {
       state.isIpfsGatewayEnabled = isIpfsGatewayEnabled;
     });
@@ -648,7 +650,7 @@ export class PreferencesController extends BaseController<
   setEnableNetworkIncomingTransactions(
     chainId: EtherscanSupportedHexChainId,
     isIncomingTransactionNetworkEnable: boolean,
-  ) {
+  ): void {
     if (Object.values(ETHERSCAN_SUPPORTED_CHAIN_IDS).includes(chainId)) {
       this.update((state) => {
         state.showIncomingTransactions = {
@@ -664,7 +666,7 @@ export class PreferencesController extends BaseController<
    *
    * @param showMultiRpcModal - Boolean indicating if the multi rpc modal will be displayed or not.
    */
-  setShowMultiRpcModal(showMultiRpcModal: boolean) {
+  setShowMultiRpcModal(showMultiRpcModal: boolean): void {
     this.update((state) => {
       state.showMultiRpcModal = showMultiRpcModal;
       if (!showMultiRpcModal) {
@@ -678,7 +680,7 @@ export class PreferencesController extends BaseController<
    *
    * @param smartTransactionsOptInStatus - true to opt into smart transactions
    */
-  setSmartTransactionsOptInStatus(smartTransactionsOptInStatus: boolean) {
+  setSmartTransactionsOptInStatus(smartTransactionsOptInStatus: boolean): void {
     this.update((state) => {
       state.smartTransactionsOptInStatus = smartTransactionsOptInStatus;
     });
@@ -689,7 +691,7 @@ export class PreferencesController extends BaseController<
    *
    * @param useTransactionSimulations - true to enable transaction simulations, false to disable it.
    */
-  setUseTransactionSimulations(useTransactionSimulations: boolean) {
+  setUseTransactionSimulations(useTransactionSimulations: boolean): void {
     this.update((state) => {
       state.useTransactionSimulations = useTransactionSimulations;
     });
@@ -700,7 +702,7 @@ export class PreferencesController extends BaseController<
    *
    * @param tokenSortConfig - a configuration representing the sort order of tokens.
    */
-  setTokenSortConfig(tokenSortConfig: TokenSortConfig) {
+  setTokenSortConfig(tokenSortConfig: TokenSortConfig): void {
     this.update((state) => {
       state.tokenSortConfig = tokenSortConfig;
     });
@@ -711,7 +713,7 @@ export class PreferencesController extends BaseController<
    *
    * @param useSafeChainsListValidation - true to enable safe chains list validation, false to disable it.
    */
-  setUseSafeChainsListValidation(useSafeChainsListValidation: boolean) {
+  setUseSafeChainsListValidation(useSafeChainsListValidation: boolean): void {
     this.update((state) => {
       state.useSafeChainsListValidation = useSafeChainsListValidation;
     });
@@ -722,7 +724,7 @@ export class PreferencesController extends BaseController<
    *
    * @param privacyMode - true to enable privacy mode, false to disable it.
    */
-  setPrivacyMode(privacyMode: boolean) {
+  setPrivacyMode(privacyMode: boolean): void {
     this.update((state) => {
       state.privacyMode = privacyMode;
     });
@@ -735,7 +737,7 @@ export class PreferencesController extends BaseController<
    */
   setDismissSmartAccountSuggestionEnabled(
     dismissSmartAccountSuggestionEnabled: boolean,
-  ) {
+  ): void {
     this.update((state) => {
       state.dismissSmartAccountSuggestionEnabled =
         dismissSmartAccountSuggestionEnabled;
@@ -747,7 +749,7 @@ export class PreferencesController extends BaseController<
    *
    * @param smartAccountOptIn - true if user opts in for smart account update, false otherwise.
    */
-  setSmartAccountOptIn(smartAccountOptIn: boolean) {
+  setSmartAccountOptIn(smartAccountOptIn: boolean): void {
     this.update((state) => {
       state.smartAccountOptIn = smartAccountOptIn;
     });
@@ -771,7 +773,7 @@ export class PreferencesController extends BaseController<
    *
    * @param tokenNetworkFilter - Object describing token network filter configuration.
    */
-  setTokenNetworkFilter(tokenNetworkFilter: Record<string, boolean>) {
+  setTokenNetworkFilter(tokenNetworkFilter: Record<string, boolean>): void {
     this.update((state) => {
       state.tokenNetworkFilter = tokenNetworkFilter;
     });

@@ -28,7 +28,7 @@ const stateMetadata: StateMetadata<TransactionPayControllerState> = {
   },
 };
 
-const getDefaultState = () => ({
+const getDefaultState = (): TransactionPayControllerState => ({
   transactionData: {},
 });
 
@@ -67,20 +67,21 @@ export class TransactionPayController extends BaseController<
       this.#removeTransactionData.bind(this),
     );
 
+    // eslint-disable-next-line no-new
     new QuoteRefresher({
       messenger,
       updateTransactionData: this.#updateTransactionData.bind(this),
     });
   }
 
-  updatePaymentToken(request: UpdatePaymentTokenRequest) {
+  updatePaymentToken(request: UpdatePaymentTokenRequest): void {
     updatePaymentToken(request, {
       messenger: this.messenger,
       updateTransactionData: this.#updateTransactionData.bind(this),
     });
   }
 
-  #removeTransactionData(transactionId: string) {
+  #removeTransactionData(transactionId: string): void {
     this.update((state) => {
       delete state.transactionData[transactionId];
     });
@@ -89,7 +90,7 @@ export class TransactionPayController extends BaseController<
   #updateTransactionData(
     transactionId: string,
     fn: (transactionData: Draft<TransactionData>) => void,
-  ) {
+  ): void {
     let shouldUpdateQuotes = false;
 
     this.update((state) => {
@@ -131,7 +132,7 @@ export class TransactionPayController extends BaseController<
     }
   }
 
-  #registerActionHandlers() {
+  #registerActionHandlers(): void {
     this.messenger.registerActionHandler(
       'TransactionPayController:getDelegationTransaction',
       this.#getDelegationTransaction.bind(this),
@@ -139,7 +140,8 @@ export class TransactionPayController extends BaseController<
 
     this.messenger.registerActionHandler(
       'TransactionPayController:getStrategy',
-      this.#getStrategy ?? (() => TransactionPayStrategy.Relay),
+      this.#getStrategy ??
+        ((): TransactionPayStrategy => TransactionPayStrategy.Relay),
     );
 
     this.messenger.registerActionHandler(

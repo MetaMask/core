@@ -71,7 +71,7 @@ describe('Simulation API Utils', () => {
    *
    * @param jsonResponse - The response body to return.
    */
-  function mockFetchResponse(jsonResponse: unknown) {
+  function mockFetchResponse(jsonResponse: unknown): void {
     fetchMock.mockResolvedValueOnce({
       json: jest.fn().mockResolvedValue(jsonResponse),
     } as unknown as Response);

@@ -82,7 +82,7 @@ export class IncomingTransactionHelper {
     this.#getCurrentAccount = getCurrentAccount;
     this.#getLocalTransactions = getLocalTransactions;
     this.#includeTokenTransfers = includeTokenTransfers;
-    this.#isEnabled = isEnabled ?? (() => true);
+    this.#isEnabled = isEnabled ?? ((): boolean => true);
     this.#isRunning = false;
     this.#isUpdating = false;
     this.#messenger = messenger;
@@ -90,7 +90,7 @@ export class IncomingTransactionHelper {
     this.#updateTransactions = updateTransactions;
   }
 
-  start() {
+  start(): void {
     if (this.#isRunning) {
       return;
     }
@@ -114,7 +114,7 @@ export class IncomingTransactionHelper {
     });
   }
 
-  stop() {
+  stop(): void {
     if (this.#timeoutId) {
       clearTimeout(this.#timeoutId as number);
     }
@@ -128,7 +128,7 @@ export class IncomingTransactionHelper {
     log('Stopped polling');
   }
 
-  async #onInterval() {
+  async #onInterval(): Promise<void> {
     this.#isUpdating = true;
 
     try {
@@ -240,7 +240,7 @@ export class IncomingTransactionHelper {
     this.hub.emit('transactions', newTransactions);
   }
 
-  #sortTransactionsByTime(transactions: TransactionMeta[]) {
+  #sortTransactionsByTime(transactions: TransactionMeta[]): void {
     transactions.sort((a, b) => (a.time < b.time ? -1 : 1));
   }
 

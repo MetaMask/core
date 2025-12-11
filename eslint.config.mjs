@@ -47,34 +47,6 @@ const config = createConfig([
     extends: [nodejs],
   },
   {
-    files: ['**/*.test.{js,ts}', '**/tests/**/*.{js,ts}'],
-    extends: [jest],
-    rules: {
-      // TODO: Upgrade these from warning to error in shared config
-      'jest/expect-expect': 'error',
-      'jest/no-alias-methods': 'error',
-      'jest/no-commented-out-tests': 'error',
-      'jest/no-disabled-tests': 'error',
-    },
-    settings: {
-      node: {
-        version: `^${NODE_LTS_VERSION}`,
-      },
-    },
-  },
-  {
-    // These files are test helpers, not tests. We still use the Jest ESLint
-    // config here to ensure that ESLint expects a test-like environment, but
-    // various rules meant just to apply to tests have been disabled.
-    files: ['**/tests/**/*.{js,ts}'],
-    ignores: ['**/*.test.{js,ts}'],
-    rules: {
-      'jest/no-export': 'off',
-      'jest/require-top-level-describe': 'off',
-      'jest/no-if': 'off',
-    },
-  },
-  {
     files: ['**/*.{js,cjs}'],
     languageOptions: {
       sourceType: 'script',
@@ -109,6 +81,34 @@ const config = createConfig([
       // do not work very well.
       'jsdoc/check-tag-names': 'off',
       'jsdoc/require-jsdoc': 'off',
+    },
+  },
+  {
+    files: ['**/*.test.{js,ts}', '**/tests/**/*.{js,ts}'],
+    extends: [jest],
+    rules: {
+      // TODO: Upgrade these from warning to error in shared config
+      'jest/expect-expect': 'error',
+      'jest/no-alias-methods': 'error',
+      'jest/no-commented-out-tests': 'error',
+      'jest/no-disabled-tests': 'error',
+    },
+    settings: {
+      node: {
+        version: `^${NODE_LTS_VERSION}`,
+      },
+    },
+  },
+  {
+    // These files are test helpers, not tests. We still use the Jest ESLint
+    // config here to ensure that ESLint expects a test-like environment, but
+    // various rules meant just to apply to tests have been disabled.
+    files: ['**/tests/**/*.{js,ts}'],
+    ignores: ['**/*.test.{js,ts}'],
+    rules: {
+      'jest/no-export': 'off',
+      'jest/require-top-level-describe': 'off',
+      'jest/no-if': 'off',
     },
   },
   {

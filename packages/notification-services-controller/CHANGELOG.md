@@ -18,6 +18,12 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
   - Note, however, that the versions specified in the client's `package.json` always "win", and you are expected to keep them up to date so as not to break controller and service intercommunication.
 - Modified background push utilities to handle more edgecases and not throw errors ([#7275](https://github.com/MetaMask/core/pull/7275))
 
+### Fixed
+
+- Fix `createOnChainTriggers` to preserve user preferences on notification re-subscriptions ([#7423](https://github.com/MetaMask/core/pull/7423))
+  - Previously, `isFeatureAnnouncementsEnabled` was unconditionally set to `true` on every re-subscription, overriding user preferences
+  - Now, existing preferences are preserved when `isNotificationServicesEnabled` is already `true`
+
 ## [21.0.0]
 
 ### Changed

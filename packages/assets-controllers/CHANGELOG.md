@@ -9,14 +9,22 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ### Added
 
+- Add `firstPageOnly` and `signal` options to `NftDetectionController.detectNfts()` method to allow fetching only the first page of NFTs and aborting detection operations ([#7436](https://github.com/MetaMask/core/pull/7436))
 - Support for Monad in NFT assets-controllers, [#7254](https://github.com/MetaMask/core/pull/7254)
 
 ### Changed
 
-- Bump `@metamask/transaction-controller` from `^62.4.0` to `^62.5.0` ([#7325](https://github.com/MetaMask/core/pull/7325))
+- Remove warning logs for failed chain balance fetches in RPC balance fetcher ([#7429](https://github.com/MetaMask/core/pull/7429))
+- Reduce severity of ERC721 metadata interface log from `console.error` to `console.warn` ([#7412](https://github.com/MetaMask/core/pull/7412))
+  - Fixes [#24988](https://github.com/MetaMask/metamask-extension/issues/24988)
+- Bump `@metamask/transaction-controller` from `^62.4.0` to `^62.6.0` ([#7325](https://github.com/MetaMask/core/pull/7325), [#7430](https://github.com/MetaMask/core/pull/7430))
+- Bump `@metamask/multichain-account-service` from `^4.0.0` to `^4.0.1` ([#7437](https://github.com/MetaMask/core/pull/7437)
 
 ### Fixed
 
+- Fix stale `accountsAssets` reference in `MultichainAssetsRatesController` causing incorrect conversion rates for non-EVM chains when currency is changed ([#7424](https://github.com/MetaMask/core/pull/7424))
+  - `MultichainAssetsRatesController` now dynamically fetches fresh state instead of caching a reference that becomes stale due to Immer's immutable updates
+- **BREAKING:** `NftDetectionController` now calls a new function `NftController:addNfts` that reduces API calls to bulk-scan to batch multiple NFTs URLs ([#7411](https://github.com/MetaMask/core/pull/7411))
 - Added decimal precision (default 9dp) for `CurrencyRateController` `conversionRate` and `conversionRate` properties. ([#7324](https://github.com/MetaMask/core/pull/7324))
   - This fixes any BigNumber conversion errors due to exceeding the 15 significant digit limit
 

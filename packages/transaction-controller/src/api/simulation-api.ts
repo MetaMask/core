@@ -389,7 +389,7 @@ function finalizeRequest(request: SimulationRequest): SimulationRequest {
       continue;
     }
 
-    newRequest.overrides = newRequest.overrides || {};
+    newRequest.overrides = newRequest.overrides ?? {};
 
     newRequest.overrides[normalizedTo] = {
       code: CODE_DELEGATION_MANAGER_NO_SIGNATURE_ERRORS,
