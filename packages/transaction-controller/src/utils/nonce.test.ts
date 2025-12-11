@@ -165,6 +165,32 @@ describe('nonce', () => {
           },
           status: TransactionStatus.confirmed,
         },
+        {
+          id: '5',
+          chainId: '0x2',
+          networkClientId: 'testNetworkClientId',
+          isUserOperation: true,
+          time: 123460,
+          txParams: {
+            from: fromAddress,
+            gas: '0x104',
+            value: '0x204',
+            nonce: '0x5',
+          },
+          status: TransactionStatus.confirmed,
+        },
+        {
+          id: '5',
+          chainId: '0x2',
+          networkClientId: 'testNetworkClientId',
+          time: 123460,
+          txParams: {
+            from: fromAddress,
+            gas: '0x104',
+            value: '0x204',
+          },
+          status: TransactionStatus.confirmed,
+        },
       ];
 
       const expectedResult: NonceTrackerTransaction[] = [
@@ -188,6 +214,58 @@ describe('nonce', () => {
       );
 
       expect(result).toStrictEqual(expectedResult);
+    });
+
+    it('includes authorization nonces from authorizationList', () => {
+      const fromAddress = '0x123';
+      const inputTransactions: TransactionMeta[] = [
+        {
+          id: '1',
+          chainId: '0x1',
+          networkClientId: 'testNetworkClientId',
+          time: 123456,
+          txParams: {
+            from: fromAddress,
+            gas: '0x100',
+            value: '0x200',
+            nonce: '0x1',
+            authorizationList: [
+              {
+                chainId: '0x1',
+                address: '0xabc',
+                nonce: '0x2',
+                r: '0x0',
+                s: '0x0',
+                yParity: '0x0',
+              },
+              {
+                chainId: '0x1',
+                address: '0xdef',
+                nonce: '0x3',
+                r: '0x0',
+                s: '0x0',
+                yParity: '0x0',
+              },
+            ],
+          },
+          status: TransactionStatus.confirmed,
+        },
+      ];
+
+      const result = getAndFormatTransactionsForNonceTracker(
+        '0x1',
+        fromAddress,
+        [TransactionStatus.confirmed],
+        inputTransactions,
+      );
+
+      expect(result).toHaveLength(3);
+      expect(result[0].txParams.nonce).toBe('0x1');
+      expect(result[1].txParams.nonce).toBe('0x2');
+      expect(result[2].txParams.nonce).toBe('0x3');
+      expect(result[0].status).toBe(TransactionStatus.confirmed);
+      expect(result[1].status).toBe(TransactionStatus.confirmed);
+      expect(result[2].status).toBe(TransactionStatus.confirmed);
     });
   });
 });
