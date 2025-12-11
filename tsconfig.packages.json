@@ -12,7 +12,6 @@
      * `jest.config.packages.js`.
      */
     "paths": {
-      "@metamask/base-controller/next": ["../base-controller/src/next"],
       "@metamask/json-rpc-engine/v2": ["../json-rpc-engine/src/v2/index.ts"],
       "@metamask/*": ["../*/src"]
     }

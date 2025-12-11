@@ -39,7 +39,7 @@ type CommandLineArguments = {
  * @returns The command line arguments.
  */
 async function parseCommandLineArguments(): Promise<CommandLineArguments> {
-  const argv = await yargs(process.argv.slice(2))
+  const { check, fix } = await yargs(process.argv.slice(2))
     .option('check', {
       type: 'boolean',
       description: 'Check if generated action type files are up to date',
@@ -51,15 +51,14 @@ async function parseCommandLineArguments(): Promise<CommandLineArguments> {
       default: false,
     })
     .help()
-    .check((args) => {
-      if (!args.check && !args.fix) {
+    .check((argv) => {
+      if (!argv.check && !argv.fix) {
         throw new Error('Either --check or --fix must be provided.\n');
       }
       return true;
-    })
-    .parseAsync();
+    }).argv;
 
-  return { check: argv.check, fix: argv.fix };
+  return { check, fix };
 }
 
 /**
@@ -283,7 +282,6 @@ function createASTVisitor(context: VisitorContext) {
     if (ts.isVariableStatement(node)) {
       const declaration = node.declarationList.declarations[0];
       if (
-        declaration &&
         ts.isIdentifier(declaration.name) &&
         declaration.name.text === 'MESSENGER_EXPOSED_METHODS'
       ) {
@@ -410,7 +408,7 @@ function extractJSDoc(
   }
 
   const jsDoc = jsDocTags[0];
-  if (jsDoc && ts.isJSDoc(jsDoc)) {
+  if (ts.isJSDoc(jsDoc)) {
     const fullText = sourceFile.getFullText();
     const start = jsDoc.getFullStart();
     const end = jsDoc.getEnd();
@@ -439,17 +437,17 @@ function formatJSDoc(rawJsDoc: string): string {
     } else if (i === lines.length - 1) {
       // Last line should be */
       formattedLines.push(' */');
-    } else if (typeof line === 'undefined') {
-      // Middle lines should start with ' * '
-      formattedLines.push(' *');
-    } else if (line.trim().startsWith('*')) {
-      // Remove existing * and normalize
-      const content = line.trim().substring(1).trim();
-      formattedLines.push(content ? ` * ${content}` : ' *');
     } else {
-      // Handle lines that don't start with *
+      // Middle lines should start with ' * '
       const trimmed = line.trim();
-      formattedLines.push(trimmed ? ` * ${trimmed}` : ' *');
+      if (trimmed.startsWith('*')) {
+        // Remove existing * and normalize
+        const content = trimmed.substring(1).trim();
+        formattedLines.push(content ? ` * ${content}` : ' *');
+      } else {
+        // Handle lines that don't start with *
+        formattedLines.push(trimmed ? ` * ${trimmed}` : ' *');
+      }
     }
   }
 
