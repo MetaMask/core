@@ -103,8 +103,8 @@ describe('Messenger', () => {
         },
       );
 
-      messenger.registerActionHandler('Fixture:concat', (s: string) => {
-        message += s;
+      messenger.registerActionHandler('Fixture:concat', (input: string) => {
+        message += input;
       });
 
       messenger.call('Fixture:reset', 'hello');
@@ -929,10 +929,11 @@ describe('Messenger', () => {
         namespace: 'Fixture',
       });
       const stub = sinon.stub();
-      const handler = (current: string, previous: string | undefined) => {
+      const handler = (current: string, previous: string | undefined): void => {
         stub(current, previous);
       };
-      const selector = (state: { prop1: string; prop2: string }) => state.prop1;
+      const selector = (state: { prop1: string; prop2: string }): string =>
+        state.prop1;
       messenger.subscribe('Fixture:complexMessage', handler, selector);
       messenger.unsubscribe('Fixture:complexMessage', handler);
 
@@ -1125,11 +1126,11 @@ describe('Messenger', () => {
       class TestService {
         name = 'TestService' as const;
 
-        getType() {
+        getType(): 'api' {
           return 'api';
         }
 
-        getCount() {
+        getCount(): number {
           return 42;
         }
       }
@@ -1160,7 +1161,7 @@ describe('Messenger', () => {
 
         privateValue = 'secret';
 
-        getPrivateValue() {
+        getPrivateValue(): string {
           return this.privateValue;
         }
       }
@@ -1184,7 +1185,7 @@ describe('Messenger', () => {
       class TestService {
         name = 'TestService' as const;
 
-        async fetchData(id: string) {
+        async fetchData(id: string): Promise<string> {
           return `data-${id}`;
         }
       }
@@ -1231,7 +1232,7 @@ describe('Messenger', () => {
 
         readonly nonFunction = 'not a function';
 
-        getValue() {
+        getValue(): string {
           return 'test';
         }
       }
@@ -1267,7 +1268,7 @@ describe('Messenger', () => {
           this.name = namespace;
         }
 
-        baseMethod() {
+        baseMethod(): string {
           return 'base method';
         }
       }
@@ -1279,7 +1280,7 @@ describe('Messenger', () => {
           super({ namespace: 'ChildController' });
         }
 
-        childMethod() {
+        childMethod(): string {
           return 'child method';
         }
       }

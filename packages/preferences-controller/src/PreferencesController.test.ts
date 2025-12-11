@@ -880,7 +880,7 @@ function setupPreferencesController({
 }: {
   options?: Partial<ConstructorParameters<typeof PreferencesController>[0]>;
   messenger?: RootMessenger;
-} = {}) {
+} = {}): PreferencesController {
   const preferencesControllerMessenger = new Messenger<
     'PreferencesController',
     AllPreferencesControllerActions,
