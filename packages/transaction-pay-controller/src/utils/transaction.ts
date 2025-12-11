@@ -165,15 +165,18 @@ export function waitForTransactionConfirmed(
  * @param request - Request object.
  * @param request.transactionId - ID of the transaction to update.
  * @param request.messenger - Controller messenger.
+ * @param request.note - Note describing the update.
  * @param fn - Function that applies updates to the transaction draft.
  */
 export function updateTransaction(
   {
     transactionId,
     messenger,
+    note,
   }: {
     transactionId: string;
     messenger: TransactionPayControllerMessenger;
+    note: string;
   },
   fn: (draft: TransactionMeta) => void,
 ) {
@@ -187,7 +190,11 @@ export function updateTransaction(
 
   fn(newTransaction);
 
-  messenger.call('TransactionController:updateTransaction', newTransaction);
+  messenger.call(
+    'TransactionController:updateTransaction',
+    newTransaction,
+    note,
+  );
 }
 
 /**

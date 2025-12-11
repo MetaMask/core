@@ -273,6 +273,8 @@ const setupController = async (
   );
 
   const options: TransactionControllerOptions = {
+    disableHistory: false,
+    disableSendFlowHistory: false,
     disableSwaps: false,
     isAutomaticGasFeeUpdateEnabled: () => true,
     getCurrentNetworkEIP1559Compatibility: async (
@@ -293,6 +295,7 @@ const setupController = async (
       isResubmitEnabled: () => false,
     },
     sign: async (transaction: TypedTransaction) => transaction,
+    transactionHistoryLimit: 40,
     ...givenOptions,
   };
 

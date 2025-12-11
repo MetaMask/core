@@ -1,11 +1,31 @@
+/* eslint-disable @typescript-eslint/naming-convention */
+
 import type { AccessList } from '@ethereumjs/tx';
 import type { AccountsController } from '@metamask/accounts-controller';
 import type EthQuery from '@metamask/eth-query';
 import type { GasFeeState } from '@metamask/gas-fee-controller';
 import type { NetworkClientId, Provider } from '@metamask/network-controller';
-import type { Hex } from '@metamask/utils';
+import type { Hex, Json } from '@metamask/utils';
+import type { Operation } from 'fast-json-patch';
 
 import type { TransactionControllerMessenger } from './TransactionController';
+
+/**
+ * Given a record, ensures that each property matches the `Json` type.
+ */
+type MakeJsonCompatible<T> = T extends Json
+  ? T
+  : {
+      [K in keyof T]: T[K] extends Json ? T[K] : never;
+    };
+
+/**
+ * `Json` from `@metamask/utils` is defined as a recursive type alias, but
+ * `Operation` is defined as an interface, and the two are not compatible with
+ * each other. Therefore, this is a variant of Operation from `fast-json-patch`
+ * which is guaranteed to be type-compatible with `Json`.
+ */
+type JsonCompatibleOperation = MakeJsonCompatible<Operation>;
 
 /**
  * Information about a single transaction such as status and block number.
@@ -232,6 +252,11 @@ export type TransactionMeta = {
   hash?: string;
 
   /**
+   * @deprecated A history of mutations to TransactionMeta.
+   */
+  history?: TransactionHistory;
+
+  /**
    * Generated UUID associated with this transaction.
    */
   id: string;
@@ -392,6 +417,12 @@ export type TransactionMeta = {
    * Corresponds to the `gasFeeTokens` property.
    */
   selectedGasFeeToken?: Hex;
+
+  /**
+   * @deprecated An array of entries that describe the user's journey through the send flow.
+   * This is purely attached to state logs for troubleshooting and support.
+   */
+  sendFlowHistory?: SendFlowHistoryEntry[];
 
   /**
    * Simulation data for the transaction used to predict its outcome.
@@ -568,6 +599,19 @@ export type TransactionBatchMeta = {
    * Data for any EIP-7702 transactions.
    */
   transactions?: NestedTransactionMetadata[];
+};
+
+/** @deprecated An entry in the send flow history. */
+export type SendFlowHistoryEntry = {
+  /**
+   * String to indicate user interaction information.
+   */
+  entry: string;
+
+  /**
+   * Timestamp associated with this entry.
+   */
+  timestamp: number;
 };
 
 /**
@@ -754,6 +798,11 @@ export enum TransactionType {
    * Withdraw funds from Predict.
    */
   predictWithdraw = 'predictWithdraw',
+
+  /**
+   * Deposit funds for Relay quote.
+   */
+  relayDeposit = 'relayDeposit',
 
   /**
    * When a transaction is failed it can be retried by
@@ -1110,6 +1159,31 @@ export interface SavedGasFees {
   maxBaseFee: string;
   priorityFee: string;
 }
+
+/**
+ * A transaction history operation that includes a note and timestamp.
+ */
+type ExtendedHistoryOperation = JsonCompatibleOperation & {
+  note?: string;
+  timestamp?: number;
+};
+
+/**
+ * @deprecated A transaction history entry that includes the ExtendedHistoryOperation as the first element.
+ */
+export type TransactionHistoryEntry = [
+  ExtendedHistoryOperation,
+  ...JsonCompatibleOperation[],
+];
+
+/**
+ * @deprecated A transaction history that includes the transaction meta as the first element.
+ * And the rest of the elements are the operation arrays that were applied to the transaction meta.
+ */
+export type TransactionHistory = [
+  TransactionMeta,
+  ...TransactionHistoryEntry[],
+];
 
 /**
  * Result of inferring the transaction type.
@@ -1671,6 +1745,9 @@ export type TransactionBatchRequest = {
   /** Address of an ERC-20 token to pay for the gas fee, if the user has insufficient native balance. */
   gasFeeToken?: Hex;
 
+  /** Gas limit for the transaction batch if submitted via EIP-7702. */
+  gasLimit7702?: Hex;
+
   /** Whether MetaMask will be compensated for the gas fee by the transaction. */
   isGasFeeIncluded?: boolean;
 
@@ -2044,6 +2121,9 @@ export type AddTransactionOptions = {
 
   /** Response from security validator. */
   securityAlertResponse?: SecurityAlertResponse;
+
+  /** Entries to add to the `sendFlowHistory`. */
+  sendFlowHistory?: SendFlowHistoryEntry[];
 
   /** Whether to skip the initial gas calculation and rely only on the polling. */
   skipInitialGasEstimate?: boolean;

@@ -440,7 +440,7 @@ export const findAndUpdateTransactionsInBatch = ({
 
     if (txMeta) {
       const updatedTx = { ...txMeta, type: txType as TransactionType };
-      updateTransactionFn(updatedTx);
+      updateTransactionFn(updatedTx, `Update tx type to ${txType}`);
       txBatch[
         [TransactionType.bridgeApproval, TransactionType.swapApproval].includes(
           txType as TransactionType,

@@ -337,6 +337,7 @@ export type TransactionControllerGetTransactionsAction = {
  * Updates an existing transaction in state.
  *
  * @param transactionMeta - The new transaction to store in state.
+ * @param note - A note or update reason to be logged.
  */
 export type TransactionControllerUpdateTransactionAction = {
   type: `${typeof controllerName}:updateTransaction`;
@@ -410,6 +411,12 @@ export type PendingTransactionOptions = {
 
 /** TransactionController constructor options. */
 export type TransactionControllerOptions = {
+  /** @deprecated Whether to disable storing history in transaction metadata. */
+  disableHistory: boolean;
+
+  /** @deprecated Explicitly disable transaction metadata history. */
+  disableSendFlowHistory: boolean;
+
   /** Whether to disable additional processing on swaps transactions. */
   disableSwaps: boolean;
 
@@ -496,6 +503,9 @@ export type TransactionControllerOptions = {
 
   testGasFeeFlows?: boolean;
   trace?: TraceCallback;
+
+  /** @deprecated Transaction history limit. */
+  transactionHistoryLimit: number;
 
   /** The controller hooks. */
   hooks: {
@@ -899,6 +909,8 @@ export class TransactionController extends BaseController<
 
   readonly #trace: TraceCallback;
 
+  // readonly #transactionHistoryLimit: number;
+
   /**
    * Constructs a TransactionController.
    *
@@ -906,6 +918,8 @@ export class TransactionController extends BaseController<
    */
   constructor(options: TransactionControllerOptions) {
     const {
+      disableHistory,
+      disableSendFlowHistory,
       disableSwaps,
       getCurrentAccountEIP1559Compatibility,
       getCurrentNetworkEIP1559Compatibility,
@@ -930,6 +944,7 @@ export class TransactionController extends BaseController<
       state,
       testGasFeeFlows,
       trace,
+      transactionHistoryLimit = 40,
     } = options;
 
     super({
@@ -1737,13 +1752,16 @@ export class TransactionController extends BaseController<
    * Updates an existing transaction in state.
    *
    * @param transactionMeta - The new transaction to store in state.
+   * @param note - A note or update reason to be logged.
    */
-  updateTransaction(transactionMeta: TransactionMeta) {
+  updateTransaction(transactionMeta: TransactionMeta, note: string) {
     const { id: transactionId } = transactionMeta;
 
     this.#updateTransactionInternal({ transactionId }, () => ({
       ...transactionMeta,
     }));
+
+    log(`Transaction ${transactionId} updated. ${note}`);
   }
 
   /**
@@ -1771,7 +1789,10 @@ export class TransactionController extends BaseController<
       ...transactionMeta,
       securityAlertResponse,
     };
-    this.updateTransaction(updatedTransactionMeta);
+    this.updateTransaction(
+      updatedTransactionMeta,
+      `${controllerName}:updatesecurityAlertResponse - securityAlertResponse updated`,
+    );
   }
 
   /**
@@ -1851,7 +1872,10 @@ export class TransactionController extends BaseController<
       this.#markNonceDuplicatesDropped(transactionId);
 
       // Update external provided transaction with updated gas values and confirmed status.
-      this.updateTransaction(updatedTransactionMeta);
+      this.updateTransaction(
+        updatedTransactionMeta,
+        `${controllerName}:confirmExternalTransaction - Add external transaction`,
+      );
       this.#onTransactionStatusChange(updatedTransactionMeta);
 
       // Intentional given potential duration of process.
@@ -2048,7 +2072,10 @@ export class TransactionController extends BaseController<
     // merge updated previous gas values with existing transaction meta
     const updatedMeta = merge({}, transactionMeta, transactionPreviousGas);
 
-    this.updateTransaction(updatedMeta);
+    this.updateTransaction(
+      updatedMeta,
+      `${controllerName}:updatePreviousGasParams - Previous gas values updated`,
+    );
 
     return this.#getTransaction(transactionId) as TransactionMeta;
   }
@@ -2159,7 +2186,10 @@ export class TransactionController extends BaseController<
       transactionMeta: updatedTransaction,
     });
 
-    this.updateTransaction(updatedTransaction);
+    this.updateTransaction(
+      updatedTransaction,
+      `Update Editable Params for ${txId}`,
+    );
 
     return this.#getTransaction(txId);
   }
@@ -2332,7 +2362,10 @@ export class TransactionController extends BaseController<
       delete updatedTransactionMeta.txParams.maxPriorityFeePerGas;
     }
 
-    this.updateTransaction(updatedTransactionMeta);
+    this.updateTransaction(
+      updatedTransactionMeta,
+      `${controllerName}:updateCustodialTransaction - Custodial transaction updated`,
+    );
 
     if (
       status &&
@@ -2800,7 +2833,10 @@ export class TransactionController extends BaseController<
       });
     }
 
-    this.updateTransaction(updatedTransactionMeta);
+    this.updateTransaction(
+      updatedTransactionMeta,
+      'Generated from user operation',
+    );
 
     this.messenger.publish('TransactionController:transactionStatusUpdated', {
       transactionMeta: updatedTransactionMeta,
@@ -2955,7 +2991,10 @@ export class TransactionController extends BaseController<
               params: updatedTransaction.txParams,
             });
 
-            this.updateTransaction(updatedTransaction);
+            this.updateTransaction(
+              updatedTransaction,
+              'TransactionController#processApproval - Updated with approval data',
+            );
           }
         }
 
@@ -3586,7 +3625,10 @@ export class TransactionController extends BaseController<
     this.messenger.publish(`${controllerName}:transactionDropped`, {
       transactionMeta: updatedTransactionMeta,
     });
-    this.updateTransaction(updatedTransactionMeta);
+    this.updateTransaction(
+      updatedTransactionMeta,
+      'TransactionController#setTransactionStatusDropped - Transaction dropped',
+    );
     this.#onTransactionStatusChange(updatedTransactionMeta);
   }
 
@@ -3739,7 +3781,10 @@ export class TransactionController extends BaseController<
     const transactionMetaFromHook = cloneDeep(finalTransactionMeta);
 
     if (!this.#afterSign(transactionMetaFromHook, signedTx)) {
-      this.updateTransaction(transactionMetaFromHook);
+      this.updateTransaction(
+        transactionMetaFromHook,
+        'TransactionController#signTransaction - Update after sign',
+      );
 
       log('Skipping signed status based on hook');
 
@@ -3752,7 +3797,10 @@ export class TransactionController extends BaseController<
       txParams: finalTxParams,
     };
 
-    this.updateTransaction(transactionMetaWithRsv);
+    this.updateTransaction(
+      transactionMetaWithRsv,
+      'TransactionController#approveTransaction - Transaction signed',
+    );
 
     this.#onTransactionStatusChange(transactionMetaWithRsv);
 
@@ -3762,7 +3810,10 @@ export class TransactionController extends BaseController<
       rawTx,
     });
 
-    this.updateTransaction(transactionMetaWithRawTx);
+    this.updateTransaction(
+      transactionMetaWithRawTx,
+      'TransactionController#approveTransaction - RawTransaction added',
+    );
 
     return rawTx;
   }

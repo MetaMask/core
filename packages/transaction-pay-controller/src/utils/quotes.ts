@@ -138,6 +138,7 @@ function syncTransaction({
     {
       transactionId,
       messenger: messenger as never,
+      note: 'Update transaction pay data',
     },
     (tx: TransactionMeta) => {
       tx.batchTransactions = batchTransactions;

@@ -5812,6 +5812,7 @@ describe('TransactionController', () => {
         expect.objectContaining({
           txParams: expect.objectContaining(paramsMock),
         }),
+        'TransactionController#signTransaction - Update after sign',
       );
 
       expect(transactionMeta.status).toBe(TransactionStatus.approved);
@@ -5878,6 +5879,7 @@ describe('TransactionController', () => {
         expect.objectContaining({
           txParams: expect.objectContaining(paramsMock),
         }),
+        'TransactionController#signTransaction - Update after sign',
       );
     });
 
@@ -6391,7 +6393,7 @@ describe('TransactionController', () => {
 
     it('throws if custodial transaction does not exists', async () => {
       const nonExistentId = 'nonExistentId';
-      const newStatus = TransactionStatus.approved;
+      const newStatus = TransactionStatus.approved as const;
       const { controller } = setupController();
 
       expect(() =>
@@ -6405,7 +6407,7 @@ describe('TransactionController', () => {
     });
 
     it('throws if status is invalid', async () => {
-      const newStatus = TransactionStatus.approved;
+      const newStatus = TransactionStatus.approved as const;
       const { controller } = setupController({
         options: {
           state: {
@@ -8116,6 +8118,7 @@ describe('TransactionController', () => {
         messenger.call(
           'TransactionController:updateTransaction',
           updatedTransaction,
+          'Test update note',
         );
 
         expect(controller.state.transactions[0].txParams.value).toBe('0x1');

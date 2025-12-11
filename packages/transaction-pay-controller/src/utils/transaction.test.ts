@@ -198,6 +198,7 @@ describe('Transaction Utils', () => {
         {
           transactionId: TRANSACTION_ID_MOCK,
           messenger: messenger as never,
+          note: 'Test note',
         },
         (draft) => {
           draft.txParams.from = '0x456';
@@ -211,6 +212,7 @@ describe('Transaction Utils', () => {
             from: '0x456',
           }),
         }),
+        'Test note',
       );
     });
 
@@ -224,6 +226,7 @@ describe('Transaction Utils', () => {
           {
             transactionId: TRANSACTION_ID_MOCK,
             messenger: messenger as never,
+            note: 'Test note',
           },
           noop,
         ),
