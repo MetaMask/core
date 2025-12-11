@@ -88,7 +88,7 @@ describe('RemoteFeatureFlagController', () => {
       expect(controller.state).toStrictEqual({
         remoteFeatureFlags: {},
         localOverrides: {},
-        rawProcessedRemoteFeatureFlags: {},
+        rawRemoteFeatureFlags: {},
         cacheTimestamp: 0,
       });
     });
@@ -99,7 +99,7 @@ describe('RemoteFeatureFlagController', () => {
       expect(controller.state).toStrictEqual({
         remoteFeatureFlags: {},
         localOverrides: {},
-        rawProcessedRemoteFeatureFlags: {},
+        rawRemoteFeatureFlags: {},
         cacheTimestamp: 0,
       });
     });
@@ -108,7 +108,7 @@ describe('RemoteFeatureFlagController', () => {
       const customState = {
         remoteFeatureFlags: MOCK_FLAGS_TWO,
         cacheTimestamp: 123456789,
-        rawProcessedRemoteFeatureFlags: {},
+        rawRemoteFeatureFlags: {},
         localOverrides: {},
       };
 
@@ -646,7 +646,7 @@ describe('RemoteFeatureFlagController', () => {
       expect(getDefaultRemoteFeatureFlagControllerState()).toStrictEqual({
         remoteFeatureFlags: {},
         localOverrides: {},
-        rawProcessedRemoteFeatureFlags: {},
+        rawRemoteFeatureFlags: {},
         cacheTimestamp: 0,
       });
     });
@@ -804,7 +804,7 @@ describe('RemoteFeatureFlagController', () => {
         await controller.updateRemoteFeatureFlags();
 
         const groups =
-          controller.state.rawProcessedRemoteFeatureFlags.testFlagForThreshold;
+          controller.state.rawRemoteFeatureFlags.testFlagForThreshold;
 
         expect(groups).toStrictEqual([
           {
@@ -834,7 +834,7 @@ describe('RemoteFeatureFlagController', () => {
         await controller.updateRemoteFeatureFlags();
 
         expect(
-          controller.state.rawProcessedRemoteFeatureFlags.simpleFlag,
+          controller.state.rawRemoteFeatureFlags.simpleFlag,
         ).toBeUndefined();
       });
 
@@ -842,7 +842,7 @@ describe('RemoteFeatureFlagController', () => {
         const controller = createController();
 
         expect(
-          controller.state.rawProcessedRemoteFeatureFlags.nonExistentFlag,
+          controller.state.rawRemoteFeatureFlags.nonExistentFlag,
         ).toBeUndefined();
       });
     });
@@ -872,7 +872,7 @@ describe('RemoteFeatureFlagController', () => {
 
         await controller.updateRemoteFeatureFlags();
 
-        const abTestFlags = controller.state.rawProcessedRemoteFeatureFlags;
+        const abTestFlags = controller.state.rawRemoteFeatureFlags;
 
         expect(Object.keys(abTestFlags)).toContain('testFlagForThreshold');
         expect(Object.keys(abTestFlags)).toContain('anotherThresholdFlag');
@@ -884,7 +884,7 @@ describe('RemoteFeatureFlagController', () => {
       it('returns empty object when no flags exist', () => {
         const controller = createController();
 
-        expect(controller.state.rawProcessedRemoteFeatureFlags).toStrictEqual(
+        expect(controller.state.rawRemoteFeatureFlags).toStrictEqual(
           {},
         );
       });
@@ -904,20 +904,20 @@ describe('RemoteFeatureFlagController', () => {
 
         await controller.updateRemoteFeatureFlags();
 
-        // Only A/B test flags should be stored in rawProcessedRemoteFeatureFlags
+        // Only A/B test flags should be stored in rawRemoteFeatureFlags
         expect(
-          Object.keys(controller.state.rawProcessedRemoteFeatureFlags),
+          Object.keys(controller.state.rawRemoteFeatureFlags),
         ).toStrictEqual(['testFlagForThreshold']);
         expect(
-          controller.state.rawProcessedRemoteFeatureFlags.testFlagForThreshold,
+          controller.state.rawRemoteFeatureFlags.testFlagForThreshold,
         ).toStrictEqual(MOCK_FLAGS_WITH_THRESHOLD.testFlagForThreshold);
 
-        // Simple flags should not be in rawProcessedRemoteFeatureFlags
+        // Simple flags should not be in rawRemoteFeatureFlags
         expect(
-          controller.state.rawProcessedRemoteFeatureFlags.simpleFlag,
+          controller.state.rawRemoteFeatureFlags.simpleFlag,
         ).toBeUndefined();
         expect(
-          controller.state.rawProcessedRemoteFeatureFlags.anotherSimpleFlag,
+          controller.state.rawRemoteFeatureFlags.anotherSimpleFlag,
         ).toBeUndefined();
       });
     });
@@ -936,7 +936,7 @@ describe('RemoteFeatureFlagController', () => {
 
         // Get available groups
         const groups =
-          controller.state.rawProcessedRemoteFeatureFlags.testFlagForThreshold;
+          controller.state.rawRemoteFeatureFlags.testFlagForThreshold;
         expect(groups).toBeDefined();
         // Ensure groups is not undefined before accessing array elements
         if (!groups) {
@@ -971,10 +971,10 @@ describe('RemoteFeatureFlagController', () => {
 
         // A/B test raw flags should still be available
         const groups =
-          controller.state.rawProcessedRemoteFeatureFlags.testFlagForThreshold;
+          controller.state.rawRemoteFeatureFlags.testFlagForThreshold;
         expect(groups).toHaveLength(3);
         expect(
-          controller.state.rawProcessedRemoteFeatureFlags.testFlagForThreshold,
+          controller.state.rawRemoteFeatureFlags.testFlagForThreshold,
         ).toStrictEqual(MOCK_FLAGS_WITH_THRESHOLD.testFlagForThreshold);
       });
     });
@@ -994,7 +994,7 @@ describe('RemoteFeatureFlagController', () => {
         Object {
           "cacheTimestamp": 0,
           "localOverrides": Object {},
-          "rawProcessedRemoteFeatureFlags": Object {},
+          "rawRemoteFeatureFlags": Object {},
           "remoteFeatureFlags": Object {},
         }
       `);
@@ -1013,7 +1013,7 @@ describe('RemoteFeatureFlagController', () => {
         Object {
           "cacheTimestamp": 0,
           "localOverrides": Object {},
-          "rawProcessedRemoteFeatureFlags": Object {},
+          "rawRemoteFeatureFlags": Object {},
           "remoteFeatureFlags": Object {},
         }
       `);
@@ -1032,7 +1032,7 @@ describe('RemoteFeatureFlagController', () => {
         Object {
           "cacheTimestamp": 0,
           "localOverrides": Object {},
-          "rawProcessedRemoteFeatureFlags": Object {},
+          "rawRemoteFeatureFlags": Object {},
           "remoteFeatureFlags": Object {},
         }
       `);

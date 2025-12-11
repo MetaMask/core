@@ -67,7 +67,7 @@ export type RemoteFeatureFlagControllerState = {
   /**
    * Raw A/B test flag arrays for flags that were processed from arrays to single values.
    */
-  rawProcessedRemoteFeatureFlags: FeatureFlags;
+  rawRemoteFeatureFlags: FeatureFlags;
   /**
    * The timestamp of the last successful feature flag cache.
    */

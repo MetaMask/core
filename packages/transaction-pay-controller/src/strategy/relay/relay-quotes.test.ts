@@ -194,7 +194,7 @@ describe('Relay Quotes Utils', () => {
     getRemoteFeatureFlagControllerStateMock.mockReturnValue({
       cacheTimestamp: 0,
       remoteFeatureFlags: {},
-      rawProcessedRemoteFeatureFlags: {},
+      rawRemoteFeatureFlags: {},
       localOverrides: {},
     });
 
@@ -573,7 +573,7 @@ describe('Relay Quotes Utils', () => {
             relayQuoteUrl,
           },
         },
-        rawProcessedRemoteFeatureFlags: {},
+        rawRemoteFeatureFlags: {},
         localOverrides: {},
       });
 
@@ -935,7 +935,7 @@ describe('Relay Quotes Utils', () => {
               relayDisabledGasStationChains: [QUOTE_REQUEST_MOCK.sourceChainId],
             },
           },
-          rawProcessedRemoteFeatureFlags: {},
+          rawRemoteFeatureFlags: {},
           localOverrides: {},
         });
 

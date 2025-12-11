@@ -29,7 +29,7 @@ describe('Feature Flags Utils', () => {
     getRemoteFeatureFlagControllerStateMock.mockReturnValue({
       cacheTimestamp: 0,
       remoteFeatureFlags: {},
-      rawProcessedRemoteFeatureFlags: {},
+      rawRemoteFeatureFlags: {},
       localOverrides: {},
     });
   });
@@ -64,7 +64,7 @@ describe('Feature Flags Utils', () => {
             slippage: SLIPPAGE_MOCK,
           },
         },
-        rawProcessedRemoteFeatureFlags: {},
+        rawRemoteFeatureFlags: {},
         localOverrides: {},
       });
 
@@ -100,7 +100,7 @@ describe('Feature Flags Utils', () => {
           },
         },
         localOverrides: {},
-        rawProcessedRemoteFeatureFlags: {},
+        rawRemoteFeatureFlags: {},
       });
 
       const gasBuffer = getGasBuffer(messenger, CHAIN_ID_MOCK);
@@ -125,7 +125,7 @@ describe('Feature Flags Utils', () => {
           },
         },
         localOverrides: {},
-        rawProcessedRemoteFeatureFlags: {},
+        rawRemoteFeatureFlags: {},
       });
 
       const gasBuffer = getGasBuffer(messenger, CHAIN_ID_MOCK);
@@ -150,7 +150,7 @@ describe('Feature Flags Utils', () => {
           },
         },
         localOverrides: {},
-        rawProcessedRemoteFeatureFlags: {},
+        rawRemoteFeatureFlags: {},
       });
 
       const gasBuffer = getGasBuffer(messenger, CHAIN_ID_DIFFERENT_MOCK);
@@ -174,7 +174,7 @@ describe('Feature Flags Utils', () => {
           },
         },
         localOverrides: {},
-        rawProcessedRemoteFeatureFlags: {},
+        rawRemoteFeatureFlags: {},
       });
 
       const gasBuffer = getGasBuffer(messenger, CHAIN_ID_DIFFERENT_MOCK);

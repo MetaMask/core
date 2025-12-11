@@ -15,7 +15,7 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
   - `clearAllOverrides()` - Clear all local feature flag overrides
 - Add new controller state properties ([#7271](https://github.com/MetaMask/core/pull/7271))
   - `localOverrides` - Local overrides for feature flags that take precedence over remote flags
-  - `rawProcessedRemoteFeatureFlags` - Raw flag value for arrays that were processed from arrays to single value
+  - `rawRemoteFeatureFlags` - Raw flag value for arrays that were processed from arrays to single value
 - Export additional controller action types ([#7271](https://github.com/MetaMask/core/pull/7271))
   - `RemoteFeatureFlagControllerSetFlagOverrideAction`
   - `RemoteFeatureFlagControllerClearFlagOverrideAction`

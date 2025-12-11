@@ -29,7 +29,7 @@ export const DEFAULT_CACHE_DURATION = 24 * 60 * 60 * 1000; // 1 day
 export type RemoteFeatureFlagControllerState = {
   remoteFeatureFlags: FeatureFlags;
   localOverrides: FeatureFlags;
-  rawProcessedRemoteFeatureFlags: FeatureFlags;
+  rawRemoteFeatureFlags: FeatureFlags;
   cacheTimestamp: number;
 };
 
@@ -46,7 +46,7 @@ const remoteFeatureFlagControllerMetadata = {
     includeInDebugSnapshot: true,
     usedInUi: true,
   },
-  rawProcessedRemoteFeatureFlags: {
+  rawRemoteFeatureFlags: {
     includeInStateLogs: true,
     persist: true,
     includeInDebugSnapshot: true,
@@ -122,7 +122,7 @@ export function getDefaultRemoteFeatureFlagControllerState(): RemoteFeatureFlagC
   return {
     remoteFeatureFlags: {},
     localOverrides: {},
-    rawProcessedRemoteFeatureFlags: {},
+    rawRemoteFeatureFlags: {},
     cacheTimestamp: 0,
   };
 }
@@ -247,13 +247,13 @@ export class RemoteFeatureFlagController extends BaseController<
    * @param remoteFeatureFlags - The new feature flags to cache.
    */
   async #updateCache(remoteFeatureFlags: FeatureFlags) {
-    const { processedFlags, rawProcessedRemoteFeatureFlags } =
+    const processedFlags =
       await this.#processRemoteFeatureFlags(remoteFeatureFlags);
     this.update(() => {
       return {
         remoteFeatureFlags: processedFlags,
         localOverrides: this.state.localOverrides,
-        rawProcessedRemoteFeatureFlags,
+        rawRemoteFeatureFlags: remoteFeatureFlags,
         cacheTimestamp: Date.now(),
       };
     });
@@ -273,12 +273,10 @@ export class RemoteFeatureFlagController extends BaseController<
     return getVersionData(flagValue, this.#clientVersion);
   }
 
-  async #processRemoteFeatureFlags(remoteFeatureFlags: FeatureFlags): Promise<{
-    processedFlags: FeatureFlags;
-    rawProcessedRemoteFeatureFlags: FeatureFlags;
-  }> {
+  async #processRemoteFeatureFlags(
+    remoteFeatureFlags: FeatureFlags,
+  ): Promise<FeatureFlags> {
     const processedRemoteFeatureFlags: FeatureFlags = {};
-    const rawProcessedRemoteFeatureFlags: FeatureFlags = {};
     const metaMetricsId = this.#getMetaMetricsId();
     const thresholdValue = generateDeterministicRandomNumber(metaMetricsId);
 
@@ -294,9 +292,6 @@ export class RemoteFeatureFlagController extends BaseController<
       }
 
       if (Array.isArray(processedValue) && thresholdValue) {
-        // Store the raw processed array seperately from the processed value
-        rawProcessedRemoteFeatureFlags[remoteFeatureFlagName] = processedValue;
-
         const selectedGroup = processedValue.find(
           (featureFlag): featureFlag is FeatureFlagScopeValue => {
             if (!isFeatureFlagWithScopeValue(featureFlag)) {
@@ -316,10 +311,7 @@ export class RemoteFeatureFlagController extends BaseController<
 
       processedRemoteFeatureFlags[remoteFeatureFlagName] = processedValue;
     }
-    return {
-      processedFlags: processedRemoteFeatureFlags,
-      rawProcessedRemoteFeatureFlags,
-    };
+    return processedRemoteFeatureFlags;
   }
 
   /**
