@@ -195,8 +195,10 @@ export class ProfileMetricsController extends StaticIntervalPollingController()<
     );
 
     this.messenger.subscribe('KeyringController:unlock', () => {
-      this.startPolling(null);
       this.#queueFirstSyncIfNeeded().catch(console.error);
+      if (this.#assertUserOptedIn()) {
+        this.startPolling(null);
+      }
     });
 
     this.messenger.subscribe('KeyringController:lock', () => {
