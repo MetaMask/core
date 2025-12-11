@@ -75,7 +75,7 @@ function getBaseUrl(environment: OnRampEnvironment): string {
     case OnRampEnvironment.Development:
       return 'http://localhost:3000';
     default:
-      throw new Error(`Invalid environment: ${environment}`);
+      throw new Error(`Invalid environment: ${String(environment)}`);
   }
 }
 
