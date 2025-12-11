@@ -212,9 +212,8 @@ export const selectLendingMarketsByChainIdAndTokenAddress = createSelector(
     ),
 );
 
-export const selectIsLendingEligible = (
-  state: EarnControllerState,
-): boolean => state.lending.isEligible;
+export const selectIsLendingEligible = (state: EarnControllerState): boolean =>
+  state.lending.isEligible;
 
 /**
  * Selects the entire non-EVM staking state.
