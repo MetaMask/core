@@ -273,7 +273,7 @@ export class SampleGasPricesController extends BaseController<
    * @param args - The arguments to the function.
    * @param args.chainId - The chain ID for which to fetch gas prices.
    */
-  async updateGasPrices({ chainId }: { chainId: Hex }) {
+  async updateGasPrices({ chainId }: { chainId: Hex }): Promise<void> {
     const gasPricesResponse = await this.messenger.call(
       'SampleGasPricesService:fetchGasPrices',
       chainId,
@@ -293,9 +293,9 @@ export class SampleGasPricesController extends BaseController<
    *
    * @param selectedNetworkClientId - The globally selected network client ID.
    */
-  async #onSelectedNetworkClientIdChange(
+  #onSelectedNetworkClientIdChange(
     selectedNetworkClientId: NetworkClientId,
-  ) {
+  ): void {
     const {
       configuration: { chainId },
     } = this.messenger.call(
@@ -305,7 +305,9 @@ export class SampleGasPricesController extends BaseController<
 
     if (chainId !== this.#selectedChainId) {
       this.#selectedChainId = chainId;
-      await this.updateGasPrices({ chainId });
+      this.updateGasPrices({ chainId }).catch((error) => {
+        this.messenger.captureException?.(error);
+      });
     }
   }
 }

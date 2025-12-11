@@ -228,14 +228,14 @@ const calcTotalGasFee = ({
 
 export const calcEstimatedAndMaxTotalGasFee = ({
   bridgeQuote: { approval, trade, l1GasFeesInHexWei, resetApproval },
-  estimatedBaseFeeInDecGwei,
+  feePerGasInDecGwei,
   maxFeePerGasInDecGwei,
   exchangeRate: nativeToDisplayCurrencyExchangeRate,
   usdExchangeRate: nativeToUsdExchangeRate,
 }: {
   bridgeQuote: QuoteResponse<TxData, TxData> & L1GasFees;
-  estimatedBaseFeeInDecGwei: string;
   maxFeePerGasInDecGwei: string;
+  feePerGasInDecGwei: string;
 } & ExchangeRate): QuoteMetadata['gasFee'] => {
   // Estimated gas fees spent after receiving refunds, this is shown to the user
   const {
@@ -249,7 +249,7 @@ export const calcEstimatedAndMaxTotalGasFee = ({
       resetApproval?.effectiveGas ?? resetApproval?.gasLimit,
     tradeGasLimit: trade?.effectiveGas ?? trade?.gasLimit,
     l1GasFeesInHexWei,
-    feePerGasInDecGwei: estimatedBaseFeeInDecGwei,
+    feePerGasInDecGwei,
     nativeToDisplayCurrencyExchangeRate,
     nativeToUsdExchangeRate,
   });
@@ -260,7 +260,7 @@ export const calcEstimatedAndMaxTotalGasFee = ({
     resetApprovalGasLimit: resetApproval?.gasLimit,
     tradeGasLimit: trade?.gasLimit,
     l1GasFeesInHexWei,
-    feePerGasInDecGwei: estimatedBaseFeeInDecGwei,
+    feePerGasInDecGwei,
     nativeToDisplayCurrencyExchangeRate,
     nativeToUsdExchangeRate,
   });
@@ -303,14 +303,12 @@ export const calcEstimatedAndMaxTotalGasFee = ({
  * Calculates the total estimated network fees for the bridge transaction
  *
  * @param gasFee - The gas fee for the bridge transaction
- * @param gasFee.effective - The fee to display to the user. If not available, this is equal to the gasLimit (total)
+ * @param gasFee.total - The fee to display to the user. If not available, this is equal to the gasLimit (total)
  * @param relayerFee - The relayer fee paid to bridge providers
  * @returns The total estimated network fee for the bridge transaction, including the relayer fee paid to bridge providers
  */
 export const calcTotalEstimatedNetworkFee = (
-  {
-    effective: gasFeeToDisplay,
-  }: ReturnType<typeof calcEstimatedAndMaxTotalGasFee>,
+  { total: gasFeeToDisplay }: ReturnType<typeof calcEstimatedAndMaxTotalGasFee>,
   relayerFee: ReturnType<typeof calcRelayerFee>,
 ) => {
   return {

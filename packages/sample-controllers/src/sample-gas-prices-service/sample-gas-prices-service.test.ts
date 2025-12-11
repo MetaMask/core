@@ -131,8 +131,8 @@ describe('SampleGasPricesService', () => {
         .times(4)
         .reply(500);
       const { service, rootMessenger } = getService();
-      service.onRetry(async () => {
-        await clock.nextAsync();
+      service.onRetry(() => {
+        clock.nextAsync().catch(console.error);
       });
 
       await expect(
@@ -149,8 +149,8 @@ describe('SampleGasPricesService', () => {
         .times(4)
         .reply(500);
       const { service, rootMessenger } = getService();
-      service.onRetry(async () => {
-        await clock.nextAsync();
+      service.onRetry(() => {
+        clock.nextAsync().catch(console.error);
       });
       const onDegradedListener = jest.fn();
       service.onDegraded(onDegradedListener);
@@ -170,8 +170,8 @@ describe('SampleGasPricesService', () => {
         .times(12)
         .reply(500);
       const { service, rootMessenger } = getService();
-      service.onRetry(async () => {
-        await clock.nextAsync();
+      service.onRetry(() => {
+        clock.nextAsync().catch(console.error);
       });
       const onBreakListener = jest.fn();
       service.onBreak(onBreakListener);
@@ -230,8 +230,8 @@ describe('SampleGasPricesService', () => {
           policyOptions: { circuitBreakDuration },
         },
       });
-      service.onRetry(async () => {
-        await clock.nextAsync();
+      service.onRetry(() => {
+        clock.nextAsync().catch(console.error);
       });
 
       await expect(

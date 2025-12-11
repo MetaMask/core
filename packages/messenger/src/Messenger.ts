@@ -306,7 +306,7 @@ export class Messenger<
    */
   registerActionHandler<
     ActionType extends Action['type'] & NamespacedName<Namespace>,
-  >(actionType: ActionType, handler: ActionHandler<Action, ActionType>) {
+  >(actionType: ActionType, handler: ActionHandler<Action, ActionType>): void {
     if (!this.#isInCurrentNamespace(actionType)) {
       throw new Error(
         `Only allowed registering action handlers prefixed by '${
@@ -325,7 +325,7 @@ export class Messenger<
   #registerActionHandler<ActionType extends Action['type']>(
     actionType: ActionType,
     handler: ActionHandler<ActionConstraint, ActionType>,
-  ) {
+  ): void {
     if (this.#actions.has(actionType)) {
       throw new Error(
         `A handler for ${actionType} has already been registered`,
@@ -346,7 +346,10 @@ export class Messenger<
   registerMethodActionHandlers<
     MessengerClient extends { name: Namespace },
     MethodNames extends keyof MessengerClient & StripNamespace<Action['type']>,
-  >(messengerClient: MessengerClient, methodNames: readonly MethodNames[]) {
+  >(
+    messengerClient: MessengerClient,
+    methodNames: readonly MethodNames[],
+  ): void {
     for (const methodName of methodNames) {
       const method = messengerClient[methodName];
       if (typeof method === 'function') {
@@ -368,7 +371,7 @@ export class Messenger<
    */
   unregisterActionHandler<
     ActionType extends Action['type'] & NamespacedName<Namespace>,
-  >(actionType: ActionType) {
+  >(actionType: ActionType): void {
     if (!this.#isInCurrentNamespace(actionType)) {
       throw new Error(
         `Only allowed unregistering action handlers prefixed by '${
@@ -381,7 +384,7 @@ export class Messenger<
 
   #unregisterActionHandler<ActionType extends Action['type']>(
     actionType: ActionType,
-  ) {
+  ): void {
     this.#actions.delete(actionType);
   }
 
@@ -390,7 +393,7 @@ export class Messenger<
    *
    * This prevents all actions from being called.
    */
-  clearActions() {
+  clearActions(): void {
     for (const actionType of this.#actions.keys()) {
       this.#unregisterActionHandler(actionType);
     }
@@ -445,7 +448,7 @@ export class Messenger<
   }: {
     eventType: EventType;
     getPayload: () => ExtractEventPayload<Event, EventType>;
-  }) {
+  }): void {
     if (!this.#isInCurrentNamespace(eventType)) {
       throw new Error(
         `Only allowed registering initial payloads for events prefixed by '${
@@ -470,7 +473,7 @@ export class Messenger<
   }: {
     eventType: EventType;
     getPayload: () => ExtractEventPayload<Event, EventType>;
-  }) {
+  }): void {
     this.#initialEventPayloadGetters.set(eventType, getPayload);
     const delegationTargets =
       this.#subscriptionDelegationTargets.get(eventType);
@@ -503,7 +506,7 @@ export class Messenger<
   publish<EventType extends Event['type'] & NamespacedName<Namespace>>(
     eventType: EventType & NamespacedName<Namespace>,
     ...payload: ExtractEventPayload<Event, EventType>
-  ) {
+  ): void {
     if (!this.#isInCurrentNamespace(eventType)) {
       throw new Error(
         `Only allowed publishing events prefixed by '${this.#namespace}:'`,
@@ -523,7 +526,7 @@ export class Messenger<
   #publish<EventType extends Event['type']>(
     eventType: EventType,
     ...payload: ExtractEventPayload<Event, EventType>
-  ) {
+  ): void {
     const subscribers = this.#events.get(eventType);
 
     if (subscribers) {
@@ -665,7 +668,7 @@ export class Messenger<
     handler:
       | ExtractEventHandler<Event, EventType>
       | SelectorEventHandler<SelectorReturnValue>,
-  ) {
+  ): void {
     const subscribers = this.#events.get(eventType);
 
     // Widen type of event handler by dropping ReturnType parameter.
@@ -704,7 +707,7 @@ export class Messenger<
    */
   clearEventSubscriptions<EventType extends Event['type']>(
     eventType: EventType,
-  ) {
+  ): void {
     const subscriptions = this.#events.get(eventType);
     if (!subscriptions) {
       return;
@@ -728,7 +731,7 @@ export class Messenger<
    * This will remove all subscribed handlers for all events registered from this messenger. Events
    * may still have subscribers if they are delegated to another messenger.
    */
-  clearSubscriptions() {
+  clearSubscriptions(): void {
     for (const eventType of this.#events.keys()) {
       this.clearEventSubscriptions(eventType);
     }
@@ -765,14 +768,17 @@ export class Messenger<
     actions?: DelegatedActions;
     events?: DelegatedEvents;
     messenger: Delegatee;
-  }) {
-    for (const actionType of actions || []) {
+  }): void {
+    for (const actionType of actions ?? []) {
       const delegatedActionHandler = (
         ...args: ExtractActionParameters<
           MessengerActions<Delegatee> & Action,
           typeof actionType
         >
-      ) => {
+      ): ExtractActionResponse<
+        MessengerActions<Delegatee> & Action,
+        typeof actionType
+      > => {
         // Cast to get more specific type, for this specific action
         // The types get collapsed by `this.#actions`
         const actionHandler = this.#actions.get(actionType) as
@@ -805,13 +811,13 @@ export class Messenger<
         delegatedActionHandler,
       );
     }
-    for (const eventType of events || []) {
+    for (const eventType of events ?? []) {
       const untypedSubscriber = (
         ...payload: ExtractEventPayload<
           MessengerEvents<Delegatee> & Event,
           typeof eventType
         >
-      ) => {
+      ): void => {
         messenger._internalPublishDelegated(eventType, ...payload);
       };
       // Cast to get more specific subscriber type for this specific event.
@@ -875,11 +881,11 @@ export class Messenger<
     actions?: DelegatedActions;
     events?: DelegatedEvents;
     messenger: Delegatee;
-  }) {
+  }): void {
     if (messenger === this.#parent) {
       throw new Error('Cannot revoke from parent');
     }
-    for (const actionType of actions || []) {
+    for (const actionType of actions ?? []) {
       const delegationTargets = this.#actionDelegationTargets.get(actionType);
       if (!delegationTargets?.has(messenger)) {
         // Nothing to revoke
@@ -891,7 +897,7 @@ export class Messenger<
         this.#actionDelegationTargets.delete(actionType);
       }
     }
-    for (const eventType of events || []) {
+    for (const eventType of events ?? []) {
       const delegationTargets =
         this.#subscriptionDelegationTargets.get(eventType);
       if (!delegationTargets) {
@@ -933,7 +939,7 @@ export class Messenger<
     // contravariant over the handler parameter type. Using `Action` would lead to a type error
     // here because the messenger we've delegated to supports _additional_ actions.
     handler: ActionHandler<ActionConstraint, ActionType>,
-  ) {
+  ): void {
     this.#registerActionHandler(actionType, handler);
   }
 
@@ -952,7 +958,7 @@ export class Messenger<
    */
   _internalUnregisterDelegatedActionHandler<ActionType extends Action['type']>(
     actionType: ActionType,
-  ) {
+  ): void {
     this.#unregisterActionHandler(actionType);
   }
 
@@ -981,7 +987,7 @@ export class Messenger<
   }: {
     eventType: EventType;
     getPayload: () => ExtractEventPayload<Event, EventType>;
-  }) {
+  }): void {
     this.#registerInitialEventPayload({ eventType, getPayload });
   }
 
@@ -1006,7 +1012,7 @@ export class Messenger<
   _internalPublishDelegated<EventType extends Event['type']>(
     eventType: EventType,
     ...payload: ExtractEventPayload<Event, EventType>
-  ) {
+  ): void {
     this.#publish(eventType, ...payload);
   }
 
