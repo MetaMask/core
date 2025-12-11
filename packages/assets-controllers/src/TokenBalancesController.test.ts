@@ -5933,29 +5933,55 @@ describe('TokenBalancesController', () => {
     });
 
     it('should handle immediate polling errors gracefully', async () => {
-      // This test verifies lines 569-572
+      // This test verifies that errors in updateBalances are caught by the polling error handler
       const consoleWarnSpy = jest
         .spyOn(console, 'warn')
         .mockImplementation(() => undefined);
+
+      const selectedAccount = createMockInternalAccount({
+        address: '0x0000000000000000000000000000000000000001',
+      });
 
       const { controller, messenger } = setupController({
         config: {
           accountsApiChainIds: () => [],
         },
+        listAccounts: [selectedAccount],
+        tokens: {
+          allTokens: {
+            '0x1': {
+              [selectedAccount.address]: [
+                {
+                  address: '0xA0b86991c6218b36c1d19D4a2e9Eb0cE3606eB48',
+                  symbol: 'USDC',
+                  decimals: 6,
+                },
+              ],
+            },
+          },
+          allDetectedTokens: {},
+          allIgnoredTokens: {},
+        },
       });
 
-      // Unregister handler to cause an error
-      messenger.unregisterActionHandler('NetworkController:getState');
-      messenger.registerActionHandler('NetworkController:getState', () => {
-        throw new Error('Network error');
-      });
+      // Unregister handler and re-register to cause an error in updateBalances
+      // Breaking AccountsController:getSelectedAccount causes error before #fetchAllBalances
+      messenger.unregisterActionHandler(
+        'AccountsController:getSelectedAccount',
+      );
+      messenger.registerActionHandler(
+        'AccountsController:getSelectedAccount',
+        () => {
+          throw new Error('Account error');
+        },
+      );
 
       controller.startPolling({ chainIds: ['0x1'] });
 
       await clock.tickAsync(100);
 
       expect(consoleWarnSpy).toHaveBeenCalledWith(
-        expect.stringContaining('failed'),
+        expect.stringContaining('Polling failed'),
         expect.anything(),
       );
 
@@ -5963,15 +5989,35 @@ describe('TokenBalancesController', () => {
     });
 
     it('should handle interval polling errors gracefully', async () => {
-      // This test verifies lines 591-594
+      // This test verifies that errors in interval polling are caught and logged
       const consoleWarnSpy = jest
         .spyOn(console, 'warn')
         .mockImplementation(() => undefined);
+
+      const selectedAccount = createMockInternalAccount({
+        address: '0x0000000000000000000000000000000000000001',
+      });
 
       const { controller, messenger } = setupController({
         config: {
           accountsApiChainIds: () => [],
           interval: 1000,
+        },
+        listAccounts: [selectedAccount],
+        tokens: {
+          allTokens: {
+            '0x1': {
+              [selectedAccount.address]: [
+                {
+                  address: '0xA0b86991c6218b36c1d19D4a2e9Eb0cE3606eB48',
+                  symbol: 'USDC',
+                  decimals: 6,
+                },
+              ],
+            },
+          },
+          allDetectedTokens: {},
+          allIgnoredTokens: {},
         },
       });
 
@@ -5979,16 +6025,25 @@ describe('TokenBalancesController', () => {
 
       await clock.tickAsync(100);
 
-      // Now break the handler
-      messenger.unregisterActionHandler('NetworkController:getState');
-      messenger.registerActionHandler('NetworkController:getState', () => {
-        throw new Error('Network error');
-      });
+      // Now break the handler to cause errors on subsequent polls
+      // Breaking AccountsController:getSelectedAccount causes error before #fetchAllBalances
+      messenger.unregisterActionHandler(
+        'AccountsController:getSelectedAccount',
+      );
+      messenger.registerActionHandler(
+        'AccountsController:getSelectedAccount',
+        () => {
+          throw new Error('Account error');
+        },
+      );
 
       // Wait for interval polling to trigger
       await clock.tickAsync(1500);
 
-      expect(consoleWarnSpy).toHaveBeenCalled();
+      expect(consoleWarnSpy).toHaveBeenCalledWith(
+        expect.stringContaining('Polling failed'),
+        expect.anything(),
+      );
 
       consoleWarnSpy.mockRestore();
     });
