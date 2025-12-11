@@ -259,9 +259,6 @@ type StakedBalanceUpdate = {
   chainId: Hex;
   stakedBalance: Hex;
 };
-
-// ────────────────────────────────────────────────────────────────────────────
-// Main controller
 export class TokenBalancesController extends StaticIntervalPollingController<{
   chainIds: ChainIdHex[];
 }>()<
@@ -365,9 +362,6 @@ export class TokenBalancesController extends StaticIntervalPollingController<{
     this.#registerActions();
   }
 
-  // ────────────────────────────────────────────────────────────────────────
-  // Init helpers
-
   #subscribeToControllers(): void {
     this.messenger.subscribe(
       'TokensController:stateChange',
@@ -449,9 +443,6 @@ export class TokenBalancesController extends StaticIntervalPollingController<{
       this.getChainPollingConfig.bind(this),
     );
   }
-
-  // ────────────────────────────────────────────────────────────────────────
-  // Address + network helpers
 
   /**
    * Whether the controller is active (keyring is unlocked).
@@ -552,9 +543,6 @@ export class TokenBalancesController extends StaticIntervalPollingController<{
       fetch: originalFetcher.fetch.bind(originalFetcher),
     };
   };
-
-  // ────────────────────────────────────────────────────────────────────────
-  // Polling overrides
 
   override _startPolling({ chainIds }: { chainIds: ChainIdHex[] }): void {
     this.#requestedChainIds = [...chainIds];
@@ -691,9 +679,6 @@ export class TokenBalancesController extends StaticIntervalPollingController<{
       );
     }
   }
-
-  // ────────────────────────────────────────────────────────────────────────
-  // Balances update (main flow, refactored)
 
   async updateBalances({
     chainIds,
@@ -1105,9 +1090,6 @@ export class TokenBalancesController extends StaticIntervalPollingController<{
     this.update(() => ({ tokenBalances: {} }));
   }
 
-  // ────────────────────────────────────────────────────────────────────────
-  // Token tracking helpers
-
   #isTokenTracked(
     tokenAddress: string,
     account: ChecksumAddress,
@@ -1133,9 +1115,6 @@ export class TokenBalancesController extends StaticIntervalPollingController<{
 
     return false;
   }
-
-  // ────────────────────────────────────────────────────────────────────────
-  // TokensController / Network / Accounts events
 
   readonly #onTokensChanged = async (
     state: TokensControllerState,
@@ -1275,9 +1254,6 @@ export class TokenBalancesController extends StaticIntervalPollingController<{
       // Silently handle polling errors
     });
   };
-
-  // ────────────────────────────────────────────────────────────────────────
-  // AccountActivityService integration
 
   #prepareBalanceUpdates(
     updates: BalanceUpdate[],
@@ -1450,9 +1426,6 @@ export class TokenBalancesController extends StaticIntervalPollingController<{
       this.updateChainPollingConfigs(chainConfigs, { immediateUpdate: true });
     }, jitterDelay);
   }
-
-  // ────────────────────────────────────────────────────────────────────────
-  // Destroy
 
   override destroy(): void {
     this.#isControllerPollingActive = false;
