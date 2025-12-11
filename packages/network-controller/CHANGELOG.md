@@ -7,6 +7,13 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+### Uncategorized
+
+- revert: "chore: change `Monad Testnet` to infura network (#7067)" ([#7067](https://github.com/MetaMask/core/pull/7067))
+- chore: Update ESLint config packages to v15 ([#7305](https://github.com/MetaMask/core/pull/7305))
+- network-controller: Mention addition of degraded status in changelog ([#7293](https://github.com/MetaMask/core/pull/7293))
+- chore: change `Monad Testnet` to infura network ([#7067](https://github.com/MetaMask/core/pull/7067))
+
 ### Added
 
 - Add MegaETH Testnet "v2" as a default custom network ([#7272](https://github.com/MetaMask/core/pull/7272))
