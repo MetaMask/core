@@ -159,7 +159,7 @@ export function createNetworkClient({
     }),
   });
 
-  const destroy = () => {
+  const destroy = (): void => {
     // TODO: Either fix this lint violation or explain why it's necessary to ignore.
     // eslint-disable-next-line @typescript-eslint/no-floating-promises
     blockTracker.destroy();
@@ -206,7 +206,7 @@ function createRpcServiceChain({
   messenger: NetworkControllerMessenger;
   isRpcFailoverEnabled: boolean;
   logger?: Logger;
-}) {
+}): RpcServiceChain {
   const availableEndpointUrls: [string, ...string[]] = isRpcFailoverEnabled
     ? [primaryEndpointUrl, ...(configuration.failoverRpcUrls ?? [])]
     : [primaryEndpointUrl];
@@ -235,7 +235,7 @@ function createRpcServiceChain({
    */
   const getError = (
     value: CockatielFailureReason<unknown> | Record<never, never>,
-  ) => {
+  ): Error | unknown | undefined => {
     if ('error' in value) {
       return value.error;
     } else if ('value' in value) {
@@ -365,8 +365,10 @@ function createBlockTracker({
     rpcEndpointUrl: string,
   ) => Omit<PollingBlockTrackerOptions, 'provider'>;
   provider: InternalProvider;
-}) {
+}): PollingBlockTracker {
   const testOptions =
+    // Needed for testing.
+    // eslint-disable-next-line no-restricted-globals
     process.env.IN_TEST && networkClientType === NetworkClientType.Custom
       ? { pollingInterval: SECOND }
       : {};
@@ -398,7 +400,11 @@ function createInfuraNetworkMiddleware({
   network: InfuraNetworkType;
   rpcProvider: InternalProvider;
   rpcApiMiddleware: RpcApiMiddleware;
-}) {
+}): JsonRpcMiddleware<
+  JsonRpcRequest,
+  Json,
+  MiddlewareContext<{ origin: string; skipCache: boolean }>
+> {
   return JsonRpcEngineV2.create({
     middleware: [
       createNetworkAndChainIdMiddleware({ network }),
@@ -423,7 +429,7 @@ function createNetworkAndChainIdMiddleware({
   network,
 }: {
   network: InfuraNetworkType;
-}) {
+}): JsonRpcMiddleware<JsonRpcRequest> {
   return createScaffoldMiddleware({
     eth_chainId: ChainId[network],
   });
@@ -457,7 +463,13 @@ function createCustomNetworkMiddleware({
   blockTracker: PollingBlockTracker;
   chainId: Hex;
   rpcApiMiddleware: RpcApiMiddleware;
-}) {
+}): JsonRpcMiddleware<
+  JsonRpcRequest,
+  Json,
+  MiddlewareContext<{ origin: string; skipCache: boolean }>
+> {
+  // Needed for testing.
+  // eslint-disable-next-line no-restricted-globals
   const testMiddlewares = process.env.IN_TEST
     ? [createEstimateGasDelayTestMiddleware()]
     : [];

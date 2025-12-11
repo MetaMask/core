@@ -446,7 +446,7 @@ describe('RpcService', () => {
       testsForNonRetriableErrors({
         createService: ({ endpointUrl, expectedError }) => {
           return new RpcService({
-            fetch: () => {
+            fetch: (): never => {
               // This error could be anything.
               // eslint-disable-next-line @typescript-eslint/only-throw-error
               throw expectedError;
@@ -1027,9 +1027,9 @@ describe('RpcService', () => {
  * @param promiseOrFn - A promise that rejects, or a function that returns a
  * promise that rejects.
  */
-async function ignoreRejection<T>(
-  promiseOrFn: Promise<T> | (() => T | Promise<T>),
-) {
+async function ignoreRejection<Type>(
+  promiseOrFn: Promise<Type> | (() => Type | Promise<Type>),
+): Promise<void> {
   await expect(promiseOrFn).rejects.toThrow(expect.any(Error));
 }
 
@@ -1048,10 +1048,10 @@ async function ignoreRejection<T>(
  * method is expected to produce.
  */
 function testsForNonRetriableErrors({
-  beforeCreateService = () => {
+  beforeCreateService = (): void => {
     // do nothing
   },
-  createService = (args) => {
+  createService = (args): RpcService => {
     return new RpcService({ fetch, btoa, endpointUrl: args.endpointUrl });
   },
   endpointUrl = 'https://rpc.example.chain',
@@ -1069,7 +1069,7 @@ function testsForNonRetriableErrors({
   endpointUrl?: string;
   rpcMethod?: string;
   expectedError: string | RegExp | Error | jest.Constructable | undefined;
-}) {
+}): void {
   /* eslint-disable jest/require-top-level-describe */
 
   it('re-throws the error without retrying the request', async () => {
@@ -1176,7 +1176,7 @@ function testsForRetriableFetchErrors({
   getClock: () => SinonFakeTimers;
   producedError: Error;
   expectedError: string | jest.Constructable | RegExp | Error;
-}) {
+}): void {
   // This function is designed to be used inside of a describe, so this won't be
   // a problem in practice.
   /* eslint-disable jest/require-top-level-describe */
@@ -1387,6 +1387,8 @@ function testsForRetriableFetchErrors({
     const mockFetch = jest.fn(async () => {
       invocationIndex += 1;
       if (invocationIndex === DEFAULT_MAX_RETRIES + 1) {
+        // Only used for testing.
+        // eslint-disable-next-line no-restricted-globals
         return new Response(
           JSON.stringify({
             id: 1,
@@ -1451,7 +1453,7 @@ function testsForRetriableResponses({
   responseBody?: string;
   expectedError: string | jest.Constructable | RegExp | Error;
   expectedOnBreakError?: string | jest.Constructable | RegExp | Error;
-}) {
+}): void {
   // This function is designed to be used inside of a describe, so this won't be
   // a problem in practice.
   /* eslint-disable jest/require-top-level-describe,jest/no-identical-title */
