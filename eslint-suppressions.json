@@ -386,62 +386,6 @@
       "count": 2
     }
   },
-  "packages/assets-controllers/src/TokenBalancesController.test.ts": {
-    "@typescript-eslint/explicit-function-return-type": {
-      "count": 2
-    },
-    "camelcase": {
-      "count": 1
-    },
-    "jest/unbound-method": {
-      "count": 1
-    },
-    "require-atomic-updates": {
-      "count": 1
-    }
-  },
-  "packages/assets-controllers/src/TokenBalancesController.ts": {
-    "@typescript-eslint/explicit-function-return-type": {
-      "count": 19
-    },
-    "@typescript-eslint/naming-convention": {
-      "count": 1
-    },
-    "@typescript-eslint/no-misused-promises": {
-      "count": 1
-    },
-    "@typescript-eslint/prefer-nullish-coalescing": {
-      "count": 2
-    },
-    "id-denylist": {
-      "count": 6
-    },
-    "id-length": {
-      "count": 7
-    }
-  },
-  "packages/assets-controllers/src/TokenDetectionController.test.ts": {
-    "@typescript-eslint/explicit-function-return-type": {
-      "count": 5
-    },
-    "id-length": {
-      "count": 1
-    }
-  },
-  "packages/assets-controllers/src/TokenDetectionController.ts": {
-    "@typescript-eslint/explicit-function-return-type": {
-      "count": 12
-    },
-    "@typescript-eslint/naming-convention": {
-      "count": 4
-    },
-    "@typescript-eslint/no-misused-promises": {
-      "count": 5
-    },
-    "@typescript-eslint/prefer-nullish-coalescing": {
-      "count": 1
-    }
-  },
   "packages/assets-controllers/src/TokenListController.test.ts": {
     "@typescript-eslint/explicit-function-return-type": {
       "count": 2
