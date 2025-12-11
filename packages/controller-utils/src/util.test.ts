@@ -1,11 +1,26 @@
 import EthQuery from '@metamask/eth-query';
-import BigNumber from 'bignumber.js';
+import { assert, JsonRpcParams } from '@metamask/utils';
+import { BigNumber } from 'bignumber.js';
 import BN from 'bn.js';
 import nock from 'nock';
 
 import { MAX_SAFE_CHAIN_ID } from './constants';
 import * as util from './util';
 import { FakeProvider } from '../../../tests/fake-provider';
+
+type EverythingButNull =
+  | string
+  | number
+  | boolean
+  | object
+  | symbol
+  | undefined;
+
+type SendAsyncCallback<Result> = (
+  ...args:
+    | [error: EverythingButNull, result: undefined]
+    | [error: null, result: Result]
+) => void;
 
 const VALID = '4e1fF7229BDdAf0A73DF183a88d9c3a04cc975e0';
 const SOME_API = 'https://someapi.com';
@@ -277,7 +292,9 @@ describe('util', () => {
 
     it('should resolve', async () => {
       const response = await util.safelyExecuteWithTimeout(() => {
-        return new Promise((res) => setTimeout(() => res('response'), 200));
+        return new Promise((resolve) =>
+          setTimeout(() => resolve('response'), 200),
+        );
       });
       expect(response).toBe('response');
     });
@@ -285,7 +302,7 @@ describe('util', () => {
     it('should timeout', async () => {
       expect(
         await util.safelyExecuteWithTimeout(() => {
-          return new Promise((res) => setTimeout(res, 800));
+          return new Promise((resolve) => setTimeout(resolve, 800));
         }),
       ).toBeUndefined();
     });
@@ -627,10 +644,11 @@ describe('util', () => {
     describe('when the given method exists directly on the EthQuery', () => {
       it('should call the method on the EthQuery and, if it is successful, return a promise that resolves to the result', async () => {
         class MockEthQuery extends EthQuery {
-          // TODO: Replace `any` with type
-          // eslint-disable-next-line @typescript-eslint/no-explicit-any
-          getBlockByHash(blockId: any, cb: any) {
-            cb(null, { id: blockId });
+          getBlockByHash(
+            blockId: unknown,
+            callback: (error: Error | null, value: unknown) => void,
+          ): void {
+            callback(null, { id: blockId });
           }
         }
         const result = await util.query(
@@ -643,10 +661,11 @@ describe('util', () => {
 
       it('should call the method on the EthQuery and, if it errors, return a promise that is rejected with the error', async () => {
         class MockEthQuery extends EthQuery {
-          // TODO: Replace `any` with type
-          // eslint-disable-next-line @typescript-eslint/no-explicit-any
-          getBlockByHash(_blockId: any, cb: any) {
-            cb(new Error('uh oh'), null);
+          getBlockByHash(
+            _blockId: unknown,
+            callback: (error: Error | null, value: unknown) => void,
+          ): void {
+            callback(new Error('uh oh'), null);
           }
         }
         await expect(
@@ -660,11 +679,13 @@ describe('util', () => {
     describe('when the given method does not exist directly on the EthQuery', () => {
       it('should use sendAsync to call the RPC endpoint and, if it is successful, return a promise that resolves to the result', async () => {
         class MockEthQuery extends EthQuery {
-          // TODO: Replace `any` with type
-          // eslint-disable-next-line @typescript-eslint/no-explicit-any
-          sendAsync({ method, params }: any, cb: any) {
+          sendAsync<Result>(
+            { method, params }: { method?: string; params?: JsonRpcParams },
+            callback: SendAsyncCallback<Result>,
+          ): void {
             if (method === 'eth_getBlockByHash') {
-              return cb(null, { id: params[0] });
+              assert(Array.isArray(params));
+              return callback(null, { id: params[0] } as Result);
             }
             throw new Error(`Unsupported method ${method}`);
           }
@@ -679,10 +700,11 @@ describe('util', () => {
 
       it('should use sendAsync to call the RPC endpoint and, if it errors, return a promise that is rejected with the error', async () => {
         class MockEthQuery extends EthQuery {
-          // TODO: Replace `any` with type
-          // eslint-disable-next-line @typescript-eslint/no-explicit-any
-          sendAsync(_args: any, cb: any) {
-            cb(new Error('uh oh'), null);
+          sendAsync<Result>(
+            _args: unknown,
+            callback: SendAsyncCallback<Result>,
+          ): void {
+            callback(new Error('uh oh'), undefined);
           }
         }
         await expect(
@@ -732,7 +754,7 @@ describe('util', () => {
 
     it('returns true for objects', () => {
       expect(util.isPlainObject({ foo: 'bar' })).toBe(true);
-      expect(util.isPlainObject({ foo: 'bar', test: { num: 5 } })).toBe(true);
+      expect(util.isPlainObject({ foo: 'bar', test: { value: 5 } })).toBe(true);
     });
   });
 
@@ -760,7 +782,7 @@ describe('util', () => {
     });
 
     it('returns true for valid JSON', () => {
-      expect(util.isValidJson({ foo: 'bar', test: { num: 5 } })).toBe(true);
+      expect(util.isValidJson({ foo: 'bar', test: { value: 5 } })).toBe(true);
     });
   });
 });
