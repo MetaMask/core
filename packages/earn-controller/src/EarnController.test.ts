@@ -2603,7 +2603,9 @@ describe('EarnController', () => {
         });
 
         expect(mockApyFetcher).toHaveBeenCalledTimes(1);
-        expect(controller.state.non_evm_staking['tron:0x2b6653dc']).toStrictEqual(
+        expect(
+          controller.state.non_evm_staking['tron:0x2b6653dc'],
+        ).toStrictEqual(
           expect.objectContaining({
             apy: '3.35',
             lastUpdated: expect.any(Number),

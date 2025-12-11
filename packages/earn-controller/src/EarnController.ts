@@ -161,8 +161,10 @@ const earnControllerMetadata: StateMetadata<EarnControllerState> = {
 
 // === State Types ===
 export type EarnControllerState = {
+  // eslint-disable-next-line @typescript-eslint/naming-convention
   pooled_staking: PooledStakingState;
   lending: LendingState;
+  // eslint-disable-next-line @typescript-eslint/naming-convention
   non_evm_staking: NonEvmStakingState;
   lastUpdated: number;
 };

@@ -455,9 +455,8 @@ describe('Earn Controller Selectors', () => {
 
     describe('selectNonEvmStakingForChainId', () => {
       it('should return staking state for a specific chain', () => {
-        const result = selectNonEvmStakingForChainId('tron:0x2b6653dc')(
-          mockState,
-        );
+        const result =
+          selectNonEvmStakingForChainId('tron:0x2b6653dc')(mockState);
         expect(result).toStrictEqual({
           apy: '3.35',
           lastUpdated: 1718000000000,
@@ -465,9 +464,8 @@ describe('Earn Controller Selectors', () => {
       });
 
       it('should return staking state for another chain', () => {
-        const result = selectNonEvmStakingForChainId('solana:mainnet')(
-          mockState,
-        );
+        const result =
+          selectNonEvmStakingForChainId('solana:mainnet')(mockState);
         expect(result).toStrictEqual({
           apy: '7.5',
           lastUpdated: 1718100000000,
@@ -475,32 +473,28 @@ describe('Earn Controller Selectors', () => {
       });
 
       it('should return undefined for non-existent chain', () => {
-        const result = selectNonEvmStakingForChainId('unknown:chain')(
-          mockState,
-        );
+        const result =
+          selectNonEvmStakingForChainId('unknown:chain')(mockState);
         expect(result).toBeUndefined();
       });
     });
 
     describe('selectNonEvmStakingApyForChainId', () => {
       it('should return APY for a specific chain', () => {
-        const result = selectNonEvmStakingApyForChainId('tron:0x2b6653dc')(
-          mockState,
-        );
+        const result =
+          selectNonEvmStakingApyForChainId('tron:0x2b6653dc')(mockState);
         expect(result).toBe('3.35');
       });
 
       it('should return APY for another chain', () => {
-        const result = selectNonEvmStakingApyForChainId('solana:mainnet')(
-          mockState,
-        );
+        const result =
+          selectNonEvmStakingApyForChainId('solana:mainnet')(mockState);
         expect(result).toBe('7.5');
       });
 
       it('should return undefined for non-existent chain', () => {
-        const result = selectNonEvmStakingApyForChainId('unknown:chain')(
-          mockState,
-        );
+        const result =
+          selectNonEvmStakingApyForChainId('unknown:chain')(mockState);
         expect(result).toBeUndefined();
       });
     });
