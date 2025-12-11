@@ -108,29 +108,6 @@
       "count": 1
     }
   },
-  "packages/accounts-controller/src/AccountsController.test.ts": {
-    "@typescript-eslint/explicit-function-return-type": {
-      "count": 15
-    },
-    "import-x/namespace": {
-      "count": 1
-    }
-  },
-  "packages/accounts-controller/src/AccountsController.ts": {
-    "@typescript-eslint/explicit-function-return-type": {
-      "count": 10
-    }
-  },
-  "packages/accounts-controller/src/tests/mocks.ts": {
-    "@typescript-eslint/explicit-function-return-type": {
-      "count": 2
-    }
-  },
-  "packages/accounts-controller/src/utils.test.ts": {
-    "@typescript-eslint/explicit-function-return-type": {
-      "count": 3
-    }
-  },
   "packages/address-book-controller/src/AddressBookController.test.ts": {
     "@typescript-eslint/explicit-function-return-type": {
       "count": 1
