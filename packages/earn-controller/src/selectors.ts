@@ -210,3 +210,38 @@ export const selectLendingMarketsByChainIdAndTokenAddress = createSelector(
 
 export const selectIsLendingEligible = (state: EarnControllerState) =>
   state.lending.isEligible;
+
+// Non-EVM Staking Selectors
+
+/**
+ * Selects the entire non-EVM staking state.
+ *
+ * @param state - The EarnController state.
+ * @returns The non-EVM staking state.
+ */
+export const selectNonEvmStaking = (state: EarnControllerState) =>
+  state.non_evm_staking;
+
+/**
+ * Selects the non-EVM staking state for a specific chain.
+ *
+ * @param chainId - The chain identifier.
+ * @returns A selector that returns the chain-specific staking state.
+ */
+export const selectNonEvmStakingForChainId = (chainId: string) =>
+  createSelector(
+    selectNonEvmStaking,
+    (nonEvmStaking) => nonEvmStaking[chainId],
+  );
+
+/**
+ * Selects the APY for a specific non-EVM staking chain.
+ *
+ * @param chainId - The chain identifier.
+ * @returns A selector that returns the APY for the specified chain.
+ */
+export const selectNonEvmStakingApyForChainId = (chainId: string) =>
+  createSelector(
+    selectNonEvmStakingForChainId(chainId),
+    (chainState) => chainState?.apy,
+  );
