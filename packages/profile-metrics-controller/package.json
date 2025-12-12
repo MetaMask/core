@@ -1,6 +1,6 @@
 {
   "name": "@metamask/profile-metrics-controller",
-  "version": "1.0.0",
+  "version": "1.1.0",
   "description": "Sample package to illustrate best practices for controllers",
   "keywords": [
     "MetaMask",

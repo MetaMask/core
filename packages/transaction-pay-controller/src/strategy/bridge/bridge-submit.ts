@@ -109,10 +109,7 @@ async function submitBridgeTransaction(
           note: 'Add required transaction ID',
         },
         (transactionMeta) => {
-          if (!transactionMeta.requiredTransactionIds) {
-            transactionMeta.requiredTransactionIds = [];
-          }
-
+          transactionMeta.requiredTransactionIds ??= [];
           transactionMeta?.requiredTransactionIds.push(id);
           requiredTransactionIds.push(id);
         },
@@ -181,7 +178,7 @@ async function waitForBridgeCompletion(
   messenger: TransactionPayControllerMessenger,
 ): Promise<void> {
   return new Promise((resolve, reject) => {
-    const isComplete = (item?: BridgeHistoryItem, fn?: () => void) => {
+    const isComplete = (item?: BridgeHistoryItem, fn?: () => void): boolean => {
       const status = item?.status?.status;
 
       log('Checking bridge status', status ?? 'missing');
@@ -209,8 +206,8 @@ async function waitForBridgeCompletion(
       return;
     }
 
-    const handler = (bridgeHistory?: BridgeHistoryItem) => {
-      const unsubscribe = () =>
+    const handler = (bridgeHistory?: BridgeHistoryItem): void => {
+      const unsubscribe = (): void =>
         messenger.unsubscribe('BridgeStatusController:stateChange', handler);
 
       isComplete(bridgeHistory, unsubscribe);

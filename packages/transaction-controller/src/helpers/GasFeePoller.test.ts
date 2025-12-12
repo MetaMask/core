@@ -1,3 +1,4 @@
+/* eslint-disable no-new */
 import EthQuery from '@metamask/eth-query';
 import type { Provider } from '@metamask/network-controller';
 import type { Hex } from '@metamask/utils';
@@ -161,10 +162,10 @@ describe('GasFeePoller', () => {
       getTransactionBatches: getTransactionBatchesMock,
       layer1GasFeeFlows: layer1GasFeeFlowsMock,
       messenger: messengerMock,
-      onStateChange: (listener: () => void) => {
+      onStateChange: (listener: () => void): void => {
         triggerOnStateChange = listener;
       },
-      getProvider: () => ({}) as Provider,
+      getProvider: (): jest.Mocked<Provider> => ({}) as jest.Mocked<Provider>,
     };
   });
 

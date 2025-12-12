@@ -210,7 +210,7 @@ export class SamplePetnamesController extends BaseController<
    * @param address - The account address to name.
    * @param name - The name to assign to the address.
    */
-  assignPetname(chainId: Hex, address: Hex, name: string) {
+  assignPetname(chainId: Hex, address: Hex, name: string): void {
     if (!isSafeDynamicKey(chainId)) {
       throw new Error('Invalid chain ID');
     }

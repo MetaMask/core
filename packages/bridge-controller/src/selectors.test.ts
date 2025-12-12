@@ -208,11 +208,11 @@ describe('Bridge Selectors', () => {
         estimatedBaseFee: '50',
         medium: {
           suggestedMaxPriorityFeePerGas: '75',
-          suggestedMaxFeePerGas: '1',
+          suggestedMaxFeePerGas: '77',
         },
         high: {
           suggestedMaxPriorityFeePerGas: '100',
-          suggestedMaxFeePerGas: '2',
+          suggestedMaxFeePerGas: '102',
         },
       },
     } as unknown as BridgeAppState;
@@ -395,7 +395,7 @@ describe('Bridge Selectors', () => {
         },
         high: {
           suggestedMaxPriorityFeePerGas: '.1',
-          suggestedMaxFeePerGas: '.1',
+          suggestedMaxFeePerGas: '.2',
         },
       },
     } as unknown as BridgeAppState;

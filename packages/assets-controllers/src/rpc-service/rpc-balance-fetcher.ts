@@ -191,9 +191,6 @@ export class RpcBalanceFetcher implements BalanceFetcher {
     chainResultsArray.forEach((chainResult) => {
       if (chainResult.status === 'fulfilled') {
         results.push(...chainResult.value);
-      } else {
-        // Log error but continue with other chains
-        console.warn('Chain processing failed:', chainResult.reason);
       }
     });
 

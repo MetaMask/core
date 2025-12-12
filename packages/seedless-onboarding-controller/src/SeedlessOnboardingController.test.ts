@@ -154,7 +154,10 @@ type WithControllerArgs<ReturnValue, EKey, SupportedKeyDerivationParams> =
  *
  * @returns The default vault encryptor for the Seedless Onboarding Controller.
  */
-function getDefaultSeedlessOnboardingVaultEncryptor() {
+function getDefaultSeedlessOnboardingVaultEncryptor(): VaultEncryptor<
+  EncryptionKey | webcrypto.CryptoKey,
+  KeyDerivationOptions
+> {
   return {
     encrypt,
     encryptWithDetail,
@@ -176,7 +179,7 @@ function getDefaultSeedlessOnboardingVaultEncryptor() {
  *
  * @returns The mock encryptor.
  */
-function createMockVaultEncryptor() {
+function createMockVaultEncryptor(): MockVaultEncryptor {
   return new MockVaultEncryptor();
 }
 
@@ -196,7 +199,7 @@ async function withController<ReturnValue>(
     EncryptionKey | webcrypto.CryptoKey,
     KeyDerivationOptions
   >
-) {
+): Promise<ReturnValue> {
   const [{ ...rest }, fn] = args.length === 2 ? args : [{}, args[0]];
   const encryptor = new MockVaultEncryptor();
   const { messenger, baseMessenger, keyringControllerMessenger } =
@@ -215,6 +218,7 @@ async function withController<ReturnValue>(
 
   // In the withController function, before creating the controller:
   const originalFetchMetadataAccessCreds =
+    // eslint-disable-next-line jest/unbound-method -- testing mock
     SeedlessOnboardingController.prototype.fetchMetadataAccessCreds;
 
   jest
@@ -263,7 +267,7 @@ async function withController<ReturnValue>(
  *
  * @returns The mock ToprfEncryptor.
  */
-function createMockToprfEncryptor() {
+function createMockToprfEncryptor(): MockToprfEncryptorDecryptor {
   return new MockToprfEncryptorDecryptor();
 }
 
@@ -274,7 +278,7 @@ function createMockToprfEncryptor() {
  * @param params.exp - The expiration time of the node auth token.
  * @returns The mock node auth token.
  */
-function createMockNodeAuthToken(params: { exp: number }) {
+function createMockNodeAuthToken(params: { exp: number }): string {
   return btoa(JSON.stringify(params));
 }
 
@@ -286,7 +290,17 @@ function createMockNodeAuthToken(params: { exp: number }) {
  *
  * @returns The mock createLocalKey result.
  */
-function mockcreateLocalKey(toprfClient: ToprfSecureBackup, password: string) {
+function mockcreateLocalKey(
+  toprfClient: ToprfSecureBackup,
+  password: string,
+): {
+  encKey: Uint8Array;
+  pwEncKey: Uint8Array;
+  authKeyPair: KeyPair;
+  oprfKey: bigint;
+  seed: Uint8Array;
+  createLocalKeySpy: jest.SpyInstance;
+} {
   const mockToprfEncryptor = createMockToprfEncryptor();
 
   const encKey = mockToprfEncryptor.deriveEncKey(password);
@@ -441,7 +455,7 @@ async function mockChangePassword<EKey>(
   toprfClient: ToprfSecureBackup,
   oldPassword: string,
   newPassword: string,
-) {
+): Promise<void> {
   mockFetchAuthPubKey(
     toprfClient,
     base64ToBytes(controller.state.authPubKey as string),
@@ -472,7 +486,7 @@ async function mockCreateToprfKeyAndBackupSeedPhrase<
   password: string,
   seedPhrase: Uint8Array,
   keyringId: string,
-) {
+): Promise<void> {
   mockcreateLocalKey(toprfClient, password);
 
   jest.spyOn(controller, 'fetchMetadataAccessCreds').mockResolvedValueOnce({
@@ -506,10 +520,19 @@ async function createMockVault(
   encKey: Uint8Array,
   pwEncKey: Uint8Array,
   authKeyPair: KeyPair,
+  // eslint-disable-next-line @typescript-eslint/naming-convention
   MOCK_PASSWORD: string,
   mockRevokeToken: string = revokeToken,
   mockAccessToken: string = accessToken,
-) {
+): Promise<{
+  encryptedMockVault: string;
+  vaultEncryptionKey: string;
+  vaultEncryptionSalt: string;
+  revokeToken: string;
+  accessToken: string;
+  encryptedKeyringEncryptionKey: Uint8Array;
+  pwEncKey: Uint8Array;
+}> {
   const encryptor = createMockVaultEncryptor();
 
   const serializedKeyData = JSON.stringify({
@@ -550,7 +573,13 @@ async function createMockVault(
  *
  * @returns The decrypted vault.
  */
-async function decryptVault(vault: string, password: string) {
+async function decryptVault(
+  vault: string,
+  password: string,
+): Promise<{
+  toprfEncryptionKey: Uint8Array;
+  toprfAuthKeyPair: KeyPair;
+}> {
   const encryptor = createMockVaultEncryptor();
 
   const decryptedVault = await encryptor.decrypt(password, vault);
@@ -716,7 +745,10 @@ describe('SeedlessOnboardingController', () => {
       const MOCK_PASSWORD = 'mock-password';
 
       const keyDeriver = {
-        deriveKey: (seed: Uint8Array, salt: Uint8Array) => {
+        deriveKey: (
+          seed: Uint8Array,
+          salt: Uint8Array,
+        ): Promise<Uint8Array> => {
           deriveKeySpy(seed, salt);
           return Promise.resolve(new Uint8Array());
         },
@@ -793,6 +825,7 @@ describe('SeedlessOnboardingController', () => {
       const { messenger } = mockSeedlessOnboardingMessenger();
 
       expect(() => {
+        // eslint-disable-next-line no-new -- for testing
         new SeedlessOnboardingController({
           messenger,
           refreshJWTToken: mockRefreshJWTToken,
@@ -4289,8 +4322,8 @@ describe('SeedlessOnboardingController', () => {
                 withMockAuthenticatedUser: true,
                 withMockAuthPubKey: true,
               }),
-              nodeAuthTokens: MOCK_NODE_AUTH_TOKENS.map((v) => ({
-                ...v,
+              nodeAuthTokens: MOCK_NODE_AUTH_TOKENS.map((nodeAuthToken) => ({
+                ...nodeAuthToken,
                 authToken: createMockNodeAuthToken({
                   exp: Date.now() / 1000 - 1000,
                 }),
@@ -5159,7 +5192,7 @@ describe('SeedlessOnboardingController', () => {
   });
 
   describe('fetchMetadataAccessCreds', () => {
-    const createMockJWTToken = (exp: number) => {
+    const createMockJWTToken = (exp: number): string => {
       const payload = { exp };
       const encodedPayload = btoa(JSON.stringify(payload));
       return `header.${encodedPayload}.signature`;
@@ -5235,7 +5268,7 @@ describe('SeedlessOnboardingController', () => {
   });
 
   describe('checkMetadataAccessTokenExpired', () => {
-    const createMockJWTToken = (exp: number) => {
+    const createMockJWTToken = (exp: number): string => {
       const payload = { exp };
       const encodedPayload = btoa(JSON.stringify(payload));
       return `header.${encodedPayload}.signature`;
@@ -5319,7 +5352,7 @@ describe('SeedlessOnboardingController', () => {
   });
 
   describe('checkAccessTokenExpired', () => {
-    const createMockJWTToken = (exp: number) => {
+    const createMockJWTToken = (exp: number): string => {
       const payload = { exp };
       const encodedPayload = btoa(JSON.stringify(payload));
       return `header.${encodedPayload}.signature`;

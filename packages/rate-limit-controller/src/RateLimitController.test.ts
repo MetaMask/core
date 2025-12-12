@@ -88,6 +88,7 @@ describe('RateLimitController', () => {
     const messenger = getMessenger(rootMessenger);
 
     // Registers action handlers
+    // eslint-disable-next-line no-new
     new RateLimitController({
       implementations,
       messenger,

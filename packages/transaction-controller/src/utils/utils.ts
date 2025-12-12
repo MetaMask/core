@@ -46,7 +46,9 @@ const NORMALIZERS: { [param in keyof TransactionParams]: any } = {
  * @param txParams - The transaction params to normalize.
  * @returns Normalized transaction params.
  */
-export function normalizeTransactionParams(txParams: TransactionParams) {
+export function normalizeTransactionParams(
+  txParams: TransactionParams,
+): TransactionParams {
   const normalizedTxParams: TransactionParams = { from: '' };
 
   for (const key of getKnownPropertyNames(NORMALIZERS)) {
@@ -55,9 +57,7 @@ export function normalizeTransactionParams(txParams: TransactionParams) {
     }
   }
 
-  if (!normalizedTxParams.value) {
-    normalizedTxParams.value = '0x0';
-  }
+  normalizedTxParams.value ??= '0x0';
 
   if (normalizedTxParams.gasLimit && !normalizedTxParams.gas) {
     normalizedTxParams.gas = normalizedTxParams.gasLimit;
@@ -74,7 +74,7 @@ export function normalizeTransactionParams(txParams: TransactionParams) {
  * @returns Boolean that is true if the transaction is EIP-1559 (has maxFeePerGas and maxPriorityFeePerGas), otherwise returns false.
  */
 export function isEIP1559Transaction(txParams: TransactionParams): boolean {
-  const hasOwnProp = (obj: TransactionParams, key: string) =>
+  const hasOwnProp = (obj: TransactionParams, key: string): boolean =>
     Object.prototype.hasOwnProperty.call(obj, key);
   return (
     hasOwnProp(txParams, 'maxFeePerGas') &&
@@ -84,7 +84,7 @@ export function isEIP1559Transaction(txParams: TransactionParams): boolean {
 
 export const validateGasValues = (
   gasValues: GasPriceValue | FeeMarketEIP1559Values,
-) => {
+): void => {
   Object.keys(gasValues).forEach((key) => {
     // TODO: Replace `any` with type
     // eslint-disable-next-line @typescript-eslint/no-explicit-any
@@ -107,7 +107,7 @@ export const validateGasValues = (
 export function validateIfTransactionUnapproved(
   transactionMeta: TransactionMeta | undefined,
   fnName: string,
-) {
+): void {
   if (transactionMeta?.status !== TransactionStatus.unapproved) {
     throw new Error(
       `TransactionsController: Can only call ${fnName} on an unapproved transaction.\n      Current tx status: ${transactionMeta?.status}`,
@@ -144,7 +144,7 @@ export function normalizeGasFeeValues(
 ): GasPriceValue | FeeMarketEIP1559Values {
   // TODO: Replace `any` with type
   // eslint-disable-next-line @typescript-eslint/no-explicit-any
-  const normalize = (value: any) =>
+  const normalize = (value: any): string =>
     typeof value === 'string' ? add0x(value) : value;
 
   if ('gasPrice' in gasFeeValues) {
@@ -178,12 +178,14 @@ function isJsonCompatible(value: unknown): value is Json {
  * Ensure a hex string is of even length by adding a leading 0 if necessary.
  * Any existing `0x` prefix is preserved but is not added if missing.
  *
- * @param hex - The hex string to ensure is even.
+ * @param hexValue - The hex string to ensure is even.
  * @returns The hex string with an even length.
  */
-export function padHexToEvenLength(hex: string) {
-  const prefix = hex.toLowerCase().startsWith('0x') ? hex.slice(0, 2) : '';
-  const data = prefix ? hex.slice(2) : hex;
+export function padHexToEvenLength(hexValue: string): string {
+  const prefix = hexValue.toLowerCase().startsWith('0x')
+    ? hexValue.slice(0, 2)
+    : '';
+  const data = prefix ? hexValue.slice(2) : hexValue;
   const evenData = data.length % 2 === 0 ? data : `0${data}`;
 
   return prefix + evenData;
@@ -192,11 +194,11 @@ export function padHexToEvenLength(hex: string) {
 /**
  * Create a BN from a hex string, accepting an optional 0x prefix.
  *
- * @param hex - Hex string with or without 0x prefix.
+ * @param hexValue - Hex string with or without 0x prefix.
  * @returns BN parsed as base-16.
  */
-export function bnFromHex(hex: string | Hex): BN {
-  const str = typeof hex === 'string' ? hex : (hex as string);
+export function bnFromHex(hexValue: string | Hex): BN {
+  const str = typeof hexValue === 'string' ? hexValue : (hexValue as string);
   const withoutPrefix =
     str.startsWith('0x') || str.startsWith('0X') ? str.slice(2) : str;
   if (withoutPrefix.length === 0) {
@@ -285,7 +287,7 @@ export function getPercentageChange(originalValue: BN, newValue: BN): number {
 export function setEnvelopeType(
   txParams: TransactionParams,
   isEIP1559Compatible: boolean,
-) {
+): void {
   if (txParams.accessList) {
     txParams.type = TransactionEnvelopeType.accessList;
   } else if (txParams.authorizationList) {
