@@ -4,6 +4,7 @@ import { ClaimsController } from './ClaimsController';
 import { ClaimsControllerErrorMessages, ClaimStatusEnum } from './constants';
 import type {
   Claim,
+  ClaimDraft,
   ClaimsConfigurationsResponse,
   CreateClaimRequest,
 } from './types';
@@ -253,6 +254,135 @@ describe('ClaimsController', () => {
           MOCK_CLAIM_2,
         ]);
       });
+    });
+  });
+
+  describe('Claims Drafts', () => {
+    const MOCK_DRAFT: Omit<ClaimDraft, 'draftId'> = {
+      chainId: '0x1',
+      email: 'test@test.com',
+      impactedWalletAddress: '0x123',
+      impactedTxHash: '0x123',
+      reimbursementWalletAddress: '0x456',
+      description: 'test description',
+    };
+    const MOCK_CLAIM_DRAFTS: ClaimDraft[] = [
+      {
+        draftId: 'mock-draft-1',
+        draftName: 'Draft 1',
+        chainId: '0x1',
+        email: 'test@test.com',
+        impactedWalletAddress: '0x123',
+        impactedTxHash: '0x123',
+        reimbursementWalletAddress: '0x456',
+        description: 'test description',
+      },
+      {
+        draftId: 'mock-draft-2',
+        draftName: 'Draft 2',
+        chainId: '0x1',
+        email: 'test2@test.com',
+        impactedWalletAddress: '0x789',
+        impactedTxHash: '0x789',
+        reimbursementWalletAddress: '0x012',
+        description: 'test description 2',
+      },
+    ];
+
+    it('should be able to save a claim draft', async () => {
+      await withController(async ({ controller }) => {
+        const initialState = controller.state;
+        controller.saveClaimDraft(MOCK_DRAFT);
+        const updatedState = controller.state;
+        expect(updatedState).not.toBe(initialState);
+        expect(updatedState.drafts).toHaveLength(1);
+        expect(updatedState.drafts[0].draftId).toBeDefined();
+        expect(updatedState.drafts[0]).toMatchObject(MOCK_DRAFT);
+        expect(updatedState.drafts[0].draftId).toBeDefined();
+        expect(updatedState.drafts[0].draftName).toBe('Draft 1');
+      });
+    });
+
+    it('should be able to save a claim draft with a custom draft name', async () => {
+      await withController(async ({ controller }) => {
+        const savedDraft = controller.saveClaimDraft({
+          ...MOCK_DRAFT,
+          draftName: 'test draft',
+        });
+        expect(savedDraft).toBeDefined();
+        expect(savedDraft.draftId).toBeDefined();
+        expect(savedDraft).toMatchObject(MOCK_DRAFT);
+        expect(savedDraft.draftName).toBe('test draft');
+      });
+    });
+
+    it('should be able to get the list of claim drafts', async () => {
+      await withController(
+        {
+          state: {
+            drafts: MOCK_CLAIM_DRAFTS,
+          },
+        },
+        async ({ controller }) => {
+          const claimDrafts = controller.getClaimDrafts();
+          expect(claimDrafts).toBeDefined();
+          expect(claimDrafts).toStrictEqual(MOCK_CLAIM_DRAFTS);
+        },
+      );
+    });
+
+    it('should be able to update a claim draft', async () => {
+      await withController(
+        {
+          state: {
+            drafts: MOCK_CLAIM_DRAFTS,
+          },
+        },
+        async ({ controller }) => {
+          controller.updateClaimDraft('mock-draft-1', {
+            description: 'test description updated',
+          });
+          const updatedState = controller.state;
+          expect(updatedState.drafts[0].description).toBe(
+            'test description updated',
+          );
+        },
+      );
+    });
+
+    it('should be able to delete a claim draft', async () => {
+      await withController(
+        {
+          state: {
+            drafts: MOCK_CLAIM_DRAFTS,
+          },
+        },
+        async ({ controller }) => {
+          const initialState = controller.state;
+          expect(initialState.drafts).toHaveLength(2);
+          controller.deleteClaimDraft('mock-draft-1');
+          const updatedState = controller.state;
+          expect(updatedState.drafts).toHaveLength(1);
+          expect(updatedState.drafts[0].draftId).toBe('mock-draft-2');
+        },
+      );
+    });
+
+    it('should be able to delete all claim drafts', async () => {
+      await withController(
+        {
+          state: {
+            drafts: MOCK_CLAIM_DRAFTS,
+          },
+        },
+        async ({ controller }) => {
+          const initialState = controller.state;
+          expect(initialState.drafts).toHaveLength(2);
+          controller.deleteAllClaimDrafts();
+          const updatedState = controller.state;
+          expect(updatedState.drafts).toHaveLength(0);
+        },
+      );
     });
   });
 });

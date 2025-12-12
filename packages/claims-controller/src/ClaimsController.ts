@@ -219,8 +219,9 @@ export class ClaimsController extends BaseController<
    * Save a claim draft to the state.
    *
    * @param draft - The draft to save.
+   * @returns The saved draft.
    */
-  saveClaimDraft(draft: Omit<ClaimDraft, 'draftId'>): void {
+  saveClaimDraft(draft: Omit<ClaimDraft, 'draftId'>): ClaimDraft {
     const { drafts } = this.state;
     const draftCount = drafts.length;
 
@@ -236,6 +237,8 @@ export class ClaimsController extends BaseController<
     this.update((state) => {
       state.drafts.push(newDraft);
     });
+
+    return newDraft;
   }
 
   /**
