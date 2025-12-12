@@ -9,6 +9,9 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ### Changed
 
+- **BREAKING:** Use new `KeyringController:account{Added,Removed}` events instead of the `KeyringController:stateChange` ([#7328](https://github.com/MetaMask/core/pull/7328))
+  - This simplify the re-synchronization between keyrings and this controller.
+  - This should also improve performance slightly.
 - Move peer dependencies for controller and service packages to direct dependencies ([#7209](https://github.com/MetaMask/core/pull/7209), [#7258](https://github.com/MetaMask/core/pull/7258))
   - The dependencies moved are:
     - `@metamask/keyring-controller` (^25.0.0)
