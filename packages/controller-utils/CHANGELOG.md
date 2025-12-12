@@ -7,13 +7,6 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
-### Uncategorized
-
-- chore(lint): Fix suppressed ESLint errors in `controller-utils` package ([#7452](https://github.com/MetaMask/core/pull/7452))
-- revert: "chore: change `Monad Testnet` to infura network (#7067)" ([#7067](https://github.com/MetaMask/core/pull/7067))
-- chore: Update ESLint config packages to v15 ([#7305](https://github.com/MetaMask/core/pull/7305))
-- chore: change `Monad Testnet` to infura network ([#7067](https://github.com/MetaMask/core/pull/7067))
-
 ### Added
 
 - Add MegaETH Testnet "v2" to various constants, enums, and types ([#7272](https://github.com/MetaMask/core/pull/7272))

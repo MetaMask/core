@@ -7,10 +7,6 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
-### Uncategorized
-
-- chore(lint): Fix suppressed ESLint errors in `remote-feature-flag-controller` package ([#7428](https://github.com/MetaMask/core/pull/7428))
-
 ## [3.0.0]
 
 ### Added
