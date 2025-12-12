@@ -1406,27 +1406,6 @@
       "count": 1
     }
   },
-  "packages/json-rpc-middleware-stream/src/createEngineStream.ts": {
-    "@typescript-eslint/explicit-function-return-type": {
-      "count": 2
-    }
-  },
-  "packages/json-rpc-middleware-stream/src/createStreamMiddleware.ts": {
-    "@typescript-eslint/explicit-function-return-type": {
-      "count": 7
-    }
-  },
-  "packages/json-rpc-middleware-stream/src/index.test.ts": {
-    "@typescript-eslint/explicit-function-return-type": {
-      "count": 4
-    },
-    "@typescript-eslint/prefer-promise-reject-errors": {
-      "count": 1
-    },
-    "no-empty-function": {
-      "count": 1
-    }
-  },
   "packages/logging-controller/src/LoggingController.test.ts": {
     "@typescript-eslint/explicit-function-return-type": {
       "count": 1
