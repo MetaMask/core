@@ -1260,7 +1260,7 @@ export class KeyringController<
       }
     });
 
-    this.messenger.publish(`${name}:accountRemoved`, address);
+    // `:accountRemoved` event is automatically emitted during `update` calls.
   }
 
   /**
