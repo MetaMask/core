@@ -1441,16 +1441,6 @@
       "count": 1
     }
   },
-  "packages/keyring-controller/jest.environment.js": {
-    "n/no-unsupported-features/node-builtins": {
-      "count": 1
-    }
-  },
-  "packages/keyring-controller/src/KeyringController.ts": {
-    "@typescript-eslint/naming-convention": {
-      "count": 10
-    }
-  },
   "packages/logging-controller/src/LoggingController.test.ts": {
     "@typescript-eslint/explicit-function-return-type": {
       "count": 1

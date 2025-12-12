@@ -49,6 +49,9 @@ const name = 'KeyringController';
  * Available keyring types
  */
 export enum KeyringTypes {
+  // Changing this would be a breaking change, and not worth the effort at this
+  // time, so we disable the linting rule for this block.
+  /* eslint-disable @typescript-eslint/naming-convention */
   simple = 'Simple Key Pair',
   hd = 'HD Key Tree',
   qr = 'QR Hardware Wallet Device',
@@ -57,6 +60,7 @@ export enum KeyringTypes {
   ledger = 'Ledger Hardware',
   lattice = 'Lattice Hardware',
   snap = 'Snap Keyring',
+  /* eslint-enable @typescript-eslint/naming-convention */
 }
 
 /**
@@ -310,8 +314,12 @@ export type KeyringMetadata = {
  * A strategy for importing an account
  */
 export enum AccountImportStrategy {
+  // Changing this would be a breaking change, and not worth the effort at this
+  // time, so we disable the linting rule for this block.
+  /* eslint-disable @typescript-eslint/naming-convention */
   privateKey = 'privateKey',
   json = 'json',
+  /* eslint-enable @typescript-eslint/naming-convention */
 }
 
 /**
