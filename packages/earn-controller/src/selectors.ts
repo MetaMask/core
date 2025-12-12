@@ -5,16 +5,19 @@ import type {
   EarnControllerState,
   LendingMarketWithPosition,
   LendingPositionWithMarket,
+  LendingPositionWithMarketReference,
 } from './EarnController';
 
-export const selectLendingMarkets = (state: EarnControllerState) =>
-  state.lending.markets;
+export const selectLendingMarkets = (
+  state: EarnControllerState,
+): LendingMarket[] => state.lending.markets;
 
-export const selectLendingPositions = (state: EarnControllerState) =>
-  state.lending.positions;
+export const selectLendingPositions = (
+  state: EarnControllerState,
+): LendingPositionWithMarketReference[] => state.lending.positions;
 
 export const selectLendingMarketsForChainId = (chainId: number) =>
-  createSelector(selectLendingMarkets, (markets) =>
+  createSelector(selectLendingMarkets, (markets): LendingMarket[] =>
     markets.filter((market) => market.chainId === chainId),
   );
 
@@ -38,7 +41,8 @@ export const selectLendingMarketForProtocolAndId = (
 ) =>
   createSelector(
     selectLendingMarketsByProtocolAndId,
-    (marketsByProtocolAndId) => marketsByProtocolAndId?.[protocol]?.[id],
+    (marketsByProtocolAndId): LendingMarket | undefined =>
+      marketsByProtocolAndId?.[protocol]?.[id],
   );
 
 export const selectLendingMarketsByChainId = createSelector(
@@ -160,7 +164,7 @@ export const selectLendingMarketForProtocolAndTokenAddress = (
 ) =>
   createSelector(
     selectLendingMarketByProtocolAndTokenAddress,
-    (marketsByProtocolAndTokenAddress) =>
+    (marketsByProtocolAndTokenAddress): LendingMarketWithPosition | undefined =>
       marketsByProtocolAndTokenAddress?.[protocol]?.[tokenAddress],
   );
 
@@ -195,5 +199,40 @@ export const selectLendingMarketsByChainIdAndTokenAddress = createSelector(
     }, {}),
 );
 
-export const selectIsLendingEligible = (state: EarnControllerState) =>
+export const selectIsLendingEligible = (state: EarnControllerState): boolean =>
   state.lending.isEligible;
+
+/**
+ * Selects the entire non-EVM staking state.
+ *
+ * @param state - The EarnController state.
+ * @returns The non-EVM staking state.
+ */
+export const selectNonEvmStaking = (
+  state: EarnControllerState,
+): EarnControllerState['non_evm_staking'] => state.non_evm_staking;
+
+/**
+ * Selects the non-EVM staking state for a specific chain.
+ *
+ * @param chainId - The chain identifier.
+ * @returns A selector that returns the chain-specific staking state.
+ */
+export const selectNonEvmStakingForChainId = (chainId: string) =>
+  createSelector(
+    selectNonEvmStaking,
+    (nonEvmStaking): EarnControllerState['non_evm_staking'][string] =>
+      nonEvmStaking[chainId],
+  );
+
+/**
+ * Selects the APY for a specific non-EVM staking chain.
+ *
+ * @param chainId - The chain identifier.
+ * @returns A selector that returns the APY for the specified chain.
+ */
+export const selectNonEvmStakingApyForChainId = (chainId: string) =>
+  createSelector(
+    selectNonEvmStakingForChainId(chainId),
+    (chainState): string | undefined => chainState?.apy,
+  );
