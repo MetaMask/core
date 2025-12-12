@@ -1185,68 +1185,6 @@
       "count": 1
     }
   },
-  "packages/eth-block-tracker/src/PollingBlockTracker.test.ts": {
-    "@typescript-eslint/explicit-function-return-type": {
-      "count": 12
-    }
-  },
-  "packages/eth-block-tracker/src/PollingBlockTracker.ts": {
-    "@typescript-eslint/explicit-function-return-type": {
-      "count": 14
-    },
-    "@typescript-eslint/prefer-nullish-coalescing": {
-      "count": 6
-    },
-    "@typescript-eslint/unbound-method": {
-      "count": 5
-    },
-    "no-restricted-syntax": {
-      "count": 28
-    }
-  },
-  "packages/eth-block-tracker/tests/buildDeferred.ts": {
-    "@typescript-eslint/explicit-function-return-type": {
-      "count": 1
-    },
-    "@typescript-eslint/naming-convention": {
-      "count": 1
-    }
-  },
-  "packages/eth-block-tracker/tests/emptyFunction.ts": {
-    "@typescript-eslint/explicit-function-return-type": {
-      "count": 1
-    }
-  },
-  "packages/eth-block-tracker/tests/recordCallsToSetTimeout.ts": {
-    "@typescript-eslint/explicit-function-return-type": {
-      "count": 4
-    },
-    "@typescript-eslint/no-explicit-any": {
-      "count": 1
-    }
-  },
-  "packages/eth-block-tracker/tests/setupAfterEnv.ts": {
-    "@typescript-eslint/consistent-type-definitions": {
-      "count": 1
-    },
-    "@typescript-eslint/explicit-function-return-type": {
-      "count": 2
-    },
-    "@typescript-eslint/naming-convention": {
-      "count": 1
-    },
-    "@typescript-eslint/no-explicit-any": {
-      "count": 3
-    }
-  },
-  "packages/eth-block-tracker/tests/withBlockTracker.ts": {
-    "@typescript-eslint/explicit-function-return-type": {
-      "count": 2
-    },
-    "@typescript-eslint/no-explicit-any": {
-      "count": 1
-    }
-  },
   "packages/eth-json-rpc-middleware/src/block-cache.test.ts": {
     "@typescript-eslint/explicit-function-return-type": {
       "count": 20
