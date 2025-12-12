@@ -25,7 +25,8 @@ import { bytesToHex, isValidHexAddress } from '@metamask/utils';
 import type { Hex } from '@metamask/utils';
 import sinon from 'sinon';
 
-import { KeyringControllerError } from './constants';
+import { KeyringControllerError as KeyringControllerErrorMessage } from './constants';
+import { KeyringControllerError } from './errors';
 import type {
   KeyringControllerEvents,
   KeyringControllerMessenger,
@@ -333,7 +334,7 @@ describe('KeyringController', () => {
         await controller.setLocked();
 
         await expect(controller.addNewAccount()).rejects.toThrow(
-          KeyringControllerError.ControllerLocked,
+          KeyringControllerErrorMessage.ControllerLocked,
         );
       });
     });
@@ -405,7 +406,7 @@ describe('KeyringController', () => {
             hdPath: "m/44'/60'/0'/0",
           });
         await expect(controller.addNewAccount()).rejects.toThrow(
-          KeyringControllerError.DuplicatedAccount,
+          KeyringControllerErrorMessage.DuplicatedAccount,
         );
       });
     });
@@ -531,7 +532,7 @@ describe('KeyringController', () => {
 
         await expect(
           controller.addNewAccountForKeyring(keyring as EthKeyring),
-        ).rejects.toThrow(KeyringControllerError.ControllerLocked);
+        ).rejects.toThrow(KeyringControllerErrorMessage.ControllerLocked);
       });
     });
   });
@@ -573,7 +574,7 @@ describe('KeyringController', () => {
         await controller.setLocked();
 
         await expect(controller.addNewKeyring(KeyringTypes.hd)).rejects.toThrow(
-          KeyringControllerError.ControllerLocked,
+          KeyringControllerErrorMessage.ControllerLocked,
         );
       });
     });
@@ -638,7 +639,7 @@ describe('KeyringController', () => {
       await withController(async ({ controller }) => {
         await expect(
           controller.createNewVaultAndRestore('', uint8ArraySeed),
-        ).rejects.toThrow(KeyringControllerError.InvalidEmptyPassword);
+        ).rejects.toThrow(KeyringControllerErrorMessage.InvalidEmptyPassword);
       });
     });
 
@@ -723,7 +724,7 @@ describe('KeyringController', () => {
                 // @ts-expect-error invalid password
                 123,
               ),
-            ).rejects.toThrow(KeyringControllerError.WrongPasswordType);
+            ).rejects.toThrow(KeyringControllerErrorMessage.WrongPasswordType);
           },
         );
       });
@@ -735,7 +736,7 @@ describe('KeyringController', () => {
           async ({ controller }) => {
             await expect(
               controller.createNewVaultAndKeychain(password),
-            ).rejects.toThrow(KeyringControllerError.NoFirstAccount);
+            ).rejects.toThrow(KeyringControllerErrorMessage.NoFirstAccount);
           },
         );
       });
@@ -801,7 +802,7 @@ describe('KeyringController', () => {
         await controller.setLocked();
 
         await expect(controller.setLocked()).rejects.toThrow(
-          KeyringControllerError.ControllerLocked,
+          KeyringControllerErrorMessage.ControllerLocked,
         );
       });
     });
@@ -883,7 +884,7 @@ describe('KeyringController', () => {
         await controller.setLocked();
 
         await expect(controller.exportSeedPhrase(password)).rejects.toThrow(
-          KeyringControllerError.ControllerLocked,
+          KeyringControllerErrorMessage.ControllerLocked,
         );
       });
     });
@@ -942,7 +943,9 @@ describe('KeyringController', () => {
 
             await expect(
               controller.exportAccount(password, address),
-            ).rejects.toThrow(KeyringControllerError.UnsupportedExportAccount);
+            ).rejects.toThrow(
+              KeyringControllerErrorMessage.UnsupportedExportAccount,
+            );
           },
         );
       });
@@ -963,7 +966,7 @@ describe('KeyringController', () => {
         await controller.setLocked();
 
         await expect(controller.getAccounts()).rejects.toThrow(
-          KeyringControllerError.ControllerLocked,
+          KeyringControllerErrorMessage.ControllerLocked,
         );
       });
     });
@@ -1020,7 +1023,7 @@ describe('KeyringController', () => {
             await expect(
               controller.getEncryptionPublicKey(address),
             ).rejects.toThrow(
-              KeyringControllerError.UnsupportedGetEncryptionPublicKey,
+              KeyringControllerErrorMessage.UnsupportedGetEncryptionPublicKey,
             );
           },
         );
@@ -1035,7 +1038,7 @@ describe('KeyringController', () => {
           controller.getEncryptionPublicKey(
             initialState.keyrings[0].accounts[0],
           ),
-        ).rejects.toThrow(KeyringControllerError.ControllerLocked);
+        ).rejects.toThrow(KeyringControllerErrorMessage.ControllerLocked);
       });
     });
   });
@@ -1109,7 +1112,9 @@ describe('KeyringController', () => {
                   ciphertext: '0xabcdef1234567890',
                 },
               }),
-            ).rejects.toThrow(KeyringControllerError.UnsupportedDecryptMessage);
+            ).rejects.toThrow(
+              KeyringControllerErrorMessage.UnsupportedDecryptMessage,
+            );
           },
         );
       });
@@ -1129,7 +1134,7 @@ describe('KeyringController', () => {
               ciphertext: '0xabcdef1234567890',
             },
           }),
-        ).rejects.toThrow(KeyringControllerError.ControllerLocked);
+        ).rejects.toThrow(KeyringControllerErrorMessage.ControllerLocked);
       });
     });
   });
@@ -1193,7 +1198,7 @@ describe('KeyringController', () => {
             controller.getKeyringForAccount(
               '0x51253087e6f8358b5f10c0a94315d69db3357859',
             ),
-          ).rejects.toThrow(KeyringControllerError.ControllerLocked);
+          ).rejects.toThrow(KeyringControllerErrorMessage.ControllerLocked);
         });
       });
     });
@@ -1204,7 +1209,7 @@ describe('KeyringController', () => {
 
         await expect(
           controller.getKeyringForAccount(initialState.keyrings[0].accounts[0]),
-        ).rejects.toThrow(KeyringControllerError.ControllerLocked);
+        ).rejects.toThrow(KeyringControllerErrorMessage.ControllerLocked);
       });
     });
   });
@@ -1239,7 +1244,7 @@ describe('KeyringController', () => {
         await controller.setLocked();
 
         expect(() => controller.getKeyringsByType(KeyringTypes.hd)).toThrow(
-          KeyringControllerError.ControllerLocked,
+          KeyringControllerErrorMessage.ControllerLocked,
         );
       });
     });
@@ -1264,7 +1269,7 @@ describe('KeyringController', () => {
         await controller.setLocked();
 
         await expect(controller.persistAllKeyrings()).rejects.toThrow(
-          KeyringControllerError.ControllerLocked,
+          KeyringControllerErrorMessage.ControllerLocked,
         );
       });
     });
@@ -1420,7 +1425,7 @@ describe('KeyringController', () => {
                 input,
                 somePassword,
               ]),
-            ).rejects.toThrow(KeyringControllerError.DuplicatedAccount);
+            ).rejects.toThrow(KeyringControllerErrorMessage.DuplicatedAccount);
           });
         });
       });
@@ -1491,7 +1496,7 @@ describe('KeyringController', () => {
             AccountImportStrategy.privateKey,
             [input, 'password'],
           ),
-        ).rejects.toThrow(KeyringControllerError.ControllerLocked);
+        ).rejects.toThrow(KeyringControllerErrorMessage.ControllerLocked);
       });
     });
   });
@@ -1512,7 +1517,7 @@ describe('KeyringController', () => {
         await withController(async ({ controller, initialState }) => {
           const account = initialState.keyrings[0].accounts[0] as Hex;
           await expect(controller.removeAccount(account)).rejects.toThrow(
-            KeyringControllerError.LastAccountInPrimaryKeyring,
+            KeyringControllerErrorMessage.LastAccountInPrimaryKeyring,
           );
           expect(controller.state.keyrings).toHaveLength(1);
           expect(controller.state.keyrings[0].accounts).toHaveLength(1);
@@ -1524,7 +1529,9 @@ describe('KeyringController', () => {
           await controller.addNewKeyring(KeyringTypes.hd);
           await expect(
             controller.removeAccount(controller.state.keyrings[0].accounts[0]),
-          ).rejects.toThrow(KeyringControllerError.LastAccountInPrimaryKeyring);
+          ).rejects.toThrow(
+            KeyringControllerErrorMessage.LastAccountInPrimaryKeyring,
+          );
         });
       });
 
@@ -1602,7 +1609,7 @@ describe('KeyringController', () => {
             await controller.addNewKeyring(MockKeyring.type);
 
             await expect(controller.removeAccount(address)).rejects.toThrow(
-              KeyringControllerError.UnsupportedRemoveAccount,
+              KeyringControllerErrorMessage.UnsupportedRemoveAccount,
             );
           },
         );
@@ -1615,7 +1622,7 @@ describe('KeyringController', () => {
 
         await expect(
           controller.removeAccount(initialState.keyrings[0].accounts[0]),
-        ).rejects.toThrow(KeyringControllerError.ControllerLocked);
+        ).rejects.toThrow(KeyringControllerErrorMessage.ControllerLocked);
       });
     });
   });
@@ -1675,7 +1682,7 @@ describe('KeyringController', () => {
             };
 
             await expect(controller.signMessage(inputParams)).rejects.toThrow(
-              KeyringControllerError.UnsupportedSignMessage,
+              KeyringControllerErrorMessage.UnsupportedSignMessage,
             );
           },
         );
@@ -1692,7 +1699,7 @@ describe('KeyringController', () => {
             data: '0x879a053d4800c6354e76c7985a865d2922c82fb5b3f4577b2fe08b998954f2e0',
             origin: 'https://metamask.github.io',
           }),
-        ).rejects.toThrow(KeyringControllerError.ControllerLocked);
+        ).rejects.toThrow(KeyringControllerErrorMessage.ControllerLocked);
       });
     });
   });
@@ -1761,7 +1768,7 @@ describe('KeyringController', () => {
             await expect(
               controller.signPersonalMessage(inputParams),
             ).rejects.toThrow(
-              KeyringControllerError.UnsupportedSignPersonalMessage,
+              KeyringControllerErrorMessage.UnsupportedSignPersonalMessage,
             );
           },
         );
@@ -1778,7 +1785,7 @@ describe('KeyringController', () => {
             data: '0x879a053d4800c6354e76c7985a865d2922c82fb5b3f4577b2fe08b998954f2e0',
             origin: 'https://metamask.github.io',
           }),
-        ).rejects.toThrow(KeyringControllerError.ControllerLocked);
+        ).rejects.toThrow(KeyringControllerErrorMessage.ControllerLocked);
       });
     });
   });
@@ -1838,7 +1845,7 @@ describe('KeyringController', () => {
                 nonce,
               }),
             ).rejects.toThrow(
-              KeyringControllerError.MissingEip7702AuthorizationContractAddress,
+              KeyringControllerErrorMessage.MissingEip7702AuthorizationContractAddress,
             );
           });
         },
@@ -1862,7 +1869,7 @@ describe('KeyringController', () => {
                 nonce,
               }),
             ).rejects.toThrow(
-              KeyringControllerError.UnsupportedSignEip7702Authorization,
+              KeyringControllerErrorMessage.UnsupportedSignEip7702Authorization,
             );
           },
         );
@@ -1893,7 +1900,7 @@ describe('KeyringController', () => {
               'junk' as SignTypedDataVersion,
             ),
           ).rejects.toThrow(
-            "Keyring Controller signTypedMessage: Error: Unexpected signTypedMessage version: 'junk'",
+            "Keyring Controller signTypedMessage: KeyringControllerError: Unexpected signTypedMessage version: 'junk'",
           );
         });
       });
@@ -2119,7 +2126,7 @@ describe('KeyringController', () => {
             await expect(
               controller.signTypedMessage(inputParams, SignTypedDataVersion.V1),
             ).rejects.toThrow(
-              KeyringControllerError.UnsupportedSignTypedMessage,
+              KeyringControllerErrorMessage.UnsupportedSignTypedMessage,
             );
           },
         );
@@ -2150,7 +2157,7 @@ describe('KeyringController', () => {
             },
             SignTypedDataVersion.V1,
           ),
-        ).rejects.toThrow(KeyringControllerError.ControllerLocked);
+        ).rejects.toThrow(KeyringControllerErrorMessage.ControllerLocked);
       });
     });
   });
@@ -2232,7 +2239,7 @@ describe('KeyringController', () => {
             await expect(
               controller.signTransaction(buildMockTransaction(), address),
             ).rejects.toThrow(
-              KeyringControllerError.UnsupportedSignTransaction,
+              KeyringControllerErrorMessage.UnsupportedSignTransaction,
             );
           },
         );
@@ -2248,7 +2255,7 @@ describe('KeyringController', () => {
             buildMockTransaction(),
             initialState.keyrings[0].accounts[0],
           ),
-        ).rejects.toThrow(KeyringControllerError.ControllerLocked);
+        ).rejects.toThrow(KeyringControllerErrorMessage.ControllerLocked);
       });
     });
   });
@@ -2324,7 +2331,7 @@ describe('KeyringController', () => {
             await expect(
               controller.prepareUserOperation(address, [], executionContext),
             ).rejects.toThrow(
-              KeyringControllerError.UnsupportedPrepareUserOperation,
+              KeyringControllerErrorMessage.UnsupportedPrepareUserOperation,
             );
           },
         );
@@ -2341,7 +2348,7 @@ describe('KeyringController', () => {
             [],
             executionContext,
           ),
-        ).rejects.toThrow(KeyringControllerError.ControllerLocked);
+        ).rejects.toThrow(KeyringControllerErrorMessage.ControllerLocked);
       });
     });
   });
@@ -2427,7 +2434,7 @@ describe('KeyringController', () => {
             await expect(
               controller.patchUserOperation(address, userOp, executionContext),
             ).rejects.toThrow(
-              KeyringControllerError.UnsupportedPatchUserOperation,
+              KeyringControllerErrorMessage.UnsupportedPatchUserOperation,
             );
           },
         );
@@ -2456,7 +2463,7 @@ describe('KeyringController', () => {
             },
             executionContext,
           ),
-        ).rejects.toThrow(KeyringControllerError.ControllerLocked);
+        ).rejects.toThrow(KeyringControllerErrorMessage.ControllerLocked);
       });
     });
   });
@@ -2539,7 +2546,7 @@ describe('KeyringController', () => {
             await expect(
               controller.signUserOperation(address, userOp, executionContext),
             ).rejects.toThrow(
-              KeyringControllerError.UnsupportedSignUserOperation,
+              KeyringControllerErrorMessage.UnsupportedSignUserOperation,
             );
           },
         );
@@ -2568,7 +2575,7 @@ describe('KeyringController', () => {
             },
             executionContext,
           ),
-        ).rejects.toThrow(KeyringControllerError.ControllerLocked);
+        ).rejects.toThrow(KeyringControllerErrorMessage.ControllerLocked);
       });
     });
   });
@@ -2594,7 +2601,7 @@ describe('KeyringController', () => {
         await controller.setLocked();
 
         await expect(async () => controller.changePassword('')).rejects.toThrow(
-          KeyringControllerError.ControllerLocked,
+          KeyringControllerErrorMessage.ControllerLocked,
         );
       });
     });
@@ -2602,7 +2609,7 @@ describe('KeyringController', () => {
     it('should throw error if the new password is an empty string', async () => {
       await withController(async ({ controller }) => {
         await expect(controller.changePassword('')).rejects.toThrow(
-          KeyringControllerError.InvalidEmptyPassword,
+          KeyringControllerErrorMessage.InvalidEmptyPassword,
         );
       });
     });
@@ -2612,7 +2619,7 @@ describe('KeyringController', () => {
         await expect(
           // @ts-expect-error we are testing wrong input
           controller.changePassword(undefined),
-        ).rejects.toThrow(KeyringControllerError.WrongPasswordType);
+        ).rejects.toThrow(KeyringControllerErrorMessage.WrongPasswordType);
       });
     });
 
@@ -2622,7 +2629,7 @@ describe('KeyringController', () => {
 
         await expect(async () =>
           controller.changePassword('whatever'),
-        ).rejects.toThrow(KeyringControllerError.ControllerLocked);
+        ).rejects.toThrow(KeyringControllerErrorMessage.ControllerLocked);
       });
     });
   });
@@ -2680,7 +2687,7 @@ describe('KeyringController', () => {
         },
         async ({ controller }) => {
           await expect(controller.submitPassword(password)).rejects.toThrow(
-            KeyringControllerError.VaultDataError,
+            KeyringControllerErrorMessage.VaultDataError,
           );
         },
       );
@@ -2691,7 +2698,7 @@ describe('KeyringController', () => {
         { skipVaultCreation: true },
         async ({ controller }) => {
           await expect(controller.submitPassword(password)).rejects.toThrow(
-            KeyringControllerError.VaultError,
+            KeyringControllerErrorMessage.VaultError,
           );
         },
       );
@@ -2699,7 +2706,13 @@ describe('KeyringController', () => {
 
     it('should throw an error if the encryptor returns an undefined encryption key', async () => {
       await withController(
-        { skipVaultCreation: true, state: { vault: createVault() } },
+        {
+          skipVaultCreation: true,
+          state: {
+            vault: createVault(),
+            encryptionKey: 'existing-key',
+          } as KeyringControllerState,
+        },
         async ({ controller, encryptor }) => {
           jest.spyOn(encryptor, 'decryptWithDetail').mockResolvedValueOnce({
             vault: defaultKeyrings,
@@ -2709,7 +2722,7 @@ describe('KeyringController', () => {
           });
 
           await expect(controller.submitPassword(password)).rejects.toThrow(
-            KeyringControllerError.MissingCredentials,
+            KeyringControllerErrorMessage.MissingCredentials,
           );
         },
       );
@@ -3018,7 +3031,7 @@ describe('KeyringController', () => {
         await expect(
           // @ts-expect-error we are testing wrong input
           controller.submitPassword(123456),
-        ).rejects.toThrow(KeyringControllerError.WrongPasswordType);
+        ).rejects.toThrow(KeyringControllerErrorMessage.WrongPasswordType);
       });
     });
 
@@ -3201,7 +3214,7 @@ describe('KeyringController', () => {
             MOCK_ENCRYPTION_KEY,
             initialState.encryptionSalt as string,
           ),
-        ).rejects.toThrow(KeyringControllerError.VaultDataError);
+        ).rejects.toThrow(KeyringControllerErrorMessage.VaultDataError);
       });
     });
 
@@ -3209,7 +3222,7 @@ describe('KeyringController', () => {
       await withController(async ({ controller }) => {
         await expect(
           controller.submitEncryptionKey(MOCK_ENCRYPTION_KEY, '0x1234'),
-        ).rejects.toThrow(KeyringControllerError.ExpiredCredentials);
+        ).rejects.toThrow(KeyringControllerErrorMessage.ExpiredCredentials);
       });
     });
 
@@ -3222,7 +3235,7 @@ describe('KeyringController', () => {
             12341234,
             SALT,
           ),
-        ).rejects.toThrow(KeyringControllerError.WrongEncryptionKeyType);
+        ).rejects.toThrow(KeyringControllerErrorMessage.WrongEncryptionKeyType);
       });
     });
   });
@@ -3245,7 +3258,7 @@ describe('KeyringController', () => {
       await withController(async ({ controller }) => {
         await controller.setLocked();
         await expect(controller.exportEncryptionKey()).rejects.toThrow(
-          KeyringControllerError.ControllerLocked,
+          KeyringControllerErrorMessage.ControllerLocked,
         );
       });
     });
@@ -3310,7 +3323,7 @@ describe('KeyringController', () => {
         { skipVaultCreation: true },
         async ({ controller }) => {
           await expect(controller.verifySeedPhrase()).rejects.toThrow(
-            KeyringControllerError.ControllerLocked,
+            KeyringControllerErrorMessage.ControllerLocked,
           );
         },
       );
@@ -3322,7 +3335,7 @@ describe('KeyringController', () => {
 
         const keyringId = controller.state.keyrings[1].metadata.id;
         await expect(controller.verifySeedPhrase(keyringId)).rejects.toThrow(
-          KeyringControllerError.UnsupportedVerifySeedPhrase,
+          KeyringControllerErrorMessage.UnsupportedVerifySeedPhrase,
         );
       });
     });
@@ -3337,7 +3350,7 @@ describe('KeyringController', () => {
           await controller.submitPassword(password);
 
           await expect(controller.verifySeedPhrase()).rejects.toThrow(
-            KeyringControllerError.KeyringNotFound,
+            KeyringControllerErrorMessage.KeyringNotFound,
           );
         },
       );
@@ -3348,7 +3361,7 @@ describe('KeyringController', () => {
         await controller.setLocked();
 
         await expect(controller.verifySeedPhrase()).rejects.toThrow(
-          KeyringControllerError.ControllerLocked,
+          KeyringControllerErrorMessage.ControllerLocked,
         );
       });
     });
@@ -3369,7 +3382,7 @@ describe('KeyringController', () => {
           { skipVaultCreation: true },
           async ({ controller }) => {
             await expect(controller.verifyPassword(password)).rejects.toThrow(
-              KeyringControllerError.VaultError,
+              KeyringControllerErrorMessage.VaultError,
             );
           },
         );
@@ -3394,7 +3407,7 @@ describe('KeyringController', () => {
           { skipVaultCreation: true },
           async ({ controller }) => {
             await expect(controller.verifyPassword('123')).rejects.toThrow(
-              KeyringControllerError.VaultError,
+              KeyringControllerErrorMessage.VaultError,
             );
           },
         );
@@ -3458,7 +3471,9 @@ describe('KeyringController', () => {
                 return keyring;
               },
             ),
-          ).rejects.toThrow(KeyringControllerError.UnsafeDirectKeyringAccess);
+          ).rejects.toThrow(
+            KeyringControllerErrorMessage.UnsafeDirectKeyringAccess,
+          );
         });
       });
 
@@ -3469,7 +3484,7 @@ describe('KeyringController', () => {
             const fn = jest.fn();
 
             await expect(controller.withKeyring(selector, fn)).rejects.toThrow(
-              KeyringControllerError.KeyringNotFound,
+              KeyringControllerErrorMessage.KeyringNotFound,
             );
             expect(fn).not.toHaveBeenCalled();
           });
@@ -3663,7 +3678,9 @@ describe('KeyringController', () => {
             controller.withKeyring(selector, async ({ keyring }) => {
               return keyring;
             }),
-          ).rejects.toThrow(KeyringControllerError.UnsafeDirectKeyringAccess);
+          ).rejects.toThrow(
+            KeyringControllerErrorMessage.UnsafeDirectKeyringAccess,
+          );
         });
       });
 
@@ -3676,7 +3693,7 @@ describe('KeyringController', () => {
 
               await expect(
                 controller.withKeyring(selector, fn),
-              ).rejects.toThrow(KeyringControllerError.KeyringNotFound);
+              ).rejects.toThrow(KeyringControllerErrorMessage.KeyringNotFound);
               expect(fn).not.toHaveBeenCalled();
             },
           );
@@ -3690,7 +3707,7 @@ describe('KeyringController', () => {
 
               await expect(
                 controller.withKeyring(selector, fn, { createIfMissing: true }),
-              ).rejects.toThrow(KeyringControllerError.KeyringNotFound);
+              ).rejects.toThrow(KeyringControllerErrorMessage.KeyringNotFound);
               expect(fn).not.toHaveBeenCalled();
             },
           );
@@ -4123,12 +4140,19 @@ describe('KeyringController', () => {
 
     it('should not cause a deadlock when subscribing to state changes', async () => {
       await withController(async ({ controller, initialState, messenger }) => {
-        let executed = false;
+        let callCount = 0;
+        const noOp = async (): Promise<void> => {
+          // No operation for subsequent calls
+        };
+        const persistAction = async (): Promise<void> => {
+          await controller.persistAllKeyrings();
+        };
+        const actions: (() => Promise<void>)[] = [persistAction, noOp, noOp];
         const listener = jest.fn(async () => {
-          if (!executed) {
-            executed = true;
-            await controller.persistAllKeyrings();
-          }
+          callCount += 1;
+          // Only execute persistAllKeyrings on the first call to prevent infinite loops
+          const actionIndex = Math.min(callCount - 1, actions.length - 1);
+          await actions[actionIndex]();
         });
 
         messenger.subscribe(
@@ -4258,6 +4282,233 @@ describe('KeyringController', () => {
           `);
         },
       );
+    });
+  });
+
+  describe('KeyringControllerError', () => {
+    describe('error features', () => {
+      it('should support error codes', () => {
+        const error = new KeyringControllerError('Test error', {
+          code: 'TEST_CODE',
+        });
+
+        expect(error.code).toBe('TEST_CODE');
+        expect(error.message).toBe('Test error');
+        expect(error.name).toBe('KeyringControllerError');
+      });
+
+      it('should support additional data', () => {
+        const error = new KeyringControllerError('Test error', {
+          data: { key: 'value', number: 42 },
+        });
+
+        expect(error.data).toEqual({ key: 'value', number: 42 });
+      });
+
+      it('should support error chaining with cause', () => {
+        const originalError = new Error('Original error');
+        const error = new KeyringControllerError('Wrapped error', {
+          cause: originalError,
+        });
+
+        expect(error.cause).toBe(originalError);
+        expect(error.originalError).toBe(originalError);
+      });
+
+      it('should support backward compatibility with Error as second param', () => {
+        const originalError = new Error('Original error');
+        const error = new KeyringControllerError(
+          'Wrapped error',
+          originalError,
+        );
+
+        expect(error.cause).toBe(originalError);
+        expect(error.originalError).toBe(originalError);
+      });
+
+      it('should serialize to JSON correctly', () => {
+        const originalError = new Error('Original error');
+        const error = new KeyringControllerError('Test error', {
+          code: 'TEST_CODE',
+          data: { key: 'value' },
+          cause: originalError,
+        });
+
+        const json = error.toJSON();
+
+        expect(json.name).toBe('KeyringControllerError');
+        expect(json.message).toBe('Test error');
+        expect(json.code).toBe('TEST_CODE');
+        expect(json.data).toEqual({ key: 'value' });
+        expect(json.cause).toEqual({
+          name: 'Error',
+          message: 'Original error',
+          stack: originalError.stack,
+        });
+      });
+
+      it('should serialize to JSON without cause if not present', () => {
+        const error = new KeyringControllerError('Test error', {
+          code: 'TEST_CODE',
+        });
+
+        const json = error.toJSON();
+
+        expect(json.cause).toBeUndefined();
+      });
+
+      it('should convert to string with code', () => {
+        const error = new KeyringControllerError('Test error', {
+          code: 'TEST_CODE',
+        });
+
+        const str = error.toString();
+
+        expect(str).toContain('KeyringControllerError');
+        expect(str).toContain('Test error');
+        expect(str).toContain('[TEST_CODE]');
+      });
+
+      it('should convert to string with cause', () => {
+        const originalError = new Error('Original error');
+        const error = new KeyringControllerError('Test error', {
+          cause: originalError,
+        });
+
+        const str = error.toString();
+
+        expect(str).toContain('KeyringControllerError: Test error');
+        expect(str).toContain('Caused by: Error: Original error');
+      });
+    });
+  });
+
+  describe('error handling', () => {
+    describe('when hardware wallet throws custom error', () => {
+      it('should preserve hardware wallet error in originalError property', async () => {
+        // Create a custom error class to simulate hardware wallet errors
+        class HardwareWalletError extends Error {
+          code: string;
+
+          constructor(message: string, code: string) {
+            super(message);
+            this.name = 'HardwareWalletError';
+            this.code = code;
+          }
+        }
+
+        // Create a mock hardware keyring that supports signTypedData but throws an error
+        class MockHardwareKeyring {
+          static type = 'Mock Hardware';
+
+          type = 'Mock Hardware';
+
+          async getAccounts(): Promise<string[]> {
+            return ['0x9876543210987654321098765432109876543210'];
+          }
+
+          async signTypedData(
+            _address: Hex,
+            _data: unknown,
+            _opts: unknown,
+          ): Promise<string> {
+            throw new HardwareWalletError(
+              'User rejected the request on hardware device',
+              'USER_REJECTED',
+            );
+          }
+
+          serialize = async (): Promise<{ type: string }> => ({
+            type: this.type,
+          });
+
+          deserialize = async (_opts: unknown): Promise<void> => {
+            // noop
+          };
+        }
+
+        const mockHardwareKeyringBuilder = keyringBuilderFactory(
+          MockHardwareKeyring as unknown as KeyringClass,
+        );
+
+        await withController(
+          {
+            keyringBuilders: [mockHardwareKeyringBuilder],
+          },
+          async ({ controller }) => {
+            // Add the hardware keyring
+            await controller.addNewKeyring('Mock Hardware');
+            // Get all accounts - the hardware wallet should be the second keyring
+            const allAccounts = await controller.getAccounts();
+            // Use the hardware wallet address (last one added)
+            const hardwareAddress = allAccounts[allAccounts.length - 1];
+
+            const typedData = {
+              types: {
+                EIP712Domain: [
+                  { name: 'name', type: 'string' },
+                  { name: 'version', type: 'string' },
+                ],
+                Message: [{ name: 'content', type: 'string' }],
+              },
+              primaryType: 'Message',
+              domain: {
+                name: 'Test',
+                version: '1',
+              },
+              message: {
+                content: 'Hello!',
+              },
+            };
+
+            await expect(
+              controller.signTypedMessage(
+                { data: JSON.stringify(typedData), from: hardwareAddress },
+                SignTypedDataVersion.V4,
+              ),
+            ).rejects.toThrow(KeyringControllerError);
+
+            // Verify the error details by catching it explicitly
+            let caughtError: unknown;
+            try {
+              await controller.signTypedMessage(
+                { data: JSON.stringify(typedData), from: hardwareAddress },
+                SignTypedDataVersion.V4,
+              );
+            } catch (error) {
+              caughtError = error;
+            }
+
+            // Verify the error is a KeyringControllerError (wrapped by signTypedMessage)
+            expect(caughtError).toBeInstanceOf(KeyringControllerError);
+
+            const keyringError = caughtError as KeyringControllerError;
+
+            // Verify the error message contains information about the hardware wallet error
+            expect(keyringError.message).toContain(
+              'Keyring Controller signTypedMessage',
+            );
+            expect(keyringError.message).toContain('HardwareWalletError');
+            expect(keyringError.message).toContain(
+              'User rejected the request on hardware device',
+            );
+
+            // Verify the original hardware wallet error is preserved in originalError
+            expect(keyringError.originalError).toBeInstanceOf(
+              HardwareWalletError,
+            );
+            expect(keyringError.originalError?.message).toBe(
+              'User rejected the request on hardware device',
+            );
+            expect(keyringError.originalError?.name).toBe(
+              'HardwareWalletError',
+            );
+            expect(
+              (keyringError.originalError as HardwareWalletError).code,
+            ).toBe('USER_REJECTED');
+          },
+        );
+      });
     });
   });
 });
