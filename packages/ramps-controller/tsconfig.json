@@ -1,10 +1,7 @@
 {
   "extends": "../../tsconfig.packages.json",
   "compilerOptions": {
-    "baseUrl": "./",
-    "paths": {
-      "@metamask/*": ["../*/src"]
-    }
+    "baseUrl": "./"
   },
   "references": [{ "path": "../base-controller" }, { "path": "../messenger" }],
   "include": ["../../types", "./src"]
