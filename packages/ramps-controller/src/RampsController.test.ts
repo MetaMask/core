@@ -6,7 +6,7 @@ import type {
   MessengerEvents,
 } from '@metamask/messenger';
 
-import type { OnRampServiceGetGeolocationAction } from './OnRampService-method-action-types';
+import type { OnRampServiceGetCountriesAction } from './OnRampService-method-action-types';
 import type { RampsControllerMessenger } from './RampsController';
 import { RampsController } from './RampsController';
 
@@ -16,7 +16,7 @@ describe('RampsController', () => {
       await withController(({ controller }) => {
         expect(controller.state).toMatchInlineSnapshot(`
           Object {
-            "geolocation": null,
+            "regionEligibility": null,
           }
         `);
       });
@@ -24,7 +24,7 @@ describe('RampsController', () => {
 
     it('accepts initial state', async () => {
       const givenState = {
-        geolocation: 'US',
+        regionEligibility: true,
       };
 
       await withController(
@@ -39,7 +39,7 @@ describe('RampsController', () => {
       await withController({ options: { state: {} } }, ({ controller }) => {
         expect(controller.state).toMatchInlineSnapshot(`
             Object {
-              "geolocation": null,
+              "regionEligibility": null,
             }
           `);
       });
@@ -57,7 +57,7 @@ describe('RampsController', () => {
           ),
         ).toMatchInlineSnapshot(`
           Object {
-            "geolocation": null,
+            "regionEligibility": null,
           }
         `);
       });
@@ -73,7 +73,7 @@ describe('RampsController', () => {
           ),
         ).toMatchInlineSnapshot(`
           Object {
-            "geolocation": null,
+            "regionEligibility": null,
           }
         `);
       });
@@ -89,7 +89,7 @@ describe('RampsController', () => {
           ),
         ).toMatchInlineSnapshot(`
           Object {
-            "geolocation": null,
+            "regionEligibility": null,
           }
         `);
       });
@@ -105,24 +105,87 @@ describe('RampsController', () => {
           ),
         ).toMatchInlineSnapshot(`
           Object {
-            "geolocation": null,
+            "regionEligibility": null,
           }
         `);
       });
     });
   });
 
-  describe('updateGeolocation', () => {
-    it('updates geolocation state when geolocation is fetched', async () => {
+  describe('getRegionEligibility', () => {
+    it('updates region eligibility state when countries are fetched and country is supported', async () => {
       await withController(async ({ controller, rootMessenger }) => {
+        const mockCountries = [
+          {
+            isoCode: 'US',
+            flag: '🇺🇸',
+            name: 'United States of America',
+            phone: {
+              prefix: '+1',
+              placeholder: '(555) 123-4567',
+              template: '(XXX) XXX-XXXX',
+            },
+            currency: 'USD',
+            supported: true,
+            recommended: true,
+            transakSupported: true,
+          },
+          {
+            isoCode: 'GB',
+            flag: '🇬🇧',
+            name: 'United Kingdom',
+            phone: {
+              prefix: '+44',
+              placeholder: '7123 456789',
+              template: 'XXXX XXXXXX',
+            },
+            currency: 'GBP',
+            supported: false,
+            recommended: false,
+            transakSupported: false,
+          },
+        ];
+
         rootMessenger.registerActionHandler(
-          'OnRampService:getGeolocation',
-          async () => 'US',
+          'OnRampService:getCountries',
+          async () => mockCountries,
         );
 
-        await controller.updateGeolocation();
+        const result = await controller.getRegionEligibility('US');
 
-        expect(controller.state.geolocation).toBe('US');
+        expect(result).toBe(true);
+        expect(controller.state.regionEligibility).toBe(true);
+      });
+    });
+
+    it('returns false and updates state when country is not supported', async () => {
+      await withController(async ({ controller, rootMessenger }) => {
+        const mockCountries = [
+          {
+            isoCode: 'US',
+            flag: '🇺🇸',
+            name: 'United States of America',
+            phone: {
+              prefix: '+1',
+              placeholder: '(555) 123-4567',
+              template: '(XXX) XXX-XXXX',
+            },
+            currency: 'USD',
+            supported: true,
+            recommended: true,
+            transakSupported: true,
+          },
+        ];
+
+        rootMessenger.registerActionHandler(
+          'OnRampService:getCountries',
+          async () => mockCountries,
+        );
+
+        const result = await controller.getRegionEligibility('GB');
+
+        expect(result).toBe(false);
+        expect(controller.state.regionEligibility).toBe(false);
       });
     });
   });
@@ -135,7 +198,7 @@ describe('RampsController', () => {
 type RootMessenger = Messenger<
   MockAnyNamespace,
   | MessengerActions<RampsControllerMessenger>
-  | OnRampServiceGetGeolocationAction,
+  | OnRampServiceGetCountriesAction,
   MessengerEvents<RampsControllerMessenger>
 >;
 
@@ -179,7 +242,7 @@ function getMessenger(rootMessenger: RootMessenger): RampsControllerMessenger {
   });
   rootMessenger.delegate({
     messenger,
-    actions: ['OnRampService:getGeolocation'],
+    actions: ['OnRampService:getCountries'],
   });
   return messenger;
 }

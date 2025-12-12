@@ -6,9 +6,28 @@ import type {
 import { BaseController } from '@metamask/base-controller';
 import type { Messenger } from '@metamask/messenger';
 
-import type { OnRampServiceGetGeolocationAction } from './OnRampService-method-action-types';
+import type { OnRampServiceGetCountriesAction } from './OnRampService-method-action-types';
 
 // === GENERAL ===
+
+/**
+ * Represents a country/region returned by the countries API.
+ */
+export type Country = {
+  isoCode: string;
+  flag: string;
+  name: string;
+  phone: {
+    prefix: string;
+    placeholder: string;
+    template: string;
+  };
+  currency: string;
+  supported: boolean;
+  recommended: boolean;
+  unsupportedStates?: string[];
+  transakSupported: boolean;
+};
 
 /**
  * The name of the {@link RampsController}, used to namespace the
@@ -24,16 +43,16 @@ export const controllerName = 'RampsController';
  */
 export type RampsControllerState = {
   /**
-   * The user's country code determined by geolocation.
+   * Whether ramp services are available for the user's region.
    */
-  geolocation: string | null;
+  regionEligibility: boolean | null;
 };
 
 /**
  * The metadata for each property in {@link RampsControllerState}.
  */
 const rampsControllerMetadata = {
-  geolocation: {
+  regionEligibility: {
     persist: true,
     includeInDebugSnapshot: true,
     includeInStateLogs: true,
@@ -51,7 +70,7 @@ const rampsControllerMetadata = {
  */
 export function getDefaultRampsControllerState(): RampsControllerState {
   return {
-    geolocation: null,
+    regionEligibility: null,
   };
 }
 
@@ -73,7 +92,7 @@ export type RampsControllerActions = RampsControllerGetStateAction;
 /**
  * Actions from other messengers that {@link RampsController} calls.
  */
-type AllowedActions = OnRampServiceGetGeolocationAction;
+type AllowedActions = OnRampServiceGetCountriesAction;
 
 /**
  * Published when the state of {@link RampsController} changes.
@@ -140,17 +159,30 @@ export class RampsController extends BaseController<
   }
 
   /**
-   * Updates the user's geolocation.
-   * This method calls the OnRampService to get the geolocation
-   * and stores the result in state.
+   * Determines if ramp services are available for the given country code.
+   * This method calls the OnRampService to get the list of supported countries
+   * and checks if the specified country code is supported.
+   *
+   * @param countryCode - The ISO country code to check (e.g., "US", "GB").
+   * @param abortController - Optional AbortController for request cancellation.
+   * @returns Whether ramp services are available for the given country.
    */
-  async updateGeolocation(): Promise<void> {
-    const geolocation = await this.messenger.call(
-      'OnRampService:getGeolocation',
+  async getRegionEligibility(
+    countryCode: string,
+    abortController?: AbortController,
+  ): Promise<boolean> {
+    const countries = await this.messenger.call(
+      'OnRampService:getCountries',
+      abortController,
     );
 
+    const country = countries.find((c) => c.isoCode === countryCode);
+    const isEligible = country?.supported ?? false;
+
     this.update((state) => {
-      state.geolocation = geolocation;
+      state.regionEligibility = isEligible;
     });
+
+    return isEligible;
   }
 }

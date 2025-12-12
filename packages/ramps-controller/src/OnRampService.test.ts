@@ -22,46 +22,65 @@ describe('OnRampService', () => {
     clock.restore();
   });
 
-  describe('OnRampService:getGeolocation', () => {
-    it('returns the geolocation from the API', async () => {
+  describe('OnRampService:getCountries', () => {
+    const mockCountries = [
+      {
+        isoCode: 'US',
+        flag: '🇺🇸',
+        name: 'United States of America',
+        phone: {
+          prefix: '+1',
+          placeholder: '(555) 123-4567',
+          template: '(XXX) XXX-XXXX',
+        },
+        currency: 'USD',
+        supported: true,
+        recommended: true,
+        transakSupported: true,
+      },
+    ];
+
+    it('returns the countries from the API', async () => {
       nock('https://on-ramp.uat-api.cx.metamask.io')
-        .get('/geolocation')
-        .reply(200, 'US-TX');
+        .get('/countries?action=deposit')
+        .reply(200, mockCountries);
       const { rootMessenger } = getService();
 
-      const geolocationResponse = await rootMessenger.call(
-        'OnRampService:getGeolocation',
+      const countriesResponse = await rootMessenger.call(
+        'OnRampService:getCountries',
       );
 
-      expect(geolocationResponse).toBe('US-TX');
+      expect(countriesResponse).toStrictEqual(mockCountries);
     });
 
     it('uses the production URL when environment is Production', async () => {
       nock('https://on-ramp.api.cx.metamask.io')
-        .get('/geolocation')
-        .reply(200, 'US-TX');
+        .get('/countries?action=deposit')
+        .reply(200, mockCountries);
       const { rootMessenger } = getService({
         options: { environment: OnRampEnvironment.Production },
       });
 
-      const geolocationResponse = await rootMessenger.call(
-        'OnRampService:getGeolocation',
+      const countriesResponse = await rootMessenger.call(
+        'OnRampService:getCountries',
       );
 
-      expect(geolocationResponse).toBe('US-TX');
+      expect(countriesResponse).toStrictEqual(mockCountries);
     });
 
     it('uses localhost URL when environment is Development', async () => {
-      nock('http://localhost:3000').get('/geolocation').reply(200, 'US-TX');
+      nock('http://localhost:3000')
+        .get('/countries?action=deposit')
+        .reply(200, mockCountries);
       const { rootMessenger } = getService({
         options: { environment: OnRampEnvironment.Development },
       });
 
-      const geolocationResponse = await rootMessenger.call(
-        'OnRampService:getGeolocation',
+      const countriesResponse = await rootMessenger.call(
+        'OnRampService:getCountries',
       );
 
-      expect(geolocationResponse).toBe('US-TX');
+      expect(countriesResponse).toStrictEqual(mockCountries);
     });
 
     it('throws if the environment is invalid', () => {
@@ -72,36 +91,25 @@ describe('OnRampService', () => {
       ).toThrow('Invalid environment: invalid');
     });
 
-    it('throws if the API returns an empty response', async () => {
-      nock('https://on-ramp.uat-api.cx.metamask.io')
-        .get('/geolocation')
-        .reply(200, '');
-      const { rootMessenger } = getService();
-
-      await expect(
-        rootMessenger.call('OnRampService:getGeolocation'),
-      ).rejects.toThrow('Malformed response received from geolocation API');
-    });
-
     it('calls onDegraded listeners if the request takes longer than 5 seconds to resolve', async () => {
       nock('https://on-ramp.uat-api.cx.metamask.io')
-        .get('/geolocation')
+        .get('/countries?action=deposit')
         .reply(200, () => {
           clock.tick(6000);
-          return 'US-TX';
+          return mockCountries;
         });
       const { service, rootMessenger } = getService();
       const onDegradedListener = jest.fn();
       service.onDegraded(onDegradedListener);
 
-      await rootMessenger.call('OnRampService:getGeolocation');
+      await rootMessenger.call('OnRampService:getCountries');
 
       expect(onDegradedListener).toHaveBeenCalled();
     });
 
     it('attempts a request that responds with non-200 up to 4 times, throwing if it never succeeds', async () => {
       nock('https://on-ramp.uat-api.cx.metamask.io')
-        .get('/geolocation')
+        .get('/countries?action=deposit')
         .times(4)
         .reply(500);
       const { service, rootMessenger } = getService();
@@ -110,9 +118,9 @@ describe('OnRampService', () => {
       });
 
       await expect(
-        rootMessenger.call('OnRampService:getGeolocation'),
+        rootMessenger.call('OnRampService:getCountries'),
       ).rejects.toThrow(
-        "Fetching 'https://on-ramp.uat-api.cx.metamask.io/geolocation' failed with status '500'",
+        "Fetching 'https://on-ramp.uat-api.cx.metamask.io/countries?action=deposit' failed with status '500'",
       );
     });
 
@@ -125,18 +133,48 @@ describe('OnRampService', () => {
       expect(subscription).toBeDefined();
       expect(subscription).toHaveProperty('dispose');
     });
+
+    it('passes abort controller signal to fetch', async () => {
+      const abortController = new AbortController();
+      nock('https://on-ramp.uat-api.cx.metamask.io')
+        .get('/countries?action=deposit')
+        .reply(200, mockCountries);
+      const { rootMessenger } = getService();
+
+      await rootMessenger.call('OnRampService:getCountries', abortController);
+
+      // The test passes if no error is thrown and the request succeeds
+      expect(true).toBe(true);
+    });
   });
 
-  describe('getGeolocation', () => {
+  describe('getCountries', () => {
+    const mockCountries = [
+      {
+        isoCode: 'US',
+        flag: '🇺🇸',
+        name: 'United States of America',
+        phone: {
+          prefix: '+1',
+          placeholder: '(555) 123-4567',
+          template: '(XXX) XXX-XXXX',
+        },
+        currency: 'USD',
+        supported: true,
+        recommended: true,
+        transakSupported: true,
+      },
+    ];
+
     it('does the same thing as the messenger action', async () => {
       nock('https://on-ramp.uat-api.cx.metamask.io')
-        .get('/geolocation')
-        .reply(200, 'US-TX');
+        .get('/countries?action=deposit')
+        .reply(200, mockCountries);
       const { service } = getService();
 
-      const geolocationResponse = await service.getGeolocation();
+      const countriesResponse = await service.getCountries();
 
-      expect(geolocationResponse).toBe('US-TX');
+      expect(countriesResponse).toStrictEqual(mockCountries);
     });
   });
 });

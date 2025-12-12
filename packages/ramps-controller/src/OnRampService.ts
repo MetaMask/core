@@ -10,6 +10,25 @@ import type { OnRampServiceMethodActions } from './OnRampService-method-action-t
 // === GENERAL ===
 
 /**
+ * Represents a country/region returned by the countries API.
+ */
+export type Country = {
+  isoCode: string;
+  flag: string;
+  name: string;
+  phone: {
+    prefix: string;
+    placeholder: string;
+    template: string;
+  };
+  currency: string;
+  supported: boolean;
+  recommended: boolean;
+  unsupportedStates?: string[];
+  transakSupported: boolean;
+};
+
+/**
  * The name of the {@link OnRampService}, used to namespace the
  * service's actions and events.
  */
@@ -26,7 +45,7 @@ export enum OnRampEnvironment {
 
 // === MESSENGER ===
 
-const MESSENGER_EXPOSED_METHODS = ['getGeolocation'] as const;
+const MESSENGER_EXPOSED_METHODS = ['getCountries'] as const;
 
 /**
  * Actions that {@link OnRampService} exposes to other consumers.
@@ -113,11 +132,11 @@ function getBaseUrl(environment: OnRampEnvironment): string {
  * });
  *
  * // Later...
- * // Get the user's geolocation
- * const geolocation = await rootMessenger.call(
- *   'OnRampService:getGeolocation',
+ * // Get the list of supported countries
+ * const countries = await rootMessenger.call(
+ *   'OnRampService:getCountries',
  * );
- * // ... Do something with the geolocation ...
+ * // ... Do something with the countries ...
  * ```
  */
 export class OnRampService {
@@ -241,15 +260,23 @@ export class OnRampService {
   }
 
   /**
-   * Makes a request to the API in order to retrieve the user's geolocation
-   * based on their IP address.
+   * Makes a request to the API in order to retrieve the list of supported
+   * countries/regions for ramp services.
    *
-   * @returns The user's country/region code (e.g., "US-UT" for Utah, USA).
+   * @param abortController - Optional AbortController for request cancellation.
+   * @returns An array of supported countries/regions.
    */
-  async getGeolocation(): Promise<string> {
+  async getCountries(abortController?: AbortController): Promise<Country[]> {
     const response = await this.#policy.execute(async () => {
-      const url = new URL('geolocation', this.#baseUrl);
-      const localResponse = await this.#fetch(url);
+      const url = new URL('countries', this.#baseUrl);
+      url.searchParams.set('action', 'deposit');
+      // TODO: Add sdk and context parameters when available
+      // url.searchParams.set('sdk', this.#sdkVersion);
+      // url.searchParams.set('context', this.#context);
+
+      const localResponse = await this.#fetch(url, {
+        signal: abortController?.signal,
+      });
       if (!localResponse.ok) {
         throw new HttpError(
           localResponse.status,
@@ -259,13 +286,7 @@ export class OnRampService {
       return localResponse;
     });
 
-    const textResponse = await response.text();
-    const trimmedResponse = textResponse.trim();
-
-    if (trimmedResponse.length > 0) {
-      return trimmedResponse;
-    }
-
-    throw new Error('Malformed response received from geolocation API');
+    const jsonResponse: Country[] = await response.json();
+    return jsonResponse;
   }
 }
