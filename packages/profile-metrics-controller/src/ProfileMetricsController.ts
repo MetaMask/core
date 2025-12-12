@@ -1,7 +1,7 @@
 import type {
   AccountsControllerAccountAddedEvent,
-  AccountsControllerListAccountsAction,
   AccountsControllerAccountRemovedEvent,
+  AccountsControllerGetStateAction,
 } from '@metamask/accounts-controller';
 import type {
   ControllerGetStateAction,
@@ -100,7 +100,7 @@ export type ProfileMetricsControllerActions =
  */
 type AllowedActions =
   | ProfileMetricsServiceMethodActions
-  | AccountsControllerListAccountsAction;
+  | AccountsControllerGetStateAction;
 
 /**
  * Published when the state of {@link ProfileMetricsController} changes.
@@ -266,7 +266,10 @@ export class ProfileMetricsController extends StaticIntervalPollingController()<
         return;
       }
       const newGroupedAccounts = groupAccountsByEntropySourceId(
-        this.messenger.call('AccountsController:listAccounts'),
+        Object.values(
+          this.messenger.call('AccountsController:getState').internalAccounts
+            .accounts,
+        ),
       );
       this.update((state) => {
         for (const key of Object.keys(newGroupedAccounts)) {
