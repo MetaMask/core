@@ -754,7 +754,13 @@ export class AccountsController extends BaseController<
     this.messenger.publish(event, ...payload);
   }
 
-  #handleOnKeyringAccountAdded(address: string, keyring: KeyringObject) {
+  /**
+   * Handle the addition of a new account in a keyring.
+   *
+   * @param address - The address of the new account.
+   * @param keyring - The keyring object of that new account.
+   */
+  #handleOnKeyringAccountAdded(address: string, keyring: KeyringObject): void {
     let account = this.#getInternalAccountFromAddressAndType(address, keyring);
     if (account) {
       // Re-compute the list of accounts everytime, so we can make sure new names
@@ -799,7 +805,12 @@ export class AccountsController extends BaseController<
     }
   }
 
-  #handleOnKeyringAccountRemoved(address: string) {
+  /**
+   * Handle the removal of an existing account from a keyring.
+   *
+   * @param address - The address of the new account.
+   */
+  #handleOnKeyringAccountRemoved(address: string): void {
     const account = this.listMultichainAccounts().find(
       ({ address: accountAddress }) => accountAddress === address,
     );
