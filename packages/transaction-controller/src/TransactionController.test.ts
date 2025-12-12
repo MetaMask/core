@@ -1790,6 +1790,7 @@ describe('TransactionController', () => {
         nestedTransactions: undefined,
         networkClientId: NETWORK_CLIENT_ID_MOCK,
         origin: undefined,
+        requestId: undefined,
         securityAlertResponse: undefined,
         selectedGasFeeToken: undefined,
         sendFlowHistory: expect.any(Array),

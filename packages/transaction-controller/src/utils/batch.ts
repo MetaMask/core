@@ -96,6 +96,7 @@ type AddTransactionBatchRequest = {
   ) => Promise<Hex>;
   publicKeyEIP7702?: Hex;
   request: TransactionBatchRequest;
+  requestId?: string;
   signTransaction: (
     transactionMeta: TransactionMeta,
   ) => Promise<string | undefined>;
@@ -301,6 +302,7 @@ async function addTransactionBatchWith7702(
     networkClientId,
     origin,
     overwriteUpgrade,
+    requestId,
     requireApproval,
     securityAlertId,
     skipInitialGasEstimate,
@@ -432,6 +434,7 @@ async function addTransactionBatchWith7702(
     nestedTransactions,
     networkClientId,
     origin,
+    requestId,
     requireApproval,
     securityAlertResponse,
     skipInitialGasEstimate,

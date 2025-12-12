@@ -385,6 +385,11 @@ export type TransactionMeta = {
   replacedById?: string;
 
   /**
+   * ID of JSON-RPC request from DAPP.
+   */
+  requestId?: string;
+
+  /**
    * IDs of any transactions that must be confirmed before this one is submitted.
    * Unlike a transaction batch, these transactions can be on alternate chains.
    */
@@ -591,6 +596,11 @@ export type TransactionBatchMeta = {
    * Origin this transaction was sent from.
    */
   origin?: string;
+
+  /**
+   * ID of the JSON-RPC request from DAPP.
+   */
+  requestId?: string;
 
   /** Current status of the transaction. */
   status: TransactionStatus;
@@ -1762,6 +1772,9 @@ export type TransactionBatchRequest = {
   /** Whether to overwrite existing EIP-7702 delegation with MetaMask contract. */
   overwriteUpgrade?: boolean;
 
+  /** ID of the JSON-RPC request from DAPP. */
+  requestId?: string;
+
   /** Whether an approval request should be created to require confirmation from the user. */
   requireApproval?: boolean;
 
@@ -2114,6 +2127,9 @@ export type AddTransactionOptions = {
 
   /** Custom logic to publish the transaction. */
   publishHook?: PublishHook;
+
+  /** ID of JSON-RPC request from DAPP.  */
+  requestId?: string;
 
   /** Whether the transaction requires approval by the user, defaults to true unless explicitly disabled. */
   requireApproval?: boolean | undefined;
