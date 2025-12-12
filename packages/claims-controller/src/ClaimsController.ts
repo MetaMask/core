@@ -229,7 +229,9 @@ export class ClaimsController extends BaseController<
 
     const isExistingDraft = drafts.some(
       (existingDraft) =>
-        draft.draftId && existingDraft.draftId === draft.draftId,
+        draft.draftId &&
+        draft.draftName &&
+        existingDraft.draftId === draft.draftId,
     );
 
     if (isExistingDraft) {
