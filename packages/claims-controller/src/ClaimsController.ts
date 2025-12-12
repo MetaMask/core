@@ -25,6 +25,7 @@ import {
 } from './constants';
 import type {
   Claim,
+  ClaimDraft,
   ClaimsConfigurations,
   ClaimsControllerState,
   CreateClaimRequest,
@@ -77,6 +78,12 @@ const ClaimsControllerStateMetadata: StateMetadata<ClaimsControllerState> = {
     includeInDebugSnapshot: true,
     usedInUi: true,
   },
+  drafts: {
+    includeInStateLogs: false,
+    persist: true,
+    includeInDebugSnapshot: false,
+    usedInUi: true,
+  },
 };
 
 /**
@@ -88,6 +95,7 @@ export function getDefaultClaimsControllerState(): ClaimsControllerState {
   return {
     claimsConfigurations: DEFAULT_CLAIMS_CONFIGURATIONS,
     claims: [],
+    drafts: [],
   };
 }
 
@@ -205,6 +213,75 @@ export class ClaimsController extends BaseController<
       state.claims = claims;
     });
     return claims;
+  }
+
+  /**
+   * Save a claim draft to the state.
+   *
+   * @param draft - The draft to save.
+   */
+  saveClaimDraft(draft: Omit<ClaimDraft, 'draftId'>): void {
+    const { drafts } = this.state;
+    const draftCount = drafts.length;
+
+    const draftId = `claims-draft-${Date.now()}`;
+    const draftName = draft.draftName ?? `Draft ${draftCount + 1}`;
+
+    const newDraft: ClaimDraft = {
+      ...draft,
+      draftId,
+      draftName,
+    };
+
+    this.update((state) => {
+      state.drafts.push(newDraft);
+    });
+  }
+
+  /**
+   * Get the list of claim drafts.
+   *
+   * @returns The list of claim drafts.
+   */
+  getClaimDrafts(): ClaimDraft[] {
+    return this.state.drafts;
+  }
+
+  /**
+   * Update a claim draft in the state.
+   *
+   * @param draftId - The ID of the draft to update.
+   * @param updatedDraft - The updated draft.
+   */
+  updateClaimDraft(
+    draftId: string,
+    updatedDraft: Omit<ClaimDraft, 'draftId'>,
+  ): void {
+    this.update((state) => {
+      state.drafts = state.drafts.map((draft) =>
+        draft.draftId === draftId ? { ...draft, ...updatedDraft } : draft,
+      );
+    });
+  }
+
+  /**
+   * Delete a claim draft from the state.
+   *
+   * @param draftId - The ID of the draft to delete.
+   */
+  deleteClaimDraft(draftId: string): void {
+    this.update((state) => {
+      state.drafts = state.drafts.filter((draft) => draft.draftId !== draftId);
+    });
+  }
+
+  /**
+   * Delete all claim drafts from the state.
+   */
+  deleteAllClaimDrafts(): void {
+    this.update((state) => {
+      state.drafts = [];
+    });
   }
 
   /**
