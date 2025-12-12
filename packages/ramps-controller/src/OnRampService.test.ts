@@ -22,6 +22,111 @@ describe('OnRampService', () => {
     clock.restore();
   });
 
+  describe('OnRampService:getGeolocation', () => {
+    it('returns the geolocation from the API', async () => {
+      nock('https://on-ramp.uat-api.cx.metamask.io')
+        .get('/geolocation')
+        .reply(200, 'US-TX');
+      const { rootMessenger } = getService();
+
+      const geolocationResponse = await rootMessenger.call(
+        'OnRampService:getGeolocation',
+      );
+
+      expect(geolocationResponse).toBe('US-TX');
+    });
+
+    it('uses the production URL when environment is Production', async () => {
+      nock('https://on-ramp.api.cx.metamask.io')
+        .get('/geolocation')
+        .reply(200, 'US-TX');
+      const { rootMessenger } = getService({
+        options: { environment: OnRampEnvironment.Production },
+      });
+
+      const geolocationResponse = await rootMessenger.call(
+        'OnRampService:getGeolocation',
+      );
+
+      expect(geolocationResponse).toBe('US-TX');
+    });
+
+    it('uses localhost URL when environment is Development', async () => {
+      nock('http://localhost:3000').get('/geolocation').reply(200, 'US-TX');
+      const { rootMessenger } = getService({
+        options: { environment: OnRampEnvironment.Development },
+      });
+
+      const geolocationResponse = await rootMessenger.call(
+        'OnRampService:getGeolocation',
+      );
+
+      expect(geolocationResponse).toBe('US-TX');
+    });
+
+    it('throws if the environment is invalid', () => {
+      expect(() =>
+        getService({
+          options: { environment: 'invalid' as OnRampEnvironment },
+        }),
+      ).toThrow('Invalid environment: invalid');
+    });
+
+    it('throws if the API returns an empty response', async () => {
+      nock('https://on-ramp.uat-api.cx.metamask.io')
+        .get('/geolocation')
+        .reply(200, '');
+      const { rootMessenger } = getService();
+
+      await expect(
+        rootMessenger.call('OnRampService:getGeolocation'),
+      ).rejects.toThrow('Malformed response received from geolocation API');
+    });
+
+    it('calls onDegraded listeners if the request takes longer than 5 seconds to resolve', async () => {
+      nock('https://on-ramp.uat-api.cx.metamask.io')
+        .get('/geolocation')
+        .reply(200, () => {
+          clock.tick(6000);
+          return 'US-TX';
+        });
+      const { service, rootMessenger } = getService();
+      const onDegradedListener = jest.fn();
+      service.onDegraded(onDegradedListener);
+
+      await rootMessenger.call('OnRampService:getGeolocation');
+
+      expect(onDegradedListener).toHaveBeenCalled();
+    });
+
+    it('attempts a request that responds with non-200 up to 4 times, throwing if it never succeeds', async () => {
+      nock('https://on-ramp.uat-api.cx.metamask.io')
+        .get('/geolocation')
+        .times(4)
+        .reply(500);
+      const { service, rootMessenger } = getService();
+      service.onRetry(() => {
+        clock.nextAsync().catch(() => undefined);
+      });
+
+      await expect(
+        rootMessenger.call('OnRampService:getGeolocation'),
+      ).rejects.toThrow(
+        "Fetching 'https://on-ramp.uat-api.cx.metamask.io/geolocation' failed with status '500'",
+      );
+    });
+
+    it('allows registering onBreak listeners', () => {
+      const { service } = getService();
+      const onBreakListener = jest.fn();
+
+      const subscription = service.onBreak(onBreakListener);
+
+      expect(subscription).toBeDefined();
+      expect(subscription).toHaveProperty('dispose');
+    });
+  });
+
   describe('OnRampService:getCountries', () => {
     const mockCountries = [
       {
@@ -145,6 +250,19 @@ describe('OnRampService', () => {
 
       // The test passes if no error is thrown and the request succeeds
       expect(true).toBe(true);
+    });
+  });
+
+  describe('getGeolocation', () => {
+    it('does the same thing as the messenger action', async () => {
+      nock('https://on-ramp.uat-api.cx.metamask.io')
+        .get('/geolocation')
+        .reply(200, 'US-TX');
+      const { service } = getService();
+
+      const geolocationResponse = await service.getGeolocation();
+
+      expect(geolocationResponse).toBe('US-TX');
     });
   });
 

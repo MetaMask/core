@@ -45,7 +45,7 @@ export enum OnRampEnvironment {
 
 // === MESSENGER ===
 
-const MESSENGER_EXPOSED_METHODS = ['getCountries'] as const;
+const MESSENGER_EXPOSED_METHODS = ['getGeolocation', 'getCountries'] as const;
 
 /**
  * Actions that {@link OnRampService} exposes to other consumers.
@@ -132,6 +132,12 @@ function getBaseUrl(environment: OnRampEnvironment): string {
  * });
  *
  * // Later...
+ * // Get the user's geolocation
+ * const geolocation = await rootMessenger.call(
+ *   'OnRampService:getGeolocation',
+ * );
+ * // ... Do something with the geolocation ...
+ *
  * // Get the list of supported countries
  * const countries = await rootMessenger.call(
  *   'OnRampService:getCountries',
@@ -257,6 +263,35 @@ export class OnRampService {
     listener: Parameters<ServicePolicy['onDegraded']>[0],
   ): ReturnType<ServicePolicy['onDegraded']> {
     return this.#policy.onDegraded(listener);
+  }
+
+  /**
+   * Makes a request to the API in order to retrieve the user's geolocation
+   * based on their IP address.
+   *
+   * @returns The user's country/region code (e.g., "US-UT" for Utah, USA).
+   */
+  async getGeolocation(): Promise<string> {
+    const response = await this.#policy.execute(async () => {
+      const url = new URL('geolocation', this.#baseUrl);
+      const localResponse = await this.#fetch(url);
+      if (!localResponse.ok) {
+        throw new HttpError(
+          localResponse.status,
+          `Fetching '${url.toString()}' failed with status '${localResponse.status}'`,
+        );
+      }
+      return localResponse;
+    });
+
+    const textResponse = await response.text();
+    const trimmedResponse = textResponse.trim();
+
+    if (trimmedResponse.length > 0) {
+      return trimmedResponse;
+    }
+
+    throw new Error('Malformed response received from geolocation API');
   }
 
   /**

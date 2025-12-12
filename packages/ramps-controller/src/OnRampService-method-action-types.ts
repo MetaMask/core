@@ -6,6 +6,17 @@
 import type { OnRampService } from './OnRampService';
 
 /**
+ * Makes a request to the API in order to retrieve the user's geolocation
+ * based on their IP address.
+ *
+ * @returns The user's country/region code (e.g., "US-UT" for Utah, USA).
+ */
+export type OnRampServiceGetGeolocationAction = {
+  type: `OnRampService:getGeolocation`;
+  handler: OnRampService['getGeolocation'];
+};
+
+/**
  * Makes a request to the API in order to retrieve the list of supported
  * countries/regions for ramp services.
  *
@@ -20,4 +31,6 @@ export type OnRampServiceGetCountriesAction = {
 /**
  * Union of all OnRampService action types.
  */
-export type OnRampServiceMethodActions = OnRampServiceGetCountriesAction;
+export type OnRampServiceMethodActions =
+  | OnRampServiceGetGeolocationAction
+  | OnRampServiceGetCountriesAction;
