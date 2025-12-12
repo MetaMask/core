@@ -74,6 +74,13 @@ export class MultichainAccountService {
     AccountContext<Bip44Account<KeyringAccount>>
   >;
 
+  readonly #pendingWalletSyncs: Set<MultichainAccountWalletId> = new Set();
+
+  readonly #pendingGroupSyncs: Map<MultichainAccountWalletId, Set<number>> =
+    new Map();
+
+  #syncTimeout: ReturnType<typeof setTimeout> | undefined;
+
   /**
    * The name of the service.
    */
@@ -297,7 +304,7 @@ export class MultichainAccountService {
       // This new account is a new multichain account, let the wallet know
       // it has to re-sync with its providers.
       if (sync) {
-        wallet.sync();
+        this.#pendingWalletSyncs.add(wallet.id);
       }
 
       group = wallet.getMultichainAccountGroup(
@@ -312,7 +319,12 @@ export class MultichainAccountService {
     // not able to find this multichain account (which should not be possible...)
     if (group) {
       if (sync) {
-        group.sync();
+        let groupIndexes = this.#pendingGroupSyncs.get(wallet.id);
+        if (!groupIndexes) {
+          groupIndexes = new Set();
+          this.#pendingGroupSyncs.set(wallet.id, groupIndexes);
+        }
+        groupIndexes.add(account.options.entropy.groupIndex);
       }
 
       // Same here, this account should have been already grouped in that
@@ -321,6 +333,68 @@ export class MultichainAccountService {
         wallet,
         group,
       });
+    }
+
+    this.#scheduleSync();
+  }
+
+  /**
+   * Schedules a flush of pending syncs.
+   */
+  #scheduleSync(): void {
+    if (this.#syncTimeout) {
+      clearTimeout(this.#syncTimeout);
+    }
+
+    this.#syncTimeout = setTimeout(() => {
+      // eslint-disable-next-line @typescript-eslint/no-floating-promises
+      this.#flushSyncs();
+    }, 50); // 50ms debounce
+  }
+
+  /**
+   * Flushes all pending syncs.
+   */
+  async #flushSyncs(): Promise<void> {
+    const walletsToSync = new Set(this.#pendingWalletSyncs);
+    this.#pendingWalletSyncs.clear();
+
+    const groupsToSync = new Map(this.#pendingGroupSyncs);
+    this.#pendingGroupSyncs.clear();
+
+    // First sync wallets (this might create groups)
+    for (const walletId of walletsToSync) {
+      const wallet = this.#wallets.get(walletId);
+      if (wallet) {
+        log(`[Debounced] Syncing wallet: [${wallet.id}]`);
+        wallet.sync();
+      }
+    }
+
+    // Then sync specific groups
+    for (const [walletId, groupIndexes] of groupsToSync) {
+      // If we already synced the entire wallet, we might not need to sync groups individually
+      // depending on implementation. But usually wallet.sync() handles discovering new groups,
+      // not necessarily updating existing ones deep down?
+      // Actually MultichainAccountWallet.sync() iterates all providers and creates/updates groups.
+      // And then calls group.sync() on ALL groups.
+      // So if we synced the wallet, we don't need to sync groups.
+      if (walletsToSync.has(walletId)) {
+        continue;
+      }
+
+      const wallet = this.#wallets.get(walletId);
+      if (wallet) {
+        for (const groupIndex of groupIndexes) {
+          const group = wallet.getMultichainAccountGroup(groupIndex);
+          if (group) {
+            log(
+              `[Debounced] Syncing group index ${groupIndex} for wallet: [${wallet.id}]`,
+            );
+            group.sync();
+          }
+        }
+      }
     }
   }
 

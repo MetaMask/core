@@ -129,6 +129,44 @@ export class EvmAccountProvider extends BaseBip44AccountProvider {
     return result;
   }
 
+  /**
+   * Creates multiple accounts in a single keyring transaction.
+   * This is more efficient than calling createAccounts multiple times
+   * as it only triggers one vault update.
+   *
+   * @param opts - Options.
+   * @param opts.entropySource - The entropy source to use.
+   * @param opts.count - The number of accounts to create.
+   * @returns The addresses of the created accounts.
+   */
+  async #createAccountsBatch({
+    entropySource,
+    count,
+  }: {
+    entropySource: EntropySourceId;
+    count: number;
+  }): Promise<Hex[]> {
+    if (count <= 0) {
+      return [];
+    }
+
+    return await this.withKeyring<EthKeyring, Hex[]>(
+      { id: entropySource },
+      async ({ keyring }) => {
+        const existingCount = (await keyring.getAccounts()).length;
+        const toCreate = count - existingCount;
+
+        if (toCreate > 0) {
+          await keyring.addAccounts(toCreate);
+        }
+
+        // Return all accounts up to the requested count
+        const allAccounts = await keyring.getAccounts();
+        return allAccounts.slice(0, count);
+      },
+    );
+  }
+
   async createAccounts({
     entropySource,
     groupIndex,
@@ -261,6 +299,70 @@ export class EvmAccountProvider extends BaseBip44AccountProvider {
         assertInternalAccountExists(account);
         assertIsBip44Account(account);
         return [account];
+      },
+    );
+  }
+
+  /**
+   * Find the number of active accounts starting from a given index.
+   * This method is used to optimize the discovery process by batching the checks
+   * before creating the accounts.
+   *
+   * @param opts - Options.
+   * @param opts.entropySource - The entropy source to use.
+   * @param opts.startIndex - The index to start checking from.
+   * @returns The number of active accounts found.
+   */
+  async findActiveAccountCount(opts: {
+    entropySource: EntropySourceId;
+    startIndex: number;
+  }): Promise<number> {
+    const { entropySource, startIndex } = opts;
+    const provider = this.getEvmProvider();
+    let currentIndex = startIndex;
+    let activeCount = 0;
+
+    // eslint-disable-next-line no-constant-condition
+    while (true) {
+      const address = await this.#getAddressFromGroupIndex({
+        entropySource,
+        groupIndex: currentIndex,
+      });
+
+      const count = await this.#getTransactionCount(provider, address);
+      if (count === 0) {
+        break;
+      }
+
+      activeCount += 1;
+      currentIndex += 1;
+    }
+
+    return activeCount;
+  }
+
+  /**
+   * Bulk create accounts for a given entropy source.
+   *
+   * @param opts - Options.
+   * @param opts.entropySource - The entropy source to use.
+   * @param opts.count - The number of accounts to create.
+   */
+  async bulkCreateAccounts({
+    entropySource,
+    count,
+  }: {
+    entropySource: EntropySourceId;
+    count: number;
+  }): Promise<void> {
+    if (count === 0) {
+      return;
+    }
+
+    await this.withKeyring<EthKeyring>(
+      { id: entropySource },
+      async ({ keyring }) => {
+        await keyring.addAccounts(count);
       },
     );
   }
