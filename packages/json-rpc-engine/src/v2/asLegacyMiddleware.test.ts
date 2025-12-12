@@ -1,4 +1,5 @@
 import type {
+  Json,
   JsonRpcFailure,
   JsonRpcRequest,
   JsonRpcSuccess,
@@ -129,7 +130,8 @@ describe('asLegacyMiddleware', () => {
   it('propagates request modifications to the legacy engine', async () => {
     const v2Engine = JsonRpcEngineV2.create<JsonRpcMiddleware<JsonRpcRequest>>({
       middleware: [
-        ({ request, next }) => next({ ...request, method: 'test_request_2' }),
+        ({ request, next }): Promise<Readonly<Json> | undefined> =>
+          next({ ...request, method: 'test_request_2' }),
       ],
     });
 
@@ -154,7 +156,10 @@ describe('asLegacyMiddleware', () => {
   it('propagates additional request properties to the v2 context and back', async () => {
     const observedContextValues: number[] = [];
 
-    const v2Middleware = jest.fn((({ context, next }) => {
+    const v2Middleware = jest.fn((({
+      context,
+      next,
+    }): Promise<Readonly<Json> | undefined> => {
       observedContextValues.push(context.assertGet('value') as number);
 
       expect(Array.from(context.keys())).toStrictEqual(['value']);

@@ -257,6 +257,19 @@ export const EMPTY_ACCOUNT = {
 };
 
 /**
+ * A patch representing a keyring state change.
+ */
+type StatePatch = {
+  previous: Record<string, InternalAccount>;
+  added: {
+    address: string;
+    keyring: KeyringObject;
+  }[];
+  updated: InternalAccount[];
+  removed: InternalAccount[];
+};
+
+/**
  * Controller that manages internal accounts.
  * The accounts controller is responsible for creating and managing internal accounts.
  * It also provides convenience methods for accessing and updating the internal accounts.
@@ -506,7 +519,10 @@ export class AccountsController extends BaseController<
     );
   }
 
-  #assertAccountCanBeRenamed(account: InternalAccount, accountName: string) {
+  #assertAccountCanBeRenamed(
+    account: InternalAccount,
+    accountName: string,
+  ): void {
     if (
       this.listMultichainAccounts().find(
         (internalAccount) =>
@@ -769,15 +785,12 @@ export class AccountsController extends BaseController<
     }
 
     // State patches.
-    const generatePatch = () => {
+    const generatePatch = (): StatePatch => {
       return {
-        previous: {} as Record<string, InternalAccount>,
-        added: [] as {
-          address: string;
-          keyring: KeyringObject;
-        }[],
-        updated: [] as InternalAccount[],
-        removed: [] as InternalAccount[],
+        previous: {},
+        added: [],
+        updated: [],
+        removed: [],
       };
     };
     const patches = {
@@ -787,7 +800,7 @@ export class AccountsController extends BaseController<
 
     // Gets the patch object based on the keyring type (since Snap accounts and other accounts
     // are handled differently).
-    const patchOf = (type: string) => {
+    const patchOf = (type: string): StatePatch => {
       if (isSnapKeyringType(type)) {
         return patches.snap;
       }
@@ -840,9 +853,9 @@ export class AccountsController extends BaseController<
     }
 
     // Diff that we will use to publish events afterward.
-    const diff = {
-      removed: [] as string[],
-      added: [] as InternalAccount[],
+    const diff: { removed: string[]; added: InternalAccount[] } = {
+      removed: [],
+      added: [],
     };
 
     this.#update(
@@ -922,7 +935,7 @@ export class AccountsController extends BaseController<
   #update(
     callback: (state: WritableDraft<AccountsControllerStrictState>) => void,
     beforeAutoSelectAccount?: () => void,
-  ) {
+  ): void {
     // The currently selected account might get deleted during the update, so keep track
     // of it before doing any change.
     const previouslySelectedAccount =
@@ -982,7 +995,7 @@ export class AccountsController extends BaseController<
    *
    * @param snapState - The new SnapControllerState.
    */
-  #handleOnSnapStateChange(snapState: SnapControllerState) {
+  #handleOnSnapStateChange(snapState: SnapControllerState): void {
     // Only check if Snaps changed in status.
     const { snaps } = snapState;
 
@@ -1025,7 +1038,10 @@ export class AccountsController extends BaseController<
    * @param accounts - Accounts to filter by keyring type.
    * @returns The list of accounts associcated with this keyring type.
    */
-  #getAccountsByKeyringType(keyringType: string, accounts?: InternalAccount[]) {
+  #getAccountsByKeyringType(
+    keyringType: string,
+    accounts?: InternalAccount[],
+  ): InternalAccount[] {
     return (accounts ?? this.listMultichainAccounts()).filter(
       (internalAccount) => {
         // We do consider `hd` and `simple` keyrings to be of same type. So we check those 2 types
@@ -1113,7 +1129,7 @@ export class AccountsController extends BaseController<
    *
    * @returns The index value.
    */
-  #getLastSelectedIndex() {
+  #getLastSelectedIndex(): number {
     // NOTE: For now we use the current date, since we know this value
     // will always be higher than any already selected account index.
     return Date.now();
@@ -1178,7 +1194,7 @@ export class AccountsController extends BaseController<
    *
    * @param id - The EVM client ID or non-EVM chain ID that changed.
    */
-  #handleOnMultichainNetworkDidChange(id: NetworkClientId | CaipChainId) {
+  #handleOnMultichainNetworkDidChange(id: NetworkClientId | CaipChainId): void {
     let accountId: string;
 
     // We only support non-EVM Caip chain IDs at the moment. Ex Solana and Bitcoin
@@ -1210,7 +1226,7 @@ export class AccountsController extends BaseController<
   /**
    * Subscribes to message events.
    */
-  #subscribeToMessageEvents() {
+  #subscribeToMessageEvents(): void {
     this.messenger.subscribe('SnapController:stateChange', (snapStateState) =>
       this.#handleOnSnapStateChange(snapStateState),
     );
@@ -1256,7 +1272,7 @@ export class AccountsController extends BaseController<
   /**
    * Registers message handlers for the AccountsController.
    */
-  #registerMessageHandlers() {
+  #registerMessageHandlers(): void {
     this.messenger.registerActionHandler(
       `${controllerName}:setSelectedAccount`,
       this.setSelectedAccount.bind(this),
