@@ -470,7 +470,9 @@ export class JsonRpcEngineV2<
         context,
       );
 
-      return result ?? (await next(finalRequest));
+      // We can't use nullish coalescing here because `result` may be `null`.
+      // eslint-disable-next-line @typescript-eslint/prefer-nullish-coalescing
+      return result === undefined ? await next(finalRequest) : result;
     };
   }
 
