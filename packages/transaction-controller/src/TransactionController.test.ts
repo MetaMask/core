@@ -725,6 +725,7 @@ describe('TransactionController', () => {
       isEIP7702GasFeeTokensEnabled: isEIP7702GasFeeTokensEnabledMock,
       publicKeyEIP7702: '0x1234',
       sign: signMock,
+      transactionHistoryLimit: 40,
       ...givenOptions,
     };
 
@@ -1201,10 +1202,10 @@ describe('TransactionController', () => {
       expect(
         transactions.map((transaction) => [transaction.id, transaction.status]),
       ).toStrictEqual([
-        ['123', TransactionStatus.failed],
-        ['111', TransactionStatus.failed],
-        ['222', TransactionStatus.confirmed],
         ['333', TransactionStatus.failed],
+        ['222', TransactionStatus.confirmed],
+        ['111', TransactionStatus.failed],
+        ['123', TransactionStatus.failed],
       ]);
     });
 
@@ -4844,6 +4845,23 @@ describe('TransactionController', () => {
 
       expect(controller.state.transactions).toStrictEqual([
         { ...TRANSACTION_META_MOCK, networkClientId: NETWORK_CLIENT_ID_MOCK },
+        { ...TRANSACTION_META_2_MOCK, networkClientId: NETWORK_CLIENT_ID_MOCK },
+      ]);
+    });
+
+    it('limits max transactions when adding to state', async () => {
+      const { controller } = setupController({
+        options: { transactionHistoryLimit: 1 },
+      });
+
+      // TODO: Replace `any` with type
+      // eslint-disable-next-line @typescript-eslint/no-explicit-any
+      await (incomingTransactionHelperMock.hub.on as any).mock.calls[0][1]([
+        TRANSACTION_META_MOCK,
+        TRANSACTION_META_2_MOCK,
+      ]);
+
+      expect(controller.state.transactions).toStrictEqual([
         { ...TRANSACTION_META_2_MOCK, networkClientId: NETWORK_CLIENT_ID_MOCK },
       ]);
     });

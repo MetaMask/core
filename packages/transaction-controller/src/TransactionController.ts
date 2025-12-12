@@ -19,6 +19,7 @@ import {
   query,
   ApprovalType,
   ORIGIN_METAMASK,
+  convertHexToDecimal,
 } from '@metamask/controller-utils';
 import type { TraceCallback, TraceContext } from '@metamask/controller-utils';
 import EthQuery from '@metamask/eth-query';
@@ -120,6 +121,7 @@ import type {
   PublishHookResult,
   GetGasFeeTokensRequest,
   InternalAccount,
+  SendFlowHistoryEntry,
 } from './types';
 import {
   GasFeeEstimateLevel,
@@ -424,10 +426,10 @@ export type PendingTransactionOptions = {
 
 /** TransactionController constructor options. */
 export type TransactionControllerOptions = {
-  /** @deprecated Whether to disable storing history in transaction metadata. */
+  /** @deprecated No longer used — kept only for backward compatibility. */
   disableHistory: boolean;
 
-  /** @deprecated Explicitly disable transaction metadata history. */
+  /** @deprecated No longer used — kept only for backward compatibility. */
   disableSendFlowHistory: boolean;
 
   /** Whether to disable additional processing on swaps transactions. */
@@ -517,7 +519,7 @@ export type TransactionControllerOptions = {
   testGasFeeFlows?: boolean;
   trace?: TraceCallback;
 
-  /** @deprecated Transaction history limit. */
+  /** Transaction history limit. */
   transactionHistoryLimit: number;
 
   /** The controller hooks. */
@@ -930,7 +932,7 @@ export class TransactionController extends BaseController<
 
   readonly #trace: TraceCallback;
 
-  // readonly #transactionHistoryLimit: number;
+  readonly #transactionHistoryLimit: number;
 
   /**
    * Constructs a TransactionController.
@@ -963,6 +965,7 @@ export class TransactionController extends BaseController<
       state,
       testGasFeeFlows,
       trace,
+      transactionHistoryLimit = 40,
     } = options;
 
     super({
@@ -1035,6 +1038,7 @@ export class TransactionController extends BaseController<
     this.#sign = sign;
     this.#testGasFeeFlows = testGasFeeFlows === true;
     this.#trace = trace ?? (((_request, fn) => fn?.()) as TraceCallback);
+    this.#transactionHistoryLimit = transactionHistoryLimit;
 
     const findNetworkClientIdByChainId = (chainId: Hex): string => {
       return this.messenger.call(
@@ -1118,6 +1122,7 @@ export class TransactionController extends BaseController<
       isEnabled: this.#incomingTransactionOptions.isEnabled,
       messenger: this.messenger,
       remoteTransactionSource: new AccountsApiRemoteTransactionSource(),
+      trimTransactions: this.#trimTransactionsForState.bind(this),
       updateTransactions: this.#incomingTransactionOptions.updateTransactions,
     });
 
@@ -1923,8 +1928,24 @@ export class TransactionController extends BaseController<
     );
 
     this.update((state) => {
-      state.transactions = newTransactions;
+      state.transactions = this.#trimTransactionsForState(newTransactions);
     });
+  }
+
+  /**
+   * @deprecated No longer used. Kept only to avoid breaking changes. It now performs no operations.
+   * @param transactionID - The ID of the transaction to update.
+   * @param _currentSendFlowHistoryLength - The length of the current sendFlowHistory array.
+   * @param _sendFlowHistoryToAdd - The sendFlowHistory entries to add.
+   * @returns The transactionMeta.
+   */
+  updateTransactionSendFlowHistory(
+    transactionID: string,
+    _currentSendFlowHistoryLength: number,
+    _sendFlowHistoryToAdd: SendFlowHistoryEntry[],
+  ): TransactionMeta {
+    // Return the transaction unchanged
+    return this.#getTransaction(transactionID) as TransactionMeta;
   }
 
   /**
@@ -2686,7 +2707,7 @@ export class TransactionController extends BaseController<
       ({ status }) => status !== TransactionStatus.unapproved,
     );
     this.update((state) => {
-      state.transactions = transactions;
+      state.transactions = this.#trimTransactionsForState(transactions);
     });
   }
 
@@ -2935,7 +2956,10 @@ export class TransactionController extends BaseController<
   #addMetadata(transactionMeta: TransactionMeta): void {
     validateTxParams(transactionMeta.txParams);
     this.update((state) => {
-      state.transactions = [...state.transactions, transactionMeta];
+      state.transactions = this.#trimTransactionsForState([
+        ...state.transactions,
+        transactionMeta,
+      ]);
     });
   }
 
@@ -3587,7 +3611,10 @@ export class TransactionController extends BaseController<
     this.update((state) => {
       const { transactions: currentTransactions } = state;
 
-      state.transactions = [...finalTransactions, ...currentTransactions];
+      state.transactions = this.#trimTransactionsForState([
+        ...finalTransactions,
+        ...currentTransactions,
+      ]);
 
       log(
         'Added incoming transactions to state',
@@ -3744,6 +3771,53 @@ export class TransactionController extends BaseController<
       'TransactionController#setTransactionStatusDropped - Transaction dropped',
     );
     this.#onTransactionStatusChange(updatedTransactionMeta);
+  }
+
+  /**
+   * Trim the amount of transactions that are set on the state. Checks
+   * if the length of the tx history is longer then desired persistence
+   * limit and then if it is removes the oldest confirmed or rejected tx.
+   * Pending or unapproved transactions will not be removed by this
+   * operation. For safety of presenting a fully functional transaction UI
+   * representation, this function will not break apart transactions with the
+   * same nonce, created on the same day, per network. Not accounting for
+   * transactions of the same nonce, same day and network combo can result in
+   * confusing or broken experiences in the UI.
+   *
+   * @param transactions - The transactions to be applied to the state.
+   * @returns The trimmed list of transactions.
+   */
+  #trimTransactionsForState(
+    transactions: TransactionMeta[],
+  ): TransactionMeta[] {
+    const nonceNetworkSet = new Set();
+
+    const txsToKeep = [...transactions]
+      .sort((a, b) => (a.time > b.time ? -1 : 1)) // Descending time order
+      .filter((tx) => {
+        const { chainId, status, txParams, time } = tx;
+
+        if (txParams) {
+          const key = `${String(txParams.nonce)}-${convertHexToDecimal(
+            chainId,
+          )}-${new Date(time).toDateString()}`;
+
+          if (nonceNetworkSet.has(key)) {
+            return true;
+          } else if (
+            nonceNetworkSet.size < this.#transactionHistoryLimit ||
+            !this.#isFinalState(status)
+          ) {
+            nonceNetworkSet.add(key);
+            return true;
+          }
+        }
+
+        return false;
+      });
+
+    txsToKeep.reverse(); // Ascending time order
+    return txsToKeep;
   }
 
   /**
@@ -4547,7 +4621,7 @@ export class TransactionController extends BaseController<
         ({ id }) => id !== transactionId,
       );
 
-      state.transactions = transactions;
+      state.transactions = this.#trimTransactionsForState(transactions);
     });
   }
 

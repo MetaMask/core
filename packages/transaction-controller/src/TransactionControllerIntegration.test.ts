@@ -662,13 +662,13 @@ describe('TransactionController Integration', () => {
           'confirmed',
         );
         expect(
-          transactionController.state.transactions[1].networkClientId,
+          transactionController.state.transactions[0].networkClientId,
         ).toBe('sepolia');
         expect(transactionController.state.transactions[1].status).toBe(
           'confirmed',
         );
         expect(
-          transactionController.state.transactions[0].networkClientId,
+          transactionController.state.transactions[1].networkClientId,
         ).toBe('linea-sepolia');
         transactionController.destroy();
       });

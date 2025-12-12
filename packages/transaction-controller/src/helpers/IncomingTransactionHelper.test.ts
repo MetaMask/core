@@ -44,6 +44,7 @@ const CONTROLLER_ARGS_MOCK: ConstructorParameters<
   getLocalTransactions: () => [],
   messenger: MESSENGER_MOCK,
   remoteTransactionSource: {} as RemoteTransactionSource,
+  trimTransactions: (transactions) => transactions,
 };
 
 const TRANSACTION_MOCK: TransactionMeta = {
@@ -319,6 +320,7 @@ describe('IncomingTransactionHelper', () => {
       it('does not if all unique transactions are truncated', async () => {
         const helper = new IncomingTransactionHelper({
           ...CONTROLLER_ARGS_MOCK,
+          trimTransactions: (): TransactionMeta[] => [],
           remoteTransactionSource: createRemoteTransactionSourceMock([
             TRANSACTION_MOCK,
           ]),

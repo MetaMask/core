@@ -53,6 +53,10 @@ export class IncomingTransactionHelper {
 
   #timeoutId?: unknown;
 
+  readonly #trimTransactions: (
+    transactions: TransactionMeta[],
+  ) => TransactionMeta[];
+
   readonly #updateTransactions?: boolean;
 
   constructor({
@@ -63,6 +67,7 @@ export class IncomingTransactionHelper {
     isEnabled,
     messenger,
     remoteTransactionSource,
+    trimTransactions,
     updateTransactions,
   }: {
     client?: string;
@@ -74,6 +79,7 @@ export class IncomingTransactionHelper {
     isEnabled?: () => boolean;
     messenger: TransactionControllerMessenger;
     remoteTransactionSource: RemoteTransactionSource;
+    trimTransactions: (transactions: TransactionMeta[]) => TransactionMeta[];
     updateTransactions?: boolean;
   }) {
     this.hub = new EventEmitter();
@@ -87,6 +93,7 @@ export class IncomingTransactionHelper {
     this.#isUpdating = false;
     this.#messenger = messenger;
     this.#remoteTransactionSource = remoteTransactionSource;
+    this.#trimTransactions = trimTransactions;
     this.#updateTransactions = updateTransactions;
   }
 
@@ -222,7 +229,10 @@ export class IncomingTransactionHelper {
       uniqueTransactions,
     );
 
-    const trimmedTransactions = [...uniqueTransactions, ...localTransactions];
+    const trimmedTransactions = this.#trimTransactions([
+      ...uniqueTransactions,
+      ...localTransactions,
+    ]);
 
     const uniqueTransactionIds = uniqueTransactions.map((tx) => tx.id);
 
