@@ -335,8 +335,14 @@ export class RemoteFeatureFlagController extends BaseController<
    * @param value - The override value for the feature flag.
    */
   setFlagOverride(flagName: string, value: Json): void {
-    this.update((state) => {
-      state.localOverrides[flagName] = value;
+    this.update(() => {
+      return {
+        ...this.state,
+        localOverrides: {
+          ...this.state.localOverrides,
+          [flagName]: value,
+        },
+      }
     });
   }
 
@@ -346,8 +352,13 @@ export class RemoteFeatureFlagController extends BaseController<
    * @param flagName - The name of the feature flag to clear.
    */
   removeFlagOverride(flagName: string): void {
-    this.update((state) => {
-      delete state.localOverrides[flagName];
+    const newLocalOverrides = { ...this.state.localOverrides};
+    delete newLocalOverrides[flagName];
+    this.update(() => {
+      return {
+        ...this.state,
+        localOverrides: newLocalOverrides,
+      };
     });
   }
 
@@ -355,8 +366,11 @@ export class RemoteFeatureFlagController extends BaseController<
    * Clears all local feature flag overrides.
    */
   clearAllFlagOverrides(): void {
-    this.update((state) => {
-      state.localOverrides = {};
+    this.update(() => {
+      return {
+        ...this.state,
+        localOverrides: {},
+      };
     });
   }
 }

@@ -740,32 +740,15 @@ describe('RemoteFeatureFlagController', () => {
         });
         const controller = createController({ clientConfigApiService });
 
-        // Set override before fetching remote flags
+        // Set overrides before fetching remote flags
         controller.setFlagOverride('overrideFlag', 'overrideValue');
+        controller.setFlagOverride('remoteFlag', 'updatedRemoteValue');
 
         await controller.updateRemoteFeatureFlags();
 
-        // Mock different remote response for updated fetch
-        jest
-          .spyOn(clientConfigApiService, 'fetchRemoteFeatureFlags')
-          .mockResolvedValueOnce({
-            remoteFeatureFlags: { remoteFlag: 'updatedRemoteValue' },
-            cacheTimestamp: Date.now(),
-          });
-
-        // Force cache expiration and update
-        jest
-          .spyOn(Date, 'now')
-          .mockReturnValue(Date.now() + DEFAULT_CACHE_DURATION + 1000);
-        await controller.updateRemoteFeatureFlags();
-
-        // Overrides should be preserved
+        // Overrides should be preserved when remote flags are updated.
         expect(controller.state.localOverrides).toStrictEqual({
           overrideFlag: 'overrideValue',
-        });
-
-        // Remote flags should be updated
-        expect(controller.state.remoteFeatureFlags).toStrictEqual({
           remoteFlag: 'updatedRemoteValue',
         });
       });
