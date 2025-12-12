@@ -13,10 +13,7 @@ import {
   EthScope,
   KeyringAccountEntropyTypeOption,
 } from '@metamask/keyring-api';
-import {
-  KeyringControllerState,
-  KeyringTypes,
-} from '@metamask/keyring-controller';
+import { KeyringTypes } from '@metamask/keyring-controller';
 import type { InternalAccount } from '@metamask/keyring-internal-api';
 import { MOCK_ANY_NAMESPACE, Messenger } from '@metamask/messenger';
 import type {
@@ -273,7 +270,8 @@ function buildAccountsControllerMessenger(
     ],
     events: [
       'SnapController:stateChange',
-      'KeyringController:stateChange',
+      'KeyringController:accountAdded',
+      'KeyringController:accountRemoved',
       'SnapKeyring:accountAssetListUpdated',
       'SnapKeyring:accountBalancesUpdated',
       'SnapKeyring:accountTransactionsUpdated',
@@ -577,136 +575,18 @@ describe('AccountsController', () => {
     });
   });
 
-  describe('onKeyringStateChange', () => {
-    it('uses listMultichainAccounts', async () => {
-      const messenger = buildMessenger();
-
-      mockUUIDWithNormalAccounts([mockAccount, mockAccount2]);
-
-      const { accountsController } = setupAccountsController({
-        initialState: {
-          internalAccounts: {
-            accounts: {},
-            selectedAccount: '',
-          },
-        },
-        messenger,
-      });
-
-      const listMultichainAccountsSpy = jest.spyOn(
-        accountsController,
-        'listMultichainAccounts',
-      );
-
-      const mockNewKeyringState = {
-        isUnlocked: true,
-        keyrings: [
-          {
-            type: KeyringTypes.hd,
-            accounts: [mockAccount.address],
-            metadata: {
-              id: 'mock-id',
-              name: 'mock-name',
-            },
-          },
-        ],
-      };
-
-      messenger.publish(
-        'KeyringController:stateChange',
-        mockNewKeyringState,
-        [],
-      );
-
-      expect(listMultichainAccountsSpy).toHaveBeenCalled();
-    });
-
-    it('does not update state when only keyring is unlocked without any keyrings', async () => {
-      const messenger = buildMessenger();
-      const { accountsController } = setupAccountsController({
-        initialState: {
-          internalAccounts: {
-            accounts: {},
-            selectedAccount: '',
-          },
-        },
-        messenger,
-      });
-
-      messenger.publish(
-        'KeyringController:stateChange',
-        { isUnlocked: true, keyrings: [] },
-        [],
-      );
-
-      const accounts = accountsController.listMultichainAccounts();
-
-      expect(accounts).toStrictEqual([]);
-    });
-
-    it('only update if the keyring is unlocked and when there are keyrings', async () => {
-      const messenger = buildMessenger();
-
-      const mockNewKeyringState = {
-        isUnlocked: false,
-        keyrings: [
-          {
-            accounts: [mockAccount.address, mockAccount2.address],
-            type: KeyringTypes.hd,
-            id: '123',
-            metadata: {
-              id: 'mock-id',
-              name: 'mock-name',
-            },
-          },
-        ],
-      };
-      const { accountsController } = setupAccountsController({
-        initialState: {
-          internalAccounts: {
-            accounts: {},
-            selectedAccount: '',
-          },
-        },
-        messenger,
-      });
-
-      messenger.publish(
-        'KeyringController:stateChange',
-        mockNewKeyringState,
-        [],
-      );
-
-      const accounts = accountsController.listMultichainAccounts();
-
-      expect(accounts).toStrictEqual([]);
-    });
-
+  describe('on KeyringController:accountAdded', () => {
     describe('adding accounts', () => {
       it('add new accounts', async () => {
         const messenger = buildMessenger();
 
-        mockUUIDWithNormalAccounts([mockAccount, mockAccount2, mockAccount3]);
+        mockUUIDWithNormalAccounts([mockAccount, mockAccount2]);
 
-        const mockNewKeyringState = {
-          isUnlocked: true,
-          keyrings: [
-            {
-              type: KeyringTypes.hd,
-              accounts: [mockAccount.address, mockAccount2.address],
-              metadata: {
-                id: 'mock-id',
-                name: 'mock-name',
-              },
-            },
-          ],
-        };
         const { accountsController } = setupAccountsController({
           initialState: {
             internalAccounts: {
               accounts: {
                 [mockAccount.id]: mockAccount,
-                [mockAccount3.id]: mockAccount3,
               },
               selectedAccount: mockAccount.id,
             },
@@ -714,10 +594,18 @@ describe('AccountsController', () => {
           messenger,
         });
 
+        const keyring = {
+          type: KeyringTypes.hd,
+          accounts: [mockAccount.address, mockAccount2.address],
+          metadata: {
+            id: 'mock-id',
+            name: 'mock-name',
+          },
+        };
         messenger.publish(
-          'KeyringController:stateChange',
-          mockNewKeyringState,
-          [],
+          'KeyringController:accountAdded',
+          mockAccount2.address,
+          keyring,
         );
 
         const accounts = accountsController.listMultichainAccounts();
@@ -748,28 +636,6 @@ describe('AccountsController', () => {
           ]),
         );
 
-        const mockNewKeyringState = {
-          isUnlocked: true,
-          keyrings: [
-            {
-              type: KeyringTypes.hd,
-              accounts: [mockAccount.address],
-              metadata: {
-                id: 'mock-id',
-                name: 'mock-name',
-              },
-            },
-            {
-              type: KeyringTypes.snap,
-              accounts: [mockAccount3.address, mockAccount4.address],
-              metadata: {
-                id: 'mock-id2',
-                name: 'mock-name2',
-              },
-            },
-          ],
-        };
-
         const { accountsController } = setupAccountsController({
           initialState: {
             internalAccounts: {
@@ -783,10 +649,18 @@ describe('AccountsController', () => {
           messenger,
         });
 
+        const snapKeyring = {
+          type: KeyringTypes.snap,
+          accounts: [mockAccount3.address, mockAccount4.address],
+          metadata: {
+            id: 'mock-id2',
+            name: 'mock-name2',
+          },
+        };
         messenger.publish(
-          'KeyringController:stateChange',
-          mockNewKeyringState,
-          [],
+          'KeyringController:accountAdded',
+          snapKeyring.accounts[0],
+          snapKeyring,
         );
 
         const accounts = accountsController.listMultichainAccounts();
@@ -823,28 +697,6 @@ describe('AccountsController', () => {
           ]),
         );
 
-        const mockNewKeyringState = {
-          isUnlocked: true,
-          keyrings: [
-            {
-              type: KeyringTypes.hd,
-              accounts: [mockAccount.address],
-              metadata: {
-                id: 'mock-id',
-                name: 'mock-name',
-              },
-            },
-            {
-              type: KeyringTypes.snap,
-              accounts: [mockAccount3.address, mockAccount4.address],
-              metadata: {
-                id: 'mock-id2',
-                name: 'mock-name2',
-              },
-            },
-          ],
-        };
-
         const { accountsController } = setupAccountsController({
           initialState: {
             internalAccounts: {
@@ -858,10 +710,18 @@ describe('AccountsController', () => {
           messenger,
         });
 
+        const snapKeyring = {
+          type: KeyringTypes.snap,
+          accounts: [mockAccount3.address, mockAccount4.address],
+          metadata: {
+            id: 'mock-id2',
+            name: 'mock-name2',
+          },
+        };
         messenger.publish(
-          'KeyringController:stateChange',
-          mockNewKeyringState,
-          [],
+          'KeyringController:accountAdded',
+          mockAccount3.address,
+          snapKeyring,
         );
 
         const accounts = accountsController.listMultichainAccounts();
@@ -882,31 +742,6 @@ describe('AccountsController', () => {
           mockGetKeyringByType.mockReturnValue([]),
         );
 
-        const mockNewKeyringState = {
-          isUnlocked: true,
-          keyrings: [
-            {
-              type: KeyringTypes.hd,
-              accounts: [mockAccount.address],
-              metadata: {
-                id: 'mock-id',
-                name: 'mock-name',
-              },
-            },
-            {
-              type: KeyringTypes.snap,
-              // Since the Snap keyring will be mocked as "unavailable", this account won't be added
-              // to the state (like if the Snap did remove it right before the keyring controller
-              // state change got triggered).
-              accounts: [mockAccount3.address],
-              metadata: {
-                id: 'mock-id2',
-                name: 'mock-name2',
-              },
-            },
-          ],
-        };
-
         const { accountsController } = setupAccountsController({
           initialState: {
             internalAccounts: {
@@ -919,10 +754,21 @@ describe('AccountsController', () => {
           messenger,
         });
 
+        // Since the Snap keyring will be mocked as "unavailable", this account won't be added
+        // to the state (like if the Snap did remove it right before the keyring controller
+        // state change got triggered).
+        const snapKeyring = {
+          type: KeyringTypes.snap,
+          accounts: [mockAccount3.address],
+          metadata: {
+            id: 'mock-id2',
+            name: 'mock-name2',
+          },
+        };
         messenger.publish(
-          'KeyringController:stateChange',
-          mockNewKeyringState,
-          [],
+          'KeyringController:accountAdded',
+          mockAccount3.address,
+          snapKeyring,
         );
 
         const accounts = accountsController.listMultichainAccounts();
@@ -937,23 +783,6 @@ describe('AccountsController', () => {
 
         mockUUIDWithNormalAccounts([mockAccount, mockAccount2, mockAccount3]);
 
-        const mockNewKeyringState = {
-          isUnlocked: true,
-          keyrings: [
-            {
-              type: KeyringTypes.hd,
-              accounts: [
-                mockAccount.address,
-                mockAccount2.address,
-                mockAccount3.address,
-              ],
-              metadata: {
-                id: 'mock-id',
-                name: 'mock-name',
-              },
-            },
-          ],
-        };
         const { accountsController } = setupAccountsController({
           initialState: {
             internalAccounts: {
@@ -967,10 +796,22 @@ describe('AccountsController', () => {
           messenger,
         });
 
+        const keyring = {
+          type: KeyringTypes.hd,
+          accounts: [
+            mockAccount.address,
+            mockAccount2.address,
+            mockAccount3.address,
+          ],
+          metadata: {
+            id: 'mock-id',
+            name: 'mock-name',
+          },
+        };
         messenger.publish(
-          'KeyringController:stateChange',
-          mockNewKeyringState,
-          [],
+          'KeyringController:accountAdded',
+          mockAccount3.address,
+          keyring,
         );
 
         const accounts = accountsController.listMultichainAccounts();
@@ -1006,23 +847,6 @@ describe('AccountsController', () => {
           lastSelected: 1955565967656,
         });
 
-        const mockNewKeyringState = {
-          isUnlocked: true,
-          keyrings: [
-            {
-              type: KeyringTypes.hd,
-              accounts: [
-                mockAccount.address,
-                mockAccount2.address,
-                mockAccount3.address,
-              ],
-              metadata: {
-                id: 'mock-id',
-                name: 'mock-name',
-              },
-            },
-          ],
-        };
         const { accountsController } = setupAccountsController({
           initialState: {
             internalAccounts: {
@@ -1036,10 +860,22 @@ describe('AccountsController', () => {
           messenger,
         });
 
+        const keyring = {
+          type: KeyringTypes.hd,
+          accounts: [
+            mockAccount.address,
+            mockAccount2WithCustomName.address,
+            mockAccount3.address,
+          ],
+          metadata: {
+            id: 'mock-id',
+            name: 'mock-name',
+          },
+        };
         messenger.publish(
-          'KeyringController:stateChange',
-          mockNewKeyringState,
-          [],
+          'KeyringController:accountAdded',
+          mockAccount3.address,
+          keyring,
         );
 
         const accounts = accountsController.listMultichainAccounts();
@@ -1070,32 +906,10 @@ describe('AccountsController', () => {
           mockGetKeyringByType.mockReturnValue([
             {
               type: KeyringTypes.snap,
-              getAccountByAddress: jest.fn().mockReturnValueOnce(null),
+              getAccountByAddress: jest.fn().mockReturnValueOnce(mockAccount3),
             },
           ]),
         );
-
-        const mockNewKeyringState = {
-          isUnlocked: true,
-          keyrings: [
-            {
-              type: KeyringTypes.hd,
-              accounts: [],
-              metadata: {
-                id: 'mock-id',
-                name: 'mock-name',
-              },
-            },
-            {
-              type: KeyringTypes.snap,
-              accounts: [mockAccount3.address],
-              metadata: {
-                id: 'mock-id2',
-                name: 'mock-name2',
-              },
-            },
-          ],
-        };
 
         const { accountsController } = setupAccountsController({
           initialState: {
@@ -1107,15 +921,22 @@ describe('AccountsController', () => {
           messenger,
         });
 
+        const snapKeyring = {
+          type: KeyringTypes.snap,
+          accounts: [mockAccount3.address],
+          metadata: { id: 'mock-id2', name: 'mock-name2' },
+        };
         messenger.publish(
-          'KeyringController:stateChange',
-          mockNewKeyringState,
-          [],
+          'KeyringController:accountAdded',
+          mockAccount3.address,
+          snapKeyring,
         );
 
         const { selectedAccount } = accountsController.state.internalAccounts;
 
-        expect(selectedAccount).toBe('');
+        // The 'missing' account was not found, so the selectedAccount has been set to the
+        // newly added account automatically.
+        expect(selectedAccount).toBe(mockAccount3.id);
       });
 
       it('selectedAccount remains the same after adding a new account', async () => {
@@ -1123,25 +944,11 @@ describe('AccountsController', () => {
 
         mockUUIDWithNormalAccounts([mockAccount, mockAccount2, mockAccount3]);
 
-        const mockNewKeyringState = {
-          isUnlocked: true,
-          keyrings: [
-            {
-              type: KeyringTypes.hd,
-              accounts: [mockAccount.address, mockAccount2.address],
-              metadata: {
-                id: 'mock-id',
-                name: 'mock-name',
-              },
-            },
-          ],
-        };
         const { accountsController } = setupAccountsController({
           initialState: {
             internalAccounts: {
               accounts: {
                 [mockAccount.id]: mockAccount,
-                [mockAccount3.id]: mockAccount3,
               },
               selectedAccount: mockAccount.id,
             },
@@ -1149,10 +956,18 @@ describe('AccountsController', () => {
           messenger,
         });
 
+        const keyring = {
+          type: KeyringTypes.hd,
+          accounts: [mockAccount.address, mockAccount2.address],
+          metadata: {
+            id: 'mock-id',
+            name: 'mock-name',
+          },
+        };
         messenger.publish(
-          'KeyringController:stateChange',
-          mockNewKeyringState,
-          [],
+          'KeyringController:accountAdded',
+          mockAccount2.address,
+          keyring,
         );
 
         const accounts = accountsController.listMultichainAccounts();
@@ -1167,7 +982,7 @@ describe('AccountsController', () => {
         expect(accountsController.getSelectedAccount().id).toBe(mockAccount.id);
       });
 
-      it('publishes accountAdded event', async () => {
+      it('publishes :accountAdded event', async () => {
         const messenger = buildMessenger();
 
         mockUUIDWithNormalAccounts([mockAccount, mockAccount2]);
@@ -1186,24 +1001,18 @@ describe('AccountsController', () => {
 
         const messengerSpy = jest.spyOn(accountsControllerMessenger, 'publish');
 
-        const mockNewKeyringState = {
-          isUnlocked: true,
-          keyrings: [
-            {
-              type: KeyringTypes.hd,
-              accounts: [mockAccount.address, mockAccount2.address],
-              metadata: {
-                id: 'mock-id',
-                name: 'mock-name',
-              },
-            },
-          ],
+        const keyring = {
+          type: KeyringTypes.hd,
+          accounts: [mockAccount.address, mockAccount2.address],
+          metadata: {
+            id: 'mock-id',
+            name: 'mock-name',
+          },
         };
-
         messenger.publish(
-          'KeyringController:stateChange',
-          mockNewKeyringState,
-          [],
+          'KeyringController:accountAdded',
+          mockAccount2.address,
+          keyring,
         );
 
         // First call is 'AccountsController:stateChange'
@@ -1225,19 +1034,6 @@ describe('AccountsController', () => {
 
         mockUUIDWithNormalAccounts([mockAccount2]);
 
-        const mockNewKeyringState = {
-          isUnlocked: true,
-          keyrings: [
-            {
-              type: KeyringTypes.hd,
-              accounts: [mockAccount2.address],
-              metadata: {
-                id: 'mock-id',
-                name: 'mock-name',
-              },
-            },
-          ],
-        };
         const { accountsController } = setupAccountsController({
           initialState: {
             internalAccounts: {
@@ -1252,9 +1048,8 @@ describe('AccountsController', () => {
         });
 
         messenger.publish(
-          'KeyringController:stateChange',
-          mockNewKeyringState,
-          [],
+          'KeyringController:accountRemoved',
+          mockAccount.address,
         );
 
         const accounts = accountsController.listMultichainAccounts();
@@ -1272,19 +1067,6 @@ describe('AccountsController', () => {
 
         mockUUIDWithNormalAccounts([mockAccount, mockAccount2]);
 
-        const mockNewKeyringState = {
-          isUnlocked: true,
-          keyrings: [
-            {
-              type: KeyringTypes.hd,
-              accounts: [mockAccount.address, mockAccount2.address],
-              metadata: {
-                id: 'mock-id',
-                name: 'mock-name',
-              },
-            },
-          ],
-        };
         const { accountsController } = setupAccountsController({
           initialState: {
             internalAccounts: {
@@ -1307,11 +1089,7 @@ describe('AccountsController', () => {
           messenger,
         });
 
-        messenger.publish(
-          'KeyringController:stateChange',
-          mockNewKeyringState,
-          [],
-        );
+        messenger.publish('KeyringController:accountRemoved', '0x999');
 
         const accounts = accountsController.listMultichainAccounts();
 
@@ -1336,19 +1114,7 @@ describe('AccountsController', () => {
             lastSelected: undefined,
           },
         };
-        const mockNewKeyringState = {
-          isUnlocked: true,
-          keyrings: [
-            {
-              type: KeyringTypes.hd,
-              accounts: [mockAccount.address, mockAccount2.address],
-              metadata: {
-                id: 'mock-id',
-                name: 'mock-name',
-              },
-            },
-          ],
-        };
+
         const { accountsController } = setupAccountsController({
           initialState: {
             internalAccounts: {
@@ -1371,11 +1137,7 @@ describe('AccountsController', () => {
           messenger,
         });
 
-        messenger.publish(
-          'KeyringController:stateChange',
-          mockNewKeyringState,
-          [],
-        );
+        messenger.publish('KeyringController:accountRemoved', '0x999');
 
         const accounts = accountsController.listMultichainAccounts();
 
@@ -1410,22 +1172,6 @@ describe('AccountsController', () => {
           },
         };
 
-        const mockNewKeyringState = {
-          isUnlocked: true,
-          keyrings: [
-            {
-              type: KeyringTypes.hd,
-              accounts: [
-                mockAccountWithoutLastSelected.address,
-                mockAccount2.address,
-              ],
-              metadata: {
-                id: 'mock-id',
-                name: 'mock-name',
-              },
-            },
-          ],
-        };
         const { accountsController } = setupAccountsController({
           initialState: {
             internalAccounts: {
@@ -1443,11 +1189,7 @@ describe('AccountsController', () => {
           messenger,
         });
 
-        messenger.publish(
-          'KeyringController:stateChange',
-          mockNewKeyringState,
-          [],
-        );
+        messenger.publish('KeyringController:accountRemoved', '0x999');
 
         const accounts = accountsController.listMultichainAccounts();
 
@@ -1468,7 +1210,7 @@ describe('AccountsController', () => {
         );
       });
 
-      it('publishes accountRemoved event', async () => {
+      it('publishes :accountRemoved event', async () => {
         const messenger = buildMessenger();
 
         mockUUIDWithNormalAccounts([mockAccount, mockAccount2]);
@@ -1488,23 +1230,9 @@ describe('AccountsController', () => {
 
         const messengerSpy = jest.spyOn(accountsControllerMessenger, 'publish');
 
-        const mockNewKeyringState = {
-          isUnlocked: true,
-          keyrings: [
-            {
-              type: KeyringTypes.hd,
-              accounts: [mockAccount.address, mockAccount2.address],
-              metadata: {
-                id: 'mock-id',
-                name: 'mock-name',
-              },
-            },
-          ],
-        };
         messenger.publish(
-          'KeyringController:stateChange',
-          mockNewKeyringState,
-          [],
+          'KeyringController:accountRemoved',
+          mockAccount3.address,
         );
 
         // First call is 'AccountsController:stateChange'
@@ -1538,19 +1266,6 @@ describe('AccountsController', () => {
         mockReinitialisedAccount,
       ]);
 
-      const mockNewKeyringState = {
-        isUnlocked: true,
-        keyrings: [
-          {
-            type: KeyringTypes.hd,
-            accounts: [mockReinitialisedAccount.address],
-            metadata: {
-              id: 'mock-id',
-              name: 'mock-name',
-            },
-          },
-        ],
-      };
       const { accountsController } = setupAccountsController({
         initialState: {
           internalAccounts: {
@@ -1563,10 +1278,22 @@ describe('AccountsController', () => {
         messenger,
       });
 
+      const keyring = {
+        type: KeyringTypes.hd,
+        accounts: [mockReinitialisedAccount.address],
+        metadata: {
+          id: 'mock-id',
+          name: 'mock-name',
+        },
+      };
       messenger.publish(
-        'KeyringController:stateChange',
-        mockNewKeyringState,
-        [],
+        'KeyringController:accountRemoved',
+        mockInitialAccount.address,
+      );
+      messenger.publish(
+        'KeyringController:accountAdded',
+        mockReinitialisedAccount.address,
+        keyring,
       );
 
       const selectedAccount = accountsController.getSelectedAccount();
@@ -1581,92 +1308,6 @@ describe('AccountsController', () => {
       expect(selectedAccount).toStrictEqual(expectedAccount);
       expect(accounts).toStrictEqual([expectedAccount]);
     });
-
-    it.each([
-      {
-        lastSelectedForAccount1: 1111,
-        lastSelectedForAccount2: 9999,
-        expectedSelectedId: 'mock-id2',
-      },
-      {
-        lastSelectedForAccount1: undefined,
-        lastSelectedForAccount2: 9999,
-        expectedSelectedId: 'mock-id2',
-      },
-      {
-        lastSelectedForAccount1: 1111,
-        lastSelectedForAccount2: undefined,
-        expectedSelectedId: 'mock-id',
-      },
-      {
-        lastSelectedForAccount1: 1111,
-        lastSelectedForAccount2: 0,
-        expectedSelectedId: 'mock-id',
-      },
-    ])(
-      'handle keyring reinitialization with multiple accounts. Account 1 lastSelected $lastSelectedForAccount1, Account 2 lastSelected $lastSelectedForAccount2. Expected selected account: $expectedSelectedId',
-      async ({
-        lastSelectedForAccount1,
-        lastSelectedForAccount2,
-        expectedSelectedId,
-      }) => {
-        const messenger = buildMessenger();
-        const mockExistingAccount1 = createMockInternalAccount({
-          id: 'mock-id',
-          name: 'Account 1',
-          address: '0x123',
-          keyringType: KeyringTypes.hd,
-        });
-        mockExistingAccount1.metadata.lastSelected = lastSelectedForAccount1;
-        const mockExistingAccount2 = createMockInternalAccount({
-          id: 'mock-id2',
-          name: 'Account 2',
-          address: '0x456',
-          keyringType: KeyringTypes.hd,
-        });
-        mockExistingAccount2.metadata.lastSelected = lastSelectedForAccount2;
-
-        mockUUIDWithNormalAccounts([mockAccount, mockAccount2]);
-
-        const { accountsController } = setupAccountsController({
-          initialState: {
-            internalAccounts: {
-              accounts: {
-                [mockExistingAccount1.id]: mockExistingAccount1,
-                [mockExistingAccount2.id]: mockExistingAccount2,
-              },
-              selectedAccount: 'unknown',
-            },
-          },
-          messenger,
-        });
-        const mockNewKeyringState = {
-          isUnlocked: true,
-          keyrings: [
-            {
-              type: KeyringTypes.hd,
-              accounts: [
-                mockExistingAccount1.address,
-                mockExistingAccount2.address,
-              ],
-              metadata: {
-                id: 'mock-id',
-                name: 'mock-name',
-              },
-            },
-          ],
-        };
-        messenger.publish(
-          'KeyringController:stateChange',
-          mockNewKeyringState,
-          [],
-        );
-
-        const selectedAccount = accountsController.getSelectedAccount();
-
-        expect(selectedAccount.id).toStrictEqual(expectedSelectedId);
-      },
-    );
 
     it('fires :accountAdded before :selectedAccountChange', async () => {
       const messenger = buildMessenger();
@@ -1683,20 +1324,6 @@ describe('AccountsController', () => {
         messenger,
       });
 
-      const mockNewKeyringState = {
-        isUnlocked: true,
-        keyrings: [
-          {
-            type: KeyringTypes.hd,
-            accounts: [mockAccount.address],
-            metadata: {
-              id: 'mock-id',
-              name: 'mock-name',
-            },
-          },
-        ],
-      };
-
       const mockEventsOrder = jest.fn();
 
       messenger.subscribe('AccountsController:accountAdded', () => {
@@ -1708,10 +1335,18 @@ describe('AccountsController', () => {
 
       expect(accountsController.getSelectedAccount()).toBe(EMPTY_ACCOUNT);
 
+      const keyring = {
+        type: KeyringTypes.hd,
+        accounts: [mockAccount.address],
+        metadata: {
+          id: 'mock-id',
+          name: 'mock-name',
+        },
+      };
       messenger.publish(
-        'KeyringController:stateChange',
-        mockNewKeyringState,
-        [],
+        'KeyringController:accountAdded',
+        mockAccount.address,
+        keyring,
       );
 
       expect(mockEventsOrder).toHaveBeenNthCalledWith(
@@ -3469,32 +3104,6 @@ describe('AccountsController', () => {
       keyringType: KeyringTypes.simple,
     });
 
-    const mockNewKeyringStateWith = (
-      simpleAddressess: string[],
-    ): KeyringControllerState => {
-      return {
-        isUnlocked: true,
-        keyrings: [
-          {
-            type: 'HD Key Tree',
-            accounts: [mockAccount.address],
-            metadata: {
-              id: 'mock-id',
-              name: 'mock-name',
-            },
-          },
-          {
-            type: 'Simple Key Pair',
-            accounts: simpleAddressess,
-            metadata: {
-              id: 'mock-id2',
-              name: 'mock-name2',
-            },
-          },
-        ],
-      };
-    };
-
     it('return the next account number', async () => {
       const messenger = buildMessenger();
 
@@ -3516,13 +3125,23 @@ describe('AccountsController', () => {
         messenger,
       });
 
+      const simpleKeyring = {
+        type: 'Simple Key Pair',
+        accounts: [mockSimpleKeyring1.address, mockSimpleKeyring2.address],
+        metadata: {
+          id: 'mock-id2',
+          name: 'mock-name2',
+        },
+      };
       messenger.publish(
-        'KeyringController:stateChange',
-        mockNewKeyringStateWith([
-          mockSimpleKeyring1.address,
-          mockSimpleKeyring2.address,
-        ]),
-        [],
+        'KeyringController:accountAdded',
+        mockSimpleKeyring1.address,
+        simpleKeyring,
+      );
+      messenger.publish(
+        'KeyringController:accountAdded',
+        mockSimpleKeyring2.address,
+        simpleKeyring,
       );
 
       const accounts = accountsController.listMultichainAccounts();
@@ -3555,31 +3174,37 @@ describe('AccountsController', () => {
         messenger,
       });
 
+      const simpleKeyring = {
+        type: 'Simple Key Pair',
+        accounts: [mockSimpleKeyring1.address, mockSimpleKeyring2.address],
+        metadata: {
+          id: 'mock-id2',
+          name: 'mock-name2',
+        },
+      };
       messenger.publish(
-        'KeyringController:stateChange',
-        mockNewKeyringStateWith([
-          mockSimpleKeyring1.address,
-          mockSimpleKeyring2.address,
-        ]),
-        [],
+        'KeyringController:accountAdded',
+        mockSimpleKeyring1.address,
+        simpleKeyring,
+      );
+      messenger.publish(
+        'KeyringController:accountAdded',
+        mockSimpleKeyring2.address,
+        simpleKeyring,
       );
 
       // We then remove "Acccount 2" to create a gap
       messenger.publish(
-        'KeyringController:stateChange',
-        mockNewKeyringStateWith([mockSimpleKeyring2.address]),
-        [],
+        'KeyringController:accountRemoved',
+        mockSimpleKeyring1.address,
       );
 
       // Finally we add a 3rd account, and it should be named "Account 4" (despite having a gap
       // since "Account 2" no longer exists)
       messenger.publish(
-        'KeyringController:stateChange',
-        mockNewKeyringStateWith([
-          mockSimpleKeyring2.address,
-          mockSimpleKeyring3.address,
-        ]),
-        [],
+        'KeyringController:accountAdded',
+        mockSimpleKeyring3.address,
+        simpleKeyring,
       );
 
       const accounts = accountsController.listMultichainAccounts();

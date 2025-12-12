@@ -213,6 +213,11 @@ export type KeyringControllerStateChangeEvent = {
   payload: [KeyringControllerState, Patch[]];
 };
 
+export type KeyringControllerAccountAddedEvent = {
+  type: `${typeof name}:accountAdded`;
+  payload: [string, KeyringObject];
+};
+
 export type KeyringControllerAccountRemovedEvent = {
   type: `${typeof name}:accountRemoved`;
   payload: [string];
@@ -254,6 +259,7 @@ export type KeyringControllerEvents =
   | KeyringControllerStateChangeEvent
   | KeyringControllerLockEvent
   | KeyringControllerUnlockEvent
+  | KeyringControllerAccountAddedEvent
   | KeyringControllerAccountRemovedEvent;
 
 export type KeyringControllerMessenger = Messenger<
@@ -301,11 +307,11 @@ export type KeyringObject = {
  */
 export type KeyringMetadata = {
   /**
-   * Keyring ID
+   * Keyring ID.
    */
   id: string;
   /**
-   * Keyring name
+   * Keyring name.
    */
   name: string;
 };
@@ -690,6 +696,15 @@ function normalize(address: string): string | undefined {
   //       address value!
   return isEthAddress(address) ? ethNormalize(address) : address;
 }
+
+/**
+ * Local type used when override `BaseController` methods.
+ */
+type KeyringBaseController = BaseController<
+  typeof name,
+  KeyringControllerState,
+  KeyringControllerMessenger
+>;
 
 /**
  * Controller responsible for establishing and managing user identity.
@@ -1245,7 +1260,7 @@ export class KeyringController<
       }
     });
 
-    this.messenger.publish(`${name}:accountRemoved`, address);
+    // `:accountRemoved` event is automatically emitted during `update` calls.
   }
 
   /**
@@ -2241,8 +2256,8 @@ export class KeyringController<
    *
    * @returns A promise resolving to `true` if the operation is successful.
    */
-  #updateVault(): Promise<boolean> {
-    return this.#withVaultLock(async () => {
+  async #updateVault(): Promise<boolean> {
+    return this.#withVaultLock(async (): Promise<boolean> => {
       // Ensure no duplicate accounts are persisted.
       await this.#assertNoDuplicateAccounts();
 
@@ -2288,6 +2303,63 @@ export class KeyringController<
 
       return true;
     });
+  }
+
+  /**
+   * Overriden `BaseController.update` method to automatically emit events
+   * when accounts are added or removed from the keyrings.
+   *
+   * @param callback - The state update callback.
+   * @returns The return value of the `super.update` call.
+   */
+  override update(
+    callback: Parameters<KeyringBaseController['update']>[0],
+  ): ReturnType<KeyringBaseController['update']> {
+    const toAccountsMap = (
+      keyrings: KeyringObject[],
+    ): Map<string, KeyringObject> => {
+      const accounts = new Map();
+      for (const keyring of keyrings) {
+        for (const account of keyring.accounts) {
+          accounts.set(account, keyring);
+        }
+      }
+
+      return accounts;
+    };
+
+    // Keep track of the old keyring states so we can make a diff of added/removed accounts.
+    const oldKeyrings = this.state.keyrings;
+    const result = super.update(callback); // This is the real update call.
+    const newKeyrings = this.state.keyrings;
+
+    const oldAccounts = toAccountsMap(oldKeyrings);
+    const newAccounts = toAccountsMap(newKeyrings);
+
+    for (const newAccount of newAccounts.keys()) {
+      if (oldAccounts.has(newAccount)) {
+        // We remove accounts that intersects, this way we'll now what are the removed
+        // accounts (from `oldAccounts`) and newly added accounts (from `newAccounts`).
+        oldAccounts.delete(newAccount);
+        newAccounts.delete(newAccount);
+      }
+    }
+
+    // Those accounts got removed, since they are not part of the new set of accounts.
+    oldAccounts.forEach((_, oldAccount) =>
+      this.messenger.publish('KeyringController:accountRemoved', oldAccount),
+    );
+
+    // Those accounts got added, since they were not part of the old set of accounts.
+    newAccounts.forEach((keyringObject, newAccount) =>
+      this.messenger.publish(
+        'KeyringController:accountAdded',
+        newAccount,
+        keyringObject,
+      ),
+    );
+
+    return result;
   }
 
   /**
