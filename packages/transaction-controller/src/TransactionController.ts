@@ -1853,7 +1853,7 @@ export class TransactionController extends BaseController<
       ...transactionMeta,
     }));
 
-    log(`Transaction ${transactionId} updated. ${note}`);
+    log('Transaction updated', {transactionId, note});
   }
 
   /**
