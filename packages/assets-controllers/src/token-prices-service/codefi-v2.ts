@@ -282,7 +282,6 @@ export const SPOT_PRICES_SUPPORT_INFO = {
   '0x15f900': 'eip155:1440000/erc20:0x0000000000000000000000000000000000000000', // xrpl-evm - native symbol: XRP
   '0xfc': 'eip155:252/erc20:0x0000000000000000000000000000000000000000', // Fraxtal - native symbol: FRAX
   '0x2a': 'eip155:42/erc20:0x0000000000000000000000000000000000000000', // Lukso - native symbol: LYX
-  '0x138b': null, // XXXXXXX
   '0x32': 'eip155:50/erc20:0x0000000000000000000000000000000000000000', // xdc-network - native symbol: XDC
   '0x2611': 'eip155:9745/erc20:0x0000000000000000000000000000000000000000', // Plasma mainnet - native symbol: XPL
 } as const;
