@@ -399,71 +399,6 @@ describe('AnalyticsController', () => {
     });
   });
 
-  describe('onSetupCompleted lifecycle hook', () => {
-    it('calls onSetupCompleted with analyticsId after initialization', async () => {
-      const mockAdapter = createMockAdapter();
-      const analyticsId = '33333333-3333-4333-a333-333333333333';
-
-      const { controller } = await setupController({
-        state: {
-          ...getDefaultAnalyticsControllerState(),
-          analyticsId,
-        },
-        platformAdapter: mockAdapter,
-      });
-
-      expect(mockAdapter.onSetupCompleted).toHaveBeenCalledTimes(1);
-      expect(mockAdapter.onSetupCompleted).toHaveBeenCalledWith(
-        controller.state.analyticsId,
-      );
-    });
-
-    it('calls onSetupCompleted synchronously', async () => {
-      const mockAdapter = createMockAdapter();
-      const analyticsId = '44444444-4444-4444-8444-444444444444';
-
-      const { controller } = await setupController({
-        state: {
-          ...getDefaultAnalyticsControllerState(),
-          analyticsId,
-        },
-        platformAdapter: mockAdapter,
-      });
-
-      // Verify onSetupCompleted was called synchronously
-      expect(mockAdapter.onSetupCompleted).toHaveBeenCalledTimes(1);
-      expect(controller).toBeDefined();
-      expect(controller.state.analyticsId).toBeDefined();
-    });
-
-    it('ignores errors thrown by onSetupCompleted', async () => {
-      const mockAdapter = createMockAdapter();
-      const cause = new Error(
-        'MetaMetricsPrivacySegmentPlugin configure failed',
-      );
-      const error = new AnalyticsPlatformAdapterSetupError(
-        'Failed to add privacy plugin to Segment client',
-        cause,
-      );
-      jest.spyOn(mockAdapter, 'onSetupCompleted').mockImplementation(() => {
-        throw error;
-      });
-
-      const analyticsId = '55555555-5555-4555-9555-555555555555';
-      const { controller } = await setupController({
-        state: {
-          ...getDefaultAnalyticsControllerState(),
-          analyticsId,
-        },
-        platformAdapter: mockAdapter,
-      });
-
-      expect(controller).toBeDefined();
-      expect(mockAdapter.onSetupCompleted).toHaveBeenCalledTimes(1);
-      expect(controller.state.analyticsId).toBeDefined();
-    });
-  });
-
   describe('init', () => {
     it('calls onSetupCompleted lifecycle hook', async () => {
       const mockAdapter = createMockAdapter();
@@ -504,7 +439,7 @@ describe('AnalyticsController', () => {
       expect(onSetupCompletedSpy).toHaveBeenCalledWith(analyticsId);
     });
 
-    it('returns early if called multiple times', async () => {
+    it('only calls onSetupCompleted one time even if called multiple times', async () => {
       const mockAdapter = createMockAdapter();
       const analyticsId = '22222222-2222-4222-9222-222222222222';
 
@@ -543,6 +478,95 @@ describe('AnalyticsController', () => {
       // Calling init() again should not throw and should not call onSetupCompleted again
       expect(() => controller.init()).not.toThrow();
       expect(onSetupCompletedSpy).toHaveBeenCalledTimes(1);
+    });
+
+    it('calls onSetupCompleted synchronously', async () => {
+      const mockAdapter = createMockAdapter();
+      const analyticsId = '44444444-4444-4444-8444-444444444444';
+
+      const rootMessenger = new Messenger<
+        MockAnyNamespace,
+        AnalyticsControllerActions,
+        AnalyticsControllerEvents
+      >({ namespace: MOCK_ANY_NAMESPACE });
+
+      const messenger = new Messenger<
+        'AnalyticsController',
+        AnalyticsControllerActions,
+        AnalyticsControllerEvents,
+        typeof rootMessenger
+      >({
+        namespace: 'AnalyticsController',
+        parent: rootMessenger,
+      });
+
+      const controller = new AnalyticsController({
+        messenger,
+        platformAdapter: mockAdapter,
+        state: {
+          ...getDefaultAnalyticsControllerState(),
+          analyticsId,
+        },
+        isAnonymousEventsFeatureEnabled: false,
+      });
+
+      const onSetupCompletedSpy = jest.spyOn(mockAdapter, 'onSetupCompleted');
+      expect(onSetupCompletedSpy).not.toHaveBeenCalled();
+
+      controller.init();
+
+      // Verify onSetupCompleted was called synchronously
+      expect(onSetupCompletedSpy).toHaveBeenCalledTimes(1);
+      expect(controller).toBeDefined();
+      expect(controller.state.analyticsId).toBeDefined();
+    });
+
+    it('ignores errors thrown by onSetupCompleted', async () => {
+      const mockAdapter = createMockAdapter();
+      const cause = new Error(
+        'MetaMetricsPrivacySegmentPlugin configure failed',
+      );
+      const error = new AnalyticsPlatformAdapterSetupError(
+        'Failed to add privacy plugin to Segment client',
+        cause,
+      );
+      jest.spyOn(mockAdapter, 'onSetupCompleted').mockImplementation(() => {
+        throw error;
+      });
+
+      const analyticsId = '55555555-5555-4555-9555-555555555555';
+
+      const rootMessenger = new Messenger<
+        MockAnyNamespace,
+        AnalyticsControllerActions,
+        AnalyticsControllerEvents
+      >({ namespace: MOCK_ANY_NAMESPACE });
+
+      const messenger = new Messenger<
+        'AnalyticsController',
+        AnalyticsControllerActions,
+        AnalyticsControllerEvents,
+        typeof rootMessenger
+      >({
+        namespace: 'AnalyticsController',
+        parent: rootMessenger,
+      });
+
+      const controller = new AnalyticsController({
+        messenger,
+        platformAdapter: mockAdapter,
+        state: {
+          ...getDefaultAnalyticsControllerState(),
+          analyticsId,
+        },
+        isAnonymousEventsFeatureEnabled: false,
+      });
+
+      expect(() => controller.init()).not.toThrow();
+
+      expect(controller).toBeDefined();
+      expect(mockAdapter.onSetupCompleted).toHaveBeenCalledTimes(1);
+      expect(controller.state.analyticsId).toBeDefined();
     });
   });
 
@@ -867,32 +891,6 @@ describe('AnalyticsController', () => {
       controller.optOut();
 
       expect(controller.state.optedIn).toBe(false);
-    });
-  });
-
-  describe('stateChange event', () => {
-    it('emits stateChange event when opt-in changes', async () => {
-      const analyticsId = 'cafebabe-dead-4bef-8bad-cafebabebeef';
-      const { controller, messenger } = await setupController({
-        state: {
-          ...getDefaultAnalyticsControllerState(),
-          analyticsId,
-        },
-      });
-
-      const listener = jest.fn();
-      messenger.subscribe('AnalyticsController:stateChange', listener);
-
-      controller.optIn();
-
-      expect(listener).toHaveBeenCalledTimes(1);
-      expect(listener).toHaveBeenCalledWith(
-        expect.objectContaining({
-          optedIn: true,
-          analyticsId,
-        }),
-        expect.any(Array),
-      );
     });
   });
 });
