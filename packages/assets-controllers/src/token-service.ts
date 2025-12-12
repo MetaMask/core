@@ -81,6 +81,7 @@ function getTokenSearchURL(
  * @param options.maxVolume24hUsd - The maximum volume 24h in USD.
  * @param options.minMarketCap - The minimum market cap.
  * @param options.maxMarketCap - The maximum market cap.
+ * @param options.excludeLabels - Array of labels to exclude (e.g., ['stable_coin', 'blue_chip']).
  * @returns The trending tokens URL.
  */
 function getTrendingTokensURL(options: {
@@ -91,18 +92,24 @@ function getTrendingTokensURL(options: {
   maxVolume24hUsd?: number;
   minMarketCap?: number;
   maxMarketCap?: number;
+  excludeLabels?: string[];
 }): string {
   const encodedChainIds = options.chainIds
     .map((id) => encodeURIComponent(id))
     .join(',');
   // Add the rest of query params if they are defined
   const queryParams = new URLSearchParams();
-  const { chainIds, ...rest } = options;
+  const { chainIds, excludeLabels, ...rest } = options;
   Object.entries(rest).forEach(([key, value]) => {
     if (value !== undefined) {
       queryParams.append(key, String(value));
     }
   });
+
+  // Handle excludeLabels as a comma-separated list
+  if (excludeLabels !== undefined && excludeLabels.length > 0) {
+    queryParams.append('excludeLabels', excludeLabels.join(','));
+  }
 
   return `${TOKEN_END_POINT_API}/v3/tokens/trending?chainIds=${encodedChainIds}${queryParams.toString() ? `&${queryParams.toString()}` : ''}`;
 }
@@ -218,6 +225,7 @@ export type TrendingAsset = {
  * @param options.maxVolume24hUsd - The maximum volume 24h in USD.
  * @param options.minMarketCap - The minimum market cap.
  * @param options.maxMarketCap - The maximum market cap.
+ * @param options.excludeLabels - Array of labels to exclude (e.g., ['stable_coin', 'blue_chip']).
  * @returns The trending tokens.
  * @throws Will throw if the request fails.
  */
@@ -229,6 +237,7 @@ export async function getTrendingTokens({
   maxVolume24hUsd,
   minMarketCap,
   maxMarketCap,
+  excludeLabels,
 }: {
   chainIds: CaipChainId[];
   sortBy?: SortTrendingBy;
@@ -237,6 +246,7 @@ export async function getTrendingTokens({
   maxVolume24hUsd?: number;
   minMarketCap?: number;
   maxMarketCap?: number;
+  excludeLabels?: string[];
 }): Promise<TrendingAsset[]> {
   if (chainIds.length === 0) {
     console.error('No chains provided');
@@ -251,6 +261,7 @@ export async function getTrendingTokens({
     maxVolume24hUsd,
     minMarketCap,
     maxMarketCap,
+    excludeLabels,
   });
 
   try {
