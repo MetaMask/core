@@ -76,7 +76,7 @@
     "@metamask/profile-sync-controller": "^27.0.0",
     "@metamask/rpc-errors": "^7.0.2",
     "@metamask/snaps-controllers": "^14.0.1",
-    "@metamask/snaps-sdk": "^9.0.0",
+    "@metamask/snaps-sdk": "^10.1.0",
     "@metamask/snaps-utils": "^11.0.0",
     "@metamask/transaction-controller": "^62.6.0",
     "@metamask/utils": "^11.8.1",
