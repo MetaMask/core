@@ -335,14 +335,9 @@ export class RemoteFeatureFlagController extends BaseController<
    * @param value - The override value for the feature flag.
    */
   setFlagOverride(flagName: string, value: Json): void {
-    this.update(() => {
-      return {
-        ...this.state,
-        localOverrides: {
-          ...this.state.localOverrides,
-          [flagName]: value,
-        },
-      };
+    this.update((state) => {
+      state.localOverrides[flagName] = value;
+    });
     });
   }
 
