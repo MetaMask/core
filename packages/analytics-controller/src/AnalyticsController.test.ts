@@ -4,6 +4,7 @@ import type { MockAnyNamespace } from '@metamask/messenger';
 import {
   AnalyticsController,
   AnalyticsPlatformAdapterSetupError,
+  getDefaultAnalyticsControllerState,
   analyticsControllerSelectors,
 } from '.';
 import type {
@@ -17,7 +18,7 @@ import type {
 import { isValidUUIDv4 } from './analyticsControllerStateValidator';
 
 type SetupControllerOptions = {
-  state: Partial<AnalyticsControllerState> & { analyticsId: string };
+  state: AnalyticsControllerState;
   platformAdapter?: AnalyticsPlatformAdapter;
   isAnonymousEventsFeatureEnabled?: boolean;
 };
@@ -129,6 +130,24 @@ function createMockAdapter(): AnalyticsPlatformAdapter {
 }
 
 describe('AnalyticsController', () => {
+  describe('getDefaultAnalyticsControllerState', () => {
+    it('returns default opt-in preferences without analyticsId', () => {
+      const defaults = getDefaultAnalyticsControllerState();
+
+      expect(defaults).toStrictEqual({
+        optedIn: false,
+      });
+      expect('analyticsId' in defaults).toBe(false);
+    });
+
+    it('returns the same values on each call (deterministic)', () => {
+      const defaults1 = getDefaultAnalyticsControllerState();
+      const defaults2 = getDefaultAnalyticsControllerState();
+
+      expect(defaults1).toStrictEqual(defaults2);
+    });
+  });
+
   describe('isValidUUIDv4', () => {
     it('returns true for valid UUIDv4', () => {
       expect(isValidUUIDv4('550e8400-e29b-41d4-a716-446655440000')).toBe(true);
@@ -177,6 +196,7 @@ describe('AnalyticsController', () => {
       const analyticsId = '6ba7b810-9dad-41d4-80b5-0c4f5a7c1e2d';
       const { controller } = await setupController({
         state: {
+          ...getDefaultAnalyticsControllerState(),
           analyticsId,
         },
       });
@@ -189,11 +209,13 @@ describe('AnalyticsController', () => {
       const analyticsId = 'a1b2c3d4-e5f6-4a7b-8c9d-0e1f2a3b4c5d';
       const { controller: controller1 } = await setupController({
         state: {
+          ...getDefaultAnalyticsControllerState(),
           analyticsId,
         },
       });
       const { controller: controller2 } = await setupController({
         state: {
+          ...getDefaultAnalyticsControllerState(),
           analyticsId,
         },
       });
@@ -228,6 +250,7 @@ describe('AnalyticsController', () => {
         messenger,
         platformAdapter: mockAdapter,
         state: {
+          ...getDefaultAnalyticsControllerState(),
           analyticsId,
           optedIn: true, // Enable tracking for this test
         },
@@ -360,11 +383,13 @@ describe('AnalyticsController', () => {
 
       const { controller: controller1 } = await setupController({
         state: {
+          ...getDefaultAnalyticsControllerState(),
           analyticsId: analyticsId1,
         },
       });
       const { controller: controller2 } = await setupController({
         state: {
+          ...getDefaultAnalyticsControllerState(),
           analyticsId: analyticsId2,
         },
       });
@@ -399,6 +424,7 @@ describe('AnalyticsController', () => {
         messenger,
         platformAdapter: mockAdapter,
         state: {
+          ...getDefaultAnalyticsControllerState(),
           analyticsId,
         },
         isAnonymousEventsFeatureEnabled: false,
@@ -437,6 +463,7 @@ describe('AnalyticsController', () => {
         messenger,
         platformAdapter: mockAdapter,
         state: {
+          ...getDefaultAnalyticsControllerState(),
           analyticsId,
         },
         isAnonymousEventsFeatureEnabled: false,
@@ -477,6 +504,7 @@ describe('AnalyticsController', () => {
         messenger,
         platformAdapter: mockAdapter,
         state: {
+          ...getDefaultAnalyticsControllerState(),
           analyticsId,
         },
         isAnonymousEventsFeatureEnabled: false,
@@ -528,6 +556,7 @@ describe('AnalyticsController', () => {
         messenger,
         platformAdapter: mockAdapter,
         state: {
+          ...getDefaultAnalyticsControllerState(),
           analyticsId,
         },
         isAnonymousEventsFeatureEnabled: false,
@@ -839,6 +868,7 @@ describe('AnalyticsController', () => {
     it('sets optedIn to true', async () => {
       const { controller } = await setupController({
         state: {
+          ...getDefaultAnalyticsControllerState(),
           analyticsId: 'fedcba98-7654-4321-8fed-cba987654321',
         },
       });

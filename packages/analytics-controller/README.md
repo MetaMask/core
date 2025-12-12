@@ -59,7 +59,10 @@ Load settings **before** initializing the controller:
 
 ```typescript
 import { v4 as uuidv4 } from 'uuid';
-import type { AnalyticsControllerState } from '@metamask/analytics-controller';
+import {
+  getDefaultAnalyticsControllerState,
+  type AnalyticsControllerState,
+} from '@metamask/analytics-controller';
 
 async function loadAnalyticsSettings(): Promise<AnalyticsControllerState> {
   // Load from platform storage (e.g., MMKV, AsyncStorage, localStorage)
@@ -67,6 +70,8 @@ async function loadAnalyticsSettings(): Promise<AnalyticsControllerState> {
     storage.getItem('analytics.id'),
     storage.getItem('analytics.optedIn'),
   ]);
+
+  const defaults = getDefaultAnalyticsControllerState();
 
   // Generate UUID on first run if not in storage
   let analyticsId = savedAnalyticsId;
@@ -77,8 +82,8 @@ async function loadAnalyticsSettings(): Promise<AnalyticsControllerState> {
   }
 
   // Parse boolean values (stored as strings)
-  // Default to false if not saved
-  const optedIn = savedOptedIn !== null ? savedOptedIn === 'true' : false;
+  const optedIn =
+    savedOptedIn !== null ? savedOptedIn === 'true' : defaults.optedIn;
 
   return {
     analyticsId,
@@ -217,6 +222,18 @@ messenger.call('AnalyticsController:optIn');
 ```
 
 ## State Management
+
+### Default State
+
+Use `getDefaultAnalyticsControllerState()` to get default values for opt-in preferences:
+
+```typescript
+import { getDefaultAnalyticsControllerState } from '@metamask/analytics-controller';
+
+const defaults = getDefaultAnalyticsControllerState();
+// Returns: { optedIn: false }
+// Note: analyticsId is NOT included - platform must provide it
+```
 
 ### State Structure
 
