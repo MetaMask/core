@@ -14,7 +14,6 @@ export const InfuraNetworkType = {
   'optimism-mainnet': 'optimism-mainnet',
   'polygon-mainnet': 'polygon-mainnet',
   'sei-mainnet': 'sei-mainnet',
-  'monad-testnet': 'monad-testnet',
 } as const;
 
 export type InfuraNetworkType =
@@ -29,9 +28,6 @@ export const CustomNetworkType = {
    */
   'megaeth-testnet': 'megaeth-testnet',
   'megaeth-testnet-v2': 'megaeth-testnet-v2',
-  /**
-   * @deprecated `monad-testnet` is supported on InfuraNetworkType instead.
-   */
   'monad-testnet': 'monad-testnet',
 } as const;
 export type CustomNetworkType =
@@ -132,6 +128,7 @@ export const ChainId = {
 } as const;
 export type ChainId = (typeof ChainId)[keyof typeof ChainId];
 
+/* eslint-disable @typescript-eslint/naming-convention */
 export enum NetworksTicker {
   mainnet = 'ETH',
   goerli = 'GoerliETH',
@@ -159,6 +156,7 @@ export enum NetworksTicker {
   'sei-mainnet' = 'SEI',
   rpc = '',
 }
+/* eslint-enable @typescript-eslint/naming-convention */
 
 export const BlockExplorerUrl = {
   [BuiltInNetworkName.Mainnet]: 'https://etherscan.io',
