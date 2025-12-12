@@ -1,4 +1,5 @@
 import { rpcErrors } from '@metamask/rpc-errors';
+import { Json } from '@metamask/utils';
 
 import type { JsonRpcMiddleware } from './JsonRpcEngineV2';
 import { JsonRpcEngineV2 } from './JsonRpcEngineV2';
@@ -9,10 +10,10 @@ import { isRequest, JsonRpcEngineError, stringify } from './utils';
 
 const jsonrpc = '2.0' as const;
 
-const makeEngine = () => {
+const makeEngine = (): JsonRpcEngineV2 => {
   return JsonRpcEngineV2.create<JsonRpcMiddleware>({
     middleware: [
-      ({ request }) => {
+      ({ request }): Json | undefined => {
         if (request.method !== 'hello') {
           throw new Error('Unknown method');
         }
@@ -26,7 +27,7 @@ describe('JsonRpcServer', () => {
   it('can be constructed with an engine', () => {
     const server = new JsonRpcServer({
       engine: makeEngine(),
-      onError: () => undefined,
+      onError: (): undefined => undefined,
     });
 
     expect(server).toBeDefined();
@@ -34,8 +35,8 @@ describe('JsonRpcServer', () => {
 
   it('can be constructed with middleware', () => {
     const server = new JsonRpcServer({
-      middleware: [() => null],
-      onError: () => undefined,
+      middleware: [(): null => null],
+      onError: (): undefined => undefined,
     });
 
     expect(server).toBeDefined();
@@ -44,7 +45,7 @@ describe('JsonRpcServer', () => {
   it('handles a request', async () => {
     const server = new JsonRpcServer({
       engine: makeEngine(),
-      onError: () => undefined,
+      onError: (): undefined => undefined,
     });
 
     const response = await server.handle({
@@ -63,7 +64,7 @@ describe('JsonRpcServer', () => {
   it('handles a request with params', async () => {
     const server = new JsonRpcServer({
       engine: makeEngine(),
-      onError: () => undefined,
+      onError: (): undefined => undefined,
     });
 
     const response = await server.handle({
@@ -83,7 +84,7 @@ describe('JsonRpcServer', () => {
   it('handles a notification', async () => {
     const server = new JsonRpcServer({
       engine: makeEngine(),
-      onError: () => undefined,
+      onError: (): undefined => undefined,
     });
 
     const response = await server.handle({
@@ -97,7 +98,7 @@ describe('JsonRpcServer', () => {
   it('handles a notification with params', async () => {
     const server = new JsonRpcServer({
       engine: makeEngine(),
-      onError: () => undefined,
+      onError: (): undefined => undefined,
     });
 
     const response = await server.handle({
@@ -119,7 +120,7 @@ describe('JsonRpcServer', () => {
     };
     const server = new JsonRpcServer({
       middleware: [middleware],
-      onError: () => undefined,
+      onError: (): undefined => undefined,
     });
 
     const response = await server.handle(
@@ -145,7 +146,7 @@ describe('JsonRpcServer', () => {
   it('returns an error response for a failed request', async () => {
     const server = new JsonRpcServer({
       engine: makeEngine(),
-      onError: () => undefined,
+      onError: (): undefined => undefined,
     });
 
     const response = await server.handle({
@@ -168,7 +169,7 @@ describe('JsonRpcServer', () => {
   it('returns undefined for a failed notification', async () => {
     const server = new JsonRpcServer({
       engine: makeEngine(),
-      onError: () => undefined,
+      onError: (): undefined => undefined,
     });
 
     const response = await server.handle({
@@ -237,7 +238,7 @@ describe('JsonRpcServer', () => {
   it('accepts requests with malformed jsonrpc', async () => {
     const server = new JsonRpcServer({
       engine: makeEngine(),
-      onError: () => undefined,
+      onError: (): undefined => undefined,
     });
 
     const response = await server.handle({
@@ -256,7 +257,7 @@ describe('JsonRpcServer', () => {
   it('errors if passed a notification when only requests are supported', async () => {
     const onError = jest.fn();
     const server = new JsonRpcServer<JsonRpcMiddleware<JsonRpcRequest>>({
-      middleware: [() => null],
+      middleware: [(): null => null],
       onError,
     });
 
@@ -275,7 +276,7 @@ describe('JsonRpcServer', () => {
   it('errors if passed a request when only notifications are supported', async () => {
     const onError = jest.fn();
     const server = new JsonRpcServer<JsonRpcMiddleware<JsonRpcNotification>>({
-      middleware: [() => undefined],
+      middleware: [(): undefined => undefined],
       onError,
     });
 
@@ -305,7 +306,7 @@ describe('JsonRpcServer', () => {
     async (id) => {
       const server = new JsonRpcServer({
         engine: makeEngine(),
-        onError: () => undefined,
+        onError: (): undefined => undefined,
       });
 
       const response = await server.handle({

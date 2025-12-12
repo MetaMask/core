@@ -128,6 +128,7 @@ export const ChainId = {
 } as const;
 export type ChainId = (typeof ChainId)[keyof typeof ChainId];
 
+/* eslint-disable @typescript-eslint/naming-convention */
 export enum NetworksTicker {
   mainnet = 'ETH',
   goerli = 'GoerliETH',
@@ -155,6 +156,7 @@ export enum NetworksTicker {
   'sei-mainnet' = 'SEI',
   rpc = '',
 }
+/* eslint-enable @typescript-eslint/naming-convention */
 
 export const BlockExplorerUrl = {
   [BuiltInNetworkName.Mainnet]: 'https://etherscan.io',

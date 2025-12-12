@@ -13,7 +13,7 @@ import { v1 as random } from 'uuid';
 
 import type { createMockMessenger } from './mocks/messenger';
 import { coverageStatuses } from '../src/types';
-import type { CoverageStatus } from '../src/types';
+import type { CoverageResult, CoverageStatus } from '../src/types';
 
 /**
  * Generate a mock transaction meta.
@@ -80,7 +80,10 @@ export function getRandomCoverageStatus(): CoverageStatus {
  *
  * @returns A random coverage result.
  */
-export function getRandomCoverageResult() {
+export function getRandomCoverageResult(): Omit<
+  CoverageResult,
+  'metrics' | 'coverageId'
+> {
   return {
     status: getRandomCoverageStatus(),
     message: 'message',
@@ -98,7 +101,7 @@ export function setupCoverageResultReceived(
   messenger: ReturnType<typeof createMockMessenger>['messenger'],
 ): Promise<void> {
   return new Promise<void>((resolve) => {
-    const handler = (_coverageResult: unknown) => {
+    const handler = (_coverageResult: unknown): void => {
       messenger.unsubscribe('ShieldController:coverageResultReceived', handler);
       resolve();
     };

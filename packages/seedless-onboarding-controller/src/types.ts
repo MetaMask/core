@@ -403,10 +403,14 @@ export type DecodedNodeAuthToken = {
    * The expiration time of the token in seconds.
    */
   exp: number;
+  // eslint-disable-next-line @typescript-eslint/naming-convention -- to match with the actual token
   temp_key_x: string;
+  // eslint-disable-next-line @typescript-eslint/naming-convention -- to match with the actual token
   temp_key_y: string;
   aud: string;
+  // eslint-disable-next-line @typescript-eslint/naming-convention -- to match with the actual token
   verifier_name: string;
+  // eslint-disable-next-line @typescript-eslint/naming-convention -- to match with the actual token
   verifier_id: string;
   scope: string;
   signature: string;

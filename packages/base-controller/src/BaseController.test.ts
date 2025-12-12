@@ -1,9 +1,9 @@
 /* eslint-disable jest/no-export */
-import { MOCK_ANY_NAMESPACE, Messenger } from '@metamask/messenger';
 import type { MockAnyNamespace } from '@metamask/messenger';
+import { Messenger, MOCK_ANY_NAMESPACE } from '@metamask/messenger';
 import type { Json } from '@metamask/utils';
 import type { Draft, Patch } from 'immer';
-import * as sinon from 'sinon';
+import sinon from 'sinon';
 
 import type {
   ControllerActions,
@@ -67,16 +67,19 @@ export class CountController extends BaseController<
     callback: (
       state: Draft<CountControllerState>,
     ) => void | CountControllerState,
-  ) {
-    const res = super.update(callback);
-    return res;
+  ): {
+    nextState: CountControllerState;
+    patches: Patch[];
+    inversePatches: Patch[];
+  } {
+    return super.update(callback);
   }
 
-  applyPatches(patches: Patch[]) {
+  applyPatches(patches: Patch[]): void {
     super.applyPatches(patches);
   }
 
-  destroy() {
+  destroy(): void {
     super.destroy();
   }
 }
@@ -140,16 +143,19 @@ class MessagesController extends BaseController<
     callback: (
       state: Draft<MessagesControllerState>,
     ) => void | MessagesControllerState,
-  ) {
-    const res = super.update(callback);
-    return res;
+  ): {
+    nextState: MessagesControllerState;
+    patches: Patch[];
+    inversePatches: Patch[];
+  } {
+    return super.update(callback);
   }
 
-  applyPatches(patches: Patch[]) {
+  applyPatches(patches: Patch[]): void {
     super.applyPatches(patches);
   }
 
-  destroy() {
+  destroy(): void {
     super.destroy();
   }
 }
@@ -172,6 +178,8 @@ describe('BaseController', () => {
 
   it('should allow getting state via the getState action', () => {
     const messenger = getCountMessenger();
+
+    // eslint-disable-next-line no-new
     new CountController({
       messenger,
       name: countControllerName,
@@ -542,6 +550,8 @@ describe('BaseController', () => {
 
   it('should throw when unsubscribing listener who was never subscribed', () => {
     const messenger = getCountMessenger();
+
+    // eslint-disable-next-line no-new
     new CountController({
       messenger,
       name: 'CountController',
@@ -633,19 +643,19 @@ describe('BaseController', () => {
         messenger.registerActionHandler('VisitorController:clear', this.clear);
       }
 
-      clear = () => {
+      clear: () => void = () => {
         this.update(() => {
           return { visitors: [] };
         });
       };
 
-      addVisitor(visitor: string) {
+      addVisitor(visitor: string): void {
         this.update(({ visitors }) => {
           return { visitors: [...visitors, visitor] };
         });
       }
 
-      destroy() {
+      destroy(): void {
         super.destroy();
       }
     }
@@ -709,19 +719,21 @@ describe('BaseController', () => {
         messenger.subscribe('VisitorController:stateChange', this.onVisit);
       }
 
-      onVisit = ({ visitors }: VisitorControllerState) => {
+      onVisit: ({ visitors }: VisitorControllerState) => void = ({
+        visitors,
+      }: VisitorControllerState) => {
         if (visitors.length > this.state.maxVisitors) {
           this.messenger.call('VisitorController:clear');
         }
       };
 
-      updateMax = (max: number) => {
+      updateMax: (max: number) => void = (max: number) => {
         this.update(() => {
           return { maxVisitors: max };
         });
       };
 
-      destroy() {
+      destroy(): void {
         super.destroy();
       }
     }
@@ -876,7 +888,7 @@ describe('deriveStateFromMetadata', () => {
 
     if (property !== 'usedInUi') {
       it('should use function to derive state', () => {
-        const normalizeTransactionHash = (hash: string) => {
+        const normalizeTransactionHash = (hash: string): string => {
           return hash.toLowerCase();
         };
 
@@ -900,7 +912,12 @@ describe('deriveStateFromMetadata', () => {
       });
 
       it('should allow returning a partial object from a deriver', () => {
-        const getDerivedTxMeta = (txMeta: { hash: string; value: number }) => {
+        const getDerivedTxMeta = (txMeta: {
+          hash: string;
+          value: number;
+        }): {
+          value: number;
+        } => {
           return { value: txMeta.value };
         };
 
@@ -931,7 +948,7 @@ describe('deriveStateFromMetadata', () => {
           hash: string;
           value: number;
           history: { hash: string; value: number }[];
-        }) => {
+        }): { history: { value: number }[]; value: number } => {
           return {
             history: txMeta.history.map((entry) => {
               return { value: entry.value };

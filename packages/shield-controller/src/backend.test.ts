@@ -29,7 +29,11 @@ function setup({
 }: {
   getCoverageResultTimeout?: number;
   getCoverageResultPollInterval?: number;
-} = {}) {
+} = {}): {
+  backend: ShieldRemoteBackend;
+  fetchMock: jest.MockedFunction<typeof fetch>;
+  getAccessToken: jest.Mock;
+} {
   // Setup fetch mock.
   const fetchMock = jest.spyOn(global, 'fetch') as jest.MockedFunction<
     typeof fetch
