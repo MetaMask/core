@@ -106,12 +106,14 @@ function getTrendingTokensURL(options: {
     }
   });
 
-  // Handle excludeLabels as a comma-separated list
-  if (excludeLabels !== undefined && excludeLabels.length > 0) {
-    queryParams.append('excludeLabels', excludeLabels.join(','));
-  }
+  // Handle excludeLabels separately to avoid encoding the commas
+  // The API expects: excludeLabels=stable_coin,blue_chip (not %2C)
+  const excludeLabelsParam =
+    excludeLabels !== undefined && excludeLabels.length > 0
+      ? `&excludeLabels=${excludeLabels.join(',')}`
+      : '';
 
-  return `${TOKEN_END_POINT_API}/v3/tokens/trending?chainIds=${encodedChainIds}${queryParams.toString() ? `&${queryParams.toString()}` : ''}`;
+  return `${TOKEN_END_POINT_API}/v3/tokens/trending?chainIds=${encodedChainIds}${queryParams.toString() ? `&${queryParams.toString()}` : ''}${excludeLabelsParam}`;
 }
 
 const tenSecondsInMilliseconds = 10_000;
