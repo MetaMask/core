@@ -346,7 +346,7 @@ export class RemoteFeatureFlagController extends BaseController<
    *
    * @param flagName - The name of the feature flag to clear.
    */
-  clearFlagOverride(flagName: string): void {
+  removeFlagOverride(flagName: string): void {
     const newOverrides = { ...this.state.localOverrides };
     delete newOverrides[flagName];
     this.update(() => {
