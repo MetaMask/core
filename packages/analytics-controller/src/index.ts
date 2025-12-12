@@ -1,8 +1,5 @@
-// Export controller class and state utilities
-export {
-  AnalyticsController,
-  getDefaultAnalyticsControllerState,
-} from './AnalyticsController';
+// Export controller class
+export { AnalyticsController } from './AnalyticsController';
 export type { AnalyticsControllerOptions } from './AnalyticsController';
 
 // Export errors

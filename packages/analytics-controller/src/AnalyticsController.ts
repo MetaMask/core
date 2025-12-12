@@ -46,23 +46,6 @@ export type AnalyticsControllerState = {
 };
 
 /**
- * Returns default values for AnalyticsController state.
- *
- * Note: analyticsId is NOT included - it's an identity that must be
- * provided by the platform (generated once on first run, then persisted).
- *
- * @returns Default state without analyticsId
- */
-export function getDefaultAnalyticsControllerState(): Omit<
-  AnalyticsControllerState,
-  'analyticsId'
-> {
-  return {
-    optedIn: false,
-  };
-}
-
-/**
  * The metadata for each property in {@link AnalyticsControllerState}.
  *
  * Note: `optedIn` is persisted by the controller (`persist: true`).
@@ -151,9 +134,10 @@ export type AnalyticsControllerMessenger = Messenger<
 export type AnalyticsControllerOptions = {
   /**
    * Initial controller state. Must include a valid UUIDv4 `analyticsId`.
+   * Other fields are optional and will default to `optedIn: false` if not provided.
    * The platform is responsible for generating and persisting the analyticsId.
    */
-  state: AnalyticsControllerState;
+  state: Partial<AnalyticsControllerState> & { analyticsId: string };
   /**
    * Messenger used to communicate with BaseController and other controllers.
    */
@@ -201,7 +185,7 @@ export class AnalyticsController extends BaseController<
    *
    * @param options - Controller options
    * @param options.state - Initial controller state. Must include a valid UUIDv4 `analyticsId`.
-   * Use `getDefaultAnalyticsControllerState()` for default opt-in preferences.
+   * Other fields are optional and will default to `optedIn: false` if not provided.
    * @param options.messenger - Messenger used to communicate with BaseController
    * @param options.platformAdapter - Platform adapter implementation for tracking
    * @param options.isAnonymousEventsFeatureEnabled - Whether the anonymous events feature is enabled
@@ -215,7 +199,7 @@ export class AnalyticsController extends BaseController<
     isAnonymousEventsFeatureEnabled = false,
   }: AnalyticsControllerOptions) {
     const initialState: AnalyticsControllerState = {
-      ...getDefaultAnalyticsControllerState(),
+      optedIn: false,
       ...state,
     };
 
