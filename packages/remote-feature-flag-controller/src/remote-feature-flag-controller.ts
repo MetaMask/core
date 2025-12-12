@@ -360,7 +360,7 @@ export class RemoteFeatureFlagController extends BaseController<
   /**
    * Clears all local feature flag overrides.
    */
-  clearAllOverrides(): void {
+  clearAllFlagOverrides(): void {
     this.update(() => {
       return {
         ...this.state,
