@@ -119,7 +119,7 @@ async function initializeAnalyticsController(
     messenger,
     platformAdapter,
     state, // Must include valid UUIDv4 analyticsId
-    anonymousEventsFeature: false, // Optional: enables anonymous event tracking (default: false)
+    isAnonymousEventsFeatureEnabled: false, // Optional: enables anonymous event tracking (default: false)
   });
 
   // 3. Initialize the controller (calls platform adapter's onSetupCompleted hook)
@@ -167,14 +167,14 @@ controller.trackEvent({
 
 #### Anonymous Events Feature
 
-When `anonymousEventsFeature` is enabled in the constructor, events with sensitive properties are split into separate events:
+When `isAnonymousEventsFeatureEnabled` is enabled in the constructor, events with sensitive properties are split into separate events:
 
 - **Regular properties event**: Tracked first with only `properties` (uses user ID)
 - **Sensitive properties event**: Tracked separately with both `properties` and `sensitiveProperties` (uses anonymous ID)
 
 This allows sensitive data to be tracked anonymously while maintaining user identification for regular properties.
 
-When `anonymousEventsFeature` is disabled (default), all properties are tracked in a single event.
+When `isAnonymousEventsFeatureEnabled` is disabled (default), all properties are tracked in a single event.
 
 ### 6. Identify Users
 
