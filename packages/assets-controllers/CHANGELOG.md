@@ -7,6 +7,11 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+### Added
+
+- Add support for spot prices on multiple new chains: Apechain, Lens, Plume, Flow EVM, Berachain, xrpl-evm, Fraxtal, Lukso, xdc-network, and Plasma ([#7465](https://github.com/MetaMask/core/pull/7465))
+- Add `ape` to `SUPPORTED_CURRENCIES` for ApeCoin/Apechain native token ([#7465](https://github.com/MetaMask/core/pull/7465))
+
 ## [94.0.0]
 
 ### Added
