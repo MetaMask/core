@@ -64,7 +64,7 @@ describe('requestPermissions RPC method', () => {
       });
 
     const engine = new JsonRpcEngine();
-    const end = () => undefined; // this won't be called
+    const end = (): undefined => undefined; // this won't be called
 
     // Pass the middleware function to createAsyncMiddleware so the error
     // is catched.

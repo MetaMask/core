@@ -15,14 +15,17 @@ import {
 } from '@metamask/utils';
 import assert from 'assert';
 
-import type {
+import {
   AsyncRestrictedMethod,
   Caveat,
   CaveatConstraint,
   CaveatMutator,
+  CaveatSpecificationMap,
   ExtractSpecifications,
   PermissionConstraint,
   PermissionControllerMessenger,
+  PermissionControllerOptions,
+  PermissionControllerState,
   PermissionOptions,
   PermissionsRequest,
   RestrictedMethodOptions,
@@ -68,7 +71,7 @@ type NoopCaveat = Caveat<typeof CaveatTypes.noopCaveat, null>;
 const primitiveArrayMerger = <Element extends string | null | number>(
   a: Element[],
   b: Element[],
-) => {
+): [Element[], Element[]] | [] => {
   const diff = b.filter((element) => !a.includes(element));
 
   if (diff.length > 0) {
@@ -87,7 +90,9 @@ const primitiveArrayMerger = <Element extends string | null | number>(
  *
  * @returns The caveat specifications.
  */
-function getDefaultCaveatSpecifications() {
+// TODO: Replace `any` with proper type if possible.
+// eslint-disable-next-line @typescript-eslint/no-explicit-any
+function getDefaultCaveatSpecifications(): CaveatSpecificationMap<any> {
   return {
     [CaveatTypes.filterArrayResponse]: {
       type: CaveatTypes.filterArrayResponse,
@@ -253,8 +258,8 @@ const PermissionNames = {
 } as const;
 
 // Default side-effect implementations.
-const onPermittedSideEffect = () => Promise.resolve('foo');
-const onFailureSideEffect = () => Promise.resolve();
+const onPermittedSideEffect = (): Promise<string> => Promise.resolve('foo');
+const onFailureSideEffect = (): Promise<void> => Promise.resolve();
 
 /**
  * Gets the mocks for the side effect handlers of the permissions that have side effects.
@@ -266,7 +271,15 @@ const onFailureSideEffect = () => Promise.resolve();
  *
  * @returns The side effect mocks.
  */
-function getSideEffectHandlerMocks() {
+function getSideEffectHandlerMocks(): Record<
+  | typeof PermissionKeys.wallet_noopWithPermittedAndFailureSideEffects
+  | typeof PermissionKeys.wallet_noopWithPermittedAndFailureSideEffects2
+  | typeof PermissionKeys.wallet_noopWithPermittedSideEffects,
+  {
+    onPermitted: jest.Mock<ReturnType<typeof onPermittedSideEffect>>;
+    onFailure?: jest.Mock<ReturnType<typeof onFailureSideEffect>>;
+  }
+> {
   return {
     [PermissionKeys.wallet_noopWithPermittedAndFailureSideEffects]: {
       onPermitted: jest.fn(onPermittedSideEffect),
@@ -288,6 +301,8 @@ function getSideEffectHandlerMocks() {
  *
  * @returns The permission specifications.
  */
+// The return type of this is quite complicated.
+// eslint-disable-next-line @typescript-eslint/explicit-function-return-type
 function getDefaultPermissionSpecificationsAndMocks() {
   const sideEffectMocks = getSideEffectHandlerMocks();
 
@@ -300,7 +315,9 @@ function getDefaultPermissionSpecificationsAndMocks() {
           CaveatTypes.filterArrayResponse,
           CaveatTypes.reverseArrayResponse,
         ],
-        methodImplementation: (_args: RestrictedMethodOptions<Json[]>) => {
+        methodImplementation: (
+          _args: RestrictedMethodOptions<Json[]>,
+        ): string[] => {
           return ['a', 'b', 'c'];
         },
       },
@@ -313,10 +330,10 @@ function getDefaultPermissionSpecificationsAndMocks() {
         ],
         methodImplementation: (
           _args: RestrictedMethodOptions<Record<string, Json>>,
-        ) => {
+        ): { a: string; b: string; c: string } => {
           return { a: 'x', b: 'y', c: 'z' };
         },
-        validator: (permission: PermissionConstraint) => {
+        validator: (permission: PermissionConstraint): void => {
           // A dummy validator for a caveat type that should be impossible to add
           assert.ok(
             !permission.caveats?.some(
@@ -332,7 +349,7 @@ function getDefaultPermissionSpecificationsAndMocks() {
         allowedCaveats: null,
         methodImplementation: ({
           params,
-        }: RestrictedMethodOptions<[number]>) => {
+        }: RestrictedMethodOptions<[number]>): number => {
           if (!Array.isArray(params)) {
             throw new Error(
               `Invalid ${PermissionKeys.wallet_doubleNumber} request`,
@@ -345,7 +362,7 @@ function getDefaultPermissionSpecificationsAndMocks() {
         permissionType: PermissionType.RestrictedMethod,
         targetName: PermissionKeys.wallet_noop,
         allowedCaveats: null,
-        methodImplementation: (_args: RestrictedMethodOptions<null>) => {
+        methodImplementation: (_args: RestrictedMethodOptions<null>): null => {
           return null;
         },
       },
@@ -354,18 +371,18 @@ function getDefaultPermissionSpecificationsAndMocks() {
         targetName:
           PermissionKeys.wallet_noopWithPermittedAndFailureSideEffects,
         allowedCaveats: null,
-        methodImplementation: (_args: RestrictedMethodOptions<null>) => {
+        methodImplementation: (_args: RestrictedMethodOptions<null>): null => {
           return null;
         },
         sideEffect: {
-          onPermitted: () =>
+          onPermitted: (): Promise<string> =>
             sideEffectMocks[
               PermissionKeys.wallet_noopWithPermittedAndFailureSideEffects
             ].onPermitted(),
-          onFailure: () =>
+          onFailure: async (): Promise<void> =>
             sideEffectMocks[
               PermissionKeys.wallet_noopWithPermittedAndFailureSideEffects
-            ].onFailure(),
+            ]?.onFailure?.(),
         },
       },
       [PermissionKeys.wallet_noopWithPermittedAndFailureSideEffects2]: {
@@ -373,29 +390,29 @@ function getDefaultPermissionSpecificationsAndMocks() {
         targetName:
           PermissionKeys.wallet_noopWithPermittedAndFailureSideEffects2,
         allowedCaveats: null,
-        methodImplementation: (_args: RestrictedMethodOptions<null>) => {
+        methodImplementation: (_args: RestrictedMethodOptions<null>): null => {
           return null;
         },
         sideEffect: {
-          onPermitted: () =>
+          onPermitted: (): Promise<string> =>
             sideEffectMocks[
               PermissionKeys.wallet_noopWithPermittedAndFailureSideEffects2
             ].onPermitted(),
-          onFailure: () =>
+          onFailure: async (): Promise<void> =>
             sideEffectMocks[
               PermissionKeys.wallet_noopWithPermittedAndFailureSideEffects2
-            ].onFailure(),
+            ]?.onFailure?.(),
         },
       },
       [PermissionKeys.wallet_noopWithPermittedSideEffects]: {
         permissionType: PermissionType.RestrictedMethod,
         targetName: PermissionKeys.wallet_noopWithPermittedSideEffects,
         allowedCaveats: null,
-        methodImplementation: (_args: RestrictedMethodOptions<null>) => {
+        methodImplementation: (_args: RestrictedMethodOptions<null>): null => {
           return null;
         },
         sideEffect: {
-          onPermitted: () =>
+          onPermitted: (): Promise<string> =>
             sideEffectMocks[
               PermissionKeys.wallet_noopWithPermittedSideEffects
             ].onPermitted(),
@@ -405,14 +422,14 @@ function getDefaultPermissionSpecificationsAndMocks() {
       [PermissionKeys.wallet_noopWithValidator]: {
         permissionType: PermissionType.RestrictedMethod,
         targetName: PermissionKeys.wallet_noopWithValidator,
-        methodImplementation: (_args: RestrictedMethodOptions<null>) => {
+        methodImplementation: (_args: RestrictedMethodOptions<null>): null => {
           return null;
         },
         allowedCaveats: [
           CaveatTypes.noopCaveat,
           CaveatTypes.filterArrayResponse,
         ],
-        validator: (permission: PermissionConstraint) => {
+        validator: (permission: PermissionConstraint): void => {
           if (
             permission.caveats?.some(
               ({ type }) => type !== CaveatTypes.noopCaveat,
@@ -425,14 +442,14 @@ function getDefaultPermissionSpecificationsAndMocks() {
       [PermissionKeys.wallet_noopWithRequiredCaveat]: {
         permissionType: PermissionType.RestrictedMethod,
         targetName: PermissionKeys.wallet_noopWithRequiredCaveat,
-        methodImplementation: (_args: RestrictedMethodOptions<null>) => {
+        methodImplementation: (_args: RestrictedMethodOptions<null>): null => {
           return null;
         },
         allowedCaveats: [CaveatTypes.noopCaveat],
         factory: (
           options: PermissionOptions<NoopWithRequiredCaveat>,
           _requestData?: Record<string, unknown>,
-        ) => {
+        ): NoopWithRequiredCaveat => {
           return constructPermission<NoopWithRequiredCaveat>({
             ...options,
             caveats: [
@@ -443,7 +460,7 @@ function getDefaultPermissionSpecificationsAndMocks() {
             ],
           });
         },
-        validator: (permission: PermissionConstraint) => {
+        validator: (permission: PermissionConstraint): void => {
           if (
             permission.caveats?.length !== 1 ||
             !permission.caveats?.some(
@@ -461,14 +478,14 @@ function getDefaultPermissionSpecificationsAndMocks() {
       [PermissionKeys.wallet_noopWithFactory]: {
         permissionType: PermissionType.RestrictedMethod,
         targetName: PermissionKeys.wallet_noopWithFactory,
-        methodImplementation: (_args: RestrictedMethodOptions<null>) => {
+        methodImplementation: (_args: RestrictedMethodOptions<null>): null => {
           return null;
         },
         allowedCaveats: [CaveatTypes.filterArrayResponse],
         factory: (
           options: PermissionOptions<NoopWithFactoryPermission>,
           requestData?: Record<string, unknown>,
-        ) => {
+        ): NoopWithFactoryPermission => {
           if (!requestData) {
             throw new Error('requestData is required');
           }
@@ -490,7 +507,7 @@ function getDefaultPermissionSpecificationsAndMocks() {
       [PermissionKeys.wallet_noopWithManyCaveats]: {
         permissionType: PermissionType.RestrictedMethod,
         targetName: PermissionKeys.wallet_noopWithManyCaveats,
-        methodImplementation: (_args: RestrictedMethodOptions<null>) => {
+        methodImplementation: (_args: RestrictedMethodOptions<null>): null => {
           return null;
         },
         allowedCaveats: [
@@ -503,7 +520,7 @@ function getDefaultPermissionSpecificationsAndMocks() {
         permissionType: PermissionType.RestrictedMethod,
         targetName: PermissionKeys.snap_foo,
         allowedCaveats: null,
-        methodImplementation: (_args: RestrictedMethodOptions<null>) => {
+        methodImplementation: (_args: RestrictedMethodOptions<null>): null => {
           return null;
         },
         subjectTypes: [SubjectType.Snap],
@@ -511,13 +528,17 @@ function getDefaultPermissionSpecificationsAndMocks() {
       [PermissionKeys.endowmentAnySubject]: {
         permissionType: PermissionType.Endowment,
         targetName: PermissionKeys.endowmentAnySubject,
-        endowmentGetter: (_options: EndowmentGetterParams) => ['endowment1'],
+        endowmentGetter: (_options: EndowmentGetterParams): string[] => [
+          'endowment1',
+        ],
         allowedCaveats: null,
       },
       [PermissionKeys.endowmentSnapsOnly]: {
         permissionType: PermissionType.Endowment,
         targetName: PermissionKeys.endowmentSnapsOnly,
-        endowmentGetter: (_options: EndowmentGetterParams) => ['endowment2'],
+        endowmentGetter: (_options: EndowmentGetterParams): string[] => [
+          'endowment2',
+        ],
         allowedCaveats: [CaveatTypes.endowmentCaveat],
         subjectTypes: [SubjectType.Snap],
       },
@@ -532,6 +553,8 @@ function getDefaultPermissionSpecificationsAndMocks() {
  *
  * @returns The permission specifications.
  */
+// The return type of this is quite complicated.
+// eslint-disable-next-line @typescript-eslint/explicit-function-return-type
 function getDefaultPermissionSpecifications() {
   return getDefaultPermissionSpecificationsAndMocks()[0];
 }
@@ -617,7 +640,7 @@ function getPermissionControllerMessenger(
  *
  * @returns The unrestricted methods array
  */
-function getDefaultUnrestrictedMethods() {
+function getDefaultUnrestrictedMethods(): readonly string[] {
   return Object.freeze(['wallet_unrestrictedMethod']);
 }
 
@@ -627,7 +650,7 @@ function getDefaultUnrestrictedMethods() {
  *
  * @returns The existing mock state
  */
-function getExistingPermissionState() {
+function getExistingPermissionState(): PermissionControllerState<PermissionConstraint> {
   return {
     subjects: {
       'metamask.io': {
@@ -660,7 +683,12 @@ function getExistingPermissionState() {
  * @param opts - Permission controller options.
  * @returns The permission controller constructor options.
  */
-function getPermissionControllerOptions(opts?: Record<string, unknown>) {
+function getPermissionControllerOptions(
+  opts?: Record<string, unknown>,
+): PermissionControllerOptions<
+  DefaultPermissionSpecifications,
+  DefaultCaveatSpecifications
+> {
   return {
     caveatSpecifications: getDefaultCaveatSpecifications(),
     messenger: getPermissionControllerMessenger(),
@@ -680,7 +708,10 @@ function getPermissionControllerOptions(opts?: Record<string, unknown>) {
  */
 function getDefaultPermissionController(
   opts = getPermissionControllerOptions(),
-) {
+): PermissionController<
+  DefaultPermissionSpecifications,
+  DefaultCaveatSpecifications
+> {
   return new PermissionController<
     (typeof opts.permissionSpecifications)[keyof typeof opts.permissionSpecifications],
     (typeof opts.caveatSpecifications)[keyof typeof opts.caveatSpecifications]
@@ -695,7 +726,10 @@ function getDefaultPermissionController(
  * @returns The default permission controller for testing, with some initial
  * state.
  */
-function getDefaultPermissionControllerWithState() {
+function getDefaultPermissionControllerWithState(): PermissionController<
+  DefaultPermissionSpecifications,
+  DefaultCaveatSpecifications
+> {
   return new PermissionController<
     DefaultPermissionSpecifications,
     DefaultCaveatSpecifications
@@ -720,7 +754,9 @@ function getPermissionMatcher({
   parentCapability: string;
   caveats?: CaveatConstraint[] | null | typeof expect.objectContaining;
   invoker?: string;
-}) {
+  // `expect.objectContaining` returns `any`.
+  // eslint-disable-next-line @typescript-eslint/no-explicit-any
+}): any {
   return expect.objectContaining({
     id: expect.any(String),
     parentCapability,
@@ -1991,7 +2027,10 @@ describe('PermissionController', () => {
      *
      * @returns The permission controller instance
      */
-    const getMultiCaveatController = () => {
+    const getMultiCaveatController = (): PermissionController<
+      DefaultPermissionSpecifications,
+      DefaultCaveatSpecifications
+    > => {
       const controller = getDefaultPermissionController();
 
       controller.grantPermissions({
@@ -2044,7 +2083,7 @@ describe('PermissionController', () => {
       overrides: Partial<
         Record<MultiCaveatOrigins, ReturnType<typeof getPermissionMatcher>>
       > = {},
-    ) => {
+    ): PermissionControllerState<PermissionConstraint> => {
       return {
         subjects: {
           [MultiCaveatOrigins.A]: {
@@ -2199,7 +2238,7 @@ describe('PermissionController', () => {
       const controller = getMultiCaveatController();
 
       let counter = 0;
-      const mutator = () => {
+      const mutator: CaveatMutator<Caveat<string, Json>> = () => {
         counter += 1;
         return counter === 1
           ? { operation: CaveatMutatorOperation.Noop as const }
@@ -2304,7 +2343,6 @@ describe('PermissionController', () => {
       );
 
       const matcher = getMultiCaveatStateMatcher();
-      // @ts-expect-error Intentional destructive testing
       delete matcher.subjects[MultiCaveatOrigins.A];
 
       expect(controller.state).toStrictEqual(matcher);
@@ -2870,35 +2908,37 @@ describe('PermissionController', () => {
       // Create a cycle. This will cause our JSON validity check to error.
       circular.circular = circular;
 
-      [{ foo: () => undefined }, circular, { foo: BigInt(10) }].forEach(
-        (invalidValue) => {
-          expect(() =>
-            controller.grantPermissions({
-              subject: { origin },
-              approvedPermissions: {
-                wallet_getSecretArray: {
-                  caveats: [
-                    {
-                      type: CaveatTypes.filterArrayResponse,
-                      // @ts-expect-error Intentional destructive testing
-                      value: invalidValue,
-                    },
-                  ],
-                },
+      [
+        { foo: (): undefined => undefined },
+        circular,
+        { foo: BigInt(10) },
+      ].forEach((invalidValue) => {
+        expect(() =>
+          controller.grantPermissions({
+            subject: { origin },
+            approvedPermissions: {
+              wallet_getSecretArray: {
+                caveats: [
+                  {
+                    type: CaveatTypes.filterArrayResponse,
+                    // @ts-expect-error Intentional destructive testing
+                    value: invalidValue,
+                  },
+                ],
               },
-            }),
-          ).toThrow(
-            new errors.CaveatInvalidJsonError(
-              {
-                type: CaveatTypes.filterArrayResponse,
-                value: invalidValue,
-              },
-              origin,
-              PermissionNames.wallet_getSecretArray,
-            ),
-          );
-        },
-      );
+            },
+          }),
+        ).toThrow(
+          new errors.CaveatInvalidJsonError(
+            {
+              type: CaveatTypes.filterArrayResponse,
+              value: invalidValue,
+            },
+            origin,
+            PermissionNames.wallet_getSecretArray,
+          ),
+        );
+      });
     });
 
     it('throws if caveat validation fails', () => {
@@ -3083,7 +3123,7 @@ describe('PermissionController', () => {
     it('incrementally updates a caveat of an existing permission', () => {
       const controller = getDefaultPermissionController();
       const origin = 'metamask.io';
-      const getCaveat = (...values: string[]) => ({
+      const getCaveat = (...values: string[]): Caveat<string, Json> => ({
         type: CaveatTypes.filterArrayResponse,
         value: values,
       });
@@ -3123,7 +3163,9 @@ describe('PermissionController', () => {
   });
 
   describe('requesting permissions', () => {
-    const getAnyPermissionsDiffMatcher = () =>
+    // `expect.objectContaining` returns `any`.
+    // eslint-disable-next-line @typescript-eslint/no-explicit-any
+    const getAnyPermissionsDiffMatcher = (): any =>
       expect.objectContaining({
         currentPermissions: expect.any(Object),
         permissionDiffMap: expect.any(Object),
@@ -3133,7 +3175,11 @@ describe('PermissionController', () => {
       'requestPermissions',
       'requestPermissionsIncremental',
     ] as const)('%s', (requestFunctionName) => {
-      const getRequestDataDiffProperty = () =>
+      const getRequestDataDiffProperty = (): {
+        // `expect.objectContaining` returns `any`.
+        // eslint-disable-next-line @typescript-eslint/no-explicit-any
+        diff?: any;
+      } =>
         requestFunctionName === 'requestPermissionsIncremental'
           ? { diff: getAnyPermissionsDiffMatcher() }
           : {};
@@ -3653,7 +3699,7 @@ describe('PermissionController', () => {
 
         sideEffectMocks[
           PermissionNames.wallet_noopWithPermittedAndFailureSideEffects
-        ].onFailure.mockImplementation(() =>
+        ]?.onFailure?.mockImplementation(() =>
           Promise.reject(new Error('error')),
         );
 
@@ -4625,9 +4671,13 @@ describe('PermissionController', () => {
         const callActionSpy = jest.spyOn(messenger, 'call');
 
         // The metadata is valid, but the permissions are invalid
-        const getInvalidRequestObject = (invalidPermissions: unknown) => {
+        const getInvalidRequestObject = (
+          invalidPermissions: unknown,
+        ): PermissionsRequest => {
           return {
             metadata: { origin, id },
+
+            // @ts-expect-error Intentional destructive testing.
             permissions: invalidPermissions,
           };
         };
@@ -4822,12 +4872,16 @@ describe('PermissionController', () => {
       const caveatType2 = CaveatTypes.filterObjectResponse;
       const caveatType3 = CaveatTypes.noopCaveat;
 
-      const makeCaveat = (type: string, value: Json) => ({ type, value });
-      const makeCaveat1 = (...value: string[]) =>
+      const makeCaveat = (type: string, value: Json): Caveat<string, Json> => ({
+        type,
+        value,
+      });
+      const makeCaveat1 = (...value: string[]): Caveat<string, Json> =>
         makeCaveat(caveatType1, value);
-      const makeCaveat2 = (...value: string[]) =>
+      const makeCaveat2 = (...value: string[]): Caveat<string, Json> =>
         makeCaveat(caveatType2, value);
-      const makeCaveat3 = () => makeCaveat(caveatType3, null);
+      const makeCaveat3 = (): Caveat<string, Json> =>
+        makeCaveat(caveatType3, null);
 
       it.each([
         ['neither A nor B have caveats', null, null],
@@ -4960,7 +5014,9 @@ describe('PermissionController', () => {
           const getPermissionDiffMatcher = (
             previousCaveats: CaveatConstraint[] | null,
             diff: Record<string, Json[] | null>,
-          ) =>
+            // `expect.objectContaining` returns `any`.
+            // eslint-disable-next-line @typescript-eslint/no-explicit-any
+          ): any =>
             expect.objectContaining({
               currentPermissions: expect.objectContaining({
                 [PermissionNames.wallet_noopWithManyCaveats]:
@@ -5090,11 +5146,10 @@ describe('PermissionController', () => {
 
       it('throws if merged caveats produce an invalid permission', async () => {
         const caveatSpecifications = getDefaultCaveatSpecifications();
-        // @ts-expect-error Intentional destructive testing
-        caveatSpecifications[CaveatTypes.filterArrayResponse].merger = () => [
-          'foo',
-          'foo',
-        ];
+        caveatSpecifications[CaveatTypes.filterArrayResponse].merger = (): [
+          string,
+          string,
+        ] => ['foo', 'foo'];
 
         const options = getPermissionControllerOptions({
           caveatSpecifications,
@@ -5546,8 +5601,8 @@ describe('PermissionController', () => {
     it('throws if the restricted method returns undefined', async () => {
       const permissionSpecifications = getDefaultPermissionSpecifications();
       // @ts-expect-error Intentional destructive testing
-      permissionSpecifications.wallet_doubleNumber.methodImplementation = () =>
-        undefined;
+      permissionSpecifications.wallet_doubleNumber.methodImplementation =
+        (): undefined => undefined;
 
       const controller = new PermissionController<
         DefaultPermissionSpecifications,
@@ -6091,6 +6146,7 @@ describe('PermissionController', () => {
         state,
       });
 
+      // eslint-disable-next-line no-new
       new PermissionController<
         DefaultPermissionSpecifications,
         DefaultCaveatSpecifications
@@ -6286,8 +6342,8 @@ describe('PermissionController', () => {
     it('returns an error if the restricted method returns undefined', async () => {
       const permissionSpecifications = getDefaultPermissionSpecifications();
       // @ts-expect-error Intentional destructive testing
-      permissionSpecifications.wallet_doubleNumber.methodImplementation = () =>
-        undefined;
+      permissionSpecifications.wallet_doubleNumber.methodImplementation =
+        (): undefined => undefined;
 
       const controller = new PermissionController<
         DefaultPermissionSpecifications,

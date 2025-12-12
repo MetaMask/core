@@ -319,7 +319,7 @@ export function decorateWithCaveats<
 
   let decorated = async (
     args: Parameters<RestrictedMethod<RestrictedMethodParameters, Json>>[0],
-  ) => methodImplementation(args);
+  ): Promise<Json> => methodImplementation(args);
 
   for (const caveat of caveats) {
     const specification =
