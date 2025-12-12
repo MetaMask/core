@@ -41,33 +41,39 @@ export class PollingBlockTracker<
   extends SafeEventEmitter
   implements BlockTracker
 {
-  private _isRunning: boolean;
+  #isRunning: boolean;
 
-  private readonly _blockResetDuration: number;
+  readonly #blockResetDuration: number;
 
-  private readonly _usePastBlocks: boolean;
+  readonly #usePastBlocks: boolean;
 
-  private _currentBlock: string | null;
+  #currentBlock: string | null;
 
-  private _blockResetTimeout?: ReturnType<typeof setTimeout>;
+  #blockResetTimeout?: ReturnType<typeof setTimeout>;
 
-  private _pollingTimeout?: ReturnType<typeof setTimeout>;
+  #pollingTimeout?: ReturnType<typeof setTimeout>;
 
-  private readonly _provider: InternalProvider<Context>;
+  readonly #provider: InternalProvider<Context>;
 
-  private readonly _pollingInterval: number;
+  readonly #pollingInterval: number;
 
-  private readonly _retryTimeout: number;
+  readonly #retryTimeout: number;
 
-  private readonly _keepEventLoopActive: boolean;
+  readonly #keepEventLoopActive: boolean;
 
-  private readonly _setSkipCacheFlag: boolean;
+  readonly #setSkipCacheFlag: boolean;
 
   readonly #internalEventListeners: InternalListener[] = [];
 
   #pendingLatestBlock?: Omit<DeferredPromise<string>, 'resolve'>;
 
   #pendingFetch?: Omit<DeferredPromise<string>, 'resolve'>;
+
+  readonly #onNewListener: (eventName: string | symbol) => void;
+
+  readonly #onRemoveListener: () => void;
+
+  readonly #resetCurrentBlock: () => void;
 
   constructor(opts: PollingBlockTrackerOptions<Context> = {}) {
     // parse + validate args
@@ -78,49 +84,48 @@ export class PollingBlockTracker<
     super();
 
     // config
-    this._blockResetDuration = opts.blockResetDuration || 20 * sec;
-    this._usePastBlocks = opts.usePastBlocks || false;
+    this.#blockResetDuration = opts.blockResetDuration ?? 20 * sec;
+    this.#usePastBlocks = opts.usePastBlocks ?? false;
     // state
-    this._currentBlock = null;
-    this._isRunning = false;
+    this.#currentBlock = null;
+    this.#isRunning = false;
 
     // bind functions for internal use
-    this._onNewListener = this._onNewListener.bind(this);
-    this._onRemoveListener = this._onRemoveListener.bind(this);
-    this._resetCurrentBlock = this._resetCurrentBlock.bind(this);
+    this.#onNewListener = this.#onNewListenerUnbound.bind(this);
+    this.#onRemoveListener = this.#onRemoveListenerUnbound.bind(this);
+    this.#resetCurrentBlock = this.#resetCurrentBlockUnbound.bind(this);
 
     // listen for handler changes
-    this._setupInternalEvents();
+    this.#setupInternalEvents();
 
     // config
-    this._provider = opts.provider;
-    this._pollingInterval = opts.pollingInterval || 20 * sec;
-    this._retryTimeout = opts.retryTimeout || this._pollingInterval / 10;
-    this._keepEventLoopActive =
-      opts.keepEventLoopActive === undefined ? true : opts.keepEventLoopActive;
-    this._setSkipCacheFlag = opts.setSkipCacheFlag || false;
+    this.#provider = opts.provider;
+    this.#pollingInterval = opts.pollingInterval ?? 20 * sec;
+    this.#retryTimeout = opts.retryTimeout ?? this.#pollingInterval / 10;
+    this.#keepEventLoopActive = opts.keepEventLoopActive ?? true;
+    this.#setSkipCacheFlag = opts.setSkipCacheFlag ?? false;
   }
 
-  async destroy() {
-    this._cancelBlockResetTimeout();
+  async destroy(): Promise<void> {
+    this.#cancelBlockResetTimeout();
     super.removeAllListeners();
-    this._maybeEnd();
+    this.#maybeEnd();
   }
 
   isRunning(): boolean {
-    return this._isRunning;
+    return this.#isRunning;
   }
 
   getCurrentBlock(): string | null {
-    return this._currentBlock;
+    return this.#currentBlock;
   }
 
   async getLatestBlock({
     useCache = true,
   }: { useCache?: boolean } = {}): Promise<string> {
     // return if available
-    if (this._currentBlock && useCache) {
-      return this._currentBlock;
+    if (this.#currentBlock && useCache) {
+      return this.#currentBlock;
     }
 
     if (this.#pendingLatestBlock) {
@@ -132,10 +137,10 @@ export class PollingBlockTracker<
     });
     this.#pendingLatestBlock = { reject, promise };
 
-    if (this._isRunning) {
+    if (this.#isRunning) {
       try {
         // If tracker is running, wait for next block with timeout
-        const onLatestBlock = (value: string) => {
+        const onLatestBlock = (value: string): void => {
           this.#removeInternalListener(onLatestBlock);
           this.removeListener('latest', onLatestBlock);
           resolve(value);
@@ -154,7 +159,7 @@ export class PollingBlockTracker<
     } else {
       // If tracker isn't running, just fetch directly
       try {
-        const latestBlock = await this._updateLatestBlock();
+        const latestBlock = await this.#updateLatestBlock();
         resolve(latestBlock);
         return latestBlock;
       } catch (error) {
@@ -166,13 +171,13 @@ export class PollingBlockTracker<
         // achieve this by delaying the unsetting of the #pendingLatestBlock promise.
         setTimeout(() => {
           this.#pendingLatestBlock = undefined;
-        }, this._pollingInterval);
+        }, this.#pollingInterval);
       }
     }
   }
 
-  // dont allow module consumer to remove our internal event listeners
-  removeAllListeners(eventName?: string | symbol) {
+  // Don't allow module consumer to remove our internal event listeners.
+  removeAllListeners(eventName?: string | symbol): this {
     // perform default behavior, preserve fn arity
     if (eventName) {
       super.removeAllListeners(eventName);
@@ -181,63 +186,63 @@ export class PollingBlockTracker<
     }
 
     // re-add internal events
-    this._setupInternalEvents();
+    this.#setupInternalEvents();
     // trigger stop check just in case
-    this._onRemoveListener();
+    this.#onRemoveListener();
 
     return this;
   }
 
-  private _setupInternalEvents(): void {
+  #setupInternalEvents(): void {
     // first remove listeners for idempotence
-    this.removeListener('newListener', this._onNewListener);
-    this.removeListener('removeListener', this._onRemoveListener);
+    this.removeListener('newListener', this.#onNewListener);
+    this.removeListener('removeListener', this.#onRemoveListener);
     // then add them
-    this.on('newListener', this._onNewListener);
-    this.on('removeListener', this._onRemoveListener);
+    this.on('newListener', this.#onNewListener);
+    this.on('removeListener', this.#onRemoveListener);
   }
 
-  private _onNewListener(eventName: string | symbol): void {
+  #onNewListenerUnbound(eventName: string | symbol): void {
     // `newListener` is called *before* the listener is added
     if (blockTrackerEvents.includes(eventName)) {
       // TODO: Handle dangling promise
-      this._maybeStart();
+      this.#maybeStart();
     }
   }
 
-  private _onRemoveListener(): void {
+  #onRemoveListenerUnbound(): void {
     // `removeListener` is called *after* the listener is removed
-    if (this._getBlockTrackerEventCount() > 0) {
+    if (this.#getBlockTrackerEventCount() > 0) {
       return;
     }
-    this._maybeEnd();
+    this.#maybeEnd();
   }
 
-  private _maybeStart() {
-    if (this._isRunning) {
+  #maybeStart(): void {
+    if (this.#isRunning) {
       return;
     }
 
-    this._isRunning = true;
+    this.#isRunning = true;
     // cancel setting latest block to stale
-    this._cancelBlockResetTimeout();
-    this._start();
+    this.#cancelBlockResetTimeout();
+    this.#start();
     this.emit('_started');
   }
 
-  private _maybeEnd() {
-    if (!this._isRunning) {
+  #maybeEnd(): void {
+    if (!this.#isRunning) {
       return;
     }
 
-    this._isRunning = false;
-    this._setupBlockResetTimeout();
-    this._end();
+    this.#isRunning = false;
+    this.#setupBlockResetTimeout();
+    this.#end();
     this.#rejectPendingLatestBlock(new Error('Block tracker destroyed'));
     this.emit('_ended');
   }
 
-  private _getBlockTrackerEventCount(): number {
+  #getBlockTrackerEventCount(): number {
     return (
       blockTrackerEvents
         .map((eventName) => this.listeners(eventName))
@@ -251,8 +256,8 @@ export class PollingBlockTracker<
     );
   }
 
-  private _shouldUseNewBlock(newBlock: string) {
-    const currentBlock = this._currentBlock;
+  #shouldUseNewBlock(newBlock: string): boolean {
+    const currentBlock = this.#currentBlock;
     if (!currentBlock) {
       return true;
     }
@@ -260,48 +265,48 @@ export class PollingBlockTracker<
     const currentBlockInt = hexToInt(currentBlock);
 
     return (
-      (this._usePastBlocks && newBlockInt < currentBlockInt) ||
+      (this.#usePastBlocks && newBlockInt < currentBlockInt) ||
       newBlockInt > currentBlockInt
     );
   }
 
-  private _newPotentialLatest(newBlock: string): void {
-    if (!this._shouldUseNewBlock(newBlock)) {
+  #newPotentialLatest(newBlock: string): void {
+    if (!this.#shouldUseNewBlock(newBlock)) {
       return;
     }
-    this._setCurrentBlock(newBlock);
+    this.#setCurrentBlock(newBlock);
   }
 
-  private _setCurrentBlock(newBlock: string): void {
-    const oldBlock = this._currentBlock;
-    this._currentBlock = newBlock;
+  #setCurrentBlock(newBlock: string): void {
+    const oldBlock = this.#currentBlock;
+    this.#currentBlock = newBlock;
     this.emit('latest', newBlock);
     this.emit('sync', { oldBlock, newBlock });
   }
 
-  private _setupBlockResetTimeout(): void {
+  #setupBlockResetTimeout(): void {
     // clear any existing timeout
-    this._cancelBlockResetTimeout();
+    this.#cancelBlockResetTimeout();
     // clear latest block when stale
-    this._blockResetTimeout = setTimeout(
-      this._resetCurrentBlock,
-      this._blockResetDuration,
+    this.#blockResetTimeout = setTimeout(
+      this.#resetCurrentBlock,
+      this.#blockResetDuration,
     );
 
     // nodejs - dont hold process open
-    if (this._blockResetTimeout.unref) {
-      this._blockResetTimeout.unref();
+    if (this.#blockResetTimeout.unref) {
+      this.#blockResetTimeout.unref();
     }
   }
 
-  private _cancelBlockResetTimeout(): void {
-    if (this._blockResetTimeout) {
-      clearTimeout(this._blockResetTimeout);
+  #cancelBlockResetTimeout(): void {
+    if (this.#blockResetTimeout) {
+      clearTimeout(this.#blockResetTimeout);
     }
   }
 
-  private _resetCurrentBlock(): void {
-    this._currentBlock = null;
+  #resetCurrentBlockUnbound(): void {
+    this.#currentBlock = null;
   }
 
   /**
@@ -311,37 +316,37 @@ export class PollingBlockTracker<
    * @deprecated Use {@link getLatestBlock} instead.
    * @returns A promise that resolves to the latest block number.
    */
-  async checkForLatestBlock() {
-    await this._updateLatestBlock();
+  async checkForLatestBlock(): Promise<string> {
+    await this.#updateLatestBlock();
     return await this.getLatestBlock();
   }
 
-  private _start() {
+  #start(): void {
     // Intentionally not awaited as this starts the polling via a timeout chain.
     // eslint-disable-next-line @typescript-eslint/no-floating-promises
-    this._updateAndQueue();
+    this.#updateAndQueue();
   }
 
-  private _end() {
-    this._clearPollingTimeout();
+  #end(): void {
+    this.#clearPollingTimeout();
   }
 
-  private async _updateLatestBlock(): Promise<string> {
+  async #updateLatestBlock(): Promise<string> {
     // fetch + set latest block
-    const latestBlock = await this._fetchLatestBlock();
-    this._newPotentialLatest(latestBlock);
+    const latestBlock = await this.#fetchLatestBlock();
+    this.#newPotentialLatest(latestBlock);
 
-    if (!this._isRunning) {
+    if (!this.#isRunning) {
       // Ensure the one-time update is eventually reset once it's stale
-      this._setupBlockResetTimeout();
+      this.#setupBlockResetTimeout();
     }
 
     // _newPotentialLatest() ensures that this._currentBlock is not null
     // eslint-disable-next-line @typescript-eslint/no-non-null-assertion
-    return this._currentBlock!;
+    return this.#currentBlock!;
   }
 
-  private async _fetchLatestBlock(): Promise<string> {
+  async #fetchLatestBlock(): Promise<string> {
     // If there's already a pending fetch, reuse it
     if (this.#pendingFetch) {
       return await this.#pendingFetch.promise;
@@ -360,12 +365,12 @@ export class PollingBlockTracker<
         method: 'eth_blockNumber',
         params: [] as [],
       };
-      if (this._setSkipCacheFlag) {
+      if (this.#setSkipCacheFlag) {
         req.skipCache = true;
       }
 
       log('Making request', req);
-      const result = await this._provider.request<[], string>(req);
+      const result = await this.#provider.request<[], string>(req);
       log('Got result', result);
       resolve(result);
       return result;
@@ -383,11 +388,11 @@ export class PollingBlockTracker<
    * The core polling function that runs after each interval.
    * Updates the latest block and then queues the next update.
    */
-  private async _updateAndQueue() {
-    let interval = this._pollingInterval;
+  async #updateAndQueue(): Promise<void> {
+    let interval = this.#pollingInterval;
 
     try {
-      await this._updateLatestBlock();
+      await this.#updateLatestBlock();
     } catch (error: unknown) {
       try {
         this.emit('error', error);
@@ -395,49 +400,49 @@ export class PollingBlockTracker<
         console.error(`Error updating latest block: ${getErrorMessage(error)}`);
       }
 
-      interval = this._retryTimeout;
+      interval = this.#retryTimeout;
     }
 
-    if (!this._isRunning) {
+    if (!this.#isRunning) {
       return;
     }
 
-    this._clearPollingTimeout();
+    this.#clearPollingTimeout();
 
     const timeoutRef = setTimeout(() => {
       // Intentionally not awaited as this just continues the polling loop.
       // eslint-disable-next-line @typescript-eslint/no-floating-promises
-      this._updateAndQueue();
+      this.#updateAndQueue();
     }, interval);
 
-    if (timeoutRef.unref && !this._keepEventLoopActive) {
+    if (timeoutRef.unref && !this.#keepEventLoopActive) {
       timeoutRef.unref();
     }
 
-    this._pollingTimeout = timeoutRef;
+    this.#pollingTimeout = timeoutRef;
 
     this.emit('_waitingForNextIteration');
   }
 
-  _clearPollingTimeout() {
-    if (this._pollingTimeout) {
-      clearTimeout(this._pollingTimeout);
-      this._pollingTimeout = undefined;
+  #clearPollingTimeout(): void {
+    if (this.#pollingTimeout) {
+      clearTimeout(this.#pollingTimeout);
+      this.#pollingTimeout = undefined;
     }
   }
 
-  #addInternalListener(listener: InternalListener) {
+  #addInternalListener(listener: InternalListener): void {
     this.#internalEventListeners.push(listener);
   }
 
-  #removeInternalListener(listener: InternalListener) {
+  #removeInternalListener(listener: InternalListener): void {
     this.#internalEventListeners.splice(
       this.#internalEventListeners.indexOf(listener),
       1,
     );
   }
 
-  #rejectPendingLatestBlock(error: unknown) {
+  #rejectPendingLatestBlock(error: unknown): void {
     this.#pendingLatestBlock?.reject(error);
     this.#pendingLatestBlock = undefined;
   }
