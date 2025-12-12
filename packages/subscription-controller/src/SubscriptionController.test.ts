@@ -41,6 +41,7 @@ import type {
   SubmitSponsorshipIntentsMethodParams,
   ProductType,
   RecurringInterval,
+  ISubscriptionService,
 } from './types';
 import {
   MODAL_TYPE,
@@ -163,7 +164,10 @@ const MOCK_COHORTS = [
  */
 function createCustomSubscriptionMessenger(props?: {
   overrideEvents?: AllowedEvents['type'][];
-}) {
+}): {
+  rootMessenger: RootMessenger;
+  messenger: SubscriptionControllerMessenger;
+} {
   const rootMessenger: RootMessenger = new Messenger({
     namespace: MOCK_ANY_NAMESPACE,
   });
@@ -203,7 +207,11 @@ function createCustomSubscriptionMessenger(props?: {
 function createMockSubscriptionMessenger(overrideMessengers?: {
   rootMessenger: RootMessenger;
   messenger: SubscriptionControllerMessenger;
-}) {
+}): {
+  rootMessenger: RootMessenger;
+  messenger: SubscriptionControllerMessenger;
+  mockPerformSignOut: jest.Mock;
+} {
   const { rootMessenger, messenger } =
     overrideMessengers ?? createCustomSubscriptionMessenger();
 
@@ -225,7 +233,19 @@ function createMockSubscriptionMessenger(overrideMessengers?: {
  *
  * @returns The mock service and related mocks.
  */
-function createMockSubscriptionService() {
+function createMockSubscriptionService(): {
+  mockService: jest.Mocked<ISubscriptionService>;
+  mockGetSubscriptions: jest.Mock;
+  mockCancelSubscription: jest.Mock;
+  mockUnCancelSubscription: jest.Mock;
+  mockStartSubscriptionWithCard: jest.Mock;
+  mockGetPricing: jest.Mock;
+  mockStartSubscriptionWithCrypto: jest.Mock;
+  mockUpdatePaymentMethodCard: jest.Mock;
+  mockUpdatePaymentMethodCrypto: jest.Mock;
+  mockSubmitSponsorshipIntents: jest.Mock;
+  mockAssignUserToCohort: jest.Mock;
+} {
   const mockGetSubscriptions = jest.fn().mockImplementation();
   const mockCancelSubscription = jest.fn();
   const mockUnCancelSubscription = jest.fn();
@@ -299,7 +319,7 @@ type WithControllerArgs<ReturnValue> =
  */
 async function withController<ReturnValue>(
   ...args: WithControllerArgs<ReturnValue>
-) {
+): Promise<ReturnValue> {
   const [{ ...rest }, fn] = args.length === 2 ? args : [{}, args[0]];
   const { messenger, mockPerformSignOut, rootMessenger } =
     createMockSubscriptionMessenger();
@@ -1070,7 +1090,7 @@ describe('SubscriptionController', () => {
         ]);
 
         // 4. Now cancel should work (user is subscribed)
-        mockService.cancelSubscription.mockResolvedValue(undefined);
+        mockService.cancelSubscription.mockResolvedValue(MOCK_SUBSCRIPTION);
         expect(
           await controller.cancelSubscription({
             subscriptionId: 'sub_123456789',
@@ -1468,7 +1488,7 @@ describe('SubscriptionController', () => {
 
     it('should update crypto payment method successfully', async () => {
       await withController(async ({ controller, mockService }) => {
-        mockService.updatePaymentMethodCrypto.mockResolvedValue({});
+        mockService.updatePaymentMethodCrypto.mockResolvedValue(undefined);
         mockService.getSubscriptions.mockResolvedValue(
           MOCK_GET_SUBSCRIPTIONS_RESPONSE,
         );
@@ -2289,7 +2309,7 @@ describe('SubscriptionController', () => {
           },
         },
         async ({ controller, mockService }) => {
-          mockService.updatePaymentMethodCrypto.mockResolvedValue({});
+          mockService.updatePaymentMethodCrypto.mockResolvedValue(undefined);
           mockService.getSubscriptions.mockResolvedValue(
             MOCK_GET_SUBSCRIPTIONS_RESPONSE,
           );

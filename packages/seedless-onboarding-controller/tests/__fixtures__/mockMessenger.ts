@@ -35,7 +35,11 @@ export type RootMessenger = Messenger<
  *
  * @returns base messenger, and messenger. You can pass this into the mocks below to mock messenger calls
  */
-export function createCustomSeedlessOnboardingMessenger() {
+export function createCustomSeedlessOnboardingMessenger(): {
+  baseMessenger: RootMessenger;
+  messenger: SeedlessOnboardingControllerMessenger;
+  keyringControllerMessenger: MockKeyringControllerMessenger;
+} {
   // Create the root messenger
   const baseMessenger: RootMessenger = new Messenger({
     namespace: MOCK_ANY_NAMESPACE,
@@ -80,7 +84,14 @@ type OverrideMessengers = {
  */
 export function mockSeedlessOnboardingMessenger(
   overrideMessengers?: OverrideMessengers,
-) {
+): {
+  baseMessenger: RootMessenger;
+  messenger: SeedlessOnboardingControllerMessenger;
+  keyringControllerMessenger: MockKeyringControllerMessenger;
+  mockKeyringGetAccounts: jest.Mock;
+  mockKeyringAddAccounts: jest.Mock;
+  mockAccountsListAccounts: jest.Mock;
+} {
   const { baseMessenger, messenger, keyringControllerMessenger } =
     overrideMessengers ?? createCustomSeedlessOnboardingMessenger();
 

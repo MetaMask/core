@@ -212,7 +212,7 @@ export class RemoteFeatureFlagController extends BaseController<
    *
    * @param remoteFeatureFlags - The new feature flags to cache.
    */
-  async #updateCache(remoteFeatureFlags: FeatureFlags) {
+  async #updateCache(remoteFeatureFlags: FeatureFlags): Promise<void> {
     const processedRemoteFeatureFlags =
       await this.#processRemoteFeatureFlags(remoteFeatureFlags);
     this.update(() => {

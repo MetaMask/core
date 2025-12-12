@@ -67,14 +67,16 @@ function createController(
     getMetaMetricsId: () => string;
     clientVersion: string;
   }> = {},
-) {
+): RemoteFeatureFlagController {
   return new RemoteFeatureFlagController({
     messenger: getMessenger(),
     state: options.state,
     clientConfigApiService:
       options.clientConfigApiService ?? buildClientConfigApiService(),
     disabled: options.disabled,
-    getMetaMetricsId: options.getMetaMetricsId ?? (() => MOCK_METRICS_ID),
+    getMetaMetricsId:
+      options.getMetaMetricsId ??
+      ((): typeof MOCK_METRICS_ID => MOCK_METRICS_ID),
     clientVersion: options.clientVersion ?? MOCK_BASE_VERSION,
   });
 }

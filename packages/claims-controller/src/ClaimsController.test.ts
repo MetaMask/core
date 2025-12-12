@@ -25,7 +25,7 @@ const mockClaimsServiceFetchClaimsConfigurations = jest.fn();
  */
 async function withController<ReturnValue>(
   ...args: WithControllerArgs<ReturnValue>
-) {
+): Promise<ReturnValue> {
   const [{ ...rest }, fn] = args.length === 2 ? args : [{}, args[0]];
   const { messenger, rootMessenger } = createMockClaimsControllerMessenger({
     mockClaimServiceRequestHeaders,
