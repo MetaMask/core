@@ -272,6 +272,8 @@ export class TokenBalancesController extends StaticIntervalPollingController<{
 
   readonly #accountsApiChainIds: () => ChainIdHex[];
 
+  readonly #allowExternalServices: () => boolean;
+
   readonly #balanceFetchers: BalanceFetcher[];
 
   #allTokens: TokensControllerState['allTokens'] = {};
@@ -333,14 +335,14 @@ export class TokenBalancesController extends StaticIntervalPollingController<{
     this.#platform = platform ?? 'extension';
     this.#queryAllAccounts = queryMultipleAccounts;
     this.#accountsApiChainIds = accountsApiChainIds;
+    this.#allowExternalServices = allowExternalServices;
     this.#defaultInterval = interval;
     this.#websocketActivePollingInterval = websocketActivePollingInterval;
     this.#chainPollingConfig = { ...chainPollingIntervals };
 
+    // Always include AccountsApiFetcher - it dynamically checks allowExternalServices() in supports()
     this.#balanceFetchers = [
-      ...(accountsApiChainIds().length > 0 && allowExternalServices()
-        ? [this.#createAccountsApiFetcher()]
-        : []),
+      this.#createAccountsApiFetcher(),
       new RpcBalanceFetcher(this.#getProvider, this.#getNetworkClient, () => ({
         allTokens: this.#allTokens,
         allDetectedTokens: this.#detectedTokens,
@@ -537,7 +539,9 @@ export class TokenBalancesController extends StaticIntervalPollingController<{
     );
 
     return {
+      // Dynamically check allowExternalServices() at call time, not just at construction time
       supports: (chainId: ChainIdHex): boolean =>
+        this.#allowExternalServices() &&
         this.#accountsApiChainIds().includes(chainId) &&
         originalFetcher.supports(chainId),
       fetch: originalFetcher.fetch.bind(originalFetcher),

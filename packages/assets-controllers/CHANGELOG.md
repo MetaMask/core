@@ -12,6 +12,15 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 - Add support for spot prices on multiple new chains: Apechain, Lens, Plume, Flow EVM, Berachain, xrpl-evm, Fraxtal, Lukso, xdc-network, and Plasma ([#7465](https://github.com/MetaMask/core/pull/7465))
 - Add `ape` to `SUPPORTED_CURRENCIES` for ApeCoin/Apechain native token ([#7465](https://github.com/MetaMask/core/pull/7465))
 
+### Fixed
+
+- Fix `TokenBalancesController` to evaluate `allowExternalServices` dynamically instead of only at constructor time ([#7469](https://github.com/MetaMask/core/pull/7469))
+  - Previously, the `#balanceFetchers` array was built once in the constructor, so changes to `allowExternalServices()` after initialization were not reflected
+  - Now `allowExternalServices()` is stored as a function and evaluated dynamically in the fetcher's `supports` method
+- Fix `TokenDetectionController` methods `addDetectedTokensViaPolling` and `addDetectedTokensViaWs` to refresh token metadata cache before use ([#7469](https://github.com/MetaMask/core/pull/7469))
+  - Previously, these methods used a potentially stale/empty `#tokensChainsCache` from construction time
+  - Now they fetch the latest `tokensChainsCache` from `TokenListController:getState` before looking up token metadata
+
 ## [94.0.0]
 
 ### Added
