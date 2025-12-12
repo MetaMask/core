@@ -1246,7 +1246,9 @@ describe('KeyringController', () => {
   });
 
   describe('persistAllKeyrings', () => {
-    const getPrimaryKeyringFrom = (controller: KeyringController) => {
+    const getPrimaryKeyringFrom = (
+      controller: KeyringController,
+    ): EthKeyring => {
       return controller.getKeyringsByType(KeyringTypes.hd)[0] as EthKeyring;
     };
 
@@ -1299,6 +1301,54 @@ describe('KeyringController', () => {
 
         const removedAccount = addedAccount;
         expect(mockAccountRemoved).toHaveBeenCalledWith(removedAccount);
+      });
+    });
+
+    it('should fire `:accountAdded` and `:accountRemoved` if multiple operations get executed', async () => {
+      await withController(async ({ controller, messenger }) => {
+        const primaryKeyring = getPrimaryKeyringFrom(controller);
+
+        const [addedAccount] = await controller.withKeyring(
+          { type: KeyringTypes.hd },
+          async ({ keyring }) => await keyring.addAccounts(1),
+        );
+        expect(addedAccount).toBeDefined();
+
+        const mockAccountAdded = jest.fn();
+        const mockAccountRemoved = jest.fn();
+        messenger.subscribe('KeyringController:accountAdded', mockAccountAdded);
+        messenger.subscribe(
+          'KeyringController:accountRemoved',
+          mockAccountRemoved,
+        );
+
+        const removedAccount = addedAccount;
+
+        // We create more than 1 account, otherwise the serialized state would be the same between
+        // the old state and new state, thus, preventing the vault update.
+        const [addedAccount2, addedAccount3] =
+          await primaryKeyring.addAccounts(2);
+
+        // We shouldn't be allowed to remove accounts out-of-order with HD keyrings, but that's ok
+        // for test purposes.
+        primaryKeyring.removeAccount?.(removedAccount);
+
+        // Now trigger persistence and vault update.
+        await controller.persistAllKeyrings();
+
+        const keyringObject = controller.state.keyrings[0];
+        expect(keyringObject).toBeDefined();
+        expect(mockAccountRemoved).toHaveBeenCalledWith(removedAccount);
+        expect(mockAccountAdded).toHaveBeenNthCalledWith(
+          1,
+          addedAccount2,
+          keyringObject,
+        );
+        expect(mockAccountAdded).toHaveBeenNthCalledWith(
+          2,
+          addedAccount3,
+          keyringObject,
+        );
       });
     });
 
@@ -4202,26 +4252,6 @@ describe('KeyringController', () => {
     });
 
     describe('withKeyring', () => {
-      it('should call withKeyring', async () => {
-        await withController(
-          { keyringBuilders: [keyringBuilderFactory(MockKeyring)] },
-          async ({ controller, messenger }) => {
-            await controller.addNewKeyring(MockKeyring.type);
-
-            const actionReturnValue = await messenger.call(
-              'KeyringController:withKeyring',
-              { type: MockKeyring.type },
-              async ({ keyring }) => {
-                expect(keyring.type).toBe(MockKeyring.type);
-                return keyring.type;
-              },
-            );
-
-            expect(actionReturnValue).toBe(MockKeyring.type);
-          },
-        );
-      });
-
       it('should call withKeyring', async () => {
         await withController(
           { keyringBuilders: [keyringBuilderFactory(MockKeyring)] },
