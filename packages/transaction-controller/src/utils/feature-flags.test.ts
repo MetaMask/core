@@ -357,6 +357,7 @@ describe('Feature Flags Utils', () => {
       );
 
       expect(params).toStrictEqual({
+        blockTime: 12000,
         countMax: 10,
         intervalMs: 3000,
       });
@@ -368,6 +369,7 @@ describe('Feature Flags Utils', () => {
           acceleratedPolling: {
             perChainConfig: {
               [CHAIN_ID_MOCK]: {
+                blockTime: 15000,
                 countMax: 5,
                 intervalMs: 2000,
               },
@@ -382,6 +384,7 @@ describe('Feature Flags Utils', () => {
       );
 
       expect(params).toStrictEqual({
+        blockTime: 15000,
         countMax: 5,
         intervalMs: 2000,
       });
@@ -403,6 +406,7 @@ describe('Feature Flags Utils', () => {
       );
 
       expect(params).toStrictEqual({
+        blockTime: 12000,
         countMax: 15,
         intervalMs: 4000,
       });
@@ -416,6 +420,7 @@ describe('Feature Flags Utils', () => {
             defaultIntervalMs: 4000,
             perChainConfig: {
               [CHAIN_ID_MOCK]: {
+                blockTime: 10000,
                 countMax: 5,
                 intervalMs: 2000,
               },
@@ -430,6 +435,7 @@ describe('Feature Flags Utils', () => {
       );
 
       expect(params).toStrictEqual({
+        blockTime: 10000,
         countMax: 5,
         intervalMs: 2000,
       });
@@ -443,6 +449,7 @@ describe('Feature Flags Utils', () => {
             defaultIntervalMs: 4000,
             perChainConfig: {
               [CHAIN_ID_2_MOCK]: {
+                blockTime: 8000,
                 countMax: 5,
                 intervalMs: 2000,
               },
@@ -457,6 +464,7 @@ describe('Feature Flags Utils', () => {
       );
 
       expect(params).toStrictEqual({
+        blockTime: 12000,
         countMax: 15,
         intervalMs: 4000,
       });
@@ -470,7 +478,7 @@ describe('Feature Flags Utils', () => {
             defaultIntervalMs: 4000,
             perChainConfig: {
               [CHAIN_ID_MOCK]: {
-                // Only specify countMax, intervalMs should use default
+                // Only specify countMax, intervalMs and blockTime should use default
                 countMax: 5,
               },
             },
@@ -484,6 +492,7 @@ describe('Feature Flags Utils', () => {
       );
 
       expect(params).toStrictEqual({
+        blockTime: 12000,
         countMax: 5,
         intervalMs: 4000,
       });

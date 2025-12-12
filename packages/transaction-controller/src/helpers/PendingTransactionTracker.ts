@@ -584,7 +584,7 @@ export class PendingTransactionTracker {
       const lastSeenTimestamp =
         this.#lastSeenTimestampByHash.get(hash) ?? submittedTime;
 
-      if (!lastSeenTimestamp) {
+      if (lastSeenTimestamp === undefined) {
         this.#log(
           'Transaction not yet seen on network and has no submitted time, skipping timeout check',
           transactionId,
