@@ -26,7 +26,7 @@ import type { SnapControllerState } from '@metamask/snaps-controllers';
 import { SnapStatus } from '@metamask/snaps-utils';
 import type { CaipChainId } from '@metamask/utils';
 import type { V4Options } from 'uuid';
-import * as uuid from 'uuid';
+import { v4 as uuidV4 } from 'uuid';
 
 import type {
   AccountsControllerMessenger,
@@ -56,7 +56,7 @@ type RootMessenger = Messenger<
 >;
 
 jest.mock('uuid');
-const mockUUID = jest.spyOn(uuid, 'v4');
+const mockUUID = jest.mocked(uuidV4);
 const actualUUID = jest.requireActual('uuid').v4; // We also use uuid.v4 in our mocks
 
 const defaultState: AccountsControllerState = {
@@ -154,7 +154,7 @@ class MockNormalAccountUUID {
     }
   }
 
-  mock(options?: V4Options | undefined) {
+  mock(options?: V4Options | undefined): string {
     const accountId = actualUUID(options);
 
     // If not found, we returns the generated UUID
@@ -169,7 +169,7 @@ class MockNormalAccountUUID {
  *
  * @param accounts - List of normal accounts to map with their mock ID.
  */
-function mockUUIDWithNormalAccounts(accounts: InternalAccount[]) {
+function mockUUIDWithNormalAccounts(accounts: InternalAccount[]): void {
   const mockAccountUUIDs = new MockNormalAccountUUID(accounts);
   mockUUID.mockImplementation(mockAccountUUIDs.mock.bind(mockAccountUUIDs));
 }
@@ -181,7 +181,7 @@ class MockExpectedInternalAccountBuilder {
     this.#account = JSON.parse(JSON.stringify(account)) as InternalAccount;
   }
 
-  static from(account: InternalAccount) {
+  static from(account: InternalAccount): MockExpectedInternalAccountBuilder {
     return new MockExpectedInternalAccountBuilder(account);
   }
 
@@ -245,7 +245,14 @@ function buildMessenger(): RootMessenger {
  * @param rootMessenger - The root messenger.
  * @returns The messenger for AccountsController.
  */
-function buildAccountsControllerMessenger(rootMessenger = buildMessenger()) {
+function buildAccountsControllerMessenger(
+  rootMessenger = buildMessenger(),
+): Messenger<
+  'AccountsController',
+  AllAccountsControllerActions,
+  AllAccountsControllerEvents,
+  typeof rootMessenger
+> {
   const accountsControllerMessenger = new Messenger<
     'AccountsController',
     AllAccountsControllerActions,
@@ -302,7 +309,9 @@ function setupAccountsController({
     state: { ...defaultState, ...initialState },
   });
 
-  const triggerMultichainNetworkChange = (id: NetworkClientId | CaipChainId) =>
+  const triggerMultichainNetworkChange = (
+    id: NetworkClientId | CaipChainId,
+  ): void =>
     messenger.publish('MultichainNetworkController:networkDidChange', id);
 
   return {
@@ -1352,7 +1361,11 @@ describe('AccountsController', () => {
   });
 
   describe('onSnapKeyringEvents', () => {
-    const setupTest = () => {
+    const setupTest = (): {
+      messenger: RootMessenger;
+      account: InternalAccount;
+      accountsController: AccountsController;
+    } => {
       const account = createMockInternalAccount({
         id: 'mock-id',
         name: 'Bitcoin Account',
@@ -1620,7 +1633,7 @@ describe('AccountsController', () => {
         mockGetKeyringByType.mockReturnValue([
           {
             type: KeyringTypes.snap,
-            listAccounts: async () => [],
+            listAccounts: async (): Promise<InternalAccount[]> => [],
           },
         ]),
       );
@@ -1787,7 +1800,7 @@ describe('AccountsController', () => {
         mockGetKeyringByType.mockReturnValue([
           {
             type: KeyringTypes.snap,
-            listAccounts: async () => [],
+            listAccounts: async (): Promise<InternalAccount[]> => [],
           },
         ]),
       );
@@ -1834,7 +1847,7 @@ describe('AccountsController', () => {
         mockGetKeyringByType.mockReturnValueOnce([
           {
             type: KeyringTypes.snap,
-            getAccountByAddress: () => mockSnapAccount2,
+            getAccountByAddress: (): InternalAccount => mockSnapAccount2,
           },
         ]),
       );
@@ -1906,7 +1919,7 @@ describe('AccountsController', () => {
         mockGetKeyringByType.mockReturnValueOnce([
           {
             type: KeyringTypes.snap,
-            getAccountByAddress: () => mockSnapAccount2,
+            getAccountByAddress: (): InternalAccount => mockSnapAccount2,
           },
         ]),
       );
@@ -2003,7 +2016,7 @@ describe('AccountsController', () => {
         mockGetKeyringByType.mockReturnValue([
           {
             type: KeyringTypes.snap,
-            listAccounts: async () => [],
+            listAccounts: async (): Promise<InternalAccount[]> => [],
           },
         ]),
       );
@@ -2053,7 +2066,7 @@ describe('AccountsController', () => {
         mockGetKeyringByType.mockReturnValue([
           {
             type: KeyringTypes.snap,
-            listAccounts: async () => [],
+            listAccounts: async (): Promise<InternalAccount[]> => [],
           },
         ]),
       );
@@ -2124,7 +2137,7 @@ describe('AccountsController', () => {
           mockGetKeyringByType.mockReturnValueOnce([
             {
               type: KeyringTypes.snap,
-              getAccountByAddress: () => mockSnapAccount2,
+              getAccountByAddress: (): InternalAccount => mockSnapAccount2,
             },
           ]),
         );
@@ -2225,7 +2238,7 @@ describe('AccountsController', () => {
         mockGetKeyringByType.mockReturnValueOnce([
           {
             type: KeyringTypes.snap,
-            getAccountByAddress: () => mockHdSnapAccount,
+            getAccountByAddress: (): InternalAccount => mockHdSnapAccount,
           },
         ]),
       );

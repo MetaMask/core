@@ -823,7 +823,7 @@ export class AccountsController extends BaseController<
   #update(
     callback: (state: WritableDraft<AccountsControllerStrictState>) => void,
     beforeAutoSelectAccount?: () => void,
-  ) {
+  ): void {
     // The currently selected account might get deleted during the update, so keep track
     // of it before doing any change.
     const previouslySelectedAccount =
@@ -883,7 +883,7 @@ export class AccountsController extends BaseController<
    *
    * @param snapState - The new SnapControllerState.
    */
-  #handleOnSnapStateChange(snapState: SnapControllerState) {
+  #handleOnSnapStateChange(snapState: SnapControllerState): void {
     // Only check if Snaps changed in status.
     const { snaps } = snapState;
 
@@ -926,7 +926,10 @@ export class AccountsController extends BaseController<
    * @param accounts - Accounts to filter by keyring type.
    * @returns The list of accounts associcated with this keyring type.
    */
-  #getAccountsByKeyringType(keyringType: string, accounts?: InternalAccount[]) {
+  #getAccountsByKeyringType(
+    keyringType: string,
+    accounts?: InternalAccount[],
+  ): InternalAccount[] {
     return (accounts ?? this.listMultichainAccounts()).filter(
       (internalAccount) => {
         // We do consider `hd` and `simple` keyrings to be of same type. So we check those 2 types
@@ -1014,7 +1017,7 @@ export class AccountsController extends BaseController<
    *
    * @returns The index value.
    */
-  #getLastSelectedIndex() {
+  #getLastSelectedIndex(): number {
     // NOTE: For now we use the current date, since we know this value
     // will always be higher than any already selected account index.
     return Date.now();
@@ -1079,7 +1082,7 @@ export class AccountsController extends BaseController<
    *
    * @param id - The EVM client ID or non-EVM chain ID that changed.
    */
-  #handleOnMultichainNetworkDidChange(id: NetworkClientId | CaipChainId) {
+  #handleOnMultichainNetworkDidChange(id: NetworkClientId | CaipChainId): void {
     let accountId: string;
 
     // We only support non-EVM Caip chain IDs at the moment. Ex Solana and Bitcoin
@@ -1111,7 +1114,7 @@ export class AccountsController extends BaseController<
   /**
    * Subscribes to message events.
    */
-  #subscribeToMessageEvents() {
+  #subscribeToMessageEvents(): void {
     this.messenger.subscribe('SnapController:stateChange', (snapStateState) =>
       this.#handleOnSnapStateChange(snapStateState),
     );
@@ -1162,7 +1165,7 @@ export class AccountsController extends BaseController<
   /**
    * Registers message handlers for the AccountsController.
    */
-  #registerMessageHandlers() {
+  #registerMessageHandlers(): void {
     this.messenger.registerActionHandler(
       `${controllerName}:setSelectedAccount`,
       this.setSelectedAccount.bind(this),
