@@ -22,6 +22,7 @@ export type RestrictedSnapKeyringCreateAccount = (
 export type SnapAccountProviderConfig = {
   maxConcurrency?: number;
   discovery: {
+    enabled?: boolean;
     maxAttempts: number;
     timeoutMs: number;
     backOffMs: number;
@@ -57,6 +58,10 @@ export abstract class SnapAccountProvider extends BaseBip44AccountProvider {
     const maxConcurrency = config.maxConcurrency ?? Infinity;
     this.config = {
       ...config,
+      discovery: {
+        ...config.discovery,
+        enabled: config.discovery.enabled ?? true,
+      },
       maxConcurrency,
     };
 
