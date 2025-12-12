@@ -40,6 +40,7 @@ import type {
   UpdateNetworkCustomRpcEndpointFields,
 } from '../src/NetworkController';
 import { RpcEndpointType } from '../src/NetworkController';
+import { RpcServiceOptions } from '../src/rpc-service/rpc-service';
 import type {
   CustomNetworkClientConfiguration,
   InfuraNetworkClientConfiguration,
@@ -104,7 +105,7 @@ export function buildRootMessenger({
   rootMessenger.registerActionHandler(
     'ErrorReportingService:captureException',
     actionHandlers['ErrorReportingService:captureException'] ??
-      ((error) => console.error(error)),
+      ((error): void => console.error(error)),
   );
   return rootMessenger;
 }
@@ -158,7 +159,7 @@ function buildFakeNetworkClient({
     blockTracker: new FakeBlockTracker({
       provider: provider as unknown as InternalProvider,
     }),
-    destroy: () => {
+    destroy: (): void => {
       // do nothing
     },
   };
@@ -632,7 +633,10 @@ export async function withController<ReturnValue>(
   const controller = new NetworkController({
     messenger: networkControllerMessenger,
     infuraProjectId: 'infura-project-id',
-    getRpcServiceOptions: () => ({
+    getRpcServiceOptions: (): Omit<
+      RpcServiceOptions,
+      'failoverService' | 'endpointUrl'
+    > => ({
       fetch,
       btoa,
     }),

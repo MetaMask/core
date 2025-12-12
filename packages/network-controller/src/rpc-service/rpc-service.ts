@@ -16,6 +16,7 @@ import type {
   JsonRpcRequest,
   JsonRpcResponse,
 } from '@metamask/utils';
+import { CircuitState, IDisposable } from 'cockatiel';
 import deepmerge from 'deepmerge';
 import type { Logger } from 'loglevel';
 
@@ -150,7 +151,7 @@ export const CUSTOM_RPC_ERRORS = {
  * @returns True if the error indicates that the network cannot be connected to,
  * and false otherwise.
  */
-export function isConnectionError(error: unknown) {
+export function isConnectionError(error: unknown): boolean {
   if (!(typeof error === 'object' && error !== null && 'message' in error)) {
     return false;
   }
@@ -178,7 +179,7 @@ export function isConnectionError(error: unknown) {
  * @param message - The error message to test.
  * @returns True if the message indicates a missing Nock mock, false otherwise.
  */
-function isNockError(message: string) {
+function isNockError(message: string): boolean {
   return message.includes('Nock:');
 }
 
@@ -191,7 +192,7 @@ function isNockError(message: string) {
  * @param error - The error object to test.
  * @returns True if the error indicates a JSON parse error, false otherwise.
  */
-function isJsonParseError(error: unknown) {
+function isJsonParseError(error: unknown): boolean {
   return (
     error instanceof SyntaxError ||
     /invalid json/iu.test(getErrorMessage(error))
@@ -317,14 +318,14 @@ export class RpcService implements AbstractRpcService {
    * for others where you effectively want to invalidate the failovers when the
    * primary recovers.
    */
-  resetPolicy() {
+  resetPolicy(): void {
     this.#policy.reset();
   }
 
   /**
    * @returns The state of the underlying circuit.
    */
-  getCircuitState() {
+  getCircuitState(): CircuitState {
     return this.#policy.getCircuitState();
   }
 
@@ -335,7 +336,7 @@ export class RpcService implements AbstractRpcService {
    * @returns What {@link ServicePolicy.onRetry} returns.
    * @see {@link createServicePolicy}
    */
-  onRetry(listener: Parameters<AbstractRpcService['onRetry']>[0]) {
+  onRetry(listener: Parameters<AbstractRpcService['onRetry']>[0]): IDisposable {
     return this.#policy.onRetry((data) => {
       listener({ ...data, endpointUrl: this.endpointUrl.toString() });
     });
@@ -349,7 +350,7 @@ export class RpcService implements AbstractRpcService {
    * @returns What {@link ServicePolicy.onBreak} returns.
    * @see {@link createServicePolicy}
    */
-  onBreak(listener: Parameters<AbstractRpcService['onBreak']>[0]) {
+  onBreak(listener: Parameters<AbstractRpcService['onBreak']>[0]): IDisposable {
     return this.#policy.onBreak((data) => {
       // `{ isolated: true }` is a special object that shows up when `isolate`
       // is called on the circuit breaker. Usually `isolate` is used to hold the
@@ -376,7 +377,9 @@ export class RpcService implements AbstractRpcService {
    * @returns What {@link ServicePolicy.onDegraded} returns.
    * @see {@link createServicePolicy}
    */
-  onDegraded(listener: Parameters<AbstractRpcService['onDegraded']>[0]) {
+  onDegraded(
+    listener: Parameters<AbstractRpcService['onDegraded']>[0],
+  ): IDisposable {
     return this.#policy.onDegraded((data) => {
       listener({ ...(data ?? {}), endpointUrl: this.endpointUrl.toString() });
     });
@@ -389,7 +392,9 @@ export class RpcService implements AbstractRpcService {
    * @returns What {@link ServicePolicy.onAvailable} returns.
    * @see {@link createServicePolicy}
    */
-  onAvailable(listener: Parameters<AbstractRpcService['onAvailable']>[0]) {
+  onAvailable(
+    listener: Parameters<AbstractRpcService['onAvailable']>[0],
+  ): IDisposable {
     return this.#policy.onAvailable(() => {
       listener({ endpointUrl: this.endpointUrl.toString() });
     });

@@ -1270,7 +1270,7 @@ describe('createNetworkClient - RPC endpoint events', () => {
  * @param httpStatus - The HTTP status that the error represents.
  * @returns The RPC error.
  */
-function createResourceUnavailableError(httpStatus: number) {
+function createResourceUnavailableError(httpStatus: number): Error {
   return expect.objectContaining({
     code: errorCodes.rpc.resourceUnavailable,
     message: 'RPC endpoint not found or unavailable.',
