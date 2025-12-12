@@ -292,7 +292,7 @@ describe('ClaimsController', () => {
     it('should be able to save a claim draft', async () => {
       await withController(async ({ controller }) => {
         const initialState = controller.state;
-        controller.saveClaimDraft(MOCK_DRAFT);
+        controller.saveOrUpdateClaimDraft(MOCK_DRAFT);
         const updatedState = controller.state;
         expect(updatedState).not.toBe(initialState);
         expect(updatedState.drafts).toHaveLength(1);
@@ -305,7 +305,7 @@ describe('ClaimsController', () => {
 
     it('should be able to save a claim draft with a custom draft name', async () => {
       await withController(async ({ controller }) => {
-        const savedDraft = controller.saveClaimDraft({
+        const savedDraft = controller.saveOrUpdateClaimDraft({
           ...MOCK_DRAFT,
           draftName: 'test draft',
         });
@@ -339,7 +339,14 @@ describe('ClaimsController', () => {
           },
         },
         async ({ controller }) => {
-          controller.updateClaimDraft('mock-draft-1', {
+          controller.saveOrUpdateClaimDraft({
+            draftId: 'mock-draft-1',
+            draftName: 'Draft 1',
+            chainId: '0x1',
+            email: 'test@test.com',
+            impactedWalletAddress: '0x123',
+            impactedTxHash: '0x123',
+            reimbursementWalletAddress: '0x456',
             description: 'test description updated',
           });
           const updatedState = controller.state;

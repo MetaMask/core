@@ -217,14 +217,33 @@ export class ClaimsController extends BaseController<
 
   /**
    * Save a claim draft to the state.
+   * If the draft name is not provided, a default name will be generated.
+   * If the draft with the same id already exists, it will be updated.
    *
    * @param draft - The draft to save.
    * @returns The saved draft.
    */
-  saveClaimDraft(draft: Omit<ClaimDraft, 'draftId'>): ClaimDraft {
+  saveOrUpdateClaimDraft(draft: Partial<ClaimDraft>): ClaimDraft {
     const { drafts } = this.state;
     const draftCount = drafts.length;
 
+    const isExistingDraft = drafts.some(
+      (existingDraft) =>
+        draft.draftId && existingDraft.draftId === draft.draftId,
+    );
+
+    if (isExistingDraft) {
+      this.update((state) => {
+        state.drafts = state.drafts.map((existingDraft) =>
+          existingDraft.draftId === draft.draftId
+            ? { ...existingDraft, ...draft }
+            : existingDraft,
+        );
+      });
+      return draft as ClaimDraft;
+    }
+
+    // generate a new draft id, name and add it to the state
     const draftId = `claims-draft-${Date.now()}`;
     const draftName = draft.draftName ?? `Draft ${draftCount + 1}`;
 
@@ -248,23 +267,6 @@ export class ClaimsController extends BaseController<
    */
   getClaimDrafts(): ClaimDraft[] {
     return this.state.drafts;
-  }
-
-  /**
-   * Update a claim draft in the state.
-   *
-   * @param draftId - The ID of the draft to update.
-   * @param updatedDraft - The updated draft.
-   */
-  updateClaimDraft(
-    draftId: string,
-    updatedDraft: Omit<ClaimDraft, 'draftId'>,
-  ): void {
-    this.update((state) => {
-      state.drafts = state.drafts.map((draft) =>
-        draft.draftId === draftId ? { ...draft, ...updatedDraft } : draft,
-      );
-    });
   }
 
   /**
