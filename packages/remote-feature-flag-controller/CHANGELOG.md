@@ -23,7 +23,6 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ### Changed
 
-- Enhanced feature flag processing to preserve raw A/B test arrays for visibility and override capabilities ([#7271](https://github.com/MetaMask/core/pull/7271))
 - Local overrides now take precedence over remote feature flags when both exist ([#7271](https://github.com/MetaMask/core/pull/7271))
 - Controller state now includes metadata for new properties with appropriate persistence and logging settings ([#7271](https://github.com/MetaMask/core/pull/7271))
 
