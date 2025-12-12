@@ -71,6 +71,7 @@ Each package in this repository has its own README where you can find installati
 - [`@metamask/preferences-controller`](packages/preferences-controller)
 - [`@metamask/profile-metrics-controller`](packages/profile-metrics-controller)
 - [`@metamask/profile-sync-controller`](packages/profile-sync-controller)
+- [`@metamask/ramps-controller`](packages/ramps-controller)
 - [`@metamask/rate-limit-controller`](packages/rate-limit-controller)
 - [`@metamask/remote-feature-flag-controller`](packages/remote-feature-flag-controller)
 - [`@metamask/sample-controllers`](packages/sample-controllers)
@@ -78,6 +79,7 @@ Each package in this repository has its own README where you can find installati
 - [`@metamask/selected-network-controller`](packages/selected-network-controller)
 - [`@metamask/shield-controller`](packages/shield-controller)
 - [`@metamask/signature-controller`](packages/signature-controller)
+- [`@metamask/storage-service`](packages/storage-service)
 - [`@metamask/subscription-controller`](packages/subscription-controller)
 - [`@metamask/token-search-discovery-controller`](packages/token-search-discovery-controller)
 - [`@metamask/transaction-controller`](packages/transaction-controller)
@@ -143,6 +145,7 @@ linkStyle default opacity:0.5
   preferences_controller(["@metamask/preferences-controller"]);
   profile_metrics_controller(["@metamask/profile-metrics-controller"]);
   profile_sync_controller(["@metamask/profile-sync-controller"]);
+  ramps_controller(["@metamask/ramps-controller"]);
   rate_limit_controller(["@metamask/rate-limit-controller"]);
   remote_feature_flag_controller(["@metamask/remote-feature-flag-controller"]);
   sample_controllers(["@metamask/sample-controllers"]);
@@ -150,6 +153,7 @@ linkStyle default opacity:0.5
   selected_network_controller(["@metamask/selected-network-controller"]);
   shield_controller(["@metamask/shield-controller"]);
   signature_controller(["@metamask/signature-controller"]);
+  storage_service(["@metamask/storage-service"]);
   subscription_controller(["@metamask/subscription-controller"]);
   token_search_discovery_controller(["@metamask/token-search-discovery-controller"]);
   transaction_controller(["@metamask/transaction-controller"]);
@@ -343,9 +347,12 @@ linkStyle default opacity:0.5
   preferences_controller --> controller_utils;
   preferences_controller --> keyring_controller;
   preferences_controller --> messenger;
+  profile_metrics_controller --> accounts_controller;
   profile_metrics_controller --> base_controller;
   profile_metrics_controller --> controller_utils;
+  profile_metrics_controller --> keyring_controller;
   profile_metrics_controller --> messenger;
+  profile_metrics_controller --> polling_controller;
   profile_metrics_controller --> profile_sync_controller;
   profile_sync_controller --> address_book_controller;
   profile_sync_controller --> base_controller;
@@ -382,6 +389,7 @@ linkStyle default opacity:0.5
   signature_controller --> logging_controller;
   signature_controller --> messenger;
   signature_controller --> network_controller;
+  storage_service --> messenger;
   subscription_controller --> base_controller;
   subscription_controller --> controller_utils;
   subscription_controller --> messenger;
