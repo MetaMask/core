@@ -690,6 +690,15 @@ function normalize(address: string): string | undefined {
 }
 
 /**
+ * Local type used when override `BaseController` methods.
+ */
+type KeyringBaseController = BaseController<
+  typeof name,
+  KeyringControllerState,
+  KeyringControllerMessenger
+>;
+
+/**
  * Controller responsible for establishing and managing user identity.
  *
  * This class is a wrapper around the `eth-keyring-controller` package. The
@@ -2240,54 +2249,64 @@ export class KeyringController<
    * @returns A promise resolving to `true` if the operation is successful.
    */
   async #updateVault(): Promise<boolean> {
-    const updateVault = async (): Promise<boolean> =>
-      this.#withVaultLock(async (): Promise<boolean> => {
-        // Ensure no duplicate accounts are persisted.
-        await this.#assertNoDuplicateAccounts();
+    return this.#withVaultLock(async (): Promise<boolean> => {
+      // Ensure no duplicate accounts are persisted.
+      await this.#assertNoDuplicateAccounts();
 
-        if (!this.#encryptionKey) {
-          throw new Error(KeyringControllerError.MissingCredentials);
-        }
+      if (!this.#encryptionKey) {
+        throw new Error(KeyringControllerError.MissingCredentials);
+      }
 
-        const serializedKeyrings = await this.#getSerializedKeyrings();
+      const serializedKeyrings = await this.#getSerializedKeyrings();
 
-        if (
-          !serializedKeyrings.some(
-            (keyring) => keyring.type === (KeyringTypes.hd as string),
-          )
-        ) {
-          throw new Error(KeyringControllerError.NoHdKeyring);
-        }
+      if (
+        !serializedKeyrings.some(
+          (keyring) => keyring.type === (KeyringTypes.hd as string),
+        )
+      ) {
+        throw new Error(KeyringControllerError.NoHdKeyring);
+      }
 
-        const key = await this.#encryptor.importKey(
-          this.#encryptionKey.serialized,
-        );
-        const encryptedVault = await this.#encryptor.encryptWithKey(
-          key,
-          serializedKeyrings,
-        );
-        // We need to include the salt used to derive
-        // the encryption key, to be able to derive it
-        // from password again.
-        encryptedVault.salt = this.#encryptionKey.salt;
-        const updatedState: Partial<KeyringControllerState> = {
-          vault: JSON.stringify(encryptedVault),
-          encryptionKey: this.#encryptionKey.serialized,
-          encryptionSalt: this.#encryptionKey.salt,
-        };
+      const key = await this.#encryptor.importKey(
+        this.#encryptionKey.serialized,
+      );
+      const encryptedVault = await this.#encryptor.encryptWithKey(
+        key,
+        serializedKeyrings,
+      );
+      // We need to include the salt used to derive
+      // the encryption key, to be able to derive it
+      // from password again.
+      encryptedVault.salt = this.#encryptionKey.salt;
+      const updatedState: Partial<KeyringControllerState> = {
+        vault: JSON.stringify(encryptedVault),
+        encryptionKey: this.#encryptionKey.serialized,
+        encryptionSalt: this.#encryptionKey.salt,
+      };
 
-        const updatedKeyrings = await this.#getUpdatedKeyrings();
+      const updatedKeyrings = await this.#getUpdatedKeyrings();
 
-        this.update((state) => {
-          state.vault = updatedState.vault;
-          state.keyrings = updatedKeyrings;
-          state.encryptionKey = updatedState.encryptionKey;
-          state.encryptionSalt = updatedState.encryptionSalt;
-        });
-
-        return true;
+      this.update((state) => {
+        state.vault = updatedState.vault;
+        state.keyrings = updatedKeyrings;
+        state.encryptionKey = updatedState.encryptionKey;
+        state.encryptionSalt = updatedState.encryptionSalt;
       });
 
+      return true;
+    });
+  }
+
+  /**
+   * Overriden `BaseController.update` method to automatically emit events
+   * when accounts are added or removed from the keyrings.
+   *
+   * @param callback - The state update callback.
+   * @returns The return value of the `super.update` call.
+   */
+  override update(
+    callback: Parameters<KeyringBaseController['update']>[0],
+  ): ReturnType<KeyringBaseController['update']> {
     const toAccountsMap = (
       keyrings: KeyringObject[],
     ): Map<string, KeyringObject> => {
@@ -2303,7 +2322,7 @@ export class KeyringController<
 
     // Keep track of the old keyring states so we can make a diff of added/removed accounts.
     const oldKeyrings = this.state.keyrings;
-    const updated = await updateVault();
+    const result = super.update(callback); // This is the real update call.
     const newKeyrings = this.state.keyrings;
 
     const oldAccounts = toAccountsMap(oldKeyrings);
@@ -2332,7 +2351,7 @@ export class KeyringController<
       ),
     );
 
-    return updated;
+    return result;
   }
 
   /**
