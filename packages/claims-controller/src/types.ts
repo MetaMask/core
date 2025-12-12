@@ -64,10 +64,6 @@ export type ClaimDraft = Partial<
    * The draft ID.
    */
   draftId: string;
-  /**
-   * The draft name.
-   */
-  draftName?: string;
 };
 
 export type CreateClaimRequest = Omit<

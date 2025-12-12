@@ -269,7 +269,6 @@ describe('ClaimsController', () => {
     const MOCK_CLAIM_DRAFTS: ClaimDraft[] = [
       {
         draftId: 'mock-draft-1',
-        draftName: 'Draft 1',
         chainId: '0x1',
         email: 'test@test.com',
         impactedWalletAddress: '0x123',
@@ -279,7 +278,6 @@ describe('ClaimsController', () => {
       },
       {
         draftId: 'mock-draft-2',
-        draftName: 'Draft 2',
         chainId: '0x1',
         email: 'test2@test.com',
         impactedWalletAddress: '0x789',
@@ -299,20 +297,6 @@ describe('ClaimsController', () => {
         expect(updatedState.drafts[0].draftId).toBeDefined();
         expect(updatedState.drafts[0]).toMatchObject(MOCK_DRAFT);
         expect(updatedState.drafts[0].draftId).toBeDefined();
-        expect(updatedState.drafts[0].draftName).toBe('Draft 1');
-      });
-    });
-
-    it('should be able to save a claim draft with a custom draft name', async () => {
-      await withController(async ({ controller }) => {
-        const savedDraft = controller.saveOrUpdateClaimDraft({
-          ...MOCK_DRAFT,
-          draftName: 'test draft',
-        });
-        expect(savedDraft).toBeDefined();
-        expect(savedDraft.draftId).toBeDefined();
-        expect(savedDraft).toMatchObject(MOCK_DRAFT);
-        expect(savedDraft.draftName).toBe('test draft');
       });
     });
 
@@ -341,7 +325,6 @@ describe('ClaimsController', () => {
         async ({ controller }) => {
           controller.saveOrUpdateClaimDraft({
             draftId: 'mock-draft-1',
-            draftName: 'Draft 1',
             chainId: '0x1',
             email: 'test@test.com',
             impactedWalletAddress: '0x123',

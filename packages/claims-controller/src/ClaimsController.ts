@@ -225,13 +225,10 @@ export class ClaimsController extends BaseController<
    */
   saveOrUpdateClaimDraft(draft: Partial<ClaimDraft>): ClaimDraft {
     const { drafts } = this.state;
-    const draftCount = drafts.length;
 
     const isExistingDraft = drafts.some(
       (existingDraft) =>
-        draft.draftId &&
-        draft.draftName &&
-        existingDraft.draftId === draft.draftId,
+        draft.draftId && existingDraft.draftId === draft.draftId,
     );
 
     if (isExistingDraft) {
@@ -246,13 +243,11 @@ export class ClaimsController extends BaseController<
     }
 
     // generate a new draft id, name and add it to the state
-    const draftId = `claims-draft-${Date.now()}`;
-    const draftName = draft.draftName ?? `Draft ${draftCount + 1}`;
+    const draftId = `draft-${Date.now()}`;
 
     const newDraft: ClaimDraft = {
       ...draft,
       draftId,
-      draftName,
     };
 
     this.update((state) => {
