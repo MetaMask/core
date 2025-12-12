@@ -755,43 +755,47 @@ export class AccountsController extends BaseController<
   }
 
   #handleOnKeyringAccountAdded(address: string, keyring: KeyringObject) {
-    let account: InternalAccount | undefined;
-
-    this.#update((state) => {
-      const { internalAccounts } = state;
-
-      account = this.#getInternalAccountFromAddressAndType(address, keyring);
-      if (account) {
-        // Re-compute the list of accounts everytime, so we can make sure new names
-        // are also considered.
-        const accounts = Object.values(
-          internalAccounts.accounts,
-        ) as InternalAccount[];
-
-        // Get next account name available for this given keyring.
-        const name = this.getNextAvailableAccountName(
-          account.metadata.keyring.type,
-          accounts,
-        );
-
-        // If it's the first account, we need to select it.
-        const lastSelected =
-          accounts.length === 0 ? this.#getLastSelectedIndex() : 0;
-
-        internalAccounts.accounts[account.id] = {
-          ...account,
-          metadata: {
-            ...account.metadata,
-            name,
-            importTime: Date.now(),
-            lastSelected,
-          },
-        };
-      }
-    });
-
+    let account = this.#getInternalAccountFromAddressAndType(address, keyring);
     if (account) {
-      this.messenger.publish('AccountsController:accountAdded', account);
+      // Re-compute the list of accounts everytime, so we can make sure new names
+      // are also considered.
+      const accounts = Object.values(this.state.internalAccounts.accounts);
+
+      // Get next account name available for this given keyring.
+      const name = this.getNextAvailableAccountName(
+        account.metadata.keyring.type,
+        accounts,
+      );
+
+      // If it's the first account, we need to select it.
+      const lastSelected =
+        accounts.length === 0 ? this.#getLastSelectedIndex() : 0;
+
+      // Update account metadata.
+      account = {
+        ...account,
+        metadata: {
+          ...account.metadata,
+          name,
+          importTime: Date.now(),
+          lastSelected,
+        },
+      };
+
+      // Not sure why, but the compiler still infers `account` as possibly undefined.
+      const internalAccount: InternalAccount = account;
+      this.#update(
+        (state) => {
+          state.internalAccounts.accounts[internalAccount.id] = internalAccount;
+        },
+        () => {
+          // Will be published before `:selectedAccountChange` event is published.
+          this.messenger.publish(
+            'AccountsController:accountAdded',
+            internalAccount,
+          );
+        },
+      );
     }
   }
 
@@ -802,10 +806,10 @@ export class AccountsController extends BaseController<
 
     if (account) {
       this.#update((state) => {
-        const { internalAccounts } = state;
-
-        delete internalAccounts.accounts[account.id];
+        delete state.internalAccounts.accounts[account.id];
       });
+
+      this.messenger.publish('AccountsController:accountRemoved', account.id);
     }
   }
 

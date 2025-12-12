@@ -118,7 +118,7 @@
   },
   "packages/accounts-controller/src/AccountsController.ts": {
     "@typescript-eslint/explicit-function-return-type": {
-      "count": 10
+      "count": 9
     }
   },
   "packages/accounts-controller/src/tests/mocks.ts": {
