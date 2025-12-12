@@ -21,7 +21,7 @@ const mockFetchFunction = jest.fn();
  * @param env - The environment to use for the mock claims service. Defaults to Env.DEV.
  * @returns A mock claims service.
  */
-function createMockClaimsService(env: Env = Env.DEV) {
+function createMockClaimsService(env: Env = Env.DEV): ClaimsService {
   const { messenger } = createMockClaimsServiceMessenger(
     mockAuthenticationControllerGetBearerToken,
   );
