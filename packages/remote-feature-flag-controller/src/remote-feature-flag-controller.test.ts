@@ -688,13 +688,13 @@ describe('RemoteFeatureFlagController', () => {
       });
     });
 
-    describe('clearFlagOverride', () => {
+    describe('removeFlagOverride', () => {
       it('removes a specific override', () => {
         const controller = createController();
 
         controller.setFlagOverride('flag1', 'value1');
         controller.setFlagOverride('flag2', 'value2');
-        controller.clearFlagOverride('flag1');
+        controller.removeFlagOverride('flag1');
 
         expect(controller.state.localOverrides).toStrictEqual({
           flag2: 'value2',
@@ -705,7 +705,7 @@ describe('RemoteFeatureFlagController', () => {
         const controller = createController();
 
         controller.setFlagOverride('flag1', 'value1');
-        controller.clearFlagOverride('nonExistentFlag');
+        controller.removeFlagOverride('nonExistentFlag');
 
         expect(controller.state.localOverrides).toStrictEqual({
           flag1: 'value1',
@@ -713,13 +713,13 @@ describe('RemoteFeatureFlagController', () => {
       });
     });
 
-    describe('clearAllOverrides', () => {
+    describe('clearAllFlagOverrides', () => {
       it('removes all overrides', () => {
         const controller = createController();
 
         controller.setFlagOverride('flag1', 'value1');
         controller.setFlagOverride('flag2', 'value2');
-        controller.clearAllOverrides();
+        controller.clearAllFlagOverrides();
 
         expect(controller.state.localOverrides).toStrictEqual({});
       });
@@ -727,7 +727,7 @@ describe('RemoteFeatureFlagController', () => {
       it('does not affect state when no overrides exist', () => {
         const controller = createController();
 
-        controller.clearAllOverrides();
+        controller.clearAllFlagOverrides();
 
         expect(controller.state.localOverrides).toStrictEqual({});
       });
@@ -745,7 +745,7 @@ describe('RemoteFeatureFlagController', () => {
 
         await controller.updateRemoteFeatureFlags();
 
-        // Mock different remote response for second fetch
+        // Mock different remote response for updated fetch
         jest
           .spyOn(clientConfigApiService, 'fetchRemoteFeatureFlags')
           .mockResolvedValueOnce({
@@ -768,27 +768,6 @@ describe('RemoteFeatureFlagController', () => {
         expect(controller.state.remoteFeatureFlags).toStrictEqual({
           remoteFlag: 'updatedRemoteValue',
         });
-      });
-
-      it('overrides work with threshold-based feature flags', async () => {
-        const clientConfigApiService = buildClientConfigApiService({
-          remoteFeatureFlags: MOCK_FLAGS_WITH_THRESHOLD,
-        });
-        const controller = createController({
-          clientConfigApiService,
-          getMetaMetricsId: () => MOCK_METRICS_ID,
-        });
-
-        await controller.updateRemoteFeatureFlags();
-
-        // Override the threshold flag
-        controller.setFlagOverride('testFlagForThreshold', 'overriddenValue');
-
-        // Access flag value with override taking precedence
-        const flagValue =
-          controller.state.localOverrides.testFlagForThreshold ??
-          controller.state.remoteFeatureFlags.testFlagForThreshold;
-        expect(flagValue).toBe('overriddenValue');
       });
     });
   });

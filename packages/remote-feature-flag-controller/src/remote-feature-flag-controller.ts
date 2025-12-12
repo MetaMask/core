@@ -81,22 +81,22 @@ export type RemoteFeatureFlagControllerSetFlagOverrideAction = {
   handler: RemoteFeatureFlagController['setFlagOverride'];
 };
 
-export type RemoteFeatureFlagControllerClearFlagOverrideAction = {
-  type: `${typeof controllerName}:clearFlagOverride`;
-  handler: RemoteFeatureFlagController['clearFlagOverride'];
+export type RemoteFeatureFlagControllerRemoveFlagOverrideAction = {
+  type: `${typeof controllerName}:removeFlagOverride`;
+  handler: RemoteFeatureFlagController['removeFlagOverride'];
 };
 
-export type RemoteFeatureFlagControllerClearAllOverridesAction = {
-  type: `${typeof controllerName}:clearAllOverrides`;
-  handler: RemoteFeatureFlagController['clearAllOverrides'];
+export type RemoteFeatureFlagControllerClearAllFlagOverridesAction = {
+  type: `${typeof controllerName}:clearAllFlagOverrides`;
+  handler: RemoteFeatureFlagController['clearAllFlagOverrides'];
 };
 
 export type RemoteFeatureFlagControllerActions =
   | RemoteFeatureFlagControllerGetStateAction
   | RemoteFeatureFlagControllerUpdateRemoteFeatureFlagsAction
   | RemoteFeatureFlagControllerSetFlagOverrideAction
-  | RemoteFeatureFlagControllerClearFlagOverrideAction
-  | RemoteFeatureFlagControllerClearAllOverridesAction;
+  | RemoteFeatureFlagControllerRemoveFlagOverrideAction
+  | RemoteFeatureFlagControllerClearAllFlagOverridesAction;
 
 export type RemoteFeatureFlagControllerStateChangeEvent =
   ControllerStateChangeEvent<
@@ -337,7 +337,6 @@ export class RemoteFeatureFlagController extends BaseController<
   setFlagOverride(flagName: string, value: Json): void {
     this.update((state) => {
       state.localOverrides[flagName] = value;
-    });
     });
   }
 
