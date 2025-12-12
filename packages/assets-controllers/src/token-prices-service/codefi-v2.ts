@@ -246,7 +246,7 @@ export const SPOT_PRICES_SUPPORT_INFO = {
   '0x6a': 'eip155:106/erc20:0x0000000000000000000000000000000000000000', // 'eip155:106/slip44:5655640', // Velas EVM Mainnet - Native symbol: VLX
   '0x80': 'eip155:128/erc20:0x0000000000000000000000000000000000000000', // 'eip155:128/slip44:1010', // Huobi ECO Chain Mainnet - Native symbol: HT
   '0x89': 'eip155:137/slip44:966', // Polygon Mainnet - Native symbol: POL
-  '0x8f': null, // 'eip155:143/slip44:268435779', // Monad Mainnet - Native symbol: MON
+  '0x8f': 'eip155:143/slip44:268435779', // Monad Mainnet - Native symbol: MON
   '0x92': 'eip155:146/slip44:10007', // Sonic Mainnet - Native symbol: S
   '0xfa': 'eip155:250/slip44:1007', // Fantom Opera - Native symbol: FTM
   '0x141': 'eip155:321/erc20:0x0000000000000000000000000000000000000000', // 'eip155:321/slip44:641', // KCC Mainnet - Native symbol: KCS
@@ -264,8 +264,10 @@ export const SPOT_PRICES_SUPPORT_INFO = {
   '0xa4b1': 'eip155:42161/slip44:60', // Arbitrum One - Native symbol: ETH
   '0xa4ec': 'eip155:42220/slip44:52752', // Celo Mainnet - Native symbol: CELO
   '0xa516': 'eip155:42262/erc20:0x0000000000000000000000000000000000000000', // 'eip155:42262/slip44:474', // Oasis Emerald - Native symbol: ROSE
+  '0xa729': 'eip155:42793/erc20:0x0000000000000000000000000000000000000000', // Etherlink - Native symbol: XTZ (Tezos L2)
   '0xa86a': 'eip155:43114/slip44:9005', // Avalanche C-Chain - Native symbol: AVAX
   '0xe708': 'eip155:59144/slip44:60', // Linea Mainnet - Native symbol: ETH
+  '0x10b3e': 'eip155:68414/erc20:0x0000000000000000000000000000000000000000', // MapleStory Universe, no Coingecko info
   '0x13c31': 'eip155:81457/erc20:0x0000000000000000000000000000000000000000', // 'eip155:81457/slip44:60', // Blast Mainnet - Native symbol: ETH
   '0x17dcd': 'eip155:97741/erc20:0x0000000000000000000000000000000000000000', // 'eip155:97741/slip44:XXX', // Pepe Unchained Mainnet - Native symbol: PEPU
   '0x518af': null, // 'eip155:333999/slip44:1997', // Polis Mainnet - Native symbol: POLIS
