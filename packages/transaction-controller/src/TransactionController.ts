@@ -90,6 +90,7 @@ import type {
   Layer1GasFeeFlow,
   SavedGasFees,
   SecurityProviderRequest,
+  SendFlowHistoryEntry,
   TransactionParams,
   TransactionMeta,
   TransactionReceipt,
@@ -121,7 +122,6 @@ import type {
   PublishHookResult,
   GetGasFeeTokensRequest,
   InternalAccount,
-  SendFlowHistoryEntry,
 } from './types';
 import {
   GasFeeEstimateLevel,
@@ -1853,7 +1853,7 @@ export class TransactionController extends BaseController<
       ...transactionMeta,
     }));
 
-    log('Transaction updated', {transactionId, note});
+    log('Transaction updated', { transactionId, note });
   }
 
   /**
@@ -3440,6 +3440,53 @@ export class TransactionController extends BaseController<
   }
 
   /**
+   * Trim the amount of transactions that are set on the state. Checks
+   * if the length of the tx history is longer then desired persistence
+   * limit and then if it is removes the oldest confirmed or rejected tx.
+   * Pending or unapproved transactions will not be removed by this
+   * operation. For safety of presenting a fully functional transaction UI
+   * representation, this function will not break apart transactions with the
+   * same nonce, created on the same day, per network. Not accounting for
+   * transactions of the same nonce, same day and network combo can result in
+   * confusing or broken experiences in the UI.
+   *
+   * @param transactions - The transactions to be applied to the state.
+   * @returns The trimmed list of transactions.
+   */
+  #trimTransactionsForState(
+    transactions: TransactionMeta[],
+  ): TransactionMeta[] {
+    const nonceNetworkSet = new Set();
+
+    const txsToKeep = [...transactions]
+      .sort((a, b) => (a.time > b.time ? -1 : 1)) // Descending time order
+      .filter((tx) => {
+        const { chainId, status, txParams, time } = tx;
+
+        if (txParams) {
+          const key = `${String(txParams.nonce)}-${convertHexToDecimal(
+            chainId,
+          )}-${new Date(time).toDateString()}`;
+
+          if (nonceNetworkSet.has(key)) {
+            return true;
+          } else if (
+            nonceNetworkSet.size < this.#transactionHistoryLimit ||
+            !this.#isFinalState(status)
+          ) {
+            nonceNetworkSet.add(key);
+            return true;
+          }
+        }
+
+        return false;
+      });
+
+    txsToKeep.reverse(); // Ascending time order
+    return txsToKeep;
+  }
+
+  /**
    * Determines if the transaction is in a final state.
    *
    * @param status - The transaction status.
@@ -3696,7 +3743,10 @@ export class TransactionController extends BaseController<
     );
 
     this.update((state) => {
-      state.transactions = [...state.transactions, transactionMeta];
+      state.transactions = this.#trimTransactionsForState([
+        ...state.transactions,
+        transactionMeta,
+      ]);
     });
 
     return transactionMeta;
@@ -3771,53 +3821,6 @@ export class TransactionController extends BaseController<
       'TransactionController#setTransactionStatusDropped - Transaction dropped',
     );
     this.#onTransactionStatusChange(updatedTransactionMeta);
-  }
-
-  /**
-   * Trim the amount of transactions that are set on the state. Checks
-   * if the length of the tx history is longer then desired persistence
-   * limit and then if it is removes the oldest confirmed or rejected tx.
-   * Pending or unapproved transactions will not be removed by this
-   * operation. For safety of presenting a fully functional transaction UI
-   * representation, this function will not break apart transactions with the
-   * same nonce, created on the same day, per network. Not accounting for
-   * transactions of the same nonce, same day and network combo can result in
-   * confusing or broken experiences in the UI.
-   *
-   * @param transactions - The transactions to be applied to the state.
-   * @returns The trimmed list of transactions.
-   */
-  #trimTransactionsForState(
-    transactions: TransactionMeta[],
-  ): TransactionMeta[] {
-    const nonceNetworkSet = new Set();
-
-    const txsToKeep = [...transactions]
-      .sort((a, b) => (a.time > b.time ? -1 : 1)) // Descending time order
-      .filter((tx) => {
-        const { chainId, status, txParams, time } = tx;
-
-        if (txParams) {
-          const key = `${String(txParams.nonce)}-${convertHexToDecimal(
-            chainId,
-          )}-${new Date(time).toDateString()}`;
-
-          if (nonceNetworkSet.has(key)) {
-            return true;
-          } else if (
-            nonceNetworkSet.size < this.#transactionHistoryLimit ||
-            !this.#isFinalState(status)
-          ) {
-            nonceNetworkSet.add(key);
-            return true;
-          }
-        }
-
-        return false;
-      });
-
-    txsToKeep.reverse(); // Ascending time order
-    return txsToKeep;
   }
 
   /**
