@@ -7,6 +7,10 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+### Added
+
+- Add intent based transaction support ([#6547](https://github.com/MetaMask/core/pull/6547))
+
 ### Changed
 
 - Bump `@metamask/assets-controllers` from `^93.1.0` to `^94.0.0` ([#7444](https://github.com/MetaMask/core/pull/7444))

@@ -1401,7 +1401,6 @@ export class TransactionController extends BaseController<
       updateTransaction(addedTransactionMeta);
     }
 
-    // eslint-disable-next-line no-negated-condition
     if (!skipInitialGasEstimate) {
       await this.#trace(
         { name: 'Estimate Gas Properties', parentContext: traceContext },
@@ -1410,6 +1409,21 @@ export class TransactionController extends BaseController<
             traceContext: context,
           }),
       );
+    } else if (
+      isEIP1559Compatible &&
+      addedTransactionMeta.txParams.gasPrice &&
+      !addedTransactionMeta.txParams.maxFeePerGas
+    ) {
+      // Convert legacy gasPrice to EIP-1559 fees for intent transactions on EIP-1559 networks
+      addedTransactionMeta.txParams.maxFeePerGas =
+        addedTransactionMeta.txParams.gasPrice;
+      addedTransactionMeta.txParams.maxPriorityFeePerGas =
+        addedTransactionMeta.txParams.gasPrice;
+      addedTransactionMeta.txParams.type = TransactionEnvelopeType.feeMarket;
+      delete addedTransactionMeta.txParams.gasPrice; // Remove legacy gas price
+    } else if (!isEIP1559Compatible && addedTransactionMeta.txParams.gasPrice) {
+      // Ensure legacy type for non-EIP-1559 networks
+      addedTransactionMeta.txParams.type = TransactionEnvelopeType.legacy;
     } else {
       const newTransactionMeta = cloneDeep(addedTransactionMeta);
 
@@ -3168,6 +3182,46 @@ export class TransactionController extends BaseController<
               'TransactionController#processApproval - Updated with approval data',
             );
           }
+        }
+
+        // For intent-based transactions (e.g., CoW intents) that are not meant to be
+        // published on-chain by the TransactionController, skip the approve/publish flow.
+        // These are tracked externally and should not be signed or sent.
+        const isIntentTransaction = Boolean(
+          // eslint-disable-next-line @typescript-eslint/no-explicit-any
+          (this.#getTransaction(transactionId) as any)?.swapMetaData
+            ?.isIntentTx === true,
+        );
+
+        if (requireApproval === false && isIntentTransaction) {
+          const submittedTxMeta = this.#updateTransactionInternal(
+            {
+              transactionId,
+              note: 'TransactionController#processApproval - Intent transaction auto-submitted',
+              skipValidation: true,
+            },
+            (draftTxMeta) => {
+              draftTxMeta.status = TransactionStatus.submitted;
+              draftTxMeta.submittedTime = new Date().getTime();
+            },
+          );
+
+          this.messenger.publish(`${controllerName}:transactionSubmitted`, {
+            transactionMeta: submittedTxMeta,
+          });
+
+          this.messenger.publish(
+            `${controllerName}:transactionFinished`,
+            submittedTxMeta,
+          );
+          this.#internalEvents.emit(
+            `${transactionId}:finished`,
+            submittedTxMeta,
+          );
+
+          // Short-circuit normal flow; result callbacks will be handled by the
+          // finished promise below.
+          return ApprovalState.Approved;
         }
 
         const { isCompleted: isTxCompleted } =

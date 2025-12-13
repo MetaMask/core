@@ -42,6 +42,8 @@ export type {
   QuoteResponse,
   FeeData,
   TxData,
+  Intent,
+  IntentOrderLike,
   BitcoinTradeData,
   TronTradeData,
   BridgeControllerState,
