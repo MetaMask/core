@@ -17,6 +17,7 @@ export type {
   ClaimsConfigurations,
   CreateClaimRequest,
   SubmitClaimConfig,
+  ClaimDraft,
 } from './types';
 
 export { ClaimsService } from './ClaimsService';

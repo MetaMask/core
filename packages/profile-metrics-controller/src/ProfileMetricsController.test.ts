@@ -93,12 +93,19 @@ describe('ProfileMetricsController', () => {
               { options: { assertUserOptedIn: () => assertUserOptedIn } },
               async ({ controller, rootMessenger }) => {
                 rootMessenger.registerActionHandler(
-                  'AccountsController:listAccounts',
+                  'AccountsController:getState',
                   () => {
-                    return [
-                      createMockAccount('0xAccount1'),
-                      createMockAccount('0xAccount2', false),
-                    ];
+                    const account1 = createMockAccount('0xAccount1');
+                    const account2 = createMockAccount('0xAccount2', false);
+                    return {
+                      internalAccounts: {
+                        accounts: {
+                          [account1.id]: account1,
+                          [account2.id]: account2,
+                        },
+                        selectedAccount: account1.id,
+                      },
+                    };
                   },
                 );
 
@@ -132,12 +139,19 @@ describe('ProfileMetricsController', () => {
               },
               async ({ controller, rootMessenger }) => {
                 rootMessenger.registerActionHandler(
-                  'AccountsController:listAccounts',
+                  'AccountsController:getState',
                   () => {
-                    return [
-                      createMockAccount('0xAccount1'),
-                      createMockAccount('0xAccount2'),
-                    ];
+                    const account1 = createMockAccount('0xAccount1');
+                    const account2 = createMockAccount('0xAccount2');
+                    return {
+                      internalAccounts: {
+                        accounts: {
+                          [account1.id]: account1,
+                          [account2.id]: account2,
+                        },
+                        selectedAccount: account1.id,
+                      },
+                    };
                   },
                 );
 
@@ -543,7 +557,7 @@ function getMessenger(
   rootMessenger.delegate({
     messenger,
     actions: [
-      'AccountsController:listAccounts',
+      'AccountsController:getState',
       'ProfileMetricsService:submitMetrics',
     ],
     events: [
