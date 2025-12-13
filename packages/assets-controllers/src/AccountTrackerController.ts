@@ -44,6 +44,7 @@ import type {
 import { AccountsApiBalanceFetcher } from './multi-chain-accounts-service/api-balance-fetcher';
 import type {
   BalanceFetcher,
+  BalanceFetchResult,
   ProcessedBalance,
 } from './multi-chain-accounts-service/api-balance-fetcher';
 import { RpcBalanceFetcher } from './rpc-service/rpc-balance-fetcher';
@@ -74,7 +75,10 @@ function createAccountTrackerRpcBalanceFetcher(
   includeStakedAssets: boolean,
 ): BalanceFetcher {
   // Provide empty tokens state to ensure only native and staked balances are fetched
-  const getEmptyTokensState = () => ({
+  const getEmptyTokensState = (): {
+    allTokens: Record<string, never>;
+    allDetectedTokens: Record<string, never>;
+  } => ({
     allTokens: {},
     allDetectedTokens: {},
   });
@@ -91,7 +95,9 @@ function createAccountTrackerRpcBalanceFetcher(
       return rpcBalanceFetcher.supports();
     },
 
-    async fetch(params) {
+    async fetch(
+      params: Parameters<BalanceFetcher['fetch']>[0],
+    ): Promise<BalanceFetchResult> {
       const result = await rpcBalanceFetcher.fetch(params);
 
       if (!includeStakedAssets) {
@@ -270,10 +276,10 @@ export class AccountTrackerController extends StaticIntervalPollingController<Ac
     messenger,
     getStakedBalanceForChain,
     includeStakedAssets = false,
-    accountsApiChainIds = () => [],
-    allowExternalServices = () => true,
-    fetchingEnabled = () => true,
-    isOnboarded = () => true,
+    accountsApiChainIds = (): ChainIdHex[] => [],
+    allowExternalServices = (): boolean => true,
+    fetchingEnabled = (): boolean => true,
+    isOnboarded = (): boolean => true,
   }: {
     interval?: number;
     state?: Partial<AccountTrackerControllerState>;
@@ -339,38 +345,46 @@ export class AccountTrackerController extends StaticIntervalPollingController<Ac
       (event): string => event.address,
     );
 
-    this.messenger.subscribe('NetworkController:networkAdded', async () => {
-      await this.refresh(this.#getNetworkClientIds());
+    this.messenger.subscribe('NetworkController:networkAdded', () => {
+      this.refresh(this.#getNetworkClientIds()).catch(() => {
+        // Silently handle refresh errors
+      });
     });
 
-    this.messenger.subscribe('KeyringController:unlock', async () => {
-      await this.refresh(this.#getNetworkClientIds());
+    this.messenger.subscribe('KeyringController:unlock', () => {
+      this.refresh(this.#getNetworkClientIds()).catch(() => {
+        // Silently handle refresh errors
+      });
     });
 
     this.messenger.subscribe(
       'TransactionController:unapprovedTransactionAdded',
-      async (transactionMeta: TransactionMeta) => {
+      (transactionMeta: TransactionMeta) => {
         const addresses = [transactionMeta.txParams.from];
         if (transactionMeta.txParams.to) {
           addresses.push(transactionMeta.txParams.to);
         }
-        await this.refreshAddresses({
+        this.refreshAddresses({
           networkClientIds: [transactionMeta.networkClientId],
           addresses,
+        }).catch(() => {
+          // Silently handle refresh errors
         });
       },
     );
 
     this.messenger.subscribe(
       'TransactionController:transactionConfirmed',
-      async (transactionMeta: TransactionMeta) => {
+      (transactionMeta: TransactionMeta) => {
         const addresses = [transactionMeta.txParams.from];
         if (transactionMeta.txParams.to) {
           addresses.push(transactionMeta.txParams.to);
         }
-        await this.refreshAddresses({
+        this.refreshAddresses({
           networkClientIds: [transactionMeta.networkClientId],
           addresses,
+        }).catch(() => {
+          // Silently handle refresh errors
         });
       },
     );
@@ -378,7 +392,7 @@ export class AccountTrackerController extends StaticIntervalPollingController<Ac
     this.#registerMessageHandlers();
   }
 
-  private syncAccounts(newChainIds: string[]) {
+  #syncAccounts(newChainIds: string[]): void {
     const accountsByChainId = cloneDeep(this.state.accountsByChainId);
     const { selectedNetworkClientId } = this.messenger.call(
       'NetworkController:getState',
@@ -442,8 +456,9 @@ export class AccountTrackerController extends StaticIntervalPollingController<Ac
     const { networkConfigurationsByChainId } = this.messenger.call(
       'NetworkController:getState',
     );
-    const cfg = networkConfigurationsByChainId[chainId];
-    const { networkClientId } = cfg.rpcEndpoints[cfg.defaultRpcEndpointIndex];
+    const networkConfig = networkConfigurationsByChainId[chainId];
+    const { networkClientId } =
+      networkConfig.rpcEndpoints[networkConfig.defaultRpcEndpointIndex];
     const client = this.messenger.call(
       'NetworkController:getNetworkClientById',
       networkClientId,
@@ -451,12 +466,13 @@ export class AccountTrackerController extends StaticIntervalPollingController<Ac
     return new Web3Provider(client.provider);
   };
 
-  readonly #getNetworkClient = (chainId: Hex) => {
+  readonly #getNetworkClient = (chainId: Hex): NetworkClient => {
     const { networkConfigurationsByChainId } = this.messenger.call(
       'NetworkController:getState',
     );
-    const cfg = networkConfigurationsByChainId[chainId];
-    const { networkClientId } = cfg.rpcEndpoints[cfg.defaultRpcEndpointIndex];
+    const networkConfig = networkConfigurationsByChainId[chainId];
+    const { networkClientId } =
+      networkConfig.rpcEndpoints[networkConfig.defaultRpcEndpointIndex];
     return this.messenger.call(
       'NetworkController:getNetworkClientById',
       networkClientId,
@@ -495,7 +511,12 @@ export class AccountTrackerController extends StaticIntervalPollingController<Ac
    * @param networkClientId - Optional networkClientId to fetch a network client with
    * @returns network client config
    */
-  #getCorrectNetworkClient(networkClientId?: NetworkClientId) {
+  #getCorrectNetworkClient(networkClientId?: NetworkClientId): {
+    chainId: Hex;
+    provider: NetworkClient['provider'];
+    ethQuery: EthQuery;
+    blockTracker: NetworkClient['blockTracker'];
+  } {
     const selectedNetworkClientId =
       networkClientId ??
       this.messenger.call('NetworkController:getState').selectedNetworkClientId;
@@ -560,7 +581,7 @@ export class AccountTrackerController extends StaticIntervalPollingController<Ac
   async refresh(
     networkClientIds: NetworkClientId[],
     queryAllAccounts: boolean = false,
-  ) {
+  ): Promise<void> {
     const selectedAccount = this.messenger.call(
       'AccountsController:getSelectedAccount',
     );
@@ -585,7 +606,7 @@ export class AccountTrackerController extends StaticIntervalPollingController<Ac
   }: {
     networkClientIds: NetworkClientId[];
     addresses: string[];
-  }) {
+  }): Promise<void> {
     const checksummedAddresses = addresses.map((address) =>
       toChecksumHexAddress(address),
     );
@@ -614,7 +635,7 @@ export class AccountTrackerController extends StaticIntervalPollingController<Ac
     queryAllAccounts: boolean;
     selectedAccount: ChecksumAddress;
     allAccounts: InternalAccount[];
-  }) {
+  }): Promise<void> {
     const releaseLock = await this.#refreshMutex.acquire();
     try {
       const chainIds = networkClientIds.map((networkClientId) => {
@@ -622,7 +643,7 @@ export class AccountTrackerController extends StaticIntervalPollingController<Ac
         return chainId;
       });
 
-      this.syncAccounts(chainIds);
+      this.#syncAccounts(chainIds);
 
       if (!this.#fetchingEnabled() || !this.#isOnboarded()) {
         return;
@@ -642,8 +663,8 @@ export class AccountTrackerController extends StaticIntervalPollingController<Ac
 
       // Try each fetcher in order, removing successfully processed chains
       for (const fetcher of this.#balanceFetchers) {
-        const supportedChains = remainingChains.filter((c) =>
-          fetcher.supports(c),
+        const supportedChains = remainingChains.filter((chainId) =>
+          fetcher.supports(chainId),
         );
         if (!supportedChains.length) {
           continue;
@@ -841,7 +862,7 @@ export class AccountTrackerController extends StaticIntervalPollingController<Ac
    */
   updateNativeBalances(
     balances: { address: string; chainId: Hex; balance: Hex }[],
-  ) {
+  ): void {
     const nextAccountsByChainId = cloneDeep(this.state.accountsByChainId);
     let hasChanges = false;
 
@@ -897,7 +918,7 @@ export class AccountTrackerController extends StaticIntervalPollingController<Ac
       chainId: Hex;
       stakedBalance: StakedBalance;
     }[],
-  ) {
+  ): void {
     const nextAccountsByChainId = cloneDeep(this.state.accountsByChainId);
     let hasChanges = false;
 
@@ -941,7 +962,7 @@ export class AccountTrackerController extends StaticIntervalPollingController<Ac
     }
   }
 
-  #registerMessageHandlers() {
+  #registerMessageHandlers(): void {
     this.messenger.registerActionHandler(
       `${controllerName}:updateNativeBalances` as const,
       this.updateNativeBalances.bind(this),
