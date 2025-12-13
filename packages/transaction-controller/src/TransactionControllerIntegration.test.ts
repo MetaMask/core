@@ -278,7 +278,12 @@ const setupController = async (
 
   remoteFeatureFlagControllerMessenger.registerActionHandler(
     'RemoteFeatureFlagController:getState',
-    () => ({ cacheTimestamp: 0, remoteFeatureFlags: {} }),
+    () => ({
+      cacheTimestamp: 0,
+      remoteFeatureFlags: {},
+      rawRemoteFeatureFlags: {},
+      localOverrides: {},
+    }),
   );
 
   const options: TransactionControllerOptions = {
