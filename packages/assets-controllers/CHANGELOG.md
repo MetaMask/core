@@ -25,6 +25,9 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 - Fix `TokenDetectionController` methods `addDetectedTokensViaPolling` and `addDetectedTokensViaWs` to refresh token metadata cache before use ([#7469](https://github.com/MetaMask/core/pull/7469))
   - Previously, these methods used a potentially stale/empty `#tokensChainsCache` from construction time
   - Now they fetch the latest `tokensChainsCache` from `TokenListController:getState` before looking up token metadata
+- Fix `AccountTrackerController.syncBalanceWithAddresses` to also check `isOnboarded()` before fetching balances ([#7469](https://github.com/MetaMask/core/pull/7469))
+  - Previously, only `#refreshAccounts` checked `isOnboarded()`, but `syncBalanceWithAddresses` would still make RPC calls during onboarding
+  - Now `syncBalanceWithAddresses` returns an empty object when `isOnboarded()` returns `false`
 
 ## [94.0.0]
 

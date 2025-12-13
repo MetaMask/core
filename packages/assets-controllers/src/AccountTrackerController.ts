@@ -815,6 +815,11 @@ export class AccountTrackerController extends StaticIntervalPollingController<Ac
   ): Promise<
     Record<string, { balance: string; stakedBalance?: StakedBalance }>
   > {
+    // Skip balance fetching if not onboarded to avoid unnecessary RPC calls during onboarding
+    if (!this.#isOnboarded()) {
+      return {};
+    }
+
     const { ethQuery } = this.#getCorrectNetworkClient(networkClientId);
 
     // TODO: This should use multicall when enabled by the user.

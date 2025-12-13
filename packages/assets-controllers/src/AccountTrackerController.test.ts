@@ -1634,6 +1634,71 @@ describe('AccountTrackerController', () => {
         },
       );
     });
+
+    it('should skip balance fetching when isOnboarded returns false', async () => {
+      await withController(
+        {
+          options: { isOnboarded: () => false },
+          isMultiAccountBalancesEnabled: true,
+          selectedAccount: ACCOUNT_1,
+          listAccounts: [],
+        },
+        async ({ controller }) => {
+          // Reset query mock to track calls
+          mockedQuery.mockClear();
+
+          const result = await controller.syncBalanceWithAddresses([
+            ADDRESS_1,
+            ADDRESS_2,
+          ]);
+
+          // Should return empty object without making any RPC calls
+          expect(result).toStrictEqual({});
+
+          // Verify no RPC calls were made (query should not have been called for getBalance)
+          expect(mockedQuery).not.toHaveBeenCalled();
+        },
+      );
+    });
+
+    it('should evaluate isOnboarded dynamically at call time', async () => {
+      let onboarded = false;
+
+      await withController(
+        {
+          options: { isOnboarded: () => onboarded },
+          isMultiAccountBalancesEnabled: true,
+          selectedAccount: ACCOUNT_1,
+          listAccounts: [],
+        },
+        async ({ controller }) => {
+          // First call: isOnboarded returns false, should skip fetching
+          mockedQuery.mockClear();
+
+          const result1 = await controller.syncBalanceWithAddresses([
+            ADDRESS_1,
+          ]);
+
+          // Should return empty object
+          expect(result1).toStrictEqual({});
+          expect(mockedQuery).not.toHaveBeenCalled();
+
+          // Now set onboarded to true
+          onboarded = true;
+
+          mockedQuery.mockReturnValueOnce(Promise.resolve('0xabc123'));
+
+          // Second call: isOnboarded now returns true, should fetch balances
+          const result2 = await controller.syncBalanceWithAddresses([
+            ADDRESS_1,
+          ]);
+
+          // Should have fetched balance
+          expect(result2[ADDRESS_1].balance).toBe('0xabc123');
+          expect(mockedQuery).toHaveBeenCalled();
+        },
+      );
+    });
   });
 
   it('should call refresh every interval on polling', async () => {
