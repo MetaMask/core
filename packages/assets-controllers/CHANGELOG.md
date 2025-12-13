@@ -11,6 +11,10 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 - Add support for spot prices on multiple new chains: Apechain, Lens, Plume, Flow EVM, Berachain, xrpl-evm, Fraxtal, Lukso, xdc-network, and Plasma ([#7465](https://github.com/MetaMask/core/pull/7465))
 - Add `ape` to `SUPPORTED_CURRENCIES` for ApeCoin/Apechain native token ([#7465](https://github.com/MetaMask/core/pull/7465))
+- Add `isOnboarded` constructor option to `TokenBalancesController` and `AccountTrackerController` ([#7469](https://github.com/MetaMask/core/pull/7469))
+  - When `isOnboarded()` returns `false`, balance updates are skipped to prevent unnecessary API calls during onboarding
+  - `TokenBalancesController.isActive` now also checks `isOnboarded()` in addition to `isUnlocked`
+  - `AccountTrackerController.#refreshAccounts` now checks `isOnboarded()` before fetching balances
 
 ### Fixed
 

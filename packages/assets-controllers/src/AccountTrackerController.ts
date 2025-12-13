@@ -248,6 +248,8 @@ export class AccountTrackerController extends StaticIntervalPollingController<Ac
 
   readonly #fetchingEnabled: () => boolean;
 
+  readonly #isOnboarded: () => boolean;
+
   /**
    * Creates an AccountTracker instance.
    *
@@ -260,6 +262,7 @@ export class AccountTrackerController extends StaticIntervalPollingController<Ac
    * @param options.accountsApiChainIds - Function that returns array of chainIds that should use Accounts-API strategy (if supported by API).
    * @param options.allowExternalServices - Disable external HTTP calls (privacy / offline mode).
    * @param options.fetchingEnabled - Function that returns whether the controller is fetching enabled.
+   * @param options.isOnboarded - Whether the user has completed onboarding. If false, balance updates are skipped.
    */
   constructor({
     interval = 10000,
@@ -270,6 +273,7 @@ export class AccountTrackerController extends StaticIntervalPollingController<Ac
     accountsApiChainIds = () => [],
     allowExternalServices = () => true,
     fetchingEnabled = () => true,
+    isOnboarded = () => true,
   }: {
     interval?: number;
     state?: Partial<AccountTrackerControllerState>;
@@ -279,6 +283,7 @@ export class AccountTrackerController extends StaticIntervalPollingController<Ac
     accountsApiChainIds?: () => ChainIdHex[];
     allowExternalServices?: () => boolean;
     fetchingEnabled?: () => boolean;
+    isOnboarded?: () => boolean;
   }) {
     const { selectedNetworkClientId } = messenger.call(
       'NetworkController:getState',
@@ -318,6 +323,7 @@ export class AccountTrackerController extends StaticIntervalPollingController<Ac
     ];
 
     this.#fetchingEnabled = fetchingEnabled;
+    this.#isOnboarded = isOnboarded;
 
     this.setIntervalLength(interval);
 
@@ -618,7 +624,7 @@ export class AccountTrackerController extends StaticIntervalPollingController<Ac
 
       this.syncAccounts(chainIds);
 
-      if (!this.#fetchingEnabled()) {
+      if (!this.#fetchingEnabled() || !this.#isOnboarded()) {
         return;
       }
 
