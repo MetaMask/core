@@ -1560,33 +1560,6 @@
       "count": 3
     }
   },
-  "packages/notification-services-controller/src/NotificationServicesController/NotificationServicesController.test.ts": {
-    "@typescript-eslint/explicit-function-return-type": {
-      "count": 23
-    },
-    "id-length": {
-      "count": 7
-    }
-  },
-  "packages/notification-services-controller/src/NotificationServicesController/NotificationServicesController.ts": {
-    "@typescript-eslint/explicit-function-return-type": {
-      "count": 31
-    },
-    "@typescript-eslint/no-misused-promises": {
-      "count": 1
-    },
-    "id-denylist": {
-      "count": 5
-    },
-    "id-length": {
-      "count": 8
-    }
-  },
-  "packages/notification-services-controller/src/NotificationServicesController/__fixtures__/mockServices.ts": {
-    "@typescript-eslint/explicit-function-return-type": {
-      "count": 6
-    }
-  },
   "packages/notification-services-controller/src/NotificationServicesController/constants/notification-schema.ts": {
     "@typescript-eslint/naming-convention": {
       "count": 18
@@ -1599,30 +1572,6 @@
   },
   "packages/notification-services-controller/src/NotificationServicesController/processors/process-api-notifications.test.ts": {
     "id-length": {
-      "count": 1
-    }
-  },
-  "packages/notification-services-controller/src/NotificationServicesController/services/feature-announcements.ts": {
-    "@typescript-eslint/explicit-function-return-type": {
-      "count": 2
-    },
-    "@typescript-eslint/naming-convention": {
-      "count": 2
-    },
-    "@typescript-eslint/prefer-nullish-coalescing": {
-      "count": 2
-    },
-    "id-length": {
-      "count": 3
-    }
-  },
-  "packages/notification-services-controller/src/NotificationServicesController/services/notification-config-cache.ts": {
-    "@typescript-eslint/naming-convention": {
-      "count": 1
-    }
-  },
-  "packages/notification-services-controller/src/NotificationServicesController/services/perp-notifications.test.ts": {
-    "@typescript-eslint/explicit-function-return-type": {
       "count": 1
     }
   },
@@ -1687,27 +1636,6 @@
     },
     "id-length": {
       "count": 9
-    }
-  },
-  "packages/notification-services-controller/src/NotificationServicesPushController/web/push-utils.test.ts": {
-    "@typescript-eslint/explicit-function-return-type": {
-      "count": 10
-    },
-    "no-restricted-globals": {
-      "count": 3
-    }
-  },
-  "packages/notification-services-controller/src/NotificationServicesPushController/web/push-utils.ts": {
-    "@typescript-eslint/explicit-function-return-type": {
-      "count": 7
-    },
-    "require-atomic-updates": {
-      "count": 1
-    }
-  },
-  "packages/notification-services-controller/src/shared/is-onchain-notification.ts": {
-    "id-length": {
-      "count": 1
     }
   },
   "packages/phishing-controller/src/BulkTokenScan.test.ts": {
@@ -2316,127 +2244,6 @@
     },
     "@typescript-eslint/naming-convention": {
       "count": 1
-    }
-  },
-  "scripts/create-package/cli.test.ts": {
-    "@typescript-eslint/explicit-function-return-type": {
-      "count": 2
-    }
-  },
-  "scripts/create-package/cli.ts": {
-    "@typescript-eslint/explicit-function-return-type": {
-      "count": 1
-    }
-  },
-  "scripts/create-package/fs-utils.ts": {
-    "@typescript-eslint/explicit-function-return-type": {
-      "count": 2
-    }
-  },
-  "scripts/create-package/index.test.ts": {
-    "import-x/no-unassigned-import": {
-      "count": 1
-    }
-  },
-  "scripts/create-package/utils.test.ts": {
-    "import-x/no-named-as-default-member": {
-      "count": 2
-    }
-  },
-  "scripts/create-package/utils.ts": {
-    "@typescript-eslint/explicit-function-return-type": {
-      "count": 1
-    }
-  },
-  "scripts/generate-method-action-types.ts": {
-    "@typescript-eslint/explicit-function-return-type": {
-      "count": 2
-    },
-    "n/no-sync": {
-      "count": 1
-    },
-    "no-negated-condition": {
-      "count": 1
-    }
-  },
-  "scripts/generate-preview-build-message.ts": {
-    "@typescript-eslint/explicit-function-return-type": {
-      "count": 1
-    }
-  },
-  "scripts/lint-teams-json.ts": {
-    "@typescript-eslint/explicit-function-return-type": {
-      "count": 1
-    }
-  },
-  "scripts/update-readme-content.ts": {
-    "@typescript-eslint/explicit-function-return-type": {
-      "count": 2
-    }
-  },
-  "tests/fake-block-tracker.ts": {
-    "@typescript-eslint/explicit-function-return-type": {
-      "count": 3
-    },
-    "no-empty-function": {
-      "count": 1
-    }
-  },
-  "tests/fake-provider.ts": {
-    "@typescript-eslint/explicit-function-return-type": {
-      "count": 5
-    },
-    "@typescript-eslint/prefer-promise-reject-errors": {
-      "count": 1
-    }
-  },
-  "tests/helpers.ts": {
-    "@typescript-eslint/explicit-function-return-type": {
-      "count": 1
-    },
-    "@typescript-eslint/naming-convention": {
-      "count": 1
-    },
-    "no-param-reassign": {
-      "count": 1
-    }
-  },
-  "tests/mock-network.ts": {
-    "@typescript-eslint/explicit-function-return-type": {
-      "count": 1
-    }
-  },
-  "tests/setup.ts": {
-    "import-x/no-unassigned-import": {
-      "count": 1
-    }
-  },
-  "tests/setupAfterEnv/index.ts": {
-    "import-x/no-unassigned-import": {
-      "count": 2
-    }
-  },
-  "tests/setupAfterEnv/matchers.ts": {
-    "@typescript-eslint/explicit-function-return-type": {
-      "count": 4
-    },
-    "id-length": {
-      "count": 2
-    }
-  },
-  "tests/setupAfterEnv/nock.ts": {
-    "import-x/no-named-as-default-member": {
-      "count": 3
-    }
-  },
-  "types/global.d.ts": {
-    "@typescript-eslint/naming-convention": {
-      "count": 1
-    }
-  },
-  "yarn.config.cjs": {
-    "no-restricted-syntax": {
-      "count": 2
     }
   }
 }
