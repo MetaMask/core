@@ -231,6 +231,9 @@ export type {
   Asset,
   AssetListState,
 } from './selectors/token-selectors';
-export { selectAssetsBySelectedAccountGroup } from './selectors/token-selectors';
+export {
+  selectAssetsBySelectedAccountGroup,
+  selectAllAssets,
+} from './selectors/token-selectors';
 export { createFormatters } from './utils/formatters';
 export type { SortTrendingBy, TrendingAsset } from './token-service';
