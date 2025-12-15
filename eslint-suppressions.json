@@ -1039,31 +1039,6 @@
       "count": 1
     }
   },
-  "packages/eip-7702-internal-rpc-middleware/src/utils.ts": {
-    "id-length": {
-      "count": 1
-    }
-  },
-  "packages/eip-7702-internal-rpc-middleware/src/wallet_getAccountUpgradeStatus.test.ts": {
-    "@typescript-eslint/explicit-function-return-type": {
-      "count": 1
-    }
-  },
-  "packages/eip-7702-internal-rpc-middleware/src/wallet_getAccountUpgradeStatus.ts": {
-    "no-negated-condition": {
-      "count": 1
-    }
-  },
-  "packages/eip-7702-internal-rpc-middleware/src/wallet_upgradeAccount.test.ts": {
-    "@typescript-eslint/explicit-function-return-type": {
-      "count": 1
-    }
-  },
-  "packages/eip-7702-internal-rpc-middleware/src/wallet_upgradeAccount.ts": {
-    "no-negated-condition": {
-      "count": 1
-    }
-  },
   "packages/eip1193-permission-middleware/src/wallet-getPermissions.test.ts": {
     "@typescript-eslint/explicit-function-return-type": {
       "count": 2
