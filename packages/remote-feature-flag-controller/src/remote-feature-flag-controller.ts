@@ -21,13 +21,15 @@ import { isVersionFeatureFlag, getVersionData } from './utils/version';
 
 // === GENERAL ===
 
-const controllerName = 'RemoteFeatureFlagController';
+export const controllerName = 'RemoteFeatureFlagController';
 export const DEFAULT_CACHE_DURATION = 24 * 60 * 60 * 1000; // 1 day
 
 // === STATE ===
 
 export type RemoteFeatureFlagControllerState = {
   remoteFeatureFlags: FeatureFlags;
+  localOverrides: FeatureFlags;
+  rawRemoteFeatureFlags: FeatureFlags;
   cacheTimestamp: number;
 };
 
@@ -37,6 +39,18 @@ const remoteFeatureFlagControllerMetadata = {
     persist: true,
     includeInDebugSnapshot: true,
     usedInUi: true,
+  },
+  localOverrides: {
+    includeInStateLogs: true,
+    persist: true,
+    includeInDebugSnapshot: true,
+    usedInUi: true,
+  },
+  rawRemoteFeatureFlags: {
+    includeInStateLogs: true,
+    persist: true,
+    includeInDebugSnapshot: true,
+    usedInUi: false,
   },
   cacheTimestamp: {
     includeInStateLogs: true,
@@ -62,9 +76,27 @@ export type RemoteFeatureFlagControllerUpdateRemoteFeatureFlagsAction = {
   handler: RemoteFeatureFlagController['updateRemoteFeatureFlags'];
 };
 
+export type RemoteFeatureFlagControllerSetFlagOverrideAction = {
+  type: `${typeof controllerName}:setFlagOverride`;
+  handler: RemoteFeatureFlagController['setFlagOverride'];
+};
+
+export type RemoteFeatureFlagControllerRemoveFlagOverrideAction = {
+  type: `${typeof controllerName}:removeFlagOverride`;
+  handler: RemoteFeatureFlagController['removeFlagOverride'];
+};
+
+export type RemoteFeatureFlagControllerClearAllFlagOverridesAction = {
+  type: `${typeof controllerName}:clearAllFlagOverrides`;
+  handler: RemoteFeatureFlagController['clearAllFlagOverrides'];
+};
+
 export type RemoteFeatureFlagControllerActions =
   | RemoteFeatureFlagControllerGetStateAction
-  | RemoteFeatureFlagControllerUpdateRemoteFeatureFlagsAction;
+  | RemoteFeatureFlagControllerUpdateRemoteFeatureFlagsAction
+  | RemoteFeatureFlagControllerSetFlagOverrideAction
+  | RemoteFeatureFlagControllerRemoveFlagOverrideAction
+  | RemoteFeatureFlagControllerClearAllFlagOverridesAction;
 
 export type RemoteFeatureFlagControllerStateChangeEvent =
   ControllerStateChangeEvent<
@@ -89,6 +121,8 @@ export type RemoteFeatureFlagControllerMessenger = Messenger<
 export function getDefaultRemoteFeatureFlagControllerState(): RemoteFeatureFlagControllerState {
   return {
     remoteFeatureFlags: {},
+    localOverrides: {},
+    rawRemoteFeatureFlags: {},
     cacheTimestamp: 0,
   };
 }
@@ -217,7 +251,9 @@ export class RemoteFeatureFlagController extends BaseController<
       await this.#processRemoteFeatureFlags(remoteFeatureFlags);
     this.update(() => {
       return {
+        ...this.state,
         remoteFeatureFlags: processedRemoteFeatureFlags,
+        rawRemoteFeatureFlags: remoteFeatureFlags,
         cacheTimestamp: Date.now(),
       };
     });
@@ -290,5 +326,51 @@ export class RemoteFeatureFlagController extends BaseController<
    */
   disable(): void {
     this.#disabled = true;
+  }
+
+  /**
+   * Sets a local override for a specific feature flag.
+   *
+   * @param flagName - The name of the feature flag to override.
+   * @param value - The override value for the feature flag.
+   */
+  setFlagOverride(flagName: string, value: Json): void {
+    this.update(() => {
+      return {
+        ...this.state,
+        localOverrides: {
+          ...this.state.localOverrides,
+          [flagName]: value,
+        },
+      };
+    });
+  }
+
+  /**
+   * Clears the local override for a specific feature flag.
+   *
+   * @param flagName - The name of the feature flag to clear.
+   */
+  removeFlagOverride(flagName: string): void {
+    const newLocalOverrides = { ...this.state.localOverrides };
+    delete newLocalOverrides[flagName];
+    this.update(() => {
+      return {
+        ...this.state,
+        localOverrides: newLocalOverrides,
+      };
+    });
+  }
+
+  /**
+   * Clears all local feature flag overrides.
+   */
+  clearAllFlagOverrides(): void {
+    this.update(() => {
+      return {
+        ...this.state,
+        localOverrides: {},
+      };
+    });
   }
 }

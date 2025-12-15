@@ -49,6 +49,7 @@ import {
   buildCustomNetworkClientConfiguration,
   buildUpdateNetworkCustomRpcEndpointFields,
 } from '../../network-controller/tests/helpers';
+import { getDefaultRemoteFeatureFlagControllerState } from '../../remote-feature-flag-controller/src/remote-feature-flag-controller';
 import {
   buildEthGasPriceRequestMock,
   buildEthBlockNumberRequestMock,
@@ -278,7 +279,7 @@ const setupController = async (
 
   remoteFeatureFlagControllerMessenger.registerActionHandler(
     'RemoteFeatureFlagController:getState',
-    () => ({ cacheTimestamp: 0, remoteFeatureFlags: {} }),
+    () => getDefaultRemoteFeatureFlagControllerState(),
   );
 
   const options: TransactionControllerOptions = {
