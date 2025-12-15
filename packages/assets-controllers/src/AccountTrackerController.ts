@@ -15,7 +15,11 @@ import {
   toChecksumHexAddress,
 } from '@metamask/controller-utils';
 import EthQuery from '@metamask/eth-query';
-import type { KeyringControllerUnlockEvent } from '@metamask/keyring-controller';
+import type {
+  KeyringControllerGetStateAction,
+  KeyringControllerLockEvent,
+  KeyringControllerUnlockEvent,
+} from '@metamask/keyring-controller';
 import type { InternalAccount } from '@metamask/keyring-internal-api';
 import type { Messenger } from '@metamask/messenger';
 import type {
@@ -192,7 +196,8 @@ export type AllowedActions =
     }
   | AccountsControllerGetSelectedAccountAction
   | NetworkControllerGetStateAction
-  | NetworkControllerGetNetworkClientByIdAction;
+  | NetworkControllerGetNetworkClientByIdAction
+  | KeyringControllerGetStateAction;
 
 /**
  * The event that {@link AccountTrackerController} can emit.
@@ -217,6 +222,7 @@ export type AllowedEvents =
   | TransactionControllerUnapprovedTransactionAddedEvent
   | TransactionControllerTransactionConfirmedEvent
   | NetworkControllerNetworkAddedEvent
+  | KeyringControllerLockEvent
   | KeyringControllerUnlockEvent;
 
 /**
@@ -255,6 +261,9 @@ export class AccountTrackerController extends StaticIntervalPollingController<Ac
   readonly #fetchingEnabled: () => boolean;
 
   readonly #isOnboarded: () => boolean;
+
+  /** Track if the keyring is locked */
+  #isLocked = true;
 
   /**
    * Creates an AccountTracker instance.
@@ -331,6 +340,9 @@ export class AccountTrackerController extends StaticIntervalPollingController<Ac
     this.#fetchingEnabled = fetchingEnabled;
     this.#isOnboarded = isOnboarded;
 
+    const { isUnlocked } = this.messenger.call('KeyringController:getState');
+    this.#isLocked = !isUnlocked;
+
     this.setIntervalLength(interval);
 
     this.messenger.subscribe(
@@ -345,16 +357,25 @@ export class AccountTrackerController extends StaticIntervalPollingController<Ac
       (event): string => event.address,
     );
 
-    this.messenger.subscribe('NetworkController:networkAdded', () => {
-      this.refresh(this.#getNetworkClientIds()).catch(() => {
-        // Silently handle refresh errors
-      });
-    });
+    this.messenger.subscribe(
+      'NetworkController:networkAdded',
+      (networkConfiguration) => {
+        const { networkClientId } =
+          networkConfiguration.rpcEndpoints[
+            networkConfiguration.defaultRpcEndpointIndex
+          ];
+        this.refresh([networkClientId]).catch(() => {
+          // Silently handle refresh errors
+        });
+      },
+    );
 
     this.messenger.subscribe('KeyringController:unlock', () => {
-      this.refresh(this.#getNetworkClientIds()).catch(() => {
-        // Silently handle refresh errors
-      });
+      this.#isLocked = false;
+    });
+
+    this.messenger.subscribe('KeyringController:lock', () => {
+      this.#isLocked = true;
     });
 
     this.messenger.subscribe(
@@ -390,6 +411,16 @@ export class AccountTrackerController extends StaticIntervalPollingController<Ac
     );
 
     this.#registerMessageHandlers();
+  }
+
+  /**
+   * Whether the controller is active (keyring is unlocked and user is onboarded).
+   * When locked or not onboarded, balance updates should be skipped.
+   *
+   * @returns Whether the controller should perform balance updates.
+   */
+  get isActive(): boolean {
+    return !this.#isLocked && this.#isOnboarded();
   }
 
   #syncAccounts(newChainIds: string[]): void {
@@ -645,7 +676,7 @@ export class AccountTrackerController extends StaticIntervalPollingController<Ac
 
       this.#syncAccounts(chainIds);
 
-      if (!this.#fetchingEnabled() || !this.#isOnboarded()) {
+      if (!this.#fetchingEnabled() || !this.isActive) {
         return;
       }
 
@@ -815,8 +846,8 @@ export class AccountTrackerController extends StaticIntervalPollingController<Ac
   ): Promise<
     Record<string, { balance: string; stakedBalance?: StakedBalance }>
   > {
-    // Skip balance fetching if not onboarded to avoid unnecessary RPC calls during onboarding
-    if (!this.#isOnboarded()) {
+    // Skip balance fetching if locked or not onboarded to avoid unnecessary RPC calls
+    if (!this.isActive) {
       return {};
     }
 

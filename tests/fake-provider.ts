@@ -139,7 +139,7 @@ export class FakeProvider
     super({
       engine: JsonRpcEngineV2.create<Middleware>({
         middleware: [
-          () => {
+          (): never => {
             throw new Error('FakeProvider received unstubbed method call');
           },
         ],
@@ -156,6 +156,8 @@ export class FakeProvider
     return new Promise((resolve, reject) => {
       this.#handleSend(payload, (error, providerRes) => {
         if (error) {
+          // Error is `unknown`.
+          // eslint-disable-next-line @typescript-eslint/prefer-promise-reject-errors
           reject(error);
         } else {
           resolve(providerRes.result);
@@ -169,7 +171,7 @@ export class FakeProvider
     // TODO: Replace `any` with type
     // eslint-disable-next-line @typescript-eslint/no-explicit-any
     callback: (error: unknown, providerRes?: any) => void,
-  ) => {
+  ): void => {
     return this.#handleSend(payload, callback);
   };
 
@@ -178,7 +180,7 @@ export class FakeProvider
     // TODO: Replace `any` with type
     // eslint-disable-next-line @typescript-eslint/no-explicit-any
     callback: (error: unknown, providerRes?: any) => void,
-  ) => {
+  ): void => {
     return this.#handleSend(req, callback);
   };
 
@@ -187,7 +189,7 @@ export class FakeProvider
     // TODO: Replace `any` with type
     // eslint-disable-next-line @typescript-eslint/no-explicit-any
     callback: (error: unknown, providerRes?: any) => void,
-  ) {
+  ): void {
     if (Array.isArray(req)) {
       throw new Error("Arrays aren't supported");
     }
@@ -244,10 +246,8 @@ export class FakeProvider
 
   async #handleRequest(
     stub: FakeProviderStub,
-    // TODO: Replace `any` with type
-    // eslint-disable-next-line @typescript-eslint/no-explicit-any
-    callback: (error: unknown, response?: JsonRpcResponse<any>) => void,
-  ) {
+    callback: (error: unknown, response?: JsonRpcResponse) => void,
+  ): Promise<void> {
     if (stub.beforeCompleting) {
       await stub.beforeCompleting();
     }

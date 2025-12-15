@@ -27,7 +27,10 @@ declare const self: ServiceWorkerGlobalScope;
 // eslint-disable-next-line import-x/no-mutable-exports
 export let supportedCache: boolean | null = null;
 
-const getPushAvailability = async () => {
+const getPushAvailability = async (): Promise<boolean> => {
+  // Race condition is acceptable here - worst case is isSupported() is called
+  // multiple times during initialization, which is harmless for caching a boolean
+  // eslint-disable-next-line require-atomic-updates
   supportedCache ??= await isSupported();
   return supportedCache;
 };
@@ -129,7 +132,7 @@ async function listenToPushNotificationsReceived(
   const unsubscribePushNotifications = onBackgroundMessage(
     messaging,
     // eslint-disable-next-line @typescript-eslint/no-misused-promises
-    async (payload: MessagePayload) => {
+    async (payload: MessagePayload): Promise<void> => {
       try {
         // MessagePayload shapes are not known
         // TODO - provide open-api unfied backend/frontend types
@@ -162,7 +165,7 @@ async function listenToPushNotificationsReceived(
     },
   );
 
-  const unsubscribe = () => unsubscribePushNotifications();
+  const unsubscribe = (): void => unsubscribePushNotifications();
   return unsubscribe;
 }
 
@@ -174,15 +177,15 @@ async function listenToPushNotificationsReceived(
  */
 function listenToPushNotificationsClicked(
   handler: (e: NotificationEvent, notification: Types.INotification) => void,
-) {
-  const clickHandler = (event: NotificationEvent) => {
+): () => void {
+  const clickHandler = (event: NotificationEvent): void => {
     // Get Data
     const data: Types.INotification = event?.notification?.data;
     handler(event, data);
   };
 
   self.addEventListener('notificationclick', clickHandler);
-  const unsubscribe = () =>
+  const unsubscribe = (): void =>
     self.removeEventListener('notificationclick', clickHandler);
   return unsubscribe;
 }
@@ -208,11 +211,11 @@ export function createSubscribeToPushNotifications(props: {
     notification: Types.INotification,
   ) => void;
   messenger: NotificationServicesPushControllerMessenger;
-}) {
-  return async function (env: PushNotificationEnv) {
+}): (env: PushNotificationEnv) => Promise<() => void> {
+  return async function (env: PushNotificationEnv): Promise<() => void> {
     const onBackgroundMessageSub = await listenToPushNotificationsReceived(
       env,
-      async (notification) => {
+      async (notification): Promise<void> => {
         props.messenger.publish(
           'NotificationServicesPushController:onNewNotifications',
           notification,
@@ -221,7 +224,7 @@ export function createSubscribeToPushNotifications(props: {
       },
     );
     const onClickSub = listenToPushNotificationsClicked(
-      (event, notification) => {
+      (event, notification): void => {
         props.messenger.publish(
           'NotificationServicesPushController:pushNotificationClicked',
           notification,
@@ -230,7 +233,7 @@ export function createSubscribeToPushNotifications(props: {
       },
     );
 
-    const unsubscribe = () => {
+    const unsubscribe = (): void => {
       onBackgroundMessageSub?.();
       onClickSub();
     };
