@@ -97,8 +97,8 @@ function createActiveRequestHandler(
 ): Promise<Readonly<Json>> {
   const { resolve, promise, reject } = createDeferredPromise<Readonly<Json>>();
   activeRequestHandlers.push([
-    (result: Readonly<Json>) => resolve(result),
-    (error: unknown) => reject(error),
+    (result: Readonly<Json>): void => resolve(result),
+    (error: unknown): void => reject(error),
   ]);
   return promise;
 }

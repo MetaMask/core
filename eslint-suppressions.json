@@ -910,39 +910,6 @@
       "count": 2
     }
   },
-  "packages/core-backend/src/AccountActivityService.test.ts": {
-    "@typescript-eslint/explicit-function-return-type": {
-      "count": 4
-    }
-  },
-  "packages/core-backend/src/BackendWebSocketService.test.ts": {
-    "@typescript-eslint/explicit-function-return-type": {
-      "count": 10
-    },
-    "@typescript-eslint/naming-convention": {
-      "count": 4
-    },
-    "no-restricted-globals": {
-      "count": 1
-    },
-    "no-restricted-syntax": {
-      "count": 4
-    }
-  },
-  "packages/core-backend/src/BackendWebSocketService.ts": {
-    "@typescript-eslint/explicit-function-return-type": {
-      "count": 4
-    },
-    "@typescript-eslint/naming-convention": {
-      "count": 2
-    },
-    "camelcase": {
-      "count": 3
-    },
-    "no-restricted-globals": {
-      "count": 1
-    }
-  },
   "packages/delegation-controller/src/DelegationController.test.ts": {
     "@typescript-eslint/explicit-function-return-type": {
       "count": 3
@@ -1039,31 +1006,6 @@
       "count": 1
     }
   },
-  "packages/eip-7702-internal-rpc-middleware/src/utils.ts": {
-    "id-length": {
-      "count": 1
-    }
-  },
-  "packages/eip-7702-internal-rpc-middleware/src/wallet_getAccountUpgradeStatus.test.ts": {
-    "@typescript-eslint/explicit-function-return-type": {
-      "count": 1
-    }
-  },
-  "packages/eip-7702-internal-rpc-middleware/src/wallet_getAccountUpgradeStatus.ts": {
-    "no-negated-condition": {
-      "count": 1
-    }
-  },
-  "packages/eip-7702-internal-rpc-middleware/src/wallet_upgradeAccount.test.ts": {
-    "@typescript-eslint/explicit-function-return-type": {
-      "count": 1
-    }
-  },
-  "packages/eip-7702-internal-rpc-middleware/src/wallet_upgradeAccount.ts": {
-    "no-negated-condition": {
-      "count": 1
-    }
-  },
   "packages/eip1193-permission-middleware/src/wallet-getPermissions.test.ts": {
     "@typescript-eslint/explicit-function-return-type": {
       "count": 2
@@ -1108,144 +1050,6 @@
   "packages/ens-controller/src/EnsController.ts": {
     "@typescript-eslint/explicit-function-return-type": {
       "count": 6
-    }
-  },
-  "packages/error-reporting-service/src/error-reporting-service.test.ts": {
-    "@typescript-eslint/explicit-function-return-type": {
-      "count": 1
-    },
-    "no-new": {
-      "count": 1
-    }
-  },
-  "packages/eth-json-rpc-middleware/src/block-cache.test.ts": {
-    "@typescript-eslint/explicit-function-return-type": {
-      "count": 20
-    }
-  },
-  "packages/eth-json-rpc-middleware/src/block-cache.ts": {
-    "id-denylist": {
-      "count": 4
-    }
-  },
-  "packages/eth-json-rpc-middleware/src/block-ref-rewrite.test.ts": {
-    "@typescript-eslint/explicit-function-return-type": {
-      "count": 3
-    }
-  },
-  "packages/eth-json-rpc-middleware/src/block-tracker-inspector.test.ts": {
-    "@typescript-eslint/explicit-function-return-type": {
-      "count": 10
-    }
-  },
-  "packages/eth-json-rpc-middleware/src/fetch.test.ts": {
-    "@typescript-eslint/explicit-function-return-type": {
-      "count": 1
-    }
-  },
-  "packages/eth-json-rpc-middleware/src/inflight-cache.test.ts": {
-    "@typescript-eslint/explicit-function-return-type": {
-      "count": 1
-    }
-  },
-  "packages/eth-json-rpc-middleware/src/inflight-cache.ts": {
-    "@typescript-eslint/explicit-function-return-type": {
-      "count": 2
-    }
-  },
-  "packages/eth-json-rpc-middleware/src/methods/wallet-request-execution-permissions.test.ts": {
-    "@typescript-eslint/explicit-function-return-type": {
-      "count": 1
-    }
-  },
-  "packages/eth-json-rpc-middleware/src/methods/wallet-revoke-execution-permission.test.ts": {
-    "@typescript-eslint/explicit-function-return-type": {
-      "count": 1
-    }
-  },
-  "packages/eth-json-rpc-middleware/src/retryOnEmpty.test.ts": {
-    "@typescript-eslint/explicit-function-return-type": {
-      "count": 3
-    },
-    "@typescript-eslint/naming-convention": {
-      "count": 4
-    }
-  },
-  "packages/eth-json-rpc-middleware/src/retryOnEmpty.ts": {
-    "@typescript-eslint/prefer-nullish-coalescing": {
-      "count": 1
-    },
-    "id-denylist": {
-      "count": 2
-    }
-  },
-  "packages/eth-json-rpc-middleware/src/utils/common.ts": {
-    "@typescript-eslint/explicit-function-return-type": {
-      "count": 1
-    }
-  },
-  "packages/eth-json-rpc-middleware/src/utils/normalize.test.ts": {
-    "@typescript-eslint/explicit-function-return-type": {
-      "count": 1
-    }
-  },
-  "packages/eth-json-rpc-middleware/src/utils/normalize.ts": {
-    "@typescript-eslint/explicit-function-return-type": {
-      "count": 2
-    }
-  },
-  "packages/eth-json-rpc-middleware/src/utils/timeout.test.ts": {
-    "@typescript-eslint/explicit-function-return-type": {
-      "count": 4
-    }
-  },
-  "packages/eth-json-rpc-middleware/src/utils/validation.test.ts": {
-    "@typescript-eslint/explicit-function-return-type": {
-      "count": 1
-    }
-  },
-  "packages/eth-json-rpc-middleware/src/utils/validation.ts": {
-    "id-length": {
-      "count": 1
-    }
-  },
-  "packages/eth-json-rpc-middleware/src/wallet.test.ts": {
-    "@typescript-eslint/explicit-function-return-type": {
-      "count": 52
-    }
-  },
-  "packages/eth-json-rpc-middleware/src/wallet.ts": {
-    "@typescript-eslint/explicit-function-return-type": {
-      "count": 2
-    },
-    "@typescript-eslint/prefer-nullish-coalescing": {
-      "count": 5
-    }
-  },
-  "packages/eth-json-rpc-middleware/test/setupAfterEnv.ts": {
-    "@typescript-eslint/explicit-function-return-type": {
-      "count": 2
-    },
-    "id-length": {
-      "count": 1
-    }
-  },
-  "packages/eth-json-rpc-middleware/test/util/helpers.ts": {
-    "@typescript-eslint/explicit-function-return-type": {
-      "count": 3
-    },
-    "@typescript-eslint/prefer-nullish-coalescing": {
-      "count": 1
-    }
-  },
-  "packages/eth-json-rpc-provider/src/internal-provider.test.ts": {
-    "@typescript-eslint/explicit-function-return-type": {
-      "count": 3
-    }
-  },
-  "packages/eth-json-rpc-provider/src/internal-provider.ts": {
-    "@typescript-eslint/explicit-function-return-type": {
-      "count": 2
     }
   },
   "packages/foundryup/src/cli.ts": {
@@ -1648,21 +1452,6 @@
       "count": 4
     }
   },
-  "packages/multichain-network-controller/src/MultichainNetworkController/MultichainNetworkController.test.ts": {
-    "@typescript-eslint/explicit-function-return-type": {
-      "count": 2
-    }
-  },
-  "packages/multichain-network-controller/src/MultichainNetworkController/MultichainNetworkController.ts": {
-    "@typescript-eslint/explicit-function-return-type": {
-      "count": 3
-    }
-  },
-  "packages/multichain-network-controller/src/utils.ts": {
-    "@typescript-eslint/prefer-nullish-coalescing": {
-      "count": 1
-    }
-  },
   "packages/multichain-transactions-controller/src/MultichainTransactionsController.test.ts": {
     "jest/unbound-method": {
       "count": 1
@@ -1813,33 +1602,6 @@
       "count": 1
     }
   },
-  "packages/notification-services-controller/src/NotificationServicesController/processors/process-notifications.ts": {
-    "@typescript-eslint/explicit-function-return-type": {
-      "count": 2
-    },
-    "id-length": {
-      "count": 6
-    }
-  },
-  "packages/notification-services-controller/src/NotificationServicesController/services/api-notifications.ts": {
-    "@typescript-eslint/explicit-function-return-type": {
-      "count": 8
-    },
-    "id-denylist": {
-      "count": 1
-    },
-    "id-length": {
-      "count": 4
-    },
-    "no-param-reassign": {
-      "count": 2
-    }
-  },
-  "packages/notification-services-controller/src/NotificationServicesController/services/feature-announcements.test.ts": {
-    "@typescript-eslint/explicit-function-return-type": {
-      "count": 2
-    }
-  },
   "packages/notification-services-controller/src/NotificationServicesController/services/feature-announcements.ts": {
     "@typescript-eslint/explicit-function-return-type": {
       "count": 2
@@ -1882,21 +1644,6 @@
       "count": 70
     }
   },
-  "packages/notification-services-controller/src/NotificationServicesController/types/perps/schema.ts": {
-    "@typescript-eslint/naming-convention": {
-      "count": 9
-    }
-  },
-  "packages/notification-services-controller/src/NotificationServicesController/utils/isVersionInBounds.ts": {
-    "@typescript-eslint/explicit-function-return-type": {
-      "count": 1
-    }
-  },
-  "packages/notification-services-controller/src/NotificationServicesController/utils/should-auto-expire.ts": {
-    "@typescript-eslint/explicit-function-return-type": {
-      "count": 1
-    }
-  },
   "packages/notification-services-controller/src/NotificationServicesPushController/NotificationServicesPushController.test.ts": {
     "@typescript-eslint/explicit-function-return-type": {
       "count": 4
@@ -1913,21 +1660,6 @@
   "packages/notification-services-controller/src/NotificationServicesPushController/__fixtures__/mockServices.ts": {
     "@typescript-eslint/explicit-function-return-type": {
       "count": 1
-    }
-  },
-  "packages/notification-services-controller/src/NotificationServicesPushController/mocks/mockResponse.ts": {
-    "@typescript-eslint/explicit-function-return-type": {
-      "count": 3
-    }
-  },
-  "packages/notification-services-controller/src/NotificationServicesPushController/services/endpoints.ts": {
-    "@typescript-eslint/explicit-function-return-type": {
-      "count": 2
-    }
-  },
-  "packages/notification-services-controller/src/NotificationServicesPushController/services/services.test.ts": {
-    "@typescript-eslint/explicit-function-return-type": {
-      "count": 4
     }
   },
   "packages/notification-services-controller/src/NotificationServicesPushController/services/services.ts": {
@@ -1955,40 +1687,6 @@
     },
     "id-length": {
       "count": 9
-    }
-  },
-  "packages/notification-services-controller/src/shared/to-raw-notification.ts": {
-    "@typescript-eslint/explicit-function-return-type": {
-      "count": 1
-    }
-  },
-  "packages/permission-log-controller/src/PermissionLogController.ts": {
-    "@typescript-eslint/explicit-function-return-type": {
-      "count": 4
-    },
-    "id-denylist": {
-      "count": 1
-    }
-  },
-  "packages/permission-log-controller/src/enums.ts": {
-    "@typescript-eslint/naming-convention": {
-      "count": 3
-    }
-  },
-  "packages/permission-log-controller/tests/PermissionLogController.test.ts": {
-    "@typescript-eslint/explicit-function-return-type": {
-      "count": 2
-    },
-    "id-length": {
-      "count": 2
-    }
-  },
-  "packages/permission-log-controller/tests/helpers.ts": {
-    "@typescript-eslint/explicit-function-return-type": {
-      "count": 7
-    },
-    "@typescript-eslint/naming-convention": {
-      "count": 10
     }
   },
   "packages/phishing-controller/src/BulkTokenScan.test.ts": {
