@@ -73,19 +73,16 @@ if (pathExistsSync(rampsControllerDestPath)) {
   fs.rmSync(rampsControllerDestPath, { recursive: true, force: true });
 }
 
-// Directories and files to exclude when copying (development artifacts)
-const EXCLUDED_ENTRIES = new Set([
-  'node_modules',
-  '.git',
-  'src',
-  'coverage',
-  '.turbo',
-  '.cache',
-  'docs',
+// Files and directories to include (matches package.json "files" field + essential files)
+const INCLUDED_ENTRIES = new Set([
+  'dist',
+  'package.json',
+  'LICENSE',
+  'README.md',
 ]);
 
-// Copy the ramps-controller package, filtering out development directories
-function copyDir(src, dest, isRoot = true) {
+// Copy a directory recursively
+function copyDir(src, dest) {
   if (!pathExistsSync(dest)) {
     fs.mkdirSync(dest, { recursive: true });
   }
@@ -93,24 +90,35 @@ function copyDir(src, dest, isRoot = true) {
   const entries = fs.readdirSync(src, { withFileTypes: true });
 
   for (const entry of entries) {
-    // Skip excluded directories at root level
-    if (isRoot && EXCLUDED_ENTRIES.has(entry.name)) {
-      continue;
-    }
-
     const srcPath = path.join(src, entry.name);
     const destPath = path.join(dest, entry.name);
 
     if (entry.isDirectory()) {
-      copyDir(srcPath, destPath, false);
+      copyDir(srcPath, destPath);
     } else {
       fs.copyFileSync(srcPath, destPath);
     }
   }
 }
 
-// Copy the package (excludes node_modules, .git, src, and other dev directories)
-copyDir(rampsControllerPath, rampsControllerDestPath);
+// Copy only the files needed for the package (per package.json "files" field)
+fs.mkdirSync(rampsControllerDestPath, { recursive: true });
+
+for (const entryName of INCLUDED_ENTRIES) {
+  const srcPath = path.join(rampsControllerPath, entryName);
+  const destPath = path.join(rampsControllerDestPath, entryName);
+
+  if (!pathExistsSync(srcPath)) {
+    continue;
+  }
+
+  const stat = fs.statSync(srcPath);
+  if (stat.isDirectory()) {
+    copyDir(srcPath, destPath);
+  } else {
+    fs.copyFileSync(srcPath, destPath);
+  }
+}
 
 console.log('✅ Successfully linked ramps-controller to MetaMask mobile app!');
 console.log(`📁 Copied to: ${rampsControllerDestPath}`);
