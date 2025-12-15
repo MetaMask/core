@@ -9,6 +9,10 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ### Changed
 
+- Improve code quality in `NotificationServicesPushController` utils ([#7484](https://github.com/MetaMask/core/pull/7484))
+  - Add explicit return types to functions in `get-notification-data.ts` and `get-notification-message.ts`
+  - Rename short identifiers for better clarity (e.g., `num` to `numericValue`, `t` to `translate`, `n` to `notification`)
+  - Use nullish coalescing operator (`??`) instead of logical OR (`||`) where appropriate
 - Move peer dependencies for controller and service packages to direct dependencies ([#7209](https://github.com/MetaMask/core/pull/7209))
   - The dependencies moved are:
     - `@metamask/keyring-controller` (^25.0.0)
