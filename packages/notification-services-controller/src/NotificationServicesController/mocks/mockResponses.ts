@@ -17,53 +17,59 @@ type MockResponse = {
 
 export const CONTENTFUL_RESPONSE = createMockFeatureAnnouncementAPIResult();
 
-export const getMockFeatureAnnouncementResponse = (): MockResponse => {
+// Using `satisfies` to preserve narrow return types while ensuring type safety; explicit return types would widen to MockResponse
+/* eslint-disable @typescript-eslint/explicit-function-return-type */
+export const getMockFeatureAnnouncementResponse = () => {
   return {
     url: FEATURE_ANNOUNCEMENT_API,
     requestMethod: 'GET',
     response: CONTENTFUL_RESPONSE,
-  };
+  } satisfies MockResponse;
 };
 
-export const getMockUpdateOnChainNotifications = (): MockResponse => {
+export const getMockUpdateOnChainNotifications = () => {
   return {
     url: TRIGGER_API_NOTIFICATIONS_ENDPOINT(),
     requestMethod: 'POST',
     response: null,
-  };
+  } satisfies MockResponse;
 };
 
-export const getMockOnChainNotificationsConfig = (): MockResponse => {
+export const getMockOnChainNotificationsConfig = () => {
   return {
     url: TRIGGER_API_NOTIFICATIONS_QUERY_ENDPOINT(),
     requestMethod: 'POST',
     response: [{ address: '0xTestAddress', enabled: true }],
-  };
+  } satisfies MockResponse;
 };
+/* eslint-enable @typescript-eslint/explicit-function-return-type */
 
 export const MOCK_RAW_ON_CHAIN_NOTIFICATIONS =
   createMockRawOnChainNotifications();
 
-export const getMockListNotificationsResponse = (): MockResponse => {
+// Using `satisfies` to preserve narrow return types while ensuring type safety; explicit return types would widen to MockResponse
+/* eslint-disable @typescript-eslint/explicit-function-return-type */
+export const getMockListNotificationsResponse = () => {
   return {
     url: NOTIFICATION_API_LIST_ENDPOINT(),
     requestMethod: 'POST',
     response: MOCK_RAW_ON_CHAIN_NOTIFICATIONS,
-  };
+  } satisfies MockResponse;
 };
 
-export const getMockMarkNotificationsAsReadResponse = (): MockResponse => {
+export const getMockMarkNotificationsAsReadResponse = () => {
   return {
     url: NOTIFICATION_API_MARK_ALL_AS_READ_ENDPOINT(),
     requestMethod: 'POST',
     response: null,
-  };
+  } satisfies MockResponse;
 };
 
-export const getMockCreatePerpOrderNotification = (): MockResponse => {
+export const getMockCreatePerpOrderNotification = () => {
   return {
     url: PERPS_API_CREATE_ORDERS,
     requestMethod: 'POST',
     response: null,
-  };
+  } satisfies MockResponse;
 };
+/* eslint-enable @typescript-eslint/explicit-function-return-type */
