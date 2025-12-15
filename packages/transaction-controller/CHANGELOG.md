@@ -10,6 +10,9 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 ### Changed
 
 - Bump `@metamask/remote-feature-flag-controller` from `^3.0.0` to `^4.0.0` ([#7499](https://github.com/MetaMask/core/pull/7499))
+### Fixed
+
+- Include pending authorizations in nonce calculation ([#7446](https://github.com/MetaMask/core/pull/7446))
 
 ## [62.7.0]
 
