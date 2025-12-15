@@ -1560,21 +1560,6 @@
       "count": 3
     }
   },
-  "packages/notification-services-controller/src/NotificationServicesController/constants/notification-schema.ts": {
-    "@typescript-eslint/naming-convention": {
-      "count": 18
-    }
-  },
-  "packages/notification-services-controller/src/NotificationServicesController/mocks/mockResponses.ts": {
-    "@typescript-eslint/explicit-function-return-type": {
-      "count": 6
-    }
-  },
-  "packages/notification-services-controller/src/NotificationServicesController/processors/process-api-notifications.test.ts": {
-    "id-length": {
-      "count": 1
-    }
-  },
   "packages/notification-services-controller/src/NotificationServicesController/services/perp-notifications.ts": {
     "@typescript-eslint/explicit-function-return-type": {
       "count": 1
