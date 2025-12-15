@@ -1,5 +1,10 @@
 # `@metamask/error-reporting-service`
 
+> [!WARNING]
+> This package is deprecated. To report errors, please use
+> [`Messenger.captureException`](https://github.com/MetaMask/core/blob/8b3ad82c35d9d75c9a5096d847e7e8651e29cc5e/packages/messenger/src/Messenger.ts#L258-L263)
+> instead.
+
 Reports errors to an external app such as Sentry but in an agnostic fashion.
 
 ## Installation

@@ -64,6 +64,7 @@
     { "path": "./packages/preferences-controller/tsconfig.build.json" },
     { "path": "./packages/profile-metrics-controller/tsconfig.build.json" },
     { "path": "./packages/profile-sync-controller/tsconfig.build.json" },
+    { "path": "./packages/ramps-controller/tsconfig.build.json" },
     { "path": "./packages/rate-limit-controller/tsconfig.build.json" },
     { "path": "./packages/remote-feature-flag-controller/tsconfig.build.json" },
     { "path": "./packages/sample-controllers/tsconfig.build.json" },

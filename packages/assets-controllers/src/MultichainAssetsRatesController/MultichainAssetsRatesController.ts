@@ -43,7 +43,6 @@ import type {
 import type {
   MultichainAssetsControllerGetStateAction,
   MultichainAssetsControllerAccountAssetListUpdatedEvent,
-  MultichainAssetsControllerState,
 } from '../MultichainAssetsController';
 
 /**
@@ -203,8 +202,6 @@ export class MultichainAssetsRatesController extends StaticIntervalPollingContro
 
   #currentCurrency: CurrencyRateState['currentCurrency'];
 
-  readonly #accountsAssets: MultichainAssetsControllerState['accountsAssets'];
-
   #isUnlocked = true;
 
   /**
@@ -244,16 +241,13 @@ export class MultichainAssetsRatesController extends StaticIntervalPollingContro
       this.#isUnlocked = true;
     });
 
-    ({ accountsAssets: this.#accountsAssets } = this.messenger.call(
-      'MultichainAssetsController:getState',
-    ));
-
     ({ currentCurrency: this.#currentCurrency } = this.messenger.call(
       'CurrencyRateController:getState',
     ));
 
     this.messenger.subscribe(
       'CurrencyRateController:stateChange',
+      // eslint-disable-next-line @typescript-eslint/no-misused-promises
       async (currentCurrency: string) => {
         this.#currentCurrency = currentCurrency;
         await this.updateAssetsRates();
@@ -264,6 +258,7 @@ export class MultichainAssetsRatesController extends StaticIntervalPollingContro
 
     this.messenger.subscribe(
       'MultichainAssetsController:accountAssetListUpdated',
+      // eslint-disable-next-line @typescript-eslint/no-misused-promises
       async ({ assets }) => {
         const newAccountAssets = Object.entries(assets).map(
           ([accountId, { added }]) => ({
@@ -370,7 +365,7 @@ export class MultichainAssetsRatesController extends StaticIntervalPollingContro
   async updateAssetsRates(): Promise<void> {
     const releaseLock = await this.#mutex.acquire();
 
-    return (async () => {
+    return (async (): Promise<void> => {
       if (!this.isActive) {
         return;
       }
@@ -683,7 +678,12 @@ export class MultichainAssetsRatesController extends StaticIntervalPollingContro
    * @returns An array of CAIP-19 assets.
    */
   #getAssetsForAccount(accountId: string): CaipAssetType[] {
-    return this.#accountsAssets?.[accountId] ?? [];
+    // Always fetch fresh state - MultichainAssetsController uses Immer which creates
+    // new object references on every update, so caching would become stale.
+    const { accountsAssets } = this.messenger.call(
+      'MultichainAssetsController:getState',
+    );
+    return accountsAssets?.[accountId] ?? [];
   }
 
   /**

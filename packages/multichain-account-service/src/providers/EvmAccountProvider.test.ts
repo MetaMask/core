@@ -12,8 +12,10 @@ import type { Hex } from '@metamask/utils';
 import { createBytes } from '@metamask/utils';
 
 import {
+  EVM_ACCOUNT_PROVIDER_DEFAULT_CONFIG,
   EVM_ACCOUNT_PROVIDER_NAME,
   EvmAccountProvider,
+  EvmAccountProviderConfig,
 } from './EvmAccountProvider';
 import { TimeoutError } from './utils';
 import { TraceName } from '../constants/traces';
@@ -117,18 +119,21 @@ class MockEthKeyring implements EthKeyring {
  * @param options.accounts - List of accounts to use.
  * @param options.discovery - Discovery options.
  * @param options.discovery.transactionCount - Transaction count (use '0x0' to stop the discovery).
+ * @param options.config - Provider config.
  * @returns An object containing the controller instance and the messenger.
  */
 function setup({
   messenger = getRootMessenger(),
   accounts = [],
   discovery,
+  config,
 }: {
   messenger?: RootMessenger;
   accounts?: InternalAccount[];
   discovery?: {
     transactionCount: string;
   };
+  config?: EvmAccountProviderConfig;
 } = {}): {
   provider: EvmAccountProvider;
   messenger: RootMessenger;
@@ -190,6 +195,7 @@ function setup({
 
   const provider = new EvmAccountProvider(
     getMultichainAccountServiceMessenger(messenger),
+    config,
   );
 
   return {
@@ -325,6 +331,28 @@ describe('EvmAccountProvider', () => {
     ).toStrictEqual([expectedAccount]);
 
     expect(provider.getAccounts()).toStrictEqual([expectedAccount]);
+  });
+
+  it('stops discovery gracefully if response is invalid', async () => {
+    const { provider } = setup({
+      accounts: [],
+      discovery: {
+        transactionCount: '', // Faking bad hex number.
+      },
+    });
+
+    const consoleSpy = jest.spyOn(console, 'warn').mockImplementation();
+
+    expect(
+      await provider.discoverAccounts({
+        entropySource: MOCK_HD_KEYRING_1.metadata.id,
+        groupIndex: 0,
+      }),
+    ).toStrictEqual([]);
+
+    expect(consoleSpy).toHaveBeenCalledWith(
+      'Received invalid hex response from "eth_getTransactionCount" request: ""',
+    );
   });
 
   it('stops discovery if there is no transaction activity', async () => {
@@ -523,6 +551,26 @@ describe('EvmAccountProvider', () => {
 
     expect(result).toStrictEqual([]);
     expect(mockTrace).toHaveBeenCalledTimes(1);
+  });
+
+  it('does not run discovery if disabled', async () => {
+    const { provider } = setup({
+      accounts: [MOCK_HD_ACCOUNT_1, MOCK_HD_ACCOUNT_2],
+      config: {
+        ...EVM_ACCOUNT_PROVIDER_DEFAULT_CONFIG,
+        discovery: {
+          ...EVM_ACCOUNT_PROVIDER_DEFAULT_CONFIG.discovery,
+          enabled: false,
+        },
+      },
+    });
+
+    expect(
+      await provider.discoverAccounts({
+        entropySource: MOCK_HD_KEYRING_1.metadata.id,
+        groupIndex: 0,
+      }),
+    ).toStrictEqual([]);
   });
 
   it('does nothing when re-syncing accounts', async () => {

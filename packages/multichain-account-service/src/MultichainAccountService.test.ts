@@ -218,12 +218,12 @@ describe('MultichainAccountService', () => {
 
       expect(mocks.EvmAccountProvider.constructor).toHaveBeenCalledWith(
         messenger,
-        providerConfigs?.[EvmAccountProvider.NAME],
+        providerConfigs?.[EVM_ACCOUNT_PROVIDER_NAME],
         expect.any(Function), // TraceCallback
       );
       expect(mocks.SolAccountProvider.constructor).toHaveBeenCalledWith(
         messenger,
-        providerConfigs?.[SolAccountProvider.NAME],
+        providerConfigs?.[SOL_ACCOUNT_PROVIDER_NAME],
         expect.any(Function), // TraceCallback
       );
     });
@@ -259,7 +259,7 @@ describe('MultichainAccountService', () => {
       );
       expect(mocks.SolAccountProvider.constructor).toHaveBeenCalledWith(
         messenger,
-        providerConfigs?.[SolAccountProvider.NAME],
+        providerConfigs?.[SOL_ACCOUNT_PROVIDER_NAME],
         expect.any(Function), // TraceCallback
       );
     });

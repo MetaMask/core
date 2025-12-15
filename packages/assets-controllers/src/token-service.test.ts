@@ -840,5 +840,23 @@ describe('Token service', () => {
       });
       expect(result).toStrictEqual(sampleTrendingTokens);
     });
+
+    it('returns the list of trending tokens with excludeLabels', async () => {
+      const testChainId = 'eip155:1';
+      const testExcludeLabels = ['stable_coin', 'blue_chip'];
+
+      nock(TOKEN_END_POINT_API)
+        .get(
+          `/v3/tokens/trending?chainIds=${encodeURIComponent(testChainId)}&excludeLabels=${testExcludeLabels.join(',')}`,
+        )
+        .reply(200, sampleTrendingTokens)
+        .persist();
+
+      const result = await getTrendingTokens({
+        chainIds: [testChainId],
+        excludeLabels: testExcludeLabels,
+      });
+      expect(result).toStrictEqual(sampleTrendingTokens);
+    });
   });
 });

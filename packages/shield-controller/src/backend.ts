@@ -232,7 +232,9 @@ export class ShieldRemoteBackend implements ShieldBackend {
     // Start measuring total end-to-end latency including retries and delays
     const startTime = Date.now();
 
-    const getCoverageResultFn = async (signal: AbortSignal) => {
+    const getCoverageResultFn = async (
+      signal: AbortSignal,
+    ): Promise<Omit<GetCoverageResultResponse, 'metrics'>> => {
       const res = await this.#fetch(coverageResultUrl, {
         method: 'POST',
         headers,
@@ -249,7 +251,7 @@ export class ShieldRemoteBackend implements ShieldBackend {
       let errorMessage = 'Timeout waiting for coverage result';
       try {
         const errorJson = await res.json();
-        errorMessage = `Failed to get coverage result: ${errorJson.message || errorJson.status}`;
+        errorMessage = `Failed to get coverage result: ${errorJson.message ?? errorJson.status}`;
       } catch {
         errorMessage = `Failed to get coverage result: ${res.status}`;
       }
@@ -271,7 +273,7 @@ export class ShieldRemoteBackend implements ShieldBackend {
     } as GetCoverageResultResponse;
   }
 
-  async #createHeaders() {
+  async #createHeaders(): Promise<Record<string, string>> {
     const accessToken = await this.#getAccessToken();
     return {
       'Content-Type': 'application/json',
@@ -362,7 +364,7 @@ export function parseSignatureRequestMethod(
 function computePollingIntervalAndRetryCount(
   timeout: number,
   pollInterval: number,
-) {
+): { backoff: ConstantBackoff; maxRetries: number } {
   const backoff = new ConstantBackoff(pollInterval);
   const computedMaxRetries = Math.floor(timeout / pollInterval) + 1;
 

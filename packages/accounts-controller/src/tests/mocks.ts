@@ -61,7 +61,10 @@ export const createMockInternalAccount = ({
   lastSelected?: number;
   options?: Record<string, unknown>;
 } = {}): InternalAccount => {
-  const getInternalAccountDefaults = () => {
+  const getInternalAccountDefaults = (): Pick<
+    InternalAccount,
+    'methods' | 'scopes'
+  > => {
     switch (type) {
       case `${EthAccountType.Eoa}`:
         return {
@@ -105,7 +108,7 @@ export const createMockInternalAccount = ({
 
 export const createExpectedInternalAccount = (
   args: Parameters<typeof createMockInternalAccount>[0],
-) => {
+): InternalAccount => {
   return createMockInternalAccount({
     ...args,
     importTime: expect.any(Number),
