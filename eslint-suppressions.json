@@ -1838,35 +1838,6 @@
       "count": 1
     }
   },
-  "packages/permission-log-controller/src/PermissionLogController.ts": {
-    "@typescript-eslint/explicit-function-return-type": {
-      "count": 4
-    },
-    "id-denylist": {
-      "count": 1
-    }
-  },
-  "packages/permission-log-controller/src/enums.ts": {
-    "@typescript-eslint/naming-convention": {
-      "count": 3
-    }
-  },
-  "packages/permission-log-controller/tests/PermissionLogController.test.ts": {
-    "@typescript-eslint/explicit-function-return-type": {
-      "count": 2
-    },
-    "id-length": {
-      "count": 2
-    }
-  },
-  "packages/permission-log-controller/tests/helpers.ts": {
-    "@typescript-eslint/explicit-function-return-type": {
-      "count": 7
-    },
-    "@typescript-eslint/naming-convention": {
-      "count": 10
-    }
-  },
   "packages/phishing-controller/src/BulkTokenScan.test.ts": {
     "@typescript-eslint/explicit-function-return-type": {
       "count": 2
