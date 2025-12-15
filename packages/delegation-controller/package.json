@@ -49,9 +49,9 @@
   },
   "dependencies": {
     "@metamask/accounts-controller": "^35.0.0",
-    "@metamask/base-controller": "^9.0.0",
+    "@metamask/base-controller": "^9.1.0",
     "@metamask/keyring-controller": "^25.0.0",
-    "@metamask/messenger": "^0.3.0",
+    "@metamask/messenger": "^0.4.0",
     "@metamask/utils": "^11.8.1"
   },
   "devDependencies": {
