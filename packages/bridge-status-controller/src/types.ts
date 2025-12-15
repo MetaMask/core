@@ -31,7 +31,7 @@ import type {
 import type { CaipAssetType } from '@metamask/utils';
 
 import type { BridgeStatusController } from './bridge-status-controller';
-import type { BRIDGE_STATUS_CONTROLLER_NAME } from './constants';
+import { BRIDGE_STATUS_CONTROLLER_NAME } from './constants';
 import type { StatusResponseSchema } from './utils/validators';
 
 // All fields need to be types not interfaces, same with their children fields
@@ -240,25 +240,25 @@ export type BridgeStatusControllerGetStateAction = ControllerGetStateAction<
 
 // Maps to BridgeController function names
 export type BridgeStatusControllerStartPollingForBridgeTxStatusAction =
-  BridgeStatusControllerAction<BridgeStatusAction.START_POLLING_FOR_BRIDGE_TX_STATUS>;
+  BridgeStatusControllerAction<'startPollingForBridgeTxStatus'>;
 
 export type BridgeStatusControllerWipeBridgeStatusAction =
-  BridgeStatusControllerAction<BridgeStatusAction.WIPE_BRIDGE_STATUS>;
+  BridgeStatusControllerAction<'wipeBridgeStatus'>;
 
 export type BridgeStatusControllerResetStateAction =
-  BridgeStatusControllerAction<BridgeStatusAction.RESET_STATE>;
+  BridgeStatusControllerAction<'resetState'>;
 
 export type BridgeStatusControllerSubmitTxAction =
-  BridgeStatusControllerAction<BridgeStatusAction.SUBMIT_TX>;
+  BridgeStatusControllerAction<'submitTx'>;
 
 export type BridgeStatusControllerSubmitIntentAction =
-  BridgeStatusControllerAction<BridgeStatusAction.SUBMIT_INTENT>;
+  BridgeStatusControllerAction<'submitIntent'>;
 
 export type BridgeStatusControllerRestartPollingForFailedAttemptsAction =
-  BridgeStatusControllerAction<BridgeStatusAction.RESTART_POLLING_FOR_FAILED_ATTEMPTS>;
+  BridgeStatusControllerAction<'restartPollingForFailedAttempts'>;
 
 export type BridgeStatusControllerGetBridgeHistoryItemByTxMetaIdAction =
-  BridgeStatusControllerAction<BridgeStatusAction.GET_BRIDGE_HISTORY_ITEM_BY_TX_META_ID>;
+  BridgeStatusControllerAction<'getBridgeHistoryItemByTxMetaId'>;
 
 export type BridgeStatusControllerActions =
   | BridgeStatusControllerStartPollingForBridgeTxStatusAction

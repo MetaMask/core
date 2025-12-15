@@ -10,7 +10,7 @@ export type IntentSubmissionParams = {
 };
 
 export type IntentApi = {
-  submitIntent(params: IntentSubmissionParams): Promise<any>;
+  submitIntent(params: IntentSubmissionParams): Promise<unknown>;
 };
 
 export class IntentApiImpl implements IntentApi {

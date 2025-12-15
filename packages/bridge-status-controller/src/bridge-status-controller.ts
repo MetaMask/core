@@ -552,7 +552,11 @@ export class BridgeStatusController extends StaticIntervalPollingController<Brid
     await this.#fetchBridgeTxStatus(pollingInput);
   };
 
-  #getMultichainSelectedAccount(accountAddress: string): unknown {
+  #getMultichainSelectedAccount(
+    accountAddress: string,
+  ):
+    | AccountsControllerState['internalAccounts']['accounts'][string]
+    | undefined {
     return this.messenger.call(
       'AccountsController:getAccountByAddress',
       accountAddress,
