@@ -53,5 +53,7 @@ export const NOTIFICATION_CHAINS_ID = {
   SEI: '1329',
 } as const;
 
-export type NotificationChainsIds =
+// Kept as SCREAMING_SNAKE_CASE for backwards compatibility
+// eslint-disable-next-line @typescript-eslint/naming-convention
+export type NOTIFICATION_CHAINS_IDS =
   (typeof NOTIFICATION_CHAINS_ID)[keyof typeof NOTIFICATION_CHAINS_ID];
