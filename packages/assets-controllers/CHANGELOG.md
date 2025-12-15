@@ -12,6 +12,22 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 - Add `excludeLabels` parameter to `getTrendingTokens` to filter out tokens by labels (e.g., 'stable_coin', 'blue_chip') ([#7466](https://github.com/MetaMask/core/pull/7466))
 - Add support for spot prices on multiple new chains: Apechain, Lens, Plume, Flow EVM, Berachain, xrpl-evm, Fraxtal, Lukso, xdc-network, and Plasma ([#7465](https://github.com/MetaMask/core/pull/7465))
 - Add `ape` to `SUPPORTED_CURRENCIES` for ApeCoin/Apechain native token ([#7465](https://github.com/MetaMask/core/pull/7465))
+- Add `isOnboarded` constructor option to `TokenBalancesController` and `AccountTrackerController` ([#7469](https://github.com/MetaMask/core/pull/7469))
+  - When `isOnboarded()` returns `false`, balance updates are skipped to prevent unnecessary API calls during onboarding
+  - `TokenBalancesController.isActive` now also checks `isOnboarded()` in addition to `isUnlocked`
+  - `AccountTrackerController.#refreshAccounts` now checks `isOnboarded()` before fetching balances
+
+### Fixed
+
+- Fix `TokenBalancesController` to evaluate `allowExternalServices` dynamically instead of only at constructor time ([#7469](https://github.com/MetaMask/core/pull/7469))
+  - Previously, the `#balanceFetchers` array was built once in the constructor, so changes to `allowExternalServices()` after initialization were not reflected
+  - Now `allowExternalServices()` is stored as a function and evaluated dynamically in the fetcher's `supports` method
+- Fix `TokenDetectionController` methods `addDetectedTokensViaPolling` and `addDetectedTokensViaWs` to refresh token metadata cache before use ([#7469](https://github.com/MetaMask/core/pull/7469))
+  - Previously, these methods used a potentially stale/empty `#tokensChainsCache` from construction time
+  - Now they fetch the latest `tokensChainsCache` from `TokenListController:getState` before looking up token metadata
+- Fix `AccountTrackerController.syncBalanceWithAddresses` to also check `isOnboarded()` before fetching balances ([#7469](https://github.com/MetaMask/core/pull/7469))
+  - Previously, only `#refreshAccounts` checked `isOnboarded()`, but `syncBalanceWithAddresses` would still make RPC calls during onboarding
+  - Now `syncBalanceWithAddresses` returns an empty object when `isOnboarded()` returns `false`
 
 ## [94.0.0]
 
