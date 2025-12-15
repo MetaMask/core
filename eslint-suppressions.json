@@ -1052,16 +1052,6 @@
       "count": 6
     }
   },
-  "packages/eth-json-rpc-provider/src/internal-provider.test.ts": {
-    "@typescript-eslint/explicit-function-return-type": {
-      "count": 3
-    }
-  },
-  "packages/eth-json-rpc-provider/src/internal-provider.ts": {
-    "@typescript-eslint/explicit-function-return-type": {
-      "count": 2
-    }
-  },
   "packages/foundryup/src/cli.ts": {
     "no-restricted-globals": {
       "count": 1
@@ -1612,33 +1602,6 @@
       "count": 1
     }
   },
-  "packages/notification-services-controller/src/NotificationServicesController/processors/process-notifications.ts": {
-    "@typescript-eslint/explicit-function-return-type": {
-      "count": 2
-    },
-    "id-length": {
-      "count": 6
-    }
-  },
-  "packages/notification-services-controller/src/NotificationServicesController/services/api-notifications.ts": {
-    "@typescript-eslint/explicit-function-return-type": {
-      "count": 8
-    },
-    "id-denylist": {
-      "count": 1
-    },
-    "id-length": {
-      "count": 4
-    },
-    "no-param-reassign": {
-      "count": 2
-    }
-  },
-  "packages/notification-services-controller/src/NotificationServicesController/services/feature-announcements.test.ts": {
-    "@typescript-eslint/explicit-function-return-type": {
-      "count": 2
-    }
-  },
   "packages/notification-services-controller/src/NotificationServicesController/services/feature-announcements.ts": {
     "@typescript-eslint/explicit-function-return-type": {
       "count": 2
@@ -1681,21 +1644,6 @@
       "count": 70
     }
   },
-  "packages/notification-services-controller/src/NotificationServicesController/types/perps/schema.ts": {
-    "@typescript-eslint/naming-convention": {
-      "count": 9
-    }
-  },
-  "packages/notification-services-controller/src/NotificationServicesController/utils/isVersionInBounds.ts": {
-    "@typescript-eslint/explicit-function-return-type": {
-      "count": 1
-    }
-  },
-  "packages/notification-services-controller/src/NotificationServicesController/utils/should-auto-expire.ts": {
-    "@typescript-eslint/explicit-function-return-type": {
-      "count": 1
-    }
-  },
   "packages/notification-services-controller/src/NotificationServicesPushController/NotificationServicesPushController.test.ts": {
     "@typescript-eslint/explicit-function-return-type": {
       "count": 4
@@ -1712,21 +1660,6 @@
   "packages/notification-services-controller/src/NotificationServicesPushController/__fixtures__/mockServices.ts": {
     "@typescript-eslint/explicit-function-return-type": {
       "count": 1
-    }
-  },
-  "packages/notification-services-controller/src/NotificationServicesPushController/mocks/mockResponse.ts": {
-    "@typescript-eslint/explicit-function-return-type": {
-      "count": 3
-    }
-  },
-  "packages/notification-services-controller/src/NotificationServicesPushController/services/endpoints.ts": {
-    "@typescript-eslint/explicit-function-return-type": {
-      "count": 2
-    }
-  },
-  "packages/notification-services-controller/src/NotificationServicesPushController/services/services.test.ts": {
-    "@typescript-eslint/explicit-function-return-type": {
-      "count": 4
     }
   },
   "packages/notification-services-controller/src/NotificationServicesPushController/services/services.ts": {
@@ -1774,11 +1707,6 @@
   },
   "packages/notification-services-controller/src/shared/is-onchain-notification.ts": {
     "id-length": {
-      "count": 1
-    }
-  },
-  "packages/notification-services-controller/src/shared/to-raw-notification.ts": {
-    "@typescript-eslint/explicit-function-return-type": {
       "count": 1
     }
   },
