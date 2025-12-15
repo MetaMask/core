@@ -325,71 +325,46 @@ export class TokenListController extends StaticIntervalPollingController<TokenLi
   }
 
   /**
-   * Migrate tokensChainsCache from old storage formats to per-chain files.
-   * Handles backward compatibility for users upgrading from:
-   * 1. Old persisted state (tokensChainsCache was in state)
-   * 2. Old single-file StorageService (all chains in one file)
+   * Migrate tokensChainsCache from old persisted state to per-chain files.
+   * Handles backward compatibility for users upgrading from the old
+   * framework-managed state (persist: true) to StorageService.
    *
    * @returns A promise that resolves when migration is complete.
    */
   async #migrateStateToStorage(): Promise<void> {
     try {
-      let dataToMigrate: TokensChainsCache | null = null;
+      // Check if we have data in state that needs migration
+      if (
+        !this.state.tokensChainsCache ||
+        Object.keys(this.state.tokensChainsCache).length === 0
+      ) {
+        return; // No data to migrate
+      }
 
-      // Check for old single-file storage (previous StorageService version)
-      const { result: oldStorageData } = await this.messenger.call(
-        'StorageService:getItem',
+      // Check if per-chain files already exist (migration already done)
+      const allKeys = await this.messenger.call(
+        'StorageService:getAllKeys',
         name,
-        TokenListController.#storageKeyPrefix, // Old key without chain suffix
+      );
+      const hasPerChainFiles = allKeys.some((key) =>
+        key.startsWith(`${TokenListController.#storageKeyPrefix}:`),
       );
 
-      if (oldStorageData) {
-        // Migrate from old single-file storage
-        dataToMigrate = oldStorageData as TokensChainsCache;
-        console.log(
-          'TokenListController: Migrating from single-file to per-chain storage',
-        );
-      } else if (
-        this.state.tokensChainsCache &&
-        Object.keys(this.state.tokensChainsCache).length > 0
-      ) {
-        // Check if per-chain files already exist
-        const allKeys = await this.messenger.call(
-          'StorageService:getAllKeys',
-          name,
-        );
-        const hasPerChainFiles = allKeys.some((key) =>
-          key.startsWith(`${TokenListController.#storageKeyPrefix}:`),
-        );
-
-        if (!hasPerChainFiles) {
-          // Migrate from old persisted state
-          dataToMigrate = this.state.tokensChainsCache;
-          console.log(
-            'TokenListController: Migrating from persisted state to per-chain storage',
-          );
-        }
+      if (hasPerChainFiles) {
+        return; // Already migrated
       }
 
-      if (!dataToMigrate) {
-        return; // Nothing to migrate
-      }
+      // Migrate from old persisted state to per-chain files
+      console.log(
+        'TokenListController: Migrating from persisted state to per-chain storage',
+      );
 
       // Split into per-chain files
       await Promise.all(
-        Object.keys(dataToMigrate).map((chainId) =>
+        Object.keys(this.state.tokensChainsCache).map((chainId) =>
           this.#saveChainCacheToStorage(chainId as Hex),
         ),
       );
-
-      // Remove old single-file storage if it existed
-      if (oldStorageData) {
-        await this.messenger.call(
-          'StorageService:removeItem',
-          name,
-          TokenListController.#storageKeyPrefix,
-        );
-      }
 
       console.log(
         'TokenListController: Migration to per-chain storage complete',
