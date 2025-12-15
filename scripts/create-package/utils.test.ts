@@ -1,7 +1,7 @@
 import execa from 'execa';
 import fs from 'fs';
 import path from 'path';
-import prettier from 'prettier';
+import { format } from 'prettier';
 
 import { MonorepoFiles } from './constants';
 import * as fsUtils from './fs-utils';
@@ -101,7 +101,7 @@ describe('create-package/utils', () => {
         'mock3.file': 'PACKAGE_DESCRIPTION PACKAGE_DIRECTORY_NAME',
       });
 
-      (prettier.format as jest.Mock).mockImplementation((input) => input);
+      (format as jest.Mock).mockImplementation((input) => input);
 
       await finalizeAndWriteData(packageData, monorepoFileData);
 
@@ -125,7 +125,7 @@ describe('create-package/utils', () => {
 
       // Writing monorepo files
       expect(fs.promises.writeFile).toHaveBeenCalledTimes(2);
-      expect(prettier.format).toHaveBeenCalledTimes(2);
+      expect(format).toHaveBeenCalledTimes(2);
       expect(fs.promises.writeFile).toHaveBeenCalledWith(
         expect.stringMatching(/tsconfig\.json$/u),
         JSON.stringify({

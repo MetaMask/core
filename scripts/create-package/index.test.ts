@@ -21,7 +21,7 @@ describe('create-package/index', () => {
 
     jest.spyOn(console, 'error').mockImplementation();
 
-    // eslint-disable-next-line @typescript-eslint/no-require-imports, n/global-require
+    // eslint-disable-next-line @typescript-eslint/no-require-imports, n/global-require, import-x/no-unassigned-import
     require('.');
     await new Promise((resolve) => setImmediate(resolve));
 

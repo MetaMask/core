@@ -14,7 +14,7 @@ export default async function cli(
   argv: string[],
   // Parameterized for easier testing.
   commands: CommandModule[],
-) {
+): Promise<void> {
   await yargs(argv.slice(2))
     .scriptName('create-package')
     // Disable --version. This is an internal tool and it doesn't have a version.
