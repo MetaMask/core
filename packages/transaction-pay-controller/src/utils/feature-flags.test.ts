@@ -8,6 +8,7 @@ import {
   getGasBuffer,
 } from './feature-flags';
 import { getMessengerMock } from '../tests/messenger-mock';
+import { getDefaultRemoteFeatureFlagControllerState } from '../../../remote-feature-flag-controller/src/remote-feature-flag-controller';
 
 const GAS_FALLBACK_ESTIMATE_MOCK = 123;
 const GAS_FALLBACK_MAX_MOCK = 456;
@@ -27,10 +28,7 @@ describe('Feature Flags Utils', () => {
     jest.resetAllMocks();
 
     getRemoteFeatureFlagControllerStateMock.mockReturnValue({
-      cacheTimestamp: 0,
-      remoteFeatureFlags: {},
-      rawRemoteFeatureFlags: {},
-      localOverrides: {},
+      ...getDefaultRemoteFeatureFlagControllerState(),
     });
   });
 
@@ -51,7 +49,7 @@ describe('Feature Flags Utils', () => {
 
     it('returns feature flags', () => {
       getRemoteFeatureFlagControllerStateMock.mockReturnValue({
-        cacheTimestamp: 0,
+        ...getDefaultRemoteFeatureFlagControllerState(),
         remoteFeatureFlags: {
           confirmations_pay: {
             relayDisabledGasStationChains:
@@ -64,8 +62,6 @@ describe('Feature Flags Utils', () => {
             slippage: SLIPPAGE_MOCK,
           },
         },
-        rawRemoteFeatureFlags: {},
-        localOverrides: {},
       });
 
       const featureFlags = getFeatureFlags(messenger);
@@ -91,7 +87,7 @@ describe('Feature Flags Utils', () => {
 
     it('returns default gas buffer from feature flags when set', () => {
       getRemoteFeatureFlagControllerStateMock.mockReturnValue({
-        cacheTimestamp: 0,
+        ...getDefaultRemoteFeatureFlagControllerState(),
         remoteFeatureFlags: {
           confirmations_pay: {
             gasBuffer: {
@@ -99,8 +95,6 @@ describe('Feature Flags Utils', () => {
             },
           },
         },
-        localOverrides: {},
-        rawRemoteFeatureFlags: {},
       });
 
       const gasBuffer = getGasBuffer(messenger, CHAIN_ID_MOCK);
@@ -110,7 +104,7 @@ describe('Feature Flags Utils', () => {
 
     it('returns per-chain gas buffer when set for specific chain', () => {
       getRemoteFeatureFlagControllerStateMock.mockReturnValue({
-        cacheTimestamp: 0,
+        ...getDefaultRemoteFeatureFlagControllerState(),
         remoteFeatureFlags: {
           confirmations_pay: {
             gasBuffer: {
@@ -124,8 +118,6 @@ describe('Feature Flags Utils', () => {
             },
           },
         },
-        localOverrides: {},
-        rawRemoteFeatureFlags: {},
       });
 
       const gasBuffer = getGasBuffer(messenger, CHAIN_ID_MOCK);
@@ -135,7 +127,7 @@ describe('Feature Flags Utils', () => {
 
     it('falls back to default gas buffer when per-chain config exists but specific chain is not found', () => {
       getRemoteFeatureFlagControllerStateMock.mockReturnValue({
-        cacheTimestamp: 0,
+        ...getDefaultRemoteFeatureFlagControllerState(),
         remoteFeatureFlags: {
           confirmations_pay: {
             gasBuffer: {
@@ -149,8 +141,6 @@ describe('Feature Flags Utils', () => {
             },
           },
         },
-        localOverrides: {},
-        rawRemoteFeatureFlags: {},
       });
 
       const gasBuffer = getGasBuffer(messenger, CHAIN_ID_DIFFERENT_MOCK);
@@ -160,7 +150,7 @@ describe('Feature Flags Utils', () => {
 
     it('falls back to hardcoded default when per-chain config exists but no default is set', () => {
       getRemoteFeatureFlagControllerStateMock.mockReturnValue({
-        cacheTimestamp: 0,
+        ...getDefaultRemoteFeatureFlagControllerState(),
         remoteFeatureFlags: {
           confirmations_pay: {
             gasBuffer: {
@@ -173,8 +163,6 @@ describe('Feature Flags Utils', () => {
             },
           },
         },
-        localOverrides: {},
-        rawRemoteFeatureFlags: {},
       });
 
       const gasBuffer = getGasBuffer(messenger, CHAIN_ID_DIFFERENT_MOCK);

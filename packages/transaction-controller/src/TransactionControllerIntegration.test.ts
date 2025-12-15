@@ -60,6 +60,7 @@ import {
   buildEthSendRawTransactionRequestMock,
   buildEthGetTransactionReceiptRequestMock,
 } from '../tests/JsonRpcRequestMocks';
+import { getDefaultRemoteFeatureFlagControllerState } from '../../remote-feature-flag-controller/src/remote-feature-flag-controller';
 
 jest.mock('uuid', () => {
   const actual = jest.requireActual('uuid');
@@ -278,12 +279,7 @@ const setupController = async (
 
   remoteFeatureFlagControllerMessenger.registerActionHandler(
     'RemoteFeatureFlagController:getState',
-    () => ({
-      cacheTimestamp: 0,
-      remoteFeatureFlags: {},
-      rawRemoteFeatureFlags: {},
-      localOverrides: {},
-    }),
+    () => getDefaultRemoteFeatureFlagControllerState(),
   );
 
   const options: TransactionControllerOptions = {

@@ -34,6 +34,7 @@ import {
   getTokenBalance,
   getTokenFiatRate,
 } from '../../utils/token';
+import { getDefaultRemoteFeatureFlagControllerState } from '../../../../remote-feature-flag-controller/src/remote-feature-flag-controller';
 
 jest.mock('../../utils/token');
 jest.mock('../../utils/gas');
@@ -192,10 +193,7 @@ describe('Relay Quotes Utils', () => {
     });
 
     getRemoteFeatureFlagControllerStateMock.mockReturnValue({
-      cacheTimestamp: 0,
-      remoteFeatureFlags: {},
-      rawRemoteFeatureFlags: {},
-      localOverrides: {},
+      ...getDefaultRemoteFeatureFlagControllerState(),
     });
 
     getGasBufferMock.mockReturnValue(1.0);
@@ -567,14 +565,12 @@ describe('Relay Quotes Utils', () => {
       const relayQuoteUrl = 'https://test.com/quote';
 
       getRemoteFeatureFlagControllerStateMock.mockReturnValue({
-        cacheTimestamp: 0,
+        ...getDefaultRemoteFeatureFlagControllerState(),
         remoteFeatureFlags: {
           confirmations_pay: {
             relayQuoteUrl,
           },
         },
-        rawRemoteFeatureFlags: {},
-        localOverrides: {},
       });
 
       await getRelayQuotes({
@@ -929,14 +925,12 @@ describe('Relay Quotes Utils', () => {
         getGasFeeTokensMock.mockResolvedValue([GAS_FEE_TOKEN_MOCK]);
 
         getRemoteFeatureFlagControllerStateMock.mockReturnValue({
-          cacheTimestamp: 0,
+          ...getDefaultRemoteFeatureFlagControllerState(),
           remoteFeatureFlags: {
             confirmations_pay: {
               relayDisabledGasStationChains: [QUOTE_REQUEST_MOCK.sourceChainId],
             },
           },
-          rawRemoteFeatureFlags: {},
-          localOverrides: {},
         });
 
         const result = await getRelayQuotes({

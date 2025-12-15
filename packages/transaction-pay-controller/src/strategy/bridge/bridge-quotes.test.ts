@@ -20,6 +20,7 @@ import type {
 import type { QuoteRequest } from '../../types';
 import { calculateGasCost, calculateTransactionGasCost } from '../../utils/gas';
 import { getTokenFiatRate } from '../../utils/token';
+import { getDefaultRemoteFeatureFlagControllerState } from '../../../../remote-feature-flag-controller/src/remote-feature-flag-controller';
 
 jest.mock('../../utils/token');
 jest.mock('../../utils/gas');
@@ -126,12 +127,10 @@ describe('Bridge Quotes Utils', () => {
     });
 
     getRemoteFeatureFlagControllerStateMock.mockImplementation(() => ({
-      cacheTimestamp: 0,
+      ...getDefaultRemoteFeatureFlagControllerState(),
       remoteFeatureFlags: {
         confirmations_pay: getFeatureFlagsMock(),
       },
-      rawRemoteFeatureFlags: {},
-      localOverrides: {},
     }));
 
     getFeatureFlagsMock.mockReturnValue(FEATURE_FLAGS_MOCK);
@@ -1011,7 +1010,7 @@ describe('Bridge Quotes Utils', () => {
   describe('getBridgeRefreshInterval', () => {
     it('returns chain interval from feature flags', () => {
       getRemoteFeatureFlagControllerStateMock.mockReturnValue({
-        cacheTimestamp: 0,
+        ...getDefaultRemoteFeatureFlagControllerState(),
         remoteFeatureFlags: {
           bridgeConfigV2: {
             chains: {
@@ -1021,8 +1020,6 @@ describe('Bridge Quotes Utils', () => {
             },
           },
         },
-        rawRemoteFeatureFlags: {},
-        localOverrides: {},
       });
 
       const result = getBridgeRefreshInterval({
@@ -1035,7 +1032,7 @@ describe('Bridge Quotes Utils', () => {
 
     it('returns global interval from feature flags', () => {
       getRemoteFeatureFlagControllerStateMock.mockReturnValue({
-        cacheTimestamp: 0,
+        ...getDefaultRemoteFeatureFlagControllerState(),
         remoteFeatureFlags: {
           bridgeConfigV2: {
             chains: {
@@ -1046,8 +1043,6 @@ describe('Bridge Quotes Utils', () => {
             refreshRate: 456000,
           },
         },
-        rawRemoteFeatureFlags: {},
-        localOverrides: {},
       });
 
       const result = getBridgeRefreshInterval({
@@ -1060,7 +1055,7 @@ describe('Bridge Quotes Utils', () => {
 
     it('returns undefined if no chain or global interval', () => {
       getRemoteFeatureFlagControllerStateMock.mockReturnValue({
-        cacheTimestamp: 0,
+        ...getDefaultRemoteFeatureFlagControllerState(),
         remoteFeatureFlags: {
           bridgeConfigV2: {
             chains: {
@@ -1070,8 +1065,6 @@ describe('Bridge Quotes Utils', () => {
             },
           },
         },
-        rawRemoteFeatureFlags: {},
-        localOverrides: {},
       });
 
       const result = getBridgeRefreshInterval({

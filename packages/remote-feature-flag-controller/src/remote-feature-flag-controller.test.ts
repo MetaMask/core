@@ -665,9 +665,14 @@ describe('RemoteFeatureFlagController', () => {
       });
 
       it('overwrites existing override for the same flag', () => {
-        const controller = createController();
+        const controller = createController({
+          state: {
+            localOverrides: {
+              testFlag: true,
+            },
+          },
+        });
 
-        controller.setFlagOverride('testFlag', true);
         controller.setFlagOverride('testFlag', false);
 
         expect(controller.state.localOverrides).toStrictEqual({
@@ -676,9 +681,14 @@ describe('RemoteFeatureFlagController', () => {
       });
 
       it('preserves other overrides when setting a new one', () => {
-        const controller = createController();
+        const controller = createController({
+          state: {
+            localOverrides: {
+              flag1: 'value1',
+            },
+          },
+        });
 
-        controller.setFlagOverride('flag1', 'value1');
         controller.setFlagOverride('flag2', 'value2');
 
         expect(controller.state.localOverrides).toStrictEqual({
@@ -690,10 +700,15 @@ describe('RemoteFeatureFlagController', () => {
 
     describe('removeFlagOverride', () => {
       it('removes a specific override', () => {
-        const controller = createController();
+        const controller = createController({
+          state: {
+            localOverrides: {
+              flag1: 'value1',
+              flag2: 'value2',
+            },
+          },
+        });
 
-        controller.setFlagOverride('flag1', 'value1');
-        controller.setFlagOverride('flag2', 'value2');
         controller.removeFlagOverride('flag1');
 
         expect(controller.state.localOverrides).toStrictEqual({
@@ -702,9 +717,14 @@ describe('RemoteFeatureFlagController', () => {
       });
 
       it('does not affect state when clearing non-existent override', () => {
-        const controller = createController();
+        const controller = createController({
+          state: {
+            localOverrides: {
+              flag1: 'value1',
+            },
+          },
+        });
 
-        controller.setFlagOverride('flag1', 'value1');
         controller.removeFlagOverride('nonExistentFlag');
 
         expect(controller.state.localOverrides).toStrictEqual({
@@ -715,10 +735,15 @@ describe('RemoteFeatureFlagController', () => {
 
     describe('clearAllFlagOverrides', () => {
       it('removes all overrides', () => {
-        const controller = createController();
+        const controller = createController({
+          state: {
+            localOverrides: {
+              flag1: 'value1',
+              flag2: 'value2',
+            },
+          },
+        });
 
-        controller.setFlagOverride('flag1', 'value1');
-        controller.setFlagOverride('flag2', 'value2');
         controller.clearAllFlagOverrides();
 
         expect(controller.state.localOverrides).toStrictEqual({});

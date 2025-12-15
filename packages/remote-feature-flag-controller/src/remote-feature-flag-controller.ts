@@ -251,8 +251,8 @@ export class RemoteFeatureFlagController extends BaseController<
       await this.#processRemoteFeatureFlags(remoteFeatureFlags);
     this.update(() => {
       return {
+        ...this.state,
         remoteFeatureFlags: processedRemoteFeatureFlags,
-        localOverrides: this.state.localOverrides,
         rawRemoteFeatureFlags: remoteFeatureFlags,
         cacheTimestamp: Date.now(),
       };
