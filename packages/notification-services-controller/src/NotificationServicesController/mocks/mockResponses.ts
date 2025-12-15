@@ -17,53 +17,53 @@ type MockResponse = {
 
 export const CONTENTFUL_RESPONSE = createMockFeatureAnnouncementAPIResult();
 
-export const getMockFeatureAnnouncementResponse = () => {
+export const getMockFeatureAnnouncementResponse = (): MockResponse => {
   return {
     url: FEATURE_ANNOUNCEMENT_API,
     requestMethod: 'GET',
     response: CONTENTFUL_RESPONSE,
-  } satisfies MockResponse;
+  };
 };
 
-export const getMockUpdateOnChainNotifications = () => {
+export const getMockUpdateOnChainNotifications = (): MockResponse => {
   return {
     url: TRIGGER_API_NOTIFICATIONS_ENDPOINT(),
     requestMethod: 'POST',
     response: null,
-  } satisfies MockResponse;
+  };
 };
 
-export const getMockOnChainNotificationsConfig = () => {
+export const getMockOnChainNotificationsConfig = (): MockResponse => {
   return {
     url: TRIGGER_API_NOTIFICATIONS_QUERY_ENDPOINT(),
     requestMethod: 'POST',
     response: [{ address: '0xTestAddress', enabled: true }],
-  } satisfies MockResponse;
+  };
 };
 
 export const MOCK_RAW_ON_CHAIN_NOTIFICATIONS =
   createMockRawOnChainNotifications();
 
-export const getMockListNotificationsResponse = () => {
+export const getMockListNotificationsResponse = (): MockResponse => {
   return {
     url: NOTIFICATION_API_LIST_ENDPOINT(),
     requestMethod: 'POST',
     response: MOCK_RAW_ON_CHAIN_NOTIFICATIONS,
-  } satisfies MockResponse;
+  };
 };
 
-export const getMockMarkNotificationsAsReadResponse = () => {
+export const getMockMarkNotificationsAsReadResponse = (): MockResponse => {
   return {
     url: NOTIFICATION_API_MARK_ALL_AS_READ_ENDPOINT(),
     requestMethod: 'POST',
     response: null,
-  } satisfies MockResponse;
+  };
 };
 
-export const getMockCreatePerpOrderNotification = () => {
+export const getMockCreatePerpOrderNotification = (): MockResponse => {
   return {
     url: PERPS_API_CREATE_ORDERS,
     requestMethod: 'POST',
     response: null,
-  } satisfies MockResponse;
+  };
 };

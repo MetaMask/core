@@ -1,5 +1,5 @@
 import { NOTIFICATION_CHAINS_ID } from '../constants/notification-schema';
-import type { NOTIFICATION_CHAINS_IDS } from '../constants/notification-schema';
+import type { NotificationChainsIds } from '../constants/notification-schema';
 
 export const NOTIFICATION_NETWORK_CURRENCY_NAME = {
   [NOTIFICATION_CHAINS_ID.ETHEREUM]: 'Ethereum',
@@ -11,7 +11,7 @@ export const NOTIFICATION_NETWORK_CURRENCY_NAME = {
   [NOTIFICATION_CHAINS_ID.OPTIMISM]: 'Optimism',
   [NOTIFICATION_CHAINS_ID.POLYGON]: 'Polygon',
   [NOTIFICATION_CHAINS_ID.SEI]: 'Sei Network',
-} satisfies Record<NOTIFICATION_CHAINS_IDS, string>;
+} satisfies Record<NotificationChainsIds, string>;
 
 export const NOTIFICATION_NETWORK_CURRENCY_SYMBOL = {
   [NOTIFICATION_CHAINS_ID.ETHEREUM]: 'ETH',
@@ -23,7 +23,7 @@ export const NOTIFICATION_NETWORK_CURRENCY_SYMBOL = {
   [NOTIFICATION_CHAINS_ID.OPTIMISM]: 'ETH',
   [NOTIFICATION_CHAINS_ID.POLYGON]: 'POL',
   [NOTIFICATION_CHAINS_ID.SEI]: 'SEI',
-} satisfies Record<NOTIFICATION_CHAINS_IDS, string>;
+} satisfies Record<NotificationChainsIds, string>;
 
 export type BlockExplorerConfig = {
   url: string;
@@ -75,6 +75,6 @@ export const SUPPORTED_NOTIFICATION_BLOCK_EXPLORERS = {
     url: 'https://seitrace.com/',
     name: 'SeiTrace',
   },
-} satisfies Record<NOTIFICATION_CHAINS_IDS, BlockExplorerConfig>;
+} satisfies Record<NotificationChainsIds, BlockExplorerConfig>;
 
 export { NOTIFICATION_CHAINS_ID } from '../constants/notification-schema';

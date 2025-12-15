@@ -1,6 +1,6 @@
 import { getAmount, formatAmount } from './get-notification-data';
 import type {
-  NOTIFICATION_CHAINS_IDS,
+  NotificationChainsIds,
   Types,
 } from '../../NotificationServicesController';
 import type { Constants } from '../../NotificationServicesController';
@@ -248,7 +248,7 @@ export const createOnChainPushNotificationMessages = (
 function getChainSymbol(chainId: number) {
   return (
     NOTIFICATION_NETWORK_CURRENCY_SYMBOL[
-      chainId.toString() as NOTIFICATION_CHAINS_IDS
+      chainId.toString() as NotificationChainsIds
     ] ?? null
   );
 }
