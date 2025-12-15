@@ -21,6 +21,10 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
   - `RemoteFeatureFlagControllerremoveFlagOverrideAction`
   - `RemoteFeatureFlagControllerclearAllFlagOverridesAction`
 
+### Fixed
+
+- Remove duplicate type definition to maintain a single source of truth
+
 ## [3.0.0]
 
 ### Added
