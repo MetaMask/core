@@ -22,7 +22,7 @@ import type {
   TokenListMap,
   TokenListState,
   TokenListControllerMessenger,
-  TokensChainsCache,
+  DataCache,
 } from './TokenListController';
 import { TokenListController } from './TokenListController';
 import { advanceTime } from '../../../tests/helpers';
@@ -514,6 +514,20 @@ const getMessenger = (): RootMessenger => {
     },
   );
 
+  // eslint-disable-next-line @typescript-eslint/no-explicit-any
+  (messenger as any).registerActionHandler(
+    'StorageService:getAllKeys',
+    (controllerNamespace: string) => {
+      const keys: string[] = [];
+      mockStorage.forEach((_value, key) => {
+        // Extract key without namespace prefix
+        const keyWithoutNamespace = key.replace(`${controllerNamespace}:`, '');
+        keys.push(keyWithoutNamespace);
+      });
+      return keys;
+    },
+  );
+
   return messenger;
 };
 
@@ -536,6 +550,7 @@ const getRestrictedMessenger = (
       'StorageService:getItem',
       'StorageService:setItem',
       'StorageService:removeItem',
+      'StorageService:getAllKeys',
     ],
     events: ['NetworkController:stateChange'],
   });
@@ -1422,24 +1437,22 @@ describe('TokenListController', () => {
         state: oldPersistedState,
       });
 
-      // Fetch tokens to trigger save to storage (migration happens asynchronously in constructor)
-      nock(tokenService.TOKEN_END_POINT_API)
-        .get(getTokensPath(ChainId.mainnet))
-        .reply(200, sampleMainnetTokenList);
+      // Wait for async migration to complete
+      await new Promise((resolve) => setTimeout(resolve, 100));
 
-      await controller.fetchTokenList(ChainId.mainnet);
-
-      // Verify data was saved to StorageService
+      // Verify data was migrated to StorageService (per-chain file)
+      const chainStorageKey = `tokensChainsCache:${ChainId.mainnet}`;
       const { result } = await messenger.call(
         'StorageService:getItem',
         'TokenListController',
-        'tokensChainsCache',
+        chainStorageKey,
       );
 
       expect(result).toBeDefined();
-      const resultCache = result as TokensChainsCache;
-      expect(resultCache[ChainId.mainnet]).toBeDefined();
-      expect(resultCache[ChainId.mainnet].data).toBeDefined();
+      const resultCache = result as DataCache;
+      expect(resultCache.data).toBeDefined();
+      expect(resultCache.timestamp).toBeDefined();
+      expect(resultCache.data).toStrictEqual(sampleMainnetTokensChainsCache);
 
       controller.destroy();
     });
@@ -1448,18 +1461,17 @@ describe('TokenListController', () => {
       const messenger = getMessenger();
       const restrictedMessenger = getRestrictedMessenger(messenger);
 
-      // Pre-populate StorageService with existing data
-      const existingStorageData = {
-        [ChainId.mainnet]: {
-          data: { '0xExistingToken': { name: 'Existing', symbol: 'EXT' } },
-          timestamp: Date.now(),
-        },
+      // Pre-populate StorageService with existing data (per-chain file)
+      const existingChainData: DataCache = {
+        data: sampleMainnetTokensChainsCache,
+        timestamp: Date.now(),
       };
+      const chainStorageKey = `tokensChainsCache:${ChainId.mainnet}`;
       await messenger.call(
         'StorageService:setItem',
         'TokenListController',
-        'tokensChainsCache',
-        existingStorageData,
+        chainStorageKey,
+        existingChainData,
       );
 
       // Initialize with different state data
@@ -1486,14 +1498,12 @@ describe('TokenListController', () => {
       const { result } = await messenger.call(
         'StorageService:getItem',
         'TokenListController',
-        'tokensChainsCache',
+        chainStorageKey,
       );
 
-      expect(result).toStrictEqual(existingStorageData);
-      const resultCache = result as TokensChainsCache;
-      expect(resultCache[ChainId.mainnet].data).toStrictEqual(
-        existingStorageData[ChainId.mainnet].data,
-      );
+      expect(result).toStrictEqual(existingChainData);
+      const resultCache = result as DataCache;
+      expect(resultCache.data).toStrictEqual(existingChainData.data);
 
       controller.destroy();
     });
@@ -1511,14 +1521,16 @@ describe('TokenListController', () => {
       // Wait for migration logic to run
       await new Promise((resolve) => setTimeout(resolve, 100));
 
-      // Verify nothing was saved to StorageService
-      const { result } = await messenger.call(
-        'StorageService:getItem',
+      // Verify nothing was saved to StorageService (check no per-chain files)
+      const allKeys = await messenger.call(
+        'StorageService:getAllKeys',
         'TokenListController',
-        'tokensChainsCache',
+      );
+      const cacheKeys = allKeys.filter((key) =>
+        key.startsWith('tokensChainsCache:'),
       );
 
-      expect(result).toBeUndefined();
+      expect(cacheKeys).toHaveLength(0);
 
       controller.destroy();
     });
@@ -1542,15 +1554,16 @@ describe('TokenListController', () => {
 
       controller1.destroy();
 
-      // Verify data is in StorageService
+      // Verify data is in StorageService (per-chain file)
+      const chainStorageKey = `tokensChainsCache:${ChainId.mainnet}`;
       const { result } = await messenger.call(
         'StorageService:getItem',
         'TokenListController',
-        'tokensChainsCache',
+        chainStorageKey,
       );
 
       expect(result).toBeDefined();
-      expect(result).toStrictEqual(savedCache);
+      expect(result).toStrictEqual(savedCache[ChainId.mainnet]);
     });
 
     it('should save tokensChainsCache to StorageService when fetching tokens', async () => {
@@ -1568,17 +1581,18 @@ describe('TokenListController', () => {
 
       await controller.fetchTokenList(ChainId.mainnet);
 
-      // Verify data was saved to StorageService (fetchTokenList awaits the save)
+      // Verify data was saved to StorageService (per-chain file)
+      const chainStorageKey = `tokensChainsCache:${ChainId.mainnet}`;
       const { result } = await messenger.call(
         'StorageService:getItem',
         'TokenListController',
-        'tokensChainsCache',
+        chainStorageKey,
       );
 
       expect(result).toBeDefined();
-      const resultCache = result as TokensChainsCache;
-      expect(resultCache[ChainId.mainnet]).toBeDefined();
-      expect(resultCache[ChainId.mainnet].data).toBeDefined();
+      const resultCache = result as DataCache;
+      expect(resultCache.data).toBeDefined();
+      expect(resultCache.timestamp).toBeDefined();
 
       controller.destroy();
     });
@@ -1587,25 +1601,26 @@ describe('TokenListController', () => {
       const messenger = getMessenger();
       const restrictedMessenger = getRestrictedMessenger(messenger);
 
-      // Pre-populate StorageService
-      const storageData = {
-        [ChainId.mainnet]: {
-          data: sampleMainnetTokensChainsCache,
-          timestamp: Date.now(),
-        },
+      // Pre-populate StorageService (per-chain file)
+      const chainData: DataCache = {
+        data: sampleMainnetTokensChainsCache,
+        timestamp: Date.now(),
       };
+      const chainStorageKey = `tokensChainsCache:${ChainId.mainnet}`;
       await messenger.call(
         'StorageService:setItem',
         'TokenListController',
-        'tokensChainsCache',
-        storageData,
+        chainStorageKey,
+        chainData,
       );
 
       const controller = new TokenListController({
         chainId: ChainId.mainnet,
         messenger: restrictedMessenger,
         state: {
-          tokensChainsCache: storageData,
+          tokensChainsCache: {
+            [ChainId.mainnet]: chainData,
+          },
           preventPollingOnNetworkRestart: false,
         },
       });
@@ -1615,14 +1630,16 @@ describe('TokenListController', () => {
 
       await controller.clearingTokenListData();
 
-      // Verify data was removed from StorageService (clearingTokenListData awaits the removal)
-      const { result } = await messenger.call(
-        'StorageService:getItem',
+      // Verify data was removed from StorageService (per-chain file removed)
+      const allKeys = await messenger.call(
+        'StorageService:getAllKeys',
         'TokenListController',
-        'tokensChainsCache',
+      );
+      const cacheKeys = allKeys.filter((key) =>
+        key.startsWith('tokensChainsCache:'),
       );
 
-      expect(result).toBeUndefined();
+      expect(cacheKeys).toHaveLength(0);
       expect(controller.state.tokensChainsCache).toStrictEqual({});
 
       controller.destroy();

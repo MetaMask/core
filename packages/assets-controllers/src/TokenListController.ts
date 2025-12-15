@@ -15,6 +15,7 @@ import type {
   StorageServiceSetItemAction,
   StorageServiceGetItemAction,
   StorageServiceRemoveItemAction,
+  StorageServiceGetAllKeysAction,
 } from '@metamask/storage-service';
 import type { Hex } from '@metamask/utils';
 import { Mutex } from 'async-mutex';
@@ -43,7 +44,7 @@ export type TokenListToken = {
 
 export type TokenListMap = Record<string, TokenListToken>;
 
-type DataCache = {
+export type DataCache = {
   timestamp: number;
   data: TokenListMap;
 };
@@ -74,7 +75,8 @@ type AllowedActions =
   | NetworkControllerGetNetworkClientByIdAction
   | StorageServiceSetItemAction
   | StorageServiceGetItemAction
-  | StorageServiceRemoveItemAction;
+  | StorageServiceRemoveItemAction
+  | StorageServiceGetAllKeysAction;
 
 type AllowedEvents = NetworkControllerStateChangeEvent;
 
@@ -121,8 +123,18 @@ export class TokenListController extends StaticIntervalPollingController<TokenLi
 > {
   readonly #mutex = new Mutex();
 
-  // Storage key for StorageService
-  static readonly #storageKey = 'tokensChainsCache';
+  // Storage key prefix for per-chain files
+  static readonly #storageKeyPrefix = 'tokensChainsCache';
+
+  /**
+   * Get storage key for a specific chain.
+   *
+   * @param chainId - The chain ID.
+   * @returns Storage key for the chain.
+   */
+  static #getChainStorageKey(chainId: Hex): string {
+    return `${TokenListController.#storageKeyPrefix}:${chainId}`;
+  }
 
   #intervalId?: ReturnType<typeof setTimeout>;
 
@@ -212,30 +224,64 @@ export class TokenListController extends StaticIntervalPollingController<TokenLi
 
   /**
    * Load tokensChainsCache from StorageService into state.
+   * Loads all cached chains from separate per-chain files in parallel.
    * Called during initialization to restore cached data.
    *
    * @returns A promise that resolves when loading is complete.
    */
   async #loadCacheFromStorage(): Promise<void> {
     try {
-      const { result, error } = await this.messenger.call(
-        'StorageService:getItem',
+      // Get all keys for this controller
+      const allKeys = await this.messenger.call(
+        'StorageService:getAllKeys',
         name,
-        TokenListController.#storageKey,
       );
 
-      if (error) {
-        console.error(
-          'TokenListController: Error loading cache from storage:',
-          error,
-        );
-        return;
+      // Filter keys that belong to tokensChainsCache (per-chain files)
+      const cacheKeys = allKeys.filter((key) =>
+        key.startsWith(`${TokenListController.#storageKeyPrefix}:`),
+      );
+
+      if (cacheKeys.length === 0) {
+        return; // No cached data
       }
 
-      if (result) {
-        // Load from StorageService into state
+      // Load all chains in parallel
+      const chainCaches = await Promise.all(
+        cacheKeys.map(async (key) => {
+          // Extract chainId from key: 'tokensChainsCache:0x1' → '0x1'
+          const chainId = key.split(':')[1] as Hex;
+
+          const { result, error } = await this.messenger.call(
+            'StorageService:getItem',
+            name,
+            key,
+          );
+
+          if (error) {
+            console.error(
+              `TokenListController: Error loading cache for ${chainId}:`,
+              error,
+            );
+            return null;
+          }
+
+          return result ? { chainId, data: result as DataCache } : null;
+        }),
+      );
+
+      // Build complete cache from loaded chains
+      const loadedCache: TokensChainsCache = {};
+      chainCaches.forEach((chainCache) => {
+        if (chainCache) {
+          loadedCache[chainCache.chainId] = chainCache.data;
+        }
+      });
+
+      // Load into state (all chains available for TokenDetectionController)
+      if (Object.keys(loadedCache).length > 0) {
         this.update((state) => {
-          state.tokensChainsCache = result as TokensChainsCache;
+          state.tokensChainsCache = loadedCache;
         });
       }
     } catch (error) {
@@ -247,56 +293,107 @@ export class TokenListController extends StaticIntervalPollingController<TokenLi
   }
 
   /**
-   * Save tokensChainsCache from state to StorageService.
-   * This persists large token data outside of the persisted state.
+   * Save a specific chain's cache to StorageService.
+   * This persists only the updated chain's data, reducing write amplification.
    *
+   * @param chainId - The chain ID to save.
    * @returns A promise that resolves when saving is complete.
    */
-  async #saveCacheToStorage(): Promise<void> {
+  async #saveChainCacheToStorage(chainId: Hex): Promise<void> {
     try {
+      const chainData = this.state.tokensChainsCache[chainId];
+
+      if (!chainData) {
+        console.warn(`TokenListController: No cache data for chain ${chainId}`);
+        return;
+      }
+
+      const storageKey = TokenListController.#getChainStorageKey(chainId);
+
       await this.messenger.call(
         'StorageService:setItem',
         name,
-        TokenListController.#storageKey,
-        this.state.tokensChainsCache,
+        storageKey,
+        chainData,
       );
     } catch (error) {
       console.error(
-        'TokenListController: Failed to save cache to storage:',
+        `TokenListController: Failed to save cache for ${chainId}:`,
         error,
       );
     }
   }
 
   /**
-   * Migrate tokensChainsCache from old persisted state to StorageService.
-   * This handles backward compatibility for users upgrading from versions
-   * where tokensChainsCache was persisted in state.
+   * Migrate tokensChainsCache from old storage formats to per-chain files.
+   * Handles backward compatibility for users upgrading from:
+   * 1. Old persisted state (tokensChainsCache was in state)
+   * 2. Old single-file StorageService (all chains in one file)
    *
    * @returns A promise that resolves when migration is complete.
    */
   async #migrateStateToStorage(): Promise<void> {
     try {
-      // Check if state has data (from old persisted state)
-      const hasStateData =
-        this.state.tokensChainsCache &&
-        Object.keys(this.state.tokensChainsCache).length > 0;
+      let dataToMigrate: TokensChainsCache | null = null;
 
-      if (!hasStateData) {
-        return;
-      }
-
-      // Check if StorageService already has data
-      const { result } = await this.messenger.call(
+      // Check for old single-file storage (previous StorageService version)
+      const { result: oldStorageData } = await this.messenger.call(
         'StorageService:getItem',
         name,
-        TokenListController.#storageKey,
+        TokenListController.#storageKeyPrefix, // Old key without chain suffix
       );
 
-      // If StorageService is empty but state has data, migrate it
-      if (!result) {
-        await this.#saveCacheToStorage();
+      if (oldStorageData) {
+        // Migrate from old single-file storage
+        dataToMigrate = oldStorageData as TokensChainsCache;
+        console.log(
+          'TokenListController: Migrating from single-file to per-chain storage',
+        );
+      } else if (
+        this.state.tokensChainsCache &&
+        Object.keys(this.state.tokensChainsCache).length > 0
+      ) {
+        // Check if per-chain files already exist
+        const allKeys = await this.messenger.call(
+          'StorageService:getAllKeys',
+          name,
+        );
+        const hasPerChainFiles = allKeys.some((key) =>
+          key.startsWith(`${TokenListController.#storageKeyPrefix}:`),
+        );
+
+        if (!hasPerChainFiles) {
+          // Migrate from old persisted state
+          dataToMigrate = this.state.tokensChainsCache;
+          console.log(
+            'TokenListController: Migrating from persisted state to per-chain storage',
+          );
+        }
       }
+
+      if (!dataToMigrate) {
+        return; // Nothing to migrate
+      }
+
+      // Split into per-chain files
+      await Promise.all(
+        Object.keys(dataToMigrate).map((chainId) =>
+          this.#saveChainCacheToStorage(chainId as Hex),
+        ),
+      );
+
+      // Remove old single-file storage if it existed
+      if (oldStorageData) {
+        await this.messenger.call(
+          'StorageService:removeItem',
+          name,
+          TokenListController.#storageKeyPrefix,
+        );
+      }
+
+      console.log(
+        'TokenListController: Migration to per-chain storage complete',
+      );
     } catch (error) {
       console.error(
         'TokenListController: Failed to migrate cache to storage:',
@@ -464,8 +561,8 @@ export class TokenListController extends StaticIntervalPollingController<TokenLi
           state.tokensChainsCache[chainId] = newDataCache;
         });
 
-        // Persist to StorageService (async, non-blocking)
-        await this.#saveCacheToStorage();
+        // Persist only this chain to StorageService (reduces write amplification)
+        await this.#saveChainCacheToStorage(chainId);
         return;
       }
 
@@ -477,8 +574,8 @@ export class TokenListController extends StaticIntervalPollingController<TokenLi
           state.tokensChainsCache[chainId].timestamp = Date.now();
         });
 
-        // Persist to StorageService
-        await this.#saveCacheToStorage();
+        // Persist only this chain to StorageService
+        await this.#saveChainCacheToStorage(chainId);
       }
     } finally {
       releaseLock();
@@ -496,7 +593,7 @@ export class TokenListController extends StaticIntervalPollingController<TokenLi
 
   /**
    * Clearing tokenList and tokensChainsCache explicitly.
-   * This clears both state and StorageService data.
+   * This clears both state and all per-chain files in StorageService.
    */
   async clearingTokenListData(): Promise<void> {
     // Clear state
@@ -504,12 +601,29 @@ export class TokenListController extends StaticIntervalPollingController<TokenLi
       state.tokensChainsCache = {};
     });
 
-    // Clear from StorageService
+    // Clear all per-chain files from StorageService
     try {
+      const allKeys = await this.messenger.call(
+        'StorageService:getAllKeys',
+        name,
+      );
+
+      // Filter and remove all tokensChainsCache keys
+      const cacheKeys = allKeys.filter((key) =>
+        key.startsWith(`${TokenListController.#storageKeyPrefix}:`),
+      );
+
+      await Promise.all(
+        cacheKeys.map((key) =>
+          this.messenger.call('StorageService:removeItem', name, key),
+        ),
+      );
+
+      // Also remove old single-file storage if it exists (cleanup)
       await this.messenger.call(
         'StorageService:removeItem',
         name,
-        TokenListController.#storageKey,
+        TokenListController.#storageKeyPrefix,
       );
     } catch (error) {
       console.error(
