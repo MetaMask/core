@@ -9,7 +9,7 @@ import { mockEndpointUpdatePushNotificationLinks } from '../__fixtures__/mockSer
 import type { PushNotificationEnv } from '../types/firebase';
 
 // Testing util to clean up verbose logs when testing errors
-const mockErrorLog = () =>
+const mockErrorLog = (): jest.SpyInstance =>
   jest.spyOn(log, 'error').mockImplementation(jest.fn());
 
 const MOCK_REG_TOKEN = 'REG_TOKEN';
@@ -19,7 +19,7 @@ const MOCK_JWT = 'MOCK_JWT';
 
 describe('NotificationServicesPushController Services', () => {
   describe('updateLinksAPI', () => {
-    const act = async () =>
+    const act = async (): Promise<boolean> =>
       await updateLinksAPI({
         bearerToken: MOCK_JWT,
         addresses: MOCK_ADDRESSES,
@@ -54,6 +54,8 @@ describe('NotificationServicesPushController Services', () => {
   });
 
   describe('activatePushNotifications', () => {
+    // Internal testing utility - return type is inferred
+    // eslint-disable-next-line @typescript-eslint/explicit-function-return-type
     const arrangeMocks = (override?: { mockPut?: { status: number } }) => {
       const params = {
         bearerToken: MOCK_JWT,
@@ -124,6 +126,8 @@ describe('NotificationServicesPushController Services', () => {
   });
 
   describe('deactivatePushNotifications', () => {
+    // Internal testing utility - return type is inferred
+    // eslint-disable-next-line @typescript-eslint/explicit-function-return-type
     const arrangeMocks = () => {
       const params = {
         regToken: MOCK_REG_TOKEN,

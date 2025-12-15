@@ -128,8 +128,8 @@ class BlockCacheStrategy {
     // clear old caches
     Object.keys(this.#cache)
       .map(Number)
-      .filter((num) => num < oldBlockNumber)
-      .forEach((num) => delete this.#cache[num]);
+      .filter((value) => value < oldBlockNumber)
+      .forEach((value) => delete this.#cache[value]);
   }
 }
 

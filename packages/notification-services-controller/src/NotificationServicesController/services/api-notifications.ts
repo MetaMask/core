@@ -24,7 +24,7 @@ const TRIGGER_API_ENV = {
   prd: 'https://trigger.api.cx.metamask.io',
 } satisfies Record<ENV, string>;
 
-export const TRIGGER_API = (env: ENV = 'prd') =>
+export const TRIGGER_API = (env: ENV = 'prd'): string =>
   TRIGGER_API_ENV[env] ?? TRIGGER_API_ENV.prd;
 
 const NOTIFICATION_API_ENV = {
@@ -33,24 +33,26 @@ const NOTIFICATION_API_ENV = {
   prd: 'https://notification.api.cx.metamask.io',
 };
 
-export const NOTIFICATION_API = (env: ENV = 'prd') =>
+export const NOTIFICATION_API = (env: ENV = 'prd'): string =>
   NOTIFICATION_API_ENV[env] ?? NOTIFICATION_API_ENV.prd;
 
 // Gets notification settings for each account provided
-export const TRIGGER_API_NOTIFICATIONS_QUERY_ENDPOINT = (env: ENV = 'prd') =>
-  `${TRIGGER_API(env)}/api/v2/notifications/query`;
+export const TRIGGER_API_NOTIFICATIONS_QUERY_ENDPOINT = (
+  env: ENV = 'prd',
+): string => `${TRIGGER_API(env)}/api/v2/notifications/query`;
 
 // Used to create/update account notifications for each account provided
-export const TRIGGER_API_NOTIFICATIONS_ENDPOINT = (env: ENV = 'prd') =>
+export const TRIGGER_API_NOTIFICATIONS_ENDPOINT = (env: ENV = 'prd'): string =>
   `${TRIGGER_API(env)}/api/v2/notifications`;
 
 // Lists notifications for each account provided
-export const NOTIFICATION_API_LIST_ENDPOINT = (env: ENV = 'prd') =>
+export const NOTIFICATION_API_LIST_ENDPOINT = (env: ENV = 'prd'): string =>
   `${NOTIFICATION_API(env)}/api/v3/notifications`;
 
-// Makrs notifications as read
-export const NOTIFICATION_API_MARK_ALL_AS_READ_ENDPOINT = (env: ENV = 'prd') =>
-  `${NOTIFICATION_API(env)}/api/v3/notifications/mark-as-read`;
+// Marks notifications as read
+export const NOTIFICATION_API_MARK_ALL_AS_READ_ENDPOINT = (
+  env: ENV = 'prd',
+): string => `${NOTIFICATION_API(env)}/api/v3/notifications/mark-as-read`;
 
 /**
  * fetches notification config (accounts enabled vs disabled)
@@ -66,31 +68,31 @@ export async function getNotificationsApiConfigCached(
   bearerToken: string,
   addresses: string[],
   env: ENV = 'prd',
-) {
+): Promise<{ address: string; enabled: boolean }[]> {
   if (addresses.length === 0) {
     return [];
   }
 
-  addresses = addresses.map((a) => a.toLowerCase());
+  const normalizedAddresses = addresses.map((addr) => addr.toLowerCase());
 
-  const cached = notificationsConfigCache.get(addresses);
+  const cached = notificationsConfigCache.get(normalizedAddresses);
   if (cached) {
     return cached;
   }
 
   type RequestBody = { address: string }[];
   type Response = { address: string; enabled: boolean }[];
-  const body: RequestBody = addresses.map((address) => ({ address }));
-  const data = await makeApiCall(
+  const body: RequestBody = normalizedAddresses.map((address) => ({ address }));
+  const apiResponse = await makeApiCall(
     bearerToken,
     TRIGGER_API_NOTIFICATIONS_QUERY_ENDPOINT(env),
     'POST',
     body,
   )
-    .then<Response | null>((r) => (r.ok ? r.json() : null))
+    .then<Response | null>((response) => (response.ok ? response.json() : null))
     .catch(() => null);
 
-  const result = data ?? [];
+  const result = apiResponse ?? [];
 
   if (result.length > 0) {
     notificationsConfigCache.set(result);
@@ -111,25 +113,25 @@ export async function updateOnChainNotifications(
   bearerToken: string,
   addresses: { address: string; enabled: boolean }[],
   env: ENV = 'prd',
-) {
+): Promise<void> {
   if (addresses.length === 0) {
     return;
   }
 
-  addresses = addresses.map((a) => {
-    a.address = a.address.toLowerCase();
-    return a;
-  });
+  const normalizedAddresses = addresses.map((item) => ({
+    ...item,
+    address: item.address.toLowerCase(),
+  }));
 
   type RequestBody = { address: string; enabled: boolean }[];
-  const body: RequestBody = addresses;
+  const body: RequestBody = normalizedAddresses;
   await makeApiCall(
     bearerToken,
     TRIGGER_API_NOTIFICATIONS_ENDPOINT(env),
     'POST',
     body,
   )
-    .then(() => notificationsConfigCache.set(addresses))
+    .then(() => notificationsConfigCache.set(normalizedAddresses))
     .catch(() => null);
 }
 
@@ -160,7 +162,7 @@ export async function getAPINotifications(
     Schema.paths['/api/v3/notifications']['post']['responses']['200']['content']['application/json'];
 
   const body: RequestBody = {
-    addresses: addresses.map((a) => a.toLowerCase()),
+    addresses: addresses.map((addr) => addr.toLowerCase()),
     locale,
     platform,
   };
@@ -170,23 +172,25 @@ export async function getAPINotifications(
     'POST',
     body,
   )
-    .then<APIResponse | null>((r) => (r.ok ? r.json() : null))
+    .then<APIResponse | null>((response) =>
+      response.ok ? response.json() : null,
+    )
     .catch(() => null);
 
   // Transform and sort notifications
   const transformedNotifications = notifications
-    ?.map((n): UnprocessedRawNotification | undefined => {
-      if (!n.notification_type) {
+    ?.map((notification): UnprocessedRawNotification | undefined => {
+      if (!notification.notification_type) {
         return undefined;
       }
 
       try {
-        return toRawAPINotification(n);
+        return toRawAPINotification(notification);
       } catch {
         return undefined;
       }
     })
-    .filter((n): n is NormalisedAPINotification => Boolean(n));
+    .filter((item): item is NormalisedAPINotification => Boolean(item));
 
   return transformedNotifications ?? [];
 }
@@ -223,7 +227,7 @@ export async function markNotificationsAsRead(
       'POST',
       body,
     );
-  } catch (err) {
-    log.error('Error marking notifications as read:', err);
+  } catch (error) {
+    log.error('Error marking notifications as read:', error);
   }
 }

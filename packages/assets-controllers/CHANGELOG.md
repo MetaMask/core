@@ -9,6 +9,12 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ### Added
 
+- Export `selectAllAssets` ([#7496](https://github.com/MetaMask/core/pull/7496))
+
+## [94.1.0]
+
+### Added
+
 - Add `excludeLabels` parameter to `getTrendingTokens` to filter out tokens by labels (e.g., 'stable_coin', 'blue_chip') ([#7466](https://github.com/MetaMask/core/pull/7466))
 - Add support for spot prices on multiple new chains: Apechain, Lens, Plume, Flow EVM, Berachain, xrpl-evm, Fraxtal, Lukso, xdc-network, and Plasma ([#7465](https://github.com/MetaMask/core/pull/7465))
 - Add `ape` to `SUPPORTED_CURRENCIES` for ApeCoin/Apechain native token ([#7465](https://github.com/MetaMask/core/pull/7465))
@@ -2437,7 +2443,8 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 - Use Ethers for AssetsContractController ([#845](https://github.com/MetaMask/core/pull/845))
 
-[Unreleased]: https://github.com/MetaMask/core/compare/@metamask/assets-controllers@94.0.0...HEAD
+[Unreleased]: https://github.com/MetaMask/core/compare/@metamask/assets-controllers@94.1.0...HEAD
+[94.1.0]: https://github.com/MetaMask/core/compare/@metamask/assets-controllers@94.0.0...@metamask/assets-controllers@94.1.0
 [94.0.0]: https://github.com/MetaMask/core/compare/@metamask/assets-controllers@93.1.0...@metamask/assets-controllers@94.0.0
 [93.1.0]: https://github.com/MetaMask/core/compare/@metamask/assets-controllers@93.0.0...@metamask/assets-controllers@93.1.0
 [93.0.0]: https://github.com/MetaMask/core/compare/@metamask/assets-controllers@92.0.0...@metamask/assets-controllers@93.0.0
