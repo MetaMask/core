@@ -1560,30 +1560,6 @@
       "count": 3
     }
   },
-  "packages/notification-services-controller/src/NotificationServicesController/services/feature-announcements.ts": {
-    "@typescript-eslint/explicit-function-return-type": {
-      "count": 2
-    },
-    "@typescript-eslint/naming-convention": {
-      "count": 2
-    },
-    "@typescript-eslint/prefer-nullish-coalescing": {
-      "count": 2
-    },
-    "id-length": {
-      "count": 3
-    }
-  },
-  "packages/notification-services-controller/src/NotificationServicesController/services/notification-config-cache.ts": {
-    "@typescript-eslint/naming-convention": {
-      "count": 1
-    }
-  },
-  "packages/notification-services-controller/src/NotificationServicesController/services/perp-notifications.test.ts": {
-    "@typescript-eslint/explicit-function-return-type": {
-      "count": 1
-    }
-  },
   "packages/notification-services-controller/src/NotificationServicesController/services/perp-notifications.ts": {
     "@typescript-eslint/explicit-function-return-type": {
       "count": 1
