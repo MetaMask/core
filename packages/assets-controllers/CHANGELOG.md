@@ -17,6 +17,10 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
   - `KeyringController:lock` event sets controller to inactive state
 - `AccountTrackerController` now only refreshes balances for the newly added network on `NetworkController:networkAdded` event instead of all networks ([#7492](https://github.com/MetaMask/core/pull/7492))
 
+### Added
+
+- Export `selectAllAssets` ([#7496](https://github.com/MetaMask/core/pull/7496))
+
 ## [94.1.0]
 
 ### Added
