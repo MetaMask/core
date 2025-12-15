@@ -10,6 +10,7 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 ### Changed
 
 - **BREAKING:** Bump `@metamask/remote-feature-flag-controller` from `^3.0.0` to `^4.0.0` ([#7499](https://github.com/MetaMask/core/pull/7499))
+  - This change is breaking because the controller state structure has changed: two new persisted state properties (`localOverrides` and `rawRemoteFeatureFlags`) have been added. Consumers need to ensure their state migration handles these new properties, and TypeScript types have been updated accordingly.
 
 ## [62.7.0]
 
