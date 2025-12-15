@@ -7,6 +7,16 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+### Changed
+
+- **BREAKING:** `AccountTrackerController` now requires `KeyringController:getState` action and `KeyringController:lock` event in addition to existing allowed actions and events ([#XXXX](https://github.com/MetaMask/core/pull/XXXX))
+  - Added `#isLocked` property to track keyring lock state, initialized from `KeyringController:getState`
+  - Added `isActive` getter that returns `true` when keyring is unlocked and user is onboarded
+  - Balance updates are now skipped when controller is not active (locked or not onboarded)
+  - `KeyringController:unlock` event now only updates lock state without triggering immediate refresh
+  - `KeyringController:lock` event sets controller to inactive state
+- `AccountTrackerController` now only refreshes balances for the newly added network on `NetworkController:networkAdded` event instead of all networks ([#XXXX](https://github.com/MetaMask/core/pull/XXXX))
+
 ## [94.1.0]
 
 ### Added
