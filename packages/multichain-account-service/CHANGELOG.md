@@ -7,6 +7,11 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+### Added
+
+- Add `config.discovery.enabled` option for all account provider config objects ([#7447](https://github.com/MetaMask/core/pull/7447))
+- Add `{EVM,SOL,BTC,TRX}_ACCOUNT_PROVIDER_DEFAULT_CONFIG` ([#7447](https://github.com/MetaMask/core/pull/7447))
+
 ## [4.0.1]
 
 ### Changed

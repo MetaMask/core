@@ -26,6 +26,7 @@ import type {
   NetworkControllerGetSelectedChainIdAction,
   NetworkControllerRemoveNetworkAction,
   NetworkControllerFindNetworkClientIdByChainIdAction,
+  NetworkState,
 } from '@metamask/network-controller';
 import { KnownCaipNamespace } from '@metamask/utils';
 import type { CaipAccountId } from '@metamask/utils';
@@ -131,7 +132,36 @@ function setupController({
     Parameters<NetworkControllerFindNetworkClientIdByChainIdAction['handler']>
   >;
   mockNetworkService?: AbstractMultichainNetworkService;
-} = {}) {
+} = {}): {
+  messenger: RootMessenger;
+  controller: MultichainNetworkController;
+  mockGetNetworkState: jest.Mock<
+    NetworkState,
+    Parameters<NetworkControllerGetStateAction['handler']>
+  >;
+  mockSetActiveNetwork: jest.Mock<
+    ReturnType<NetworkControllerSetActiveNetworkAction['handler']>,
+    Parameters<NetworkControllerSetActiveNetworkAction['handler']>
+  >;
+  mockRemoveNetwork: jest.Mock<
+    ReturnType<NetworkControllerRemoveNetworkAction['handler']>,
+    Parameters<NetworkControllerRemoveNetworkAction['handler']>
+  >;
+  mockGetSelectedChainId: jest.Mock<
+    ReturnType<NetworkControllerGetSelectedChainIdAction['handler']>,
+    Parameters<NetworkControllerGetSelectedChainIdAction['handler']>
+  >;
+  mockFindNetworkClientIdByChainId: jest.Mock<
+    ReturnType<NetworkControllerFindNetworkClientIdByChainIdAction['handler']>,
+    Parameters<NetworkControllerFindNetworkClientIdByChainIdAction['handler']>
+  >;
+  publishSpy: jest.SpyInstance<
+    ReturnType<MultichainNetworkControllerMessenger['publish']>,
+    Parameters<MultichainNetworkControllerMessenger['publish']>
+  >;
+  triggerSelectedAccountChange: (accountType: TestKeyringAccountType) => void;
+  networkService: AbstractMultichainNetworkService;
+} {
   const messenger = getRootMessenger();
 
   // Register action handlers
@@ -229,7 +259,7 @@ function setupController({
 
   const triggerSelectedAccountChange = (
     accountType: TestKeyringAccountType,
-  ) => {
+  ): void => {
     const mockAccountAddressByAccountType: Record<
       TestKeyringAccountType,
       string

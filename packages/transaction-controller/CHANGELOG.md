@@ -9,6 +9,10 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [62.7.0]
 
+### Added
+
+- Adding a new transaction meta property `requestId`. It is supported for both simple and batched transactions ([#7415](https://github.com/MetaMask/core/pull/7415))
+
 ## [62.6.0]
 
 ### Added
