@@ -9,6 +9,7 @@ import { cloneDeep } from 'lodash';
 import { CHAIN_ID_HYPERCORE } from './constants';
 import { getRelayQuotes } from './relay-quotes';
 import type { RelayQuote } from './types';
+import { getDefaultRemoteFeatureFlagControllerState } from '../../../../remote-feature-flag-controller/src/remote-feature-flag-controller';
 import {
   ARBITRUM_USDC_ADDRESS,
   CHAIN_ID_ARBITRUM,
@@ -34,7 +35,6 @@ import {
   getTokenBalance,
   getTokenFiatRate,
 } from '../../utils/token';
-import { getDefaultRemoteFeatureFlagControllerState } from '../../../../remote-feature-flag-controller/src/remote-feature-flag-controller';
 
 jest.mock('../../utils/token');
 jest.mock('../../utils/gas');

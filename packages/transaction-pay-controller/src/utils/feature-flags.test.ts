@@ -7,8 +7,8 @@ import {
   getFeatureFlags,
   getGasBuffer,
 } from './feature-flags';
-import { getMessengerMock } from '../tests/messenger-mock';
 import { getDefaultRemoteFeatureFlagControllerState } from '../../../remote-feature-flag-controller/src/remote-feature-flag-controller';
+import { getMessengerMock } from '../tests/messenger-mock';
 
 const GAS_FALLBACK_ESTIMATE_MOCK = 123;
 const GAS_FALLBACK_MAX_MOCK = 456;

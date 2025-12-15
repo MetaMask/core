@@ -11,6 +11,7 @@ import {
   refreshQuote,
 } from './bridge-quotes';
 import type { TransactionPayBridgeQuote } from './types';
+import { getDefaultRemoteFeatureFlagControllerState } from '../../../../remote-feature-flag-controller/src/remote-feature-flag-controller';
 import { getMessengerMock } from '../../tests/messenger-mock';
 import type {
   PayStrategyGetBatchRequest,
@@ -20,7 +21,6 @@ import type {
 import type { QuoteRequest } from '../../types';
 import { calculateGasCost, calculateTransactionGasCost } from '../../utils/gas';
 import { getTokenFiatRate } from '../../utils/token';
-import { getDefaultRemoteFeatureFlagControllerState } from '../../../../remote-feature-flag-controller/src/remote-feature-flag-controller';
 
 jest.mock('../../utils/token');
 jest.mock('../../utils/gas');
