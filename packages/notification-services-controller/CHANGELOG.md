@@ -9,7 +9,6 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ### Changed
 
-- Improve code quality by adding explicit return types and fixing ESLint violations in push notification utilities ([#7483](https://github.com/MetaMask/core/pull/7483))
 - Move peer dependencies for controller and service packages to direct dependencies ([#7209](https://github.com/MetaMask/core/pull/7209))
   - The dependencies moved are:
     - `@metamask/keyring-controller` (^25.0.0)
