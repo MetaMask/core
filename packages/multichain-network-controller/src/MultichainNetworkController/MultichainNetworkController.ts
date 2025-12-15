@@ -249,7 +249,7 @@ export class MultichainNetworkController extends BaseController<
    *
    * @param account - The account that was changed
    */
-  #handleOnSelectedAccountChange(account: InternalAccount) {
+  #handleOnSelectedAccountChange(account: InternalAccount): void {
     const { type: accountType, scopes } = account;
     const isEvmAccount = isEvmAccountType(accountType);
 
@@ -290,7 +290,7 @@ export class MultichainNetworkController extends BaseController<
   /**
    * Subscribes to message events.
    */
-  #subscribeToMessageEvents() {
+  #subscribeToMessageEvents(): void {
     // Handle network switch when account is changed
     this.messenger.subscribe(
       'AccountsController:selectedAccountChange',
@@ -301,7 +301,7 @@ export class MultichainNetworkController extends BaseController<
   /**
    * Registers message handlers.
    */
-  #registerMessageHandlers() {
+  #registerMessageHandlers(): void {
     this.messenger.registerActionHandler(
       'MultichainNetworkController:setActiveNetwork',
       this.setActiveNetwork.bind(this),
