@@ -1,6 +1,7 @@
 import type { AccountsControllerState } from '@metamask/accounts-controller';
 import type { StateMetadata } from '@metamask/base-controller';
 import type {
+  ChainId,
   QuoteMetadata,
   RequiredEventContextFromClient,
   TxData,
@@ -46,8 +47,8 @@ import {
   TraceName,
 } from './constants';
 import { IntentApiImpl } from './intent-api';
-import { IntentOrderStatus } from './intent-order-status';
 import type { IntentOrder } from './intent-order';
+import { IntentOrderStatus } from './intent-order-status';
 import type {
   BridgeStatusControllerState,
   StartPollingForBridgeTxStatusArgsSerialized,
@@ -728,11 +729,11 @@ export class BridgeStatusController extends StaticIntervalPollingController<Brid
         this.#config.customBridgeApiBaseUrl,
         this.#fetchFn,
       );
-      const intentOrder = await intentApi.getOrderStatus(
+      const intentOrder = (await intentApi.getOrderStatus(
         orderId,
         providerName,
         srcChainId.toString(),
-      );
+      )) as IntentOrder;
 
       // Update bridge history with intent order status
       this.#updateBridgeHistoryFromIntentOrder(
@@ -839,8 +840,8 @@ export class BridgeStatusController extends StaticIntervalPollingController<Brid
         const { transactions } = this.messenger.call(
           'TransactionController:getState',
         );
-        const existingTxMeta = (transactions as TransactionMeta[]).find(
-          (tx) => tx.id === originalTxId,
+        const existingTxMeta = transactions.find(
+          (tx: TransactionMeta) => tx.id === originalTxId,
         );
         if (existingTxMeta) {
           const updatedTxMeta: TransactionMeta = {
@@ -926,7 +927,10 @@ export class BridgeStatusController extends StaticIntervalPollingController<Brid
     return txMeta?.hash;
   };
 
-  readonly #updateSrcTxHash = (bridgeTxMetaId: string, srcTxHash: string) => {
+  readonly #updateSrcTxHash = (
+    bridgeTxMetaId: string,
+    srcTxHash: string,
+  ): void => {
     const { txHistory } = this.state;
     if (txHistory[bridgeTxMetaId].status.srcChain.txHash) {
       return;
@@ -942,7 +946,7 @@ export class BridgeStatusController extends StaticIntervalPollingController<Brid
   readonly #wipeBridgeStatusByChainId = (
     address: string,
     selectedChainId: Hex,
-  ) => {
+  ): void => {
     const sourceTxMetaIdsToDelete = Object.keys(this.state.txHistory).filter(
       (txMetaId) => {
         const bridgeHistoryItem = this.state.txHistory[txMetaId];
@@ -1000,7 +1004,7 @@ export class BridgeStatusController extends StaticIntervalPollingController<Brid
     trade: Trade,
     quoteResponse: QuoteResponse<Trade, Trade> & QuoteMetadata,
     selectedAccount: AccountsControllerState['internalAccounts']['accounts'][string],
-  ) => {
+  ): Promise<TransactionMeta> => {
     if (!selectedAccount.metadata?.snap?.id) {
       throw new Error(
         'Failed to submit cross-chain swap transaction: undefined snap id',
@@ -1109,7 +1113,7 @@ export class BridgeStatusController extends StaticIntervalPollingController<Brid
     requireApproval?: boolean,
   ): Promise<TransactionMeta | undefined> => {
     if (approval) {
-      const approveTx = async () => {
+      const approveTx = async (): Promise<TransactionMeta> => {
         await this.#handleUSDTAllowanceReset(resetApproval);
 
         const approvalTxMeta = await this.#handleEvmTransaction({
@@ -1221,7 +1225,9 @@ export class BridgeStatusController extends StaticIntervalPollingController<Brid
     return await this.#waitForHashAndReturnFinalTxMeta(result);
   };
 
-  readonly #handleUSDTAllowanceReset = async (resetApproval?: TxData) => {
+  readonly #handleUSDTAllowanceReset = async (
+    resetApproval?: TxData,
+  ): Promise<void> => {
     if (resetApproval) {
       await this.#handleEvmTransaction({
         transactionType: TransactionType.bridgeApproval,
@@ -1235,7 +1241,11 @@ export class BridgeStatusController extends StaticIntervalPollingController<Brid
     networkClientId: string,
     chainId: Hex,
     txFee?: { maxFeePerGas: string; maxPriorityFeePerGas: string },
-  ) => {
+  ): Promise<{
+    maxFeePerGas: Hex;
+    maxPriorityFeePerGas: Hex;
+    gas: Hex;
+  }> => {
     const maxGasLimit = toHex(transactionParams.gas ?? 0);
 
     // If txFee is provided (gasIncluded case), use the quote's gas fees
@@ -1285,7 +1295,10 @@ export class BridgeStatusController extends StaticIntervalPollingController<Brid
       Parameters<typeof getAddTransactionBatchParams>[0],
       'messenger' | 'estimateGasFeeFn'
     >,
-  ) => {
+  ): Promise<{
+    approvalMeta?: TransactionMeta;
+    tradeMeta: TransactionMeta;
+  }> => {
     const transactionParams = await getAddTransactionBatchParams({
       messenger: this.messenger,
       estimateGasFeeFn: this.#estimateGasFeeFn,
@@ -1665,7 +1678,9 @@ export class BridgeStatusController extends StaticIntervalPollingController<Brid
         this.#config.customBridgeApiBaseUrl,
         this.#fetchFn,
       );
-      const intentOrder = await intentApi.submitIntent(submissionParams);
+      const intentOrder = (await intentApi.submitIntent(
+        submissionParams,
+      )) as IntentOrder;
 
       const orderUid = intentOrder.id;
 
@@ -1804,7 +1819,23 @@ export class BridgeStatusController extends StaticIntervalPollingController<Brid
   #convertBridgeQuoteToIntentQuote(
     quoteResponse: QuoteResponse<TxData | string> & QuoteMetadata,
     intent: Intent,
-  ) {
+  ): {
+    id: string;
+    provider: string;
+    srcAmount: string;
+    destAmount: string;
+    estimatedGas: string;
+    estimatedTime: number;
+    priceImpact: number;
+    fees: unknown[];
+    validUntil: number;
+    metadata: {
+      order: unknown;
+      settlementContract: string;
+      chainId: ChainId;
+      bridgeQuote: QuoteResponse<TxData | string> & QuoteMetadata;
+    };
+  } {
     return {
       id: `bridge-${Date.now()}`,
       provider: intent.protocol,
@@ -1817,7 +1848,7 @@ export class BridgeStatusController extends StaticIntervalPollingController<Brid
       validUntil: Date.now() + 300000, // 5 minutes from now
       metadata: {
         order: intent.order,
-        settlementContract: intent.settlementContract,
+        settlementContract: intent.settlementContract ?? '',
         chainId: quoteResponse.quote.srcChainId,
         bridgeQuote: quoteResponse,
       },
@@ -1850,16 +1881,19 @@ export class BridgeStatusController extends StaticIntervalPollingController<Brid
    * @param eventProperties - The properties for the event
    */
   readonly #trackUnifiedSwapBridgeEvent = <
-    T extends
+    EventName extends
       | typeof UnifiedSwapBridgeEventName.Submitted
       | typeof UnifiedSwapBridgeEventName.Failed
       | typeof UnifiedSwapBridgeEventName.Completed
       | typeof UnifiedSwapBridgeEventName.StatusValidationFailed,
   >(
-    eventName: T,
+    eventName: EventName,
     txMetaId?: string,
-    eventProperties?: Pick<RequiredEventContextFromClient, T>[T],
-  ) => {
+    eventProperties?: Pick<
+      RequiredEventContextFromClient,
+      EventName
+    >[EventName],
+  ): void => {
     const baseProperties = {
       action_type: MetricsActionType.SWAPBRIDGE_V1,
       ...(eventProperties ?? {}),
@@ -1904,21 +1938,16 @@ export class BridgeStatusController extends StaticIntervalPollingController<Brid
     const requestParamProperties = getRequestParamFromHistory(historyItem);
     // Always publish StatusValidationFailed event, regardless of featureId
     if (eventName === UnifiedSwapBridgeEventName.StatusValidationFailed) {
-      const {
-        chain_id_source,
-        chain_id_destination,
-        token_address_source,
-        token_address_destination,
-      } = requestParamProperties;
       this.messenger.call(
         'BridgeController:trackUnifiedSwapBridgeEvent',
         eventName,
         {
           ...baseProperties,
-          chain_id_source,
-          chain_id_destination,
-          token_address_source,
-          token_address_destination,
+          chain_id_source: requestParamProperties.chain_id_source,
+          chain_id_destination: requestParamProperties.chain_id_destination,
+          token_address_source: requestParamProperties.token_address_source,
+          token_address_destination:
+            requestParamProperties.token_address_destination,
           refresh_count: historyItem.attempts?.counter ?? 0,
         },
       );

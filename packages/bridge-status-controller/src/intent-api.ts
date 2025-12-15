@@ -4,7 +4,7 @@ export type IntentSubmissionParams = {
   srcChainId: string;
   quoteId: string;
   signature: string;
-  order: any;
+  order: unknown;
   userAddress: string;
   aggregatorId: string;
 };
@@ -32,8 +32,11 @@ export class IntentApiImpl implements IntentApi {
         body: JSON.stringify(params),
       });
       return response;
-    } catch (err) {
-      throw new Error(`Failed to submit intent: ${err}`);
+    } catch (error: unknown) {
+      if (error instanceof Error) {
+        throw new Error(`Failed to submit intent: ${error.message}`);
+      }
+      return null;
     }
   }
 
@@ -48,8 +51,11 @@ export class IntentApiImpl implements IntentApi {
         method: 'GET',
       });
       return response;
-    } catch (err) {
-      throw new Error(`Failed to get order status: ${err}`);
+    } catch (error: unknown) {
+      if (error instanceof Error) {
+        throw new Error(`Failed to get order status: ${error.message}`);
+      }
+      return null;
     }
   }
 }
