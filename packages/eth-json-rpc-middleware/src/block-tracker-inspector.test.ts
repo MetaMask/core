@@ -1,6 +1,7 @@
 import type { PollingBlockTracker } from '@metamask/eth-block-tracker';
 import { JsonRpcEngineV2 } from '@metamask/json-rpc-engine/v2';
 import { rpcErrors } from '@metamask/rpc-errors';
+import { Hex, Json } from '@metamask/utils';
 
 import { createBlockTrackerInspectorMiddleware } from './block-tracker-inspector';
 import {
@@ -33,7 +34,7 @@ describe('createBlockTrackerInspectorMiddleware', () => {
           createBlockTrackerInspectorMiddleware({
             blockTracker: mockBlockTracker,
           }),
-          () => ({
+          (): { blockNumber: Hex; hash: Hex } => ({
             blockNumber: '0x123', // Same as current block
             hash: '0xabc',
           }),
@@ -67,7 +68,7 @@ describe('createBlockTrackerInspectorMiddleware', () => {
           createBlockTrackerInspectorMiddleware({
             blockTracker: mockBlockTracker,
           }),
-          () => ({
+          (): { blockNumber: Hex; transactionHash: Hex } => ({
             blockNumber: '0x123', // Same as current block
             transactionHash: '0xdef',
           }),
@@ -130,7 +131,7 @@ describe('createBlockTrackerInspectorMiddleware', () => {
           createBlockTrackerInspectorMiddleware({
             blockTracker: mockBlockTracker,
           }),
-          () => ({
+          (): { blockNumber: Hex; hash: Hex } => ({
             blockNumber: '0x200', // Higher than current block (0x100)
             hash: '0xabc',
           }),
@@ -160,7 +161,7 @@ describe('createBlockTrackerInspectorMiddleware', () => {
           createBlockTrackerInspectorMiddleware({
             blockTracker: mockBlockTracker,
           }),
-          () => ({
+          (): { blockNumber: Hex; hash: Hex } => ({
             blockNumber: '0x100', // Equals current block (0x100)
             hash: '0xabc',
           }),
@@ -190,7 +191,7 @@ describe('createBlockTrackerInspectorMiddleware', () => {
           createBlockTrackerInspectorMiddleware({
             blockTracker: mockBlockTracker,
           }),
-          () => ({
+          (): { blockNumber: Hex; hash: Hex } => ({
             blockNumber: '0x100', // Lower than current block (0x200)
             hash: '0xabc',
           }),
@@ -222,7 +223,7 @@ describe('createBlockTrackerInspectorMiddleware', () => {
           createBlockTrackerInspectorMiddleware({
             blockTracker: mockBlockTracker,
           }),
-          () => ({
+          (): { blockNumber: Hex; hash: Hex } => ({
             blockNumber: '0x100',
             hash: '0xabc',
           }),
@@ -257,7 +258,7 @@ describe('createBlockTrackerInspectorMiddleware', () => {
           createBlockTrackerInspectorMiddleware({
             blockTracker: mockBlockTracker,
           }),
-          () => {
+          (): never => {
             throw rpcErrors.internal('Internal error');
           },
         ],
@@ -296,7 +297,7 @@ describe('createBlockTrackerInspectorMiddleware', () => {
             createBlockTrackerInspectorMiddleware({
               blockTracker: mockBlockTracker,
             }),
-            () => result,
+            (): Json => result,
           ],
         });
 
@@ -327,7 +328,7 @@ describe('createBlockTrackerInspectorMiddleware', () => {
           createBlockTrackerInspectorMiddleware({
             blockTracker: mockBlockTracker,
           }),
-          () => ({
+          (): { blockNumber: number; hash: Hex } => ({
             blockNumber: 123,
             hash: '0xabc',
           }),
@@ -358,7 +359,7 @@ describe('createBlockTrackerInspectorMiddleware', () => {
           createBlockTrackerInspectorMiddleware({
             blockTracker: mockBlockTracker,
           }),
-          () => ({
+          (): { blockNumber: string; hash: Hex } => ({
             blockNumber: 'not-a-hex-number',
             hash: '0xabc',
           }),

@@ -93,12 +93,12 @@ const mockNext =
     handler?.(noop);
   };
 
-const initClock = () => {
+const initClock = (): void => {
   jest.useFakeTimers('modern');
   jest.setSystemTime(new Date(1));
 };
 
-const tearDownClock = () => {
+const tearDownClock = (): void => {
   jest.useRealTimers();
 };
 
@@ -741,8 +741,8 @@ describe('PermissionLogController', () => {
         const handlers1: JsonRpcEngineReturnHandler[] = [];
 
         // make requests and process responses out of order
-        round1.forEach((x) => {
-          logMiddleware(x.req, x.res, getSavedMockNext(handlers1, false), noop);
+        round1.forEach(({ req, res }) => {
+          logMiddleware(req, res, getSavedMockNext(handlers1, false), noop);
         });
 
         for (const i of [1, 2, 0]) {
@@ -782,8 +782,8 @@ describe('PermissionLogController', () => {
           },
         ];
 
-        round2.forEach((x) => {
-          logMiddleware(x.req, x.res, mockNext(false), noop);
+        round2.forEach(({ req, res }) => {
+          logMiddleware(req, res, mockNext(false), noop);
         });
 
         expect(controller.state.permissionHistory).toStrictEqual(
