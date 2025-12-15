@@ -9,7 +9,7 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ### Added
 
-- Export `selectAllAssets` ([#7496]((https://github.com/MetaMask/core/pull/7496))
+- Export `selectAllAssets` ([#7496](https://github.com/MetaMask/core/pull/7496))
 
 ## [94.1.0]
 
