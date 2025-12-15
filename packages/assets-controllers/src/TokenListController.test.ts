@@ -1835,6 +1835,85 @@ describe('TokenListController', () => {
       consoleErrorSpy.mockRestore();
       controller.destroy();
     });
+
+    it('should handle errors during migration to StorageService', async () => {
+      // Create messenger where getAllKeys throws to cause migration logic to fail
+      const messengerWithErrors = new Messenger({
+        namespace: MOCK_ANY_NAMESPACE,
+      });
+
+      // Register getItem to return empty (no old storage data)
+      // eslint-disable-next-line @typescript-eslint/no-explicit-any
+      (messengerWithErrors as any).registerActionHandler(
+        'StorageService:getItem',
+        () => {
+          return {}; // No old single-file storage
+        },
+      );
+
+      // Register setItem normally
+      // eslint-disable-next-line @typescript-eslint/no-explicit-any
+      (messengerWithErrors as any).registerActionHandler(
+        'StorageService:setItem',
+        (controllerNamespace: string, key: string, value: unknown) => {
+          const storageKey = `${controllerNamespace}:${key}`;
+          mockStorage.set(storageKey, value);
+        },
+      );
+
+      // Register getAllKeys to throw error during migration check
+      // This will cause the migration logic itself to fail (not just the save)
+      // eslint-disable-next-line @typescript-eslint/no-explicit-any
+      (messengerWithErrors as any).registerActionHandler(
+        'StorageService:getAllKeys',
+        () => {
+          throw new Error('Failed to get keys during migration');
+        },
+      );
+
+      // Register removeItem (not used in this test but required)
+      // eslint-disable-next-line @typescript-eslint/no-explicit-any
+      (messengerWithErrors as any).registerActionHandler(
+        'StorageService:removeItem',
+        () => {
+          // Do nothing
+        },
+      );
+
+      const restrictedMessenger = getRestrictedMessenger(messengerWithErrors);
+
+      // Mock console.error to verify it's called for migration errors
+      const consoleErrorSpy = jest.spyOn(console, 'error').mockImplementation();
+
+      // Initialize with state data that will trigger migration
+      const stateWithData = {
+        tokensChainsCache: {
+          [ChainId.mainnet]: {
+            data: sampleMainnetTokensChainsCache,
+            timestamp: Date.now(),
+          },
+        },
+        preventPollingOnNetworkRestart: false,
+      };
+
+      const controller = new TokenListController({
+        chainId: ChainId.mainnet,
+        messenger: restrictedMessenger,
+        state: stateWithData,
+      });
+
+      // Wait for async migration to attempt and fail
+      await new Promise((resolve) => setTimeout(resolve, 100));
+
+      // Verify console.error was called with the migration error
+      expect(consoleErrorSpy).toHaveBeenCalledWith(
+        'TokenListController: Failed to migrate cache to storage:',
+        expect.any(Error),
+      );
+
+      consoleErrorSpy.mockRestore();
+      controller.destroy();
+    });
   });
 });
 
