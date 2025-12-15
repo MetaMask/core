@@ -1813,33 +1813,6 @@
       "count": 1
     }
   },
-  "packages/notification-services-controller/src/NotificationServicesController/processors/process-notifications.ts": {
-    "@typescript-eslint/explicit-function-return-type": {
-      "count": 2
-    },
-    "id-length": {
-      "count": 6
-    }
-  },
-  "packages/notification-services-controller/src/NotificationServicesController/services/api-notifications.ts": {
-    "@typescript-eslint/explicit-function-return-type": {
-      "count": 8
-    },
-    "id-denylist": {
-      "count": 1
-    },
-    "id-length": {
-      "count": 4
-    },
-    "no-param-reassign": {
-      "count": 2
-    }
-  },
-  "packages/notification-services-controller/src/NotificationServicesController/services/feature-announcements.test.ts": {
-    "@typescript-eslint/explicit-function-return-type": {
-      "count": 2
-    }
-  },
   "packages/notification-services-controller/src/NotificationServicesController/services/feature-announcements.ts": {
     "@typescript-eslint/explicit-function-return-type": {
       "count": 2
