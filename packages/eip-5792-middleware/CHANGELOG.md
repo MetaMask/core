@@ -9,15 +9,6 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [2.1.0]
 
-### Uncategorized
-
-- chore: Update ESLint config packages to v15 ([#7305](https://github.com/MetaMask/core/pull/7305))
-- chore: Re-enable `@typescript-eslint/no-unnecessary-type-assertions` ([#7296](https://github.com/MetaMask/core/pull/7296))
-- Revert "Release 687.0.0" ([#7201](https://github.com/MetaMask/core/pull/7201))
-- Release 687.0.0 ([#7190](https://github.com/MetaMask/core/pull/7190))
-- chore: Update `typescript` to v5.3 ([#7081](https://github.com/MetaMask/core/pull/7081))
-- fix: Fix build script not working because of missing `@ts-bridge/cli` dependency ([#7040](https://github.com/MetaMask/core/pull/7040))
-
 ### Added
 
 - Id of JSON RPC request is passed to functions to create batched transaction, id is thus added to transaction meta ([#7415](https://github.com/MetaMask/core/pull/7415))
@@ -25,6 +16,12 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 ### Changed
 
 - Bump `@metamask/transaction-controller` from `^61.3.0` to `^62.6.0` ([#7007](https://github.com/MetaMask/core/pull/7007), [#7126](https://github.com/MetaMask/core/pull/7126), [#7153](https://github.com/MetaMask/core/pull/7153), [#7202](https://github.com/MetaMask/core/pull/7202), [#7215](https://github.com/MetaMask/core/pull/7202), [#7220](https://github.com/MetaMask/core/pull/7220), [#7236](https://github.com/MetaMask/core/pull/7236), [#7257](https://github.com/MetaMask/core/pull/7257), [#7289](https://github.com/MetaMask/core/pull/7289), [#7325](https://github.com/MetaMask/core/pull/7325), [#7430](https://github.com/MetaMask/core/pull/7430))
+- chore: Update ESLint config packages to v15 ([#7305](https://github.com/MetaMask/core/pull/7305))
+- chore: Re-enable `@typescript-eslint/no-unnecessary-type-assertions` ([#7296](https://github.com/MetaMask/core/pull/7296))
+- Revert "Release 687.0.0" ([#7201](https://github.com/MetaMask/core/pull/7201))
+- Release 687.0.0 ([#7190](https://github.com/MetaMask/core/pull/7190))
+- chore: Update `typescript` to v5.3 ([#7081](https://github.com/MetaMask/core/pull/7081))
+- fix: Fix build script not working because of missing `@ts-bridge/cli` dependency ([#7040](https://github.com/MetaMask/core/pull/7040))
 
 ## [2.0.0]
 
