@@ -247,7 +247,7 @@ export class OnRampService {
    * @returns The user's country/region code (e.g., "US-UT" for Utah, USA).
    */
   async getGeolocation(): Promise<string> {
-    const response = await this.#policy.execute(async () => {
+    const responseData = await this.#policy.execute(async () => {
       const url = new URL('geolocation', this.#baseUrl);
       const localResponse = await this.#fetch(url);
       if (!localResponse.ok) {
@@ -256,10 +256,12 @@ export class OnRampService {
           `Fetching '${url.toString()}' failed with status '${localResponse.status}'`,
         );
       }
-      return localResponse;
+      const textResponse = await localResponse.text();
+      // Return both response and text content since we consumed the body
+      return { response: localResponse, text: textResponse };
     });
 
-    const textResponse = await response.text();
+    const textResponse = responseData.text;
     const trimmedResponse = textResponse.trim();
 
     if (trimmedResponse.length > 0) {
