@@ -11,6 +11,7 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 - Bump `@metamask/assets-controllers` from `^93.1.0` to `^94.1.0` ([#7444](https://github.com/MetaMask/core/pull/7444), [#7488](https://github.com/MetaMask/core/pull/7488))
 - Bump `@metamask/transaction-controller` from `^62.5.0` to `^62.7.0` ([#7430](https://github.com/MetaMask/core/pull/7430), [#7494](https://github.com/MetaMask/core/pull/7494))
+- **BREAKING:** Bump `@metamask/remote-feature-flag-controller` from `^3.0.0` to `^4.0.0` ([#7499](https://github.com/MetaMask/core/pull/7499))
 
 ## [64.1.0]
 
