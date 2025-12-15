@@ -1864,24 +1864,6 @@
       "count": 1
     }
   },
-  "packages/notification-services-controller/src/NotificationServicesController/services/perp-notifications.ts": {
-    "@typescript-eslint/explicit-function-return-type": {
-      "count": 1
-    },
-    "id-length": {
-      "count": 1
-    }
-  },
-  "packages/notification-services-controller/src/NotificationServicesController/types/notification-api/notification-api.ts": {
-    "@typescript-eslint/naming-convention": {
-      "count": 18
-    }
-  },
-  "packages/notification-services-controller/src/NotificationServicesController/types/notification-api/schema.ts": {
-    "@typescript-eslint/naming-convention": {
-      "count": 70
-    }
-  },
   "packages/notification-services-controller/src/NotificationServicesController/types/perps/schema.ts": {
     "@typescript-eslint/naming-convention": {
       "count": 9
