@@ -1560,33 +1560,6 @@
       "count": 3
     }
   },
-  "packages/notification-services-controller/src/NotificationServicesController/NotificationServicesController.test.ts": {
-    "@typescript-eslint/explicit-function-return-type": {
-      "count": 23
-    },
-    "id-length": {
-      "count": 7
-    }
-  },
-  "packages/notification-services-controller/src/NotificationServicesController/NotificationServicesController.ts": {
-    "@typescript-eslint/explicit-function-return-type": {
-      "count": 31
-    },
-    "@typescript-eslint/no-misused-promises": {
-      "count": 1
-    },
-    "id-denylist": {
-      "count": 5
-    },
-    "id-length": {
-      "count": 8
-    }
-  },
-  "packages/notification-services-controller/src/NotificationServicesController/__fixtures__/mockServices.ts": {
-    "@typescript-eslint/explicit-function-return-type": {
-      "count": 6
-    }
-  },
   "packages/notification-services-controller/src/NotificationServicesController/constants/notification-schema.ts": {
     "@typescript-eslint/naming-convention": {
       "count": 18
