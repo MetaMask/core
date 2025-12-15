@@ -14,3 +14,15 @@ export {
 } from './config-registry-api-service';
 
 export type { ConfigRegistryApiServiceOptions } from './config-registry-api-service';
+
+export type {
+  NetworkFilterOptions,
+  NetworkComparisonOptions,
+  TransformedNetworkResult,
+} from './transformers';
+export {
+  transformNetworkConfig,
+  filterNetworks,
+  compareWithExistingNetworks,
+  processNetworkConfigs,
+} from './transformers';
