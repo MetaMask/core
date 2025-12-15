@@ -3,7 +3,7 @@
  * Do not edit manually.
  */
 
-import type { OnRampService } from './OnRampService';
+import type { RampsService } from './RampsService';
 
 /**
  * Makes a request to the API in order to retrieve the user's geolocation
@@ -11,12 +11,13 @@ import type { OnRampService } from './OnRampService';
  *
  * @returns The user's country/region code (e.g., "US-UT" for Utah, USA).
  */
-export type OnRampServiceGetGeolocationAction = {
-  type: `OnRampService:getGeolocation`;
-  handler: OnRampService['getGeolocation'];
+export type RampsServiceGetGeolocationAction = {
+  type: `RampsService:getGeolocation`;
+  handler: RampsService['getGeolocation'];
 };
 
 /**
- * Union of all OnRampService action types.
+ * Union of all RampsService action types.
  */
-export type OnRampServiceMethodActions = OnRampServiceGetGeolocationAction;
+export type RampsServiceMethodActions = RampsServiceGetGeolocationAction;
+
