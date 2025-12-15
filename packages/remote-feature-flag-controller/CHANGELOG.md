@@ -9,10 +9,6 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [4.0.0]
 
-### Removed
-
-- **BREAKING:** Remove duplicate `RemoteFeatureFlagControllerState` type export from `remote-feature-flag-controller-types.ts`. The type is still available from the main package export ([#7499](https://github.com/MetaMask/core/pull/7499))
-
 ### Added
 
 - Add override functionality to remote feature flags ([#7271](https://github.com/MetaMask/core/pull/7271))
