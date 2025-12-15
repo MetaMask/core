@@ -75,9 +75,7 @@ export async function walletGetAccountUpgradeStatus(
 
   // Use current chain ID if not provided
   let targetChainId: Hex;
-  if (chainId !== undefined) {
-    targetChainId = chainId;
-  } else {
+  if (chainId === undefined) {
     const currentChainIdForDomain = hooks.getCurrentChainIdForDomain(origin);
     if (!currentChainIdForDomain) {
       throw rpcErrors.invalidParams({
@@ -85,6 +83,8 @@ export async function walletGetAccountUpgradeStatus(
       });
     }
     targetChainId = currentChainIdForDomain;
+  } else {
+    targetChainId = chainId;
   }
 
   const { isSupported } = await hooks.isEip7702Supported({

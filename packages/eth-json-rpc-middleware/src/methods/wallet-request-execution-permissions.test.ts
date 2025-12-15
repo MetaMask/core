@@ -1,4 +1,4 @@
-import type { JsonRpcRequest } from '@metamask/utils';
+import type { Json, JsonRpcRequest } from '@metamask/utils';
 import { klona } from 'klona';
 
 import type {
@@ -70,7 +70,7 @@ describe('wallet_requestExecutionPermissions', () => {
   let processRequestExecutionPermissionsMock: jest.MockedFunction<ProcessRequestExecutionPermissionsHook>;
   let context: WalletMiddlewareParams['context'];
 
-  const callMethod = async () => {
+  const callMethod = async (): Promise<Readonly<Json> | undefined> => {
     const handler = createWalletRequestExecutionPermissionsHandler({
       processRequestExecutionPermissions:
         processRequestExecutionPermissionsMock,
