@@ -1644,6 +1644,197 @@ describe('TokenListController', () => {
 
       controller.destroy();
     });
+
+    it('should handle errors when loading individual chain cache files', async () => {
+      // Pre-populate storage with two chains
+      const validChainData: DataCache = {
+        data: sampleMainnetTokensChainsCache,
+        timestamp: Date.now(),
+      };
+      const binanceChainData: DataCache = {
+        data: sampleBinanceTokensChainsCache,
+        timestamp: Date.now(),
+      };
+
+      mockStorage.set(
+        `TokenListController:tokensChainsCache:${ChainId.mainnet}`,
+        validChainData,
+      );
+      mockStorage.set(
+        `TokenListController:tokensChainsCache:${ChainId.goerli}`,
+        binanceChainData,
+      );
+
+      // Create messenger with getItem that returns error for goerli
+      const messengerWithErrors = new Messenger({
+        namespace: MOCK_ANY_NAMESPACE,
+      });
+
+      // Register getItem handler that returns error for goerli
+      // eslint-disable-next-line @typescript-eslint/no-explicit-any
+      (messengerWithErrors as any).registerActionHandler(
+        'StorageService:getItem',
+        (controllerNamespace: string, key: string) => {
+          if (key === `tokensChainsCache:${ChainId.goerli}`) {
+            return { error: 'Failed to load chain data' };
+          }
+          const storageKey = `${controllerNamespace}:${key}`;
+          const value = mockStorage.get(storageKey);
+          return value ? { result: value } : {};
+        },
+      );
+
+      // Register other handlers normally
+      // eslint-disable-next-line @typescript-eslint/no-explicit-any
+      (messengerWithErrors as any).registerActionHandler(
+        'StorageService:setItem',
+        (controllerNamespace: string, key: string, value: unknown) => {
+          const storageKey = `${controllerNamespace}:${key}`;
+          mockStorage.set(storageKey, value);
+        },
+      );
+
+      // eslint-disable-next-line @typescript-eslint/no-explicit-any
+      (messengerWithErrors as any).registerActionHandler(
+        'StorageService:removeItem',
+        (controllerNamespace: string, key: string) => {
+          const storageKey = `${controllerNamespace}:${key}`;
+          mockStorage.delete(storageKey);
+        },
+      );
+
+      // eslint-disable-next-line @typescript-eslint/no-explicit-any
+      (messengerWithErrors as any).registerActionHandler(
+        'StorageService:getAllKeys',
+        (controllerNamespace: string) => {
+          const keys: string[] = [];
+          mockStorage.forEach((_value, key) => {
+            const keyWithoutNamespace = key.replace(
+              `${controllerNamespace}:`,
+              '',
+            );
+            keys.push(keyWithoutNamespace);
+          });
+          return keys;
+        },
+      );
+
+      const restrictedMessenger = getRestrictedMessenger(messengerWithErrors);
+
+      // Mock console.error to verify it's called for the error case
+      const consoleErrorSpy = jest.spyOn(console, 'error').mockImplementation();
+
+      const controller = new TokenListController({
+        chainId: ChainId.mainnet,
+        messenger: restrictedMessenger,
+      });
+
+      // Wait for async loading to complete
+      await new Promise((resolve) => setTimeout(resolve, 100));
+
+      // Verify that mainnet chain loaded successfully
+      expect(controller.state.tokensChainsCache[ChainId.mainnet]).toBeDefined();
+      expect(
+        controller.state.tokensChainsCache[ChainId.mainnet].data,
+      ).toStrictEqual(sampleMainnetTokensChainsCache);
+
+      // Verify that goerli chain is not in the cache (due to error)
+      expect(
+        controller.state.tokensChainsCache[ChainId.goerli],
+      ).toBeUndefined();
+
+      // Verify console.error was called with the error
+      expect(consoleErrorSpy).toHaveBeenCalledWith(
+        `TokenListController: Error loading cache for ${ChainId.goerli}:`,
+        'Failed to load chain data',
+      );
+
+      consoleErrorSpy.mockRestore();
+      controller.destroy();
+    });
+
+    it('should handle StorageService errors when saving cache', async () => {
+      // Create a messenger with setItem that throws errors
+      const messengerWithErrors = new Messenger({
+        namespace: MOCK_ANY_NAMESPACE,
+      });
+
+      // Register all handlers, but make setItem throw
+      // eslint-disable-next-line @typescript-eslint/no-explicit-any
+      (messengerWithErrors as any).registerActionHandler(
+        'StorageService:getItem',
+        (controllerNamespace: string, key: string) => {
+          const storageKey = `${controllerNamespace}:${key}`;
+          const value = mockStorage.get(storageKey);
+          return value ? { result: value } : {};
+        },
+      );
+
+      // eslint-disable-next-line @typescript-eslint/no-explicit-any
+      (messengerWithErrors as any).registerActionHandler(
+        'StorageService:setItem',
+        () => {
+          throw new Error('Storage write failed');
+        },
+      );
+
+      // eslint-disable-next-line @typescript-eslint/no-explicit-any
+      (messengerWithErrors as any).registerActionHandler(
+        'StorageService:removeItem',
+        (controllerNamespace: string, key: string) => {
+          const storageKey = `${controllerNamespace}:${key}`;
+          mockStorage.delete(storageKey);
+        },
+      );
+
+      // eslint-disable-next-line @typescript-eslint/no-explicit-any
+      (messengerWithErrors as any).registerActionHandler(
+        'StorageService:getAllKeys',
+        (controllerNamespace: string) => {
+          const keys: string[] = [];
+          mockStorage.forEach((_value, key) => {
+            const keyWithoutNamespace = key.replace(
+              `${controllerNamespace}:`,
+              '',
+            );
+            keys.push(keyWithoutNamespace);
+          });
+          return keys;
+        },
+      );
+
+      const restrictedMessenger = getRestrictedMessenger(messengerWithErrors);
+
+      // Mock console.error to verify it's called for save errors
+      const consoleErrorSpy = jest.spyOn(console, 'error').mockImplementation();
+
+      const controller = new TokenListController({
+        chainId: ChainId.mainnet,
+        messenger: restrictedMessenger,
+      });
+
+      // Wait for async initialization
+      await new Promise((resolve) => setTimeout(resolve, 100));
+
+      // Try to fetch tokens - this should trigger save which will fail
+      nock(tokenService.TOKEN_END_POINT_API)
+        .get(getTokensPath(ChainId.mainnet))
+        .reply(200, sampleMainnetTokenList);
+
+      await controller.fetchTokenList(ChainId.mainnet);
+
+      // Verify console.error was called with the save error
+      expect(consoleErrorSpy).toHaveBeenCalledWith(
+        `TokenListController: Failed to save cache for ${ChainId.mainnet}:`,
+        expect.any(Error),
+      );
+
+      // Verify state was still updated even though save failed
+      expect(controller.state.tokensChainsCache[ChainId.mainnet]).toBeDefined();
+
+      consoleErrorSpy.mockRestore();
+      controller.destroy();
+    });
   });
 });
 
