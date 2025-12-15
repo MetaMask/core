@@ -9,10 +9,6 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ### Changed
 
-- Improve code quality by fixing ESLint violations ([#7482](https://github.com/MetaMask/core/pull/7482))
-  - Added explicit return types to functions for improved type safety
-  - Renamed short variable names to be more descriptive (e.g., `n` → `notification`, `a` → `addr`)
-  - Refactored to avoid parameter reassignment, promoting immutability
 - Move peer dependencies for controller and service packages to direct dependencies ([#7209](https://github.com/MetaMask/core/pull/7209))
   - The dependencies moved are:
     - `@metamask/keyring-controller` (^25.0.0)
