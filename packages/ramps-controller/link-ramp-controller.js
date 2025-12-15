@@ -73,8 +73,19 @@ if (pathExistsSync(rampsControllerDestPath)) {
   fs.rmSync(rampsControllerDestPath, { recursive: true, force: true });
 }
 
-// Copy the ramps-controller package
-function copyDir(src, dest) {
+// Directories and files to exclude when copying (development artifacts)
+const EXCLUDED_ENTRIES = new Set([
+  'node_modules',
+  '.git',
+  'src',
+  'coverage',
+  '.turbo',
+  '.cache',
+  'docs',
+]);
+
+// Copy the ramps-controller package, filtering out development directories
+function copyDir(src, dest, isRoot = true) {
   if (!pathExistsSync(dest)) {
     fs.mkdirSync(dest, { recursive: true });
   }
@@ -82,18 +93,23 @@ function copyDir(src, dest) {
   const entries = fs.readdirSync(src, { withFileTypes: true });
 
   for (const entry of entries) {
+    // Skip excluded directories at root level
+    if (isRoot && EXCLUDED_ENTRIES.has(entry.name)) {
+      continue;
+    }
+
     const srcPath = path.join(src, entry.name);
     const destPath = path.join(dest, entry.name);
 
     if (entry.isDirectory()) {
-      copyDir(srcPath, destPath);
+      copyDir(srcPath, destPath, false);
     } else {
       fs.copyFileSync(srcPath, destPath);
     }
   }
 }
 
-// Copy the entire package
+// Copy the package (excludes node_modules, .git, src, and other dev directories)
 copyDir(rampsControllerPath, rampsControllerDestPath);
 
 console.log('✅ Successfully linked ramps-controller to MetaMask mobile app!');

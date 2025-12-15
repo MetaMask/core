@@ -1,4 +1,4 @@
-const { exec } = require('child_process');
+const { spawn } = require('child_process');
 const fs = require('fs');
 const path = require('path');
 
@@ -21,18 +21,25 @@ const BUILD_THROTTLE_MS = 500; // Wait 500ms after last change before building
 function runLinkScript() {
   return new Promise((resolve, reject) => {
     console.log('🔄 Changes detected, rebuilding and linking...');
-    exec(`node ${linkScript}`, {
+    const child = spawn('node', [linkScript], {
       stdio: 'inherit',
       cwd: __dirname,
-    }, (error) => {
-      if (error) {
-        console.error('❌ Failed to rebuild and link:', error.message);
-        reject(error);
+    });
+
+    child.on('close', (code) => {
+      if (code !== 0) {
+        console.error(`❌ Failed to rebuild and link (exit code ${code})`);
+        reject(new Error(`Link script exited with code ${code}`));
       } else {
         console.log('✅ Rebuild and link complete\n');
         console.log('👀 Watching for changes...\n');
         resolve();
       }
+    });
+
+    child.on('error', (error) => {
+      console.error('❌ Failed to spawn link script:', error.message);
+      reject(error);
     });
   });
 }
