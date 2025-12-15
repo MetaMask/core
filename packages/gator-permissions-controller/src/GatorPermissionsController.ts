@@ -35,7 +35,10 @@ import {
 } from './errors';
 import { controllerLog } from './logger';
 import { GatorPermissionsSnapRpcMethod } from './types';
-import type { StoredGatorPermissionSanitized } from './types';
+import type {
+  RevocationMetadata,
+  StoredGatorPermissionSanitized,
+} from './types';
 import type {
   GatorPermissionsMap,
   PermissionTypesWithCustom,
@@ -948,9 +951,31 @@ export default class GatorPermissionsController extends BaseController<
         controllerLog('Transaction confirmed, submitting revocation', {
           txId,
           permissionContext,
+          txHash: transactionMeta.hash,
         });
 
-        this.submitRevocation({ permissionContext })
+        // Attach metadata by parsing the confirmed transactionMeta
+        let metadata: RevocationMetadata | undefined;
+        const { hash, blockTimestamp } = transactionMeta;
+        if (hash === undefined || blockTimestamp === undefined) {
+          controllerLog(
+            'Failed to attach transaction has after revocation transaction confirmed',
+            {
+              txId,
+              permissionContext,
+              error: new Error(
+                'Confirmed transaction is missing revocation metadata',
+              ),
+            },
+          );
+        } else {
+          metadata = {
+            txHash: hash as Hex,
+            blockTimestamp,
+          };
+        }
+
+        this.submitRevocation({ permissionContext, metadata })
           .catch((error) => {
             controllerLog(
               'Failed to submit revocation after transaction confirmed',

@@ -1235,6 +1235,74 @@ describe('GatorPermissionsController', () => {
       });
     });
 
+    it('should submit revocation metadata when transaction is confirmed', async () => {
+      const mockHandleRequestHandler = jest.fn().mockResolvedValue(undefined);
+      const rootMessenger = getRootMessenger({
+        snapControllerHandleRequestActionHandler: mockHandleRequestHandler,
+      });
+      const messenger = getMessenger(rootMessenger);
+
+      const controller = new GatorPermissionsController({
+        messenger,
+        state: {
+          isGatorPermissionsEnabled: true,
+          gatorPermissionsProviderSnapId:
+            MOCK_GATOR_PERMISSIONS_PROVIDER_SNAP_ID,
+        },
+      });
+
+      const txId = 'test-tx-id';
+      const permissionContext = '0x1234567890abcdef1234567890abcdef12345678';
+      const hash = '0x-mock-hash';
+      const blockTimestamp = '100000';
+
+      await controller.addPendingRevocation({ txId, permissionContext });
+
+      // Emit transaction approved event (user confirms)
+      rootMessenger.publish('TransactionController:transactionApproved', {
+        transactionMeta: { id: txId } as TransactionMeta,
+      });
+
+      // Emit transaction confirmed event
+      rootMessenger.publish('TransactionController:transactionConfirmed', {
+        id: txId,
+        hash,
+        blockTimestamp,
+      } as TransactionMeta);
+
+      await flushPromises();
+
+      // Verify submitRevocation was called
+      expect(mockHandleRequestHandler).toHaveBeenCalledWith({
+        snapId: MOCK_GATOR_PERMISSIONS_PROVIDER_SNAP_ID,
+        origin: 'metamask',
+        handler: 'onRpcRequest',
+        request: {
+          jsonrpc: '2.0',
+          method: 'permissionsProvider_submitRevocation',
+          params: {
+            permissionContext,
+            metadata: {
+              txHash: hash,
+              blockTimestamp,
+            },
+          },
+        },
+      });
+
+      // Verify that permissions are refreshed after revocation (getGrantedPermissions is called)
+      expect(mockHandleRequestHandler).toHaveBeenCalledWith({
+        snapId: MOCK_GATOR_PERMISSIONS_PROVIDER_SNAP_ID,
+        origin: 'metamask',
+        handler: 'onRpcRequest',
+        request: {
+          jsonrpc: '2.0',
+          method: 'permissionsProvider_getGrantedPermissions',
+          params: { isRevoked: false },
+        },
+      });
+    });
+
     it('should cleanup without adding to state when transaction is rejected by user', async () => {
       const mockHandleRequestHandler = jest.fn().mockResolvedValue(undefined);
       const rootMessenger = getRootMessenger({
