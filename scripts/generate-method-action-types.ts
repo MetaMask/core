@@ -1,5 +1,6 @@
 #!yarn tsx
 
+import { hasProperty, isObject } from '@metamask/utils';
 import { ESLint } from 'eslint';
 import * as fs from 'fs';
 import * as path from 'path';
@@ -142,15 +143,15 @@ async function checkActionTypesFiles(
           'utf8',
         );
 
-        if (expectedContent !== actualContent) {
+        if (expectedContent === actualContent) {
+          console.log(
+            `✅ ${job.baseFileName}-method-action-types.ts is up to date`,
+          );
+        } else {
           console.error(
             `❌ ${job.baseFileName}-method-action-types.ts is out of date`,
           );
           hasErrors = true;
-        } else {
-          console.log(
-            `✅ ${job.baseFileName}-method-action-types.ts is up to date`,
-          );
         }
       }
     }
@@ -179,7 +180,7 @@ async function checkActionTypesFiles(
 /**
  * Main entry point for the script.
  */
-async function main() {
+async function main(): Promise<void> {
   const { fix } = await parseCommandLineArguments();
 
   console.log('🔍 Searching for controllers with MESSENGER_EXPOSED_METHODS...');
@@ -210,6 +211,30 @@ async function main() {
 }
 
 /**
+ * Check if a path is a directory.
+ *
+ * @param pathValue - The path to check.
+ * @returns True if the path is a directory, false otherwise.
+ * @throws If an error occurs other than the path not existing.
+ */
+async function isDirectory(pathValue: string): Promise<boolean> {
+  try {
+    const stats = await fs.promises.stat(pathValue);
+    return stats.isDirectory();
+  } catch (error) {
+    if (
+      isObject(error) &&
+      hasProperty(error, 'code') &&
+      error.code === 'ENOENT'
+    ) {
+      return false;
+    }
+
+    throw error;
+  }
+}
+
+/**
  * Finds all controller files that have MESSENGER_EXPOSED_METHODS constants.
  *
  * @returns A list of controller information objects.
@@ -230,7 +255,7 @@ async function findControllersWithExposedMethods(): Promise<ControllerInfo[]> {
     const packagePath = path.join(packagesDir, packageDir.name);
     const srcPath = path.join(packagePath, 'src');
 
-    if (!fs.existsSync(srcPath)) {
+    if (!(await isDirectory(srcPath))) {
       continue;
     }
 
@@ -272,7 +297,7 @@ type VisitorContext = {
  * @param context - The visitor context.
  * @returns A function to visit nodes.
  */
-function createASTVisitor(context: VisitorContext) {
+function createASTVisitor(context: VisitorContext): (node: ts.Node) => void {
   /**
    * Visits AST nodes to find exposed methods and controller class.
    *

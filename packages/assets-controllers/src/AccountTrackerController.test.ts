@@ -388,10 +388,14 @@ describe('AccountTrackerController', () => {
           stakedBalances: {},
         });
 
-        messenger.publish(
-          'NetworkController:networkAdded',
-          {} as NetworkConfiguration,
-        );
+        messenger.publish('NetworkController:networkAdded', {
+          chainId: '0x1',
+          blockExplorerUrls: [],
+          name: 'Mainnet',
+          nativeCurrency: 'ETH',
+          defaultRpcEndpointIndex: 0,
+          rpcEndpoints: [{ networkClientId: 'mainnet' }],
+        } as unknown as NetworkConfiguration);
 
         await clock.tickAsync(1);
 
@@ -402,29 +406,23 @@ describe('AccountTrackerController', () => {
     );
   });
 
-  it('refreshes addresses when keyring is unlocked', async () => {
+  it('sets isActive to true when keyring is unlocked', async () => {
     await withController(
       {
         selectedAccount: ACCOUNT_1,
         listAccounts: [ACCOUNT_1],
       },
       async ({ controller, messenger }) => {
-        mockedGetTokenBalancesForMultipleAddresses.mockResolvedValueOnce({
-          tokenBalances: {
-            '0x0000000000000000000000000000000000000000': {
-              [ADDRESS_1]: new BN('abcdef', 16),
-            },
-          },
-          stakedBalances: {},
-        });
+        // Verify controller is active initially (unlocked by default in tests)
+        expect(controller.isActive).toBe(true);
 
+        // Lock the keyring
+        messenger.publish('KeyringController:lock');
+        expect(controller.isActive).toBe(false);
+
+        // Unlock the keyring
         messenger.publish('KeyringController:unlock');
-
-        await clock.tickAsync(1);
-
-        expect(
-          controller.state.accountsByChainId['0x1'][CHECKSUM_ADDRESS_1].balance,
-        ).toBe('0xabcdef');
+        expect(controller.isActive).toBe(true);
       },
     );
   });
@@ -2033,6 +2031,11 @@ async function withController<ReturnValue>(
     mockNetworkState,
   );
 
+  messenger.registerActionHandler(
+    'KeyringController:getState',
+    jest.fn().mockReturnValue({ isUnlocked: true }),
+  );
+
   const accountTrackerMessenger = new Messenger<
     'AccountTrackerController',
     AllAccountTrackerControllerActions,
@@ -2050,12 +2053,14 @@ async function withController<ReturnValue>(
       'PreferencesController:getState',
       'AccountsController:getSelectedAccount',
       'AccountsController:listAccounts',
+      'KeyringController:getState',
     ],
     events: [
       'AccountsController:selectedEvmAccountChange',
       'TransactionController:unapprovedTransactionAdded',
       'TransactionController:transactionConfirmed',
       'NetworkController:networkAdded',
+      'KeyringController:lock',
       'KeyringController:unlock',
     ],
   });
