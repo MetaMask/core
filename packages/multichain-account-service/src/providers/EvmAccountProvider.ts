@@ -42,6 +42,7 @@ function assertInternalAccountExists(
 
 export type EvmAccountProviderConfig = {
   discovery: {
+    enabled?: boolean;
     maxAttempts: number;
     timeoutMs: number;
     backOffMs: number;
@@ -49,6 +50,14 @@ export type EvmAccountProviderConfig = {
 };
 
 export const EVM_ACCOUNT_PROVIDER_NAME = 'EVM';
+
+export const EVM_ACCOUNT_PROVIDER_DEFAULT_CONFIG = {
+  discovery: {
+    maxAttempts: 3,
+    timeoutMs: 500,
+    backOffMs: 500,
+  },
+};
 
 export class EvmAccountProvider extends BaseBip44AccountProvider {
   static NAME = EVM_ACCOUNT_PROVIDER_NAME;
@@ -59,17 +68,17 @@ export class EvmAccountProvider extends BaseBip44AccountProvider {
 
   constructor(
     messenger: MultichainAccountServiceMessenger,
-    config: EvmAccountProviderConfig = {
-      discovery: {
-        maxAttempts: 3,
-        timeoutMs: 500,
-        backOffMs: 500,
-      },
-    },
+    config: EvmAccountProviderConfig = EVM_ACCOUNT_PROVIDER_DEFAULT_CONFIG,
     trace?: TraceCallback,
   ) {
     super(messenger);
-    this.#config = config;
+    this.#config = {
+      ...config,
+      discovery: {
+        ...config.discovery,
+        enabled: config.discovery.enabled ?? true,
+      },
+    };
     this.#trace = trace ?? traceFallback;
   }
 
@@ -242,6 +251,10 @@ export class EvmAccountProvider extends BaseBip44AccountProvider {
         },
       },
       async () => {
+        if (!this.#config.discovery.enabled) {
+          return [];
+        }
+
         const provider = this.getEvmProvider();
         const { entropySource, groupIndex } = opts;
 
