@@ -1,8 +1,16 @@
-#!/usr/bin/env node
-
+const { execSync } = require('child_process');
 const fs = require('fs');
 const path = require('path');
-const { execSync } = require('child_process');
+
+// Helper function to check if path exists (replacement for deprecated fs.existsSync)
+function pathExistsSync(filePath) {
+  try {
+    fs.accessSync(filePath);
+    return true;
+  } catch {
+    return false;
+  }
+}
 
 /**
  * Script to link ramps-controller for local development in MetaMask Mobile
@@ -10,15 +18,26 @@ const { execSync } = require('child_process');
  */
 
 const rampsControllerPath = __dirname;
-const mobileNodeModulesPath = path.join(__dirname, '..', '..', '..', 'metamask-mobile', 'node_modules', '@metamask');
-const rampsControllerDestPath = path.join(mobileNodeModulesPath, 'ramps-controller');
+const mobileNodeModulesPath = path.join(
+  __dirname,
+  '..',
+  '..',
+  '..',
+  'metamask-mobile',
+  'node_modules',
+  '@metamask',
+);
+const rampsControllerDestPath = path.join(
+  mobileNodeModulesPath,
+  'ramps-controller',
+);
 
 // Always rebuild ramps-controller to ensure we have the latest changes
 const distPath = path.join(rampsControllerPath, 'dist');
 console.log('🔨 Building ramps-controller...');
 
 // Clear any existing dist directory first
-if (fs.existsSync(distPath)) {
+if (pathExistsSync(distPath)) {
   fs.rmSync(distPath, { recursive: true, force: true });
   console.log('🗑️  Cleared existing build artifacts.');
 }
@@ -37,7 +56,7 @@ try {
 
 // Check if mobile app exists
 const mobilePath = path.join(__dirname, '..', '..', '..', 'metamask-mobile');
-if (!fs.existsSync(mobilePath)) {
+if (!pathExistsSync(mobilePath)) {
   console.error('❌ MetaMask mobile app not found at expected location.');
   process.exit(1);
 }
@@ -45,18 +64,18 @@ if (!fs.existsSync(mobilePath)) {
 console.log('🔗 Linking ramps-controller for local development...');
 
 // Create @metamask directory if it doesn't exist
-if (!fs.existsSync(mobileNodeModulesPath)) {
+if (!pathExistsSync(mobileNodeModulesPath)) {
   fs.mkdirSync(mobileNodeModulesPath, { recursive: true });
 }
 
 // Remove existing link if it exists
-if (fs.existsSync(rampsControllerDestPath)) {
+if (pathExistsSync(rampsControllerDestPath)) {
   fs.rmSync(rampsControllerDestPath, { recursive: true, force: true });
 }
 
 // Copy the ramps-controller package
 function copyDir(src, dest) {
-  if (!fs.existsSync(dest)) {
+  if (!pathExistsSync(dest)) {
     fs.mkdirSync(dest, { recursive: true });
   }
 

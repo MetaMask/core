@@ -1,8 +1,6 @@
-#!/usr/bin/env node
-
+const { exec } = require('child_process');
 const fs = require('fs');
 const path = require('path');
-const { execSync } = require('child_process');
 
 /**
  * Simple file watcher for ramps-controller development
@@ -21,30 +19,35 @@ const BUILD_THROTTLE_MS = 500; // Wait 500ms after last change before building
 
 // Function to run the link script
 function runLinkScript() {
-  try {
+  return new Promise((resolve, reject) => {
     console.log('🔄 Changes detected, rebuilding and linking...');
-    execSync(`node ${linkScript}`, {
+    exec(`node ${linkScript}`, {
       stdio: 'inherit',
-      cwd: __dirname
+      cwd: __dirname,
+    }, (error) => {
+      if (error) {
+        console.error('❌ Failed to rebuild and link:', error.message);
+        reject(error);
+      } else {
+        console.log('✅ Rebuild and link complete\n');
+        console.log('👀 Watching for changes...\n');
+        resolve();
+      }
     });
-    console.log('✅ Rebuild and link complete\n');
-    console.log('👀 Watching for changes...\n');
-  } catch (error) {
-    console.error('❌ Failed to rebuild and link:', error.message);
-  }
+  });
 }
 
 // Simple file watcher using fs.watch
 function watchDirectory(dir) {
-  fs.watch(dir, { recursive: true }, (eventType, filename) => {
+  fs.watch(dir, { recursive: true }, (_eventType, filename) => {
     if (filename && (filename.endsWith('.ts') || filename.endsWith('.js'))) {
       const now = Date.now();
       if (now - lastBuildTime > BUILD_THROTTLE_MS) {
         lastBuildTime = now;
         // Debounce the build to avoid multiple rapid builds
-        setTimeout(() => {
+        setTimeout(async () => {
           if (Date.now() - lastBuildTime >= BUILD_THROTTLE_MS) {
-            runLinkScript();
+            await runLinkScript();
           }
         }, BUILD_THROTTLE_MS);
       }
@@ -62,4 +65,6 @@ fs.watchFile(linkScript, () => {
 
 // Initial build and link
 console.log('🏗️  Performing initial build and link...');
-runLinkScript();
+runLinkScript().catch(() => {
+  // Initial build errors are handled within runLinkScript
+});
