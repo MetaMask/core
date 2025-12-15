@@ -7,6 +7,10 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+### Fixed
+
+- Include pending authorizations in nonce calculation ([#7446](https://github.com/MetaMask/core/pull/7446))
+
 ## [62.7.0]
 
 ### Added
