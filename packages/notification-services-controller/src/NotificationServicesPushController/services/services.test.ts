@@ -1,5 +1,4 @@
 import log from 'loglevel';
-import type nock from 'nock';
 
 import {
   activatePushNotifications,
@@ -55,33 +54,9 @@ describe('NotificationServicesPushController Services', () => {
   });
 
   describe('activatePushNotifications', () => {
-    const arrangeMocks = (override?: {
-      mockPut?: { status: number };
-    }): {
-      params: {
-        bearerToken: string;
-        addresses: string[];
-        createRegToken: jest.Mock;
-        regToken: {
-          platform: 'extension';
-          locale: string;
-        };
-        env: PushNotificationEnv;
-      };
-      mobileParams: {
-        bearerToken: string;
-        addresses: string[];
-        createRegToken: jest.Mock;
-        regToken: {
-          platform: 'mobile';
-          locale: string;
-        };
-        env: PushNotificationEnv;
-      };
-      apis: {
-        mockPut: nock.Scope;
-      };
-    } => {
+    // Internal testing utility - return type is inferred
+    // eslint-disable-next-line @typescript-eslint/explicit-function-return-type
+    const arrangeMocks = (override?: { mockPut?: { status: number } }) => {
       const params = {
         bearerToken: MOCK_JWT,
         addresses: MOCK_ADDRESSES,
@@ -151,13 +126,9 @@ describe('NotificationServicesPushController Services', () => {
   });
 
   describe('deactivatePushNotifications', () => {
-    const arrangeMocks = (): {
-      params: {
-        regToken: string;
-        deleteRegToken: jest.Mock;
-        env: PushNotificationEnv;
-      };
-    } => {
+    // Internal testing utility - return type is inferred
+    // eslint-disable-next-line @typescript-eslint/explicit-function-return-type
+    const arrangeMocks = () => {
       const params = {
         regToken: MOCK_REG_TOKEN,
         deleteRegToken: jest.fn().mockResolvedValue(true),
