@@ -1578,33 +1578,6 @@
       "count": 70
     }
   },
-  "packages/notification-services-controller/src/NotificationServicesPushController/services/services.ts": {
-    "@typescript-eslint/naming-convention": {
-      "count": 1
-    }
-  },
-  "packages/notification-services-controller/src/NotificationServicesPushController/utils/get-notification-data.ts": {
-    "@typescript-eslint/explicit-function-return-type": {
-      "count": 5
-    },
-    "@typescript-eslint/prefer-nullish-coalescing": {
-      "count": 1
-    },
-    "id-denylist": {
-      "count": 1
-    }
-  },
-  "packages/notification-services-controller/src/NotificationServicesPushController/utils/get-notification-message.ts": {
-    "@typescript-eslint/explicit-function-return-type": {
-      "count": 5
-    },
-    "@typescript-eslint/naming-convention": {
-      "count": 2
-    },
-    "id-length": {
-      "count": 9
-    }
-  },
   "packages/phishing-controller/src/BulkTokenScan.test.ts": {
     "@typescript-eslint/explicit-function-return-type": {
       "count": 2

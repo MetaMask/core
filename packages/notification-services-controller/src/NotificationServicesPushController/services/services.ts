@@ -18,6 +18,8 @@ export type RegToken = {
  */
 export type PushTokenRequest = {
   addresses: string[];
+  // API response uses snake_case for this property
+  // eslint-disable-next-line @typescript-eslint/naming-convention
   registration_token: {
     token: string;
     platform: 'extension' | 'mobile' | 'portfolio';
