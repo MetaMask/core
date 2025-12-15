@@ -1,4 +1,5 @@
 import log from 'loglevel';
+import type nock from 'nock';
 
 import {
   activatePushNotifications,
@@ -9,7 +10,7 @@ import { mockEndpointUpdatePushNotificationLinks } from '../__fixtures__/mockSer
 import type { PushNotificationEnv } from '../types/firebase';
 
 // Testing util to clean up verbose logs when testing errors
-const mockErrorLog = () =>
+const mockErrorLog = (): jest.SpyInstance =>
   jest.spyOn(log, 'error').mockImplementation(jest.fn());
 
 const MOCK_REG_TOKEN = 'REG_TOKEN';
@@ -19,7 +20,7 @@ const MOCK_JWT = 'MOCK_JWT';
 
 describe('NotificationServicesPushController Services', () => {
   describe('updateLinksAPI', () => {
-    const act = async () =>
+    const act = async (): Promise<boolean> =>
       await updateLinksAPI({
         bearerToken: MOCK_JWT,
         addresses: MOCK_ADDRESSES,
@@ -54,7 +55,33 @@ describe('NotificationServicesPushController Services', () => {
   });
 
   describe('activatePushNotifications', () => {
-    const arrangeMocks = (override?: { mockPut?: { status: number } }) => {
+    const arrangeMocks = (override?: {
+      mockPut?: { status: number };
+    }): {
+      params: {
+        bearerToken: string;
+        addresses: string[];
+        createRegToken: jest.Mock;
+        regToken: {
+          platform: 'extension';
+          locale: string;
+        };
+        env: PushNotificationEnv;
+      };
+      mobileParams: {
+        bearerToken: string;
+        addresses: string[];
+        createRegToken: jest.Mock;
+        regToken: {
+          platform: 'mobile';
+          locale: string;
+        };
+        env: PushNotificationEnv;
+      };
+      apis: {
+        mockPut: nock.Scope;
+      };
+    } => {
       const params = {
         bearerToken: MOCK_JWT,
         addresses: MOCK_ADDRESSES,
@@ -124,7 +151,13 @@ describe('NotificationServicesPushController Services', () => {
   });
 
   describe('deactivatePushNotifications', () => {
-    const arrangeMocks = () => {
+    const arrangeMocks = (): {
+      params: {
+        regToken: string;
+        deleteRegToken: jest.Mock;
+        env: PushNotificationEnv;
+      };
+    } => {
       const params = {
         regToken: MOCK_REG_TOKEN,
         deleteRegToken: jest.fn().mockResolvedValue(true),
