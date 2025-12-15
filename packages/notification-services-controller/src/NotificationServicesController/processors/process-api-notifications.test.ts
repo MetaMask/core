@@ -38,7 +38,7 @@ const rawNotifications = [
 ];
 
 const rawNotificationTestSuite = rawNotifications.map(
-  (n) => [n.type, n] as const,
+  (notification) => [notification.type, notification] as const,
 );
 
 describe('process-onchain-notifications - processOnChainNotification()', () => {

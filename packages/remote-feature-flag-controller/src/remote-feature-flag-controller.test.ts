@@ -9,6 +9,7 @@ import type {
 import type { AbstractClientConfigApiService } from './client-config-api-service/abstract-client-config-api-service';
 import {
   RemoteFeatureFlagController,
+  controllerName,
   DEFAULT_CACHE_DURATION,
   getDefaultRemoteFeatureFlagControllerState,
 } from './remote-feature-flag-controller';
@@ -17,8 +18,6 @@ import type {
   RemoteFeatureFlagControllerState,
 } from './remote-feature-flag-controller';
 import type { FeatureFlags } from './remote-feature-flag-controller-types';
-
-const controllerName = 'RemoteFeatureFlagController';
 
 const MOCK_FLAGS: FeatureFlags = {
   feature1: true,
@@ -88,6 +87,8 @@ describe('RemoteFeatureFlagController', () => {
 
       expect(controller.state).toStrictEqual({
         remoteFeatureFlags: {},
+        localOverrides: {},
+        rawRemoteFeatureFlags: {},
         cacheTimestamp: 0,
       });
     });
@@ -97,6 +98,8 @@ describe('RemoteFeatureFlagController', () => {
 
       expect(controller.state).toStrictEqual({
         remoteFeatureFlags: {},
+        localOverrides: {},
+        rawRemoteFeatureFlags: {},
         cacheTimestamp: 0,
       });
     });
@@ -105,6 +108,8 @@ describe('RemoteFeatureFlagController', () => {
       const customState = {
         remoteFeatureFlags: MOCK_FLAGS_TWO,
         cacheTimestamp: 123456789,
+        rawRemoteFeatureFlags: {},
+        localOverrides: {},
       };
 
       const controller = createController({ state: customState });
@@ -640,7 +645,137 @@ describe('RemoteFeatureFlagController', () => {
     it('should return default state', () => {
       expect(getDefaultRemoteFeatureFlagControllerState()).toStrictEqual({
         remoteFeatureFlags: {},
+        localOverrides: {},
+        rawRemoteFeatureFlags: {},
         cacheTimestamp: 0,
+      });
+    });
+  });
+
+  describe('override functionality', () => {
+    describe('setFlagOverride', () => {
+      it('sets a local override for a feature flag', () => {
+        const controller = createController();
+
+        controller.setFlagOverride('testFlag', true);
+
+        expect(controller.state.localOverrides).toStrictEqual({
+          testFlag: true,
+        });
+      });
+
+      it('overwrites existing override for the same flag', () => {
+        const controller = createController({
+          state: {
+            localOverrides: {
+              testFlag: true,
+            },
+          },
+        });
+
+        controller.setFlagOverride('testFlag', false);
+
+        expect(controller.state.localOverrides).toStrictEqual({
+          testFlag: false,
+        });
+      });
+
+      it('preserves other overrides when setting a new one', () => {
+        const controller = createController({
+          state: {
+            localOverrides: {
+              flag1: 'value1',
+            },
+          },
+        });
+
+        controller.setFlagOverride('flag2', 'value2');
+
+        expect(controller.state.localOverrides).toStrictEqual({
+          flag1: 'value1',
+          flag2: 'value2',
+        });
+      });
+    });
+
+    describe('removeFlagOverride', () => {
+      it('removes a specific override', () => {
+        const controller = createController({
+          state: {
+            localOverrides: {
+              flag1: 'value1',
+              flag2: 'value2',
+            },
+          },
+        });
+
+        controller.removeFlagOverride('flag1');
+
+        expect(controller.state.localOverrides).toStrictEqual({
+          flag2: 'value2',
+        });
+      });
+
+      it('does not affect state when clearing non-existent override', () => {
+        const controller = createController({
+          state: {
+            localOverrides: {
+              flag1: 'value1',
+            },
+          },
+        });
+
+        controller.removeFlagOverride('nonExistentFlag');
+
+        expect(controller.state.localOverrides).toStrictEqual({
+          flag1: 'value1',
+        });
+      });
+    });
+
+    describe('clearAllFlagOverrides', () => {
+      it('removes all overrides', () => {
+        const controller = createController({
+          state: {
+            localOverrides: {
+              flag1: 'value1',
+              flag2: 'value2',
+            },
+          },
+        });
+
+        controller.clearAllFlagOverrides();
+
+        expect(controller.state.localOverrides).toStrictEqual({});
+      });
+
+      it('does not affect state when no overrides exist', () => {
+        const controller = createController();
+
+        controller.clearAllFlagOverrides();
+
+        expect(controller.state.localOverrides).toStrictEqual({});
+      });
+    });
+
+    describe('integration with remote flags', () => {
+      it('preserves overrides when remote flags are updated', async () => {
+        const clientConfigApiService = buildClientConfigApiService({
+          remoteFeatureFlags: { remoteFlag: 'initialRemoteValue' },
+        });
+        const controller = createController({ clientConfigApiService });
+
+        // Set overrides before fetching remote flags
+        controller.setFlagOverride('overrideFlag', 'overrideValue');
+        controller.setFlagOverride('remoteFlag', 'updatedRemoteValue');
+
+        await controller.updateRemoteFeatureFlags();
+
+        // Overrides should be preserved when remote flags are updated.
+        expect(controller.state.localOverrides).toStrictEqual({
+          overrideFlag: 'overrideValue',
+          remoteFlag: 'updatedRemoteValue',
+        });
       });
     });
   });
@@ -658,6 +793,8 @@ describe('RemoteFeatureFlagController', () => {
       ).toMatchInlineSnapshot(`
         Object {
           "cacheTimestamp": 0,
+          "localOverrides": Object {},
+          "rawRemoteFeatureFlags": Object {},
           "remoteFeatureFlags": Object {},
         }
       `);
@@ -675,6 +812,8 @@ describe('RemoteFeatureFlagController', () => {
       ).toMatchInlineSnapshot(`
         Object {
           "cacheTimestamp": 0,
+          "localOverrides": Object {},
+          "rawRemoteFeatureFlags": Object {},
           "remoteFeatureFlags": Object {},
         }
       `);
@@ -692,6 +831,8 @@ describe('RemoteFeatureFlagController', () => {
       ).toMatchInlineSnapshot(`
         Object {
           "cacheTimestamp": 0,
+          "localOverrides": Object {},
+          "rawRemoteFeatureFlags": Object {},
           "remoteFeatureFlags": Object {},
         }
       `);
@@ -708,6 +849,7 @@ describe('RemoteFeatureFlagController', () => {
         ),
       ).toMatchInlineSnapshot(`
         Object {
+          "localOverrides": Object {},
           "remoteFeatureFlags": Object {},
         }
       `);
