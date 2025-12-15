@@ -458,7 +458,7 @@ export class BackendWebSocketService {
 
     // Create and store the connection promise IMMEDIATELY (before any async operations)
     // This ensures subsequent connect() calls will wait for this promise instead of creating new connections
-    this.#connectionPromise = (async () => {
+    this.#connectionPromise = (async (): Promise<void> => {
       // Priority 2: Check authentication requirements (signed in)
       let bearerToken: string;
       try {
@@ -580,13 +580,13 @@ export class BackendWebSocketService {
    *
    * @see sendMessage for fire-and-forget messaging without response handling
    */
-  async sendRequest<T = ServerResponseMessage['data']>(
+  async sendRequest<Type = ServerResponseMessage['data']>(
     message: Omit<ClientRequestMessage, 'data'> & {
       data?: Omit<ClientRequestMessage['data'], 'requestId'> & {
         requestId?: string;
       };
     },
-  ): Promise<T> {
+  ): Promise<Type> {
     if (this.#state !== WebSocketState.CONNECTED) {
       throw new Error(`Cannot send request: WebSocket is ${this.#state}`);
     }
@@ -974,6 +974,7 @@ export class BackendWebSocketService {
       },
       () => {
         return new Promise<void>((resolve, reject) => {
+          // eslint-disable-next-line no-restricted-globals
           const ws = new WebSocket(wsUrl);
           this.#connectionTimeout = setTimeout(() => {
             log('WebSocket connection timeout - forcing close', {
@@ -983,7 +984,7 @@ export class BackendWebSocketService {
             ws.close();
           }, this.#options.timeout);
 
-          ws.onopen = () => {
+          ws.onopen = (): void => {
             if (this.#connectionTimeout) {
               clearTimeout(this.#connectionTimeout);
               this.#connectionTimeout = null;
@@ -1006,7 +1007,7 @@ export class BackendWebSocketService {
             resolve();
           };
 
-          ws.onclose = (event: CloseEvent) => {
+          ws.onclose = (event: CloseEvent): void => {
             log('WebSocket onclose event triggered', {
               code: event.code,
               reason: event.reason || getCloseReason(event.code),
@@ -1039,7 +1040,7 @@ export class BackendWebSocketService {
             }
 
             // Calculate connection duration before we clear state (only if we were connected)
-            const connectionDuration_ms =
+            const connectionDurationMs =
               this.#connectedAt > 0 ? Date.now() - this.#connectedAt : 0;
 
             // Clear all timers
@@ -1079,7 +1080,9 @@ export class BackendWebSocketService {
                 reason: event.reason || getCloseReason(event.code),
                 wasClean: event.wasClean,
                 reconnectAttempts: this.#reconnectAttempts,
-                ...(connectionDuration_ms > 0 && { connectionDuration_ms }),
+                ...(connectionDurationMs > 0 && {
+                  connectionDuration_ms: connectionDurationMs,
+                }),
               },
               tags: {
                 service: SERVICE_NAME,
@@ -1088,7 +1091,7 @@ export class BackendWebSocketService {
           };
 
           // Set up message handler immediately - no need to wait for connection
-          ws.onmessage = (event: MessageEvent) => {
+          ws.onmessage = (event: MessageEvent): void => {
             try {
               const message = this.#parseMessage(event.data);
               this.#handleMessage(message);

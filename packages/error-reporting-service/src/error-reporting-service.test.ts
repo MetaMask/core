@@ -11,7 +11,8 @@ describe('ErrorReportingService', () => {
       const messenger = buildMessenger();
       const errorReportingService = new ErrorReportingService({
         messenger,
-        captureException: (error: Error) => sentryCaptureException(error),
+        captureException: (error: Error): string =>
+          sentryCaptureException(error),
       });
 
       // This assertion is just here to appease the ESLint Jest rules
@@ -50,6 +51,7 @@ describe('ErrorReportingService', () => {
     it('calls the `captureException` function supplied to the constructor with the given arguments', () => {
       const messenger = buildMessenger();
       const captureExceptionMock = jest.fn();
+      // eslint-disable-next-line no-new
       new ErrorReportingService({
         messenger,
         captureException: captureExceptionMock,

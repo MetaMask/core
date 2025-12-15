@@ -259,7 +259,7 @@ describe('MultichainAccountService', () => {
       );
       expect(mocks.SolAccountProvider.constructor).toHaveBeenCalledWith(
         messenger,
-        providerConfigs?.[SolAccountProvider.NAME],
+        providerConfigs?.[SOL_ACCOUNT_PROVIDER_NAME],
         expect.any(Function), // TraceCallback
       );
     });
