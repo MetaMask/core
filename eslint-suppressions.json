@@ -1897,24 +1897,6 @@
       "count": 1
     }
   },
-  "packages/notification-services-controller/src/NotificationServicesPushController/NotificationServicesPushController.test.ts": {
-    "@typescript-eslint/explicit-function-return-type": {
-      "count": 4
-    },
-    "@typescript-eslint/prefer-nullish-coalescing": {
-      "count": 1
-    }
-  },
-  "packages/notification-services-controller/src/NotificationServicesPushController/NotificationServicesPushController.ts": {
-    "@typescript-eslint/explicit-function-return-type": {
-      "count": 6
-    }
-  },
-  "packages/notification-services-controller/src/NotificationServicesPushController/__fixtures__/mockServices.ts": {
-    "@typescript-eslint/explicit-function-return-type": {
-      "count": 1
-    }
-  },
   "packages/notification-services-controller/src/NotificationServicesPushController/mocks/mockResponse.ts": {
     "@typescript-eslint/explicit-function-return-type": {
       "count": 3
