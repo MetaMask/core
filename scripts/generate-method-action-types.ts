@@ -1,6 +1,6 @@
 #!yarn tsx
 
-import { hasProperty, isPlainObject } from '@metamask/utils';
+import { hasProperty, isObject } from '@metamask/utils';
 import { ESLint } from 'eslint';
 import * as fs from 'fs';
 import * as path from 'path';
@@ -223,7 +223,7 @@ async function isDirectory(pathValue: string): Promise<boolean> {
     return stats.isDirectory();
   } catch (error) {
     if (
-      isPlainObject(error) &&
+      isObject(error) &&
       hasProperty(error, 'code') &&
       error.code === 'ENOENT'
     ) {
