@@ -65,7 +65,7 @@ export type RemoteFeatureFlagControllerState = {
    */
   localOverrides: FeatureFlags;
   /**
-   * Raw A/B test flag arrays for flags that were processed from arrays to single values.
+   * Raw flag for all feature flags.
    */
   rawRemoteFeatureFlags: FeatureFlags;
   /**
