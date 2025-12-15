@@ -20,7 +20,7 @@ main().catch((error) => {
  * in the monorepo. If there are any packages missing from `teams.json`, prints
  * an error and exits with a non-zero code.
  */
-async function main() {
+async function main(): Promise<void> {
   const releaseableWorkspaces = await getPublicWorkspaces();
   const releaseablePackageNames = releaseableWorkspaces.map((workspace) => {
     // The package names in teams.json omit the leading "@", so we do that here
