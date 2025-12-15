@@ -92,7 +92,7 @@ export class InternalProvider<
     // Non-polluting `any` that acts like a constraint.
     // eslint-disable-next-line @typescript-eslint/no-explicit-any
     callback: (error: unknown, providerRes?: any) => void,
-  ) => {
+  ): void => {
     const jsonRpcRequest =
       convertEip1193RequestToJsonRpcRequest(eip1193Request);
     this.#handleWithCallback(jsonRpcRequest, callback);
@@ -114,7 +114,7 @@ export class InternalProvider<
     // TODO: Replace `any` with type
     // eslint-disable-next-line @typescript-eslint/no-explicit-any
     callback: (error: unknown, providerRes?: any) => void,
-  ) => {
+  ): void => {
     if (typeof callback !== 'function') {
       throw new Error('Must provide callback to "send" method.');
     }

@@ -16,7 +16,7 @@ jest.mock('@metamask/superstruct', () => ({
 }));
 
 const ADDRESS_MOCK = '0xABCDabcdABCDabcdABCDabcdABCDabcdABCDabcd';
-const createContext = () =>
+const createContext = (): MiddlewareContext<WalletMiddlewareKeyValues> =>
   new MiddlewareContext<WalletMiddlewareKeyValues>([['origin', 'test']]);
 
 const STRUCT_ERROR_MOCK = {
