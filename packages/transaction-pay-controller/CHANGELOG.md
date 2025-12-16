@@ -9,7 +9,7 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [10.6.0]
 
-### Uncategorized
+### Added
 
 - feat: add override functionality to remote feature flags ([#7271](https://github.com/MetaMask/core/pull/7271))
 
@@ -17,6 +17,7 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 - Bump `@metamask/assets-controllers` from `^93.1.0` to `^94.1.0` ([#7444](https://github.com/MetaMask/core/pull/7444), [#7488](https://github.com/MetaMask/core/pull/7488))
 - Bump `@metamask/transaction-controller` from `^62.6.0` to `^62.7.0` ([#7494](https://github.com/MetaMask/core/pull/7494))
+- Bump `@metamask/bridge-controller` from `^64.1.0` to `^64.2.0` ([#7507](https://github.com/MetaMask/core/pull/7507))
 
 ## [10.5.0]
 
