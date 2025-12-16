@@ -13,7 +13,7 @@ concurrency:
 jobs:
   check-skip-merge-queue:
     name: Check if pull request can skip merge queue
-    if: github.event_name == 'merge_group
+    if: github.event_name == 'merge_group'
     runs-on: ubuntu-latest
     outputs:
       skip-merge-queue: ${{ steps.check-skip-merge-queue.outputs.up-to-date }}
