@@ -37,19 +37,25 @@ type Env = {
  */
 export type ContentfulResult = {
   includes?: {
+    // Property names match Contentful API response structure
+    // eslint-disable-next-line @typescript-eslint/naming-convention
     Entry?: Entry[];
+    // eslint-disable-next-line @typescript-eslint/naming-convention
     Asset?: Asset[];
   };
   items?: TypeFeatureAnnouncement[];
 };
 
-export const getFeatureAnnouncementUrl = (env: Env, previewToken?: string) => {
+export const getFeatureAnnouncementUrl = (
+  env: Env,
+  previewToken?: string,
+): string => {
   const domain = previewToken ? PREVIEW_DOMAIN : DEFAULT_DOMAIN;
   const replacedUrl = FEATURE_ANNOUNCEMENT_URL.replace(
     DEFAULT_SPACE_ID,
     env.spaceId,
   )
-    .replace(DEFAULT_ACCESS_TOKEN, previewToken || env.accessToken)
+    .replace(DEFAULT_ACCESS_TOKEN, previewToken ?? env.accessToken)
     .replace(DEFAULT_CLIENT_ID, env.platform)
     .replace(DEFAULT_DOMAIN, domain);
   return encodeURI(replacedUrl);
@@ -62,14 +68,22 @@ const fetchFeatureAnnouncementNotifications = async (
   const url = getFeatureAnnouncementUrl(env, previewToken);
 
   const data = await fetch(url)
-    .then((r) => r.json())
+    .then((response) => response.json())
     .catch(() => null);
 
   if (!data) {
     return [];
   }
 
-  const findIncludedItem = (sysId: string) => {
+  const findIncludedItem = (
+    sysId: string,
+  ):
+    | ImageFields['fields']
+    | TypeExtensionLinkFields['fields']
+    | TypePortfolioLinkFields['fields']
+    | TypeMobileLinkFields['fields']
+    | TypeExternalLinkFields['fields']
+    | null => {
     const typedData: EntryCollection<
       | ImageFields
       | TypeExtensionLinkFields
@@ -78,15 +92,19 @@ const fetchFeatureAnnouncementNotifications = async (
       | TypeExternalLinkFields
     > = data;
     const item =
-      typedData?.includes?.Entry?.find((i: Entry) => i?.sys?.id === sysId) ||
-      typedData?.includes?.Asset?.find((i: Asset) => i?.sys?.id === sysId);
+      typedData?.includes?.Entry?.find(
+        (entry: Entry) => entry?.sys?.id === sysId,
+      ) ??
+      typedData?.includes?.Asset?.find(
+        (asset: Asset) => asset?.sys?.id === sysId,
+      );
     return item ? item?.fields : null;
   };
 
   const contentfulNotifications = data?.items ?? [];
   const rawNotifications: FeatureAnnouncementRawNotification[] =
-    contentfulNotifications.map((n: TypeFeatureAnnouncement) => {
-      const { fields } = n;
+    contentfulNotifications.map((item: TypeFeatureAnnouncement) => {
+      const { fields } = item;
       const imageFields = fields.image
         ? (findIncludedItem(fields.image.sys.id) as ImageFields['fields'])
         : undefined;
@@ -114,7 +132,7 @@ const fetchFeatureAnnouncementNotifications = async (
 
       const notification: FeatureAnnouncementRawNotification = {
         type: TRIGGER_TYPES.FEATURES_ANNOUNCEMENT,
-        createdAt: new Date(n.sys.createdAt).toString(),
+        createdAt: new Date(item.sys.createdAt).toString(),
         data: {
           id: fields.id,
           category: fields.category,
@@ -163,15 +181,17 @@ const fetchFeatureAnnouncementNotifications = async (
     },
   } as const;
 
-  const filteredRawNotifications = rawNotifications.filter((n) => {
-    const minVersion = n.data?.[versionKeys[env.platform].min];
-    const maxVersion = n.data?.[versionKeys[env.platform].max];
-    return isVersionInBounds({
-      currentVersion: env.platformVersion,
-      minVersion,
-      maxVersion,
-    });
-  });
+  const filteredRawNotifications = rawNotifications.filter(
+    (rawNotification) => {
+      const minVersion = rawNotification.data?.[versionKeys[env.platform].min];
+      const maxVersion = rawNotification.data?.[versionKeys[env.platform].max];
+      return isVersionInBounds({
+        currentVersion: env.platformVersion,
+        minVersion,
+        maxVersion,
+      });
+    },
+  );
 
   return filteredRawNotifications;
 };

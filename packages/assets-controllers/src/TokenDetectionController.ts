@@ -817,6 +817,13 @@ export class TokenDetectionController extends StaticIntervalPollingController<To
       return;
     }
 
+    // Refresh the token cache to ensure we have the latest token metadata
+    // This fixes a bug where the cache from construction time could be stale/empty
+    const { tokensChainsCache } = this.messenger.call(
+      'TokenListController:getState',
+    );
+    this.#tokensChainsCache = tokensChainsCache ?? {};
+
     const tokensWithBalance: Token[] = [];
     const eventTokensDetails: string[] = [];
 
@@ -906,6 +913,13 @@ export class TokenDetectionController extends StaticIntervalPollingController<To
     if (!this.#useExternalServices()) {
       return;
     }
+
+    // Refresh the token cache to ensure we have the latest token metadata
+    // This fixes a bug where the cache from construction time could be stale/empty
+    const { tokensChainsCache } = this.messenger.call(
+      'TokenListController:getState',
+    );
+    this.#tokensChainsCache = tokensChainsCache ?? {};
 
     const selectedAddress = this.#getSelectedAddress();
 

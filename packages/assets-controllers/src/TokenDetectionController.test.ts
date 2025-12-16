@@ -3888,6 +3888,75 @@ describe('TokenDetectionController', () => {
       );
     });
 
+    it('should fetch fresh token metadata cache from TokenListController at call time', async () => {
+      // This test verifies the fix for the bug where addDetectedTokensViaPolling used
+      // a stale/empty tokensChainsCache from construction time instead of fetching
+      // fresh data from TokenListController:getState at call time.
+      const mockTokenAddress = '0xa0b86991c6218b36c1d19d4a2e9eb0ce3606eb48';
+      const checksummedTokenAddress =
+        '0xA0b86991c6218b36c1d19D4a2e9Eb0cE3606eB48';
+      const chainId = '0xa86a';
+
+      await withController(
+        {
+          options: {
+            disabled: false,
+            useTokenDetection: () => true,
+          },
+          // Start with empty cache at construction time - simulating the bug scenario
+          mockTokenListState: {
+            tokensChainsCache: {},
+          },
+        },
+        async ({ controller, callActionSpy, mockTokenListGetState }) => {
+          // Update the mock to return populated cache data
+          // This simulates TokenListController having fetched token list data after construction
+          mockTokenListGetState({
+            ...getDefaultTokenListState(),
+            tokensChainsCache: {
+              [chainId]: {
+                timestamp: 0,
+                data: {
+                  [mockTokenAddress]: {
+                    name: 'USD Coin',
+                    symbol: 'USDC',
+                    decimals: 6,
+                    address: mockTokenAddress,
+                    aggregators: [],
+                    iconUrl: 'https://example.com/usdc.png',
+                    occurrences: 11,
+                  },
+                },
+              },
+            },
+          });
+
+          // Call addDetectedTokensViaPolling - with the fix, it should fetch fresh cache
+          await controller.addDetectedTokensViaPolling({
+            tokensSlice: [mockTokenAddress],
+            chainId: chainId as Hex,
+          });
+
+          // With the fix, the token should be added because fresh cache is fetched
+          expect(callActionSpy).toHaveBeenCalledWith(
+            'TokensController:addTokens',
+            [
+              {
+                address: checksummedTokenAddress,
+                decimals: 6,
+                symbol: 'USDC',
+                aggregators: [],
+                image: 'https://example.com/usdc.png',
+                isERC721: false,
+                name: 'USD Coin',
+              },
+            ],
+            'avalanche',
+          );
+        },
+      );
+    });
+
     it('should add only untracked tokens when mixed with tracked/ignored', async () => {
       const trackedTokenAddress = '0xa0b86991c6218b36c1d19d4a2e9eb0ce3606eb48';
       const trackedTokenChecksummed =

@@ -11,6 +11,16 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 - Add intent based transaction support ([#6547](https://github.com/MetaMask/core/pull/6547))
 
+### Fixed
+
+- Include pending authorizations in nonce calculation ([#7446](https://github.com/MetaMask/core/pull/7446))
+
+## [62.7.0]
+
+### Added
+
+- Adding a new transaction meta property `requestId`. It is supported for both simple and batched transactions ([#7415](https://github.com/MetaMask/core/pull/7415))
+
 ## [62.6.0]
 
 ### Added
@@ -21,6 +31,7 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
   - Add optional `isTimeoutEnabled` callback to disable for specific transactions.
   - Ignores transactions with future nonce.
   - Threshold determined by feature flag.
+- Adding a new transaction meta property `requestId`. It is supported for both simple and batched transactions ([#7415](https://github.com/MetaMask/core/pull/7415))
 
 ### Changed
 
@@ -2032,7 +2043,8 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
     All changes listed after this point were applied to this package following the monorepo conversion.
 
-[Unreleased]: https://github.com/MetaMask/core/compare/@metamask/transaction-controller@62.6.0...HEAD
+[Unreleased]: https://github.com/MetaMask/core/compare/@metamask/transaction-controller@62.7.0...HEAD
+[62.7.0]: https://github.com/MetaMask/core/compare/@metamask/transaction-controller@62.6.0...@metamask/transaction-controller@62.7.0
 [62.6.0]: https://github.com/MetaMask/core/compare/@metamask/transaction-controller@62.5.0...@metamask/transaction-controller@62.6.0
 [62.5.0]: https://github.com/MetaMask/core/compare/@metamask/transaction-controller@62.4.0...@metamask/transaction-controller@62.5.0
 [62.4.0]: https://github.com/MetaMask/core/compare/@metamask/transaction-controller@62.3.1...@metamask/transaction-controller@62.4.0

@@ -17,7 +17,7 @@ type SignTypedMessageDataV3V4 = {
  * @param messageData - The messageData to normalize.
  * @returns The normalized messageData.
  */
-export function normalizeTypedMessage(messageData: string) {
+export function normalizeTypedMessage(messageData: string): string {
   let data;
   try {
     data = parseTypedMessage(messageData);
@@ -47,7 +47,7 @@ export function normalizeTypedMessage(messageData: string) {
  * @param data - The messageData to parse.
  * @returns The data object for EIP712 normalization.
  */
-export function parseTypedMessage(data: string) {
+export function parseTypedMessage(data: string): SignTypedMessageDataV3V4 {
   if (typeof data !== 'string') {
     return data;
   }

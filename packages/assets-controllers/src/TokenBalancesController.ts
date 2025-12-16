@@ -200,6 +200,8 @@ export type TokenBalancesControllerOptions = {
   platform?: 'extension' | 'mobile';
   /** Polling interval when WebSocket is active and providing real-time updates */
   websocketActivePollingInterval?: number;
+  /** Whether the user has completed onboarding. If false, balance updates are skipped. */
+  isOnboarded?: () => boolean;
 };
 
 const draft = <State>(base: State, fn: (draftState: State) => void): State =>
@@ -272,6 +274,10 @@ export class TokenBalancesController extends StaticIntervalPollingController<{
 
   readonly #accountsApiChainIds: () => ChainIdHex[];
 
+  readonly #allowExternalServices: () => boolean;
+
+  readonly #isOnboarded: () => boolean;
+
   readonly #balanceFetchers: BalanceFetcher[];
 
   #allTokens: TokensControllerState['allTokens'] = {};
@@ -320,6 +326,7 @@ export class TokenBalancesController extends StaticIntervalPollingController<{
     accountsApiChainIds = (): ChainIdHex[] => [],
     allowExternalServices = (): boolean => true,
     platform,
+    isOnboarded = (): boolean => true,
   }: TokenBalancesControllerOptions) {
     super({
       name: CONTROLLER,
@@ -333,14 +340,15 @@ export class TokenBalancesController extends StaticIntervalPollingController<{
     this.#platform = platform ?? 'extension';
     this.#queryAllAccounts = queryMultipleAccounts;
     this.#accountsApiChainIds = accountsApiChainIds;
+    this.#allowExternalServices = allowExternalServices;
+    this.#isOnboarded = isOnboarded;
     this.#defaultInterval = interval;
     this.#websocketActivePollingInterval = websocketActivePollingInterval;
     this.#chainPollingConfig = { ...chainPollingIntervals };
 
+    // Always include AccountsApiFetcher - it dynamically checks allowExternalServices() in supports()
     this.#balanceFetchers = [
-      ...(accountsApiChainIds().length > 0 && allowExternalServices()
-        ? [this.#createAccountsApiFetcher()]
-        : []),
+      this.#createAccountsApiFetcher(),
       new RpcBalanceFetcher(this.#getProvider, this.#getNetworkClient, () => ({
         allTokens: this.#allTokens,
         allDetectedTokens: this.#detectedTokens,
@@ -445,13 +453,13 @@ export class TokenBalancesController extends StaticIntervalPollingController<{
   }
 
   /**
-   * Whether the controller is active (keyring is unlocked).
-   * When locked, balance updates should be skipped.
+   * Whether the controller is active (keyring is unlocked and user is onboarded).
+   * When locked or not onboarded, balance updates should be skipped.
    *
-   * @returns Whether the keyring is unlocked.
+   * @returns Whether the controller should perform balance updates.
    */
   get isActive(): boolean {
-    return this.#isUnlocked;
+    return this.#isUnlocked && this.#isOnboarded();
   }
 
   /**
@@ -537,7 +545,9 @@ export class TokenBalancesController extends StaticIntervalPollingController<{
     );
 
     return {
+      // Dynamically check allowExternalServices() at call time, not just at construction time
       supports: (chainId: ChainIdHex): boolean =>
+        this.#allowExternalServices() &&
         this.#accountsApiChainIds().includes(chainId) &&
         originalFetcher.supports(chainId),
       fetch: originalFetcher.fetch.bind(originalFetcher),

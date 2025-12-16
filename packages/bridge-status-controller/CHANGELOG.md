@@ -10,7 +10,7 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 ### Changed
 
 - **BREAKING** Use CrossChain API instead of the intent manager package for intent order submission ([#6547](https://github.com/MetaMask/core/pull/6547))
-- Bump `@metamask/transaction-controller` from `^62.5.0` to `^62.6.0` ([#7430](https://github.com/MetaMask/core/pull/7430))
+- Bump `@metamask/transaction-controller` from `^62.5.0` to `^62.7.0` ([#7430](https://github.com/MetaMask/core/pull/7430), [#7494](https://github.com/MetaMask/core/pull/7494))
 
 ## [64.1.0]
 
