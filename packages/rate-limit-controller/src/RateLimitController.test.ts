@@ -1,10 +1,9 @@
 import { deriveStateFromMetadata } from '@metamask/base-controller';
-import {
-  Messenger,
-  MOCK_ANY_NAMESPACE,
-  type MessengerActions,
-  type MessengerEvents,
-  type MockAnyNamespace,
+import { Messenger, MOCK_ANY_NAMESPACE } from '@metamask/messenger';
+import type {
+  MessengerActions,
+  MessengerEvents,
+  MockAnyNamespace,
 } from '@metamask/messenger';
 
 import type { RateLimitMessenger } from './RateLimitController';
@@ -89,6 +88,7 @@ describe('RateLimitController', () => {
     const messenger = getMessenger(rootMessenger);
 
     // Registers action handlers
+    // eslint-disable-next-line no-new
     new RateLimitController({
       implementations,
       messenger,

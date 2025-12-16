@@ -1,8 +1,7 @@
-import {
-  createServicePolicy,
-  HttpError,
-  type CreateServicePolicyOptions,
-  type ServicePolicy,
+import { createServicePolicy, HttpError } from '@metamask/controller-utils';
+import type {
+  CreateServicePolicyOptions,
+  ServicePolicy,
 } from '@metamask/controller-utils';
 import { handleWhen } from 'cockatiel';
 
@@ -16,14 +15,18 @@ export class PollingWithCockatielPolicy {
   readonly #requestEntry = new Map<string, AbortController>();
 
   constructor(policyOptions: CreateServicePolicyOptions = {}) {
-    const retryFilterPolicy = handleWhen(this.#shouldRetry);
+    const shouldRetryFunc = this.#shouldRetry.bind(this);
+    const retryFilterPolicy = handleWhen(shouldRetryFunc);
     this.#policy = createServicePolicy({
       ...policyOptions,
       retryFilterPolicy,
     });
   }
 
-  async start<ReturnType>(requestId: string, requestFn: RequestFn<ReturnType>) {
+  async start<ReturnType>(
+    requestId: string,
+    requestFn: RequestFn<ReturnType>,
+  ): Promise<ReturnType> {
     const abortController = this.#addNewRequestEntry(requestId);
 
     try {
@@ -46,13 +49,13 @@ export class PollingWithCockatielPolicy {
     }
   }
 
-  abortPendingRequest(requestId: string) {
+  abortPendingRequest(requestId: string): void {
     const abortController = this.#requestEntry.get(requestId);
     abortController?.abort();
     this.#cleanup(requestId);
   }
 
-  #addNewRequestEntry(requestId: string) {
+  #addNewRequestEntry(requestId: string): AbortController {
     // abort the previous request if it exists
     this.abortPendingRequest(requestId);
 
@@ -62,7 +65,7 @@ export class PollingWithCockatielPolicy {
     return abortController;
   }
 
-  #cleanup(requestId: string) {
+  #cleanup(requestId: string): void {
     this.#requestEntry.delete(requestId);
   }
 

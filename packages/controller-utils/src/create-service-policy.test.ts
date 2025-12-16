@@ -1365,7 +1365,7 @@ describe('createServicePolicy', () => {
       describe(`using the default max number of consecutive failures (${DEFAULT_MAX_CONSECUTIVE_FAILURES})`, () => {
         it('returns what the service returns', async () => {
           let invocationCounter = 0;
-          const mockService = () => {
+          const mockService = (): { some: string } => {
             invocationCounter += 1;
             if (invocationCounter === DEFAULT_MAX_RETRIES + 1) {
               return { some: 'data' };
@@ -1385,7 +1385,7 @@ describe('createServicePolicy', () => {
 
         it('does not call onBreak listeners, since the max number of consecutive failures is never reached', async () => {
           let invocationCounter = 0;
-          const mockService = () => {
+          const mockService = (): { some: string } => {
             invocationCounter += 1;
             if (invocationCounter === DEFAULT_MAX_RETRIES + 1) {
               return { some: 'data' };
@@ -1422,7 +1422,7 @@ describe('createServicePolicy', () => {
           describe('if the service execution time is below the threshold', () => {
             it('does not call onDegraded listeners', async () => {
               let invocationCounter = 0;
-              const mockService = () => {
+              const mockService = (): { some: string } => {
                 invocationCounter += 1;
                 if (invocationCounter === DEFAULT_MAX_RETRIES + 1) {
                   return { some: 'data' };
@@ -1445,7 +1445,7 @@ describe('createServicePolicy', () => {
 
             it('calls onAvailable listeners once, even if the service is called more than once', async () => {
               let invocationCounter = 0;
-              const mockService = () => {
+              const mockService = (): { some: string } => {
                 invocationCounter += 1;
                 if (
                   invocationCounter > 0 &&
@@ -1480,7 +1480,7 @@ describe('createServicePolicy', () => {
             it('calls onDegraded listeners once', async () => {
               let invocationCounter = 0;
               const delay = threshold + 1;
-              const mockService = () => {
+              const mockService = (): Promise<{ some: string }> => {
                 invocationCounter += 1;
                 return new Promise((resolve, reject) => {
                   if (invocationCounter === DEFAULT_MAX_RETRIES + 1) {
@@ -1507,7 +1507,7 @@ describe('createServicePolicy', () => {
             it('does not call onAvailable listeners', async () => {
               let invocationCounter = 0;
               const delay = DEFAULT_DEGRADED_THRESHOLD + 1;
-              const mockService = () => {
+              const mockService = (): Promise<{ some: string }> => {
                 invocationCounter += 1;
                 return new Promise((resolve, reject) => {
                   if (invocationCounter === DEFAULT_MAX_RETRIES + 1) {
@@ -1539,7 +1539,7 @@ describe('createServicePolicy', () => {
           it('returns what the service returns', async () => {
             const maxConsecutiveFailures = DEFAULT_MAX_RETRIES + 2;
             let invocationCounter = 0;
-            const mockService = () => {
+            const mockService = (): { some: string } => {
               invocationCounter += 1;
               if (invocationCounter === DEFAULT_MAX_RETRIES + 1) {
                 return { some: 'data' };
@@ -1562,7 +1562,7 @@ describe('createServicePolicy', () => {
           it('does not call onBreak listeners', async () => {
             const maxConsecutiveFailures = DEFAULT_MAX_RETRIES + 2;
             let invocationCounter = 0;
-            const mockService = () => {
+            const mockService = (): { some: string } => {
               invocationCounter += 1;
               if (invocationCounter === DEFAULT_MAX_RETRIES + 1) {
                 return { some: 'data' };
@@ -1602,7 +1602,7 @@ describe('createServicePolicy', () => {
               it('does not call onDegraded listeners', async () => {
                 const maxConsecutiveFailures = DEFAULT_MAX_RETRIES + 2;
                 let invocationCounter = 0;
-                const mockService = () => {
+                const mockService = (): { some: string } => {
                   invocationCounter += 1;
                   if (invocationCounter === DEFAULT_MAX_RETRIES + 1) {
                     return { some: 'data' };
@@ -1629,7 +1629,7 @@ describe('createServicePolicy', () => {
               it('calls onAvailable listeners once, even if the service is called more than once', async () => {
                 const maxConsecutiveFailures = DEFAULT_MAX_RETRIES + 2;
                 let invocationCounter = 0;
-                const mockService = () => {
+                const mockService = (): { some: string } => {
                   invocationCounter += 1;
                   if (invocationCounter >= DEFAULT_MAX_RETRIES + 1) {
                     return { some: 'data' };
@@ -1665,7 +1665,7 @@ describe('createServicePolicy', () => {
                 const maxConsecutiveFailures = DEFAULT_MAX_RETRIES + 2;
                 const delay = threshold + 1;
                 let invocationCounter = 0;
-                const mockService = () => {
+                const mockService = (): Promise<{ some: string }> => {
                   invocationCounter += 1;
                   return new Promise((resolve, reject) => {
                     if (invocationCounter === DEFAULT_MAX_RETRIES + 1) {
@@ -1696,7 +1696,7 @@ describe('createServicePolicy', () => {
                 const maxConsecutiveFailures = DEFAULT_MAX_RETRIES + 2;
                 const delay = threshold + 1;
                 let invocationCounter = 0;
-                const mockService = () => {
+                const mockService = (): Promise<{ some: string }> => {
                   invocationCounter += 1;
                   return new Promise((resolve, reject) => {
                     if (invocationCounter === DEFAULT_MAX_RETRIES + 1) {
@@ -1730,7 +1730,7 @@ describe('createServicePolicy', () => {
           it('returns what the service returns', async () => {
             const maxConsecutiveFailures = DEFAULT_MAX_RETRIES + 1;
             let invocationCounter = 0;
-            const mockService = () => {
+            const mockService = (): { some: string } => {
               invocationCounter += 1;
               if (invocationCounter === DEFAULT_MAX_RETRIES + 1) {
                 return { some: 'data' };
@@ -1754,7 +1754,7 @@ describe('createServicePolicy', () => {
             const maxConsecutiveFailures = DEFAULT_MAX_RETRIES + 1;
             let invocationCounter = 0;
             const error = new Error('failure');
-            const mockService = () => {
+            const mockService = (): { some: string } => {
               invocationCounter += 1;
               if (invocationCounter === DEFAULT_MAX_RETRIES + 1) {
                 return { some: 'data' };
@@ -1795,7 +1795,7 @@ describe('createServicePolicy', () => {
                 const maxConsecutiveFailures = DEFAULT_MAX_RETRIES + 1;
                 let invocationCounter = 0;
                 const error = new Error('failure');
-                const mockService = () => {
+                const mockService = (): { some: string } => {
                   invocationCounter += 1;
                   if (invocationCounter === DEFAULT_MAX_RETRIES + 1) {
                     return { some: 'data' };
@@ -1823,7 +1823,7 @@ describe('createServicePolicy', () => {
                 const maxConsecutiveFailures = DEFAULT_MAX_RETRIES + 1;
                 let invocationCounter = 0;
                 const error = new Error('failure');
-                const mockService = () => {
+                const mockService = (): { some: string } => {
                   invocationCounter += 1;
                   if (invocationCounter >= DEFAULT_MAX_RETRIES + 1) {
                     return { some: 'data' };
@@ -1859,7 +1859,7 @@ describe('createServicePolicy', () => {
                 const maxConsecutiveFailures = DEFAULT_MAX_RETRIES + 1;
                 const delay = threshold + 1;
                 let invocationCounter = 0;
-                const mockService = () => {
+                const mockService = (): Promise<{ some: string }> => {
                   invocationCounter += 1;
                   return new Promise((resolve, reject) => {
                     if (invocationCounter === DEFAULT_MAX_RETRIES + 1) {
@@ -1890,7 +1890,7 @@ describe('createServicePolicy', () => {
                 const maxConsecutiveFailures = DEFAULT_MAX_RETRIES + 1;
                 const delay = threshold + 1;
                 let invocationCounter = 0;
-                const mockService = () => {
+                const mockService = (): Promise<{ some: string }> => {
                   invocationCounter += 1;
                   return new Promise((resolve, reject) => {
                     if (invocationCounter === DEFAULT_MAX_RETRIES + 1) {
@@ -1925,7 +1925,7 @@ describe('createServicePolicy', () => {
             const maxConsecutiveFailures = DEFAULT_MAX_RETRIES;
             let invocationCounter = 0;
             const error = new Error('failure');
-            const mockService = () => {
+            const mockService = (): { some: string } => {
               invocationCounter += 1;
               if (invocationCounter === DEFAULT_MAX_RETRIES + 1) {
                 return { some: 'data' };
@@ -1952,7 +1952,7 @@ describe('createServicePolicy', () => {
             const maxConsecutiveFailures = DEFAULT_MAX_RETRIES;
             let invocationCounter = 0;
             const error = new Error('failure');
-            const mockService = () => {
+            const mockService = (): { some: string } => {
               invocationCounter += 1;
               if (invocationCounter === DEFAULT_MAX_RETRIES + 1) {
                 return { some: 'data' };
@@ -1981,7 +1981,7 @@ describe('createServicePolicy', () => {
             const maxConsecutiveFailures = DEFAULT_MAX_RETRIES;
             let invocationCounter = 0;
             const error = new Error('failure');
-            const mockService = () => {
+            const mockService = (): { some: string } => {
               invocationCounter += 1;
               if (invocationCounter === DEFAULT_MAX_RETRIES + 1) {
                 return { some: 'data' };
@@ -2008,7 +2008,7 @@ describe('createServicePolicy', () => {
             const maxConsecutiveFailures = DEFAULT_MAX_RETRIES;
             let invocationCounter = 0;
             const error = new Error('failure');
-            const mockService = () => {
+            const mockService = (): { some: string } => {
               invocationCounter += 1;
               if (invocationCounter === DEFAULT_MAX_RETRIES + 1) {
                 return { some: 'data' };
@@ -2051,7 +2051,7 @@ describe('createServicePolicy', () => {
                 const maxConsecutiveFailures = DEFAULT_MAX_RETRIES;
                 let invocationCounter = 0;
                 const error = new Error('failure');
-                const mockService = () => {
+                const mockService = (): { some: string } => {
                   invocationCounter += 1;
                   if (invocationCounter === DEFAULT_MAX_RETRIES + 1) {
                     return { some: 'data' };
@@ -2079,7 +2079,7 @@ describe('createServicePolicy', () => {
                 const maxConsecutiveFailures = DEFAULT_MAX_RETRIES;
                 let invocationCounter = 0;
                 const error = new Error('failure');
-                const mockService = () => {
+                const mockService = (): { some: string } => {
                   invocationCounter += 1;
                   if (invocationCounter >= DEFAULT_MAX_RETRIES + 1) {
                     return { some: 'data' };
@@ -2152,7 +2152,7 @@ describe('createServicePolicy', () => {
             const maxRetries = DEFAULT_MAX_CONSECUTIVE_FAILURES - 2;
             let invocationCounter = 0;
             const error = new Error('failure');
-            const mockService = () => {
+            const mockService = (): { some: string } => {
               invocationCounter += 1;
               if (invocationCounter === maxRetries + 1) {
                 return { some: 'data' };
@@ -2174,7 +2174,7 @@ describe('createServicePolicy', () => {
             const maxRetries = DEFAULT_MAX_CONSECUTIVE_FAILURES - 2;
             let invocationCounter = 0;
             const error = new Error('failure');
-            const mockService = () => {
+            const mockService = (): { some: string } => {
               invocationCounter += 1;
               if (invocationCounter === maxRetries + 1) {
                 return { some: 'data' };
@@ -2213,7 +2213,7 @@ describe('createServicePolicy', () => {
                 const maxRetries = DEFAULT_MAX_CONSECUTIVE_FAILURES - 2;
                 let invocationCounter = 0;
                 const error = new Error('failure');
-                const mockService = () => {
+                const mockService = (): { some: string } => {
                   invocationCounter += 1;
                   if (invocationCounter === maxRetries + 1) {
                     return { some: 'data' };
@@ -2238,7 +2238,7 @@ describe('createServicePolicy', () => {
                 const maxRetries = DEFAULT_MAX_CONSECUTIVE_FAILURES - 2;
                 let invocationCounter = 0;
                 const error = new Error('failure');
-                const mockService = () => {
+                const mockService = (): { some: string } => {
                   invocationCounter += 1;
                   if (invocationCounter >= maxRetries + 1) {
                     return { some: 'data' };
@@ -2266,7 +2266,7 @@ describe('createServicePolicy', () => {
                 const maxRetries = DEFAULT_MAX_CONSECUTIVE_FAILURES - 2;
                 const delay = threshold + 1;
                 let invocationCounter = 0;
-                const mockService = () => {
+                const mockService = (): Promise<{ some: string }> => {
                   invocationCounter += 1;
                   return new Promise((resolve, reject) => {
                     if (invocationCounter === DEFAULT_MAX_RETRIES + 1) {
@@ -2294,7 +2294,7 @@ describe('createServicePolicy', () => {
                 const maxRetries = DEFAULT_MAX_CONSECUTIVE_FAILURES - 2;
                 const delay = threshold + 1;
                 let invocationCounter = 0;
-                const mockService = () => {
+                const mockService = (): Promise<{ some: string }> => {
                   invocationCounter += 1;
                   return new Promise((resolve, reject) => {
                     if (invocationCounter === DEFAULT_MAX_RETRIES + 1) {
@@ -2326,7 +2326,7 @@ describe('createServicePolicy', () => {
             const maxRetries = DEFAULT_MAX_CONSECUTIVE_FAILURES - 1;
             let invocationCounter = 0;
             const error = new Error('failure');
-            const mockService = () => {
+            const mockService = (): { some: string } => {
               invocationCounter += 1;
               if (invocationCounter === maxRetries + 1) {
                 return { some: 'data' };
@@ -2348,7 +2348,7 @@ describe('createServicePolicy', () => {
             const maxRetries = DEFAULT_MAX_CONSECUTIVE_FAILURES - 1;
             let invocationCounter = 0;
             const error = new Error('failure');
-            const mockService = () => {
+            const mockService = (): { some: string } => {
               invocationCounter += 1;
               if (invocationCounter === maxRetries + 1) {
                 return { some: 'data' };
@@ -2387,7 +2387,7 @@ describe('createServicePolicy', () => {
                 const maxRetries = DEFAULT_MAX_CONSECUTIVE_FAILURES - 1;
                 let invocationCounter = 0;
                 const error = new Error('failure');
-                const mockService = () => {
+                const mockService = (): { some: string } => {
                   invocationCounter += 1;
                   if (invocationCounter === maxRetries + 1) {
                     return { some: 'data' };
@@ -2412,7 +2412,7 @@ describe('createServicePolicy', () => {
                 const maxRetries = DEFAULT_MAX_CONSECUTIVE_FAILURES - 1;
                 let invocationCounter = 0;
                 const error = new Error('failure');
-                const mockService = () => {
+                const mockService = (): { some: string } => {
                   invocationCounter += 1;
                   if (invocationCounter >= maxRetries + 1) {
                     return { some: 'data' };
@@ -2440,7 +2440,7 @@ describe('createServicePolicy', () => {
                 const maxRetries = DEFAULT_MAX_CONSECUTIVE_FAILURES - 1;
                 const delay = DEFAULT_DEGRADED_THRESHOLD + 1;
                 let invocationCounter = 0;
-                const mockService = () => {
+                const mockService = (): Promise<{ some: string }> => {
                   invocationCounter += 1;
                   return new Promise((resolve, reject) => {
                     if (invocationCounter === DEFAULT_MAX_RETRIES + 1) {
@@ -2468,7 +2468,7 @@ describe('createServicePolicy', () => {
                 const maxRetries = DEFAULT_MAX_CONSECUTIVE_FAILURES - 1;
                 const delay = DEFAULT_DEGRADED_THRESHOLD + 1;
                 let invocationCounter = 0;
-                const mockService = () => {
+                const mockService = (): Promise<{ some: string }> => {
                   invocationCounter += 1;
                   return new Promise((resolve, reject) => {
                     if (invocationCounter === DEFAULT_MAX_RETRIES + 1) {
@@ -2500,7 +2500,7 @@ describe('createServicePolicy', () => {
             const maxRetries = DEFAULT_MAX_CONSECUTIVE_FAILURES;
             let invocationCounter = 0;
             const error = new Error('failure');
-            const mockService = () => {
+            const mockService = (): { some: string } => {
               invocationCounter += 1;
               if (invocationCounter === maxRetries + 1) {
                 return { some: 'data' };
@@ -2526,7 +2526,7 @@ describe('createServicePolicy', () => {
             const maxRetries = DEFAULT_MAX_CONSECUTIVE_FAILURES;
             let invocationCounter = 0;
             const error = new Error('failure');
-            const mockService = () => {
+            const mockService = (): { some: string } => {
               invocationCounter += 1;
               if (invocationCounter === maxRetries + 1) {
                 return { some: 'data' };
@@ -2553,7 +2553,7 @@ describe('createServicePolicy', () => {
             const maxRetries = DEFAULT_MAX_CONSECUTIVE_FAILURES;
             let invocationCounter = 0;
             const error = new Error('failure');
-            const mockService = () => {
+            const mockService = (): { some: string } => {
               invocationCounter += 1;
               if (invocationCounter === maxRetries + 1) {
                 return { some: 'data' };
@@ -2578,7 +2578,7 @@ describe('createServicePolicy', () => {
             const maxRetries = DEFAULT_MAX_CONSECUTIVE_FAILURES;
             let invocationCounter = 0;
             const error = new Error('failure');
-            const mockService = () => {
+            const mockService = (): { some: string } => {
               invocationCounter += 1;
               if (invocationCounter === maxRetries + 1) {
                 return { some: 'data' };
@@ -2619,7 +2619,7 @@ describe('createServicePolicy', () => {
                 const maxRetries = DEFAULT_MAX_CONSECUTIVE_FAILURES;
                 let invocationCounter = 0;
                 const error = new Error('failure');
-                const mockService = () => {
+                const mockService = (): { some: string } => {
                   invocationCounter += 1;
                   if (invocationCounter === maxRetries + 1) {
                     return { some: 'data' };
@@ -2644,7 +2644,7 @@ describe('createServicePolicy', () => {
                 const maxRetries = DEFAULT_MAX_CONSECUTIVE_FAILURES;
                 let invocationCounter = 0;
                 const error = new Error('failure');
-                const mockService = () => {
+                const mockService = (): { some: string } => {
                   invocationCounter += 1;
                   if (invocationCounter >= maxRetries + 1) {
                     return { some: 'data' };
@@ -2679,7 +2679,7 @@ describe('createServicePolicy', () => {
             const maxRetries = maxConsecutiveFailures - 2;
             let invocationCounter = 0;
             const error = new Error('failure');
-            const mockService = () => {
+            const mockService = (): { some: string } => {
               invocationCounter += 1;
               if (invocationCounter === maxRetries + 1) {
                 return { some: 'data' };
@@ -2705,7 +2705,7 @@ describe('createServicePolicy', () => {
             const maxRetries = maxConsecutiveFailures - 2;
             let invocationCounter = 0;
             const error = new Error('failure');
-            const mockService = () => {
+            const mockService = (): { some: string } => {
               invocationCounter += 1;
               if (invocationCounter === maxRetries + 1) {
                 return { some: 'data' };
@@ -2748,7 +2748,7 @@ describe('createServicePolicy', () => {
                 const maxRetries = maxConsecutiveFailures - 2;
                 let invocationCounter = 0;
                 const error = new Error('failure');
-                const mockService = () => {
+                const mockService = (): { some: string } => {
                   invocationCounter += 1;
                   if (invocationCounter === maxRetries + 1) {
                     return { some: 'data' };
@@ -2778,7 +2778,7 @@ describe('createServicePolicy', () => {
                 const maxRetries = maxConsecutiveFailures - 2;
                 let invocationCounter = 0;
                 const error = new Error('failure');
-                const mockService = () => {
+                const mockService = (): { some: string } => {
                   invocationCounter += 1;
                   if (invocationCounter >= maxRetries + 1) {
                     return { some: 'data' };
@@ -2816,7 +2816,7 @@ describe('createServicePolicy', () => {
                 const maxRetries = maxConsecutiveFailures - 2;
                 const delay = DEFAULT_DEGRADED_THRESHOLD + 1;
                 let invocationCounter = 0;
-                const mockService = () => {
+                const mockService = (): Promise<{ some: string }> => {
                   invocationCounter += 1;
                   return new Promise((resolve, reject) => {
                     if (invocationCounter === DEFAULT_MAX_RETRIES + 1) {
@@ -2849,7 +2849,7 @@ describe('createServicePolicy', () => {
                 const maxRetries = maxConsecutiveFailures - 2;
                 const delay = threshold + 1;
                 let invocationCounter = 0;
-                const mockService = () => {
+                const mockService = (): Promise<{ some: string }> => {
                   invocationCounter += 1;
                   return new Promise((resolve, reject) => {
                     if (invocationCounter === DEFAULT_MAX_RETRIES + 1) {
@@ -2886,7 +2886,7 @@ describe('createServicePolicy', () => {
             const maxRetries = maxConsecutiveFailures - 1;
             let invocationCounter = 0;
             const error = new Error('failure');
-            const mockService = () => {
+            const mockService = (): { some: string } => {
               invocationCounter += 1;
               if (invocationCounter === maxRetries + 1) {
                 return { some: 'data' };
@@ -2912,7 +2912,7 @@ describe('createServicePolicy', () => {
             const maxRetries = maxConsecutiveFailures - 1;
             let invocationCounter = 0;
             const error = new Error('failure');
-            const mockService = () => {
+            const mockService = (): { some: string } => {
               invocationCounter += 1;
               if (invocationCounter === maxRetries + 1) {
                 return { some: 'data' };
@@ -2955,7 +2955,7 @@ describe('createServicePolicy', () => {
                 const maxRetries = maxConsecutiveFailures - 1;
                 let invocationCounter = 0;
                 const error = new Error('failure');
-                const mockService = () => {
+                const mockService = (): { some: string } => {
                   invocationCounter += 1;
                   if (invocationCounter === maxRetries + 1) {
                     return { some: 'data' };
@@ -2985,7 +2985,7 @@ describe('createServicePolicy', () => {
                 const maxRetries = maxConsecutiveFailures - 1;
                 let invocationCounter = 0;
                 const error = new Error('failure');
-                const mockService = () => {
+                const mockService = (): { some: string } => {
                   invocationCounter += 1;
                   if (invocationCounter % (maxRetries + 1) === 0) {
                     return { some: 'data' };
@@ -3023,7 +3023,7 @@ describe('createServicePolicy', () => {
                 const maxRetries = maxConsecutiveFailures - 1;
                 const delay = threshold + 1;
                 let invocationCounter = 0;
-                const mockService = () => {
+                const mockService = (): Promise<{ some: string }> => {
                   invocationCounter += 1;
                   return new Promise((resolve, reject) => {
                     if (invocationCounter === DEFAULT_MAX_RETRIES + 1) {
@@ -3056,7 +3056,7 @@ describe('createServicePolicy', () => {
                 const maxRetries = maxConsecutiveFailures - 1;
                 const delay = threshold + 1;
                 let invocationCounter = 0;
-                const mockService = () => {
+                const mockService = (): Promise<{ some: string }> => {
                   invocationCounter += 1;
                   return new Promise((resolve, reject) => {
                     if (invocationCounter === DEFAULT_MAX_RETRIES + 1) {
@@ -3093,7 +3093,7 @@ describe('createServicePolicy', () => {
             const maxRetries = maxConsecutiveFailures;
             let invocationCounter = 0;
             const error = new Error('failure');
-            const mockService = () => {
+            const mockService = (): { some: string } => {
               invocationCounter += 1;
               if (invocationCounter === maxRetries + 1) {
                 return { some: 'data' };
@@ -3124,7 +3124,7 @@ describe('createServicePolicy', () => {
             const maxRetries = maxConsecutiveFailures;
             let invocationCounter = 0;
             const error = new Error('failure');
-            const mockService = () => {
+            const mockService = (): { some: string } => {
               invocationCounter += 1;
               if (invocationCounter === maxRetries + 1) {
                 return { some: 'data' };
@@ -3155,7 +3155,7 @@ describe('createServicePolicy', () => {
             const maxRetries = maxConsecutiveFailures;
             let invocationCounter = 0;
             const error = new Error('failure');
-            const mockService = () => {
+            const mockService = (): { some: string } => {
               invocationCounter += 1;
               if (invocationCounter === maxRetries + 1) {
                 return { some: 'data' };
@@ -3184,7 +3184,7 @@ describe('createServicePolicy', () => {
             const maxRetries = maxConsecutiveFailures;
             let invocationCounter = 0;
             const error = new Error('failure');
-            const mockService = () => {
+            const mockService = (): { some: string } => {
               invocationCounter += 1;
               if (invocationCounter === maxRetries + 1) {
                 return { some: 'data' };
@@ -3229,7 +3229,7 @@ describe('createServicePolicy', () => {
                 const maxRetries = maxConsecutiveFailures;
                 let invocationCounter = 0;
                 const error = new Error('failure');
-                const mockService = () => {
+                const mockService = (): { some: string } => {
                   invocationCounter += 1;
                   if (invocationCounter === maxRetries + 1) {
                     return { some: 'data' };
@@ -3259,7 +3259,7 @@ describe('createServicePolicy', () => {
                 const maxRetries = maxConsecutiveFailures;
                 let invocationCounter = 0;
                 const error = new Error('failure');
-                const mockService = () => {
+                const mockService = (): { some: string } => {
                   invocationCounter += 1;
                   if (invocationCounter >= maxRetries + 1) {
                     return { some: 'data' };
@@ -3403,7 +3403,7 @@ describe('createServicePolicy', () => {
 
   describe('getRemainingCircuitOpenDuration', () => {
     it('returns the number of milliseconds before the circuit will transition from open to half-open', async () => {
-      const mockService = () => {
+      const mockService = (): never => {
         throw new Error('failure');
       };
       const policy = createServicePolicy();
@@ -3430,7 +3430,7 @@ describe('createServicePolicy', () => {
 
   describe('getCircuitState', () => {
     it('returns the state of the circuit', async () => {
-      const mockService = () => {
+      const mockService = (): never => {
         throw new Error('failure');
       };
       const policy = createServicePolicy();
@@ -3564,6 +3564,6 @@ describe('createServicePolicy', () => {
  *
  * @param promise - A promise that rejects.
  */
-async function ignoreRejection<T>(promise: Promise<T>) {
+async function ignoreRejection<Type>(promise: Promise<Type>): Promise<void> {
   await expect(promise).rejects.toThrow(expect.any(Error));
 }

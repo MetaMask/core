@@ -2,8 +2,8 @@ import type { JsonRpcMiddleware } from '@metamask/json-rpc-engine/v2';
 import { rpcErrors } from '@metamask/rpc-errors';
 import type { Infer } from '@metamask/superstruct';
 import { object } from '@metamask/superstruct';
-import type { Json } from '@metamask/utils';
-import { type JsonRpcRequest, StrictHexStruct } from '@metamask/utils';
+import { StrictHexStruct } from '@metamask/utils';
+import type { Json, JsonRpcRequest } from '@metamask/utils';
 
 import { validateParams } from '../utils/validation';
 import type { WalletMiddlewareContext } from '../wallet';
@@ -25,6 +25,7 @@ export type RevokeExecutionPermissionRequestParams = Infer<
 export type ProcessRevokeExecutionPermissionHook = (
   request: RevokeExecutionPermissionRequestParams,
   req: JsonRpcRequest,
+  context: WalletMiddlewareContext,
 ) => Promise<RevokeExecutionPermissionResult>;
 
 /**
@@ -41,7 +42,7 @@ export function createWalletRevokeExecutionPermissionHandler({
 }: {
   processRevokeExecutionPermission?: ProcessRevokeExecutionPermissionHook;
 }): JsonRpcMiddleware<JsonRpcRequest, Json, WalletMiddlewareContext> {
-  return async ({ request }) => {
+  return async ({ request, context }) => {
     if (!processRevokeExecutionPermission) {
       throw rpcErrors.methodNotSupported(
         'wallet_revokeExecutionPermission - no middleware configured',
@@ -52,6 +53,6 @@ export function createWalletRevokeExecutionPermissionHandler({
 
     validateParams(params, RevokeExecutionPermissionRequestParamsStruct);
 
-    return await processRevokeExecutionPermission(params, request);
+    return await processRevokeExecutionPermission(params, request, context);
   };
 }

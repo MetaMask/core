@@ -1,4 +1,5 @@
-import { FeatureId, type QuoteResponse } from '@metamask/bridge-controller';
+import { FeatureId } from '@metamask/bridge-controller';
+import type { QuoteResponse } from '@metamask/bridge-controller';
 import type { TxData } from '@metamask/bridge-controller';
 import { TransactionType } from '@metamask/transaction-controller';
 import type { TransactionMeta } from '@metamask/transaction-controller';
@@ -10,13 +11,14 @@ import {
   refreshQuote,
 } from './bridge-quotes';
 import type { TransactionPayBridgeQuote } from './types';
+import { getDefaultRemoteFeatureFlagControllerState } from '../../../../remote-feature-flag-controller/src/remote-feature-flag-controller';
 import { getMessengerMock } from '../../tests/messenger-mock';
 import type {
   PayStrategyGetBatchRequest,
   PayStrategyGetQuotesRequest,
   TransactionPayQuote,
 } from '../../types';
-import { type QuoteRequest } from '../../types';
+import type { QuoteRequest } from '../../types';
 import { calculateGasCost, calculateTransactionGasCost } from '../../utils/gas';
 import { getTokenFiatRate } from '../../utils/token';
 
@@ -125,7 +127,7 @@ describe('Bridge Quotes Utils', () => {
     });
 
     getRemoteFeatureFlagControllerStateMock.mockImplementation(() => ({
-      cacheTimestamp: 0,
+      ...getDefaultRemoteFeatureFlagControllerState(),
       remoteFeatureFlags: {
         confirmations_pay: getFeatureFlagsMock(),
       },
@@ -151,7 +153,7 @@ describe('Bridge Quotes Utils', () => {
     it('returns quotes', async () => {
       const quotes = await getBridgeQuotes(request);
 
-      expect(quotes.map((q) => q.original)).toStrictEqual([
+      expect(quotes.map((quote) => quote.original)).toStrictEqual([
         expect.objectContaining(QUOTE_1_MOCK),
         expect.objectContaining(QUOTE_2_MOCK),
       ]);
@@ -260,7 +262,7 @@ describe('Bridge Quotes Utils', () => {
         requests: [QUOTE_REQUEST_1_MOCK],
       });
 
-      expect(quotes.map((q) => q.original)).toStrictEqual([
+      expect(quotes.map((quote) => quote.original)).toStrictEqual([
         expect.objectContaining(QUOTES[2]),
       ]);
     });
@@ -351,7 +353,7 @@ describe('Bridge Quotes Utils', () => {
         requests: [QUOTE_REQUEST_1_MOCK],
       });
 
-      expect(quotes.map((q) => q.original)).toStrictEqual([
+      expect(quotes.map((quote) => quote.original)).toStrictEqual([
         expect.objectContaining(QUOTES_ATTEMPT_2[0]),
       ]);
 
@@ -516,7 +518,7 @@ describe('Bridge Quotes Utils', () => {
         ],
       });
 
-      expect(quotes.map((q) => q.original)).toStrictEqual([
+      expect(quotes.map((quote) => quote.original)).toStrictEqual([
         expect.objectContaining(QUOTES_ATTEMPT_2[0]),
       ]);
 
@@ -659,7 +661,7 @@ describe('Bridge Quotes Utils', () => {
         ],
       });
 
-      expect(quotes.map((q) => q.original)).toStrictEqual([
+      expect(quotes.map((quote) => quote.original)).toStrictEqual([
         expect.objectContaining(QUOTES_ATTEMPT_2[0]),
         expect.objectContaining(QUOTES_ATTEMPT_3[0]),
       ]);
@@ -850,7 +852,7 @@ describe('Bridge Quotes Utils', () => {
         undefined,
       );
 
-      expect(quotes.map((q) => q.original)).toStrictEqual([
+      expect(quotes.map((quote) => quote.original)).toStrictEqual([
         expect.objectContaining(QUOTE_1_MOCK),
       ]);
     });
@@ -1008,7 +1010,7 @@ describe('Bridge Quotes Utils', () => {
   describe('getBridgeRefreshInterval', () => {
     it('returns chain interval from feature flags', () => {
       getRemoteFeatureFlagControllerStateMock.mockReturnValue({
-        cacheTimestamp: 0,
+        ...getDefaultRemoteFeatureFlagControllerState(),
         remoteFeatureFlags: {
           bridgeConfigV2: {
             chains: {
@@ -1030,7 +1032,7 @@ describe('Bridge Quotes Utils', () => {
 
     it('returns global interval from feature flags', () => {
       getRemoteFeatureFlagControllerStateMock.mockReturnValue({
-        cacheTimestamp: 0,
+        ...getDefaultRemoteFeatureFlagControllerState(),
         remoteFeatureFlags: {
           bridgeConfigV2: {
             chains: {
@@ -1053,7 +1055,7 @@ describe('Bridge Quotes Utils', () => {
 
     it('returns undefined if no chain or global interval', () => {
       getRemoteFeatureFlagControllerStateMock.mockReturnValue({
-        cacheTimestamp: 0,
+        ...getDefaultRemoteFeatureFlagControllerState(),
         remoteFeatureFlags: {
           bridgeConfigV2: {
             chains: {

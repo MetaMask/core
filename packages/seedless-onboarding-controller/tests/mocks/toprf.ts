@@ -100,7 +100,13 @@ type MockSecretDataInput = {
 export function createMockSecretDataGetResponse(
   secretDataArr: MockSecretDataInput[],
   password: string,
-) {
+): {
+  success: boolean;
+  data: string[];
+  ids: string[];
+  dataTypes: (EncAccountDataType | null)[];
+  createdAt: (string | null)[];
+} {
   const mockToprfEncryptor = new MockToprfEncryptorDecryptor();
   const ids: string[] = [];
   const dataTypes: (EncAccountDataType | null)[] = [];

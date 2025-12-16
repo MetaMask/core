@@ -91,7 +91,7 @@ export async function readMonorepoFiles(): Promise<MonorepoFileData> {
 export async function finalizeAndWriteData(
   packageData: PackageData,
   monorepoFileData: MonorepoFileData,
-) {
+): Promise<void> {
   const packagePath = path.join(PACKAGES_PATH, packageData.directoryName);
   try {
     await fs.stat(packagePath);

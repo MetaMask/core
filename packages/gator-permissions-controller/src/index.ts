@@ -20,6 +20,7 @@ export type {
   GatorPermissionsControllerStateChangeEvent,
 } from './GatorPermissionsController';
 export type { DecodedPermission } from './decodePermission';
+export { DELEGATION_FRAMEWORK_VERSION } from './constants';
 export type {
   GatorPermissionsControllerErrorCode,
   GatorPermissionsSnapRpcMethod,

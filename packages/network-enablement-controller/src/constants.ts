@@ -12,4 +12,5 @@ export const POPULAR_NETWORKS = [
   '0x2a15c308d', // Palm (11297108109)
   '0x3e7', // HyperEVM (999)
   '0x8f', // Monad (143)
+  '0x10e6', // MegaETH (4326)
 ];

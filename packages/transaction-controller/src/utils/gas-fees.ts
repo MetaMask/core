@@ -56,7 +56,9 @@ const log = createModuleLogger(projectLogger, 'gas-fees');
  *
  * @param request - The request object.
  */
-export async function updateGasFees(request: UpdateGasFeesRequest) {
+export async function updateGasFees(
+  request: UpdateGasFeesRequest,
+): Promise<void> {
   const { txMeta } = request;
   const initialParams = { ...txMeta.txParams };
 
@@ -110,7 +112,7 @@ export async function updateGasFees(request: UpdateGasFeesRequest) {
  * @param value - The GWEI value as a decimal string.
  * @returns The WEI value in hex.
  */
-export function gweiDecimalToWeiHex(value: string) {
+export function gweiDecimalToWeiHex(value: string): Hex {
   return toHex(gweiDecToWEIBN(value));
 }
 
@@ -145,7 +147,7 @@ function getMaxFeePerGas(request: GetGasFeeRequest): string | undefined {
   }
 
   if (savedGasFees) {
-    const maxFeePerGas = gweiDecimalToWeiHex(savedGasFees.maxBaseFee as string);
+    const maxFeePerGas = gweiDecimalToWeiHex(savedGasFees.maxBaseFee);
     log('Using maxFeePerGas from savedGasFees', maxFeePerGas);
     return maxFeePerGas;
   }
@@ -325,11 +327,8 @@ function getUserFeeLevel(request: GetGasFeeRequest): UserFeeLevel | undefined {
  *
  * @param txMeta - The transaction metadata.
  */
-function updateDefaultGasEstimates(txMeta: TransactionMeta) {
-  if (!txMeta.defaultGasEstimates) {
-    txMeta.defaultGasEstimates = {};
-  }
-
+function updateDefaultGasEstimates(txMeta: TransactionMeta): void {
+  txMeta.defaultGasEstimates ??= {};
   txMeta.defaultGasEstimates.maxFeePerGas = txMeta.txParams.maxFeePerGas;
 
   txMeta.defaultGasEstimates.maxPriorityFeePerGas =

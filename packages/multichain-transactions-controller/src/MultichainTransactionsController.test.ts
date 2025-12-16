@@ -15,12 +15,11 @@ import {
 } from '@metamask/keyring-api';
 import { KeyringTypes } from '@metamask/keyring-controller';
 import type { InternalAccount } from '@metamask/keyring-internal-api';
-import {
-  Messenger,
-  MOCK_ANY_NAMESPACE,
-  type MessengerActions,
-  type MessengerEvents,
-  type MockAnyNamespace,
+import { Messenger, MOCK_ANY_NAMESPACE } from '@metamask/messenger';
+import type {
+  MessengerActions,
+  MessengerEvents,
+  MockAnyNamespace,
 } from '@metamask/messenger';
 import type { CaipChainId } from '@metamask/utils';
 import { v4 as uuidv4 } from 'uuid';
@@ -29,8 +28,10 @@ import { MultichainNetwork } from './constants';
 import {
   MultichainTransactionsController,
   getDefaultMultichainTransactionsControllerState,
-  type MultichainTransactionsControllerState,
-  type MultichainTransactionsControllerMessenger,
+} from './MultichainTransactionsController';
+import type {
+  MultichainTransactionsControllerState,
+  MultichainTransactionsControllerMessenger,
 } from './MultichainTransactionsController';
 
 const mockBtcAccount = {

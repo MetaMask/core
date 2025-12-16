@@ -1,7 +1,8 @@
 // From https://github.com/MetaMask/eth-token-tracker/blob/main/lib/util.js
 // Ensures backwards compatibility with display formatting.
 
-import { bigIntToHex, type Hex } from '@metamask/utils';
+import { bigIntToHex } from '@metamask/utils';
+import type { Hex } from '@metamask/utils';
 
 /**
  * @param balance - The balance to stringify as a decimal string

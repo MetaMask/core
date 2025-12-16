@@ -1,7 +1,7 @@
-import {
-  BaseController,
-  type ControllerStateChangeEvent,
-  type ControllerGetStateAction,
+import { BaseController } from '@metamask/base-controller';
+import type {
+  ControllerStateChangeEvent,
+  ControllerGetStateAction,
 } from '@metamask/base-controller';
 import type { ApprovalType } from '@metamask/controller-utils';
 import type {
@@ -299,10 +299,7 @@ export abstract class AbstractMessageManager<
       status === 'errored' ||
       this.additionalFinishStatuses.includes(status)
     ) {
-      this.internalEvents.emit(
-        `${messageId as string}:finished`,
-        updatedMessage,
-      );
+      this.internalEvents.emit(`${messageId}:finished`, updatedMessage);
     }
   }
 

@@ -1,12 +1,6 @@
-import {
-  ORIGIN_METAMASK,
-  successfulFetch,
-  toHex,
-} from '@metamask/controller-utils';
-import {
-  TransactionType,
-  type TransactionMeta,
-} from '@metamask/transaction-controller';
+import { ORIGIN_METAMASK, successfulFetch } from '@metamask/controller-utils';
+import { TransactionType } from '@metamask/transaction-controller';
+import type { TransactionMeta } from '@metamask/transaction-controller';
 import type { Hex } from '@metamask/utils';
 import { cloneDeep } from 'lodash';
 
@@ -61,6 +55,9 @@ const ORIGINAL_QUOTE_MOCK = {
         chainId: 2,
       },
     },
+  },
+  metamask: {
+    gasLimits: [21000, 21000],
   },
   request: {},
   steps: [
@@ -188,6 +185,7 @@ describe('Relay Submit Utils', () => {
           networkClientId: NETWORK_CLIENT_ID_MOCK,
           origin: ORIGIN_METAMASK,
           requireApproval: false,
+          type: TransactionType.relayDeposit,
         },
       );
     });
@@ -298,15 +296,21 @@ describe('Relay Submit Utils', () => {
 
       expect(addTransactionBatchMock).toHaveBeenCalledTimes(1);
       expect(addTransactionBatchMock).toHaveBeenCalledWith({
+        disable7702: true,
+        disableHook: false,
+        disableSequential: false,
         from: FROM_MOCK,
         networkClientId: NETWORK_CLIENT_ID_MOCK,
         origin: ORIGIN_METAMASK,
+        overwriteUpgrade: true,
         requireApproval: false,
         transactions: [
           {
             params: {
               data: '0x1234',
               gas: '0x5208',
+              maxFeePerGas: '0x5d21dba00',
+              maxPriorityFeePerGas: '0x3b9aca00',
               to: '0xfedcb',
               value: '0x4d2',
             },
@@ -316,9 +320,12 @@ describe('Relay Submit Utils', () => {
             params: {
               data: '0x1234',
               gas: '0x5208',
+              maxFeePerGas: '0x5d21dba00',
+              maxPriorityFeePerGas: '0x3b9aca00',
               to: '0xfedcb',
               value: '0x4d2',
             },
+            type: TransactionType.relayDeposit,
           },
         ],
       });
@@ -353,7 +360,7 @@ describe('Relay Submit Utils', () => {
       expect(addTransactionMock).toHaveBeenCalledTimes(1);
       expect(addTransactionMock).toHaveBeenCalledWith(
         expect.objectContaining({
-          gas: toHex(123),
+          gas: '0x5208',
           value: '0x0',
         }),
         expect.anything(),
@@ -465,6 +472,70 @@ describe('Relay Submit Utils', () => {
       expect(txDraft.requiredTransactionIds).toStrictEqual([
         TRANSACTION_META_MOCK.id,
       ]);
+    });
+
+    it('adds transaction batch with single gasLimit7702', async () => {
+      request.quotes[0].original.steps[0].items.push({
+        ...request.quotes[0].original.steps[0].items[0],
+      });
+
+      request.quotes[0].original.metamask.gasLimits = [42000];
+
+      await submitRelayQuotes(request);
+
+      expect(addTransactionBatchMock).toHaveBeenCalledTimes(1);
+      expect(addTransactionBatchMock).toHaveBeenCalledWith(
+        expect.objectContaining({
+          disable7702: false,
+          disableHook: true,
+          disableSequential: true,
+          gasLimit7702: '0xa410',
+          transactions: [
+            expect.objectContaining({
+              params: expect.objectContaining({
+                gas: undefined,
+              }),
+            }),
+            expect.objectContaining({
+              params: expect.objectContaining({
+                gas: undefined,
+              }),
+            }),
+          ],
+        }),
+      );
+    });
+
+    it('adds transaction batch without gasLimit7702 when multiple gas limits', async () => {
+      request.quotes[0].original.steps[0].items.push({
+        ...request.quotes[0].original.steps[0].items[0],
+      });
+
+      request.quotes[0].original.metamask.gasLimits = [21000, 22000];
+
+      await submitRelayQuotes(request);
+
+      expect(addTransactionBatchMock).toHaveBeenCalledTimes(1);
+      expect(addTransactionBatchMock).toHaveBeenCalledWith(
+        expect.objectContaining({
+          disable7702: true,
+          disableHook: false,
+          disableSequential: false,
+          gasLimit7702: undefined,
+          transactions: [
+            expect.objectContaining({
+              params: expect.objectContaining({
+                gas: '0x5208',
+              }),
+            }),
+            expect.objectContaining({
+              params: expect.objectContaining({
+                gas: '0x55f0',
+              }),
+            }),
+          ],
+        }),
+      );
     });
   });
 });

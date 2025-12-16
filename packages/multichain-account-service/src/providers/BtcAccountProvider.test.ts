@@ -9,9 +9,11 @@ import type {
 
 import { AccountProviderWrapper } from './AccountProviderWrapper';
 import {
+  BTC_ACCOUNT_PROVIDER_DEFAULT_CONFIG,
   BTC_ACCOUNT_PROVIDER_NAME,
   BtcAccountProvider,
 } from './BtcAccountProvider';
+import { SnapAccountProviderConfig } from './SnapAccountProvider';
 import { TraceName } from '../constants/traces';
 import {
   getMultichainAccountServiceMessenger,
@@ -22,8 +24,8 @@ import {
   MOCK_HD_ACCOUNT_1,
   MOCK_HD_KEYRING_1,
   MockAccountBuilder,
-  type RootMessenger,
 } from '../tests';
+import type { RootMessenger } from '../tests';
 
 class MockBtcKeyring {
   readonly type = 'MockBtcKeyring';
@@ -103,14 +105,17 @@ class MockBtcKeyring {
  * @param options - Configuration options for setup.
  * @param options.messenger - An optional messenger instance to use. Defaults to a new Messenger.
  * @param options.accounts - List of accounts to use.
+ * @param options.config - Provider config.
  * @returns An object containing the controller instance and the messenger.
  */
 function setup({
   messenger = getRootMessenger(),
   accounts = [],
+  config,
 }: {
   messenger?: RootMessenger;
   accounts?: InternalAccount[];
+  config?: SnapAccountProviderConfig;
 } = {}): {
   provider: AccountProviderWrapper;
   messenger: RootMessenger;
@@ -153,7 +158,7 @@ function setup({
   const multichainMessenger = getMultichainAccountServiceMessenger(messenger);
   const provider = new AccountProviderWrapper(
     multichainMessenger,
-    new BtcAccountProvider(multichainMessenger),
+    new BtcAccountProvider(multichainMessenger, config),
   );
 
   return {
@@ -327,6 +332,26 @@ describe('BtcAccountProvider', () => {
     });
 
     expect(discovered).toStrictEqual([]);
+  });
+
+  it('does not run discovery if disabled', async () => {
+    const { provider } = setup({
+      accounts: [MOCK_BTC_P2WPKH_ACCOUNT_1],
+      config: {
+        ...BTC_ACCOUNT_PROVIDER_DEFAULT_CONFIG,
+        discovery: {
+          ...BTC_ACCOUNT_PROVIDER_DEFAULT_CONFIG.discovery,
+          enabled: false,
+        },
+      },
+    });
+
+    expect(
+      await provider.discoverAccounts({
+        entropySource: MOCK_HD_KEYRING_1.metadata.id,
+        groupIndex: 0,
+      }),
+    ).toStrictEqual([]);
   });
 
   describe('trace functionality', () => {

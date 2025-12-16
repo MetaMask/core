@@ -32,7 +32,7 @@ const GAS_FEE_TOKEN_MOCK = {
 } as GasFeeToken;
 
 const TRANSACTION_META_MOCK = {
-  chainId: CHAIN_ID_MOCK as Hex,
+  chainId: CHAIN_ID_MOCK,
   gasUsed: GAS_USED_MOCK,
   txParams: {
     gas: GAS_MOCK,

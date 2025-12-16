@@ -1,17 +1,14 @@
 import { deriveStateFromMetadata } from '@metamask/base-controller';
 import type { InternalAccount } from '@metamask/keyring-internal-api';
-import {
-  Messenger,
-  MOCK_ANY_NAMESPACE,
-  type MockAnyNamespace,
-  type MessengerActions,
-  type MessengerEvents,
+import { Messenger, MOCK_ANY_NAMESPACE } from '@metamask/messenger';
+import type {
+  MockAnyNamespace,
+  MessengerActions,
+  MessengerEvents,
 } from '@metamask/messenger';
 
-import {
-  ProfileMetricsController,
-  type ProfileMetricsControllerMessenger,
-} from './ProfileMetricsController';
+import { ProfileMetricsController } from './ProfileMetricsController';
+import type { ProfileMetricsControllerMessenger } from './ProfileMetricsController';
 import type {
   ProfileMetricsSubmitMetricsRequest,
   AccountWithScopes,
@@ -62,14 +59,30 @@ describe('ProfileMetricsController', () => {
 
   describe('constructor subscriptions', () => {
     describe('when KeyringController:unlock is published', () => {
-      it('starts polling', async () => {
-        await withController(async ({ controller, rootMessenger }) => {
-          const pollSpy = jest.spyOn(controller, 'startPolling');
+      it('starts polling if the user opted-in', async () => {
+        await withController(
+          { options: { assertUserOptedIn: () => true } },
+          async ({ controller, rootMessenger }) => {
+            const pollSpy = jest.spyOn(controller, 'startPolling');
 
-          rootMessenger.publish('KeyringController:unlock');
+            rootMessenger.publish('KeyringController:unlock');
 
-          expect(pollSpy).toHaveBeenCalledTimes(1);
-        });
+            expect(pollSpy).toHaveBeenCalledTimes(1);
+          },
+        );
+      });
+
+      it('does not start polling if the user has not opted-in', async () => {
+        await withController(
+          { options: { assertUserOptedIn: () => false } },
+          async ({ controller, rootMessenger }) => {
+            const pollSpy = jest.spyOn(controller, 'startPolling');
+
+            rootMessenger.publish('KeyringController:unlock');
+
+            expect(pollSpy).not.toHaveBeenCalled();
+          },
+        );
       });
 
       describe('when `initialEnqueueCompleted` is false', () => {
@@ -80,12 +93,19 @@ describe('ProfileMetricsController', () => {
               { options: { assertUserOptedIn: () => assertUserOptedIn } },
               async ({ controller, rootMessenger }) => {
                 rootMessenger.registerActionHandler(
-                  'AccountsController:listAccounts',
+                  'AccountsController:getState',
                   () => {
-                    return [
-                      createMockAccount('0xAccount1'),
-                      createMockAccount('0xAccount2', false),
-                    ];
+                    const account1 = createMockAccount('0xAccount1');
+                    const account2 = createMockAccount('0xAccount2', false);
+                    return {
+                      internalAccounts: {
+                        accounts: {
+                          [account1.id]: account1,
+                          [account2.id]: account2,
+                        },
+                        selectedAccount: account1.id,
+                      },
+                    };
                   },
                 );
 
@@ -119,12 +139,19 @@ describe('ProfileMetricsController', () => {
               },
               async ({ controller, rootMessenger }) => {
                 rootMessenger.registerActionHandler(
-                  'AccountsController:listAccounts',
+                  'AccountsController:getState',
                   () => {
-                    return [
-                      createMockAccount('0xAccount1'),
-                      createMockAccount('0xAccount2'),
-                    ];
+                    const account1 = createMockAccount('0xAccount1');
+                    const account2 = createMockAccount('0xAccount2');
+                    return {
+                      internalAccounts: {
+                        accounts: {
+                          [account1.id]: account1,
+                          [account2.id]: account2,
+                        },
+                        selectedAccount: account1.id,
+                      },
+                    };
                   },
                 );
 
@@ -530,7 +557,7 @@ function getMessenger(
   rootMessenger.delegate({
     messenger,
     actions: [
-      'AccountsController:listAccounts',
+      'AccountsController:getState',
       'ProfileMetricsService:submitMetrics',
     ],
     events: [

@@ -1,10 +1,10 @@
-import nock from 'nock';
+import { disableNetConnect, cleanAll, enableNetConnect } from 'nock';
 
 beforeEach(() => {
-  nock.disableNetConnect();
+  disableNetConnect();
 });
 
 afterEach(() => {
-  nock.cleanAll();
-  nock.enableNetConnect();
+  cleanAll();
+  enableNetConnect();
 });

@@ -11,8 +11,8 @@ const MOCK_METRICS_IDS = {
     '0x86bacb9b2bf9a7e8d2b147eadb95ac9aaa26842327cd24afc8bd4b3c1d136420',
   MOBILE_MIN: '00000000-0000-4000-8000-000000000000',
   MOBILE_MAX: 'ffffffff-ffff-4fff-bfff-ffffffffffff',
-  EXTENSION_MIN: `0x${'0'.repeat(64) as string}`,
-  EXTENSION_MAX: `0x${'f'.repeat(64) as string}`,
+  EXTENSION_MIN: `0x${'0'.repeat(64)}`,
+  EXTENSION_MAX: `0x${'f'.repeat(64)}`,
   UUID_V3: '00000000-0000-3000-8000-000000000000',
   INVALID_HEX_NO_PREFIX:
     '86bacb9b2bf9a7e8d2b147eadb95ac9aaa26842327cd24afc8bd4b3c1d136420',

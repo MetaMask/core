@@ -60,7 +60,7 @@
     "@metamask/polling-controller": "^16.0.0",
     "@metamask/rpc-errors": "^7.0.2",
     "@metamask/superstruct": "^3.1.0",
-    "@metamask/transaction-controller": "^62.3.1",
+    "@metamask/transaction-controller": "^62.7.0",
     "@metamask/utils": "^11.8.1",
     "bn.js": "^5.2.1",
     "immer": "^9.0.6",

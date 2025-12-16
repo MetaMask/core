@@ -1,6 +1,6 @@
 {
   "name": "@metamask/transaction-controller",
-  "version": "62.3.1",
+  "version": "62.7.0",
   "description": "Stores transactions alongside their periodically updated statuses and manages interactions such as approval and cancellation",
   "keywords": [
     "MetaMask",
@@ -65,7 +65,7 @@
     "@metamask/metamask-eth-abis": "^3.1.1",
     "@metamask/network-controller": "^27.0.0",
     "@metamask/nonce-tracker": "^6.0.0",
-    "@metamask/remote-feature-flag-controller": "^2.0.1",
+    "@metamask/remote-feature-flag-controller": "^3.0.0",
     "@metamask/rpc-errors": "^7.0.2",
     "@metamask/utils": "^11.8.1",
     "async-mutex": "^0.5.0",

@@ -1,0 +1,14 @@
+{
+  /**
+   * This configuration is extended by all other TypeScript configurations.
+   */
+  "compilerOptions": {
+    "composite": true,
+    "esModuleInterop": true,
+    "lib": ["ES2020", "DOM"],
+    "module": "Node16",
+    "moduleResolution": "Node16",
+    "strict": true,
+    "target": "ES2020"
+  }
+}

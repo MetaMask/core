@@ -2,13 +2,15 @@ import { isEqualCaseInsensitive } from '@metamask/controller-utils';
 import type { InternalAccount } from '@metamask/keyring-internal-api';
 import {
   assertIsStrictHexString,
-  type CaipAccountAddress,
-  type CaipAccountId,
-  type CaipNamespace,
-  type CaipReference,
-  type Hex,
   KnownCaipNamespace,
   parseCaipAccountId,
+} from '@metamask/utils';
+import type {
+  CaipAccountAddress,
+  CaipAccountId,
+  CaipNamespace,
+  CaipReference,
+  Hex,
 } from '@metamask/utils';
 
 import type { Caip25CaveatValue } from '../caip25Permission';
@@ -244,7 +246,7 @@ const setNonSCACaipAccountIdsInScopesObject = (
   const updatedScopesObject: InternalScopesObject = {};
 
   for (const [scopeString, scopeObject] of Object.entries(scopesObject)) {
-    const { namespace, reference } = parseScopeString(scopeString as string);
+    const { namespace, reference } = parseScopeString(scopeString);
 
     let caipAccounts: CaipAccountId[] = [];
 
@@ -252,7 +254,7 @@ const setNonSCACaipAccountIdsInScopesObject = (
       const addressSet = accountsByNamespace.get(namespace);
       if (addressSet) {
         caipAccounts = Array.from(addressSet).map(
-          (address) => `${namespace}:${reference}:${address}` as CaipAccountId,
+          (address) => `${namespace}:${reference}:${address}` as const,
         );
       }
     }

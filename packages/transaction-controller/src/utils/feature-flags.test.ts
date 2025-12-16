@@ -1,9 +1,8 @@
-import {
-  MOCK_ANY_NAMESPACE,
-  Messenger,
-  type MockAnyNamespace,
-  type MessengerActions,
-  type MessengerEvents,
+import { MOCK_ANY_NAMESPACE, Messenger } from '@metamask/messenger';
+import type {
+  MockAnyNamespace,
+  MessengerActions,
+  MessengerEvents,
 } from '@metamask/messenger';
 import type { RemoteFeatureFlagControllerGetStateAction } from '@metamask/remote-feature-flag-controller';
 import type { Hex } from '@metamask/utils';
@@ -20,6 +19,7 @@ import {
   getGasEstimateBuffer,
   FeatureFlag,
   getIncomingTransactionsPollingInterval,
+  getTimeoutAttempts,
 } from './feature-flags';
 import { isValidSignature } from './signature';
 import type { TransactionControllerMessenger } from '..';
@@ -68,10 +68,14 @@ describe('Feature Flags Utils', () => {
    *
    * @param featureFlags - The feature flags to mock.
    */
-  function mockFeatureFlags(featureFlags: TransactionControllerFeatureFlags) {
+  function mockFeatureFlags(
+    featureFlags: TransactionControllerFeatureFlags,
+  ): void {
     getFeatureFlagsMock.mockReturnValue({
       cacheTimestamp: 0,
       remoteFeatureFlags: featureFlags,
+      rawRemoteFeatureFlags: {},
+      localOverrides: {},
     });
   }
 
@@ -350,7 +354,7 @@ describe('Feature Flags Utils', () => {
       mockFeatureFlags({});
 
       const params = getAcceleratedPollingParams(
-        CHAIN_ID_MOCK as Hex,
+        CHAIN_ID_MOCK,
         controllerMessenger,
       );
 
@@ -375,7 +379,7 @@ describe('Feature Flags Utils', () => {
       });
 
       const params = getAcceleratedPollingParams(
-        CHAIN_ID_MOCK as Hex,
+        CHAIN_ID_MOCK,
         controllerMessenger,
       );
 
@@ -396,7 +400,7 @@ describe('Feature Flags Utils', () => {
       });
 
       const params = getAcceleratedPollingParams(
-        CHAIN_ID_MOCK as Hex,
+        CHAIN_ID_MOCK,
         controllerMessenger,
       );
 
@@ -423,7 +427,7 @@ describe('Feature Flags Utils', () => {
       });
 
       const params = getAcceleratedPollingParams(
-        CHAIN_ID_MOCK as Hex,
+        CHAIN_ID_MOCK,
         controllerMessenger,
       );
 
@@ -450,7 +454,7 @@ describe('Feature Flags Utils', () => {
       });
 
       const params = getAcceleratedPollingParams(
-        CHAIN_ID_MOCK as Hex,
+        CHAIN_ID_MOCK,
         controllerMessenger,
       );
 
@@ -477,7 +481,7 @@ describe('Feature Flags Utils', () => {
       });
 
       const params = getAcceleratedPollingParams(
-        CHAIN_ID_MOCK as Hex,
+        CHAIN_ID_MOCK,
         controllerMessenger,
       );
 
@@ -723,6 +727,80 @@ describe('Feature Flags Utils', () => {
       expect(getIncomingTransactionsPollingInterval(controllerMessenger)).toBe(
         5000,
       );
+    });
+  });
+
+  describe('getTimeoutAttempts', () => {
+    it('returns undefined if no feature flags set', () => {
+      mockFeatureFlags({});
+
+      expect(
+        getTimeoutAttempts(CHAIN_ID_MOCK, controllerMessenger),
+      ).toBeUndefined();
+    });
+
+    it('returns undefined if timeoutAttempts not set', () => {
+      mockFeatureFlags({
+        [FeatureFlag.Transactions]: {},
+      });
+
+      expect(
+        getTimeoutAttempts(CHAIN_ID_MOCK, controllerMessenger),
+      ).toBeUndefined();
+    });
+
+    it('returns default value if no chain-specific config', () => {
+      mockFeatureFlags({
+        [FeatureFlag.Transactions]: {
+          timeoutAttempts: {
+            default: 3,
+          },
+        },
+      });
+
+      expect(getTimeoutAttempts(CHAIN_ID_MOCK, controllerMessenger)).toBe(3);
+    });
+
+    it('returns chain-specific value when available', () => {
+      mockFeatureFlags({
+        [FeatureFlag.Transactions]: {
+          timeoutAttempts: {
+            default: 3,
+            perChainConfig: {
+              [CHAIN_ID_MOCK]: 5,
+            },
+          },
+        },
+      });
+
+      expect(getTimeoutAttempts(CHAIN_ID_MOCK, controllerMessenger)).toBe(5);
+    });
+
+    it('returns chain-specific zero value when explicitly set', () => {
+      mockFeatureFlags({
+        [FeatureFlag.Transactions]: {
+          timeoutAttempts: {
+            default: 3,
+            perChainConfig: {
+              [CHAIN_ID_MOCK]: 0,
+            },
+          },
+        },
+      });
+
+      expect(getTimeoutAttempts(CHAIN_ID_MOCK, controllerMessenger)).toBe(0);
+    });
+
+    it('returns default zero value when explicitly set', () => {
+      mockFeatureFlags({
+        [FeatureFlag.Transactions]: {
+          timeoutAttempts: {
+            default: 0,
+          },
+        },
+      });
+
+      expect(getTimeoutAttempts(CHAIN_ID_MOCK, controllerMessenger)).toBe(0);
     });
   });
 });

@@ -1,12 +1,10 @@
 import { asV2Middleware } from '@metamask/json-rpc-engine';
 import type { JsonRpcMiddleware as LegacyJsonRpcMiddleware } from '@metamask/json-rpc-engine';
+import { JsonRpcEngineV2 } from '@metamask/json-rpc-engine/v2';
 import type {
+  ContextConstraint,
   JsonRpcMiddleware,
   ResultConstraint,
-} from '@metamask/json-rpc-engine/v2';
-import {
-  JsonRpcEngineV2,
-  type ContextConstraint,
 } from '@metamask/json-rpc-engine/v2';
 import type { Json, JsonRpcParams, JsonRpcRequest } from '@metamask/utils';
 

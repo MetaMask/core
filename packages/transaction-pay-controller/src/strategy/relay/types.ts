@@ -15,6 +15,8 @@ export type RelayQuoteRequest = {
   originChainId: number;
   originCurrency: Hex;
   recipient: Hex;
+  refundTo?: Hex;
+  slippageTolerance?: string;
   tradeType: 'EXPECTED_OUTPUT' | 'EXACT_OUTPUT';
   txs?: {
     to: Hex;
@@ -45,11 +47,17 @@ export type RelayQuote = {
       minimumAmount: string;
     };
     timeEstimate: number;
+    totalImpact: {
+      usd: string;
+    };
   };
   fees: {
     relayer: {
       amountUsd: string;
     };
+  };
+  metamask: {
+    gasLimits: number[];
   };
   request: RelayQuoteRequest;
   steps: {
@@ -66,7 +74,7 @@ export type RelayQuote = {
         maxFeePerGas: string;
         maxPriorityFeePerGas: string;
         to: Hex;
-        value: string;
+        value?: string;
       };
       status: 'complete' | 'incomplete';
     }[];

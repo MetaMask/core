@@ -7,12 +7,30 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+### Changed
+
+- Bump `@metamask/transaction-controller` from `^62.5.0` to `^62.7.0` ([#7430](https://github.com/MetaMask/core/pull/7430), [#7494](https://github.com/MetaMask/core/pull/7494))
+
+## [0.8.0]
+
+### Added
+
+- Export `DELEGATION_FRAMEWORK_VERSION` constant to indicate the supported Delegation Framework version ([#7195](https://github.com/MetaMask/core/pull/7195))
+
+### Changed
+
+- **BREAKING:** Permission decoding now rejects `TimestampEnforcer` caveats with zero `timestampBeforeThreshold` values ([#7195](https://github.com/MetaMask/core/pull/7195))
+- `PermissionResponseSanitized` now includes `rules` property for stronger typing support ([#7195](https://github.com/MetaMask/core/pull/7195))
+- Permission decoding now resolves `erc20-token-revocation` permission type ([#7299](https://github.com/MetaMask/core/pull/7299))
+- Differentiate `erc20-token-revocation` permissions from `other` in controller state ([#7318](https://github.com/MetaMask/core/pull/7318))
+- Bump `@metamask/transaction-controller` from `^62.3.1` to `^62.5.0` ([#7289](https://github.com/MetaMask/core/pull/7289), [#7325](https://github.com/MetaMask/core/pull/7325))
+
 ## [0.7.0]
 
 ### Added
 
 - Refresh gator permissions map after revocation state change ([#7235](https://github.com/MetaMask/core/pull/7235))
-- Add `submitDirectRevocation` method for already-disabled delegations that don't require an on-chain transaction ([#7244](https://github.com/MetaMask/core/pull/7244))
+- New `submitDirectRevocation` method for already-disabled delegations that don't require an on-chain transaction ([#7244](https://github.com/MetaMask/core/pull/7244))
 
 ### Changed
 
@@ -97,7 +115,8 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 - Initial release ([#6033](https://github.com/MetaMask/core/pull/6033))
 
-[Unreleased]: https://github.com/MetaMask/core/compare/@metamask/gator-permissions-controller@0.7.0...HEAD
+[Unreleased]: https://github.com/MetaMask/core/compare/@metamask/gator-permissions-controller@0.8.0...HEAD
+[0.8.0]: https://github.com/MetaMask/core/compare/@metamask/gator-permissions-controller@0.7.0...@metamask/gator-permissions-controller@0.8.0
 [0.7.0]: https://github.com/MetaMask/core/compare/@metamask/gator-permissions-controller@0.6.0...@metamask/gator-permissions-controller@0.7.0
 [0.6.0]: https://github.com/MetaMask/core/compare/@metamask/gator-permissions-controller@0.5.0...@metamask/gator-permissions-controller@0.6.0
 [0.5.0]: https://github.com/MetaMask/core/compare/@metamask/gator-permissions-controller@0.4.0...@metamask/gator-permissions-controller@0.5.0

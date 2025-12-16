@@ -6,10 +6,8 @@ import {
   getSnaps,
   isSnapConnected,
 } from './messaging-signing-snap-requests';
-import {
-  arrangeMockProvider,
-  type MockVariable,
-} from '../__fixtures__/test-utils';
+import { arrangeMockProvider } from '../__fixtures__/test-utils';
+import type { MockVariable } from '../__fixtures__/test-utils';
 
 /**
  * Most of these utilities are wrappers around making wallet requests,

@@ -7,12 +7,11 @@ import {
 } from '@metamask/controller-utils';
 import type { ErrorReportingServiceCaptureExceptionAction } from '@metamask/error-reporting-service';
 import type { InternalProvider } from '@metamask/eth-json-rpc-provider';
-import {
-  Messenger,
-  type MockAnyNamespace,
-  type MessengerActions,
-  type MessengerEvents,
-  MOCK_ANY_NAMESPACE,
+import { Messenger, MOCK_ANY_NAMESPACE } from '@metamask/messenger';
+import type {
+  MockAnyNamespace,
+  MessengerActions,
+  MessengerEvents,
 } from '@metamask/messenger';
 import type { Hex } from '@metamask/utils';
 import { v4 as uuidV4 } from 'uuid';
@@ -21,14 +20,14 @@ import { FakeBlockTracker } from '../../../tests/fake-block-tracker';
 import { FakeProvider } from '../../../tests/fake-provider';
 import type { FakeProviderStub } from '../../../tests/fake-provider';
 import { buildTestObject } from '../../../tests/helpers';
-import {
-  NetworkController,
-  type BuiltInNetworkClientId,
-  type CustomNetworkClientId,
-  type NetworkClient,
-  type NetworkClientConfiguration,
-  type NetworkClientId,
-  type NetworkConfiguration,
+import { NetworkController } from '../src';
+import type {
+  BuiltInNetworkClientId,
+  CustomNetworkClientId,
+  NetworkClient,
+  NetworkClientConfiguration,
+  NetworkClientId,
+  NetworkConfiguration,
 } from '../src';
 import type { AutoManagedNetworkClient } from '../src/create-auto-managed-network-client';
 import type {
@@ -41,6 +40,7 @@ import type {
   UpdateNetworkCustomRpcEndpointFields,
 } from '../src/NetworkController';
 import { RpcEndpointType } from '../src/NetworkController';
+import { RpcServiceOptions } from '../src/rpc-service/rpc-service';
 import type {
   CustomNetworkClientConfiguration,
   InfuraNetworkClientConfiguration,
@@ -105,7 +105,7 @@ export function buildRootMessenger({
   rootMessenger.registerActionHandler(
     'ErrorReportingService:captureException',
     actionHandlers['ErrorReportingService:captureException'] ??
-      ((error) => console.error(error)),
+      ((error): void => console.error(error)),
   );
   return rootMessenger;
 }
@@ -159,7 +159,7 @@ function buildFakeNetworkClient({
     blockTracker: new FakeBlockTracker({
       provider: provider as unknown as InternalProvider,
     }),
-    destroy: () => {
+    destroy: (): void => {
       // do nothing
     },
   };
@@ -218,7 +218,7 @@ export function buildMockGetNetworkClientById(
   function getNetworkClientById(
     networkClientId: CustomNetworkClientId,
   ): AutoManagedNetworkClient<CustomNetworkClientConfiguration>;
-  // eslint-disable-next-line jsdoc/require-jsdoc
+
   function getNetworkClientById(networkClientId: string): NetworkClient {
     const mockNetworkClientConfiguration =
       mergedMockNetworkClientConfigurationsByNetworkClientId[networkClientId];
@@ -271,7 +271,7 @@ export function buildMockFindNetworkClientIdByChainId(
   };
 
   function findNetworkClientIdByChainId(chainId: Hex): NetworkClientId;
-  // eslint-disable-next-line jsdoc/require-jsdoc
+
   function findNetworkClientIdByChainId(chainId: Hex): NetworkClientId {
     const networkClientConfigForChainId =
       mergedMockNetworkClientConfigurationsByNetworkClientId[chainId];
@@ -633,7 +633,10 @@ export async function withController<ReturnValue>(
   const controller = new NetworkController({
     messenger: networkControllerMessenger,
     infuraProjectId: 'infura-project-id',
-    getRpcServiceOptions: () => ({
+    getRpcServiceOptions: (): Omit<
+      RpcServiceOptions,
+      'failoverService' | 'endpointUrl'
+    > => ({
       fetch,
       btoa,
     }),

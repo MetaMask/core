@@ -1,16 +1,16 @@
 import { toHex } from '@metamask/controller-utils';
-import { add0x } from '@metamask/utils';
+import { add0x, Hex } from '@metamask/utils';
 import { cloneDeep } from 'lodash';
 
 import {
   MAX_TRANSACTION_HISTORY_LENGTH,
   updateTransactionHistory,
 } from './history';
-import {
-  type TransactionHistory,
-  TransactionStatus,
-  type TransactionMeta,
-  type TransactionHistoryEntry,
+import { TransactionStatus } from '../types';
+import type {
+  TransactionHistory,
+  TransactionMeta,
+  TransactionHistoryEntry,
 } from '../types';
 
 describe('History', () => {
@@ -396,6 +396,6 @@ function generateMockHistory({
  * @param number - The address as a decimal number.
  * @returns The mock address
  */
-function generateAddress(number: number) {
+function generateAddress(number: number): Hex {
   return add0x(number.toString(16).padStart(40, '0'));
 }

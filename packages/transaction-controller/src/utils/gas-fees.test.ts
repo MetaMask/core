@@ -58,7 +58,7 @@ const FLOW_RESPONSE_GAS_PRICE_MOCK = {
  * @param value - The number to convert.
  * @returns The hex string.
  */
-function toHex(value: number) {
+function toHex(value: number): string {
   return `0x${value.toString(16)}`;
 }
 
@@ -84,7 +84,7 @@ describe('gas-fees', () => {
    *
    * @param response - The response to return.
    */
-  function mockGasFeeFlowMockResponse(response: GasFeeFlowResponse) {
+  function mockGasFeeFlowMockResponse(response: GasFeeFlowResponse): void {
     gasFeeFlowMock.getGasFees.mockResolvedValue(response);
   }
 

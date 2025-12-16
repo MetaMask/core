@@ -2,11 +2,8 @@ import type {
   JsonRpcMiddleware,
   MiddlewareContext,
 } from '@metamask/json-rpc-engine/v2';
-import {
-  type Json,
-  type JsonRpcRequest,
-  createDeferredPromise,
-} from '@metamask/utils';
+import { createDeferredPromise } from '@metamask/utils';
+import type { Json, JsonRpcRequest } from '@metamask/utils';
 
 import { projectLogger, createModuleLogger } from './logging-utils';
 import { cacheIdentifierForRequest } from './utils/cache';
@@ -100,8 +97,8 @@ function createActiveRequestHandler(
 ): Promise<Readonly<Json>> {
   const { resolve, promise, reject } = createDeferredPromise<Readonly<Json>>();
   activeRequestHandlers.push([
-    (result: Readonly<Json>) => resolve(result),
-    (error: unknown) => reject(error),
+    (result: Readonly<Json>): void => resolve(result),
+    (error: unknown): void => reject(error),
   ]);
   return promise;
 }

@@ -1,6 +1,6 @@
-import {
-  type AccountGroupType,
-  type MultichainAccountGroupId,
+import type {
+  AccountGroupType,
+  MultichainAccountGroupId,
 } from '@metamask/account-api';
 import type { AccountGroupId } from '@metamask/account-api';
 import type { AccountId } from '@metamask/accounts-controller';
@@ -8,10 +8,10 @@ import {
   AnyAccountType,
   BtcAccountType,
   EthAccountType,
-  type KeyringAccountType,
   SolAccountType,
   TrxAccountType,
 } from '@metamask/keyring-api';
+import type { KeyringAccountType } from '@metamask/keyring-api';
 
 import type { UpdatableField, ExtractFieldValues } from './type-utils';
 import type { AccountTreeControllerState } from './types';

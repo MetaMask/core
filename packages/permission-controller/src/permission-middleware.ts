@@ -14,14 +14,22 @@ import type {
 import type {
   GenericPermissionController,
   PermissionSubjectMetadata,
+  RestrictedMethod,
   RestrictedMethodParameters,
 } from '.';
 import { internalError } from './errors';
 // eslint-disable-next-line @typescript-eslint/no-unused-vars
 import type { PermissionController } from './PermissionController';
 
+type ExecuteRestrictedMethod = (
+  methodImplementation: RestrictedMethod<RestrictedMethodParameters, Json>,
+  subject: PermissionSubjectMetadata,
+  method: string,
+  params?: RestrictedMethodParameters,
+) => ReturnType<RestrictedMethod<RestrictedMethodParameters, Json>>;
+
 type PermissionMiddlewareFactoryOptions = {
-  executeRestrictedMethod: GenericPermissionController['_executeRestrictedMethod'];
+  executeRestrictedMethod: ExecuteRestrictedMethod;
   getRestrictedMethod: GenericPermissionController['getRestrictedMethod'];
   isUnrestrictedMethod: (method: string) => boolean;
 };
@@ -42,7 +50,7 @@ type PermissionMiddlewareFactoryOptions = {
  * will be executed. Otherwise, an "unauthorized" error will be returned.
  *
  * @param options - Options bag.
- * @param options.executeRestrictedMethod - {@link PermissionController._executeRestrictedMethod}.
+ * @param options.executeRestrictedMethod - `PermissionController.executeRestrictedMethod`.
  * @param options.getRestrictedMethod - {@link PermissionController.getRestrictedMethod}.
  * @param options.isUnrestrictedMethod - A function that checks whether a
  * particular method is unrestricted.

@@ -8,7 +8,9 @@ import {
   HttpError,
 } from '@metamask/controller-utils';
 import type { Messenger } from '@metamask/messenger';
-import { hasProperty, isPlainObject, type Hex } from '@metamask/utils';
+import { hasProperty, isPlainObject } from '@metamask/utils';
+import type { Hex } from '@metamask/utils';
+import type { IDisposable } from 'cockatiel';
 
 import type { SampleGasPricesServiceMethodActions } from './sample-gas-prices-service-method-action-types';
 
@@ -178,7 +180,7 @@ export class SampleGasPricesService {
    * {@link CockatielEvent}.
    * @see {@link createServicePolicy}
    */
-  onRetry(listener: Parameters<ServicePolicy['onRetry']>[0]) {
+  onRetry(listener: Parameters<ServicePolicy['onRetry']>[0]): IDisposable {
     return this.#policy.onRetry(listener);
   }
 
@@ -191,11 +193,10 @@ export class SampleGasPricesService {
    * {@link CockatielEvent}.
    * @see {@link createServicePolicy}
    */
-  onBreak(listener: Parameters<ServicePolicy['onBreak']>[0]) {
+  onBreak(listener: Parameters<ServicePolicy['onBreak']>[0]): IDisposable {
     return this.#policy.onBreak(listener);
   }
 
-  /* eslint-disable jsdoc/check-indentation */
   /**
    * Registers a handler that will be called under one of two circumstances:
    *
@@ -213,8 +214,9 @@ export class SampleGasPricesService {
    * @returns An object that can be used to unregister the handler. See
    * {@link CockatielEvent}.
    */
-  /* eslint-enable jsdoc/check-indentation */
-  onDegraded(listener: Parameters<ServicePolicy['onDegraded']>[0]) {
+  onDegraded(
+    listener: Parameters<ServicePolicy['onDegraded']>[0],
+  ): IDisposable {
     return this.#policy.onDegraded(listener);
   }
 

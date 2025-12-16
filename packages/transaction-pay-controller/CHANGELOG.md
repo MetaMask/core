@@ -9,7 +9,44 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ### Changed
 
+- Bump `@metamask/assets-controllers` from `^93.1.0` to `^94.1.0` ([#7444](https://github.com/MetaMask/core/pull/7444), [#7488](https://github.com/MetaMask/core/pull/7488))
+- Bump `@metamask/transaction-controller` from `^62.6.0` to `^62.7.0` ([#7494](https://github.com/MetaMask/core/pull/7494))
+
+## [10.5.0]
+
+### Changed
+
+- Bump `@metamask/transaction-controller` from `^62.5.0` to `^62.6.0` ([#7430](https://github.com/MetaMask/core/pull/7430))
+- Bump `@metamask/bridge-controller` from `^64.0.0` to `^64.1.0` ([#7422](https://github.com/MetaMask/core/pull/7422))
+- Estimate gas for Relay quotes using messenger actions ([#7405](https://github.com/MetaMask/core/pull/7405))
+  - Submit all Relay source transactions using same gas limits estimated from quote.
+
+## [10.4.0]
+
+### Changed
+
+- Bump `@metamask/transaction-controller` from `^62.4.0` to `^62.5.0` ([#7325](https://github.com/MetaMask/core/pull/7325))
+- Bump `@metamask/bridge-status-controller` from `^63.1.0` to `^64.0.1` ([#7295](https://github.com/MetaMask/core/pull/7295), [#7307](https://github.com/MetaMask/core/pull/7307))
+- Bump `@metamask/bridge-controller` from `^63.2.0` to `^64.0.0` ([#7295](https://github.com/MetaMask/core/pull/7295))
+- Skip delegation in Relay quotes if token transfer only ([#7262](https://github.com/MetaMask/core/pull/7262))
+- Bump `@metamask/assets-controllers` from `^92.0.0` to `^93.1.0` ([#7291](https://github.com/MetaMask/core/pull/7291), [#7309](https://github.com/MetaMask/core/pull/7309))
+- Bump `@metamask/remote-feature-flag-controller` from `^2.0.1` to `^3.0.0` ([#7309](https://github.com/MetaMask/core/pull/7309)
+
+### Fixed
+
+- Fix source network fees for batch Relay deposits on EIP-7702 networks ([#7323](https://github.com/MetaMask/core/pull/7323))
+- Improve Relay provider fees ([#7313](https://github.com/MetaMask/core/pull/7313))
+  - Include slippage from feature flag.
+  - Read fee from `totalImpact` property.
+  - Send dust in transaction quotes to token transfer recipient, if available.
+
+## [10.3.0]
+
+### Changed
+
+- Use `overwriteUpgrade` when adding transaction batches in Relay strategy ([#7282](https://github.com/MetaMask/core/pull/7282))
 - Bump `@metamask/network-controller` from `^26.0.0` to `^27.0.0` ([#7258](https://github.com/MetaMask/core/pull/7258))
+- Bump `@metamask/transaction-controller` from `^62.3.1` to `^62.4.0` ([#7289](https://github.com/MetaMask/core/pull/7289))
 
 ### Fixed
 
@@ -180,7 +217,10 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 - Initial release ([#6820](https://github.com/MetaMask/core/pull/6820))
 
-[Unreleased]: https://github.com/MetaMask/core/compare/@metamask/transaction-pay-controller@10.2.0...HEAD
+[Unreleased]: https://github.com/MetaMask/core/compare/@metamask/transaction-pay-controller@10.5.0...HEAD
+[10.5.0]: https://github.com/MetaMask/core/compare/@metamask/transaction-pay-controller@10.4.0...@metamask/transaction-pay-controller@10.5.0
+[10.4.0]: https://github.com/MetaMask/core/compare/@metamask/transaction-pay-controller@10.3.0...@metamask/transaction-pay-controller@10.4.0
+[10.3.0]: https://github.com/MetaMask/core/compare/@metamask/transaction-pay-controller@10.2.0...@metamask/transaction-pay-controller@10.3.0
 [10.2.0]: https://github.com/MetaMask/core/compare/@metamask/transaction-pay-controller@10.1.0...@metamask/transaction-pay-controller@10.2.0
 [10.1.0]: https://github.com/MetaMask/core/compare/@metamask/transaction-pay-controller@10.0.0...@metamask/transaction-pay-controller@10.1.0
 [10.0.0]: https://github.com/MetaMask/core/compare/@metamask/transaction-pay-controller@9.0.0...@metamask/transaction-pay-controller@10.0.0

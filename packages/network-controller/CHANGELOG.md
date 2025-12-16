@@ -7,9 +7,15 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+### Added
+
+- Add MegaETH Testnet "v2" as a default custom network ([#7272](https://github.com/MetaMask/core/pull/7272))
+  - The URL for this is `https://timothy.megaeth.com/rpc` rather than `https://carrot.megaeth.com/rpc`, and the chain ID has changed from `0x18c6` to `0x18c7`.
+  - "v1" of this network has not been removed.
+
 ### Changed
 
-- Update the default set of Infura networks to include Monad Testnet ([#7067](https://github.com/MetaMask/core/pull/7067))
+- Bump `@metamask/eth-json-rpc-middleware` from `^22.0.0` to `^22.0.1` ([#7330](https://github.com/MetaMask/core/pull/7330))
 
 ## [27.0.0]
 
@@ -17,6 +23,7 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 - Add `NetworkController:rpcEndpointChainAvailable` messenger event ([#7166](https://github.com/MetaMask/core/pull/7166))
   - This is a counterpart to the (new) `NetworkController:rpcEndpointChainUnavailable` and `NetworkController:rpcEndpointChainDegraded` events, but is published when a successful request to an endpoint within a chain of endpoints is made either initially or following a previously established degraded or unavailable status.
+- Update `networksMetadata` state property so that networks can now have a possible status of `degraded` ([#7186](https://github.com/MetaMask/core/pull/7186))
 
 ### Changed
 

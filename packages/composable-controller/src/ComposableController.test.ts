@@ -1,20 +1,21 @@
 import {
   BaseController,
-  type ControllerStateChangeEvent,
-  type ControllerGetStateAction,
-  type StateConstraint,
   deriveStateFromMetadata,
 } from '@metamask/base-controller';
+import type {
+  ControllerStateChangeEvent,
+  ControllerGetStateAction,
+  StateConstraint,
+} from '@metamask/base-controller';
 import { JsonRpcEngine } from '@metamask/json-rpc-engine';
-import {
-  MOCK_ANY_NAMESPACE,
-  Messenger,
-  type MessengerActions,
-  type MessengerEvents,
-  type MockAnyNamespace,
+import { MOCK_ANY_NAMESPACE, Messenger } from '@metamask/messenger';
+import type {
+  MessengerActions,
+  MessengerEvents,
+  MockAnyNamespace,
 } from '@metamask/messenger';
 import type { Patch } from 'immer';
-import * as sinon from 'sinon';
+import sinon from 'sinon';
 
 import type {
   ChildControllerStateChangeEvents,
@@ -76,7 +77,7 @@ class FooController extends BaseController<
     });
   }
 
-  updateFoo(foo: string) {
+  updateFoo(foo: string): void {
     super.update((state) => {
       state.foo = foo;
     });
@@ -125,7 +126,7 @@ class QuzController extends BaseController<
     });
   }
 
-  updateQuz(quz: string) {
+  updateQuz(quz: string): void {
     super.update((state) => {
       state.quz = quz;
     });
@@ -141,8 +142,10 @@ type ComposableControllerMessenger<State extends StateConstraint> = Messenger<
 >;
 
 type ControllersMap = {
+  /* eslint-disable @typescript-eslint/naming-convention */
   FooController: FooController;
   QuzController: QuzController;
+  /* eslint-enable @typescript-eslint/naming-convention */
 };
 
 describe('ComposableController', () => {
@@ -153,8 +156,10 @@ describe('ComposableController', () => {
   describe('BaseController', () => {
     it('should compose controller state', () => {
       type ComposableControllerState = {
+        /* eslint-disable @typescript-eslint/naming-convention */
         QuzController: QuzControllerState;
         FooController: FooControllerState;
+        /* eslint-enable @typescript-eslint/naming-convention */
       };
       const messenger: RootMessenger = new Messenger({
         namespace: MOCK_ANY_NAMESPACE,
@@ -205,7 +210,9 @@ describe('ComposableController', () => {
 
     it('should notify listeners of nested state change', () => {
       type ComposableControllerState = {
+        /* eslint-disable @typescript-eslint/naming-convention */
         FooController: FooControllerState;
+        /* eslint-enable @typescript-eslint/naming-convention */
       };
       const messenger = new Messenger<
         MockAnyNamespace,
@@ -235,6 +242,7 @@ describe('ComposableController', () => {
         messenger: composableControllerMessenger,
         events: ['FooController:stateChange'],
       });
+      // eslint-disable-next-line no-new
       new ComposableController<
         ComposableControllerState,
         Pick<ControllersMap, keyof ComposableControllerState>
@@ -263,8 +271,10 @@ describe('ComposableController', () => {
 
   it('should notify listeners of BaseController state change', () => {
     type ComposableControllerState = {
+      /* eslint-disable @typescript-eslint/naming-convention */
       QuzController: QuzControllerState;
       FooController: FooControllerState;
+      /* eslint-enable @typescript-eslint/naming-convention */
     };
     const messenger = new Messenger<
       MockAnyNamespace,
@@ -309,6 +319,7 @@ describe('ComposableController', () => {
       messenger: composableControllerMessenger,
       events: ['QuzController:stateChange', 'FooController:stateChange'],
     });
+    // eslint-disable-next-line no-new
     new ComposableController<
       ComposableControllerState,
       Pick<ControllersMap, keyof ComposableControllerState>
@@ -337,7 +348,9 @@ describe('ComposableController', () => {
 
   it('should not throw if child state change event subscription fails', () => {
     type ComposableControllerState = {
+      /* eslint-disable @typescript-eslint/naming-convention */
       FooController: FooControllerState;
+      /* eslint-enable @typescript-eslint/naming-convention */
     };
     const messenger = new Messenger<
       MockAnyNamespace,
@@ -425,7 +438,9 @@ describe('ComposableController', () => {
 
   it('should throw if composing a controller that does not extend from BaseController', () => {
     type ComposableControllerState = {
+      /* eslint-disable @typescript-eslint/naming-convention */
       FooController: FooControllerState;
+      /* eslint-enable @typescript-eslint/naming-convention */
     };
     const notController = new JsonRpcEngine();
     const messenger = new Messenger<
@@ -461,6 +476,7 @@ describe('ComposableController', () => {
     expect(
       () =>
         new ComposableController<
+          /* eslint-disable @typescript-eslint/naming-convention */
           // @ts-expect-error - Suppressing type error to test for runtime error handling
           ComposableControllerState & {
             JsonRpcEngine: Record<string, unknown>;
@@ -469,6 +485,7 @@ describe('ComposableController', () => {
             JsonRpcEngine: typeof notController;
             FooController: FooController;
           }
+          /* eslint-enable @typescript-eslint/naming-convention */
         >({
           controllers: {
             JsonRpcEngine: notController,
@@ -482,7 +499,9 @@ describe('ComposableController', () => {
   describe('metadata', () => {
     it('includes expected state in debug snapshots', () => {
       type ComposableControllerState = {
+        /* eslint-disable @typescript-eslint/naming-convention */
         FooController: FooControllerState;
+        /* eslint-enable @typescript-eslint/naming-convention */
       };
       const messenger = new Messenger<
         MockAnyNamespace,
@@ -542,7 +561,9 @@ describe('ComposableController', () => {
 
     it('includes expected state in state logs', () => {
       type ComposableControllerState = {
+        /* eslint-disable @typescript-eslint/naming-convention */
         FooController: FooControllerState;
+        /* eslint-enable @typescript-eslint/naming-convention */
       };
       const messenger = new Messenger<
         MockAnyNamespace,
@@ -596,7 +617,9 @@ describe('ComposableController', () => {
 
     it('persists expected state', () => {
       type ComposableControllerState = {
+        /* eslint-disable @typescript-eslint/naming-convention */
         FooController: FooControllerState;
+        /* eslint-enable @typescript-eslint/naming-convention */
       };
       const messenger = new Messenger<
         MockAnyNamespace,
@@ -656,7 +679,9 @@ describe('ComposableController', () => {
 
     it('exposes expected state to UI', () => {
       type ComposableControllerState = {
+        /* eslint-disable @typescript-eslint/naming-convention */
         FooController: FooControllerState;
+        /* eslint-enable @typescript-eslint/naming-convention */
       };
       const messenger = new Messenger<
         MockAnyNamespace,

@@ -31,11 +31,15 @@
 /packages/user-operation-controller         @MetaMask/confirmations
 
 ## Delegation Team
-/packages/gator-permissions-controller @MetaMask/delegation
-/packages/eip-7702-internal-rpc-middleware @MetaMask/delegation @MetaMask/core-platform
+/packages/delegation-controller             @MetaMask/delegation
+/packages/gator-permissions-controller      @MetaMask/delegation
+/packages/eip-7702-internal-rpc-middleware  @MetaMask/delegation @MetaMask/core-platform
 
 ## Earn Team
 /packages/earn-controller                   @MetaMask/earn
+
+## Ramp Team
+/packages/ramps-controller                  @MetaMask/ramp
 
 ## Notifications Team
 /packages/notification-services-controller     @MetaMask/notifications
@@ -53,9 +57,6 @@
 
 ## Portfolio Team
 /packages/token-search-discovery-controller      @MetaMask/portfolio
-
-## Vault Team
-/packages/delegation-controller           @MetaMask/vault
 
 ## Wallet Integrations Team
 /packages/chain-agnostic-permission        @MetaMask/wallet-integrations
@@ -119,8 +120,8 @@
 /packages/assets-controllers/CHANGELOG.md         @MetaMask/metamask-assets @MetaMask/core-platform
 /packages/chain-agnostic-permission/package.json  @MetaMask/wallet-integrations @MetaMask/core-platform
 /packages/chain-agnostic-permission/CHANGELOG.md  @MetaMask/wallet-integrations @MetaMask/core-platform
-/packages/delegation-controller/package.json      @MetaMask/vault @MetaMask/core-platform
-/packages/delegation-controller/CHANGELOG.md      @MetaMask/vault @MetaMask/core-platform
+/packages/delegation-controller/package.json      @MetaMask/delegation @MetaMask/core-platform
+/packages/delegation-controller/CHANGELOG.md      @MetaMask/delegation @MetaMask/core-platform
 /packages/earn-controller/package.json            @MetaMask/earn @MetaMask/core-platform
 /packages/earn-controller/CHANGELOG.md            @MetaMask/earn @MetaMask/core-platform
 /packages/eip-5792-middleware/package.json        @MetaMask/wallet-integrations @MetaMask/core-platform
@@ -149,6 +150,8 @@
 /packages/notification-services-controller/CHANGELOG.md @MetaMask/notifications @MetaMask/core-platform
 /packages/phishing-controller/package.json    @MetaMask/product-safety @MetaMask/core-platform
 /packages/phishing-controller/CHANGELOG.md    @MetaMask/product-safety @MetaMask/core-platform
+/packages/ramps-controller/package.json       @MetaMask/ramp @MetaMask/core-platform
+/packages/ramps-controller/CHANGELOG.md       @MetaMask/ramp @MetaMask/core-platform
 /packages/profile-sync-controller/package.json    @MetaMask/accounts-engineers @MetaMask/core-platform
 /packages/profile-sync-controller/CHANGELOG.md    @MetaMask/accounts-engineers @MetaMask/core-platform
 /packages/selected-network-controller/package.json @MetaMask/wallet-integrations @MetaMask/core-platform

@@ -1,4 +1,11 @@
 {
+  /**
+   * This configuration is used by the `build` script in `package.json`.
+   *
+   * This is just used as a way to request builds for all packages. `tsconfig.base.json` is not
+   * extended here because the `tsconfig.build.json` file referenced for each package already
+   * (indirectly) extends it.
+   */
   "references": [
     { "path": "./packages/account-tree-controller/tsconfig.build.json" },
     { "path": "./packages/accounts-controller/tsconfig.build.json" },
@@ -57,6 +64,7 @@
     { "path": "./packages/preferences-controller/tsconfig.build.json" },
     { "path": "./packages/profile-metrics-controller/tsconfig.build.json" },
     { "path": "./packages/profile-sync-controller/tsconfig.build.json" },
+    { "path": "./packages/ramps-controller/tsconfig.build.json" },
     { "path": "./packages/rate-limit-controller/tsconfig.build.json" },
     { "path": "./packages/remote-feature-flag-controller/tsconfig.build.json" },
     { "path": "./packages/sample-controllers/tsconfig.build.json" },

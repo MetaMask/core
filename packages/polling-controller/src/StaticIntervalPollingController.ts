@@ -18,6 +18,9 @@ import type {
  * @param Base - The base class to mix onto.
  * @returns The composed class.
  */
+// This is a function that's used as class, and the return type is inferred from
+// the class defined inside the function scope, so this can't be easily typed.
+// eslint-disable-next-line @typescript-eslint/explicit-function-return-type, @typescript-eslint/naming-convention
 function StaticIntervalPollingControllerMixin<
   TBase extends Constructor,
   PollingInput extends Json,
@@ -30,15 +33,15 @@ function StaticIntervalPollingControllerMixin<
 
     #intervalLength: number | undefined = 1000;
 
-    setIntervalLength(intervalLength: number) {
+    setIntervalLength(intervalLength: number): void {
       this.#intervalLength = intervalLength;
     }
 
-    getIntervalLength() {
+    getIntervalLength(): number | undefined {
       return this.#intervalLength;
     }
 
-    _startPolling(input: PollingInput) {
+    _startPolling(input: PollingInput): void {
       if (!this.#intervalLength) {
         throw new Error('intervalLength must be defined and greater than 0');
       }
@@ -65,7 +68,7 @@ function StaticIntervalPollingControllerMixin<
       ));
     }
 
-    _stopPollingByPollingTokenSetId(key: PollingTokenSetId) {
+    _stopPollingByPollingTokenSetId(key: PollingTokenSetId): void {
       const intervalId = this.#intervalIds[key];
       if (intervalId) {
         clearTimeout(intervalId);
@@ -81,8 +84,14 @@ class Empty {}
 
 export const StaticIntervalPollingControllerOnly = <
   PollingInput extends Json,
+  // The return type is inferred from the class defined inside the function
+  // scope, so this can't be easily typed.
+  // eslint-disable-next-line @typescript-eslint/explicit-function-return-type
 >() => StaticIntervalPollingControllerMixin<typeof Empty, PollingInput>(Empty);
 
+// The return type is inferred from the class defined inside the function
+// scope, so this can't be easily typed.
+// eslint-disable-next-line @typescript-eslint/explicit-function-return-type
 export const StaticIntervalPollingController = <PollingInput extends Json>() =>
   StaticIntervalPollingControllerMixin<typeof BaseController, PollingInput>(
     BaseController,
