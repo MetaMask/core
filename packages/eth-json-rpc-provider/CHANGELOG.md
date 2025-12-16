@@ -7,6 +7,11 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+### Uncategorized
+
+- chore(lint): Fix suppressed ESLint errors in `eth-json-rpc-provider` package ([#7497](https://github.com/MetaMask/core/pull/7497))
+- chore: Update ESLint config packages to v15 ([#7305](https://github.com/MetaMask/core/pull/7305))
+
 ## [6.0.0]
 
 ### Added
