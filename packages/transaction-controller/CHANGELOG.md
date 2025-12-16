@@ -7,12 +7,9 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
-## [62.8.0]
-
-### Changed
+### Fixed
 
 - Include pending authorizations in nonce calculation ([#7446](https://github.com/MetaMask/core/pull/7446))
-- Bump `@metamask/bridge-controller` from `^64.1.0` to `^64.2.0` ([#7505](https://github.com/MetaMask/core/pull/7422))
 
 ## [62.7.0]
 
