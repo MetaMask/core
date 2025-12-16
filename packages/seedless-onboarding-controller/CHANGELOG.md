@@ -9,20 +9,23 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ### Added
 
-- Add optional `dataType` parameter to `addNewSecretData` method for categorizing secret data on insert
-- Add `updateSecretDataItem` method to update fields for existing items by `itemId`
-- Add `batchUpdateSecretDataItems` method to batch update fields for multiple items
-- Add `itemId`, `dataType`, and `createdAt` storage-level properties to `SecretMetadata`
-- Add `SecretMetadata.compareByTimestamp` static method for comparing metadata by timestamp
-- Add `SecretMetadata.matchesType` static method for checking if metadata matches a given type
-- Re-export `EncAccountDataType` from `@metamask/toprf-secure-backup`
+- Add optional `dataType` parameter to `addNewSecretData` method for categorizing secret data on insert ([#7284](https://github.com/MetaMask/core/pull/7284))
+- Add `updateSecretDataItem` method to update fields for existing items by `itemId` ([#7284](https://github.com/MetaMask/core/pull/7284))
+- Add `batchUpdateSecretDataItems` method to batch update fields for multiple items ([#7284](https://github.com/MetaMask/core/pull/7284))
+- Add `itemId`, `dataType`, and `createdAt` storage-level properties to `SecretMetadata` ([#7284](https://github.com/MetaMask/core/pull/7284))
+- Add `SecretMetadata.compareByTimestamp` static method for comparing metadata by timestamp ([#7284](https://github.com/MetaMask/core/pull/7284))
+- Add `SecretMetadata.matchesType` static method for checking if metadata matches a given type ([#7284](https://github.com/MetaMask/core/pull/7284))
+- Re-export `EncAccountDataType` from `@metamask/toprf-secure-backup` ([#7284](https://github.com/MetaMask/core/pull/7284))
 
 ### Changed
 
-- **BREAKING:** Remove `parseSecretsFromMetadataStore`, `fromBatch`, and `sort` methods from `SecretMetadata`
+- **BREAKING:** Remove `parseSecretsFromMetadataStore`, `fromBatch`, and `sort` methods from `SecretMetadata` ([#7284](https://github.com/MetaMask/core/pull/7284))
   - Use `SecretMetadata.compareByTimestamp` for sorting
   - Use `SecretMetadata.matchesType` for filtering
-- Bump `@metamask/toprf-secure-backup` from `^0.10.0` to `^0.11.0`
+
+### Fixed
+
+- Fix TIMEUUID sorting by extracting actual timestamps instead of using lexicographic comparison ([#7284](https://github.com/MetaMask/core/pull/7284))
 
 ## [7.1.0]
 

@@ -95,37 +95,6 @@ export class SecretMetadata<DataType extends SecretDataType = Uint8Array>
   }
 
   /**
-   * Create an Array of SecretMetadata instances from an array of secrets.
-   *
-   * To respect the order of the secrets, we add the index to the timestamp
-   * so that the first secret backup will have the oldest timestamp
-   * and the last secret backup will have the newest timestamp.
-   *
-   * @param batchData - The data to add metadata to.
-   * @param batchData.value - The SeedPhrase/PrivateKey to add metadata to.
-   * @param batchData.options - The options for the seed phrase metadata.
-   * @returns The SecretMetadata instances.
-   */
-  static fromBatch<DataType extends SecretDataType = Uint8Array>(
-    batchData: {
-      value: DataType;
-      options?: Partial<SecretMetadataOptions>;
-    }[],
-  ): SecretMetadata<DataType>[] {
-    const timestamp = Date.now();
-    return batchData.map((data, index) => {
-      // To respect the order of the seed phrases, we add the index to the timestamp
-      // so that the first seed phrase backup will have the oldest timestamp
-      // and the last seed phrase backup will have the newest timestamp
-      const backupCreatedAt = data.options?.timestamp ?? timestamp + index * 5;
-      return new SecretMetadata(data.value, {
-        timestamp: backupCreatedAt,
-        type: data.options?.type,
-      });
-    });
-  }
-
-  /**
    * Assert that the provided value is a valid seed phrase metadata.
    *
    * @param value - The value to check.
