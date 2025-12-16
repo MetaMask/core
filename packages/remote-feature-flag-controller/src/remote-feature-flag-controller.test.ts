@@ -321,11 +321,13 @@ describe('RemoteFeatureFlagController', () => {
       });
       await controller.updateRemoteFeatureFlags();
 
+      // With MOCK_METRICS_ID + 'testFlagForThreshold' hashed:
+      // Threshold = 0.380673, which falls in groupB range (0.3 < t <= 0.5)
       expect(
         controller.state.remoteFeatureFlags.testFlagForThreshold,
       ).toStrictEqual({
-        name: 'groupC',
-        value: 'valueC',
+        name: 'groupB',
+        value: 'valueB',
       });
     });
 
@@ -632,10 +634,11 @@ describe('RemoteFeatureFlagController', () => {
       const { multiVersionABFlag, regularFlag } =
         controller.state.remoteFeatureFlags;
       // Should select 13.1.0 version and then apply A/B testing to that array
-      // With MOCK_METRICS_ID threshold, should select groupC (threshold 1.0)
+      // With MOCK_METRICS_ID + 'multiVersionABFlag' hashed:
+      // Threshold = 0.094878, which falls in groupA range (t <= 0.3)
       expect(multiVersionABFlag).toStrictEqual({
-        name: 'groupC',
-        value: { feature: 'C', enabled: true },
+        name: 'groupA',
+        value: { feature: 'A', enabled: true },
       });
       expect(regularFlag).toBe(true);
     });
