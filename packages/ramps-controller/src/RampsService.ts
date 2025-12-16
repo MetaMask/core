@@ -55,8 +55,7 @@ type AllowedEvents = never;
 export type RampsServiceMessenger = Messenger<
   typeof serviceName,
   RampsServiceActions | AllowedActions,
-  RampsServiceEvents | AllowedEvents,
-  string
+  RampsServiceEvents | AllowedEvents
 >;
 
 // === SERVICE DEFINITION ===

@@ -100,8 +100,7 @@ type AllowedEvents = never;
 export type RampsControllerMessenger = Messenger<
   typeof controllerName,
   RampsControllerActions | AllowedActions,
-  RampsControllerEvents | AllowedEvents,
-  string
+  RampsControllerEvents | AllowedEvents
 >;
 
 // === CONTROLLER DEFINITION ===
