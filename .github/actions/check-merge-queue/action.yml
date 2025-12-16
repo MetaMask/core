@@ -89,4 +89,3 @@ runs:
         else
           echo "up-to-date=false" >> "$GITHUB_OUTPUT"
         fi
-
