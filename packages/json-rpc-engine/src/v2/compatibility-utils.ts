@@ -21,17 +21,21 @@ import type { JsonRpcRequest } from './utils';
  * @param value - The value to clone.
  * @returns The cloned value.
  */
-export const deepClone = <T>(value: T): DeepCloned<T> =>
-  klona(value) as DeepCloned<T>;
+export const deepClone = <Type>(value: Type): DeepCloned<Type> =>
+  klona(value) as DeepCloned<Type>;
 
 // Matching the default implementation of klona, this type:
 // - Removes readonly modifiers
 // - Excludes non-enumerable / symbol properties
-type DeepCloned<T> = T extends readonly (infer U)[]
-  ? DeepCloned<U>[]
-  : T extends object
-    ? { -readonly [K in keyof T & (string | number)]: DeepCloned<T[K]> }
-    : T;
+type DeepCloned<Type> = Type extends readonly (infer ArrayType)[]
+  ? DeepCloned<ArrayType>[]
+  : Type extends object
+    ? {
+        -readonly [Key in keyof Type & (string | number)]: DeepCloned<
+          Type[Key]
+        >;
+      }
+    : Type;
 
 /**
  * Standard JSON-RPC request properties.
@@ -89,7 +93,7 @@ export function makeContext<Request extends Record<string | symbol, unknown>>(
 export function propagateToContext(
   req: Record<string, unknown>,
   context: MiddlewareContext<Record<string, unknown>>,
-) {
+): void {
   Object.keys(req)
     .filter(
       (key) =>
@@ -116,7 +120,7 @@ export function propagateToContext(
 export function propagateToRequest(
   req: Record<string, unknown>,
   context: MiddlewareContext,
-) {
+): void {
   Array.from(context.keys())
     .filter(
       ((key) => typeof key === 'string' && !requestProps.includes(key)) as (

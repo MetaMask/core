@@ -210,6 +210,7 @@ describe('EIP-5792', () => {
         from: SEND_CALLS_MOCK.from,
         networkClientId: NETWORK_CLIENT_ID_MOCK,
         origin: ORIGIN_MOCK,
+        requestId: '1',
         securityAlertId: expect.any(String),
         transactions: [
           { params: SEND_CALLS_MOCK.calls[0] },
@@ -237,6 +238,7 @@ describe('EIP-5792', () => {
           batchId: expect.any(String),
           networkClientId: 'test-client',
           origin: 'test.com',
+          requestId: '1',
           securityAlertResponse: {
             securityAlertId: expect.any(String),
           },

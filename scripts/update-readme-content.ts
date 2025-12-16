@@ -31,7 +31,7 @@ main().catch((error) => {
  * 3. Produce a Markdown fragment that represents a list of the workspace packages, and links to them.
  * 4. Update the README with the new content.
  */
-async function main() {
+async function main(): Promise<void> {
   const workspaces = await retrieveWorkspaces();
   await updateReadme(
     getDependencyGraph(workspaces),
@@ -159,7 +159,10 @@ function getPackageList(workspaces: Workspace[]): string {
  * @param newGraph - The new dependency graph Markdown fragment.
  * @param newPackageList - The new package list Markdown fragment.
  */
-async function updateReadme(newGraph: string, newPackageList: string) {
+async function updateReadme(
+  newGraph: string,
+  newPackageList: string,
+): Promise<void> {
   const readmeContent = await fs.promises.readFile(README_PATH, 'utf8');
 
   // Dependency graph

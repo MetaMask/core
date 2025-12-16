@@ -11,6 +11,7 @@ import {
   refreshQuote,
 } from './bridge-quotes';
 import type { TransactionPayBridgeQuote } from './types';
+import { getDefaultRemoteFeatureFlagControllerState } from '../../../../remote-feature-flag-controller/src/remote-feature-flag-controller';
 import { getMessengerMock } from '../../tests/messenger-mock';
 import type {
   PayStrategyGetBatchRequest,
@@ -126,7 +127,7 @@ describe('Bridge Quotes Utils', () => {
     });
 
     getRemoteFeatureFlagControllerStateMock.mockImplementation(() => ({
-      cacheTimestamp: 0,
+      ...getDefaultRemoteFeatureFlagControllerState(),
       remoteFeatureFlags: {
         confirmations_pay: getFeatureFlagsMock(),
       },
@@ -1009,7 +1010,7 @@ describe('Bridge Quotes Utils', () => {
   describe('getBridgeRefreshInterval', () => {
     it('returns chain interval from feature flags', () => {
       getRemoteFeatureFlagControllerStateMock.mockReturnValue({
-        cacheTimestamp: 0,
+        ...getDefaultRemoteFeatureFlagControllerState(),
         remoteFeatureFlags: {
           bridgeConfigV2: {
             chains: {
@@ -1031,7 +1032,7 @@ describe('Bridge Quotes Utils', () => {
 
     it('returns global interval from feature flags', () => {
       getRemoteFeatureFlagControllerStateMock.mockReturnValue({
-        cacheTimestamp: 0,
+        ...getDefaultRemoteFeatureFlagControllerState(),
         remoteFeatureFlags: {
           bridgeConfigV2: {
             chains: {
@@ -1054,7 +1055,7 @@ describe('Bridge Quotes Utils', () => {
 
     it('returns undefined if no chain or global interval', () => {
       getRemoteFeatureFlagControllerStateMock.mockReturnValue({
-        cacheTimestamp: 0,
+        ...getDefaultRemoteFeatureFlagControllerState(),
         remoteFeatureFlags: {
           bridgeConfigV2: {
             chains: {

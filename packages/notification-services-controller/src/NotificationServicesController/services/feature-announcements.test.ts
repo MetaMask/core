@@ -33,7 +33,7 @@ describe('Feature Announcement Notifications', () => {
 
     const assertEnvEmpty = async (
       override: Partial<typeof featureAnnouncementsEnv>,
-    ) => {
+    ): Promise<void> => {
       const result = await getFeatureAnnouncementNotifications({
         ...featureAnnouncementsEnv,
         ...override,
@@ -125,7 +125,7 @@ describe('Feature Announcement Notifications', () => {
         minimumVersion: string | undefined,
         maximumVersion: string | undefined,
         platformVersion: string | undefined,
-      ) => {
+      ): Promise<INotification[]> => {
         const apiResponse = createMockFeatureAnnouncementAPIResult();
         if (apiResponse.items?.[0]) {
           apiResponse.items[0].fields.extensionMinimumVersionNumber = undefined;

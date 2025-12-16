@@ -8,19 +8,19 @@ const jsonrpc = '2.0' as const;
 
 export const makeRequest = <Request extends JsonRpcRequest = JsonRpcRequest>(
   request: Partial<Request> = {},
-) =>
+): Request =>
   ({
     jsonrpc,
     id: request.id ?? '1',
     method: request.method ?? 'test_request',
 
-    params: request.params === undefined ? [] : request.params,
+    params: request.params ?? [],
     ...request,
   }) as Request;
 
 export const makeNotification = <Request extends Partial<JsonRpcRequest>>(
   params: Request = {} as Request,
-) =>
+): JsonRpcNotification =>
   ({
     jsonrpc,
     method: 'test_request',

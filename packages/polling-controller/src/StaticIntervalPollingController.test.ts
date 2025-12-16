@@ -25,7 +25,7 @@ class ChildBlockTrackerPollingController extends StaticIntervalPollingController
   any
 > {
   executePollPromises: {
-    reject: (err: unknown) => void;
+    reject: (error: unknown) => void;
     resolve: () => void;
   }[] = [];
 

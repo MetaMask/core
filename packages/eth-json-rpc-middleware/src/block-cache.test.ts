@@ -2,7 +2,7 @@ import {
   JsonRpcEngineV2,
   MiddlewareContext,
 } from '@metamask/json-rpc-engine/v2';
-import type { Json } from '@metamask/utils';
+import type { Hex, Json } from '@metamask/utils';
 
 import { createBlockCacheMiddleware } from '.';
 import {
@@ -38,7 +38,7 @@ describe('block cache middleware', () => {
       stubProviderRequests(provider, [
         {
           request: { method: 'eth_blockNumber' },
-          result: () => Promise.resolve('0x1'),
+          result: (): Promise<'0x1'> => Promise.resolve('0x1'),
         },
       ]);
 
@@ -46,7 +46,7 @@ describe('block cache middleware', () => {
       const engine = JsonRpcEngineV2.create({
         middleware: [
           createBlockCacheMiddleware({ blockTracker }),
-          () => {
+          (): Hex => {
             hitCount += 1;
             return `0x${hitCount}`;
           },
@@ -74,7 +74,7 @@ describe('block cache middleware', () => {
       stubProviderRequests(provider, [
         {
           request: { method: 'eth_blockNumber' },
-          result: () => Promise.resolve('0x1'),
+          result: (): Promise<Hex> => Promise.resolve('0x1'),
         },
       ]);
 
@@ -82,7 +82,7 @@ describe('block cache middleware', () => {
       const engine = JsonRpcEngineV2.create({
         middleware: [
           createBlockCacheMiddleware({ blockTracker }),
-          () => {
+          (): Hex => {
             hitCount += 1;
             return `0x${hitCount}`;
           },
@@ -106,7 +106,7 @@ describe('block cache middleware', () => {
       stubProviderRequests(provider, [
         {
           request: { method: 'eth_blockNumber' },
-          result: () => Promise.resolve('0x1'),
+          result: (): Promise<Hex> => Promise.resolve('0x1'),
         },
       ]);
 
@@ -114,7 +114,7 @@ describe('block cache middleware', () => {
       const engine = JsonRpcEngineV2.create({
         middleware: [
           createBlockCacheMiddleware({ blockTracker }),
-          () => {
+          (): Hex => {
             hitCount += 1;
             return `0x${hitCount}`;
           },
@@ -139,7 +139,7 @@ describe('block cache middleware', () => {
       stubProviderRequests(provider, [
         {
           request: { method: 'eth_blockNumber' },
-          result: () => Promise.resolve('0x1'),
+          result: (): Promise<Hex> => Promise.resolve('0x1'),
         },
       ]);
 
@@ -147,7 +147,7 @@ describe('block cache middleware', () => {
       const engine = JsonRpcEngineV2.create({
         middleware: [
           createBlockCacheMiddleware({ blockTracker }),
-          () => {
+          (): Hex => {
             hitCount += 1;
             return `0x${hitCount}`;
           },
@@ -173,7 +173,7 @@ describe('block cache middleware', () => {
       stubProviderRequests(provider, [
         {
           request: { method: 'eth_blockNumber' },
-          result: () => Promise.resolve('0x1'),
+          result: (): Promise<Hex> => Promise.resolve('0x1'),
         },
       ]);
 
@@ -181,7 +181,7 @@ describe('block cache middleware', () => {
       const engine = JsonRpcEngineV2.create({
         middleware: [
           createBlockCacheMiddleware({ blockTracker }),
-          () => {
+          (): Hex => {
             hitCount += 1;
             return `0x${hitCount}`;
           },
@@ -207,7 +207,7 @@ describe('block cache middleware', () => {
       stubProviderRequests(provider, [
         {
           request: { method: 'eth_blockNumber' },
-          result: () => Promise.resolve('0x1'),
+          result: (): Promise<Hex> => Promise.resolve('0x1'),
         },
       ]);
 
@@ -215,7 +215,7 @@ describe('block cache middleware', () => {
       const engine = JsonRpcEngineV2.create({
         middleware: [
           createBlockCacheMiddleware({ blockTracker }),
-          () => {
+          (): Hex => {
             hitCount += 1;
             return `0x${hitCount}`;
           },
@@ -241,7 +241,7 @@ describe('block cache middleware', () => {
       stubProviderRequests(provider, [
         {
           request: { method: 'eth_blockNumber' },
-          result: () => Promise.resolve('0x2'),
+          result: (): Promise<Hex> => Promise.resolve('0x2'),
         },
       ]);
 
@@ -249,7 +249,7 @@ describe('block cache middleware', () => {
       const engine = JsonRpcEngineV2.create({
         middleware: [
           createBlockCacheMiddleware({ blockTracker }),
-          () => {
+          (): Hex => {
             hitCount += 1;
             return `0x${hitCount}`;
           },
@@ -279,7 +279,7 @@ describe('block cache middleware', () => {
         stubProviderRequests(provider, [
           {
             request: { method: 'eth_blockNumber' },
-            result: () => Promise.resolve('0x1'),
+            result: (): Promise<Hex> => Promise.resolve('0x1'),
           },
         ]);
 
@@ -287,7 +287,7 @@ describe('block cache middleware', () => {
         const engine = JsonRpcEngineV2.create({
           middleware: [
             createBlockCacheMiddleware({ blockTracker }),
-            () => {
+            (): string | null => {
               hitCount += 1;
               return emptyValue;
             },
@@ -323,7 +323,7 @@ describe('block cache middleware', () => {
           stubProviderRequests(provider, [
             {
               request: { method: 'eth_blockNumber' },
-              result: () => Promise.resolve('0x1'),
+              result: (): Promise<Hex> => Promise.resolve('0x1'),
             },
           ]);
 
@@ -331,7 +331,7 @@ describe('block cache middleware', () => {
           const engine = JsonRpcEngineV2.create({
             middleware: [
               createBlockCacheMiddleware({ blockTracker }),
-              () => {
+              (): Json => {
                 hitCount += 1;
                 return expectedResult;
               },
@@ -361,7 +361,7 @@ describe('block cache middleware', () => {
       stubProviderRequests(provider, [
         {
           request: { method: 'eth_blockNumber' },
-          result: () => Promise.resolve('0x1'),
+          result: (): Promise<Hex> => Promise.resolve('0x1'),
         },
       ]);
 
@@ -369,7 +369,7 @@ describe('block cache middleware', () => {
       const engine = JsonRpcEngineV2.create({
         middleware: [
           createBlockCacheMiddleware({ blockTracker }),
-          () => {
+          (): Hex => {
             hitCount += 1;
             return `0x${hitCount}`;
           },

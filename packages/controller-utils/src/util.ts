@@ -69,7 +69,9 @@ export function isSafeChainId(chainId: Hex): boolean {
  * @param inputBn - BN|BigNumber instance to convert to a hex string.
  * @returns A '0x'-prefixed hex string.
  */
-export function BNToHex(inputBn: BN | BigNumber) {
+// TODO: Fix naming convention.
+// eslint-disable-next-line @typescript-eslint/naming-convention
+export function BNToHex(inputBn: BN | BigNumber): Hex {
   return add0x(inputBn.toString(16));
 }
 
@@ -85,7 +87,7 @@ export function fractionBN(
   targetBN: BN,
   numerator: number | string,
   denominator: number | string,
-) {
+): BN {
   const numBN = new BN(numerator);
   const denomBN = new BN(denominator);
   return targetBN.mul(numBN).div(denomBN);
@@ -94,15 +96,15 @@ export function fractionBN(
 /**
  * Used to convert a base-10 number from GWEI to WEI. Can handle numbers with decimal parts.
  *
- * @param n - The base 10 number to convert to WEI.
+ * @param value - The base 10 number to convert to WEI.
  * @returns The number in WEI, as a BN.
  */
-export function gweiDecToWEIBN(n: number | string) {
-  if (Number.isNaN(n)) {
+export function gweiDecToWEIBN(value: number | string): BN {
+  if (Number.isNaN(value)) {
     return new BN(0);
   }
 
-  const parts = n.toString().split('.');
+  const parts = value.toString().split('.');
   const wholePart = parts[0] || '0';
   let decimalPart = parts[1] || '';
 
@@ -130,11 +132,11 @@ export function gweiDecToWEIBN(n: number | string) {
 /**
  * Used to convert values from wei hex format to dec gwei format.
  *
- * @param hex - The value in hex wei.
+ * @param hexValue - The value in hex wei.
  * @returns The value in dec gwei as string.
  */
-export function weiHexToGweiDec(hex: string) {
-  const hexWei = new BN(remove0x(hex), 16);
+export function weiHexToGweiDec(hexValue: string): string {
+  const hexWei = new BN(remove0x(hexValue), 16);
   return fromWei(hexWei, 'gwei');
 }
 
@@ -169,24 +171,27 @@ export function getBuyURL(
  * @param inputHex - Number represented as a hex string.
  * @returns A BN instance.
  */
-export function hexToBN(inputHex: string) {
+export function hexToBN(inputHex: string): BN {
   return inputHex ? new BN(remove0x(inputHex), 16) : new BN(0);
 }
 
 /**
  * A helper function that converts hex data to human readable string.
  *
- * @param hex - The hex string to convert to string.
+ * @param hexValue - The hex string to convert to string.
  * @returns A human readable string conversion.
  */
-export function hexToText(hex: string) {
+export function hexToText(hexValue: string): string {
   try {
-    const stripped = remove0x(hex);
+    const stripped = remove0x(hexValue);
+    // TODO: Use `@metamask/utils` version of this function to avoid use of
+    // Buffer.
+    // eslint-disable-next-line no-restricted-globals
     const buff = Buffer.from(stripped, 'hex');
     return buff.toString('utf8');
-  } catch (e) {
+  } catch {
     /* istanbul ignore next */
-    return hex;
+    return hexValue;
   }
 }
 
@@ -261,7 +266,7 @@ export async function safelyExecuteWithTimeout<Result>(
   try {
     return await Promise.race([
       operation(),
-      new Promise<never>((_, reject) =>
+      new Promise<never>((_resolve, reject) =>
         setTimeout(() => {
           reject(TIMEOUT_ERROR);
         }, timeout),
@@ -295,9 +300,9 @@ function toChecksumHexAddressUnmemoized(address: string): string;
  * and is only present for backward compatibility. It may be removed in a future
  * major version. Please pass a string to `toChecksumHexAddress` instead.
  */
-function toChecksumHexAddressUnmemoized<T>(address: T): T;
+function toChecksumHexAddressUnmemoized<Type>(address: Type): Type;
 
-function toChecksumHexAddressUnmemoized(address: unknown) {
+function toChecksumHexAddressUnmemoized(address: unknown): unknown {
   if (typeof address !== 'string') {
     // Mimic behavior of `addHexPrefix` from `ethereumjs-util` (which this
     // function was previously using) for backward compatibility.
@@ -339,7 +344,7 @@ function toChecksumHexAddressUnmemoized(address: unknown) {
  */
 export const toChecksumHexAddress: {
   (address: string): string;
-  <T>(address: T): T;
+  <Type>(address: Type): Type;
 } = memoize(toChecksumHexAddressUnmemoized);
 
 function isValidHexAddressUnmemoized(
@@ -386,7 +391,7 @@ export const isValidHexAddress: (
  * @param code - The potential smart contract code.
  * @returns Whether the code was smart contract code or not.
  */
-export function isSmartContractCode(code: string) {
+export function isSmartContractCode(code: string): boolean {
   /* istanbul ignore if */
   if (!code) {
     return false;
@@ -409,7 +414,7 @@ export class HttpError extends Error {
    * @param message - The error message.
    */
   constructor(status: number, message?: string) {
-    super(message || `Fetch failed with status '${status}'`);
+    super(message ?? `Fetch failed with status '${status}'`);
     this.httpStatus = status;
   }
 }
@@ -424,11 +429,13 @@ export class HttpError extends Error {
 export async function successfulFetch(
   request: URL | RequestInfo,
   options?: RequestInit,
-) {
+): Promise<Response> {
   const response = await fetch(request, options);
   if (!response.ok) {
     throw new HttpError(
       response.status,
+      // TODO: Replace `String` with more specific conversion.
+      // eslint-disable-next-line @typescript-eslint/no-base-to-string
       `Fetch failed with status '${response.status}' for request '${String(request)}'`,
     );
   }
@@ -445,7 +452,9 @@ export async function successfulFetch(
 export async function handleFetch(
   request: URL | RequestInfo,
   options?: RequestInit,
-) {
+  // TODO: Replace `any` with more specific type.
+  // eslint-disable-next-line @typescript-eslint/no-explicit-any
+): Promise<any> {
   const response = await successfulFetch(request, options);
   const object = await response.json();
   return object;
@@ -471,13 +480,15 @@ export async function fetchWithErrorHandling({
   options?: RequestInit;
   timeout?: number;
   errorCodesToCatch?: number[];
-}) {
+  // TODO: Replace `any` with more specific type.
+  // eslint-disable-next-line @typescript-eslint/no-explicit-any
+}): Promise<any> {
   let result;
   try {
     if (timeout) {
       result = Promise.race([
         await handleFetch(url, options),
-        new Promise<Response>((_, reject) =>
+        new Promise<Response>((_resolve, reject) =>
           setTimeout(() => {
             reject(TIMEOUT_ERROR);
           }, timeout),
@@ -486,8 +497,8 @@ export async function fetchWithErrorHandling({
     } else {
       result = await handleFetch(url, options);
     }
-  } catch (e) {
-    logOrRethrowError(e, errorCodesToCatch);
+  } catch (error) {
+    logOrRethrowError(error, errorCodesToCatch);
   }
   return result;
 }
@@ -507,7 +518,7 @@ export async function timeoutFetch(
 ): Promise<Response> {
   return Promise.race([
     successfulFetch(url, options),
-    new Promise<Response>((_, reject) =>
+    new Promise<Response>((_resolve, reject) =>
       setTimeout(() => {
         reject(TIMEOUT_ERROR);
       }, timeout),
@@ -534,7 +545,7 @@ export function normalizeEnsName(ensName: string): string | null {
       if (normalized.match(/^(([\w\d-]+)\.)*[\w\d-]{7,}\.(eth|test)$/u)) {
         return normalized;
       }
-    } catch (_) {
+    } catch {
       // do nothing
     }
   }
@@ -559,8 +570,11 @@ export function query(
   // eslint-disable-next-line @typescript-eslint/no-explicit-any
 ): Promise<any> {
   return new Promise((resolve, reject) => {
-    const cb = (error: unknown, result: unknown) => {
+    const callback = (error: unknown, result: unknown): void => {
       if (error) {
+        // We don't control the error object returned by eth-query, so
+        // we can't guarantee it's an instance of Error.
+        // eslint-disable-next-line @typescript-eslint/prefer-promise-reject-errors
         reject(error);
         return;
       }
@@ -570,9 +584,9 @@ export function query(
     // Using `in` rather than `hasProperty` so that we look up the prototype
     // chain for the method.
     if (method in ethQuery && typeof ethQuery[method] === 'function') {
-      ethQuery[method](...args, cb);
+      ethQuery[method](...args, callback);
     } else {
-      ethQuery.sendAsync({ method, params: args }, cb);
+      ethQuery.sendAsync({ method, params: args }, callback);
     }
   });
 }
@@ -610,7 +624,7 @@ export function isPlainObject(value: unknown): value is PlainObject {
  *
  * @template T - The non-empty array member type.
  */
-export type NonEmptyArray<T> = [T, ...T[]];
+export type NonEmptyArray<Type> = [Type, ...Type[]];
 
 /**
  * Type guard for {@link NonEmptyArray}.
@@ -619,7 +633,9 @@ export type NonEmptyArray<T> = [T, ...T[]];
  * @param value - The value to check.
  * @returns Whether the value is a non-empty array.
  */
-export function isNonEmptyArray<T>(value: T[]): value is NonEmptyArray<T> {
+export function isNonEmptyArray<Type>(
+  value: Type[],
+): value is NonEmptyArray<Type> {
   return Array.isArray(value) && value.length > 0;
 }
 
@@ -632,7 +648,7 @@ export function isNonEmptyArray<T>(value: T[]): value is NonEmptyArray<T> {
 export function isValidJson(value: unknown): value is Json {
   try {
     return deepEqual(value, JSON.parse(JSON.stringify(value)));
-  } catch (_) {
+  } catch {
     return false;
   }
 }
@@ -643,7 +659,7 @@ export function isValidJson(value: unknown): value is Json {
  * @param error - Caught error that we should either rethrow or log to console
  * @param codesToCatch - array of error codes for errors we want to catch and log in a particular context
  */
-function logOrRethrowError(error: unknown, codesToCatch: number[] = []) {
+function logOrRethrowError(error: unknown, codesToCatch: number[] = []): void {
   if (!error) {
     return;
   }

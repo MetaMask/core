@@ -75,6 +75,7 @@ export type NetworkMetadata = {
   /**
    * EIPs supported by the network.
    */
+  // eslint-disable-next-line @typescript-eslint/naming-convention
   EIPS: {
     [eipNumber: number]: boolean;
   };
@@ -293,12 +294,12 @@ export type UpdateNetworkFields = Omit<NetworkConfiguration, 'rpcEndpoints'> & {
  * @returns The keys of an object, typed according to the type of the object
  * itself.
  */
-export function knownKeysOf<K extends PropertyKey>(
+export function knownKeysOf<Key extends PropertyKey>(
   // TODO: Replace `any` with type
   // eslint-disable-next-line @typescript-eslint/no-explicit-any
-  object: Partial<Record<K, any>>,
-) {
-  return Object.keys(object) as K[];
+  object: Partial<Record<Key, any>>,
+): Key[] {
+  return Object.keys(object) as Key[];
 }
 
 /**
@@ -939,7 +940,9 @@ export function getDefaultNetworkControllerState(
  * @param state - NetworkController state
  * @returns All registered network configurations, keyed by chain ID.
  */
-const selectNetworkConfigurationsByChainId = (state: NetworkState) =>
+const selectNetworkConfigurationsByChainId = (
+  state: NetworkState,
+): Record<`0x${string}`, NetworkConfiguration> =>
   state.networkConfigurationsByChainId;
 
 /**
@@ -1095,7 +1098,7 @@ type NetworkClientOperation =
  * @param url - The URL to test.
  * @returns True if the URL is valid, false otherwise.
  */
-function isValidUrl(url: string) {
+function isValidUrl(url: string): boolean {
   const uri = URI.parse(url);
   return (
     uri.error === undefined && (uri.scheme === 'http' || uri.scheme === 'https')
@@ -1141,7 +1144,7 @@ function deriveInfuraNetworkNameFromRpcEndpointUrl(
  * @param state - The NetworkController state to verify.
  * @throws if the state is invalid in some way.
  */
-function validateInitialState(state: NetworkState) {
+function validateInitialState(state: NetworkState): void {
   const networkConfigurationEntries = Object.entries(
     state.networkConfigurationsByChainId,
   );
@@ -1472,7 +1475,7 @@ export class NetworkController extends BaseController<
    * configured with failover URLs, then traffic will automatically be diverted
    * to them if those RPC endpoints are unavailable.
    */
-  enableRpcFailover() {
+  enableRpcFailover(): void {
     this.#updateRpcFailoverEnabled(true);
   }
 
@@ -1481,7 +1484,7 @@ export class NetworkController extends BaseController<
    * are configured with failover URLs, then traffic will not automatically be
    * diverted to them if those RPC endpoints are unavailable.
    */
-  disableRpcFailover() {
+  disableRpcFailover(): void {
     this.#updateRpcFailoverEnabled(false);
   }
 
@@ -1495,7 +1498,7 @@ export class NetworkController extends BaseController<
    * @param newIsRpcFailoverEnabled - Whether or not to enable or disable the
    * RPC failover functionality.
    */
-  #updateRpcFailoverEnabled(newIsRpcFailoverEnabled: boolean) {
+  #updateRpcFailoverEnabled(newIsRpcFailoverEnabled: boolean): void {
     if (this.#isRpcFailoverEnabled === newIsRpcFailoverEnabled) {
       return;
     }
@@ -1679,7 +1682,7 @@ export class NetworkController extends BaseController<
     options: {
       updateState?: (state: Draft<NetworkState>) => void;
     } = {},
-  ) {
+  ): Promise<void> {
     this.messenger.publish('NetworkController:networkWillChange', this.state);
     this.#applyNetworkSelection(networkClientId, options);
     this.messenger.publish('NetworkController:networkDidChange', this.state);
@@ -1731,7 +1734,7 @@ export class NetworkController extends BaseController<
     lookupNetwork = true,
   }: {
     lookupNetwork?: boolean;
-  } = {}) {
+  } = {}): Promise<void> | undefined {
     this.#applyNetworkSelection(this.state.selectedNetworkClientId);
 
     if (lookupNetwork) {
@@ -1754,7 +1757,15 @@ export class NetworkController extends BaseController<
    * If no ID is provided, uses the currently selected network.
    * @returns The resulting metadata for the network.
    */
-  async #determineNetworkMetadata(networkClientId: NetworkClientId) {
+  async #determineNetworkMetadata(networkClientId: NetworkClientId): Promise<{
+    isInfura: boolean;
+    networkStatus:
+      | NetworkStatus.Available
+      | NetworkStatus.Unknown
+      | NetworkStatus.Unavailable
+      | NetworkStatus.Blocked;
+    isEIP1559Compatible: undefined | boolean;
+  }> {
     // Force TypeScript to use one of the two overloads explicitly
     const networkClient = isInfuraNetworkType(networkClientId)
       ? this.getNetworkClientById(networkClientId)
@@ -1830,7 +1841,7 @@ export class NetworkController extends BaseController<
    * @param networkClientId - The ID of the network client to inspect.
    * If no ID is provided, uses the currently selected network.
    */
-  async lookupNetwork(networkClientId?: NetworkClientId) {
+  async lookupNetwork(networkClientId?: NetworkClientId): Promise<void> {
     if (networkClientId) {
       await this.#lookupGivenNetwork(networkClientId);
     } else {
@@ -1854,7 +1865,9 @@ export class NetworkController extends BaseController<
   // We are planning on removing this so we aren't interested in testing this
   // right now.
   /* istanbul ignore next */
-  async lookupNetworkByClientId(networkClientId: NetworkClientId) {
+  async lookupNetworkByClientId(
+    networkClientId: NetworkClientId,
+  ): Promise<void> {
     await this.#lookupGivenNetwork(networkClientId);
   }
 
@@ -1869,7 +1882,7 @@ export class NetworkController extends BaseController<
    *
    * @param networkClientId - The ID of the network client to inspect.
    */
-  async #lookupGivenNetwork(networkClientId: NetworkClientId) {
+  async #lookupGivenNetwork(networkClientId: NetworkClientId): Promise<void> {
     const { networkStatus, isEIP1559Compatible } =
       await this.#determineNetworkMetadata(networkClientId);
 
@@ -1892,13 +1905,13 @@ export class NetworkController extends BaseController<
    * method is running. If that is the case, it will exit early (as this method
    * will also run for the new network).
    */
-  async #lookupSelectedNetwork() {
+  async #lookupSelectedNetwork(): Promise<void> {
     if (!this.#ethQuery) {
       return;
     }
 
     let networkChanged = false;
-    const listener = () => {
+    const listener = (): void => {
       networkChanged = true;
       try {
         this.messenger.unsubscribe(
@@ -1985,14 +1998,13 @@ export class NetworkController extends BaseController<
       networkStatus: NetworkStatus;
       isEIP1559Compatible?: boolean | undefined;
     },
-  ) {
+  ): void {
     this.update((state) => {
-      if (state.networksMetadata[networkClientId] === undefined) {
-        state.networksMetadata[networkClientId] = {
-          status: NetworkStatus.Unknown,
-          EIPS: {},
-        };
-      }
+      state.networksMetadata[networkClientId] ??= {
+        status: NetworkStatus.Unknown,
+        EIPS: {},
+      };
+
       const newMetadata = state.networksMetadata[networkClientId];
       newMetadata.status = metadata.networkStatus;
 
@@ -2013,7 +2025,7 @@ export class NetworkController extends BaseController<
    * @deprecated This has been replaced by `setActiveNetwork`, and will be
    * removed in a future release
    */
-  async setProviderType(type: InfuraNetworkType) {
+  async setProviderType(type: InfuraNetworkType): Promise<void> {
     if ((type as unknown) === NetworkType.rpc) {
       throw new Error(
         `NetworkController - cannot call "setProviderType" with type "${NetworkType.rpc}". Use "setActiveNetwork"`,
@@ -2041,7 +2053,7 @@ export class NetworkController extends BaseController<
     options: {
       updateState?: (state: Draft<NetworkState>) => void;
     } = {},
-  ) {
+  ): Promise<void> {
     this.#previouslySelectedNetworkClientId =
       this.state.selectedNetworkClientId;
 
@@ -2055,11 +2067,9 @@ export class NetworkController extends BaseController<
    * @returns A promise that either resolves to the block header or null if
    * there is no latest block, or rejects with an error.
    */
-  #getLatestBlock(networkClientId: NetworkClientId): Promise<Block> {
-    if (networkClientId === undefined) {
-      networkClientId = this.state.selectedNetworkClientId;
-    }
-
+  #getLatestBlock(
+    networkClientId: NetworkClientId = this.state.selectedNetworkClientId,
+  ): Promise<Block> {
     const networkClient = this.getNetworkClientById(networkClientId);
     const ethQuery = new EthQuery(networkClient.provider);
 
@@ -2089,7 +2099,9 @@ export class NetworkController extends BaseController<
    * @returns A promise that resolves to true if the network supports EIP-1559
    * , false otherwise, or `undefined` if unable to determine the compatibility.
    */
-  async getEIP1559Compatibility(networkClientId?: NetworkClientId) {
+  async getEIP1559Compatibility(
+    networkClientId?: NetworkClientId,
+  ): Promise<undefined | boolean> {
     if (networkClientId) {
       return this.get1559CompatibilityWithNetworkClientId(networkClientId);
     }
@@ -2118,7 +2130,7 @@ export class NetworkController extends BaseController<
 
   async get1559CompatibilityWithNetworkClientId(
     networkClientId: NetworkClientId,
-  ) {
+  ): Promise<boolean> {
     let metadata = this.state.networksMetadata[networkClientId];
     if (metadata === undefined) {
       await this.lookupNetwork(networkClientId);
@@ -2155,7 +2167,7 @@ export class NetworkController extends BaseController<
    * Ensures that the provider and block tracker proxies are pointed to the
    * currently selected network and refreshes the metadata for the
    */
-  async resetConnection() {
+  async resetConnection(): Promise<void> {
     await this.#refreshNetwork(this.state.selectedNetworkClientId);
   }
 
@@ -2369,8 +2381,18 @@ export class NetworkController extends BaseController<
           rpcEndpoint: newRpcEndpoint,
         });
       } else if (
-        existingRpcEndpointForReplaceWhenChainNotChanged !== undefined
+        existingRpcEndpointForReplaceWhenChainNotChanged === undefined
       ) {
+        const newRpcEndpoint =
+          newRpcEndpointFields.type === RpcEndpointType.Infura
+            ? newRpcEndpointFields
+            : { ...newRpcEndpointFields, networkClientId: uuidV4() };
+        const networkClientOperation = {
+          type: 'add' as const,
+          rpcEndpoint: newRpcEndpoint,
+        };
+        networkClientOperations.push(networkClientOperation);
+      } else {
         let newRpcEndpoint;
         /* istanbul ignore if */
         if (newRpcEndpointFields.type === RpcEndpointType.Infura) {
@@ -2392,16 +2414,6 @@ export class NetworkController extends BaseController<
           oldRpcEndpoint: existingRpcEndpointForReplaceWhenChainNotChanged,
           newRpcEndpoint,
         });
-      } else {
-        const newRpcEndpoint =
-          newRpcEndpointFields.type === RpcEndpointType.Infura
-            ? newRpcEndpointFields
-            : { ...newRpcEndpointFields, networkClientId: uuidV4() };
-        const networkClientOperation = {
-          type: 'add' as const,
-          rpcEndpoint: newRpcEndpoint,
-        };
-        networkClientOperations.push(networkClientOperation);
       }
     }
 
@@ -2536,7 +2548,7 @@ export class NetworkController extends BaseController<
    * or if the currently selected network is being removed.
    * @see {@link NetworkConfiguration}
    */
-  removeNetwork(chainId: Hex) {
+  removeNetwork(chainId: Hex): void {
     const existingNetworkConfiguration =
       this.state.networkConfigurationsByChainId[chainId];
 
@@ -2595,7 +2607,7 @@ export class NetworkController extends BaseController<
    * If the network has not been previously switched, this method is equivalent
    * to {@link resetConnection}.
    */
-  async rollbackToPreviousProvider() {
+  async rollbackToPreviousProvider(): Promise<void> {
     await this.#refreshNetwork(this.#previouslySelectedNetworkClientId);
   }
 
@@ -2606,7 +2618,7 @@ export class NetworkController extends BaseController<
    */
   // We're intentionally changing the signature of an extended method.
   // eslint-disable-next-line @typescript-eslint/no-misused-promises
-  async destroy() {
+  async destroy(): Promise<void> {
     await this.#blockTrackerProxy?.destroy();
   }
 
@@ -2672,7 +2684,7 @@ export class NetworkController extends BaseController<
           networkFields: UpdateNetworkFields;
         }
     ),
-  ) {
+  ): void {
     const { mode, networkFields, autoManagedNetworkClientRegistry } = args;
     const existingNetworkConfiguration =
       'existingNetworkConfiguration' in args
@@ -2931,7 +2943,7 @@ export class NetworkController extends BaseController<
     networkFields: AddNetworkFields | UpdateNetworkFields;
     networkClientOperations: NetworkClientOperation[];
     autoManagedNetworkClientRegistry: AutoManagedNetworkClientRegistry;
-  }) {
+  }): void {
     const addedRpcEndpoints = networkClientOperations
       .filter(
         (
@@ -3013,7 +3025,7 @@ export class NetworkController extends BaseController<
   }: {
     networkClientOperations: NetworkClientOperation[];
     autoManagedNetworkClientRegistry: AutoManagedNetworkClientRegistry;
-  }) {
+  }): void {
     const removedRpcEndpoints = networkClientOperations
       .filter(
         (
@@ -3077,7 +3089,7 @@ export class NetworkController extends BaseController<
           existingNetworkConfiguration: NetworkConfiguration;
         }
     ),
-  ) {
+  ): void {
     const { state, mode } = args;
 
     if (
@@ -3228,7 +3240,7 @@ export class NetworkController extends BaseController<
     }: {
       updateState?: (state: Draft<NetworkState>) => void;
     } = {},
-  ) {
+  ): void {
     const autoManagedNetworkClientRegistry =
       this.#ensureAutoManagedNetworkClientRegistryPopulated();
 
@@ -3268,12 +3280,11 @@ export class NetworkController extends BaseController<
 
     this.update((state) => {
       state.selectedNetworkClientId = networkClientId;
-      if (state.networksMetadata[networkClientId] === undefined) {
-        state.networksMetadata[networkClientId] = {
-          status: NetworkStatus.Unknown,
-          EIPS: {},
-        };
-      }
+      state.networksMetadata[networkClientId] ??= {
+        status: NetworkStatus.Unknown,
+        EIPS: {},
+      };
+
       updateState?.(state);
     });
 

@@ -25,7 +25,7 @@ export function testsForRpcMethodNotHandledByMiddleware(
     providerType,
     numberOfParameters,
   }: TestsForRpcMethodNotHandledByMiddlewareOptions,
-) {
+): void {
   it('attempts to pass the request off to the RPC endpoint', async () => {
     const request = {
       method,
