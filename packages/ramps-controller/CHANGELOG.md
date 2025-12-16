@@ -7,6 +7,11 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+### Added
+
+- Add `dev-watch.js` and `link-ramp-controller.js` scripts to auto-build and copy `dist/` into `metamask-mobile/node_modules/@metamask/ramps-controller`
+- Add `"dev": "node dev-watch.js"` script to `package.json`
+
 ### Changed
 
 - Rename `OnRampService` to `RampsService` and `OnRampEnvironment` to `RampsEnvironment` ([#7316](https://github.com/MetaMask/core/pull/7316))
@@ -16,11 +21,6 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 ### Fixed
 
 - Fix `RampsService#getGeolocation` to read response text within the policy execution and return parsed text
-
-### Added
-
-- Add `dev-watch.js` and `link-ramp-controller.js` scripts to auto-build and copy `dist/` into `metamask-mobile/node_modules/@metamask/ramps-controller`
-- Add `"dev": "node dev-watch.js"` script to `package.json`
 
 ## [1.0.0]
 
