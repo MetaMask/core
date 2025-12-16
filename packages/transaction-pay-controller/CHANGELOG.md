@@ -9,7 +9,7 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [10.6.0]
 
-### Uncategorized
+### Added
 
 - feat: add override functionality to remote feature flags ([#7271](https://github.com/MetaMask/core/pull/7271))
 
