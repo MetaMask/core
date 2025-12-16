@@ -4,6 +4,7 @@ import {
 } from '@metamask/base-controller';
 import type { Messenger } from '@metamask/messenger';
 import { StaticIntervalPollingController } from '@metamask/polling-controller';
+import type { RemoteFeatureFlagControllerState } from '@metamask/remote-feature-flag-controller';
 import type { Json } from '@metamask/utils';
 
 import type { AbstractConfigRegistryApiService } from './config-registry-api-service';
@@ -11,6 +12,7 @@ import {
   ConfigRegistryApiService,
   type FetchConfigResult,
 } from './config-registry-api-service';
+import { isConfigRegistryApiEnabled } from './utils/feature-flags';
 
 const controllerName = 'ConfigRegistryController';
 
@@ -111,7 +113,11 @@ export type ConfigRegistryControllerActions =
   | ConfigRegistryControllerSetConfigAction
   | ConfigRegistryControllerGetAllConfigsAction
   | ConfigRegistryControllerStartPollingAction
-  | ConfigRegistryControllerStopPollingAction;
+  | ConfigRegistryControllerStopPollingAction
+  | {
+      type: 'RemoteFeatureFlagController:getState';
+      handler: () => RemoteFeatureFlagControllerState;
+    };
 
 export type ConfigRegistryControllerEvents =
   ConfigRegistryControllerStateChangeEvent;
@@ -199,6 +205,15 @@ export class ConfigRegistryController extends StaticIntervalPollingController<Co
   }
 
   async _executePoll(_input: ConfigRegistryPollingInput): Promise<void> {
+    const isApiEnabled = isConfigRegistryApiEnabled(this.messenger);
+
+    if (!isApiEnabled) {
+      this.#useFallbackConfig(
+        'Feature flag disabled - using fallback configuration',
+      );
+      return;
+    }
+
     try {
       const result: FetchConfigResult = await this.#apiService.fetchConfig({
         etag: this.state.etag ?? undefined,

@@ -38,3 +38,4 @@ export {
   compareWithExistingNetworks,
   processNetworkConfigs,
 } from './config-registry-api-service';
+export { isConfigRegistryApiEnabled } from './utils/feature-flags';

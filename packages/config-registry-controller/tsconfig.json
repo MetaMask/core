@@ -8,7 +8,8 @@
     { "path": "../controller-utils" },
     { "path": "../messenger" },
     { "path": "../network-controller" },
-    { "path": "../polling-controller" }
+    { "path": "../polling-controller" },
+    { "path": "../remote-feature-flag-controller" }
   ],
   "include": ["../../types", "./src"]
 }

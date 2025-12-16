@@ -1,4 +1,8 @@
-import { Messenger, type MockAnyNamespace } from '@metamask/messenger';
+import {
+  Messenger,
+  MOCK_ANY_NAMESPACE,
+  type MockAnyNamespace,
+} from '@metamask/messenger';
 import { useFakeTimers } from 'sinon';
 
 import type { AbstractConfigRegistryApiService } from './config-registry-api-service';
@@ -15,23 +19,45 @@ import { advanceTime } from '../../../tests/helpers';
 
 const namespace = 'ConfigRegistryController' as const;
 
-type RootMessenger = Messenger<MockAnyNamespace, never, never>;
+type RootMessenger = Messenger<
+  MockAnyNamespace,
+  { type: 'RemoteFeatureFlagController:getState'; handler: () => unknown },
+  never
+>;
 
 /**
  * Constructs a messenger for ConfigRegistryController.
  *
- * @returns A controller messenger.
+ * @returns A controller messenger and root messenger.
  */
-function getConfigRegistryControllerMessenger(): ConfigRegistryMessenger {
+function getConfigRegistryControllerMessenger(): {
+  messenger: ConfigRegistryMessenger;
+  rootMessenger: RootMessenger;
+} {
+  const rootMessenger = new Messenger<
+    MockAnyNamespace,
+    { type: 'RemoteFeatureFlagController:getState'; handler: () => unknown },
+    never
+  >({
+    namespace: MOCK_ANY_NAMESPACE,
+  });
+
   const configRegistryControllerMessenger = new Messenger<
     typeof namespace,
     never,
     never,
-    RootMessenger
+    typeof rootMessenger
   >({
     namespace,
+    parent: rootMessenger,
   });
-  return configRegistryControllerMessenger;
+
+  rootMessenger.delegate({
+    messenger: configRegistryControllerMessenger,
+    actions: ['RemoteFeatureFlagController:getState'] as never[],
+  });
+
+  return { messenger: configRegistryControllerMessenger, rootMessenger };
 }
 
 const MOCK_CONFIG_ENTRY: RegistryConfigEntry = {
@@ -78,12 +104,28 @@ function buildMockApiService(
 describe('ConfigRegistryController', () => {
   let clock: sinon.SinonFakeTimers;
   let messenger: ConfigRegistryMessenger;
+  let rootMessenger: RootMessenger;
   let apiService: AbstractConfigRegistryApiService;
+  let mockRemoteFeatureFlagGetState: jest.Mock;
 
   beforeEach(() => {
     clock = useFakeTimers();
-    messenger = getConfigRegistryControllerMessenger();
+    const messengers = getConfigRegistryControllerMessenger();
+    messenger = messengers.messenger;
+    rootMessenger = messengers.rootMessenger;
     apiService = buildMockApiService();
+
+    mockRemoteFeatureFlagGetState = jest.fn().mockReturnValue({
+      remoteFeatureFlags: {
+        config_registry_api_enabled: true,
+      },
+      cacheTimestamp: Date.now(),
+    });
+
+    rootMessenger.registerActionHandler(
+      'RemoteFeatureFlagController:getState',
+      mockRemoteFeatureFlagGetState,
+    );
   });
 
   afterEach(() => {
@@ -467,6 +509,13 @@ describe('ConfigRegistryController', () => {
     });
 
     it('should use fallback config when no configs exist', async () => {
+      mockRemoteFeatureFlagGetState.mockReturnValue({
+        remoteFeatureFlags: {
+          config_registry_api_enabled: true,
+        },
+        cacheTimestamp: Date.now(),
+      });
+
       const errorApiService = buildMockApiService({
         fetchConfig: jest.fn().mockRejectedValue(new Error('Network error')),
       });
@@ -487,6 +536,13 @@ describe('ConfigRegistryController', () => {
     });
 
     it('should not use fallback when configs already exist', async () => {
+      mockRemoteFeatureFlagGetState.mockReturnValue({
+        remoteFeatureFlags: {
+          config_registry_api_enabled: true,
+        },
+        cacheTimestamp: Date.now(),
+      });
+
       const existingConfigs = {
         'existing-key': { key: 'existing-key', value: 'existing-value' },
       };
@@ -513,6 +569,13 @@ describe('ConfigRegistryController', () => {
     });
 
     it('should handle errors during polling', async () => {
+      mockRemoteFeatureFlagGetState.mockReturnValueOnce({
+        remoteFeatureFlags: {
+          config_registry_api_enabled: true,
+        },
+        cacheTimestamp: Date.now(),
+      });
+
       const errorApiService = buildMockApiService({
         fetchConfig: jest.fn().mockRejectedValue(new Error('Network error')),
       });
@@ -529,6 +592,7 @@ describe('ConfigRegistryController', () => {
       // Since we have no configs, it should use fallback
       expect(controller.state.configs).toStrictEqual(MOCK_FALLBACK_CONFIG);
       expect(controller.state.fetchError).toBe('Network error');
+      expect(mockRemoteFeatureFlagGetState).toHaveBeenCalled();
     });
 
     it('should work via messenger actions', async () => {
@@ -593,6 +657,159 @@ describe('ConfigRegistryController', () => {
       });
 
       expect(controller.state.fetchError).toBe('Test error');
+    });
+  });
+
+  describe('feature flag', () => {
+    it('should use fallback config when feature flag is disabled', async () => {
+      mockRemoteFeatureFlagGetState.mockReturnValue({
+        remoteFeatureFlags: {
+          config_registry_api_enabled: false,
+        },
+        cacheTimestamp: Date.now(),
+      });
+
+      const controller = new ConfigRegistryController({
+        messenger,
+        apiService,
+        fallbackConfig: MOCK_FALLBACK_CONFIG,
+      });
+
+      const executePollSpy = jest.spyOn(controller, '_executePoll');
+      controller.startPolling({});
+
+      await advanceTime({ clock, duration: 0 });
+
+      expect(executePollSpy).toHaveBeenCalledTimes(1);
+      expect(controller.state.configs).toStrictEqual(MOCK_FALLBACK_CONFIG);
+      expect(controller.state.fetchError).toBe(
+        'Feature flag disabled - using fallback configuration',
+      );
+
+      controller.stopPolling();
+    });
+
+    it('should use API when feature flag is enabled', async () => {
+      mockRemoteFeatureFlagGetState.mockReturnValue({
+        remoteFeatureFlags: {
+          config_registry_api_enabled: true,
+        },
+        cacheTimestamp: Date.now(),
+      });
+
+      const mockNetworks = [
+        {
+          chainId: '0x1',
+          name: 'Ethereum Mainnet',
+          nativeCurrency: 'ETH',
+          rpcEndpoints: [
+            {
+              url: 'https://mainnet.infura.io/v3/{infuraProjectId}',
+              type: 'infura',
+              networkClientId: 'mainnet',
+              failoverUrls: [],
+            },
+          ],
+          blockExplorerUrls: ['https://etherscan.io'],
+          defaultRpcEndpointIndex: 0,
+          defaultBlockExplorerUrlIndex: 0,
+          isTestnet: false,
+          isFeatured: true,
+          isActive: true,
+          isDefault: false,
+          isDeprecated: false,
+          priority: 0,
+          isDeletable: false,
+        },
+      ];
+
+      const fetchConfigSpy = jest.fn().mockResolvedValue({
+        data: {
+          data: {
+            version: '1.0.0',
+            timestamp: Date.now(),
+            networks: mockNetworks,
+          },
+        },
+        notModified: false,
+        etag: 'test-etag',
+      });
+
+      const mockApiService = buildMockApiService({
+        fetchConfig: fetchConfigSpy,
+      });
+
+      const controller = new ConfigRegistryController({
+        messenger,
+        apiService: mockApiService,
+      });
+
+      controller.startPolling({});
+
+      await advanceTime({ clock, duration: 0 });
+      // Wait for async operations to complete
+      await new Promise((resolve) => {
+        setTimeout(resolve, 10);
+        clock.tick(10);
+      });
+
+      expect(fetchConfigSpy).toHaveBeenCalled();
+      expect(controller.state.configs['0x1']).toBeDefined();
+      expect(controller.state.version).toBe('1.0.0');
+      expect(controller.state.fetchError).toBeNull();
+
+      controller.stopPolling();
+    });
+
+    it('should default to fallback when feature flag is not set', async () => {
+      mockRemoteFeatureFlagGetState.mockReturnValue({
+        remoteFeatureFlags: {},
+        cacheTimestamp: Date.now(),
+      });
+
+      const controller = new ConfigRegistryController({
+        messenger,
+        apiService,
+        fallbackConfig: MOCK_FALLBACK_CONFIG,
+      });
+
+      const executePollSpy = jest.spyOn(controller, '_executePoll');
+      controller.startPolling({});
+
+      await advanceTime({ clock, duration: 0 });
+
+      expect(executePollSpy).toHaveBeenCalledTimes(1);
+      expect(controller.state.configs).toStrictEqual(MOCK_FALLBACK_CONFIG);
+      expect(controller.state.fetchError).toBe(
+        'Feature flag disabled - using fallback configuration',
+      );
+
+      controller.stopPolling();
+    });
+
+    it('should default to fallback when RemoteFeatureFlagController is unavailable', async () => {
+      mockRemoteFeatureFlagGetState.mockImplementation(() => {
+        throw new Error('RemoteFeatureFlagController not available');
+      });
+
+      const controller = new ConfigRegistryController({
+        messenger,
+        apiService,
+        fallbackConfig: MOCK_FALLBACK_CONFIG,
+      });
+
+      const executePollSpy = jest.spyOn(controller, '_executePoll');
+      controller.startPolling({});
+
+      await advanceTime({ clock, duration: 0 });
+
+      expect(executePollSpy).toHaveBeenCalledTimes(1);
+      expect(controller.state.configs).toStrictEqual(MOCK_FALLBACK_CONFIG);
+      expect(controller.state.fetchError).toBe(
+        'Feature flag disabled - using fallback configuration',
+      );
+
+      controller.stopPolling();
     });
   });
 });
