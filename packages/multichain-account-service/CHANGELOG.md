@@ -9,11 +9,6 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [4.1.0]
 
-### Uncategorized
-
-- Revert "Release/726.0.0 (#7515)" ([#7515](https://github.com/MetaMask/core/pull/7515))
-- Release/726.0.0 ([#7515](https://github.com/MetaMask/core/pull/7515))
-
 ### Added
 
 - Add `config.discovery.enabled` option for all account provider config objects ([#7447](https://github.com/MetaMask/core/pull/7447))
