@@ -28,8 +28,8 @@ export const DEFAULT_CACHE_DURATION = 24 * 60 * 60 * 1000; // 1 day
 
 export type RemoteFeatureFlagControllerState = {
   remoteFeatureFlags: FeatureFlags;
-  localOverrides: FeatureFlags;
-  rawRemoteFeatureFlags: FeatureFlags;
+  localOverrides?: FeatureFlags;
+  rawRemoteFeatureFlags?: FeatureFlags;
   cacheTimestamp: number;
 };
 
