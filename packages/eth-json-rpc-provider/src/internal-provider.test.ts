@@ -8,7 +8,7 @@ import type {
 } from '@metamask/json-rpc-engine/v2';
 import { JsonRpcEngineV2 } from '@metamask/json-rpc-engine/v2';
 import { providerErrors, rpcErrors } from '@metamask/rpc-errors';
-import { type JsonRpcRequest, type Json } from '@metamask/utils';
+import type { JsonRpcRequest, Json } from '@metamask/utils';
 import { BrowserProvider } from 'ethers';
 import { promisify } from 'util';
 
@@ -23,7 +23,10 @@ type ResultParam =
   | Json
   | ((req?: JsonRpcRequest, context?: MiddlewareContext) => Json);
 
-const createLegacyEngine = (method: string, result: ResultParam) => {
+const createLegacyEngine = (
+  method: string,
+  result: ResultParam,
+): JsonRpcEngine => {
   const engine = new JsonRpcEngine();
   engine.push((req, res, next, end) => {
     if (req.method === method) {
@@ -35,10 +38,17 @@ const createLegacyEngine = (method: string, result: ResultParam) => {
   return engine;
 };
 
-const createV2Engine = (method: string, result: ResultParam) => {
+const createV2Engine = (
+  method: string,
+  result: ResultParam,
+): JsonRpcEngineV2<JsonRpcRequest> => {
   return JsonRpcEngineV2.create<JsonRpcMiddleware<JsonRpcRequest>>({
     middleware: [
-      ({ request, next, context }) => {
+      ({
+        request,
+        next,
+        context,
+      }): Json | Promise<Readonly<Json> | undefined> => {
         if (request.method === method) {
           return typeof result === 'function'
             ? result(request as JsonRpcRequest, context)

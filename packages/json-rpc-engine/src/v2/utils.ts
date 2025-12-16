@@ -1,9 +1,8 @@
-import {
-  hasProperty,
-  isObject,
-  type JsonRpcNotification,
-  type JsonRpcParams,
-  type JsonRpcRequest,
+import { hasProperty, isObject } from '@metamask/utils';
+import type {
+  JsonRpcNotification,
+  JsonRpcParams,
+  JsonRpcRequest,
 } from '@metamask/utils';
 
 export type {
@@ -18,12 +17,12 @@ export type JsonRpcCall<Params extends JsonRpcParams = JsonRpcParams> =
   | JsonRpcRequest<Params>;
 
 export const isRequest = <Params extends JsonRpcParams>(
-  msg: JsonRpcCall<Params> | Readonly<JsonRpcCall<Params>>,
-): msg is JsonRpcRequest<Params> => hasProperty(msg, 'id');
+  message: JsonRpcCall<Params> | Readonly<JsonRpcCall<Params>>,
+): message is JsonRpcRequest<Params> => hasProperty(message, 'id');
 
 export const isNotification = <Params extends JsonRpcParams>(
-  msg: JsonRpcCall<Params>,
-): msg is JsonRpcNotification<Params> => !isRequest(msg);
+  message: JsonRpcCall<Params>,
+): message is JsonRpcNotification<Params> => !isRequest(message);
 
 /**
  * An unholy incantation that converts a union of object types into an
@@ -33,10 +32,10 @@ export const isNotification = <Params extends JsonRpcParams>(
  * type A = { a: string } | { b: number };
  * type B = UnionToIntersection<A>; // { a: string } & { b: number }
  */
-export type UnionToIntersection<U> = (
-  U extends never ? never : (k: U) => void
-) extends (k: infer I) => void
-  ? I
+export type UnionToIntersection<Union> = (
+  Union extends never ? never : (k: Union) => void
+) extends (k: infer Args) => void
+  ? Args
   : never;
 
 /**
@@ -67,6 +66,9 @@ const JsonRpcEngineErrorSymbol = Symbol.for(
 );
 
 export class JsonRpcEngineError extends Error {
+  // This is a computed property name, and it doesn't seem possible to make it
+  // hash private using `#`.
+  // eslint-disable-next-line no-restricted-syntax
   private readonly [JsonRpcEngineErrorSymbol] = true;
 
   constructor(message: string) {

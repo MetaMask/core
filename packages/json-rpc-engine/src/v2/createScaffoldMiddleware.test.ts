@@ -16,7 +16,10 @@ describe('createScaffoldMiddleware', () => {
     };
 
     const engine = JsonRpcEngineV2.create({
-      middleware: [createScaffoldMiddleware(scaffold), () => 'passthrough'],
+      middleware: [
+        createScaffoldMiddleware(scaffold),
+        (): string => 'passthrough',
+      ],
     });
 
     const result1 = await engine.handle(makeRequest({ method: 'method1' }));

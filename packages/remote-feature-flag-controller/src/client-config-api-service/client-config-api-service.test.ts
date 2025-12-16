@@ -10,6 +10,8 @@ import {
   EnvironmentType,
 } from '../remote-feature-flag-controller-types';
 
+import Mock = jest.Mock;
+
 const mockServerFeatureFlagsResponse: ApiDataResponse = [
   { feature1: false },
   { feature2: { chrome: '<109' } },
@@ -265,13 +267,15 @@ function createMockFetch({
   response?: Partial<Response>;
   error?: Error;
   delay?: number;
-}) {
+}): Mock {
   if (error) {
     return jest
       .fn()
       .mockImplementation(
         () =>
-          new Promise((_, reject) => setTimeout(() => reject(error), delay)),
+          new Promise((_resolve, reject) =>
+            setTimeout(() => reject(error), delay),
+          ),
       );
   }
 

@@ -187,31 +187,28 @@ export const calcRelayerFee = (
 
 const calcTotalGasFee = ({
   approvalGasLimit,
+  resetApprovalGasLimit,
   tradeGasLimit,
   l1GasFeesInHexWei,
   feePerGasInDecGwei,
-  priorityFeePerGasInDecGwei,
   nativeToDisplayCurrencyExchangeRate,
   nativeToUsdExchangeRate,
 }: {
   approvalGasLimit?: number | null;
+  resetApprovalGasLimit?: number | null;
   tradeGasLimit?: number | null;
   l1GasFeesInHexWei?: string | null;
   feePerGasInDecGwei: string;
-  priorityFeePerGasInDecGwei: string;
   nativeToDisplayCurrencyExchangeRate?: string;
   nativeToUsdExchangeRate?: string;
 }) => {
-  const totalGasLimitInDec = new BigNumber(
-    tradeGasLimit?.toString() ?? '0',
-  ).plus(approvalGasLimit?.toString() ?? '0');
+  const totalGasLimitInDec = new BigNumber(tradeGasLimit?.toString() ?? '0')
+    .plus(approvalGasLimit?.toString() ?? '0')
+    .plus(resetApprovalGasLimit?.toString() ?? '0');
 
-  const totalFeePerGasInDecGwei = new BigNumber(feePerGasInDecGwei).plus(
-    priorityFeePerGasInDecGwei,
-  );
   const l1GasFeesInDecGWei = weiHexToGweiDec(toHex(l1GasFeesInHexWei ?? '0'));
   const gasFeesInDecGwei = totalGasLimitInDec
-    .times(totalFeePerGasInDecGwei)
+    .times(feePerGasInDecGwei)
     .plus(l1GasFeesInDecGWei);
   const gasFeesInDecEth = gasFeesInDecGwei.times(new BigNumber(10).pow(-9));
 
@@ -230,17 +227,15 @@ const calcTotalGasFee = ({
 };
 
 export const calcEstimatedAndMaxTotalGasFee = ({
-  bridgeQuote: { approval, trade, l1GasFeesInHexWei },
-  estimatedBaseFeeInDecGwei,
+  bridgeQuote: { approval, trade, l1GasFeesInHexWei, resetApproval },
+  feePerGasInDecGwei,
   maxFeePerGasInDecGwei,
-  maxPriorityFeePerGasInDecGwei,
   exchangeRate: nativeToDisplayCurrencyExchangeRate,
   usdExchangeRate: nativeToUsdExchangeRate,
 }: {
   bridgeQuote: QuoteResponse<TxData, TxData> & L1GasFees;
-  estimatedBaseFeeInDecGwei: string;
   maxFeePerGasInDecGwei: string;
-  maxPriorityFeePerGasInDecGwei: string;
+  feePerGasInDecGwei: string;
 } & ExchangeRate): QuoteMetadata['gasFee'] => {
   // Estimated gas fees spent after receiving refunds, this is shown to the user
   const {
@@ -250,10 +245,11 @@ export const calcEstimatedAndMaxTotalGasFee = ({
   } = calcTotalGasFee({
     // Fallback to gasLimit if effectiveGas is not available
     approvalGasLimit: approval?.effectiveGas ?? approval?.gasLimit,
+    resetApprovalGasLimit:
+      resetApproval?.effectiveGas ?? resetApproval?.gasLimit,
     tradeGasLimit: trade?.effectiveGas ?? trade?.gasLimit,
     l1GasFeesInHexWei,
-    feePerGasInDecGwei: estimatedBaseFeeInDecGwei,
-    priorityFeePerGasInDecGwei: maxPriorityFeePerGasInDecGwei,
+    feePerGasInDecGwei,
     nativeToDisplayCurrencyExchangeRate,
     nativeToUsdExchangeRate,
   });
@@ -261,10 +257,10 @@ export const calcEstimatedAndMaxTotalGasFee = ({
   // Estimated total gas fee, including refunded fees (medium)
   const { amount, valueInCurrency, usd } = calcTotalGasFee({
     approvalGasLimit: approval?.gasLimit,
+    resetApprovalGasLimit: resetApproval?.gasLimit,
     tradeGasLimit: trade?.gasLimit,
     l1GasFeesInHexWei,
-    feePerGasInDecGwei: estimatedBaseFeeInDecGwei,
-    priorityFeePerGasInDecGwei: maxPriorityFeePerGasInDecGwei,
+    feePerGasInDecGwei,
     nativeToDisplayCurrencyExchangeRate,
     nativeToUsdExchangeRate,
   });
@@ -276,10 +272,10 @@ export const calcEstimatedAndMaxTotalGasFee = ({
     usd: usdMax,
   } = calcTotalGasFee({
     approvalGasLimit: approval?.gasLimit,
+    resetApprovalGasLimit: resetApproval?.gasLimit,
     tradeGasLimit: trade?.gasLimit,
     l1GasFeesInHexWei,
     feePerGasInDecGwei: maxFeePerGasInDecGwei,
-    priorityFeePerGasInDecGwei: maxPriorityFeePerGasInDecGwei,
     nativeToDisplayCurrencyExchangeRate,
     nativeToUsdExchangeRate,
   });
@@ -307,14 +303,12 @@ export const calcEstimatedAndMaxTotalGasFee = ({
  * Calculates the total estimated network fees for the bridge transaction
  *
  * @param gasFee - The gas fee for the bridge transaction
- * @param gasFee.effective - The fee to display to the user. If not available, this is equal to the gasLimit (total)
+ * @param gasFee.total - The fee to display to the user. If not available, this is equal to the gasLimit (total)
  * @param relayerFee - The relayer fee paid to bridge providers
  * @returns The total estimated network fee for the bridge transaction, including the relayer fee paid to bridge providers
  */
 export const calcTotalEstimatedNetworkFee = (
-  {
-    effective: gasFeeToDisplay,
-  }: ReturnType<typeof calcEstimatedAndMaxTotalGasFee>,
+  { total: gasFeeToDisplay }: ReturnType<typeof calcEstimatedAndMaxTotalGasFee>,
   relayerFee: ReturnType<typeof calcRelayerFee>,
 ) => {
   return {

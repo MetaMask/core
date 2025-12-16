@@ -108,6 +108,8 @@ export const SUPPORTED_CURRENCIES = [
   'mxn',
   // Malaysian Ringgit
   'myr',
+  // Monad
+  'mon',
   // Nigerian Naira
   'ngn',
   // Norwegian Krone
@@ -198,6 +200,8 @@ export const SUPPORTED_CURRENCIES = [
   'nom',
   // Avalanche
   'avax',
+  // Apechain
+  'ape',
 ] as const;
 
 /**
@@ -270,6 +274,16 @@ export const SPOT_PRICES_SUPPORT_INFO = {
   '0x82750': 'eip155:534352/slip44:60', // Scroll Mainnet - Native symbol: ETH
   '0x4e454152': 'eip155:60/slip44:60', // Aurora Mainnet (Ethereum L2 on NEAR) - Native symbol: ETH
   '0x63564c40': 'eip155:1666600000/slip44:1023', // Harmony Mainnet Shard 0 - Native symbol: ONE
+  '0x8173': 'eip155:33139/erc20:0x0000000000000000000000000000000000000000', // Apechain Mainnet - Native symbol: APE
+  '0xe8': 'eip155:232/erc20:0x0000000000000000000000000000000000000000', // Lens Mainnet - Native symbol: GHO
+  '0x18232': 'eip155:98866/erc20:0x0000000000000000000000000000000000000000', // Plume Mainnet - Narive symbol: Plume
+  '0x2eb': 'eip155:747/erc20:0x0000000000000000000000000000000000000000', // Flow evm - Native symbol: Flow
+  '0x138de': 'eip155:80094/erc20:0x0000000000000000000000000000000000000000', // Berachain - Native symbol: Bera',
+  '0x15f900': 'eip155:1440000/erc20:0x0000000000000000000000000000000000000000', // xrpl-evm - native symbol: XRP
+  '0xfc': 'eip155:252/erc20:0x0000000000000000000000000000000000000000', // Fraxtal - native symbol: FRAX
+  '0x2a': 'eip155:42/erc20:0x0000000000000000000000000000000000000000', // Lukso - native symbol: LYX
+  '0x32': 'eip155:50/erc20:0x0000000000000000000000000000000000000000', // xdc-network - native symbol: XDC
+  '0x2611': 'eip155:9745/erc20:0x0000000000000000000000000000000000000000', // Plasma mainnet - native symbol: XPL
 } as const;
 
 // MISSING CHAINS WITH NO NATIVE ASSET PRICES IN V2

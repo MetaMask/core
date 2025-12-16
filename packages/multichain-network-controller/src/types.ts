@@ -1,7 +1,7 @@
 import type { AccountsControllerListMultichainAccountsAction } from '@metamask/accounts-controller';
-import {
-  type ControllerGetStateAction,
-  type ControllerStateChangeEvent,
+import type {
+  ControllerGetStateAction,
+  ControllerStateChangeEvent,
 } from '@metamask/base-controller';
 import type {
   BtcScope,

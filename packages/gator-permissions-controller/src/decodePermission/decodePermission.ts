@@ -11,7 +11,6 @@ import {
   createPermissionRulesForChainId,
   getChecksumEnforcersByChainId,
   getTermsByEnforcer,
-  isSubset,
   splitHex,
 } from './utils';
 
@@ -22,7 +21,7 @@ import {
  * A permission type matches when:
  * - All of its required enforcers are present in the provided list; and
  * - No provided enforcer falls outside the union of the type's required and
- * allowed enforcers (currently only `TimestampEnforcer` is allowed extra).
+ * optional enforcers (currently only `TimestampEnforcer` is allowed extra).
  *
  * If exactly one permission type matches, its identifier is returned.
  *
@@ -40,29 +39,47 @@ export const identifyPermissionByEnforcers = ({
   enforcers: Hex[];
   contracts: DeployedContractsByName;
 }): PermissionType => {
-  const enforcersSet = new Set(enforcers.map(getChecksumAddress));
+  // Build frequency map for enforcers (using checksummed addresses)
+  const counts = new Map<Hex, number>();
+  for (const addr of enforcers.map(getChecksumAddress)) {
+    counts.set(addr, (counts.get(addr) ?? 0) + 1);
+  }
+  const enforcersSet = new Set(counts.keys());
 
   const permissionRules = createPermissionRulesForChainId(contracts);
 
   let matchingPermissionType: PermissionType | null = null;
 
   for (const {
-    allowedEnforcers,
+    optionalEnforcers,
     requiredEnforcers,
     permissionType,
   } of permissionRules) {
-    const hasAllRequiredEnforcers = isSubset(requiredEnforcers, enforcersSet);
+    // union of optional + required enforcers. Any other address is forbidden.
+    const allowedEnforcers = new Set<Hex>([
+      ...optionalEnforcers,
+      ...requiredEnforcers.keys(),
+    ]);
 
     let hasForbiddenEnforcers = false;
 
     for (const caveat of enforcersSet) {
-      if (!allowedEnforcers.has(caveat) && !requiredEnforcers.has(caveat)) {
+      if (!allowedEnforcers.has(caveat)) {
         hasForbiddenEnforcers = true;
         break;
       }
     }
 
-    if (hasAllRequiredEnforcers && !hasForbiddenEnforcers) {
+    // exact multiplicity match for required enforcers
+    let meetsRequiredCounts = true;
+    for (const [addr, requiredCount] of requiredEnforcers.entries()) {
+      if ((counts.get(addr) ?? 0) !== requiredCount) {
+        meetsRequiredCounts = false;
+        break;
+      }
+    }
+
+    if (meetsRequiredCounts && !hasForbiddenEnforcers) {
       if (matchingPermissionType) {
         throw new Error('Multiple permission types match');
       }
@@ -75,6 +92,44 @@ export const identifyPermissionByEnforcers = ({
   }
 
   return matchingPermissionType;
+};
+
+/**
+ * Extracts the expiry timestamp from TimestampEnforcer caveat terms.
+ *
+ * Based on the TimestampEnforcer contract encoding:
+ * - Terms are 32 bytes total (64 hex characters without '0x')
+ * - First 16 bytes (32 hex chars): timestampAfterThreshold (uint128) - must be 0
+ * - Last 16 bytes (32 hex chars): timestampBeforeThreshold (uint128) - this is the expiry
+ *
+ * @param terms - The hex-encoded terms from a TimestampEnforcer caveat
+ * @returns The expiry timestamp in seconds
+ * @throws If the terms are not exactly 32 bytes, if the timestampAfterThreshold is non-zero,
+ * or if the timestampBeforeThreshold is zero
+ */
+const extractExpiryFromCaveatTerms = (terms: Hex): number => {
+  // Validate terms length: must be exactly 32 bytes (64 hex chars + '0x' prefix = 66 chars)
+  if (terms.length !== 66) {
+    throw new Error(
+      `Invalid TimestampEnforcer terms length: expected 66 characters (0x + 64 hex), got ${terms.length}`,
+    );
+  }
+
+  const [after, before] = splitHex(terms, [16, 16]);
+
+  if (hexToNumber(after) !== 0) {
+    throw new Error('Invalid expiry: timestampAfterThreshold must be 0');
+  }
+
+  const expiry = hexToNumber(before);
+
+  if (expiry === 0) {
+    throw new Error(
+      'Invalid expiry: timestampBeforeThreshold must be greater than 0',
+    );
+  }
+
+  return expiry;
 };
 
 /**
@@ -129,12 +184,7 @@ export const getPermissionDataAndExpiry = ({
 
   let expiry: number | null = null;
   if (expiryTerms) {
-    const [after, before] = splitHex(expiryTerms, [16, 16]);
-
-    if (hexToNumber(after) !== 0) {
-      throw new Error('Invalid expiry');
-    }
-    expiry = hexToNumber(before);
+    expiry = extractExpiryFromCaveatTerms(expiryTerms);
   }
 
   let data: DecodedPermission['permission']['data'];
@@ -214,6 +264,10 @@ export const getPermissionDataAndExpiry = ({
         periodDuration: hexToNumber(periodDurationRaw),
         startTime: hexToNumber(startTimeRaw),
       };
+      break;
+    }
+    case 'erc20-token-revocation': {
+      data = {};
       break;
     }
     default:

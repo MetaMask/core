@@ -48,6 +48,24 @@ export type Claim = {
   intercomId?: string;
 };
 
+export type ClaimDraft = Partial<
+  Omit<
+    Claim,
+    | 'id'
+    | 'shortId'
+    | 'createdAt'
+    | 'updatedAt'
+    | 'intercomId'
+    | 'status'
+    | 'attachments'
+  >
+> & {
+  /**
+   * The draft ID.
+   */
+  draftId: string;
+};
+
 export type CreateClaimRequest = Omit<
   Claim,
   'id' | 'shortId' | 'createdAt' | 'updatedAt' | 'intercomId' | 'status'
@@ -64,6 +82,11 @@ export type ClaimsControllerState = {
    * This is used to store the claims configurations fetched from the backend.
    */
   claimsConfigurations: ClaimsConfigurations;
+
+  /**
+   * List of claim drafts before submission.
+   */
+  drafts: ClaimDraft[];
 };
 
 export type SubmitClaimConfig = {

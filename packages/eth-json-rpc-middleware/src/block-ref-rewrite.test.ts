@@ -1,6 +1,6 @@
 import type { PollingBlockTracker } from '@metamask/eth-block-tracker';
 import { JsonRpcEngineV2 } from '@metamask/json-rpc-engine/v2';
-import type { JsonRpcRequest } from '@metamask/utils';
+import type { Json, JsonRpcRequest } from '@metamask/utils';
 
 import { createBlockRefRewriteMiddleware } from './block-ref-rewrite';
 import {
@@ -83,7 +83,10 @@ describe('createBlockRefRewriteMiddleware', () => {
         createBlockRefRewriteMiddleware({
           blockTracker: mockBlockTracker,
         }),
-        async ({ request, next }) => {
+        async ({
+          request,
+          next,
+        }): Promise<Readonly<Json | void> | undefined> => {
           capturedRequest = { ...request } as JsonRpcRequest;
           return next();
         },
@@ -117,7 +120,10 @@ describe('createBlockRefRewriteMiddleware', () => {
         createBlockRefRewriteMiddleware({
           blockTracker: mockBlockTracker,
         }),
-        async ({ request, next }) => {
+        async ({
+          request,
+          next,
+        }): Promise<Readonly<Json | void> | undefined> => {
           capturedRequest = { ...request } as JsonRpcRequest;
           return next();
         },
@@ -151,7 +157,10 @@ describe('createBlockRefRewriteMiddleware', () => {
         createBlockRefRewriteMiddleware({
           blockTracker: mockBlockTracker,
         }),
-        async ({ request, next }) => {
+        async ({
+          request,
+          next,
+        }): Promise<Readonly<Json | void> | undefined> => {
           capturedRequest = { ...request } as JsonRpcRequest;
           return next();
         },

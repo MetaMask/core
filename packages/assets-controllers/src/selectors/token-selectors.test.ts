@@ -992,7 +992,7 @@ describe('token-selectors', () => {
       Object.values(MOCK_TRON_TOKENS)
         .flat()
         .forEach((token) => {
-          if (token.fiat && token.fiat.conversionRate) {
+          if (token.fiat?.conversionRate) {
             state.conversionRates[token.assetId] = {
               rate: token.fiat.conversionRate.toString(),
               conversionTime: Date.now(),

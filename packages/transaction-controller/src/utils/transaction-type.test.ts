@@ -1,4 +1,5 @@
-import { Interface, type TransactionDescription } from '@ethersproject/abi';
+import { Interface } from '@ethersproject/abi';
+import type { TransactionDescription } from '@ethersproject/abi';
 import EthQuery from '@metamask/eth-query';
 import {
   abiERC721,
@@ -15,7 +16,7 @@ import {
 import { FakeProvider } from '../../../../tests/fake-provider';
 import { TransactionType } from '../types';
 
-type GetCodeCallback = (err: Error | null, result?: string) => void;
+type GetCodeCallback = (error: Error | null, result?: string) => void;
 
 const ERC20Interface = new Interface(abiERC20);
 const ERC721Interface = new Interface(abiERC721);
@@ -34,11 +35,11 @@ function createMockEthQuery(
   shouldThrow = false,
 ): EthQuery {
   return new (class extends EthQuery {
-    getCode(_to: string, cb: GetCodeCallback): void {
+    getCode(_to: string, callback: GetCodeCallback): void {
       if (shouldThrow) {
-        return cb(new Error('Some error'));
+        return callback(new Error('Some error'));
       }
-      return cb(null, getCodeResponse ?? undefined);
+      return callback(null, getCodeResponse ?? undefined);
     }
   })(new FakeProvider());
 }

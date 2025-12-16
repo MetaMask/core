@@ -1,7 +1,5 @@
-import {
-  FeatureId,
-  type GenericQuoteRequest,
-} from '@metamask/bridge-controller';
+import { FeatureId } from '@metamask/bridge-controller';
+import type { GenericQuoteRequest } from '@metamask/bridge-controller';
 import type { TxData } from '@metamask/bridge-controller';
 import type { QuoteResponse } from '@metamask/bridge-controller';
 import { toChecksumHexAddress, toHex } from '@metamask/controller-utils';
@@ -63,8 +61,8 @@ export async function getBridgeQuotes(
     const finalRequests = getFinalRequests(requests, messenger);
 
     const quotes = await Promise.all(
-      finalRequests.map((r, index) =>
-        getSufficientSingleBridgeQuote(r, index, request),
+      finalRequests.map((singleRequest, index) =>
+        getSufficientSingleBridgeQuote(singleRequest, index, request),
       ),
     );
 
@@ -95,7 +93,7 @@ export async function getBridgeBatchTransactions(
   }
 
   return quotes
-    .map((q) => q.original)
+    .map((quote) => quote.original)
     .flatMap((quote) => {
       const result = [];
 
@@ -444,7 +442,13 @@ function getFinalRequests(
  * @param messenger - Controller messenger.
  * @returns Feature flags.
  */
-function getFeatureFlags(messenger: TransactionPayControllerMessenger) {
+function getFeatureFlags(messenger: TransactionPayControllerMessenger): {
+  attemptsMax: number;
+  bufferInitial: number;
+  bufferStep: number;
+  bufferSubsequent: number;
+  slippage: number;
+} {
   const featureFlags = messenger.call('RemoteFeatureFlagController:getState')
     .remoteFeatureFlags.confirmations_pay as Record<string, number> | undefined;
 
@@ -629,7 +633,7 @@ function calculateTransactionCost(
 
   return calculateGasCost({
     ...transaction,
-    gas: effectiveGas || gasLimit || '0x0',
+    gas: effectiveGas ?? gasLimit ?? '0x0',
     messenger,
     isMax,
   });

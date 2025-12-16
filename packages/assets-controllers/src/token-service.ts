@@ -54,14 +54,20 @@ export type SortTrendingBy =
  * @param chainIds - Array of CAIP format chain IDs (e.g., 'eip155:1', 'solana:5eykt4UsFv8P8NJdTREpY1vzqKqZKvdp').
  * @param query - The search query (token name, symbol, or address).
  * @param limit - Optional limit for the number of results (defaults to 10).
+ * @param includeMarketData - Optional flag to include market data in the results (defaults to false).
  * @returns The token search URL.
  */
-function getTokenSearchURL(chainIds: CaipChainId[], query: string, limit = 10) {
+function getTokenSearchURL(
+  chainIds: CaipChainId[],
+  query: string,
+  limit = 10,
+  includeMarketData = false,
+) {
   const encodedQuery = encodeURIComponent(query);
   const encodedChainIds = chainIds
     .map((id) => encodeURIComponent(id))
     .join(',');
-  return `${TOKEN_END_POINT_API}/tokens/search?chainIds=${encodedChainIds}&query=${encodedQuery}&limit=${limit}`;
+  return `${TOKEN_END_POINT_API}/tokens/search?networks=${encodedChainIds}&query=${encodedQuery}&limit=${limit}&includeMarketData=${includeMarketData}`;
 }
 
 /**
@@ -69,36 +75,45 @@ function getTokenSearchURL(chainIds: CaipChainId[], query: string, limit = 10) {
  *
  * @param options - Options for getting trending tokens.
  * @param options.chainIds - Array of CAIP format chain IDs (e.g., ['eip155:1', 'eip155:137', 'solana:5eykt4UsFv8P8NJdTREpY1vzqKqZKvdp']).
- * @param options.sortBy - The sort by field.
+ * @param options.sort - The sort field.
  * @param options.minLiquidity - The minimum liquidity.
  * @param options.minVolume24hUsd - The minimum volume 24h in USD.
  * @param options.maxVolume24hUsd - The maximum volume 24h in USD.
  * @param options.minMarketCap - The minimum market cap.
  * @param options.maxMarketCap - The maximum market cap.
+ * @param options.excludeLabels - Array of labels to exclude (e.g., ['stable_coin', 'blue_chip']).
  * @returns The trending tokens URL.
  */
 function getTrendingTokensURL(options: {
   chainIds: CaipChainId[];
-  sortBy?: SortTrendingBy;
+  sort?: SortTrendingBy;
   minLiquidity?: number;
   minVolume24hUsd?: number;
   maxVolume24hUsd?: number;
   minMarketCap?: number;
   maxMarketCap?: number;
+  excludeLabels?: string[];
 }): string {
   const encodedChainIds = options.chainIds
     .map((id) => encodeURIComponent(id))
     .join(',');
   // Add the rest of query params if they are defined
   const queryParams = new URLSearchParams();
-  const { chainIds, ...rest } = options;
+  const { chainIds, excludeLabels, ...rest } = options;
   Object.entries(rest).forEach(([key, value]) => {
     if (value !== undefined) {
       queryParams.append(key, String(value));
     }
   });
 
-  return `${TOKEN_END_POINT_API}/v3/tokens/trending?chainIds=${encodedChainIds}${queryParams.toString() ? `&${queryParams.toString()}` : ''}`;
+  // Handle excludeLabels separately to avoid encoding the commas
+  // The API expects: excludeLabels=stable_coin,blue_chip (not %2C)
+  const excludeLabelsParam =
+    excludeLabels !== undefined && excludeLabels.length > 0
+      ? `&excludeLabels=${excludeLabels.join(',')}`
+      : '';
+
+  return `${TOKEN_END_POINT_API}/v3/tokens/trending?chainIds=${encodedChainIds}${queryParams.toString() ? `&${queryParams.toString()}` : ''}${excludeLabelsParam}`;
 }
 
 const tenSecondsInMilliseconds = 10_000;
@@ -144,14 +159,20 @@ export async function fetchTokenListByChainId(
  * @param query - The search query (token name, symbol, or address).
  * @param options - Additional fetch options.
  * @param options.limit - The maximum number of results to return.
+ * @param options.includeMarketData - Optional flag to include market data in the results (defaults to false).
  * @returns Object containing count and data array. Returns { count: 0, data: [] } if request fails.
  */
 export async function searchTokens(
   chainIds: CaipChainId[],
   query: string,
-  { limit = 10 } = {},
+  { limit = 10, includeMarketData = false } = {},
 ): Promise<{ count: number; data: unknown[] }> {
-  const tokenSearchURL = getTokenSearchURL(chainIds, query, limit);
+  const tokenSearchURL = getTokenSearchURL(
+    chainIds,
+    query,
+    limit,
+    includeMarketData,
+  );
 
   try {
     const result = await handleFetch(tokenSearchURL);
@@ -206,6 +227,7 @@ export type TrendingAsset = {
  * @param options.maxVolume24hUsd - The maximum volume 24h in USD.
  * @param options.minMarketCap - The minimum market cap.
  * @param options.maxMarketCap - The maximum market cap.
+ * @param options.excludeLabels - Array of labels to exclude (e.g., ['stable_coin', 'blue_chip']).
  * @returns The trending tokens.
  * @throws Will throw if the request fails.
  */
@@ -217,6 +239,7 @@ export async function getTrendingTokens({
   maxVolume24hUsd,
   minMarketCap,
   maxMarketCap,
+  excludeLabels,
 }: {
   chainIds: CaipChainId[];
   sortBy?: SortTrendingBy;
@@ -225,6 +248,7 @@ export async function getTrendingTokens({
   maxVolume24hUsd?: number;
   minMarketCap?: number;
   maxMarketCap?: number;
+  excludeLabels?: string[];
 }): Promise<TrendingAsset[]> {
   if (chainIds.length === 0) {
     console.error('No chains provided');
@@ -233,12 +257,13 @@ export async function getTrendingTokens({
 
   const trendingTokensURL = getTrendingTokensURL({
     chainIds,
-    sortBy,
+    sort: sortBy,
     minLiquidity,
     minVolume24hUsd,
     maxVolume24hUsd,
     minMarketCap,
     maxMarketCap,
+    excludeLabels,
   });
 
   try {

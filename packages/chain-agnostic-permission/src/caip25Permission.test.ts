@@ -1,10 +1,12 @@
 import {
   CaveatMutatorOperation,
   PermissionType,
-  type SubjectPermissions,
-  type ExtractPermission,
-  type PermissionSpecificationConstraint,
-  type CaveatSpecificationConstraint,
+} from '@metamask/permission-controller';
+import type {
+  SubjectPermissions,
+  ExtractPermission,
+  PermissionSpecificationConstraint,
+  CaveatSpecificationConstraint,
 } from '@metamask/permission-controller';
 import { pick } from 'lodash';
 

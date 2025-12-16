@@ -19,6 +19,7 @@ import type {
 } from '@metamask/transaction-controller';
 import type { Hex, Json } from '@metamask/utils';
 
+import { DELEGATION_FRAMEWORK_VERSION } from './constants';
 import type { DecodedPermission } from './decodePermission';
 import {
   getPermissionDataAndExpiry,
@@ -33,15 +34,15 @@ import {
   PermissionDecodingError,
 } from './errors';
 import { controllerLog } from './logger';
+import { GatorPermissionsSnapRpcMethod } from './types';
 import type { StoredGatorPermissionSanitized } from './types';
-import {
-  GatorPermissionsSnapRpcMethod,
-  type GatorPermissionsMap,
-  type PermissionTypesWithCustom,
-  type StoredGatorPermission,
-  type DelegationDetails,
-  type RevocationParams,
-  type PendingRevocationParams,
+import type {
+  GatorPermissionsMap,
+  PermissionTypesWithCustom,
+  StoredGatorPermission,
+  DelegationDetails,
+  RevocationParams,
+  PendingRevocationParams,
 } from './types';
 import {
   deserializeGatorPermissionsMap,
@@ -57,19 +58,16 @@ const controllerName = 'GatorPermissionsController';
 const defaultGatorPermissionsProviderSnapId =
   'npm:@metamask/gator-permissions-snap' as SnapId;
 
-const defaultGatorPermissionsMap: GatorPermissionsMap = {
-  'native-token-stream': {},
-  'native-token-periodic': {},
-  'erc20-token-stream': {},
-  'erc20-token-periodic': {},
-  other: {},
+const createEmptyGatorPermissionsMap: () => GatorPermissionsMap = () => {
+  return {
+    'erc20-token-revocation': {},
+    'native-token-stream': {},
+    'native-token-periodic': {},
+    'erc20-token-stream': {},
+    'erc20-token-periodic': {},
+    other: {},
+  };
 };
-
-/**
- * Delegation framework version used to select the correct deployed enforcer
- * contract addresses from `@metamask/delegation-deployments`.
- */
-export const DELEGATION_FRAMEWORK_VERSION = '1.3.0';
 
 /**
  * Timeout duration for pending revocations (2 hours in milliseconds).
@@ -162,7 +160,7 @@ export function getDefaultGatorPermissionsControllerState(): GatorPermissionsCon
   return {
     isGatorPermissionsEnabled: false,
     gatorPermissionsMapSerialized: serializeGatorPermissionsMap(
-      defaultGatorPermissionsMap,
+      createEmptyGatorPermissionsMap(),
     ),
     isFetchingGatorPermissions: false,
     gatorPermissionsProviderSnapId: defaultGatorPermissionsProviderSnapId,
@@ -228,6 +226,23 @@ export type GatorPermissionsControllerAddPendingRevocationAction = {
 };
 
 /**
+ * The action which can be used to submit a revocation directly without requiring
+ * an on-chain transaction (for already-disabled delegations).
+ */
+export type GatorPermissionsControllerSubmitDirectRevocationAction = {
+  type: `${typeof controllerName}:submitDirectRevocation`;
+  handler: GatorPermissionsController['submitDirectRevocation'];
+};
+
+/**
+ * The action which can be used to check if a permission context is pending revocation.
+ */
+export type GatorPermissionsControllerIsPendingRevocationAction = {
+  type: `${typeof controllerName}:isPendingRevocation`;
+  handler: GatorPermissionsController['isPendingRevocation'];
+};
+
+/**
  * All actions that {@link GatorPermissionsController} registers, to be called
  * externally.
  */
@@ -238,7 +253,9 @@ export type GatorPermissionsControllerActions =
   | GatorPermissionsControllerDisableGatorPermissionsAction
   | GatorPermissionsControllerDecodePermissionFromPermissionContextForOriginAction
   | GatorPermissionsControllerSubmitRevocationAction
-  | GatorPermissionsControllerAddPendingRevocationAction;
+  | GatorPermissionsControllerAddPendingRevocationAction
+  | GatorPermissionsControllerSubmitDirectRevocationAction
+  | GatorPermissionsControllerIsPendingRevocationAction;
 
 /**
  * All actions that {@link GatorPermissionsController} calls internally.
@@ -353,7 +370,8 @@ export default class GatorPermissionsController extends BaseController<
     this.update((state) => {
       state.pendingRevocations = state.pendingRevocations.filter(
         (pendingRevocations) =>
-          pendingRevocations.permissionContext !== permissionContext,
+          pendingRevocations.permissionContext.toLowerCase() !==
+          permissionContext.toLowerCase(),
       );
     });
   }
@@ -389,6 +407,16 @@ export default class GatorPermissionsController extends BaseController<
     this.messenger.registerActionHandler(
       `${controllerName}:addPendingRevocation`,
       this.addPendingRevocation.bind(this),
+    );
+
+    this.messenger.registerActionHandler(
+      `${controllerName}:submitDirectRevocation`,
+      this.submitDirectRevocation.bind(this),
+    );
+
+    this.messenger.registerActionHandler(
+      `${controllerName}:isPendingRevocation`,
+      this.isPendingRevocation.bind(this),
     );
   }
 
@@ -451,7 +479,8 @@ export default class GatorPermissionsController extends BaseController<
   }
 
   /**
-   * Sanitizes a stored gator permission by removing the fields that are not expose to MetaMask client.
+   * Sanitizes a stored gator permission for client exposure.
+   * Removes internal fields (dependencyInfo, signer)
    *
    * @param storedGatorPermission - The stored gator permission to sanitize.
    * @returns The sanitized stored gator permission.
@@ -463,7 +492,7 @@ export default class GatorPermissionsController extends BaseController<
     >,
   ): StoredGatorPermissionSanitized<Signer, PermissionTypesWithCustom> {
     const { permissionResponse } = storedGatorPermission;
-    const { rules, dependencyInfo, signer, ...rest } = permissionResponse;
+    const { dependencyInfo, signer, ...rest } = permissionResponse;
     return {
       ...storedGatorPermission,
       permissionResponse: {
@@ -483,63 +512,39 @@ export default class GatorPermissionsController extends BaseController<
       | StoredGatorPermission<Signer, PermissionTypesWithCustom>[]
       | null,
   ): GatorPermissionsMap {
+    const gatorPermissionsMap = createEmptyGatorPermissionsMap();
+
     if (!storedGatorPermissions) {
-      return defaultGatorPermissionsMap;
+      return gatorPermissionsMap;
     }
 
-    return storedGatorPermissions.reduce(
-      (gatorPermissionsMap, storedGatorPermission) => {
-        const { permissionResponse } = storedGatorPermission;
-        const permissionType = permissionResponse.permission.type;
-        const { chainId } = permissionResponse;
+    for (const storedGatorPermission of storedGatorPermissions) {
+      const {
+        permissionResponse: {
+          permission: { type: permissionType },
+          chainId,
+        },
+      } = storedGatorPermission;
 
-        const sanitizedStoredGatorPermission =
-          this.#sanitizeStoredGatorPermission(storedGatorPermission);
+      const isPermissionTypeKnown = Object.prototype.hasOwnProperty.call(
+        gatorPermissionsMap,
+        permissionType,
+      );
 
-        switch (permissionType) {
-          case 'native-token-stream':
-          case 'native-token-periodic':
-          case 'erc20-token-stream':
-          case 'erc20-token-periodic':
-            if (!gatorPermissionsMap[permissionType][chainId]) {
-              gatorPermissionsMap[permissionType][chainId] = [];
-            }
+      const permissionTypeKey = isPermissionTypeKnown
+        ? (permissionType as keyof GatorPermissionsMap)
+        : 'other';
 
-            (
-              gatorPermissionsMap[permissionType][
-                chainId
-              ] as StoredGatorPermissionSanitized<
-                Signer,
-                PermissionTypesWithCustom
-              >[]
-            ).push(sanitizedStoredGatorPermission);
-            break;
-          default:
-            if (!gatorPermissionsMap.other[chainId]) {
-              gatorPermissionsMap.other[chainId] = [];
-            }
+      type PermissionsMapElementArray =
+        GatorPermissionsMap[typeof permissionTypeKey][typeof chainId];
 
-            (
-              gatorPermissionsMap.other[
-                chainId
-              ] as StoredGatorPermissionSanitized<
-                Signer,
-                PermissionTypesWithCustom
-              >[]
-            ).push(sanitizedStoredGatorPermission);
-            break;
-        }
+      gatorPermissionsMap[permissionTypeKey][chainId] = [
+        ...(gatorPermissionsMap[permissionTypeKey][chainId] || []),
+        this.#sanitizeStoredGatorPermission(storedGatorPermission),
+      ] as PermissionsMapElementArray;
+    }
 
-        return gatorPermissionsMap;
-      },
-      {
-        'native-token-stream': {},
-        'native-token-periodic': {},
-        'erc20-token-stream': {},
-        'erc20-token-periodic': {},
-        other: {},
-      } as GatorPermissionsMap,
-    );
+    return gatorPermissionsMap;
   }
 
   /**
@@ -576,7 +581,7 @@ export default class GatorPermissionsController extends BaseController<
     this.update((state) => {
       state.isGatorPermissionsEnabled = false;
       state.gatorPermissionsMapSerialized = serializeGatorPermissionsMap(
-        defaultGatorPermissionsMap,
+        createEmptyGatorPermissionsMap(),
       );
     });
   }
@@ -725,33 +730,50 @@ export default class GatorPermissionsController extends BaseController<
 
     this.#assertGatorPermissionsEnabled();
 
-    try {
-      const snapRequest = {
-        snapId: this.state.gatorPermissionsProviderSnapId,
-        origin: 'metamask',
-        handler: HandlerType.OnRpcRequest,
-        request: {
-          jsonrpc: '2.0',
-          method:
-            GatorPermissionsSnapRpcMethod.PermissionProviderSubmitRevocation,
-          params: revocationParams,
-        },
-      };
+    const snapRequest = {
+      snapId: this.state.gatorPermissionsProviderSnapId,
+      origin: 'metamask',
+      handler: HandlerType.OnRpcRequest,
+      request: {
+        jsonrpc: '2.0',
+        method:
+          GatorPermissionsSnapRpcMethod.PermissionProviderSubmitRevocation,
+        params: revocationParams,
+      },
+    };
 
+    try {
       const result = await this.messenger.call(
         'SnapController:handleRequest',
         snapRequest,
       );
 
-      this.#removePendingRevocationFromStateByPermissionContext(
-        revocationParams.permissionContext,
-      );
+      // Refresh list first (permission removed from list)
+      await this.fetchAndUpdateGatorPermissions({ isRevoked: false });
 
       controllerLog('Successfully submitted revocation', {
         permissionContext: revocationParams.permissionContext,
         result,
       });
     } catch (error) {
+      // If it's a GatorPermissionsFetchError, revocation succeeded but refresh failed
+      if (error instanceof GatorPermissionsFetchError) {
+        controllerLog(
+          'Revocation submitted successfully but failed to refresh permissions list',
+          {
+            error,
+            permissionContext: revocationParams.permissionContext,
+          },
+        );
+        // Wrap with a more specific message indicating revocation succeeded
+        throw new GatorPermissionsFetchError({
+          message:
+            'Failed to refresh permissions list after successful revocation',
+          cause: error as Error,
+        });
+      }
+
+      // Otherwise, revocation failed - wrap in provider error
       controllerLog('Failed to submit revocation', {
         error,
         permissionContext: revocationParams.permissionContext,
@@ -762,6 +784,10 @@ export default class GatorPermissionsController extends BaseController<
           GatorPermissionsSnapRpcMethod.PermissionProviderSubmitRevocation,
         cause: error as Error,
       });
+    } finally {
+      this.#removePendingRevocationFromStateByPermissionContext(
+        revocationParams.permissionContext,
+      );
     }
   }
 
@@ -821,6 +847,19 @@ export default class GatorPermissionsController extends BaseController<
       failed: undefined,
       dropped: undefined,
       timeoutId: undefined,
+    };
+
+    // Helper to refresh permissions after transaction state change
+    const refreshPermissions = (context: string) => {
+      this.fetchAndUpdateGatorPermissions({ isRevoked: false }).catch(
+        (error) => {
+          controllerLog(`Failed to refresh permissions after ${context}`, {
+            txId,
+            permissionContext,
+            error,
+          });
+        },
+      );
     };
 
     // Helper to unsubscribe from approval/rejection events after decision is made
@@ -911,16 +950,18 @@ export default class GatorPermissionsController extends BaseController<
           permissionContext,
         });
 
-        this.submitRevocation({ permissionContext }).catch((error) => {
-          controllerLog(
-            'Failed to submit revocation after transaction confirmed',
-            {
-              txId,
-              permissionContext,
-              error,
-            },
-          );
-        });
+        this.submitRevocation({ permissionContext })
+          .catch((error) => {
+            controllerLog(
+              'Failed to submit revocation after transaction confirmed',
+              {
+                txId,
+                permissionContext,
+                error,
+              },
+            );
+          })
+          .finally(() => refreshPermissions('transaction confirmed'));
 
         cleanup(transactionMeta.id);
       }
@@ -936,6 +977,8 @@ export default class GatorPermissionsController extends BaseController<
         });
 
         cleanup(payload.transactionMeta.id);
+
+        refreshPermissions('transaction failed');
       }
     };
 
@@ -948,6 +991,8 @@ export default class GatorPermissionsController extends BaseController<
         });
 
         cleanup(payload.transactionMeta.id);
+
+        refreshPermissions('transaction dropped');
       }
     };
 
@@ -983,5 +1028,50 @@ export default class GatorPermissionsController extends BaseController<
       });
       cleanup(txId);
     }, PENDING_REVOCATION_TIMEOUT);
+  }
+
+  /**
+   * Submits a revocation directly without requiring an on-chain transaction.
+   * Used for already-disabled delegations that don't require an on-chain transaction.
+   *
+   * This method:
+   * 1. Adds the permission context to pending revocations state (disables UI button)
+   * 2. Immediately calls submitRevocation to remove from snap storage
+   * 3. On success, removes from pending revocations state (re-enables UI button)
+   * 4. On failure, keeps in pending revocations so UI can show error/retry state
+   *
+   * @param params - The revocation parameters containing the permission context.
+   * @returns A promise that resolves when the revocation is submitted successfully.
+   * @throws {GatorPermissionsNotEnabledError} If the gator permissions are not enabled.
+   * @throws {GatorPermissionsProviderError} If the snap request fails.
+   */
+  public async submitDirectRevocation(params: RevocationParams): Promise<void> {
+    this.#assertGatorPermissionsEnabled();
+
+    // Use a placeholder txId that doesn't conflict with real transaction IDs
+    const placeholderTxId = `no-tx-${params.permissionContext}`;
+
+    // Add to pending revocations state first (disables UI button immediately)
+    this.#addPendingRevocationToState(
+      placeholderTxId,
+      params.permissionContext,
+    );
+
+    // Immediately submit the revocation (will remove from pending on success)
+    await this.submitRevocation(params);
+  }
+
+  /**
+   * Checks if a permission context is in the pending revocations list.
+   *
+   * @param permissionContext - The permission context to check.
+   * @returns `true` if the permission context is pending revocation, `false` otherwise.
+   */
+  public isPendingRevocation(permissionContext: Hex): boolean {
+    return this.state.pendingRevocations.some(
+      (pendingRevocation) =>
+        pendingRevocation.permissionContext.toLowerCase() ===
+        permissionContext.toLowerCase(),
+    );
   }
 }

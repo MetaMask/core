@@ -38,7 +38,7 @@ export function prepareTransaction(
  * @param transaction - The transaction object.
  * @returns The prefixed hex string.
  */
-export function serializeTransaction(transaction: TypedTransaction) {
+export function serializeTransaction(transaction: TypedTransaction): Hex {
   return bytesToHex(transaction.serialize());
 }
 
@@ -76,7 +76,9 @@ function normalizeParams(params: TransactionParams): TransactionParams {
  *
  * @param authorizationList - The list of authorizations to normalize.
  */
-function normalizeAuthorizationList(authorizationList?: AuthorizationList) {
+function normalizeAuthorizationList(
+  authorizationList?: AuthorizationList,
+): void {
   if (!authorizationList) {
     return;
   }

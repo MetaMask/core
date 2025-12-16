@@ -9,7 +9,7 @@ import type {
   UpdateUserOperationRequest,
   UpdateUserOperationResponse,
 } from '../types';
-import { type PrepareUserOperationRequest } from '../types';
+import type { PrepareUserOperationRequest } from '../types';
 import type { UserOperationControllerMessenger } from '../UserOperationController';
 import { toEip155ChainId } from '../utils/chain-id';
 

@@ -43,16 +43,16 @@ type PushNotificationMessage = {
   ctaLink?: string;
 };
 
-type NotificationMessage<N extends Types.INotification> = {
-  title: (n: N) => string | null;
-  defaultDescription: (n: N) => string | null;
-  getDescription?: (n: N) => string | null;
-  link?: (n: N) => string | null;
+type NotificationMessage<TNotification extends Types.INotification> = {
+  title: (notification: TNotification) => string | null;
+  defaultDescription: (notification: TNotification) => string | null;
+  getDescription?: (notification: TNotification) => string | null;
+  link?: (notification: TNotification) => string | null;
 };
 
 type NotificationMessageDict = {
-  [K in Constants.TRIGGER_TYPES]?: NotificationMessage<
-    Extract<Types.INotification, { type: K }>
+  [TriggerType in Constants.TRIGGER_TYPES]?: NotificationMessage<
+    Extract<Types.INotification, { type: TriggerType }>
   >;
 };
 
@@ -66,10 +66,10 @@ type NotificationMessageDict = {
 export const createOnChainPushNotificationMessages = (
   translationKeys: TranslationKeys,
 ): NotificationMessageDict => {
-  type TranslationFn = <K extends keyof TranslationKeys>(
-    ...args: [K, ...Parameters<TranslationKeys[K]>]
+  type TranslationFn = <TKey extends keyof TranslationKeys>(
+    ...args: [TKey, ...Parameters<TranslationKeys[TKey]>]
   ) => string;
-  const t: TranslationFn = (...args) => {
+  const translate: TranslationFn = (...args) => {
     const [key, ...otherArgs] = args;
 
     // Coerce types for the translation function
@@ -80,13 +80,14 @@ export const createOnChainPushNotificationMessages = (
 
   return {
     erc20_sent: {
-      title: () => t('pushPlatformNotificationsFundsSentTitle'),
-      defaultDescription: () =>
-        t('pushPlatformNotificationsFundsSentDescriptionDefault'),
-      getDescription: (n) => {
-        const symbol = n?.payload?.data?.token?.symbol;
-        const tokenAmount = n?.payload?.data?.token?.amount;
-        const tokenDecimals = n?.payload?.data?.token?.decimals;
+      title: (): string | null =>
+        translate('pushPlatformNotificationsFundsSentTitle'),
+      defaultDescription: (): string | null =>
+        translate('pushPlatformNotificationsFundsSentDescriptionDefault'),
+      getDescription: (notification): string | null => {
+        const symbol = notification?.payload?.data?.token?.symbol;
+        const tokenAmount = notification?.payload?.data?.token?.amount;
+        const tokenDecimals = notification?.payload?.data?.token?.decimals;
         if (!symbol || !tokenAmount || !tokenDecimals) {
           return null;
         }
@@ -94,7 +95,7 @@ export const createOnChainPushNotificationMessages = (
         const amount = getAmount(tokenAmount, tokenDecimals, {
           shouldEllipse: true,
         });
-        return t(
+        return translate(
           'pushPlatformNotificationsFundsSentDescription',
           amount,
           symbol,
@@ -102,12 +103,13 @@ export const createOnChainPushNotificationMessages = (
       },
     },
     eth_sent: {
-      title: () => t('pushPlatformNotificationsFundsSentTitle'),
-      defaultDescription: () =>
-        t('pushPlatformNotificationsFundsSentDescriptionDefault'),
-      getDescription: (n) => {
-        const symbol = getChainSymbol(n?.payload?.chain_id);
-        const tokenAmount = n?.payload?.data?.amount?.eth;
+      title: (): string | null =>
+        translate('pushPlatformNotificationsFundsSentTitle'),
+      defaultDescription: (): string | null =>
+        translate('pushPlatformNotificationsFundsSentDescriptionDefault'),
+      getDescription: (notification): string | null => {
+        const symbol = getChainSymbol(notification?.payload?.chain_id);
+        const tokenAmount = notification?.payload?.data?.amount?.eth;
         if (!symbol || !tokenAmount) {
           return null;
         }
@@ -115,7 +117,7 @@ export const createOnChainPushNotificationMessages = (
         const amount = formatAmount(parseFloat(tokenAmount), {
           shouldEllipse: true,
         });
-        return t(
+        return translate(
           'pushPlatformNotificationsFundsSentDescription',
           amount,
           symbol,
@@ -123,13 +125,14 @@ export const createOnChainPushNotificationMessages = (
       },
     },
     erc20_received: {
-      title: () => t('pushPlatformNotificationsFundsReceivedTitle'),
-      defaultDescription: () =>
-        t('pushPlatformNotificationsFundsReceivedDescriptionDefault'),
-      getDescription: (n) => {
-        const symbol = n?.payload?.data?.token?.symbol;
-        const tokenAmount = n?.payload?.data?.token?.amount;
-        const tokenDecimals = n?.payload?.data?.token?.decimals;
+      title: (): string | null =>
+        translate('pushPlatformNotificationsFundsReceivedTitle'),
+      defaultDescription: (): string | null =>
+        translate('pushPlatformNotificationsFundsReceivedDescriptionDefault'),
+      getDescription: (notification): string | null => {
+        const symbol = notification?.payload?.data?.token?.symbol;
+        const tokenAmount = notification?.payload?.data?.token?.amount;
+        const tokenDecimals = notification?.payload?.data?.token?.decimals;
         if (!symbol || !tokenAmount || !tokenDecimals) {
           return null;
         }
@@ -137,7 +140,7 @@ export const createOnChainPushNotificationMessages = (
         const amount = getAmount(tokenAmount, tokenDecimals, {
           shouldEllipse: true,
         });
-        return t(
+        return translate(
           'pushPlatformNotificationsFundsReceivedDescription',
           amount,
           symbol,
@@ -145,12 +148,13 @@ export const createOnChainPushNotificationMessages = (
       },
     },
     eth_received: {
-      title: () => t('pushPlatformNotificationsFundsReceivedTitle'),
-      defaultDescription: () =>
-        t('pushPlatformNotificationsFundsReceivedDescriptionDefault'),
-      getDescription: (n) => {
-        const symbol = getChainSymbol(n?.payload?.chain_id);
-        const tokenAmount = n?.payload?.data?.amount?.eth;
+      title: (): string | null =>
+        translate('pushPlatformNotificationsFundsReceivedTitle'),
+      defaultDescription: (): string | null =>
+        translate('pushPlatformNotificationsFundsReceivedDescriptionDefault'),
+      getDescription: (notification): string | null => {
+        const symbol = getChainSymbol(notification?.payload?.chain_id);
+        const tokenAmount = notification?.payload?.data?.amount?.eth;
         if (!symbol || !tokenAmount) {
           return null;
         }
@@ -158,7 +162,7 @@ export const createOnChainPushNotificationMessages = (
         const amount = formatAmount(parseFloat(tokenAmount), {
           shouldEllipse: true,
         });
-        return t(
+        return translate(
           'pushPlatformNotificationsFundsReceivedDescription',
           amount,
           symbol,
@@ -166,75 +170,99 @@ export const createOnChainPushNotificationMessages = (
       },
     },
     metamask_swap_completed: {
-      title: () => t('pushPlatformNotificationsSwapCompletedTitle'),
-      defaultDescription: () =>
-        t('pushPlatformNotificationsSwapCompletedDescription'),
+      title: (): string | null =>
+        translate('pushPlatformNotificationsSwapCompletedTitle'),
+      defaultDescription: (): string | null =>
+        translate('pushPlatformNotificationsSwapCompletedDescription'),
     },
     erc721_sent: {
-      title: () => t('pushPlatformNotificationsNftSentTitle'),
-      defaultDescription: () =>
-        t('pushPlatformNotificationsNftSentDescription'),
+      title: (): string | null =>
+        translate('pushPlatformNotificationsNftSentTitle'),
+      defaultDescription: (): string | null =>
+        translate('pushPlatformNotificationsNftSentDescription'),
     },
     erc1155_sent: {
-      title: () => t('pushPlatformNotificationsNftSentTitle'),
-      defaultDescription: () =>
-        t('pushPlatformNotificationsNftSentDescription'),
+      title: (): string | null =>
+        translate('pushPlatformNotificationsNftSentTitle'),
+      defaultDescription: (): string | null =>
+        translate('pushPlatformNotificationsNftSentDescription'),
     },
     erc721_received: {
-      title: () => t('pushPlatformNotificationsNftReceivedTitle'),
-      defaultDescription: () =>
-        t('pushPlatformNotificationsNftReceivedDescription'),
+      title: (): string | null =>
+        translate('pushPlatformNotificationsNftReceivedTitle'),
+      defaultDescription: (): string | null =>
+        translate('pushPlatformNotificationsNftReceivedDescription'),
     },
     erc1155_received: {
-      title: () => t('pushPlatformNotificationsNftReceivedTitle'),
-      defaultDescription: () =>
-        t('pushPlatformNotificationsNftReceivedDescription'),
+      title: (): string | null =>
+        translate('pushPlatformNotificationsNftReceivedTitle'),
+      defaultDescription: (): string | null =>
+        translate('pushPlatformNotificationsNftReceivedDescription'),
     },
     rocketpool_stake_completed: {
-      title: () =>
-        t('pushPlatformNotificationsStakingRocketpoolStakeCompletedTitle'),
-      defaultDescription: () =>
-        t(
+      title: (): string | null =>
+        translate(
+          'pushPlatformNotificationsStakingRocketpoolStakeCompletedTitle',
+        ),
+      defaultDescription: (): string | null =>
+        translate(
           'pushPlatformNotificationsStakingRocketpoolStakeCompletedDescription',
         ),
     },
     rocketpool_unstake_completed: {
-      title: () =>
-        t('pushPlatformNotificationsStakingRocketpoolUnstakeCompletedTitle'),
-      defaultDescription: () =>
-        t(
+      title: (): string | null =>
+        translate(
+          'pushPlatformNotificationsStakingRocketpoolUnstakeCompletedTitle',
+        ),
+      defaultDescription: (): string | null =>
+        translate(
           'pushPlatformNotificationsStakingRocketpoolUnstakeCompletedDescription',
         ),
     },
     lido_stake_completed: {
-      title: () => t('pushPlatformNotificationsStakingLidoStakeCompletedTitle'),
-      defaultDescription: () =>
-        t('pushPlatformNotificationsStakingLidoStakeCompletedDescription'),
+      title: (): string | null =>
+        translate('pushPlatformNotificationsStakingLidoStakeCompletedTitle'),
+      defaultDescription: (): string | null =>
+        translate(
+          'pushPlatformNotificationsStakingLidoStakeCompletedDescription',
+        ),
     },
     lido_stake_ready_to_be_withdrawn: {
-      title: () =>
-        t('pushPlatformNotificationsStakingLidoStakeReadyToBeWithdrawnTitle'),
-      defaultDescription: () =>
-        t(
+      title: (): string | null =>
+        translate(
+          'pushPlatformNotificationsStakingLidoStakeReadyToBeWithdrawnTitle',
+        ),
+      defaultDescription: (): string | null =>
+        translate(
           'pushPlatformNotificationsStakingLidoStakeReadyToBeWithdrawnDescription',
         ),
     },
     lido_withdrawal_requested: {
-      title: () =>
-        t('pushPlatformNotificationsStakingLidoWithdrawalRequestedTitle'),
-      defaultDescription: () =>
-        t('pushPlatformNotificationsStakingLidoWithdrawalRequestedDescription'),
+      title: (): string | null =>
+        translate(
+          'pushPlatformNotificationsStakingLidoWithdrawalRequestedTitle',
+        ),
+      defaultDescription: (): string | null =>
+        translate(
+          'pushPlatformNotificationsStakingLidoWithdrawalRequestedDescription',
+        ),
     },
     lido_withdrawal_completed: {
-      title: () =>
-        t('pushPlatformNotificationsStakingLidoWithdrawalCompletedTitle'),
-      defaultDescription: () =>
-        t('pushPlatformNotificationsStakingLidoWithdrawalCompletedDescription'),
+      title: (): string | null =>
+        translate(
+          'pushPlatformNotificationsStakingLidoWithdrawalCompletedTitle',
+        ),
+      defaultDescription: (): string | null =>
+        translate(
+          'pushPlatformNotificationsStakingLidoWithdrawalCompletedDescription',
+        ),
     },
     platform: {
-      title: (n) => n.template.title,
-      defaultDescription: (n) => n.template.body,
-      getDescription: (n) => n.template.body,
+      title: (notification): string | null => notification.template.title,
+      defaultDescription: (notification): string | null =>
+        notification.template.body,
+      getDescription: (notification): string | null =>
+        notification.template.body,
     },
   };
 };
@@ -245,7 +273,7 @@ export const createOnChainPushNotificationMessages = (
  * @param chainId - The ID of the chain.
  * @returns The symbol associated with the chain ID, or null if not found.
  */
-function getChainSymbol(chainId: number) {
+function getChainSymbol(chainId: number): string | null {
   return (
     NOTIFICATION_NETWORK_CURRENCY_SYMBOL[
       chainId.toString() as NOTIFICATION_CHAINS_IDS
@@ -256,19 +284,19 @@ function getChainSymbol(chainId: number) {
 /**
  * Creates a push notification message based on the given on-chain raw notification.
  *
- * @param n - processed notification.
+ * @param notification - processed notification.
  * @param translations - translates keys into text
  * @returns The push notification message object, or null if the notification is invalid.
  */
 export function createOnChainPushNotificationMessage(
-  n: Types.INotification,
+  notification: Types.INotification,
   translations: TranslationKeys,
 ): PushNotificationMessage | null {
-  if (!n?.type) {
+  if (!notification?.type) {
     return null;
   }
   const notificationMessage =
-    createOnChainPushNotificationMessages(translations)[n.type];
+    createOnChainPushNotificationMessages(translations)[notification.type];
 
   if (!notificationMessage) {
     return null;
@@ -278,18 +306,19 @@ export function createOnChainPushNotificationMessage(
   try {
     description =
       // eslint-disable-next-line @typescript-eslint/no-explicit-any
-      notificationMessage?.getDescription?.(n as any) ??
+      notificationMessage?.getDescription?.(notification as any) ??
       // eslint-disable-next-line @typescript-eslint/no-explicit-any
-      notificationMessage.defaultDescription?.(n as any) ??
+      notificationMessage.defaultDescription?.(notification as any) ??
       null;
   } catch {
-    // eslint-disable-next-line @typescript-eslint/no-explicit-any
-    description = notificationMessage.defaultDescription?.(n as any) ?? null;
+    description =
+      // eslint-disable-next-line @typescript-eslint/no-explicit-any
+      notificationMessage.defaultDescription?.(notification as any) ?? null;
   }
 
   return {
     // eslint-disable-next-line @typescript-eslint/no-explicit-any
-    title: notificationMessage?.title?.(n as any) ?? '', // Ensure title is always a string
+    title: notificationMessage?.title?.(notification as any) ?? '', // Ensure title is always a string
     description: description ?? '', // Fallback to empty string if null
   };
 }

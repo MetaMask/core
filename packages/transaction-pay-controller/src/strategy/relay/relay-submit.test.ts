@@ -1,8 +1,6 @@
 import { ORIGIN_METAMASK, successfulFetch } from '@metamask/controller-utils';
-import {
-  TransactionType,
-  type TransactionMeta,
-} from '@metamask/transaction-controller';
+import { TransactionType } from '@metamask/transaction-controller';
+import type { TransactionMeta } from '@metamask/transaction-controller';
 import type { Hex } from '@metamask/utils';
 import { cloneDeep } from 'lodash';
 
@@ -15,6 +13,8 @@ import type {
   TransactionPayControllerMessenger,
   TransactionPayQuote,
 } from '../../types';
+import type { FeatureFlags } from '../../utils/feature-flags';
+import { getFeatureFlags } from '../../utils/feature-flags';
 import {
   collectTransactionIds,
   getTransaction,
@@ -23,6 +23,7 @@ import {
 } from '../../utils/transaction';
 
 jest.mock('../../utils/transaction');
+jest.mock('../../utils/feature-flags');
 
 jest.mock('@metamask/controller-utils', () => ({
   ...jest.requireActual('@metamask/controller-utils'),
@@ -55,6 +56,10 @@ const ORIGINAL_QUOTE_MOCK = {
       },
     },
   },
+  metamask: {
+    gasLimits: [21000, 21000],
+  },
+  request: {},
   steps: [
     {
       kind: 'transaction',
@@ -112,6 +117,7 @@ describe('Relay Submit Utils', () => {
   const successfulFetchMock = jest.mocked(successfulFetch);
   const getTransactionMock = jest.mocked(getTransaction);
   const collectTransactionIdsMock = jest.mocked(collectTransactionIds);
+  const getFeatureFlagsMock = jest.mocked(getFeatureFlags);
 
   const {
     addTransactionMock,
@@ -138,6 +144,12 @@ describe('Relay Submit Utils', () => {
 
     waitForTransactionConfirmedMock.mockResolvedValue();
     getTransactionMock.mockReturnValue(TRANSACTION_META_MOCK);
+
+    getFeatureFlagsMock.mockReturnValue({
+      relayFallbackGas: {
+        max: 123,
+      },
+    } as FeatureFlags);
 
     collectTransactionIdsMock.mockImplementation(
       (_chainId, _from, _messenger, fn) => {
@@ -173,6 +185,7 @@ describe('Relay Submit Utils', () => {
           networkClientId: NETWORK_CLIENT_ID_MOCK,
           origin: ORIGIN_METAMASK,
           requireApproval: false,
+          type: TransactionType.relayDeposit,
         },
       );
     });
@@ -191,6 +204,89 @@ describe('Relay Submit Utils', () => {
       );
     });
 
+    it('adds transaction with authorization list if same chain and authorization list present', async () => {
+      request.quotes[0].original.details.currencyOut.currency.chainId = 1;
+      request.quotes[0].original.request = {
+        authorizationList: [
+          {
+            address: '0xabc' as Hex,
+            chainId: 1,
+            nonce: 2,
+            r: '0xr' as Hex,
+            s: '0xs' as Hex,
+            yParity: 1,
+          },
+          {
+            address: '0xdef' as Hex,
+            chainId: 1,
+            nonce: 3,
+            r: '0xr2' as Hex,
+            s: '0xs2' as Hex,
+            yParity: 0,
+          },
+        ],
+      } as never;
+
+      await submitRelayQuotes(request);
+
+      expect(addTransactionMock).toHaveBeenCalledTimes(1);
+      expect(addTransactionMock).toHaveBeenCalledWith(
+        expect.objectContaining({
+          authorizationList: [
+            {
+              address: '0xabc',
+              chainId: '0x1',
+            },
+            {
+              address: '0xdef',
+              chainId: '0x1',
+            },
+          ],
+        }),
+        expect.anything(),
+      );
+    });
+
+    it('does not add authorization list if different chains', async () => {
+      request.quotes[0].original.request = {
+        authorizationList: [
+          {
+            address: '0xabc' as Hex,
+            chainId: 1,
+            nonce: 2,
+            r: '0xr' as Hex,
+            s: '0xs' as Hex,
+            yParity: 1,
+          },
+        ],
+      } as never;
+
+      await submitRelayQuotes(request);
+
+      expect(addTransactionMock).toHaveBeenCalledTimes(1);
+      expect(addTransactionMock).toHaveBeenCalledWith(
+        expect.not.objectContaining({
+          authorizationList: expect.anything(),
+        }),
+        expect.anything(),
+      );
+    });
+
+    it('does not add authorization list if same chain but no authorization list', async () => {
+      request.quotes[0].original.details.currencyOut.currency.chainId = 1;
+      request.quotes[0].original.request = {} as never;
+
+      await submitRelayQuotes(request);
+
+      expect(addTransactionMock).toHaveBeenCalledTimes(1);
+      expect(addTransactionMock).toHaveBeenCalledWith(
+        expect.not.objectContaining({
+          authorizationList: expect.anything(),
+        }),
+        expect.anything(),
+      );
+    });
+
     it('adds transaction batch if multiple params', async () => {
       request.quotes[0].original.steps[0].items.push({
         ...request.quotes[0].original.steps[0].items[0],
@@ -200,15 +296,21 @@ describe('Relay Submit Utils', () => {
 
       expect(addTransactionBatchMock).toHaveBeenCalledTimes(1);
       expect(addTransactionBatchMock).toHaveBeenCalledWith({
+        disable7702: true,
+        disableHook: false,
+        disableSequential: false,
         from: FROM_MOCK,
         networkClientId: NETWORK_CLIENT_ID_MOCK,
         origin: ORIGIN_METAMASK,
+        overwriteUpgrade: true,
         requireApproval: false,
         transactions: [
           {
             params: {
               data: '0x1234',
               gas: '0x5208',
+              maxFeePerGas: '0x5d21dba00',
+              maxPriorityFeePerGas: '0x3b9aca00',
               to: '0xfedcb',
               value: '0x4d2',
             },
@@ -218,9 +320,12 @@ describe('Relay Submit Utils', () => {
             params: {
               data: '0x1234',
               gas: '0x5208',
+              maxFeePerGas: '0x5d21dba00',
+              maxPriorityFeePerGas: '0x3b9aca00',
               to: '0xfedcb',
               value: '0x4d2',
             },
+            type: TransactionType.relayDeposit,
           },
         ],
       });
@@ -255,7 +360,7 @@ describe('Relay Submit Utils', () => {
       expect(addTransactionMock).toHaveBeenCalledTimes(1);
       expect(addTransactionMock).toHaveBeenCalledWith(
         expect.objectContaining({
-          gas: '0xdbba0',
+          gas: '0x5208',
           value: '0x0',
         }),
         expect.anything(),
@@ -367,6 +472,70 @@ describe('Relay Submit Utils', () => {
       expect(txDraft.requiredTransactionIds).toStrictEqual([
         TRANSACTION_META_MOCK.id,
       ]);
+    });
+
+    it('adds transaction batch with single gasLimit7702', async () => {
+      request.quotes[0].original.steps[0].items.push({
+        ...request.quotes[0].original.steps[0].items[0],
+      });
+
+      request.quotes[0].original.metamask.gasLimits = [42000];
+
+      await submitRelayQuotes(request);
+
+      expect(addTransactionBatchMock).toHaveBeenCalledTimes(1);
+      expect(addTransactionBatchMock).toHaveBeenCalledWith(
+        expect.objectContaining({
+          disable7702: false,
+          disableHook: true,
+          disableSequential: true,
+          gasLimit7702: '0xa410',
+          transactions: [
+            expect.objectContaining({
+              params: expect.objectContaining({
+                gas: undefined,
+              }),
+            }),
+            expect.objectContaining({
+              params: expect.objectContaining({
+                gas: undefined,
+              }),
+            }),
+          ],
+        }),
+      );
+    });
+
+    it('adds transaction batch without gasLimit7702 when multiple gas limits', async () => {
+      request.quotes[0].original.steps[0].items.push({
+        ...request.quotes[0].original.steps[0].items[0],
+      });
+
+      request.quotes[0].original.metamask.gasLimits = [21000, 22000];
+
+      await submitRelayQuotes(request);
+
+      expect(addTransactionBatchMock).toHaveBeenCalledTimes(1);
+      expect(addTransactionBatchMock).toHaveBeenCalledWith(
+        expect.objectContaining({
+          disable7702: true,
+          disableHook: false,
+          disableSequential: false,
+          gasLimit7702: undefined,
+          transactions: [
+            expect.objectContaining({
+              params: expect.objectContaining({
+                gas: '0x5208',
+              }),
+            }),
+            expect.objectContaining({
+              params: expect.objectContaining({
+                gas: '0x55f0',
+              }),
+            }),
+          ],
+        }),
+      );
     });
   });
 });

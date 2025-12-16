@@ -1,6 +1,6 @@
 {
   "name": "@metamask/chain-agnostic-permission",
-  "version": "1.2.2",
+  "version": "1.3.0",
   "description": "Defines a CAIP-25 based endowment permission and helpers for interfacing with it",
   "keywords": [
     "MetaMask",
@@ -50,7 +50,7 @@
   "dependencies": {
     "@metamask/api-specs": "^0.14.0",
     "@metamask/controller-utils": "^11.16.0",
-    "@metamask/network-controller": "^26.0.0",
+    "@metamask/network-controller": "^27.0.0",
     "@metamask/permission-controller": "^12.1.1",
     "@metamask/rpc-errors": "^7.0.2",
     "@metamask/utils": "^11.8.1",

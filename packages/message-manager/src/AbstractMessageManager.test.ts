@@ -1,18 +1,18 @@
-import {
-  deriveStateFromMetadata,
-  type ControllerGetStateAction,
-  type ControllerStateChangeEvent,
+import { deriveStateFromMetadata } from '@metamask/base-controller';
+import type {
+  ControllerGetStateAction,
+  ControllerStateChangeEvent,
 } from '@metamask/base-controller';
 import { ApprovalType } from '@metamask/controller-utils';
 import type { Messenger } from '@metamask/messenger';
 
-import {
-  AbstractMessageManager,
-  type AbstractMessage,
-  type AbstractMessageParams,
-  type MessageManagerState,
-  type MessageRequest,
-  type SecurityProviderRequest,
+import { AbstractMessageManager } from './AbstractMessageManager';
+import type {
+  AbstractMessage,
+  AbstractMessageParams,
+  MessageManagerState,
+  MessageRequest,
+  SecurityProviderRequest,
 } from './AbstractMessageManager';
 
 type ConcreteMessage = AbstractMessage & {

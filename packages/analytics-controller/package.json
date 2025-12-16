@@ -14,7 +14,7 @@
     "type": "git",
     "url": "https://github.com/MetaMask/core.git"
   },
-  "license": "MIT",
+  "license": "(MIT OR Apache-2.0)",
   "sideEffects": false,
   "exports": {
     ".": {
@@ -50,8 +50,7 @@
   "dependencies": {
     "@metamask/base-controller": "^9.0.0",
     "@metamask/messenger": "^0.3.0",
-    "@metamask/utils": "^11.8.1",
-    "uuid": "^8.3.2"
+    "@metamask/utils": "^11.8.1"
   },
   "devDependencies": {
     "@metamask/auto-changelog": "^3.4.4",

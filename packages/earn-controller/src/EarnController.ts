@@ -22,24 +22,26 @@ import {
   EarnSdk,
   EarnApiService,
   isSupportedLendingChain,
-  type LendingMarket,
-  type PooledStake,
-  type EarnSdkConfig,
-  type VaultData,
-  type VaultDailyApy,
-  type VaultApyAverages,
-  type LendingPosition,
-  type GasLimitParams,
-  type HistoricLendingMarketApys,
   EarnEnvironments,
   ChainId,
   isSupportedPooledStakingChain,
 } from '@metamask/stake-sdk';
-import {
-  type TransactionController,
-  TransactionType,
-  type TransactionControllerTransactionConfirmedEvent,
-  type TransactionMeta,
+import type {
+  LendingMarket,
+  PooledStake,
+  EarnSdkConfig,
+  VaultData,
+  VaultDailyApy,
+  VaultApyAverages,
+  LendingPosition,
+  GasLimitParams,
+  HistoricLendingMarketApys,
+} from '@metamask/stake-sdk';
+import { TransactionType } from '@metamask/transaction-controller';
+import type {
+  TransactionController,
+  TransactionControllerTransactionConfirmedEvent,
+  TransactionMeta,
 } from '@metamask/transaction-controller';
 
 import type {

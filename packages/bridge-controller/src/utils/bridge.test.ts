@@ -1,10 +1,7 @@
-import { Contract } from '@ethersproject/contracts';
 import { BtcScope, SolScope } from '@metamask/keyring-api';
-import { abiERC20 } from '@metamask/metamask-eth-abis';
 import type { Hex } from '@metamask/utils';
 
 import {
-  getEthUsdtResetData,
   getNativeAssetForChainId,
   isBitcoinChainId,
   isCrossChain,
@@ -58,19 +55,6 @@ describe('Bridge utils', () => {
 
     it('throws for invalid hex strings', () => {
       expect(() => sumHexes('0xg')).toThrow('Cannot convert 0xg to a BigInt');
-    });
-  });
-
-  describe('getEthUsdtResetData', () => {
-    it('returns correct encoded function data for USDT approval reset', () => {
-      const expectedInterface = new Contract(ETH_USDT_ADDRESS, abiERC20)
-        .interface;
-      const expectedData = expectedInterface.encodeFunctionData('approve', [
-        METABRIDGE_ETHEREUM_ADDRESS,
-        '0',
-      ]);
-
-      expect(getEthUsdtResetData()).toBe(expectedData);
     });
   });
 

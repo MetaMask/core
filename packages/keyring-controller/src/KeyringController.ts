@@ -13,7 +13,7 @@ import type {
   EthUserOperationPatch,
 } from '@metamask/keyring-api';
 import type { EthKeyring } from '@metamask/keyring-internal-api';
-import type { KeyringClass } from '@metamask/keyring-utils';
+import type { Keyring, KeyringClass } from '@metamask/keyring-utils';
 import type { Messenger } from '@metamask/messenger';
 import type { Eip1024EncryptedData, Hex, Json } from '@metamask/utils';
 import {
@@ -49,6 +49,9 @@ const name = 'KeyringController';
  * Available keyring types
  */
 export enum KeyringTypes {
+  // Changing this would be a breaking change, and not worth the effort at this
+  // time, so we disable the linting rule for this block.
+  /* eslint-disable @typescript-eslint/naming-convention */
   simple = 'Simple Key Pair',
   hd = 'HD Key Tree',
   qr = 'QR Hardware Wallet Device',
@@ -57,6 +60,7 @@ export enum KeyringTypes {
   ledger = 'Ledger Hardware',
   lattice = 'Lattice Hardware',
   snap = 'Snap Keyring',
+  /* eslint-enable @typescript-eslint/naming-convention */
 }
 
 /**
@@ -199,6 +203,11 @@ export type KeyringControllerAddNewKeyringAction = {
   handler: KeyringController['addNewKeyring'];
 };
 
+export type KeyringControllerRemoveAccountAction = {
+  type: `${typeof name}:removeAccount`;
+  handler: KeyringController['removeAccount'];
+};
+
 export type KeyringControllerStateChangeEvent = {
   type: `${typeof name}:stateChange`;
   payload: [KeyringControllerState, Patch[]];
@@ -238,7 +247,8 @@ export type KeyringControllerActions =
   | KeyringControllerWithKeyringAction
   | KeyringControllerAddNewKeyringAction
   | KeyringControllerCreateNewVaultAndKeychainAction
-  | KeyringControllerCreateNewVaultAndRestoreAction;
+  | KeyringControllerCreateNewVaultAndRestoreAction
+  | KeyringControllerRemoveAccountAction;
 
 export type KeyringControllerEvents =
   | KeyringControllerStateChangeEvent
@@ -304,8 +314,12 @@ export type KeyringMetadata = {
  * A strategy for importing an account
  */
 export enum AccountImportStrategy {
+  // Changing this would be a breaking change, and not worth the effort at this
+  // time, so we disable the linting rule for this block.
+  /* eslint-disable @typescript-eslint/naming-convention */
   privateKey = 'privateKey',
   json = 'json',
+  /* eslint-enable @typescript-eslint/naming-convention */
 }
 
 /**
@@ -485,6 +499,9 @@ export type Encryptor<
   generateSalt: typeof encryptorUtils.generateSalt;
 };
 
+/**
+ * Keyring selector used for `withKeyring`.
+ */
 export type KeyringSelector =
   | {
       type: string;
@@ -496,6 +513,14 @@ export type KeyringSelector =
   | {
       id: string;
     };
+
+/**
+ * Keyring builder.
+ */
+export type KeyringBuilder = {
+  (): Keyring;
+  type: string;
+};
 
 /**
  * A function executed within a mutually exclusive lock, with
@@ -517,8 +542,10 @@ type MutuallyExclusiveCallback<Result> = ({
  * @param KeyringConstructor - The Keyring class for the builder.
  * @returns A builder function for the given Keyring.
  */
-export function keyringBuilderFactory(KeyringConstructor: KeyringClass) {
-  const builder = () => new KeyringConstructor();
+export function keyringBuilderFactory(
+  KeyringConstructor: KeyringClass,
+): KeyringBuilder {
+  const builder: KeyringBuilder = (): Keyring => new KeyringConstructor();
 
   builder.type = KeyringConstructor.type;
 
@@ -569,7 +596,7 @@ function assertIsValidPassword(password: unknown): asserts password is string {
     throw new Error(KeyringControllerError.WrongPasswordType);
   }
 
-  if (!password || !password.length) {
+  if (!password?.length) {
     throw new Error(KeyringControllerError.InvalidEmptyPassword);
   }
 }
@@ -889,7 +916,7 @@ export class KeyringController<
    * @param password - Password to unlock the new vault.
    * @returns Promise resolving when the operation ends successfully.
    */
-  async createNewVaultAndKeychain(password: string) {
+  async createNewVaultAndKeychain(password: string): Promise<void> {
     return this.#persistOrRollback(async () => {
       const accounts = await this.#getAccountsFromKeyrings();
       if (!accounts.length) {
@@ -925,7 +952,7 @@ export class KeyringController<
    *
    * @param password - Password of the keyring.
    */
-  async verifyPassword(password: string) {
+  async verifyPassword(password: string): Promise<void> {
     if (!this.state.vault) {
       throw new Error(KeyringControllerError.VaultError);
     }
@@ -1054,7 +1081,7 @@ export class KeyringController<
 
     const candidates = await Promise.all(
       this.#keyrings.map(async ({ keyring }) => {
-        return Promise.all([keyring, keyring.getAccounts()]);
+        return [keyring, await keyring.getAccounts()] as const;
       }),
     );
 
@@ -1129,7 +1156,7 @@ export class KeyringController<
     return this.#persistOrRollback(async () => {
       let privateKey;
       switch (strategy) {
-        case AccountImportStrategy.privateKey:
+        case AccountImportStrategy.privateKey: {
           const [importedKey] = args;
           if (!importedKey) {
             throw new Error('Cannot import an empty key.');
@@ -1153,22 +1180,24 @@ export class KeyringController<
 
           privateKey = remove0x(prefixed);
           break;
-        case AccountImportStrategy.json:
+        }
+        case AccountImportStrategy.json: {
           let wallet;
           const [input, password] = args;
           try {
             wallet = importers.fromEtherWallet(input, password);
-          } catch (e) {
-            wallet = wallet || (await Wallet.fromV3(input, password, true));
+          } catch {
+            wallet = wallet ?? (await Wallet.fromV3(input, password, true));
           }
-          privateKey = bytesToHex(wallet.getPrivateKey());
+          privateKey = bytesToHex(new Uint8Array(wallet.getPrivateKey()));
           break;
+        }
         default:
           throw new Error(`Unexpected import strategy: '${String(strategy)}'`);
       }
-      const newKeyring = (await this.#newKeyring(KeyringTypes.simple, [
+      const newKeyring = await this.#newKeyring(KeyringTypes.simple, [
         privateKey,
-      ])) as EthKeyring;
+      ]);
       const accounts = await newKeyring.getAccounts();
       return accounts[0];
     });
@@ -1308,7 +1337,9 @@ export class KeyringController<
    * @param messageParams - PersonalMessageParams object to sign.
    * @returns Promise resolving to a signed message string.
    */
-  async signPersonalMessage(messageParams: PersonalMessageParams) {
+  async signPersonalMessage(
+    messageParams: PersonalMessageParams,
+  ): Promise<string> {
     this.#assertIsUnlocked();
     const address = ethNormalize(messageParams.from) as Hex;
     const keyring = (await this.getKeyringForAccount(address)) as EthKeyring;
@@ -1681,7 +1712,7 @@ export class KeyringController<
           | SelectedKeyring
           | undefined;
       } else if ('type' in selector) {
-        keyring = this.getKeyringsByType(selector.type)[selector.index || 0] as
+        keyring = this.getKeyringsByType(selector.type)[selector.index ?? 0] as
           | SelectedKeyring
           | undefined;
 
@@ -1727,7 +1758,7 @@ export class KeyringController<
    * Constructor helper for registering this controller's messeger
    * actions.
    */
-  #registerMessageHandlers() {
+  #registerMessageHandlers(): void {
     this.messenger.registerActionHandler(
       `${name}:signMessage`,
       this.signMessage.bind(this),
@@ -1816,6 +1847,11 @@ export class KeyringController<
     this.messenger.registerActionHandler(
       `${name}:createNewVaultAndRestore`,
       this.createNewVaultAndRestore.bind(this),
+    );
+
+    this.messenger.registerActionHandler(
+      `${name}:removeAccount`,
+      this.removeAccount.bind(this),
     );
   }
 
@@ -2166,7 +2202,7 @@ export class KeyringController<
       } else {
         this.#setEncryptionKey(
           credentials.encryptionKey,
-          credentials.encryptionSalt || parsedEncryptedVault.salt,
+          credentials.encryptionSalt ?? parsedEncryptedVault.salt,
         );
       }
 
@@ -2303,10 +2339,13 @@ export class KeyringController<
    * @param opts - Optional parameters required to instantiate the keyring.
    * @returns A promise that resolves if the operation is successful.
    */
-  async #createKeyringWithFirstAccount(type: string, opts?: unknown) {
+  async #createKeyringWithFirstAccount(
+    type: string,
+    opts?: unknown,
+  ): Promise<Hex> {
     this.#assertControllerMutexIsLocked();
 
-    const keyring = (await this.#newKeyring(type, opts)) as EthKeyring;
+    const keyring = await this.#newKeyring(type, opts);
 
     const [firstAccount] = await keyring.getAccounts();
     if (!firstAccount) {
@@ -2395,7 +2434,7 @@ export class KeyringController<
    * Remove all managed keyrings, destroying all their
    * instances in memory.
    */
-  async #clearKeyrings() {
+  async #clearKeyrings(): Promise<void> {
     this.#assertControllerMutexIsLocked();
     for (const { keyring } of this.#keyrings) {
       await this.#destroyKeyring(keyring);
@@ -2454,7 +2493,7 @@ export class KeyringController<
    *
    * @param keyring - The keyring to destroy.
    */
-  async #destroyKeyring(keyring: EthKeyring) {
+  async #destroyKeyring(keyring: EthKeyring): Promise<void> {
     await keyring.destroy?.();
   }
 
@@ -2569,12 +2608,12 @@ export class KeyringController<
 
       try {
         return await callback({ releaseLock });
-      } catch (e) {
+      } catch (error) {
         // Keyrings and encryption credentials are restored to their previous state
         this.#encryptionKey = currentEncryptionKey;
         await this.#restoreSerializedKeyrings(currentSerializedKeyrings);
 
-        throw e;
+        throw error;
       }
     });
   }
@@ -2584,7 +2623,7 @@ export class KeyringController<
    *
    * @throws If the controller mutex is not locked.
    */
-  #assertControllerMutexIsLocked() {
+  #assertControllerMutexIsLocked(): void {
     if (!this.#controllerOperationMutex.isLocked()) {
       throw new Error(KeyringControllerError.ControllerLockRequired);
     }

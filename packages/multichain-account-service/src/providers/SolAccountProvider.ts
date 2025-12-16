@@ -1,4 +1,5 @@
-import { assertIsBip44Account, type Bip44Account } from '@metamask/account-api';
+import { assertIsBip44Account } from '@metamask/account-api';
+import type { Bip44Account } from '@metamask/account-api';
 import type { TraceCallback } from '@metamask/controller-utils';
 import type { EntropySourceId, KeyringAccount } from '@metamask/keyring-api';
 import { SolScope } from '@metamask/keyring-api';
@@ -10,10 +11,8 @@ import { KeyringTypes } from '@metamask/keyring-controller';
 import type { InternalAccount } from '@metamask/keyring-internal-api';
 import type { SnapId } from '@metamask/snaps-sdk';
 
-import {
-  SnapAccountProvider,
-  type SnapAccountProviderConfig,
-} from './SnapAccountProvider';
+import { SnapAccountProvider } from './SnapAccountProvider';
+import type { SnapAccountProviderConfig } from './SnapAccountProvider';
 import { withRetry, withTimeout } from './utils';
 import { traceFallback } from '../analytics';
 import { TraceName } from '../constants/traces';
@@ -21,7 +20,20 @@ import type { MultichainAccountServiceMessenger } from '../types';
 
 export type SolAccountProviderConfig = SnapAccountProviderConfig;
 
-export const SOL_ACCOUNT_PROVIDER_NAME = 'Solana' as const;
+export const SOL_ACCOUNT_PROVIDER_NAME = 'Solana';
+
+export const SOL_ACCOUNT_PROVIDER_DEFAULT_CONFIG: SnapAccountProviderConfig = {
+  maxConcurrency: 3,
+  discovery: {
+    enabled: true,
+    timeoutMs: 2000,
+    maxAttempts: 3,
+    backOffMs: 1000,
+  },
+  createAccounts: {
+    timeoutMs: 3000,
+  },
+};
 
 export class SolAccountProvider extends SnapAccountProvider {
   static NAME = SOL_ACCOUNT_PROVIDER_NAME;
@@ -30,17 +42,7 @@ export class SolAccountProvider extends SnapAccountProvider {
 
   constructor(
     messenger: MultichainAccountServiceMessenger,
-    config: SolAccountProviderConfig = {
-      maxConcurrency: 3,
-      discovery: {
-        timeoutMs: 2000,
-        maxAttempts: 3,
-        backOffMs: 1000,
-      },
-      createAccounts: {
-        timeoutMs: 3000,
-      },
-    },
+    config: SolAccountProviderConfig = SOL_ACCOUNT_PROVIDER_DEFAULT_CONFIG,
     trace: TraceCallback = traceFallback,
   ) {
     super(SolAccountProvider.SOLANA_SNAP_ID, messenger, config, trace);
@@ -118,6 +120,10 @@ export class SolAccountProvider extends SnapAccountProvider {
         },
       },
       async () => {
+        if (!this.config.discovery.enabled) {
+          return [];
+        }
+
         const discoveredAccounts = await withRetry(
           () =>
             withTimeout(

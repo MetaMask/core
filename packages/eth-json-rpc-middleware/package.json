@@ -1,6 +1,6 @@
 {
   "name": "@metamask/eth-json-rpc-middleware",
-  "version": "22.0.0",
+  "version": "22.0.1",
   "description": "Ethereum-related json-rpc-engine middleware",
   "keywords": [
     "MetaMask",
@@ -70,7 +70,7 @@
   "devDependencies": {
     "@metamask/auto-changelog": "^3.4.4",
     "@metamask/error-reporting-service": "^3.0.0",
-    "@metamask/network-controller": "^26.0.0",
+    "@metamask/network-controller": "^27.0.0",
     "@ts-bridge/cli": "^0.6.4",
     "@types/deep-freeze-strict": "^1.1.0",
     "@types/jest": "^27.4.1",

@@ -8,8 +8,8 @@ import {
   BtcMethod,
   EthMethod,
   SolMethod,
-  type KeyringAccountType,
 } from '@metamask/keyring-api';
+import type { KeyringAccountType } from '@metamask/keyring-api';
 import { KeyringTypes } from '@metamask/keyring-controller';
 import type { InternalAccount } from '@metamask/keyring-internal-api';
 

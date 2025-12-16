@@ -10,6 +10,7 @@
 // format, but also check the presence of certain files as well.
 
 /** @type {import('@yarnpkg/types')} */
+const { hasProperty } = require('@metamask/utils');
 const { defineConfig } = require('@yarnpkg/types');
 const { readFile } = require('fs/promises');
 const { get } = require('lodash');
@@ -51,7 +52,8 @@ module.exports = defineConfig({
       const workspaceBasename = getWorkspaceBasename(workspace);
       const isChildWorkspace = workspace.cwd !== '.';
       const isPrivate =
-        'private' in workspace.manifest && workspace.manifest.private === true;
+        hasProperty(workspace.manifest, 'private') &&
+        workspace.manifest.private === true;
       const dependenciesByIdentAndType = getDependenciesByIdentAndType(
         Yarn.dependencies({ workspace }),
       );
@@ -390,7 +392,7 @@ async function workspaceFileExists(workspace, path) {
   try {
     await getWorkspaceFile(workspace, path);
   } catch (error) {
-    if ('code' in error && error.code === 'ENOENT') {
+    if (hasProperty(error, 'code') && error.code === 'ENOENT') {
       return false;
     }
     throw error;
@@ -834,8 +836,8 @@ function expectDependenciesForControllersAndServices(
 /**
  * Filter out dependency ranges which are not to be considered in `expectConsistentDependenciesAndDevDependencies`.
  *
- * @param {string} dependencyIdent - The dependency being filtered for
- * @param {Map<string, Dependency>} dependenciesByRange - Dependencies by range
+ * @param {string} dependencyIdent - The dependency being filtered for.
+ * @param {Map<string, Dependency>} dependenciesByRange - Dependencies by range.
  * @returns {Map<string, Dependency>} The resulting map.
  */
 function getInconsistentDependenciesAndDevDependencies(
