@@ -203,36 +203,22 @@ export const selectIsLendingEligible = (state: EarnControllerState): boolean =>
   state.lending.isEligible;
 
 /**
- * Selects the entire non-EVM staking state.
+ * Selects the TRON staking state.
  *
  * @param state - The EarnController state.
- * @returns The non-EVM staking state.
+ * @returns The TRON staking state.
  */
-export const selectNonEvmStaking = (
+export const selectTronStaking = (
   state: EarnControllerState,
-): EarnControllerState['non_evm_staking'] => state.non_evm_staking;
+): EarnControllerState['tron_staking'] => state.tron_staking;
 
 /**
- * Selects the non-EVM staking state for a specific chain.
+ * Selects the APY for TRON staking.
  *
- * @param chainId - The chain identifier.
- * @returns A selector that returns the chain-specific staking state.
+ * @param state - The EarnController state.
+ * @returns The APY for TRON staking, or undefined if not available.
  */
-export const selectNonEvmStakingForChainId = (chainId: string) =>
-  createSelector(
-    selectNonEvmStaking,
-    (nonEvmStaking): EarnControllerState['non_evm_staking'][string] =>
-      nonEvmStaking[chainId],
-  );
-
-/**
- * Selects the APY for a specific non-EVM staking chain.
- *
- * @param chainId - The chain identifier.
- * @returns A selector that returns the APY for the specified chain.
- */
-export const selectNonEvmStakingApyForChainId = (chainId: string) =>
-  createSelector(
-    selectNonEvmStakingForChainId(chainId),
-    (chainState): string | undefined => chainState?.apy,
-  );
+export const selectTronStakingApy = createSelector(
+  selectTronStaking,
+  (tronStaking): string | undefined => tronStaking?.apy,
+);

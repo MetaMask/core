@@ -808,13 +808,13 @@ describe('EarnController', () => {
       // Verify that default lending state is still present
       expect(controller.state.lending).toBeDefined();
 
-      // Verify that default non_evm_staking state is still present
-      expect(controller.state.non_evm_staking).toStrictEqual({});
+      // Verify that default tron_staking state is still present
+      expect(controller.state.tron_staking).toBeNull();
     });
 
-    it('initializes with empty non_evm_staking state by default', async () => {
+    it('initializes with null tron_staking state by default', async () => {
       const { controller } = await setupController();
-      expect(controller.state.non_evm_staking).toStrictEqual({});
+      expect(controller.state.tron_staking).toBeNull();
     });
 
     it('initializes API service with default environment (PROD)', async () => {
@@ -2593,22 +2593,17 @@ describe('EarnController', () => {
     });
   });
 
-  describe('Non-EVM Staking', () => {
-    describe('refreshNonEvmStakingApy', () => {
+  describe('TRON Staking', () => {
+    describe('refreshTronStakingApy', () => {
       it('updates state with fetched APY data', async () => {
         const { controller } = await setupController();
         const mockApy = '3.35';
         const mockApyFetcher = jest.fn().mockResolvedValue(mockApy);
 
-        await controller.refreshNonEvmStakingApy({
-          chainId: 'tron:0x2b6653dc',
-          apyFetcher: mockApyFetcher,
-        });
+        await controller.refreshTronStakingApy(mockApyFetcher);
 
         expect(mockApyFetcher).toHaveBeenCalledTimes(1);
-        expect(
-          controller.state.non_evm_staking['tron:0x2b6653dc'],
-        ).toStrictEqual(
+        expect(controller.state.tron_staking).toStrictEqual(
           expect.objectContaining({
             apy: '3.35',
             lastUpdated: expect.any(Number),
@@ -2616,51 +2611,25 @@ describe('EarnController', () => {
         );
       });
 
-      it('updates state for multiple chains independently', async () => {
+      it('overwrites existing APY data', async () => {
         const { controller } = await setupController();
 
-        await controller.refreshNonEvmStakingApy({
-          chainId: 'tron:0x2b6653dc',
-          apyFetcher: jest.fn().mockResolvedValue('3.35'),
-        });
-
-        await controller.refreshNonEvmStakingApy({
-          chainId: 'solana:mainnet',
-          apyFetcher: jest.fn().mockResolvedValue('7.5'),
-        });
-
-        expect(controller.state.non_evm_staking['tron:0x2b6653dc'].apy).toBe(
-          '3.35',
+        await controller.refreshTronStakingApy(
+          jest.fn().mockResolvedValue('3.35'),
         );
-        expect(controller.state.non_evm_staking['solana:mainnet'].apy).toBe(
-          '7.5',
-        );
-      });
 
-      it('overwrites existing APY data for the same chain', async () => {
-        const { controller } = await setupController();
-
-        await controller.refreshNonEvmStakingApy({
-          chainId: 'tron:0x2b6653dc',
-          apyFetcher: jest.fn().mockResolvedValue('3.35'),
-        });
-
-        const firstLastUpdated =
-          controller.state.non_evm_staking['tron:0x2b6653dc'].lastUpdated;
+        const firstLastUpdated = controller.state.tron_staking?.lastUpdated;
 
         await new Promise((resolve) => setTimeout(resolve, 10));
 
-        await controller.refreshNonEvmStakingApy({
-          chainId: 'tron:0x2b6653dc',
-          apyFetcher: jest.fn().mockResolvedValue('4.0'),
-        });
-
-        expect(controller.state.non_evm_staking['tron:0x2b6653dc'].apy).toBe(
-          '4.0',
+        await controller.refreshTronStakingApy(
+          jest.fn().mockResolvedValue('4.0'),
         );
-        expect(
-          controller.state.non_evm_staking['tron:0x2b6653dc'].lastUpdated,
-        ).toBeGreaterThan(firstLastUpdated);
+
+        expect(controller.state.tron_staking?.apy).toBe('4.0');
+        expect(controller.state.tron_staking?.lastUpdated).toBeGreaterThan(
+          firstLastUpdated as number,
+        );
       });
 
       it('handles apyFetcher errors', async () => {
@@ -2669,35 +2638,29 @@ describe('EarnController', () => {
         const mockApyFetcher = jest.fn().mockRejectedValue(mockError);
 
         await expect(
-          controller.refreshNonEvmStakingApy({
-            chainId: 'tron:0x2b6653dc',
-            apyFetcher: mockApyFetcher,
-          }),
+          controller.refreshTronStakingApy(mockApyFetcher),
         ).rejects.toThrow('Failed to fetch APY');
 
-        expect(
-          controller.state.non_evm_staking['tron:0x2b6653dc'],
-        ).toBeUndefined();
+        expect(controller.state.tron_staking).toBeNull();
       });
     });
 
-    describe('getNonEvmStakingApy', () => {
-      it('returns APY for existing chain', async () => {
+    describe('getTronStakingApy', () => {
+      it('returns APY when available', async () => {
         const { controller } = await setupController();
 
-        await controller.refreshNonEvmStakingApy({
-          chainId: 'tron:0x2b6653dc',
-          apyFetcher: jest.fn().mockResolvedValue('3.35'),
-        });
+        await controller.refreshTronStakingApy(
+          jest.fn().mockResolvedValue('3.35'),
+        );
 
-        const result = controller.getNonEvmStakingApy('tron:0x2b6653dc');
+        const result = controller.getTronStakingApy();
         expect(result).toBe('3.35');
       });
 
-      it('returns undefined for non-existent chain', async () => {
+      it('returns undefined when not available', async () => {
         const { controller } = await setupController();
 
-        const result = controller.getNonEvmStakingApy('unknown:chain');
+        const result = controller.getTronStakingApy();
         expect(result).toBeUndefined();
       });
     });
@@ -2729,10 +2692,10 @@ describe('EarnController', () => {
         'includeInStateLogs',
       );
 
-      // Compare `pooled_staking` and `non_evm_staking` separately to minimize size of snapshot
+      // Compare `pooled_staking` and `tron_staking` separately to minimize size of snapshot
       const {
         pooled_staking: derivedPooledStaking,
-        non_evm_staking: derivedNonEvmStaking,
+        tron_staking: derivedTronStaking,
         ...derivedStateWithoutPooledStaking
       } = derivedState;
       expect(derivedPooledStaking).toStrictEqual({
@@ -2752,7 +2715,7 @@ describe('EarnController', () => {
         },
         isEligible: true,
       });
-      expect(derivedNonEvmStaking).toStrictEqual({});
+      expect(derivedTronStaking).toBeNull();
       expect(derivedStateWithoutPooledStaking).toMatchInlineSnapshot(`
         Object {
           "lastUpdated": 0,
@@ -2822,10 +2785,10 @@ describe('EarnController', () => {
         'persist',
       );
 
-      // Compare `pooled_staking` and `non_evm_staking` separately to minimize size of snapshot
+      // Compare `pooled_staking` and `tron_staking` separately to minimize size of snapshot
       const {
         pooled_staking: derivedPooledStaking,
-        non_evm_staking: derivedNonEvmStaking,
+        tron_staking: derivedTronStaking,
         ...derivedStateWithoutPooledStaking
       } = derivedState;
       expect(derivedPooledStaking).toStrictEqual({
@@ -2845,7 +2808,7 @@ describe('EarnController', () => {
         },
         isEligible: true,
       });
-      expect(derivedNonEvmStaking).toStrictEqual({});
+      expect(derivedTronStaking).toBeNull();
       expect(derivedStateWithoutPooledStaking).toMatchInlineSnapshot(`
         Object {
           "lending": Object {
@@ -2914,10 +2877,10 @@ describe('EarnController', () => {
         'usedInUi',
       );
 
-      // Compare `pooled_staking` and `non_evm_staking` separately to minimize size of snapshot
+      // Compare `pooled_staking` and `tron_staking` separately to minimize size of snapshot
       const {
         pooled_staking: derivedPooledStaking,
-        non_evm_staking: derivedNonEvmStaking,
+        tron_staking: derivedTronStaking,
         ...derivedStateWithoutPooledStaking
       } = derivedState;
       expect(derivedPooledStaking).toStrictEqual({
@@ -2937,7 +2900,7 @@ describe('EarnController', () => {
         },
         isEligible: true,
       });
-      expect(derivedNonEvmStaking).toStrictEqual({});
+      expect(derivedTronStaking).toBeNull();
       expect(derivedStateWithoutPooledStaking).toMatchInlineSnapshot(`
         Object {
           "lending": Object {

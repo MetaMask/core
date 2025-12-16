@@ -93,23 +93,14 @@ export type LendingState = {
 };
 
 /**
- * State for a single non-EVM staking chain.
- * This is a generic structure that can be used for any non-EVM chain (TRON, Solana, etc.)
+ * State for TRON staking.
  */
-export type NonEvmStakingChainState = {
+export type TronStakingState = {
   /** The annual percentage yield as a decimal string (e.g., "3.35" for 3.35%) */
   apy: string;
   /** Timestamp of when the APY was last fetched */
   lastUpdated: number;
-};
-
-/**
- * State for non-EVM staking across multiple chains.
- * Keyed by chain identifier (string to support non-EVM chain IDs).
- */
-export type NonEvmStakingState = {
-  [chainId: string]: NonEvmStakingChainState;
-};
+} | null;
 
 type StakingTransactionTypes =
   | TransactionType.stakingDeposit
@@ -147,7 +138,7 @@ const earnControllerMetadata: StateMetadata<EarnControllerState> = {
     includeInDebugSnapshot: false,
     usedInUi: true,
   },
-  non_evm_staking: {
+  tron_staking: {
     includeInStateLogs: true,
     persist: true,
     includeInDebugSnapshot: false,
@@ -163,11 +154,10 @@ const earnControllerMetadata: StateMetadata<EarnControllerState> = {
 
 // === State Types ===
 export type EarnControllerState = {
-  // eslint-disable-next-line @typescript-eslint/naming-convention
   pooled_staking: PooledStakingState;
   lending: LendingState;
   // eslint-disable-next-line @typescript-eslint/naming-convention
-  non_evm_staking: NonEvmStakingState;
+  tron_staking: TronStakingState;
   lastUpdated: number;
 };
 
@@ -237,10 +227,7 @@ export const DEFAULT_POOLED_STAKING_CHAIN_STATE = {
   vaultApyAverages: DEFAULT_POOLED_STAKING_VAULT_APY_AVERAGES,
 };
 
-export const DEFAULT_NON_EVM_STAKING_CHAIN_STATE: NonEvmStakingChainState = {
-  apy: '0',
-  lastUpdated: 0,
-};
+export const DEFAULT_TRON_STAKING_STATE: TronStakingState = null;
 
 /**
  * Gets the default state for the EarnController.
@@ -257,7 +244,7 @@ export function getDefaultEarnControllerState(): EarnControllerState {
       positions: [DEFAULT_LENDING_POSITION],
       isEligible: false,
     },
-    non_evm_staking: {},
+    tron_staking: DEFAULT_TRON_STAKING_STATE,
     lastUpdated: 0,
   };
 }
@@ -841,26 +828,19 @@ export class EarnController extends BaseController<
   }
 
   /**
-   * Refreshes the APY for a non-EVM staking chain.
-   * This method that can be used for any non-EVM chain
-   * The consumer provides a fetcher function that returns the APY for the specified chain.
+   * Refreshes the APY for TRON staking.
+   * The consumer provides a fetcher function that returns the APY for TRON.
    *
-   * @param options - The options for refreshing the non-EVM staking APY.
-   * @param options.chainId - The chain identifier.
-   * @param options.apyFetcher - An async function that fetches and returns the APY as a decimal string.
+   * @param apyFetcher - An async function that fetches and returns the APY as a decimal string.
    * @returns A promise that resolves when the APY has been updated.
    */
-  async refreshNonEvmStakingApy({
-    chainId,
-    apyFetcher,
-  }: {
-    chainId: string;
-    apyFetcher: () => Promise<string>;
-  }): Promise<void> {
+  async refreshTronStakingApy(
+    apyFetcher: () => Promise<string>,
+  ): Promise<void> {
     const apy = await apyFetcher();
 
     this.update((state) => {
-      state.non_evm_staking[chainId] = {
+      state.tron_staking = {
         apy,
         lastUpdated: Date.now(),
       };
@@ -868,13 +848,12 @@ export class EarnController extends BaseController<
   }
 
   /**
-   * Gets the non-EVM staking APY for a specific chain.
+   * Gets the TRON staking APY.
    *
-   * @param chainId - The chain identifier.
-   * @returns The APY for the specified chain, or undefined if not found.
+   * @returns The APY for TRON staking, or undefined if not available.
    */
-  getNonEvmStakingApy(chainId: string): string | undefined {
-    return this.state.non_evm_staking[chainId]?.apy;
+  getTronStakingApy(): string | undefined {
+    return this.state.tron_staking?.apy;
   }
 
   /**

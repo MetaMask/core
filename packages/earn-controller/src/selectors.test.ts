@@ -22,9 +22,8 @@ import {
   selectLendingMarketsByChainIdAndOutputTokenAddress,
   selectLendingMarketsByChainIdAndTokenAddress,
   selectIsLendingEligible,
-  selectNonEvmStaking,
-  selectNonEvmStakingForChainId,
-  selectNonEvmStakingApyForChainId,
+  selectTronStaking,
+  selectTronStakingApy,
 } from './selectors';
 
 describe('Earn Controller Selectors', () => {
@@ -138,15 +137,9 @@ describe('Earn Controller Selectors', () => {
       },
       isEligible: false,
     },
-    non_evm_staking: {
-      'tron:0x2b6653dc': {
-        apy: '3.35',
-        lastUpdated: 1718000000000,
-      },
-      'solana:mainnet': {
-        apy: '7.5',
-        lastUpdated: 1718100000000,
-      },
+    tron_staking: {
+      apy: '3.35',
+      lastUpdated: 1718000000000,
     },
     lastUpdated: 0,
   };
@@ -427,74 +420,38 @@ describe('Earn Controller Selectors', () => {
     });
   });
 
-  describe('Non-EVM Staking Selectors', () => {
-    describe('selectNonEvmStaking', () => {
-      it('should return the entire non-EVM staking state', () => {
-        const result = selectNonEvmStaking(mockState);
-        expect(result).toStrictEqual({
-          'tron:0x2b6653dc': {
-            apy: '3.35',
-            lastUpdated: 1718000000000,
-          },
-          'solana:mainnet': {
-            apy: '7.5',
-            lastUpdated: 1718100000000,
-          },
-        });
-      });
-
-      it('should return empty object when no non-EVM staking data exists', () => {
-        const stateWithoutNonEvmStaking = {
-          ...mockState,
-          non_evm_staking: {},
-        };
-        const result = selectNonEvmStaking(stateWithoutNonEvmStaking);
-        expect(result).toStrictEqual({});
-      });
-    });
-
-    describe('selectNonEvmStakingForChainId', () => {
-      it('should return staking state for a specific chain', () => {
-        const result =
-          selectNonEvmStakingForChainId('tron:0x2b6653dc')(mockState);
+  describe('TRON Staking Selectors', () => {
+    describe('selectTronStaking', () => {
+      it('should return the TRON staking state', () => {
+        const result = selectTronStaking(mockState);
         expect(result).toStrictEqual({
           apy: '3.35',
           lastUpdated: 1718000000000,
         });
       });
 
-      it('should return staking state for another chain', () => {
-        const result =
-          selectNonEvmStakingForChainId('solana:mainnet')(mockState);
-        expect(result).toStrictEqual({
-          apy: '7.5',
-          lastUpdated: 1718100000000,
-        });
-      });
-
-      it('should return undefined for non-existent chain', () => {
-        const result =
-          selectNonEvmStakingForChainId('unknown:chain')(mockState);
-        expect(result).toBeUndefined();
+      it('should return null when no TRON staking data exists', () => {
+        const stateWithoutTronStaking = {
+          ...mockState,
+          tron_staking: null,
+        };
+        const result = selectTronStaking(stateWithoutTronStaking);
+        expect(result).toBeNull();
       });
     });
 
-    describe('selectNonEvmStakingApyForChainId', () => {
-      it('should return APY for a specific chain', () => {
-        const result =
-          selectNonEvmStakingApyForChainId('tron:0x2b6653dc')(mockState);
+    describe('selectTronStakingApy', () => {
+      it('should return the TRON staking APY', () => {
+        const result = selectTronStakingApy(mockState);
         expect(result).toBe('3.35');
       });
 
-      it('should return APY for another chain', () => {
-        const result =
-          selectNonEvmStakingApyForChainId('solana:mainnet')(mockState);
-        expect(result).toBe('7.5');
-      });
-
-      it('should return undefined for non-existent chain', () => {
-        const result =
-          selectNonEvmStakingApyForChainId('unknown:chain')(mockState);
+      it('should return undefined when TRON staking is null', () => {
+        const stateWithoutTronStaking = {
+          ...mockState,
+          tron_staking: null,
+        };
+        const result = selectTronStakingApy(stateWithoutTronStaking);
         expect(result).toBeUndefined();
       });
     });
