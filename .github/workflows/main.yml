@@ -44,6 +44,14 @@ jobs:
         run: ${{ steps.download-actionlint.outputs.executable }} -color
         shell: bash
 
+  print-job-status:
+    needs: check-workflows
+    runs-on: ubuntu-latest
+    if: ${{ success() }}
+    steps:
+      - run: echo "${{ job.status }}"
+        shell: bash
+
   analyse-code:
     name: Analyse code
     needs: check-workflows
