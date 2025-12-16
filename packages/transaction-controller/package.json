@@ -65,7 +65,7 @@
     "@metamask/metamask-eth-abis": "^3.1.1",
     "@metamask/network-controller": "^27.0.0",
     "@metamask/nonce-tracker": "^6.0.0",
-    "@metamask/remote-feature-flag-controller": "^4.0.0",
+    "@metamask/remote-feature-flag-controller": "^3.1.0",
     "@metamask/rpc-errors": "^7.0.2",
     "@metamask/utils": "^11.8.1",
     "async-mutex": "^0.5.0",
