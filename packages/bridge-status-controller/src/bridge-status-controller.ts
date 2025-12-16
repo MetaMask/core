@@ -1713,6 +1713,7 @@ export class BridgeStatusController extends StaticIntervalPollingController<Brid
         value: '0x0',
         gas: '0x5208', // Minimal gas for display purposes
         gasPrice: '0x3b9aca00', // 1 Gwei - will be converted to EIP-1559 fees if network supports it
+        skipInitialGasEstimate: true,
       };
 
       const { transactionMeta: txMetaPromise } = await this.#addTransactionFn(
@@ -1924,21 +1925,6 @@ export class BridgeStatusController extends StaticIntervalPollingController<Brid
       return;
     }
 
-    const selectedAccount = this.messenger.call(
-      'AccountsController:getAccountByAddress',
-      historyItem.account,
-    );
-
-    const { transactions } = this.messenger.call(
-      'TransactionController:getState',
-    );
-    const txMeta = transactions?.find(
-      (tx: TransactionMeta) => tx.id === txMetaId,
-    );
-    const approvalTxMeta = transactions?.find(
-      (tx: TransactionMeta) => tx.id === historyItem.approvalTxId,
-    );
-
     const requestParamProperties = getRequestParamFromHistory(historyItem);
     // Always publish StatusValidationFailed event, regardless of featureId
     if (eventName === UnifiedSwapBridgeEventName.StatusValidationFailed) {
@@ -1962,6 +1948,21 @@ export class BridgeStatusController extends StaticIntervalPollingController<Brid
     if (historyItem.featureId) {
       return;
     }
+
+    const selectedAccount = this.messenger.call(
+      'AccountsController:getAccountByAddress',
+      historyItem.account,
+    );
+
+    const { transactions } = this.messenger.call(
+      'TransactionController:getState',
+    );
+    const txMeta = transactions?.find(
+      (tx: TransactionMeta) => tx.id === txMetaId,
+    );
+    const approvalTxMeta = transactions?.find(
+      (tx: TransactionMeta) => tx.id === historyItem.approvalTxId,
+    );
 
     const requiredEventProperties = {
       ...baseProperties,
