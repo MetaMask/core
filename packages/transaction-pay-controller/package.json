@@ -1,6 +1,6 @@
 {
   "name": "@metamask/transaction-pay-controller",
-  "version": "10.5.0",
+  "version": "10.6.0",
   "description": "Manages alternate payment strategies to provide required funds for transactions in MetaMask",
   "keywords": [
     "MetaMask",
@@ -53,8 +53,8 @@
     "@ethersproject/contracts": "^5.7.0",
     "@metamask/assets-controllers": "^94.1.0",
     "@metamask/base-controller": "^9.0.0",
-    "@metamask/bridge-controller": "^64.1.0",
-    "@metamask/bridge-status-controller": "^64.1.0",
+    "@metamask/bridge-controller": "^64.2.0",
+    "@metamask/bridge-status-controller": "^64.2.0",
     "@metamask/controller-utils": "^11.16.0",
     "@metamask/gas-fee-controller": "^26.0.0",
     "@metamask/messenger": "^0.3.0",
