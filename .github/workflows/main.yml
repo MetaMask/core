@@ -33,7 +33,7 @@ jobs:
     name: Check workflows
     needs:
       - check-skip-merge-queue
-    if: github.event_name != 'merge_group' || needs.check-skip-merge-queue.outputs.skip-merge-queue != 'true'
+    if: always() && github.event_name != 'merge_group' || needs.check-skip-merge-queue.outputs.skip-merge-queue != 'true'
     runs-on: ubuntu-latest
     steps:
       - uses: actions/checkout@v5
@@ -47,10 +47,7 @@ jobs:
 
   analyse-code:
     name: Analyse code
-    needs:
-      - check-workflows
-      - check-skip-merge-queue
-    if: github.event_name != 'merge_group' || needs.check-skip-merge-queue.outputs.skip-merge-queue != 'true'
+    needs: check-workflows
     uses: MetaMask/action-security-code-scanner/.github/workflows/security-scan.yml@v2
     with:
       scanner-ref: v2
@@ -84,18 +81,12 @@ jobs:
 
   lint-build-test:
     name: Lint, build, and test
-    needs:
-      - check-workflows
-      - check-skip-merge-queue
-    if: github.event_name != 'merge_group' || needs.check-skip-merge-queue.outputs.skip-merge-queue != 'true'
+    needs: check-workflows
     uses: ./.github/workflows/lint-build-test.yml
 
   check-release:
     name: Check release
-    needs:
-      - check-workflows
-      - check-skip-merge-queue
-    if: github.event_name != 'merge_group' || needs.check-skip-merge-queue.outputs.skip-merge-queue != 'true'
+    needs: check-workflows
     runs-on: ubuntu-latest
     permissions:
       contents: read
