@@ -203,4 +203,3 @@ function getService({
 
   return { service, rootMessenger, messenger };
 }
-

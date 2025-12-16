@@ -6,9 +6,9 @@ import type {
   MessengerEvents,
 } from '@metamask/messenger';
 
-import type { RampsServiceGetGeolocationAction } from './RampsService-method-action-types';
 import type { RampsControllerMessenger } from './RampsController';
 import { RampsController } from './RampsController';
+import type { RampsServiceGetGeolocationAction } from './RampsService-method-action-types';
 
 describe('RampsController', () => {
   describe('constructor', () => {
@@ -134,8 +134,7 @@ describe('RampsController', () => {
  */
 type RootMessenger = Messenger<
   MockAnyNamespace,
-  | MessengerActions<RampsControllerMessenger>
-  | RampsServiceGetGeolocationAction,
+  MessengerActions<RampsControllerMessenger> | RampsServiceGetGeolocationAction,
   MessengerEvents<RampsControllerMessenger>
 >;
 

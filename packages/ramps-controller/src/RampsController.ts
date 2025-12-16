@@ -97,12 +97,11 @@ type AllowedEvents = never;
  * The messenger restricted to actions and events accessed by
  * {@link RampsController}.
  */
-// eslint-disable-next-line @typescript-eslint/no-explicit-any
 export type RampsControllerMessenger = Messenger<
   typeof controllerName,
   RampsControllerActions | AllowedActions,
   RampsControllerEvents | AllowedEvents,
-  any
+  string
 >;
 
 // === CONTROLLER DEFINITION ===

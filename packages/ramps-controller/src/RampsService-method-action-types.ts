@@ -20,4 +20,3 @@ export type RampsServiceGetGeolocationAction = {
  * Union of all RampsService action types.
  */
 export type RampsServiceMethodActions = RampsServiceGetGeolocationAction;
-

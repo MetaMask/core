@@ -52,12 +52,11 @@ type AllowedEvents = never;
  * The messenger which is restricted to actions and events accessed by
  * {@link RampsService}.
  */
-// eslint-disable-next-line @typescript-eslint/no-explicit-any
 export type RampsServiceMessenger = Messenger<
   typeof serviceName,
   RampsServiceActions | AllowedActions,
   RampsServiceEvents | AllowedEvents,
-  any
+  string
 >;
 
 // === SERVICE DEFINITION ===
@@ -273,4 +272,3 @@ export class RampsService {
     throw new Error('Malformed response received from geolocation API');
   }
 }
-
