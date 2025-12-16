@@ -13,15 +13,16 @@ concurrency:
 jobs:
   check-skip-merge-queue:
     name: Check if pull request can skip merge queue
-    if: github.event_name == 'merge_group'
     runs-on: ubuntu-latest
     outputs:
       skip-merge-queue: ${{ steps.check-skip-merge-queue.outputs.up-to-date }}
     steps:
       - name: Checkout repository
         uses: actions/checkout@v6
+        if: github.event_name == 'merge_group'
       - name: Check pull request merge queue status
         id: check-skip-merge-queue
+        if: github.event_name == 'merge_group'
         uses: ./.github/actions/check-merge-queue
         with:
           head-ref: ${{ github.event.merge_group.head_ref }}
@@ -32,7 +33,7 @@ jobs:
     name: Check workflows
     needs:
       - check-skip-merge-queue
-    if: always() && github.event_name != 'merge_group' || needs.check-skip-merge-queue.outputs.skip-merge-queue != 'true'
+    if: github.event_name != 'merge_group' || needs.check-skip-merge-queue.outputs.skip-merge-queue != 'true'
     runs-on: ubuntu-latest
     steps:
       - uses: actions/checkout@v5
