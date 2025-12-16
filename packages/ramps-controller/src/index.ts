@@ -11,9 +11,9 @@ export {
   getDefaultRampsControllerState,
 } from './RampsController';
 export type {
-  OnRampServiceActions,
-  OnRampServiceEvents,
-  OnRampServiceMessenger,
-} from './OnRampService';
-export { OnRampService, OnRampEnvironment } from './OnRampService';
-export type { OnRampServiceGetGeolocationAction } from './OnRampService-method-action-types';
+  RampsServiceActions,
+  RampsServiceEvents,
+  RampsServiceMessenger,
+} from './RampsService';
+export { RampsService, RampsEnvironment } from './RampsService';
+export type { RampsServiceGetGeolocationAction } from './RampsService-method-action-types';
