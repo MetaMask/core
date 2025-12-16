@@ -278,7 +278,6 @@ export class RemoteFeatureFlagController extends BaseController<
   ): Promise<FeatureFlags> {
     const processedRemoteFeatureFlags: FeatureFlags = {};
     const metaMetricsId = this.#getMetaMetricsId();
-    const thresholdValue = generateDeterministicRandomNumber(metaMetricsId);
 
     for (const [
       remoteFeatureFlagName,
@@ -291,7 +290,8 @@ export class RemoteFeatureFlagController extends BaseController<
         continue;
       }
 
-      if (Array.isArray(processedValue) && thresholdValue) {
+      if (Array.isArray(processedValue)) {
+        const thresholdValue = generateDeterministicRandomNumber(metaMetricsId + remoteFeatureFlagName);
         const selectedGroup = processedValue.find(
           (featureFlag): featureFlag is FeatureFlagScopeValue => {
             if (!isFeatureFlagWithScopeValue(featureFlag)) {
