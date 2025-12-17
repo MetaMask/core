@@ -1,0 +1,77 @@
+name: Check merge queue changelogs
+description: Check if the changelog was incorrectly merged in a merge queue
+  pull request.
+
+inputs:
+  head-ref:
+    description: The head ref of the pull request.
+    required: true
+  base-ref:
+    description: The base ref to compare against.
+    required: true
+  github-token:
+    description: The GitHub token to use for authentication.
+    required: true
+
+runs:
+  using: composite
+  steps:
+    - name: Checkout repository
+      uses: MetaMask/action-checkout-and-setup@v2
+      with:
+        is-high-risk-environment: false
+        fetch-depth: 0
+
+    - name: Get pull request number
+      id: pr-number
+      uses: actions/github-script@v8
+      env:
+        HEAD_REF: ${{ inputs.head-ref }}
+      with:
+        github-token: ${{ inputs.github-token }}
+        script: |
+          const { HEAD_REF } = process.env;
+          const match = HEAD_REF.match(/\/pr-([0-9]+)-/u);
+          if (!match) {
+            return core.setFailed(`Could not extract pull request number from head ref: "${HEAD_REF}".`);
+          }
+
+          const number = parseInt(match[1], 10);
+          core.setOutput('pr-number', number);
+
+    - name: Get pull request branch
+      id: pr-branch
+      shell: bash
+      env:
+        REPOSITORY: ${{ github.repository }}
+        PR_NUMBER: ${{ steps.pr-number.outputs.pr-number }}
+      run: |
+        BRANCH=$(gh api "/repos/${REPOSITORY}/pulls/${PR_NUMBER} --jq=.head.ref")
+        echo "pr-branch=$BRANCH" >> "$GITHUB_OUTPUT"
+
+    - name: Check changelog changes
+      id: changelog-check
+      shell: bash
+      env:
+        REF: ${{ inputs.ref }}
+        BASE_REF: ${{ inputs.base-ref }}
+        PR_BRANCH: ${{ steps.pr-branch.outputs.pr-branch }}
+        REPOSITORY: ${{ github.repository }}
+        ACTION_PATH: ${{ github.action_path }}
+      run: |
+        set -euo pipefail
+
+        UPDATED_CHANGELOGS=$(git diff origin/"$BASE_REF"...origin/"$PR_BRANCH" --name-only | grep -E 'CHANGELOG\.md$' || true)
+        if [ -n "$UPDATED_CHANGELOGS" ]; then
+          for FILE in $UPDATED_CHANGELOGS; do
+            git show origin/"$BASE_REF":"$FILE" > /tmp/base-changelog.md
+            git show origin/"$PR_BRANCH":"$FILE" > /tmp/pr-changelog.md
+
+            node "${ACTION_PATH}/check-changelog-diff.cjs" \
+              /tmp/base-changelog.md \
+              /tmp/pr-changelog.md \
+              "$FILE"
+          done
+        else
+          echo "No CHANGELOG.md files were modified in this PR."
+        fi
