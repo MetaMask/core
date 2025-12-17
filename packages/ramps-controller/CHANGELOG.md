@@ -9,10 +9,6 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [2.0.0]
 
-### Uncategorized
-
-- chore(ramps-controller): fix changelog formatting ([#7530](https://github.com/MetaMask/core/pull/7530))
-
 ### Changed
 
 - **BREAKING:** Rename `OnRampService` to `RampsService` and `OnRampEnvironment` to `RampsEnvironment` ([#7502](https://github.com/MetaMask/core/pull/7502))
