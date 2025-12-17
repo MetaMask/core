@@ -17,6 +17,10 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 - Bump `@metamask/eth-json-rpc-middleware` from `^22.0.0` to `^22.0.1` ([#7330](https://github.com/MetaMask/core/pull/7330))
 
+### Fixed
+
+- Ensure `get1559CompatibilityWithNetworkClientId` updates network metadata with EIP-1559 compatibility data missing ([#7532](https://github.com/MetaMask/core/pull/7532))
+
 ## [27.0.0]
 
 ### Added
