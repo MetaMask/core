@@ -6,9 +6,9 @@ import type {
   MessengerEvents,
 } from '@metamask/messenger';
 
-import type { OnRampServiceGetGeolocationAction } from './OnRampService-method-action-types';
 import type { RampsControllerMessenger } from './RampsController';
 import { RampsController } from './RampsController';
+import type { RampsServiceGetGeolocationAction } from './RampsService-method-action-types';
 
 describe('RampsController', () => {
   describe('constructor', () => {
@@ -116,7 +116,7 @@ describe('RampsController', () => {
     it('updates geolocation state when geolocation is fetched', async () => {
       await withController(async ({ controller, rootMessenger }) => {
         rootMessenger.registerActionHandler(
-          'OnRampService:getGeolocation',
+          'RampsService:getGeolocation',
           async () => 'US',
         );
 
@@ -134,8 +134,7 @@ describe('RampsController', () => {
  */
 type RootMessenger = Messenger<
   MockAnyNamespace,
-  | MessengerActions<RampsControllerMessenger>
-  | OnRampServiceGetGeolocationAction,
+  MessengerActions<RampsControllerMessenger> | RampsServiceGetGeolocationAction,
   MessengerEvents<RampsControllerMessenger>
 >;
 
@@ -179,7 +178,7 @@ function getMessenger(rootMessenger: RootMessenger): RampsControllerMessenger {
   });
   rootMessenger.delegate({
     messenger,
-    actions: ['OnRampService:getGeolocation'],
+    actions: ['RampsService:getGeolocation'],
   });
   return messenger;
 }
