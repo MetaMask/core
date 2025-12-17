@@ -7,9 +7,11 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+## [22.0.0]
+
 ### Changed
 
-- **BREAKING**: The controller now reads feature flags directly from `RemoteFeatureFlagController` via the messenger instead of using the `getFeatureFlags` callback
+- **BREAKING**: The controller now reads feature flags directly from `RemoteFeatureFlagController` via the messenger instead of using the `getFeatureFlags` callback ([#550](https://github.com/MetaMask/smart-transactions-controller/pull/550))
   - Clients must configure the following as allowed actions in the controller messenger:
     - `RemoteFeatureFlagController:getState`
     - `ErrorReportingService:captureException` (for reporting validation errors to Sentry)
@@ -690,7 +692,8 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 - Add initial SmartTransactionsController ([#1](https://github.com/MetaMask/smart-transactions-controller/pull/1))
 - Initial commit
 
-[Unreleased]: https://github.com/MetaMask/smart-transactions-controller/compare/v21.1.0...HEAD
+[Unreleased]: https://github.com/MetaMask/smart-transactions-controller/compare/v22.0.0...HEAD
+[22.0.0]: https://github.com/MetaMask/smart-transactions-controller/compare/v21.1.0...v22.0.0
 [21.1.0]: https://github.com/MetaMask/smart-transactions-controller/compare/v21.0.0...v21.1.0
 [21.0.0]: https://github.com/MetaMask/smart-transactions-controller/compare/v20.1.0...v21.0.0
 [20.1.0]: https://github.com/MetaMask/smart-transactions-controller/compare/v20.0.0...v20.1.0
