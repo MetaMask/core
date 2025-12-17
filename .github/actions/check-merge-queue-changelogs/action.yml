@@ -26,14 +26,13 @@ runs:
       uses: actions/github-script@v8
       env:
         HEAD_REF: ${{ inputs.head-ref }}
-        EVENT_NAME: ${{ github.event_name }}
       with:
         github-token: ${{ inputs.github-token }}
         script: |
           const { EVENT_NAME, HEAD_REF } = process.env;
 
-          if (EVENT_NAME === 'pull_request') {
-            const prNumber = github.event.pull_request.number;
+          if (context.eventName === 'pull_request') {
+            const prNumber = context.payload.pull_request.number;
             return core.setOutput('pr-number', prNumber);
           }
 
