@@ -394,9 +394,15 @@ export class PendingTransactionTracker {
     return blocksSinceFirstRetry >= requiredBlocksSinceFirstRetry;
   }
 
-  #cleanTransactionToForcePoll(transactionId: string): void {
-    if (this.#transactionToForcePoll?.id === transactionId) {
+  #cleanTransaction(txMeta: TransactionMeta): void {
+    const { hash, id } = txMeta;
+
+    if (this.#transactionToForcePoll?.id === id) {
       this.#transactionToForcePoll = undefined;
+    }
+
+    if (hash) {
+      this.#lastSeenTimestampByHash.delete(hash);
     }
   }
 
@@ -492,8 +498,11 @@ export class PendingTransactionTracker {
 
     this.#log('Transaction confirmed', id);
 
-    if (this.#transactionToForcePoll) {
-      this.#cleanTransactionToForcePoll(txMeta.id);
+    const isForcePollTransaction = this.#transactionToForcePoll?.id === id;
+
+    this.#cleanTransaction(txMeta);
+
+    if (isForcePollTransaction) {
       this.hub.emit('transaction-confirmed', txMeta);
       return;
     }
@@ -709,13 +718,13 @@ export class PendingTransactionTracker {
 
   #failTransaction(txMeta: TransactionMeta, error: Error): void {
     this.#log('Transaction failed', txMeta.id, error);
-    this.#cleanTransactionToForcePoll(txMeta.id);
+    this.#cleanTransaction(txMeta);
     this.hub.emit('transaction-failed', txMeta, error);
   }
 
   #dropTransaction(txMeta: TransactionMeta): void {
     this.#log('Transaction dropped', txMeta.id);
-    this.#cleanTransactionToForcePoll(txMeta.id);
+    this.#cleanTransaction(txMeta);
     this.hub.emit('transaction-dropped', txMeta);
   }
 
