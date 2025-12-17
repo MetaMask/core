@@ -293,7 +293,8 @@ export class RemoteFeatureFlagController extends BaseController<
 
       if (Array.isArray(processedValue)) {
         const deterministicSeed = createDeterministicSeed(
-          metaMetricsId + remoteFeatureFlagName,
+          metaMetricsId,
+          remoteFeatureFlagName,
         );
         const thresholdValue =
           generateDeterministicRandomNumber(deterministicSeed);

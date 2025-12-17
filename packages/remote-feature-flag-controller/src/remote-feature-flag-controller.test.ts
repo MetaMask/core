@@ -350,12 +350,28 @@ describe('RemoteFeatureFlagController', () => {
       // Arrange
       const mockFlags = {
         featureA: [
-          { name: 'groupA1', scope: { type: 'threshold', value: 0.5 }, value: 'A1' },
-          { name: 'groupA2', scope: { type: 'threshold', value: 1.0 }, value: 'A2' },
+          {
+            name: 'groupA1',
+            scope: { type: 'threshold', value: 0.5 },
+            value: 'A1',
+          },
+          {
+            name: 'groupA2',
+            scope: { type: 'threshold', value: 1.0 },
+            value: 'A2',
+          },
         ],
         featureB: [
-          { name: 'groupB1', scope: { type: 'threshold', value: 0.5 }, value: 'B1' },
-          { name: 'groupB2', scope: { type: 'threshold', value: 1.0 }, value: 'B2' },
+          {
+            name: 'groupB1',
+            scope: { type: 'threshold', value: 0.5 },
+            value: 'B1',
+          },
+          {
+            name: 'groupB2',
+            scope: { type: 'threshold', value: 1.0 },
+            value: 'B2',
+          },
         ],
       };
       const clientConfigApiService = buildClientConfigApiService({
@@ -382,8 +398,16 @@ describe('RemoteFeatureFlagController', () => {
       // Arrange
       const mockFlags = {
         testFlag: [
-          { name: 'control', scope: { type: 'threshold', value: 0.5 }, value: false },
-          { name: 'treatment', scope: { type: 'threshold', value: 1.0 }, value: true },
+          {
+            name: 'control',
+            scope: { type: 'threshold', value: 0.5 },
+            value: false,
+          },
+          {
+            name: 'treatment',
+            scope: { type: 'threshold', value: 1.0 },
+            value: true,
+          },
         ],
       };
       const clientConfigApiService = buildClientConfigApiService({

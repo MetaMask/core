@@ -45,25 +45,27 @@ describe('user-segmentation-utils', () => {
   describe('createDeterministicSeed', () => {
     it('generates deterministic hash from same input', () => {
       // Arrange
-      const seed = 'testSeed123';
+      const metaMetricsId = 'f9e8d7c6-b5a4-4210-9876-543210fedcba';
+      const flagName = 'testFlag';
 
       // Act
-      const hash1 = createDeterministicSeed(seed);
-      const hash2 = createDeterministicSeed(seed);
+      const hash1 = createDeterministicSeed(metaMetricsId, flagName);
+      const hash2 = createDeterministicSeed(metaMetricsId, flagName);
 
       // Assert
       expect(hash1).toBe(hash2);
-      expect(hash1).toMatch(/^0x[0-9a-f]{64}$/);
+      expect(hash1).toMatch(/^0x[0-9a-f]{64}$/u);
     });
 
     it('generates different hashes for different inputs', () => {
       // Arrange
-      const seed1 = 'metaMetricsId123';
-      const seed2 = 'metaMetricsId456';
+      const metaMetricsId1 = 'f9e8d7c6-b5a4-4210-9876-543210fedcba';
+      const metaMetricsId2 = '123e4567-e89b-12d3-a456-426614174000';
+      const flagName = 'testFlag';
 
       // Act
-      const hash1 = createDeterministicSeed(seed1);
-      const hash2 = createDeterministicSeed(seed2);
+      const hash1 = createDeterministicSeed(metaMetricsId1, flagName);
+      const hash2 = createDeterministicSeed(metaMetricsId2, flagName);
 
       // Assert
       expect(hash1).not.toBe(hash2);
@@ -76,26 +78,38 @@ describe('user-segmentation-utils', () => {
       const flagName2 = 'featureB';
 
       // Act
-      const seed1 = createDeterministicSeed(metaMetricsId + flagName1);
-      const seed2 = createDeterministicSeed(metaMetricsId + flagName2);
+      const seed1 = createDeterministicSeed(metaMetricsId, flagName1);
+      const seed2 = createDeterministicSeed(metaMetricsId, flagName2);
 
       // Assert
       expect(seed1).not.toBe(seed2);
-      expect(seed1).toMatch(/^0x[0-9a-f]{64}$/);
-      expect(seed2).toMatch(/^0x[0-9a-f]{64}$/);
+      expect(seed1).toMatch(/^0x[0-9a-f]{64}$/u);
+      expect(seed2).toMatch(/^0x[0-9a-f]{64}$/u);
     });
 
     it('produces valid hex format for generateDeterministicRandomNumber', () => {
       // Arrange
-      const seed = 'anyStringInput123!@#';
+      const metaMetricsId = 'f9e8d7c6-b5a4-4210-9876-543210fedcba';
+      const flagName = 'anyFlagName123';
 
       // Act
-      const hash = createDeterministicSeed(seed);
+      const hash = createDeterministicSeed(metaMetricsId, flagName);
       const randomNumber = generateDeterministicRandomNumber(hash);
 
       // Assert
       expect(randomNumber).toBeGreaterThanOrEqual(0);
       expect(randomNumber).toBeLessThanOrEqual(1);
+    });
+
+    it('throws error when metaMetricsId is empty', () => {
+      // Arrange
+      const emptyMetaMetricsId = '';
+      const flagName = 'testFlag';
+
+      // Act & Assert
+      expect(() => createDeterministicSeed(emptyMetaMetricsId, flagName)).toThrow(
+        'MetaMetrics ID cannot be empty',
+      );
     });
   });
 
