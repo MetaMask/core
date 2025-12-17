@@ -2132,7 +2132,7 @@ export class NetworkController extends BaseController<
     networkClientId: NetworkClientId,
   ): Promise<boolean> {
     let metadata = this.state.networksMetadata[networkClientId];
-    if (metadata === undefined) {
+    if (metadata?.EIPS[1559] === undefined) {
       await this.lookupNetwork(networkClientId);
       metadata = this.state.networksMetadata[networkClientId];
     }
