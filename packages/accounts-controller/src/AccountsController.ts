@@ -19,9 +19,10 @@ import {
 } from '@metamask/keyring-api';
 import { KeyringTypes } from '@metamask/keyring-controller';
 import type {
-  KeyringControllerState,
   KeyringControllerGetKeyringsByTypeAction,
   KeyringControllerStateChangeEvent,
+  KeyringControllerAccountAddedEvent,
+  KeyringControllerAccountRemovedEvent,
   KeyringControllerGetStateAction,
   KeyringObject,
 } from '@metamask/keyring-controller';
@@ -202,6 +203,8 @@ export type AccountsControllerAccountAssetListUpdatedEvent = {
 export type AllowedEvents =
   | SnapStateChange
   | KeyringControllerStateChangeEvent
+  | KeyringControllerAccountRemovedEvent
+  | KeyringControllerAccountAddedEvent
   | SnapKeyringAccountAssetListUpdatedEvent
   | SnapKeyringAccountBalancesUpdatedEvent
   | SnapKeyringAccountTransactionsUpdatedEvent
@@ -254,19 +257,6 @@ export const EMPTY_ACCOUNT = {
     },
     importTime: 0,
   },
-};
-
-/**
- * A patch representing a keyring state change.
- */
-type StatePatch = {
-  previous: Record<string, InternalAccount>;
-  added: {
-    address: string;
-    keyring: KeyringObject;
-  }[];
-  updated: InternalAccount[];
-  removed: InternalAccount[];
 };
 
 /**
@@ -765,164 +755,73 @@ export class AccountsController extends BaseController<
   }
 
   /**
-   * Handles changes in the keyring state, specifically when new accounts are added or removed.
+   * Handle the addition of a new account in a keyring.
    *
-   * @param keyringState - The new state of the keyring controller.
-   * @param keyringState.isUnlocked - True if the keyrings are unlocked, false otherwise.
-   * @param keyringState.keyrings - List of all keyrings.
+   * @param address - The address of the new account.
+   * @param keyring - The keyring object of that new account.
    */
-  #handleOnKeyringStateChange({
-    isUnlocked,
-    keyrings,
-  }: KeyringControllerState): void {
-    // TODO: Change when accountAdded event is added to the keyring controller.
+  #handleOnKeyringAccountAdded(address: string, keyring: KeyringObject): void {
+    let account = this.#getInternalAccountFromAddressAndType(address, keyring);
+    if (account) {
+      // Re-compute the list of accounts everytime, so we can make sure new names
+      // are also considered.
+      const accounts = Object.values(this.state.internalAccounts.accounts);
 
-    // We check for keyrings length to be greater than 0 because the extension client may try execute
-    // submit password twice and clear the keyring state.
-    // https://github.com/MetaMask/KeyringController/blob/2d73a4deed8d013913f6ef0c9f5c0bb7c614f7d3/src/KeyringController.ts#L910
-    if (!isUnlocked || keyrings.length === 0) {
-      return;
-    }
+      // Get next account name available for this given keyring.
+      const name = this.getNextAvailableAccountName(
+        account.metadata.keyring.type,
+        accounts,
+      );
 
-    // State patches.
-    const generatePatch = (): StatePatch => {
-      return {
-        previous: {},
-        added: [],
-        updated: [],
-        removed: [],
+      // If it's the first account, we need to select it.
+      const lastSelected =
+        accounts.length === 0 ? this.#getLastSelectedIndex() : 0;
+
+      // Update account metadata.
+      account = {
+        ...account,
+        metadata: {
+          ...account.metadata,
+          name,
+          importTime: Date.now(),
+          lastSelected,
+        },
       };
-    };
-    const patches = {
-      snap: generatePatch(),
-      normal: generatePatch(),
-    };
 
-    // Gets the patch object based on the keyring type (since Snap accounts and other accounts
-    // are handled differently).
-    const patchOf = (type: string): StatePatch => {
-      if (isSnapKeyringType(type)) {
-        return patches.snap;
-      }
-      return patches.normal;
-    };
-
-    // Create a map (with lower-cased addresses) of all existing accounts.
-    for (const account of this.listMultichainAccounts()) {
-      const address = account.address.toLowerCase();
-      const patch = patchOf(account.metadata.keyring.type);
-
-      patch.previous[address] = account;
+      // Not sure why, but the compiler still infers `account` as possibly undefined.
+      const internalAccount: InternalAccount = account;
+      this.#update(
+        (state) => {
+          state.internalAccounts.accounts[internalAccount.id] = internalAccount;
+        },
+        () => {
+          // Will be published before `:selectedAccountChange` event is published.
+          this.messenger.publish(
+            'AccountsController:accountAdded',
+            internalAccount,
+          );
+        },
+      );
     }
+  }
 
-    // Go over all keyring changes and create patches out of it.
-    const addresses = new Set<string>();
-    for (const keyring of keyrings) {
-      const patch = patchOf(keyring.type);
-
-      for (const accountAddress of keyring.accounts) {
-        // Lower-case address to use it in the `previous` map.
-        const address = accountAddress.toLowerCase();
-        const account = patch.previous[address];
-
-        if (account) {
-          // If the account exists before, this might be an update.
-          patch.updated.push(account);
-        } else {
-          // Otherwise, that's a new account.
-          patch.added.push({
-            address,
-            keyring,
-          });
-        }
-
-        // Keep track of those address to check for removed accounts later.
-        addresses.add(address);
-      }
-    }
-
-    // We might have accounts associated with removed keyrings, so we iterate
-    // over all previous known accounts and check against the keyring addresses.
-    for (const patch of [patches.snap, patches.normal]) {
-      for (const [address, account] of Object.entries(patch.previous)) {
-        // If a previous address is not part of the new addesses, then it got removed.
-        if (!addresses.has(address)) {
-          patch.removed.push(account);
-        }
-      }
-    }
-
-    // Diff that we will use to publish events afterward.
-    const diff: { removed: string[]; added: InternalAccount[] } = {
-      removed: [],
-      added: [],
-    };
-
-    this.#update(
-      (state) => {
-        const { internalAccounts } = state;
-
-        for (const patch of [patches.snap, patches.normal]) {
-          for (const account of patch.removed) {
-            delete internalAccounts.accounts[account.id];
-
-            diff.removed.push(account.id);
-          }
-
-          for (const added of patch.added) {
-            const account = this.#getInternalAccountFromAddressAndType(
-              added.address,
-              added.keyring,
-            );
-
-            if (account) {
-              // Re-compute the list of accounts everytime, so we can make sure new names
-              // are also considered.
-              const accounts = Object.values(
-                internalAccounts.accounts,
-              ) as InternalAccount[];
-
-              // Get next account name available for this given keyring.
-              const name = this.getNextAvailableAccountName(
-                account.metadata.keyring.type,
-                accounts,
-              );
-
-              // If it's the first account, we need to select it.
-              const lastSelected =
-                accounts.length === 0 ? this.#getLastSelectedIndex() : 0;
-
-              internalAccounts.accounts[account.id] = {
-                ...account,
-                metadata: {
-                  ...account.metadata,
-                  name,
-                  importTime: Date.now(),
-                  lastSelected,
-                },
-              };
-
-              diff.added.push(internalAccounts.accounts[account.id]);
-            }
-          }
-        }
-      },
-      // Will get executed after the update, but before re-selecting an account in case
-      // the current one is not valid anymore.
-      () => {
-        // Now publish events
-        for (const id of diff.removed) {
-          this.messenger.publish('AccountsController:accountRemoved', id);
-        }
-
-        for (const account of diff.added) {
-          this.messenger.publish('AccountsController:accountAdded', account);
-        }
-      },
+  /**
+   * Handle the removal of an existing account from a keyring.
+   *
+   * @param address - The address of the new account.
+   */
+  #handleOnKeyringAccountRemoved(address: string): void {
+    const account = this.listMultichainAccounts().find(
+      ({ address: accountAddress }) => accountAddress === address,
     );
 
-    // NOTE: Since we also track "updated" accounts with our patches, we could fire a new event
-    // like `accountUpdated` (we would still need to check if anything really changed on the account).
+    if (account) {
+      this.#update((state) => {
+        delete state.internalAccounts.accounts[account.id];
+      });
+
+      this.messenger.publish('AccountsController:accountRemoved', account.id);
+    }
   }
 
   /**
@@ -1231,8 +1130,13 @@ export class AccountsController extends BaseController<
       this.#handleOnSnapStateChange(snapStateState),
     );
 
-    this.messenger.subscribe('KeyringController:stateChange', (keyringState) =>
-      this.#handleOnKeyringStateChange(keyringState),
+    this.messenger.subscribe('KeyringController:accountRemoved', (address) =>
+      this.#handleOnKeyringAccountRemoved(address),
+    );
+
+    this.messenger.subscribe(
+      'KeyringController:accountAdded',
+      (address, keyring) => this.#handleOnKeyringAccountAdded(address, keyring),
     );
 
     this.messenger.subscribe(

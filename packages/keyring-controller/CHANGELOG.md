@@ -9,6 +9,7 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ### Added
 
+- Added new `KeyringController:account{Added,Removed}` events ([#7328](https://github.com/MetaMask/core/pull/7328))
 - Added new `KeyringBuilder` type ([#7334](https://github.com/MetaMask/core/pull/7334))
 - Added an action to call `removeAccount` ([#7241](https://github.com/MetaMask/core/pull/7241))
   - This action is meant to be consumed by the `MultichainAccountService` to encapsulate the act of removing a wallet when seed phrase backup fails in the clients.
