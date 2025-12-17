@@ -67,7 +67,7 @@ runs:
       run: |
         set -euo pipefail
 
-        UPDATED_CHANGELOGS=$(git diff origin/"$BASE_REF"...origin/"$PR_BRANCH" --name-only | grep -E 'CHANGELOG\.md$' || true)
+        UPDATED_CHANGELOGS=$(git diff --name-only origin/"$BASE_REF"...origin/"$PR_BRANCH" | grep -E 'CHANGELOG\.md$' || true)
         if [ -n "$UPDATED_CHANGELOGS" ]; then
           for FILE in $UPDATED_CHANGELOGS; do
             git show origin/"$BASE_REF":"$FILE" > /tmp/base-changelog.md
