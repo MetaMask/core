@@ -107,9 +107,9 @@ describe('user-segmentation-utils', () => {
       const flagName = 'testFlag';
 
       // Act & Assert
-      expect(() => createDeterministicSeed(emptyMetaMetricsId, flagName)).toThrow(
-        'MetaMetrics ID cannot be empty',
-      );
+      expect(() =>
+        createDeterministicSeed(emptyMetaMetricsId, flagName),
+      ).toThrow('MetaMetrics ID cannot be empty');
     });
   });
 
