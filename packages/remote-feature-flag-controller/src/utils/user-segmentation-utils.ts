@@ -24,6 +24,7 @@ const UUID_V4_VALUE_RANGE_BIGINT = MAX_UUID_V4_BIGINT - MIN_UUID_V4_BIGINT;
 /**
  * Creates a deterministic hex ID by hashing the input seed.
  * This ensures consistent group assignment for A/B testing across different feature flags.
+ * Normalizes inputs to lowercase to ensure case-insensitive consistency.
  *
  * @param metaMetricsId - The user's MetaMetrics ID (must be non-empty)
  * @param featureFlagName - The feature flag name to create unique seed per flag
@@ -38,7 +39,10 @@ export function createDeterministicSeed(
     throw new Error('MetaMetrics ID cannot be empty');
   }
 
-  const seed = metaMetricsId + featureFlagName;
+  // Normalize to lowercase to ensure case-insensitive consistency
+  const normalizedId = metaMetricsId.toLowerCase();
+  const normalizedFlagName = featureFlagName.toLowerCase();
+  const seed = normalizedId + normalizedFlagName;
   const hashBuffer = sha256(seed);
   const hash = bytesToHex(hashBuffer);
   return `0x${hash}`;

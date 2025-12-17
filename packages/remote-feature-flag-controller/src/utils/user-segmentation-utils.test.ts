@@ -111,6 +111,23 @@ describe('user-segmentation-utils', () => {
         createDeterministicSeed(emptyMetaMetricsId, flagName),
       ).toThrow('MetaMetrics ID cannot be empty');
     });
+
+    it('produces same hash regardless of input casing', () => {
+      // Arrange
+      const metaMetricsIdLower = 'f9e8d7c6-b5a4-4210-9876-543210fedcba';
+      const metaMetricsIdUpper = 'F9E8D7C6-B5A4-4210-9876-543210FEDCBA';
+      const metaMetricsIdMixed = 'F9e8D7c6-B5a4-4210-9876-543210FedCBA';
+      const flagName = 'testFlag';
+
+      // Act
+      const hashLower = createDeterministicSeed(metaMetricsIdLower, flagName);
+      const hashUpper = createDeterministicSeed(metaMetricsIdUpper, flagName);
+      const hashMixed = createDeterministicSeed(metaMetricsIdMixed, flagName);
+
+      // Assert - All should produce same hash (case-insensitive)
+      expect(hashLower).toBe(hashUpper);
+      expect(hashLower).toBe(hashMixed);
+    });
   });
 
   describe('generateDeterministicRandomNumber', () => {
