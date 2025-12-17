@@ -7,6 +7,10 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+### Uncategorized
+
+- feat: add override functionality to remote feature flags ([#7271](https://github.com/MetaMask/core/pull/7271))
+
 ### Changed
 
 - Bump `@metamask/remote-feature-flag-controller` from `^3.0.0` to `^3.1.0` ([#7519](https://github.com/MetaMask/core/pull/7519))

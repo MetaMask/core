@@ -7,6 +7,10 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+### Uncategorized
+
+- feat(ramps): rename onRamp* controller & service to ramps* ([#7502](https://github.com/MetaMask/core/pull/7502))
+
 ### Added
 
 - Add `dev-watch.js` and `link-ramp-controller.js` scripts to auto-build and copy `dist/` into `metamask-mobile/node_modules/@metamask/ramps-controller`
