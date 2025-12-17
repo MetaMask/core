@@ -232,18 +232,19 @@ export class ClaimsController extends BaseController<
     );
 
     if (isExistingDraft) {
+      const updatedAt = new Date().toISOString();
       this.update((state) => {
         state.drafts = state.drafts.map((existingDraft) =>
           existingDraft.draftId === draft.draftId
             ? {
                 ...existingDraft,
                 ...draft,
-                updatedAt: new Date().toISOString(),
+                updatedAt,
               }
             : existingDraft,
         );
       });
-      return draft as ClaimDraft;
+      return { ...draft, updatedAt } as ClaimDraft;
     }
 
     // generate a new draft id, name and add it to the state
