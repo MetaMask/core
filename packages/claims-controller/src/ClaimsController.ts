@@ -235,7 +235,11 @@ export class ClaimsController extends BaseController<
       this.update((state) => {
         state.drafts = state.drafts.map((existingDraft) =>
           existingDraft.draftId === draft.draftId
-            ? { ...existingDraft, ...draft }
+            ? {
+                ...existingDraft,
+                ...draft,
+                updatedAt: new Date().toISOString(),
+              }
             : existingDraft,
         );
       });
@@ -248,6 +252,7 @@ export class ClaimsController extends BaseController<
     const newDraft: ClaimDraft = {
       ...draft,
       draftId,
+      updatedAt: new Date().toISOString(),
     };
 
     this.update((state) => {
