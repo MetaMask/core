@@ -17,9 +17,8 @@ runs:
   using: composite
   steps:
     - name: Checkout repository
-      uses: MetaMask/action-checkout-and-setup@v2
+      uses: actions/checkout@v6
       with:
-        is-high-risk-environment: false
         fetch-depth: 0
 
     - name: Get pull request number
@@ -27,10 +26,17 @@ runs:
       uses: actions/github-script@v8
       env:
         HEAD_REF: ${{ inputs.head-ref }}
+        EVENT_NAME: ${{ github.event_name }}
       with:
         github-token: ${{ inputs.github-token }}
         script: |
-          const { HEAD_REF } = process.env;
+          const { EVENT_NAME, HEAD_REF } = process.env;
+
+          if (EVENT_NAME === 'pull_request') {
+            const prNumber = github.context.payload.pull_request.number;
+            return core.setOutput('pr-number', prNumber);
+          }
+
           const match = HEAD_REF.match(/\/pr-([0-9]+)-/u);
           if (!match) {
             return core.setFailed(`Could not extract pull request number from head ref: "${HEAD_REF}".`);
