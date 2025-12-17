@@ -56,7 +56,7 @@
     "@metamask/keyring-internal-api": "^9.0.0",
     "@metamask/keyring-utils": "^3.1.0",
     "@metamask/messenger": "^0.3.0",
-    "@metamask/network-controller": "^27.0.0",
+    "@metamask/network-controller": "^27.1.0",
     "@metamask/snaps-controllers": "^14.0.1",
     "@metamask/snaps-sdk": "^9.0.0",
     "@metamask/snaps-utils": "^11.0.0",
@@ -70,7 +70,7 @@
   },
   "devDependencies": {
     "@metamask/auto-changelog": "^3.4.4",
-    "@metamask/controller-utils": "^11.16.0",
+    "@metamask/controller-utils": "^11.17.0",
     "@metamask/providers": "^22.1.0",
     "@ts-bridge/cli": "^0.6.4",
     "@types/jest": "^27.4.1",
