@@ -114,6 +114,8 @@ export function getDefaultSmartTransactionsControllerState(): SmartTransactionsC
         approvalTxFees: null,
         tradeTxFees: null,
       },
+
+      // TODO: set this to false once the clients are all refreshing the liveness state.
       liveness: true,
       livenessByChainId: {
         [ChainId.mainnet]: true,
@@ -1023,12 +1025,24 @@ export class SmartTransactionsController extends StaticIntervalPollingController
     );
   }
 
+  /**
+   * Fetches the liveness status of Smart Transactions for a given chain.
+   *
+   * @param options - The options object.
+   * @param options.chainId - The chain ID to fetch liveness for. Preferred over networkClientId.
+   * @param options.networkClientId - The network client ID to derive chain ID from.
+   * @returns A promise that resolves to the liveness status.
+   */
   async fetchLiveness({
     networkClientId,
+    chainId: chainIdArg,
   }: {
+    /** @deprecated Use `chainId` instead. */
     networkClientId?: NetworkClientId;
+    chainId?: Hex;
   } = {}): Promise<boolean> {
-    const chainId = this.#getChainId({ networkClientId });
+    // Use chainId directly if provided, otherwise derive from networkClientId
+    const chainId = chainIdArg ?? this.#getChainId({ networkClientId });
     let liveness = false;
     try {
       const response = await this.#trace(

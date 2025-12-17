@@ -7,6 +7,14 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+### Added
+
+- Add `chainId` parameter to `fetchLiveness` method, allowing direct chain ID specification without requiring a network client ID
+
+### Deprecated
+
+- Deprecate `networkClientId` parameter in `fetchLiveness` in favor of `chainId`
+
 ## [21.0.0]
 
 ### Changed

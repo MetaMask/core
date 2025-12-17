@@ -25,6 +25,7 @@ import {
   type TransactionParams,
   TransactionStatus,
 } from '@metamask/transaction-controller';
+import type { Hex } from '@metamask/utils';
 import nock from 'nock';
 import * as sinon from 'sinon';
 
@@ -41,7 +42,7 @@ import {
   getDefaultSmartTransactionsControllerState,
   type SmartTransactionsControllerMessenger,
 } from './SmartTransactionsController';
-import type { SmartTransaction, UnsignedTransaction, Hex } from './types';
+import type { SmartTransaction, UnsignedTransaction } from './types';
 import { SmartTransactionStatuses, ClientId } from './types';
 import * as utils from './utils';
 
@@ -1146,6 +1147,55 @@ describe('SmartTransactionsController', () => {
           [ChainId.mainnet]: true,
           [ChainId.sepolia]: false,
         });
+      });
+    });
+
+    it('fetches liveness using chainId directly when provided', async () => {
+      await withController(async ({ controller }) => {
+        nock(SENTINEL_API_BASE_URL_MAP[sepoliaChainIdDec])
+          .get(`/network`)
+          .reply(200, createSuccessLivenessApiResponse());
+
+        expect(
+          controller.state.smartTransactionsState.livenessByChainId,
+        ).toStrictEqual({
+          [ChainId.mainnet]: true,
+          [ChainId.sepolia]: true,
+        });
+
+        const liveness = await controller.fetchLiveness({
+          chainId: ChainId.sepolia,
+        });
+
+        expect(liveness).toBe(true);
+        expect(
+          controller.state.smartTransactionsState.livenessByChainId,
+        ).toStrictEqual({
+          [ChainId.mainnet]: true,
+          [ChainId.sepolia]: true,
+        });
+      });
+    });
+
+    it('prioritizes chainId over networkClientId when both are provided', async () => {
+      await withController(async ({ controller }) => {
+        // Mock sepolia (the chainId we're passing directly)
+        nock(SENTINEL_API_BASE_URL_MAP[sepoliaChainIdDec])
+          .get(`/network`)
+          .reply(200, createSuccessLivenessApiResponse());
+
+        const liveness = await controller.fetchLiveness({
+          chainId: ChainId.sepolia,
+          networkClientId: NetworkType.mainnet, // This should be ignored
+        });
+
+        expect(liveness).toBe(true);
+        // Verify it used sepolia (from chainId), not mainnet (from networkClientId)
+        expect(
+          controller.state.smartTransactionsState.livenessByChainId[
+            ChainId.sepolia
+          ],
+        ).toBe(true);
       });
     });
   });
