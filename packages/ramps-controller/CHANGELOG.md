@@ -7,6 +7,12 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+## [1.0.1]
+
+### Uncategorized
+
+- feat(ramps): rename onRamp* controller & service to ramps* ([#7502](https://github.com/MetaMask/core/pull/7502))
+
 ### Added
 
 - Add `dev-watch.js` and `link-ramp-controller.js` scripts to auto-build and copy `dist/` into `metamask-mobile/node_modules/@metamask/ramps-controller`
@@ -31,5 +37,6 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
   - Add `OnRampService` for interacting with the OnRamp API
   - Add geolocation detection via IP address lookup
 
-[Unreleased]: https://github.com/MetaMask/core/compare/@metamask/ramps-controller@1.0.0...HEAD
+[Unreleased]: https://github.com/MetaMask/core/compare/@metamask/ramps-controller@1.0.1...HEAD
+[1.0.1]: https://github.com/MetaMask/core/compare/@metamask/ramps-controller@1.0.0...@metamask/ramps-controller@1.0.1
 [1.0.0]: https://github.com/MetaMask/core/releases/tag/@metamask/ramps-controller@1.0.0
