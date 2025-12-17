@@ -19,7 +19,7 @@ import { API_BASE_URL, SENTINEL_API_BASE_URL_MAP } from './constants';
 import type {
   SmartTransaction,
   SmartTransactionsStatus,
-  FeatureFlags,
+  SmartTransactionsNetworkConfig,
 } from './types';
 import {
   APIType,
@@ -233,21 +233,21 @@ export const getSmartTransactionMetricsSensitiveProperties = (
 
 export const getReturnTxHashAsap = (
   clientId: ClientId,
-  smartTransactionsFeatureFlags: FeatureFlags['smartTransactions'],
+  featureFlags: SmartTransactionsNetworkConfig,
 ) => {
   return clientId === ClientId.Extension
-    ? smartTransactionsFeatureFlags?.extensionReturnTxHashAsap
-    : smartTransactionsFeatureFlags?.mobileReturnTxHashAsap;
+    ? featureFlags.extensionReturnTxHashAsap
+    : featureFlags.mobileReturnTxHashAsap;
 };
 
 export const shouldMarkRegularTransactionsAsFailed = ({
   smartTransaction,
   clientId,
-  getFeatureFlags,
+  featureFlags,
 }: {
   smartTransaction: SmartTransaction;
   clientId: ClientId;
-  getFeatureFlags: () => FeatureFlags;
+  featureFlags: SmartTransactionsNetworkConfig;
 }): boolean => {
   const { status, transactionId } = smartTransaction;
   const failureStatuses: SmartTransactionStatuses[] = [
@@ -262,12 +262,7 @@ export const shouldMarkRegularTransactionsAsFailed = ({
   ) {
     return false;
   }
-  const { smartTransactions: smartTransactionsFeatureFlags } =
-    getFeatureFlags() ?? {};
-  const returnTxHashAsapEnabled = getReturnTxHashAsap(
-    clientId,
-    smartTransactionsFeatureFlags,
-  );
+  const returnTxHashAsapEnabled = getReturnTxHashAsap(clientId, featureFlags);
   return Boolean(returnTxHashAsapEnabled && transactionId);
 };
 

@@ -339,6 +339,549 @@ describe('SmartTransactionsController', () => {
     });
   });
 
+  describe('feature flag validation error reporting', () => {
+    it('reports error to ErrorReportingService when feature flags are invalid after state change', async () => {
+      const captureExceptionSpy = jest.fn();
+      const rootMessenger: RootMessenger = new Messenger({
+        namespace: MOCK_ANY_NAMESPACE,
+      });
+
+      rootMessenger.registerActionHandler(
+        'NetworkController:getNetworkClientById',
+        jest.fn().mockReturnValue({
+          configuration: { chainId: ChainId.mainnet },
+          provider: getFakeProvider(),
+        }),
+      );
+      rootMessenger.registerActionHandler(
+        'NetworkController:getState',
+        jest.fn().mockReturnValue({
+          selectedNetworkClientId: NetworkType.mainnet,
+          networkConfigurationsByChainId: {},
+        }),
+      );
+      rootMessenger.registerActionHandler(
+        'TransactionController:getNonceLock',
+        jest.fn(),
+      );
+      rootMessenger.registerActionHandler(
+        'TransactionController:getTransactions',
+        jest.fn(),
+      );
+      rootMessenger.registerActionHandler(
+        'TransactionController:updateTransaction',
+        jest.fn(),
+      );
+      rootMessenger.registerActionHandler(
+        'RemoteFeatureFlagController:getState',
+        jest.fn().mockReturnValue({
+          remoteFeatureFlags: {
+            smartTransactionsNetworks: 'invalid-data',
+          },
+        }),
+      );
+      rootMessenger.registerActionHandler(
+        'ErrorReportingService:captureException',
+        captureExceptionSpy,
+      );
+
+      const messenger = new Messenger<
+        'SmartTransactionsController',
+        AllActions,
+        AllEvents,
+        RootMessenger
+      >({
+        namespace: 'SmartTransactionsController',
+        parent: rootMessenger,
+      });
+      rootMessenger.delegate({
+        messenger,
+        actions: [
+          'NetworkController:getNetworkClientById',
+          'NetworkController:getState',
+          'RemoteFeatureFlagController:getState',
+          'TransactionController:getNonceLock',
+          'TransactionController:getTransactions',
+          'TransactionController:updateTransaction',
+          'ErrorReportingService:captureException',
+        ],
+        events: [
+          'NetworkController:stateChange',
+          'RemoteFeatureFlagController:stateChange',
+        ],
+      });
+
+      const controller = new SmartTransactionsController({
+        messenger,
+        clientId: ClientId.Mobile,
+        trackMetaMetricsEvent: jest.fn(),
+        getMetaMetricsProps: jest.fn(async () => ({})),
+      });
+
+      // No validation on construction
+      expect(captureExceptionSpy).not.toHaveBeenCalled();
+
+      // Trigger state change with invalid data
+      rootMessenger.publish(
+        'RemoteFeatureFlagController:stateChange',
+        {
+          remoteFeatureFlags: {
+            smartTransactionsNetworks: 'invalid-data',
+          },
+          cacheTimestamp: Date.now(),
+        },
+        [],
+      );
+
+      // Should be called after state change
+      expect(captureExceptionSpy).toHaveBeenCalledWith(
+        expect.objectContaining({
+          message: expect.stringContaining(
+            '[SmartTransactionsController] Feature flag validation failed',
+          ),
+        }),
+      );
+
+      // eslint-disable-next-line @typescript-eslint/no-floating-promises
+      controller.stop();
+    });
+
+    it('does not report error when feature flags are valid after state change', async () => {
+      const captureExceptionSpy = jest.fn();
+      const rootMessenger: RootMessenger = new Messenger({
+        namespace: MOCK_ANY_NAMESPACE,
+      });
+
+      rootMessenger.registerActionHandler(
+        'NetworkController:getNetworkClientById',
+        jest.fn().mockReturnValue({
+          configuration: { chainId: ChainId.mainnet },
+          provider: getFakeProvider(),
+        }),
+      );
+      rootMessenger.registerActionHandler(
+        'NetworkController:getState',
+        jest.fn().mockReturnValue({
+          selectedNetworkClientId: NetworkType.mainnet,
+          networkConfigurationsByChainId: {},
+        }),
+      );
+      rootMessenger.registerActionHandler(
+        'TransactionController:getNonceLock',
+        jest.fn(),
+      );
+      rootMessenger.registerActionHandler(
+        'TransactionController:getTransactions',
+        jest.fn(),
+      );
+      rootMessenger.registerActionHandler(
+        'TransactionController:updateTransaction',
+        jest.fn(),
+      );
+      rootMessenger.registerActionHandler(
+        'RemoteFeatureFlagController:getState',
+        jest.fn().mockReturnValue({
+          remoteFeatureFlags: {
+            smartTransactionsNetworks: {
+              default: { extensionActive: true },
+            },
+          },
+        }),
+      );
+      rootMessenger.registerActionHandler(
+        'ErrorReportingService:captureException',
+        captureExceptionSpy,
+      );
+
+      const messenger = new Messenger<
+        'SmartTransactionsController',
+        AllActions,
+        AllEvents,
+        RootMessenger
+      >({
+        namespace: 'SmartTransactionsController',
+        parent: rootMessenger,
+      });
+      rootMessenger.delegate({
+        messenger,
+        actions: [
+          'NetworkController:getNetworkClientById',
+          'NetworkController:getState',
+          'RemoteFeatureFlagController:getState',
+          'TransactionController:getNonceLock',
+          'TransactionController:getTransactions',
+          'TransactionController:updateTransaction',
+          'ErrorReportingService:captureException',
+        ],
+        events: [
+          'NetworkController:stateChange',
+          'RemoteFeatureFlagController:stateChange',
+        ],
+      });
+
+      const controller = new SmartTransactionsController({
+        messenger,
+        clientId: ClientId.Mobile,
+        trackMetaMetricsEvent: jest.fn(),
+        getMetaMetricsProps: jest.fn(async () => ({})),
+      });
+
+      // No validation on construction
+      expect(captureExceptionSpy).not.toHaveBeenCalled();
+
+      // Trigger state change with valid data
+      rootMessenger.publish(
+        'RemoteFeatureFlagController:stateChange',
+        {
+          remoteFeatureFlags: {
+            smartTransactionsNetworks: {
+              default: { extensionActive: true },
+            },
+          },
+          cacheTimestamp: Date.now(),
+        },
+        [],
+      );
+
+      // Should not be called after state change with valid flags
+      expect(captureExceptionSpy).not.toHaveBeenCalled();
+
+      // eslint-disable-next-line @typescript-eslint/no-floating-promises
+      controller.stop();
+    });
+
+    it('reports error when smartTransactionsNetworks flag is missing after state change', async () => {
+      const captureExceptionSpy = jest.fn();
+      const rootMessenger: RootMessenger = new Messenger({
+        namespace: MOCK_ANY_NAMESPACE,
+      });
+
+      rootMessenger.registerActionHandler(
+        'NetworkController:getNetworkClientById',
+        jest.fn().mockReturnValue({
+          configuration: { chainId: ChainId.mainnet },
+          provider: getFakeProvider(),
+        }),
+      );
+      rootMessenger.registerActionHandler(
+        'NetworkController:getState',
+        jest.fn().mockReturnValue({
+          selectedNetworkClientId: NetworkType.mainnet,
+          networkConfigurationsByChainId: {},
+        }),
+      );
+      rootMessenger.registerActionHandler(
+        'TransactionController:getNonceLock',
+        jest.fn(),
+      );
+      rootMessenger.registerActionHandler(
+        'TransactionController:getTransactions',
+        jest.fn(),
+      );
+      rootMessenger.registerActionHandler(
+        'TransactionController:updateTransaction',
+        jest.fn(),
+      );
+      rootMessenger.registerActionHandler(
+        'RemoteFeatureFlagController:getState',
+        jest.fn().mockReturnValue({
+          remoteFeatureFlags: {
+            // smartTransactionsNetworks is undefined (missing from remote config)
+          },
+        }),
+      );
+      rootMessenger.registerActionHandler(
+        'ErrorReportingService:captureException',
+        captureExceptionSpy,
+      );
+
+      const messenger = new Messenger<
+        'SmartTransactionsController',
+        AllActions,
+        AllEvents,
+        RootMessenger
+      >({
+        namespace: 'SmartTransactionsController',
+        parent: rootMessenger,
+      });
+      rootMessenger.delegate({
+        messenger,
+        actions: [
+          'NetworkController:getNetworkClientById',
+          'NetworkController:getState',
+          'RemoteFeatureFlagController:getState',
+          'TransactionController:getNonceLock',
+          'TransactionController:getTransactions',
+          'TransactionController:updateTransaction',
+          'ErrorReportingService:captureException',
+        ],
+        events: [
+          'NetworkController:stateChange',
+          'RemoteFeatureFlagController:stateChange',
+        ],
+      });
+
+      const controller = new SmartTransactionsController({
+        messenger,
+        clientId: ClientId.Mobile,
+        trackMetaMetricsEvent: jest.fn(),
+        getMetaMetricsProps: jest.fn(async () => ({})),
+      });
+
+      // No validation on construction
+      expect(captureExceptionSpy).not.toHaveBeenCalled();
+
+      // Trigger state change with missing smartTransactionsNetworks flag
+      rootMessenger.publish(
+        'RemoteFeatureFlagController:stateChange',
+        {
+          remoteFeatureFlags: {
+            // smartTransactionsNetworks is undefined
+          },
+          cacheTimestamp: Date.now(),
+        },
+        [],
+      );
+
+      // Should report error when flag is missing after state change
+      expect(captureExceptionSpy).toHaveBeenCalledWith(
+        expect.objectContaining({
+          message: expect.stringContaining(
+            '[SmartTransactionsController] Feature flag validation failed',
+          ),
+        }),
+      );
+
+      // eslint-disable-next-line @typescript-eslint/no-floating-promises
+      controller.stop();
+    });
+
+    it('reports error to ErrorReportingService when feature flags become invalid after state change', async () => {
+      const captureExceptionSpy = jest.fn();
+      const getStateMock = jest.fn().mockReturnValue({
+        remoteFeatureFlags: {
+          smartTransactionsNetworks: {
+            default: { extensionActive: true },
+          },
+        },
+      });
+      const rootMessenger: RootMessenger = new Messenger({
+        namespace: MOCK_ANY_NAMESPACE,
+      });
+
+      rootMessenger.registerActionHandler(
+        'NetworkController:getNetworkClientById',
+        jest.fn().mockReturnValue({
+          configuration: { chainId: ChainId.mainnet },
+          provider: getFakeProvider(),
+        }),
+      );
+      rootMessenger.registerActionHandler(
+        'NetworkController:getState',
+        jest.fn().mockReturnValue({
+          selectedNetworkClientId: NetworkType.mainnet,
+          networkConfigurationsByChainId: {},
+        }),
+      );
+      rootMessenger.registerActionHandler(
+        'TransactionController:getNonceLock',
+        jest.fn(),
+      );
+      rootMessenger.registerActionHandler(
+        'TransactionController:getTransactions',
+        jest.fn(),
+      );
+      rootMessenger.registerActionHandler(
+        'TransactionController:updateTransaction',
+        jest.fn(),
+      );
+      rootMessenger.registerActionHandler(
+        'RemoteFeatureFlagController:getState',
+        getStateMock,
+      );
+      rootMessenger.registerActionHandler(
+        'ErrorReportingService:captureException',
+        captureExceptionSpy,
+      );
+
+      const messenger = new Messenger<
+        'SmartTransactionsController',
+        AllActions,
+        AllEvents,
+        RootMessenger
+      >({
+        namespace: 'SmartTransactionsController',
+        parent: rootMessenger,
+      });
+      rootMessenger.delegate({
+        messenger,
+        actions: [
+          'NetworkController:getNetworkClientById',
+          'NetworkController:getState',
+          'RemoteFeatureFlagController:getState',
+          'TransactionController:getNonceLock',
+          'TransactionController:getTransactions',
+          'TransactionController:updateTransaction',
+          'ErrorReportingService:captureException',
+        ],
+        events: [
+          'NetworkController:stateChange',
+          'RemoteFeatureFlagController:stateChange',
+        ],
+      });
+
+      const controller = new SmartTransactionsController({
+        messenger,
+        clientId: ClientId.Mobile,
+        trackMetaMetricsEvent: jest.fn(),
+        getMetaMetricsProps: jest.fn(async () => ({})),
+      });
+
+      // Should not be called initially (valid flags)
+      expect(captureExceptionSpy).not.toHaveBeenCalled();
+
+      // Simulate feature flag state change with invalid data
+      getStateMock.mockReturnValue({
+        remoteFeatureFlags: {
+          smartTransactionsNetworks: 'invalid-data',
+        },
+      });
+
+      rootMessenger.publish(
+        'RemoteFeatureFlagController:stateChange',
+        {
+          remoteFeatureFlags: {
+            smartTransactionsNetworks: 'invalid-data',
+          },
+          cacheTimestamp: Date.now(),
+        },
+        [],
+      );
+
+      // Should be called after state change with invalid data
+      expect(captureExceptionSpy).toHaveBeenCalledWith(
+        expect.objectContaining({
+          message: expect.stringContaining(
+            '[SmartTransactionsController] Feature flag validation failed',
+          ),
+        }),
+      );
+
+      // eslint-disable-next-line @typescript-eslint/no-floating-promises
+      controller.stop();
+    });
+
+    it('reports multiple errors to ErrorReportingService when multiple chains are invalid after state change', async () => {
+      const captureExceptionSpy = jest.fn();
+      const rootMessenger: RootMessenger = new Messenger({
+        namespace: MOCK_ANY_NAMESPACE,
+      });
+
+      rootMessenger.registerActionHandler(
+        'NetworkController:getNetworkClientById',
+        jest.fn().mockReturnValue({
+          configuration: { chainId: ChainId.mainnet },
+          provider: getFakeProvider(),
+        }),
+      );
+      rootMessenger.registerActionHandler(
+        'NetworkController:getState',
+        jest.fn().mockReturnValue({
+          selectedNetworkClientId: NetworkType.mainnet,
+          networkConfigurationsByChainId: {},
+        }),
+      );
+      rootMessenger.registerActionHandler(
+        'TransactionController:getNonceLock',
+        jest.fn(),
+      );
+      rootMessenger.registerActionHandler(
+        'TransactionController:getTransactions',
+        jest.fn(),
+      );
+      rootMessenger.registerActionHandler(
+        'TransactionController:updateTransaction',
+        jest.fn(),
+      );
+      rootMessenger.registerActionHandler(
+        'RemoteFeatureFlagController:getState',
+        jest.fn().mockReturnValue({
+          remoteFeatureFlags: {
+            smartTransactionsNetworks: {
+              default: { extensionActive: true },
+              '0x1': { extensionActive: true },
+              invalidChain1: { extensionActive: false },
+              invalidChain2: { mobileActive: true },
+            },
+          },
+        }),
+      );
+      rootMessenger.registerActionHandler(
+        'ErrorReportingService:captureException',
+        captureExceptionSpy,
+      );
+
+      const messenger = new Messenger<
+        'SmartTransactionsController',
+        AllActions,
+        AllEvents,
+        RootMessenger
+      >({
+        namespace: 'SmartTransactionsController',
+        parent: rootMessenger,
+      });
+      rootMessenger.delegate({
+        messenger,
+        actions: [
+          'NetworkController:getNetworkClientById',
+          'NetworkController:getState',
+          'RemoteFeatureFlagController:getState',
+          'TransactionController:getNonceLock',
+          'TransactionController:getTransactions',
+          'TransactionController:updateTransaction',
+          'ErrorReportingService:captureException',
+        ],
+        events: [
+          'NetworkController:stateChange',
+          'RemoteFeatureFlagController:stateChange',
+        ],
+      });
+
+      const controller = new SmartTransactionsController({
+        messenger,
+        clientId: ClientId.Mobile,
+        trackMetaMetricsEvent: jest.fn(),
+        getMetaMetricsProps: jest.fn(async () => ({})),
+      });
+
+      // No validation on construction
+      expect(captureExceptionSpy).not.toHaveBeenCalled();
+
+      // Trigger state change with multiple invalid chains
+      rootMessenger.publish(
+        'RemoteFeatureFlagController:stateChange',
+        {
+          remoteFeatureFlags: {
+            smartTransactionsNetworks: {
+              default: { extensionActive: true },
+              '0x1': { extensionActive: true },
+              invalidChain1: { extensionActive: false },
+              invalidChain2: { mobileActive: true },
+            },
+          },
+          cacheTimestamp: Date.now(),
+        },
+        [],
+      );
+
+      // Should be called twice - once for each invalid chain
+      expect(captureExceptionSpy).toHaveBeenCalledTimes(2);
+
+      // eslint-disable-next-line @typescript-eslint/no-floating-promises
+      controller.stop();
+    });
+  });
+
   describe('onNetworkChange', () => {
     it('calls poll', async () => {
       await withController(({ controller, triggerNetworStateChange }) => {
@@ -1256,17 +1799,23 @@ describe('SmartTransactionsController', () => {
       await withController(
         {
           options: {
-            getFeatureFlags: () => ({
-              smartTransactions: {
-                mobileReturnTxHashAsap: true,
-              },
-            }),
             state: {
               smartTransactionsState: {
                 ...defaultState.smartTransactionsState,
                 smartTransactions: {
                   [ChainId.mainnet]: pendingStx as SmartTransaction[],
                 },
+              },
+            },
+          },
+          remoteFeatureFlags: {
+            smartTransactionsNetworks: {
+              default: {
+                mobileReturnTxHashAsap: true,
+              },
+              // Chain-specific config required for known chains
+              '0x1': {
+                mobileReturnTxHashAsap: true,
               },
             },
           },
@@ -1318,12 +1867,12 @@ describe('SmartTransactionsController', () => {
       const mockUpdateTransaction = jest.fn();
       await withController(
         {
-          options: {
-            getFeatureFlags: () => ({
-              smartTransactions: {
+          remoteFeatureFlags: {
+            smartTransactionsNetworks: {
+              default: {
                 mobileReturnTxHashAsap: false,
               },
-            }),
+            },
           },
           updateTransaction: mockUpdateTransaction,
           getTransactions: () => [
@@ -1358,12 +1907,12 @@ describe('SmartTransactionsController', () => {
 
       await withController(
         {
-          options: {
-            getFeatureFlags: () => ({
-              smartTransactions: {
+          remoteFeatureFlags: {
+            smartTransactionsNetworks: {
+              default: {
                 mobileReturnTxHashAsap: true,
               },
-            }),
+            },
           },
           updateTransaction: mockUpdateTransaction,
           getTransactions: () => [],
@@ -1386,12 +1935,12 @@ describe('SmartTransactionsController', () => {
       const mockUpdateTransaction = jest.fn();
       await withController(
         {
-          options: {
-            getFeatureFlags: () => ({
-              smartTransactions: {
+          remoteFeatureFlags: {
+            smartTransactionsNetworks: {
+              default: {
                 mobileReturnTxHashAsap: true,
               },
-            }),
+            },
           },
           updateTransaction: mockUpdateTransaction,
           getTransactions: () => [
@@ -2563,6 +3112,9 @@ type WithControllerOptions = {
   getNonceLock?: TransactionControllerGetNonceLockAction['handler'];
   getTransactions?: TransactionControllerGetTransactionsAction['handler'];
   updateTransaction?: TransactionControllerUpdateTransactionAction['handler'];
+  remoteFeatureFlags?: {
+    smartTransactionsNetworks?: Record<string, unknown>;
+  };
 };
 
 type WithControllerArgs<ReturnValue> =
@@ -2590,6 +3142,7 @@ async function withController<ReturnValue>(
     }),
     getTransactions = jest.fn(),
     updateTransaction = jest.fn(),
+    remoteFeatureFlags = {},
   } = rest;
 
   const rootMessenger: RootMessenger = new Messenger({
@@ -2668,6 +3221,16 @@ async function withController<ReturnValue>(
     'TransactionController:updateTransaction',
     updateTransaction,
   );
+  rootMessenger.registerActionHandler(
+    'RemoteFeatureFlagController:getState',
+    jest.fn().mockReturnValue({
+      remoteFeatureFlags,
+    }),
+  );
+  rootMessenger.registerActionHandler(
+    'ErrorReportingService:captureException',
+    jest.fn(),
+  );
 
   const messenger = new Messenger<
     'SmartTransactionsController',
@@ -2683,11 +3246,16 @@ async function withController<ReturnValue>(
     actions: [
       'NetworkController:getNetworkClientById',
       'NetworkController:getState',
+      'RemoteFeatureFlagController:getState',
       'TransactionController:getNonceLock',
       'TransactionController:getTransactions',
       'TransactionController:updateTransaction',
+      'ErrorReportingService:captureException',
     ],
-    events: ['NetworkController:stateChange'],
+    events: [
+      'NetworkController:stateChange',
+      'RemoteFeatureFlagController:stateChange',
+    ],
   });
 
   const controller = new SmartTransactionsController({
@@ -2701,7 +3269,6 @@ async function withController<ReturnValue>(
         deviceModel: 'ledger',
       });
     }),
-    getFeatureFlags: jest.fn(),
     ...options,
   });
 

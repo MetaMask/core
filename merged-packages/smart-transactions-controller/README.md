@@ -25,6 +25,53 @@ Run `yarn test` to run the tests once. To run tests on file changes, run `yarn t
 
 Run `yarn lint` to run the linter, or run `yarn lint:fix` to run the linter and fix any automatically fixable issues.
 
+### Feature Flags
+
+Smart transactions feature flags are managed via `RemoteFeatureFlagController` (LaunchDarkly). The configuration uses a `default` remote object for global settings and chain-specific overrides keyed by hex chain ID.
+
+The flag in LaunchDarkly is named `smartTransactionsNetworks`.
+
+#### Adding a New Flag
+
+1. **Add the field to the schema** in `src/utils/validators.ts`:
+
+   ```typescript
+   export const SmartTransactionsNetworkConfigSchema = type({
+     // ... existing fields
+     myNewFlag: optional(boolean()),
+   });
+   ```
+
+   The `SmartTransactionsNetworkConfig` type is automatically inferred from this schema.
+
+2. **Add default value** in `src/constants.ts` under `DEFAULT_DISABLED_SMART_TRANSACTIONS_FEATURE_FLAGS`:
+
+   These values should be defensive. They are applied when the remote config is invalid or does not exist for a network.
+   It disables smart transaction.
+
+   ```typescript
+   export const DEFAULT_DISABLED_SMART_TRANSACTIONS_FEATURE_FLAGS = {
+     default: {
+       // ... existing defaults
+       myNewFlag: false,
+     },
+   };
+   ```
+
+3. **Use in clients** via the exported selectors:
+
+   ```typescript
+   import { selectSmartTransactionsFeatureFlagsForChain } from '@metamask/smart-transactions-controller';
+
+   const chainConfig = selectSmartTransactionsFeatureFlagsForChain(
+     state,
+     '0x1',
+   );
+   if (chainConfig.myNewFlag) {
+     // Feature is enabled
+   }
+   ```
+
 ### Release & Publishing
 
 The project follows the same release process as the other libraries in the MetaMask organization. The GitHub Actions [`action-create-release-pr`](https://github.com/MetaMask/action-create-release-pr) and [`action-publish-release`](https://github.com/MetaMask/action-publish-release) are used to automate the release process; see those repositories for more information about how they work.

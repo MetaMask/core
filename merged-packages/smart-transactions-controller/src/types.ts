@@ -1,4 +1,7 @@
 import type { NetworkClientId } from '@metamask/network-controller';
+import type { CaipChainId, Hex } from '@metamask/utils';
+
+import type { SmartTransactionsNetworkConfig } from './featureFlags';
 
 /** API */
 export enum APIType {
@@ -126,8 +129,6 @@ export type SignedTransaction = any;
 // TODO
 export type SignedCanceledTransaction = any;
 
-export type Hex = `0x${string}`;
-
 export type MetaMetricsProps = {
   accountHardwareType?: string;
   accountType?: string;
@@ -139,4 +140,28 @@ export type FeatureFlags = {
     mobileReturnTxHashAsap?: boolean;
     extensionReturnTxHashAsap?: boolean;
   };
+};
+
+/**
+ * Configuration for smart transactions on a specific network.
+ * These flags control feature availability and behavior per chain.
+ *
+ * This type is inferred from the SmartTransactionsNetworkConfigSchema.
+ * To add a new field, update the schema in `src/featureFlags/validators.ts`.
+ */
+export type { SmartTransactionsNetworkConfig };
+
+/**
+ * Feature flags configuration for smart transactions across all networks.
+ * Contains a default configuration and optional chain-specific overrides.
+ */
+export type SmartTransactionsFeatureFlagsConfig = {
+  /** Default configuration applied to all chains unless overridden */
+  default?: SmartTransactionsNetworkConfig;
+} & {
+  /**
+   * Chain-specific configuration overrides, keyed by chain ID.
+   * Supports both hex (e.g., "0x1") and CAIP-2 format (e.g., "eip155:1", "solana:...")
+   */
+  [chainId: Hex | CaipChainId]: SmartTransactionsNetworkConfig | undefined;
 };

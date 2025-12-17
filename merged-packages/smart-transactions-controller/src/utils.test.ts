@@ -418,14 +418,10 @@ describe('src/utils.js', () => {
       },
     });
 
-    const mockGetFeatureFlags =
-      (returnTxHashAsap = true) =>
-      () => ({
-        smartTransactions: {
-          extensionReturnTxHashAsap: returnTxHashAsap,
-          mobileReturnTxHashAsap: returnTxHashAsap,
-        },
-      });
+    const createFeatureFlags = (returnTxHashAsap = true) => ({
+      extensionReturnTxHashAsap: returnTxHashAsap,
+      mobileReturnTxHashAsap: returnTxHashAsap,
+    });
 
     it('returns true for "cancelled" status when feature flag is enabled', () => {
       const result = utils.shouldMarkRegularTransactionsAsFailed({
@@ -433,7 +429,7 @@ describe('src/utils.js', () => {
           SmartTransactionStatuses.CANCELLED,
         ),
         clientId: ClientId.Extension,
-        getFeatureFlags: mockGetFeatureFlags(true),
+        featureFlags: createFeatureFlags(true),
       });
       expect(result).toBe(true);
     });
@@ -444,7 +440,7 @@ describe('src/utils.js', () => {
           SmartTransactionStatuses.CANCELLED_USER_CANCELLED,
         ),
         clientId: ClientId.Extension,
-        getFeatureFlags: mockGetFeatureFlags(true),
+        featureFlags: createFeatureFlags(true),
       });
       expect(result).toBe(true);
     });
@@ -455,7 +451,7 @@ describe('src/utils.js', () => {
           SmartTransactionStatuses.UNKNOWN,
         ),
         clientId: ClientId.Extension,
-        getFeatureFlags: mockGetFeatureFlags(true),
+        featureFlags: createFeatureFlags(true),
       });
       expect(result).toBe(true);
     });
@@ -466,7 +462,7 @@ describe('src/utils.js', () => {
           SmartTransactionStatuses.RESOLVED,
         ),
         clientId: ClientId.Extension,
-        getFeatureFlags: mockGetFeatureFlags(true),
+        featureFlags: createFeatureFlags(true),
       });
       expect(result).toBe(true);
     });
@@ -477,7 +473,7 @@ describe('src/utils.js', () => {
           SmartTransactionStatuses.PENDING,
         ),
         clientId: ClientId.Extension,
-        getFeatureFlags: mockGetFeatureFlags(true),
+        featureFlags: createFeatureFlags(true),
       });
       expect(result).toBe(false);
     });
@@ -488,7 +484,7 @@ describe('src/utils.js', () => {
           SmartTransactionStatuses.SUCCESS,
         ),
         clientId: ClientId.Extension,
-        getFeatureFlags: mockGetFeatureFlags(true),
+        featureFlags: createFeatureFlags(true),
       });
       expect(result).toBe(false);
     });
@@ -499,7 +495,7 @@ describe('src/utils.js', () => {
           SmartTransactionStatuses.CANCELLED,
         ),
         clientId: ClientId.Extension,
-        getFeatureFlags: mockGetFeatureFlags(false),
+        featureFlags: createFeatureFlags(false),
       });
       expect(result).toBe(false);
     });
@@ -512,7 +508,7 @@ describe('src/utils.js', () => {
       const result = utils.shouldMarkRegularTransactionsAsFailed({
         smartTransaction,
         clientId: ClientId.Extension,
-        getFeatureFlags: mockGetFeatureFlags(true),
+        featureFlags: createFeatureFlags(true),
       });
       expect(result).toBe(false);
     });
@@ -523,7 +519,7 @@ describe('src/utils.js', () => {
           SmartTransactionStatuses.CANCELLED,
         ),
         clientId: ClientId.Mobile,
-        getFeatureFlags: mockGetFeatureFlags(true),
+        featureFlags: createFeatureFlags(true),
       });
       expect(result).toBe(true);
     });

@@ -15,6 +15,8 @@ export {
   type IndividualTxFees,
   type FeatureFlags,
   type SmartTransaction,
+  type SmartTransactionsNetworkConfig,
+  type SmartTransactionsFeatureFlagsConfig,
   SmartTransactionMinedTx,
   SmartTransactionCancellationReason,
   SmartTransactionStatuses,
@@ -25,3 +27,10 @@ export {
   getSmartTransactionMetricsProperties,
   getSmartTransactionMetricsSensitiveProperties,
 } from './utils';
+
+// Feature flag selectors
+export {
+  selectSmartTransactionsFeatureFlags,
+  selectSmartTransactionsFeatureFlagsForChain,
+  type SmartTransactionsFeatureFlagsState,
+} from './selectors';

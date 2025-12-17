@@ -7,6 +7,15 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+### Changed
+
+- **BREAKING**: The controller now reads feature flags directly from `RemoteFeatureFlagController` via the messenger instead of using the `getFeatureFlags` callback
+  - Clients must configure the following as allowed actions in the controller messenger:
+    - `RemoteFeatureFlagController:getState`
+    - `ErrorReportingService:captureException` (for reporting validation errors to Sentry)
+  - Clients must configure `RemoteFeatureFlagController:stateChange` as an allowed event
+  - The `getFeatureFlags` constructor option is now deprecated and ignored
+
 ## [21.1.0]
 
 ### Added
