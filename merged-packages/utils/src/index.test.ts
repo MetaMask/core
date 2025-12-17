@@ -152,6 +152,7 @@ describe('index', () => {
         "parseCaipChainId",
         "remove0x",
         "satisfiesVersionRange",
+        "sha256",
         "signedBigIntToBytes",
         "stringToBytes",
         "timeSince",

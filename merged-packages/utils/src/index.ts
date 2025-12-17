@@ -7,6 +7,7 @@ export * from './coercers';
 export * from './collections';
 export * from './encryption-types';
 export * from './errors';
+export * from './hashing';
 export type { Hex } from './hex';
 export {
   HexStruct,

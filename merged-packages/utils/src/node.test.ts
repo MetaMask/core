@@ -159,6 +159,7 @@ describe('node', () => {
         "readJsonFile",
         "remove0x",
         "satisfiesVersionRange",
+        "sha256",
         "signedBigIntToBytes",
         "stringToBytes",
         "timeSince",
