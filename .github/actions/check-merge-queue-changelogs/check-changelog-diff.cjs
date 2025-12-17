@@ -87,7 +87,7 @@ for (const line of addedLines) {
 
 if (missingLines.length > 0) {
   console.error(
-    `The following lines added in the PR are missing from the "Unreleased" section after merge:\n\n- ${missingLines.join('\n- ')}\n\nPlease update your pull request and ensure that new changelog entries remain in the "Unreleased" section.`,
+    `The following lines added in the PR are missing from the "Unreleased" section after merge:\n\n  ${missingLines.join('\n  ')}\n\nPlease update your pull request and ensure that new changelog entries remain in the "Unreleased" section.`,
   );
 
   process.exitCode = 1;
