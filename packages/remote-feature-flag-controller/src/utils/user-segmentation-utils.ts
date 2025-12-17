@@ -1,5 +1,7 @@
 import type { Json } from '@metamask/utils';
 import { validate as uuidValidate, version as uuidVersion } from 'uuid';
+import { sha256 } from '@noble/hashes/sha256';
+import { bytesToHex } from '@noble/hashes/utils';
 
 import type { FeatureFlagScopeValue } from '../remote-feature-flag-controller-types';
 
@@ -18,6 +20,19 @@ const MAX_UUID_V4 = 'ffffffff-ffff-4fff-bfff-ffffffffffff';
 const MIN_UUID_V4_BIGINT = uuidStringToBigInt(MIN_UUID_V4);
 const MAX_UUID_V4_BIGINT = uuidStringToBigInt(MAX_UUID_V4);
 const UUID_V4_VALUE_RANGE_BIGINT = MAX_UUID_V4_BIGINT - MIN_UUID_V4_BIGINT;
+
+/**
+ * Creates a deterministic hex ID by hashing the input seed.
+ * This ensures consistent group assignment for A/B testing across different feature flags.
+ *
+ * @param seed - The seed string to hash (e.g., metaMetricsId + featureFlagName)
+ * @returns A hex string with '0x' prefix suitable for generateDeterministicRandomNumber
+ */
+export function createDeterministicSeed(seed: string): string {
+  const hashBuffer = sha256(seed);
+  const hash = bytesToHex(hashBuffer);
+  return `0x${hash}`;
+}
 
 /**
  * Generates a deterministic random number between 0 and 1 based on a metaMetricsId.

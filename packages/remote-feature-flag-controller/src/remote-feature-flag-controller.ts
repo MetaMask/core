@@ -6,8 +6,6 @@ import type {
 import type { Messenger } from '@metamask/messenger';
 import { isValidSemVerVersion } from '@metamask/utils';
 import type { Json, SemVerVersion } from '@metamask/utils';
-import { sha256 } from '@noble/hashes/sha256';
-import { bytesToHex } from '@noble/hashes/utils';
 
 import type { AbstractClientConfigApiService } from './client-config-api-service/abstract-client-config-api-service';
 import type {
@@ -16,6 +14,7 @@ import type {
   FeatureFlagScopeValue,
 } from './remote-feature-flag-controller-types';
 import {
+  createDeterministicSeed,
   generateDeterministicRandomNumber,
   isFeatureFlagWithScopeValue,
 } from './utils/user-segmentation-utils';
@@ -25,19 +24,6 @@ import { isVersionFeatureFlag, getVersionData } from './utils/version';
 
 export const controllerName = 'RemoteFeatureFlagController';
 export const DEFAULT_CACHE_DURATION = 24 * 60 * 60 * 1000; // 1 day
-
-/**
- * Creates a deterministic hex ID by hashing the input seed.
- * This ensures consistent group assignment for A/B testing across different feature flags.
- *
- * @param seed - The seed string to hash (e.g., metaMetricsId + featureFlagName)
- * @returns A hex string with '0x' prefix suitable for generateDeterministicRandomNumber
- */
-function createDeterministicSeed(seed: string): string {
-  const hashBuffer = sha256(seed);
-  const hash = bytesToHex(hashBuffer);
-  return `0x${hash}`;
-}
 
 // === STATE ===
 
@@ -309,7 +295,8 @@ export class RemoteFeatureFlagController extends BaseController<
         const deterministicSeed = createDeterministicSeed(
           metaMetricsId + remoteFeatureFlagName,
         );
-        const thresholdValue = generateDeterministicRandomNumber(deterministicSeed);
+        const thresholdValue =
+          generateDeterministicRandomNumber(deterministicSeed);
         const selectedGroup = processedValue.find(
           (featureFlag): featureFlag is FeatureFlagScopeValue => {
             if (!isFeatureFlagWithScopeValue(featureFlag)) {

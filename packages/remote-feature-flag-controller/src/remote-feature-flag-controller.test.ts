@@ -345,6 +345,71 @@ describe('RemoteFeatureFlagController', () => {
         controller.state.remoteFeatureFlags;
       expect(nonThresholdFlags).toStrictEqual(MOCK_FLAGS);
     });
+
+    it('assigns users to different groups for different feature flags', async () => {
+      // Arrange
+      const mockFlags = {
+        featureA: [
+          { name: 'groupA1', scope: { type: 'threshold', value: 0.5 }, value: 'A1' },
+          { name: 'groupA2', scope: { type: 'threshold', value: 1.0 }, value: 'A2' },
+        ],
+        featureB: [
+          { name: 'groupB1', scope: { type: 'threshold', value: 0.5 }, value: 'B1' },
+          { name: 'groupB2', scope: { type: 'threshold', value: 1.0 }, value: 'B2' },
+        ],
+      };
+      const clientConfigApiService = buildClientConfigApiService({
+        remoteFeatureFlags: mockFlags,
+      });
+      const controller = createController({
+        clientConfigApiService,
+        getMetaMetricsId: () => MOCK_METRICS_ID,
+      });
+
+      // Act
+      await controller.updateRemoteFeatureFlags();
+
+      // Assert - User gets different groups because each flag uses unique seed
+      const { featureA, featureB } = controller.state.remoteFeatureFlags;
+      // featureA: hash(MOCK_METRICS_ID + 'featureA') → threshold 0.966682 → groupA2
+      expect(featureA).toStrictEqual({ name: 'groupA2', value: 'A2' });
+      // featureB: hash(MOCK_METRICS_ID + 'featureB') → threshold 0.398654 → groupB1
+      expect(featureB).toStrictEqual({ name: 'groupB1', value: 'B1' });
+      // Different groups proves independence!
+    });
+
+    it('assigns users to same group for same feature flag on multiple calls', async () => {
+      // Arrange
+      const mockFlags = {
+        testFlag: [
+          { name: 'control', scope: { type: 'threshold', value: 0.5 }, value: false },
+          { name: 'treatment', scope: { type: 'threshold', value: 1.0 }, value: true },
+        ],
+      };
+      const clientConfigApiService = buildClientConfigApiService({
+        remoteFeatureFlags: mockFlags,
+      });
+
+      // Act - Create two separate controllers with same metaMetricsId
+      const controller1 = createController({
+        clientConfigApiService,
+        getMetaMetricsId: () => MOCK_METRICS_ID,
+      });
+      await controller1.updateRemoteFeatureFlags();
+      const firstResult = controller1.state.remoteFeatureFlags.testFlag;
+
+      const controller2 = createController({
+        clientConfigApiService,
+        getMetaMetricsId: () => MOCK_METRICS_ID,
+      });
+      await controller2.updateRemoteFeatureFlags();
+      const secondResult = controller2.state.remoteFeatureFlags.testFlag;
+
+      // Assert - Same user always gets same group (deterministic)
+      // testFlag: hash(MOCK_METRICS_ID + 'testFlag') → threshold 0.496587 → control
+      expect(firstResult).toStrictEqual(secondResult);
+      expect(firstResult).toStrictEqual({ name: 'control', value: false });
+    });
   });
 
   describe('enable and disable', () => {

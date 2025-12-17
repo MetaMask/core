@@ -1,6 +1,7 @@
 import { v4 as uuidV4 } from 'uuid';
 
 import {
+  createDeterministicSeed,
   generateDeterministicRandomNumber,
   isFeatureFlagWithScopeValue,
 } from './user-segmentation-utils';
@@ -41,6 +42,63 @@ const MOCK_FEATURE_FLAGS = {
 };
 
 describe('user-segmentation-utils', () => {
+  describe('createDeterministicSeed', () => {
+    it('generates deterministic hash from same input', () => {
+      // Arrange
+      const seed = 'testSeed123';
+
+      // Act
+      const hash1 = createDeterministicSeed(seed);
+      const hash2 = createDeterministicSeed(seed);
+
+      // Assert
+      expect(hash1).toBe(hash2);
+      expect(hash1).toMatch(/^0x[0-9a-f]{64}$/);
+    });
+
+    it('generates different hashes for different inputs', () => {
+      // Arrange
+      const seed1 = 'metaMetricsId123';
+      const seed2 = 'metaMetricsId456';
+
+      // Act
+      const hash1 = createDeterministicSeed(seed1);
+      const hash2 = createDeterministicSeed(seed2);
+
+      // Assert
+      expect(hash1).not.toBe(hash2);
+    });
+
+    it('generates different hashes when concatenating different flag names', () => {
+      // Arrange
+      const metaMetricsId = 'f9e8d7c6-b5a4-4210-9876-543210fedcba';
+      const flagName1 = 'featureA';
+      const flagName2 = 'featureB';
+
+      // Act
+      const seed1 = createDeterministicSeed(metaMetricsId + flagName1);
+      const seed2 = createDeterministicSeed(metaMetricsId + flagName2);
+
+      // Assert
+      expect(seed1).not.toBe(seed2);
+      expect(seed1).toMatch(/^0x[0-9a-f]{64}$/);
+      expect(seed2).toMatch(/^0x[0-9a-f]{64}$/);
+    });
+
+    it('produces valid hex format for generateDeterministicRandomNumber', () => {
+      // Arrange
+      const seed = 'anyStringInput123!@#';
+
+      // Act
+      const hash = createDeterministicSeed(seed);
+      const randomNumber = generateDeterministicRandomNumber(hash);
+
+      // Assert
+      expect(randomNumber).toBeGreaterThanOrEqual(0);
+      expect(randomNumber).toBeLessThanOrEqual(1);
+    });
+  });
+
   describe('generateDeterministicRandomNumber', () => {
     describe('Mobile client new implementation (uuidv4)', () => {
       it('generates consistent results for same uuidv4', () => {
