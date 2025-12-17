@@ -50,6 +50,7 @@ runs:
       env:
         REPOSITORY: ${{ github.repository }}
         PR_NUMBER: ${{ steps.pr-number.outputs.pr-number }}
+        GH_TOKEN: ${{ inputs.github-token }}
       run: |
         BRANCH=$(gh api "/repos/${REPOSITORY}/pulls/${PR_NUMBER} --jq=.head.ref")
         echo "pr-branch=$BRANCH" >> "$GITHUB_OUTPUT"
