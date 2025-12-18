@@ -586,16 +586,21 @@ export class TokenListController extends StaticIntervalPollingController<TokenLi
         return;
       }
 
-      // No response - fallback to previous state, or initialise empty
+      // No response - fallback to previous state, or initialise empty.
+      // Only initialize with a new timestamp if there's no existing cache.
+      // If there's existing cache, keep it as-is without updating the timestamp
+      // to avoid making stale data appear "fresh" and preventing retry attempts.
       if (!tokensFromAPI) {
-        const newDataCache: DataCache = { data: {}, timestamp: Date.now() };
-        this.update((state) => {
-          state.tokensChainsCache[chainId] ??= newDataCache;
-          state.tokensChainsCache[chainId].timestamp = Date.now();
-        });
-
-        // Persist only this chain to StorageService
-        await this.#saveChainCacheToStorage(chainId);
+        const existingCache = this.state.tokensChainsCache[chainId];
+        if (!existingCache) {
+          // No existing cache - initialize empty and persist
+          const newDataCache: DataCache = { data: {}, timestamp: Date.now() };
+          this.update((state) => {
+            state.tokensChainsCache[chainId] = newDataCache;
+          });
+          await this.#saveChainCacheToStorage(chainId);
+        }
+        // If there's existing cache, keep it as-is (don't update timestamp or persist)
       }
     } finally {
       releaseLock();

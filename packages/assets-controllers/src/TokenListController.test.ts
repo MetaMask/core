@@ -1801,12 +1801,13 @@ describe('TokenListController', () => {
         'StorageService:getAllKeys',
         (controllerNamespace: string) => {
           const keys: string[] = [];
+          const prefix = `${controllerNamespace}:`;
           mockStorage.forEach((_value, key) => {
-            const keyWithoutNamespace = key.replace(
-              `${controllerNamespace}:`,
-              '',
-            );
-            keys.push(keyWithoutNamespace);
+            // Only include keys for this namespace
+            if (key.startsWith(prefix)) {
+              const keyWithoutNamespace = key.substring(prefix.length);
+              keys.push(keyWithoutNamespace);
+            }
           });
           return keys;
         },
@@ -1885,12 +1886,13 @@ describe('TokenListController', () => {
         'StorageService:getAllKeys',
         (controllerNamespace: string) => {
           const keys: string[] = [];
+          const prefix = `${controllerNamespace}:`;
           mockStorage.forEach((_value, key) => {
-            const keyWithoutNamespace = key.replace(
-              `${controllerNamespace}:`,
-              '',
-            );
-            keys.push(keyWithoutNamespace);
+            // Only include keys for this namespace
+            if (key.startsWith(prefix)) {
+              const keyWithoutNamespace = key.substring(prefix.length);
+              keys.push(keyWithoutNamespace);
+            }
           });
           return keys;
         },
