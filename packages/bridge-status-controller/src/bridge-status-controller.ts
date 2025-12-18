@@ -1758,11 +1758,6 @@ export class BridgeStatusController extends StaticIntervalPollingController<Brid
         status: initialTransactionStatus,
       };
 
-      this.#updateTransactionFn(
-        statusUpdatedTxMeta,
-        `BridgeStatusController - Initial intent order status: ${intentOrder.status}`,
-      );
-
       // Update with actual transaction metadata
       const syntheticMeta = {
         ...statusUpdatedTxMeta,
