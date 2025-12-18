@@ -249,6 +249,22 @@ describe('RampsController', () => {
       });
     });
 
+    it('stores error state when request fails with non-Error value', async () => {
+      await withController(async ({ controller }) => {
+        const fetcher = async (): Promise<string> => {
+          throw 'String error';
+        };
+
+        await expect(
+          controller.executeRequest('error-key-string', fetcher),
+        ).rejects.toBe('String error');
+
+        const requestState = controller.state.requests['error-key-string'];
+        expect(requestState?.status).toBe(RequestStatus.ERROR);
+        expect(requestState?.error).toBe('String error');
+      });
+    });
+
     it('sets loading state while request is in progress', async () => {
       await withController(async ({ controller }) => {
         let resolvePromise: (value: string) => void;
@@ -395,6 +411,47 @@ describe('RampsController', () => {
           expect(keys).not.toContain('key1');
           expect(keys).toContain('key2');
           expect(keys).toContain('key3');
+          expect(keys).toContain('key4');
+        },
+      );
+    });
+
+    it('handles entries with missing timestamps during eviction', async () => {
+      await withController(
+        { options: { requestCacheMaxSize: 2 } },
+        async ({ controller }) => {
+          // Manually inject cache entries with missing timestamps
+          // This shouldn't happen in normal usage but tests the defensive fallback
+          // eslint-disable-next-line @typescript-eslint/no-explicit-any
+          (controller as any).update((state: any) => {
+            state.requests['no-timestamp-1'] = {
+              status: RequestStatus.SUCCESS,
+              data: 'old-data-1',
+              error: null,
+            };
+            state.requests['no-timestamp-2'] = {
+              status: RequestStatus.SUCCESS,
+              data: 'old-data-2',
+              error: null,
+            };
+            state.requests['with-timestamp'] = {
+              status: RequestStatus.SUCCESS,
+              data: 'newer-data',
+              error: null,
+              timestamp: Date.now(),
+              lastFetchedAt: Date.now(),
+            };
+          });
+
+          // Adding a fourth entry should trigger eviction of 2 entries
+          await controller.executeRequest('key4', async () => 'data4');
+
+          const keys = Object.keys(controller.state.requests);
+          expect(keys).toHaveLength(2);
+          // Entries without timestamps should be evicted first (treated as timestamp 0)
+          expect(keys).not.toContain('no-timestamp-1');
+          expect(keys).not.toContain('no-timestamp-2');
+          expect(keys).toContain('with-timestamp');
           expect(keys).toContain('key4');
         },
       );
