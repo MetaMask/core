@@ -358,40 +358,52 @@ export class TokenListController extends StaticIntervalPollingController<TokenLi
    * Handles backward compatibility for users upgrading from the old
    * framework-managed state (persist: true) to StorageService.
    *
+   * Only migrates chains that exist in state but not in storage. If any
+   * chain fails to save, it will be logged and the cache will self-heal
+   * when fetchTokenList is called for that chain.
+   *
    * @returns A promise that resolves when migration is complete.
    */
   async #migrateStateToStorage(): Promise<void> {
     try {
       // Check if we have data in state that needs migration
-      if (
-        !this.state.tokensChainsCache ||
-        Object.keys(this.state.tokensChainsCache).length === 0
-      ) {
+      const chainsInState = Object.keys(this.state.tokensChainsCache) as Hex[];
+      if (chainsInState.length === 0) {
         return; // No data to migrate
       }
 
-      // Check if per-chain files already exist (migration already done)
+      // Get existing per-chain files to determine which chains still need migration
       const allKeys = await this.messenger.call(
         'StorageService:getAllKeys',
         name,
       );
-      const hasPerChainFiles = allKeys.some((key) =>
-        key.startsWith(`${TokenListController.#storageKeyPrefix}:`),
+      const existingChainKeys = new Set(
+        allKeys.filter((key) =>
+          key.startsWith(`${TokenListController.#storageKeyPrefix}:`),
+        ),
       );
 
-      if (hasPerChainFiles) {
-        return; // Already migrated
+      // Find chains that exist in state but not in storage (need migration)
+      const chainsMissingFromStorage = chainsInState.filter((chainId) => {
+        const storageKey = TokenListController.#getChainStorageKey(chainId);
+        return !existingChainKeys.has(storageKey);
+      });
+
+      if (chainsMissingFromStorage.length === 0) {
+        return; // All chains already migrated
       }
 
-      // Migrate from old persisted state to per-chain files
+      // Migrate only the chains that are missing from storage
       console.log(
-        'TokenListController: Migrating from persisted state to per-chain storage',
+        `TokenListController: Migrating ${chainsMissingFromStorage.length} chain(s) from persisted state to per-chain storage`,
       );
 
-      // Split into per-chain files
+      // Migrate chains in parallel. Individual failures are logged inside
+      // #saveChainCacheToStorage. If any fail, the cache will self-heal
+      // when fetchTokenList is called for that chain.
       await Promise.all(
-        Object.keys(this.state.tokensChainsCache).map((chainId) =>
-          this.#saveChainCacheToStorage(chainId as Hex),
+        chainsMissingFromStorage.map((chainId) =>
+          this.#saveChainCacheToStorage(chainId),
         ),
       );
 
