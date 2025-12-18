@@ -76,7 +76,10 @@ function getAddedLines(oldContent, newContent) {
 }
 
 const mergedUnreleased = getUnreleasedSection(mergedContent);
-const addedLines = getAddedLines(baseContent, prContent);
+const addedLines = getAddedLines(
+  getUnreleasedSection(baseContent),
+  getUnreleasedSection(prContent),
+);
 
 const missingLines = [];
 for (const line of addedLines) {
