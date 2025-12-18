@@ -49,8 +49,14 @@ describe('user-segmentation-utils', () => {
       const flagName = 'testFlag';
 
       // Act
-      const threshold1 = await calculateThresholdForFlag(metaMetricsId, flagName);
-      const threshold2 = await calculateThresholdForFlag(metaMetricsId, flagName);
+      const threshold1 = await calculateThresholdForFlag(
+        metaMetricsId,
+        flagName,
+      );
+      const threshold2 = await calculateThresholdForFlag(
+        metaMetricsId,
+        flagName,
+      );
 
       // Assert
       expect(threshold1).toBe(threshold2);
@@ -65,8 +71,14 @@ describe('user-segmentation-utils', () => {
       const flagName = 'testFlag';
 
       // Act
-      const threshold1 = await calculateThresholdForFlag(metaMetricsId1, flagName);
-      const threshold2 = await calculateThresholdForFlag(metaMetricsId2, flagName);
+      const threshold1 = await calculateThresholdForFlag(
+        metaMetricsId1,
+        flagName,
+      );
+      const threshold2 = await calculateThresholdForFlag(
+        metaMetricsId2,
+        flagName,
+      );
 
       // Assert
       expect(threshold1).not.toBe(threshold2);
@@ -79,8 +91,14 @@ describe('user-segmentation-utils', () => {
       const flagName2 = 'featureB';
 
       // Act
-      const threshold1 = await calculateThresholdForFlag(metaMetricsId, flagName1);
-      const threshold2 = await calculateThresholdForFlag(metaMetricsId, flagName2);
+      const threshold1 = await calculateThresholdForFlag(
+        metaMetricsId,
+        flagName1,
+      );
+      const threshold2 = await calculateThresholdForFlag(
+        metaMetricsId,
+        flagName2,
+      );
 
       // Assert
       expect(threshold1).not.toBe(threshold2);
@@ -96,7 +114,10 @@ describe('user-segmentation-utils', () => {
       const flagName = 'anyFlagName123';
 
       // Act
-      const threshold = await calculateThresholdForFlag(metaMetricsId, flagName);
+      const threshold = await calculateThresholdForFlag(
+        metaMetricsId,
+        flagName,
+      );
 
       // Assert
       expect(threshold).toBeGreaterThanOrEqual(0);
@@ -122,9 +143,18 @@ describe('user-segmentation-utils', () => {
       const flagName = 'testFlag';
 
       // Act
-      const thresholdLower = await calculateThresholdForFlag(metaMetricsIdLower, flagName);
-      const thresholdUpper = await calculateThresholdForFlag(metaMetricsIdUpper, flagName);
-      const thresholdMixed = await calculateThresholdForFlag(metaMetricsIdMixed, flagName);
+      const thresholdLower = await calculateThresholdForFlag(
+        metaMetricsIdLower,
+        flagName,
+      );
+      const thresholdUpper = await calculateThresholdForFlag(
+        metaMetricsIdUpper,
+        flagName,
+      );
+      const thresholdMixed = await calculateThresholdForFlag(
+        metaMetricsIdMixed,
+        flagName,
+      );
 
       // Assert - All should produce same threshold (case-insensitive)
       expect(thresholdLower).toBe(thresholdUpper);

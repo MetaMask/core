@@ -150,7 +150,7 @@ export class RemoteFeatureFlagController extends BaseController<
 
   readonly #clientVersion: SemVerVersion;
 
-  #thresholdCache: Map<string, number> = new Map();
+  readonly #thresholdCache: Map<string, number> = new Map();
 
   /**
    * Constructs a new RemoteFeatureFlagController instance.

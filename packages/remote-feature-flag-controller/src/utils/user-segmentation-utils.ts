@@ -43,16 +43,16 @@ export async function calculateThresholdForFlag(
   const normalizedId = metaMetricsId.toLowerCase();
   const normalizedFlagName = featureFlagName.toLowerCase();
   const seed = normalizedId + normalizedFlagName;
-  
+
   // Hash the combined seed
   const encoder = new TextEncoder();
   const hashBuffer = await sha256(encoder.encode(seed));
-  
+
   // Convert hash bytes directly to 0-1 range without intermediate hex format
   const hash = bytesToHex(hashBuffer);
   const hashBigInt = BigInt(hash);
   const maxValue = BigInt(`0x${'f'.repeat(64)}`);
-  
+
   // Use BigInt division first, then convert to number to maintain precision
   return Number((hashBigInt * BigInt(1_000_000)) / maxValue) / 1_000_000;
 }
