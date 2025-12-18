@@ -2011,17 +2011,21 @@ describe('TokenListController', () => {
     });
 
     it('should handle errors when clearing cache from StorageService', async () => {
-      // Create messenger where getAllKeys throws
+      // Create messenger where getAllKeys throws only during clear
       const messengerWithErrors = new Messenger({
         namespace: MOCK_ANY_NAMESPACE,
       });
 
-      // Register getAllKeys to throw error
+      let shouldThrow = false;
+      // Register getAllKeys to throw error only when flag is set
       // eslint-disable-next-line @typescript-eslint/no-explicit-any
       (messengerWithErrors as any).registerActionHandler(
         'StorageService:getAllKeys',
         () => {
-          throw new Error('Failed to get keys');
+          if (shouldThrow) {
+            throw new Error('Failed to get keys');
+          }
+          return []; // Return empty array for initialization
         },
       );
 
@@ -2048,18 +2052,34 @@ describe('TokenListController', () => {
 
       const restrictedMessenger = getRestrictedMessenger(messengerWithErrors);
 
+      // Initialize controller with pre-populated state
+      const initialCache = {
+        [ChainId.mainnet]: {
+          timestamp: Date.now(),
+          data: sampleMainnetTokensChainsCache,
+        },
+      };
       const controller = new TokenListController({
         chainId: ChainId.mainnet,
         messenger: restrictedMessenger,
+        state: { tokensChainsCache: initialCache },
       });
 
       // Wait for initialization
       await new Promise((resolve) => setTimeout(resolve, 100));
 
+      // Verify cache exists before clearing
+      expect(
+        Object.keys(controller.state.tokensChainsCache).length,
+      ).toBeGreaterThan(0);
+
+      // Now enable throwing to test error handling during clear
+      shouldThrow = true;
+
       // Mock console.error
       const consoleErrorSpy = jest.spyOn(console, 'error').mockImplementation();
 
-      // Try to clear - should catch error
+      // Try to clear - should catch error but still clear state
       await controller.clearingTokenListData();
 
       // Verify error was logged
@@ -2067,6 +2087,10 @@ describe('TokenListController', () => {
         'TokenListController: Failed to clear cache from storage:',
         expect.any(Error),
       );
+
+      // Verify state was still cleared despite the error
+      // This ensures consistent behavior with the no-keys case
+      expect(controller.state.tokensChainsCache).toStrictEqual({});
 
       consoleErrorSpy.mockRestore();
       controller.destroy();

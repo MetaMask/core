@@ -693,6 +693,12 @@ export class TokenListController extends StaticIntervalPollingController<TokenLi
         'TokenListController: Failed to clear cache from storage:',
         error,
       );
+      // Still clear state even if storage access fails.
+      // This maintains consistency with the no-keys case (lines 646-651)
+      // and fulfills the JSDoc contract that state will be cleared.
+      this.update((state) => {
+        state.tokensChainsCache = {};
+      });
     } finally {
       releaseLock();
     }

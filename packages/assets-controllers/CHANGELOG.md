@@ -13,7 +13,7 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ### Changed
 
-- `TokenListController` now persists `tokensChainsCache` via `StorageService` using per-chain files to reduce write amplification ([#7413](https://github.com/MetaMask/core/pull/7413))
+- **BREAKING:**  `TokenListController` now persists `tokensChainsCache` via `StorageService` using per-chain files to reduce write amplification ([#7413](https://github.com/MetaMask/core/pull/7413))
   - Each chain's token cache (~100-500KB) is stored in a separate file, avoiding rewriting all chains (~5MB) on every update
   - Includes migration logic to automatically split existing cache data into per-chain files on first launch after upgrade
   - All chains are loaded in parallel at startup to maintain compatibility with TokenDetectionController
