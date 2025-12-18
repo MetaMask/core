@@ -202,7 +202,7 @@ const DigitStringOrNumberSchema = union([TruthyDigitStringSchema, number()]);
  * - CoW Swap
  * - Other EIP-712–based intent protocols
  */
-const IntentProtocolSchema = string;
+const IntentProtocolSchema = string();
 
 /**
  * Schema for an intent-based order used for EIP-712 signing and submission.
