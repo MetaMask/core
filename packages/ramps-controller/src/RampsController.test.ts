@@ -249,19 +249,21 @@ describe('RampsController', () => {
       });
     });
 
-    it('stores error state when request fails with non-Error value', async () => {
+    it('stores fallback error message when error has no message', async () => {
       await withController(async ({ controller }) => {
         const fetcher = async (): Promise<string> => {
-          throw 'String error';
+          const error = new Error();
+          Object.defineProperty(error, 'message', { value: undefined });
+          throw error;
         };
 
         await expect(
-          controller.executeRequest('error-key-string', fetcher),
-        ).rejects.toBe('String error');
+          controller.executeRequest('error-key-no-message', fetcher),
+        ).rejects.toThrow();
 
-        const requestState = controller.state.requests['error-key-string'];
+        const requestState = controller.state.requests['error-key-no-message'];
         expect(requestState?.status).toBe(RequestStatus.ERROR);
-        expect(requestState?.error).toBe('String error');
+        expect(requestState?.error).toBe('Unknown error');
       });
     });
 

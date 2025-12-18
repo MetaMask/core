@@ -264,11 +264,11 @@ export class RampsController extends BaseController<
           throw error;
         }
 
-        const errorMessage =
-          error instanceof Error ? error.message : String(error);
+        const errorMessage = (error as Error)?.message;
+
         this.#updateRequestState(
           cacheKey,
-          createErrorState(errorMessage, lastFetchedAt),
+          createErrorState(errorMessage ?? 'Unknown error', lastFetchedAt),
         );
         throw error;
       } finally {
