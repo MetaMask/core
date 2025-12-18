@@ -2836,7 +2836,9 @@ describe('SeedlessOnboardingController', () => {
         async ({ controller, toprfClient }) => {
           mockRecoverEncKey(toprfClient, MOCK_PASSWORD);
 
-          // Legacy data without createdAt - should sort by timestamp
+          // Mixed createdAt: some with TIMEUUID, some without (legacy)
+          // Legacy items (null createdAt) should come before items with createdAt
+          // to maintain sort transitivity
           const mockSecretDataGet = handleMockSecretDataGet({
             status: 200,
             body: createMockSecretDataGetResponse(
@@ -2855,6 +2857,16 @@ describe('SeedlessOnboardingController', () => {
                   itemId: 'srp-1',
                   // No dataType or createdAt (legacy)
                 },
+                {
+                  data: new Uint8Array(
+                    Buffer.from('importedWithCreatedAt', 'utf-8'),
+                  ),
+                  timestamp: 300,
+                  type: SecretType.Mnemonic,
+                  itemId: 'imported-with-createdAt',
+                  dataType: EncAccountDataType.ImportedSrp,
+                  createdAt: '00000001-0000-1000-8000-000000000001',
+                },
               ],
               MOCK_PASSWORD,
             ),
@@ -2863,12 +2875,21 @@ describe('SeedlessOnboardingController', () => {
           const secretData = await controller.fetchAllSecretData(MOCK_PASSWORD);
 
           expect(mockSecretDataGet.isDone()).toBe(true);
-          expect(secretData).toHaveLength(2);
-          // Should be sorted by timestamp (oldest first)
+          expect(secretData).toHaveLength(3);
+          // Legacy items (no createdAt) sorted by timestamp (oldest first)
           expect(secretData[0].data).toStrictEqual(stringToBytes('srp1'));
           expect(secretData[0].dataType).toBeUndefined();
           expect(secretData[0].createdAt).toBeUndefined();
           expect(secretData[1].data).toStrictEqual(stringToBytes('srp2'));
+          expect(secretData[1].dataType).toBeUndefined();
+          expect(secretData[1].createdAt).toBeUndefined();
+          // Item with createdAt comes after legacy items
+          expect(secretData[2].data).toStrictEqual(
+            stringToBytes('importedWithCreatedAt'),
+          );
+          expect(secretData[2].createdAt).toBe(
+            '00000001-0000-1000-8000-000000000001',
+          );
         },
       );
     });

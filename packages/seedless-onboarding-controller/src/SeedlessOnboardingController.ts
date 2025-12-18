@@ -1330,7 +1330,14 @@ export class SeedlessOnboardingController<
         if (a.createdAt && b.createdAt) {
           return compareTimeuuid(a.createdAt, b.createdAt);
         }
-        // Fall back to client-side timestamp
+        // Handle mixed createdAt: legacy items (null) are older, come first
+        if (!a.createdAt && b.createdAt) {
+          return -1; // a (legacy/older) comes before b
+        }
+        if (a.createdAt && !b.createdAt) {
+          return 1; // b (legacy/older) comes before a
+        }
+        // Both null: fall back to client-side timestamp
         return SecretMetadata.compareByTimestamp(a, b, 'asc');
       });
 
