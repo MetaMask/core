@@ -603,13 +603,11 @@ export class TokenListController extends StaticIntervalPollingController<TokenLi
    * Clearing tokenList and tokensChainsCache explicitly.
    * This clears both state and all per-chain files in StorageService.
    *
+   * Storage is cleared first, then state. This ordering ensures consistency:
+   * if storage clearing fails, state remains unchanged and matches storage,
+   * preventing stale data from reappearing after restart.
+   *
    * Acquires the mutex to prevent race conditions with fetchTokenList.
-   * Without mutex protection, the following race could occur:
-   * 1. clearingTokenListData clears state, then starts async getAllKeys
-   * 2. fetchTokenList acquires mutex, fetches data, saves to storage
-   * 3. getAllKeys returns including the newly-saved key
-   * 4. clearingTokenListData deletes that key from storage
-   * Result: state has data but storage doesn't → data loss on restart
    */
   async clearingTokenListData(): Promise<void> {
     // Wait for initialization to complete before clearing
@@ -617,12 +615,9 @@ export class TokenListController extends StaticIntervalPollingController<TokenLi
 
     const releaseLock = await this.#mutex.acquire();
     try {
-      // Clear state
-      this.update((state) => {
-        state.tokensChainsCache = {};
-      });
-
-      // Clear all per-chain files from StorageService
+      // Clear storage first to maintain consistency.
+      // If storage clearing fails, state remains unchanged and matches storage.
+      // This prevents stale data from reappearing after restart.
       const allKeys = await this.messenger.call(
         'StorageService:getAllKeys',
         name,
@@ -638,6 +633,11 @@ export class TokenListController extends StaticIntervalPollingController<TokenLi
           this.messenger.call('StorageService:removeItem', name, key),
         ),
       );
+
+      // Only clear state after storage is successfully cleared
+      this.update((state) => {
+        state.tokensChainsCache = {};
+      });
     } catch (error) {
       console.error(
         'TokenListController: Failed to clear cache from storage:',
