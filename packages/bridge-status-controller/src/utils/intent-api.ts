@@ -81,9 +81,9 @@ export class IntentApiImpl implements IntentApi {
       return response;
     } catch (error: unknown) {
       if (error instanceof Error) {
-        throw new Error(`Failed to submit intent: ${error.message}`);
+        throw new Error(`Failed to get order status: ${error.message}`);
       }
-      throw new Error('Failed to submit intent');
+      throw new Error('Failed to get order status');
     }
   }
 }

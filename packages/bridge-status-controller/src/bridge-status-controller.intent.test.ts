@@ -179,7 +179,7 @@ function loadControllerWithMocks() {
   jest.resetModules();
 
   jest.isolateModules(() => {
-    jest.doMock('./intent-api', () => ({
+    jest.doMock('./utils/intent-api', () => ({
       IntentApiImpl: jest.fn().mockImplementation(() => ({
         submitIntent: submitIntentMock,
         getOrderStatus: getOrderStatusMock,

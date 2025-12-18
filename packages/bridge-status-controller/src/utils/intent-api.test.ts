@@ -1,10 +1,12 @@
 // intent-api.test.ts
 import { describe, it, expect, jest } from '@jest/globals';
-import { IntentApiImpl, type IntentSubmissionParams } from './intent-api'; // adjust if needed
-import type { FetchFunction } from '../types'; // adjust if needed
+import { IntentApiImpl, type IntentSubmissionParams } from './intent-api';
+import type { FetchFunction } from '../types';
+import { IntentOrderStatus } from './validators';
 
 describe('IntentApiImpl', () => {
   const baseUrl = 'https://example.com/api';
+  const clientId = 'client-id';
 
   const makeParams = (): IntentSubmissionParams => ({
     srcChainId: '1',
@@ -15,22 +17,30 @@ describe('IntentApiImpl', () => {
     aggregatorId: 'agg-1',
   });
 
-  // Key part: strongly type the mock as FetchFunction (returns Promise<unknown>)
   const makeFetchMock = () =>
     jest.fn<ReturnType<FetchFunction>, Parameters<FetchFunction>>();
 
+  const validIntentOrderResponse = {
+    id: 'order-1',
+    status: IntentOrderStatus.SUBMITTED,
+    metadata: {},
+  };
+
   it('submitIntent calls POST /submitOrder with JSON body and returns response', async () => {
-    const fetchFn = makeFetchMock().mockResolvedValue({ ok: true, id: 'resp' });
+    const fetchFn = makeFetchMock().mockResolvedValue(validIntentOrderResponse);
     const api = new IntentApiImpl(baseUrl, fetchFn);
 
     const params = makeParams();
-    const result = await api.submitIntent(params);
+    const result = await api.submitIntent(params, clientId);
 
-    expect(result).toEqual({ ok: true, id: 'resp' });
+    expect(result).toEqual(validIntentOrderResponse);
     expect(fetchFn).toHaveBeenCalledTimes(1);
     expect(fetchFn).toHaveBeenCalledWith(`${baseUrl}/submitOrder`, {
       method: 'POST',
-      headers: { 'Content-Type': 'application/json' },
+      headers: {
+        'Content-Type': 'application/json',
+        'X-Client-Id': clientId,
+      },
       body: JSON.stringify(params),
     });
   });
@@ -39,29 +49,36 @@ describe('IntentApiImpl', () => {
     const fetchFn = makeFetchMock().mockRejectedValue(new Error('boom'));
     const api = new IntentApiImpl(baseUrl, fetchFn);
 
-    await expect(api.submitIntent(makeParams())).rejects.toThrow(
+    await expect(api.submitIntent(makeParams(), clientId)).rejects.toThrow(
       'Failed to submit intent: boom',
     );
   });
 
-  it('submitIntent returns null when rejection is not an Error', async () => {
+  it('submitIntent throws generic error when rejection is not an Error', async () => {
     const fetchFn = makeFetchMock().mockRejectedValue('boom');
     const api = new IntentApiImpl(baseUrl, fetchFn);
 
-    await expect(api.submitIntent(makeParams())).resolves.toBeNull();
+    await expect(api.submitIntent(makeParams(), clientId)).rejects.toThrow(
+      'Failed to submit intent',
+    );
   });
 
   it('getOrderStatus calls GET /getOrderStatus with encoded query params and returns response', async () => {
-    const fetchFn = makeFetchMock().mockResolvedValue({ status: 'filled' });
+    const fetchFn = makeFetchMock().mockResolvedValue(validIntentOrderResponse);
     const api = new IntentApiImpl(baseUrl, fetchFn);
 
     const orderId = 'order-1';
     const aggregatorId = 'My Agg/With Spaces';
     const srcChainId = '10';
 
-    const result = await api.getOrderStatus(orderId, aggregatorId, srcChainId);
+    const result = await api.getOrderStatus(
+      orderId,
+      aggregatorId,
+      srcChainId,
+      clientId,
+    );
 
-    expect(result).toEqual({ status: 'filled' });
+    expect(result).toEqual(validIntentOrderResponse);
     expect(fetchFn).toHaveBeenCalledTimes(1);
 
     const expectedEndpoint =
@@ -70,22 +87,29 @@ describe('IntentApiImpl', () => {
       `&aggregatorId=${encodeURIComponent(aggregatorId)}` +
       `&srcChainId=${srcChainId}`;
 
-    expect(fetchFn).toHaveBeenCalledWith(expectedEndpoint, { method: 'GET' });
+    expect(fetchFn).toHaveBeenCalledWith(expectedEndpoint, {
+      method: 'GET',
+      headers: {
+        'X-Client-Id': clientId,
+      },
+    });
   });
 
   it('getOrderStatus rethrows Errors with a prefixed message', async () => {
     const fetchFn = makeFetchMock().mockRejectedValue(new Error('nope'));
     const api = new IntentApiImpl(baseUrl, fetchFn);
 
-    await expect(api.getOrderStatus('o', 'a', '1')).rejects.toThrow(
+    await expect(api.getOrderStatus('o', 'a', '1', clientId)).rejects.toThrow(
       'Failed to get order status: nope',
     );
   });
 
-  it('getOrderStatus returns null when rejection is not an Error', async () => {
+  it('getOrderStatus throws generic error when rejection is not an Error', async () => {
     const fetchFn = makeFetchMock().mockRejectedValue({ message: 'nope' });
     const api = new IntentApiImpl(baseUrl, fetchFn);
 
-    await expect(api.getOrderStatus('o', 'a', '1')).resolves.toBeNull();
+    await expect(api.getOrderStatus('o', 'a', '1', clientId)).rejects.toThrow(
+      'Failed to get order status',
+    );
   });
 });
