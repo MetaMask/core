@@ -1605,10 +1605,7 @@ export class BridgeStatusController extends StaticIntervalPollingController<Brid
     const { quoteResponse, signature, accountAddress } = params;
 
     // Build pre-confirmation properties for error tracking parity with submitTx
-    const account = this.messenger.call(
-      'AccountsController:getAccountByAddress',
-      accountAddress,
-    );
+    const account = this.#getMultichainSelectedAccount(accountAddress);
     const isHardwareAccount = Boolean(account) && isHardwareWallet(account);
     const preConfirmationProperties = getPreConfirmationPropertiesFromQuote(
       quoteResponse,
