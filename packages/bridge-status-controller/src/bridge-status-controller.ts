@@ -47,7 +47,6 @@ import {
   TraceName,
 } from './constants';
 import { IntentApiImpl } from './utils/intent-api';
-import type { IntentOrder } from './intent-order';
 import type {
   BridgeStatusControllerState,
   StartPollingForBridgeTxStatusArgsSerialized,
@@ -83,7 +82,7 @@ import {
   handleNonEvmTxResponse,
   generateActionId,
 } from './utils/transaction';
-import { IntentOrderStatus } from '../../bridge-controller/src/utils/validators';
+import { IntentOrder, IntentOrderStatus } from './utils/validators';
 
 const metadata: StateMetadata<BridgeStatusControllerState> = {
   // We want to persist the bridge status state so that we can show the proper data for the Activity list

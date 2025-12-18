@@ -9,7 +9,7 @@ import {
   StatusTypes,
   UnifiedSwapBridgeEventName,
 } from '@metamask/bridge-controller';
-import { IntentOrderStatus } from './intent-order-status';
+import { IntentOrderStatus } from './utils/validators';
 
 import { MAX_ATTEMPTS } from './constants';
 
