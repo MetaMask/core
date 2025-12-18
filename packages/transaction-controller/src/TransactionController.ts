@@ -1947,7 +1947,7 @@ export class TransactionController extends BaseController<
     _sendFlowHistoryToAdd: SendFlowHistoryEntry[],
   ): TransactionMeta {
     // Return the transaction unchanged
-    return this.#getTransaction(transactionID) as TransactionMeta;
+    return this.#getTransactionOrThrow(transactionID);
   }
 
   /**
