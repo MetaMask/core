@@ -123,6 +123,12 @@ export class TokenListController extends StaticIntervalPollingController<TokenLi
 > {
   readonly #mutex = new Mutex();
 
+  /**
+   * Promise that resolves when initialization (loading cache from storage) is complete.
+   * Methods that access the cache should await this before proceeding.
+   */
+  readonly #initializationPromise: Promise<void>;
+
   // Storage key prefix for per-chain files
   static readonly #storageKeyPrefix = 'tokensChainsCache';
 
@@ -191,18 +197,9 @@ export class TokenListController extends StaticIntervalPollingController<TokenLi
     this.updatePreventPollingOnNetworkRestart(preventPollingOnNetworkRestart);
     this.#abortController = new AbortController();
 
-    // Load cache from StorageService on initialization and handle migration
-    this.#loadCacheFromStorage()
-      .then(() => {
-        // Migrate existing cache from state to StorageService if needed
-        return this.#migrateStateToStorage();
-      })
-      .catch((error) => {
-        console.error(
-          'TokenListController: Failed to load cache from storage:',
-          error,
-        );
-      });
+    // Load cache from StorageService on initialization and handle migration.
+    // Store the promise so other methods can await it to avoid race conditions.
+    this.#initializationPromise = this.#initializeFromStorage();
 
     if (onNetworkStateChange) {
       // TODO: Either fix this lint violation or explain why it's necessary to ignore.
@@ -223,9 +220,34 @@ export class TokenListController extends StaticIntervalPollingController<TokenLi
   }
 
   /**
+   * Initialize the controller by loading cache from storage and running migration.
+   * This method acquires the mutex to prevent race conditions with fetchTokenList.
+   *
+   * @returns A promise that resolves when initialization is complete.
+   */
+  async #initializeFromStorage(): Promise<void> {
+    const releaseLock = await this.#mutex.acquire();
+    try {
+      await this.#loadCacheFromStorage();
+      await this.#migrateStateToStorage();
+    } catch (error) {
+      console.error(
+        'TokenListController: Failed to initialize from storage:',
+        error,
+      );
+    } finally {
+      releaseLock();
+    }
+  }
+
+  /**
    * Load tokensChainsCache from StorageService into state.
    * Loads all cached chains from separate per-chain files in parallel.
    * Called during initialization to restore cached data.
+   *
+   * Note: This method merges loaded data with existing state to avoid
+   * overwriting any fresh data that may have been fetched concurrently.
+   * Caller must hold the mutex.
    *
    * @returns A promise that resolves when loading is complete.
    */
@@ -278,10 +300,17 @@ export class TokenListController extends StaticIntervalPollingController<TokenLi
         }
       });
 
-      // Load into state (all chains available for TokenDetectionController)
+      // Merge loaded cache with existing state, preferring existing data
+      // (which may be fresher if fetched during initialization)
       if (Object.keys(loadedCache).length > 0) {
         this.update((state) => {
-          state.tokensChainsCache = loadedCache;
+          // Only load chains that don't already exist in state
+          // This prevents overwriting fresh API data with stale cached data
+          for (const [chainId, cacheData] of Object.entries(loadedCache)) {
+            if (!state.tokensChainsCache[chainId as Hex]) {
+              state.tokensChainsCache[chainId as Hex] = cacheData;
+            }
+          }
         });
       }
     } catch (error) {
@@ -497,6 +526,10 @@ export class TokenListController extends StaticIntervalPollingController<TokenLi
    * @param chainId - The chainId of the current chain triggering the fetch.
    */
   async fetchTokenList(chainId: Hex): Promise<void> {
+    // Wait for initialization to complete before fetching
+    // This ensures we have loaded any cached data from storage first
+    await this.#initializationPromise;
+
     const releaseLock = await this.#mutex.acquire();
     try {
       if (this.isCacheValid(chainId)) {
@@ -571,6 +604,9 @@ export class TokenListController extends StaticIntervalPollingController<TokenLi
    * This clears both state and all per-chain files in StorageService.
    */
   async clearingTokenListData(): Promise<void> {
+    // Wait for initialization to complete before clearing
+    await this.#initializationPromise;
+
     // Clear state
     this.update((state) => {
       state.tokensChainsCache = {};
@@ -592,13 +628,6 @@ export class TokenListController extends StaticIntervalPollingController<TokenLi
         cacheKeys.map((key) =>
           this.messenger.call('StorageService:removeItem', name, key),
         ),
-      );
-
-      // Also remove old single-file storage if it exists (cleanup)
-      await this.messenger.call(
-        'StorageService:removeItem',
-        name,
-        TokenListController.#storageKeyPrefix,
       );
     } catch (error) {
       console.error(

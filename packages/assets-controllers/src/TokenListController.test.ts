@@ -2069,6 +2069,107 @@ describe('TokenListController', () => {
       consoleErrorSpy.mockRestore();
       controller.destroy();
     });
+
+    it('should only load cache from storage once even when fetchTokenList is called multiple times', async () => {
+      // Pre-populate storage with cached data
+      const chainData: DataCache = {
+        data: sampleMainnetTokensChainsCache,
+        timestamp: Date.now(),
+      };
+      mockStorage.set(
+        `TokenListController:tokensChainsCache:${ChainId.mainnet}`,
+        chainData,
+      );
+
+      // Track how many times getItem is called
+      let getItemCallCount = 0;
+      let getAllKeysCallCount = 0;
+
+      const trackingMessenger = new Messenger({
+        namespace: MOCK_ANY_NAMESPACE,
+      });
+
+      // eslint-disable-next-line @typescript-eslint/no-explicit-any
+      (trackingMessenger as any).registerActionHandler(
+        'StorageService:getItem',
+        (controllerNamespace: string, key: string) => {
+          getItemCallCount += 1;
+          const storageKey = `${controllerNamespace}:${key}`;
+          const value = mockStorage.get(storageKey);
+          return value ? { result: value } : {};
+        },
+      );
+
+      // eslint-disable-next-line @typescript-eslint/no-explicit-any
+      (trackingMessenger as any).registerActionHandler(
+        'StorageService:setItem',
+        (controllerNamespace: string, key: string, value: unknown) => {
+          const storageKey = `${controllerNamespace}:${key}`;
+          mockStorage.set(storageKey, value);
+        },
+      );
+
+      // eslint-disable-next-line @typescript-eslint/no-explicit-any
+      (trackingMessenger as any).registerActionHandler(
+        'StorageService:removeItem',
+        (controllerNamespace: string, key: string) => {
+          const storageKey = `${controllerNamespace}:${key}`;
+          mockStorage.delete(storageKey);
+        },
+      );
+
+      // eslint-disable-next-line @typescript-eslint/no-explicit-any
+      (trackingMessenger as any).registerActionHandler(
+        'StorageService:getAllKeys',
+        (controllerNamespace: string) => {
+          getAllKeysCallCount += 1;
+          const keys: string[] = [];
+          const prefix = `${controllerNamespace}:`;
+          mockStorage.forEach((_value, key) => {
+            if (key.startsWith(prefix)) {
+              const keyWithoutNamespace = key.substring(prefix.length);
+              keys.push(keyWithoutNamespace);
+            }
+          });
+          return keys;
+        },
+      );
+
+      const restrictedMessenger = getRestrictedMessenger(trackingMessenger);
+
+      const controller = new TokenListController({
+        chainId: ChainId.mainnet,
+        messenger: restrictedMessenger,
+      });
+
+      // Wait for initialization to complete
+      await new Promise((resolve) => setTimeout(resolve, 100));
+
+      // Record call counts after initialization
+      const getItemCallsAfterInit = getItemCallCount;
+      const getAllKeysCallsAfterInit = getAllKeysCallCount;
+
+      // getAllKeys should be called twice during init (once for load, once for migration check)
+      expect(getAllKeysCallsAfterInit).toBe(2);
+      // getItem should be called once for the cached chain during load
+      expect(getItemCallsAfterInit).toBe(1);
+
+      // Now call fetchTokenList multiple times
+      nock(tokenService.TOKEN_END_POINT_API)
+        .get(getTokensPath(ChainId.mainnet))
+        .reply(200, sampleMainnetTokenList)
+        .persist();
+
+      await controller.fetchTokenList(ChainId.mainnet);
+      await controller.fetchTokenList(ChainId.mainnet);
+      await controller.fetchTokenList(ChainId.mainnet);
+
+      // Verify getAllKeys was NOT called again after initialization
+      // (getItem may be called for other reasons, but getAllKeys is only used in load/migrate)
+      expect(getAllKeysCallCount).toBe(getAllKeysCallsAfterInit);
+
+      controller.destroy();
+    });
   });
 
   describe('deprecated methods', () => {
