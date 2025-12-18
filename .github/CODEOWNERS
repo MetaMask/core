@@ -16,6 +16,7 @@
 ## Assets Team
 /packages/assets-controllers         @MetaMask/metamask-assets
 /packages/network-enablement-controller @MetaMask/metamask-assets
+/packages/token-search-discovery-controller @MetaMask/metamask-assets
 
 ## Confirmations Team
 /packages/address-book-controller           @MetaMask/confirmations
@@ -54,9 +55,6 @@
 ## Mobile Platform Team
 /packages/app-metadata-controller @MetaMask/mobile-platform
 /packages/analytics-controller    @MetaMask/mobile-platform @MetaMask/extension-platform
-
-## Portfolio Team
-/packages/token-search-discovery-controller      @MetaMask/portfolio
 
 ## Wallet Integrations Team
 /packages/chain-agnostic-permission        @MetaMask/wallet-integrations
@@ -166,8 +164,8 @@
 /packages/user-operation-controller/CHANGELOG.md  @MetaMask/confirmations @MetaMask/core-platform
 /packages/multichain-transactions-controller/package.json @MetaMask/accounts-engineers @MetaMask/core-platform
 /packages/multichain-transactions-controller/CHANGELOG.md @MetaMask/accounts-engineers @MetaMask/core-platform
-/packages/token-search-discovery-controller/package.json      @MetaMask/portfolio @MetaMask/core-platform
-/packages/token-search-discovery-controller/CHANGELOG.md      @MetaMask/portfolio @MetaMask/core-platform
+/packages/token-search-discovery-controller/package.json      @MetaMask/metamask-assets @MetaMask/core-platform
+/packages/token-search-discovery-controller/CHANGELOG.md      @MetaMask/metamask-assets @MetaMask/core-platform
 /packages/bridge-controller/package.json                 @MetaMask/swaps-engineers @MetaMask/core-platform
 /packages/bridge-controller/CHANGELOG.md                 @MetaMask/swaps-engineers @MetaMask/core-platform
 /packages/remote-feature-flag-controller/package.json @MetaMask/extension-platform @MetaMask/mobile-platform @MetaMask/core-platform

@@ -7,8 +7,11 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+## [1.0.0]
+
 ### Added
 
 - Initial release of @metamask/analytics-controller. ([#7017](https://github.com/MetaMask/core/pull/7017), [#7202](https://github.com/MetaMask/core/pull/7202))
 
-[Unreleased]: https://github.com/MetaMask/core/
+[Unreleased]: https://github.com/MetaMask/core/compare/@metamask/analytics-controller@1.0.0...HEAD
+[1.0.0]: https://github.com/MetaMask/core/releases/tag/@metamask/analytics-controller@1.0.0

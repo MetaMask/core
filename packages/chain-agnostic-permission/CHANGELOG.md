@@ -7,6 +7,15 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+### Added
+
+- Add `Bip122AccountChangedNotifications` property in `KnownSessionProperties` enum ([#7537](https://github.com/MetaMask/core/pull/7537))
+
+### Changed
+
+- Bump `@metamask/network-controller` from `^27.0.0` to `^27.1.0` ([#7534](https://github.com/MetaMask/core/pull/7534))
+- Bump `@metamask/controller-utils` from `^11.16.0` to `^11.17.0` ([#7534](https://github.com/MetaMask/core/pull/7534))
+
 ## [1.3.0]
 
 ### Added

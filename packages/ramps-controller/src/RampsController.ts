@@ -6,7 +6,7 @@ import type {
 import { BaseController } from '@metamask/base-controller';
 import type { Messenger } from '@metamask/messenger';
 
-import type { OnRampServiceGetGeolocationAction } from './OnRampService-method-action-types';
+import type { RampsServiceGetGeolocationAction } from './RampsService-method-action-types';
 
 // === GENERAL ===
 
@@ -73,7 +73,7 @@ export type RampsControllerActions = RampsControllerGetStateAction;
 /**
  * Actions from other messengers that {@link RampsController} calls.
  */
-type AllowedActions = OnRampServiceGetGeolocationAction;
+type AllowedActions = RampsServiceGetGeolocationAction;
 
 /**
  * Published when the state of {@link RampsController} changes.
@@ -141,12 +141,12 @@ export class RampsController extends BaseController<
 
   /**
    * Updates the user's geolocation.
-   * This method calls the OnRampService to get the geolocation
+   * This method calls the RampsService to get the geolocation
    * and stores the result in state.
    */
   async updateGeolocation(): Promise<void> {
     const geolocation = await this.messenger.call(
-      'OnRampService:getGeolocation',
+      'RampsService:getGeolocation',
     );
 
     this.update((state) => {
