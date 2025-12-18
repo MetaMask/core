@@ -602,18 +602,27 @@ export class TokenListController extends StaticIntervalPollingController<TokenLi
   /**
    * Clearing tokenList and tokensChainsCache explicitly.
    * This clears both state and all per-chain files in StorageService.
+   *
+   * Acquires the mutex to prevent race conditions with fetchTokenList.
+   * Without mutex protection, the following race could occur:
+   * 1. clearingTokenListData clears state, then starts async getAllKeys
+   * 2. fetchTokenList acquires mutex, fetches data, saves to storage
+   * 3. getAllKeys returns including the newly-saved key
+   * 4. clearingTokenListData deletes that key from storage
+   * Result: state has data but storage doesn't → data loss on restart
    */
   async clearingTokenListData(): Promise<void> {
     // Wait for initialization to complete before clearing
     await this.#initializationPromise;
 
-    // Clear state
-    this.update((state) => {
-      state.tokensChainsCache = {};
-    });
-
-    // Clear all per-chain files from StorageService
+    const releaseLock = await this.#mutex.acquire();
     try {
+      // Clear state
+      this.update((state) => {
+        state.tokensChainsCache = {};
+      });
+
+      // Clear all per-chain files from StorageService
       const allKeys = await this.messenger.call(
         'StorageService:getAllKeys',
         name,
@@ -634,6 +643,8 @@ export class TokenListController extends StaticIntervalPollingController<TokenLi
         'TokenListController: Failed to clear cache from storage:',
         error,
       );
+    } finally {
+      releaseLock();
     }
   }
 
