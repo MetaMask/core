@@ -3140,7 +3140,6 @@ export class TransactionController extends BaseController<
           const submittedTxMeta = this.#updateTransactionInternal(
             {
               transactionId,
-              note: 'TransactionController#processApproval - Intent transaction auto-submitted',
               skipValidation: true,
             },
             (draftTxMeta) => {
