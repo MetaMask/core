@@ -325,6 +325,30 @@ describe('RampsController', () => {
       });
     });
 
+    it('clears LOADING state from requests cache when aborted', async () => {
+      await withController(async ({ controller }) => {
+        const fetcher = async (signal: AbortSignal): Promise<string> => {
+          return new Promise<string>((_resolve, reject) => {
+            signal.addEventListener('abort', () => {
+              reject(new Error('Aborted'));
+            });
+          });
+        };
+
+        const requestPromise = controller.executeRequest('abort-key', fetcher);
+
+        expect(controller.state.requests['abort-key']?.status).toBe(
+          RequestStatus.LOADING,
+        );
+
+        controller.abortRequest('abort-key');
+
+        expect(controller.state.requests['abort-key']).toBeUndefined();
+
+        await expect(requestPromise).rejects.toThrow('Aborted');
+      });
+    });
+
     it('throws if fetch completes after abort signal is triggered', async () => {
       await withController(async ({ controller }) => {
         const fetcher = async (signal: AbortSignal): Promise<string> => {

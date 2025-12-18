@@ -297,9 +297,25 @@ export class RampsController extends BaseController<
     if (pending) {
       pending.abortController.abort();
       this.#pendingRequests.delete(cacheKey);
+      this.#removeRequestState(cacheKey);
       return true;
     }
     return false;
+  }
+
+  /**
+   * Removes a request state from the cache.
+   *
+   * @param cacheKey - The cache key to remove.
+   */
+  #removeRequestState(cacheKey: string): void {
+    this.update((state) => {
+      const requests = state.requests as unknown as Record<
+        string,
+        RequestState | undefined
+      >;
+      delete requests[cacheKey];
+    });
   }
 
   /**
@@ -322,8 +338,10 @@ export class RampsController extends BaseController<
     const maxSize = this.#requestCacheMaxSize;
 
     this.update((state) => {
-      // eslint-disable-next-line @typescript-eslint/no-explicit-any
-      const requests = state.requests as any;
+      const requests = state.requests as unknown as Record<
+        string,
+        RequestState | undefined
+      >;
       requests[cacheKey] = requestState;
 
       // Evict oldest entries if cache exceeds max size
@@ -332,8 +350,8 @@ export class RampsController extends BaseController<
       if (keys.length > maxSize) {
         // Sort by timestamp (oldest first)
         const sortedKeys = keys.sort((a, b) => {
-          const aTime = (requests[a]?.timestamp as number) ?? 0;
-          const bTime = (requests[b]?.timestamp as number) ?? 0;
+          const aTime = requests[a]?.timestamp ?? 0;
+          const bTime = requests[b]?.timestamp ?? 0;
           return aTime - bTime;
         });
 
