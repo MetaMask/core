@@ -196,7 +196,7 @@ const RefuelDataSchema = StepSchema;
 const DigitStringOrNumberSchema = union([TruthyDigitStringSchema, number()]);
 
 // Intent support (e.g., CoW Swap EIP-712 order signing)
-const IntentProtocolSchema = enums(['cowswap']);
+const IntentProtocolSchema = string;
 
 export const IntentOrderSchema = type({
   // EIP-712 Order fields (subset required for signing/submission)
