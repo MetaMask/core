@@ -1,0 +1,91 @@
+name: Check merge queue
+description: Check whether a pull request can skip the merge queue when it's
+  up-to-date with the base branch.
+
+inputs:
+  head-ref:
+    description: The name of the head ref (the pull request branch).
+    required: true
+    default: ${{ github.event.merge_group.head_ref }}
+
+  base-ref:
+    description: The name of the base ref (e.g., main, master).
+    required: true
+    default: main
+
+  github-token:
+    description: The GitHub token to use for authentication.
+    required: true
+    default: ${{ github.token }}
+
+outputs:
+  up-to-date:
+    value: ${{ steps.up-to-date.outputs.up-to-date }}
+    description: Whether the pull request is up-to-date with the base branch
+      and is first in the merge queue, allowing it to skip the merge queue.
+
+runs:
+  using: composite
+  steps:
+    - name: Checkout repository
+      uses: actions/checkout@v6
+      with:
+        fetch-depth: 0
+
+    - name: Get pull request details
+      id: pr-details
+      uses: actions/github-script@v8
+      env:
+        HEAD_REF: ${{ inputs.head-ref }}
+      with:
+        github-token: ${{ inputs.github-token }}
+        script: |
+          const { HEAD_REF } = process.env;
+          const match = HEAD_REF.match(/\/pr-([0-9]+)-/u);
+          if (!match) {
+            return core.setFailed(`Could not extract pull request number from head ref: "${HEAD_REF}".`);
+          }
+
+          const number = parseInt(match[1], 10);
+          const result = await github.graphql(`
+            query($owner: String!, $name: String!, $number: Int!) {
+              repository(owner: $owner, name: $name) {
+                pullRequest(number: $number) {
+                  headRefName
+                  mergeQueueEntry { position }
+                }
+              }
+            }
+          `, {
+            owner: context.repo.owner,
+            name: context.repo.repo,
+            number,
+          });
+
+          if (!result.repository.pullRequest) {
+            return core.setFailed(`Pull request #${number} not found in repository "${context.repo.owner}/${context.repo.repo}".`);
+          }
+
+          const position = result.repository.pullRequest.mergeQueueEntry?.position;
+          if (!position) {
+            return core.setFailed(`Pull request #${number} is not in the merge queue.`);
+          }
+
+          core.setOutput('pr-number', number);
+          core.setOutput('pr-branch', result.repository.pullRequest.headRefName);
+          core.setOutput('merge-queue-position', position);
+
+    - name: Check if pull request is up-to-date with base branch
+      id: up-to-date
+      shell: bash
+      env:
+        BASE_REF: ${{ inputs.base-ref }}
+        PR_BRANCH: ${{ steps.pr-details.outputs.pr-branch }}
+        MERGE_QUEUE_POSITION: ${{ steps.pr-details.outputs.merge-queue-position }}
+      run: |
+        set -euo pipefail
+        if git merge-base --is-ancestor "origin/${BASE_REF}" "origin/${PR_BRANCH}" && [ "${MERGE_QUEUE_POSITION}" -eq 1 ]; then
+          echo "up-to-date=true" >> "$GITHUB_OUTPUT"
+        else
+          echo "up-to-date=false" >> "$GITHUB_OUTPUT"
+        fi

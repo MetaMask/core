@@ -1,6 +1,6 @@
 {
   "name": "@metamask/analytics-controller",
-  "version": "0.0.0",
+  "version": "1.0.0",
   "description": "Common Analytics controller for event tracking",
   "keywords": [
     "MetaMask",
