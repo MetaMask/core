@@ -224,10 +224,6 @@ export const IntentSchema = type({
   relayer: optional(HexAddressSchema),
 });
 
-// Export types for use in other modules
-export type IntentOrder = Infer<typeof IntentOrderSchema>;
-export type Intent = Infer<typeof IntentSchema>;
-
 export const QuoteSchema = type({
   requestId: string(),
   srcChainId: ChainIdSchema,
