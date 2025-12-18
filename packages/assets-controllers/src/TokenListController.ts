@@ -620,9 +620,10 @@ export class TokenListController extends StaticIntervalPollingController<TokenLi
    * Clearing tokenList and tokensChainsCache explicitly.
    * This clears both state and all per-chain files in StorageService.
    *
-   * Storage is cleared first, then state. This ordering ensures consistency:
-   * if storage clearing fails, state remains unchanged and matches storage,
-   * preventing stale data from reappearing after restart.
+   * Uses Promise.allSettled to handle partial failures gracefully.
+   * After all removal attempts complete, state is updated to match storage:
+   * - Successfully removed chains are cleared from state
+   * - Failed removals are kept in state to maintain consistency with storage
    *
    * Acquires the mutex to prevent race conditions with fetchTokenList.
    */
@@ -632,9 +633,6 @@ export class TokenListController extends StaticIntervalPollingController<TokenLi
 
     const releaseLock = await this.#mutex.acquire();
     try {
-      // Clear storage first to maintain consistency.
-      // If storage clearing fails, state remains unchanged and matches storage.
-      // This prevents stale data from reappearing after restart.
       const allKeys = await this.messenger.call(
         'StorageService:getAllKeys',
         name,
@@ -645,15 +643,50 @@ export class TokenListController extends StaticIntervalPollingController<TokenLi
         key.startsWith(`${TokenListController.#storageKeyPrefix}:`),
       );
 
-      await Promise.all(
+      if (cacheKeys.length === 0) {
+        // No storage keys to remove, just clear state
+        this.update((state) => {
+          state.tokensChainsCache = {};
+        });
+        return;
+      }
+
+      // Use Promise.allSettled to handle partial failures gracefully.
+      // This ensures all removals are attempted and we can track which succeeded.
+      const results = await Promise.allSettled(
         cacheKeys.map((key) =>
           this.messenger.call('StorageService:removeItem', name, key),
         ),
       );
 
-      // Only clear state after storage is successfully cleared
+      // Identify which chains failed to be removed from storage
+      const failedChainIds = new Set<Hex>();
+      results.forEach((result, index) => {
+        if (result.status === 'rejected') {
+          const key = cacheKeys[index];
+          const chainId = key.split(':')[1] as Hex;
+          failedChainIds.add(chainId);
+          console.error(
+            `TokenListController: Failed to remove cache for chain ${chainId}:`,
+            result.reason,
+          );
+        }
+      });
+
+      // Update state to match storage: keep only chains that failed to be removed
       this.update((state) => {
-        state.tokensChainsCache = {};
+        if (failedChainIds.size === 0) {
+          state.tokensChainsCache = {};
+        } else {
+          // Keep only chains that failed to be removed from storage
+          const preservedCache: TokensChainsCache = {};
+          for (const chainId of failedChainIds) {
+            if (state.tokensChainsCache[chainId]) {
+              preservedCache[chainId] = state.tokensChainsCache[chainId];
+            }
+          }
+          state.tokensChainsCache = preservedCache;
+        }
       });
     } catch (error) {
       console.error(
