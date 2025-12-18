@@ -359,14 +359,11 @@ export class RampsController extends BaseController<
       cacheKey,
       async () => {
         const result = await this.messenger.call('RampsService:getGeolocation');
-        // DEMO: Append random suffix to show when fresh data is fetched vs cached
-        const randomSuffix = Math.random().toString(36).substring(2, 8);
-        return `${result}-${randomSuffix}`;
+        return result;
       },
       options,
     );
 
-    // Also update the dedicated geolocation field for backwards compatibility
     this.update((state) => {
       state.geolocation = geolocation;
     });
