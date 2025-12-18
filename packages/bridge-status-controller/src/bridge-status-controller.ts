@@ -46,9 +46,8 @@ import {
   REFRESH_INTERVAL_MS,
   TraceName,
 } from './constants';
-import { IntentApiImpl } from './intent-api';
+import { IntentApiImpl } from './utils/intent-api.ts~';
 import type { IntentOrder } from './intent-order';
-import { IntentOrderStatus } from './intent-order-status';
 import type {
   BridgeStatusControllerState,
   StartPollingForBridgeTxStatusArgsSerialized,
@@ -84,6 +83,7 @@ import {
   handleNonEvmTxResponse,
   generateActionId,
 } from './utils/transaction';
+import { IntentOrderStatus } from '../../bridge-controller/src/utils/validators';
 
 const metadata: StateMetadata<BridgeStatusControllerState> = {
   // We want to persist the bridge status state so that we can show the proper data for the Activity list
@@ -733,11 +733,12 @@ export class BridgeStatusController extends StaticIntervalPollingController<Brid
         this.#config.customBridgeApiBaseUrl,
         this.#fetchFn,
       );
-      const intentOrder = (await intentApi.getOrderStatus(
+      const intentOrder = await intentApi.getOrderStatus(
         orderId,
         providerName,
         srcChainId.toString(),
-      )) as IntentOrder;
+        this.#clientId,
+      );
 
       // Update bridge history with intent order status
       this.#updateBridgeHistoryFromIntentOrder(
@@ -1684,6 +1685,7 @@ export class BridgeStatusController extends StaticIntervalPollingController<Brid
       );
       const intentOrder = (await intentApi.submitIntent(
         submissionParams,
+        this.#clientId,
       )) as IntentOrder;
 
       const orderUid = intentOrder.id;
