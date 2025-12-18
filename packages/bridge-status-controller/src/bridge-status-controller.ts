@@ -46,7 +46,7 @@ import {
   REFRESH_INTERVAL_MS,
   TraceName,
 } from './constants';
-import { IntentApiImpl } from './utils/intent-api.ts~';
+import { IntentApiImpl } from './utils/intent-api';
 import type { IntentOrder } from './intent-order';
 import type {
   BridgeStatusControllerState,
