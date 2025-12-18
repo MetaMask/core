@@ -975,7 +975,10 @@ export default class GatorPermissionsController extends BaseController<
           };
         }
 
-        this.submitRevocation({ permissionContext, metadata })
+        const revocationParams = metadata
+          ? { permissionContext, metadata }
+          : { permissionContext };
+        this.submitRevocation(revocationParams)
           .catch((error) => {
             controllerLog(
               'Failed to submit revocation after transaction confirmed',
