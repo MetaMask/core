@@ -945,9 +945,6 @@
     "@typescript-eslint/explicit-function-return-type": {
       "count": 9
     },
-    "@typescript-eslint/naming-convention": {
-      "count": 1
-    },
     "id-length": {
       "count": 2
     },
@@ -957,7 +954,7 @@
   },
   "packages/earn-controller/src/selectors.ts": {
     "@typescript-eslint/explicit-function-return-type": {
-      "count": 6
+      "count": 3
     }
   },
   "packages/eip-5792-middleware/src/constants.ts": {
