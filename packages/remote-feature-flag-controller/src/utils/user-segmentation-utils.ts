@@ -1,6 +1,5 @@
 import type { Json } from '@metamask/utils';
-import { sha256 } from '@noble/hashes/sha256';
-import { bytesToHex } from '@noble/hashes/utils';
+import { sha256, bytesToHex } from '@metamask/utils';
 import { validate as uuidValidate, version as uuidVersion } from 'uuid';
 
 import type { FeatureFlagScopeValue } from '../remote-feature-flag-controller-types';
@@ -22,19 +21,20 @@ const MAX_UUID_V4_BIGINT = uuidStringToBigInt(MAX_UUID_V4);
 const UUID_V4_VALUE_RANGE_BIGINT = MAX_UUID_V4_BIGINT - MIN_UUID_V4_BIGINT;
 
 /**
- * Creates a deterministic hex ID by hashing the input seed.
- * This ensures consistent group assignment for A/B testing across different feature flags.
+ * Calculates a deterministic threshold value between 0 and 1 for A/B testing.
+ * This function hashes the user's MetaMetrics ID combined with the feature flag name
+ * to ensure consistent group assignment across sessions while varying across different flags.
  * Normalizes inputs to lowercase to ensure case-insensitive consistency.
  *
  * @param metaMetricsId - The user's MetaMetrics ID (must be non-empty)
- * @param featureFlagName - The feature flag name to create unique seed per flag
- * @returns A hex string with '0x' prefix suitable for generateDeterministicRandomNumber
+ * @param featureFlagName - The feature flag name to create unique threshold per flag
+ * @returns A promise that resolves to a number between 0 and 1
  * @throws Error if metaMetricsId is empty
  */
-export function createDeterministicSeed(
+export async function calculateThresholdForFlag(
   metaMetricsId: string,
   featureFlagName: string,
-): string {
+): Promise<number> {
   if (!metaMetricsId) {
     throw new Error('MetaMetrics ID cannot be empty');
   }
@@ -43,9 +43,18 @@ export function createDeterministicSeed(
   const normalizedId = metaMetricsId.toLowerCase();
   const normalizedFlagName = featureFlagName.toLowerCase();
   const seed = normalizedId + normalizedFlagName;
-  const hashBuffer = sha256(seed);
+  
+  // Hash the combined seed
+  const encoder = new TextEncoder();
+  const hashBuffer = await sha256(encoder.encode(seed));
+  
+  // Convert hash bytes directly to 0-1 range without intermediate hex format
   const hash = bytesToHex(hashBuffer);
-  return `0x${hash}`;
+  const hashBigInt = BigInt(hash);
+  const maxValue = BigInt(`0x${'f'.repeat(64)}`);
+  
+  // Use BigInt division first, then convert to number to maintain precision
+  return Number((hashBigInt * BigInt(1_000_000)) / maxValue) / 1_000_000;
 }
 
 /**

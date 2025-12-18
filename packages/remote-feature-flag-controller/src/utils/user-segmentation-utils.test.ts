@@ -1,7 +1,7 @@
 import { v4 as uuidV4 } from 'uuid';
 
 import {
-  createDeterministicSeed,
+  calculateThresholdForFlag,
   generateDeterministicRandomNumber,
   isFeatureFlagWithScopeValue,
 } from './user-segmentation-utils';
@@ -42,77 +42,79 @@ const MOCK_FEATURE_FLAGS = {
 };
 
 describe('user-segmentation-utils', () => {
-  describe('createDeterministicSeed', () => {
-    it('generates deterministic hash from same input', () => {
+  describe('calculateThresholdForFlag', () => {
+    it('generates deterministic threshold from same input', async () => {
       // Arrange
       const metaMetricsId = 'f9e8d7c6-b5a4-4210-9876-543210fedcba';
       const flagName = 'testFlag';
 
       // Act
-      const hash1 = createDeterministicSeed(metaMetricsId, flagName);
-      const hash2 = createDeterministicSeed(metaMetricsId, flagName);
+      const threshold1 = await calculateThresholdForFlag(metaMetricsId, flagName);
+      const threshold2 = await calculateThresholdForFlag(metaMetricsId, flagName);
 
       // Assert
-      expect(hash1).toBe(hash2);
-      expect(hash1).toMatch(/^0x[0-9a-f]{64}$/u);
+      expect(threshold1).toBe(threshold2);
+      expect(threshold1).toBeGreaterThanOrEqual(0);
+      expect(threshold1).toBeLessThanOrEqual(1);
     });
 
-    it('generates different hashes for different inputs', () => {
+    it('generates different thresholds for different inputs', async () => {
       // Arrange
       const metaMetricsId1 = 'f9e8d7c6-b5a4-4210-9876-543210fedcba';
       const metaMetricsId2 = '123e4567-e89b-12d3-a456-426614174000';
       const flagName = 'testFlag';
 
       // Act
-      const hash1 = createDeterministicSeed(metaMetricsId1, flagName);
-      const hash2 = createDeterministicSeed(metaMetricsId2, flagName);
+      const threshold1 = await calculateThresholdForFlag(metaMetricsId1, flagName);
+      const threshold2 = await calculateThresholdForFlag(metaMetricsId2, flagName);
 
       // Assert
-      expect(hash1).not.toBe(hash2);
+      expect(threshold1).not.toBe(threshold2);
     });
 
-    it('generates different hashes when concatenating different flag names', () => {
+    it('generates different thresholds for different flag names', async () => {
       // Arrange
       const metaMetricsId = 'f9e8d7c6-b5a4-4210-9876-543210fedcba';
       const flagName1 = 'featureA';
       const flagName2 = 'featureB';
 
       // Act
-      const seed1 = createDeterministicSeed(metaMetricsId, flagName1);
-      const seed2 = createDeterministicSeed(metaMetricsId, flagName2);
+      const threshold1 = await calculateThresholdForFlag(metaMetricsId, flagName1);
+      const threshold2 = await calculateThresholdForFlag(metaMetricsId, flagName2);
 
       // Assert
-      expect(seed1).not.toBe(seed2);
-      expect(seed1).toMatch(/^0x[0-9a-f]{64}$/u);
-      expect(seed2).toMatch(/^0x[0-9a-f]{64}$/u);
+      expect(threshold1).not.toBe(threshold2);
+      expect(threshold1).toBeGreaterThanOrEqual(0);
+      expect(threshold1).toBeLessThanOrEqual(1);
+      expect(threshold2).toBeGreaterThanOrEqual(0);
+      expect(threshold2).toBeLessThanOrEqual(1);
     });
 
-    it('produces valid hex format for generateDeterministicRandomNumber', () => {
+    it('returns a valid threshold value between 0 and 1', async () => {
       // Arrange
       const metaMetricsId = 'f9e8d7c6-b5a4-4210-9876-543210fedcba';
       const flagName = 'anyFlagName123';
 
       // Act
-      const hash = createDeterministicSeed(metaMetricsId, flagName);
-      const randomNumber = generateDeterministicRandomNumber(hash);
+      const threshold = await calculateThresholdForFlag(metaMetricsId, flagName);
 
       // Assert
-      expect(randomNumber).toBeGreaterThanOrEqual(0);
-      expect(randomNumber).toBeLessThanOrEqual(1);
+      expect(threshold).toBeGreaterThanOrEqual(0);
+      expect(threshold).toBeLessThanOrEqual(1);
     });
 
-    it('throws error when metaMetricsId is empty', () => {
+    it('throws error when metaMetricsId is empty', async () => {
       // Arrange
       const emptyMetaMetricsId = '';
       const flagName = 'testFlag';
 
       // Act & Assert
-      expect(() =>
-        createDeterministicSeed(emptyMetaMetricsId, flagName),
-      ).toThrow('MetaMetrics ID cannot be empty');
+      await expect(
+        calculateThresholdForFlag(emptyMetaMetricsId, flagName),
+      ).rejects.toThrow('MetaMetrics ID cannot be empty');
     });
 
-    it('produces same hash regardless of input casing', () => {
+    it('produces same threshold regardless of input casing', async () => {
       // Arrange
       const metaMetricsIdLower = 'f9e8d7c6-b5a4-4210-9876-543210fedcba';
       const metaMetricsIdUpper = 'F9E8D7C6-B5A4-4210-9876-543210FEDCBA';
@@ -120,13 +122,13 @@ describe('user-segmentation-utils', () => {
       const flagName = 'testFlag';
 
       // Act
-      const hashLower = createDeterministicSeed(metaMetricsIdLower, flagName);
-      const hashUpper = createDeterministicSeed(metaMetricsIdUpper, flagName);
-      const hashMixed = createDeterministicSeed(metaMetricsIdMixed, flagName);
+      const thresholdLower = await calculateThresholdForFlag(metaMetricsIdLower, flagName);
+      const thresholdUpper = await calculateThresholdForFlag(metaMetricsIdUpper, flagName);
+      const thresholdMixed = await calculateThresholdForFlag(metaMetricsIdMixed, flagName);
 
-      // Assert - All should produce same hash (case-insensitive)
-      expect(hashLower).toBe(hashUpper);
-      expect(hashLower).toBe(hashMixed);
+      // Assert - All should produce same threshold (case-insensitive)
+      expect(thresholdLower).toBe(thresholdUpper);
+      expect(thresholdLower).toBe(thresholdMixed);
     });
   });
 

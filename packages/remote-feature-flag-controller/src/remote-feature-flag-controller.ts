@@ -14,8 +14,7 @@ import type {
   FeatureFlagScopeValue,
 } from './remote-feature-flag-controller-types';
 import {
-  createDeterministicSeed,
-  generateDeterministicRandomNumber,
+  calculateThresholdForFlag,
   isFeatureFlagWithScopeValue,
 } from './utils/user-segmentation-utils';
 import { isVersionFeatureFlag, getVersionData } from './utils/version';
@@ -150,6 +149,8 @@ export class RemoteFeatureFlagController extends BaseController<
   readonly #getMetaMetricsId: () => string;
 
   readonly #clientVersion: SemVerVersion;
+
+  #thresholdCache: Map<string, number> = new Map();
 
   /**
    * Constructs a new RemoteFeatureFlagController instance.
@@ -292,19 +293,36 @@ export class RemoteFeatureFlagController extends BaseController<
       }
 
       if (Array.isArray(processedValue)) {
-        const deterministicSeed = createDeterministicSeed(
-          metaMetricsId,
-          remoteFeatureFlagName,
+        // Validate array has valid threshold items before doing expensive crypto operation
+        const hasValidThresholds = processedValue.some(
+          isFeatureFlagWithScopeValue,
         );
-        const thresholdValue =
-          generateDeterministicRandomNumber(deterministicSeed);
+
+        if (!hasValidThresholds) {
+          // Skip this flag - no valid threshold configuration
+          continue;
+        }
+
+        // Check cache first, calculate only if needed
+        const cacheKey = `${metaMetricsId}:${remoteFeatureFlagName}`;
+        let thresholdValue = this.#thresholdCache.get(cacheKey);
+
+        if (thresholdValue === undefined) {
+          thresholdValue = await calculateThresholdForFlag(
+            metaMetricsId,
+            remoteFeatureFlagName,
+          );
+          this.#thresholdCache.set(cacheKey, thresholdValue);
+        }
+
+        const threshold = thresholdValue;
         const selectedGroup = processedValue.find(
           (featureFlag): featureFlag is FeatureFlagScopeValue => {
             if (!isFeatureFlagWithScopeValue(featureFlag)) {
               return false;
             }
 
-            return thresholdValue <= featureFlag.scope.value;
+            return threshold <= featureFlag.scope.value;
           },
         );
         if (selectedGroup) {
