@@ -11,7 +11,7 @@ import {
 describe('RequestCache', () => {
   describe('createCacheKey', () => {
     it('creates a cache key from method and empty params', () => {
-      const key = createCacheKey('getGeolocation', []);
+      const key = createCacheKey('updateGeolocation', []);
       expect(key).toBe('getGeolocation:[]');
     });
 
@@ -37,7 +37,9 @@ describe('RequestCache', () => {
         { chainId: 1, symbol: 'ETH' },
         ['option1', 'option2'],
       ]);
-      expect(key).toBe('search:[{"chainId":1,"symbol":"ETH"},["option1","option2"]]');
+      expect(key).toBe(
+        'search:[{"chainId":1,"symbol":"ETH"},["option1","option2"]]',
+      );
     });
   });
 
@@ -109,7 +111,7 @@ describe('RequestCache', () => {
       const now = Date.now();
       const state = createSuccessState({ value: 42 }, now);
       expect(state.status).toBe(RequestStatus.SUCCESS);
-      expect(state.data).toEqual({ value: 42 });
+      expect(state.data).toStrictEqual({ value: 42 });
       expect(state.error).toBeNull();
       expect(state.lastFetchedAt).toBe(now);
     });
@@ -126,4 +128,3 @@ describe('RequestCache', () => {
     });
   });
 });
-

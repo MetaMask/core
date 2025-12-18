@@ -7,8 +7,9 @@ import { BaseController } from '@metamask/base-controller';
 import type { Messenger } from '@metamask/messenger';
 import type { Json } from '@metamask/utils';
 
+import type { RampsServiceGetGeolocationAction } from './RampsService-method-action-types';
 import type {
-  RequestCache,
+  RequestCache as RequestCacheType,
   RequestState,
   ExecuteRequestOptions,
   PendingRequest,
@@ -22,7 +23,6 @@ import {
   createSuccessState,
   createErrorState,
 } from './RequestCache';
-import type { RampsServiceGetGeolocationAction } from './RampsService-method-action-types';
 
 // === GENERAL ===
 
@@ -47,7 +47,7 @@ export type RampsControllerState = {
    * Cache of request states, keyed by cache key.
    * This stores loading, success, and error states for API requests.
    */
-  requests: RequestCache;
+  requests: RequestCacheType;
 };
 
 /**
@@ -215,24 +215,24 @@ export class RampsController extends BaseController<
    * @param options - Options for cache behavior.
    * @returns The result of the request.
    */
-  async executeRequest<T>(
+  async executeRequest<TResult>(
     cacheKey: string,
-    fetcher: (signal: AbortSignal) => Promise<T>,
+    fetcher: (signal: AbortSignal) => Promise<TResult>,
     options?: ExecuteRequestOptions,
-  ): Promise<T> {
+  ): Promise<TResult> {
     const ttl = options?.ttl ?? this.#requestCacheTTL;
 
     // Check for existing pending request - join it instead of making a duplicate
     const pending = this.#pendingRequests.get(cacheKey);
     if (pending) {
-      return pending.promise as Promise<T>;
+      return pending.promise as Promise<TResult>;
     }
 
     // Check cache validity (unless force refresh)
     if (!options?.forceRefresh) {
       const cached = this.state.requests[cacheKey];
       if (cached && !isCacheExpired(cached, ttl)) {
-        return cached.data as T;
+        return cached.data as TResult;
       }
     }
 
@@ -244,7 +244,7 @@ export class RampsController extends BaseController<
     this.#updateRequestState(cacheKey, createLoadingState());
 
     // Create the fetch promise
-    const promise = (async (): Promise<T> => {
+    const promise = (async (): Promise<TResult> => {
       try {
         const data = await fetcher(abortController.signal);
 
@@ -253,7 +253,10 @@ export class RampsController extends BaseController<
           throw new Error('Request was aborted');
         }
 
-        this.#updateRequestState(cacheKey, createSuccessState(data as Json, lastFetchedAt));
+        this.#updateRequestState(
+          cacheKey,
+          createSuccessState(data as Json, lastFetchedAt),
+        );
         return data;
       } catch (error) {
         // Don't update state if aborted
@@ -263,7 +266,10 @@ export class RampsController extends BaseController<
 
         const errorMessage =
           error instanceof Error ? error.message : String(error);
-        this.#updateRequestState(cacheKey, createErrorState(errorMessage, lastFetchedAt));
+        this.#updateRequestState(
+          cacheKey,
+          createErrorState(errorMessage, lastFetchedAt),
+        );
         throw error;
       } finally {
         this.#pendingRequests.delete(cacheKey);
@@ -293,57 +299,6 @@ export class RampsController extends BaseController<
   }
 
   /**
-   * Aborts all pending requests.
-   */
-  abortAllRequests(): void {
-    for (const [, pending] of this.#pendingRequests) {
-      pending.abortController.abort();
-    }
-    this.#pendingRequests.clear();
-  }
-
-  /**
-   * Invalidates a specific cached request.
-   *
-   * @param cacheKey - The cache key to invalidate.
-   */
-  invalidateRequest(cacheKey: string): void {
-    this.update((state) => {
-      delete state.requests[cacheKey];
-    });
-  }
-
-  /**
-   * Invalidates all cached requests matching a pattern.
-   *
-   * @param pattern - String prefix or RegExp to match against cache keys.
-   */
-  invalidateRequestsMatching(pattern: string | RegExp): void {
-    this.update((state) => {
-      const keysToDelete = Object.keys(state.requests).filter((key) => {
-        if (typeof pattern === 'string') {
-          return key.startsWith(pattern);
-        }
-        return pattern.test(key);
-      });
-
-      for (const key of keysToDelete) {
-        delete state.requests[key];
-      }
-    });
-  }
-
-  /**
-   * Clears all cached requests.
-   */
-  clearRequestCache(): void {
-    this.abortAllRequests();
-    this.update((state) => {
-      state.requests = {};
-    });
-  }
-
-  /**
    * Gets the state of a specific cached request.
    *
    * @param cacheKey - The cache key to look up.
@@ -351,33 +306,6 @@ export class RampsController extends BaseController<
    */
   getRequestState(cacheKey: string): RequestState | undefined {
     return this.state.requests[cacheKey];
-  }
-
-  /**
-   * Updates the user's geolocation.
-   * This method calls the RampsService to get the geolocation
-   * and stores the result in state.
-   *
-   * @param options - Options for cache behavior.
-   * @returns The geolocation string.
-   */
-  async updateGeolocation(options?: ExecuteRequestOptions): Promise<string> {
-    const cacheKey = createCacheKey('getGeolocation', []);
-
-    const geolocation = await this.executeRequest(
-      cacheKey,
-      async () => {
-        return this.messenger.call('RampsService:getGeolocation');
-      },
-      options,
-    );
-
-    // Also update the dedicated geolocation field for backwards compatibility
-    this.update((state) => {
-      state.geolocation = geolocation;
-    });
-
-    return geolocation;
   }
 
   /**
@@ -390,7 +318,6 @@ export class RampsController extends BaseController<
     const maxSize = this.#requestCacheMaxSize;
 
     this.update((state) => {
-      // Use type assertion to avoid immer Draft type issues
       // eslint-disable-next-line @typescript-eslint/no-explicit-any
       const requests = state.requests as any;
       requests[cacheKey] = requestState;
@@ -415,5 +342,35 @@ export class RampsController extends BaseController<
         }
       }
     });
+  }
+
+  /**
+   * Updates the user's geolocation.
+   * This method calls the RampsService to get the geolocation
+   * and stores the result in state.
+   *
+   * @param options - Options for cache behavior.
+   * @returns The geolocation string.
+   */
+  async updateGeolocation(options?: ExecuteRequestOptions): Promise<string> {
+    const cacheKey = createCacheKey('updateGeolocation', []);
+
+    const geolocation = await this.executeRequest(
+      cacheKey,
+      async () => {
+        const result = await this.messenger.call('RampsService:getGeolocation');
+        // DEMO: Append random suffix to show when fresh data is fetched vs cached
+        const randomSuffix = Math.random().toString(36).substring(2, 8);
+        return `${result}-${randomSuffix}`;
+      },
+      options,
+    );
+
+    // Also update the dedicated geolocation field for backwards compatibility
+    this.update((state) => {
+      state.geolocation = geolocation;
+    });
+
+    return geolocation;
   }
 }

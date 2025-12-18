@@ -55,7 +55,7 @@ describe('RampsController', () => {
       const givenState = {
         geolocation: 'US',
         requests: {
-          'someKey': {
+          someKey: {
             status: RequestStatus.SUCCESS,
             data: 'cached',
             error: null,
@@ -165,7 +165,7 @@ describe('RampsController', () => {
 
         await controller.updateGeolocation();
 
-        const cacheKey = createCacheKey('getGeolocation', []);
+        const cacheKey = createCacheKey('updateGeolocation', []);
         const requestState = controller.state.requests[cacheKey];
 
         expect(requestState).toBeDefined();
@@ -216,7 +216,7 @@ describe('RampsController', () => {
     it('deduplicates concurrent requests with the same cache key', async () => {
       await withController(async ({ controller }) => {
         let callCount = 0;
-        const fetcher = async () => {
+        const fetcher = async (): Promise<string> => {
           callCount += 1;
           await new Promise((resolve) => setTimeout(resolve, 10));
           return 'result';
@@ -235,7 +235,7 @@ describe('RampsController', () => {
 
     it('stores error state when request fails', async () => {
       await withController(async ({ controller }) => {
-        const fetcher = async () => {
+        const fetcher = async (): Promise<string> => {
           throw new Error('Test error');
         };
 
@@ -252,18 +252,22 @@ describe('RampsController', () => {
     it('sets loading state while request is in progress', async () => {
       await withController(async ({ controller }) => {
         let resolvePromise: (value: string) => void;
-        const fetcher = async () => {
+        const fetcher = async (): Promise<string> => {
           return new Promise<string>((resolve) => {
             resolvePromise = resolve;
           });
         };
 
-        const requestPromise = controller.executeRequest('loading-key', fetcher);
+        const requestPromise = controller.executeRequest(
+          'loading-key',
+          fetcher,
+        );
 
         expect(controller.state.requests['loading-key']?.status).toBe(
           RequestStatus.LOADING,
         );
 
+        // eslint-disable-next-line @typescript-eslint/no-non-null-assertion
         resolvePromise!('done');
         await requestPromise;
 
@@ -278,8 +282,8 @@ describe('RampsController', () => {
     it('aborts a pending request', async () => {
       await withController(async ({ controller }) => {
         let wasAborted = false;
-        const fetcher = async (signal: AbortSignal) => {
-          return new Promise<string>((resolve, reject) => {
+        const fetcher = async (signal: AbortSignal): Promise<string> => {
+          return new Promise<string>((_resolve, reject) => {
             signal.addEventListener('abort', () => {
               wasAborted = true;
               reject(new Error('Aborted'));
@@ -302,108 +306,22 @@ describe('RampsController', () => {
         expect(didAbort).toBe(false);
       });
     });
-  });
 
-  describe('abortAllRequests', () => {
-    it('aborts all pending requests', async () => {
+    it('throws if fetch completes after abort signal is triggered', async () => {
       await withController(async ({ controller }) => {
-        let abortCount = 0;
-        const createFetcher = () => async (signal: AbortSignal) => {
-          return new Promise<string>((resolve, reject) => {
-            signal.addEventListener('abort', () => {
-              abortCount += 1;
-              reject(new Error('Aborted'));
-            });
-          });
+        const fetcher = async (signal: AbortSignal): Promise<string> => {
+          // Simulate: abort is called, but fetcher still returns successfully
+          signal.dispatchEvent(new Event('abort'));
+          Object.defineProperty(signal, 'aborted', { value: true });
+          return 'completed-after-abort';
         };
 
-        const promise1 = controller.executeRequest('key1', createFetcher());
-        const promise2 = controller.executeRequest('key2', createFetcher());
+        const requestPromise = controller.executeRequest(
+          'abort-after-success-key',
+          fetcher,
+        );
 
-        controller.abortAllRequests();
-
-        await expect(promise1).rejects.toThrow('Aborted');
-        await expect(promise2).rejects.toThrow('Aborted');
-        expect(abortCount).toBe(2);
-      });
-    });
-  });
-
-  describe('invalidateRequest', () => {
-    it('removes a cached request', async () => {
-      await withController(async ({ controller }) => {
-        await controller.executeRequest('invalidate-key', async () => 'data');
-
-        expect(controller.state.requests['invalidate-key']).toBeDefined();
-
-        controller.invalidateRequest('invalidate-key');
-
-        expect(controller.state.requests['invalidate-key']).toBeUndefined();
-      });
-    });
-  });
-
-  describe('invalidateRequestsMatching', () => {
-    it('removes requests matching a string prefix', async () => {
-      await withController(async ({ controller }) => {
-        await controller.executeRequest('prefix:key1', async () => 'data1');
-        await controller.executeRequest('prefix:key2', async () => 'data2');
-        await controller.executeRequest('other:key', async () => 'data3');
-
-        controller.invalidateRequestsMatching('prefix:');
-
-        expect(controller.state.requests['prefix:key1']).toBeUndefined();
-        expect(controller.state.requests['prefix:key2']).toBeUndefined();
-        expect(controller.state.requests['other:key']).toBeDefined();
-      });
-    });
-
-    it('removes requests matching a regex', async () => {
-      await withController(async ({ controller }) => {
-        await controller.executeRequest('getCrypto:US', async () => 'data1');
-        await controller.executeRequest('getCrypto:UK', async () => 'data2');
-        await controller.executeRequest('getRegions:', async () => 'data3');
-
-        controller.invalidateRequestsMatching(/^getCrypto:/u);
-
-        expect(controller.state.requests['getCrypto:US']).toBeUndefined();
-        expect(controller.state.requests['getCrypto:UK']).toBeUndefined();
-        expect(controller.state.requests['getRegions:']).toBeDefined();
-      });
-    });
-  });
-
-  describe('clearRequestCache', () => {
-    it('removes all cached requests', async () => {
-      await withController(async ({ controller }) => {
-        await controller.executeRequest('key1', async () => 'data1');
-        await controller.executeRequest('key2', async () => 'data2');
-
-        expect(Object.keys(controller.state.requests).length).toBe(2);
-
-        controller.clearRequestCache();
-
-        expect(controller.state.requests).toStrictEqual({});
-      });
-    });
-
-    it('aborts pending requests when clearing cache', async () => {
-      await withController(async ({ controller }) => {
-        let wasAborted = false;
-        const fetcher = async (signal: AbortSignal) => {
-          return new Promise<string>((resolve, reject) => {
-            signal.addEventListener('abort', () => {
-              wasAborted = true;
-              reject(new Error('Aborted'));
-            });
-          });
-        };
-
-        const requestPromise = controller.executeRequest('pending-key', fetcher);
-        controller.clearRequestCache();
-
-        await expect(requestPromise).rejects.toThrow('Aborted');
-        expect(wasAborted).toBe(true);
+        await expect(requestPromise).rejects.toThrow('Request was aborted');
       });
     });
   });
@@ -422,7 +340,7 @@ describe('RampsController', () => {
           await controller.executeRequest('key4', async () => 'data4');
 
           const keys = Object.keys(controller.state.requests);
-          expect(keys.length).toBe(3);
+          expect(keys).toHaveLength(3);
           expect(keys).not.toContain('key1');
           expect(keys).toContain('key2');
           expect(keys).toContain('key3');

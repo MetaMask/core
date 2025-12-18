@@ -140,7 +140,7 @@ export type ExecuteRequestOptions = {
 /**
  * Represents a pending request with its promise and abort controller.
  */
-export type PendingRequest<T = unknown> = {
-  promise: Promise<T>;
+export type PendingRequest<TResult = unknown> = {
+  promise: Promise<TResult>;
   abortController: AbortController;
 };
