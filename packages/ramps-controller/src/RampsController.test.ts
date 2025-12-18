@@ -324,6 +324,57 @@ describe('RampsController', () => {
         await expect(requestPromise).rejects.toThrow('Request was aborted');
       });
     });
+
+    it('does not delete newer pending request when aborted request settles', async () => {
+      await withController(async ({ controller }) => {
+        let requestASettled = false;
+        let requestBCallCount = 0;
+
+        // Request A: will be aborted but takes time to settle
+        const fetcherA = async (signal: AbortSignal): Promise<string> => {
+          return new Promise<string>((resolve, reject) => {
+            signal.addEventListener('abort', () => {
+              // Simulate async cleanup delay before rejecting
+              setTimeout(() => {
+                requestASettled = true;
+                reject(new Error('Request A aborted'));
+              }, 50);
+            });
+          });
+        };
+
+        // Request B: normal request that should deduplicate correctly
+        const fetcherB = async (): Promise<string> => {
+          requestBCallCount += 1;
+          await new Promise((resolve) => setTimeout(resolve, 10));
+          return 'result-b';
+        };
+
+        // Start request A
+        const promiseA = controller.executeRequest('race-key', fetcherA);
+
+        // Abort request A (removes from pendingRequests, triggers abort)
+        controller.abortRequest('race-key');
+
+        // Start request B with the same key before request A settles
+        expect(requestASettled).toBe(false);
+        const promiseB = controller.executeRequest('race-key', fetcherB);
+
+        // Start request C with same key - should deduplicate with B
+        const promiseC = controller.executeRequest('race-key', fetcherB);
+
+        // Wait for request A to finish settling (its finally block runs)
+        await expect(promiseA).rejects.toThrow('Request A aborted');
+        expect(requestASettled).toBe(true);
+
+        // Requests B and C should still work correctly (deduplication intact)
+        const [resultB, resultC] = await Promise.all([promiseB, promiseC]);
+
+        expect(resultB).toBe('result-b');
+        expect(resultC).toBe('result-b');
+        expect(requestBCallCount).toBe(1);
+      });
+    });
   });
 
   describe('cache eviction', () => {

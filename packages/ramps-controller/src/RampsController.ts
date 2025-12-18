@@ -272,7 +272,11 @@ export class RampsController extends BaseController<
         );
         throw error;
       } finally {
-        this.#pendingRequests.delete(cacheKey);
+        // Only delete if this is still our entry (not replaced by a new request)
+        const currentPending = this.#pendingRequests.get(cacheKey);
+        if (currentPending?.abortController === abortController) {
+          this.#pendingRequests.delete(cacheKey);
+        }
       }
     })();
 

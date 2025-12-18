@@ -12,7 +12,7 @@ describe('RequestCache', () => {
   describe('createCacheKey', () => {
     it('creates a cache key from method and empty params', () => {
       const key = createCacheKey('updateGeolocation', []);
-      expect(key).toBe('getGeolocation:[]');
+      expect(key).toBe('updateGeolocation:[]');
     });
 
     it('creates a cache key from method and params', () => {
