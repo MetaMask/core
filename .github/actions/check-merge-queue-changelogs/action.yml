@@ -76,6 +76,16 @@ runs:
         UPDATED_CHANGELOGS=$(git diff --name-only "$TARGET_REF" "origin/$PR_BRANCH" | grep -E 'CHANGELOG\.md$' || true)
         if [ -n "$UPDATED_CHANGELOGS" ]; then
           for FILE in $UPDATED_CHANGELOGS; do
+            if [ ! -f "$FILE" ]; then
+              echo "Changelog file \"$FILE\" was deleted in this PR. Skipping."
+              continue
+            fi
+
+            if ! git cat-file -e "$TARGET_REF":"$FILE" 2>/dev/null; then
+              echo "Changelog file \"$FILE\" is new in this PR. Skipping."
+              continue
+            fi
+
             echo "Checking changelog file: $FILE"
             git show "$TARGET_REF":"$FILE" > /tmp/base-changelog.md
             git show origin/"$PR_BRANCH":"$FILE" > /tmp/pr-changelog.md

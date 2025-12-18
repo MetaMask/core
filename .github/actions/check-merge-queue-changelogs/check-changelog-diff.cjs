@@ -13,9 +13,20 @@ if (process.argv.length < 5) {
 }
 
 /* eslint-disable n/no-sync */
-const baseContent = fs.readFileSync(process.argv[2], 'utf8');
-const prContent = fs.readFileSync(process.argv[3], 'utf8');
-const mergedContent = fs.readFileSync(process.argv[4], 'utf8');
+// The type of these is inferred as `Buffer` when using "utf-8" directly instead
+// of an options object. Even though it's a plain JavaScript file, it's nice to
+// keep the types correct.
+const baseContent = fs.readFileSync(process.argv[2], {
+  encoding: 'utf-8',
+});
+
+const prContent = fs.readFileSync(process.argv[3], {
+  encoding: 'utf-8',
+});
+
+const mergedContent = fs.readFileSync(process.argv[4], {
+  encoding: 'utf-8',
+});
 /* eslint-enable n/no-sync */
 
 /**
@@ -58,15 +69,12 @@ function getUnreleasedSection(content) {
 /**
  * Get the lines that were added in the PR content compared to the base content.
  *
- * @param {string} oldContent - The base changelog content.
- * @param {string} newContent - The PR changelog content.
+ * @param {Set<string>} oldLines - The base changelog content.
+ * @param {Set<string>} newLines - The PR changelog content.
  * @returns {string[]} The added lines as an array of strings.
  */
-function getAddedLines(oldContent, newContent) {
-  const oldLines = new Set(oldContent.split('\n').map((line) => line.trim()));
-  const newLines = newContent.split('\n').map((line) => line.trim());
-
-  return newLines.filter(
+function getAddedLines(oldLines, newLines) {
+  return Array.from(newLines).filter(
     (line) =>
       line.length > 0 &&
       !oldLines.has(line) &&
