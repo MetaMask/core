@@ -327,7 +327,8 @@ export class RampsController extends BaseController<
       requests[cacheKey] = requestState;
 
       // Evict oldest entries if cache exceeds max size
-      const keys = Object.keys(requests) as string[];
+      const keys = Object.keys(requests);
+
       if (keys.length > maxSize) {
         // Sort by timestamp (oldest first)
         const sortedKeys = keys.sort((a, b) => {

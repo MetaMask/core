@@ -332,7 +332,7 @@ describe('RampsController', () => {
 
         // Request A: will be aborted but takes time to settle
         const fetcherA = async (signal: AbortSignal): Promise<string> => {
-          return new Promise<string>((resolve, reject) => {
+          return new Promise<string>((_resolve, reject) => {
             signal.addEventListener('abort', () => {
               // Simulate async cleanup delay before rejecting
               setTimeout(() => {
