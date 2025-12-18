@@ -5,7 +5,23 @@ import type {
 } from '@metamask/base-controller';
 import { BaseController } from '@metamask/base-controller';
 import type { Messenger } from '@metamask/messenger';
+import type { Json } from '@metamask/utils';
 
+import type {
+  RequestCache,
+  RequestState,
+  ExecuteRequestOptions,
+  PendingRequest,
+} from './RequestCache';
+import {
+  DEFAULT_REQUEST_CACHE_TTL,
+  DEFAULT_REQUEST_CACHE_MAX_SIZE,
+  createCacheKey,
+  isCacheExpired,
+  createLoadingState,
+  createSuccessState,
+  createErrorState,
+} from './RequestCache';
 import type { RampsServiceGetGeolocationAction } from './RampsService-method-action-types';
 
 // === GENERAL ===
@@ -27,6 +43,11 @@ export type RampsControllerState = {
    * The user's country code determined by geolocation.
    */
   geolocation: string | null;
+  /**
+   * Cache of request states, keyed by cache key.
+   * This stores loading, success, and error states for API requests.
+   */
+  requests: RequestCache;
 };
 
 /**
@@ -37,6 +58,12 @@ const rampsControllerMetadata = {
     persist: true,
     includeInDebugSnapshot: true,
     includeInStateLogs: true,
+    usedInUi: true,
+  },
+  requests: {
+    persist: false,
+    includeInDebugSnapshot: true,
+    includeInStateLogs: false,
     usedInUi: true,
   },
 } satisfies StateMetadata<RampsControllerState>;
@@ -52,6 +79,7 @@ const rampsControllerMetadata = {
 export function getDefaultRampsControllerState(): RampsControllerState {
   return {
     geolocation: null,
+    requests: {},
   };
 }
 
@@ -103,6 +131,20 @@ export type RampsControllerMessenger = Messenger<
   RampsControllerEvents | AllowedEvents
 >;
 
+/**
+ * Configuration options for the RampsController.
+ */
+export type RampsControllerOptions = {
+  /** The messenger suited for this controller. */
+  messenger: RampsControllerMessenger;
+  /** The desired state with which to initialize this controller. */
+  state?: Partial<RampsControllerState>;
+  /** Time to live for cached requests in milliseconds. Defaults to 15 minutes. */
+  requestCacheTTL?: number;
+  /** Maximum number of entries in the request cache. Defaults to 250. */
+  requestCacheMaxSize?: number;
+};
+
 // === CONTROLLER DEFINITION ===
 
 /**
@@ -114,20 +156,37 @@ export class RampsController extends BaseController<
   RampsControllerMessenger
 > {
   /**
+   * Default TTL for cached requests.
+   */
+  readonly #requestCacheTTL: number;
+
+  /**
+   * Maximum number of entries in the request cache.
+   */
+  readonly #requestCacheMaxSize: number;
+
+  /**
+   * Map of pending requests for deduplication.
+   * Key is the cache key, value is the pending request with abort controller.
+   */
+  readonly #pendingRequests: Map<string, PendingRequest> = new Map();
+
+  /**
    * Constructs a new {@link RampsController}.
    *
    * @param args - The constructor arguments.
    * @param args.messenger - The messenger suited for this controller.
    * @param args.state - The desired state with which to initialize this
    * controller. Missing properties will be filled in with defaults.
+   * @param args.requestCacheTTL - Time to live for cached requests in milliseconds.
+   * @param args.requestCacheMaxSize - Maximum number of entries in the request cache.
    */
   constructor({
     messenger,
     state = {},
-  }: {
-    messenger: RampsControllerMessenger;
-    state?: Partial<RampsControllerState>;
-  }) {
+    requestCacheTTL = DEFAULT_REQUEST_CACHE_TTL,
+    requestCacheMaxSize = DEFAULT_REQUEST_CACHE_MAX_SIZE,
+  }: RampsControllerOptions) {
     super({
       messenger,
       metadata: rampsControllerMetadata,
@@ -135,22 +194,226 @@ export class RampsController extends BaseController<
       state: {
         ...getDefaultRampsControllerState(),
         ...state,
+        // Always reset requests cache on initialization (non-persisted)
+        requests: {},
       },
     });
+
+    this.#requestCacheTTL = requestCacheTTL;
+    this.#requestCacheMaxSize = requestCacheMaxSize;
+  }
+
+  /**
+   * Executes a request with caching and deduplication.
+   *
+   * If a request with the same cache key is already in flight, returns the
+   * existing promise. If valid cached data exists, returns it without making
+   * a new request.
+   *
+   * @param cacheKey - Unique identifier for this request.
+   * @param fetcher - Function that performs the actual fetch. Receives an AbortSignal.
+   * @param options - Options for cache behavior.
+   * @returns The result of the request.
+   */
+  async executeRequest<T>(
+    cacheKey: string,
+    fetcher: (signal: AbortSignal) => Promise<T>,
+    options?: ExecuteRequestOptions,
+  ): Promise<T> {
+    const ttl = options?.ttl ?? this.#requestCacheTTL;
+
+    // Check for existing pending request - join it instead of making a duplicate
+    const pending = this.#pendingRequests.get(cacheKey);
+    if (pending) {
+      return pending.promise as Promise<T>;
+    }
+
+    // Check cache validity (unless force refresh)
+    if (!options?.forceRefresh) {
+      const cached = this.state.requests[cacheKey];
+      if (cached && !isCacheExpired(cached, ttl)) {
+        return cached.data as T;
+      }
+    }
+
+    // Create abort controller for this request
+    const abortController = new AbortController();
+    const lastFetchedAt = Date.now();
+
+    // Update state to loading
+    this.#updateRequestState(cacheKey, createLoadingState());
+
+    // Create the fetch promise
+    const promise = (async (): Promise<T> => {
+      try {
+        const data = await fetcher(abortController.signal);
+
+        // Don't update state if aborted
+        if (abortController.signal.aborted) {
+          throw new Error('Request was aborted');
+        }
+
+        this.#updateRequestState(cacheKey, createSuccessState(data as Json, lastFetchedAt));
+        return data;
+      } catch (error) {
+        // Don't update state if aborted
+        if (abortController.signal.aborted) {
+          throw error;
+        }
+
+        const errorMessage =
+          error instanceof Error ? error.message : String(error);
+        this.#updateRequestState(cacheKey, createErrorState(errorMessage, lastFetchedAt));
+        throw error;
+      } finally {
+        this.#pendingRequests.delete(cacheKey);
+      }
+    })();
+
+    // Store pending request for deduplication
+    this.#pendingRequests.set(cacheKey, { promise, abortController });
+
+    return promise;
+  }
+
+  /**
+   * Aborts a pending request if one exists.
+   *
+   * @param cacheKey - The cache key of the request to abort.
+   * @returns True if a request was aborted.
+   */
+  abortRequest(cacheKey: string): boolean {
+    const pending = this.#pendingRequests.get(cacheKey);
+    if (pending) {
+      pending.abortController.abort();
+      this.#pendingRequests.delete(cacheKey);
+      return true;
+    }
+    return false;
+  }
+
+  /**
+   * Aborts all pending requests.
+   */
+  abortAllRequests(): void {
+    for (const [, pending] of this.#pendingRequests) {
+      pending.abortController.abort();
+    }
+    this.#pendingRequests.clear();
+  }
+
+  /**
+   * Invalidates a specific cached request.
+   *
+   * @param cacheKey - The cache key to invalidate.
+   */
+  invalidateRequest(cacheKey: string): void {
+    this.update((state) => {
+      delete state.requests[cacheKey];
+    });
+  }
+
+  /**
+   * Invalidates all cached requests matching a pattern.
+   *
+   * @param pattern - String prefix or RegExp to match against cache keys.
+   */
+  invalidateRequestsMatching(pattern: string | RegExp): void {
+    this.update((state) => {
+      const keysToDelete = Object.keys(state.requests).filter((key) => {
+        if (typeof pattern === 'string') {
+          return key.startsWith(pattern);
+        }
+        return pattern.test(key);
+      });
+
+      for (const key of keysToDelete) {
+        delete state.requests[key];
+      }
+    });
+  }
+
+  /**
+   * Clears all cached requests.
+   */
+  clearRequestCache(): void {
+    this.abortAllRequests();
+    this.update((state) => {
+      state.requests = {};
+    });
+  }
+
+  /**
+   * Gets the state of a specific cached request.
+   *
+   * @param cacheKey - The cache key to look up.
+   * @returns The request state, or undefined if not cached.
+   */
+  getRequestState(cacheKey: string): RequestState | undefined {
+    return this.state.requests[cacheKey];
   }
 
   /**
    * Updates the user's geolocation.
    * This method calls the RampsService to get the geolocation
    * and stores the result in state.
+   *
+   * @param options - Options for cache behavior.
+   * @returns The geolocation string.
    */
-  async updateGeolocation(): Promise<void> {
-    const geolocation = await this.messenger.call(
-      'RampsService:getGeolocation',
+  async updateGeolocation(options?: ExecuteRequestOptions): Promise<string> {
+    const cacheKey = createCacheKey('getGeolocation', []);
+
+    const geolocation = await this.executeRequest(
+      cacheKey,
+      async () => {
+        return this.messenger.call('RampsService:getGeolocation');
+      },
+      options,
     );
 
+    // Also update the dedicated geolocation field for backwards compatibility
     this.update((state) => {
       state.geolocation = geolocation;
+    });
+
+    return geolocation;
+  }
+
+  /**
+   * Updates the state for a specific request.
+   *
+   * @param cacheKey - The cache key.
+   * @param requestState - The new state for the request.
+   */
+  #updateRequestState(cacheKey: string, requestState: RequestState): void {
+    const maxSize = this.#requestCacheMaxSize;
+
+    this.update((state) => {
+      // Use type assertion to avoid immer Draft type issues
+      // eslint-disable-next-line @typescript-eslint/no-explicit-any
+      const requests = state.requests as any;
+      requests[cacheKey] = requestState;
+
+      // Evict oldest entries if cache exceeds max size
+      const keys = Object.keys(requests) as string[];
+      if (keys.length > maxSize) {
+        // Sort by timestamp (oldest first)
+        const sortedKeys = keys.sort((a, b) => {
+          const aTime = (requests[a]?.timestamp as number) ?? 0;
+          const bTime = (requests[b]?.timestamp as number) ?? 0;
+          return aTime - bTime;
+        });
+
+        // Remove oldest entries until we're under the limit
+        const entriesToRemove = keys.length - maxSize;
+        for (let i = 0; i < entriesToRemove; i++) {
+          const keyToRemove = sortedKeys[i];
+          if (keyToRemove) {
+            delete requests[keyToRemove];
+          }
+        }
+      }
     });
   }
 }

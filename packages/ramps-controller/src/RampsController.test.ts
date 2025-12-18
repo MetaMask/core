@@ -9,6 +9,7 @@ import type {
 import type { RampsControllerMessenger } from './RampsController';
 import { RampsController } from './RampsController';
 import type { RampsServiceGetGeolocationAction } from './RampsService-method-action-types';
+import { RequestStatus, createCacheKey } from './RequestCache';
 
 describe('RampsController', () => {
   describe('constructor', () => {
@@ -17,6 +18,7 @@ describe('RampsController', () => {
         expect(controller.state).toMatchInlineSnapshot(`
           Object {
             "geolocation": null,
+            "requests": Object {},
           }
         `);
       });
@@ -30,7 +32,10 @@ describe('RampsController', () => {
       await withController(
         { options: { state: givenState } },
         ({ controller }) => {
-          expect(controller.state).toStrictEqual(givenState);
+          expect(controller.state).toStrictEqual({
+            geolocation: 'US',
+            requests: {},
+          });
         },
       );
     });
@@ -38,11 +43,34 @@ describe('RampsController', () => {
     it('fills in missing initial state with defaults', async () => {
       await withController({ options: { state: {} } }, ({ controller }) => {
         expect(controller.state).toMatchInlineSnapshot(`
-            Object {
-              "geolocation": null,
-            }
-          `);
+          Object {
+            "geolocation": null,
+            "requests": Object {},
+          }
+        `);
       });
+    });
+
+    it('always resets requests cache on initialization', async () => {
+      const givenState = {
+        geolocation: 'US',
+        requests: {
+          'someKey': {
+            status: RequestStatus.SUCCESS,
+            data: 'cached',
+            error: null,
+            timestamp: Date.now(),
+            lastFetchedAt: Date.now(),
+          },
+        },
+      };
+
+      await withController(
+        { options: { state: givenState } },
+        ({ controller }) => {
+          expect(controller.state.requests).toStrictEqual({});
+        },
+      );
     });
   });
 
@@ -58,6 +86,7 @@ describe('RampsController', () => {
         ).toMatchInlineSnapshot(`
           Object {
             "geolocation": null,
+            "requests": Object {},
           }
         `);
       });
@@ -106,6 +135,7 @@ describe('RampsController', () => {
         ).toMatchInlineSnapshot(`
           Object {
             "geolocation": null,
+            "requests": Object {},
           }
         `);
       });
@@ -123,6 +153,300 @@ describe('RampsController', () => {
         await controller.updateGeolocation();
 
         expect(controller.state.geolocation).toBe('US');
+      });
+    });
+
+    it('stores request state in cache', async () => {
+      await withController(async ({ controller, rootMessenger }) => {
+        rootMessenger.registerActionHandler(
+          'RampsService:getGeolocation',
+          async () => 'US',
+        );
+
+        await controller.updateGeolocation();
+
+        const cacheKey = createCacheKey('getGeolocation', []);
+        const requestState = controller.state.requests[cacheKey];
+
+        expect(requestState).toBeDefined();
+        expect(requestState?.status).toBe(RequestStatus.SUCCESS);
+        expect(requestState?.data).toBe('US');
+        expect(requestState?.error).toBeNull();
+      });
+    });
+
+    it('returns cached result on subsequent calls within TTL', async () => {
+      await withController(async ({ controller, rootMessenger }) => {
+        let callCount = 0;
+        rootMessenger.registerActionHandler(
+          'RampsService:getGeolocation',
+          async () => {
+            callCount += 1;
+            return 'US';
+          },
+        );
+
+        await controller.updateGeolocation();
+        await controller.updateGeolocation();
+
+        expect(callCount).toBe(1);
+      });
+    });
+
+    it('makes a new request when forceRefresh is true', async () => {
+      await withController(async ({ controller, rootMessenger }) => {
+        let callCount = 0;
+        rootMessenger.registerActionHandler(
+          'RampsService:getGeolocation',
+          async () => {
+            callCount += 1;
+            return 'US';
+          },
+        );
+
+        await controller.updateGeolocation();
+        await controller.updateGeolocation({ forceRefresh: true });
+
+        expect(callCount).toBe(2);
+      });
+    });
+  });
+
+  describe('executeRequest', () => {
+    it('deduplicates concurrent requests with the same cache key', async () => {
+      await withController(async ({ controller }) => {
+        let callCount = 0;
+        const fetcher = async () => {
+          callCount += 1;
+          await new Promise((resolve) => setTimeout(resolve, 10));
+          return 'result';
+        };
+
+        const [result1, result2] = await Promise.all([
+          controller.executeRequest('test-key', fetcher),
+          controller.executeRequest('test-key', fetcher),
+        ]);
+
+        expect(callCount).toBe(1);
+        expect(result1).toBe('result');
+        expect(result2).toBe('result');
+      });
+    });
+
+    it('stores error state when request fails', async () => {
+      await withController(async ({ controller }) => {
+        const fetcher = async () => {
+          throw new Error('Test error');
+        };
+
+        await expect(
+          controller.executeRequest('error-key', fetcher),
+        ).rejects.toThrow('Test error');
+
+        const requestState = controller.state.requests['error-key'];
+        expect(requestState?.status).toBe(RequestStatus.ERROR);
+        expect(requestState?.error).toBe('Test error');
+      });
+    });
+
+    it('sets loading state while request is in progress', async () => {
+      await withController(async ({ controller }) => {
+        let resolvePromise: (value: string) => void;
+        const fetcher = async () => {
+          return new Promise<string>((resolve) => {
+            resolvePromise = resolve;
+          });
+        };
+
+        const requestPromise = controller.executeRequest('loading-key', fetcher);
+
+        expect(controller.state.requests['loading-key']?.status).toBe(
+          RequestStatus.LOADING,
+        );
+
+        resolvePromise!('done');
+        await requestPromise;
+
+        expect(controller.state.requests['loading-key']?.status).toBe(
+          RequestStatus.SUCCESS,
+        );
+      });
+    });
+  });
+
+  describe('abortRequest', () => {
+    it('aborts a pending request', async () => {
+      await withController(async ({ controller }) => {
+        let wasAborted = false;
+        const fetcher = async (signal: AbortSignal) => {
+          return new Promise<string>((resolve, reject) => {
+            signal.addEventListener('abort', () => {
+              wasAborted = true;
+              reject(new Error('Aborted'));
+            });
+          });
+        };
+
+        const requestPromise = controller.executeRequest('abort-key', fetcher);
+        const didAbort = controller.abortRequest('abort-key');
+
+        expect(didAbort).toBe(true);
+        await expect(requestPromise).rejects.toThrow('Aborted');
+        expect(wasAborted).toBe(true);
+      });
+    });
+
+    it('returns false if no pending request exists', async () => {
+      await withController(({ controller }) => {
+        const didAbort = controller.abortRequest('non-existent-key');
+        expect(didAbort).toBe(false);
+      });
+    });
+  });
+
+  describe('abortAllRequests', () => {
+    it('aborts all pending requests', async () => {
+      await withController(async ({ controller }) => {
+        let abortCount = 0;
+        const createFetcher = () => async (signal: AbortSignal) => {
+          return new Promise<string>((resolve, reject) => {
+            signal.addEventListener('abort', () => {
+              abortCount += 1;
+              reject(new Error('Aborted'));
+            });
+          });
+        };
+
+        const promise1 = controller.executeRequest('key1', createFetcher());
+        const promise2 = controller.executeRequest('key2', createFetcher());
+
+        controller.abortAllRequests();
+
+        await expect(promise1).rejects.toThrow('Aborted');
+        await expect(promise2).rejects.toThrow('Aborted');
+        expect(abortCount).toBe(2);
+      });
+    });
+  });
+
+  describe('invalidateRequest', () => {
+    it('removes a cached request', async () => {
+      await withController(async ({ controller }) => {
+        await controller.executeRequest('invalidate-key', async () => 'data');
+
+        expect(controller.state.requests['invalidate-key']).toBeDefined();
+
+        controller.invalidateRequest('invalidate-key');
+
+        expect(controller.state.requests['invalidate-key']).toBeUndefined();
+      });
+    });
+  });
+
+  describe('invalidateRequestsMatching', () => {
+    it('removes requests matching a string prefix', async () => {
+      await withController(async ({ controller }) => {
+        await controller.executeRequest('prefix:key1', async () => 'data1');
+        await controller.executeRequest('prefix:key2', async () => 'data2');
+        await controller.executeRequest('other:key', async () => 'data3');
+
+        controller.invalidateRequestsMatching('prefix:');
+
+        expect(controller.state.requests['prefix:key1']).toBeUndefined();
+        expect(controller.state.requests['prefix:key2']).toBeUndefined();
+        expect(controller.state.requests['other:key']).toBeDefined();
+      });
+    });
+
+    it('removes requests matching a regex', async () => {
+      await withController(async ({ controller }) => {
+        await controller.executeRequest('getCrypto:US', async () => 'data1');
+        await controller.executeRequest('getCrypto:UK', async () => 'data2');
+        await controller.executeRequest('getRegions:', async () => 'data3');
+
+        controller.invalidateRequestsMatching(/^getCrypto:/u);
+
+        expect(controller.state.requests['getCrypto:US']).toBeUndefined();
+        expect(controller.state.requests['getCrypto:UK']).toBeUndefined();
+        expect(controller.state.requests['getRegions:']).toBeDefined();
+      });
+    });
+  });
+
+  describe('clearRequestCache', () => {
+    it('removes all cached requests', async () => {
+      await withController(async ({ controller }) => {
+        await controller.executeRequest('key1', async () => 'data1');
+        await controller.executeRequest('key2', async () => 'data2');
+
+        expect(Object.keys(controller.state.requests).length).toBe(2);
+
+        controller.clearRequestCache();
+
+        expect(controller.state.requests).toStrictEqual({});
+      });
+    });
+
+    it('aborts pending requests when clearing cache', async () => {
+      await withController(async ({ controller }) => {
+        let wasAborted = false;
+        const fetcher = async (signal: AbortSignal) => {
+          return new Promise<string>((resolve, reject) => {
+            signal.addEventListener('abort', () => {
+              wasAborted = true;
+              reject(new Error('Aborted'));
+            });
+          });
+        };
+
+        const requestPromise = controller.executeRequest('pending-key', fetcher);
+        controller.clearRequestCache();
+
+        await expect(requestPromise).rejects.toThrow('Aborted');
+        expect(wasAborted).toBe(true);
+      });
+    });
+  });
+
+  describe('cache eviction', () => {
+    it('evicts oldest entries when cache exceeds max size', async () => {
+      await withController(
+        { options: { requestCacheMaxSize: 3 } },
+        async ({ controller }) => {
+          await controller.executeRequest('key1', async () => 'data1');
+          await new Promise((resolve) => setTimeout(resolve, 5));
+          await controller.executeRequest('key2', async () => 'data2');
+          await new Promise((resolve) => setTimeout(resolve, 5));
+          await controller.executeRequest('key3', async () => 'data3');
+          await new Promise((resolve) => setTimeout(resolve, 5));
+          await controller.executeRequest('key4', async () => 'data4');
+
+          const keys = Object.keys(controller.state.requests);
+          expect(keys.length).toBe(3);
+          expect(keys).not.toContain('key1');
+          expect(keys).toContain('key2');
+          expect(keys).toContain('key3');
+          expect(keys).toContain('key4');
+        },
+      );
+    });
+  });
+
+  describe('getRequestState', () => {
+    it('returns the cached request state', async () => {
+      await withController(async ({ controller }) => {
+        await controller.executeRequest('state-key', async () => 'data');
+
+        const state = controller.getRequestState('state-key');
+        expect(state?.status).toBe(RequestStatus.SUCCESS);
+        expect(state?.data).toBe('data');
+      });
+    });
+
+    it('returns undefined for non-existent cache key', async () => {
+      await withController(({ controller }) => {
+        const state = controller.getRequestState('non-existent');
+        expect(state).toBeUndefined();
       });
     });
   });
