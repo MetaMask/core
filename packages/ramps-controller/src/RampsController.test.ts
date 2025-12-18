@@ -259,7 +259,7 @@ describe('RampsController', () => {
 
         await expect(
           controller.executeRequest('error-key-no-message', fetcher),
-        ).rejects.toThrow();
+        ).rejects.toThrow(Error);
 
         const requestState = controller.state.requests['error-key-no-message'];
         expect(requestState?.status).toBe(RequestStatus.ERROR);
