@@ -367,12 +367,8 @@ describe('NetworkController', () => {
     });
 
     it('corrects an invalid selectedNetworkClientId to the default RPC endpoint of the first chain, logging this fact', () => {
-      const captureExceptionMock = jest.fn();
-      const messenger = buildRootMessenger({
-        actionHandlers: {
-          'ErrorReportingService:captureException': captureExceptionMock,
-        },
-      });
+      const messenger = buildRootMessenger();
+      const captureExceptionSpy = jest.spyOn(messenger, 'captureException');
       const controllerMessenger = buildNetworkControllerMessenger(messenger);
 
       const controller = new NetworkController({
@@ -409,7 +405,7 @@ describe('NetworkController', () => {
       expect(controller.state.selectedNetworkClientId).toBe(
         'BBBB-BBBB-BBBB-BBBB',
       );
-      expect(captureExceptionMock).toHaveBeenCalledWith(
+      expect(captureExceptionSpy).toHaveBeenCalledWith(
         new Error(
           "`selectedNetworkClientId` 'nonexistent' does not refer to an RPC endpoint within a network configuration; correcting to 'BBBB-BBBB-BBBB-BBBB'",
         ),
@@ -417,12 +413,8 @@ describe('NetworkController', () => {
     });
 
     it('removes invalid network client IDs from networksMetadata, logging this fact', () => {
-      const captureExceptionMock = jest.fn();
-      const messenger = buildRootMessenger({
-        actionHandlers: {
-          'ErrorReportingService:captureException': captureExceptionMock,
-        },
-      });
+      const messenger = buildRootMessenger();
+      const captureExceptionSpy = jest.spyOn(messenger, 'captureException');
       const controllerMessenger = buildNetworkControllerMessenger(messenger);
 
       const controller = new NetworkController({
@@ -472,7 +464,7 @@ describe('NetworkController', () => {
       expect(controller.state.networksMetadata).not.toHaveProperty(
         'CCCC-CCCC-CCCC-CCCC',
       );
-      expect(captureExceptionMock).toHaveBeenCalledWith(
+      expect(captureExceptionSpy).toHaveBeenCalledWith(
         new Error(
           '`networksMetadata` had invalid network client IDs, which have been removed',
         ),
