@@ -42,8 +42,7 @@ export async function calculateThresholdForFlag(
     throw new Error('Feature flag name cannot be empty');
   }
 
-  const normalizedFlagName = featureFlagName.toLowerCase();
-  const seed = metaMetricsId + normalizedFlagName;
+  const seed = metaMetricsId + featureFlagName;
 
   // Hash the combined seed
   const encoder = new TextEncoder();
