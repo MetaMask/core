@@ -1710,7 +1710,6 @@ export class BridgeStatusController extends StaticIntervalPollingController<Brid
         value: '0x0',
         gas: '0x5208', // Minimal gas for display purposes
         gasPrice: '0x3b9aca00', // 1 Gwei - will be converted to EIP-1559 fees if network supports it
-        skipInitialGasEstimate: true,
       };
 
       const { transactionMeta: txMetaPromise } = await this.#addTransactionFn(
@@ -1721,6 +1720,7 @@ export class BridgeStatusController extends StaticIntervalPollingController<Brid
           requireApproval: false,
           networkClientId,
           type: transactionType,
+          skipInitialGasEstimate: true,
           swaps: {
             meta: {
               // Add token symbols from quoteResponse for proper display
