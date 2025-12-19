@@ -342,8 +342,6 @@ const SUPPORTED_CHAIN_IDS_V3 = Object.keys(SPOT_PRICES_SUPPORT_INFO).filter(
 
 const BASE_URL_V1 = 'https://price.api.cx.metamask.io/v1';
 
-const BASE_URL_V2 = 'https://price.api.cx.metamask.io/v2';
-
 const BASE_URL_V3 = 'https://price.api.cx.metamask.io/v3';
 
 /**
@@ -475,16 +473,6 @@ export class CodefiTokenPricesServiceV2
     assets: EvmAssetAddressWithChain<SupportedChainId>[];
     currency: SupportedCurrency;
   }): Promise<EvmAssetWithMarketData<SupportedChainId, SupportedCurrency>[]> {
-    const v3Assets = await this.#fetchTokenPricesV3(assets, currency);
-    const v2Assets = await this.#fetchTokenPricesV2(assets, currency);
-
-    return [...v3Assets, ...v2Assets];
-  }
-
-  async #fetchTokenPricesV3(
-    assets: EvmAssetAddressWithChain<SupportedChainId>[],
-    currency: SupportedCurrency,
-  ): Promise<EvmAssetWithMarketData<SupportedChainId, SupportedCurrency>[]> {
     const assetsWithIds: EvmAssetWithId<SupportedChainId>[] = assets
       // Filter out assets that are not supported by V3 of the Price API.
       .filter((asset) => SUPPORTED_CHAIN_IDS_V3.includes(asset.chainId))
@@ -542,72 +530,6 @@ export class CodefiTokenPricesServiceV2
         };
       })
       .filter((entry): entry is NonNullable<typeof entry> => Boolean(entry));
-  }
-
-  // TODO: Remove this fallback in future versions, as all chains appear to have V3 support
-  async #fetchTokenPricesV2(
-    assets: EvmAssetAddressWithChain<SupportedChainId>[],
-    currency: SupportedCurrency,
-  ): Promise<EvmAssetWithMarketData<SupportedChainId, SupportedCurrency>[]> {
-    const v2SupportedAssets = assets.filter(
-      (asset) => !SUPPORTED_CHAIN_IDS_V3.includes(asset.chainId),
-    );
-
-    const assetsByChainId: Record<SupportedChainId, Hex[]> =
-      v2SupportedAssets.reduce(
-        (acc, { chainId, tokenAddress }) => {
-          (acc[chainId] ??= []).push(tokenAddress);
-          return acc;
-        },
-        {} as Record<SupportedChainId, Hex[]>,
-      );
-
-    const promises = Object.entries(assetsByChainId).map(
-      async ([chainId, tokenAddresses]) => {
-        if (tokenAddresses.length === 0) {
-          return [];
-        }
-
-        const url = new URL(`${BASE_URL_V2}/chains/${chainId}/spot-prices`);
-        url.searchParams.append('tokenAddresses', tokenAddresses.join(','));
-        url.searchParams.append('vsCurrency', currency);
-        url.searchParams.append('includeMarketData', 'true');
-
-        const addressCryptoDataMap: {
-          [tokenAddress: string]: Omit<
-            MarketDataDetails,
-            'currency' | 'tokenAddress'
-          >;
-        } = await this.#policy.execute(() =>
-          handleFetch(url, { headers: { 'Cache-Control': 'no-cache' } }),
-        );
-
-        return tokenAddresses
-          .map((tokenAddress) => {
-            const marketData = addressCryptoDataMap[tokenAddress.toLowerCase()];
-
-            if (!marketData) {
-              return undefined;
-            }
-
-            return {
-              ...marketData,
-              tokenAddress,
-              chainId: chainId as SupportedChainId,
-              currency,
-            };
-          })
-          .filter((entry): entry is NonNullable<typeof entry> =>
-            Boolean(entry),
-          );
-      },
-    );
-
-    return await Promise.allSettled(promises).then((results) =>
-      results.flatMap((result) =>
-        result.status === 'fulfilled' ? result.value : [],
-      ),
-    );
   }
 
   /**
