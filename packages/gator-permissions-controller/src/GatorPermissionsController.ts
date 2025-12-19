@@ -959,7 +959,7 @@ export default class GatorPermissionsController extends BaseController<
         const { hash, blockTimestamp } = transactionMeta;
         if (hash === undefined || blockTimestamp === undefined) {
           controllerLog(
-            'Failed to attach transaction has after revocation transaction confirmed',
+            'Failed to attach transaction hash after revocation transaction confirmed',
             {
               txId,
               permissionContext,
