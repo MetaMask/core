@@ -339,7 +339,8 @@ export class RemoteFeatureFlagController extends BaseController<
         );
 
         if (!hasValidThresholds) {
-          // Skip this flag - no valid threshold configuration
+          // Not a threshold array - preserve as-is
+          processedRemoteFeatureFlags[remoteFeatureFlagName] = processedValue;
           continue;
         }
 

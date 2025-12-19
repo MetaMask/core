@@ -22,6 +22,7 @@ import type { FeatureFlags } from './remote-feature-flag-controller-types';
 const MOCK_FLAGS: FeatureFlags = {
   feature1: true,
   feature2: { chrome: '<109' },
+  feature3: [1, 2, 3],
 };
 
 const MOCK_FLAGS_TWO = { different: true };
@@ -394,6 +395,28 @@ describe('RemoteFeatureFlagController', () => {
       // featureB: hash(MOCK_METRICS_ID + 'featureB') → threshold 0.398654 → groupB1
       expect(featureB).toStrictEqual({ name: 'groupB1', value: 'B1' });
       // Different groups proves independence!
+    });
+
+    it('preserves non-threshold arrays without processing', async () => {
+      // Arrange
+      const mockFlags = {
+        nonThresholdArray: [1, 2, 3],
+        stringArray: ['a', 'b', 'c'],
+      };
+      const clientConfigApiService = buildClientConfigApiService({
+        remoteFeatureFlags: mockFlags,
+      });
+      const controller = createController({
+        clientConfigApiService,
+        getMetaMetricsId: () => MOCK_METRICS_ID,
+      });
+
+      // Act
+      await controller.updateRemoteFeatureFlags();
+
+      // Assert - Arrays preserved as-is, not processed for thresholds
+      expect(controller.state.remoteFeatureFlags.nonThresholdArray).toStrictEqual([1, 2, 3]);
+      expect(controller.state.remoteFeatureFlags.stringArray).toStrictEqual(['a', 'b', 'c']);
     });
 
     it('assigns users to same group for same feature flag on multiple calls', async () => {
