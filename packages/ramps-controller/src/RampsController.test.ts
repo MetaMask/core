@@ -9,6 +9,7 @@ import type {
 import type { RampsControllerMessenger } from './RampsController';
 import { RampsController } from './RampsController';
 import type { RampsServiceGetGeolocationAction } from './RampsService-method-action-types';
+import { RequestStatus, createCacheKey } from './RequestCache';
 
 describe('RampsController', () => {
   describe('constructor', () => {
@@ -17,6 +18,7 @@ describe('RampsController', () => {
         expect(controller.state).toMatchInlineSnapshot(`
           Object {
             "geolocation": null,
+            "requests": Object {},
           }
         `);
       });
@@ -30,7 +32,10 @@ describe('RampsController', () => {
       await withController(
         { options: { state: givenState } },
         ({ controller }) => {
-          expect(controller.state).toStrictEqual(givenState);
+          expect(controller.state).toStrictEqual({
+            geolocation: 'US',
+            requests: {},
+          });
         },
       );
     });
@@ -38,11 +43,34 @@ describe('RampsController', () => {
     it('fills in missing initial state with defaults', async () => {
       await withController({ options: { state: {} } }, ({ controller }) => {
         expect(controller.state).toMatchInlineSnapshot(`
-            Object {
-              "geolocation": null,
-            }
-          `);
+          Object {
+            "geolocation": null,
+            "requests": Object {},
+          }
+        `);
       });
+    });
+
+    it('always resets requests cache on initialization', async () => {
+      const givenState = {
+        geolocation: 'US',
+        requests: {
+          someKey: {
+            status: RequestStatus.SUCCESS,
+            data: 'cached',
+            error: null,
+            timestamp: Date.now(),
+            lastFetchedAt: Date.now(),
+          },
+        },
+      };
+
+      await withController(
+        { options: { state: givenState } },
+        ({ controller }) => {
+          expect(controller.state.requests).toStrictEqual({});
+        },
+      );
     });
   });
 
@@ -58,6 +86,7 @@ describe('RampsController', () => {
         ).toMatchInlineSnapshot(`
           Object {
             "geolocation": null,
+            "requests": Object {},
           }
         `);
       });
@@ -106,6 +135,7 @@ describe('RampsController', () => {
         ).toMatchInlineSnapshot(`
           Object {
             "geolocation": null,
+            "requests": Object {},
           }
         `);
       });
@@ -123,6 +153,352 @@ describe('RampsController', () => {
         await controller.updateGeolocation();
 
         expect(controller.state.geolocation).toBe('US');
+      });
+    });
+
+    it('stores request state in cache', async () => {
+      await withController(async ({ controller, rootMessenger }) => {
+        rootMessenger.registerActionHandler(
+          'RampsService:getGeolocation',
+          async () => 'US',
+        );
+
+        await controller.updateGeolocation();
+
+        const cacheKey = createCacheKey('updateGeolocation', []);
+        const requestState = controller.state.requests[cacheKey];
+
+        expect(requestState).toBeDefined();
+        expect(requestState?.status).toBe(RequestStatus.SUCCESS);
+        expect(requestState?.data).toBe('US');
+        expect(requestState?.error).toBeNull();
+      });
+    });
+
+    it('returns cached result on subsequent calls within TTL', async () => {
+      await withController(async ({ controller, rootMessenger }) => {
+        let callCount = 0;
+        rootMessenger.registerActionHandler(
+          'RampsService:getGeolocation',
+          async () => {
+            callCount += 1;
+            return 'US';
+          },
+        );
+
+        await controller.updateGeolocation();
+        await controller.updateGeolocation();
+
+        expect(callCount).toBe(1);
+      });
+    });
+
+    it('makes a new request when forceRefresh is true', async () => {
+      await withController(async ({ controller, rootMessenger }) => {
+        let callCount = 0;
+        rootMessenger.registerActionHandler(
+          'RampsService:getGeolocation',
+          async () => {
+            callCount += 1;
+            return 'US';
+          },
+        );
+
+        await controller.updateGeolocation();
+        await controller.updateGeolocation({ forceRefresh: true });
+
+        expect(callCount).toBe(2);
+      });
+    });
+  });
+
+  describe('executeRequest', () => {
+    it('deduplicates concurrent requests with the same cache key', async () => {
+      await withController(async ({ controller }) => {
+        let callCount = 0;
+        const fetcher = async (): Promise<string> => {
+          callCount += 1;
+          await new Promise((resolve) => setTimeout(resolve, 10));
+          return 'result';
+        };
+
+        const [result1, result2] = await Promise.all([
+          controller.executeRequest('test-key', fetcher),
+          controller.executeRequest('test-key', fetcher),
+        ]);
+
+        expect(callCount).toBe(1);
+        expect(result1).toBe('result');
+        expect(result2).toBe('result');
+      });
+    });
+
+    it('stores error state when request fails', async () => {
+      await withController(async ({ controller }) => {
+        const fetcher = async (): Promise<string> => {
+          throw new Error('Test error');
+        };
+
+        await expect(
+          controller.executeRequest('error-key', fetcher),
+        ).rejects.toThrow('Test error');
+
+        const requestState = controller.state.requests['error-key'];
+        expect(requestState?.status).toBe(RequestStatus.ERROR);
+        expect(requestState?.error).toBe('Test error');
+      });
+    });
+
+    it('stores fallback error message when error has no message', async () => {
+      await withController(async ({ controller }) => {
+        const fetcher = async (): Promise<string> => {
+          const error = new Error();
+          Object.defineProperty(error, 'message', { value: undefined });
+          throw error;
+        };
+
+        await expect(
+          controller.executeRequest('error-key-no-message', fetcher),
+        ).rejects.toThrow(Error);
+
+        const requestState = controller.state.requests['error-key-no-message'];
+        expect(requestState?.status).toBe(RequestStatus.ERROR);
+        expect(requestState?.error).toBe('Unknown error');
+      });
+    });
+
+    it('sets loading state while request is in progress', async () => {
+      await withController(async ({ controller }) => {
+        let resolvePromise: (value: string) => void;
+        const fetcher = async (): Promise<string> => {
+          return new Promise<string>((resolve) => {
+            resolvePromise = resolve;
+          });
+        };
+
+        const requestPromise = controller.executeRequest(
+          'loading-key',
+          fetcher,
+        );
+
+        expect(controller.state.requests['loading-key']?.status).toBe(
+          RequestStatus.LOADING,
+        );
+
+        // eslint-disable-next-line @typescript-eslint/no-non-null-assertion
+        resolvePromise!('done');
+        await requestPromise;
+
+        expect(controller.state.requests['loading-key']?.status).toBe(
+          RequestStatus.SUCCESS,
+        );
+      });
+    });
+  });
+
+  describe('abortRequest', () => {
+    it('aborts a pending request', async () => {
+      await withController(async ({ controller }) => {
+        let wasAborted = false;
+        const fetcher = async (signal: AbortSignal): Promise<string> => {
+          return new Promise<string>((_resolve, reject) => {
+            signal.addEventListener('abort', () => {
+              wasAborted = true;
+              reject(new Error('Aborted'));
+            });
+          });
+        };
+
+        const requestPromise = controller.executeRequest('abort-key', fetcher);
+        const didAbort = controller.abortRequest('abort-key');
+
+        expect(didAbort).toBe(true);
+        await expect(requestPromise).rejects.toThrow('Aborted');
+        expect(wasAborted).toBe(true);
+      });
+    });
+
+    it('returns false if no pending request exists', async () => {
+      await withController(({ controller }) => {
+        const didAbort = controller.abortRequest('non-existent-key');
+        expect(didAbort).toBe(false);
+      });
+    });
+
+    it('clears LOADING state from requests cache when aborted', async () => {
+      await withController(async ({ controller }) => {
+        const fetcher = async (signal: AbortSignal): Promise<string> => {
+          return new Promise<string>((_resolve, reject) => {
+            signal.addEventListener('abort', () => {
+              reject(new Error('Aborted'));
+            });
+          });
+        };
+
+        const requestPromise = controller.executeRequest('abort-key', fetcher);
+
+        expect(controller.state.requests['abort-key']?.status).toBe(
+          RequestStatus.LOADING,
+        );
+
+        controller.abortRequest('abort-key');
+
+        expect(controller.state.requests['abort-key']).toBeUndefined();
+
+        await expect(requestPromise).rejects.toThrow('Aborted');
+      });
+    });
+
+    it('throws if fetch completes after abort signal is triggered', async () => {
+      await withController(async ({ controller }) => {
+        const fetcher = async (signal: AbortSignal): Promise<string> => {
+          // Simulate: abort is called, but fetcher still returns successfully
+          signal.dispatchEvent(new Event('abort'));
+          Object.defineProperty(signal, 'aborted', { value: true });
+          return 'completed-after-abort';
+        };
+
+        const requestPromise = controller.executeRequest(
+          'abort-after-success-key',
+          fetcher,
+        );
+
+        await expect(requestPromise).rejects.toThrow('Request was aborted');
+      });
+    });
+
+    it('does not delete newer pending request when aborted request settles', async () => {
+      await withController(async ({ controller }) => {
+        let requestASettled = false;
+        let requestBCallCount = 0;
+
+        // Request A: will be aborted but takes time to settle
+        const fetcherA = async (signal: AbortSignal): Promise<string> => {
+          return new Promise<string>((_resolve, reject) => {
+            signal.addEventListener('abort', () => {
+              // Simulate async cleanup delay before rejecting
+              setTimeout(() => {
+                requestASettled = true;
+                reject(new Error('Request A aborted'));
+              }, 50);
+            });
+          });
+        };
+
+        // Request B: normal request that should deduplicate correctly
+        const fetcherB = async (): Promise<string> => {
+          requestBCallCount += 1;
+          await new Promise((resolve) => setTimeout(resolve, 10));
+          return 'result-b';
+        };
+
+        // Start request A
+        const promiseA = controller.executeRequest('race-key', fetcherA);
+
+        // Abort request A (removes from pendingRequests, triggers abort)
+        controller.abortRequest('race-key');
+
+        // Start request B with the same key before request A settles
+        expect(requestASettled).toBe(false);
+        const promiseB = controller.executeRequest('race-key', fetcherB);
+
+        // Start request C with same key - should deduplicate with B
+        const promiseC = controller.executeRequest('race-key', fetcherB);
+
+        // Wait for request A to finish settling (its finally block runs)
+        await expect(promiseA).rejects.toThrow('Request A aborted');
+        expect(requestASettled).toBe(true);
+
+        // Requests B and C should still work correctly (deduplication intact)
+        const [resultB, resultC] = await Promise.all([promiseB, promiseC]);
+
+        expect(resultB).toBe('result-b');
+        expect(resultC).toBe('result-b');
+        expect(requestBCallCount).toBe(1);
+      });
+    });
+  });
+
+  describe('cache eviction', () => {
+    it('evicts oldest entries when cache exceeds max size', async () => {
+      await withController(
+        { options: { requestCacheMaxSize: 3 } },
+        async ({ controller }) => {
+          await controller.executeRequest('key1', async () => 'data1');
+          await new Promise((resolve) => setTimeout(resolve, 5));
+          await controller.executeRequest('key2', async () => 'data2');
+          await new Promise((resolve) => setTimeout(resolve, 5));
+          await controller.executeRequest('key3', async () => 'data3');
+          await new Promise((resolve) => setTimeout(resolve, 5));
+          await controller.executeRequest('key4', async () => 'data4');
+
+          const keys = Object.keys(controller.state.requests);
+          expect(keys).toHaveLength(3);
+          expect(keys).not.toContain('key1');
+          expect(keys).toContain('key2');
+          expect(keys).toContain('key3');
+          expect(keys).toContain('key4');
+        },
+      );
+    });
+
+    it('handles entries with missing timestamps during eviction', async () => {
+      await withController(
+        { options: { requestCacheMaxSize: 2 } },
+        async ({ controller }) => {
+          // Manually inject cache entries with missing timestamps
+          // This shouldn't happen in normal usage but tests the defensive fallback
+          // eslint-disable-next-line @typescript-eslint/no-explicit-any
+          (controller as any).update((state: any) => {
+            state.requests['no-timestamp-1'] = {
+              status: RequestStatus.SUCCESS,
+              data: 'old-data-1',
+              error: null,
+            };
+            state.requests['no-timestamp-2'] = {
+              status: RequestStatus.SUCCESS,
+              data: 'old-data-2',
+              error: null,
+            };
+            state.requests['with-timestamp'] = {
+              status: RequestStatus.SUCCESS,
+              data: 'newer-data',
+              error: null,
+              timestamp: Date.now(),
+              lastFetchedAt: Date.now(),
+            };
+          });
+
+          // Adding a fourth entry should trigger eviction of 2 entries
+          await controller.executeRequest('key4', async () => 'data4');
+
+          const keys = Object.keys(controller.state.requests);
+          expect(keys).toHaveLength(2);
+          // Entries without timestamps should be evicted first (treated as timestamp 0)
+          expect(keys).not.toContain('no-timestamp-1');
+          expect(keys).not.toContain('no-timestamp-2');
+          expect(keys).toContain('with-timestamp');
+          expect(keys).toContain('key4');
+        },
+      );
+    });
+  });
+
+  describe('getRequestState', () => {
+    it('returns the cached request state', async () => {
+      await withController(async ({ controller }) => {
+        await controller.executeRequest('state-key', async () => 'data');
+
+        const state = controller.getRequestState('state-key');
+        expect(state?.status).toBe(RequestStatus.SUCCESS);
+        expect(state?.data).toBe('data');
+      });
+    });
+
+    it('returns undefined for non-existent cache key', async () => {
+      await withController(({ controller }) => {
+        const state = controller.getRequestState('non-existent');
+        expect(state).toBeUndefined();
       });
     });
   });
