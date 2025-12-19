@@ -17,7 +17,7 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
   - Persist threshold values in controller state to avoid recalculating on app restart
   - Skip cryptographic operations for non-threshold arrays
   - Batch cache updates and cleanup into single state change
-  - Automatically remove stale cache entries when flags are deleted 
+  - Automatically remove stale cache entries when flags are deleted
 - Bump `@metamask/controller-utils` from `^11.16.0` to `^11.17.0` ([#7534](https://github.com/MetaMask/core/pull/7534))
 
 ## [3.1.0]
