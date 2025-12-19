@@ -112,3 +112,50 @@ export function deserializeAuthKeyPair(value: string): KeyPair {
     pk: base64ToBytes(parsedKeyPair.pk),
   };
 }
+
+/**
+ * Extract the 60-bit timestamp from a TIMEUUID (version 1 UUID) string.
+ *
+ * TIMEUUID structure: xxxxxxxx-xxxx-1xxx-xxxx-xxxxxxxxxxxx
+ * - time_low (first 8 hex chars): least significant 32 bits of timestamp
+ * - time_mid (chars 9-12): middle 16 bits of timestamp
+ * - time_hi (chars 14-16, after version nibble): most significant 12 bits of timestamp
+ *
+ * @param uuid - The TIMEUUID string to extract timestamp from.
+ * @returns The 60-bit timestamp as a bigint.
+ */
+export function getTimestampFromTimeuuid(uuid: string): bigint {
+  const parts = uuid.split('-');
+  const timeLow = parts[0]; // 32 bits (least significant)
+  const timeMid = parts[1]; // 16 bits
+  const timeHi = parts[2].slice(1); // 12 bits (remove version nibble '1')
+  // Reconstruct timestamp: timeHi | timeMid | timeLow
+  return BigInt(`0x${timeHi}${timeMid}${timeLow}`);
+}
+
+/**
+ * Compare two TIMEUUID strings by their actual timestamps.
+ *
+ * Note: TIMEUUID strings are NOT lexicographically sortable because the
+ * least significant bits of the timestamp appear first in the string.
+ *
+ * @param a - First TIMEUUID string.
+ * @param b - Second TIMEUUID string.
+ * @param order - Sort order: 'asc' for oldest first, 'desc' for newest first. Default is 'asc'.
+ * @returns Negative if a < b (in ascending order), positive if a > b, zero if equal.
+ */
+export function compareTimeuuid(
+  a: string,
+  b: string,
+  order: 'asc' | 'desc' = 'asc',
+): number {
+  const tsA = getTimestampFromTimeuuid(a);
+  const tsB = getTimestampFromTimeuuid(b);
+  if (tsA < tsB) {
+    return order === 'asc' ? -1 : 1;
+  }
+  if (tsA > tsB) {
+    return order === 'asc' ? 1 : -1;
+  }
+  return 0;
+}

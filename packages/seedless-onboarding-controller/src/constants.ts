@@ -60,4 +60,6 @@ export enum SeedlessOnboardingControllerErrorMessage {
   FailedToFetchAuthPubKey = `${controllerName} - Failed to fetch latest auth pub key`,
   InvalidPasswordOutdatedCache = `${controllerName} - Invalid password outdated cache provided.`,
   FailedToRefreshJWTTokens = `${controllerName} - Failed to refresh JWT tokens`,
+  FailedToUpdateSecretDataItem = `${controllerName} - Failed to update secret data item`,
+  FailedToBatchUpdateSecretDataItems = `${controllerName} - Failed to batch update secret data items`,
 }
