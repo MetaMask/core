@@ -7,6 +7,11 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+### Uncategorized
+
+- Chore/w3a controllers linting ([#7455](https://github.com/MetaMask/core/pull/7455))
+- Remove breaking designation from version bumps in changelog ([#7419](https://github.com/MetaMask/core/pull/7419))
+
 ### Changed
 
 - Upgrade `@metamask/utils` from `^11.8.1` to `^11.9.0` ([#7511](https://github.com/MetaMask/core/pull/7511))
