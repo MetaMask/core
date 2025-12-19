@@ -67,10 +67,7 @@ const getRootMessenger = (): RootMessenger => {
     MessengerActions<NetworkControllerMessenger>,
     MessengerEvents<NetworkControllerMessenger>
   >({ namespace: MOCK_ANY_NAMESPACE });
-  rootMessenger.registerActionHandler(
-    'ErrorReportingService:captureException',
-    jest.fn(),
-  );
+
   return rootMessenger;
 };
 
@@ -93,10 +90,7 @@ const setupNetworkController = async ({
   >({
     namespace: 'NetworkController',
     parent: rootMessenger,
-  });
-  rootMessenger.delegate({
-    messenger: networkControllerMessenger,
-    actions: ['ErrorReportingService:captureException'],
+    captureException: jest.fn(),
   });
 
   const infuraProjectId = '123';
