@@ -134,32 +134,6 @@ describe('user-segmentation-utils', () => {
         calculateThresholdForFlag(emptyMetaMetricsId, flagName),
       ).rejects.toThrow('MetaMetrics ID cannot be empty');
     });
-
-    it('produces same threshold regardless of input casing', async () => {
-      // Arrange
-      const metaMetricsIdLower = 'f9e8d7c6-b5a4-4210-9876-543210fedcba';
-      const metaMetricsIdUpper = 'F9E8D7C6-B5A4-4210-9876-543210FEDCBA';
-      const metaMetricsIdMixed = 'F9e8D7c6-B5a4-4210-9876-543210FedCBA';
-      const flagName = 'testFlag';
-
-      // Act
-      const thresholdLower = await calculateThresholdForFlag(
-        metaMetricsIdLower,
-        flagName,
-      );
-      const thresholdUpper = await calculateThresholdForFlag(
-        metaMetricsIdUpper,
-        flagName,
-      );
-      const thresholdMixed = await calculateThresholdForFlag(
-        metaMetricsIdMixed,
-        flagName,
-      );
-
-      // Assert - All should produce same threshold (case-insensitive)
-      expect(thresholdLower).toBe(thresholdUpper);
-      expect(thresholdLower).toBe(thresholdMixed);
-    });
   });
 
   describe('generateDeterministicRandomNumber', () => {

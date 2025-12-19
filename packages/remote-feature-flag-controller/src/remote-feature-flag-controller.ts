@@ -31,6 +31,7 @@ export type RemoteFeatureFlagControllerState = {
   localOverrides: FeatureFlags;
   rawRemoteFeatureFlags: FeatureFlags;
   cacheTimestamp: number;
+  thresholdCache: Record<string, number>;
 };
 
 const remoteFeatureFlagControllerMetadata = {
@@ -56,6 +57,12 @@ const remoteFeatureFlagControllerMetadata = {
     includeInStateLogs: true,
     persist: true,
     includeInDebugSnapshot: true,
+    usedInUi: false,
+  },
+  thresholdCache: {
+    includeInStateLogs: false,
+    persist: true,
+    includeInDebugSnapshot: false,
     usedInUi: false,
   },
 };
@@ -124,6 +131,7 @@ export function getDefaultRemoteFeatureFlagControllerState(): RemoteFeatureFlagC
     localOverrides: {},
     rawRemoteFeatureFlags: {},
     cacheTimestamp: 0,
+    thresholdCache: {},
   };
 }
 
@@ -149,8 +157,6 @@ export class RemoteFeatureFlagController extends BaseController<
   readonly #getMetaMetricsId: () => string;
 
   readonly #clientVersion: SemVerVersion;
-
-  readonly #thresholdCache: Map<string, number> = new Map();
 
   /**
    * Constructs a new RemoteFeatureFlagController instance.
@@ -304,15 +310,19 @@ export class RemoteFeatureFlagController extends BaseController<
         }
 
         // Check cache first, calculate only if needed
-        const cacheKey = `${metaMetricsId}:${remoteFeatureFlagName}`;
-        let thresholdValue = this.#thresholdCache.get(cacheKey);
+        const cacheKey: `${string}:${string}` = `${metaMetricsId}:${remoteFeatureFlagName}`;
+        let thresholdValue = this.state.thresholdCache[cacheKey];
 
         if (thresholdValue === undefined) {
           thresholdValue = await calculateThresholdForFlag(
             metaMetricsId,
             remoteFeatureFlagName,
           );
-          this.#thresholdCache.set(cacheKey, thresholdValue);
+
+          // Update state to persist the threshold
+          this.update((state) => {
+            state.thresholdCache[cacheKey] = thresholdValue;
+          });
         }
 
         const threshold = thresholdValue;

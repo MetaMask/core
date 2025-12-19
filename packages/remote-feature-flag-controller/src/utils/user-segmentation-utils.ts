@@ -24,7 +24,6 @@ const UUID_V4_VALUE_RANGE_BIGINT = MAX_UUID_V4_BIGINT - MIN_UUID_V4_BIGINT;
  * Calculates a deterministic threshold value between 0 and 1 for A/B testing.
  * This function hashes the user's MetaMetrics ID combined with the feature flag name
  * to ensure consistent group assignment across sessions while varying across different flags.
- * Normalizes inputs to lowercase to ensure case-insensitive consistency.
  *
  * @param metaMetricsId - The user's MetaMetrics ID (must be non-empty)
  * @param featureFlagName - The feature flag name to create unique threshold per flag
@@ -39,16 +38,14 @@ export async function calculateThresholdForFlag(
     throw new Error('MetaMetrics ID cannot be empty');
   }
 
-  // Normalize to lowercase to ensure case-insensitive consistency
-  const normalizedId = metaMetricsId.toLowerCase();
   const normalizedFlagName = featureFlagName.toLowerCase();
-  const seed = normalizedId + normalizedFlagName;
+  const seed = metaMetricsId + normalizedFlagName;
 
   // Hash the combined seed
   const encoder = new TextEncoder();
   const hashBuffer = await sha256(encoder.encode(seed));
 
-  // Convert hash bytes directly to 0-1 range without intermediate hex format
+  // Convert hash bytes directly to 0-1 range
   const hash = bytesToHex(hashBuffer);
   const hashBigInt = BigInt(hash);
   const maxValue = BigInt(`0x${'f'.repeat(64)}`);

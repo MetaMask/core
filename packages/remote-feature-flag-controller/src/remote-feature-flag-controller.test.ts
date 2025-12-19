@@ -90,6 +90,7 @@ describe('RemoteFeatureFlagController', () => {
         localOverrides: {},
         rawRemoteFeatureFlags: {},
         cacheTimestamp: 0,
+        thresholdCache: {},
       });
     });
 
@@ -101,6 +102,7 @@ describe('RemoteFeatureFlagController', () => {
         localOverrides: {},
         rawRemoteFeatureFlags: {},
         cacheTimestamp: 0,
+        thresholdCache: {},
       });
     });
 
@@ -926,6 +928,7 @@ describe('RemoteFeatureFlagController', () => {
           "localOverrides": Object {},
           "rawRemoteFeatureFlags": Object {},
           "remoteFeatureFlags": Object {},
+          "thresholdCache": Object {},
         }
       `);
     });
