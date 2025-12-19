@@ -264,9 +264,7 @@ export class RemoteFeatureFlagController extends BaseController<
     const updatedThresholdCache = { ...(this.state.thresholdCache ?? {}) };
 
     // Apply new thresholds
-    for (const [cacheKey, threshold] of Object.entries(
-      thresholdCacheUpdates,
-    )) {
+    for (const [cacheKey, threshold] of Object.entries(thresholdCacheUpdates)) {
       updatedThresholdCache[cacheKey] = threshold;
     }
 
@@ -309,9 +307,7 @@ export class RemoteFeatureFlagController extends BaseController<
   }
 
 
-  async #processRemoteFeatureFlags(
-    remoteFeatureFlags: FeatureFlags,
-  ): Promise<{
+  async #processRemoteFeatureFlags(remoteFeatureFlags: FeatureFlags): Promise<{
     processedFlags: FeatureFlags;
     thresholdCacheUpdates: Record<string, number>;
   }> {

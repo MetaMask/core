@@ -1025,7 +1025,9 @@ describe('RemoteFeatureFlagController', () => {
       const finalThreshold =
         controller.state.thresholdCache?.[`${MOCK_METRICS_ID}:persistentFlag`];
       expect(finalThreshold).toBe(initialThreshold);
-      expect(Object.keys(controller.state.thresholdCache ?? {})).toHaveLength(1);
+      expect(Object.keys(controller.state.thresholdCache ?? {})).toHaveLength(
+        1,
+      );
 
       jest.useRealTimers();
     });
@@ -1114,7 +1116,9 @@ describe('RemoteFeatureFlagController', () => {
       });
 
       await controller.updateRemoteFeatureFlags();
-      expect(Object.keys(controller.state.thresholdCache ?? {})).toHaveLength(1);
+      expect(Object.keys(controller.state.thresholdCache ?? {})).toHaveLength(
+        1,
+      );
 
       // Act - Replace oldFlag with newFlag
       jest
@@ -1210,7 +1214,9 @@ describe('RemoteFeatureFlagController', () => {
 
       // Act - First update populates cache
       await controller.updateRemoteFeatureFlags();
-      expect(Object.keys(controller.state.thresholdCache ?? {})).toHaveLength(2);
+      expect(Object.keys(controller.state.thresholdCache ?? {})).toHaveLength(
+        2,
+      );
 
       // Server returns empty flags
       jest
@@ -1225,7 +1231,9 @@ describe('RemoteFeatureFlagController', () => {
       await controller.updateRemoteFeatureFlags();
 
       // Assert - All entries removed
-      expect(Object.keys(controller.state.thresholdCache ?? {})).toHaveLength(0);
+      expect(Object.keys(controller.state.thresholdCache ?? {})).toHaveLength(
+        0,
+      );
 
       jest.useRealTimers();
     });
