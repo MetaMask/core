@@ -18,7 +18,7 @@ export type {
   Country,
   CountryPhone,
 } from './RampsService';
-export { RampsService, RampsEnvironment } from './RampsService';
+export { RampsService, RampsEnvironment, RampsApiService } from './RampsService';
 export type {
   RampsServiceGetGeolocationAction,
   RampsServiceGetCountriesAction,

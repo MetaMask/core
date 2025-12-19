@@ -48,6 +48,15 @@ export enum RampsEnvironment {
   Development = 'development',
 }
 
+/**
+ * The type of ramps API service.
+ * Determines which base URL to use (cache vs standard).
+ */
+export enum RampsApiService {
+  Regions = 'regions',
+  Orders = 'orders',
+}
+
 // === MESSENGER ===
 
 const MESSENGER_EXPOSED_METHODS = ['getGeolocation', 'getCountries'] as const;
@@ -85,38 +94,25 @@ export type RampsServiceMessenger = Messenger<
 // === SERVICE DEFINITION ===
 
 /**
- * Gets the base URL for API requests based on the environment.
+ * Gets the base URL for API requests based on the environment and service type.
+ * The Regions service uses a cache URL, while other services use the standard URL.
  *
  * @param environment - The environment to use.
+ * @param service - The API service type (determines if cache URL is used).
  * @returns The base URL for API requests.
  */
-function getBaseUrl(environment: RampsEnvironment): string {
-  switch (environment) {
-    case RampsEnvironment.Production:
-      return 'https://on-ramp.api.cx.metamask.io';
-    case RampsEnvironment.Staging:
-      return 'https://on-ramp.uat-api.cx.metamask.io';
-    case RampsEnvironment.Development:
-      return 'http://localhost:3000';
-    default:
-      throw new Error(`Invalid environment: ${String(environment)}`);
-  }
-}
+function getBaseUrl(
+  environment: RampsEnvironment,
+  service: RampsApiService,
+): string {
+  const cache = service === RampsApiService.Regions ? '-cache' : '';
 
-/**
- * Gets the base URL for cached API requests based on the environment.
- *
- * @param environment - The environment to use.
- * @returns The cache base URL for API requests.
- */
-function getCacheBaseUrl(environment: RampsEnvironment): string {
   switch (environment) {
     case RampsEnvironment.Production:
-      return 'https://on-ramp-cache.api.cx.metamask.io';
+      return `https://on-ramp${cache}.api.cx.metamask.io`;
     case RampsEnvironment.Staging:
-      return 'https://on-ramp-cache.uat-api.cx.metamask.io';
     case RampsEnvironment.Development:
-      return 'http://localhost:3001';
+      return `https://on-ramp${cache}.uat-api.cx.metamask.io`;
     default:
       throw new Error(`Invalid environment: ${String(environment)}`);
   }
@@ -189,14 +185,9 @@ export class RampsService {
   readonly #policy: ServicePolicy;
 
   /**
-   * The base URL for API requests.
+   * The environment used for API requests.
    */
-  readonly #baseUrl: string;
-
-  /**
-   * The base URL for cached API requests.
-   */
-  readonly #cacheBaseUrl: string;
+  readonly #environment: RampsEnvironment;
 
   /**
    * Constructs a new RampsService object.
@@ -226,8 +217,7 @@ export class RampsService {
     this.#messenger = messenger;
     this.#fetch = fetchFunction;
     this.#policy = createServicePolicy(policyOptions);
-    this.#baseUrl = getBaseUrl(environment);
-    this.#cacheBaseUrl = getCacheBaseUrl(environment);
+    this.#environment = environment;
 
     this.#messenger.registerMethodActionHandlers(
       this,
@@ -297,7 +287,8 @@ export class RampsService {
    */
   async getGeolocation(): Promise<string> {
     const responseData = await this.#policy.execute(async () => {
-      const url = new URL('geolocation', this.#baseUrl);
+      const baseUrl = getBaseUrl(this.#environment, RampsApiService.Orders);
+      const url = new URL('geolocation', baseUrl);
       const localResponse = await this.#fetch(url);
       if (!localResponse.ok) {
         throw new HttpError(
@@ -330,7 +321,8 @@ export class RampsService {
     action: 'deposit' | 'withdraw' = 'deposit',
   ): Promise<Country[]> {
     const responseData = await this.#policy.execute(async () => {
-      const url = new URL('regions/countries', this.#cacheBaseUrl);
+      const baseUrl = getBaseUrl(this.#environment, RampsApiService.Regions);
+      const url = new URL('regions/countries', baseUrl);
       url.searchParams.set('action', action);
       url.searchParams.set('sdk', '2.1.6');
       url.searchParams.set('context', 'mobile-ios');

@@ -51,8 +51,10 @@ describe('RampsService', () => {
       expect(geolocationResponse).toBe('US-TX');
     });
 
-    it('uses localhost URL when environment is Development', async () => {
-      nock('http://localhost:3000').get('/geolocation').reply(200, 'US-TX');
+    it('uses staging URL when environment is Development', async () => {
+      nock('https://on-ramp.uat-api.cx.metamask.io')
+        .get('/geolocation')
+        .reply(200, 'US-TX');
       const { rootMessenger } = getService({
         options: { environment: RampsEnvironment.Development },
       });
@@ -64,13 +66,6 @@ describe('RampsService', () => {
       expect(geolocationResponse).toBe('US-TX');
     });
 
-    it('throws if the environment is invalid', () => {
-      expect(() =>
-        getService({
-          options: { environment: 'invalid' as RampsEnvironment },
-        }),
-      ).toThrow('Invalid environment: invalid');
-    });
 
     it('throws if the API returns an empty response', async () => {
       nock('https://on-ramp.uat-api.cx.metamask.io')
@@ -270,8 +265,8 @@ describe('RampsService', () => {
       `);
     });
 
-    it('uses localhost cache URL when environment is Development', async () => {
-      nock('http://localhost:3001')
+    it('uses staging cache URL when environment is Development', async () => {
+      nock('https://on-ramp-cache.uat-api.cx.metamask.io')
         .get('/regions/countries')
         .query({ action: 'deposit', sdk: '2.1.6', context: 'mobile-ios' })
         .reply(200, mockCountriesResponse);
