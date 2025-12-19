@@ -306,7 +306,6 @@ export class RemoteFeatureFlagController extends BaseController<
     return getVersionData(flagValue, this.#clientVersion);
   }
 
-
   async #processRemoteFeatureFlags(remoteFeatureFlags: FeatureFlags): Promise<{
     processedFlags: FeatureFlags;
     thresholdCacheUpdates: Record<string, number>;
