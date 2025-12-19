@@ -1692,6 +1692,8 @@ export class BridgeStatusController extends StaticIntervalPollingController<Brid
         formatChainIdToHex(chainId),
       );
 
+      // This is a synthetic transaction whose purpose is to be able
+      // to track the order status via the history
       const intentTransactionParams = {
         chainId: formatChainIdToHex(chainId),
         from: accountAddress,
