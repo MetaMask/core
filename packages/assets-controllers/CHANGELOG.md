@@ -13,6 +13,10 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ### Changed
 
+- Add `useExternalServices` option to `selectAssetsBySelectedAccountGroup` and `selectAllAssets` selectors ([#7545](https://github.com/MetaMask/core/pull/7545))
+  - When `useExternalServices` is `false`, non-EVM (multichain) assets are excluded from the result
+  - This allows callers to respect the basic functionality / external services toggle
+  - Defaults to `true` to maintain backward compatibility
 - **BREAKING:** `AccountTrackerController` now requires `KeyringController:getState` action and `KeyringController:lock` event in addition to existing allowed actions and events ([#7492](https://github.com/MetaMask/core/pull/7492))
   - Added `#isLocked` property to track keyring lock state, initialized from `KeyringController:getState`
   - Added `isActive` getter that returns `true` when keyring is unlocked and user is onboarded
