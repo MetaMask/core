@@ -1149,6 +1149,39 @@ describe('RemoteFeatureFlagController', () => {
       jest.useRealTimers();
     });
 
+    it('preserves threshold arrays when metaMetricsId is empty', async () => {
+      // Arrange
+      const mockFlags = {
+        thresholdFlag: [
+          {
+            name: 'groupA',
+            scope: { type: 'threshold', value: 0.5 },
+            value: 'A',
+          },
+          {
+            name: 'groupB',
+            scope: { type: 'threshold', value: 1.0 },
+            value: 'B',
+          },
+        ],
+      };
+      const clientConfigApiService = buildClientConfigApiService({
+        remoteFeatureFlags: mockFlags,
+      });
+      const controller = createController({
+        clientConfigApiService,
+        getMetaMetricsId: () => '', // Empty metaMetricsId
+      });
+
+      // Act
+      await controller.updateRemoteFeatureFlags();
+
+      // Assert - Array preserved as-is without processing
+      expect(controller.state.remoteFeatureFlags.thresholdFlag).toStrictEqual(
+        mockFlags.thresholdFlag,
+      );
+    });
+
     it('handles flag names containing colons correctly', async () => {
       // Arrange
       const mockFlags = {

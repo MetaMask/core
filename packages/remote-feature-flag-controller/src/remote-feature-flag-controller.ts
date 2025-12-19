@@ -338,6 +338,13 @@ export class RemoteFeatureFlagController extends BaseController<
           continue;
         }
 
+        // Skip threshold processing if metaMetricsId is not available
+        if (!metaMetricsId) {
+          // Preserve array as-is when user hasn't opted into MetaMetrics
+          processedFlags[remoteFeatureFlagName] = processedValue;
+          continue;
+        }
+
         // Check cache first, calculate only if needed
         const cacheKey = `${metaMetricsId}:${remoteFeatureFlagName}` as const;
         let thresholdValue = this.state.thresholdCache?.[cacheKey];
