@@ -17,6 +17,19 @@ export type RampsServiceGetGeolocationAction = {
 };
 
 /**
+ * Makes a request to the cached API to retrieve the list of supported countries.
+ *
+ * @param action - The ramp action type ('deposit' or 'withdraw').
+ * @returns An array of countries with their eligibility information.
+ */
+export type RampsServiceGetCountriesAction = {
+  type: `RampsService:getCountries`;
+  handler: RampsService['getCountries'];
+};
+
+/**
  * Union of all RampsService action types.
  */
-export type RampsServiceMethodActions = RampsServiceGetGeolocationAction;
+export type RampsServiceMethodActions =
+  | RampsServiceGetGeolocationAction
+  | RampsServiceGetCountriesAction;

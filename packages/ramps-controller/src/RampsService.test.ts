@@ -139,6 +139,145 @@ describe('RampsService', () => {
       expect(geolocationResponse).toBe('US-TX');
     });
   });
+
+  describe('RampsService:getCountries', () => {
+    const mockCountriesResponse = [
+      {
+        isoCode: 'US',
+        flag: '🇺🇸',
+        name: 'United States of America',
+        phone: {
+          prefix: '+1',
+          placeholder: '(555) 123-4567',
+          template: '(XXX) XXX-XXXX',
+        },
+        currency: 'USD',
+        supported: true,
+        recommended: true,
+        unsupportedStates: ['ny'],
+        transakSupported: true,
+      },
+      {
+        isoCode: 'AT',
+        flag: '🇦🇹',
+        name: 'Austria',
+        phone: {
+          prefix: '+43',
+          placeholder: '660 1234567',
+          template: 'XXX XXXXXXX',
+        },
+        currency: 'EUR',
+        supported: true,
+        transakSupported: true,
+      },
+    ];
+
+    it('returns the countries from the cache API', async () => {
+      nock('https://on-ramp-cache.uat-api.cx.metamask.io')
+        .get('/regions/countries')
+        .query({ action: 'deposit', sdk: '2.1.6', context: 'mobile-ios' })
+        .reply(200, mockCountriesResponse);
+      const { rootMessenger } = getService();
+
+      const countriesResponse = await rootMessenger.call(
+        'RampsService:getCountries',
+        'deposit',
+      );
+
+      expect(countriesResponse).toMatchSnapshot();
+    });
+
+    it('uses the production cache URL when environment is Production', async () => {
+      nock('https://on-ramp-cache.api.cx.metamask.io')
+        .get('/regions/countries')
+        .query({ action: 'deposit', sdk: '2.1.6', context: 'mobile-ios' })
+        .reply(200, mockCountriesResponse);
+      const { rootMessenger } = getService({
+        options: { environment: RampsEnvironment.Production },
+      });
+
+      const countriesResponse = await rootMessenger.call(
+        'RampsService:getCountries',
+        'deposit',
+      );
+
+      expect(countriesResponse).toMatchSnapshot();
+    });
+
+    it('uses localhost cache URL when environment is Development', async () => {
+      nock('http://localhost:3001')
+        .get('/regions/countries')
+        .query({ action: 'deposit', sdk: '2.1.6', context: 'mobile-ios' })
+        .reply(200, mockCountriesResponse);
+      const { rootMessenger } = getService({
+        options: { environment: RampsEnvironment.Development },
+      });
+
+      const countriesResponse = await rootMessenger.call(
+        'RampsService:getCountries',
+        'deposit',
+      );
+
+      expect(countriesResponse).toMatchSnapshot();
+    });
+
+    it('passes the action parameter correctly', async () => {
+      nock('https://on-ramp-cache.uat-api.cx.metamask.io')
+        .get('/regions/countries')
+        .query({ action: 'withdraw', sdk: '2.1.6', context: 'mobile-ios' })
+        .reply(200, mockCountriesResponse);
+      const { rootMessenger } = getService();
+
+      const countriesResponse = await rootMessenger.call(
+        'RampsService:getCountries',
+        'withdraw',
+      );
+
+      expect(countriesResponse).toMatchSnapshot();
+    });
+
+    it('throws if the API returns an error', async () => {
+      nock('https://on-ramp-cache.uat-api.cx.metamask.io')
+        .get('/regions/countries')
+        .query({ action: 'deposit', sdk: '2.1.6', context: 'mobile-ios' })
+        .times(4)
+        .reply(500);
+      const { service, rootMessenger } = getService();
+      service.onRetry(() => {
+        clock.nextAsync().catch(() => undefined);
+      });
+
+      await expect(
+        rootMessenger.call('RampsService:getCountries', 'deposit'),
+      ).rejects.toThrow(
+        "Fetching 'https://on-ramp-cache.uat-api.cx.metamask.io/regions/countries?action=deposit&sdk=2.1.6&context=mobile-ios' failed with status '500'",
+      );
+    });
+  });
+
+  describe('getCountries', () => {
+    it('does the same thing as the messenger action', async () => {
+      const mockCountries = [
+        {
+          isoCode: 'US',
+          flag: '🇺🇸',
+          name: 'United States',
+          phone: { prefix: '+1', placeholder: '', template: '' },
+          currency: 'USD',
+          supported: true,
+        },
+      ];
+      nock('https://on-ramp-cache.uat-api.cx.metamask.io')
+        .get('/regions/countries')
+        .query({ action: 'deposit', sdk: '2.1.6', context: 'mobile-ios' })
+        .reply(200, mockCountries);
+      const { service } = getService();
+
+      const countriesResponse = await service.getCountries('deposit');
+
+      expect(countriesResponse).toMatchSnapshot();
+    });
+  });
 });
 
 /**

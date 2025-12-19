@@ -7,7 +7,11 @@ import { BaseController } from '@metamask/base-controller';
 import type { Messenger } from '@metamask/messenger';
 import type { Json } from '@metamask/utils';
 
-import type { RampsServiceGetGeolocationAction } from './RampsService-method-action-types';
+import type {
+  RampsServiceGetGeolocationAction,
+  RampsServiceGetCountriesAction,
+} from './RampsService-method-action-types';
+import type { Country } from './RampsService';
 import type {
   RequestCache as RequestCacheType,
   RequestState,
@@ -101,7 +105,9 @@ export type RampsControllerActions = RampsControllerGetStateAction;
 /**
  * Actions from other messengers that {@link RampsController} calls.
  */
-type AllowedActions = RampsServiceGetGeolocationAction;
+type AllowedActions =
+  | RampsServiceGetGeolocationAction
+  | RampsServiceGetCountriesAction;
 
 /**
  * Published when the state of {@link RampsController} changes.
@@ -392,5 +398,71 @@ export class RampsController extends BaseController<
     });
 
     return geolocation;
+  }
+
+  /**
+   * Fetches the list of supported countries for a given ramp action.
+   *
+   * @param action - The ramp action type
+   * @param options - Options for cache behavior.
+   * @returns An array of countries with their eligibility information.
+   */
+  async getCountries(
+    action: 'deposit',
+    options?: ExecuteRequestOptions,
+  ): Promise<Country[]> {
+    const cacheKey = createCacheKey('getCountries', [action]);
+
+    return this.executeRequest(
+      cacheKey,
+      async () => {
+        return this.messenger.call('RampsService:getCountries', action);
+      },
+      options,
+    );
+  }
+
+  /**
+   * Determines if the user's current region is eligible for ramps.
+   * Checks the user's geolocation against the list of supported countries.
+   *
+   * @param action - The ramp action type ('deposit' or 'withdraw').
+   * @param options - Options for cache behavior.
+   * @returns True if the user's region is eligible for ramps, false otherwise.
+   */
+  async getRegionEligibility(
+    action: 'deposit',
+    options?: ExecuteRequestOptions,
+  ): Promise<boolean> {
+    const { geolocation } = this.state;
+
+    if (!geolocation) {
+      await this.updateGeolocation(options);
+      return this.getRegionEligibility(action, options);
+    }
+
+    const countries = await this.getCountries(action, options);
+
+    const countryCode = geolocation.split('-')[0];
+    const stateCode = geolocation.split('-')[1]?.toLowerCase();
+
+    const country = countries.find(
+      (c) => c.isoCode.toUpperCase() === countryCode?.toUpperCase(),
+    );
+
+    if (!country || !country.supported) {
+      return false;
+    }
+
+    if (
+      stateCode &&
+      country.unsupportedStates?.some(
+        (state) => state.toLowerCase() === stateCode,
+      )
+    ) {
+      return false;
+    }
+
+    return true;
   }
 }
