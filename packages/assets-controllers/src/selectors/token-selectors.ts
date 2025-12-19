@@ -355,7 +355,10 @@ const selectAllMultichainAssets = createAssetListSelector(
     (state) => state.balances,
     (state) => state.conversionRates,
     (state) => state.currentCurrency,
-    (_state, opts: SelectAllAssetsOpts = defaultSelectAllAssetsOpts) => opts,
+    (
+      _state,
+      opts: SelectAllAssetsOpts = defaultSelectAllAssetsOpts,
+    ): SelectAllAssetsOpts => opts,
   ],
   (
     accountsMap,
@@ -463,8 +466,10 @@ const selectAllMultichainAssets = createAssetListSelector(
 export const selectAllAssets = createAssetListSelector(
   [
     selectAllEvmAssets,
-    (state, opts: SelectAllAssetsOpts = defaultSelectAllAssetsOpts) =>
-      selectAllMultichainAssets(state, opts),
+    (
+      state,
+      opts: SelectAllAssetsOpts = defaultSelectAllAssetsOpts,
+    ): AssetsByAccountGroup => selectAllMultichainAssets(state, opts),
     selectAllEvmAccountNativeBalances,
   ],
   (evmAssets, multichainAssets, evmAccountNativeBalances) => {
@@ -525,13 +530,13 @@ export const selectAssetsBySelectedAccountGroup = createAssetListSelector(
     (
       state,
       opts: SelectAccountGroupAssetOpts = defaultSelectAccountGroupAssetOpts,
-    ) =>
+    ): AssetsByAccountGroup =>
       selectAllAssets(state, { useExternalServices: opts.useExternalServices }),
     (state) => state.accountTree,
     (
       _state,
       opts: SelectAccountGroupAssetOpts = defaultSelectAccountGroupAssetOpts,
-    ) => opts,
+    ): SelectAccountGroupAssetOpts => opts,
   ],
   (groupAssets, accountTree, opts) => {
     const { selectedAccountGroup } = accountTree;
