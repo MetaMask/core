@@ -1254,7 +1254,6 @@ describe('GatorPermissionsController', () => {
       const txId = 'test-tx-id';
       const permissionContext = '0x1234567890abcdef1234567890abcdef12345678';
       const hash = '0x-mock-hash';
-      const blockTimestamp = '100000';
 
       await controller.addPendingRevocation({ txId, permissionContext });
 
@@ -1267,7 +1266,6 @@ describe('GatorPermissionsController', () => {
       rootMessenger.publish('TransactionController:transactionConfirmed', {
         id: txId,
         hash,
-        blockTimestamp,
       } as TransactionMeta);
 
       await flushPromises();
@@ -1282,9 +1280,8 @@ describe('GatorPermissionsController', () => {
           method: 'permissionsProvider_submitRevocation',
           params: {
             permissionContext,
-            metadata: {
+            revocationMetadata: {
               txHash: hash,
-              blockTimestamp,
             },
           },
         },

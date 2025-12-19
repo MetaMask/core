@@ -242,7 +242,6 @@ export type DelegationDetails = Pick<
  */
 export type RevocationMetadata = {
   txHash: Hex;
-  blockTimestamp: string;
 };
 
 /**
@@ -257,7 +256,7 @@ export type RevocationParams = {
   /**
    * The metadata associated with the permission revocation transaction.
    */
-  metadata?: RevocationMetadata;
+  metadata: RevocationMetadata;
 };
 
 /**

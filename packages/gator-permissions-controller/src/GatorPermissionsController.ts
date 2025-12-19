@@ -955,28 +955,27 @@ export default class GatorPermissionsController extends BaseController<
         });
 
         // Attach metadata by parsing the confirmed transactionMeta
-        let metadata: RevocationMetadata | undefined;
-        const { hash, blockTimestamp } = transactionMeta;
-        if (hash === undefined || blockTimestamp === undefined) {
+        let revocationMetadata: RevocationMetadata | undefined;
+        const { hash } = transactionMeta;
+        if (hash === undefined) {
           controllerLog(
             'Failed to attach transaction hash after revocation transaction confirmed',
             {
               txId,
               permissionContext,
               error: new Error(
-                'Confirmed transaction is missing revocation metadata',
+                'Confirmed transaction is missing transaction hash',
               ),
             },
           );
         } else {
-          metadata = {
+          revocationMetadata = {
             txHash: hash as Hex,
-            blockTimestamp,
           };
         }
 
-        const revocationParams = metadata
-          ? { permissionContext, metadata }
+        const revocationParams = revocationMetadata
+          ? { permissionContext, revocationMetadata }
           : { permissionContext };
         this.submitRevocation(revocationParams)
           .catch((error) => {
