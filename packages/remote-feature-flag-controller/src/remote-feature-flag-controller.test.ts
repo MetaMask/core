@@ -90,7 +90,6 @@ describe('RemoteFeatureFlagController', () => {
         localOverrides: {},
         rawRemoteFeatureFlags: {},
         cacheTimestamp: 0,
-        thresholdCache: {},
       });
     });
 
@@ -102,7 +101,6 @@ describe('RemoteFeatureFlagController', () => {
         localOverrides: {},
         rawRemoteFeatureFlags: {},
         cacheTimestamp: 0,
-        thresholdCache: {},
       });
     });
 
@@ -112,7 +110,6 @@ describe('RemoteFeatureFlagController', () => {
         cacheTimestamp: 123456789,
         rawRemoteFeatureFlags: {},
         localOverrides: {},
-        thresholdCache: {},
       };
 
       const controller = createController({ state: customState });
@@ -801,7 +798,6 @@ describe('RemoteFeatureFlagController', () => {
         localOverrides: {},
         rawRemoteFeatureFlags: {},
         cacheTimestamp: 0,
-        thresholdCache: {},
       });
     });
   });
@@ -963,7 +959,7 @@ describe('RemoteFeatureFlagController', () => {
       // Act - First update: both flags processed
       await controller.updateRemoteFeatureFlags();
       const cacheAfterFirst = controller.state.thresholdCache;
-      expect(Object.keys(cacheAfterFirst)).toHaveLength(2);
+      expect(Object.keys(cacheAfterFirst ?? {})).toHaveLength(2);
 
       // Update server to remove flagA
       jest
@@ -989,7 +985,7 @@ describe('RemoteFeatureFlagController', () => {
       await controller.updateRemoteFeatureFlags();
 
       // Assert - flagA cache entry removed
-      const cacheAfterSecond = controller.state.thresholdCache;
+      const cacheAfterSecond = controller.state.thresholdCache ?? {};
       expect(Object.keys(cacheAfterSecond)).toHaveLength(1);
       expect(cacheAfterSecond[`${MOCK_METRICS_ID}:flagB`]).toBeDefined();
       expect(cacheAfterSecond[`${MOCK_METRICS_ID}:flagA`]).toBeUndefined();
@@ -1019,7 +1015,7 @@ describe('RemoteFeatureFlagController', () => {
       // Act - Multiple updates with same flag
       await controller.updateRemoteFeatureFlags();
       const initialThreshold =
-        controller.state.thresholdCache[`${MOCK_METRICS_ID}:persistentFlag`];
+        controller.state.thresholdCache?.[`${MOCK_METRICS_ID}:persistentFlag`];
 
       jest.useFakeTimers();
       jest.advanceTimersByTime(2 * DEFAULT_CACHE_DURATION);
@@ -1027,9 +1023,9 @@ describe('RemoteFeatureFlagController', () => {
 
       // Assert - Cache entry preserved and unchanged
       const finalThreshold =
-        controller.state.thresholdCache[`${MOCK_METRICS_ID}:persistentFlag`];
+        controller.state.thresholdCache?.[`${MOCK_METRICS_ID}:persistentFlag`];
       expect(finalThreshold).toBe(initialThreshold);
-      expect(Object.keys(controller.state.thresholdCache)).toHaveLength(1);
+      expect(Object.keys(controller.state.thresholdCache ?? {})).toHaveLength(1);
 
       jest.useRealTimers();
     });
@@ -1065,7 +1061,7 @@ describe('RemoteFeatureFlagController', () => {
       await controller.updateRemoteFeatureFlags();
 
       // Assert - Different user's cache entry preserved
-      const cache = controller.state.thresholdCache;
+      const cache = controller.state.thresholdCache ?? {};
       expect(cache[`${differentUserId}:oldFlag`]).toBe(0.123);
       expect(cache[`${MOCK_METRICS_ID}:testFlag`]).toBeDefined();
       expect(Object.keys(cache)).toHaveLength(2);
@@ -1095,8 +1091,58 @@ describe('RemoteFeatureFlagController', () => {
 
       // Assert - Cache populated, no errors
       expect(
-        controller.state.thresholdCache[`${MOCK_METRICS_ID}:newFlag`],
+        controller.state.thresholdCache?.[`${MOCK_METRICS_ID}:newFlag`],
       ).toBeDefined();
+    });
+
+    it('batches threshold additions and cleanup in single state update', async () => {
+      // Arrange - Start with one cached flag
+      const clientConfigApiService = buildClientConfigApiService({
+        remoteFeatureFlags: {
+          oldFlag: [
+            {
+              name: 'group',
+              scope: { type: 'threshold', value: 1.0 },
+              value: true,
+            },
+          ],
+        },
+      });
+      const controller = createController({
+        clientConfigApiService,
+        getMetaMetricsId: () => MOCK_METRICS_ID,
+      });
+
+      await controller.updateRemoteFeatureFlags();
+      expect(Object.keys(controller.state.thresholdCache ?? {})).toHaveLength(1);
+
+      // Act - Replace oldFlag with newFlag
+      jest
+        .spyOn(clientConfigApiService, 'fetchRemoteFeatureFlags')
+        .mockResolvedValue({
+          remoteFeatureFlags: {
+            newFlag: [
+              {
+                name: 'group',
+                scope: { type: 'threshold', value: 1.0 },
+                value: false,
+              },
+            ],
+          },
+          cacheTimestamp: Date.now(),
+        });
+
+      jest.useFakeTimers();
+      jest.advanceTimersByTime(2 * DEFAULT_CACHE_DURATION);
+      await controller.updateRemoteFeatureFlags();
+
+      // Assert - Old removed, new added in single update
+      const cache = controller.state.thresholdCache ?? {};
+      expect(cache[`${MOCK_METRICS_ID}:oldFlag`]).toBeUndefined();
+      expect(cache[`${MOCK_METRICS_ID}:newFlag`]).toBeDefined();
+      expect(Object.keys(cache)).toHaveLength(1);
+
+      jest.useRealTimers();
     });
 
     it('removes all stale entries when all flags are removed from server', async () => {
@@ -1126,7 +1172,7 @@ describe('RemoteFeatureFlagController', () => {
 
       // Act - First update populates cache
       await controller.updateRemoteFeatureFlags();
-      expect(Object.keys(controller.state.thresholdCache)).toHaveLength(2);
+      expect(Object.keys(controller.state.thresholdCache ?? {})).toHaveLength(2);
 
       // Server returns empty flags
       jest
@@ -1141,7 +1187,7 @@ describe('RemoteFeatureFlagController', () => {
       await controller.updateRemoteFeatureFlags();
 
       // Assert - All entries removed
-      expect(Object.keys(controller.state.thresholdCache)).toHaveLength(0);
+      expect(Object.keys(controller.state.thresholdCache ?? {})).toHaveLength(0);
 
       jest.useRealTimers();
     });
@@ -1201,7 +1247,6 @@ describe('RemoteFeatureFlagController', () => {
           "localOverrides": Object {},
           "rawRemoteFeatureFlags": Object {},
           "remoteFeatureFlags": Object {},
-          "thresholdCache": Object {},
         }
       `);
     });

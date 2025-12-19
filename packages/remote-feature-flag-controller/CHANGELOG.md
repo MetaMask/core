@@ -7,24 +7,18 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
-### Added
-
-- Add persistent threshold caching to avoid recalculating SHA-256 hashes on every app restart
-- Add `calculateThresholdForFlag` utility function that directly converts hash to 0-1 threshold value
-- Add automatic cleanup mechanism to remove stale threshold cache entries for deleted flags
-
 ### Changed
 
 - Upgrade `@metamask/utils` from `^11.8.1` to `^11.9.0` for native `crypto.subtle.digest` optimization
-- Use `sha256` and `bytesToHex` from `@metamask/utils` instead of `@noble/hashes`
-- Optimize threshold calculation to skip expensive crypto operations for non-threshold arrays
-- Persist threshold cache in controller state instead of in-memory Map for better performance across app restarts
+- Remove `@noble/hashes` dependency since hashing utilities are now available in upgraded `@metamask/utils`
+- Changes to exported types:
+  - Add optional field `thresholdCache` to `RemoteFeatureFlagControllerState`
+- Optimize threshold-based feature flag processing to ensure independent user assignment across different flags:
+  - Persist threshold values in controller state to avoid recalculating on app restart
+  - Skip cryptographic operations for non-threshold arrays
+  - Batch cache updates and cleanup into single state change
+  - Automatically remove stale cache entries when flags are deleted 
 - Bump `@metamask/controller-utils` from `^11.16.0` to `^11.17.0` ([#7534](https://github.com/MetaMask/core/pull/7534))
-
-### Removed
-
-- Remove `createDeterministicSeed` function (replaced by `calculateThresholdForFlag`)
-- Remove `@noble/hashes` dependency
 
 ## [3.1.0]
 
