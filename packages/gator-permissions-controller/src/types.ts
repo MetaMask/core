@@ -256,7 +256,7 @@ export type RevocationParams = {
   /**
    * The metadata associated with the permission revocation transaction.
    */
-  metadata: RevocationMetadata;
+  revocationMetadata?: RevocationMetadata;
 };
 
 /**
