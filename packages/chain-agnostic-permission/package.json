@@ -53,7 +53,7 @@
     "@metamask/network-controller": "^27.0.0",
     "@metamask/permission-controller": "^12.1.1",
     "@metamask/rpc-errors": "^7.0.2",
-    "@metamask/utils": "^11.8.1",
+    "@metamask/utils": "^11.9.0",
     "lodash": "^4.17.21"
   },
   "devDependencies": {

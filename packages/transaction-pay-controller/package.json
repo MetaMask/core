@@ -62,7 +62,7 @@
     "@metamask/network-controller": "^27.0.0",
     "@metamask/remote-feature-flag-controller": "^3.0.0",
     "@metamask/transaction-controller": "^62.7.0",
-    "@metamask/utils": "^11.8.1",
+    "@metamask/utils": "^11.9.0",
     "bignumber.js": "^9.1.2",
     "bn.js": "^5.2.1",
     "immer": "^9.0.6",

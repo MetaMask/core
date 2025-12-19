@@ -54,7 +54,7 @@
     "@metamask/ethjs-unit": "^0.3.0",
     "@metamask/network-controller": "^27.0.0",
     "@metamask/polling-controller": "^16.0.0",
-    "@metamask/utils": "^11.8.1",
+    "@metamask/utils": "^11.9.0",
     "@types/bn.js": "^5.1.5",
     "@types/uuid": "^8.3.0",
     "bn.js": "^5.2.1",
