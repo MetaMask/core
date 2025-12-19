@@ -9,6 +9,7 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ### Added
 
+- Update spot-prices endpoint list of supported chains and assets ([#7543](https://github.com/MetaMask/core/pull/7543))
 - Export `selectAllAssets` ([#7496](https://github.com/MetaMask/core/pull/7496))
 
 ### Changed
