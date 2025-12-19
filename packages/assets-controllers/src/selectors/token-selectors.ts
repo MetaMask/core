@@ -334,6 +334,18 @@ const selectAllEvmAssets = createAssetListSelector(
   },
 );
 
+export type SelectAllAssetsOpts = {
+  /**
+   * When false, non-EVM (multichain) assets are excluded.
+   * This should be set to false when basic functionality / external services are disabled.
+   */
+  useExternalServices: boolean;
+};
+
+const defaultSelectAllAssetsOpts: SelectAllAssetsOpts = {
+  useExternalServices: true,
+};
+
 const selectAllMultichainAssets = createAssetListSelector(
   [
     selectAccountsToGroupIdMap,
@@ -343,6 +355,7 @@ const selectAllMultichainAssets = createAssetListSelector(
     (state) => state.balances,
     (state) => state.conversionRates,
     (state) => state.currentCurrency,
+    (_state, opts: SelectAllAssetsOpts = defaultSelectAllAssetsOpts) => opts,
   ],
   (
     accountsMap,
@@ -352,7 +365,13 @@ const selectAllMultichainAssets = createAssetListSelector(
     multichainBalances,
     multichainConversionRates,
     currentCurrency,
+    opts,
   ) => {
+    // Short-circuit when external services are disabled - no multichain assets needed
+    if (!opts.useExternalServices) {
+      return {};
+    }
+
     const groupAssets: AssetsByAccountGroup = {};
 
     for (const [accountId, accountAssets] of Object.entries(multichainTokens)) {
@@ -444,7 +463,8 @@ const selectAllMultichainAssets = createAssetListSelector(
 export const selectAllAssets = createAssetListSelector(
   [
     selectAllEvmAssets,
-    selectAllMultichainAssets,
+    (state, opts: SelectAllAssetsOpts = defaultSelectAllAssetsOpts) =>
+      selectAllMultichainAssets(state, opts),
     selectAllEvmAccountNativeBalances,
   ],
   (evmAssets, multichainAssets, evmAccountNativeBalances) => {
@@ -462,10 +482,16 @@ export const selectAllAssets = createAssetListSelector(
 
 export type SelectAccountGroupAssetOpts = {
   filterTronStakedTokens: boolean;
+  /**
+   * When false, non-EVM chains are filtered out.
+   * This should be set to false when basic functionality / external services are disabled.
+   */
+  useExternalServices: boolean;
 };
 
 const defaultSelectAccountGroupAssetOpts: SelectAccountGroupAssetOpts = {
   filterTronStakedTokens: true,
+  useExternalServices: true,
 };
 
 const filterTronStakedTokens = (assetsByAccountGroup: AccountGroupAssets) => {
@@ -496,7 +522,11 @@ const filterTronStakedTokens = (assetsByAccountGroup: AccountGroupAssets) => {
 
 export const selectAssetsBySelectedAccountGroup = createAssetListSelector(
   [
-    selectAllAssets,
+    (
+      state,
+      opts: SelectAccountGroupAssetOpts = defaultSelectAccountGroupAssetOpts,
+    ) =>
+      selectAllAssets(state, { useExternalServices: opts.useExternalServices }),
     (state) => state.accountTree,
     (
       _state,

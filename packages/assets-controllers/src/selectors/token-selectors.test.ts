@@ -922,6 +922,54 @@ describe('token-selectors', () => {
       expect(result).toStrictEqual(expectedMockResult);
     });
 
+    describe('useExternalServices option', () => {
+      it('excludes non-EVM (multichain) assets when useExternalServices is false', () => {
+        const result = selectAssetsBySelectedAccountGroup(mockedMergedState, {
+          filterTronStakedTokens: true,
+          useExternalServices: false,
+        });
+
+        // Should only include EVM chains (0x1, 0xa) - no Solana
+        expect(Object.keys(result)).toStrictEqual(['0x1', '0xa']);
+
+        // Verify EVM assets are still present
+        expect(result['0x1']).toHaveLength(3); // GHO, SUSHI, ETH native
+        expect(result['0xa']).toHaveLength(2); // USDC, ETH native
+
+        // Verify Solana assets are excluded
+        expect(
+          result['solana:5eykt4UsFv8P8NJdTREpY1vzqKqZKvdp'],
+        ).toBeUndefined();
+      });
+
+      it('includes non-EVM (multichain) assets when useExternalServices is true', () => {
+        const result = selectAssetsBySelectedAccountGroup(mockedMergedState, {
+          filterTronStakedTokens: true,
+          useExternalServices: true,
+        });
+
+        // Should include all chains including Solana
+        expect(Object.keys(result)).toContain(
+          'solana:5eykt4UsFv8P8NJdTREpY1vzqKqZKvdp',
+        );
+
+        // Verify Solana assets are present
+        expect(result['solana:5eykt4UsFv8P8NJdTREpY1vzqKqZKvdp']).toHaveLength(
+          2,
+        ); // SOL native, JUP token
+      });
+
+      it('uses default useExternalServices: true when not specified', () => {
+        // Call without opts - should use defaults (useExternalServices: true)
+        const result = selectAssetsBySelectedAccountGroup(mockedMergedState);
+
+        // Should include Solana assets (multichain)
+        expect(Object.keys(result)).toContain(
+          'solana:5eykt4UsFv8P8NJdTREpY1vzqKqZKvdp',
+        );
+      });
+    });
+
     const arrangeTronState = () => {
       const state = cloneDeep(mockedMergedState);
 
@@ -1018,6 +1066,7 @@ describe('token-selectors', () => {
 
       const result = selectAssetsBySelectedAccountGroup(state, {
         filterTronStakedTokens: false,
+        useExternalServices: true,
       });
 
       expect(result[TrxScope.Mainnet].length > 1).toBe(true);
