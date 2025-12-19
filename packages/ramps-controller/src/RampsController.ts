@@ -7,11 +7,11 @@ import { BaseController } from '@metamask/base-controller';
 import type { Messenger } from '@metamask/messenger';
 import type { Json } from '@metamask/utils';
 
+import type { Country } from './RampsService';
 import type {
   RampsServiceGetGeolocationAction,
   RampsServiceGetCountriesAction,
 } from './RampsService-method-action-types';
-import type { Country } from './RampsService';
 import type {
   RequestCache as RequestCacheType,
   RequestState,
@@ -447,10 +447,10 @@ export class RampsController extends BaseController<
     const stateCode = geolocation.split('-')[1]?.toLowerCase();
 
     const country = countries.find(
-      (c) => c.isoCode.toUpperCase() === countryCode?.toUpperCase(),
+      (entry) => entry.isoCode.toUpperCase() === countryCode?.toUpperCase(),
     );
 
-    if (!country || !country.supported) {
+    if (!country?.supported) {
       return false;
     }
 

@@ -8,11 +8,11 @@ import type {
 
 import type { RampsControllerMessenger } from './RampsController';
 import { RampsController } from './RampsController';
+import type { Country } from './RampsService';
 import type {
   RampsServiceGetGeolocationAction,
   RampsServiceGetCountriesAction,
 } from './RampsService-method-action-types';
-import type { Country } from './RampsService';
 import { RequestStatus, createCacheKey } from './RequestCache';
 
 describe('RampsController', () => {
@@ -548,7 +548,40 @@ describe('RampsController', () => {
 
         const countries = await controller.getCountries();
 
-        expect(countries).toMatchSnapshot();
+        expect(countries).toMatchInlineSnapshot(`
+          Array [
+            Object {
+              "currency": "USD",
+              "flag": "🇺🇸",
+              "isoCode": "US",
+              "name": "United States of America",
+              "phone": Object {
+                "placeholder": "(555) 123-4567",
+                "prefix": "+1",
+                "template": "(XXX) XXX-XXXX",
+              },
+              "recommended": true,
+              "supported": true,
+              "transakSupported": true,
+              "unsupportedStates": Array [
+                "ny",
+              ],
+            },
+            Object {
+              "currency": "EUR",
+              "flag": "🇦🇹",
+              "isoCode": "AT",
+              "name": "Austria",
+              "phone": Object {
+                "placeholder": "660 1234567",
+                "prefix": "+43",
+                "template": "XXX XXXXXXX",
+              },
+              "supported": true,
+              "transakSupported": true,
+            },
+          ]
+        `);
       });
     });
 
@@ -686,7 +719,9 @@ describe('RampsController', () => {
         );
 
         await controller.getRegionEligibility('deposit');
-        await controller.getRegionEligibility('deposit', { forceRefresh: true });
+        await controller.getRegionEligibility('deposit', {
+          forceRefresh: true,
+        });
 
         expect(geolocationCallCount).toBe(2);
       });

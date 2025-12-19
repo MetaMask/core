@@ -326,7 +326,9 @@ export class RampsService {
    * @param action - The ramp action type ('deposit' or 'withdraw').
    * @returns An array of countries with their eligibility information.
    */
-  async getCountries(action: 'deposit' | 'withdraw' = 'deposit'): Promise<Country[]> {
+  async getCountries(
+    action: 'deposit' | 'withdraw' = 'deposit',
+  ): Promise<Country[]> {
     const responseData = await this.#policy.execute(async () => {
       const url = new URL('regions/countries', this.#cacheBaseUrl);
       url.searchParams.set('action', action);
