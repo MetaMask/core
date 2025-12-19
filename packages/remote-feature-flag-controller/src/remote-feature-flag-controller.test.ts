@@ -419,6 +419,36 @@ describe('RemoteFeatureFlagController', () => {
       expect(controller.state.remoteFeatureFlags.stringArray).toStrictEqual(['a', 'b', 'c']);
     });
 
+    it('skips invalid items in threshold array when selecting group', async () => {
+      // Arrange
+      const mockFlags: FeatureFlags = {
+        mixedArray: [
+          { name: 'invalid', value: 'no scope' }, // Invalid - missing scope property
+          {
+            name: 'validGroup',
+            scope: { type: 'threshold', value: 1.0 },
+            value: 'selectedValue',
+          },
+        ],
+      };
+      const clientConfigApiService = buildClientConfigApiService({
+        remoteFeatureFlags: mockFlags,
+      });
+      const controller = createController({
+        clientConfigApiService,
+        getMetaMetricsId: () => MOCK_METRICS_ID,
+      });
+
+      // Act
+      await controller.updateRemoteFeatureFlags();
+
+      // Assert - Invalid item skipped, valid item selected
+      expect(controller.state.remoteFeatureFlags.mixedArray).toStrictEqual({
+        name: 'validGroup',
+        value: 'selectedValue',
+      });
+    });
+
     it('assigns users to same group for same feature flag on multiple calls', async () => {
       // Arrange
       const mockFlags = {
