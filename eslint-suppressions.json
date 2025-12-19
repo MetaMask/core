@@ -552,7 +552,7 @@
   },
   "packages/assets-controllers/src/selectors/token-selectors.ts": {
     "@typescript-eslint/explicit-function-return-type": {
-      "count": 25
+      "count": 24
     },
     "@typescript-eslint/prefer-nullish-coalescing": {
       "count": 1
