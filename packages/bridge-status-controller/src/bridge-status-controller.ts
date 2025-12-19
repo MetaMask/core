@@ -213,14 +213,6 @@ export class BridgeStatusController extends StaticIntervalPollingController<Brid
       ({ transactionMeta }) => {
         const { type, status, id } = transactionMeta;
 
-        // Skip intent transactions - they have their own tracking via CoW API
-        if (
-          (transactionMeta as { swapMetaData?: { isIntentTx?: boolean } })
-            .swapMetaData?.isIntentTx
-        ) {
-          return;
-        }
-
         if (
           type &&
           [
