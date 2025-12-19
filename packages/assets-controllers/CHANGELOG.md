@@ -14,6 +14,11 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ### Changed
 
+- **BREAKING:** `TokenListController` now persists `tokensChainsCache` via `StorageService` using per-chain files to reduce write amplification ([#7413](https://github.com/MetaMask/core/pull/7413))
+  - Each chain's token cache (~100-500KB) is stored in a separate file, avoiding rewriting all chains (~5MB) on every update
+  - Includes migration logic to automatically split existing cache data into per-chain files on first launch after upgrade
+  - All chains are loaded in parallel at startup to maintain compatibility with TokenDetectionController
+  - `tokensChainsCache` state metadata now has `persist: false` to prevent duplicate persistence
 - **BREAKING:** `AccountTrackerController` now requires `KeyringController:getState` action and `KeyringController:lock` event in addition to existing allowed actions and events ([#7492](https://github.com/MetaMask/core/pull/7492))
   - Added `#isLocked` property to track keyring lock state, initialized from `KeyringController:getState`
   - Added `isActive` getter that returns `true` when keyring is unlocked and user is onboarded

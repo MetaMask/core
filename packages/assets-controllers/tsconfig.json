@@ -18,6 +18,7 @@
     { "path": "../phishing-controller" },
     { "path": "../polling-controller" },
     { "path": "../permission-controller" },
+    { "path": "../storage-service" },
     { "path": "../transaction-controller" }
   ],
   "include": ["../../types", "./src", "../../tests"]
