@@ -349,6 +349,7 @@ export class RemoteFeatureFlagController extends BaseController<
         let thresholdValue = this.state.thresholdCache[cacheKey];
 
         if (thresholdValue === undefined) {
+          // eslint-disable-next-line require-atomic-updates
           thresholdValue = await calculateThresholdForFlag(
             metaMetricsId,
             remoteFeatureFlagName,

@@ -415,8 +415,14 @@ describe('RemoteFeatureFlagController', () => {
       await controller.updateRemoteFeatureFlags();
 
       // Assert - Arrays preserved as-is, not processed for thresholds
-      expect(controller.state.remoteFeatureFlags.nonThresholdArray).toStrictEqual([1, 2, 3]);
-      expect(controller.state.remoteFeatureFlags.stringArray).toStrictEqual(['a', 'b', 'c']);
+      expect(
+        controller.state.remoteFeatureFlags.nonThresholdArray,
+      ).toStrictEqual([1, 2, 3]);
+      expect(controller.state.remoteFeatureFlags.stringArray).toStrictEqual([
+        'a',
+        'b',
+        'c',
+      ]);
     });
 
     it('skips invalid items in threshold array when selecting group', async () => {
@@ -960,18 +966,20 @@ describe('RemoteFeatureFlagController', () => {
       expect(Object.keys(cacheAfterFirst)).toHaveLength(2);
 
       // Update server to remove flagA
-      jest.spyOn(clientConfigApiService, 'fetchRemoteFeatureFlags').mockResolvedValue({
-        remoteFeatureFlags: {
-          flagB: [
-            {
-              name: 'groupB',
-              scope: { type: 'threshold', value: 1.0 },
-              value: false,
-            },
-          ],
-        },
-        cacheTimestamp: Date.now(),
-      });
+      jest
+        .spyOn(clientConfigApiService, 'fetchRemoteFeatureFlags')
+        .mockResolvedValue({
+          remoteFeatureFlags: {
+            flagB: [
+              {
+                name: 'groupB',
+                scope: { type: 'threshold', value: 1.0 },
+                value: false,
+              },
+            ],
+          },
+          cacheTimestamp: Date.now(),
+        });
 
       // Force cache expiration
       jest.useFakeTimers();
@@ -1121,10 +1129,12 @@ describe('RemoteFeatureFlagController', () => {
       expect(Object.keys(controller.state.thresholdCache)).toHaveLength(2);
 
       // Server returns empty flags
-      jest.spyOn(clientConfigApiService, 'fetchRemoteFeatureFlags').mockResolvedValue({
-        remoteFeatureFlags: {},
-        cacheTimestamp: Date.now(),
-      });
+      jest
+        .spyOn(clientConfigApiService, 'fetchRemoteFeatureFlags')
+        .mockResolvedValue({
+          remoteFeatureFlags: {},
+          cacheTimestamp: Date.now(),
+        });
 
       jest.useFakeTimers();
       jest.advanceTimersByTime(2 * DEFAULT_CACHE_DURATION);
