@@ -134,6 +134,17 @@ describe('user-segmentation-utils', () => {
         calculateThresholdForFlag(emptyMetaMetricsId, flagName),
       ).rejects.toThrow('MetaMetrics ID cannot be empty');
     });
+
+    it('throws error when featureFlagName is empty', async () => {
+      // Arrange
+      const metaMetricsId = 'f9e8d7c6-b5a4-4210-9876-543210fedcba';
+      const emptyFlagName = '';
+
+      // Act & Assert
+      await expect(
+        calculateThresholdForFlag(metaMetricsId, emptyFlagName),
+      ).rejects.toThrow('Feature flag name cannot be empty');
+    });
   });
 
   describe('generateDeterministicRandomNumber', () => {

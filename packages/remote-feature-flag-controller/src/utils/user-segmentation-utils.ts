@@ -38,6 +38,10 @@ export async function calculateThresholdForFlag(
     throw new Error('MetaMetrics ID cannot be empty');
   }
 
+  if (!featureFlagName) {
+    throw new Error('Feature flag name cannot be empty');
+  }
+
   const normalizedFlagName = featureFlagName.toLowerCase();
   const seed = metaMetricsId + normalizedFlagName;
 

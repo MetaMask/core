@@ -272,7 +272,8 @@ export class RemoteFeatureFlagController extends BaseController<
 
     // Clean up stale entries
     for (const cacheKey of Object.keys(updatedThresholdCache)) {
-      const [cachedMetaMetricsId, cachedFlagName] = cacheKey.split(':');
+      const [cachedMetaMetricsId, ...cachedFlagNameParts] = cacheKey.split(':');
+      const cachedFlagName = cachedFlagNameParts.join(':');
       if (
         cachedMetaMetricsId === metaMetricsId &&
         !currentFlagNames.includes(cachedFlagName)
@@ -342,7 +343,7 @@ export class RemoteFeatureFlagController extends BaseController<
         }
 
         // Check cache first, calculate only if needed
-        const cacheKey: `${string}:${string}` = `${metaMetricsId}:${remoteFeatureFlagName}`;
+        const cacheKey = `${metaMetricsId}:${remoteFeatureFlagName}` as const;
         let thresholdValue = this.state.thresholdCache?.[cacheKey];
 
         if (thresholdValue === undefined) {

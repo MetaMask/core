@@ -1145,6 +1145,44 @@ describe('RemoteFeatureFlagController', () => {
       jest.useRealTimers();
     });
 
+    it('handles flag names containing colons correctly', async () => {
+      // Arrange
+      const mockFlags = {
+        'feature:v2': [
+          {
+            name: 'group',
+            scope: { type: 'threshold', value: 1.0 },
+            value: true,
+          },
+        ],
+      };
+      const clientConfigApiService = buildClientConfigApiService({
+        remoteFeatureFlags: mockFlags,
+      });
+      const controller = createController({
+        clientConfigApiService,
+        getMetaMetricsId: () => MOCK_METRICS_ID,
+      });
+
+      // Act
+      await controller.updateRemoteFeatureFlags();
+
+      // Assert - Cache key correctly handles colon in flag name
+      const cache = controller.state.thresholdCache ?? {};
+      expect(cache[`${MOCK_METRICS_ID}:feature:v2`]).toBeDefined();
+      expect(Object.keys(cache)).toHaveLength(1);
+
+      // Update with flag still present - should not be cleaned up
+      jest.useFakeTimers();
+      jest.advanceTimersByTime(2 * DEFAULT_CACHE_DURATION);
+      await controller.updateRemoteFeatureFlags();
+
+      const cacheAfterUpdate = controller.state.thresholdCache ?? {};
+      expect(cacheAfterUpdate[`${MOCK_METRICS_ID}:feature:v2`]).toBeDefined();
+
+      jest.useRealTimers();
+    });
+
     it('removes all stale entries when all flags are removed from server', async () => {
       // Arrange
       const clientConfigApiService = buildClientConfigApiService({

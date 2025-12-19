@@ -9,6 +9,7 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ### Changed
 
+- Upgrade `@metamask/utils` from `^11.8.1` to `^11.9.0`
 - Poll relay status using static URL ([#7535](https://github.com/MetaMask/core/pull/7535))
 - Bump `@metamask/assets-controllers` from `^93.1.0` to `^94.1.0` ([#7444](https://github.com/MetaMask/core/pull/7444), [#7488](https://github.com/MetaMask/core/pull/7488))
 - Bump `@metamask/transaction-controller` from `^62.6.0` to `^62.7.0` ([#7494](https://github.com/MetaMask/core/pull/7494))
