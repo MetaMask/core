@@ -184,7 +184,40 @@ describe('RampsService', () => {
         'deposit',
       );
 
-      expect(countriesResponse).toMatchSnapshot();
+      expect(countriesResponse).toMatchInlineSnapshot(`
+        Array [
+          Object {
+            "currency": "USD",
+            "flag": "🇺🇸",
+            "isoCode": "US",
+            "name": "United States of America",
+            "phone": Object {
+              "placeholder": "(555) 123-4567",
+              "prefix": "+1",
+              "template": "(XXX) XXX-XXXX",
+            },
+            "recommended": true,
+            "supported": true,
+            "transakSupported": true,
+            "unsupportedStates": Array [
+              "ny",
+            ],
+          },
+          Object {
+            "currency": "EUR",
+            "flag": "🇦🇹",
+            "isoCode": "AT",
+            "name": "Austria",
+            "phone": Object {
+              "placeholder": "660 1234567",
+              "prefix": "+43",
+              "template": "XXX XXXXXXX",
+            },
+            "supported": true,
+            "transakSupported": true,
+          },
+        ]
+      `);
     });
 
     it('uses the production cache URL when environment is Production', async () => {
@@ -201,7 +234,40 @@ describe('RampsService', () => {
         'deposit',
       );
 
-      expect(countriesResponse).toMatchSnapshot();
+      expect(countriesResponse).toMatchInlineSnapshot(`
+        Array [
+          Object {
+            "currency": "USD",
+            "flag": "🇺🇸",
+            "isoCode": "US",
+            "name": "United States of America",
+            "phone": Object {
+              "placeholder": "(555) 123-4567",
+              "prefix": "+1",
+              "template": "(XXX) XXX-XXXX",
+            },
+            "recommended": true,
+            "supported": true,
+            "transakSupported": true,
+            "unsupportedStates": Array [
+              "ny",
+            ],
+          },
+          Object {
+            "currency": "EUR",
+            "flag": "🇦🇹",
+            "isoCode": "AT",
+            "name": "Austria",
+            "phone": Object {
+              "placeholder": "660 1234567",
+              "prefix": "+43",
+              "template": "XXX XXXXXXX",
+            },
+            "supported": true,
+            "transakSupported": true,
+          },
+        ]
+      `);
     });
 
     it('uses localhost cache URL when environment is Development', async () => {
@@ -218,7 +284,40 @@ describe('RampsService', () => {
         'deposit',
       );
 
-      expect(countriesResponse).toMatchSnapshot();
+      expect(countriesResponse).toMatchInlineSnapshot(`
+        Array [
+          Object {
+            "currency": "USD",
+            "flag": "🇺🇸",
+            "isoCode": "US",
+            "name": "United States of America",
+            "phone": Object {
+              "placeholder": "(555) 123-4567",
+              "prefix": "+1",
+              "template": "(XXX) XXX-XXXX",
+            },
+            "recommended": true,
+            "supported": true,
+            "transakSupported": true,
+            "unsupportedStates": Array [
+              "ny",
+            ],
+          },
+          Object {
+            "currency": "EUR",
+            "flag": "🇦🇹",
+            "isoCode": "AT",
+            "name": "Austria",
+            "phone": Object {
+              "placeholder": "660 1234567",
+              "prefix": "+43",
+              "template": "XXX XXXXXXX",
+            },
+            "supported": true,
+            "transakSupported": true,
+          },
+        ]
+      `);
     });
 
     it('passes the action parameter correctly', async () => {
@@ -233,7 +332,40 @@ describe('RampsService', () => {
         'withdraw',
       );
 
-      expect(countriesResponse).toMatchSnapshot();
+      expect(countriesResponse).toMatchInlineSnapshot(`
+        Array [
+          Object {
+            "currency": "USD",
+            "flag": "🇺🇸",
+            "isoCode": "US",
+            "name": "United States of America",
+            "phone": Object {
+              "placeholder": "(555) 123-4567",
+              "prefix": "+1",
+              "template": "(XXX) XXX-XXXX",
+            },
+            "recommended": true,
+            "supported": true,
+            "transakSupported": true,
+            "unsupportedStates": Array [
+              "ny",
+            ],
+          },
+          Object {
+            "currency": "EUR",
+            "flag": "🇦🇹",
+            "isoCode": "AT",
+            "name": "Austria",
+            "phone": Object {
+              "placeholder": "660 1234567",
+              "prefix": "+43",
+              "template": "XXX XXXXXXX",
+            },
+            "supported": true,
+            "transakSupported": true,
+          },
+        ]
+      `);
     });
 
     it('throws if the API returns an error', async () => {
@@ -275,7 +407,22 @@ describe('RampsService', () => {
 
       const countriesResponse = await service.getCountries('deposit');
 
-      expect(countriesResponse).toMatchSnapshot();
+      expect(countriesResponse).toMatchInlineSnapshot(`
+        Array [
+          Object {
+            "currency": "USD",
+            "flag": "🇺🇸",
+            "isoCode": "US",
+            "name": "United States",
+            "phone": Object {
+              "placeholder": "",
+              "prefix": "+1",
+              "template": "",
+            },
+            "supported": true,
+          },
+        ]
+      `);
     });
   });
 });
