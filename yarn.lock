@@ -3267,7 +3267,7 @@ __metadata:
   languageName: unknown
   linkType: soft
 
-"@metamask/error-reporting-service@npm:^3.0.0, @metamask/error-reporting-service@workspace:packages/error-reporting-service":
+"@metamask/error-reporting-service@npm:^3.0.1, @metamask/error-reporting-service@workspace:packages/error-reporting-service":
   version: 0.0.0-use.local
   resolution: "@metamask/error-reporting-service@workspace:packages/error-reporting-service"
   dependencies:
@@ -3416,7 +3416,7 @@ __metadata:
   resolution: "@metamask/eth-json-rpc-middleware@workspace:packages/eth-json-rpc-middleware"
   dependencies:
     "@metamask/auto-changelog": "npm:^3.4.4"
-    "@metamask/error-reporting-service": "npm:^3.0.0"
+    "@metamask/error-reporting-service": "npm:^3.0.1"
     "@metamask/eth-block-tracker": "npm:^15.0.0"
     "@metamask/eth-json-rpc-provider": "npm:^6.0.0"
     "@metamask/eth-sig-util": "npm:^8.2.0"
@@ -4032,7 +4032,7 @@ __metadata:
     "@metamask/accounts-controller": "npm:^35.0.0"
     "@metamask/auto-changelog": "npm:^3.4.4"
     "@metamask/base-controller": "npm:^9.0.0"
-    "@metamask/error-reporting-service": "npm:^3.0.0"
+    "@metamask/error-reporting-service": "npm:^3.0.1"
     "@metamask/eth-hd-keyring": "npm:^13.0.0"
     "@metamask/eth-snap-keyring": "npm:^18.0.0"
     "@metamask/key-tree": "npm:^10.1.1"
@@ -4189,7 +4189,7 @@ __metadata:
     "@metamask/auto-changelog": "npm:^3.4.4"
     "@metamask/base-controller": "npm:^9.0.0"
     "@metamask/controller-utils": "npm:^11.17.0"
-    "@metamask/error-reporting-service": "npm:^3.0.0"
+    "@metamask/error-reporting-service": "npm:^3.0.1"
     "@metamask/eth-block-tracker": "npm:^15.0.0"
     "@metamask/eth-json-rpc-infura": "npm:^10.3.0"
     "@metamask/eth-json-rpc-middleware": "npm:^22.0.1"
