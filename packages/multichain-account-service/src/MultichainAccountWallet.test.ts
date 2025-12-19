@@ -62,11 +62,6 @@ function setup({
 
   const serviceMessenger = getMultichainAccountServiceMessenger(messenger);
 
-  messenger.registerActionHandler(
-    'ErrorReportingService:captureException',
-    jest.fn(),
-  );
-
   const wallet = new MultichainAccountWallet<Bip44Account<InternalAccount>>({
     entropySource,
     providers,
@@ -373,17 +368,19 @@ describe('MultichainAccountWallet', () => {
       const [provider] = providers;
       const providerError = new Error('Unable to create accounts');
       provider.createAccounts.mockRejectedValueOnce(providerError);
-      const callSpy = jest.spyOn(messenger, 'call');
+      const captureExceptionSpy = jest.spyOn(messenger, 'captureException');
       await expect(
         wallet.createMultichainAccountGroup(groupIndex),
       ).rejects.toThrow(
         'Unable to create multichain account group for index: 1',
       );
-      expect(callSpy).toHaveBeenCalledWith(
-        'ErrorReportingService:captureException',
+      expect(captureExceptionSpy).toHaveBeenCalledWith(
         new Error('Unable to create account with provider "Mocked Provider 0"'),
       );
-      expect(callSpy.mock.lastCall[1]).toHaveProperty('cause', providerError);
+      expect(captureExceptionSpy.mock.lastCall[0]).toHaveProperty(
+        'cause',
+        providerError,
+      );
     });
 
     it('aggregates non-EVM failures when waiting for all providers', async () => {
@@ -732,15 +729,17 @@ describe('MultichainAccountWallet', () => {
       });
       const providerError = new Error('Unable to discover accounts');
       providers[0].discoverAccounts.mockRejectedValueOnce(providerError);
-      const callSpy = jest.spyOn(messenger, 'call');
+      const captureExceptionSpy = jest.spyOn(messenger, 'captureException');
       // Ensure the other provider stops immediately to finish the Promise.all
       providers[1].discoverAccounts.mockResolvedValueOnce([]);
       await wallet.discoverAccounts();
-      expect(callSpy).toHaveBeenCalledWith(
-        'ErrorReportingService:captureException',
+      expect(captureExceptionSpy).toHaveBeenCalledWith(
         new Error('Unable to discover accounts'),
       );
-      expect(callSpy.mock.lastCall[1]).toHaveProperty('cause', providerError);
+      expect(captureExceptionSpy.mock.lastCall[0]).toHaveProperty(
+        'cause',
+        providerError,
+      );
     });
   });
 });
