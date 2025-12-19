@@ -281,6 +281,40 @@ export class RemoteFeatureFlagController extends BaseController<
     return getVersionData(flagValue, this.#clientVersion);
   }
 
+  /**
+   * Removes stale threshold cache entries for flags that no longer exist in the remote response.
+   * This prevents unbounded cache growth as flags are added and removed over time.
+   * Only cleans entries for the current metaMetricsId.
+   *
+   * @param currentFlagNames - Array of flag names currently in the remote response
+   */
+  #cleanupStaleThresholdCache(currentFlagNames: string[]): void {
+    const metaMetricsId = this.#getMetaMetricsId();
+    const staleCacheKeys: string[] = [];
+
+    // Find cache keys that don't match any current flag
+    for (const cacheKey of Object.keys(this.state.thresholdCache)) {
+      // Cache key format: "metaMetricsId:flagName"
+      const [cachedMetaMetricsId, cachedFlagName] = cacheKey.split(':');
+
+      // Only clean entries for current user
+      if (cachedMetaMetricsId === metaMetricsId) {
+        if (!currentFlagNames.includes(cachedFlagName)) {
+          staleCacheKeys.push(cacheKey);
+        }
+      }
+    }
+
+    // Remove stale entries if any found
+    if (staleCacheKeys.length > 0) {
+      this.update((state) => {
+        for (const key of staleCacheKeys) {
+          delete state.thresholdCache[key];
+        }
+      });
+    }
+  }
+
   async #processRemoteFeatureFlags(
     remoteFeatureFlags: FeatureFlags,
   ): Promise<FeatureFlags> {
@@ -345,6 +379,10 @@ export class RemoteFeatureFlagController extends BaseController<
 
       processedRemoteFeatureFlags[remoteFeatureFlagName] = processedValue;
     }
+
+    // Clean up stale threshold cache entries
+    this.#cleanupStaleThresholdCache(Object.keys(remoteFeatureFlags));
+
     return processedRemoteFeatureFlags;
   }
 
