@@ -440,7 +440,9 @@ export class CodefiTokenPricesServiceV2
    * takes.
    * @returns What {@link ServicePolicy.onBreak} returns.
    */
-  onBreak(...args: Parameters<ServicePolicy['onBreak']>) {
+  onBreak(
+    ...args: Parameters<ServicePolicy['onBreak']>
+  ): ReturnType<ServicePolicy['onBreak']> {
     return this.#policy.onBreak(...args);
   }
 
@@ -451,7 +453,9 @@ export class CodefiTokenPricesServiceV2
    * takes.
    * @returns What {@link ServicePolicy.onDegraded} returns.
    */
-  onDegraded(...args: Parameters<ServicePolicy['onDegraded']>) {
+  onDegraded(
+    ...args: Parameters<ServicePolicy['onDegraded']>
+  ): ReturnType<ServicePolicy['onDegraded']> {
     return this.#policy.onDegraded(...args);
   }
 
