@@ -7,6 +7,10 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+### Uncategorized
+
+- Release/727.0.0 ([#7517](https://github.com/MetaMask/core/pull/7517))
+
 ### Added
 
 - Export `selectAllAssets` ([#7496](https://github.com/MetaMask/core/pull/7496))
