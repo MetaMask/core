@@ -8,7 +8,11 @@ import type {
 
 import type { RampsControllerMessenger } from './RampsController';
 import { RampsController } from './RampsController';
-import type { RampsServiceGetGeolocationAction } from './RampsService-method-action-types';
+import type { Country } from './RampsService';
+import type {
+  RampsServiceGetGeolocationAction,
+  RampsServiceGetCountriesAction,
+} from './RampsService-method-action-types';
 import { RequestStatus, createCacheKey } from './RequestCache';
 
 describe('RampsController', () => {
@@ -502,6 +506,323 @@ describe('RampsController', () => {
       });
     });
   });
+
+  describe('getCountries', () => {
+    const mockCountries: Country[] = [
+      {
+        isoCode: 'US',
+        flag: '🇺🇸',
+        name: 'United States of America',
+        phone: {
+          prefix: '+1',
+          placeholder: '(555) 123-4567',
+          template: '(XXX) XXX-XXXX',
+        },
+        currency: 'USD',
+        supported: true,
+        recommended: true,
+        unsupportedStates: ['ny'],
+        transakSupported: true,
+      },
+      {
+        isoCode: 'AT',
+        flag: '🇦🇹',
+        name: 'Austria',
+        phone: {
+          prefix: '+43',
+          placeholder: '660 1234567',
+          template: 'XXX XXXXXXX',
+        },
+        currency: 'EUR',
+        supported: true,
+        transakSupported: true,
+      },
+    ];
+
+    it('fetches countries from the service', async () => {
+      await withController(async ({ controller, rootMessenger }) => {
+        rootMessenger.registerActionHandler(
+          'RampsService:getCountries',
+          async () => mockCountries,
+        );
+
+        const countries = await controller.getCountries('deposit');
+
+        expect(countries).toMatchInlineSnapshot(`
+          Array [
+            Object {
+              "currency": "USD",
+              "flag": "🇺🇸",
+              "isoCode": "US",
+              "name": "United States of America",
+              "phone": Object {
+                "placeholder": "(555) 123-4567",
+                "prefix": "+1",
+                "template": "(XXX) XXX-XXXX",
+              },
+              "recommended": true,
+              "supported": true,
+              "transakSupported": true,
+              "unsupportedStates": Array [
+                "ny",
+              ],
+            },
+            Object {
+              "currency": "EUR",
+              "flag": "🇦🇹",
+              "isoCode": "AT",
+              "name": "Austria",
+              "phone": Object {
+                "placeholder": "660 1234567",
+                "prefix": "+43",
+                "template": "XXX XXXXXXX",
+              },
+              "supported": true,
+              "transakSupported": true,
+            },
+          ]
+        `);
+      });
+    });
+
+    it('caches countries response', async () => {
+      await withController(async ({ controller, rootMessenger }) => {
+        let callCount = 0;
+        rootMessenger.registerActionHandler(
+          'RampsService:getCountries',
+          async () => {
+            callCount += 1;
+            return mockCountries;
+          },
+        );
+
+        await controller.getCountries('deposit');
+        await controller.getCountries('deposit');
+
+        expect(callCount).toBe(1);
+      });
+    });
+  });
+
+  describe('getRegionEligibility', () => {
+    const mockCountries: Country[] = [
+      {
+        isoCode: 'US',
+        flag: '🇺🇸',
+        name: 'United States of America',
+        phone: {
+          prefix: '+1',
+          placeholder: '(555) 123-4567',
+          template: '(XXX) XXX-XXXX',
+        },
+        currency: 'USD',
+        supported: true,
+        unsupportedStates: ['ny'],
+      },
+      {
+        isoCode: 'AT',
+        flag: '🇦🇹',
+        name: 'Austria',
+        phone: {
+          prefix: '+43',
+          placeholder: '660 1234567',
+          template: 'XXX XXXXXXX',
+        },
+        currency: 'EUR',
+        supported: true,
+      },
+      {
+        isoCode: 'RU',
+        flag: '🇷🇺',
+        name: 'Russia',
+        phone: {
+          prefix: '+7',
+          placeholder: '999 123-45-67',
+          template: 'XXX XXX-XX-XX',
+        },
+        currency: 'RUB',
+        supported: false,
+      },
+    ];
+
+    it('fetches geolocation and returns eligibility when geolocation is null', async () => {
+      await withController(async ({ controller, rootMessenger }) => {
+        rootMessenger.registerActionHandler(
+          'RampsService:getGeolocation',
+          async () => 'AT',
+        );
+        rootMessenger.registerActionHandler(
+          'RampsService:getCountries',
+          async () => mockCountries,
+        );
+
+        expect(controller.state.geolocation).toBeNull();
+
+        const eligible = await controller.getRegionEligibility('deposit');
+
+        expect(controller.state.geolocation).toBe('AT');
+        expect(eligible).toBe(true);
+      });
+    });
+
+    it('fetches geolocation and returns false for unsupported region when geolocation is null', async () => {
+      await withController(async ({ controller, rootMessenger }) => {
+        rootMessenger.registerActionHandler(
+          'RampsService:getGeolocation',
+          async () => 'RU',
+        );
+        rootMessenger.registerActionHandler(
+          'RampsService:getCountries',
+          async () => mockCountries,
+        );
+
+        expect(controller.state.geolocation).toBeNull();
+
+        const eligible = await controller.getRegionEligibility('deposit');
+
+        expect(controller.state.geolocation).toBe('RU');
+        expect(eligible).toBe(false);
+      });
+    });
+
+    it('only fetches geolocation once when already set', async () => {
+      await withController(async ({ controller, rootMessenger }) => {
+        let geolocationCallCount = 0;
+        rootMessenger.registerActionHandler(
+          'RampsService:getGeolocation',
+          async () => {
+            geolocationCallCount += 1;
+            return 'AT';
+          },
+        );
+        rootMessenger.registerActionHandler(
+          'RampsService:getCountries',
+          async () => mockCountries,
+        );
+
+        await controller.getRegionEligibility('deposit');
+        await controller.getRegionEligibility('deposit');
+
+        expect(geolocationCallCount).toBe(1);
+      });
+    });
+
+    it('returns true for a supported country', async () => {
+      await withController(
+        { options: { state: { geolocation: 'AT' } } },
+        async ({ controller, rootMessenger }) => {
+          rootMessenger.registerActionHandler(
+            'RampsService:getCountries',
+            async () => mockCountries,
+          );
+
+          const eligible = await controller.getRegionEligibility('deposit');
+
+          expect(eligible).toBe(true);
+        },
+      );
+    });
+
+    it('returns true for a supported US state', async () => {
+      await withController(
+        { options: { state: { geolocation: 'US-TX' } } },
+        async ({ controller, rootMessenger }) => {
+          rootMessenger.registerActionHandler(
+            'RampsService:getCountries',
+            async () => mockCountries,
+          );
+
+          const eligible = await controller.getRegionEligibility('deposit');
+
+          expect(eligible).toBe(true);
+        },
+      );
+    });
+
+    it('returns false for an unsupported US state', async () => {
+      await withController(
+        { options: { state: { geolocation: 'US-NY' } } },
+        async ({ controller, rootMessenger }) => {
+          rootMessenger.registerActionHandler(
+            'RampsService:getCountries',
+            async () => mockCountries,
+          );
+
+          const eligible = await controller.getRegionEligibility('deposit');
+
+          expect(eligible).toBe(false);
+        },
+      );
+    });
+
+    it('returns false for a country not in the list', async () => {
+      await withController(
+        { options: { state: { geolocation: 'XX' } } },
+        async ({ controller, rootMessenger }) => {
+          rootMessenger.registerActionHandler(
+            'RampsService:getCountries',
+            async () => mockCountries,
+          );
+
+          const eligible = await controller.getRegionEligibility('deposit');
+
+          expect(eligible).toBe(false);
+        },
+      );
+    });
+
+    it('returns false for a country that is not supported', async () => {
+      await withController(
+        { options: { state: { geolocation: 'RU' } } },
+        async ({ controller, rootMessenger }) => {
+          rootMessenger.registerActionHandler(
+            'RampsService:getCountries',
+            async () => mockCountries,
+          );
+
+          const eligible = await controller.getRegionEligibility('deposit');
+
+          expect(eligible).toBe(false);
+        },
+      );
+    });
+
+    it('is case-insensitive for state codes', async () => {
+      await withController(
+        { options: { state: { geolocation: 'US-ny' } } },
+        async ({ controller, rootMessenger }) => {
+          rootMessenger.registerActionHandler(
+            'RampsService:getCountries',
+            async () => mockCountries,
+          );
+
+          const eligible = await controller.getRegionEligibility('deposit');
+
+          expect(eligible).toBe(false);
+        },
+      );
+    });
+
+    it('passes action parameter to getCountries', async () => {
+      await withController(
+        { options: { state: { geolocation: 'AT' } } },
+        async ({ controller, rootMessenger }) => {
+          let receivedAction: string | undefined;
+          rootMessenger.registerActionHandler(
+            'RampsService:getCountries',
+            async (action) => {
+              receivedAction = action;
+              return mockCountries;
+            },
+          );
+
+          await controller.getRegionEligibility('deposit');
+
+          expect(receivedAction).toBe('deposit');
+        },
+      );
+    });
+  });
 });
 
 /**
@@ -510,7 +831,9 @@ describe('RampsController', () => {
  */
 type RootMessenger = Messenger<
   MockAnyNamespace,
-  MessengerActions<RampsControllerMessenger> | RampsServiceGetGeolocationAction,
+  | MessengerActions<RampsControllerMessenger>
+  | RampsServiceGetGeolocationAction
+  | RampsServiceGetCountriesAction,
   MessengerEvents<RampsControllerMessenger>
 >;
 
@@ -554,7 +877,7 @@ function getMessenger(rootMessenger: RootMessenger): RampsControllerMessenger {
   });
   rootMessenger.delegate({
     messenger,
-    actions: ['RampsService:getGeolocation'],
+    actions: ['RampsService:getGeolocation', 'RampsService:getCountries'],
   });
   return messenger;
 }

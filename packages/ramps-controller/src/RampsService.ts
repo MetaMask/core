@@ -7,6 +7,30 @@ import type { Messenger } from '@metamask/messenger';
 
 import type { RampsServiceMethodActions } from './RampsService-method-action-types';
 
+/**
+ * Represents phone number information for a country.
+ */
+export type CountryPhone = {
+  prefix: string;
+  placeholder: string;
+  template: string;
+};
+
+/**
+ * Represents a country returned from the regions/countries API.
+ */
+export type Country = {
+  isoCode: string;
+  flag: string;
+  name: string;
+  phone: CountryPhone;
+  currency: string;
+  supported: boolean;
+  recommended?: boolean;
+  unsupportedStates?: string[];
+  transakSupported?: boolean;
+};
+
 // === GENERAL ===
 
 /**
@@ -24,9 +48,18 @@ export enum RampsEnvironment {
   Development = 'development',
 }
 
+/**
+ * The type of ramps API service.
+ * Determines which base URL to use (cache vs standard).
+ */
+export enum RampsApiService {
+  Regions = 'regions',
+  Orders = 'orders',
+}
+
 // === MESSENGER ===
 
-const MESSENGER_EXPOSED_METHODS = ['getGeolocation'] as const;
+const MESSENGER_EXPOSED_METHODS = ['getGeolocation', 'getCountries'] as const;
 
 /**
  * Actions that {@link RampsService} exposes to other consumers.
@@ -61,19 +94,25 @@ export type RampsServiceMessenger = Messenger<
 // === SERVICE DEFINITION ===
 
 /**
- * Gets the base URL for API requests based on the environment.
+ * Gets the base URL for API requests based on the environment and service type.
+ * The Regions service uses a cache URL, while other services use the standard URL.
  *
  * @param environment - The environment to use.
+ * @param service - The API service type (determines if cache URL is used).
  * @returns The base URL for API requests.
  */
-function getBaseUrl(environment: RampsEnvironment): string {
+function getBaseUrl(
+  environment: RampsEnvironment,
+  service: RampsApiService,
+): string {
+  const cache = service === RampsApiService.Regions ? '-cache' : '';
+
   switch (environment) {
     case RampsEnvironment.Production:
-      return 'https://on-ramp.api.cx.metamask.io';
+      return `https://on-ramp${cache}.api.cx.metamask.io`;
     case RampsEnvironment.Staging:
-      return 'https://on-ramp.uat-api.cx.metamask.io';
     case RampsEnvironment.Development:
-      return 'http://localhost:3000';
+      return `https://on-ramp${cache}.uat-api.cx.metamask.io`;
     default:
       throw new Error(`Invalid environment: ${String(environment)}`);
   }
@@ -146,9 +185,9 @@ export class RampsService {
   readonly #policy: ServicePolicy;
 
   /**
-   * The base URL for API requests.
+   * The environment used for API requests.
    */
-  readonly #baseUrl: string;
+  readonly #environment: RampsEnvironment;
 
   /**
    * Constructs a new RampsService object.
@@ -178,7 +217,7 @@ export class RampsService {
     this.#messenger = messenger;
     this.#fetch = fetchFunction;
     this.#policy = createServicePolicy(policyOptions);
-    this.#baseUrl = getBaseUrl(environment);
+    this.#environment = environment;
 
     this.#messenger.registerMethodActionHandlers(
       this,
@@ -248,7 +287,8 @@ export class RampsService {
    */
   async getGeolocation(): Promise<string> {
     const responseData = await this.#policy.execute(async () => {
-      const url = new URL('geolocation', this.#baseUrl);
+      const baseUrl = getBaseUrl(this.#environment, RampsApiService.Orders);
+      const url = new URL('geolocation', baseUrl);
       const localResponse = await this.#fetch(url);
       if (!localResponse.ok) {
         throw new HttpError(
@@ -269,5 +309,34 @@ export class RampsService {
     }
 
     throw new Error('Malformed response received from geolocation API');
+  }
+
+  /**
+   * Makes a request to the cached API to retrieve the list of supported countries.
+   *
+   * @param action - The ramp action type ('deposit' or 'withdraw').
+   * @returns An array of countries with their eligibility information.
+   */
+  async getCountries(
+    action: 'deposit' | 'withdraw' = 'deposit',
+  ): Promise<Country[]> {
+    const responseData = await this.#policy.execute(async () => {
+      const baseUrl = getBaseUrl(this.#environment, RampsApiService.Regions);
+      const url = new URL('regions/countries', baseUrl);
+      url.searchParams.set('action', action);
+      url.searchParams.set('sdk', '2.1.6');
+      url.searchParams.set('context', 'mobile-ios');
+
+      const localResponse = await this.#fetch(url);
+      if (!localResponse.ok) {
+        throw new HttpError(
+          localResponse.status,
+          `Fetching '${url.toString()}' failed with status '${localResponse.status}'`,
+        );
+      }
+      return localResponse.json() as Promise<Country[]>;
+    });
+
+    return responseData;
   }
 }
