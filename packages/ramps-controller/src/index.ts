@@ -5,6 +5,7 @@ export type {
   RampsControllerMessenger,
   RampsControllerState,
   RampsControllerStateChangeEvent,
+  RampsControllerOptions,
 } from './RampsController';
 export {
   RampsController,
@@ -17,3 +18,19 @@ export type {
 } from './RampsService';
 export { RampsService, RampsEnvironment } from './RampsService';
 export type { RampsServiceGetGeolocationAction } from './RampsService-method-action-types';
+export type {
+  RequestCache,
+  RequestState,
+  ExecuteRequestOptions,
+  PendingRequest,
+} from './RequestCache';
+export {
+  RequestStatus,
+  DEFAULT_REQUEST_CACHE_TTL,
+  DEFAULT_REQUEST_CACHE_MAX_SIZE,
+  createCacheKey,
+  isCacheExpired,
+  createLoadingState,
+  createSuccessState,
+  createErrorState,
+} from './RequestCache';

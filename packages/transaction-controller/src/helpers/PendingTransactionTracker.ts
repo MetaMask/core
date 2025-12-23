@@ -15,7 +15,10 @@ import { createModuleLogger, projectLogger } from '../logger';
 import type { TransactionControllerMessenger } from '../TransactionController';
 import type { TransactionMeta, TransactionReceipt } from '../types';
 import { TransactionStatus, TransactionType } from '../types';
-import { getTimeoutAttempts } from '../utils/feature-flags';
+import {
+  getAcceleratedPollingParams,
+  getTimeoutAttempts,
+} from '../utils/feature-flags';
 
 /**
  * We wait this many blocks before emitting a 'transaction-dropped' event
@@ -88,6 +91,8 @@ export class PendingTransactionTracker {
 
   readonly #isResubmitEnabled: () => boolean;
 
+  readonly #lastSeenTimestampByHash: Map<string, number>;
+
   // TODO: Replace `any` with type
   // eslint-disable-next-line @typescript-eslint/no-explicit-any
   readonly #listener: any;
@@ -102,8 +107,6 @@ export class PendingTransactionTracker {
   ) => Promise<string>;
 
   #running: boolean;
-
-  readonly #timeoutCountByHash: Map<string, number>;
 
   readonly #transactionPoller: TransactionPoller;
 
@@ -150,11 +153,11 @@ export class PendingTransactionTracker {
     this.#getNetworkClientId = getNetworkClientId;
     this.#getTransactions = getTransactions;
     this.#isResubmitEnabled = isResubmitEnabled ?? ((): boolean => true);
+    this.#lastSeenTimestampByHash = new Map();
     this.#listener = this.#onLatestBlock.bind(this);
     this.#messenger = messenger;
     this.#publishTransaction = publishTransaction;
     this.#running = false;
-    this.#timeoutCountByHash = new Map();
     this.#transactionToForcePoll = undefined;
 
     this.#transactionPoller = new TransactionPoller({
@@ -391,9 +394,15 @@ export class PendingTransactionTracker {
     return blocksSinceFirstRetry >= requiredBlocksSinceFirstRetry;
   }
 
-  #cleanTransactionToForcePoll(transactionId: string): void {
-    if (this.#transactionToForcePoll?.id === transactionId) {
+  #cleanTransaction(txMeta: TransactionMeta): void {
+    const { hash, id } = txMeta;
+
+    if (this.#transactionToForcePoll?.id === id) {
       this.#transactionToForcePoll = undefined;
+    }
+
+    if (hash) {
+      this.#lastSeenTimestampByHash.delete(hash);
     }
   }
 
@@ -489,8 +498,11 @@ export class PendingTransactionTracker {
 
     this.#log('Transaction confirmed', id);
 
-    if (this.#transactionToForcePoll) {
-      this.#cleanTransactionToForcePoll(txMeta.id);
+    const isForcePollTransaction = this.#transactionToForcePoll?.id === id;
+
+    this.#cleanTransaction(txMeta);
+
+    if (isForcePollTransaction) {
       this.hub.emit('transaction-confirmed', txMeta);
       return;
     }
@@ -529,6 +541,7 @@ export class PendingTransactionTracker {
       chainId,
       hash,
       id: transactionId,
+      submittedTime,
       txParams: { nonce },
     } = txMeta;
 
@@ -564,36 +577,54 @@ export class PendingTransactionTracker {
       // Check if transaction exists on the network
       const transaction = await this.#getTransactionByHash(hash);
 
-      // If transaction exists, reset the counter
+      // If transaction exists, record the timestamp
       if (transaction !== null) {
+        const currentTimestamp = Date.now();
+
         this.#log(
-          'Transaction found on network, resetting timeout counter',
+          'Transaction found on network, recording timestamp',
           transactionId,
         );
 
-        this.#timeoutCountByHash.delete(hash);
+        this.#lastSeenTimestampByHash.set(hash, currentTimestamp);
         return false;
       }
 
-      // Transaction doesn't exist, increment counter
-      let attempts = this.#timeoutCountByHash.get(hash);
+      const lastSeenTimestamp =
+        this.#lastSeenTimestampByHash.get(hash) ?? submittedTime;
 
-      attempts ??= 0;
-      attempts += 1;
-      this.#timeoutCountByHash.set(hash, attempts);
+      if (lastSeenTimestamp === undefined) {
+        this.#log(
+          'Transaction not yet seen on network and has no submitted time, skipping timeout check',
+          transactionId,
+        );
 
-      this.#log('Incrementing timeout counter', {
+        return false;
+      }
+
+      const { blockTime } = getAcceleratedPollingParams(
+        chainId,
+        this.#messenger,
+      );
+
+      const currentTimestamp = Date.now();
+      const durationSinceLastSeen = currentTimestamp - lastSeenTimestamp;
+      const timeoutDuration = blockTime * threshold;
+
+      this.#log('Checking timeout duration', {
         transactionId,
-        attempts,
+        durationSinceLastSeen,
+        timeoutDuration,
         threshold,
+        blockTime,
       });
 
-      if (attempts < threshold) {
+      if (durationSinceLastSeen < timeoutDuration) {
         return false;
       }
 
-      this.#log('Hit timeout threshold', transactionId);
-      this.#timeoutCountByHash.delete(hash);
+      this.#log('Hit timeout duration threshold', transactionId);
+      this.#lastSeenTimestampByHash.delete(hash);
 
       this.#failTransaction(
         txMeta,
@@ -689,13 +720,13 @@ export class PendingTransactionTracker {
 
   #failTransaction(txMeta: TransactionMeta, error: Error): void {
     this.#log('Transaction failed', txMeta.id, error);
-    this.#cleanTransactionToForcePoll(txMeta.id);
+    this.#cleanTransaction(txMeta);
     this.hub.emit('transaction-failed', txMeta, error);
   }
 
   #dropTransaction(txMeta: TransactionMeta): void {
     this.#log('Transaction dropped', txMeta.id);
-    this.#cleanTransactionToForcePoll(txMeta.id);
+    this.#cleanTransaction(txMeta);
     this.hub.emit('transaction-dropped', txMeta);
   }
 

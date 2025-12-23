@@ -12,6 +12,10 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 - Add intent based transaction support ([#6547](https://github.com/MetaMask/core/pull/6547))
 ### Changed
 
+- Bump `@metamask/remote-feature-flag-controller` from `^3.1.0` to `^4.0.0` ([#7546](https://github.com/MetaMask/core/pull/7546))
+- Upgrade `@metamask/utils` from `^11.8.1` to `^11.9.0` ([#7511](https://github.com/MetaMask/core/pull/7511))
+- Update transaction timeout to check time since submission or when transaction was last seen on network ([#7464](https://github.com/MetaMask/core/pull/7464))
+  - Uses `blockTime` from `acceleratedPolling` feature flag.
 - Deprecate `history` and `sendFlowHistory` properties from `TransactionMeta` and `TransactionController` options ([#7326](https://github.com/MetaMask/core/pull/7326))
 - Bump `@metamask/remote-feature-flag-controller` from `^3.0.0` to `^3.1.0` ([#7519](https://github.com/MetaMask/core/pull/7519))
 - Bump `@metamask/network-controller` from `^27.0.0` to `^27.1.0` ([#7534](https://github.com/MetaMask/core/pull/7534))

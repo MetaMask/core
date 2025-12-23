@@ -55,7 +55,7 @@
     "@metamask/network-controller": "^27.1.0",
     "@metamask/permission-controller": "^12.1.1",
     "@metamask/rpc-errors": "^7.0.2",
-    "@metamask/utils": "^11.8.1",
+    "@metamask/utils": "^11.9.0",
     "@open-rpc/meta-schema": "^1.14.6",
     "@open-rpc/schema-utils-js": "^2.0.5",
     "jsonschema": "^1.4.1"
