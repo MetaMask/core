@@ -157,7 +157,9 @@ export async function fetchTokenListByChainId(
             ticker: elm.name?.split(' ')[0] ?? '',
             market: {
               nextOpen: new Date(new Date().setHours(9, 0, 0, 0)).toISOString(),
-              nextClose: new Date(new Date().setHours(16, 0, 0, 0)).toISOString(),
+              nextClose: new Date(
+                new Date().setHours(16, 0, 0, 0),
+              ).toISOString(),
             },
             nextPause: {
               start: new Date(new Date().setHours(16, 0, 0, 0)).toISOString(),
@@ -172,6 +174,36 @@ export async function fetchTokenListByChainId(
       });
 
       console.log('filteredResult', filteredResult);
+      return filteredResultWithRwaData;
+    }
+
+    if (Array.isArray(result)) {
+      // TODO: remove this after development is done
+      // if the filteredResult has an aggregator that includes 'Ondo' then append rwaData as metadata.
+      const filteredResultWithRwaData = result.map((elm) => {
+        const metadata = {
+          rwaData: {
+            instrumentType: 'stock',
+            ticker: elm.name?.split(' ')[0] ?? '',
+            market: {
+              nextOpen: new Date(new Date().setHours(9, 0, 0, 0)).toISOString(),
+              nextClose: new Date(
+                new Date().setHours(16, 0, 0, 0),
+              ).toISOString(),
+            },
+            nextPause: {
+              start: new Date(new Date().setHours(16, 0, 0, 0)).toISOString(),
+              end: new Date(new Date().setHours(17, 0, 0, 0)).toISOString(),
+            },
+          },
+        };
+        if (elm.aggregators.includes('Ondo')) {
+          return { ...elm, ...metadata };
+        }
+        return elm;
+      });
+
+      console.log('filteredResultWithRwaData', filteredResultWithRwaData);
       return filteredResultWithRwaData;
     }
     return result;
@@ -242,6 +274,18 @@ export type TrendingAsset = {
     h24?: string;
   };
   labels?: string[];
+  rwaData?: {
+    instrumentType: string;
+    ticker: string;
+    market: {
+      nextOpen: string;
+      nextClose: string;
+    };
+    nextPause: {
+      start: string;
+      end: string;
+    };
+  };
 };
 
 /**
@@ -307,7 +351,13 @@ export async function getTrendingTokens({
             ticker: elm.name?.split(' ')[0] ?? '',
             market: {
               nextOpen: new Date(new Date().setHours(9, 0, 0, 0)).toISOString(),
-              nextClose: new Date(new Date().setHours(16, 0, 0, 0)).toISOString(),
+              nextClose: new Date(
+                new Date().setHours(16, 0, 0, 0),
+              ).toISOString(),
+            },
+            nextPause: {
+              start: new Date(new Date().setHours(16, 0, 0, 0)).toISOString(),
+              end: new Date(new Date().setHours(17, 0, 0, 0)).toISOString(),
             },
           },
         };
@@ -357,7 +407,9 @@ export async function fetchTokenMetadata<T>(
             ticker: elm.name?.split(' ')[0] ?? '',
             market: {
               nextOpen: new Date(new Date().setHours(9, 0, 0, 0)).toISOString(),
-              nextClose: new Date(new Date().setHours(16, 0, 0, 0)).toISOString(),
+              nextClose: new Date(
+                new Date().setHours(16, 0, 0, 0),
+              ).toISOString(),
             },
             nextPause: {
               start: new Date(new Date().setHours(16, 0, 0, 0)).toISOString(),
