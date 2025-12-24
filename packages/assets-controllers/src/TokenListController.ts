@@ -34,7 +34,7 @@ export type TokenListToken = {
   occurrences: number;
   aggregators: string[];
   iconUrl: string;
-  rwaData: {
+  rwaData?: {
     instrumentType: string;
     ticker: string;
     market: {
