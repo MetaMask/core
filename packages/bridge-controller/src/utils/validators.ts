@@ -16,7 +16,6 @@ import {
   assert,
   pattern,
   intersection,
-  date,
 } from '@metamask/superstruct';
 import { CaipAssetTypeStruct, isStrictHexString } from '@metamask/utils';
 
