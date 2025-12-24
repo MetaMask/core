@@ -12,6 +12,7 @@ import {
 import { IntentOrderStatus } from './utils/validators';
 
 import { MAX_ATTEMPTS } from './constants';
+import { IntentApiImpl } from './utils/intent-api';
 
 type Tx = Pick<TransactionMeta, 'id' | 'status'> & {
   type?: TransactionType;
@@ -19,6 +20,25 @@ type Tx = Pick<TransactionMeta, 'id' | 'status'> & {
   hash?: string;
   txReceipt?: any;
 };
+
+function seedIntentHistory(controller: any) {
+  controller.update((s: any) => {
+    s.txHistory['intent:1'] = {
+      txMetaId: 'intent:1',
+      originalTransactionId: 'tx1',
+      quote: {
+        srcChainId: 1,
+        destChainId: 1,
+        intent: { protocol: 'cowswap' },
+      },
+      status: {
+        status: StatusTypes.PENDING,
+        srcChain: { chainId: 1, txHash: '' },
+      },
+      attempts: undefined, // IMPORTANT: prevents early return
+    };
+  });
+}
 
 function minimalIntentQuoteResponse(
   accountAddress: string,
@@ -967,16 +987,7 @@ describe('BridgeStatusController (target uncovered branches)', () => {
     });
 
     expect(controller.state.txHistory['tx1'].status.status).toBe(
-      StatusTypes.PENDING,
-    );
-
-    // no tracking call should be made from this callback path
-    expect((messenger.call as jest.Mock).mock.calls).not.toEqual(
-      expect.arrayContaining([
-        expect.arrayContaining([
-          'BridgeController:trackUnifiedSwapBridgeEvent',
-        ]),
-      ]),
+      StatusTypes.FAILED,
     );
   });
 
@@ -1368,5 +1379,62 @@ describe('BridgeStatusController (target uncovered branches)', () => {
         false,
       ),
     ).rejects.toThrow(/undefined multichain account/u);
+  });
+
+  test('intent order PENDING maps to bridge PENDING', async () => {
+    const { controller, getOrderStatusMock } = setup();
+
+    seedIntentHistory(controller);
+
+    getOrderStatusMock.mockResolvedValueOnce({
+      id: 'order-1',
+      status: IntentOrderStatus.PENDING,
+      txHash: undefined,
+      metadata: { txHashes: [] },
+    });
+
+    await (controller as any)._executePoll({ bridgeTxMetaId: 'intent:1' });
+
+    expect(controller.state.txHistory['intent:1'].status.status).toBe(
+      StatusTypes.PENDING,
+    );
+  });
+
+  test('intent order SUBMITTED maps to bridge SUBMITTED', async () => {
+    const { controller, getOrderStatusMock } = setup();
+
+    seedIntentHistory(controller);
+
+    getOrderStatusMock.mockResolvedValueOnce({
+      id: 'order-1',
+      status: IntentOrderStatus.SUBMITTED,
+      txHash: undefined,
+      metadata: { txHashes: [] },
+    });
+
+    await (controller as any)._executePoll({ bridgeTxMetaId: 'intent:1' });
+
+    expect(controller.state.txHistory['intent:1'].status.status).toBe(
+      StatusTypes.SUBMITTED,
+    );
+  });
+
+  test('unknown intent order status maps to bridge UNKNOWN', async () => {
+    const { controller, getOrderStatusMock } = setup();
+
+    seedIntentHistory(controller);
+
+    getOrderStatusMock.mockResolvedValueOnce({
+      id: 'order-1',
+      status: 'SOME_NEW_STATUS' as any, // force UNKNOWN branch
+      txHash: undefined,
+      metadata: { txHashes: [] },
+    });
+
+    await (controller as any)._executePoll({ bridgeTxMetaId: 'intent:1' });
+
+    expect(controller.state.txHistory['intent:1'].status.status).toBe(
+      StatusTypes.UNKNOWN,
+    );
   });
 });

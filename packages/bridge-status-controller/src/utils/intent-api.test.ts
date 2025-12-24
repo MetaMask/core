@@ -112,4 +112,30 @@ describe('IntentApiImpl', () => {
       'Failed to get order status',
     );
   });
+
+  it('submitIntent throws when response fails validation', async () => {
+    const fetchFn = makeFetchMock().mockResolvedValue({
+      foo: 'bar', // invalid IntentOrder shape
+    } as any);
+
+    const api = new IntentApiImpl(baseUrl, fetchFn);
+
+    await expect(api.submitIntent(makeParams(), clientId)).rejects.toThrow(
+      'Failed to submit intent: Invalid submitOrder response',
+    );
+  });
+
+  it('getOrderStatus throws when response fails validation', async () => {
+    const fetchFn = makeFetchMock().mockResolvedValue({
+      foo: 'bar', // invalid IntentOrder shape
+    } as any);
+
+    const api = new IntentApiImpl(baseUrl, fetchFn);
+
+    await expect(
+      api.getOrderStatus('order-1', 'agg', '1', clientId),
+    ).rejects.toThrow(
+      'Failed to get order status: Invalid submitOrder response',
+    );
+  });
 });
