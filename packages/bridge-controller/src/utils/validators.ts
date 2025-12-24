@@ -86,6 +86,21 @@ export const BridgeAssetSchema = type({
    * URL for token icon
    */
   iconUrl: optional(nullable(string())),
+
+  rwaData: optional(
+    type({
+      instrumentType: string(),
+      ticker: string(),
+      market: type({
+        nextOpen: string(),
+        nextClose: string(),
+      }),
+      nextPause: type({
+        start: string(),
+        end: string(),
+      }),
+    }),
+  ),
 });
 
 const DefaultPairSchema = type({

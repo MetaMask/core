@@ -34,6 +34,18 @@ export type TokenListToken = {
   occurrences: number;
   aggregators: string[];
   iconUrl: string;
+  rwaData?: {
+    instrumentType: string;
+    ticker: string;
+    market: {
+      nextOpen: string;
+      nextClose: string;
+    };
+    nextPause: {
+      start: string;
+      end: string;
+    };
+  };
 };
 
 export type TokenListMap = Record<string, TokenListToken>;

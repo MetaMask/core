@@ -8,7 +8,9 @@ import type { CaipChainId, Hex } from '@metamask/utils';
 
 import { isTokenListSupportedForNetwork } from './assetsUtil';
 
-export const TOKEN_END_POINT_API = 'https://token.api.cx.metamask.io';
+// export const TOKEN_END_POINT_API = 'https://token.api.cx.metamask.io';
+// TODO change it back after development is done
+export const TOKEN_END_POINT_API = 'https://token.dev-api.cx.metamask.io';
 export const TOKEN_METADATA_NO_SUPPORT_ERROR =
   'TokenService Error: Network does not support fetchTokenMetadata';
 
@@ -18,7 +20,7 @@ export const TOKEN_METADATA_NO_SUPPORT_ERROR =
  * @param chainId - The chain ID of the network the tokens requested are on.
  * @returns The tokens URL.
  */
-function getTokensURL(chainId: Hex) {
+function getTokensURL(chainId: Hex): string {
   const occurrenceFloor = chainId === ChainId['linea-mainnet'] ? 1 : 3;
 
   return `${TOKEN_END_POINT_API}/tokens/${convertHexToDecimal(
@@ -33,7 +35,7 @@ function getTokensURL(chainId: Hex) {
  * @param tokenAddress - The token address.
  * @returns The token metadata URL.
  */
-function getTokenMetadataURL(chainId: Hex, tokenAddress: string) {
+function getTokenMetadataURL(chainId: Hex, tokenAddress: string): string {
   return `${TOKEN_END_POINT_API}/token/${convertHexToDecimal(
     chainId,
   )}?address=${tokenAddress}`;
@@ -62,12 +64,12 @@ function getTokenSearchURL(
   query: string,
   limit = 10,
   includeMarketData = false,
-) {
+): string {
   const encodedQuery = encodeURIComponent(query);
   const encodedChainIds = chainIds
     .map((id) => encodeURIComponent(id))
     .join(',');
-  return `${TOKEN_END_POINT_API}/tokens/search?networks=${encodedChainIds}&query=${encodedQuery}&limit=${limit}&includeMarketData=${includeMarketData}`;
+  return `${TOKEN_END_POINT_API}/tokens/search?networks=${encodedChainIds}&query=${encodedQuery}&limit=${limit}&includeMarketData=${includeMarketData}&includeRwaData=true`;
 }
 
 /**
@@ -142,16 +144,74 @@ export async function fetchTokenListByChainId(
   if (response) {
     const result = await parseJsonResponse(response);
     if (Array.isArray(result) && chainId === ChainId['linea-mainnet']) {
-      return result.filter(
+      const filteredResult = result.filter(
         (elm) =>
-          elm.aggregators.includes('lineaTeam') || elm.aggregators.length >= 3,
+          elm.aggregators.includes('lineaTeam') ?? elm.aggregators.length >= 3,
       );
+      // TODO: remove this after development is done
+      // if the filteredResult has an aggregator that includes 'Ondo' then append rwaData as metadata.
+      const filteredResultWithRwaData = filteredResult.map((elm) => {
+        const metadata = {
+          rwaData: {
+            instrumentType: 'stock',
+            ticker: elm.name?.split(' ')[0] ?? '',
+            market: {
+              nextOpen: new Date(new Date().setHours(9, 0, 0, 0)).toISOString(),
+              nextClose: new Date(
+                new Date().setHours(16, 0, 0, 0),
+              ).toISOString(),
+            },
+            nextPause: {
+              start: new Date(new Date().setHours(16, 0, 0, 0)).toISOString(),
+              end: new Date(new Date().setHours(17, 0, 0, 0)).toISOString(),
+            },
+          },
+        };
+        if (elm.aggregators.includes('Ondo')) {
+          return { ...elm, ...metadata };
+        }
+        return elm;
+      });
+
+      console.log('filteredResult', filteredResult);
+      return filteredResultWithRwaData;
+    }
+
+    if (Array.isArray(result)) {
+      // TODO: remove this after development is done
+      // if the filteredResult has an aggregator that includes 'Ondo' then append rwaData as metadata.
+      const filteredResultWithRwaData = result.map((elm) => {
+        const metadata = {
+          rwaData: {
+            instrumentType: 'stock',
+            ticker: elm.name?.split(' ')[0] ?? '',
+            market: {
+              nextOpen: new Date(new Date().setHours(9, 0, 0, 0)).toISOString(),
+              nextClose: new Date(
+                new Date().setHours(16, 0, 0, 0),
+              ).toISOString(),
+            },
+            nextPause: {
+              start: new Date(new Date().setHours(16, 0, 0, 0)).toISOString(),
+              end: new Date(new Date().setHours(17, 0, 0, 0)).toISOString(),
+            },
+          },
+        };
+        if (elm.aggregators.includes('Ondo')) {
+          return { ...elm, ...metadata };
+        }
+        return elm;
+      });
+
+      console.log('filteredResultWithRwaData', filteredResultWithRwaData);
+      return filteredResultWithRwaData;
     }
     return result;
   }
   return undefined;
 }
 
+// TODO This end point already contain RwaData, so we don't need to append it here.
 /**
  * Search for tokens across one or more networks by query string using CAIP format chain IDs.
  *
@@ -180,7 +240,7 @@ export async function searchTokens(
     // The API returns an object with structure: { count: number, data: array, pageInfo: object }
     if (result && typeof result === 'object' && Array.isArray(result.data)) {
       return {
-        count: result.count || result.data.length,
+        count: result.count ?? result.data.length,
         data: result.data,
       };
     }
@@ -214,6 +274,18 @@ export type TrendingAsset = {
     h24?: string;
   };
   labels?: string[];
+  rwaData?: {
+    instrumentType: string;
+    ticker: string;
+    market: {
+      nextOpen: string;
+      nextClose: string;
+    };
+    nextPause: {
+      start: string;
+      end: string;
+    };
+  };
 };
 
 /**
@@ -271,7 +343,27 @@ export async function getTrendingTokens({
 
     // Validate that the API returned an array
     if (Array.isArray(result)) {
-      return result;
+      // TODO hack the results to include RwaData
+      const filteredResultWithRwaData = result.map((elm) => {
+        const metadata = {
+          rwaData: {
+            instrumentType: 'stock',
+            ticker: elm.name?.split(' ')[0] ?? '',
+            market: {
+              nextOpen: new Date(new Date().setHours(9, 0, 0, 0)).toISOString(),
+              nextClose: new Date(
+                new Date().setHours(16, 0, 0, 0),
+              ).toISOString(),
+            },
+            nextPause: {
+              start: new Date(new Date().setHours(16, 0, 0, 0)).toISOString(),
+              end: new Date(new Date().setHours(17, 0, 0, 0)).toISOString(),
+            },
+          },
+        };
+        return { ...elm, ...metadata };
+      });
+      return filteredResultWithRwaData;
     }
 
     // Handle non-expected responses
@@ -306,7 +398,33 @@ export async function fetchTokenMetadata<T>(
   const tokenMetadataURL = getTokenMetadataURL(chainId, tokenAddress);
   const response = await queryApi(tokenMetadataURL, abortSignal, timeout);
   if (response) {
-    return parseJsonResponse(response) as Promise<T>;
+    const result = await parseJsonResponse(response);
+    if (Array.isArray(result)) {
+      const filteredResultWithRwaData = result.map((elm) => {
+        const metadata = {
+          rwaData: {
+            instrumentType: 'stock',
+            ticker: elm.name?.split(' ')[0] ?? '',
+            market: {
+              nextOpen: new Date(new Date().setHours(9, 0, 0, 0)).toISOString(),
+              nextClose: new Date(
+                new Date().setHours(16, 0, 0, 0),
+              ).toISOString(),
+            },
+            nextPause: {
+              start: new Date(new Date().setHours(16, 0, 0, 0)).toISOString(),
+              end: new Date(new Date().setHours(17, 0, 0, 0)).toISOString(),
+            },
+          },
+        };
+        if (elm.aggregators.includes('Ondo')) {
+          return { ...elm, ...metadata };
+        }
+        return elm;
+      });
+      return filteredResultWithRwaData as unknown as T;
+    }
+    return result as T;
   }
   return undefined;
 }
