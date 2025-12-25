@@ -2558,15 +2558,6 @@ export class NetworkController extends BaseController<
       );
     }
 
-    if (
-      existingNetworkConfiguration.rpcEndpoints.some(
-        (rpcEndpoint) =>
-          rpcEndpoint.networkClientId === this.state.selectedNetworkClientId,
-      )
-    ) {
-      throw new Error(`Cannot remove the currently selected network`);
-    }
-
     const autoManagedNetworkClientRegistry =
       this.#ensureAutoManagedNetworkClientRegistryPopulated();
 
