@@ -2,7 +2,7 @@ import { createModuleLogger } from '@metamask/utils';
 import { BigNumber } from 'bignumber.js';
 
 import { getTokenFiatRate } from './token';
-import { getTransaction } from './transaction';
+import { getTransaction, getTransactionData } from './transaction';
 import type {
   TransactionPayControllerMessenger,
   TransactionPaymentToken,
@@ -117,6 +117,17 @@ function calculateSourceAmount(
   if (token.amountRaw === '0') {
     log('Skipping token as zero amount', { tokenAddress: token.address });
     return undefined;
+  }
+
+  const transactionData = getTransactionData(transactionId, messenger);
+  const isMaxAmount = transactionData?.isMaxAmount ?? false;
+
+  if (isMaxAmount) {
+    return {
+      sourceAmountHuman: paymentToken.balanceHuman,
+      sourceAmountRaw: paymentToken.balanceRaw,
+      targetTokenAddress: token.address,
+    };
   }
 
   return {

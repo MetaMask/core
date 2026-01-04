@@ -17,7 +17,7 @@ export type RelayQuoteRequest = {
   recipient: Hex;
   refundTo?: Hex;
   slippageTolerance?: string;
-  tradeType: 'EXPECTED_OUTPUT' | 'EXACT_OUTPUT';
+  tradeType: 'EXPECTED_OUTPUT' | 'EXACT_OUTPUT' | 'EXACT_INPUT';
   txs?: {
     to: Hex;
     data: Hex;

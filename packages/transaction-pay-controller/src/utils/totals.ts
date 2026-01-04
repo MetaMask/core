@@ -2,6 +2,7 @@ import type { TransactionMeta } from '@metamask/transaction-controller';
 import { BigNumber } from 'bignumber.js';
 
 import { calculateTransactionGasCost } from './gas';
+import { getTransactionData } from './transaction';
 import type {
   Amount,
   FiatValue,
@@ -60,6 +61,8 @@ export function calculateTotals({
     (singleToken) => !singleToken.skipIfBalance,
   );
 
+  const transactionData = getTransactionData(transaction.id, messenger);
+  const isMaxAmount = transactionData?.isMaxAmount ?? false;
   const amountFiat = sumProperty(quoteTokens, (token) => token.amountFiat);
   const amountUsd = sumProperty(quoteTokens, (token) => token.amountUsd);
 
@@ -67,12 +70,18 @@ export function calculateTotals({
     .plus(sourceNetworkFeeEstimate.fiat)
     .plus(targetNetworkFee.fiat)
     .plus(amountFiat)
+    .plus(isMaxAmount ? sourceAmount.fiat : 0)
+    .minus(isMaxAmount ? amountFiat : 0)
+    .minus(isMaxAmount ? providerFee.fiat : 0)
     .toString(10);
 
   const totalUsd = new BigNumber(providerFee.usd)
     .plus(sourceNetworkFeeEstimate.usd)
     .plus(targetNetworkFee.usd)
     .plus(amountUsd)
+    .plus(isMaxAmount ? sourceAmount.usd : 0)
+    .minus(isMaxAmount ? amountUsd : 0)
+    .minus(isMaxAmount ? providerFee.usd : 0)
     .toString(10);
 
   const estimatedDuration = Number(

@@ -89,16 +89,23 @@ async function getSingleQuote(
     0,
   );
 
+  const { transactionData } = messenger.call(
+    'TransactionPayController:getState',
+  );
+  const isMaxAmount = transactionData[transaction.id]?.isMaxAmount;
+
   try {
     const body: RelayQuoteRequest = {
-      amount: request.targetAmountMinimum,
+      amount: isMaxAmount
+        ? request.sourceTokenAmount
+        : request.targetAmountMinimum,
       destinationChainId: Number(request.targetChainId),
       destinationCurrency: request.targetTokenAddress,
       originChainId: Number(request.sourceChainId),
       originCurrency: request.sourceTokenAddress,
       recipient: request.from,
       slippageTolerance,
-      tradeType: 'EXPECTED_OUTPUT',
+      tradeType: isMaxAmount ? 'EXACT_INPUT' : 'EXPECTED_OUTPUT',
       user: request.from,
     };
 
