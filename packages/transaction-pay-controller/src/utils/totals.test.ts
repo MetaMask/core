@@ -150,6 +150,19 @@ describe('Totals Utils', () => {
       expect(result.total.usd).toBe('51.08');
     });
 
+    it('returns adjusted total when isMaxAmount is true', () => {
+      const result = calculateTotals({
+        isMaxAmount: true,
+        quotes: [QUOTE_1_MOCK, QUOTE_2_MOCK],
+        tokens: [TOKEN_1_MOCK, TOKEN_2_MOCK],
+        messenger: MESSENGER_MOCK,
+        transaction: TRANSACTION_META_MOCK,
+      });
+
+      expect(result.total.fiat).toBe('50.88');
+      expect(result.total.usd).toBe('56.34');
+    });
+
     it('returns total excluding token amount not in quote', () => {
       const result = calculateTotals({
         quotes: [QUOTE_1_MOCK, QUOTE_2_MOCK],
