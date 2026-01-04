@@ -222,6 +222,7 @@ describe('Quotes Utils', () => {
         messenger,
         requests: [
           {
+            isMaxAmount: false,
             from: TRANSACTION_META_MOCK.txParams.from,
             sourceBalanceRaw: TRANSACTION_DATA_MOCK.paymentToken?.balanceRaw,
             sourceTokenAmount:

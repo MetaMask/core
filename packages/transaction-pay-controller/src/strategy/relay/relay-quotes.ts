@@ -89,24 +89,28 @@ async function getSingleQuote(
     0,
   );
 
-  const { transactionData } = messenger.call(
-    'TransactionPayController:getState',
-  );
-  const isMaxAmount = transactionData[transaction.id]?.isMaxAmount;
+  const {
+    from,
+    isMaxAmount,
+    sourceChainId,
+    sourceTokenAddress,
+    sourceTokenAmount,
+    targetAmountMinimum,
+    targetChainId,
+    targetTokenAddress,
+  } = request;
 
   try {
     const body: RelayQuoteRequest = {
-      amount: isMaxAmount
-        ? request.sourceTokenAmount
-        : request.targetAmountMinimum,
-      destinationChainId: Number(request.targetChainId),
-      destinationCurrency: request.targetTokenAddress,
-      originChainId: Number(request.sourceChainId),
-      originCurrency: request.sourceTokenAddress,
-      recipient: request.from,
+      amount: isMaxAmount ? sourceTokenAmount : targetAmountMinimum,
+      destinationChainId: Number(targetChainId),
+      destinationCurrency: targetTokenAddress,
+      originChainId: Number(sourceChainId),
+      originCurrency: sourceTokenAddress,
+      recipient: from,
       slippageTolerance,
       tradeType: isMaxAmount ? 'EXACT_INPUT' : 'EXPECTED_OUTPUT',
-      user: request.from,
+      user: from,
     };
 
     await processTransactions(transaction, request, body, messenger);

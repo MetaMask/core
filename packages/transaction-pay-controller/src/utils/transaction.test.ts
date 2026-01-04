@@ -12,7 +12,6 @@ import {
   FINALIZED_STATUSES,
   collectTransactionIds,
   getTransaction,
-  getTransactionData,
   pollTransactionChanges,
   updateTransaction,
   waitForTransactionConfirmed,
@@ -42,15 +41,9 @@ const TRANSCTION_TOKEN_REQUIRED_MOCK = {
   balanceUsd: '5',
 } as TransactionPayRequiredToken;
 
-const TRANSACTION_DATA_MOCK = {
-  isLoading: false,
-  tokens: [TRANSCTION_TOKEN_REQUIRED_MOCK],
-} as TransactionData;
-
 describe('Transaction Utils', () => {
   const parseRequiredTokensMock = jest.mocked(parseRequiredTokens);
   const {
-    getControllerStateMock,
     getTransactionControllerStateMock,
     messenger,
     publish,
@@ -81,28 +74,6 @@ describe('Transaction Utils', () => {
       } as TransactionControllerState);
 
       const result = getTransaction(TRANSACTION_ID_MOCK, messenger);
-      expect(result).toBeUndefined();
-    });
-  });
-
-  describe('getTransactionData', () => {
-    it('returns transaction data', () => {
-      getControllerStateMock.mockReturnValue({
-        transactionData: {
-          [TRANSACTION_ID_MOCK]: TRANSACTION_DATA_MOCK,
-        },
-      });
-
-      const result = getTransactionData(TRANSACTION_ID_MOCK, messenger);
-      expect(result).toBe(TRANSACTION_DATA_MOCK);
-    });
-
-    it('returns undefined if transaction data not found', () => {
-      getControllerStateMock.mockReturnValue({
-        transactionData: {},
-      });
-
-      const result = getTransactionData(TRANSACTION_ID_MOCK, messenger);
       expect(result).toBeUndefined();
     });
   });

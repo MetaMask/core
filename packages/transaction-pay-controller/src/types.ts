@@ -267,6 +267,9 @@ export type QuoteRequest = {
   /** Address of the user's account. */
   from: Hex;
 
+  /** Whether the transaction is a maximum amount transaction. */
+  isMaxAmount?: boolean;
+
   /** Balance of the source token in atomic format without factoring token decimals. */
   sourceBalanceRaw: string;
 

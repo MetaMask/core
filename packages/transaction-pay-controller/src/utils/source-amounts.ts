@@ -2,7 +2,7 @@ import { createModuleLogger } from '@metamask/utils';
 import { BigNumber } from 'bignumber.js';
 
 import { getTokenFiatRate } from './token';
-import { getTransaction, getTransactionData } from './transaction';
+import { getTransaction } from './transaction';
 import type {
   TransactionPayControllerMessenger,
   TransactionPaymentToken,
@@ -35,7 +35,7 @@ export function updateSourceAmounts(
     return;
   }
 
-  const { paymentToken, tokens } = transactionData;
+  const { isMaxAmount, paymentToken, tokens } = transactionData;
 
   if (!tokens.length || !paymentToken) {
     return;
@@ -48,6 +48,7 @@ export function updateSourceAmounts(
         singleToken,
         messenger,
         transactionId,
+        isMaxAmount ?? false,
       ),
     )
     .filter(Boolean) as TransactionPaySourceAmount[];
@@ -64,6 +65,7 @@ export function updateSourceAmounts(
  * @param token - Target token to cover.
  * @param messenger - Controller messenger.
  * @param transactionId - ID of the transaction.
+ * @param isMaxAmount - Whether the transaction is a maximum amount transaction.
  * @returns The source amount or undefined if calculation failed.
  */
 function calculateSourceAmount(
@@ -71,6 +73,7 @@ function calculateSourceAmount(
   token: TransactionPayRequiredToken,
   messenger: TransactionPayControllerMessenger,
   transactionId: string,
+  isMaxAmount: boolean,
 ): TransactionPaySourceAmount | undefined {
   const paymentTokenFiatRate = getTokenFiatRate(
     messenger,
@@ -118,9 +121,6 @@ function calculateSourceAmount(
     log('Skipping token as zero amount', { tokenAddress: token.address });
     return undefined;
   }
-
-  const transactionData = getTransactionData(transactionId, messenger);
-  const isMaxAmount = transactionData?.isMaxAmount ?? false;
 
   if (isMaxAmount) {
     return {

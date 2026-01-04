@@ -7,7 +7,6 @@ import { cloneDeep } from 'lodash';
 import { parseRequiredTokens } from './required-tokens';
 import { projectLogger } from '../logger';
 import type {
-  TransactionData,
   TransactionPayControllerMessenger,
   UpdateTransactionDataCallback,
 } from '../types';
@@ -38,24 +37,6 @@ export function getTransaction(
   return transactionControllerState.transactions.find(
     (tx) => tx.id === transactionId,
   );
-}
-
-/**
- * Get transaction data for a specific transaction ID, if it exists.
- *
- * @param transactionId - ID of the transaction to get data for.
- * @param messenger - Controller messenger.
- * @returns Transaction data from the state, if it exists.
- */
-export function getTransactionData(
-  transactionId: string,
-  messenger: TransactionPayControllerMessenger,
-): TransactionData | undefined {
-  const { transactionData } = messenger.call(
-    'TransactionPayController:getState',
-  );
-
-  return transactionData[transactionId];
 }
 
 /**

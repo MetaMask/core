@@ -2,7 +2,6 @@ import type { TransactionMeta } from '@metamask/transaction-controller';
 import { BigNumber } from 'bignumber.js';
 
 import { calculateTransactionGasCost } from './gas';
-import { getTransactionData } from './transaction';
 import type {
   Amount,
   FiatValue,
@@ -16,6 +15,7 @@ import type {
  * Calculate totals for a list of quotes and tokens.
  *
  * @param request - Request parameters.
+ * @param request.isMaxAmount - Whether the transaction is a maximum amount transaction.
  * @param request.quotes - List of bridge quotes.
  * @param request.messenger - Controller messenger.
  * @param request.tokens - List of required tokens.
@@ -23,11 +23,13 @@ import type {
  * @returns The calculated totals in USD and fiat currency.
  */
 export function calculateTotals({
+  isMaxAmount,
   quotes,
   messenger,
   tokens,
   transaction,
 }: {
+  isMaxAmount?: boolean;
   quotes: TransactionPayQuote<unknown>[];
   messenger: TransactionPayControllerMessenger;
   tokens: TransactionPayRequiredToken[];
@@ -61,8 +63,6 @@ export function calculateTotals({
     (singleToken) => !singleToken.skipIfBalance,
   );
 
-  const transactionData = getTransactionData(transaction.id, messenger);
-  const isMaxAmount = transactionData?.isMaxAmount ?? false;
   const amountFiat = sumProperty(quoteTokens, (token) => token.amountFiat);
   const amountUsd = sumProperty(quoteTokens, (token) => token.amountUsd);
 
