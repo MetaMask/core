@@ -152,12 +152,13 @@ async function processTransactions(
   messenger: TransactionPayControllerMessenger,
 ): Promise<void> {
   const { nestedTransactions, txParams } = transaction;
+  const { isMaxAmount, targetChainId } = request;
   const data = txParams?.data as Hex | undefined;
 
   const singleData =
     nestedTransactions?.length === 1 ? nestedTransactions[0].data : data;
 
-  const isHypercore = request.targetChainId === CHAIN_ID_HYPERCORE;
+  const isHypercore = targetChainId === CHAIN_ID_HYPERCORE;
 
   const isTokenTransfer =
     !isHypercore && Boolean(singleData?.startsWith(TOKEN_TRANSFER_FOUR_BYTE));
@@ -168,7 +169,7 @@ async function processTransactions(
     log('Updating recipient as token transfer', requestBody.recipient);
   }
 
-  const skipDelegation = isTokenTransfer || isHypercore;
+  const skipDelegation = isTokenTransfer || isHypercore || isMaxAmount;
 
   if (skipDelegation) {
     log('Skipping delegation as token transfer or Hypercore deposit');

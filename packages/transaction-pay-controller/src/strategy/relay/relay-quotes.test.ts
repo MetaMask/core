@@ -255,6 +255,29 @@ describe('Relay Quotes Utils', () => {
       );
     });
 
+    it('sends request with EXACT_INPUT trade type when isMaxAmount is true', async () => {
+      successfulFetchMock.mockResolvedValue({
+        json: async () => QUOTE_MOCK,
+      } as never);
+
+      await getRelayQuotes({
+        messenger,
+        requests: [{ ...QUOTE_REQUEST_MOCK, isMaxAmount: true }],
+        transaction: TRANSACTION_META_MOCK,
+      });
+
+      const body = JSON.parse(
+        successfulFetchMock.mock.calls[0][1]?.body as string,
+      );
+
+      expect(body).toStrictEqual(
+        expect.objectContaining({
+          amount: QUOTE_REQUEST_MOCK.sourceTokenAmount,
+          tradeType: 'EXACT_INPUT',
+        }),
+      );
+    });
+
     it('includes transactions in request', async () => {
       successfulFetchMock.mockResolvedValue({
         json: async () => QUOTE_MOCK,
