@@ -40,6 +40,13 @@ export function getTransaction(
   );
 }
 
+/**
+ * Get transaction data for a specific transaction ID, if it exists.
+ *
+ * @param transactionId - ID of the transaction to get data for.
+ * @param messenger - Controller messenger.
+ * @returns Transaction data from the state, if it exists.
+ */
 export function getTransactionData(
   transactionId: string,
   messenger: TransactionPayControllerMessenger,
