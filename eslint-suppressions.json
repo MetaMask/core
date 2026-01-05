@@ -1296,14 +1296,6 @@
       "count": 1
     }
   },
-  "packages/multichain-account-service/src/providers/SnapAccountProvider.ts": {
-    "@typescript-eslint/explicit-function-return-type": {
-      "count": 1
-    },
-    "@typescript-eslint/naming-convention": {
-      "count": 1
-    }
-  },
   "packages/multichain-account-service/src/providers/SolAccountProvider.ts": {
     "@typescript-eslint/naming-convention": {
       "count": 2
