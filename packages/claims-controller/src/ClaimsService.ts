@@ -123,9 +123,8 @@ export class ClaimsService {
       });
 
       if (!response.ok) {
-        throw new Error(
-          ClaimsServiceErrorMessages.FAILED_TO_FETCH_CONFIGURATIONS,
-        );
+        const error = await getErrorFromResponse(response);
+        throw error;
       }
 
       const configurations = await response.json();
@@ -159,13 +158,7 @@ export class ClaimsService {
 
       if (!response.ok) {
         const error = await getErrorFromResponse(response);
-        this.#messenger.captureException?.(
-          createSentryError(
-            ClaimsServiceErrorMessages.FAILED_TO_GET_CLAIMS,
-            error,
-          ),
-        );
-        throw new Error(ClaimsServiceErrorMessages.FAILED_TO_GET_CLAIMS);
+        throw error;
       }
 
       const claims = await response.json();
@@ -198,13 +191,7 @@ export class ClaimsService {
 
       if (!response.ok) {
         const error = await getErrorFromResponse(response);
-        this.#messenger.captureException?.(
-          createSentryError(
-            ClaimsServiceErrorMessages.FAILED_TO_GET_CLAIM_BY_ID,
-            error,
-          ),
-        );
-        throw new Error(ClaimsServiceErrorMessages.FAILED_TO_GET_CLAIM_BY_ID);
+        throw error;
       }
 
       const claim = await response.json();
@@ -249,15 +236,7 @@ export class ClaimsService {
 
       if (!response.ok) {
         const error = await getErrorFromResponse(response);
-        this.#messenger.captureException?.(
-          createSentryError(
-            ClaimsServiceErrorMessages.SIGNATURE_MESSAGE_GENERATION_FAILED,
-            error,
-          ),
-        );
-        throw new Error(
-          ClaimsServiceErrorMessages.SIGNATURE_MESSAGE_GENERATION_FAILED,
-        );
+        throw error;
       }
 
       const message = await response.json();
