@@ -5,8 +5,8 @@ import type {
 import { createServicePolicy, HttpError } from '@metamask/controller-utils';
 import type { Messenger } from '@metamask/messenger';
 
-import packageJson from '../package.json';
 import type { RampsServiceMethodActions } from './RampsService-method-action-types';
+import packageJson from '../package.json';
 
 /**
  * Represents phone number information for a country.
