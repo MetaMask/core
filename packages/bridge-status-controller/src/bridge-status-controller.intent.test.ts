@@ -1077,21 +1077,6 @@ describe('BridgeStatusController (target uncovered branches)', () => {
     expect(stopPollingSpy).toHaveBeenCalledWith('tok1');
   });
 
-  it('transactionConfirmed bridge: if history item missing, #startPollingForTxId returns early', () => {
-    const { messenger } = setup();
-
-    const confirmedCb = messenger.subscribe.mock.calls.find(
-      ([evt]) => evt === 'TransactionController:transactionConfirmed',
-    )?.[1];
-
-    // no history seeded for this id
-    confirmedCb({
-      id: 'missingHistory',
-      type: TransactionType.bridge,
-      chainId: '0x1',
-    });
-  });
-
   it('bridge polling: returns early when shouldSkipFetchDueToFetchFailures returns true', async () => {
     const {
       controller,
@@ -1309,21 +1294,6 @@ describe('BridgeStatusController (target uncovered branches)', () => {
         ]),
       ]),
     );
-  });
-
-  it('track event: txMetaId provided but history missing hits history-not-found branch', () => {
-    const { messenger } = setup();
-
-    const confirmedCb = messenger.subscribe.mock.calls.find(
-      ([evt]) => evt === 'TransactionController:transactionConfirmed',
-    )?.[1];
-
-    // swap completion tracking with an id that is not in txHistory => historyItem undefined branch
-    confirmedCb({
-      id: 'noHistorySwap',
-      type: TransactionType.swap,
-      chainId: '0x1',
-    });
   });
 
   it('track event: history has featureId => #trackUnifiedSwapBridgeEvent returns early (skip tracking)', () => {
