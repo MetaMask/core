@@ -1,6 +1,6 @@
 {
   "name": "@metamask/remote-feature-flag-controller",
-  "version": "3.1.0",
+  "version": "4.0.0",
   "description": "The RemoteFeatureFlagController manages the retrieval and caching of remote feature flags",
   "keywords": [
     "MetaMask",
@@ -51,7 +51,7 @@
     "@metamask/base-controller": "^9.0.0",
     "@metamask/controller-utils": "^11.17.0",
     "@metamask/messenger": "^0.3.0",
-    "@metamask/utils": "^11.8.1",
+    "@metamask/utils": "^11.9.0",
     "uuid": "^8.3.2"
   },
   "devDependencies": {

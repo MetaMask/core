@@ -11,9 +11,12 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 - Update spot-prices endpoint list of supported chains and assets ([#7543](https://github.com/MetaMask/core/pull/7543))
 - Export `selectAllAssets` ([#7496](https://github.com/MetaMask/core/pull/7496))
+- Add multicall address for `MSU (MapleStory Universe)` ([#7453](https://github.com/MetaMask/core/pull/7453))
+- Add MSU (MapleStory Universe) and Etherlink in Spot Prices support ([#7453](https://github.com/MetaMask/core/pull/7453))
 
 ### Changed
 
+- Upgrade `@metamask/utils` from `^11.8.1` to `^11.9.0` ([#7511](https://github.com/MetaMask/core/pull/7511))
 - **BREAKING:** `AccountTrackerController` now requires `KeyringController:getState` action and `KeyringController:lock` event in addition to existing allowed actions and events ([#7492](https://github.com/MetaMask/core/pull/7492))
   - Added `#isLocked` property to track keyring lock state, initialized from `KeyringController:getState`
   - Added `isActive` getter that returns `true` when keyring is unlocked and user is onboarded

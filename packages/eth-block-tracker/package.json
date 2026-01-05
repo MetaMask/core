@@ -57,7 +57,7 @@
   "dependencies": {
     "@metamask/eth-json-rpc-provider": "^6.0.0",
     "@metamask/safe-event-emitter": "^3.0.0",
-    "@metamask/utils": "^11.8.1",
+    "@metamask/utils": "^11.9.0",
     "json-rpc-random-id": "^1.0.1"
   },
   "devDependencies": {
