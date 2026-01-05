@@ -65,6 +65,7 @@ export function getMultichainAccountServiceMessenger(
     ],
     events: [
       'KeyringController:stateChange',
+      'SnapController:stateChange',
       'AccountsController:accountAdded',
       'AccountsController:accountRemoved',
     ],

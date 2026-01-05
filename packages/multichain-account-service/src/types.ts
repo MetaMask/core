@@ -26,7 +26,10 @@ import type {
   NetworkControllerFindNetworkClientIdByChainIdAction,
   NetworkControllerGetNetworkClientByIdAction,
 } from '@metamask/network-controller';
-import type { HandleSnapRequest as SnapControllerHandleSnapRequestAction } from '@metamask/snaps-controllers';
+import type {
+  HandleSnapRequest as SnapControllerHandleSnapRequestAction,
+  SnapStateChange as SnapControllerStateChangeEvent,
+} from '@metamask/snaps-controllers';
 
 import type {
   MultichainAccountService,
@@ -151,6 +154,7 @@ type AllowedActions =
  * subscribes to.
  */
 type AllowedEvents =
+  | SnapControllerStateChangeEvent
   | KeyringControllerStateChangeEvent
   | AccountsControllerAccountAddedEvent
   | AccountsControllerAccountRemovedEvent;

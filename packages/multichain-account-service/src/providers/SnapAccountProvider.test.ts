@@ -1,12 +1,9 @@
 import { isBip44Account } from '@metamask/account-api';
 import type { Bip44Account } from '@metamask/account-api';
 import type { TraceCallback, TraceRequest } from '@metamask/controller-utils';
+import { KeyringRpcMethod } from '@metamask/keyring-api';
 import type { GetAccountRequest } from '@metamask/keyring-api';
-import {
-  KeyringRpcMethod,
-  type EntropySourceId,
-  type KeyringAccount,
-} from '@metamask/keyring-api';
+import type { EntropySourceId, KeyringAccount } from '@metamask/keyring-api';
 import type { InternalAccount } from '@metamask/keyring-internal-api';
 import type { JsonRpcRequest, SnapId } from '@metamask/snaps-sdk';
 
@@ -19,6 +16,7 @@ import {
 import { SolAccountProvider } from './SolAccountProvider';
 import { TrxAccountProvider } from './TrxAccountProvider';
 import { traceFallback } from '../analytics';
+import { SnapPlatformWatcher } from '../snaps/SnapPlatformWatcher';
 import type { RootMessenger } from '../tests';
 import {
   asKeyringAccount,
@@ -109,10 +107,6 @@ class MockSnapAccountProvider extends SnapAccountProvider {
   ): Promise<ReturnType> {
     return super.trace(request, fn);
   }
-
-  static resetEnsureSnapPlatformIsReady(): void {
-    SnapAccountProvider.ensureSnapPlatformIsReadyPromise = null;
-  }
 }
 
 // Helper to create a tracked provider that monitors concurrent execution
@@ -138,6 +132,15 @@ const setup = ({
         listAccounts: jest.fn(),
       },
       handleRequest: jest.fn(),
+    },
+  };
+
+  const spies = {
+    SnapPlatformWatcher: {
+      ensureCanUsePlatform: jest.spyOn(
+        SnapPlatformWatcher.prototype,
+        'ensureCanUsePlatform',
+      ),
     },
   };
 
@@ -190,9 +193,8 @@ const setup = ({
       ),
   );
 
-  // We reset this state, since it's a static field, so each tests would start
-  // with a fresh state.
-  MockSnapAccountProvider.resetEnsureSnapPlatformIsReady();
+  // Make the Snap platform ready by default.
+  spies.SnapPlatformWatcher.ensureCanUsePlatform.mockResolvedValue();
 
   const serviceMessenger = getMultichainAccountServiceMessenger(messenger);
   const config = {
@@ -212,7 +214,14 @@ const setup = ({
     config,
   );
 
-  return { messenger, provider, tracker: provider.tracker, keyring, mocks };
+  return {
+    messenger,
+    provider,
+    tracker: provider.tracker,
+    keyring,
+    mocks,
+    spies,
+  };
 };
 
 describe('SnapAccountProvider', () => {
@@ -753,67 +762,15 @@ describe('SnapAccountProvider', () => {
     });
   });
 
-  describe('ensureSnapPlatformIsReady', () => {
-    it('waits for Snap platform to be ready when there is no associated Snap accounts', async () => {
-      const { provider, mocks } = setup({ accounts: [] });
-      const { listAccounts, getAccount } =
-        mocks.SnapController.handleKeyringRequest;
+  describe('ensureCanUsePlatform', () => {
+    it('delegates Snap platform readiness check to SnapPlatformWatcher', async () => {
+      const { provider, spies } = setup();
 
-      await provider.ensureSnapPlatformIsReady();
+      await provider.ensureCanUsePlatform();
 
-      expect(listAccounts).toHaveBeenCalled();
-      expect(getAccount).not.toHaveBeenCalled();
+      expect(
+        spies.SnapPlatformWatcher.ensureCanUsePlatform,
+      ).toHaveBeenCalledTimes(1);
     });
-
-    it('waits for Snap platform to be ready when there is some associated Snap accounts', async () => {
-      const account = MockAccountBuilder.from(MOCK_HD_ACCOUNT_1)
-        .withUuid()
-        .withSnapId(TEST_SNAP_ID)
-        .get();
-
-      const { provider, mocks } = setup({ accounts: [account] });
-      const { listAccounts, getAccount } =
-        mocks.SnapController.handleKeyringRequest;
-
-      await provider.ensureSnapPlatformIsReady();
-
-      expect(getAccount).toHaveBeenCalledWith(account.id);
-      expect(listAccounts).not.toHaveBeenCalled();
-    });
-
-    it('does not wait again if Snap platform is already ready', async () => {
-      const { provider, mocks } = setup();
-      const { listAccounts, getAccount } =
-        mocks.SnapController.handleKeyringRequest;
-
-      await provider.ensureSnapPlatformIsReady();
-
-      // Clear previous calls.
-      listAccounts.mockClear();
-      getAccount.mockClear();
-
-      await provider.ensureSnapPlatformIsReady();
-
-      // No additional calls should be made since it's already ready.
-      expect(listAccounts).not.toHaveBeenCalled();
-      expect(getAccount).not.toHaveBeenCalled();
-    });
-
-    it('resolves even if messenger handleRequest fails', async () => {
-      const { provider, mocks } = setup();
-      const { listAccounts, getAccount } =
-        mocks.SnapController.handleKeyringRequest;
-
-      // This will be called when pinging the Snap provider.
-      listAccounts.mockRejectedValue(new Error('Snap request failed'));
-
-      // Platform should still be considered ready even if the ping fails.
-      await provider.ensureSnapPlatformIsReady();
-
-      expect(listAccounts).toHaveBeenCalled();
-      expect(getAccount).not.toHaveBeenCalled();
-    });
-
-    // Removed logSpy test as requested
   });
 });
