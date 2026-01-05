@@ -955,7 +955,7 @@ export default class GatorPermissionsController extends BaseController<
         });
 
         // Attach metadata by parsing the confirmed transactionMeta
-        let revocationMetadata: RevocationMetadata | undefined;
+        const revocationMetadata: RevocationMetadata = {};
         const { hash } = transactionMeta;
         if (hash === undefined) {
           controllerLog(
@@ -969,15 +969,10 @@ export default class GatorPermissionsController extends BaseController<
             },
           );
         } else {
-          revocationMetadata = {
-            txHash: hash as Hex,
-          };
+          revocationMetadata.txHash = hash as Hex;
         }
 
-        const revocationParams = revocationMetadata
-          ? { permissionContext, revocationMetadata }
-          : { permissionContext };
-        this.submitRevocation(revocationParams)
+        this.submitRevocation({ permissionContext, revocationMetadata })
           .catch((error) => {
             controllerLog(
               'Failed to submit revocation after transaction confirmed',

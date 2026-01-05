@@ -847,6 +847,7 @@ describe('GatorPermissionsController', () => {
 
       const revocationParams: RevocationParams = {
         permissionContext: '0x1234567890abcdef1234567890abcdef12345678',
+        revocationMetadata: {},
       };
 
       await controller.submitRevocation(revocationParams);
@@ -875,6 +876,7 @@ describe('GatorPermissionsController', () => {
 
       const revocationParams: RevocationParams = {
         permissionContext: '0x1234567890abcdef1234567890abcdef12345678',
+        revocationMetadata: {},
       };
 
       await expect(
@@ -903,6 +905,7 @@ describe('GatorPermissionsController', () => {
 
       const revocationParams: RevocationParams = {
         permissionContext: '0x1234567890abcdef1234567890abcdef12345678',
+        revocationMetadata: {},
       };
 
       await expect(
@@ -947,6 +950,7 @@ describe('GatorPermissionsController', () => {
 
       const revocationParams: RevocationParams = {
         permissionContext: '0x1234567890abcdef1234567890abcdef12345678',
+        revocationMetadata: {},
       };
 
       // Should throw GatorPermissionsFetchError (not GatorPermissionsProviderError)
@@ -987,6 +991,7 @@ describe('GatorPermissionsController', () => {
 
       const revocationParams: RevocationParams = {
         permissionContext: '0x1234567890abcdef1234567890abcdef12345678',
+        revocationMetadata: {},
       };
 
       await controller.submitDirectRevocation(revocationParams);
@@ -1028,6 +1033,7 @@ describe('GatorPermissionsController', () => {
         '0x1234567890abcdef1234567890abcdef12345678' as Hex;
       const revocationParams: RevocationParams = {
         permissionContext,
+        revocationMetadata: {},
       };
 
       // Spy on submitRevocation to check pending state before it's called
@@ -1052,6 +1058,7 @@ describe('GatorPermissionsController', () => {
 
       const revocationParams: RevocationParams = {
         permissionContext: '0x1234567890abcdef1234567890abcdef12345678',
+        revocationMetadata: {},
       };
 
       await expect(
@@ -1082,6 +1089,7 @@ describe('GatorPermissionsController', () => {
         '0x1234567890abcdef1234567890abcdef12345678' as Hex;
       const revocationParams: RevocationParams = {
         permissionContext,
+        revocationMetadata: {},
       };
 
       await expect(
@@ -1218,7 +1226,7 @@ describe('GatorPermissionsController', () => {
         request: {
           jsonrpc: '2.0',
           method: 'permissionsProvider_submitRevocation',
-          params: { permissionContext },
+          params: { permissionContext, revocationMetadata: {} },
         },
       });
 

@@ -241,7 +241,7 @@ export type DelegationDetails = Pick<
  * Represents the metadata for confirmed transaction revocation.
  */
 export type RevocationMetadata = {
-  txHash: Hex;
+  txHash?: Hex | undefined;
 };
 
 /**
@@ -256,7 +256,7 @@ export type RevocationParams = {
   /**
    * The metadata associated with the permission revocation transaction.
    */
-  revocationMetadata?: RevocationMetadata;
+  revocationMetadata: RevocationMetadata;
 };
 
 /**
