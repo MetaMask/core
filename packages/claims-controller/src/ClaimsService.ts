@@ -115,20 +115,33 @@ export class ClaimsService {
    * @returns The required configurations for the claims service.
    */
   async fetchClaimsConfigurations(): Promise<ClaimsConfigurationsResponse> {
-    const headers = await this.getRequestHeaders();
-    const url = `${this.getClaimsApiUrl()}/configurations`;
-    const response = await this.#fetch(url, {
-      headers,
-    });
+    try {
+      const headers = await this.getRequestHeaders();
+      const url = `${this.getClaimsApiUrl()}/configurations`;
+      const response = await this.#fetch(url, {
+        headers,
+      });
 
-    if (!response.ok) {
+      if (!response.ok) {
+        throw new Error(
+          ClaimsServiceErrorMessages.FAILED_TO_FETCH_CONFIGURATIONS,
+        );
+      }
+
+      const configurations = await response.json();
+      return configurations;
+    } catch (error) {
+      console.error('fetchClaimsConfigurations', error);
+      this.#messenger.captureException?.(
+        createSentryError(
+          ClaimsServiceErrorMessages.FAILED_TO_FETCH_CONFIGURATIONS,
+          error as Error,
+        ),
+      );
       throw new Error(
         ClaimsServiceErrorMessages.FAILED_TO_FETCH_CONFIGURATIONS,
       );
     }
-
-    const configurations = await response.json();
-    return configurations;
   }
 
   /**
@@ -137,25 +150,36 @@ export class ClaimsService {
    * @returns The claims for the current user.
    */
   async getClaims(): Promise<Claim[]> {
-    const headers = await this.getRequestHeaders();
-    const url = `${this.getClaimsApiUrl()}/claims`;
-    const response = await this.#fetch(url, {
-      headers,
-    });
+    try {
+      const headers = await this.getRequestHeaders();
+      const url = `${this.getClaimsApiUrl()}/claims`;
+      const response = await this.#fetch(url, {
+        headers,
+      });
 
-    if (!response.ok) {
-      const error = await getErrorFromResponse(response);
+      if (!response.ok) {
+        const error = await getErrorFromResponse(response);
+        this.#messenger.captureException?.(
+          createSentryError(
+            ClaimsServiceErrorMessages.FAILED_TO_GET_CLAIMS,
+            error,
+          ),
+        );
+        throw new Error(ClaimsServiceErrorMessages.FAILED_TO_GET_CLAIMS);
+      }
+
+      const claims = await response.json();
+      return claims;
+    } catch (error) {
+      console.error('getClaims', error);
       this.#messenger.captureException?.(
         createSentryError(
           ClaimsServiceErrorMessages.FAILED_TO_GET_CLAIMS,
-          error,
+          error as Error,
         ),
       );
       throw new Error(ClaimsServiceErrorMessages.FAILED_TO_GET_CLAIMS);
     }
-
-    const claims = await response.json();
-    return claims;
   }
 
   /**
@@ -165,25 +189,36 @@ export class ClaimsService {
    * @returns The claim by id.
    */
   async getClaimById(id: string): Promise<Claim> {
-    const headers = await this.getRequestHeaders();
-    const url = `${this.getClaimsApiUrl()}/claims/byId/${id}`;
-    const response = await this.#fetch(url, {
-      headers,
-    });
+    try {
+      const headers = await this.getRequestHeaders();
+      const url = `${this.getClaimsApiUrl()}/claims/byId/${id}`;
+      const response = await this.#fetch(url, {
+        headers,
+      });
 
-    if (!response.ok) {
-      const error = await getErrorFromResponse(response);
+      if (!response.ok) {
+        const error = await getErrorFromResponse(response);
+        this.#messenger.captureException?.(
+          createSentryError(
+            ClaimsServiceErrorMessages.FAILED_TO_GET_CLAIM_BY_ID,
+            error,
+          ),
+        );
+        throw new Error(ClaimsServiceErrorMessages.FAILED_TO_GET_CLAIM_BY_ID);
+      }
+
+      const claim = await response.json();
+      return claim;
+    } catch (error) {
+      console.error('getClaimById', error);
       this.#messenger.captureException?.(
         createSentryError(
           ClaimsServiceErrorMessages.FAILED_TO_GET_CLAIM_BY_ID,
-          error,
+          error as Error,
         ),
       );
       throw new Error(ClaimsServiceErrorMessages.FAILED_TO_GET_CLAIM_BY_ID);
     }
-
-    const claim = await response.json();
-    return claim;
   }
 
   /**
@@ -197,35 +232,48 @@ export class ClaimsService {
     chainId: number,
     walletAddress: Hex,
   ): Promise<GenerateSignatureMessageResponse> {
-    const headers = await this.getRequestHeaders();
-    const url = `${this.getClaimsApiUrl()}/signature/generateMessage`;
-    const response = await this.#fetch(url, {
-      method: 'POST',
-      headers: {
-        ...headers,
-        'Content-Type': 'application/json',
-      },
-      body: JSON.stringify({
-        chainId,
-        walletAddress,
-      }),
-    });
+    try {
+      const headers = await this.getRequestHeaders();
+      const url = `${this.getClaimsApiUrl()}/signature/generateMessage`;
+      const response = await this.#fetch(url, {
+        method: 'POST',
+        headers: {
+          ...headers,
+          'Content-Type': 'application/json',
+        },
+        body: JSON.stringify({
+          chainId,
+          walletAddress,
+        }),
+      });
 
-    if (!response.ok) {
-      const error = await getErrorFromResponse(response);
+      if (!response.ok) {
+        const error = await getErrorFromResponse(response);
+        this.#messenger.captureException?.(
+          createSentryError(
+            ClaimsServiceErrorMessages.SIGNATURE_MESSAGE_GENERATION_FAILED,
+            error,
+          ),
+        );
+        throw new Error(
+          ClaimsServiceErrorMessages.SIGNATURE_MESSAGE_GENERATION_FAILED,
+        );
+      }
+
+      const message = await response.json();
+      return message;
+    } catch (error) {
+      console.error('generateMessageForClaimSignature', error);
       this.#messenger.captureException?.(
         createSentryError(
           ClaimsServiceErrorMessages.SIGNATURE_MESSAGE_GENERATION_FAILED,
-          error,
+          error as Error,
         ),
       );
       throw new Error(
         ClaimsServiceErrorMessages.SIGNATURE_MESSAGE_GENERATION_FAILED,
       );
     }
-
-    const message = await response.json();
-    return message;
   }
 
   /**

@@ -236,6 +236,25 @@ describe('ClaimsService', () => {
         ClaimsServiceErrorMessages.FAILED_TO_GET_CLAIM_BY_ID,
       );
     });
+
+    it('should handle fetch error and capture exception', async () => {
+      mockFetchFunction.mockRestore();
+
+      mockFetchFunction.mockRejectedValueOnce(new Error('Fetch error'));
+
+      const service = createMockClaimsService();
+
+      await expect(service.getClaimById('1')).rejects.toThrow(
+        ClaimsServiceErrorMessages.FAILED_TO_GET_CLAIM_BY_ID,
+      );
+
+      expect(mockCaptureException).toHaveBeenCalledWith(
+        createSentryError(
+          ClaimsServiceErrorMessages.FAILED_TO_GET_CLAIM_BY_ID,
+          new Error('Fetch error'),
+        ),
+      );
+    });
   });
 
   describe('generateMessageForClaimSignature', () => {
