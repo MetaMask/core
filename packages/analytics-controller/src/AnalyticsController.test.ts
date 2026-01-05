@@ -1,23 +1,26 @@
-import {
-  Messenger,
-  MOCK_ANY_NAMESPACE,
-  type MockAnyNamespace,
-} from '@metamask/messenger';
-import { validate as uuidValidate, version as uuidVersion } from 'uuid';
+import { Messenger, MOCK_ANY_NAMESPACE } from '@metamask/messenger';
+import type { MockAnyNamespace } from '@metamask/messenger';
 
 import {
   AnalyticsController,
-  type AnalyticsControllerMessenger,
-  type AnalyticsControllerActions,
-  type AnalyticsControllerEvents,
-  type AnalyticsPlatformAdapter,
+  AnalyticsPlatformAdapterSetupError,
   getDefaultAnalyticsControllerState,
+  analyticsControllerSelectors,
 } from '.';
-import type { AnalyticsControllerState } from '.';
+import type {
+  AnalyticsControllerMessenger,
+  AnalyticsControllerActions,
+  AnalyticsControllerEvents,
+  AnalyticsPlatformAdapter,
+  AnalyticsTrackingEvent,
+  AnalyticsControllerState,
+} from '.';
+import { isValidUUIDv4 } from './analyticsControllerStateValidator';
 
 type SetupControllerOptions = {
-  state?: Partial<AnalyticsControllerState>;
+  state: AnalyticsControllerState;
   platformAdapter?: AnalyticsPlatformAdapter;
+  isAnonymousEventsFeatureEnabled?: boolean;
 };
 
 type SetupControllerReturn = {
@@ -29,20 +32,27 @@ type SetupControllerReturn = {
  * Sets up an AnalyticsController for testing.
  *
  * @param options - Controller options
+ * @param options.state - Controller state (analyticsId required)
+ * @param options.platformAdapter - Optional platform adapter
+ * @param options.isAnonymousEventsFeatureEnabled - Optional anonymous events feature flag (default: false)
  * @returns The controller and messenger
  */
-function setupController(
-  options: SetupControllerOptions = {},
-): SetupControllerReturn {
-  const { state = {}, platformAdapter } = options;
+async function setupController(
+  options: SetupControllerOptions,
+): Promise<SetupControllerReturn> {
+  const {
+    state,
+    platformAdapter,
+    isAnonymousEventsFeatureEnabled = false,
+  } = options;
 
-  // Create default mock adapter if not provided
   const adapter =
     platformAdapter ??
     ({
-      trackEvent: jest.fn(),
+      track: jest.fn(),
       identify: jest.fn(),
-      trackPage: jest.fn(),
+      view: jest.fn(),
+      onSetupCompleted: jest.fn(),
     } satisfies AnalyticsPlatformAdapter);
 
   const rootMessenger = new Messenger<
@@ -65,7 +75,10 @@ function setupController(
     messenger: analyticsControllerMessenger,
     platformAdapter: adapter,
     state,
+    isAnonymousEventsFeatureEnabled,
   });
+
+  controller.init();
 
   return {
     controller,
@@ -74,140 +87,330 @@ function setupController(
 }
 
 /**
- * Validates that a string is a valid UUIDv4 format.
+ * Creates a test analytics tracking event.
  *
- * @param value - The string to validate
- * @returns True if the string matches UUIDv4 format
+ * @param name - Event name
+ * @param properties - Event properties
+ * @param sensitiveProperties - Sensitive properties
+ * @param saveDataRecording - Whether to save data recording flag
+ * @returns A test tracking event
  */
-function isValidUUIDv4(value: string): boolean {
-  return uuidValidate(value) && uuidVersion(value) === 4;
+function createTestEvent(
+  name: string,
+  properties: Record<string, unknown> = {},
+  sensitiveProperties: Record<string, unknown> = {},
+  saveDataRecording = true,
+): AnalyticsTrackingEvent {
+  const hasProps =
+    Object.keys(properties).length > 0 ||
+    Object.keys(sensitiveProperties).length > 0;
+
+  return {
+    name,
+    properties: properties as AnalyticsTrackingEvent['properties'],
+    sensitiveProperties:
+      sensitiveProperties as AnalyticsTrackingEvent['sensitiveProperties'],
+    saveDataRecording,
+    hasProperties: hasProps,
+  };
+}
+
+/**
+ * Creates a mock platform adapter for testing.
+ *
+ * @returns A mock AnalyticsPlatformAdapter
+ */
+function createMockAdapter(): AnalyticsPlatformAdapter {
+  return {
+    track: jest.fn(),
+    identify: jest.fn(),
+    view: jest.fn(),
+    onSetupCompleted: jest.fn(),
+  };
 }
 
 describe('AnalyticsController', () => {
-  const createMockAdapter = (): AnalyticsPlatformAdapter => ({
-    trackEvent: jest.fn(),
-    identify: jest.fn(),
-    trackPage: jest.fn(),
+  describe('getDefaultAnalyticsControllerState', () => {
+    it('returns default opt-in preferences without analyticsId', () => {
+      const defaults = getDefaultAnalyticsControllerState();
+
+      expect(defaults).toStrictEqual({
+        optedIn: false,
+      });
+      expect('analyticsId' in defaults).toBe(false);
+    });
+
+    it('returns the same values on each call (deterministic)', () => {
+      const defaults1 = getDefaultAnalyticsControllerState();
+      const defaults2 = getDefaultAnalyticsControllerState();
+
+      expect(defaults1).toStrictEqual(defaults2);
+    });
+  });
+
+  describe('isValidUUIDv4', () => {
+    it('returns true for valid UUIDv4', () => {
+      expect(isValidUUIDv4('550e8400-e29b-41d4-a716-446655440000')).toBe(true);
+      expect(isValidUUIDv4('123e4567-e89b-42d3-a456-426614174000')).toBe(true);
+      expect(isValidUUIDv4('00000000-0000-4000-8000-000000000000')).toBe(true);
+    });
+
+    it('returns false for invalid UUIDs', () => {
+      expect(isValidUUIDv4('')).toBe(false);
+      // Wrong version (not 4)
+      expect(isValidUUIDv4('550e8400-e29b-11d4-a716-446655440000')).toBe(false);
+      // Wrong variant (not 8/9/a/b)
+      expect(isValidUUIDv4('550e8400-e29b-41d4-0716-446655440000')).toBe(false);
+      // Too short
+      expect(isValidUUIDv4('550e8400-e29b-41d4-a716-44665544000')).toBe(false);
+      // Invalid characters
+      expect(isValidUUIDv4('550e8400-e29b-41d4-a716-44665544000g')).toBe(false);
+      // Wrong format
+      expect(isValidUUIDv4('not-a-uuid')).toBe(false);
+    });
+
+    it('is case insensitive', () => {
+      expect(isValidUUIDv4('550E8400-E29B-41D4-A716-446655440000')).toBe(true);
+      expect(isValidUUIDv4('550e8400-E29B-41d4-A716-446655440000')).toBe(true);
+    });
   });
 
   describe('constructor', () => {
-    it('initializes with default state including auto-generated analyticsId', () => {
-      const { controller } = setupController();
-
-      const defaultState = getDefaultAnalyticsControllerState();
-
-      expect(controller.state.enabled).toBe(defaultState.enabled);
-      expect(controller.state.optedIn).toBe(defaultState.optedIn);
-      expect(isValidUUIDv4(controller.state.analyticsId)).toBe(true);
-    });
-
-    it('generates a new UUID when no state is provided (first-time initialization)', () => {
-      // Create two controllers without providing state
-      const { controller: controller1 } = setupController();
-      const { controller: controller2 } = setupController();
-
-      expect(isValidUUIDv4(controller1.state.analyticsId)).toBe(true);
-      expect(isValidUUIDv4(controller2.state.analyticsId)).toBe(true);
-      expect(controller1.state.analyticsId).not.toBe(
-        controller2.state.analyticsId,
-      );
-    });
-
-    it('initializes with provided state', () => {
-      const customId = '550e8400-e29b-41d4-a716-446655440000';
-      const { controller } = setupController({
+    it('initializes with provided state including analyticsId', async () => {
+      const analyticsId = '550e8400-e29b-41d4-a716-446655440000';
+      const { controller } = await setupController({
         state: {
-          enabled: false,
           optedIn: true,
-          analyticsId: customId,
+          analyticsId,
         },
       });
 
-      expect(controller.state.enabled).toBe(false);
+      expect(analyticsControllerSelectors.selectEnabled(controller.state)).toBe(
+        true,
+      );
       expect(controller.state.optedIn).toBe(true);
-      expect(controller.state.analyticsId).toBe(customId);
+      expect(controller.state.analyticsId).toBe(analyticsId);
     });
 
-    it('preserves provided analyticsId and does not auto-generate', () => {
-      const customId = '550e8400-e29b-41d4-a716-446655440000';
-      const { controller } = setupController({
+    it('uses default opt-in values when merged with analyticsId', async () => {
+      const analyticsId = '6ba7b810-9dad-41d4-80b5-0c4f5a7c1e2d';
+      const { controller } = await setupController({
         state: {
-          analyticsId: customId,
+          ...getDefaultAnalyticsControllerState(),
+          analyticsId,
         },
       });
 
-      expect(controller.state.analyticsId).toBe(customId);
+      expect(controller.state.optedIn).toBe(false);
+      expect(controller.state.analyticsId).toBe(analyticsId);
     });
 
-    it('restores analyticsId from persisted state', () => {
-      // First, create a controller (generates UUID)
-      const { controller: firstController } = setupController();
-      const originalAnalyticsId = firstController.state.analyticsId;
-
-      expect(isValidUUIDv4(originalAnalyticsId)).toBe(true);
-
-      // Simulate restoration: create a new controller with the previous state
-      const { controller: restoredController } = setupController({
+    it('preserves provided analyticsId (does not generate new one)', async () => {
+      const analyticsId = 'a1b2c3d4-e5f6-4a7b-8c9d-0e1f2a3b4c5d';
+      const { controller: controller1 } = await setupController({
         state: {
-          enabled: firstController.state.enabled,
-          optedIn: firstController.state.optedIn,
-          analyticsId: firstController.state.analyticsId,
+          ...getDefaultAnalyticsControllerState(),
+          analyticsId,
+        },
+      });
+      const { controller: controller2 } = await setupController({
+        state: {
+          ...getDefaultAnalyticsControllerState(),
+          analyticsId,
         },
       });
 
-      // The restored controller should have the same state as the original controller
-      expect(restoredController.state.analyticsId).toBe(originalAnalyticsId);
-      expect(restoredController.state.enabled).toBe(
-        firstController.state.enabled,
-      );
-      expect(restoredController.state.optedIn).toBe(
-        firstController.state.optedIn,
-      );
+      expect(controller1.state.analyticsId).toBe(analyticsId);
+      expect(controller2.state.analyticsId).toBe(analyticsId);
+      expect(controller1.state.analyticsId).toBe(controller2.state.analyticsId);
     });
 
-    it('initializes with custom enabled/optedIn', () => {
-      const { controller } = setupController({
-        state: {
-          enabled: false,
-          optedIn: true,
-        },
-      });
-
-      expect(controller.state.enabled).toBe(false);
-      expect(controller.state.optedIn).toBe(true);
-    });
-
-    it('uses default analyticsId when not provided in partial state', () => {
-      const { controller } = setupController({
-        state: {
-          enabled: false,
-          optedIn: true,
-        },
-      });
-
-      expect(isValidUUIDv4(controller.state.analyticsId)).toBe(true);
-    });
-
-    it('uses provided analyticsId when passed in state at initialization', () => {
-      const customId = '550e8400-e29b-41d4-a716-446655440000';
-      const { controller } = setupController({
-        state: {
-          analyticsId: customId,
-        },
-      });
-
-      expect(controller.state.analyticsId).toBe(customId);
-    });
-
-    it('initializes with default values when options are undefined', () => {
+    it('uses default isAnonymousEventsFeatureEnabled value when not provided', async () => {
       const mockAdapter = createMockAdapter();
+      const analyticsId = '11111111-1111-4111-8111-111111111111';
+
       const rootMessenger = new Messenger<
         MockAnyNamespace,
         AnalyticsControllerActions,
         AnalyticsControllerEvents
       >({ namespace: MOCK_ANY_NAMESPACE });
 
-      const analyticsControllerMessenger = new Messenger<
+      const messenger = new Messenger<
+        'AnalyticsController',
+        AnalyticsControllerActions,
+        AnalyticsControllerEvents,
+        typeof rootMessenger
+      >({
+        namespace: 'AnalyticsController',
+        parent: rootMessenger,
+      });
+
+      // Create controller without isAnonymousEventsFeatureEnabled to test default value
+      const controller = new AnalyticsController({
+        messenger,
+        platformAdapter: mockAdapter,
+        state: {
+          ...getDefaultAnalyticsControllerState(),
+          analyticsId,
+          optedIn: true, // Enable tracking for this test
+        },
+        // isAnonymousEventsFeatureEnabled not provided - should default to false
+      });
+
+      controller.init();
+
+      // Verify default behavior: single event tracked (not split)
+      const event = createTestEvent(
+        'test_event',
+        { prop: 'value' },
+        { sensitive_prop: 'sensitive value' },
+      );
+      controller.trackEvent(event);
+
+      // With default (false), should track single combined event
+      expect(mockAdapter.track).toHaveBeenCalledTimes(1);
+      expect(mockAdapter.track).toHaveBeenCalledWith(
+        'test_event',
+        expect.objectContaining({
+          prop: 'value',
+          sensitive_prop: 'sensitive value',
+          anonymous: true,
+        }),
+      );
+    });
+
+    it('throws error when analyticsId is missing', () => {
+      const adapter = createMockAdapter();
+
+      const rootMessenger = new Messenger<
+        MockAnyNamespace,
+        AnalyticsControllerActions,
+        AnalyticsControllerEvents
+      >({ namespace: MOCK_ANY_NAMESPACE });
+
+      const messenger = new Messenger<
+        'AnalyticsController',
+        AnalyticsControllerActions,
+        AnalyticsControllerEvents,
+        typeof rootMessenger
+      >({
+        namespace: 'AnalyticsController',
+        parent: rootMessenger,
+      });
+
+      expect(() => {
+        // eslint-disable-next-line no-new
+        new AnalyticsController({
+          messenger,
+          platformAdapter: adapter,
+          state: {
+            optedIn: false,
+          } as AnalyticsControllerState,
+          isAnonymousEventsFeatureEnabled: false,
+        });
+      }).toThrow('Invalid analyticsId');
+    });
+
+    it('throws error when analyticsId is invalid format', () => {
+      const adapter = createMockAdapter();
+
+      const rootMessenger = new Messenger<
+        MockAnyNamespace,
+        AnalyticsControllerActions,
+        AnalyticsControllerEvents
+      >({ namespace: MOCK_ANY_NAMESPACE });
+
+      const messenger = new Messenger<
+        'AnalyticsController',
+        AnalyticsControllerActions,
+        AnalyticsControllerEvents,
+        typeof rootMessenger
+      >({
+        namespace: 'AnalyticsController',
+        parent: rootMessenger,
+      });
+
+      expect(() => {
+        // eslint-disable-next-line no-new
+        new AnalyticsController({
+          messenger,
+          platformAdapter: adapter,
+          state: {
+            optedIn: false,
+            analyticsId: 'not-a-valid-uuid',
+          },
+          isAnonymousEventsFeatureEnabled: false,
+        });
+      }).toThrow('Invalid analyticsId');
+    });
+
+    it('throws error when analyticsId is empty string', () => {
+      const adapter = createMockAdapter();
+
+      const rootMessenger = new Messenger<
+        MockAnyNamespace,
+        AnalyticsControllerActions,
+        AnalyticsControllerEvents
+      >({ namespace: MOCK_ANY_NAMESPACE });
+
+      const messenger = new Messenger<
+        'AnalyticsController',
+        AnalyticsControllerActions,
+        AnalyticsControllerEvents,
+        typeof rootMessenger
+      >({
+        namespace: 'AnalyticsController',
+        parent: rootMessenger,
+      });
+
+      expect(() => {
+        // eslint-disable-next-line no-new
+        new AnalyticsController({
+          messenger,
+          platformAdapter: adapter,
+          state: {
+            optedIn: false,
+            analyticsId: '',
+          },
+          isAnonymousEventsFeatureEnabled: false,
+        });
+      }).toThrow('Invalid analyticsId');
+    });
+
+    it('accepts different valid UUIDv4 values', async () => {
+      const analyticsId1 = '11111111-1111-4111-8111-111111111111';
+      const analyticsId2 = '22222222-2222-4222-9222-222222222222';
+
+      const { controller: controller1 } = await setupController({
+        state: {
+          ...getDefaultAnalyticsControllerState(),
+          analyticsId: analyticsId1,
+        },
+      });
+      const { controller: controller2 } = await setupController({
+        state: {
+          ...getDefaultAnalyticsControllerState(),
+          analyticsId: analyticsId2,
+        },
+      });
+
+      expect(controller1.state.analyticsId).toBe(analyticsId1);
+      expect(controller2.state.analyticsId).toBe(analyticsId2);
+    });
+  });
+
+  describe('init', () => {
+    it('calls onSetupCompleted lifecycle hook', async () => {
+      const mockAdapter = createMockAdapter();
+      const analyticsId = '11111111-1111-4111-8111-111111111111';
+
+      const rootMessenger = new Messenger<
+        MockAnyNamespace,
+        AnalyticsControllerActions,
+        AnalyticsControllerEvents
+      >({ namespace: MOCK_ANY_NAMESPACE });
+
+      const messenger = new Messenger<
         'AnalyticsController',
         AnalyticsControllerActions,
         AnalyticsControllerEvents,
@@ -218,137 +421,457 @@ describe('AnalyticsController', () => {
       });
 
       const controller = new AnalyticsController({
-        messenger: analyticsControllerMessenger,
+        messenger,
         platformAdapter: mockAdapter,
+        state: {
+          ...getDefaultAnalyticsControllerState(),
+          analyticsId,
+        },
+        isAnonymousEventsFeatureEnabled: false,
       });
 
-      const defaultState = getDefaultAnalyticsControllerState();
-      expect(controller.state.enabled).toBe(defaultState.enabled);
-      expect(controller.state.optedIn).toBe(defaultState.optedIn);
-      // analyticsId is auto-generated (UUIDv4)
-      expect(typeof controller.state.analyticsId).toBe('string');
-      expect(isValidUUIDv4(controller.state.analyticsId)).toBe(true);
+      const onSetupCompletedSpy = jest.spyOn(mockAdapter, 'onSetupCompleted');
+      expect(onSetupCompletedSpy).not.toHaveBeenCalled();
+
+      controller.init();
+
+      expect(onSetupCompletedSpy).toHaveBeenCalledTimes(1);
+      expect(onSetupCompletedSpy).toHaveBeenCalledWith(analyticsId);
+    });
+
+    it('only calls onSetupCompleted one time even if called multiple times', async () => {
+      const mockAdapter = createMockAdapter();
+      const analyticsId = '22222222-2222-4222-9222-222222222222';
+
+      const rootMessenger = new Messenger<
+        MockAnyNamespace,
+        AnalyticsControllerActions,
+        AnalyticsControllerEvents
+      >({ namespace: MOCK_ANY_NAMESPACE });
+
+      const messenger = new Messenger<
+        'AnalyticsController',
+        AnalyticsControllerActions,
+        AnalyticsControllerEvents,
+        typeof rootMessenger
+      >({
+        namespace: 'AnalyticsController',
+        parent: rootMessenger,
+      });
+
+      const controller = new AnalyticsController({
+        messenger,
+        platformAdapter: mockAdapter,
+        state: {
+          ...getDefaultAnalyticsControllerState(),
+          analyticsId,
+        },
+        isAnonymousEventsFeatureEnabled: false,
+      });
+
+      const onSetupCompletedSpy = jest.spyOn(mockAdapter, 'onSetupCompleted');
+
+      controller.init();
+      expect(onSetupCompletedSpy).toHaveBeenCalledTimes(1);
+      expect(onSetupCompletedSpy).toHaveBeenCalledWith(analyticsId);
+
+      // Calling init() again should not throw and should not call onSetupCompleted again
+      expect(() => controller.init()).not.toThrow();
+      expect(onSetupCompletedSpy).toHaveBeenCalledTimes(1);
+    });
+
+    it('calls onSetupCompleted synchronously', async () => {
+      const mockAdapter = createMockAdapter();
+      const analyticsId = '44444444-4444-4444-8444-444444444444';
+
+      const rootMessenger = new Messenger<
+        MockAnyNamespace,
+        AnalyticsControllerActions,
+        AnalyticsControllerEvents
+      >({ namespace: MOCK_ANY_NAMESPACE });
+
+      const messenger = new Messenger<
+        'AnalyticsController',
+        AnalyticsControllerActions,
+        AnalyticsControllerEvents,
+        typeof rootMessenger
+      >({
+        namespace: 'AnalyticsController',
+        parent: rootMessenger,
+      });
+
+      const controller = new AnalyticsController({
+        messenger,
+        platformAdapter: mockAdapter,
+        state: {
+          ...getDefaultAnalyticsControllerState(),
+          analyticsId,
+        },
+        isAnonymousEventsFeatureEnabled: false,
+      });
+
+      const onSetupCompletedSpy = jest.spyOn(mockAdapter, 'onSetupCompleted');
+      expect(onSetupCompletedSpy).not.toHaveBeenCalled();
+
+      controller.init();
+
+      // Verify onSetupCompleted was called synchronously
+      expect(onSetupCompletedSpy).toHaveBeenCalledTimes(1);
+      expect(controller).toBeDefined();
+      expect(controller.state.analyticsId).toBeDefined();
+    });
+
+    it('ignores errors thrown by onSetupCompleted', async () => {
+      const mockAdapter = createMockAdapter();
+      const cause = new Error(
+        'MetaMetricsPrivacySegmentPlugin configure failed',
+      );
+      const error = new AnalyticsPlatformAdapterSetupError(
+        'Failed to add privacy plugin to Segment client',
+        cause,
+      );
+      jest.spyOn(mockAdapter, 'onSetupCompleted').mockImplementation(() => {
+        throw error;
+      });
+
+      const analyticsId = '55555555-5555-4555-9555-555555555555';
+
+      const rootMessenger = new Messenger<
+        MockAnyNamespace,
+        AnalyticsControllerActions,
+        AnalyticsControllerEvents
+      >({ namespace: MOCK_ANY_NAMESPACE });
+
+      const messenger = new Messenger<
+        'AnalyticsController',
+        AnalyticsControllerActions,
+        AnalyticsControllerEvents,
+        typeof rootMessenger
+      >({
+        namespace: 'AnalyticsController',
+        parent: rootMessenger,
+      });
+
+      const controller = new AnalyticsController({
+        messenger,
+        platformAdapter: mockAdapter,
+        state: {
+          ...getDefaultAnalyticsControllerState(),
+          analyticsId,
+        },
+        isAnonymousEventsFeatureEnabled: false,
+      });
+
+      expect(() => controller.init()).not.toThrow();
+
+      expect(controller).toBeDefined();
+      expect(mockAdapter.onSetupCompleted).toHaveBeenCalledTimes(1);
+      expect(controller.state.analyticsId).toBeDefined();
     });
   });
 
   describe('trackEvent', () => {
-    it('tracks event when enabled', () => {
+    it('calls platform adapter to track event when enabled', async () => {
       const mockAdapter = createMockAdapter();
-      const { controller } = setupController({ platformAdapter: mockAdapter });
+      const { controller } = await setupController({
+        state: {
+          optedIn: true,
+          analyticsId: '66666666-6666-4666-a666-666666666666',
+        },
+        platformAdapter: mockAdapter,
+      });
 
-      controller.trackEvent('test_event', { prop: 'value' });
+      const event = createTestEvent('test_event', { prop: 'value' });
+      controller.trackEvent(event);
 
-      expect(mockAdapter.trackEvent).toHaveBeenCalledWith('test_event', {
+      expect(mockAdapter.track).toHaveBeenCalledWith('test_event', {
         prop: 'value',
       });
     });
 
-    it('tracks event with default empty properties when properties not provided', () => {
+    it('tracks event without properties when event has no properties', async () => {
       const mockAdapter = createMockAdapter();
-      const { controller } = setupController({ platformAdapter: mockAdapter });
-
-      controller.trackEvent('test_event');
-
-      expect(mockAdapter.trackEvent).toHaveBeenCalledWith('test_event', {});
-    });
-
-    it('does not track event when disabled', () => {
-      const mockAdapter = createMockAdapter();
-      const { controller } = setupController({
-        state: { enabled: false },
+      const { controller } = await setupController({
+        state: {
+          optedIn: true,
+          analyticsId: '88888888-8888-4888-8888-888888888888',
+        },
         platformAdapter: mockAdapter,
       });
 
-      controller.trackEvent('test_event', { prop: 'value' });
+      const event = createTestEvent('test_event', {}, {}, true);
+      controller.trackEvent(event);
 
-      expect(mockAdapter.trackEvent).not.toHaveBeenCalled();
+      expect(mockAdapter.track).toHaveBeenCalledWith('test_event');
+    });
+
+    it('tracks single combined event when isAnonymousEventsFeatureEnabled is disabled', async () => {
+      const mockAdapter = createMockAdapter();
+      const { controller } = await setupController({
+        state: {
+          optedIn: true,
+          analyticsId: '99999999-9999-4999-9999-999999999999',
+        },
+        platformAdapter: mockAdapter,
+        isAnonymousEventsFeatureEnabled: false,
+      });
+
+      const event = createTestEvent(
+        'test_event',
+        { prop: 'value' },
+        { sensitive_prop: 'sensitive value' },
+      );
+      controller.trackEvent(event);
+
+      expect(mockAdapter.track).toHaveBeenCalledTimes(1);
+      expect(mockAdapter.track).toHaveBeenCalledWith('test_event', {
+        prop: 'value',
+        sensitive_prop: 'sensitive value',
+        anonymous: true,
+      });
+    });
+
+    it('tracks single combined event when isAnonymousEventsFeatureEnabled is disabled and only sensitiveProperties are present', async () => {
+      const mockAdapter = createMockAdapter();
+      const { controller } = await setupController({
+        state: {
+          optedIn: true,
+          analyticsId: 'aaaaaaaa-aaaa-4aaa-aaaa-aaaaaaaaaaaa',
+        },
+        platformAdapter: mockAdapter,
+        isAnonymousEventsFeatureEnabled: false,
+      });
+
+      const event = createTestEvent(
+        'test_event',
+        {},
+        { sensitive_prop: 'sensitive value' },
+      );
+      controller.trackEvent(event);
+
+      expect(mockAdapter.track).toHaveBeenCalledTimes(1);
+      expect(mockAdapter.track).toHaveBeenCalledWith('test_event', {
+        sensitive_prop: 'sensitive value',
+        anonymous: true,
+      });
+    });
+
+    it('does not call platform adapter when disabled', async () => {
+      const mockAdapter = createMockAdapter();
+      const { controller } = await setupController({
+        state: {
+          optedIn: false,
+          analyticsId: 'bbbbbbbb-bbbb-4bbb-8bbb-bbbbbbbbbbbb',
+        },
+        platformAdapter: mockAdapter,
+      });
+
+      const event = createTestEvent('test_event', { prop: 'value' });
+      controller.trackEvent(event);
+
+      expect(mockAdapter.track).not.toHaveBeenCalled();
+    });
+
+    describe('isAnonymousEventsFeatureEnabled enabled', () => {
+      it('tracks regular properties first, then combined event when both regular and sensitive properties are present', async () => {
+        const mockAdapter = createMockAdapter();
+        const { controller } = await setupController({
+          state: {
+            optedIn: true,
+            analyticsId: '11111111-1111-4111-8111-111111111111',
+          },
+          platformAdapter: mockAdapter,
+          isAnonymousEventsFeatureEnabled: true,
+        });
+
+        const event = createTestEvent(
+          'test_event',
+          { prop: 'value' },
+          { sensitive_prop: 'sensitive value' },
+        );
+        controller.trackEvent(event);
+
+        expect(mockAdapter.track).toHaveBeenCalledTimes(2);
+        expect(mockAdapter.track).toHaveBeenNthCalledWith(1, 'test_event', {
+          prop: 'value',
+        });
+        expect(mockAdapter.track).toHaveBeenNthCalledWith(2, 'test_event', {
+          prop: 'value',
+          sensitive_prop: 'sensitive value',
+          anonymous: true,
+        });
+      });
+
+      it('tracks regular properties first, then combined event when only sensitive properties are present', async () => {
+        const mockAdapter = createMockAdapter();
+        const { controller } = await setupController({
+          state: {
+            optedIn: true,
+            analyticsId: '22222222-2222-4222-9222-222222222222',
+          },
+          platformAdapter: mockAdapter,
+          isAnonymousEventsFeatureEnabled: true,
+        });
+
+        const event = createTestEvent(
+          'test_event',
+          {},
+          { sensitive_prop: 'sensitive value' },
+        );
+        controller.trackEvent(event);
+
+        expect(mockAdapter.track).toHaveBeenCalledTimes(2);
+        expect(mockAdapter.track).toHaveBeenNthCalledWith(1, 'test_event', {});
+        expect(mockAdapter.track).toHaveBeenNthCalledWith(2, 'test_event', {
+          sensitive_prop: 'sensitive value',
+          anonymous: true,
+        });
+      });
+
+      it('tracks only regular properties when no sensitive properties are present', async () => {
+        const mockAdapter = createMockAdapter();
+        const { controller } = await setupController({
+          state: {
+            optedIn: true,
+            analyticsId: '33333333-3333-4333-a333-333333333333',
+          },
+          platformAdapter: mockAdapter,
+          isAnonymousEventsFeatureEnabled: true,
+        });
+
+        const event = createTestEvent('test_event', { prop: 'value' });
+        controller.trackEvent(event);
+
+        expect(mockAdapter.track).toHaveBeenCalledTimes(1);
+        expect(mockAdapter.track).toHaveBeenCalledWith('test_event', {
+          prop: 'value',
+        });
+      });
+
+      it('tracks only regular properties when empty sensitive properties are present', async () => {
+        const mockAdapter = createMockAdapter();
+        const { controller } = await setupController({
+          state: {
+            optedIn: true,
+            analyticsId: '44444444-4444-4444-8444-444444444444',
+          },
+          platformAdapter: mockAdapter,
+          isAnonymousEventsFeatureEnabled: true,
+        });
+
+        const event = createTestEvent('test_event', { prop: 'value' }, {});
+        controller.trackEvent(event);
+
+        expect(mockAdapter.track).toHaveBeenCalledTimes(1);
+        expect(mockAdapter.track).toHaveBeenCalledWith('test_event', {
+          prop: 'value',
+        });
+      });
     });
   });
 
   describe('identify', () => {
-    it('identifies user and updates state', () => {
+    it('identifies user via platform adapter with traits using current analytics ID', async () => {
       const mockAdapter = createMockAdapter();
-      const { controller } = setupController({ platformAdapter: mockAdapter });
-
-      controller.identify('user-123', { email: 'test@example.com' });
-
-      expect(controller.state.analyticsId).toBe('user-123');
-      expect(mockAdapter.identify).toHaveBeenCalledWith('user-123', {
-        email: 'test@example.com',
-      });
-    });
-
-    it('does not identify when disabled', () => {
-      const mockAdapter = createMockAdapter();
-      const { controller } = setupController({
-        state: { enabled: false },
+      const analyticsId = 'cccccccc-cccc-4ccc-9ccc-cccccccccccc';
+      const { controller } = await setupController({
+        state: {
+          analyticsId,
+          optedIn: true,
+        },
         platformAdapter: mockAdapter,
       });
 
-      controller.identify('user-123');
+      const traits = {
+        ENABLE_OPENSEA_API: 'ON',
+        NFT_AUTODETECTION: 'ON',
+      };
+
+      controller.identify(traits);
+
+      expect(controller.state.analyticsId).toBe(analyticsId);
+      expect(mockAdapter.identify).toHaveBeenCalledWith(analyticsId, traits);
+    });
+
+    it('identifies user without traits', async () => {
+      const mockAdapter = createMockAdapter();
+      const analyticsId = 'dddddddd-dddd-4ddd-addd-dddddddddddd';
+      const { controller } = await setupController({
+        state: {
+          analyticsId,
+          optedIn: true,
+        },
+        platformAdapter: mockAdapter,
+      });
+
+      controller.identify();
+
+      expect(mockAdapter.identify).toHaveBeenCalledWith(analyticsId, undefined);
+    });
+
+    it('does not identify when disabled', async () => {
+      const mockAdapter = createMockAdapter();
+      const { controller } = await setupController({
+        state: {
+          optedIn: false,
+          analyticsId: 'eeeeeeee-eeee-4eee-beee-eeeeeeeeeeee',
+        },
+        platformAdapter: mockAdapter,
+      });
+
+      const traits = {
+        ENABLE_OPENSEA_API: 'ON',
+        NFT_AUTODETECTION: 'ON',
+      };
+
+      controller.identify(traits);
 
       expect(mockAdapter.identify).not.toHaveBeenCalled();
     });
   });
 
-  describe('trackPage', () => {
-    it('tracks page view', () => {
+  describe('trackView', () => {
+    it('calls platform adapter to track view when enabled', async () => {
       const mockAdapter = createMockAdapter();
-      const { controller } = setupController({ platformAdapter: mockAdapter });
+      const { controller } = await setupController({
+        state: {
+          optedIn: true,
+          analyticsId: 'ffffffff-ffff-4fff-8fff-ffffffffffff',
+        },
+        platformAdapter: mockAdapter,
+      });
 
-      controller.trackPage('home', { referrer: 'test' });
+      controller.trackView('home', { referrer: 'test' });
 
-      expect(mockAdapter.trackPage).toHaveBeenCalledWith('home', {
+      expect(mockAdapter.view).toHaveBeenCalledWith('home', {
         referrer: 'test',
       });
     });
 
-    it('does not track page when disabled', () => {
+    it('does not call platform adapter when disabled', async () => {
       const mockAdapter = createMockAdapter();
-      const { controller } = setupController({
-        state: { enabled: false },
+      const { controller } = await setupController({
+        state: {
+          optedIn: false,
+          analyticsId: 'abcdef01-2345-4678-9abc-def012345678',
+        },
         platformAdapter: mockAdapter,
       });
 
-      controller.trackPage('home');
+      controller.trackView('home');
 
-      expect(mockAdapter.trackPage).not.toHaveBeenCalled();
-    });
-  });
-
-  describe('enable', () => {
-    it('enables analytics tracking', () => {
-      const { controller } = setupController({
-        state: { enabled: false },
-      });
-
-      expect(controller.state.enabled).toBe(false);
-
-      controller.enable();
-
-      expect(controller.state.enabled).toBe(true);
-    });
-  });
-
-  describe('disable', () => {
-    it('disables analytics tracking', () => {
-      const { controller } = setupController({
-        state: { enabled: true },
-      });
-
-      expect(controller.state.enabled).toBe(true);
-
-      controller.disable();
-
-      expect(controller.state.enabled).toBe(false);
+      expect(mockAdapter.view).not.toHaveBeenCalled();
     });
   });
 
   describe('optIn', () => {
-    it('opts in to analytics', () => {
-      const { controller } = setupController();
-
-      expect(controller.state.optedIn).toBe(false);
+    it('sets optedIn to true', async () => {
+      const { controller } = await setupController({
+        state: {
+          ...getDefaultAnalyticsControllerState(),
+          analyticsId: 'fedcba98-7654-4321-8fed-cba987654321',
+        },
+      });
 
       controller.optIn();
 
@@ -357,98 +880,15 @@ describe('AnalyticsController', () => {
   });
 
   describe('optOut', () => {
-    it('opts out of analytics', () => {
-      const { controller } = setupController({
-        state: { optedIn: true },
+    it('sets optedIn to false', async () => {
+      const { controller } = await setupController({
+        state: {
+          optedIn: true,
+          analyticsId: '01234567-89ab-4cde-8f01-23456789abcd',
+        },
       });
-
-      expect(controller.state.optedIn).toBe(true);
 
       controller.optOut();
-
-      expect(controller.state.optedIn).toBe(false);
-    });
-  });
-
-  describe('messenger actions', () => {
-    it('handles trackEvent action', () => {
-      const mockAdapter = createMockAdapter();
-      const { messenger } = setupController({
-        platformAdapter: mockAdapter,
-      });
-
-      messenger.call('AnalyticsController:trackEvent', 'test_event', {
-        prop: 'value',
-      });
-
-      expect(mockAdapter.trackEvent).toHaveBeenCalled();
-    });
-
-    it('handles identify action', () => {
-      const mockAdapter = createMockAdapter();
-      const { controller, messenger } = setupController({
-        platformAdapter: mockAdapter,
-      });
-
-      messenger.call('AnalyticsController:identify', 'user-123', {
-        email: 'test',
-      });
-
-      expect(mockAdapter.identify).toHaveBeenCalled();
-      expect(controller.state.analyticsId).toBe('user-123');
-    });
-
-    it('handles trackPage action', () => {
-      const mockAdapter = createMockAdapter();
-      const { messenger } = setupController({ platformAdapter: mockAdapter });
-
-      messenger.call('AnalyticsController:trackPage', 'home', {});
-
-      expect(mockAdapter.trackPage).toHaveBeenCalled();
-    });
-
-    it('handles enable action', () => {
-      const { controller, messenger } = setupController({
-        state: { enabled: false },
-      });
-
-      expect(controller.state.enabled).toBe(false);
-
-      messenger.call('AnalyticsController:enable');
-
-      expect(controller.state.enabled).toBe(true);
-    });
-
-    it('handles disable action', () => {
-      const { controller, messenger } = setupController({
-        state: { enabled: true },
-      });
-
-      expect(controller.state.enabled).toBe(true);
-
-      messenger.call('AnalyticsController:disable');
-
-      expect(controller.state.enabled).toBe(false);
-    });
-
-    it('handles optIn action', () => {
-      const { controller, messenger } = setupController();
-
-      expect(controller.state.optedIn).toBe(false);
-
-      messenger.call('AnalyticsController:optIn');
-
-      expect(controller.state.optedIn).toBe(true);
-    });
-
-    it('handles optOut action', () => {
-      const { controller, messenger } = setupController({
-        state: { optedIn: true },
-      });
-
-      expect(controller.state.optedIn).toBe(true);
-
-      messenger.call('AnalyticsController:optOut');
 
       expect(controller.state.optedIn).toBe(false);
     });

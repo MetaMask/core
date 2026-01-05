@@ -2,6 +2,10 @@
 
 yarn.lock linguist-generated=false
 
+# `tsconfig.json` is already recognized as JSONC. This ensures our other `tsconfig` files are as
+# well. They all use this naming convention.
+tsconfig.**.json linguist-language=jsonc
+
 # yarn v3
 # See: https://yarnpkg.com/getting-started/qa#which-files-should-be-gitignored
 /.yarn/releases/** binary

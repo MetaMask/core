@@ -9,6 +9,62 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ### Changed
 
+- Bump `@metamask/remote-feature-flag-controller` from `^3.1.0` to `^4.0.0` ([#7546](https://github.com/MetaMask/core/pull/7546))
+- Upgrade `@metamask/utils` from `^11.8.1` to `^11.9.0` ([#7511](https://github.com/MetaMask/core/pull/7511))
+- Bump `@metamask/network-controller` from `^27.0.0` to `^27.1.0` ([#7534](https://github.com/MetaMask/core/pull/7534))
+- Bump `@metamask/controller-utils` from `^11.16.0` to `^11.17.0` ([#7534](https://github.com/MetaMask/core/pull/7534))
+
+## [64.2.0]
+
+### Changed
+
+- Bump `@metamask/assets-controllers` from `^93.1.0` to `^94.1.0` ([#7444](https://github.com/MetaMask/core/pull/7444), [#7488](https://github.com/MetaMask/core/pull/7488))
+- Bump `@metamask/transaction-controller` from `^62.5.0` to `^62.7.0` ([#7430](https://github.com/MetaMask/core/pull/7430), [#7494](https://github.com/MetaMask/core/pull/7494))
+- Bump `@metamask/remote-feature-flag-controller` from `^3.0.0` to `^3.1.0` ([#7519](https://github.com/MetaMask/core/pull/7519))
+- Add fee limit passthrough for Tron snap fee computation ([#7426](https://github.com/MetaMask/core/pull/7426))
+
+## [64.1.0]
+
+### Changed
+
+- Bump `@metamask/assets-controllers` from `^93.0.0` to `^93.1.0` ([#7309](https://github.com/MetaMask/core/pull/7309))
+- Bump `@metamask/remote-feature-flag-controller` from `^2.0.1` to `^3.0.0` ([#7309](https://github.com/MetaMask/core/pull/7309))
+- Bump `@metamask/transaction-controller` from `^62.4.0` to `^62.5.0` ([#7325](https://github.com/MetaMask/core/pull/7325))
+
+### Fixed
+
+- Update gas calculation logic to use the priority fee provided by the gas-api and stop adding the base fee ([#7403](https://github.com/MetaMask/core/pull/7403), [#7406](https://github.com/MetaMask/core/pull/7406))
+
+## [64.0.0]
+
+### Added
+
+- Port `fetchTokens` and `type SwapsToken` from `@metamask/swaps-controller` and export them to allow deprecating `swaps-controller` while still supporting downstream consumers ([#7278](https://github.com/MetaMask/core/pull/7278))
+- Handle edge case in which approvals fail if an EVM account has an insufficient non-zero USDT allowance on mainnet ([#7228](https://github.com/MetaMask/core/pull/7228))
+  - Set quoteRequest `resetApproval` parameter by calculating the wallet's USDT allowance on mainnet for the swap or bridge spender
+  - When a valid quote is received, append the `resetApproval` trade data to set the wallet's USDT allowance to `0`
+  - Include the `resetApproval` tx in network fee calculations
+
+### Changed
+
+- **BREAKING:** Remove `SWAPS_TESTNET_CHAIN_ID` export and use `CHAIN_IDS.LOCALHOST` instead ([#7278](https://github.com/MetaMask/core/pull/7278))
+- Bump `@metamask/network-controller` from `^26.0.0` to `^27.0.0` ([#7258](https://github.com/MetaMask/core/pull/7258))
+- Bump `@metamask/transaction-controller` from `^62.3.0` to `^62.4.0` ([#7257](https://github.com/MetaMask/core/pull/7257), [#7289](https://github.com/MetaMask/core/pull/7289))
+- Bump `@metamask/assets-controllers` from `^92.0.0` to `^93.0.0` ([#7291](https://github.com/MetaMask/core/pull/7291))
+
+### Removed
+
+- **BREAKING** Remove public `getBridgeERC20Allowance` action to prevent consumers from using it. This handler is only applicable to Swap and Bridge txs involving USDT on mainnet ([#7228](https://github.com/MetaMask/core/pull/7228))
+
+### Fixed
+
+- **BREAKING:** Add `usd_amount_source` to QuotesRequested event properties. Clients will need to add this value to the quoteRequest context ([#7294](https://github.com/MetaMask/core/pull/7294))
+- Add missing MON (Monad) and SEI (Sei) to integer chain IDs ([#7252](https://github.com/MetaMask/core/pull/7252))
+
+## [63.2.0]
+
+### Changed
+
 - Update `stopPollingForQuotes` to accept metrics context for the QuotesReceived event. If context is provided and quotes are still loading when the handler is called, the `Unified SwapBridge Quotes Received` is published before the poll is cancelled ([#7242](https://github.com/MetaMask/core/pull/7242))
 
 ## [63.1.0]
@@ -900,7 +956,11 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 - Initial release ([#5317](https://github.com/MetaMask/core/pull/5317))
 
-[Unreleased]: https://github.com/MetaMask/core/compare/@metamask/bridge-controller@63.1.0...HEAD
+[Unreleased]: https://github.com/MetaMask/core/compare/@metamask/bridge-controller@64.2.0...HEAD
+[64.2.0]: https://github.com/MetaMask/core/compare/@metamask/bridge-controller@64.1.0...@metamask/bridge-controller@64.2.0
+[64.1.0]: https://github.com/MetaMask/core/compare/@metamask/bridge-controller@64.0.0...@metamask/bridge-controller@64.1.0
+[64.0.0]: https://github.com/MetaMask/core/compare/@metamask/bridge-controller@63.2.0...@metamask/bridge-controller@64.0.0
+[63.2.0]: https://github.com/MetaMask/core/compare/@metamask/bridge-controller@63.1.0...@metamask/bridge-controller@63.2.0
 [63.1.0]: https://github.com/MetaMask/core/compare/@metamask/bridge-controller@63.0.0...@metamask/bridge-controller@63.1.0
 [63.0.0]: https://github.com/MetaMask/core/compare/@metamask/bridge-controller@62.0.0...@metamask/bridge-controller@63.0.0
 [62.0.0]: https://github.com/MetaMask/core/compare/@metamask/bridge-controller@61.0.0...@metamask/bridge-controller@62.0.0

@@ -14,15 +14,15 @@ import {
 import SimpleKeyring from '@metamask/eth-simple-keyring';
 import type { EthKeyring } from '@metamask/keyring-internal-api';
 import type { KeyringClass } from '@metamask/keyring-utils';
-import {
-  MOCK_ANY_NAMESPACE,
-  Messenger,
-  type MessengerActions,
-  type MessengerEvents,
-  type MockAnyNamespace,
+import { MOCK_ANY_NAMESPACE, Messenger } from '@metamask/messenger';
+import type {
+  MessengerActions,
+  MessengerEvents,
+  MockAnyNamespace,
 } from '@metamask/messenger';
 import { wordlist } from '@metamask/scure-bip39/dist/wordlists/english';
-import { bytesToHex, isValidHexAddress, type Hex } from '@metamask/utils';
+import { bytesToHex, isValidHexAddress } from '@metamask/utils';
+import type { Hex } from '@metamask/utils';
 import sinon from 'sinon';
 
 import { KeyringControllerError } from './constants';
@@ -65,7 +65,7 @@ type RootMessenger = Messenger<
 jest.mock('uuid', () => {
   return {
     ...jest.requireActual('uuid'),
-    v4: () => '9b1deb4d-3b7d-4bad-9bdd-2b0d7b3dcb6d',
+    v4: (): string => '9b1deb4d-3b7d-4bad-9bdd-2b0d7b3dcb6d',
   };
 });
 
@@ -370,7 +370,10 @@ describe('KeyringController', () => {
       await withController(async ({ controller }) => {
         jest.spyOn(controller, 'getKeyringsByType').mockReturnValueOnce([
           {
-            getAccounts: async () => [undefined, undefined],
+            getAccounts: async (): Promise<[undefined, undefined]> => [
+              undefined,
+              undefined,
+            ],
           },
         ]);
 
@@ -1698,7 +1701,9 @@ describe('KeyringController', () => {
     describe('when the keyring for the given address supports signPersonalMessage', () => {
       it('should sign personal message', async () => {
         await withController(async ({ controller, initialState }) => {
-          const data = bytesToHex(Buffer.from('Hello from test', 'utf8'));
+          const data = bytesToHex(
+            new Uint8Array(Buffer.from('Hello from test', 'utf8')),
+          );
           const account = initialState.keyrings[0].accounts[0];
           const signature = await controller.signPersonalMessage({
             data,
@@ -3401,7 +3406,11 @@ describe('KeyringController', () => {
     it('should rollback if an error is thrown', async () => {
       await withController(async ({ controller, initialState }) => {
         const selector = { type: KeyringTypes.hd };
-        const fn = async ({ keyring }: { keyring: EthKeyring }) => {
+        const fn = async ({
+          keyring,
+        }: {
+          keyring: EthKeyring;
+        }): Promise<never> => {
           await keyring.addAccounts(1);
           throw new Error('Oops');
         };
@@ -3433,7 +3442,7 @@ describe('KeyringController', () => {
 
       it('should return the result of the function', async () => {
         await withController(async ({ controller }) => {
-          const fn = async () => Promise.resolve('hello');
+          const fn = async (): Promise<string> => Promise.resolve('hello');
           const selector = { type: KeyringTypes.hd };
 
           expect(await controller.withKeyring(selector, fn)).toBe('hello');
@@ -3593,7 +3602,7 @@ describe('KeyringController', () => {
 
       it('should return the result of the function', async () => {
         await withController(async ({ controller, initialState }) => {
-          const fn = async () => Promise.resolve('hello');
+          const fn = async (): Promise<string> => Promise.resolve('hello');
           const selector = {
             address: initialState.keyrings[0].accounts[0] as Hex,
           };
@@ -3639,7 +3648,7 @@ describe('KeyringController', () => {
 
       it('should return the result of the function', async () => {
         await withController(async ({ controller, initialState }) => {
-          const fn = async () => Promise.resolve('hello');
+          const fn = async (): Promise<string> => Promise.resolve('hello');
           const selector = { id: initialState.keyrings[0].metadata.id };
 
           expect(await controller.withKeyring(selector, fn)).toBe('hello');
@@ -4122,7 +4131,11 @@ describe('KeyringController', () => {
           }
         });
 
-        messenger.subscribe('KeyringController:stateChange', listener);
+        messenger.subscribe(
+          'KeyringController:stateChange',
+          // Cast to avoid misued-promise warning.
+          listener as jest.Mocked<() => void>,
+        );
 
         await controller.submitPassword(password);
 
@@ -4279,7 +4292,7 @@ type WithControllerArgs<ReturnValue> =
 function stubKeyringClassWithAccount(
   keyringClass: KeyringClass,
   account: string,
-) {
+): void {
   jest
     .spyOn(keyringClass.prototype, 'getAccounts')
     .mockResolvedValue([account]);
@@ -4304,7 +4317,14 @@ function buildRootMessenger(): RootMessenger {
  * controller messenger
  * @returns The keyring controller restricted messenger.
  */
-function buildKeyringControllerMessenger(messenger = buildRootMessenger()) {
+function buildKeyringControllerMessenger(
+  messenger = buildRootMessenger(),
+): Messenger<
+  'KeyringController',
+  KeyringControllerActions,
+  KeyringControllerEvents,
+  typeof messenger
+> {
   return new Messenger<
     'KeyringController',
     KeyringControllerActions,
@@ -4331,7 +4351,7 @@ async function withController<ReturnValue>(
   const messenger = buildRootMessenger();
   const keyringControllerMessenger = buildKeyringControllerMessenger(messenger);
   const controller = new KeyringController({
-    encryptor,
+    encryptor: encryptor.asEncryptor(),
     messenger: keyringControllerMessenger,
     ...rest,
   });

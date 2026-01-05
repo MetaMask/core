@@ -1,3 +1,5 @@
+/* eslint-disable @typescript-eslint/naming-convention */
+
 import type { AccessList } from '@ethereumjs/tx';
 import type { AccountsController } from '@metamask/accounts-controller';
 import type EthQuery from '@metamask/eth-query';
@@ -250,7 +252,7 @@ export type TransactionMeta = {
   hash?: string;
 
   /**
-   * A history of mutations to TransactionMeta.
+   * @deprecated A history of mutations to TransactionMeta.
    */
   history?: TransactionHistory;
 
@@ -383,6 +385,11 @@ export type TransactionMeta = {
   replacedById?: string;
 
   /**
+   * ID of JSON-RPC request from DAPP.
+   */
+  requestId?: string;
+
+  /**
    * IDs of any transactions that must be confirmed before this one is submitted.
    * Unlike a transaction batch, these transactions can be on alternate chains.
    */
@@ -417,7 +424,7 @@ export type TransactionMeta = {
   selectedGasFeeToken?: Hex;
 
   /**
-   * An array of entries that describe the user's journey through the send flow.
+   * @deprecated An array of entries that describe the user's journey through the send flow.
    * This is purely attached to state logs for troubleshooting and support.
    */
   sendFlowHistory?: SendFlowHistoryEntry[];
@@ -590,6 +597,11 @@ export type TransactionBatchMeta = {
    */
   origin?: string;
 
+  /**
+   * ID of the JSON-RPC request from DAPP.
+   */
+  requestId?: string;
+
   /** Current status of the transaction. */
   status: TransactionStatus;
 
@@ -599,6 +611,7 @@ export type TransactionBatchMeta = {
   transactions?: NestedTransactionMetadata[];
 };
 
+/** @deprecated An entry in the send flow history. */
 export type SendFlowHistoryEntry = {
   /**
    * String to indicate user interaction information.
@@ -795,6 +808,11 @@ export enum TransactionType {
    * Withdraw funds from Predict.
    */
   predictWithdraw = 'predictWithdraw',
+
+  /**
+   * Deposit funds for Relay quote.
+   */
+  relayDeposit = 'relayDeposit',
 
   /**
    * When a transaction is failed it can be retried by
@@ -1161,7 +1179,7 @@ type ExtendedHistoryOperation = JsonCompatibleOperation & {
 };
 
 /**
- * A transaction history entry that includes the ExtendedHistoryOperation as the first element.
+ * @deprecated A transaction history entry that includes the ExtendedHistoryOperation as the first element.
  */
 export type TransactionHistoryEntry = [
   ExtendedHistoryOperation,
@@ -1169,7 +1187,7 @@ export type TransactionHistoryEntry = [
 ];
 
 /**
- * A transaction history that includes the transaction meta as the first element.
+ * @deprecated A transaction history that includes the transaction meta as the first element.
  * And the rest of the elements are the operation arrays that were applied to the transaction meta.
  */
 export type TransactionHistory = [
@@ -1737,6 +1755,9 @@ export type TransactionBatchRequest = {
   /** Address of an ERC-20 token to pay for the gas fee, if the user has insufficient native balance. */
   gasFeeToken?: Hex;
 
+  /** Gas limit for the transaction batch if submitted via EIP-7702. */
+  gasLimit7702?: Hex;
+
   /** Whether MetaMask will be compensated for the gas fee by the transaction. */
   isGasFeeIncluded?: boolean;
 
@@ -1748,6 +1769,12 @@ export type TransactionBatchRequest = {
 
   /** Origin of the request, such as a dApp hostname or `ORIGIN_METAMASK` if internal. */
   origin?: string;
+
+  /** Whether to overwrite existing EIP-7702 delegation with MetaMask contract. */
+  overwriteUpgrade?: boolean;
+
+  /** ID of the JSON-RPC request from DAPP. */
+  requestId?: string;
 
   /** Whether an approval request should be created to require confirmation from the user. */
   requireApproval?: boolean;
@@ -2101,6 +2128,9 @@ export type AddTransactionOptions = {
 
   /** Custom logic to publish the transaction. */
   publishHook?: PublishHook;
+
+  /** ID of JSON-RPC request from DAPP.  */
+  requestId?: string;
 
   /** Whether the transaction requires approval by the user, defaults to true unless explicitly disabled. */
   requireApproval?: boolean | undefined;

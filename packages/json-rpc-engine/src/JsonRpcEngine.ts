@@ -116,7 +116,7 @@ export class JsonRpcEngine extends SafeEventEmitter {
   /**
    * Throws an error if this engine is destroyed.
    */
-  #assertIsNotDestroyed() {
+  #assertIsNotDestroyed(): void {
     if (this.#isDestroyed) {
       throw new Error(DESTROYED_ERROR_MESSAGE);
     }
@@ -228,7 +228,7 @@ export class JsonRpcEngine extends SafeEventEmitter {
       | JsonRpcRequest
       | JsonRpcNotification,
     callback?: (error: unknown, response: never) => void,
-  ) {
+  ): Promise<JsonRpcResponse[]> | Promise<JsonRpcResponse | void> {
     this.#assertIsNotDestroyed();
 
     if (callback && typeof callback !== 'function') {
@@ -372,7 +372,7 @@ export class JsonRpcEngine extends SafeEventEmitter {
    */
   // This function is used in tests, so we cannot easily change it to use the
   // hash syntax.
-
+  // eslint-disable-next-line no-restricted-syntax
   private async _promiseHandle(
     request: JsonRpcRequest | JsonRpcNotification,
   ): Promise<JsonRpcResponse | void> {
@@ -472,9 +472,7 @@ export class JsonRpcEngine extends SafeEventEmitter {
     if (error) {
       // Ensure no result is present on an errored response
       delete res.result;
-      if (!res.error) {
-        res.error = serializeError(error);
-      }
+      res.error ??= serializeError(error);
     }
 
     return callback(error, res as JsonRpcResponse);
@@ -572,7 +570,7 @@ export class JsonRpcEngine extends SafeEventEmitter {
   ): Promise<[unknown, boolean]> {
     return new Promise((resolve) => {
       const end: JsonRpcEngineEndCallback = (error) => {
-        const parsedError = error || response.error;
+        const parsedError = error ?? response.error;
         if (parsedError) {
           response.error = serializeError(parsedError);
         }

@@ -3,7 +3,11 @@ import {
   SignatureRequestType,
 } from '@metamask/signature-controller';
 
-import { parseSignatureRequestMethod, ShieldRemoteBackend } from './backend';
+import {
+  makeInitCoverageCheckBody,
+  parseSignatureRequestMethod,
+  ShieldRemoteBackend,
+} from './backend';
 import { SignTypedDataVersion } from './constants';
 import {
   generateMockSignatureRequest,
@@ -25,7 +29,11 @@ function setup({
 }: {
   getCoverageResultTimeout?: number;
   getCoverageResultPollInterval?: number;
-} = {}) {
+} = {}): {
+  backend: ShieldRemoteBackend;
+  fetchMock: jest.MockedFunction<typeof fetch>;
+  getAccessToken: jest.Mock;
+} {
   // Setup fetch mock.
   const fetchMock = jest.spyOn(global, 'fetch') as jest.MockedFunction<
     typeof fetch
@@ -421,6 +429,43 @@ describe('ShieldRemoteBackend', () => {
       expect(parseSignatureRequestMethod(signatureRequest)).toBe(
         EthMethod.SignTypedDataV4,
       );
+    });
+  });
+
+  describe('makeInitCoverageCheckBody', () => {
+    it('makes init coverage check body', () => {
+      const txMeta = generateMockTxMeta();
+      const body = makeInitCoverageCheckBody(txMeta);
+      expect(body).toMatchObject({
+        txParams: [txMeta.txParams],
+      });
+    });
+
+    it('makes init coverage check body with authorization list', () => {
+      const txMeta = generateMockTxMeta();
+      const body = makeInitCoverageCheckBody({
+        ...txMeta,
+        txParams: {
+          ...txMeta.txParams,
+          authorizationList: [
+            {
+              address: '0x0000000000000000000000000000000000000000',
+            },
+          ],
+        },
+      });
+      expect(body).toMatchObject({
+        txParams: [
+          {
+            ...txMeta.txParams,
+            authorizationList: [
+              {
+                address: '0x0000000000000000000000000000000000000000',
+              },
+            ],
+          },
+        ],
+      });
     });
   });
 });

@@ -5,9 +5,9 @@ import type { Hex } from '@metamask/utils';
 import {
   CLAIMS_API_URL_MAP,
   ClaimsServiceErrorMessages,
-  type Env,
   SERVICE_NAME,
 } from './constants';
+import type { Env } from './constants';
 import type {
   Claim,
   ClaimsConfigurationsResponse,

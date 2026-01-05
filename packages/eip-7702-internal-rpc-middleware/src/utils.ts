@@ -76,7 +76,8 @@ function formatValidationError(error: StructError, message: string): string {
   return `${message}\n\n${error
     .failures()
     .map(
-      (f) => `${f.path.join(' > ')}${f.path.length ? ' - ' : ''}${f.message}`,
+      (failure) =>
+        `${failure.path.join(' > ')}${failure.path.length ? ' - ' : ''}${failure.message}`,
     )
     .join('\n')}`;
 }

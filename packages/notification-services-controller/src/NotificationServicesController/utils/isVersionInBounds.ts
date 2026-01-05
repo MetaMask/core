@@ -20,7 +20,7 @@ export function isVersionInBounds({
   currentVersion,
   minVersion,
   maxVersion,
-}: IsVersionInBounds) {
+}: IsVersionInBounds): boolean {
   if (!currentVersion) {
     return true;
   }

@@ -59,7 +59,9 @@ export class TestStrategy implements PayStrategy<void> {
     ];
   }
 
-  async execute(request: PayStrategyExecuteRequest<void>) {
+  async execute(
+    request: PayStrategyExecuteRequest<void>,
+  ): ReturnType<PayStrategy<void>['execute']> {
     const { quotes } = request;
 
     log('Executing', quotes);
@@ -69,7 +71,7 @@ export class TestStrategy implements PayStrategy<void> {
     return { transactionHash: undefined };
   }
 
-  #timeout(ms: number) {
+  #timeout(ms: number): Promise<void> {
     return new Promise((resolve) => setTimeout(resolve, ms));
   }
 }

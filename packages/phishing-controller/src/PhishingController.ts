@@ -1,14 +1,14 @@
-import {
-  BaseController,
-  type StateMetadata,
-  type ControllerGetStateAction,
-  type ControllerStateChangeEvent,
+import { BaseController } from '@metamask/base-controller';
+import type {
+  StateMetadata,
+  ControllerGetStateAction,
+  ControllerStateChangeEvent,
 } from '@metamask/base-controller';
 import {
   safelyExecute,
   safelyExecuteWithTimeout,
 } from '@metamask/controller-utils';
-import { type Messenger } from '@metamask/messenger';
+import type { Messenger } from '@metamask/messenger';
 import type {
   TransactionControllerStateChangeEvent,
   TransactionMeta,
@@ -16,26 +16,25 @@ import type {
 import type { Patch } from 'immer';
 import { toASCII } from 'punycode/punycode.js';
 
-import { CacheManager, type CacheEntry } from './CacheManager';
-import {
-  type PathTrie,
-  convertListToTrie,
-  insertToTrie,
-  matchedPathPrefix,
-} from './PathTrie';
+import { CacheManager } from './CacheManager';
+import type { CacheEntry } from './CacheManager';
+import { convertListToTrie, insertToTrie, matchedPathPrefix } from './PathTrie';
+import type { PathTrie } from './PathTrie';
 import { PhishingDetector } from './PhishingDetector';
 import {
   PhishingDetectorResultType,
-  type PhishingDetectorResult,
-  type PhishingDetectionScanResult,
   RecommendedAction,
-  type TokenScanCacheData,
-  type BulkTokenScanResponse,
-  type BulkTokenScanRequest,
-  type TokenScanApiResponse,
-  type AddressScanCacheData,
-  type AddressScanResult,
   AddressScanResultType,
+} from './types';
+import type {
+  PhishingDetectorResult,
+  PhishingDetectionScanResult,
+  TokenScanCacheData,
+  BulkTokenScanResponse,
+  BulkTokenScanRequest,
+  TokenScanApiResponse,
+  AddressScanCacheData,
+  AddressScanResult,
 } from './types';
 import {
   applyDiffs,

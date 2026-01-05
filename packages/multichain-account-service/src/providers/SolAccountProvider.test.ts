@@ -7,7 +7,9 @@ import type {
 } from '@metamask/keyring-internal-api';
 
 import { AccountProviderWrapper } from './AccountProviderWrapper';
+import { SnapAccountProviderConfig } from './SnapAccountProvider';
 import {
+  SOL_ACCOUNT_PROVIDER_DEFAULT_CONFIG,
   SOL_ACCOUNT_PROVIDER_NAME,
   SolAccountProvider,
 } from './SolAccountProvider';
@@ -20,8 +22,8 @@ import {
   MOCK_SOL_ACCOUNT_1,
   MOCK_SOL_DISCOVERED_ACCOUNT_1,
   MockAccountBuilder,
-  type RootMessenger,
 } from '../tests';
+import type { RootMessenger } from '../tests';
 
 class MockSolanaKeyring {
   readonly type = 'MockSolanaKeyring';
@@ -92,14 +94,17 @@ class MockSolAccountProvider extends SolAccountProvider {
  * @param options - Configuration options for setup.
  * @param options.messenger - An optional messenger instance to use. Defaults to a new Messenger.
  * @param options.accounts - List of accounts to use.
+ * @param options.config - Provider config.
  * @returns An object containing the controller instance and the messenger.
  */
 function setup({
   messenger = getRootMessenger(),
   accounts = [],
+  config,
 }: {
   messenger?: RootMessenger;
   accounts?: InternalAccount[];
+  config?: SnapAccountProviderConfig;
 } = {}): {
   provider: AccountProviderWrapper;
   messenger: RootMessenger;
@@ -152,7 +157,7 @@ function setup({
   const multichainMessenger = getMultichainAccountServiceMessenger(messenger);
   const provider = new AccountProviderWrapper(
     multichainMessenger,
-    new MockSolAccountProvider(multichainMessenger, undefined, mockTrace),
+    new MockSolAccountProvider(multichainMessenger, config, mockTrace),
   );
 
   return {
@@ -327,6 +332,26 @@ describe('SolAccountProvider', () => {
     });
 
     expect(discovered).toStrictEqual([]);
+  });
+
+  it('does not run discovery if disabled', async () => {
+    const { provider } = setup({
+      accounts: [MOCK_SOL_ACCOUNT_1],
+      config: {
+        ...SOL_ACCOUNT_PROVIDER_DEFAULT_CONFIG,
+        discovery: {
+          ...SOL_ACCOUNT_PROVIDER_DEFAULT_CONFIG.discovery,
+          enabled: false,
+        },
+      },
+    });
+
+    expect(
+      await provider.discoverAccounts({
+        entropySource: MOCK_HD_KEYRING_1.metadata.id,
+        groupIndex: 0,
+      }),
+    ).toStrictEqual([]);
   });
 
   describe('trace functionality', () => {

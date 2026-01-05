@@ -1,7 +1,9 @@
 import { BUILT_IN_NETWORKS, NetworkType } from '@metamask/controller-utils';
+import { PollingBlockTrackerOptions } from '@metamask/eth-block-tracker';
 
 import { createAutoManagedNetworkClient } from './create-auto-managed-network-client';
 import * as createNetworkClientModule from './create-network-client';
+import { RpcServiceOptions } from './rpc-service/rpc-service';
 import type {
   CustomNetworkClientConfiguration,
   InfuraNetworkClientConfiguration,
@@ -35,6 +37,7 @@ describe('createAutoManagedNetworkClient', () => {
     describe(`given configuration for a ${networkClientConfiguration.type} network client`, () => {
       it('allows the network client configuration to be accessed', () => {
         const { configuration } = createAutoManagedNetworkClient({
+          networkClientId: 'some-network-client-id',
           networkClientConfiguration,
           getRpcServiceOptions: () => ({
             fetch,
@@ -51,6 +54,7 @@ describe('createAutoManagedNetworkClient', () => {
         // If unexpected requests occurred, then Nock would throw
         expect(() => {
           createAutoManagedNetworkClient({
+            networkClientId: 'some-network-client-id',
             networkClientConfiguration,
             getRpcServiceOptions: () => ({
               fetch,
@@ -64,6 +68,7 @@ describe('createAutoManagedNetworkClient', () => {
 
       it('returns a provider proxy that has the same interface as a provider', () => {
         const { provider } = createAutoManagedNetworkClient({
+          networkClientId: 'some-network-client-id',
           networkClientConfiguration,
           getRpcServiceOptions: () => ({
             fetch,
@@ -97,6 +102,7 @@ describe('createAutoManagedNetworkClient', () => {
           });
 
           const { provider } = createAutoManagedNetworkClient({
+            networkClientId: 'some-network-client-id',
             networkClientConfiguration,
             getRpcServiceOptions: () => ({
               fetch,
@@ -135,16 +141,20 @@ describe('createAutoManagedNetworkClient', () => {
             createNetworkClientModule,
             'createNetworkClient',
           );
-          const getRpcServiceOptions = () => ({
+          const getRpcServiceOptions = (): Omit<
+            RpcServiceOptions,
+            'failoverService' | 'endpointUrl'
+          > => ({
             btoa,
             fetch,
           });
-          const getBlockTrackerOptions = () => ({
+          const getBlockTrackerOptions = (): PollingBlockTrackerOptions => ({
             pollingInterval: 5000,
           });
           const messenger = buildNetworkControllerMessenger();
 
           const { provider } = createAutoManagedNetworkClient({
+            networkClientId: 'some-network-client-id',
             networkClientConfiguration,
             getRpcServiceOptions,
             getBlockTrackerOptions,
@@ -166,6 +176,7 @@ describe('createAutoManagedNetworkClient', () => {
           });
           expect(createNetworkClientMock).toHaveBeenCalledTimes(1);
           expect(createNetworkClientMock).toHaveBeenCalledWith({
+            id: 'some-network-client-id',
             configuration: networkClientConfiguration,
             getRpcServiceOptions,
             getBlockTrackerOptions,
@@ -194,16 +205,20 @@ describe('createAutoManagedNetworkClient', () => {
             createNetworkClientModule,
             'createNetworkClient',
           );
-          const getRpcServiceOptions = () => ({
+          const getRpcServiceOptions = (): Omit<
+            RpcServiceOptions,
+            'failoverService' | 'endpointUrl'
+          > => ({
             btoa,
             fetch,
           });
-          const getBlockTrackerOptions = () => ({
+          const getBlockTrackerOptions = (): PollingBlockTrackerOptions => ({
             pollingInterval: 5000,
           });
           const messenger = buildNetworkControllerMessenger();
 
           const autoManagedNetworkClient = createAutoManagedNetworkClient({
+            networkClientId: 'some-network-client-id',
             networkClientConfiguration,
             getRpcServiceOptions,
             getBlockTrackerOptions,
@@ -227,6 +242,7 @@ describe('createAutoManagedNetworkClient', () => {
           });
 
           expect(createNetworkClientMock).toHaveBeenNthCalledWith(1, {
+            id: 'some-network-client-id',
             configuration: networkClientConfiguration,
             getRpcServiceOptions,
             getBlockTrackerOptions,
@@ -234,6 +250,7 @@ describe('createAutoManagedNetworkClient', () => {
             isRpcFailoverEnabled: false,
           });
           expect(createNetworkClientMock).toHaveBeenNthCalledWith(2, {
+            id: 'some-network-client-id',
             configuration: networkClientConfiguration,
             getRpcServiceOptions,
             getBlockTrackerOptions,
@@ -262,16 +279,20 @@ describe('createAutoManagedNetworkClient', () => {
             createNetworkClientModule,
             'createNetworkClient',
           );
-          const getRpcServiceOptions = () => ({
+          const getRpcServiceOptions = (): Omit<
+            RpcServiceOptions,
+            'failoverService' | 'endpointUrl'
+          > => ({
             btoa,
             fetch,
           });
-          const getBlockTrackerOptions = () => ({
+          const getBlockTrackerOptions = (): PollingBlockTrackerOptions => ({
             pollingInterval: 5000,
           });
           const messenger = buildNetworkControllerMessenger();
 
           const autoManagedNetworkClient = createAutoManagedNetworkClient({
+            networkClientId: 'some-network-client-id',
             networkClientConfiguration,
             getRpcServiceOptions,
             getBlockTrackerOptions,
@@ -295,6 +316,7 @@ describe('createAutoManagedNetworkClient', () => {
           });
 
           expect(createNetworkClientMock).toHaveBeenNthCalledWith(1, {
+            id: 'some-network-client-id',
             configuration: networkClientConfiguration,
             getRpcServiceOptions,
             getBlockTrackerOptions,
@@ -302,6 +324,7 @@ describe('createAutoManagedNetworkClient', () => {
             isRpcFailoverEnabled: true,
           });
           expect(createNetworkClientMock).toHaveBeenNthCalledWith(2, {
+            id: 'some-network-client-id',
             configuration: networkClientConfiguration,
             getRpcServiceOptions,
             getBlockTrackerOptions,
@@ -313,6 +336,7 @@ describe('createAutoManagedNetworkClient', () => {
 
       it('returns a block tracker proxy that has the same interface as a block tracker', () => {
         const { blockTracker } = createAutoManagedNetworkClient({
+          networkClientId: 'some-network-client-id',
           networkClientConfiguration,
           getRpcServiceOptions: () => ({
             fetch,
@@ -372,6 +396,7 @@ describe('createAutoManagedNetworkClient', () => {
           });
 
           const { blockTracker } = createAutoManagedNetworkClient({
+            networkClientId: 'some-network-client-id',
             networkClientConfiguration,
             getRpcServiceOptions: () => ({
               fetch,
@@ -388,6 +413,8 @@ describe('createAutoManagedNetworkClient', () => {
           const blockNumberViaSync = await new Promise((resolve) => {
             blockTracker.once('sync', resolve);
           });
+          // False positive.
+          // eslint-disable-next-line n/no-sync
           expect(blockNumberViaSync).toStrictEqual({
             oldBlock: '0x1',
             newBlock: '0x2',
@@ -431,16 +458,20 @@ describe('createAutoManagedNetworkClient', () => {
             createNetworkClientModule,
             'createNetworkClient',
           );
-          const getRpcServiceOptions = () => ({
+          const getRpcServiceOptions = (): Omit<
+            RpcServiceOptions,
+            'failoverService' | 'endpointUrl'
+          > => ({
             btoa,
             fetch,
           });
-          const getBlockTrackerOptions = () => ({
+          const getBlockTrackerOptions = (): PollingBlockTrackerOptions => ({
             pollingInterval: 5000,
           });
           const messenger = buildNetworkControllerMessenger();
 
           const { blockTracker } = createAutoManagedNetworkClient({
+            networkClientId: 'some-network-client-id',
             networkClientConfiguration,
             getRpcServiceOptions,
             getBlockTrackerOptions,
@@ -458,6 +489,7 @@ describe('createAutoManagedNetworkClient', () => {
           await blockTracker.checkForLatestBlock();
           expect(createNetworkClientMock).toHaveBeenCalledTimes(1);
           expect(createNetworkClientMock).toHaveBeenCalledWith({
+            id: 'some-network-client-id',
             configuration: networkClientConfiguration,
             getRpcServiceOptions,
             getBlockTrackerOptions,
@@ -486,16 +518,20 @@ describe('createAutoManagedNetworkClient', () => {
             createNetworkClientModule,
             'createNetworkClient',
           );
-          const getRpcServiceOptions = () => ({
+          const getRpcServiceOptions = (): Omit<
+            RpcServiceOptions,
+            'failoverService' | 'endpointUrl'
+          > => ({
             btoa,
             fetch,
           });
-          const getBlockTrackerOptions = () => ({
+          const getBlockTrackerOptions = (): PollingBlockTrackerOptions => ({
             pollingInterval: 5000,
           });
           const messenger = buildNetworkControllerMessenger();
 
           const autoManagedNetworkClient = createAutoManagedNetworkClient({
+            networkClientId: 'some-network-client-id',
             networkClientConfiguration,
             getRpcServiceOptions,
             getBlockTrackerOptions,
@@ -513,6 +549,7 @@ describe('createAutoManagedNetworkClient', () => {
           });
 
           expect(createNetworkClientMock).toHaveBeenNthCalledWith(1, {
+            id: 'some-network-client-id',
             configuration: networkClientConfiguration,
             getRpcServiceOptions,
             getBlockTrackerOptions,
@@ -520,6 +557,7 @@ describe('createAutoManagedNetworkClient', () => {
             isRpcFailoverEnabled: false,
           });
           expect(createNetworkClientMock).toHaveBeenNthCalledWith(2, {
+            id: 'some-network-client-id',
             configuration: networkClientConfiguration,
             getRpcServiceOptions,
             getBlockTrackerOptions,
@@ -548,16 +586,20 @@ describe('createAutoManagedNetworkClient', () => {
             createNetworkClientModule,
             'createNetworkClient',
           );
-          const getRpcServiceOptions = () => ({
+          const getRpcServiceOptions = (): Omit<
+            RpcServiceOptions,
+            'failoverService' | 'endpointUrl'
+          > => ({
             btoa,
             fetch,
           });
-          const getBlockTrackerOptions = () => ({
+          const getBlockTrackerOptions = (): PollingBlockTrackerOptions => ({
             pollingInterval: 5000,
           });
           const messenger = buildNetworkControllerMessenger();
 
           const autoManagedNetworkClient = createAutoManagedNetworkClient({
+            networkClientId: 'some-network-client-id',
             networkClientConfiguration,
             getRpcServiceOptions,
             getBlockTrackerOptions,
@@ -575,6 +617,7 @@ describe('createAutoManagedNetworkClient', () => {
           });
 
           expect(createNetworkClientMock).toHaveBeenNthCalledWith(1, {
+            id: 'some-network-client-id',
             configuration: networkClientConfiguration,
             getRpcServiceOptions,
             getBlockTrackerOptions,
@@ -582,6 +625,7 @@ describe('createAutoManagedNetworkClient', () => {
             isRpcFailoverEnabled: true,
           });
           expect(createNetworkClientMock).toHaveBeenNthCalledWith(2, {
+            id: 'some-network-client-id',
             configuration: networkClientConfiguration,
             getRpcServiceOptions,
             getBlockTrackerOptions,
@@ -608,6 +652,7 @@ describe('createAutoManagedNetworkClient', () => {
         ],
       });
       const { blockTracker, destroy } = createAutoManagedNetworkClient({
+        networkClientId: 'some-network-client-id',
         networkClientConfiguration,
         getRpcServiceOptions: () => ({
           fetch,

@@ -1,6 +1,7 @@
 import { ChainId, hexToBN, query, toHex } from '@metamask/controller-utils';
 import type EthQuery from '@metamask/eth-query';
-import { createModuleLogger, type Hex } from '@metamask/utils';
+import { createModuleLogger } from '@metamask/utils';
+import type { Hex } from '@metamask/utils';
 import type BN from 'bn.js';
 
 import { DefaultGasFeeFlow } from './DefaultGasFeeFlow';
@@ -153,7 +154,7 @@ export class LineaGasFeeFlow implements GasFeeFlow {
     };
   }
 
-  #feesToString(fees: FeesByLevel) {
+  #feesToString(fees: FeesByLevel): string[] {
     return Object.values(GasFeeEstimateLevel).map((level) =>
       fees[level].toString(10),
     );

@@ -10,14 +10,10 @@ import { rpcErrors } from '@metamask/rpc-errors';
 import { isValidHexAddress } from '@metamask/utils';
 import type { JsonRpcRequest, Json, Hex } from '@metamask/utils';
 
-import {
-  createWalletRequestExecutionPermissionsHandler,
-  type ProcessRequestExecutionPermissionsHook,
-} from './methods/wallet-request-execution-permissions';
-import {
-  type ProcessRevokeExecutionPermissionHook,
-  createWalletRevokeExecutionPermissionHandler,
-} from './methods/wallet-revoke-execution-permission';
+import { createWalletRequestExecutionPermissionsHandler } from './methods/wallet-request-execution-permissions';
+import type { ProcessRequestExecutionPermissionsHook } from './methods/wallet-request-execution-permissions';
+import { createWalletRevokeExecutionPermissionHandler } from './methods/wallet-revoke-execution-permission';
+import type { ProcessRevokeExecutionPermissionHook } from './methods/wallet-revoke-execution-permission';
 import { stripArrayTypeIfPresent } from './utils/common';
 import { normalizeTypedMessage, parseTypedMessage } from './utils/normalize';
 import {
@@ -234,6 +230,8 @@ export function createWalletMiddleware({
     const params = request.params[0] as TransactionParams | undefined;
     const txParams: TransactionParams = {
       ...params,
+      // Not using nullish coalescing, since `params` may be `null`.
+      // eslint-disable-next-line @typescript-eslint/prefer-nullish-coalescing
       from: await validateAndNormalizeKeyholder(params?.from || '', context),
     };
     return await processTransaction(txParams, request, context);
@@ -265,6 +263,8 @@ export function createWalletMiddleware({
     const params = request.params[0] as TransactionParams | undefined;
     const txParams: TransactionParams = {
       ...params,
+      // Not using nullish coalescing, since `params` may be `null`.
+      // eslint-disable-next-line @typescript-eslint/prefer-nullish-coalescing
       from: await validateAndNormalizeKeyholder(params?.from || '', context),
     };
     return await processSignTransaction(txParams, request, context);
@@ -305,6 +305,8 @@ export function createWalletMiddleware({
     const message = params[0];
     const address = await validateAndNormalizeKeyholder(params[1], context);
     const version = 'V1';
+    // Not using nullish coalescing, since `params` may be `null`.
+    // eslint-disable-next-line @typescript-eslint/prefer-nullish-coalescing
     const extraParams = params[2] || {};
     const msgParams: TypedMessageV1Params = {
       ...extraParams,
@@ -426,6 +428,8 @@ export function createWalletMiddleware({
     const firstParam = params[0];
     const secondParam = params[1];
     // non-standard "extraParams" to be appended to our "msgParams" obj
+    // Not using nullish coalescing, since `params` may be `null`.
+    // eslint-disable-next-line @typescript-eslint/prefer-nullish-coalescing
     const extraParams = params[2] || {};
 
     // We initially incorrectly ordered these parameters.
@@ -547,6 +551,8 @@ export function createWalletMiddleware({
       params[1],
       context,
     );
+    // Not using nullish coalescing, since `params` may be `null`.
+    // eslint-disable-next-line @typescript-eslint/prefer-nullish-coalescing
     const extraParams = params[2] || {};
     const msgParams: MessageParams = {
       ...extraParams,
@@ -587,7 +593,7 @@ export function createWalletMiddleware({
  *
  * @param data - The data passed in typedSign request.
  */
-function validatePrimaryType(data: string) {
+function validatePrimaryType(data: string): void {
   const { primaryType, types } = parseTypedMessage(data);
   if (!types) {
     throw rpcErrors.invalidInput();
@@ -612,7 +618,7 @@ function validatePrimaryType(data: string) {
  * - The string "cosmos" (as it is hard-coded in some Cosmos ecosystem's EVM adapters)
  * - An empty string
  */
-function validateVerifyingContract(data: string) {
+function validateVerifyingContract(data: string): void {
   const { domain: { verifyingContract } = {} } = parseTypedMessage(data);
   // Explicit check for cosmos here has been added to address this issue
   // https://github.com/MetaMask/eth-json-rpc-middleware/issues/337

@@ -1,3 +1,4 @@
+import { Hex } from '@metamask/utils';
 import BN from 'bn.js';
 
 import * as util from './utils';
@@ -314,7 +315,7 @@ describe('utils', () => {
     });
 
     it('converts ethers-like BigNumber with toHexString', () => {
-      const bigNumberLike = { toHexString: () => '0x2a' };
+      const bigNumberLike = { toHexString: (): Hex => '0x2a' };
       const result = util.toBN(bigNumberLike);
       expect(result.eq(new BN(42))).toBe(true);
     });

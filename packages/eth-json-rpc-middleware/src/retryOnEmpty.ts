@@ -63,9 +63,7 @@ export function createRetryOnEmptyMiddleware({
         ? (request.params[blockRefIndex] as string)
         : undefined;
     // omitted blockRef implies "latest"
-    if (blockRef === undefined) {
-      blockRef = 'latest';
-    }
+    blockRef ??= 'latest';
 
     // skip if non-number block reference
     if (['latest', 'pending'].includes(blockRef)) {
@@ -137,9 +135,9 @@ async function retry<Result>(
   for (let index = 0; index < maxRetries; index++) {
     try {
       return await asyncFn();
-    } catch (err: unknown) {
-      if (isExecutionRevertedError(err)) {
-        throw err as unknown;
+    } catch (error: unknown) {
+      if (isExecutionRevertedError(error)) {
+        throw error as unknown;
       }
       log('(call %i) Request failed, waiting 1s to retry again...', index + 1);
       await timeout(1000);

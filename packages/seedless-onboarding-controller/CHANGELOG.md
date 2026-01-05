@@ -9,6 +9,17 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ### Changed
 
+- Upgrade `@metamask/utils` from `^11.8.1` to `^11.9.0` ([#7511](https://github.com/MetaMask/core/pull/7511))
+
+## [7.1.0]
+
+### Added
+
+- Added new public method,`preloadToprfNodeDetails` to pre-load the TROPF Node details. ([#7300](https://github.com/MetaMask/core/pull/7300))
+
+### Changed
+
+- Bump `@metamask/toprf-secure-backup` to `0.11.0`. ([#7300](https://github.com/MetaMask/core/pull/7300))
 - Move peer dependencies for controller and service packages to direct dependencies ([#7209](https://github.com/MetaMask/core/pull/7209))
   - The dependencies moved are:
     - `@metamask/keyring-controller` (^25.0.0)
@@ -247,7 +258,8 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
     - `checkIsPasswordOutdated`: Check if the password is current device is outdated, i.e. user changed password in another device.
     - `clearState`: Reset the state of the controller to the defaults.
 
-[Unreleased]: https://github.com/MetaMask/core/compare/@metamask/seedless-onboarding-controller@7.0.0...HEAD
+[Unreleased]: https://github.com/MetaMask/core/compare/@metamask/seedless-onboarding-controller@7.1.0...HEAD
+[7.1.0]: https://github.com/MetaMask/core/compare/@metamask/seedless-onboarding-controller@7.0.0...@metamask/seedless-onboarding-controller@7.1.0
 [7.0.0]: https://github.com/MetaMask/core/compare/@metamask/seedless-onboarding-controller@6.1.0...@metamask/seedless-onboarding-controller@7.0.0
 [6.1.0]: https://github.com/MetaMask/core/compare/@metamask/seedless-onboarding-controller@6.0.0...@metamask/seedless-onboarding-controller@6.1.0
 [6.0.0]: https://github.com/MetaMask/core/compare/@metamask/seedless-onboarding-controller@5.0.0...@metamask/seedless-onboarding-controller@6.0.0

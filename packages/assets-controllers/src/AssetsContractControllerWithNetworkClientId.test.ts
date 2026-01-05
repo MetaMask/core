@@ -489,7 +489,7 @@ describe('AssetsContractController with NetworkClientId', () => {
       ],
     });
     const errorLogSpy = jest
-      .spyOn(console, 'error')
+      .spyOn(console, 'warn')
       .mockImplementationOnce(() => {
         /**/
       });

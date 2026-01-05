@@ -1,4 +1,7 @@
-import type { InfuraNetworkType } from '@metamask/controller-utils';
+import type {
+  CockatielFailureReason,
+  InfuraNetworkType,
+} from '@metamask/controller-utils';
 import { ChainId } from '@metamask/controller-utils';
 import type { PollingBlockTrackerOptions } from '@metamask/eth-block-tracker';
 import { PollingBlockTracker } from '@metamask/eth-block-tracker';
@@ -26,7 +29,10 @@ import type {
 import type { Hex, Json, JsonRpcRequest } from '@metamask/utils';
 import type { Logger } from 'loglevel';
 
-import type { NetworkControllerMessenger } from './NetworkController';
+import type {
+  NetworkClientId,
+  NetworkControllerMessenger,
+} from './NetworkController';
 import type { RpcServiceOptions } from './rpc-service/rpc-service';
 import { RpcServiceChain } from './rpc-service/rpc-service-chain';
 import type {
@@ -59,6 +65,8 @@ type RpcApiMiddleware = JsonRpcMiddleware<
  * Create a JSON RPC network client for a specific network.
  *
  * @param args - The arguments.
+ * @param args.id - The ID that will be assigned to the new network client in
+ * the registry.
  * @param args.configuration - The network configuration.
  * @param args.getRpcServiceOptions - Factory for constructing RPC service
  * options. See {@link NetworkControllerOptions.getRpcServiceOptions}.
@@ -74,6 +82,7 @@ type RpcApiMiddleware = JsonRpcMiddleware<
  * @returns The network client.
  */
 export function createNetworkClient({
+  id,
   configuration,
   getRpcServiceOptions,
   getBlockTrackerOptions,
@@ -81,6 +90,7 @@ export function createNetworkClient({
   isRpcFailoverEnabled,
   logger,
 }: {
+  id: NetworkClientId;
   configuration: NetworkClientConfiguration;
   getRpcServiceOptions: (
     rpcEndpointUrl: string,
@@ -96,50 +106,14 @@ export function createNetworkClient({
     configuration.type === NetworkClientType.Infura
       ? `https://${configuration.network}.infura.io/v3/${configuration.infuraProjectId}`
       : configuration.rpcUrl;
-  const availableEndpointUrls = isRpcFailoverEnabled
-    ? [primaryEndpointUrl, ...(configuration.failoverRpcUrls ?? [])]
-    : [primaryEndpointUrl];
-  const rpcServiceChain = new RpcServiceChain(
-    availableEndpointUrls.map((endpointUrl) => ({
-      ...getRpcServiceOptions(endpointUrl),
-      endpointUrl,
-      logger,
-    })),
-  );
-  rpcServiceChain.onBreak(({ endpointUrl, failoverEndpointUrl, ...rest }) => {
-    let error: unknown;
-    if ('error' in rest) {
-      error = rest.error;
-    } else if ('value' in rest) {
-      error = rest.value;
-    }
-
-    messenger.publish('NetworkController:rpcEndpointUnavailable', {
-      chainId: configuration.chainId,
-      endpointUrl,
-      failoverEndpointUrl,
-      error,
-    });
-  });
-  rpcServiceChain.onDegraded(({ endpointUrl, ...rest }) => {
-    let error: unknown;
-    if ('error' in rest) {
-      error = rest.error;
-    } else if ('value' in rest) {
-      error = rest.value;
-    }
-
-    messenger.publish('NetworkController:rpcEndpointDegraded', {
-      chainId: configuration.chainId,
-      endpointUrl,
-      error,
-    });
-  });
-  rpcServiceChain.onRetry(({ endpointUrl, attempt }) => {
-    messenger.publish('NetworkController:rpcEndpointRequestRetried', {
-      endpointUrl,
-      attempt,
-    });
+  const rpcServiceChain = createRpcServiceChain({
+    id,
+    primaryEndpointUrl,
+    configuration,
+    getRpcServiceOptions,
+    messenger,
+    isRpcFailoverEnabled,
+    logger,
   });
 
   let rpcApiMiddleware: RpcApiMiddleware;
@@ -185,13 +159,186 @@ export function createNetworkClient({
     }),
   });
 
-  const destroy = () => {
+  const destroy = (): void => {
     // TODO: Either fix this lint violation or explain why it's necessary to ignore.
     // eslint-disable-next-line @typescript-eslint/no-floating-promises
     blockTracker.destroy();
   };
 
   return { configuration, provider, blockTracker, destroy };
+}
+
+/**
+ * Creates an RPC service chain, which represents the primary endpoint URL for
+ * the network as well as its failover URLs.
+ *
+ * @param args - The arguments.
+ * @param args.id - The ID that will be assigned to the new network client in
+ * the registry.
+ * @param args.primaryEndpointUrl - The primary endpoint URL.
+ * @param args.configuration - The network configuration.
+ * @param args.getRpcServiceOptions - Factory for constructing RPC service
+ * options. See {@link NetworkControllerOptions.getRpcServiceOptions}.
+ * @param args.messenger - The network controller messenger.
+ * @param args.isRpcFailoverEnabled - Whether or not requests sent to the
+ * primary RPC endpoint for this network should be automatically diverted to
+ * provided failover endpoints if the primary is unavailable. This effectively
+ * causes the `failoverRpcUrls` property of the network client configuration
+ * to be honored or ignored.
+ * @param args.logger - A `loglevel` logger.
+ * @returns The RPC service chain.
+ */
+function createRpcServiceChain({
+  id,
+  primaryEndpointUrl,
+  configuration,
+  getRpcServiceOptions,
+  messenger,
+  isRpcFailoverEnabled,
+  logger,
+}: {
+  id: NetworkClientId;
+  primaryEndpointUrl: string;
+  configuration: NetworkClientConfiguration;
+  getRpcServiceOptions: (
+    rpcEndpointUrl: string,
+  ) => Omit<RpcServiceOptions, 'failoverService' | 'endpointUrl'>;
+  messenger: NetworkControllerMessenger;
+  isRpcFailoverEnabled: boolean;
+  logger?: Logger;
+}): RpcServiceChain {
+  const availableEndpointUrls: [string, ...string[]] = isRpcFailoverEnabled
+    ? [primaryEndpointUrl, ...(configuration.failoverRpcUrls ?? [])]
+    : [primaryEndpointUrl];
+  const rpcServiceConfigurations = availableEndpointUrls.map((endpointUrl) => ({
+    ...getRpcServiceOptions(endpointUrl),
+    endpointUrl,
+    logger,
+  }));
+
+  /**
+   * Extracts the error from Cockatiel's `FailureReason` type received in
+   * circuit breaker event handlers.
+   *
+   * The `FailureReason` object can have two possible shapes:
+   * - `{ error: Error }` - When the RPC service throws an error (the common
+   * case for RPC failures).
+   * - `{ value: T }` - When the RPC service returns a value that the retry
+   * filter policy considers a failure.
+   *
+   * @param value - The event data object from the circuit breaker event
+   * listener (after destructuring known properties like `endpointUrl`). This
+   * represents Cockatiel's `FailureReason` type.
+   * @returns The error or failure value, or `undefined` if neither property
+   * exists (which shouldn't happen in practice unless the circuit breaker is
+   * manually isolated).
+   */
+  const getError = (
+    value: CockatielFailureReason<unknown> | Record<never, never>,
+  ): Error | unknown | undefined => {
+    if ('error' in value) {
+      return value.error;
+    } else if ('value' in value) {
+      return value.value;
+    }
+    return undefined;
+  };
+
+  const rpcServiceChain = new RpcServiceChain([
+    rpcServiceConfigurations[0],
+    ...rpcServiceConfigurations.slice(1),
+  ]);
+
+  rpcServiceChain.onBreak((data) => {
+    const error = getError(data);
+
+    if (error === undefined) {
+      // This error shouldn't happen in practice because we never call `.isolate`
+      // on the circuit breaker policy, but we need to appease TypeScript.
+      throw new Error('Could not make request to endpoint.');
+    }
+
+    messenger.publish('NetworkController:rpcEndpointChainUnavailable', {
+      chainId: configuration.chainId,
+      networkClientId: id,
+      error,
+    });
+  });
+
+  rpcServiceChain.onServiceBreak(
+    ({
+      endpointUrl,
+      primaryEndpointUrl: primaryEndpointUrlFromEvent,
+      ...rest
+    }) => {
+      const error = getError(rest);
+
+      if (error === undefined) {
+        // This error shouldn't happen in practice because we never call `.isolate`
+        // on the circuit breaker policy, but we need to appease TypeScript.
+        throw new Error('Could not make request to endpoint.');
+      }
+
+      messenger.publish('NetworkController:rpcEndpointUnavailable', {
+        chainId: configuration.chainId,
+        networkClientId: id,
+        primaryEndpointUrl: primaryEndpointUrlFromEvent,
+        endpointUrl,
+        error,
+      });
+    },
+  );
+
+  rpcServiceChain.onDegraded((data) => {
+    const error = getError(data);
+    messenger.publish('NetworkController:rpcEndpointChainDegraded', {
+      chainId: configuration.chainId,
+      networkClientId: id,
+      error,
+    });
+  });
+
+  rpcServiceChain.onServiceDegraded(
+    ({
+      endpointUrl,
+      primaryEndpointUrl: primaryEndpointUrlFromEvent,
+      ...rest
+    }) => {
+      const error = getError(rest);
+      messenger.publish('NetworkController:rpcEndpointDegraded', {
+        chainId: configuration.chainId,
+        networkClientId: id,
+        primaryEndpointUrl: primaryEndpointUrlFromEvent,
+        endpointUrl,
+        error,
+      });
+    },
+  );
+
+  rpcServiceChain.onAvailable(() => {
+    messenger.publish('NetworkController:rpcEndpointChainAvailable', {
+      chainId: configuration.chainId,
+      networkClientId: id,
+    });
+  });
+
+  rpcServiceChain.onServiceRetry(
+    ({
+      attempt,
+      endpointUrl,
+      primaryEndpointUrl: primaryEndpointUrlFromEvent,
+    }) => {
+      messenger.publish('NetworkController:rpcEndpointRetried', {
+        chainId: configuration.chainId,
+        networkClientId: id,
+        primaryEndpointUrl: primaryEndpointUrlFromEvent,
+        endpointUrl,
+        attempt,
+      });
+    },
+  );
+
+  return rpcServiceChain;
 }
 
 /**
@@ -218,8 +365,10 @@ function createBlockTracker({
     rpcEndpointUrl: string,
   ) => Omit<PollingBlockTrackerOptions, 'provider'>;
   provider: InternalProvider;
-}) {
+}): PollingBlockTracker {
   const testOptions =
+    // Needed for testing.
+    // eslint-disable-next-line no-restricted-globals
     process.env.IN_TEST && networkClientType === NetworkClientType.Custom
       ? { pollingInterval: SECOND }
       : {};
@@ -251,7 +400,11 @@ function createInfuraNetworkMiddleware({
   network: InfuraNetworkType;
   rpcProvider: InternalProvider;
   rpcApiMiddleware: RpcApiMiddleware;
-}) {
+}): JsonRpcMiddleware<
+  JsonRpcRequest,
+  Json,
+  MiddlewareContext<{ origin: string; skipCache: boolean }>
+> {
   return JsonRpcEngineV2.create({
     middleware: [
       createNetworkAndChainIdMiddleware({ network }),
@@ -276,7 +429,7 @@ function createNetworkAndChainIdMiddleware({
   network,
 }: {
   network: InfuraNetworkType;
-}) {
+}): JsonRpcMiddleware<JsonRpcRequest> {
   return createScaffoldMiddleware({
     eth_chainId: ChainId[network],
   });
@@ -310,7 +463,13 @@ function createCustomNetworkMiddleware({
   blockTracker: PollingBlockTracker;
   chainId: Hex;
   rpcApiMiddleware: RpcApiMiddleware;
-}) {
+}): JsonRpcMiddleware<
+  JsonRpcRequest,
+  Json,
+  MiddlewareContext<{ origin: string; skipCache: boolean }>
+> {
+  // Needed for testing.
+  // eslint-disable-next-line no-restricted-globals
   const testMiddlewares = process.env.IN_TEST
     ? [createEstimateGasDelayTestMiddleware()]
     : [];

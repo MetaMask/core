@@ -19,6 +19,8 @@ import type { RemoteFeatureFlagControllerGetStateAction } from '@metamask/remote
 import type {
   AuthorizationList,
   TransactionControllerAddTransactionBatchAction,
+  TransactionControllerEstimateGasAction,
+  TransactionControllerEstimateGasBatchAction,
   TransactionControllerUnapprovedTransactionAddedEvent,
 } from '@metamask/transaction-controller';
 import type {
@@ -50,6 +52,8 @@ export type AllowedActions =
   | TokensControllerGetStateAction
   | TransactionControllerAddTransactionAction
   | TransactionControllerAddTransactionBatchAction
+  | TransactionControllerEstimateGasAction
+  | TransactionControllerEstimateGasBatchAction
   | TransactionControllerGetGasFeeTokensAction
   | TransactionControllerGetStateAction
   | TransactionControllerUpdateTransactionAction;

@@ -1,4 +1,4 @@
-import { type Bip44Account } from '@metamask/account-api';
+import type { Bip44Account } from '@metamask/account-api';
 import type { TraceCallback, TraceRequest } from '@metamask/controller-utils';
 import type { SnapKeyring } from '@metamask/eth-snap-keyring';
 import {
@@ -28,6 +28,7 @@ export type RestrictedSnapKeyringCreateAccount = (
 export type SnapAccountProviderConfig = {
   maxConcurrency?: number;
   discovery: {
+    enabled?: boolean;
     maxAttempts: number;
     timeoutMs: number;
     backOffMs: number;
@@ -71,6 +72,10 @@ export abstract class SnapAccountProvider extends BaseBip44AccountProvider {
     const maxConcurrency = config.maxConcurrency ?? Infinity;
     this.config = {
       ...config,
+      discovery: {
+        ...config.discovery,
+        enabled: config.discovery.enabled ?? true,
+      },
       maxConcurrency,
     };
 

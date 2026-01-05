@@ -8,10 +8,12 @@ import { Agent as HttpsAgent } from 'node:https';
 import { join, basename, extname, relative } from 'node:path';
 import { pipeline } from 'node:stream/promises';
 import { extract as extractTar } from 'tar';
-import { Open, type Source, type Entry } from 'unzipper';
+import { Open } from 'unzipper';
+import type { Source, Entry } from 'unzipper';
 
 import { startDownload } from './download';
-import { Extension, type Binary } from './types';
+import { Extension } from './types';
+import type { Binary } from './types';
 import { say } from './utils';
 
 /**

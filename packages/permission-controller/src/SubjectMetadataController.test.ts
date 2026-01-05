@@ -1,14 +1,16 @@
 import { deriveStateFromMetadata } from '@metamask/base-controller';
-import {
-  Messenger,
-  MOCK_ANY_NAMESPACE,
-  type MessengerActions,
-  type MessengerEvents,
-  type MockAnyNamespace,
+import { Messenger, MOCK_ANY_NAMESPACE } from '@metamask/messenger';
+import type {
+  MessengerActions,
+  MessengerEvents,
+  MockAnyNamespace,
 } from '@metamask/messenger';
 import type { Json } from '@metamask/utils';
 
-import type { SubjectMetadataControllerMessenger } from './SubjectMetadataController';
+import type {
+  SubjectMetadata,
+  SubjectMetadataControllerMessenger,
+} from './SubjectMetadataController';
 import {
   SubjectMetadataController,
   SubjectType,
@@ -44,7 +46,15 @@ function getRootMessenger(): RootMessenger {
  *
  * @returns A tuple containing the messenger and a spy for the "hasPermission" action handler
  */
-function getSubjectMetadataControllerMessenger() {
+function getSubjectMetadataControllerMessenger(): readonly [
+  Messenger<
+    typeof controllerName,
+    AllSubjectMetadataControllerActions,
+    AllSubjectMetadataControllerEvents,
+    RootMessenger
+  >,
+  jest.Mock,
+] {
   const rootMessenger = getRootMessenger();
 
   const hasPermissionsSpy = jest.fn();
@@ -85,7 +95,7 @@ function getSubjectMetadata(
   name: string | null = null,
   subjectType: SubjectType | null = null,
   opts?: Record<string, Json>,
-) {
+): SubjectMetadata {
   return {
     origin,
     name,

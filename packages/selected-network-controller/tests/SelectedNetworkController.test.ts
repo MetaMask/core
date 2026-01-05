@@ -1,17 +1,18 @@
 import { deriveStateFromMetadata } from '@metamask/base-controller';
-import {
-  Messenger,
-  MOCK_ANY_NAMESPACE,
-  type MessengerActions,
-  type MessengerEvents,
-  type MockAnyNamespace,
+import { Messenger, MOCK_ANY_NAMESPACE } from '@metamask/messenger';
+import type {
+  MessengerActions,
+  MessengerEvents,
+  MockAnyNamespace,
 } from '@metamask/messenger';
 import {
-  type ProviderProxy,
-  type BlockTrackerProxy,
-  type NetworkState,
   getDefaultNetworkControllerState,
   RpcEndpointType,
+} from '@metamask/network-controller';
+import type {
+  ProviderProxy,
+  BlockTrackerProxy,
+  NetworkState,
 } from '@metamask/network-controller';
 import {
   createEventEmitterProxy,

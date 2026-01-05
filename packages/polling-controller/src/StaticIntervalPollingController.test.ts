@@ -1,8 +1,5 @@
-import {
-  MOCK_ANY_NAMESPACE,
-  Messenger,
-  type MockAnyNamespace,
-} from '@metamask/messenger';
+import { MOCK_ANY_NAMESPACE, Messenger } from '@metamask/messenger';
+import type { MockAnyNamespace } from '@metamask/messenger';
 import { createDeferredPromise } from '@metamask/utils';
 import { useFakeTimers } from 'sinon';
 
@@ -28,7 +25,7 @@ class ChildBlockTrackerPollingController extends StaticIntervalPollingController
   any
 > {
   executePollPromises: {
-    reject: (err: unknown) => void;
+    reject: (error: unknown) => void;
     resolve: () => void;
   }[] = [];
 

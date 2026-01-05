@@ -1,10 +1,9 @@
 import { distance } from 'fastest-levenshtein';
 
-import { matchedPathPrefix, type PathTrie } from './PathTrie';
-import {
-  PhishingDetectorResultType,
-  type PhishingDetectorResult,
-} from './types';
+import { matchedPathPrefix } from './PathTrie';
+import type { PathTrie } from './PathTrie';
+import { PhishingDetectorResultType } from './types';
+import type { PhishingDetectorResult } from './types';
 import {
   domainPartsToDomain,
   domainPartsToFuzzyForm,

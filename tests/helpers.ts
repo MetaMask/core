@@ -24,10 +24,11 @@ export async function advanceTime({
   duration: number;
   stepSize?: number;
 }): Promise<void> {
+  let value = duration;
   do {
     await clock.tickAsync(stepSize);
-    duration -= stepSize;
-  } while (duration > 0);
+    value -= stepSize;
+  } while (value > 0);
 }
 
 /**
@@ -96,8 +97,8 @@ export function buildTestObject<Type extends Record<PropertyKey, unknown>>(
  * @param promiseOrFn - A promise that rejects, or a function that returns a
  * promise that rejects.
  */
-export async function ignoreRejection<T>(
-  promiseOrFn: Promise<T> | (() => T | Promise<T>),
-) {
+export async function ignoreRejection<Type>(
+  promiseOrFn: Promise<Type> | (() => Type | Promise<Type>),
+): Promise<void> {
   await expect(promiseOrFn).rejects.toThrow(expect.any(Error));
 }

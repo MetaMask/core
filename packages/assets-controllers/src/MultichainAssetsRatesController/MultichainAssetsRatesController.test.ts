@@ -1,23 +1,23 @@
 import { deriveStateFromMetadata } from '@metamask/base-controller';
+import type { CaipAssetType } from '@metamask/keyring-api';
 import { SolScope } from '@metamask/keyring-api';
 import { SolMethod } from '@metamask/keyring-api';
 import { SolAccountType } from '@metamask/keyring-api';
 import { KeyringTypes } from '@metamask/keyring-controller';
 import type { InternalAccount } from '@metamask/keyring-internal-api';
 import { KeyringClient } from '@metamask/keyring-snap-client';
-import {
-  MOCK_ANY_NAMESPACE,
-  Messenger,
-  type MessengerActions,
-  type MessengerEvents,
-  type MockAnyNamespace,
+import { MOCK_ANY_NAMESPACE, Messenger } from '@metamask/messenger';
+import type {
+  MessengerActions,
+  MessengerEvents,
+  MockAnyNamespace,
 } from '@metamask/messenger';
 import type { OnAssetHistoricalPriceResponse } from '@metamask/snaps-sdk';
 import { useFakeTimers } from 'sinon';
 import { v4 as uuidv4 } from 'uuid';
 
 import { MultichainAssetsRatesController } from '.';
-import { type MultichainAssetsRatesControllerMessenger } from './MultichainAssetsRatesController';
+import type { MultichainAssetsRatesControllerMessenger } from './MultichainAssetsRatesController';
 import { advanceTime } from '../../../../tests/helpers';
 
 type AllMultichainAssetsRateControllerActions =
@@ -147,7 +147,11 @@ const setupController = ({
     ConstructorParameters<typeof MultichainAssetsRatesController>[0]
   >;
   accountsAssets?: InternalAccount[];
-} = {}) => {
+} = {}): {
+  controller: MultichainAssetsRatesController;
+  messenger: RootMessenger;
+  updateSpy: jest.SpyInstance;
+} => {
   const messenger: RootMessenger = new Messenger({
     namespace: MOCK_ANY_NAMESPACE,
   });
@@ -1101,6 +1105,172 @@ describe('MultichainAssetsRatesController', () => {
         'solana:5eykt4UsFv8P8NJdTREpY1vzqKqZKvdp/slip44:501': {
           rate: '100.50',
           conversionTime: expect.any(Number),
+          currency: 'swift:0/iso4217:USD',
+        },
+      });
+    });
+  });
+
+  describe('dynamic asset fetching', () => {
+    it('should fetch rates for assets added after controller initialization', async () => {
+      const messenger: RootMessenger = new Messenger({
+        namespace: MOCK_ANY_NAMESPACE,
+      });
+
+      // Initially, MultichainAssetsController has no assets
+      let multichainAssets: Record<string, CaipAssetType[]> = {};
+
+      messenger.registerActionHandler(
+        'MultichainAssetsController:getState',
+        () => ({
+          accountsAssets: multichainAssets,
+          assetsMetadata: {
+            'solana:5eykt4UsFv8P8NJdTREpY1vzqKqZKvdp/slip44:501': {
+              name: 'Solana',
+              symbol: 'SOL',
+              fungible: true,
+              iconUrl: 'https://example.com/solana.png',
+              units: [{ symbol: 'SOL', name: 'Solana', decimals: 9 }],
+            },
+          },
+          allIgnoredAssets: {},
+        }),
+      );
+
+      messenger.registerActionHandler(
+        'AccountsController:listMultichainAccounts',
+        () => [
+          {
+            id: 'account1',
+            address: 'sol-address-1',
+            options: {},
+            methods: [SolMethod.SignMessage, SolMethod.SignTransaction],
+            type: SolAccountType.DataAccount,
+            metadata: {
+              name: 'Test Solana Account',
+              importTime: Date.now(),
+              keyring: {
+                type: KeyringTypes.snap,
+              },
+              snap: {
+                name: 'Test Snap',
+                id: 'test-snap',
+                enabled: true,
+              },
+            },
+            scopes: [SolScope.Mainnet],
+          },
+        ],
+      );
+
+      messenger.registerActionHandler(
+        'AccountsController:getSelectedMultichainAccount',
+        () => ({
+          id: 'account1',
+          address: 'sol-address-1',
+          options: {},
+          methods: [SolMethod.SignMessage, SolMethod.SignTransaction],
+          type: SolAccountType.DataAccount,
+          metadata: {
+            name: 'Test Solana Account',
+            importTime: Date.now(),
+            keyring: {
+              type: KeyringTypes.snap,
+            },
+            snap: {
+              name: 'Test Snap',
+              id: 'test-snap',
+              enabled: true,
+            },
+          },
+          scopes: [SolScope.Mainnet],
+        }),
+      );
+
+      messenger.registerActionHandler(
+        'CurrencyRateController:getState',
+        () => ({
+          currentCurrency: 'USD',
+          currencyRates: {},
+        }),
+      );
+
+      const snapHandler = jest.fn().mockResolvedValue({
+        conversionRates: {
+          'solana:5eykt4UsFv8P8NJdTREpY1vzqKqZKvdp/slip44:501': {
+            'swift:0/iso4217:USD': {
+              rate: '150.00',
+              conversionTime: Date.now(),
+            },
+          },
+        },
+      });
+
+      messenger.registerActionHandler(
+        'SnapController:handleRequest',
+        snapHandler,
+      );
+
+      const multichainAssetsRatesControllerMessenger = new Messenger<
+        'MultichainAssetsRatesController',
+        AllMultichainAssetsRateControllerActions,
+        AllMultichainAssetsRateControllerEvents,
+        RootMessenger
+      >({
+        namespace: 'MultichainAssetsRatesController',
+        parent: messenger,
+      });
+
+      messenger.delegate({
+        messenger: multichainAssetsRatesControllerMessenger,
+        actions: [
+          'MultichainAssetsController:getState',
+          'AccountsController:listMultichainAccounts',
+          'AccountsController:getSelectedMultichainAccount',
+          'CurrencyRateController:getState',
+          'SnapController:handleRequest',
+        ],
+        events: [
+          'KeyringController:lock',
+          'KeyringController:unlock',
+          'AccountsController:accountAdded',
+          'CurrencyRateController:stateChange',
+          'MultichainAssetsController:accountAssetListUpdated',
+        ],
+      });
+
+      jest
+        .spyOn(KeyringClient.prototype, 'listAccountAssets')
+        .mockResolvedValue([]);
+
+      const controller = new MultichainAssetsRatesController({
+        messenger: multichainAssetsRatesControllerMessenger,
+      });
+
+      // Initial fetch should return empty because no assets exist yet
+      await controller.updateAssetsRates();
+      expect(controller.state.conversionRates).toStrictEqual({});
+      expect(snapHandler).not.toHaveBeenCalled();
+
+      // Simulate new wallet import: MultichainAssetsController now has assets
+      multichainAssets = {
+        account1: ['solana:5eykt4UsFv8P8NJdTREpY1vzqKqZKvdp/slip44:501'],
+      };
+
+      jest
+        .spyOn(KeyringClient.prototype, 'listAccountAssets')
+        .mockResolvedValue([
+          'solana:5eykt4UsFv8P8NJdTREpY1vzqKqZKvdp/slip44:501',
+        ]);
+
+      // Fetch again - should now pick up the new assets
+      await controller.updateAssetsRates();
+
+      // Verify that rates were fetched for the newly added asset
+      expect(snapHandler).toHaveBeenCalled();
+      expect(controller.state.conversionRates).toMatchObject({
+        'solana:5eykt4UsFv8P8NJdTREpY1vzqKqZKvdp/slip44:501': {
+          rate: '150.00',
           currency: 'swift:0/iso4217:USD',
         },
       });
