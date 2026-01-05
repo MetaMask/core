@@ -1250,13 +1250,14 @@ export class BridgeStatusController extends StaticIntervalPollingController<Brid
     maxPriorityFeePerGas: Hex;
     gas?: Hex;
   }> => {
+    const gas = transactionParams.gas;
     // If txFee is provided (gasIncluded case), use the quote's gas fees
     // Convert to hex since txFee values from the quote are decimal strings
     if (txFee) {
       return {
         maxFeePerGas: toHex(txFee.maxFeePerGas ?? 0),
         maxPriorityFeePerGas: toHex(txFee.maxPriorityFeePerGas ?? 0),
-        gas: transactionParams.gas ? toHex(transactionParams.gas) : undefined,
+        gas: gas ? toHex(gas) : undefined,
       };
     }
 
@@ -1276,7 +1277,7 @@ export class BridgeStatusController extends StaticIntervalPollingController<Brid
     return {
       maxFeePerGas,
       maxPriorityFeePerGas,
-      gas: transactionParams.gas ? toHex(transactionParams.gas) : undefined,
+      gas: gas ? toHex(gas) : undefined,
     };
   };
 
