@@ -13,6 +13,7 @@ import type {
   ClaimsConfigurationsResponse,
   GenerateSignatureMessageResponse,
 } from './types';
+import { createSentryError, getErrorFromResponse } from './utils';
 
 export type ClaimsServiceFetchClaimsConfigurationsAction = {
   type: `${typeof SERVICE_NAME}:fetchClaimsConfigurations`;
@@ -143,6 +144,13 @@ export class ClaimsService {
     });
 
     if (!response.ok) {
+      const error = await getErrorFromResponse(response);
+      this.#messenger.captureException?.(
+        createSentryError(
+          ClaimsServiceErrorMessages.FAILED_TO_GET_CLAIMS,
+          error,
+        ),
+      );
       throw new Error(ClaimsServiceErrorMessages.FAILED_TO_GET_CLAIMS);
     }
 
@@ -164,6 +172,13 @@ export class ClaimsService {
     });
 
     if (!response.ok) {
+      const error = await getErrorFromResponse(response);
+      this.#messenger.captureException?.(
+        createSentryError(
+          ClaimsServiceErrorMessages.FAILED_TO_GET_CLAIM_BY_ID,
+          error,
+        ),
+      );
       throw new Error(ClaimsServiceErrorMessages.FAILED_TO_GET_CLAIM_BY_ID);
     }
 
@@ -197,6 +212,13 @@ export class ClaimsService {
     });
 
     if (!response.ok) {
+      const error = await getErrorFromResponse(response);
+      this.#messenger.captureException?.(
+        createSentryError(
+          ClaimsServiceErrorMessages.SIGNATURE_MESSAGE_GENERATION_FAILED,
+          error,
+        ),
+      );
       throw new Error(
         ClaimsServiceErrorMessages.SIGNATURE_MESSAGE_GENERATION_FAILED,
       );
