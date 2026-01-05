@@ -2677,6 +2677,7 @@ __metadata:
     "@metamask/snaps-utils": "npm:^11.7.0"
     "@metamask/transaction-controller": "npm:^62.9.2"
     "@metamask/utils": "npm:^11.9.0"
+    "@tanstack/query-core": "npm:^5.62.16"
     "@ts-bridge/cli": "npm:^0.6.4"
     "@types/bn.js": "npm:^5.1.5"
     "@types/jest": "npm:^27.4.1"
@@ -3034,6 +3035,7 @@ __metadata:
     "@metamask/messenger": "npm:^0.3.0"
     "@metamask/profile-sync-controller": "npm:^27.0.0"
     "@metamask/utils": "npm:^11.9.0"
+    "@tanstack/query-core": "npm:^5.62.16"
     "@ts-bridge/cli": "npm:^0.6.4"
     "@types/jest": "npm:^27.4.1"
     deepmerge: "npm:^4.2.2"
@@ -5728,6 +5730,13 @@ __metadata:
   version: 1.0.1
   resolution: "@stablelib/wipe@npm:1.0.1"
   checksum: 10/287802eb146810a46ba72af70b82022caf83a8aeebde23605f5ee0decf64fe2b97a60c856e43b6617b5801287c30cfa863cfb0469e7fcde6f02d143cf0c6cbf4
+  languageName: node
+  linkType: hard
+
+"@tanstack/query-core@npm:^5.62.16":
+  version: 5.90.16
+  resolution: "@tanstack/query-core@npm:5.90.16"
+  checksum: 10/25720ff6aa5888550351d92620ca62b6882e80da0fd0428be01c2c6cf4772e6678d7850b88f81916b3ab3fb49dad3b697a3ac84e9e6a90da482ef980c30b7566
   languageName: node
   linkType: hard
 

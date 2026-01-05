@@ -242,3 +242,170 @@ export type {
   TokenSearchItem,
   TokenRwaData,
 } from './token-service';
+
+// AssetsController - Unified asset management
+export {
+  AssetsController,
+  getDefaultAssetsControllerState,
+  AccountsApiDataSource,
+  createAccountsApiDataSource,
+  BackendWebsocketDataSource,
+  createBackendWebsocketDataSource,
+  RpcDataSource,
+  createRpcDataSource,
+  // Unified Snap Data Source (handles Solana, Bitcoin, Tron)
+  SnapDataSource,
+  createSnapDataSource,
+  SNAP_DATA_SOURCE_NAME,
+  // Snap IDs
+  SOLANA_SNAP_ID,
+  BITCOIN_SNAP_ID,
+  TRON_SNAP_ID,
+  // Chain prefixes
+  SOLANA_CHAIN_PREFIX,
+  BITCOIN_CHAIN_PREFIX,
+  TRON_CHAIN_PREFIX,
+  // Networks
+  SOLANA_MAINNET,
+  SOLANA_DEVNET,
+  SOLANA_TESTNET,
+  BITCOIN_MAINNET,
+  BITCOIN_TESTNET,
+  TRON_MAINNET,
+  TRON_SHASTA,
+  TRON_NILE,
+  TRON_MAINNET_HEX,
+  TRON_SHASTA_HEX,
+  TRON_NILE_HEX,
+  ALL_DEFAULT_NETWORKS,
+  // Poll intervals
+  DEFAULT_SOLANA_POLL_INTERVAL,
+  DEFAULT_BITCOIN_POLL_INTERVAL,
+  DEFAULT_TRON_POLL_INTERVAL,
+  DEFAULT_SNAP_POLL_INTERVAL,
+  // Snap registry
+  SNAP_REGISTRY,
+  // Helper functions
+  getSnapTypeForChain,
+  isSnapSupportedChain,
+  isSolanaChain,
+  isBitcoinChain,
+  isTronChain,
+} from './AssetsController';
+
+export type {
+  // State and messenger types
+  AssetsControllerState,
+  AssetsControllerMessenger,
+  AssetsControllerOptions,
+  AssetsControllerGetStateAction,
+  AssetsControllerGetAssetsAction,
+  AssetsControllerGetAssetsBalanceAction,
+  AssetsControllerGetAssetMetadataAction,
+  AssetsControllerGetAssetsPriceAction,
+  AssetsControllerActions,
+  AssetsControllerStateChangeEvent,
+  AssetsControllerBalanceChangedEvent,
+  AssetsControllerPriceChangedEvent,
+  AssetsControllerAssetsDetectedEvent,
+  AssetsControllerEvents,
+  // CAIP types
+  Caip19AssetId,
+  AccountId,
+  ChainId as AssetsControllerChainId,
+  // Asset types
+  AssetType as AssetsControllerAssetType,
+  TokenStandard,
+  // Metadata types
+  BaseAssetMetadata,
+  FungibleAssetMetadata,
+  ERC721AssetMetadata,
+  ERC1155AssetMetadata,
+  AssetMetadata,
+  // Price types
+  BaseAssetPrice,
+  FungibleAssetPrice,
+  NFTAssetPrice,
+  AssetPrice,
+  // Balance types
+  FungibleAssetBalance,
+  ERC721AssetBalance,
+  ERC1155AssetBalance,
+  AssetBalance,
+  // Data source types
+  DataType,
+  DataRequest,
+  DataResponse,
+  FetchContext,
+  FetchNextFunction,
+  FetchMiddleware,
+  RegisteredDataSource,
+  SubscriptionResponse,
+  // Combined asset type (renamed to avoid conflict)
+  Asset as UnifiedAsset,
+  // Event types
+  BalanceChangeEvent,
+  PriceChangeEvent,
+  MetadataChangeEvent,
+  AssetsDetectedEvent,
+  // Data source options
+  AccountsApiDataSourceOptions,
+  AccountsApiDataSourceState,
+  AccountsApiDataSourceActions,
+  AccountsApiDataSourceEvents,
+  AccountsApiDataSourceMessenger,
+  BackendWebsocketDataSourceOptions,
+  BackendWebsocketDataSourceState,
+  BackendWebsocketDataSourceActions,
+  BackendWebsocketDataSourceEvents,
+  BackendWebsocketDataSourceMessenger,
+  BackendWebsocketDataSourceAllowedActions,
+  BackendWebsocketDataSourceAllowedEvents,
+  RpcDataSourceOptions,
+  RpcDataSourceState,
+  RpcDataSourceActions,
+  RpcDataSourceEvents,
+  RpcDataSourceMessenger,
+  // Unified Snap Data Source types
+  SnapType,
+  SnapInfo,
+  SnapDataSourceState,
+  SnapDataSourceOptions,
+  SnapProvider,
+  SnapDataSourceActions,
+  SnapDataSourceEvents,
+  SnapDataSourceMessenger,
+  // Middleware data source types
+  TokenDataSourceActions,
+  TokenDataSourceMessenger,
+  DetectionMiddlewareActions,
+  DetectionMiddlewareMessenger,
+  PriceDataSourceActions,
+  PriceDataSourceEvents,
+  PriceDataSourceMessenger,
+} from './AssetsController';
+
+// Middleware data sources
+export {
+  TokenDataSource,
+  DetectionMiddleware,
+  PriceDataSource,
+} from './AssetsController';
+
+// Data source initialization
+export {
+  initMessengers,
+  initDataSources,
+} from './AssetsController/data-sources/initDataSources';
+
+export type {
+  DataSourceMessengers,
+  DataSources,
+  InitMessengersOptions,
+  InitDataSourcesOptions,
+  DataSourceActions,
+  DataSourceEvents,
+  DataSourceAllowedActions,
+  DataSourceAllowedEvents,
+  RootMessenger,
+} from './AssetsController/data-sources/initDataSources';
