@@ -2586,6 +2586,22 @@ describe('SeedlessOnboardingController', () => {
     });
   });
 
+  describe('setMigrationVersion', () => {
+    it('should set the migration version directly', async () => {
+      await withController({}, async ({ controller }) => {
+        expect(controller.state.migrationVersion).toBe(0);
+
+        controller.setMigrationVersion(
+          SeedlessOnboardingMigrationVersion.DataType,
+        );
+
+        expect(controller.state.migrationVersion).toBe(
+          SeedlessOnboardingMigrationVersion.DataType,
+        );
+      });
+    });
+  });
+
   describe('fetchAllSecretData', () => {
     const MOCK_PASSWORD = 'mock-password';
 

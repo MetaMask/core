@@ -686,6 +686,18 @@ export class SeedlessOnboardingController<
   }
 
   /**
+   * Set the migration version directly.
+   *
+   * Use this for new users who don't have legacy data to migrate,
+   * avoiding an unnecessary API call from `runMigrations()`.
+   *
+   * @param version - The migration version to set.
+   */
+  setMigrationVersion(version: SeedlessOnboardingMigrationVersion): void {
+    this.#setMigrationVersion(version);
+  }
+
+  /**
    * Assigns dataType (PrimarySrp/ImportedSrp/ImportedPrivateKey) to legacy secrets
    * that were created before the dataType field was introduced.
    *
