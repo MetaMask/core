@@ -9,7 +9,7 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ### Added
 
-- Extends the `GatorPermissionsController` to enable attaching metadata(transaction hash, block timestamp) when submitting a permission revocation. ([#7503](https://github.com/MetaMask/core/pull/7503))
+- Extends the `GatorPermissionsController` to enable attaching metadata(transaction hash) when submitting a permission revocation. ([#7503](https://github.com/MetaMask/core/pull/7503))
 
 ### Changed
 
