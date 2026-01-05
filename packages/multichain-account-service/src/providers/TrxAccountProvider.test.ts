@@ -5,6 +5,7 @@ import type {
   EthKeyring,
   InternalAccount,
 } from '@metamask/keyring-internal-api';
+import { SnapControllerState } from '@metamask/snaps-controllers';
 
 import { AccountProviderWrapper } from './AccountProviderWrapper';
 import { SnapAccountProviderConfig } from './SnapAccountProvider';
@@ -24,7 +25,6 @@ import {
   MockAccountBuilder,
 } from '../tests';
 import type { RootMessenger } from '../tests';
-import { SnapControllerState } from '@metamask/snaps-controllers';
 
 class MockTronKeyring {
   readonly type = 'MockTronKeyring';
