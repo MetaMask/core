@@ -11,6 +11,8 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 - Update spot-prices endpoint list of supported chains and assets ([#7543](https://github.com/MetaMask/core/pull/7543))
 - Export `selectAllAssets` ([#7496](https://github.com/MetaMask/core/pull/7496))
+- Add multicall address for `MSU (MapleStory Universe)` ([#7453](https://github.com/MetaMask/core/pull/7453))
+- Add MSU (MapleStory Universe) and Etherlink in Spot Prices support ([#7453](https://github.com/MetaMask/core/pull/7453))
 
 ### Changed
 
