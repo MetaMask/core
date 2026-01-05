@@ -46,7 +46,6 @@ import {
   REFRESH_INTERVAL_MS,
   TraceName,
 } from './constants';
-import { IntentApiImpl } from './utils/intent-api';
 import type {
   BridgeStatusControllerState,
   StartPollingForBridgeTxStatusArgsSerialized,
@@ -62,6 +61,7 @@ import {
   shouldSkipFetchDueToFetchFailures,
 } from './utils/bridge-status';
 import { getTxGasEstimates } from './utils/gas';
+import { IntentApiImpl } from './utils/intent-api';
 import {
   getFinalizedTxProperties,
   getPriceImpactFromQuote,
@@ -1678,10 +1678,10 @@ export class BridgeStatusController extends StaticIntervalPollingController<Brid
         this.#config.customBridgeApiBaseUrl,
         this.#fetchFn,
       );
-      const intentOrder = (await intentApi.submitIntent(
+      const intentOrder = await intentApi.submitIntent(
         submissionParams,
         this.#clientId,
-      )) as IntentOrder;
+      );
 
       const orderUid = intentOrder.id;
 

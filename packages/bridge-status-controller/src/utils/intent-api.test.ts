@@ -1,8 +1,10 @@
 // intent-api.test.ts
 import { describe, it, expect, jest } from '@jest/globals';
-import { IntentApiImpl, type IntentSubmissionParams } from './intent-api';
-import type { FetchFunction } from '../types';
+
+import { IntentApiImpl } from './intent-api';
+import type { IntentSubmissionParams } from './intent-api';
 import { IntentOrderStatus } from './validators';
+import type { FetchFunction } from '../types';
 
 describe('IntentApiImpl', () => {
   const baseUrl = 'https://example.com/api';
