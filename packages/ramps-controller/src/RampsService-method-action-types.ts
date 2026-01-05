@@ -18,6 +18,7 @@ export type RampsServiceGetGeolocationAction = {
 
 /**
  * Makes a request to the cached API to retrieve the list of supported countries.
+ * Enriches the response with geolocation data to indicate the user's current country.
  *
  * @param action - The ramp action type ('deposit' or 'withdraw').
  * @returns An array of countries with their eligibility information.
