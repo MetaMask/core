@@ -24,6 +24,7 @@ import {
   MockAccountBuilder,
 } from '../tests';
 import type { RootMessenger } from '../tests';
+import { SnapControllerState } from '@metamask/snaps-controllers';
 
 class MockSolanaKeyring {
   readonly type = 'MockSolanaKeyring';
@@ -118,6 +119,11 @@ function setup({
   };
 } {
   const keyring = new MockSolanaKeyring(accounts);
+
+  messenger.registerActionHandler(
+    'SnapController:getState',
+    () => ({ isReady: true }) as SnapControllerState,
+  );
 
   messenger.registerActionHandler(
     'AccountsController:listMultichainAccounts',

@@ -55,6 +55,7 @@ export function getMultichainAccountServiceMessenger(
       'AccountsController:getAccountByAddress',
       'AccountsController:listMultichainAccounts',
       'ErrorReportingService:captureException',
+      'SnapController:getState',
       'SnapController:handleRequest',
       'KeyringController:withKeyring',
       'KeyringController:getState',

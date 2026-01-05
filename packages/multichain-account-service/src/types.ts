@@ -28,6 +28,7 @@ import type {
 } from '@metamask/network-controller';
 import type {
   HandleSnapRequest as SnapControllerHandleSnapRequestAction,
+  SnapControllerState,
   SnapStateChange as SnapControllerStateChangeEvent,
 } from '@metamask/snaps-controllers';
 
@@ -35,6 +36,12 @@ import type {
   MultichainAccountService,
   serviceName,
 } from './MultichainAccountService';
+
+// This action type is missing from snaps-controllers types.
+type SnapControllerGetStateAction = {
+  type: 'SnapController:getState';
+  handler: () => SnapControllerState;
+};
 
 export type MultichainAccountServiceGetMultichainAccountGroupAction = {
   type: `${typeof serviceName}:getMultichainAccountGroup`;
@@ -140,6 +147,7 @@ type AllowedActions =
   | AccountsControllerListMultichainAccountsAction
   | AccountsControllerGetAccountAction
   | AccountsControllerGetAccountByAddressAction
+  | SnapControllerGetStateAction
   | SnapControllerHandleSnapRequestAction
   | KeyringControllerWithKeyringAction
   | KeyringControllerGetStateAction

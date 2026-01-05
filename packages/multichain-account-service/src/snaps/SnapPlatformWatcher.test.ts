@@ -9,17 +9,42 @@ import {
 import type { RootMessenger } from '../tests';
 import { MultichainAccountServiceMessenger } from '../types';
 
-function setup(): {
+function setup(
+  {
+    rootMessenger,
+  }: {
+    rootMessenger: RootMessenger;
+  } = {
+    rootMessenger: getRootMessenger(),
+  },
+): {
   rootMessenger: RootMessenger;
   messenger: MultichainAccountServiceMessenger;
+  mocks: {
+    // eslint-disable-next-line @typescript-eslint/naming-convention
+    SnapController: {
+      getState: jest.Mock<SnapControllerState>;
+    };
+  };
   watcher: SnapPlatformWatcher;
 } {
-  const rootMessenger = getRootMessenger();
+  const mocks = {
+    SnapController: {
+      getState: jest.fn(),
+    },
+  };
+
+  rootMessenger.registerActionHandler(
+    'SnapController:getState',
+    mocks.SnapController.getState,
+  );
+  mocks.SnapController.getState.mockReturnValue({ isReady: false });
+
   const messenger = getMultichainAccountServiceMessenger(rootMessenger);
 
   const watcher = new SnapPlatformWatcher(messenger);
 
-  return { rootMessenger, messenger, watcher };
+  return { rootMessenger, messenger, watcher, mocks };
 }
 
 function publishIsReadyState(messenger: RootMessenger, isReady: boolean): void {
@@ -33,7 +58,8 @@ function publishIsReadyState(messenger: RootMessenger, isReady: boolean): void {
 describe('SnapPlatformWatcher', () => {
   describe('constructor', () => {
     it('initializes with isReady as false', () => {
-      const { watcher } = setup();
+      const { messenger } = setup();
+      const watcher = new SnapPlatformWatcher(messenger);
 
       expect(watcher).toBeDefined();
       expect(watcher.isReady).toBe(false);
@@ -42,7 +68,8 @@ describe('SnapPlatformWatcher', () => {
 
   describe('ensureCanUsePlatform', () => {
     it('waits for platform to be ready at least once before resolving', async () => {
-      const { rootMessenger, watcher } = setup();
+      const { rootMessenger, messenger } = setup();
+      const watcher = new SnapPlatformWatcher(messenger);
 
       // Start the promise but don't await immediately.
       const ensurePromise = watcher.ensureCanUsePlatform();
@@ -64,7 +91,8 @@ describe('SnapPlatformWatcher', () => {
     });
 
     it('throws error if platform becomes unavailable after being ready once', async () => {
-      const { rootMessenger, watcher } = setup();
+      const { rootMessenger, messenger } = setup();
+      const watcher = new SnapPlatformWatcher(messenger);
 
       // Make platform ready first.
       publishIsReadyState(rootMessenger, true);
@@ -79,7 +107,8 @@ describe('SnapPlatformWatcher', () => {
     });
 
     it('handles multiple state changes correctly', async () => {
-      const { rootMessenger, watcher } = setup();
+      const { rootMessenger, messenger } = setup();
+      const watcher = new SnapPlatformWatcher(messenger);
 
       // Make platform ready
       publishIsReadyState(rootMessenger, true);
@@ -103,7 +132,8 @@ describe('SnapPlatformWatcher', () => {
     });
 
     it('handles concurrent calls correctly', async () => {
-      const { rootMessenger, watcher } = setup();
+      const { rootMessenger, messenger } = setup();
+      const watcher = new SnapPlatformWatcher(messenger);
 
       // Start multiple concurrent calls.
       const promise1 = watcher.ensureCanUsePlatform();
@@ -122,7 +152,8 @@ describe('SnapPlatformWatcher', () => {
     });
 
     it('resolves deferred promise only once when platform becomes ready', async () => {
-      const { rootMessenger, watcher } = setup();
+      const { rootMessenger, messenger } = setup();
+      const watcher = new SnapPlatformWatcher(messenger);
       const resolveSpy = jest.fn();
 
       // Access the private deferred promise through ensureCanUsePlatform.
@@ -139,7 +170,8 @@ describe('SnapPlatformWatcher', () => {
     });
 
     it('ignores state changes with isReady: false before first ready state', async () => {
-      const { rootMessenger, watcher } = setup();
+      const { rootMessenger, messenger } = setup();
+      const watcher = new SnapPlatformWatcher(messenger);
 
       // Start the promise
       const ensurePromise = watcher.ensureCanUsePlatform();
@@ -158,6 +190,19 @@ describe('SnapPlatformWatcher', () => {
       publishIsReadyState(rootMessenger, true);
       await ensurePromise;
       expect(resolved).toBe(true);
+    });
+
+    it('resolves immediately if platform is already ready', async () => {
+      const { messenger, mocks } = setup();
+
+      // Make the platform ready before creating the watcher.
+      mocks.SnapController.getState.mockReturnValue({
+        isReady: true,
+      } as SnapControllerState);
+
+      const watcher = new SnapPlatformWatcher(messenger);
+
+      expect(watcher.isReady).toBe(true);
     });
   });
 });

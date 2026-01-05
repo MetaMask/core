@@ -127,6 +127,7 @@ const setup = ({
       captureException: jest.fn(),
     },
     SnapController: {
+      getState: jest.fn(),
       handleKeyringRequest: {
         getAccount: jest.fn(),
         listAccounts: jest.fn(),
@@ -154,6 +155,13 @@ const setup = ({
     'ErrorReportingService:captureException',
     mocks.ErrorReportingService.captureException,
   );
+
+  messenger.registerActionHandler(
+    'SnapController:getState',
+    mocks.SnapController.getState,
+  );
+  // Make the platform ready right away.
+  mocks.SnapController.getState.mockReturnValue({ isReady: true });
 
   messenger.registerActionHandler(
     'SnapController:handleRequest',
@@ -226,43 +234,33 @@ const setup = ({
 
 describe('SnapAccountProvider', () => {
   describe('constructor default parameters', () => {
-    const mockMessenger = {
-      call: jest.fn().mockResolvedValue({}),
-      registerActionHandler: jest.fn(),
-      subscribe: jest.fn(),
-      registerMethodActionHandlers: jest.fn(),
-      unregisterActionHandler: jest.fn(),
-      registerInitialEventPayload: jest.fn(),
-      publish: jest.fn(),
-      clearEventSubscriptions: jest.fn(),
-    } as unknown as MultichainAccountServiceMessenger;
-
-    beforeEach(() => {
-      jest.clearAllMocks();
-    });
-
     it('creates SolAccountProvider with default trace using 1 parameter', () => {
-      setup();
+      const { messenger } = setup();
 
-      const provider = new SolAccountProvider(mockMessenger);
+      const provider = new SolAccountProvider(
+        getMultichainAccountServiceMessenger(messenger),
+      );
       expect(provider).toBeDefined();
       expect(provider.snapId).toBe(SolAccountProvider.SOLANA_SNAP_ID);
     });
 
     it('creates SolAccountProvider with default trace using 2 parameters', () => {
-      setup();
+      const { messenger } = setup();
 
-      const provider = new SolAccountProvider(mockMessenger, undefined);
+      const provider = new SolAccountProvider(
+        getMultichainAccountServiceMessenger(messenger),
+        undefined,
+      );
       expect(provider).toBeDefined();
       expect(provider.snapId).toBe(SolAccountProvider.SOLANA_SNAP_ID);
     });
 
     it('creates SolAccountProvider with custom trace using 3 parameters', () => {
-      setup();
+      const { messenger } = setup();
 
       const customTrace = jest.fn();
       const provider = new SolAccountProvider(
-        mockMessenger,
+        getMultichainAccountServiceMessenger(messenger),
         undefined,
         customTrace,
       );
@@ -271,7 +269,7 @@ describe('SnapAccountProvider', () => {
     });
 
     it('creates SolAccountProvider with custom config and default trace', () => {
-      setup();
+      const { messenger } = setup();
 
       const customConfig = {
         discovery: {
@@ -283,29 +281,34 @@ describe('SnapAccountProvider', () => {
           timeoutMs: 5000,
         },
       };
-      const provider = new SolAccountProvider(mockMessenger, customConfig);
+      const provider = new SolAccountProvider(
+        getMultichainAccountServiceMessenger(messenger),
+        customConfig,
+      );
       expect(provider).toBeDefined();
       expect(provider.snapId).toBe(SolAccountProvider.SOLANA_SNAP_ID);
     });
 
     it('creates BtcAccountProvider with default trace', () => {
-      setup();
+      const { messenger } = setup();
 
       // Test other subclasses to ensure branch coverage
-      const btcProvider = new BtcAccountProvider(mockMessenger);
+      const btcProvider = new BtcAccountProvider(
+        getMultichainAccountServiceMessenger(messenger),
+      );
 
       expect(btcProvider).toBeDefined();
       expect(isSnapAccountProvider(btcProvider)).toBe(true);
     });
 
     it('creates TrxAccountProvider with custom trace', () => {
-      setup();
+      const { messenger } = setup();
 
       const customTrace = jest.fn();
 
       // Explicitly test with all three parameters
       const trxProvider = new TrxAccountProvider(
-        mockMessenger,
+        getMultichainAccountServiceMessenger(messenger),
         undefined,
         customTrace,
       );
@@ -315,16 +318,19 @@ describe('SnapAccountProvider', () => {
     });
 
     it('creates provider without trace parameter', () => {
-      setup();
+      const { messenger } = setup();
 
       // Test creating provider without passing trace parameter
-      const provider = new SolAccountProvider(mockMessenger, undefined);
+      const provider = new SolAccountProvider(
+        getMultichainAccountServiceMessenger(messenger),
+        undefined,
+      );
 
       expect(provider).toBeDefined();
     });
 
     it('tests parameter spreading to trigger branch coverage', () => {
-      setup();
+      const { messenger } = setup();
 
       type SolConfig = ConstructorParameters<typeof SolAccountProvider>[1];
       type ProviderArgs = [
@@ -332,7 +338,9 @@ describe('SnapAccountProvider', () => {
         SolConfig?,
         TraceCallback?,
       ];
-      const args: ProviderArgs = [mockMessenger];
+      const args: ProviderArgs = [
+        getMultichainAccountServiceMessenger(messenger),
+      ];
       const provider1 = new SolAccountProvider(...args);
 
       args.push(undefined);
@@ -372,37 +380,16 @@ describe('SnapAccountProvider', () => {
     });
 
     it('returns true for actual SnapAccountProvider instance', () => {
-      setup();
+      const { messenger } = setup();
 
-      // Create a mock messenger with required methods
-      const mockMessenger = {
-        call: jest.fn(),
-        registerActionHandler: jest.fn(),
-        subscribe: jest.fn(),
-        registerMethodActionHandlers: jest.fn(),
-        unregisterActionHandler: jest.fn(),
-        registerInitialEventPayload: jest.fn(),
-        publish: jest.fn(),
-        clearEventSubscriptions: jest.fn(),
-      } as unknown as MultichainAccountServiceMessenger;
-
-      const solProvider = new SolAccountProvider(mockMessenger);
+      const solProvider = new SolAccountProvider(
+        getMultichainAccountServiceMessenger(messenger),
+      );
       expect(isSnapAccountProvider(solProvider)).toBe(true);
     });
   });
 
   describe('trace functionality', () => {
-    const mockMessenger = {
-      call: jest.fn().mockResolvedValue({}),
-      registerActionHandler: jest.fn(),
-      subscribe: jest.fn(),
-      registerMethodActionHandlers: jest.fn(),
-      unregisterActionHandler: jest.fn(),
-      registerInitialEventPayload: jest.fn(),
-      publish: jest.fn(),
-      clearEventSubscriptions: jest.fn(),
-    } as unknown as MultichainAccountServiceMessenger;
-
     const traceFallbackMock = traceFallback as jest.MockedFunction<
       typeof traceFallback
     >;
@@ -413,7 +400,7 @@ describe('SnapAccountProvider', () => {
     });
 
     it('uses default trace parameter when only messenger is provided', async () => {
-      setup();
+      const { messenger } = setup();
 
       traceFallbackMock.mockImplementation(async (_request, fn) => fn?.());
 
@@ -430,7 +417,7 @@ describe('SnapAccountProvider', () => {
       };
       const testProvider = new MockSnapAccountProvider(
         TEST_SNAP_ID,
-        mockMessenger,
+        getMultichainAccountServiceMessenger(messenger),
         defaultConfig,
       );
       const request = { name: 'Test Request', data: {} };
@@ -447,7 +434,7 @@ describe('SnapAccountProvider', () => {
     });
 
     it('uses custom trace when explicitly provided with all parameters', async () => {
-      setup();
+      const { messenger } = setup();
 
       const customTrace = jest.fn().mockImplementation(async (_request, fn) => {
         return await fn();
@@ -456,7 +443,7 @@ describe('SnapAccountProvider', () => {
       // Test with all parameters including custom trace
       const testProvider = new MockSnapAccountProvider(
         TEST_SNAP_ID,
-        mockMessenger,
+        getMultichainAccountServiceMessenger(messenger),
         {
           discovery: {
             timeoutMs: 2000,
@@ -481,7 +468,7 @@ describe('SnapAccountProvider', () => {
     });
 
     it('calls trace callback with the correct arguments', async () => {
-      setup();
+      const { messenger } = setup();
 
       const mockTrace = jest.fn().mockImplementation(async (request, fn) => {
         expect(request).toStrictEqual({
@@ -503,7 +490,7 @@ describe('SnapAccountProvider', () => {
       };
       const testProvider = new MockSnapAccountProvider(
         TEST_SNAP_ID,
-        mockMessenger,
+        getMultichainAccountServiceMessenger(messenger),
         defaultConfig,
         mockTrace,
       );
@@ -518,7 +505,7 @@ describe('SnapAccountProvider', () => {
     });
 
     it('propagates errors through trace callback', async () => {
-      setup();
+      const { messenger } = setup();
 
       const mockError = new Error('Test error');
       const mockTrace = jest.fn().mockImplementation(async (_request, fn) => {
@@ -537,7 +524,7 @@ describe('SnapAccountProvider', () => {
       };
       const testProvider = new MockSnapAccountProvider(
         TEST_SNAP_ID,
-        mockMessenger,
+        getMultichainAccountServiceMessenger(messenger),
         defaultConfig,
         mockTrace,
       );
@@ -551,7 +538,7 @@ describe('SnapAccountProvider', () => {
     });
 
     it('handles trace callback returning undefined', async () => {
-      setup();
+      const { messenger } = setup();
 
       const mockTrace = jest.fn().mockImplementation(async (_request, fn) => {
         return await fn();
@@ -569,7 +556,7 @@ describe('SnapAccountProvider', () => {
       };
       const testProvider = new MockSnapAccountProvider(
         TEST_SNAP_ID,
-        mockMessenger,
+        getMultichainAccountServiceMessenger(messenger),
         defaultConfig,
         mockTrace,
       );
