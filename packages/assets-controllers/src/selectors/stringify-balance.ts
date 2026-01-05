@@ -67,6 +67,27 @@ export function parseBalanceWithDecimals(
   balanceString: string,
   decimals: number,
 ): Hex | undefined {
+  const result = parseBalanceWithDecimalsToBigInt(balanceString, decimals);
+  return result !== undefined ? bigIntToHex(result) : undefined;
+}
+
+/**
+ * Converts a decimal string representation to a BigInt balance.
+ * This is the inverse operation of stringifyBalanceWithDecimals.
+ *
+ * @param balanceString - The decimal string representation (e.g., "123.456")
+ * @param decimals - The number of decimals to apply (shifts decimal point right)
+ * @returns The balance as a BigInt, or undefined if the input is invalid
+ *
+ * @example
+ * parseBalanceWithDecimalsToBigInt("1.5", 8)     // Returns 150000000n
+ * parseBalanceWithDecimalsToBigInt("123.456", 3) // Returns 123456n
+ * parseBalanceWithDecimalsToBigInt("0.001", 18)  // Returns 1000000000000000n
+ */
+export function parseBalanceWithDecimalsToBigInt(
+  balanceString: string,
+  decimals: number,
+): bigint | undefined {
   // Allows: "123", "123.456", "0.123", but not: "-123", "123.", "abc", "12.34.56"
   if (!/^\d+(\.\d+)?$/u.test(balanceString)) {
     return undefined;
@@ -75,20 +96,16 @@ export function parseBalanceWithDecimals(
   const [integerPart, fractionalPart = ''] = balanceString.split('.');
 
   if (decimals === 0) {
-    return bigIntToHex(BigInt(integerPart));
+    return BigInt(integerPart);
   }
 
   if (fractionalPart.length >= decimals) {
-    return bigIntToHex(
-      BigInt(`${integerPart}${fractionalPart.slice(0, decimals)}`),
-    );
+    return BigInt(`${integerPart}${fractionalPart.slice(0, decimals)}`);
   }
 
-  return bigIntToHex(
-    BigInt(
-      `${integerPart}${fractionalPart}${'0'.repeat(
-        decimals - fractionalPart.length,
-      )}`,
-    ),
+  return BigInt(
+    `${integerPart}${fractionalPart}${'0'.repeat(
+      decimals - fractionalPart.length,
+    )}`,
   );
 }
