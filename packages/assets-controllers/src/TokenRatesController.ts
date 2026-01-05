@@ -45,6 +45,18 @@ export type Token = {
   hasBalanceError?: boolean;
   isERC721?: boolean;
   name?: string;
+  rwaData?: {
+    instrumentType: string;
+    ticker: string;
+    market: {
+      nextOpen: string;
+      nextClose: string;
+    };
+    nextPause: {
+      start: string;
+      end: string;
+    };
+  };
 };
 
 const DEFAULT_INTERVAL = 180000;
