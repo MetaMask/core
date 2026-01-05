@@ -54,7 +54,7 @@
     "@metamask/polling-controller": "^16.0.0",
     "@metamask/profile-sync-controller": "^27.0.0",
     "@metamask/transaction-controller": "^62.7.0",
-    "@metamask/utils": "^11.8.1",
+    "@metamask/utils": "^11.9.0",
     "bignumber.js": "^9.1.2"
   },
   "devDependencies": {

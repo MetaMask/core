@@ -9,6 +9,7 @@ import type { TransactionControllerMessenger } from '../TransactionController';
 const DEFAULT_BATCH_SIZE_LIMIT = 10;
 const DEFAULT_ACCELERATED_POLLING_COUNT_MAX = 10;
 const DEFAULT_ACCELERATED_POLLING_INTERVAL_MS = 3 * 1000;
+const DEFAULT_BLOCK_TIME = 12 * 1000;
 const DEFAULT_GAS_ESTIMATE_FALLBACK_BLOCK_PERCENT = 35;
 const DEFAULT_GAS_ESTIMATE_BUFFER = 1;
 const DEFAULT_INCOMING_TRANSACTIONS_POLLING_INTERVAL_MS = 1000 * 60 * 4; // 4 Minutes
@@ -116,6 +117,11 @@ export type TransactionControllerFeatureFlags = {
       /** Accelerated polling parameters on a per-chain basis. */
       perChainConfig?: {
         [chainId: Hex]: {
+          /**
+           * Block time in milliseconds.
+           */
+          blockTime?: number;
+
           /**
            * Maximum number of polling requests that can be made in a row, before
            * the normal polling resumes.
@@ -264,7 +270,7 @@ export function getBatchSizeLimit(
 export function getAcceleratedPollingParams(
   chainId: Hex,
   messenger: TransactionControllerMessenger,
-): { countMax: number; intervalMs: number } {
+): { blockTime: number; countMax: number; intervalMs: number } {
   const featureFlags = getFeatureFlags(messenger);
 
   const acceleratedPollingParams =
@@ -280,7 +286,11 @@ export function getAcceleratedPollingParams(
     acceleratedPollingParams?.defaultIntervalMs ??
     DEFAULT_ACCELERATED_POLLING_INTERVAL_MS;
 
-  return { countMax, intervalMs };
+  const blockTime =
+    acceleratedPollingParams?.perChainConfig?.[chainId]?.blockTime ??
+    DEFAULT_BLOCK_TIME;
+
+  return { blockTime, countMax, intervalMs };
 }
 
 /**

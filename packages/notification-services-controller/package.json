@@ -116,7 +116,7 @@
     "@metamask/keyring-controller": "^25.0.0",
     "@metamask/messenger": "^0.3.0",
     "@metamask/profile-sync-controller": "^27.0.0",
-    "@metamask/utils": "^11.8.1",
+    "@metamask/utils": "^11.9.0",
     "bignumber.js": "^9.1.2",
     "firebase": "^11.2.0",
     "loglevel": "^1.8.1",

@@ -321,11 +321,13 @@ describe('RemoteFeatureFlagController', () => {
       });
       await controller.updateRemoteFeatureFlags();
 
+      // With MOCK_METRICS_ID + 'testFlagForThreshold' hashed:
+      // Threshold = 0.380673, which falls in groupB range (0.3 < t <= 0.5)
       expect(
         controller.state.remoteFeatureFlags.testFlagForThreshold,
       ).toStrictEqual({
-        name: 'groupC',
-        value: 'valueC',
+        name: 'groupB',
+        value: 'valueB',
       });
     });
 
@@ -342,6 +344,153 @@ describe('RemoteFeatureFlagController', () => {
       const { testFlagForThreshold, ...nonThresholdFlags } =
         controller.state.remoteFeatureFlags;
       expect(nonThresholdFlags).toStrictEqual(MOCK_FLAGS);
+    });
+
+    it('assigns users to different groups for different feature flags', async () => {
+      // Arrange
+      const mockFlags = {
+        featureA: [
+          {
+            name: 'groupA1',
+            scope: { type: 'threshold', value: 0.5 },
+            value: 'A1',
+          },
+          {
+            name: 'groupA2',
+            scope: { type: 'threshold', value: 1.0 },
+            value: 'A2',
+          },
+        ],
+        featureB: [
+          {
+            name: 'groupB1',
+            scope: { type: 'threshold', value: 0.5 },
+            value: 'B1',
+          },
+          {
+            name: 'groupB2',
+            scope: { type: 'threshold', value: 1.0 },
+            value: 'B2',
+          },
+        ],
+      };
+      const clientConfigApiService = buildClientConfigApiService({
+        remoteFeatureFlags: mockFlags,
+      });
+      const controller = createController({
+        clientConfigApiService,
+        getMetaMetricsId: () => MOCK_METRICS_ID,
+      });
+
+      // Act
+      await controller.updateRemoteFeatureFlags();
+
+      // Assert - User gets different groups because each flag uses unique seed
+      const { featureA, featureB } = controller.state.remoteFeatureFlags;
+      // featureA: hash(MOCK_METRICS_ID + 'featureA') → threshold 0.966682 → groupA2
+      expect(featureA).toStrictEqual({ name: 'groupA2', value: 'A2' });
+      // featureB: hash(MOCK_METRICS_ID + 'featureB') → threshold 0.398654 → groupB1
+      expect(featureB).toStrictEqual({ name: 'groupB1', value: 'B1' });
+      // Different groups proves independence!
+    });
+
+    it('preserves non-threshold arrays without processing', async () => {
+      // Arrange
+      const mockFlags = {
+        nonThresholdArray: [1, 2, 3],
+        stringArray: ['a', 'b', 'c'],
+      };
+      const clientConfigApiService = buildClientConfigApiService({
+        remoteFeatureFlags: mockFlags,
+      });
+      const controller = createController({
+        clientConfigApiService,
+        getMetaMetricsId: () => MOCK_METRICS_ID,
+      });
+
+      // Act
+      await controller.updateRemoteFeatureFlags();
+
+      // Assert - Arrays preserved as-is, not processed for thresholds
+      expect(
+        controller.state.remoteFeatureFlags.nonThresholdArray,
+      ).toStrictEqual([1, 2, 3]);
+      expect(controller.state.remoteFeatureFlags.stringArray).toStrictEqual([
+        'a',
+        'b',
+        'c',
+      ]);
+    });
+
+    it('skips invalid items in threshold array when selecting group', async () => {
+      // Arrange
+      const mockFlags: FeatureFlags = {
+        mixedArray: [
+          { name: 'invalid', value: 'no scope' }, // Invalid - missing scope property
+          {
+            name: 'validGroup',
+            scope: { type: 'threshold', value: 1.0 },
+            value: 'selectedValue',
+          },
+        ],
+      };
+      const clientConfigApiService = buildClientConfigApiService({
+        remoteFeatureFlags: mockFlags,
+      });
+      const controller = createController({
+        clientConfigApiService,
+        getMetaMetricsId: () => MOCK_METRICS_ID,
+      });
+
+      // Act
+      await controller.updateRemoteFeatureFlags();
+
+      // Assert - Invalid item skipped, valid item selected
+      expect(controller.state.remoteFeatureFlags.mixedArray).toStrictEqual({
+        name: 'validGroup',
+        value: 'selectedValue',
+      });
+    });
+
+    it('assigns users to same group for same feature flag on multiple calls', async () => {
+      // Arrange
+      const mockFlags = {
+        testFlag: [
+          {
+            name: 'control',
+            scope: { type: 'threshold', value: 0.5 },
+            value: false,
+          },
+          {
+            name: 'treatment',
+            scope: { type: 'threshold', value: 1.0 },
+            value: true,
+          },
+        ],
+      };
+      const clientConfigApiService = buildClientConfigApiService({
+        remoteFeatureFlags: mockFlags,
+      });
+
+      // Act - Create two separate controllers with same metaMetricsId
+      const controller1 = createController({
+        clientConfigApiService,
+        getMetaMetricsId: () => MOCK_METRICS_ID,
+      });
+      await controller1.updateRemoteFeatureFlags();
+      const firstResult = controller1.state.remoteFeatureFlags.testFlag;
+
+      const controller2 = createController({
+        clientConfigApiService,
+        getMetaMetricsId: () => MOCK_METRICS_ID,
+      });
+      await controller2.updateRemoteFeatureFlags();
+      const secondResult = controller2.state.remoteFeatureFlags.testFlag;
+
+      // Assert - Same user always gets same group (deterministic)
+      // testFlag: hash(MOCK_METRICS_ID + 'testFlag') → threshold 0.496587 → control
+      expect(firstResult).toStrictEqual(secondResult);
+      expect(firstResult).toStrictEqual({ name: 'control', value: false });
     });
   });
 
@@ -632,17 +781,18 @@ describe('RemoteFeatureFlagController', () => {
       const { multiVersionABFlag, regularFlag } =
         controller.state.remoteFeatureFlags;
       // Should select 13.1.0 version and then apply A/B testing to that array
-      // With MOCK_METRICS_ID threshold, should select groupC (threshold 1.0)
+      // With MOCK_METRICS_ID + 'multiVersionABFlag' hashed:
+      // Threshold = 0.094878, which falls in groupA range (t <= 0.3)
       expect(multiVersionABFlag).toStrictEqual({
-        name: 'groupC',
-        value: { feature: 'C', enabled: true },
+        name: 'groupA',
+        value: { feature: 'A', enabled: true },
       });
       expect(regularFlag).toBe(true);
     });
   });
 
   describe('getDefaultRemoteFeatureFlagControllerState', () => {
-    it('should return default state', () => {
+    it('returns default state', () => {
       expect(getDefaultRemoteFeatureFlagControllerState()).toStrictEqual({
         remoteFeatureFlags: {},
         localOverrides: {},
@@ -777,6 +927,348 @@ describe('RemoteFeatureFlagController', () => {
           remoteFlag: 'updatedRemoteValue',
         });
       });
+    });
+  });
+
+  describe('threshold cache cleanup', () => {
+    it('removes stale threshold cache entries when flags are removed from server', async () => {
+      // Arrange
+      const clientConfigApiService = buildClientConfigApiService({
+        remoteFeatureFlags: {
+          flagA: [
+            {
+              name: 'groupA',
+              scope: { type: 'threshold', value: 1.0 },
+              value: true,
+            },
+          ],
+          flagB: [
+            {
+              name: 'groupB',
+              scope: { type: 'threshold', value: 1.0 },
+              value: false,
+            },
+          ],
+        },
+      });
+      const controller = createController({
+        clientConfigApiService,
+        getMetaMetricsId: () => MOCK_METRICS_ID,
+      });
+
+      // Act - First update: both flags processed
+      await controller.updateRemoteFeatureFlags();
+      const cacheAfterFirst = controller.state.thresholdCache;
+      expect(Object.keys(cacheAfterFirst ?? {})).toHaveLength(2);
+
+      // Update server to remove flagA
+      jest
+        .spyOn(clientConfigApiService, 'fetchRemoteFeatureFlags')
+        .mockResolvedValue({
+          remoteFeatureFlags: {
+            flagB: [
+              {
+                name: 'groupB',
+                scope: { type: 'threshold', value: 1.0 },
+                value: false,
+              },
+            ],
+          },
+          cacheTimestamp: Date.now(),
+        });
+
+      // Force cache expiration
+      jest.useFakeTimers();
+      jest.advanceTimersByTime(2 * DEFAULT_CACHE_DURATION);
+
+      // Second update: flagA removed from server
+      await controller.updateRemoteFeatureFlags();
+
+      // Assert - flagA cache entry removed
+      const cacheAfterSecond = controller.state.thresholdCache ?? {};
+      expect(Object.keys(cacheAfterSecond)).toHaveLength(1);
+      expect(cacheAfterSecond[`${MOCK_METRICS_ID}:flagB`]).toBeDefined();
+      expect(cacheAfterSecond[`${MOCK_METRICS_ID}:flagA`]).toBeUndefined();
+
+      jest.useRealTimers();
+    });
+
+    it('preserves threshold cache entries for flags still in server response', async () => {
+      // Arrange
+      const mockFlags = {
+        persistentFlag: [
+          {
+            name: 'group',
+            scope: { type: 'threshold', value: 1.0 },
+            value: true,
+          },
+        ],
+      };
+      const clientConfigApiService = buildClientConfigApiService({
+        remoteFeatureFlags: mockFlags,
+      });
+      const controller = createController({
+        clientConfigApiService,
+        getMetaMetricsId: () => MOCK_METRICS_ID,
+      });
+
+      // Act - Multiple updates with same flag
+      await controller.updateRemoteFeatureFlags();
+      const initialThreshold =
+        controller.state.thresholdCache?.[`${MOCK_METRICS_ID}:persistentFlag`];
+
+      jest.useFakeTimers();
+      jest.advanceTimersByTime(2 * DEFAULT_CACHE_DURATION);
+      await controller.updateRemoteFeatureFlags();
+
+      // Assert - Cache entry preserved and unchanged
+      const finalThreshold =
+        controller.state.thresholdCache?.[`${MOCK_METRICS_ID}:persistentFlag`];
+      expect(finalThreshold).toBe(initialThreshold);
+      expect(Object.keys(controller.state.thresholdCache ?? {})).toHaveLength(
+        1,
+      );
+
+      jest.useRealTimers();
+    });
+
+    it('does not remove cache entries for different metaMetricsId', async () => {
+      // Arrange
+      const mockFlags = {
+        testFlag: [
+          {
+            name: 'group',
+            scope: { type: 'threshold', value: 1.0 },
+            value: true,
+          },
+        ],
+      };
+      const clientConfigApiService = buildClientConfigApiService({
+        remoteFeatureFlags: mockFlags,
+      });
+
+      // Create controller with initial state containing cache for different user
+      const differentUserId = 'different-user-id';
+      const controller = createController({
+        clientConfigApiService,
+        getMetaMetricsId: () => MOCK_METRICS_ID,
+        state: {
+          thresholdCache: {
+            [`${differentUserId}:oldFlag`]: 0.123, // Different user's cache
+          },
+        },
+      });
+
+      // Act - Process flags for MOCK_METRICS_ID
+      await controller.updateRemoteFeatureFlags();
+
+      // Assert - Different user's cache entry preserved
+      const cache = controller.state.thresholdCache ?? {};
+      expect(cache[`${differentUserId}:oldFlag`]).toBe(0.123);
+      expect(cache[`${MOCK_METRICS_ID}:testFlag`]).toBeDefined();
+      expect(Object.keys(cache)).toHaveLength(2);
+    });
+
+    it('handles empty threshold cache gracefully', async () => {
+      // Arrange
+      const mockFlags = {
+        newFlag: [
+          {
+            name: 'group',
+            scope: { type: 'threshold', value: 1.0 },
+            value: true,
+          },
+        ],
+      };
+      const clientConfigApiService = buildClientConfigApiService({
+        remoteFeatureFlags: mockFlags,
+      });
+      const controller = createController({
+        clientConfigApiService,
+        getMetaMetricsId: () => MOCK_METRICS_ID,
+      });
+
+      // Act - Process with empty cache
+      await controller.updateRemoteFeatureFlags();
+
+      // Assert - Cache populated, no errors
+      expect(
+        controller.state.thresholdCache?.[`${MOCK_METRICS_ID}:newFlag`],
+      ).toBeDefined();
+    });
+
+    it('batches threshold additions and cleanup in single state update', async () => {
+      // Arrange - Start with one cached flag
+      const clientConfigApiService = buildClientConfigApiService({
+        remoteFeatureFlags: {
+          oldFlag: [
+            {
+              name: 'group',
+              scope: { type: 'threshold', value: 1.0 },
+              value: true,
+            },
+          ],
+        },
+      });
+      const controller = createController({
+        clientConfigApiService,
+        getMetaMetricsId: () => MOCK_METRICS_ID,
+      });
+
+      await controller.updateRemoteFeatureFlags();
+      expect(Object.keys(controller.state.thresholdCache ?? {})).toHaveLength(
+        1,
+      );
+
+      // Act - Replace oldFlag with newFlag
+      jest
+        .spyOn(clientConfigApiService, 'fetchRemoteFeatureFlags')
+        .mockResolvedValue({
+          remoteFeatureFlags: {
+            newFlag: [
+              {
+                name: 'group',
+                scope: { type: 'threshold', value: 1.0 },
+                value: false,
+              },
+            ],
+          },
+          cacheTimestamp: Date.now(),
+        });
+
+      jest.useFakeTimers();
+      jest.advanceTimersByTime(2 * DEFAULT_CACHE_DURATION);
+      await controller.updateRemoteFeatureFlags();
+
+      // Assert - Old removed, new added in single update
+      const cache = controller.state.thresholdCache ?? {};
+      expect(cache[`${MOCK_METRICS_ID}:oldFlag`]).toBeUndefined();
+      expect(cache[`${MOCK_METRICS_ID}:newFlag`]).toBeDefined();
+      expect(Object.keys(cache)).toHaveLength(1);
+
+      jest.useRealTimers();
+    });
+
+    it('preserves threshold arrays when metaMetricsId is empty', async () => {
+      // Arrange
+      const mockFlags = {
+        thresholdFlag: [
+          {
+            name: 'groupA',
+            scope: { type: 'threshold', value: 0.5 },
+            value: 'A',
+          },
+          {
+            name: 'groupB',
+            scope: { type: 'threshold', value: 1.0 },
+            value: 'B',
+          },
+        ],
+      };
+      const clientConfigApiService = buildClientConfigApiService({
+        remoteFeatureFlags: mockFlags,
+      });
+      const controller = createController({
+        clientConfigApiService,
+        getMetaMetricsId: () => '', // Empty metaMetricsId
+      });
+
+      // Act
+      await controller.updateRemoteFeatureFlags();
+
+      // Assert - Array preserved as-is without processing
+      expect(controller.state.remoteFeatureFlags.thresholdFlag).toStrictEqual(
+        mockFlags.thresholdFlag,
+      );
+    });
+
+    it('handles flag names containing colons correctly', async () => {
+      // Arrange
+      const mockFlags = {
+        'feature:v2': [
+          {
+            name: 'group',
+            scope: { type: 'threshold', value: 1.0 },
+            value: true,
+          },
+        ],
+      };
+      const clientConfigApiService = buildClientConfigApiService({
+        remoteFeatureFlags: mockFlags,
+      });
+      const controller = createController({
+        clientConfigApiService,
+        getMetaMetricsId: () => MOCK_METRICS_ID,
+      });
+
+      // Act
+      await controller.updateRemoteFeatureFlags();
+
+      // Assert - Cache key correctly handles colon in flag name
+      const cache = controller.state.thresholdCache ?? {};
+      expect(cache[`${MOCK_METRICS_ID}:feature:v2`]).toBeDefined();
+      expect(Object.keys(cache)).toHaveLength(1);
+
+      // Update with flag still present - should not be cleaned up
+      jest.useFakeTimers();
+      jest.advanceTimersByTime(2 * DEFAULT_CACHE_DURATION);
+      await controller.updateRemoteFeatureFlags();
+
+      const cacheAfterUpdate = controller.state.thresholdCache ?? {};
+      expect(cacheAfterUpdate[`${MOCK_METRICS_ID}:feature:v2`]).toBeDefined();
+
+      jest.useRealTimers();
+    });
+
+    it('removes all stale entries when all flags are removed from server', async () => {
+      // Arrange
+      const clientConfigApiService = buildClientConfigApiService({
+        remoteFeatureFlags: {
+          flagA: [
+            {
+              name: 'groupA',
+              scope: { type: 'threshold', value: 1.0 },
+              value: true,
+            },
+          ],
+          flagB: [
+            {
+              name: 'groupB',
+              scope: { type: 'threshold', value: 1.0 },
+              value: false,
+            },
+          ],
+        },
+      });
+      const controller = createController({
+        clientConfigApiService,
+        getMetaMetricsId: () => MOCK_METRICS_ID,
+      });
+
+      // Act - First update populates cache
+      await controller.updateRemoteFeatureFlags();
+      expect(Object.keys(controller.state.thresholdCache ?? {})).toHaveLength(
+        2,
+      );
+
+      // Server returns empty flags
+      jest
+        .spyOn(clientConfigApiService, 'fetchRemoteFeatureFlags')
+        .mockResolvedValue({
+          remoteFeatureFlags: {},
+          cacheTimestamp: Date.now(),
+        });
+
+      jest.useFakeTimers();
+      jest.advanceTimersByTime(2 * DEFAULT_CACHE_DURATION);
+      await controller.updateRemoteFeatureFlags();
+
+      // Assert - All entries removed
+      expect(Object.keys(controller.state.thresholdCache ?? {})).toHaveLength(
+        0,
+      );
+
+      jest.useRealTimers();
     });
   });
 

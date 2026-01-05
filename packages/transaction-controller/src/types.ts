@@ -252,7 +252,7 @@ export type TransactionMeta = {
   hash?: string;
 
   /**
-   * A history of mutations to TransactionMeta.
+   * @deprecated A history of mutations to TransactionMeta.
    */
   history?: TransactionHistory;
 
@@ -424,7 +424,7 @@ export type TransactionMeta = {
   selectedGasFeeToken?: Hex;
 
   /**
-   * An array of entries that describe the user's journey through the send flow.
+   * @deprecated An array of entries that describe the user's journey through the send flow.
    * This is purely attached to state logs for troubleshooting and support.
    */
   sendFlowHistory?: SendFlowHistoryEntry[];
@@ -611,6 +611,7 @@ export type TransactionBatchMeta = {
   transactions?: NestedTransactionMetadata[];
 };
 
+/** @deprecated An entry in the send flow history. */
 export type SendFlowHistoryEntry = {
   /**
    * String to indicate user interaction information.
@@ -1178,7 +1179,7 @@ type ExtendedHistoryOperation = JsonCompatibleOperation & {
 };
 
 /**
- * A transaction history entry that includes the ExtendedHistoryOperation as the first element.
+ * @deprecated A transaction history entry that includes the ExtendedHistoryOperation as the first element.
  */
 export type TransactionHistoryEntry = [
   ExtendedHistoryOperation,
@@ -1186,7 +1187,7 @@ export type TransactionHistoryEntry = [
 ];
 
 /**
- * A transaction history that includes the transaction meta as the first element.
+ * @deprecated A transaction history that includes the transaction meta as the first element.
  * And the rest of the elements are the operation arrays that were applied to the transaction meta.
  */
 export type TransactionHistory = [

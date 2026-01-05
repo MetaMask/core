@@ -70,7 +70,7 @@
   "dependencies": {
     "@metamask/rpc-errors": "^7.0.2",
     "@metamask/safe-event-emitter": "^3.0.0",
-    "@metamask/utils": "^11.8.1",
+    "@metamask/utils": "^11.9.0",
     "@types/deep-freeze-strict": "^1.1.0",
     "deep-freeze-strict": "^1.1.1",
     "klona": "^2.0.6"

@@ -79,17 +79,22 @@ export type RelayQuote = {
       status: 'complete' | 'incomplete';
     }[];
     kind: 'transaction';
+    requestId: string;
   }[];
 };
 
-export type RelayStatus = {
-  status:
-    | 'refund'
-    | 'waiting'
-    | 'failure'
-    | 'pending'
-    | 'submitted'
-    | 'success';
+export type RelayStatus =
+  | 'waiting'
+  | 'pending'
+  | 'submitted'
+  | 'success'
+  | 'delayed'
+  | 'refunded'
+  | 'refund'
+  | 'failure';
+
+export type RelayStatusResponse = {
+  status: RelayStatus;
   inTxHashes: string[];
   txHashes: string[];
   updatedAt: number;

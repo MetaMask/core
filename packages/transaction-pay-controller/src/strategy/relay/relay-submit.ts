@@ -12,8 +12,8 @@ import type {
 import type { Hex } from '@metamask/utils';
 import { createModuleLogger } from '@metamask/utils';
 
-import { RELAY_POLLING_INTERVAL, RELAY_URL_BASE } from './constants';
-import type { RelayQuote, RelayStatus } from './types';
+import { RELAY_POLLING_INTERVAL, RELAY_STATUS_URL } from './constants';
+import type { RelayQuote, RelayStatusResponse } from './types';
 import { projectLogger } from '../../logger';
 import type {
   PayStrategyExecuteRequest,
@@ -119,15 +119,12 @@ async function waitForRelayCompletion(quote: RelayQuote): Promise<Hex> {
     return FALLBACK_HASH;
   }
 
-  const { endpoint, method } = quote.steps
-    .slice(-1)[0]
-    .items.slice(-1)[0].check;
-
-  const url = `${RELAY_URL_BASE}${endpoint}`;
+  const { requestId } = quote.steps[0];
+  const url = `${RELAY_STATUS_URL}?requestId=${requestId}`;
 
   while (true) {
-    const response = await successfulFetch(url, { method });
-    const status = (await response.json()) as RelayStatus;
+    const response = await successfulFetch(url, { method: 'GET' });
+    const status = (await response.json()) as RelayStatusResponse;
 
     log('Polled status', status.status, status);
 
@@ -136,7 +133,7 @@ async function waitForRelayCompletion(quote: RelayQuote): Promise<Hex> {
       return targetHash ?? FALLBACK_HASH;
     }
 
-    if (['failure', 'refund', 'fallback'].includes(status.status)) {
+    if (['failure', 'refund', 'refunded'].includes(status.status)) {
       throw new Error(`Relay request failed with status: ${status.status}`);
     }
 

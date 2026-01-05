@@ -100,6 +100,7 @@ export const KnownNotifications: Record<NonWalletKnownCaipNamespace, string[]> =
 export enum KnownSessionProperties {
   SolanaAccountChangedNotifications = 'solana_accountChanged_notifications',
   TronAccountChangedNotifications = 'tron_accountChanged_notifications',
+  Bip122AccountChangedNotifications = 'bip122_accountChanged_notifications',
 }
 
 /**

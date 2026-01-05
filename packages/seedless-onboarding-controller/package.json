@@ -54,7 +54,7 @@
     "@metamask/keyring-controller": "^25.0.0",
     "@metamask/messenger": "^0.3.0",
     "@metamask/toprf-secure-backup": "^0.11.0",
-    "@metamask/utils": "^11.8.1",
+    "@metamask/utils": "^11.9.0",
     "@noble/ciphers": "^1.3.0",
     "@noble/curves": "^1.9.2",
     "@noble/hashes": "^1.8.0",

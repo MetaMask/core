@@ -1,6 +1,7 @@
 export type {
   PooledStakingState,
   LendingState,
+  TronStakingState,
   LendingMarketWithPosition,
   LendingPositionWithMarket,
   LendingPositionWithMarketReference,
@@ -15,6 +16,7 @@ export type {
 export {
   controllerName,
   getDefaultEarnControllerState,
+  DEFAULT_TRON_STAKING_STATE,
   EarnController,
 } from './EarnController';
 
@@ -36,6 +38,8 @@ export {
   selectLendingMarketsByTokenAddress,
   selectLendingMarketsByChainIdAndOutputTokenAddress,
   selectLendingMarketsByChainIdAndTokenAddress,
+  selectTronStaking,
+  selectTronStakingApy,
 } from './selectors';
 
 export {
