@@ -485,11 +485,11 @@ export class MultichainAssetsRatesController extends StaticIntervalPollingContro
     > = {};
 
     for (const asset of assets) {
-      const assetData = response.marketData?.[asset]?.[currency];
+      const assetMarketData = response.marketData?.[asset]?.[currency];
 
       // We do not consider NFTs here, so `fungible` must be `true`.
-      if (assetData?.fungible) {
-        assetToMarketData[asset] = assetData;
+      if (assetMarketData?.fungible) {
+        assetToMarketData[asset] = assetMarketData;
       } else {
         assetToMarketData[asset] = undefined;
       }
