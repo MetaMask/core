@@ -9,18 +9,22 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ### Added
 
-- Add `dev-watch.js` and `link-ramp-controller.js` scripts to auto-build and copy `dist/` into `metamask-mobile/node_modules/@metamask/ramps-controller`
-- Add `"dev": "node dev-watch.js"` script to `package.json`
+- Add request caching infrastructure with TTL, deduplication, and abort support ([#7536](https://github.com/MetaMask/core/pull/7536))
 
 ### Changed
 
-- Rename `OnRampService` to `RampsService` and `OnRampEnvironment` to `RampsEnvironment` ([#7316](https://github.com/MetaMask/core/pull/7316))
-- Rename action types from `OnRampService:*` to `RampsService:*` (e.g., `OnRampService:getGeolocation` → `RampsService:getGeolocation`)
-- Update imports, messenger types/namespaces, and exports in `src/index.ts`, controller/service files, and tests
+- Bump `@metamask/controller-utils` from `^11.16.0` to `^11.17.0` ([#7534](https://github.com/MetaMask/core/pull/7534))
+
+## [2.0.0]
+
+### Changed
+
+- **BREAKING:** Rename `OnRampService` to `RampsService` and `OnRampEnvironment` to `RampsEnvironment` ([#7502](https://github.com/MetaMask/core/pull/7502))
+- **BREAKING:** Rename action types from `OnRampService:*` to `RampsService:*` (e.g., `OnRampService:getGeolocation` → `RampsService:getGeolocation`) ([#7502](https://github.com/MetaMask/core/pull/7502))
 
 ### Fixed
 
-- Fix `RampsService#getGeolocation` to read response text within the policy execution and return parsed text
+- Fix `RampsService#getGeolocation` to read response text within the policy execution and return parsed text ([#7502](https://github.com/MetaMask/core/pull/7502))
 
 ## [1.0.0]
 
@@ -31,5 +35,6 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
   - Add `OnRampService` for interacting with the OnRamp API
   - Add geolocation detection via IP address lookup
 
-[Unreleased]: https://github.com/MetaMask/core/compare/@metamask/ramps-controller@1.0.0...HEAD
+[Unreleased]: https://github.com/MetaMask/core/compare/@metamask/ramps-controller@2.0.0...HEAD
+[2.0.0]: https://github.com/MetaMask/core/compare/@metamask/ramps-controller@1.0.0...@metamask/ramps-controller@2.0.0
 [1.0.0]: https://github.com/MetaMask/core/releases/tag/@metamask/ramps-controller@1.0.0

@@ -14,7 +14,7 @@ import type {
   FeatureFlagScopeValue,
 } from './remote-feature-flag-controller-types';
 import {
-  generateDeterministicRandomNumber,
+  calculateThresholdForFlag,
   isFeatureFlagWithScopeValue,
 } from './utils/user-segmentation-utils';
 import { isVersionFeatureFlag, getVersionData } from './utils/version';
@@ -31,6 +31,7 @@ export type RemoteFeatureFlagControllerState = {
   localOverrides?: FeatureFlags;
   rawRemoteFeatureFlags?: FeatureFlags;
   cacheTimestamp: number;
+  thresholdCache?: Record<string, number>;
 };
 
 const remoteFeatureFlagControllerMetadata = {
@@ -56,6 +57,12 @@ const remoteFeatureFlagControllerMetadata = {
     includeInStateLogs: true,
     persist: true,
     includeInDebugSnapshot: true,
+    usedInUi: false,
+  },
+  thresholdCache: {
+    includeInStateLogs: false,
+    persist: true,
+    includeInDebugSnapshot: false,
     usedInUi: false,
   },
 };
@@ -247,14 +254,40 @@ export class RemoteFeatureFlagController extends BaseController<
    * @param remoteFeatureFlags - The new feature flags to cache.
    */
   async #updateCache(remoteFeatureFlags: FeatureFlags): Promise<void> {
-    const processedRemoteFeatureFlags =
+    const { processedFlags, thresholdCacheUpdates } =
       await this.#processRemoteFeatureFlags(remoteFeatureFlags);
+
+    const metaMetricsId = this.#getMetaMetricsId();
+    const currentFlagNames = Object.keys(remoteFeatureFlags);
+
+    // Build updated threshold cache
+    const updatedThresholdCache = { ...(this.state.thresholdCache ?? {}) };
+
+    // Apply new thresholds
+    for (const [cacheKey, threshold] of Object.entries(thresholdCacheUpdates)) {
+      updatedThresholdCache[cacheKey] = threshold;
+    }
+
+    // Clean up stale entries
+    for (const cacheKey of Object.keys(updatedThresholdCache)) {
+      const [cachedMetaMetricsId, ...cachedFlagNameParts] = cacheKey.split(':');
+      const cachedFlagName = cachedFlagNameParts.join(':');
+      if (
+        cachedMetaMetricsId === metaMetricsId &&
+        !currentFlagNames.includes(cachedFlagName)
+      ) {
+        delete updatedThresholdCache[cacheKey];
+      }
+    }
+
+    // Single state update with all changes batched together
     this.update(() => {
       return {
         ...this.state,
-        remoteFeatureFlags: processedRemoteFeatureFlags,
+        remoteFeatureFlags: processedFlags,
         rawRemoteFeatureFlags: remoteFeatureFlags,
         cacheTimestamp: Date.now(),
+        thresholdCache: updatedThresholdCache,
       };
     });
   }
@@ -273,12 +306,13 @@ export class RemoteFeatureFlagController extends BaseController<
     return getVersionData(flagValue, this.#clientVersion);
   }
 
-  async #processRemoteFeatureFlags(
-    remoteFeatureFlags: FeatureFlags,
-  ): Promise<FeatureFlags> {
-    const processedRemoteFeatureFlags: FeatureFlags = {};
+  async #processRemoteFeatureFlags(remoteFeatureFlags: FeatureFlags): Promise<{
+    processedFlags: FeatureFlags;
+    thresholdCacheUpdates: Record<string, number>;
+  }> {
+    const processedFlags: FeatureFlags = {};
     const metaMetricsId = this.#getMetaMetricsId();
-    const thresholdValue = generateDeterministicRandomNumber(metaMetricsId);
+    const thresholdCacheUpdates: Record<string, number> = {};
 
     for (const [
       remoteFeatureFlagName,
@@ -291,14 +325,47 @@ export class RemoteFeatureFlagController extends BaseController<
         continue;
       }
 
-      if (Array.isArray(processedValue) && thresholdValue) {
+      if (Array.isArray(processedValue)) {
+        // Validate array has valid threshold items before doing expensive crypto operation
+        const hasValidThresholds = processedValue.some(
+          isFeatureFlagWithScopeValue,
+        );
+
+        if (!hasValidThresholds) {
+          // Not a threshold array - preserve as-is
+          processedFlags[remoteFeatureFlagName] = processedValue;
+          continue;
+        }
+
+        // Skip threshold processing if metaMetricsId is not available
+        if (!metaMetricsId) {
+          // Preserve array as-is when user hasn't opted into MetaMetrics
+          processedFlags[remoteFeatureFlagName] = processedValue;
+          continue;
+        }
+
+        // Check cache first, calculate only if needed
+        const cacheKey = `${metaMetricsId}:${remoteFeatureFlagName}` as const;
+        let thresholdValue = this.state.thresholdCache?.[cacheKey];
+
+        if (thresholdValue === undefined) {
+          thresholdValue = await calculateThresholdForFlag(
+            metaMetricsId,
+            remoteFeatureFlagName,
+          );
+
+          // Collect new threshold for batched state update
+          thresholdCacheUpdates[cacheKey] = thresholdValue;
+        }
+
+        const threshold = thresholdValue;
         const selectedGroup = processedValue.find(
           (featureFlag): featureFlag is FeatureFlagScopeValue => {
             if (!isFeatureFlagWithScopeValue(featureFlag)) {
               return false;
             }
 
-            return thresholdValue <= featureFlag.scope.value;
+            return threshold <= featureFlag.scope.value;
           },
         );
         if (selectedGroup) {
@@ -309,9 +376,10 @@ export class RemoteFeatureFlagController extends BaseController<
         }
       }
 
-      processedRemoteFeatureFlags[remoteFeatureFlagName] = processedValue;
+      processedFlags[remoteFeatureFlagName] = processedValue;
     }
-    return processedRemoteFeatureFlags;
+
+    return { processedFlags, thresholdCacheUpdates };
   }
 
   /**

@@ -92,6 +92,16 @@ export type LendingState = {
   isEligible: boolean;
 };
 
+/**
+ * State for TRON staking.
+ */
+export type TronStakingState = {
+  /** The annual percentage yield as a decimal string (e.g., "3.35" for 3.35%) */
+  apy: string;
+  /** Timestamp of when the APY was last fetched */
+  lastUpdated: number;
+} | null;
+
 type StakingTransactionTypes =
   | TransactionType.stakingDeposit
   | TransactionType.stakingUnstake
@@ -128,6 +138,12 @@ const earnControllerMetadata: StateMetadata<EarnControllerState> = {
     includeInDebugSnapshot: false,
     usedInUi: true,
   },
+  tron_staking: {
+    includeInStateLogs: true,
+    persist: true,
+    includeInDebugSnapshot: false,
+    usedInUi: true,
+  },
   lastUpdated: {
     includeInStateLogs: true,
     persist: false,
@@ -138,8 +154,11 @@ const earnControllerMetadata: StateMetadata<EarnControllerState> = {
 
 // === State Types ===
 export type EarnControllerState = {
+  // eslint-disable-next-line @typescript-eslint/naming-convention
   pooled_staking: PooledStakingState;
   lending: LendingState;
+  // eslint-disable-next-line @typescript-eslint/naming-convention
+  tron_staking: TronStakingState;
   lastUpdated: number;
 };
 
@@ -209,6 +228,8 @@ export const DEFAULT_POOLED_STAKING_CHAIN_STATE = {
   vaultApyAverages: DEFAULT_POOLED_STAKING_VAULT_APY_AVERAGES,
 };
 
+export const DEFAULT_TRON_STAKING_STATE: TronStakingState = null;
+
 /**
  * Gets the default state for the EarnController.
  *
@@ -224,6 +245,7 @@ export function getDefaultEarnControllerState(): EarnControllerState {
       positions: [DEFAULT_LENDING_POSITION],
       isEligible: false,
     },
+    tron_staking: DEFAULT_TRON_STAKING_STATE,
     lastUpdated: 0,
   };
 }
@@ -804,6 +826,35 @@ export class EarnController extends BaseController<
           .join(', ')}`,
       );
     }
+  }
+
+  /**
+   * Refreshes the APY for TRON staking.
+   * The consumer provides a fetcher function that returns the APY for TRON.
+   *
+   * @param apyFetcher - An async function that fetches and returns the APY as a decimal string.
+   * @returns A promise that resolves when the APY has been updated.
+   */
+  async refreshTronStakingApy(
+    apyFetcher: () => Promise<string>,
+  ): Promise<void> {
+    const apy = await apyFetcher();
+
+    this.update((state) => {
+      state.tron_staking = {
+        apy,
+        lastUpdated: Date.now(),
+      };
+    });
+  }
+
+  /**
+   * Gets the TRON staking APY.
+   *
+   * @returns The APY for TRON staking, or undefined if not available.
+   */
+  getTronStakingApy(): string | undefined {
+    return this.state.tron_staking?.apy;
   }
 
   /**

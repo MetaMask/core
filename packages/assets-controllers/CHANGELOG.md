@@ -9,10 +9,17 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ### Added
 
+- Update spot-prices endpoint list of supported chains and assets ([#7543](https://github.com/MetaMask/core/pull/7543))
 - Export `selectAllAssets` ([#7496](https://github.com/MetaMask/core/pull/7496))
+- Add multicall address for `MSU (MapleStory Universe)` ([#7453](https://github.com/MetaMask/core/pull/7453))
+- Add MSU (MapleStory Universe) and Etherlink in Spot Prices support ([#7453](https://github.com/MetaMask/core/pull/7453))
 
 ### Changed
 
+- Bump `@metamask/snaps-controllers` from `^14.0.1` to `^17.2.0` ([#7550](https://github.com/MetaMask/core/pull/7550))
+- Bump `@metamask/snaps-sdk` from `^9.0.0` to `^10.3.0` ([#7550](https://github.com/MetaMask/core/pull/7550))
+- Bump `@metamask/snaps-utils` from `^11.0.0` to `^11.7.0` ([#7550](https://github.com/MetaMask/core/pull/7550))
+- Upgrade `@metamask/utils` from `^11.8.1` to `^11.9.0` ([#7511](https://github.com/MetaMask/core/pull/7511))
 - **BREAKING:** `AccountTrackerController` now requires `KeyringController:getState` action and `KeyringController:lock` event in addition to existing allowed actions and events ([#7492](https://github.com/MetaMask/core/pull/7492))
   - Added `#isLocked` property to track keyring lock state, initialized from `KeyringController:getState`
   - Added `isActive` getter that returns `true` when keyring is unlocked and user is onboarded
@@ -22,6 +29,8 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 - `AccountTrackerController` now only refreshes balances for the newly added network on `NetworkController:networkAdded` event instead of all networks ([#7492](https://github.com/MetaMask/core/pull/7492))
 - Bump `@metamask/transaction-controller` from `^62.5.0` to `^62.7.0` ([#7494](https://github.com/MetaMask/core/pull/7494))
 - Bump `@metamask/multichain-account-service` from `^4.0.1` to `^4.1.0` ([#7515](https://github.com/MetaMask/core/pull/7515)
+- Bump `@metamask/controller-utils` from `^11.16.0` to `^11.17.0` ([#7534](https://github.com/MetaMask/core/pull/7534))
+- Bump `@metamask/network-controller` from `^27.0.0` to `^27.1.0` ([#7534](https://github.com/MetaMask/core/pull/7534))
 
 ## [94.1.0]
 

@@ -1,6 +1,6 @@
 {
   "name": "@metamask/analytics-controller",
-  "version": "0.0.0",
+  "version": "1.0.0",
   "description": "Common Analytics controller for event tracking",
   "keywords": [
     "MetaMask",
@@ -50,7 +50,7 @@
   "dependencies": {
     "@metamask/base-controller": "^9.0.0",
     "@metamask/messenger": "^0.3.0",
-    "@metamask/utils": "^11.8.1"
+    "@metamask/utils": "^11.9.0"
   },
   "devDependencies": {
     "@metamask/auto-changelog": "^3.4.4",
