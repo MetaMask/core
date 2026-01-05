@@ -408,7 +408,6 @@ describe('TransactionController Integration', () => {
                 estimateType: 'dappSuggested',
               },
               userFeeLevel: 'dappSuggested',
-              sendFlowHistory: [],
             },
             {
               actionId: undefined,
@@ -443,7 +442,6 @@ describe('TransactionController Integration', () => {
                 estimateType: 'dappSuggested',
               },
               userFeeLevel: 'dappSuggested',
-              sendFlowHistory: [],
             },
           ],
         },

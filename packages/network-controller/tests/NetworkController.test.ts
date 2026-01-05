@@ -3590,10 +3590,52 @@ describe('NetworkController', () => {
           },
         );
       });
-      it('calls provider of the networkClientId and returns true', async () => {
+      it('updates network metadata if undefined', async () => {
         await withController(
           {
             infuraProjectId: 'some-infura-project-id',
+          },
+          async ({ controller }) => {
+            await setFakeProvider(controller, {
+              stubs: [
+                {
+                  request: {
+                    method: 'eth_getBlockByNumber',
+                    params: ['latest', false],
+                  },
+                  response: {
+                    result: POST_1559_BLOCK,
+                  },
+                },
+                {
+                  request: {
+                    method: 'eth_getBlockByNumber',
+                    params: ['latest', false],
+                  },
+                  response: {
+                    result: POST_1559_BLOCK,
+                  },
+                },
+              ],
+            });
+            const isEIP1559Compatible =
+              await controller.getEIP1559Compatibility('linea-mainnet');
+            expect(isEIP1559Compatible).toBe(true);
+          },
+        );
+      });
+      it('updates network metadata if EIP-1559 compatibility is missing', async () => {
+        await withController(
+          {
+            infuraProjectId: 'some-infura-project-id',
+            state: {
+              networksMetadata: {
+                'linea-mainnet': {
+                  EIPS: {},
+                  status: NetworkStatus.Unknown,
+                },
+              },
+            },
           },
           async ({ controller }) => {
             await setFakeProvider(controller, {

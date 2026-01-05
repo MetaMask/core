@@ -8,10 +8,10 @@ import nock from 'nock';
 import { useFakeTimers } from 'sinon';
 import type { SinonFakeTimers } from 'sinon';
 
-import type { OnRampServiceMessenger } from './OnRampService';
-import { OnRampService, OnRampEnvironment } from './OnRampService';
+import type { RampsServiceMessenger } from './RampsService';
+import { RampsService, RampsEnvironment } from './RampsService';
 
-describe('OnRampService', () => {
+describe('RampsService', () => {
   let clock: SinonFakeTimers;
 
   beforeEach(() => {
@@ -22,7 +22,7 @@ describe('OnRampService', () => {
     clock.restore();
   });
 
-  describe('OnRampService:getGeolocation', () => {
+  describe('RampsService:getGeolocation', () => {
     it('returns the geolocation from the API', async () => {
       nock('https://on-ramp.uat-api.cx.metamask.io')
         .get('/geolocation')
@@ -30,7 +30,7 @@ describe('OnRampService', () => {
       const { rootMessenger } = getService();
 
       const geolocationResponse = await rootMessenger.call(
-        'OnRampService:getGeolocation',
+        'RampsService:getGeolocation',
       );
 
       expect(geolocationResponse).toBe('US-TX');
@@ -41,11 +41,11 @@ describe('OnRampService', () => {
         .get('/geolocation')
         .reply(200, 'US-TX');
       const { rootMessenger } = getService({
-        options: { environment: OnRampEnvironment.Production },
+        options: { environment: RampsEnvironment.Production },
       });
 
       const geolocationResponse = await rootMessenger.call(
-        'OnRampService:getGeolocation',
+        'RampsService:getGeolocation',
       );
 
       expect(geolocationResponse).toBe('US-TX');
@@ -54,11 +54,11 @@ describe('OnRampService', () => {
     it('uses localhost URL when environment is Development', async () => {
       nock('http://localhost:3000').get('/geolocation').reply(200, 'US-TX');
       const { rootMessenger } = getService({
-        options: { environment: OnRampEnvironment.Development },
+        options: { environment: RampsEnvironment.Development },
       });
 
       const geolocationResponse = await rootMessenger.call(
-        'OnRampService:getGeolocation',
+        'RampsService:getGeolocation',
       );
 
       expect(geolocationResponse).toBe('US-TX');
@@ -67,7 +67,7 @@ describe('OnRampService', () => {
     it('throws if the environment is invalid', () => {
       expect(() =>
         getService({
-          options: { environment: 'invalid' as OnRampEnvironment },
+          options: { environment: 'invalid' as RampsEnvironment },
         }),
       ).toThrow('Invalid environment: invalid');
     });
@@ -79,7 +79,7 @@ describe('OnRampService', () => {
       const { rootMessenger } = getService();
 
       await expect(
-        rootMessenger.call('OnRampService:getGeolocation'),
+        rootMessenger.call('RampsService:getGeolocation'),
       ).rejects.toThrow('Malformed response received from geolocation API');
     });
 
@@ -94,7 +94,7 @@ describe('OnRampService', () => {
       const onDegradedListener = jest.fn();
       service.onDegraded(onDegradedListener);
 
-      await rootMessenger.call('OnRampService:getGeolocation');
+      await rootMessenger.call('RampsService:getGeolocation');
 
       expect(onDegradedListener).toHaveBeenCalled();
     });
@@ -110,7 +110,7 @@ describe('OnRampService', () => {
       });
 
       await expect(
-        rootMessenger.call('OnRampService:getGeolocation'),
+        rootMessenger.call('RampsService:getGeolocation'),
       ).rejects.toThrow(
         "Fetching 'https://on-ramp.uat-api.cx.metamask.io/geolocation' failed with status '500'",
       );
@@ -147,8 +147,8 @@ describe('OnRampService', () => {
  */
 type RootMessenger = Messenger<
   MockAnyNamespace,
-  MessengerActions<OnRampServiceMessenger>,
-  MessengerEvents<OnRampServiceMessenger>
+  MessengerActions<RampsServiceMessenger>,
+  MessengerEvents<RampsServiceMessenger>
 >;
 
 /**
@@ -168,9 +168,9 @@ function getRootMessenger(): RootMessenger {
  * events required by the controller's messenger.
  * @returns The service-specific messenger.
  */
-function getMessenger(rootMessenger: RootMessenger): OnRampServiceMessenger {
+function getMessenger(rootMessenger: RootMessenger): RampsServiceMessenger {
   return new Messenger({
-    namespace: 'OnRampService',
+    namespace: 'RampsService',
     parent: rootMessenger,
   });
 }
@@ -187,15 +187,15 @@ function getMessenger(rootMessenger: RootMessenger): OnRampServiceMessenger {
 function getService({
   options = {},
 }: {
-  options?: Partial<ConstructorParameters<typeof OnRampService>[0]>;
+  options?: Partial<ConstructorParameters<typeof RampsService>[0]>;
 } = {}): {
-  service: OnRampService;
+  service: RampsService;
   rootMessenger: RootMessenger;
-  messenger: OnRampServiceMessenger;
+  messenger: RampsServiceMessenger;
 } {
   const rootMessenger = getRootMessenger();
   const messenger = getMessenger(rootMessenger);
-  const service = new OnRampService({
+  const service = new RampsService({
     fetch,
     messenger,
     ...options,
