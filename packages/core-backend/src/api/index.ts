@@ -1,64 +1,39 @@
 /**
- * @file Backend platform services for MetaMask.
+ * MetaMask Internal API SDK
  *
- * This package provides:
- * - Real-time WebSocket services for account activity monitoring
- * - SDK for MetaMask internal APIs (Token, Tokens, Accounts, Price)
+ * This module exports SDK classes for interacting with MetaMask's internal APIs:
+ * - Token API (token.api.cx.metamask.io)
+ * - Tokens API (tokens.api.cx.metamask.io)
+ * - Accounts API (accounts.api.cx.metamask.io)
+ * - Price API (price.api.cx.metamask.io)
+ *
+ * @example
+ * ```typescript
+ * import { BackendApiClient } from '@metamask/core-backend';
+ *
+ * // Create unified client with shared authentication
+ * const apiClient = new BackendApiClient({
+ *   clientProduct: 'metamask-extension',
+ *   getBearerToken: async () => authController.getBearerToken(),
+ * });
+ *
+ * // Access all APIs through the unified client
+ * const trending = await apiClient.token.getV3TrendingTokens({...});
+ * const assets = await apiClient.tokens.getV3Assets([...]);
+ * const balances = await apiClient.accounts.getV2Balances({...});
+ * const prices = await apiClient.prices.getV1TokenPrices({...});
+ * ```
  */
 
-// Transaction and balance update types
-export type {
-  Transaction,
-  Asset,
-  Balance,
-  Transfer,
-  BalanceUpdate,
-  AccountActivityMessage,
-} from './types';
-
-// WebSocket Service - following MetaMask Data Services pattern
-export type {
-  BackendWebSocketServiceOptions,
-  WebSocketMessage,
-  WebSocketConnectionInfo,
-  WebSocketSubscription,
-  BackendWebSocketServiceActions,
-  BackendWebSocketServiceMessenger,
-  BackendWebSocketServiceEvents,
-  BackendWebSocketServiceConnectionStateChangedEvent,
-  WebSocketState,
-  WebSocketEventType,
-  ServerNotificationMessage,
-  ClientRequestMessage,
-  ServerResponseMessage,
-  ChannelCallback,
-} from './BackendWebSocketService';
-export { BackendWebSocketService } from './BackendWebSocketService';
-
-// Account Activity Service
-export type {
-  SubscriptionOptions,
-  AccountActivityServiceOptions,
-  AccountActivityServiceActions,
-  AccountActivityServiceTransactionUpdatedEvent,
-  AccountActivityServiceBalanceUpdatedEvent,
-  AccountActivityServiceSubscriptionErrorEvent,
-  AccountActivityServiceStatusChangedEvent,
-  AccountActivityServiceEvents,
-  AccountActivityServiceMessenger,
-} from './AccountActivityService';
-export { AccountActivityService } from './AccountActivityService';
-
-// =============================================================================
-// Internal API SDK
-// =============================================================================
-
 // Backend API Client (unified wrapper)
-export { BackendApiClient, createBackendApiClient } from './api';
-export type { BackendApiClientOptions, BackendApiClientMessenger } from './api';
+export { BackendApiClient, createBackendApiClient } from './BackendApiClient';
+export type {
+  BackendApiClientOptions,
+  BackendApiClientMessenger,
+} from './BackendApiClient';
 
 // Combined BackendApiClient action types
-export type { BackendApiClientActions } from './api';
+export type { BackendApiClientActions } from './BackendApiClient-action-types';
 
 // Accounts API action types
 export type {
@@ -86,7 +61,7 @@ export type {
   AccountsGetV2AccountNftsAction,
   // Tokens
   AccountsGetV2AccountTokensAction,
-} from './api';
+} from './AccountsApiService-action-types';
 
 // Token API action types (token.api.cx.metamask.io)
 export type {
@@ -102,7 +77,7 @@ export type {
   TokenGetV3PopularTokensAction,
   TokenGetTopAssetsAction,
   TokenGetV1SuggestedOccurrenceFloorsAction,
-} from './api';
+} from './TokenApiService-action-types';
 
 // Tokens API action types (tokens.api.cx.metamask.io)
 export type {
@@ -120,7 +95,7 @@ export type {
   TokensGetNetworkConfigAction,
   TokensGetNetworkTokenStandardAction,
   TokensGetTopAssetsAction,
-} from './api';
+} from './TokensApiService-action-types';
 
 // Price API action types
 export type {
@@ -142,14 +117,18 @@ export type {
   PricesGetV3HistoricalPricesAction,
   PricesGetV1HistoricalPriceGraphByCoinIdAction,
   PricesGetV1HistoricalPriceGraphByTokenAddressAction,
-} from './api';
+} from './PriceApiService-action-types';
 
 // HTTP Client
-export { HttpClient, HttpError } from './api';
-export type { HttpRequestOptions } from './api';
+export { HttpClient, HttpError } from './HttpClient';
+export type { HttpRequestOptions } from './HttpClient';
 
 // Token API Service (token.api.cx.metamask.io)
-export { TokenApiService, TOKEN_API_BASE_URL, TOKEN_API_METHODS } from './api';
+export {
+  TokenApiService,
+  TOKEN_API_BASE_URL,
+  TOKEN_API_METHODS,
+} from './TokenApiService';
 export type {
   TokenApiServiceOptions,
   GetTokenSupportedNetworksResponse,
@@ -158,14 +137,14 @@ export type {
   TokenDescriptionResponse,
   SuggestedOccurrenceFloorsResponse,
   TopGainersSortOption,
-} from './api';
+} from './TokenApiService';
 
 // Tokens API Service (tokens.api.cx.metamask.io)
 export {
   TokensApiService,
   TOKENS_API_BASE_URL,
   TOKENS_API_METHODS,
-} from './api';
+} from './TokensApiService';
 export type {
   TokensApiServiceOptions,
   GetTokensSupportedNetworksV1Response,
@@ -174,20 +153,20 @@ export type {
   AssetByIdResponse,
   TokensNetworkConfig,
   TokensTopAsset,
-} from './api';
+} from './TokensApiService';
 
 // Accounts API Service
-export { AccountsApiService, ACCOUNTS_API_METHODS } from './api';
+export { AccountsApiService, ACCOUNTS_API_METHODS } from './AccountsApiService';
 export type {
   AccountsApiServiceOptions,
   GetV2ActiveNetworksResponse,
   TransactionByHashResponse,
   GetV4MultiAccountTransactionsResponse,
   GetV5MultiAccountBalancesResponse,
-} from './api';
+} from './AccountsApiService';
 
 // Price API Service
-export { PriceApiService, PRICE_API_METHODS } from './api';
+export { PriceApiService, PRICE_API_METHODS } from './PriceApiService';
 export type {
   PriceApiServiceOptions,
   GetV3SpotPricesResponse,
@@ -197,9 +176,9 @@ export type {
   CoinGeckoSpotPrice,
   ExchangeRateInfo,
   GetV3HistoricalPricesResponse,
-} from './api';
+} from './PriceApiService';
 
-// API Types
+// Common Types
 export type {
   // Base types
   ApiEnvironment,
@@ -242,7 +221,7 @@ export type {
   GetHistoricalPricesOptions,
   HistoricalPricePoint,
   GetHistoricalPricesResponse,
-} from './api';
+} from './types';
 
 // API Base URLs
-export { ACCOUNTS_API_BASE_URL, PRICE_API_BASE_URL } from './api';
+export { ACCOUNTS_API_BASE_URL, PRICE_API_BASE_URL } from './types';
