@@ -403,12 +403,12 @@ export class RampsController extends BaseController<
   /**
    * Fetches the list of supported countries for a given ramp action.
    *
-   * @param action - The ramp action type
+   * @param action - The ramp action type ('buy' or 'sell').
    * @param options - Options for cache behavior.
    * @returns An array of countries with their eligibility information.
    */
   async getCountries(
-    action: 'deposit',
+    action: 'buy' | 'sell' = 'buy',
     options?: ExecuteRequestOptions,
   ): Promise<Country[]> {
     const cacheKey = createCacheKey('getCountries', [action]);
@@ -426,12 +426,12 @@ export class RampsController extends BaseController<
    * Determines if the user's current region is eligible for ramps.
    * Checks the user's geolocation against the list of supported countries.
    *
-   * @param action - The ramp action type ('deposit' or 'withdraw').
+   * @param action - The ramp action type ('buy' or 'sell').
    * @param options - Options for cache behavior.
    * @returns True if the user's region is eligible for ramps, false otherwise.
    */
   async getRegionEligibility(
-    action: 'deposit',
+    action: 'buy' | 'sell' = 'buy',
     options?: ExecuteRequestOptions,
   ): Promise<boolean> {
     const { geolocation } = this.state;

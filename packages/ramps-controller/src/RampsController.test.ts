@@ -546,7 +546,7 @@ describe('RampsController', () => {
           async () => mockCountries,
         );
 
-        const countries = await controller.getCountries('deposit');
+        const countries = await controller.getCountries('buy');
 
         expect(countries).toMatchInlineSnapshot(`
           Array [
@@ -596,8 +596,8 @@ describe('RampsController', () => {
           },
         );
 
-        await controller.getCountries('deposit');
-        await controller.getCountries('deposit');
+        await controller.getCountries('buy');
+        await controller.getCountries('buy');
 
         expect(callCount).toBe(1);
       });
@@ -658,7 +658,7 @@ describe('RampsController', () => {
 
         expect(controller.state.geolocation).toBeNull();
 
-        const eligible = await controller.getRegionEligibility('deposit');
+        const eligible = await controller.getRegionEligibility('buy');
 
         expect(controller.state.geolocation).toBe('AT');
         expect(eligible).toBe(true);
@@ -678,7 +678,7 @@ describe('RampsController', () => {
 
         expect(controller.state.geolocation).toBeNull();
 
-        const eligible = await controller.getRegionEligibility('deposit');
+        const eligible = await controller.getRegionEligibility('buy');
 
         expect(controller.state.geolocation).toBe('RU');
         expect(eligible).toBe(false);
@@ -700,8 +700,8 @@ describe('RampsController', () => {
           async () => mockCountries,
         );
 
-        await controller.getRegionEligibility('deposit');
-        await controller.getRegionEligibility('deposit');
+        await controller.getRegionEligibility('buy');
+        await controller.getRegionEligibility('buy');
 
         expect(geolocationCallCount).toBe(1);
       });
@@ -716,7 +716,7 @@ describe('RampsController', () => {
             async () => mockCountries,
           );
 
-          const eligible = await controller.getRegionEligibility('deposit');
+          const eligible = await controller.getRegionEligibility('buy');
 
           expect(eligible).toBe(true);
         },
@@ -732,7 +732,7 @@ describe('RampsController', () => {
             async () => mockCountries,
           );
 
-          const eligible = await controller.getRegionEligibility('deposit');
+          const eligible = await controller.getRegionEligibility('buy');
 
           expect(eligible).toBe(true);
         },
@@ -748,7 +748,7 @@ describe('RampsController', () => {
             async () => mockCountries,
           );
 
-          const eligible = await controller.getRegionEligibility('deposit');
+          const eligible = await controller.getRegionEligibility('buy');
 
           expect(eligible).toBe(false);
         },
@@ -764,7 +764,7 @@ describe('RampsController', () => {
             async () => mockCountries,
           );
 
-          const eligible = await controller.getRegionEligibility('deposit');
+          const eligible = await controller.getRegionEligibility('buy');
 
           expect(eligible).toBe(false);
         },
@@ -780,7 +780,7 @@ describe('RampsController', () => {
             async () => mockCountries,
           );
 
-          const eligible = await controller.getRegionEligibility('deposit');
+          const eligible = await controller.getRegionEligibility('buy');
 
           expect(eligible).toBe(false);
         },
@@ -796,7 +796,7 @@ describe('RampsController', () => {
             async () => mockCountries,
           );
 
-          const eligible = await controller.getRegionEligibility('deposit');
+          const eligible = await controller.getRegionEligibility('buy');
 
           expect(eligible).toBe(false);
         },
@@ -816,9 +816,9 @@ describe('RampsController', () => {
             },
           );
 
-          await controller.getRegionEligibility('deposit');
+          await controller.getRegionEligibility('buy');
 
-          expect(receivedAction).toBe('deposit');
+          expect(receivedAction).toBe('buy');
         },
       );
     });

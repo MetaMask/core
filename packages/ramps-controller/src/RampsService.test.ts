@@ -26,6 +26,7 @@ describe('RampsService', () => {
     it('returns the geolocation from the API', async () => {
       nock('https://on-ramp.uat-api.cx.metamask.io')
         .get('/geolocation')
+        .query({ sdk: '2.1.6', controller: '2.0.0', context: 'mobile-ios' })
         .reply(200, 'US-TX');
       const { rootMessenger } = getService();
 
@@ -39,6 +40,7 @@ describe('RampsService', () => {
     it('uses the production URL when environment is Production', async () => {
       nock('https://on-ramp.api.cx.metamask.io')
         .get('/geolocation')
+        .query({ sdk: '2.1.6', controller: '2.0.0', context: 'mobile-ios' })
         .reply(200, 'US-TX');
       const { rootMessenger } = getService({
         options: { environment: RampsEnvironment.Production },
@@ -54,6 +56,7 @@ describe('RampsService', () => {
     it('uses staging URL when environment is Development', async () => {
       nock('https://on-ramp.uat-api.cx.metamask.io')
         .get('/geolocation')
+        .query({ sdk: '2.1.6', controller: '2.0.0', context: 'mobile-ios' })
         .reply(200, 'US-TX');
       const { rootMessenger } = getService({
         options: { environment: RampsEnvironment.Development },
@@ -66,10 +69,10 @@ describe('RampsService', () => {
       expect(geolocationResponse).toBe('US-TX');
     });
 
-
     it('throws if the API returns an empty response', async () => {
       nock('https://on-ramp.uat-api.cx.metamask.io')
         .get('/geolocation')
+        .query({ sdk: '2.1.6', controller: '2.0.0', context: 'mobile-ios' })
         .reply(200, '');
       const { rootMessenger } = getService();
 
@@ -81,6 +84,7 @@ describe('RampsService', () => {
     it('calls onDegraded listeners if the request takes longer than 5 seconds to resolve', async () => {
       nock('https://on-ramp.uat-api.cx.metamask.io')
         .get('/geolocation')
+        .query({ sdk: '2.1.6', controller: '2.0.0', context: 'mobile-ios' })
         .reply(200, () => {
           clock.tick(6000);
           return 'US-TX';
@@ -97,6 +101,7 @@ describe('RampsService', () => {
     it('attempts a request that responds with non-200 up to 4 times, throwing if it never succeeds', async () => {
       nock('https://on-ramp.uat-api.cx.metamask.io')
         .get('/geolocation')
+        .query({ sdk: '2.1.6', controller: '2.0.0', context: 'mobile-ios' })
         .times(4)
         .reply(500);
       const { service, rootMessenger } = getService();
@@ -107,7 +112,7 @@ describe('RampsService', () => {
       await expect(
         rootMessenger.call('RampsService:getGeolocation'),
       ).rejects.toThrow(
-        "Fetching 'https://on-ramp.uat-api.cx.metamask.io/geolocation' failed with status '500'",
+        "Fetching 'https://on-ramp.uat-api.cx.metamask.io/geolocation?sdk=2.1.6&controller=2.0.0&context=mobile-ios' failed with status '500'",
       );
     });
 
@@ -126,6 +131,7 @@ describe('RampsService', () => {
     it('does the same thing as the messenger action', async () => {
       nock('https://on-ramp.uat-api.cx.metamask.io')
         .get('/geolocation')
+        .query({ sdk: '2.1.6', controller: '2.0.0', context: 'mobile-ios' })
         .reply(200, 'US-TX');
       const { service } = getService();
 
@@ -167,16 +173,25 @@ describe('RampsService', () => {
       },
     ];
 
-    it('returns the countries from the cache API', async () => {
+    it('returns the countries from the cache API with geolocated field', async () => {
       nock('https://on-ramp-cache.uat-api.cx.metamask.io')
         .get('/regions/countries')
-        .query({ action: 'deposit', sdk: '2.1.6', context: 'mobile-ios' })
+        .query({
+          action: 'buy',
+          sdk: '2.1.6',
+          controller: '2.0.0',
+          context: 'mobile-ios',
+        })
         .reply(200, mockCountriesResponse);
+      nock('https://on-ramp.uat-api.cx.metamask.io')
+        .get('/geolocation')
+        .query({ sdk: '2.1.6', controller: '2.0.0', context: 'mobile-ios' })
+        .reply(200, 'US-TX');
       const { rootMessenger } = getService();
 
       const countriesResponse = await rootMessenger.call(
         'RampsService:getCountries',
-        'deposit',
+        'buy',
       );
 
       expect(countriesResponse).toMatchInlineSnapshot(`
@@ -184,6 +199,7 @@ describe('RampsService', () => {
           Object {
             "currency": "USD",
             "flag": "🇺🇸",
+            "geolocated": true,
             "isoCode": "US",
             "name": "United States of America",
             "phone": Object {
@@ -201,6 +217,7 @@ describe('RampsService', () => {
           Object {
             "currency": "EUR",
             "flag": "🇦🇹",
+            "geolocated": false,
             "isoCode": "AT",
             "name": "Austria",
             "phone": Object {
@@ -218,15 +235,24 @@ describe('RampsService', () => {
     it('uses the production cache URL when environment is Production', async () => {
       nock('https://on-ramp-cache.api.cx.metamask.io')
         .get('/regions/countries')
-        .query({ action: 'deposit', sdk: '2.1.6', context: 'mobile-ios' })
+        .query({
+          action: 'buy',
+          sdk: '2.1.6',
+          controller: '2.0.0',
+          context: 'mobile-ios',
+        })
         .reply(200, mockCountriesResponse);
+      nock('https://on-ramp.api.cx.metamask.io')
+        .get('/geolocation')
+        .query({ sdk: '2.1.6', controller: '2.0.0', context: 'mobile-ios' })
+        .reply(200, 'AT');
       const { rootMessenger } = getService({
         options: { environment: RampsEnvironment.Production },
       });
 
       const countriesResponse = await rootMessenger.call(
         'RampsService:getCountries',
-        'deposit',
+        'buy',
       );
 
       expect(countriesResponse).toMatchInlineSnapshot(`
@@ -234,6 +260,7 @@ describe('RampsService', () => {
           Object {
             "currency": "USD",
             "flag": "🇺🇸",
+            "geolocated": false,
             "isoCode": "US",
             "name": "United States of America",
             "phone": Object {
@@ -251,6 +278,7 @@ describe('RampsService', () => {
           Object {
             "currency": "EUR",
             "flag": "🇦🇹",
+            "geolocated": true,
             "isoCode": "AT",
             "name": "Austria",
             "phone": Object {
@@ -268,15 +296,24 @@ describe('RampsService', () => {
     it('uses staging cache URL when environment is Development', async () => {
       nock('https://on-ramp-cache.uat-api.cx.metamask.io')
         .get('/regions/countries')
-        .query({ action: 'deposit', sdk: '2.1.6', context: 'mobile-ios' })
+        .query({
+          action: 'buy',
+          sdk: '2.1.6',
+          controller: '2.0.0',
+          context: 'mobile-ios',
+        })
         .reply(200, mockCountriesResponse);
+      nock('https://on-ramp.uat-api.cx.metamask.io')
+        .get('/geolocation')
+        .query({ sdk: '2.1.6', controller: '2.0.0', context: 'mobile-ios' })
+        .reply(200, 'XX');
       const { rootMessenger } = getService({
         options: { environment: RampsEnvironment.Development },
       });
 
       const countriesResponse = await rootMessenger.call(
         'RampsService:getCountries',
-        'deposit',
+        'buy',
       );
 
       expect(countriesResponse).toMatchInlineSnapshot(`
@@ -284,6 +321,7 @@ describe('RampsService', () => {
           Object {
             "currency": "USD",
             "flag": "🇺🇸",
+            "geolocated": false,
             "isoCode": "US",
             "name": "United States of America",
             "phone": Object {
@@ -301,6 +339,7 @@ describe('RampsService', () => {
           Object {
             "currency": "EUR",
             "flag": "🇦🇹",
+            "geolocated": false,
             "isoCode": "AT",
             "name": "Austria",
             "phone": Object {
@@ -318,13 +357,22 @@ describe('RampsService', () => {
     it('passes the action parameter correctly', async () => {
       nock('https://on-ramp-cache.uat-api.cx.metamask.io')
         .get('/regions/countries')
-        .query({ action: 'withdraw', sdk: '2.1.6', context: 'mobile-ios' })
+        .query({
+          action: 'sell',
+          sdk: '2.1.6',
+          controller: '2.0.0',
+          context: 'mobile-ios',
+        })
         .reply(200, mockCountriesResponse);
+      nock('https://on-ramp.uat-api.cx.metamask.io')
+        .get('/geolocation')
+        .query({ sdk: '2.1.6', controller: '2.0.0', context: 'mobile-ios' })
+        .reply(200, 'US');
       const { rootMessenger } = getService();
 
       const countriesResponse = await rootMessenger.call(
         'RampsService:getCountries',
-        'withdraw',
+        'sell',
       );
 
       expect(countriesResponse).toMatchInlineSnapshot(`
@@ -332,6 +380,7 @@ describe('RampsService', () => {
           Object {
             "currency": "USD",
             "flag": "🇺🇸",
+            "geolocated": true,
             "isoCode": "US",
             "name": "United States of America",
             "phone": Object {
@@ -349,6 +398,7 @@ describe('RampsService', () => {
           Object {
             "currency": "EUR",
             "flag": "🇦🇹",
+            "geolocated": false,
             "isoCode": "AT",
             "name": "Austria",
             "phone": Object {
@@ -363,10 +413,44 @@ describe('RampsService', () => {
       `);
     });
 
-    it('throws if the API returns an error', async () => {
+    it('continues without geolocation when geolocation fails', async () => {
       nock('https://on-ramp-cache.uat-api.cx.metamask.io')
         .get('/regions/countries')
-        .query({ action: 'deposit', sdk: '2.1.6', context: 'mobile-ios' })
+        .query({
+          action: 'buy',
+          sdk: '2.1.6',
+          controller: '2.0.0',
+          context: 'mobile-ios',
+        })
+        .reply(200, mockCountriesResponse);
+      nock('https://on-ramp.uat-api.cx.metamask.io')
+        .get('/geolocation')
+        .query({ sdk: '2.1.6', controller: '2.0.0', context: 'mobile-ios' })
+        .times(4)
+        .reply(500);
+      const { service, rootMessenger } = getService();
+      service.onRetry(() => {
+        clock.nextAsync().catch(() => undefined);
+      });
+
+      const countriesResponse = await rootMessenger.call(
+        'RampsService:getCountries',
+        'buy',
+      );
+
+      expect(countriesResponse[0]?.geolocated).toBe(false);
+      expect(countriesResponse[1]?.geolocated).toBe(false);
+    });
+
+    it('throws if the countries API returns an error', async () => {
+      nock('https://on-ramp-cache.uat-api.cx.metamask.io')
+        .get('/regions/countries')
+        .query({
+          action: 'buy',
+          sdk: '2.1.6',
+          controller: '2.0.0',
+          context: 'mobile-ios',
+        })
         .times(4)
         .reply(500);
       const { service, rootMessenger } = getService();
@@ -375,9 +459,9 @@ describe('RampsService', () => {
       });
 
       await expect(
-        rootMessenger.call('RampsService:getCountries', 'deposit'),
+        rootMessenger.call('RampsService:getCountries', 'buy'),
       ).rejects.toThrow(
-        "Fetching 'https://on-ramp-cache.uat-api.cx.metamask.io/regions/countries?action=deposit&sdk=2.1.6&context=mobile-ios' failed with status '500'",
+        "Fetching 'https://on-ramp-cache.uat-api.cx.metamask.io/regions/countries?action=buy&sdk=2.1.6&controller=2.0.0&context=mobile-ios' failed with status '500'",
       );
     });
   });
@@ -396,17 +480,27 @@ describe('RampsService', () => {
       ];
       nock('https://on-ramp-cache.uat-api.cx.metamask.io')
         .get('/regions/countries')
-        .query({ action: 'deposit', sdk: '2.1.6', context: 'mobile-ios' })
+        .query({
+          action: 'buy',
+          sdk: '2.1.6',
+          controller: '2.0.0',
+          context: 'mobile-ios',
+        })
         .reply(200, mockCountries);
+      nock('https://on-ramp.uat-api.cx.metamask.io')
+        .get('/geolocation')
+        .query({ sdk: '2.1.6', controller: '2.0.0', context: 'mobile-ios' })
+        .reply(200, 'US');
       const { service } = getService();
 
-      const countriesResponse = await service.getCountries('deposit');
+      const countriesResponse = await service.getCountries('buy');
 
       expect(countriesResponse).toMatchInlineSnapshot(`
         Array [
           Object {
             "currency": "USD",
             "flag": "🇺🇸",
+            "geolocated": true,
             "isoCode": "US",
             "name": "United States",
             "phone": Object {

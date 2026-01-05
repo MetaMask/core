@@ -5,6 +5,7 @@ import type {
 import { createServicePolicy, HttpError } from '@metamask/controller-utils';
 import type { Messenger } from '@metamask/messenger';
 
+import packageJson from '../package.json';
 import type { RampsServiceMethodActions } from './RampsService-method-action-types';
 
 /**
@@ -29,7 +30,13 @@ export type Country = {
   recommended?: boolean;
   unsupportedStates?: string[];
   transakSupported?: boolean;
+  geolocated?: boolean;
 };
+
+/**
+ * The SDK version to send with API requests. (backwards-compatibility)
+ */
+export const RAMPS_SDK_VERSION = '2.1.6';
 
 // === GENERAL ===
 
@@ -280,30 +287,71 @@ export class RampsService {
   }
 
   /**
+   * Adds common request parameters to a URL.
+   *
+   * @param url - The URL to add parameters to.
+   * @param action - The ramp action type (optional, not all endpoints require it).
+   */
+  #addCommonParams(url: URL, action?: 'buy' | 'sell'): void {
+    if (action) {
+      url.searchParams.set('action', action);
+    }
+    url.searchParams.set('sdk', RAMPS_SDK_VERSION);
+    url.searchParams.set('controller', packageJson.version);
+    url.searchParams.set('context', 'mobile-ios');
+  }
+
+  /**
+   * Makes an API request with retry policy and error handling.
+   *
+   * @param service - The API service type (determines base URL).
+   * @param path - The endpoint path.
+   * @param options - Request options.
+   * @param options.action - The ramp action type (optional).
+   * @param options.responseType - How to parse the response ('json' or 'text').
+   * @returns The parsed response data.
+   */
+  async #request<TResponse>(
+    service: RampsApiService,
+    path: string,
+    options: {
+      action?: 'buy' | 'sell';
+      responseType: 'json' | 'text';
+    },
+  ): Promise<TResponse> {
+    return this.#policy.execute(async () => {
+      const baseUrl = getBaseUrl(this.#environment, service);
+      const url = new URL(path, baseUrl);
+      this.#addCommonParams(url, options.action);
+
+      const response = await this.#fetch(url);
+      if (!response.ok) {
+        throw new HttpError(
+          response.status,
+          `Fetching '${url.toString()}' failed with status '${response.status}'`,
+        );
+      }
+
+      return options.responseType === 'json'
+        ? (response.json() as Promise<TResponse>)
+        : (response.text() as Promise<TResponse>);
+    });
+  }
+
+  /**
    * Makes a request to the API in order to retrieve the user's geolocation
    * based on their IP address.
    *
    * @returns The user's country/region code (e.g., "US-UT" for Utah, USA).
    */
   async getGeolocation(): Promise<string> {
-    const responseData = await this.#policy.execute(async () => {
-      const baseUrl = getBaseUrl(this.#environment, RampsApiService.Orders);
-      const url = new URL('geolocation', baseUrl);
-      const localResponse = await this.#fetch(url);
-      if (!localResponse.ok) {
-        throw new HttpError(
-          localResponse.status,
-          `Fetching '${url.toString()}' failed with status '${localResponse.status}'`,
-        );
-      }
-      const textResponse = await localResponse.text();
-      // Return both response and text content since we consumed the body
-      return { response: localResponse, text: textResponse };
-    });
+    const textResponse = await this.#request<string>(
+      RampsApiService.Orders,
+      'geolocation',
+      { responseType: 'text' },
+    );
 
-    const textResponse = responseData.text;
     const trimmedResponse = textResponse.trim();
-
     if (trimmedResponse.length > 0) {
       return trimmedResponse;
     }
@@ -313,30 +361,31 @@ export class RampsService {
 
   /**
    * Makes a request to the cached API to retrieve the list of supported countries.
+   * Enriches the response with geolocation data to indicate the user's current country.
    *
    * @param action - The ramp action type ('deposit' or 'withdraw').
    * @returns An array of countries with their eligibility information.
    */
-  async getCountries(
-    action: 'deposit' | 'withdraw' = 'deposit',
-  ): Promise<Country[]> {
-    const responseData = await this.#policy.execute(async () => {
-      const baseUrl = getBaseUrl(this.#environment, RampsApiService.Regions);
-      const url = new URL('regions/countries', baseUrl);
-      url.searchParams.set('action', action);
-      url.searchParams.set('sdk', '2.1.6');
-      url.searchParams.set('context', 'mobile-ios');
+  async getCountries(action: 'buy' | 'sell' = 'buy'): Promise<Country[]> {
+    const countries = await this.#request<Country[]>(
+      RampsApiService.Regions,
+      'regions/countries',
+      { action, responseType: 'json' },
+    );
 
-      const localResponse = await this.#fetch(url);
-      if (!localResponse.ok) {
-        throw new HttpError(
-          localResponse.status,
-          `Fetching '${url.toString()}' failed with status '${localResponse.status}'`,
-        );
-      }
-      return localResponse.json() as Promise<Country[]>;
-    });
+    let geolocatedCountryCode: string | null = null;
+    try {
+      const geolocation = await this.getGeolocation();
+      geolocatedCountryCode = geolocation.split('-')[0] ?? null;
+    } catch {
+      // If geolocation fails, continue without it
+    }
 
-    return responseData;
+    return countries.map((country) => ({
+      ...country,
+      geolocated: geolocatedCountryCode
+        ? country.isoCode.toUpperCase() === geolocatedCountryCode.toUpperCase()
+        : false,
+    }));
   }
 }

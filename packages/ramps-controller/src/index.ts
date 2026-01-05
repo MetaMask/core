@@ -18,7 +18,12 @@ export type {
   Country,
   CountryPhone,
 } from './RampsService';
-export { RampsService, RampsEnvironment, RampsApiService } from './RampsService';
+export {
+  RampsService,
+  RampsEnvironment,
+  RampsApiService,
+  RAMPS_SDK_VERSION,
+} from './RampsService';
 export type {
   RampsServiceGetGeolocationAction,
   RampsServiceGetCountriesAction,
