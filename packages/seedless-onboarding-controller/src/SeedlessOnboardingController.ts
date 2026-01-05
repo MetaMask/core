@@ -38,6 +38,7 @@ import {
   PASSWORD_OUTDATED_CACHE_TTL_MS,
   SecretType,
   SeedlessOnboardingControllerErrorMessage,
+  SeedlessOnboardingMigrationVersion,
   Web3AuthNetwork,
 } from './constants';
 import { PasswordSyncError, RecoveryError } from './errors';
@@ -79,6 +80,7 @@ export function getInitialSeedlessOnboardingControllerStateWithDefaults(
   const initialState = {
     socialBackupsMetadata: [],
     isSeedlessOnboardingUserAuthenticated: false,
+    migrationVersion: 0,
     ...overrides,
   };
 
@@ -223,6 +225,12 @@ const seedlessOnboardingMetadata: StateMetadata<SeedlessOnboardingControllerStat
       usedInUi: false,
     },
     isSeedlessOnboardingUserAuthenticated: {
+      includeInStateLogs: true,
+      persist: true,
+      includeInDebugSnapshot: true,
+      usedInUi: false,
+    },
+    migrationVersion: {
       includeInStateLogs: true,
       persist: true,
       includeInDebugSnapshot: true,
@@ -650,6 +658,141 @@ export class SeedlessOnboardingController<
         performBatchUpdate,
         'batchUpdateSecretDataItems',
       );
+    });
+  }
+
+  /**
+   * Run any pending seedless onboarding migrations.
+   *
+   * This method should be called by clients after the controller is unlocked
+   * to ensure legacy data is migrated to the latest format.
+   *
+   * Migrations are idempotent - running this multiple times is safe.
+   * The migration version is tracked in state to prevent re-running migrations.
+   *
+   * @returns A promise that resolves when all migrations are complete.
+   */
+  async runMigrations(): Promise<void> {
+    return await this.#withControllerLock(async () => {
+      this.#assertIsUnlocked();
+
+      if (
+        this.state.migrationVersion <
+        SeedlessOnboardingMigrationVersion.DataType
+      ) {
+        await this.#migrateDataTypes();
+      }
+    });
+  }
+
+  /**
+   * Assigns dataType (PrimarySrp/ImportedSrp/ImportedPrivateKey) to legacy secrets
+   * that were created before the dataType field was introduced.
+   *
+   * This migration:
+   * 1. Fetches all secret data items
+   * 2. Identifies items that need migration (version !== 'v2' OR dataType not set)
+   * 3. Assigns PrimarySrp to the first mnemonic (by timestamp)
+   * 4. Assigns ImportedSrp to subsequent mnemonics
+   * 5. Assigns ImportedPrivateKey to private keys
+   * 6. Updates the items via SDK (which sets version to 'v2' and dataType)
+   * 7. Updates the migration version in state
+   *
+   * Note: The SDK's updateSecretDataItem automatically sets version to 'v2'
+   * when updating dataType, ensuring migrated items are marked as v2.
+   *
+   * @returns A promise that resolves when the migration is complete.
+   */
+  async #migrateDataTypes(): Promise<void> {
+    return await this.#executeWithTokenRefresh(async () => {
+      const { toprfEncryptionKey, toprfAuthKeyPair } =
+        await this.#unlockVaultAndGetVaultData();
+
+      let secretDatas: SecretMetadata[];
+      try {
+        secretDatas = await this.#fetchAllSecretDataFromMetadataStore(
+          toprfEncryptionKey,
+          toprfAuthKeyPair,
+        );
+      } catch (error) {
+        // If no secret data found, just update migration version
+        if (
+          error instanceof Error &&
+          error.message ===
+            SeedlessOnboardingControllerErrorMessage.NoSecretDataFound
+        ) {
+          this.#setMigrationVersion(
+            SeedlessOnboardingMigrationVersion.DataType,
+          );
+          return;
+        }
+        throw error;
+      }
+
+      let hasPrimarySrp = secretDatas.some(
+        (secret) => secret.dataType === EncAccountDataType.PrimarySrp,
+      );
+
+      const updates: { itemId: string; dataType: EncAccountDataType }[] = [];
+
+      for (const secret of secretDatas) {
+        if (!secret.itemId || secret.itemId === 'PW_BACKUP') {
+          continue;
+        }
+
+        // Skip items that are already migrated (v2 with dataType set)
+        // Check both storageVersion and dataType since this migration is specific to dataType
+        const isAlreadyMigrated =
+          secret.storageVersion === 'v2' &&
+          secret.dataType !== undefined &&
+          secret.dataType !== null;
+        if (isAlreadyMigrated) {
+          continue;
+        }
+
+        let dataType: EncAccountDataType;
+
+        if (SecretMetadata.matchesType(secret, SecretType.Mnemonic)) {
+          if (hasPrimarySrp) {
+            dataType = EncAccountDataType.ImportedSrp;
+          } else {
+            dataType = EncAccountDataType.PrimarySrp;
+            hasPrimarySrp = true;
+          }
+        } else if (SecretMetadata.matchesType(secret, SecretType.PrivateKey)) {
+          dataType = EncAccountDataType.ImportedPrivateKey;
+        } else {
+          continue;
+        }
+
+        updates.push({ itemId: secret.itemId, dataType });
+      }
+
+      if (updates.length === 1) {
+        await this.toprfClient.updateSecretDataItem({
+          itemId: updates[0].itemId,
+          dataType: updates[0].dataType,
+          authKeyPair: toprfAuthKeyPair,
+        });
+      } else if (updates.length > 1) {
+        await this.toprfClient.batchUpdateSecretDataItems({
+          updateItems: updates,
+          authKeyPair: toprfAuthKeyPair,
+        });
+      }
+
+      this.#setMigrationVersion(SeedlessOnboardingMigrationVersion.DataType);
+    }, 'migrateDataTypes');
+  }
+
+  /**
+   * Set the migration version in state.
+   *
+   * @param version - The migration version to set.
+   */
+  #setMigrationVersion(version: number): void {
+    this.update((state) => {
+      state.migrationVersion = version;
     });
   }
 
@@ -1314,6 +1457,7 @@ export class SeedlessOnboardingController<
           itemId: item.itemId,
           dataType: item.dataType,
           createdAt: item.createdAt,
+          storageVersion: item.version,
         }),
       );
 

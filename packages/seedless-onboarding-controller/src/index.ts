@@ -18,6 +18,7 @@ export type {
 export {
   Web3AuthNetwork,
   SeedlessOnboardingControllerErrorMessage,
+  SeedlessOnboardingMigrationVersion,
   AuthConnection,
   SecretType,
 } from './constants';

@@ -50,6 +50,13 @@ type StorageMetadata = {
   itemId?: string;
   dataType?: EncAccountDataType;
   createdAt?: string;
+  /**
+   * The storage-level version from the SDK ('v1' or 'v2').
+   * This is different from the encrypted data version (SecretMetadataVersion).
+   * - 'v1': Legacy items created before dataType was introduced
+   * - 'v2': Items with dataType set (either new or migrated)
+   */
+  storageVersion?: 'v1' | 'v2';
 };
 
 export class SecretMetadata<DataType extends SecretDataType = Uint8Array>
@@ -69,6 +76,8 @@ export class SecretMetadata<DataType extends SecretDataType = Uint8Array>
   readonly #dataType?: EncAccountDataType;
 
   readonly #createdAt?: string;
+
+  readonly #storageVersion?: 'v1' | 'v2';
 
   /**
    * Create a new SecretMetadata instance.
@@ -92,6 +101,7 @@ export class SecretMetadata<DataType extends SecretDataType = Uint8Array>
     this.#itemId = storageMetadata?.itemId;
     this.#dataType = storageMetadata?.dataType;
     this.#createdAt = storageMetadata?.createdAt;
+    this.#storageVersion = storageMetadata?.storageVersion;
   }
 
   /**
@@ -203,16 +213,26 @@ export class SecretMetadata<DataType extends SecretDataType = Uint8Array>
     return this.#version;
   }
 
-  get itemId() {
+  get itemId(): string | undefined {
     return this.#itemId;
   }
 
-  get dataType() {
+  get dataType(): EncAccountDataType | undefined {
     return this.#dataType;
   }
 
-  get createdAt() {
+  get createdAt(): string | undefined {
     return this.#createdAt;
+  }
+
+  /**
+   * The storage-level version from the SDK ('v1' or 'v2').
+   * This is different from `version` which is the encrypted data format version.
+   *
+   * @returns The storage-level version.
+   */
+  get storageVersion(): 'v1' | 'v2' | undefined {
+    return this.#storageVersion;
   }
 
   /**

@@ -182,6 +182,12 @@ export type SeedlessOnboardingControllerState =
        * Whether the user is authenticated with social login and TOPRF service.
        */
       isSeedlessOnboardingUserAuthenticated: boolean;
+
+      /**
+       * Tracks which seedless onboarding migrations have been applied.
+       * Used to prevent re-running migrations.
+       */
+      migrationVersion: number;
     };
 
 // Actions

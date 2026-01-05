@@ -104,11 +104,13 @@ export function createMockSecretDataGetResponse(
   success: boolean;
   data: string[];
   ids: string[];
+  versions: ('v1' | 'v2')[];
   dataTypes: (EncAccountDataType | null)[];
   createdAt: (string | null)[];
 } {
   const mockToprfEncryptor = new MockToprfEncryptorDecryptor();
   const ids: string[] = [];
+  const versions: ('v1' | 'v2')[] = [];
   const dataTypes: (EncAccountDataType | null)[] = [];
   const createdAt: (string | null)[] = [];
 
@@ -117,6 +119,8 @@ export function createMockSecretDataGetResponse(
     const timestamp = secretData.timestamp ?? Date.now();
 
     ids.push(secretData.itemId);
+    // Default to 'v1' for legacy data (no dataType), otherwise 'v2'
+    versions.push(secretData.dataType === undefined ? 'v1' : 'v2');
     dataTypes.push(secretData.dataType ?? null);
     createdAt.push(secretData.createdAt ?? null);
 
@@ -136,6 +140,7 @@ export function createMockSecretDataGetResponse(
     success: true,
     data: encryptedSecretData,
     ids,
+    versions,
     dataTypes,
     createdAt,
   };

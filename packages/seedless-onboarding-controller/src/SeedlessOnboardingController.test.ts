@@ -44,6 +44,7 @@ import type { webcrypto } from 'node:crypto';
 import {
   Web3AuthNetwork,
   SeedlessOnboardingControllerErrorMessage,
+  SeedlessOnboardingMigrationVersion,
   AuthConnection,
   SecretType,
   SecretMetadataVersion,
@@ -623,6 +624,7 @@ async function decryptVault(
  * @param options.accessToken - The mock access token.
  * @param options.encryptedSeedlessEncryptionKey - The mock encrypted seedless encryption key.
  * @param options.pendingToBeRevokedTokens - The mock pending to be revoked tokens.
+ * @param options.migrationVersion - The mock migration version.
  * @returns The initial controller state with the mock authenticated user.
  */
 function getMockInitialControllerState(options?: {
@@ -644,6 +646,7 @@ function getMockInitialControllerState(options?: {
         revokeToken: string;
       }[]
     | undefined;
+  migrationVersion?: number;
 }): Partial<SeedlessOnboardingControllerState> {
   const state = getInitialSeedlessOnboardingControllerStateWithDefaults();
 
@@ -691,6 +694,10 @@ function getMockInitialControllerState(options?: {
   if (options?.encryptedSeedlessEncryptionKey) {
     state.encryptedSeedlessEncryptionKey =
       options.encryptedSeedlessEncryptionKey;
+  }
+
+  if (options?.migrationVersion !== undefined) {
+    state.migrationVersion = options.migrationVersion;
   }
 
   return state;
@@ -1736,6 +1743,7 @@ describe('SeedlessOnboardingController', () => {
             SecretType.Mnemonic,
             {
               keyringId: NEW_KEY_RING_1.id,
+              dataType: EncAccountDataType.ImportedSrp,
             },
           );
 
@@ -1774,6 +1782,7 @@ describe('SeedlessOnboardingController', () => {
             SecretType.Mnemonic,
             {
               keyringId: NEW_KEY_RING_1.id,
+              dataType: EncAccountDataType.ImportedSrp,
             },
           );
 
@@ -1797,6 +1806,7 @@ describe('SeedlessOnboardingController', () => {
             SecretType.Mnemonic,
             {
               keyringId: NEW_KEY_RING_2.id,
+              dataType: EncAccountDataType.ImportedSrp,
             },
           );
 
@@ -1856,6 +1866,9 @@ describe('SeedlessOnboardingController', () => {
           await controller.addNewSecretData(
             MOCK_PRIVATE_KEY,
             SecretType.PrivateKey,
+            {
+              dataType: EncAccountDataType.ImportedPrivateKey,
+            },
           );
 
           expect(mockSecretDataAdd.isDone()).toBe(true);
@@ -2168,6 +2181,406 @@ describe('SeedlessOnboardingController', () => {
           ).rejects.toThrow(
             SeedlessOnboardingControllerErrorMessage.FailedToBatchUpdateSecretDataItems,
           );
+        },
+      );
+    });
+  });
+
+  describe('runMigrations', () => {
+    const MOCK_PASSWORD = 'mock-password';
+    let MOCK_VAULT = '';
+    let MOCK_VAULT_ENCRYPTION_KEY = '';
+    let MOCK_VAULT_ENCRYPTION_SALT = '';
+
+    beforeEach(async () => {
+      const mockToprfEncryptor = createMockToprfEncryptor();
+      const MOCK_ENCRYPTION_KEY =
+        mockToprfEncryptor.deriveEncKey(MOCK_PASSWORD);
+      const MOCK_PASSWORD_ENCRYPTION_KEY =
+        mockToprfEncryptor.derivePwEncKey(MOCK_PASSWORD);
+      const MOCK_AUTH_KEY_PAIR =
+        mockToprfEncryptor.deriveAuthKeyPair(MOCK_PASSWORD);
+
+      const mockResult = await createMockVault(
+        MOCK_ENCRYPTION_KEY,
+        MOCK_PASSWORD_ENCRYPTION_KEY,
+        MOCK_AUTH_KEY_PAIR,
+        MOCK_PASSWORD,
+      );
+
+      MOCK_VAULT = mockResult.encryptedMockVault;
+      MOCK_VAULT_ENCRYPTION_KEY = mockResult.vaultEncryptionKey;
+      MOCK_VAULT_ENCRYPTION_SALT = mockResult.vaultEncryptionSalt;
+    });
+
+    it('should throw error if controller is locked', async () => {
+      await withController(
+        {
+          state: getMockInitialControllerState({
+            withMockAuthenticatedUser: true,
+          }),
+        },
+        async ({ controller }) => {
+          await expect(controller.runMigrations()).rejects.toThrow(
+            SeedlessOnboardingControllerErrorMessage.ControllerLocked,
+          );
+        },
+      );
+    });
+
+    it('should skip migration if migration version is already at latest', async () => {
+      await withController(
+        {
+          state: getMockInitialControllerState({
+            withMockAuthenticatedUser: true,
+            withMockAuthPubKey: true,
+            vault: MOCK_VAULT,
+            vaultEncryptionKey: MOCK_VAULT_ENCRYPTION_KEY,
+            vaultEncryptionSalt: MOCK_VAULT_ENCRYPTION_SALT,
+            migrationVersion: SeedlessOnboardingMigrationVersion.DataType,
+          }),
+        },
+        async ({ controller, toprfClient }) => {
+          await controller.submitPassword(MOCK_PASSWORD);
+
+          mockFetchAuthPubKey(
+            toprfClient,
+            base64ToBytes(controller.state.authPubKey as string),
+          );
+
+          const fetchAllSecretDataSpy = jest.spyOn(
+            toprfClient,
+            'fetchAllSecretDataItems',
+          );
+
+          await controller.runMigrations();
+
+          // Should not fetch data since migration is already complete
+          expect(fetchAllSecretDataSpy).not.toHaveBeenCalled();
+        },
+      );
+    });
+
+    it('should migrate legacy items, skip already-migrated and special items, and handle sorting', async () => {
+      await withController(
+        {
+          state: getMockInitialControllerState({
+            withMockAuthenticatedUser: true,
+            withMockAuthPubKey: true,
+            vault: MOCK_VAULT,
+            vaultEncryptionKey: MOCK_VAULT_ENCRYPTION_KEY,
+            vaultEncryptionSalt: MOCK_VAULT_ENCRYPTION_SALT,
+            migrationVersion: 0,
+          }),
+        },
+        async ({ controller, toprfClient }) => {
+          await controller.submitPassword(MOCK_PASSWORD);
+
+          mockFetchAuthPubKey(
+            toprfClient,
+            base64ToBytes(controller.state.authPubKey as string),
+          );
+
+          // Return items in shuffled order to test sorting
+          // v1 items have no dataType and no createdAt (legacy)
+          // v2 items have both dataType and createdAt
+          jest.spyOn(toprfClient, 'fetchAllSecretDataItems').mockResolvedValue([
+            // Private key (v1 legacy, needs migration)
+            {
+              data: stringToBytes(
+                JSON.stringify({
+                  data: bytesToBase64(MOCK_PRIVATE_KEY),
+                  timestamp: 3000,
+                  type: SecretType.PrivateKey,
+                  version: 'v1',
+                }),
+              ),
+              itemId: 'pk-1',
+              version: 'v1',
+              dataType: undefined,
+              createdAt: undefined,
+            },
+            // Already migrated SRP (v2 with dataType and createdAt)
+            {
+              data: stringToBytes(
+                JSON.stringify({
+                  data: bytesToBase64(stringToBytes('already migrated srp')),
+                  timestamp: 500,
+                  type: SecretType.Mnemonic,
+                  version: 'v1',
+                }),
+              ),
+              itemId: 'srp-migrated',
+              version: 'v2',
+              dataType: EncAccountDataType.ImportedSrp,
+              createdAt: '00000000-0000-1000-8000-000000000000',
+            },
+            // Second SRP (v1 legacy, needs migration)
+            {
+              data: stringToBytes(
+                JSON.stringify({
+                  data: bytesToBase64(stringToBytes('another mnemonic')),
+                  timestamp: 2000,
+                  type: SecretType.Mnemonic,
+                  version: 'v1',
+                }),
+              ),
+              itemId: 'srp-2',
+              version: 'v1',
+              dataType: undefined,
+              createdAt: undefined,
+            },
+            // PW_BACKUP item (v1 legacy)
+            {
+              data: stringToBytes(
+                JSON.stringify({
+                  data: bytesToBase64(stringToBytes('password backup')),
+                  timestamp: 100,
+                  type: SecretType.Mnemonic,
+                  version: 'v1',
+                }),
+              ),
+              itemId: 'PW_BACKUP',
+              version: 'v1',
+              dataType: undefined,
+              createdAt: undefined,
+            },
+            // First SRP (v1 legacy, needs migration, oldest by timestamp)
+            {
+              data: stringToBytes(
+                JSON.stringify({
+                  data: bytesToBase64(MOCK_SEED_PHRASE),
+                  timestamp: 1000,
+                  type: SecretType.Mnemonic,
+                  version: 'v1',
+                }),
+              ),
+              itemId: 'srp-1',
+              version: 'v1',
+              dataType: undefined,
+              createdAt: undefined,
+            },
+            // Unknown type item (v1 legacy)
+            {
+              data: stringToBytes(
+                JSON.stringify({
+                  data: bytesToBase64(stringToBytes('unknown data')),
+                  timestamp: 4000,
+                  type: 'unknownType',
+                  version: 'v1',
+                }),
+              ),
+              itemId: 'unknown-1',
+              version: 'v1',
+              dataType: undefined,
+              createdAt: undefined,
+            },
+          ]);
+
+          const batchUpdateSpy = jest
+            .spyOn(toprfClient, 'batchUpdateSecretDataItems')
+            .mockResolvedValue();
+
+          await controller.runMigrations();
+
+          // srp-1 -> PrimarySrp, srp-2 -> ImportedSrp, pk-1 -> ImportedPrivateKey
+          // Skipped: srp-migrated, PW_BACKUP, unknown-1
+          expect(batchUpdateSpy).toHaveBeenCalledWith({
+            updateItems: [
+              { itemId: 'srp-1', dataType: EncAccountDataType.PrimarySrp },
+              { itemId: 'srp-2', dataType: EncAccountDataType.ImportedSrp },
+              {
+                itemId: 'pk-1',
+                dataType: EncAccountDataType.ImportedPrivateKey,
+              },
+            ],
+            authKeyPair: expect.any(Object),
+          });
+          expect(controller.state.migrationVersion).toBe(
+            SeedlessOnboardingMigrationVersion.DataType,
+          );
+        },
+      );
+    });
+
+    it('should update migration version even if no items need updating', async () => {
+      await withController(
+        {
+          state: getMockInitialControllerState({
+            withMockAuthenticatedUser: true,
+            withMockAuthPubKey: true,
+            vault: MOCK_VAULT,
+            vaultEncryptionKey: MOCK_VAULT_ENCRYPTION_KEY,
+            vaultEncryptionSalt: MOCK_VAULT_ENCRYPTION_SALT,
+            migrationVersion: 0,
+          }),
+        },
+        async ({ controller, toprfClient }) => {
+          await controller.submitPassword(MOCK_PASSWORD);
+
+          mockFetchAuthPubKey(
+            toprfClient,
+            base64ToBytes(controller.state.authPubKey as string),
+          );
+
+          // All items already have dataType
+          jest.spyOn(toprfClient, 'fetchAllSecretDataItems').mockResolvedValue([
+            {
+              data: stringToBytes(
+                JSON.stringify({
+                  data: bytesToBase64(MOCK_SEED_PHRASE),
+                  timestamp: 1000,
+                  type: SecretType.Mnemonic,
+                  version: 'v1',
+                }),
+              ),
+              itemId: 'srp-1',
+              version: 'v2',
+              dataType: EncAccountDataType.PrimarySrp,
+              createdAt: '00000001-0000-1000-8000-000000000001',
+            },
+          ]);
+
+          const updateSpy = jest.spyOn(toprfClient, 'updateSecretDataItem');
+          const batchUpdateSpy = jest.spyOn(
+            toprfClient,
+            'batchUpdateSecretDataItems',
+          );
+
+          await controller.runMigrations();
+
+          expect(updateSpy).not.toHaveBeenCalled();
+          expect(batchUpdateSpy).not.toHaveBeenCalled();
+          expect(controller.state.migrationVersion).toBe(
+            SeedlessOnboardingMigrationVersion.DataType,
+          );
+        },
+      );
+    });
+
+    it('should handle no secret data found', async () => {
+      await withController(
+        {
+          state: getMockInitialControllerState({
+            withMockAuthenticatedUser: true,
+            withMockAuthPubKey: true,
+            vault: MOCK_VAULT,
+            vaultEncryptionKey: MOCK_VAULT_ENCRYPTION_KEY,
+            vaultEncryptionSalt: MOCK_VAULT_ENCRYPTION_SALT,
+            migrationVersion: 0,
+          }),
+        },
+        async ({ controller, toprfClient }) => {
+          await controller.submitPassword(MOCK_PASSWORD);
+
+          mockFetchAuthPubKey(
+            toprfClient,
+            base64ToBytes(controller.state.authPubKey as string),
+          );
+
+          jest
+            .spyOn(toprfClient, 'fetchAllSecretDataItems')
+            .mockResolvedValue([]);
+
+          await controller.runMigrations();
+
+          expect(controller.state.migrationVersion).toBe(
+            SeedlessOnboardingMigrationVersion.DataType,
+          );
+        },
+      );
+    });
+
+    it('should use updateSecretDataItem when only one item needs migration', async () => {
+      await withController(
+        {
+          state: getMockInitialControllerState({
+            withMockAuthenticatedUser: true,
+            withMockAuthPubKey: true,
+            vault: MOCK_VAULT,
+            vaultEncryptionKey: MOCK_VAULT_ENCRYPTION_KEY,
+            vaultEncryptionSalt: MOCK_VAULT_ENCRYPTION_SALT,
+            migrationVersion: 0,
+          }),
+        },
+        async ({ controller, toprfClient }) => {
+          await controller.submitPassword(MOCK_PASSWORD);
+
+          mockFetchAuthPubKey(
+            toprfClient,
+            base64ToBytes(controller.state.authPubKey as string),
+          );
+
+          // Only one item needs migration
+          jest.spyOn(toprfClient, 'fetchAllSecretDataItems').mockResolvedValue([
+            {
+              data: stringToBytes(
+                JSON.stringify({
+                  data: bytesToBase64(MOCK_SEED_PHRASE),
+                  timestamp: 1000,
+                  type: SecretType.Mnemonic,
+                  version: 'v1',
+                }),
+              ),
+              itemId: 'srp-1',
+              version: 'v1',
+              dataType: undefined,
+              createdAt: '00000001-0000-1000-8000-000000000001',
+            },
+          ]);
+
+          const updateSpy = jest
+            .spyOn(toprfClient, 'updateSecretDataItem')
+            .mockResolvedValue();
+          const batchUpdateSpy = jest.spyOn(
+            toprfClient,
+            'batchUpdateSecretDataItems',
+          );
+
+          await controller.runMigrations();
+
+          expect(updateSpy).toHaveBeenCalledWith({
+            itemId: 'srp-1',
+            dataType: EncAccountDataType.PrimarySrp,
+            authKeyPair: expect.any(Object),
+          });
+          expect(batchUpdateSpy).not.toHaveBeenCalled();
+          expect(controller.state.migrationVersion).toBe(
+            SeedlessOnboardingMigrationVersion.DataType,
+          );
+        },
+      );
+    });
+
+    it('should rethrow non-NoSecretDataFound errors during migration', async () => {
+      await withController(
+        {
+          state: getMockInitialControllerState({
+            withMockAuthenticatedUser: true,
+            withMockAuthPubKey: true,
+            vault: MOCK_VAULT,
+            vaultEncryptionKey: MOCK_VAULT_ENCRYPTION_KEY,
+            vaultEncryptionSalt: MOCK_VAULT_ENCRYPTION_SALT,
+            migrationVersion: 0,
+          }),
+        },
+        async ({ controller, toprfClient }) => {
+          await controller.submitPassword(MOCK_PASSWORD);
+
+          mockFetchAuthPubKey(
+            toprfClient,
+            base64ToBytes(controller.state.authPubKey as string),
+          );
+
+          jest
+            .spyOn(toprfClient, 'fetchAllSecretDataItems')
+            .mockRejectedValue(new Error('Network error'));
+
+          await expect(controller.runMigrations()).rejects.toThrow(
+            SeedlessOnboardingControllerErrorMessage.FailedToFetchSecretMetadata,
+          );
+
+          expect(controller.state.migrationVersion).toBe(0);
         },
       );
     });
@@ -2614,7 +3027,11 @@ describe('SeedlessOnboardingController', () => {
           jest
             .spyOn(toprfClient, 'fetchAllSecretDataItems')
             .mockResolvedValueOnce([
-              { data: stringToBytes(JSON.stringify({ key: 'value' })) },
+              {
+                data: stringToBytes(JSON.stringify({ key: 'value' })),
+                itemId: 'test-item-id',
+                version: 'v2',
+              },
             ]);
           await expect(
             controller.fetchAllSecretData(MOCK_PASSWORD),
@@ -3815,6 +4232,28 @@ describe('SeedlessOnboardingController', () => {
           'desc',
         ),
       ).toBeGreaterThan(0);
+
+      // default order (no parameter): should use ascending order
+      expect(
+        SecretMetadata.compareByTimestamp(
+          mockSeedPhraseMetadata1,
+          mockSeedPhraseMetadata2,
+        ),
+      ).toBeLessThan(0);
+    });
+
+    it('should default type to Mnemonic when parsing metadata without type field', () => {
+      // Create raw metadata JSON without type field
+      const rawMetadataWithoutType = JSON.stringify({
+        data: bytesToBase64(MOCK_SEED_PHRASE),
+        timestamp: Date.now(),
+        version: SecretMetadataVersion.V1,
+      });
+      const rawMetadataBytes = stringToBytes(rawMetadataWithoutType);
+
+      const parsed = SecretMetadata.fromRawMetadata(rawMetadataBytes);
+      expect(parsed.type).toBe(SecretType.Mnemonic);
+      expect(parsed.data).toStrictEqual(MOCK_SEED_PHRASE);
     });
 
     it('should be able to overwrite the default Generic DataType', () => {
@@ -3858,7 +4297,7 @@ describe('SeedlessOnboardingController', () => {
       const secrets = [secret1.toBytes(), secret2.toBytes()];
 
       const parsedSecrets = secrets
-        .map((s) => SecretMetadata.fromRawMetadata(s))
+        .map((secret) => SecretMetadata.fromRawMetadata(secret))
         .sort((a, b) => SecretMetadata.compareByTimestamp(a, b, 'asc'));
       expect(parsedSecrets).toHaveLength(2);
       expect(parsedSecrets[0].data).toBe(mockPrivKeyString);
@@ -3880,11 +4319,11 @@ describe('SeedlessOnboardingController', () => {
       const secrets = [secret1.toBytes(), secret2.toBytes(), secret3.toBytes()];
 
       const allSecrets = secrets
-        .map((s) => SecretMetadata.fromRawMetadata(s))
+        .map((secret) => SecretMetadata.fromRawMetadata(secret))
         .sort((a, b) => SecretMetadata.compareByTimestamp(a, b, 'asc'));
 
-      const mnemonicSecrets = allSecrets.filter((s) =>
-        SecretMetadata.matchesType(s, SecretType.Mnemonic),
+      const mnemonicSecrets = allSecrets.filter((secret) =>
+        SecretMetadata.matchesType(secret, SecretType.Mnemonic),
       );
       expect(mnemonicSecrets).toHaveLength(2);
       expect(mnemonicSecrets[0].data).toStrictEqual(MOCK_SEED_PHRASE);
@@ -3892,8 +4331,8 @@ describe('SeedlessOnboardingController', () => {
       expect(mnemonicSecrets[1].data).toStrictEqual(MOCK_SEED_PHRASE);
       expect(mnemonicSecrets[1].type).toBe(SecretType.Mnemonic);
 
-      const privateKeySecrets = allSecrets.filter((s) =>
-        SecretMetadata.matchesType(s, SecretType.PrivateKey),
+      const privateKeySecrets = allSecrets.filter((secret) =>
+        SecretMetadata.matchesType(secret, SecretType.PrivateKey),
       );
 
       expect(privateKeySecrets).toHaveLength(1);
@@ -5338,6 +5777,7 @@ describe('SeedlessOnboardingController', () => {
               SecretType.Mnemonic,
               {
                 keyringId: NEW_KEY_RING.id,
+                dataType: EncAccountDataType.ImportedSrp,
               },
             );
 
@@ -6043,6 +6483,7 @@ describe('SeedlessOnboardingController', () => {
                   }),
                 ),
                 itemId: 'primary-srp-id',
+                version: 'v2',
                 dataType: EncAccountDataType.PrimarySrp,
                 createdAt: '00000001-0000-1000-8000-000000000001',
               },
@@ -6056,6 +6497,7 @@ describe('SeedlessOnboardingController', () => {
                   }),
                 ),
                 itemId: 'pk-id',
+                version: 'v2',
                 dataType: EncAccountDataType.ImportedPrivateKey,
                 createdAt: '00000002-0000-1000-8000-000000000002',
               },
@@ -6111,6 +6553,8 @@ describe('SeedlessOnboardingController', () => {
                     version: 'v1',
                   }),
                 ),
+                itemId: 'test-item-id',
+                version: 'v2',
               },
             ]);
 
@@ -6348,6 +6792,7 @@ describe('SeedlessOnboardingController', () => {
               "authConnectionId": "authConnectionId",
               "groupedAuthConnectionId": "groupedAuthConnectionId",
               "isSeedlessOnboardingUserAuthenticated": false,
+              "migrationVersion": 0,
               "passwordOutdatedCache": Object {
                 "isExpiredPwd": false,
                 "timestamp": 1234567890,
@@ -6405,6 +6850,7 @@ describe('SeedlessOnboardingController', () => {
               "groupedAuthConnectionId": "groupedAuthConnectionId",
               "isSeedlessOnboardingUserAuthenticated": false,
               "metadataAccessToken": true,
+              "migrationVersion": 0,
               "nodeAuthTokens": true,
               "passwordOutdatedCache": Object {
                 "isExpiredPwd": false,
@@ -6468,6 +6914,7 @@ describe('SeedlessOnboardingController', () => {
               "groupedAuthConnectionId": "groupedAuthConnectionId",
               "isSeedlessOnboardingUserAuthenticated": false,
               "metadataAccessToken": "metadataAccessToken",
+              "migrationVersion": 0,
               "nodeAuthTokens": Array [],
               "passwordOutdatedCache": Object {
                 "isExpiredPwd": false,

@@ -24,6 +24,10 @@ export enum SecretMetadataVersion {
   V1 = 'v1',
 }
 
+export enum SeedlessOnboardingMigrationVersion {
+  DataType = 1,
+}
+
 export enum SeedlessOnboardingControllerErrorMessage {
   ControllerLocked = `${controllerName} - The operation cannot be completed while the controller is locked.`,
   AuthenticationError = `${controllerName} - Authentication error`,
