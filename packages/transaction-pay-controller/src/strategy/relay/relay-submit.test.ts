@@ -4,7 +4,7 @@ import type { TransactionMeta } from '@metamask/transaction-controller';
 import type { Hex } from '@metamask/utils';
 import { cloneDeep } from 'lodash';
 
-import { RELAY_URL_BASE } from './constants';
+import { RELAY_STATUS_URL } from './constants';
 import { submitRelayQuotes } from './relay-submit';
 import type { RelayQuote } from './types';
 import { getMessengerMock } from '../../tests/messenger-mock';
@@ -32,7 +32,7 @@ jest.mock('@metamask/controller-utils', () => ({
 
 const NETWORK_CLIENT_ID_MOCK = 'networkClientIdMock';
 const TRANSACTION_HASH_MOCK = '0x1234';
-const ENDPOINT_MOCK = '/test123';
+const REQUEST_ID_MOCK = '0x1234567890abcdef';
 const ORIGINAL_TRANSACTION_ID_MOCK = '456-789';
 const FROM_MOCK = '0xabcde' as Hex;
 const CHAIN_ID_MOCK = '0x1' as Hex;
@@ -63,12 +63,9 @@ const ORIGINAL_QUOTE_MOCK = {
   steps: [
     {
       kind: 'transaction',
+      requestId: REQUEST_ID_MOCK,
       items: [
         {
-          check: {
-            endpoint: ENDPOINT_MOCK,
-            method: 'GET',
-          },
           data: {
             chainId: 1,
             data: '0x1234' as Hex,
@@ -384,7 +381,7 @@ describe('Relay Submit Utils', () => {
 
       expect(successfulFetchMock).toHaveBeenCalledTimes(2);
       expect(successfulFetchMock).toHaveBeenCalledWith(
-        `${RELAY_URL_BASE}${ENDPOINT_MOCK}`,
+        `${RELAY_STATUS_URL}?requestId=${REQUEST_ID_MOCK}`,
         {
           method: 'GET',
         },
@@ -409,7 +406,7 @@ describe('Relay Submit Utils', () => {
       );
     });
 
-    it.each(['failure', 'refund'])(
+    it.each(['failure', 'refund', 'refunded'])(
       'throws if relay status is %s',
       async (status) => {
         successfulFetchMock.mockResolvedValue({

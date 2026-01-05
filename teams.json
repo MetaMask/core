@@ -26,7 +26,7 @@
   "metamask/bridge-controller": "team-swaps-and-bridge",
   "metamask/bridge-status-controller": "team-swaps-and-bridge",
   "metamask/app-metadata-controller": "team-mobile-platform",
-  "metamask/token-search-discovery-controller": "team-portfolio",
+  "metamask/token-search-discovery-controller": "team-assets",
   "metamask/delegation-controller": "team-delegation",
   "metamask/chain-agnostic-permission": "team-wallet-integrations",
   "metamask/eip1193-permission-middleware": "team-wallet-integrations",
