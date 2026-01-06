@@ -24,9 +24,9 @@ type Tx = Pick<TransactionMeta, 'id' | 'status'> & {
 
 const seedIntentHistory = (controller: any): any => {
   controller.update((state: any) => {
-    state.txHistory['intent:1'] = {
-      txMetaId: 'intent:1',
-      originalTransactionId: 'tx1',
+    state.txHistory.tx1 = {
+      txMetaId: 'tx1',
+      intentOrderId: '1',
       quote: {
         srcChainId: 1,
         destChainId: 1,
@@ -586,7 +586,7 @@ describe('BridgeStatusController (intent swaps)', () => {
 
     const quoteResponse = minimalIntentQuoteResponse();
 
-    await controller.submitIntent({
+    const { id: historyKey } = await controller.submitIntent({
       quoteResponse,
       signature: '0xsig',
       accountAddress,
@@ -599,8 +599,6 @@ describe('BridgeStatusController (intent swaps)', () => {
         warnings: [],
       },
     });
-
-    const historyKey = `intent:${orderUid}`;
 
     // Seed existing hashes via controller.update (state is frozen)
     controller.update((state: any) => {
@@ -717,13 +715,11 @@ describe('BridgeStatusController (intent swaps)', () => {
 
     const quoteResponse = minimalIntentQuoteResponse();
 
-    await controller.submitIntent({
+    const { id: historyKey } = await controller.submitIntent({
       quoteResponse,
       signature: '0xsig',
       accountAddress,
     });
-
-    const historyKey = `intent:${orderUid}`;
 
     // Remove TC tx so update branch logs "transaction not found"
     transactions.splice(0, transactions.length);
@@ -835,7 +831,11 @@ describe('BridgeStatusController (intent swaps)', () => {
       accountAddress,
     });
 
-    const historyKey = `intent:${orderUid}`;
+    const { id: historyKey } = await controller.submitIntent({
+      quoteResponse,
+      signature: '0xsig',
+      accountAddress,
+    });
 
     // Prime attempts so next failure hits MAX_ATTEMPTS
     controller.update((state: any) => {
@@ -961,7 +961,6 @@ describe('BridgeStatusController (subscriptions + bridge polling + wiping)', () 
     controller.update((state: any) => {
       state.txHistory.mainTx = {
         txMetaId: 'mainTx',
-        originalTransactionId: 'mainTx',
         approvalTxId: 'approvalTx',
         quote: {
           srcChainId: 1,
@@ -1002,7 +1001,6 @@ describe('BridgeStatusController (subscriptions + bridge polling + wiping)', () 
     controller.update((state: any) => {
       state.txHistory.bridgeConfirmed1 = {
         txMetaId: 'bridgeConfirmed1',
-        originalTransactionId: 'bridgeConfirmed1',
         quote: {
           srcChainId: 1,
           destChainId: 10,
@@ -1061,7 +1059,6 @@ describe('BridgeStatusController (subscriptions + bridge polling + wiping)', () 
     controller.update((state: any) => {
       state.txHistory.bridgeTx1 = {
         txMetaId: 'bridgeTx1',
-        originalTransactionId: 'bridgeTx1',
         quote: {
           srcChainId: 1,
           destChainId: 10,
@@ -1091,7 +1088,6 @@ describe('BridgeStatusController (subscriptions + bridge polling + wiping)', () 
     controller.update((state: any) => {
       state.txHistory.swapTx1 = {
         txMetaId: 'swapTx1',
-        originalTransactionId: 'swapTx1',
         quote: {
           srcChainId: 1,
           destChainId: 1,
@@ -1375,9 +1371,9 @@ describe('BridgeStatusController (target uncovered branches)', () => {
     controller.update((state: any) => {
       state.txHistory.tx1 = {
         txMetaId: 'tx1',
-        originalTransactionId: 'tx1',
         quote: minimalIntentQuoteResponse().quote,
         account: '0xAccount1',
+        intentOrderId: '1',
         status: {
           status: StatusTypes.PENDING,
           srcChain: { chainId: 1, txHash: '0x' },
@@ -1470,7 +1466,6 @@ describe('BridgeStatusController (target uncovered branches)', () => {
       txHistory: {
         init1: {
           txMetaId: 'init1',
-          originalTransactionId: 'init1',
           quote: { srcChainId: 1, destChainId: 10 },
           account: accountAddress,
           status: {
@@ -1769,7 +1764,6 @@ describe('BridgeStatusController (target uncovered branches)', () => {
     controller.update((state: any) => {
       state.txHistory.feat1 = {
         txMetaId: 'feat1',
-        originalTransactionId: 'feat1',
         quote: {
           ...minimalBridgeQuoteResponse('0xAccount1').quote,
           srcChainId: 1,
@@ -1831,9 +1825,9 @@ describe('BridgeStatusController (target uncovered branches)', () => {
       metadata: { txHashes: [] },
     });
 
-    await controller._executePoll({ bridgeTxMetaId: 'intent:1' });
+    await controller._executePoll({ bridgeTxMetaId: 'tx1' });
 
-    expect(controller.state.txHistory['intent:1'].status.status).toBe(
+    expect(controller.state.txHistory.tx1.status.status).toBe(
       StatusTypes.PENDING,
     );
   });
@@ -1850,9 +1844,9 @@ describe('BridgeStatusController (target uncovered branches)', () => {
       metadata: { txHashes: [] },
     });
 
-    await controller._executePoll({ bridgeTxMetaId: 'intent:1' });
+    await controller._executePoll({ bridgeTxMetaId: 'tx1' });
 
-    expect(controller.state.txHistory['intent:1'].status.status).toBe(
+    expect(controller.state.txHistory.tx1.status.status).toBe(
       StatusTypes.SUBMITTED,
     );
   });
@@ -1869,9 +1863,9 @@ describe('BridgeStatusController (target uncovered branches)', () => {
       metadata: { txHashes: [] },
     });
 
-    await controller._executePoll({ bridgeTxMetaId: 'intent:1' });
+    await controller._executePoll({ bridgeTxMetaId: 'tx1' });
 
-    expect(controller.state.txHistory['intent:1'].status.status).toBe(
+    expect(controller.state.txHistory.tx1.status.status).toBe(
       StatusTypes.UNKNOWN,
     );
   });
