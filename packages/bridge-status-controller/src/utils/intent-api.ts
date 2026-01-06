@@ -1,10 +1,11 @@
+import { TransactionStatus } from '@metamask/transaction-controller';
+
 import {
   IntentOrder,
   IntentOrderStatus,
   validateIntentOrderResponse,
 } from './validators';
 import type { FetchFunction } from '../types';
-import { TransactionStatus } from '@metamask/transaction-controller';
 
 export type IntentSubmissionParams = {
   srcChainId: string;

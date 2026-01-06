@@ -1253,7 +1253,7 @@ export class BridgeStatusController extends StaticIntervalPollingController<Brid
     maxPriorityFeePerGas: Hex;
     gas?: Hex;
   }> => {
-    const gas = transactionParams.gas;
+    const { gas } = transactionParams;
     // If txFee is provided (gasIncluded case), use the quote's gas fees
     // Convert to hex since txFee values from the quote are decimal strings
     if (txFee) {
