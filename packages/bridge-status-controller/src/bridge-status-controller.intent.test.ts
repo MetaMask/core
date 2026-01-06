@@ -194,12 +194,16 @@ const loadControllerWithMocks = () => {
   jest.resetModules();
 
   jest.isolateModules(() => {
-    jest.doMock('./utils/intent-api', () => ({
-      IntentApiImpl: jest.fn().mockImplementation(() => ({
-        submitIntent: submitIntentMock,
-        getOrderStatus: getOrderStatusMock,
-      })),
-    }));
+    jest.doMock('./utils/intent-api', () => {
+      const actual = jest.requireActual('./utils/intent-api');
+      return {
+        ...actual,
+        IntentApiImpl: jest.fn().mockImplementation(() => ({
+          submitIntent: submitIntentMock,
+          getOrderStatus: getOrderStatusMock,
+        })),
+      };
+    });
 
     jest.doMock('./utils/bridge-status', () => {
       const actual = jest.requireActual('./utils/bridge-status');
