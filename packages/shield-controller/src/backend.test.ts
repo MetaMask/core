@@ -177,9 +177,15 @@ describe('ShieldRemoteBackend', () => {
     );
     expect(fetchMock).toHaveBeenCalledTimes(1);
     expect(getAccessToken).toHaveBeenCalledTimes(1);
-    expect(mockCaptureException).toHaveBeenCalledWith(
-      new Error('Failed to init coverage check'),
-    );
+
+    const capturedError = new Error(
+      'Failed to init coverage check',
+    ) as Error & {
+      cause: Error;
+    };
+    capturedError.cause = new Error(`Failed to init coverage check: ${status}`);
+
+    expect(mockCaptureException).toHaveBeenCalledWith(capturedError);
   });
 
   it('should throw on check coverage timeout with coverage status', async () => {
@@ -364,6 +370,12 @@ describe('ShieldRemoteBackend', () => {
           status: 'shown',
         }),
       ).rejects.toThrow('Failed to log signature: 500');
+
+      const capturedError = new Error('Failed to log signature') as Error & {
+        cause: Error;
+      };
+      capturedError.cause = new Error('Failed to log signature: 500');
+      expect(mockCaptureException).toHaveBeenCalledWith(capturedError);
     });
   });
 
