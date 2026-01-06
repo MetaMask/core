@@ -21,7 +21,7 @@ export enum SecretType {
 }
 
 export enum SeedlessOnboardingMigrationVersion {
-  DataType = 1,
+  V1 = 1,
 }
 
 export enum SeedlessOnboardingControllerErrorMessage {

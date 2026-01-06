@@ -1987,7 +1987,7 @@ describe('SeedlessOnboardingController', () => {
             vault: MOCK_VAULT,
             vaultEncryptionKey: MOCK_VAULT_ENCRYPTION_KEY,
             vaultEncryptionSalt: MOCK_VAULT_ENCRYPTION_SALT,
-            migrationVersion: SeedlessOnboardingMigrationVersion.DataType,
+            migrationVersion: SeedlessOnboardingMigrationVersion.V1,
           }),
         },
         async ({ controller, toprfClient }) => {
@@ -2147,7 +2147,7 @@ describe('SeedlessOnboardingController', () => {
             authKeyPair: expect.any(Object),
           });
           expect(controller.state.migrationVersion).toBe(
-            SeedlessOnboardingMigrationVersion.DataType,
+            SeedlessOnboardingMigrationVersion.V1,
           );
         },
       );
@@ -2202,7 +2202,7 @@ describe('SeedlessOnboardingController', () => {
           expect(updateSpy).not.toHaveBeenCalled();
           expect(batchUpdateSpy).not.toHaveBeenCalled();
           expect(controller.state.migrationVersion).toBe(
-            SeedlessOnboardingMigrationVersion.DataType,
+            SeedlessOnboardingMigrationVersion.V1,
           );
         },
       );
@@ -2235,7 +2235,7 @@ describe('SeedlessOnboardingController', () => {
           await controller.runMigrations();
 
           expect(controller.state.migrationVersion).toBe(
-            SeedlessOnboardingMigrationVersion.DataType,
+            SeedlessOnboardingMigrationVersion.V1,
           );
         },
       );
@@ -2296,7 +2296,7 @@ describe('SeedlessOnboardingController', () => {
           });
           expect(batchUpdateSpy).not.toHaveBeenCalled();
           expect(controller.state.migrationVersion).toBe(
-            SeedlessOnboardingMigrationVersion.DataType,
+            SeedlessOnboardingMigrationVersion.V1,
           );
         },
       );
@@ -2341,12 +2341,10 @@ describe('SeedlessOnboardingController', () => {
       await withController({}, async ({ controller }) => {
         expect(controller.state.migrationVersion).toBe(0);
 
-        controller.setMigrationVersion(
-          SeedlessOnboardingMigrationVersion.DataType,
-        );
+        controller.setMigrationVersion(SeedlessOnboardingMigrationVersion.V1);
 
         expect(controller.state.migrationVersion).toBe(
-          SeedlessOnboardingMigrationVersion.DataType,
+          SeedlessOnboardingMigrationVersion.V1,
         );
       });
     });

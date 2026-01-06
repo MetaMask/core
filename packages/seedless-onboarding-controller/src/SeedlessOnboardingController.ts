@@ -578,10 +578,7 @@ export class SeedlessOnboardingController<
         skipLock: true, // skip lock since we already have the lock
       });
 
-      if (
-        this.state.migrationVersion <
-        SeedlessOnboardingMigrationVersion.DataType
-      ) {
+      if (this.state.migrationVersion < SeedlessOnboardingMigrationVersion.V1) {
         await this.#migrateDataTypes();
       }
     });
@@ -635,9 +632,7 @@ export class SeedlessOnboardingController<
           error.message ===
             SeedlessOnboardingControllerErrorMessage.NoSecretDataFound
         ) {
-          this.#setMigrationVersion(
-            SeedlessOnboardingMigrationVersion.DataType,
-          );
+          this.#setMigrationVersion(SeedlessOnboardingMigrationVersion.V1);
           return;
         }
         throw error;
@@ -695,7 +690,7 @@ export class SeedlessOnboardingController<
         });
       }
 
-      this.#setMigrationVersion(SeedlessOnboardingMigrationVersion.DataType);
+      this.#setMigrationVersion(SeedlessOnboardingMigrationVersion.V1);
     }, 'migrateDataTypes');
   }
 
