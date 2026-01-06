@@ -7,6 +7,13 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+### Added
+
+- Add `TransactionPayController:setIsMaxAmount` messenger action to set max amount flag for a transaction ([#7562](https://github.com/MetaMask/core/pull/7562))
+  - Add `isMaxAmount` property to `TransactionData` type.
+  - Update Relay quote requests to use `EXACT_INPUT` trade type when max amount is selected.
+  - Update totals calculation to account for max amount selection.
+
 ### Changed
 
 - Bump `@metamask/controller-utils` from `^11.17.0` to `^11.18.0` ([#7583](https://github.com/MetaMask/core/pull/7583))
