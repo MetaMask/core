@@ -56,6 +56,12 @@ export type GetCallsStatusResult = {
     transactionHash: Hex;
   }[];
   capabilities?: Record<string, Json>;
+  error?: {
+    message: string;
+    code?: string;
+    name?: string;
+    rpc?: Json;
+  };
 };
 
 export type GetCallsStatusHook = (

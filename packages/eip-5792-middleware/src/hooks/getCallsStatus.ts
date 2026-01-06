@@ -1,11 +1,12 @@
 import { JsonRpcError } from '@metamask/rpc-errors';
 import type {
   Log,
+  TransactionError,
   TransactionMeta,
   TransactionReceipt,
 } from '@metamask/transaction-controller';
 import { TransactionStatus } from '@metamask/transaction-controller';
-import type { Hex } from '@metamask/utils';
+import type { Hex, Json } from '@metamask/utils';
 
 import { EIP5792ErrorCode, GetCallsStatusCode, VERSION } from '../constants';
 import type { EIP5792Messenger, GetCallsStatusResult } from '../types';
@@ -34,7 +35,7 @@ export function getCallsStatus(
   }
 
   const transaction = transactions[0];
-  const { chainId, txReceipt: rawTxReceipt } = transaction;
+  const { chainId, txReceipt: rawTxReceipt, error } = transaction;
   const status = getStatusCode(transaction);
   const txReceipt = rawTxReceipt as Required<TransactionReceipt> | undefined;
   const logs = (txReceipt?.logs ?? []) as Required<Log>[];
@@ -54,6 +55,12 @@ export function getCallsStatus(
     },
   ];
 
+  // Extract error information when status is REVERTED (500)
+  const errorInfo =
+    status === GetCallsStatusCode.REVERTED
+      ? extractErrorInfo(transaction, txReceipt)
+      : undefined;
+
   return {
     version: VERSION,
     id,
@@ -61,7 +68,60 @@ export function getCallsStatus(
     atomic: true, // Always atomic as we currently only support EIP-7702 batches
     status,
     receipts,
+    ...(errorInfo && { error: errorInfo }),
   };
+}
+
+/**
+ * Extracts error information from a transaction when it has reverted.
+ *
+ * @param transactionMeta - The transaction metadata containing error information.
+ * @param txReceipt - The transaction receipt, if available.
+ * @returns Error information object with at least a message.
+ */
+function extractErrorInfo(
+  transactionMeta: TransactionMeta,
+  txReceipt: Required<TransactionReceipt> | undefined,
+): GetCallsStatusResult['error'] {
+  const { error } = transactionMeta;
+
+  // Determine the error message
+  let message: string;
+  if (error?.message) {
+    message = error.message;
+  } else if (txReceipt?.status === '0x0') {
+    message = 'Transaction reverted';
+  } else {
+    // Default message for dropped transactions or other revert scenarios
+    message = 'Transaction reverted';
+  }
+
+  // Build error info with at least the message
+  const errorInfo: GetCallsStatusResult['error'] = {
+    message,
+  };
+
+  // Add optional error fields if available
+  if (error?.code) {
+    errorInfo.code = error.code;
+  }
+
+  if (error?.name) {
+    errorInfo.name = error.name;
+  }
+
+  // Include RPC error details if available and is JSON-compatible
+  if (error?.rpc) {
+    try {
+      // Ensure rpc is JSON-serializable
+      JSON.stringify(error.rpc);
+      errorInfo.rpc = error.rpc as Json;
+    } catch {
+      // If rpc is not JSON-serializable, skip it
+    }
+  }
+
+  return errorInfo;
 }
 
 /**
