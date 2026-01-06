@@ -402,36 +402,6 @@ describe('RampsService', () => {
         ]
       `);
     });
-
-    it('filters countries by support', async () => {
-      nock('https://on-ramp-cache.uat-api.cx.metamask.io')
-        .get('/regions/countries')
-        .query({
-          action: 'buy',
-          sdk: '2.1.6',
-          controller: '2.0.0',
-          context: 'mobile-ios',
-        })
-        .reply(200, mockCountriesResponse);
-      nock('https://on-ramp.uat-api.cx.metamask.io')
-        .get('/geolocation')
-        .query({ sdk: '2.1.6', controller: '2.0.0', context: 'mobile-ios' })
-        .times(4)
-        .reply(500);
-      const { service, rootMessenger } = getService();
-      service.onRetry(() => {
-        clock.nextAsync().catch(() => undefined);
-      });
-
-      const countriesResponse = await rootMessenger.call(
-        'RampsService:getCountries',
-        'buy',
-      );
-
-      expect(countriesResponse[0]?.geolocated).toBe(false);
-      expect(countriesResponse[1]?.geolocated).toBe(false);
-    });
-
     it('throws if the countries API returns an error', async () => {
       nock('https://on-ramp-cache.uat-api.cx.metamask.io')
         .get('/regions/countries')

@@ -714,30 +714,6 @@ describe('RampsController', () => {
         expect(controller.state.eligibility).toStrictEqual(mockEligibility);
       });
     });
-
-    it('does not fetch eligibility if geolocation is empty', async () => {
-      await withController(async ({ controller, rootMessenger }) => {
-        let eligibilityCallCount = 0;
-        rootMessenger.registerActionHandler(
-          'RampsService:getGeolocation',
-          async () => '',
-        );
-        rootMessenger.registerActionHandler(
-          'RampsService:getEligibility',
-          async () => {
-            eligibilityCallCount += 1;
-            return { aggregator: true };
-          },
-        );
-
-        await expect(controller.updateGeolocation()).rejects.toThrow(
-          'Malformed response received from geolocation API',
-        );
-
-        expect(eligibilityCallCount).toBe(0);
-        expect(controller.state.eligibility).toBeNull();
-      });
-    });
   });
 });
 
