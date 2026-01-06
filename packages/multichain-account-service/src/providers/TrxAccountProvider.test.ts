@@ -44,7 +44,7 @@ class MockTronKeyring {
     .fn()
     .mockImplementation((_, { index }) => {
       // Use the provided index or fallback to accounts length
-      const groupIndex = index !== undefined ? index : this.accounts.length;
+      const groupIndex = index ?? this.accounts.length;
 
       // Check if an account already exists for this group index (idempotent behavior)
       const found = this.accounts.find(

@@ -1304,11 +1304,6 @@
       "count": 1
     }
   },
-  "packages/multichain-account-service/src/providers/TrxAccountProvider.test.ts": {
-    "no-negated-condition": {
-      "count": 1
-    }
-  },
   "packages/multichain-account-service/src/providers/TrxAccountProvider.ts": {
     "@typescript-eslint/naming-convention": {
       "count": 2
