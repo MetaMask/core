@@ -4217,6 +4217,7 @@ describe('SeedlessOnboardingController', () => {
 
       const parsedSeedPhraseMetadata = SecretMetadata.fromRawMetadata(
         serializedSeedPhraseBytes,
+        {},
       );
       expect(parsedSeedPhraseMetadata.data).toBeDefined();
       expect(parsedSeedPhraseMetadata.timestamp).toBeDefined();
@@ -4267,7 +4268,7 @@ describe('SeedlessOnboardingController', () => {
       });
       const rawMetadataBytes = stringToBytes(rawMetadataWithoutType);
 
-      const parsed = SecretMetadata.fromRawMetadata(rawMetadataBytes);
+      const parsed = SecretMetadata.fromRawMetadata(rawMetadataBytes, {});
       expect(parsed.type).toBe(SecretType.Mnemonic);
       expect(parsed.data).toStrictEqual(MOCK_SEED_PHRASE);
     });
@@ -4282,8 +4283,10 @@ describe('SeedlessOnboardingController', () => {
 
       // should be able to convert to bytes
       const secret1Bytes = secret1.toBytes();
-      const parsedSecret1 =
-        SecretMetadata.fromRawMetadata<string>(secret1Bytes);
+      const parsedSecret1 = SecretMetadata.fromRawMetadata<string>(
+        secret1Bytes,
+        {},
+      );
       expect(parsedSecret1.data).toBe('private-key-1');
       expect(parsedSecret1.type).toBe(SecretType.PrivateKey);
       expect(parsedSecret1.version).toBe(SecretMetadataVersion.V1);
@@ -4295,8 +4298,10 @@ describe('SeedlessOnboardingController', () => {
       expect(secret2.type).toBe(SecretType.Mnemonic);
 
       const secret2Bytes = secret2.toBytes();
-      const parsedSecret2 =
-        SecretMetadata.fromRawMetadata<Uint8Array>(secret2Bytes);
+      const parsedSecret2 = SecretMetadata.fromRawMetadata<Uint8Array>(
+        secret2Bytes,
+        {},
+      );
       expect(parsedSecret2.data).toStrictEqual(MOCK_SEED_PHRASE);
       expect(parsedSecret2.type).toBe(SecretType.Mnemonic);
     });
@@ -4313,7 +4318,7 @@ describe('SeedlessOnboardingController', () => {
       const secrets = [secret1.toBytes(), secret2.toBytes()];
 
       const parsedSecrets = secrets
-        .map((secret) => SecretMetadata.fromRawMetadata(secret))
+        .map((secret) => SecretMetadata.fromRawMetadata(secret, {}))
         .sort((a, b) => SecretMetadata.compareByTimestamp(a, b, 'asc'));
       expect(parsedSecrets).toHaveLength(2);
       expect(parsedSecrets[0].data).toBe(mockPrivKeyString);
@@ -4335,7 +4340,7 @@ describe('SeedlessOnboardingController', () => {
       const secrets = [secret1.toBytes(), secret2.toBytes(), secret3.toBytes()];
 
       const allSecrets = secrets
-        .map((secret) => SecretMetadata.fromRawMetadata(secret))
+        .map((secret) => SecretMetadata.fromRawMetadata(secret, {}))
         .sort((a, b) => SecretMetadata.compareByTimestamp(a, b, 'asc'));
 
       const mnemonicSecrets = allSecrets.filter((secret) =>

@@ -139,7 +139,7 @@ export class SecretMetadata<DataType extends SecretDataType = Uint8Array>
    */
   static fromRawMetadata<DataType extends SecretDataType>(
     rawMetadata: Uint8Array,
-    storageMetadata?: StorageMetadata,
+    storageMetadata: StorageMetadata,
   ): SecretMetadata<DataType> {
     const serializedMetadata = bytesToString(rawMetadata);
     const parsedMetadata = JSON.parse(serializedMetadata);
