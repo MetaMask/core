@@ -413,7 +413,7 @@ export class RampsController extends BaseController<
     if (geolocation) {
       try {
         await this.updateEligibility(geolocation, options);
-      } catch (_) {
+      } catch {
         // Eligibility fetch failed, but geolocation was successfully fetched and cached.
         // Don't let eligibility errors prevent geolocation state from being updated.
         // Clear eligibility state to avoid showing stale data from a previous location.
