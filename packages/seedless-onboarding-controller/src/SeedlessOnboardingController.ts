@@ -668,10 +668,16 @@ export class SeedlessOnboardingController<
    * The migration version is tracked in state to prevent re-running migrations.
    *
    * @returns A promise that resolves when all migrations are complete.
+   * @throws If the password is outdated (changed on another device).
    */
   async runMigrations(): Promise<void> {
     return await this.#withControllerLock(async () => {
       this.#assertIsUnlocked();
+
+      await this.#assertPasswordInSync({
+        skipCache: true,
+        skipLock: true, // skip lock since we already have the lock
+      });
 
       if (
         this.state.migrationVersion <
