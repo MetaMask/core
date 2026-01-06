@@ -727,7 +727,7 @@ describe('RampsController', () => {
         rootMessenger.registerActionHandler(
           'RampsService:getEligibility',
           async (isoCode) => {
-            callCount++;
+            callCount += 1;
             expect(isoCode).toBe('fr');
             return mockEligibility;
           },
@@ -779,6 +779,29 @@ describe('RampsController', () => {
 
         expect(controller.state.geolocation).toBe('fr');
         expect(controller.state.eligibility).toStrictEqual(mockEligibility);
+      });
+    });
+
+    it('updates geolocation state even when eligibility fetch fails', async () => {
+      await withController(async ({ controller, rootMessenger }) => {
+        rootMessenger.registerActionHandler(
+          'RampsService:getGeolocation',
+          async () => 'us-ny',
+        );
+        rootMessenger.registerActionHandler(
+          'RampsService:getEligibility',
+          async () => {
+            throw new Error('Eligibility API error');
+          },
+        );
+
+        expect(controller.state.geolocation).toBeNull();
+        expect(controller.state.eligibility).toBeNull();
+
+        await controller.updateGeolocation();
+
+        expect(controller.state.geolocation).toBe('us-ny');
+        expect(controller.state.eligibility).toBeNull();
       });
     });
   });

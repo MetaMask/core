@@ -406,13 +406,19 @@ export class RampsController extends BaseController<
       options,
     );
 
-    if (geolocation) {
-      await this.updateEligibility(geolocation, options);
-    }
-
     this.update((state) => {
       state.geolocation = geolocation;
     });
+
+    if (geolocation) {
+      try {
+        await this.updateEligibility(geolocation, options);
+      } catch (error) {
+        // Eligibility fetch failed, but geolocation was successfully fetched and cached.
+        // Don't let eligibility errors prevent geolocation state from being updated.
+        // The geolocation is already saved above, so we just continue.
+      }
+    }
 
     return geolocation;
   }
@@ -434,7 +440,10 @@ export class RampsController extends BaseController<
     const eligibility = await this.executeRequest(
       cacheKey,
       async () => {
-        return this.messenger.call('RampsService:getEligibility', normalizedIsoCode);
+        return this.messenger.call(
+          'RampsService:getEligibility',
+          normalizedIsoCode,
+        );
       },
       options,
     );

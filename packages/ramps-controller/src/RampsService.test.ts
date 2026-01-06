@@ -470,6 +470,40 @@ describe('RampsService', () => {
         "Fetching 'https://on-ramp-cache.uat-api.cx.metamask.io/regions/countries?action=buy&sdk=2.1.6&controller=2.0.0&context=mobile-ios' failed with status '500'",
       );
     });
+
+    it('throws if the API returns a non-array response', async () => {
+      nock('https://on-ramp-cache.uat-api.cx.metamask.io')
+        .get('/regions/countries')
+        .query({
+          action: 'buy',
+          sdk: '2.1.6',
+          controller: '2.0.0',
+          context: 'mobile-ios',
+        })
+        .reply(200, () => null);
+      const { rootMessenger } = getService();
+
+      await expect(
+        rootMessenger.call('RampsService:getCountries', 'buy'),
+      ).rejects.toThrow('Malformed response received from countries API');
+    });
+
+    it('throws if the API returns an object instead of an array', async () => {
+      nock('https://on-ramp-cache.uat-api.cx.metamask.io')
+        .get('/regions/countries')
+        .query({
+          action: 'buy',
+          sdk: '2.1.6',
+          controller: '2.0.0',
+          context: 'mobile-ios',
+        })
+        .reply(200, { error: 'Something went wrong' });
+      const { rootMessenger } = getService();
+
+      await expect(
+        rootMessenger.call('RampsService:getCountries', 'buy'),
+      ).rejects.toThrow('Malformed response received from countries API');
+    });
   });
 
   describe('getEligibility', () => {

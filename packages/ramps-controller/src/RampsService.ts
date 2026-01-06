@@ -449,6 +449,10 @@ export class RampsService {
       { action, responseType: 'json' },
     );
 
+    if (!Array.isArray(countries)) {
+      throw new Error('Malformed response received from countries API');
+    }
+
     return countries.filter((country) => {
       if (action === 'buy') {
         return country.supported;
