@@ -7,10 +7,11 @@ import { BaseController } from '@metamask/base-controller';
 import type { Messenger } from '@metamask/messenger';
 import type { Json } from '@metamask/utils';
 
-import type { Country } from './RampsService';
+import type { Country, Eligibility } from './RampsService';
 import type {
   RampsServiceGetGeolocationAction,
   RampsServiceGetCountriesAction,
+  RampsServiceGetEligibilityAction,
 } from './RampsService-method-action-types';
 import type {
   RequestCache as RequestCacheType,
@@ -48,6 +49,10 @@ export type RampsControllerState = {
    */
   geolocation: string | null;
   /**
+   * Eligibility information for the user's current region.
+   */
+  eligibility: Eligibility | null;
+  /**
    * Cache of request states, keyed by cache key.
    * This stores loading, success, and error states for API requests.
    */
@@ -59,6 +64,12 @@ export type RampsControllerState = {
  */
 const rampsControllerMetadata = {
   geolocation: {
+    persist: true,
+    includeInDebugSnapshot: true,
+    includeInStateLogs: true,
+    usedInUi: true,
+  },
+  eligibility: {
     persist: true,
     includeInDebugSnapshot: true,
     includeInStateLogs: true,
@@ -83,6 +94,7 @@ const rampsControllerMetadata = {
 export function getDefaultRampsControllerState(): RampsControllerState {
   return {
     geolocation: null,
+    eligibility: null,
     requests: {},
   };
 }
@@ -107,7 +119,8 @@ export type RampsControllerActions = RampsControllerGetStateAction;
  */
 type AllowedActions =
   | RampsServiceGetGeolocationAction
-  | RampsServiceGetCountriesAction;
+  | RampsServiceGetCountriesAction
+  | RampsServiceGetEligibilityAction;
 
 /**
  * Published when the state of {@link RampsController} changes.
@@ -374,9 +387,9 @@ export class RampsController extends BaseController<
   }
 
   /**
-   * Updates the user's geolocation.
-   * This method calls the RampsService to get the geolocation
-   * and stores the result in state.
+   * Updates the user's geolocation and eligibility.
+   * This method calls the RampsService to get the geolocation,
+   * then automatically fetches eligibility for that region.
    *
    * @param options - Options for cache behavior.
    * @returns The geolocation string.
@@ -397,7 +410,39 @@ export class RampsController extends BaseController<
       state.geolocation = geolocation;
     });
 
+    if (geolocation) {
+      await this.updateEligibility(geolocation, options);
+    }
+
     return geolocation;
+  }
+
+  /**
+   * Updates the eligibility information for a given region.
+   *
+   * @param isoCode - The ISO code for the region (e.g., "us", "fr", "us-ny").
+   * @param options - Options for cache behavior.
+   * @returns The eligibility information.
+   */
+  async updateEligibility(
+    isoCode: string,
+    options?: ExecuteRequestOptions,
+  ): Promise<Eligibility> {
+    const cacheKey = createCacheKey('updateEligibility', [isoCode]);
+
+    const eligibility = await this.executeRequest(
+      cacheKey,
+      async () => {
+        return this.messenger.call('RampsService:getEligibility', isoCode);
+      },
+      options,
+    );
+
+    this.update((state) => {
+      state.eligibility = eligibility;
+    });
+
+    return eligibility;
   }
 
   /**
@@ -422,47 +467,4 @@ export class RampsController extends BaseController<
     );
   }
 
-  /**
-   * Determines if the user's current region is eligible for ramps.
-   * Checks the user's geolocation against the list of supported countries.
-   *
-   * @param action - The ramp action type ('buy' or 'sell').
-   * @param options - Options for cache behavior.
-   * @returns True if the user's region is eligible for ramps, false otherwise.
-   */
-  async getRegionEligibility(
-    action: 'buy' | 'sell' = 'buy',
-    options?: ExecuteRequestOptions,
-  ): Promise<boolean> {
-    const { geolocation } = this.state;
-
-    if (!geolocation) {
-      await this.updateGeolocation(options);
-      return this.getRegionEligibility(action, options);
-    }
-
-    const countries = await this.getCountries(action, options);
-
-    const countryCode = geolocation.split('-')[0];
-    const stateCode = geolocation.split('-')[1]?.toLowerCase();
-
-    const country = countries.find(
-      (entry) => entry.isoCode.toUpperCase() === countryCode?.toUpperCase(),
-    );
-
-    if (!country?.supported) {
-      return false;
-    }
-
-    if (
-      stateCode &&
-      country.unsupportedStates?.some(
-        (state) => state.toLowerCase() === stateCode,
-      )
-    ) {
-      return false;
-    }
-
-    return true;
-  }
 }

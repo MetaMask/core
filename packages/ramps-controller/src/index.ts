@@ -16,6 +16,8 @@ export type {
   RampsServiceEvents,
   RampsServiceMessenger,
   Country,
+  State,
+  Eligibility,
   CountryPhone,
 } from './RampsService';
 export {
@@ -27,6 +29,7 @@ export {
 export type {
   RampsServiceGetGeolocationAction,
   RampsServiceGetCountriesAction,
+  RampsServiceGetEligibilityAction,
 } from './RampsService-method-action-types';
 export type {
   RequestCache,

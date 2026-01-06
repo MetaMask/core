@@ -27,21 +27,21 @@ describe('RampsService', () => {
       nock('https://on-ramp.uat-api.cx.metamask.io')
         .get('/geolocation')
         .query({ sdk: '2.1.6', controller: '2.0.0', context: 'mobile-ios' })
-        .reply(200, 'US-TX');
+        .reply(200, 'us-tx');
       const { rootMessenger } = getService();
 
       const geolocationResponse = await rootMessenger.call(
         'RampsService:getGeolocation',
       );
 
-      expect(geolocationResponse).toBe('US-TX');
+      expect(geolocationResponse).toBe('us-tx');
     });
 
     it('uses the production URL when environment is Production', async () => {
       nock('https://on-ramp.api.cx.metamask.io')
         .get('/geolocation')
         .query({ sdk: '2.1.6', controller: '2.0.0', context: 'mobile-ios' })
-        .reply(200, 'US-TX');
+        .reply(200, 'us-tx');
       const { rootMessenger } = getService({
         options: { environment: RampsEnvironment.Production },
       });
@@ -50,14 +50,14 @@ describe('RampsService', () => {
         'RampsService:getGeolocation',
       );
 
-      expect(geolocationResponse).toBe('US-TX');
+      expect(geolocationResponse).toBe('us-tx');
     });
 
     it('uses staging URL when environment is Development', async () => {
       nock('https://on-ramp.uat-api.cx.metamask.io')
         .get('/geolocation')
         .query({ sdk: '2.1.6', controller: '2.0.0', context: 'mobile-ios' })
-        .reply(200, 'US-TX');
+        .reply(200, 'us-tx');
       const { rootMessenger } = getService({
         options: { environment: RampsEnvironment.Development },
       });
@@ -66,7 +66,7 @@ describe('RampsService', () => {
         'RampsService:getGeolocation',
       );
 
-      expect(geolocationResponse).toBe('US-TX');
+      expect(geolocationResponse).toBe('us-tx');
     });
 
     it('throws if the API returns an empty response', async () => {
@@ -74,11 +74,33 @@ describe('RampsService', () => {
         .get('/geolocation')
         .query({ sdk: '2.1.6', controller: '2.0.0', context: 'mobile-ios' })
         .reply(200, '');
+      nock('https://api-stg.transak.com')
+        .get('/fiat/public/v1/get/country')
+        .reply(200, { ipCountryCode: 'US' });
       const { rootMessenger } = getService();
 
-      await expect(
-        rootMessenger.call('RampsService:getGeolocation'),
-      ).rejects.toThrow('Malformed response received from geolocation API');
+      const geolocationResponse = await rootMessenger.call(
+        'RampsService:getGeolocation',
+      );
+
+      expect(geolocationResponse).toBe('us');
+    });
+
+    it('falls back to legacy Transak endpoint when primary fails', async () => {
+      nock('https://on-ramp.uat-api.cx.metamask.io')
+        .get('/geolocation')
+        .query({ sdk: '2.1.6', controller: '2.0.0', context: 'mobile-ios' })
+        .reply(500, 'Internal Server Error');
+      nock('https://api-stg.transak.com')
+        .get('/fiat/public/v1/get/country')
+        .reply(200, { ipCountryCode: 'CA' });
+      const { rootMessenger } = getService();
+
+      const geolocationResponse = await rootMessenger.call(
+        'RampsService:getGeolocation',
+      );
+
+      expect(geolocationResponse).toBe('ca');
     });
 
     it('calls onDegraded listeners if the request takes longer than 5 seconds to resolve', async () => {
@@ -147,12 +169,12 @@ describe('RampsService', () => {
       nock('https://on-ramp.uat-api.cx.metamask.io')
         .get('/geolocation')
         .query({ sdk: '2.1.6', controller: '2.0.0', context: 'mobile-ios' })
-        .reply(200, 'US-TX');
+        .reply(200, 'us-tx');
       const { service } = getService();
 
       const geolocationResponse = await service.getGeolocation();
 
-      expect(geolocationResponse).toBe('US-TX');
+      expect(geolocationResponse).toBe('us-tx');
     });
   });
 
@@ -170,8 +192,6 @@ describe('RampsService', () => {
         currency: 'USD',
         supported: true,
         recommended: true,
-        unsupportedStates: ['ny'],
-        transakSupported: true,
       },
       {
         isoCode: 'AT',
@@ -188,7 +208,7 @@ describe('RampsService', () => {
       },
     ];
 
-    it('returns the countries from the cache API with geolocated field', async () => {
+    it('returns the countries from the cache API filtered by support', async () => {
       nock('https://on-ramp-cache.uat-api.cx.metamask.io')
         .get('/regions/countries')
         .query({
@@ -198,10 +218,6 @@ describe('RampsService', () => {
           context: 'mobile-ios',
         })
         .reply(200, mockCountriesResponse);
-      nock('https://on-ramp.uat-api.cx.metamask.io')
-        .get('/geolocation')
-        .query({ sdk: '2.1.6', controller: '2.0.0', context: 'mobile-ios' })
-        .reply(200, 'US-TX');
       const { rootMessenger } = getService();
 
       const countriesResponse = await rootMessenger.call(
@@ -214,7 +230,6 @@ describe('RampsService', () => {
           Object {
             "currency": "USD",
             "flag": "🇺🇸",
-            "geolocated": true,
             "isoCode": "US",
             "name": "United States of America",
             "phone": Object {
@@ -224,15 +239,10 @@ describe('RampsService', () => {
             },
             "recommended": true,
             "supported": true,
-            "transakSupported": true,
-            "unsupportedStates": Array [
-              "ny",
-            ],
           },
           Object {
             "currency": "EUR",
             "flag": "🇦🇹",
-            "geolocated": false,
             "isoCode": "AT",
             "name": "Austria",
             "phone": Object {
@@ -241,7 +251,6 @@ describe('RampsService', () => {
               "template": "XXX XXXXXXX",
             },
             "supported": true,
-            "transakSupported": true,
           },
         ]
       `);
@@ -257,10 +266,6 @@ describe('RampsService', () => {
           context: 'mobile-ios',
         })
         .reply(200, mockCountriesResponse);
-      nock('https://on-ramp.api.cx.metamask.io')
-        .get('/geolocation')
-        .query({ sdk: '2.1.6', controller: '2.0.0', context: 'mobile-ios' })
-        .reply(200, 'AT');
       const { rootMessenger } = getService({
         options: { environment: RampsEnvironment.Production },
       });
@@ -275,7 +280,6 @@ describe('RampsService', () => {
           Object {
             "currency": "USD",
             "flag": "🇺🇸",
-            "geolocated": false,
             "isoCode": "US",
             "name": "United States of America",
             "phone": Object {
@@ -285,15 +289,10 @@ describe('RampsService', () => {
             },
             "recommended": true,
             "supported": true,
-            "transakSupported": true,
-            "unsupportedStates": Array [
-              "ny",
-            ],
           },
           Object {
             "currency": "EUR",
             "flag": "🇦🇹",
-            "geolocated": true,
             "isoCode": "AT",
             "name": "Austria",
             "phone": Object {
@@ -302,7 +301,6 @@ describe('RampsService', () => {
               "template": "XXX XXXXXXX",
             },
             "supported": true,
-            "transakSupported": true,
           },
         ]
       `);
@@ -318,10 +316,6 @@ describe('RampsService', () => {
           context: 'mobile-ios',
         })
         .reply(200, mockCountriesResponse);
-      nock('https://on-ramp.uat-api.cx.metamask.io')
-        .get('/geolocation')
-        .query({ sdk: '2.1.6', controller: '2.0.0', context: 'mobile-ios' })
-        .reply(200, 'XX');
       const { rootMessenger } = getService({
         options: { environment: RampsEnvironment.Development },
       });
@@ -336,7 +330,6 @@ describe('RampsService', () => {
           Object {
             "currency": "USD",
             "flag": "🇺🇸",
-            "geolocated": false,
             "isoCode": "US",
             "name": "United States of America",
             "phone": Object {
@@ -346,15 +339,10 @@ describe('RampsService', () => {
             },
             "recommended": true,
             "supported": true,
-            "transakSupported": true,
-            "unsupportedStates": Array [
-              "ny",
-            ],
           },
           Object {
             "currency": "EUR",
             "flag": "🇦🇹",
-            "geolocated": false,
             "isoCode": "AT",
             "name": "Austria",
             "phone": Object {
@@ -363,7 +351,6 @@ describe('RampsService', () => {
               "template": "XXX XXXXXXX",
             },
             "supported": true,
-            "transakSupported": true,
           },
         ]
       `);
@@ -382,7 +369,7 @@ describe('RampsService', () => {
       nock('https://on-ramp.uat-api.cx.metamask.io')
         .get('/geolocation')
         .query({ sdk: '2.1.6', controller: '2.0.0', context: 'mobile-ios' })
-        .reply(200, 'US');
+        .reply(200, 'us');
       const { rootMessenger } = getService();
 
       const countriesResponse = await rootMessenger.call(
@@ -395,7 +382,6 @@ describe('RampsService', () => {
           Object {
             "currency": "USD",
             "flag": "🇺🇸",
-            "geolocated": true,
             "isoCode": "US",
             "name": "United States of America",
             "phone": Object {
@@ -405,15 +391,10 @@ describe('RampsService', () => {
             },
             "recommended": true,
             "supported": true,
-            "transakSupported": true,
-            "unsupportedStates": Array [
-              "ny",
-            ],
           },
           Object {
             "currency": "EUR",
             "flag": "🇦🇹",
-            "geolocated": false,
             "isoCode": "AT",
             "name": "Austria",
             "phone": Object {
@@ -422,13 +403,12 @@ describe('RampsService', () => {
               "template": "XXX XXXXXXX",
             },
             "supported": true,
-            "transakSupported": true,
           },
         ]
       `);
     });
 
-    it('continues without geolocation when geolocation fails', async () => {
+    it('filters countries by support', async () => {
       nock('https://on-ramp-cache.uat-api.cx.metamask.io')
         .get('/regions/countries')
         .query({
@@ -457,55 +437,6 @@ describe('RampsService', () => {
       expect(countriesResponse[1]?.geolocated).toBe(false);
     });
 
-    it('handles geolocation with only country code', async () => {
-      nock('https://on-ramp-cache.uat-api.cx.metamask.io')
-        .get('/regions/countries')
-        .query({
-          action: 'buy',
-          sdk: '2.1.6',
-          controller: '2.0.0',
-          context: 'mobile-ios',
-        })
-        .reply(200, mockCountriesResponse);
-      nock('https://on-ramp.uat-api.cx.metamask.io')
-        .get('/geolocation')
-        .query({ sdk: '2.1.6', controller: '2.0.0', context: 'mobile-ios' })
-        .reply(200, 'US');
-      const { rootMessenger } = getService();
-
-      const countriesResponse = await rootMessenger.call(
-        'RampsService:getCountries',
-        'buy',
-      );
-
-      expect(countriesResponse[0]?.geolocated).toBe(true);
-      expect(countriesResponse[1]?.geolocated).toBe(false);
-    });
-
-    it('handles empty geolocation country code', async () => {
-      nock('https://on-ramp-cache.uat-api.cx.metamask.io')
-        .get('/regions/countries')
-        .query({
-          action: 'buy',
-          sdk: '2.1.6',
-          controller: '2.0.0',
-          context: 'mobile-ios',
-        })
-        .reply(200, mockCountriesResponse);
-      nock('https://on-ramp.uat-api.cx.metamask.io')
-        .get('/geolocation')
-        .query({ sdk: '2.1.6', controller: '2.0.0', context: 'mobile-ios' })
-        .reply(200, '-');
-      const { rootMessenger } = getService();
-
-      const countriesResponse = await rootMessenger.call(
-        'RampsService:getCountries',
-        'buy',
-      );
-
-      expect(countriesResponse[0]?.geolocated).toBe(false);
-      expect(countriesResponse[1]?.geolocated).toBe(false);
-    });
 
     it('throws if the countries API returns an error', async () => {
       nock('https://on-ramp-cache.uat-api.cx.metamask.io')
@@ -528,6 +459,80 @@ describe('RampsService', () => {
       ).rejects.toThrow(
         "Fetching 'https://on-ramp-cache.uat-api.cx.metamask.io/regions/countries?action=buy&sdk=2.1.6&controller=2.0.0&context=mobile-ios' failed with status '500'",
       );
+    });
+  });
+
+  describe('getEligibility', () => {
+    it('fetches eligibility for a country code', async () => {
+      nock('https://on-ramp-cache.uat-api.cx.metamask.io')
+        .get('/regions/countries/fr')
+        .query({
+          sdk: '2.1.6',
+          controller: '2.0.0',
+          context: 'mobile-ios',
+        })
+        .reply(200, {
+          aggregator: true,
+          deposit: true,
+          global: true,
+        });
+      const { service } = getService();
+
+      const eligibility = await service.getEligibility('fr');
+
+      expect(eligibility).toEqual({
+        aggregator: true,
+        deposit: true,
+        global: true,
+      });
+    });
+
+    it('fetches eligibility for a state code', async () => {
+      nock('https://on-ramp-cache.uat-api.cx.metamask.io')
+        .get('/regions/countries/us-ny')
+        .query({
+          sdk: '2.1.6',
+          controller: '2.0.0',
+          context: 'mobile-ios',
+        })
+        .reply(200, {
+          aggregator: false,
+          deposit: true,
+          global: false,
+        });
+      const { service } = getService();
+
+      const eligibility = await service.getEligibility('us-ny');
+
+      expect(eligibility).toEqual({
+        aggregator: false,
+        deposit: true,
+        global: false,
+      });
+    });
+
+    it('normalizes ISO code to lowercase', async () => {
+      nock('https://on-ramp-cache.uat-api.cx.metamask.io')
+        .get('/regions/countries/fr')
+        .query({
+          sdk: '2.1.6',
+          controller: '2.0.0',
+          context: 'mobile-ios',
+        })
+        .reply(200, {
+          aggregator: true,
+          deposit: true,
+          global: true,
+        });
+      const { service } = getService();
+
+      const eligibility = await service.getEligibility('FR');
+
+      expect(eligibility).toEqual({
+        aggregator: true,
+        deposit: true,
+        global: true,
+      });
     });
   });
 
@@ -555,7 +560,7 @@ describe('RampsService', () => {
       nock('https://on-ramp.uat-api.cx.metamask.io')
         .get('/geolocation')
         .query({ sdk: '2.1.6', controller: '2.0.0', context: 'mobile-ios' })
-        .reply(200, 'US');
+        .reply(200, 'us');
       const { service } = getService();
 
       const countriesResponse = await service.getCountries('buy');
@@ -565,7 +570,6 @@ describe('RampsService', () => {
           Object {
             "currency": "USD",
             "flag": "🇺🇸",
-            "geolocated": true,
             "isoCode": "US",
             "name": "United States",
             "phone": Object {
@@ -602,12 +606,97 @@ describe('RampsService', () => {
       nock('https://on-ramp.uat-api.cx.metamask.io')
         .get('/geolocation')
         .query({ sdk: '2.1.6', controller: '2.0.0', context: 'mobile-ios' })
-        .reply(200, 'US');
+        .reply(200, 'us');
       const { service } = getService();
 
       const countriesResponse = await service.getCountries();
 
       expect(countriesResponse[0]?.isoCode).toBe('US');
+    });
+
+    it('filters countries with states by support', async () => {
+      const mockCountriesWithStates = [
+        {
+          isoCode: 'US',
+          id: '/regions/us',
+          flag: '🇺🇸',
+          name: 'United States of America',
+          phone: {
+            prefix: '+1',
+            placeholder: '(555) 123-4567',
+            template: '(XXX) XXX-XXXX',
+          },
+          currency: 'USD',
+          supported: true,
+          states: [
+            {
+              id: '/regions/us-tx',
+              stateId: 'TX',
+              name: 'Texas',
+              supported: true,
+            },
+            {
+              id: '/regions/us-ny',
+              stateId: 'NY',
+              name: 'New York',
+              supported: false,
+            },
+          ],
+        },
+      ];
+      nock('https://on-ramp-cache.uat-api.cx.metamask.io')
+        .get('/regions/countries')
+        .query({
+          action: 'buy',
+          sdk: '2.1.6',
+          controller: '2.0.0',
+          context: 'mobile-ios',
+        })
+        .reply(200, mockCountriesWithStates);
+      const { service } = getService();
+
+      const countriesResponse = await service.getCountries('buy');
+
+      expect(countriesResponse[0]?.supported).toBe(true);
+      expect(countriesResponse[0]?.states?.[0]?.supported).toBe(true);
+      expect(countriesResponse[0]?.states?.[1]?.supported).toBe(false);
+    });
+
+    it('filters countries with states correctly', async () => {
+      const mockCountries = [
+        {
+          isoCode: 'US',
+          id: '/regions/us',
+          flag: '🇺🇸',
+          name: 'United States',
+          phone: { prefix: '+1', placeholder: '', template: '' },
+          currency: 'USD',
+          supported: true,
+          states: [
+            {
+              id: '/regions/us-tx',
+              stateId: 'TX',
+              name: 'Texas',
+              supported: true,
+            },
+          ],
+        },
+      ];
+      nock('https://on-ramp-cache.uat-api.cx.metamask.io')
+        .get('/regions/countries')
+        .query({
+          action: 'buy',
+          sdk: '2.1.6',
+          controller: '2.0.0',
+          context: 'mobile-ios',
+        })
+        .reply(200, mockCountries);
+      const { service } = getService();
+
+      const countriesResponse = await service.getCountries('buy');
+
+      expect(countriesResponse[0]?.supported).toBe(true);
+      expect(countriesResponse[0]?.states?.[0]?.supported).toBe(true);
     });
   });
 });

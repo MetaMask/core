@@ -521,8 +521,6 @@ describe('RampsController', () => {
         currency: 'USD',
         supported: true,
         recommended: true,
-        unsupportedStates: ['ny'],
-        transakSupported: true,
       },
       {
         isoCode: 'AT',
@@ -638,295 +636,103 @@ describe('RampsController', () => {
     });
   });
 
-  describe('getRegionEligibility', () => {
-    const mockCountries: Country[] = [
-      {
-        isoCode: 'US',
-        flag: '🇺🇸',
-        name: 'United States of America',
-        phone: {
-          prefix: '+1',
-          placeholder: '(555) 123-4567',
-          template: '(XXX) XXX-XXXX',
-        },
-        currency: 'USD',
-        supported: true,
-        unsupportedStates: ['ny'],
-      },
-      {
-        isoCode: 'AT',
-        flag: '🇦🇹',
-        name: 'Austria',
-        phone: {
-          prefix: '+43',
-          placeholder: '660 1234567',
-          template: 'XXX XXXXXXX',
-        },
-        currency: 'EUR',
-        supported: true,
-      },
-      {
-        isoCode: 'RU',
-        flag: '🇷🇺',
-        name: 'Russia',
-        phone: {
-          prefix: '+7',
-          placeholder: '999 123-45-67',
-          template: 'XXX XXX-XX-XX',
-        },
-        currency: 'RUB',
-        supported: false,
-      },
-    ];
-
-    it('fetches geolocation and returns eligibility when geolocation is null', async () => {
+  describe('updateEligibility', () => {
+    it('fetches and stores eligibility for a region', async () => {
       await withController(async ({ controller, rootMessenger }) => {
+        const mockEligibility = {
+          aggregator: true,
+          deposit: true,
+          global: true,
+        };
+
         rootMessenger.registerActionHandler(
-          'RampsService:getGeolocation',
-          async () => 'AT',
-        );
-        rootMessenger.registerActionHandler(
-          'RampsService:getCountries',
-          async () => mockCountries,
+          'RampsService:getEligibility',
+          async () => mockEligibility,
         );
 
-        expect(controller.state.geolocation).toBeNull();
+        expect(controller.state.eligibility).toBeNull();
 
-        const eligible = await controller.getRegionEligibility('buy');
+        const eligibility = await controller.updateEligibility('fr');
 
-        expect(controller.state.geolocation).toBe('AT');
-        expect(eligible).toBe(true);
+        expect(controller.state.eligibility).toEqual(mockEligibility);
+        expect(eligibility).toEqual(mockEligibility);
       });
     });
 
-    it('fetches geolocation and returns false for unsupported region when geolocation is null', async () => {
+    it('handles state codes in ISO format', async () => {
       await withController(async ({ controller, rootMessenger }) => {
+        const mockEligibility = {
+          aggregator: true,
+          deposit: false,
+          global: true,
+        };
+
+        rootMessenger.registerActionHandler(
+          'RampsService:getEligibility',
+          async (isoCode) => {
+            expect(isoCode).toBe('us-ny');
+            return mockEligibility;
+          },
+        );
+
+        await controller.updateEligibility('us-ny');
+
+        expect(controller.state.eligibility).toEqual(mockEligibility);
+      });
+    });
+  });
+
+  describe('updateGeolocation with automatic eligibility', () => {
+    it('automatically fetches eligibility after getting geolocation', async () => {
+      await withController(async ({ controller, rootMessenger }) => {
+        const mockEligibility = {
+          aggregator: true,
+          deposit: true,
+          global: true,
+        };
+
         rootMessenger.registerActionHandler(
           'RampsService:getGeolocation',
-          async () => 'RU',
+          async () => 'fr',
         );
         rootMessenger.registerActionHandler(
-          'RampsService:getCountries',
-          async () => mockCountries,
+          'RampsService:getEligibility',
+          async (isoCode) => {
+            expect(isoCode).toBe('fr');
+            return mockEligibility;
+          },
         );
 
         expect(controller.state.geolocation).toBeNull();
+        expect(controller.state.eligibility).toBeNull();
 
-        const eligible = await controller.getRegionEligibility('buy');
+        await controller.updateGeolocation();
 
-        expect(controller.state.geolocation).toBe('RU');
-        expect(eligible).toBe(false);
+        expect(controller.state.geolocation).toBe('fr');
+        expect(controller.state.eligibility).toEqual(mockEligibility);
       });
     });
 
-    it('only fetches geolocation once when already set', async () => {
+    it('does not fetch eligibility if geolocation is empty', async () => {
       await withController(async ({ controller, rootMessenger }) => {
-        let geolocationCallCount = 0;
+        let eligibilityCallCount = 0;
         rootMessenger.registerActionHandler(
           'RampsService:getGeolocation',
+          async () => '',
+        );
+        rootMessenger.registerActionHandler(
+          'RampsService:getEligibility',
           async () => {
-            geolocationCallCount += 1;
-            return 'AT';
+            eligibilityCallCount += 1;
+            return { aggregator: true };
           },
         );
-        rootMessenger.registerActionHandler(
-          'RampsService:getCountries',
-          async () => mockCountries,
-        );
 
-        await controller.getRegionEligibility('buy');
-        await controller.getRegionEligibility('buy');
+        await expect(controller.updateGeolocation()).rejects.toThrow();
 
-        expect(geolocationCallCount).toBe(1);
+        expect(eligibilityCallCount).toBe(0);
+        expect(controller.state.eligibility).toBeNull();
       });
-    });
-
-    it('returns true for a supported country', async () => {
-      await withController(
-        { options: { state: { geolocation: 'AT' } } },
-        async ({ controller, rootMessenger }) => {
-          rootMessenger.registerActionHandler(
-            'RampsService:getCountries',
-            async () => mockCountries,
-          );
-
-          const eligible = await controller.getRegionEligibility('buy');
-
-          expect(eligible).toBe(true);
-        },
-      );
-    });
-
-    it('returns true for a supported US state', async () => {
-      await withController(
-        { options: { state: { geolocation: 'US-TX' } } },
-        async ({ controller, rootMessenger }) => {
-          rootMessenger.registerActionHandler(
-            'RampsService:getCountries',
-            async () => mockCountries,
-          );
-
-          const eligible = await controller.getRegionEligibility('buy');
-
-          expect(eligible).toBe(true);
-        },
-      );
-    });
-
-    it('returns false for an unsupported US state', async () => {
-      await withController(
-        { options: { state: { geolocation: 'US-NY' } } },
-        async ({ controller, rootMessenger }) => {
-          rootMessenger.registerActionHandler(
-            'RampsService:getCountries',
-            async () => mockCountries,
-          );
-
-          const eligible = await controller.getRegionEligibility('buy');
-
-          expect(eligible).toBe(false);
-        },
-      );
-    });
-
-    it('returns false for a country not in the list', async () => {
-      await withController(
-        { options: { state: { geolocation: 'XX' } } },
-        async ({ controller, rootMessenger }) => {
-          rootMessenger.registerActionHandler(
-            'RampsService:getCountries',
-            async () => mockCountries,
-          );
-
-          const eligible = await controller.getRegionEligibility('buy');
-
-          expect(eligible).toBe(false);
-        },
-      );
-    });
-
-    it('returns false for a country that is not supported', async () => {
-      await withController(
-        { options: { state: { geolocation: 'RU' } } },
-        async ({ controller, rootMessenger }) => {
-          rootMessenger.registerActionHandler(
-            'RampsService:getCountries',
-            async () => mockCountries,
-          );
-
-          const eligible = await controller.getRegionEligibility('buy');
-
-          expect(eligible).toBe(false);
-        },
-      );
-    });
-
-    it('is case-insensitive for state codes', async () => {
-      await withController(
-        { options: { state: { geolocation: 'US-ny' } } },
-        async ({ controller, rootMessenger }) => {
-          rootMessenger.registerActionHandler(
-            'RampsService:getCountries',
-            async () => mockCountries,
-          );
-
-          const eligible = await controller.getRegionEligibility('buy');
-
-          expect(eligible).toBe(false);
-        },
-      );
-    });
-
-    it('passes action parameter to getCountries', async () => {
-      await withController(
-        { options: { state: { geolocation: 'AT' } } },
-        async ({ controller, rootMessenger }) => {
-          let receivedAction: string | undefined;
-          rootMessenger.registerActionHandler(
-            'RampsService:getCountries',
-            async (action) => {
-              receivedAction = action;
-              return mockCountries;
-            },
-          );
-
-          await controller.getRegionEligibility('buy');
-
-          expect(receivedAction).toBe('buy');
-        },
-      );
-    });
-
-    it('works with sell action', async () => {
-      await withController(
-        { options: { state: { geolocation: 'AT' } } },
-        async ({ controller, rootMessenger }) => {
-          let receivedAction: string | undefined;
-          rootMessenger.registerActionHandler(
-            'RampsService:getCountries',
-            async (action) => {
-              receivedAction = action;
-              return mockCountries;
-            },
-          );
-
-          const eligible = await controller.getRegionEligibility('sell');
-
-          expect(receivedAction).toBe('sell');
-          expect(eligible).toBe(true);
-        },
-      );
-    });
-
-    it('uses default buy action when no argument is provided', async () => {
-      await withController(
-        { options: { state: { geolocation: 'AT' } } },
-        async ({ controller, rootMessenger }) => {
-          let receivedAction: string | undefined;
-          rootMessenger.registerActionHandler(
-            'RampsService:getCountries',
-            async (action) => {
-              receivedAction = action;
-              return mockCountries;
-            },
-          );
-
-          const eligible = await controller.getRegionEligibility();
-
-          expect(receivedAction).toBe('buy');
-          expect(eligible).toBe(true);
-        },
-      );
-    });
-
-    it('returns true for a supported US state when unsupportedStates is undefined', async () => {
-      const countriesWithoutUnsupportedStates: Country[] = [
-        {
-          isoCode: 'US',
-          flag: '🇺🇸',
-          name: 'United States of America',
-          phone: {
-            prefix: '+1',
-            placeholder: '(555) 123-4567',
-            template: '(XXX) XXX-XXXX',
-          },
-          currency: 'USD',
-          supported: true,
-        },
-      ];
-      await withController(
-        { options: { state: { geolocation: 'US-TX' } } },
-        async ({ controller, rootMessenger }) => {
-          rootMessenger.registerActionHandler(
-            'RampsService:getCountries',
-            async () => countriesWithoutUnsupportedStates,
-          );
-
-          const eligible = await controller.getRegionEligibility('buy');
-
-          expect(eligible).toBe(true);
-        },
-      );
     });
   });
 });

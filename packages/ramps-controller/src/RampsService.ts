@@ -18,19 +18,91 @@ export type CountryPhone = {
 };
 
 /**
+ * Represents a state/province within a country.
+ */
+export type State = {
+  /**
+   * State identifier. Can be in path format (e.g., "/regions/us-ut") or ISO code format (e.g., "ut").
+   */
+  id?: string;
+  /**
+   * State name.
+   */
+  name?: string;
+  /**
+   * ISO state code (e.g., "UT", "NY").
+   */
+  stateId?: string;
+  /**
+   * Whether this state is supported for ramps.
+   */
+  supported?: boolean;
+  /**
+   * Whether this state is recommended.
+   */
+  recommended?: boolean;
+};
+
+/**
+ * Represents eligibility information for a region.
+ * Returned from the /regions/countries/{isoCode} endpoint.
+ */
+export type Eligibility = {
+  /**
+   * Whether aggregator providers are available.
+   */
+  aggregator?: boolean;
+  /**
+   * Whether deposit (buy) is available.
+   */
+  deposit?: boolean;
+  /**
+   * Whether global providers are available.
+   */
+  global?: boolean;
+};
+
+/**
  * Represents a country returned from the regions/countries API.
  */
 export type Country = {
+  /**
+   * ISO-2 country code (e.g., "US", "GB").
+   */
   isoCode: string;
+  /**
+   * Country identifier. Can be in path format (e.g., "/regions/us") or ISO code format.
+   * If not provided, defaults to isoCode.
+   */
+  id?: string;
+  /**
+   * Country flag emoji or code.
+   */
   flag: string;
+  /**
+   * Country name.
+   */
   name: string;
+  /**
+   * Phone number information.
+   */
   phone: CountryPhone;
+  /**
+   * Default currency code.
+   */
   currency: string;
+  /**
+   * Whether this country is supported for ramps.
+   */
   supported: boolean;
+  /**
+   * Whether this country is recommended.
+   */
   recommended?: boolean;
-  unsupportedStates?: string[];
-  transakSupported?: boolean;
-  geolocated?: boolean;
+  /**
+   * Array of state objects.
+   */
+  states?: State[];
 };
 
 /**
@@ -66,7 +138,11 @@ export enum RampsApiService {
 
 // === MESSENGER ===
 
-const MESSENGER_EXPOSED_METHODS = ['getGeolocation', 'getCountries'] as const;
+const MESSENGER_EXPOSED_METHODS = [
+  'getGeolocation',
+  'getCountries',
+  'getEligibility',
+] as const;
 
 /**
  * Actions that {@link RampsService} exposes to other consumers.
@@ -361,10 +437,10 @@ export class RampsService {
 
   /**
    * Makes a request to the cached API to retrieve the list of supported countries.
-   * Enriches the response with geolocation data to indicate the user's current country.
+   * Filters countries based on aggregator support (preserves OnRampSDK logic).
    *
-   * @param action - The ramp action type ('deposit' or 'withdraw').
-   * @returns An array of countries with their eligibility information.
+   * @param action - The ramp action type ('buy' or 'sell').
+   * @returns An array of countries filtered by aggregator support.
    */
   async getCountries(action: 'buy' | 'sell' = 'buy'): Promise<Country[]> {
     const countries = await this.#request<Country[]>(
@@ -373,20 +449,34 @@ export class RampsService {
       { action, responseType: 'json' },
     );
 
-    let geolocatedCountryCode: string | null = null;
-    try {
-      const geolocation = await this.getGeolocation();
-      const countryCode = geolocation.split('-')[0];
-      geolocatedCountryCode = countryCode || null;
-    } catch {
-      // If geolocation fails, continue without it
-    }
+    return countries.filter((country) => {
+      if (action === 'buy') {
+        return country.supported;
+      }
 
-    return countries.map((country) => ({
-      ...country,
-      geolocated: geolocatedCountryCode
-        ? country.isoCode.toUpperCase() === geolocatedCountryCode.toUpperCase()
-        : false,
-    }));
+      if (country.states && country.states.length > 0) {
+        const hasSupportedState = country.states.some(
+          (state) => state.supported !== false,
+        );
+        return country.supported || hasSupportedState;
+      }
+
+      return country.supported;
+    });
+  }
+
+  /**
+   * Fetches eligibility information for a specific region.
+   *
+   * @param isoCode - The ISO code for the region (e.g., "us", "fr", "us-ny").
+   * @returns Eligibility information for the region.
+   */
+  async getEligibility(isoCode: string): Promise<Eligibility> {
+    const normalizedIsoCode = isoCode.toLowerCase().trim();
+    return this.#request<Eligibility>(
+      RampsApiService.Regions,
+      `regions/countries/${normalizedIsoCode}`,
+      { responseType: 'json' },
+    );
   }
 }

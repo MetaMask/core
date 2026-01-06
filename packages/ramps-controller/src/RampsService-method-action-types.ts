@@ -18,10 +18,10 @@ export type RampsServiceGetGeolocationAction = {
 
 /**
  * Makes a request to the cached API to retrieve the list of supported countries.
- * Enriches the response with geolocation data to indicate the user's current country.
+ * Filters countries based on aggregator support.
  *
- * @param action - The ramp action type ('deposit' or 'withdraw').
- * @returns An array of countries with their eligibility information.
+ * @param action - The ramp action type ('buy' or 'sell').
+ * @returns An array of countries filtered by aggregator support.
  */
 export type RampsServiceGetCountriesAction = {
   type: `RampsService:getCountries`;
@@ -29,8 +29,20 @@ export type RampsServiceGetCountriesAction = {
 };
 
 /**
+ * Fetches eligibility information for a specific region.
+ *
+ * @param isoCode - The ISO code for the region (e.g., "us", "fr", "us-ny").
+ * @returns Eligibility information for the region.
+ */
+export type RampsServiceGetEligibilityAction = {
+  type: `RampsService:getEligibility`;
+  handler: RampsService['getEligibility'];
+};
+
+/**
  * Union of all RampsService action types.
  */
 export type RampsServiceMethodActions =
   | RampsServiceGetGeolocationAction
-  | RampsServiceGetCountriesAction;
+  | RampsServiceGetCountriesAction
+  | RampsServiceGetEligibilityAction;
