@@ -18,7 +18,7 @@ export type RampsServiceGetGeolocationAction = {
 
 /**
  * Makes a request to the cached API to retrieve the list of supported countries.
- * Filters countries based on aggregator support.
+ * Filters countries based on aggregator support (preserves OnRampSDK logic).
  *
  * @param action - The ramp action type ('buy' or 'sell').
  * @returns An array of countries filtered by aggregator support.
