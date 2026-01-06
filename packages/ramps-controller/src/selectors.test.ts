@@ -1,5 +1,9 @@
 import type { RampsControllerState } from './RampsController';
-import { RequestStatus, createLoadingState, createSuccessState, createErrorState } from './RequestCache';
+import {
+  createLoadingState,
+  createSuccessState,
+  createErrorState,
+} from './RequestCache';
 import { createRequestSelector } from './selectors';
 
 type TestRootState = {
@@ -7,7 +11,7 @@ type TestRootState = {
 };
 
 describe('createRequestSelector', () => {
-  const getState = (state: TestRootState) => state.ramps;
+  const getState = (state: TestRootState): RampsControllerState => state.ramps;
 
   describe('basic functionality', () => {
     it('returns correct structure for loading state', () => {
@@ -201,7 +205,7 @@ describe('createRequestSelector', () => {
       const result2 = selector(state2);
 
       expect(result1).not.toBe(result2);
-      expect(result2.data).toEqual(['ETH', 'BTC']);
+      expect(result2.data).toStrictEqual(['ETH', 'BTC']);
     });
 
     it('handles array data correctly without deep equality issues', () => {
@@ -230,11 +234,10 @@ describe('createRequestSelector', () => {
     });
 
     it('handles object data correctly', () => {
-      const selector = createRequestSelector<TestRootState, { items: string[] }>(
-        getState,
-        'getData',
-        [],
-      );
+      const selector = createRequestSelector<
+        TestRootState,
+        { items: string[] }
+      >(getState, 'getData', []);
 
       const complexData = {
         items: ['a', 'b', 'c'],
@@ -254,7 +257,7 @@ describe('createRequestSelector', () => {
       const result2 = selector(state);
 
       expect(result1).toBe(result2);
-      expect(result1.data).toEqual(complexData);
+      expect(result1.data).toStrictEqual(complexData);
     });
   });
 
@@ -292,7 +295,7 @@ describe('createRequestSelector', () => {
 
       const successResult = selector(successState);
       expect(successResult.isFetching).toBe(false);
-      expect(successResult.data).toEqual(['ETH']);
+      expect(successResult.data).toStrictEqual(['ETH']);
     });
 
     it('updates result when transitioning from success to error', () => {
@@ -348,7 +351,10 @@ describe('createRequestSelector', () => {
         ramps: {
           geolocation: null,
           requests: {
-            'getCryptoCurrencies:["US"]': createSuccessState(['ETH'], Date.now()),
+            'getCryptoCurrencies:["US"]': createSuccessState(
+              ['ETH'],
+              Date.now(),
+            ),
             'getPrice:["US"]': createSuccessState(100, Date.now()),
           },
         },
@@ -357,7 +363,7 @@ describe('createRequestSelector', () => {
       const result1 = selector1(state);
       const result2 = selector2(state);
 
-      expect(result1.data).toEqual(['ETH']);
+      expect(result1.data).toStrictEqual(['ETH']);
       expect(result2.data).toBe(100);
     });
 
@@ -377,8 +383,14 @@ describe('createRequestSelector', () => {
         ramps: {
           geolocation: null,
           requests: {
-            'getCryptoCurrencies:["US"]': createSuccessState(['ETH'], Date.now()),
-            'getCryptoCurrencies:["CA"]': createSuccessState(['BTC'], Date.now()),
+            'getCryptoCurrencies:["US"]': createSuccessState(
+              ['ETH'],
+              Date.now(),
+            ),
+            'getCryptoCurrencies:["CA"]': createSuccessState(
+              ['BTC'],
+              Date.now(),
+            ),
           },
         },
       };
@@ -386,9 +398,8 @@ describe('createRequestSelector', () => {
       const result1 = selector1(state);
       const result2 = selector2(state);
 
-      expect(result1.data).toEqual(['ETH']);
-      expect(result2.data).toEqual(['BTC']);
+      expect(result1.data).toStrictEqual(['ETH']);
+      expect(result2.data).toStrictEqual(['BTC']);
     });
   });
 });
-

@@ -1,6 +1,6 @@
 import type { RampsControllerState } from './RampsController';
-import { RequestStatus, type RequestState } from './RequestCache';
-import { createCacheKey } from './RequestCache';
+import type { RequestState } from './RequestCache';
+import { RequestStatus, createCacheKey } from './RequestCache';
 
 /**
  * Result shape returned by request selectors.
