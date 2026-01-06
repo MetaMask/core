@@ -1231,14 +1231,6 @@
       "count": 1
     }
   },
-  "packages/multichain-account-service/src/MultichainAccountService.test.ts": {
-    "@typescript-eslint/explicit-function-return-type": {
-      "count": 1
-    },
-    "@typescript-eslint/naming-convention": {
-      "count": 4
-    }
-  },
   "packages/multichain-account-service/src/MultichainAccountService.ts": {
     "id-length": {
       "count": 1
