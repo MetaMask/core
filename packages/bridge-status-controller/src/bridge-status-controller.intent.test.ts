@@ -363,12 +363,14 @@ describe('BridgeStatusController (intent swaps)', () => {
     jest.clearAllMocks();
   });
 
-  it('submitIntent: creates TC tx, writes intent:* history item, starts polling, and continues if approval confirmation fails', async () => {
+  it('submitIntent: throws if approval confirmation fails (does not write history or start polling)', async () => {
     const { controller, accountAddress, submitIntentMock, startPollingSpy } =
       setup();
 
     const orderUid = 'order-uid-1';
 
+    // In the "throw on approval confirmation failure" behavior, we should not reach intent submission,
+    // but keep this here to prove it wasn't used.
     submitIntentMock.mockResolvedValue({
       id: orderUid,
       status: IntentOrderStatus.SUBMITTED,
@@ -377,7 +379,8 @@ describe('BridgeStatusController (intent swaps)', () => {
     });
 
     const quoteResponse = minimalIntentQuoteResponse({
-      // Include approval to exercise “continue if approval confirmation fails”
+      // Include approval to exercise the approval confirmation path.
+      // Your harness sets approval tx status to failed, so #waitForTxConfirmation should throw.
       approval: {
         chainId: 1,
         from: accountAddress,
@@ -388,22 +391,23 @@ describe('BridgeStatusController (intent swaps)', () => {
       },
     });
 
-    const res = await controller.submitIntent({
-      quoteResponse,
-      signature: '0xsig',
-      accountAddress,
-    });
+    await expect(
+      controller.submitIntent({
+        quoteResponse,
+        signature: '0xsig',
+        accountAddress,
+      }),
+    ).rejects.toThrow(/approval/iu);
 
+    // Since we throw before intent order submission succeeds, we should not create the intent:* history item
+    // (and therefore should not start polling).
     const historyKey = `intent:${orderUid}`;
+    expect(controller.state.txHistory[historyKey]).toBeUndefined();
 
-    expect(controller.state.txHistory[historyKey]).toBeDefined();
-    expect(controller.state.txHistory[historyKey].originalTransactionId).toBe(
-      res.id,
-    );
+    expect(startPollingSpy).not.toHaveBeenCalled();
 
-    expect(startPollingSpy).toHaveBeenCalledWith({
-      bridgeTxMetaId: historyKey,
-    });
+    // Optional: ensure we never called the intent API submit
+    expect(submitIntentMock).not.toHaveBeenCalled();
   });
 
   it('intent polling: updates history, merges tx hashes, updates TC tx, and stops polling on COMPLETED', async () => {

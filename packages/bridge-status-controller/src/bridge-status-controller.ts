@@ -1068,7 +1068,7 @@ export class BridgeStatusController extends StaticIntervalPollingController<Brid
     txId: string,
     {
       timeoutMs = 5 * 60_000, // 5 minutes default
-      pollMs = 2_000,
+      pollMs = 3_000,
     }: { timeoutMs?: number; pollMs?: number } = {},
   ): Promise<TransactionMeta> => {
     /* c8 ignore start */
@@ -1647,22 +1647,8 @@ export class BridgeStatusController extends StaticIntervalPollingController<Brid
         );
         approvalTxId = approvalTxMeta?.id;
 
-        // Optionally wait for approval confirmation with timeout and graceful fallback
-        // Intent order can be created before allowance is mined, but waiting helps avoid MEV issues
         if (approvalTxId) {
-          try {
-            // Wait with a shorter timeout and continue if it fails
-            await this.#waitForTxConfirmation(approvalTxId, {
-              timeoutMs: 30_000, // 30 seconds instead of 5 minutes
-              pollMs: 3_000, // Poll less frequently to avoid rate limits
-            });
-          } catch (error) {
-            // Log but don't throw - continue with intent order submission
-            console.warn(
-              'Approval confirmation failed, continuing with intent submission:',
-              error,
-            );
-          }
+          await this.#waitForTxConfirmation(approvalTxId);
         }
       }
 
