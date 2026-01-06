@@ -13,7 +13,8 @@ import {
   SeedlessOnboardingControllerErrorMessage,
   SecretType,
 } from './constants';
-import type { SecretDataType, SecretMetadataOptions } from './types';
+import type { SecretDataType } from './types';
+import { getSecretTypeFromDataType } from './utils';
 
 type ISecretMetadata<DataType extends SecretDataType = Uint8Array> = {
   data: DataType;
@@ -44,10 +45,19 @@ type SecretMetadataJson<DataType extends SecretDataType> = Omit<
  * const secretMetadata = new SecretMetadata(secret);
  * ```
  */
+
 /**
- * Storage-level metadata from the metadata store (not encrypted).
+ * Options for SecretMetadata constructor.
+ *
+ * New clients: provide V2 fields (`dataType`, `createdAt`, etc).
+ * Reading V1 data: `timestamp` and `type` come from encrypted JSON.
  */
-type StorageMetadata = {
+type SecretMetadataOptions = {
+  // V1 fields (from encrypted JSON payload, for backward compat)
+  timestamp?: number;
+  type?: SecretType;
+
+  // Storage-level metadata from the metadata store (not encrypted).
   itemId?: string;
   dataType?: EncAccountDataType;
   createdAt?: string;
@@ -78,26 +88,23 @@ export class SecretMetadata<DataType extends SecretDataType = Uint8Array>
   readonly #storageVersion?: SecretDataItemOutput['version'];
 
   /**
-   * Create a new SecretMetadata instance.
-   *
-   * @param data - The secret to add metadata to.
-   * @param options - The options for the secret metadata.
-   * @param options.timestamp - The timestamp when the secret was created.
-   * @param options.type - The type of the secret.
-   * @param storageMetadata - Storage-level metadata from the metadata store.
+   * @param data - The secret data.
+   * @param options - Optional metadata. New clients should provide `dataType`.
    */
-  constructor(
-    data: DataType,
-    options?: Partial<SecretMetadataOptions>,
-    storageMetadata?: StorageMetadata,
-  ) {
+  constructor(data: DataType, options?: SecretMetadataOptions) {
     this.#data = data;
     this.#timestamp = options?.timestamp ?? Date.now();
-    this.#type = options?.type ?? SecretType.Mnemonic;
-    this.#itemId = storageMetadata?.itemId;
-    this.#dataType = storageMetadata?.dataType;
-    this.#createdAt = storageMetadata?.createdAt;
-    this.#storageVersion = storageMetadata?.storageVersion;
+    this.#itemId = options?.itemId;
+    this.#dataType = options?.dataType;
+    this.#createdAt = options?.createdAt;
+    this.#storageVersion = options?.storageVersion;
+
+    // Derive type from dataType (new clients), or use provided type (V1 compat)
+    if (options?.dataType === undefined) {
+      this.#type = options?.type ?? SecretType.Mnemonic;
+    } else {
+      this.#type = getSecretTypeFromDataType(options.dataType);
+    }
   }
 
   /**
@@ -132,14 +139,13 @@ export class SecretMetadata<DataType extends SecretDataType = Uint8Array>
    */
   static fromRawMetadata<DataType extends SecretDataType>(
     rawMetadata: Uint8Array,
-    storageMetadata: StorageMetadata,
+    storageMetadata: Omit<SecretMetadataOptions, 'timestamp' | 'type'>,
   ): SecretMetadata<DataType> {
     const serializedMetadata = bytesToString(rawMetadata);
     const parsedMetadata = JSON.parse(serializedMetadata);
 
     SecretMetadata.assertIsValidSecretMetadataJson<DataType>(parsedMetadata);
 
-    // if the type is not provided, we default to Mnemonic for the backwards compatibility
     const type = parsedMetadata.type ?? SecretType.Mnemonic;
 
     let data: DataType;
@@ -149,14 +155,11 @@ export class SecretMetadata<DataType extends SecretDataType = Uint8Array>
       data = parsedMetadata.data as DataType;
     }
 
-    return new SecretMetadata<DataType>(
-      data,
-      {
-        timestamp: parsedMetadata.timestamp,
-        type,
-      },
-      storageMetadata,
-    );
+    return new SecretMetadata<DataType>(data, {
+      timestamp: parsedMetadata.timestamp,
+      type,
+      ...storageMetadata,
+    });
   }
 
   /**

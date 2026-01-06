@@ -4188,6 +4188,11 @@ describe('SeedlessOnboardingController', () => {
       expect(seedPhraseMetadata.data).toBeDefined();
       expect(seedPhraseMetadata.timestamp).toBeDefined();
       expect(seedPhraseMetadata.type).toBe(SecretType.Mnemonic);
+      // V2 fields should be undefined
+      expect(seedPhraseMetadata.dataType).toBeUndefined();
+      expect(seedPhraseMetadata.itemId).toBeUndefined();
+      expect(seedPhraseMetadata.createdAt).toBeUndefined();
+      expect(seedPhraseMetadata.storageVersion).toBeUndefined();
 
       // should be able to create a SecretMetadata instance with a timestamp via constructor
       const timestamp = 18_000;
@@ -4198,6 +4203,7 @@ describe('SeedlessOnboardingController', () => {
       expect(seedPhraseMetadata2.timestamp).toBe(timestamp);
       expect(seedPhraseMetadata2.data).toStrictEqual(MOCK_SEED_PHRASE);
       expect(seedPhraseMetadata2.type).toBe(SecretType.Mnemonic);
+      expect(seedPhraseMetadata2.dataType).toBeUndefined();
     });
 
     it('should be able to add metadata to a seed phrase', () => {
@@ -4357,18 +4363,32 @@ describe('SeedlessOnboardingController', () => {
       expect(privateKeySecrets[0].type).toBe(SecretType.PrivateKey);
     });
 
-    it('should be able to create SecretMetadata with storage metadata', () => {
-      const storageMetadata = {
-        itemId: 'test-item-id',
+    it('should derive type from dataType (V2)', () => {
+      const srp1 = new SecretMetadata(MOCK_SEED_PHRASE, {
         dataType: EncAccountDataType.PrimarySrp,
-        createdAt: '00000001-0000-1000-8000-000000000001',
-      };
+      });
+      expect(srp1.type).toBe(SecretType.Mnemonic);
+      expect(srp1.dataType).toBe(EncAccountDataType.PrimarySrp);
 
-      const secretMetadata = new SecretMetadata(
-        MOCK_SEED_PHRASE,
-        { type: SecretType.Mnemonic },
-        storageMetadata,
-      );
+      const srp2 = new SecretMetadata(MOCK_SEED_PHRASE, {
+        dataType: EncAccountDataType.ImportedSrp,
+      });
+      expect(srp2.type).toBe(SecretType.Mnemonic);
+      expect(srp2.dataType).toBe(EncAccountDataType.ImportedSrp);
+
+      const pk = new SecretMetadata<string>('0xdeadbeef', {
+        dataType: EncAccountDataType.ImportedPrivateKey,
+      });
+      expect(pk.type).toBe(SecretType.PrivateKey);
+      expect(pk.dataType).toBe(EncAccountDataType.ImportedPrivateKey);
+    });
+
+    it('should be able to create SecretMetadata with storage metadata', () => {
+      const secretMetadata = new SecretMetadata(MOCK_SEED_PHRASE, {
+        dataType: EncAccountDataType.PrimarySrp,
+        itemId: 'test-item-id',
+        createdAt: '00000001-0000-1000-8000-000000000001',
+      });
 
       expect(secretMetadata.data).toStrictEqual(MOCK_SEED_PHRASE);
       expect(secretMetadata.type).toBe(SecretType.Mnemonic);
@@ -4389,17 +4409,11 @@ describe('SeedlessOnboardingController', () => {
     });
 
     it('should NOT serialize storage metadata in toBytes()', () => {
-      const storageMetadata = {
-        itemId: 'test-item-id',
+      const secretMetadata = new SecretMetadata(MOCK_SEED_PHRASE, {
         dataType: EncAccountDataType.PrimarySrp,
+        itemId: 'test-item-id',
         createdAt: '00000001-0000-1000-8000-000000000001',
-      };
-
-      const secretMetadata = new SecretMetadata(
-        MOCK_SEED_PHRASE,
-        { type: SecretType.Mnemonic },
-        storageMetadata,
-      );
+      });
 
       const serializedBytes = secretMetadata.toBytes();
       const serializedString = bytesToString(serializedBytes);
@@ -4422,16 +4436,11 @@ describe('SeedlessOnboardingController', () => {
       });
       const serializedBytes = originalMetadata.toBytes();
 
-      const storageMetadata = {
+      const parsedMetadata = SecretMetadata.fromRawMetadata(serializedBytes, {
         itemId: 'server-assigned-id',
         dataType: EncAccountDataType.ImportedSrp,
         createdAt: '00000002-0000-1000-8000-000000000002',
-      };
-
-      const parsedMetadata = SecretMetadata.fromRawMetadata(
-        serializedBytes,
-        storageMetadata,
-      );
+      });
 
       expect(parsedMetadata.data).toStrictEqual(MOCK_SEED_PHRASE);
       expect(parsedMetadata.type).toBe(SecretType.Mnemonic);

@@ -64,7 +64,6 @@ import {
   compareTimeuuid,
   deserializeVaultData,
   serializeVaultData,
-  getSecretTypeFromDataType,
 } from './utils';
 
 const log = createModuleLogger(projectLogger, controllerName);
@@ -1594,8 +1593,8 @@ export class SeedlessOnboardingController<
   }): Promise<void> {
     const { options, data, encKey, authKeyPair, dataType } = params;
 
-    // Derive SecretType from EncAccountDataType for backward compatibility
-    const type = getSecretTypeFromDataType(dataType);
+    const secretMetadata = new SecretMetadata(data, { dataType });
+    const { type } = secretMetadata;
 
     // before encrypting and create backup, we will check the state if the secret data is already backed up
     const backupState = this.getSecretDataBackupState(data, type);
@@ -1603,9 +1602,6 @@ export class SeedlessOnboardingController<
       return;
     }
 
-    const secretMetadata = new SecretMetadata(data, {
-      type,
-    });
     const secretData = secretMetadata.toBytes();
 
     const keyringId = options?.keyringId as string;

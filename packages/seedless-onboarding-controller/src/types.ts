@@ -385,20 +385,6 @@ export type DeserializedVaultData = Pick<
 
 export type SecretDataType = Uint8Array | string | number;
 
-/**
- * The constructor options for the seed phrase metadata.
- */
-export type SecretMetadataOptions = {
-  /**
-   * The timestamp when the seed phrase was created.
-   */
-  timestamp: number;
-  /**
-   * The type of the seed phrase.
-   */
-  type: SecretType;
-};
-
 export type DecodedNodeAuthToken = {
   /**
    * The expiration time of the token in seconds.
