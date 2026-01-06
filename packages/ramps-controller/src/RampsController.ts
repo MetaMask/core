@@ -466,5 +466,4 @@ export class RampsController extends BaseController<
       options,
     );
   }
-
 }

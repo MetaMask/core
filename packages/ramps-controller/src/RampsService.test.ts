@@ -437,7 +437,6 @@ describe('RampsService', () => {
       expect(countriesResponse[1]?.geolocated).toBe(false);
     });
 
-
     it('throws if the countries API returns an error', async () => {
       nock('https://on-ramp-cache.uat-api.cx.metamask.io')
         .get('/regions/countries')
@@ -480,7 +479,7 @@ describe('RampsService', () => {
 
       const eligibility = await service.getEligibility('fr');
 
-      expect(eligibility).toEqual({
+      expect(eligibility).toStrictEqual({
         aggregator: true,
         deposit: true,
         global: true,
@@ -504,7 +503,7 @@ describe('RampsService', () => {
 
       const eligibility = await service.getEligibility('us-ny');
 
-      expect(eligibility).toEqual({
+      expect(eligibility).toStrictEqual({
         aggregator: false,
         deposit: true,
         global: false,
@@ -528,7 +527,7 @@ describe('RampsService', () => {
 
       const eligibility = await service.getEligibility('FR');
 
-      expect(eligibility).toEqual({
+      expect(eligibility).toStrictEqual({
         aggregator: true,
         deposit: true,
         global: true,

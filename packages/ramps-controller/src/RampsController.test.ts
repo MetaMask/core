@@ -654,8 +654,8 @@ describe('RampsController', () => {
 
         const eligibility = await controller.updateEligibility('fr');
 
-        expect(controller.state.eligibility).toEqual(mockEligibility);
-        expect(eligibility).toEqual(mockEligibility);
+        expect(controller.state.eligibility).toStrictEqual(mockEligibility);
+        expect(eligibility).toStrictEqual(mockEligibility);
       });
     });
 
@@ -677,7 +677,7 @@ describe('RampsController', () => {
 
         await controller.updateEligibility('us-ny');
 
-        expect(controller.state.eligibility).toEqual(mockEligibility);
+        expect(controller.state.eligibility).toStrictEqual(mockEligibility);
       });
     });
   });
@@ -709,7 +709,7 @@ describe('RampsController', () => {
         await controller.updateGeolocation();
 
         expect(controller.state.geolocation).toBe('fr');
-        expect(controller.state.eligibility).toEqual(mockEligibility);
+        expect(controller.state.eligibility).toStrictEqual(mockEligibility);
       });
     });
 
@@ -728,7 +728,9 @@ describe('RampsController', () => {
           },
         );
 
-        await expect(controller.updateGeolocation()).rejects.toThrow();
+        await expect(controller.updateGeolocation()).rejects.toThrow(
+          'Malformed response received from geolocation API',
+        );
 
         expect(eligibilityCallCount).toBe(0);
         expect(controller.state.eligibility).toBeNull();
