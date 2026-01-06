@@ -1,5 +1,10 @@
-import { IntentOrder, validateIntentOrderResponse } from './validators';
+import {
+  IntentOrder,
+  IntentOrderStatus,
+  validateIntentOrderResponse,
+} from './validators';
 import type { FetchFunction } from '../types';
+import { TransactionStatus } from '@metamask/transaction-controller';
 
 export type IntentSubmissionParams = {
   srcChainId: string;
@@ -85,5 +90,23 @@ export class IntentApiImpl implements IntentApi {
       }
       throw new Error('Failed to get order status');
     }
+  }
+}
+
+export function mapIntentOrderStatusToTransactionStatus(
+  intentStatus: IntentOrderStatus,
+): TransactionStatus {
+  switch (intentStatus) {
+    case IntentOrderStatus.PENDING:
+    case IntentOrderStatus.SUBMITTED:
+      return TransactionStatus.submitted;
+    case IntentOrderStatus.CONFIRMED:
+    case IntentOrderStatus.COMPLETED:
+      return TransactionStatus.confirmed;
+    case IntentOrderStatus.FAILED:
+    case IntentOrderStatus.EXPIRED:
+      return TransactionStatus.failed;
+    default:
+      return TransactionStatus.submitted;
   }
 }

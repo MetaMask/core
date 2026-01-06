@@ -61,7 +61,10 @@ import {
   shouldSkipFetchDueToFetchFailures,
 } from './utils/bridge-status';
 import { getTxGasEstimates } from './utils/gas';
-import { IntentApiImpl } from './utils/intent-api';
+import {
+  IntentApiImpl,
+  mapIntentOrderStatusToTransactionStatus,
+} from './utils/intent-api';
 import {
   getFinalizedTxProperties,
   getPriceImpactFromQuote,
@@ -831,7 +834,7 @@ export class BridgeStatusController extends StaticIntervalPollingController<Brid
       historyItem.originalTransactionId ?? historyItem.txMetaId;
     if (originalTxId && !originalTxId.startsWith('intent:')) {
       try {
-        const transactionStatus = this.#mapIntentOrderStatusToTransactionStatus(
+        const transactionStatus = mapIntentOrderStatusToTransactionStatus(
           intentOrder.status,
         );
 
@@ -1744,8 +1747,9 @@ export class BridgeStatusController extends StaticIntervalPollingController<Brid
       const intentTxMeta = txMetaPromise;
 
       // Map intent order status to TransactionController status
-      const initialTransactionStatus =
-        this.#mapIntentOrderStatusToTransactionStatus(intentOrder.status);
+      const initialTransactionStatus = mapIntentOrderStatusToTransactionStatus(
+        intentOrder.status,
+      );
 
       // Update transaction with proper initial status based on intent order
       const statusUpdatedTxMeta = {
@@ -1809,24 +1813,6 @@ export class BridgeStatusController extends StaticIntervalPollingController<Brid
       throw error;
     }
   };
-
-  #mapIntentOrderStatusToTransactionStatus(
-    intentStatus: IntentOrderStatus,
-  ): TransactionStatus {
-    switch (intentStatus) {
-      case IntentOrderStatus.PENDING:
-      case IntentOrderStatus.SUBMITTED:
-        return TransactionStatus.submitted;
-      case IntentOrderStatus.CONFIRMED:
-      case IntentOrderStatus.COMPLETED:
-        return TransactionStatus.confirmed;
-      case IntentOrderStatus.FAILED:
-      case IntentOrderStatus.EXPIRED:
-        return TransactionStatus.failed;
-      default:
-        return TransactionStatus.submitted;
-    }
-  }
 
   /**
    * Tracks post-submission events for a cross-chain swap based on the history item
