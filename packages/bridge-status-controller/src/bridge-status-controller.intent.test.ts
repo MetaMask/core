@@ -503,6 +503,14 @@ describe('BridgeStatusController (intent swaps)', () => {
         Array [
           "BridgeController:stopPollingForQuotes",
           "Transaction submitted",
+          Object {
+            "best_quote_provider": "best-quote-provider",
+            "can_submit": true,
+            "gas_included": false,
+            "gas_included_7702": false,
+            "price_impact": 0.01,
+            "warnings": Array [],
+          },
         ],
         Array [
           "AccountsController:getAccountByAddress",
@@ -619,6 +627,14 @@ describe('BridgeStatusController (intent swaps)', () => {
         Array [
           "BridgeController:stopPollingForQuotes",
           "Transaction submitted",
+          Object {
+            "best_quote_provider": "best-quote-provider",
+            "can_submit": true,
+            "gas_included": false,
+            "gas_included_7702": false,
+            "price_impact": 0.01,
+            "warnings": Array [],
+          },
         ],
         Array [
           "AccountsController:getAccountByAddress",
@@ -732,6 +748,7 @@ describe('BridgeStatusController (intent swaps)', () => {
         Array [
           "BridgeController:stopPollingForQuotes",
           "Transaction submitted",
+          undefined,
         ],
         Array [
           "AccountsController:getAccountByAddress",

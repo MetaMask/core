@@ -1595,18 +1595,22 @@ export class BridgeStatusController extends StaticIntervalPollingController<Brid
    * @param params.quoteResponse - Quote carrying intent data
    * @param params.signature - Hex signature produced by eth_signTypedData_v4
    * @param params.accountAddress - The EOA submitting the order
+   * @param params.quotesReceivedContext - The context for the QuotesReceived event
    * @returns A lightweight TransactionMeta-like object for history linking
    */
   submitIntent = async (params: {
     quoteResponse: QuoteResponse<TxData | string> & QuoteMetadata;
     signature: string;
     accountAddress: string;
+    quotesReceivedContext?: RequiredEventContextFromClient[UnifiedSwapBridgeEventName.QuotesReceived];
   }): Promise<Pick<TransactionMeta, 'id' | 'chainId' | 'type' | 'status'>> => {
-    const { quoteResponse, signature, accountAddress } = params;
+    const { quoteResponse, signature, accountAddress, quotesReceivedContext } =
+      params;
 
     this.messenger.call(
       'BridgeController:stopPollingForQuotes',
       AbortReason.TransactionSubmitted,
+      quotesReceivedContext,
     );
 
     // Build pre-confirmation properties for error tracking parity with submitTx
