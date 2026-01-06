@@ -1705,7 +1705,7 @@ describe('SeedlessOnboardingController', () => {
         await expect(
           controller.addNewSecretData(
             NEW_KEY_RING_1.seedPhrase,
-            SecretType.Mnemonic,
+            EncAccountDataType.ImportedSrp,
             {
               keyringId: NEW_KEY_RING_1.id,
             },
@@ -1739,10 +1739,9 @@ describe('SeedlessOnboardingController', () => {
           const mockSecretDataAdd = handleMockSecretDataAdd();
           await controller.addNewSecretData(
             NEW_KEY_RING_1.seedPhrase,
-            SecretType.Mnemonic,
+            EncAccountDataType.ImportedSrp,
             {
               keyringId: NEW_KEY_RING_1.id,
-              dataType: EncAccountDataType.ImportedSrp,
             },
           );
 
@@ -1778,10 +1777,9 @@ describe('SeedlessOnboardingController', () => {
           const mockSecretDataAdd = handleMockSecretDataAdd();
           await controller.addNewSecretData(
             NEW_KEY_RING_1.seedPhrase,
-            SecretType.Mnemonic,
+            EncAccountDataType.ImportedSrp,
             {
               keyringId: NEW_KEY_RING_1.id,
-              dataType: EncAccountDataType.ImportedSrp,
             },
           );
 
@@ -1802,10 +1800,9 @@ describe('SeedlessOnboardingController', () => {
           const mockSecretDataAdd2 = handleMockSecretDataAdd();
           await controller.addNewSecretData(
             NEW_KEY_RING_2.seedPhrase,
-            SecretType.Mnemonic,
+            EncAccountDataType.ImportedSrp,
             {
               keyringId: NEW_KEY_RING_2.id,
-              dataType: EncAccountDataType.ImportedSrp,
             },
           );
 
@@ -1864,10 +1861,7 @@ describe('SeedlessOnboardingController', () => {
           const mockSecretDataAdd = handleMockSecretDataAdd();
           await controller.addNewSecretData(
             MOCK_PRIVATE_KEY,
-            SecretType.PrivateKey,
-            {
-              dataType: EncAccountDataType.ImportedPrivateKey,
-            },
+            EncAccountDataType.ImportedPrivateKey,
           );
 
           expect(mockSecretDataAdd.isDone()).toBe(true);
@@ -1898,7 +1892,7 @@ describe('SeedlessOnboardingController', () => {
           await expect(
             controller.addNewSecretData(
               NEW_KEY_RING_1.seedPhrase,
-              SecretType.Mnemonic,
+              EncAccountDataType.ImportedSrp,
               {
                 keyringId: NEW_KEY_RING_1.id,
               },
@@ -1930,7 +1924,10 @@ describe('SeedlessOnboardingController', () => {
           );
 
           await expect(
-            controller.addNewSecretData(MOCK_SEED_PHRASE, SecretType.Mnemonic),
+            controller.addNewSecretData(
+              MOCK_SEED_PHRASE,
+              EncAccountDataType.ImportedSrp,
+            ),
           ).rejects.toThrow(
             SeedlessOnboardingControllerErrorMessage.MissingKeyringId,
           );
@@ -4169,9 +4166,13 @@ describe('SeedlessOnboardingController', () => {
           expect(mutexAcquireSpy).toHaveBeenCalled();
 
           await expect(
-            controller.addNewSecretData(MOCK_SEED_PHRASE, SecretType.Mnemonic, {
-              keyringId: MOCK_KEYRING_ID,
-            }),
+            controller.addNewSecretData(
+              MOCK_SEED_PHRASE,
+              EncAccountDataType.ImportedSrp,
+              {
+                keyringId: MOCK_KEYRING_ID,
+              },
+            ),
           ).rejects.toThrow(
             SeedlessOnboardingControllerErrorMessage.ControllerLocked,
           );
@@ -5790,10 +5791,9 @@ describe('SeedlessOnboardingController', () => {
 
             await controller.addNewSecretData(
               NEW_KEY_RING.seedPhrase,
-              SecretType.Mnemonic,
+              EncAccountDataType.ImportedSrp,
               {
                 keyringId: NEW_KEY_RING.id,
-                dataType: EncAccountDataType.ImportedSrp,
               },
             );
 

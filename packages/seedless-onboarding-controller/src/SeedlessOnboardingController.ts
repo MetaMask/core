@@ -64,6 +64,7 @@ import {
   compareTimeuuid,
   deserializeVaultData,
   serializeVaultData,
+  getSecretTypeFromDataType,
 } from './utils';
 
 const log = createModuleLogger(projectLogger, controllerName);
@@ -485,12 +486,11 @@ export class SeedlessOnboardingController<
         // encrypt and store the secret data
         await this.#encryptAndStoreSecretData({
           data: seedPhrase,
-          type: SecretType.Mnemonic,
+          dataType: EncAccountDataType.PrimarySrp,
           encKey,
           authKeyPair,
           options: {
             keyringId,
-            dataType: EncAccountDataType.PrimarySrp,
           },
         });
 
@@ -516,21 +516,19 @@ export class SeedlessOnboardingController<
   }
 
   /**
-   * encrypt and add a new secret data to the metadata store.
+   * Encrypt and add a new secret data to the metadata store.
    *
    * @param data - The data to add.
-   * @param type - The type of the secret data.
+   * @param dataType - The data type classification for the secret data.
    * @param options - Optional options object, which includes optional data to be added to the metadata store.
    * @param options.keyringId - The keyring id of the backup keyring (SRP).
-   * @param options.dataType - Optional data type for categorizing the secret data.
    * @returns A promise that resolves to the success of the operation.
    */
   async addNewSecretData(
     data: Uint8Array,
-    type: SecretType,
+    dataType: EncAccountDataType,
     options?: {
       keyringId?: string;
-      dataType?: EncAccountDataType;
     },
   ): Promise<void> {
     return await this.#withControllerLock(async () => {
@@ -549,7 +547,7 @@ export class SeedlessOnboardingController<
         // encrypt and store the secret data
         await this.#encryptAndStoreSecretData({
           data,
-          type,
+          dataType,
           encKey: toprfEncryptionKey,
           authKeyPair: toprfAuthKeyPair,
           options,
@@ -1577,26 +1575,27 @@ export class SeedlessOnboardingController<
    *
    * @param params - The parameters for encrypting and storing the secret data backup.
    * @param params.data - The secret data to store.
-   * @param params.type - The type of the secret data.
+   * @param params.dataType - The data type classification for the secret data.
    * @param params.encKey - The encryption key to store.
    * @param params.authKeyPair - The authentication key pair to store.
-   * @param params.options - Optional options object, which includes optional data to be added to the metadata store.
-   * @param params.options.keyringId - The keyring id of the backup keyring (SRP).
-   * @param params.options.dataType - Optional data type for categorizing the secret data.
+   * @param params.options - Optional options object.
+   * @param params.options.keyringId - The keyring id of the backup keyring (required for SRP types).
    *
    * @returns A promise that resolves to the success of the operation.
    */
   async #encryptAndStoreSecretData(params: {
     data: Uint8Array;
-    type: SecretType;
+    dataType: EncAccountDataType;
     encKey: Uint8Array;
     authKeyPair: KeyPair;
     options?: {
       keyringId?: string;
-      dataType?: EncAccountDataType;
     };
   }): Promise<void> {
-    const { options, data, encKey, authKeyPair, type } = params;
+    const { options, data, encKey, authKeyPair, dataType } = params;
+
+    // Derive SecretType from EncAccountDataType for backward compatibility
+    const type = getSecretTypeFromDataType(dataType);
 
     // before encrypting and create backup, we will check the state if the secret data is already backed up
     const backupState = this.getSecretDataBackupState(data, type);
@@ -1622,7 +1621,7 @@ export class SeedlessOnboardingController<
           encKey,
           secretData,
           authKeyPair,
-          dataType: options?.dataType,
+          dataType,
         });
         return {
           keyringId,

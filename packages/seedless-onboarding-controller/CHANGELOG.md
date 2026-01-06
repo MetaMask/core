@@ -8,8 +8,6 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 ## [Unreleased]
 
 ### Added
-
-- Add optional `dataType` parameter to `addNewSecretData` method for categorizing secret data on insert ([#7284](https://github.com/MetaMask/core/pull/7284))
 - Add `updateSecretDataItem` method to update fields for existing items by `itemId` ([#7284](https://github.com/MetaMask/core/pull/7284))
 - Add `batchUpdateSecretDataItems` method to batch update fields for multiple items ([#7284](https://github.com/MetaMask/core/pull/7284))
 - Add `runMigrations` method to run pending data migrations for legacy secrets ([#7284](https://github.com/MetaMask/core/pull/7284))
@@ -23,6 +21,9 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ### Changed
 
+- **BREAKING:** Change `addNewSecretData` method signature to require `dataType: EncAccountDataType` instead of `type: SecretType` ([#7284](https://github.com/MetaMask/core/pull/7284))
+  - `SecretType` is now derived internally from `EncAccountDataType`
+  - Encrypted payload still includes `type` for backward compatibility with older clients
 - **BREAKING:** Remove `parseSecretsFromMetadataStore`, `fromBatch`, and `sort` methods from `SecretMetadata` ([#7284](https://github.com/MetaMask/core/pull/7284))
   - Use `SecretMetadata.compareByTimestamp` for sorting
   - Use `SecretMetadata.matchesType` for filtering
