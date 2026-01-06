@@ -145,11 +145,6 @@ const setup = ({
   mocks.AccountsController.listMultichainAccounts.mockReturnValue(accounts);
 
   messenger.registerActionHandler(
-    'ErrorReportingService:captureException',
-    mocks.ErrorReportingService.captureException,
-  );
-
-  messenger.registerActionHandler(
     'MultichainAccountService:ensureCanUseSnapPlatform',
     mocks.MultichainAccountService.ensureCanUseSnapPlatform,
   );
@@ -680,7 +675,7 @@ describe('SnapAccountProvider', () => {
     });
 
     it('creates new accounts if de-synced', async () => {
-      const { provider, mocks } = setup({
+      const { provider, messenger } = setup({
         accounts: [mockAccounts[0]],
       });
 
@@ -703,7 +698,7 @@ describe('SnapAccountProvider', () => {
     });
 
     it('reports an error if a Snap has more accounts than MetaMask', async () => {
-      const { provider, mocks } = setup({ accounts: mockAccounts });
+      const { provider, messenger } = setup({ accounts: mockAccounts });
 
       const captureExceptionSpy = jest.spyOn(messenger, 'captureException');
 
@@ -717,7 +712,7 @@ describe('SnapAccountProvider', () => {
     });
 
     it('does not throw errors if any provider is not able to re-sync', async () => {
-      const { provider, mocks } = setup({ accounts: [mockAccounts[0]] });
+      const { provider, messenger } = setup({ accounts: [mockAccounts[0]] });
 
       const captureExceptionSpy = jest.spyOn(messenger, 'captureException');
       const createAccountsSpy = jest.spyOn(provider, 'createAccounts');
