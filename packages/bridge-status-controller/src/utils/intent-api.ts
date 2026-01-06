@@ -16,7 +16,9 @@ export type IntentSubmissionParams = {
   aggregatorId: string;
 };
 
-export const getClientIdHeader = (clientId: string) => ({
+export const getClientIdHeader = (
+  clientId: string,
+): { 'X-Client-Id': string } => ({
   'X-Client-Id': clientId,
 });
 

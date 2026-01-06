@@ -1,7 +1,6 @@
 import type { AccountsControllerState } from '@metamask/accounts-controller';
 import type { StateMetadata } from '@metamask/base-controller';
 import type {
-  ChainId,
   QuoteMetadata,
   RequiredEventContextFromClient,
   TxData,

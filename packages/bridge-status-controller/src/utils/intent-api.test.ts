@@ -1,6 +1,4 @@
-// intent-api.test.ts
-import { describe, it, expect, jest } from '@jest/globals';
-
+/* eslint-disable @typescript-eslint/no-explicit-any */
 import { IntentApiImpl } from './intent-api';
 import type { IntentSubmissionParams } from './intent-api';
 import { IntentOrderStatus } from './validators';
@@ -19,7 +17,7 @@ describe('IntentApiImpl', () => {
     aggregatorId: 'agg-1',
   });
 
-  const makeFetchMock = () =>
+  const makeFetchMock = (): any =>
     jest.fn<ReturnType<FetchFunction>, Parameters<FetchFunction>>();
 
   const validIntentOrderResponse = {
@@ -35,7 +33,7 @@ describe('IntentApiImpl', () => {
     const params = makeParams();
     const result = await api.submitIntent(params, clientId);
 
-    expect(result).toEqual(validIntentOrderResponse);
+    expect(result).toStrictEqual(validIntentOrderResponse);
     expect(fetchFn).toHaveBeenCalledTimes(1);
     expect(fetchFn).toHaveBeenCalledWith(`${baseUrl}/submitOrder`, {
       method: 'POST',
@@ -80,7 +78,7 @@ describe('IntentApiImpl', () => {
       clientId,
     );
 
-    expect(result).toEqual(validIntentOrderResponse);
+    expect(result).toStrictEqual(validIntentOrderResponse);
     expect(fetchFn).toHaveBeenCalledTimes(1);
 
     const expectedEndpoint =

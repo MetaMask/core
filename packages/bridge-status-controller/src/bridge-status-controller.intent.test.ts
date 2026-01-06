@@ -19,7 +19,7 @@ type Tx = Pick<TransactionMeta, 'id' | 'status'> & {
   txReceipt?: any;
 };
 
-const seedIntentHistory = (controller: any) => {
+const seedIntentHistory = (controller: any): any => {
   controller.update((state: any) => {
     state.txHistory['intent:1'] = {
       txMetaId: 'intent:1',
@@ -38,7 +38,7 @@ const seedIntentHistory = (controller: any) => {
   });
 };
 
-const minimalIntentQuoteResponse = (overrides?: Partial<any>) => {
+const minimalIntentQuoteResponse = (overrides?: Partial<any>): any => {
   return {
     quote: {
       requestId: 'req-1',
@@ -85,7 +85,7 @@ const minimalIntentQuoteResponse = (overrides?: Partial<any>) => {
 const minimalBridgeQuoteResponse = (
   accountAddress: string,
   overrides?: Partial<any>,
-) => {
+): any => {
   return {
     quote: {
       requestId: 'req-bridge-1',
@@ -134,7 +134,7 @@ const minimalBridgeQuoteResponse = (
 const createMessengerHarness = (
   accountAddress: string,
   selectedChainId: string = '0x1',
-) => {
+): any => {
   const transactions: Tx[] = [];
 
   const messenger = {
@@ -177,7 +177,7 @@ const createMessengerHarness = (
   return { messenger, transactions };
 };
 
-const loadControllerWithMocks = () => {
+const loadControllerWithMocks = (): any => {
   const submitIntentMock = jest.fn();
   const getOrderStatusMock = jest.fn();
 
@@ -251,8 +251,10 @@ const loadControllerWithMocks = () => {
       getPreConfirmationPropertiesFromQuote: jest.fn().mockReturnValue({}),
     }));
 
+    /* eslint-disable @typescript-eslint/no-require-imports, n/global-require */
     BridgeStatusController =
       require('./bridge-status-controller').BridgeStatusController;
+    /* eslint-enable @typescript-eslint/no-require-imports, n/global-require */
   });
 
   return {
@@ -261,11 +263,11 @@ const loadControllerWithMocks = () => {
     getOrderStatusMock,
     fetchBridgeTxStatusMock,
     getStatusRequestWithSrcTxHashMock,
-    shouldSkipFetchDueToFetchFailuresMock, // ADD THIS
+    shouldSkipFetchDueToFetchFailuresMock,
   };
 };
 
-const setup = (options?: { selectedChainId?: string }) => {
+const setup = (options?: { selectedChainId?: string }): any => {
   const accountAddress = '0xAccount1';
   const { messenger, transactions } = createMessengerHarness(
     accountAddress,
@@ -329,7 +331,7 @@ const setup = (options?: { selectedChainId?: string }) => {
     updateTransactionFn: jest.fn(),
     estimateGasFeeFn: jest.fn(async () => ({ estimates: {} })),
     config: { customBridgeApiBaseUrl: 'http://localhost' },
-    traceFn: (_req: any, fn?: any) => fn?.(),
+    traceFn: (_req: any, fn?: any): any => fn?.(),
   });
 
   const startPollingSpy = jest
@@ -580,7 +582,7 @@ describe('BridgeStatusController (subscriptions + bridge polling + wiping)', () 
     });
 
     const failedCb = messenger.subscribe.mock.calls.find(
-      ([evt]) => evt === 'TransactionController:transactionFailed',
+      ([evt]: [any]) => evt === 'TransactionController:transactionFailed',
     )?.[1];
     expect(typeof failedCb).toBe('function');
 
@@ -630,7 +632,7 @@ describe('BridgeStatusController (subscriptions + bridge polling + wiping)', () 
     });
 
     const failedCb = messenger.subscribe.mock.calls.find(
-      ([evt]) => evt === 'TransactionController:transactionFailed',
+      ([evt]: [any]) => evt === 'TransactionController:transactionFailed',
     )?.[1];
 
     failedCb({
@@ -670,7 +672,7 @@ describe('BridgeStatusController (subscriptions + bridge polling + wiping)', () 
     });
 
     const confirmedCb = messenger.subscribe.mock.calls.find(
-      ([evt]) => evt === 'TransactionController:transactionConfirmed',
+      ([evt]: [any]) => evt === 'TransactionController:transactionConfirmed',
     )?.[1];
     expect(typeof confirmedCb).toBe('function');
 
@@ -974,7 +976,7 @@ describe('BridgeStatusController (target uncovered branches)', () => {
     });
 
     const failedCb = messenger.subscribe.mock.calls.find(
-      ([evt]) => evt === 'TransactionController:transactionFailed',
+      ([evt]: [any]) => evt === 'TransactionController:transactionFailed',
     )?.[1];
 
     failedCb({
@@ -1034,7 +1036,7 @@ describe('BridgeStatusController (target uncovered branches)', () => {
       updateTransactionFn: jest.fn(),
       estimateGasFeeFn: jest.fn(),
       config: { customBridgeApiBaseUrl: 'http://localhost' },
-      traceFn: (_r: any, fn?: any) => fn?.(),
+      traceFn: (_r: any, fn?: any): any => fn?.(),
     });
 
     expect(startPollingProtoSpy).not.toHaveBeenCalled();
@@ -1318,7 +1320,7 @@ describe('BridgeStatusController (target uncovered branches)', () => {
     });
 
     const failedCb = messenger.subscribe.mock.calls.find(
-      ([evt]) => evt === 'TransactionController:transactionFailed',
+      ([evt]: [any]) => evt === 'TransactionController:transactionFailed',
     )?.[1];
 
     failedCb({
