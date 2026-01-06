@@ -1,4 +1,7 @@
-import type { EncAccountDataType } from '@metamask/toprf-secure-backup';
+import type {
+  EncAccountDataType,
+  SecretDataItemOutput,
+} from '@metamask/toprf-secure-backup';
 import {
   base64ToBytes,
   bytesToBase64,
@@ -56,7 +59,7 @@ type StorageMetadata = {
    * - 'v1': Legacy items created before dataType was introduced
    * - 'v2': Items with dataType set (either new or migrated)
    */
-  storageVersion?: 'v1' | 'v2';
+  storageVersion?: SecretDataItemOutput['version'];
 };
 
 export class SecretMetadata<DataType extends SecretDataType = Uint8Array>
@@ -77,7 +80,7 @@ export class SecretMetadata<DataType extends SecretDataType = Uint8Array>
 
   readonly #createdAt?: string;
 
-  readonly #storageVersion?: 'v1' | 'v2';
+  readonly #storageVersion?: SecretDataItemOutput['version'];
 
   /**
    * Create a new SecretMetadata instance.
@@ -231,7 +234,7 @@ export class SecretMetadata<DataType extends SecretDataType = Uint8Array>
    *
    * @returns The storage-level version.
    */
-  get storageVersion(): 'v1' | 'v2' | undefined {
+  get storageVersion(): SecretDataItemOutput['version'] | undefined {
     return this.#storageVersion;
   }
 
