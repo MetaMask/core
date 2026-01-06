@@ -2888,7 +2888,6 @@ __metadata:
     "@metamask/auto-changelog": "npm:^3.4.4"
     "@metamask/controller-utils": "npm:^11.17.0"
     "@metamask/keyring-internal-api": "npm:^9.0.0"
-    "@metamask/network-controller": "npm:^27.1.0"
     "@metamask/permission-controller": "npm:^12.2.0"
     "@metamask/rpc-errors": "npm:^7.0.2"
     "@metamask/utils": "npm:^11.9.0"
