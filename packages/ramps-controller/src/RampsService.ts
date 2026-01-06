@@ -231,6 +231,7 @@ function getBaseUrl(
  * new RampsService({
  *   messenger: rampsServiceMessenger,
  *   environment: RampsEnvironment.Production,
+ *   context: 'mobile-ios',
  *   fetch,
  * });
  *
@@ -273,11 +274,17 @@ export class RampsService {
   readonly #environment: RampsEnvironment;
 
   /**
+   * The context for API requests (e.g., 'mobile-ios', 'mobile-android').
+   */
+  readonly #context: string;
+
+  /**
    * Constructs a new RampsService object.
    *
    * @param args - The constructor arguments.
    * @param args.messenger - The messenger suited for this service.
    * @param args.environment - The environment to use for API requests.
+   * @param args.context - The context for API requests (e.g., 'mobile-ios', 'mobile-android').
    * @param args.fetch - A function that can be used to make an HTTP request. If
    * your JavaScript environment supports `fetch` natively, you'll probably want
    * to pass that; otherwise you can pass an equivalent (such as `fetch` via
@@ -288,11 +295,13 @@ export class RampsService {
   constructor({
     messenger,
     environment = RampsEnvironment.Staging,
+    context,
     fetch: fetchFunction,
     policyOptions = {},
   }: {
     messenger: RampsServiceMessenger;
     environment?: RampsEnvironment;
+    context: string;
     fetch: typeof fetch;
     policyOptions?: CreateServicePolicyOptions;
   }) {
@@ -301,6 +310,7 @@ export class RampsService {
     this.#fetch = fetchFunction;
     this.#policy = createServicePolicy(policyOptions);
     this.#environment = environment;
+    this.#context = context;
 
     this.#messenger.registerMethodActionHandlers(
       this,
@@ -374,7 +384,7 @@ export class RampsService {
     }
     url.searchParams.set('sdk', RAMPS_SDK_VERSION);
     url.searchParams.set('controller', packageJson.version);
-    url.searchParams.set('context', 'mobile-ios');
+    url.searchParams.set('context', this.#context);
   }
 
   /**

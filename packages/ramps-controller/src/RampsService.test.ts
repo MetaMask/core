@@ -802,6 +802,7 @@ function getService({
   const service = new RampsService({
     fetch,
     messenger,
+    context: 'mobile-ios',
     ...options,
   });
 
