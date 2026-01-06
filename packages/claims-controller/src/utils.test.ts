@@ -12,6 +12,26 @@ describe('getErrorFromResponse', () => {
     expect(error.message).toBe('error: Bad request, statusCode: 400');
   });
 
+  it('returns error with message from JSON response when message is present', async () => {
+    const response = {
+      status: 400,
+      json: jest.fn().mockResolvedValue({ message: 'Bad request' }),
+    } as unknown as Response;
+
+    const error = await getErrorFromResponse(response);
+    expect(error.message).toBe('error: Bad request, statusCode: 400');
+  });
+
+  it('returns unknown error when JSON response has no error or message', async () => {
+    const response = {
+      status: 400,
+      json: jest.fn().mockResolvedValue({}),
+    } as unknown as Response;
+
+    const error = await getErrorFromResponse(response);
+    expect(error.message).toBe('error: Unknown error, statusCode: 400');
+  });
+
   it('returns generic HTTP error when JSON parsing fails', async () => {
     const response = {
       status: 500,

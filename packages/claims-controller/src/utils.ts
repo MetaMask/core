@@ -8,8 +8,9 @@ export async function getErrorFromResponse(response: Response): Promise<Error> {
   const statusCode = response.status;
   try {
     const json = await response.json();
-    const message = `error: ${json.error}, statusCode: ${statusCode}`;
-    return new Error(message);
+    const errorMessage = json?.error ?? json?.message ?? 'Unknown error';
+    const networkError = `error: ${errorMessage}, statusCode: ${statusCode}`;
+    return new Error(networkError);
   } catch {
     return new Error(`HTTP ${statusCode} error`);
   }
