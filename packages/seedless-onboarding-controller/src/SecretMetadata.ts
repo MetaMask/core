@@ -100,7 +100,7 @@ export class SecretMetadata<DataType extends SecretDataType = Uint8Array>
     this.#storageVersion = options?.storageVersion;
 
     // Derive type from dataType (new clients), or use provided type (V1 compat)
-    if (options?.dataType === undefined) {
+    if (options?.dataType === undefined || options?.dataType === null) {
       this.#type = options?.type ?? SecretType.Mnemonic;
     } else {
       this.#type = getSecretTypeFromDataType(options.dataType);
