@@ -328,7 +328,7 @@ describe('ClaimsService', () => {
       expect(mockCaptureException).toHaveBeenCalledWith(
         createSentryError(
           ClaimsServiceErrorMessages.SIGNATURE_MESSAGE_GENERATION_FAILED,
-          new Error('HTTP 500 error'),
+          new Error('error: Unknown error, statusCode: 500'),
         ),
       );
     });
