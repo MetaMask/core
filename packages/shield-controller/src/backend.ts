@@ -81,7 +81,7 @@ export class ShieldRemoteBackend implements ShieldBackend {
     getCoverageResultPollInterval = 1000, // milliseconds
     baseUrl,
     fetch: fetchFn,
-    captureException,
+    captureException: captureExceptionFn,
   }: {
     getAccessToken: () => Promise<string>;
     getCoverageResultTimeout?: number;
@@ -104,7 +104,13 @@ export class ShieldRemoteBackend implements ShieldBackend {
       maxRetries,
     });
 
-    this.#captureException = captureException;
+    this.#captureException = (error: Error): void => {
+      try {
+        captureExceptionFn?.(error);
+      } catch {
+        // ignore error thrown when calling captureException
+      }
+    };
   }
 
   async checkCoverage(req: CheckCoverageRequest): Promise<CoverageResult> {
