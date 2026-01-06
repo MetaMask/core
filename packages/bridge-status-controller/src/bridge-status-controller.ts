@@ -1597,6 +1597,9 @@ export class BridgeStatusController extends StaticIntervalPollingController<Brid
       isHardwareAccount,
     );
 
+    let approvalTxId: string | undefined;
+    let intentOrder: IntentOrder | undefined;
+    let intentTxMeta: TransactionMeta | undefined;
     try {
       const { intent } = quoteResponse.quote;
 
@@ -1606,7 +1609,6 @@ export class BridgeStatusController extends StaticIntervalPollingController<Brid
 
       // If backend provided an approval tx for this intent quote, submit it first (on-chain),
       // then proceed with off-chain intent submission.
-      let approvalTxId: string | undefined;
       if (quoteResponse.approval) {
         const isBridgeTx = isCrossChain(
           quoteResponse.quote.srcChainId,
@@ -1644,7 +1646,7 @@ export class BridgeStatusController extends StaticIntervalPollingController<Brid
         this.#config.customBridgeApiBaseUrl,
         this.#fetchFn,
       );
-      const intentOrder = await intentApi.submitIntent(
+      intentOrder = await intentApi.submitIntent(
         submissionParams,
         this.#clientId,
       );
@@ -1680,7 +1682,7 @@ export class BridgeStatusController extends StaticIntervalPollingController<Brid
         gasPrice: '0x3b9aca00', // 1 Gwei - will be converted to EIP-1559 fees if network supports it
       };
 
-      const { transactionMeta: txMetaPromise } = await this.#addTransactionFn(
+      const { transactionMeta } = await this.#addTransactionFn(
         intentTransactionParams,
         {
           origin: 'metamask',
@@ -1699,54 +1701,7 @@ export class BridgeStatusController extends StaticIntervalPollingController<Brid
         },
       );
 
-      const intentTxMeta = txMetaPromise;
-
-      // Map intent order status to TransactionController status
-      const initialTransactionStatus = mapIntentOrderStatusToTransactionStatus(
-        intentOrder.status,
-      );
-
-      // Update transaction with proper initial status based on intent order
-      const statusUpdatedTxMeta = {
-        ...intentTxMeta,
-        status: initialTransactionStatus,
-      };
-
-      // Update with actual transaction metadata
-      const syntheticMeta = {
-        ...statusUpdatedTxMeta,
-        isIntentTx: true,
-        orderUid,
-        intentType: isCrossChainTx ? 'bridge' : 'swap',
-      } as unknown as TransactionMeta;
-
-      // Record in bridge history with actual transaction metadata
-      try {
-        const bridgeHistoryKey = syntheticMeta.id;
-        this.#addTxToHistory({
-          accountAddress,
-          bridgeTxMeta: syntheticMeta,
-          statusRequest: {
-            ...getStatusRequestParams(quoteResponse),
-            srcTxHash: syntheticMeta.hash ?? '',
-          },
-          intentOrderId: intentOrder?.id,
-          quoteResponse,
-          slippagePercentage: 0,
-          isStxEnabled: false,
-          approvalTxId,
-        });
-
-        // Start polling using the intent: prefixed key to route to intent manager
-        this.#startPollingForTxId(bridgeHistoryKey);
-      } catch (error) {
-        console.error(
-          '📝 [submitIntent] Failed to add to bridge history',
-          error,
-        );
-        // non-fatal but log the error
-      }
-      return syntheticMeta;
+      intentTxMeta = transactionMeta;
     } catch (error) {
       this.#trackUnifiedSwapBridgeEvent(
         UnifiedSwapBridgeEventName.Failed,
@@ -1756,9 +1711,44 @@ export class BridgeStatusController extends StaticIntervalPollingController<Brid
           ...preConfirmationProperties,
         },
       );
-
       throw error;
     }
+
+    // Map intent order status to TransactionController status
+    const initialTransactionStatus = mapIntentOrderStatusToTransactionStatus(
+      intentOrder.status,
+    );
+
+    // Update transaction with proper initial status based on intent order
+    const bridgeTxMetaForHistory = {
+      ...intentTxMeta,
+      status: initialTransactionStatus,
+    };
+
+    // Record in bridge history with actual transaction metadata
+    try {
+      const bridgeHistoryKey = bridgeTxMetaForHistory.id;
+      this.#addTxToHistory({
+        accountAddress,
+        bridgeTxMeta: bridgeTxMetaForHistory,
+        statusRequest: {
+          ...getStatusRequestParams(quoteResponse),
+          srcTxHash: bridgeTxMetaForHistory.hash ?? '',
+        },
+        intentOrderId: intentOrder?.id,
+        quoteResponse,
+        slippagePercentage: 0,
+        isStxEnabled: false,
+        approvalTxId,
+      });
+
+      // Start polling using the intent: prefixed key to route to intent manager
+      this.#startPollingForTxId(bridgeHistoryKey);
+    } catch (error) {
+      console.error('📝 [submitIntent] Failed to add to bridge history', error);
+      // non-fatal but log the error
+    }
+    return bridgeTxMetaForHistory;
   };
 
   /**
