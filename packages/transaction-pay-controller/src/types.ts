@@ -86,8 +86,8 @@ export type TransactionPayControllerUpdatePaymentTokenAction = {
 };
 
 /** Action to set the max amount flag for a transaction. */
-export type TransactionPayControllerSetIsMaxAction = {
-  type: `${typeof CONTROLLER_NAME}:setIsMax`;
+export type TransactionPayControllerSetIsMaxAmountAction = {
+  type: `${typeof CONTROLLER_NAME}:setIsMaxAmount`;
   handler: (transactionId: string, isMaxAmount: boolean) => void;
 };
 
@@ -101,7 +101,7 @@ export type TransactionPayControllerActions =
   | TransactionPayControllerGetDelegationTransactionAction
   | TransactionPayControllerGetStateAction
   | TransactionPayControllerGetStrategyAction
-  | TransactionPayControllerSetIsMaxAction
+  | TransactionPayControllerSetIsMaxAmountAction
   | TransactionPayControllerUpdatePaymentTokenAction;
 
 export type TransactionPayControllerEvents =

@@ -81,7 +81,7 @@ export class TransactionPayController extends BaseController<
     });
   }
 
-  setIsMax(transactionId: string, isMaxAmount: boolean): void {
+  setIsMaxAmount(transactionId: string, isMaxAmount: boolean): void {
     this.#updateTransactionData(transactionId, (transactionData) => {
       transactionData.isMaxAmount = isMaxAmount;
     });
@@ -158,8 +158,8 @@ export class TransactionPayController extends BaseController<
     );
 
     this.messenger.registerActionHandler(
-      'TransactionPayController:setIsMax',
-      this.setIsMax.bind(this),
+      'TransactionPayController:setIsMaxAmount',
+      this.setIsMaxAmount.bind(this),
     );
   }
 }

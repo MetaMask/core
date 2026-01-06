@@ -6,7 +6,7 @@ export type {
   TransactionPayControllerGetStrategyAction,
   TransactionPayControllerMessenger,
   TransactionPayControllerOptions,
-  TransactionPayControllerSetIsMaxAction,
+  TransactionPayControllerSetIsMaxAmountAction,
   TransactionPayControllerState,
   TransactionPayControllerStateChangeEvent,
   TransactionPayControllerUpdatePaymentTokenAction,
