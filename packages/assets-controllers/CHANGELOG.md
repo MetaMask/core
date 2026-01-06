@@ -20,7 +20,7 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 - Bump `@metamask/snaps-sdk` from `^9.0.0` to `^10.3.0` ([#7550](https://github.com/MetaMask/core/pull/7550))
 - Bump `@metamask/snaps-utils` from `^11.0.0` to `^11.7.0` ([#7550](https://github.com/MetaMask/core/pull/7550))
 - Upgrade `@metamask/utils` from `^11.8.1` to `^11.9.0` ([#7511](https://github.com/MetaMask/core/pull/7511))
-- Bump `@metamask/permission-controller` from `^12.1.1` to `^12.2.0` ([#7550](https://github.com/MetaMask/core/pull/7559))
+- Bump `@metamask/permission-controller` from `^12.1.1` to `^12.2.0` ([#7559](https://github.com/MetaMask/core/pull/7559))
 - **BREAKING:** `AccountTrackerController` now requires `KeyringController:getState` action and `KeyringController:lock` event in addition to existing allowed actions and events ([#7492](https://github.com/MetaMask/core/pull/7492))
   - Added `#isLocked` property to track keyring lock state, initialized from `KeyringController:getState`
   - Added `isActive` getter that returns `true` when keyring is unlocked and user is onboarded
