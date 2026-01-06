@@ -4302,7 +4302,7 @@ describe('KeyringController', () => {
           data: { key: 'value', number: 42 },
         });
 
-        expect(error.data).toEqual({ key: 'value', number: 42 });
+        expect(error.data).toStrictEqual({ key: 'value', number: 42 });
       });
 
       it('should support error chaining with cause', () => {
@@ -4339,8 +4339,8 @@ describe('KeyringController', () => {
         expect(json.name).toBe('KeyringControllerError');
         expect(json.message).toBe('Test error');
         expect(json.code).toBe('TEST_CODE');
-        expect(json.data).toEqual({ key: 'value' });
-        expect(json.cause).toEqual({
+        expect(json.data).toStrictEqual({ key: 'value' });
+        expect(json.cause).toStrictEqual({
           name: 'Error',
           message: 'Original error',
           stack: originalError.stack,
