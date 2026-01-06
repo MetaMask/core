@@ -3131,9 +3131,8 @@ export class TransactionController extends BaseController<
         // published on-chain by the TransactionController, skip the approve/publish flow.
         // These are tracked externally and should not be signed or sent.
         const isIntentTransaction = Boolean(
-          // eslint-disable-next-line @typescript-eslint/no-explicit-any
-          (this.#getTransaction(transactionId) as any)?.swapMetaData
-            ?.isIntentTx === true,
+          this.#getTransaction(transactionId)?.swapMetaData?.isIntentTx ===
+            true,
         );
 
         if (requireApproval === false && isIntentTransaction) {
