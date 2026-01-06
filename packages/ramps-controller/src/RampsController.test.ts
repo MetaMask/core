@@ -602,6 +602,40 @@ describe('RampsController', () => {
         expect(callCount).toBe(1);
       });
     });
+
+    it('fetches countries with sell action', async () => {
+      await withController(async ({ controller, rootMessenger }) => {
+        let receivedAction: string | undefined;
+        rootMessenger.registerActionHandler(
+          'RampsService:getCountries',
+          async (action) => {
+            receivedAction = action;
+            return mockCountries;
+          },
+        );
+
+        await controller.getCountries('sell');
+
+        expect(receivedAction).toBe('sell');
+      });
+    });
+
+    it('uses default buy action when no argument is provided', async () => {
+      await withController(async ({ controller, rootMessenger }) => {
+        let receivedAction: string | undefined;
+        rootMessenger.registerActionHandler(
+          'RampsService:getCountries',
+          async (action) => {
+            receivedAction = action;
+            return mockCountries;
+          },
+        );
+
+        await controller.getCountries();
+
+        expect(receivedAction).toBe('buy');
+      });
+    });
   });
 
   describe('getRegionEligibility', () => {
@@ -819,6 +853,78 @@ describe('RampsController', () => {
           await controller.getRegionEligibility('buy');
 
           expect(receivedAction).toBe('buy');
+        },
+      );
+    });
+
+    it('works with sell action', async () => {
+      await withController(
+        { options: { state: { geolocation: 'AT' } } },
+        async ({ controller, rootMessenger }) => {
+          let receivedAction: string | undefined;
+          rootMessenger.registerActionHandler(
+            'RampsService:getCountries',
+            async (action) => {
+              receivedAction = action;
+              return mockCountries;
+            },
+          );
+
+          const eligible = await controller.getRegionEligibility('sell');
+
+          expect(receivedAction).toBe('sell');
+          expect(eligible).toBe(true);
+        },
+      );
+    });
+
+    it('uses default buy action when no argument is provided', async () => {
+      await withController(
+        { options: { state: { geolocation: 'AT' } } },
+        async ({ controller, rootMessenger }) => {
+          let receivedAction: string | undefined;
+          rootMessenger.registerActionHandler(
+            'RampsService:getCountries',
+            async (action) => {
+              receivedAction = action;
+              return mockCountries;
+            },
+          );
+
+          const eligible = await controller.getRegionEligibility();
+
+          expect(receivedAction).toBe('buy');
+          expect(eligible).toBe(true);
+        },
+      );
+    });
+
+    it('returns true for a supported US state when unsupportedStates is undefined', async () => {
+      const countriesWithoutUnsupportedStates: Country[] = [
+        {
+          isoCode: 'US',
+          flag: '🇺🇸',
+          name: 'United States of America',
+          phone: {
+            prefix: '+1',
+            placeholder: '(555) 123-4567',
+            template: '(XXX) XXX-XXXX',
+          },
+          currency: 'USD',
+          supported: true,
+        },
+      ];
+      await withController(
+        { options: { state: { geolocation: 'US-TX' } } },
+        async ({ controller, rootMessenger }) => {
+          rootMessenger.registerActionHandler(
+            'RampsService:getCountries',
+            async () => countriesWithoutUnsupportedStates,
+          );
+
+          const eligible = await controller.getRegionEligibility('buy');
+
+          expect(eligible).toBe(true);
         },
       );
     });

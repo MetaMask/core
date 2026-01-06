@@ -376,7 +376,8 @@ export class RampsService {
     let geolocatedCountryCode: string | null = null;
     try {
       const geolocation = await this.getGeolocation();
-      geolocatedCountryCode = geolocation.split('-')[0] ?? null;
+      const countryCode = geolocation.split('-')[0];
+      geolocatedCountryCode = countryCode || null;
     } catch {
       // If geolocation fails, continue without it
     }
