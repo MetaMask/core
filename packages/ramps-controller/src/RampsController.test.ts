@@ -161,6 +161,14 @@ describe('RampsController', () => {
           'RampsService:getGeolocation',
           async () => 'US',
         );
+        rootMessenger.registerActionHandler(
+          'RampsService:getEligibility',
+          async () => ({
+            aggregator: true,
+            deposit: true,
+            global: true,
+          }),
+        );
 
         await controller.updateGeolocation();
 
@@ -173,6 +181,14 @@ describe('RampsController', () => {
         rootMessenger.registerActionHandler(
           'RampsService:getGeolocation',
           async () => 'US',
+        );
+        rootMessenger.registerActionHandler(
+          'RampsService:getEligibility',
+          async () => ({
+            aggregator: true,
+            deposit: true,
+            global: true,
+          }),
         );
 
         await controller.updateGeolocation();
@@ -197,6 +213,14 @@ describe('RampsController', () => {
             return 'US';
           },
         );
+        rootMessenger.registerActionHandler(
+          'RampsService:getEligibility',
+          async () => ({
+            aggregator: true,
+            deposit: true,
+            global: true,
+          }),
+        );
 
         await controller.updateGeolocation();
         await controller.updateGeolocation();
@@ -214,6 +238,14 @@ describe('RampsController', () => {
             callCount += 1;
             return 'US';
           },
+        );
+        rootMessenger.registerActionHandler(
+          'RampsService:getEligibility',
+          async () => ({
+            aggregator: true,
+            deposit: true,
+            global: true,
+          }),
         );
 
         await controller.updateGeolocation();
@@ -680,6 +712,41 @@ describe('RampsController', () => {
         await controller.updateEligibility('us-ny');
 
         expect(controller.state.eligibility).toStrictEqual(mockEligibility);
+      });
+    });
+
+    it('normalizes isoCode case for cache key consistency', async () => {
+      await withController(async ({ controller, rootMessenger }) => {
+        const mockEligibility = {
+          aggregator: true,
+          deposit: true,
+          global: true,
+        };
+
+        let callCount = 0;
+        rootMessenger.registerActionHandler(
+          'RampsService:getEligibility',
+          async (isoCode) => {
+            callCount++;
+            expect(isoCode).toBe('fr');
+            return mockEligibility;
+          },
+        );
+
+        await controller.updateEligibility('FR');
+        expect(callCount).toBe(1);
+
+        const eligibility1 = await controller.updateEligibility('fr');
+        expect(callCount).toBe(1);
+        expect(eligibility1).toStrictEqual(mockEligibility);
+
+        const eligibility2 = await controller.updateEligibility('Fr');
+        expect(callCount).toBe(1);
+        expect(eligibility2).toStrictEqual(mockEligibility);
+
+        const cacheKey = createCacheKey('updateEligibility', ['fr']);
+        const requestState = controller.getRequestState(cacheKey);
+        expect(requestState?.status).toBe('success');
       });
     });
   });

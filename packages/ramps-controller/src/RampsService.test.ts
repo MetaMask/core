@@ -402,6 +402,52 @@ describe('RampsService', () => {
         ]
       `);
     });
+
+    it('includes country with unsupported country but supported state for sell action', async () => {
+      const mockCountriesWithUnsupportedCountry = [
+        {
+          isoCode: 'US',
+          id: '/regions/us',
+          flag: '🇺🇸',
+          name: 'United States',
+          phone: { prefix: '+1', placeholder: '', template: '' },
+          currency: 'USD',
+          supported: false,
+          states: [
+            {
+              id: '/regions/us-tx',
+              stateId: 'TX',
+              name: 'Texas',
+              supported: true,
+            },
+            {
+              id: '/regions/us-ny',
+              stateId: 'NY',
+              name: 'New York',
+              supported: false,
+            },
+          ],
+        },
+      ];
+      nock('https://on-ramp-cache.uat-api.cx.metamask.io')
+        .get('/regions/countries')
+        .query({
+          action: 'sell',
+          sdk: '2.1.6',
+          controller: '2.0.0',
+          context: 'mobile-ios',
+        })
+        .reply(200, mockCountriesWithUnsupportedCountry);
+      const { service } = getService();
+
+      const countriesResponse = await service.getCountries('sell');
+
+      expect(countriesResponse).toHaveLength(1);
+      expect(countriesResponse[0]?.isoCode).toBe('US');
+      expect(countriesResponse[0]?.supported).toBe(false);
+      expect(countriesResponse[0]?.states?.[0]?.supported).toBe(true);
+    });
+
     it('throws if the countries API returns an error', async () => {
       nock('https://on-ramp-cache.uat-api.cx.metamask.io')
         .get('/regions/countries')

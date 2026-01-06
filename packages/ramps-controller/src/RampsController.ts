@@ -406,13 +406,13 @@ export class RampsController extends BaseController<
       options,
     );
 
-    this.update((state) => {
-      state.geolocation = geolocation;
-    });
-
     if (geolocation) {
       await this.updateEligibility(geolocation, options);
     }
+
+    this.update((state) => {
+      state.geolocation = geolocation;
+    });
 
     return geolocation;
   }
@@ -428,12 +428,13 @@ export class RampsController extends BaseController<
     isoCode: string,
     options?: ExecuteRequestOptions,
   ): Promise<Eligibility> {
-    const cacheKey = createCacheKey('updateEligibility', [isoCode]);
+    const normalizedIsoCode = isoCode.toLowerCase().trim();
+    const cacheKey = createCacheKey('updateEligibility', [normalizedIsoCode]);
 
     const eligibility = await this.executeRequest(
       cacheKey,
       async () => {
-        return this.messenger.call('RampsService:getEligibility', isoCode);
+        return this.messenger.call('RampsService:getEligibility', normalizedIsoCode);
       },
       options,
     );
