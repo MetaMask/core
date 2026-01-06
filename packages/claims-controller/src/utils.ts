@@ -5,11 +5,25 @@
  * @returns An error.
  */
 export async function getErrorFromResponse(response: Response): Promise<Error> {
+  const contentType = response.headers?.get('content-type');
   const statusCode = response.status;
   try {
-    const json = await response.json();
-    const errorMessage = json?.error ?? json?.message ?? 'Unknown error';
-    const networkError = `error: ${errorMessage}, statusCode: ${statusCode}`;
+    if (contentType?.includes('application/json')) {
+      const json = await response.json();
+      const errorMessage = json?.error ?? json?.message ?? 'Unknown error';
+      const networkError = `error: ${errorMessage}, statusCode: ${statusCode}`;
+      return new Error(networkError);
+    } else if (contentType?.includes('text/plain')) {
+      const text = await response.text();
+      const networkError = `error: ${text}, statusCode: ${statusCode}`;
+      return new Error(networkError);
+    }
+
+    const error =
+      'data' in response && typeof response.data === 'string'
+        ? response.data
+        : 'Unknown error';
+    const networkError = `error: ${error}, statusCode: ${statusCode}`;
     return new Error(networkError);
   } catch {
     return new Error(`HTTP ${statusCode} error`);
