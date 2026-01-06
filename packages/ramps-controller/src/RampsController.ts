@@ -452,7 +452,14 @@ export class RampsController extends BaseController<
     );
 
     this.update((state) => {
-      state.eligibility = eligibility;
+      if (state.geolocation === null) {
+        state.eligibility = eligibility;
+      } else {
+        const currentGeolocation = state.geolocation.toLowerCase().trim();
+        if (currentGeolocation === normalizedIsoCode) {
+          state.eligibility = eligibility;
+        }
+      }
     });
 
     return eligibility;

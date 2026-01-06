@@ -845,6 +845,51 @@ describe('RampsController', () => {
         expect(controller.state.eligibility).toBeNull();
       });
     });
+
+    it('prevents stale eligibility from overwriting current eligibility in race condition', async () => {
+      await withController(async ({ controller, rootMessenger }) => {
+        const usEligibility = {
+          aggregator: true,
+          deposit: true,
+          global: false,
+        };
+        const frEligibility = {
+          aggregator: true,
+          deposit: true,
+          global: true,
+        };
+
+        let geolocationCallCount = 0;
+
+        rootMessenger.registerActionHandler(
+          'RampsService:getGeolocation',
+          async () => {
+            geolocationCallCount += 1;
+            return geolocationCallCount === 1 ? 'us' : 'fr';
+          },
+        );
+        rootMessenger.registerActionHandler(
+          'RampsService:getEligibility',
+          async (isoCode) => {
+            if (isoCode === 'us') {
+              await new Promise((resolve) => setTimeout(resolve, 100));
+              return usEligibility;
+            }
+            await new Promise((resolve) => setTimeout(resolve, 10));
+            return frEligibility;
+          },
+        );
+
+        const promise1 = controller.updateGeolocation();
+        await new Promise((resolve) => setTimeout(resolve, 20));
+        const promise2 = controller.updateGeolocation({ forceRefresh: true });
+
+        await Promise.all([promise1, promise2]);
+
+        expect(controller.state.geolocation).toBe('fr');
+        expect(controller.state.eligibility).toStrictEqual(frEligibility);
+      });
+    });
   });
 });
 
