@@ -1659,21 +1659,15 @@ export class BridgeStatusController extends StaticIntervalPollingController<Brid
         }
       }
 
-      // Create intent quote from bridge quote response
-      const intentQuote = this.#convertBridgeQuoteToIntentQuote(
-        quoteResponse,
-        intent,
-      );
-
-      const chainId = quoteResponse.quote.srcChainId;
+      const { srcChainId: chainId, requestId } = quoteResponse.quote;
 
       const submissionParams = {
         srcChainId: chainId.toString(),
-        quoteId: intentQuote.id,
+        quoteId: requestId,
         signature,
-        order: intentQuote.metadata.order,
+        order: intent.order,
         userAddress: accountAddress,
-        aggregatorId: 'cowswap',
+        aggregatorId: intent.protocol,
       };
       const intentApi = new IntentApiImpl(
         this.#config.customBridgeApiBaseUrl,
@@ -1815,45 +1809,6 @@ export class BridgeStatusController extends StaticIntervalPollingController<Brid
       throw error;
     }
   };
-
-  #convertBridgeQuoteToIntentQuote(
-    quoteResponse: QuoteResponse<TxData | string> & QuoteMetadata,
-    intent: Intent,
-  ): {
-    id: string;
-    provider: string;
-    srcAmount: string;
-    destAmount: string;
-    estimatedGas: string;
-    estimatedTime: number;
-    priceImpact: number;
-    fees: unknown[];
-    validUntil: number;
-    metadata: {
-      order: unknown;
-      settlementContract: string;
-      chainId: ChainId;
-      bridgeQuote: QuoteResponse<TxData | string> & QuoteMetadata;
-    };
-  } {
-    return {
-      id: `bridge-${Date.now()}`,
-      provider: intent.protocol,
-      srcAmount: quoteResponse.quote.srcTokenAmount,
-      destAmount: quoteResponse.quote.destTokenAmount,
-      estimatedGas: '21000',
-      estimatedTime: 300, // 5 minutes
-      priceImpact: 0,
-      fees: [],
-      validUntil: Date.now() + 300000, // 5 minutes from now
-      metadata: {
-        order: intent.order,
-        settlementContract: intent.settlementContract ?? '',
-        chainId: quoteResponse.quote.srcChainId,
-        bridgeQuote: quoteResponse,
-      },
-    };
-  }
 
   #mapIntentOrderStatusToTransactionStatus(
     intentStatus: IntentOrderStatus,
