@@ -1500,7 +1500,8 @@ export class SeedlessOnboardingController<
       // Validate the first item is the primary SRP
       const firstItem = results[0];
       const isDataTypePrimary =
-        firstItem.dataType === undefined || // Legacy data (before dataType was introduced)
+        firstItem.dataType === undefined ||
+        firstItem.dataType === null ||
         firstItem.dataType === EncAccountDataType.PrimarySrp;
       const isMnemonic = SecretMetadata.matchesType(
         firstItem,
