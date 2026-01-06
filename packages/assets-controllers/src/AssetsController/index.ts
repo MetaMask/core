@@ -1,0 +1,172 @@
+// Main controller export
+export {
+  AssetsController,
+  getDefaultAssetsControllerState,
+} from './AssetsController';
+
+// State and messenger types
+export type {
+  AssetsControllerState,
+  AssetsControllerMessenger,
+  AssetsControllerOptions,
+  AssetsControllerGetStateAction,
+  AssetsControllerGetAssetsAction,
+  AssetsControllerGetAssetsBalanceAction,
+  AssetsControllerGetAssetsMetadataAction,
+  AssetsControllerGetAssetsPriceAction,
+  AssetsControllerActions,
+  AssetsControllerStateChangeEvent,
+  AssetsControllerBalanceChangedEvent,
+  AssetsControllerPriceChangedEvent,
+  AssetsControllerAssetsDetectedEvent,
+  AssetsControllerEvents,
+} from './AssetsController';
+
+// Core types
+export type {
+  // CAIP types
+  Caip19AssetId,
+  AccountId,
+  ChainId,
+  // Asset types
+  AssetType,
+  TokenStandard,
+  // Metadata types
+  BaseAssetMetadata,
+  FungibleAssetMetadata,
+  ERC721AssetMetadata,
+  ERC1155AssetMetadata,
+  AssetMetadata,
+  // Price types
+  BaseAssetPrice,
+  FungibleAssetPrice,
+  NFTAssetPrice,
+  AssetPrice,
+  // Balance types
+  FungibleAssetBalance,
+  ERC721AssetBalance,
+  ERC1155AssetBalance,
+  AssetBalance,
+  // Data source types
+  DataType,
+  DataFetchRequest,
+  DataResponse,
+  FetchContext,
+  SubscribeContext,
+  MiddlewareContext,
+  NextFunction,
+  DataSourceMiddleware,
+  DataSourceDefinition,
+  RegisteredDataSource,
+  SubscriptionResponse,
+  // Update middleware types (for async responses)
+  UpdateContext,
+  UpdateMiddleware,
+  UpdateNextFunction,
+  UpdateMiddlewareFetchers,
+  // Combined asset type
+  Asset,
+  // Event types
+  BalanceChangeEvent,
+  PriceChangeEvent,
+  MetadataChangeEvent,
+  AssetsDetectedEvent,
+} from './types';
+
+// Data sources - base class and types
+export { AbstractDataSource } from './data-sources';
+
+export type { DataSourceState, SubscriptionRequest } from './data-sources';
+
+// Data sources - AccountsApi
+export {
+  AccountsApiDataSource,
+  createAccountsApiDataSource,
+} from './data-sources';
+
+export type {
+  AccountsApiDataSourceOptions,
+  AccountsApiDataSourceState,
+  AccountsApiDataSourceActions,
+  AccountsApiDataSourceEvents,
+  AccountsApiDataSourceMessenger,
+} from './data-sources';
+
+// Data sources - BackendWebsocket
+export {
+  BackendWebsocketDataSource,
+  createBackendWebsocketDataSource,
+} from './data-sources';
+
+export type {
+  BackendWebsocketDataSourceOptions,
+  BackendWebsocketDataSourceState,
+  BackendWebsocketDataSourceActions,
+  BackendWebsocketDataSourceEvents,
+  BackendWebsocketDataSourceMessenger,
+  BackendWebsocketDataSourceAllowedActions,
+  BackendWebsocketDataSourceAllowedEvents,
+} from './data-sources';
+
+// Data sources - RPC
+export { RpcDataSource, createRpcDataSource } from './data-sources';
+
+export type {
+  RpcDataSourceOptions,
+  RpcDataSourceState,
+  RpcDataSourceActions,
+  RpcDataSourceEvents,
+  RpcDataSourceMessenger,
+} from './data-sources';
+
+// Data sources - Unified Snap Data Source (handles Solana, Bitcoin, Tron)
+export {
+  SnapDataSource,
+  createSnapDataSource,
+  SNAP_DATA_SOURCE_NAME,
+  // Snap IDs
+  SOLANA_SNAP_ID,
+  BITCOIN_SNAP_ID,
+  TRON_SNAP_ID,
+  // Chain prefixes
+  SOLANA_CHAIN_PREFIX,
+  BITCOIN_CHAIN_PREFIX,
+  TRON_CHAIN_PREFIX,
+  // Networks
+  SOLANA_MAINNET,
+  SOLANA_DEVNET,
+  SOLANA_TESTNET,
+  BITCOIN_MAINNET,
+  BITCOIN_TESTNET,
+  TRON_MAINNET,
+  TRON_SHASTA,
+  TRON_NILE,
+  TRON_MAINNET_HEX,
+  TRON_SHASTA_HEX,
+  TRON_NILE_HEX,
+  ALL_DEFAULT_NETWORKS,
+  // Poll intervals
+  DEFAULT_SOLANA_POLL_INTERVAL,
+  DEFAULT_BITCOIN_POLL_INTERVAL,
+  DEFAULT_TRON_POLL_INTERVAL,
+  DEFAULT_SNAP_POLL_INTERVAL,
+  // Snap registry
+  SNAP_REGISTRY,
+  // Helper functions
+  getSnapTypeForChain,
+  isSnapSupportedChain,
+  isSolanaChain,
+  isBitcoinChain,
+  isTronChain,
+} from './data-sources';
+
+export type {
+  SnapType,
+  SnapInfo,
+  SnapDataSourceState,
+  SnapDataSourceOptions,
+  SnapProvider,
+  SnapDataSourceActions,
+  SnapDataSourceEvents,
+  SnapDataSourceMessenger,
+} from './data-sources';
