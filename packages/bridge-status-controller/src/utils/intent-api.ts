@@ -59,10 +59,10 @@ export class IntentApiImpl implements IntentApi {
         },
         body: JSON.stringify(params),
       });
-      if (!validateIntentOrderResponse(response)) {
-        throw new Error('Invalid submitOrder response');
-      }
-      return response;
+      return validateIntentOrderResponse(
+        response,
+        'Invalid submitOrder response',
+      );
     } catch (error: unknown) {
       if (error instanceof Error) {
         throw new Error(`Failed to submit intent: ${error.message}`);
@@ -83,10 +83,10 @@ export class IntentApiImpl implements IntentApi {
         method: 'GET',
         headers: getClientIdHeader(clientId),
       });
-      if (!validateIntentOrderResponse(response)) {
-        throw new Error('Invalid getOrderStatus response');
-      }
-      return response;
+      return validateIntentOrderResponse(
+        response,
+        'Invalid getOrderStatus response',
+      );
     } catch (error: unknown) {
       if (error instanceof Error) {
         throw new Error(`Failed to get order status: ${error.message}`);
