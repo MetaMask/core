@@ -1717,21 +1717,8 @@ export class BridgeStatusController extends StaticIntervalPollingController<Brid
           skipInitialGasEstimate: true,
           swaps: {
             meta: {
-              // Add token symbols from quoteResponse for proper display
-              sourceTokenSymbol: quoteResponse.quote.srcAsset.symbol,
-              destinationTokenSymbol: quoteResponse.quote.destAsset.symbol,
-              sourceTokenAmount: quoteResponse.quote.srcTokenAmount,
-              destinationTokenAmount: quoteResponse.quote.destTokenAmount,
-              sourceTokenDecimals: quoteResponse.quote.srcAsset.decimals,
-              destinationTokenDecimals: quoteResponse.quote.destAsset.decimals,
-              sourceTokenAddress: quoteResponse.quote.srcAsset.address,
-              destinationTokenAddress: quoteResponse.quote.destAsset.address,
-              swapTokenValue: quoteResponse.sentAmount.amount,
-              approvalTxId,
               swapMetaData: {
                 isIntentTx: true,
-                orderUid,
-                intentType: isCrossChainTx ? 'bridge' : 'swap',
               },
             },
           },
@@ -1741,8 +1728,6 @@ export class BridgeStatusController extends StaticIntervalPollingController<Brid
       const intentTxMeta = txMetaPromise;
 
       // Map intent order status to TransactionController status
-      const initialTransactionStatus = mapIntentOrderStatusToTransactionStatus(
-        intentOrder.status,
       );
 
       // Update transaction with proper initial status based on intent order
