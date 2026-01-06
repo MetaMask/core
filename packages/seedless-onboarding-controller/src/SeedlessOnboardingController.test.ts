@@ -4016,6 +4016,109 @@ describe('SeedlessOnboardingController', () => {
       ).toBeLessThan(0);
     });
 
+    describe('compare', () => {
+      it('should sort PrimarySrp first regardless of createdAt or timestamp', () => {
+        const primarySrp = new SecretMetadata(MOCK_SEED_PHRASE, {
+          timestamp: 2000,
+          dataType: EncAccountDataType.PrimarySrp,
+          createdAt: '00000002-0000-1000-8000-000000000002',
+        });
+        const importedSrp = new SecretMetadata(MOCK_SEED_PHRASE, {
+          timestamp: 1000,
+          dataType: EncAccountDataType.ImportedSrp,
+          createdAt: '00000001-0000-1000-8000-000000000001',
+        });
+
+        expect(
+          SecretMetadata.compare(primarySrp, importedSrp, 'asc'),
+        ).toBeLessThan(0);
+        expect(
+          SecretMetadata.compare(importedSrp, primarySrp, 'asc'),
+        ).toBeGreaterThan(0);
+        // Also in desc order
+        expect(
+          SecretMetadata.compare(primarySrp, importedSrp, 'desc'),
+        ).toBeLessThan(0);
+      });
+
+      it('should compare by createdAt (TIMEUUID) when both have createdAt', () => {
+        const earlier = new SecretMetadata(MOCK_SEED_PHRASE, {
+          timestamp: 1000,
+          dataType: EncAccountDataType.ImportedSrp,
+          createdAt: '00000001-0000-1000-8000-000000000001',
+        });
+        const later = new SecretMetadata(MOCK_SEED_PHRASE, {
+          timestamp: 2000,
+          dataType: EncAccountDataType.ImportedSrp,
+          createdAt: '00000002-0000-1000-8000-000000000002',
+        });
+
+        expect(SecretMetadata.compare(earlier, later, 'asc')).toBeLessThan(0);
+        expect(SecretMetadata.compare(later, earlier, 'asc')).toBeGreaterThan(
+          0,
+        );
+        expect(SecretMetadata.compare(earlier, later, 'desc')).toBeGreaterThan(
+          0,
+        );
+      });
+
+      it('should sort legacy items (null createdAt) before items with createdAt in asc order', () => {
+        const legacyItem = new SecretMetadata(MOCK_SEED_PHRASE, {
+          timestamp: 2000,
+          dataType: EncAccountDataType.ImportedSrp,
+          // no createdAt (legacy)
+        });
+        const newItem = new SecretMetadata(MOCK_SEED_PHRASE, {
+          timestamp: 1000,
+          dataType: EncAccountDataType.ImportedSrp,
+          createdAt: '00000001-0000-1000-8000-000000000001',
+        });
+
+        expect(SecretMetadata.compare(legacyItem, newItem, 'asc')).toBeLessThan(
+          0,
+        );
+        expect(
+          SecretMetadata.compare(newItem, legacyItem, 'asc'),
+        ).toBeGreaterThan(0);
+        // In desc order, new item comes first
+        expect(
+          SecretMetadata.compare(legacyItem, newItem, 'desc'),
+        ).toBeGreaterThan(0);
+      });
+
+      it('should fall back to timestamp when both have null createdAt', () => {
+        const earlier = new SecretMetadata(MOCK_SEED_PHRASE, {
+          timestamp: 1000,
+          dataType: EncAccountDataType.ImportedSrp,
+        });
+        const later = new SecretMetadata(MOCK_SEED_PHRASE, {
+          timestamp: 2000,
+          dataType: EncAccountDataType.ImportedSrp,
+        });
+
+        expect(SecretMetadata.compare(earlier, later, 'asc')).toBeLessThan(0);
+        expect(SecretMetadata.compare(later, earlier, 'asc')).toBeGreaterThan(
+          0,
+        );
+        expect(SecretMetadata.compare(earlier, later, 'desc')).toBeGreaterThan(
+          0,
+        );
+      });
+
+      it('should use asc order by default', () => {
+        const earlier = new SecretMetadata(MOCK_SEED_PHRASE, {
+          timestamp: 1000,
+          dataType: EncAccountDataType.ImportedSrp,
+        });
+        const later = new SecretMetadata(MOCK_SEED_PHRASE, {
+          timestamp: 2000,
+          dataType: EncAccountDataType.ImportedSrp,
+        });
+
+        expect(SecretMetadata.compare(earlier, later)).toBeLessThan(0);
+      });
+    });
+
     it('should default type to Mnemonic when parsing metadata without type field', () => {
       // Create raw metadata JSON without type field
       const rawMetadataWithoutType = JSON.stringify({

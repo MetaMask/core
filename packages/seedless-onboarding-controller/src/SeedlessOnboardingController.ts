@@ -61,7 +61,6 @@ import type {
 import {
   decodeJWTToken,
   decodeNodeAuthToken,
-  compareTimeuuid,
   deserializeVaultData,
   serializeVaultData,
 } from './utils';
@@ -1371,28 +1370,7 @@ export class SeedlessOnboardingController<
       );
 
       // Sort: PrimarySrp first, then by createdAt/timestamp (oldest first)
-      results.sort((a, b) => {
-        // PrimarySrp always comes first
-        if (a.dataType === EncAccountDataType.PrimarySrp) {
-          return -1;
-        }
-        if (b.dataType === EncAccountDataType.PrimarySrp) {
-          return 1;
-        }
-        // Use server-side createdAt if available (TIMEUUID requires timestamp extraction)
-        if (a.createdAt && b.createdAt) {
-          return compareTimeuuid(a.createdAt, b.createdAt);
-        }
-        // Handle mixed createdAt: legacy items (null) are older, come first
-        if (!a.createdAt && b.createdAt) {
-          return -1; // a (legacy/older) comes before b
-        }
-        if (a.createdAt && !b.createdAt) {
-          return 1; // b (legacy/older) comes before a
-        }
-        // Both null: fall back to client-side timestamp
-        return SecretMetadata.compareByTimestamp(a, b, 'asc');
-      });
+      results.sort((a, b) => SecretMetadata.compare(a, b, 'asc'));
 
       // Validate the first item is the primary SRP
       const firstItem = results[0];

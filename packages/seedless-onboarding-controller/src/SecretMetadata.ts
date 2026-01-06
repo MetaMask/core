@@ -1,7 +1,5 @@
-import type {
-  EncAccountDataType,
-  SecretDataItemOutput,
-} from '@metamask/toprf-secure-backup';
+import type { SecretDataItemOutput } from '@metamask/toprf-secure-backup';
+import { EncAccountDataType } from '@metamask/toprf-secure-backup';
 import {
   base64ToBytes,
   bytesToBase64,
@@ -14,7 +12,7 @@ import {
   SecretType,
 } from './constants';
 import type { SecretDataType } from './types';
-import { getSecretTypeFromDataType } from './utils';
+import { compareTimeuuid, getSecretTypeFromDataType } from './utils';
 
 type ISecretMetadata<DataType extends SecretDataType = Uint8Array> = {
   data: DataType;
@@ -178,6 +176,47 @@ export class SecretMetadata<DataType extends SecretDataType = Uint8Array>
     return order === 'asc'
       ? a.timestamp - b.timestamp
       : b.timestamp - a.timestamp;
+  }
+
+  /**
+   * Compare two SecretMetadata instances for ordering.
+   *
+   * Ordering priority:
+   * 1. PrimarySrp always comes first (regardless of order direction)
+   * 2. Server-side createdAt (TIMEUUID) if both have it
+   * 3. Legacy items (null createdAt) are considered older
+   * 4. Fall back to client-side timestamp
+   *
+   * @param a - The first SecretMetadata instance.
+   * @param b - The second SecretMetadata instance.
+   * @param order - The sort order. Default is 'asc'.
+   * @returns A negative number if a < b, positive if a > b, zero if equal.
+   */
+  static compare<DataType extends SecretDataType = SecretDataType>(
+    a: SecretMetadata<DataType>,
+    b: SecretMetadata<DataType>,
+    order: 'asc' | 'desc' = 'asc',
+  ): number {
+    // PrimarySrp always comes first (regardless of order direction)
+    if (a.dataType === EncAccountDataType.PrimarySrp) {
+      return -1;
+    }
+    if (b.dataType === EncAccountDataType.PrimarySrp) {
+      return 1;
+    }
+    // Use server-side createdAt if available (TIMEUUID requires timestamp extraction)
+    if (a.createdAt && b.createdAt) {
+      return compareTimeuuid(a.createdAt, b.createdAt, order);
+    }
+    // Handle mixed createdAt: legacy items (null) are older
+    if (!a.createdAt && b.createdAt) {
+      return order === 'asc' ? -1 : 1; // a (legacy/older) comes before b in asc
+    }
+    if (a.createdAt && !b.createdAt) {
+      return order === 'asc' ? 1 : -1; // b (legacy/older) comes before a in asc
+    }
+    // Both null: fall back to client-side timestamp
+    return SecretMetadata.compareByTimestamp(a, b, order);
   }
 
   /**
