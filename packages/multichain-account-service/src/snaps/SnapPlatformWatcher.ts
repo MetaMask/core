@@ -1,5 +1,7 @@
 import { createDeferredPromise, DeferredPromise } from '@metamask/utils';
+import { once } from 'lodash';
 
+import { projectLogger as log } from '../logger';
 import { MultichainAccountServiceMessenger } from '../types';
 
 export class SnapPlatformWatcher {
@@ -33,6 +35,8 @@ export class SnapPlatformWatcher {
   }
 
   #watch(): void {
+    const logReadyOnce = once(() => log('Snap platform is ready!'));
+
     const state = this.#messenger.call('SnapController:getState');
 
     // If already ready, resolve immediately.
@@ -46,6 +50,7 @@ export class SnapPlatformWatcher {
       this.#isReady = isReady;
 
       if (isReady) {
+        logReadyOnce();
         this.#isReadyOnce.resolve();
       }
     });
