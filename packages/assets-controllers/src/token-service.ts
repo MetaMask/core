@@ -4,7 +4,7 @@ import {
   handleFetch,
   timeoutFetch,
 } from '@metamask/controller-utils';
-import type { CaipChainId, Hex } from '@metamask/utils';
+import type { CaipAssetType, CaipChainId, Hex } from '@metamask/utils';
 
 import { isTokenListSupportedForNetwork } from './assetsUtil';
 
@@ -179,7 +179,7 @@ export type TokenRwaData = {
 };
 
 export type TokenSearchItem = {
-  assetId: CaipChainId;
+  assetId: CaipAssetType;
   name: string;
   symbol: string;
   decimals: number;
@@ -212,7 +212,7 @@ export async function searchTokens(
     includeMarketData = false,
     includeRwaData,
   }: SearchTokenOptions = {},
-): Promise<{ count: number; data: unknown[] }> {
+): Promise<{ count: number; data: TokenSearchItem[] }> {
   const tokenSearchURL = getTokenSearchURL({
     chainIds,
     query,
@@ -222,7 +222,7 @@ export async function searchTokens(
   });
 
   try {
-    const result: { count: number; data: unknown[] } =
+    const result: { count: number; data: TokenSearchItem[] } =
       await handleFetch(tokenSearchURL);
 
     // The API returns an object with structure: { count: number, data: array, pageInfo: object }
