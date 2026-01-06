@@ -416,7 +416,10 @@ export class RampsController extends BaseController<
       } catch (_) {
         // Eligibility fetch failed, but geolocation was successfully fetched and cached.
         // Don't let eligibility errors prevent geolocation state from being updated.
-        // The geolocation is already saved above, so we just continue.
+        // Clear eligibility state to avoid showing stale data from a previous location.
+        this.update((state) => {
+          state.eligibility = null;
+        });
       }
     }
 

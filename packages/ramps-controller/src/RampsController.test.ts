@@ -804,6 +804,47 @@ describe('RampsController', () => {
         expect(controller.state.eligibility).toBeNull();
       });
     });
+
+    it('clears stale eligibility when new geolocation is fetched but eligibility fails', async () => {
+      await withController(async ({ controller, rootMessenger }) => {
+        const usEligibility = {
+          aggregator: true,
+          deposit: true,
+          global: true,
+        };
+
+        let geolocationCallCount = 0;
+        let eligibilityCallCount = 0;
+
+        rootMessenger.registerActionHandler(
+          'RampsService:getGeolocation',
+          async () => {
+            geolocationCallCount += 1;
+            return geolocationCallCount === 1 ? 'us' : 'fr';
+          },
+        );
+        rootMessenger.registerActionHandler(
+          'RampsService:getEligibility',
+          async () => {
+            eligibilityCallCount += 1;
+            if (eligibilityCallCount === 1) {
+              return usEligibility;
+            }
+            throw new Error('Eligibility API error');
+          },
+        );
+
+        await controller.updateGeolocation();
+
+        expect(controller.state.geolocation).toBe('us');
+        expect(controller.state.eligibility).toStrictEqual(usEligibility);
+
+        await controller.updateGeolocation({ forceRefresh: true });
+
+        expect(controller.state.geolocation).toBe('fr');
+        expect(controller.state.eligibility).toBeNull();
+      });
+    });
   });
 });
 
