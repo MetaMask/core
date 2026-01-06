@@ -16,7 +16,6 @@ import {
 import { SolAccountProvider } from './SolAccountProvider';
 import { TrxAccountProvider } from './TrxAccountProvider';
 import { traceFallback } from '../analytics';
-import { MultichainAccountService } from '../MultichainAccountService';
 import type { RootMessenger } from '../tests';
 import {
   asKeyringAccount,
@@ -74,11 +73,11 @@ class MockSnapAccountProvider extends SnapAccountProvider {
     return true;
   }
 
-  async runDiscoverAccounts(): Promise<Bip44Account<KeyringAccount>[]> {
+  async discoverAccounts(): Promise<Bip44Account<KeyringAccount>[]> {
     return [];
   }
 
-  async runCreateAccounts(options: {
+  async createAccounts(options: {
     entropySource: EntropySourceId;
     groupIndex: number;
   }): Promise<Bip44Account<KeyringAccount>[]> {

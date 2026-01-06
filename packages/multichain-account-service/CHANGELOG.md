@@ -10,13 +10,16 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 ### Added
 
 - Wait for Snap platform to be ready before any wallet/group operations ([#7266](https://github.com/MetaMask/core/pull/7266))
+- Add `SnapAccountProvider.withSnap` protected helper ([#7266](https://github.com/MetaMask/core/pull/7266))
+  - This is used to protect any Snap operation behind a guard that checks if the Snap platform is ready.
+- Add `MultichainAccountService:ensureCanUseSnapPlatform` method and action.
+  - This will resolve once the Snap platform is ready for the first time and will throw afterward if Snap platform has been disabled dynamically.
+  - This action is mostly used internally by any Snap-based account providers.
 
 ### Changed
 
-- **BREAKING:** Abstract method `SnapAccountProvider.createAccounts` has been renamed `runCreateAccounts` ([#7266](https://github.com/MetaMask/core/pull/7266))
-  - `SnapAccountProvider.createAccounts` is now implemented by `SnapAccountProvider` directly and automatically wait for the Snap platform to be ready before calling `runCreateAccounts`.
-- **BREAKING:** Abstract method `SnapAccountProvider.discoverAccounts` has been renamed `runDiscoverAccounts` ([#7266](https://github.com/MetaMask/core/pull/7266))
-  - `SnapAccountProvider.discoverAccounts` is now implemented by `SnapAccountProvider` directly and automatically wait for the Snap platform to be ready before calling `runDiscoverAccounts`.
+- **BREAKING:** The `SnapAccountProvider.client` property is now private ([#7266](https://github.com/MetaMask/core/pull/7266))
+  - You now need to use `SnapAccountProvider.withSnap` to access to it.
 - Bump `@metamask/snaps-controllers` from `^14.0.1` to `^17.2.0` ([#7550](https://github.com/MetaMask/core/pull/7550))
 - Bump `@metamask/snaps-sdk` from `^9.0.0` to `^10.3.0` ([#7550](https://github.com/MetaMask/core/pull/7550))
 - Bump `@metamask/snaps-utils` from `^11.0.0` to `^11.7.0` ([#7550](https://github.com/MetaMask/core/pull/7550))
