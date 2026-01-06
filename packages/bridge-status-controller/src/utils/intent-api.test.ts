@@ -135,7 +135,7 @@ describe('IntentApiImpl', () => {
     await expect(
       api.getOrderStatus('order-1', 'agg', '1', clientId),
     ).rejects.toThrow(
-      'Failed to get order status: Invalid submitOrder response',
+      'Failed to get order status: Invalid getOrderStatus response',
     );
   });
 });

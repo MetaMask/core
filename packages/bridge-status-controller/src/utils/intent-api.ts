@@ -84,7 +84,7 @@ export class IntentApiImpl implements IntentApi {
         headers: getClientIdHeader(clientId),
       });
       if (!validateIntentOrderResponse(response)) {
-        throw new Error('Invalid submitOrder response');
+        throw new Error('Invalid getOrderStatus response');
       }
       return response;
     } catch (error: unknown) {
