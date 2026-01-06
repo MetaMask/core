@@ -1605,6 +1605,11 @@ export class BridgeStatusController extends StaticIntervalPollingController<Brid
   }): Promise<Pick<TransactionMeta, 'id' | 'chainId' | 'type' | 'status'>> => {
     const { quoteResponse, signature, accountAddress } = params;
 
+    this.messenger.call(
+      'BridgeController:stopPollingForQuotes',
+      AbortReason.TransactionSubmitted,
+    );
+
     // Build pre-confirmation properties for error tracking parity with submitTx
     const account = this.#getMultichainSelectedAccount(accountAddress);
     const isHardwareAccount = Boolean(account) && isHardwareWallet(account);
