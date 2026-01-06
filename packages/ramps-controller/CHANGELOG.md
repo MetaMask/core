@@ -9,7 +9,7 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ### Added
 
-- Add region eligibility checking via `getRegionEligibility` and `getCountries` methods
+- Add region eligibility checking via `getRegionEligibility` and `getCountries` methods ([#7539](https://github.com/MetaMask/core/pull/7539))
 
 - Add `createRequestSelector` utility function for creating memoized selectors for RampsController request states ([#7554](https://github.com/MetaMask/core/pull/7554))
 
