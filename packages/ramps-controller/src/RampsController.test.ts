@@ -23,7 +23,7 @@ describe('RampsController', () => {
         expect(controller.state).toMatchInlineSnapshot(`
           Object {
             "eligibility": null,
-            "geolocation": null,
+            "userRegion": null,
             "requests": Object {},
           }
         `);
@@ -32,7 +32,7 @@ describe('RampsController', () => {
 
     it('accepts initial state', async () => {
       const givenState = {
-        geolocation: 'US',
+        userRegion: 'US',
       };
 
       await withController(
@@ -40,7 +40,7 @@ describe('RampsController', () => {
         ({ controller }) => {
           expect(controller.state).toStrictEqual({
             eligibility: null,
-            geolocation: 'US',
+            userRegion: 'US',
             requests: {},
           });
         },
@@ -52,7 +52,7 @@ describe('RampsController', () => {
         expect(controller.state).toMatchInlineSnapshot(`
           Object {
             "eligibility": null,
-            "geolocation": null,
+            "userRegion": null,
             "requests": Object {},
           }
         `);
@@ -61,7 +61,7 @@ describe('RampsController', () => {
 
     it('always resets requests cache on initialization', async () => {
       const givenState = {
-        geolocation: 'US',
+        userRegion: 'US',
         requests: {
           someKey: {
             status: RequestStatus.SUCCESS,
@@ -94,7 +94,7 @@ describe('RampsController', () => {
         ).toMatchInlineSnapshot(`
           Object {
             "eligibility": null,
-            "geolocation": null,
+            "userRegion": null,
             "requests": Object {},
           }
         `);
@@ -112,7 +112,7 @@ describe('RampsController', () => {
         ).toMatchInlineSnapshot(`
           Object {
             "eligibility": null,
-            "geolocation": null,
+            "userRegion": null,
           }
         `);
       });
@@ -129,7 +129,7 @@ describe('RampsController', () => {
         ).toMatchInlineSnapshot(`
           Object {
             "eligibility": null,
-            "geolocation": null,
+            "userRegion": null,
           }
         `);
       });
@@ -146,7 +146,7 @@ describe('RampsController', () => {
         ).toMatchInlineSnapshot(`
           Object {
             "eligibility": null,
-            "geolocation": null,
+            "userRegion": null,
             "requests": Object {},
           }
         `);
@@ -154,8 +154,8 @@ describe('RampsController', () => {
     });
   });
 
-  describe('updateGeolocation', () => {
-    it('updates geolocation state when geolocation is fetched', async () => {
+  describe('updateUserRegion', () => {
+    it('updates user region state when region is fetched', async () => {
       await withController(async ({ controller, rootMessenger }) => {
         rootMessenger.registerActionHandler(
           'RampsService:getGeolocation',
@@ -170,9 +170,9 @@ describe('RampsController', () => {
           }),
         );
 
-        await controller.updateGeolocation();
+        await controller.updateUserRegion();
 
-        expect(controller.state.geolocation).toBe('US');
+        expect(controller.state.userRegion).toBe('US');
       });
     });
 
@@ -191,9 +191,9 @@ describe('RampsController', () => {
           }),
         );
 
-        await controller.updateGeolocation();
+        await controller.updateUserRegion();
 
-        const cacheKey = createCacheKey('updateGeolocation', []);
+        const cacheKey = createCacheKey('updateUserRegion', []);
         const requestState = controller.state.requests[cacheKey];
 
         expect(requestState).toBeDefined();
@@ -222,8 +222,8 @@ describe('RampsController', () => {
           }),
         );
 
-        await controller.updateGeolocation();
-        await controller.updateGeolocation();
+        await controller.updateUserRegion();
+        await controller.updateUserRegion();
 
         expect(callCount).toBe(1);
       });
@@ -248,8 +248,8 @@ describe('RampsController', () => {
           }),
         );
 
-        await controller.updateGeolocation();
-        await controller.updateGeolocation({ forceRefresh: true });
+        await controller.updateUserRegion();
+        await controller.updateUserRegion({ forceRefresh: true });
 
         expect(callCount).toBe(2);
       });
@@ -751,8 +751,73 @@ describe('RampsController', () => {
     });
   });
 
-  describe('updateGeolocation with automatic eligibility', () => {
-    it('automatically fetches eligibility after getting geolocation', async () => {
+  describe('init', () => {
+    it('initializes controller by fetching user region', async () => {
+      await withController(async ({ controller, rootMessenger }) => {
+        rootMessenger.registerActionHandler(
+          'RampsService:getGeolocation',
+          async () => 'US',
+        );
+        rootMessenger.registerActionHandler(
+          'RampsService:getEligibility',
+          async () => ({
+            aggregator: true,
+            deposit: true,
+            global: true,
+          }),
+        );
+
+        await controller.init();
+
+        expect(controller.state.userRegion).toBe('US');
+      });
+    });
+
+    it('handles initialization failure gracefully', async () => {
+      await withController(async ({ controller, rootMessenger }) => {
+        rootMessenger.registerActionHandler(
+          'RampsService:getGeolocation',
+          async () => {
+            throw new Error('Network error');
+          },
+        );
+
+        await controller.init();
+
+        expect(controller.state.userRegion).toBeNull();
+      });
+    });
+  });
+
+  describe('setUserRegion', () => {
+    it('sets user region manually and fetches eligibility', async () => {
+      await withController(async ({ controller, rootMessenger }) => {
+        rootMessenger.registerActionHandler(
+          'RampsService:getEligibility',
+          async (isoCode) => {
+            expect(isoCode).toBe('us-ca');
+            return {
+              aggregator: true,
+              deposit: true,
+              global: true,
+            };
+          },
+        );
+
+        await controller.setUserRegion('US-CA');
+
+        expect(controller.state.userRegion).toBe('us-ca');
+        expect(controller.state.eligibility).toStrictEqual({
+          aggregator: true,
+          deposit: true,
+          global: true,
+        });
+      });
+    });
+  });
+
+  describe('updateUserRegion with automatic eligibility', () => {
+    it('automatically fetches eligibility after getting user region', async () => {
       await withController(async ({ controller, rootMessenger }) => {
         const mockEligibility = {
           aggregator: true,
@@ -772,17 +837,17 @@ describe('RampsController', () => {
           },
         );
 
-        expect(controller.state.geolocation).toBeNull();
+        expect(controller.state.userRegion).toBeNull();
         expect(controller.state.eligibility).toBeNull();
 
-        await controller.updateGeolocation();
+        await controller.updateUserRegion();
 
-        expect(controller.state.geolocation).toBe('fr');
+        expect(controller.state.userRegion).toBe('fr');
         expect(controller.state.eligibility).toStrictEqual(mockEligibility);
       });
     });
 
-    it('updates geolocation state even when eligibility fetch fails', async () => {
+    it('updates user region state even when eligibility fetch fails', async () => {
       await withController(async ({ controller, rootMessenger }) => {
         rootMessenger.registerActionHandler(
           'RampsService:getGeolocation',
@@ -795,17 +860,17 @@ describe('RampsController', () => {
           },
         );
 
-        expect(controller.state.geolocation).toBeNull();
+        expect(controller.state.userRegion).toBeNull();
         expect(controller.state.eligibility).toBeNull();
 
-        await controller.updateGeolocation();
+        await controller.updateUserRegion();
 
-        expect(controller.state.geolocation).toBe('us-ny');
+        expect(controller.state.userRegion).toBe('us-ny');
         expect(controller.state.eligibility).toBeNull();
       });
     });
 
-    it('clears stale eligibility when new geolocation is fetched but eligibility fails', async () => {
+    it('clears stale eligibility when new user region is fetched but eligibility fails', async () => {
       await withController(async ({ controller, rootMessenger }) => {
         const usEligibility = {
           aggregator: true,
@@ -834,14 +899,14 @@ describe('RampsController', () => {
           },
         );
 
-        await controller.updateGeolocation();
+        await controller.updateUserRegion();
 
-        expect(controller.state.geolocation).toBe('us');
+        expect(controller.state.userRegion).toBe('us');
         expect(controller.state.eligibility).toStrictEqual(usEligibility);
 
-        await controller.updateGeolocation({ forceRefresh: true });
+        await controller.updateUserRegion({ forceRefresh: true });
 
-        expect(controller.state.geolocation).toBe('fr');
+        expect(controller.state.userRegion).toBe('fr');
         expect(controller.state.eligibility).toBeNull();
       });
     });
@@ -880,13 +945,13 @@ describe('RampsController', () => {
           },
         );
 
-        const promise1 = controller.updateGeolocation();
+        const promise1 = controller.updateUserRegion();
         await new Promise((resolve) => setTimeout(resolve, 20));
-        const promise2 = controller.updateGeolocation({ forceRefresh: true });
+        const promise2 = controller.updateUserRegion({ forceRefresh: true });
 
         await Promise.all([promise1, promise2]);
 
-        expect(controller.state.geolocation).toBe('fr');
+        expect(controller.state.userRegion).toBe('fr');
         expect(controller.state.eligibility).toStrictEqual(frEligibility);
       });
     });
