@@ -561,20 +561,6 @@
       "count": 1
     }
   },
-  "packages/assets-controllers/src/token-service.ts": {
-    "@typescript-eslint/explicit-function-return-type": {
-      "count": 3
-    },
-    "@typescript-eslint/naming-convention": {
-      "count": 1
-    },
-    "@typescript-eslint/prefer-nullish-coalescing": {
-      "count": 2
-    },
-    "no-restricted-globals": {
-      "count": 1
-    }
-  },
   "packages/assets-controllers/src/utils/formatters.ts": {
     "@typescript-eslint/explicit-function-return-type": {
       "count": 9
