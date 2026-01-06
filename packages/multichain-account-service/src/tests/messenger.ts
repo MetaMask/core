@@ -27,6 +27,7 @@ export type RootMessenger = Messenger<
 export function getRootMessenger(): RootMessenger {
   return new Messenger({
     namespace: MOCK_ANY_NAMESPACE,
+    captureException: jest.fn(),
   });
 }
 
@@ -61,7 +62,6 @@ export function getMultichainAccountServiceMessenger(
       'AccountsController:getAccount',
       'AccountsController:getAccountByAddress',
       'AccountsController:listMultichainAccounts',
-      'ErrorReportingService:captureException',
       'SnapController:getState',
       'SnapController:handleRequest',
       'KeyringController:withKeyring',

@@ -263,10 +263,7 @@ export class MultichainAccountService {
           const sentryError = createSentryError(errorMessage, error as Error, {
             provider: provider.getName(),
           });
-          this.#messenger.call(
-            'ErrorReportingService:captureException',
-            sentryError,
-          );
+          this.#messenger.captureException?.(sentryError);
         }
       }),
     );

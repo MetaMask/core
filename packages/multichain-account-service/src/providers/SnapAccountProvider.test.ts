@@ -684,11 +684,12 @@ describe('SnapAccountProvider', () => {
         accounts: [mockAccounts[0]],
       });
 
+      const captureExceptionSpy = jest.spyOn(messenger, 'captureException');
       const createAccountsSpy = jest.spyOn(provider, 'createAccounts');
 
       await provider.resyncAccounts(mockAccounts);
 
-      expect(mocks.ErrorReportingService.captureException).toHaveBeenCalledWith(
+      expect(captureExceptionSpy).toHaveBeenCalledWith(
         new Error(
           `Snap "${TEST_SNAP_ID}" has de-synced accounts, we'll attempt to re-sync them...`,
         ),
@@ -704,9 +705,11 @@ describe('SnapAccountProvider', () => {
     it('reports an error if a Snap has more accounts than MetaMask', async () => {
       const { provider, mocks } = setup({ accounts: mockAccounts });
 
+      const captureExceptionSpy = jest.spyOn(messenger, 'captureException');
+
       await provider.resyncAccounts([mockAccounts[0]]); // Less accounts than the Snap
 
-      expect(mocks.ErrorReportingService.captureException).toHaveBeenCalledWith(
+      expect(captureExceptionSpy).toHaveBeenCalledWith(
         new Error(
           `Snap "${TEST_SNAP_ID}" has de-synced accounts, Snap has more accounts than MetaMask!`,
         ),
@@ -716,6 +719,7 @@ describe('SnapAccountProvider', () => {
     it('does not throw errors if any provider is not able to re-sync', async () => {
       const { provider, mocks } = setup({ accounts: [mockAccounts[0]] });
 
+      const captureExceptionSpy = jest.spyOn(messenger, 'captureException');
       const createAccountsSpy = jest.spyOn(provider, 'createAccounts');
 
       const providerError = new Error('Unable to create accounts');
@@ -725,18 +729,17 @@ describe('SnapAccountProvider', () => {
 
       expect(createAccountsSpy).toHaveBeenCalled();
 
-      const mockCaptureException = mocks.ErrorReportingService.captureException;
-      expect(mockCaptureException).toHaveBeenNthCalledWith(
+      expect(captureExceptionSpy).toHaveBeenNthCalledWith(
         1,
         new Error(
           `Snap "${TEST_SNAP_ID}" has de-synced accounts, we'll attempt to re-sync them...`,
         ),
       );
-      expect(mockCaptureException).toHaveBeenNthCalledWith(
+      expect(captureExceptionSpy).toHaveBeenNthCalledWith(
         2,
         new Error('Unable to re-sync account: 0'),
       );
-      expect(mockCaptureException.mock.lastCall[0]).toHaveProperty(
+      expect(captureExceptionSpy.mock.lastCall[0]).toHaveProperty(
         'cause',
         providerError,
       );
