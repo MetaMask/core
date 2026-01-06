@@ -12,7 +12,6 @@ import {
 import {
   SeedlessOnboardingControllerErrorMessage,
   SecretType,
-  SecretMetadataVersion,
 } from './constants';
 import type { SecretDataType, SecretMetadataOptions } from './types';
 
@@ -20,7 +19,6 @@ type ISecretMetadata<DataType extends SecretDataType = Uint8Array> = {
   data: DataType;
   timestamp: number;
   type: SecretType;
-  version: SecretMetadataVersion;
   toBytes: () => Uint8Array;
 };
 
@@ -55,7 +53,6 @@ type StorageMetadata = {
   createdAt?: string;
   /**
    * The storage-level version from the SDK ('v1' or 'v2').
-   * This is different from the encrypted data version (SecretMetadataVersion).
    * - 'v1': Legacy items created before dataType was introduced
    * - 'v2': Items with dataType set (either new or migrated)
    */
@@ -70,8 +67,6 @@ export class SecretMetadata<DataType extends SecretDataType = Uint8Array>
   readonly #timestamp: number;
 
   readonly #type: SecretType;
-
-  readonly #version: SecretMetadataVersion;
 
   // Storage-level metadata (not encrypted)
   readonly #itemId?: string;
@@ -89,7 +84,6 @@ export class SecretMetadata<DataType extends SecretDataType = Uint8Array>
    * @param options - The options for the secret metadata.
    * @param options.timestamp - The timestamp when the secret was created.
    * @param options.type - The type of the secret.
-   * @param options.version - The version of the secret metadata.
    * @param storageMetadata - Storage-level metadata from the metadata store.
    */
   constructor(
@@ -100,7 +94,6 @@ export class SecretMetadata<DataType extends SecretDataType = Uint8Array>
     this.#data = data;
     this.#timestamp = options?.timestamp ?? Date.now();
     this.#type = options?.type ?? SecretType.Mnemonic;
-    this.#version = options?.version ?? SecretMetadataVersion.V1;
     this.#itemId = storageMetadata?.itemId;
     this.#dataType = storageMetadata?.dataType;
     this.#createdAt = storageMetadata?.createdAt;
@@ -148,7 +141,6 @@ export class SecretMetadata<DataType extends SecretDataType = Uint8Array>
 
     // if the type is not provided, we default to Mnemonic for the backwards compatibility
     const type = parsedMetadata.type ?? SecretType.Mnemonic;
-    const version = parsedMetadata.version ?? SecretMetadataVersion.V1;
 
     let data: DataType;
     try {
@@ -162,7 +154,6 @@ export class SecretMetadata<DataType extends SecretDataType = Uint8Array>
       {
         timestamp: parsedMetadata.timestamp,
         type,
-        version,
       },
       storageMetadata,
     );
@@ -212,10 +203,6 @@ export class SecretMetadata<DataType extends SecretDataType = Uint8Array>
     return this.#type;
   }
 
-  get version(): SecretMetadataVersion {
-    return this.#version;
-  }
-
   get itemId(): string | undefined {
     return this.#itemId;
   }
@@ -230,7 +217,6 @@ export class SecretMetadata<DataType extends SecretDataType = Uint8Array>
 
   /**
    * The storage-level version from the SDK ('v1' or 'v2').
-   * This is different from `version` which is the encrypted data format version.
    *
    * @returns The storage-level version.
    */
@@ -256,7 +242,6 @@ export class SecretMetadata<DataType extends SecretDataType = Uint8Array>
       data: _data,
       timestamp: this.#timestamp,
       type: this.#type,
-      version: this.#version,
     });
 
     // convert the serialized metadata to bytes(Uint8Array)

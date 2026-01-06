@@ -47,7 +47,6 @@ import {
   SeedlessOnboardingMigrationVersion,
   AuthConnection,
   SecretType,
-  SecretMetadataVersion,
 } from './constants';
 import { PasswordSyncError, RecoveryError } from './errors';
 import { SecretMetadata } from './SecretMetadata';
@@ -4188,7 +4187,6 @@ describe('SeedlessOnboardingController', () => {
       expect(seedPhraseMetadata.data).toBeDefined();
       expect(seedPhraseMetadata.timestamp).toBeDefined();
       expect(seedPhraseMetadata.type).toBe(SecretType.Mnemonic);
-      expect(seedPhraseMetadata.version).toBe(SecretMetadataVersion.V1);
 
       // should be able to create a SecretMetadata instance with a timestamp via constructor
       const timestamp = 18_000;
@@ -4264,7 +4262,6 @@ describe('SeedlessOnboardingController', () => {
       const rawMetadataWithoutType = JSON.stringify({
         data: bytesToBase64(MOCK_SEED_PHRASE),
         timestamp: Date.now(),
-        version: SecretMetadataVersion.V1,
       });
       const rawMetadataBytes = stringToBytes(rawMetadataWithoutType);
 
@@ -4279,7 +4276,6 @@ describe('SeedlessOnboardingController', () => {
       });
       expect(secret1.data).toBe('private-key-1');
       expect(secret1.type).toBe(SecretType.PrivateKey);
-      expect(secret1.version).toBe(SecretMetadataVersion.V1);
 
       // should be able to convert to bytes
       const secret1Bytes = secret1.toBytes();
@@ -4289,7 +4285,6 @@ describe('SeedlessOnboardingController', () => {
       );
       expect(parsedSecret1.data).toBe('private-key-1');
       expect(parsedSecret1.type).toBe(SecretType.PrivateKey);
-      expect(parsedSecret1.version).toBe(SecretMetadataVersion.V1);
 
       const secret2 = new SecretMetadata<Uint8Array>(MOCK_SEED_PHRASE, {
         type: SecretType.Mnemonic,
