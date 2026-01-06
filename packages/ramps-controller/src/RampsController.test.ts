@@ -12,6 +12,7 @@ import type { Country } from './RampsService';
 import type {
   RampsServiceGetGeolocationAction,
   RampsServiceGetCountriesAction,
+  RampsServiceGetEligibilityAction,
 } from './RampsService-method-action-types';
 import { RequestStatus, createCacheKey } from './RequestCache';
 
@@ -21,6 +22,7 @@ describe('RampsController', () => {
       await withController(({ controller }) => {
         expect(controller.state).toMatchInlineSnapshot(`
           Object {
+            "eligibility": null,
             "geolocation": null,
             "requests": Object {},
           }
@@ -37,6 +39,7 @@ describe('RampsController', () => {
         { options: { state: givenState } },
         ({ controller }) => {
           expect(controller.state).toStrictEqual({
+            eligibility: null,
             geolocation: 'US',
             requests: {},
           });
@@ -48,6 +51,7 @@ describe('RampsController', () => {
       await withController({ options: { state: {} } }, ({ controller }) => {
         expect(controller.state).toMatchInlineSnapshot(`
           Object {
+            "eligibility": null,
             "geolocation": null,
             "requests": Object {},
           }
@@ -89,6 +93,7 @@ describe('RampsController', () => {
           ),
         ).toMatchInlineSnapshot(`
           Object {
+            "eligibility": null,
             "geolocation": null,
             "requests": Object {},
           }
@@ -106,6 +111,7 @@ describe('RampsController', () => {
           ),
         ).toMatchInlineSnapshot(`
           Object {
+            "eligibility": null,
             "geolocation": null,
           }
         `);
@@ -122,6 +128,7 @@ describe('RampsController', () => {
           ),
         ).toMatchInlineSnapshot(`
           Object {
+            "eligibility": null,
             "geolocation": null,
           }
         `);
@@ -138,6 +145,7 @@ describe('RampsController', () => {
           ),
         ).toMatchInlineSnapshot(`
           Object {
+            "eligibility": null,
             "geolocation": null,
             "requests": Object {},
           }
@@ -560,10 +568,6 @@ describe('RampsController', () => {
               },
               "recommended": true,
               "supported": true,
-              "transakSupported": true,
-              "unsupportedStates": Array [
-                "ny",
-              ],
             },
             Object {
               "currency": "EUR",
@@ -747,7 +751,8 @@ type RootMessenger = Messenger<
   MockAnyNamespace,
   | MessengerActions<RampsControllerMessenger>
   | RampsServiceGetGeolocationAction
-  | RampsServiceGetCountriesAction,
+  | RampsServiceGetCountriesAction
+  | RampsServiceGetEligibilityAction,
   MessengerEvents<RampsControllerMessenger>
 >;
 
@@ -791,7 +796,11 @@ function getMessenger(rootMessenger: RootMessenger): RampsControllerMessenger {
   });
   rootMessenger.delegate({
     messenger,
-    actions: ['RampsService:getGeolocation', 'RampsService:getCountries'],
+    actions: [
+      'RampsService:getGeolocation',
+      'RampsService:getCountries',
+      'RampsService:getEligibility',
+    ],
   });
   return messenger;
 }
