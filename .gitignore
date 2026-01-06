@@ -39,3 +39,4 @@ packages/*/*.tsbuildinfo
 # Emacs
 \#*\#
 .#*
+.~
