@@ -15,6 +15,8 @@ import {
   getRandomCoverageResult,
 } from '../tests/utils';
 
+const mockCaptureException = jest.fn();
+
 /**
  * Setup the test environment.
  *
@@ -49,6 +51,7 @@ function setup({
     getCoverageResultPollInterval,
     fetch,
     baseUrl: 'https://rule-engine.metamask.io',
+    captureException: mockCaptureException,
   });
 
   return {
@@ -174,6 +177,9 @@ describe('ShieldRemoteBackend', () => {
     );
     expect(fetchMock).toHaveBeenCalledTimes(1);
     expect(getAccessToken).toHaveBeenCalledTimes(1);
+    expect(mockCaptureException).toHaveBeenCalledWith(
+      new Error('Failed to init coverage check'),
+    );
   });
 
   it('should throw on check coverage timeout with coverage status', async () => {
