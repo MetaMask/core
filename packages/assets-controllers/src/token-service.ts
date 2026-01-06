@@ -51,23 +51,33 @@ export type SortTrendingBy =
 /**
  * Get the token search URL for the given networks and search query.
  *
- * @param chainIds - Array of CAIP format chain IDs (e.g., 'eip155:1', 'solana:5eykt4UsFv8P8NJdTREpY1vzqKqZKvdp').
- * @param query - The search query (token name, symbol, or address).
- * @param limit - Optional limit for the number of results (defaults to 10).
- * @param includeMarketData - Optional flag to include market data in the results (defaults to false).
+ * @param options - Options for getting token search URL.
+ * @param options.chainIds - Array of CAIP format chain IDs (e.g., 'eip155:1', 'solana:5eykt4UsFv8P8NJdTREpY1vzqKqZKvdp').
+ * @param options.query - The search query (token name, symbol, or address).
+ * @param options.limit - Optional limit for the number of results (defaults to 10).
+ * @param options.includeMarketData - Optional flag to include market data in the results (defaults to false).
+ * @param options.includeRwaData - Optional flag to include RWA data in the results (defaults to false).
  * @returns The token search URL.
  */
-function getTokenSearchURL(
-  chainIds: CaipChainId[],
-  query: string,
-  limit = 10,
-  includeMarketData = false,
-): string {
+function getTokenSearchURL(options: {
+  chainIds: CaipChainId[];
+  query: string;
+  limit?: number;
+  includeMarketData?: boolean;
+  includeRwaData?: boolean;
+}): string {
+  const { chainIds, query, ...optionalParams } = options;
   const encodedQuery = encodeURIComponent(query);
   const encodedChainIds = chainIds
     .map((id) => encodeURIComponent(id))
     .join(',');
-  return `${TOKEN_END_POINT_API}/tokens/search?networks=${encodedChainIds}&query=${encodedQuery}&limit=${limit}&includeMarketData=${includeMarketData}`;
+  const queryParams = new URLSearchParams();
+  Object.entries(optionalParams).forEach(([key, value]) => {
+    if (value !== undefined) {
+      queryParams.append(key, String(value));
+    }
+  });
+  return `${TOKEN_END_POINT_API}/tokens/search?networks=${encodedChainIds}&query=${encodedQuery}&${queryParams.toString()}`;
 }
 
 /**
@@ -176,6 +186,13 @@ export type TokenSearchItem = {
   /** Optional RWA data for tokens when includeRwaData is true */
   rwaData?: TokenRwaData;
 };
+
+type SearchTokenOptions = {
+  limit?: number;
+  includeMarketData?: boolean;
+  includeRwaData?: boolean;
+};
+
 /**
  * Search for tokens across one or more networks by query string using CAIP format chain IDs.
  *
@@ -184,19 +201,25 @@ export type TokenSearchItem = {
  * @param options - Additional fetch options.
  * @param options.limit - The maximum number of results to return.
  * @param options.includeMarketData - Optional flag to include market data in the results (defaults to false).
+ * @param options.includeRwaData - Optional flag to include RWA data in the results (defaults to false).
  * @returns Object containing count and data array. Returns { count: 0, data: [] } if request fails.
  */
 export async function searchTokens(
   chainIds: CaipChainId[],
   query: string,
-  { limit = 10, includeMarketData = false } = {},
+  {
+    limit = 10,
+    includeMarketData = false,
+    includeRwaData,
+  }: SearchTokenOptions = {},
 ): Promise<{ count: number; data: unknown[] }> {
-  const tokenSearchURL = getTokenSearchURL(
+  const tokenSearchURL = getTokenSearchURL({
     chainIds,
     query,
     limit,
     includeMarketData,
-  );
+    includeRwaData,
+  });
 
   try {
     const result: { count: number; data: unknown[] } =
