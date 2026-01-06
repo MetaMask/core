@@ -84,7 +84,7 @@ class MockSolanaKeyring {
 }
 
 class MockSolAccountProvider extends SolAccountProvider {
-  override async ensureCanUsePlatform(): Promise<void> {
+  override async ensureCanUseSnapPlatform(): Promise<void> {
     // Override to avoid waiting during tests.
   }
 }

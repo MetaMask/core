@@ -16,7 +16,7 @@ import {
 import { SolAccountProvider } from './SolAccountProvider';
 import { TrxAccountProvider } from './TrxAccountProvider';
 import { traceFallback } from '../analytics';
-import { SnapPlatformWatcher } from '../snaps/SnapPlatformWatcher';
+import { MultichainAccountService } from '../MultichainAccountService';
 import type { RootMessenger } from '../tests';
 import {
   asKeyringAccount,
@@ -127,21 +127,14 @@ const setup = ({
       captureException: jest.fn(),
     },
     SnapController: {
-      getState: jest.fn(),
       handleKeyringRequest: {
         getAccount: jest.fn(),
         listAccounts: jest.fn(),
       },
       handleRequest: jest.fn(),
     },
-  };
-
-  const spies = {
-    SnapPlatformWatcher: {
-      ensureCanUsePlatform: jest.spyOn(
-        SnapPlatformWatcher.prototype,
-        'ensureCanUsePlatform',
-      ),
+    MultichainAccountService: {
+      ensureCanUseSnapPlatform: jest.fn(),
     },
   };
 
@@ -157,11 +150,13 @@ const setup = ({
   );
 
   messenger.registerActionHandler(
-    'SnapController:getState',
-    mocks.SnapController.getState,
+    'MultichainAccountService:ensureCanUseSnapPlatform',
+    mocks.MultichainAccountService.ensureCanUseSnapPlatform,
   );
-  // Make the platform ready right away.
-  mocks.SnapController.getState.mockReturnValue({ isReady: true });
+  // Make the platform ready right away (having a resolved promise is enough).
+  mocks.MultichainAccountService.ensureCanUseSnapPlatform.mockResolvedValue(
+    undefined,
+  );
 
   messenger.registerActionHandler(
     'SnapController:handleRequest',
@@ -201,10 +196,10 @@ const setup = ({
       ),
   );
 
-  // Make the Snap platform ready by default.
-  spies.SnapPlatformWatcher.ensureCanUsePlatform.mockResolvedValue();
-
-  const serviceMessenger = getMultichainAccountServiceMessenger(messenger);
+  const serviceMessenger = getMultichainAccountServiceMessenger(messenger, {
+    // We need this extra action to be able to mock it.
+    actions: ['MultichainAccountService:ensureCanUseSnapPlatform'],
+  });
   const config = {
     ...(maxConcurrency !== undefined && { maxConcurrency }),
     createAccounts: {
@@ -228,7 +223,6 @@ const setup = ({
     tracker: provider.tracker,
     keyring,
     mocks,
-    spies,
   };
 };
 
@@ -749,14 +743,14 @@ describe('SnapAccountProvider', () => {
     });
   });
 
-  describe('ensureCanUsePlatform', () => {
+  describe('ensureCanUseSnapPlatform', () => {
     it('delegates Snap platform readiness check to SnapPlatformWatcher', async () => {
-      const { provider, spies } = setup();
+      const { provider, mocks } = setup();
 
-      await provider.ensureCanUsePlatform();
+      await provider.ensureCanUseSnapPlatform();
 
       expect(
-        spies.SnapPlatformWatcher.ensureCanUsePlatform,
+        mocks.MultichainAccountService.ensureCanUseSnapPlatform,
       ).toHaveBeenCalledTimes(1);
     });
   });

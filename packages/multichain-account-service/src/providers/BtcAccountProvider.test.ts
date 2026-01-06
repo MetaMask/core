@@ -100,7 +100,7 @@ class MockBtcKeyring {
     });
 }
 class MockBtcAccountProvider extends BtcAccountProvider {
-  override async ensureCanUsePlatform(): Promise<void> {
+  override async ensureCanUseSnapPlatform(): Promise<void> {
     // Override to avoid waiting during tests.
   }
 }

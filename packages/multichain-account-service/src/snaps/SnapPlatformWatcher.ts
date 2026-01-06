@@ -22,7 +22,7 @@ export class SnapPlatformWatcher {
     return this.#isReady;
   }
 
-  async ensureCanUsePlatform(): Promise<void> {
+  async ensureCanUseSnapPlatform(): Promise<void> {
     // We always wait for the Snap platform to be ready at least once.
     await this.#isReadyOnce.promise;
 

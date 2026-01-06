@@ -98,6 +98,11 @@ export type MultichainAccountServiceResyncAccountsAction = {
   handler: MultichainAccountService['resyncAccounts'];
 };
 
+export type MultichainAccountServiceEnsureCanUseSnapPlatformAction = {
+  type: `${typeof serviceName}:ensureCanUseSnapPlatform`;
+  handler: MultichainAccountService['ensureCanUseSnapPlatform'];
+};
+
 /**
  * All actions that {@link MultichainAccountService} registers so that other
  * modules can call them.
@@ -113,7 +118,8 @@ export type MultichainAccountServiceActions =
   | MultichainAccountServiceAlignWalletAction
   | MultichainAccountServiceAlignWalletsAction
   | MultichainAccountServiceCreateMultichainAccountWalletAction
-  | MultichainAccountServiceResyncAccountsAction;
+  | MultichainAccountServiceResyncAccountsAction
+  | MultichainAccountServiceEnsureCanUseSnapPlatformAction;
 
 export type MultichainAccountServiceMultichainAccountGroupCreatedEvent = {
   type: `${typeof serviceName}:multichainAccountGroupCreated`;

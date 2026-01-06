@@ -12,7 +12,6 @@ import { Semaphore } from 'async-mutex';
 
 import { BaseBip44AccountProvider } from './BaseBip44AccountProvider';
 import { traceFallback } from '../analytics';
-import { SnapPlatformWatcher } from '../snaps/SnapPlatformWatcher';
 import type { MultichainAccountServiceMessenger } from '../types';
 import { createSentryError } from '../utils';
 
@@ -40,8 +39,6 @@ export abstract class SnapAccountProvider extends BaseBip44AccountProvider {
 
   protected readonly client: KeyringClient;
 
-  readonly #watcher: SnapPlatformWatcher;
-
   readonly #queue?: Semaphore;
 
   readonly #trace: TraceCallback;
@@ -54,8 +51,6 @@ export abstract class SnapAccountProvider extends BaseBip44AccountProvider {
     trace: TraceCallback = traceFallback,
   ) {
     super(messenger);
-
-    this.#watcher = new SnapPlatformWatcher(messenger);
 
     this.snapId = snapId;
     this.client = this.#getKeyringClientFromSnapId(snapId);
@@ -84,8 +79,10 @@ export abstract class SnapAccountProvider extends BaseBip44AccountProvider {
    * @returns A promise that resolves when the platform is ready.
    * @throws An error if the platform is not ready (only effective once the platform has been ready at least once).
    */
-  async ensureCanUsePlatform(): Promise<void> {
-    return this.#watcher.ensureCanUsePlatform();
+  async ensureCanUseSnapPlatform(): Promise<void> {
+    return this.messenger.call(
+      'MultichainAccountService:ensureCanUseSnapPlatform',
+    );
   }
 
   /**
@@ -151,7 +148,7 @@ export abstract class SnapAccountProvider extends BaseBip44AccountProvider {
   async resyncAccounts(
     accounts: Bip44Account<InternalAccount>[],
   ): Promise<void> {
-    await this.ensureCanUsePlatform();
+    await this.ensureCanUseSnapPlatform();
 
     const localSnapAccounts = accounts.filter(
       (account) =>
@@ -236,7 +233,7 @@ export abstract class SnapAccountProvider extends BaseBip44AccountProvider {
       metadata: KeyringMetadata;
     }) => Promise<CallbackResult>,
   ): Promise<CallbackResult> {
-    await this.ensureCanUsePlatform();
+    await this.ensureCanUseSnapPlatform();
 
     return this.withKeyring<SnapKeyring, CallbackResult>(
       { type: KeyringTypes.snap },
@@ -250,7 +247,7 @@ export abstract class SnapAccountProvider extends BaseBip44AccountProvider {
     entropySource: EntropySourceId;
     groupIndex: number;
   }): Promise<Bip44Account<KeyringAccount>[]> {
-    await this.ensureCanUsePlatform();
+    await this.ensureCanUseSnapPlatform();
 
     return await this.runCreateAccounts(options);
   }
@@ -259,7 +256,7 @@ export abstract class SnapAccountProvider extends BaseBip44AccountProvider {
     entropySource: EntropySourceId;
     groupIndex: number;
   }): Promise<Bip44Account<KeyringAccount>[]> {
-    await this.ensureCanUsePlatform();
+    await this.ensureCanUseSnapPlatform();
 
     return await this.runDiscoverAccounts(options);
   }

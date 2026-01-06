@@ -72,7 +72,7 @@ class MockTronKeyring {
   discoverAccounts = jest.fn().mockResolvedValue([]);
 }
 class MockTrxAccountProvider extends TrxAccountProvider {
-  override async ensureCanUsePlatform(): Promise<void> {
+  override async ensureCanUseSnapPlatform(): Promise<void> {
     // Override to avoid waiting during tests.
   }
 }
