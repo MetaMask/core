@@ -18,7 +18,7 @@ export const TOKEN_METADATA_NO_SUPPORT_ERROR =
  * @param chainId - The chain ID of the network the tokens requested are on.
  * @returns The tokens URL.
  */
-function getTokensURL(chainId: Hex) {
+function getTokensURL(chainId: Hex): string {
   const occurrenceFloor = chainId === ChainId['linea-mainnet'] ? 1 : 3;
 
   return `${TOKEN_END_POINT_API}/tokens/${convertHexToDecimal(
@@ -33,7 +33,7 @@ function getTokensURL(chainId: Hex) {
  * @param tokenAddress - The token address.
  * @returns The token metadata URL.
  */
-function getTokenMetadataURL(chainId: Hex, tokenAddress: string) {
+function getTokenMetadataURL(chainId: Hex, tokenAddress: string): string {
   return `${TOKEN_END_POINT_API}/token/${convertHexToDecimal(
     chainId,
   )}?address=${tokenAddress}`;
@@ -62,7 +62,7 @@ function getTokenSearchURL(
   query: string,
   limit = 10,
   includeMarketData = false,
-) {
+): string {
   const encodedQuery = encodeURIComponent(query);
   const encodedChainIds = chainIds
     .map((id) => encodeURIComponent(id))
@@ -82,6 +82,7 @@ function getTokenSearchURL(
  * @param options.minMarketCap - The minimum market cap.
  * @param options.maxMarketCap - The maximum market cap.
  * @param options.excludeLabels - Array of labels to exclude (e.g., ['stable_coin', 'blue_chip']).
+ * @param options.includeRwaData - Optional flag to include RWA data in the results (defaults to false).
  * @returns The trending tokens URL.
  */
 function getTrendingTokensURL(options: {
@@ -93,13 +94,14 @@ function getTrendingTokensURL(options: {
   minMarketCap?: number;
   maxMarketCap?: number;
   excludeLabels?: string[];
+  includeRwaData?: boolean;
 }): string {
   const encodedChainIds = options.chainIds
     .map((id) => encodeURIComponent(id))
     .join(',');
   // Add the rest of query params if they are defined
   const queryParams = new URLSearchParams();
-  const { chainIds, excludeLabels, ...rest } = options;
+  const { chainIds, excludeLabels, includeRwaData, ...rest } = options;
   Object.entries(rest).forEach(([key, value]) => {
     if (value !== undefined) {
       queryParams.append(key, String(value));
@@ -144,7 +146,8 @@ export async function fetchTokenListByChainId(
     if (Array.isArray(result) && chainId === ChainId['linea-mainnet']) {
       return result.filter(
         (elm) =>
-          elm.aggregators.includes('lineaTeam') || elm.aggregators.length >= 3,
+          Boolean(elm.aggregators.includes('lineaTeam')) ||
+          elm.aggregators.length >= 3,
       );
     }
     return result;
@@ -152,6 +155,27 @@ export async function fetchTokenListByChainId(
   return undefined;
 }
 
+export type TokenRwaData = {
+  market?: {
+    nextOpen?: string;
+    nextClose?: string;
+  };
+  nextPause?: {
+    start?: string;
+    end?: string;
+  };
+  ticker?: string;
+  instrumentType?: string;
+};
+
+export type TokenSearchItem = {
+  assetId: CaipChainId;
+  name: string;
+  symbol: string;
+  decimals: number;
+  /** Optional RWA data for tokens when includeRwaData is true */
+  rwaData?: TokenRwaData;
+};
 /**
  * Search for tokens across one or more networks by query string using CAIP format chain IDs.
  *
@@ -175,7 +199,8 @@ export async function searchTokens(
   );
 
   try {
-    const result = await handleFetch(tokenSearchURL);
+    const result: { count: number; data: unknown[] } =
+      await handleFetch(tokenSearchURL);
 
     // The API returns an object with structure: { count: number, data: array, pageInfo: object }
     if (result && typeof result === 'object' && Array.isArray(result.data)) {
@@ -214,6 +239,8 @@ export type TrendingAsset = {
     h24?: string;
   };
   labels?: string[];
+  /** Optional RWA data for tokens when includeRwaData is true */
+  rwaData?: TokenRwaData;
 };
 
 /**
@@ -228,6 +255,7 @@ export type TrendingAsset = {
  * @param options.minMarketCap - The minimum market cap.
  * @param options.maxMarketCap - The maximum market cap.
  * @param options.excludeLabels - Array of labels to exclude (e.g., ['stable_coin', 'blue_chip']).
+ * @param options.includeRwaData - Optional flag to include RWA data in the results (defaults to false).
  * @returns The trending tokens.
  * @throws Will throw if the request fails.
  */
@@ -240,6 +268,7 @@ export async function getTrendingTokens({
   minMarketCap,
   maxMarketCap,
   excludeLabels,
+  includeRwaData,
 }: {
   chainIds: CaipChainId[];
   sortBy?: SortTrendingBy;
@@ -249,6 +278,7 @@ export async function getTrendingTokens({
   minMarketCap?: number;
   maxMarketCap?: number;
   excludeLabels?: string[];
+  includeRwaData?: boolean;
 }): Promise<TrendingAsset[]> {
   if (chainIds.length === 0) {
     console.error('No chains provided');
@@ -264,6 +294,7 @@ export async function getTrendingTokens({
     minMarketCap,
     maxMarketCap,
     excludeLabels,
+    includeRwaData,
   });
 
   try {
@@ -294,19 +325,19 @@ export async function getTrendingTokens({
  * @param options.timeout - The fetch timeout.
  * @returns The token metadata, or `undefined` if the request was either aborted or failed.
  */
-export async function fetchTokenMetadata<T>(
+export async function fetchTokenMetadata<TReturn>(
   chainId: Hex,
   tokenAddress: string,
   abortSignal: AbortSignal,
   { timeout = defaultTimeout } = {},
-): Promise<T | undefined> {
+): Promise<TReturn | undefined> {
   if (!isTokenListSupportedForNetwork(chainId)) {
     throw new Error(TOKEN_METADATA_NO_SUPPORT_ERROR);
   }
   const tokenMetadataURL = getTokenMetadataURL(chainId, tokenAddress);
   const response = await queryApi(tokenMetadataURL, abortSignal, timeout);
   if (response) {
-    return parseJsonResponse(response) as Promise<T>;
+    return parseJsonResponse(response) as Promise<TReturn>;
   }
   return undefined;
 }
@@ -331,9 +362,10 @@ async function queryApi(
     mode: 'cors',
     signal: abortSignal,
     cache: 'default',
+    headers: {
+      'Content-Type': 'application/json',
+    },
   };
-  fetchOptions.headers = new window.Headers();
-  fetchOptions.headers.set('Content-Type', 'application/json');
   try {
     return await timeoutFetch(apiURL, fetchOptions, timeout);
   } catch (error) {
