@@ -44,8 +44,8 @@ const TRANSCTION_TOKEN_REQUIRED_MOCK = {
 describe('Transaction Utils', () => {
   const parseRequiredTokensMock = jest.mocked(parseRequiredTokens);
   const {
-    getTransactionControllerStateMock,
     messenger,
+    getTransactionControllerStateMock,
     publish,
     updateTransactionMock,
   } = getMessengerMock();

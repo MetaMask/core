@@ -74,16 +74,16 @@ export class TransactionPayController extends BaseController<
     });
   }
 
+  setIsMaxAmount(transactionId: string, isMaxAmount: boolean): void {
+    this.#updateTransactionData(transactionId, (transactionData) => {
+      transactionData.isMaxAmount = isMaxAmount;
+    });
+  }
+
   updatePaymentToken(request: UpdatePaymentTokenRequest): void {
     updatePaymentToken(request, {
       messenger: this.messenger,
       updateTransactionData: this.#updateTransactionData.bind(this),
-    });
-  }
-
-  setIsMaxAmount(transactionId: string, isMaxAmount: boolean): void {
-    this.#updateTransactionData(transactionId, (transactionData) => {
-      transactionData.isMaxAmount = isMaxAmount;
     });
   }
 
@@ -123,7 +123,7 @@ export class TransactionPayController extends BaseController<
       const isTokensUpdated = current.tokens !== originalTokens;
       const isIsMaxUpdated = current.isMaxAmount !== originalIsMaxAmount;
 
-      if (isPaymentTokenUpdated || isTokensUpdated || isIsMaxUpdated) {
+      if (isPaymentTokenUpdated || isIsMaxUpdated || isTokensUpdated) {
         updateSourceAmounts(transactionId, current as never, this.messenger);
 
         shouldUpdateQuotes = true;
@@ -153,13 +153,13 @@ export class TransactionPayController extends BaseController<
     );
 
     this.messenger.registerActionHandler(
-      'TransactionPayController:updatePaymentToken',
-      this.updatePaymentToken.bind(this),
+      'TransactionPayController:setIsMaxAmount',
+      this.setIsMaxAmount.bind(this),
     );
 
     this.messenger.registerActionHandler(
-      'TransactionPayController:setIsMaxAmount',
-      this.setIsMaxAmount.bind(this),
+      'TransactionPayController:updatePaymentToken',
+      this.updatePaymentToken.bind(this),
     );
   }
 }
