@@ -101,7 +101,7 @@ function getTrendingTokensURL(options: {
     .join(',');
   // Add the rest of query params if they are defined
   const queryParams = new URLSearchParams();
-  const { chainIds, excludeLabels, includeRwaData, ...rest } = options;
+  const { chainIds, excludeLabels, ...rest } = options;
   Object.entries(rest).forEach(([key, value]) => {
     if (value !== undefined) {
       queryParams.append(key, String(value));
