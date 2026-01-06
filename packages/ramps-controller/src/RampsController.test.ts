@@ -541,7 +541,6 @@ describe('RampsController', () => {
         },
         currency: 'EUR',
         supported: true,
-        transakSupported: true,
       },
     ];
 
@@ -580,7 +579,6 @@ describe('RampsController', () => {
                 "template": "XXX XXXXXXX",
               },
               "supported": true,
-              "transakSupported": true,
             },
           ]
         `);

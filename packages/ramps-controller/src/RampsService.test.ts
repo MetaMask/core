@@ -74,33 +74,29 @@ describe('RampsService', () => {
         .get('/geolocation')
         .query({ sdk: '2.1.6', controller: '2.0.0', context: 'mobile-ios' })
         .reply(200, '');
-      nock('https://api-stg.transak.com')
-        .get('/fiat/public/v1/get/country')
-        .reply(200, { ipCountryCode: 'US' });
       const { rootMessenger } = getService();
 
-      const geolocationResponse = await rootMessenger.call(
-        'RampsService:getGeolocation',
-      );
-
-      expect(geolocationResponse).toBe('us');
+      await expect(
+        rootMessenger.call('RampsService:getGeolocation'),
+      ).rejects.toThrow('Malformed response received from geolocation API');
     });
 
-    it('falls back to legacy Transak endpoint when primary fails', async () => {
+    it('throws when primary API fails', async () => {
       nock('https://on-ramp.uat-api.cx.metamask.io')
         .get('/geolocation')
         .query({ sdk: '2.1.6', controller: '2.0.0', context: 'mobile-ios' })
+        .times(4)
         .reply(500, 'Internal Server Error');
-      nock('https://api-stg.transak.com')
-        .get('/fiat/public/v1/get/country')
-        .reply(200, { ipCountryCode: 'CA' });
-      const { rootMessenger } = getService();
+      const { service, rootMessenger } = getService();
+      service.onRetry(() => {
+        clock.nextAsync().catch(() => undefined);
+      });
 
-      const geolocationResponse = await rootMessenger.call(
-        'RampsService:getGeolocation',
+      await expect(
+        rootMessenger.call('RampsService:getGeolocation'),
+      ).rejects.toThrow(
+        "Fetching 'https://on-ramp.uat-api.cx.metamask.io/geolocation?sdk=2.1.6&controller=2.0.0&context=mobile-ios' failed with status '500'",
       );
-
-      expect(geolocationResponse).toBe('ca');
     });
 
     it('calls onDegraded listeners if the request takes longer than 5 seconds to resolve', async () => {
@@ -204,7 +200,6 @@ describe('RampsService', () => {
         },
         currency: 'EUR',
         supported: true,
-        transakSupported: true,
       },
     ];
 
