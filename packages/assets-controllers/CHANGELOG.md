@@ -18,6 +18,7 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 - Export `selectAllAssets` ([#7496](https://github.com/MetaMask/core/pull/7496))
 - Add multicall address for `MSU (MapleStory Universe)` ([#7453](https://github.com/MetaMask/core/pull/7453))
 - Add MSU (MapleStory Universe) and Etherlink in Spot Prices support ([#7453](https://github.com/MetaMask/core/pull/7453))
+- Set MSU native token address to `eip155:68414/erc20:0xf2b51cc1850fed939658317a22d73d3482767591` instead of `eip155:68414/erc20:0x0000000000000000000000000000000000000000` - particular case where the native token doesn't have the zero address ([#7578](https://github.com/MetaMask/core/pull/7578))
 
 ### Changed
 
