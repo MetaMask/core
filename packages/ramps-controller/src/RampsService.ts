@@ -22,7 +22,7 @@ export type CountryPhone = {
  */
 export type State = {
   /**
-   * State identifier. Can be in path format (e.g., "/regions/us-ut") or ISO code format (e.g., "ut").
+   * State identifier. Can be in path format (e.g., "/regions/us-ut") or ISO code format (e.g., "us-ut").
    */
   id?: string;
   /**
@@ -464,10 +464,6 @@ export class RampsService {
     }
 
     return countries.filter((country) => {
-      if (action === 'buy') {
-        return country.supported;
-      }
-
       if (country.states && country.states.length > 0) {
         const hasSupportedState = country.states.some(
           (state) => state.supported !== false,
