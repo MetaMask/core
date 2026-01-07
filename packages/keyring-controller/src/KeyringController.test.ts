@@ -49,6 +49,10 @@ import MockEncryptor, {
   SALT,
 } from '../tests/mocks/mockEncryptor';
 import { MockErc4337Keyring } from '../tests/mocks/mockErc4337Keyring';
+import {
+  HardwareWalletError,
+  MockHardwareKeyring,
+} from '../tests/mocks/mockHardwareKeyring';
 import { MockKeyring } from '../tests/mocks/mockKeyring';
 import MockShallowKeyring from '../tests/mocks/mockShallowKeyring';
 import { buildMockTransaction } from '../tests/mocks/mockTransaction';
@@ -4475,47 +4479,6 @@ describe('KeyringController', () => {
   describe('error handling', () => {
     describe('when hardware wallet throws custom error', () => {
       it('should preserve hardware wallet error in originalError property', async () => {
-        // Create a custom error class to simulate hardware wallet errors
-        class HardwareWalletError extends Error {
-          code: string;
-
-          constructor(message: string, code: string) {
-            super(message);
-            this.name = 'HardwareWalletError';
-            this.code = code;
-          }
-        }
-
-        // Create a mock hardware keyring that supports signTypedData but throws an error
-        class MockHardwareKeyring {
-          static type = 'Mock Hardware';
-
-          type = 'Mock Hardware';
-
-          async getAccounts(): Promise<string[]> {
-            return ['0x9876543210987654321098765432109876543210'];
-          }
-
-          async signTypedData(
-            _address: Hex,
-            _data: unknown,
-            _opts: unknown,
-          ): Promise<string> {
-            throw new HardwareWalletError(
-              'User rejected the request on hardware device',
-              'USER_REJECTED',
-            );
-          }
-
-          serialize = async (): Promise<{ type: string }> => ({
-            type: this.type,
-          });
-
-          deserialize = async (_opts: unknown): Promise<void> => {
-            // noop
-          };
-        }
-
         const mockHardwareKeyringBuilder = keyringBuilderFactory(
           MockHardwareKeyring as unknown as KeyringClass,
         );
@@ -4583,18 +4546,14 @@ describe('KeyringController', () => {
             );
 
             // Verify the original hardware wallet error is preserved in originalError
-            expect(keyringError.originalError).toBeInstanceOf(
-              HardwareWalletError,
-            );
-            expect(keyringError.originalError?.message).toBe(
+            expect(keyringError.cause).toBeInstanceOf(HardwareWalletError);
+            expect(keyringError.cause?.message).toBe(
               'User rejected the request on hardware device',
             );
-            expect(keyringError.originalError?.name).toBe(
-              'HardwareWalletError',
+            expect(keyringError.cause?.name).toBe('HardwareWalletError');
+            expect((keyringError.cause as HardwareWalletError).code).toBe(
+              'USER_REJECTED',
             );
-            expect(
-              (keyringError.originalError as HardwareWalletError).code,
-            ).toBe('USER_REJECTED');
           },
         );
       });
