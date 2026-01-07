@@ -1,4 +1,3 @@
-import type { NetworkClientId } from '@metamask/network-controller';
 import type {
   PermissionSpecificationBuilder,
   EndowmentGetterParams,
@@ -85,7 +84,7 @@ export const createCaip25Caveat = (value: Caip25CaveatValue) => {
 };
 
 type Caip25EndowmentCaveatSpecificationBuilderOptions = {
-  findNetworkClientIdByChainId: (chainId: Hex) => NetworkClientId;
+  findNetworkClientIdByChainId: (chainId: Hex) => string;
   listAccounts: () => { type: string; address: Hex }[];
   isNonEvmScopeSupported: (scope: CaipChainId) => boolean;
   getNonEvmAccountAddresses: (scope: CaipChainId) => string[];
