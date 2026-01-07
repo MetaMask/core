@@ -35,5 +35,3 @@ scripts/coverage
 
 # typescript
 packages/*/*.tsbuildinfo
-
-.cursor
