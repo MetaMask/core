@@ -1635,7 +1635,7 @@ export class BridgeStatusController extends StaticIntervalPollingController<Brid
       const { srcChainId: chainId, requestId } = quoteResponse.quote;
 
       const submissionParams = {
-        srcChainId: chainId.toString(),
+        srcChainId: chainId,
         quoteId: requestId,
         signature,
         order: intent.order,

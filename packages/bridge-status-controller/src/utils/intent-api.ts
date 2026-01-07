@@ -1,3 +1,7 @@
+import type {
+  QuoteResponse,
+  IntentOrderLike,
+} from '@metamask/bridge-controller';
 import { TransactionStatus } from '@metamask/transaction-controller';
 
 import {
@@ -7,11 +11,11 @@ import {
 } from './validators';
 import type { FetchFunction } from '../types';
 
-export type IntentSubmissionParams = {
-  srcChainId: string;
-  quoteId: string;
+type IntentSubmissionParams = {
+  srcChainId: QuoteResponse['quote']['srcChainId'];
+  quoteId: QuoteResponse['quote']['requestId'];
   signature: string;
-  order: unknown;
+  order: IntentOrderLike;
   userAddress: string;
   aggregatorId: string;
 };
