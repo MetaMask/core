@@ -3136,7 +3136,7 @@ export class TransactionController extends BaseController<
         );
 
         if (requireApproval === false && isIntentTransaction) {
-          const submittedTxMeta = this.#updateTransactionInternal(
+          this.#updateTransactionInternal(
             {
               transactionId,
               skipValidation: true,
@@ -3145,19 +3145,6 @@ export class TransactionController extends BaseController<
               draftTxMeta.status = TransactionStatus.submitted;
               draftTxMeta.submittedTime = new Date().getTime();
             },
-          );
-
-          this.messenger.publish(`${controllerName}:transactionSubmitted`, {
-            transactionMeta: submittedTxMeta,
-          });
-
-          this.messenger.publish(
-            `${controllerName}:transactionFinished`,
-            submittedTxMeta,
-          );
-          this.#internalEvents.emit(
-            `${transactionId}:finished`,
-            submittedTxMeta,
           );
 
           // Short-circuit normal flow; result callbacks will be handled by the
