@@ -23,8 +23,8 @@ describe('RampsController', () => {
         expect(controller.state).toMatchInlineSnapshot(`
           Object {
             "eligibility": null,
-            "userRegion": null,
             "requests": Object {},
+            "userRegion": null,
           }
         `);
       });
@@ -52,8 +52,8 @@ describe('RampsController', () => {
         expect(controller.state).toMatchInlineSnapshot(`
           Object {
             "eligibility": null,
-            "userRegion": null,
             "requests": Object {},
+            "userRegion": null,
           }
         `);
       });
@@ -94,8 +94,8 @@ describe('RampsController', () => {
         ).toMatchInlineSnapshot(`
           Object {
             "eligibility": null,
-            "userRegion": null,
             "requests": Object {},
+            "userRegion": null,
           }
         `);
       });
@@ -146,8 +146,8 @@ describe('RampsController', () => {
         ).toMatchInlineSnapshot(`
           Object {
             "eligibility": null,
-            "userRegion": null,
             "requests": Object {},
+            "userRegion": null,
           }
         `);
       });
