@@ -7,11 +7,10 @@ import type {
 import nock from 'nock';
 import { useFakeTimers } from 'sinon';
 import type { SinonFakeTimers } from 'sinon';
-
-import { flushPromises } from '../../../tests/helpers';
-import packageJson from '../package.json';
 import type { RampsServiceMessenger } from './RampsService';
 import { RampsService, RampsEnvironment } from './RampsService';
+import { flushPromises } from '../../../tests/helpers';
+import packageJson from '../package.json';
 
 const CONTROLLER_VERSION = packageJson.version;
 
