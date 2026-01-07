@@ -25,6 +25,7 @@ describe('createRequestSelector', () => {
       const state: TestRootState = {
         ramps: {
           geolocation: null,
+          eligibility: null,
           requests: {
             'getCryptoCurrencies:["US"]': loadingRequest,
           },
@@ -53,6 +54,7 @@ describe('createRequestSelector', () => {
       const state: TestRootState = {
         ramps: {
           geolocation: null,
+          eligibility: null,
           requests: {
             'getCryptoCurrencies:["US"]': successRequest,
           },
@@ -84,6 +86,7 @@ describe('createRequestSelector', () => {
       const state: TestRootState = {
         ramps: {
           geolocation: null,
+          eligibility: null,
           requests: {
             'getCryptoCurrencies:["US"]': errorRequest,
           },
@@ -111,6 +114,7 @@ describe('createRequestSelector', () => {
       const state: TestRootState = {
         ramps: {
           geolocation: null,
+          eligibility: null,
           requests: {},
         },
       };
@@ -161,6 +165,7 @@ describe('createRequestSelector', () => {
       const state: TestRootState = {
         ramps: {
           geolocation: null,
+          eligibility: null,
           requests: {
             'getCryptoCurrencies:["US"]': successRequest,
           },
@@ -184,6 +189,7 @@ describe('createRequestSelector', () => {
       const state1: TestRootState = {
         ramps: {
           geolocation: null,
+          eligibility: null,
           requests: {
             'getCryptoCurrencies:["US"]': successRequest1,
           },
@@ -196,6 +202,7 @@ describe('createRequestSelector', () => {
       const state2: TestRootState = {
         ramps: {
           geolocation: null,
+          eligibility: null,
           requests: {
             'getCryptoCurrencies:["US"]': successRequest2,
           },
@@ -220,6 +227,7 @@ describe('createRequestSelector', () => {
       const state: TestRootState = {
         ramps: {
           geolocation: null,
+          eligibility: null,
           requests: {
             'getCryptoCurrencies:["US"]': successRequest,
           },
@@ -247,6 +255,7 @@ describe('createRequestSelector', () => {
       const state: TestRootState = {
         ramps: {
           geolocation: null,
+          eligibility: null,
           requests: {
             'getData:[]': successRequest,
           },
@@ -273,6 +282,7 @@ describe('createRequestSelector', () => {
       const loadingState: TestRootState = {
         ramps: {
           geolocation: null,
+          eligibility: null,
           requests: {
             'getCryptoCurrencies:["US"]': loadingRequest,
           },
@@ -287,6 +297,7 @@ describe('createRequestSelector', () => {
       const successState: TestRootState = {
         ramps: {
           geolocation: null,
+          eligibility: null,
           requests: {
             'getCryptoCurrencies:["US"]': successRequest,
           },
@@ -309,6 +320,7 @@ describe('createRequestSelector', () => {
       const successState: TestRootState = {
         ramps: {
           geolocation: null,
+          eligibility: null,
           requests: {
             'getCryptoCurrencies:["US"]': successRequest,
           },
@@ -322,6 +334,7 @@ describe('createRequestSelector', () => {
       const errorState: TestRootState = {
         ramps: {
           geolocation: null,
+          eligibility: null,
           requests: {
             'getCryptoCurrencies:["US"]': errorRequest,
           },
@@ -350,6 +363,7 @@ describe('createRequestSelector', () => {
       const state: TestRootState = {
         ramps: {
           geolocation: null,
+          eligibility: null,
           requests: {
             'getCryptoCurrencies:["US"]': createSuccessState(
               ['ETH'],
@@ -382,6 +396,7 @@ describe('createRequestSelector', () => {
       const state: TestRootState = {
         ramps: {
           geolocation: null,
+          eligibility: null,
           requests: {
             'getCryptoCurrencies:["US"]': createSuccessState(
               ['ETH'],
