@@ -21,6 +21,7 @@ import type {
   KeyringControllerCreateNewVaultAndRestoreAction,
   KeyringControllerGetKeyringsByTypeAction,
   KeyringControllerGetStateAction,
+  KeyringControllerRemoveAccountAction,
   KeyringControllerStateChangeEvent,
   KeyringControllerWithKeyringAction,
 } from '@metamask/keyring-controller';
@@ -150,6 +151,7 @@ type AllowedActions =
   | NetworkControllerFindNetworkClientIdByChainIdAction
   | KeyringControllerCreateNewVaultAndKeychainAction
   | KeyringControllerCreateNewVaultAndRestoreAction
+  | KeyringControllerRemoveAccountAction
   | ErrorReportingServiceCaptureExceptionAction;
 
 /**
