@@ -190,8 +190,6 @@ ON get_balance(account, chainId, token):
 - Storage cost is temporary
 - Peace of mind during high-risk period
 
-**Duration:** 4+ weeks at 100% new state reads with zero issues
-
 ---
 
 ### Phase 5: Legacy Removal
@@ -223,7 +221,7 @@ ON get_balance(account, chainId, token):
 
 ## Rollback Strategy
 
-### During Phases 1-4: Instant Rollback (< 1 minute)
+### During Phases 1-4: Instant Rollback
 
 Because dual-write is active, legacy state is always fresh.
 
