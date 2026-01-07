@@ -1,4 +1,4 @@
-import type { LoginResponse } from '../authentication';
+import type { LoginResponse } from '../authentication-jwt-bearer/types';
 
 /**
  * Validates Shape is LoginResponse
