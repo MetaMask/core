@@ -16,6 +16,7 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 - Bump `@metamask/controller-utils` from `^11.16.0` to `^11.17.0` ([#7534](https://github.com/MetaMask/core/pull/7534))
 
 ### Fixed
+
 - Change fee_limit param naming to feeLimit for Tron ([#7571](https://github.com/MetaMask/core/pull/7571))
 
 ## [64.2.0]
