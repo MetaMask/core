@@ -335,6 +335,9 @@ export type TransactionPayQuote<OriginalQuote> = {
 
   /** Name of the strategy used to retrieve the quote. */
   strategy: TransactionPayStrategy;
+
+  /** Amount of target token provided. */
+  targetAmount: Amount;
 };
 
 /** Request to get quotes for a transaction. */
@@ -427,6 +430,9 @@ export type TransactionPayTotals = {
 
   /** Total amount of source token required. */
   sourceAmount: Amount;
+
+  /** Total amount of target token provided. */
+  targetAmount: Amount;
 
   /** Overall total cost for the target transaction and all quotes. */
   total: FiatValue;

@@ -58,6 +58,7 @@ export function calculateTotals({
     : transactionNetworkFee;
 
   const sourceAmount = sumAmounts(quotes.map((quote) => quote.sourceAmount));
+  const targetAmount = sumAmounts(quotes.map((quote) => quote.targetAmount));
 
   const quoteTokens = tokens.filter(
     (singleToken) => !singleToken.skipIfBalance,
@@ -65,23 +66,18 @@ export function calculateTotals({
 
   const amountFiat = sumProperty(quoteTokens, (token) => token.amountFiat);
   const amountUsd = sumProperty(quoteTokens, (token) => token.amountUsd);
+  const hasQuotes = quotes.length > 0;
 
   const totalFiat = new BigNumber(providerFee.fiat)
     .plus(sourceNetworkFeeEstimate.fiat)
     .plus(targetNetworkFee.fiat)
-    .plus(amountFiat)
-    .plus(isMaxAmount ? sourceAmount.fiat : 0)
-    .minus(isMaxAmount ? amountFiat : 0)
-    .minus(isMaxAmount ? providerFee.fiat : 0)
+    .plus(isMaxAmount && hasQuotes ? targetAmount.fiat : amountFiat)
     .toString(10);
 
   const totalUsd = new BigNumber(providerFee.usd)
     .plus(sourceNetworkFeeEstimate.usd)
     .plus(targetNetworkFee.usd)
-    .plus(amountUsd)
-    .plus(isMaxAmount ? sourceAmount.usd : 0)
-    .minus(isMaxAmount ? amountUsd : 0)
-    .minus(isMaxAmount ? providerFee.usd : 0)
+    .plus(isMaxAmount && hasQuotes ? targetAmount.usd : amountUsd)
     .toString(10);
 
   const estimatedDuration = Number(
@@ -109,6 +105,7 @@ export function calculateTotals({
       targetNetwork: targetNetworkFee,
     },
     sourceAmount,
+    targetAmount,
     total: {
       fiat: totalFiat,
       usd: totalUsd,

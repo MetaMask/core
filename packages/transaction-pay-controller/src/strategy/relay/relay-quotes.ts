@@ -275,7 +275,7 @@ async function normalizeQuote(
 ): Promise<TransactionPayQuote<RelayQuote>> {
   const { messenger } = fullRequest;
   const { details } = quote;
-  const { currencyIn } = details;
+  const { currencyIn, currencyOut } = details;
 
   const { usdToFiatRate } = getFiatRates(messenger, request);
 
@@ -306,6 +306,12 @@ async function normalizeQuote(
     ...getFiatValueFromUsd(new BigNumber(currencyIn.amountUsd), usdToFiatRate),
   };
 
+  const targetAmount: Amount = {
+    human: currencyOut.amountFormatted,
+    raw: currencyOut.amount,
+    ...getFiatValueFromUsd(new BigNumber(currencyOut.amountUsd), usdToFiatRate),
+  };
+
   const metamask = {
     gasLimits,
   };
@@ -325,6 +331,7 @@ async function normalizeQuote(
     },
     request,
     sourceAmount,
+    targetAmount,
     strategy: TransactionPayStrategy.Relay,
   };
 }

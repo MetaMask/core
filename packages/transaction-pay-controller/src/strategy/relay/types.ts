@@ -38,6 +38,7 @@ export type RelayQuote = {
       };
     };
     currencyOut: {
+      amount: string;
       amountFormatted: string;
       amountUsd: string;
       currency: {

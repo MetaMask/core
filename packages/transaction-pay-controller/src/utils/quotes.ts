@@ -150,6 +150,7 @@ function syncTransaction({
         bridgeFeeFiat: totals.fees.provider.usd,
         chainId: paymentToken.chainId,
         networkFeeFiat: totals.fees.sourceNetwork.estimate.usd,
+        targetFiat: totals.targetAmount.usd,
         tokenAddress: paymentToken.address,
         totalFiat: totals.total.usd,
       };
