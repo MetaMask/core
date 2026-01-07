@@ -5,7 +5,6 @@ import {
   NetworksTicker,
   toHex,
 } from '@metamask/controller-utils';
-import type { ErrorReportingServiceCaptureExceptionAction } from '@metamask/error-reporting-service';
 import type { InternalProvider } from '@metamask/eth-json-rpc-provider';
 import { Messenger, MOCK_ANY_NAMESPACE } from '@metamask/messenger';
 import type {
@@ -40,6 +39,7 @@ import type {
   UpdateNetworkCustomRpcEndpointFields,
 } from '../src/NetworkController';
 import { RpcEndpointType } from '../src/NetworkController';
+import { RpcServiceOptions } from '../src/rpc-service/rpc-service';
 import type {
   CustomNetworkClientConfiguration,
   InfuraNetworkClientConfiguration,
@@ -84,28 +84,15 @@ export const TESTNET = {
  * Build a root messenger that includes all events used by the network
  * controller.
  *
- * @param options - Options.
- * @param options.actionHandlers - Handlers for actions that are pre-registered
- * on the messenger.
  * @returns The messenger.
  */
-export function buildRootMessenger({
-  actionHandlers = {},
-}: {
-  actionHandlers?: {
-    'ErrorReportingService:captureException'?: ErrorReportingServiceCaptureExceptionAction['handler'];
-  };
-} = {}): RootMessenger {
+export function buildRootMessenger(): RootMessenger {
   const rootMessenger = new Messenger<
     MockAnyNamespace,
     MessengerActions<NetworkControllerMessenger>,
     MessengerEvents<NetworkControllerMessenger>
-  >({ namespace: MOCK_ANY_NAMESPACE });
-  rootMessenger.registerActionHandler(
-    'ErrorReportingService:captureException',
-    actionHandlers['ErrorReportingService:captureException'] ??
-      ((error) => console.error(error)),
-  );
+  >({ namespace: MOCK_ANY_NAMESPACE, captureException: jest.fn() });
+
   return rootMessenger;
 }
 
@@ -127,10 +114,7 @@ export function buildNetworkControllerMessenger(
     namespace: 'NetworkController',
     parent: rootMessenger,
   });
-  rootMessenger.delegate({
-    messenger: networkControllerMessenger,
-    actions: ['ErrorReportingService:captureException'],
-  });
+
   return networkControllerMessenger;
 }
 
@@ -158,7 +142,7 @@ function buildFakeNetworkClient({
     blockTracker: new FakeBlockTracker({
       provider: provider as unknown as InternalProvider,
     }),
-    destroy: () => {
+    destroy: (): void => {
       // do nothing
     },
   };
@@ -632,7 +616,10 @@ export async function withController<ReturnValue>(
   const controller = new NetworkController({
     messenger: networkControllerMessenger,
     infuraProjectId: 'infura-project-id',
-    getRpcServiceOptions: () => ({
+    getRpcServiceOptions: (): Omit<
+      RpcServiceOptions,
+      'failoverService' | 'endpointUrl'
+    > => ({
       fetch,
       btoa,
     }),

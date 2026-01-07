@@ -48,7 +48,7 @@
   },
   "dependencies": {
     "@metamask/messenger": "^0.3.0",
-    "@metamask/utils": "^11.8.1",
+    "@metamask/utils": "^11.9.0",
     "immer": "^9.0.6"
   },
   "devDependencies": {

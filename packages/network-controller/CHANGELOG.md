@@ -7,6 +7,14 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+### Changed
+
+- Upgrade `@metamask/utils` from `^11.8.1` to `^11.9.0` ([#7511](https://github.com/MetaMask/core/pull/7511))
+- Remove dependency on `@metamask/error-reporting-service` ([#7542](https://github.com/MetaMask/core/pull/7542))
+  - The service no longer needs `ErrorReportingService:captureException`.
+
+## [27.1.0]
+
 ### Added
 
 - Add MegaETH Testnet "v2" as a default custom network ([#7272](https://github.com/MetaMask/core/pull/7272))
@@ -16,6 +24,11 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 ### Changed
 
 - Bump `@metamask/eth-json-rpc-middleware` from `^22.0.0` to `^22.0.1` ([#7330](https://github.com/MetaMask/core/pull/7330))
+- Bump `@metamask/controller-utils` from `^11.16.0` to `^11.17.0` ([#7534](https://github.com/MetaMask/core/pull/7534))
+
+### Fixed
+
+- Ensure `get1559CompatibilityWithNetworkClientId` updates network metadata with EIP-1559 compatibility data missing ([#7532](https://github.com/MetaMask/core/pull/7532))
 
 ## [27.0.0]
 
@@ -1056,7 +1069,8 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
     All changes listed after this point were applied to this package following the monorepo conversion.
 
-[Unreleased]: https://github.com/MetaMask/core/compare/@metamask/network-controller@27.0.0...HEAD
+[Unreleased]: https://github.com/MetaMask/core/compare/@metamask/network-controller@27.1.0...HEAD
+[27.1.0]: https://github.com/MetaMask/core/compare/@metamask/network-controller@27.0.0...@metamask/network-controller@27.1.0
 [27.0.0]: https://github.com/MetaMask/core/compare/@metamask/network-controller@26.0.0...@metamask/network-controller@27.0.0
 [26.0.0]: https://github.com/MetaMask/core/compare/@metamask/network-controller@25.0.0...@metamask/network-controller@26.0.0
 [25.0.0]: https://github.com/MetaMask/core/compare/@metamask/network-controller@24.3.1...@metamask/network-controller@25.0.0

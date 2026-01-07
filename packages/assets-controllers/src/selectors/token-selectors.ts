@@ -441,7 +441,7 @@ const selectAllMultichainAssets = createAssetListSelector(
   },
 );
 
-const selectAllAssets = createAssetListSelector(
+export const selectAllAssets = createAssetListSelector(
   [
     selectAllEvmAssets,
     selectAllMultichainAssets,

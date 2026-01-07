@@ -31,7 +31,7 @@ type RootMessenger = Messenger<
 >;
 
 // Helper function for completing async operations
-const completeAsyncOperations = async (timeoutMs = 0) => {
+const completeAsyncOperations = async (timeoutMs = 0): Promise<void> => {
   await flushPromises();
   // Allow nested async operations to complete
   if (timeoutMs > 0) {
@@ -200,7 +200,23 @@ const getMessenger = (): {
  */
 const createIndependentService = (options?: {
   subscriptionNamespace?: string;
-}) => {
+}): {
+  service: AccountActivityService;
+  messenger: AccountActivityServiceMessenger;
+  rootMessenger: RootMessenger;
+  mocks: {
+    getSelectedAccount: jest.Mock;
+    connect: jest.Mock;
+    subscribe: jest.Mock;
+    channelHasSubscription: jest.Mock;
+    getSubscriptionsByChannel: jest.Mock;
+    findSubscriptionsByChannelPrefix: jest.Mock;
+    forceReconnection: jest.Mock;
+    addChannelCallback: jest.Mock;
+    removeChannelCallback: jest.Mock;
+  };
+  destroy: () => void;
+} => {
   const { subscriptionNamespace } = options ?? {};
 
   const messengerSetup = getMessenger();
@@ -216,7 +232,7 @@ const createIndependentService = (options?: {
     rootMessenger: messengerSetup.rootMessenger,
     mocks: messengerSetup.mocks,
     // Convenience cleanup method
-    destroy: () => {
+    destroy: (): void => {
       service.destroy();
     },
   };
@@ -230,7 +246,24 @@ const createIndependentService = (options?: {
  */
 const createServiceWithTestAccount = (
   accountAddress: string = '0x1234567890123456789012345678901234567890',
-) => {
+): {
+  service: AccountActivityService;
+  messenger: AccountActivityServiceMessenger;
+  rootMessenger: RootMessenger;
+  mocks: {
+    getSelectedAccount: jest.Mock;
+    connect: jest.Mock;
+    subscribe: jest.Mock;
+    channelHasSubscription: jest.Mock;
+    getSubscriptionsByChannel: jest.Mock;
+    findSubscriptionsByChannelPrefix: jest.Mock;
+    forceReconnection: jest.Mock;
+    addChannelCallback: jest.Mock;
+    removeChannelCallback: jest.Mock;
+  };
+  destroy: () => void;
+  mockSelectedAccount: InternalAccount;
+} => {
   const serviceSetup = createIndependentService();
 
   // Create mock selected account

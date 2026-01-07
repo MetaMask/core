@@ -22,6 +22,7 @@ export type RestrictedSnapKeyringCreateAccount = (
 export type SnapAccountProviderConfig = {
   maxConcurrency?: number;
   discovery: {
+    enabled?: boolean;
     maxAttempts: number;
     timeoutMs: number;
     backOffMs: number;
@@ -57,6 +58,10 @@ export abstract class SnapAccountProvider extends BaseBip44AccountProvider {
     const maxConcurrency = config.maxConcurrency ?? Infinity;
     this.config = {
       ...config,
+      discovery: {
+        ...config.discovery,
+        enabled: config.discovery.enabled ?? true,
+      },
       maxConcurrency,
     };
 
@@ -142,8 +147,7 @@ export abstract class SnapAccountProvider extends BaseBip44AccountProvider {
     // NOTE: This should never happen, but we want to report that kind of errors still
     // in case states are de-sync.
     if (localSnapAccounts.length < snapAccounts.size) {
-      this.messenger.call(
-        'ErrorReportingService:captureException',
+      this.messenger.captureException?.(
         new Error(
           `Snap "${this.snapId}" has de-synced accounts, Snap has more accounts than MetaMask!`,
         ),
@@ -158,8 +162,7 @@ export abstract class SnapAccountProvider extends BaseBip44AccountProvider {
     if (localSnapAccounts.length > snapAccounts.size) {
       // Accounts should never really be de-synced, so we want to log this to see how often this
       // happens, cause that means that something else is buggy elsewhere...
-      this.messenger.call(
-        'ErrorReportingService:captureException',
+      this.messenger.captureException?.(
         new Error(
           `Snap "${this.snapId}" has de-synced accounts, we'll attempt to re-sync them...`,
         ),
@@ -195,10 +198,7 @@ export abstract class SnapAccountProvider extends BaseBip44AccountProvider {
                 groupIndex,
               },
             );
-            this.messenger.call(
-              'ErrorReportingService:captureException',
-              sentryError,
-            );
+            this.messenger.captureException?.(sentryError);
           }
         }),
       );

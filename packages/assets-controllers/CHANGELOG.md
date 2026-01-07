@@ -7,6 +7,61 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+### Added
+
+- Add RWA (Real World Assets) data support to token service ([#7560](https://github.com/MetaMask/core/pull/7560))
+  - Add `includeRwaData` optional parameter to `getTrendingTokens` function to include RWA data in results
+  - Add `TokenRwaData` type for RWA token metadata (market hours, pause times, ticker, instrument type)
+  - Add `TokenSearchItem` type with optional `rwaData` field for token search results
+  - Add `rwaData` optional field to `TrendingAsset` type
+- Update spot-prices endpoint list of supported chains and assets ([#7543](https://github.com/MetaMask/core/pull/7543))
+- Export `selectAllAssets` ([#7496](https://github.com/MetaMask/core/pull/7496))
+- Add multicall address for `MSU (MapleStory Universe)` ([#7453](https://github.com/MetaMask/core/pull/7453))
+- Add MSU (MapleStory Universe) and Etherlink in Spot Prices support ([#7453](https://github.com/MetaMask/core/pull/7453))
+
+### Changed
+
+- Bump `@metamask/snaps-controllers` from `^14.0.1` to `^17.2.0` ([#7550](https://github.com/MetaMask/core/pull/7550))
+- Bump `@metamask/snaps-sdk` from `^9.0.0` to `^10.3.0` ([#7550](https://github.com/MetaMask/core/pull/7550))
+- Bump `@metamask/snaps-utils` from `^11.0.0` to `^11.7.0` ([#7550](https://github.com/MetaMask/core/pull/7550))
+- Upgrade `@metamask/utils` from `^11.8.1` to `^11.9.0` ([#7511](https://github.com/MetaMask/core/pull/7511))
+- Bump `@metamask/permission-controller` from `^12.1.1` to `^12.2.0` ([#7559](https://github.com/MetaMask/core/pull/7559))
+- **BREAKING:** `AccountTrackerController` now requires `KeyringController:getState` action and `KeyringController:lock` event in addition to existing allowed actions and events ([#7492](https://github.com/MetaMask/core/pull/7492))
+  - Added `#isLocked` property to track keyring lock state, initialized from `KeyringController:getState`
+  - Added `isActive` getter that returns `true` when keyring is unlocked and user is onboarded
+  - Balance updates are now skipped when controller is not active (locked or not onboarded)
+  - `KeyringController:unlock` event now only updates lock state without triggering immediate refresh
+  - `KeyringController:lock` event sets controller to inactive state
+- `AccountTrackerController` now only refreshes balances for the newly added network on `NetworkController:networkAdded` event instead of all networks ([#7492](https://github.com/MetaMask/core/pull/7492))
+- Bump `@metamask/transaction-controller` from `^62.5.0` to `^62.7.0` ([#7494](https://github.com/MetaMask/core/pull/7494))
+- Bump `@metamask/multichain-account-service` from `^4.0.1` to `^4.1.0` ([#7515](https://github.com/MetaMask/core/pull/7515)
+- Bump `@metamask/controller-utils` from `^11.16.0` to `^11.17.0` ([#7534](https://github.com/MetaMask/core/pull/7534))
+- Bump `@metamask/network-controller` from `^27.0.0` to `^27.1.0` ([#7534](https://github.com/MetaMask/core/pull/7534))
+
+## [94.1.0]
+
+### Added
+
+- Add `excludeLabels` parameter to `getTrendingTokens` to filter out tokens by labels (e.g., 'stable_coin', 'blue_chip') ([#7466](https://github.com/MetaMask/core/pull/7466))
+- Add support for spot prices on multiple new chains: Apechain, Lens, Plume, Flow EVM, Berachain, xrpl-evm, Fraxtal, Lukso, xdc-network, and Plasma ([#7465](https://github.com/MetaMask/core/pull/7465))
+- Add `ape` to `SUPPORTED_CURRENCIES` for ApeCoin/Apechain native token ([#7465](https://github.com/MetaMask/core/pull/7465))
+- Add `isOnboarded` constructor option to `TokenBalancesController` and `AccountTrackerController` ([#7469](https://github.com/MetaMask/core/pull/7469))
+  - When `isOnboarded()` returns `false`, balance updates are skipped to prevent unnecessary API calls during onboarding
+  - `TokenBalancesController.isActive` now also checks `isOnboarded()` in addition to `isUnlocked`
+  - `AccountTrackerController.#refreshAccounts` now checks `isOnboarded()` before fetching balances
+
+### Fixed
+
+- Fix `TokenBalancesController` to evaluate `allowExternalServices` dynamically instead of only at constructor time ([#7469](https://github.com/MetaMask/core/pull/7469))
+  - Previously, the `#balanceFetchers` array was built once in the constructor, so changes to `allowExternalServices()` after initialization were not reflected
+  - Now `allowExternalServices()` is stored as a function and evaluated dynamically in the fetcher's `supports` method
+- Fix `TokenDetectionController` methods `addDetectedTokensViaPolling` and `addDetectedTokensViaWs` to refresh token metadata cache before use ([#7469](https://github.com/MetaMask/core/pull/7469))
+  - Previously, these methods used a potentially stale/empty `#tokensChainsCache` from construction time
+  - Now they fetch the latest `tokensChainsCache` from `TokenListController:getState` before looking up token metadata
+- Fix `AccountTrackerController.syncBalanceWithAddresses` to also check `isOnboarded()` before fetching balances ([#7469](https://github.com/MetaMask/core/pull/7469))
+  - Previously, only `#refreshAccounts` checked `isOnboarded()`, but `syncBalanceWithAddresses` would still make RPC calls during onboarding
+  - Now `syncBalanceWithAddresses` returns an empty object when `isOnboarded()` returns `false`
+
 ## [94.0.0]
 
 ### Added
@@ -2415,7 +2470,8 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 - Use Ethers for AssetsContractController ([#845](https://github.com/MetaMask/core/pull/845))
 
-[Unreleased]: https://github.com/MetaMask/core/compare/@metamask/assets-controllers@94.0.0...HEAD
+[Unreleased]: https://github.com/MetaMask/core/compare/@metamask/assets-controllers@94.1.0...HEAD
+[94.1.0]: https://github.com/MetaMask/core/compare/@metamask/assets-controllers@94.0.0...@metamask/assets-controllers@94.1.0
 [94.0.0]: https://github.com/MetaMask/core/compare/@metamask/assets-controllers@93.1.0...@metamask/assets-controllers@94.0.0
 [93.1.0]: https://github.com/MetaMask/core/compare/@metamask/assets-controllers@93.0.0...@metamask/assets-controllers@93.1.0
 [93.0.0]: https://github.com/MetaMask/core/compare/@metamask/assets-controllers@92.0.0...@metamask/assets-controllers@93.0.0

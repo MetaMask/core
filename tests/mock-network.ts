@@ -119,7 +119,7 @@ class MockedNetwork {
   /**
    * Mocks all of the requests that have been specified via the constructor.
    */
-  enable() {
+  enable(): void {
     for (const requestMock of this.#requestMocks) {
       this.#mockRpcCall(requestMock);
     }

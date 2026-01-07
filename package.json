@@ -1,6 +1,6 @@
 {
   "name": "@metamask/core-monorepo",
-  "version": "720.0.0",
+  "version": "737.0.0",
   "private": true,
   "description": "Monorepo for packages shared between MetaMask clients",
   "repository": {
@@ -63,8 +63,8 @@
     "@metamask/eth-block-tracker": "^15.0.0",
     "@metamask/eth-json-rpc-provider": "^6.0.0",
     "@metamask/json-rpc-engine": "^10.2.0",
-    "@metamask/network-controller": "^27.0.0",
-    "@metamask/utils": "^11.8.1",
+    "@metamask/network-controller": "^27.1.0",
+    "@metamask/utils": "^11.9.0",
     "@ts-bridge/cli": "^0.6.4",
     "@types/jest": "^27.4.1",
     "@types/lodash": "^4.14.191",
