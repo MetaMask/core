@@ -30,7 +30,11 @@ describe('RampsService', () => {
     it('returns the geolocation from the API', async () => {
       nock('https://on-ramp.uat-api.cx.metamask.io')
         .get('/geolocation')
-        .query({ sdk: '2.1.6', controller: CONTROLLER_VERSION, context: 'mobile-ios' })
+        .query({
+          sdk: '2.1.6',
+          controller: CONTROLLER_VERSION,
+          context: 'mobile-ios',
+        })
         .reply(200, 'us-tx');
       const { rootMessenger } = getService();
 
@@ -47,7 +51,11 @@ describe('RampsService', () => {
     it('uses the production URL when environment is Production', async () => {
       nock('https://on-ramp.api.cx.metamask.io')
         .get('/geolocation')
-        .query({ sdk: '2.1.6', controller: CONTROLLER_VERSION, context: 'mobile-ios' })
+        .query({
+          sdk: '2.1.6',
+          controller: CONTROLLER_VERSION,
+          context: 'mobile-ios',
+        })
         .reply(200, 'us-tx');
       const { rootMessenger } = getService({
         options: { environment: RampsEnvironment.Production },
@@ -66,7 +74,11 @@ describe('RampsService', () => {
     it('uses staging URL when environment is Development', async () => {
       nock('https://on-ramp.uat-api.cx.metamask.io')
         .get('/geolocation')
-        .query({ sdk: '2.1.6', controller: CONTROLLER_VERSION, context: 'mobile-ios' })
+        .query({
+          sdk: '2.1.6',
+          controller: CONTROLLER_VERSION,
+          context: 'mobile-ios',
+        })
         .reply(200, 'us-tx');
       const { rootMessenger } = getService({
         options: { environment: RampsEnvironment.Development },
@@ -85,20 +97,32 @@ describe('RampsService', () => {
     it('throws if the API returns an empty response', async () => {
       nock('https://on-ramp.uat-api.cx.metamask.io')
         .get('/geolocation')
-        .query({ sdk: '2.1.6', controller: CONTROLLER_VERSION, context: 'mobile-ios' })
+        .query({
+          sdk: '2.1.6',
+          controller: CONTROLLER_VERSION,
+          context: 'mobile-ios',
+        })
         .reply(200, '');
       const { rootMessenger } = getService();
 
-      const geolocationPromise = rootMessenger.call('RampsService:getGeolocation');
+      const geolocationPromise = rootMessenger.call(
+        'RampsService:getGeolocation',
+      );
       await clock.runAllAsync();
       await flushPromises();
-      await expect(geolocationPromise).rejects.toThrow('Malformed response received from geolocation API');
+      await expect(geolocationPromise).rejects.toThrow(
+        'Malformed response received from geolocation API',
+      );
     });
 
     it('throws when primary API fails', async () => {
       nock('https://on-ramp.uat-api.cx.metamask.io')
         .get('/geolocation')
-        .query({ sdk: '2.1.6', controller: CONTROLLER_VERSION, context: 'mobile-ios' })
+        .query({
+          sdk: '2.1.6',
+          controller: CONTROLLER_VERSION,
+          context: 'mobile-ios',
+        })
         .times(4)
         .reply(500, 'Internal Server Error');
       const { service, rootMessenger } = getService();
@@ -106,7 +130,9 @@ describe('RampsService', () => {
         clock.nextAsync().catch(() => undefined);
       });
 
-      const geolocationPromise = rootMessenger.call('RampsService:getGeolocation');
+      const geolocationPromise = rootMessenger.call(
+        'RampsService:getGeolocation',
+      );
       await clock.runAllAsync();
       await flushPromises();
       await expect(geolocationPromise).rejects.toThrow(
@@ -122,7 +148,11 @@ describe('RampsService', () => {
 
       nock('https://on-ramp.uat-api.cx.metamask.io')
         .get('/geolocation')
-        .query({ sdk: '2.1.6', controller: CONTROLLER_VERSION, context: 'mobile-ios' })
+        .query({
+          sdk: '2.1.6',
+          controller: CONTROLLER_VERSION,
+          context: 'mobile-ios',
+        })
         .reply(200, () => {
           return new Promise<string>((resolve) => {
             setTimeout(() => {
@@ -134,7 +164,9 @@ describe('RampsService', () => {
       const onDegradedListener = jest.fn();
       service.onDegraded(onDegradedListener);
 
-      const geolocationPromise = rootMessenger.call('RampsService:getGeolocation');
+      const geolocationPromise = rootMessenger.call(
+        'RampsService:getGeolocation',
+      );
       await clock.tickAsync(6000);
       await flushPromises();
       await clock.runAllAsync();
@@ -148,7 +180,11 @@ describe('RampsService', () => {
     it('attempts a request that responds with non-200 up to 4 times, throwing if it never succeeds', async () => {
       nock('https://on-ramp.uat-api.cx.metamask.io')
         .get('/geolocation')
-        .query({ sdk: '2.1.6', controller: CONTROLLER_VERSION, context: 'mobile-ios' })
+        .query({
+          sdk: '2.1.6',
+          controller: CONTROLLER_VERSION,
+          context: 'mobile-ios',
+        })
         .times(4)
         .reply(500);
       const { service, rootMessenger } = getService();
@@ -156,7 +192,9 @@ describe('RampsService', () => {
         clock.nextAsync().catch(() => undefined);
       });
 
-      const geolocationPromise = rootMessenger.call('RampsService:getGeolocation');
+      const geolocationPromise = rootMessenger.call(
+        'RampsService:getGeolocation',
+      );
       await clock.runAllAsync();
       await flushPromises();
       await expect(geolocationPromise).rejects.toThrow(
@@ -194,7 +232,11 @@ describe('RampsService', () => {
     it('does the same thing as the messenger action', async () => {
       nock('https://on-ramp.uat-api.cx.metamask.io')
         .get('/geolocation')
-        .query({ sdk: '2.1.6', controller: CONTROLLER_VERSION, context: 'mobile-ios' })
+        .query({
+          sdk: '2.1.6',
+          controller: CONTROLLER_VERSION,
+          context: 'mobile-ios',
+        })
         .reply(200, 'us-tx');
       const { service } = getService();
 
@@ -405,7 +447,11 @@ describe('RampsService', () => {
         .reply(200, mockCountriesResponse);
       nock('https://on-ramp.uat-api.cx.metamask.io')
         .get('/geolocation')
-        .query({ sdk: '2.1.6', controller: CONTROLLER_VERSION, context: 'mobile-ios' })
+        .query({
+          sdk: '2.1.6',
+          controller: CONTROLLER_VERSION,
+          context: 'mobile-ios',
+        })
         .reply(200, 'us');
       const { rootMessenger } = getService();
 
@@ -560,7 +606,10 @@ describe('RampsService', () => {
         clock.nextAsync().catch(() => undefined);
       });
 
-      const countriesPromise = rootMessenger.call('RampsService:getCountries', 'buy');
+      const countriesPromise = rootMessenger.call(
+        'RampsService:getCountries',
+        'buy',
+      );
       await clock.runAllAsync();
       await flushPromises();
       await expect(countriesPromise).rejects.toThrow(
@@ -580,10 +629,15 @@ describe('RampsService', () => {
         .reply(200, () => null);
       const { rootMessenger } = getService();
 
-      const countriesPromise = rootMessenger.call('RampsService:getCountries', 'buy');
+      const countriesPromise = rootMessenger.call(
+        'RampsService:getCountries',
+        'buy',
+      );
       await clock.runAllAsync();
       await flushPromises();
-      await expect(countriesPromise).rejects.toThrow('Malformed response received from countries API');
+      await expect(countriesPromise).rejects.toThrow(
+        'Malformed response received from countries API',
+      );
     });
 
     it('throws if the API returns an object instead of an array', async () => {
@@ -598,10 +652,15 @@ describe('RampsService', () => {
         .reply(200, { error: 'Something went wrong' });
       const { rootMessenger } = getService();
 
-      const countriesPromise = rootMessenger.call('RampsService:getCountries', 'buy');
+      const countriesPromise = rootMessenger.call(
+        'RampsService:getCountries',
+        'buy',
+      );
       await clock.runAllAsync();
       await flushPromises();
-      await expect(countriesPromise).rejects.toThrow('Malformed response received from countries API');
+      await expect(countriesPromise).rejects.toThrow(
+        'Malformed response received from countries API',
+      );
     });
   });
 
@@ -711,7 +770,11 @@ describe('RampsService', () => {
         .reply(200, mockCountries);
       nock('https://on-ramp.uat-api.cx.metamask.io')
         .get('/geolocation')
-        .query({ sdk: '2.1.6', controller: CONTROLLER_VERSION, context: 'mobile-ios' })
+        .query({
+          sdk: '2.1.6',
+          controller: CONTROLLER_VERSION,
+          context: 'mobile-ios',
+        })
         .reply(200, 'us');
       const { service } = getService();
 
@@ -760,7 +823,11 @@ describe('RampsService', () => {
         .reply(200, mockCountries);
       nock('https://on-ramp.uat-api.cx.metamask.io')
         .get('/geolocation')
-        .query({ sdk: '2.1.6', controller: CONTROLLER_VERSION, context: 'mobile-ios' })
+        .query({
+          sdk: '2.1.6',
+          controller: CONTROLLER_VERSION,
+          context: 'mobile-ios',
+        })
         .reply(200, 'us');
       const { service } = getService();
 
