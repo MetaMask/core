@@ -7,9 +7,9 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
-### Added 
+### Added
 
-- Add optional `error` field to `wallet_getCallsStatus` response when statusCode is 500 (REVERTED) ([#7566](https://github.com/MetaMask/core/pull/7566))
+- Add optional `error` field to `wallet_getCallsStatus` response when statusCode is 500 (REVERTED) ([#7568](https://github.com/MetaMask/core/pull/7568))
 
 ### Changed
 

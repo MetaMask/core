@@ -1,7 +1,6 @@
 import { JsonRpcError } from '@metamask/rpc-errors';
 import type {
   Log,
-  TransactionError,
   TransactionMeta,
   TransactionReceipt,
 } from '@metamask/transaction-controller';
@@ -35,7 +34,7 @@ export function getCallsStatus(
   }
 
   const transaction = transactions[0];
-  const { chainId, txReceipt: rawTxReceipt, error } = transaction;
+  const { chainId, txReceipt: rawTxReceipt } = transaction;
   const status = getStatusCode(transaction);
   const txReceipt = rawTxReceipt as Required<TransactionReceipt> | undefined;
   const logs = (txReceipt?.logs ?? []) as Required<Log>[];
