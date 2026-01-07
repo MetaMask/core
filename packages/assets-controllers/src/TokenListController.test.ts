@@ -30,6 +30,8 @@ import {
   buildInfuraNetworkClientConfiguration,
   buildMockGetNetworkClientById,
 } from '../../network-controller/tests/helpers';
+import { MOCK_ETHEREUM_TOKENS_METADATA } from './__fixtures__/tokens-api-mocks';
+import { clone } from 'lodash';
 
 const namespace = 'TokenListController';
 const timestamp = Date.now();
@@ -234,7 +236,6 @@ const sampleSepoliaTokenList = [
     name: 'Wrapped BTC',
     iconUrl:
       'https://static.cx.metamask.io/api/v1/tokenIcons/11155111/0x2260fac5e5542a773aa44fbcfedf7c193bc2c599.png',
-    type: 'erc20',
     aggregators: [
       'Metamask',
       'Aave',
@@ -253,10 +254,6 @@ const sampleSepoliaTokenList = [
       'Coinmarketcap',
     ],
     occurrences: 15,
-    fees: {},
-    storage: {
-      balance: 0,
-    },
   },
   {
     address: '0x04fa0d235c4abf4bcf4787af4cf447de572ef828',
@@ -265,7 +262,6 @@ const sampleSepoliaTokenList = [
     name: 'UMA',
     iconUrl:
       'https://static.cx.metamask.io/api/v1/tokenIcons/11155111/0x04fa0d235c4abf4bcf4787af4cf447de572ef828.png',
-    type: 'erc20',
     aggregators: [
       'Metamask',
       'Bancor',
@@ -282,7 +278,6 @@ const sampleSepoliaTokenList = [
       'Coinmarketcap',
     ],
     occurrences: 13,
-    fees: {},
   },
   {
     address: '0x6810e776880c02933d47db1b9fc05908e5386b96',
@@ -291,7 +286,6 @@ const sampleSepoliaTokenList = [
     name: 'Gnosis Token',
     iconUrl:
       'https://static.cx.metamask.io/api/v1/tokenIcons/11155111/0x6810e776880c02933d47db1b9fc05908e5386b96.png',
-    type: 'erc20',
     aggregators: [
       'Metamask',
       'Bancor',
@@ -307,9 +301,43 @@ const sampleSepoliaTokenList = [
       'Coinmarketcap',
     ],
     occurrences: 12,
-    fees: {},
   },
 ];
+
+const createNockEndpoint = (
+  chainId: number,
+  opts?: {
+    nockIntercept?: (
+      intercept: nock.Interceptor,
+    ) => nock.Interceptor | nock.Scope;
+    queryParams?: Record<string, string>;
+    response?: unknown;
+  },
+): nock.Scope => {
+  const nockPartial = nock(tokenService.TOKENS_END_POINT_API)
+    .get(`/tokens/${chainId}`)
+    .query({
+      occurrenceFloor: '3',
+      includeTokenFees: 'false',
+      includeAssetType: 'false',
+      includeERC20Permit: 'false',
+      includeStorage: 'false',
+      includeAggregators: 'true',
+      includeOccurrences: 'true',
+      includeIconUrl: 'true',
+      includeRwaData: 'true',
+      first: '3000',
+      ...opts?.queryParams,
+    });
+
+  const finalNock = opts?.nockIntercept?.(nockPartial) ?? nockPartial;
+
+  return 'isDone' in finalNock
+    ? finalNock
+    : finalNock
+        .reply(200, opts?.response ?? MOCK_ETHEREUM_TOKENS_METADATA)
+        .persist();
+};
 
 const sampleSepoliaTokensChainCache =
   sampleSepoliaTokenList.reduce<TokenListMap>((output, current) => {
@@ -606,10 +634,14 @@ describe('TokenListController', () => {
   });
 
   it('should update tokensChainsCache state when network updates are passed via onNetworkStateChange callback', async () => {
-    nock(tokenService.TOKEN_END_POINT_API)
-      .get(getTokensPath(ChainId.mainnet))
-      .reply(200, sampleMainnetTokenList)
-      .persist();
+    const mainnetEndpointResponse = clone(MOCK_ETHEREUM_TOKENS_METADATA);
+    mainnetEndpointResponse.data = sampleMainnetTokenList;
+    const mainnetEndpoint = createNockEndpoint(
+      convertHexToDecimal(ChainId.mainnet),
+      {
+        response: mainnetEndpointResponse,
+      },
+    );
 
     jest.spyOn(Date, 'now').mockImplementation(() => 100);
     const selectedNetworkClientId = 'selectedNetworkClientId';
@@ -718,6 +750,7 @@ describe('TokenListController', () => {
       },
       '0x539': { timestamp: 100, data: {} },
     });
+    expect(mainnetEndpoint.isDone()).toBe(true);
     controller.destroy();
   });
 
@@ -851,10 +884,14 @@ describe('TokenListController', () => {
   });
 
   it('should update tokensChainsCache from api', async () => {
-    nock(tokenService.TOKEN_END_POINT_API)
-      .get(getTokensPath(ChainId.mainnet))
-      .reply(200, sampleMainnetTokenList)
-      .persist();
+    const mainnetEndpointResponse = clone(MOCK_ETHEREUM_TOKENS_METADATA);
+    mainnetEndpointResponse.data = sampleMainnetTokenList;
+    const mainnetEndpoint = createNockEndpoint(
+      convertHexToDecimal(ChainId.mainnet),
+      {
+        response: mainnetEndpointResponse,
+      },
+    );
 
     const messenger = getMessenger();
     const restrictedMessenger = getRestrictedMessenger(messenger);
@@ -879,6 +916,7 @@ describe('TokenListController', () => {
       ).toBeGreaterThanOrEqual(
         sampleSingleChainState.tokensChainsCache[ChainId.mainnet].timestamp,
       );
+      expect(mainnetEndpoint.isDone()).toBe(true);
       controller.destroy();
     } finally {
       controller.destroy();
@@ -939,10 +977,14 @@ describe('TokenListController', () => {
   });
 
   it('should update the cache when the timestamp expires', async () => {
-    nock(tokenService.TOKEN_END_POINT_API)
-      .get(getTokensPath(ChainId.mainnet))
-      .reply(200, sampleMainnetTokenList)
-      .persist();
+    const mainnetEndpointResponse = clone(MOCK_ETHEREUM_TOKENS_METADATA);
+    mainnetEndpointResponse.data = sampleMainnetTokenList;
+    const mainnetEndpoint = createNockEndpoint(
+      convertHexToDecimal(ChainId.mainnet),
+      {
+        response: mainnetEndpointResponse,
+      },
+    );
 
     const messenger = getMessenger();
     const restrictedMessenger = getRestrictedMessenger(messenger);
@@ -965,22 +1007,46 @@ describe('TokenListController', () => {
     ).toStrictEqual(
       sampleSingleChainState.tokensChainsCache[ChainId.mainnet].data,
     );
+    expect(mainnetEndpoint.isDone()).toBe(true);
     controller.destroy();
   });
 
   it('should update tokensChainsCache when the chainId change', async () => {
-    nock(tokenService.TOKEN_END_POINT_API)
-      .get(getTokensPath(ChainId.mainnet))
-      .reply(200, sampleMainnetTokenList)
-      .get(getTokensPath(ChainId.sepolia))
-      .reply(200, {
-        error: `ChainId ${convertHexToDecimal(
-          ChainId.sepolia,
-        )} is not supported`,
-      })
-      .get(getTokensPath(toHex(56)))
-      .reply(200, sampleBinanceTokenList)
-      .persist();
+    const sepoliaEndpoint = createNockEndpoint(
+      convertHexToDecimal(ChainId.sepolia),
+      {
+        nockIntercept: (intercept) =>
+          intercept.reply(200, {
+            error: `ChainId ${convertHexToDecimal(
+              ChainId.sepolia,
+            )} is not supported`,
+          }),
+      },
+    );
+    const binanceEndpointResponse = clone(MOCK_ETHEREUM_TOKENS_METADATA);
+    binanceEndpointResponse.data = sampleBinanceTokenList;
+    const binanceEndpoint = createNockEndpoint(56, {
+      response: binanceEndpointResponse,
+    });
+
+    type Endpoint = 'sepolia' | 'binance';
+    const assertEndpointCalls = (opts: {
+      done: Endpoint[];
+      notDone: Endpoint[];
+    }): void => {
+      const endpointMap = {
+        sepolia: sepoliaEndpoint,
+        binance: binanceEndpoint,
+      };
+
+      opts.done.forEach((endpoint) => {
+        expect(endpointMap[endpoint].isDone()).toBe(true);
+      });
+      opts.notDone.forEach((endpoint) => {
+        expect(endpointMap[endpoint].isDone()).toBe(false);
+      });
+    };
+
     const selectedCustomNetworkClientId = 'selectedCustomNetworkClientId';
     const messenger = getMessenger();
     const getNetworkClientById = buildMockGetNetworkClientById({
@@ -1012,6 +1078,7 @@ describe('TokenListController', () => {
       sampleTwoChainState.tokensChainsCache[ChainId.mainnet].data,
     );
 
+    // Change to sepolia
     messenger.publish(
       'NetworkController:stateChange',
       {
@@ -1032,6 +1099,8 @@ describe('TokenListController', () => {
       sampleTwoChainState.tokensChainsCache[ChainId.mainnet].data,
     );
 
+    assertEndpointCalls({ done: ['sepolia'], notDone: ['binance'] });
+
     messenger.publish(
       'NetworkController:stateChange',
       {
@@ -1051,6 +1120,8 @@ describe('TokenListController', () => {
     ).toStrictEqual(
       sampleTwoChainState.tokensChainsCache[ChainId.mainnet].data,
     );
+
+    assertEndpointCalls({ done: ['sepolia', 'binance'], notDone: [] });
 
     expect(controller.state.tokensChainsCache[toHex(56)].data).toStrictEqual(
       sampleTwoChainState.tokensChainsCache[toHex(56)].data,

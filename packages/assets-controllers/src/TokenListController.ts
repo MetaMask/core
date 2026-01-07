@@ -328,8 +328,11 @@ export class TokenListController extends StaticIntervalPollingController<TokenLi
                 chainId,
                 tokenAddress: token.address,
               }),
-            rwaData: token.rwaData,
           };
+
+          if (token.rwaData) {
+            tokenList[token.address].rwaData = token.rwaData;
+          }
         }
 
         this.update((state) => {
