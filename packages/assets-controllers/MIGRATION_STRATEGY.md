@@ -237,16 +237,7 @@ Because dual-write is active, legacy state is always fresh.
 
 ---
 
-## Monitoring & Alerts
-
-### Key Metrics
-
-| Metric | Threshold | Action |
-|--------|-----------|--------|
-| Balance discrepancy rate | > 0.1% | Pause rollout |
-| Read latency increase | > 20ms | Investigate |
-| State size increase | > 50% | Optimize |
-| Error rate | > 0.01% | Rollback |
+## Monitoring
 
 ### Logging
 
