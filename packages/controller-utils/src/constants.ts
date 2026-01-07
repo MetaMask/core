@@ -65,7 +65,7 @@ export const BUILT_IN_CUSTOM_NETWORKS_RPC = {
    * @deprecated Please use `megaeth-testnet-v2` instead.
    */
   'megaeth-testnet': 'https://carrot.megaeth.com/rpc',
-  'megaeth-testnet-v2': 'https://timothy.megaeth.com/rpc',
+  'megaeth-testnet-v2': 'https://carrot.megaeth.com/rpc',
   'monad-testnet': 'https://testnet-rpc.monad.xyz',
 };
 
