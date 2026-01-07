@@ -7,23 +7,6 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
-### Uncategorized
-
-- chore: Notification controller eslint cleanup ([#7479](https://github.com/MetaMask/core/pull/7479))
-- chore: Notification controller eslint cleanup ([#7484](https://github.com/MetaMask/core/pull/7484))
-- chore: Notification controller eslint cleanup ([#7486](https://github.com/MetaMask/core/pull/7486))
-- chore: Notification services controller lint cleanup ([#7481](https://github.com/MetaMask/core/pull/7481))
-- chore: Notification controller eslint cleanup ([#7483](https://github.com/MetaMask/core/pull/7483))
-- chore: Notification services eslint cleanup ([#7485](https://github.com/MetaMask/core/pull/7485))
-- chore: Notification services controller lint cleanup ([#7487](https://github.com/MetaMask/core/pull/7487))
-- chore: Notification services eslint cleanup ([#7482](https://github.com/MetaMask/core/pull/7482))
-- chore: Notification services eslint cleanup ([#7480](https://github.com/MetaMask/core/pull/7480))
-- chore: Notification controller eslint cleanup ([#7478](https://github.com/MetaMask/core/pull/7478))
-- chore: Notification controller return types ([#7477](https://github.com/MetaMask/core/pull/7477))
-- chore: Re-enable `@typescript-eslint/prefer-optional-chain` ([#7314](https://github.com/MetaMask/core/pull/7314))
-- chore: Update ESLint config packages to v15 ([#7305](https://github.com/MetaMask/core/pull/7305))
-- chore: Re-enable `@typescript-eslint/no-unnecessary-type-assertions` ([#7296](https://github.com/MetaMask/core/pull/7296))
-
 ### Changed
 
 - Upgrade `@metamask/utils` from `^11.8.1` to `^11.9.0` ([#7511](https://github.com/MetaMask/core/pull/7511))
