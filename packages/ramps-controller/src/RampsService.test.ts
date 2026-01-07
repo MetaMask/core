@@ -10,6 +10,10 @@ import type { SinonFakeTimers } from 'sinon';
 
 import type { RampsServiceMessenger } from './RampsService';
 import { RampsService, RampsEnvironment } from './RampsService';
+import { flushPromises } from '../../../tests/helpers';
+import packageJson from '../package.json';
+
+const CONTROLLER_VERSION = packageJson.version;
 
 describe('RampsService', () => {
   let clock: SinonFakeTimers;
@@ -26,13 +30,20 @@ describe('RampsService', () => {
     it('returns the geolocation from the API', async () => {
       nock('https://on-ramp.uat-api.cx.metamask.io')
         .get('/geolocation')
-        .query({ sdk: '2.1.6', controller: '2.0.0', context: 'mobile-ios' })
+        .query({
+          sdk: '2.1.6',
+          controller: CONTROLLER_VERSION,
+          context: 'mobile-ios',
+        })
         .reply(200, 'us-tx');
       const { rootMessenger } = getService();
 
-      const geolocationResponse = await rootMessenger.call(
+      const geolocationPromise = rootMessenger.call(
         'RampsService:getGeolocation',
       );
+      await clock.runAllAsync();
+      await flushPromises();
+      const geolocationResponse = await geolocationPromise;
 
       expect(geolocationResponse).toBe('us-tx');
     });
@@ -40,15 +51,22 @@ describe('RampsService', () => {
     it('uses the production URL when environment is Production', async () => {
       nock('https://on-ramp.api.cx.metamask.io')
         .get('/geolocation')
-        .query({ sdk: '2.1.6', controller: '2.0.0', context: 'mobile-ios' })
+        .query({
+          sdk: '2.1.6',
+          controller: CONTROLLER_VERSION,
+          context: 'mobile-ios',
+        })
         .reply(200, 'us-tx');
       const { rootMessenger } = getService({
         options: { environment: RampsEnvironment.Production },
       });
 
-      const geolocationResponse = await rootMessenger.call(
+      const geolocationPromise = rootMessenger.call(
         'RampsService:getGeolocation',
       );
+      await clock.runAllAsync();
+      await flushPromises();
+      const geolocationResponse = await geolocationPromise;
 
       expect(geolocationResponse).toBe('us-tx');
     });
@@ -56,15 +74,22 @@ describe('RampsService', () => {
     it('uses staging URL when environment is Development', async () => {
       nock('https://on-ramp.uat-api.cx.metamask.io')
         .get('/geolocation')
-        .query({ sdk: '2.1.6', controller: '2.0.0', context: 'mobile-ios' })
+        .query({
+          sdk: '2.1.6',
+          controller: CONTROLLER_VERSION,
+          context: 'mobile-ios',
+        })
         .reply(200, 'us-tx');
       const { rootMessenger } = getService({
         options: { environment: RampsEnvironment.Development },
       });
 
-      const geolocationResponse = await rootMessenger.call(
+      const geolocationPromise = rootMessenger.call(
         'RampsService:getGeolocation',
       );
+      await clock.runAllAsync();
+      await flushPromises();
+      const geolocationResponse = await geolocationPromise;
 
       expect(geolocationResponse).toBe('us-tx');
     });
@@ -72,19 +97,32 @@ describe('RampsService', () => {
     it('throws if the API returns an empty response', async () => {
       nock('https://on-ramp.uat-api.cx.metamask.io')
         .get('/geolocation')
-        .query({ sdk: '2.1.6', controller: '2.0.0', context: 'mobile-ios' })
+        .query({
+          sdk: '2.1.6',
+          controller: CONTROLLER_VERSION,
+          context: 'mobile-ios',
+        })
         .reply(200, '');
       const { rootMessenger } = getService();
 
-      await expect(
-        rootMessenger.call('RampsService:getGeolocation'),
-      ).rejects.toThrow('Malformed response received from geolocation API');
+      const geolocationPromise = rootMessenger.call(
+        'RampsService:getGeolocation',
+      );
+      await clock.runAllAsync();
+      await flushPromises();
+      await expect(geolocationPromise).rejects.toThrow(
+        'Malformed response received from geolocation API',
+      );
     });
 
     it('throws when primary API fails', async () => {
       nock('https://on-ramp.uat-api.cx.metamask.io')
         .get('/geolocation')
-        .query({ sdk: '2.1.6', controller: '2.0.0', context: 'mobile-ios' })
+        .query({
+          sdk: '2.1.6',
+          controller: CONTROLLER_VERSION,
+          context: 'mobile-ios',
+        })
         .times(4)
         .reply(500, 'Internal Server Error');
       const { service, rootMessenger } = getService();
@@ -92,34 +130,56 @@ describe('RampsService', () => {
         clock.nextAsync().catch(() => undefined);
       });
 
-      await expect(
-        rootMessenger.call('RampsService:getGeolocation'),
-      ).rejects.toThrow(
-        "Fetching 'https://on-ramp.uat-api.cx.metamask.io/geolocation?sdk=2.1.6&controller=2.0.0&context=mobile-ios' failed with status '500'",
+      const geolocationPromise = rootMessenger.call(
+        'RampsService:getGeolocation',
+      );
+      await clock.runAllAsync();
+      await flushPromises();
+      await expect(geolocationPromise).rejects.toThrow(
+        `Fetching 'https://on-ramp.uat-api.cx.metamask.io/geolocation?sdk=2.1.6&controller=${CONTROLLER_VERSION}&context=mobile-ios' failed with status '500'`,
       );
     });
 
     it('calls onDegraded listeners if the request takes longer than 5 seconds to resolve', async () => {
       nock('https://on-ramp.uat-api.cx.metamask.io')
         .get('/geolocation')
-        .query({ sdk: '2.1.6', controller: '2.0.0', context: 'mobile-ios' })
+        .query({
+          sdk: '2.1.6',
+          controller: CONTROLLER_VERSION,
+          context: 'mobile-ios',
+        })
         .reply(200, () => {
-          clock.tick(6000);
-          return 'US-TX';
+          return new Promise<string>((resolve) => {
+            setTimeout(() => {
+              resolve('US-TX');
+            }, 6000);
+          });
         });
       const { service, rootMessenger } = getService();
       const onDegradedListener = jest.fn();
       service.onDegraded(onDegradedListener);
 
-      await rootMessenger.call('RampsService:getGeolocation');
+      const geolocationPromise = rootMessenger.call(
+        'RampsService:getGeolocation',
+      );
+      await clock.tickAsync(6000);
+      await flushPromises();
+      await clock.runAllAsync();
+      await flushPromises();
+      const geolocationResponse = await geolocationPromise;
 
       expect(onDegradedListener).toHaveBeenCalled();
+      expect(geolocationResponse).toBe('US-TX');
     });
 
     it('attempts a request that responds with non-200 up to 4 times, throwing if it never succeeds', async () => {
       nock('https://on-ramp.uat-api.cx.metamask.io')
         .get('/geolocation')
-        .query({ sdk: '2.1.6', controller: '2.0.0', context: 'mobile-ios' })
+        .query({
+          sdk: '2.1.6',
+          controller: CONTROLLER_VERSION,
+          context: 'mobile-ios',
+        })
         .times(4)
         .reply(500);
       const { service, rootMessenger } = getService();
@@ -127,10 +187,13 @@ describe('RampsService', () => {
         clock.nextAsync().catch(() => undefined);
       });
 
-      await expect(
-        rootMessenger.call('RampsService:getGeolocation'),
-      ).rejects.toThrow(
-        "Fetching 'https://on-ramp.uat-api.cx.metamask.io/geolocation?sdk=2.1.6&controller=2.0.0&context=mobile-ios' failed with status '500'",
+      const geolocationPromise = rootMessenger.call(
+        'RampsService:getGeolocation',
+      );
+      await clock.runAllAsync();
+      await flushPromises();
+      await expect(geolocationPromise).rejects.toThrow(
+        `Fetching 'https://on-ramp.uat-api.cx.metamask.io/geolocation?sdk=2.1.6&controller=${CONTROLLER_VERSION}&context=mobile-ios' failed with status '500'`,
       );
     });
 
@@ -164,11 +227,18 @@ describe('RampsService', () => {
     it('does the same thing as the messenger action', async () => {
       nock('https://on-ramp.uat-api.cx.metamask.io')
         .get('/geolocation')
-        .query({ sdk: '2.1.6', controller: '2.0.0', context: 'mobile-ios' })
+        .query({
+          sdk: '2.1.6',
+          controller: CONTROLLER_VERSION,
+          context: 'mobile-ios',
+        })
         .reply(200, 'us-tx');
       const { service } = getService();
 
-      const geolocationResponse = await service.getGeolocation();
+      const geolocationPromise = service.getGeolocation();
+      await clock.runAllAsync();
+      await flushPromises();
+      const geolocationResponse = await geolocationPromise;
 
       expect(geolocationResponse).toBe('us-tx');
     });
@@ -209,16 +279,19 @@ describe('RampsService', () => {
         .query({
           action: 'buy',
           sdk: '2.1.6',
-          controller: '2.0.0',
+          controller: CONTROLLER_VERSION,
           context: 'mobile-ios',
         })
         .reply(200, mockCountriesResponse);
       const { rootMessenger } = getService();
 
-      const countriesResponse = await rootMessenger.call(
+      const countriesPromise = rootMessenger.call(
         'RampsService:getCountries',
         'buy',
       );
+      await clock.runAllAsync();
+      await flushPromises();
+      const countriesResponse = await countriesPromise;
 
       expect(countriesResponse).toMatchInlineSnapshot(`
         Array [
@@ -257,7 +330,7 @@ describe('RampsService', () => {
         .query({
           action: 'buy',
           sdk: '2.1.6',
-          controller: '2.0.0',
+          controller: CONTROLLER_VERSION,
           context: 'mobile-ios',
         })
         .reply(200, mockCountriesResponse);
@@ -265,10 +338,13 @@ describe('RampsService', () => {
         options: { environment: RampsEnvironment.Production },
       });
 
-      const countriesResponse = await rootMessenger.call(
+      const countriesPromise = rootMessenger.call(
         'RampsService:getCountries',
         'buy',
       );
+      await clock.runAllAsync();
+      await flushPromises();
+      const countriesResponse = await countriesPromise;
 
       expect(countriesResponse).toMatchInlineSnapshot(`
         Array [
@@ -307,7 +383,7 @@ describe('RampsService', () => {
         .query({
           action: 'buy',
           sdk: '2.1.6',
-          controller: '2.0.0',
+          controller: CONTROLLER_VERSION,
           context: 'mobile-ios',
         })
         .reply(200, mockCountriesResponse);
@@ -315,10 +391,13 @@ describe('RampsService', () => {
         options: { environment: RampsEnvironment.Development },
       });
 
-      const countriesResponse = await rootMessenger.call(
+      const countriesPromise = rootMessenger.call(
         'RampsService:getCountries',
         'buy',
       );
+      await clock.runAllAsync();
+      await flushPromises();
+      const countriesResponse = await countriesPromise;
 
       expect(countriesResponse).toMatchInlineSnapshot(`
         Array [
@@ -357,20 +436,27 @@ describe('RampsService', () => {
         .query({
           action: 'sell',
           sdk: '2.1.6',
-          controller: '2.0.0',
+          controller: CONTROLLER_VERSION,
           context: 'mobile-ios',
         })
         .reply(200, mockCountriesResponse);
       nock('https://on-ramp.uat-api.cx.metamask.io')
         .get('/geolocation')
-        .query({ sdk: '2.1.6', controller: '2.0.0', context: 'mobile-ios' })
+        .query({
+          sdk: '2.1.6',
+          controller: CONTROLLER_VERSION,
+          context: 'mobile-ios',
+        })
         .reply(200, 'us');
       const { rootMessenger } = getService();
 
-      const countriesResponse = await rootMessenger.call(
+      const countriesPromise = rootMessenger.call(
         'RampsService:getCountries',
         'sell',
       );
+      await clock.runAllAsync();
+      await flushPromises();
+      const countriesResponse = await countriesPromise;
 
       expect(countriesResponse).toMatchInlineSnapshot(`
         Array [
@@ -434,13 +520,16 @@ describe('RampsService', () => {
         .query({
           action: 'sell',
           sdk: '2.1.6',
-          controller: '2.0.0',
+          controller: CONTROLLER_VERSION,
           context: 'mobile-ios',
         })
         .reply(200, mockCountriesWithUnsupportedCountry);
       const { service } = getService();
 
-      const countriesResponse = await service.getCountries('sell');
+      const countriesPromise = service.getCountries('sell');
+      await clock.runAllAsync();
+      await flushPromises();
+      const countriesResponse = await countriesPromise;
 
       expect(countriesResponse).toHaveLength(1);
       expect(countriesResponse[0]?.isoCode).toBe('US');
@@ -479,13 +568,16 @@ describe('RampsService', () => {
         .query({
           action: 'buy',
           sdk: '2.1.6',
-          controller: '2.0.0',
+          controller: CONTROLLER_VERSION,
           context: 'mobile-ios',
         })
         .reply(200, mockCountriesWithUnsupportedCountry);
       const { service } = getService();
 
-      const countriesResponse = await service.getCountries('buy');
+      const countriesPromise = service.getCountries('buy');
+      await clock.runAllAsync();
+      await flushPromises();
+      const countriesResponse = await countriesPromise;
 
       expect(countriesResponse).toHaveLength(1);
       expect(countriesResponse[0]?.isoCode).toBe('US');
@@ -499,7 +591,7 @@ describe('RampsService', () => {
         .query({
           action: 'buy',
           sdk: '2.1.6',
-          controller: '2.0.0',
+          controller: CONTROLLER_VERSION,
           context: 'mobile-ios',
         })
         .times(4)
@@ -509,10 +601,14 @@ describe('RampsService', () => {
         clock.nextAsync().catch(() => undefined);
       });
 
-      await expect(
-        rootMessenger.call('RampsService:getCountries', 'buy'),
-      ).rejects.toThrow(
-        "Fetching 'https://on-ramp-cache.uat-api.cx.metamask.io/regions/countries?action=buy&sdk=2.1.6&controller=2.0.0&context=mobile-ios' failed with status '500'",
+      const countriesPromise = rootMessenger.call(
+        'RampsService:getCountries',
+        'buy',
+      );
+      await clock.runAllAsync();
+      await flushPromises();
+      await expect(countriesPromise).rejects.toThrow(
+        `Fetching 'https://on-ramp-cache.uat-api.cx.metamask.io/regions/countries?action=buy&sdk=2.1.6&controller=${CONTROLLER_VERSION}&context=mobile-ios' failed with status '500'`,
       );
     });
 
@@ -522,15 +618,21 @@ describe('RampsService', () => {
         .query({
           action: 'buy',
           sdk: '2.1.6',
-          controller: '2.0.0',
+          controller: CONTROLLER_VERSION,
           context: 'mobile-ios',
         })
         .reply(200, () => null);
       const { rootMessenger } = getService();
 
-      await expect(
-        rootMessenger.call('RampsService:getCountries', 'buy'),
-      ).rejects.toThrow('Malformed response received from countries API');
+      const countriesPromise = rootMessenger.call(
+        'RampsService:getCountries',
+        'buy',
+      );
+      await clock.runAllAsync();
+      await flushPromises();
+      await expect(countriesPromise).rejects.toThrow(
+        'Malformed response received from countries API',
+      );
     });
 
     it('throws if the API returns an object instead of an array', async () => {
@@ -539,15 +641,21 @@ describe('RampsService', () => {
         .query({
           action: 'buy',
           sdk: '2.1.6',
-          controller: '2.0.0',
+          controller: CONTROLLER_VERSION,
           context: 'mobile-ios',
         })
         .reply(200, { error: 'Something went wrong' });
       const { rootMessenger } = getService();
 
-      await expect(
-        rootMessenger.call('RampsService:getCountries', 'buy'),
-      ).rejects.toThrow('Malformed response received from countries API');
+      const countriesPromise = rootMessenger.call(
+        'RampsService:getCountries',
+        'buy',
+      );
+      await clock.runAllAsync();
+      await flushPromises();
+      await expect(countriesPromise).rejects.toThrow(
+        'Malformed response received from countries API',
+      );
     });
   });
 
@@ -557,7 +665,7 @@ describe('RampsService', () => {
         .get('/regions/countries/fr')
         .query({
           sdk: '2.1.6',
-          controller: '2.0.0',
+          controller: CONTROLLER_VERSION,
           context: 'mobile-ios',
         })
         .reply(200, {
@@ -567,7 +675,10 @@ describe('RampsService', () => {
         });
       const { service } = getService();
 
-      const eligibility = await service.getEligibility('fr');
+      const eligibilityPromise = service.getEligibility('fr');
+      await clock.runAllAsync();
+      await flushPromises();
+      const eligibility = await eligibilityPromise;
 
       expect(eligibility).toStrictEqual({
         aggregator: true,
@@ -581,7 +692,7 @@ describe('RampsService', () => {
         .get('/regions/countries/us-ny')
         .query({
           sdk: '2.1.6',
-          controller: '2.0.0',
+          controller: CONTROLLER_VERSION,
           context: 'mobile-ios',
         })
         .reply(200, {
@@ -591,7 +702,10 @@ describe('RampsService', () => {
         });
       const { service } = getService();
 
-      const eligibility = await service.getEligibility('us-ny');
+      const eligibilityPromise = service.getEligibility('us-ny');
+      await clock.runAllAsync();
+      await flushPromises();
+      const eligibility = await eligibilityPromise;
 
       expect(eligibility).toStrictEqual({
         aggregator: false,
@@ -605,7 +719,7 @@ describe('RampsService', () => {
         .get('/regions/countries/fr')
         .query({
           sdk: '2.1.6',
-          controller: '2.0.0',
+          controller: CONTROLLER_VERSION,
           context: 'mobile-ios',
         })
         .reply(200, {
@@ -615,7 +729,10 @@ describe('RampsService', () => {
         });
       const { service } = getService();
 
-      const eligibility = await service.getEligibility('FR');
+      const eligibilityPromise = service.getEligibility('FR');
+      await clock.runAllAsync();
+      await flushPromises();
+      const eligibility = await eligibilityPromise;
 
       expect(eligibility).toStrictEqual({
         aggregator: true,
@@ -642,17 +759,24 @@ describe('RampsService', () => {
         .query({
           action: 'buy',
           sdk: '2.1.6',
-          controller: '2.0.0',
+          controller: CONTROLLER_VERSION,
           context: 'mobile-ios',
         })
         .reply(200, mockCountries);
       nock('https://on-ramp.uat-api.cx.metamask.io')
         .get('/geolocation')
-        .query({ sdk: '2.1.6', controller: '2.0.0', context: 'mobile-ios' })
+        .query({
+          sdk: '2.1.6',
+          controller: CONTROLLER_VERSION,
+          context: 'mobile-ios',
+        })
         .reply(200, 'us');
       const { service } = getService();
 
-      const countriesResponse = await service.getCountries('buy');
+      const countriesPromise = service.getCountries('buy');
+      await clock.runAllAsync();
+      await flushPromises();
+      const countriesResponse = await countriesPromise;
 
       expect(countriesResponse).toMatchInlineSnapshot(`
         Array [
@@ -688,17 +812,24 @@ describe('RampsService', () => {
         .query({
           action: 'buy',
           sdk: '2.1.6',
-          controller: '2.0.0',
+          controller: CONTROLLER_VERSION,
           context: 'mobile-ios',
         })
         .reply(200, mockCountries);
       nock('https://on-ramp.uat-api.cx.metamask.io')
         .get('/geolocation')
-        .query({ sdk: '2.1.6', controller: '2.0.0', context: 'mobile-ios' })
+        .query({
+          sdk: '2.1.6',
+          controller: CONTROLLER_VERSION,
+          context: 'mobile-ios',
+        })
         .reply(200, 'us');
       const { service } = getService();
 
-      const countriesResponse = await service.getCountries();
+      const countriesPromise = service.getCountries();
+      await clock.runAllAsync();
+      await flushPromises();
+      const countriesResponse = await countriesPromise;
 
       expect(countriesResponse[0]?.isoCode).toBe('US');
     });
@@ -738,13 +869,16 @@ describe('RampsService', () => {
         .query({
           action: 'buy',
           sdk: '2.1.6',
-          controller: '2.0.0',
+          controller: CONTROLLER_VERSION,
           context: 'mobile-ios',
         })
         .reply(200, mockCountriesWithStates);
       const { service } = getService();
 
-      const countriesResponse = await service.getCountries('buy');
+      const countriesPromise = service.getCountries('buy');
+      await clock.runAllAsync();
+      await flushPromises();
+      const countriesResponse = await countriesPromise;
 
       expect(countriesResponse[0]?.supported).toBe(true);
       expect(countriesResponse[0]?.states?.[0]?.supported).toBe(true);
@@ -776,13 +910,16 @@ describe('RampsService', () => {
         .query({
           action: 'buy',
           sdk: '2.1.6',
-          controller: '2.0.0',
+          controller: CONTROLLER_VERSION,
           context: 'mobile-ios',
         })
         .reply(200, mockCountries);
       const { service } = getService();
 
-      const countriesResponse = await service.getCountries('buy');
+      const countriesPromise = service.getCountries('buy');
+      await clock.runAllAsync();
+      await flushPromises();
+      const countriesResponse = await countriesPromise;
 
       expect(countriesResponse[0]?.supported).toBe(true);
       expect(countriesResponse[0]?.states?.[0]?.supported).toBe(true);
