@@ -141,11 +141,6 @@ describe('RampsService', () => {
     });
 
     it('calls onDegraded listeners if the request takes longer than 5 seconds to resolve', async () => {
-      let resolveDelayedResponse: () => void;
-      const delayedResponsePromise = new Promise<void>((resolve) => {
-        resolveDelayedResponse = resolve;
-      });
-
       nock('https://on-ramp.uat-api.cx.metamask.io')
         .get('/geolocation')
         .query({
