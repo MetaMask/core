@@ -25,7 +25,7 @@ function getTokensURL(chainId: Hex): string {
 
   return `${TOKEN_END_POINT_API}/tokens/${convertHexToDecimal(
     chainId,
-  )}?occurrenceFloor=${occurrenceFloor}&includeNativeAssets=false&includeTokenFees=false&includeAssetType=false&includeERC20Permit=false&includeStorage=false`;
+  )}?occurrenceFloor=${occurrenceFloor}&includeNativeAssets=false&includeTokenFees=false&includeAssetType=false&includeERC20Permit=false&includeStorage=false&includeRwaData=true`;
 }
 
 /**
@@ -38,7 +38,7 @@ function getTokensURL(chainId: Hex): string {
 function getTokenMetadataURL(chainId: Hex, tokenAddress: string): string {
   return `${TOKEN_END_POINT_API}/token/${convertHexToDecimal(
     chainId,
-  )}?address=${tokenAddress}`;
+  )}?address=${tokenAddress}&includeRwaData=true`;
 }
 
 /**
@@ -66,7 +66,7 @@ function getTokenSearchURL(options: {
   query: string;
   limit?: number;
   includeMarketData?: boolean;
-  includeRwaData?: boolean;
+  includeRwaData?: true;
 }): string {
   const { chainIds, query, ...optionalParams } = options;
   const encodedQuery = encodeURIComponent(query);
@@ -120,6 +120,8 @@ function getTrendingTokensURL(options: {
     }
   });
 
+  queryParams.append('includeRwaData', 'true');
+
   // Handle excludeLabels separately to avoid encoding the commas
   // The API expects: excludeLabels=stable_coin,blue_chip (not %2C)
   const excludeLabelsParam =
@@ -159,8 +161,6 @@ export async function fetchTokenListByChainId(
       const filteredResult = result.filter(
         (elm) =>
           elm.aggregators.includes('lineaTeam') ?? elm.aggregators.length >= 3,
-          Boolean(elm.aggregators.includes('lineaTeam')) ||
-          elm.aggregators.length >= 3,
       );
       // TODO: remove this after development is done
       // if the filteredResult has an aggregator that includes 'Ondo' then append rwaData as metadata.
@@ -181,10 +181,10 @@ export async function fetchTokenListByChainId(
             },
           },
         };
-        if (elm.aggregators.includes('Ondo')) {
-          return { ...elm, ...metadata };
-        }
-        return elm;
+        // if (elm.aggregators.includes('Ondo')) {
+        return { ...elm, ...metadata };
+        // }
+        // return elm;
       });
 
       console.log('filteredResult', filteredResult);
@@ -211,10 +211,10 @@ export async function fetchTokenListByChainId(
             },
           },
         };
-        if (elm.aggregators.includes('Ondo')) {
-          return { ...elm, ...metadata };
-        }
-        return elm;
+        // if (elm.aggregators.includes('Ondo')) {
+        return { ...elm, ...metadata };
+        // }
+        // return elm;
       });
 
       console.log('filteredResultWithRwaData', filteredResultWithRwaData);
@@ -279,7 +279,7 @@ export async function searchTokens(
     query,
     limit,
     includeMarketData,
-    includeRwaData,
+    includeRwaData: true,
   });
 
   try {
@@ -465,7 +465,7 @@ export async function fetchTokenMetadata<TReturn>(
         }
         return elm;
       });
-      return filteredResultWithRwaData as unknown as T;
+      return filteredResultWithRwaData as unknown as TReturn;
     }
     return parseJsonResponse(response) as Promise<TReturn>;
   }
