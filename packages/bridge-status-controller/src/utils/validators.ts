@@ -10,8 +10,8 @@ import {
   type,
   assert,
   array,
-  is,
 } from '@metamask/superstruct';
+import { StrictHexStruct } from '@metamask/utils';
 
 const ChainIdSchema = number();
 
@@ -70,26 +70,21 @@ export enum IntentOrderStatus {
   EXPIRED = 'expired',
 }
 
-export type IntentOrder = {
-  id: string;
-  status: IntentOrderStatus;
-  txHash?: string;
-  metadata: {
-    txHashes?: string[] | string;
-  };
-};
-
 export const IntentOrderResponseSchema = type({
   id: string(),
   status: enums(Object.values(IntentOrderStatus)),
-  txHash: optional(string()),
+  txHash: optional(StrictHexStruct),
   metadata: type({
-    txHashes: optional(union([array(string()), string()])),
+    txHashes: optional(union([array(StrictHexStruct), StrictHexStruct])),
   }),
 });
 
+export type IntentOrder = Infer<typeof IntentOrderResponseSchema>;
+
 export const validateIntentOrderResponse = (
   data: unknown,
-): data is Infer<typeof IntentOrderResponseSchema> => {
-  return is(data, IntentOrderResponseSchema);
+  message: string,
+): IntentOrder => {
+  assert(data, IntentOrderResponseSchema, message);
+  return data;
 };

@@ -1,6 +1,9 @@
 /* eslint-disable @typescript-eslint/no-explicit-any */
 import {
+  QuoteMetadata,
+  QuoteResponse,
   StatusTypes,
+  TxData,
   UnifiedSwapBridgeEventName,
 } from '@metamask/bridge-controller';
 import type { TransactionMeta } from '@metamask/transaction-controller';
@@ -21,9 +24,9 @@ type Tx = Pick<TransactionMeta, 'id' | 'status'> & {
 
 const seedIntentHistory = (controller: any): any => {
   controller.update((state: any) => {
-    state.txHistory['intent:1'] = {
-      txMetaId: 'intent:1',
-      originalTransactionId: 'tx1',
+    state.txHistory.tx1 = {
+      txMetaId: 'tx1',
+      intentOrderId: '1',
       quote: {
         srcChainId: 1,
         destChainId: 1,
@@ -38,9 +41,14 @@ const seedIntentHistory = (controller: any): any => {
   });
 };
 
-const minimalIntentQuoteResponse = (overrides?: Partial<any>): any => {
+const minimalIntentQuoteResponse = (
+  overrides?: Partial<QuoteResponse<TxData | string> & QuoteMetadata>,
+): QuoteResponse<TxData | string> & QuoteMetadata => {
   return {
     quote: {
+      bridgeId: 'across',
+      bridges: ['across'],
+      steps: [],
       requestId: 'req-1',
       srcChainId: 1,
       destChainId: 1,
@@ -63,31 +71,86 @@ const minimalIntentQuoteResponse = (overrides?: Partial<any>): any => {
         name: 'ETH',
         decimals: 18,
       },
-      feeData: { txFee: { maxFeePerGas: '1', maxPriorityFeePerGas: '1' } },
+      feeData: {
+        metabridge: {
+          amount: '1',
+          asset: {
+            symbol: 'ETH',
+            chainId: 1,
+            address: '0x0000000000000000000000000000000000000000',
+            assetId: 'eip155:1/slip44:60',
+            name: 'ETH',
+            decimals: 18,
+          },
+        },
+        txFee: {
+          maxFeePerGas: '1',
+          maxPriorityFeePerGas: '1',
+          amount: '1',
+          asset: {
+            symbol: 'ETH',
+            chainId: 1,
+            address: '0x0000000000000000000000000000000000000000',
+            assetId: 'eip155:1/slip44:60',
+            name: 'ETH',
+            decimals: 18,
+          },
+        },
+      },
       intent: {
         protocol: 'cowswap',
-        order: { some: 'order' },
+        order: {
+          sellToken: '0x0000000000000000000000000000000000000000',
+          buyToken: '0x0000000000000000000000000000000000000000',
+          validTo: 1715136000,
+          appData: '0x',
+          appDataHash: '0x',
+          feeAmount: '1',
+          kind: 'sell',
+          partiallyFillable: false,
+          receiver: '0x0000000000000000000000000000000000000000',
+          sellAmount: '1',
+          buyAmount: '1',
+          from: '0x0000000000000000000000000000000000000000',
+        },
         settlementContract: '0x9008D19f58AAbd9eD0D60971565AA8510560ab41',
       },
     },
-    sentAmount: { amount: '1', usd: '1' },
-    gasFee: { effective: { amount: '0', usd: '0' } },
-    toTokenAmount: { usd: '1' },
+    sentAmount: { amount: '1', usd: '1', valueInCurrency: '1' },
+    gasFee: {
+      effective: { amount: '0', usd: '0', valueInCurrency: '0' },
+      total: { amount: '0', usd: '0', valueInCurrency: '0' },
+      max: { amount: '0', usd: '0', valueInCurrency: '0' },
+    },
+    toTokenAmount: { amount: '1', usd: '1', valueInCurrency: '1' },
+    minToTokenAmount: { amount: '1', usd: '1', valueInCurrency: '1' },
+    totalNetworkFee: { amount: '1', usd: '1', valueInCurrency: '1' },
+    totalMaxNetworkFee: { amount: '1', usd: '1', valueInCurrency: '1' },
+    adjustedReturn: { valueInCurrency: '1', usd: '1' },
+    cost: { valueInCurrency: '1', usd: '1' },
+    swapRate: '1',
     estimatedProcessingTimeInSeconds: 15,
-    featureId: undefined,
-    approval: undefined,
-    resetApproval: undefined,
-    trade: '0xdeadbeef',
+    trade: {
+      chainId: 1,
+      from: '0x0000000000000000000000000000000000000000',
+      to: '0x0000000000000000000000000000000000000001',
+      data: '0x',
+      value: '0x0',
+      gasLimit: 21000,
+    },
     ...overrides,
   };
 };
 
 const minimalBridgeQuoteResponse = (
   accountAddress: string,
-  overrides?: Partial<any>,
-): any => {
+  overrides?: Partial<QuoteResponse<TxData | string> & QuoteMetadata>,
+): QuoteResponse<TxData | string> & QuoteMetadata => {
   return {
     quote: {
+      bridgeId: 'across',
+      bridges: ['across'],
+      steps: [],
       requestId: 'req-bridge-1',
       srcChainId: 1,
       destChainId: 10,
@@ -110,11 +173,46 @@ const minimalBridgeQuoteResponse = (
         name: 'ETH',
         decimals: 18,
       },
-      feeData: { txFee: { maxFeePerGas: '1', maxPriorityFeePerGas: '1' } },
+      feeData: {
+        metabridge: {
+          amount: '1',
+          asset: {
+            symbol: 'ETH',
+            chainId: 1,
+            address: '0x0000000000000000000000000000000000000000',
+            assetId: 'eip155:1/slip44:60',
+            name: 'ETH',
+            decimals: 18,
+          },
+        },
+        txFee: {
+          maxFeePerGas: '1',
+          maxPriorityFeePerGas: '1',
+          amount: '1',
+          asset: {
+            symbol: 'ETH',
+            chainId: 1,
+            address: '0x0000000000000000000000000000000000000000',
+            assetId: 'eip155:1/slip44:60',
+            name: 'ETH',
+            decimals: 18,
+          },
+        },
+      },
     },
-    sentAmount: { amount: '1', usd: '1' },
-    gasFee: { effective: { amount: '0', usd: '0' } },
-    toTokenAmount: { usd: '1' },
+    sentAmount: { amount: '1', usd: '1', valueInCurrency: '1' },
+    gasFee: {
+      effective: { amount: '0', usd: '0', valueInCurrency: '0' },
+      total: { amount: '0', usd: '0', valueInCurrency: '0' },
+      max: { amount: '0', usd: '0', valueInCurrency: '0' },
+    },
+    toTokenAmount: { amount: '1', usd: '1', valueInCurrency: '1' },
+    minToTokenAmount: { amount: '1', usd: '1', valueInCurrency: '1' },
+    totalNetworkFee: { amount: '1', usd: '1', valueInCurrency: '1' },
+    totalMaxNetworkFee: { amount: '1', usd: '1', valueInCurrency: '1' },
+    adjustedReturn: { valueInCurrency: '1', usd: '1' },
+    cost: { valueInCurrency: '1', usd: '1' },
+    swapRate: '1',
     estimatedProcessingTimeInSeconds: 15,
     featureId: undefined,
     approval: undefined,
@@ -235,22 +333,6 @@ const loadControllerWithMocks = (): any => {
       };
     });
 
-    jest.doMock('./utils/metrics', () => ({
-      getFinalizedTxProperties: jest.fn().mockReturnValue({}),
-      getPriceImpactFromQuote: jest.fn().mockReturnValue({}),
-      getRequestMetadataFromHistory: jest.fn().mockReturnValue({}),
-      getRequestParamFromHistory: jest.fn().mockReturnValue({
-        chain_id_source: 'eip155:1',
-        chain_id_destination: 'eip155:10',
-        token_address_source: '0xsrc',
-        token_address_destination: '0xdest',
-      }),
-      getTradeDataFromHistory: jest.fn().mockReturnValue({}),
-      getEVMTxPropertiesFromTransactionMeta: jest.fn().mockReturnValue({}),
-      getTxStatusesFromHistory: jest.fn().mockReturnValue({}),
-      getPreConfirmationPropertiesFromQuote: jest.fn().mockReturnValue({}),
-    }));
-
     /* eslint-disable @typescript-eslint/no-require-imports, n/global-require */
     BridgeStatusController =
       require('./bridge-status-controller').BridgeStatusController;
@@ -364,8 +446,13 @@ describe('BridgeStatusController (intent swaps)', () => {
   });
 
   it('submitIntent: throws if approval confirmation fails (does not write history or start polling)', async () => {
-    const { controller, accountAddress, submitIntentMock, startPollingSpy } =
-      setup();
+    const {
+      controller,
+      accountAddress,
+      submitIntentMock,
+      startPollingSpy,
+      messenger,
+    } = setup();
 
     const orderUid = 'order-uid-1';
 
@@ -391,19 +478,87 @@ describe('BridgeStatusController (intent swaps)', () => {
       },
     });
 
+    const expectedHistory = controller.state.txHistory;
     await expect(
       controller.submitIntent({
         quoteResponse,
         signature: '0xsig',
         accountAddress,
+        quotesReceivedContext: {
+          best_quote_provider: 'best-quote-provider',
+          can_submit: true,
+          gas_included: false,
+          gas_included_7702: false,
+          price_impact: 0.01,
+          warnings: [],
+        },
       }),
     ).rejects.toThrow(/approval/iu);
 
     // Since we throw before intent order submission succeeds, we should not create the intent:* history item
     // (and therefore should not start polling).
-    const historyKey = `intent:${orderUid}`;
-    expect(controller.state.txHistory[historyKey]).toBeUndefined();
-
+    expect(controller.state.txHistory).toStrictEqual(expectedHistory);
+    expect(messenger.call.mock.calls).toMatchInlineSnapshot(`
+      Array [
+        Array [
+          "BridgeController:stopPollingForQuotes",
+          "Transaction submitted",
+          Object {
+            "best_quote_provider": "best-quote-provider",
+            "can_submit": true,
+            "gas_included": false,
+            "gas_included_7702": false,
+            "price_impact": 0.01,
+            "warnings": Array [],
+          },
+        ],
+        Array [
+          "AccountsController:getAccountByAddress",
+          "0xAccount1",
+        ],
+        Array [
+          "AccountsController:getAccountByAddress",
+          "0xAccount1",
+        ],
+        Array [
+          "NetworkController:findNetworkClientIdByChainId",
+          "0x1",
+        ],
+        Array [
+          "GasFeeController:getState",
+        ],
+        Array [
+          "TransactionController:getState",
+        ],
+        Array [
+          "TransactionController:getState",
+        ],
+        Array [
+          "BridgeController:trackUnifiedSwapBridgeEvent",
+          "Unified SwapBridge Failed",
+          Object {
+            "action_type": "swapbridge-v1",
+            "chain_id_destination": "eip155:1",
+            "chain_id_source": "eip155:1",
+            "custom_slippage": false,
+            "error_message": "Approval transaction did not confirm",
+            "gas_included": false,
+            "gas_included_7702": false,
+            "is_hardware_wallet": false,
+            "price_impact": 0,
+            "provider": "across_across",
+            "quoted_time_minutes": 0.25,
+            "stx_enabled": false,
+            "swap_type": "single_chain",
+            "token_symbol_destination": "ETH",
+            "token_symbol_source": "ETH",
+            "usd_amount_source": 1,
+            "usd_quoted_gas": 0,
+            "usd_quoted_return": 1,
+          },
+        ],
+      ]
+    `);
     expect(startPollingSpy).not.toHaveBeenCalled();
 
     // Optional: ensure we never called the intent API submit
@@ -417,6 +572,7 @@ describe('BridgeStatusController (intent swaps)', () => {
       submitIntentMock,
       getOrderStatusMock,
       stopPollingSpy,
+      messenger,
     } = setup();
 
     const orderUid = 'order-uid-2';
@@ -430,13 +586,19 @@ describe('BridgeStatusController (intent swaps)', () => {
 
     const quoteResponse = minimalIntentQuoteResponse();
 
-    await controller.submitIntent({
+    const { id: historyKey } = await controller.submitIntent({
       quoteResponse,
       signature: '0xsig',
       accountAddress,
+      quotesReceivedContext: {
+        best_quote_provider: 'best-quote-provider',
+        can_submit: true,
+        gas_included: false,
+        gas_included_7702: false,
+        price_impact: 0.01,
+        warnings: [],
+      },
     });
-
-    const historyKey = `intent:${orderUid}`;
 
     // Seed existing hashes via controller.update (state is frozen)
     controller.update((state: any) => {
@@ -458,6 +620,76 @@ describe('BridgeStatusController (intent swaps)', () => {
       expect.arrayContaining(['0xold1', '0xnewhash']),
     );
 
+    expect(messenger.call.mock.calls).toMatchInlineSnapshot(`
+      Array [
+        Array [
+          "BridgeController:stopPollingForQuotes",
+          "Transaction submitted",
+          Object {
+            "best_quote_provider": "best-quote-provider",
+            "can_submit": true,
+            "gas_included": false,
+            "gas_included_7702": false,
+            "price_impact": 0.01,
+            "warnings": Array [],
+          },
+        ],
+        Array [
+          "AccountsController:getAccountByAddress",
+          "0xAccount1",
+        ],
+        Array [
+          "NetworkController:findNetworkClientIdByChainId",
+          "0x1",
+        ],
+        Array [
+          "TransactionController:getState",
+        ],
+        Array [
+          "AccountsController:getAccountByAddress",
+          "0xAccount1",
+        ],
+        Array [
+          "TransactionController:getState",
+        ],
+        Array [
+          "BridgeController:trackUnifiedSwapBridgeEvent",
+          "Unified SwapBridge Completed",
+          Object {
+            "action_type": "swapbridge-v1",
+            "actual_time_minutes": 0,
+            "allowance_reset_transaction": undefined,
+            "approval_transaction": undefined,
+            "chain_id_destination": "eip155:1",
+            "chain_id_source": "eip155:1",
+            "custom_slippage": true,
+            "destination_transaction": "PENDING",
+            "gas_included": false,
+            "gas_included_7702": false,
+            "is_hardware_wallet": false,
+            "price_impact": 0,
+            "provider": "across_across",
+            "quote_vs_execution_ratio": 0,
+            "quoted_time_minutes": 0.25,
+            "quoted_vs_used_gas_ratio": 0,
+            "security_warnings": Array [],
+            "slippage_limit": 0,
+            "source_transaction": "COMPLETE",
+            "stx_enabled": false,
+            "swap_type": "single_chain",
+            "token_address_destination": "eip155:1/slip44:60",
+            "token_address_source": "eip155:1/slip44:60",
+            "token_symbol_destination": "ETH",
+            "token_symbol_source": "ETH",
+            "usd_actual_gas": 0,
+            "usd_actual_return": 0,
+            "usd_amount_source": 1,
+            "usd_quoted_gas": 0,
+            "usd_quoted_return": 1,
+          },
+        ],
+      ]
+    `);
     expect(stopPollingSpy).toHaveBeenCalledWith('poll-token-1');
   });
 
@@ -469,6 +701,7 @@ describe('BridgeStatusController (intent swaps)', () => {
       getOrderStatusMock,
       transactions,
       stopPollingSpy,
+      messenger,
     } = setup();
 
     const orderUid = 'order-uid-expired-1';
@@ -482,13 +715,11 @@ describe('BridgeStatusController (intent swaps)', () => {
 
     const quoteResponse = minimalIntentQuoteResponse();
 
-    await controller.submitIntent({
+    const { id: historyKey } = await controller.submitIntent({
       quoteResponse,
       signature: '0xsig',
       accountAddress,
     });
-
-    const historyKey = `intent:${orderUid}`;
 
     // Remove TC tx so update branch logs "transaction not found"
     transactions.splice(0, transactions.length);
@@ -508,6 +739,69 @@ describe('BridgeStatusController (intent swaps)', () => {
       expect.arrayContaining(['0xonlyhash']),
     );
 
+    expect(messenger.call.mock.calls).toMatchInlineSnapshot(`
+      Array [
+        Array [
+          "BridgeController:stopPollingForQuotes",
+          "Transaction submitted",
+          undefined,
+        ],
+        Array [
+          "AccountsController:getAccountByAddress",
+          "0xAccount1",
+        ],
+        Array [
+          "NetworkController:findNetworkClientIdByChainId",
+          "0x1",
+        ],
+        Array [
+          "TransactionController:getState",
+        ],
+        Array [
+          "AccountsController:getAccountByAddress",
+          "0xAccount1",
+        ],
+        Array [
+          "TransactionController:getState",
+        ],
+        Array [
+          "BridgeController:trackUnifiedSwapBridgeEvent",
+          "Unified SwapBridge Failed",
+          Object {
+            "action_type": "swapbridge-v1",
+            "actual_time_minutes": 0,
+            "allowance_reset_transaction": undefined,
+            "approval_transaction": undefined,
+            "chain_id_destination": "eip155:1",
+            "chain_id_source": "eip155:1",
+            "custom_slippage": true,
+            "destination_transaction": "FAILED",
+            "gas_included": false,
+            "gas_included_7702": false,
+            "is_hardware_wallet": false,
+            "price_impact": 0,
+            "provider": "across_across",
+            "quote_vs_execution_ratio": 0,
+            "quoted_time_minutes": 0.25,
+            "quoted_vs_used_gas_ratio": 0,
+            "security_warnings": Array [],
+            "slippage_limit": 0,
+            "source_transaction": "COMPLETE",
+            "stx_enabled": false,
+            "swap_type": "single_chain",
+            "token_address_destination": "eip155:1/slip44:60",
+            "token_address_source": "eip155:1/slip44:60",
+            "token_symbol_destination": "ETH",
+            "token_symbol_source": "ETH",
+            "usd_actual_gas": 0,
+            "usd_actual_return": 0,
+            "usd_amount_source": 1,
+            "usd_quoted_gas": 0,
+            "usd_quoted_return": 1,
+          },
+        ],
+      ]
+    `);
     expect(stopPollingSpy).toHaveBeenCalledWith('poll-token-1');
   });
 
@@ -537,7 +831,11 @@ describe('BridgeStatusController (intent swaps)', () => {
       accountAddress,
     });
 
-    const historyKey = `intent:${orderUid}`;
+    const { id: historyKey } = await controller.submitIntent({
+      quoteResponse,
+      signature: '0xsig',
+      accountAddress,
+    });
 
     // Prime attempts so next failure hits MAX_ATTEMPTS
     controller.update((state: any) => {
@@ -570,11 +868,14 @@ describe('BridgeStatusController (subscriptions + bridge polling + wiping)', () 
     controller.update((state: any) => {
       state.txHistory.bridgeTxMetaId1 = {
         txMetaId: 'bridgeTxMetaId1',
-        originalTransactionId: 'bridgeTxMetaId1',
         quote: {
+          bridges: ['across'],
           srcChainId: 1,
           destChainId: 10,
-          srcAsset: { assetId: 'eip155:1/slip44:60' },
+          srcAsset: {
+            assetId: 'eip155:1/slip44:60',
+            address: '0x0000000000000000000000000000000000000000',
+          },
           destAsset: { assetId: 'eip155:10/slip44:60' },
         },
         account: '0xAccount1',
@@ -604,13 +905,54 @@ describe('BridgeStatusController (subscriptions + bridge polling + wiping)', () 
     );
 
     // ensure tracking was attempted
-    expect((messenger.call as jest.Mock).mock.calls).toStrictEqual(
-      expect.arrayContaining([
-        expect.arrayContaining([
-          'BridgeController:trackUnifiedSwapBridgeEvent',
-        ]),
-      ]),
-    );
+    expect(messenger.call.mock.calls).toMatchInlineSnapshot(`
+      Array [
+        Array [
+          "AccountsController:getAccountByAddress",
+          "0xAccount1",
+        ],
+        Array [
+          "TransactionController:getState",
+        ],
+        Array [
+          "BridgeController:trackUnifiedSwapBridgeEvent",
+          "Unified SwapBridge Failed",
+          Object {
+            "action_type": "swapbridge-v1",
+            "actual_time_minutes": 0,
+            "allowance_reset_transaction": undefined,
+            "approval_transaction": undefined,
+            "chain_id_destination": "eip155:10",
+            "chain_id_source": "eip155:1",
+            "custom_slippage": false,
+            "destination_transaction": "FAILED",
+            "error_message": "",
+            "gas_included": false,
+            "gas_included_7702": false,
+            "is_hardware_wallet": false,
+            "price_impact": 0,
+            "provider": "undefined_across",
+            "quote_vs_execution_ratio": 0,
+            "quoted_time_minutes": NaN,
+            "quoted_vs_used_gas_ratio": 0,
+            "security_warnings": Array [],
+            "slippage_limit": undefined,
+            "source_transaction": "COMPLETE",
+            "stx_enabled": false,
+            "swap_type": "crosschain",
+            "token_address_destination": "eip155:10/slip44:60",
+            "token_address_source": "eip155:1/slip44:60",
+            "token_symbol_destination": undefined,
+            "token_symbol_source": undefined,
+            "usd_actual_gas": 0,
+            "usd_actual_return": 0,
+            "usd_amount_source": 0,
+            "usd_quoted_gas": 0,
+            "usd_quoted_return": 0,
+          },
+        ],
+      ]
+    `);
   });
 
   it('transactionFailed subscription: maps approval tx id back to main history item', async () => {
@@ -619,7 +961,6 @@ describe('BridgeStatusController (subscriptions + bridge polling + wiping)', () 
     controller.update((state: any) => {
       state.txHistory.mainTx = {
         txMetaId: 'mainTx',
-        originalTransactionId: 'mainTx',
         approvalTxId: 'approvalTx',
         quote: {
           srcChainId: 1,
@@ -660,7 +1001,6 @@ describe('BridgeStatusController (subscriptions + bridge polling + wiping)', () 
     controller.update((state: any) => {
       state.txHistory.bridgeConfirmed1 = {
         txMetaId: 'bridgeConfirmed1',
-        originalTransactionId: 'bridgeConfirmed1',
         quote: {
           srcChainId: 1,
           destChainId: 10,
@@ -719,7 +1059,6 @@ describe('BridgeStatusController (subscriptions + bridge polling + wiping)', () 
     controller.update((state: any) => {
       state.txHistory.bridgeTx1 = {
         txMetaId: 'bridgeTx1',
-        originalTransactionId: 'bridgeTx1',
         quote: {
           srcChainId: 1,
           destChainId: 10,
@@ -749,7 +1088,6 @@ describe('BridgeStatusController (subscriptions + bridge polling + wiping)', () 
     controller.update((state: any) => {
       state.txHistory.swapTx1 = {
         txMetaId: 'swapTx1',
-        originalTransactionId: 'swapTx1',
         quote: {
           srcChainId: 1,
           destChainId: 1,
@@ -822,7 +1160,6 @@ describe('BridgeStatusController (subscriptions + bridge polling + wiping)', () 
       bridgeTxMeta: { id: 'bridgePoll1' },
       statusRequest: {
         srcChainId: 1,
-        srcTxHash: '', // force TC lookup
         destChainId: 10,
       },
       quoteResponse,
@@ -869,6 +1206,71 @@ describe('BridgeStatusController (subscriptions + bridge polling + wiping)', () 
       'BridgeStatusController:destinationTransactionCompleted',
       quoteResponse.quote.destAsset.assetId,
     );
+    expect(messenger.publish.mock.calls.map((call: any) => call[0]))
+      .toMatchInlineSnapshot(`
+      Array [
+        "BridgeStatusController:stateChange",
+        "BridgeStatusController:stateChange",
+        "BridgeStatusController:stateChange",
+        "BridgeStatusController:destinationTransactionCompleted",
+      ]
+    `);
+    expect(messenger.call.mock.calls.map((call: any) => call.slice(0, 2)))
+      .toMatchInlineSnapshot(`
+      Array [
+        Array [
+          "TransactionController:getState",
+        ],
+        Array [
+          "AccountsController:getAccountByAddress",
+          "0xAccount1",
+        ],
+        Array [
+          "TransactionController:getState",
+        ],
+        Array [
+          "BridgeController:trackUnifiedSwapBridgeEvent",
+          "Unified SwapBridge Completed",
+        ],
+      ]
+    `);
+    // eslint-disable-next-line @typescript-eslint/naming-convention, camelcase
+    const { actual_time_minutes, ...eventProperties } =
+      messenger.call.mock.calls.at(-1)?.at(-1) ?? {};
+    expect(actual_time_minutes).toBeGreaterThan(0);
+    expect(eventProperties).toMatchInlineSnapshot(`
+      Object {
+        "action_type": "swapbridge-v1",
+        "allowance_reset_transaction": undefined,
+        "approval_transaction": undefined,
+        "chain_id_destination": "eip155:10",
+        "chain_id_source": "eip155:1",
+        "custom_slippage": true,
+        "destination_transaction": "COMPLETE",
+        "gas_included": false,
+        "gas_included_7702": false,
+        "is_hardware_wallet": false,
+        "price_impact": 0,
+        "provider": "across_across",
+        "quote_vs_execution_ratio": 0,
+        "quoted_time_minutes": 0.25,
+        "quoted_vs_used_gas_ratio": 0,
+        "security_warnings": Array [],
+        "slippage_limit": 0,
+        "source_transaction": "COMPLETE",
+        "stx_enabled": false,
+        "swap_type": "crosschain",
+        "token_address_destination": "eip155:10/slip44:60",
+        "token_address_source": "eip155:1/slip44:60",
+        "token_symbol_destination": "ETH",
+        "token_symbol_source": "ETH",
+        "usd_actual_gas": 0,
+        "usd_actual_return": 0,
+        "usd_amount_source": 1,
+        "usd_quoted_gas": 0,
+        "usd_quoted_return": 1,
+      }
+    `);
   });
 
   it('eVM bridge polling: tracks StatusValidationFailed, increments attempts, and stops polling at MAX_ATTEMPTS', async () => {
@@ -969,9 +1371,9 @@ describe('BridgeStatusController (target uncovered branches)', () => {
     controller.update((state: any) => {
       state.txHistory.tx1 = {
         txMetaId: 'tx1',
-        originalTransactionId: 'tx1',
-        quote: { srcChainId: 1, destChainId: 10 },
+        quote: minimalIntentQuoteResponse().quote,
         account: '0xAccount1',
+        intentOrderId: '1',
         status: {
           status: StatusTypes.PENDING,
           srcChain: { chainId: 1, txHash: '0x' },
@@ -985,6 +1387,7 @@ describe('BridgeStatusController (target uncovered branches)', () => {
 
     failedCb({
       transactionMeta: {
+        chainId: '0x1',
         id: 'tx1',
         type: TransactionType.bridge,
         status: TransactionStatus.failed,
@@ -995,6 +1398,54 @@ describe('BridgeStatusController (target uncovered branches)', () => {
     expect(controller.state.txHistory.tx1.status.status).toBe(
       StatusTypes.FAILED,
     );
+    expect(messenger.call.mock.calls).toMatchInlineSnapshot(`
+      Array [
+        Array [
+          "AccountsController:getAccountByAddress",
+          "0xAccount1",
+        ],
+        Array [
+          "TransactionController:getState",
+        ],
+        Array [
+          "BridgeController:trackUnifiedSwapBridgeEvent",
+          "Unified SwapBridge Failed",
+          Object {
+            "action_type": "swapbridge-v1",
+            "actual_time_minutes": 0,
+            "allowance_reset_transaction": undefined,
+            "approval_transaction": undefined,
+            "chain_id_destination": "eip155:1",
+            "chain_id_source": "eip155:1",
+            "custom_slippage": false,
+            "destination_transaction": "FAILED",
+            "error_message": "",
+            "gas_included": false,
+            "gas_included_7702": false,
+            "is_hardware_wallet": false,
+            "price_impact": 0,
+            "provider": "across_across",
+            "quote_vs_execution_ratio": 0,
+            "quoted_time_minutes": NaN,
+            "quoted_vs_used_gas_ratio": 0,
+            "security_warnings": Array [],
+            "slippage_limit": undefined,
+            "source_transaction": "COMPLETE",
+            "stx_enabled": false,
+            "swap_type": "single_chain",
+            "token_address_destination": "eip155:1/slip44:60",
+            "token_address_source": "eip155:1/slip44:60",
+            "token_symbol_destination": "ETH",
+            "token_symbol_source": "ETH",
+            "usd_actual_gas": 0,
+            "usd_actual_return": 0,
+            "usd_amount_source": 0,
+            "usd_quoted_gas": 0,
+            "usd_quoted_return": 0,
+          },
+        ],
+      ]
+    `);
   });
 
   it('constructor restartPolling: skips items when shouldSkipFetchDueToFetchFailures returns true', () => {
@@ -1015,7 +1466,6 @@ describe('BridgeStatusController (target uncovered branches)', () => {
       txHistory: {
         init1: {
           txMetaId: 'init1',
-          originalTransactionId: 'init1',
           quote: { srcChainId: 1, destChainId: 10 },
           account: accountAddress,
           status: {
@@ -1168,15 +1618,17 @@ describe('BridgeStatusController (target uncovered branches)', () => {
 
     await controller._executePoll({ bridgeTxMetaId: 'failFinal1' });
 
-    expect((messenger.call as jest.Mock).mock.calls).toStrictEqual(
-      expect.arrayContaining([
-        expect.arrayContaining([
-          'BridgeController:trackUnifiedSwapBridgeEvent',
-          UnifiedSwapBridgeEventName.Failed,
-          expect.any(Object),
-        ]),
-      ]),
-    );
+    expect(messenger.call.mock.calls).toMatchInlineSnapshot(`
+      Array [
+        Array [
+          "AccountsController:getAccountByAddress",
+          "0xAccount1",
+        ],
+        Array [
+          "TransactionController:getState",
+        ],
+      ]
+    `);
   });
 
   it('bridge polling: final COMPLETE with featureId set stops polling but skips tracking', async () => {
@@ -1312,8 +1764,11 @@ describe('BridgeStatusController (target uncovered branches)', () => {
     controller.update((state: any) => {
       state.txHistory.feat1 = {
         txMetaId: 'feat1',
-        originalTransactionId: 'feat1',
-        quote: { srcChainId: 1, destChainId: 10 },
+        quote: {
+          ...minimalBridgeQuoteResponse('0xAccount1').quote,
+          srcChainId: 1,
+          destChainId: 10,
+        },
         account: '0xAccount1',
         featureId: 'perps',
         status: {
@@ -1329,6 +1784,7 @@ describe('BridgeStatusController (target uncovered branches)', () => {
 
     failedCb({
       transactionMeta: {
+        chainId: '0x1',
         id: 'feat1',
         type: TransactionType.bridge,
         status: TransactionStatus.failed,
@@ -1369,9 +1825,9 @@ describe('BridgeStatusController (target uncovered branches)', () => {
       metadata: { txHashes: [] },
     });
 
-    await controller._executePoll({ bridgeTxMetaId: 'intent:1' });
+    await controller._executePoll({ bridgeTxMetaId: 'tx1' });
 
-    expect(controller.state.txHistory['intent:1'].status.status).toBe(
+    expect(controller.state.txHistory.tx1.status.status).toBe(
       StatusTypes.PENDING,
     );
   });
@@ -1388,9 +1844,9 @@ describe('BridgeStatusController (target uncovered branches)', () => {
       metadata: { txHashes: [] },
     });
 
-    await controller._executePoll({ bridgeTxMetaId: 'intent:1' });
+    await controller._executePoll({ bridgeTxMetaId: 'tx1' });
 
-    expect(controller.state.txHistory['intent:1'].status.status).toBe(
+    expect(controller.state.txHistory.tx1.status.status).toBe(
       StatusTypes.SUBMITTED,
     );
   });
@@ -1407,9 +1863,9 @@ describe('BridgeStatusController (target uncovered branches)', () => {
       metadata: { txHashes: [] },
     });
 
-    await controller._executePoll({ bridgeTxMetaId: 'intent:1' });
+    await controller._executePoll({ bridgeTxMetaId: 'tx1' });
 
-    expect(controller.state.txHistory['intent:1'].status.status).toBe(
+    expect(controller.state.txHistory.tx1.status.status).toBe(
       StatusTypes.UNKNOWN,
     );
   });
