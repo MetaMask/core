@@ -27,13 +27,12 @@ import type {
 } from '@metamask/network-controller';
 import { getDefaultNetworkControllerState } from '@metamask/network-controller';
 import type { Patch } from 'immer';
-import nock from 'nock';
 import * as sinon from 'sinon';
 import { v1 as uuidV1 } from 'uuid';
 
 import { ERC20Standard } from './Standards/ERC20Standard';
 import { ERC1155Standard } from './Standards/NftStandards/ERC1155/ERC1155Standard';
-import { TOKEN_END_POINT_API } from './token-service';
+import * as TokenServiceModule from './token-service';
 import type { Token } from './TokenRatesController';
 import { TokensController } from './TokensController';
 import type {
@@ -1603,7 +1602,7 @@ describe('TokensController', () => {
       });
     });
 
-    it('should throw TokenService error if fetchTokenMetadata returns a response with an error', async () => {
+    it('should throw TokenService error if fetchTokenMetadata throws unknown', async () => {
       const chainId = ChainId.mainnet;
 
       await withController(
@@ -1617,14 +1616,9 @@ describe('TokensController', () => {
             '0x514910771AF9Ca656af840dff83E8264EcF986CA';
           const error = 'An error occured';
           const fullErrorMessage = `TokenService Error: ${error}`;
-          nock(TOKEN_END_POINT_API)
-            .get(
-              `/token/${convertHexToDecimal(
-                chainId,
-              )}?address=${dummyTokenAddress}`,
-            )
-            .reply(200, { error })
-            .persist();
+          jest
+            .spyOn(TokenServiceModule, 'fetchTokenMetadata')
+            .mockRejectedValue(new Error(fullErrorMessage));
 
           await expect(
             controller.addToken({

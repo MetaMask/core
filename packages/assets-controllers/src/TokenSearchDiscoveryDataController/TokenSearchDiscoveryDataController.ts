@@ -232,11 +232,23 @@ export class TokenSearchDiscoveryDataController extends BaseController<
 
     let tokenMetadata: TokenListToken | undefined;
     try {
-      tokenMetadata = await fetchTokenMetadata<TokenListToken>(
+      const tokenMetadataResult = await fetchTokenMetadata(
         chainId,
         address,
         this.#abortController.signal,
       );
+      if (tokenMetadataResult) {
+        tokenMetadata = {
+          name: tokenMetadataResult.name,
+          symbol: tokenMetadataResult.symbol,
+          decimals: tokenMetadataResult.decimals,
+          address: tokenMetadataResult.address,
+          aggregators: tokenMetadataResult.aggregators,
+          iconUrl: tokenMetadataResult.iconUrl,
+          rwaData: tokenMetadataResult.rwaData,
+          occurrences: tokenMetadataResult.occurrences,
+        };
+      }
     } catch (error) {
       if (
         !(error instanceof Error) ||

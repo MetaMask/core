@@ -19,7 +19,7 @@ import {
   formatAggregatorNames,
   formatIconUrlWithProxy,
 } from './assetsUtil';
-import { fetchTokenListByChainId } from './token-service';
+import { TokenRwaData, fetchTokenListByChainId } from './token-service';
 
 const DEFAULT_INTERVAL = 24 * 60 * 60 * 1000;
 const DEFAULT_THRESHOLD = 24 * 60 * 60 * 1000;
@@ -34,6 +34,7 @@ export type TokenListToken = {
   occurrences: number;
   aggregators: string[];
   iconUrl: string;
+  rwaData?: TokenRwaData;
 };
 
 export type TokenListMap = Record<string, TokenListToken>;
@@ -305,26 +306,29 @@ export class TokenListController extends StaticIntervalPollingController<TokenLi
       }
 
       // Fetch fresh token list from the API
-      const tokensFromAPI = await safelyExecute(
-        () =>
-          fetchTokenListByChainId(
-            chainId,
-            this.abortController.signal,
-          ) as Promise<TokenListToken[]>,
+      const tokensFromAPI = await safelyExecute(() =>
+        fetchTokenListByChainId(chainId, this.abortController.signal),
       );
 
       // Have response - process and update list
-      if (tokensFromAPI) {
+      if (tokensFromAPI && tokensFromAPI.length > 0) {
         // Format tokens from API (HTTP) and update tokenList
         const tokenList: TokenListMap = {};
         for (const token of tokensFromAPI) {
           tokenList[token.address] = {
-            ...token,
-            aggregators: formatAggregatorNames(token.aggregators),
-            iconUrl: formatIconUrlWithProxy({
-              chainId,
-              tokenAddress: token.address,
-            }),
+            address: token.address,
+            symbol: token.symbol,
+            decimals: token.decimals,
+            name: token.name,
+            occurrences: token.occurrences,
+            aggregators: formatAggregatorNames(token.aggregators ?? []),
+            iconUrl:
+              token.iconUrl ??
+              formatIconUrlWithProxy({
+                chainId,
+                tokenAddress: token.address,
+              }),
+            rwaData: token.rwaData,
           };
         }
 
@@ -338,7 +342,7 @@ export class TokenListController extends StaticIntervalPollingController<TokenLi
       }
 
       // No response - fallback to previous state, or initialise empty
-      if (!tokensFromAPI) {
+      if (!tokensFromAPI || tokensFromAPI.length === 0) {
         this.update((state) => {
           const newDataCache: DataCache = { data: {}, timestamp: Date.now() };
           state.tokensChainsCache[chainId] ??= newDataCache;

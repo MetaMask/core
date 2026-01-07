@@ -4,26 +4,105 @@ import {
   handleFetch,
   timeoutFetch,
 } from '@metamask/controller-utils';
-import type { CaipAssetType, CaipChainId, Hex } from '@metamask/utils';
+import {
+  CaipAssetType,
+  CaipChainId,
+  Hex,
+  KnownCaipNamespace,
+  toCaipAssetType,
+  toCaipChainId,
+  parseCaipChainId,
+  hexToNumber,
+} from '@metamask/utils';
 
-import { isTokenListSupportedForNetwork } from './assetsUtil';
+import {
+  formatIconUrlWithProxy,
+  isTokenListSupportedForNetwork,
+} from './assetsUtil';
 
 export const TOKEN_END_POINT_API = 'https://token.api.cx.metamask.io';
+export const TOKENS_END_POINT_API = 'https://tokens.dev-api.cx.metamask.io';
 export const TOKEN_METADATA_NO_SUPPORT_ERROR =
   'TokenService Error: Network does not support fetchTokenMetadata';
+
+export type TokenRwaData = {
+  market?: {
+    nextOpen?: string;
+    nextClose?: string;
+  };
+  nextPause?: {
+    start?: string;
+    end?: string;
+  };
+  ticker?: string;
+  instrumentType?: string;
+};
+
+export type GetTokensUrlResponse = {
+  data: {
+    address: string;
+    symbol: string;
+    decimals: number;
+    name: string;
+    aggregators: string[];
+    occurrences: number;
+    iconUrl?: string;
+    rwaData?: TokenRwaData;
+  }[];
+  pageInfo: {
+    hasNextPage: boolean;
+    endCursor: string;
+  };
+};
+
+export type GetTokenMetadataUrlResponse = {
+  assetId: CaipAssetType;
+  symbol: string;
+  decimals: number;
+  name: string;
+  aggregators: string[];
+  rwaData?: TokenRwaData;
+}[];
+
+export type EVMTokenMetadata = {
+  name: string;
+  symbol: string;
+  decimals: number;
+  address: string;
+  aggregators: string[];
+  occurrences: number;
+  iconUrl: string;
+  rwaData?: TokenRwaData;
+};
 
 /**
  * Get the tokens URL for a specific network.
  *
  * @param chainId - The chain ID of the network the tokens requested are on.
+ * @param nextCursor - The cursor to the next page of tokens.
  * @returns The tokens URL.
  */
-function getTokensURL(chainId: Hex): string {
+function getTokensURL(chainId: Hex, nextCursor?: string): string {
   const occurrenceFloor = chainId === ChainId['linea-mainnet'] ? 1 : 3;
 
-  return `${TOKEN_END_POINT_API}/tokens/${convertHexToDecimal(
+  const queryParams = new URLSearchParams();
+  queryParams.append('occurrenceFloor', occurrenceFloor.toString());
+  queryParams.append('includeTokenFees', 'false');
+  queryParams.append('includeAssetType', 'false');
+  queryParams.append('includeERC20Permit', 'false');
+  queryParams.append('includeStorage', 'false');
+  queryParams.append('includeAggregators', 'true');
+  queryParams.append('includeOccurrences', 'true');
+  queryParams.append('includeIconUrl', 'true');
+  queryParams.append('includeRwaData', 'true');
+  queryParams.append('first', '3000');
+  if (nextCursor) {
+    queryParams.append('after', nextCursor);
+  }
+
+  return `${TOKENS_END_POINT_API}/tokens/${convertHexToDecimal(
     chainId,
-  )}?occurrenceFloor=${occurrenceFloor}&includeNativeAssets=false&includeTokenFees=false&includeAssetType=false&includeERC20Permit=false&includeStorage=false`;
+  )}?${queryParams.toString()}`;
 }
 
 /**
@@ -34,9 +113,24 @@ function getTokensURL(chainId: Hex): string {
  * @returns The token metadata URL.
  */
 function getTokenMetadataURL(chainId: Hex, tokenAddress: string): string {
-  return `${TOKEN_END_POINT_API}/token/${convertHexToDecimal(
-    chainId,
-  )}?address=${tokenAddress}`;
+  const queryParams = new URLSearchParams();
+  const caipChainId = parseCaipChainId(
+    toCaipChainId(KnownCaipNamespace.Eip155, hexToNumber(chainId).toString()),
+  );
+  const assetId = toCaipAssetType(
+    caipChainId.namespace,
+    caipChainId.reference,
+    'erc20',
+    tokenAddress,
+  );
+
+  queryParams.append('includeAggregators', 'true');
+  queryParams.append('includeOccurrences', 'true');
+  queryParams.append('includeIconUrl', 'true');
+  queryParams.append('includeMetadata', 'true');
+  queryParams.append('includeRwaData', 'true');
+
+  return `${TOKENS_END_POINT_API}/v3/assets?assetIds=${assetId}&${queryParams.toString()}`;
 }
 
 /**
@@ -148,35 +242,63 @@ export async function fetchTokenListByChainId(
   chainId: Hex,
   abortSignal: AbortSignal,
   { timeout = defaultTimeout } = {},
-): Promise<unknown> {
-  const tokenURL = getTokensURL(chainId);
-  const response = await queryApi(tokenURL, abortSignal, timeout);
-  if (response) {
-    const result = await parseJsonResponse(response);
-    if (Array.isArray(result) && chainId === ChainId['linea-mainnet']) {
-      return result.filter(
-        (elm) =>
-          Boolean(elm.aggregators.includes('lineaTeam')) ||
-          elm.aggregators.length >= 3,
-      );
-    }
-    return result;
-  }
-  return undefined;
-}
+): Promise<GetTokensUrlResponse['data']> {
+  // TODO: We really need to move away from fetching all tokens at once
+  // This is expensive - uses up a lot of memory and bandwidth
+  // Need to discuss how we can fully deprecate this - many areas require this metadata (decimals, icon, rwaData)
+  const allTokens: GetTokensUrlResponse['data'] = [];
+  let nextCursor: string | undefined;
 
-export type TokenRwaData = {
-  market?: {
-    nextOpen?: string;
-    nextClose?: string;
-  };
-  nextPause?: {
-    start?: string;
-    end?: string;
-  };
-  ticker?: string;
-  instrumentType?: string;
-};
+  // If we are still fetching tokens past 10 pages of 3000 tokens (30000),
+  // then we really need to re-evaluate our approach
+  const hardPaginationLimit = 10;
+  let paginationCount = 1;
+
+  do {
+    const tokenURL = getTokensURL(chainId, nextCursor);
+    const response = await queryApi(tokenURL, abortSignal, timeout);
+    if (!response) {
+      break;
+    }
+
+    const result = await parseJsonResponse(response);
+
+    // Ensure result is typed with GetTokensUrlResponse and handles pagination
+    if (
+      result &&
+      typeof result === 'object' &&
+      'data' in result &&
+      Array.isArray(result.data)
+    ) {
+      const typedResult = result as GetTokensUrlResponse;
+
+      allTokens.push(...typedResult.data);
+
+      nextCursor = typedResult.pageInfo.hasNextPage
+        ? typedResult.pageInfo.endCursor
+        : undefined;
+    }
+    paginationCount += 1;
+  } while (nextCursor && paginationCount <= hardPaginationLimit);
+
+  if (paginationCount >= hardPaginationLimit) {
+    console.warn(
+      `TokenService: Token list pagination limit reached for chainId ${chainId}`,
+    );
+    return allTokens;
+  }
+
+  // Special filter logic for linea-mainnet (preserved from original)
+  if (chainId === ChainId['linea-mainnet']) {
+    return allTokens.filter(
+      (elm) =>
+        Boolean(elm.aggregators?.includes('lineaTeam')) ||
+        (elm.aggregators && elm.aggregators.length >= 3),
+    );
+  }
+
+  return allTokens;
+}
 
 export type TokenSearchItem = {
   assetId: CaipAssetType;
@@ -348,21 +470,47 @@ export async function getTrendingTokens({
  * @param options.timeout - The fetch timeout.
  * @returns The token metadata, or `undefined` if the request was either aborted or failed.
  */
-export async function fetchTokenMetadata<TReturn>(
+export async function fetchTokenMetadata(
   chainId: Hex,
   tokenAddress: string,
   abortSignal: AbortSignal,
   { timeout = defaultTimeout } = {},
-): Promise<TReturn | undefined> {
+): Promise<EVMTokenMetadata | undefined> {
   if (!isTokenListSupportedForNetwork(chainId)) {
     throw new Error(TOKEN_METADATA_NO_SUPPORT_ERROR);
   }
   const tokenMetadataURL = getTokenMetadataURL(chainId, tokenAddress);
   const response = await queryApi(tokenMetadataURL, abortSignal, timeout);
-  if (response) {
-    return parseJsonResponse(response) as Promise<TReturn>;
+  if (!response) {
+    return undefined;
   }
-  return undefined;
+
+  const result = await parseJsonResponse(response);
+  if (!result || !Array.isArray(result)) {
+    return undefined;
+  }
+
+  const typedResult = result as GetTokenMetadataUrlResponse;
+  const singleToken = typedResult.at(0);
+  if (!singleToken) {
+    return undefined;
+  }
+
+  const tokenMetadata: EVMTokenMetadata = {
+    name: singleToken.name,
+    symbol: singleToken.symbol,
+    decimals: singleToken.decimals,
+    address: tokenAddress,
+    aggregators: singleToken.aggregators,
+    occurrences: singleToken.aggregators?.length ?? 0,
+    iconUrl: formatIconUrlWithProxy({
+      chainId,
+      tokenAddress,
+    }),
+    rwaData: singleToken.rwaData,
+  };
+
+  return tokenMetadata;
 }
 
 /**
