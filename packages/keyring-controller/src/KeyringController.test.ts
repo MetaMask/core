@@ -740,6 +740,50 @@ describe('KeyringController', () => {
           },
         );
       });
+
+      it('should throw error when HD keyring does not support generateRandomMnemonic', async () => {
+        // Create a custom HD keyring that doesn't support generateRandomMnemonic
+        class MockHdKeyringWithoutMnemonic {
+          static type = 'HD Key Tree';
+
+          type = 'HD Key Tree';
+
+          async getAccounts(): Promise<string[]> {
+            return [];
+          }
+
+          async addAccounts(): Promise<string[]> {
+            return [];
+          }
+
+          serialize = async (): Promise<{ type: string }> => ({
+            type: this.type,
+          });
+
+          deserialize = async (): Promise<void> => {
+            // noop
+          };
+        }
+
+        const mockBuilder = keyringBuilderFactory(
+          MockHdKeyringWithoutMnemonic as unknown as KeyringClass,
+        );
+
+        await withController(
+          {
+            skipVaultCreation: true,
+            keyringBuilders: [mockBuilder],
+          },
+          async ({ controller }) => {
+            // Try to create a new vault, which will attempt to generate a mnemonic
+            await expect(
+              controller.createNewVaultAndKeychain(password),
+            ).rejects.toThrow(
+              KeyringControllerErrorMessage.UnsupportedGenerateRandomMnemonic,
+            );
+          },
+        );
+      });
     });
 
     describe('when there is an existing vault', () => {
@@ -3714,6 +3758,37 @@ describe('KeyringController', () => {
         });
       });
     });
+
+    it('should throw KeyringNotFound if keyring metadata is not found (internal consistency check)', async () => {
+      // This test verifies the defensive #getKeyringMetadata guard that ensures
+      // internal state consistency. In normal operation, this should never occur,
+      // but the guard exists to catch potential data corruption scenarios where
+      // a keyring exists but its metadata is not in the internal keyrings array.
+      await withController(async ({ controller }) => {
+        // Mock getKeyringForAccount to return a keyring that isn't in the internal array
+        // This simulates an inconsistent internal state
+        const mockOrphanKeyring: Partial<EthKeyring> = {
+          type: 'OrphanKeyring',
+          getAccounts: jest.fn().mockResolvedValue([]),
+        };
+
+        jest
+          .spyOn(controller, 'getKeyringForAccount')
+          .mockResolvedValue(mockOrphanKeyring as EthKeyring);
+
+        const selector = {
+          address: '0x1234567890123456789012345678901234567890' as Hex,
+        };
+        const fn = jest.fn();
+
+        // This should trigger the #getKeyringMetadata error because mockOrphanKeyring
+        // is not in the internal #keyrings array
+        await expect(controller.withKeyring(selector, fn)).rejects.toThrow(
+          KeyringControllerErrorMessage.KeyringNotFound,
+        );
+        expect(fn).not.toHaveBeenCalled();
+      });
+    });
   });
 
   describe('isCustodyKeyring', () => {
@@ -4378,6 +4453,20 @@ describe('KeyringController', () => {
         const str = error.toString();
 
         expect(str).toContain('KeyringControllerError: Test error');
+        expect(str).toContain('Caused by: Error: Original error');
+      });
+
+      it('should convert to string with both code and cause', () => {
+        const originalError = new Error('Original error');
+        const error = new KeyringControllerError('Test error', {
+          code: 'TEST_CODE',
+          cause: originalError,
+        });
+
+        const str = error.toString();
+
+        expect(str).toContain('KeyringControllerError: Test error');
+        expect(str).toContain('[TEST_CODE]');
         expect(str).toContain('Caused by: Error: Original error');
       });
     });
