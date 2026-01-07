@@ -257,7 +257,7 @@ export const SPOT_PRICES_SUPPORT_INFO = {
   '0xe8': 'eip155:232/erc20:0x0000000000000000000000000000000000000000', // Lens Mainnet - Native symbol: GHO
   '0xfa': 'eip155:250/slip44:1007', // Fantom Opera - Native symbol: FTM
   '0xfc': 'eip155:252/erc20:0x0000000000000000000000000000000000000000', // Fraxtal - native symbol: FRAX
-  '0x10b3e': 'eip155:68414/erc20:0x0000000000000000000000000000000000000000', // MapleStory Universe - no slip44
+  '0x10b3e': 'eip155:68414/erc20:0xf2b51cc1850fed939658317a22d73d3482767591', // MapleStory Universe - no slip44
   '0x120': 'eip155:288/slip44:60', // Boba Network (Ethereum L2) - Native symbol: ETH
   '0x141': 'eip155:321/slip44:641', // KCC Mainnet - Native symbol: KCS
   '0x144': 'eip155:324/slip44:60', // zkSync Era Mainnet (Ethereum L2) - Native symbol: ETH
