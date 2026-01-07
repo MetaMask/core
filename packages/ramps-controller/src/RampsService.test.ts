@@ -7,6 +7,7 @@ import type {
 import nock from 'nock';
 import { useFakeTimers } from 'sinon';
 import type { SinonFakeTimers } from 'sinon';
+
 import type { RampsServiceMessenger } from './RampsService';
 import { RampsService, RampsEnvironment } from './RampsService';
 import { flushPromises } from '../../../tests/helpers';
