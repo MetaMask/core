@@ -37,22 +37,25 @@ export class SnapPlatformWatcher {
   #watch(): void {
     const logReadyOnce = once(() => log('Snap platform is ready!'));
 
-    const state = this.#messenger.call('SnapController:getState');
-
     // If already ready, resolve immediately.
-    if (state.isReady) {
+    const initialState = this.#messenger.call('SnapController:getState');
+    if (initialState.isReady) {
       this.#isReady = true;
       this.#isReadyOnce.resolve();
     }
 
     // We still subscribe to state changes to keep track of the platform's readiness.
-    this.#messenger.subscribe('SnapController:stateChange', ({ isReady }) => {
-      this.#isReady = isReady;
+    this.#messenger.subscribe(
+      'SnapController:stateChange',
+      (isReady: boolean) => {
+        this.#isReady = isReady;
 
-      if (isReady) {
-        logReadyOnce();
-        this.#isReadyOnce.resolve();
-      }
-    });
+        if (isReady) {
+          logReadyOnce();
+          this.#isReadyOnce.resolve();
+        }
+      },
+      (state) => state.isReady,
+    );
   }
 }
