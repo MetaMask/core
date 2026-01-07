@@ -33,11 +33,29 @@ The following controllers from other packages depend on `@metamask/assets-contro
 
 Handles gas fee payment with alternative tokens (pay for transactions with tokens other than the native currency).
 
-- **`TokenBalancesController`**: Queries `tokenBalances[account][chainId][tokenAddress]` to get ERC-20 token balances for determining available funds
-- **`AccountTrackerController`**: Queries `accountsByChainId[chainId][account].balance` to get native currency balance when the payment token is native (ETH, MATIC, etc.)
-- **`TokensController`**: Queries `allTokens[chainId][*]` to get token metadata (decimals, symbol) for proper amount formatting
-- **`TokenRatesController`**: Queries `marketData[chainId][tokenAddress].price` to calculate token-to-native conversion for fiat display
-- **`CurrencyRateController`**: Queries `currencyRates[ticker].conversionRate` and `usdConversionRate` to convert native amounts to fiat
+**Call Chain to `TokenBalancesController`:**
+
+```
+TransactionPayController (constructor)
+    │
+    └─► pollTransactionChanges()          // subscribes to TransactionController events
+            │
+            └─► onTransactionChange()     // triggered when tx is new/updated
+                    │
+                    └─► parseRequiredTokens()   // in required-tokens.ts
+                            │
+                            └─► getTokenBalance()   // in token.ts
+                                    │
+                                    └─► messenger.call('TokenBalancesController:getState')
+```
+
+**State accessed:**
+
+- **`TokenBalancesController`**: `tokenBalances[account][chainId][token]` → ERC-20 balances
+- **`AccountTrackerController`**: `accountsByChainId[chainId][account].balance` → native balance (ETH, MATIC)
+- **`TokensController`**: `allTokens[chainId][*]` → token metadata (decimals, symbol)
+- **`TokenRatesController`**: `marketData[chainId][token].price` → token-to-native price
+- **`CurrencyRateController`**: `currencyRates[ticker].conversionRate` → native-to-fiat rate
 
 ### `bridge-controller`
 
