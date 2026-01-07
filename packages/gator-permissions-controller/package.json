@@ -53,9 +53,9 @@
     "@metamask/delegation-core": "^0.2.0",
     "@metamask/delegation-deployments": "^0.12.0",
     "@metamask/messenger": "^0.3.0",
-    "@metamask/snaps-controllers": "^14.0.1",
-    "@metamask/snaps-sdk": "^9.0.0",
-    "@metamask/snaps-utils": "^11.0.0",
+    "@metamask/snaps-controllers": "^17.2.0",
+    "@metamask/snaps-sdk": "^10.3.0",
+    "@metamask/snaps-utils": "^11.7.0",
     "@metamask/transaction-controller": "^62.7.0",
     "@metamask/utils": "^11.9.0"
   },

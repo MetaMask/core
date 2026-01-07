@@ -73,18 +73,22 @@ export class ShieldRemoteBackend implements ShieldBackend {
 
   readonly #pollingPolicy: PollingWithCockatielPolicy;
 
+  readonly #captureException?: (error: Error) => void;
+
   constructor({
     getAccessToken,
     getCoverageResultTimeout = 5000, // milliseconds
     getCoverageResultPollInterval = 1000, // milliseconds
     baseUrl,
     fetch: fetchFn,
+    captureException: captureExceptionFn,
   }: {
     getAccessToken: () => Promise<string>;
     getCoverageResultTimeout?: number;
     getCoverageResultPollInterval?: number;
     baseUrl: string;
     fetch: typeof globalThis.fetch;
+    captureException?: (error: Error) => void;
   }) {
     this.#getAccessToken = getAccessToken;
     this.#baseUrl = baseUrl;
@@ -99,6 +103,14 @@ export class ShieldRemoteBackend implements ShieldBackend {
       backoff,
       maxRetries,
     });
+
+    this.#captureException = (error: Error): void => {
+      try {
+        captureExceptionFn?.(error);
+      } catch {
+        // ignore error thrown when calling captureException
+      }
+    };
   }
 
   async checkCoverage(req: CheckCoverageRequest): Promise<CoverageResult> {
@@ -154,52 +166,74 @@ export class ShieldRemoteBackend implements ShieldBackend {
   }
 
   async logSignature(req: LogSignatureRequest): Promise<void> {
-    const initBody = makeInitSignatureCoverageCheckBody(req.signatureRequest);
-    const body = {
-      signature: req.signature,
-      status: req.status,
-      ...initBody,
-    };
+    try {
+      const initBody = makeInitSignatureCoverageCheckBody(req.signatureRequest);
+      const body = {
+        signature: req.signature,
+        status: req.status,
+        ...initBody,
+      };
 
-    // cancel the pending get coverage result request
-    this.#pollingPolicy.abortPendingRequest(req.signatureRequest.id);
+      // cancel the pending get coverage result request
+      this.#pollingPolicy.abortPendingRequest(req.signatureRequest.id);
 
-    const res = await this.#fetch(
-      `${this.#baseUrl}/v1/signature/coverage/log`,
-      {
-        method: 'POST',
-        headers: await this.#createHeaders(),
-        body: JSON.stringify(body),
-      },
-    );
-    if (res.status !== 200) {
-      throw new Error(`Failed to log signature: ${res.status}`);
+      const res = await this.#fetch(
+        `${this.#baseUrl}/v1/signature/coverage/log`,
+        {
+          method: 'POST',
+          headers: await this.#createHeaders(),
+          body: JSON.stringify(body),
+        },
+      );
+      if (res.status !== 200) {
+        throw new Error(`Failed to log signature: ${res.status}`);
+      }
+    } catch (error) {
+      const sentryError = createSentryError(
+        'Failed to log signature',
+        error as Error,
+      );
+      this.#captureException?.(sentryError);
+
+      // rethrow the original error
+      throw error;
     }
   }
 
   async logTransaction(req: LogTransactionRequest): Promise<void> {
-    const initBody = makeInitCoverageCheckBody(req.txMeta);
+    try {
+      const initBody = makeInitCoverageCheckBody(req.txMeta);
 
-    const body = {
-      transactionHash: req.transactionHash,
-      rawTransactionHex: req.rawTransactionHex,
-      status: req.status,
-      ...initBody,
-    };
+      const body = {
+        transactionHash: req.transactionHash,
+        rawTransactionHex: req.rawTransactionHex,
+        status: req.status,
+        ...initBody,
+      };
 
-    // cancel the pending get coverage result request
-    this.#pollingPolicy.abortPendingRequest(req.txMeta.id);
+      // cancel the pending get coverage result request
+      this.#pollingPolicy.abortPendingRequest(req.txMeta.id);
 
-    const res = await this.#fetch(
-      `${this.#baseUrl}/v1/transaction/coverage/log`,
-      {
-        method: 'POST',
-        headers: await this.#createHeaders(),
-        body: JSON.stringify(body),
-      },
-    );
-    if (res.status !== 200) {
-      throw new Error(`Failed to log transaction: ${res.status}`);
+      const res = await this.#fetch(
+        `${this.#baseUrl}/v1/transaction/coverage/log`,
+        {
+          method: 'POST',
+          headers: await this.#createHeaders(),
+          body: JSON.stringify(body),
+        },
+      );
+      if (res.status !== 200) {
+        throw new Error(`Failed to log transaction: ${res.status}`);
+      }
+    } catch (error) {
+      const sentryError = createSentryError(
+        'Failed to log transaction',
+        error as Error,
+      );
+      this.#captureException?.(sentryError);
+
+      // rethrow the original error
+      throw error;
     }
   }
 
@@ -207,15 +241,26 @@ export class ShieldRemoteBackend implements ShieldBackend {
     path: string,
     reqBody: unknown,
   ): Promise<InitCoverageCheckResponse> {
-    const res = await this.#fetch(`${this.#baseUrl}/${path}`, {
-      method: 'POST',
-      headers: await this.#createHeaders(),
-      body: JSON.stringify(reqBody),
-    });
-    if (res.status !== 200) {
-      throw new Error(`Failed to init coverage check: ${res.status}`);
+    try {
+      const res = await this.#fetch(`${this.#baseUrl}/${path}`, {
+        method: 'POST',
+        headers: await this.#createHeaders(),
+        body: JSON.stringify(reqBody),
+      });
+      if (res.status !== 200) {
+        throw new Error(`Failed to init coverage check: ${res.status}`);
+      }
+      return (await res.json()) as InitCoverageCheckResponse;
+    } catch (error) {
+      const sentryError = createSentryError(
+        'Failed to init coverage check',
+        error as Error,
+      );
+      this.#captureException?.(sentryError);
+
+      // rethrow the original error
+      throw error;
     }
-    return (await res.json()) as InitCoverageCheckResponse;
   }
 
   async #getCoverageResult(
@@ -377,4 +422,19 @@ function computePollingIntervalAndRetryCount(
     backoff,
     maxRetries,
   };
+}
+
+/**
+ * Create an error instance with a readable message, a cause and a context for Sentry.
+ *
+ * @param errorMessage - The error message.
+ * @param cause - The cause of the error.
+ * @returns A Sentry error.
+ */
+function createSentryError(errorMessage: string, cause: Error): Error {
+  const error = new Error(errorMessage) as Error & {
+    cause: Error;
+  };
+  error.cause = cause;
+  return error;
 }

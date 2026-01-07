@@ -445,10 +445,7 @@ export class PendingTransactionTracker {
       if (isFailure) {
         this.#log('Transaction receipt has failed status');
 
-        this.#failTransaction(
-          txMeta,
-          new Error('Transaction dropped or replaced'),
-        );
+        this.#failTransaction(txMeta, new Error('Transaction failed on-chain'));
 
         return;
       }

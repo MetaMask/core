@@ -120,13 +120,9 @@ async function walletRevokeSessionHandler(
   end: JsonRpcEngineEndCallback,
   hooks: WalletRevokeSessionHooks,
 ) {
-  const {
-    params: { scopes },
-  } = request;
-
   try {
-    if (scopes?.length) {
-      partialRevokePermissions(scopes, hooks);
+    if (request.params?.scopes?.length) {
+      partialRevokePermissions(request.params.scopes, hooks);
     } else {
       hooks.revokePermissionForOrigin(Caip25EndowmentPermissionName);
     }

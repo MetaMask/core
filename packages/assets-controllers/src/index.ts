@@ -236,4 +236,9 @@ export {
   selectAllAssets,
 } from './selectors/token-selectors';
 export { createFormatters } from './utils/formatters';
-export type { SortTrendingBy, TrendingAsset } from './token-service';
+export type {
+  SortTrendingBy,
+  TrendingAsset,
+  TokenSearchItem,
+  TokenRwaData,
+} from './token-service';

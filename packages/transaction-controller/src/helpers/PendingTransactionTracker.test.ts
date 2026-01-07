@@ -478,7 +478,7 @@ describe('PendingTransactionTracker', () => {
           expect(listener).toHaveBeenCalledTimes(1);
           expect(listener).toHaveBeenCalledWith(
             TRANSACTION_SUBMITTED_MOCK,
-            new Error('Transaction dropped or replaced'),
+            new Error('Transaction failed on-chain'),
           );
         });
       });
@@ -1255,7 +1255,7 @@ describe('PendingTransactionTracker', () => {
       expect(listener).toHaveBeenCalledTimes(1);
       expect(listener).toHaveBeenCalledWith(
         transactionMeta,
-        new Error('Transaction dropped or replaced'),
+        new Error('Transaction failed on-chain'),
       );
     });
 

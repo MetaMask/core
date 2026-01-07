@@ -65,7 +65,7 @@
     "@metamask/network-controller": "^27.1.0",
     "@metamask/polling-controller": "^16.0.0",
     "@metamask/remote-feature-flag-controller": "^4.0.0",
-    "@metamask/snaps-controllers": "^14.0.1",
+    "@metamask/snaps-controllers": "^17.2.0",
     "@metamask/transaction-controller": "^62.7.0",
     "@metamask/utils": "^11.9.0",
     "bignumber.js": "^9.1.2",

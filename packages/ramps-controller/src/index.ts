@@ -34,3 +34,5 @@ export {
   createSuccessState,
   createErrorState,
 } from './RequestCache';
+export type { RequestSelectorResult } from './selectors';
+export { createRequestSelector } from './selectors';

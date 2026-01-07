@@ -69,7 +69,6 @@
   },
   "devDependencies": {
     "@metamask/auto-changelog": "^3.4.4",
-    "@metamask/error-reporting-service": "^3.0.1",
     "@metamask/network-controller": "^27.1.0",
     "@ts-bridge/cli": "^0.6.4",
     "@types/deep-freeze-strict": "^1.1.0",

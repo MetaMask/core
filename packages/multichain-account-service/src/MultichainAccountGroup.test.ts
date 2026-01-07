@@ -50,10 +50,6 @@ function setup({
   });
 
   const serviceMessenger = getMultichainAccountServiceMessenger(messenger);
-  messenger.registerActionHandler(
-    'ErrorReportingService:captureException',
-    jest.fn(),
-  );
 
   const wallet = new MultichainAccountWallet<Bip44Account<InternalAccount>>({
     entropySource: MOCK_WALLET_1_ENTROPY_SOURCE,
@@ -228,13 +224,15 @@ describe('MultichainAccount', () => {
       });
       const providerError = new Error('Unable to create accounts');
       providers[1].createAccounts.mockRejectedValueOnce(providerError);
-      const callSpy = jest.spyOn(messenger, 'call');
+      const captureExceptionSpy = jest.spyOn(messenger, 'captureException');
       await group.alignAccounts();
-      expect(callSpy).toHaveBeenCalledWith(
-        'ErrorReportingService:captureException',
+      expect(captureExceptionSpy).toHaveBeenCalledWith(
         new Error('Unable to align accounts with provider "Mocked Provider"'),
       );
-      expect(callSpy.mock.lastCall[1]).toHaveProperty('cause', providerError);
+      expect(captureExceptionSpy.mock.lastCall[0]).toHaveProperty(
+        'cause',
+        providerError,
+      );
     });
   });
 });
