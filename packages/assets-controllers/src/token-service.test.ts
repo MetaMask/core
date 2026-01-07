@@ -244,10 +244,13 @@ describe('Token service', () => {
 
       // Assert first and last endpoint calls
       expect(nockEndpoints[0].isDone()).toBe(true); // page 1 is called
+      expect(nockEndpoints[9].isDone()).toBe(true); // page 10 is called
+      expect(nockEndpoints[10].isDone()).toBe(false); // page 11 is never called
       expect(nockEndpoints[19].isDone()).toBe(false); // page 20 is never called
 
       // Assert all endpoints calls
       nockEndpoints.forEach((endpoint, index) => {
+        // 10 pages, so index 0 to 9 are done, 10 is never called
         const isDone = index < 10;
         expect(endpoint.isDone()).toBe(isDone);
       });

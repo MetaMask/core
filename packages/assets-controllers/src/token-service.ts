@@ -252,7 +252,7 @@ export async function fetchTokenListByChainId(
   // If we are still fetching tokens past 10 pages of 3000 tokens (30000),
   // then we really need to re-evaluate our approach
   const hardPaginationLimit = 10;
-  let paginationCount = 1;
+  let paginationCount = 0;
 
   do {
     const tokenURL = getTokensURL(chainId, nextCursor);
@@ -263,7 +263,6 @@ export async function fetchTokenListByChainId(
 
     const result = await parseJsonResponse(response);
 
-    // Ensure result is typed with GetTokensUrlResponse and handles pagination
     if (
       result &&
       typeof result === 'object' &&
@@ -274,12 +273,12 @@ export async function fetchTokenListByChainId(
 
       allTokens.push(...typedResult.data);
 
-      nextCursor = typedResult.pageInfo.hasNextPage
-        ? typedResult.pageInfo.endCursor
+      nextCursor = typedResult?.pageInfo?.hasNextPage
+        ? typedResult?.pageInfo?.endCursor
         : undefined;
     }
     paginationCount += 1;
-  } while (nextCursor && paginationCount <= hardPaginationLimit);
+  } while (nextCursor && paginationCount < hardPaginationLimit);
 
   if (paginationCount >= hardPaginationLimit) {
     console.warn(
@@ -288,7 +287,6 @@ export async function fetchTokenListByChainId(
     return allTokens;
   }
 
-  // Special filter logic for linea-mainnet (preserved from original)
   if (chainId === ChainId['linea-mainnet']) {
     return allTokens.filter(
       (elm) =>
