@@ -16,7 +16,7 @@ export type KeyringControllerErrorOptions = {
    * Additional context data associated with the error.
    * Useful for debugging and error reporting.
    */
-  data?: Record<string, unknown>;
+  context?: Record<string, unknown>;
 };
 
 /**
@@ -37,7 +37,7 @@ export class KeyringControllerError extends Error {
   /**
    * Additional context data associated with the error.
    */
-  data?: Record<string, unknown>;
+  context?: Record<string, unknown>;
 
   /**
    * The underlying error that caused this error (ES2022 standard).
@@ -66,7 +66,7 @@ export class KeyringControllerError extends Error {
     // Support both new signature (options object) and legacy signature (Error as second param)
     const cause = options instanceof Error ? options : options?.cause;
     const code = options instanceof Error ? undefined : options?.code;
-    const data = options instanceof Error ? undefined : options?.data;
+    const context = options instanceof Error ? undefined : options?.context;
 
     // Set cause property for error chaining (ES2022 standard)
     if (cause) {
@@ -79,8 +79,8 @@ export class KeyringControllerError extends Error {
     if (code) {
       this.code = code;
     }
-    if (data) {
-      this.data = data;
+    if (context) {
+      this.context = context;
     }
 
     // Ensure proper prototype chain for instanceof checks
@@ -98,7 +98,7 @@ export class KeyringControllerError extends Error {
       name: this.name,
       message: this.message,
       code: this.code,
-      data: this.data,
+      context: this.context,
       stack: this.stack,
       cause: this.cause
         ? {

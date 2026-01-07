@@ -36,7 +36,7 @@ import { cloneDeep, isEqual } from 'lodash';
 // When generating a ULID within the same millisecond, monotonicFactory provides some guarantees regarding sort order.
 import { ulid } from 'ulid';
 
-import { KeyringControllerError as KeyringControllerErrorMessage } from './constants';
+import { KeyringControllerErrorMessage } from './constants';
 import { KeyringControllerError } from './errors';
 import type {
   Eip7702AuthorizationParams,

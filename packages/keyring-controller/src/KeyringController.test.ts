@@ -25,7 +25,7 @@ import { bytesToHex, isValidHexAddress } from '@metamask/utils';
 import type { Hex } from '@metamask/utils';
 import sinon from 'sinon';
 
-import { KeyringControllerError as KeyringControllerErrorMessage } from './constants';
+import { KeyringControllerErrorMessage } from './constants';
 import { KeyringControllerError } from './errors';
 import type {
   KeyringControllerEvents,
@@ -4374,10 +4374,10 @@ describe('KeyringController', () => {
 
       it('should support additional data', () => {
         const error = new KeyringControllerError('Test error', {
-          data: { key: 'value', number: 42 },
+          context: { key: 'value', number: 42 },
         });
 
-        expect(error.data).toStrictEqual({ key: 'value', number: 42 });
+        expect(error.context).toStrictEqual({ key: 'value', number: 42 });
       });
 
       it('should support error chaining with cause', () => {
@@ -4405,7 +4405,7 @@ describe('KeyringController', () => {
         const originalError = new Error('Original error');
         const error = new KeyringControllerError('Test error', {
           code: 'TEST_CODE',
-          data: { key: 'value' },
+          context: { key: 'value' },
           cause: originalError,
         });
 
@@ -4414,7 +4414,7 @@ describe('KeyringController', () => {
         expect(json.name).toBe('KeyringControllerError');
         expect(json.message).toBe('Test error');
         expect(json.code).toBe('TEST_CODE');
-        expect(json.data).toStrictEqual({ key: 'value' });
+        expect(json.context).toStrictEqual({ key: 'value' });
         expect(json.cause).toStrictEqual({
           name: 'Error',
           message: 'Original error',
