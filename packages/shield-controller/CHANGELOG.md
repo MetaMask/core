@@ -9,11 +9,6 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [4.1.0]
 
-### Uncategorized
-
-- Chore/w3a controllers linting ([#7455](https://github.com/MetaMask/core/pull/7455))
-- Remove breaking designation from version bumps in changelog ([#7419](https://github.com/MetaMask/core/pull/7419))
-
 ### Added
 
 - Add optional constructor param, `captureException` to capture any errors during coverage API calls. ([#7555](https://github.com/MetaMask/core/pull/7555))
