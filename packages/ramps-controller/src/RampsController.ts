@@ -7,7 +7,12 @@ import { BaseController } from '@metamask/base-controller';
 import type { Messenger } from '@metamask/messenger';
 import type { Json } from '@metamask/utils';
 
-import type { RampsServiceGetGeolocationAction } from './RampsService-method-action-types';
+import type { Country, Eligibility } from './RampsService';
+import type {
+  RampsServiceGetGeolocationAction,
+  RampsServiceGetCountriesAction,
+  RampsServiceGetEligibilityAction,
+} from './RampsService-method-action-types';
 import type {
   RequestCache as RequestCacheType,
   RequestState,
@@ -44,6 +49,10 @@ export type RampsControllerState = {
    */
   geolocation: string | null;
   /**
+   * Eligibility information for the user's current region.
+   */
+  eligibility: Eligibility | null;
+  /**
    * Cache of request states, keyed by cache key.
    * This stores loading, success, and error states for API requests.
    */
@@ -55,6 +64,12 @@ export type RampsControllerState = {
  */
 const rampsControllerMetadata = {
   geolocation: {
+    persist: true,
+    includeInDebugSnapshot: true,
+    includeInStateLogs: true,
+    usedInUi: true,
+  },
+  eligibility: {
     persist: true,
     includeInDebugSnapshot: true,
     includeInStateLogs: true,
@@ -79,6 +94,7 @@ const rampsControllerMetadata = {
 export function getDefaultRampsControllerState(): RampsControllerState {
   return {
     geolocation: null,
+    eligibility: null,
     requests: {},
   };
 }
@@ -101,7 +117,10 @@ export type RampsControllerActions = RampsControllerGetStateAction;
 /**
  * Actions from other messengers that {@link RampsController} calls.
  */
-type AllowedActions = RampsServiceGetGeolocationAction;
+type AllowedActions =
+  | RampsServiceGetGeolocationAction
+  | RampsServiceGetCountriesAction
+  | RampsServiceGetEligibilityAction;
 
 /**
  * Published when the state of {@link RampsController} changes.
@@ -368,9 +387,9 @@ export class RampsController extends BaseController<
   }
 
   /**
-   * Updates the user's geolocation.
-   * This method calls the RampsService to get the geolocation
-   * and stores the result in state.
+   * Updates the user's geolocation and eligibility.
+   * This method calls the RampsService to get the geolocation,
+   * then automatically fetches eligibility for that region.
    *
    * @param options - Options for cache behavior.
    * @returns The geolocation string.
@@ -391,6 +410,78 @@ export class RampsController extends BaseController<
       state.geolocation = geolocation;
     });
 
+    if (geolocation) {
+      try {
+        await this.updateEligibility(geolocation, options);
+      } catch {
+        // Eligibility fetch failed, but geolocation was successfully fetched and cached.
+        // Don't let eligibility errors prevent geolocation state from being updated.
+        // Clear eligibility state to avoid showing stale data from a previous location.
+        this.update((state) => {
+          state.eligibility = null;
+        });
+      }
+    }
+
     return geolocation;
+  }
+
+  /**
+   * Updates the eligibility information for a given region.
+   *
+   * @param isoCode - The ISO code for the region (e.g., "us", "fr", "us-ny").
+   * @param options - Options for cache behavior.
+   * @returns The eligibility information.
+   */
+  async updateEligibility(
+    isoCode: string,
+    options?: ExecuteRequestOptions,
+  ): Promise<Eligibility> {
+    const normalizedIsoCode = isoCode.toLowerCase().trim();
+    const cacheKey = createCacheKey('updateEligibility', [normalizedIsoCode]);
+
+    const eligibility = await this.executeRequest(
+      cacheKey,
+      async () => {
+        return this.messenger.call(
+          'RampsService:getEligibility',
+          normalizedIsoCode,
+        );
+      },
+      options,
+    );
+
+    this.update((state) => {
+      if (
+        state.geolocation === null ||
+        state.geolocation.toLowerCase().trim() === normalizedIsoCode
+      ) {
+        state.eligibility = eligibility;
+      }
+    });
+
+    return eligibility;
+  }
+
+  /**
+   * Fetches the list of supported countries for a given ramp action.
+   *
+   * @param action - The ramp action type ('buy' or 'sell').
+   * @param options - Options for cache behavior.
+   * @returns An array of countries with their eligibility information.
+   */
+  async getCountries(
+    action: 'buy' | 'sell' = 'buy',
+    options?: ExecuteRequestOptions,
+  ): Promise<Country[]> {
+    const cacheKey = createCacheKey('getCountries', [action]);
+
+    return this.executeRequest(
+      cacheKey,
+      async () => {
+        return this.messenger.call('RampsService:getCountries', action);
+      },
+      options,
+    );
   }
 }
