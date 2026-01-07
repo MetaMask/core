@@ -1,12 +1,12 @@
 import { execFileSync, execSync } from 'node:child_process';
 import { arch } from 'node:os';
 
-import {
-  type Checksums,
-  type PlatformArchChecksums,
-  Architecture,
-  type Binary,
-  type Platform,
+import { Architecture } from './types';
+import type {
+  Checksums,
+  PlatformArchChecksums,
+  Binary,
+  Platform,
 } from './types';
 
 /**

@@ -1,7 +1,7 @@
 import type {
   AccountsControllerAccountAddedEvent,
-  AccountsControllerListAccountsAction,
   AccountsControllerAccountRemovedEvent,
+  AccountsControllerGetStateAction,
 } from '@metamask/accounts-controller';
 import type {
   ControllerGetStateAction,
@@ -100,7 +100,7 @@ export type ProfileMetricsControllerActions =
  */
 type AllowedActions =
   | ProfileMetricsServiceMethodActions
-  | AccountsControllerListAccountsAction;
+  | AccountsControllerGetStateAction;
 
 /**
  * Published when the state of {@link ProfileMetricsController} changes.
@@ -195,8 +195,10 @@ export class ProfileMetricsController extends StaticIntervalPollingController()<
     );
 
     this.messenger.subscribe('KeyringController:unlock', () => {
-      this.startPolling(null);
       this.#queueFirstSyncIfNeeded().catch(console.error);
+      if (this.#assertUserOptedIn()) {
+        this.startPolling(null);
+      }
     });
 
     this.messenger.subscribe('KeyringController:lock', () => {
@@ -258,13 +260,16 @@ export class ProfileMetricsController extends StaticIntervalPollingController()<
    * This method ensures that the first sync is only executed once,
    * and only if the user has opted in to user profile features.
    */
-  async #queueFirstSyncIfNeeded() {
+  async #queueFirstSyncIfNeeded(): Promise<void> {
     await this.#mutex.runExclusive(async () => {
       if (this.state.initialEnqueueCompleted) {
         return;
       }
       const newGroupedAccounts = groupAccountsByEntropySourceId(
-        this.messenger.call('AccountsController:listAccounts'),
+        Object.values(
+          this.messenger.call('AccountsController:getState').internalAccounts
+            .accounts,
+        ),
       );
       this.update((state) => {
         for (const key of Object.keys(newGroupedAccounts)) {
@@ -283,10 +288,10 @@ export class ProfileMetricsController extends StaticIntervalPollingController()<
    *
    * @param account - The account to sync.
    */
-  async #addAccountToQueue(account: InternalAccount) {
+  async #addAccountToQueue(account: InternalAccount): Promise<void> {
     await this.#mutex.runExclusive(async () => {
       this.update((state) => {
-        const entropySourceId = getAccountEntropySourceId(account) || 'null';
+        const entropySourceId = getAccountEntropySourceId(account) ?? 'null';
         if (!state.syncQueue[entropySourceId]) {
           state.syncQueue[entropySourceId] = [];
         }
@@ -303,7 +308,7 @@ export class ProfileMetricsController extends StaticIntervalPollingController()<
    *
    * @param account - The account address to remove.
    */
-  async #removeAccountFromQueue(account: string) {
+  async #removeAccountFromQueue(account: string): Promise<void> {
     await this.#mutex.runExclusive(async () => {
       this.update((state) => {
         for (const [entropySourceId, groupedAddresses] of Object.entries(
@@ -333,7 +338,7 @@ export class ProfileMetricsController extends StaticIntervalPollingController()<
  * @returns The entropy source ID, or null if it does not exist.
  */
 function getAccountEntropySourceId(account: InternalAccount): string | null {
-  if (account.options.entropy && account.options.entropy.type === 'mnemonic') {
+  if (account.options.entropy?.type === 'mnemonic') {
     return account.options.entropy.id;
   }
   return null;
@@ -352,7 +357,7 @@ function groupAccountsByEntropySourceId(
   return accounts.reduce(
     (result: Record<string, AccountWithScopes[]>, account) => {
       const entropySourceId = getAccountEntropySourceId(account);
-      const key = entropySourceId || 'null';
+      const key = entropySourceId ?? 'null';
       if (!result[key]) {
         result[key] = [];
       }

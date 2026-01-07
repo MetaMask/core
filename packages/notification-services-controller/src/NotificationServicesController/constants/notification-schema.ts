@@ -1,3 +1,5 @@
+// Using SCREAMING_SNAKE_CASE for enum name and members to mirror snake_case API string values for readability
+/* eslint-disable @typescript-eslint/naming-convention */
 export enum TRIGGER_TYPES {
   FEATURES_ANNOUNCEMENT = 'features_announcement',
   METAMASK_SWAP_COMPLETED = 'metamask_swap_completed',
@@ -18,6 +20,7 @@ export enum TRIGGER_TYPES {
   SNAP = 'snap',
   PLATFORM = 'platform',
 }
+/* eslint-enable @typescript-eslint/naming-convention */
 
 export const NOTIFICATION_API_TRIGGER_TYPES_SET: Set<string> = new Set([
   TRIGGER_TYPES.METAMASK_SWAP_COMPLETED,
@@ -50,5 +53,7 @@ export const NOTIFICATION_CHAINS_ID = {
   SEI: '1329',
 } as const;
 
+// Kept as SCREAMING_SNAKE_CASE for backwards compatibility
+// eslint-disable-next-line @typescript-eslint/naming-convention
 export type NOTIFICATION_CHAINS_IDS =
   (typeof NOTIFICATION_CHAINS_ID)[keyof typeof NOTIFICATION_CHAINS_ID];

@@ -16,18 +16,20 @@ import { traceFallback } from './analytics';
 import { projectLogger as log } from './logger';
 import type { MultichainAccountGroup } from './MultichainAccountGroup';
 import { MultichainAccountWallet } from './MultichainAccountWallet';
-import type {
+import {
   EvmAccountProviderConfig,
   Bip44AccountProvider,
+  EVM_ACCOUNT_PROVIDER_NAME,
 } from './providers';
 import {
   AccountProviderWrapper,
   isAccountProviderWrapper,
 } from './providers/AccountProviderWrapper';
 import { EvmAccountProvider } from './providers/EvmAccountProvider';
+import { SolAccountProvider } from './providers/SolAccountProvider';
 import {
-  SolAccountProvider,
-  type SolAccountProviderConfig,
+  SOL_ACCOUNT_PROVIDER_NAME,
+  SolAccountProviderConfig,
 } from './providers/SolAccountProvider';
 import type {
   MultichainAccountServiceConfig,
@@ -44,8 +46,8 @@ export type MultichainAccountServiceOptions = {
   messenger: MultichainAccountServiceMessenger;
   providers?: Bip44AccountProvider[];
   providerConfigs?: {
-    [EvmAccountProvider.NAME]?: EvmAccountProviderConfig;
-    [SolAccountProvider.NAME]?: SolAccountProviderConfig;
+    [EVM_ACCOUNT_PROVIDER_NAME]?: EvmAccountProviderConfig;
+    [SOL_ACCOUNT_PROVIDER_NAME]?: SolAccountProviderConfig;
   };
   config?: MultichainAccountServiceConfig;
 };
@@ -132,14 +134,14 @@ export class MultichainAccountService {
     this.#providers = [
       new EvmAccountProvider(
         this.#messenger,
-        providerConfigs?.[EvmAccountProvider.NAME],
+        providerConfigs?.[EVM_ACCOUNT_PROVIDER_NAME],
         traceCallback,
       ),
       new AccountProviderWrapper(
         this.#messenger,
         new SolAccountProvider(
           this.#messenger,
-          providerConfigs?.[SolAccountProvider.NAME],
+          providerConfigs?.[SOL_ACCOUNT_PROVIDER_NAME],
           traceCallback,
         ),
       ),
@@ -309,10 +311,7 @@ export class MultichainAccountService {
           const sentryError = createSentryError(errorMessage, error as Error, {
             provider: provider.getName(),
           });
-          this.#messenger.call(
-            'ErrorReportingService:captureException',
-            sentryError,
-          );
+          this.#messenger.captureException?.(sentryError);
         }
       }),
     );

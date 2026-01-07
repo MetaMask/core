@@ -6,7 +6,8 @@ import type {
   Provider,
 } from '@metamask/network-controller';
 import { BlockTrackerPollingControllerOnly } from '@metamask/polling-controller';
-import { createModuleLogger, type Hex } from '@metamask/utils';
+import { createModuleLogger } from '@metamask/utils';
+import type { Hex } from '@metamask/utils';
 // This package purposefully relies on Node's EventEmitter module.
 // eslint-disable-next-line import-x/no-nodejs-modules
 import EventEmitter from 'events';

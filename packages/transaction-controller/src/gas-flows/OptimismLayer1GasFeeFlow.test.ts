@@ -1,5 +1,6 @@
 import * as ControllerUtils from '@metamask/controller-utils';
-import { hexToNumber, type Hex } from '@metamask/utils';
+import { hexToNumber } from '@metamask/utils';
+import type { Hex } from '@metamask/utils';
 
 import { OptimismLayer1GasFeeFlow } from './OptimismLayer1GasFeeFlow';
 import { CHAIN_IDS } from '../constants';

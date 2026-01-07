@@ -3,8 +3,8 @@ import {
   isEvmTxData,
   isBitcoinTrade,
   isTronTrade,
-  type Trade,
 } from './trade-utils';
+import type { Trade } from './trade-utils';
 import type { BitcoinTradeData, TronTradeData, TxData } from '../types';
 
 describe('Trade utils', () => {

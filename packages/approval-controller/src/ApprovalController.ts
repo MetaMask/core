@@ -1,11 +1,9 @@
+import { BaseController } from '@metamask/base-controller';
 import type {
   ControllerGetStateAction,
   StateMetadata,
 } from '@metamask/base-controller';
-import {
-  BaseController,
-  type ControllerStateChangeEvent,
-} from '@metamask/base-controller';
+import type { ControllerStateChangeEvent } from '@metamask/base-controller';
 import type { Messenger } from '@metamask/messenger';
 import type { JsonRpcError, DataWithOptionalCause } from '@metamask/rpc-errors';
 import { rpcErrors } from '@metamask/rpc-errors';

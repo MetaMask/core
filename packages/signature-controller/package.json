@@ -1,6 +1,6 @@
 {
   "name": "@metamask/signature-controller",
-  "version": "37.0.0",
+  "version": "38.0.0",
   "description": "Processes signing requests in order to sign arbitrary and typed data",
   "keywords": [
     "MetaMask",
@@ -51,14 +51,14 @@
     "@metamask/accounts-controller": "^35.0.0",
     "@metamask/approval-controller": "^8.0.0",
     "@metamask/base-controller": "^9.0.0",
-    "@metamask/controller-utils": "^11.16.0",
+    "@metamask/controller-utils": "^11.17.0",
     "@metamask/eth-sig-util": "^8.2.0",
-    "@metamask/gator-permissions-controller": "^0.7.0",
+    "@metamask/gator-permissions-controller": "^0.8.0",
     "@metamask/keyring-controller": "^25.0.0",
     "@metamask/logging-controller": "^7.0.1",
     "@metamask/messenger": "^0.3.0",
-    "@metamask/network-controller": "^27.0.0",
-    "@metamask/utils": "^11.8.1",
+    "@metamask/network-controller": "^27.1.0",
+    "@metamask/utils": "^11.9.0",
     "jsonschema": "^1.4.1",
     "lodash": "^4.17.21",
     "uuid": "^8.3.2"

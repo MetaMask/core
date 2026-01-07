@@ -114,7 +114,7 @@ export class MultichainTrackingHelper {
     });
   }
 
-  initialize() {
+  initialize(): void {
     const networkClients = this.#getNetworkClientRegistry();
 
     this.#refreshTrackingMap(networkClients);
@@ -122,7 +122,7 @@ export class MultichainTrackingHelper {
     log('Initialized');
   }
 
-  has(networkClientId: NetworkClientId) {
+  has(networkClientId: NetworkClientId): boolean {
     return this.#trackingMap.has(networkClientId);
   }
 
@@ -178,9 +178,7 @@ export class MultichainTrackingHelper {
 
     if (!nonceTracker) {
       throw new Error(
-        `Missing nonce tracker for network client ID - ${
-          networkClientId as string
-        }`,
+        `Missing nonce tracker for network client ID - ${networkClientId}`,
       );
     }
 
@@ -191,7 +189,7 @@ export class MultichainTrackingHelper {
     try {
       const nonceLock = await nonceTracker.getNonceLock(address);
 
-      const releaseLock = () => {
+      const releaseLock = (): void => {
         nonceLock.releaseLock();
         releaseLockForChainIdKey?.();
       };
@@ -200,19 +198,19 @@ export class MultichainTrackingHelper {
         ...nonceLock,
         releaseLock,
       };
-    } catch (err) {
+    } catch (error) {
       releaseLockForChainIdKey?.();
-      throw err;
+      throw error;
     }
   }
 
-  checkForPendingTransactionAndStartPolling = () => {
+  checkForPendingTransactionAndStartPolling = (): void => {
     for (const [, trackers] of this.#trackingMap) {
       trackers.pendingTransactionTracker.startIfPendingTransactions();
     }
   };
 
-  stopAllTracking() {
+  stopAllTracking(): void {
     for (const [networkClientId] of this.#trackingMap) {
       this.#stopTrackingByNetworkClientId(networkClientId);
     }
@@ -257,7 +255,9 @@ export class MultichainTrackingHelper {
     };
   }
 
-  readonly #refreshTrackingMap = (networkClients: NetworkClientRegistry) => {
+  readonly #refreshTrackingMap = (
+    networkClients: NetworkClientRegistry,
+  ): void => {
     const networkClientIds = Object.keys(networkClients);
     const existingNetworkClientIds = Array.from(this.#trackingMap.keys());
 
@@ -288,7 +288,7 @@ export class MultichainTrackingHelper {
     }
   };
 
-  #stopTrackingByNetworkClientId(networkClientId: NetworkClientId) {
+  #stopTrackingByNetworkClientId(networkClientId: NetworkClientId): void {
     const trackers = this.#trackingMap.get(networkClientId);
     if (trackers) {
       trackers.pendingTransactionTracker.stop();
@@ -299,7 +299,7 @@ export class MultichainTrackingHelper {
     }
   }
 
-  #startTrackingByNetworkClientId(networkClientId: NetworkClientId) {
+  #startTrackingByNetworkClientId(networkClientId: NetworkClientId): void {
     const trackers = this.#trackingMap.get(networkClientId);
     if (trackers) {
       return;

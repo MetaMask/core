@@ -1,4 +1,5 @@
-import { isBip44Account, type Bip44Account } from '@metamask/account-api';
+import { isBip44Account } from '@metamask/account-api';
+import type { Bip44Account } from '@metamask/account-api';
 import type { TraceCallback, TraceRequest } from '@metamask/controller-utils';
 import type { EntropySourceId, KeyringAccount } from '@metamask/keyring-api';
 import type { InternalAccount } from '@metamask/keyring-internal-api';
@@ -607,23 +608,18 @@ describe('SnapAccountProvider', () => {
 
     it('creates new accounts if de-synced', async () => {
       const { provider, messenger } = setup();
+      const captureExceptionSpy = jest.spyOn(messenger, 'captureException');
 
       messenger.registerActionHandler(
         'SnapController:handleRequest',
         jest.fn().mockResolvedValue([mockAccounts[0]].map(asKeyringAccount)),
       );
 
-      const mockCaptureException = jest.fn();
-      messenger.registerActionHandler(
-        'ErrorReportingService:captureException',
-        mockCaptureException,
-      );
-
       const createAccountsSpy = jest.spyOn(provider, 'createAccounts');
 
       await provider.resyncAccounts(mockAccounts);
 
-      expect(mockCaptureException).toHaveBeenCalledWith(
+      expect(captureExceptionSpy).toHaveBeenCalledWith(
         new Error(
           `Snap "${TEST_SNAP_ID}" has de-synced accounts, we'll attempt to re-sync them...`,
         ),
@@ -638,21 +634,16 @@ describe('SnapAccountProvider', () => {
 
     it('reports an error if a Snap has more accounts than MetaMask', async () => {
       const { provider, messenger } = setup();
+      const captureExceptionSpy = jest.spyOn(messenger, 'captureException');
 
       messenger.registerActionHandler(
         'SnapController:handleRequest',
         jest.fn().mockResolvedValue(mockAccounts.map(asKeyringAccount)),
       );
 
-      const mockCaptureException = jest.fn();
-      messenger.registerActionHandler(
-        'ErrorReportingService:captureException',
-        mockCaptureException,
-      );
-
       await provider.resyncAccounts([mockAccounts[0]]); // Less accounts than the Snap
 
-      expect(mockCaptureException).toHaveBeenCalledWith(
+      expect(captureExceptionSpy).toHaveBeenCalledWith(
         new Error(
           `Snap "${TEST_SNAP_ID}" has de-synced accounts, Snap has more accounts than MetaMask!`,
         ),
@@ -661,16 +652,11 @@ describe('SnapAccountProvider', () => {
 
     it('does not throw errors if any provider is not able to re-sync', async () => {
       const { provider, messenger } = setup();
+      const captureExceptionSpy = jest.spyOn(messenger, 'captureException');
 
       messenger.registerActionHandler(
         'SnapController:handleRequest',
         jest.fn().mockResolvedValue([mockAccounts[0]].map(asKeyringAccount)),
-      );
-
-      const mockCaptureException = jest.fn();
-      messenger.registerActionHandler(
-        'ErrorReportingService:captureException',
-        mockCaptureException,
       );
 
       const createAccountsSpy = jest.spyOn(provider, 'createAccounts');
@@ -682,17 +668,17 @@ describe('SnapAccountProvider', () => {
 
       expect(createAccountsSpy).toHaveBeenCalled();
 
-      expect(mockCaptureException).toHaveBeenNthCalledWith(
+      expect(captureExceptionSpy).toHaveBeenNthCalledWith(
         1,
         new Error(
           `Snap "${TEST_SNAP_ID}" has de-synced accounts, we'll attempt to re-sync them...`,
         ),
       );
-      expect(mockCaptureException).toHaveBeenNthCalledWith(
+      expect(captureExceptionSpy).toHaveBeenNthCalledWith(
         2,
         new Error('Unable to re-sync account: 0'),
       );
-      expect(mockCaptureException.mock.lastCall[0]).toHaveProperty(
+      expect(captureExceptionSpy.mock.lastCall[0]).toHaveProperty(
         'cause',
         providerError,
       );

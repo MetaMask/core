@@ -3,12 +3,8 @@ import type { Hex } from '@metamask/utils';
 import { IncomingTransactionHelper } from './IncomingTransactionHelper';
 import type { TransactionControllerMessenger } from '..';
 import { flushPromises } from '../../../../tests/helpers';
-import {
-  TransactionStatus,
-  TransactionType,
-  type RemoteTransactionSource,
-  type TransactionMeta,
-} from '../types';
+import { TransactionStatus, TransactionType } from '../types';
+import type { RemoteTransactionSource, TransactionMeta } from '../types';
 import { getIncomingTransactionsPollingInterval } from '../utils/feature-flags';
 
 jest.useFakeTimers();
@@ -98,7 +94,10 @@ const createRemoteTransactionSourceMock = (
 async function runInterval(
   helper: IncomingTransactionHelper,
   { start, error }: { start?: boolean; error?: boolean } = {},
-) {
+): Promise<{
+  transactions: TransactionMeta[];
+  incomingTransactionsListener: jest.Mock;
+}> {
   const incomingTransactionsListener = jest.fn();
 
   if (error) {
@@ -209,7 +208,7 @@ describe('IncomingTransactionHelper', () => {
       it('excluding duplicates already in local transactions', async () => {
         const helper = new IncomingTransactionHelper({
           ...CONTROLLER_ARGS_MOCK,
-          getLocalTransactions: () => [TRANSACTION_MOCK],
+          getLocalTransactions: (): TransactionMeta[] => [TRANSACTION_MOCK],
           remoteTransactionSource: createRemoteTransactionSourceMock([
             TRANSACTION_MOCK,
             TRANSACTION_MOCK_2,
@@ -229,7 +228,7 @@ describe('IncomingTransactionHelper', () => {
 
         const helper = new IncomingTransactionHelper({
           ...CONTROLLER_ARGS_MOCK,
-          getLocalTransactions: () => [localTransaction],
+          getLocalTransactions: (): TransactionMeta[] => [localTransaction],
           remoteTransactionSource: createRemoteTransactionSourceMock([
             TRANSACTION_MOCK,
             TRANSACTION_MOCK_2,
@@ -305,7 +304,7 @@ describe('IncomingTransactionHelper', () => {
       it('does not if no unique transactions', async () => {
         const helper = new IncomingTransactionHelper({
           ...CONTROLLER_ARGS_MOCK,
-          getLocalTransactions: () => [TRANSACTION_MOCK],
+          getLocalTransactions: (): TransactionMeta[] => [TRANSACTION_MOCK],
           remoteTransactionSource: createRemoteTransactionSourceMock([
             TRANSACTION_MOCK,
           ]),
@@ -321,7 +320,7 @@ describe('IncomingTransactionHelper', () => {
       it('does not if all unique transactions are truncated', async () => {
         const helper = new IncomingTransactionHelper({
           ...CONTROLLER_ARGS_MOCK,
-          trimTransactions: () => [],
+          trimTransactions: (): TransactionMeta[] => [],
           remoteTransactionSource: createRemoteTransactionSourceMock([
             TRANSACTION_MOCK,
           ]),
@@ -368,7 +367,7 @@ describe('IncomingTransactionHelper', () => {
     it('does nothing if disabled', async () => {
       const helper = new IncomingTransactionHelper({
         ...CONTROLLER_ARGS_MOCK,
-        isEnabled: () => false,
+        isEnabled: (): boolean => false,
         remoteTransactionSource: createRemoteTransactionSourceMock([]),
       });
 
@@ -449,7 +448,7 @@ describe('IncomingTransactionHelper', () => {
 
       const helper = new IncomingTransactionHelper({
         ...CONTROLLER_ARGS_MOCK,
-        getLocalTransactions: () => [localTransaction],
+        getLocalTransactions: (): TransactionMeta[] => [localTransaction],
         remoteTransactionSource: createRemoteTransactionSourceMock([
           remoteTransaction,
         ]),
@@ -477,7 +476,7 @@ describe('IncomingTransactionHelper', () => {
       };
       const helper = new IncomingTransactionHelper({
         ...CONTROLLER_ARGS_MOCK,
-        getLocalTransactions: () => [localTransaction],
+        getLocalTransactions: (): TransactionMeta[] => [localTransaction],
         remoteTransactionSource: createRemoteTransactionSourceMock([
           remoteTransaction,
         ]),

@@ -14,7 +14,9 @@ describe('Perps Service - createPerpOrderNotification', () => {
     jest.clearAllMocks();
   });
 
-  const arrangeMocks = () => {
+  const arrangeMocks = (): {
+    consoleErrorSpy: jest.SpyInstance<void, Parameters<typeof console.error>>;
+  } => {
     const consoleErrorSpy = jest
       .spyOn(console, 'error')
       .mockImplementation(jest.fn());

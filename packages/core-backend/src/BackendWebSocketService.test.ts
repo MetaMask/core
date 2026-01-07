@@ -1,17 +1,19 @@
-import {
-  Messenger,
-  MOCK_ANY_NAMESPACE,
-  type MessengerActions,
-  type MessengerEvents,
-  type MockAnyNamespace,
+import { Messenger, MOCK_ANY_NAMESPACE } from '@metamask/messenger';
+import type {
+  MessengerActions,
+  MessengerEvents,
+  MockAnyNamespace,
 } from '@metamask/messenger';
 
 import {
   BackendWebSocketService,
   getCloseReason,
   WebSocketState,
-  type BackendWebSocketServiceOptions,
-  type BackendWebSocketServiceMessenger,
+  WebSocketSubscription,
+} from './BackendWebSocketService';
+import type {
+  BackendWebSocketServiceOptions,
+  BackendWebSocketServiceMessenger,
 } from './BackendWebSocketService';
 import { flushPromises } from '../../../tests/helpers';
 
@@ -44,6 +46,7 @@ type RootMessenger = Messenger<
  */
 class MockWebSocket extends EventTarget {
   // WebSocket state constants
+  /* eslint-disable @typescript-eslint/naming-convention */
   public static readonly CONNECTING = 0;
 
   public static readonly OPEN = 1;
@@ -51,16 +54,17 @@ class MockWebSocket extends EventTarget {
   public static readonly CLOSING = 2;
 
   public static readonly CLOSED = 3;
+  /* eslint-enable @typescript-eslint/naming-convention */
 
   // Track total instances created for testing
-  private static instanceCount = 0;
+  static #instanceCount = 0;
 
   public static getInstanceCount(): number {
-    return MockWebSocket.instanceCount;
+    return MockWebSocket.#instanceCount;
   }
 
   public static resetInstanceCount(): void {
-    MockWebSocket.instanceCount = 0;
+    MockWebSocket.#instanceCount = 0;
   }
 
   // WebSocket properties
@@ -82,15 +86,15 @@ class MockWebSocket extends EventTarget {
   public send: jest.Mock<void, [string]> = jest.fn();
 
   // Test utilities
-  private _lastSentMessage: string | null = null;
+  #lastSentMessage: string | null = null;
 
   get lastSentMessage(): string | null {
-    return this._lastSentMessage;
+    return this.#lastSentMessage;
   }
 
-  private _openTriggered = false;
+  #openTriggered = false;
 
-  private _onopen: ((event: Event) => void) | null = null;
+  #onOpen: ((event: Event) => void) | null = null;
 
   public autoConnect: boolean = true;
 
@@ -99,7 +103,7 @@ class MockWebSocket extends EventTarget {
     { autoConnect = true }: { autoConnect?: boolean } = {},
   ) {
     super();
-    MockWebSocket.instanceCount += 1;
+    MockWebSocket.#instanceCount += 1;
     this.url = url;
     // TypeScript has issues with jest.spyOn on WebSocket methods, so using direct assignment
     // Store reference to simulateClose for use in close()
@@ -111,17 +115,17 @@ class MockWebSocket extends EventTarget {
     });
     // eslint-disable-next-line jest/prefer-spy-on
     this.send = jest.fn().mockImplementation((data: string) => {
-      this._lastSentMessage = data;
+      this.#lastSentMessage = data;
     });
     this.autoConnect = autoConnect;
     (global as GlobalWithWebSocket).lastWebSocket = this;
   }
 
   set onopen(handler: ((event: Event) => void) | null) {
-    this._onopen = handler;
+    this.#onOpen = handler;
     if (
       handler &&
-      !this._openTriggered &&
+      !this.#openTriggered &&
       this.readyState === MockWebSocket.CONNECTING &&
       this.autoConnect
     ) {
@@ -130,33 +134,33 @@ class MockWebSocket extends EventTarget {
     }
   }
 
-  get onopen() {
-    return this._onopen;
+  get onopen(): ((event: Event) => void) | null {
+    return this.#onOpen;
   }
 
-  public triggerOpen() {
+  public triggerOpen(): void {
     if (
-      !this._openTriggered &&
-      this._onopen &&
+      !this.#openTriggered &&
+      this.#onOpen &&
       this.readyState === MockWebSocket.CONNECTING
     ) {
-      this._openTriggered = true;
+      this.#openTriggered = true;
       this.readyState = MockWebSocket.OPEN;
       const event = new Event('open');
-      this._onopen(event);
+      this.#onOpen(event);
       this.dispatchEvent(event);
     }
   }
 
-  public simulateClose(code = 1000, reason = '') {
+  public simulateClose(code = 1000, reason = ''): void {
     this.readyState = MockWebSocket.CLOSED;
-    // eslint-disable-next-line n/no-unsupported-features/node-builtins
+    // eslint-disable-next-line n/no-unsupported-features/node-builtins, no-restricted-globals
     const event = new CloseEvent('close', { code, reason });
     this.onclose?.(event);
     this.dispatchEvent(event);
   }
 
-  public simulateMessage(data: string | object) {
+  public simulateMessage(data: string | object): void {
     const messageData = typeof data === 'string' ? data : JSON.stringify(data);
     const event = new MessageEvent('message', { data: messageData });
 
@@ -167,14 +171,14 @@ class MockWebSocket extends EventTarget {
     this.dispatchEvent(event);
   }
 
-  public simulateError() {
+  public simulateError(): void {
     const event = new Event('error');
     this.onerror?.(event);
     this.dispatchEvent(event);
   }
 
   public getLastSentMessage(): string | null {
-    return this._lastSentMessage;
+    return this.#lastSentMessage;
   }
 }
 
@@ -199,7 +203,11 @@ function getRootMessenger(): RootMessenger {
  *
  * @returns Object containing the messenger and mock action functions
  */
-const getMessenger = () => {
+const getMessenger = (): {
+  rootMessenger: RootMessenger;
+  messenger: BackendWebSocketServiceMessenger;
+  mocks: { getBearerToken: jest.Mock };
+} => {
   // Create a unique root messenger for each test
   const rootMessenger = getRootMessenger();
   const messenger = new Messenger<
@@ -261,7 +269,7 @@ const TEST_CONSTANTS = {
 const createResponseMessage = (
   requestId: string,
   data: Record<string, unknown>,
-) => ({
+): { id: string; data: Record<string, unknown> } => ({
   id: requestId,
   data: {
     requestId,
@@ -357,7 +365,7 @@ const setupBackendWebSocketService = ({
     ...options,
   });
 
-  const completeAsyncOperations = async (advanceMs = 10) => {
+  const completeAsyncOperations = async (advanceMs = 10): Promise<void> => {
     await flushPromises();
     if (advanceMs > 0) {
       jest.advanceTimersByTime(advanceMs);
@@ -376,7 +384,7 @@ const setupBackendWebSocketService = ({
     mocks,
     completeAsyncOperations,
     getMockWebSocket,
-    cleanup: () => {
+    cleanup: (): void => {
       service?.destroy();
       jest.useRealTimers();
       jest.restoreAllMocks();
@@ -444,7 +452,7 @@ const createSubscription = async (
     subscriptionId?: string;
     channelType?: string;
   },
-) => {
+): Promise<WebSocketSubscription> => {
   const {
     channels,
     callback,

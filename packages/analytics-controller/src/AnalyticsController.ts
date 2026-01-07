@@ -5,14 +5,17 @@ import type {
 } from '@metamask/base-controller';
 import { BaseController } from '@metamask/base-controller';
 import type { Messenger } from '@metamask/messenger';
-import { v4 as uuidv4 } from 'uuid';
 
 import type { AnalyticsControllerMethodActions } from './AnalyticsController-method-action-types';
-import { projectLogger } from './AnalyticsLogger';
+import { validateAnalyticsControllerState } from './analyticsControllerStateValidator';
+import { projectLogger as log } from './AnalyticsLogger';
 import type {
   AnalyticsPlatformAdapter,
   AnalyticsEventProperties,
+  AnalyticsUserTraits,
+  AnalyticsTrackingEvent,
 } from './AnalyticsPlatformAdapter.types';
+import { analyticsControllerSelectors } from './selectors';
 
 // === GENERAL ===
 
@@ -30,31 +33,44 @@ export const controllerName = 'AnalyticsController';
  */
 export type AnalyticsControllerState = {
   /**
-   * Whether analytics tracking is enabled
-   */
-  enabled: boolean;
-
-  /**
-   * Whether the user has opted in to analytics
+   * Whether the user has opted in to analytics.
    */
   optedIn: boolean;
 
   /**
-   * User's UUIDv4 analytics identifier
+   * User's UUIDv4 analytics identifier.
+   * This is an identity (unique per user), not a preference.
+   * Must be provided by the platform - the controller does not generate it.
    */
   analyticsId: string;
 };
 
 /**
+ * Returns default values for AnalyticsController state.
+ *
+ * Note: analyticsId is NOT included - it's an identity that must be
+ * provided by the platform (generated once on first run, then persisted).
+ *
+ * @returns Default state without analyticsId
+ */
+export function getDefaultAnalyticsControllerState(): Omit<
+  AnalyticsControllerState,
+  'analyticsId'
+> {
+  return {
+    optedIn: false,
+  };
+}
+
+/**
  * The metadata for each property in {@link AnalyticsControllerState}.
+ *
+ * Note: `optedIn` is persisted by the controller (`persist: true`).
+ * `analyticsId` is persisted by the platform (`persist: false`) and provided
+ * via initial state. The platform should subscribe to `stateChange` events
+ * to persist any state changes.
  */
 const analyticsControllerMetadata = {
-  enabled: {
-    includeInStateLogs: true,
-    persist: true,
-    includeInDebugSnapshot: true,
-    usedInUi: true,
-  },
   optedIn: {
     includeInStateLogs: true,
     persist: true,
@@ -63,36 +79,18 @@ const analyticsControllerMetadata = {
   },
   analyticsId: {
     includeInStateLogs: true,
-    persist: true,
+    persist: false,
     includeInDebugSnapshot: true,
     usedInUi: false,
   },
 } satisfies StateMetadata<AnalyticsControllerState>;
-
-/**
- * Constructs the default {@link AnalyticsController} state. This allows
- * consumers to provide a partial state object when initializing the controller
- * and also helps in constructing complete state objects for this controller in
- * tests.
- *
- * @returns The default {@link AnalyticsController} state.
- */
-export function getDefaultAnalyticsControllerState(): AnalyticsControllerState {
-  return {
-    enabled: true,
-    optedIn: false,
-    analyticsId: uuidv4(),
-  };
-}
 
 // === MESSENGER ===
 
 const MESSENGER_EXPOSED_METHODS = [
   'trackEvent',
   'identify',
-  'trackPage',
-  'enable',
-  'disable',
+  'trackView',
   'optIn',
   'optOut',
 ] as const;
@@ -151,12 +149,26 @@ export type AnalyticsControllerMessenger = Messenger<
  * The options that AnalyticsController takes.
  */
 export type AnalyticsControllerOptions = {
-  state?: Partial<AnalyticsControllerState>;
+  /**
+   * Initial controller state. Must include a valid UUIDv4 `analyticsId`.
+   * The platform is responsible for generating and persisting the analyticsId.
+   */
+  state: AnalyticsControllerState;
+  /**
+   * Messenger used to communicate with BaseController and other controllers.
+   */
   messenger: AnalyticsControllerMessenger;
   /**
-   * Platform adapter implementation for tracking events
+   * Platform adapter implementation for tracking events.
    */
   platformAdapter: AnalyticsPlatformAdapter;
+
+  /**
+   * Whether the anonymous events feature is enabled.
+   *
+   * @default false
+   */
+  isAnonymousEventsFeatureEnabled?: boolean;
 };
 
 /**
@@ -168,6 +180,10 @@ export type AnalyticsControllerOptions = {
  * This controller follows the MetaMask controller pattern and integrates with the
  * messenger system to allow other controllers and components to track analytics events.
  * It delegates platform-specific implementation to an {@link AnalyticsPlatformAdapter}.
+ *
+ * Note: The controller persists `optedIn` internally. The `analyticsId` is persisted
+ * by the platform and must be provided via initial state. The platform should subscribe
+ * to `AnalyticsController:stateChange` events to persist any state changes.
  */
 export class AnalyticsController extends BaseController<
   'AnalyticsController',
@@ -176,41 +192,78 @@ export class AnalyticsController extends BaseController<
 > {
   readonly #platformAdapter: AnalyticsPlatformAdapter;
 
+  readonly #isAnonymousEventsFeatureEnabled: boolean;
+
+  #initialized: boolean;
+
   /**
    * Constructs an AnalyticsController instance.
    *
    * @param options - Controller options
-   * @param options.state - Initial controller state (defaults from getDefaultAnalyticsControllerState)
+   * @param options.state - Initial controller state. Must include a valid UUIDv4 `analyticsId`.
+   * Use `getDefaultAnalyticsControllerState()` for default opt-in preferences.
    * @param options.messenger - Messenger used to communicate with BaseController
    * @param options.platformAdapter - Platform adapter implementation for tracking
+   * @param options.isAnonymousEventsFeatureEnabled - Whether the anonymous events feature is enabled
+   * @throws Error if state.analyticsId is missing or not a valid UUIDv4
+   * @remarks After construction, call {@link AnalyticsController.init} to complete initialization.
    */
   constructor({
-    state = {},
+    state,
     messenger,
     platformAdapter,
+    isAnonymousEventsFeatureEnabled = false,
   }: AnalyticsControllerOptions) {
+    const initialState: AnalyticsControllerState = {
+      ...getDefaultAnalyticsControllerState(),
+      ...state,
+    };
+
+    validateAnalyticsControllerState(initialState);
+
     super({
       name: controllerName,
       metadata: analyticsControllerMetadata,
-      state: {
-        ...getDefaultAnalyticsControllerState(),
-        ...state,
-      },
+      state: initialState,
       messenger,
     });
 
+    this.#isAnonymousEventsFeatureEnabled = isAnonymousEventsFeatureEnabled;
     this.#platformAdapter = platformAdapter;
+    this.#initialized = false;
 
     this.messenger.registerMethodActionHandlers(
       this,
       MESSENGER_EXPOSED_METHODS,
     );
 
-    projectLogger('AnalyticsController initialized and ready', {
-      enabled: this.state.enabled,
+    log('AnalyticsController initialized and ready', {
+      enabled: analyticsControllerSelectors.selectEnabled(this.state),
       optedIn: this.state.optedIn,
       analyticsId: this.state.analyticsId,
     });
+  }
+
+  /**
+   * Initialize the controller by calling the platform adapter's onSetupCompleted lifecycle hook.
+   * This method must be called after construction to complete the setup process.
+   */
+  init(): void {
+    if (this.#initialized) {
+      log('AnalyticsController already initialized.');
+      return;
+    }
+
+    this.#initialized = true;
+
+    // Call onSetupCompleted lifecycle hook after initialization
+    // State is already validated, so analyticsId is guaranteed to be a valid UUIDv4
+    try {
+      this.#platformAdapter.onSetupCompleted(this.state.analyticsId);
+    } catch (error) {
+      // Log error but don't throw - adapter setup failure shouldn't break controller
+      log('Error calling platformAdapter.onSetupCompleted', error);
+    }
   }
 
   /**
@@ -218,77 +271,69 @@ export class AnalyticsController extends BaseController<
    *
    * Events are only tracked if analytics is enabled.
    *
-   * @param eventName - The name of the event
-   * @param properties - Event properties
+   * @param event - Analytics event with properties and sensitive properties
    */
-  trackEvent(
-    eventName: string,
-    properties: AnalyticsEventProperties = {},
-  ): void {
+  trackEvent(event: AnalyticsTrackingEvent): void {
     // Don't track if analytics is disabled
-    if (!this.state.enabled) {
+    if (!analyticsControllerSelectors.selectEnabled(this.state)) {
       return;
     }
 
-    // Delegate to platform adapter
-    this.#platformAdapter.trackEvent(eventName, properties);
+    // if event does not have properties, send event without properties
+    // and return to prevent any additional processing
+    if (!event.hasProperties) {
+      this.#platformAdapter.track(event.name);
+      return;
+    }
+
+    // Track regular properties first if anonymous events feature is enabled
+    if (this.#isAnonymousEventsFeatureEnabled) {
+      // Note: Even if regular properties object is empty, we still send it to ensure
+      // an event with user ID is tracked.
+      this.#platformAdapter.track(event.name, {
+        ...event.properties,
+      });
+    }
+
+    const hasSensitiveProperties =
+      Object.keys(event.sensitiveProperties).length > 0;
+
+    if (!this.#isAnonymousEventsFeatureEnabled || hasSensitiveProperties) {
+      this.#platformAdapter.track(event.name, {
+        ...event.properties,
+        ...event.sensitiveProperties,
+        ...(hasSensitiveProperties && { anonymous: true }),
+      });
+    }
   }
 
   /**
    * Identify a user for analytics.
    *
-   * @param userId - The user identifier (e.g., metametrics ID)
    * @param traits - User traits/properties
    */
-  identify(userId: string, traits?: AnalyticsEventProperties): void {
-    if (!this.state.enabled) {
+  identify(traits?: AnalyticsUserTraits): void {
+    if (!analyticsControllerSelectors.selectEnabled(this.state)) {
       return;
     }
 
-    // Update state with analytics ID
-    this.update((state) => {
-      state.analyticsId = userId;
-    });
-
-    // Delegate to platform adapter if supported
-    if (this.#platformAdapter.identify) {
-      this.#platformAdapter.identify(userId, traits);
-    }
+    // Delegate to platform adapter using the current analytics ID
+    this.#platformAdapter.identify(this.state.analyticsId, traits);
   }
 
   /**
-   * Track a page view.
+   * Track a page or screen view.
    *
-   * @param pageName - The name of the page
-   * @param properties - Page properties
+   * @param name - The identifier/name of the page or screen being viewed (e.g., "home", "settings", "wallet")
+   * @param properties - Optional properties associated with the view
    */
-  trackPage(pageName: string, properties?: AnalyticsEventProperties): void {
-    if (!this.state.enabled) {
+  trackView(name: string, properties?: AnalyticsEventProperties): void {
+    if (!analyticsControllerSelectors.selectEnabled(this.state)) {
       return;
     }
 
-    // Delegate to platform adapter if supported
-    if (this.#platformAdapter.trackPage) {
-      this.#platformAdapter.trackPage(pageName, properties);
-    }
-  }
-
-  /**
-   * Enable analytics tracking.
-   */
-  enable(): void {
-    this.update((state) => {
-      state.enabled = true;
-    });
-  }
-
-  /**
-   * Disable analytics tracking.
-   */
-  disable(): void {
-    this.update((state) => {
-      state.enabled = false;
-    });
+    // Delegate to platform adapter
+    this.#platformAdapter.view(name, properties);
   }
 
   /**

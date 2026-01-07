@@ -1,5 +1,3 @@
-/* eslint-disable jsdoc/require-jsdoc */
-
 import { isBip44Account } from '@metamask/account-api';
 import { mnemonicPhraseToBytes } from '@metamask/key-tree';
 import type { KeyringAccount } from '@metamask/keyring-api';
@@ -19,7 +17,6 @@ import {
   SOL_ACCOUNT_PROVIDER_NAME,
   SolAccountProvider,
 } from './providers/SolAccountProvider';
-import type { MockAccountProvider } from './tests';
 import {
   MOCK_HARDWARE_ACCOUNT_1,
   MOCK_HD_ACCOUNT_1,
@@ -38,6 +35,7 @@ import {
   makeMockAccountProvider,
   setupBip44AccountProvider,
   type RootMessenger,
+  type MockAccountProvider,
 } from './tests';
 import type { MultichainAccountServiceMessenger } from './types';
 
@@ -260,12 +258,12 @@ describe('MultichainAccountService', () => {
 
       expect(mocks.EvmAccountProvider.constructor).toHaveBeenCalledWith(
         messenger,
-        providerConfigs?.[EvmAccountProvider.NAME],
+        providerConfigs?.[EVM_ACCOUNT_PROVIDER_NAME],
         expect.any(Function), // TraceCallback
       );
       expect(mocks.SolAccountProvider.constructor).toHaveBeenCalledWith(
         messenger,
-        providerConfigs?.[SolAccountProvider.NAME],
+        providerConfigs?.[SOL_ACCOUNT_PROVIDER_NAME],
         expect.any(Function), // TraceCallback
       );
     });
@@ -301,7 +299,7 @@ describe('MultichainAccountService', () => {
       );
       expect(mocks.SolAccountProvider.constructor).toHaveBeenCalledWith(
         messenger,
-        providerConfigs?.[SolAccountProvider.NAME],
+        providerConfigs?.[SOL_ACCOUNT_PROVIDER_NAME],
         expect.any(Function), // TraceCallback
       );
     });
@@ -802,6 +800,8 @@ describe('MultichainAccountService', () => {
 
     it('does not throw if any providers is throwing', async () => {
       const rootMessenger = getRootMessenger();
+      const captureExceptionSpy = jest.spyOn(rootMessenger, 'captureException');
+
       const { service, mocks } = await setup({
         rootMessenger,
         accounts: [MOCK_HD_ACCOUNT_1],
@@ -815,10 +815,11 @@ describe('MultichainAccountService', () => {
       expect(mocks.EvmAccountProvider.resyncAccounts).toHaveBeenCalled();
       expect(mocks.SolAccountProvider.resyncAccounts).toHaveBeenCalled();
 
-      expect(mocks.ErrorReportingService.captureException).toHaveBeenCalled();
-      expect(
-        mocks.ErrorReportingService.captureException.mock.lastCall[0],
-      ).toHaveProperty('cause', providerError);
+      expect(captureExceptionSpy).toHaveBeenCalled();
+      expect(captureExceptionSpy.mock.lastCall[0]).toHaveProperty(
+        'cause',
+        providerError,
+      );
     });
   });
 

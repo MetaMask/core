@@ -510,7 +510,7 @@ export class AccountActivityService {
       'AccountsController:getSelectedAccount',
     );
 
-    if (!selectedAccount || !selectedAccount.address) {
+    if (!selectedAccount?.address) {
       return;
     }
 

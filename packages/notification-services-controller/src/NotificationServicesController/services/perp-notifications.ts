@@ -17,7 +17,7 @@ export const PERPS_API_CREATE_ORDERS = `${PERPS_API}/api/v1/orders`;
 export async function createPerpOrderNotification(
   bearerToken: string,
   orderInput: OrderInput,
-) {
+): Promise<void> {
   try {
     await createServicePolicy().execute(async () => {
       return successfulFetch(PERPS_API_CREATE_ORDERS, {
@@ -29,7 +29,7 @@ export async function createPerpOrderNotification(
         body: JSON.stringify(orderInput),
       });
     });
-  } catch (e) {
-    console.error('Failed to create perp order notification', e);
+  } catch (error) {
+    console.error('Failed to create perp order notification', error);
   }
 }

@@ -12,11 +12,11 @@ import type {
   TransactionControllerMessenger,
   TransactionMeta,
 } from '..';
+import { simulateTransactions } from '../api/simulation-api';
 import type { SimulationRequestTransaction } from '../api/simulation-api';
-import {
-  simulateTransactions,
-  type SimulationResponse,
-  type SimulationResponseTransaction,
+import type {
+  SimulationResponse,
+  SimulationResponseTransaction,
 } from '../api/simulation-api';
 import { projectLogger } from '../logger';
 import type { GetSimulationConfig } from '../types';
@@ -53,7 +53,10 @@ export async function getGasFeeTokens({
   publicKeyEIP7702,
   transactionMeta,
   getSimulationConfig,
-}: GetGasFeeTokensRequest) {
+}: GetGasFeeTokensRequest): Promise<{
+  gasFeeTokens: GasFeeToken[];
+  isGasFeeSponsored: boolean;
+}> {
   const { delegationAddress, txParams } = transactionMeta;
   const { authorizationList: authorizationListRequest } = txParams;
   const data = txParams.data as Hex;
@@ -73,13 +76,13 @@ export async function getGasFeeTokens({
     | SimulationRequestTransaction['authorizationList']
     | undefined = authorizationListRequest?.map((authorization) => ({
     address: authorization.address,
-    from: from as Hex,
+    from,
   }));
 
   if (with7702 && !delegationAddress && !authorizationList) {
     authorizationList = buildAuthorizationList({
       chainId,
-      from: from as Hex,
+      from,
       messenger,
       publicKeyEIP7702,
     });
@@ -139,7 +142,7 @@ export async function checkGasFeeTokenBeforePublish({
     transactionId: string,
     fn: (tx: TransactionMeta) => void,
   ) => void;
-}) {
+}): Promise<void> {
   const { isGasFeeTokenIgnoredIfBalance, selectedGasFeeToken } = transaction;
 
   if (!selectedGasFeeToken || !isGasFeeTokenIgnoredIfBalance) {
@@ -181,7 +184,8 @@ export async function checkGasFeeTokenBeforePublish({
 
   if (
     !gasFeeTokens?.some(
-      (t) => t.tokenAddress.toLowerCase() === selectedGasFeeToken.toLowerCase(),
+      (token) =>
+        token.tokenAddress.toLowerCase() === selectedGasFeeToken.toLowerCase(),
     )
   ) {
     throw new Error('Gas fee token not found and insufficient native balance');
@@ -264,7 +268,7 @@ function buildAuthorizationList({
   return [
     {
       address: upgradeAddress,
-      from: from as Hex,
+      from,
     },
   ];
 }

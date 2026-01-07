@@ -64,7 +64,7 @@ describe('SequentialPublishBatchHook', () => {
   function firePendingTransactionTrackerEvent(
     eventName: string,
     ...args: unknown[]
-  ) {
+  ): void {
     eventListeners[eventName]?.forEach((callback) => callback(...args));
   }
 

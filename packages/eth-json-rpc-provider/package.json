@@ -55,7 +55,7 @@
   "dependencies": {
     "@metamask/json-rpc-engine": "^10.2.0",
     "@metamask/rpc-errors": "^7.0.2",
-    "@metamask/utils": "^11.8.1",
+    "@metamask/utils": "^11.9.0",
     "nanoid": "^3.3.8"
   },
   "devDependencies": {

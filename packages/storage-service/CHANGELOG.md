@@ -7,8 +7,15 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+### Changed
+
+- Upgrade `@metamask/utils` from `^11.8.1` to `^11.9.0` ([#7511](https://github.com/MetaMask/core/pull/7511))
+
+## [0.0.1]
+
 ### Added
 
 - Initial release of `@metamask/storage-service` ([#7192](https://github.com/MetaMask/core/pull/7192))
 
-[Unreleased]: https://github.com/MetaMask/core/
+[Unreleased]: https://github.com/MetaMask/core/compare/@metamask/storage-service@0.0.1...HEAD
+[0.0.1]: https://github.com/MetaMask/core/releases/tag/@metamask/storage-service@0.0.1

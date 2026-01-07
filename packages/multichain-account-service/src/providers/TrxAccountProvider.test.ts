@@ -7,7 +7,9 @@ import type {
 } from '@metamask/keyring-internal-api';
 
 import { AccountProviderWrapper } from './AccountProviderWrapper';
+import type { SnapAccountProviderConfig } from './SnapAccountProvider';
 import {
+  TRX_ACCOUNT_PROVIDER_DEFAULT_CONFIG,
   TRX_ACCOUNT_PROVIDER_NAME,
   TrxAccountProvider,
 } from './TrxAccountProvider';
@@ -20,8 +22,8 @@ import {
   MOCK_TRX_ACCOUNT_1,
   MOCK_TRX_DISCOVERED_ACCOUNT_1,
   MockAccountBuilder,
-  type RootMessenger,
 } from '../tests';
+import type { RootMessenger } from '../tests';
 
 class MockTronKeyring {
   readonly type = 'MockTronKeyring';
@@ -75,14 +77,17 @@ class MockTronKeyring {
  * @param options - Configuration options for setup.
  * @param options.messenger - An optional messenger instance to use. Defaults to a new Messenger.
  * @param options.accounts - List of accounts to use.
+ * @param options.config - Provider config.
  * @returns An object containing the controller instance and the messenger.
  */
 function setup({
   messenger = getRootMessenger(),
   accounts = [],
+  config,
 }: {
   messenger?: RootMessenger;
   accounts?: InternalAccount[];
+  config?: SnapAccountProviderConfig;
 } = {}): {
   provider: AccountProviderWrapper;
   messenger: RootMessenger;
@@ -151,7 +156,7 @@ function setup({
       handleRequest: mockHandleRequest,
       keyring: {
         createAccount: keyring.createAccount as jest.Mock,
-        discoverAccounts: keyring.discoverAccounts as jest.Mock,
+        discoverAccounts: keyring.discoverAccounts,
       },
     },
   };
@@ -335,6 +340,26 @@ describe('TrxAccountProvider', () => {
     });
 
     expect(discovered).toStrictEqual([]);
+  });
+
+  it('does not run discovery if disabled', async () => {
+    const { provider } = setup({
+      accounts: [MOCK_TRX_ACCOUNT_1],
+      config: {
+        ...TRX_ACCOUNT_PROVIDER_DEFAULT_CONFIG,
+        discovery: {
+          ...TRX_ACCOUNT_PROVIDER_DEFAULT_CONFIG.discovery,
+          enabled: false,
+        },
+      },
+    });
+
+    expect(
+      await provider.discoverAccounts({
+        entropySource: MOCK_HD_KEYRING_1.metadata.id,
+        groupIndex: 0,
+      }),
+    ).toStrictEqual([]);
   });
 
   describe('trace functionality', () => {

@@ -1,9 +1,9 @@
-import {
-  type Json,
-  type JsonRpcRequest,
-  type JsonRpcNotification,
-  type NonEmptyArray,
-  hasProperty,
+import { hasProperty } from '@metamask/utils';
+import type {
+  Json,
+  JsonRpcRequest,
+  JsonRpcNotification,
+  NonEmptyArray,
 } from '@metamask/utils';
 import deepFreeze from 'deep-freeze-strict';
 
@@ -176,6 +176,7 @@ export class JsonRpcEngineV2<
   #isDestroyed = false;
 
   // See .create() for why this is private.
+  // eslint-disable-next-line no-restricted-syntax
   private constructor({ middleware }: ConstructorOptions<Request, Context>) {
     this.#middleware = [...middleware];
   }
@@ -200,7 +201,13 @@ export class JsonRpcEngineV2<
       any
       /* eslint-enable @typescript-eslint/no-explicit-any */
     > = JsonRpcMiddleware,
-  >({ middleware }: { middleware: Middleware[] }) {
+  >({
+    middleware,
+  }: {
+    middleware: Middleware[];
+  }): MergedContextOf<Middleware> extends never
+    ? InvalidEngine<'Some middleware have incompatible context types'>
+    : JsonRpcEngineV2<RequestOf<Middleware>, MergedContextOf<Middleware>> {
     // We can't use NonEmptyArray for the params because it ruins type inference.
     if (middleware.length === 0) {
       throw new JsonRpcEngineError('Middleware array cannot be empty');
@@ -215,6 +222,7 @@ export class JsonRpcEngineV2<
         MergedContext
       >
     >;
+
     return new JsonRpcEngineV2<InputRequest, MergedContext>({
       middleware: mw,
     }) as MergedContext extends never
@@ -461,6 +469,9 @@ export class JsonRpcEngineV2<
         request,
         context,
       );
+
+      // We can't use nullish coalescing here because `result` may be `null`.
+      // eslint-disable-next-line @typescript-eslint/prefer-nullish-coalescing
       return result === undefined ? await next(finalRequest) : result;
     };
   }

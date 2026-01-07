@@ -1,4 +1,7 @@
-import type { TransactionMeta } from '@metamask/transaction-controller';
+import type {
+  PublishHookResult,
+  TransactionMeta,
+} from '@metamask/transaction-controller';
 
 import { TransactionPayPublishHook } from './TransactionPayPublishHook';
 import { TransactionPayStrategy } from '..';
@@ -34,7 +37,7 @@ describe('TransactionPayPublishHook', () => {
    *
    * @returns  The result of the publish hook.
    */
-  function runHook() {
+  function runHook(): Promise<PublishHookResult> {
     return hook.getHook()(TRANSACTION_META_MOCK, '0x1234');
   }
 

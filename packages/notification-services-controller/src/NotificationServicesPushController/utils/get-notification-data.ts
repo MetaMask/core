@@ -15,7 +15,7 @@ const defaultFormatOptions = {
  * @param decimals - The number of decimals to use for the calculation.
  * @returns The calculated token amount.
  */
-export function calcTokenAmount(value: string, decimals: number) {
+export function calcTokenAmount(value: string, decimals: number): BigNumber {
   const multiplier = Math.pow(10, Number(decimals || 0));
   return new BigNumber(String(value)).div(multiplier);
 }
@@ -28,14 +28,14 @@ export function calcTokenAmount(value: string, decimals: number) {
  * fractional part of the number. This is useful for determining the precision
  * of very small numbers.
  *
- * @param num - The number to analyze, which can be in the form
+ * @param numericValue - The number to analyze, which can be in the form
  * of a number or a string.
  * @returns The count of leading zeros in the fractional part of the number.
  */
-export const getLeadingZeroCount = (num: number | string) => {
-  const numToString = new BigNumber(num, 10).toString(10);
+export const getLeadingZeroCount = (numericValue: number | string): number => {
+  const numToString = new BigNumber(numericValue, 10).toString(10);
   const fractionalPart = numToString.split('.')[1] ?? '';
-  return fractionalPart.match(/^0*/u)?.[0]?.length || 0;
+  return fractionalPart.match(/^0*/u)?.[0]?.length ?? 0;
 };
 
 /**
@@ -50,7 +50,10 @@ export const getLeadingZeroCount = (num: number | string) => {
  * @param opts - The options to use when formatting
  * @returns The formatted number
  */
-export const formatAmount = (numericAmount: number, opts?: FormatOptions) => {
+export const formatAmount = (
+  numericAmount: number,
+  opts?: FormatOptions,
+): string => {
   // create options with defaults
   const options = { ...defaultFormatOptions, ...opts };
 
@@ -58,7 +61,7 @@ export const formatAmount = (numericAmount: number, opts?: FormatOptions) => {
   const isDecimal = numericAmount.toString().includes('.') || leadingZeros > 0;
   const isLargeNumber = numericAmount > 999;
 
-  const handleShouldEllipse = (decimalPlaces: number) =>
+  const handleShouldEllipse = (decimalPlaces: number): boolean =>
     Boolean(options?.shouldEllipse) && leadingZeros >= decimalPlaces;
 
   if (isLargeNumber) {
@@ -87,7 +90,7 @@ export const getAmount = (
   amount: string,
   decimals: string,
   options?: FormatOptions,
-) => {
+): string => {
   if (!amount || !decimals) {
     return '';
   }

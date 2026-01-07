@@ -38,7 +38,7 @@ export function calculateTransactionGasCost(
 
   const { from, gas, maxFeePerGas, maxPriorityFeePerGas } = txParams;
   const gasUsed = isMax ? undefined : gasUsedOriginal;
-  const finalGas = gasUsed || gasLimitNoBuffer || gas || '0x0';
+  const finalGas = gasUsed ?? gasLimitNoBuffer ?? gas ?? '0x0';
 
   const result = calculateGasCost({
     chainId,
@@ -116,15 +116,15 @@ export function calculateGasCost(request: {
     maxPriorityFeePerGas: maxPriorityFeePerGasEstimate,
   } = getGasFee(chainId, messenger);
 
-  const maxFeePerGas = maxFeePerGasInput || maxFeePerGasEstimate;
+  const maxFeePerGas = maxFeePerGasInput ?? maxFeePerGasEstimate;
 
   const maxPriorityFeePerGas =
-    maxPriorityFeePerGasInput || maxPriorityFeePerGasEstimate;
+    maxPriorityFeePerGasInput ?? maxPriorityFeePerGasEstimate;
 
   const feePerGas =
     estimatedBaseFee && maxPriorityFeePerGas && !isMax
       ? new BigNumber(estimatedBaseFee).plus(maxPriorityFeePerGas)
-      : new BigNumber(maxFeePerGas || '0x0');
+      : new BigNumber(maxFeePerGas ?? '0x0');
 
   const rawValue = new BigNumber(gas).multipliedBy(feePerGas);
   const raw = rawValue.toString(10);
@@ -205,7 +205,14 @@ export function calculateGasFeeTokenCost({
  * @param messenger - Controller messenger.
  * @returns Gas fee estimates for the chain.
  */
-function getGasFee(chainId: Hex, messenger: TransactionPayControllerMessenger) {
+function getGasFee(
+  chainId: Hex,
+  messenger: TransactionPayControllerMessenger,
+): {
+  estimatedBaseFee: string | undefined;
+  maxFeePerGas: string | undefined;
+  maxPriorityFeePerGas: string | undefined;
+} {
   const gasFeeControllerState = messenger.call('GasFeeController:getState');
 
   const chainState = gasFeeControllerState?.gasFeeEstimatesByChainId?.[chainId];
@@ -267,7 +274,9 @@ function calculateTransactionGasFeeTokenCost({
   log('Calculating gas fee token cost', { selectedGasFeeToken, chainId });
 
   const gasFeeToken = gasFeeTokens?.find(
-    (t) => t.tokenAddress.toLowerCase() === selectedGasFeeToken.toLowerCase(),
+    (singleGasFeeToken) =>
+      singleGasFeeToken.tokenAddress.toLowerCase() ===
+      selectedGasFeeToken.toLowerCase(),
   );
 
   if (!gasFeeToken) {

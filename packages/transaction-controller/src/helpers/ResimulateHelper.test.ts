@@ -3,7 +3,6 @@ import type { NetworkClientId } from '@metamask/network-controller';
 import { BN } from 'bn.js';
 
 import {
-  type ResimulateHelperOptions,
   ResimulateHelper,
   BLOCK_TIME_ADDITIONAL_SECONDS,
   BLOCKAID_RESULT_TYPE_MALICIOUS,
@@ -13,6 +12,7 @@ import {
   VALUE_COMPARISON_PERCENT_THRESHOLD,
   RESIMULATE_INTERVAL_MS,
 } from './ResimulateHelper';
+import type { ResimulateHelperOptions } from './ResimulateHelper';
 import { CHAIN_IDS } from '../constants';
 import type {
   TransactionMeta,
@@ -94,7 +94,7 @@ describe('ResimulateHelper', () => {
   /**
    * Triggers onStateChange callback
    */
-  function triggerStateChange() {
+  function triggerStateChange(): void {
     onTransactionsUpdateMock.mock.calls[0][0]();
   }
 
@@ -103,7 +103,7 @@ describe('ResimulateHelper', () => {
    *
    * @param transactions - Transactions to be returned
    */
-  function mockGetTransactionsOnce(transactions: TransactionMeta[]) {
+  function mockGetTransactionsOnce(transactions: TransactionMeta[]): void {
     getTransactionsMock.mockReturnValueOnce(
       transactions as unknown as ResimulateHelperOptions['getTransactions'],
     );
@@ -115,6 +115,7 @@ describe('ResimulateHelper', () => {
     onTransactionsUpdateMock = jest.fn();
     simulateTransactionMock = jest.fn().mockResolvedValue(undefined);
 
+    // eslint-disable-next-line no-new
     new ResimulateHelper({
       getTransactions: getTransactionsMock,
       onTransactionsUpdate: onTransactionsUpdateMock,

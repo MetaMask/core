@@ -9,15 +9,14 @@ import type {
   AsyncJsonRpcEngineNextCallback,
   JsonRpcEngineEndCallback,
 } from '@metamask/json-rpc-engine';
-import {
-  type Caveat,
-  type CaveatSpecificationConstraint,
-  invalidParams,
-  MethodNames,
-  type PermissionController,
-  type PermissionSpecificationConstraint,
-  type RequestedPermissions,
-  type ValidPermission,
+import { invalidParams, MethodNames } from '@metamask/permission-controller';
+import type {
+  Caveat,
+  CaveatSpecificationConstraint,
+  PermissionController,
+  PermissionSpecificationConstraint,
+  RequestedPermissions,
+  ValidPermission,
 } from '@metamask/permission-controller';
 import type {
   Json,

@@ -1,7 +1,5 @@
-import {
-  TransactionStatus,
-  type TransactionMeta,
-} from '@metamask/transaction-controller';
+import { TransactionStatus } from '@metamask/transaction-controller';
+import type { TransactionMeta } from '@metamask/transaction-controller';
 import type { BatchTransaction } from '@metamask/transaction-controller';
 import type { Hex, Json } from '@metamask/utils';
 import { cloneDeep } from 'lodash';
@@ -102,7 +100,7 @@ describe('Quotes Utils', () => {
    * @param params - Partial params to override the defaults.
    * @returns Return value from updateQuotes.
    */
-  async function run(params?: Partial<UpdateQuotesRequest>) {
+  async function run(params?: Partial<UpdateQuotesRequest>): Promise<boolean> {
     return await updateQuotes({
       messenger,
       transactionData: cloneDeep(TRANSACTION_DATA_MOCK),

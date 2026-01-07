@@ -1,6 +1,7 @@
 import { v4 as uuidV4 } from 'uuid';
 
 import {
+  calculateThresholdForFlag,
   generateDeterministicRandomNumber,
   isFeatureFlagWithScopeValue,
 } from './user-segmentation-utils';
@@ -11,8 +12,8 @@ const MOCK_METRICS_IDS = {
     '0x86bacb9b2bf9a7e8d2b147eadb95ac9aaa26842327cd24afc8bd4b3c1d136420',
   MOBILE_MIN: '00000000-0000-4000-8000-000000000000',
   MOBILE_MAX: 'ffffffff-ffff-4fff-bfff-ffffffffffff',
-  EXTENSION_MIN: `0x${'0'.repeat(64) as string}`,
-  EXTENSION_MAX: `0x${'f'.repeat(64) as string}`,
+  EXTENSION_MIN: `0x${'0'.repeat(64)}`,
+  EXTENSION_MAX: `0x${'f'.repeat(64)}`,
   UUID_V3: '00000000-0000-3000-8000-000000000000',
   INVALID_HEX_NO_PREFIX:
     '86bacb9b2bf9a7e8d2b147eadb95ac9aaa26842327cd24afc8bd4b3c1d136420',
@@ -41,6 +42,111 @@ const MOCK_FEATURE_FLAGS = {
 };
 
 describe('user-segmentation-utils', () => {
+  describe('calculateThresholdForFlag', () => {
+    it('generates deterministic threshold from same input', async () => {
+      // Arrange
+      const metaMetricsId = 'f9e8d7c6-b5a4-4210-9876-543210fedcba';
+      const flagName = 'testFlag';
+
+      // Act
+      const threshold1 = await calculateThresholdForFlag(
+        metaMetricsId,
+        flagName,
+      );
+      const threshold2 = await calculateThresholdForFlag(
+        metaMetricsId,
+        flagName,
+      );
+
+      // Assert
+      expect(threshold1).toBe(threshold2);
+      expect(threshold1).toBeGreaterThanOrEqual(0);
+      expect(threshold1).toBeLessThanOrEqual(1);
+    });
+
+    it('generates different thresholds for different inputs', async () => {
+      // Arrange
+      const metaMetricsId1 = 'f9e8d7c6-b5a4-4210-9876-543210fedcba';
+      const metaMetricsId2 = '123e4567-e89b-12d3-a456-426614174000';
+      const flagName = 'testFlag';
+
+      // Act
+      const threshold1 = await calculateThresholdForFlag(
+        metaMetricsId1,
+        flagName,
+      );
+      const threshold2 = await calculateThresholdForFlag(
+        metaMetricsId2,
+        flagName,
+      );
+
+      // Assert
+      expect(threshold1).not.toBe(threshold2);
+    });
+
+    it('generates different thresholds for different flag names', async () => {
+      // Arrange
+      const metaMetricsId = 'f9e8d7c6-b5a4-4210-9876-543210fedcba';
+      const flagName1 = 'featureA';
+      const flagName2 = 'featureB';
+
+      // Act
+      const threshold1 = await calculateThresholdForFlag(
+        metaMetricsId,
+        flagName1,
+      );
+      const threshold2 = await calculateThresholdForFlag(
+        metaMetricsId,
+        flagName2,
+      );
+
+      // Assert
+      expect(threshold1).not.toBe(threshold2);
+      expect(threshold1).toBeGreaterThanOrEqual(0);
+      expect(threshold1).toBeLessThanOrEqual(1);
+      expect(threshold2).toBeGreaterThanOrEqual(0);
+      expect(threshold2).toBeLessThanOrEqual(1);
+    });
+
+    it('returns a valid threshold value between 0 and 1', async () => {
+      // Arrange
+      const metaMetricsId = 'f9e8d7c6-b5a4-4210-9876-543210fedcba';
+      const flagName = 'anyFlagName123';
+
+      // Act
+      const threshold = await calculateThresholdForFlag(
+        metaMetricsId,
+        flagName,
+      );
+
+      // Assert
+      expect(threshold).toBeGreaterThanOrEqual(0);
+      expect(threshold).toBeLessThanOrEqual(1);
+    });
+
+    it('throws error when metaMetricsId is empty', async () => {
+      // Arrange
+      const emptyMetaMetricsId = '';
+      const flagName = 'testFlag';
+
+      // Act & Assert
+      await expect(
+        calculateThresholdForFlag(emptyMetaMetricsId, flagName),
+      ).rejects.toThrow('MetaMetrics ID cannot be empty');
+    });
+
+    it('throws error when featureFlagName is empty', async () => {
+      // Arrange
+      const metaMetricsId = 'f9e8d7c6-b5a4-4210-9876-543210fedcba';
+      const emptyFlagName = '';
+
+      // Act & Assert
+      await expect(
+        calculateThresholdForFlag(metaMetricsId, emptyFlagName),
+      ).rejects.toThrow('Feature flag name cannot be empty');
+    });
+  });
+
   describe('generateDeterministicRandomNumber', () => {
     describe('Mobile client new implementation (uuidv4)', () => {
       it('generates consistent results for same uuidv4', () => {

@@ -1,14 +1,13 @@
-import { assertIsBip44Account, type Bip44Account } from '@metamask/account-api';
+import { assertIsBip44Account } from '@metamask/account-api';
+import type { Bip44Account } from '@metamask/account-api';
 import type { TraceCallback } from '@metamask/controller-utils';
 import type { EntropySourceId, KeyringAccount } from '@metamask/keyring-api';
 import { BtcAccountType, BtcScope } from '@metamask/keyring-api';
 import type { InternalAccount } from '@metamask/keyring-internal-api';
 import type { SnapId } from '@metamask/snaps-sdk';
 
-import {
-  SnapAccountProvider,
-  type SnapAccountProviderConfig,
-} from './SnapAccountProvider';
+import { SnapAccountProvider } from './SnapAccountProvider';
+import type { SnapAccountProviderConfig } from './SnapAccountProvider';
 import { withRetry, withTimeout } from './utils';
 import { traceFallback } from '../analytics';
 import { TraceName } from '../constants/traces';
@@ -16,7 +15,20 @@ import type { MultichainAccountServiceMessenger } from '../types';
 
 export type BtcAccountProviderConfig = SnapAccountProviderConfig;
 
-export const BTC_ACCOUNT_PROVIDER_NAME = 'Bitcoin' as const;
+export const BTC_ACCOUNT_PROVIDER_NAME = 'Bitcoin';
+
+export const BTC_ACCOUNT_PROVIDER_DEFAULT_CONFIG: BtcAccountProviderConfig = {
+  maxConcurrency: 3,
+  createAccounts: {
+    timeoutMs: 3000,
+  },
+  discovery: {
+    enabled: true,
+    timeoutMs: 2000,
+    maxAttempts: 3,
+    backOffMs: 1000,
+  },
+};
 
 export class BtcAccountProvider extends SnapAccountProvider {
   static NAME = BTC_ACCOUNT_PROVIDER_NAME;
@@ -25,17 +37,7 @@ export class BtcAccountProvider extends SnapAccountProvider {
 
   constructor(
     messenger: MultichainAccountServiceMessenger,
-    config: BtcAccountProviderConfig = {
-      maxConcurrency: 3,
-      createAccounts: {
-        timeoutMs: 3000,
-      },
-      discovery: {
-        timeoutMs: 2000,
-        maxAttempts: 3,
-        backOffMs: 1000,
-      },
-    },
+    config: BtcAccountProviderConfig = BTC_ACCOUNT_PROVIDER_DEFAULT_CONFIG,
     trace: TraceCallback = traceFallback,
   ) {
     super(BtcAccountProvider.BTC_SNAP_ID, messenger, config, trace);
@@ -93,6 +95,10 @@ export class BtcAccountProvider extends SnapAccountProvider {
         },
       },
       async () => {
+        if (!this.config.discovery.enabled) {
+          return [];
+        }
+
         const discoveredAccounts = await withRetry(
           () =>
             withTimeout(

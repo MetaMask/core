@@ -4,12 +4,11 @@ import type {
 } from '@metamask/controller-utils';
 import { createServicePolicy, HttpError } from '@metamask/controller-utils';
 import type { Messenger } from '@metamask/messenger';
-import {
-  type AuthenticationController,
-  SDK,
-} from '@metamask/profile-sync-controller';
+import { SDK } from '@metamask/profile-sync-controller';
+import type { AuthenticationController } from '@metamask/profile-sync-controller';
+import type { IDisposable } from 'cockatiel';
 
-import { type ProfileMetricsServiceMethodActions } from '.';
+import type { ProfileMetricsServiceMethodActions } from '.';
 
 // === GENERAL ===
 
@@ -152,7 +151,7 @@ export class ProfileMetricsService {
    * {@link CockatielEvent}.
    * @see {@link createServicePolicy}
    */
-  onRetry(listener: Parameters<ServicePolicy['onRetry']>[0]) {
+  onRetry(listener: Parameters<ServicePolicy['onRetry']>[0]): IDisposable {
     return this.#policy.onRetry(listener);
   }
 
@@ -165,11 +164,10 @@ export class ProfileMetricsService {
    * {@link CockatielEvent}.
    * @see {@link createServicePolicy}
    */
-  onBreak(listener: Parameters<ServicePolicy['onBreak']>[0]) {
+  onBreak(listener: Parameters<ServicePolicy['onBreak']>[0]): IDisposable {
     return this.#policy.onBreak(listener);
   }
 
-  /* eslint-disable jsdoc/check-indentation */
   /**
    * Registers a handler that will be called under one of two circumstances:
    *
@@ -187,8 +185,9 @@ export class ProfileMetricsService {
    * @returns An object that can be used to unregister the handler. See
    * {@link CockatielEvent}.
    */
-  /* eslint-enable jsdoc/check-indentation */
-  onDegraded(listener: Parameters<ServicePolicy['onDegraded']>[0]) {
+  onDegraded(
+    listener: Parameters<ServicePolicy['onDegraded']>[0],
+  ): IDisposable {
     return this.#policy.onDegraded(listener);
   }
 
@@ -201,7 +200,7 @@ export class ProfileMetricsService {
   async submitMetrics(data: ProfileMetricsSubmitMetricsRequest): Promise<void> {
     const authToken = await this.#messenger.call(
       'AuthenticationController:getBearerToken',
-      data.entropySourceId || undefined,
+      data.entropySourceId ?? undefined,
     );
     await this.#policy.execute(async () => {
       const url = new URL(`${this.#baseURL}/profile/accounts`);

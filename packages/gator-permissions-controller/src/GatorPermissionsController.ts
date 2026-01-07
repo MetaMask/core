@@ -19,6 +19,7 @@ import type {
 } from '@metamask/transaction-controller';
 import type { Hex, Json } from '@metamask/utils';
 
+import { DELEGATION_FRAMEWORK_VERSION } from './constants';
 import type { DecodedPermission } from './decodePermission';
 import {
   getPermissionDataAndExpiry,
@@ -33,15 +34,15 @@ import {
   PermissionDecodingError,
 } from './errors';
 import { controllerLog } from './logger';
+import { GatorPermissionsSnapRpcMethod } from './types';
 import type { StoredGatorPermissionSanitized } from './types';
-import {
-  GatorPermissionsSnapRpcMethod,
-  type GatorPermissionsMap,
-  type PermissionTypesWithCustom,
-  type StoredGatorPermission,
-  type DelegationDetails,
-  type RevocationParams,
-  type PendingRevocationParams,
+import type {
+  GatorPermissionsMap,
+  PermissionTypesWithCustom,
+  StoredGatorPermission,
+  DelegationDetails,
+  RevocationParams,
+  PendingRevocationParams,
 } from './types';
 import {
   deserializeGatorPermissionsMap,
@@ -57,19 +58,16 @@ const controllerName = 'GatorPermissionsController';
 const defaultGatorPermissionsProviderSnapId =
   'npm:@metamask/gator-permissions-snap' as SnapId;
 
-const defaultGatorPermissionsMap: GatorPermissionsMap = {
-  'native-token-stream': {},
-  'native-token-periodic': {},
-  'erc20-token-stream': {},
-  'erc20-token-periodic': {},
-  other: {},
+const createEmptyGatorPermissionsMap: () => GatorPermissionsMap = () => {
+  return {
+    'erc20-token-revocation': {},
+    'native-token-stream': {},
+    'native-token-periodic': {},
+    'erc20-token-stream': {},
+    'erc20-token-periodic': {},
+    other: {},
+  };
 };
-
-/**
- * Delegation framework version used to select the correct deployed enforcer
- * contract addresses from `@metamask/delegation-deployments`.
- */
-export const DELEGATION_FRAMEWORK_VERSION = '1.3.0';
 
 /**
  * Timeout duration for pending revocations (2 hours in milliseconds).
@@ -162,7 +160,7 @@ export function getDefaultGatorPermissionsControllerState(): GatorPermissionsCon
   return {
     isGatorPermissionsEnabled: false,
     gatorPermissionsMapSerialized: serializeGatorPermissionsMap(
-      defaultGatorPermissionsMap,
+      createEmptyGatorPermissionsMap(),
     ),
     isFetchingGatorPermissions: false,
     gatorPermissionsProviderSnapId: defaultGatorPermissionsProviderSnapId,
@@ -481,7 +479,8 @@ export default class GatorPermissionsController extends BaseController<
   }
 
   /**
-   * Sanitizes a stored gator permission by removing the fields that are not expose to MetaMask client.
+   * Sanitizes a stored gator permission for client exposure.
+   * Removes internal fields (dependencyInfo, signer)
    *
    * @param storedGatorPermission - The stored gator permission to sanitize.
    * @returns The sanitized stored gator permission.
@@ -493,7 +492,7 @@ export default class GatorPermissionsController extends BaseController<
     >,
   ): StoredGatorPermissionSanitized<Signer, PermissionTypesWithCustom> {
     const { permissionResponse } = storedGatorPermission;
-    const { rules, dependencyInfo, signer, ...rest } = permissionResponse;
+    const { dependencyInfo, signer, ...rest } = permissionResponse;
     return {
       ...storedGatorPermission,
       permissionResponse: {
@@ -513,63 +512,39 @@ export default class GatorPermissionsController extends BaseController<
       | StoredGatorPermission<Signer, PermissionTypesWithCustom>[]
       | null,
   ): GatorPermissionsMap {
+    const gatorPermissionsMap = createEmptyGatorPermissionsMap();
+
     if (!storedGatorPermissions) {
-      return defaultGatorPermissionsMap;
+      return gatorPermissionsMap;
     }
 
-    return storedGatorPermissions.reduce(
-      (gatorPermissionsMap, storedGatorPermission) => {
-        const { permissionResponse } = storedGatorPermission;
-        const permissionType = permissionResponse.permission.type;
-        const { chainId } = permissionResponse;
+    for (const storedGatorPermission of storedGatorPermissions) {
+      const {
+        permissionResponse: {
+          permission: { type: permissionType },
+          chainId,
+        },
+      } = storedGatorPermission;
 
-        const sanitizedStoredGatorPermission =
-          this.#sanitizeStoredGatorPermission(storedGatorPermission);
+      const isPermissionTypeKnown = Object.prototype.hasOwnProperty.call(
+        gatorPermissionsMap,
+        permissionType,
+      );
 
-        switch (permissionType) {
-          case 'native-token-stream':
-          case 'native-token-periodic':
-          case 'erc20-token-stream':
-          case 'erc20-token-periodic':
-            if (!gatorPermissionsMap[permissionType][chainId]) {
-              gatorPermissionsMap[permissionType][chainId] = [];
-            }
+      const permissionTypeKey = isPermissionTypeKnown
+        ? (permissionType as keyof GatorPermissionsMap)
+        : 'other';
 
-            (
-              gatorPermissionsMap[permissionType][
-                chainId
-              ] as StoredGatorPermissionSanitized<
-                Signer,
-                PermissionTypesWithCustom
-              >[]
-            ).push(sanitizedStoredGatorPermission);
-            break;
-          default:
-            if (!gatorPermissionsMap.other[chainId]) {
-              gatorPermissionsMap.other[chainId] = [];
-            }
+      type PermissionsMapElementArray =
+        GatorPermissionsMap[typeof permissionTypeKey][typeof chainId];
 
-            (
-              gatorPermissionsMap.other[
-                chainId
-              ] as StoredGatorPermissionSanitized<
-                Signer,
-                PermissionTypesWithCustom
-              >[]
-            ).push(sanitizedStoredGatorPermission);
-            break;
-        }
+      gatorPermissionsMap[permissionTypeKey][chainId] = [
+        ...(gatorPermissionsMap[permissionTypeKey][chainId] || []),
+        this.#sanitizeStoredGatorPermission(storedGatorPermission),
+      ] as PermissionsMapElementArray;
+    }
 
-        return gatorPermissionsMap;
-      },
-      {
-        'native-token-stream': {},
-        'native-token-periodic': {},
-        'erc20-token-stream': {},
-        'erc20-token-periodic': {},
-        other: {},
-      } as GatorPermissionsMap,
-    );
+    return gatorPermissionsMap;
   }
 
   /**
@@ -606,7 +581,7 @@ export default class GatorPermissionsController extends BaseController<
     this.update((state) => {
       state.isGatorPermissionsEnabled = false;
       state.gatorPermissionsMapSerialized = serializeGatorPermissionsMap(
-        defaultGatorPermissionsMap,
+        createEmptyGatorPermissionsMap(),
       );
     });
   }

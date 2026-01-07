@@ -3,10 +3,10 @@ import type { AddressBookEntry } from '@metamask/address-book-controller';
 import { canPerformContactSyncing } from './sync-utils';
 import type { ContactSyncingOptions } from './types';
 import type { UserStorageContactEntry } from './types';
+import type { SyncAddressBookEntry } from './utils';
 import {
   mapAddressBookEntryToUserStorageEntry,
   mapUserStorageEntryToAddressBookEntry,
-  type SyncAddressBookEntry,
 } from './utils';
 import { isContactBridgedFromAccounts } from './utils';
 import { USER_STORAGE_FEATURE_NAMES } from '../../../shared/storage-schema';
