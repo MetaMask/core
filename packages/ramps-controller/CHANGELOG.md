@@ -9,10 +9,6 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [2.1.0]
 
-### Uncategorized
-
-- fix: resolve RampsService test failures ([#7579](https://github.com/MetaMask/core/pull/7579))
-
 ### Added
 
 - Add eligibility state ([#7539](https://github.com/MetaMask/core/pull/7539))
