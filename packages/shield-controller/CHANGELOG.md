@@ -7,6 +7,10 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+### Uncategorized
+
+- chore: removed uncategorized changes from ChangeLog ([#7565](https://github.com/MetaMask/core/pull/7565))
+
 ## [4.1.0]
 
 ### Added
