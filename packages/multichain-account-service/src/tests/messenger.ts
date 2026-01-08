@@ -65,6 +65,7 @@ export function getMultichainAccountServiceMessenger(
       'KeyringController:createNewVaultAndKeychain',
       'KeyringController:createNewVaultAndRestore',
       'AccountsController:getAccounts',
+      'KeyringController:removeAccount',
     ],
     events: [
       'KeyringController:stateChange',

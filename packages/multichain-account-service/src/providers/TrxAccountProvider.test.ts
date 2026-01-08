@@ -143,7 +143,7 @@ function setup({
   );
 
   const multichainMessenger = getMultichainAccountServiceMessenger(messenger);
-  const trxProvider = new TrxAccountProvider(multichainMessenger);
+  const trxProvider = new TrxAccountProvider(multichainMessenger, config);
   const accountIds = accounts.map((account) => account.id);
   trxProvider.init(accountIds);
   const provider = new AccountProviderWrapper(multichainMessenger, trxProvider);

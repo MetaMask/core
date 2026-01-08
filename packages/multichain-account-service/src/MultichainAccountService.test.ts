@@ -62,6 +62,7 @@ type Mocks = {
     createNewVaultAndKeychain: jest.Mock;
     createNewVaultAndRestore: jest.Mock;
     withKeyring: jest.Mock;
+    removeAccount: jest.Mock;
   };
   AccountsController: {
     listMultichainAccounts: jest.Mock;
@@ -129,6 +130,7 @@ async function setup({
       createNewVaultAndKeychain: jest.fn(),
       createNewVaultAndRestore: jest.fn(),
       withKeyring: jest.fn(),
+      removeAccount: jest.fn(),
     },
     AccountsController: {
       listMultichainAccounts: jest.fn(),
@@ -171,6 +173,11 @@ async function setup({
   rootMessenger.registerActionHandler(
     'KeyringController:createNewVaultAndRestore',
     mocks.KeyringController.createNewVaultAndRestore,
+  );
+
+  rootMessenger.registerActionHandler(
+    'KeyringController:removeAccount',
+    mocks.KeyringController.removeAccount,
   );
 
   if (accounts) {
@@ -580,6 +587,41 @@ describe('MultichainAccountService', () => {
         entropySource: MOCK_HD_KEYRING_1.metadata.id,
         groupIndex: 0,
       });
+    });
+  });
+
+  describe('removeMultichainAccountWallet', () => {
+    it('calls KeyringController:removeAccount and removes the wallet', async () => {
+      const mockEvmAccount = MockAccountBuilder.from(MOCK_HD_ACCOUNT_1)
+        .withEntropySource(MOCK_HD_KEYRING_1.metadata.id)
+        .withGroupIndex(0)
+        .get();
+
+      const { service, mocks } = await setup({
+        accounts: [mockEvmAccount],
+      });
+
+      // Wallet should exist before removal
+      expect(
+        service.getMultichainAccountWallet({
+          entropySource: MOCK_HD_KEYRING_1.metadata.id,
+        }),
+      ).toBeDefined();
+
+      const testAddress = '0xdeadbeef';
+      await service.removeMultichainAccountWallet(
+        MOCK_HD_KEYRING_1.metadata.id,
+        testAddress,
+      );
+
+      expect(mocks.KeyringController.removeAccount).toHaveBeenCalledWith(
+        testAddress,
+      );
+      expect(() =>
+        service.getMultichainAccountWallet({
+          entropySource: MOCK_HD_KEYRING_1.metadata.id,
+        }),
+      ).toThrow('Unknown wallet, no wallet matching this entropy source');
     });
   });
 
