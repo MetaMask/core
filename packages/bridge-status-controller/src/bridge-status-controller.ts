@@ -1767,6 +1767,8 @@ export class BridgeStatusController extends StaticIntervalPollingController<Brid
           originalTransactionId: syntheticMeta.id, // Keep original txId for TransactionController updates
         } as TransactionMeta;
 
+        const startTime = Date.now();
+
         this.#addTxToHistory({
           accountAddress,
           bridgeTxMeta: bridgeTxMetaForHistory,
@@ -1778,6 +1780,7 @@ export class BridgeStatusController extends StaticIntervalPollingController<Brid
           slippagePercentage: 0,
           isStxEnabled: false,
           approvalTxId,
+          startTime,
         });
 
         // Start polling using the intent: prefixed key to route to intent manager
