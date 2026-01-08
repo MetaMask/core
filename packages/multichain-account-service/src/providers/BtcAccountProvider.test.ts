@@ -6,6 +6,7 @@ import type {
   EthKeyring,
   InternalAccount,
 } from '@metamask/keyring-internal-api';
+import { SnapControllerState } from '@metamask/snaps-controllers';
 
 import { AccountProviderWrapper } from './AccountProviderWrapper';
 import {
@@ -98,6 +99,11 @@ class MockBtcKeyring {
       return account;
     });
 }
+class MockBtcAccountProvider extends BtcAccountProvider {
+  override async ensureCanUseSnapPlatform(): Promise<void> {
+    // Override to avoid waiting during tests.
+  }
+}
 
 /**
  * Sets up a BtcAccountProvider for testing.
@@ -134,6 +140,16 @@ function setup({
     () => accounts,
   );
 
+  messenger.registerActionHandler(
+    'SnapController:getState',
+    () => ({ isReady: true }) as SnapControllerState,
+  );
+
+  messenger.registerActionHandler(
+    'AccountsController:listMultichainAccounts',
+    () => accounts,
+  );
+
   const mockGetAccount = jest.fn().mockImplementation((id) => {
     return keyring.accounts.find((account) => account.id === id);
   });
@@ -164,7 +180,7 @@ function setup({
   );
 
   const multichainMessenger = getMultichainAccountServiceMessenger(messenger);
-  const btcProvider = new BtcAccountProvider(multichainMessenger, config);
+  const btcProvider = new MockBtcAccountProvider(multichainMessenger, config);
   const accountIds = accounts.map((account) => account.id);
   btcProvider.init(accountIds);
   const provider = new AccountProviderWrapper(multichainMessenger, btcProvider);
@@ -397,7 +413,7 @@ describe('BtcAccountProvider', () => {
 
       const multichainMessenger =
         getMultichainAccountServiceMessenger(messenger);
-      const btcProvider = new BtcAccountProvider(
+      const btcProvider = new MockBtcAccountProvider(
         multichainMessenger,
         undefined,
         mockTrace,
@@ -449,7 +465,7 @@ describe('BtcAccountProvider', () => {
 
       const multichainMessenger =
         getMultichainAccountServiceMessenger(messenger);
-      const btcProvider = new BtcAccountProvider(
+      const btcProvider = new MockBtcAccountProvider(
         multichainMessenger,
         undefined,
         mockTrace,
@@ -482,7 +498,7 @@ describe('BtcAccountProvider', () => {
 
       const multichainMessenger =
         getMultichainAccountServiceMessenger(messenger);
-      const btcProvider = new BtcAccountProvider(
+      const btcProvider = new MockBtcAccountProvider(
         multichainMessenger,
         undefined,
         mockTrace,

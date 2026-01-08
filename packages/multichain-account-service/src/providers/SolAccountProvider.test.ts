@@ -5,6 +5,7 @@ import type {
   EthKeyring,
   InternalAccount,
 } from '@metamask/keyring-internal-api';
+import { SnapControllerState } from '@metamask/snaps-controllers';
 
 import { AccountProviderWrapper } from './AccountProviderWrapper';
 import type { SnapAccountProviderConfig } from './SnapAccountProvider';
@@ -82,6 +83,12 @@ class MockSolanaKeyring {
     });
 }
 
+class MockSolAccountProvider extends SolAccountProvider {
+  override async ensureCanUseSnapPlatform(): Promise<void> {
+    // Override to avoid waiting during tests.
+  }
+}
+
 /**
  * Sets up a SolAccountProvider for testing.
  *
@@ -115,6 +122,16 @@ function setup({
 
   messenger.registerActionHandler(
     'AccountsController:getAccounts',
+    () => accounts,
+  );
+
+  messenger.registerActionHandler(
+    'SnapController:getState',
+    () => ({ isReady: true }) as SnapControllerState,
+  );
+
+  messenger.registerActionHandler(
+    'AccountsController:listMultichainAccounts',
     () => accounts,
   );
 
@@ -157,7 +174,7 @@ function setup({
   );
 
   const multichainMessenger = getMultichainAccountServiceMessenger(messenger);
-  const solProvider = new SolAccountProvider(
+  const solProvider = new MockSolAccountProvider(
     multichainMessenger,
     config,
     mockTrace,
@@ -386,7 +403,7 @@ describe('SolAccountProvider', () => {
 
       const multichainMessenger =
         getMultichainAccountServiceMessenger(messenger);
-      const solProvider = new SolAccountProvider(
+      const solProvider = new MockSolAccountProvider(
         multichainMessenger,
         undefined,
         mocks.trace,
@@ -429,7 +446,7 @@ describe('SolAccountProvider', () => {
 
       const multichainMessenger =
         getMultichainAccountServiceMessenger(messenger);
-      const solProvider = new SolAccountProvider(
+      const solProvider = new MockSolAccountProvider(
         multichainMessenger,
         undefined,
         mocks.trace,
@@ -458,7 +475,7 @@ describe('SolAccountProvider', () => {
 
       const multichainMessenger =
         getMultichainAccountServiceMessenger(messenger);
-      const solProvider = new SolAccountProvider(
+      const solProvider = new MockSolAccountProvider(
         multichainMessenger,
         undefined,
         mocks.trace,

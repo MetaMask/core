@@ -13,9 +13,17 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
   - Add logic in the `createMultichainAccountWallet` method in `MultichainAccountService` so that it can handle all entry points: importing an SRP, recovering a vault and creating a new vault.
   - Add a `getAccountIds` method which returns all the account ids pertaining to a group.
   - Add an `addAccounts` method on the `BaseBip44AccountProvider` class which keeps track of all the account IDs that pertain to it.
+- Wait for Snap platform to be ready before any wallet/group operations ([#7266](https://github.com/MetaMask/core/pull/7266))
+- Add `SnapAccountProvider.withSnap` protected helper ([#7266](https://github.com/MetaMask/core/pull/7266))
+  - This is used to protect any Snap operation behind a guard that checks if the Snap platform is ready.
+- Add `MultichainAccountService:ensureCanUseSnapPlatform` method and action.
+  - This will resolve once the Snap platform is ready for the first time and will throw afterward if Snap platform has been disabled dynamically.
+  - This action is mostly used internally by any Snap-based account providers.
 
 ### Changed
 
+- **BREAKING:** The `SnapAccountProvider.client` property is now private ([#7266](https://github.com/MetaMask/core/pull/7266))
+  - You now need to use `SnapAccountProvider.withSnap` to access to it.
 - Bump `@metamask/snaps-controllers` from `^14.0.1` to `^17.2.0` ([#7550](https://github.com/MetaMask/core/pull/7550))
 - Bump `@metamask/snaps-sdk` from `^9.0.0` to `^10.3.0` ([#7550](https://github.com/MetaMask/core/pull/7550))
 - Bump `@metamask/snaps-utils` from `^11.0.0` to `^11.7.0` ([#7550](https://github.com/MetaMask/core/pull/7550))

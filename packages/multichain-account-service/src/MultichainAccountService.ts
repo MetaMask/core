@@ -31,6 +31,7 @@ import {
   SOL_ACCOUNT_PROVIDER_NAME,
   SolAccountProviderConfig,
 } from './providers/SolAccountProvider';
+import { SnapPlatformWatcher } from './snaps/SnapPlatformWatcher';
 import type {
   MultichainAccountServiceConfig,
   MultichainAccountServiceMessenger,
@@ -95,6 +96,8 @@ export type CreateWalletParams =
 export class MultichainAccountService {
   readonly #messenger: MultichainAccountServiceMessenger;
 
+  readonly #watcher: SnapPlatformWatcher;
+
   readonly #providers: Bip44AccountProvider[];
 
   readonly #wallets: Map<
@@ -149,6 +152,8 @@ export class MultichainAccountService {
       ...providers,
     ];
 
+    this.#watcher = new SnapPlatformWatcher(messenger);
+
     this.#messenger.registerActionHandler(
       'MultichainAccountService:getMultichainAccountGroup',
       (...args) => this.getMultichainAccountGroup(...args),
@@ -196,6 +201,10 @@ export class MultichainAccountService {
     this.#messenger.registerActionHandler(
       'MultichainAccountService:removeMultichainAccountWallet',
       (...args) => this.removeMultichainAccountWallet(...args),
+    );
+    this.#messenger.registerActionHandler(
+      'MultichainAccountService:ensureCanUseSnapPlatform',
+      (...args) => this.ensureCanUseSnapPlatform(...args),
     );
   }
 
@@ -323,6 +332,10 @@ export class MultichainAccountService {
       }),
     );
     log('Providers got re-synced!');
+  }
+
+  ensureCanUseSnapPlatform(): Promise<void> {
+    return this.#watcher.ensureCanUseSnapPlatform();
   }
 
   /**
