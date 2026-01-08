@@ -117,8 +117,8 @@
 /packages/approval-controller/CHANGELOG.md        @MetaMask/confirmations @MetaMask/core-platform
 /packages/assets-controllers/package.json         @MetaMask/metamask-assets @MetaMask/core-platform
 /packages/assets-controllers/CHANGELOG.md         @MetaMask/metamask-assets @MetaMask/core-platform
-/packages/assets-controller/package.json         @MetaMask/metamask-assets @MetaMask/core-platform
-/packages/assets-controller/CHANGELOG.md         @MetaMask/metamask-assets @MetaMask/core-platform
+/packages/assets-controller/package.json          @MetaMask/metamask-assets @MetaMask/core-platform
+/packages/assets-controller/CHANGELOG.md          @MetaMask/metamask-assets @MetaMask/core-platform
 /packages/chain-agnostic-permission/package.json  @MetaMask/wallet-integrations @MetaMask/core-platform
 /packages/chain-agnostic-permission/CHANGELOG.md  @MetaMask/wallet-integrations @MetaMask/core-platform
 /packages/delegation-controller/package.json      @MetaMask/delegation @MetaMask/core-platform
