@@ -5,7 +5,10 @@ import type {
   MockAnyNamespace,
 } from '@metamask/messenger';
 
-import type { AssetsControllerMessenger } from './AssetsController';
+import type {
+  AssetsControllerMessenger,
+  AssetsControllerState,
+} from './AssetsController';
 import {
   AssetsController,
   controllerName,
@@ -22,55 +25,77 @@ type RootMessenger = Messenger<
   AllAssetsControllerEvents
 >;
 
-/**
- * Creates and returns a root messenger for testing.
- *
- * @returns A messenger instance.
- */
-function getRootMessenger(): RootMessenger {
-  return new Messenger({
-    namespace: MOCK_ANY_NAMESPACE,
-  });
-}
+type WithControllerCallback<ReturnValue> = ({
+  controller,
+  messenger,
+}: {
+  controller: AssetsController;
+  messenger: RootMessenger;
+}) => Promise<ReturnValue> | ReturnValue;
+
+type WithControllerOptions = {
+  state?: Partial<AssetsControllerState>;
+};
+
+type WithControllerArgs<ReturnValue> =
+  | [WithControllerCallback<ReturnValue>]
+  | [WithControllerOptions, WithControllerCallback<ReturnValue>];
 
 /**
- * Constructs a messenger for the AssetsController.
+ * Builds a controller based on the given options, and calls the given function
+ * with that controller.
  *
- * @param rootMessenger - An optional root messenger.
- * @returns A messenger for the AssetsController.
+ * @param args - Either a function, or an options bag + a function. The options
+ * bag accepts controller options and config; the function
+ * will be called with the built controller.
+ * @returns Whatever the callback returns.
  */
-function getMessenger(
-  rootMessenger = getRootMessenger(),
-): AssetsControllerMessenger {
-  return new Messenger<
+async function withController<ReturnValue>(
+  ...args: WithControllerArgs<ReturnValue>
+): Promise<ReturnValue> {
+  const [{ state = {} }, testFunction] =
+    args.length === 2 ? args : [{}, args[0]];
+
+  const messenger: RootMessenger = new Messenger({
+    namespace: MOCK_ANY_NAMESPACE,
+  });
+
+  const controllerMessenger = new Messenger<
     typeof controllerName,
     AllAssetsControllerActions,
     AllAssetsControllerEvents,
     RootMessenger
   >({
     namespace: controllerName,
-    parent: rootMessenger,
+    parent: messenger,
+  });
+
+  const controller = new AssetsController({
+    messenger: controllerMessenger,
+    state,
+  });
+
+  return await testFunction({
+    controller,
+    messenger,
   });
 }
 
 describe('AssetsController', () => {
   describe('constructor', () => {
-    it('should create an instance with default state', () => {
-      const messenger = getMessenger();
-      const controller = new AssetsController({ messenger });
-
-      expect(controller.state).toStrictEqual(getDefaultAssetsControllerState());
+    it('should create an instance with default state', async () => {
+      await withController(({ controller }) => {
+        expect(controller.state).toStrictEqual(
+          getDefaultAssetsControllerState(),
+        );
+      });
     });
 
-    it('should create an instance with custom state', () => {
-      const messenger = getMessenger();
+    it('should create an instance with custom state', async () => {
       const customState = {};
-      const controller = new AssetsController({
-        messenger,
-        state: customState,
+      await withController({ state: customState }, ({ controller }) => {
+        expect(controller.state).toStrictEqual(customState);
       });
-
-      expect(controller.state).toStrictEqual(customState);
     });
   });
 
@@ -81,33 +106,24 @@ describe('AssetsController', () => {
   });
 
   describe('actions', () => {
-    it('should respond to AssetsController:getState action', () => {
-      const rootMessenger = getRootMessenger();
-      const messenger = getMessenger(rootMessenger);
-
-      // eslint-disable-next-line no-new
-      new AssetsController({ messenger });
-
-      const state = rootMessenger.call('AssetsController:getState');
-
-      expect(state).toStrictEqual(getDefaultAssetsControllerState());
+    it('should respond to AssetsController:getState action', async () => {
+      await withController(({ messenger }) => {
+        const state = messenger.call('AssetsController:getState');
+        expect(state).toStrictEqual(getDefaultAssetsControllerState());
+      });
     });
   });
 
   describe('events', () => {
-    it('should emit stateChange event when state changes', () => {
-      const rootMessenger = getRootMessenger();
-      const messenger = getMessenger(rootMessenger);
+    it('should allow subscribing to stateChange event', async () => {
+      await withController(({ messenger }) => {
+        const listener = jest.fn();
+        messenger.subscribe('AssetsController:stateChange', listener);
 
-      // eslint-disable-next-line no-new
-      new AssetsController({ messenger });
-
-      const listener = jest.fn();
-      rootMessenger.subscribe('AssetsController:stateChange', listener);
-
-      // Since state is empty and there's no way to change it yet,
-      // we just verify the subscription works without errors
-      expect(listener).not.toHaveBeenCalled();
+        // Since state is empty and there's no way to change it yet,
+        // we just verify the subscription works without errors
+        expect(listener).not.toHaveBeenCalled();
+      });
     });
   });
 });
