@@ -1,6 +1,12 @@
 {
+  /**
+   * This configuration is used by the `lint` script in `package.json`, and by editors such as
+   * VSCode for TypeScript-related features.
+   */
   "extends": "./tsconfig.base.json",
-  "compilerOptions": { "noEmit": true },
+  "compilerOptions": {
+    "noEmit": true
+  },
   "references": [
     { "path": "./packages/account-tree-controller" },
     { "path": "./packages/accounts-controller" },
