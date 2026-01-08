@@ -1,7 +1,7 @@
 {
   "name": "@metamask/assets-controller",
   "version": "0.0.0",
-  "description": "Tracks assets balances/prices and handles token detection across all digital assets.",
+  "description": "Tracks assets balances/prices and handles token detection across all digital assets",
   "keywords": [
     "MetaMask",
     "Ethereum"
