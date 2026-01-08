@@ -6,7 +6,7 @@ import type {
 import { BaseController } from '@metamask/base-controller';
 import type { Messenger } from '@metamask/messenger';
 
-// TODO: Implement AssetsController
+// TODO: Implement AssetsController - the goal is to split and consolidate the old one
 // This controller will consolidate asset tracking functionality including:
 // - Account balance tracking
 // - Token balance tracking
