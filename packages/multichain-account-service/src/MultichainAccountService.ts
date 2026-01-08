@@ -193,6 +193,10 @@ export class MultichainAccountService {
       'MultichainAccountService:resyncAccounts',
       (...args) => this.resyncAccounts(...args),
     );
+    this.#messenger.registerActionHandler(
+      'MultichainAccountService:removeMultichainAccountWallet',
+      (...args) => this.removeMultichainAccountWallet(...args),
+    );
   }
 
   /**

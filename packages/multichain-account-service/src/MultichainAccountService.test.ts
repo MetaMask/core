@@ -800,6 +800,22 @@ describe('MultichainAccountService', () => {
       await messenger.call('MultichainAccountService:resyncAccounts');
       expect(resyncAccountsSpy).toHaveBeenCalled();
     });
+
+    it('removes a multichain account wallet with MultichainAccountService:removeMultichainAccountWallet', async () => {
+      const { messenger, mocks } = await setup({
+        accounts: [MOCK_HD_ACCOUNT_1],
+      });
+
+      await messenger.call(
+        'MultichainAccountService:removeMultichainAccountWallet',
+        MOCK_HD_KEYRING_1.metadata.id,
+        MOCK_HD_ACCOUNT_1.address,
+      );
+
+      expect(mocks.KeyringController.removeAccount).toHaveBeenCalledWith(
+        MOCK_HD_ACCOUNT_1.address,
+      );
+    });
   });
 
   describe('resyncAccounts', () => {

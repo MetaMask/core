@@ -91,6 +91,11 @@ export type MultichainAccountServiceResyncAccountsAction = {
   handler: MultichainAccountService['resyncAccounts'];
 };
 
+export type MultichainAccountServiceRemoveMultichainAccountWalletAction = {
+  type: `${typeof serviceName}:removeMultichainAccountWallet`;
+  handler: MultichainAccountService['removeMultichainAccountWallet'];
+};
+
 /**
  * All actions that {@link MultichainAccountService} registers so that other
  * modules can call them.
@@ -106,7 +111,8 @@ export type MultichainAccountServiceActions =
   | MultichainAccountServiceAlignWalletAction
   | MultichainAccountServiceAlignWalletsAction
   | MultichainAccountServiceCreateMultichainAccountWalletAction
-  | MultichainAccountServiceResyncAccountsAction;
+  | MultichainAccountServiceResyncAccountsAction
+  | MultichainAccountServiceRemoveMultichainAccountWalletAction;
 
 export type MultichainAccountServiceMultichainAccountGroupCreatedEvent = {
   type: `${typeof serviceName}:multichainAccountGroupCreated`;
