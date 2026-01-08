@@ -1,6 +1,13 @@
-// TODO: Implement AssetsController
-// This package will consolidate asset tracking functionality including:
-// - Account balance tracking
-// - Token balance tracking
-// - Asset detection
-export {};
+export type {
+  AssetsControllerState,
+  AssetsControllerGetStateAction,
+  AssetsControllerActions,
+  AssetsControllerStateChangeEvent,
+  AssetsControllerEvents,
+  AssetsControllerMessenger,
+} from './AssetsController';
+export {
+  AssetsController,
+  controllerName,
+  getDefaultAssetsControllerState,
+} from './AssetsController';
