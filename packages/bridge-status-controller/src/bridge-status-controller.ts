@@ -1085,12 +1085,7 @@ export class BridgeStatusController extends StaticIntervalPollingController<Brid
       if (meta) {
         // Treat both 'confirmed' and 'finalized' as success to match TC lifecycle
 
-        if (
-          meta.status === TransactionStatus.confirmed ||
-          // Some environments move directly to finalized
-          (TransactionStatus as unknown as { finalized: string }).finalized ===
-            meta.status
-        ) {
+        if (meta.status === TransactionStatus.confirmed) {
           return meta;
         }
         if (
