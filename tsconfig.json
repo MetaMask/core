@@ -1,12 +1,6 @@
 {
-  /**
-   * This configuration is used by the `lint` script in `package.json`, and by editors such as
-   * VSCode for TypeScript-related features.
-   */
   "extends": "./tsconfig.base.json",
-  "compilerOptions": {
-    "noEmit": true
-  },
+  "compilerOptions": { "noEmit": true },
   "references": [
     { "path": "./packages/account-tree-controller" },
     { "path": "./packages/accounts-controller" },
@@ -15,6 +9,7 @@
     { "path": "./packages/announcement-controller" },
     { "path": "./packages/app-metadata-controller" },
     { "path": "./packages/approval-controller" },
+    { "path": "./packages/assets-controller" },
     { "path": "./packages/assets-controllers" },
     { "path": "./packages/base-controller" },
     { "path": "./packages/bridge-controller" },

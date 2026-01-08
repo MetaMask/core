@@ -17,6 +17,7 @@
 /packages/assets-controllers         @MetaMask/metamask-assets
 /packages/network-enablement-controller @MetaMask/metamask-assets
 /packages/token-search-discovery-controller @MetaMask/metamask-assets
+/packages/assets-controller          @MetaMask/metamask-assets
 
 ## Confirmations Team
 /packages/address-book-controller           @MetaMask/confirmations
