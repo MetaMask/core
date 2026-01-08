@@ -1116,6 +1116,7 @@ describe('BridgeController', function () {
         provider: 'provider_bridge',
         best_quote_provider: 'provider_bridge2',
         can_submit: true,
+        usd_balance_source: 0,
       },
     );
 
@@ -2366,6 +2367,7 @@ describe('BridgeController', function () {
           provider: 'provider_bridge',
           best_quote_provider: 'provider_bridge2',
           can_submit: true,
+          usd_balance_source: 0,
         },
       );
       expect(messengerMock.call.mock.calls).toMatchSnapshot();
@@ -2669,6 +2671,7 @@ describe('BridgeController', function () {
           provider: 'provider_bridge',
           best_quote_provider: 'provider_bridge2',
           can_submit: true,
+          usd_balance_source: 0,
         },
       );
       expect(trackMetaMetricsFn).toHaveBeenCalledTimes(0);
