@@ -84,7 +84,7 @@ export class MultichainAccountGroup<
    *
    * @param provider - The provider to clear the account to provider state for.
    */
-  #clearAccountToProviderState(provider: Bip44AccountProvider<Account>) {
+  #clearAccountToProviderState(provider: Bip44AccountProvider<Account>): void {
     this.#accountToProvider.forEach((p, id) => {
       if (p === provider) {
         this.#accountToProvider.delete(id);
@@ -97,7 +97,7 @@ export class MultichainAccountGroup<
    *
    * @param groupState - The group state.
    */
-  #setState(groupState: GroupState) {
+  #setState(groupState: GroupState): void {
     for (const provider of this.#providers) {
       const accountIds = groupState[provider.getName()];
       this.#clearAccountToProviderState(provider);
@@ -111,13 +111,13 @@ export class MultichainAccountGroup<
       }
     }
 
-    if (!this.#initialized) {
-      this.#initialized = true;
-    } else {
+    if (this.#initialized) {
       this.#messenger.publish(
         'MultichainAccountService:multichainAccountGroupUpdated',
         this,
       );
+    } else {
+      this.#initialized = true;
     }
   }
 
@@ -126,7 +126,7 @@ export class MultichainAccountGroup<
    *
    * @param groupState - The group state.
    */
-  init(groupState: GroupState) {
+  init(groupState: GroupState): void {
     this.#log('Initializing group state...');
     this.#setState(groupState);
     this.#log('Finished initializing group state...');
@@ -137,7 +137,7 @@ export class MultichainAccountGroup<
    *
    * @param groupState - The group state.
    */
-  update(groupState: GroupState) {
+  update(groupState: GroupState): void {
     this.#log('Updating group state...');
     this.#setState(groupState);
     this.#log('Finished updating group state...');

@@ -101,7 +101,7 @@ export class MultichainAccountWallet<
    *
    * @param walletState - The wallet state.
    */
-  init(walletState: WalletState) {
+  init(walletState: WalletState): void {
     this.#log('Initializing wallet state...');
     for (const [groupIndexString, groupState] of Object.entries(walletState)) {
       // Have to convert to number because the state keys become strings when we construct the state object in the service
@@ -174,7 +174,7 @@ export class MultichainAccountWallet<
   async #withLock<Return>(
     status: MultichainAccountWalletStatus,
     operation: () => Promise<Return>,
-  ) {
+  ): Promise<Return> {
     const release = await this.#lock.acquire();
     try {
       this.#log(`Locking wallet with status "${status}"...`);
@@ -245,10 +245,11 @@ export class MultichainAccountWallet<
       const results = await Promise.allSettled(tasks);
 
       const providerFailures = results.reduce((acc, result, idx) => {
+        let newAcc = acc;
         if (result.status === 'rejected') {
-          acc += `\n- ${providers[idx].getName()}: ${result.reason.message}`;
+          newAcc += `\n- ${providers[idx].getName()}: ${result.reason.message}`;
         }
-        return acc;
+        return newAcc;
       }, '');
 
       if (providerFailures.length) {
@@ -565,7 +566,7 @@ export class MultichainAccountWallet<
       // One serialized loop per provider; all run concurrently
       const runProviderDiscovery = async (
         context: AccountProviderDiscoveryContext<Account>,
-      ) => {
+      ): Promise<void> => {
         const providerName = context.provider.getName();
         const message = (stepName: string, groupIndex: number) =>
           `[${providerName}] Discovery ${stepName} for group index: ${groupIndex}`;
@@ -578,10 +579,10 @@ export class MultichainAccountWallet<
 
           let accounts: Account[] = [];
           try {
-            accounts = (await context.provider.discoverAccounts({
+            accounts = await context.provider.discoverAccounts({
               entropySource: this.#entropySource,
               groupIndex: targetGroupIndex,
-            })) as Account[];
+            });
           } catch (error) {
             context.stopped = true;
             console.error(error);

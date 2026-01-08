@@ -224,7 +224,10 @@ export class MultichainAccountService {
    *
    * @returns The service and provider state.
    */
-  #constructServiceState() {
+  #constructServiceState(): {
+    serviceState: ServiceState;
+    providerState: Record<string, Bip44Account<KeyringAccount>['id'][]>;
+  } {
     const accounts = this.#messenger.call(
       'AccountsController:listMultichainAccounts',
     );

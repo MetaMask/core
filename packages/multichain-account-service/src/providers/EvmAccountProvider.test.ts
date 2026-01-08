@@ -40,11 +40,11 @@ jest.mock('@ethereumjs/util', () => {
   };
 });
 
-function mockNextDiscoveryAddress(address: string) {
+function mockNextDiscoveryAddress(address: string): void {
   jest.mocked(publicToAddress).mockReturnValue(createBytes(address as Hex));
 }
 
-function mockNextDiscoveryAddressOnce(address: string) {
+function mockNextDiscoveryAddressOnce(address: string): void {
   jest.mocked(publicToAddress).mockReturnValueOnce(createBytes(address as Hex));
 }
 
@@ -79,11 +79,11 @@ class MockEthKeyring implements EthKeyring {
     this.root = mockHdKey();
   }
 
-  async serialize() {
+  async serialize(): Promise<string> {
     return 'serialized';
   }
 
-  async deserialize(_: string) {
+  async deserialize(_: string): Promise<void> {
     // Not required.
   }
 

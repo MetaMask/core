@@ -54,6 +54,7 @@ jest.mock('./providers/SolAccountProvider', () => {
 });
 
 type Mocks = {
+  // eslint-disable-next-line @typescript-eslint/naming-convention
   KeyringController: {
     keyrings: KeyringObject[];
     getState: jest.Mock;
@@ -64,13 +65,17 @@ type Mocks = {
     withKeyring: jest.Mock;
     removeAccount: jest.Mock;
   };
+  // eslint-disable-next-line @typescript-eslint/naming-convention
   AccountsController: {
     listMultichainAccounts: jest.Mock;
   };
+  // eslint-disable-next-line @typescript-eslint/naming-convention
   ErrorReportingService: {
     captureException: jest.Mock;
   };
+  // eslint-disable-next-line @typescript-eslint/naming-convention
   EvmAccountProvider: MockAccountProvider;
+  // eslint-disable-next-line @typescript-eslint/naming-convention
   SolAccountProvider: MockAccountProvider;
 };
 
@@ -79,7 +84,7 @@ function mockAccountProvider<Provider extends Bip44AccountProvider>(
   mocks: MockAccountProvider,
   accounts: KeyringAccount[],
   idx: number,
-) {
+): void {
   jest.mocked(providerClass).mockImplementation((...args) => {
     mocks.constructor(...args);
     return mocks as unknown as Provider;
