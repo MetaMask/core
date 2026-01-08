@@ -262,7 +262,6 @@ type SearchTokenOptions = {
  * @param options - Additional fetch options.
  * @param options.limit - The maximum number of results to return.
  * @param options.includeMarketData - Optional flag to include market data in the results (defaults to false).
- * @param options.includeRwaData - Optional flag to include RWA data in the results (defaults to false).
  * @returns Object containing count and data array. Returns { count: 0, data: [] } if request fails.
  */
 export async function searchTokens(
