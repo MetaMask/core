@@ -53,6 +53,12 @@ const QUOTE_1_MOCK: TransactionPayQuote<unknown> = {
     usd: '8.88',
   },
   strategy: TransactionPayStrategy.Test,
+  targetAmount: {
+    human: '9.99',
+    fiat: '9.99',
+    raw: '999000000000000',
+    usd: '10.10',
+  },
 };
 
 const TOKEN_1_MOCK = {
@@ -105,6 +111,12 @@ const QUOTE_2_MOCK: TransactionPayQuote<unknown> = {
     usd: '14.14',
   },
   strategy: TransactionPayStrategy.Test,
+  targetAmount: {
+    human: '15.15',
+    fiat: '15.15',
+    raw: '1515000000000000',
+    usd: '16.16',
+  },
 };
 
 const TRANSACTION_META_MOCK = {} as TransactionMeta;
@@ -159,8 +171,8 @@ describe('Totals Utils', () => {
         transaction: TRANSACTION_META_MOCK,
       });
 
-      expect(result.total.fiat).toBe('50.88');
-      expect(result.total.usd).toBe('56.34');
+      expect(result.total.fiat).toBe('64');
+      expect(result.total.usd).toBe('70.68');
     });
 
     it('returns total excluding token amount not in quote', () => {

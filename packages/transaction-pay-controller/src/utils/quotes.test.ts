@@ -73,6 +73,12 @@ const TOTALS_MOCK = {
       },
     },
   },
+  targetAmount: {
+    fiat: '5.67',
+    human: '5.67',
+    raw: '567000',
+    usd: '6.78',
+  },
   total: {
     fiat: '1.23',
     usd: '4.56',
@@ -301,6 +307,7 @@ describe('Quotes Utils', () => {
           bridgeFeeFiat: TOTALS_MOCK.fees.provider.usd,
           chainId: TRANSACTION_DATA_MOCK.paymentToken?.chainId,
           networkFeeFiat: TOTALS_MOCK.fees.sourceNetwork.estimate.usd,
+          targetFiat: TOTALS_MOCK.targetAmount.usd,
           tokenAddress: TRANSACTION_DATA_MOCK.paymentToken?.address,
           totalFiat: TOTALS_MOCK.total.usd,
         },
