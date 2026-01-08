@@ -1304,6 +1304,7 @@ Array [
       "price_impact": 0,
       "provider": "lifi_across",
       "quoted_time_minutes": 0.25,
+      "usd_balance_source": 0,
       "usd_quoted_gas": 2.5778,
       "usd_quoted_return": 0.134214,
       "warnings": Array [
