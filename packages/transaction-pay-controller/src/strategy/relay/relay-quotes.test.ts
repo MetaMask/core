@@ -69,9 +69,12 @@ const QUOTE_REQUEST_MOCK: QuoteRequest = {
 const QUOTE_MOCK = {
   details: {
     currencyIn: {
+      amount: '1240000000000000000',
+      amountFormatted: '1.24',
       amountUsd: '1.24',
     },
     currencyOut: {
+      amount: '100',
       amountFormatted: '1.0',
       amountUsd: '1.23',
       currency: {
@@ -994,6 +997,25 @@ describe('Relay Quotes Utils', () => {
       expect(result[0].fees.targetNetwork).toStrictEqual({
         usd: '0',
         fiat: '0',
+      });
+    });
+
+    it('includes target amount in quote', async () => {
+      successfulFetchMock.mockResolvedValue({
+        json: async () => QUOTE_MOCK,
+      } as never);
+
+      const result = await getRelayQuotes({
+        messenger,
+        requests: [QUOTE_REQUEST_MOCK],
+        transaction: TRANSACTION_META_MOCK,
+      });
+
+      expect(result[0].targetAmount).toStrictEqual({
+        human: QUOTE_MOCK.details.currencyOut.amountFormatted,
+        raw: QUOTE_MOCK.details.currencyOut.amount,
+        usd: '1.23',
+        fiat: '2.46',
       });
     });
 
