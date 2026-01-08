@@ -9,12 +9,25 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ### Changed
 
+- Bump `@metamask/controller-utils` from `^11.17.0` to `^11.18.0` ([#7583](https://github.com/MetaMask/core/pull/7583))
+- Bump `@metamask/network-controller` from `^27.1.0` to `^27.2.0` ([#7583](https://github.com/MetaMask/core/pull/7583))
+- Bump `@metamask/assets-controllers` from `^94.0.0` to `^95.0.0` ([#7584](https://github.com/MetaMask/core/pull/7584))
+
+## [10.6.0]
+
+### Added
+
+- feat: add override functionality to remote feature flags ([#7271](https://github.com/MetaMask/core/pull/7271))
+
+### Changed
+
 - Bump `@metamask/remote-feature-flag-controller` from `^3.1.0` to `^4.0.0` ([#7546](https://github.com/MetaMask/core/pull/7546))
 - Upgrade `@metamask/utils` from `^11.8.1` to `^11.9.0` ([#7511](https://github.com/MetaMask/core/pull/7511))
 - Poll relay status using static URL ([#7535](https://github.com/MetaMask/core/pull/7535))
 - Bump `@metamask/assets-controllers` from `^93.1.0` to `^94.1.0` ([#7444](https://github.com/MetaMask/core/pull/7444), [#7488](https://github.com/MetaMask/core/pull/7488))
 - Bump `@metamask/transaction-controller` from `^62.6.0` to `^62.7.0` ([#7494](https://github.com/MetaMask/core/pull/7494))
-- Bump `@metamask/bridge-controller` from `^64.1.0` to `^64.2.0` ([#7509](https://github.com/MetaMask/core/pull/7509))
+- Bump `@metamask/bridge-controller` from `^64.1.0` to `^64.3.0` ([#7509](https://github.com/MetaMask/core/pull/7509), [#7574](https://github.com/MetaMask/core/pull/7574))
+- Bump `@metamask/bridge-status-controller` from `^64.1.0` to `^64.3.0` ([#7509](https://github.com/MetaMask/core/pull/7509), [#7574](https://github.com/MetaMask/core/pull/7574))
 - Bump `@metamask/remote-feature-flag-controller` from `^3.0.0` to `^3.1.0` ([#7519](https://github.com/MetaMask/core/pull/7519))
 - Bump `@metamask/network-controller` from `^27.0.0` to `^27.1.0` ([#7534](https://github.com/MetaMask/core/pull/7534))
 - Bump `@metamask/controller-utils` from `^11.16.0` to `^11.17.0` ([#7534](https://github.com/MetaMask/core/pull/7534))
@@ -224,7 +237,8 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 - Initial release ([#6820](https://github.com/MetaMask/core/pull/6820))
 
-[Unreleased]: https://github.com/MetaMask/core/compare/@metamask/transaction-pay-controller@10.5.0...HEAD
+[Unreleased]: https://github.com/MetaMask/core/compare/@metamask/transaction-pay-controller@10.6.0...HEAD
+[10.6.0]: https://github.com/MetaMask/core/compare/@metamask/transaction-pay-controller@10.5.0...@metamask/transaction-pay-controller@10.6.0
 [10.5.0]: https://github.com/MetaMask/core/compare/@metamask/transaction-pay-controller@10.4.0...@metamask/transaction-pay-controller@10.5.0
 [10.4.0]: https://github.com/MetaMask/core/compare/@metamask/transaction-pay-controller@10.3.0...@metamask/transaction-pay-controller@10.4.0
 [10.3.0]: https://github.com/MetaMask/core/compare/@metamask/transaction-pay-controller@10.2.0...@metamask/transaction-pay-controller@10.3.0
