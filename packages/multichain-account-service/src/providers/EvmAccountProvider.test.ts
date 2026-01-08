@@ -1,6 +1,6 @@
 import { publicToAddress } from '@ethereumjs/util';
 import { getUUIDFromAddressOfNormalAccount } from '@metamask/accounts-controller';
-import { type KeyringMetadata } from '@metamask/keyring-controller';
+import type { KeyringMetadata } from '@metamask/keyring-controller';
 import type {
   EthKeyring,
   InternalAccount,
@@ -16,7 +16,7 @@ import {
   EVM_ACCOUNT_PROVIDER_DEFAULT_CONFIG,
   EVM_ACCOUNT_PROVIDER_NAME,
   EvmAccountProvider,
-  type EvmAccountProviderConfig,
+  EvmAccountProviderConfig,
 } from './EvmAccountProvider';
 import { TimeoutError } from './utils';
 import { TraceName } from '../constants/traces';
@@ -29,7 +29,7 @@ import {
   MOCK_SOL_ACCOUNT_1,
   MockAccountBuilder,
   mockAsInternalAccount,
-  type RootMessenger,
+  RootMessenger,
 } from '../tests';
 
 jest.mock('@ethereumjs/util', () => {

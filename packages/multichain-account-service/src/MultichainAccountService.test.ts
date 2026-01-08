@@ -2,7 +2,7 @@ import { isBip44Account } from '@metamask/account-api';
 import { mnemonicPhraseToBytes } from '@metamask/key-tree';
 import type { KeyringAccount } from '@metamask/keyring-api';
 import { EthAccountType, SolAccountType } from '@metamask/keyring-api';
-import { type KeyringObject } from '@metamask/keyring-controller';
+import type { KeyringObject } from '@metamask/keyring-controller';
 import type { EthKeyring } from '@metamask/keyring-internal-api';
 
 import type { MultichainAccountServiceOptions } from './MultichainAccountService';
@@ -17,6 +17,7 @@ import {
   SOL_ACCOUNT_PROVIDER_NAME,
   SolAccountProvider,
 } from './providers/SolAccountProvider';
+import type { RootMessenger, MockAccountProvider } from './tests';
 import {
   MOCK_HARDWARE_ACCOUNT_1,
   MOCK_HD_ACCOUNT_1,
@@ -34,8 +35,6 @@ import {
   getRootMessenger,
   makeMockAccountProvider,
   setupBip44AccountProvider,
-  type RootMessenger,
-  type MockAccountProvider,
 } from './tests';
 import type { MultichainAccountServiceMessenger } from './types';
 

@@ -8,11 +8,10 @@ import {
 import { EthScope, SolScope } from '@metamask/keyring-api';
 import type { InternalAccount } from '@metamask/keyring-internal-api';
 
-import {
-  type GroupState,
-  MultichainAccountGroup,
-} from './MultichainAccountGroup';
+import type { GroupState } from './MultichainAccountGroup';
+import { MultichainAccountGroup } from './MultichainAccountGroup';
 import { MultichainAccountWallet } from './MultichainAccountWallet';
+import type { RootMessenger, MockAccountProvider } from './tests';
 import {
   MOCK_SNAP_ACCOUNT_2,
   MOCK_WALLET_1_BTC_P2TR_ACCOUNT,
@@ -24,8 +23,6 @@ import {
   getMultichainAccountServiceMessenger,
   getRootMessenger,
   mockCreateAccountsOnce,
-  type RootMessenger,
-  type MockAccountProvider,
 } from './tests';
 import type { MultichainAccountServiceMessenger } from './types';
 

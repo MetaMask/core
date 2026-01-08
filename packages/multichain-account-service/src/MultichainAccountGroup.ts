@@ -16,10 +16,8 @@ import {
 } from './logger';
 import type { ServiceState, StateKeys } from './MultichainAccountService';
 import type { MultichainAccountWallet } from './MultichainAccountWallet';
-import {
-  isAccountProviderWrapper,
-  type Bip44AccountProvider,
-} from './providers';
+import type { Bip44AccountProvider } from './providers';
+import { isAccountProviderWrapper } from './providers';
 import type { MultichainAccountServiceMessenger } from './types';
 import { createSentryError } from './utils';
 

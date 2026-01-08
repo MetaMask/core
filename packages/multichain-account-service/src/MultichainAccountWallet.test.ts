@@ -6,18 +6,16 @@ import {
   toMultichainAccountGroupId,
   toMultichainAccountWalletId,
 } from '@metamask/account-api';
+import type { EntropySourceId } from '@metamask/keyring-api';
 import {
   EthAccountType,
   SolAccountType,
-  type EntropySourceId,
   KeyringAccountEntropyTypeOption,
 } from '@metamask/keyring-api';
 import type { InternalAccount } from '@metamask/keyring-internal-api';
 
-import {
-  type WalletState,
-  MultichainAccountWallet,
-} from './MultichainAccountWallet';
+import type { WalletState } from './MultichainAccountWallet';
+import { MultichainAccountWallet } from './MultichainAccountWallet';
 import type { MockAccountProvider, RootMessenger } from './tests';
 import {
   MOCK_HD_ACCOUNT_1,

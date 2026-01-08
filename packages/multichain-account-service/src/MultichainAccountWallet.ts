@@ -23,12 +23,11 @@ import {
   projectLogger as log,
   WARNING_PREFIX,
 } from './logger';
-import {
-  type GroupState,
-  MultichainAccountGroup,
-} from './MultichainAccountGroup';
+import type { GroupState } from './MultichainAccountGroup';
+import { MultichainAccountGroup } from './MultichainAccountGroup';
 import type { ServiceState, StateKeys } from './MultichainAccountService';
-import { type Bip44AccountProvider, EvmAccountProvider } from './providers';
+import type { Bip44AccountProvider } from './providers';
+import { EvmAccountProvider } from './providers/EvmAccountProvider';
 import type { MultichainAccountServiceMessenger } from './types';
 import { createSentryError } from './utils';
 
