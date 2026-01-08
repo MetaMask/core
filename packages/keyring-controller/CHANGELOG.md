@@ -12,7 +12,9 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 - Added new `KeyringBuilder` type ([#7334](https://github.com/MetaMask/core/pull/7334))
 - Added an action to call `removeAccount` ([#7241](https://github.com/MetaMask/core/pull/7241))
   - This action is meant to be consumed by the `MultichainAccountService` to encapsulate the act of removing a wallet when seed phrase backup fails in the clients.
-- Added new `KeyringControllerError` to better propagate errors from the keyring instances. ([#7498](https://github.com/MetaMask/core/pull/7498))
+- Added new `KeyringControllerError` ([#7498](https://github.com/MetaMask/core/pull/7498))
+  - All controller's errors are now using this error type.
+  - Keyring instance operation errors are also now also wrapped with this error type.
 
 ### Changed
 
