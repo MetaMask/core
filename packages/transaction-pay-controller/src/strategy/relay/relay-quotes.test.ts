@@ -252,7 +252,7 @@ describe('Relay Quotes Utils', () => {
           originChainId: 1,
           originCurrency: QUOTE_REQUEST_MOCK.sourceTokenAddress,
           recipient: QUOTE_REQUEST_MOCK.from,
-          tradeType: 'EXACT_OUTPUT',
+          tradeType: 'EXPECTED_OUTPUT',
           user: QUOTE_REQUEST_MOCK.from,
         }),
       );
@@ -278,6 +278,23 @@ describe('Relay Quotes Utils', () => {
           amount: QUOTE_REQUEST_MOCK.sourceTokenAmount,
           tradeType: 'EXACT_INPUT',
         }),
+      );
+    });
+
+    it('throws if isMaxAmount is true and transaction includes data', async () => {
+      await expect(
+        getRelayQuotes({
+          messenger,
+          requests: [{ ...QUOTE_REQUEST_MOCK, isMaxAmount: true }],
+          transaction: {
+            ...TRANSACTION_META_MOCK,
+            txParams: {
+              data: '0xabc' as Hex,
+            },
+          } as TransactionMeta,
+        }),
+      ).rejects.toThrow(
+        'Max amount quotes do not support included transactions',
       );
     });
 
@@ -340,15 +357,13 @@ describe('Relay Quotes Utils', () => {
 
       expect(result[0].original.request).toStrictEqual({
         amount: QUOTE_REQUEST_MOCK.targetAmountMinimum,
-        authorizationList: expect.any(Array),
         destinationChainId: 2,
         destinationCurrency: QUOTE_REQUEST_MOCK.targetTokenAddress,
         originChainId: 1,
         originCurrency: QUOTE_REQUEST_MOCK.sourceTokenAddress,
         recipient: QUOTE_REQUEST_MOCK.from,
         slippageTolerance: '50',
-        tradeType: 'EXACT_OUTPUT',
-        txs: expect.any(Array),
+        tradeType: 'EXPECTED_OUTPUT',
         user: QUOTE_REQUEST_MOCK.from,
       });
     });

@@ -169,11 +169,16 @@ async function processTransactions(
     log('Updating recipient as token transfer', requestBody.recipient);
   }
 
-  const skipDelegation = isTokenTransfer || isHypercore || isMaxAmount;
+  const hasNoData = singleData === undefined || singleData === '0x';
+  const skipDelegation = hasNoData || isTokenTransfer || isHypercore;
 
   if (skipDelegation) {
     log('Skipping delegation as token transfer or Hypercore deposit');
     return;
+  }
+
+  if (isMaxAmount) {
+    throw new Error('Max amount quotes do not support included transactions');
   }
 
   const delegation = await messenger.call(
