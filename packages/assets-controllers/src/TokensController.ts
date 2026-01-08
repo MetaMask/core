@@ -457,7 +457,7 @@ export class TokensController extends BaseController<
         isERC721,
         aggregators: formatAggregatorNames(tokenMetadata?.aggregators || []),
         name,
-        rwaData: tokenMetadata?.rwaData,
+        ...(tokenMetadata?.rwaData && { rwaData: tokenMetadata.rwaData }),
       };
       const previousIndex = newTokens.findIndex(
         (token) => token.address.toLowerCase() === address.toLowerCase(),
@@ -536,7 +536,7 @@ export class TokensController extends BaseController<
           image,
           aggregators,
           name,
-          rwaData,
+          ...(rwaData && { rwaData }),
         };
         newTokensMap[checksumAddress] = formattedToken;
         importedTokensMap[address.toLowerCase()] = true;
@@ -677,7 +677,7 @@ export class TokensController extends BaseController<
           isERC721,
           aggregators,
           name,
-          rwaData,
+          ...(rwaData && { rwaData }),
         };
 
         const previousImportedIndex = newTokens.findIndex(

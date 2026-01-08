@@ -268,18 +268,13 @@ type SearchTokenOptions = {
 export async function searchTokens(
   chainIds: CaipChainId[],
   query: string,
-  {
-    limit = 10,
-    includeMarketData = false,
-    includeRwaData,
-  }: SearchTokenOptions = {},
+  { limit = 10, includeMarketData = false }: SearchTokenOptions = {},
 ): Promise<{ count: number; data: TokenSearchItem[] }> {
   const tokenSearchURL = getTokenSearchURL({
     chainIds,
     query,
     limit,
     includeMarketData,
-    includeRwaData: true,
   });
 
   try {

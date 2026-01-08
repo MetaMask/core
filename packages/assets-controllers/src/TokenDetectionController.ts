@@ -763,7 +763,7 @@ export class TokenDetectionController extends StaticIntervalPollingController<To
           image: iconUrl,
           isERC721: false,
           name,
-          rwaData,
+          ...(rwaData && { rwaData }),
         });
       }
 
@@ -857,7 +857,7 @@ export class TokenDetectionController extends StaticIntervalPollingController<To
         image: iconUrl,
         isERC721: false,
         name,
-        rwaData,
+        ...(rwaData && { rwaData }),
       });
     }
 
@@ -979,7 +979,7 @@ export class TokenDetectionController extends StaticIntervalPollingController<To
         image: iconUrl,
         isERC721: false,
         name,
-        rwaData,
+        ...(rwaData && { rwaData }),
       });
     }
 

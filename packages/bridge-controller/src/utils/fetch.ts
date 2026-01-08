@@ -53,22 +53,7 @@ export async function fetchBridgeTokens(
   const transformedTokens: Record<string, BridgeAsset> = {};
   tokens.forEach((token: unknown) => {
     if (validateSwapsTokenObject(token)) {
-      // TODO hack the results to include RwaData
-      const metadata = {
-        rwaData: {
-          instrumentType: 'stock',
-          ticker: token.name?.split(' ')[0] ?? '',
-          market: {
-            nextOpen: new Date(new Date().setHours(9, 0, 0, 0)).toISOString(),
-            nextClose: new Date(new Date().setHours(16, 0, 0, 0)).toISOString(),
-          },
-          nextPause: {
-            start: new Date(new Date().setHours(16, 0, 0, 0)).toISOString(),
-            end: new Date(new Date().setHours(17, 0, 0, 0)).toISOString(),
-          },
-        },
-      };
-      transformedTokens[token.address] = { ...token, ...metadata };
+      transformedTokens[token.address] = token;
     }
   });
   return transformedTokens;
