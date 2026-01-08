@@ -867,6 +867,9 @@ export class BridgeController extends StaticIntervalPollingController<BridgePoll
         formatProviderLabel(quote),
       ),
       initial_load_time_all_quotes: this.state.quotesInitialLoadTime ?? 0,
+      has_gas_included_quote: this.state.quotes.some(
+        ({ quote }) => quote.gasIncluded,
+      ),
     };
   };
 

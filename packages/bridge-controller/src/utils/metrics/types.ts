@@ -37,6 +37,7 @@ export type QuoteFetchData = {
   quotes_list: `${string}_${string}`[];
   initial_load_time_all_quotes: number;
   price_impact: number;
+  has_gas_included_quote: boolean;
 };
 
 export type TradeData = {
@@ -117,6 +118,7 @@ export type RequiredEventContextFromClient = {
     best_quote_provider: QuoteFetchData['best_quote_provider'];
     price_impact: QuoteFetchData['price_impact'];
     can_submit: QuoteFetchData['can_submit'];
+    usd_balance_source?: number;
   };
   [UnifiedSwapBridgeEventName.QuotesError]: Pick<
     RequestMetadata,
