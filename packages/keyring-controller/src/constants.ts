@@ -1,4 +1,4 @@
-export enum KeyringControllerError {
+export enum KeyringControllerErrorMessage {
   NoKeyring = 'KeyringController - No keyring found',
   KeyringNotFound = 'KeyringController - Keyring not found.',
   UnsafeDirectKeyringAccess = 'KeyringController - Returning keyring instances is unsafe',

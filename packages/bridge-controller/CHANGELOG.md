@@ -9,6 +9,14 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ### Changed
 
+- Bump `@metamask/controller-utils` from `^11.17.0` to `^11.18.0` ([#7583](https://github.com/MetaMask/core/pull/7583))
+- Bump `@metamask/network-controller` from `^27.1.0` to `^27.2.0` ([#7583](https://github.com/MetaMask/core/pull/7583))
+- Bump `@metamask/assets-controllers` from `^94.0.0` to `^95.0.0` ([#7584](https://github.com/MetaMask/core/pull/7584))
+
+## [64.3.0]
+
+### Changed
+
 - Bump `@metamask/snaps-controllers` from `^14.0.0` to `^17.2.0` ([#7550](https://github.com/MetaMask/core/pull/7550))
 - Bump `@metamask/remote-feature-flag-controller` from `^3.1.0` to `^4.0.0` ([#7546](https://github.com/MetaMask/core/pull/7546))
 - Upgrade `@metamask/utils` from `^11.8.1` to `^11.9.0` ([#7511](https://github.com/MetaMask/core/pull/7511))
@@ -961,7 +969,8 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 - Initial release ([#5317](https://github.com/MetaMask/core/pull/5317))
 
-[Unreleased]: https://github.com/MetaMask/core/compare/@metamask/bridge-controller@64.2.0...HEAD
+[Unreleased]: https://github.com/MetaMask/core/compare/@metamask/bridge-controller@64.3.0...HEAD
+[64.3.0]: https://github.com/MetaMask/core/compare/@metamask/bridge-controller@64.2.0...@metamask/bridge-controller@64.3.0
 [64.2.0]: https://github.com/MetaMask/core/compare/@metamask/bridge-controller@64.1.0...@metamask/bridge-controller@64.2.0
 [64.1.0]: https://github.com/MetaMask/core/compare/@metamask/bridge-controller@64.0.0...@metamask/bridge-controller@64.1.0
 [64.0.0]: https://github.com/MetaMask/core/compare/@metamask/bridge-controller@63.2.0...@metamask/bridge-controller@64.0.0
