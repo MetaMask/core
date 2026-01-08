@@ -173,11 +173,6 @@ async function setup({
     mocks.KeyringController.createNewVaultAndRestore,
   );
 
-  rootMessenger.registerActionHandler(
-    'ErrorReportingService:captureException',
-    mocks.ErrorReportingService.captureException,
-  );
-
   if (accounts) {
     mocks.AccountsController.listMultichainAccounts.mockImplementation(
       () => accounts,

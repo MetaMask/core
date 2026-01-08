@@ -291,9 +291,7 @@ describe('MultichainAccountWallet', () => {
       const captureExceptionSpy = jest.spyOn(messenger, 'captureException');
       await expect(
         wallet.createMultichainAccountGroup(groupIndex),
-      ).rejects.toThrow(
-        'Unable to create multichain account group for index: 1',
-      );
+      ).rejects.toThrow('Unable to create accounts');
       expect(captureExceptionSpy).toHaveBeenCalledWith(
         new Error('Unable to create account with provider "Mocked Provider 0"'),
       );

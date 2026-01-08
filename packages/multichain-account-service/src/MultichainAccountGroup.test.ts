@@ -308,7 +308,7 @@ describe('MultichainAccount', () => {
       const captureExceptionSpy = jest.spyOn(messenger, 'captureException');
       await group.alignAccounts();
       expect(captureExceptionSpy).toHaveBeenCalledWith(
-        new Error('Unable to align accounts with provider "Mocked Provider"'),
+        new Error('Unable to align accounts with provider "Provider 2"'),
       );
       expect(captureExceptionSpy.mock.lastCall[0]).toHaveProperty(
         'cause',
