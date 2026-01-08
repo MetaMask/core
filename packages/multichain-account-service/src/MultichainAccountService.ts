@@ -513,14 +513,19 @@ export class MultichainAccountService {
    * Removes a multichain account wallet.
    *
    * @param entropySource - The entropy source of the multichain account wallet.
+   * @param accountAddress - The address of the account to remove.
    * @returns The removed multichain account wallet.
    */
   async removeMultichainAccountWallet(
     entropySource: EntropySourceId,
+    accountAddress: string,
   ): Promise<void> {
     const wallet = this.#getWallet(entropySource);
 
-    await this.#messenger.call('KeyringController:removeAccount', wallet.id);
+    await this.#messenger.call(
+      'KeyringController:removeAccount',
+      accountAddress,
+    );
 
     this.#wallets.delete(wallet.id);
   }
