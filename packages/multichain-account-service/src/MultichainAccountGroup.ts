@@ -83,8 +83,8 @@ export class MultichainAccountGroup<
    * @param provider - The provider to clear the account to provider state for.
    */
   #clearAccountToProviderState(provider: Bip44AccountProvider<Account>): void {
-    this.#accountToProvider.forEach((p, id) => {
-      if (p === provider) {
+    this.#accountToProvider.forEach((accountProvider, id) => {
+      if (accountProvider === provider) {
         this.#accountToProvider.delete(id);
       }
     });
