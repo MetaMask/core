@@ -113,7 +113,7 @@ export class SolAccountProvider extends SnapAccountProvider {
     });
   }
 
-  async discoverAccounts({  
+  async discoverAccounts({
     entropySource,
     groupIndex,
   }: {
@@ -164,12 +164,13 @@ export class SolAccountProvider extends SnapAccountProvider {
             ),
           );
 
-        for (const account of createdAccounts) {
-          this.accounts.add(account.id);
-        }
+          for (const account of createdAccounts) {
+            this.accounts.add(account.id);
+          }
 
-        return createdAccounts;
-      },
-    );
+          return createdAccounts;
+        },
+      );
+    });
   }
 }

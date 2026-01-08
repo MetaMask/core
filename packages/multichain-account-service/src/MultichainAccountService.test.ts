@@ -17,8 +17,8 @@ import {
   SOL_ACCOUNT_PROVIDER_NAME,
   SolAccountProvider,
 } from './providers/SolAccountProvider';
-import type { RootMessenger, MockAccountProvider } from './tests';
 import { SnapPlatformWatcher } from './snaps/SnapPlatformWatcher';
+import type { RootMessenger, MockAccountProvider } from './tests';
 import {
   MOCK_HARDWARE_ACCOUNT_1,
   MOCK_HD_ACCOUNT_1,
@@ -95,7 +95,7 @@ function mockAccountProvider<Provider extends Bip44AccountProvider>(
   mocks: MockAccountProvider,
   accounts: KeyringAccount[],
   idx: number,
-  type: KeyringAccount['type'],
+  _type: KeyringAccount['type'],
 ): void {
   jest.mocked(providerClass).mockImplementation((...args) => {
     mocks.constructor(...args);
@@ -239,12 +239,14 @@ async function setup({
       mocks.EvmAccountProvider,
       accounts,
       0,
+      EthAccountType.Eoa,
     );
     mockAccountProvider<SolAccountProvider>(
       SolAccountProvider,
       mocks.SolAccountProvider,
       accounts,
       1,
+      SolAccountType.DataAccount,
     );
   }
 
