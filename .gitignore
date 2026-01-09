@@ -35,3 +35,8 @@ scripts/coverage
 
 # typescript
 packages/*/*.tsbuildinfo
+
+# Emacs
+\#*\#
+.#*
+.~
