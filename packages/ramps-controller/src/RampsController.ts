@@ -506,13 +506,10 @@ export class RampsController extends BaseController<
     );
 
     this.update((state) => {
-      if (state.userRegion === null) {
+      const userRegion = state.userRegion?.toLowerCase().trim();
+      
+      if (userRegion === undefined || userRegion === normalizedIsoCode) {
         state.eligibility = eligibility;
-      } else {
-        const currentUserRegion = state.userRegion.toLowerCase().trim();
-        if (currentUserRegion === normalizedIsoCode) {
-          state.eligibility = eligibility;
-        }
       }
     });
 

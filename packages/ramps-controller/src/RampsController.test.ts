@@ -779,6 +779,76 @@ describe('RampsController', () => {
         expect(requestState?.status).toBe('success');
       });
     });
+
+    it('updates eligibility when userRegion matches the ISO code', async () => {
+      await withController(
+        { options: { state: { userRegion: 'us' } } },
+        async ({ controller, rootMessenger }) => {
+          const mockEligibility = {
+            aggregator: true,
+            deposit: true,
+            global: true,
+          };
+
+          rootMessenger.registerActionHandler(
+            'RampsService:getEligibility',
+            async (isoCode) => {
+              expect(isoCode).toBe('us');
+              return mockEligibility;
+            },
+          );
+
+          expect(controller.state.userRegion).toBe('us');
+          expect(controller.state.eligibility).toBeNull();
+
+          await controller.updateEligibility('US');
+
+          expect(controller.state.eligibility).toStrictEqual(mockEligibility);
+        },
+      );
+    });
+
+    it('does not update eligibility when userRegion does not match the ISO code', async () => {
+      const existingEligibility = {
+        aggregator: false,
+        deposit: false,
+        global: false,
+      };
+
+      await withController(
+        {
+          options: {
+            state: { userRegion: 'us', eligibility: existingEligibility },
+          },
+        },
+        async ({ controller, rootMessenger }) => {
+          const newEligibility = {
+            aggregator: true,
+            deposit: true,
+            global: true,
+          };
+
+          rootMessenger.registerActionHandler(
+            'RampsService:getEligibility',
+            async (isoCode) => {
+              expect(isoCode).toBe('fr');
+              return newEligibility;
+            },
+          );
+
+          expect(controller.state.userRegion).toBe('us');
+          expect(controller.state.eligibility).toStrictEqual(
+            existingEligibility,
+          );
+
+          await controller.updateEligibility('fr');
+
+          expect(controller.state.eligibility).toStrictEqual(
+            existingEligibility,
+          );
+        },
+      );
+    });
   });
 
   describe('init', () => {
