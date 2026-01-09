@@ -7,10 +7,6 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
-### Uncategorized
-
-- feat: add override functionality to remote feature flags ([#7271](https://github.com/MetaMask/core/pull/7271))
-
 ### Added
 
 - Add optional `isStateOnly` property to `TransactionMeta` and `AddTransactionOptions` ([#7591](https://github.com/MetaMask/core/pull/7591))
