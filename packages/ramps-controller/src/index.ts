@@ -15,9 +15,22 @@ export type {
   RampsServiceActions,
   RampsServiceEvents,
   RampsServiceMessenger,
+  Country,
+  State,
+  Eligibility,
+  CountryPhone,
 } from './RampsService';
-export { RampsService, RampsEnvironment } from './RampsService';
-export type { RampsServiceGetGeolocationAction } from './RampsService-method-action-types';
+export {
+  RampsService,
+  RampsEnvironment,
+  RampsApiService,
+  RAMPS_SDK_VERSION,
+} from './RampsService';
+export type {
+  RampsServiceGetGeolocationAction,
+  RampsServiceGetCountriesAction,
+  RampsServiceGetEligibilityAction,
+} from './RampsService-method-action-types';
 export type {
   RequestCache,
   RequestState,

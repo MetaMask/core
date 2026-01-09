@@ -17,6 +17,32 @@ export type RampsServiceGetGeolocationAction = {
 };
 
 /**
+ * Makes a request to the cached API to retrieve the list of supported countries.
+ * Filters countries based on aggregator support (preserves OnRampSDK logic).
+ *
+ * @param action - The ramp action type ('buy' or 'sell').
+ * @returns An array of countries filtered by aggregator support.
+ */
+export type RampsServiceGetCountriesAction = {
+  type: `RampsService:getCountries`;
+  handler: RampsService['getCountries'];
+};
+
+/**
+ * Fetches eligibility information for a specific region.
+ *
+ * @param isoCode - The ISO code for the region (e.g., "us", "fr", "us-ny").
+ * @returns Eligibility information for the region.
+ */
+export type RampsServiceGetEligibilityAction = {
+  type: `RampsService:getEligibility`;
+  handler: RampsService['getEligibility'];
+};
+
+/**
  * Union of all RampsService action types.
  */
-export type RampsServiceMethodActions = RampsServiceGetGeolocationAction;
+export type RampsServiceMethodActions =
+  | RampsServiceGetGeolocationAction
+  | RampsServiceGetCountriesAction
+  | RampsServiceGetEligibilityAction;

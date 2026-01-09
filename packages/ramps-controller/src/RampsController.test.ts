@@ -8,7 +8,12 @@ import type {
 
 import type { RampsControllerMessenger } from './RampsController';
 import { RampsController } from './RampsController';
-import type { RampsServiceGetGeolocationAction } from './RampsService-method-action-types';
+import type { Country } from './RampsService';
+import type {
+  RampsServiceGetGeolocationAction,
+  RampsServiceGetCountriesAction,
+  RampsServiceGetEligibilityAction,
+} from './RampsService-method-action-types';
 import { RequestStatus, createCacheKey } from './RequestCache';
 
 describe('RampsController', () => {
@@ -17,6 +22,7 @@ describe('RampsController', () => {
       await withController(({ controller }) => {
         expect(controller.state).toMatchInlineSnapshot(`
           Object {
+            "eligibility": null,
             "geolocation": null,
             "requests": Object {},
           }
@@ -33,6 +39,7 @@ describe('RampsController', () => {
         { options: { state: givenState } },
         ({ controller }) => {
           expect(controller.state).toStrictEqual({
+            eligibility: null,
             geolocation: 'US',
             requests: {},
           });
@@ -44,6 +51,7 @@ describe('RampsController', () => {
       await withController({ options: { state: {} } }, ({ controller }) => {
         expect(controller.state).toMatchInlineSnapshot(`
           Object {
+            "eligibility": null,
             "geolocation": null,
             "requests": Object {},
           }
@@ -85,6 +93,7 @@ describe('RampsController', () => {
           ),
         ).toMatchInlineSnapshot(`
           Object {
+            "eligibility": null,
             "geolocation": null,
             "requests": Object {},
           }
@@ -102,6 +111,7 @@ describe('RampsController', () => {
           ),
         ).toMatchInlineSnapshot(`
           Object {
+            "eligibility": null,
             "geolocation": null,
           }
         `);
@@ -118,6 +128,7 @@ describe('RampsController', () => {
           ),
         ).toMatchInlineSnapshot(`
           Object {
+            "eligibility": null,
             "geolocation": null,
           }
         `);
@@ -134,6 +145,7 @@ describe('RampsController', () => {
           ),
         ).toMatchInlineSnapshot(`
           Object {
+            "eligibility": null,
             "geolocation": null,
             "requests": Object {},
           }
@@ -149,6 +161,14 @@ describe('RampsController', () => {
           'RampsService:getGeolocation',
           async () => 'US',
         );
+        rootMessenger.registerActionHandler(
+          'RampsService:getEligibility',
+          async () => ({
+            aggregator: true,
+            deposit: true,
+            global: true,
+          }),
+        );
 
         await controller.updateGeolocation();
 
@@ -161,6 +181,14 @@ describe('RampsController', () => {
         rootMessenger.registerActionHandler(
           'RampsService:getGeolocation',
           async () => 'US',
+        );
+        rootMessenger.registerActionHandler(
+          'RampsService:getEligibility',
+          async () => ({
+            aggregator: true,
+            deposit: true,
+            global: true,
+          }),
         );
 
         await controller.updateGeolocation();
@@ -185,6 +213,14 @@ describe('RampsController', () => {
             return 'US';
           },
         );
+        rootMessenger.registerActionHandler(
+          'RampsService:getEligibility',
+          async () => ({
+            aggregator: true,
+            deposit: true,
+            global: true,
+          }),
+        );
 
         await controller.updateGeolocation();
         await controller.updateGeolocation();
@@ -202,6 +238,14 @@ describe('RampsController', () => {
             callCount += 1;
             return 'US';
           },
+        );
+        rootMessenger.registerActionHandler(
+          'RampsService:getEligibility',
+          async () => ({
+            aggregator: true,
+            deposit: true,
+            global: true,
+          }),
         );
 
         await controller.updateGeolocation();
@@ -502,6 +546,351 @@ describe('RampsController', () => {
       });
     });
   });
+
+  describe('getCountries', () => {
+    const mockCountries: Country[] = [
+      {
+        isoCode: 'US',
+        flag: '🇺🇸',
+        name: 'United States of America',
+        phone: {
+          prefix: '+1',
+          placeholder: '(555) 123-4567',
+          template: '(XXX) XXX-XXXX',
+        },
+        currency: 'USD',
+        supported: true,
+        recommended: true,
+      },
+      {
+        isoCode: 'AT',
+        flag: '🇦🇹',
+        name: 'Austria',
+        phone: {
+          prefix: '+43',
+          placeholder: '660 1234567',
+          template: 'XXX XXXXXXX',
+        },
+        currency: 'EUR',
+        supported: true,
+      },
+    ];
+
+    it('fetches countries from the service', async () => {
+      await withController(async ({ controller, rootMessenger }) => {
+        rootMessenger.registerActionHandler(
+          'RampsService:getCountries',
+          async () => mockCountries,
+        );
+
+        const countries = await controller.getCountries('buy');
+
+        expect(countries).toMatchInlineSnapshot(`
+          Array [
+            Object {
+              "currency": "USD",
+              "flag": "🇺🇸",
+              "isoCode": "US",
+              "name": "United States of America",
+              "phone": Object {
+                "placeholder": "(555) 123-4567",
+                "prefix": "+1",
+                "template": "(XXX) XXX-XXXX",
+              },
+              "recommended": true,
+              "supported": true,
+            },
+            Object {
+              "currency": "EUR",
+              "flag": "🇦🇹",
+              "isoCode": "AT",
+              "name": "Austria",
+              "phone": Object {
+                "placeholder": "660 1234567",
+                "prefix": "+43",
+                "template": "XXX XXXXXXX",
+              },
+              "supported": true,
+            },
+          ]
+        `);
+      });
+    });
+
+    it('caches countries response', async () => {
+      await withController(async ({ controller, rootMessenger }) => {
+        let callCount = 0;
+        rootMessenger.registerActionHandler(
+          'RampsService:getCountries',
+          async () => {
+            callCount += 1;
+            return mockCountries;
+          },
+        );
+
+        await controller.getCountries('buy');
+        await controller.getCountries('buy');
+
+        expect(callCount).toBe(1);
+      });
+    });
+
+    it('fetches countries with sell action', async () => {
+      await withController(async ({ controller, rootMessenger }) => {
+        let receivedAction: string | undefined;
+        rootMessenger.registerActionHandler(
+          'RampsService:getCountries',
+          async (action) => {
+            receivedAction = action;
+            return mockCountries;
+          },
+        );
+
+        await controller.getCountries('sell');
+
+        expect(receivedAction).toBe('sell');
+      });
+    });
+
+    it('uses default buy action when no argument is provided', async () => {
+      await withController(async ({ controller, rootMessenger }) => {
+        let receivedAction: string | undefined;
+        rootMessenger.registerActionHandler(
+          'RampsService:getCountries',
+          async (action) => {
+            receivedAction = action;
+            return mockCountries;
+          },
+        );
+
+        await controller.getCountries();
+
+        expect(receivedAction).toBe('buy');
+      });
+    });
+  });
+
+  describe('updateEligibility', () => {
+    it('fetches and stores eligibility for a region', async () => {
+      await withController(async ({ controller, rootMessenger }) => {
+        const mockEligibility = {
+          aggregator: true,
+          deposit: true,
+          global: true,
+        };
+
+        rootMessenger.registerActionHandler(
+          'RampsService:getEligibility',
+          async () => mockEligibility,
+        );
+
+        expect(controller.state.eligibility).toBeNull();
+
+        const eligibility = await controller.updateEligibility('fr');
+
+        expect(controller.state.eligibility).toStrictEqual(mockEligibility);
+        expect(eligibility).toStrictEqual(mockEligibility);
+      });
+    });
+
+    it('handles state codes in ISO format', async () => {
+      await withController(async ({ controller, rootMessenger }) => {
+        const mockEligibility = {
+          aggregator: true,
+          deposit: false,
+          global: true,
+        };
+
+        rootMessenger.registerActionHandler(
+          'RampsService:getEligibility',
+          async (isoCode) => {
+            expect(isoCode).toBe('us-ny');
+            return mockEligibility;
+          },
+        );
+
+        await controller.updateEligibility('us-ny');
+
+        expect(controller.state.eligibility).toStrictEqual(mockEligibility);
+      });
+    });
+
+    it('normalizes isoCode case for cache key consistency', async () => {
+      await withController(async ({ controller, rootMessenger }) => {
+        const mockEligibility = {
+          aggregator: true,
+          deposit: true,
+          global: true,
+        };
+
+        let callCount = 0;
+        rootMessenger.registerActionHandler(
+          'RampsService:getEligibility',
+          async (isoCode) => {
+            callCount += 1;
+            expect(isoCode).toBe('fr');
+            return mockEligibility;
+          },
+        );
+
+        await controller.updateEligibility('FR');
+        expect(callCount).toBe(1);
+
+        const eligibility1 = await controller.updateEligibility('fr');
+        expect(callCount).toBe(1);
+        expect(eligibility1).toStrictEqual(mockEligibility);
+
+        const eligibility2 = await controller.updateEligibility('Fr');
+        expect(callCount).toBe(1);
+        expect(eligibility2).toStrictEqual(mockEligibility);
+
+        const cacheKey = createCacheKey('updateEligibility', ['fr']);
+        const requestState = controller.getRequestState(cacheKey);
+        expect(requestState?.status).toBe('success');
+      });
+    });
+  });
+
+  describe('updateGeolocation with automatic eligibility', () => {
+    it('automatically fetches eligibility after getting geolocation', async () => {
+      await withController(async ({ controller, rootMessenger }) => {
+        const mockEligibility = {
+          aggregator: true,
+          deposit: true,
+          global: true,
+        };
+
+        rootMessenger.registerActionHandler(
+          'RampsService:getGeolocation',
+          async () => 'fr',
+        );
+        rootMessenger.registerActionHandler(
+          'RampsService:getEligibility',
+          async (isoCode) => {
+            expect(isoCode).toBe('fr');
+            return mockEligibility;
+          },
+        );
+
+        expect(controller.state.geolocation).toBeNull();
+        expect(controller.state.eligibility).toBeNull();
+
+        await controller.updateGeolocation();
+
+        expect(controller.state.geolocation).toBe('fr');
+        expect(controller.state.eligibility).toStrictEqual(mockEligibility);
+      });
+    });
+
+    it('updates geolocation state even when eligibility fetch fails', async () => {
+      await withController(async ({ controller, rootMessenger }) => {
+        rootMessenger.registerActionHandler(
+          'RampsService:getGeolocation',
+          async () => 'us-ny',
+        );
+        rootMessenger.registerActionHandler(
+          'RampsService:getEligibility',
+          async () => {
+            throw new Error('Eligibility API error');
+          },
+        );
+
+        expect(controller.state.geolocation).toBeNull();
+        expect(controller.state.eligibility).toBeNull();
+
+        await controller.updateGeolocation();
+
+        expect(controller.state.geolocation).toBe('us-ny');
+        expect(controller.state.eligibility).toBeNull();
+      });
+    });
+
+    it('clears stale eligibility when new geolocation is fetched but eligibility fails', async () => {
+      await withController(async ({ controller, rootMessenger }) => {
+        const usEligibility = {
+          aggregator: true,
+          deposit: true,
+          global: true,
+        };
+
+        let geolocationCallCount = 0;
+        let eligibilityCallCount = 0;
+
+        rootMessenger.registerActionHandler(
+          'RampsService:getGeolocation',
+          async () => {
+            geolocationCallCount += 1;
+            return geolocationCallCount === 1 ? 'us' : 'fr';
+          },
+        );
+        rootMessenger.registerActionHandler(
+          'RampsService:getEligibility',
+          async () => {
+            eligibilityCallCount += 1;
+            if (eligibilityCallCount === 1) {
+              return usEligibility;
+            }
+            throw new Error('Eligibility API error');
+          },
+        );
+
+        await controller.updateGeolocation();
+
+        expect(controller.state.geolocation).toBe('us');
+        expect(controller.state.eligibility).toStrictEqual(usEligibility);
+
+        await controller.updateGeolocation({ forceRefresh: true });
+
+        expect(controller.state.geolocation).toBe('fr');
+        expect(controller.state.eligibility).toBeNull();
+      });
+    });
+
+    it('prevents stale eligibility from overwriting current eligibility in race condition', async () => {
+      await withController(async ({ controller, rootMessenger }) => {
+        const usEligibility = {
+          aggregator: true,
+          deposit: true,
+          global: false,
+        };
+        const frEligibility = {
+          aggregator: true,
+          deposit: true,
+          global: true,
+        };
+
+        let geolocationCallCount = 0;
+
+        rootMessenger.registerActionHandler(
+          'RampsService:getGeolocation',
+          async () => {
+            geolocationCallCount += 1;
+            return geolocationCallCount === 1 ? 'us' : 'fr';
+          },
+        );
+        rootMessenger.registerActionHandler(
+          'RampsService:getEligibility',
+          async (isoCode) => {
+            if (isoCode === 'us') {
+              await new Promise((resolve) => setTimeout(resolve, 100));
+              return usEligibility;
+            }
+            await new Promise((resolve) => setTimeout(resolve, 10));
+            return frEligibility;
+          },
+        );
+
+        const promise1 = controller.updateGeolocation();
+        await new Promise((resolve) => setTimeout(resolve, 20));
+        const promise2 = controller.updateGeolocation({ forceRefresh: true });
+
+        await Promise.all([promise1, promise2]);
+
+        expect(controller.state.geolocation).toBe('fr');
+        expect(controller.state.eligibility).toStrictEqual(frEligibility);
+      });
+    });
+  });
 });
 
 /**
@@ -510,7 +899,10 @@ describe('RampsController', () => {
  */
 type RootMessenger = Messenger<
   MockAnyNamespace,
-  MessengerActions<RampsControllerMessenger> | RampsServiceGetGeolocationAction,
+  | MessengerActions<RampsControllerMessenger>
+  | RampsServiceGetGeolocationAction
+  | RampsServiceGetCountriesAction
+  | RampsServiceGetEligibilityAction,
   MessengerEvents<RampsControllerMessenger>
 >;
 
@@ -554,7 +946,11 @@ function getMessenger(rootMessenger: RootMessenger): RampsControllerMessenger {
   });
   rootMessenger.delegate({
     messenger,
-    actions: ['RampsService:getGeolocation'],
+    actions: [
+      'RampsService:getGeolocation',
+      'RampsService:getCountries',
+      'RampsService:getEligibility',
+    ],
   });
   return messenger;
 }

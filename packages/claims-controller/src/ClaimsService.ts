@@ -8,6 +8,7 @@ import {
   SERVICE_NAME,
 } from './constants';
 import type { Env } from './constants';
+import { createModuleLogger, projectLogger } from './logger';
 import type {
   Claim,
   ClaimsConfigurationsResponse,
@@ -68,6 +69,8 @@ export type ClaimsServiceConfig = {
   messenger: ClaimsServiceMessenger;
   fetchFunction: typeof fetch;
 };
+
+const log = createModuleLogger(projectLogger, 'ClaimsService');
 
 export class ClaimsService {
   readonly name = SERVICE_NAME; // required for Modular Initialization
@@ -130,7 +133,7 @@ export class ClaimsService {
       const configurations = await response.json();
       return configurations;
     } catch (error) {
-      console.error('fetchClaimsConfigurations', error);
+      log('fetchClaimsConfigurations', error);
       this.#messenger.captureException?.(
         createSentryError(
           ClaimsServiceErrorMessages.FAILED_TO_FETCH_CONFIGURATIONS,
@@ -164,7 +167,7 @@ export class ClaimsService {
       const claims = await response.json();
       return claims;
     } catch (error) {
-      console.error('getClaims', error);
+      log('getClaims', error);
       this.#messenger.captureException?.(
         createSentryError(
           ClaimsServiceErrorMessages.FAILED_TO_GET_CLAIMS,
@@ -197,7 +200,7 @@ export class ClaimsService {
       const claim = await response.json();
       return claim;
     } catch (error) {
-      console.error('getClaimById', error);
+      log('getClaimById', error);
       this.#messenger.captureException?.(
         createSentryError(
           ClaimsServiceErrorMessages.FAILED_TO_GET_CLAIM_BY_ID,
@@ -242,7 +245,7 @@ export class ClaimsService {
       const message = await response.json();
       return message;
     } catch (error) {
-      console.error('generateMessageForClaimSignature', error);
+      log('generateMessageForClaimSignature', error);
       this.#messenger.captureException?.(
         createSentryError(
           ClaimsServiceErrorMessages.SIGNATURE_MESSAGE_GENERATION_FAILED,
