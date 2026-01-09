@@ -23,7 +23,7 @@ function getTokensURL(chainId: Hex): string {
 
   return `${TOKEN_END_POINT_API}/tokens/${convertHexToDecimal(
     chainId,
-  )}?occurrenceFloor=${occurrenceFloor}&includeNativeAssets=false&includeTokenFees=false&includeAssetType=false&includeERC20Permit=false&includeStorage=false`;
+  )}?occurrenceFloor=${occurrenceFloor}&includeNativeAssets=false&includeTokenFees=false&includeAssetType=false&includeERC20Permit=false&includeStorage=false&includeRwaData=true`;
 }
 
 /**

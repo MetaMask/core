@@ -7,6 +7,12 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+## [64.4.1]
+
+### Fixed
+
+- Use `BRIDGE_PREFERRED_GAS_ESTIMATE` from `@metamask/bridge-controller` for gas price estimates to align with validation ([#7582](https://github.com/MetaMask/core/pull/7582))
+
 ## [64.4.0]
 
 ### Added
@@ -853,7 +859,8 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 - Initial release ([#5317](https://github.com/MetaMask/core/pull/5317))
 
-[Unreleased]: https://github.com/MetaMask/core/compare/@metamask/bridge-status-controller@64.4.0...HEAD
+[Unreleased]: https://github.com/MetaMask/core/compare/@metamask/bridge-status-controller@64.4.1...HEAD
+[64.4.1]: https://github.com/MetaMask/core/compare/@metamask/bridge-status-controller@64.4.0...@metamask/bridge-status-controller@64.4.1
 [64.4.0]: https://github.com/MetaMask/core/compare/@metamask/bridge-status-controller@64.3.0...@metamask/bridge-status-controller@64.4.0
 [64.3.0]: https://github.com/MetaMask/core/compare/@metamask/bridge-status-controller@64.2.0...@metamask/bridge-status-controller@64.3.0
 [64.2.0]: https://github.com/MetaMask/core/compare/@metamask/bridge-status-controller@64.1.0...@metamask/bridge-status-controller@64.2.0
