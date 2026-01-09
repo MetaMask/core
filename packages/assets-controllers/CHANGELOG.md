@@ -7,6 +7,13 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+### Added
+
+- Add RWA (Real World Assets) data support for token metadata endpoint ([#7595](https://github.com/MetaMask/core/pull/7595))
+  - Update token service to include RWA data in API requests by appending `includeRwaData=true` parameter to token list API calls
+  - `TokenListController` now includes `rwaData` optional field in `TokenListToken` type to support RWA data in token list retrieval
+  - Reduced `TokenListController` cache time from 24hrs to 4hrs.
+
 ### Changed
 
 - Bump `@metamask/multichain-account-service` from `^4.1.0` to `^5.0.0` ([#7594](https://github.com/MetaMask/core/pull/7594))
