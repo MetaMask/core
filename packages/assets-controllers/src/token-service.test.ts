@@ -201,7 +201,7 @@ const sampleTokenListLinea = [
     decimals: 18,
     occurrences: 11,
     aggregators: [
-      'paraswap',
+      'lineaTeam',
       'pmm',
       'airswapLight',
       'zeroEx',
@@ -293,7 +293,7 @@ describe('Token service', () => {
       const { signal } = new AbortController();
       nock(TOKEN_END_POINT_API)
         .get(
-          `/tokens/${sampleDecimalChainId}?occurrenceFloor=3&includeNativeAssets=false&includeTokenFees=false&includeAssetType=false&includeERC20Permit=false&includeStorage=false`,
+          `/tokens/${sampleDecimalChainId}?occurrenceFloor=3&includeNativeAssets=false&includeTokenFees=false&includeAssetType=false&includeERC20Permit=false&includeStorage=false&includeRwaData=true`,
         )
         .reply(200, sampleTokenList)
         .persist();
@@ -310,7 +310,7 @@ describe('Token service', () => {
 
       nock(TOKEN_END_POINT_API)
         .get(
-          `/tokens/${lineaChainId}?occurrenceFloor=1&includeNativeAssets=false&includeTokenFees=false&includeAssetType=false&includeERC20Permit=false&includeStorage=false`,
+          `/tokens/${lineaChainId}?occurrenceFloor=1&includeNativeAssets=false&includeTokenFees=false&includeAssetType=false&includeERC20Permit=false&includeStorage=false&includeRwaData=true`,
         )
         .reply(200, sampleTokenListLinea)
         .persist();
@@ -324,7 +324,7 @@ describe('Token service', () => {
       const abortController = new AbortController();
       nock(TOKEN_END_POINT_API)
         .get(
-          `/tokens/${sampleDecimalChainId}?occurrenceFloor=3&includeNativeAssets=false&includeTokenFees=false&includeAssetType=false&includeERC20Permit=false&includeStorage=false`,
+          `/tokens/${sampleDecimalChainId}?occurrenceFloor=3&includeNativeAssets=false&includeTokenFees=false&includeAssetType=false&includeERC20Permit=false&includeStorage=false&includeRwaData=true`,
         )
         // well beyond time it will take to abort
         .delay(ONE_SECOND_IN_MILLISECONDS)
@@ -344,7 +344,7 @@ describe('Token service', () => {
       const { signal } = new AbortController();
       nock(TOKEN_END_POINT_API)
         .get(
-          `/tokens/${sampleDecimalChainId}?occurrenceFloor=3&includeNativeAssets=false&includeTokenFees=false&includeAssetType=false&includeERC20Permit=false&includeStorage=false`,
+          `/tokens/${sampleDecimalChainId}?occurrenceFloor=3&includeNativeAssets=false&includeTokenFees=false&includeAssetType=false&includeERC20Permit=false&includeStorage=false&includeRwaData=true`,
         )
         .replyWithError('Example network error')
         .persist();
@@ -358,7 +358,7 @@ describe('Token service', () => {
       const { signal } = new AbortController();
       nock(TOKEN_END_POINT_API)
         .get(
-          `/tokens/${sampleDecimalChainId}?occurrenceFloor=3&includeNativeAssets=false&includeTokenFees=false&includeAssetType=false&includeERC20Permit=false&includeStorage=false`,
+          `/tokens/${sampleDecimalChainId}?occurrenceFloor=3&includeNativeAssets=false&includeTokenFees=false&includeAssetType=false&includeERC20Permit=false&includeStorage=false&includeRwaData=true`,
         )
         .reply(500)
         .persist();
@@ -372,7 +372,7 @@ describe('Token service', () => {
       const { signal } = new AbortController();
       nock(TOKEN_END_POINT_API)
         .get(
-          `/tokens/${sampleDecimalChainId}?occurrenceFloor=3&includeNativeAssets=false&includeTokenFees=false&includeAssetType=false&includeERC20Permit=false&includeStorage=false`,
+          `/tokens/${sampleDecimalChainId}?occurrenceFloor=3&includeNativeAssets=false&includeTokenFees=false&includeAssetType=false&includeERC20Permit=false&includeStorage=false&includeRwaData=true`,
         )
         // well beyond timeout
         .delay(ONE_SECOND_IN_MILLISECONDS)
@@ -392,7 +392,7 @@ describe('Token service', () => {
       const { signal } = new AbortController();
       nock(TOKEN_END_POINT_API)
         .get(
-          `/token/${sampleDecimalChainId}?address=0x514910771af9ca656af840dff83e8264ecf986ca`,
+          `/token/${sampleDecimalChainId}?address=0x514910771af9ca656af840dff83e8264ecf986ca&includeRwaData=true`,
         )
         .reply(200, sampleToken)
         .persist();
@@ -499,7 +499,7 @@ describe('Token service', () => {
 
       nock(TOKEN_END_POINT_API)
         .get(
-          `/tokens/search?networks=${encodeURIComponent(sampleCaipChainId)}&query=${searchQuery}&limit=10&includeMarketData=false`,
+          `/tokens/search?networks=${encodeURIComponent(sampleCaipChainId)}&query=${searchQuery}&limit=10&includeMarketData=false&includeRwaData=true`,
         )
         .reply(200, mockResponse)
         .persist();
@@ -523,7 +523,7 @@ describe('Token service', () => {
 
       nock(TOKEN_END_POINT_API)
         .get(
-          `/tokens/search?networks=${encodeURIComponent(sampleCaipChainId)}&query=${searchQuery}&limit=${customLimit}&includeMarketData=false`,
+          `/tokens/search?networks=${encodeURIComponent(sampleCaipChainId)}&query=${searchQuery}&limit=${customLimit}&includeMarketData=false&includeRwaData=true`,
         )
         .reply(200, mockResponse)
         .persist();
@@ -549,7 +549,7 @@ describe('Token service', () => {
 
       nock(TOKEN_END_POINT_API)
         .get(
-          `/tokens/search?networks=${encodeURIComponent(sampleCaipChainId)}&query=${encodedQuery}&limit=10&includeMarketData=false`,
+          `/tokens/search?networks=${encodeURIComponent(sampleCaipChainId)}&query=${encodedQuery}&limit=10&includeMarketData=false&includeRwaData=true`,
         )
         .reply(200, mockResponse)
         .persist();
@@ -575,7 +575,7 @@ describe('Token service', () => {
 
       nock(TOKEN_END_POINT_API)
         .get(
-          `/tokens/search?networks=${encodedChainIds}&query=${searchQuery}&limit=10&includeMarketData=false`,
+          `/tokens/search?networks=${encodedChainIds}&query=${searchQuery}&limit=10&includeMarketData=false&includeRwaData=true`,
         )
         .reply(200, mockResponse)
         .persist();
@@ -595,7 +595,7 @@ describe('Token service', () => {
       const searchQuery = 'USD';
       nock(TOKEN_END_POINT_API)
         .get(
-          `/tokens/search?networks=${encodeURIComponent(sampleCaipChainId)}&query=${searchQuery}&limit=10&includeMarketData=false`,
+          `/tokens/search?networks=${encodeURIComponent(sampleCaipChainId)}&query=${searchQuery}&limit=10&includeMarketData=false&includeRwaData=true`,
         )
         .replyWithError('Example network error')
         .persist();
@@ -609,7 +609,7 @@ describe('Token service', () => {
       const searchQuery = 'USD';
       nock(TOKEN_END_POINT_API)
         .get(
-          `/tokens/search?networks=${encodeURIComponent(sampleCaipChainId)}&query=${searchQuery}&limit=10&includeMarketData=false`,
+          `/tokens/search?networks=${encodeURIComponent(sampleCaipChainId)}&query=${searchQuery}&limit=10&includeMarketData=false&includeRwaData=true`,
         )
         .reply(400, { error: 'Bad Request' })
         .persist();
@@ -623,7 +623,7 @@ describe('Token service', () => {
       const searchQuery = 'USD';
       nock(TOKEN_END_POINT_API)
         .get(
-          `/tokens/search?networks=${encodeURIComponent(sampleCaipChainId)}&query=${searchQuery}&limit=10&includeMarketData=false`,
+          `/tokens/search?networks=${encodeURIComponent(sampleCaipChainId)}&query=${searchQuery}&limit=10&includeMarketData=false&includeRwaData=true`,
         )
         .reply(500)
         .persist();
@@ -643,7 +643,7 @@ describe('Token service', () => {
 
       nock(TOKEN_END_POINT_API)
         .get(
-          `/tokens/search?networks=${encodeURIComponent(sampleCaipChainId)}&query=${searchQuery}&limit=10&includeMarketData=false`,
+          `/tokens/search?networks=${encodeURIComponent(sampleCaipChainId)}&query=${searchQuery}&limit=10&includeMarketData=false&includeRwaData=true`,
         )
         .reply(200, mockResponse)
         .persist();
@@ -663,7 +663,7 @@ describe('Token service', () => {
 
       nock(TOKEN_END_POINT_API)
         .get(
-          `/tokens/search?networks=&query=${searchQuery}&limit=10&includeMarketData=false`,
+          `/tokens/search?networks=&query=${searchQuery}&limit=10&includeMarketData=false&includeRwaData=true`,
         )
         .reply(200, mockResponse)
         .persist();
@@ -678,7 +678,7 @@ describe('Token service', () => {
       const errorResponse = { error: 'Invalid search query' };
       nock(TOKEN_END_POINT_API)
         .get(
-          `/tokens/search?networks=${encodeURIComponent(sampleCaipChainId)}&query=${searchQuery}&limit=10&includeMarketData=false`,
+          `/tokens/search?networks=${encodeURIComponent(sampleCaipChainId)}&query=${searchQuery}&limit=10&includeMarketData=false&includeRwaData=true`,
         )
         .reply(200, errorResponse)
         .persist();
@@ -711,7 +711,7 @@ describe('Token service', () => {
 
       nock(TOKEN_END_POINT_API)
         .get(
-          `/tokens/search?networks=${encodedChainIds}&query=${searchQuery}&limit=10&includeMarketData=false`,
+          `/tokens/search?networks=${encodedChainIds}&query=${searchQuery}&limit=10&includeMarketData=false&includeRwaData=true`,
         )
         .reply(200, mockResponse)
         .persist();
@@ -734,7 +734,7 @@ describe('Token service', () => {
 
       nock(TOKEN_END_POINT_API)
         .get(
-          `/tokens/search?networks=${encodeURIComponent(sampleCaipChainId)}&query=${searchQuery}&limit=10&includeMarketData=true`,
+          `/tokens/search?networks=${encodeURIComponent(sampleCaipChainId)}&query=${searchQuery}&limit=10&includeMarketData=true&includeRwaData=true`,
         )
         .reply(200, mockResponse)
         .persist();
@@ -779,7 +779,7 @@ describe('Token service', () => {
     it('returns empty array if api returns non-array response', async () => {
       nock(TOKEN_END_POINT_API)
         .get(
-          `/v3/tokens/trending?chainIds=${encodeURIComponent(sampleCaipChainId)}`,
+          `/v3/tokens/trending?chainIds=${encodeURIComponent(sampleCaipChainId)}&includeRwaData=true`,
         )
         .reply(200, { error: 'Invalid response' })
         .persist();
@@ -791,7 +791,7 @@ describe('Token service', () => {
     it('returns empty array if the fetch fails', async () => {
       nock(TOKEN_END_POINT_API)
         .get(
-          `/v3/tokens/trending?chainIds=${encodeURIComponent(sampleCaipChainId)}`,
+          `/v3/tokens/trending?chainIds=${encodeURIComponent(sampleCaipChainId)}&includeRwaData=true`,
         )
         .reply(500)
         .persist();
@@ -810,7 +810,7 @@ describe('Token service', () => {
       const testMaxMarketCap = 1000000;
       nock(TOKEN_END_POINT_API)
         .get(
-          `/v3/tokens/trending?chainIds=${encodeURIComponent(testChainId)}&sort=${sortBy}&minLiquidity=${testMinLiquidity}&minVolume24hUsd=${testMinVolume24hUsd}&maxVolume24hUsd=${testMaxVolume24hUsd}&minMarketCap=${testMinMarketCap}&maxMarketCap=${testMaxMarketCap}`,
+          `/v3/tokens/trending?chainIds=${encodeURIComponent(testChainId)}&sort=${sortBy}&minLiquidity=${testMinLiquidity}&minVolume24hUsd=${testMinVolume24hUsd}&maxVolume24hUsd=${testMaxVolume24hUsd}&minMarketCap=${testMinMarketCap}&maxMarketCap=${testMaxMarketCap}&includeRwaData=true`,
         )
         .reply(200, sampleTrendingTokens)
         .persist();
@@ -831,7 +831,7 @@ describe('Token service', () => {
       const testChainId = 'eip155:1';
 
       nock(TOKEN_END_POINT_API)
-        .get(`/v3/tokens/trending?chainIds=${encodeURIComponent(testChainId)}`)
+        .get(`/v3/tokens/trending?chainIds=${encodeURIComponent(testChainId)}&includeRwaData=true`)
         .reply(200, sampleTrendingTokens)
         .persist();
 
@@ -847,7 +847,7 @@ describe('Token service', () => {
 
       nock(TOKEN_END_POINT_API)
         .get(
-          `/v3/tokens/trending?chainIds=${encodeURIComponent(testChainId)}&excludeLabels=${testExcludeLabels.join(',')}`,
+          `/v3/tokens/trending?chainIds=${encodeURIComponent(testChainId)}&includeRwaData=true&excludeLabels=${testExcludeLabels.join(',')}`,
         )
         .reply(200, sampleTrendingTokens)
         .persist();
