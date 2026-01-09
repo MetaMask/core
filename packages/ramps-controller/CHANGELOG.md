@@ -9,6 +9,8 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ### Changed
 
+- **BREAKING:** Rename `geolocation` to `userRegion` and `updateGeolocation()` to `updateUserRegion()` in RampsController ([#7563](https://github.com/MetaMask/core/pull/7563))
+
 - Bump `@metamask/controller-utils` from `^11.17.0` to `^11.18.0` ([#7583](https://github.com/MetaMask/core/pull/7583))
 
 ## [2.1.0]
@@ -26,8 +28,6 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 ### Changed
 
 - Bump `@metamask/controller-utils` from `^11.16.0` to `^11.17.0` ([#7534](https://github.com/MetaMask/core/pull/7534))
-
-- **BREAKING:** Rename `geolocation` to `userRegion` and `updateGeolocation()` to `updateUserRegion()` in RampsController ([#7563](https://github.com/MetaMask/core/pull/7563))
 
 ## [2.0.0]
 
