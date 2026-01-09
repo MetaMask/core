@@ -293,6 +293,10 @@ describe('PendingTransactionTracker', () => {
               ...TRANSACTION_SUBMITTED_MOCK,
               isUserOperation: true,
             },
+            {
+              ...TRANSACTION_SUBMITTED_MOCK,
+              isStateOnly: true,
+            },
           ] as TransactionMeta[]);
 
           expect(listener).toHaveBeenCalledTimes(0);

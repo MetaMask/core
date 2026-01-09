@@ -31,6 +31,7 @@ import {
   SOL_ACCOUNT_PROVIDER_NAME,
   SolAccountProviderConfig,
 } from './providers/SolAccountProvider';
+import { SnapPlatformWatcher } from './snaps/SnapPlatformWatcher';
 import type {
   MultichainAccountServiceConfig,
   MultichainAccountServiceMessenger,
@@ -63,6 +64,8 @@ type AccountContext<Account extends Bip44Account<KeyringAccount>> = {
  */
 export class MultichainAccountService {
   readonly #messenger: MultichainAccountServiceMessenger;
+
+  readonly #watcher: SnapPlatformWatcher;
 
   readonly #providers: Bip44AccountProvider[];
 
@@ -124,6 +127,8 @@ export class MultichainAccountService {
       ...providers,
     ];
 
+    this.#watcher = new SnapPlatformWatcher(messenger);
+
     this.#messenger.registerActionHandler(
       'MultichainAccountService:getMultichainAccountGroup',
       (...args) => this.getMultichainAccountGroup(...args),
@@ -167,6 +172,10 @@ export class MultichainAccountService {
     this.#messenger.registerActionHandler(
       'MultichainAccountService:resyncAccounts',
       (...args) => this.resyncAccounts(...args),
+    );
+    this.#messenger.registerActionHandler(
+      'MultichainAccountService:ensureCanUseSnapPlatform',
+      (...args) => this.ensureCanUseSnapPlatform(...args),
     );
 
     this.#messenger.subscribe('AccountsController:accountAdded', (account) =>
@@ -259,6 +268,10 @@ export class MultichainAccountService {
       }),
     );
     log('Providers got re-synced!');
+  }
+
+  ensureCanUseSnapPlatform(): Promise<void> {
+    return this.#watcher.ensureCanUseSnapPlatform();
   }
 
   #handleOnAccountAdded(account: KeyringAccount): void {

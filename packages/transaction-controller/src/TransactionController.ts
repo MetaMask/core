@@ -1263,6 +1263,7 @@ export class TransactionController extends BaseController<
       gasFeeToken,
       isGasFeeIncluded,
       isGasFeeSponsored,
+      isStateOnly,
       method,
       nestedTransactions,
       networkClientId,
@@ -1362,6 +1363,7 @@ export class TransactionController extends BaseController<
           isGasFeeIncluded,
           isGasFeeSponsored,
           isFirstTimeInteraction: undefined,
+          isStateOnly,
           nestedTransactions,
           networkClientId,
           origin,
@@ -1468,8 +1470,7 @@ export class TransactionController extends BaseController<
         })
         .catch(noop);
 
-      // eslint-disable-next-line no-negated-condition
-      if (requireApproval !== false) {
+      if (requireApproval !== false && !isStateOnly) {
         this.#updateSimulationData(addedTransactionMeta, {
           traceContext,
         }).catch((error) => {
@@ -3070,7 +3071,20 @@ export class TransactionController extends BaseController<
       traceContext?: TraceContext;
     },
   ): Promise<string> {
-    const transactionId = transactionMeta.id;
+    const { id: transactionId, isStateOnly } = transactionMeta;
+
+    if (isStateOnly) {
+      this.#updateTransactionInternal(
+        { transactionId, skipValidation: true },
+        (tx) => {
+          tx.status = TransactionStatus.submitted;
+          tx.submittedTime = new Date().getTime();
+        },
+      );
+
+      return '';
+    }
+
     let resultCallbacks: AcceptResultCallbacks | undefined;
     const { meta, isCompleted } = this.#isTransactionCompleted(transactionId);
 

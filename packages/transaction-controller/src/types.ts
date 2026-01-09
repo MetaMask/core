@@ -230,6 +230,11 @@ export type TransactionMeta = {
    */
   isGasFeeSponsored?: boolean;
 
+  /**
+   * Whether the transaction has no lifecycle and is not signed or published.
+   */
+  isStateOnly?: boolean;
+
   /** Alternate EIP-1559 gas fee estimates for multiple priority levels. */
   gasFeeEstimates?: GasFeeEstimates;
 
@@ -2066,6 +2071,9 @@ export type MetamaskPayMetadata = {
   /** Total network fee in fiat currency, including the original and bridge transactions. */
   networkFeeFiat?: string;
 
+  /** Total amount of target token provided in fiat currency. */
+  targetFiat?: string;
+
   /** Address of the payment token that the transaction funds were sourced from. */
   tokenAddress?: Hex;
 
@@ -2114,6 +2122,13 @@ export type AddTransactionOptions = {
   /** Whether MetaMask will sponsor the gas fee for the transaction. */
   isGasFeeSponsored?: boolean;
 
+  /**
+   * Whether the transaction has no lifecycle and is not signed or published.
+   *
+   * @deprecated If absolutely necessary, update state instead via `TranasctionController:emulateTransactionUpdate`.
+   */
+  isStateOnly?: boolean;
+
   /** RPC method that requested the transaction. */
   method?: string;
 
@@ -2144,7 +2159,11 @@ export type AddTransactionOptions = {
   /** Whether to skip the initial gas calculation and rely only on the polling. */
   skipInitialGasEstimate?: boolean;
 
-  /** Options for swaps transactions. */
+  /**
+   * Options for swaps transactions.
+   *
+   * @deprecated Usage is pending removal as only used by legacy features.
+   */
   swaps?: {
     /** Whether the transaction has an approval transaction. */
     hasApproveTx?: boolean;
