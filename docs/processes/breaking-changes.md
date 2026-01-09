@@ -1,4 +1,4 @@
-# Preparing & Releasing Breaking Changes
+# Preparing and releasing breaking changes
 
 When developing packages, it is always important to be intentional about the impact that changes have on projects which use those packages. However, special consideration must be given to breaking changes.
 
@@ -73,7 +73,7 @@ For dependent packages located in `core`, you may get type errors immediately th
 
 For other projects that live outside of `core`, you can use the following process to verify the effects:
 
-1. Create a [preview build](./contributing.md#testing-changes-to-packages-with-preview-builds) for your package.
+1. Create a [preview build](./testing-changes-in-other-projects.md#testing-changes-to-packages-with-preview-builds) for your package.
 2. Open draft PRs in the dependent projects.
 3. In each draft PR, upgrade your package to the preview build.
 4. Test the project, particularly the functionality that makes use of your package.

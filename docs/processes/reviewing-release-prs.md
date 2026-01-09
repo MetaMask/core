@@ -1,4 +1,4 @@
-# Reviewing Release PRs
+# Reviewing release PRs
 
 In order to publish a new release of the monorepo, a release PR must be created. But before a release PR is merged, it is absolutely critical — even if you are the author of the PR — to review the changes that are about to be published and to ensure that consumers know about them effectively.
 
