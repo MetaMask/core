@@ -9,7 +9,7 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ### Added
 
-- Add optional `isStateOnly` property to `TransactionMeta` and `AddTransactionOptions` ([#TBD](https://github.com/MetaMask/core/pull/TBD))
+- Add optional `isStateOnly` property to `TransactionMeta` and `AddTransactionOptions` ([#7591](https://github.com/MetaMask/core/pull/7591))
   - Transactions with `isStateOnly` set to `true` have no lifecycle and are not signed or published.
   - Transactions are also excluded from confirmation polling.
 
