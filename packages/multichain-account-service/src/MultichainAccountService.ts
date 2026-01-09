@@ -532,6 +532,10 @@ export class MultichainAccountService {
   /**
    * Removes a multichain account wallet.
    *
+   * NOTE: This method should only be called in client code as a revert mechanism.
+   * At the point that this code is called, discovery shouldn't have been triggered.
+   * This is meant to be used in the scenario where a seed phrase backup is not successful.
+   *
    * @param entropySource - The entropy source of the multichain account wallet.
    * @param accountAddress - The address of the account to remove.
    * @returns The removed multichain account wallet.
