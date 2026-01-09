@@ -407,7 +407,9 @@ export class RampsController extends BaseController<
       options,
     );
 
-    const normalizedRegion = userRegion ? userRegion.toLowerCase().trim() : userRegion;
+    const normalizedRegion = userRegion
+      ? userRegion.toLowerCase().trim()
+      : userRegion;
 
     this.update((state) => {
       state.userRegion = normalizedRegion;
@@ -417,11 +419,11 @@ export class RampsController extends BaseController<
       try {
         await this.updateEligibility(normalizedRegion, options);
       } catch {
-        // Eligibility fetch failed, but user region was successfully fetched and cached.
-        // Don't let eligibility errors prevent user region state from being updated.
-        // Clear eligibility state to avoid showing stale data from a previous location.
         this.update((state) => {
-          state.eligibility = null;
+          const currentUserRegion = state.userRegion?.toLowerCase().trim();
+          if (currentUserRegion === normalizedRegion) {
+            state.eligibility = null;
+          }
         });
       }
     }
@@ -453,8 +455,13 @@ export class RampsController extends BaseController<
       // Eligibility fetch failed, but user region was successfully set.
       // Don't let eligibility errors prevent user region state from being updated.
       // Clear eligibility state to avoid showing stale data from a previous location.
+      // Only clear if the region still matches to avoid race conditions where a newer
+      // region change has already succeeded.
       this.update((state) => {
-        state.eligibility = null;
+        const currentUserRegion = state.userRegion?.toLowerCase().trim();
+        if (currentUserRegion === normalizedRegion) {
+          state.eligibility = null;
+        }
       });
       throw error;
     }

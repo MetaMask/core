@@ -769,7 +769,7 @@ describe('RampsController', () => {
 
         await controller.init();
 
-        expect(controller.state.userRegion).toBe('US');
+        expect(controller.state.userRegion).toBe('us');
       });
     });
 
