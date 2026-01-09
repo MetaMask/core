@@ -15,9 +15,10 @@ import { traceFallback } from '../analytics';
 import type { MultichainAccountServiceMessenger } from '../types';
 import { createSentryError } from '../utils';
 
-export type RestrictedSnapKeyringCreateAccount = (
-  options: Record<string, Json>,
-) => Promise<KeyringAccount>;
+export type RestrictedSnapKeyring = {
+  createAccount: (options: Record<string, Json>) => Promise<KeyringAccount>;
+  removeAccount: (address: string) => Promise<void>;
+};
 
 export type SnapAccountProviderConfig = {
   maxConcurrency?: number;
@@ -37,7 +38,7 @@ export abstract class SnapAccountProvider extends BaseBip44AccountProvider {
 
   protected readonly config: SnapAccountProviderConfig;
 
-  protected readonly client: KeyringClient;
+  readonly #client: KeyringClient;
 
   readonly #queue?: Semaphore;
 
@@ -53,7 +54,7 @@ export abstract class SnapAccountProvider extends BaseBip44AccountProvider {
     super(messenger);
 
     this.snapId = snapId;
-    this.client = this.#getKeyringClientFromSnapId(snapId);
+    this.#client = this.#getKeyringClientFromSnapId(snapId);
 
     const maxConcurrency = config.maxConcurrency ?? Infinity;
     this.config = {
@@ -74,6 +75,18 @@ export abstract class SnapAccountProvider extends BaseBip44AccountProvider {
   }
 
   /**
+   * Ensures that the Snap platform is ready to be used.
+   *
+   * @returns A promise that resolves when the platform is ready.
+   * @throws An error if the platform is not ready (only effective once the platform has been ready at least once).
+   */
+  async ensureCanUseSnapPlatform(): Promise<void> {
+    return this.messenger.call(
+      'MultichainAccountService:ensureCanUseSnapPlatform',
+    );
+  }
+
+  /**
    * Wraps an async operation with concurrency limiting based on maxConcurrency config.
    * If maxConcurrency is Infinity (the default), the operation runs immediately without throttling.
    * Otherwise, it's queued through the semaphore to respect the concurrency limit.
@@ -81,9 +94,9 @@ export abstract class SnapAccountProvider extends BaseBip44AccountProvider {
    * @param operation - The async operation to execute.
    * @returns The result of the operation.
    */
-  protected async withMaxConcurrency<T>(
-    operation: () => Promise<T>,
-  ): Promise<T> {
+  protected async withMaxConcurrency<Result>(
+    operation: () => Promise<Result>,
+  ): Promise<Result> {
     if (this.#queue) {
       return this.#queue.runExclusive(operation);
     }
@@ -97,7 +110,7 @@ export abstract class SnapAccountProvider extends BaseBip44AccountProvider {
     return this.#trace(request, fn);
   }
 
-  protected async getRestrictedSnapAccountCreator(): Promise<RestrictedSnapKeyringCreateAccount> {
+  async #getRestrictedSnapKeyring(): Promise<RestrictedSnapKeyring> {
     // NOTE: We're not supposed to make the keyring instance escape `withKeyring` but
     // we have to use the `SnapKeyring` instance to be able to create Solana account
     // without triggering UI confirmation.
@@ -108,17 +121,25 @@ export abstract class SnapAccountProvider extends BaseBip44AccountProvider {
       SnapKeyring['createAccount']
     >(async ({ keyring }) => keyring.createAccount.bind(keyring));
 
-    return (options) =>
-      createAccount(this.snapId, options, {
-        displayAccountNameSuggestion: false,
-        displayConfirmation: false,
-        setSelectedAccount: false,
-      });
+    return {
+      createAccount: async (options) =>
+        // We use the "unguarded" account creation here (see explanation above).
+        await createAccount(this.snapId, options, {
+          displayAccountNameSuggestion: false,
+          displayConfirmation: false,
+          setSelectedAccount: false,
+        }),
+      removeAccount: async (address: string) =>
+        // Though, when removing account, we can use the normal flow.
+        await this.#withSnapKeyring(async ({ keyring }) => {
+          await keyring.removeAccount(address);
+        }),
+    };
   }
 
   #getKeyringClientFromSnapId(snapId: string): KeyringClient {
     return new KeyringClient({
-      send: async (request: JsonRpcRequest) => {
+      send: async (request: JsonRpcRequest): Promise<Json> => {
         const response = await this.messenger.call(
           'SnapController:handleRequest',
           {
@@ -136,73 +157,71 @@ export abstract class SnapAccountProvider extends BaseBip44AccountProvider {
   async resyncAccounts(
     accounts: Bip44Account<InternalAccount>[],
   ): Promise<void> {
-    const localSnapAccounts = accounts.filter(
-      (account) =>
-        account.metadata.snap && account.metadata.snap.id === this.snapId,
-    );
-    const snapAccounts = new Set(
-      (await this.client.listAccounts()).map((account) => account.id),
-    );
-
-    // NOTE: This should never happen, but we want to report that kind of errors still
-    // in case states are de-sync.
-    if (localSnapAccounts.length < snapAccounts.size) {
-      this.messenger.captureException?.(
-        new Error(
-          `Snap "${this.snapId}" has de-synced accounts, Snap has more accounts than MetaMask!`,
-        ),
+    await this.withSnap(async ({ keyring }) => {
+      const localSnapAccounts = accounts.filter(
+        (account) =>
+          account.metadata.snap && account.metadata.snap.id === this.snapId,
+      );
+      const snapAccounts = new Set(
+        (await this.#client.listAccounts()).map((account) => account.id),
       );
 
-      // We don't recover from this case yet.
-      return;
-    }
+      // NOTE: This should never happen, but we want to report that kind of errors still
+      // in case states are de-sync.
+      if (localSnapAccounts.length < snapAccounts.size) {
+        this.messenger.captureException?.(
+          new Error(
+            `Snap "${this.snapId}" has de-synced accounts, Snap has more accounts than MetaMask!`,
+          ),
+        );
 
-    // We want this part to be fast, so we only check for sizes, but we might need
-    // to make a real "diff" between the 2 states to not miss any de-sync.
-    if (localSnapAccounts.length > snapAccounts.size) {
-      // Accounts should never really be de-synced, so we want to log this to see how often this
-      // happens, cause that means that something else is buggy elsewhere...
-      this.messenger.captureException?.(
-        new Error(
-          `Snap "${this.snapId}" has de-synced accounts, we'll attempt to re-sync them...`,
-        ),
-      );
+        // We don't recover from this case yet.
+        return;
+      }
 
-      // We always use the MetaMask list as the main reference here.
-      await Promise.all(
-        localSnapAccounts.map(async (account) => {
-          const { id: entropySource, groupIndex } = account.options.entropy;
+      // We want this part to be fast, so we only check for sizes, but we might need
+      // to make a real "diff" between the 2 states to not miss any de-sync.
+      if (localSnapAccounts.length > snapAccounts.size) {
+        // Accounts should never really be de-synced, so we want to log this to see how often this
+        // happens, cause that means that something else is buggy elsewhere...
+        this.messenger.captureException?.(
+          new Error(
+            `Snap "${this.snapId}" has de-synced accounts, we'll attempt to re-sync them...`,
+          ),
+        );
 
-          try {
-            if (!snapAccounts.has(account.id)) {
-              // We still need to remove the accounts from the Snap keyring since we're
-              // about to create the same account again, which will use a new ID, but will
-              // keep using the same address, and the Snap keyring does not allow this.
-              await this.#withSnapKeyring(
-                async ({ keyring }) =>
-                  await keyring.removeAccount(account.address),
+        // We always use the MetaMask list as the main reference here.
+        await Promise.all(
+          localSnapAccounts.map(async (account) => {
+            const { id: entropySource, groupIndex } = account.options.entropy;
+
+            try {
+              if (!snapAccounts.has(account.id)) {
+                // We still need to remove the accounts from the Snap keyring since we're
+                // about to create the same account again, which will use a new ID, but will
+                // keep using the same address, and the Snap keyring does not allow this.
+                await keyring.removeAccount(account.address);
+                // The Snap has no account in its state for this one, we re-create it.
+                await this.createAccounts({
+                  entropySource,
+                  groupIndex,
+                });
+              }
+            } catch (error) {
+              const sentryError = createSentryError(
+                `Unable to re-sync account: ${groupIndex}`,
+                error as Error,
+                {
+                  provider: this.getName(),
+                  groupIndex,
+                },
               );
-
-              // The Snap has no account in its state for this one, we re-create it.
-              await this.createAccounts({
-                entropySource,
-                groupIndex,
-              });
+              this.messenger.captureException?.(sentryError);
             }
-          } catch (error) {
-            const sentryError = createSentryError(
-              `Unable to re-sync account: ${groupIndex}`,
-              error as Error,
-              {
-                provider: this.getName(),
-                groupIndex,
-              },
-            );
-            this.messenger.captureException?.(sentryError);
-          }
-        }),
-      );
-    }
+          }),
+        );
+      }
+    });
   }
 
   async #withSnapKeyring<CallbackResult = void>(
@@ -220,6 +239,20 @@ export abstract class SnapAccountProvider extends BaseBip44AccountProvider {
         return operation(args);
       },
     );
+  }
+
+  protected async withSnap<CallbackResult = void>(
+    operation: (snap: {
+      client: KeyringClient;
+      keyring: RestrictedSnapKeyring;
+    }) => Promise<CallbackResult>,
+  ): Promise<CallbackResult> {
+    await this.ensureCanUseSnapPlatform();
+
+    return await operation({
+      client: this.#client,
+      keyring: await this.#getRestrictedSnapKeyring(),
+    });
   }
 
   abstract isAccountCompatible(account: Bip44Account<InternalAccount>): boolean;
