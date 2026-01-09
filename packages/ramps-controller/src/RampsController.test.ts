@@ -814,6 +814,58 @@ describe('RampsController', () => {
         });
       });
     });
+
+    it('updates user region state and clears eligibility when eligibility fetch fails', async () => {
+      await withController(async ({ controller, rootMessenger }) => {
+        rootMessenger.registerActionHandler(
+          'RampsService:getEligibility',
+          async () => {
+            throw new Error('Eligibility API error');
+          },
+        );
+
+        expect(controller.state.userRegion).toBeNull();
+        expect(controller.state.eligibility).toBeNull();
+
+        await expect(controller.setUserRegion('US-CA')).rejects.toThrow(
+          'Eligibility API error',
+        );
+
+        expect(controller.state.userRegion).toBe('us-ca');
+        expect(controller.state.eligibility).toBeNull();
+      });
+    });
+
+    it('clears stale eligibility when new user region is set but eligibility fails', async () => {
+      await withController(async ({ controller, rootMessenger }) => {
+        const usEligibility = {
+          aggregator: true,
+          deposit: true,
+          global: true,
+        };
+
+        rootMessenger.registerActionHandler(
+          'RampsService:getEligibility',
+          async (isoCode) => {
+            if (isoCode === 'us') {
+              return usEligibility;
+            }
+            throw new Error('Eligibility API error');
+          },
+        );
+
+        await controller.setUserRegion('US');
+        expect(controller.state.userRegion).toBe('us');
+        expect(controller.state.eligibility).toStrictEqual(usEligibility);
+
+        await expect(controller.setUserRegion('FR')).rejects.toThrow(
+          'Eligibility API error',
+        );
+
+        expect(controller.state.userRegion).toBe('fr');
+        expect(controller.state.eligibility).toBeNull();
+      });
+    });
   });
 
   describe('updateUserRegion with automatic eligibility', () => {

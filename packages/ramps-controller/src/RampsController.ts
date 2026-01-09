@@ -445,7 +445,17 @@ export class RampsController extends BaseController<
       state.userRegion = normalizedRegion;
     });
 
-    return this.updateEligibility(normalizedRegion, options);
+    try {
+      return await this.updateEligibility(normalizedRegion, options);
+    } catch (error) {
+      // Eligibility fetch failed, but user region was successfully set.
+      // Don't let eligibility errors prevent user region state from being updated.
+      // Clear eligibility state to avoid showing stale data from a previous location.
+      this.update((state) => {
+        state.eligibility = null;
+      });
+      throw error;
+    }
   }
 
   /**
