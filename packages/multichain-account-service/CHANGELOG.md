@@ -7,6 +7,8 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+## [5.0.0]
+
 ### Added
 
 - **BREAKING** A performance refactor was made around all the classes in this package ([#6654](https://github.com/MetaMask/core/pull/6654))
@@ -346,7 +348,8 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 - Add `MultichainAccountService` ([#6141](https://github.com/MetaMask/core/pull/6141)), ([#6165](https://github.com/MetaMask/core/pull/6165))
   - This service manages multichain accounts/wallets.
 
-[Unreleased]: https://github.com/MetaMask/core/compare/@metamask/multichain-account-service@4.1.0...HEAD
+[Unreleased]: https://github.com/MetaMask/core/compare/@metamask/multichain-account-service@5.0.0...HEAD
+[5.0.0]: https://github.com/MetaMask/core/compare/@metamask/multichain-account-service@4.1.0...@metamask/multichain-account-service@5.0.0
 [4.1.0]: https://github.com/MetaMask/core/compare/@metamask/multichain-account-service@4.0.1...@metamask/multichain-account-service@4.1.0
 [4.0.1]: https://github.com/MetaMask/core/compare/@metamask/multichain-account-service@4.0.0...@metamask/multichain-account-service@4.0.1
 [4.0.0]: https://github.com/MetaMask/core/compare/@metamask/multichain-account-service@3.0.0...@metamask/multichain-account-service@4.0.0
