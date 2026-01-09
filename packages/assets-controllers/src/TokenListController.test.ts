@@ -14,9 +14,11 @@ import type {
 } from '@metamask/messenger';
 import type { NetworkState } from '@metamask/network-controller';
 import type { Hex } from '@metamask/utils';
+import { clone } from 'lodash';
 import nock from 'nock';
 import * as sinon from 'sinon';
 
+import { MOCK_ETHEREUM_TOKENS_METADATA } from './__fixtures__/tokens-api-mocks';
 import * as tokenService from './token-service';
 import type {
   TokenListMap,
@@ -30,8 +32,6 @@ import {
   buildInfuraNetworkClientConfiguration,
   buildMockGetNetworkClientById,
 } from '../../network-controller/tests/helpers';
-import { MOCK_ETHEREUM_TOKENS_METADATA } from './__fixtures__/tokens-api-mocks';
-import { clone } from 'lodash';
 
 const namespace = 'TokenListController';
 const timestamp = Date.now();

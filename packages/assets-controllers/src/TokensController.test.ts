@@ -10,7 +10,6 @@ import {
   ApprovalType,
   ChainId,
   ORIGIN_METAMASK,
-  convertHexToDecimal,
   InfuraNetworkType,
 } from '@metamask/controller-utils';
 import type { InternalAccount } from '@metamask/keyring-internal-api';
