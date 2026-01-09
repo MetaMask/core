@@ -522,6 +522,8 @@ export class MultichainAccountService {
 
     assert(wallet, 'Failed to create wallet.');
 
+    wallet.init({});
+
     this.#wallets.set(wallet.id, wallet);
 
     log(`Wallet created: [${wallet.id}]`);
