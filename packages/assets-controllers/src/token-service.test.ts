@@ -293,7 +293,7 @@ describe('Token service', () => {
       const { signal } = new AbortController();
       nock(TOKEN_END_POINT_API)
         .get(
-          `/tokens/${sampleDecimalChainId}?occurrenceFloor=3&includeNativeAssets=false&includeTokenFees=false&includeAssetType=false&includeERC20Permit=false&includeStorage=false`,
+          `/tokens/${sampleDecimalChainId}?occurrenceFloor=3&includeNativeAssets=false&includeTokenFees=false&includeAssetType=false&includeERC20Permit=false&includeStorage=false&includeRwaData=true`,
         )
         .reply(200, sampleTokenList)
         .persist();
@@ -310,7 +310,7 @@ describe('Token service', () => {
 
       nock(TOKEN_END_POINT_API)
         .get(
-          `/tokens/${lineaChainId}?occurrenceFloor=1&includeNativeAssets=false&includeTokenFees=false&includeAssetType=false&includeERC20Permit=false&includeStorage=false`,
+          `/tokens/${lineaChainId}?occurrenceFloor=1&includeNativeAssets=false&includeTokenFees=false&includeAssetType=false&includeERC20Permit=false&includeStorage=false&includeRwaData=true`,
         )
         .reply(200, sampleTokenListLinea)
         .persist();
@@ -324,7 +324,7 @@ describe('Token service', () => {
       const abortController = new AbortController();
       nock(TOKEN_END_POINT_API)
         .get(
-          `/tokens/${sampleDecimalChainId}?occurrenceFloor=3&includeNativeAssets=false&includeTokenFees=false&includeAssetType=false&includeERC20Permit=false&includeStorage=false`,
+          `/tokens/${sampleDecimalChainId}?occurrenceFloor=3&includeNativeAssets=false&includeTokenFees=false&includeAssetType=false&includeERC20Permit=false&includeStorage=false&includeRwaData=true`,
         )
         // well beyond time it will take to abort
         .delay(ONE_SECOND_IN_MILLISECONDS)
@@ -344,7 +344,7 @@ describe('Token service', () => {
       const { signal } = new AbortController();
       nock(TOKEN_END_POINT_API)
         .get(
-          `/tokens/${sampleDecimalChainId}?occurrenceFloor=3&includeNativeAssets=false&includeTokenFees=false&includeAssetType=false&includeERC20Permit=false&includeStorage=false`,
+          `/tokens/${sampleDecimalChainId}?occurrenceFloor=3&includeNativeAssets=false&includeTokenFees=false&includeAssetType=false&includeERC20Permit=false&includeStorage=false&includeRwaData=true`,
         )
         .replyWithError('Example network error')
         .persist();
@@ -358,7 +358,7 @@ describe('Token service', () => {
       const { signal } = new AbortController();
       nock(TOKEN_END_POINT_API)
         .get(
-          `/tokens/${sampleDecimalChainId}?occurrenceFloor=3&includeNativeAssets=false&includeTokenFees=false&includeAssetType=false&includeERC20Permit=false&includeStorage=false`,
+          `/tokens/${sampleDecimalChainId}?occurrenceFloor=3&includeNativeAssets=false&includeTokenFees=false&includeAssetType=false&includeERC20Permit=false&includeStorage=false&includeRwaData=true`,
         )
         .reply(500)
         .persist();
