@@ -13,6 +13,10 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 - Bump `@metamask/transaction-controller` from `^62.7.0` to `^62.8.0` ([#7596](https://github.com/MetaMask/core/pull/7596))
 - `AccountTrackerController` now triggers an immediate balance refresh when the keyring is unlocked, instead of waiting for the next polling cycle ([#7585](https://github.com/MetaMask/core/pull/7585))
 
+### Fixed
+
+- Add missing native coin non-zero address for networks: Gnosis and MSU ([#7592](https://github.com/MetaMask/core/pull/7592))
+
 ## [95.0.0]
 
 ### Added
