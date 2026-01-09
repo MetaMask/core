@@ -356,15 +356,14 @@ describe('Token service', () => {
         .reply(200, mixedTokens)
         .persist();
 
-      const tokens = (await fetchTokenListByChainId(
-        lineaHexChain,
-        signal,
-      )) as any[];
+      const tokens = (await fetchTokenListByChainId(lineaHexChain, signal)) as {
+        address: string;
+      }[];
 
       expect(tokens).toHaveLength(2);
-      expect(tokens.find((t: any) => t.address === '0x1')).toBeDefined();
-      expect(tokens.find((t: any) => t.address === '0x2')).toBeDefined();
-      expect(tokens.find((t: any) => t.address === '0x3')).toBeUndefined();
+      expect(tokens.find((token) => token.address === '0x1')).toBeDefined();
+      expect(tokens.find((token) => token.address === '0x2')).toBeDefined();
+      expect(tokens.find((token) => token.address === '0x3')).toBeUndefined();
     });
 
     it('should return undefined if the fetch is aborted', async () => {
