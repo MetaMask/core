@@ -407,13 +407,15 @@ export class RampsController extends BaseController<
       options,
     );
 
+    const normalizedRegion = userRegion ? userRegion.toLowerCase().trim() : userRegion;
+
     this.update((state) => {
-      state.userRegion = userRegion;
+      state.userRegion = normalizedRegion;
     });
 
-    if (userRegion) {
+    if (normalizedRegion) {
       try {
-        await this.updateEligibility(userRegion, options);
+        await this.updateEligibility(normalizedRegion, options);
       } catch {
         // Eligibility fetch failed, but user region was successfully fetched and cached.
         // Don't let eligibility errors prevent user region state from being updated.
@@ -424,7 +426,7 @@ export class RampsController extends BaseController<
       }
     }
 
-    return userRegion;
+    return normalizedRegion;
   }
 
   /**

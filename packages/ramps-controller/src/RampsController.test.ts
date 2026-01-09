@@ -159,7 +159,7 @@ describe('RampsController', () => {
       await withController(async ({ controller, rootMessenger }) => {
         rootMessenger.registerActionHandler(
           'RampsService:getGeolocation',
-          async () => 'US',
+          async () => 'US-CA',
         );
         rootMessenger.registerActionHandler(
           'RampsService:getEligibility',
@@ -172,7 +172,7 @@ describe('RampsController', () => {
 
         await controller.updateUserRegion();
 
-        expect(controller.state.userRegion).toBe('US');
+        expect(controller.state.userRegion).toBe('us-ca');
       });
     });
 
