@@ -4,7 +4,7 @@ This monorepo is a collection of packages used across multiple MetaMask clients 
 
 ## Contributing
 
-See the [Contributor Docuemntation](./docs) for help on:
+See the [Contributor Documentation](./docs) for help on:
 
 - Setting up your development environment
 - Working with the monorepo
