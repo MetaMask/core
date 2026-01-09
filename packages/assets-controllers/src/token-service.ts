@@ -21,7 +21,7 @@ import {
 } from './assetsUtil';
 
 export const TOKEN_END_POINT_API = 'https://token.api.cx.metamask.io';
-export const TOKENS_END_POINT_API = 'https://tokens.dev-api.cx.metamask.io';
+export const TOKENS_END_POINT_API = 'https://tokens.api.cx.metamask.io';
 export const TOKEN_METADATA_NO_SUPPORT_ERROR =
   'TokenService Error: Network does not support fetchTokenMetadata';
 
@@ -104,6 +104,8 @@ function getTokensURL(chainId: Hex, nextCursor?: string): string {
     chainId,
   )}?${queryParams.toString()}`;
 }
+
+console.log('getTokensURL', getTokensURL(ChainId.mainnet));
 
 /**
  * Get the token metadata URL for the given network and token.
