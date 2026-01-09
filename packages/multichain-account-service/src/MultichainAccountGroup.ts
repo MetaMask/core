@@ -98,9 +98,9 @@ export class MultichainAccountGroup<
   #setState(groupState: GroupState): void {
     for (const provider of this.#providers) {
       const accountIds = groupState[provider.getName()];
-      this.#clearAccountToProviderState(provider);
 
       if (accountIds) {
+        this.#clearAccountToProviderState(provider);
         this.#providerToAccounts.set(provider, accountIds);
 
         for (const accountId of accountIds) {
