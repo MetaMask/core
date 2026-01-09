@@ -254,6 +254,36 @@ describe('RampsController', () => {
         expect(callCount).toBe(2);
       });
     });
+
+    it('handles null geolocation result', async () => {
+      await withController(async ({ controller, rootMessenger }) => {
+        rootMessenger.registerActionHandler(
+          'RampsService:getGeolocation',
+          async () => null as unknown as string,
+        );
+
+        const result = await controller.updateUserRegion();
+
+        expect(result).toBeNull();
+        expect(controller.state.userRegion).toBeNull();
+        expect(controller.state.eligibility).toBeNull();
+      });
+    });
+
+    it('handles undefined geolocation result', async () => {
+      await withController(async ({ controller, rootMessenger }) => {
+        rootMessenger.registerActionHandler(
+          'RampsService:getGeolocation',
+          async () => undefined as unknown as string,
+        );
+
+        const result = await controller.updateUserRegion();
+
+        expect(result).toBeUndefined();
+        expect(controller.state.userRegion).toBeUndefined();
+        expect(controller.state.eligibility).toBeNull();
+      });
+    });
   });
 
   describe('executeRequest', () => {
