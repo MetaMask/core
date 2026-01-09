@@ -878,7 +878,9 @@ describe('Token service', () => {
       const testChainId = 'eip155:1';
 
       nock(TOKEN_END_POINT_API)
-        .get(`/v3/tokens/trending?chainIds=${encodeURIComponent(testChainId)}&includeRwaData=true`)
+        .get(
+          `/v3/tokens/trending?chainIds=${encodeURIComponent(testChainId)}&includeRwaData=true`,
+        )
         .reply(200, sampleTrendingTokens)
         .persist();
 
