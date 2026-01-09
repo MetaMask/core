@@ -11,6 +11,7 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ### Added
 
+- Add optional `targetFiat` property to `MetamaskPayMetadata` type ([#7562](https://github.com/MetaMask/core/pull/7562))
 - Add optional `isStateOnly` property to `TransactionMeta` and `AddTransactionOptions` ([#7591](https://github.com/MetaMask/core/pull/7591))
   - Transactions with `isStateOnly` set to `true` have no lifecycle and are not signed or published.
   - Transactions are also excluded from confirmation polling.
