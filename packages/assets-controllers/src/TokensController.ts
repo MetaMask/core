@@ -457,6 +457,7 @@ export class TokensController extends BaseController<
         isERC721,
         aggregators: formatAggregatorNames(tokenMetadata?.aggregators || []),
         name,
+        ...(tokenMetadata?.rwaData && { rwaData: tokenMetadata.rwaData }),
       };
       const previousIndex = newTokens.findIndex(
         (token) => token.address.toLowerCase() === address.toLowerCase(),
@@ -525,7 +526,7 @@ export class TokensController extends BaseController<
     }, {});
     try {
       tokensToImport.forEach((tokenToAdd) => {
-        const { address, symbol, decimals, image, aggregators, name } =
+        const { address, symbol, decimals, image, aggregators, name, rwaData } =
           tokenToAdd;
         const checksumAddress = toChecksumHexAddress(address);
         const formattedToken: Token = {
@@ -535,6 +536,7 @@ export class TokensController extends BaseController<
           image,
           aggregators,
           name,
+          ...(rwaData && { rwaData }),
         };
         newTokensMap[checksumAddress] = formattedToken;
         importedTokensMap[address.toLowerCase()] = true;
@@ -664,6 +666,7 @@ export class TokensController extends BaseController<
           aggregators,
           isERC721,
           name,
+          rwaData,
         } = tokenToAdd;
         const checksumAddress = toChecksumHexAddress(address);
         const newEntry: Token = {
@@ -674,6 +677,7 @@ export class TokensController extends BaseController<
           isERC721,
           aggregators,
           name,
+          ...(rwaData && { rwaData }),
         };
 
         const previousImportedIndex = newTokens.findIndex(

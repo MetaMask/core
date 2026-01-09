@@ -23,7 +23,7 @@ function getTokensURL(chainId: Hex): string {
 
   return `${TOKEN_END_POINT_API}/tokens/${convertHexToDecimal(
     chainId,
-  )}?occurrenceFloor=${occurrenceFloor}&includeNativeAssets=false&includeTokenFees=false&includeAssetType=false&includeERC20Permit=false&includeStorage=false`;
+  )}?occurrenceFloor=${occurrenceFloor}&includeNativeAssets=false&includeTokenFees=false&includeAssetType=false&includeERC20Permit=false&includeStorage=false&includeRwaData=true`;
 }
 
 /**
@@ -36,7 +36,7 @@ function getTokensURL(chainId: Hex): string {
 function getTokenMetadataURL(chainId: Hex, tokenAddress: string): string {
   return `${TOKEN_END_POINT_API}/token/${convertHexToDecimal(
     chainId,
-  )}?address=${tokenAddress}`;
+  )}?address=${tokenAddress}&includeRwaData=true`;
 }
 
 /**
@@ -51,33 +51,23 @@ export type SortTrendingBy =
 /**
  * Get the token search URL for the given networks and search query.
  *
- * @param options - Options for getting token search URL.
- * @param options.chainIds - Array of CAIP format chain IDs (e.g., 'eip155:1', 'solana:5eykt4UsFv8P8NJdTREpY1vzqKqZKvdp').
- * @param options.query - The search query (token name, symbol, or address).
- * @param options.limit - Optional limit for the number of results (defaults to 10).
- * @param options.includeMarketData - Optional flag to include market data in the results (defaults to false).
- * @param options.includeRwaData - Optional flag to include RWA data in the results (defaults to false).
+ * @param chainIds - Array of CAIP format chain IDs (e.g., 'eip155:1', 'solana:5eykt4UsFv8P8NJdTREpY1vzqKqZKvdp').
+ * @param query - The search query (token name, symbol, or address).
+ * @param limit - Optional limit for the number of results (defaults to 10).
+ * @param includeMarketData - Optional flag to include market data in the results (defaults to false).
  * @returns The token search URL.
  */
-function getTokenSearchURL(options: {
-  chainIds: CaipChainId[];
-  query: string;
-  limit?: number;
-  includeMarketData?: boolean;
-  includeRwaData?: boolean;
-}): string {
-  const { chainIds, query, ...optionalParams } = options;
+function getTokenSearchURL(
+  chainIds: CaipChainId[],
+  query: string,
+  limit = 10,
+  includeMarketData = false,
+): string {
   const encodedQuery = encodeURIComponent(query);
   const encodedChainIds = chainIds
     .map((id) => encodeURIComponent(id))
     .join(',');
-  const queryParams = new URLSearchParams();
-  Object.entries(optionalParams).forEach(([key, value]) => {
-    if (value !== undefined) {
-      queryParams.append(key, String(value));
-    }
-  });
-  return `${TOKEN_END_POINT_API}/tokens/search?networks=${encodedChainIds}&query=${encodedQuery}&${queryParams.toString()}`;
+  return `${TOKEN_END_POINT_API}/tokens/search?networks=${encodedChainIds}&query=${encodedQuery}&limit=${limit}&includeMarketData=${includeMarketData}&includeRwaData=true`;
 }
 
 /**
@@ -156,8 +146,8 @@ export async function fetchTokenListByChainId(
     if (Array.isArray(result) && chainId === ChainId['linea-mainnet']) {
       return result.filter(
         (elm) =>
-          Boolean(elm.aggregators.includes('lineaTeam')) ||
-          elm.aggregators.length >= 3,
+          // eslint-disable-next-line @typescript-eslint/prefer-nullish-coalescing
+          elm.aggregators.includes('lineaTeam') || elm.aggregators.length >= 3,
       );
     }
     return result;
@@ -165,6 +155,7 @@ export async function fetchTokenListByChainId(
   return undefined;
 }
 
+// TODO This end point already contain RwaData, so we don't need to append it here.
 export type TokenRwaData = {
   market?: {
     nextOpen?: string;
@@ -187,12 +178,6 @@ export type TokenSearchItem = {
   rwaData?: TokenRwaData;
 };
 
-type SearchTokenOptions = {
-  limit?: number;
-  includeMarketData?: boolean;
-  includeRwaData?: boolean;
-};
-
 /**
  * Search for tokens across one or more networks by query string using CAIP format chain IDs.
  *
@@ -201,25 +186,19 @@ type SearchTokenOptions = {
  * @param options - Additional fetch options.
  * @param options.limit - The maximum number of results to return.
  * @param options.includeMarketData - Optional flag to include market data in the results (defaults to false).
- * @param options.includeRwaData - Optional flag to include RWA data in the results (defaults to false).
  * @returns Object containing count and data array. Returns { count: 0, data: [] } if request fails.
  */
 export async function searchTokens(
   chainIds: CaipChainId[],
   query: string,
-  {
-    limit = 10,
-    includeMarketData = false,
-    includeRwaData,
-  }: SearchTokenOptions = {},
-): Promise<{ count: number; data: TokenSearchItem[] }> {
-  const tokenSearchURL = getTokenSearchURL({
+  { limit = 10, includeMarketData = false } = {},
+): Promise<{ count: number; data: unknown[] }> {
+  const tokenSearchURL = getTokenSearchURL(
     chainIds,
     query,
     limit,
     includeMarketData,
-    includeRwaData,
-  });
+  );
 
   try {
     const result: { count: number; data: TokenSearchItem[] } =
@@ -228,7 +207,7 @@ export async function searchTokens(
     // The API returns an object with structure: { count: number, data: array, pageInfo: object }
     if (result && typeof result === 'object' && Array.isArray(result.data)) {
       return {
-        count: result.count || result.data.length,
+        count: result.count ?? result.data.length,
         data: result.data,
       };
     }
@@ -291,7 +270,8 @@ export async function getTrendingTokens({
   minMarketCap,
   maxMarketCap,
   excludeLabels,
-  includeRwaData,
+  // default set to true so we don't need to pass it in the function call
+  includeRwaData = true,
 }: {
   chainIds: CaipChainId[];
   sortBy?: SortTrendingBy;
@@ -385,10 +365,12 @@ async function queryApi(
     mode: 'cors',
     signal: abortSignal,
     cache: 'default',
-    headers: {
-      'Content-Type': 'application/json',
-    },
   };
+  // Use globalThis.Headers if available, otherwise skip setting headers (Node.js has no fetch headers by default)
+  if (typeof globalThis.Headers === 'function') {
+    fetchOptions.headers = new globalThis.Headers();
+    fetchOptions.headers.set('Content-Type', 'application/json');
+  }
   try {
     return await timeoutFetch(apiURL, fetchOptions, timeout);
   } catch (error) {
