@@ -955,8 +955,10 @@ export default class GatorPermissionsController extends BaseController<
         });
 
         // Attach metadata by parsing the confirmed transactionMeta
-        const revocationMetadata: RevocationMetadata = {};
         const { hash } = transactionMeta;
+        const revocationMetadata: RevocationMetadata = {
+          txHash: hash as Hex | undefined,
+        };
         if (hash === undefined) {
           controllerLog(
             'Failed to attach transaction hash after revocation transaction confirmed',
@@ -968,8 +970,6 @@ export default class GatorPermissionsController extends BaseController<
               ),
             },
           );
-        } else {
-          revocationMetadata.txHash = hash as Hex;
         }
 
         this.submitRevocation({ permissionContext, revocationMetadata })
