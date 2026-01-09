@@ -372,7 +372,7 @@ describe('Token service', () => {
       const { signal } = new AbortController();
       nock(TOKEN_END_POINT_API)
         .get(
-          `/tokens/${sampleDecimalChainId}?occurrenceFloor=3&includeNativeAssets=false&includeTokenFees=false&includeAssetType=false&includeERC20Permit=false&includeStorage=false`,
+          `/tokens/${sampleDecimalChainId}?occurrenceFloor=3&includeNativeAssets=false&includeTokenFees=false&includeAssetType=false&includeERC20Permit=false&includeStorage=false&includeRwaData=true`,
         )
         // well beyond timeout
         .delay(ONE_SECOND_IN_MILLISECONDS)
