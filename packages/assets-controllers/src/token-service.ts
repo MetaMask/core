@@ -8,9 +8,7 @@ import type { CaipAssetType, CaipChainId, Hex } from '@metamask/utils';
 
 import { isTokenListSupportedForNetwork } from './assetsUtil';
 
-// export const TOKEN_END_POINT_API = 'https://token.api.cx.metamask.io';
-// TODO change it back after development is done
-export const TOKEN_END_POINT_API = 'https://token.dev-api.cx.metamask.io';
+export const TOKEN_END_POINT_API = 'https://token.api.cx.metamask.io';
 export const TOKEN_METADATA_NO_SUPPORT_ERROR =
   'TokenService Error: Network does not support fetchTokenMetadata';
 
@@ -53,33 +51,23 @@ export type SortTrendingBy =
 /**
  * Get the token search URL for the given networks and search query.
  *
- * @param options - Options for getting token search URL.
- * @param options.chainIds - Array of CAIP format chain IDs (e.g., 'eip155:1', 'solana:5eykt4UsFv8P8NJdTREpY1vzqKqZKvdp').
- * @param options.query - The search query (token name, symbol, or address).
- * @param options.limit - Optional limit for the number of results (defaults to 10).
- * @param options.includeMarketData - Optional flag to include market data in the results (defaults to false).
- * @param options.includeRwaData - Optional flag to include RWA data in the results (defaults to false).
+ * @param chainIds - Array of CAIP format chain IDs (e.g., 'eip155:1', 'solana:5eykt4UsFv8P8NJdTREpY1vzqKqZKvdp').
+ * @param query - The search query (token name, symbol, or address).
+ * @param limit - Optional limit for the number of results (defaults to 10).
+ * @param includeMarketData - Optional flag to include market data in the results (defaults to false).
  * @returns The token search URL.
  */
-function getTokenSearchURL(options: {
-  chainIds: CaipChainId[];
-  query: string;
-  limit?: number;
-  includeMarketData?: boolean;
-  includeRwaData?: true;
-}): string {
-  const { chainIds, query, ...optionalParams } = options;
+function getTokenSearchURL(
+  chainIds: CaipChainId[],
+  query: string,
+  limit = 10,
+  includeMarketData = false,
+): string {
   const encodedQuery = encodeURIComponent(query);
   const encodedChainIds = chainIds
     .map((id) => encodeURIComponent(id))
     .join(',');
-  const queryParams = new URLSearchParams();
-  Object.entries(optionalParams).forEach(([key, value]) => {
-    if (value !== undefined) {
-      queryParams.append(key, String(value));
-    }
-  });
-  return `${TOKEN_END_POINT_API}/tokens/search?networks=${encodedChainIds}&query=${encodedQuery}&${queryParams.toString()}`;
+  return `${TOKEN_END_POINT_API}/tokens/search?networks=${encodedChainIds}&query=${encodedQuery}&limit=${limit}&includeMarketData=${includeMarketData}&includeRwaData=true`;
 }
 
 /**
@@ -93,8 +81,7 @@ function getTokenSearchURL(options: {
  * @param options.maxVolume24hUsd - The maximum volume 24h in USD.
  * @param options.minMarketCap - The minimum market cap.
  * @param options.maxMarketCap - The maximum market cap.
- * @param options.excludeLabels - Array of labels to exclude (e.g., ['stable_coin', 'blue_chip']).
- * @param options.includeRwaData - Optional flag to include RWA data in the results (defaults to false).
+ * @param options.excludeLabels - Array of labels to exclude (e.g., ['stable_coin', 'blue_chip']).- Optional flag to include RWA data in the results (defaults to false).
  * @returns The trending tokens URL.
  */
 function getTrendingTokensURL(options: {
@@ -106,7 +93,6 @@ function getTrendingTokensURL(options: {
   minMarketCap?: number;
   maxMarketCap?: number;
   excludeLabels?: string[];
-  includeRwaData?: boolean;
 }): string {
   const encodedChainIds = options.chainIds
     .map((id) => encodeURIComponent(id))
@@ -158,67 +144,10 @@ export async function fetchTokenListByChainId(
   if (response) {
     const result = await parseJsonResponse(response);
     if (Array.isArray(result) && chainId === ChainId['linea-mainnet']) {
-      const filteredResult = result.filter(
+      return result.filter(
         (elm) =>
           elm.aggregators.includes('lineaTeam') ?? elm.aggregators.length >= 3,
       );
-      // TODO: remove this after development is done
-      // if the filteredResult has an aggregator that includes 'Ondo' then append rwaData as metadata.
-      const filteredResultWithRwaData = filteredResult.map((elm) => {
-        const metadata = {
-          rwaData: {
-            instrumentType: 'stock',
-            ticker: elm.name?.split(' ')[0] ?? '',
-            market: {
-              nextOpen: new Date(new Date().setHours(9, 0, 0, 0)).toISOString(),
-              nextClose: new Date(
-                new Date().setHours(16, 0, 0, 0),
-              ).toISOString(),
-            },
-            nextPause: {
-              start: new Date(new Date().setHours(16, 0, 0, 0)).toISOString(),
-              end: new Date(new Date().setHours(17, 0, 0, 0)).toISOString(),
-            },
-          },
-        };
-        // if (elm.aggregators.includes('Ondo')) {
-        return { ...elm, ...metadata };
-        // }
-        // return elm;
-      });
-
-      console.log('filteredResult', filteredResult);
-      return filteredResultWithRwaData;
-    }
-
-    if (Array.isArray(result)) {
-      // TODO: remove this after development is done
-      // if the filteredResult has an aggregator that includes 'Ondo' then append rwaData as metadata.
-      const filteredResultWithRwaData = result.map((elm) => {
-        const metadata = {
-          rwaData: {
-            instrumentType: 'stock',
-            ticker: elm.name?.split(' ')[0] ?? '',
-            market: {
-              nextOpen: new Date(new Date().setHours(9, 0, 0, 0)).toISOString(),
-              nextClose: new Date(
-                new Date().setHours(16, 0, 0, 0),
-              ).toISOString(),
-            },
-            nextPause: {
-              start: new Date(new Date().setHours(16, 0, 0, 0)).toISOString(),
-              end: new Date(new Date().setHours(17, 0, 0, 0)).toISOString(),
-            },
-          },
-        };
-        // if (elm.aggregators.includes('Ondo')) {
-        return { ...elm, ...metadata };
-        // }
-        // return elm;
-      });
-
-      console.log('filteredResultWithRwaData', filteredResultWithRwaData);
-      return filteredResultWithRwaData;
     }
     return result;
   }
@@ -248,12 +177,6 @@ export type TokenSearchItem = {
   rwaData?: TokenRwaData;
 };
 
-type SearchTokenOptions = {
-  limit?: number;
-  includeMarketData?: boolean;
-  includeRwaData?: boolean;
-};
-
 /**
  * Search for tokens across one or more networks by query string using CAIP format chain IDs.
  *
@@ -267,14 +190,14 @@ type SearchTokenOptions = {
 export async function searchTokens(
   chainIds: CaipChainId[],
   query: string,
-  { limit = 10, includeMarketData = false }: SearchTokenOptions = {},
-): Promise<{ count: number; data: TokenSearchItem[] }> {
-  const tokenSearchURL = getTokenSearchURL({
+  { limit = 10, includeMarketData = false } = {},
+): Promise<{ count: number; data: unknown[] }> {
+  const tokenSearchURL = getTokenSearchURL(
     chainIds,
     query,
     limit,
     includeMarketData,
-  });
+  );
 
   try {
     const result: { count: number; data: TokenSearchItem[] } =
@@ -346,7 +269,6 @@ export async function getTrendingTokens({
   minMarketCap,
   maxMarketCap,
   excludeLabels,
-  includeRwaData,
 }: {
   chainIds: CaipChainId[];
   sortBy?: SortTrendingBy;
@@ -372,7 +294,6 @@ export async function getTrendingTokens({
     minMarketCap,
     maxMarketCap,
     excludeLabels,
-    includeRwaData,
   });
 
   try {
@@ -380,27 +301,7 @@ export async function getTrendingTokens({
 
     // Validate that the API returned an array
     if (Array.isArray(result)) {
-      // TODO hack the results to include RwaData
-      const filteredResultWithRwaData = result.map((elm) => {
-        const metadata = {
-          rwaData: {
-            instrumentType: 'stock',
-            ticker: elm.name?.split(' ')[0] ?? '',
-            market: {
-              nextOpen: new Date(new Date().setHours(9, 0, 0, 0)).toISOString(),
-              nextClose: new Date(
-                new Date().setHours(16, 0, 0, 0),
-              ).toISOString(),
-            },
-            nextPause: {
-              start: new Date(new Date().setHours(16, 0, 0, 0)).toISOString(),
-              end: new Date(new Date().setHours(17, 0, 0, 0)).toISOString(),
-            },
-          },
-        };
-        return { ...elm, ...metadata };
-      });
-      return filteredResultWithRwaData;
+      return result;
     }
 
     // Handle non-expected responses
@@ -435,32 +336,6 @@ export async function fetchTokenMetadata<TReturn>(
   const tokenMetadataURL = getTokenMetadataURL(chainId, tokenAddress);
   const response = await queryApi(tokenMetadataURL, abortSignal, timeout);
   if (response) {
-    const result = await parseJsonResponse(response);
-    if (Array.isArray(result)) {
-      const filteredResultWithRwaData = result.map((elm) => {
-        const metadata = {
-          rwaData: {
-            instrumentType: 'stock',
-            ticker: elm.name?.split(' ')[0] ?? '',
-            market: {
-              nextOpen: new Date(new Date().setHours(9, 0, 0, 0)).toISOString(),
-              nextClose: new Date(
-                new Date().setHours(16, 0, 0, 0),
-              ).toISOString(),
-            },
-            nextPause: {
-              start: new Date(new Date().setHours(16, 0, 0, 0)).toISOString(),
-              end: new Date(new Date().setHours(17, 0, 0, 0)).toISOString(),
-            },
-          },
-        };
-        if (elm.aggregators.includes('Ondo')) {
-          return { ...elm, ...metadata };
-        }
-        return elm;
-      });
-      return filteredResultWithRwaData as unknown as TReturn;
-    }
     return parseJsonResponse(response) as Promise<TReturn>;
   }
   return undefined;
@@ -486,10 +361,12 @@ async function queryApi(
     mode: 'cors',
     signal: abortSignal,
     cache: 'default',
-    headers: {
-      'Content-Type': 'application/json',
-    },
   };
+  // Use globalThis.Headers if available, otherwise skip setting headers (Node.js has no fetch headers by default)
+  if (typeof globalThis.Headers === 'function') {
+    fetchOptions.headers = new globalThis.Headers();
+    fetchOptions.headers.set('Content-Type', 'application/json');
+  }
   try {
     return await timeoutFetch(apiURL, fetchOptions, timeout);
   } catch (error) {
