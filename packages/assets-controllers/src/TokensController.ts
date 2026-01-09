@@ -373,7 +373,7 @@ export class TokensController extends BaseController<
     chainId: Hex,
   ): Promise<TokenListToken | undefined> {
     try {
-      const token = await fetchTokenMetadata<TokenListToken>(
+      const token = await fetchTokenMetadata(
         chainId,
         tokenAddress,
         this.#abortController.signal,

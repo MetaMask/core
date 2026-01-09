@@ -1,8 +1,14 @@
 import { toHex } from '@metamask/controller-utils';
 import type { CaipChainId } from '@metamask/utils';
+import { clone } from 'lodash';
 import nock from 'nock';
 
-import type { SortTrendingBy } from './token-service';
+import {
+  MOCK_ETHEREUM_TOKENS_METADATA,
+  MOCK_LINEA_TOKENS_METADATA,
+  MOCK_SINGLE_TOKEN_METADATA,
+} from './__fixtures__/tokens-api-mocks';
+import type { EVMTokenMetadata, SortTrendingBy } from './token-service';
 import {
   fetchTokenListByChainId,
   fetchTokenMetadata,
@@ -10,233 +16,11 @@ import {
   searchTokens,
   TOKEN_END_POINT_API,
   TOKEN_METADATA_NO_SUPPORT_ERROR,
+  TOKENS_END_POINT_API,
 } from './token-service';
 
 const ONE_MILLISECOND = 1;
 const ONE_SECOND_IN_MILLISECONDS = 1_000;
-
-const sampleTokenList = [
-  {
-    address: '0xbbbbca6a901c926f240b89eacb641d8aec7aeafd',
-    symbol: 'LRC',
-    decimals: 18,
-    occurrences: 11,
-    aggregators: [
-      'paraswap',
-      'pmm',
-      'airswapLight',
-      'zeroEx',
-      'bancor',
-      'coinGecko',
-      'zapper',
-      'kleros',
-      'zerion',
-      'cmc',
-      'oneInch',
-    ],
-  },
-  {
-    address: '0xc011a73ee8576fb46f5e1c5751ca3b9fe0af2a6f',
-    symbol: 'SNX',
-    decimals: 18,
-    occurrences: 11,
-    aggregators: [
-      'paraswap',
-      'pmm',
-      'airswapLight',
-      'zeroEx',
-      'bancor',
-      'coinGecko',
-      'zapper',
-      'kleros',
-      'zerion',
-      'cmc',
-      'oneInch',
-    ],
-    name: 'Synthetix',
-  },
-  {
-    address: '0x408e41876cccdc0f92210600ef50372656052a38',
-    symbol: 'REN',
-    decimals: 18,
-    occurrences: 11,
-    aggregators: [
-      'paraswap',
-      'pmm',
-      'airswapLight',
-      'zeroEx',
-      'bancor',
-      'coinGecko',
-      'zapper',
-      'kleros',
-      'zerion',
-      'cmc',
-      'oneInch',
-    ],
-  },
-  {
-    address: '0x514910771af9ca656af840dff83e8264ecf986ca',
-    symbol: 'LINK',
-    decimals: 18,
-    occurrences: 11,
-    aggregators: [
-      'paraswap',
-      'pmm',
-      'airswapLight',
-      'zeroEx',
-      'bancor',
-      'coinGecko',
-      'zapper',
-      'kleros',
-      'zerion',
-      'cmc',
-      'oneInch',
-    ],
-    name: 'Chainlink',
-  },
-  {
-    address: '0x1f573d6fb3f13d689ff844b4ce37794d79a7ff1c',
-    symbol: 'BNT',
-    decimals: 18,
-    occurrences: 11,
-    aggregators: [
-      'paraswap',
-      'pmm',
-      'airswapLight',
-      'zeroEx',
-      'bancor',
-      'coinGecko',
-      'zapper',
-      'kleros',
-      'zerion',
-      'cmc',
-      'oneInch',
-    ],
-    name: 'Bancor',
-  },
-];
-
-const sampleTokenListLinea = [
-  {
-    address: '0xbbbbca6a901c926f240b89eacb641d8aec7aeafd',
-    symbol: 'LRC',
-    decimals: 18,
-    occurrences: 11,
-    aggregators: [
-      'lineaTeam',
-      'pmm',
-      'airswapLight',
-      'zeroEx',
-      'bancor',
-      'coinGecko',
-      'zapper',
-      'kleros',
-      'zerion',
-      'cmc',
-      'oneInch',
-    ],
-  },
-  {
-    address: '0xc011a73ee8576fb46f5e1c5751ca3b9fe0af2a6f',
-    symbol: 'SNX',
-    decimals: 18,
-    occurrences: 11,
-    aggregators: [
-      'lineaTeam',
-      'pmm',
-      'airswapLight',
-      'zeroEx',
-      'bancor',
-      'coinGecko',
-      'zapper',
-      'kleros',
-      'zerion',
-      'cmc',
-      'oneInch',
-    ],
-    name: 'Synthetix',
-  },
-  {
-    address: '0x408e41876cccdc0f92210600ef50372656052a38',
-    symbol: 'REN',
-    decimals: 18,
-    occurrences: 11,
-    aggregators: [
-      'lineaTeam',
-      'pmm',
-      'airswapLight',
-      'zeroEx',
-      'bancor',
-      'coinGecko',
-      'zapper',
-      'kleros',
-      'zerion',
-      'cmc',
-      'oneInch',
-    ],
-  },
-  {
-    address: '0x514910771af9ca656af840dff83e8264ecf986ca',
-    symbol: 'LINK',
-    decimals: 18,
-    occurrences: 11,
-    aggregators: [
-      'lineaTeam',
-      'pmm',
-      'airswapLight',
-      'zeroEx',
-      'bancor',
-      'coinGecko',
-      'zapper',
-      'kleros',
-      'zerion',
-      'cmc',
-      'oneInch',
-    ],
-    name: 'Chainlink',
-  },
-  {
-    address: '0x1f573d6fb3f13d689ff844b4ce37794d79a7ff1c',
-    symbol: 'BNT',
-    decimals: 18,
-    occurrences: 11,
-    aggregators: [
-      'paraswap',
-      'pmm',
-      'airswapLight',
-      'zeroEx',
-      'bancor',
-      'coinGecko',
-      'zapper',
-      'kleros',
-      'zerion',
-      'cmc',
-      'oneInch',
-    ],
-    name: 'Bancor',
-  },
-];
-
-const sampleToken = {
-  address: '0x514910771af9ca656af840dff83e8264ecf986ca',
-  symbol: 'LINK',
-  decimals: 18,
-  occurrences: 11,
-  aggregators: [
-    'paraswap',
-    'pmm',
-    'airswapLight',
-    'zeroEx',
-    'bancor',
-    'coinGecko',
-    'zapper',
-    'kleros',
-    'zerion',
-    'cmc',
-    'oneInch',
-  ],
-  name: 'Chainlink',
-};
 
 const sampleSearchResults = [
   {
@@ -289,47 +73,74 @@ const polygonCaipChainId: CaipChainId = 'eip155:137';
 
 describe('Token service', () => {
   describe('fetchTokenListByChainId', () => {
+    const createNockEndpoint = (
+      chainId: number,
+      opts?: {
+        nockIntercept?: (
+          intercept: nock.Interceptor,
+        ) => nock.Interceptor | nock.Scope;
+        queryParams?: Record<string, string>;
+        response?: unknown;
+      },
+    ): nock.Scope => {
+      const nockPartial = nock(TOKENS_END_POINT_API)
+        .get(`/tokens/${chainId}`)
+        .query({
+          occurrenceFloor: '3',
+          includeTokenFees: 'false',
+          includeAssetType: 'false',
+          includeERC20Permit: 'false',
+          includeStorage: 'false',
+          includeAggregators: 'true',
+          includeOccurrences: 'true',
+          includeIconUrl: 'true',
+          includeRwaData: 'true',
+          first: '3000',
+          ...opts?.queryParams,
+        });
+
+      const finalNock = opts?.nockIntercept?.(nockPartial) ?? nockPartial;
+
+      return 'isDone' in finalNock
+        ? finalNock
+        : finalNock
+            .reply(200, opts?.response ?? MOCK_ETHEREUM_TOKENS_METADATA)
+            .persist();
+    };
+
     it('should call the tokens api and return the list of tokens', async () => {
       const { signal } = new AbortController();
-      nock(TOKEN_END_POINT_API)
-        .get(
-          `/tokens/${sampleDecimalChainId}?occurrenceFloor=3&includeNativeAssets=false&includeTokenFees=false&includeAssetType=false&includeERC20Permit=false&includeStorage=false`,
-        )
-        .reply(200, sampleTokenList)
-        .persist();
+      const endpoint = createNockEndpoint(sampleDecimalChainId);
 
       const tokens = await fetchTokenListByChainId(sampleChainId, signal);
 
-      expect(tokens).toStrictEqual(sampleTokenList);
+      expect(endpoint.isDone()).toBe(true);
+      expect(tokens).toStrictEqual(MOCK_ETHEREUM_TOKENS_METADATA.data);
     });
 
     it('should call the tokens api and return the list of tokens on linea mainnet', async () => {
       const { signal } = new AbortController();
       const lineaChainId = 59144;
       const lineaHexChain = toHex(lineaChainId);
-
-      nock(TOKEN_END_POINT_API)
-        .get(
-          `/tokens/${lineaChainId}?occurrenceFloor=1&includeNativeAssets=false&includeTokenFees=false&includeAssetType=false&includeERC20Permit=false&includeStorage=false`,
-        )
-        .reply(200, sampleTokenListLinea)
-        .persist();
+      const endpoint = createNockEndpoint(lineaChainId, {
+        response: MOCK_LINEA_TOKENS_METADATA,
+        queryParams: {
+          occurrenceFloor: '1',
+        },
+      });
 
       const tokens = await fetchTokenListByChainId(lineaHexChain, signal);
 
-      expect(tokens).toStrictEqual(sampleTokenListLinea);
+      expect(endpoint.isDone()).toBe(true);
+      expect(tokens).toStrictEqual(MOCK_LINEA_TOKENS_METADATA.data);
     });
 
     it('should return undefined if the fetch is aborted', async () => {
       const abortController = new AbortController();
-      nock(TOKEN_END_POINT_API)
-        .get(
-          `/tokens/${sampleDecimalChainId}?occurrenceFloor=3&includeNativeAssets=false&includeTokenFees=false&includeAssetType=false&includeERC20Permit=false&includeStorage=false`,
-        )
-        // well beyond time it will take to abort
-        .delay(ONE_SECOND_IN_MILLISECONDS)
-        .reply(200, sampleTokenList)
-        .persist();
+      const endpoint = createNockEndpoint(sampleDecimalChainId, {
+        nockIntercept: (intercept) =>
+          intercept.delay(ONE_SECOND_IN_MILLISECONDS),
+      });
 
       const fetchPromise = fetchTokenListByChainId(
         sampleChainId,
@@ -337,65 +148,159 @@ describe('Token service', () => {
       );
       abortController.abort();
 
-      expect(await fetchPromise).toBeUndefined();
+      const result = await fetchPromise;
+      expect(result).toStrictEqual([]);
+      expect(endpoint.isDone()).toBe(false);
     });
 
     it('should return undefined if the fetch fails with a network error', async () => {
       const { signal } = new AbortController();
-      nock(TOKEN_END_POINT_API)
-        .get(
-          `/tokens/${sampleDecimalChainId}?occurrenceFloor=3&includeNativeAssets=false&includeTokenFees=false&includeAssetType=false&includeERC20Permit=false&includeStorage=false`,
-        )
-        .replyWithError('Example network error')
-        .persist();
+
+      const endpoint = createNockEndpoint(sampleDecimalChainId, {
+        nockIntercept: (intercept) =>
+          intercept.replyWithError('Example network error'),
+      });
 
       const result = await fetchTokenListByChainId(sampleChainId, signal);
 
-      expect(result).toBeUndefined();
+      expect(endpoint.isDone()).toBe(true);
+      expect(result).toStrictEqual([]);
     });
 
     it('should return undefined if the fetch fails with an unsuccessful status code', async () => {
       const { signal } = new AbortController();
-      nock(TOKEN_END_POINT_API)
-        .get(
-          `/tokens/${sampleDecimalChainId}?occurrenceFloor=3&includeNativeAssets=false&includeTokenFees=false&includeAssetType=false&includeERC20Permit=false&includeStorage=false`,
-        )
-        .reply(500)
-        .persist();
+      const endpoint = createNockEndpoint(sampleDecimalChainId, {
+        nockIntercept: (intercept) => intercept.reply(500),
+      });
 
       const result = await fetchTokenListByChainId(sampleChainId, signal);
 
-      expect(result).toBeUndefined();
+      expect(endpoint.isDone()).toBe(true);
+      expect(result).toStrictEqual([]);
     });
 
     it('should return undefined if the fetch fails with a timeout', async () => {
       const { signal } = new AbortController();
-      nock(TOKEN_END_POINT_API)
-        .get(
-          `/tokens/${sampleDecimalChainId}?occurrenceFloor=3&includeNativeAssets=false&includeTokenFees=false&includeAssetType=false&includeERC20Permit=false&includeStorage=false`,
-        )
-        // well beyond timeout
-        .delay(ONE_SECOND_IN_MILLISECONDS)
-        .reply(200, sampleTokenList)
-        .persist();
+      const endpoint = createNockEndpoint(sampleDecimalChainId, {
+        nockIntercept: (intercept) =>
+          intercept.delay(ONE_SECOND_IN_MILLISECONDS),
+      });
 
       const result = await fetchTokenListByChainId(sampleChainId, signal, {
         timeout: ONE_MILLISECOND,
       });
 
-      expect(result).toBeUndefined();
+      expect(endpoint.isDone()).toBe(true);
+      expect(result).toStrictEqual([]);
+    });
+
+    it('should paginate through tokens until reaches end', async () => {
+      const response1 = clone(MOCK_ETHEREUM_TOKENS_METADATA);
+      response1.pageInfo.hasNextPage = true;
+      response1.pageInfo.endCursor = 'Mjk5OQ==';
+      const endpoint1 = createNockEndpoint(sampleDecimalChainId, {
+        response: response1,
+      });
+
+      const response2 = clone(MOCK_ETHEREUM_TOKENS_METADATA);
+      response2.pageInfo.hasNextPage = false;
+      response2.pageInfo.endCursor = '';
+      const endpoint2 = createNockEndpoint(sampleDecimalChainId, {
+        queryParams: {
+          after: 'Mjk5OQ==',
+        },
+        response: response2,
+      });
+
+      const { signal } = new AbortController();
+      const result = await fetchTokenListByChainId(sampleChainId, signal);
+
+      expect(endpoint1.isDone()).toBe(true);
+      expect(endpoint2.isDone()).toBe(true);
+      expect(result).toHaveLength(
+        response1.data.length + response2.data.length,
+      );
+    });
+
+    it('should force stop pagination after 10 pages', async () => {
+      // 20 pages
+      const nockEndpoints = Array.from({ length: 20 }, (_, index) => {
+        const mockResponse = clone(MOCK_ETHEREUM_TOKENS_METADATA);
+        mockResponse.pageInfo.hasNextPage = true;
+        mockResponse.pageInfo.endCursor = `Mjk5OQ==${index}`;
+        return createNockEndpoint(sampleDecimalChainId, {
+          queryParams:
+            index === 0
+              ? undefined
+              : {
+                  after: `Mjk5OQ==${index - 1}`,
+                },
+          response: clone(MOCK_ETHEREUM_TOKENS_METADATA),
+        });
+      });
+
+      const { signal } = new AbortController();
+      const result = await fetchTokenListByChainId(sampleChainId, signal);
+
+      // Assert first and last endpoint calls
+      expect(nockEndpoints[0].isDone()).toBe(true); // page 1 is called
+      expect(nockEndpoints[9].isDone()).toBe(true); // page 10 is called
+      expect(nockEndpoints[10].isDone()).toBe(false); // page 11 is never called
+      expect(nockEndpoints[19].isDone()).toBe(false); // page 20 is never called
+
+      // Assert all endpoints calls
+      nockEndpoints.forEach((endpoint, index) => {
+        // 10 pages, so index 0 to 9 are done, 10 is never called
+        const isDone = index < 10;
+        expect(endpoint.isDone()).toBe(isDone);
+      });
+
+      // Assert result length (first 10 pages)
+      expect(result).toHaveLength(
+        10 * MOCK_ETHEREUM_TOKENS_METADATA.data.length,
+      );
     });
   });
 
   describe('fetchTokenMetadata', () => {
+    const createNockEndpoint = (
+      chainId: number,
+      tokenAddress: string,
+      opts?: {
+        nockIntercept?: (
+          intercept: nock.Interceptor,
+        ) => nock.Interceptor | nock.Scope;
+        queryParams?: Record<string, string>;
+        response?: unknown;
+      },
+    ): nock.Scope => {
+      const nockPartial = nock(TOKENS_END_POINT_API)
+        .get(`/v3/assets`)
+        .query({
+          assetIds: `eip155:${chainId}/erc20:${tokenAddress}`,
+          includeAggregators: 'true',
+          includeOccurrences: 'true',
+          includeIconUrl: 'true',
+          includeMetadata: 'true',
+          includeRwaData: 'true',
+          ...opts?.queryParams,
+        });
+
+      const finalNock = opts?.nockIntercept?.(nockPartial) ?? nockPartial;
+
+      return 'isDone' in finalNock
+        ? finalNock
+        : finalNock
+            .reply(200, opts?.response ?? MOCK_SINGLE_TOKEN_METADATA)
+            .persist();
+    };
+
     it('should call the api to return the token metadata for eth address provided', async () => {
       const { signal } = new AbortController();
-      nock(TOKEN_END_POINT_API)
-        .get(
-          `/token/${sampleDecimalChainId}?address=0x514910771af9ca656af840dff83e8264ecf986ca`,
-        )
-        .reply(200, sampleToken)
-        .persist();
+      const endpoint = createNockEndpoint(
+        sampleDecimalChainId,
+        '0x514910771af9ca656af840dff83e8264ecf986ca',
+      );
 
       const token = await fetchTokenMetadata(
         sampleChainId,
@@ -403,17 +308,42 @@ describe('Token service', () => {
         signal,
       );
 
-      expect(token).toStrictEqual(sampleToken);
+      const expectedOutput: EVMTokenMetadata = {
+        address: '0x514910771af9ca656af840dff83e8264ecf986ca',
+        name: 'Tesla (Ondo Tokenized)',
+        symbol: 'TSLAON',
+        decimals: 18,
+        aggregators: ['coinGecko', 'liFi', 'rango', 'ondo'],
+        occurrences: 4,
+        iconUrl: expect.any(String),
+        rwaData: {
+          market: {
+            nextOpen: expect.any(String),
+            nextClose: expect.any(String),
+          },
+          nextPause: {
+            start: expect.any(String),
+            end: expect.any(String),
+          },
+          ticker: 'TSLA',
+          instrumentType: 'stock',
+        },
+      };
+
+      expect(endpoint.isDone()).toBe(true);
+      expect(token).toStrictEqual(expectedOutput);
     });
 
     it('should return undefined if the fetch is aborted', async () => {
       const abortController = new AbortController();
-      nock(TOKEN_END_POINT_API)
-        .get(`/tokens/${sampleDecimalChainId}`)
-        // well beyond time it will take to abort
-        .delay(ONE_SECOND_IN_MILLISECONDS)
-        .reply(200, sampleTokenList)
-        .persist();
+      const endpoint = createNockEndpoint(
+        sampleDecimalChainId,
+        '0x514910771af9ca656af840dff83e8264ecf986ca',
+        {
+          nockIntercept: (intercept) =>
+            intercept.delay(ONE_SECOND_IN_MILLISECONDS),
+        },
+      );
 
       const fetchPromise = fetchTokenMetadata(
         sampleChainId,
@@ -423,14 +353,19 @@ describe('Token service', () => {
       abortController.abort();
 
       expect(await fetchPromise).toBeUndefined();
+      expect(endpoint.isDone()).toBe(false);
     });
 
     it('should return undefined if the fetch fails with a network error', async () => {
       const { signal } = new AbortController();
-      nock(TOKEN_END_POINT_API)
-        .get(`/tokens/${sampleDecimalChainId}`)
-        .replyWithError('Example network error')
-        .persist();
+      const endpoint = createNockEndpoint(
+        sampleDecimalChainId,
+        '0x514910771af9ca656af840dff83e8264ecf986ca',
+        {
+          nockIntercept: (intercept) =>
+            intercept.replyWithError('Example network error'),
+        },
+      );
 
       const tokenMetadata = await fetchTokenMetadata(
         sampleChainId,
@@ -438,15 +373,19 @@ describe('Token service', () => {
         signal,
       );
 
+      expect(endpoint.isDone()).toBe(true);
       expect(tokenMetadata).toBeUndefined();
     });
 
     it('should return undefined if the fetch fails with an unsuccessful status code', async () => {
       const { signal } = new AbortController();
-      nock(TOKEN_END_POINT_API)
-        .get(`/tokens/${sampleDecimalChainId}`)
-        .reply(500)
-        .persist();
+      const endpoint = createNockEndpoint(
+        sampleDecimalChainId,
+        '0x514910771af9ca656af840dff83e8264ecf986ca',
+        {
+          nockIntercept: (intercept) => intercept.reply(500),
+        },
+      );
 
       const tokenMetadata = await fetchTokenMetadata(
         sampleChainId,
@@ -454,17 +393,20 @@ describe('Token service', () => {
         signal,
       );
 
+      expect(endpoint.isDone()).toBe(true);
       expect(tokenMetadata).toBeUndefined();
     });
 
     it('should return undefined if the fetch fails with a timeout', async () => {
       const { signal } = new AbortController();
-      nock(TOKEN_END_POINT_API)
-        .get(`/tokens/${sampleDecimalChainId}`)
-        // well beyond timeout
-        .delay(ONE_SECOND_IN_MILLISECONDS)
-        .reply(200, sampleTokenList)
-        .persist();
+      const endpoint = createNockEndpoint(
+        sampleDecimalChainId,
+        '0x514910771af9ca656af840dff83e8264ecf986ca',
+        {
+          nockIntercept: (intercept) =>
+            intercept.delay(ONE_SECOND_IN_MILLISECONDS),
+        },
+      );
 
       const tokenMetadata = await fetchTokenMetadata(
         sampleChainId,
@@ -474,10 +416,16 @@ describe('Token service', () => {
       );
 
       expect(tokenMetadata).toBeUndefined();
+      expect(endpoint.isDone()).toBe(true); // called, but response is timed out
     });
 
     it('should throw error if fetching from non supported network', async () => {
       const { signal } = new AbortController();
+      const endpoint = createNockEndpoint(
+        5,
+        '0x514910771af9ca656af840dff83e8264ecf986ca',
+      );
+
       await expect(
         fetchTokenMetadata(
           toHex(5),
@@ -485,6 +433,7 @@ describe('Token service', () => {
           signal,
         ),
       ).rejects.toThrow(TOKEN_METADATA_NO_SUPPORT_ERROR);
+      expect(endpoint.isDone()).toBe(false); // endpoint is never called since we capture it as unsupported
     });
   });
 
