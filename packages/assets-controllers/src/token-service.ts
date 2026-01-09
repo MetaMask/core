@@ -81,7 +81,8 @@ function getTokenSearchURL(
  * @param options.maxVolume24hUsd - The maximum volume 24h in USD.
  * @param options.minMarketCap - The minimum market cap.
  * @param options.maxMarketCap - The maximum market cap.
- * @param options.excludeLabels - Array of labels to exclude (e.g., ['stable_coin', 'blue_chip']).- Optional flag to include RWA data in the results (defaults to false).
+ * @param options.excludeLabels - Array of labels to exclude (e.g., ['stable_coin', 'blue_chip']).
+ * @param options.includeRwaData - Optional flag to include RWA data in the results (defaults to false).
  * @returns The trending tokens URL.
  */
 function getTrendingTokensURL(options: {
@@ -93,6 +94,7 @@ function getTrendingTokensURL(options: {
   minMarketCap?: number;
   maxMarketCap?: number;
   excludeLabels?: string[];
+  includeRwaData?: boolean;
 }): string {
   const encodedChainIds = options.chainIds
     .map((id) => encodeURIComponent(id))
@@ -105,8 +107,6 @@ function getTrendingTokensURL(options: {
       queryParams.append(key, String(value));
     }
   });
-
-  queryParams.append('includeRwaData', 'true');
 
   // Handle excludeLabels separately to avoid encoding the commas
   // The API expects: excludeLabels=stable_coin,blue_chip (not %2C)
@@ -146,7 +146,8 @@ export async function fetchTokenListByChainId(
     if (Array.isArray(result) && chainId === ChainId['linea-mainnet']) {
       return result.filter(
         (elm) =>
-          elm.aggregators.includes('lineaTeam') ?? elm.aggregators.length >= 3,
+          // eslint-disable-next-line @typescript-eslint/prefer-nullish-coalescing
+          elm.aggregators.includes('lineaTeam') || elm.aggregators.length >= 3,
       );
     }
     return result;
@@ -269,6 +270,8 @@ export async function getTrendingTokens({
   minMarketCap,
   maxMarketCap,
   excludeLabels,
+  // default set to true so we don't need to pass it in the function call
+  includeRwaData = true,
 }: {
   chainIds: CaipChainId[];
   sortBy?: SortTrendingBy;
@@ -294,6 +297,7 @@ export async function getTrendingTokens({
     minMarketCap,
     maxMarketCap,
     excludeLabels,
+    includeRwaData,
   });
 
   try {

@@ -320,6 +320,53 @@ describe('Token service', () => {
       expect(tokens).toStrictEqual(sampleTokenListLinea);
     });
 
+    it('should correctly filter linea tokens: include if has lineaTeam OR >= 3 aggregators', async () => {
+      const { signal } = new AbortController();
+      const lineaChainId = 59144;
+      const lineaHexChain = toHex(lineaChainId);
+
+      const mixedTokens = [
+        {
+          // Should be included (has lineaTeam)
+          address: '0x1',
+          symbol: 'T1',
+          decimals: 18,
+          aggregators: ['lineaTeam', 'other'],
+        },
+        {
+          // Should be included (no lineaTeam, but 3 aggregators)
+          address: '0x2',
+          symbol: 'T2',
+          decimals: 18,
+          aggregators: ['a1', 'a2', 'a3'],
+        },
+        {
+          // Should be excluded (no lineaTeam, only 2 aggregators)
+          address: '0x3',
+          symbol: 'T3',
+          decimals: 18,
+          aggregators: ['a1', 'a2'],
+        },
+      ];
+
+      nock(TOKEN_END_POINT_API)
+        .get(
+          `/tokens/${lineaChainId}?occurrenceFloor=1&includeNativeAssets=false&includeTokenFees=false&includeAssetType=false&includeERC20Permit=false&includeStorage=false&includeRwaData=true`,
+        )
+        .reply(200, mixedTokens)
+        .persist();
+
+      const tokens = (await fetchTokenListByChainId(
+        lineaHexChain,
+        signal,
+      )) as any[];
+
+      expect(tokens).toHaveLength(2);
+      expect(tokens.find((t: any) => t.address === '0x1')).toBeDefined();
+      expect(tokens.find((t: any) => t.address === '0x2')).toBeDefined();
+      expect(tokens.find((t: any) => t.address === '0x3')).toBeUndefined();
+    });
+
     it('should return undefined if the fetch is aborted', async () => {
       const abortController = new AbortController();
       nock(TOKEN_END_POINT_API)
@@ -779,7 +826,7 @@ describe('Token service', () => {
     it('returns empty array if api returns non-array response', async () => {
       nock(TOKEN_END_POINT_API)
         .get(
-          `/v3/tokens/trending?chainIds=${encodeURIComponent(sampleCaipChainId)}&includeRwaData=true`,
+          `/v3/tokens/trending?chainIds=${encodeURIComponent(sampleCaipChainId)}`,
         )
         .reply(200, { error: 'Invalid response' })
         .persist();
@@ -791,7 +838,7 @@ describe('Token service', () => {
     it('returns empty array if the fetch fails', async () => {
       nock(TOKEN_END_POINT_API)
         .get(
-          `/v3/tokens/trending?chainIds=${encodeURIComponent(sampleCaipChainId)}&includeRwaData=true`,
+          `/v3/tokens/trending?chainIds=${encodeURIComponent(sampleCaipChainId)}`,
         )
         .reply(500)
         .persist();
@@ -847,7 +894,7 @@ describe('Token service', () => {
 
       nock(TOKEN_END_POINT_API)
         .get(
-          `/v3/tokens/trending?chainIds=${encodeURIComponent(testChainId)}&includeRwaData=true&excludeLabels=${testExcludeLabels.join(',')}`,
+          `/v3/tokens/trending?chainIds=${encodeURIComponent(testChainId)}&excludeLabels=${testExcludeLabels.join(',')}&includeRwaData=true`,
         )
         .reply(200, sampleTrendingTokens)
         .persist();
@@ -855,6 +902,23 @@ describe('Token service', () => {
       const result = await getTrendingTokens({
         chainIds: [testChainId],
         excludeLabels: testExcludeLabels,
+      });
+      expect(result).toStrictEqual(sampleTrendingTokens);
+    });
+
+    it('returns the list of trending tokens with includeRwaData', async () => {
+      const testChainId = 'eip155:1';
+
+      nock(TOKEN_END_POINT_API)
+        .get(
+          `/v3/tokens/trending?chainIds=${encodeURIComponent(testChainId)}&includeRwaData=true`,
+        )
+        .reply(200, sampleTrendingTokens)
+        .persist();
+
+      const result = await getTrendingTokens({
+        chainIds: [testChainId],
+        includeRwaData: true,
       });
       expect(result).toStrictEqual(sampleTrendingTokens);
     });
