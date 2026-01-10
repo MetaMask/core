@@ -7,6 +7,11 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+### Added
+
+- **BREAKING:** Extends the `GatorPermissionsController` to enable attaching metadata(transaction hash) when submitting a permission revocation. ([#7503](https://github.com/MetaMask/core/pull/7503))
+  - `submitRevocation` revocationParams object now requires a `revocationMetadata` property.
+
 ### Changed
 
 - Bump `@metamask/snaps-controllers` from `^14.0.1` to `^17.2.0` ([#7550](https://github.com/MetaMask/core/pull/7550))
