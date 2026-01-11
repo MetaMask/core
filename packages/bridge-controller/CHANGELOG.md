@@ -7,6 +7,10 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+### Changed
+
+- Bump `@metamask/assets-controllers` from `^95.0.0` to `^95.1.0` ([#7600](https://github.com/MetaMask/core/pull/7600))
+
 ## [64.4.0]
 
 ### Added
@@ -18,7 +22,7 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 - Bump `@metamask/transaction-controller` from `^62.7.0` to `^62.8.0` ([#7596](https://github.com/MetaMask/core/pull/7596))
 - Bump `@metamask/controller-utils` from `^11.17.0` to `^11.18.0` ([#7583](https://github.com/MetaMask/core/pull/7583))
 - Bump `@metamask/network-controller` from `^27.1.0` to `^27.2.0` ([#7583](https://github.com/MetaMask/core/pull/7583))
-- Bump `@metamask/assets-controllers` from `^94.0.0` to `^95.1.0` ([#7600](https://github.com/MetaMask/core/pull/7600))
+- Bump `@metamask/assets-controllers` from `^94.0.0` to `^95.0.0` ([#7584](https://github.com/MetaMask/core/pull/7584))
 
 ## [64.3.0]
 
