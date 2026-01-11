@@ -7,9 +7,14 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+## [27.2.0]
+
 ### Changed
 
 - Upgrade `@metamask/utils` from `^11.8.1` to `^11.9.0` ([#7511](https://github.com/MetaMask/core/pull/7511))
+- Remove dependency on `@metamask/error-reporting-service` ([#7542](https://github.com/MetaMask/core/pull/7542))
+  - The service no longer needs `ErrorReportingService:captureException`.
+- Bump `@metamask/controller-utils` from `^11.17.0` to `^11.18.0` ([#7583](https://github.com/MetaMask/core/pull/7583))
 
 ## [27.1.0]
 
@@ -1067,7 +1072,8 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
     All changes listed after this point were applied to this package following the monorepo conversion.
 
-[Unreleased]: https://github.com/MetaMask/core/compare/@metamask/network-controller@27.1.0...HEAD
+[Unreleased]: https://github.com/MetaMask/core/compare/@metamask/network-controller@27.2.0...HEAD
+[27.2.0]: https://github.com/MetaMask/core/compare/@metamask/network-controller@27.1.0...@metamask/network-controller@27.2.0
 [27.1.0]: https://github.com/MetaMask/core/compare/@metamask/network-controller@27.0.0...@metamask/network-controller@27.1.0
 [27.0.0]: https://github.com/MetaMask/core/compare/@metamask/network-controller@26.0.0...@metamask/network-controller@27.0.0
 [26.0.0]: https://github.com/MetaMask/core/compare/@metamask/network-controller@25.0.0...@metamask/network-controller@26.0.0

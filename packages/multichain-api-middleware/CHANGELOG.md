@@ -10,8 +10,14 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 ### Changed
 
 - Upgrade `@metamask/utils` from `^11.8.1` to `^11.9.0` ([#7511](https://github.com/MetaMask/core/pull/7511))
-- Bump `@metamask/network-controller` from `^27.0.0` to `^27.1.0` ([#7534](https://github.com/MetaMask/core/pull/7534))
-- Bump `@metamask/controller-utils` from `^11.16.0` to `^11.17.0` ([#7534](https://github.com/MetaMask/core/pull/7534))
+- Bump `@metamask/network-controller` from `^27.0.0` to `^27.2.0` ([#7534](https://github.com/MetaMask/core/pull/7534), [#7583](https://github.com/MetaMask/core/pull/7583))
+- Bump `@metamask/controller-utils` from `^11.16.0` to `^11.18.0` ([#7534](https://github.com/MetaMask/core/pull/7534), [#7583](https://github.com/MetaMask/core/pull/7583))
+- Bump `@metamask/permission-controller` from `^12.1.1` to `^12.2.0` ([#7559](https://github.com/MetaMask/core/pull/7559))
+- Bump `@metamask/chain-agnostic-permission` from `^1.3.0` to `^1.4.0` ([#7567](https://github.com/MetaMask/core/pull/7567))
+
+### Fixed
+
+- Fix `wallet_revokeSession` to handle cases where `params` is not provided ([#7551](https://github.com/MetaMask/core/pull/7551))
 
 ## [1.2.5]
 
