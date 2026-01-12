@@ -186,6 +186,10 @@ export class CurrencyRateController extends StaticIntervalPollingController<Curr
   ): Promise<CurrencyRateState['currencyRates']> {
     const { currentCurrency } = this.state;
 
+    // Step 1: Try the Price API exchange rates first
+    const ratesPriceApi: CurrencyRateState['currencyRates'] = {};
+    let failedCurrencies: Record<string, string> = {};
+
     try {
       const priceApiExchangeRatesResponse =
         await this.#tokenPricesService.fetchExchangeRates({
@@ -196,39 +200,51 @@ export class CurrencyRateController extends StaticIntervalPollingController<Curr
           ],
         });
 
-      const ratesPriceApi = Object.entries(nativeCurrenciesToFetch).reduce<
-        CurrencyRateState['currencyRates']
-      >((acc, [nativeCurrency, fetchedCurrency]) => {
-        const rate =
-          priceApiExchangeRatesResponse[fetchedCurrency.toLowerCase()];
+      // Process the response and identify which currencies succeeded vs failed
+      Object.entries(nativeCurrenciesToFetch).forEach(
+        ([nativeCurrency, fetchedCurrency]) => {
+          const rate =
+            priceApiExchangeRatesResponse[fetchedCurrency.toLowerCase()];
 
-        acc[nativeCurrency] = {
-          conversionDate: rate !== undefined ? Date.now() / 1000 : null,
-          conversionRate: rate?.value
-            ? boundedPrecisionNumber(1 / rate.value)
-            : null,
-          usdConversionRate: rate?.usd
-            ? boundedPrecisionNumber(1 / rate.usd)
-            : null,
-        };
-        return acc;
-      }, {});
-      return ratesPriceApi;
+          if (rate?.value) {
+            // Successfully got a rate
+            ratesPriceApi[nativeCurrency] = {
+              conversionDate: Date.now() / 1000,
+              conversionRate: boundedPrecisionNumber(1 / rate.value),
+              usdConversionRate: rate?.usd
+                ? boundedPrecisionNumber(1 / rate.usd)
+                : null,
+            };
+          } else {
+            // Failed to get a rate - mark for fallback
+            failedCurrencies[nativeCurrency] = fetchedCurrency;
+          }
+        },
+      );
     } catch (error) {
       console.error('Failed to fetch exchange rates.', error);
+      // All currencies failed - they all need fallback
+      failedCurrencies = { ...nativeCurrenciesToFetch };
     }
 
-    // fallback using spot price from token prices service
+    // Step 2: If all currencies succeeded, return early
+    if (Object.keys(failedCurrencies).length === 0) {
+      return ratesPriceApi;
+    }
+
+    // Step 3: Fallback using spot price from token prices service for failed currencies
+    let ratesFromFallback: CurrencyRateState['currencyRates'] = {};
+
     try {
-      // Step 1: Get all network configurations to find matching chainIds for native currencies
+      // Get all network configurations to find matching chainIds for native currencies
       const networkControllerState = this.messenger.call(
         'NetworkController:getState',
       );
       const networkConfigurations =
         networkControllerState.networkConfigurationsByChainId;
 
-      // Step 2: Build a map of nativeCurrency -> chainId(s)
-      const currencyToChainIds = Object.entries(nativeCurrenciesToFetch).reduce<
+      // Build a map of nativeCurrency -> chainId(s) for failed currencies only
+      const currencyToChainIds = Object.entries(failedCurrencies).reduce<
         Record<string, { fetchedCurrency: string; chainId: Hex }>
       >((acc, [nativeCurrency, fetchedCurrency]) => {
         // Find the first chainId that has this native currency
@@ -250,7 +266,7 @@ export class CurrencyRateController extends StaticIntervalPollingController<Curr
         return acc;
       }, {});
 
-      // Step 3: Fetch token prices for each chainId
+      // Fetch token prices for each chainId
       const currencyToChainIdsEntries = Object.entries(currencyToChainIds);
       const ratesResults = await Promise.allSettled(
         currencyToChainIdsEntries.map(async ([nativeCurrency, { chainId }]) => {
@@ -277,6 +293,7 @@ export class CurrencyRateController extends StaticIntervalPollingController<Curr
           };
         }),
       );
+
       const ratesFromTokenPrices = ratesResults.map((result, index) => {
         const [nativeCurrency, { chainId }] = currencyToChainIdsEntries[index];
         if (result.status === 'fulfilled') {
@@ -294,8 +311,8 @@ export class CurrencyRateController extends StaticIntervalPollingController<Curr
         };
       });
 
-      // Step 4: Convert to the expected format
-      const ratesFromTokenPricesService = ratesFromTokenPrices.reduce<
+      // Convert to the expected format
+      ratesFromFallback = ratesFromTokenPrices.reduce<
         CurrencyRateState['currencyRates']
       >((acc, rate) => {
         acc[rate.nativeCurrency] = {
@@ -309,25 +326,34 @@ export class CurrencyRateController extends StaticIntervalPollingController<Curr
         };
         return acc;
       }, {});
-
-      return ratesFromTokenPricesService;
     } catch (error) {
       console.error(
         'Failed to fetch exchange rates from token prices service.',
         error,
       );
-      // Return null state for all requested currencies
-      return Object.keys(nativeCurrenciesToFetch).reduce<
-        CurrencyRateState['currencyRates']
-      >((acc, nativeCurrency) => {
+    }
+
+    // Step 4: For any currencies that failed both approaches, set null state
+    const nullRatesForRemainingFailed = Object.keys(failedCurrencies).reduce<
+      CurrencyRateState['currencyRates']
+    >((acc, nativeCurrency) => {
+      // Only add null state if not already handled by fallback
+      if (!ratesFromFallback[nativeCurrency]) {
         acc[nativeCurrency] = {
           conversionDate: null,
           conversionRate: null,
           usdConversionRate: null,
         };
-        return acc;
-      }, {});
-    }
+      }
+      return acc;
+    }, {});
+
+    // Step 5: Merge all results - Price API rates + Fallback rates + Null rates for remaining failures
+    return {
+      ...nullRatesForRemainingFailed,
+      ...ratesFromFallback,
+      ...ratesPriceApi,
+    };
   }
 
   /**
