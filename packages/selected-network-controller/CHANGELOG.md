@@ -432,6 +432,7 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 [Unreleased]: https://github.com/MetaMask/core/compare/@metamask/selected-network-controller@26.0.1...HEAD
 [26.0.1]: https://github.com/MetaMask/core/compare/@metamask/selected-network-controller@26.0.0...@metamask/selected-network-controller@26.0.1
+[26.0.0]: https://github.com/MetaMask/core/compare/@metamask/selected-network-controller@25.0.0...@metamask/selected-network-controller@26.0.0
 [25.0.0]: https://github.com/MetaMask/core/compare/@metamask/selected-network-controller@24.0.2...@metamask/selected-network-controller@25.0.0
 [24.0.2]: https://github.com/MetaMask/core/compare/@metamask/selected-network-controller@24.0.1...@metamask/selected-network-controller@24.0.2
 [24.0.1]: https://github.com/MetaMask/core/compare/@metamask/selected-network-controller@24.0.0...@metamask/selected-network-controller@24.0.1
