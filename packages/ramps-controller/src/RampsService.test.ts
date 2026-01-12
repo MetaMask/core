@@ -584,7 +584,6 @@ describe('RampsService', () => {
       expect(countriesResponse[0]?.supported).toBe(false);
       expect(countriesResponse[0]?.states?.[0]?.supported).toBe(true);
     });
-
     it('throws if the countries API returns an error', async () => {
       nock('https://on-ramp-cache.uat-api.cx.metamask.io')
         .get('/regions/countries')
