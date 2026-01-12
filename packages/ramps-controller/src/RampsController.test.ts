@@ -880,7 +880,7 @@ describe('RampsController', () => {
         );
         rootMessenger.registerActionHandler(
           'RampsService:getTokens',
-          async (_region, _action) => mockTokens,
+          async (_region: string, _action?: 'buy' | 'sell') => mockTokens,
         );
 
         await controller.init();
@@ -927,7 +927,7 @@ describe('RampsController', () => {
         );
         rootMessenger.registerActionHandler(
           'RampsService:getTokens',
-          async () => {
+          async (_region: string, _action?: 'buy' | 'sell') => {
             throw new Error('Token fetch error');
           },
         );
@@ -1040,7 +1040,7 @@ describe('RampsController', () => {
         );
         rootMessenger.registerActionHandler(
           'RampsService:getTokens',
-          async () => mockTokens,
+          async (_region: string, _action?: 'buy' | 'sell') => mockTokens,
         );
 
         await controller.setUserRegion('US');
@@ -1074,7 +1074,7 @@ describe('RampsController', () => {
         );
         rootMessenger.registerActionHandler(
           'RampsService:getTokens',
-          async () => mockTokens,
+          async (_region: string, _action?: 'buy' | 'sell') => mockTokens,
         );
 
         await controller.setUserRegion('US');
@@ -1250,7 +1250,7 @@ describe('RampsController', () => {
         );
         rootMessenger.registerActionHandler(
           'RampsService:getTokens',
-          async () => mockTokens,
+          async (_region: string, _action?: 'buy' | 'sell') => mockTokens,
         );
 
         await controller.updateUserRegion();
@@ -1288,7 +1288,7 @@ describe('RampsController', () => {
         );
         rootMessenger.registerActionHandler(
           'RampsService:getTokens',
-          async () => mockTokens,
+          async (_region: string, _action?: 'buy' | 'sell') => mockTokens,
         );
 
         await controller.updateUserRegion();
@@ -1351,7 +1351,7 @@ describe('RampsController', () => {
       await withController(async ({ controller, rootMessenger }) => {
         rootMessenger.registerActionHandler(
           'RampsService:getTokens',
-          async () => mockTokens,
+          async (_region: string, _action?: 'buy' | 'sell') => mockTokens,
         );
 
         expect(controller.state.tokens).toBeNull();
@@ -1402,7 +1402,7 @@ describe('RampsController', () => {
         let callCount = 0;
         rootMessenger.registerActionHandler(
           'RampsService:getTokens',
-          async () => {
+          async (_region: string, _action?: 'buy' | 'sell') => {
             callCount += 1;
             return mockTokens;
           },
@@ -1420,7 +1420,7 @@ describe('RampsController', () => {
         let receivedAction: string | undefined;
         rootMessenger.registerActionHandler(
           'RampsService:getTokens',
-          async (_region, action) => {
+          async (_region: string, action?: 'buy' | 'sell') => {
             receivedAction = action;
             return mockTokens;
           },
@@ -1437,7 +1437,7 @@ describe('RampsController', () => {
         let receivedAction: string | undefined;
         rootMessenger.registerActionHandler(
           'RampsService:getTokens',
-          async (_region, action) => {
+          async (_region: string, action?: 'buy' | 'sell') => {
             receivedAction = action;
             return mockTokens;
           },
@@ -1454,7 +1454,7 @@ describe('RampsController', () => {
         let callCount = 0;
         rootMessenger.registerActionHandler(
           'RampsService:getTokens',
-          async (region) => {
+          async (region: string, _action?: 'buy' | 'sell') => {
             callCount += 1;
             expect(region).toBe('us');
             return mockTokens;
@@ -1473,7 +1473,7 @@ describe('RampsController', () => {
         let callCount = 0;
         rootMessenger.registerActionHandler(
           'RampsService:getTokens',
-          async () => {
+          async (_region: string, _action?: 'buy' | 'sell') => {
             callCount += 1;
             return mockTokens;
           },
@@ -1491,7 +1491,7 @@ describe('RampsController', () => {
         let callCount = 0;
         rootMessenger.registerActionHandler(
           'RampsService:getTokens',
-          async () => {
+          async (_region: string, _action?: 'buy' | 'sell') => {
             callCount += 1;
             return mockTokens;
           },
@@ -1511,7 +1511,7 @@ describe('RampsController', () => {
           let receivedRegion: string | undefined;
           rootMessenger.registerActionHandler(
             'RampsService:getTokens',
-            async (region) => {
+            async (region: string, _action?: 'buy' | 'sell') => {
               receivedRegion = region;
               return mockTokens;
             },
@@ -1539,7 +1539,7 @@ describe('RampsController', () => {
           let receivedRegion: string | undefined;
           rootMessenger.registerActionHandler(
             'RampsService:getTokens',
-            async (region) => {
+            async (region: string, _action?: 'buy' | 'sell') => {
               receivedRegion = region;
               return mockTokens;
             },
@@ -1558,7 +1558,7 @@ describe('RampsController', () => {
         async ({ controller, rootMessenger }) => {
           rootMessenger.registerActionHandler(
             'RampsService:getTokens',
-            async (region) => {
+            async (region: string, _action?: 'buy' | 'sell') => {
               expect(region).toBe('us');
               return mockTokens;
             },
@@ -1609,7 +1609,7 @@ describe('RampsController', () => {
         async ({ controller, rootMessenger }) => {
           rootMessenger.registerActionHandler(
             'RampsService:getTokens',
-            async (region) => {
+            async (region: string, _action?: 'buy' | 'sell') => {
               expect(region).toBe('fr');
               return mockTokens;
             },
