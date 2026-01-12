@@ -12,7 +12,7 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 - Bump `@metamask/snaps-sdk` from `^9.0.0` to `^10.3.0` ([#7550](https://github.com/MetaMask/core/pull/7550))
 - Bump `@metamask/snaps-utils` from `^11.0.0` to `^11.7.0` ([#7550](https://github.com/MetaMask/core/pull/7550))
 - Upgrade `@metamask/utils` from `^11.8.1` to `^11.9.0` ([#7511](https://github.com/MetaMask/core/pull/7511))
-- Move peer dependencies for controller and service packages to direct dependencies ([#7209](https://github.com/MetaMask/core/pull/7209), [#7437](https://github.com/MetaMask/core/pull/7437), [#7515](https://github.com/MetaMask/core/pull/7515), [#7594](https://github.com/MetaMask/core/pull/7594), [#7550](https://github.com/MetaMask/core/pull/7550), [#7605](https://github.com/MetaMask/core/pull/7605))
+- Move peer dependencies for controller and service packages to direct dependencies ([#7209](https://github.com/MetaMask/core/pull/7209), [#7437](https://github.com/MetaMask/core/pull/7437), [#7515](https://github.com/MetaMask/core/pull/7515), [#7594](https://github.com/MetaMask/core/pull/7594), [#7550](https://github.com/MetaMask/core/pull/7550), [#7604](https://github.com/MetaMask/core/pull/7604))
   - The dependencies moved are:
     - `@metamask/accounts-controller` (^35.0.1)
     - `@metamask/keyring-controller` (^25.0.0)

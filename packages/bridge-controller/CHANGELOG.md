@@ -17,7 +17,6 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 - Bump `@metamask/accounts-controller` from `^35.0.0` to `^35.0.1` ([#7604](https://github.com/MetaMask/core/pull/7604))
 - Bump `@metamask/gas-fee-controller` from `^26.0.0` to `^26.0.1` ([#7604](https://github.com/MetaMask/core/pull/7604))
 - Bump `@metamask/multichain-network-controller` from `^3.0.0` to `^3.0.1` ([#7604](https://github.com/MetaMask/core/pull/7604))
-- Bump `@metamask/transaction-controller` from `^62.9.0` to `^62.9.1` (
 
 ## [64.4.0]
 
