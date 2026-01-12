@@ -1,4 +1,4 @@
-# Data Services
+# Data services
 
 ## What is a data service?
 
@@ -480,4 +480,4 @@ class SendController extends BaseController {
 
 ## Learning more
 
-The [`sample-controllers`](../packages/sample-controllers) package has a full example of the data service pattern. including JSDoc for all types, classes, and methods. Check it out and feel free to copy and paste the code you see to your own project.
+The [`sample-controllers`](../../packages/sample-controllers) package has a full example of the data service pattern. including JSDoc for all types, classes, and methods. Check it out and feel free to copy and paste the code you see to your own project.
