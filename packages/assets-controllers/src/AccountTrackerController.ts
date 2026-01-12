@@ -372,6 +372,10 @@ export class AccountTrackerController extends StaticIntervalPollingController<Ac
 
     this.messenger.subscribe('KeyringController:unlock', () => {
       this.#isLocked = false;
+      const networkClientIds = this.#getNetworkClientIds();
+      this.refresh(networkClientIds).catch((error) => {
+        console.error('Error refreshing balances after keyring unlock:', error);
+      });
     });
 
     this.messenger.subscribe('KeyringController:lock', () => {

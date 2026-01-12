@@ -2748,6 +2748,112 @@ describe('TransactionController', () => {
       });
     });
 
+    describe('with isStateOnly', () => {
+      it('sets isStateOnly on transaction metadata', async () => {
+        const { controller } = setupController();
+
+        await controller.addTransaction(
+          {
+            from: ACCOUNT_MOCK,
+            to: ACCOUNT_MOCK,
+          },
+          {
+            isStateOnly: true,
+            networkClientId: NETWORK_CLIENT_ID_MOCK,
+          },
+        );
+
+        expect(controller.state.transactions[0].isStateOnly).toBe(true);
+      });
+
+      it('does not update simulation data', async () => {
+        getBalanceChangesMock.mockResolvedValueOnce({
+          simulationData: SIMULATION_DATA_RESULT_MOCK,
+        });
+
+        const { controller } = setupController();
+
+        await controller.addTransaction(
+          {
+            from: ACCOUNT_MOCK,
+            to: ACCOUNT_MOCK,
+          },
+          {
+            isStateOnly: true,
+            networkClientId: NETWORK_CLIENT_ID_MOCK,
+          },
+        );
+
+        await flushPromises();
+
+        expect(getBalanceChangesMock).toHaveBeenCalledTimes(0);
+        expect(controller.state.transactions[0].simulationData).toBeUndefined();
+      });
+
+      it('marks transaction as submitted', async () => {
+        const { controller } = setupController({
+          messengerOptions: {
+            addTransactionApprovalRequest: {
+              state: 'approved',
+            },
+          },
+        });
+
+        const { result } = await controller.addTransaction(
+          {
+            from: ACCOUNT_MOCK,
+            gas: '0x0',
+            gasPrice: '0x0',
+            to: ACCOUNT_MOCK,
+            value: '0x0',
+          },
+          {
+            isStateOnly: true,
+            networkClientId: NETWORK_CLIENT_ID_MOCK,
+          },
+        );
+
+        await result;
+
+        expect(signMock).not.toHaveBeenCalled();
+        expect(controller.state.transactions).toMatchObject([
+          expect.objectContaining({
+            isStateOnly: true,
+            status: TransactionStatus.submitted,
+            submittedTime: expect.any(Number),
+          }),
+        ]);
+      });
+
+      it('returns empty string as result hash', async () => {
+        const { controller } = setupController({
+          messengerOptions: {
+            addTransactionApprovalRequest: {
+              state: 'approved',
+            },
+          },
+        });
+
+        const { result } = await controller.addTransaction(
+          {
+            from: ACCOUNT_MOCK,
+            gas: '0x0',
+            gasPrice: '0x0',
+            to: ACCOUNT_MOCK,
+            value: '0x0',
+          },
+          {
+            isStateOnly: true,
+            networkClientId: NETWORK_CLIENT_ID_MOCK,
+          },
+        );
+
+        const hash = await result;
+
+        expect(hash).toBe('');
+      });
+    });
+
     describe('on approve', () => {
       it('submits transaction', async () => {
         const { controller, messenger } = setupController({

@@ -221,6 +221,8 @@ const chainIdToNativeTokenAddress: Record<Hex, Hex> = {
   '0x89': '0x0000000000000000000000000000000000001010', // Polygon
   '0x440': '0xdeaddeaddeaddeaddeaddeaddeaddeaddead0000', // Metis Andromeda
   '0x1388': '0xdeaddeaddeaddeaddeaddeaddeaddeaddead0000', // Mantle
+  '0x64': '0xe91d153e0b41518a2ce8dd3d7944fa863463a97d', // Gnosis
+  '0x10b3e': '0xf2b51cc1850fed939658317a22d73d3482767591', // MapleStory Universe (MSU aka Henesys)
 };
 
 /**
