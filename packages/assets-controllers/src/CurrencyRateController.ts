@@ -241,6 +241,8 @@ export class CurrencyRateController extends StaticIntervalPollingController<Curr
 
   /**
    * Fetches exchange rates from the token prices service as a fallback.
+   * This method is designed to never throw - all errors are handled internally
+   * and result in currencies being marked as failed.
    *
    * @param currenciesToFetch - Map of native currencies that need fallback fetching.
    * @param currentCurrency - The current fiat currency to get rates for.
@@ -250,83 +252,93 @@ export class CurrencyRateController extends StaticIntervalPollingController<Curr
     currenciesToFetch: Record<string, string>,
     currentCurrency: string,
   ): Promise<FetchRatesResult> {
-    const rates: CurrencyRateState['currencyRates'] = {};
-    const failedCurrencies: Record<string, string> = {};
+    try {
+      const rates: CurrencyRateState['currencyRates'] = {};
+      const failedCurrencies: Record<string, string> = {};
 
-    const networkControllerState = this.messenger.call(
-      'NetworkController:getState',
-    );
-    const networkConfigurations =
-      networkControllerState.networkConfigurationsByChainId;
-
-    // Build a map of nativeCurrency -> chainId for currencies to fetch
-    const currencyToChainIds = Object.entries(currenciesToFetch).reduce<
-      Record<string, { fetchedCurrency: string; chainId: Hex }>
-    >((acc, [nativeCurrency, fetchedCurrency]) => {
-      const matchingEntry = (
-        Object.entries(networkConfigurations) as [Hex, NetworkConfiguration][]
-      ).find(
-        ([, config]) =>
-          config.nativeCurrency.toUpperCase() === fetchedCurrency.toUpperCase(),
+      const networkControllerState = this.messenger.call(
+        'NetworkController:getState',
       );
+      const networkConfigurations =
+        networkControllerState.networkConfigurationsByChainId;
 
-      if (matchingEntry) {
-        acc[nativeCurrency] = { fetchedCurrency, chainId: matchingEntry[0] };
-      } else {
-        // No matching network configuration - mark as failed
-        failedCurrencies[nativeCurrency] = fetchedCurrency;
-      }
-      return acc;
-    }, {});
-
-    const currencyToChainIdsEntries = Object.entries(currencyToChainIds);
-    const ratesResults = await Promise.allSettled(
-      currencyToChainIdsEntries.map(async ([nativeCurrency, { chainId }]) => {
-        const nativeTokenAddress = getNativeTokenAddress(chainId);
-        const tokenPrices = await this.#tokenPricesService.fetchTokenPrices({
-          assets: [{ chainId, tokenAddress: nativeTokenAddress }],
-          currency: currentCurrency,
-        });
-
-        const tokenPrice = tokenPrices.find(
-          (item) =>
-            item.tokenAddress.toLowerCase() ===
-            nativeTokenAddress.toLowerCase(),
+      // Build a map of nativeCurrency -> chainId for currencies to fetch
+      const currencyToChainIds = Object.entries(currenciesToFetch).reduce<
+        Record<string, { fetchedCurrency: string; chainId: Hex }>
+      >((acc, [nativeCurrency, fetchedCurrency]) => {
+        const matchingEntry = (
+          Object.entries(networkConfigurations) as [Hex, NetworkConfiguration][]
+        ).find(
+          ([, config]) =>
+            config.nativeCurrency.toUpperCase() ===
+            fetchedCurrency.toUpperCase(),
         );
 
-        return {
-          nativeCurrency,
-          conversionDate: tokenPrice ? Date.now() / 1000 : null,
-          conversionRate: tokenPrice?.price
-            ? boundedPrecisionNumber(tokenPrice.price)
-            : null,
-          usdConversionRate: null,
-        };
-      }),
-    );
-
-    ratesResults.forEach((result, index) => {
-      const [nativeCurrency, { fetchedCurrency, chainId }] =
-        currencyToChainIdsEntries[index];
-
-      if (result.status === 'fulfilled' && result.value.conversionRate) {
-        rates[nativeCurrency] = {
-          conversionDate: result.value.conversionDate,
-          conversionRate: result.value.conversionRate,
-          usdConversionRate: result.value.usdConversionRate,
-        };
-      } else {
-        if (result.status === 'rejected') {
-          console.error(
-            `Failed to fetch token price for ${nativeCurrency} on chain ${chainId}`,
-            result.reason,
-          );
+        if (matchingEntry) {
+          acc[nativeCurrency] = { fetchedCurrency, chainId: matchingEntry[0] };
+        } else {
+          // No matching network configuration - mark as failed
+          failedCurrencies[nativeCurrency] = fetchedCurrency;
         }
-        failedCurrencies[nativeCurrency] = fetchedCurrency;
-      }
-    });
+        return acc;
+      }, {});
 
-    return { rates, failedCurrencies };
+      const currencyToChainIdsEntries = Object.entries(currencyToChainIds);
+      const ratesResults = await Promise.allSettled(
+        currencyToChainIdsEntries.map(async ([nativeCurrency, { chainId }]) => {
+          const nativeTokenAddress = getNativeTokenAddress(chainId);
+          const tokenPrices = await this.#tokenPricesService.fetchTokenPrices({
+            assets: [{ chainId, tokenAddress: nativeTokenAddress }],
+            currency: currentCurrency,
+          });
+
+          const tokenPrice = tokenPrices.find(
+            (item) =>
+              item.tokenAddress.toLowerCase() ===
+              nativeTokenAddress.toLowerCase(),
+          );
+
+          return {
+            nativeCurrency,
+            conversionDate: tokenPrice ? Date.now() / 1000 : null,
+            conversionRate: tokenPrice?.price
+              ? boundedPrecisionNumber(tokenPrice.price)
+              : null,
+            usdConversionRate: null,
+          };
+        }),
+      );
+
+      ratesResults.forEach((result, index) => {
+        const [nativeCurrency, { fetchedCurrency, chainId }] =
+          currencyToChainIdsEntries[index];
+
+        if (result.status === 'fulfilled' && result.value.conversionRate) {
+          rates[nativeCurrency] = {
+            conversionDate: result.value.conversionDate,
+            conversionRate: result.value.conversionRate,
+            usdConversionRate: result.value.usdConversionRate,
+          };
+        } else {
+          if (result.status === 'rejected') {
+            console.error(
+              `Failed to fetch token price for ${nativeCurrency} on chain ${chainId}`,
+              result.reason,
+            );
+          }
+          failedCurrencies[nativeCurrency] = fetchedCurrency;
+        }
+      });
+
+      return { rates, failedCurrencies };
+    } catch (error) {
+      console.error(
+        'Failed to fetch exchange rates from token prices service.',
+        error,
+      );
+      // Return all currencies as failed
+      return { rates: {}, failedCurrencies: { ...currenciesToFetch } };
+    }
   }
 
   /**
@@ -378,24 +390,13 @@ export class CurrencyRateController extends StaticIntervalPollingController<Curr
     }
 
     // Step 3: Fallback using token prices service for failed currencies
-    let ratesFromFallback: CurrencyRateState['currencyRates'] = {};
-    let failedCurrenciesFromFallback: Record<string, string> = {
-      ...failedCurrenciesFromPriceApi,
-    };
-
-    try {
-      const fallbackResult = await this.#fetchRatesFromTokenPricesService(
-        failedCurrenciesFromPriceApi,
-        currentCurrency,
-      );
-      ratesFromFallback = fallbackResult.rates;
-      failedCurrenciesFromFallback = fallbackResult.failedCurrencies;
-    } catch (error) {
-      console.error(
-        'Failed to fetch exchange rates from token prices service.',
-        error,
-      );
-    }
+    const {
+      rates: ratesFromFallback,
+      failedCurrencies: failedCurrenciesFromFallback,
+    } = await this.#fetchRatesFromTokenPricesService(
+      failedCurrenciesFromPriceApi,
+      currentCurrency,
+    );
 
     // Step 4: Create null rates for currencies that failed both approaches
     const nullRates = this.#createNullRatesForCurrencies(
