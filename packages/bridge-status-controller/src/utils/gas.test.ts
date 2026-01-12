@@ -1,3 +1,4 @@
+import { BRIDGE_PREFERRED_GAS_ESTIMATE } from '@metamask/bridge-controller';
 import type { GasFeeState } from '@metamask/gas-fee-controller';
 import type { FeeMarketGasFeeEstimates } from '@metamask/transaction-controller';
 import { GasFeeEstimateLevel } from '@metamask/transaction-controller';
@@ -45,8 +46,7 @@ describe('gas calculation utils', () => {
       });
     });
 
-    it('should handle missing high property in txGasFeeEstimates', () => {
-      // Call the function
+    it('should handle missing property in txGasFeeEstimates', () => {
       const result = getTxGasEstimates({
         txGasFeeEstimates: {} as never,
         networkGasFeeEstimates: {
@@ -54,12 +54,40 @@ describe('gas calculation utils', () => {
         } as GasFeeState['gasFeeEstimates'],
       });
 
-      // Verify the result
       expect(result).toStrictEqual({
         baseAndPriorityFeePerGas: undefined,
         maxFeePerGas: undefined,
         maxPriorityFeePerGas: undefined,
       });
+    });
+
+    it('should use Bridge preferred gas estimate as gas estimates', () => {
+      const estimates = {
+        type: 'fee-market',
+        [GasFeeEstimateLevel.Low]: {
+          maxFeePerGas: '0xLOW',
+          maxPriorityFeePerGas: '0xLOW_PRIORITY',
+        },
+        [GasFeeEstimateLevel.Medium]: {
+          maxFeePerGas: '0xMEDIUM',
+          maxPriorityFeePerGas: '0xMEDIUM_PRIORITY',
+        },
+        [GasFeeEstimateLevel.High]: {
+          maxFeePerGas: '0xHIGH',
+          maxPriorityFeePerGas: '0xHIGH_PRIORITY',
+        },
+      } as FeeMarketGasFeeEstimates;
+      const result = getTxGasEstimates({
+        txGasFeeEstimates: estimates,
+        networkGasFeeEstimates: mockNetworkGasFeeEstimates,
+      });
+
+      expect(result.maxFeePerGas).toBe(
+        estimates[BRIDGE_PREFERRED_GAS_ESTIMATE]?.maxFeePerGas,
+      );
+      expect(result.maxPriorityFeePerGas).toBe(
+        estimates[BRIDGE_PREFERRED_GAS_ESTIMATE]?.maxPriorityFeePerGas,
+      );
     });
 
     it('should use default estimatedBaseFee when not provided in networkGasFeeEstimates', () => {
@@ -143,7 +171,7 @@ describe('gas calculation utils', () => {
         });
         const mockEstimateGasFeeFn = jest.fn().mockResolvedValueOnce({
           estimates: {
-            [GasFeeEstimateLevel.High]: {
+            [GasFeeEstimateLevel.Medium]: {
               maxFeePerGas: '0x1234567890',
               maxPriorityFeePerGas: '0x1234567890',
             },
