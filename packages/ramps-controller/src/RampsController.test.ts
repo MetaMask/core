@@ -1551,6 +1551,79 @@ describe('RampsController', () => {
         },
       );
     });
+
+    it('updates tokens when userRegion matches the requested region', async () => {
+      await withController(
+        { options: { state: { userRegion: 'us' } } },
+        async ({ controller, rootMessenger }) => {
+          rootMessenger.registerActionHandler(
+            'RampsService:getTokens',
+            async (region) => {
+              expect(region).toBe('us');
+              return mockTokens;
+            },
+          );
+
+          expect(controller.state.userRegion).toBe('us');
+          expect(controller.state.tokens).toBeNull();
+
+          await controller.getTokens('US');
+
+          expect(controller.state.tokens).toStrictEqual(mockTokens);
+        },
+      );
+    });
+
+    it('does not update tokens when userRegion does not match the requested region', async () => {
+      const existingTokens: TokensResponse = {
+        topTokens: [
+          {
+            assetId: 'eip155:1/erc20:0xExisting',
+            chainId: 'eip155:1',
+            name: 'Existing Token',
+            symbol: 'EXIST',
+            decimals: 18,
+            iconUrl: 'https://example.com/exist.png',
+            tokenSupported: true,
+          },
+        ],
+        allTokens: [
+          {
+            assetId: 'eip155:1/erc20:0xExisting',
+            chainId: 'eip155:1',
+            name: 'Existing Token',
+            symbol: 'EXIST',
+            decimals: 18,
+            iconUrl: 'https://example.com/exist.png',
+            tokenSupported: true,
+          },
+        ],
+      };
+
+      await withController(
+        {
+          options: {
+            state: { userRegion: 'us', tokens: existingTokens },
+          },
+        },
+        async ({ controller, rootMessenger }) => {
+          rootMessenger.registerActionHandler(
+            'RampsService:getTokens',
+            async (region) => {
+              expect(region).toBe('fr');
+              return mockTokens;
+            },
+          );
+
+          expect(controller.state.userRegion).toBe('us');
+          expect(controller.state.tokens).toStrictEqual(existingTokens);
+
+          await controller.getTokens('fr');
+
+          expect(controller.state.tokens).toStrictEqual(existingTokens);
+        },
+      );
+    });
   });
 });
 

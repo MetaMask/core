@@ -605,7 +605,11 @@ export class RampsController extends BaseController<
     );
 
     this.update((state) => {
-      state.tokens = tokens;
+      const userRegion = state.userRegion?.toLowerCase().trim();
+
+      if (userRegion === undefined || userRegion === normalizedRegion) {
+        state.tokens = tokens;
+      }
     });
 
     return tokens;
