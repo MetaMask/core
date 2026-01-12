@@ -10,6 +10,9 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 ### Changed
 
 - Bump `@metamask/transaction-controller` from `^62.8.0` to `^62.9.0` ([#7602](https://github.com/MetaMask/core/pull/7602))
+- Refactor `CurrencyRateController` exchange rate fetching with improved fallback logic ([#7606](https://github.com/MetaMask/core/pull/7606))
+  - Improved partial success handling: when some currencies succeed via the Price API and others fail, only failed currencies trigger the fallback mechanism
+  - Extracted helper methods for better code organization and testability
 
 ## [95.1.0]
 
