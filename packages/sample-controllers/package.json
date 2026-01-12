@@ -1,6 +1,6 @@
 {
   "name": "@metamask/sample-controllers",
-  "version": "4.0.0",
+  "version": "4.0.1",
   "description": "Sample package to illustrate best practices for controllers",
   "keywords": [
     "MetaMask",
