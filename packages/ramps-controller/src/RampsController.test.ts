@@ -1300,6 +1300,54 @@ describe('RampsController', () => {
         expect(callCount).toBe(2);
       });
     });
+
+    it('uses userRegion from state when region is not provided', async () => {
+      await withController(
+        { options: { state: { userRegion: 'fr' } } },
+        async ({ controller, rootMessenger }) => {
+          let receivedRegion: string | undefined;
+          rootMessenger.registerActionHandler(
+            'RampsService:getTokens',
+            async (region) => {
+              receivedRegion = region;
+              return mockTokens;
+            },
+          );
+
+          await controller.getTokens(undefined, 'buy');
+
+          expect(receivedRegion).toBe('fr');
+        },
+      );
+    });
+
+    it('throws error when region is not provided and userRegion is not set', async () => {
+      await withController(async ({ controller }) => {
+        await expect(controller.getTokens(undefined, 'buy')).rejects.toThrow(
+          'Region is required. Either provide a region parameter or ensure userRegion is set in controller state.',
+        );
+      });
+    });
+
+    it('prefers provided region over userRegion in state', async () => {
+      await withController(
+        { options: { state: { userRegion: 'fr' } } },
+        async ({ controller, rootMessenger }) => {
+          let receivedRegion: string | undefined;
+          rootMessenger.registerActionHandler(
+            'RampsService:getTokens',
+            async (region) => {
+              receivedRegion = region;
+              return mockTokens;
+            },
+          );
+
+          await controller.getTokens('us', 'buy');
+
+          expect(receivedRegion).toBe('us');
+        },
+      );
+    });
   });
 });
 

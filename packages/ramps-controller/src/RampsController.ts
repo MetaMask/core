@@ -556,17 +556,25 @@ export class RampsController extends BaseController<
    * Fetches the list of available tokens for a given region and action.
    * The tokens are saved in the controller state once fetched.
    *
-   * @param region - The region code (e.g., "us", "fr", "us-ny").
+   * @param region - The region code (e.g., "us", "fr", "us-ny"). If not provided, uses the user's region from controller state.
    * @param action - The ramp action type ('buy' or 'deposit').
    * @param options - Options for cache behavior.
    * @returns The tokens response containing topTokens and allTokens.
    */
   async getTokens(
-    region: string,
+    region?: string,
     action: 'buy' | 'deposit' = 'buy',
     options?: ExecuteRequestOptions,
   ): Promise<TokensResponse> {
-    const normalizedRegion = region.toLowerCase().trim();
+    const regionToUse = region ?? this.state.userRegion;
+
+    if (!regionToUse) {
+      throw new Error(
+        'Region is required. Either provide a region parameter or ensure userRegion is set in controller state.',
+      );
+    }
+
+    const normalizedRegion = regionToUse.toLowerCase().trim();
     const cacheKey = createCacheKey('getTokens', [normalizedRegion, action]);
 
     const tokens = await this.executeRequest(
