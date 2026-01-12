@@ -223,6 +223,8 @@ const chainIdToNativeTokenAddress: Record<Hex, Hex> = {
   '0x1388': '0xdeaddeaddeaddeaddeaddeaddeaddeaddead0000', // Mantle
   '0x64': '0xe91d153e0b41518a2ce8dd3d7944fa863463a97d', // Gnosis
   '0x10b3e': '0xf2b51cc1850fed939658317a22d73d3482767591', // MapleStory Universe (MSU aka Henesys)
+  '0x1e': '0x542fda317318ebf1d3deaf76e0b632741a7e677d', // Rootstock Mainnet - Native symbol: RBTC
+  '0x2611': '0xeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeee', // Plasma mainnet - native symbol: XPL
 };
 
 /**
@@ -242,7 +244,7 @@ export const SPOT_PRICES_SUPPORT_INFO = {
   '0x1': 'eip155:1/slip44:60', // Ethereum Mainnet - Native symbol: ETH
   '0xa': 'eip155:10/slip44:60', // OP Mainnet - Native symbol: ETH
   '0x19': 'eip155:25/slip44:394', // Cronos Mainnet - Native symbol: CRO
-  '0x1e': 'eip155:30/erc20:0x542fda317318ebf1d3deaf76e0b632741a7e677d', // Rootstock Mainnet - Native symbol: RBTC
+  '0x1e': 'eip155:30/slip44:137', // Rootstock Mainnet - Native symbol: RBTC
   '0x2a': 'eip155:42/erc20:0x0000000000000000000000000000000000000000', // Lukso - native symbol: LYX
   '0x32': 'eip155:50/erc20:0x0000000000000000000000000000000000000000', // xdc-network - native symbol: XDC
   '0x38': 'eip155:56/slip44:714', // BNB Smart Chain Mainnet - Native symbol: BNB
