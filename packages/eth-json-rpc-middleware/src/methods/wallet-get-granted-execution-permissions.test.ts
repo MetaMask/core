@@ -19,7 +19,8 @@ const RESULT_MOCK: GetGrantedExecutionPermissionsResult = [
         allowance: '0x1DCD65000000',
       },
     },
-    context: '0x016562aA41A8697720ce0943F003141f5dEAe0060000771577157715' as Hex,
+    context:
+      '0x016562aA41A8697720ce0943F003141f5dEAe0060000771577157715' as Hex,
     dependencies: [
       {
         factory: '0x1234567890123456789012345678901234567890' as Hex,
