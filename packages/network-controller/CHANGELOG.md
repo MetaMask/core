@@ -9,7 +9,13 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [28.0.0]
 
-## [27.2.0]
+### Changed
+
+- Corrects the previous 27.2.0 release to document breaking changes that were missed:
+  - **BREAKING:** Remove dependency on `@metamask/error-reporting-service` ([#7542](https://github.com/MetaMask/core/pull/7542))
+    - The service no longer needs `ErrorReportingService:captureException`.
+
+## [27.2.0] [DEPRECATED]
 
 ### Changed
 
