@@ -7,11 +7,12 @@ import { BaseController } from '@metamask/base-controller';
 import type { Messenger } from '@metamask/messenger';
 import type { Json } from '@metamask/utils';
 
-import type { Country, Eligibility } from './RampsService';
+import type { Country, Eligibility, TokensResponse } from './RampsService';
 import type {
   RampsServiceGetGeolocationAction,
   RampsServiceGetCountriesAction,
   RampsServiceGetEligibilityAction,
+  RampsServiceGetTokensAction,
 } from './RampsService-method-action-types';
 import type {
   RequestCache as RequestCacheType,
@@ -54,6 +55,11 @@ export type RampsControllerState = {
    */
   eligibility: Eligibility | null;
   /**
+   * Tokens fetched for the current region and action.
+   * Contains topTokens and allTokens arrays.
+   */
+  tokens: TokensResponse | null;
+  /**
    * Cache of request states, keyed by cache key.
    * This stores loading, success, and error states for API requests.
    */
@@ -71,6 +77,12 @@ const rampsControllerMetadata = {
     usedInUi: true,
   },
   eligibility: {
+    persist: true,
+    includeInDebugSnapshot: true,
+    includeInStateLogs: true,
+    usedInUi: true,
+  },
+  tokens: {
     persist: true,
     includeInDebugSnapshot: true,
     includeInStateLogs: true,
@@ -96,6 +108,7 @@ export function getDefaultRampsControllerState(): RampsControllerState {
   return {
     userRegion: null,
     eligibility: null,
+    tokens: null,
     requests: {},
   };
 }
@@ -121,7 +134,8 @@ export type RampsControllerActions = RampsControllerGetStateAction;
 type AllowedActions =
   | RampsServiceGetGeolocationAction
   | RampsServiceGetCountriesAction
-  | RampsServiceGetEligibilityAction;
+  | RampsServiceGetEligibilityAction
+  | RampsServiceGetTokensAction;
 
 /**
  * Published when the state of {@link RampsController} changes.
@@ -536,5 +550,41 @@ export class RampsController extends BaseController<
       },
       options,
     );
+  }
+
+  /**
+   * Fetches the list of available tokens for a given region and action.
+   * The tokens are saved in the controller state once fetched.
+   *
+   * @param region - The region code (e.g., "us", "fr", "us-ny").
+   * @param action - The ramp action type ('buy' or 'deposit').
+   * @param options - Options for cache behavior.
+   * @returns The tokens response containing topTokens and allTokens.
+   */
+  async getTokens(
+    region: string,
+    action: 'buy' | 'deposit' = 'buy',
+    options?: ExecuteRequestOptions,
+  ): Promise<TokensResponse> {
+    const normalizedRegion = region.toLowerCase().trim();
+    const cacheKey = createCacheKey('getTokens', [normalizedRegion, action]);
+
+    const tokens = await this.executeRequest(
+      cacheKey,
+      async () => {
+        return this.messenger.call(
+          'RampsService:getTokens',
+          normalizedRegion,
+          action,
+        );
+      },
+      options,
+    );
+
+    this.update((state) => {
+      state.tokens = tokens;
+    });
+
+    return tokens;
   }
 }

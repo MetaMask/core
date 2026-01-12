@@ -8,7 +8,7 @@ import type {
 
 import type { RampsControllerMessenger } from './RampsController';
 import { RampsController } from './RampsController';
-import type { Country } from './RampsService';
+import type { Country, TokensResponse } from './RampsService';
 import type {
   RampsServiceGetGeolocationAction,
   RampsServiceGetCountriesAction,
@@ -1105,6 +1105,199 @@ describe('RampsController', () => {
 
         expect(controller.state.userRegion).toBe('fr');
         expect(controller.state.eligibility).toStrictEqual(frEligibility);
+      });
+    });
+  });
+
+  describe('getTokens', () => {
+    const mockTokens: TokensResponse = {
+      topTokens: [
+        {
+          assetId: 'eip155:1/erc20:0xA0b86991c6218b36c1d19D4a2e9Eb0cE3606eB48',
+          chainId: 'eip155:1',
+          name: 'USD Coin',
+          symbol: 'USDC',
+          decimals: 6,
+          iconUrl: 'https://example.com/usdc.png',
+          tokenSupported: true,
+        },
+      ],
+      allTokens: [
+        {
+          assetId: 'eip155:1/erc20:0xA0b86991c6218b36c1d19D4a2e9Eb0cE3606eB48',
+          chainId: 'eip155:1',
+          name: 'USD Coin',
+          symbol: 'USDC',
+          decimals: 6,
+          iconUrl: 'https://example.com/usdc.png',
+          tokenSupported: true,
+        },
+        {
+          assetId: 'eip155:1/erc20:0xdAC17F958D2ee523a2206206994597C13D831ec7',
+          chainId: 'eip155:1',
+          name: 'Tether USD',
+          symbol: 'USDT',
+          decimals: 6,
+          iconUrl: 'https://example.com/usdt.png',
+          tokenSupported: true,
+        },
+      ],
+    };
+
+    it('fetches tokens from the service', async () => {
+      await withController(async ({ controller, rootMessenger }) => {
+        rootMessenger.registerActionHandler(
+          'RampsService:getTokens',
+          async () => mockTokens,
+        );
+
+        expect(controller.state.tokens).toBeNull();
+
+        const tokens = await controller.getTokens('us', 'buy');
+
+        expect(tokens).toMatchInlineSnapshot(`
+          Object {
+            "allTokens": Array [
+              Object {
+                "assetId": "eip155:1/erc20:0xA0b86991c6218b36c1d19D4a2e9Eb0cE3606eB48",
+                "chainId": "eip155:1",
+                "decimals": 6,
+                "iconUrl": "https://example.com/usdc.png",
+                "name": "USD Coin",
+                "symbol": "USDC",
+                "tokenSupported": true,
+              },
+              Object {
+                "assetId": "eip155:1/erc20:0xdAC17F958D2ee523a2206206994597C13D831ec7",
+                "chainId": "eip155:1",
+                "decimals": 6,
+                "iconUrl": "https://example.com/usdt.png",
+                "name": "Tether USD",
+                "symbol": "USDT",
+                "tokenSupported": true,
+              },
+            ],
+            "topTokens": Array [
+              Object {
+                "assetId": "eip155:1/erc20:0xA0b86991c6218b36c1d19D4a2e9Eb0cE3606eB48",
+                "chainId": "eip155:1",
+                "decimals": 6,
+                "iconUrl": "https://example.com/usdc.png",
+                "name": "USD Coin",
+                "symbol": "USDC",
+                "tokenSupported": true,
+              },
+            ],
+          }
+        `);
+        expect(controller.state.tokens).toStrictEqual(mockTokens);
+      });
+    });
+
+    it('caches tokens response', async () => {
+      await withController(async ({ controller, rootMessenger }) => {
+        let callCount = 0;
+        rootMessenger.registerActionHandler(
+          'RampsService:getTokens',
+          async () => {
+            callCount += 1;
+            return mockTokens;
+          },
+        );
+
+        await controller.getTokens('us', 'buy');
+        await controller.getTokens('us', 'buy');
+
+        expect(callCount).toBe(1);
+      });
+    });
+
+    it('fetches tokens with deposit action', async () => {
+      await withController(async ({ controller, rootMessenger }) => {
+        let receivedAction: string | undefined;
+        rootMessenger.registerActionHandler(
+          'RampsService:getTokens',
+          async (_region, action) => {
+            receivedAction = action;
+            return mockTokens;
+          },
+        );
+
+        await controller.getTokens('us', 'deposit');
+
+        expect(receivedAction).toBe('deposit');
+      });
+    });
+
+    it('uses default buy action when no argument is provided', async () => {
+      await withController(async ({ controller, rootMessenger }) => {
+        let receivedAction: string | undefined;
+        rootMessenger.registerActionHandler(
+          'RampsService:getTokens',
+          async (_region, action) => {
+            receivedAction = action;
+            return mockTokens;
+          },
+        );
+
+        await controller.getTokens('us');
+
+        expect(receivedAction).toBe('buy');
+      });
+    });
+
+    it('normalizes region case for cache key consistency', async () => {
+      await withController(async ({ controller, rootMessenger }) => {
+        let callCount = 0;
+        rootMessenger.registerActionHandler(
+          'RampsService:getTokens',
+          async (region) => {
+            callCount += 1;
+            expect(region).toBe('us');
+            return mockTokens;
+          },
+        );
+
+        await controller.getTokens('US', 'buy');
+        await controller.getTokens('us', 'buy');
+
+        expect(callCount).toBe(1);
+      });
+    });
+
+    it('creates separate cache entries for different actions', async () => {
+      await withController(async ({ controller, rootMessenger }) => {
+        let callCount = 0;
+        rootMessenger.registerActionHandler(
+          'RampsService:getTokens',
+          async () => {
+            callCount += 1;
+            return mockTokens;
+          },
+        );
+
+        await controller.getTokens('us', 'buy');
+        await controller.getTokens('us', 'deposit');
+
+        expect(callCount).toBe(2);
+      });
+    });
+
+    it('creates separate cache entries for different regions', async () => {
+      await withController(async ({ controller, rootMessenger }) => {
+        let callCount = 0;
+        rootMessenger.registerActionHandler(
+          'RampsService:getTokens',
+          async () => {
+            callCount += 1;
+            return mockTokens;
+          },
+        );
+
+        await controller.getTokens('us', 'buy');
+        await controller.getTokens('fr', 'buy');
+
+        expect(callCount).toBe(2);
       });
     });
   });

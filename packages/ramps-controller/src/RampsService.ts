@@ -106,6 +106,54 @@ export type Country = {
 };
 
 /**
+ * Represents a token returned from the regions/{region}/tokens API.
+ */
+export type RampsToken = {
+  /**
+   * The asset identifier in CAIP-19 format (e.g., "eip155:1/erc20:0x...").
+   */
+  assetId: string;
+  /**
+   * The chain identifier in CAIP-2 format (e.g., "eip155:1").
+   */
+  chainId: string;
+  /**
+   * Token name (e.g., "USD Coin").
+   */
+  name: string;
+  /**
+   * Token symbol (e.g., "USDC").
+   */
+  symbol: string;
+  /**
+   * Number of decimals for the token.
+   */
+  decimals: number;
+  /**
+   * URL to the token icon.
+   */
+  iconUrl: string;
+  /**
+   * Whether this token is supported.
+   */
+  tokenSupported: boolean;
+};
+
+/**
+ * Response from the regions/{region}/tokens API.
+ */
+export type TokensResponse = {
+  /**
+   * Top/popular tokens for the region.
+   */
+  topTokens: RampsToken[];
+  /**
+   * All available tokens for the region.
+   */
+  allTokens: RampsToken[];
+};
+
+/**
  * The SDK version to send with API requests. (backwards-compatibility)
  */
 export const RAMPS_SDK_VERSION = '2.1.6';
@@ -142,6 +190,7 @@ const MESSENGER_EXPOSED_METHODS = [
   'getGeolocation',
   'getCountries',
   'getEligibility',
+  'getTokens',
 ] as const;
 
 /**
@@ -378,7 +427,7 @@ export class RampsService {
    * @param url - The URL to add parameters to.
    * @param action - The ramp action type (optional, not all endpoints require it).
    */
-  #addCommonParams(url: URL, action?: 'buy' | 'sell'): void {
+  #addCommonParams(url: URL, action?: 'buy' | 'sell' | 'deposit'): void {
     if (action) {
       url.searchParams.set('action', action);
     }
@@ -401,7 +450,7 @@ export class RampsService {
     service: RampsApiService,
     path: string,
     options: {
-      action?: 'buy' | 'sell';
+      action?: 'buy' | 'sell' | 'deposit';
       responseType: 'json' | 'text';
     },
   ): Promise<TResponse> {
@@ -488,5 +537,37 @@ export class RampsService {
       `regions/countries/${normalizedIsoCode}`,
       { responseType: 'json' },
     );
+  }
+
+  /**
+   * Fetches the list of available tokens for a given region and action.
+   *
+   * @param region - The region code (e.g., "us", "fr", "us-ny").
+   * @param action - The ramp action type ('buy' or 'deposit').
+   * @returns The tokens response containing topTokens and allTokens.
+   */
+  async getTokens(
+    region: string,
+    action: 'buy' | 'deposit' = 'buy',
+  ): Promise<TokensResponse> {
+    const normalizedRegion = region.toLowerCase().trim();
+    const response = await this.#request<TokensResponse>(
+      RampsApiService.Regions,
+      `regions/${normalizedRegion}/tokens`,
+      { action, responseType: 'json' },
+    );
+
+    if (!response || typeof response !== 'object') {
+      throw new Error('Malformed response received from tokens API');
+    }
+
+    if (
+      !Array.isArray(response.topTokens) ||
+      !Array.isArray(response.allTokens)
+    ) {
+      throw new Error('Malformed response received from tokens API');
+    }
+
+    return response;
   }
 }
