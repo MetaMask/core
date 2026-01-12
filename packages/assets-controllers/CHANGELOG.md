@@ -7,6 +7,8 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+## [95.1.0]
+
 ### Added
 
 - Add RWA (Real World Assets) data support for token metadata endpoint ([#7595](https://github.com/MetaMask/core/pull/7595))
@@ -2490,7 +2492,8 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 - Use Ethers for AssetsContractController ([#845](https://github.com/MetaMask/core/pull/845))
 
-[Unreleased]: https://github.com/MetaMask/core/compare/@metamask/assets-controllers@95.0.0...HEAD
+[Unreleased]: https://github.com/MetaMask/core/compare/@metamask/assets-controllers@95.1.0...HEAD
+[95.1.0]: https://github.com/MetaMask/core/compare/@metamask/assets-controllers@95.0.0...@metamask/assets-controllers@95.1.0
 [95.0.0]: https://github.com/MetaMask/core/compare/@metamask/assets-controllers@94.1.0...@metamask/assets-controllers@95.0.0
 [94.1.0]: https://github.com/MetaMask/core/compare/@metamask/assets-controllers@94.0.0...@metamask/assets-controllers@94.1.0
 [94.0.0]: https://github.com/MetaMask/core/compare/@metamask/assets-controllers@93.1.0...@metamask/assets-controllers@94.0.0
