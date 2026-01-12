@@ -322,51 +322,64 @@ The strategy above is designed for **controller-to-controller** reads (via messe
 Today, asset selectors are split between:
 - **Some in `core`** (`assets-controllers/src/selectors/`)
 - **Most in UI** (extension/mobile repos)
+  - Mobile selectors and references: https://github.com/MetaMask/metamask-mobile/pull/24320
+  - Extension selectors and references: https://github.com/MetaMask/metamask-extension/pull/39039
 
-### Goal
+### Challenge
 
-Move all asset selectors to `core`. This enables:
-- Centralized compatibility layer (same pattern as controller migration)
-- Single source of truth for asset data access
+State in the UI is referenced very broadly, not only directly, but indirectly through other selectors, hooks and components. Many of them across multiple teams.
 
-### Recommended Approach: Selectors in Core
+It would be hard to expect all those references to be dealt as part of a single release. Therefore, the approach suggested here is to somehow maintain access to both old and new state, whilst we progressively mark selectors as deprecated and move them to the new state.
 
-Create compatibility selectors in `assets-controllers` that UI imports:
+### Approaches Considered
 
-```
-// In assets-controllers/src/selectors/
+#### (1) Dummy Controllers
 
-FUNCTION selectTokenBalance(state, hexAddress, chainId, token):
-    
-    use_new_state = feature_flag("assets_controller_use_new_state", user_key)
-    
-    IF use_new_state THEN
-        // Convert legacy params → new format for lookup
-        accountId = lookupAccountId(hexAddress)
-        assetId = toCAIP19(chainId, token)
-        RETURN state.AssetsController.assetsBalance[accountId][assetId]
-    ELSE
-        RETURN state.TokenBalancesController.tokenBalances[hexAddress][chainId][token]
-```
+This approach leaves old controllers as they are, disables any fetching logic and subscriptions, and just subscribes them to the new assets controller state change in order to transform and maintain the state as it currently is. Selectors can be updated progressively.
+
+The advantage is that this requires no changes at all to state references from the UI. However, public functions for those controllers that update the data or trigger refetches need to be removed or delagated to the new assets controller.
+
+This approach can take part after phase 4 is completed, as it involves disabling the old controllers logic.
+
+This approach **does not** require updating all state mock data.
+
+#### (2) Legacy State in new Assets Controller
+
+Similar to the previous approach, but instead of keeping old controllers, the new Assets Controllers keeps a property as part of its state to encapsulate legacy data (e.g. `state.metamask.legacyAssetsData.accountsByChainId`).
+
+This approach means we can completely remove old controllers during cleanup, but references to legacy assets data (including mocks) need to be updated.
+
+This approach can take part after phase 4 is completed, as it involves disabling the old controllers logic.
+
+This approach will require updating all state mock data.
+
+This approach potentially involved a migration as well.
+
+#### (3) Make the transformations at selector level
+
+This approach creates base selectors on each client for each state property used by legacy controllers.
+
+These selectors transform the data from the new controller to the format of the legacy controllers.
+
+Every reference to that data then needs to be replaced in existing selectors.
+
+This approach does not use any additional space for state, but it might involve transforming data more frequently.
+
+This approach will require updating all state mock data.
 
 ### UI Migration Timeline
 
-UI migration can follow the same phases as controller migration, but may run on a **separate timeline**:
+Trying to make selectors dependant of the feature flag is technically viable, but tedious and, potentially, unperformant. It could also lead to significant amount of branching logic over selectors, components and hooks that will need to be cleaned up afterwards.
 
-| Phase | Controllers | UI |
-|-------|-------------|-----|
-| Phase 1 | Shadow write | No changes (still reads legacy) |
-| Phase 2 | Dual-read comparison | Add compatibility selectors, enable comparison logging |
-| Phase 3 | Gradual rollout | Same — rollout via feature flag |
-| Phase 4 | Confidence period | Same |
-| Phase 5 | Cleanup | Remove legacy selectors |
+Which means that selectors can only be updated once we are confident that the state of the new assets controller is adequate to be used for all users (End of phase 4).
 
-### Key Considerations
+### Missing Details and Future Decisions
 
-- UI and controller migrations can be **decoupled** — UI can stay on legacy longer if needed
-- Same feature flag (`assets_controller_use_new_state`) can control both
-- Goal: All asset selectors in `core` — UI imports from `@metamask/assets-controllers`
-- Migration may require moving existing UI selectors to `core` first
+It has been established that we should decide on the best approach once we have a working assets controller that can be enabled merged, as it is difficult to decide on the best approach without the information that will provide.
+
+Approaches 1 and 3 seem to provide a reasonable amount of backwards compatibility and give the team time to update assets components and hooks to use the new state, whilst finding out if any additional changes to the new controller and state are needed.
+
+The team can then provide advice and guidance to other teams to update their own components and hooks, whilst deprecating selectors that are no longer being used.
 
 ---
 
