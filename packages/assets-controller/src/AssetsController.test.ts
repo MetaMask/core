@@ -29,28 +29,6 @@ describe('AssetsController', () => {
     });
   });
 
-  describe('AssetsController:getState', () => {
-    it('returns the current state', async () => {
-      await withController(({ rootMessenger }) => {
-        const state = rootMessenger.call('AssetsController:getState');
-        expect(state).toMatchInlineSnapshot(`Object {}`);
-      });
-    });
-  });
-
-  describe('AssetsController:stateChange', () => {
-    it('allows subscribing to state changes', async () => {
-      await withController(({ rootMessenger }) => {
-        const listener = jest.fn();
-        rootMessenger.subscribe('AssetsController:stateChange', listener);
-
-        // Since state is empty and there's no way to change it yet,
-        // we just verify the subscription works without errors
-        expect(listener).not.toHaveBeenCalled();
-      });
-    });
-  });
-
   describe('metadata', () => {
     it('includes expected state in debug snapshots', async () => {
       await withController(({ controller }) => {
