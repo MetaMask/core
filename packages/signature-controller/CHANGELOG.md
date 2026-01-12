@@ -7,11 +7,14 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+## [38.0.1]
+
 ### Changed
 
 - Upgrade `@metamask/utils` from `^11.8.1` to `^11.9.0` ([#7511](https://github.com/MetaMask/core/pull/7511))
 - Bump `@metamask/network-controller` from `^27.0.0` to `^28.0.0` ([#7534](https://github.com/MetaMask/core/pull/7534), [#7583](https://github.com/MetaMask/core/pull/7583), [#7604](https://github.com/MetaMask/core/pull/7604))
 - Bump `@metamask/controller-utils` from `^11.16.0` to `^11.18.0` ([#7534](https://github.com/MetaMask/core/pull/7534), [#7583](https://github.com/MetaMask/core/pull/7583))
+- Bump `@metamask/accounts-controller` from `^35.0.0` to `^35.0.1` ([#7604](https://github.com/MetaMask/core/pull/7604))
 
 ## [38.0.0]
 
@@ -645,7 +648,8 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 - Initial release ([#1214](https://github.com/MetaMask/core/pull/1214))
 
-[Unreleased]: https://github.com/MetaMask/core/compare/@metamask/signature-controller@38.0.0...HEAD
+[Unreleased]: https://github.com/MetaMask/core/compare/@metamask/signature-controller@38.0.1...HEAD
+[38.0.1]: https://github.com/MetaMask/core/compare/@metamask/signature-controller@38.0.0...@metamask/signature-controller@38.0.1
 [38.0.0]: https://github.com/MetaMask/core/compare/@metamask/signature-controller@37.0.0...@metamask/signature-controller@38.0.0
 [37.0.0]: https://github.com/MetaMask/core/compare/@metamask/signature-controller@36.0.0...@metamask/signature-controller@37.0.0
 [36.0.0]: https://github.com/MetaMask/core/compare/@metamask/signature-controller@35.0.0...@metamask/signature-controller@36.0.0

@@ -7,10 +7,14 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+## [95.1.1]
+
 ### Changed
 
-- Bump `@metamask/transaction-controller` from `^62.8.0` to `^62.9.0` ([#7602](https://github.com/MetaMask/core/pull/7602))
+- Bump `@metamask/transaction-controller` from `^62.8.0` to `^62.9.1` ([#7602](https://github.com/MetaMask/core/pull/7602), [#7604](https://github.com/MetaMask/core/pull/7604))
 - Bump `@metamask/network-controller` from `^27.2.0` to `^28.0.0` ([#7604](https://github.com/MetaMask/core/pull/7604))
+- Bump `@metamask/accounts-controller` from `^35.0.0` to `^35.0.1` ([#7604](https://github.com/MetaMask/core/pull/7604))
+- Bump `@metamask/polling-controller` from `^16.0.0` to `^16.0.1` ([#7604](https://github.com/MetaMask/core/pull/7604))
 
 ## [95.1.0]
 
@@ -2497,7 +2501,8 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 - Use Ethers for AssetsContractController ([#845](https://github.com/MetaMask/core/pull/845))
 
-[Unreleased]: https://github.com/MetaMask/core/compare/@metamask/assets-controllers@95.1.0...HEAD
+[Unreleased]: https://github.com/MetaMask/core/compare/@metamask/assets-controllers@95.1.1...HEAD
+[95.1.1]: https://github.com/MetaMask/core/compare/@metamask/assets-controllers@95.1.0...@metamask/assets-controllers@95.1.1
 [95.1.0]: https://github.com/MetaMask/core/compare/@metamask/assets-controllers@95.0.0...@metamask/assets-controllers@95.1.0
 [95.0.0]: https://github.com/MetaMask/core/compare/@metamask/assets-controllers@94.1.0...@metamask/assets-controllers@95.0.0
 [94.1.0]: https://github.com/MetaMask/core/compare/@metamask/assets-controllers@94.0.0...@metamask/assets-controllers@94.1.0
