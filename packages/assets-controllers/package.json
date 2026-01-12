@@ -1,6 +1,6 @@
 {
   "name": "@metamask/assets-controllers",
-  "version": "95.0.0",
+  "version": "95.1.0",
   "description": "Controllers which manage interactions involving ERC-20, ERC-721, and ERC-1155 tokens (including NFTs)",
   "keywords": [
     "MetaMask",
@@ -78,7 +78,7 @@
     "@metamask/snaps-controllers": "^17.2.0",
     "@metamask/snaps-sdk": "^10.3.0",
     "@metamask/snaps-utils": "^11.7.0",
-    "@metamask/transaction-controller": "^62.7.0",
+    "@metamask/transaction-controller": "^62.9.0",
     "@metamask/utils": "^11.9.0",
     "@types/bn.js": "^5.1.5",
     "@types/uuid": "^8.3.0",

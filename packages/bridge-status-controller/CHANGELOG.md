@@ -7,12 +7,26 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+### Changed
+
+- Bump `@metamask/transaction-controller` from `^62.8.0` to `^62.9.0` ([#7602](https://github.com/MetaMask/core/pull/7602))
+
+## [64.4.1]
+
+### Fixed
+
+- Use `BRIDGE_PREFERRED_GAS_ESTIMATE` from `@metamask/bridge-controller` for gas price estimates to align with validation ([#7582](https://github.com/MetaMask/core/pull/7582))
+
+## [64.4.0]
+
 ### Added
 
 - Add intent based transaction support ([#6547](https://github.com/MetaMask/core/pull/6547))
 
 ### Changed
 
+- Bump `@metamask/transaction-controller` from `^62.7.0` to `^62.8.0` ([#7596](https://github.com/MetaMask/core/pull/7596))
+- Bump `@metamask/bridge-controller` from `^64.3.0` to `^64.4.0` ([#7596](https://github.com/MetaMask/core/pull/7596))
 - Bump `@metamask/controller-utils` from `^11.17.0` to `^11.18.0` ([#7583](https://github.com/MetaMask/core/pull/7583))
 - Bump `@metamask/network-controller` from `^27.1.0` to `^27.2.0` ([#7583](https://github.com/MetaMask/core/pull/7583))
 
@@ -849,7 +863,9 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 - Initial release ([#5317](https://github.com/MetaMask/core/pull/5317))
 
-[Unreleased]: https://github.com/MetaMask/core/compare/@metamask/bridge-status-controller@64.3.0...HEAD
+[Unreleased]: https://github.com/MetaMask/core/compare/@metamask/bridge-status-controller@64.4.1...HEAD
+[64.4.1]: https://github.com/MetaMask/core/compare/@metamask/bridge-status-controller@64.4.0...@metamask/bridge-status-controller@64.4.1
+[64.4.0]: https://github.com/MetaMask/core/compare/@metamask/bridge-status-controller@64.3.0...@metamask/bridge-status-controller@64.4.0
 [64.3.0]: https://github.com/MetaMask/core/compare/@metamask/bridge-status-controller@64.2.0...@metamask/bridge-status-controller@64.3.0
 [64.2.0]: https://github.com/MetaMask/core/compare/@metamask/bridge-status-controller@64.1.0...@metamask/bridge-status-controller@64.2.0
 [64.1.0]: https://github.com/MetaMask/core/compare/@metamask/bridge-status-controller@64.0.1...@metamask/bridge-status-controller@64.1.0

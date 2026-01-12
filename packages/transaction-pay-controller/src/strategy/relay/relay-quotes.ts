@@ -89,17 +89,28 @@ async function getSingleQuote(
     0,
   );
 
+  const {
+    from,
+    isMaxAmount,
+    sourceChainId,
+    sourceTokenAddress,
+    sourceTokenAmount,
+    targetAmountMinimum,
+    targetChainId,
+    targetTokenAddress,
+  } = request;
+
   try {
     const body: RelayQuoteRequest = {
-      amount: request.targetAmountMinimum,
-      destinationChainId: Number(request.targetChainId),
-      destinationCurrency: request.targetTokenAddress,
-      originChainId: Number(request.sourceChainId),
-      originCurrency: request.sourceTokenAddress,
-      recipient: request.from,
+      amount: isMaxAmount ? sourceTokenAmount : targetAmountMinimum,
+      destinationChainId: Number(targetChainId),
+      destinationCurrency: targetTokenAddress,
+      originChainId: Number(sourceChainId),
+      originCurrency: sourceTokenAddress,
+      recipient: from,
       slippageTolerance,
-      tradeType: 'EXPECTED_OUTPUT',
-      user: request.from,
+      tradeType: isMaxAmount ? 'EXACT_INPUT' : 'EXPECTED_OUTPUT',
+      user: from,
     };
 
     await processTransactions(transaction, request, body, messenger);
@@ -141,12 +152,13 @@ async function processTransactions(
   messenger: TransactionPayControllerMessenger,
 ): Promise<void> {
   const { nestedTransactions, txParams } = transaction;
+  const { isMaxAmount, targetChainId } = request;
   const data = txParams?.data as Hex | undefined;
 
   const singleData =
     nestedTransactions?.length === 1 ? nestedTransactions[0].data : data;
 
-  const isHypercore = request.targetChainId === CHAIN_ID_HYPERCORE;
+  const isHypercore = targetChainId === CHAIN_ID_HYPERCORE;
 
   const isTokenTransfer =
     !isHypercore && Boolean(singleData?.startsWith(TOKEN_TRANSFER_FOUR_BYTE));
@@ -157,11 +169,16 @@ async function processTransactions(
     log('Updating recipient as token transfer', requestBody.recipient);
   }
 
-  const skipDelegation = isTokenTransfer || isHypercore;
+  const hasNoData = singleData === undefined || singleData === '0x';
+  const skipDelegation = hasNoData || isTokenTransfer || isHypercore;
 
   if (skipDelegation) {
     log('Skipping delegation as token transfer or Hypercore deposit');
     return;
+  }
+
+  if (isMaxAmount) {
+    throw new Error('Max amount quotes do not support included transactions');
   }
 
   const delegation = await messenger.call(
@@ -263,7 +280,7 @@ async function normalizeQuote(
 ): Promise<TransactionPayQuote<RelayQuote>> {
   const { messenger } = fullRequest;
   const { details } = quote;
-  const { currencyIn } = details;
+  const { currencyIn, currencyOut } = details;
 
   const { usdToFiatRate } = getFiatRates(messenger, request);
 
@@ -294,6 +311,12 @@ async function normalizeQuote(
     ...getFiatValueFromUsd(new BigNumber(currencyIn.amountUsd), usdToFiatRate),
   };
 
+  const targetAmount: Amount = {
+    human: currencyOut.amountFormatted,
+    raw: currencyOut.amount,
+    ...getFiatValueFromUsd(new BigNumber(currencyOut.amountUsd), usdToFiatRate),
+  };
+
   const metamask = {
     gasLimits,
   };
@@ -313,6 +336,7 @@ async function normalizeQuote(
     },
     request,
     sourceAmount,
+    targetAmount,
     strategy: TransactionPayStrategy.Relay,
   };
 }

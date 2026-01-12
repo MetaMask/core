@@ -55,10 +55,11 @@ export async function updateQuotes(
 
   log('Updating quotes', { transactionId });
 
-  const { paymentToken, sourceAmounts, tokens } = transactionData;
+  const { isMaxAmount, paymentToken, sourceAmounts, tokens } = transactionData;
 
   const requests = buildQuoteRequests({
     from: transaction.txParams.from as Hex,
+    isMaxAmount: isMaxAmount ?? false,
     paymentToken,
     sourceAmounts,
     tokens,
@@ -77,8 +78,9 @@ export async function updateQuotes(
     );
 
     const totals = calculateTotals({
-      quotes: quotes as TransactionPayQuote<unknown>[],
+      isMaxAmount,
       messenger,
+      quotes: quotes as TransactionPayQuote<unknown>[],
       tokens,
       transaction,
     });
@@ -148,6 +150,7 @@ function syncTransaction({
         bridgeFeeFiat: totals.fees.provider.usd,
         chainId: paymentToken.chainId,
         networkFeeFiat: totals.fees.sourceNetwork.estimate.usd,
+        targetFiat: totals.targetAmount.usd,
         tokenAddress: paymentToken.address,
         totalFiat: totals.total.usd,
       };
@@ -209,6 +212,7 @@ export async function refreshQuotes(
  *
  * @param request - Request parameters.
  * @param request.from - Address from which the transaction is sent.
+ * @param request.isMaxAmount - Whether the transaction is a maximum amount transaction.
  * @param request.paymentToken - Payment token used for the transaction.
  * @param request.sourceAmounts - Source amounts for the transaction.
  * @param request.tokens - Required tokens for the transaction.
@@ -217,12 +221,14 @@ export async function refreshQuotes(
  */
 function buildQuoteRequests({
   from,
+  isMaxAmount,
   paymentToken,
   sourceAmounts,
   tokens,
   transactionId,
 }: {
   from: Hex;
+  isMaxAmount: boolean;
   paymentToken: TransactionPaymentToken | undefined;
   sourceAmounts: TransactionPaySourceAmount[] | undefined;
   tokens: TransactionPayRequiredToken[];
@@ -239,6 +245,7 @@ function buildQuoteRequests({
 
     return {
       from,
+      isMaxAmount,
       sourceBalanceRaw: paymentToken.balanceRaw,
       sourceTokenAmount: sourceAmount.sourceAmountRaw,
       sourceChainId: paymentToken.chainId,

@@ -35,7 +35,7 @@ export function updateSourceAmounts(
     return;
   }
 
-  const { paymentToken, tokens } = transactionData;
+  const { isMaxAmount, paymentToken, tokens } = transactionData;
 
   if (!tokens.length || !paymentToken) {
     return;
@@ -48,6 +48,7 @@ export function updateSourceAmounts(
         singleToken,
         messenger,
         transactionId,
+        isMaxAmount ?? false,
       ),
     )
     .filter(Boolean) as TransactionPaySourceAmount[];
@@ -64,6 +65,7 @@ export function updateSourceAmounts(
  * @param token - Target token to cover.
  * @param messenger - Controller messenger.
  * @param transactionId - ID of the transaction.
+ * @param isMaxAmount - Whether the transaction is a maximum amount transaction.
  * @returns The source amount or undefined if calculation failed.
  */
 function calculateSourceAmount(
@@ -71,6 +73,7 @@ function calculateSourceAmount(
   token: TransactionPayRequiredToken,
   messenger: TransactionPayControllerMessenger,
   transactionId: string,
+  isMaxAmount: boolean,
 ): TransactionPaySourceAmount | undefined {
   const paymentTokenFiatRate = getTokenFiatRate(
     messenger,
@@ -117,6 +120,14 @@ function calculateSourceAmount(
   if (token.amountRaw === '0') {
     log('Skipping token as zero amount', { tokenAddress: token.address });
     return undefined;
+  }
+
+  if (isMaxAmount) {
+    return {
+      sourceAmountHuman: paymentToken.balanceHuman,
+      sourceAmountRaw: paymentToken.balanceRaw,
+      targetTokenAddress: token.address,
+    };
   }
 
   return {
