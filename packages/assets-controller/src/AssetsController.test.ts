@@ -1,124 +1,48 @@
+import { deriveStateFromMetadata } from '@metamask/base-controller';
 import { Messenger, MOCK_ANY_NAMESPACE } from '@metamask/messenger';
 import type {
+  MockAnyNamespace,
   MessengerActions,
   MessengerEvents,
-  MockAnyNamespace,
 } from '@metamask/messenger';
 
-import type {
-  AssetsControllerMessenger,
-  AssetsControllerState,
-} from './AssetsController';
-import {
-  AssetsController,
-  controllerName,
-  getDefaultAssetsControllerState,
-} from './AssetsController';
-
-type AllAssetsControllerActions = MessengerActions<AssetsControllerMessenger>;
-
-type AllAssetsControllerEvents = MessengerEvents<AssetsControllerMessenger>;
-
-type RootMessenger = Messenger<
-  MockAnyNamespace,
-  AllAssetsControllerActions,
-  AllAssetsControllerEvents
->;
-
-type WithControllerCallback<ReturnValue> = ({
-  controller,
-  messenger,
-}: {
-  controller: AssetsController;
-  messenger: RootMessenger;
-}) => Promise<ReturnValue> | ReturnValue;
-
-type WithControllerOptions = {
-  state?: Partial<AssetsControllerState>;
-};
-
-type WithControllerArgs<ReturnValue> =
-  | [WithControllerCallback<ReturnValue>]
-  | [WithControllerOptions, WithControllerCallback<ReturnValue>];
-
-/**
- * Builds a controller based on the given options, and calls the given function
- * with that controller.
- *
- * @param args - Either a function, or an options bag + a function. The options
- * bag accepts controller options and config; the function
- * will be called with the built controller.
- * @returns Whatever the callback returns.
- */
-async function withController<ReturnValue>(
-  ...args: WithControllerArgs<ReturnValue>
-): Promise<ReturnValue> {
-  const [{ state = {} }, testFunction] =
-    args.length === 2 ? args : [{}, args[0]];
-
-  const messenger: RootMessenger = new Messenger({
-    namespace: MOCK_ANY_NAMESPACE,
-  });
-
-  const controllerMessenger = new Messenger<
-    typeof controllerName,
-    AllAssetsControllerActions,
-    AllAssetsControllerEvents,
-    RootMessenger
-  >({
-    namespace: controllerName,
-    parent: messenger,
-  });
-
-  const controller = new AssetsController({
-    messenger: controllerMessenger,
-    state,
-  });
-
-  return await testFunction({
-    controller,
-    messenger,
-  });
-}
+import type { AssetsControllerMessenger } from './AssetsController';
+import { AssetsController } from './AssetsController';
 
 describe('AssetsController', () => {
   describe('constructor', () => {
-    it('should create an instance with default state', async () => {
+    it('accepts initial state', async () => {
+      const givenState = {};
+
+      await withController(
+        { options: { state: givenState } },
+        ({ controller }) => {
+          expect(controller.state).toStrictEqual(givenState);
+        },
+      );
+    });
+
+    it('fills in missing initial state with defaults', async () => {
       await withController(({ controller }) => {
-        expect(controller.state).toStrictEqual(
-          getDefaultAssetsControllerState(),
-        );
-      });
-    });
-
-    it('should create an instance with custom state', async () => {
-      const customState = {};
-      await withController({ state: customState }, ({ controller }) => {
-        expect(controller.state).toStrictEqual(customState);
+        expect(controller.state).toMatchInlineSnapshot(`Object {}`);
       });
     });
   });
 
-  describe('getDefaultAssetsControllerState', () => {
-    it('should return an empty object', () => {
-      expect(getDefaultAssetsControllerState()).toStrictEqual({});
-    });
-  });
-
-  describe('actions', () => {
-    it('should respond to AssetsController:getState action', async () => {
-      await withController(({ messenger }) => {
-        const state = messenger.call('AssetsController:getState');
-        expect(state).toStrictEqual(getDefaultAssetsControllerState());
+  describe('AssetsController:getState', () => {
+    it('returns the current state', async () => {
+      await withController(({ rootMessenger }) => {
+        const state = rootMessenger.call('AssetsController:getState');
+        expect(state).toMatchInlineSnapshot(`Object {}`);
       });
     });
   });
 
-  describe('events', () => {
-    it('should allow subscribing to stateChange event', async () => {
-      await withController(({ messenger }) => {
+  describe('AssetsController:stateChange', () => {
+    it('allows subscribing to state changes', async () => {
+      await withController(({ rootMessenger }) => {
         const listener = jest.fn();
-        messenger.subscribe('AssetsController:stateChange', listener);
+        rootMessenger.subscribe('AssetsController:stateChange', listener);
 
         // Since state is empty and there's no way to change it yet,
         // we just verify the subscription works without errors
@@ -126,4 +50,131 @@ describe('AssetsController', () => {
       });
     });
   });
+
+  describe('metadata', () => {
+    it('includes expected state in debug snapshots', async () => {
+      await withController(({ controller }) => {
+        expect(
+          deriveStateFromMetadata(
+            controller.state,
+            controller.metadata,
+            'includeInDebugSnapshot',
+          ),
+        ).toMatchInlineSnapshot(`Object {}`);
+      });
+    });
+
+    it('includes expected state in state logs', async () => {
+      await withController(({ controller }) => {
+        expect(
+          deriveStateFromMetadata(
+            controller.state,
+            controller.metadata,
+            'includeInStateLogs',
+          ),
+        ).toMatchInlineSnapshot(`Object {}`);
+      });
+    });
+
+    it('persists expected state', async () => {
+      await withController(({ controller }) => {
+        expect(
+          deriveStateFromMetadata(
+            controller.state,
+            controller.metadata,
+            'persist',
+          ),
+        ).toMatchInlineSnapshot(`Object {}`);
+      });
+    });
+
+    it('exposes expected state to UI', async () => {
+      await withController(({ controller }) => {
+        expect(
+          deriveStateFromMetadata(
+            controller.state,
+            controller.metadata,
+            'usedInUi',
+          ),
+        ).toMatchInlineSnapshot(`Object {}`);
+      });
+    });
+  });
 });
+
+/**
+ * The type of the messenger populated with all external actions and events
+ * required by the controller under test.
+ */
+type RootMessenger = Messenger<
+  MockAnyNamespace,
+  MessengerActions<AssetsControllerMessenger>,
+  MessengerEvents<AssetsControllerMessenger>
+>;
+
+/**
+ * The callback that `withController` calls.
+ */
+type WithControllerCallback<ReturnValue> = (payload: {
+  controller: AssetsController;
+  rootMessenger: RootMessenger;
+  controllerMessenger: AssetsControllerMessenger;
+}) => Promise<ReturnValue> | ReturnValue;
+
+/**
+ * The options that `withController` takes.
+ */
+type WithControllerOptions = {
+  options: Partial<ConstructorParameters<typeof AssetsController>[0]>;
+};
+
+/**
+ * Constructs the messenger populated with all external actions and events
+ * required by the controller under test.
+ *
+ * @returns The root messenger.
+ */
+function getRootMessenger(): RootMessenger {
+  return new Messenger({ namespace: MOCK_ANY_NAMESPACE });
+}
+
+/**
+ * Constructs the messenger for the controller under test.
+ *
+ * @param rootMessenger - The root messenger, with all external actions and
+ * events required by the controller's messenger.
+ * @returns The controller-specific messenger.
+ */
+function getMessenger(rootMessenger: RootMessenger): AssetsControllerMessenger {
+  return new Messenger({
+    namespace: 'AssetsController',
+    parent: rootMessenger,
+  });
+}
+
+/**
+ * Wrap tests for the controller under test by ensuring that the controller is
+ * created ahead of time and then safely destroyed afterward as needed.
+ *
+ * @param args - Either a function, or an options bag + a function. The options
+ * bag contains arguments for the controller constructor. All constructor
+ * arguments are optional and will be filled in with defaults in as needed
+ * (including `messenger`). The function is called with the instantiated
+ * controller, root messenger, and controller messenger.
+ * @returns The same return value as the given function.
+ */
+async function withController<ReturnValue>(
+  ...args:
+    | [WithControllerCallback<ReturnValue>]
+    | [WithControllerOptions, WithControllerCallback<ReturnValue>]
+): Promise<ReturnValue> {
+  const [{ options = {} }, testFunction] =
+    args.length === 2 ? args : [{}, args[0]];
+  const rootMessenger = getRootMessenger();
+  const controllerMessenger = getMessenger(rootMessenger);
+  const controller = new AssetsController({
+    messenger: controllerMessenger,
+    ...options,
+  });
+  return await testFunction({ controller, rootMessenger, controllerMessenger });
+}

@@ -8,6 +8,5 @@ export type {
 } from './AssetsController';
 export {
   AssetsController,
-  controllerName,
   getDefaultAssetsControllerState,
 } from './AssetsController';
