@@ -427,7 +427,7 @@ export class RampsService {
    * @param url - The URL to add parameters to.
    * @param action - The ramp action type (optional, not all endpoints require it).
    */
-  #addCommonParams(url: URL, action?: 'buy' | 'sell' | 'deposit'): void {
+  #addCommonParams(url: URL, action?: 'buy' | 'sell'): void {
     if (action) {
       url.searchParams.set('action', action);
     }
@@ -450,7 +450,7 @@ export class RampsService {
     service: RampsApiService,
     path: string,
     options: {
-      action?: 'buy' | 'sell' | 'deposit';
+      action?: 'buy' | 'sell';
       responseType: 'json' | 'text';
     },
   ): Promise<TResponse> {
@@ -543,12 +543,12 @@ export class RampsService {
    * Fetches the list of available tokens for a given region and action.
    *
    * @param region - The region code (e.g., "us", "fr", "us-ny").
-   * @param action - The ramp action type ('buy' or 'deposit').
+   * @param action - The ramp action type ('buy' or 'sell').
    * @returns The tokens response containing topTokens and allTokens.
    */
   async getTokens(
     region: string,
-    action: 'buy' | 'deposit' = 'buy',
+    action: 'buy' | 'sell' = 'buy',
   ): Promise<TokensResponse> {
     const normalizedRegion = region.toLowerCase().trim();
     const response = await this.#request<TokensResponse>(

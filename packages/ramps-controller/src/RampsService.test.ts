@@ -1071,7 +1071,7 @@ describe('RampsService', () => {
       expect(tokensResponse.allTokens).toStrictEqual([]);
     });
 
-    it('handles deposit action', async () => {
+    it('handles sell action', async () => {
       const mockTokens = {
         topTokens: [],
         allTokens: [],
@@ -1079,7 +1079,7 @@ describe('RampsService', () => {
       nock('https://on-ramp-cache.uat-api.cx.metamask.io')
         .get('/regions/us/tokens')
         .query({
-          action: 'deposit',
+          action: 'sell',
           sdk: '2.1.6',
           controller: CONTROLLER_VERSION,
           context: 'mobile-ios',
@@ -1095,7 +1095,7 @@ describe('RampsService', () => {
         .reply(200, 'us');
       const { service } = getService();
 
-      const tokensPromise = service.getTokens('us', 'deposit');
+      const tokensPromise = service.getTokens('us', 'sell');
       await clock.runAllAsync();
       await flushPromises();
       const tokensResponse = await tokensPromise;

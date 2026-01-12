@@ -1212,7 +1212,7 @@ describe('RampsController', () => {
       });
     });
 
-    it('fetches tokens with deposit action', async () => {
+    it('fetches tokens with sell action', async () => {
       await withController(async ({ controller, rootMessenger }) => {
         let receivedAction: string | undefined;
         rootMessenger.registerActionHandler(
@@ -1223,9 +1223,9 @@ describe('RampsController', () => {
           },
         );
 
-        await controller.getTokens('us', 'deposit');
+        await controller.getTokens('us', 'sell');
 
-        expect(receivedAction).toBe('deposit');
+        expect(receivedAction).toBe('sell');
       });
     });
 
@@ -1277,7 +1277,7 @@ describe('RampsController', () => {
         );
 
         await controller.getTokens('us', 'buy');
-        await controller.getTokens('us', 'deposit');
+        await controller.getTokens('us', 'sell');
 
         expect(callCount).toBe(2);
       });

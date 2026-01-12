@@ -557,13 +557,13 @@ export class RampsController extends BaseController<
    * The tokens are saved in the controller state once fetched.
    *
    * @param region - The region code (e.g., "us", "fr", "us-ny"). If not provided, uses the user's region from controller state.
-   * @param action - The ramp action type ('buy' or 'deposit').
+   * @param action - The ramp action type ('buy' or 'sell').
    * @param options - Options for cache behavior.
    * @returns The tokens response containing topTokens and allTokens.
    */
   async getTokens(
     region?: string,
-    action: 'buy' | 'deposit' = 'buy',
+    action: 'buy' | 'sell' = 'buy',
     options?: ExecuteRequestOptions,
   ): Promise<TokensResponse> {
     const regionToUse = region ?? this.state.userRegion;
