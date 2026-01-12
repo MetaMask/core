@@ -13,7 +13,7 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 - Corrects the previous 27.2.0 release to document breaking changes that were missed:
   - **BREAKING:** Remove dependency on `@metamask/error-reporting-service` ([#7542](https://github.com/MetaMask/core/pull/7542))
-    - The service no longer needs `ErrorReportingService:captureException`.
+    - `ErrorReportingService:captureException` is no longer an allowed action on the NetworkController messenger. You do not need to delegate its `ErrorReportingService:captureException` action to the NetworkController messenger.
 
 ## [27.2.0] [DEPRECATED]
 
