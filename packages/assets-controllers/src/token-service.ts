@@ -156,8 +156,8 @@ export async function fetchTokenListByChainId(
     if (Array.isArray(result) && chainId === ChainId['linea-mainnet']) {
       return result.filter(
         (elm) =>
-         Boolean(elm.aggregators.includes('lineaTeam')) ||
-         elm.aggregators.length >= 3,
+          Boolean(elm.aggregators.includes('lineaTeam')) ||
+          elm.aggregators.length >= 3,
       );
     }
     return result;
@@ -385,12 +385,10 @@ async function queryApi(
     mode: 'cors',
     signal: abortSignal,
     cache: 'default',
+    headers: {
+      'Content-Type': 'application/json',
+    },
   };
-  // Use globalThis.Headers if available, otherwise skip setting headers (Node.js has no fetch headers by default)
-  if (typeof globalThis.Headers === 'function') {
-    fetchOptions.headers = new globalThis.Headers();
-    fetchOptions.headers.set('Content-Type', 'application/json');
-  }
   try {
     return await timeoutFetch(apiURL, fetchOptions, timeout);
   } catch (error) {
