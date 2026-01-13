@@ -687,7 +687,7 @@
   },
   "packages/bridge-controller/src/utils/metrics/types.ts": {
     "@typescript-eslint/naming-convention": {
-      "count": 81
+      "count": 83
     }
   },
   "packages/bridge-controller/src/utils/quote-fees.ts": {
@@ -754,25 +754,6 @@
     },
     "no-new": {
       "count": 1
-    }
-  },
-  "packages/bridge-status-controller/src/bridge-status-controller.ts": {
-    "@typescript-eslint/explicit-function-return-type": {
-      "count": 20
-    },
-    "@typescript-eslint/naming-convention": {
-      "count": 5
-    },
-    "camelcase": {
-      "count": 8
-    },
-    "id-length": {
-      "count": 1
-    }
-  },
-  "packages/bridge-status-controller/src/types.ts": {
-    "@typescript-eslint/naming-convention": {
-      "count": 7
     }
   },
   "packages/bridge-status-controller/src/utils/bridge-status.ts": {
@@ -1217,14 +1198,6 @@
       "count": 1
     }
   },
-  "packages/multichain-account-service/src/MultichainAccountService.test.ts": {
-    "@typescript-eslint/explicit-function-return-type": {
-      "count": 1
-    },
-    "@typescript-eslint/naming-convention": {
-      "count": 4
-    }
-  },
   "packages/multichain-account-service/src/MultichainAccountService.ts": {
     "id-length": {
       "count": 1
@@ -1282,24 +1255,11 @@
       "count": 1
     }
   },
-  "packages/multichain-account-service/src/providers/SnapAccountProvider.ts": {
-    "@typescript-eslint/explicit-function-return-type": {
-      "count": 1
-    },
-    "@typescript-eslint/naming-convention": {
-      "count": 1
-    }
-  },
   "packages/multichain-account-service/src/providers/SolAccountProvider.ts": {
     "@typescript-eslint/naming-convention": {
       "count": 2
     },
     "id-length": {
-      "count": 1
-    }
-  },
-  "packages/multichain-account-service/src/providers/TrxAccountProvider.test.ts": {
-    "no-negated-condition": {
       "count": 1
     }
   },

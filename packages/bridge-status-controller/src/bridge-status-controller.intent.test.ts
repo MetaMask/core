@@ -769,7 +769,7 @@ describe('BridgeStatusController (intent swaps)', () => {
           "Unified SwapBridge Failed",
           Object {
             "action_type": "swapbridge-v1",
-            "actual_time_minutes": 0,
+            "actual_time_minutes": 0.000033333333333333335,
             "allowance_reset_transaction": undefined,
             "approval_transaction": undefined,
             "chain_id_destination": "eip155:1",

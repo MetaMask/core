@@ -5,7 +5,6 @@ import type {
   RequiredEventContextFromClient,
   TxData,
   QuoteResponse,
-  Intent,
   Trade,
 } from '@metamask/bridge-controller';
 import {
@@ -593,12 +592,6 @@ export class BridgeStatusController extends StaticIntervalPollingController<Brid
   }: FetchBridgeTxStatusArgs): Promise<void> => {
     const { txHistory } = this.state;
 
-    // Intent-based items: poll intent provider instead of Bridge API
-    if (bridgeTxMetaId.startsWith('intent:')) {
-      await this.#fetchIntentOrderStatus({ bridgeTxMetaId });
-      return;
-    }
-
     if (
       shouldSkipFetchDueToFetchFailures(txHistory[bridgeTxMetaId]?.attempts)
     ) {
@@ -753,6 +746,7 @@ export class BridgeStatusController extends StaticIntervalPollingController<Brid
     const isFailed = [
       IntentOrderStatus.FAILED,
       IntentOrderStatus.EXPIRED,
+      IntentOrderStatus.CANCELLED,
     ].includes(intentOrder.status);
     const isPending = [IntentOrderStatus.PENDING].includes(intentOrder.status);
     const isSubmitted = [IntentOrderStatus.SUBMITTED].includes(
@@ -1735,6 +1729,7 @@ export class BridgeStatusController extends StaticIntervalPollingController<Brid
         slippagePercentage: 0,
         isStxEnabled: false,
         approvalTxId,
+        startTime: Date.now(),
       });
 
       // Start polling using the intent: prefixed key to route to intent manager
@@ -1793,6 +1788,7 @@ export class BridgeStatusController extends StaticIntervalPollingController<Brid
       );
       return;
     }
+
     const requestParamProperties = getRequestParamFromHistory(historyItem);
     // Always publish StatusValidationFailed event, regardless of featureId
     if (eventName === UnifiedSwapBridgeEventName.StatusValidationFailed) {
@@ -1828,7 +1824,6 @@ export class BridgeStatusController extends StaticIntervalPollingController<Brid
     const txMeta = transactions?.find(
       (tx: TransactionMeta) => tx.id === txMetaId,
     );
-
     const approvalTxMeta = transactions?.find(
       (tx: TransactionMeta) => tx.id === historyItem.approvalTxId,
     );
