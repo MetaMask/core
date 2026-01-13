@@ -7,9 +7,16 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+## [64.4.2]
+
 ### Changed
 
-- Bump `@metamask/transaction-controller` from `^62.8.0` to `^62.9.0` ([#7602](https://github.com/MetaMask/core/pull/7602))
+- Bump `@metamask/transaction-controller` from `^62.8.0` to `^62.9.1` ([#7602](https://github.com/MetaMask/core/pull/7602), [#7604](https://github.com/MetaMask/core/pull/7604))
+- Bump `@metamask/network-controller` from `^27.2.0` to `^28.0.0` ([#7604](https://github.com/MetaMask/core/pull/7604))
+- Bump `@metamask/accounts-controller` from `^35.0.0` to `^35.0.1` ([#7604](https://github.com/MetaMask/core/pull/7604))
+- Bump `@metamask/bridge-controller` from `^64.4.0` to `^64.4.1` ([#7604](https://github.com/MetaMask/core/pull/7604))
+- Bump `@metamask/gas-fee-controller` from `^26.0.0` to `^26.0.1` ([#7604](https://github.com/MetaMask/core/pull/7604))
+- Bump `@metamask/polling-controller` from `^16.0.0` to `^16.0.1` ([#7604](https://github.com/MetaMask/core/pull/7604))
 
 ## [64.4.1]
 
@@ -863,7 +870,8 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 - Initial release ([#5317](https://github.com/MetaMask/core/pull/5317))
 
-[Unreleased]: https://github.com/MetaMask/core/compare/@metamask/bridge-status-controller@64.4.1...HEAD
+[Unreleased]: https://github.com/MetaMask/core/compare/@metamask/bridge-status-controller@64.4.2...HEAD
+[64.4.2]: https://github.com/MetaMask/core/compare/@metamask/bridge-status-controller@64.4.1...@metamask/bridge-status-controller@64.4.2
 [64.4.1]: https://github.com/MetaMask/core/compare/@metamask/bridge-status-controller@64.4.0...@metamask/bridge-status-controller@64.4.1
 [64.4.0]: https://github.com/MetaMask/core/compare/@metamask/bridge-status-controller@64.3.0...@metamask/bridge-status-controller@64.4.0
 [64.3.0]: https://github.com/MetaMask/core/compare/@metamask/bridge-status-controller@64.2.0...@metamask/bridge-status-controller@64.3.0
