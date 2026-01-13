@@ -260,8 +260,6 @@ export class TokenListController extends StaticIntervalPollingController<TokenLi
   async #initializeFromStorage(): Promise<void> {
     try {
       await this.#loadCacheFromStorage();
-      // Initialize previous cache to prevent re-persisting loaded data
-      this.#previousTokensChainsCache = { ...this.state.tokensChainsCache };
     } catch (error) {
       console.error(
         'TokenListController: Failed to initialize from storage:',
@@ -394,6 +392,21 @@ export class TokenListController extends StaticIntervalPollingController<TokenLi
       // Merge loaded cache with existing state, preferring existing data
       // (which may be fresher if fetched during initialization)
       if (Object.keys(loadedCache).length > 0) {
+        // Compute the final cache state before calling update().
+        // We must set #previousTokensChainsCache to match the final state BEFORE
+        // the update() call, because update() triggers the stateChange subscription
+        // synchronously. If #previousTokensChainsCache is still {} when the
+        // subscription fires, all loaded chains would be detected as "new" and
+        // scheduled for re-persistence (which defeats the purpose of loading from storage).
+        const existingCache = this.state.tokensChainsCache;
+        const finalCache: TokensChainsCache = { ...existingCache };
+        for (const [chainId, cacheData] of Object.entries(loadedCache)) {
+          if (!finalCache[chainId as Hex]) {
+            finalCache[chainId as Hex] = cacheData;
+          }
+        }
+        this.#previousTokensChainsCache = finalCache;
+
         this.update((state) => {
           // Only load chains that don't already exist in state
           // This prevents overwriting fresh API data with stale cached data
