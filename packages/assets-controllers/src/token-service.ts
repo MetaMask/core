@@ -36,7 +36,7 @@ function getTokensURL(chainId: Hex): string {
 function getTokenMetadataURL(chainId: Hex, tokenAddress: string): string {
   return `${TOKEN_END_POINT_API}/token/${convertHexToDecimal(
     chainId,
-  )}?address=${tokenAddress}`;
+  )}?address=${tokenAddress}&includeRwaData=true`;
 }
 
 /**
@@ -156,8 +156,8 @@ export async function fetchTokenListByChainId(
     if (Array.isArray(result) && chainId === ChainId['linea-mainnet']) {
       return result.filter(
         (elm) =>
-          Boolean(elm.aggregators.includes('lineaTeam')) ||
-          elm.aggregators.length >= 3,
+          // eslint-disable-next-line @typescript-eslint/prefer-nullish-coalescing
+          elm.aggregators.includes('lineaTeam') || elm.aggregators.length >= 3,
       );
     }
     return result;
@@ -210,7 +210,7 @@ export async function searchTokens(
   {
     limit = 10,
     includeMarketData = false,
-    includeRwaData,
+    includeRwaData = true,
   }: SearchTokenOptions = {},
 ): Promise<{ count: number; data: TokenSearchItem[] }> {
   const tokenSearchURL = getTokenSearchURL({
@@ -228,7 +228,7 @@ export async function searchTokens(
     // The API returns an object with structure: { count: number, data: array, pageInfo: object }
     if (result && typeof result === 'object' && Array.isArray(result.data)) {
       return {
-        count: result.count || result.data.length,
+        count: result.count ?? result.data.length,
         data: result.data,
       };
     }
@@ -291,7 +291,8 @@ export async function getTrendingTokens({
   minMarketCap,
   maxMarketCap,
   excludeLabels,
-  includeRwaData,
+  // default set to true so we don't need to pass it in the function call
+  includeRwaData = true,
 }: {
   chainIds: CaipChainId[];
   sortBy?: SortTrendingBy;
@@ -385,10 +386,12 @@ async function queryApi(
     mode: 'cors',
     signal: abortSignal,
     cache: 'default',
-    headers: {
-      'Content-Type': 'application/json',
-    },
   };
+  // Use globalThis.Headers if available, otherwise skip setting headers (Node.js has no fetch headers by default)
+  if (typeof globalThis.Headers === 'function') {
+    fetchOptions.headers = new globalThis.Headers();
+    fetchOptions.headers.set('Content-Type', 'application/json');
+  }
   try {
     return await timeoutFetch(apiURL, fetchOptions, timeout);
   } catch (error) {
