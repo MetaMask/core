@@ -45,9 +45,10 @@ export const controllerName = 'RampsController';
  */
 export type RampsControllerState = {
   /**
-   * The user's country code determined by geolocation.
+   * The user's selected region code (e.g., "US-CA").
+   * Initially set via geolocation fetch, but can be manually changed by the user.
    */
-  geolocation: string | null;
+  userRegion: string | null;
   /**
    * Eligibility information for the user's current region.
    */
@@ -63,7 +64,7 @@ export type RampsControllerState = {
  * The metadata for each property in {@link RampsControllerState}.
  */
 const rampsControllerMetadata = {
-  geolocation: {
+  userRegion: {
     persist: true,
     includeInDebugSnapshot: true,
     includeInStateLogs: true,
@@ -93,7 +94,7 @@ const rampsControllerMetadata = {
  */
 export function getDefaultRampsControllerState(): RampsControllerState {
   return {
-    geolocation: null,
+    userRegion: null,
     eligibility: null,
     requests: {},
   };
@@ -387,17 +388,17 @@ export class RampsController extends BaseController<
   }
 
   /**
-   * Updates the user's geolocation and eligibility.
+   * Updates the user's region by fetching geolocation and eligibility.
    * This method calls the RampsService to get the geolocation,
    * then automatically fetches eligibility for that region.
    *
    * @param options - Options for cache behavior.
-   * @returns The geolocation string.
+   * @returns The user region string.
    */
-  async updateGeolocation(options?: ExecuteRequestOptions): Promise<string> {
-    const cacheKey = createCacheKey('updateGeolocation', []);
+  async updateUserRegion(options?: ExecuteRequestOptions): Promise<string> {
+    const cacheKey = createCacheKey('updateUserRegion', []);
 
-    const geolocation = await this.executeRequest(
+    const userRegion = await this.executeRequest(
       cacheKey,
       async () => {
         const result = await this.messenger.call('RampsService:getGeolocation');
@@ -406,24 +407,77 @@ export class RampsController extends BaseController<
       options,
     );
 
+    const normalizedRegion = userRegion
+      ? userRegion.toLowerCase().trim()
+      : userRegion;
+
     this.update((state) => {
-      state.geolocation = geolocation;
+      state.userRegion = normalizedRegion;
     });
 
-    if (geolocation) {
+    if (normalizedRegion) {
       try {
-        await this.updateEligibility(geolocation, options);
+        await this.updateEligibility(normalizedRegion, options);
       } catch {
-        // Eligibility fetch failed, but geolocation was successfully fetched and cached.
-        // Don't let eligibility errors prevent geolocation state from being updated.
-        // Clear eligibility state to avoid showing stale data from a previous location.
         this.update((state) => {
-          state.eligibility = null;
+          const currentUserRegion = state.userRegion?.toLowerCase().trim();
+          if (currentUserRegion === normalizedRegion) {
+            state.eligibility = null;
+          }
         });
       }
     }
 
-    return geolocation;
+    return normalizedRegion;
+  }
+
+  /**
+   * Sets the user's region manually (without fetching geolocation).
+   * This allows users to override the detected region.
+   *
+   * @param region - The region code to set (e.g., "US-CA").
+   * @param options - Options for cache behavior when fetching eligibility.
+   * @returns The eligibility information for the region.
+   */
+  async setUserRegion(
+    region: string,
+    options?: ExecuteRequestOptions,
+  ): Promise<Eligibility> {
+    const normalizedRegion = region.toLowerCase().trim();
+
+    this.update((state) => {
+      state.userRegion = normalizedRegion;
+    });
+
+    try {
+      return await this.updateEligibility(normalizedRegion, options);
+    } catch (error) {
+      // Eligibility fetch failed, but user region was successfully set.
+      // Don't let eligibility errors prevent user region state from being updated.
+      // Clear eligibility state to avoid showing stale data from a previous location.
+      // Only clear if the region still matches to avoid race conditions where a newer
+      // region change has already succeeded.
+      this.update((state) => {
+        const currentUserRegion = state.userRegion?.toLowerCase().trim();
+        if (currentUserRegion === normalizedRegion) {
+          state.eligibility = null;
+        }
+      });
+      throw error;
+    }
+  }
+
+  /**
+   * Initializes the controller by fetching the user's region from geolocation.
+   * This should be called once at app startup to set up the initial region.
+   *
+   * @param options - Options for cache behavior.
+   * @returns Promise that resolves when initialization is complete.
+   */
+  async init(options?: ExecuteRequestOptions): Promise<void> {
+    await this.updateUserRegion(options).catch(() => {
+      // User region fetch failed - error state will be available via selectors
+    });
   }
 
   /**
@@ -452,10 +506,9 @@ export class RampsController extends BaseController<
     );
 
     this.update((state) => {
-      if (
-        state.geolocation === null ||
-        state.geolocation.toLowerCase().trim() === normalizedIsoCode
-      ) {
+      const userRegion = state.userRegion?.toLowerCase().trim();
+
+      if (userRegion === undefined || userRegion === normalizedIsoCode) {
         state.eligibility = eligibility;
       }
     });
