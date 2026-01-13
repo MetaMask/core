@@ -291,7 +291,6 @@ export async function getTrendingTokens({
   minMarketCap,
   maxMarketCap,
   excludeLabels,
-  // default set to true so we don't need to pass it in the function call
   includeRwaData = true,
 }: {
   chainIds: CaipChainId[];
