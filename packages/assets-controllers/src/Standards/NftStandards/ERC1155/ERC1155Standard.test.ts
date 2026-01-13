@@ -1,4 +1,5 @@
 import { Web3Provider } from '@ethersproject/providers';
+import * as controllerUtils from '@metamask/controller-utils';
 import HttpProvider from '@metamask/ethjs-provider-http';
 import nock from 'nock';
 
@@ -416,6 +417,45 @@ describe('ERC1155Standard', () => {
       expect(details.standard).toBe('ERC1155');
       expect(details.tokenURI).toBe('https://example.com/metadata.json');
       expect(details.image).toBeUndefined(); // Should be undefined due to fetch error
+
+      // Restore original methods
+      jest.restoreAllMocks();
+    });
+
+    it('should successfully fetch and parse metadata with image', async () => {
+      // Mock successful ERC1155 interface check
+      jest
+        .spyOn(erc1155Standard, 'contractSupportsBase1155Interface')
+        .mockResolvedValue(true);
+      jest.spyOn(erc1155Standard, 'getAssetSymbol').mockResolvedValue('TEST');
+      jest
+        .spyOn(erc1155Standard, 'getAssetName')
+        .mockResolvedValue('Test Token');
+      jest
+        .spyOn(erc1155Standard, 'getTokenURI')
+        .mockResolvedValue('https://example.com/metadata.json');
+
+      // Mock timeoutFetch to return successful response with image
+      jest.spyOn(controllerUtils, 'timeoutFetch').mockResolvedValue({
+        json: async () => ({
+          name: 'Test NFT',
+          description: 'A test NFT',
+          image: 'https://example.com/image.png',
+        }),
+      } as Response);
+
+      const ipfsGateway = 'https://ipfs.gateway.com';
+      const details = await erc1155Standard.getDetails(
+        ERC1155_ADDRESS,
+        ipfsGateway,
+        SAMPLE_TOKEN_ID,
+      );
+
+      expect(details.standard).toBe('ERC1155');
+      expect(details.tokenURI).toBe('https://example.com/metadata.json');
+      expect(details.image).toBe('https://example.com/image.png');
+      expect(details.symbol).toBe('TEST');
+      expect(details.name).toBe('Test Token');
 
       // Restore original methods
       jest.restoreAllMocks();
