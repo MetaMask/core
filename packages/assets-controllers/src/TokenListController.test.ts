@@ -2196,6 +2196,63 @@ describe('TokenListController', () => {
 
       controller.destroy();
     });
+
+    it('should handle errors during initialization from storage', async () => {
+      // Create messenger where getAllKeys throws
+      const messengerWithErrors = new Messenger({
+        namespace: MOCK_ANY_NAMESPACE,
+      });
+
+      // Register getAllKeys to throw
+      // eslint-disable-next-line @typescript-eslint/no-explicit-any
+      (messengerWithErrors as any).registerActionHandler(
+        'StorageService:getAllKeys',
+        () => {
+          throw new Error('Failed to get keys');
+        },
+      );
+
+      // Register other handlers
+      // eslint-disable-next-line @typescript-eslint/no-explicit-any
+      (messengerWithErrors as any).registerActionHandler(
+        'StorageService:getItem',
+        () => ({}),
+      );
+      // eslint-disable-next-line @typescript-eslint/no-explicit-any
+      (messengerWithErrors as any).registerActionHandler(
+        'StorageService:setItem',
+        () => {
+          // Do nothing
+        },
+      );
+      // eslint-disable-next-line @typescript-eslint/no-explicit-any
+      (messengerWithErrors as any).registerActionHandler(
+        'StorageService:removeItem',
+        () => {
+          // Do nothing
+        },
+      );
+
+      const restrictedMessenger = getRestrictedMessenger(messengerWithErrors);
+
+      const consoleErrorSpy = jest.spyOn(console, 'error').mockImplementation();
+
+      const controller = new TokenListController({
+        chainId: ChainId.mainnet,
+        messenger: restrictedMessenger,
+      });
+
+      // Initialize should catch error
+      await controller.initialize();
+
+      expect(consoleErrorSpy).toHaveBeenCalledWith(
+        'TokenListController: Failed to load cache from storage:',
+        expect.any(Error),
+      );
+
+      consoleErrorSpy.mockRestore();
+      controller.destroy();
+    });
   });
 
   describe('deprecated methods', () => {
