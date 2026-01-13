@@ -4,7 +4,7 @@ import {
   handleFetch,
   timeoutFetch,
 } from '@metamask/controller-utils';
-import type { CaipChainId, Hex } from '@metamask/utils';
+import type { CaipAssetType, CaipChainId, Hex } from '@metamask/utils';
 
 import { isTokenListSupportedForNetwork } from './assetsUtil';
 
@@ -18,12 +18,12 @@ export const TOKEN_METADATA_NO_SUPPORT_ERROR =
  * @param chainId - The chain ID of the network the tokens requested are on.
  * @returns The tokens URL.
  */
-function getTokensURL(chainId: Hex) {
+function getTokensURL(chainId: Hex): string {
   const occurrenceFloor = chainId === ChainId['linea-mainnet'] ? 1 : 3;
 
   return `${TOKEN_END_POINT_API}/tokens/${convertHexToDecimal(
     chainId,
-  )}?occurrenceFloor=${occurrenceFloor}&includeNativeAssets=false&includeTokenFees=false&includeAssetType=false&includeERC20Permit=false&includeStorage=false`;
+  )}?occurrenceFloor=${occurrenceFloor}&includeNativeAssets=false&includeTokenFees=false&includeAssetType=false&includeERC20Permit=false&includeStorage=false&includeRwaData=true`;
 }
 
 /**
@@ -33,7 +33,7 @@ function getTokensURL(chainId: Hex) {
  * @param tokenAddress - The token address.
  * @returns The token metadata URL.
  */
-function getTokenMetadataURL(chainId: Hex, tokenAddress: string) {
+function getTokenMetadataURL(chainId: Hex, tokenAddress: string): string {
   return `${TOKEN_END_POINT_API}/token/${convertHexToDecimal(
     chainId,
   )}?address=${tokenAddress}`;
@@ -51,23 +51,33 @@ export type SortTrendingBy =
 /**
  * Get the token search URL for the given networks and search query.
  *
- * @param chainIds - Array of CAIP format chain IDs (e.g., 'eip155:1', 'solana:5eykt4UsFv8P8NJdTREpY1vzqKqZKvdp').
- * @param query - The search query (token name, symbol, or address).
- * @param limit - Optional limit for the number of results (defaults to 10).
- * @param includeMarketData - Optional flag to include market data in the results (defaults to false).
+ * @param options - Options for getting token search URL.
+ * @param options.chainIds - Array of CAIP format chain IDs (e.g., 'eip155:1', 'solana:5eykt4UsFv8P8NJdTREpY1vzqKqZKvdp').
+ * @param options.query - The search query (token name, symbol, or address).
+ * @param options.limit - Optional limit for the number of results (defaults to 10).
+ * @param options.includeMarketData - Optional flag to include market data in the results (defaults to false).
+ * @param options.includeRwaData - Optional flag to include RWA data in the results (defaults to false).
  * @returns The token search URL.
  */
-function getTokenSearchURL(
-  chainIds: CaipChainId[],
-  query: string,
-  limit = 10,
-  includeMarketData = false,
-) {
+function getTokenSearchURL(options: {
+  chainIds: CaipChainId[];
+  query: string;
+  limit?: number;
+  includeMarketData?: boolean;
+  includeRwaData?: boolean;
+}): string {
+  const { chainIds, query, ...optionalParams } = options;
   const encodedQuery = encodeURIComponent(query);
   const encodedChainIds = chainIds
     .map((id) => encodeURIComponent(id))
     .join(',');
-  return `${TOKEN_END_POINT_API}/tokens/search?networks=${encodedChainIds}&query=${encodedQuery}&limit=${limit}&includeMarketData=${includeMarketData}`;
+  const queryParams = new URLSearchParams();
+  Object.entries(optionalParams).forEach(([key, value]) => {
+    if (value !== undefined) {
+      queryParams.append(key, String(value));
+    }
+  });
+  return `${TOKEN_END_POINT_API}/tokens/search?networks=${encodedChainIds}&query=${encodedQuery}&${queryParams.toString()}`;
 }
 
 /**
@@ -82,6 +92,7 @@ function getTokenSearchURL(
  * @param options.minMarketCap - The minimum market cap.
  * @param options.maxMarketCap - The maximum market cap.
  * @param options.excludeLabels - Array of labels to exclude (e.g., ['stable_coin', 'blue_chip']).
+ * @param options.includeRwaData - Optional flag to include RWA data in the results (defaults to false).
  * @returns The trending tokens URL.
  */
 function getTrendingTokensURL(options: {
@@ -93,6 +104,7 @@ function getTrendingTokensURL(options: {
   minMarketCap?: number;
   maxMarketCap?: number;
   excludeLabels?: string[];
+  includeRwaData?: boolean;
 }): string {
   const encodedChainIds = options.chainIds
     .map((id) => encodeURIComponent(id))
@@ -144,13 +156,42 @@ export async function fetchTokenListByChainId(
     if (Array.isArray(result) && chainId === ChainId['linea-mainnet']) {
       return result.filter(
         (elm) =>
-          elm.aggregators.includes('lineaTeam') || elm.aggregators.length >= 3,
+          Boolean(elm.aggregators.includes('lineaTeam')) ||
+          elm.aggregators.length >= 3,
       );
     }
     return result;
   }
   return undefined;
 }
+
+export type TokenRwaData = {
+  market?: {
+    nextOpen?: string;
+    nextClose?: string;
+  };
+  nextPause?: {
+    start?: string;
+    end?: string;
+  };
+  ticker?: string;
+  instrumentType?: string;
+};
+
+export type TokenSearchItem = {
+  assetId: CaipAssetType;
+  name: string;
+  symbol: string;
+  decimals: number;
+  /** Optional RWA data for tokens when includeRwaData is true */
+  rwaData?: TokenRwaData;
+};
+
+type SearchTokenOptions = {
+  limit?: number;
+  includeMarketData?: boolean;
+  includeRwaData?: boolean;
+};
 
 /**
  * Search for tokens across one or more networks by query string using CAIP format chain IDs.
@@ -160,22 +201,29 @@ export async function fetchTokenListByChainId(
  * @param options - Additional fetch options.
  * @param options.limit - The maximum number of results to return.
  * @param options.includeMarketData - Optional flag to include market data in the results (defaults to false).
+ * @param options.includeRwaData - Optional flag to include RWA data in the results (defaults to false).
  * @returns Object containing count and data array. Returns { count: 0, data: [] } if request fails.
  */
 export async function searchTokens(
   chainIds: CaipChainId[],
   query: string,
-  { limit = 10, includeMarketData = false } = {},
-): Promise<{ count: number; data: unknown[] }> {
-  const tokenSearchURL = getTokenSearchURL(
+  {
+    limit = 10,
+    includeMarketData = false,
+    includeRwaData,
+  }: SearchTokenOptions = {},
+): Promise<{ count: number; data: TokenSearchItem[] }> {
+  const tokenSearchURL = getTokenSearchURL({
     chainIds,
     query,
     limit,
     includeMarketData,
-  );
+    includeRwaData,
+  });
 
   try {
-    const result = await handleFetch(tokenSearchURL);
+    const result: { count: number; data: TokenSearchItem[] } =
+      await handleFetch(tokenSearchURL);
 
     // The API returns an object with structure: { count: number, data: array, pageInfo: object }
     if (result && typeof result === 'object' && Array.isArray(result.data)) {
@@ -214,6 +262,8 @@ export type TrendingAsset = {
     h24?: string;
   };
   labels?: string[];
+  /** Optional RWA data for tokens when includeRwaData is true */
+  rwaData?: TokenRwaData;
 };
 
 /**
@@ -228,6 +278,7 @@ export type TrendingAsset = {
  * @param options.minMarketCap - The minimum market cap.
  * @param options.maxMarketCap - The maximum market cap.
  * @param options.excludeLabels - Array of labels to exclude (e.g., ['stable_coin', 'blue_chip']).
+ * @param options.includeRwaData - Optional flag to include RWA data in the results (defaults to false).
  * @returns The trending tokens.
  * @throws Will throw if the request fails.
  */
@@ -240,6 +291,7 @@ export async function getTrendingTokens({
   minMarketCap,
   maxMarketCap,
   excludeLabels,
+  includeRwaData,
 }: {
   chainIds: CaipChainId[];
   sortBy?: SortTrendingBy;
@@ -249,6 +301,7 @@ export async function getTrendingTokens({
   minMarketCap?: number;
   maxMarketCap?: number;
   excludeLabels?: string[];
+  includeRwaData?: boolean;
 }): Promise<TrendingAsset[]> {
   if (chainIds.length === 0) {
     console.error('No chains provided');
@@ -264,6 +317,7 @@ export async function getTrendingTokens({
     minMarketCap,
     maxMarketCap,
     excludeLabels,
+    includeRwaData,
   });
 
   try {
@@ -294,19 +348,19 @@ export async function getTrendingTokens({
  * @param options.timeout - The fetch timeout.
  * @returns The token metadata, or `undefined` if the request was either aborted or failed.
  */
-export async function fetchTokenMetadata<T>(
+export async function fetchTokenMetadata<TReturn>(
   chainId: Hex,
   tokenAddress: string,
   abortSignal: AbortSignal,
   { timeout = defaultTimeout } = {},
-): Promise<T | undefined> {
+): Promise<TReturn | undefined> {
   if (!isTokenListSupportedForNetwork(chainId)) {
     throw new Error(TOKEN_METADATA_NO_SUPPORT_ERROR);
   }
   const tokenMetadataURL = getTokenMetadataURL(chainId, tokenAddress);
   const response = await queryApi(tokenMetadataURL, abortSignal, timeout);
   if (response) {
-    return parseJsonResponse(response) as Promise<T>;
+    return parseJsonResponse(response) as Promise<TReturn>;
   }
   return undefined;
 }
@@ -331,9 +385,10 @@ async function queryApi(
     mode: 'cors',
     signal: abortSignal,
     cache: 'default',
+    headers: {
+      'Content-Type': 'application/json',
+    },
   };
-  fetchOptions.headers = new window.Headers();
-  fetchOptions.headers.set('Content-Type', 'application/json');
   try {
     return await timeoutFetch(apiURL, fetchOptions, timeout);
   } catch (error) {

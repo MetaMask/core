@@ -1,4 +1,4 @@
-# Guidelines for Writing Controllers
+# Guidelines for writing controllers
 
 ## Understand the purpose of the controller pattern
 
@@ -64,7 +64,7 @@ class FooController extends BaseController</* ... */> {
 
 ## Provide a default representation of state
 
-Each controller needs a default representation in order to fully initialize itself when [receiving a partial representation of state](#accept-a-partial-representation-of-state). A default representation of state is also useful when testing interactions with a controller's `*:stateChange` event.
+Each controller needs a default representation in order to fully initialize itself when [receiving a partial representation of state](#accept-an-optional-partial-representation-of-state). A default representation of state is also useful when testing interactions with a controller's `*:stateChange` event.
 
 A function which returns this default representation should be defined and exported. It should be called `getDefault${ControllerName}State`.
 
@@ -637,7 +637,7 @@ export type FooControllerMessenger = Messenger<
 >;
 ```
 
-If, in a test, you need to access all of the actions supported by a messenger, use the [`MessengerActions` utility type](../packages/messenger/src/Messenger.ts):
+If, in a test, you need to access all of the actions supported by a messenger, use the [`MessengerActions` utility type](../../packages/messenger/src/Messenger.ts):
 
 ```typescript
 import type { MessengerActions, MessengerEvents } from '@metamask/messenger';
@@ -716,7 +716,7 @@ export type FooControllerMessenger = Messenger<
 >;
 ```
 
-If, in a test, you need to access all of the events supported by a messenger, use the [`MessengerEvents` utility type](../packages/messenger/src/Messenger.ts):
+If, in a test, you need to access all of the events supported by a messenger, use the [`MessengerEvents` utility type](../../packages/messenger/src/Messenger.ts):
 
 ```typescript
 import type { MessengerActions, MessengerEvents } from '@metamask/messenger';
@@ -1432,7 +1432,7 @@ export const selectActiveAccounts = createSelector(
 
 ## Treat state-mutating methods as actions
 
-Just as each property of state [does not require a getter method to be accessed](#remove-getters-in-favor-of-direct-state-access), each property of state does not require a setter method to be updated, either.
+Just as each property of state [does not require a getter method to be accessed](#expose-derived-state-using-selectors-instead-of-getters), each property of state does not require a setter method to be updated, either.
 
 Methods that change the state of the controller do not need to represent granular, low-level operations such as adding, updating, or deleting a single property from state. Rather, they should be designed to support a higher-level task that the consumer wants to carry out. This is ultimately dictated by the needs of the client UI, and so they should also be given a name that reflects the behavior in the UI.
 

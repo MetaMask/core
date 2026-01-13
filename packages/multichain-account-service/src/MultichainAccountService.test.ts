@@ -17,6 +17,7 @@ import {
   SOL_ACCOUNT_PROVIDER_NAME,
   SolAccountProvider,
 } from './providers/SolAccountProvider';
+import { SnapPlatformWatcher } from './snaps/SnapPlatformWatcher';
 import {
   MOCK_HARDWARE_ACCOUNT_1,
   MOCK_HD_ACCOUNT_1,
@@ -54,17 +55,32 @@ jest.mock('./providers/SolAccountProvider', () => {
 });
 
 type Mocks = {
+  // eslint-disable-next-line @typescript-eslint/naming-convention
   KeyringController: {
     keyrings: KeyringObject[];
     getState: jest.Mock;
     getKeyringsByType: jest.Mock;
     addNewKeyring: jest.Mock;
   };
+  // eslint-disable-next-line @typescript-eslint/naming-convention
   AccountsController: {
     listMultichainAccounts: jest.Mock;
   };
+  // eslint-disable-next-line @typescript-eslint/naming-convention
+  SnapController: {
+    getState: jest.Mock;
+  };
+  // eslint-disable-next-line @typescript-eslint/naming-convention
   EvmAccountProvider: MockAccountProvider;
+  // eslint-disable-next-line @typescript-eslint/naming-convention
   SolAccountProvider: MockAccountProvider;
+};
+
+type Spies = {
+  // eslint-disable-next-line @typescript-eslint/naming-convention
+  SnapPlatformWatcher: {
+    ensureCanUseSnapPlatform: jest.SpyInstance;
+  };
 };
 
 function mockAccountProvider<Provider extends Bip44AccountProvider>(
@@ -72,7 +88,7 @@ function mockAccountProvider<Provider extends Bip44AccountProvider>(
   mocks: MockAccountProvider,
   accounts: KeyringAccount[],
   type: KeyringAccount['type'],
-) {
+): void {
   jest.mocked(providerClass).mockImplementation((...args) => {
     mocks.constructor(...args);
     return mocks as unknown as Provider;
@@ -100,6 +116,7 @@ async function setup({
   rootMessenger: RootMessenger;
   messenger: MultichainAccountServiceMessenger;
   mocks: Mocks;
+  spies: Spies;
 }> {
   const mocks: Mocks = {
     KeyringController: {
@@ -111,12 +128,33 @@ async function setup({
     AccountsController: {
       listMultichainAccounts: jest.fn(),
     },
+    SnapController: {
+      getState: jest.fn(),
+    },
     EvmAccountProvider: makeMockAccountProvider(),
     SolAccountProvider: makeMockAccountProvider(),
   };
 
+  const spies: Spies = {
+    SnapPlatformWatcher: {
+      ensureCanUseSnapPlatform: jest.spyOn(
+        SnapPlatformWatcher.prototype,
+        'ensureCanUseSnapPlatform',
+      ),
+    },
+  };
+
   // Required for the `assert` on `MultichainAccountWallet.createMultichainAccountGroup`.
   Object.setPrototypeOf(mocks.EvmAccountProvider, EvmAccountProvider.prototype);
+
+  mocks.SnapController.getState.mockImplementation(() => ({
+    isReady: true,
+  }));
+
+  rootMessenger.registerActionHandler(
+    'SnapController:getState',
+    mocks.SnapController.getState,
+  );
 
   mocks.KeyringController.getState.mockImplementation(() => ({
     isUnlocked: true,
@@ -181,6 +219,7 @@ async function setup({
     rootMessenger,
     messenger,
     mocks,
+    spies,
   };
 }
 
@@ -1004,6 +1043,21 @@ describe('MultichainAccountService', () => {
       await messenger.call('MultichainAccountService:resyncAccounts');
       expect(resyncAccountsSpy).toHaveBeenCalled();
     });
+
+    it('checks for Snap platform readiness with MultichainAccountService:ensureCanUseSnapPlatform', async () => {
+      const { messenger, service } = await setup({
+        accounts: [],
+      });
+
+      await service.ensureCanUseSnapPlatform();
+
+      const ensureCanUseSnapPlatformSpy = jest.spyOn(
+        service,
+        'ensureCanUseSnapPlatform',
+      );
+      await messenger.call('MultichainAccountService:ensureCanUseSnapPlatform');
+      expect(ensureCanUseSnapPlatformSpy).toHaveBeenCalled();
+    });
   });
 
   describe('resyncAccounts', () => {
@@ -1041,6 +1095,8 @@ describe('MultichainAccountService', () => {
 
     it('does not throw if any providers is throwing', async () => {
       const rootMessenger = getRootMessenger();
+      const captureExceptionSpy = jest.spyOn(rootMessenger, 'captureException');
+
       const { service, mocks } = await setup({
         rootMessenger,
         accounts: [MOCK_HD_ACCOUNT_1],
@@ -1049,19 +1105,13 @@ describe('MultichainAccountService', () => {
       const providerError = new Error('Unable to resync accounts');
       mocks.SolAccountProvider.resyncAccounts.mockRejectedValue(providerError);
 
-      const mockCaptureException = jest.fn();
-      rootMessenger.registerActionHandler(
-        'ErrorReportingService:captureException',
-        mockCaptureException,
-      );
-
       await service.resyncAccounts(); // Should not throw.
 
       expect(mocks.EvmAccountProvider.resyncAccounts).toHaveBeenCalled();
       expect(mocks.SolAccountProvider.resyncAccounts).toHaveBeenCalled();
 
-      expect(mockCaptureException).toHaveBeenCalled();
-      expect(mockCaptureException.mock.lastCall[0]).toHaveProperty(
+      expect(captureExceptionSpy).toHaveBeenCalled();
+      expect(captureExceptionSpy.mock.lastCall[0]).toHaveProperty(
         'cause',
         providerError,
       );
@@ -1249,6 +1299,20 @@ describe('MultichainAccountService', () => {
 
       // Ensure we did not attempt to create a new keyring when duplicate is detected
       expect(mocks.KeyringController.addNewKeyring).not.toHaveBeenCalled();
+    });
+  });
+
+  describe('ensureCanUseSnapPlatform', () => {
+    it('delegates Snap platform readiness check to SnapPlatformWatcher (method)', async () => {
+      const { service, spies } = await setup({
+        accounts: [],
+      });
+
+      await service.ensureCanUseSnapPlatform();
+
+      expect(
+        spies.SnapPlatformWatcher.ensureCanUseSnapPlatform,
+      ).toHaveBeenCalledTimes(1);
     });
   });
 });

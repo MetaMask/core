@@ -24,10 +24,11 @@ import {
   formatAggregatorNames,
   formatIconUrlWithProxy,
 } from './assetsUtil';
-import { fetchTokenListByChainId } from './token-service';
+import { TokenRwaData, fetchTokenListByChainId } from './token-service';
 
-const DEFAULT_INTERVAL = 24 * 60 * 60 * 1000;
-const DEFAULT_THRESHOLD = 24 * 60 * 60 * 1000;
+// 4 Hour Interval Cache Refresh Threshold
+const DEFAULT_INTERVAL = 4 * 60 * 60 * 1000;
+const DEFAULT_THRESHOLD = 4 * 60 * 60 * 1000;
 
 const name = 'TokenListController';
 
@@ -39,6 +40,7 @@ export type TokenListToken = {
   occurrences: number;
   aggregators: string[];
   iconUrl: string;
+  rwaData?: TokenRwaData;
 };
 
 export type TokenListMap = Record<string, TokenListToken>;

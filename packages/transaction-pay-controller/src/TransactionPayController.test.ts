@@ -74,6 +74,18 @@ describe('TransactionPayController', () => {
     });
   });
 
+  describe('setIsMaxAmount', () => {
+    it('updates state', () => {
+      const controller = createController();
+
+      controller.setIsMaxAmount(TRANSACTION_ID_MOCK, true);
+
+      expect(
+        controller.state.transactionData[TRANSACTION_ID_MOCK].isMaxAmount,
+      ).toBe(true);
+    });
+  });
+
   describe('getStrategy Action', () => {
     it('returns relay if no callback', async () => {
       createController();
