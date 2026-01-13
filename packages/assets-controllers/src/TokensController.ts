@@ -39,7 +39,7 @@ import type {
 } from '@metamask/network-controller';
 import { rpcErrors } from '@metamask/rpc-errors';
 import { isStrictHexString } from '@metamask/utils';
-import type { Hex } from '@metamask/utils';
+import type { Hex, Json } from '@metamask/utils';
 import { Mutex } from 'async-mutex';
 import type { Patch } from 'immer';
 import { cloneDeep } from 'lodash';
@@ -75,6 +75,13 @@ type SuggestedAssetMeta = {
   type: string;
   asset: Token;
   interactingAddress: string;
+  origin?: string;
+  pageMeta?: Record<string, Json>;
+};
+
+type WatchAssetRequestMetadata = {
+  origin?: string;
+  pageMeta?: Record<string, Json>;
 };
 
 /**
@@ -836,6 +843,9 @@ export class TokensController extends BaseController<
    * @param options.type - The asset type.
    * @param options.interactingAddress - The address of the account that is requesting to watch the asset.
    * @param options.networkClientId - Network Client ID.
+   * @param options.origin - The origin to set on the approval request.
+   * @param options.pageMeta - The metadata for the page initiating the request.
+   * @param options.requestMetadata - Metadata for the request, including pageMeta and origin.
    * @returns A promise that resolves if the asset was watched successfully, and rejects otherwise.
    */
   async watchAsset({
@@ -843,11 +853,17 @@ export class TokensController extends BaseController<
     type,
     interactingAddress,
     networkClientId,
+    origin,
+    pageMeta,
+    requestMetadata,
   }: {
     asset: Token;
     type: string;
     interactingAddress?: string;
     networkClientId: NetworkClientId;
+    origin?: string;
+    pageMeta?: Record<string, Json>;
+    requestMetadata?: WatchAssetRequestMetadata;
   }): Promise<void> {
     if (type !== ERC20) {
       throw new Error(`Asset of type ${type} not supported`);
@@ -955,6 +971,8 @@ export class TokensController extends BaseController<
       time: Date.now(),
       type,
       interactingAddress: selectedAddress,
+      origin: requestMetadata?.origin || origin,
+      pageMeta: requestMetadata?.pageMeta ?? pageMeta,
     };
 
     await this.#requestApproval(suggestedAssetMeta);
@@ -1079,22 +1097,29 @@ export class TokensController extends BaseController<
   }
 
   async #requestApproval(suggestedAssetMeta: SuggestedAssetMeta) {
+    const requestData: Record<string, Json> = {
+      id: suggestedAssetMeta.id,
+      interactingAddress: suggestedAssetMeta.interactingAddress,
+      asset: {
+        address: suggestedAssetMeta.asset.address,
+        decimals: suggestedAssetMeta.asset.decimals,
+        symbol: suggestedAssetMeta.asset.symbol,
+        image: suggestedAssetMeta.asset.image || null,
+      },
+    };
+    if (suggestedAssetMeta.pageMeta) {
+      requestData.metadata = {
+        pageMeta: suggestedAssetMeta.pageMeta,
+      };
+    }
+
     return this.messenger.call(
       'ApprovalController:addRequest',
       {
         id: suggestedAssetMeta.id,
-        origin: ORIGIN_METAMASK,
+        origin: suggestedAssetMeta.origin || ORIGIN_METAMASK,
         type: ApprovalType.WatchAsset,
-        requestData: {
-          id: suggestedAssetMeta.id,
-          interactingAddress: suggestedAssetMeta.interactingAddress,
-          asset: {
-            address: suggestedAssetMeta.asset.address,
-            decimals: suggestedAssetMeta.asset.decimals,
-            symbol: suggestedAssetMeta.asset.symbol,
-            image: suggestedAssetMeta.asset.image || null,
-          },
-        },
+        requestData,
       },
       true,
     );
