@@ -57,6 +57,7 @@ export type GetBalanceChangesRequest = {
   getSimulationConfig: GetSimulationConfig;
   nestedTransactions?: NestedTransactionMetadata[];
   txParams: TransactionParams;
+  isGasFeeSponsored?: boolean;
 };
 
 type ParsedEvent = {
@@ -206,11 +207,10 @@ function getNativeBalanceChange(
     return undefined;
   }
 
-  return getSimulationBalanceChange(
-    previousBalance,
-    newBalance,
-    transactionResponse.gasCost,
-  );
+  // For sponsored transactions, withGas: false ensures stateDiff excludes gas costs.
+  // For non-sponsored transactions, withGas: true includes gas costs in stateDiff.
+  // Hence gas cost not needed here.
+  return getSimulationBalanceChange(previousBalance, newBalance);
 }
 
 /**
@@ -637,15 +637,15 @@ function extractLogs(
  *
  * @param previousBalance - The previous balance.
  * @param newBalance - The new balance.
- * @param offset - Optional offset to apply to the new balance.
+ * @param offset - Optional offset to apply to the new balance (as BN to maintain precision).
  * @returns The balance change data or undefined if unchanged.
  */
 function getSimulationBalanceChange(
   previousBalance: Hex,
   newBalance: Hex,
-  offset: number = 0,
+  offset: BN = new BN(0),
 ): SimulationBalanceChange | undefined {
-  const newBalanceBN = hexToBN(newBalance).add(new BN(offset));
+  const newBalanceBN = hexToBN(newBalance).add(offset);
   const previousBalanceBN = hexToBN(previousBalance);
   const differenceBN = newBalanceBN.sub(previousBalanceBN);
   const isDecrease = differenceBN.isNeg();
@@ -742,7 +742,7 @@ async function baseRequest({
     ...params,
     getSimulationConfig,
     transactions,
-    withGas: true,
+    withGas: !request.isGasFeeSponsored,
     withDefaultBlockOverrides: true,
     ...(blockTime && {
       blockOverrides: {

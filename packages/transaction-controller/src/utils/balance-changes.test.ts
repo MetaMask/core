@@ -335,13 +335,43 @@ describe('Balance Change Utils', () => {
         });
       });
 
-      it('ignoring gas cost', async () => {
+      it('including gas cost for non-sponsored transactions', async () => {
         simulateTransactionsMock.mockResolvedValueOnce(
           createNativeBalanceResponse('0x3', '0x8', 2),
         );
 
         const result = await getBalanceChanges(REQUEST_MOCK);
 
+        // For non-sponsored transactions, withGas: true means gas is included in stateDiff
+        // previousBalance: 0x3, newBalance: 0x8 (already has gas deducted)
+        // difference: 0x8 - 0x3 = 0x5
+        expect(result).toStrictEqual({
+          simulationData: {
+            nativeBalanceChange: {
+              difference: '0x5',
+              isDecrease: false,
+              newBalance: '0x8',
+              previousBalance: '0x3',
+            },
+            tokenBalanceChanges: [],
+          },
+          gasUsed: undefined,
+        });
+      });
+
+      it('excluding gas cost for sponsored transactions', async () => {
+        simulateTransactionsMock.mockResolvedValueOnce(
+          createNativeBalanceResponse('0x3', '0xa', 0), // withGas: false means gas not deducted
+        );
+
+        const result = await getBalanceChanges({
+          ...REQUEST_MOCK,
+          isGasFeeSponsored: true,
+        });
+
+        // For sponsored transactions, withGas: false means gas is NOT included in stateDiff
+        // previousBalance: 0x3, newBalance: 0xa (value transfer only, no gas deducted)
+        // difference: 0xa - 0x3 = 0x7
         expect(result).toStrictEqual({
           simulationData: {
             nativeBalanceChange: {
@@ -354,6 +384,14 @@ describe('Balance Change Utils', () => {
           },
           gasUsed: undefined,
         });
+
+        // Verify that withGas: false was used for sponsored transaction
+        expect(simulateTransactionsMock).toHaveBeenCalledWith(
+          expect.any(String),
+          expect.objectContaining({
+            withGas: false,
+          }),
+        );
       });
     });
 
@@ -727,7 +765,7 @@ describe('Balance Change Utils', () => {
               },
             ],
             withDefaultBlockOverrides: true,
-            withGas: true,
+            withGas: true, // Token balance checks always use withGas: true
           },
         );
         expect(result).toStrictEqual({

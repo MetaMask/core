@@ -1023,6 +1023,10 @@ describe('TransactionController', () => {
 
     signMock = jest.fn().mockImplementation(async (transaction) => transaction);
     isEIP7702GasFeeTokensEnabledMock = jest.fn().mockResolvedValue(false);
+    getGasFeeTokensMock.mockResolvedValue({
+      gasFeeTokens: [],
+      isGasFeeSponsored: false,
+    });
     getBalanceChangesMock.mockResolvedValue({
       simulationData: SIMULATION_DATA_RESULT_MOCK,
     });
@@ -2310,6 +2314,8 @@ describe('TransactionController', () => {
 
         await controller.updateEditableParams(transactionMeta.id, {});
 
+        await flushPromises();
+
         expect(getBalanceChangesMock).toHaveBeenCalledTimes(2);
       });
 
@@ -2448,6 +2454,7 @@ describe('TransactionController', () => {
           chainId: MOCK_NETWORK.chainId,
           ethQuery: expect.any(Object),
           getSimulationConfig: expect.any(Function),
+          isGasFeeSponsored: false,
           nestedTransactions: undefined,
           txParams: {
             data: undefined,
@@ -2521,6 +2528,7 @@ describe('TransactionController', () => {
         expect(getBalanceChangesMock).toHaveBeenCalledWith(
           expect.objectContaining({
             getSimulationConfig: expect.any(Function),
+            isGasFeeSponsored: false,
           }),
         );
 
@@ -2700,6 +2708,11 @@ describe('TransactionController', () => {
         await flushPromises();
 
         expect(controller.state.transactions[0].isGasFeeSponsored).toBe(true);
+        expect(getBalanceChangesMock).toHaveBeenCalledWith(
+          expect.objectContaining({
+            isGasFeeSponsored: true,
+          }),
+        );
       });
 
       it('sets isGasFeeSponsored to false when transaction is not sponsored', async () => {
@@ -7501,6 +7514,7 @@ describe('TransactionController', () => {
         blockTime: 123,
         ethQuery: expect.any(Object),
         getSimulationConfig: expect.any(Function),
+        isGasFeeSponsored: false,
         nestedTransactions: undefined,
         txParams: {
           data: undefined,
@@ -7542,6 +7556,7 @@ describe('TransactionController', () => {
         blockTime: 123,
         ethQuery: expect.any(Object),
         getSimulationConfig: expect.any(Function),
+        isGasFeeSponsored: false,
         nestedTransactions: undefined,
         txParams: {
           data: undefined,

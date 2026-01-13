@@ -4379,6 +4379,13 @@ export class TransactionController extends BaseController<
       this.#skipSimulationTransactionIds.has(transactionId);
 
     if (this.#isSimulationEnabled() && !isBalanceChangesSkipped) {
+      // Get gas fee tokens FIRST to determine if transaction is sponsored
+      // This needs to happen BEFORE getBalanceChanges so we can exclude gas costs
+      const gasFeeTokensResponse = await this.#getGasFeeTokens(transactionMeta);
+
+      gasFeeTokens = gasFeeTokensResponse?.gasFeeTokens ?? [];
+      isGasFeeSponsored = gasFeeTokensResponse?.isGasFeeSponsored ?? false;
+
       const balanceChangesResult = await this.#trace(
         { name: 'Simulate', parentContext: traceContext },
         () =>
@@ -4394,6 +4401,7 @@ export class TransactionController extends BaseController<
             },
             nestedTransactions,
             txParams,
+            isGasFeeSponsored,
           }),
       );
       simulationData = balanceChangesResult.simulationData;
@@ -4409,11 +4417,6 @@ export class TransactionController extends BaseController<
           isUpdatedAfterSecurityCheck: true,
         };
       }
-
-      const gasFeeTokensResponse = await this.#getGasFeeTokens(transactionMeta);
-
-      gasFeeTokens = gasFeeTokensResponse?.gasFeeTokens ?? [];
-      isGasFeeSponsored = gasFeeTokensResponse?.isGasFeeSponsored ?? false;
     }
 
     const latestTransactionMeta = this.#getTransaction(transactionId);
