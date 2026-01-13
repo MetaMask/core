@@ -84,6 +84,14 @@ type WatchAssetRequestMetadata = {
   pageMeta?: Record<string, Json>;
 };
 
+const getNonEmptyString = (
+  ...candidates: Array<string | undefined>
+): string | undefined => {
+  return candidates.find(
+    (candidate) => typeof candidate === 'string' && candidate.trim() !== '',
+  );
+};
+
 /**
  * @type TokensControllerState
  *
@@ -269,7 +277,7 @@ export class TokensController extends BaseController<
         const updatedAllTokens = cloneDeep(allTokens);
 
         for (const [chainId, chainCache] of Object.entries(tokensChainsCache)) {
-          const chainData = chainCache?.data || {};
+          const chainData = chainCache?.data ?? {};
 
           if (updatedAllTokens[chainId as Hex]) {
             if (updatedAllTokens[chainId as Hex][selectedAddress]) {
@@ -440,11 +448,11 @@ export class TokensController extends BaseController<
 
     try {
       address = toChecksumHexAddress(address);
-      const tokens = allTokens[chainIdToUse]?.[accountAddress] || [];
+      const tokens = allTokens[chainIdToUse]?.[accountAddress] ?? [];
       const ignoredTokens =
-        allIgnoredTokens[chainIdToUse]?.[accountAddress] || [];
+        allIgnoredTokens[chainIdToUse]?.[accountAddress] ?? [];
       const detectedTokens =
-        allDetectedTokens[chainIdToUse]?.[accountAddress] || [];
+        allDetectedTokens[chainIdToUse]?.[accountAddress] ?? [];
       const newTokens: Token[] = [...tokens];
       const [isERC721, tokenMetadata] = await Promise.all([
         this.#detectIsERC721(address, networkClientId),
@@ -456,13 +464,14 @@ export class TokensController extends BaseController<
         symbol,
         decimals,
         image:
-          image ||
-          formatIconUrlWithProxy({
-            chainId: chainIdToUse,
-            tokenAddress: address,
-          }),
+          image && image.trim() !== ''
+            ? image
+            : formatIconUrlWithProxy({
+                chainId: chainIdToUse,
+                tokenAddress: address,
+              }),
         isERC721,
-        aggregators: formatAggregatorNames(tokenMetadata?.aggregators || []),
+        aggregators: formatAggregatorNames(tokenMetadata?.aggregators ?? []),
         name,
         ...(tokenMetadata?.rwaData && { rwaData: tokenMetadata.rwaData }),
       };
@@ -524,7 +533,7 @@ export class TokensController extends BaseController<
 
     // Used later to dedupe imported tokens
     const newTokensMap = [
-      ...(allTokens[interactingChainId]?.[this.#getSelectedAccount().address] ||
+      ...(allTokens[interactingChainId]?.[this.#getSelectedAccount().address] ??
         []),
       ...tokensToImport,
     ].reduce<{ [address: string]: Token }>((output, token) => {
@@ -601,14 +610,15 @@ export class TokensController extends BaseController<
     const { allTokens, allDetectedTokens, allIgnoredTokens } = this.state;
     const ignoredTokensMap: { [key: string]: true } = {};
     const ignoredTokens =
-      allIgnoredTokens[interactingChainId]?.[this.#getSelectedAddress()] || [];
+      allIgnoredTokens[interactingChainId]?.[this.#getSelectedAddress()] ?? [];
     let newIgnoredTokens: string[] = [...ignoredTokens];
 
     const tokens =
-      allTokens[interactingChainId]?.[this.#getSelectedAddress()] || [];
+      allTokens[interactingChainId]?.[this.#getSelectedAddress()] ?? [];
 
     const detectedTokens =
-      allDetectedTokens[interactingChainId]?.[this.#getSelectedAddress()] || [];
+      allDetectedTokens[interactingChainId]?.[this.#getSelectedAddress()] ??
+      [];
 
     const checksummedTokenAddresses = tokenAddressesToIgnore.map((address) => {
       const checksumAddress = toChecksumHexAddress(address);
@@ -728,9 +738,9 @@ export class TokensController extends BaseController<
       // Re-point `tokens` and `detectedTokens` to keep them referencing the current chain/account.
       const selectedAddress = this.#getSelectedAddress();
 
-      newTokens = newAllTokens?.[chainId]?.[selectedAddress] || [];
+      newTokens = newAllTokens?.[chainId]?.[selectedAddress] ?? [];
       newDetectedTokens =
-        newAllDetectedTokens?.[chainId]?.[selectedAddress] || [];
+        newAllDetectedTokens?.[chainId]?.[selectedAddress] ?? [];
 
       this.update((state) => {
         state.allTokens = newAllTokens;
@@ -971,7 +981,7 @@ export class TokensController extends BaseController<
       time: Date.now(),
       type,
       interactingAddress: selectedAddress,
-      origin: requestMetadata?.origin || origin,
+      origin: getNonEmptyString(requestMetadata?.origin, origin),
       pageMeta: requestMetadata?.pageMeta ?? pageMeta,
     };
 
@@ -1104,7 +1114,11 @@ export class TokensController extends BaseController<
         address: suggestedAssetMeta.asset.address,
         decimals: suggestedAssetMeta.asset.decimals,
         symbol: suggestedAssetMeta.asset.symbol,
-        image: suggestedAssetMeta.asset.image || null,
+        image:
+          suggestedAssetMeta.asset.image &&
+          suggestedAssetMeta.asset.image.trim() !== ''
+            ? suggestedAssetMeta.asset.image
+            : null,
       },
     };
     if (suggestedAssetMeta.pageMeta) {
@@ -1117,7 +1131,7 @@ export class TokensController extends BaseController<
       'ApprovalController:addRequest',
       {
         id: suggestedAssetMeta.id,
-        origin: suggestedAssetMeta.origin || ORIGIN_METAMASK,
+        origin: getNonEmptyString(suggestedAssetMeta.origin) ?? ORIGIN_METAMASK,
         type: ApprovalType.WatchAsset,
         requestData,
       },
@@ -1135,7 +1149,7 @@ export class TokensController extends BaseController<
       'AccountsController:getAccount',
       this.#selectedAccountId,
     );
-    return account?.address || '';
+    return account?.address ?? '';
   }
 
   /**
