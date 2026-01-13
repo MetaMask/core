@@ -2196,7 +2196,9 @@ describe('TokenListController', () => {
 
       controller.destroy();
     });
+  });
 
+  describe('edge cases for coverage', () => {
     it('should handle errors during initialization from storage', async () => {
       // Create messenger where getAllKeys throws
       const messengerWithErrors = new Messenger({
@@ -2247,6 +2249,249 @@ describe('TokenListController', () => {
 
       expect(consoleErrorSpy).toHaveBeenCalledWith(
         'TokenListController: Failed to load cache from storage:',
+        expect.any(Error),
+      );
+
+      consoleErrorSpy.mockRestore();
+      controller.destroy();
+    });
+    it('should handle partial failures when clearing cache from StorageService', async () => {
+      const messenger = getMessenger();
+      const restrictedMessenger = getRestrictedMessenger(messenger);
+
+      // Pre-populate storage with two chains
+      const chainStorageKey1 = `tokensChainsCache:${ChainId.mainnet}`;
+      const chainStorageKey2 = `tokensChainsCache:${ChainId.goerli}`;
+      const chainData: DataCache = {
+        data: sampleMainnetTokensChainsCache,
+        timestamp: Date.now(),
+      };
+
+      await messenger.call(
+        'StorageService:setItem',
+        'TokenListController',
+        chainStorageKey1,
+        chainData,
+      );
+      await messenger.call(
+        'StorageService:setItem',
+        'TokenListController',
+        chainStorageKey2,
+        chainData,
+      );
+
+      // Create controller with both chains in state
+      const controller = new TokenListController({
+        chainId: ChainId.mainnet,
+        messenger: restrictedMessenger,
+        state: {
+          tokensChainsCache: {
+            [ChainId.mainnet]: chainData,
+            [ChainId.goerli]: chainData,
+          },
+          preventPollingOnNetworkRestart: false,
+        },
+      });
+
+      await controller.initialize();
+
+      // Create a new messenger where removeItem fails for one chain
+      const messengerWithPartialFailure = new Messenger({
+        namespace: MOCK_ANY_NAMESPACE,
+      });
+
+      // eslint-disable-next-line @typescript-eslint/no-explicit-any
+      (messengerWithPartialFailure as any).registerActionHandler(
+        'StorageService:getAllKeys',
+        () => [chainStorageKey1, chainStorageKey2],
+      );
+
+      // eslint-disable-next-line @typescript-eslint/no-explicit-any
+      (messengerWithPartialFailure as any).registerActionHandler(
+        'StorageService:removeItem',
+        async (_controllerNamespace: string, key: string) => {
+          if (key === chainStorageKey2) {
+            return Promise.reject(new Error('Failed to remove'));
+          }
+        },
+      );
+
+      // eslint-disable-next-line @typescript-eslint/no-explicit-any
+      (messengerWithPartialFailure as any).registerActionHandler(
+        'StorageService:getItem',
+        () => ({}),
+      );
+
+      // eslint-disable-next-line @typescript-eslint/no-explicit-any
+      (messengerWithPartialFailure as any).registerActionHandler(
+        'StorageService:setItem',
+        () => {
+          // Do nothing
+        },
+      );
+
+      const restrictedMessenger2 = getRestrictedMessenger(
+        messengerWithPartialFailure,
+      );
+
+      const controller2 = new TokenListController({
+        chainId: ChainId.mainnet,
+        messenger: restrictedMessenger2,
+        state: {
+          tokensChainsCache: {
+            [ChainId.mainnet]: chainData,
+            [ChainId.goerli]: chainData,
+          },
+          preventPollingOnNetworkRestart: false,
+        },
+      });
+
+      const consoleErrorSpy = jest.spyOn(console, 'error').mockImplementation();
+
+      await controller2.clearingTokenListData();
+
+      // Should have logged error for the failed chain
+      expect(consoleErrorSpy).toHaveBeenCalledWith(
+        `TokenListController: Failed to remove cache for chain ${ChainId.goerli}:`,
+        expect.any(Error),
+      );
+
+      // Failed chain should be preserved in state
+      expect(controller2.state.tokensChainsCache[ChainId.goerli]).toBeDefined();
+      // Successful chain should be cleared
+      expect(
+        controller2.state.tokensChainsCache[ChainId.mainnet],
+      ).toBeUndefined();
+
+      consoleErrorSpy.mockRestore();
+      controller.destroy();
+      controller2.destroy();
+    });
+  });
+
+  describe('debounce timer cancellation', () => {
+    it('should cancel pending persist when clearing token list data', async () => {
+      const messenger = getMessenger();
+      const restrictedMessenger = getRestrictedMessenger(messenger);
+
+      nock(tokenService.TOKEN_END_POINT_API)
+        .get(getTokensPath(ChainId.mainnet))
+        .reply(200, sampleMainnetTokenList);
+
+      const controller = new TokenListController({
+        chainId: ChainId.mainnet,
+        messenger: restrictedMessenger,
+      });
+
+      await controller.initialize();
+
+      // Fetch tokens to trigger state change and start debounce timer
+      await controller.fetchTokenList(ChainId.mainnet);
+
+      // Immediately clear (before debounce timer fires) - this should cancel the timer
+      await controller.clearingTokenListData();
+
+      // Wait past the debounce time
+      await new Promise((resolve) => setTimeout(resolve, 600));
+
+      // State should be cleared
+      expect(controller.state.tokensChainsCache).toStrictEqual({});
+
+      controller.destroy();
+    });
+  });
+
+  describe('network change error handling', () => {
+    it('should handle clearingTokenListData errors on preventPollingOnNetworkRestart', async () => {
+      const getNetworkClientById = buildMockGetNetworkClientById({
+        [InfuraNetworkType.mainnet]: buildInfuraNetworkClientConfiguration(
+          InfuraNetworkType.mainnet,
+        ),
+        [InfuraNetworkType.sepolia]: buildInfuraNetworkClientConfiguration(
+          InfuraNetworkType.sepolia,
+        ),
+      });
+
+      // Create messenger where getAllKeys throws during clear
+      const messengerWithErrors = new Messenger({
+        namespace: MOCK_ANY_NAMESPACE,
+      });
+
+      let clearAttempted = false;
+
+      // Register getAllKeys to throw after first successful call
+      // eslint-disable-next-line @typescript-eslint/no-explicit-any
+      (messengerWithErrors as any).registerActionHandler(
+        'StorageService:getAllKeys',
+        () => {
+          if (clearAttempted) {
+            throw new Error('Failed to get keys during clear');
+          }
+          return [];
+        },
+      );
+
+      // eslint-disable-next-line @typescript-eslint/no-explicit-any
+      (messengerWithErrors as any).registerActionHandler(
+        'StorageService:getItem',
+        () => ({}),
+      );
+
+      // eslint-disable-next-line @typescript-eslint/no-explicit-any
+      (messengerWithErrors as any).registerActionHandler(
+        'StorageService:setItem',
+        () => {
+          // Do nothing
+        },
+      );
+
+      // eslint-disable-next-line @typescript-eslint/no-explicit-any
+      (messengerWithErrors as any).registerActionHandler(
+        'StorageService:removeItem',
+        () => {
+          // Do nothing
+        },
+      );
+
+      // eslint-disable-next-line @typescript-eslint/no-explicit-any
+      (messengerWithErrors as any).registerActionHandler(
+        'NetworkController:getNetworkClientById',
+        getNetworkClientById,
+      );
+
+      const restrictedMessenger = getRestrictedMessenger(messengerWithErrors);
+
+      const controller = new TokenListController({
+        chainId: ChainId.mainnet,
+        preventPollingOnNetworkRestart: true,
+        messenger: restrictedMessenger,
+      });
+
+      await controller.initialize();
+
+      const consoleErrorSpy = jest.spyOn(console, 'error').mockImplementation();
+
+      // Now make getAllKeys throw for subsequent calls (during clear on network change)
+      clearAttempted = true;
+
+      // Trigger network change which should attempt to clear and catch error
+      // eslint-disable-next-line @typescript-eslint/no-explicit-any
+      (messengerWithErrors as any).publish(
+        'NetworkController:stateChange',
+        {
+          selectedNetworkClientId: InfuraNetworkType.sepolia,
+          networkConfigurationsByChainId: {},
+          networksMetadata: {},
+        },
+        [],
+      );
+
+      // Wait for async error handling
+      await new Promise((resolve) => setTimeout(resolve, 100));
+
+      // Error is caught inside clearingTokenListData, so this message is logged
+      expect(consoleErrorSpy).toHaveBeenCalledWith(
+        'TokenListController: Failed to clear cache from storage:',
         expect.any(Error),
       );
 
