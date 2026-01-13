@@ -8,7 +8,7 @@ import type {
 
 import type { RampsControllerMessenger } from './RampsController';
 import { RampsController } from './RampsController';
-import type { Country, TokensResponse } from './RampsService';
+import type { Country, TokensResponse, Provider } from './RampsService';
 import type {
   RampsServiceGetGeolocationAction,
   RampsServiceGetCountriesAction,
@@ -24,6 +24,7 @@ describe('RampsController', () => {
         expect(controller.state).toMatchInlineSnapshot(`
           Object {
             "eligibility": null,
+            "preferredProvider": null,
             "requests": Object {},
             "tokens": null,
             "userRegion": null,
@@ -42,6 +43,7 @@ describe('RampsController', () => {
         ({ controller }) => {
           expect(controller.state).toStrictEqual({
             eligibility: null,
+            preferredProvider: null,
             tokens: null,
             userRegion: 'US',
             requests: {},
@@ -55,6 +57,7 @@ describe('RampsController', () => {
         expect(controller.state).toMatchInlineSnapshot(`
           Object {
             "eligibility": null,
+            "preferredProvider": null,
             "requests": Object {},
             "tokens": null,
             "userRegion": null,
@@ -98,6 +101,7 @@ describe('RampsController', () => {
         ).toMatchInlineSnapshot(`
           Object {
             "eligibility": null,
+            "preferredProvider": null,
             "requests": Object {},
             "tokens": null,
             "userRegion": null,
@@ -117,6 +121,7 @@ describe('RampsController', () => {
         ).toMatchInlineSnapshot(`
           Object {
             "eligibility": null,
+            "preferredProvider": null,
             "tokens": null,
             "userRegion": null,
           }
@@ -135,6 +140,7 @@ describe('RampsController', () => {
         ).toMatchInlineSnapshot(`
           Object {
             "eligibility": null,
+            "preferredProvider": null,
             "tokens": null,
             "userRegion": null,
           }
@@ -153,6 +159,7 @@ describe('RampsController', () => {
         ).toMatchInlineSnapshot(`
           Object {
             "eligibility": null,
+            "preferredProvider": null,
             "requests": Object {},
             "tokens": null,
             "userRegion": null,
@@ -1087,6 +1094,79 @@ describe('RampsController', () => {
         );
         expect(controller.state.tokens).toBeNull();
       });
+    });
+  });
+
+  describe('setPreferredProvider', () => {
+    const mockProvider: Provider = {
+      id: '/providers/paypal-staging',
+      name: 'PayPal (Staging)',
+      environmentType: 'STAGING',
+      description: 'Test provider description',
+      hqAddress: '2211 N 1st St, San Jose, CA 95131',
+      links: [
+        {
+          name: 'Homepage',
+          url: 'https://www.paypal.com/us/home',
+        },
+        {
+          name: 'Terms of Service',
+          url: 'https://www.paypal.com/us/legalhub/cryptocurrencies-tnc',
+        },
+        {
+          name: 'Support',
+          url: 'https://www.paypal.com/us/cshelp',
+        },
+      ],
+      logos: {
+        light: '/assets/providers/paypal_light.png',
+        dark: '/assets/providers/paypal_dark.png',
+        height: 24,
+        width: 77,
+      },
+    };
+
+    it('sets preferred provider', async () => {
+      await withController(({ controller }) => {
+        expect(controller.state.preferredProvider).toBeNull();
+
+        controller.setPreferredProvider(mockProvider);
+
+        expect(controller.state.preferredProvider).toStrictEqual(mockProvider);
+      });
+    });
+
+    it('clears preferred provider when set to null', async () => {
+      await withController(
+        { options: { state: { preferredProvider: mockProvider } } },
+        ({ controller }) => {
+          expect(controller.state.preferredProvider).toStrictEqual(mockProvider);
+
+          controller.setPreferredProvider(null);
+
+          expect(controller.state.preferredProvider).toBeNull();
+        },
+      );
+    });
+
+    it('updates preferred provider when a new provider is set', async () => {
+      await withController(
+        { options: { state: { preferredProvider: mockProvider } } },
+        ({ controller }) => {
+          const newProvider: Provider = {
+            ...mockProvider,
+            id: '/providers/ramp-network-staging',
+            name: 'Ramp Network (Staging)',
+          };
+
+          controller.setPreferredProvider(newProvider);
+
+          expect(controller.state.preferredProvider).toStrictEqual(newProvider);
+          expect(controller.state.preferredProvider?.id).toBe(
+            '/providers/ramp-network-staging',
+          );
+        },
+      );
     });
   });
 
