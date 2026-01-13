@@ -67,6 +67,19 @@ export const BUILT_IN_CUSTOM_NETWORKS_RPC = {
   'megaeth-testnet': 'https://carrot.megaeth.com/rpc',
   'megaeth-testnet-v2': 'https://carrot.megaeth.com/rpc',
   'monad-testnet': 'https://testnet-rpc.monad.xyz',
+  // New additions for 20+ network performance testing
+  'fantom-mainnet': 'https://rpc.ftm.tools',
+  'gnosis-mainnet': 'https://rpc.gnosischain.com',
+  'celo-mainnet': 'https://forno.celo.org',
+  'cronos-mainnet': 'https://evm.cronos.org',
+  aurora: 'https://mainnet.aurora.dev',
+  'moonbeam-mainnet': 'https://rpc.api.moonbeam.network',
+  'moonriver-mainnet': 'https://rpc.api.moonriver.moonbeam.network',
+  'klaytn-mainnet': 'https://public-en-cypress.klaytn.net',
+  'avalanche-mainnet': 'https://api.avax.network/ext/bc/C/rpc',
+  'zksync-era-mainnet': 'https://mainnet.era.zksync.io',
+  'palm-mainnet': 'https://palm-mainnet.public.blastapi.io',
+  'hypervm-mainnet': 'https://rpc.hyperliquid.xyz',
 };
 
 /**
@@ -176,6 +189,91 @@ export const BUILT_IN_NETWORKS = {
     ticker: NetworksTicker['sei-mainnet'],
     rpcPrefs: {
       blockExplorerUrl: BlockExplorerUrl['sei-mainnet'],
+    },
+  },
+  // New additions for 20+ network performance testing
+  [NetworkType['fantom-mainnet']]: {
+    chainId: ChainId['fantom-mainnet'],
+    ticker: NetworksTicker['fantom-mainnet'],
+    rpcPrefs: {
+      blockExplorerUrl: BlockExplorerUrl['fantom-mainnet'],
+    },
+  },
+  [NetworkType['gnosis-mainnet']]: {
+    chainId: ChainId['gnosis-mainnet'],
+    ticker: NetworksTicker['gnosis-mainnet'],
+    rpcPrefs: {
+      blockExplorerUrl: BlockExplorerUrl['gnosis-mainnet'],
+    },
+  },
+  [NetworkType['celo-mainnet']]: {
+    chainId: ChainId['celo-mainnet'],
+    ticker: NetworksTicker['celo-mainnet'],
+    rpcPrefs: {
+      blockExplorerUrl: BlockExplorerUrl['celo-mainnet'],
+    },
+  },
+  [NetworkType['cronos-mainnet']]: {
+    chainId: ChainId['cronos-mainnet'],
+    ticker: NetworksTicker['cronos-mainnet'],
+    rpcPrefs: {
+      blockExplorerUrl: BlockExplorerUrl['cronos-mainnet'],
+    },
+  },
+  [NetworkType.aurora]: {
+    chainId: ChainId.aurora,
+    ticker: NetworksTicker.aurora,
+    rpcPrefs: {
+      blockExplorerUrl: BlockExplorerUrl.aurora,
+    },
+  },
+  [NetworkType['moonbeam-mainnet']]: {
+    chainId: ChainId['moonbeam-mainnet'],
+    ticker: NetworksTicker['moonbeam-mainnet'],
+    rpcPrefs: {
+      blockExplorerUrl: BlockExplorerUrl['moonbeam-mainnet'],
+    },
+  },
+  [NetworkType['moonriver-mainnet']]: {
+    chainId: ChainId['moonriver-mainnet'],
+    ticker: NetworksTicker['moonriver-mainnet'],
+    rpcPrefs: {
+      blockExplorerUrl: BlockExplorerUrl['moonriver-mainnet'],
+    },
+  },
+  [NetworkType['klaytn-mainnet']]: {
+    chainId: ChainId['klaytn-mainnet'],
+    ticker: NetworksTicker['klaytn-mainnet'],
+    rpcPrefs: {
+      blockExplorerUrl: BlockExplorerUrl['klaytn-mainnet'],
+    },
+  },
+  [NetworkType['avalanche-mainnet']]: {
+    chainId: ChainId['avalanche-mainnet'],
+    ticker: NetworksTicker['avalanche-mainnet'],
+    rpcPrefs: {
+      blockExplorerUrl: BlockExplorerUrl['avalanche-mainnet'],
+    },
+  },
+  [NetworkType['zksync-era-mainnet']]: {
+    chainId: ChainId['zksync-era-mainnet'],
+    ticker: NetworksTicker['zksync-era-mainnet'],
+    rpcPrefs: {
+      blockExplorerUrl: BlockExplorerUrl['zksync-era-mainnet'],
+    },
+  },
+  [NetworkType['palm-mainnet']]: {
+    chainId: ChainId['palm-mainnet'],
+    ticker: NetworksTicker['palm-mainnet'],
+    rpcPrefs: {
+      blockExplorerUrl: BlockExplorerUrl['palm-mainnet'],
+    },
+  },
+  [NetworkType['hypervm-mainnet']]: {
+    chainId: ChainId['hypervm-mainnet'],
+    ticker: NetworksTicker['hypervm-mainnet'],
+    rpcPrefs: {
+      blockExplorerUrl: BlockExplorerUrl['hypervm-mainnet'],
     },
   },
   [NetworkType.rpc]: {

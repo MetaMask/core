@@ -15,6 +15,7 @@ import {
   NetworkNickname,
   BUILT_IN_CUSTOM_NETWORKS_RPC,
   BUILT_IN_NETWORKS,
+  BuiltInNetworkName,
 } from '@metamask/controller-utils';
 import type { PollingBlockTrackerOptions } from '@metamask/eth-block-tracker';
 import EthQuery from '@metamask/eth-query';
@@ -868,7 +869,7 @@ function getDefaultCustomNetworkConfigurationsByChainId(): Record<
   // Create the `networkConfigurationsByChainId` objects explicitly,
   // Because it is not always guaranteed that the custom networks are included in the
   // default networks.
-  return {
+  const configs = {
     [ChainId['megaeth-testnet']]: getCustomNetworkConfiguration(
       CustomNetworkType['megaeth-testnet'],
     ),
@@ -878,7 +879,51 @@ function getDefaultCustomNetworkConfigurationsByChainId(): Record<
     [ChainId['monad-testnet']]: getCustomNetworkConfiguration(
       CustomNetworkType['monad-testnet'],
     ),
+    // New additions for 20+ network performance testing
+    [ChainId[BuiltInNetworkName.FantomMainnet]]: getCustomNetworkConfiguration(
+      CustomNetworkType['fantom-mainnet'],
+    ),
+    [ChainId[BuiltInNetworkName.GnosisMainnet]]: getCustomNetworkConfiguration(
+      CustomNetworkType['gnosis-mainnet'],
+    ),
+    [ChainId[BuiltInNetworkName.CeloMainnet]]: getCustomNetworkConfiguration(
+      CustomNetworkType['celo-mainnet'],
+    ),
+    [ChainId[BuiltInNetworkName.CronosMainnet]]: getCustomNetworkConfiguration(
+      CustomNetworkType['cronos-mainnet'],
+    ),
+    [ChainId[BuiltInNetworkName.Aurora]]: getCustomNetworkConfiguration(
+      CustomNetworkType.aurora,
+    ),
+    [ChainId[BuiltInNetworkName.MoonbeamMainnet]]:
+      getCustomNetworkConfiguration(CustomNetworkType['moonbeam-mainnet']),
+    [ChainId[BuiltInNetworkName.MoonriverMainnet]]:
+      getCustomNetworkConfiguration(CustomNetworkType['moonriver-mainnet']),
+    [ChainId[BuiltInNetworkName.KlaytnMainnet]]: getCustomNetworkConfiguration(
+      CustomNetworkType['klaytn-mainnet'],
+    ),
+    [ChainId[BuiltInNetworkName.AvalancheMainnet]]:
+      getCustomNetworkConfiguration(CustomNetworkType['avalanche-mainnet']),
+    [ChainId[BuiltInNetworkName.ZkSyncEraMainnet]]:
+      getCustomNetworkConfiguration(CustomNetworkType['zksync-era-mainnet']),
+    [ChainId[BuiltInNetworkName.PalmMainnet]]: getCustomNetworkConfiguration(
+      CustomNetworkType['palm-mainnet'],
+    ),
+    [ChainId[BuiltInNetworkName.HyperEvmMainnet]]:
+      getCustomNetworkConfiguration(CustomNetworkType['hypervm-mainnet']),
   };
+
+  console.log(
+    '[NetworkController] getDefaultCustomNetworkConfigurationsByChainId - returning',
+    Object.keys(configs).length,
+    'custom network configurations',
+  );
+  console.log(
+    '[NetworkController] Custom network chain IDs:',
+    Object.keys(configs),
+  );
+
+  return configs;
 }
 
 /**

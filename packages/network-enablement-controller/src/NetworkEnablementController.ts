@@ -106,35 +106,47 @@ export type NetworkEnablementControllerMessenger = Messenger<
  * @returns The default state with pre-enabled networks.
  */
 const getDefaultNetworkEnablementControllerState =
-  (): NetworkEnablementControllerState => ({
-    enabledNetworkMap: {
-      [KnownCaipNamespace.Eip155]: {
-        [ChainId[BuiltInNetworkName.Mainnet]]: true,
-        [ChainId[BuiltInNetworkName.LineaMainnet]]: true,
-        [ChainId[BuiltInNetworkName.BaseMainnet]]: true,
-        [ChainId[BuiltInNetworkName.ArbitrumOne]]: true,
-        [ChainId[BuiltInNetworkName.BscMainnet]]: true,
-        [ChainId[BuiltInNetworkName.OptimismMainnet]]: true,
-        [ChainId[BuiltInNetworkName.PolygonMainnet]]: true,
-        [ChainId[BuiltInNetworkName.SeiMainnet]]: true,
+  (): NetworkEnablementControllerState => {
+    // Programmatically enable all popular networks for performance testing
+    const enabledEvmNetworks = POPULAR_NETWORKS.reduce<Record<string, boolean>>(
+      (acc, chainId) => ({
+        ...acc,
+        [chainId]: true,
+      }),
+      {},
+    );
+
+    console.log(
+      '[NetworkEnablementController] Generating default state with',
+      POPULAR_NETWORKS.length,
+      'popular networks',
+    );
+    console.log(
+      '[NetworkEnablementController] Enabled EVM networks:',
+      Object.keys(enabledEvmNetworks),
+    );
+
+    return {
+      enabledNetworkMap: {
+        [KnownCaipNamespace.Eip155]: enabledEvmNetworks,
+        [KnownCaipNamespace.Solana]: {
+          [SolScope.Mainnet]: true,
+          [SolScope.Testnet]: false,
+          [SolScope.Devnet]: false,
+        },
+        [KnownCaipNamespace.Bip122]: {
+          [BtcScope.Mainnet]: true,
+          [BtcScope.Testnet]: false,
+          [BtcScope.Signet]: false,
+        },
+        [KnownCaipNamespace.Tron]: {
+          [TrxScope.Mainnet]: true,
+          [TrxScope.Nile]: false,
+          [TrxScope.Shasta]: false,
+        },
       },
-      [KnownCaipNamespace.Solana]: {
-        [SolScope.Mainnet]: true,
-        [SolScope.Testnet]: false,
-        [SolScope.Devnet]: false,
-      },
-      [KnownCaipNamespace.Bip122]: {
-        [BtcScope.Mainnet]: true,
-        [BtcScope.Testnet]: false,
-        [BtcScope.Signet]: false,
-      },
-      [KnownCaipNamespace.Tron]: {
-        [TrxScope.Mainnet]: true,
-        [TrxScope.Nile]: false,
-        [TrxScope.Shasta]: false,
-      },
-    },
-  });
+    };
+  };
 
 // Metadata for the controller state
 const metadata = {
@@ -174,14 +186,36 @@ export class NetworkEnablementController extends BaseController<
     messenger: NetworkEnablementControllerMessenger;
     state?: Partial<NetworkEnablementControllerState>;
   }) {
+    const defaultState = getDefaultNetworkEnablementControllerState();
+    const finalState = {
+      ...defaultState,
+      ...state,
+    };
+
+    console.log(
+      '[NetworkEnablementController] Constructor - passed state:',
+      state ? 'YES (will override defaults)' : 'NO (using defaults)',
+    );
+    console.log(
+      '[NetworkEnablementController] Constructor - default EVM networks count:',
+      Object.keys(defaultState.enabledNetworkMap[KnownCaipNamespace.Eip155])
+        .length,
+    );
+    console.log(
+      '[NetworkEnablementController] Constructor - final EVM networks count:',
+      Object.keys(finalState.enabledNetworkMap[KnownCaipNamespace.Eip155])
+        .length,
+    );
+    console.log(
+      '[NetworkEnablementController] Constructor - final enabled EVM networks:',
+      Object.keys(finalState.enabledNetworkMap[KnownCaipNamespace.Eip155]),
+    );
+
     super({
       messenger,
       metadata,
       name: controllerName,
-      state: {
-        ...getDefaultNetworkEnablementControllerState(),
-        ...state,
-      },
+      state: finalState,
     });
 
     messenger.subscribe('NetworkController:networkAdded', ({ chainId }) => {
@@ -212,22 +246,31 @@ export class NetworkEnablementController extends BaseController<
   enableNetwork(chainId: Hex | CaipChainId): void {
     const { namespace, storageKey } = deriveKeys(chainId);
 
-    this.update((s) => {
+    console.log(
+      '[NetworkEnablementController] enableNetwork called for:',
+      chainId,
+      'namespace:',
+      namespace,
+      'storageKey:',
+      storageKey,
+    );
+
+    this.update((state) => {
       // disable all networks in all namespaces first
-      Object.keys(s.enabledNetworkMap).forEach((ns) => {
-        Object.keys(s.enabledNetworkMap[ns]).forEach((key) => {
-          s.enabledNetworkMap[ns][key as CaipChainId | Hex] = false;
+      Object.keys(state.enabledNetworkMap).forEach((ns) => {
+        Object.keys(state.enabledNetworkMap[ns]).forEach((key) => {
+          state.enabledNetworkMap[ns][key as CaipChainId | Hex] = false;
         });
       });
 
       // if the namespace bucket does not exist, return
       // new nemespace are added only when a new network is added
-      if (!s.enabledNetworkMap[namespace]) {
+      if (!state.enabledNetworkMap[namespace]) {
         return;
       }
 
       // enable the network
-      s.enabledNetworkMap[namespace][storageKey] = true;
+      state.enabledNetworkMap[namespace][storageKey] = true;
     });
   }
 
@@ -260,19 +303,19 @@ export class NetworkEnablementController extends BaseController<
       );
     }
 
-    this.update((s) => {
+    this.update((state) => {
       // Ensure the namespace bucket exists
-      this.#ensureNamespaceBucket(s, namespace);
+      this.#ensureNamespaceBucket(state, namespace);
 
       // Disable all networks in the specified namespace first
-      if (s.enabledNetworkMap[namespace]) {
-        Object.keys(s.enabledNetworkMap[namespace]).forEach((key) => {
-          s.enabledNetworkMap[namespace][key as CaipChainId | Hex] = false;
+      if (state.enabledNetworkMap[namespace]) {
+        Object.keys(state.enabledNetworkMap[namespace]).forEach((key) => {
+          state.enabledNetworkMap[namespace][key as CaipChainId | Hex] = false;
         });
       }
 
       // Enable the target network in the specified namespace
-      s.enabledNetworkMap[namespace][storageKey] = true;
+      state.enabledNetworkMap[namespace][storageKey] = true;
     });
   }
 
@@ -287,11 +330,17 @@ export class NetworkEnablementController extends BaseController<
    * Popular networks that don't exist in NetworkController or MultichainNetworkController configurations will be skipped silently.
    */
   enableAllPopularNetworks(): void {
-    this.update((s) => {
+    console.log(
+      '[NetworkEnablementController] enableAllPopularNetworks called - attempting to enable',
+      POPULAR_NETWORKS.length,
+      'networks',
+    );
+
+    this.update((state) => {
       // First disable all networks across all namespaces
-      Object.keys(s.enabledNetworkMap).forEach((ns) => {
-        Object.keys(s.enabledNetworkMap[ns]).forEach((key) => {
-          s.enabledNetworkMap[ns][key as CaipChainId | Hex] = false;
+      Object.keys(state.enabledNetworkMap).forEach((ns) => {
+        Object.keys(state.enabledNetworkMap[ns]).forEach((key) => {
+          state.enabledNetworkMap[ns][key as CaipChainId | Hex] = false;
         });
       });
 
@@ -303,6 +352,14 @@ export class NetworkEnablementController extends BaseController<
         'MultichainNetworkController:getState',
       );
 
+      console.log(
+        '[NetworkEnablementController] NetworkController has',
+        Object.keys(networkControllerState.networkConfigurationsByChainId)
+          .length,
+        'networks configured',
+      );
+
+      let enabledCount = 0;
       // Enable all popular EVM networks that exist in NetworkController configurations
       POPULAR_NETWORKS.forEach((chainId) => {
         const { namespace, storageKey } = deriveKeys(chainId as Hex);
@@ -312,11 +369,30 @@ export class NetworkEnablementController extends BaseController<
           networkControllerState.networkConfigurationsByChainId[chainId as Hex]
         ) {
           // Ensure namespace bucket exists
-          this.#ensureNamespaceBucket(s, namespace);
+          this.#ensureNamespaceBucket(state, namespace);
           // Enable the network
-          s.enabledNetworkMap[namespace][storageKey] = true;
+          state.enabledNetworkMap[namespace][storageKey] = true;
+          enabledCount += 1;
+          console.log(
+            '[NetworkEnablementController] Enabled network:',
+            chainId,
+            storageKey,
+          );
+        } else {
+          console.log(
+            '[NetworkEnablementController] Network not found in NetworkController, skipping:',
+            chainId,
+          );
         }
       });
+
+      console.log(
+        '[NetworkEnablementController] Successfully enabled',
+        enabledCount,
+        'of',
+        POPULAR_NETWORKS.length,
+        'popular networks',
+      );
 
       // Enable Solana mainnet if it exists in MultichainNetworkController configurations
       const solanaKeys = deriveKeys(SolScope.Mainnet as CaipChainId);
@@ -326,9 +402,10 @@ export class NetworkEnablementController extends BaseController<
         ]
       ) {
         // Ensure namespace bucket exists
-        this.#ensureNamespaceBucket(s, solanaKeys.namespace);
+        this.#ensureNamespaceBucket(state, solanaKeys.namespace);
         // Enable Solana mainnet
-        s.enabledNetworkMap[solanaKeys.namespace][solanaKeys.storageKey] = true;
+        state.enabledNetworkMap[solanaKeys.namespace][solanaKeys.storageKey] =
+          true;
       }
 
       // Enable Bitcoin mainnet if it exists in MultichainNetworkController configurations
@@ -339,9 +416,9 @@ export class NetworkEnablementController extends BaseController<
         ]
       ) {
         // Ensure namespace bucket exists
-        this.#ensureNamespaceBucket(s, bitcoinKeys.namespace);
+        this.#ensureNamespaceBucket(state, bitcoinKeys.namespace);
         // Enable Bitcoin mainnet
-        s.enabledNetworkMap[bitcoinKeys.namespace][bitcoinKeys.storageKey] =
+        state.enabledNetworkMap[bitcoinKeys.namespace][bitcoinKeys.storageKey] =
           true;
       }
 
@@ -353,9 +430,9 @@ export class NetworkEnablementController extends BaseController<
         ]
       ) {
         // Ensure namespace bucket exists
-        this.#ensureNamespaceBucket(s, tronKeys.namespace);
+        this.#ensureNamespaceBucket(state, tronKeys.namespace);
         // Enable Tron mainnet
-        s.enabledNetworkMap[tronKeys.namespace][tronKeys.storageKey] = true;
+        state.enabledNetworkMap[tronKeys.namespace][tronKeys.storageKey] = true;
       }
     });
   }
@@ -372,7 +449,7 @@ export class NetworkEnablementController extends BaseController<
    * have been initialized and their configurations are available.
    */
   init(): void {
-    this.update((s) => {
+    this.update((state) => {
       // Get network configurations from NetworkController (EVM networks)
       const networkControllerState = this.messenger.call(
         'NetworkController:getState',
@@ -388,12 +465,10 @@ export class NetworkEnablementController extends BaseController<
         networkControllerState.networkConfigurationsByChainId,
       ).forEach((chainId) => {
         const { namespace, storageKey } = deriveKeys(chainId as Hex);
-        this.#ensureNamespaceBucket(s, namespace);
+        this.#ensureNamespaceBucket(state, namespace);
 
         // Only add network if it doesn't already exist in state (preserves user settings)
-        if (s.enabledNetworkMap[namespace][storageKey] === undefined) {
-          s.enabledNetworkMap[namespace][storageKey] = false;
-        }
+        state.enabledNetworkMap[namespace][storageKey] ??= false;
       });
 
       // Initialize namespace buckets for all networks from MultichainNetworkController
@@ -401,12 +476,10 @@ export class NetworkEnablementController extends BaseController<
         multichainState.multichainNetworkConfigurationsByChainId,
       ).forEach((chainId) => {
         const { namespace, storageKey } = deriveKeys(chainId as CaipChainId);
-        this.#ensureNamespaceBucket(s, namespace);
+        this.#ensureNamespaceBucket(state, namespace);
 
         // Only add network if it doesn't already exist in state (preserves user settings)
-        if (s.enabledNetworkMap[namespace][storageKey] === undefined) {
-          s.enabledNetworkMap[namespace][storageKey] = false;
-        }
+        state.enabledNetworkMap[namespace][storageKey] ??= false;
       });
     });
   }
@@ -429,8 +502,8 @@ export class NetworkEnablementController extends BaseController<
     const derivedKeys = deriveKeys(chainId);
     const { namespace, storageKey } = derivedKeys;
 
-    this.update((s) => {
-      s.enabledNetworkMap[namespace][storageKey] = false;
+    this.update((state) => {
+      state.enabledNetworkMap[namespace][storageKey] = false;
     });
   }
 
@@ -461,7 +534,7 @@ export class NetworkEnablementController extends BaseController<
   #ensureNamespaceBucket(
     state: NetworkEnablementControllerState,
     ns: CaipNamespace,
-  ) {
+  ): void {
     if (!state.enabledNetworkMap[ns]) {
       state.enabledNetworkMap[ns] = {};
     }
@@ -515,15 +588,16 @@ export class NetworkEnablementController extends BaseController<
     const derivedKeys = deriveKeys(chainId);
     const { namespace, storageKey } = derivedKeys;
 
-    this.update((s) => {
+    this.update((state) => {
       // fallback and enable ethereum mainnet
       if (isOnlyNetworkEnabledInNamespace(this.state, derivedKeys)) {
-        s.enabledNetworkMap[namespace][ChainId[BuiltInNetworkName.Mainnet]] =
-          true;
+        state.enabledNetworkMap[namespace][
+          ChainId[BuiltInNetworkName.Mainnet]
+        ] = true;
       }
 
-      if (namespace in s.enabledNetworkMap) {
-        delete s.enabledNetworkMap[namespace][storageKey];
+      if (namespace in state.enabledNetworkMap) {
+        delete state.enabledNetworkMap[namespace][storageKey];
       }
     });
   }
@@ -542,9 +616,9 @@ export class NetworkEnablementController extends BaseController<
   #onAddNetwork(chainId: Hex | CaipChainId): void {
     const { namespace, storageKey, reference } = deriveKeys(chainId);
 
-    this.update((s) => {
+    this.update((state) => {
       // Ensure the namespace bucket exists
-      this.#ensureNamespaceBucket(s, namespace);
+      this.#ensureNamespaceBucket(state, namespace);
 
       // Check if popular networks mode is active (>2 popular networks enabled)
       const inPopularNetworksMode = this.#isInPopularNetworksMode();
@@ -558,16 +632,16 @@ export class NetworkEnablementController extends BaseController<
 
       if (shouldKeepCurrentSelection) {
         // Add the popular network but don't enable it (keep current selection)
-        s.enabledNetworkMap[namespace][storageKey] = true;
+        state.enabledNetworkMap[namespace][storageKey] = true;
       } else {
         // Switch to the newly added network (disable all others, enable this one)
-        Object.keys(s.enabledNetworkMap).forEach((ns) => {
-          Object.keys(s.enabledNetworkMap[ns]).forEach((key) => {
-            s.enabledNetworkMap[ns][key as CaipChainId | Hex] = false;
+        Object.keys(state.enabledNetworkMap).forEach((ns) => {
+          Object.keys(state.enabledNetworkMap[ns]).forEach((key) => {
+            state.enabledNetworkMap[ns][key as CaipChainId | Hex] = false;
           });
         });
         // Enable the newly added network
-        s.enabledNetworkMap[namespace][storageKey] = true;
+        state.enabledNetworkMap[namespace][storageKey] = true;
       }
     });
   }

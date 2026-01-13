@@ -3,6 +3,9 @@ import type {
   InfuraNetworkType,
 } from '@metamask/controller-utils';
 import { ChainId } from '@metamask/controller-utils';
+
+import { createThrottledFetchForChainId } from './throttled-fetch';
+
 import type { PollingBlockTrackerOptions } from '@metamask/eth-block-tracker';
 import { PollingBlockTracker } from '@metamask/eth-block-tracker';
 import { createInfuraMiddleware } from '@metamask/eth-json-rpc-infura';
@@ -210,11 +213,23 @@ function createRpcServiceChain({
   const availableEndpointUrls: [string, ...string[]] = isRpcFailoverEnabled
     ? [primaryEndpointUrl, ...(configuration.failoverRpcUrls ?? [])]
     : [primaryEndpointUrl];
-  const rpcServiceConfigurations = availableEndpointUrls.map((endpointUrl) => ({
-    ...getRpcServiceOptions(endpointUrl),
-    endpointUrl,
-    logger,
-  }));
+  const rpcServiceConfigurations = availableEndpointUrls.map((endpointUrl) => {
+    const options = getRpcServiceOptions(endpointUrl);
+
+    // Apply network throttling based on chain ID if configured
+    const throttledFetch = createThrottledFetchForChainId(
+      endpointUrl,
+      configuration.chainId,
+      options.fetch,
+    );
+
+    return {
+      ...options,
+      fetch: throttledFetch,
+      endpointUrl,
+      logger,
+    };
+  });
 
   /**
    * Extracts the error from Cockatiel's `FailureReason` type received in
