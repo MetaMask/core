@@ -1140,7 +1140,9 @@ describe('RampsController', () => {
       await withController(
         { options: { state: { preferredProvider: mockProvider } } },
         ({ controller }) => {
-          expect(controller.state.preferredProvider).toStrictEqual(mockProvider);
+          expect(controller.state.preferredProvider).toStrictEqual(
+            mockProvider,
+          );
 
           controller.setPreferredProvider(null);
 
