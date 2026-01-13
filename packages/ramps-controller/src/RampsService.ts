@@ -63,6 +63,37 @@ export type Eligibility = {
 };
 
 /**
+ * Represents a provider link.
+ */
+export type ProviderLink = {
+  name: string;
+  url: string;
+};
+
+/**
+ * Represents provider logos.
+ */
+export type ProviderLogos = {
+  light: string;
+  dark: string;
+  height: number;
+  width: number;
+};
+
+/**
+ * Represents a ramp provider.
+ */
+export type Provider = {
+  id: string;
+  name: string;
+  environmentType: string;
+  description: string;
+  hqAddress: string;
+  links: ProviderLink[];
+  logos: ProviderLogos;
+};
+
+/**
  * Represents a country returned from the regions/countries API.
  */
 export type Country = {
