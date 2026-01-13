@@ -1263,7 +1263,6 @@ export class TransactionController extends BaseController<
       gasFeeToken,
       isGasFeeIncluded,
       isGasFeeSponsored,
-      isStateOnly,
       method,
       nestedTransactions,
       networkClientId,
@@ -1363,7 +1362,6 @@ export class TransactionController extends BaseController<
           isGasFeeIncluded,
           isGasFeeSponsored,
           isFirstTimeInteraction: undefined,
-          isStateOnly,
           nestedTransactions,
           networkClientId,
           origin,
@@ -1392,6 +1390,7 @@ export class TransactionController extends BaseController<
       updateTransaction(addedTransactionMeta);
     }
 
+    // eslint-disable-next-line no-negated-condition
     if (!skipInitialGasEstimate) {
       await this.#trace(
         { name: 'Estimate Gas Properties', parentContext: traceContext },
@@ -1400,21 +1399,6 @@ export class TransactionController extends BaseController<
             traceContext: context,
           }),
       );
-    } else if (
-      isEIP1559Compatible &&
-      addedTransactionMeta.txParams.gasPrice &&
-      !addedTransactionMeta.txParams.maxFeePerGas
-    ) {
-      // Convert legacy gasPrice to EIP-1559 fees for intent transactions on EIP-1559 networks
-      addedTransactionMeta.txParams.maxFeePerGas =
-        addedTransactionMeta.txParams.gasPrice;
-      addedTransactionMeta.txParams.maxPriorityFeePerGas =
-        addedTransactionMeta.txParams.gasPrice;
-      addedTransactionMeta.txParams.type = TransactionEnvelopeType.feeMarket;
-      delete addedTransactionMeta.txParams.gasPrice; // Remove legacy gas price
-    } else if (!isEIP1559Compatible && addedTransactionMeta.txParams.gasPrice) {
-      // Ensure legacy type for non-EIP-1559 networks
-      addedTransactionMeta.txParams.type = TransactionEnvelopeType.legacy;
     } else {
       const newTransactionMeta = cloneDeep(addedTransactionMeta);
 
@@ -1484,7 +1468,8 @@ export class TransactionController extends BaseController<
         })
         .catch(noop);
 
-      if (requireApproval !== false && !isStateOnly) {
+      // eslint-disable-next-line no-negated-condition
+      if (requireApproval !== false) {
         this.#updateSimulationData(addedTransactionMeta, {
           traceContext,
         }).catch((error) => {
@@ -3085,20 +3070,7 @@ export class TransactionController extends BaseController<
       traceContext?: TraceContext;
     },
   ): Promise<string> {
-    const { id: transactionId, isStateOnly } = transactionMeta;
-
-    if (isStateOnly) {
-      this.#updateTransactionInternal(
-        { transactionId, skipValidation: true },
-        (tx) => {
-          tx.status = TransactionStatus.submitted;
-          tx.submittedTime = new Date().getTime();
-        },
-      );
-
-      return '';
-    }
-
+    const transactionId = transactionMeta.id;
     let resultCallbacks: AcceptResultCallbacks | undefined;
     const { meta, isCompleted } = this.#isTransactionCompleted(transactionId);
 
@@ -3139,31 +3111,6 @@ export class TransactionController extends BaseController<
               'TransactionController#processApproval - Updated with approval data',
             );
           }
-        }
-
-        // For intent-based transactions (e.g., CoW intents) that are not meant to be
-        // published on-chain by the TransactionController, skip the approve/publish flow.
-        // These are tracked externally and should not be signed or sent.
-        const isIntentTransaction = Boolean(
-          this.#getTransaction(transactionId)?.swapMetaData?.isIntentTx ===
-            true,
-        );
-
-        if (requireApproval === false && isIntentTransaction) {
-          this.#updateTransactionInternal(
-            {
-              transactionId,
-              skipValidation: true,
-            },
-            (draftTxMeta) => {
-              draftTxMeta.status = TransactionStatus.submitted;
-              draftTxMeta.submittedTime = new Date().getTime();
-            },
-          );
-
-          // Short-circuit normal flow; result callbacks will be handled by the
-          // finished promise below.
-          return ApprovalState.Approved;
         }
 
         const { isCompleted: isTxCompleted } =

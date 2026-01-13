@@ -695,8 +695,7 @@ export class PendingTransactionTracker {
       (tx) =>
         tx.status === TransactionStatus.submitted &&
         !tx.verifiedOnBlockchain &&
-        !tx.isUserOperation &&
-        !tx.isStateOnly,
+        !tx.isUserOperation,
     );
   }
 
