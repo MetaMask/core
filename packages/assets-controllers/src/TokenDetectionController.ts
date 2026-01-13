@@ -586,32 +586,26 @@ export class TokenDetectionController extends StaticIntervalPollingController<To
     chainsToDetectUsingRpc: NetworkClient[],
     addressToDetect: string,
   ): Promise<void> {
-    // Execute all chains in parallel for better performance
-    const detectionPromises = chainsToDetectUsingRpc.map(
-      async ({ chainId, networkClientId }) => {
-        if (!this.#shouldDetectTokens(chainId)) {
-          return;
-        }
+    for (const { chainId, networkClientId } of chainsToDetectUsingRpc) {
+      if (!this.#shouldDetectTokens(chainId)) {
+        continue;
+      }
 
-        const tokenCandidateSlices = this.#getSlicesOfTokensToDetect({
-          chainId,
+      const tokenCandidateSlices = this.#getSlicesOfTokensToDetect({
+        chainId,
+        selectedAddress: addressToDetect,
+      });
+      const tokenDetectionPromises = tokenCandidateSlices.map((tokensSlice) =>
+        this.#addDetectedTokens({
+          tokensSlice,
           selectedAddress: addressToDetect,
-        });
-        const tokenDetectionPromises = tokenCandidateSlices.map((tokensSlice) =>
-          this.#addDetectedTokens({
-            tokensSlice,
-            selectedAddress: addressToDetect,
-            networkClientId,
-            chainId,
-          }),
-        );
+          networkClientId,
+          chainId,
+        }),
+      );
 
-        await Promise.all(tokenDetectionPromises);
-      },
-    );
-
-    // Use allSettled to ensure one failing chain doesn't block others
-    await Promise.allSettled(detectionPromises);
+      await Promise.all(tokenDetectionPromises);
+    }
   }
 
   /**
