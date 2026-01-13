@@ -516,6 +516,13 @@ export class TokenListController extends StaticIntervalPollingController<TokenLi
   override destroy(): void {
     super.destroy();
     this.#stopPolling();
+
+    // Cancel any pending debounced persistence operations
+    if (this.#persistDebounceTimer) {
+      clearTimeout(this.#persistDebounceTimer);
+      this.#persistDebounceTimer = undefined;
+    }
+    this.#changedChainsToPersist.clear();
   }
 
   /**
