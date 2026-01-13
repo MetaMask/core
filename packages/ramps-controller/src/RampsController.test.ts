@@ -13,6 +13,7 @@ import type {
   RampsServiceGetGeolocationAction,
   RampsServiceGetCountriesAction,
   RampsServiceGetEligibilityAction,
+  RampsServiceGetTokensAction,
 } from './RampsService-method-action-types';
 import { RequestStatus, createCacheKey } from './RequestCache';
 
@@ -1236,9 +1237,10 @@ describe('RampsController', () => {
           allTokens: [],
         };
 
+        let geolocationResult = 'us';
         rootMessenger.registerActionHandler(
           'RampsService:getGeolocation',
-          async () => 'us',
+          async () => geolocationResult,
         );
         rootMessenger.registerActionHandler(
           'RampsService:getEligibility',
@@ -1257,12 +1259,9 @@ describe('RampsController', () => {
         await controller.getTokens('us', 'buy');
         expect(controller.state.tokens).toStrictEqual(mockTokens);
 
-        rootMessenger.registerActionHandler(
-          'RampsService:getGeolocation',
-          async () => 'fr',
-        );
+        geolocationResult = 'fr';
 
-        await controller.updateUserRegion();
+        await controller.updateUserRegion({ forceRefresh: true });
         expect(controller.state.tokens).toBeNull();
       });
     });
@@ -1274,17 +1273,25 @@ describe('RampsController', () => {
           allTokens: [],
         };
 
+        let geolocationResult = 'us';
+        let shouldThrowEligibilityError = false;
+
         rootMessenger.registerActionHandler(
           'RampsService:getGeolocation',
-          async () => 'us',
+          async () => geolocationResult,
         );
         rootMessenger.registerActionHandler(
           'RampsService:getEligibility',
-          async () => ({
-            aggregator: true,
-            deposit: true,
-            global: true,
-          }),
+          async () => {
+            if (shouldThrowEligibilityError) {
+              throw new Error('Eligibility API error');
+            }
+            return {
+              aggregator: true,
+              deposit: true,
+              global: true,
+            };
+          },
         );
         rootMessenger.registerActionHandler(
           'RampsService:getTokens',
@@ -1295,18 +1302,10 @@ describe('RampsController', () => {
         await controller.getTokens('us', 'buy');
         expect(controller.state.tokens).toStrictEqual(mockTokens);
 
-        rootMessenger.registerActionHandler(
-          'RampsService:getGeolocation',
-          async () => 'fr',
-        );
-        rootMessenger.registerActionHandler(
-          'RampsService:getEligibility',
-          async () => {
-            throw new Error('Eligibility API error');
-          },
-        );
+        geolocationResult = 'fr';
+        shouldThrowEligibilityError = true;
 
-        await controller.updateUserRegion();
+        await controller.updateUserRegion({ forceRefresh: true });
         expect(controller.state.tokens).toBeNull();
       });
     });
@@ -1636,7 +1635,8 @@ type RootMessenger = Messenger<
   | MessengerActions<RampsControllerMessenger>
   | RampsServiceGetGeolocationAction
   | RampsServiceGetCountriesAction
-  | RampsServiceGetEligibilityAction,
+  | RampsServiceGetEligibilityAction
+  | RampsServiceGetTokensAction,
   MessengerEvents<RampsControllerMessenger>
 >;
 
@@ -1684,6 +1684,7 @@ function getMessenger(rootMessenger: RootMessenger): RampsControllerMessenger {
       'RampsService:getGeolocation',
       'RampsService:getCountries',
       'RampsService:getEligibility',
+      'RampsService:getTokens',
     ],
   });
   return messenger;
