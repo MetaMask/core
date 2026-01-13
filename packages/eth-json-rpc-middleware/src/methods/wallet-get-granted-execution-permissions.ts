@@ -12,7 +12,14 @@ import {
 import { StrictHexStruct } from '@metamask/utils';
 import type { Json, JsonRpcRequest } from '@metamask/utils';
 
+import { validateParams } from '../utils/validation';
 import type { WalletMiddlewareContext } from '../wallet';
+
+/**
+ * Superstruct schema for the `wallet_getGrantedExecutionPermissions` request params.
+ * This method expects no parameters.
+ */
+export const GetGrantedExecutionPermissionsParamsStruct = object({});
 
 const DependencyStruct = object({
   factory: StrictHexStruct,
@@ -87,6 +94,10 @@ export function createWalletGetGrantedExecutionPermissionsHandler({
         'wallet_getGrantedExecutionPermissions - no middleware configured',
       );
     }
+
+    const { params } = request;
+
+    validateParams(params, GetGrantedExecutionPermissionsParamsStruct);
 
     return await processGetGrantedExecutionPermissions(request, context);
   };

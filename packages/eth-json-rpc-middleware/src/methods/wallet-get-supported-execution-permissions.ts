@@ -5,7 +5,14 @@ import { array, object, record, string } from '@metamask/superstruct';
 import { StrictHexStruct } from '@metamask/utils';
 import type { Json, JsonRpcRequest } from '@metamask/utils';
 
+import { validateParams } from '../utils/validation';
 import type { WalletMiddlewareContext } from '../wallet';
+
+/**
+ * Superstruct schema for the `wallet_getSupportedExecutionPermissions` request params.
+ * This method expects no parameters.
+ */
+export const GetSupportedExecutionPermissionsParamsStruct = object({});
 
 /**
  * Superstruct schema for a supported permission type configuration.
@@ -65,6 +72,10 @@ export function createWalletGetSupportedExecutionPermissionsHandler({
         'wallet_getSupportedExecutionPermissions - no middleware configured',
       );
     }
+
+    const { params } = request;
+
+    validateParams(params, GetSupportedExecutionPermissionsParamsStruct);
 
     return await processGetSupportedExecutionPermissions(request, context);
   };
