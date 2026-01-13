@@ -1256,8 +1256,8 @@ describe('TokenListController', () => {
       messenger: restrictedMessenger,
     });
 
-    // Wait for initialization
-    await new Promise((resolve) => setTimeout(resolve, 100));
+    // Initialize the controller
+    await controller.initialize();
 
     // Mock console.error to verify error handling
     const consoleErrorSpy = jest.spyOn(console, 'error').mockImplementation();
@@ -1509,31 +1509,29 @@ describe('TokenListController', () => {
   });
 
   describe('StorageService migration', () => {
-    it('should migrate tokensChainsCache from state to StorageService on first launch', async () => {
+    // State changes after construction trigger debounced persistence
+    it('should persist state changes to StorageService via debounced subscription', async () => {
       const messenger = getMessenger();
       const restrictedMessenger = getRestrictedMessenger(messenger);
-
-      // Simulate old persisted state with tokensChainsCache
-      const oldPersistedState = {
-        tokensChainsCache: {
-          [ChainId.mainnet]: {
-            data: sampleMainnetTokensChainsCache,
-            timestamp: Date.now(),
-          },
-        },
-        preventPollingOnNetworkRestart: false,
-      };
 
       const controller = new TokenListController({
         chainId: ChainId.mainnet,
         messenger: restrictedMessenger,
-        state: oldPersistedState,
       });
 
-      // Wait for async migration to complete
-      await new Promise((resolve) => setTimeout(resolve, 100));
+      // Initialize the controller
+      await controller.initialize();
 
-      // Verify data was migrated to StorageService (per-chain file)
+      // Fetch tokens to trigger state change (which triggers persistence)
+      nock(tokenService.TOKEN_END_POINT_API)
+        .get(getTokensPath(ChainId.mainnet))
+        .reply(200, sampleMainnetTokenList);
+
+      await controller.fetchTokenList(ChainId.mainnet);
+
+      // Wait for debounced persistence to complete (500ms + buffer)
+      await new Promise((resolve) => setTimeout(resolve, 600));
+
       const chainStorageKey = `tokensChainsCache:${ChainId.mainnet}`;
       const { result } = await messenger.call(
         'StorageService:getItem',
@@ -1545,7 +1543,6 @@ describe('TokenListController', () => {
       const resultCache = result as DataCache;
       expect(resultCache.data).toBeDefined();
       expect(resultCache.timestamp).toBeDefined();
-      expect(resultCache.data).toStrictEqual(sampleMainnetTokensChainsCache);
 
       controller.destroy();
     });
@@ -1584,8 +1581,8 @@ describe('TokenListController', () => {
         state: stateWithDifferentData,
       });
 
-      // Wait for migration logic to run
-      await new Promise((resolve) => setTimeout(resolve, 100));
+      // Initialize the controller to trigger storage migration logic
+      await controller.initialize();
 
       // Verify StorageService still has original data (not overwritten)
       const { result } = await messenger.call(
@@ -1611,8 +1608,8 @@ describe('TokenListController', () => {
         state: { tokensChainsCache: {}, preventPollingOnNetworkRestart: false },
       });
 
-      // Wait for migration logic to run
-      await new Promise((resolve) => setTimeout(resolve, 100));
+      // Initialize the controller to trigger migration logic
+      await controller.initialize();
 
       // Verify nothing was saved to StorageService (check no per-chain files)
       const allKeys = await messenger.call(
@@ -1645,6 +1642,9 @@ describe('TokenListController', () => {
       await controller1.fetchTokenList(ChainId.mainnet);
       const savedCache = controller1.state.tokensChainsCache;
 
+      // Wait for debounced persistence to complete (500ms + buffer)
+      await new Promise((resolve) => setTimeout(resolve, 600));
+
       controller1.destroy();
 
       // Verify data is in StorageService (per-chain file)
@@ -1673,6 +1673,9 @@ describe('TokenListController', () => {
       });
 
       await controller.fetchTokenList(ChainId.mainnet);
+
+      // Wait for debounced persistence to complete (500ms + buffer)
+      await new Promise((resolve) => setTimeout(resolve, 600));
 
       // Verify data was saved to StorageService (per-chain file)
       const chainStorageKey = `tokensChainsCache:${ChainId.mainnet}`;
@@ -1823,8 +1826,8 @@ describe('TokenListController', () => {
         messenger: restrictedMessenger,
       });
 
-      // Wait for async loading to complete
-      await new Promise((resolve) => setTimeout(resolve, 100));
+      // Initialize the controller to load from storage
+      await controller.initialize();
 
       // Verify that mainnet chain loaded successfully
       expect(controller.state.tokensChainsCache[ChainId.mainnet]).toBeDefined();
@@ -1908,8 +1911,8 @@ describe('TokenListController', () => {
         messenger: restrictedMessenger,
       });
 
-      // Wait for async initialization
-      await new Promise((resolve) => setTimeout(resolve, 100));
+      // Initialize the controller
+      await controller.initialize();
 
       // Try to fetch tokens - this should trigger save which will fail
       nock(tokenService.TOKEN_END_POINT_API)
@@ -1917,6 +1920,9 @@ describe('TokenListController', () => {
         .reply(200, sampleMainnetTokenList);
 
       await controller.fetchTokenList(ChainId.mainnet);
+
+      // Wait for debounced persistence to attempt (and fail)
+      await new Promise((resolve) => setTimeout(resolve, 600));
 
       // Verify console.error was called with the save error
       expect(consoleErrorSpy).toHaveBeenCalledWith(
@@ -1931,39 +1937,35 @@ describe('TokenListController', () => {
       controller.destroy();
     });
 
-    it('should handle errors during migration to StorageService', async () => {
-      // Create messenger where getAllKeys throws to cause migration logic to fail
+    it('should handle errors during debounced persistence', async () => {
+      // Create messenger where setItem throws to cause persistence to fail
       const messengerWithErrors = new Messenger({
         namespace: MOCK_ANY_NAMESPACE,
       });
 
-      // Register getItem to return empty (no old storage data)
+      // Register getItem to return empty
       // eslint-disable-next-line @typescript-eslint/no-explicit-any
       (messengerWithErrors as any).registerActionHandler(
         'StorageService:getItem',
         () => {
-          return {}; // No old single-file storage
+          return {};
         },
       );
 
-      // Register setItem normally
+      // Register setItem to throw error
       // eslint-disable-next-line @typescript-eslint/no-explicit-any
       (messengerWithErrors as any).registerActionHandler(
         'StorageService:setItem',
-        (controllerNamespace: string, key: string, value: unknown) => {
-          const storageKey = `${controllerNamespace}:${key}`;
-          mockStorage.set(storageKey, value);
+        () => {
+          throw new Error('Failed to save to storage');
         },
       );
 
-      // Register getAllKeys to throw error during migration check
-      // This will cause the migration logic itself to fail (not just the save)
+      // Register getAllKeys normally
       // eslint-disable-next-line @typescript-eslint/no-explicit-any
       (messengerWithErrors as any).registerActionHandler(
         'StorageService:getAllKeys',
-        () => {
-          throw new Error('Failed to get keys during migration');
-        },
+        () => [],
       );
 
       // Register removeItem (not used in this test but required)
@@ -1977,32 +1979,30 @@ describe('TokenListController', () => {
 
       const restrictedMessenger = getRestrictedMessenger(messengerWithErrors);
 
-      // Mock console.error to verify it's called for migration errors
+      // Mock console.error to verify it's called for persistence errors
       const consoleErrorSpy = jest.spyOn(console, 'error').mockImplementation();
-
-      // Initialize with state data that will trigger migration
-      const stateWithData = {
-        tokensChainsCache: {
-          [ChainId.mainnet]: {
-            data: sampleMainnetTokensChainsCache,
-            timestamp: Date.now(),
-          },
-        },
-        preventPollingOnNetworkRestart: false,
-      };
 
       const controller = new TokenListController({
         chainId: ChainId.mainnet,
         messenger: restrictedMessenger,
-        state: stateWithData,
       });
 
-      // Wait for async migration to attempt and fail
-      await new Promise((resolve) => setTimeout(resolve, 100));
+      // Initialize the controller
+      await controller.initialize();
 
-      // Verify console.error was called with the migration error
+      // Fetch tokens to trigger state change (which triggers persistence)
+      nock(tokenService.TOKEN_END_POINT_API)
+        .get(getTokensPath(ChainId.mainnet))
+        .reply(200, sampleMainnetTokenList);
+
+      await controller.fetchTokenList(ChainId.mainnet);
+
+      // Wait for debounced persistence to attempt (and fail)
+      await new Promise((resolve) => setTimeout(resolve, 600));
+
+      // Verify console.error was called with the save error (from #saveChainCacheToStorage)
       expect(consoleErrorSpy).toHaveBeenCalledWith(
-        'TokenListController: Failed to migrate cache to storage:',
+        `TokenListController: Failed to save cache for ${ChainId.mainnet}:`,
         expect.any(Error),
       );
 
@@ -2065,8 +2065,8 @@ describe('TokenListController', () => {
         state: { tokensChainsCache: initialCache },
       });
 
-      // Wait for initialization
-      await new Promise((resolve) => setTimeout(resolve, 100));
+      // Initialize the controller
+      await controller.initialize();
 
       // Verify cache exists before clearing
       expect(
@@ -2168,15 +2168,15 @@ describe('TokenListController', () => {
         messenger: restrictedMessenger,
       });
 
-      // Wait for initialization to complete
-      await new Promise((resolve) => setTimeout(resolve, 100));
+      // Initialize the controller
+      await controller.initialize();
 
       // Record call counts after initialization
       const getItemCallsAfterInit = getItemCallCount;
       const getAllKeysCallsAfterInit = getAllKeysCallCount;
 
-      // getAllKeys should be called twice during init (once for load, once for migration check)
-      expect(getAllKeysCallsAfterInit).toBe(2);
+      // getAllKeys should be called once during init (for loading cache)
+      expect(getAllKeysCallsAfterInit).toBe(1);
       // getItem should be called once for the cached chain during load
       expect(getItemCallsAfterInit).toBe(1);
 
