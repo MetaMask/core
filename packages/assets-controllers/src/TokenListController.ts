@@ -191,7 +191,9 @@ export class TokenListController extends StaticIntervalPollingController<TokenLi
    *
    * @param networkControllerState - The updated network controller state.
    */
-  async #onNetworkControllerStateChange(networkControllerState: NetworkState) {
+  async #onNetworkControllerStateChange(
+    networkControllerState: NetworkState,
+  ): Promise<void> {
     const selectedNetworkClient = this.messenger.call(
       'NetworkController:getNetworkClientById',
       networkControllerState.selectedNetworkClientId,
@@ -216,7 +218,7 @@ export class TokenListController extends StaticIntervalPollingController<TokenLi
    * @deprecated This method is deprecated and will be removed in the future.
    * Consider using the new polling approach instead
    */
-  async start() {
+  async start(): Promise<void> {
     if (!isTokenListSupportedForNetwork(this.chainId)) {
       return;
     }
@@ -229,7 +231,7 @@ export class TokenListController extends StaticIntervalPollingController<TokenLi
    * @deprecated This method is deprecated and will be removed in the future.
    * Consider using the new polling approach instead
    */
-  async restart() {
+  async restart(): Promise<void> {
     this.stopPolling();
     await this.#startDeprecatedPolling();
   }
@@ -240,7 +242,7 @@ export class TokenListController extends StaticIntervalPollingController<TokenLi
    * @deprecated This method is deprecated and will be removed in the future.
    * Consider using the new polling approach instead
    */
-  stop() {
+  stop(): void {
     this.stopPolling();
   }
 
@@ -250,7 +252,7 @@ export class TokenListController extends StaticIntervalPollingController<TokenLi
    * @deprecated This method is deprecated and will be removed in the future.
    * Consider using the new polling approach instead
    */
-  override destroy() {
+  override destroy(): void {
     super.destroy();
     this.stopPolling();
   }

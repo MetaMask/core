@@ -359,7 +359,7 @@
   },
   "packages/assets-controllers/src/TokenListController.ts": {
     "@typescript-eslint/explicit-function-return-type": {
-      "count": 6
+      "count": 1
     },
     "no-restricted-syntax": {
       "count": 7
