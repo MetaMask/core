@@ -156,8 +156,8 @@ export async function fetchTokenListByChainId(
     if (Array.isArray(result) && chainId === ChainId['linea-mainnet']) {
       return result.filter(
         (elm) =>
-          // eslint-disable-next-line @typescript-eslint/prefer-nullish-coalescing
-          elm.aggregators.includes('lineaTeam') || elm.aggregators.length >= 3,
+         Boolean(elm.aggregators.includes('lineaTeam')) ||
+         elm.aggregators.length >= 3,
       );
     }
     return result;
