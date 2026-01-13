@@ -1,4 +1,4 @@
-# Guidelines for Packages
+# Guidelines for packages
 
 ## List exports explicitly
 
