@@ -1,4 +1,3 @@
-import type { Signer } from '@metamask/7715-permission-types';
 import type {
   ControllerGetStateAction,
   ControllerStateChangeEvent,
@@ -337,19 +336,19 @@ export default class GatorPermissionsController extends BaseController<
     this.#registerMessageHandlers();
   }
 
-  #setIsFetchingGatorPermissions(isFetchingGatorPermissions: boolean) {
+  #setIsFetchingGatorPermissions(isFetchingGatorPermissions: boolean): void {
     this.update((state) => {
       state.isFetchingGatorPermissions = isFetchingGatorPermissions;
     });
   }
 
-  #setIsGatorPermissionsEnabled(isGatorPermissionsEnabled: boolean) {
+  #setIsGatorPermissionsEnabled(isGatorPermissionsEnabled: boolean): void {
     this.update((state) => {
       state.isGatorPermissionsEnabled = isGatorPermissionsEnabled;
     });
   }
 
-  #addPendingRevocationToState(txId: string, permissionContext: Hex) {
+  #addPendingRevocationToState(txId: string, permissionContext: Hex): void {
     this.update((state) => {
       state.pendingRevocations = [
         ...state.pendingRevocations,
@@ -358,7 +357,7 @@ export default class GatorPermissionsController extends BaseController<
     });
   }
 
-  #removePendingRevocationFromStateByTxId(txId: string) {
+  #removePendingRevocationFromStateByTxId(txId: string): void {
     this.update((state) => {
       state.pendingRevocations = state.pendingRevocations.filter(
         (pendingRevocations) => pendingRevocations.txId !== txId,
@@ -366,7 +365,9 @@ export default class GatorPermissionsController extends BaseController<
     });
   }
 
-  #removePendingRevocationFromStateByPermissionContext(permissionContext: Hex) {
+  #removePendingRevocationFromStateByPermissionContext(
+    permissionContext: Hex,
+  ): void {
     this.update((state) => {
       state.pendingRevocations = state.pendingRevocations.filter(
         (pendingRevocations) =>
@@ -425,7 +426,7 @@ export default class GatorPermissionsController extends BaseController<
    *
    * @throws {GatorPermissionsNotEnabledError} If the gator permissions are not enabled.
    */
-  #assertGatorPermissionsEnabled() {
+  #assertGatorPermissionsEnabled(): void {
     if (!this.state.isGatorPermissionsEnabled) {
       throw new GatorPermissionsNotEnabledError();
     }
@@ -445,9 +446,7 @@ export default class GatorPermissionsController extends BaseController<
   }: {
     snapId: SnapId;
     params?: Json;
-  }): Promise<
-    StoredGatorPermission<Signer, PermissionTypesWithCustom>[] | null
-  > {
+  }): Promise<StoredGatorPermission<PermissionTypesWithCustom>[] | null> {
     try {
       const response = (await this.messenger.call(
         'SnapController:handleRequest',
@@ -462,7 +461,7 @@ export default class GatorPermissionsController extends BaseController<
             ...(params !== undefined && { params }),
           },
         },
-      )) as StoredGatorPermission<Signer, PermissionTypesWithCustom>[] | null;
+      )) as StoredGatorPermission<PermissionTypesWithCustom>[] | null;
 
       return response;
     } catch (error) {
@@ -480,19 +479,16 @@ export default class GatorPermissionsController extends BaseController<
 
   /**
    * Sanitizes a stored gator permission for client exposure.
-   * Removes internal fields (dependencyInfo, signer)
+   * Removes internal fields (dependencies, to)
    *
    * @param storedGatorPermission - The stored gator permission to sanitize.
    * @returns The sanitized stored gator permission.
    */
   #sanitizeStoredGatorPermission(
-    storedGatorPermission: StoredGatorPermission<
-      Signer,
-      PermissionTypesWithCustom
-    >,
-  ): StoredGatorPermissionSanitized<Signer, PermissionTypesWithCustom> {
+    storedGatorPermission: StoredGatorPermission<PermissionTypesWithCustom>,
+  ): StoredGatorPermissionSanitized<PermissionTypesWithCustom> {
     const { permissionResponse } = storedGatorPermission;
-    const { dependencyInfo, signer, ...rest } = permissionResponse;
+    const { dependencies, to, ...rest } = permissionResponse;
     return {
       ...storedGatorPermission,
       permissionResponse: {
@@ -509,7 +505,7 @@ export default class GatorPermissionsController extends BaseController<
    */
   #categorizePermissionsDataByTypeAndChainId(
     storedGatorPermissions:
-      | StoredGatorPermission<Signer, PermissionTypesWithCustom>[]
+      | StoredGatorPermission<PermissionTypesWithCustom>[]
       | null,
   ): GatorPermissionsMap {
     const gatorPermissionsMap = createEmptyGatorPermissionsMap();
@@ -570,14 +566,14 @@ export default class GatorPermissionsController extends BaseController<
   /**
    * Enables gator permissions for the user.
    */
-  public async enableGatorPermissions() {
+  public async enableGatorPermissions(): Promise<void> {
     this.#setIsGatorPermissionsEnabled(true);
   }
 
   /**
    * Clears the gator permissions map and disables the feature.
    */
-  public async disableGatorPermissions() {
+  public async disableGatorPermissions(): Promise<void> {
     this.update((state) => {
       state.isGatorPermissionsEnabled = false;
       state.gatorPermissionsMapSerialized = serializeGatorPermissionsMap(
@@ -641,7 +637,7 @@ export default class GatorPermissionsController extends BaseController<
    * This method validates the caller origin, decodes the provided `permissionContext`
    * into delegations, identifies the permission type from the caveat enforcers,
    * extracts the permission-specific data and expiry, and reconstructs a
-   * {@link DecodedPermission} containing chainId, account addresses, signer, type and data.
+   * {@link DecodedPermission} containing chainId, account addresses, to, type and data.
    *
    * @param args - The arguments to this function.
    * @param args.origin - The caller's origin; must match the configured permissions provider Snap id.
@@ -850,7 +846,7 @@ export default class GatorPermissionsController extends BaseController<
     };
 
     // Helper to refresh permissions after transaction state change
-    const refreshPermissions = (context: string) => {
+    const refreshPermissions = (context: string): void => {
       this.fetchAndUpdateGatorPermissions({ isRevoked: false }).catch(
         (error) => {
           controllerLog(`Failed to refresh permissions after ${context}`, {
@@ -863,7 +859,7 @@ export default class GatorPermissionsController extends BaseController<
     };
 
     // Helper to unsubscribe from approval/rejection events after decision is made
-    const cleanupApprovalHandlers = () => {
+    const cleanupApprovalHandlers = (): void => {
       if (handlers.approved) {
         this.messenger.unsubscribe(
           'TransactionController:transactionApproved',
@@ -881,7 +877,7 @@ export default class GatorPermissionsController extends BaseController<
     };
 
     // Cleanup function to unsubscribe from all events and clear timeout
-    const cleanup = (txIdToRemove: string, removeFromState = true) => {
+    const cleanup = (txIdToRemove: string, removeFromState = true): void => {
       cleanupApprovalHandlers();
       if (handlers.confirmed) {
         this.messenger.unsubscribe(
@@ -912,7 +908,7 @@ export default class GatorPermissionsController extends BaseController<
     };
 
     // Handle approved transaction - add to pending revocations state
-    handlers.approved = (payload) => {
+    handlers.approved = (payload): void | undefined => {
       if (payload.transactionMeta.id === txId) {
         controllerLog(
           'Transaction approved by user, adding to pending revocations',
@@ -930,7 +926,7 @@ export default class GatorPermissionsController extends BaseController<
     };
 
     // Handle rejected transaction - cleanup without adding to state
-    handlers.rejected = (payload) => {
+    handlers.rejected = (payload): void | undefined => {
       if (payload.transactionMeta.id === txId) {
         controllerLog('Transaction rejected by user, cleaning up listeners', {
           txId,
@@ -943,7 +939,7 @@ export default class GatorPermissionsController extends BaseController<
     };
 
     // Handle confirmed transaction - submit revocation
-    handlers.confirmed = (transactionMeta) => {
+    handlers.confirmed = (transactionMeta): void | undefined => {
       if (transactionMeta.id === txId) {
         controllerLog('Transaction confirmed, submitting revocation', {
           txId,
@@ -968,7 +964,7 @@ export default class GatorPermissionsController extends BaseController<
     };
 
     // Handle failed transaction - cleanup without submitting revocation
-    handlers.failed = (payload) => {
+    handlers.failed = (payload): void | undefined => {
       if (payload.transactionMeta.id === txId) {
         controllerLog('Transaction failed, cleaning up revocation listener', {
           txId,
@@ -983,7 +979,7 @@ export default class GatorPermissionsController extends BaseController<
     };
 
     // Handle dropped transaction - cleanup without submitting revocation
-    handlers.dropped = (payload) => {
+    handlers.dropped = (payload): void | undefined => {
       if (payload.transactionMeta.id === txId) {
         controllerLog('Transaction dropped, cleaning up revocation listener', {
           txId,

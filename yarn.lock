@@ -2385,10 +2385,10 @@ __metadata:
   languageName: node
   linkType: hard
 
-"@metamask/7715-permission-types@npm:^0.4.0":
-  version: 0.4.0
-  resolution: "@metamask/7715-permission-types@npm:0.4.0"
-  checksum: 10/70748053e7b9fcd89d044a7602b48168137cc0761f8606ad17fdaafc13ac69271a75230c727a64df49dfedc59a0b3f60bd6fa46c60e06df40691985b9823881d
+"@metamask/7715-permission-types@npm:^0.5.0":
+  version: 0.5.0
+  resolution: "@metamask/7715-permission-types@npm:0.5.0"
+  checksum: 10/f01dcf7ffc3e39536f7cc4d54c088ea659c392de5bdfcaafb9f4d67bbe6b56010358ed2a2ba3adba4e454af51412a2fd5be377cac5c7ab101b032d30711e0b37
   languageName: node
   linkType: hard
 
@@ -3751,7 +3751,7 @@ __metadata:
   dependencies:
     "@lavamoat/allow-scripts": "npm:^3.0.4"
     "@lavamoat/preinstall-always-fail": "npm:^2.1.0"
-    "@metamask/7715-permission-types": "npm:^0.4.0"
+    "@metamask/7715-permission-types": "npm:^0.5.0"
     "@metamask/auto-changelog": "npm:^3.4.4"
     "@metamask/base-controller": "npm:^9.0.0"
     "@metamask/delegation-core": "npm:^0.2.0"
