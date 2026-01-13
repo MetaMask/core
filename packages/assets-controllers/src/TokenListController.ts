@@ -133,6 +133,12 @@ export class TokenListController extends StaticIntervalPollingController<TokenLi
   #persistDebounceTimer?: ReturnType<typeof setTimeout>;
 
   /**
+   * Promise that resolves when the current persist operation completes.
+   * Used to prevent race conditions between persist and clear operations.
+   */
+  #persistInFlightPromise?: Promise<void>;
+
+  /**
    * Tracks which chains have pending changes to persist.
    * Only changed chains are persisted to reduce write amplification.
    */
@@ -314,6 +320,10 @@ export class TokenListController extends StaticIntervalPollingController<TokenLi
    * Persist only the chains that have changed to storage.
    * Reduces write amplification by skipping unchanged chains.
    *
+   * Tracks the in-flight operation via #persistInFlightPromise so that
+   * clearingTokenListData() can wait for it to complete before removing
+   * items from storage, preventing race conditions.
+   *
    * @returns A promise that resolves when changed chains are persisted.
    */
   async #persistChangedChains(): Promise<void> {
@@ -324,9 +334,15 @@ export class TokenListController extends StaticIntervalPollingController<TokenLi
       return;
     }
 
-    await Promise.all(
+    this.#persistInFlightPromise = Promise.all(
       chainsToPersist.map((chainId) => this.#saveChainCacheToStorage(chainId)),
-    );
+    ).then(() => undefined); // Convert Promise<void[]> to Promise<void>
+
+    try {
+      await this.#persistInFlightPromise;
+    } finally {
+      this.#persistInFlightPromise = undefined;
+    }
   }
 
   /**
@@ -662,13 +678,23 @@ export class TokenListController extends StaticIntervalPollingController<TokenLi
    * stateChange subscription, since the subscription handles saves, not deletes.
    */
   async clearingTokenListData(): Promise<void> {
-    // Cancel any pending persist operations since we're clearing
     if (this.#persistDebounceTimer) {
       clearTimeout(this.#persistDebounceTimer);
       this.#persistDebounceTimer = undefined;
     }
     this.#changedChainsToPersist.clear();
     this.#previousTokensChainsCache = {};
+
+    // Wait for any in-flight persist operation to complete before clearing storage.
+    // This prevents race conditions where persist setItem calls interleave with
+    // our removeItem calls, potentially re-saving data after we remove it.
+    if (this.#persistInFlightPromise) {
+      try {
+        await this.#persistInFlightPromise;
+      } catch {
+        // Ignore
+      }
+    }
 
     try {
       const allKeys = await this.messenger.call(
