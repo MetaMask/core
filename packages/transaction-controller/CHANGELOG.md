@@ -7,6 +7,10 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+### Fixed
+
+- Fix balance change calculation for gas sponsored tx involving native token ([#7608](https://github.com/MetaMask/core/pull/7608))
+
 ## [62.9.0]
 
 ### Added
