@@ -687,7 +687,7 @@
   },
   "packages/bridge-controller/src/utils/metrics/types.ts": {
     "@typescript-eslint/naming-convention": {
-      "count": 81
+      "count": 83
     }
   },
   "packages/bridge-controller/src/utils/quote-fees.ts": {
