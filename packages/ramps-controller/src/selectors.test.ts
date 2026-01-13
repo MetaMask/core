@@ -24,7 +24,7 @@ describe('createRequestSelector', () => {
       const loadingRequest = createLoadingState();
       const state: TestRootState = {
         ramps: {
-          geolocation: null,
+          userRegion: null,
           eligibility: null,
           requests: {
             'getCryptoCurrencies:["US"]': loadingRequest,
@@ -53,7 +53,7 @@ describe('createRequestSelector', () => {
       const successRequest = createSuccessState(['ETH', 'BTC'], Date.now());
       const state: TestRootState = {
         ramps: {
-          geolocation: null,
+          userRegion: null,
           eligibility: null,
           requests: {
             'getCryptoCurrencies:["US"]': successRequest,
@@ -85,7 +85,7 @@ describe('createRequestSelector', () => {
       const errorRequest = createErrorState('Network error', Date.now());
       const state: TestRootState = {
         ramps: {
-          geolocation: null,
+          userRegion: null,
           eligibility: null,
           requests: {
             'getCryptoCurrencies:["US"]': errorRequest,
@@ -113,7 +113,7 @@ describe('createRequestSelector', () => {
 
       const state: TestRootState = {
         ramps: {
-          geolocation: null,
+          userRegion: null,
           eligibility: null,
           requests: {},
         },
@@ -164,7 +164,7 @@ describe('createRequestSelector', () => {
       const successRequest = createSuccessState(['ETH', 'BTC'], Date.now());
       const state: TestRootState = {
         ramps: {
-          geolocation: null,
+          userRegion: null,
           eligibility: null,
           requests: {
             'getCryptoCurrencies:["US"]': successRequest,
@@ -188,7 +188,7 @@ describe('createRequestSelector', () => {
       const successRequest1 = createSuccessState(['ETH'], Date.now());
       const state1: TestRootState = {
         ramps: {
-          geolocation: null,
+          userRegion: null,
           eligibility: null,
           requests: {
             'getCryptoCurrencies:["US"]': successRequest1,
@@ -201,7 +201,7 @@ describe('createRequestSelector', () => {
       const successRequest2 = createSuccessState(['ETH', 'BTC'], Date.now());
       const state2: TestRootState = {
         ramps: {
-          geolocation: null,
+          userRegion: null,
           eligibility: null,
           requests: {
             'getCryptoCurrencies:["US"]': successRequest2,
@@ -226,7 +226,7 @@ describe('createRequestSelector', () => {
       const successRequest = createSuccessState(largeArray, Date.now());
       const state: TestRootState = {
         ramps: {
-          geolocation: null,
+          userRegion: null,
           eligibility: null,
           requests: {
             'getCryptoCurrencies:["US"]': successRequest,
@@ -254,7 +254,7 @@ describe('createRequestSelector', () => {
       const successRequest = createSuccessState(complexData, Date.now());
       const state: TestRootState = {
         ramps: {
-          geolocation: null,
+          userRegion: null,
           eligibility: null,
           requests: {
             'getData:[]': successRequest,
@@ -281,7 +281,7 @@ describe('createRequestSelector', () => {
       const loadingRequest = createLoadingState();
       const loadingState: TestRootState = {
         ramps: {
-          geolocation: null,
+          userRegion: null,
           eligibility: null,
           requests: {
             'getCryptoCurrencies:["US"]': loadingRequest,
@@ -296,7 +296,7 @@ describe('createRequestSelector', () => {
       const successRequest = createSuccessState(['ETH'], Date.now());
       const successState: TestRootState = {
         ramps: {
-          geolocation: null,
+          userRegion: null,
           eligibility: null,
           requests: {
             'getCryptoCurrencies:["US"]': successRequest,
@@ -319,7 +319,7 @@ describe('createRequestSelector', () => {
       const successRequest = createSuccessState(['ETH'], Date.now());
       const successState: TestRootState = {
         ramps: {
-          geolocation: null,
+          userRegion: null,
           eligibility: null,
           requests: {
             'getCryptoCurrencies:["US"]': successRequest,
@@ -333,7 +333,7 @@ describe('createRequestSelector', () => {
       const errorRequest = createErrorState('Failed to fetch', Date.now());
       const errorState: TestRootState = {
         ramps: {
-          geolocation: null,
+          userRegion: null,
           eligibility: null,
           requests: {
             'getCryptoCurrencies:["US"]': errorRequest,
@@ -362,7 +362,7 @@ describe('createRequestSelector', () => {
 
       const state: TestRootState = {
         ramps: {
-          geolocation: null,
+          userRegion: null,
           eligibility: null,
           requests: {
             'getCryptoCurrencies:["US"]': createSuccessState(
@@ -395,7 +395,7 @@ describe('createRequestSelector', () => {
 
       const state: TestRootState = {
         ramps: {
-          geolocation: null,
+          userRegion: null,
           eligibility: null,
           requests: {
             'getCryptoCurrencies:["US"]': createSuccessState(
