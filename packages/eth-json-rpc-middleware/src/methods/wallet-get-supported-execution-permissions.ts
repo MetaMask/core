@@ -5,14 +5,17 @@ import { array, object, record, string } from '@metamask/superstruct';
 import { StrictHexStruct } from '@metamask/utils';
 import type { Json, JsonRpcRequest } from '@metamask/utils';
 
+import { NoParamsStruct } from '../utils/structs';
 import { validateParams } from '../utils/validation';
 import type { WalletMiddlewareContext } from '../wallet';
 
 /**
  * Superstruct schema for the `wallet_getSupportedExecutionPermissions` request params.
- * This method expects no parameters.
+ *
+ * This method expects no parameters. Different JSON-RPC clients may send "no params"
+ * in different ways (omitted, empty array, or empty object), so we accept all three.
  */
-export const GetSupportedExecutionPermissionsParamsStruct = object({});
+export const GetSupportedExecutionPermissionsParamsStruct = NoParamsStruct;
 
 /**
  * Superstruct schema for a supported permission type configuration.

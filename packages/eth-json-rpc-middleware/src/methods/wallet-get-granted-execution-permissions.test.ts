@@ -83,4 +83,26 @@ describe('wallet_getGrantedExecutionPermissions', () => {
       'wallet_getGrantedExecutionPermissions - no middleware configured',
     );
   });
+
+  describe('params validation', () => {
+    it.each([
+      ['undefined', undefined],
+      ['empty array', []],
+      ['empty object', {}],
+    ])('accepts params as %s', async (_description, params) => {
+      request = { ...REQUEST_MOCK, params } as unknown as JsonRpcRequest;
+      await expect(callMethod()).resolves.toStrictEqual(RESULT_MOCK);
+    });
+
+    it.each([
+      ['non-empty array', [1]],
+      ['non-empty object', { foo: 'bar' }],
+      ['string', 'invalid'],
+      ['number', 123],
+      ['null', null],
+    ])('rejects invalid params: %s', async (_description, params) => {
+      request = { ...REQUEST_MOCK, params } as unknown as JsonRpcRequest;
+      await expect(callMethod()).rejects.toThrow(/Invalid params/u);
+    });
+  });
 });

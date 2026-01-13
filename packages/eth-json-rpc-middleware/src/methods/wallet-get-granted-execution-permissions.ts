@@ -12,14 +12,17 @@ import {
 import { StrictHexStruct } from '@metamask/utils';
 import type { Json, JsonRpcRequest } from '@metamask/utils';
 
+import { NoParamsStruct } from '../utils/structs';
 import { validateParams } from '../utils/validation';
 import type { WalletMiddlewareContext } from '../wallet';
 
 /**
  * Superstruct schema for the `wallet_getGrantedExecutionPermissions` request params.
- * This method expects no parameters.
+ *
+ * This method expects no parameters. Different JSON-RPC clients may send "no params"
+ * in different ways (omitted, empty array, or empty object), so we accept all three.
  */
-export const GetGrantedExecutionPermissionsParamsStruct = object({});
+export const GetGrantedExecutionPermissionsParamsStruct = NoParamsStruct;
 
 const DependencyStruct = object({
   factory: StrictHexStruct,
