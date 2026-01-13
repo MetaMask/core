@@ -196,7 +196,6 @@ describe('GatorPermissionsController', () => {
                 isAdjustmentAllowed: false,
                 data: {
                   target: '0x1234567890123456789012345678901234567890',
-                  // eslint-disable-next-line id-denylist
                   sig: '0xabcd',
                   expiry: 1735689600, // Example expiry timestamp
                 },
@@ -251,8 +250,8 @@ describe('GatorPermissionsController', () => {
           result[permissionType],
         ).flat();
         flattenedStoredGatorPermissions.forEach((permission) => {
-          expect(permission.permissionResponse.signer).toBeUndefined();
-          expect(permission.permissionResponse.dependencyInfo).toBeUndefined();
+          expect(permission.permissionResponse.to).toBeUndefined();
+          expect(permission.permissionResponse.dependencies).toBeUndefined();
         });
       };
 
@@ -275,7 +274,6 @@ describe('GatorPermissionsController', () => {
           isAdjustmentAllowed: false,
           data: {
             target: '0x1234567890123456789012345678901234567890',
-            // eslint-disable-next-line id-denylist
             sig: '0xabcd',
             expiry: 1735689600,
           },
@@ -289,11 +287,8 @@ describe('GatorPermissionsController', () => {
       const revocationEntry = {
         permissionResponse: {
           chainId,
-          address: '0x0000000000000000000000000000000000000001',
-          signer: {
-            type: 'account',
-            data: { address: '0x0000000000000000000000000000000000000002' },
-          },
+          from: '0x0000000000000000000000000000000000000001',
+          to: '0x0000000000000000000000000000000000000002',
           permission: {
             type: 'erc20-token-revocation',
             isAdjustmentAllowed: false,
@@ -302,10 +297,8 @@ describe('GatorPermissionsController', () => {
             data: {} as any,
           },
           context: '0xdeadbeef',
-          dependencyInfo: [],
-          signerMeta: {
-            delegationManager: '0x0000000000000000000000000000000000000003',
-          },
+          dependencies: [],
+          delegationManager: '0x0000000000000000000000000000000000000003',
         },
         siteOrigin: 'https://example.org',
       } as unknown;
