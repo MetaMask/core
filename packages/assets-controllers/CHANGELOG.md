@@ -7,8 +7,6 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
-## [95.1.1]
-
 ### Added
 
 - Add Rootstock (0x1e) mapping to eip155:30/erc20:0x542fda317318ebf1d3deaf76e0b632741a7e677d for RBTC ([#7601](https://github.com/MetaMask/core/pull/7601))
@@ -2507,7 +2505,6 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 - Use Ethers for AssetsContractController ([#845](https://github.com/MetaMask/core/pull/845))
 
 [Unreleased]: https://github.com/MetaMask/core/compare/@metamask/assets-controllers@95.1.1...HEAD
-[95.1.1]: https://github.com/MetaMask/core/compare/@metamask/assets-controllers@95.1.0...@metamask/assets-controllers@95.1.1
 [95.1.0]: https://github.com/MetaMask/core/compare/@metamask/assets-controllers@95.0.0...@metamask/assets-controllers@95.1.0
 [95.0.0]: https://github.com/MetaMask/core/compare/@metamask/assets-controllers@94.1.0...@metamask/assets-controllers@95.0.0
 [94.1.0]: https://github.com/MetaMask/core/compare/@metamask/assets-controllers@94.0.0...@metamask/assets-controllers@94.1.0

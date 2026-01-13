@@ -12,7 +12,6 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 ### Changed
 
 - Bump `@metamask/network-controller` from `^27.2.0` to `^28.0.0` ([#7604](https://github.com/MetaMask/core/pull/7604))
-- Bump `@metamask/assets-controllers` from `^95.1.0` to `^95.1.1` ([#7604](https://github.com/MetaMask/core/pull/7604))
 - Bump `@metamask/bridge-controller` from `^64.4.0` to `^64.4.1` ([#7604](https://github.com/MetaMask/core/pull/7604))
 - Bump `@metamask/bridge-status-controller` from `^64.4.1` to `^64.4.2` ([#7604](https://github.com/MetaMask/core/pull/7604))
 - Bump `@metamask/gas-fee-controller` from `^26.0.0` to `^26.0.1` ([#7604](https://github.com/MetaMask/core/pull/7604))
