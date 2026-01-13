@@ -7,7 +7,12 @@ import { BaseController } from '@metamask/base-controller';
 import type { Messenger } from '@metamask/messenger';
 import type { Json } from '@metamask/utils';
 
-import type { Country, Eligibility, TokensResponse } from './RampsService';
+import type {
+  Country,
+  Eligibility,
+  TokensResponse,
+  Provider,
+} from './RampsService';
 import type {
   RampsServiceGetGeolocationAction,
   RampsServiceGetCountriesAction,
@@ -51,6 +56,11 @@ export type RampsControllerState = {
    */
   userRegion: string | null;
   /**
+   * The user's preferred provider.
+   * Can be manually set by the user.
+   */
+  preferredProvider: Provider | null;
+  /**
    * Eligibility information for the user's current region.
    */
   eligibility: Eligibility | null;
@@ -71,6 +81,12 @@ export type RampsControllerState = {
  */
 const rampsControllerMetadata = {
   userRegion: {
+    persist: true,
+    includeInDebugSnapshot: true,
+    includeInStateLogs: true,
+    usedInUi: true,
+  },
+  preferredProvider: {
     persist: true,
     includeInDebugSnapshot: true,
     includeInStateLogs: true,
@@ -107,6 +123,7 @@ const rampsControllerMetadata = {
 export function getDefaultRampsControllerState(): RampsControllerState {
   return {
     userRegion: null,
+    preferredProvider: null,
     eligibility: null,
     tokens: null,
     requests: {},
@@ -483,6 +500,18 @@ export class RampsController extends BaseController<
       });
       throw error;
     }
+  }
+
+  /**
+   * Sets the user's preferred provider.
+   * This allows users to set their preferred ramp provider.
+   *
+   * @param provider - The provider object to set.
+   */
+  setPreferredProvider(provider: Provider | null): void {
+    this.update((state) => {
+      state.preferredProvider = provider;
+    });
   }
 
   /**
