@@ -91,7 +91,7 @@ describe('wallet_getGrantedExecutionPermissions', () => {
       ['empty object', {}],
     ])('accepts params as %s', async (_description, params) => {
       request = { ...REQUEST_MOCK, params } as unknown as JsonRpcRequest;
-      await expect(callMethod()).resolves.toStrictEqual(RESULT_MOCK);
+      expect(await callMethod()).toStrictEqual(RESULT_MOCK);
     });
 
     it.each([

@@ -5,9 +5,7 @@ import { define, object, optional, union } from '@metamask/superstruct';
  * Validates that the value is an array with zero elements.
  */
 export const EmptyArrayStruct = define<[]>('EmptyArray', (value) =>
-  Array.isArray(value) && value.length === 0
-    ? true
-    : 'Expected an empty array',
+  Array.isArray(value) && value.length === 0 ? true : 'Expected an empty array',
 );
 
 /**
