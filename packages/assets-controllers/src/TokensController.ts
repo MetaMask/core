@@ -85,7 +85,7 @@ type WatchAssetRequestMetadata = {
 };
 
 const getNonEmptyString = (
-  ...candidates: Array<string | undefined>
+  ...candidates: (string | undefined)[]
 ): string | undefined => {
   return candidates.find(
     (candidate) => typeof candidate === 'string' && candidate.trim() !== '',
@@ -617,8 +617,7 @@ export class TokensController extends BaseController<
       allTokens[interactingChainId]?.[this.#getSelectedAddress()] ?? [];
 
     const detectedTokens =
-      allDetectedTokens[interactingChainId]?.[this.#getSelectedAddress()] ??
-      [];
+      allDetectedTokens[interactingChainId]?.[this.#getSelectedAddress()] ?? [];
 
     const checksummedTokenAddresses = tokenAddressesToIgnore.map((address) => {
       const checksumAddress = toChecksumHexAddress(address);
