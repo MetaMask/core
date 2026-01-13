@@ -2400,7 +2400,7 @@ describe('TokenListController', () => {
         'StorageService:removeItem',
         async (_controllerNamespace: string, key: string) => {
           if (key === chainStorageKey2) {
-            return Promise.reject(new Error('Failed to remove'));
+            throw new Error('Failed to remove');
           }
         },
       );
