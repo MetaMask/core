@@ -2196,6 +2196,95 @@ describe('TokenListController', () => {
 
       controller.destroy();
     });
+
+    it('should NOT re-persist data loaded from storage during initialization', async () => {
+      // Pre-populate storage with cached data
+      const chainData: DataCache = {
+        data: sampleMainnetTokensChainsCache,
+        timestamp: Date.now(),
+      };
+      mockStorage.set(
+        `TokenListController:tokensChainsCache:${ChainId.mainnet}`,
+        chainData,
+      );
+
+      // Track how many times setItem is called
+      let setItemCallCount = 0;
+
+      const trackingMessenger = new Messenger({
+        namespace: MOCK_ANY_NAMESPACE,
+      });
+
+      // eslint-disable-next-line @typescript-eslint/no-explicit-any
+      (trackingMessenger as any).registerActionHandler(
+        'StorageService:getItem',
+        (controllerNamespace: string, key: string) => {
+          const storageKey = `${controllerNamespace}:${key}`;
+          const value = mockStorage.get(storageKey);
+          return value ? { result: value } : {};
+        },
+      );
+
+      // eslint-disable-next-line @typescript-eslint/no-explicit-any
+      (trackingMessenger as any).registerActionHandler(
+        'StorageService:setItem',
+        (controllerNamespace: string, key: string, value: unknown) => {
+          setItemCallCount += 1;
+          const storageKey = `${controllerNamespace}:${key}`;
+          mockStorage.set(storageKey, value);
+        },
+      );
+
+      // eslint-disable-next-line @typescript-eslint/no-explicit-any
+      (trackingMessenger as any).registerActionHandler(
+        'StorageService:removeItem',
+        (controllerNamespace: string, key: string) => {
+          const storageKey = `${controllerNamespace}:${key}`;
+          mockStorage.delete(storageKey);
+        },
+      );
+
+      // eslint-disable-next-line @typescript-eslint/no-explicit-any
+      (trackingMessenger as any).registerActionHandler(
+        'StorageService:getAllKeys',
+        (controllerNamespace: string) => {
+          const keys: string[] = [];
+          const prefix = `${controllerNamespace}:`;
+          mockStorage.forEach((_value, key) => {
+            if (key.startsWith(prefix)) {
+              const keyWithoutNamespace = key.substring(prefix.length);
+              keys.push(keyWithoutNamespace);
+            }
+          });
+          return keys;
+        },
+      );
+
+      const restrictedMessenger = getRestrictedMessenger(trackingMessenger);
+
+      const controller = new TokenListController({
+        chainId: ChainId.mainnet,
+        messenger: restrictedMessenger,
+      });
+
+      // Initialize the controller - this should load from storage
+      await controller.initialize();
+
+      // Verify data was loaded correctly
+      expect(controller.state.tokensChainsCache[ChainId.mainnet]).toBeDefined();
+      expect(
+        controller.state.tokensChainsCache[ChainId.mainnet].data,
+      ).toStrictEqual(sampleMainnetTokensChainsCache);
+
+      // Wait longer than the debounce delay (500ms) to ensure any scheduled
+      // persistence would have executed
+      await new Promise((resolve) => setTimeout(resolve, 600));
+
+      // Verify setItem was NOT called - loaded data should not be re-persisted
+      expect(setItemCallCount).toBe(0);
+
+      controller.destroy();
+    });
   });
 
   describe('edge cases for coverage', () => {

@@ -408,21 +408,6 @@ export class TokenListController extends StaticIntervalPollingController<TokenLi
       // Merge loaded cache with existing state, preferring existing data
       // (which may be fresher if fetched during initialization)
       if (Object.keys(loadedCache).length > 0) {
-        // Compute the final cache state before calling update().
-        // We must set #previousTokensChainsCache to match the final state BEFORE
-        // the update() call, because update() triggers the stateChange subscription
-        // synchronously. If #previousTokensChainsCache is still {} when the
-        // subscription fires, all loaded chains would be detected as "new" and
-        // scheduled for re-persistence (which defeats the purpose of loading from storage).
-        const existingCache = this.state.tokensChainsCache;
-        const finalCache: TokensChainsCache = { ...existingCache };
-        for (const [chainId, cacheData] of Object.entries(loadedCache)) {
-          if (!finalCache[chainId as Hex]) {
-            finalCache[chainId as Hex] = cacheData;
-          }
-        }
-        this.#previousTokensChainsCache = finalCache;
-
         this.update((state) => {
           // Only load chains that don't already exist in state
           // This prevents overwriting fresh API data with stale cached data
@@ -432,6 +417,18 @@ export class TokenListController extends StaticIntervalPollingController<TokenLi
             }
           }
         });
+
+        // Clear any persistence scheduled during loading.
+        // Data loaded from storage doesn't need to be re-persisted.
+        // The update() call above triggers #onCacheChanged which detects all
+        // loaded chains as "new" (since #previousTokensChainsCache is empty)
+        // and schedules them for persistence. We must clear this to avoid
+        // redundant storage writes on every initialization.
+        if (this.#persistDebounceTimer) {
+          clearTimeout(this.#persistDebounceTimer);
+          this.#persistDebounceTimer = undefined;
+        }
+        this.#changedChainsToPersist.clear();
       }
     } catch (error) {
       console.error(
