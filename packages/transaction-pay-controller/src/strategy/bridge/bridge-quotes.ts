@@ -554,6 +554,7 @@ function normalizeQuote(
     original: quote,
     request,
     sourceAmount,
+    targetAmount,
     strategy: TransactionPayStrategy.Bridge,
   };
 }

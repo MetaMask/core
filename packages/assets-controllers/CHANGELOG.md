@@ -9,6 +9,39 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ### Added
 
+- Add Rootstock (0x1e) mapping to eip155:30/erc20:0x542fda317318ebf1d3deaf76e0b632741a7e677d for RBTC ([#7601](https://github.com/MetaMask/core/pull/7601))
+
+### Changed
+
+- Bump `@metamask/transaction-controller` from `^62.8.0` to `^62.9.1` ([#7602](https://github.com/MetaMask/core/pull/7602), [#7604](https://github.com/MetaMask/core/pull/7604))
+- Bump `@metamask/network-controller` from `^27.2.0` to `^28.0.0` ([#7604](https://github.com/MetaMask/core/pull/7604))
+- Bump `@metamask/accounts-controller` from `^35.0.0` to `^35.0.1` ([#7604](https://github.com/MetaMask/core/pull/7604))
+- Bump `@metamask/polling-controller` from `^16.0.0` to `^16.0.1` ([#7604](https://github.com/MetaMask/core/pull/7604))
+- Update Plasma (0x2611) mapping to eip155:9745/erc20:0xeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeee for XPL ([#7601](https://github.com/MetaMask/core/pull/7601))
+
+## [95.1.0]
+
+### Added
+
+- Add RWA (Real World Assets) data support for token metadata endpoint ([#7595](https://github.com/MetaMask/core/pull/7595))
+  - Update token service to include RWA data in API requests by appending `includeRwaData=true` parameter to token list API calls
+  - `TokenListController` now includes `rwaData` optional field in `TokenListToken` type to support RWA data in token list retrieval
+  - Reduced `TokenListController` cache time from 24hrs to 4hrs.
+
+### Changed
+
+- Bump `@metamask/multichain-account-service` from `^4.1.0` to `^5.0.0` ([#7594](https://github.com/MetaMask/core/pull/7594))
+- Bump `@metamask/transaction-controller` from `^62.7.0` to `^62.8.0` ([#7596](https://github.com/MetaMask/core/pull/7596))
+- `AccountTrackerController` now triggers an immediate balance refresh when the keyring is unlocked, instead of waiting for the next polling cycle ([#7585](https://github.com/MetaMask/core/pull/7585))
+
+### Fixed
+
+- Add missing native coin non-zero address for networks: Gnosis and MSU ([#7592](https://github.com/MetaMask/core/pull/7592))
+
+## [95.0.0]
+
+### Added
+
 - Add RWA (Real World Assets) data support to token service ([#7560](https://github.com/MetaMask/core/pull/7560))
   - Add `includeRwaData` optional parameter to `getTrendingTokens` function to include RWA data in results
   - Add `TokenRwaData` type for RWA token metadata (market hours, pause times, ticker, instrument type)
@@ -36,8 +69,8 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 - `AccountTrackerController` now only refreshes balances for the newly added network on `NetworkController:networkAdded` event instead of all networks ([#7492](https://github.com/MetaMask/core/pull/7492))
 - Bump `@metamask/transaction-controller` from `^62.5.0` to `^62.7.0` ([#7494](https://github.com/MetaMask/core/pull/7494))
 - Bump `@metamask/multichain-account-service` from `^4.0.1` to `^4.1.0` ([#7515](https://github.com/MetaMask/core/pull/7515)
-- Bump `@metamask/controller-utils` from `^11.16.0` to `^11.17.0` ([#7534](https://github.com/MetaMask/core/pull/7534))
-- Bump `@metamask/network-controller` from `^27.0.0` to `^27.1.0` ([#7534](https://github.com/MetaMask/core/pull/7534))
+- Bump `@metamask/controller-utils` from `^11.16.0` to `^11.18.0` ([#7534](https://github.com/MetaMask/core/pull/7534), [#7583](https://github.com/MetaMask/core/pull/7583))
+- Bump `@metamask/network-controller` from `^27.0.0` to `^27.2.0` ([#7534](https://github.com/MetaMask/core/pull/7534), [#7583](https://github.com/MetaMask/core/pull/7583))
 
 ## [94.1.0]
 
@@ -2471,7 +2504,9 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 - Use Ethers for AssetsContractController ([#845](https://github.com/MetaMask/core/pull/845))
 
-[Unreleased]: https://github.com/MetaMask/core/compare/@metamask/assets-controllers@94.1.0...HEAD
+[Unreleased]: https://github.com/MetaMask/core/compare/@metamask/assets-controllers@95.1.0...HEAD
+[95.1.0]: https://github.com/MetaMask/core/compare/@metamask/assets-controllers@95.0.0...@metamask/assets-controllers@95.1.0
+[95.0.0]: https://github.com/MetaMask/core/compare/@metamask/assets-controllers@94.1.0...@metamask/assets-controllers@95.0.0
 [94.1.0]: https://github.com/MetaMask/core/compare/@metamask/assets-controllers@94.0.0...@metamask/assets-controllers@94.1.0
 [94.0.0]: https://github.com/MetaMask/core/compare/@metamask/assets-controllers@93.1.0...@metamask/assets-controllers@94.0.0
 [93.1.0]: https://github.com/MetaMask/core/compare/@metamask/assets-controllers@93.0.0...@metamask/assets-controllers@93.1.0

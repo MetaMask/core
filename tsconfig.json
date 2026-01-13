@@ -15,6 +15,7 @@
     { "path": "./packages/announcement-controller" },
     { "path": "./packages/app-metadata-controller" },
     { "path": "./packages/approval-controller" },
+    { "path": "./packages/assets-controller" },
     { "path": "./packages/assets-controllers" },
     { "path": "./packages/base-controller" },
     { "path": "./packages/bridge-controller" },

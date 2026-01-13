@@ -5,6 +5,7 @@ import type {
   RequiredEventContextFromClient,
   TxData,
   QuoteResponse,
+  Intent,
   Trade,
 } from '@metamask/bridge-controller';
 import {
@@ -592,6 +593,12 @@ export class BridgeStatusController extends StaticIntervalPollingController<Brid
   }: FetchBridgeTxStatusArgs): Promise<void> => {
     const { txHistory } = this.state;
 
+    // Intent-based items: poll intent provider instead of Bridge API
+    if (bridgeTxMetaId.startsWith('intent:')) {
+      await this.#fetchIntentOrderStatus({ bridgeTxMetaId });
+      return;
+    }
+
     if (
       shouldSkipFetchDueToFetchFailures(txHistory[bridgeTxMetaId]?.attempts)
     ) {
@@ -1060,12 +1067,7 @@ export class BridgeStatusController extends StaticIntervalPollingController<Brid
       if (meta) {
         // Treat both 'confirmed' and 'finalized' as success to match TC lifecycle
 
-        if (
-          meta.status === TransactionStatus.confirmed ||
-          // Some environments move directly to finalized
-          (TransactionStatus as unknown as { finalized: string }).finalized ===
-            meta.status
-        ) {
+        if (meta.status === TransactionStatus.confirmed) {
           return meta;
         }
         if (
@@ -1688,16 +1690,9 @@ export class BridgeStatusController extends StaticIntervalPollingController<Brid
           origin: 'metamask',
           actionId: generateActionId(),
           requireApproval: false,
+          isStateOnly: true,
           networkClientId,
           type: transactionType,
-          skipInitialGasEstimate: true,
-          swaps: {
-            meta: {
-              swapMetaData: {
-                isIntentTx: true,
-              },
-            },
-          },
         },
       );
 
@@ -1798,7 +1793,6 @@ export class BridgeStatusController extends StaticIntervalPollingController<Brid
       );
       return;
     }
-
     const requestParamProperties = getRequestParamFromHistory(historyItem);
     // Always publish StatusValidationFailed event, regardless of featureId
     if (eventName === UnifiedSwapBridgeEventName.StatusValidationFailed) {
@@ -1834,6 +1828,7 @@ export class BridgeStatusController extends StaticIntervalPollingController<Brid
     const txMeta = transactions?.find(
       (tx: TransactionMeta) => tx.id === txMetaId,
     );
+
     const approvalTxMeta = transactions?.find(
       (tx: TransactionMeta) => tx.id === historyItem.approvalTxId,
     );

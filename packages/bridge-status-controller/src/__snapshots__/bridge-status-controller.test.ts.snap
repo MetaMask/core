@@ -14,6 +14,7 @@ Object {
     "initialDestAssetBalance": undefined,
     "intentOrderId": undefined,
     "isStxEnabled": false,
+    "originalTransactionId": "bridgeTxMetaId1",
     "pricingData": Object {
       "amountSent": "1.234",
       "amountSentInUsd": undefined,
@@ -216,6 +217,7 @@ Object {
     "initialDestAssetBalance": undefined,
     "intentOrderId": undefined,
     "isStxEnabled": false,
+    "originalTransactionId": "bridgeTxMetaId1",
     "pricingData": Object {
       "amountSent": "1.234",
       "amountSentInUsd": undefined,
@@ -418,6 +420,7 @@ Object {
   "initialDestAssetBalance": undefined,
   "intentOrderId": undefined,
   "isStxEnabled": false,
+  "originalTransactionId": "test-tx-id",
   "pricingData": Object {
     "amountSent": "1.234",
     "amountSentInUsd": "1.01",
@@ -654,6 +657,7 @@ Object {
   "initialDestAssetBalance": undefined,
   "intentOrderId": undefined,
   "isStxEnabled": false,
+  "originalTransactionId": "test-tx-id",
   "pricingData": Object {
     "amountSent": "1.234",
     "amountSentInUsd": "1.01",
@@ -890,6 +894,7 @@ Object {
   "initialDestAssetBalance": undefined,
   "intentOrderId": undefined,
   "isStxEnabled": false,
+  "originalTransactionId": "test-tx-id",
   "pricingData": Object {
     "amountSent": "1.234",
     "amountSentInUsd": "1.01",
@@ -1127,6 +1132,7 @@ Object {
   "initialDestAssetBalance": undefined,
   "intentOrderId": undefined,
   "isStxEnabled": true,
+  "originalTransactionId": "test-tx-id",
   "pricingData": Object {
     "amountSent": "1.234",
     "amountSentInUsd": "1.01",
@@ -1304,6 +1310,7 @@ Array [
       "price_impact": 0,
       "provider": "lifi_across",
       "quoted_time_minutes": 0.25,
+      "usd_balance_source": 0,
       "usd_quoted_gas": 2.5778,
       "usd_quoted_return": 0.134214,
       "warnings": Array [
@@ -1389,6 +1396,7 @@ Object {
   "initialDestAssetBalance": undefined,
   "intentOrderId": undefined,
   "isStxEnabled": false,
+  "originalTransactionId": "test-tx-id",
   "pricingData": Object {
     "amountSent": "1.234",
     "amountSentInUsd": "1.01",
@@ -1625,6 +1633,7 @@ Object {
   "initialDestAssetBalance": undefined,
   "intentOrderId": undefined,
   "isStxEnabled": false,
+  "originalTransactionId": "test-tx-id",
   "pricingData": Object {
     "amountSent": "1.234",
     "amountSentInUsd": "1.01",
@@ -1861,6 +1870,7 @@ Object {
   "initialDestAssetBalance": undefined,
   "intentOrderId": undefined,
   "isStxEnabled": false,
+  "originalTransactionId": "test-tx-id",
   "pricingData": Object {
     "amountSent": "1.234",
     "amountSentInUsd": "1.01",
@@ -2201,6 +2211,7 @@ Object {
   "initialDestAssetBalance": undefined,
   "intentOrderId": undefined,
   "isStxEnabled": false,
+  "originalTransactionId": "test-tx-id",
   "pricingData": Object {
     "amountSent": "1.234",
     "amountSentInUsd": "1.01",
@@ -2457,6 +2468,7 @@ Object {
   "initialDestAssetBalance": undefined,
   "intentOrderId": undefined,
   "isStxEnabled": false,
+  "originalTransactionId": "test-tx-id",
   "pricingData": Object {
     "amountSent": "1.234",
     "amountSentInUsd": "1.01",
@@ -2864,6 +2876,7 @@ Object {
   "initialDestAssetBalance": undefined,
   "intentOrderId": undefined,
   "isStxEnabled": true,
+  "originalTransactionId": "test-tx-id",
   "pricingData": Object {
     "amountSent": "1.234",
     "amountSentInUsd": "1.01",
@@ -3217,6 +3230,7 @@ Object {
   "initialDestAssetBalance": undefined,
   "intentOrderId": undefined,
   "isStxEnabled": false,
+  "originalTransactionId": "test-tx-id",
   "pricingData": Object {
     "amountSent": "1.234",
     "amountSentInUsd": "1.01",
@@ -3430,6 +3444,7 @@ Object {
   "initialDestAssetBalance": undefined,
   "intentOrderId": undefined,
   "isStxEnabled": false,
+  "originalTransactionId": "test-tx-id",
   "pricingData": Object {
     "amountSent": "1.234",
     "amountSentInUsd": "1.01",
@@ -3729,6 +3744,7 @@ Object {
   "initialDestAssetBalance": undefined,
   "intentOrderId": undefined,
   "isStxEnabled": false,
+  "originalTransactionId": "signature",
   "pricingData": Object {
     "amountSent": "1",
     "amountSentInUsd": "100",
@@ -4064,6 +4080,7 @@ Object {
   "initialDestAssetBalance": undefined,
   "intentOrderId": undefined,
   "isStxEnabled": false,
+  "originalTransactionId": "signature",
   "pricingData": Object {
     "amountSent": "1",
     "amountSentInUsd": "100",
@@ -4440,6 +4457,7 @@ Object {
   "initialDestAssetBalance": undefined,
   "intentOrderId": undefined,
   "isStxEnabled": false,
+  "originalTransactionId": "bridge-signature",
   "pricingData": Object {
     "amountSent": "1",
     "amountSentInUsd": "1",
@@ -4659,6 +4677,7 @@ Object {
   "initialDestAssetBalance": undefined,
   "intentOrderId": undefined,
   "isStxEnabled": false,
+  "originalTransactionId": "swap-signature",
   "pricingData": Object {
     "amountSent": "1",
     "amountSentInUsd": "1",

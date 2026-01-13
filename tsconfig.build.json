@@ -15,6 +15,7 @@
     { "path": "./packages/app-metadata-controller/tsconfig.build.json" },
     { "path": "./packages/approval-controller/tsconfig.build.json" },
     { "path": "./packages/assets-controllers/tsconfig.build.json" },
+    { "path": "./packages/assets-controller/tsconfig.build.json" },
     { "path": "./packages/core-backend/tsconfig.build.json" },
     { "path": "./packages/base-controller/tsconfig.build.json" },
     { "path": "./packages/bridge-controller/tsconfig.build.json" },

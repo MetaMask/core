@@ -36,7 +36,8 @@ import { cloneDeep, isEqual } from 'lodash';
 // When generating a ULID within the same millisecond, monotonicFactory provides some guarantees regarding sort order.
 import { ulid } from 'ulid';
 
-import { KeyringControllerError } from './constants';
+import { KeyringControllerErrorMessage } from './constants';
+import { KeyringControllerError } from './errors';
 import type {
   Eip7702AuthorizationParams,
   PersonalMessageParams,
@@ -581,7 +582,7 @@ function assertHasUint8ArrayMnemonic(
       hasProperty(keyring, 'mnemonic') && keyring.mnemonic instanceof Uint8Array
     )
   ) {
-    throw new Error("Can't get mnemonic bytes from keyring");
+    throw new KeyringControllerError("Can't get mnemonic bytes from keyring");
   }
 }
 
@@ -593,11 +594,15 @@ function assertHasUint8ArrayMnemonic(
  */
 function assertIsValidPassword(password: unknown): asserts password is string {
   if (typeof password !== 'string') {
-    throw new Error(KeyringControllerError.WrongPasswordType);
+    throw new KeyringControllerError(
+      KeyringControllerErrorMessage.WrongPasswordType,
+    );
   }
 
   if (!password?.length) {
-    throw new Error(KeyringControllerError.InvalidEmptyPassword);
+    throw new KeyringControllerError(
+      KeyringControllerErrorMessage.InvalidEmptyPassword,
+    );
   }
 }
 
@@ -611,7 +616,9 @@ function assertIsEncryptionKeySet(
   encryptionKey: string | undefined,
 ): asserts encryptionKey is string {
   if (!encryptionKey) {
-    throw new Error(KeyringControllerError.EncryptionKeyNotSet);
+    throw new KeyringControllerError(
+      KeyringControllerErrorMessage.EncryptionKeyNotSet,
+    );
   }
 }
 
@@ -814,19 +821,21 @@ export class KeyringController<
         | EthKeyring
         | undefined;
       if (!primaryKeyring) {
-        throw new Error('No HD keyring found');
+        throw new KeyringControllerError('No HD keyring found');
       }
       const oldAccounts = await primaryKeyring.getAccounts();
 
       if (accountCount && oldAccounts.length !== accountCount) {
         if (accountCount > oldAccounts.length) {
-          throw new Error('Account out of sequence');
+          throw new KeyringControllerError('Account out of sequence');
         }
         // we return the account already existing at index `accountCount`
         const existingAccount = oldAccounts[accountCount];
 
         if (!existingAccount) {
-          throw new Error(`Can't find account at index ${accountCount}`);
+          throw new KeyringControllerError(
+            `Can't find account at index ${accountCount}`,
+          );
         }
 
         return existingAccount;
@@ -861,7 +870,7 @@ export class KeyringController<
 
       if (accountCount && oldAccounts.length !== accountCount) {
         if (accountCount > oldAccounts.length) {
-          throw new Error('Account out of sequence');
+          throw new KeyringControllerError('Account out of sequence');
         }
 
         const existingAccount = oldAccounts[accountCount];
@@ -954,7 +963,9 @@ export class KeyringController<
    */
   async verifyPassword(password: string): Promise<void> {
     if (!this.state.vault) {
-      throw new Error(KeyringControllerError.VaultError);
+      throw new KeyringControllerError(
+        KeyringControllerErrorMessage.VaultError,
+      );
     }
     await this.#encryptor.decrypt(password, this.state.vault);
   }
@@ -983,7 +994,7 @@ export class KeyringController<
     await this.verifyPassword(password);
     const selectedKeyring = this.#getKeyringByIdOrDefault(keyringId);
     if (!selectedKeyring) {
-      throw new Error('Keyring not found');
+      throw new KeyringControllerError('Keyring not found');
     }
     assertHasUint8ArrayMnemonic(selectedKeyring);
 
@@ -1002,7 +1013,9 @@ export class KeyringController<
 
     const keyring = (await this.getKeyringForAccount(address)) as EthKeyring;
     if (!keyring.exportAccount) {
-      throw new Error(KeyringControllerError.UnsupportedExportAccount);
+      throw new KeyringControllerError(
+        KeyringControllerErrorMessage.UnsupportedExportAccount,
+      );
     }
 
     return await keyring.exportAccount(normalize(address) as Hex);
@@ -1037,7 +1050,9 @@ export class KeyringController<
     const address = ethNormalize(account) as Hex;
     const keyring = (await this.getKeyringForAccount(account)) as EthKeyring;
     if (!keyring.getEncryptionPublicKey) {
-      throw new Error(KeyringControllerError.UnsupportedGetEncryptionPublicKey);
+      throw new KeyringControllerError(
+        KeyringControllerErrorMessage.UnsupportedGetEncryptionPublicKey,
+      );
     }
 
     return await keyring.getEncryptionPublicKey(address, opts);
@@ -1059,7 +1074,9 @@ export class KeyringController<
     const address = ethNormalize(messageParams.from) as Hex;
     const keyring = (await this.getKeyringForAccount(address)) as EthKeyring;
     if (!keyring.decryptMessage) {
-      throw new Error(KeyringControllerError.UnsupportedDecryptMessage);
+      throw new KeyringControllerError(
+        KeyringControllerErrorMessage.UnsupportedDecryptMessage,
+      );
     }
 
     return keyring.decryptMessage(address, messageParams.data);
@@ -1101,8 +1118,8 @@ export class KeyringController<
     } else if (!winners.length) {
       errorInfo = 'There are keyrings, but none match the address';
     }
-    throw new Error(
-      `${KeyringControllerError.NoKeyring}. Error info: ${errorInfo}`,
+    throw new KeyringControllerError(
+      `${KeyringControllerErrorMessage.NoKeyring}. Error info: ${errorInfo}`,
     );
   }
 
@@ -1159,7 +1176,7 @@ export class KeyringController<
         case AccountImportStrategy.privateKey: {
           const [importedKey] = args;
           if (!importedKey) {
-            throw new Error('Cannot import an empty key.');
+            throw new KeyringControllerError('Cannot import an empty key.');
           }
           const prefixed = add0x(importedKey);
 
@@ -1167,7 +1184,9 @@ export class KeyringController<
           try {
             bufferedPrivateKey = hexToBytes(prefixed);
           } catch {
-            throw new Error('Cannot import invalid private key.');
+            throw new KeyringControllerError(
+              'Cannot import invalid private key.',
+            );
           }
 
           if (
@@ -1175,7 +1194,9 @@ export class KeyringController<
             // ensures that the key is 64 bytes long
             getBinarySize(prefixed) !== 64 + '0x'.length
           ) {
-            throw new Error('Cannot import invalid private key.');
+            throw new KeyringControllerError(
+              'Cannot import invalid private key.',
+            );
           }
 
           privateKey = remove0x(prefixed);
@@ -1193,7 +1214,9 @@ export class KeyringController<
           break;
         }
         default:
-          throw new Error(`Unexpected import strategy: '${String(strategy)}'`);
+          throw new KeyringControllerError(
+            `Unexpected import strategy: '${String(strategy)}'`,
+          );
       }
       const newKeyring = await this.#newKeyring(KeyringTypes.simple, [
         privateKey,
@@ -1225,12 +1248,16 @@ export class KeyringController<
 
       // Primary keyring should never be removed, so we need to keep at least one account in it
       if (isPrimaryKeyring && shouldRemoveKeyring) {
-        throw new Error(KeyringControllerError.LastAccountInPrimaryKeyring);
+        throw new KeyringControllerError(
+          KeyringControllerErrorMessage.LastAccountInPrimaryKeyring,
+        );
       }
 
       // Not all the keyrings support this, so we have to check
       if (!keyring.removeAccount) {
-        throw new Error(KeyringControllerError.UnsupportedRemoveAccount);
+        throw new KeyringControllerError(
+          KeyringControllerErrorMessage.UnsupportedRemoveAccount,
+        );
       }
 
       // The `removeAccount` method of snaps keyring is async. We have to update
@@ -1281,13 +1308,15 @@ export class KeyringController<
     this.#assertIsUnlocked();
 
     if (!messageParams.data) {
-      throw new Error("Can't sign an empty message");
+      throw new KeyringControllerError("Can't sign an empty message");
     }
 
     const address = ethNormalize(messageParams.from) as Hex;
     const keyring = (await this.getKeyringForAccount(address)) as EthKeyring;
     if (!keyring.signMessage) {
-      throw new Error(KeyringControllerError.UnsupportedSignMessage);
+      throw new KeyringControllerError(
+        KeyringControllerErrorMessage.UnsupportedSignMessage,
+      );
     }
 
     return await keyring.signMessage(address, messageParams.data);
@@ -1308,8 +1337,8 @@ export class KeyringController<
     const keyring = (await this.getKeyringForAccount(from)) as EthKeyring;
 
     if (!keyring.signEip7702Authorization) {
-      throw new Error(
-        KeyringControllerError.UnsupportedSignEip7702Authorization,
+      throw new KeyringControllerError(
+        KeyringControllerErrorMessage.UnsupportedSignEip7702Authorization,
       );
     }
 
@@ -1319,8 +1348,8 @@ export class KeyringController<
       | undefined;
 
     if (contractAddress === undefined) {
-      throw new Error(
-        KeyringControllerError.MissingEip7702AuthorizationContractAddress,
+      throw new KeyringControllerError(
+        KeyringControllerErrorMessage.MissingEip7702AuthorizationContractAddress,
       );
     }
 
@@ -1344,7 +1373,9 @@ export class KeyringController<
     const address = ethNormalize(messageParams.from) as Hex;
     const keyring = (await this.getKeyringForAccount(address)) as EthKeyring;
     if (!keyring.signPersonalMessage) {
-      throw new Error(KeyringControllerError.UnsupportedSignPersonalMessage);
+      throw new KeyringControllerError(
+        KeyringControllerErrorMessage.UnsupportedSignPersonalMessage,
+      );
     }
 
     const normalizedData = normalize(messageParams.data) as Hex;
@@ -1374,7 +1405,9 @@ export class KeyringController<
           SignTypedDataVersion.V4,
         ].includes(version)
       ) {
-        throw new Error(`Unexpected signTypedMessage version: '${version}'`);
+        throw new KeyringControllerError(
+          `Unexpected signTypedMessage version: '${version}'`,
+        );
       }
 
       // Cast to `Hex` here is safe here because `messageParams.from` is not nullish.
@@ -1382,7 +1415,9 @@ export class KeyringController<
       const address = ethNormalize(messageParams.from) as Hex;
       const keyring = (await this.getKeyringForAccount(address)) as EthKeyring;
       if (!keyring.signTypedData) {
-        throw new Error(KeyringControllerError.UnsupportedSignTypedMessage);
+        throw new KeyringControllerError(
+          KeyringControllerErrorMessage.UnsupportedSignTypedMessage,
+        );
       }
 
       return await keyring.signTypedData(
@@ -1394,9 +1429,14 @@ export class KeyringController<
         { version },
       );
     } catch (error) {
-      // TODO: Either fix this lint violation or explain why it's necessary to ignore.
-      // eslint-disable-next-line @typescript-eslint/restrict-template-expressions
-      throw new Error(`Keyring Controller signTypedMessage: ${error}`);
+      const errorMessage =
+        error instanceof Error
+          ? `${error.name}: ${error.message}`
+          : String(error);
+      throw new KeyringControllerError(
+        `Keyring Controller signTypedMessage: ${errorMessage}`,
+        error instanceof Error ? error : undefined,
+      );
     }
   }
 
@@ -1417,7 +1457,9 @@ export class KeyringController<
     const address = ethNormalize(from) as Hex;
     const keyring = (await this.getKeyringForAccount(address)) as EthKeyring;
     if (!keyring.signTransaction) {
-      throw new Error(KeyringControllerError.UnsupportedSignTransaction);
+      throw new KeyringControllerError(
+        KeyringControllerErrorMessage.UnsupportedSignTransaction,
+      );
     }
 
     return await keyring.signTransaction(address, transaction, opts);
@@ -1441,7 +1483,9 @@ export class KeyringController<
     const keyring = (await this.getKeyringForAccount(address)) as EthKeyring;
 
     if (!keyring.prepareUserOperation) {
-      throw new Error(KeyringControllerError.UnsupportedPrepareUserOperation);
+      throw new KeyringControllerError(
+        KeyringControllerErrorMessage.UnsupportedPrepareUserOperation,
+      );
     }
 
     return await keyring.prepareUserOperation(
@@ -1470,7 +1514,9 @@ export class KeyringController<
     const keyring = (await this.getKeyringForAccount(address)) as EthKeyring;
 
     if (!keyring.patchUserOperation) {
-      throw new Error(KeyringControllerError.UnsupportedPatchUserOperation);
+      throw new KeyringControllerError(
+        KeyringControllerErrorMessage.UnsupportedPatchUserOperation,
+      );
     }
 
     return await keyring.patchUserOperation(address, userOp, executionContext);
@@ -1494,7 +1540,9 @@ export class KeyringController<
     const keyring = (await this.getKeyringForAccount(address)) as EthKeyring;
 
     if (!keyring.signUserOperation) {
-      throw new Error(KeyringControllerError.UnsupportedSignUserOperation);
+      throw new KeyringControllerError(
+        KeyringControllerErrorMessage.UnsupportedSignUserOperation,
+      );
     }
 
     return await keyring.signUserOperation(address, userOp, executionContext);
@@ -1727,7 +1775,9 @@ export class KeyringController<
       }
 
       if (!keyring) {
-        throw new Error(KeyringControllerError.KeyringNotFound);
+        throw new KeyringControllerError(
+          KeyringControllerErrorMessage.KeyringNotFound,
+        );
       }
 
       const result = await operation({
@@ -1740,7 +1790,9 @@ export class KeyringController<
         // should be discouraged, as it can lead to unexpected behavior.
         // This error is thrown to prevent consumers using `withKeyring`
         // as a way to get a reference to a keyring instance.
-        throw new Error(KeyringControllerError.UnsafeDirectKeyringAccess);
+        throw new KeyringControllerError(
+          KeyringControllerErrorMessage.UnsafeDirectKeyringAccess,
+        );
       }
 
       return result;
@@ -1891,7 +1943,9 @@ export class KeyringController<
       (candidate) => candidate.keyring === keyring,
     );
     if (!keyringWithMetadata) {
-      throw new Error(KeyringControllerError.KeyringNotFound);
+      throw new KeyringControllerError(
+        KeyringControllerErrorMessage.KeyringNotFound,
+      );
     }
     return keyringWithMetadata.metadata;
   }
@@ -1934,7 +1988,7 @@ export class KeyringController<
     this.#assertControllerMutexIsLocked();
 
     if (typeof password !== 'string') {
-      throw new TypeError(KeyringControllerError.WrongPasswordType);
+      throw new TypeError(KeyringControllerErrorMessage.WrongPasswordType);
     }
 
     this.update((state) => {
@@ -1978,7 +2032,7 @@ export class KeyringController<
     const { vault } = this.state;
 
     if (typeof password !== 'string') {
-      throw new TypeError(KeyringControllerError.WrongPasswordType);
+      throw new TypeError(KeyringControllerErrorMessage.WrongPasswordType);
     }
 
     let serializedEncryptionKey: string, salt: string;
@@ -2019,12 +2073,14 @@ export class KeyringController<
       typeof encryptionKey !== 'string' ||
       typeof keyDerivationSalt !== 'string'
     ) {
-      throw new TypeError(KeyringControllerError.WrongEncryptionKeyType);
+      throw new TypeError(KeyringControllerErrorMessage.WrongEncryptionKeyType);
     }
 
     const { vault } = this.state;
     if (vault && JSON.parse(vault).salt !== keyDerivationSalt) {
-      throw new Error(KeyringControllerError.ExpiredCredentials);
+      throw new KeyringControllerError(
+        KeyringControllerErrorMessage.ExpiredCredentials,
+      );
     }
 
     this.#encryptionKey = {
@@ -2045,11 +2101,15 @@ export class KeyringController<
     const keyring = this.#getKeyringByIdOrDefault(keyringId);
 
     if (!keyring) {
-      throw new Error(KeyringControllerError.KeyringNotFound);
+      throw new KeyringControllerError(
+        KeyringControllerErrorMessage.KeyringNotFound,
+      );
     }
 
-    if (keyring.type !== KeyringTypes.hd) {
-      throw new Error(KeyringControllerError.UnsupportedVerifySeedPhrase);
+    if (keyring.type !== (KeyringTypes.hd as string)) {
+      throw new KeyringControllerError(
+        KeyringControllerErrorMessage.UnsupportedVerifySeedPhrase,
+      );
     }
 
     assertHasUint8ArrayMnemonic(keyring);
@@ -2058,7 +2118,7 @@ export class KeyringController<
     const accounts = await keyring.getAccounts();
     /* istanbul ignore if */
     if (accounts.length === 0) {
-      throw new Error('Cannot verify an empty keyring.');
+      throw new KeyringControllerError('Cannot verify an empty keyring.');
     }
 
     // The HD Keyring Builder is a default keyring builder
@@ -2075,13 +2135,17 @@ export class KeyringController<
     const testAccounts = await hdKeyring.getAccounts();
     /* istanbul ignore if */
     if (testAccounts.length !== accounts.length) {
-      throw new Error('Seed phrase imported incorrect number of accounts.');
+      throw new KeyringControllerError(
+        'Seed phrase imported incorrect number of accounts.',
+      );
     }
 
     testAccounts.forEach((account: string, i: number) => {
       /* istanbul ignore if */
       if (account.toLowerCase() !== accounts[i].toLowerCase()) {
-        throw new Error('Seed phrase imported different accounts.');
+        throw new KeyringControllerError(
+          'Seed phrase imported different accounts.',
+        );
       }
     });
 
@@ -2193,7 +2257,9 @@ export class KeyringController<
   }> {
     return this.#withVaultLock(async () => {
       if (!this.state.vault) {
-        throw new Error(KeyringControllerError.VaultError);
+        throw new KeyringControllerError(
+          KeyringControllerErrorMessage.VaultError,
+        );
       }
       const parsedEncryptedVault = JSON.parse(this.state.vault);
 
@@ -2208,7 +2274,9 @@ export class KeyringController<
 
       const encryptionKey = this.#encryptionKey?.serialized;
       if (!encryptionKey) {
-        throw new Error(KeyringControllerError.MissingCredentials);
+        throw new KeyringControllerError(
+          KeyringControllerErrorMessage.MissingCredentials,
+        );
       }
 
       const key = await this.#encryptor.importKey(encryptionKey);
@@ -2218,7 +2286,9 @@ export class KeyringController<
       );
 
       if (!isSerializedKeyringsArray(vault)) {
-        throw new Error(KeyringControllerError.VaultDataError);
+        throw new KeyringControllerError(
+          KeyringControllerErrorMessage.VaultDataError,
+        );
       }
 
       const { keyrings, newMetadata } =
@@ -2247,7 +2317,9 @@ export class KeyringController<
       await this.#assertNoDuplicateAccounts();
 
       if (!this.#encryptionKey) {
-        throw new Error(KeyringControllerError.MissingCredentials);
+        throw new KeyringControllerError(
+          KeyringControllerErrorMessage.MissingCredentials,
+        );
       }
 
       const serializedKeyrings = await this.#getSerializedKeyrings();
@@ -2257,7 +2329,9 @@ export class KeyringController<
           (keyring) => keyring.type === (KeyringTypes.hd as string),
         )
       ) {
-        throw new Error(KeyringControllerError.NoHdKeyring);
+        throw new KeyringControllerError(
+          KeyringControllerErrorMessage.NoHdKeyring,
+        );
       }
 
       const key = await this.#encryptor.importKey(
@@ -2349,7 +2423,9 @@ export class KeyringController<
 
     const [firstAccount] = await keyring.getAccounts();
     if (!firstAccount) {
-      throw new Error(KeyringControllerError.NoFirstAccount);
+      throw new KeyringControllerError(
+        KeyringControllerErrorMessage.NoFirstAccount,
+      );
     }
     return firstAccount;
   }
@@ -2398,8 +2474,8 @@ export class KeyringController<
     const keyringBuilder = this.#getKeyringBuilderForType(type);
 
     if (!keyringBuilder) {
-      throw new Error(
-        `${KeyringControllerError.NoKeyringBuilder}. Keyring type: ${type}`,
+      throw new KeyringControllerError(
+        `${KeyringControllerErrorMessage.NoKeyringBuilder}. Keyring type: ${type}`,
       );
     }
 
@@ -2413,10 +2489,13 @@ export class KeyringController<
       await keyring.init();
     }
 
-    if (type === KeyringTypes.hd && (!isObject(data) || !data.mnemonic)) {
+    if (
+      type === (KeyringTypes.hd as string) &&
+      (!isObject(data) || !data.mnemonic)
+    ) {
       if (!keyring.generateRandomMnemonic) {
-        throw new Error(
-          KeyringControllerError.UnsupportedGenerateRandomMnemonic,
+        throw new KeyringControllerError(
+          KeyringControllerErrorMessage.UnsupportedGenerateRandomMnemonic,
         );
       }
 
@@ -2537,7 +2616,9 @@ export class KeyringController<
     const accounts = await this.#getAccountsFromKeyrings(additionalKeyrings);
 
     if (new Set(accounts).size !== accounts.length) {
-      throw new Error(KeyringControllerError.DuplicatedAccount);
+      throw new KeyringControllerError(
+        KeyringControllerErrorMessage.DuplicatedAccount,
+      );
     }
   }
 
@@ -2563,7 +2644,9 @@ export class KeyringController<
    */
   #assertIsUnlocked(): void {
     if (!this.state.isUnlocked) {
-      throw new Error(KeyringControllerError.ControllerLocked);
+      throw new KeyringControllerError(
+        KeyringControllerErrorMessage.ControllerLocked,
+      );
     }
   }
 
@@ -2625,7 +2708,9 @@ export class KeyringController<
    */
   #assertControllerMutexIsLocked(): void {
     if (!this.#controllerOperationMutex.isLocked()) {
-      throw new Error(KeyringControllerError.ControllerLockRequired);
+      throw new KeyringControllerError(
+        KeyringControllerErrorMessage.ControllerLockRequired,
+      );
     }
   }
 
