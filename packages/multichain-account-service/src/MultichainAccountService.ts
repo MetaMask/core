@@ -424,7 +424,7 @@ export class MultichainAccountService {
     const result = await this.#messenger.call(
       'KeyringController:addNewKeyring',
       KeyringTypes.hd,
-      { mnemonic },
+      { mnemonic, numberOfAccounts: 1 },
     );
 
     // The wallet is ripe for discovery
