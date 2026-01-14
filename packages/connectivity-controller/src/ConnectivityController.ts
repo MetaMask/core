@@ -6,6 +6,9 @@ import type {
 import { BaseController } from '@metamask/base-controller';
 import type { Messenger } from '@metamask/messenger';
 
+import { ConnectivityStatus } from './types';
+import type { ConnectivityService } from './types';
+
 /**
  * The name of the {@link ConnectivityController}, used to namespace the
  * controller's actions and events and to namespace the controller's state data
@@ -14,18 +17,27 @@ import type { Messenger } from '@metamask/messenger';
 export const controllerName = 'ConnectivityController';
 
 /**
- * Describes the shape of the state object for {@link ConnectivityController}.
+ * State for the {@link ConnectivityController}.
  */
-// eslint-disable-next-line @typescript-eslint/no-empty-object-type
 export type ConnectivityControllerState = {
-  // Empty state - to be implemented
+  /**
+   * The current device connectivity status.
+   * Named with 'connectivity' prefix to avoid conflicts when state is flattened in Redux.
+   */
+  connectivityStatus: ConnectivityStatus;
 };
 
 /**
  * The metadata for each property in {@link ConnectivityControllerState}.
  */
-const connectivityControllerMetadata =
-  {} satisfies StateMetadata<ConnectivityControllerState>;
+const connectivityControllerMetadata = {
+  connectivityStatus: {
+    persist: false,
+    includeInDebugSnapshot: true,
+    includeInStateLogs: true,
+    usedInUi: true,
+  },
+} satisfies StateMetadata<ConnectivityControllerState>;
 
 /**
  * Constructs the default {@link ConnectivityController} state. This allows
@@ -36,7 +48,9 @@ const connectivityControllerMetadata =
  * @returns The default {@link ConnectivityController} state.
  */
 export function getDefaultConnectivityControllerState(): ConnectivityControllerState {
-  return {};
+  return {
+    connectivityStatus: ConnectivityStatus.Online,
+  };
 }
 
 /**
@@ -89,41 +103,50 @@ export type ConnectivityControllerMessenger = Messenger<
 >;
 
 /**
- * `ConnectivityController` manages connectivity for the application.
+ * Options for constructing the {@link ConnectivityController}.
+ */
+export type ConnectivityControllerOptions = {
+  /**
+   * The messenger for inter-controller communication.
+   */
+  messenger: ConnectivityControllerMessenger;
+
+  /**
+   * Connectivity service for platform-specific detection.
+   *
+   * The controller subscribes to the service's `onConnectivityChange`
+   * callback to receive connectivity updates.
+   *
+   * Platform implementations:
+   * - Mobile: Use `NetInfoConnectivityService` with `@react-native-community/netinfo`
+   * - Extension (same context): Use `BrowserConnectivityService`
+   * - Extension (cross-context): Use `PassiveConnectivityService` and call
+   * `setStatus()` from the UI context
+   */
+  connectivityService: ConnectivityService;
+};
+
+/**
+ * ConnectivityController stores the device's internet connectivity status.
  *
- * @example
+ * This controller is platform-agnostic and designed to be used across different
+ * MetaMask clients (extension, mobile). It requires a `ConnectivityService` to
+ * be injected, which provides platform-specific connectivity detection.
  *
- * ``` ts
- * import { Messenger } from '@metamask/messenger';
- * import type {
- *   ConnectivityControllerActions,
- *   ConnectivityControllerEvents,
- * } from '@metamask/connectivity-controller';
- * import { ConnectivityController } from '@metamask/connectivity-controller';
+ * The controller subscribes to the service's `onConnectivityChange` callback
+ * and updates its state accordingly. All connectivity updates flow through
+ * the service, ensuring a single source of truth.
  *
- * const rootMessenger = new Messenger<
- *   'Root',
- *   ConnectivityControllerActions,
- *   ConnectivityControllerEvents
- * >({ namespace: 'Root' });
- * const connectivityControllerMessenger = new Messenger<
- *   'ConnectivityController',
- *   ConnectivityControllerActions,
- *   ConnectivityControllerEvents,
- *   typeof rootMessenger,
- * >({
- *   namespace: 'ConnectivityController',
- *   parent: rootMessenger,
- * });
- * // Instantiate the controller to register its actions on the messenger
- * new ConnectivityController({
- *   messenger: connectivityControllerMessenger,
- * });
+ * **Platform implementations:**
  *
- * const connectivityControllerState = await rootMessenger.call(
- *   'ConnectivityController:getState',
- * );
- * ```
+ * - **Mobile:** Inject `NetInfoConnectivityService` using `@react-native-community/netinfo`
+ * - **Extension:** Inject `PassiveConnectivityService` in the background.
+ * Status is updated via the `setDeviceConnectivityStatus` API, which is called from:
+ * - MV3: Offscreen document (where browser events work reliably)
+ * - MV2: Background page (where browser events work directly)
+ *
+ * This controller provides a centralized state for connectivity status,
+ * enabling the UI and other controllers to adapt when the user goes offline.
  */
 export class ConnectivityController extends BaseController<
   typeof controllerName,
@@ -135,24 +158,28 @@ export class ConnectivityController extends BaseController<
    *
    * @param args - The arguments to this controller.
    * @param args.messenger - The messenger suited for this controller.
-   * @param args.state - The desired state with which to initialize this
-   * controller. Missing properties will be filled in with defaults.
+   * @param args.connectivityService - The connectivity service to use.
    */
   constructor({
     messenger,
-    state,
-  }: {
-    messenger: ConnectivityControllerMessenger;
-    state?: Partial<ConnectivityControllerState>;
-  }) {
+    connectivityService,
+  }: ConnectivityControllerOptions) {
+    const initialStatus = connectivityService.getStatus();
+
     super({
       messenger,
       metadata: connectivityControllerMetadata,
       name: controllerName,
       state: {
         ...getDefaultConnectivityControllerState(),
-        ...state,
+        connectivityStatus: initialStatus,
       },
+    });
+
+    connectivityService.onConnectivityChange((status) => {
+      this.update((draftState) => {
+        draftState.connectivityStatus = status;
+      });
     });
   }
 }

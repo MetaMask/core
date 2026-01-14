@@ -6,6 +6,8 @@ export type {
   ConnectivityControllerEvents,
   ConnectivityControllerMessenger,
 } from './ConnectivityController';
+export type { ConnectivityService } from './types';
+export { ConnectivityStatus } from './types';
 export {
   ConnectivityController,
   getDefaultConnectivityControllerState,
