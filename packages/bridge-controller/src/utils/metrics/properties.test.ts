@@ -368,6 +368,7 @@ describe('properties', () => {
           "price_impact": 0,
           "provider": "bridge1_bridge1",
           "quoted_time_minutes": 1,
+          "usd_balance_source": 0,
           "usd_quoted_gas": 0,
           "usd_quoted_return": 0,
           "warnings": Array [],

@@ -19,6 +19,9 @@ export type {
   State,
   Eligibility,
   CountryPhone,
+  Provider,
+  ProviderLink,
+  ProviderLogos,
 } from './RampsService';
 export {
   RampsService,
