@@ -48,13 +48,30 @@ export const DEFAULT_MAX_REFRESH_COUNT = 5;
 
 export const BRIDGE_CONTROLLER_NAME = 'BridgeController';
 
+export const DEFAULT_CHAIN_RANKING = [
+  { chainId: 'eip155:1' },
+  { chainId: 'eip155:56' },
+  { chainId: 'bip122:000000000019d6689c085ae165831e93' },
+  { chainId: 'solana:5eykt4UsFv8P8NJdTREpY1vzqKqZKvdp' },
+  { chainId: 'tron:728126428' },
+  { chainId: 'eip155:8453' },
+  { chainId: 'eip155:42161' },
+  { chainId: 'eip155:59144' },
+  { chainId: 'eip155:137' },
+  { chainId: 'eip155:43114' },
+  { chainId: 'eip155:10' },
+  { chainId: 'eip155:143' },
+  { chainId: 'eip155:1329' },
+  { chainId: 'eip155:324' },
+] as const;
+
 export const DEFAULT_FEATURE_FLAG_CONFIG: FeatureFlagsPlatformConfig = {
   minimumVersion: '0.0.0',
   refreshRate: REFRESH_INTERVAL_MS,
   maxRefreshCount: DEFAULT_MAX_REFRESH_COUNT,
   support: false,
   chains: {},
-  chainRanking: [],
+  chainRanking: [...DEFAULT_CHAIN_RANKING],
 };
 
 export const DEFAULT_BRIDGE_CONTROLLER_STATE: BridgeControllerState = {
