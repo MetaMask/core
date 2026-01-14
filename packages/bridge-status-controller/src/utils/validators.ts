@@ -70,7 +70,7 @@ export enum IntentOrderStatus {
   EXPIRED = 'expired',
 }
 
-export const IntentOrderResponseSchema = type({
+const IntentOrderStatusResponseSchema = type({
   id: string(),
   status: enums(Object.values(IntentOrderStatus)),
   txHash: optional(StrictHexStruct),
@@ -79,12 +79,14 @@ export const IntentOrderResponseSchema = type({
   }),
 });
 
-export type IntentOrder = Infer<typeof IntentOrderResponseSchema>;
+export type IntentOrderStatusResponse = Infer<
+  typeof IntentOrderStatusResponseSchema
+>;
 
 export const validateIntentOrderResponse = (
   data: unknown,
   message: string,
-): IntentOrder => {
-  assert(data, IntentOrderResponseSchema, message);
+): IntentOrderStatusResponse => {
+  assert(data, IntentOrderStatusResponseSchema, message);
   return data;
 };

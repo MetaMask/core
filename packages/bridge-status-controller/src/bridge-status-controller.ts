@@ -83,7 +83,10 @@ import {
   handleNonEvmTxResponse,
   generateActionId,
 } from './utils/transaction';
-import { IntentOrder, IntentOrderStatus } from './utils/validators';
+import {
+  IntentOrderStatusResponse,
+  IntentOrderStatus,
+} from './utils/validators';
 
 const metadata: StateMetadata<BridgeStatusControllerState> = {
   // We want to persist the bridge status state so that we can show the proper data for the Activity list
@@ -731,7 +734,7 @@ export class BridgeStatusController extends StaticIntervalPollingController<Brid
   };
 
   #updateHistoryAndTxFromIntentOrder(
-    intentOrder: IntentOrder,
+    intentOrder: IntentOrderStatusResponse,
     historyItem: BridgeHistoryItem,
   ): void {
     const { quote, txMetaId: bridgeTxMetaId, intentOrderId } = historyItem;
@@ -1570,7 +1573,7 @@ export class BridgeStatusController extends StaticIntervalPollingController<Brid
    * @returns A lightweight TransactionMeta-like object for history linking
    */
   submitIntent = async (params: {
-    quoteResponse: QuoteResponse<TxData | string> & QuoteMetadata;
+    quoteResponse: QuoteResponse<TxData> & QuoteMetadata;
     signature: string;
     accountAddress: string;
     quotesReceivedContext?: RequiredEventContextFromClient[UnifiedSwapBridgeEventName.QuotesReceived];
@@ -1594,7 +1597,7 @@ export class BridgeStatusController extends StaticIntervalPollingController<Brid
     );
 
     let approvalTxId: string | undefined;
-    let intentOrder: IntentOrder | undefined;
+    let intentOrder: IntentOrderStatusResponse | undefined;
     let intentTxMeta: TransactionMeta | undefined;
     try {
       const { intent } = quoteResponse.quote;

@@ -5,7 +5,7 @@ import type {
 import { TransactionStatus } from '@metamask/transaction-controller';
 
 import {
-  IntentOrder,
+  IntentOrderStatusResponse,
   IntentOrderStatus,
   validateIntentOrderResponse,
 } from './validators';
@@ -30,13 +30,13 @@ export type IntentApi = {
   submitIntent(
     params: IntentSubmissionParams,
     clientId: string,
-  ): Promise<IntentOrder>;
+  ): Promise<IntentOrderStatusResponse>;
   getOrderStatus(
     orderId: string,
     aggregatorId: string,
     srcChainId: string,
     clientId: string,
-  ): Promise<IntentOrder>;
+  ): Promise<IntentOrderStatusResponse>;
 };
 
 export class IntentApiImpl implements IntentApi {
@@ -52,7 +52,7 @@ export class IntentApiImpl implements IntentApi {
   async submitIntent(
     params: IntentSubmissionParams,
     clientId: string,
-  ): Promise<IntentOrder> {
+  ): Promise<IntentOrderStatusResponse> {
     const endpoint = `${this.#baseUrl}/submitOrder`;
     try {
       const response = await this.#fetchFn(endpoint, {
@@ -80,7 +80,7 @@ export class IntentApiImpl implements IntentApi {
     aggregatorId: string,
     srcChainId: string,
     clientId: string,
-  ): Promise<IntentOrder> {
+  ): Promise<IntentOrderStatusResponse> {
     const endpoint = `${this.#baseUrl}/getOrderStatus?orderId=${orderId}&aggregatorId=${encodeURIComponent(aggregatorId)}&srcChainId=${srcChainId}`;
     try {
       const response = await this.#fetchFn(endpoint, {
