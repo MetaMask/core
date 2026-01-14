@@ -1,5 +1,4 @@
 import { Web3Provider } from '@ethersproject/providers';
-import * as controllerUtils from '@metamask/controller-utils';
 import HttpProvider from '@metamask/ethjs-provider-http';
 import nock from 'nock';
 
