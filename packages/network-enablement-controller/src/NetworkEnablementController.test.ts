@@ -21,7 +21,34 @@ import type {
   NetworkEnablementControllerMessenger,
   NativeAssetIdentifiersMap,
 } from './NetworkEnablementController';
+import { Slip44Service } from './services';
 import { advanceTime } from '../../../tests/helpers';
+
+// Mock Slip44Service.getSlip44ByChainId to avoid network calls
+jest
+  .spyOn(Slip44Service, 'getSlip44ByChainId')
+  .mockImplementation(async (chainId: number, symbol?: string) => {
+    // Known chainId mappings from chainid.network
+    const chainIdToSlip44: Record<number, number> = {
+      1: 60, // Ethereum
+      10: 60, // Optimism
+      56: 714, // BNB Chain
+      137: 966, // Polygon
+      43114: 9000, // Avalanche
+      42161: 60, // Arbitrum
+      8453: 60, // Base
+      59144: 60, // Linea
+      1329: 60, // Sei (uses ETH as native)
+    };
+    if (chainIdToSlip44[chainId] !== undefined) {
+      return chainIdToSlip44[chainId];
+    }
+    // Fall back to symbol lookup if chainId not found
+    if (symbol) {
+      return Slip44Service.getSlip44BySymbol(symbol);
+    }
+    return undefined;
+  });
 
 const controllerName = 'NetworkEnablementController';
 
@@ -390,8 +417,24 @@ describe('NetworkEnablementController', () => {
       'eip155:43114/slip44:9000',
     );
 
+    // Publish an initial state to establish the baseline for the selector
+    rootMessenger.publish(
+      'NetworkController:stateChange',
+      {
+        networkConfigurationsByChainId: {
+          '0xa86a': {
+            chainId: '0xa86a',
+            nativeCurrency: 'AVAX',
+          },
+        },
+      } as never,
+      [],
+    );
+
+    await advanceTime({ clock, duration: 1 });
+
     // Now publish a state change that updates the nativeCurrency
-    // The patch replaces the entire network config object (path length 2)
+    // The selector will detect the change from AVAX to ETH
     rootMessenger.publish(
       'NetworkController:stateChange',
       {
@@ -402,16 +445,7 @@ describe('NetworkEnablementController', () => {
           },
         },
       } as never,
-      [
-        {
-          op: 'replace',
-          path: ['networkConfigurationsByChainId', '0xa86a'],
-          value: {
-            chainId: '0xa86a',
-            nativeCurrency: 'ETH',
-          },
-        },
-      ],
+      [],
     );
 
     await advanceTime({ clock, duration: 1 });
@@ -422,7 +456,7 @@ describe('NetworkEnablementController', () => {
     );
   });
 
-  it('removes nativeAssetIdentifier when symbol has no SLIP-44 mapping', async () => {
+  it('defaults to slip44:60 when new symbol has no SLIP-44 mapping', async () => {
     const { controller, rootMessenger } = setupController();
 
     // First add a network with a known symbol
@@ -448,8 +482,24 @@ describe('NetworkEnablementController', () => {
       'eip155:43114/slip44:9000',
     );
 
+    // Publish an initial state to establish the baseline for the selector
+    rootMessenger.publish(
+      'NetworkController:stateChange',
+      {
+        networkConfigurationsByChainId: {
+          '0xa86a': {
+            chainId: '0xa86a',
+            nativeCurrency: 'AVAX',
+          },
+        },
+      } as never,
+      [],
+    );
+
+    await advanceTime({ clock, duration: 1 });
+
     // Now publish a state change with an unknown symbol
-    // The patch replaces the entire network config object (path length 2)
+    // The selector will detect the change from AVAX to UNKNOWN_SYMBOL_XYZ
     rootMessenger.publish(
       'NetworkController:stateChange',
       {
@@ -460,24 +510,15 @@ describe('NetworkEnablementController', () => {
           },
         },
       } as never,
-      [
-        {
-          op: 'replace',
-          path: ['networkConfigurationsByChainId', '0xa86a'],
-          value: {
-            chainId: '0xa86a',
-            nativeCurrency: 'UNKNOWN_SYMBOL_XYZ',
-          },
-        },
-      ],
+      [],
     );
 
     await advanceTime({ clock, duration: 1 });
 
-    // The nativeAssetIdentifier should be removed
-    expect(
-      controller.state.nativeAssetIdentifiers['eip155:43114'],
-    ).toBeUndefined();
+    // EVM networks default to slip44:60 (Ethereum) when no specific mapping is found
+    expect(controller.state.nativeAssetIdentifiers['eip155:43114']).toBe(
+      'eip155:43114/slip44:60',
+    );
   });
 
   it('does fallback to ethereum when removing the last enabled network', async () => {
@@ -550,7 +591,7 @@ describe('NetworkEnablementController', () => {
   });
 
   describe('init', () => {
-    it('initializes network enablement state from controller configurations', () => {
+    it('initializes network enablement state from controller configurations', async () => {
       const { controller, messenger } = setupController();
 
       jest
@@ -613,7 +654,7 @@ describe('NetworkEnablementController', () => {
         });
 
       // Initialize from configurations
-      controller.init();
+      await controller.init();
 
       // Should only enable popular networks that exist in NetworkController config
       // (0x1, 0xe708, 0x2105 exist in default NetworkController mock)
@@ -654,7 +695,7 @@ describe('NetworkEnablementController', () => {
       });
     });
 
-    it('only enables popular networks that exist in NetworkController configurations', () => {
+    it('only enables popular networks that exist in NetworkController configurations', async () => {
       // Create a separate controller setup for this test to avoid handler conflicts
       const { controller, messenger } = setupController({
         config: {
@@ -710,7 +751,7 @@ describe('NetworkEnablementController', () => {
       );
 
       // Initialize from configurations
-      controller.init();
+      await controller.init();
 
       // Should only enable networks that exist in configurations
       expect(controller.state).toStrictEqual({
@@ -733,7 +774,7 @@ describe('NetworkEnablementController', () => {
       });
     });
 
-    it('handles missing MultichainNetworkController gracefully', () => {
+    it('handles missing MultichainNetworkController gracefully', async () => {
       const { controller, messenger } = setupController();
 
       jest
@@ -775,7 +816,7 @@ describe('NetworkEnablementController', () => {
         });
 
       // Should not throw
-      expect(() => controller.init()).not.toThrow();
+      await controller.init();
 
       // Should still enable popular networks from NetworkController
       expect(controller.isNetworkEnabled('0x1')).toBe(true);
@@ -783,7 +824,7 @@ describe('NetworkEnablementController', () => {
       expect(controller.isNetworkEnabled('0x2105')).toBe(true);
     });
 
-    it('creates namespace buckets for all configured networks', () => {
+    it('creates namespace buckets for all configured networks', async () => {
       const { controller, messenger } = setupController();
 
       jest
@@ -831,7 +872,7 @@ describe('NetworkEnablementController', () => {
           throw new Error(`Unexpected action type: ${actionType}`);
         });
 
-      controller.init();
+      await controller.init();
 
       // Should have created namespace buckets for all network types
       expect(controller.state.enabledNetworkMap).toHaveProperty(
@@ -845,7 +886,7 @@ describe('NetworkEnablementController', () => {
       );
     });
 
-    it('creates new namespace buckets for networks that do not exist', () => {
+    it('creates new namespace buckets for networks that do not exist', async () => {
       const { controller, messenger } = setupController();
 
       // Start with empty state to test namespace bucket creation
@@ -892,7 +933,7 @@ describe('NetworkEnablementController', () => {
           return responses[actionType as keyof typeof responses];
         });
 
-      controller.init();
+      await controller.init();
 
       // Should have created namespace buckets for both EIP-155 and Cosmos
       expect(controller.state.enabledNetworkMap).toHaveProperty(
@@ -901,7 +942,7 @@ describe('NetworkEnablementController', () => {
       expect(controller.state.enabledNetworkMap).toHaveProperty('cosmos');
     });
 
-    it('sets Bitcoin testnet to false when it exists in MultichainNetworkController configurations', () => {
+    it('sets Bitcoin testnet to false when it exists in MultichainNetworkController configurations', async () => {
       const { controller, messenger } = setupController();
 
       // Mock MultichainNetworkController to include Bitcoin testnet BEFORE calling init
@@ -943,7 +984,7 @@ describe('NetworkEnablementController', () => {
         });
 
       // Initialize the controller to trigger line 378 (init() method sets testnet to false)
-      controller.init();
+      await controller.init();
 
       // Verify Bitcoin testnet is set to false by init() - line 378
       expect(controller.isNetworkEnabled(BtcScope.Testnet)).toBe(false);
@@ -954,7 +995,7 @@ describe('NetworkEnablementController', () => {
       ).toBe(false);
     });
 
-    it('sets Bitcoin signet to false when it exists in MultichainNetworkController configurations', () => {
+    it('sets Bitcoin signet to false when it exists in MultichainNetworkController configurations', async () => {
       const { controller, messenger } = setupController();
 
       // Mock MultichainNetworkController to include Bitcoin signet BEFORE calling init
@@ -998,7 +1039,7 @@ describe('NetworkEnablementController', () => {
         });
 
       // Initialize the controller to trigger line 391 (init() method sets signet to false)
-      controller.init();
+      await controller.init();
 
       // Verify Bitcoin signet is set to false by init() - line 391
       expect(controller.isNetworkEnabled(BtcScope.Signet)).toBe(false);
@@ -1008,10 +1049,112 @@ describe('NetworkEnablementController', () => {
         ],
       ).toBe(false);
     });
+
+    it('skips networks that already have nativeAssetIdentifiers in state', async () => {
+      // Create controller with existing nativeAssetIdentifiers
+      const { controller, messenger } = setupController({
+        config: {
+          state: {
+            enabledNetworkMap: {
+              [KnownCaipNamespace.Eip155]: {},
+            },
+            nativeAssetIdentifiers: {
+              // Pre-existing nativeAssetIdentifier with custom value
+              'eip155:1': 'eip155:1/slip44:999' as const,
+            },
+          },
+        },
+      });
+
+      jest
+        .spyOn(messenger, 'call')
+        // eslint-disable-next-line @typescript-eslint/no-explicit-any
+        .mockImplementation((actionType: string, ..._args: any[]): any => {
+          if (actionType === 'NetworkController:getState') {
+            return {
+              selectedNetworkClientId: 'mainnet',
+              networkConfigurationsByChainId: {
+                '0x1': {
+                  chainId: '0x1',
+                  name: 'Ethereum Mainnet',
+                  nativeCurrency: 'ETH',
+                },
+                '0x38': {
+                  chainId: '0x38',
+                  name: 'BNB Chain',
+                  nativeCurrency: 'BNB',
+                },
+              },
+              networksMetadata: {},
+            };
+          }
+          if (actionType === 'MultichainNetworkController:getState') {
+            return {
+              multichainNetworkConfigurationsByChainId: {},
+              selectedMultichainNetworkChainId: 'eip155:1',
+              isEvmSelected: true,
+              networksWithTransactionActivity: {},
+            };
+          }
+          throw new Error(`Unexpected action type: ${actionType}`);
+        });
+
+      await controller.init();
+
+      // Existing nativeAssetIdentifier should be preserved (not overwritten)
+      expect(controller.state.nativeAssetIdentifiers['eip155:1']).toBe(
+        'eip155:1/slip44:999',
+      );
+
+      // New network should be added
+      expect(controller.state.nativeAssetIdentifiers['eip155:56']).toBe(
+        'eip155:56/slip44:714',
+      );
+    });
+
+    it('defaults to slip44:60 for EVM networks with unknown chainId and symbol', async () => {
+      const { controller, messenger } = setupController();
+
+      jest
+        .spyOn(messenger, 'call')
+        // eslint-disable-next-line @typescript-eslint/no-explicit-any
+        .mockImplementation((actionType: string, ..._args: any[]): any => {
+          if (actionType === 'NetworkController:getState') {
+            return {
+              selectedNetworkClientId: 'mainnet',
+              networkConfigurationsByChainId: {
+                // Use an unknown chainId (99999 = 0x1869F) and unknown symbol
+                '0x1869f': {
+                  chainId: '0x1869f',
+                  name: 'Unknown Network',
+                  nativeCurrency: 'UNKNOWN_SYMBOL_XYZ',
+                },
+              },
+              networksMetadata: {},
+            };
+          }
+          if (actionType === 'MultichainNetworkController:getState') {
+            return {
+              multichainNetworkConfigurationsByChainId: {},
+              selectedMultichainNetworkChainId: 'eip155:1',
+              isEvmSelected: true,
+              networksWithTransactionActivity: {},
+            };
+          }
+          throw new Error(`Unexpected action type: ${actionType}`);
+        });
+
+      await controller.init();
+
+      // Should default to slip44:60 when no mapping is found
+      expect(controller.state.nativeAssetIdentifiers['eip155:99999']).toBe(
+        'eip155:99999/slip44:60',
+      );
+    });
   });
 
   describe('initNativeAssetIdentifiers', () => {
-    it('populates nativeAssetIdentifiers from network configurations', () => {
+    it('populates nativeAssetIdentifiers from network configurations', async () => {
       const { controller } = setupController();
 
       const networks = [
@@ -1023,7 +1166,7 @@ describe('NetworkEnablementController', () => {
         },
       ];
 
-      controller.initNativeAssetIdentifiers(networks);
+      await controller.initNativeAssetIdentifiers(networks);
 
       expect(controller.state.nativeAssetIdentifiers).toStrictEqual({
         'eip155:1': 'eip155:1/slip44:60',
@@ -1033,7 +1176,7 @@ describe('NetworkEnablementController', () => {
       });
     });
 
-    it('skips networks with unknown symbols', () => {
+    it('defaults to slip44:60 for EVM networks with unknown symbols', async () => {
       const { controller } = setupController();
 
       const networks = [
@@ -1041,25 +1184,26 @@ describe('NetworkEnablementController', () => {
         { chainId: 'eip155:999' as const, nativeCurrency: 'UNKNOWN_XYZ' },
       ];
 
-      controller.initNativeAssetIdentifiers(networks);
+      await controller.initNativeAssetIdentifiers(networks);
 
       expect(controller.state.nativeAssetIdentifiers['eip155:1']).toBe(
         'eip155:1/slip44:60',
       );
-      expect(
-        controller.state.nativeAssetIdentifiers['eip155:999'],
-      ).toBeUndefined();
+      // EVM networks default to slip44:60 (Ethereum) when no specific mapping is found
+      expect(controller.state.nativeAssetIdentifiers['eip155:999']).toBe(
+        'eip155:999/slip44:60',
+      );
     });
 
-    it('does not modify state for empty input', () => {
+    it('does not modify state for empty input', async () => {
       const { controller } = setupController();
 
-      controller.initNativeAssetIdentifiers([]);
+      await controller.initNativeAssetIdentifiers([]);
 
       expect(controller.state.nativeAssetIdentifiers).toStrictEqual({});
     });
 
-    it('handles CAIP-19 format nativeCurrency from MultichainNetworkController', () => {
+    it('handles CAIP-19 format nativeCurrency from MultichainNetworkController', async () => {
       const { controller } = setupController();
 
       // Non-EVM networks from MultichainNetworkController use CAIP-19 format for nativeCurrency
@@ -1081,7 +1225,7 @@ describe('NetworkEnablementController', () => {
         },
       ];
 
-      controller.initNativeAssetIdentifiers(networks);
+      await controller.initNativeAssetIdentifiers(networks);
 
       expect(controller.state.nativeAssetIdentifiers).toStrictEqual({
         'eip155:1': 'eip155:1/slip44:60',

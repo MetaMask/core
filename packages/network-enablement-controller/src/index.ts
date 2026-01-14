@@ -21,5 +21,5 @@ export {
   selectEnabledSolanaNetworks,
 } from './selectors';
 
-export { Slip44Service } from './services';
+export { Slip44Service, getSlip44BySymbol, getSlip44ByChainId } from './services';
 export type { Slip44Entry } from './services';
