@@ -815,53 +815,41 @@ export class BridgeStatusController extends StaticIntervalPollingController<Brid
 
     // Update the actual transaction in TransactionController to sync with intent status
     if (intentOrderId) {
-      try {
-        const transactionStatus = mapIntentOrderStatusToTransactionStatus(
-          intentOrder.status,
-        );
+      const transactionStatus = mapIntentOrderStatusToTransactionStatus(
+        intentOrder.status,
+      );
 
-        // Merge with existing TransactionMeta to avoid wiping required fields
-        const { transactions } = this.messenger.call(
-          'TransactionController:getState',
-        );
-        const existingTxMeta = transactions.find(
-          (tx: TransactionMeta) => tx.id === bridgeTxMetaId,
-        );
-        if (existingTxMeta) {
-          const updatedTxMeta: TransactionMeta = {
-            ...existingTxMeta,
-            status: transactionStatus,
-            ...(txHash ? { hash: txHash } : {}),
-            ...(txHash
-              ? {
-                  txReceipt: {
-                    ...(existingTxMeta.txReceipt ?? {}),
-                    transactionHash: txHash,
-                    status: isComplete ? '0x1' : '0x0',
-                  },
-                }
-              : {}),
-          };
+      // Merge with existing TransactionMeta to avoid wiping required fields
+      const { transactions } = this.messenger.call(
+        'TransactionController:getState',
+      );
+      const existingTxMeta = transactions.find(
+        (tx: TransactionMeta) => tx.id === bridgeTxMetaId,
+      );
+      if (existingTxMeta) {
+        const updatedTxMeta: TransactionMeta = {
+          ...existingTxMeta,
+          status: transactionStatus,
+          ...(txHash ? { hash: txHash } : {}),
+          ...(txHash
+            ? {
+                txReceipt: {
+                  ...(existingTxMeta.txReceipt ?? {}),
+                  transactionHash: txHash,
+                  status: isComplete ? '0x1' : '0x0',
+                },
+              }
+            : {}),
+        };
 
-          this.#updateTransactionFn(
-            updatedTxMeta,
-            `BridgeStatusController - Intent order status updated: ${intentOrder.status}`,
-          );
-        } else {
-          console.warn(
-            '📝 [fetchIntentOrderStatus] Skipping update; transaction not found',
-            { intentOrderId, bridgeHistoryKey: bridgeTxMetaId },
-          );
-        }
-      } catch (error) {
-        /* c8 ignore start */
-        console.error(
-          '📝 [fetchIntentOrderStatus] Failed to update transaction status',
-          {
-            intentOrderId,
-            bridgeHistoryKey: bridgeTxMetaId,
-            error,
-          },
+        this.#updateTransactionFn(
+          updatedTxMeta,
+          `BridgeStatusController - Intent order status updated: ${intentOrder.status}`,
+        );
+      } else {
+        console.warn(
+          '📝 [fetchIntentOrderStatus] Skipping update; transaction not found',
+          { intentOrderId, bridgeHistoryKey: bridgeTxMetaId },
         );
       }
       /* c8 ignore stop */
