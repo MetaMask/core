@@ -21,6 +21,7 @@
     { "path": "./packages/bridge-controller" },
     { "path": "./packages/bridge-status-controller" },
     { "path": "./packages/build-utils" },
+    { "path": "./packages/connectivity-controller" },
     { "path": "./packages/chain-agnostic-permission" },
     { "path": "./packages/claims-controller" },
     { "path": "./packages/composable-controller" },
