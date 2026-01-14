@@ -251,63 +251,6 @@ export class NetworkEnablementController extends BaseController<
     messenger.subscribe('NetworkController:networkRemoved', ({ chainId }) => {
       this.#removeNetworkEntry(chainId);
     });
-
-    // Subscribe to nativeCurrency changes using selector approach
-    messenger.subscribe(
-      'NetworkController:stateChange',
-      (
-        currentNativeCurrencies: Record<Hex, string>,
-        previousNativeCurrencies: Record<Hex, string> | undefined,
-      ) => {
-        // eslint-disable-next-line no-void
-        void this.#onNativeCurrencyChange(
-          currentNativeCurrencies,
-          previousNativeCurrencies,
-        );
-      },
-      // Selector: extract chainId -> nativeCurrency map
-      (networkState) =>
-        Object.fromEntries(
-          Object.entries(networkState.networkConfigurationsByChainId).map(
-            ([chainId, config]) => [chainId, config.nativeCurrency],
-          ),
-        ) as Record<Hex, string>,
-    );
-  }
-
-  /**
-   * Handles changes to network nativeCurrency values.
-   * Compares current and previous nativeCurrency maps to detect updates.
-   *
-   * @param currentNativeCurrencies - Current map of chainId to nativeCurrency
-   * @param previousNativeCurrencies - Previous map of chainId to nativeCurrency
-   */
-  async #onNativeCurrencyChange(
-    currentNativeCurrencies: Record<Hex, string>,
-    previousNativeCurrencies: Record<Hex, string> | undefined,
-  ): Promise<void> {
-    // Skip if no previous state (initial subscription)
-    if (!previousNativeCurrencies) {
-      return;
-    }
-
-    // Find chains where nativeCurrency has changed
-    for (const [chainId, currentCurrency] of Object.entries(
-      currentNativeCurrencies,
-    )) {
-      const previousCurrency = previousNativeCurrencies[chainId as Hex];
-
-      // Only update if the nativeCurrency changed (not for new chains - those are handled by networkAdded)
-      if (
-        previousCurrency !== undefined &&
-        previousCurrency !== currentCurrency
-      ) {
-        await this.#updateNativeAssetIdentifier(
-          chainId as Hex,
-          currentCurrency,
-        );
-      }
-    }
   }
 
   /**
@@ -693,38 +636,6 @@ export class NetworkEnablementController extends BaseController<
     if (!state.enabledNetworkMap[ns]) {
       state.enabledNetworkMap[ns] = {};
     }
-  }
-
-  /**
-   * Updates the native asset identifier for an EVM network based on its symbol.
-   *
-   * This method looks up the SLIP-44 coin type using chainid.network data
-   * (via getSlip44ByChainId) and updates the nativeAssetIdentifiers state.
-   * This is only called for EVM networks from NetworkController state changes.
-   *
-   * @param chainId - The chain ID of the network (Hex format)
-   * @param symbol - The native currency symbol of the network (e.g., 'ETH')
-   */
-  async #updateNativeAssetIdentifier(
-    chainId: Hex,
-    symbol: string,
-  ): Promise<void> {
-    const { caipChainId, reference } = deriveKeys(chainId);
-
-    // Parse hex chainId to number for chainid.network lookup
-    const numericChainId = parseInt(reference, 16);
-
-    // EVM networks: use getSlip44ByChainId (chainid.network data)
-    // Default to 60 (Ethereum) if no specific mapping is found
-    const slip44CoinType =
-      (await Slip44Service.getSlip44ByChainId(numericChainId, symbol)) ?? 60;
-
-    this.update((state) => {
-      state.nativeAssetIdentifiers[caipChainId] = buildNativeAssetIdentifier(
-        caipChainId,
-        slip44CoinType,
-      );
-    });
   }
 
   /**
