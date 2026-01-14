@@ -7,6 +7,13 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+### Added
+
+- Add `nativeAssetIdentifiers` state property that maps CAIP-2 chain IDs to CAIP-19-like native asset identifiers (e.g., `eip155:1/slip44:60`) ([#7609](https://github.com/MetaMask/core/pull/7609))
+- Add `Slip44Service` to look up SLIP-44 coin types by native currency symbol ([#7609](https://github.com/MetaMask/core/pull/7609))
+- Add `@metamask/slip44` dependency for SLIP-44 coin type lookups ([#7609](https://github.com/MetaMask/core/pull/7609))
+- Subscribe to `NetworkController:stateChange` to update `nativeAssetIdentifiers` when a network's native currency changes ([#7609](https://github.com/MetaMask/core/pull/7609))
+
 ### Changed
 
 - Upgrade `@metamask/utils` from `^11.8.1` to `^11.9.0` ([#7511](https://github.com/MetaMask/core/pull/7511))
@@ -22,6 +29,7 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ### Fixed
 
+- Clean up Slip44Service ([#7626](https://github.com/MetaMask/core/pull/7626))
 - Add missing MegaETH to POPULARE_NETWORKS list ([#7286](https://github.com/MetaMask/core/pull/7286))
 
 ## [4.0.0]
