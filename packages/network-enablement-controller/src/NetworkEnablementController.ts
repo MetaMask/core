@@ -240,13 +240,10 @@ export class NetworkEnablementController extends BaseController<
       },
     });
 
-    messenger.subscribe(
-      'NetworkController:networkAdded',
-      ({ chainId, nativeCurrency }) => {
-        // eslint-disable-next-line no-void
-        void this.#onAddNetwork(chainId, nativeCurrency);
-      },
-    );
+    messenger.subscribe('NetworkController:networkAdded', ({ chainId }) => {
+      // eslint-disable-next-line no-void
+      void this.#onAddNetwork(chainId);
+    });
 
     messenger.subscribe('NetworkController:networkRemoved', ({ chainId }) => {
       this.#removeNetworkEntry(chainId);
@@ -449,7 +446,7 @@ export class NetworkEnablementController extends BaseController<
       identifier: NativeAssetIdentifier;
     }[] = [];
 
-    for (const [chainId, config] of Object.entries(
+    for (const [chainId] of Object.entries(
       networkControllerState.networkConfigurationsByChainId,
     )) {
       const { caipChainId } = deriveKeys(chainId as Hex);
@@ -462,13 +459,9 @@ export class NetworkEnablementController extends BaseController<
       // Parse hex chainId to number for chainid.network lookup
       const numericChainId = parseInt(chainId, 16);
 
-      // EVM networks: use getSlip44ByChainId (chainid.network data)
-      // Default to 60 (Ethereum) if no specific mapping is found
-      const slip44CoinType =
-        (await Slip44Service.getSlip44ByChainId(
-          numericChainId,
-          config.nativeCurrency,
-        )) ?? 60;
+      // EVM networks: use getEvmSlip44 (chainid.network data)
+      // Defaults to 60 (Ethereum) if no specific mapping is found
+      const slip44CoinType = await Slip44Service.getEvmSlip44(numericChainId);
 
       evmNativeAssetUpdates.push({
         caipChainId,
@@ -553,14 +546,10 @@ export class NetworkEnablementController extends BaseController<
       let slip44CoinType: number | undefined;
 
       if (namespace === 'eip155') {
-        // EVM networks: use getSlip44ByChainId (chainid.network data)
-        // Default to 60 (Ethereum) if no specific mapping is found
+        // EVM networks: use getEvmSlip44 (chainid.network data)
+        // Defaults to 60 (Ethereum) if no specific mapping is found
         const numericChainId = parseInt(reference, 10);
-        slip44CoinType =
-          (await Slip44Service.getSlip44ByChainId(
-            numericChainId,
-            nativeCurrency,
-          )) ?? 60;
+        slip44CoinType = await Slip44Service.getEvmSlip44(numericChainId);
       } else {
         // Non-EVM networks: use getSlip44BySymbol (@metamask/slip44 package)
         slip44CoinType = Slip44Service.getSlip44BySymbol(nativeCurrency);
@@ -708,7 +697,6 @@ export class NetworkEnablementController extends BaseController<
    * Handles the addition of a new EVM network to the controller.
    *
    * @param chainId - The chain ID to add (Hex format)
-   * @param nativeCurrency - The native currency symbol of the network (e.g., 'ETH')
    *
    * @description
    * - If in popular networks mode (>2 popular networks enabled) AND adding a popular network:
@@ -717,20 +705,16 @@ export class NetworkEnablementController extends BaseController<
    * - Switch to the newly added network (disable all others, enable this one)
    * - Also updates the nativeAssetIdentifiers with the CAIP-19-like identifier
    */
-  async #onAddNetwork(chainId: Hex, nativeCurrency: string): Promise<void> {
+  async #onAddNetwork(chainId: Hex): Promise<void> {
     const { namespace, storageKey, reference, caipChainId } =
       deriveKeys(chainId);
 
-    // Parse hex chainId to number for chainid.network lookup
-    const numericChainId = parseInt(reference, 16);
+    // Parse reference (decimal string from CAIP-2) to number for chainid.network lookup
+    const numericChainId = parseInt(reference, 10);
 
-    // EVM networks: use getSlip44ByChainId (chainid.network data)
-    // Default to 60 (Ethereum) if no specific mapping is found
-    const slip44CoinType =
-      (await Slip44Service.getSlip44ByChainId(
-        numericChainId,
-        nativeCurrency,
-      )) ?? 60;
+    // EVM networks: use getEvmSlip44 (chainid.network data)
+    // Defaults to 60 (Ethereum) if no specific mapping is found
+    const slip44CoinType = await Slip44Service.getEvmSlip44(numericChainId);
 
     this.update((state) => {
       // Ensure the namespace bucket exists

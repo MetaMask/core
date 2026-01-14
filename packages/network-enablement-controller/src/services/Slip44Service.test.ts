@@ -89,45 +89,6 @@ describe('Slip44Service', () => {
     });
   });
 
-  describe('getSlip44Entry', () => {
-    it('returns entry for ETH coin type 60', () => {
-      const result = Slip44Service.getSlip44Entry(60);
-
-      expect(result).toBeDefined();
-      expect(result?.symbol).toBe('ETH');
-      expect(result?.name).toBe('Ethereum');
-      expect(result?.index).toBe('60');
-    });
-
-    it('returns entry for BTC coin type 0', () => {
-      const result = Slip44Service.getSlip44Entry(0);
-
-      expect(result).toBeDefined();
-      expect(result?.symbol).toBe('BTC');
-      expect(result?.name).toBe('Bitcoin');
-      expect(result?.index).toBe('0');
-    });
-
-    it('returns entry for SOL coin type 501', () => {
-      const result = Slip44Service.getSlip44Entry(501);
-
-      expect(result).toBeDefined();
-      expect(result?.symbol).toBe('SOL');
-      expect(result?.name).toBe('Solana');
-      expect(result?.index).toBe('501');
-    });
-
-    it('returns undefined for non-existent coin type', () => {
-      const result = Slip44Service.getSlip44Entry(999999999);
-      expect(result).toBeUndefined();
-    });
-
-    it('returns undefined for negative coin type', () => {
-      const result = Slip44Service.getSlip44Entry(-1);
-      expect(result).toBeUndefined();
-    });
-  });
-
   describe('clearCache', () => {
     it('clears the cache so lookups are performed again', () => {
       // Perform initial lookup to populate cache
@@ -173,7 +134,7 @@ describe('Slip44Service', () => {
     });
   });
 
-  describe('getSlip44ByChainId', () => {
+  describe('getEvmSlip44', () => {
     it('returns slip44 from chainid.network data when available', async () => {
       // Mock chainid.network response with Ethereum data
       mockFetchWithErrorHandling.mockResolvedValueOnce([
@@ -181,7 +142,7 @@ describe('Slip44Service', () => {
         { chainId: 56, slip44: 714 },
       ]);
 
-      const result = await Slip44Service.getSlip44ByChainId(1);
+      const result = await Slip44Service.getEvmSlip44(1);
 
       expect(result).toBe(60);
       expect(mockFetchWithErrorHandling).toHaveBeenCalledWith({
@@ -198,9 +159,9 @@ describe('Slip44Service', () => {
       ]);
 
       // First call - fetches data
-      const result1 = await Slip44Service.getSlip44ByChainId(1);
+      const result1 = await Slip44Service.getEvmSlip44(1);
       // Second call - should use cache (line 144)
-      const result2 = await Slip44Service.getSlip44ByChainId(56);
+      const result2 = await Slip44Service.getEvmSlip44(56);
 
       expect(result1).toBe(60);
       expect(result2).toBe(714);
@@ -221,9 +182,9 @@ describe('Slip44Service', () => {
 
       // Make concurrent calls
       const [result1, result2, result3] = await Promise.all([
-        Slip44Service.getSlip44ByChainId(1),
-        Slip44Service.getSlip44ByChainId(1),
-        Slip44Service.getSlip44ByChainId(1),
+        Slip44Service.getEvmSlip44(1),
+        Slip44Service.getEvmSlip44(1),
+        Slip44Service.getEvmSlip44(1),
       ]);
 
       expect(result1).toBe(60);
@@ -233,75 +194,51 @@ describe('Slip44Service', () => {
       expect(mockFetchWithErrorHandling).toHaveBeenCalledTimes(1);
     });
 
-    it('falls back to symbol lookup when chainId not found in cache', async () => {
+    it('defaults to 60 when chainId not found in cache', async () => {
       // Mock chainid.network response without the requested chainId
       mockFetchWithErrorHandling.mockResolvedValueOnce([
         { chainId: 1, slip44: 60 },
       ]);
 
-      // Request a chainId not in the response, but provide a symbol
-      const result = await Slip44Service.getSlip44ByChainId(999, 'ETH');
+      // Request a chainId not in the response
+      const result = await Slip44Service.getEvmSlip44(999);
 
-      expect(result).toBe(60); // Falls back to symbol lookup
+      expect(result).toBe(60); // Defaults to 60 (Ethereum)
     });
 
-    it('returns undefined when chainId not found and no symbol provided (line 152)', async () => {
-      // Mock chainid.network response
-      mockFetchWithErrorHandling.mockResolvedValueOnce([
-        { chainId: 1, slip44: 60 },
-      ]);
-
-      // Request a chainId not in the response, without symbol
-      const result = await Slip44Service.getSlip44ByChainId(999);
-
-      expect(result).toBeUndefined();
-    });
-
-    it('handles invalid response by initializing empty cache (lines 102-104)', async () => {
+    it('handles invalid response by initializing empty cache and defaults to 60', async () => {
       // Mock invalid response (not an array)
       mockFetchWithErrorHandling.mockResolvedValueOnce('invalid response');
 
-      // Should not throw, but return undefined
-      const result = await Slip44Service.getSlip44ByChainId(1);
+      // Should not throw, defaults to 60
+      const result = await Slip44Service.getEvmSlip44(1);
 
-      expect(result).toBeUndefined();
+      expect(result).toBe(60);
     });
 
-    it('handles null response by initializing empty cache', async () => {
+    it('handles null response by initializing empty cache and defaults to 60', async () => {
       // Mock null response
       mockFetchWithErrorHandling.mockResolvedValueOnce(null);
 
-      // Should not throw, but return undefined
-      const result = await Slip44Service.getSlip44ByChainId(1);
+      // Should not throw, defaults to 60
+      const result = await Slip44Service.getEvmSlip44(1);
 
-      expect(result).toBeUndefined();
+      expect(result).toBe(60);
     });
 
-    it('handles network error by initializing empty cache and falling back to symbol', async () => {
+    it('handles network error by initializing empty cache and defaults to 60', async () => {
       // Mock network error
       mockFetchWithErrorHandling.mockRejectedValueOnce(
         new Error('Network error'),
       );
 
-      // Should not throw, but fall back to symbol lookup
-      const result = await Slip44Service.getSlip44ByChainId(1, 'ETH');
+      // Should not throw, defaults to 60
+      const result = await Slip44Service.getEvmSlip44(1);
 
-      expect(result).toBe(60); // Falls back to symbol lookup
+      expect(result).toBe(60);
     });
 
-    it('handles network error and returns undefined when no symbol provided', async () => {
-      // Mock network error
-      mockFetchWithErrorHandling.mockRejectedValueOnce(
-        new Error('Network error'),
-      );
-
-      // Should not throw, return undefined when no symbol
-      const result = await Slip44Service.getSlip44ByChainId(1);
-
-      expect(result).toBeUndefined();
-    });
-
-    it('filters out entries without slip44 field', async () => {
+    it('filters out entries without slip44 field and defaults to 60', async () => {
       // Mock response with some entries missing slip44
       mockFetchWithErrorHandling.mockResolvedValueOnce([
         { chainId: 1, slip44: 60 },
@@ -310,14 +247,14 @@ describe('Slip44Service', () => {
         { chainId: 56, slip44: 714 },
       ]);
 
-      const result1 = await Slip44Service.getSlip44ByChainId(1);
-      const result2 = await Slip44Service.getSlip44ByChainId(2);
-      const result3 = await Slip44Service.getSlip44ByChainId(3);
-      const result56 = await Slip44Service.getSlip44ByChainId(56);
+      const result1 = await Slip44Service.getEvmSlip44(1);
+      const result2 = await Slip44Service.getEvmSlip44(2);
+      const result3 = await Slip44Service.getEvmSlip44(3);
+      const result56 = await Slip44Service.getEvmSlip44(56);
 
       expect(result1).toBe(60);
-      expect(result2).toBeUndefined(); // Not in cache
-      expect(result3).toBeUndefined(); // Not in cache
+      expect(result2).toBe(60); // Not in cache, defaults to 60
+      expect(result3).toBe(60); // Not in cache, defaults to 60
       expect(result56).toBe(714);
     });
   });

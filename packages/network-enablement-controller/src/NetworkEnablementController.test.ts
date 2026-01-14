@@ -24,31 +24,18 @@ import type {
 import { Slip44Service } from './services';
 import { advanceTime } from '../../../tests/helpers';
 
-// Mock Slip44Service.getSlip44ByChainId to avoid network calls
-jest
-  .spyOn(Slip44Service, 'getSlip44ByChainId')
-  .mockImplementation(async (chainId: number, symbol?: string) => {
-    // Known chainId mappings from chainid.network
-    const chainIdToSlip44: Record<number, number> = {
-      1: 60, // Ethereum
-      10: 60, // Optimism
-      56: 714, // BNB Chain
-      137: 966, // Polygon
-      43114: 9000, // Avalanche
-      42161: 60, // Arbitrum
-      8453: 60, // Base
-      59144: 60, // Linea
-      1329: 60, // Sei (uses ETH as native)
-    };
-    if (chainIdToSlip44[chainId] !== undefined) {
-      return chainIdToSlip44[chainId];
-    }
-    // Fall back to symbol lookup if chainId not found
-    if (symbol) {
-      return Slip44Service.getSlip44BySymbol(symbol);
-    }
-    return undefined;
-  });
+// Known chainId mappings from chainid.network for mocking
+const chainIdToSlip44: Record<number, number> = {
+  1: 60, // Ethereum
+  10: 60, // Optimism
+  56: 714, // BNB Chain
+  137: 966, // Polygon
+  43114: 9000, // Avalanche
+  42161: 60, // Arbitrum
+  8453: 60, // Base
+  59144: 60, // Linea
+  1329: 60, // Sei (uses ETH as native)
+};
 
 const controllerName = 'NetworkEnablementController';
 
@@ -159,10 +146,17 @@ describe('NetworkEnablementController', () => {
 
   beforeEach(() => {
     clock = useFakeTimers();
+    // Mock Slip44Service.getEvmSlip44 to avoid network calls
+    jest
+      .spyOn(Slip44Service, 'getEvmSlip44')
+      .mockImplementation(async (chainId) => {
+        return chainIdToSlip44[chainId] ?? 60;
+      });
   });
 
   afterEach(() => {
     clock.restore();
+    jest.restoreAllMocks();
   });
 
   it('initializes with default state', () => {
@@ -1585,7 +1579,7 @@ describe('NetworkEnablementController', () => {
         },
         nativeAssetIdentifiers: {
           ...getDefaultNativeAssetIdentifiers(),
-          'eip155:2': 'eip155:2/slip44:966', // MATIC
+          'eip155:2': 'eip155:2/slip44:60', // Defaults to 60 as chainId 2 is not in chainid.network
         },
       });
 
@@ -1623,7 +1617,7 @@ describe('NetworkEnablementController', () => {
         },
         nativeAssetIdentifiers: {
           ...getDefaultNativeAssetIdentifiers(),
-          'eip155:2': 'eip155:2/slip44:966', // MATIC
+          'eip155:2': 'eip155:2/slip44:60', // Defaults to 60 as chainId 2 is not in chainid.network
         },
       });
 
@@ -1661,7 +1655,7 @@ describe('NetworkEnablementController', () => {
         },
         nativeAssetIdentifiers: {
           ...getDefaultNativeAssetIdentifiers(),
-          'eip155:2': 'eip155:2/slip44:966', // MATIC
+          'eip155:2': 'eip155:2/slip44:60', // Defaults to 60 as chainId 2 is not in chainid.network
         },
       });
     });
@@ -1805,8 +1799,10 @@ describe('NetworkEnablementController', () => {
         },
         nativeAssetIdentifiers: {
           ...getDefaultNativeAssetIdentifiers(),
+          // Note: This is testing invalid input (non-EVM chainId to EVM event handler)
+          // getEvmSlip44 defaults to 60 for unknown chainIds
           'bip122:000000000019d6689c085ae165831e93':
-            'bip122:000000000019d6689c085ae165831e93/slip44:0', // BTC
+            'bip122:000000000019d6689c085ae165831e93/slip44:60',
         },
       });
     });

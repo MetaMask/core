@@ -44,7 +44,7 @@ type Slip44Data = Record<string, Slip44DataEntry>;
  * SLIP-44 defines registered coin types used in BIP-44 derivation paths.
  *
  * This service provides two lookup methods:
- * 1. `getSlip44ByChainId` - Primary method using chainid.network data (recommended)
+ * 1. `getEvmSlip44` - For EVM networks, uses chainid.network data (recommended for eip155)
  * 2. `getSlip44BySymbol` - Fallback method using @metamask/slip44 package
  *
  * @see https://github.com/satoshilabs/slips/blob/master/slip-0044.md
@@ -69,7 +69,7 @@ export class Slip44Service {
 
   /**
    * Fetches and caches chain data from chainid.network.
-   * This is called automatically by getSlip44ByChainId.
+   * This is called automatically by getEvmSlip44.
    */
   static async #fetchChainData(): Promise<void> {
     if (this.#chainIdCache !== null) {
@@ -114,27 +114,30 @@ export class Slip44Service {
   }
 
   /**
-   * Gets the SLIP-44 coin type identifier for a given EVM chain ID.
+   * Gets the SLIP-44 coin type identifier for an EVM network by chain ID.
    *
-   * This method first checks chainid.network data (which maps chainId directly
-   * to slip44), then falls back to symbol lookup if not found.
+   * **IMPORTANT: This method is for EVM networks only (eip155 namespace).**
+   * For non-EVM networks (Bitcoin, Solana, Tron, etc.), use `getSlip44BySymbol`.
    *
-   * @param chainId - The EVM chain ID (e.g., 1 for Ethereum, 56 for BNB Chain)
-   * @param symbol - Optional symbol for fallback lookup (e.g., 'ETH', 'BNB')
-   * @returns The SLIP-44 coin type number, or undefined if not found
+   * This method checks chainid.network data (which maps chainId directly
+   * to slip44). If not found, defaults to 60 (Ethereum).
+   *
+   * @param chainId - The EVM chain ID as a number (e.g., 1 for Ethereum, 56 for BNB Chain)
+   * @returns The SLIP-44 coin type number (defaults to 60 if not found)
    * @example
    * ```typescript
-   * const ethCoinType = await Slip44Service.getSlip44ByChainId(1);
+   * // For EVM networks only
+   * const ethCoinType = await Slip44Service.getEvmSlip44(1);
    * // Returns 60
    *
-   * const bnbCoinType = await Slip44Service.getSlip44ByChainId(56);
+   * const bnbCoinType = await Slip44Service.getEvmSlip44(56);
    * // Returns 714
+   *
+   * const unknownEvmChain = await Slip44Service.getEvmSlip44(99999);
+   * // Returns 60 (default for EVM)
    * ```
    */
-  static async getSlip44ByChainId(
-    chainId: number,
-    symbol?: string,
-  ): Promise<number | undefined> {
+  static async getEvmSlip44(chainId: number): Promise<number> {
     // Ensure chain data is loaded
     await this.#fetchChainData();
 
@@ -144,20 +147,18 @@ export class Slip44Service {
       return cached;
     }
 
-    // Fall back to symbol lookup if provided
-    if (symbol) {
-      return this.getSlip44BySymbol(symbol);
-    }
-
-    return undefined;
+    // Default to 60 (Ethereum) for EVM networks without specific mapping
+    return 60;
   }
 
   /**
-   * Gets the SLIP-44 coin type identifier for a given network symbol.
+   * Gets the SLIP-44 coin type identifier for a non-EVM network by symbol.
+   *
+   * **IMPORTANT: This method is for non-EVM networks only (Bitcoin, Solana, Tron, etc.).**
+   * For EVM networks (eip155 namespace), use `getEvmSlip44` instead.
    *
    * Note: Symbol lookup may return incorrect results for duplicate symbols
-   * (e.g., CPC is both CPChain and Capricoin). For EVM networks, prefer
-   * using getSlip44ByChainId instead.
+   * (e.g., CPC is both CPChain and Capricoin).
    *
    * @param symbol - The network symbol (e.g., 'ETH', 'BTC', 'SOL')
    * @returns The SLIP-44 coin type number, or undefined if not found
@@ -195,17 +196,6 @@ export class Slip44Service {
     // Cache the miss as well to avoid repeated lookups
     this.#symbolCache.set(symbol, undefined);
     return undefined;
-  }
-
-  /**
-   * Gets the SLIP-44 entry for a given coin type index.
-   *
-   * @param index - The SLIP-44 coin type index (e.g., 60 for ETH, 0 for BTC)
-   * @returns The SLIP-44 entry with metadata, or undefined if not found
-   */
-  static getSlip44Entry(index: number): Slip44Entry | undefined {
-    const slip44Data = slip44 as Slip44Data;
-    return slip44Data[index.toString()];
   }
 
   /**
