@@ -24,6 +24,7 @@ describe('NetworkEnablementController Selectors', () => {
         'solana:testnet': false,
       },
     },
+    nativeAssetIdentifiers: {},
   };
 
   describe('selectEnabledNetworkMap', () => {

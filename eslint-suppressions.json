@@ -1468,17 +1468,6 @@
       "count": 1
     }
   },
-  "packages/network-enablement-controller/src/NetworkEnablementController.ts": {
-    "@typescript-eslint/explicit-function-return-type": {
-      "count": 1
-    },
-    "@typescript-eslint/prefer-nullish-coalescing": {
-      "count": 2
-    },
-    "id-length": {
-      "count": 7
-    }
-  },
   "packages/network-enablement-controller/src/selectors.ts": {
     "@typescript-eslint/explicit-function-return-type": {
       "count": 3
