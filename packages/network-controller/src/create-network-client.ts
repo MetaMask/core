@@ -211,10 +211,19 @@ function createRpcServiceChain({
   const availableEndpointUrls: [string, ...string[]] = isRpcFailoverEnabled
     ? [primaryEndpointUrl, ...(configuration.failoverRpcUrls ?? [])]
     : [primaryEndpointUrl];
+
+  const isOffline = (): boolean => {
+    const connectivityState = messenger.call('ConnectivityController:getState');
+    return (
+      connectivityState.connectivityStatus === CONNECTIVITY_STATUSES.Offline
+    );
+  };
+
   const rpcServiceConfigurations = availableEndpointUrls.map((endpointUrl) => ({
     ...getRpcServiceOptions(endpointUrl),
     endpointUrl,
     logger,
+    isOffline,
   }));
 
   /**
@@ -280,15 +289,6 @@ function createRpcServiceChain({
         throw new Error('Could not make request to endpoint.');
       }
 
-      const connectivityState = messenger.call(
-        'ConnectivityController:getState',
-      );
-      if (
-        connectivityState.connectivityStatus === CONNECTIVITY_STATUSES.Offline
-      ) {
-        return;
-      }
-
       messenger.publish('NetworkController:rpcEndpointUnavailable', {
         chainId: configuration.chainId,
         networkClientId: id,
@@ -315,15 +315,6 @@ function createRpcServiceChain({
       ...rest
     }) => {
       const error = getError(rest);
-
-      const connectivityState = messenger.call(
-        'ConnectivityController:getState',
-      );
-      if (
-        connectivityState.connectivityStatus === CONNECTIVITY_STATUSES.Offline
-      ) {
-        return;
-      }
 
       messenger.publish('NetworkController:rpcEndpointDegraded', {
         chainId: configuration.chainId,

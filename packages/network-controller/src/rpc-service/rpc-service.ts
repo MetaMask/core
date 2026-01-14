@@ -57,6 +57,12 @@ export type RpcServiceOptions = {
    * not accepted, as it is overwritten. See {@link createServicePolicy}.
    */
   policyOptions?: Omit<CreateServicePolicyOptions, 'retryFilterPolicy'>;
+  /**
+   * A function that checks if the user is currently offline. If provided and
+   * returns true, connection errors will not be retried, preventing degraded
+   * and break callbacks from being triggered.
+   */
+  isOffline?: () => boolean;
 };
 
 const log = createModuleLogger(projectLogger, 'RpcService');
@@ -277,6 +283,7 @@ export class RpcService implements AbstractRpcService {
       logger,
       fetchOptions = {},
       policyOptions = {},
+      isOffline,
     } = options;
 
     this.#fetch = givenFetch;
@@ -294,6 +301,12 @@ export class RpcService implements AbstractRpcService {
       maxConsecutiveFailures: DEFAULT_MAX_CONSECUTIVE_FAILURES,
       ...policyOptions,
       retryFilterPolicy: handleWhen((error) => {
+        // If user is offline, don't retry any errors
+        // This prevents degraded/break callbacks from being triggered
+        if (isOffline?.()) {
+          return false;
+        }
+
         return (
           // Ignore errors where the request failed to establish
           isConnectionError(error) ||
