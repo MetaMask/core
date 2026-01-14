@@ -15,6 +15,7 @@ import type {
 import type { InternalAccount } from '@metamask/keyring-internal-api';
 import type { Messenger } from '@metamask/messenger';
 import { StaticIntervalPollingController } from '@metamask/polling-controller';
+import { TransactionControllerTransactionSubmittedEvent } from '@metamask/transaction-controller';
 import { Mutex } from 'async-mutex';
 
 import type { ProfileMetricsServiceMethodActions } from '.';
@@ -140,7 +141,8 @@ type AllowedEvents =
   | KeyringControllerUnlockEvent
   | KeyringControllerLockEvent
   | AccountsControllerAccountAddedEvent
-  | AccountsControllerAccountRemovedEvent;
+  | AccountsControllerAccountRemovedEvent
+  | TransactionControllerTransactionSubmittedEvent;
 
 /**
  * The messenger restricted to actions and events accessed by
@@ -214,9 +216,13 @@ export class ProfileMetricsController extends StaticIntervalPollingController()<
       this.startPolling(null);
     });
 
-    this.messenger.subscribe('KeyringController:lock', () => {
-      this.stopAllPolling();
-    });
+    this.messenger.subscribe('KeyringController:lock', () =>
+      this.stopAllPolling(),
+    );
+
+    this.messenger.subscribe('TransactionController:transactionSubmitted', () =>
+      this.#skipInitialDelay(),
+    );
 
     this.messenger.subscribe('AccountsController:accountAdded', (account) => {
       this.#addAccountToQueue(account).catch(console.error);
@@ -306,6 +312,15 @@ export class ProfileMetricsController extends StaticIntervalPollingController()<
   #setInitialDelayEndTimestampIfNull(): void {
     this.update((state) => {
       state.initialDelayEndTimestamp ??= Date.now() + INITIAL_DELAY_DURATION;
+    });
+  }
+
+  /**
+   * Skip the initial delay period by setting the end timestamp to the current time.
+   */
+  #skipInitialDelay(): void {
+    this.update((state) => {
+      state.initialDelayEndTimestamp = Date.now();
     });
   }
 

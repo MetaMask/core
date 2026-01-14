@@ -170,6 +170,31 @@ describe('ProfileMetricsController', () => {
       });
     });
 
+    describe('when TransactionController:transactionSubmitted is published', () => {
+      it('sets `initialDelayEndTimestamp` to current timestamp to skip the initial delay on the next poll', async () => {
+        await withController(
+          {
+            options: {
+              state: {
+                initialDelayEndTimestamp: Date.now() + INITIAL_DELAY_DURATION,
+              },
+            },
+          },
+          async ({ controller, rootMessenger }) => {
+            rootMessenger.publish(
+              'TransactionController:transactionSubmitted',
+              {
+                // @ts-expect-error Transaction object not needed for this test
+                foo: 'bar',
+              },
+            );
+
+            expect(controller.state.initialDelayEndTimestamp).toBe(Date.now());
+          },
+        );
+      });
+    });
+
     describe('when AccountsController:accountAdded is published', () => {
       describe.each([
         { assertUserOptedIn: true },
@@ -626,6 +651,7 @@ function getMessenger(
       'KeyringController:lock',
       'AccountsController:accountAdded',
       'AccountsController:accountRemoved',
+      'TransactionController:transactionSubmitted',
     ],
   });
   return messenger;

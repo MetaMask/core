@@ -4485,6 +4485,7 @@ __metadata:
     "@metamask/messenger": "npm:^0.3.0"
     "@metamask/polling-controller": "npm:^16.0.1"
     "@metamask/profile-sync-controller": "npm:^27.0.0"
+    "@metamask/transaction-controller": "npm:^62.9.1"
     "@metamask/utils": "npm:^11.9.0"
     "@ts-bridge/cli": "npm:^0.6.4"
     "@types/jest": "npm:^27.4.1"
