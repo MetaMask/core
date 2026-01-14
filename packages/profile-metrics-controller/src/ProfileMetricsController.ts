@@ -209,8 +209,6 @@ export class ProfileMetricsController extends StaticIntervalPollingController()<
       MESSENGER_EXPOSED_METHODS,
     );
 
-    this.#setInitialDelayEndTimestampIfNull();
-
     this.messenger.subscribe('KeyringController:unlock', () => {
       this.#queueFirstSyncIfNeeded().catch(console.error);
       this.startPolling(null);
@@ -242,7 +240,11 @@ export class ProfileMetricsController extends StaticIntervalPollingController()<
    */
   async _executePoll(): Promise<void> {
     await this.#mutex.runExclusive(async () => {
-      if (!this.#assertUserOptedIn() || !this.#isInitialDelayComplete()) {
+      if (!this.#assertUserOptedIn()) {
+        return;
+      }
+      this.#setInitialDelayEndTimestampIfNull();
+      if (!this.#isInitialDelayComplete()) {
         return;
       }
       for (const [entropySourceId, accounts] of Object.entries(
