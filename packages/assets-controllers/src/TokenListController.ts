@@ -145,6 +145,14 @@ export class TokenListController extends StaticIntervalPollingController<TokenLi
   readonly #changedChainsToPersist: Set<Hex> = new Set();
 
   /**
+   * Tracks chains that were just loaded from storage and should skip
+   * the next persistence cycle. This prevents redundant writes where
+   * data loaded from storage would be immediately written back.
+   * Chains are removed from this set after being skipped once.
+   */
+  readonly #chainsLoadedFromStorage: Set<Hex> = new Set();
+
+  /**
    * Previous tokensChainsCache for detecting which chains changed.
    */
   #previousTokensChainsCache: TokensChainsCache = {};
@@ -281,7 +289,13 @@ export class TokenListController extends StaticIntervalPollingController<TokenLi
 
       // Chain is new or timestamp changed (indicating data update)
       if (!prevData || prevData.timestamp !== newData.timestamp) {
-        this.#changedChainsToPersist.add(chainId);
+        // Skip persistence for chains that were just loaded from storage
+        // (they don't need to be written back immediately)
+        if (this.#chainsLoadedFromStorage.has(chainId)) {
+          this.#chainsLoadedFromStorage.delete(chainId); // Clean up - future updates should persist
+        } else {
+          this.#changedChainsToPersist.add(chainId);
+        }
       }
     }
 
@@ -401,6 +415,14 @@ export class TokenListController extends StaticIntervalPollingController<TokenLi
       // Merge loaded cache with existing state, preferring existing data
       // (which may be fresher if fetched during initialization)
       if (Object.keys(loadedCache).length > 0) {
+        // Track which chains we're actually loading from storage
+        // These will be skipped in the next #onCacheChanged to avoid redundant writes
+        for (const chainId of Object.keys(loadedCache) as Hex[]) {
+          if (!this.state.tokensChainsCache[chainId]) {
+            this.#chainsLoadedFromStorage.add(chainId);
+          }
+        }
+
         this.update((state) => {
           // Only load chains that don't already exist in state
           // This prevents overwriting fresh API data with stale cached data
@@ -411,26 +433,11 @@ export class TokenListController extends StaticIntervalPollingController<TokenLi
           }
         });
 
-        // Clear persistence for chains loaded from storage only.
-        // Data loaded from storage doesn't need to be re-persisted.
-        // The update() call above triggers #onCacheChanged which detects all
-        // loaded chains as "new" (since #previousTokensChainsCache is empty)
-        // and schedules them for persistence. We must clear these to avoid
-        // redundant storage writes on every initialization.
-        // However, we must NOT clear chains from initial state that were never
-        // persisted to storage - those still need their first persist.
-        if (this.#persistDebounceTimer) {
-          clearTimeout(this.#persistDebounceTimer);
-          this.#persistDebounceTimer = undefined;
-        }
-        // Only remove loaded chains, not chains from initial state that need first persist
-        for (const chainId of Object.keys(loadedCache) as Hex[]) {
-          this.#changedChainsToPersist.delete(chainId);
-        }
-        // Re-schedule persistence if there are remaining chains to persist
-        if (this.#changedChainsToPersist.size > 0) {
-          this.#debouncePersist();
-        }
+        // Note: The update() call above triggers #onCacheChanged. Chains that were
+        // just loaded from storage are tracked in #chainsLoadedFromStorage and will
+        // be skipped from persistence (since they're already in storage).
+        // Chains from initial state that were NOT overwritten will still be persisted
+        // correctly, as they're not in #chainsLoadedFromStorage.
       }
     } catch (error) {
       console.error(
@@ -550,6 +557,7 @@ export class TokenListController extends StaticIntervalPollingController<TokenLi
       this.#persistDebounceTimer = undefined;
     }
     this.#changedChainsToPersist.clear();
+    this.#chainsLoadedFromStorage.clear();
   }
 
   /**
@@ -681,6 +689,7 @@ export class TokenListController extends StaticIntervalPollingController<TokenLi
       this.#persistDebounceTimer = undefined;
     }
     this.#changedChainsToPersist.clear();
+    this.#chainsLoadedFromStorage.clear();
     this.#previousTokensChainsCache = {};
 
     // Wait for any in-flight persist operation to complete before clearing storage.
