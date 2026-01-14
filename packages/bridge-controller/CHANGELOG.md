@@ -7,6 +7,11 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+### Added
+
+- Add `has_gas_included_quote` property to `QuoteFetchData` type and compute it in `QuotesReceived` event to indicate if any received quote has gas included ([#7611](https://github.com/MetaMask/core/pull/7611))
+- Add optional `usd_balance_source` property to `QuotesReceived` event and `getQuotesReceivedProperties` utility to allow clients to pass the source token balance in USD ([#7611](https://github.com/MetaMask/core/pull/7611))
+
 ## [64.4.1]
 
 ### Changed

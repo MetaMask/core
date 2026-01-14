@@ -1621,7 +1621,7 @@ describe('TokensController', () => {
             .get(
               `/token/${convertHexToDecimal(
                 chainId,
-              )}?address=${dummyTokenAddress}`,
+              )}?address=${dummyTokenAddress}&includeRwaData=true`,
             )
             .reply(200, { error })
             .persist();
