@@ -124,11 +124,6 @@
       "count": 2
     }
   },
-  "packages/announcement-controller/src/AnnouncementController.test.ts": {
-    "@typescript-eslint/explicit-function-return-type": {
-      "count": 1
-    }
-  },
   "packages/approval-controller/src/ApprovalController.test.ts": {
     "@typescript-eslint/explicit-function-return-type": {
       "count": 22
