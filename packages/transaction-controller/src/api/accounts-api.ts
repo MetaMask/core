@@ -206,7 +206,7 @@ export async function getAccountTransactions(
 
   log('Getting account transactions', { request, url });
 
-  const clientId = [CLIENT_ID, ...(tags || [])].join('__');
+  const clientId = [CLIENT_ID, ...(tags ?? [])].join('__');
 
   const headers = {
     [CLIENT_HEADER]: clientId,

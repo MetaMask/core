@@ -1,5 +1,4 @@
 /* eslint-disable jest/no-restricted-matchers */
-import { Contract } from '@ethersproject/contracts';
 import { deriveStateFromMetadata } from '@metamask/base-controller';
 import {
   BtcScope,
@@ -18,14 +17,11 @@ import {
 } from './constants/bridge';
 import { SWAPS_API_V2_BASE_URL } from './constants/swaps';
 import * as selectors from './selectors';
-import {
-  ChainId,
-  RequestStatus,
-  SortOrder,
-  StatusTypes,
-  type BridgeControllerMessenger,
-  type QuoteResponse,
-  type GenericQuoteRequest,
+import { ChainId, RequestStatus, SortOrder, StatusTypes } from './types';
+import type {
+  BridgeControllerMessenger,
+  QuoteResponse,
+  GenericQuoteRequest,
 } from './types';
 import * as balanceUtils from './utils/balance';
 import { getNativeAssetForChainId, isSolanaChainId } from './utils/bridge';
@@ -307,7 +303,7 @@ describe('BridgeController', function () {
     expect(trackMetaMetricsFn.mock.calls).toMatchSnapshot();
   });
 
-  it('updateBridgeQuoteRequestParams should not call fetchBridgeQuotes if SSE is not enabled', async function () {
+  it('updateBridgeQuoteRequestParams should not call fetchBridgeQuotes if SSE is enabled', async function () {
     jest.useFakeTimers();
     const stopAllPollingSpy = jest.spyOn(bridgeController, 'stopAllPolling');
     const startPollingSpy = jest.spyOn(bridgeController, 'startPolling');
@@ -365,6 +361,7 @@ describe('BridgeController', function () {
       updatedQuoteRequest: {
         ...quoteRequest,
         insufficientBal: false,
+        resetApproval: false,
       },
       context: metricsContext,
     });
@@ -375,8 +372,7 @@ describe('BridgeController', function () {
         quoteRequest: { ...quoteRequest, walletAddress: '0x123' },
         quotes: DEFAULT_BRIDGE_CONTROLLER_STATE.quotes,
         quotesLastFetched: DEFAULT_BRIDGE_CONTROLLER_STATE.quotesLastFetched,
-        quotesLoadingStatus:
-          DEFAULT_BRIDGE_CONTROLLER_STATE.quotesLoadingStatus,
+        quotesLoadingStatus: RequestStatus.LOADING,
       }),
     );
 
@@ -485,6 +481,7 @@ describe('BridgeController', function () {
       updatedQuoteRequest: {
         ...quoteRequest,
         insufficientBal: false,
+        resetApproval: false,
       },
       context: metricsContext,
     });
@@ -495,8 +492,7 @@ describe('BridgeController', function () {
         quoteRequest: { ...quoteRequest, walletAddress: '0x123' },
         quotes: DEFAULT_BRIDGE_CONTROLLER_STATE.quotes,
         quotesLastFetched: DEFAULT_BRIDGE_CONTROLLER_STATE.quotesLastFetched,
-        quotesLoadingStatus:
-          DEFAULT_BRIDGE_CONTROLLER_STATE.quotesLoadingStatus,
+        quotesLoadingStatus: RequestStatus.LOADING,
       }),
     );
 
@@ -508,6 +504,7 @@ describe('BridgeController', function () {
       {
         ...quoteRequest,
         insufficientBal: false,
+        resetApproval: false,
       },
       expect.any(AbortSignal),
       BridgeClientId.EXTENSION,
@@ -522,18 +519,26 @@ describe('BridgeController', function () {
 
     expect(bridgeController.state).toStrictEqual(
       expect.objectContaining({
-        quoteRequest: { ...quoteRequest, insufficientBal: false },
+        quoteRequest: {
+          ...quoteRequest,
+          insufficientBal: false,
+          resetApproval: false,
+        },
         quotes: [],
         quotesLoadingStatus: 0,
       }),
     );
 
     // After first fetch
-    jest.advanceTimersByTime(10000);
+    jest.advanceTimersToNextTimer();
     await flushPromises();
     expect(bridgeController.state).toStrictEqual(
       expect.objectContaining({
-        quoteRequest: { ...quoteRequest, insufficientBal: false },
+        quoteRequest: {
+          ...quoteRequest,
+          insufficientBal: false,
+          resetApproval: false,
+        },
         quotes: mockBridgeQuotesNativeErc20Eth,
         quotesLoadingStatus: 1,
       }),
@@ -543,11 +548,17 @@ describe('BridgeController', function () {
 
     expect(fetchBridgeQuotesSpy).toHaveBeenCalledTimes(1);
     // After 2nd fetch
-    jest.advanceTimersByTime(50000);
+    jest.advanceTimersToNextTimer();
+    await flushPromises();
+    jest.advanceTimersToNextTimer();
     await flushPromises();
     expect(bridgeController.state).toStrictEqual(
       expect.objectContaining({
-        quoteRequest: { ...quoteRequest, insufficientBal: false },
+        quoteRequest: {
+          ...quoteRequest,
+          insufficientBal: false,
+          resetApproval: false,
+        },
         quotes: [
           ...mockBridgeQuotesNativeErc20Eth,
           ...mockBridgeQuotesNativeErc20Eth,
@@ -563,12 +574,18 @@ describe('BridgeController', function () {
     expect(secondFetchTime).toBeGreaterThan(firstFetchTime!);
 
     // After 3nd fetch throws an error
-    jest.advanceTimersByTime(50000);
+    jest.advanceTimersToNextTimer();
+    await flushPromises();
+    jest.advanceTimersToNextTimer();
     await flushPromises();
     expect(fetchBridgeQuotesSpy).toHaveBeenCalledTimes(3);
     expect(bridgeController.state).toStrictEqual(
       expect.objectContaining({
-        quoteRequest: { ...quoteRequest, insufficientBal: false },
+        quoteRequest: {
+          ...quoteRequest,
+          insufficientBal: false,
+          resetApproval: false,
+        },
         quotes: [],
         quotesLoadingStatus: 2,
         quoteFetchError: 'Network error',
@@ -582,7 +599,7 @@ describe('BridgeController', function () {
     const thirdFetchTime = bridgeController.state.quotesLastFetched;
 
     // Incoming request update aborts current polling
-    jest.advanceTimersByTime(10000);
+    jest.advanceTimersToNextTimer();
     await flushPromises();
     await bridgeController.updateBridgeQuoteRequestParams(
       { ...quoteRequest, srcTokenAmount: '10', insufficientBal: false },
@@ -591,20 +608,23 @@ describe('BridgeController', function () {
         token_symbol_source: 'ETH',
         token_symbol_destination: 'USDC',
         security_warnings: [],
+        usd_amount_source: 100,
       },
     );
     await flushPromises();
     expect(fetchBridgeQuotesSpy).toHaveBeenCalledTimes(3);
 
     expect(bridgeController.state).toMatchSnapshot();
-    // expect(consoleLogSpy).toHaveBeenCalledTimes(1);
+    expect(consoleLogSpy).toHaveBeenCalledTimes(1);
     expect(consoleLogSpy).toHaveBeenCalledWith(
       'Failed to fetch bridge quotes',
       new Error('Network error'),
     );
 
     // Next fetch succeeds
-    jest.advanceTimersByTime(15000);
+    jest.advanceTimersToNextTimer();
+    await flushPromises();
+    jest.advanceTimersToNextTimer();
     await flushPromises();
     expect(fetchBridgeQuotesSpy).toHaveBeenCalledTimes(4);
     const { quotesLastFetched, quotes, ...stateWithoutTimestamp } =
@@ -767,7 +787,9 @@ describe('BridgeController', function () {
     );
 
     // Advance timers and check loading state
-    jest.advanceTimersByTime(200);
+    jest.advanceTimersToNextTimer();
+    await flushPromises();
+    jest.advanceTimersToNextTimer();
     await flushPromises();
     expect(fetchBridgeQuotesSpy).toHaveBeenCalledTimes(1);
     expect(bridgeController.state).toStrictEqual(
@@ -779,9 +801,9 @@ describe('BridgeController', function () {
     );
 
     // Advance timers and check final state
-    jest.advanceTimersByTime(2600);
+    jest.advanceTimersToNextTimer();
     await flushPromises();
-    jest.advanceTimersByTime(100);
+    jest.advanceTimersToNextTimer();
     await flushPromises();
     expect(bridgeController.state).toStrictEqual(
       expect.objectContaining({
@@ -791,11 +813,15 @@ describe('BridgeController', function () {
           nonEvmFeesInNative: '0.000000014',
         })),
         quotesLoadingStatus: RequestStatus.FETCHED,
-        quoteRequest: quoteParams,
+        quoteRequest: {
+          ...quoteParams,
+          resetApproval: false,
+          insufficientBal: undefined,
+        },
         quoteFetchError: null,
         assetExchangeRates: {},
         quotesRefreshCount: 1,
-        quotesInitialLoadTime: 2900,
+        quotesInitialLoadTime: 2100,
         quotesLastFetched: expect.any(Number),
       }),
     );
@@ -842,7 +868,13 @@ describe('BridgeController', function () {
       quoteParams,
       metricsContext,
     );
-    jest.advanceTimersByTime(3510);
+    jest.advanceTimersToNextTimer();
+    await flushPromises();
+    jest.advanceTimersToNextTimer();
+    await flushPromises();
+    jest.advanceTimersToNextTimer();
+    await flushPromises();
+    jest.advanceTimersToNextTimer();
     await flushPromises();
     expect(fetchBridgeQuotesSpy).toHaveBeenCalledTimes(3);
     expect(bridgeController.state).toStrictEqual(
@@ -853,7 +885,11 @@ describe('BridgeController', function () {
           nonEvmFeesInNative: '0.000000014',
         })),
         quotesLoadingStatus: RequestStatus.FETCHED,
-        quoteRequest: quoteParams,
+        quoteRequest: {
+          ...quoteParams,
+          resetApproval: false,
+          insufficientBal: undefined,
+        },
         quoteFetchError: null,
         assetExchangeRates: {},
         quotesRefreshCount: expect.any(Number),
@@ -878,7 +914,13 @@ describe('BridgeController', function () {
     );
 
     // Check states during failure scenario
-    jest.advanceTimersByTime(2210);
+    jest.advanceTimersToNextTimer();
+    await flushPromises();
+    jest.advanceTimersToNextTimer();
+    await flushPromises();
+    jest.advanceTimersToNextTimer();
+    await flushPromises();
+    jest.advanceTimersToNextTimer();
     await flushPromises();
     expect(fetchBridgeQuotesSpy).toHaveBeenCalledTimes(4);
     expect(bridgeController.state).toStrictEqual(
@@ -889,11 +931,16 @@ describe('BridgeController', function () {
           nonEvmFeesInNative: '0.000000014',
         })),
         quotesLoadingStatus: RequestStatus.FETCHED,
-        quoteRequest: { ...quoteParams, srcTokenAmount: '11111' },
+        quoteRequest: {
+          ...quoteParams,
+          srcTokenAmount: '11111',
+          insufficientBal: undefined,
+          resetApproval: false,
+        },
         quoteFetchError: null,
         assetExchangeRates: {},
-        quotesRefreshCount: expect.any(Number),
-        quotesInitialLoadTime: expect.any(Number),
+        quotesRefreshCount: 1,
+        quotesInitialLoadTime: 2100,
         quotesLastFetched: expect.any(Number),
       }),
     );
@@ -987,6 +1034,7 @@ describe('BridgeController', function () {
       updatedQuoteRequest: {
         ...quoteRequest,
         insufficientBal: true,
+        resetApproval: false,
       },
       context: metricsContext,
     });
@@ -998,8 +1046,7 @@ describe('BridgeController', function () {
         quotes: DEFAULT_BRIDGE_CONTROLLER_STATE.quotes,
         quotesLastFetched: DEFAULT_BRIDGE_CONTROLLER_STATE.quotesLastFetched,
         quotesInitialLoadTime: null,
-        quotesLoadingStatus:
-          DEFAULT_BRIDGE_CONTROLLER_STATE.quotesLoadingStatus,
+        quotesLoadingStatus: RequestStatus.LOADING,
       }),
     );
 
@@ -1011,6 +1058,7 @@ describe('BridgeController', function () {
       {
         ...quoteRequest,
         insufficientBal: true,
+        resetApproval: false,
       },
       expect.any(AbortSignal),
       BridgeClientId.EXTENSION,
@@ -1026,7 +1074,11 @@ describe('BridgeController', function () {
 
     expect(bridgeController.state).toStrictEqual(
       expect.objectContaining({
-        quoteRequest: { ...quoteRequest, insufficientBal: true },
+        quoteRequest: {
+          ...quoteRequest,
+          insufficientBal: true,
+          resetApproval: false,
+        },
         quotes: [],
         quotesLoadingStatus: 0,
         quotesLastFetched: t1,
@@ -1038,7 +1090,11 @@ describe('BridgeController', function () {
     await flushPromises();
     expect(bridgeController.state).toStrictEqual(
       expect.objectContaining({
-        quoteRequest: { ...quoteRequest, insufficientBal: true },
+        quoteRequest: {
+          ...quoteRequest,
+          insufficientBal: true,
+          resetApproval: false,
+        },
         quotes: mockBridgeQuotesNativeErc20Eth,
         quotesLoadingStatus: 1,
         quotesRefreshCount: 1,
@@ -1071,7 +1127,11 @@ describe('BridgeController', function () {
     expect(fetchBridgeQuotesSpy).toHaveBeenCalledTimes(1);
     expect(bridgeController.state).toStrictEqual(
       expect.objectContaining({
-        quoteRequest: { ...quoteRequest, insufficientBal: true },
+        quoteRequest: {
+          ...quoteRequest,
+          insufficientBal: true,
+          resetApproval: false,
+        },
         quotes: mockBridgeQuotesNativeErc20Eth,
         quotesLoadingStatus: 1,
         quotesRefreshCount: 1,
@@ -1185,6 +1245,7 @@ describe('BridgeController', function () {
       updatedQuoteRequest: {
         ...quoteRequest,
         insufficientBal: true,
+        resetApproval: false,
       },
       context: metricsContext,
     });
@@ -1198,7 +1259,11 @@ describe('BridgeController', function () {
     await flushPromises();
     expect(bridgeController.state).toStrictEqual(
       expect.objectContaining({
-        quoteRequest: { ...quoteRequest, insufficientBal: true },
+        quoteRequest: {
+          ...quoteRequest,
+          insufficientBal: true,
+          resetApproval: false,
+        },
         quotes: mockBridgeQuotesNativeErc20Eth,
         quotesLoadingStatus: 1,
         quotesRefreshCount: 1,
@@ -1289,100 +1354,6 @@ describe('BridgeController', function () {
           DEFAULT_BRIDGE_CONTROLLER_STATE.quotesLoadingStatus,
       }),
     );
-  });
-
-  describe('getBridgeERC20Allowance', () => {
-    it('should return the atomic allowance of the ERC20 token contract', async () => {
-      (Contract as unknown as jest.Mock).mockImplementation(() => ({
-        allowance: jest.fn(() => '100000000000000000000'),
-      }));
-
-      messengerMock.call
-        .mockReturnValueOnce('networkClientId-for-chain-0xa')
-        .mockReturnValueOnce({
-          // getNetworkClientById
-          address: '0x123',
-          provider: jest.fn(),
-        } as never);
-
-      const allowance = await bridgeController.getBridgeERC20Allowance(
-        '0x1f9840a85d5af5bf1d1762f925bdaddc4201f984',
-        '0xa',
-      );
-      expect(allowance).toBe('100000000000000000000');
-      expect(messengerMock.call).toHaveBeenCalledTimes(2);
-      expect(messengerMock.call).toHaveBeenNthCalledWith(
-        1,
-        'NetworkController:findNetworkClientIdByChainId',
-        '0xa',
-      );
-      expect(messengerMock.call).toHaveBeenNthCalledWith(
-        2,
-        'NetworkController:getNetworkClientById',
-        'networkClientId-for-chain-0xa',
-      );
-    });
-
-    it('should throw an error when no network client is found for chainId', async () => {
-      // Setup
-      const mockMessenger = {
-        call: jest.fn().mockImplementation((methodName) => {
-          if (methodName === 'NetworkController:findNetworkClientIdByChainId') {
-            return undefined; // No network client found
-          }
-          return undefined;
-        }),
-        registerActionHandler: jest.fn(),
-        publish: jest.fn(),
-        registerInitialEventPayload: jest.fn(),
-      } as unknown as jest.Mocked<BridgeControllerMessenger>;
-
-      const controller = new BridgeController({
-        messenger: mockMessenger,
-        clientId: BridgeClientId.EXTENSION,
-        clientVersion: '1.0.0',
-        getLayer1GasFee: jest.fn(),
-        fetchFn: mockFetchFn,
-        trackMetaMetricsFn,
-      });
-
-      // Test
-      await expect(
-        controller.getBridgeERC20Allowance('0xContractAddress', '0x1'),
-      ).rejects.toThrow('No network client found for chainId: 0x1');
-    });
-
-    it('should throw an error when no provider is found', async () => {
-      // Setup
-      const mockMessenger = {
-        call: jest.fn().mockImplementation((methodName) => {
-          if (methodName === 'NetworkController:findNetworkClientIdByChainId') {
-            return 'networkClientId-for-chain-0x1';
-          }
-          if (methodName === 'NetworkController:getNetworkClientById') {
-            return { provider: null };
-          }
-          return undefined;
-        }),
-        registerActionHandler: jest.fn(),
-        publish: jest.fn(),
-        registerInitialEventPayload: jest.fn(),
-      } as unknown as jest.Mocked<BridgeControllerMessenger>;
-
-      const controller = new BridgeController({
-        messenger: mockMessenger,
-        clientId: BridgeClientId.EXTENSION,
-        clientVersion: '1.0.0',
-        getLayer1GasFee: jest.fn(),
-        fetchFn: mockFetchFn,
-        trackMetaMetricsFn,
-      });
-
-      // Test
-      await expect(
-        controller.getBridgeERC20Allowance('0xContractAddress', '0x1'),
-      ).rejects.toThrow('No provider found');
-    });
   });
 
   it.each([
@@ -1499,6 +1470,7 @@ describe('BridgeController', function () {
         updatedQuoteRequest: {
           ...quoteRequest,
           insufficientBal: true,
+          resetApproval: false,
         },
         context: metricsContext,
       });
@@ -1508,8 +1480,7 @@ describe('BridgeController', function () {
           quoteRequest,
           quotes: DEFAULT_BRIDGE_CONTROLLER_STATE.quotes,
           quotesLastFetched: DEFAULT_BRIDGE_CONTROLLER_STATE.quotesLastFetched,
-          quotesLoadingStatus:
-            DEFAULT_BRIDGE_CONTROLLER_STATE.quotesLoadingStatus,
+          quotesLoadingStatus: RequestStatus.LOADING,
         }),
       );
 
@@ -1521,6 +1492,7 @@ describe('BridgeController', function () {
         {
           ...quoteRequest,
           insufficientBal: true,
+          resetApproval: false,
         },
         expect.any(AbortSignal),
         BridgeClientId.EXTENSION,
@@ -1535,7 +1507,11 @@ describe('BridgeController', function () {
 
       expect(bridgeController.state).toStrictEqual(
         expect.objectContaining({
-          quoteRequest: { ...quoteRequest, insufficientBal: true },
+          quoteRequest: {
+            ...quoteRequest,
+            insufficientBal: true,
+            resetApproval: false,
+          },
           quotes: [],
           quotesLoadingStatus: 0,
         }),
@@ -1548,7 +1524,11 @@ describe('BridgeController', function () {
       expect(quotes).toHaveLength(expectedQuotesLength);
       expect(bridgeController.state).toStrictEqual(
         expect.objectContaining({
-          quoteRequest: { ...quoteRequest, insufficientBal: true },
+          quoteRequest: {
+            ...quoteRequest,
+            insufficientBal: true,
+            resetApproval: false,
+          },
           quotesLoadingStatus: 1,
           quotesRefreshCount: 1,
         }),
@@ -1633,9 +1613,10 @@ describe('BridgeController', function () {
     );
 
     // Advance timers to trigger fetch
-    jest.advanceTimersByTime(1000);
+    jest.advanceTimersToNextTimer();
     await flushPromises();
-
+    jest.advanceTimersToNextTimer();
+    await flushPromises();
     // Verify state wasn't updated due to abort
     expect(bridgeController.state.quoteFetchError).toBe('Other error');
     expect(bridgeController.state.quotesLoadingStatus).toBe(
@@ -1643,10 +1624,8 @@ describe('BridgeController', function () {
     );
     expect(bridgeController.state.quotes).toStrictEqual([]);
 
-    // Verify state wasn't updated due to reset
+    // Verify state is reset
     bridgeController.resetState();
-    jest.advanceTimersByTime(1000);
-    await flushPromises();
     expect(bridgeController.state.quoteFetchError).toBeNull();
     expect(bridgeController.state.quotesLoadingStatus).toBeNull();
     expect(bridgeController.state.quotes).toStrictEqual([]);
@@ -1656,6 +1635,9 @@ describe('BridgeController', function () {
       quoteParams,
       metricsContext,
     );
+
+    jest.advanceTimersToNextTimer();
+    await flushPromises();
     jest.advanceTimersByTime(10000);
     await flushPromises();
     const { quotes, quotesLastFetched, ...stateWithoutQuotes } =
@@ -2035,7 +2017,7 @@ describe('BridgeController', function () {
               return setTimeout(() => {
                 resolve([
                   {
-                    type: 'base',
+                    type: 'priority',
                     asset: {
                       unit: 'BTC',
                       type: 'bip122:000000000019d6689c085ae165831e93/slip44:0',
@@ -2111,6 +2093,10 @@ describe('BridgeController', function () {
         srcChainId: ChainId.BTC,
       },
     })) as unknown as QuoteResponse[];
+
+    const consoleErrorSpy = jest
+      .spyOn(console, 'error')
+      .mockImplementation(jest.fn());
 
     messengerMock.call.mockImplementation(
       (
@@ -2192,6 +2178,15 @@ describe('BridgeController', function () {
     expect(quotes).toHaveLength(2); // mockBridgeQuotesSolErc20 has 2 quotes
     expect(quotes[0].nonEvmFeesInNative).toBeUndefined();
     expect(quotes[1].nonEvmFeesInNative).toBeUndefined();
+    expect(consoleErrorSpy).toHaveBeenCalledTimes(2);
+    expect(consoleErrorSpy).toHaveBeenCalledWith(
+      'Failed to compute non-EVM fees for quote 5cb5a527-d4e4-4b5e-b753-136afc3986d3:',
+      new Error('Failed to compute fees'),
+    );
+    expect(consoleErrorSpy).toHaveBeenCalledWith(
+      'Failed to compute non-EVM fees for quote 12c94d29-4b5c-4aee-92de-76eee4172d3d:',
+      new Error('Failed to compute fees'),
+    );
   });
 
   describe('trackUnifiedSwapBridgeEvent client-side calls', () => {
@@ -2209,6 +2204,7 @@ describe('BridgeController', function () {
           security_warnings: [],
           token_symbol_source: 'ETH',
           token_symbol_destination: 'USDC',
+          usd_amount_source: 100,
         },
       );
       jest.clearAllMocks();
@@ -2656,6 +2652,7 @@ describe('BridgeController', function () {
           stx_enabled: false,
           security_warnings: [],
           token_symbol_source: 'ETH',
+          usd_amount_source: 100,
           token_symbol_destination: 'USDC',
         },
       );
@@ -2677,7 +2674,7 @@ describe('BridgeController', function () {
       expect(trackMetaMetricsFn).toHaveBeenCalledTimes(0);
       expect(errorSpy).toHaveBeenCalledTimes(1);
       expect(errorSpy).toHaveBeenCalledWith(
-        'Error tracking cross-chain swaps MetaMetrics event',
+        'Error tracking cross-chain swaps MetaMetrics event Unified SwapBridge Quotes Received',
         new TypeError("Cannot read properties of undefined (reading 'type')"),
       );
     });
@@ -2788,6 +2785,7 @@ describe('BridgeController', function () {
               "fee": 0,
               "gasIncluded": false,
               "gasIncluded7702": false,
+              "resetApproval": false,
               "slippage": 0.5,
               "srcChainId": "solana:5eykt4UsFv8P8NJdTREpY1vzqKqZKvdp",
               "srcTokenAddress": "NATIVE",
@@ -2883,6 +2881,7 @@ describe('BridgeController', function () {
               "fee": 0,
               "gasIncluded": false,
               "gasIncluded7702": false,
+              "resetApproval": false,
               "slippage": 0.5,
               "srcChainId": "solana:5eykt4UsFv8P8NJdTREpY1vzqKqZKvdp",
               "srcTokenAddress": "NATIVE",
@@ -2935,6 +2934,7 @@ describe('BridgeController', function () {
               "destTokenAddress": "0x1234",
               "gasIncluded": false,
               "gasIncluded7702": false,
+              "resetApproval": false,
               "slippage": 0.5,
               "srcChainId": "solana:5eykt4UsFv8P8NJdTREpY1vzqKqZKvdp",
               "srcTokenAddress": "NATIVE",

@@ -1,13 +1,12 @@
 import {
-  type CaipChainId,
   hasProperty,
   isCaipAccountId,
   isCaipChainId,
   isCaipNamespace,
   isCaipReference,
   KnownCaipNamespace,
-  type Hex,
 } from '@metamask/utils';
+import type { CaipChainId, Hex } from '@metamask/utils';
 
 import { Caip25Errors } from './errors';
 import {

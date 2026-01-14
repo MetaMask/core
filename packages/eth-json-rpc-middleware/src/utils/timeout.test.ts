@@ -4,11 +4,11 @@ describe('timeout', () => {
   describe('with real timers', () => {
     it('does not resolve in the current event loop', async () => {
       const winner = await Promise.race([
-        (async () => {
+        (async (): Promise<string> => {
           await timeout(0);
           return 'timeout';
         })(),
-        (async () => {
+        (async (): Promise<string> => {
           // nextTick runs immediately at the start of the next event loop
           await new Promise((resolve) => process.nextTick(resolve));
           return 'nextTick';
@@ -20,11 +20,11 @@ describe('timeout', () => {
 
     it('resolves in the next event loop', async () => {
       const winner = await Promise.race([
-        (async () => {
+        (async (): Promise<string> => {
           await timeout(0);
           return 'timeout';
         })(),
-        (async () => {
+        (async (): Promise<string> => {
           // setImmediate will run all queued functions
           await new Promise((resolve) => setImmediate(resolve));
           return 'setImmediate';

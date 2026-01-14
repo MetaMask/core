@@ -1,26 +1,24 @@
 import { safelyExecuteWithTimeout } from '@metamask/controller-utils';
-import {
-  Messenger,
-  MOCK_ANY_NAMESPACE,
-  type MessengerActions,
-  type MessengerEvents,
-  type MockAnyNamespace,
+import { Messenger, MOCK_ANY_NAMESPACE } from '@metamask/messenger';
+import type {
+  MessengerActions,
+  MessengerEvents,
+  MockAnyNamespace,
 } from '@metamask/messenger';
 import nock, { cleanAll } from 'nock';
 import sinon from 'sinon';
 
-import type { PhishingControllerMessenger } from './PhishingController';
 import {
   PhishingController,
-  type PhishingControllerOptions,
   SECURITY_ALERTS_BASE_URL,
   TOKEN_BULK_SCANNING_ENDPOINT,
 } from './PhishingController';
-import {
-  type BulkTokenScanRequest,
-  type TokenScanApiResponse,
-  TokenScanResultType,
-} from './types';
+import type {
+  PhishingControllerMessenger,
+  PhishingControllerOptions,
+} from './PhishingController';
+import { TokenScanResultType } from './types';
+import type { BulkTokenScanRequest, TokenScanApiResponse } from './types';
 
 jest.mock('@metamask/controller-utils', () => ({
   ...jest.requireActual('@metamask/controller-utils'),

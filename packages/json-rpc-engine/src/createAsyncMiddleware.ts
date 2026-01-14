@@ -65,7 +65,7 @@ export function createAsyncMiddleware<
     let nextWasCalled = false;
 
     // This will be called by the consumer's async middleware.
-    const asyncNext = async () => {
+    const asyncNext = async (): Promise<void> => {
       nextWasCalled = true;
 
       // We pass a return handler to next(). When it is called by the engine,

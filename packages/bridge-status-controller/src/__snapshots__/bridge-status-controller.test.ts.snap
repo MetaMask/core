@@ -531,6 +531,8 @@ exports[`BridgeStatusController submitTx: EVM bridge should call handleMobileHar
 Array [
   Array [
     "BridgeController:stopPollingForQuotes",
+    "Transaction submitted",
+    undefined,
   ],
   Array [
     "AccountsController:getAccountByAddress",
@@ -764,6 +766,8 @@ exports[`BridgeStatusController submitTx: EVM bridge should delay after submitti
 Array [
   Array [
     "BridgeController:stopPollingForQuotes",
+    "Transaction submitted",
+    undefined,
   ],
   Array [
     "AccountsController:getAccountByAddress",
@@ -997,6 +1001,8 @@ exports[`BridgeStatusController submitTx: EVM bridge should delay after submitti
 Array [
   Array [
     "BridgeController:stopPollingForQuotes",
+    "Transaction submitted",
+    undefined,
   ],
   Array [
     "AccountsController:getAccountByAddress",
@@ -1081,7 +1087,7 @@ Array [
 ]
 `;
 
-exports[`BridgeStatusController submitTx: EVM bridge should handle smart transactions and publish QuotesReceived event if quotes are still loading 1`] = `
+exports[`BridgeStatusController submitTx: EVM bridge should handle smart transactions and include quotesReceivedContext 1`] = `
 Object {
   "batchId": "batchId1",
   "chainId": "0xa4b1",
@@ -1105,7 +1111,7 @@ Object {
 }
 `;
 
-exports[`BridgeStatusController submitTx: EVM bridge should handle smart transactions and publish QuotesReceived event if quotes are still loading 2`] = `
+exports[`BridgeStatusController submitTx: EVM bridge should handle smart transactions and include quotesReceivedContext 2`] = `
 Object {
   "account": "0xaccount1",
   "approvalTxId": undefined,
@@ -1227,7 +1233,7 @@ Object {
 }
 `;
 
-exports[`BridgeStatusController submitTx: EVM bridge should handle smart transactions and publish QuotesReceived event if quotes are still loading 3`] = `
+exports[`BridgeStatusController submitTx: EVM bridge should handle smart transactions and include quotesReceivedContext 3`] = `
 Array [
   Array [
     Object {
@@ -1245,7 +1251,7 @@ Array [
 ]
 `;
 
-exports[`BridgeStatusController submitTx: EVM bridge should handle smart transactions and publish QuotesReceived event if quotes are still loading 4`] = `
+exports[`BridgeStatusController submitTx: EVM bridge should handle smart transactions and include quotesReceivedContext 4`] = `
 Array [
   Array [
     Object {
@@ -1279,13 +1285,12 @@ Array [
 ]
 `;
 
-exports[`BridgeStatusController submitTx: EVM bridge should handle smart transactions and publish QuotesReceived event if quotes are still loading 5`] = `
+exports[`BridgeStatusController submitTx: EVM bridge should handle smart transactions and include quotesReceivedContext 5`] = `
 Array [
   Array [
-    "BridgeController:trackUnifiedSwapBridgeEvent",
-    "Unified SwapBridge Quotes Received",
+    "BridgeController:stopPollingForQuotes",
+    "Transaction submitted",
     Object {
-      "action_type": "swapbridge-v1",
       "best_quote_provider": "lifi_across",
       "can_submit": true,
       "gas_included": false,
@@ -1299,9 +1304,6 @@ Array [
         "low_return",
       ],
     },
-  ],
-  Array [
-    "BridgeController:stopPollingForQuotes",
   ],
   Array [
     "AccountsController:getAccountByAddress",
@@ -1496,6 +1498,8 @@ exports[`BridgeStatusController submitTx: EVM bridge should not call handleMobil
 Array [
   Array [
     "BridgeController:stopPollingForQuotes",
+    "Transaction submitted",
+    undefined,
   ],
   Array [
     "AccountsController:getAccountByAddress",
@@ -1729,6 +1733,8 @@ exports[`BridgeStatusController submitTx: EVM bridge should not call handleMobil
 Array [
   Array [
     "BridgeController:stopPollingForQuotes",
+    "Transaction submitted",
+    undefined,
   ],
   Array [
     "AccountsController:getAccountByAddress",
@@ -1962,11 +1968,11 @@ exports[`BridgeStatusController submitTx: EVM bridge should reset USDT allowance
 Array [
   Array [
     Object {
-      "chainId": "0xa4b1",
+      "chainId": "0x1",
       "networkClientId": "arbitrum-client-id",
       "transactionParams": Object {
-        "chainId": "0xa4b1",
-        "data": "0x095ea7b30000000000000000000000000439e60f02a8900a951603950d8d4527f400c3f10000000000000000000000000000000000000000000000000000000000000000",
+        "chainId": "0x1",
+        "data": "0x095ea7b3000000000000000000000000881d40237659c251811cec9c364ef91dc08d300c0000000000000000000000000000000000000000000000000000000000000000",
         "from": "0xaccount1",
         "gas": "21000",
         "gasLimit": "21000",
@@ -2012,8 +2018,8 @@ exports[`BridgeStatusController submitTx: EVM bridge should reset USDT allowance
 Array [
   Array [
     Object {
-      "chainId": "0xa4b1",
-      "data": "0x095ea7b30000000000000000000000000439e60f02a8900a951603950d8d4527f400c3f10000000000000000000000000000000000000000000000000000000000000000",
+      "chainId": "0x1",
+      "data": "0x095ea7b3000000000000000000000000881d40237659c251811cec9c364ef91dc08d300c0000000000000000000000000000000000000000000000000000000000000000",
       "from": "0xaccount1",
       "gas": "0x5208",
       "gasLimit": "21000",
@@ -2077,6 +2083,8 @@ exports[`BridgeStatusController submitTx: EVM bridge should reset USDT allowance
 Array [
   Array [
     "BridgeController:stopPollingForQuotes",
+    "Transaction submitted",
+    undefined,
   ],
   Array [
     "AccountsController:getAccountByAddress",
@@ -2106,17 +2114,12 @@ Array [
     },
   ],
   Array [
-    "BridgeController:getBridgeERC20Allowance",
-    "0x0000000000000000000000000000000000000000",
-    "0xa4b1",
-  ],
-  Array [
     "AccountsController:getAccountByAddress",
     "0xaccount1",
   ],
   Array [
     "NetworkController:findNetworkClientIdByChainId",
-    "0xa4b1",
+    "0x1",
   ],
   Array [
     "GasFeeController:getState",
@@ -2349,6 +2352,8 @@ exports[`BridgeStatusController submitTx: EVM bridge should successfully submit 
 Array [
   Array [
     "BridgeController:stopPollingForQuotes",
+    "Transaction submitted",
+    undefined,
   ],
   Array [
     "AccountsController:getAccountByAddress",
@@ -2602,6 +2607,8 @@ exports[`BridgeStatusController submitTx: EVM bridge should successfully submit 
 Array [
   Array [
     "BridgeController:stopPollingForQuotes",
+    "Transaction submitted",
+    undefined,
   ],
   Array [
     "AccountsController:getAccountByAddress",
@@ -2676,6 +2683,8 @@ exports[`BridgeStatusController submitTx: EVM bridge should throw an error if ap
 Array [
   Array [
     "BridgeController:stopPollingForQuotes",
+    "Transaction submitted",
+    undefined,
   ],
   Array [
     "AccountsController:getAccountByAddress",
@@ -2747,6 +2756,8 @@ exports[`BridgeStatusController submitTx: EVM bridge should throw an error if ap
 Array [
   Array [
     "BridgeController:stopPollingForQuotes",
+    "Transaction submitted",
+    undefined,
   ],
   Array [
     "AccountsController:getAccountByAddress",
@@ -2790,6 +2801,25 @@ Array [
     "TransactionController:getState",
   ],
 ]
+`;
+
+exports[`BridgeStatusController submitTx: EVM swap should estimate gas when gasIncluded is false and STX is off 1`] = `
+Object {
+  "chainId": "0xa4b1",
+  "hash": "0xevmTxHash",
+  "id": "test-tx-id",
+  "status": "unapproved",
+  "time": 1234567890,
+  "txParams": Object {
+    "chainId": "0xa4b1",
+    "data": "0xdata",
+    "from": "0xaccount1",
+    "gasLimit": "0x5208",
+    "to": "0xbridgeContract",
+    "value": "0x0",
+  },
+  "type": "swap",
+}
 `;
 
 exports[`BridgeStatusController submitTx: EVM swap should handle smart transactions 1`] = `
@@ -3015,6 +3045,8 @@ exports[`BridgeStatusController submitTx: EVM swap should handle smart transacti
 Array [
   Array [
     "BridgeController:stopPollingForQuotes",
+    "Transaction submitted",
+    undefined,
   ],
   Array [
     "AccountsController:getAccountByAddress",
@@ -3105,6 +3137,8 @@ exports[`BridgeStatusController submitTx: EVM swap should successfully submit an
 Array [
   Array [
     "BridgeController:stopPollingForQuotes",
+    "Transaction submitted",
+    undefined,
   ],
   Array [
     "AccountsController:getAccountByAddress",
@@ -3286,6 +3320,8 @@ exports[`BridgeStatusController submitTx: EVM swap should successfully submit an
 Array [
   Array [
     "BridgeController:stopPollingForQuotes",
+    "Transaction submitted",
+    undefined,
   ],
   Array [
     "AccountsController:getAccountByAddress",
@@ -3331,10 +3367,179 @@ Array [
 ]
 `;
 
+exports[`BridgeStatusController submitTx: EVM swap should use batch path when gasIncluded7702 is true regardless of STX setting 1`] = `
+Object {
+  "batchId": "batchId1",
+  "chainId": "0xa4b1",
+  "hash": "0xevmTxHash",
+  "id": "test-tx-id",
+  "status": "unapproved",
+  "time": 1234567890,
+  "txParams": Object {
+    "chainId": "0xa4b1",
+    "data": "0xdata",
+    "from": "0xaccount1",
+    "gasLimit": "0x5208",
+    "to": "0xbridgeContract",
+    "value": "0x0",
+  },
+  "type": "swap",
+}
+`;
+
+exports[`BridgeStatusController submitTx: EVM swap should use quote txFee when gasIncluded is true and STX is off (Max native token swap) 1`] = `
+Object {
+  "chainId": "0xa4b1",
+  "hash": "0xevmTxHash",
+  "id": "test-tx-id",
+  "status": "unapproved",
+  "time": 1234567890,
+  "txParams": Object {
+    "chainId": "0xa4b1",
+    "data": "0xdata",
+    "from": "0xaccount1",
+    "gasLimit": "0x5208",
+    "to": "0xbridgeContract",
+    "value": "0x0",
+  },
+  "type": "swap",
+}
+`;
+
+exports[`BridgeStatusController submitTx: EVM swap should use quote txFee when gasIncluded is true and STX is off (Max native token swap) 2`] = `
+Object {
+  "account": "0xaccount1",
+  "approvalTxId": undefined,
+  "batchId": undefined,
+  "estimatedProcessingTimeInSeconds": 0,
+  "featureId": undefined,
+  "hasApprovalTx": false,
+  "initialDestAssetBalance": undefined,
+  "isStxEnabled": false,
+  "pricingData": Object {
+    "amountSent": "1.234",
+    "amountSentInUsd": "1.01",
+    "quotedGasAmount": ".00055",
+    "quotedGasInUsd": "2.5778",
+    "quotedReturnInUsd": "0.134214",
+  },
+  "quote": Object {
+    "bridgeId": "lifi",
+    "bridges": Array [
+      "across",
+    ],
+    "destAsset": Object {
+      "address": "0x0000000000000000000000000000000000000000",
+      "assetId": "eip155:10/slip44:60",
+      "chainId": 10,
+      "coinKey": "ETH",
+      "decimals": 18,
+      "icon": "https://raw.githubusercontent.com/trustwallet/assets/master/blockchains/ethereum/assets/0xC02aaA39b223FE8D0A0e5C4F27eAD9083C756Cc2/logo.png",
+      "logoURI": "https://raw.githubusercontent.com/trustwallet/assets/master/blockchains/ethereum/assets/0xC02aaA39b223FE8D0A0e5C4F27eAD9083C756Cc2/logo.png",
+      "name": "ETH",
+      "priceUSD": "2478.63",
+      "symbol": "ETH",
+    },
+    "destChainId": 42161,
+    "destTokenAmount": "990654755978612",
+    "feeData": Object {
+      "metabridge": Object {
+        "amount": "8750000000000",
+        "asset": Object {
+          "address": "0x0000000000000000000000000000000000000000",
+          "assetId": "eip155:42161/slip44:60",
+          "chainId": 42161,
+          "coinKey": "ETH",
+          "decimals": 18,
+          "icon": "https://raw.githubusercontent.com/trustwallet/assets/master/blockchains/ethereum/assets/0xC02aaA39b223FE8D0A0e5C4F27eAD9083C756Cc2/logo.png",
+          "logoURI": "https://raw.githubusercontent.com/trustwallet/assets/master/blockchains/ethereum/assets/0xC02aaA39b223FE8D0A0e5C4F27eAD9083C756Cc2/logo.png",
+          "name": "ETH",
+          "priceUSD": "2478.7",
+          "symbol": "ETH",
+        },
+      },
+      "txFee": Object {
+        "maxFeePerGas": "1395348",
+        "maxPriorityFeePerGas": "1000001",
+      },
+    },
+    "gasIncluded": true,
+    "gasIncluded7702": false,
+    "minDestTokenAmount": "941000000000000",
+    "requestId": "197c402f-cb96-4096-9f8c-54aed84ca776",
+    "srcAsset": Object {
+      "address": "0x0000000000000000000000000000000000000000",
+      "assetId": "eip155:42161/slip44:60",
+      "chainId": 42161,
+      "coinKey": "ETH",
+      "decimals": 18,
+      "icon": "https://raw.githubusercontent.com/trustwallet/assets/master/blockchains/ethereum/assets/0xC02aaA39b223FE8D0A0e5C4F27eAD9083C756Cc2/logo.png",
+      "logoURI": "https://raw.githubusercontent.com/trustwallet/assets/master/blockchains/ethereum/assets/0xC02aaA39b223FE8D0A0e5C4F27eAD9083C756Cc2/logo.png",
+      "name": "ETH",
+      "priceUSD": "2478.7",
+      "symbol": "ETH",
+    },
+    "srcChainId": 42161,
+    "srcTokenAmount": "991250000000000",
+    "steps": Array [
+      Object {
+        "action": "bridge",
+        "destAmount": "990654755978612",
+        "destAsset": Object {
+          "address": "0x0000000000000000000000000000000000000000",
+          "assetId": "eip155:10/slip44:60",
+          "chainId": 10,
+          "coinKey": "ETH",
+          "decimals": 18,
+          "icon": "https://raw.githubusercontent.com/trustwallet/assets/master/blockchains/ethereum/assets/0xC02aaA39b223FE8D0A0e5C4F27eAD9083C756Cc2/logo.png",
+          "logoURI": "https://raw.githubusercontent.com/trustwallet/assets/master/blockchains/ethereum/assets/0xC02aaA39b223FE8D0A0e5C4F27eAD9083C756Cc2/logo.png",
+          "name": "ETH",
+          "priceUSD": "2478.63",
+          "symbol": "ETH",
+        },
+        "destChainId": 10,
+        "protocol": Object {
+          "displayName": "Across",
+          "icon": "https://raw.githubusercontent.com/lifinance/types/main/src/assets/icons/bridges/acrossv2.png",
+          "name": "across",
+        },
+        "srcAmount": "991250000000000",
+        "srcAsset": Object {
+          "address": "0x0000000000000000000000000000000000000000",
+          "assetId": "eip155:42161/slip44:60",
+          "chainId": 42161,
+          "coinKey": "ETH",
+          "decimals": 18,
+          "icon": "https://raw.githubusercontent.com/trustwallet/assets/master/blockchains/ethereum/assets/0xC02aaA39b223FE8D0A0e5C4F27eAD9083C756Cc2/logo.png",
+          "logoURI": "https://raw.githubusercontent.com/trustwallet/assets/master/blockchains/ethereum/assets/0xC02aaA39b223FE8D0A0e5C4F27eAD9083C756Cc2/logo.png",
+          "name": "ETH",
+          "priceUSD": "2478.7",
+          "symbol": "ETH",
+        },
+        "srcChainId": 42161,
+      },
+    ],
+  },
+  "slippagePercentage": 0,
+  "startTime": 1234567890,
+  "status": Object {
+    "srcChain": Object {
+      "chainId": 42161,
+      "txHash": "0xevmTxHash",
+    },
+    "status": "PENDING",
+  },
+  "targetContractAddress": undefined,
+  "txMetaId": "test-tx-id",
+}
+`;
+
 exports[`BridgeStatusController submitTx: Solana bridge should handle snap controller errors 1`] = `
 Array [
   Array [
     "BridgeController:stopPollingForQuotes",
+    "Transaction submitted",
+    undefined,
   ],
   Array [
     "AccountsController:getAccountByAddress",
@@ -3412,6 +3617,8 @@ exports[`BridgeStatusController submitTx: Solana bridge should successfully subm
 Array [
   Array [
     "BridgeController:stopPollingForQuotes",
+    "Transaction submitted",
+    undefined,
   ],
   Array [
     "AccountsController:getAccountByAddress",
@@ -3603,6 +3810,8 @@ exports[`BridgeStatusController submitTx: Solana bridge should throw error when 
 Array [
   Array [
     "BridgeController:stopPollingForQuotes",
+    "Transaction submitted",
+    undefined,
   ],
   Array [
     "AccountsController:getAccountByAddress",
@@ -3662,6 +3871,8 @@ exports[`BridgeStatusController submitTx: Solana swap should handle snap control
 Array [
   Array [
     "BridgeController:stopPollingForQuotes",
+    "Transaction submitted",
+    undefined,
   ],
   Array [
     "AccountsController:getAccountByAddress",
@@ -3739,6 +3950,8 @@ exports[`BridgeStatusController submitTx: Solana swap should successfully submit
 Array [
   Array [
     "BridgeController:stopPollingForQuotes",
+    "Transaction submitted",
+    undefined,
   ],
   Array [
     "AccountsController:getAccountByAddress",
@@ -3929,6 +4142,8 @@ exports[`BridgeStatusController submitTx: Solana swap should throw error when ac
 Array [
   Array [
     "BridgeController:stopPollingForQuotes",
+    "Transaction submitted",
+    undefined,
   ],
   Array [
     "AccountsController:getAccountByAddress",
@@ -3941,6 +4156,8 @@ exports[`BridgeStatusController submitTx: Solana swap should throw error when sn
 Array [
   Array [
     "BridgeController:stopPollingForQuotes",
+    "Transaction submitted",
+    undefined,
   ],
   Array [
     "AccountsController:getAccountByAddress",
@@ -4000,6 +4217,8 @@ exports[`BridgeStatusController submitTx: Tron swap with approval should handle 
 Array [
   Array [
     "BridgeController:stopPollingForQuotes",
+    "Transaction submitted",
+    undefined,
   ],
   Array [
     "AccountsController:getAccountByAddress",
@@ -4081,6 +4300,8 @@ exports[`BridgeStatusController submitTx: Tron swap with approval should success
 Array [
   Array [
     "BridgeController:stopPollingForQuotes",
+    "Transaction submitted",
+    undefined,
   ],
   Array [
     "AccountsController:getAccountByAddress",
@@ -4296,6 +4517,8 @@ exports[`BridgeStatusController submitTx: Tron swap with approval should success
 Array [
   Array [
     "BridgeController:stopPollingForQuotes",
+    "Transaction submitted",
+    undefined,
   ],
   Array [
     "AccountsController:getAccountByAddress",

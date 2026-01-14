@@ -1,29 +1,32 @@
 import { deriveStateFromMetadata } from '@metamask/base-controller';
 import { toHex } from '@metamask/controller-utils';
 import type { InternalAccount } from '@metamask/keyring-internal-api';
-import {
-  MOCK_ANY_NAMESPACE,
-  Messenger,
-  type MessengerActions,
-  type MessengerEvents,
-  type MockAnyNamespace,
+import { MOCK_ANY_NAMESPACE, Messenger } from '@metamask/messenger';
+import type {
+  MessengerActions,
+  MessengerEvents,
+  MockAnyNamespace,
 } from '@metamask/messenger';
 import { getDefaultNetworkControllerState } from '@metamask/network-controller';
 import {
   EarnSdk,
   EarnApiService,
-  type PooledStakingApiService,
-  type LendingApiService,
-  type LendingMarket,
   EarnEnvironments,
   ChainId,
+} from '@metamask/stake-sdk';
+import type {
+  PooledStakingApiService,
+  LendingApiService,
+  LendingMarket,
 } from '@metamask/stake-sdk';
 
 import {
   EarnController,
-  type EarnControllerState,
-  type EarnControllerMessenger,
   DEFAULT_POOLED_STAKING_CHAIN_STATE,
+} from './EarnController';
+import type {
+  EarnControllerState,
+  EarnControllerMessenger,
 } from './EarnController';
 import type { TransactionMeta } from '../../transaction-controller/src';
 import {
@@ -804,6 +807,14 @@ describe('EarnController', () => {
 
       // Verify that default lending state is still present
       expect(controller.state.lending).toBeDefined();
+
+      // Verify that default tron_staking state is still present
+      expect(controller.state.tron_staking).toBeNull();
+    });
+
+    it('initializes with null tron_staking state by default', async () => {
+      const { controller } = await setupController();
+      expect(controller.state.tron_staking).toBeNull();
     });
 
     it('initializes API service with default environment (PROD)', async () => {
@@ -2582,6 +2593,79 @@ describe('EarnController', () => {
     });
   });
 
+  describe('TRON Staking', () => {
+    describe('refreshTronStakingApy', () => {
+      it('updates state with fetched APY data', async () => {
+        const { controller } = await setupController();
+        const mockApy = '3.35';
+        const mockApyFetcher = jest.fn().mockResolvedValue(mockApy);
+
+        await controller.refreshTronStakingApy(mockApyFetcher);
+
+        expect(mockApyFetcher).toHaveBeenCalledTimes(1);
+        expect(controller.state.tron_staking).toStrictEqual(
+          expect.objectContaining({
+            apy: '3.35',
+            lastUpdated: expect.any(Number),
+          }),
+        );
+      });
+
+      it('overwrites existing APY data', async () => {
+        const { controller } = await setupController();
+
+        await controller.refreshTronStakingApy(
+          jest.fn().mockResolvedValue('3.35'),
+        );
+
+        const firstLastUpdated = controller.state.tron_staking?.lastUpdated;
+
+        await new Promise((resolve) => setTimeout(resolve, 10));
+
+        await controller.refreshTronStakingApy(
+          jest.fn().mockResolvedValue('4.0'),
+        );
+
+        expect(controller.state.tron_staking?.apy).toBe('4.0');
+        expect(controller.state.tron_staking?.lastUpdated).toBeGreaterThan(
+          firstLastUpdated as number,
+        );
+      });
+
+      it('handles apyFetcher errors', async () => {
+        const { controller } = await setupController();
+        const mockError = new Error('Failed to fetch APY');
+        const mockApyFetcher = jest.fn().mockRejectedValue(mockError);
+
+        await expect(
+          controller.refreshTronStakingApy(mockApyFetcher),
+        ).rejects.toThrow('Failed to fetch APY');
+
+        expect(controller.state.tron_staking).toBeNull();
+      });
+    });
+
+    describe('getTronStakingApy', () => {
+      it('returns APY when available', async () => {
+        const { controller } = await setupController();
+
+        await controller.refreshTronStakingApy(
+          jest.fn().mockResolvedValue('3.35'),
+        );
+
+        const result = controller.getTronStakingApy();
+        expect(result).toBe('3.35');
+      });
+
+      it('returns undefined when not available', async () => {
+        const { controller } = await setupController();
+
+        const result = controller.getTronStakingApy();
+        expect(result).toBeUndefined();
+      });
+    });
+  });
+
   describe('metadata', () => {
     it('includes expected state in debug snapshots', async () => {
       const { controller } = await setupController();
@@ -2608,9 +2692,10 @@ describe('EarnController', () => {
         'includeInStateLogs',
       );
 
-      // Compare `pooled_staking` separately to minimize size of snapshot
+      // Compare `pooled_staking` and `tron_staking` separately to minimize size of snapshot
       const {
         pooled_staking: derivedPooledStaking,
+        tron_staking: derivedTronStaking,
         ...derivedStateWithoutPooledStaking
       } = derivedState;
       expect(derivedPooledStaking).toStrictEqual({
@@ -2630,6 +2715,7 @@ describe('EarnController', () => {
         },
         isEligible: true,
       });
+      expect(derivedTronStaking).toBeNull();
       expect(derivedStateWithoutPooledStaking).toMatchInlineSnapshot(`
         Object {
           "lastUpdated": 0,
@@ -2699,9 +2785,10 @@ describe('EarnController', () => {
         'persist',
       );
 
-      // Compare `pooled_staking` separately to minimize size of snapshot
+      // Compare `pooled_staking` and `tron_staking` separately to minimize size of snapshot
       const {
         pooled_staking: derivedPooledStaking,
+        tron_staking: derivedTronStaking,
         ...derivedStateWithoutPooledStaking
       } = derivedState;
       expect(derivedPooledStaking).toStrictEqual({
@@ -2721,6 +2808,7 @@ describe('EarnController', () => {
         },
         isEligible: true,
       });
+      expect(derivedTronStaking).toBeNull();
       expect(derivedStateWithoutPooledStaking).toMatchInlineSnapshot(`
         Object {
           "lending": Object {
@@ -2789,9 +2877,10 @@ describe('EarnController', () => {
         'usedInUi',
       );
 
-      // Compare `pooled_staking` separately to minimize size of snapshot
+      // Compare `pooled_staking` and `tron_staking` separately to minimize size of snapshot
       const {
         pooled_staking: derivedPooledStaking,
+        tron_staking: derivedTronStaking,
         ...derivedStateWithoutPooledStaking
       } = derivedState;
       expect(derivedPooledStaking).toStrictEqual({
@@ -2811,6 +2900,7 @@ describe('EarnController', () => {
         },
         isEligible: true,
       });
+      expect(derivedTronStaking).toBeNull();
       expect(derivedStateWithoutPooledStaking).toMatchInlineSnapshot(`
         Object {
           "lending": Object {

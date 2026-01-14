@@ -9,6 +9,7 @@ export type {
   TransactionControllerEmulateTransactionUpdate,
   TransactionControllerEvents,
   TransactionControllerEstimateGasAction,
+  TransactionControllerEstimateGasBatchAction,
   TransactionControllerGetGasFeeTokensAction,
   TransactionControllerGetNonceLockAction,
   TransactionControllerGetStateAction,
@@ -106,10 +107,6 @@ export {
   UserFeeLevel,
   WalletDevice,
 } from './types';
-export {
-  DISPLAYED_TRANSACTION_HISTORY_PATHS,
-  MAX_TRANSACTION_HISTORY_LENGTH,
-} from './utils/history';
 export { determineTransactionType } from './utils/transaction-type';
 export { mergeGasFeeEstimates } from './utils/gas-flow';
 export {

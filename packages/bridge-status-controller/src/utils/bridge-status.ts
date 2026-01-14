@@ -1,4 +1,4 @@
-import { type Quote } from '@metamask/bridge-controller';
+import type { Quote } from '@metamask/bridge-controller';
 import { StructError } from '@metamask/superstruct';
 
 import { validateBridgeStatusResponse } from './validators';

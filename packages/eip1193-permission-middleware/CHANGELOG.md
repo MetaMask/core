@@ -9,9 +9,18 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ### Changed
 
+- Upgrade `@metamask/utils` from `^11.8.1` to `^11.9.0` ([#7511](https://github.com/MetaMask/core/pull/7511))
+- Bump `@metamask/controller-utils` from `^11.16.0` to `^11.18.0` ([#7534](https://github.com/MetaMask/core/pull/7534), [#7583](https://github.com/MetaMask/core/pull/7583))
+- Bump `@metamask/permission-controller` from `^12.1.1` to `^12.2.0` ([#7559](https://github.com/MetaMask/core/pull/7559))
+- Bump `@metamask/chain-agnostic-permission` from `^1.3.0` to `^1.4.0` ([#7567](https://github.com/MetaMask/core/pull/7567))
+
+## [1.0.3]
+
+### Changed
+
 - Bump `@metamask/json-rpc-engine` from `^10.1.1` to `^10.2.0` ([#7202](https://github.com/MetaMask/core/pull/7202))
 - Bump `@metamask/controller-utils` from `^11.15.0` to `^11.16.0` ([#7202](https://github.com/MetaMask/core/pull/7202))
-- Bump `@metamask/chain-agnostic-permission` from `^1.2.1` to `^1.2.2` ([#6986](https://github.com/MetaMask/core/pull/6986))
+- Bump `@metamask/chain-agnostic-permission` from `^1.2.1` to `^1.3.0` ([#6986](https://github.com/MetaMask/core/pull/6986)) ([#7322](https://github.com/MetaMask/core/pull/7322))
 - Bump `@metamask/permission-controller` from `^12.1.0` to `^12.1.1` ([#6988](https://github.com/MetaMask/core/pull/6988), [#7202](https://github.com/MetaMask/core/pull/7202))
 
 ## [1.0.2]
@@ -45,7 +54,8 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 - Initial release
 
-[Unreleased]: https://github.com/MetaMask/core/compare/@metamask/eip1193-permission-middleware@1.0.2...HEAD
+[Unreleased]: https://github.com/MetaMask/core/compare/@metamask/eip1193-permission-middleware@1.0.3...HEAD
+[1.0.3]: https://github.com/MetaMask/core/compare/@metamask/eip1193-permission-middleware@1.0.2...@metamask/eip1193-permission-middleware@1.0.3
 [1.0.2]: https://github.com/MetaMask/core/compare/@metamask/eip1193-permission-middleware@1.0.1...@metamask/eip1193-permission-middleware@1.0.2
 [1.0.1]: https://github.com/MetaMask/core/compare/@metamask/eip1193-permission-middleware@1.0.0...@metamask/eip1193-permission-middleware@1.0.1
 [1.0.0]: https://github.com/MetaMask/core/compare/@metamask/eip1193-permission-middleware@0.1.0...@metamask/eip1193-permission-middleware@1.0.0

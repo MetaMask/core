@@ -1,8 +1,6 @@
 import type { InternalProvider } from '@metamask/eth-json-rpc-provider';
-import {
-  createAsyncMiddleware,
-  type JsonRpcMiddleware as LegacyJsonRpcMiddleware,
-} from '@metamask/json-rpc-engine';
+import { createAsyncMiddleware } from '@metamask/json-rpc-engine';
+import type { JsonRpcMiddleware as LegacyJsonRpcMiddleware } from '@metamask/json-rpc-engine';
 import type { JsonRpcMiddleware } from '@metamask/json-rpc-engine/v2';
 import type { Json, JsonRpcParams, JsonRpcRequest } from '@metamask/utils';
 

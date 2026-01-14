@@ -10,8 +10,8 @@ import {
   aggregate3,
   getTokenBalancesForMultipleAddresses,
   getStakedBalancesForAddresses,
-  type Aggregate3Call,
 } from './multicall';
+import type { Aggregate3Call } from './multicall';
 
 const provider = new Web3Provider(jest.fn());
 

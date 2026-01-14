@@ -225,7 +225,7 @@ export default class NotificationServicesPushController extends BaseController<
     });
   }
 
-  async #getAndAssertBearerToken() {
+  async #getAndAssertBearerToken(): Promise<string> {
     const bearerToken = await this.messenger.call(
       'AuthenticationController:getBearerToken',
     );
@@ -239,7 +239,7 @@ export default class NotificationServicesPushController extends BaseController<
     return bearerToken;
   }
 
-  #updatePushState(command: StateCommand) {
+  #updatePushState(command: StateCommand): void {
     if (command.type === 'enable') {
       this.update((state) => {
         state.isPushEnabled = true;
@@ -266,7 +266,7 @@ export default class NotificationServicesPushController extends BaseController<
     }
   }
 
-  public async subscribeToPushNotifications() {
+  public async subscribeToPushNotifications(): Promise<void> {
     if (!this.#config.isPushFeatureEnabled) {
       return;
     }
@@ -296,7 +296,7 @@ export default class NotificationServicesPushController extends BaseController<
    *
    * @param addresses - An array of addresses to enable push notifications for.
    */
-  public async enablePushNotifications(addresses: string[]) {
+  public async enablePushNotifications(addresses: string[]): Promise<void> {
     if (!this.#config.isPushFeatureEnabled) {
       return;
     }
@@ -351,7 +351,7 @@ export default class NotificationServicesPushController extends BaseController<
    * Disables push notifications for the application.
    * This removes the registration token on this device, and ensures we unsubscribe from any listeners
    */
-  public async disablePushNotifications() {
+  public async disablePushNotifications(): Promise<void> {
     if (!this.#config.isPushFeatureEnabled) {
       return;
     }
@@ -394,7 +394,9 @@ export default class NotificationServicesPushController extends BaseController<
    * @param addresses - An array of addresses that should trigger push notifications.
    * @deprecated - this is not used anymore and will most likely be removed
    */
-  public async updateTriggerPushNotifications(addresses: string[]) {
+  public async updateTriggerPushNotifications(
+    addresses: string[],
+  ): Promise<void> {
     if (!this.#config.isPushFeatureEnabled) {
       return;
     }

@@ -5,11 +5,11 @@ import type { Hex } from '@metamask/utils';
 
 import type { PendingTransactionTracker } from '../helpers/PendingTransactionTracker';
 import { projectLogger } from '../logger';
-import {
-  type PublishBatchHook,
-  type PublishBatchHookRequest,
-  type PublishBatchHookResult,
-  type TransactionMeta,
+import type {
+  PublishBatchHook,
+  PublishBatchHookRequest,
+  PublishBatchHookResult,
+  TransactionMeta,
 } from '../types';
 
 const log = createModuleLogger(projectLogger, 'sequential-publish-batch-hook');

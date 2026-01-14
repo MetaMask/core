@@ -3,11 +3,8 @@ import type { Hex } from '@metamask/utils';
 
 import { updateTransactionLayer1GasFee } from './layer1-gas-fee-flow';
 import type { TransactionControllerMessenger } from '../TransactionController';
-import {
-  TransactionStatus,
-  type Layer1GasFeeFlow,
-  type TransactionMeta,
-} from '../types';
+import { TransactionStatus } from '../types';
+import type { Layer1GasFeeFlow, TransactionMeta } from '../types';
 
 jest.mock('@metamask/controller-utils', () => ({
   ...jest.requireActual('@metamask/controller-utils'),

@@ -4,9 +4,9 @@ import {
   deleteFromTrie,
   insertToTrie,
   isTerminal,
-  type PathTrie,
   matchedPathPrefix,
 } from './PathTrie';
+import type { PathTrie } from './PathTrie';
 
 const emptyPathTrie: PathTrie = {};
 

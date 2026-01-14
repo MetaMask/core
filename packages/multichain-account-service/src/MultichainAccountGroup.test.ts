@@ -1,4 +1,3 @@
-/* eslint-disable jsdoc/require-jsdoc */
 import type { Bip44Account } from '@metamask/account-api';
 import {
   AccountGroupType,
@@ -10,7 +9,6 @@ import type { InternalAccount } from '@metamask/keyring-internal-api';
 
 import { MultichainAccountGroup } from './MultichainAccountGroup';
 import { MultichainAccountWallet } from './MultichainAccountWallet';
-import type { MockAccountProvider } from './tests';
 import {
   MOCK_SNAP_ACCOUNT_2,
   MOCK_WALLET_1_BTC_P2TR_ACCOUNT,
@@ -21,8 +19,8 @@ import {
   setupNamedAccountProvider,
   getMultichainAccountServiceMessenger,
   getRootMessenger,
-  type RootMessenger,
 } from './tests';
+import type { MockAccountProvider, RootMessenger } from './tests';
 import type { MultichainAccountServiceMessenger } from './types';
 
 function setup({
@@ -52,10 +50,6 @@ function setup({
   });
 
   const serviceMessenger = getMultichainAccountServiceMessenger(messenger);
-  messenger.registerActionHandler(
-    'ErrorReportingService:captureException',
-    jest.fn(),
-  );
 
   const wallet = new MultichainAccountWallet<Bip44Account<InternalAccount>>({
     entropySource: MOCK_WALLET_1_ENTROPY_SOURCE,
@@ -230,13 +224,15 @@ describe('MultichainAccount', () => {
       });
       const providerError = new Error('Unable to create accounts');
       providers[1].createAccounts.mockRejectedValueOnce(providerError);
-      const callSpy = jest.spyOn(messenger, 'call');
+      const captureExceptionSpy = jest.spyOn(messenger, 'captureException');
       await group.alignAccounts();
-      expect(callSpy).toHaveBeenCalledWith(
-        'ErrorReportingService:captureException',
+      expect(captureExceptionSpy).toHaveBeenCalledWith(
         new Error('Unable to align accounts with provider "Mocked Provider"'),
       );
-      expect(callSpy.mock.lastCall[1]).toHaveProperty('cause', providerError);
+      expect(captureExceptionSpy.mock.lastCall[0]).toHaveProperty(
+        'cause',
+        providerError,
+      );
     });
   });
 });

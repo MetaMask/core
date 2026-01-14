@@ -1,10 +1,6 @@
-import { type StateMetadata } from '@metamask/base-controller';
-import {
-  type CaipChainId,
-  BtcScope,
-  SolScope,
-  TrxScope,
-} from '@metamask/keyring-api';
+import type { StateMetadata } from '@metamask/base-controller';
+import { BtcScope, SolScope, TrxScope } from '@metamask/keyring-api';
+import type { CaipChainId } from '@metamask/keyring-api';
 import { NetworkStatus } from '@metamask/network-controller';
 
 import type {

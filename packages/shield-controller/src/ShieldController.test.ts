@@ -1,20 +1,19 @@
 import { deriveStateFromMetadata } from '@metamask/base-controller';
+import { SignatureRequestStatus } from '@metamask/signature-controller';
 import type { SignatureRequest } from '@metamask/signature-controller';
-import {
-  SignatureRequestStatus,
-  type SignatureControllerState,
-} from '@metamask/signature-controller';
+import type { SignatureControllerState } from '@metamask/signature-controller';
+import { TransactionStatus } from '@metamask/transaction-controller';
 import type { TransactionMeta } from '@metamask/transaction-controller';
-import {
-  TransactionStatus,
-  type TransactionControllerState,
-} from '@metamask/transaction-controller';
+import type { TransactionControllerState } from '@metamask/transaction-controller';
 
-import { ShieldController } from './ShieldController';
-import type { NormalizeSignatureRequestFn } from './types';
+import {
+  ShieldController,
+  ShieldControllerMessenger,
+} from './ShieldController';
+import type { NormalizeSignatureRequestFn, ShieldBackend } from './types';
 import { TX_META_SIMULATION_DATA_MOCKS } from '../tests/data';
 import { createMockBackend, MOCK_COVERAGE_ID } from '../tests/mocks/backend';
-import { createMockMessenger } from '../tests/mocks/messenger';
+import { createMockMessenger, RootMessenger } from '../tests/mocks/messenger';
 import {
   generateMockSignatureRequest,
   generateMockTxMeta,
@@ -38,7 +37,12 @@ function setup({
   coverageHistoryLimit?: number;
   transactionHistoryLimit?: number;
   normalizeSignatureRequest?: NormalizeSignatureRequestFn;
-} = {}) {
+} = {}): {
+  controller: ShieldController;
+  messenger: ShieldControllerMessenger;
+  rootMessenger: RootMessenger;
+  backend: jest.Mocked<ShieldBackend>;
+} {
   const backend = createMockBackend();
   const { messenger, rootMessenger } = createMockMessenger();
 
@@ -186,9 +190,17 @@ describe('ShieldController', () => {
       const { controller, backend } = setup();
       backend.checkCoverage.mockResolvedValueOnce({
         coverageId: '0x00',
+        status: 'covered',
+        metrics: {
+          latency: 0,
+        },
       });
       backend.checkCoverage.mockResolvedValueOnce({
         coverageId: '0x01',
+        status: 'covered',
+        metrics: {
+          latency: 0,
+        },
       });
       const txMeta = generateMockTxMeta();
       await controller.checkCoverage(txMeta);
@@ -326,7 +338,10 @@ describe('ShieldController', () => {
       options?: {
         updateSignatureRequest?: (signatureRequest: SignatureRequest) => void;
       },
-    ) {
+    ): Promise<{
+      signatureRequest: SignatureRequest;
+      updatedSignatureRequest: SignatureRequest;
+    }> {
       const { messenger, rootMessenger } = components;
 
       // Create a promise that resolves when the state changes
@@ -380,6 +395,7 @@ describe('ShieldController', () => {
       const components = setup();
 
       components.backend.checkSignatureCoverage.mockResolvedValue({
+        // @ts-expect-error - testing mock
         coverageId: undefined,
         status: 'unknown',
       });
@@ -420,7 +436,7 @@ describe('ShieldController', () => {
     async function runTest(
       components: ReturnType<typeof setup>,
       options?: { updateTransaction: (txMeta: TransactionMeta) => void },
-    ) {
+    ): Promise<{ txMeta: TransactionMeta; updatedTxMeta: TransactionMeta }> {
       const { messenger, rootMessenger } = components;
       // Create a promise that resolves when the state changes
       const stateUpdated = new Promise((resolve) =>
@@ -469,6 +485,7 @@ describe('ShieldController', () => {
       const components = setup();
 
       components.backend.checkCoverage.mockResolvedValue({
+        // @ts-expect-error - testing mock
         coverageId: undefined,
         status: 'unknown',
       });

@@ -20,6 +20,9 @@ enum DirectiveTerminus {
 }
 
 export enum DirectiveCommand {
+  // TODO: This should be `OnlyIncludeIf`, but we need to preserve
+  // backwards-compatibility for now.
+  // eslint-disable-next-line @typescript-eslint/naming-convention
   ONLY_INCLUDE_IF = 'ONLY_INCLUDE_IF',
 }
 
@@ -262,8 +265,7 @@ export function removeFencedCode(
       // Forbid empty fences
       const { line: previousLine, indices: previousIndices } =
         // We're only in this case if i > 0, so this will always be defined.
-        // eslint-disable-next-line @typescript-eslint/no-non-null-assertion
-        parsedDirectives[i - 1]!;
+        parsedDirectives[i - 1];
       if (fileContent.substring(previousIndices[1], indices[0]).trim() === '') {
         throw new Error(
           `Empty fence found in file "${filePath}":\n${previousLine}\n${line}\n`,
@@ -320,7 +322,7 @@ export function multiSplice(
     throw new Error('Expected array of non-negative integers.');
   }
 
-  const retainedSubstrings = [];
+  const retainedSubstrings: string[] = [];
 
   // Get the first part to be included
   // The substring() call returns an empty string if splicingIndices[0] is 0,
@@ -340,8 +342,7 @@ export function multiSplice(
       retainedSubstrings.push(
         // splicingIndices[i] refers to an element between the first and last
         // elements of the array, and will always be defined.
-        // eslint-disable-next-line @typescript-eslint/no-non-null-assertion
-        toSplice.substring(splicingIndices[i]!, splicingIndices[i + 1]),
+        toSplice.substring(splicingIndices[i], splicingIndices[i + 1]),
       );
     }
   }
@@ -349,8 +350,7 @@ export function multiSplice(
   // Get the last part to be included
   retainedSubstrings.push(
     // The last element of a non-empty array will always be defined.
-    // eslint-disable-next-line @typescript-eslint/no-non-null-assertion
-    toSplice.substring(splicingIndices[splicingIndices.length - 1]!),
+    toSplice.substring(splicingIndices[splicingIndices.length - 1]),
   );
   return retainedSubstrings.join('');
 }
@@ -367,7 +367,7 @@ function getInvalidFenceLineMessage(
   filePath: string,
   line: string,
   details: string,
-) {
+): string {
   return `Invalid fence line in file "${filePath}": "${line}":\n${details}`;
 }
 
@@ -378,7 +378,10 @@ function getInvalidFenceLineMessage(
  * @param details - An explanation of the error.
  * @returns The error message.
  */
-function getInvalidFenceStructureMessage(filePath: string, details: string) {
+function getInvalidFenceStructureMessage(
+  filePath: string,
+  details: string,
+): string {
   return `Invalid fence structure in file "${filePath}":\n${details}`;
 }
 
@@ -394,7 +397,7 @@ function getInvalidFencePairMessage(
   filePath: string,
   line: string,
   details: string,
-) {
+): string {
   return `Invalid fence pair in file "${filePath}" due to line "${line}":\n${details}`;
 }
 
@@ -410,7 +413,7 @@ function getInvalidParamsMessage(
   filePath: string,
   details: string,
   command?: string,
-) {
+): string {
   return `Invalid code fence parameters in file "${filePath}"${
     command ? `for command "${command}"` : ''
   }:\n${details}`;

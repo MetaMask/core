@@ -8,7 +8,8 @@ import type {
   TransactionResponse,
 } from '../api/accounts-api';
 import { getAccountTransactions } from '../api/accounts-api';
-import { TransactionType, type RemoteTransactionSourceRequest } from '../types';
+import { TransactionType } from '../types';
+import type { RemoteTransactionSourceRequest } from '../types';
 
 jest.mock('../api/accounts-api');
 jest.mock('../utils/transaction-type');

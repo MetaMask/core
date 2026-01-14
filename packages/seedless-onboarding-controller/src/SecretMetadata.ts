@@ -75,26 +75,26 @@ export class SecretMetadata<DataType extends SecretDataType = Uint8Array>
    * so that the first secret backup will have the oldest timestamp
    * and the last secret backup will have the newest timestamp.
    *
-   * @param data - The data to add metadata to.
-   * @param data.value - The SeedPhrase/PrivateKey to add metadata to.
-   * @param data.options - The options for the seed phrase metadata.
+   * @param batchData - The data to add metadata to.
+   * @param batchData.value - The SeedPhrase/PrivateKey to add metadata to.
+   * @param batchData.options - The options for the seed phrase metadata.
    * @returns The SecretMetadata instances.
    */
   static fromBatch<DataType extends SecretDataType = Uint8Array>(
-    data: {
+    batchData: {
       value: DataType;
       options?: Partial<SecretMetadataOptions>;
     }[],
   ): SecretMetadata<DataType>[] {
     const timestamp = Date.now();
-    return data.map((d, index) => {
+    return batchData.map((data, index) => {
       // To respect the order of the seed phrases, we add the index to the timestamp
       // so that the first seed phrase backup will have the oldest timestamp
       // and the last seed phrase backup will have the newest timestamp
-      const backupCreatedAt = d.options?.timestamp ?? timestamp + index * 5;
-      return new SecretMetadata(d.value, {
+      const backupCreatedAt = data.options?.timestamp ?? timestamp + index * 5;
+      return new SecretMetadata(data.value, {
         timestamp: backupCreatedAt,
-        type: d.options?.type,
+        type: data.options?.type,
       });
     });
   }
@@ -206,15 +206,15 @@ export class SecretMetadata<DataType extends SecretDataType = Uint8Array>
     return this.#data;
   }
 
-  get timestamp() {
+  get timestamp(): number {
     return this.#timestamp;
   }
 
-  get type() {
+  get type(): SecretType {
     return this.#type;
   }
 
-  get version() {
+  get version(): SecretMetadataVersion {
     return this.#version;
   }
 

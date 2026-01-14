@@ -291,6 +291,7 @@ export const TronTradeDataSchema = type({
             }),
           ),
         ),
+        fee_limit: optional(number()),
       }),
     ),
   ),

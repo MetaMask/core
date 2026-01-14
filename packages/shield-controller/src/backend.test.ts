@@ -3,13 +3,19 @@ import {
   SignatureRequestType,
 } from '@metamask/signature-controller';
 
-import { parseSignatureRequestMethod, ShieldRemoteBackend } from './backend';
+import {
+  makeInitCoverageCheckBody,
+  parseSignatureRequestMethod,
+  ShieldRemoteBackend,
+} from './backend';
 import { SignTypedDataVersion } from './constants';
 import {
   generateMockSignatureRequest,
   generateMockTxMeta,
   getRandomCoverageResult,
 } from '../tests/utils';
+
+const mockCaptureException = jest.fn();
 
 /**
  * Setup the test environment.
@@ -25,7 +31,11 @@ function setup({
 }: {
   getCoverageResultTimeout?: number;
   getCoverageResultPollInterval?: number;
-} = {}) {
+} = {}): {
+  backend: ShieldRemoteBackend;
+  fetchMock: jest.MockedFunction<typeof fetch>;
+  getAccessToken: jest.Mock;
+} {
   // Setup fetch mock.
   const fetchMock = jest.spyOn(global, 'fetch') as jest.MockedFunction<
     typeof fetch
@@ -41,6 +51,7 @@ function setup({
     getCoverageResultPollInterval,
     fetch,
     baseUrl: 'https://rule-engine.metamask.io',
+    captureException: mockCaptureException,
   });
 
   return {
@@ -166,6 +177,15 @@ describe('ShieldRemoteBackend', () => {
     );
     expect(fetchMock).toHaveBeenCalledTimes(1);
     expect(getAccessToken).toHaveBeenCalledTimes(1);
+
+    const capturedError = new Error(
+      'Failed to init coverage check',
+    ) as Error & {
+      cause: Error;
+    };
+    capturedError.cause = new Error(`Failed to init coverage check: ${status}`);
+
+    expect(mockCaptureException).toHaveBeenCalledWith(capturedError);
   });
 
   it('should throw on check coverage timeout with coverage status', async () => {
@@ -350,6 +370,12 @@ describe('ShieldRemoteBackend', () => {
           status: 'shown',
         }),
       ).rejects.toThrow('Failed to log signature: 500');
+
+      const capturedError = new Error('Failed to log signature') as Error & {
+        cause: Error;
+      };
+      capturedError.cause = new Error('Failed to log signature: 500');
+      expect(mockCaptureException).toHaveBeenCalledWith(capturedError);
     });
   });
 
@@ -421,6 +447,43 @@ describe('ShieldRemoteBackend', () => {
       expect(parseSignatureRequestMethod(signatureRequest)).toBe(
         EthMethod.SignTypedDataV4,
       );
+    });
+  });
+
+  describe('makeInitCoverageCheckBody', () => {
+    it('makes init coverage check body', () => {
+      const txMeta = generateMockTxMeta();
+      const body = makeInitCoverageCheckBody(txMeta);
+      expect(body).toMatchObject({
+        txParams: [txMeta.txParams],
+      });
+    });
+
+    it('makes init coverage check body with authorization list', () => {
+      const txMeta = generateMockTxMeta();
+      const body = makeInitCoverageCheckBody({
+        ...txMeta,
+        txParams: {
+          ...txMeta.txParams,
+          authorizationList: [
+            {
+              address: '0x0000000000000000000000000000000000000000',
+            },
+          ],
+        },
+      });
+      expect(body).toMatchObject({
+        txParams: [
+          {
+            ...txMeta.txParams,
+            authorizationList: [
+              {
+                address: '0x0000000000000000000000000000000000000000',
+              },
+            ],
+          },
+        ],
+      });
     });
   });
 });

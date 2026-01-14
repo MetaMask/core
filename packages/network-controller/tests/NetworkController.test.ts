@@ -10,11 +10,12 @@ import {
   NetworkType,
   toHex,
 } from '@metamask/controller-utils';
+import { PollingBlockTrackerOptions } from '@metamask/eth-block-tracker';
 import { rpcErrors } from '@metamask/rpc-errors';
 import type { Hex } from '@metamask/utils';
 import assert from 'assert';
 import type { Patch } from 'immer';
-import { when, resetAllWhenMocks } from 'jest-when';
+import { when, resetAllWhenMocks, WhenMock } from 'jest-when';
 import { inspect, isDeepStrictEqual, promisify } from 'util';
 import { v4 as uuidV4 } from 'uuid';
 
@@ -33,6 +34,7 @@ import {
   buildUpdateNetworkCustomRpcEndpointFields,
   INFURA_NETWORKS,
   TESTNET,
+  withController,
 } from './helpers';
 import type { RootMessenger } from './helpers';
 import { FakeBlockTracker } from '../../../tests/fake-block-tracker';
@@ -50,8 +52,6 @@ import type {
   NetworkClientId,
   NetworkConfiguration,
   NetworkControllerEvents,
-  NetworkControllerMessenger,
-  NetworkControllerOptions,
   NetworkControllerStateChangeEvent,
   NetworkState,
 } from '../src/NetworkController';
@@ -64,6 +64,7 @@ import {
   selectAvailableNetworkClientIds,
   selectNetworkConfigurations,
 } from '../src/NetworkController';
+import type { RpcServiceOptions } from '../src/rpc-service/rpc-service';
 import type { NetworkClientConfiguration, Provider } from '../src/types';
 import { NetworkClientType } from '../src/types';
 
@@ -172,7 +173,10 @@ describe('NetworkController', () => {
               networkConfigurationsByChainId: {},
             },
             infuraProjectId: 'infura-project-id',
-            getRpcServiceOptions: () => ({
+            getRpcServiceOptions: (): Omit<
+              RpcServiceOptions,
+              'failoverService' | 'endpointUrl'
+            > => ({
               fetch,
               btoa,
             }),
@@ -198,7 +202,10 @@ describe('NetworkController', () => {
               },
             },
             infuraProjectId: 'infura-project-id',
-            getRpcServiceOptions: () => ({
+            getRpcServiceOptions: (): Omit<
+              RpcServiceOptions,
+              'failoverService' | 'endpointUrl'
+            > => ({
               fetch,
               btoa,
             }),
@@ -231,7 +238,10 @@ describe('NetworkController', () => {
               },
             },
             infuraProjectId: 'infura-project-id',
-            getRpcServiceOptions: () => ({
+            getRpcServiceOptions: (): Omit<
+              RpcServiceOptions,
+              'failoverService' | 'endpointUrl'
+            > => ({
               fetch,
               btoa,
             }),
@@ -263,7 +273,10 @@ describe('NetworkController', () => {
               },
             },
             infuraProjectId: 'infura-project-id',
-            getRpcServiceOptions: () => ({
+            getRpcServiceOptions: (): Omit<
+              RpcServiceOptions,
+              'failoverService' | 'endpointUrl'
+            > => ({
               fetch,
               btoa,
             }),
@@ -295,7 +308,10 @@ describe('NetworkController', () => {
               },
             },
             infuraProjectId: 'infura-project-id',
-            getRpcServiceOptions: () => ({
+            getRpcServiceOptions: (): Omit<
+              RpcServiceOptions,
+              'failoverService' | 'endpointUrl'
+            > => ({
               fetch,
               btoa,
             }),
@@ -337,7 +353,10 @@ describe('NetworkController', () => {
               },
             },
             infuraProjectId: 'infura-project-id',
-            getRpcServiceOptions: () => ({
+            getRpcServiceOptions: (): Omit<
+              RpcServiceOptions,
+              'failoverService' | 'endpointUrl'
+            > => ({
               fetch,
               btoa,
             }),
@@ -348,12 +367,8 @@ describe('NetworkController', () => {
     });
 
     it('corrects an invalid selectedNetworkClientId to the default RPC endpoint of the first chain, logging this fact', () => {
-      const captureExceptionMock = jest.fn();
-      const messenger = buildRootMessenger({
-        actionHandlers: {
-          'ErrorReportingService:captureException': captureExceptionMock,
-        },
-      });
+      const messenger = buildRootMessenger();
+      const captureExceptionSpy = jest.spyOn(messenger, 'captureException');
       const controllerMessenger = buildNetworkControllerMessenger(messenger);
 
       const controller = new NetworkController({
@@ -378,7 +393,10 @@ describe('NetworkController', () => {
           },
         },
         infuraProjectId: 'infura-project-id',
-        getRpcServiceOptions: () => ({
+        getRpcServiceOptions: (): Omit<
+          RpcServiceOptions,
+          'failoverService' | 'endpointUrl'
+        > => ({
           fetch,
           btoa,
         }),
@@ -387,7 +405,7 @@ describe('NetworkController', () => {
       expect(controller.state.selectedNetworkClientId).toBe(
         'BBBB-BBBB-BBBB-BBBB',
       );
-      expect(captureExceptionMock).toHaveBeenCalledWith(
+      expect(captureExceptionSpy).toHaveBeenCalledWith(
         new Error(
           "`selectedNetworkClientId` 'nonexistent' does not refer to an RPC endpoint within a network configuration; correcting to 'BBBB-BBBB-BBBB-BBBB'",
         ),
@@ -395,12 +413,8 @@ describe('NetworkController', () => {
     });
 
     it('removes invalid network client IDs from networksMetadata, logging this fact', () => {
-      const captureExceptionMock = jest.fn();
-      const messenger = buildRootMessenger({
-        actionHandlers: {
-          'ErrorReportingService:captureException': captureExceptionMock,
-        },
-      });
+      const messenger = buildRootMessenger();
+      const captureExceptionSpy = jest.spyOn(messenger, 'captureException');
       const controllerMessenger = buildNetworkControllerMessenger(messenger);
 
       const controller = new NetworkController({
@@ -432,7 +446,10 @@ describe('NetworkController', () => {
           },
         },
         infuraProjectId: 'infura-project-id',
-        getRpcServiceOptions: () => ({
+        getRpcServiceOptions: (): Omit<
+          RpcServiceOptions,
+          'failoverService' | 'endpointUrl'
+        > => ({
           fetch,
           btoa,
         }),
@@ -447,7 +464,7 @@ describe('NetworkController', () => {
       expect(controller.state.networksMetadata).not.toHaveProperty(
         'CCCC-CCCC-CCCC-CCCC',
       );
-      expect(captureExceptionMock).toHaveBeenCalledWith(
+      expect(captureExceptionSpy).toHaveBeenCalledWith(
         new Error(
           '`networksMetadata` had invalid network client IDs, which have been removed',
         ),
@@ -2317,7 +2334,7 @@ describe('NetworkController', () => {
                           method: 'eth_getBlockByNumber',
                         },
                         response: SUCCESSFUL_ETH_GET_BLOCK_BY_NUMBER_RESPONSE,
-                        beforeCompleting: () => {
+                        beforeCompleting: (): void => {
                           // We are purposefully not awaiting this promise.
                           // eslint-disable-next-line @typescript-eslint/no-floating-promises
                           controller.setActiveNetwork('AAAA-AAAA-AAAA-AAAA');
@@ -2409,7 +2426,7 @@ describe('NetworkController', () => {
                         response: {
                           result: POST_1559_BLOCK,
                         },
-                        beforeCompleting: () => {
+                        beforeCompleting: (): void => {
                           // We are purposefully not awaiting this promise.
                           // eslint-disable-next-line @typescript-eslint/no-floating-promises
                           controller.setActiveNetwork('AAAA-AAAA-AAAA-AAAA');
@@ -2502,7 +2519,7 @@ describe('NetworkController', () => {
                           method: 'eth_getBlockByNumber',
                         },
                         error: BLOCKED_INFURA_JSON_RPC_ERROR,
-                        beforeCompleting: () => {
+                        beforeCompleting: (): void => {
                           // We are purposefully not awaiting this promise.
                           // eslint-disable-next-line @typescript-eslint/no-floating-promises
                           controller.setActiveNetwork('AAAA-AAAA-AAAA-AAAA');
@@ -2809,7 +2826,7 @@ describe('NetworkController', () => {
                         method: 'eth_getBlockByNumber',
                       },
                       response: SUCCESSFUL_ETH_GET_BLOCK_BY_NUMBER_RESPONSE,
-                      beforeCompleting: () => {
+                      beforeCompleting: (): void => {
                         // We are purposefully not awaiting this promise.
                         // eslint-disable-next-line @typescript-eslint/no-floating-promises
                         controller.setProviderType(TESTNET.networkType);
@@ -2904,7 +2921,7 @@ describe('NetworkController', () => {
                       response: {
                         result: POST_1559_BLOCK,
                       },
-                      beforeCompleting: () => {
+                      beforeCompleting: (): void => {
                         // We are purposefully not awaiting this promise.
                         // eslint-disable-next-line @typescript-eslint/no-floating-promises
                         controller.setProviderType(TESTNET.networkType);
@@ -3002,7 +3019,7 @@ describe('NetworkController', () => {
                         method: 'eth_getBlockByNumber',
                       },
                       response: SUCCESSFUL_ETH_GET_BLOCK_BY_NUMBER_RESPONSE,
-                      beforeCompleting: () => {
+                      beforeCompleting: (): void => {
                         // We are purposefully not awaiting this promise.
                         // eslint-disable-next-line @typescript-eslint/no-floating-promises
                         controller.setProviderType(TESTNET.networkType);
@@ -3565,10 +3582,52 @@ describe('NetworkController', () => {
           },
         );
       });
-      it('calls provider of the networkClientId and returns true', async () => {
+      it('updates network metadata if undefined', async () => {
         await withController(
           {
             infuraProjectId: 'some-infura-project-id',
+          },
+          async ({ controller }) => {
+            await setFakeProvider(controller, {
+              stubs: [
+                {
+                  request: {
+                    method: 'eth_getBlockByNumber',
+                    params: ['latest', false],
+                  },
+                  response: {
+                    result: POST_1559_BLOCK,
+                  },
+                },
+                {
+                  request: {
+                    method: 'eth_getBlockByNumber',
+                    params: ['latest', false],
+                  },
+                  response: {
+                    result: POST_1559_BLOCK,
+                  },
+                },
+              ],
+            });
+            const isEIP1559Compatible =
+              await controller.getEIP1559Compatibility('linea-mainnet');
+            expect(isEIP1559Compatible).toBe(true);
+          },
+        );
+      });
+      it('updates network metadata if EIP-1559 compatibility is missing', async () => {
+        await withController(
+          {
+            infuraProjectId: 'some-infura-project-id',
+            state: {
+              networksMetadata: {
+                'linea-mainnet': {
+                  EIPS: {},
+                  status: NetworkStatus.Unknown,
+                },
+              },
+            },
           },
           async ({ controller }) => {
             await setFakeProvider(controller, {
@@ -3933,8 +3992,8 @@ describe('NetworkController', () => {
         const ethQuery = messenger.call('NetworkController:getEthQuery');
         assert(ethQuery, 'ethQuery is not set');
 
-        const promisifiedSendAsync = promisify(ethQuery.sendAsync).bind(
-          ethQuery,
+        const promisifiedSendAsync = promisify(
+          ethQuery.sendAsync.bind(ethQuery),
         );
         const result = await promisifiedSendAsync({
           id: 1,
@@ -3964,11 +4023,18 @@ describe('NetworkController', () => {
       }: {
         controller: NetworkController;
         chainId: Hex;
-      }) => controller.getNetworkConfigurationByChainId(chainId),
+      }): NetworkConfiguration | undefined =>
+        controller.getNetworkConfigurationByChainId(chainId),
     ],
     [
       'NetworkController:getNetworkConfigurationByChainId',
-      ({ messenger, chainId }: { messenger: RootMessenger; chainId: Hex }) =>
+      ({
+        messenger,
+        chainId,
+      }: {
+        messenger: RootMessenger;
+        chainId: Hex;
+      }): NetworkConfiguration | undefined =>
         messenger.call(
           'NetworkController:getNetworkConfigurationByChainId',
           chainId,
@@ -4070,7 +4136,7 @@ describe('NetworkController', () => {
       }: {
         controller: NetworkController;
         networkClientId: NetworkClientId;
-      }) =>
+      }): NetworkConfiguration | undefined =>
         controller.getNetworkConfigurationByNetworkClientId(networkClientId),
     ],
     [
@@ -4081,7 +4147,7 @@ describe('NetworkController', () => {
       }: {
         messenger: RootMessenger;
         networkClientId: NetworkClientId;
-      }) =>
+      }): NetworkConfiguration | undefined =>
         messenger.call(
           'NetworkController:getNetworkConfigurationByNetworkClientId',
           networkClientId,
@@ -4563,7 +4629,10 @@ describe('NetworkController', () => {
             'createAutoManagedNetworkClient',
           );
           const infuraProjectId = 'some-infura-project-id';
-          const getRpcServiceOptions = () => ({
+          const getRpcServiceOptions = (): Omit<
+            RpcServiceOptions,
+            'failoverService' | 'endpointUrl'
+          > => ({
             btoa,
             fetch,
             fetchOptions: {
@@ -4576,7 +4645,7 @@ describe('NetworkController', () => {
               maxConsecutiveFailures: 10,
             },
           });
-          const getBlockTrackerOptions = () => ({
+          const getBlockTrackerOptions = (): PollingBlockTrackerOptions => ({
             pollingInterval: 2000,
           });
 
@@ -4637,6 +4706,7 @@ describe('NetworkController', () => {
               expect(createAutoManagedNetworkClientSpy).toHaveBeenNthCalledWith(
                 2,
                 {
+                  networkClientId: infuraNetworkType,
                   networkClientConfiguration: {
                     infuraProjectId,
                     failoverRpcUrls: ['https://first.failover.endpoint'],
@@ -4654,6 +4724,7 @@ describe('NetworkController', () => {
               expect(createAutoManagedNetworkClientSpy).toHaveBeenNthCalledWith(
                 3,
                 {
+                  networkClientId: 'BBBB-BBBB-BBBB-BBBB',
                   networkClientConfiguration: {
                     chainId: infuraChainId,
                     failoverRpcUrls: ['https://second.failover.endpoint'],
@@ -4670,6 +4741,7 @@ describe('NetworkController', () => {
               expect(createAutoManagedNetworkClientSpy).toHaveBeenNthCalledWith(
                 4,
                 {
+                  networkClientId: 'CCCC-CCCC-CCCC-CCCC',
                   networkClientConfiguration: {
                     chainId: infuraChainId,
                     failoverRpcUrls: ['https://third.failover.endpoint'],
@@ -5987,7 +6059,10 @@ describe('NetworkController', () => {
                 ],
               });
             const infuraProjectId = 'some-infura-project-id';
-            const getRpcServiceOptions = () => ({
+            const getRpcServiceOptions = (): Omit<
+              RpcServiceOptions,
+              'failoverService' | 'endpointUrl'
+            > => ({
               btoa,
               fetch,
               fetchOptions: {
@@ -6000,7 +6075,7 @@ describe('NetworkController', () => {
                 maxConsecutiveFailures: 10,
               },
             });
-            const getBlockTrackerOptions = () => ({
+            const getBlockTrackerOptions = (): PollingBlockTrackerOptions => ({
               pollingInterval: 2000,
             });
 
@@ -6047,6 +6122,7 @@ describe('NetworkController', () => {
                 expect(
                   createAutoManagedNetworkClientSpy,
                 ).toHaveBeenNthCalledWith(3, {
+                  networkClientId: infuraNetworkType,
                   networkClientConfiguration: {
                     chainId: infuraChainId,
                     failoverRpcUrls: ['https://failover.endpoint'],
@@ -6215,7 +6291,10 @@ describe('NetworkController', () => {
             const infuraRpcEndpoint = buildInfuraRpcEndpoint(infuraNetworkType);
             const networkConfigurationToUpdate =
               buildInfuraNetworkConfiguration(infuraNetworkType);
-            const getRpcServiceOptions = () => ({
+            const getRpcServiceOptions = (): Omit<
+              RpcServiceOptions,
+              'failoverService' | 'endpointUrl'
+            > => ({
               btoa,
               fetch,
               fetchOptions: {
@@ -6228,7 +6307,7 @@ describe('NetworkController', () => {
                 maxConsecutiveFailures: 10,
               },
             });
-            const getBlockTrackerOptions = () => ({
+            const getBlockTrackerOptions = (): PollingBlockTrackerOptions => ({
               pollingInterval: 2000,
             });
 
@@ -6278,6 +6357,7 @@ describe('NetworkController', () => {
                 expect(
                   createAutoManagedNetworkClientSpy,
                 ).toHaveBeenNthCalledWith(3, {
+                  networkClientId: 'AAAA-AAAA-AAAA-AAAA',
                   networkClientConfiguration: {
                     chainId: infuraChainId,
                     failoverRpcUrls: ['https://first.failover.endpoint'],
@@ -6293,6 +6373,7 @@ describe('NetworkController', () => {
                 expect(
                   createAutoManagedNetworkClientSpy,
                 ).toHaveBeenNthCalledWith(4, {
+                  networkClientId: 'BBBB-BBBB-BBBB-BBBB',
                   networkClientConfiguration: {
                     chainId: infuraChainId,
                     failoverRpcUrls: ['https://second.failover.endpoint'],
@@ -7209,7 +7290,10 @@ describe('NetworkController', () => {
               buildInfuraNetworkConfiguration(infuraNetworkType, {
                 rpcEndpoints: [customRpcEndpoint],
               });
-            const getRpcServiceOptions = () => ({
+            const getRpcServiceOptions = (): Omit<
+              RpcServiceOptions,
+              'failoverService' | 'endpointUrl'
+            > => ({
               btoa,
               fetch,
               fetchOptions: {
@@ -7222,7 +7306,7 @@ describe('NetworkController', () => {
                 maxConsecutiveFailures: 10,
               },
             });
-            const getBlockTrackerOptions = () => ({
+            const getBlockTrackerOptions = (): PollingBlockTrackerOptions => ({
               pollingInterval: 2000,
             });
 
@@ -7265,6 +7349,7 @@ describe('NetworkController', () => {
                 expect(
                   createAutoManagedNetworkClientSpy,
                 ).toHaveBeenNthCalledWith(3, {
+                  networkClientId: 'BBBB-BBBB-BBBB-BBBB',
                   networkClientConfiguration: {
                     chainId: infuraChainId,
                     failoverRpcUrls: ['https://failover.endpoint'],
@@ -8074,7 +8159,10 @@ describe('NetworkController', () => {
             nativeCurrency: 'TOKEN',
             rpcEndpoints: [rpcEndpoint1],
           });
-          const getRpcServiceOptions = () => ({
+          const getRpcServiceOptions = (): Omit<
+            RpcServiceOptions,
+            'failoverService' | 'endpointUrl'
+          > => ({
             btoa,
             fetch,
             fetchOptions: {
@@ -8087,7 +8175,7 @@ describe('NetworkController', () => {
               maxConsecutiveFailures: 10,
             },
           });
-          const getBlockTrackerOptions = () => ({
+          const getBlockTrackerOptions = (): PollingBlockTrackerOptions => ({
             pollingInterval: 2000,
           });
 
@@ -8135,6 +8223,7 @@ describe('NetworkController', () => {
               expect(createAutoManagedNetworkClientSpy).toHaveBeenNthCalledWith(
                 3,
                 {
+                  networkClientId: 'BBBB-BBBB-BBBB-BBBB',
                   networkClientConfiguration: {
                     chainId: '0x1337',
                     failoverRpcUrls: ['https://first.failover.endpoint'],
@@ -8151,6 +8240,7 @@ describe('NetworkController', () => {
               expect(createAutoManagedNetworkClientSpy).toHaveBeenNthCalledWith(
                 4,
                 {
+                  networkClientId: 'CCCC-CCCC-CCCC-CCCC',
                   networkClientConfiguration: {
                     chainId: '0x1337',
                     failoverRpcUrls: ['https://second.failover.endpoint'],
@@ -9067,7 +9157,10 @@ describe('NetworkController', () => {
               }),
             ],
           });
-          const getRpcServiceOptions = () => ({
+          const getRpcServiceOptions = (): Omit<
+            RpcServiceOptions,
+            'failoverService' | 'endpointUrl'
+          > => ({
             btoa,
             fetch,
             fetchOptions: {
@@ -9080,7 +9173,7 @@ describe('NetworkController', () => {
               maxConsecutiveFailures: 10,
             },
           });
-          const getBlockTrackerOptions = () => ({
+          const getBlockTrackerOptions = (): PollingBlockTrackerOptions => ({
             pollingInterval: 2000,
           });
 
@@ -9136,6 +9229,7 @@ describe('NetworkController', () => {
               });
 
               expect(createAutoManagedNetworkClientSpy).toHaveBeenCalledWith({
+                networkClientId: 'BBBB-BBBB-BBBB-BBBB',
                 networkClientConfiguration: {
                   chainId: '0x1337',
                   failoverRpcUrls: ['https://failover.endpoint'],
@@ -10228,7 +10322,10 @@ describe('NetworkController', () => {
                 }),
               ],
             });
-            const getRpcServiceOptions = () => ({
+            const getRpcServiceOptions = (): Omit<
+              RpcServiceOptions,
+              'failoverService' | 'endpointUrl'
+            > => ({
               btoa,
               fetch,
               fetchOptions: {
@@ -10241,7 +10338,7 @@ describe('NetworkController', () => {
                 maxConsecutiveFailures: 10,
               },
             });
-            const getBlockTrackerOptions = () => ({
+            const getBlockTrackerOptions = (): PollingBlockTrackerOptions => ({
               pollingInterval: 2000,
             });
 
@@ -10292,6 +10389,7 @@ describe('NetworkController', () => {
                 expect(
                   createAutoManagedNetworkClientSpy,
                 ).toHaveBeenNthCalledWith(4, {
+                  networkClientId: 'CCCC-CCCC-CCCC-CCCC',
                   networkClientConfiguration: {
                     chainId: infuraChainId,
                     failoverRpcUrls: ['https://first.failover.endpoint'],
@@ -10307,6 +10405,7 @@ describe('NetworkController', () => {
                 expect(
                   createAutoManagedNetworkClientSpy,
                 ).toHaveBeenNthCalledWith(5, {
+                  networkClientId: 'DDDD-DDDD-DDDD-DDDD',
                   networkClientConfiguration: {
                     chainId: infuraChainId,
                     failoverRpcUrls: ['https://second.failover.endpoint'],
@@ -10939,7 +11038,10 @@ describe('NetworkController', () => {
                   customRpcEndpoint2,
                 ],
               });
-            const getRpcServiceOptions = () => ({
+            const getRpcServiceOptions = (): Omit<
+              RpcServiceOptions,
+              'failoverService' | 'endpointUrl'
+            > => ({
               btoa,
               fetch,
               fetchOptions: {
@@ -10952,7 +11054,7 @@ describe('NetworkController', () => {
                 maxConsecutiveFailures: 10,
               },
             });
-            const getBlockTrackerOptions = () => ({
+            const getBlockTrackerOptions = (): PollingBlockTrackerOptions => ({
               pollingInterval: 2000,
             });
 
@@ -11008,6 +11110,7 @@ describe('NetworkController', () => {
                 );
 
                 expect(createAutoManagedNetworkClientSpy).toHaveBeenCalledWith({
+                  networkClientId: 'CCCC-CCCC-CCCC-CCCC',
                   networkClientConfiguration: {
                     chainId: '0x1337',
                     failoverRpcUrls: ['https://first.failover.endpoint'],
@@ -11021,6 +11124,7 @@ describe('NetworkController', () => {
                   isRpcFailoverEnabled: true,
                 });
                 expect(createAutoManagedNetworkClientSpy).toHaveBeenCalledWith({
+                  networkClientId: 'DDDD-DDDD-DDDD-DDDD',
                   networkClientConfiguration: {
                     chainId: '0x1337',
                     failoverRpcUrls: ['https://second.failover.endpoint'],
@@ -11668,7 +11772,10 @@ describe('NetworkController', () => {
                   customRpcEndpoint2,
                 ],
               });
-            const getRpcServiceOptions = () => ({
+            const getRpcServiceOptions = (): Omit<
+              RpcServiceOptions,
+              'failoverService' | 'endpointUrl'
+            > => ({
               btoa,
               fetch,
               fetchOptions: {
@@ -11681,7 +11788,7 @@ describe('NetworkController', () => {
                 maxConsecutiveFailures: 10,
               },
             });
-            const getBlockTrackerOptions = () => ({
+            const getBlockTrackerOptions = (): PollingBlockTrackerOptions => ({
               pollingInterval: 2000,
             });
 
@@ -11737,6 +11844,7 @@ describe('NetworkController', () => {
                 expect(
                   createAutoManagedNetworkClientSpy,
                 ).toHaveBeenNthCalledWith(6, {
+                  networkClientId: 'CCCC-CCCC-CCCC-CCCC',
                   networkClientConfiguration: {
                     chainId: anotherInfuraChainId,
                     failoverRpcUrls: ['https://first.failover.endpoint'],
@@ -11752,6 +11860,7 @@ describe('NetworkController', () => {
                 expect(
                   createAutoManagedNetworkClientSpy,
                 ).toHaveBeenNthCalledWith(7, {
+                  networkClientId: 'DDDD-DDDD-DDDD-DDDD',
                   networkClientConfiguration: {
                     chainId: anotherInfuraChainId,
                     failoverRpcUrls: ['https://second.failover.endpoint'],
@@ -12372,7 +12481,10 @@ describe('NetworkController', () => {
             }),
           ],
         });
-        const getRpcServiceOptions = () => ({
+        const getRpcServiceOptions = (): Omit<
+          RpcServiceOptions,
+          'failoverService' | 'endpointUrl'
+        > => ({
           btoa,
           fetch,
           fetchOptions: {
@@ -12385,7 +12497,7 @@ describe('NetworkController', () => {
             maxConsecutiveFailures: 10,
           },
         });
-        const getBlockTrackerOptions = () => ({
+        const getBlockTrackerOptions = (): PollingBlockTrackerOptions => ({
           pollingInterval: 2000,
         });
 
@@ -12434,6 +12546,7 @@ describe('NetworkController', () => {
             expect(createAutoManagedNetworkClientSpy).toHaveBeenNthCalledWith(
               4,
               {
+                networkClientId: 'CCCC-CCCC-CCCC-CCCC',
                 networkClientConfiguration: {
                   chainId: '0x2448',
                   failoverRpcUrls: ['https://first.failover.endpoint'],
@@ -12450,6 +12563,7 @@ describe('NetworkController', () => {
             expect(createAutoManagedNetworkClientSpy).toHaveBeenNthCalledWith(
               5,
               {
+                networkClientId: 'DDDD-DDDD-DDDD-DDDD',
                 networkClientConfiguration: {
                   chainId: '0x2448',
                   failoverRpcUrls: ['https://second.failover.endpoint'],
@@ -15352,7 +15466,7 @@ describe('selectAvailableNetworkClientIds', () => {
  *
  * @returns The mocked version of `createNetworkClient`.
  */
-function mockCreateNetworkClient() {
+function mockCreateNetworkClient(): WhenMock<NetworkClient> {
   return when(createNetworkClientMock).mockImplementation((options) => {
     const inspectedOptions = inspect(options, { depth: null, compact: true });
     const lines = [
@@ -15391,7 +15505,7 @@ function refreshNetworkTests({
   expectedNetworkClientId: NetworkClientId;
   initialState?: Partial<NetworkState>;
   operation: (controller: NetworkController) => Promise<void>;
-}) {
+}): void {
   // eslint-disable-next-line jest/require-top-level-describe
   it('emits networkWillChange with state payload', async () => {
     await withController(
@@ -15670,7 +15784,7 @@ function lookupNetworkTests({
   initialState?: Partial<NetworkState>;
   operation: (controller: NetworkController) => Promise<void>;
   shouldTestInfuraMessengerEvents?: boolean;
-}) {
+}): void {
   describe('if the network details request resolves successfully', () => {
     describe('if the new network details of the target network are different from the ones in state', () => {
       it('updates state to match', async () => {
@@ -16571,53 +16685,6 @@ function lookupNetworkTests({
   });
 }
 
-type WithControllerCallback<ReturnValue> = ({
-  controller,
-}: {
-  controller: NetworkController;
-  messenger: RootMessenger;
-  networkControllerMessenger: NetworkControllerMessenger;
-}) => Promise<ReturnValue> | ReturnValue;
-
-type WithControllerOptions = Partial<NetworkControllerOptions>;
-
-type WithControllerArgs<ReturnValue> =
-  | [WithControllerCallback<ReturnValue>]
-  | [WithControllerOptions, WithControllerCallback<ReturnValue>];
-
-/**
- * Builds a controller based on the given options, and calls the given function
- * with that controller.
- *
- * @param args - Either a function, or an options bag + a function. The options
- * bag is equivalent to the options that NetworkController takes (although
- * `messenger` and `infuraProjectId` are  filled in if not given); the function
- * will be called with the built controller.
- * @returns Whatever the callback returns.
- */
-async function withController<ReturnValue>(
-  ...args: WithControllerArgs<ReturnValue>
-): Promise<ReturnValue> {
-  const [{ ...rest }, fn] = args.length === 2 ? args : [{}, args[0]];
-  const messenger = buildRootMessenger();
-  const networkControllerMessenger = buildNetworkControllerMessenger(messenger);
-  const controller = new NetworkController({
-    messenger: networkControllerMessenger,
-    infuraProjectId: 'infura-project-id',
-    getRpcServiceOptions: () => ({
-      fetch,
-      btoa,
-    }),
-    ...rest,
-  });
-  try {
-    return await fn({ controller, messenger, networkControllerMessenger });
-  } finally {
-    const { blockTracker } = controller.getProviderAndBlockTracker();
-    await blockTracker?.destroy();
-  }
-}
-
 /**
  * Builds an object that `createNetworkClient` returns.
  *
@@ -16639,7 +16706,7 @@ function buildFakeClient(
     blockTracker: new FakeBlockTracker({
       provider,
     }),
-    destroy: () => {
+    destroy: (): void => {
       // do nothing
     },
   };
@@ -16739,32 +16806,32 @@ async function setFakeProvider(
  * @returns A promise that resolves to the list of payloads for the set of
  * events, optionally filtered, when a specific number of them have occurred.
  */
-async function waitForPublishedEvents<E extends NetworkControllerEvents>({
+async function waitForPublishedEvents<Events extends NetworkControllerEvents>({
   messenger,
   eventType,
   count: expectedNumberOfEvents = 1,
-  filter: isEventPayloadInteresting = () => true,
+  filter: isEventPayloadInteresting = (): boolean => true,
   wait: timeBeforeAssumingNoMoreEvents = 150,
-  operation = () => {
+  operation = (): void => {
     // do nothing
   },
-  beforeResolving = async () => {
+  beforeResolving = async (): Promise<void> => {
     // do nothing
   },
 }: {
   messenger: RootMessenger;
-  eventType: E['type'];
+  eventType: Events['type'];
   count?: number;
-  filter?: (payload: E['payload']) => boolean;
+  filter?: (payload: Events['payload']) => boolean;
   wait?: number;
   operation?: () => void | Promise<void>;
   beforeResolving?: () => void | Promise<void>;
-}): Promise<E['payload'][]> {
-  const promiseForEventPayloads = new Promise<E['payload'][]>(
+}): Promise<Events['payload'][]> {
+  const promiseForEventPayloads = new Promise<Events['payload'][]>(
     (resolve, reject) => {
       let timer: NodeJS.Timeout | undefined;
-      const allEventPayloads: E['payload'][] = [];
-      const interestingEventPayloads: E['payload'][] = [];
+      const allEventPayloads: Events['payload'][] = [];
+      const interestingEventPayloads: Events['payload'][] = [];
       let alreadyEnded = false;
 
       // We're using `any` here because there seems to be some mismatch between
@@ -16773,7 +16840,7 @@ async function waitForPublishedEvents<E extends NetworkControllerEvents>({
       // `ExtractEventHandler<E, E['type']>` to see the issue.
       // TODO: Replace `any` with type
       // eslint-disable-next-line @typescript-eslint/no-explicit-any
-      const eventListener: any = (...payload: E['payload']) => {
+      const eventListener: any = (...payload: Events['payload']) => {
         allEventPayloads.push(payload);
 
         if (isEventPayloadInteresting(payload)) {
@@ -16792,7 +16859,7 @@ async function waitForPublishedEvents<E extends NetworkControllerEvents>({
       /**
        * Stop listening for published events.
        */
-      async function end() {
+      async function end(): Promise<void> {
         if (!alreadyEnded) {
           messenger.unsubscribe(eventType, eventListener);
 
@@ -16812,6 +16879,8 @@ async function waitForPublishedEvents<E extends NetworkControllerEvents>({
               ),
             );
           }
+
+          // eslint-disable-next-line require-atomic-updates
           alreadyEnded = true;
         }
       }
@@ -16819,7 +16888,7 @@ async function waitForPublishedEvents<E extends NetworkControllerEvents>({
       /**
        * Stop the timer used to detect a timeout when listening for published events.
        */
-      function stopTimer() {
+      function stopTimer(): void {
         if (timer) {
           clearTimeout(timer);
         }
@@ -16828,7 +16897,7 @@ async function waitForPublishedEvents<E extends NetworkControllerEvents>({
       /**
        * Reset the timer used to detect a timeout when listening for published events.
        */
-      function resetTimer() {
+      function resetTimer(): void {
         stopTimer();
         timer = setTimeout(() => {
           // TODO: Either fix this lint violation or explain why it's necessary to ignore.
@@ -16890,8 +16959,8 @@ async function waitForStateChanges({
 }): Promise<[NetworkState, Patch[]][]> {
   const filter =
     propertyPath === undefined
-      ? () => true
-      : ([_newState, patches]: [NetworkState, Patch[]]) =>
+      ? (): boolean => true
+      : ([_newState, patches]: [NetworkState, Patch[]]): boolean =>
           didPropertyChange(patches, propertyPath);
 
   return await waitForPublishedEvents<NetworkControllerStateChangeEvent>({
@@ -16977,7 +17046,7 @@ function buildNetworkControllerStateWithDefaultSelectedNetworkClientId({
   selectedNetworkClientId: givenSelectedNetworkClientId,
   ...rest
 }: Partial<Omit<NetworkState, 'networkConfigurationsByChainId'>> &
-  Pick<NetworkState, 'networkConfigurationsByChainId'>) {
+  Pick<NetworkState, 'networkConfigurationsByChainId'>): Partial<NetworkState> {
   if (givenSelectedNetworkClientId === undefined) {
     const networkConfigurations = Object.values(networkConfigurationsByChainId);
     const selectedNetworkClientId =

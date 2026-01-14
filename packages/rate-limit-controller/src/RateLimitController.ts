@@ -1,7 +1,7 @@
-import {
-  BaseController,
-  type ControllerGetStateAction,
-  type ControllerStateChangeEvent,
+import { BaseController } from '@metamask/base-controller';
+import type {
+  ControllerGetStateAction,
+  ControllerStateChangeEvent,
 } from '@metamask/base-controller';
 import type { Messenger, ActionConstraint } from '@metamask/messenger';
 import { rpcErrors } from '@metamask/rpc-errors';
@@ -102,11 +102,11 @@ export class RateLimitController<
   RateLimitState<RateLimitedApis>,
   RateLimitMessenger<RateLimitedApis>
 > {
-  private readonly implementations;
+  readonly #implementations;
 
-  private readonly rateLimitTimeout;
+  readonly #rateLimitTimeout;
 
-  private readonly rateLimitCount;
+  readonly #rateLimitCount;
 
   /**
    * Creates a RateLimitController instance.
@@ -142,9 +142,9 @@ export class RateLimitController<
       messenger,
       state: { ...defaultState, ...state },
     });
-    this.implementations = implementations;
-    this.rateLimitTimeout = rateLimitTimeout;
-    this.rateLimitCount = rateLimitCount;
+    this.#implementations = implementations;
+    this.#rateLimitTimeout = rateLimitTimeout;
+    this.#rateLimitCount = rateLimitCount;
 
     this.messenger.registerActionHandler(
       `${controllerName}:call`,
@@ -169,14 +169,14 @@ export class RateLimitController<
     type: ApiType,
     ...args: Parameters<RateLimitedApis[ApiType]['method']>
   ): Promise<ReturnType<RateLimitedApis[ApiType]['method']>> {
-    if (this.isRateLimited(type, origin)) {
+    if (this.#isRateLimited(type, origin)) {
       throw rpcErrors.limitExceeded({
         message: `"${type.toString()}" is currently rate-limited. Please try again later.`,
       });
     }
-    this.recordRequest(type, origin);
+    this.#recordRequest(type, origin);
 
-    const implementation = this.implementations[type].method as (
+    const implementation = this.#implementations[type].method as (
       ...args: Parameters<RateLimitedApis[ApiType]['method']>
     ) => ReturnType<RateLimitedApis[ApiType]['method']>;
 
@@ -188,15 +188,15 @@ export class RateLimitController<
   }
 
   /**
-   * Checks whether an origin is rate limited for the a specific API.
+   * Checks whether an origin is rate limited for a specific API.
    *
    * @param api - The API the origin is trying to access.
    * @param origin - The origin trying to access the API.
    * @returns `true` if rate-limited, and `false` otherwise.
    */
-  private isRateLimited(api: keyof RateLimitedApis, origin: string) {
+  #isRateLimited(api: keyof RateLimitedApis, origin: string): boolean {
     const rateLimitCount =
-      this.implementations[api].rateLimitCount ?? this.rateLimitCount;
+      this.#implementations[api].rateLimitCount ?? this.#rateLimitCount;
     return this.state.requests[api][origin] >= rateLimitCount;
   }
 
@@ -206,13 +206,16 @@ export class RateLimitController<
    * @param api - The API the origin is trying to access.
    * @param origin - The origin trying to access the API.
    */
-  private recordRequest(api: keyof RateLimitedApis, origin: string) {
+  #recordRequest(api: keyof RateLimitedApis, origin: string): void {
     const rateLimitTimeout =
-      this.implementations[api].rateLimitTimeout ?? this.rateLimitTimeout;
+      this.#implementations[api].rateLimitTimeout ?? this.#rateLimitTimeout;
     const previous = this.state.requests[api][origin] ?? 0;
     this.update((state) => {
       if (previous === 0) {
-        setTimeout(() => this.resetRequestCount(api, origin), rateLimitTimeout);
+        setTimeout(
+          () => this.#resetRequestCount(api, origin),
+          rateLimitTimeout,
+        );
       }
       Object.assign(state, {
         requests: {
@@ -229,7 +232,7 @@ export class RateLimitController<
    * @param api - The API in question.
    * @param origin - The origin in question.
    */
-  private resetRequestCount(api: keyof RateLimitedApis, origin: string) {
+  #resetRequestCount(api: keyof RateLimitedApis, origin: string): void {
     this.update((state) => {
       Object.assign(state, {
         requests: {

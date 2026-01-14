@@ -1,7 +1,8 @@
 import { rpcErrors } from '@metamask/rpc-errors';
 import type { JsonRpcRequest, PendingJsonRpcResponse } from '@metamask/utils';
 
-import { type GetCapabilitiesHook, GetCapabilitiesStruct } from '../types';
+import { GetCapabilitiesStruct } from '../types';
+import type { GetCapabilitiesHook } from '../types';
 import { validateAndNormalizeKeyholder, validateParams } from '../utils';
 
 /**

@@ -15,8 +15,8 @@ export function validateConfirmedExternalTransaction(
   transactionMeta?: TransactionMeta,
   confirmedTxs?: TransactionMeta[],
   pendingTxs?: TransactionMeta[],
-) {
-  if (!transactionMeta || !transactionMeta.txParams) {
+): void {
+  if (!transactionMeta?.txParams) {
     throw rpcErrors.invalidParams(
       '"transactionMeta" or "transactionMeta.txParams" is missing',
     );

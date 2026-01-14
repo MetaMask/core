@@ -111,7 +111,7 @@ export class AccountsApiRemoteTransactionSource
   #filterTransactions(
     request: RemoteTransactionSourceRequest,
     transactions: TransactionMeta[],
-  ) {
+  ): TransactionMeta[] {
     const { address, includeTokenTransfers, updateTransactions } = request;
 
     let filteredTransactions = transactions;
@@ -136,7 +136,7 @@ export class AccountsApiRemoteTransactionSource
     responseTransaction: GetAccountTransactionsResponse['data'][0],
   ): Promise<TransactionMeta> {
     const blockNumber = String(responseTransaction.blockNumber);
-    const chainId = `0x${responseTransaction.chainId.toString(16)}` as Hex;
+    const chainId = `0x${responseTransaction.chainId.toString(16)}` as const;
     const { hash } = responseTransaction;
     const time = new Date(responseTransaction.timestamp).getTime();
     const id = random({ msecs: time });

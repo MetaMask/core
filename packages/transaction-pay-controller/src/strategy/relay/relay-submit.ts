@@ -3,26 +3,24 @@ import {
   successfulFetch,
   toHex,
 } from '@metamask/controller-utils';
-import {
-  TransactionType,
-  type TransactionParams,
+import { TransactionType } from '@metamask/transaction-controller';
+import type { TransactionParams } from '@metamask/transaction-controller';
+import type {
+  AuthorizationList,
+  TransactionMeta,
 } from '@metamask/transaction-controller';
-import type { TransactionMeta } from '@metamask/transaction-controller';
 import type { Hex } from '@metamask/utils';
 import { createModuleLogger } from '@metamask/utils';
 
-import {
-  RELAY_FALLBACK_GAS_LIMIT,
-  RELAY_POLLING_INTERVAL,
-  RELAY_URL_BASE,
-} from './constants';
-import type { RelayQuote, RelayStatus } from './types';
+import { RELAY_POLLING_INTERVAL, RELAY_STATUS_URL } from './constants';
+import type { RelayQuote, RelayStatusResponse } from './types';
 import { projectLogger } from '../../logger';
 import type {
   PayStrategyExecuteRequest,
   TransactionPayControllerMessenger,
   TransactionPayQuote,
 } from '../../types';
+import { getFeatureFlags } from '../../utils/feature-flags';
 import {
   collectTransactionIds,
   getTransaction,
@@ -72,7 +70,7 @@ async function executeSingleQuote(
   quote: TransactionPayQuote<RelayQuote>,
   messenger: TransactionPayControllerMessenger,
   transaction: TransactionMeta,
-) {
+): Promise<{ transactionHash?: Hex }> {
   log('Executing single quote', quote);
 
   updateTransaction(
@@ -121,15 +119,12 @@ async function waitForRelayCompletion(quote: RelayQuote): Promise<Hex> {
     return FALLBACK_HASH;
   }
 
-  const { endpoint, method } = quote.steps
-    .slice(-1)[0]
-    .items.slice(-1)[0].check;
-
-  const url = `${RELAY_URL_BASE}${endpoint}`;
+  const { requestId } = quote.steps[0];
+  const url = `${RELAY_STATUS_URL}?requestId=${requestId}`;
 
   while (true) {
-    const response = await successfulFetch(url, { method });
-    const status = (await response.json()) as RelayStatus;
+    const response = await successfulFetch(url, { method: 'GET' });
+    const status = (await response.json()) as RelayStatusResponse;
 
     log('Polled status', status.status, status);
 
@@ -138,7 +133,7 @@ async function waitForRelayCompletion(quote: RelayQuote): Promise<Hex> {
       return targetHash ?? FALLBACK_HASH;
     }
 
-    if (['failure', 'refund', 'fallback'].includes(status.status)) {
+    if (['failure', 'refund', 'refunded'].includes(status.status)) {
       throw new Error(`Relay request failed with status: ${status.status}`);
     }
 
@@ -150,15 +145,19 @@ async function waitForRelayCompletion(quote: RelayQuote): Promise<Hex> {
  * Normalize the parameters from a relay quote step to match TransactionParams.
  *
  * @param params - Parameters from a relay quote step.
+ * @param messenger - Controller messenger.
  * @returns Normalized transaction parameters.
  */
 function normalizeParams(
   params: RelayQuote['steps'][0]['items'][0]['data'],
+  messenger: TransactionPayControllerMessenger,
 ): TransactionParams {
+  const featureFlags = getFeatureFlags(messenger);
+
   return {
     data: params.data,
     from: params.from,
-    gas: toHex(params.gas ?? RELAY_FALLBACK_GAS_LIMIT),
+    gas: toHex(params.gas ?? featureFlags.relayFallbackGas.max),
     maxFeePerGas: toHex(params.maxFeePerGas),
     maxPriorityFeePerGas: toHex(params.maxPriorityFeePerGas),
     to: params.to,
@@ -180,14 +179,16 @@ async function submitTransactions(
   messenger: TransactionPayControllerMessenger,
 ): Promise<Hex> {
   const { steps } = quote.original;
-  const params = steps.flatMap((s) => s.items).map((i) => i.data);
-  const invalidKind = steps.find((s) => s.kind !== 'transaction')?.kind;
+  const params = steps.flatMap((step) => step.items).map((item) => item.data);
+  const invalidKind = steps.find((step) => step.kind !== 'transaction')?.kind;
 
   if (invalidKind) {
     throw new Error(`Unsupported step kind: ${invalidKind}`);
   }
 
-  const normalizedParams = params.map(normalizeParams);
+  const normalizedParams = params.map((singleParams) =>
+    normalizeParams(singleParams, messenger),
+  );
 
   const transactionIds: string[] = [];
   const { from, sourceChainId, sourceTokenAddress } = quote.request;
@@ -218,10 +219,7 @@ async function submitTransactions(
           note: 'Add required transaction ID from Relay submission',
         },
         (tx) => {
-          if (!tx.requiredTransactionIds) {
-            tx.requiredTransactionIds = [];
-          }
-
+          tx.requiredTransactionIds ??= [];
           tx.requiredTransactionIds.push(transactionId);
         },
       );
@@ -234,33 +232,69 @@ async function submitTransactions(
     ? sourceTokenAddress
     : undefined;
 
+  const isSameChain =
+    quote.original.details.currencyIn.currency.chainId ===
+    quote.original.details.currencyOut.currency.chainId;
+
+  const authorizationList: AuthorizationList | undefined =
+    isSameChain && quote.original.request.authorizationList?.length
+      ? quote.original.request.authorizationList.map((a) => ({
+          address: a.address,
+          chainId: toHex(a.chainId),
+        }))
+      : undefined;
+
+  const { gasLimits } = quote.original.metamask;
+
   if (params.length === 1) {
+    const transactionParams = {
+      ...normalizedParams[0],
+      authorizationList,
+      gas: toHex(gasLimits[0]),
+    };
+
     result = await messenger.call(
       'TransactionController:addTransaction',
-      normalizedParams[0],
+      transactionParams,
       {
         gasFeeToken,
         networkClientId,
         origin: ORIGIN_METAMASK,
         requireApproval: false,
+        type: TransactionType.relayDeposit,
       },
     );
   } else {
+    const gasLimit7702 =
+      gasLimits.length === 1 ? toHex(gasLimits[0]) : undefined;
+
+    const transactions = normalizedParams.map((singleParams, index) => ({
+      params: {
+        data: singleParams.data as Hex,
+        gas: gasLimit7702 ? undefined : toHex(gasLimits[index]),
+        maxFeePerGas: singleParams.maxFeePerGas as Hex,
+        maxPriorityFeePerGas: singleParams.maxPriorityFeePerGas as Hex,
+        to: singleParams.to as Hex,
+        value: singleParams.value as Hex,
+      },
+      type:
+        index === 0
+          ? TransactionType.tokenMethodApprove
+          : TransactionType.relayDeposit,
+    }));
+
     await messenger.call('TransactionController:addTransactionBatch', {
       from,
+      disable7702: !gasLimit7702,
+      disableHook: Boolean(gasLimit7702),
+      disableSequential: Boolean(gasLimit7702),
       gasFeeToken,
+      gasLimit7702,
       networkClientId,
       origin: ORIGIN_METAMASK,
+      overwriteUpgrade: true,
       requireApproval: false,
-      transactions: normalizedParams.map((p, i) => ({
-        params: {
-          data: p.data as Hex,
-          gas: p.gas as Hex,
-          to: p.to as Hex,
-          value: p.value as Hex,
-        },
-        type: i === 0 ? TransactionType.tokenMethodApprove : undefined,
-      })),
+      transactions,
     });
   }
 

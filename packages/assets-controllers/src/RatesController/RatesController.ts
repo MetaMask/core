@@ -1,4 +1,5 @@
-import { BaseController, type StateMetadata } from '@metamask/base-controller';
+import { BaseController } from '@metamask/base-controller';
+import type { StateMetadata } from '@metamask/base-controller';
 import { Mutex } from 'async-mutex';
 import type { Draft } from 'immer';
 
