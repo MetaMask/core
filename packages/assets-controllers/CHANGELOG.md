@@ -21,6 +21,7 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 - Bump `@metamask/accounts-controller` from `^35.0.0` to `^35.0.1` ([#7604](https://github.com/MetaMask/core/pull/7604))
 - Bump `@metamask/polling-controller` from `^16.0.0` to `^16.0.1` ([#7604](https://github.com/MetaMask/core/pull/7604))
 - Update Plasma (0x2611) mapping to eip155:9745/erc20:0xeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeee for XPL ([#7601](https://github.com/MetaMask/core/pull/7601))
+- `TokensController.watchAsset` now supports optional origin/page metadata and safely falls back for empty origins to avoid rejected approvals ([#7612](https://github.com/MetaMask/core/pull/7612))
 
 ## [95.1.0]
 

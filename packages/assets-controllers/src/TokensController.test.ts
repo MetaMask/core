@@ -2393,6 +2393,73 @@ describe('TokensController', () => {
       });
     });
 
+    it('falls back to ORIGIN_METAMASK when origin is empty string', async () => {
+      await withController(async ({ controller, approvalController }) => {
+        const requestId = '12345';
+        const addAndShowApprovalRequestSpy = jest
+          .spyOn(approvalController, 'addAndShowApprovalRequest')
+          .mockResolvedValue(undefined);
+        const asset = buildToken();
+        ContractMock.mockReturnValue(
+          buildMockEthersERC721Contract({ supportsInterface: false }),
+        );
+        uuidV1Mock.mockReturnValue(requestId);
+
+        await controller.watchAsset({
+          asset,
+          type: 'ERC20',
+          origin: '',
+          networkClientId: 'mainnet',
+        });
+
+        expect(addAndShowApprovalRequestSpy).toHaveBeenCalledWith({
+          id: requestId,
+          origin: ORIGIN_METAMASK,
+          type: ApprovalType.WatchAsset,
+          requestData: {
+            id: requestId,
+            interactingAddress: '0x1',
+            asset,
+          },
+        });
+      });
+    });
+
+    it('uses origin param when requestMetadata.origin is empty string', async () => {
+      await withController(async ({ controller, approvalController }) => {
+        const requestId = '12345';
+        const addAndShowApprovalRequestSpy = jest
+          .spyOn(approvalController, 'addAndShowApprovalRequest')
+          .mockResolvedValue(undefined);
+        const asset = buildToken();
+        ContractMock.mockReturnValue(
+          buildMockEthersERC721Contract({ supportsInterface: false }),
+        );
+        uuidV1Mock.mockReturnValue(requestId);
+
+        await controller.watchAsset({
+          asset,
+          type: 'ERC20',
+          origin: 'https://example.test',
+          requestMetadata: {
+            origin: '',
+          },
+          networkClientId: 'mainnet',
+        });
+
+        expect(addAndShowApprovalRequestSpy).toHaveBeenCalledWith({
+          id: requestId,
+          origin: 'https://example.test',
+          type: ApprovalType.WatchAsset,
+          requestData: {
+            id: requestId,
+            interactingAddress: '0x1',
+            asset,
+          },
+        });
+      });
+    });
+
     it('stores token correctly under interacting address if user confirms', async () => {
       const chainId = ChainId.sepolia;
 
