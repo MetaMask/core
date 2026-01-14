@@ -460,7 +460,6 @@ export class NetworkEnablementController extends BaseController<
       const numericChainId = parseInt(chainId, 16);
 
       // EVM networks: use getEvmSlip44 (chainid.network data)
-      // Defaults to 60 (Ethereum) if no specific mapping is found
       const slip44CoinType = await Slip44Service.getEvmSlip44(numericChainId);
 
       evmNativeAssetUpdates.push({
@@ -547,7 +546,6 @@ export class NetworkEnablementController extends BaseController<
 
       if (namespace === 'eip155') {
         // EVM networks: use getEvmSlip44 (chainid.network data)
-        // Defaults to 60 (Ethereum) if no specific mapping is found
         const numericChainId = parseInt(reference, 10);
         slip44CoinType = await Slip44Service.getEvmSlip44(numericChainId);
       } else {
@@ -713,7 +711,6 @@ export class NetworkEnablementController extends BaseController<
     const numericChainId = parseInt(reference, 10);
 
     // EVM networks: use getEvmSlip44 (chainid.network data)
-    // Defaults to 60 (Ethereum) if no specific mapping is found
     const slip44CoinType = await Slip44Service.getEvmSlip44(numericChainId);
 
     this.update((state) => {
