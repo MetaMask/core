@@ -10,6 +10,7 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 ### Changed
 
 - Bump `@metamask/assets-controllers` from `^95.1.0` to `^^95.2.0` ([#7622](https://github.com/MetaMask/core/pull/7622))
+- Bump `@metamask/bridge-controller` from `^64.4.1` to `^64.5.0` ([#7622](https://github.com/MetaMask/core/pull/7622))
 
 ## [11.0.1]
 
