@@ -183,6 +183,8 @@ linkStyle default opacity:0.5
   app_metadata_controller --> messenger;
   approval_controller --> base_controller;
   approval_controller --> messenger;
+  assets_controller --> base_controller;
+  assets_controller --> messenger;
   assets_controllers --> account_tree_controller;
   assets_controllers --> accounts_controller;
   assets_controllers --> approval_controller;
@@ -352,6 +354,7 @@ linkStyle default opacity:0.5
   profile_metrics_controller --> messenger;
   profile_metrics_controller --> polling_controller;
   profile_metrics_controller --> profile_sync_controller;
+  profile_metrics_controller --> transaction_controller;
   profile_sync_controller --> address_book_controller;
   profile_sync_controller --> base_controller;
   profile_sync_controller --> keyring_controller;

@@ -10,7 +10,8 @@
     { "path": "../../packages/keyring-controller" },
     { "path": "../../packages/messenger" },
     { "path": "../../packages/polling-controller" },
-    { "path": "../../packages/profile-sync-controller" }
+    { "path": "../../packages/profile-sync-controller" },
+    { "path": "../../packages/transaction-controller" }
   ],
   "include": ["../../types", "./src"],
   /**
