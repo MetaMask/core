@@ -2700,6 +2700,7 @@ describe('BridgeController', function () {
         enabled: true,
         minimumVersion: '13.8.0',
       },
+      chainRanking: [{ chainId: 'eip155:1' as const }],
     };
 
     const quotesByDecreasingProcessingTime = [...mockBridgeQuotesSolErc20];

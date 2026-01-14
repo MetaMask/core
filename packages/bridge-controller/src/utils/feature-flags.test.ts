@@ -46,6 +46,7 @@ describe('feature-flags', () => {
             isActiveDest: true,
           },
         },
+        chainRanking: [],
       };
 
       const result = formatFeatureFlags(bridgeConfig);
@@ -95,6 +96,7 @@ describe('feature-flags', () => {
         support: true,
         minimumVersion: '0.0.0',
         chains: {},
+        chainRanking: [],
       };
 
       const result = formatFeatureFlags(bridgeConfig);
@@ -124,6 +126,7 @@ describe('feature-flags', () => {
             isActiveDest: false,
           },
         },
+        chainRanking: [],
       };
 
       const result = formatFeatureFlags(bridgeConfig);

@@ -118,6 +118,7 @@ describe('BridgeController SSE', function () {
           isActiveDest: true,
         },
       },
+      chainRanking: [{ chainId: 'eip155:1' as const }],
     });
 
     bridgeController = new BridgeController({
