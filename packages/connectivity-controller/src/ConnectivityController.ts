@@ -7,7 +7,7 @@ import { BaseController } from '@metamask/base-controller';
 import type { Messenger } from '@metamask/messenger';
 
 import { CONNECTIVITY_STATUSES } from './types';
-import type { ConnectivityService, ConnectivityStatus } from './types';
+import type { ConnectivityAdapter, ConnectivityStatus } from './types';
 
 /**
  * The name of the {@link ConnectivityController}, used to namespace the
@@ -112,21 +112,21 @@ export type ConnectivityControllerOptions = {
   messenger: ConnectivityControllerMessenger;
 
   /**
-   * Connectivity service for platform-specific detection.
+   * Connectivity adapter for platform-specific detection.
    */
-  connectivityService: ConnectivityService;
+  connectivityAdapter: ConnectivityAdapter;
 };
 
 /**
  * ConnectivityController stores the device's internet connectivity status.
  *
  * This controller is platform-agnostic and designed to be used across different
- * MetaMask clients (extension, mobile). It requires a `ConnectivityService` to
+ * MetaMask clients (extension, mobile). It requires a `ConnectivityAdapter` to
  * be injected, which provides platform-specific connectivity detection.
  *
- * The controller subscribes to the service's `onConnectivityChange` callback
+ * The controller subscribes to the adapter's `onConnectivityChange` callback
  * and updates its state accordingly. All connectivity updates flow through
- * the service, ensuring a single source of truth.
+ * the adapter, ensuring a single source of truth.
  *
  * This controller provides a centralized state for connectivity status,
  * enabling the UI and other controllers to adapt when the user goes offline.
@@ -141,13 +141,13 @@ export class ConnectivityController extends BaseController<
    *
    * @param args - The arguments to this controller.
    * @param args.messenger - The messenger suited for this controller.
-   * @param args.connectivityService - The connectivity service to use.
+   * @param args.connectivityAdapter - The connectivity adapter to use.
    */
   constructor({
     messenger,
-    connectivityService,
+    connectivityAdapter,
   }: ConnectivityControllerOptions) {
-    const initialStatus = connectivityService.getStatus();
+    const initialStatus = connectivityAdapter.getStatus();
 
     super({
       messenger,
@@ -159,7 +159,7 @@ export class ConnectivityController extends BaseController<
       },
     });
 
-    connectivityService.onConnectivityChange((status) => {
+    connectivityAdapter.onConnectivityChange((status) => {
       this.update((draftState) => {
         draftState.connectivityStatus = status;
       });

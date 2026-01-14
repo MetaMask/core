@@ -11,17 +11,11 @@ export type ConnectivityStatus =
   (typeof CONNECTIVITY_STATUSES)[keyof typeof CONNECTIVITY_STATUSES];
 
 /**
- * Service interface for platform-specific connectivity detection.
- *
+ * Adapter interface for platform-specific connectivity detection.
  * Each platform (extension, mobile) implements this interface using
- * platform-specific APIs:
- * - Extension: `navigator.onLine` and `online`/`offline` events
- * - Mobile: `@react-native-community/netinfo`
- *
- * The service is injected into the ConnectivityController, which
- * subscribes to connectivity changes and updates its state accordingly.
+ * platform-specific APIs to detect internet connectivity.
  */
-export type ConnectivityService = {
+export type ConnectivityAdapter = {
   /**
    * Returns the current connectivity status.
    *
