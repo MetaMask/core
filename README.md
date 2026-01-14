@@ -313,6 +313,7 @@ linkStyle default opacity:0.5
   name_controller --> controller_utils;
   name_controller --> messenger;
   network_controller --> base_controller;
+  network_controller --> connectivity_controller;
   network_controller --> controller_utils;
   network_controller --> eth_block_tracker;
   network_controller --> eth_json_rpc_middleware;

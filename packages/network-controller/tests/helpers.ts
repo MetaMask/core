@@ -1,3 +1,5 @@
+import { CONNECTIVITY_STATUSES } from '@metamask/connectivity-controller';
+import type { ConnectivityStatus } from '@metamask/connectivity-controller';
 import {
   ChainId,
   InfuraNetworkType,
@@ -84,14 +86,29 @@ export const TESTNET = {
  * Build a root messenger that includes all events used by the network
  * controller.
  *
+ * @param options - Optional configuration.
+ * @param options.connectivityStatus - The connectivity status to return by default.
+ * If not provided, defaults to Online.
  * @returns The messenger.
  */
-export function buildRootMessenger(): RootMessenger {
+export function buildRootMessenger(options?: {
+  connectivityStatus?: ConnectivityStatus;
+}): RootMessenger {
   const rootMessenger = new Messenger<
     MockAnyNamespace,
     MessengerActions<NetworkControllerMessenger>,
     MessengerEvents<NetworkControllerMessenger>
   >({ namespace: MOCK_ANY_NAMESPACE, captureException: jest.fn() });
+
+  const connectivityStatus =
+    options?.connectivityStatus ?? CONNECTIVITY_STATUSES.Online;
+
+  rootMessenger.registerActionHandler(
+    'ConnectivityController:getState',
+    () => ({
+      connectivityStatus,
+    }),
+  );
 
   return rootMessenger;
 }
@@ -113,6 +130,11 @@ export function buildNetworkControllerMessenger(
   >({
     namespace: 'NetworkController',
     parent: rootMessenger,
+  });
+
+  rootMessenger.delegate({
+    messenger: networkControllerMessenger,
+    actions: ['ConnectivityController:getState'],
   });
 
   return networkControllerMessenger;

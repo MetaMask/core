@@ -1,3 +1,4 @@
+import { CONNECTIVITY_STATUSES } from '@metamask/connectivity-controller';
 import type {
   CockatielFailureReason,
   InfuraNetworkType,
@@ -279,6 +280,15 @@ function createRpcServiceChain({
         throw new Error('Could not make request to endpoint.');
       }
 
+      const connectivityState = messenger.call(
+        'ConnectivityController:getState',
+      );
+      if (
+        connectivityState.connectivityStatus === CONNECTIVITY_STATUSES.Offline
+      ) {
+        return;
+      }
+
       messenger.publish('NetworkController:rpcEndpointUnavailable', {
         chainId: configuration.chainId,
         networkClientId: id,
@@ -305,6 +315,16 @@ function createRpcServiceChain({
       ...rest
     }) => {
       const error = getError(rest);
+
+      const connectivityState = messenger.call(
+        'ConnectivityController:getState',
+      );
+      if (
+        connectivityState.connectivityStatus === CONNECTIVITY_STATUSES.Offline
+      ) {
+        return;
+      }
+
       messenger.publish('NetworkController:rpcEndpointDegraded', {
         chainId: configuration.chainId,
         networkClientId: id,

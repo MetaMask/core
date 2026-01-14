@@ -1,3 +1,4 @@
+import { CONNECTIVITY_STATUSES } from '@metamask/connectivity-controller';
 import {
   ConstantBackoff,
   DEFAULT_DEGRADED_THRESHOLD,
@@ -255,6 +256,109 @@ describe('createNetworkClient - RPC endpoint events', () => {
                         networkClientId: 'AAAA-AAAA-AAAA-AAAA',
                         primaryEndpointUrl: rpcUrl,
                       });
+                    },
+                  );
+                },
+              );
+            },
+          );
+        });
+
+        it('suppresses the NetworkController:rpcEndpointUnavailable event when user is offline', async () => {
+          const failoverEndpointUrl = 'https://failover.endpoint/';
+          const request = {
+            method: 'eth_gasPrice',
+            params: [],
+          };
+          const expectedError = createResourceUnavailableError(503);
+
+          await withMockedCommunications(
+            { providerType: networkClientType },
+            async (primaryComms) => {
+              await withMockedCommunications(
+                {
+                  providerType: 'custom',
+                  customRpcUrl: failoverEndpointUrl,
+                },
+                async (failoverComms) => {
+                  // The first time a block-cacheable request is made, the
+                  // latest block number is retrieved through the block
+                  // tracker first.
+                  primaryComms.mockRpcCall({
+                    request: {
+                      method: 'eth_blockNumber',
+                      params: [],
+                    },
+                    times: DEFAULT_MAX_CONSECUTIVE_FAILURES,
+                    response: {
+                      httpStatus: 503,
+                    },
+                  });
+                  failoverComms.mockRpcCall({
+                    request: {
+                      method: 'eth_blockNumber',
+                      params: [],
+                    },
+                    times: DEFAULT_MAX_CONSECUTIVE_FAILURES,
+                    response: {
+                      httpStatus: 503,
+                    },
+                  });
+
+                  const rootMessenger = buildRootMessenger({
+                    connectivityStatus: CONNECTIVITY_STATUSES.Offline,
+                  });
+
+                  const rpcEndpointUnavailableEventHandler = jest.fn();
+                  rootMessenger.subscribe(
+                    'NetworkController:rpcEndpointUnavailable',
+                    rpcEndpointUnavailableEventHandler,
+                  );
+
+                  await withNetworkClient(
+                    {
+                      providerType: networkClientType,
+                      networkClientId: 'AAAA-AAAA-AAAA-AAAA',
+                      isRpcFailoverEnabled: true,
+                      failoverRpcUrls: [failoverEndpointUrl],
+                      messenger: rootMessenger,
+                      getRpcServiceOptions: () => ({
+                        fetch,
+                        btoa,
+                        policyOptions: {
+                          backoff: new ConstantBackoff(backoffDuration),
+                        },
+                      }),
+                    },
+                    async ({ makeRpcCall, clock }) => {
+                      rootMessenger.subscribe(
+                        'NetworkController:rpcEndpointRetried',
+                        () => {
+                          // Ensure that we advance to the next RPC request
+                          // retry, not the next block tracker request.
+                          clock.tick(backoffDuration);
+                        },
+                      );
+
+                      // Hit the primary and exceed the max number of retries
+                      await expect(makeRpcCall(request)).rejects.toThrow(
+                        expectedError,
+                      );
+                      // Hit the primary and exceed the max number of retries
+                      await expect(makeRpcCall(request)).rejects.toThrow(
+                        expectedError,
+                      );
+                      // Hit the primary and exceed the max number of retries,
+                      // breaking the circuit
+                      await expect(makeRpcCall(request)).rejects.toThrow(
+                        expectedError,
+                      );
+
+                      // Event should be suppressed when offline, even though
+                      // the circuit break was triggered
+                      expect(
+                        rpcEndpointUnavailableEventHandler,
+                      ).not.toHaveBeenCalled();
                     },
                   );
                 },
@@ -1111,6 +1215,87 @@ describe('createNetworkClient - RPC endpoint events', () => {
                     networkClientId: 'AAAA-AAAA-AAAA-AAAA',
                     primaryEndpointUrl: rpcUrl,
                   });
+                },
+              );
+            },
+          );
+        });
+
+        it('suppresses the NetworkController:rpcEndpointDegraded event when user is offline', async () => {
+          const request = {
+            method: 'eth_gasPrice',
+            params: [],
+          };
+          const expectedError = createResourceUnavailableError(503);
+
+          await withMockedCommunications(
+            { providerType: networkClientType },
+            async (comms) => {
+              // The first time a block-cacheable request is made, the
+              // latest block number is retrieved through the block
+              // tracker first.
+              comms.mockRpcCall({
+                request: {
+                  method: 'eth_blockNumber',
+                  params: [],
+                },
+                times: DEFAULT_MAX_CONSECUTIVE_FAILURES,
+                response: {
+                  httpStatus: 503,
+                },
+              });
+
+              const rootMessenger = buildRootMessenger({
+                connectivityStatus: CONNECTIVITY_STATUSES.Offline,
+              });
+
+              const rpcEndpointDegradedEventHandler = jest.fn();
+              rootMessenger.subscribe(
+                'NetworkController:rpcEndpointDegraded',
+                rpcEndpointDegradedEventHandler,
+              );
+
+              await withNetworkClient(
+                {
+                  providerType: networkClientType,
+                  networkClientId: 'AAAA-AAAA-AAAA-AAAA',
+                  messenger: rootMessenger,
+                  getRpcServiceOptions: () => ({
+                    fetch,
+                    btoa,
+                    policyOptions: {
+                      backoff: new ConstantBackoff(backoffDuration),
+                    },
+                  }),
+                },
+                async ({ makeRpcCall, clock }) => {
+                  rootMessenger.subscribe(
+                    'NetworkController:rpcEndpointRetried',
+                    () => {
+                      // Ensure that we advance to the next RPC request
+                      // retry, not the next block tracker request.
+                      clock.tick(backoffDuration);
+                    },
+                  );
+
+                  // Hit the endpoint and exceed the max number of retries
+                  await expect(makeRpcCall(request)).rejects.toThrow(
+                    expectedError,
+                  );
+                  // Hit the endpoint and exceed the max number of retries
+                  await expect(makeRpcCall(request)).rejects.toThrow(
+                    expectedError,
+                  );
+                  // Hit the endpoint and exceed the max number of retries
+                  await expect(makeRpcCall(request)).rejects.toThrow(
+                    expectedError,
+                  );
+
+                  // Event should be suppressed when offline, even though
+                  // the degraded condition was triggered
+                  expect(
+                    rpcEndpointDegradedEventHandler,
+                  ).not.toHaveBeenCalled();
                 },
               );
             },
