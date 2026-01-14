@@ -256,7 +256,7 @@ describe('Bridge Selectors', () => {
             // eslint-disable-next-line @typescript-eslint/no-explicit-any
             ...(mockState.remoteFeatureFlags.bridgeConfig as any),
             chains: {
-              '1': {
+              'eip155:1': {
                 refreshRate: 41000,
                 isActiveSrc: true,
                 isActiveDest: true,
@@ -288,7 +288,7 @@ describe('Bridge Selectors', () => {
             // eslint-disable-next-line @typescript-eslint/no-explicit-any
             ...(mockState.remoteFeatureFlags.bridgeConfig as any),
             chains: {
-              '1': {
+              'eip155:1': {
                 refreshRate: 41000,
                 isActiveSrc: true,
                 isActiveDest: true,

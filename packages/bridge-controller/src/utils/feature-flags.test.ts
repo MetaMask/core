@@ -376,6 +376,7 @@ describe('feature-flags', () => {
             isActiveDest: true,
           },
         },
+        chainRanking: [],
       };
 
       const bridgeConfig = {
@@ -389,6 +390,7 @@ describe('feature-flags', () => {
             isActiveDest: true,
           },
         },
+        chainRanking: [],
       };
 
       const remoteFeatureFlagControllerState = {
@@ -417,6 +419,7 @@ describe('feature-flags', () => {
             isActiveDest: true,
           },
         },
+        chainRanking: [],
       };
 
       expect(result).toStrictEqual(expectedBridgeConfig);
@@ -434,6 +437,7 @@ describe('feature-flags', () => {
             isActiveDest: true,
           },
         },
+        chainRanking: [],
       };
 
       const remoteFeatureFlagControllerState = {
@@ -461,6 +465,7 @@ describe('feature-flags', () => {
             isActiveDest: true,
           },
         },
+        chainRanking: [],
       };
 
       expect(result).toStrictEqual(expectedBridgeConfig);
