@@ -17,7 +17,11 @@ import {
   pattern,
   intersection,
 } from '@metamask/superstruct';
-import { CaipAssetTypeStruct, CaipChainIdStruct, isStrictHexString } from '@metamask/utils';
+import {
+  CaipAssetTypeStruct,
+  CaipChainIdStruct,
+  isStrictHexString,
+} from '@metamask/utils';
 
 export enum FeeType {
   METABRIDGE = 'metabridge',
