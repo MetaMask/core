@@ -5,6 +5,7 @@ export * from './block-tracker-inspector';
 export { createFetchMiddleware } from './fetch';
 export * from './inflight-cache';
 export type {
+  PermissionDependency,
   RequestExecutionPermissionsRequestParams,
   RequestExecutionPermissionsResult,
   ProcessRequestExecutionPermissionsHook,
