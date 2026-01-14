@@ -16,6 +16,7 @@ import { isEqual } from 'lodash';
 import { reduceInBatchesSerially, TOKEN_PRICES_BATCH_SIZE } from './assetsUtil';
 import type { AbstractTokenPricesService } from './token-prices-service/abstract-token-prices-service';
 import { getNativeTokenAddress } from './token-prices-service/codefi-v2';
+import { TokenRwaData } from './token-service';
 import type {
   TokensControllerGetStateAction,
   TokensControllerStateChangeEvent,
@@ -45,6 +46,7 @@ export type Token = {
   hasBalanceError?: boolean;
   isERC721?: boolean;
   name?: string;
+  rwaData?: TokenRwaData;
 };
 
 const DEFAULT_INTERVAL = 180000;

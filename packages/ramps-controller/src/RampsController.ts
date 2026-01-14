@@ -7,11 +7,17 @@ import { BaseController } from '@metamask/base-controller';
 import type { Messenger } from '@metamask/messenger';
 import type { Json } from '@metamask/utils';
 
-import type { Country, Eligibility } from './RampsService';
+import type {
+  Country,
+  Eligibility,
+  TokensResponse,
+  Provider,
+} from './RampsService';
 import type {
   RampsServiceGetGeolocationAction,
   RampsServiceGetCountriesAction,
   RampsServiceGetEligibilityAction,
+  RampsServiceGetTokensAction,
 } from './RampsService-method-action-types';
 import type {
   RequestCache as RequestCacheType,
@@ -45,13 +51,24 @@ export const controllerName = 'RampsController';
  */
 export type RampsControllerState = {
   /**
-   * The user's country code determined by geolocation.
+   * The user's selected region code (e.g., "US-CA").
+   * Initially set via geolocation fetch, but can be manually changed by the user.
    */
-  geolocation: string | null;
+  userRegion: string | null;
+  /**
+   * The user's preferred provider.
+   * Can be manually set by the user.
+   */
+  preferredProvider: Provider | null;
   /**
    * Eligibility information for the user's current region.
    */
   eligibility: Eligibility | null;
+  /**
+   * Tokens fetched for the current region and action.
+   * Contains topTokens and allTokens arrays.
+   */
+  tokens: TokensResponse | null;
   /**
    * Cache of request states, keyed by cache key.
    * This stores loading, success, and error states for API requests.
@@ -63,13 +80,25 @@ export type RampsControllerState = {
  * The metadata for each property in {@link RampsControllerState}.
  */
 const rampsControllerMetadata = {
-  geolocation: {
+  userRegion: {
+    persist: true,
+    includeInDebugSnapshot: true,
+    includeInStateLogs: true,
+    usedInUi: true,
+  },
+  preferredProvider: {
     persist: true,
     includeInDebugSnapshot: true,
     includeInStateLogs: true,
     usedInUi: true,
   },
   eligibility: {
+    persist: true,
+    includeInDebugSnapshot: true,
+    includeInStateLogs: true,
+    usedInUi: true,
+  },
+  tokens: {
     persist: true,
     includeInDebugSnapshot: true,
     includeInStateLogs: true,
@@ -93,8 +122,10 @@ const rampsControllerMetadata = {
  */
 export function getDefaultRampsControllerState(): RampsControllerState {
   return {
-    geolocation: null,
+    userRegion: null,
+    preferredProvider: null,
     eligibility: null,
+    tokens: null,
     requests: {},
   };
 }
@@ -120,7 +151,8 @@ export type RampsControllerActions = RampsControllerGetStateAction;
 type AllowedActions =
   | RampsServiceGetGeolocationAction
   | RampsServiceGetCountriesAction
-  | RampsServiceGetEligibilityAction;
+  | RampsServiceGetEligibilityAction
+  | RampsServiceGetTokensAction;
 
 /**
  * Published when the state of {@link RampsController} changes.
@@ -387,17 +419,17 @@ export class RampsController extends BaseController<
   }
 
   /**
-   * Updates the user's geolocation and eligibility.
+   * Updates the user's region by fetching geolocation and eligibility.
    * This method calls the RampsService to get the geolocation,
    * then automatically fetches eligibility for that region.
    *
    * @param options - Options for cache behavior.
-   * @returns The geolocation string.
+   * @returns The user region string.
    */
-  async updateGeolocation(options?: ExecuteRequestOptions): Promise<string> {
-    const cacheKey = createCacheKey('updateGeolocation', []);
+  async updateUserRegion(options?: ExecuteRequestOptions): Promise<string> {
+    const cacheKey = createCacheKey('updateUserRegion', []);
 
-    const geolocation = await this.executeRequest(
+    const userRegion = await this.executeRequest(
       cacheKey,
       async () => {
         const result = await this.messenger.call('RampsService:getGeolocation');
@@ -406,24 +438,104 @@ export class RampsController extends BaseController<
       options,
     );
 
+    const normalizedRegion = userRegion
+      ? userRegion.toLowerCase().trim()
+      : userRegion;
+
     this.update((state) => {
-      state.geolocation = geolocation;
+      state.userRegion = normalizedRegion;
+      state.tokens = null;
     });
 
-    if (geolocation) {
+    if (normalizedRegion) {
       try {
-        await this.updateEligibility(geolocation, options);
+        await this.updateEligibility(normalizedRegion, options);
       } catch {
-        // Eligibility fetch failed, but geolocation was successfully fetched and cached.
-        // Don't let eligibility errors prevent geolocation state from being updated.
-        // Clear eligibility state to avoid showing stale data from a previous location.
         this.update((state) => {
-          state.eligibility = null;
+          const currentUserRegion = state.userRegion?.toLowerCase().trim();
+          if (currentUserRegion === normalizedRegion) {
+            state.eligibility = null;
+            state.tokens = null;
+          }
         });
       }
     }
 
-    return geolocation;
+    return normalizedRegion;
+  }
+
+  /**
+   * Sets the user's region manually (without fetching geolocation).
+   * This allows users to override the detected region.
+   *
+   * @param region - The region code to set (e.g., "US-CA").
+   * @param options - Options for cache behavior when fetching eligibility.
+   * @returns The eligibility information for the region.
+   */
+  async setUserRegion(
+    region: string,
+    options?: ExecuteRequestOptions,
+  ): Promise<Eligibility> {
+    const normalizedRegion = region.toLowerCase().trim();
+
+    this.update((state) => {
+      state.userRegion = normalizedRegion;
+      state.tokens = null;
+    });
+
+    try {
+      return await this.updateEligibility(normalizedRegion, options);
+    } catch (error) {
+      // Eligibility fetch failed, but user region was successfully set.
+      // Don't let eligibility errors prevent user region state from being updated.
+      // Clear eligibility state to avoid showing stale data from a previous location.
+      // Only clear if the region still matches to avoid race conditions where a newer
+      // region change has already succeeded.
+      this.update((state) => {
+        const currentUserRegion = state.userRegion?.toLowerCase().trim();
+        if (currentUserRegion === normalizedRegion) {
+          state.eligibility = null;
+          state.tokens = null;
+        }
+      });
+      throw error;
+    }
+  }
+
+  /**
+   * Sets the user's preferred provider.
+   * This allows users to set their preferred ramp provider.
+   *
+   * @param provider - The provider object to set.
+   */
+  setPreferredProvider(provider: Provider | null): void {
+    this.update((state) => {
+      state.preferredProvider = provider;
+    });
+  }
+
+  /**
+   * Initializes the controller by fetching the user's region from geolocation.
+   * This should be called once at app startup to set up the initial region.
+   * After the region is set and eligibility is determined, tokens are fetched
+   * and saved to state.
+   *
+   * @param options - Options for cache behavior.
+   * @returns Promise that resolves when initialization is complete.
+   */
+  async init(options?: ExecuteRequestOptions): Promise<void> {
+    const userRegion = await this.updateUserRegion(options).catch(() => {
+      // User region fetch failed - error state will be available via selectors
+      return null;
+    });
+
+    if (userRegion) {
+      try {
+        await this.getTokens(userRegion, 'buy', options);
+      } catch {
+        // Token fetch failed - error state will be available via selectors
+      }
+    }
   }
 
   /**
@@ -452,10 +564,9 @@ export class RampsController extends BaseController<
     );
 
     this.update((state) => {
-      if (
-        state.geolocation === null ||
-        state.geolocation.toLowerCase().trim() === normalizedIsoCode
-      ) {
+      const userRegion = state.userRegion?.toLowerCase().trim();
+
+      if (userRegion === undefined || userRegion === normalizedIsoCode) {
         state.eligibility = eligibility;
       }
     });
@@ -483,5 +594,53 @@ export class RampsController extends BaseController<
       },
       options,
     );
+  }
+
+  /**
+   * Fetches the list of available tokens for a given region and action.
+   * The tokens are saved in the controller state once fetched.
+   *
+   * @param region - The region code (e.g., "us", "fr", "us-ny"). If not provided, uses the user's region from controller state.
+   * @param action - The ramp action type ('buy' or 'sell').
+   * @param options - Options for cache behavior.
+   * @returns The tokens response containing topTokens and allTokens.
+   */
+  async getTokens(
+    region?: string,
+    action: 'buy' | 'sell' = 'buy',
+    options?: ExecuteRequestOptions,
+  ): Promise<TokensResponse> {
+    const regionToUse = region ?? this.state.userRegion;
+
+    if (!regionToUse) {
+      throw new Error(
+        'Region is required. Either provide a region parameter or ensure userRegion is set in controller state.',
+      );
+    }
+
+    const normalizedRegion = regionToUse.toLowerCase().trim();
+    const cacheKey = createCacheKey('getTokens', [normalizedRegion, action]);
+
+    const tokens = await this.executeRequest(
+      cacheKey,
+      async () => {
+        return this.messenger.call(
+          'RampsService:getTokens',
+          normalizedRegion,
+          action,
+        );
+      },
+      options,
+    );
+
+    this.update((state) => {
+      const userRegion = state.userRegion?.toLowerCase().trim();
+
+      if (userRegion === undefined || userRegion === normalizedRegion) {
+        state.tokens = tokens;
+      }
+    });
+
+    return tokens;
   }
 }

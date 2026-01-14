@@ -8,6 +8,7 @@ import type { NetworkState } from '@metamask/network-controller';
 import { hexToBigInt, parseCaipAssetType } from '@metamask/utils';
 import type { Hex } from '@metamask/utils';
 import { createSelector, weakMapMemoize } from 'reselect';
+import { TokenRwaData } from 'src/token-service';
 
 import {
   parseBalanceWithDecimals,
@@ -84,6 +85,7 @@ export type Asset = (
         conversionRate: number;
       }
     | undefined;
+  rwaData?: TokenRwaData;
 };
 
 export type AssetListState = {
@@ -325,6 +327,7 @@ const selectAllEvmAssets = createAssetListSelector(
                 }
               : undefined,
             chainId,
+            ...(token.rwaData && { rwaData: token.rwaData }),
           });
         }
       }

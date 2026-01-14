@@ -40,9 +40,22 @@ export type RampsServiceGetEligibilityAction = {
 };
 
 /**
+ * Fetches the list of available tokens for a given region and action.
+ *
+ * @param region - The region code (e.g., "us", "fr", "us-ny").
+ * @param action - The ramp action type ('buy' or 'sell').
+ * @returns The tokens response containing topTokens and allTokens.
+ */
+export type RampsServiceGetTokensAction = {
+  type: `RampsService:getTokens`;
+  handler: RampsService['getTokens'];
+};
+
+/**
  * Union of all RampsService action types.
  */
 export type RampsServiceMethodActions =
   | RampsServiceGetGeolocationAction
   | RampsServiceGetCountriesAction
-  | RampsServiceGetEligibilityAction;
+  | RampsServiceGetEligibilityAction
+  | RampsServiceGetTokensAction;
