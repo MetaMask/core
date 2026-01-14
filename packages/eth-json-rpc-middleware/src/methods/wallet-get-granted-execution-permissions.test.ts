@@ -10,7 +10,7 @@ import type { WalletMiddlewareParams } from '../wallet';
 const RESULT_MOCK: GetGrantedExecutionPermissionsResult = [
   {
     chainId: '0x01' as Hex,
-    from: '0x1234567890123456789012345678901234567890' as Hex,
+    from: '0x5B38Da6a701c568545dCfcB03FcB875f56beddC4' as Hex,
     to: '0x016562aA41A8697720ce0943F003141f5dEAe006' as Hex,
     permission: {
       type: 'native-token-allowance',
@@ -27,7 +27,7 @@ const RESULT_MOCK: GetGrantedExecutionPermissionsResult = [
         factoryData: '0xabcdef' as Hex,
       },
     ],
-    delegationManager: '0x1234567890123456789012345678901234567890' as Hex,
+    delegationManager: '0xAb8483F64d9C6d1EcF9b849Ae677dD3315835cb2' as Hex,
   },
 ];
 

@@ -9,7 +9,7 @@ import {
   string,
   unknown,
 } from '@metamask/superstruct';
-import { StrictHexStruct } from '@metamask/utils';
+import { HexChecksumAddressStruct, StrictHexStruct } from '@metamask/utils';
 import type { Json, JsonRpcRequest } from '@metamask/utils';
 
 import { NoParamsStruct } from '../utils/structs';
@@ -40,12 +40,12 @@ const PermissionStruct = object({
  */
 export const GrantedExecutionPermissionStruct = object({
   chainId: StrictHexStruct,
-  from: StrictHexStruct,
-  to: StrictHexStruct,
+  from: HexChecksumAddressStruct,
+  to: HexChecksumAddressStruct,
   permission: PermissionStruct,
   context: StrictHexStruct,
   dependencies: array(DependencyStruct),
-  delegationManager: StrictHexStruct,
+  delegationManager: HexChecksumAddressStruct,
 });
 
 /**
