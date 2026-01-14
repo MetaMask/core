@@ -49,20 +49,20 @@ export const DEFAULT_MAX_REFRESH_COUNT = 5;
 export const BRIDGE_CONTROLLER_NAME = 'BridgeController';
 
 export const DEFAULT_CHAIN_RANKING = [
-  { chainId: 'eip155:1' },
-  { chainId: 'eip155:56' },
-  { chainId: 'bip122:000000000019d6689c085ae165831e93' },
-  { chainId: 'solana:5eykt4UsFv8P8NJdTREpY1vzqKqZKvdp' },
-  { chainId: 'tron:728126428' },
-  { chainId: 'eip155:8453' },
-  { chainId: 'eip155:42161' },
-  { chainId: 'eip155:59144' },
-  { chainId: 'eip155:137' },
-  { chainId: 'eip155:43114' },
-  { chainId: 'eip155:10' },
-  { chainId: 'eip155:143' },
-  { chainId: 'eip155:1329' },
-  { chainId: 'eip155:324' },
+  { chainId: 'eip155:1', name: 'Ethereum' },
+  { chainId: 'eip155:56', name: 'BNB' },
+  { chainId: 'bip122:000000000019d6689c085ae165831e93', name: 'BTC' },
+  { chainId: 'solana:5eykt4UsFv8P8NJdTREpY1vzqKqZKvdp', name: 'Solana' },
+  { chainId: 'tron:728126428', name: 'Tron' },
+  { chainId: 'eip155:8453', name: 'Base' },
+  { chainId: 'eip155:42161', name: 'Arbitrum' },
+  { chainId: 'eip155:59144', name: 'Linea' },
+  { chainId: 'eip155:137', name: 'Polygon' },
+  { chainId: 'eip155:43114', name: 'Avalanche' },
+  { chainId: 'eip155:10', name: 'Optimism' },
+  { chainId: 'eip155:143', name: 'Monad' },
+  { chainId: 'eip155:1329', name: 'Sei' },
+  { chainId: 'eip155:324', name: 'zkSync' },
 ] as const;
 
 export const DEFAULT_FEATURE_FLAG_CONFIG: FeatureFlagsPlatformConfig = {

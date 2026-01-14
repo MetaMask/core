@@ -110,6 +110,10 @@ export const ChainRankingItemSchema = type({
    * The CAIP-2 chain identifier (e.g., "eip155:1" for Ethereum mainnet)
    */
   chainId: CaipChainIdStruct,
+  /**
+   * The display name of the chain (e.g., "Ethereum Mainnet")
+   */
+  name: string(),
 });
 
 export const ChainRankingSchema = array(ChainRankingItemSchema);
