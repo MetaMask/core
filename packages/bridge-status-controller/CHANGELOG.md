@@ -7,6 +7,10 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+### Uncategorized
+
+- feat(bridge-controller): add gasless related event properties ([#7611](https://github.com/MetaMask/core/pull/7611))
+
 ## [64.4.2]
 
 ### Changed
