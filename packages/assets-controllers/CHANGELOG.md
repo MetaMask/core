@@ -9,8 +9,6 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [95.2.0]
 
-## [95.1.1]
-
 ### Added
 
 - Add RWA data to asset fetching endpoints ([#7548](https://github.com/MetaMask/core/pull/7548))
