@@ -4239,6 +4239,7 @@ __metadata:
     "@metamask/messenger": "npm:^0.3.0"
     "@metamask/multichain-network-controller": "npm:^3.0.1"
     "@metamask/network-controller": "npm:^28.0.0"
+    "@metamask/slip44": "npm:^4.3.0"
     "@metamask/transaction-controller": "npm:^62.9.1"
     "@metamask/utils": "npm:^11.9.0"
     "@ts-bridge/cli": "npm:^0.6.4"
