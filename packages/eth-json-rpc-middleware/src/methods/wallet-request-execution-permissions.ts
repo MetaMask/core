@@ -4,10 +4,12 @@ import type { Infer } from '@metamask/superstruct';
 import {
   array,
   boolean,
+  literal,
   object,
   optional,
   record,
   string,
+  union,
   unknown,
 } from '@metamask/superstruct';
 import { HexChecksumAddressStruct, StrictHexStruct } from '@metamask/utils';
@@ -32,7 +34,7 @@ const PermissionRequestStruct = object({
   from: optional(HexChecksumAddressStruct),
   to: HexChecksumAddressStruct,
   permission: PermissionStruct,
-  rules: optional(array(RuleStruct)),
+  rules: optional(union([array(RuleStruct), literal(null)])),
 });
 
 export const RequestExecutionPermissionsStruct = array(PermissionRequestStruct);

@@ -119,6 +119,18 @@ describe('wallet_requestExecutionPermissions', () => {
     );
   });
 
+  it('supports null rules', async () => {
+    params[0].rules = null as never;
+
+    await callMethod();
+
+    expect(processRequestExecutionPermissionsMock).toHaveBeenCalledWith(
+      params,
+      request,
+      context,
+    );
+  });
+
   it('supports optional from', async () => {
     params[0].from = undefined;
 
