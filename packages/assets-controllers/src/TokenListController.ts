@@ -264,14 +264,7 @@ export class TokenListController extends StaticIntervalPollingController<TokenLi
    * @returns A promise that resolves when initialization is complete.
    */
   async #initializeFromStorage(): Promise<void> {
-    try {
-      await this.#loadCacheFromStorage();
-    } catch (error) {
-      console.error(
-        'TokenListController: Failed to initialize from storage:',
-        error,
-      );
-    }
+    await this.#loadCacheFromStorage();
   }
 
   /**
@@ -310,9 +303,10 @@ export class TokenListController extends StaticIntervalPollingController<TokenLi
     }
 
     this.#persistDebounceTimer = setTimeout(() => {
-      this.#persistChangedChains().catch((error) => {
-        console.error('TokenListController: Failed to persist cache:', error);
-      });
+      // Note: #persistChangedChains handles errors internally via #saveChainCacheToStorage,
+      // so this promise will not reject.
+      // eslint-disable-next-line @typescript-eslint/no-floating-promises
+      this.#persistChangedChains();
     }, TokenListController.#persistDebounceMs);
   }
 
@@ -358,7 +352,6 @@ export class TokenListController extends StaticIntervalPollingController<TokenLi
    */
   async #loadCacheFromStorage(): Promise<void> {
     try {
-      // Get all keys for this controller
       const allKeys = await this.messenger.call(
         'StorageService:getAllKeys',
         name,
@@ -370,7 +363,7 @@ export class TokenListController extends StaticIntervalPollingController<TokenLi
       );
 
       if (cacheKeys.length === 0) {
-        return; // No cached data
+        return;
       }
 
       // Load all chains in parallel
@@ -418,17 +411,26 @@ export class TokenListController extends StaticIntervalPollingController<TokenLi
           }
         });
 
-        // Clear any persistence scheduled during loading.
+        // Clear persistence for chains loaded from storage only.
         // Data loaded from storage doesn't need to be re-persisted.
         // The update() call above triggers #onCacheChanged which detects all
         // loaded chains as "new" (since #previousTokensChainsCache is empty)
-        // and schedules them for persistence. We must clear this to avoid
+        // and schedules them for persistence. We must clear these to avoid
         // redundant storage writes on every initialization.
+        // However, we must NOT clear chains from initial state that were never
+        // persisted to storage - those still need their first persist.
         if (this.#persistDebounceTimer) {
           clearTimeout(this.#persistDebounceTimer);
           this.#persistDebounceTimer = undefined;
         }
-        this.#changedChainsToPersist.clear();
+        // Only remove loaded chains, not chains from initial state that need first persist
+        for (const chainId of Object.keys(loadedCache) as Hex[]) {
+          this.#changedChainsToPersist.delete(chainId);
+        }
+        // Re-schedule persistence if there are remaining chains to persist
+        if (this.#changedChainsToPersist.size > 0) {
+          this.#debouncePersist();
+        }
       }
     } catch (error) {
       console.error(
@@ -490,9 +492,8 @@ export class TokenListController extends StaticIntervalPollingController<TokenLi
       this.#abortController = new AbortController();
       this.#chainId = chainId;
       if (this.state.preventPollingOnNetworkRestart) {
-        this.clearingTokenListData().catch((error) => {
-          console.error('Failed to clear token list data:', error);
-        });
+        // eslint-disable-next-line @typescript-eslint/no-floating-promises
+        this.clearingTokenListData();
       }
     }
   }
