@@ -187,13 +187,7 @@
   },
   "packages/assets-controllers/src/CurrencyRateController.ts": {
     "@typescript-eslint/explicit-function-return-type": {
-      "count": 3
-    },
-    "no-negated-condition": {
       "count": 1
-    },
-    "no-restricted-syntax": {
-      "count": 3
     }
   },
   "packages/assets-controllers/src/DeFiPositionsController/DeFiPositionsController.test.ts": {
@@ -359,7 +353,7 @@
   },
   "packages/assets-controllers/src/TokenListController.ts": {
     "@typescript-eslint/explicit-function-return-type": {
-      "count": 6
+      "count": 1
     },
     "no-restricted-syntax": {
       "count": 7
@@ -402,9 +396,6 @@
     },
     "@typescript-eslint/no-unused-vars": {
       "count": 1
-    },
-    "@typescript-eslint/prefer-nullish-coalescing": {
-      "count": 4
     },
     "@typescript-eslint/prefer-optional-chain": {
       "count": 4
@@ -687,7 +678,7 @@
   },
   "packages/bridge-controller/src/utils/metrics/types.ts": {
     "@typescript-eslint/naming-convention": {
-      "count": 81
+      "count": 83
     }
   },
   "packages/bridge-controller/src/utils/quote-fees.ts": {

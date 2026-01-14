@@ -25,7 +25,9 @@ describe('createRequestSelector', () => {
       const state: TestRootState = {
         ramps: {
           userRegion: null,
+          preferredProvider: null,
           eligibility: null,
+          tokens: null,
           requests: {
             'getCryptoCurrencies:["US"]': loadingRequest,
           },
@@ -54,7 +56,9 @@ describe('createRequestSelector', () => {
       const state: TestRootState = {
         ramps: {
           userRegion: null,
+          preferredProvider: null,
           eligibility: null,
+          tokens: null,
           requests: {
             'getCryptoCurrencies:["US"]': successRequest,
           },
@@ -86,7 +90,9 @@ describe('createRequestSelector', () => {
       const state: TestRootState = {
         ramps: {
           userRegion: null,
+          preferredProvider: null,
           eligibility: null,
+          tokens: null,
           requests: {
             'getCryptoCurrencies:["US"]': errorRequest,
           },
@@ -114,7 +120,9 @@ describe('createRequestSelector', () => {
       const state: TestRootState = {
         ramps: {
           userRegion: null,
+          preferredProvider: null,
           eligibility: null,
+          tokens: null,
           requests: {},
         },
       };
@@ -165,7 +173,9 @@ describe('createRequestSelector', () => {
       const state: TestRootState = {
         ramps: {
           userRegion: null,
+          preferredProvider: null,
           eligibility: null,
+          tokens: null,
           requests: {
             'getCryptoCurrencies:["US"]': successRequest,
           },
@@ -189,7 +199,9 @@ describe('createRequestSelector', () => {
       const state1: TestRootState = {
         ramps: {
           userRegion: null,
+          preferredProvider: null,
           eligibility: null,
+          tokens: null,
           requests: {
             'getCryptoCurrencies:["US"]': successRequest1,
           },
@@ -202,7 +214,9 @@ describe('createRequestSelector', () => {
       const state2: TestRootState = {
         ramps: {
           userRegion: null,
+          preferredProvider: null,
           eligibility: null,
+          tokens: null,
           requests: {
             'getCryptoCurrencies:["US"]': successRequest2,
           },
@@ -227,7 +241,9 @@ describe('createRequestSelector', () => {
       const state: TestRootState = {
         ramps: {
           userRegion: null,
+          preferredProvider: null,
           eligibility: null,
+          tokens: null,
           requests: {
             'getCryptoCurrencies:["US"]': successRequest,
           },
@@ -255,7 +271,9 @@ describe('createRequestSelector', () => {
       const state: TestRootState = {
         ramps: {
           userRegion: null,
+          preferredProvider: null,
           eligibility: null,
+          tokens: null,
           requests: {
             'getData:[]': successRequest,
           },
@@ -282,7 +300,9 @@ describe('createRequestSelector', () => {
       const loadingState: TestRootState = {
         ramps: {
           userRegion: null,
+          preferredProvider: null,
           eligibility: null,
+          tokens: null,
           requests: {
             'getCryptoCurrencies:["US"]': loadingRequest,
           },
@@ -297,7 +317,9 @@ describe('createRequestSelector', () => {
       const successState: TestRootState = {
         ramps: {
           userRegion: null,
+          preferredProvider: null,
           eligibility: null,
+          tokens: null,
           requests: {
             'getCryptoCurrencies:["US"]': successRequest,
           },
@@ -320,7 +342,9 @@ describe('createRequestSelector', () => {
       const successState: TestRootState = {
         ramps: {
           userRegion: null,
+          preferredProvider: null,
           eligibility: null,
+          tokens: null,
           requests: {
             'getCryptoCurrencies:["US"]': successRequest,
           },
@@ -334,7 +358,9 @@ describe('createRequestSelector', () => {
       const errorState: TestRootState = {
         ramps: {
           userRegion: null,
+          preferredProvider: null,
           eligibility: null,
+          tokens: null,
           requests: {
             'getCryptoCurrencies:["US"]': errorRequest,
           },
@@ -363,7 +389,9 @@ describe('createRequestSelector', () => {
       const state: TestRootState = {
         ramps: {
           userRegion: null,
+          preferredProvider: null,
           eligibility: null,
+          tokens: null,
           requests: {
             'getCryptoCurrencies:["US"]': createSuccessState(
               ['ETH'],
@@ -396,7 +424,9 @@ describe('createRequestSelector', () => {
       const state: TestRootState = {
         ramps: {
           userRegion: null,
+          preferredProvider: null,
           eligibility: null,
+          tokens: null,
           requests: {
             'getCryptoCurrencies:["US"]': createSuccessState(
               ['ETH'],
