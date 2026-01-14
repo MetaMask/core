@@ -28,6 +28,11 @@ import type { AccountWithScopes } from './ProfileMetricsService';
 export const controllerName = 'ProfileMetricsController';
 
 /**
+ * The default delay duration before data is sent for the first time, in milliseconds.
+ */
+export const INITIAL_DELAY_DURATION = 10 * 60 * 1000; // 10 minutes
+
+/**
  * Describes the shape of the state object for {@link ProfileMetricsController}.
  */
 export type ProfileMetricsControllerState = {
@@ -43,6 +48,10 @@ export type ProfileMetricsControllerState = {
    * source ID are grouped under the key "null".
    */
   syncQueue: Record<string, AccountWithScopes[]>;
+  /**
+   * The timestamp when the first data sending can be attempted.
+   */
+  initialDelayEndTimestamp?: number;
 };
 
 /**
@@ -58,6 +67,12 @@ const profileMetricsControllerMetadata = {
   syncQueue: {
     persist: true,
     includeInDebugSnapshot: false,
+    includeInStateLogs: true,
+    usedInUi: false,
+  },
+  initialDelayEndTimestamp: {
+    persist: true,
+    includeInDebugSnapshot: true,
     includeInStateLogs: true,
     usedInUi: false,
   },
@@ -194,11 +209,11 @@ export class ProfileMetricsController extends StaticIntervalPollingController()<
       MESSENGER_EXPOSED_METHODS,
     );
 
+    this.#setInitialDelayEndTimestampIfNull();
+
     this.messenger.subscribe('KeyringController:unlock', () => {
       this.#queueFirstSyncIfNeeded().catch(console.error);
-      if (this.#assertUserOptedIn()) {
-        this.startPolling(null);
-      }
+      this.startPolling(null);
     });
 
     this.messenger.subscribe('KeyringController:lock', () => {
@@ -227,7 +242,7 @@ export class ProfileMetricsController extends StaticIntervalPollingController()<
    */
   async _executePoll(): Promise<void> {
     await this.#mutex.runExclusive(async () => {
-      if (!this.#assertUserOptedIn()) {
+      if (!this.#assertUserOptedIn() || !this.#isInitialDelayComplete()) {
         return;
       }
       for (const [entropySourceId, accounts] of Object.entries(
@@ -281,6 +296,31 @@ export class ProfileMetricsController extends StaticIntervalPollingController()<
         state.initialEnqueueCompleted = true;
       });
     });
+  }
+
+  /**
+   * Set the initial delay end timestamp if it is not already set.
+   */
+  #setInitialDelayEndTimestampIfNull(): void {
+    this.update((state) => {
+      state.initialDelayEndTimestamp ??= Date.now() + INITIAL_DELAY_DURATION;
+    });
+  }
+
+  /**
+   * Check if the initial delay end timestamp is in the past.
+   *
+   * @returns True if the initial delay period has completed, false otherwise.
+   */
+  #isInitialDelayComplete(): boolean {
+    // The following check should never be true due to the initialization logic,
+    // as the `initialDelayEndTimestamp` is always set in the constructor,
+    // but is included for type safety. Ignoring for code coverage purposes.
+    // istanbul ignore if
+    if (this.state.initialDelayEndTimestamp === undefined) {
+      return false;
+    }
+    return Date.now() >= this.state.initialDelayEndTimestamp;
   }
 
   /**

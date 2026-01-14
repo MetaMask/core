@@ -7,7 +7,10 @@ import type {
   MessengerEvents,
 } from '@metamask/messenger';
 
-import { ProfileMetricsController } from './ProfileMetricsController';
+import {
+  INITIAL_DELAY_DURATION,
+  ProfileMetricsController,
+} from './ProfileMetricsController';
 import type { ProfileMetricsControllerMessenger } from './ProfileMetricsController';
 import type {
   ProfileMetricsSubmitMetricsRequest,
@@ -58,8 +61,30 @@ describe('ProfileMetricsController', () => {
   });
 
   describe('constructor subscriptions', () => {
+    it('sets the initial delay end timestamp correctly when constructing the controller for the first time', async () => {
+      await withController(({ controller }) => {
+        expect(controller.state.initialDelayEndTimestamp).toBe(
+          Date.now() + INITIAL_DELAY_DURATION,
+        );
+      });
+    });
+
+    it('retains the initial delay end timestamp when reconstructing the controller from persisted state', async () => {
+      const pastTimestamp = Date.now() - 10000;
+      await withController(
+        {
+          options: {
+            state: { initialDelayEndTimestamp: pastTimestamp },
+          },
+        },
+        ({ controller }) => {
+          expect(controller.state.initialDelayEndTimestamp).toBe(pastTimestamp);
+        },
+      );
+    });
+
     describe('when KeyringController:unlock is published', () => {
-      it('starts polling if the user opted-in', async () => {
+      it('starts polling immediately', async () => {
         await withController(
           { options: { assertUserOptedIn: () => true } },
           async ({ controller, rootMessenger }) => {
@@ -68,19 +93,6 @@ describe('ProfileMetricsController', () => {
             rootMessenger.publish('KeyringController:unlock');
 
             expect(pollSpy).toHaveBeenCalledTimes(1);
-          },
-        );
-      });
-
-      it('does not start polling if the user has not opted-in', async () => {
-        await withController(
-          { options: { assertUserOptedIn: () => false } },
-          async ({ controller, rootMessenger }) => {
-            const pollSpy = jest.spyOn(controller, 'startPolling');
-
-            rootMessenger.publish('KeyringController:unlock');
-
-            expect(pollSpy).not.toHaveBeenCalled();
           },
         );
       });
@@ -329,14 +341,39 @@ describe('ProfileMetricsController', () => {
       });
     });
 
-    describe('when the user has opted in to profile metrics', () => {
+    describe('when the initial delay period has not ended', () => {
+      it('does not process the sync queue', async () => {
+        const accounts: Record<string, AccountWithScopes[]> = {
+          id1: [{ address: '0xAccount1', scopes: ['eip155:1'] }],
+        };
+        await withController(
+          {
+            options: {
+              state: {
+                syncQueue: accounts,
+              },
+            },
+          },
+          async ({ controller, mockSubmitMetrics }) => {
+            await controller._executePoll();
+
+            expect(mockSubmitMetrics).not.toHaveBeenCalled();
+            expect(controller.state.syncQueue).toStrictEqual(accounts);
+          },
+        );
+      });
+    });
+
+    describe('when the user has opted in to profile metrics and initial timestamp passed', () => {
       it('processes the sync queue on each poll', async () => {
         const accounts: Record<string, AccountWithScopes[]> = {
           id1: [{ address: '0xAccount1', scopes: ['eip155:1'] }],
         };
         await withController(
           {
-            options: { state: { syncQueue: accounts } },
+            options: {
+              state: { syncQueue: accounts, initialDelayEndTimestamp: 0 },
+            },
           },
           async ({ controller, getMetaMetricsId, mockSubmitMetrics }) => {
             await controller._executePoll();
@@ -363,7 +400,9 @@ describe('ProfileMetricsController', () => {
         };
         await withController(
           {
-            options: { state: { syncQueue: accounts } },
+            options: {
+              state: { syncQueue: accounts, initialDelayEndTimestamp: 0 },
+            },
           },
           async ({ controller, getMetaMetricsId, mockSubmitMetrics }) => {
             await controller._executePoll();
@@ -399,7 +438,9 @@ describe('ProfileMetricsController', () => {
         };
         await withController(
           {
-            options: { state: { syncQueue: accounts } },
+            options: {
+              state: { syncQueue: accounts, initialDelayEndTimestamp: 0 },
+            },
           },
           async ({ controller, getMetaMetricsId, mockSubmitMetrics }) => {
             const consoleErrorSpy = jest.spyOn(console, 'error');
@@ -436,51 +477,57 @@ describe('ProfileMetricsController', () => {
   describe('metadata', () => {
     it('includes expected state in debug snapshots', async () => {
       await withController(({ controller }) => {
+        const expectedState = `
+          Object {
+            "initialDelayEndTimestamp": ${Date.now() + INITIAL_DELAY_DURATION},
+            "initialEnqueueCompleted": false,
+          }
+        `;
         expect(
           deriveStateFromMetadata(
             controller.state,
             controller.metadata,
             'includeInDebugSnapshot',
           ),
-        ).toMatchInlineSnapshot(`
-          Object {
-            "initialEnqueueCompleted": false,
-          }
-        `);
+        ).toMatchInlineSnapshot(expectedState);
       });
     });
 
     it('includes expected state in state logs', async () => {
       await withController(({ controller }) => {
+        const expectedState = `
+          Object {
+            "initialDelayEndTimestamp": ${Date.now() + INITIAL_DELAY_DURATION},
+            "initialEnqueueCompleted": false,
+            "syncQueue": Object {},
+          }
+        `;
         expect(
           deriveStateFromMetadata(
             controller.state,
             controller.metadata,
             'includeInStateLogs',
           ),
-        ).toMatchInlineSnapshot(`
-          Object {
-            "initialEnqueueCompleted": false,
-            "syncQueue": Object {},
-          }
-        `);
+        ).toMatchInlineSnapshot(expectedState);
       });
     });
 
     it('persists expected state', async () => {
       await withController(({ controller }) => {
+        const expectedState = `
+          Object {
+            "initialDelayEndTimestamp": ${Date.now() + INITIAL_DELAY_DURATION},
+            "initialEnqueueCompleted": false,
+            "syncQueue": Object {},
+          }
+        `;
         expect(
           deriveStateFromMetadata(
             controller.state,
             controller.metadata,
             'persist',
           ),
-        ).toMatchInlineSnapshot(`
-          Object {
-            "initialEnqueueCompleted": false,
-            "syncQueue": Object {},
-          }
-        `);
+        ).toMatchInlineSnapshot(expectedState);
       });
     });
 
