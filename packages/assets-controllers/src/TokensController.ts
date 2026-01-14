@@ -39,7 +39,7 @@ import type {
 } from '@metamask/network-controller';
 import { rpcErrors } from '@metamask/rpc-errors';
 import { isStrictHexString } from '@metamask/utils';
-import type { Hex } from '@metamask/utils';
+import type { Hex, Json } from '@metamask/utils';
 import { Mutex } from 'async-mutex';
 import type { Patch } from 'immer';
 import { cloneDeep } from 'lodash';
@@ -75,6 +75,21 @@ type SuggestedAssetMeta = {
   type: string;
   asset: Token;
   interactingAddress: string;
+  origin?: string;
+  pageMeta?: Record<string, Json>;
+};
+
+type WatchAssetRequestMetadata = {
+  origin?: string;
+  pageMeta?: Record<string, Json>;
+};
+
+const getNonEmptyString = (
+  ...candidates: (string | undefined)[]
+): string | undefined => {
+  return candidates.find(
+    (candidate) => typeof candidate === 'string' && candidate.trim() !== '',
+  );
 };
 
 /**
@@ -262,7 +277,7 @@ export class TokensController extends BaseController<
         const updatedAllTokens = cloneDeep(allTokens);
 
         for (const [chainId, chainCache] of Object.entries(tokensChainsCache)) {
-          const chainData = chainCache?.data || {};
+          const chainData = chainCache?.data ?? {};
 
           if (updatedAllTokens[chainId as Hex]) {
             if (updatedAllTokens[chainId as Hex][selectedAddress]) {
@@ -433,11 +448,11 @@ export class TokensController extends BaseController<
 
     try {
       address = toChecksumHexAddress(address);
-      const tokens = allTokens[chainIdToUse]?.[accountAddress] || [];
+      const tokens = allTokens[chainIdToUse]?.[accountAddress] ?? [];
       const ignoredTokens =
-        allIgnoredTokens[chainIdToUse]?.[accountAddress] || [];
+        allIgnoredTokens[chainIdToUse]?.[accountAddress] ?? [];
       const detectedTokens =
-        allDetectedTokens[chainIdToUse]?.[accountAddress] || [];
+        allDetectedTokens[chainIdToUse]?.[accountAddress] ?? [];
       const newTokens: Token[] = [...tokens];
       const [isERC721, tokenMetadata] = await Promise.all([
         this.#detectIsERC721(address, networkClientId),
@@ -449,13 +464,14 @@ export class TokensController extends BaseController<
         symbol,
         decimals,
         image:
-          image ||
-          formatIconUrlWithProxy({
-            chainId: chainIdToUse,
-            tokenAddress: address,
-          }),
+          image && image.trim() !== ''
+            ? image
+            : formatIconUrlWithProxy({
+                chainId: chainIdToUse,
+                tokenAddress: address,
+              }),
         isERC721,
-        aggregators: formatAggregatorNames(tokenMetadata?.aggregators || []),
+        aggregators: formatAggregatorNames(tokenMetadata?.aggregators ?? []),
         name,
         ...(tokenMetadata?.rwaData && { rwaData: tokenMetadata.rwaData }),
       };
@@ -517,7 +533,7 @@ export class TokensController extends BaseController<
 
     // Used later to dedupe imported tokens
     const newTokensMap = [
-      ...(allTokens[interactingChainId]?.[this.#getSelectedAccount().address] ||
+      ...(allTokens[interactingChainId]?.[this.#getSelectedAccount().address] ??
         []),
       ...tokensToImport,
     ].reduce<{ [address: string]: Token }>((output, token) => {
@@ -594,14 +610,14 @@ export class TokensController extends BaseController<
     const { allTokens, allDetectedTokens, allIgnoredTokens } = this.state;
     const ignoredTokensMap: { [key: string]: true } = {};
     const ignoredTokens =
-      allIgnoredTokens[interactingChainId]?.[this.#getSelectedAddress()] || [];
+      allIgnoredTokens[interactingChainId]?.[this.#getSelectedAddress()] ?? [];
     let newIgnoredTokens: string[] = [...ignoredTokens];
 
     const tokens =
-      allTokens[interactingChainId]?.[this.#getSelectedAddress()] || [];
+      allTokens[interactingChainId]?.[this.#getSelectedAddress()] ?? [];
 
     const detectedTokens =
-      allDetectedTokens[interactingChainId]?.[this.#getSelectedAddress()] || [];
+      allDetectedTokens[interactingChainId]?.[this.#getSelectedAddress()] ?? [];
 
     const checksummedTokenAddresses = tokenAddressesToIgnore.map((address) => {
       const checksumAddress = toChecksumHexAddress(address);
@@ -721,9 +737,9 @@ export class TokensController extends BaseController<
       // Re-point `tokens` and `detectedTokens` to keep them referencing the current chain/account.
       const selectedAddress = this.#getSelectedAddress();
 
-      newTokens = newAllTokens?.[chainId]?.[selectedAddress] || [];
+      newTokens = newAllTokens?.[chainId]?.[selectedAddress] ?? [];
       newDetectedTokens =
-        newAllDetectedTokens?.[chainId]?.[selectedAddress] || [];
+        newAllDetectedTokens?.[chainId]?.[selectedAddress] ?? [];
 
       this.update((state) => {
         state.allTokens = newAllTokens;
@@ -836,6 +852,9 @@ export class TokensController extends BaseController<
    * @param options.type - The asset type.
    * @param options.interactingAddress - The address of the account that is requesting to watch the asset.
    * @param options.networkClientId - Network Client ID.
+   * @param options.origin - The origin to set on the approval request.
+   * @param options.pageMeta - The metadata for the page initiating the request.
+   * @param options.requestMetadata - Metadata for the request, including pageMeta and origin.
    * @returns A promise that resolves if the asset was watched successfully, and rejects otherwise.
    */
   async watchAsset({
@@ -843,11 +862,17 @@ export class TokensController extends BaseController<
     type,
     interactingAddress,
     networkClientId,
+    origin,
+    pageMeta,
+    requestMetadata,
   }: {
     asset: Token;
     type: string;
     interactingAddress?: string;
     networkClientId: NetworkClientId;
+    origin?: string;
+    pageMeta?: Record<string, Json>;
+    requestMetadata?: WatchAssetRequestMetadata;
   }): Promise<void> {
     if (type !== ERC20) {
       throw new Error(`Asset of type ${type} not supported`);
@@ -955,6 +980,8 @@ export class TokensController extends BaseController<
       time: Date.now(),
       type,
       interactingAddress: selectedAddress,
+      origin: getNonEmptyString(requestMetadata?.origin, origin),
+      pageMeta: requestMetadata?.pageMeta ?? pageMeta,
     };
 
     await this.#requestApproval(suggestedAssetMeta);
@@ -1079,22 +1106,33 @@ export class TokensController extends BaseController<
   }
 
   async #requestApproval(suggestedAssetMeta: SuggestedAssetMeta) {
+    const requestData: Record<string, Json> = {
+      id: suggestedAssetMeta.id,
+      interactingAddress: suggestedAssetMeta.interactingAddress,
+      asset: {
+        address: suggestedAssetMeta.asset.address,
+        decimals: suggestedAssetMeta.asset.decimals,
+        symbol: suggestedAssetMeta.asset.symbol,
+        image:
+          suggestedAssetMeta.asset.image &&
+          suggestedAssetMeta.asset.image.trim() !== ''
+            ? suggestedAssetMeta.asset.image
+            : null,
+      },
+    };
+    if (suggestedAssetMeta.pageMeta) {
+      requestData.metadata = {
+        pageMeta: suggestedAssetMeta.pageMeta,
+      };
+    }
+
     return this.messenger.call(
       'ApprovalController:addRequest',
       {
         id: suggestedAssetMeta.id,
-        origin: ORIGIN_METAMASK,
+        origin: getNonEmptyString(suggestedAssetMeta.origin) ?? ORIGIN_METAMASK,
         type: ApprovalType.WatchAsset,
-        requestData: {
-          id: suggestedAssetMeta.id,
-          interactingAddress: suggestedAssetMeta.interactingAddress,
-          asset: {
-            address: suggestedAssetMeta.asset.address,
-            decimals: suggestedAssetMeta.asset.decimals,
-            symbol: suggestedAssetMeta.asset.symbol,
-            image: suggestedAssetMeta.asset.image || null,
-          },
-        },
+        requestData,
       },
       true,
     );
@@ -1110,7 +1148,7 @@ export class TokensController extends BaseController<
       'AccountsController:getAccount',
       this.#selectedAccountId,
     );
-    return account?.address || '';
+    return account?.address ?? '';
   }
 
   /**
