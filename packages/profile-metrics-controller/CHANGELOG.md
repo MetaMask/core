@@ -13,6 +13,7 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 - Bump `@metamask/controller-utils` from `^11.16.0` to `^11.18.0` ([#7534](https://github.com/MetaMask/core/pull/7534), [#7583](https://github.com/MetaMask/core/pull/7583))
 - Bump `@metamask/accounts-controller` from `^35.0.0` to `^35.0.1` ([#7604](https://github.com/MetaMask/core/pull/7604))
 - Bump `@metamask/polling-controller` from `^16.0.0` to `^16.0.1` ([#7604](https://github.com/MetaMask/core/pull/7604))
+- Set time-based delay for first `ProfileMetricsController` data collection after opt-in ([#7624](https://github.com/MetaMask/core/pull/7624))
 
 ## [2.0.0]
 
