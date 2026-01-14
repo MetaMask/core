@@ -11,8 +11,8 @@ import {
   ConnectivityController,
   controllerName,
 } from './ConnectivityController';
-import { ConnectivityStatus } from './types';
-import type { ConnectivityService } from './types';
+import { CONNECTIVITY_STATUSES } from './types';
+import type { ConnectivityService, ConnectivityStatus } from './types';
 
 /**
  * A test implementation of ConnectivityService.
@@ -23,7 +23,9 @@ class TestConnectivityService implements ConnectivityService {
 
   #onConnectivityChangeCallbacks: ((status: ConnectivityStatus) => void)[] = [];
 
-  constructor(initialStatus: ConnectivityStatus = ConnectivityStatus.Online) {
+  constructor(
+    initialStatus: ConnectivityStatus = CONNECTIVITY_STATUSES.Online,
+  ) {
     this.#status = initialStatus;
   }
 
@@ -49,7 +51,7 @@ describe('ConnectivityController', () => {
   describe('constructor', () => {
     it('uses service initial state when online', async () => {
       const mockService: ConnectivityService = {
-        getStatus: jest.fn().mockReturnValue(ConnectivityStatus.Online),
+        getStatus: jest.fn().mockReturnValue(CONNECTIVITY_STATUSES.Online),
         onConnectivityChange: jest.fn(),
         destroy: jest.fn(),
       };
@@ -58,7 +60,7 @@ describe('ConnectivityController', () => {
         { options: { connectivityService: mockService } },
         ({ controller }) => {
           expect(controller.state.connectivityStatus).toBe(
-            ConnectivityStatus.Online,
+            CONNECTIVITY_STATUSES.Online,
           );
           expect(mockService.getStatus).toHaveBeenCalled();
         },
@@ -67,7 +69,7 @@ describe('ConnectivityController', () => {
 
     it('uses service initial state when offline', async () => {
       const mockService: ConnectivityService = {
-        getStatus: jest.fn().mockReturnValue(ConnectivityStatus.Offline),
+        getStatus: jest.fn().mockReturnValue(CONNECTIVITY_STATUSES.Offline),
         onConnectivityChange: jest.fn(),
         destroy: jest.fn(),
       };
@@ -76,7 +78,7 @@ describe('ConnectivityController', () => {
         { options: { connectivityService: mockService } },
         ({ controller }) => {
           expect(controller.state.connectivityStatus).toBe(
-            ConnectivityStatus.Offline,
+            CONNECTIVITY_STATUSES.Offline,
           );
         },
       );
@@ -84,7 +86,7 @@ describe('ConnectivityController', () => {
 
     it('subscribes to service connectivity changes', async () => {
       const mockService: ConnectivityService = {
-        getStatus: jest.fn().mockReturnValue(ConnectivityStatus.Online),
+        getStatus: jest.fn().mockReturnValue(CONNECTIVITY_STATUSES.Online),
         onConnectivityChange: jest.fn(),
         destroy: jest.fn(),
       };
@@ -101,7 +103,7 @@ describe('ConnectivityController', () => {
 
     it('has correct name property', async () => {
       const mockService: ConnectivityService = {
-        getStatus: jest.fn().mockReturnValue(ConnectivityStatus.Online),
+        getStatus: jest.fn().mockReturnValue(CONNECTIVITY_STATUSES.Online),
         onConnectivityChange: jest.fn(),
         destroy: jest.fn(),
       };
@@ -181,7 +183,7 @@ describe('ConnectivityController', () => {
     it('updates state when service reports offline', async () => {
       const mockOnConnectivityChange = jest.fn();
       const mockService: ConnectivityService = {
-        getStatus: jest.fn().mockReturnValue(ConnectivityStatus.Online),
+        getStatus: jest.fn().mockReturnValue(CONNECTIVITY_STATUSES.Online),
         onConnectivityChange: mockOnConnectivityChange,
         destroy: jest.fn(),
       };
@@ -190,7 +192,7 @@ describe('ConnectivityController', () => {
         { options: { connectivityService: mockService } },
         ({ controller }) => {
           expect(controller.state.connectivityStatus).toBe(
-            ConnectivityStatus.Online,
+            CONNECTIVITY_STATUSES.Online,
           );
 
           // Get the callback that was passed to onConnectivityChange
@@ -201,10 +203,10 @@ describe('ConnectivityController', () => {
           expect(capturedCallback).toBeDefined();
 
           // Simulate service reporting offline
-          capturedCallback?.(ConnectivityStatus.Offline);
+          capturedCallback?.(CONNECTIVITY_STATUSES.Offline);
 
           expect(controller.state.connectivityStatus).toBe(
-            ConnectivityStatus.Offline,
+            CONNECTIVITY_STATUSES.Offline,
           );
         },
       );
@@ -213,7 +215,7 @@ describe('ConnectivityController', () => {
     it('updates state when service reports online', async () => {
       const mockOnConnectivityChange = jest.fn();
       const mockService: ConnectivityService = {
-        getStatus: jest.fn().mockReturnValue(ConnectivityStatus.Offline),
+        getStatus: jest.fn().mockReturnValue(CONNECTIVITY_STATUSES.Offline),
         onConnectivityChange: mockOnConnectivityChange,
         destroy: jest.fn(),
       };
@@ -222,7 +224,7 @@ describe('ConnectivityController', () => {
         { options: { connectivityService: mockService } },
         ({ controller }) => {
           expect(controller.state.connectivityStatus).toBe(
-            ConnectivityStatus.Offline,
+            CONNECTIVITY_STATUSES.Offline,
           );
 
           // Get the callback that was passed to onConnectivityChange
@@ -233,10 +235,10 @@ describe('ConnectivityController', () => {
           expect(capturedCallback).toBeDefined();
 
           // Simulate service reporting online
-          capturedCallback?.(ConnectivityStatus.Online);
+          capturedCallback?.(CONNECTIVITY_STATUSES.Online);
 
           expect(controller.state.connectivityStatus).toBe(
-            ConnectivityStatus.Online,
+            CONNECTIVITY_STATUSES.Online,
           );
         },
       );
@@ -245,7 +247,7 @@ describe('ConnectivityController', () => {
     it('emits stateChange event when status changes', async () => {
       const mockOnConnectivityChange = jest.fn();
       const mockService: ConnectivityService = {
-        getStatus: jest.fn().mockReturnValue(ConnectivityStatus.Online),
+        getStatus: jest.fn().mockReturnValue(CONNECTIVITY_STATUSES.Online),
         onConnectivityChange: mockOnConnectivityChange,
         destroy: jest.fn(),
       };
@@ -266,10 +268,10 @@ describe('ConnectivityController', () => {
             | undefined;
           expect(capturedCallback).toBeDefined();
 
-          capturedCallback?.(ConnectivityStatus.Offline);
+          capturedCallback?.(CONNECTIVITY_STATUSES.Offline);
 
           expect(eventHandler).toHaveBeenCalledWith(
-            { connectivityStatus: ConnectivityStatus.Offline },
+            { connectivityStatus: CONNECTIVITY_STATUSES.Offline },
             expect.any(Array),
           );
         },
@@ -279,7 +281,7 @@ describe('ConnectivityController', () => {
     it('does not emit event when status does not change', async () => {
       const mockOnConnectivityChange = jest.fn();
       const mockService: ConnectivityService = {
-        getStatus: jest.fn().mockReturnValue(ConnectivityStatus.Online),
+        getStatus: jest.fn().mockReturnValue(CONNECTIVITY_STATUSES.Online),
         onConnectivityChange: mockOnConnectivityChange,
         destroy: jest.fn(),
       };
@@ -301,7 +303,7 @@ describe('ConnectivityController', () => {
           expect(capturedCallback).toBeDefined();
 
           // Report online when already online
-          capturedCallback?.(ConnectivityStatus.Online);
+          capturedCallback?.(CONNECTIVITY_STATUSES.Online);
 
           expect(eventHandler).not.toHaveBeenCalled();
         },
@@ -317,13 +319,13 @@ describe('ConnectivityController', () => {
         { options: { connectivityService: service } },
         ({ controller }) => {
           expect(controller.state.connectivityStatus).toBe(
-            ConnectivityStatus.Online,
+            CONNECTIVITY_STATUSES.Online,
           );
 
-          service.setStatus(ConnectivityStatus.Offline);
+          service.setStatus(CONNECTIVITY_STATUSES.Offline);
 
           expect(controller.state.connectivityStatus).toBe(
-            ConnectivityStatus.Offline,
+            CONNECTIVITY_STATUSES.Offline,
           );
         },
       );

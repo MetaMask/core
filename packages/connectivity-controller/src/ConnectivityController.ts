@@ -6,8 +6,8 @@ import type {
 import { BaseController } from '@metamask/base-controller';
 import type { Messenger } from '@metamask/messenger';
 
-import { ConnectivityStatus } from './types';
-import type { ConnectivityService } from './types';
+import { CONNECTIVITY_STATUSES } from './types';
+import type { ConnectivityService, ConnectivityStatus } from './types';
 
 /**
  * The name of the {@link ConnectivityController}, used to namespace the
@@ -49,7 +49,7 @@ const connectivityControllerMetadata = {
  */
 export function getDefaultConnectivityControllerState(): ConnectivityControllerState {
   return {
-    connectivityStatus: ConnectivityStatus.Online,
+    connectivityStatus: CONNECTIVITY_STATUSES.Online,
   };
 }
 

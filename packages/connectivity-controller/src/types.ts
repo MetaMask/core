@@ -2,13 +2,13 @@
  * Connectivity status constants.
  * Used to represent whether the device has internet connectivity.
  */
-export const ConnectivityStatus = {
+export const CONNECTIVITY_STATUSES = {
   Online: 'online',
   Offline: 'offline',
 } as const;
 
 export type ConnectivityStatus =
-  (typeof ConnectivityStatus)[keyof typeof ConnectivityStatus];
+  (typeof CONNECTIVITY_STATUSES)[keyof typeof CONNECTIVITY_STATUSES];
 
 /**
  * Service interface for platform-specific connectivity detection.
