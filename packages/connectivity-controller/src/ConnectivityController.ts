@@ -113,15 +113,6 @@ export type ConnectivityControllerOptions = {
 
   /**
    * Connectivity service for platform-specific detection.
-   *
-   * The controller subscribes to the service's `onConnectivityChange`
-   * callback to receive connectivity updates.
-   *
-   * Platform implementations:
-   * - Mobile: Use `NetInfoConnectivityService` with `@react-native-community/netinfo`
-   * - Extension (same context): Use `BrowserConnectivityService`
-   * - Extension (cross-context): Use `PassiveConnectivityService` and call
-   * `setStatus()` from the UI context
    */
   connectivityService: ConnectivityService;
 };
@@ -136,14 +127,6 @@ export type ConnectivityControllerOptions = {
  * The controller subscribes to the service's `onConnectivityChange` callback
  * and updates its state accordingly. All connectivity updates flow through
  * the service, ensuring a single source of truth.
- *
- * **Platform implementations:**
- *
- * - **Mobile:** Inject `NetInfoConnectivityService` using `@react-native-community/netinfo`
- * - **Extension:** Inject `PassiveConnectivityService` in the background.
- * Status is updated via the `setDeviceConnectivityStatus` API, which is called from:
- * - MV3: Offscreen document (where browser events work reliably)
- * - MV2: Background page (where browser events work directly)
  *
  * This controller provides a centralized state for connectivity status,
  * enabling the UI and other controllers to adapt when the user goes offline.
