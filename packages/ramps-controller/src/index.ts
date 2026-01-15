@@ -6,6 +6,7 @@ export type {
   RampsControllerState,
   RampsControllerStateChangeEvent,
   RampsControllerOptions,
+  UserRegion,
 } from './RampsController';
 export {
   RampsController,
