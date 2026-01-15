@@ -1,0 +1,70 @@
+import SafeEventEmitter from '@metamask/safe-event-emitter';
+
+import type { IRpcEventEmitter } from './interfaces';
+import type {
+  AssetsBalanceChangedEvent,
+  AssetsChangedEvent,
+  AssetsPriceChangedEvent,
+  OnAssetsBalanceChangedCallback,
+  OnAssetsChangedCallback,
+  OnAssetsPriceChangedCallback,
+  Unsubscribe,
+} from './types';
+
+/**
+ * Event types for RpcEventEmitter.
+ */
+type RpcEventEmitterEvents = {
+  assetsChanged: [AssetsChangedEvent];
+  assetsBalanceChanged: [AssetsBalanceChangedEvent];
+  assetsPriceChanged: [AssetsPriceChangedEvent];
+};
+
+/**
+ * RpcEventEmitter - Event emitter for RPC datasource events.
+ *
+ * Provides a pub/sub mechanism for consumers to subscribe to
+ * asset detection, balance updates, and price changes.
+ */
+export class RpcEventEmitter
+  extends SafeEventEmitter
+  implements IRpcEventEmitter
+{
+  onAssetsChanged(callback: OnAssetsChangedCallback): Unsubscribe {
+    // @ts-ignore
+    this.on('assetsChanged', callback);
+    return () => this.off('assetsChanged', callback);
+  }
+
+  onAssetsBalanceChanged(
+    callback: OnAssetsBalanceChangedCallback,
+  ): Unsubscribe {
+    // @ts-ignore
+    this.on('assetsBalanceChanged', callback);
+    return () => this.off('assetsBalanceChanged', callback);
+  }
+
+  onAssetsPriceChanged(callback: OnAssetsPriceChangedCallback): Unsubscribe {
+    // @ts-ignore
+    this.on('assetsPriceChanged', callback);
+    return () => this.off('assetsPriceChanged', callback);
+  }
+
+  emitAssetsChanged(event: AssetsChangedEvent): void {
+    this.emit('assetsChanged', event);
+  }
+
+  emitAssetsBalanceChanged(event: AssetsBalanceChangedEvent): void {
+    this.emit('assetsBalanceChanged', event);
+  }
+
+  emitAssetsPriceChanged(event: AssetsPriceChangedEvent): void {
+    this.emit('assetsPriceChanged', event);
+  }
+
+  override removeAllListeners(
+    event?: string | symbol,
+  ): this {
+    return super.removeAllListeners(event);
+  }
+}
