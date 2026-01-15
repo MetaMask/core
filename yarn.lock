@@ -2964,7 +2964,7 @@ __metadata:
   languageName: unknown
   linkType: soft
 
-"@metamask/connectivity-controller@npm:^0.0.0, @metamask/connectivity-controller@workspace:packages/connectivity-controller":
+"@metamask/connectivity-controller@npm:^0.1.0, @metamask/connectivity-controller@workspace:packages/connectivity-controller":
   version: 0.0.0-use.local
   resolution: "@metamask/connectivity-controller@workspace:packages/connectivity-controller"
   dependencies:
@@ -4207,7 +4207,7 @@ __metadata:
     "@json-rpc-specification/meta-schema": "npm:^1.0.6"
     "@metamask/auto-changelog": "npm:^3.4.4"
     "@metamask/base-controller": "npm:^9.0.0"
-    "@metamask/connectivity-controller": "npm:^0.0.0"
+    "@metamask/connectivity-controller": "npm:^0.1.0"
     "@metamask/controller-utils": "npm:^11.18.0"
     "@metamask/eth-block-tracker": "npm:^15.0.1"
     "@metamask/eth-json-rpc-infura": "npm:^10.3.0"
