@@ -208,6 +208,7 @@ const selectAllEvmAccountNativeBalances = createAssetListSelector(
           currencyRates,
           chainId,
           nativeToken.address,
+          nativeCurrency, // Pass native currency symbol for fallback when market data is missing
         );
 
         groupChainAssets.push({
@@ -564,6 +565,7 @@ function mergeAssets(
  * @param currencyRates - The currency rates for the token
  * @param chainId - The chain id of the token
  * @param tokenAddress - The address of the token
+ * @param nativeCurrencySymbol - The native currency symbol (e.g., 'ETH', 'BNB') - used for fallback when market data is missing for native tokens
  * @returns The price and currency of the token in the current currency. Returns undefined if the asset is not found in the market data or currency rates.
  */
 function getFiatBalanceForEvmToken(
@@ -573,8 +575,28 @@ function getFiatBalanceForEvmToken(
   currencyRates: CurrencyRateState['currencyRates'],
   chainId: Hex,
   tokenAddress: Hex,
+  nativeCurrencySymbol?: string,
 ) {
   const tokenMarketData = marketData[chainId]?.[tokenAddress];
+
+  // For native tokens: if no market data exists, use price=1 and look up currency rate directly
+  // This is because native tokens are priced in themselves (1 ETH = 1 ETH)
+  if (!tokenMarketData && nativeCurrencySymbol) {
+    const currencyRate = currencyRates[nativeCurrencySymbol];
+
+    if (!currencyRate?.conversionRate) {
+      return undefined;
+    }
+
+    const fiatBalance =
+      (convertHexToDecimal(rawBalance) / 10 ** decimals) *
+      currencyRate.conversionRate;
+
+    return {
+      balance: fiatBalance,
+      conversionRate: currencyRate.conversionRate,
+    };
+  }
 
   if (!tokenMarketData) {
     return undefined;

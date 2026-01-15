@@ -1024,5 +1024,92 @@ describe('token-selectors', () => {
       expect(result[TrxScope.Nile].length > 1).toBe(true);
       expect(result[TrxScope.Shasta].length > 1).toBe(true);
     });
+
+    it('calculates fiat for native token using currency rate fallback when market data is missing', () => {
+      // Setup: Add a new chain (Ink chain 0xdef1) with native balance but NO market data
+      const inkChainId = '0xdef1' as Hex;
+      const stateWithInkChain = {
+        ...mockedMergedState,
+        // Add Ink chain to network configuration
+        networkConfigurationsByChainId: {
+          ...mockNetworkControllerState.networkConfigurationsByChainId,
+          [inkChainId]: {
+            nativeCurrency: 'ETH', // Ink chain uses ETH as native currency
+          },
+        },
+        // Add native balance for the account on Ink chain
+        accountsByChainId: {
+          ...mockAccountsTrackerControllerState.accountsByChainId,
+          [inkChainId]: {
+            '0x2bd63233fe369b0f13eaf25292af5a9b63d2b7ab': {
+              balance: '0xDE0B6B3A7640000', // 1 ETH (1000000000000000000 wei)
+            },
+          },
+        },
+        // Market data does NOT include Ink chain native token
+        // (using existing mockTokenRatesControllerState which doesn't have 0xdef1)
+      };
+
+      const result = selectAssetsBySelectedAccountGroup(stateWithInkChain);
+
+      // Find the Ink chain native token
+      const inkNativeToken = result[inkChainId]?.find(
+        (asset) => asset.isNative,
+      );
+
+      // Should have fiat calculated using the ETH currency rate fallback
+      expect(inkNativeToken).toStrictEqual({
+        accountType: 'eip155:eoa',
+        accountId: 'd7f11451-9d79-4df4-a012-afd253443639',
+        chainId: inkChainId,
+        assetId: '0x0000000000000000000000000000000000000000',
+        address: '0x0000000000000000000000000000000000000000',
+        image: '',
+        name: 'Ethereum',
+        symbol: 'ETH',
+        isNative: true,
+        decimals: 18,
+        rawBalance: '0xDE0B6B3A7640000',
+        balance: '1',
+        fiat: {
+          balance: 2400, // 1 ETH * 2400 USD/ETH
+          conversionRate: 2400,
+          currency: 'USD',
+        },
+      });
+    });
+
+    it('returns undefined fiat for native token when both market data and currency rate are missing', () => {
+      const inkChainId = '0xdef1' as Hex;
+      const stateWithMissingCurrencyRate = {
+        ...mockedMergedState,
+        networkConfigurationsByChainId: {
+          ...mockNetworkControllerState.networkConfigurationsByChainId,
+          [inkChainId]: {
+            nativeCurrency: 'INK', // Custom native currency with no currency rate
+          },
+        },
+        accountsByChainId: {
+          ...mockAccountsTrackerControllerState.accountsByChainId,
+          [inkChainId]: {
+            '0x2bd63233fe369b0f13eaf25292af5a9b63d2b7ab': {
+              balance: '0xDE0B6B3A7640000',
+            },
+          },
+        },
+        // currencyRates doesn't have 'INK', only 'ETH'
+      };
+
+      const result = selectAssetsBySelectedAccountGroup(
+        stateWithMissingCurrencyRate,
+      );
+
+      const inkNativeToken = result[inkChainId]?.find(
+        (asset) => asset.isNative,
+      );
+
+      // Should have undefined fiat since there's no currency rate for 'INK'
+      expect(inkNativeToken?.fiat).toBeUndefined();
+    });
   });
 });
