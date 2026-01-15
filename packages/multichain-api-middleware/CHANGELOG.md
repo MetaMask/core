@@ -7,6 +7,8 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+## [1.2.6]
+
 ### Changed
 
 - Upgrade `@metamask/utils` from `^11.8.1` to `^11.9.0` ([#7511](https://github.com/MetaMask/core/pull/7511))
@@ -148,7 +150,8 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 - Initial release
 
-[Unreleased]: https://github.com/MetaMask/core/compare/@metamask/multichain-api-middleware@1.2.5...HEAD
+[Unreleased]: https://github.com/MetaMask/core/compare/@metamask/multichain-api-middleware@1.2.6...HEAD
+[1.2.6]: https://github.com/MetaMask/core/compare/@metamask/multichain-api-middleware@1.2.5...@metamask/multichain-api-middleware@1.2.6
 [1.2.5]: https://github.com/MetaMask/core/compare/@metamask/multichain-api-middleware@1.2.4...@metamask/multichain-api-middleware@1.2.5
 [1.2.4]: https://github.com/MetaMask/core/compare/@metamask/multichain-api-middleware@1.2.3...@metamask/multichain-api-middleware@1.2.4
 [1.2.3]: https://github.com/MetaMask/core/compare/@metamask/multichain-api-middleware@1.2.2...@metamask/multichain-api-middleware@1.2.3

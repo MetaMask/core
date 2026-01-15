@@ -7,6 +7,8 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+## [4.0.1]
+
 ### Uncategorized
 
 - chore: Re-enable `@typescript-eslint/prefer-reduce-type-parameter` ([#7317](https://github.com/MetaMask/core/pull/7317))
@@ -195,7 +197,8 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 - Initial release ([#6028](https://github.com/MetaMask/core/pull/6028))
 
-[Unreleased]: https://github.com/MetaMask/core/compare/@metamask/network-enablement-controller@4.0.0...HEAD
+[Unreleased]: https://github.com/MetaMask/core/compare/@metamask/network-enablement-controller@4.0.1...HEAD
+[4.0.1]: https://github.com/MetaMask/core/compare/@metamask/network-enablement-controller@4.0.0...@metamask/network-enablement-controller@4.0.1
 [4.0.0]: https://github.com/MetaMask/core/compare/@metamask/network-enablement-controller@3.1.0...@metamask/network-enablement-controller@4.0.0
 [3.1.0]: https://github.com/MetaMask/core/compare/@metamask/network-enablement-controller@3.0.0...@metamask/network-enablement-controller@3.1.0
 [3.0.0]: https://github.com/MetaMask/core/compare/@metamask/network-enablement-controller@2.1.2...@metamask/network-enablement-controller@3.0.0

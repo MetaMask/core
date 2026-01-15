@@ -7,6 +7,8 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+## [29.0.0]
+
 ### Changed
 
 - Bump `@metamask/eth-json-rpc-middleware` from `^22.0.1` to `^23.0.0` ([#7634](https://github.com/MetaMask/core/pull/7634))
@@ -1089,7 +1091,8 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
     All changes listed after this point were applied to this package following the monorepo conversion.
 
-[Unreleased]: https://github.com/MetaMask/core/compare/@metamask/network-controller@28.0.0...HEAD
+[Unreleased]: https://github.com/MetaMask/core/compare/@metamask/network-controller@29.0.0...HEAD
+[29.0.0]: https://github.com/MetaMask/core/compare/@metamask/network-controller@28.0.0...@metamask/network-controller@29.0.0
 [28.0.0]: https://github.com/MetaMask/core/compare/@metamask/network-controller@27.2.0...@metamask/network-controller@28.0.0
 [27.2.0]: https://github.com/MetaMask/core/compare/@metamask/network-controller@27.1.0...@metamask/network-controller@27.2.0
 [27.1.0]: https://github.com/MetaMask/core/compare/@metamask/network-controller@27.0.0...@metamask/network-controller@27.1.0
