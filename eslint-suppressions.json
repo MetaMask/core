@@ -1092,24 +1092,13 @@
     }
   },
   "packages/gator-permissions-controller/src/GatorPermissionsController.test.ts": {
-    "@typescript-eslint/explicit-function-return-type": {
-      "count": 2
-    },
     "id-denylist": {
       "count": 2
-    },
-    "no-new": {
-      "count": 1
     }
   },
   "packages/gator-permissions-controller/src/GatorPermissionsController.ts": {
     "@typescript-eslint/explicit-function-return-type": {
-      "count": 16
-    }
-  },
-  "packages/gator-permissions-controller/src/decodePermission/decodePermission.ts": {
-    "@typescript-eslint/explicit-function-return-type": {
-      "count": 1
+      "count": 8
     }
   },
   "packages/gator-permissions-controller/src/decodePermission/utils.test.ts": {
@@ -1125,11 +1114,6 @@
       "count": 1
     },
     "id-length": {
-      "count": 1
-    }
-  },
-  "packages/gator-permissions-controller/src/test/mocks.ts": {
-    "@typescript-eslint/explicit-function-return-type": {
       "count": 1
     }
   },
