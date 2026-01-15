@@ -601,6 +601,109 @@ describe('RpcService', () => {
       },
     );
 
+    describe('when offline', () => {
+      it('does not retry when offline, only makes one fetch call', async () => {
+        const expectedError = new TypeError('Failed to fetch');
+        const mockFetch = jest.fn(() => {
+          throw expectedError;
+        });
+        const service = new RpcService({
+          fetch: mockFetch,
+          btoa,
+          endpointUrl: 'https://rpc.example.chain',
+          isOffline: (): boolean => true,
+        });
+        service.onRetry(() => {
+          clock.next();
+        });
+
+        const jsonRpcRequest = {
+          id: 1,
+          jsonrpc: '2.0' as const,
+          method: 'eth_chainId',
+          params: [],
+        };
+        await expect(service.request(jsonRpcRequest)).rejects.toThrow(
+          expectedError,
+        );
+        // When offline, no retries should happen, so only 1 fetch call
+        expect(mockFetch).toHaveBeenCalledTimes(1);
+      });
+
+      it('does not call onDegraded when offline', async () => {
+        const expectedError = new TypeError('Failed to fetch');
+        const mockFetch = jest.fn(() => {
+          throw expectedError;
+        });
+        const endpointUrl = 'https://rpc.example.chain';
+        const onDegradedListener = jest.fn();
+        const service = new RpcService({
+          fetch: mockFetch,
+          btoa,
+          endpointUrl,
+          isOffline: (): boolean => true,
+        });
+        service.onRetry(() => {
+          clock.next();
+        });
+        service.onDegraded(onDegradedListener);
+
+        const jsonRpcRequest = {
+          id: 1,
+          jsonrpc: '2.0' as const,
+          method: 'eth_chainId',
+          params: [],
+        };
+        await expect(service.request(jsonRpcRequest)).rejects.toThrow(
+          expectedError,
+        );
+
+        // When offline, retries don't happen, so onDegraded should not be called
+        expect(onDegradedListener).not.toHaveBeenCalled();
+      });
+
+      it('does not call onBreak when offline', async () => {
+        const expectedError = new TypeError('Failed to fetch');
+        const mockFetch = jest.fn(() => {
+          throw expectedError;
+        });
+        const endpointUrl = 'https://rpc.example.chain';
+        const onBreakListener = jest.fn();
+        const service = new RpcService({
+          fetch: mockFetch,
+          btoa,
+          endpointUrl,
+          isOffline: (): boolean => true,
+        });
+        service.onRetry(() => {
+          clock.next();
+        });
+        service.onBreak(onBreakListener);
+
+        const jsonRpcRequest = {
+          id: 1,
+          jsonrpc: '2.0' as const,
+          method: 'eth_chainId',
+          params: [],
+        };
+        // Make multiple requests - even though we'd normally break the circuit,
+        // when offline, no retries happen so circuit won't break
+        await expect(service.request(jsonRpcRequest)).rejects.toThrow(
+          expectedError,
+        );
+        await expect(service.request(jsonRpcRequest)).rejects.toThrow(
+          expectedError,
+        );
+        await expect(service.request(jsonRpcRequest)).rejects.toThrow(
+          expectedError,
+        );
+
+        // When offline, retries don't happen, so circuit won't break and onBreak
+        // should not be called
+        expect(onBreakListener).not.toHaveBeenCalled();
+      });
+    });
+
     it('removes non-JSON-RPC-compliant properties from the request body before sending it to the endpoint', async () => {
       const endpointUrl = 'https://rpc.example.chain';
       nock(endpointUrl)
@@ -1451,107 +1554,6 @@ function testsForRetriableFetchErrors({
     await service.request(jsonRpcRequest);
 
     expect(onAvailableListener).toHaveBeenCalledTimes(1);
-  });
-
-  it('does not retry when offline, only makes one fetch call', async () => {
-    const clock = getClock();
-    const mockFetch = jest.fn(() => {
-      throw producedError;
-    });
-    const service = new RpcService({
-      fetch: mockFetch,
-      btoa,
-      endpointUrl: 'https://rpc.example.chain',
-      isOffline: (): boolean => true,
-    });
-    service.onRetry(() => {
-      clock.next();
-    });
-
-    const jsonRpcRequest = {
-      id: 1,
-      jsonrpc: '2.0' as const,
-      method: 'eth_chainId',
-      params: [],
-    };
-    await expect(service.request(jsonRpcRequest)).rejects.toThrow(
-      expectedError,
-    );
-    // When offline, no retries should happen, so only 1 fetch call
-    expect(mockFetch).toHaveBeenCalledTimes(1);
-  });
-
-  it('does not call onDegraded when offline', async () => {
-    const clock = getClock();
-    const mockFetch = jest.fn(() => {
-      throw producedError;
-    });
-    const endpointUrl = 'https://rpc.example.chain';
-    const onDegradedListener = jest.fn();
-    const service = new RpcService({
-      fetch: mockFetch,
-      btoa,
-      endpointUrl,
-      isOffline: (): boolean => true,
-    });
-    service.onRetry(() => {
-      clock.next();
-    });
-    service.onDegraded(onDegradedListener);
-
-    const jsonRpcRequest = {
-      id: 1,
-      jsonrpc: '2.0' as const,
-      method: 'eth_chainId',
-      params: [],
-    };
-    await expect(service.request(jsonRpcRequest)).rejects.toThrow(
-      expectedError,
-    );
-
-    // When offline, retries don't happen, so onDegraded should not be called
-    expect(onDegradedListener).not.toHaveBeenCalled();
-  });
-
-  it('does not call onBreak when offline', async () => {
-    const clock = getClock();
-    const mockFetch = jest.fn(() => {
-      throw producedError;
-    });
-    const endpointUrl = 'https://rpc.example.chain';
-    const onBreakListener = jest.fn();
-    const service = new RpcService({
-      fetch: mockFetch,
-      btoa,
-      endpointUrl,
-      isOffline: (): boolean => true,
-    });
-    service.onRetry(() => {
-      clock.next();
-    });
-    service.onBreak(onBreakListener);
-
-    const jsonRpcRequest = {
-      id: 1,
-      jsonrpc: '2.0' as const,
-      method: 'eth_chainId',
-      params: [],
-    };
-    // Make multiple requests - even though we'd normally break the circuit,
-    // when offline, no retries happen so circuit won't break
-    await expect(service.request(jsonRpcRequest)).rejects.toThrow(
-      expectedError,
-    );
-    await expect(service.request(jsonRpcRequest)).rejects.toThrow(
-      expectedError,
-    );
-    await expect(service.request(jsonRpcRequest)).rejects.toThrow(
-      expectedError,
-    );
-
-    // When offline, retries don't happen, so circuit won't break and onBreak
-    // should not be called
-    expect(onBreakListener).not.toHaveBeenCalled();
   });
 
   /* eslint-enable jest/require-top-level-describe */
