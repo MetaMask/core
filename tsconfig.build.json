@@ -56,6 +56,9 @@
       "path": "./packages/composable-controller/tsconfig.build.json"
     },
     {
+      "path": "./packages/connectivity-controller/tsconfig.build.json"
+    },
+    {
       "path": "./packages/controller-utils/tsconfig.build.json"
     },
     {
