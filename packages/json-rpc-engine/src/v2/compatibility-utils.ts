@@ -197,15 +197,13 @@ export function deserializeError(thrown: unknown): Error | JsonRpcError<Json> {
 
   const { stack, cause, data } = thrown;
 
-  const deserializedData = deserializeData(data, cause);
-
   const error =
     code === undefined
       ? // Jest complains if we use the `@ts-expect-error` directive here.
         // eslint-disable-next-line @typescript-eslint/ban-ts-comment
         // @ts-ignore - Our error type is outdated.
         new Error(message, { cause })
-      : new JsonRpcError(code, message, deserializedData);
+      : new JsonRpcError(code, message, deserializeData(data, cause));
 
   if (typeof stack === 'string') {
     error.stack = stack;
