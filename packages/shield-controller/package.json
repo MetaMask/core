@@ -1,6 +1,6 @@
 {
   "name": "@metamask/shield-controller",
-  "version": "4.1.0",
+  "version": "5.0.0",
   "description": "Controller handling shield transaction coverage logic",
   "keywords": [
     "MetaMask",
