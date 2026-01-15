@@ -7,6 +7,10 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+### Uncategorized
+
+- feat(network-controller): connect `NetworkController` to `ConnectivityController` ([#7627](https://github.com/MetaMask/core/pull/7627))
+
 ### Fixed
 
 - Exclude transactions where `isTransfer` is defined when marking nonce duplicates as dropped ([#7637](https://github.com/MetaMask/core/pull/7637))
