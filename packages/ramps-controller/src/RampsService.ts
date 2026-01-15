@@ -103,6 +103,14 @@ export type Country = {
    * Array of state objects.
    */
   states?: State[];
+  /**
+   * Default amount for ramps transactions.
+   */
+  defaultAmount?: number;
+  /**
+   * Quick amount options for ramps transactions.
+   */
+  quickAmounts?: number[];
 };
 
 /**
@@ -504,7 +512,7 @@ export class RampsService {
   async getCountries(action: 'buy' | 'sell' = 'buy'): Promise<Country[]> {
     const countries = await this.#request<Country[]>(
       RampsApiService.Regions,
-      'regions/countries',
+      'v2/regions/countries',
       { action, responseType: 'json' },
     );
 

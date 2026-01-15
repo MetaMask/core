@@ -275,7 +275,7 @@ describe('RampsService', () => {
 
     it('returns the countries from the cache API filtered by support', async () => {
       nock('https://on-ramp-cache.uat-api.cx.metamask.io')
-        .get('/regions/countries')
+        .get('/v2/regions/countries')
         .query({
           action: 'buy',
           sdk: '2.1.6',
@@ -326,7 +326,7 @@ describe('RampsService', () => {
 
     it('uses the production cache URL when environment is Production', async () => {
       nock('https://on-ramp-cache.api.cx.metamask.io')
-        .get('/regions/countries')
+        .get('/v2/regions/countries')
         .query({
           action: 'buy',
           sdk: '2.1.6',
@@ -379,7 +379,7 @@ describe('RampsService', () => {
 
     it('uses staging cache URL when environment is Development', async () => {
       nock('https://on-ramp-cache.uat-api.cx.metamask.io')
-        .get('/regions/countries')
+        .get('/v2/regions/countries')
         .query({
           action: 'buy',
           sdk: '2.1.6',
@@ -432,7 +432,7 @@ describe('RampsService', () => {
 
     it('passes the action parameter correctly', async () => {
       nock('https://on-ramp-cache.uat-api.cx.metamask.io')
-        .get('/regions/countries')
+        .get('/v2/regions/countries')
         .query({
           action: 'sell',
           sdk: '2.1.6',
@@ -516,7 +516,7 @@ describe('RampsService', () => {
         },
       ];
       nock('https://on-ramp-cache.uat-api.cx.metamask.io')
-        .get('/regions/countries')
+        .get('/v2/regions/countries')
         .query({
           action: 'sell',
           sdk: '2.1.6',
@@ -564,7 +564,7 @@ describe('RampsService', () => {
         },
       ];
       nock('https://on-ramp-cache.uat-api.cx.metamask.io')
-        .get('/regions/countries')
+        .get('/v2/regions/countries')
         .query({
           action: 'buy',
           sdk: '2.1.6',
@@ -586,7 +586,7 @@ describe('RampsService', () => {
     });
     it('throws if the countries API returns an error', async () => {
       nock('https://on-ramp-cache.uat-api.cx.metamask.io')
-        .get('/regions/countries')
+        .get('/v2/regions/countries')
         .query({
           action: 'buy',
           sdk: '2.1.6',
@@ -607,13 +607,13 @@ describe('RampsService', () => {
       await clock.runAllAsync();
       await flushPromises();
       await expect(countriesPromise).rejects.toThrow(
-        `Fetching 'https://on-ramp-cache.uat-api.cx.metamask.io/regions/countries?action=buy&sdk=2.1.6&controller=${CONTROLLER_VERSION}&context=mobile-ios' failed with status '500'`,
+        `Fetching 'https://on-ramp-cache.uat-api.cx.metamask.io/v2/regions/countries?action=buy&sdk=2.1.6&controller=${CONTROLLER_VERSION}&context=mobile-ios' failed with status '500'`,
       );
     });
 
     it('throws if the API returns a non-array response', async () => {
       nock('https://on-ramp-cache.uat-api.cx.metamask.io')
-        .get('/regions/countries')
+        .get('/v2/regions/countries')
         .query({
           action: 'buy',
           sdk: '2.1.6',
@@ -636,7 +636,7 @@ describe('RampsService', () => {
 
     it('throws if the API returns an object instead of an array', async () => {
       nock('https://on-ramp-cache.uat-api.cx.metamask.io')
-        .get('/regions/countries')
+        .get('/v2/regions/countries')
         .query({
           action: 'buy',
           sdk: '2.1.6',
@@ -754,7 +754,7 @@ describe('RampsService', () => {
         },
       ];
       nock('https://on-ramp-cache.uat-api.cx.metamask.io')
-        .get('/regions/countries')
+        .get('/v2/regions/countries')
         .query({
           action: 'buy',
           sdk: '2.1.6',
@@ -807,7 +807,7 @@ describe('RampsService', () => {
         },
       ];
       nock('https://on-ramp-cache.uat-api.cx.metamask.io')
-        .get('/regions/countries')
+        .get('/v2/regions/countries')
         .query({
           action: 'buy',
           sdk: '2.1.6',
@@ -864,7 +864,7 @@ describe('RampsService', () => {
         },
       ];
       nock('https://on-ramp-cache.uat-api.cx.metamask.io')
-        .get('/regions/countries')
+        .get('/v2/regions/countries')
         .query({
           action: 'buy',
           sdk: '2.1.6',
@@ -905,7 +905,7 @@ describe('RampsService', () => {
         },
       ];
       nock('https://on-ramp-cache.uat-api.cx.metamask.io')
-        .get('/regions/countries')
+        .get('/v2/regions/countries')
         .query({
           action: 'buy',
           sdk: '2.1.6',
