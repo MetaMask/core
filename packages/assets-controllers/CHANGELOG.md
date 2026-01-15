@@ -7,13 +7,16 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+### Added
+
+- Add BOB (0xed88) mapping to eip155:60808/erc20:0x0000000000000000000000000000000000000000 ([#7635](https://github.com/MetaMask/core/pull/7635))
+
 ## [95.2.0]
 
 ### Added
 
 - Add RWA data to asset fetching endpoints ([#7548](https://github.com/MetaMask/core/pull/7548))
 - Add Rootstock (0x1e) mapping to eip155:30/erc20:0x542fda317318ebf1d3deaf76e0b632741a7e677d for RBTC ([#7601](https://github.com/MetaMask/core/pull/7601))
-- Add BOB (0xed88) mapping to eip155:60808/erc20:0x0000000000000000000000000000000000000000 ([#7635](https://github.com/MetaMask/core/pull/7635))
 
 ### Changed
 
