@@ -291,6 +291,7 @@ export const SPOT_PRICES_SUPPORT_INFO = {
   '0xa867': 'eip155:43111/erc20:0x0000000000000000000000000000000000000000', // Hemi - Native symbol: ETH
   '0xa86a': 'eip155:43114/slip44:9005', // Avalanche C-Chain - Native symbol: AVAX
   '0xe708': 'eip155:59144/slip44:60', // Linea Mainnet - Native symbol: ETH
+  '0xed88': 'eip155:60808/erc20:0x0000000000000000000000000000000000000000', // BOB - Native symbol: ETH
   '0x138de': 'eip155:80094/erc20:0x0000000000000000000000000000000000000000', // Berachain - Native symbol: Bera',
   '0x13c31': 'eip155:81457/slip44:60', // Blast Mainnet - Native symbol: ETH
   '0x17dcd': 'eip155:97741/erc20:0x0000000000000000000000000000000000000000', // Pepe Unchained Mainnet - Native symbol: PEPU

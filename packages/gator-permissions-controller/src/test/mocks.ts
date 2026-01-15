@@ -1,5 +1,4 @@
 import type {
-  AccountSigner,
   Erc20TokenPeriodicPermission,
   Erc20TokenStreamPermission,
   NativeTokenPeriodicPermission,
@@ -15,14 +14,11 @@ import type {
 
 export const mockNativeTokenStreamStorageEntry = (
   chainId: Hex,
-): StoredGatorPermission<AccountSigner, NativeTokenStreamPermission> => ({
+): StoredGatorPermission<NativeTokenStreamPermission> => ({
   permissionResponse: {
     chainId,
-    address: '0xB68c70159E9892DdF5659ec42ff9BD2bbC23e778',
-    signer: {
-      type: 'account',
-      data: { address: '0x4f71DA06987BfeDE90aF0b33E1e3e4ffDCEE7a63' },
-    },
+    from: '0xB68c70159E9892DdF5659ec42ff9BD2bbC23e778',
+    to: '0x4f71DA06987BfeDE90aF0b33E1e3e4ffDCEE7a63',
     permission: {
       type: 'native-token-stream',
       isAdjustmentAllowed: true,
@@ -36,29 +32,24 @@ export const mockNativeTokenStreamStorageEntry = (
       },
     },
     context: '0x00000000',
-    dependencyInfo: [
+    dependencies: [
       {
         factory: '0x69Aa2f9fe1572F1B640E1bbc512f5c3a734fc77c',
         factoryData: '0x0000000',
       },
     ],
-    signerMeta: {
-      delegationManager: '0xdb9B1e94B5b69Df7e401DDbedE43491141047dB3',
-    },
+    delegationManager: '0xdb9B1e94B5b69Df7e401DDbedE43491141047dB3',
   },
   siteOrigin: 'http://localhost:8000',
 });
 
 export const mockNativeTokenPeriodicStorageEntry = (
   chainId: Hex,
-): StoredGatorPermission<AccountSigner, NativeTokenPeriodicPermission> => ({
+): StoredGatorPermission<NativeTokenPeriodicPermission> => ({
   permissionResponse: {
     chainId,
-    address: '0xB68c70159E9892DdF5659ec42ff9BD2bbC23e778',
-    signer: {
-      type: 'account',
-      data: { address: '0x4f71DA06987BfeDE90aF0b33E1e3e4ffDCEE7a63' },
-    },
+    from: '0xB68c70159E9892DdF5659ec42ff9BD2bbC23e778',
+    to: '0x4f71DA06987BfeDE90aF0b33E1e3e4ffDCEE7a63',
     permission: {
       type: 'native-token-periodic',
       isAdjustmentAllowed: true,
@@ -71,29 +62,24 @@ export const mockNativeTokenPeriodicStorageEntry = (
       },
     },
     context: '0x00000000',
-    dependencyInfo: [
+    dependencies: [
       {
         factory: '0x69Aa2f9fe1572F1B640E1bbc512f5c3a734fc77c',
         factoryData: '0x0000000',
       },
     ],
-    signerMeta: {
-      delegationManager: '0xdb9B1e94B5b69Df7e401DDbedE43491141047dB3',
-    },
+    delegationManager: '0xdb9B1e94B5b69Df7e401DDbedE43491141047dB3',
   },
   siteOrigin: 'http://localhost:8000',
 });
 
 export const mockErc20TokenStreamStorageEntry = (
   chainId: Hex,
-): StoredGatorPermission<AccountSigner, Erc20TokenStreamPermission> => ({
+): StoredGatorPermission<Erc20TokenStreamPermission> => ({
   permissionResponse: {
     chainId,
-    address: '0xB68c70159E9892DdF5659ec42ff9BD2bbC23e778',
-    signer: {
-      type: 'account',
-      data: { address: '0x4f71DA06987BfeDE90aF0b33E1e3e4ffDCEE7a63' },
-    },
+    from: '0xB68c70159E9892DdF5659ec42ff9BD2bbC23e778',
+    to: '0x4f71DA06987BfeDE90aF0b33E1e3e4ffDCEE7a63',
     permission: {
       type: 'erc20-token-stream',
       isAdjustmentAllowed: true,
@@ -108,29 +94,24 @@ export const mockErc20TokenStreamStorageEntry = (
       },
     },
     context: '0x00000000',
-    dependencyInfo: [
+    dependencies: [
       {
         factory: '0x69Aa2f9fe1572F1B640E1bbc512f5c3a734fc77c',
         factoryData: '0x0000000',
       },
     ],
-    signerMeta: {
-      delegationManager: '0xdb9B1e94B5b69Df7e401DDbedE43491141047dB3',
-    },
+    delegationManager: '0xdb9B1e94B5b69Df7e401DDbedE43491141047dB3',
   },
   siteOrigin: 'http://localhost:8000',
 });
 
 export const mockErc20TokenPeriodicStorageEntry = (
   chainId: Hex,
-): StoredGatorPermission<AccountSigner, Erc20TokenPeriodicPermission> => ({
+): StoredGatorPermission<Erc20TokenPeriodicPermission> => ({
   permissionResponse: {
     chainId,
-    address: '0xB68c70159E9892DdF5659ec42ff9BD2bbC23e778',
-    signer: {
-      type: 'account',
-      data: { address: '0x4f71DA06987BfeDE90aF0b33E1e3e4ffDCEE7a63' },
-    },
+    from: '0xB68c70159E9892DdF5659ec42ff9BD2bbC23e778',
+    to: '0x4f71DA06987BfeDE90aF0b33E1e3e4ffDCEE7a63',
     permission: {
       type: 'erc20-token-periodic',
       isAdjustmentAllowed: true,
@@ -144,15 +125,13 @@ export const mockErc20TokenPeriodicStorageEntry = (
       },
     },
     context: '0x00000000',
-    dependencyInfo: [
+    dependencies: [
       {
         factory: '0x69Aa2f9fe1572F1B640E1bbc512f5c3a734fc77c',
         factoryData: '0x0000000',
       },
     ],
-    signerMeta: {
-      delegationManager: '0xdb9B1e94B5b69Df7e401DDbedE43491141047dB3',
-    },
+    delegationManager: '0xdb9B1e94B5b69Df7e401DDbedE43491141047dB3',
   },
   siteOrigin: 'http://localhost:8000',
 });
@@ -160,14 +139,11 @@ export const mockErc20TokenPeriodicStorageEntry = (
 export const mockCustomPermissionStorageEntry = (
   chainId: Hex,
   data: Record<string, unknown>,
-): StoredGatorPermission<AccountSigner, CustomPermission> => ({
+): StoredGatorPermission<CustomPermission> => ({
   permissionResponse: {
     chainId,
-    address: '0xB68c70159E9892DdF5659ec42ff9BD2bbC23e778',
-    signer: {
-      type: 'account',
-      data: { address: '0x4f71DA06987BfeDE90aF0b33E1e3e4ffDCEE7a63' },
-    },
+    from: '0xB68c70159E9892DdF5659ec42ff9BD2bbC23e778',
+    to: '0x4f71DA06987BfeDE90aF0b33E1e3e4ffDCEE7a63',
     permission: {
       type: 'custom',
       isAdjustmentAllowed: true,
@@ -178,15 +154,13 @@ export const mockCustomPermissionStorageEntry = (
       },
     },
     context: '0x00000000',
-    dependencyInfo: [
+    dependencies: [
       {
         factory: '0x69Aa2f9fe1572F1B640E1bbc512f5c3a734fc77c',
         factoryData: '0x0000000',
       },
     ],
-    signerMeta: {
-      delegationManager: '0xdb9B1e94B5b69Df7e401DDbedE43491141047dB3',
-    },
+    delegationManager: '0xdb9B1e94B5b69Df7e401DDbedE43491141047dB3',
   },
   siteOrigin: 'http://localhost:8000',
 });
@@ -218,11 +192,8 @@ export type MockGatorPermissionsStorageEntriesConfig = {
  */
 export function mockGatorPermissionsStorageEntriesFactory(
   config: MockGatorPermissionsStorageEntriesConfig,
-): StoredGatorPermission<AccountSigner, PermissionTypesWithCustom>[] {
-  const result: StoredGatorPermission<
-    AccountSigner,
-    PermissionTypesWithCustom
-  >[] = [];
+): StoredGatorPermission<PermissionTypesWithCustom>[] {
+  const result: StoredGatorPermission<PermissionTypesWithCustom>[] = [];
 
   Object.entries(config).forEach(([chainId, counts]) => {
     if (counts.custom.count !== counts.custom.data.length) {
@@ -237,11 +208,8 @@ export function mockGatorPermissionsStorageEntriesFactory(
      */
     const createEntries = (
       count: number,
-      createEntry: () => StoredGatorPermission<
-        AccountSigner,
-        PermissionTypesWithCustom
-      >,
-    ) => {
+      createEntry: () => StoredGatorPermission<PermissionTypesWithCustom>,
+    ): void => {
       for (let i = 0; i < count; i++) {
         const entry = createEntry();
         result.push(entry);
