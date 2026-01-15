@@ -235,7 +235,7 @@ export class AnalyticsPrivacyController extends BaseController<
    */
   async createDataDeletionTask(): Promise<IDeleteRegulationResponse> {
     try {
-      const analyticsControllerState = await this.messenger.call(
+      const analyticsControllerState = this.messenger.call(
         'AnalyticsController:getState',
       );
       const { analyticsId } = analyticsControllerState;
@@ -262,7 +262,7 @@ export class AnalyticsPrivacyController extends BaseController<
       ) {
         const deletionTimestamp = Date.now();
         // Already validated as non-empty string above
-        const regulateId = response.regulateId;
+        const { regulateId } = response;
 
         this.update((state) => {
           state.deleteRegulationId = regulateId;
@@ -319,7 +319,8 @@ export class AnalyticsPrivacyController extends BaseController<
       status.dataDeletionRequestStatus = DataDeleteStatus.unknown;
     }
 
-    status.deletionRequestTimestamp = this.state.deleteRegulationTimestamp ?? undefined;
+    status.deletionRequestTimestamp =
+      this.state.deleteRegulationTimestamp ?? undefined;
     status.hasCollectedDataSinceDeletionRequest = this.state.dataRecorded;
 
     return status;

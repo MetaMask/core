@@ -876,8 +876,9 @@ describe('AnalyticsPrivacyController', () => {
         jest.fn().mockRejectedValue(new Error('Service error')),
       );
 
-      // eslint-disable-next-line @typescript-eslint/no-unused-vars
       const testTimestamp = new Date('2026-01-15T12:00:00Z').getTime();
+      // Controller is instantiated to register action handlers
+      // eslint-disable-next-line @typescript-eslint/no-unused-vars
       const _controller = new AnalyticsPrivacyController({
         messenger: analyticsPrivacyControllerMessenger,
         state: {

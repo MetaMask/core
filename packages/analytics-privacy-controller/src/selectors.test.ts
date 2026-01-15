@@ -62,7 +62,9 @@ describe('analyticsPrivacyControllerSelectors', () => {
       };
 
       expect(
-        analyticsPrivacyControllerSelectors.selectDeleteRegulationTimestamp(state),
+        analyticsPrivacyControllerSelectors.selectDeleteRegulationTimestamp(
+          state,
+        ),
       ).toBe(testTimestamp);
     });
 
@@ -73,7 +75,9 @@ describe('analyticsPrivacyControllerSelectors', () => {
       };
 
       expect(
-        analyticsPrivacyControllerSelectors.selectDeleteRegulationTimestamp(state),
+        analyticsPrivacyControllerSelectors.selectDeleteRegulationTimestamp(
+          state,
+        ),
       ).toBeUndefined();
     });
   });
