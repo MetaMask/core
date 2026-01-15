@@ -35,7 +35,6 @@ import type {
   GasFeeStateFeeMarket,
   GasFeeStateLegacy,
 } from './GasFeeController';
-import { RpcServiceOptions } from '../../network-controller/src/rpc-service/rpc-service';
 import {
   buildCustomNetworkConfiguration,
   buildCustomRpcEndpoint,
@@ -100,10 +99,7 @@ const setupNetworkController = async ({
     messenger: networkControllerMessenger,
     state,
     infuraProjectId,
-    getRpcServiceOptions: (): Omit<
-      RpcServiceOptions,
-      'failoverService' | 'endpointUrl'
-    > => ({
+    getRpcServiceOptions: () => ({
       fetch,
       btoa,
       isOffline: (): boolean => false,

@@ -1455,7 +1455,9 @@ function testsForRetriableFetchErrors({
 
   it('does not retry when offline, only makes one fetch call', async () => {
     const clock = getClock();
-    const mockFetch = jest.fn();
+    const mockFetch = jest.fn(() => {
+      throw producedError;
+    });
     const service = new RpcService({
       fetch: mockFetch,
       btoa,
@@ -1481,7 +1483,9 @@ function testsForRetriableFetchErrors({
 
   it('does not call onDegraded when offline', async () => {
     const clock = getClock();
-    const mockFetch = jest.fn();
+    const mockFetch = jest.fn(() => {
+      throw producedError;
+    });
     const endpointUrl = 'https://rpc.example.chain';
     const onDegradedListener = jest.fn();
     const service = new RpcService({
@@ -1511,7 +1515,9 @@ function testsForRetriableFetchErrors({
 
   it('does not call onBreak when offline', async () => {
     const clock = getClock();
-    const mockFetch = jest.fn();
+    const mockFetch = jest.fn(() => {
+      throw producedError;
+    });
     const endpointUrl = 'https://rpc.example.chain';
     const onBreakListener = jest.fn();
     const service = new RpcService({

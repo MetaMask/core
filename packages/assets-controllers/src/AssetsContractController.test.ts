@@ -34,7 +34,6 @@ import {
 } from './AssetsContractController';
 import { SupportedTokenDetectionNetworks } from './assetsUtil';
 import { mockNetwork } from '../../../tests/mock-network';
-import { RpcServiceOptions } from '../../network-controller/src/rpc-service/rpc-service';
 import { buildInfuraNetworkClientConfiguration } from '../../network-controller/tests/helpers';
 
 type AllAssetsContractControllerActions =
@@ -111,10 +110,7 @@ async function setupAssetContractControllers({
       namespace: 'NetworkController',
       parent: messenger,
     }),
-    getRpcServiceOptions: (): Omit<
-      RpcServiceOptions,
-      'failoverService' | 'endpointUrl'
-    > => ({
+    getRpcServiceOptions: () => ({
       fetch,
       btoa,
       isOffline: (): boolean => false,
