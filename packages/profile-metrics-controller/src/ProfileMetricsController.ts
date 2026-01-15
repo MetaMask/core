@@ -219,6 +219,11 @@ export class ProfileMetricsController extends StaticIntervalPollingController()<
     );
 
     this.messenger.subscribe('KeyringController:unlock', () => {
+      if (this.#assertUserOptedIn()) {
+        // If the user has already opted in at the start of the session,
+        // it must have opted in during onboarding, or during a previous session.
+        this.#skipInitialDelay();
+      }
       this.#queueFirstSyncIfNeeded().catch(console.error);
       this.startPolling(null);
     });

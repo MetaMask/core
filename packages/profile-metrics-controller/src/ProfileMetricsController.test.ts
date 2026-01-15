@@ -75,6 +75,17 @@ describe('ProfileMetricsController', () => {
         );
       });
 
+      it('disables the initial delay if the user has opted in to profile metrics', async () => {
+        await withController(
+          { options: { assertUserOptedIn: () => true } },
+          async ({ controller, rootMessenger }) => {
+            rootMessenger.publish('KeyringController:unlock');
+
+            expect(controller.state.initialDelayEndTimestamp).toBe(Date.now());
+          },
+        );
+      });
+
       describe('when `initialEnqueueCompleted` is false', () => {
         it.each([{ assertUserOptedIn: true }, { assertUserOptedIn: false }])(
           'adds existing accounts to the queue when `assertUserOptedIn` is $assertUserOptedIn',
