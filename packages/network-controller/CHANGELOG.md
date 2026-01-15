@@ -9,6 +9,10 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [29.0.0]
 
+### Added
+
+- Add dependency `@metamask/connectivity-controller` `^0.1.0` ([#7642](https://github.com/MetaMask/core/pull/7642))
+
 ### Changed
 
 - Bump `@metamask/eth-block-tracker` from `^15.0.0` to `^15.0.1` ([#7642](https://github.com/MetaMask/core/pull/7642))
