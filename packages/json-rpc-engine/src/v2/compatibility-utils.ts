@@ -1,6 +1,6 @@
 import { getMessageFromCode, JsonRpcError } from '@metamask/rpc-errors';
 import type { Json } from '@metamask/utils';
-import { hasProperty, isObject } from '@metamask/utils';
+import { hasProperty, isObject, isValidJson } from '@metamask/utils';
 // ATTN: We must NOT use 'klona/full' here because it freezes properties on the clone.
 import { klona } from 'klona';
 
@@ -171,16 +171,22 @@ export function deserializeError(thrown: unknown): Error | JsonRpcError<Json> {
 
   const { stack, cause, data } = thrown;
 
+  // If data is an object, merge with cause.
+  // If data is undefined, only use cause.
+  // If data is a JSON value that's not an object use data.
+  const mergedData = isObject(data)
+    ? { ...data, cause }
+    : isValidJson(data)
+      ? data
+      : { cause };
+
   const error =
     code === undefined
       ? // Jest complains if we use the `@ts-expect-error` directive here.
         // eslint-disable-next-line @typescript-eslint/ban-ts-comment
         // @ts-ignore - Our error type is outdated.
         new Error(message, { cause })
-      : new JsonRpcError(code, message, {
-          ...(isObject(data) ? data : undefined),
-          cause,
-        });
+      : new JsonRpcError(code, message, mergedData);
 
   if (typeof stack === 'string') {
     error.stack = stack;
