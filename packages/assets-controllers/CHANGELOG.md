@@ -9,13 +9,16 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [95.3.0]
 
-### Uncategorized
-
-- feat(network-controller): connect `NetworkController` to `ConnectivityController` ([#7627](https://github.com/MetaMask/core/pull/7627))
-
 ### Added
 
 - Add BOB (0xed88) mapping to eip155:60808/erc20:0x0000000000000000000000000000000000000000 ([#7635](https://github.com/MetaMask/core/pull/7635))
+
+### Changed
+
+- Bump `@metamask/accounts-controller` from `^35.0.1` to `^35.0.2` ([#7642](https://github.com/MetaMask/core/pull/7642))
+- Bump `@metamask/network-controller` from `^28.0.0` to `^29.0.0` ([#7642](https://github.com/MetaMask/core/pull/7642))
+- Bump `@metamask/polling-controller` from `^16.0.1` to `^16.0.2` ([#7642](https://github.com/MetaMask/core/pull/7642))
+- Bump `@metamask/transaction-controller` from `^62.9.1` to `^62.9.2` ([#7642](https://github.com/MetaMask/core/pull/7642))
 
 ### Fixed
 

@@ -9,9 +9,10 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [26.0.2]
 
-### Uncategorized
+### Changed
 
-- feat(network-controller): connect `NetworkController` to `ConnectivityController` ([#7627](https://github.com/MetaMask/core/pull/7627))
+- Bump `@metamask/network-controller` from `^28.0.0` to `^29.0.0` ([#7642](https://github.com/MetaMask/core/pull/7642))
+- Bump `@metamask/polling-controller` from `^16.0.1` to `^16.0.2` ([#7642](https://github.com/MetaMask/core/pull/7642))
 
 ## [26.0.1]
 
