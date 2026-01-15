@@ -5638,6 +5638,12 @@ describe('TransactionController', () => {
           type: TransactionType.incoming,
         };
 
+        const isTransferTransaction = {
+          ...duplicate_1,
+          id: 'testId9',
+          isTransfer: true,
+        };
+
         const { controller } = setupController({
           options: {
             state: {
@@ -5647,6 +5653,7 @@ describe('TransactionController', () => {
                 wrongNonce,
                 wrongFrom,
                 wrongType,
+                isTransferTransaction,
                 duplicate_1,
                 duplicate_2,
                 duplicate_3,
@@ -5666,6 +5673,7 @@ describe('TransactionController', () => {
           TransactionStatus.submitted,
           TransactionStatus.submitted,
           TransactionStatus.confirmed,
+          TransactionStatus.submitted,
           TransactionStatus.dropped,
           TransactionStatus.dropped,
           TransactionStatus.failed,
@@ -5679,6 +5687,7 @@ describe('TransactionController', () => {
           undefined,
           undefined,
           undefined,
+          undefined,
           confirmed.hash,
           confirmed.hash,
           confirmed.hash,
@@ -5687,6 +5696,7 @@ describe('TransactionController', () => {
         expect(
           controller.state.transactions.map((tx) => tx.replacedById),
         ).toStrictEqual([
+          undefined,
           undefined,
           undefined,
           undefined,
