@@ -2080,7 +2080,7 @@ describe('SeedlessOnboardingController', () => {
               dataType: undefined,
               createdAt: undefined,
             },
-            // PW_BACKUP item (v1 legacy)
+            // PW_BACKUP item with corrupted PrimarySrp dataType (should be ignored for hasPrimarySrp calculation)
             {
               data: stringToBytes(
                 JSON.stringify({
@@ -2092,7 +2092,22 @@ describe('SeedlessOnboardingController', () => {
               ),
               itemId: 'PW_BACKUP',
               version: 'v1',
-              dataType: undefined,
+              dataType: EncAccountDataType.PrimarySrp, // Corrupted: PW_BACKUP should not affect hasPrimarySrp
+              createdAt: undefined,
+            },
+            // Item with undefined itemId and corrupted PrimarySrp (should be ignored)
+            {
+              data: stringToBytes(
+                JSON.stringify({
+                  data: bytesToBase64(stringToBytes('orphaned item')),
+                  timestamp: 50,
+                  type: SecretType.Mnemonic,
+                  version: 'v1',
+                }),
+              ),
+              itemId: undefined as unknown as string,
+              version: 'v1',
+              dataType: EncAccountDataType.PrimarySrp, // Corrupted: undefined itemId should not affect hasPrimarySrp
               createdAt: undefined,
             },
             // First SRP (v1 legacy, needs migration, oldest by timestamp)
@@ -2134,7 +2149,9 @@ describe('SeedlessOnboardingController', () => {
           await controller.runMigrations();
 
           // srp-1 -> PrimarySrp, srp-2 -> ImportedSrp, pk-1 -> ImportedPrivateKey
-          // Skipped: srp-migrated, PW_BACKUP, unknown-1
+          // Skipped: srp-migrated, PW_BACKUP, undefined itemId, unknown-1
+          // Note: PW_BACKUP and undefined itemId items have corrupted PrimarySrp dataType,
+          // but they should be ignored when determining hasPrimarySrp, so srp-1 still gets PrimarySrp
           expect(batchUpdateSpy).toHaveBeenCalledWith({
             updateItems: [
               { itemId: 'srp-1', dataType: EncAccountDataType.PrimarySrp },

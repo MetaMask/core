@@ -638,7 +638,10 @@ export class SeedlessOnboardingController<
       }
 
       let hasPrimarySrp = secretDatas.some(
-        (secret) => secret.dataType === EncAccountDataType.PrimarySrp,
+        (secret) =>
+          secret.itemId &&
+          secret.itemId !== 'PW_BACKUP' &&
+          secret.dataType === EncAccountDataType.PrimarySrp,
       );
 
       const updates: { itemId: string; dataType: EncAccountDataType }[] = [];
