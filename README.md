@@ -24,6 +24,7 @@ Each package in this repository has its own README where you can find installati
 - [`@metamask/accounts-controller`](packages/accounts-controller)
 - [`@metamask/address-book-controller`](packages/address-book-controller)
 - [`@metamask/analytics-controller`](packages/analytics-controller)
+- [`@metamask/analytics-privacy-controller`](packages/analytics-privacy-controller)
 - [`@metamask/announcement-controller`](packages/announcement-controller)
 - [`@metamask/app-metadata-controller`](packages/app-metadata-controller)
 - [`@metamask/approval-controller`](packages/approval-controller)
@@ -99,6 +100,7 @@ linkStyle default opacity:0.5
   accounts_controller(["@metamask/accounts-controller"]);
   address_book_controller(["@metamask/address-book-controller"]);
   analytics_controller(["@metamask/analytics-controller"]);
+  analytics_privacy_controller(["@metamask/analytics-privacy-controller"]);
   announcement_controller(["@metamask/announcement-controller"]);
   app_metadata_controller(["@metamask/app-metadata-controller"]);
   approval_controller(["@metamask/approval-controller"]);
@@ -183,6 +185,8 @@ linkStyle default opacity:0.5
   app_metadata_controller --> messenger;
   approval_controller --> base_controller;
   approval_controller --> messenger;
+  assets_controller --> base_controller;
+  assets_controller --> messenger;
   assets_controllers --> account_tree_controller;
   assets_controllers --> accounts_controller;
   assets_controllers --> approval_controller;

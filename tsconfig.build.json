@@ -20,6 +20,9 @@
       "path": "./packages/analytics-controller/tsconfig.build.json"
     },
     {
+      "path": "./packages/analytics-privacy-controller/tsconfig.build.json"
+    },
+    {
       "path": "./packages/announcement-controller/tsconfig.build.json"
     },
     {
