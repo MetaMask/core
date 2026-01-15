@@ -8,7 +8,7 @@ import type {
 } from '@metamask/messenger';
 
 import {
-  INITIAL_DELAY_DURATION,
+  DEFAULT_INITIAL_DELAY_DURATION,
   ProfileMetricsController,
 } from './ProfileMetricsController';
 import type { ProfileMetricsControllerMessenger } from './ProfileMetricsController';
@@ -176,7 +176,8 @@ describe('ProfileMetricsController', () => {
           {
             options: {
               state: {
-                initialDelayEndTimestamp: Date.now() + INITIAL_DELAY_DURATION,
+                initialDelayEndTimestamp:
+                  Date.now() + DEFAULT_INITIAL_DELAY_DURATION,
               },
             },
           },
@@ -368,14 +369,32 @@ describe('ProfileMetricsController', () => {
     });
 
     describe('when the user has opted in to profile metrics', () => {
-      it('sets the correct initial delay end timestamp if not set yet', async () => {
+      it('sets the correct default initial delay end timestamp if not set yet', async () => {
         await withController(async ({ controller }) => {
           await controller._executePoll();
 
           expect(controller.state.initialDelayEndTimestamp).toBe(
-            Date.now() + INITIAL_DELAY_DURATION,
+            Date.now() + DEFAULT_INITIAL_DELAY_DURATION,
           );
         });
+      });
+
+      it('sets a custom initial delay end timestamp if provided via options', async () => {
+        const customDelay = 60_000;
+        await withController(
+          {
+            options: {
+              initialDelayDuration: customDelay,
+            },
+          },
+          async ({ controller }) => {
+            await controller._executePoll();
+
+            expect(controller.state.initialDelayEndTimestamp).toBe(
+              Date.now() + customDelay,
+            );
+          },
+        );
       });
 
       it('retains the existing initial delay end timestamp if already set', async () => {

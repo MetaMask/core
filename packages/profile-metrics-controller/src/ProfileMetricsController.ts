@@ -31,7 +31,7 @@ export const controllerName = 'ProfileMetricsController';
 /**
  * The default delay duration before data is sent for the first time, in milliseconds.
  */
-export const INITIAL_DELAY_DURATION = 10 * 60 * 1000; // 10 minutes
+export const DEFAULT_INITIAL_DELAY_DURATION = 10 * 60 * 1000; // 10 minutes
 
 /**
  * Describes the shape of the state object for {@link ProfileMetricsController}.
@@ -165,6 +165,8 @@ export class ProfileMetricsController extends StaticIntervalPollingController()<
 
   readonly #getMetaMetricsId: () => string;
 
+  readonly #initialDelayDuration: number;
+
   /**
    * Constructs a new {@link ProfileMetricsController}.
    *
@@ -179,6 +181,8 @@ export class ProfileMetricsController extends StaticIntervalPollingController()<
    * of the user.
    * @param args.interval - The interval, in milliseconds, at which the controller will
    * attempt to send user profile data. Defaults to 10 seconds.
+   * @param args.initialDelayDuration - The delay duration before data is sent
+   * for the first time, in milliseconds. Defaults to 10 minutes.
    */
   constructor({
     messenger,
@@ -186,12 +190,14 @@ export class ProfileMetricsController extends StaticIntervalPollingController()<
     assertUserOptedIn,
     getMetaMetricsId,
     interval = 10 * 1000,
+    initialDelayDuration = DEFAULT_INITIAL_DELAY_DURATION,
   }: {
     messenger: ProfileMetricsControllerMessenger;
     state?: Partial<ProfileMetricsControllerState>;
     interval?: number;
     assertUserOptedIn: () => boolean;
     getMetaMetricsId: () => string;
+    initialDelayDuration?: number;
   }) {
     super({
       messenger,
@@ -205,6 +211,7 @@ export class ProfileMetricsController extends StaticIntervalPollingController()<
 
     this.#assertUserOptedIn = assertUserOptedIn;
     this.#getMetaMetricsId = getMetaMetricsId;
+    this.#initialDelayDuration = initialDelayDuration;
 
     this.messenger.registerMethodActionHandlers(
       this,
@@ -311,7 +318,8 @@ export class ProfileMetricsController extends StaticIntervalPollingController()<
    */
   #setInitialDelayEndTimestampIfNull(): void {
     this.update((state) => {
-      state.initialDelayEndTimestamp ??= Date.now() + INITIAL_DELAY_DURATION;
+      state.initialDelayEndTimestamp ??=
+        Date.now() + this.#initialDelayDuration;
     });
   }
 
