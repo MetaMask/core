@@ -11,6 +11,10 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 - Upgrade `@metamask/utils` from `^11.8.1` to `^11.9.0` ([#7511](https://github.com/MetaMask/core/pull/7511))
 
+### Fixed
+
+- Ensure non-object data in RPC errors is deserialized correctly when using JsonRpcEngine compatibility tools ([#7638](https://github.com/MetaMask/core/pull/7638))
+
 ## [10.2.0]
 
 ### Added
