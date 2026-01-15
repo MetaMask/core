@@ -7,6 +7,12 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+## [4.0.2]
+
+### Changed
+
+- Bump `@metamask/network-controller` from `^28.0.0` to `^29.0.0` ([#7642](https://github.com/MetaMask/core/pull/7642))
+
 ## [4.0.1]
 
 ### Changed
@@ -92,7 +98,8 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 - Initial release of @metamask/sample-controllers.
 
-[Unreleased]: https://github.com/MetaMask/core/compare/@metamask/sample-controllers@4.0.1...HEAD
+[Unreleased]: https://github.com/MetaMask/core/compare/@metamask/sample-controllers@4.0.2...HEAD
+[4.0.2]: https://github.com/MetaMask/core/compare/@metamask/sample-controllers@4.0.1...@metamask/sample-controllers@4.0.2
 [4.0.1]: https://github.com/MetaMask/core/compare/@metamask/sample-controllers@4.0.0...@metamask/sample-controllers@4.0.1
 [4.0.0]: https://github.com/MetaMask/core/compare/@metamask/sample-controllers@3.0.0...@metamask/sample-controllers@4.0.0
 [3.0.0]: https://github.com/MetaMask/core/compare/@metamask/sample-controllers@2.0.2...@metamask/sample-controllers@3.0.0
