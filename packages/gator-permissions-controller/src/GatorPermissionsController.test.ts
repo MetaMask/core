@@ -250,7 +250,7 @@ describe('GatorPermissionsController', () => {
           result[permissionType],
         ).flat();
         flattenedStoredGatorPermissions.forEach((permission) => {
-          expect(permission.permissionResponse.to).toBeUndefined();
+          expect(permission.permissionResponse.to).toBeDefined();
           expect(permission.permissionResponse.dependencies).toBeUndefined();
         });
       };

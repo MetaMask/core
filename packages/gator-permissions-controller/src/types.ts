@@ -116,13 +116,13 @@ export type PermissionResponse<TPermission extends PermissionTypesWithCustom> =
 
 /**
  * Represents a sanitized version of the PermissionResponse type.
- * Internal fields (dependencies, to) are removed
+ * Internal fields (dependencies) are removed
  *
  * @template Permission - The type of the permission provided.
  */
 export type PermissionResponseSanitized<
   TPermission extends PermissionTypesWithCustom,
-> = Omit<PermissionResponse<TPermission>, 'dependencies' | 'to'>;
+> = Omit<PermissionResponse<TPermission>, 'dependencies'>;
 
 /**
  * Represents a gator ERC-7715 granted(ie. signed by an user account) permission entry that is stored in profile sync.

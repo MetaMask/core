@@ -479,7 +479,7 @@ export default class GatorPermissionsController extends BaseController<
 
   /**
    * Sanitizes a stored gator permission for client exposure.
-   * Removes internal fields (dependencies, to)
+   * Removes internal fields (dependencies)
    *
    * @param storedGatorPermission - The stored gator permission to sanitize.
    * @returns The sanitized stored gator permission.
@@ -488,7 +488,7 @@ export default class GatorPermissionsController extends BaseController<
     storedGatorPermission: StoredGatorPermission<PermissionTypesWithCustom>,
   ): StoredGatorPermissionSanitized<PermissionTypesWithCustom> {
     const { permissionResponse } = storedGatorPermission;
-    const { dependencies, to, ...rest } = permissionResponse;
+    const { dependencies, ...rest } = permissionResponse;
     return {
       ...storedGatorPermission,
       permissionResponse: {
