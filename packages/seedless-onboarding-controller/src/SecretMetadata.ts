@@ -1,3 +1,5 @@
+import type { SecretDataItemOutput } from '@metamask/toprf-secure-backup';
+import { EncAccountDataType } from '@metamask/toprf-secure-backup';
 import {
   base64ToBytes,
   bytesToBase64,
@@ -8,15 +10,14 @@ import {
 import {
   SeedlessOnboardingControllerErrorMessage,
   SecretType,
-  SecretMetadataVersion,
 } from './constants';
-import type { SecretDataType, SecretMetadataOptions } from './types';
+import type { SecretDataType } from './types';
+import { compareTimeuuid, getSecretTypeFromDataType } from './utils';
 
 type ISecretMetadata<DataType extends SecretDataType = Uint8Array> = {
   data: DataType;
   timestamp: number;
   type: SecretType;
-  version: SecretMetadataVersion;
   toBytes: () => Uint8Array;
 };
 
@@ -42,6 +43,30 @@ type SecretMetadataJson<DataType extends SecretDataType> = Omit<
  * const secretMetadata = new SecretMetadata(secret);
  * ```
  */
+
+/**
+ * Options for SecretMetadata constructor.
+ *
+ * New clients: provide V2 fields (`dataType`, `createdAt`, etc).
+ * Reading V1 data: `timestamp` and `type` come from encrypted JSON.
+ */
+type SecretMetadataOptions = {
+  // V1 fields (from encrypted JSON payload, for backward compat)
+  timestamp?: number;
+  type?: SecretType;
+
+  // Storage-level metadata from the metadata store (not encrypted).
+  itemId?: string;
+  dataType?: EncAccountDataType;
+  createdAt?: string;
+  /**
+   * The storage-level version from the SDK ('v1' or 'v2').
+   * - 'v1': Legacy items created before dataType was introduced
+   * - 'v2': Items with dataType set (either new or migrated)
+   */
+  storageVersion?: SecretDataItemOutput['version'];
+};
+
 export class SecretMetadata<DataType extends SecretDataType = Uint8Array>
   implements ISecretMetadata<DataType>
 {
@@ -51,52 +76,33 @@ export class SecretMetadata<DataType extends SecretDataType = Uint8Array>
 
   readonly #type: SecretType;
 
-  readonly #version: SecretMetadataVersion;
+  // Storage-level metadata (not encrypted)
+  readonly #itemId?: string;
+
+  readonly #dataType?: EncAccountDataType;
+
+  readonly #createdAt?: string;
+
+  readonly #storageVersion?: SecretDataItemOutput['version'];
 
   /**
-   * Create a new SecretMetadata instance.
-   *
-   * @param data - The secret to add metadata to.
-   * @param options - The options for the secret metadata.
-   * @param options.timestamp - The timestamp when the secret was created.
-   * @param options.type - The type of the secret.
+   * @param data - The secret data.
+   * @param options - Optional metadata. New clients should provide `dataType`.
    */
-  constructor(data: DataType, options?: Partial<SecretMetadataOptions>) {
+  constructor(data: DataType, options?: SecretMetadataOptions) {
     this.#data = data;
     this.#timestamp = options?.timestamp ?? Date.now();
-    this.#type = options?.type ?? SecretType.Mnemonic;
-    this.#version = options?.version ?? SecretMetadataVersion.V1;
-  }
+    this.#itemId = options?.itemId;
+    this.#dataType = options?.dataType;
+    this.#createdAt = options?.createdAt;
+    this.#storageVersion = options?.storageVersion;
 
-  /**
-   * Create an Array of SecretMetadata instances from an array of secrets.
-   *
-   * To respect the order of the secrets, we add the index to the timestamp
-   * so that the first secret backup will have the oldest timestamp
-   * and the last secret backup will have the newest timestamp.
-   *
-   * @param batchData - The data to add metadata to.
-   * @param batchData.value - The SeedPhrase/PrivateKey to add metadata to.
-   * @param batchData.options - The options for the seed phrase metadata.
-   * @returns The SecretMetadata instances.
-   */
-  static fromBatch<DataType extends SecretDataType = Uint8Array>(
-    batchData: {
-      value: DataType;
-      options?: Partial<SecretMetadataOptions>;
-    }[],
-  ): SecretMetadata<DataType>[] {
-    const timestamp = Date.now();
-    return batchData.map((data, index) => {
-      // To respect the order of the seed phrases, we add the index to the timestamp
-      // so that the first seed phrase backup will have the oldest timestamp
-      // and the last seed phrase backup will have the newest timestamp
-      const backupCreatedAt = data.options?.timestamp ?? timestamp + index * 5;
-      return new SecretMetadata(data.value, {
-        timestamp: backupCreatedAt,
-        type: data.options?.type,
-      });
-    });
+    // Derive type from dataType (new clients), or use provided type (V1 compat)
+    if (options?.dataType === undefined || options?.dataType === null) {
+      this.#type = options?.type ?? SecretType.Mnemonic;
+    } else {
+      this.#type = getSecretTypeFromDataType(options.dataType);
+    }
   }
 
   /**
@@ -123,50 +129,22 @@ export class SecretMetadata<DataType extends SecretDataType = Uint8Array>
   }
 
   /**
-   * Parse the SecretMetadata from the metadata store and return the array of SecretMetadata instances.
-   *
-   * This method also sorts the secrets by timestamp in ascending order, i.e. the oldest secret will be the first element in the array.
-   *
-   * @param secretMetadataArr - The array of SecretMetadata from the metadata store.
-   * @param filterType - The type of the secret to filter.
-   * @returns The array of SecretMetadata instances.
-   */
-  static parseSecretsFromMetadataStore<
-    DataType extends SecretDataType = Uint8Array,
-  >(
-    secretMetadataArr: Uint8Array[],
-    filterType?: SecretType,
-  ): SecretMetadata<DataType>[] {
-    const parsedSecertMetadata = secretMetadataArr.map((metadata) =>
-      SecretMetadata.fromRawMetadata<DataType>(metadata),
-    );
-
-    const secrets = SecretMetadata.sort(parsedSecertMetadata);
-
-    if (filterType) {
-      return secrets.filter((secret) => secret.type === filterType);
-    }
-
-    return secrets;
-  }
-
-  /**
    * Parse and create the SecretMetadata instance from the raw metadata bytes.
    *
    * @param rawMetadata - The raw metadata.
+   * @param storageMetadata - Storage-level metadata from the metadata store.
    * @returns The parsed secret metadata.
    */
   static fromRawMetadata<DataType extends SecretDataType>(
     rawMetadata: Uint8Array,
+    storageMetadata: Omit<SecretMetadataOptions, 'timestamp' | 'type'>,
   ): SecretMetadata<DataType> {
     const serializedMetadata = bytesToString(rawMetadata);
     const parsedMetadata = JSON.parse(serializedMetadata);
 
     SecretMetadata.assertIsValidSecretMetadataJson<DataType>(parsedMetadata);
 
-    // if the type is not provided, we default to Mnemonic for the backwards compatibility
     const type = parsedMetadata.type ?? SecretType.Mnemonic;
-    const version = parsedMetadata.version ?? SecretMetadataVersion.V1;
 
     let data: DataType;
     try {
@@ -178,28 +156,86 @@ export class SecretMetadata<DataType extends SecretDataType = Uint8Array>
     return new SecretMetadata<DataType>(data, {
       timestamp: parsedMetadata.timestamp,
       type,
-      version,
+      ...storageMetadata,
     });
   }
 
   /**
-   * Sort the seed phrases by timestamp.
+   * Compare two SecretMetadata instances by timestamp.
    *
-   * @param data - The secret metadata array to sort.
-   * @param order - The order to sort the seed phrases. Default is `desc`.
-   *
-   * @returns The sorted secret metadata array.
+   * @param a - The first SecretMetadata instance.
+   * @param b - The second SecretMetadata instance.
+   * @param order - The sort order. Default is 'asc'.
+   * @returns A negative number if a < b, positive if a > b, zero if equal.
    */
-  static sort<DataType extends SecretDataType = Uint8Array>(
-    data: SecretMetadata<DataType>[],
+  static compareByTimestamp<DataType extends SecretDataType = SecretDataType>(
+    a: SecretMetadata<DataType>,
+    b: SecretMetadata<DataType>,
     order: 'asc' | 'desc' = 'asc',
-  ): SecretMetadata<DataType>[] {
-    return data.sort((a, b) => {
-      if (order === 'asc') {
-        return a.timestamp - b.timestamp;
-      }
-      return b.timestamp - a.timestamp;
-    });
+  ): number {
+    return order === 'asc'
+      ? a.timestamp - b.timestamp
+      : b.timestamp - a.timestamp;
+  }
+
+  /**
+   * Compare two SecretMetadata instances for ordering.
+   *
+   * Ordering priority:
+   * 1. PrimarySrp always comes first (regardless of order direction)
+   * 2. Server-side createdAt (TIMEUUID) if both have it
+   * 3. Legacy items (null createdAt) are considered older
+   * 4. Fall back to client-side timestamp
+   *
+   * @param a - The first SecretMetadata instance.
+   * @param b - The second SecretMetadata instance.
+   * @param order - The sort order. Default is 'asc'.
+   * @returns A negative number if a < b, positive if a > b, zero if equal.
+   */
+  static compare<DataType extends SecretDataType = SecretDataType>(
+    a: SecretMetadata<DataType>,
+    b: SecretMetadata<DataType>,
+    order: 'asc' | 'desc' = 'asc',
+  ): number {
+    // PrimarySrp always comes first (regardless of order direction)
+    const aIsPrimary = a.dataType === EncAccountDataType.PrimarySrp;
+    const bIsPrimary = b.dataType === EncAccountDataType.PrimarySrp;
+    if (aIsPrimary && bIsPrimary) {
+      return 0; // Both PrimarySrp: treat as equal (handles data corruption gracefully)
+    }
+    if (aIsPrimary) {
+      return -1;
+    }
+    if (bIsPrimary) {
+      return 1;
+    }
+    // Use server-side createdAt if available (TIMEUUID requires timestamp extraction)
+    if (a.createdAt && b.createdAt) {
+      return compareTimeuuid(a.createdAt, b.createdAt, order);
+    }
+    // Handle mixed createdAt: legacy items (null) are older
+    if (!a.createdAt && b.createdAt) {
+      return order === 'asc' ? -1 : 1; // a (legacy/older) comes before b in asc
+    }
+    if (a.createdAt && !b.createdAt) {
+      return order === 'asc' ? 1 : -1; // b (legacy/older) comes before a in asc
+    }
+    // Both null: fall back to client-side timestamp
+    return SecretMetadata.compareByTimestamp(a, b, order);
+  }
+
+  /**
+   * Check if a SecretMetadata instance matches the given type.
+   *
+   * @param secret - The SecretMetadata instance to check.
+   * @param type - The type to match against.
+   * @returns True if the secret matches the type.
+   */
+  static matchesType<DataType extends SecretDataType = SecretDataType>(
+    secret: SecretMetadata<DataType>,
+    type: SecretType,
+  ): boolean {
+    return secret.type === type;
   }
 
   get data(): DataType {
@@ -214,8 +250,25 @@ export class SecretMetadata<DataType extends SecretDataType = Uint8Array>
     return this.#type;
   }
 
-  get version(): SecretMetadataVersion {
-    return this.#version;
+  get itemId(): string | undefined {
+    return this.#itemId;
+  }
+
+  get dataType(): EncAccountDataType | undefined {
+    return this.#dataType;
+  }
+
+  get createdAt(): string | undefined {
+    return this.#createdAt;
+  }
+
+  /**
+   * The storage-level version from the SDK ('v1' or 'v2').
+   *
+   * @returns The storage-level version.
+   */
+  get storageVersion(): SecretDataItemOutput['version'] | undefined {
+    return this.#storageVersion;
   }
 
   /**
@@ -236,7 +289,6 @@ export class SecretMetadata<DataType extends SecretDataType = Uint8Array>
       data: _data,
       timestamp: this.#timestamp,
       type: this.#type,
-      version: this.#version,
     });
 
     // convert the serialized metadata to bytes(Uint8Array)

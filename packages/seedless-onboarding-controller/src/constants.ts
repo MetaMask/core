@@ -20,8 +20,8 @@ export enum SecretType {
   PrivateKey = 'privateKey',
 }
 
-export enum SecretMetadataVersion {
-  V1 = 'v1',
+export enum SeedlessOnboardingMigrationVersion {
+  V1 = 1,
 }
 
 export enum SeedlessOnboardingControllerErrorMessage {
