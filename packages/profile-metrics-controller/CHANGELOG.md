@@ -9,7 +9,7 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ### Added
 
-- `ProfileMetricsController` contructor now accepts an optional `initialDelayDuration` parameter  ([#7624](https://github.com/MetaMask/core/pull/7624))
+- `ProfileMetricsController` contructor now accepts an optional `initialDelayDuration` parameter ([#7624](https://github.com/MetaMask/core/pull/7624))
   - The parameter can be used to override the default time-based delay for the first data collection after opt-in
 
 ### Changed
