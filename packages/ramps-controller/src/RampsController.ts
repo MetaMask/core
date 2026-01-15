@@ -570,43 +570,40 @@ export class RampsController extends BaseController<
 
         return userRegion;
       }
-    } catch {
-      // If countries fetch fails, fall back to storing just the region code
-      // This maintains backward compatibility
-    }
 
-    // Fallback: store as region code only if countries not available
-    // This shouldn't happen in normal flow, but handles edge cases
-    const fallbackRegion: UserRegion = {
-      country: {
-        isoCode: normalizedRegion.split('-')[0].toUpperCase(),
-        flag: '🏳️',
-        name: normalizedRegion,
-        phone: { prefix: '', placeholder: '', template: '' },
-        currency: '',
-        supported: false,
-      },
-      state: null,
-      regionCode: normalizedRegion,
-    };
-
-    this.update((state) => {
-      state.userRegion = fallbackRegion;
-      state.tokens = null;
-    });
-
-    try {
-      await this.updateEligibility(normalizedRegion, options);
-    } catch {
+      // Region not found in countries data
       this.update((state) => {
-        if (state.userRegion?.regionCode === normalizedRegion) {
-          state.eligibility = null;
-          state.tokens = null;
-        }
+        state.userRegion = null;
+        state.tokens = null;
       });
-    }
 
-    return fallbackRegion;
+      // Still try to fetch eligibility using just the region code string
+      // This doesn't require the full country object
+      try {
+        await this.updateEligibility(normalizedRegion, options);
+      } catch {
+        // Eligibility fetch failed - error state will be available via selectors
+      }
+
+      return null;
+    } catch {
+      // If countries fetch fails, we can't create a valid UserRegion
+      // Return null to indicate we don't have valid country data
+      this.update((state) => {
+        state.userRegion = null;
+        state.tokens = null;
+      });
+
+      // Still try to fetch eligibility using just the region code string
+      // This doesn't require the full country object
+      try {
+        await this.updateEligibility(normalizedRegion, options);
+      } catch {
+        // Eligibility fetch failed - error state will be available via selectors
+      }
+
+      return null;
+    }
   }
 
   /**
@@ -645,39 +642,34 @@ export class RampsController extends BaseController<
           throw error;
         }
       }
-    } catch {
-      // If countries fetch fails, fall back to storing just the region code
-    }
 
-    // Fallback: store as region code only if countries not available
-    const fallbackRegion: UserRegion = {
-      country: {
-        isoCode: normalizedRegion.split('-')[0].toUpperCase(),
-        flag: '🏳️',
-        name: normalizedRegion,
-        phone: { prefix: '', placeholder: '', template: '' },
-        currency: '',
-        supported: false,
-      },
-      state: null,
-      regionCode: normalizedRegion,
-    };
-
-    this.update((state) => {
-      state.userRegion = fallbackRegion;
-      state.tokens = null;
-    });
-
-    try {
-      return await this.updateEligibility(normalizedRegion, options);
-    } catch (error) {
+      // Region not found in countries data
       this.update((state) => {
-        if (state.userRegion?.regionCode === normalizedRegion) {
-          state.eligibility = null;
-          state.tokens = null;
-        }
+        state.userRegion = null;
+        state.tokens = null;
       });
-      throw error;
+      throw new Error(
+        `Region "${normalizedRegion}" not found in countries data. Cannot set user region without valid country information.`,
+      );
+    } catch (error) {
+      // If the error is from eligibility fetch (userRegion was set), re-throw it
+      // If the error is "not found", re-throw it
+      // Otherwise, it's from countries fetch failure
+      if (
+        error instanceof Error &&
+        (error.message.includes('not found') ||
+          this.state.userRegion !== null)
+      ) {
+        throw error;
+      }
+      // Countries fetch failed
+      this.update((state) => {
+        state.userRegion = null;
+        state.tokens = null;
+      });
+      throw new Error(
+        'Failed to fetch countries data. Cannot set user region without valid country information.',
+      );
     }
   }
 
