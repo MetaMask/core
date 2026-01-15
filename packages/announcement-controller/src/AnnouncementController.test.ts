@@ -7,6 +7,7 @@ import type {
   StateAnnouncementMap,
   AnnouncementControllerActions,
   AnnouncementControllerEvents,
+  AnnouncementControllerMessenger,
   AnnouncementMap,
 } from './AnnouncementController';
 import { AnnouncementController } from './AnnouncementController';
@@ -18,18 +19,13 @@ const name = 'AnnouncementController';
  *
  * @returns A restricted controller messenger.
  */
-function getMessenger() {
+function getMessenger(): AnnouncementControllerMessenger {
   const messenger = new Messenger<
     MockAnyNamespace,
     AnnouncementControllerActions,
     AnnouncementControllerEvents
   >({ namespace: MOCK_ANY_NAMESPACE });
-  return new Messenger<
-    typeof name,
-    AnnouncementControllerActions,
-    AnnouncementControllerEvents,
-    typeof messenger
-  >({
+  return new Messenger({
     namespace: name,
     parent: messenger,
   });
