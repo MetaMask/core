@@ -377,6 +377,64 @@ describe('RampsController', () => {
         expect(controller.state.tokens).toBeNull();
       });
     });
+
+    it('returns null when region is not found in countries data', async () => {
+      await withController(async ({ controller, rootMessenger }) => {
+        rootMessenger.registerActionHandler(
+          'RampsService:getGeolocation',
+          async () => 'XX',
+        );
+        rootMessenger.registerActionHandler(
+          'RampsService:getCountries',
+          async () => createMockCountries(),
+        );
+        rootMessenger.registerActionHandler(
+          'RampsService:getEligibility',
+          async () => ({
+            aggregator: true,
+            deposit: true,
+            global: true,
+          }),
+        );
+
+        const result = await controller.updateUserRegion();
+
+        expect(result).toBeNull();
+        expect(controller.state.userRegion).toBeNull();
+        expect(controller.state.eligibility).toStrictEqual({
+          aggregator: true,
+          deposit: true,
+          global: true,
+        });
+        expect(controller.state.tokens).toBeNull();
+      });
+    });
+
+    it('handles eligibility fetch failure when region is not found', async () => {
+      await withController(async ({ controller, rootMessenger }) => {
+        rootMessenger.registerActionHandler(
+          'RampsService:getGeolocation',
+          async () => 'YY',
+        );
+        rootMessenger.registerActionHandler(
+          'RampsService:getCountries',
+          async () => createMockCountries(),
+        );
+        rootMessenger.registerActionHandler(
+          'RampsService:getEligibility',
+          async () => {
+            throw new Error('Eligibility API error');
+          },
+        );
+
+        const result = await controller.updateUserRegion();
+
+        expect(result).toBeNull();
+        expect(controller.state.userRegion).toBeNull();
+        expect(controller.state.eligibility).toBeNull();
+        expect(controller.state.tokens).toBeNull();
+      });
+    });
   });
 
   describe('executeRequest', () => {
@@ -1336,6 +1394,24 @@ describe('RampsController', () => {
         );
 
         expect(controller.state.userRegion).toBeNull();
+      });
+    });
+
+    it('throws error when countries fetch fails', async () => {
+      await withController(async ({ controller, rootMessenger }) => {
+        rootMessenger.registerActionHandler(
+          'RampsService:getCountries',
+          async () => {
+            throw new Error('Network error');
+          },
+        );
+
+        await expect(controller.setUserRegion('us')).rejects.toThrow(
+          'Failed to fetch countries data. Cannot set user region without valid country information.',
+        );
+
+        expect(controller.state.userRegion).toBeNull();
+        expect(controller.state.tokens).toBeNull();
       });
     });
 
