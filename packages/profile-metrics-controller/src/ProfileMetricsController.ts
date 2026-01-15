@@ -19,6 +19,7 @@ import { TransactionControllerTransactionSubmittedEvent } from '@metamask/transa
 import { Mutex } from 'async-mutex';
 
 import type { ProfileMetricsServiceMethodActions } from '.';
+import type { ProfileMetricsControllerMethodActions } from '.';
 import type { AccountWithScopes } from './ProfileMetricsService';
 
 /**
@@ -94,7 +95,7 @@ export function getDefaultProfileMetricsControllerState(): ProfileMetricsControl
   };
 }
 
-const MESSENGER_EXPOSED_METHODS = [] as const;
+const MESSENGER_EXPOSED_METHODS = ['skipInitialDelay'] as const;
 
 /**
  * Retrieves the state of the {@link ProfileMetricsController}.
@@ -109,7 +110,7 @@ export type ProfileMetricsControllerGetStateAction = ControllerGetStateAction<
  */
 export type ProfileMetricsControllerActions =
   | ProfileMetricsControllerGetStateAction
-  | ProfileMetricsServiceMethodActions;
+  | ProfileMetricsControllerMethodActions;
 
 /**
  * Actions from other messengers that {@link ProfileMetricsControllerMessenger} calls.
@@ -222,7 +223,7 @@ export class ProfileMetricsController extends StaticIntervalPollingController()<
       if (this.#assertUserOptedIn()) {
         // If the user has already opted in at the start of the session,
         // it must have opted in during onboarding, or during a previous session.
-        this.#skipInitialDelay();
+        this.skipInitialDelay();
       }
       this.#queueFirstSyncIfNeeded().catch(console.error);
       this.startPolling(null);
@@ -233,7 +234,7 @@ export class ProfileMetricsController extends StaticIntervalPollingController()<
     );
 
     this.messenger.subscribe('TransactionController:transactionSubmitted', () =>
-      this.#skipInitialDelay(),
+      this.skipInitialDelay(),
     );
 
     this.messenger.subscribe('AccountsController:accountAdded', (account) => {
@@ -245,6 +246,16 @@ export class ProfileMetricsController extends StaticIntervalPollingController()<
     });
 
     this.setIntervalLength(interval);
+  }
+
+  /**
+   * Skip the initial delay period by setting the end timestamp to the current time.
+   * Metrics will be sent on the next poll.
+   */
+  skipInitialDelay(): void {
+    this.update((state) => {
+      state.initialDelayEndTimestamp = Date.now();
+    });
   }
 
   /**
@@ -325,15 +336,6 @@ export class ProfileMetricsController extends StaticIntervalPollingController()<
     this.update((state) => {
       state.initialDelayEndTimestamp ??=
         Date.now() + this.#initialDelayDuration;
-    });
-  }
-
-  /**
-   * Skip the initial delay period by setting the end timestamp to the current time.
-   */
-  #skipInitialDelay(): void {
-    this.update((state) => {
-      state.initialDelayEndTimestamp = Date.now();
     });
   }
 

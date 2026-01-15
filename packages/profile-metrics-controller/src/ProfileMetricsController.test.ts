@@ -333,6 +333,24 @@ describe('ProfileMetricsController', () => {
     });
   });
 
+  describe('skipInitialDelay', () => {
+    it('sets the initial delay end timestamp to the current time', async () => {
+      const pastTimestamp = Date.now() - 10000;
+      await withController(
+        {
+          options: {
+            state: { initialDelayEndTimestamp: pastTimestamp },
+          },
+        },
+        async ({ controller }) => {
+          controller.skipInitialDelay();
+
+          expect(controller.state.initialDelayEndTimestamp).toBe(Date.now());
+        },
+      );
+    });
+  });
+
   describe('_executePoll', () => {
     describe('when the user has not opted in to profile metrics', () => {
       it('does not process the sync queue', async () => {
