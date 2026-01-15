@@ -83,6 +83,7 @@ describe('createNetworkClient - RPC endpoint events', () => {
                         policyOptions: {
                           backoff: new ConstantBackoff(backoffDuration),
                         },
+                        isOffline: (): boolean => false,
                       }),
                     },
                     async ({ makeRpcCall, clock, chainId }) => {
@@ -199,6 +200,7 @@ describe('createNetworkClient - RPC endpoint events', () => {
                         policyOptions: {
                           backoff: new ConstantBackoff(backoffDuration),
                         },
+                        isOffline: (): boolean => false,
                       }),
                     },
                     async ({ makeRpcCall, clock, chainId, rpcUrl }) => {
@@ -292,16 +294,6 @@ describe('createNetworkClient - RPC endpoint events', () => {
                       httpStatus: 503,
                     },
                   });
-                  primaryComms.mockRpcCall({
-                    request: {
-                      method: 'eth_gasPrice',
-                      params: [],
-                    },
-                    times: 1,
-                    response: {
-                      httpStatus: 503,
-                    },
-                  });
 
                   const rootMessenger = buildRootMessenger({
                     connectivityStatus: CONNECTIVITY_STATUSES.Offline,
@@ -326,6 +318,7 @@ describe('createNetworkClient - RPC endpoint events', () => {
                         policyOptions: {
                           backoff: new ConstantBackoff(backoffDuration),
                         },
+                        isOffline: (): boolean => false,
                       }),
                     },
                     async ({ makeRpcCall }) => {
@@ -411,6 +404,7 @@ describe('createNetworkClient - RPC endpoint events', () => {
                         policyOptions: {
                           backoff: new ConstantBackoff(backoffDuration),
                         },
+                        isOffline: (): boolean => false,
                       }),
                     },
                     async ({ makeRpcCall, clock }) => {
@@ -486,6 +480,7 @@ describe('createNetworkClient - RPC endpoint events', () => {
                         policyOptions: {
                           backoff: new ConstantBackoff(backoffDuration),
                         },
+                        isOffline: (): boolean => false,
                       }),
                     },
                     async ({ makeRpcCall, clock, chainId }) => {
@@ -593,6 +588,7 @@ describe('createNetworkClient - RPC endpoint events', () => {
                         policyOptions: {
                           backoff: new ConstantBackoff(backoffDuration),
                         },
+                        isOffline: (): boolean => false,
                       }),
                     },
                     async ({ makeRpcCall, clock, chainId }) => {
@@ -708,6 +704,7 @@ describe('createNetworkClient - RPC endpoint events', () => {
                         policyOptions: {
                           backoff: new ConstantBackoff(backoffDuration),
                         },
+                        isOffline: (): boolean => false,
                       }),
                     },
                     async ({ makeRpcCall, clock, chainId, rpcUrl }) => {
@@ -835,6 +832,7 @@ describe('createNetworkClient - RPC endpoint events', () => {
                         policyOptions: {
                           backoff: new ConstantBackoff(backoffDuration),
                         },
+                        isOffline: (): boolean => false,
                       }),
                     },
                     async ({ makeRpcCall, clock, chainId, rpcUrl }) => {
@@ -1007,6 +1005,7 @@ describe('createNetworkClient - RPC endpoint events', () => {
                         policyOptions: {
                           backoff: new ConstantBackoff(backoffDuration),
                         },
+                        isOffline: (): boolean => false,
                       }),
                     },
                     async ({ makeRpcCall, clock, chainId }) => {
@@ -1093,6 +1092,7 @@ describe('createNetworkClient - RPC endpoint events', () => {
                     policyOptions: {
                       backoff: new ConstantBackoff(backoffDuration),
                     },
+                    isOffline: (): boolean => false,
                   }),
                 },
                 async ({ makeRpcCall, clock, chainId }) => {
@@ -1162,6 +1162,7 @@ describe('createNetworkClient - RPC endpoint events', () => {
                     policyOptions: {
                       backoff: new ConstantBackoff(backoffDuration),
                     },
+                    isOffline: (): boolean => false,
                   }),
                 },
                 async ({ makeRpcCall, clock, chainId }) => {
@@ -1253,6 +1254,7 @@ describe('createNetworkClient - RPC endpoint events', () => {
                     policyOptions: {
                       backoff: new ConstantBackoff(backoffDuration),
                     },
+                    isOffline: (): boolean => false,
                   }),
                 },
                 async ({ makeRpcCall, clock, chainId, rpcUrl }) => {
@@ -1355,6 +1357,7 @@ describe('createNetworkClient - RPC endpoint events', () => {
                     policyOptions: {
                       backoff: new ConstantBackoff(backoffDuration),
                     },
+                    isOffline: (): boolean => false,
                   }),
                 },
                 async ({ makeRpcCall }) => {
@@ -1417,6 +1420,7 @@ describe('createNetworkClient - RPC endpoint events', () => {
                     policyOptions: {
                       backoff: new ConstantBackoff(backoffDuration),
                     },
+                    isOffline: (): boolean => false,
                   }),
                 },
                 async ({ makeRpcCall, clock }) => {
@@ -1482,6 +1486,7 @@ describe('createNetworkClient - RPC endpoint events', () => {
                     policyOptions: {
                       backoff: new ConstantBackoff(backoffDuration),
                     },
+                    isOffline: (): boolean => false,
                   }),
                 },
                 async ({ makeRpcCall, clock, chainId, rpcUrl }) => {
@@ -1575,6 +1580,7 @@ describe('createNetworkClient - RPC endpoint events', () => {
                     policyOptions: {
                       backoff: new ConstantBackoff(backoffDuration),
                     },
+                    isOffline: (): boolean => false,
                   }),
                 },
                 async ({ makeRpcCall, chainId }) => {

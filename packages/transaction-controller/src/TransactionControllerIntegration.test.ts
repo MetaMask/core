@@ -214,6 +214,7 @@ const setupController = async (
     > => ({
       fetch,
       btoa,
+      isOffline: (): boolean => false,
     }),
   });
   await networkController.initializeProvider();

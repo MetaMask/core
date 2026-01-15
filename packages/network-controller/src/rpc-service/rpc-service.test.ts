@@ -56,6 +56,7 @@ describe('RpcService', () => {
         fetch,
         btoa,
         endpointUrl,
+        isOffline: (): boolean => false,
       });
       service.onRetry(() => {
         clock.next();
@@ -106,6 +107,7 @@ describe('RpcService', () => {
         fetch,
         btoa,
         endpointUrl,
+        isOffline: (): boolean => false,
       });
       service.onRetry(() => {
         clock.next();
@@ -172,6 +174,7 @@ describe('RpcService', () => {
         fetch,
         btoa,
         endpointUrl,
+        isOffline: (): boolean => false,
       });
       service.onRetry(() => {
         clock.next();
@@ -225,6 +228,7 @@ describe('RpcService', () => {
         fetch,
         btoa,
         endpointUrl,
+        isOffline: (): boolean => false,
       });
       service.onRetry(() => {
         clock.next();
@@ -273,6 +277,7 @@ describe('RpcService', () => {
         fetch,
         btoa,
         endpointUrl,
+        isOffline: (): boolean => false,
       });
       service.onRetry(() => {
         clock.next();
@@ -320,6 +325,7 @@ describe('RpcService', () => {
         fetch,
         btoa,
         endpointUrl,
+        isOffline: (): boolean => false,
       });
       service.onRetry(() => {
         clock.next();
@@ -453,6 +459,7 @@ describe('RpcService', () => {
             },
             btoa,
             endpointUrl,
+            isOffline: (): boolean => false,
           });
         },
         expectedError: new Error('oops'),
@@ -612,6 +619,7 @@ describe('RpcService', () => {
         fetch,
         btoa,
         endpointUrl,
+        isOffline: (): boolean => false,
       });
 
       // @ts-expect-error Intentionally passing bad input.
@@ -657,6 +665,7 @@ describe('RpcService', () => {
         fetch,
         btoa,
         endpointUrl: 'https://username:password@rpc.example.chain',
+        isOffline: (): boolean => false,
       });
 
       const response = await service.request({
@@ -696,6 +705,7 @@ describe('RpcService', () => {
         fetch,
         btoa,
         endpointUrl: 'https://username:password@rpc.example.chain',
+        isOffline: (): boolean => false,
       });
 
       await service.request({
@@ -731,6 +741,7 @@ describe('RpcService', () => {
         fetch,
         btoa,
         endpointUrl: 'https://username:password@rpc.example.chain',
+        isOffline: (): boolean => false,
       });
 
       await service.request(
@@ -780,6 +791,7 @@ describe('RpcService', () => {
         fetch,
         btoa,
         endpointUrl,
+        isOffline: (): boolean => false,
       });
 
       const response = await service.request({
@@ -826,6 +838,7 @@ describe('RpcService', () => {
         fetch,
         btoa,
         endpointUrl,
+        isOffline: (): boolean => false,
       });
 
       const response = await service.request(
@@ -865,6 +878,7 @@ describe('RpcService', () => {
         fetch,
         btoa,
         endpointUrl,
+        isOffline: (): boolean => false,
       });
 
       const response = await service.request({
@@ -906,6 +920,7 @@ describe('RpcService', () => {
         fetch,
         btoa,
         endpointUrl,
+        isOffline: (): boolean => false,
       });
       service.onDegraded(onDegradedListener);
 
@@ -943,6 +958,7 @@ describe('RpcService', () => {
         fetch,
         btoa,
         endpointUrl,
+        isOffline: (): boolean => false,
       });
       service.onAvailable(onAvailableListener);
 
@@ -994,6 +1010,7 @@ describe('RpcService', () => {
         fetch,
         btoa,
         endpointUrl,
+        isOffline: (): boolean => false,
       });
       service.onAvailable(onAvailableListener);
 
@@ -1052,7 +1069,12 @@ function testsForNonRetriableErrors({
     // do nothing
   },
   createService = (args): RpcService => {
-    return new RpcService({ fetch, btoa, endpointUrl: args.endpointUrl });
+    return new RpcService({
+      fetch,
+      btoa,
+      endpointUrl: args.endpointUrl,
+      isOffline: (): boolean => false,
+    });
   },
   endpointUrl = 'https://rpc.example.chain',
   rpcMethod = `eth_chainId`,
@@ -1190,6 +1212,7 @@ function testsForRetriableFetchErrors({
       fetch: mockFetch,
       btoa,
       endpointUrl: 'https://rpc.example.chain',
+      isOffline: (): boolean => false,
     });
     service.onRetry(() => {
       clock.next();
@@ -1218,6 +1241,7 @@ function testsForRetriableFetchErrors({
       fetch: mockFetch,
       btoa,
       endpointUrl,
+      isOffline: (): boolean => false,
     });
     service.onRetry(() => {
       clock.next();
@@ -1252,6 +1276,7 @@ function testsForRetriableFetchErrors({
       fetch: mockFetch,
       btoa,
       endpointUrl: 'https://rpc.example.chain',
+      isOffline: (): boolean => false,
     });
     service.onRetry(() => {
       clock.next();
@@ -1282,6 +1307,7 @@ function testsForRetriableFetchErrors({
       fetch: mockFetch,
       btoa,
       endpointUrl,
+      isOffline: (): boolean => false,
     });
     service.onRetry(() => {
       clock.next();
@@ -1318,6 +1344,7 @@ function testsForRetriableFetchErrors({
       btoa,
       endpointUrl,
       logger,
+      isOffline: (): boolean => false,
     });
     service.onRetry(() => {
       clock.next();
@@ -1358,6 +1385,7 @@ function testsForRetriableFetchErrors({
       btoa,
       endpointUrl,
       logger,
+      isOffline: (): boolean => false,
     });
     service.onRetry(() => {
       clock.next();
@@ -1405,6 +1433,7 @@ function testsForRetriableFetchErrors({
       fetch: mockFetch,
       btoa,
       endpointUrl,
+      isOffline: (): boolean => false,
     });
     service.onAvailable(onAvailableListener);
     service.onRetry(() => {
@@ -1426,9 +1455,7 @@ function testsForRetriableFetchErrors({
 
   it('does not retry when offline, only makes one fetch call', async () => {
     const clock = getClock();
-    const mockFetch = jest.fn(() => {
-      throw producedError;
-    });
+    const mockFetch = jest.fn();
     const service = new RpcService({
       fetch: mockFetch,
       btoa,
@@ -1454,9 +1481,7 @@ function testsForRetriableFetchErrors({
 
   it('does not call onDegraded when offline', async () => {
     const clock = getClock();
-    const mockFetch = jest.fn(() => {
-      throw producedError;
-    });
+    const mockFetch = jest.fn();
     const endpointUrl = 'https://rpc.example.chain';
     const onDegradedListener = jest.fn();
     const service = new RpcService({
@@ -1486,9 +1511,7 @@ function testsForRetriableFetchErrors({
 
   it('does not call onBreak when offline', async () => {
     const clock = getClock();
-    const mockFetch = jest.fn(() => {
-      throw producedError;
-    });
+    const mockFetch = jest.fn();
     const endpointUrl = 'https://rpc.example.chain';
     const onBreakListener = jest.fn();
     const service = new RpcService({
@@ -1574,6 +1597,7 @@ function testsForRetriableResponses({
       fetch,
       btoa,
       endpointUrl: 'https://rpc.example.chain',
+      isOffline: (): boolean => false,
     });
     service.onRetry(() => {
       clock.next();
@@ -1606,6 +1630,7 @@ function testsForRetriableResponses({
       fetch,
       btoa,
       endpointUrl: 'https://rpc.example.chain',
+      isOffline: (): boolean => false,
     });
     service.onRetry(() => {
       clock.next();
@@ -1642,6 +1667,7 @@ function testsForRetriableResponses({
       fetch,
       btoa,
       endpointUrl,
+      isOffline: (): boolean => false,
     });
     service.onRetry(() => {
       clock.next();
@@ -1683,6 +1709,7 @@ function testsForRetriableResponses({
       fetch,
       btoa,
       endpointUrl,
+      isOffline: (): boolean => false,
     });
     service.onRetry(() => {
       clock.next();
@@ -1731,6 +1758,7 @@ function testsForRetriableResponses({
       btoa,
       endpointUrl,
       logger,
+      isOffline: (): boolean => false,
     });
     service.onRetry(() => {
       clock.next();

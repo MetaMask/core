@@ -91,17 +91,16 @@ export const TESTNET = {
  * If not provided, defaults to Online.
  * @returns The messenger.
  */
-export function buildRootMessenger(options?: {
+export function buildRootMessenger({
+  connectivityStatus = CONNECTIVITY_STATUSES.Online,
+}: {
   connectivityStatus?: ConnectivityStatus;
-}): RootMessenger {
+} = {}): RootMessenger {
   const rootMessenger = new Messenger<
     MockAnyNamespace,
     MessengerActions<NetworkControllerMessenger>,
     MessengerEvents<NetworkControllerMessenger>
   >({ namespace: MOCK_ANY_NAMESPACE, captureException: jest.fn() });
-
-  const connectivityStatus =
-    options?.connectivityStatus ?? CONNECTIVITY_STATUSES.Online;
 
   rootMessenger.registerActionHandler(
     'ConnectivityController:getState',
@@ -644,6 +643,7 @@ export async function withController<ReturnValue>(
     > => ({
       fetch,
       btoa,
+      isOffline: (): boolean => false,
     }),
     ...rest,
   });
