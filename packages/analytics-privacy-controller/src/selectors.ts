@@ -6,9 +6,8 @@ import type { AnalyticsPrivacyControllerState } from './AnalyticsPrivacyControll
  * @param state - The controller state
  * @returns Whether data has been recorded since the last deletion request
  */
-const selectDataRecorded = (
-  state: AnalyticsPrivacyControllerState,
-): boolean => state.dataRecorded;
+const selectDataRecorded = (state: AnalyticsPrivacyControllerState): boolean =>
+  state.dataRecorded;
 
 /**
  * Selects the delete regulation ID from the controller state.
@@ -21,14 +20,14 @@ const selectDeleteRegulationId = (
 ): string | undefined => state.deleteRegulationId ?? undefined;
 
 /**
- * Selects the delete regulation creation date from the controller state.
+ * Selects the delete regulation creation timestamp from the controller state.
  *
  * @param state - The controller state
- * @returns The deletion date in DD/MM/YYYY format, or undefined if not set
+ * @returns The deletion timestamp (in milliseconds since epoch), or undefined if not set
  */
-const selectDeleteRegulationDate = (
+const selectDeleteRegulationTimestamp = (
   state: AnalyticsPrivacyControllerState,
-): string | undefined => state.deleteRegulationDate ?? undefined;
+): number | undefined => state.deleteRegulationTimestamp ?? undefined;
 
 /**
  * Selectors for the AnalyticsPrivacyController state.
@@ -37,5 +36,5 @@ const selectDeleteRegulationDate = (
 export const analyticsPrivacyControllerSelectors = {
   selectDataRecorded,
   selectDeleteRegulationId,
-  selectDeleteRegulationDate,
+  selectDeleteRegulationTimestamp,
 };

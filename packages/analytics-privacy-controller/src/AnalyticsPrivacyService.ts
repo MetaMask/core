@@ -2,26 +2,22 @@ import type {
   CreateServicePolicyOptions,
   ServicePolicy,
 } from '@metamask/controller-utils';
-import {
-  createServicePolicy,
-  HttpError,
-} from '@metamask/controller-utils';
+import { createServicePolicy, HttpError } from '@metamask/controller-utils';
 import type { Messenger } from '@metamask/messenger';
 import type { IDisposable } from 'cockatiel';
 
 import { projectLogger as log } from './AnalyticsPrivacyLogger';
-import {
-  DataDeleteResponseStatus,
-  DataDeleteStatus,
-  type IDeleteRegulationResponse,
-  type IDeleteRegulationStatusResponse,
-} from './types';
 import type { AnalyticsPrivacyServiceMethodActions } from './AnalyticsPrivacyService-method-action-types';
 import {
   SEGMENT_REGULATION_TYPE_DELETE_ONLY,
   SEGMENT_SUBJECT_TYPE_USER_ID,
   SEGMENT_CONTENT_TYPE,
 } from './constants';
+import { DataDeleteResponseStatus, DataDeleteStatus } from './types';
+import type {
+  IDeleteRegulationResponse,
+  IDeleteRegulationStatusResponse,
+} from './types';
 
 // === GENERAL ===
 
@@ -318,7 +314,10 @@ export class AnalyticsPrivacyService {
         };
       }
 
-      log('Analytics Deletion Task Error', new Error('Malformed response from Segment API'));
+      log(
+        'Analytics Deletion Task Error',
+        new Error('Malformed response from Segment API'),
+      );
       return {
         status: DataDeleteResponseStatus.error,
         error: 'Analytics Deletion Task Error',
@@ -341,6 +340,7 @@ export class AnalyticsPrivacyService {
   async checkDataDeleteStatus(
     regulationId: string,
   ): Promise<IDeleteRegulationStatusResponse> {
+    // Early return if regulationId is missing (cannot check status) or endpoint is not configured
     if (!regulationId || !this.#segmentRegulationsEndpoint) {
       return {
         status: DataDeleteResponseStatus.error,

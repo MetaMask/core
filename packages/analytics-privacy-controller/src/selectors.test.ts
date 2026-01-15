@@ -53,26 +53,27 @@ describe('analyticsPrivacyControllerSelectors', () => {
     });
   });
 
-  describe('selectDeleteRegulationDate', () => {
-    it('returns the deleteRegulationDate when set', () => {
+  describe('selectDeleteRegulationTimestamp', () => {
+    it('returns the deleteRegulationTimestamp when set', () => {
+      const testTimestamp = new Date('2026-01-15T12:00:00Z').getTime();
       const state: AnalyticsPrivacyControllerState = {
         ...getDefaultAnalyticsPrivacyControllerState(),
-        deleteRegulationDate: '15/01/2024',
+        deleteRegulationTimestamp: testTimestamp,
       };
 
       expect(
-        analyticsPrivacyControllerSelectors.selectDeleteRegulationDate(state),
-      ).toBe('15/01/2024');
+        analyticsPrivacyControllerSelectors.selectDeleteRegulationTimestamp(state),
+      ).toBe(testTimestamp);
     });
 
-    it('returns undefined when deleteRegulationDate is null', () => {
+    it('returns undefined when deleteRegulationTimestamp is null', () => {
       const state: AnalyticsPrivacyControllerState = {
         ...getDefaultAnalyticsPrivacyControllerState(),
-        deleteRegulationDate: null,
+        deleteRegulationTimestamp: null,
       };
 
       expect(
-        analyticsPrivacyControllerSelectors.selectDeleteRegulationDate(state),
+        analyticsPrivacyControllerSelectors.selectDeleteRegulationTimestamp(state),
       ).toBeUndefined();
     });
   });

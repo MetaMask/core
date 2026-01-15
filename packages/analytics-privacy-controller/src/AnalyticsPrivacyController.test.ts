@@ -1,3 +1,4 @@
+import type { AnalyticsControllerState } from '@metamask/analytics-controller';
 import { Messenger, MOCK_ANY_NAMESPACE } from '@metamask/messenger';
 import type { MockAnyNamespace } from '@metamask/messenger';
 
@@ -12,7 +13,6 @@ import type {
   AnalyticsPrivacyControllerState,
 } from '.';
 import type { AnalyticsPrivacyServiceActions } from './AnalyticsPrivacyService';
-import type { AnalyticsControllerState } from '@metamask/analytics-controller';
 import { DataDeleteResponseStatus, DataDeleteStatus } from './types';
 
 type SetupControllerOptions = {
@@ -24,7 +24,12 @@ type SetupControllerReturn = {
   messenger: AnalyticsPrivacyControllerMessenger;
   rootMessenger: Messenger<
     MockAnyNamespace,
-    AnalyticsPrivacyControllerActions | AnalyticsPrivacyServiceActions | { type: 'AnalyticsController:getState'; handler: () => { analyticsId: string; optedIn: boolean } },
+    | AnalyticsPrivacyControllerActions
+    | AnalyticsPrivacyServiceActions
+    | {
+        type: 'AnalyticsController:getState';
+        handler: () => { analyticsId: string; optedIn: boolean };
+      },
     AnalyticsPrivacyControllerEvents
   >;
 };
@@ -43,13 +48,23 @@ function setupController(
 
   const rootMessenger = new Messenger<
     MockAnyNamespace,
-    AnalyticsPrivacyControllerActions | AnalyticsPrivacyServiceActions | { type: 'AnalyticsController:getState'; handler: () => { analyticsId: string; optedIn: boolean } },
+    | AnalyticsPrivacyControllerActions
+    | AnalyticsPrivacyServiceActions
+    | {
+        type: 'AnalyticsController:getState';
+        handler: () => { analyticsId: string; optedIn: boolean };
+      },
     AnalyticsPrivacyControllerEvents
   >({ namespace: MOCK_ANY_NAMESPACE });
 
   const analyticsPrivacyControllerMessenger = new Messenger<
     'AnalyticsPrivacyController',
-    AnalyticsPrivacyControllerActions | AnalyticsPrivacyServiceActions | { type: 'AnalyticsController:getState'; handler: () => { analyticsId: string; optedIn: boolean } },
+    | AnalyticsPrivacyControllerActions
+    | AnalyticsPrivacyServiceActions
+    | {
+        type: 'AnalyticsController:getState';
+        handler: () => { analyticsId: string; optedIn: boolean };
+      },
     AnalyticsPrivacyControllerEvents,
     typeof rootMessenger
   >({
@@ -110,7 +125,7 @@ describe('AnalyticsPrivacyController', () => {
       expect(defaults).toStrictEqual({
         dataRecorded: false,
         deleteRegulationId: null,
-        deleteRegulationDate: null,
+        deleteRegulationTimestamp: null,
       });
     });
 
@@ -135,7 +150,7 @@ describe('AnalyticsPrivacyController', () => {
       const initialState = {
         dataRecorded: true,
         deleteRegulationId: 'existing-id',
-        deleteRegulationDate: '01/01/2024',
+        deleteRegulationTimestamp: new Date('2026-01-15T12:00:00Z').getTime(),
       };
 
       const { controller } = setupController({ state: initialState });
@@ -152,13 +167,17 @@ describe('AnalyticsPrivacyController', () => {
 
       expect(controller.state.dataRecorded).toBe(true);
       expect(controller.state.deleteRegulationId).toBeNull();
-      expect(controller.state.deleteRegulationDate).toBeNull();
+      expect(controller.state.deleteRegulationTimestamp).toBeNull();
     });
   });
 
   describe('AnalyticsPrivacyController:createDataDeletionTask', () => {
     it('creates a data deletion task and updates state', async () => {
       const { controller, rootMessenger } = setupController();
+
+      const fixedTimestamp = new Date('2026-01-15T12:00:00Z').getTime();
+      jest.useFakeTimers();
+      jest.setSystemTime(new Date(fixedTimestamp));
 
       const response = await rootMessenger.call(
         'AnalyticsPrivacyController:createDataDeletionTask',
@@ -167,22 +186,32 @@ describe('AnalyticsPrivacyController', () => {
       expect(response.status).toBe(DataDeleteResponseStatus.ok);
       expect(response.regulateId).toBe('test-regulate-id');
       expect(controller.state.deleteRegulationId).toBe('test-regulate-id');
-      expect(controller.state.deleteRegulationDate).toMatch(
-        /^\d{1,2}\/\d{1,2}\/\d{4}$/,
-      );
+      expect(controller.state.deleteRegulationTimestamp).toBe(fixedTimestamp);
       expect(controller.state.dataRecorded).toBe(false);
+
+      jest.useRealTimers();
     });
 
-    it('formats deletion date in DD/MM/YYYY format', async () => {
+    it('stores deletion timestamp correctly', async () => {
       const rootMessenger = new Messenger<
         MockAnyNamespace,
-        AnalyticsPrivacyControllerActions | AnalyticsPrivacyServiceActions | { type: 'AnalyticsController:getState'; handler: () => { analyticsId: string; optedIn: boolean } },
+        | AnalyticsPrivacyControllerActions
+        | AnalyticsPrivacyServiceActions
+        | {
+            type: 'AnalyticsController:getState';
+            handler: () => { analyticsId: string; optedIn: boolean };
+          },
         AnalyticsPrivacyControllerEvents
       >({ namespace: MOCK_ANY_NAMESPACE });
 
       const analyticsPrivacyControllerMessenger = new Messenger<
         'AnalyticsPrivacyController',
-        AnalyticsPrivacyControllerActions | AnalyticsPrivacyServiceActions | { type: 'AnalyticsController:getState'; handler: () => { analyticsId: string; optedIn: boolean } },
+        | AnalyticsPrivacyControllerActions
+        | AnalyticsPrivacyServiceActions
+        | {
+            type: 'AnalyticsController:getState';
+            handler: () => { analyticsId: string; optedIn: boolean };
+          },
         AnalyticsPrivacyControllerEvents,
         typeof rootMessenger
       >({
@@ -190,10 +219,13 @@ describe('AnalyticsPrivacyController', () => {
         parent: rootMessenger,
       });
 
-      rootMessenger.registerActionHandler('AnalyticsController:getState', () => ({
-        analyticsId: 'test-analytics-id',
-        optedIn: true,
-      }));
+      rootMessenger.registerActionHandler(
+        'AnalyticsController:getState',
+        () => ({
+          analyticsId: 'test-analytics-id',
+          optedIn: true,
+        }),
+      );
 
       rootMessenger.registerActionHandler(
         'AnalyticsPrivacyService:createDataDeletionTask',
@@ -214,17 +246,17 @@ describe('AnalyticsPrivacyController', () => {
       const controller = new AnalyticsPrivacyController({
         messenger: analyticsPrivacyControllerMessenger,
       });
-      
-      const fixedDate = new Date('2024-01-15T12:00:00Z');
+
+      const fixedTimestamp = new Date('2026-01-15T12:00:00Z').getTime();
       jest.useFakeTimers();
-      jest.setSystemTime(fixedDate);
+      jest.setSystemTime(new Date(fixedTimestamp));
 
       await rootMessenger.call(
         'AnalyticsPrivacyController:createDataDeletionTask',
       );
 
-      // Note: getUTCDate() returns 15, getUTCMonth() returns 0 (January), so +1 = 1
-      expect(controller.state.deleteRegulationDate).toBe('15/01/2024');
+      expect(controller.state.deleteRegulationTimestamp).toBe(fixedTimestamp);
+      expect(typeof controller.state.deleteRegulationTimestamp).toBe('number');
 
       jest.useRealTimers();
     });
@@ -245,7 +277,7 @@ describe('AnalyticsPrivacyController', () => {
       // Verify the response is correct first
       expect(response.status).toBe(DataDeleteResponseStatus.ok);
       expect(response.regulateId).toBe('test-regulate-id');
-      
+
       // Then verify the event was emitted
       expect(eventListener).toHaveBeenCalledWith({
         status: DataDeleteResponseStatus.ok,
@@ -256,13 +288,23 @@ describe('AnalyticsPrivacyController', () => {
     it('returns error if analyticsId is missing from AnalyticsController state', async () => {
       const rootMessenger = new Messenger<
         MockAnyNamespace,
-        AnalyticsPrivacyControllerActions | AnalyticsPrivacyServiceActions | { type: 'AnalyticsController:getState'; handler: () => AnalyticsControllerState },
+        | AnalyticsPrivacyControllerActions
+        | AnalyticsPrivacyServiceActions
+        | {
+            type: 'AnalyticsController:getState';
+            handler: () => AnalyticsControllerState;
+          },
         AnalyticsPrivacyControllerEvents
       >({ namespace: MOCK_ANY_NAMESPACE });
 
       const analyticsPrivacyControllerMessenger = new Messenger<
         'AnalyticsPrivacyController',
-        AnalyticsPrivacyControllerActions | AnalyticsPrivacyServiceActions | { type: 'AnalyticsController:getState'; handler: () => AnalyticsControllerState },
+        | AnalyticsPrivacyControllerActions
+        | AnalyticsPrivacyServiceActions
+        | {
+            type: 'AnalyticsController:getState';
+            handler: () => AnalyticsControllerState;
+          },
         AnalyticsPrivacyControllerEvents,
         typeof rootMessenger
       >({
@@ -270,10 +312,13 @@ describe('AnalyticsPrivacyController', () => {
         parent: rootMessenger,
       });
 
-      rootMessenger.registerActionHandler('AnalyticsController:getState', () => ({
-        analyticsId: '', // Empty string to test the !analyticsId check
-        optedIn: true,
-      }));
+      rootMessenger.registerActionHandler(
+        'AnalyticsController:getState',
+        () => ({
+          analyticsId: '', // Empty string to test the !analyticsId check
+          optedIn: true,
+        }),
+      );
 
       rootMessenger.registerActionHandler(
         'AnalyticsPrivacyService:createDataDeletionTask',
@@ -291,7 +336,9 @@ describe('AnalyticsPrivacyController', () => {
         ],
       });
 
-      const controller = new AnalyticsPrivacyController({
+      // Controller is instantiated to register action handlers
+      // eslint-disable-next-line @typescript-eslint/no-unused-vars
+      const _controller = new AnalyticsPrivacyController({
         messenger: analyticsPrivacyControllerMessenger,
       });
 
@@ -306,13 +353,23 @@ describe('AnalyticsPrivacyController', () => {
     it('handles service response with undefined regulateId', async () => {
       const rootMessenger = new Messenger<
         MockAnyNamespace,
-        AnalyticsPrivacyControllerActions | AnalyticsPrivacyServiceActions | { type: 'AnalyticsController:getState'; handler: () => AnalyticsControllerState },
+        | AnalyticsPrivacyControllerActions
+        | AnalyticsPrivacyServiceActions
+        | {
+            type: 'AnalyticsController:getState';
+            handler: () => AnalyticsControllerState;
+          },
         AnalyticsPrivacyControllerEvents
       >({ namespace: MOCK_ANY_NAMESPACE });
 
       const analyticsPrivacyControllerMessenger = new Messenger<
         'AnalyticsPrivacyController',
-        AnalyticsPrivacyControllerActions | AnalyticsPrivacyServiceActions | { type: 'AnalyticsController:getState'; handler: () => AnalyticsControllerState },
+        | AnalyticsPrivacyControllerActions
+        | AnalyticsPrivacyServiceActions
+        | {
+            type: 'AnalyticsController:getState';
+            handler: () => AnalyticsControllerState;
+          },
         AnalyticsPrivacyControllerEvents,
         typeof rootMessenger
       >({
@@ -320,10 +377,13 @@ describe('AnalyticsPrivacyController', () => {
         parent: rootMessenger,
       });
 
-      rootMessenger.registerActionHandler('AnalyticsController:getState', () => ({
-        analyticsId: 'test-analytics-id',
-        optedIn: true,
-      }));
+      rootMessenger.registerActionHandler(
+        'AnalyticsController:getState',
+        () => ({
+          analyticsId: 'test-analytics-id',
+          optedIn: true,
+        }),
+      );
 
       rootMessenger.registerActionHandler(
         'AnalyticsPrivacyService:createDataDeletionTask',
@@ -341,7 +401,9 @@ describe('AnalyticsPrivacyController', () => {
         ],
       });
 
-      const controller = new AnalyticsPrivacyController({
+      // Controller is instantiated to register action handlers
+      // eslint-disable-next-line @typescript-eslint/no-unused-vars
+      const _controller = new AnalyticsPrivacyController({
         messenger: analyticsPrivacyControllerMessenger,
       });
 
@@ -351,20 +413,28 @@ describe('AnalyticsPrivacyController', () => {
 
       expect(response.status).toBe(DataDeleteResponseStatus.ok);
       expect(response.regulateId).toBeUndefined();
-      // State should not be updated when regulateId is missing (condition fails)
-      expect(controller.state.deleteRegulationId).toBeNull();
     });
 
     it('handles empty string regulateId (falsy but not null/undefined)', async () => {
       const rootMessenger = new Messenger<
         MockAnyNamespace,
-        AnalyticsPrivacyControllerActions | AnalyticsPrivacyServiceActions | { type: 'AnalyticsController:getState'; handler: () => AnalyticsControllerState },
+        | AnalyticsPrivacyControllerActions
+        | AnalyticsPrivacyServiceActions
+        | {
+            type: 'AnalyticsController:getState';
+            handler: () => AnalyticsControllerState;
+          },
         AnalyticsPrivacyControllerEvents
       >({ namespace: MOCK_ANY_NAMESPACE });
 
       const analyticsPrivacyControllerMessenger = new Messenger<
         'AnalyticsPrivacyController',
-        AnalyticsPrivacyControllerActions | AnalyticsPrivacyServiceActions | { type: 'AnalyticsController:getState'; handler: () => AnalyticsControllerState },
+        | AnalyticsPrivacyControllerActions
+        | AnalyticsPrivacyServiceActions
+        | {
+            type: 'AnalyticsController:getState';
+            handler: () => AnalyticsControllerState;
+          },
         AnalyticsPrivacyControllerEvents,
         typeof rootMessenger
       >({
@@ -372,10 +442,13 @@ describe('AnalyticsPrivacyController', () => {
         parent: rootMessenger,
       });
 
-      rootMessenger.registerActionHandler('AnalyticsController:getState', () => ({
-        analyticsId: 'test-analytics-id',
-        optedIn: true,
-      }));
+      rootMessenger.registerActionHandler(
+        'AnalyticsController:getState',
+        () => ({
+          analyticsId: 'test-analytics-id',
+          optedIn: true,
+        }),
+      );
 
       // Empty string is falsy, so condition fails and we don't enter the block
       // But this tests the edge case
@@ -408,16 +481,26 @@ describe('AnalyticsPrivacyController', () => {
       expect(controller.state.deleteRegulationId).toBeNull();
     });
 
-    it('handles null deleteRegulationDate in status', async () => {
+    it('handles null deleteRegulationTimestamp in status', async () => {
       const rootMessenger = new Messenger<
         MockAnyNamespace,
-        AnalyticsPrivacyControllerActions | AnalyticsPrivacyServiceActions | { type: 'AnalyticsController:getState'; handler: () => AnalyticsControllerState },
+        | AnalyticsPrivacyControllerActions
+        | AnalyticsPrivacyServiceActions
+        | {
+            type: 'AnalyticsController:getState';
+            handler: () => AnalyticsControllerState;
+          },
         AnalyticsPrivacyControllerEvents
       >({ namespace: MOCK_ANY_NAMESPACE });
 
       const analyticsPrivacyControllerMessenger = new Messenger<
         'AnalyticsPrivacyController',
-        AnalyticsPrivacyControllerActions | AnalyticsPrivacyServiceActions | { type: 'AnalyticsController:getState'; handler: () => AnalyticsControllerState },
+        | AnalyticsPrivacyControllerActions
+        | AnalyticsPrivacyServiceActions
+        | {
+            type: 'AnalyticsController:getState';
+            handler: () => AnalyticsControllerState;
+          },
         AnalyticsPrivacyControllerEvents,
         typeof rootMessenger
       >({
@@ -425,10 +508,13 @@ describe('AnalyticsPrivacyController', () => {
         parent: rootMessenger,
       });
 
-      rootMessenger.registerActionHandler('AnalyticsController:getState', () => ({
-        analyticsId: 'test-analytics-id',
-        optedIn: true,
-      }));
+      rootMessenger.registerActionHandler(
+        'AnalyticsController:getState',
+        () => ({
+          analyticsId: 'test-analytics-id',
+          optedIn: true,
+        }),
+      );
 
       // Mock a response where regulateId is explicitly undefined (to test ?? null)
       rootMessenger.registerActionHandler(
@@ -463,13 +549,23 @@ describe('AnalyticsPrivacyController', () => {
     it('returns error if AnalyticsController:getState fails', async () => {
       const rootMessenger = new Messenger<
         MockAnyNamespace,
-        AnalyticsPrivacyControllerActions | AnalyticsPrivacyServiceActions | { type: 'AnalyticsController:getState'; handler: () => { analyticsId: string; optedIn: boolean } },
+        | AnalyticsPrivacyControllerActions
+        | AnalyticsPrivacyServiceActions
+        | {
+            type: 'AnalyticsController:getState';
+            handler: () => { analyticsId: string; optedIn: boolean };
+          },
         AnalyticsPrivacyControllerEvents
       >({ namespace: MOCK_ANY_NAMESPACE });
 
       const analyticsPrivacyControllerMessenger = new Messenger<
         'AnalyticsPrivacyController',
-        AnalyticsPrivacyControllerActions | AnalyticsPrivacyServiceActions | { type: 'AnalyticsController:getState'; handler: () => { analyticsId: string; optedIn: boolean } },
+        | AnalyticsPrivacyControllerActions
+        | AnalyticsPrivacyServiceActions
+        | {
+            type: 'AnalyticsController:getState';
+            handler: () => { analyticsId: string; optedIn: boolean };
+          },
         AnalyticsPrivacyControllerEvents,
         typeof rootMessenger
       >({
@@ -477,9 +573,12 @@ describe('AnalyticsPrivacyController', () => {
         parent: rootMessenger,
       });
 
-      rootMessenger.registerActionHandler('AnalyticsController:getState', () => {
-        throw new Error('Analytics ID not found');
-      });
+      rootMessenger.registerActionHandler(
+        'AnalyticsController:getState',
+        () => {
+          throw new Error('Analytics ID not found');
+        },
+      );
 
       rootMessenger.registerActionHandler(
         'AnalyticsPrivacyService:createDataDeletionTask',
@@ -489,7 +588,17 @@ describe('AnalyticsPrivacyController', () => {
         }),
       );
 
-      const controller = new AnalyticsPrivacyController({
+      rootMessenger.delegate({
+        messenger: analyticsPrivacyControllerMessenger,
+        actions: [
+          'AnalyticsPrivacyService:createDataDeletionTask',
+          'AnalyticsController:getState',
+        ],
+      });
+
+      // Controller is instantiated to register action handlers
+      // eslint-disable-next-line @typescript-eslint/no-unused-vars
+      const _controller = new AnalyticsPrivacyController({
         messenger: analyticsPrivacyControllerMessenger,
       });
 
@@ -498,20 +607,29 @@ describe('AnalyticsPrivacyController', () => {
       );
 
       expect(response.status).toBe(DataDeleteResponseStatus.error);
-      expect(response.error).toBe('Analytics Deletion Task Error');
-      
+      expect(response.error).toBe('Analytics ID not found');
     });
 
     it('returns error if service call fails', async () => {
       const rootMessenger = new Messenger<
         MockAnyNamespace,
-        AnalyticsPrivacyControllerActions | AnalyticsPrivacyServiceActions | { type: 'AnalyticsController:getState'; handler: () => { analyticsId: string; optedIn: boolean } },
+        | AnalyticsPrivacyControllerActions
+        | AnalyticsPrivacyServiceActions
+        | {
+            type: 'AnalyticsController:getState';
+            handler: () => { analyticsId: string; optedIn: boolean };
+          },
         AnalyticsPrivacyControllerEvents
       >({ namespace: MOCK_ANY_NAMESPACE });
 
       const analyticsPrivacyControllerMessenger = new Messenger<
         'AnalyticsPrivacyController',
-        AnalyticsPrivacyControllerActions | AnalyticsPrivacyServiceActions | { type: 'AnalyticsController:getState'; handler: () => { analyticsId: string; optedIn: boolean } },
+        | AnalyticsPrivacyControllerActions
+        | AnalyticsPrivacyServiceActions
+        | {
+            type: 'AnalyticsController:getState';
+            handler: () => { analyticsId: string; optedIn: boolean };
+          },
         AnalyticsPrivacyControllerEvents,
         typeof rootMessenger
       >({
@@ -519,10 +637,13 @@ describe('AnalyticsPrivacyController', () => {
         parent: rootMessenger,
       });
 
-      rootMessenger.registerActionHandler('AnalyticsController:getState', () => ({
-        analyticsId: 'test-analytics-id',
-        optedIn: true,
-      }));
+      rootMessenger.registerActionHandler(
+        'AnalyticsController:getState',
+        () => ({
+          analyticsId: 'test-analytics-id',
+          optedIn: true,
+        }),
+      );
 
       rootMessenger.registerActionHandler(
         'AnalyticsPrivacyService:createDataDeletionTask',
@@ -532,7 +653,17 @@ describe('AnalyticsPrivacyController', () => {
         }),
       );
 
-      const controller = new AnalyticsPrivacyController({
+      rootMessenger.delegate({
+        messenger: analyticsPrivacyControllerMessenger,
+        actions: [
+          'AnalyticsPrivacyService:createDataDeletionTask',
+          'AnalyticsController:getState',
+        ],
+      });
+
+      // Controller is instantiated to register action handlers
+      // eslint-disable-next-line @typescript-eslint/no-unused-vars
+      const _controller = new AnalyticsPrivacyController({
         messenger: analyticsPrivacyControllerMessenger,
       });
 
@@ -541,19 +672,29 @@ describe('AnalyticsPrivacyController', () => {
       );
 
       expect(response.status).toBe(DataDeleteResponseStatus.error);
-      expect(response.error).toBe('Analytics Deletion Task Error');
+      expect(response.error).toBe('Service error');
     });
 
     it('does not update state if service returns error', async () => {
       const rootMessenger = new Messenger<
         MockAnyNamespace,
-        AnalyticsPrivacyControllerActions | AnalyticsPrivacyServiceActions | { type: 'AnalyticsController:getState'; handler: () => { analyticsId: string; optedIn: boolean } },
+        | AnalyticsPrivacyControllerActions
+        | AnalyticsPrivacyServiceActions
+        | {
+            type: 'AnalyticsController:getState';
+            handler: () => { analyticsId: string; optedIn: boolean };
+          },
         AnalyticsPrivacyControllerEvents
       >({ namespace: MOCK_ANY_NAMESPACE });
 
       const analyticsPrivacyControllerMessenger = new Messenger<
         'AnalyticsPrivacyController',
-        AnalyticsPrivacyControllerActions | AnalyticsPrivacyServiceActions | { type: 'AnalyticsController:getState'; handler: () => { analyticsId: string; optedIn: boolean } },
+        | AnalyticsPrivacyControllerActions
+        | AnalyticsPrivacyServiceActions
+        | {
+            type: 'AnalyticsController:getState';
+            handler: () => { analyticsId: string; optedIn: boolean };
+          },
         AnalyticsPrivacyControllerEvents,
         typeof rootMessenger
       >({
@@ -561,10 +702,13 @@ describe('AnalyticsPrivacyController', () => {
         parent: rootMessenger,
       });
 
-      rootMessenger.registerActionHandler('AnalyticsController:getState', () => ({
-        analyticsId: 'test-analytics-id',
-        optedIn: true,
-      }));
+      rootMessenger.registerActionHandler(
+        'AnalyticsController:getState',
+        () => ({
+          analyticsId: 'test-analytics-id',
+          optedIn: true,
+        }),
+      );
 
       rootMessenger.registerActionHandler(
         'AnalyticsPrivacyService:createDataDeletionTask',
@@ -589,10 +733,11 @@ describe('AnalyticsPrivacyController', () => {
 
   describe('AnalyticsPrivacyController:checkDataDeleteStatus', () => {
     it('returns status with all fields when regulationId exists', async () => {
-      const { controller, rootMessenger } = setupController({
+      const testTimestamp = new Date('2026-01-15T12:00:00Z').getTime();
+      const { rootMessenger } = setupController({
         state: {
           deleteRegulationId: 'test-regulation-id',
-          deleteRegulationDate: '15/01/2024',
+          deleteRegulationTimestamp: testTimestamp,
           dataRecorded: true,
         },
       });
@@ -602,7 +747,7 @@ describe('AnalyticsPrivacyController', () => {
       );
 
       expect(status).toStrictEqual({
-        deletionRequestDate: '15/01/2024',
+        deletionRequestTimestamp: testTimestamp,
         dataDeletionRequestStatus: DataDeleteStatus.finished,
         hasCollectedDataSinceDeletionRequest: true,
       });
@@ -616,22 +761,32 @@ describe('AnalyticsPrivacyController', () => {
       );
 
       expect(status).toStrictEqual({
-        deletionRequestDate: undefined,
+        deletionRequestTimestamp: undefined,
         dataDeletionRequestStatus: DataDeleteStatus.unknown,
         hasCollectedDataSinceDeletionRequest: false,
       });
     });
 
-    it('handles null deleteRegulationDate in status', async () => {
+    it('handles null deleteRegulationTimestamp in status', async () => {
       const rootMessenger = new Messenger<
         MockAnyNamespace,
-        AnalyticsPrivacyControllerActions | AnalyticsPrivacyServiceActions | { type: 'AnalyticsController:getState'; handler: () => AnalyticsControllerState },
+        | AnalyticsPrivacyControllerActions
+        | AnalyticsPrivacyServiceActions
+        | {
+            type: 'AnalyticsController:getState';
+            handler: () => AnalyticsControllerState;
+          },
         AnalyticsPrivacyControllerEvents
       >({ namespace: MOCK_ANY_NAMESPACE });
 
       const analyticsPrivacyControllerMessenger = new Messenger<
         'AnalyticsPrivacyController',
-        AnalyticsPrivacyControllerActions | AnalyticsPrivacyServiceActions | { type: 'AnalyticsController:getState'; handler: () => AnalyticsControllerState },
+        | AnalyticsPrivacyControllerActions
+        | AnalyticsPrivacyServiceActions
+        | {
+            type: 'AnalyticsController:getState';
+            handler: () => AnalyticsControllerState;
+          },
         AnalyticsPrivacyControllerEvents,
         typeof rootMessenger
       >({
@@ -639,10 +794,13 @@ describe('AnalyticsPrivacyController', () => {
         parent: rootMessenger,
       });
 
-      rootMessenger.registerActionHandler('AnalyticsController:getState', () => ({
-        analyticsId: 'test-analytics-id',
-        optedIn: true,
-      }));
+      rootMessenger.registerActionHandler(
+        'AnalyticsController:getState',
+        () => ({
+          analyticsId: 'test-analytics-id',
+          optedIn: true,
+        }),
+      );
 
       rootMessenger.registerActionHandler(
         'AnalyticsPrivacyService:checkDataDeleteStatus',
@@ -660,11 +818,12 @@ describe('AnalyticsPrivacyController', () => {
         ],
       });
 
-      const controller = new AnalyticsPrivacyController({
+      // eslint-disable-next-line @typescript-eslint/no-unused-vars
+      const _controller = new AnalyticsPrivacyController({
         messenger: analyticsPrivacyControllerMessenger,
         state: {
           deleteRegulationId: 'test-regulation-id',
-          deleteRegulationDate: null, // null date
+          deleteRegulationTimestamp: null, // null timestamp
           dataRecorded: false,
         },
       });
@@ -673,20 +832,30 @@ describe('AnalyticsPrivacyController', () => {
         'AnalyticsPrivacyController:checkDataDeleteStatus',
       );
 
-      expect(status.deletionRequestDate).toBeUndefined();
+      expect(status.deletionRequestTimestamp).toBeUndefined();
       expect(status.dataDeletionRequestStatus).toBe(DataDeleteStatus.finished);
     });
 
     it('handles service errors gracefully', async () => {
       const rootMessenger = new Messenger<
         MockAnyNamespace,
-        AnalyticsPrivacyControllerActions | AnalyticsPrivacyServiceActions | { type: 'AnalyticsController:getState'; handler: () => { analyticsId: string; optedIn: boolean } },
+        | AnalyticsPrivacyControllerActions
+        | AnalyticsPrivacyServiceActions
+        | {
+            type: 'AnalyticsController:getState';
+            handler: () => { analyticsId: string; optedIn: boolean };
+          },
         AnalyticsPrivacyControllerEvents
       >({ namespace: MOCK_ANY_NAMESPACE });
 
       const analyticsPrivacyControllerMessenger = new Messenger<
         'AnalyticsPrivacyController',
-        AnalyticsPrivacyControllerActions | AnalyticsPrivacyServiceActions | { type: 'AnalyticsController:getState'; handler: () => { analyticsId: string; optedIn: boolean } },
+        | AnalyticsPrivacyControllerActions
+        | AnalyticsPrivacyServiceActions
+        | {
+            type: 'AnalyticsController:getState';
+            handler: () => { analyticsId: string; optedIn: boolean };
+          },
         AnalyticsPrivacyControllerEvents,
         typeof rootMessenger
       >({
@@ -694,21 +863,26 @@ describe('AnalyticsPrivacyController', () => {
         parent: rootMessenger,
       });
 
-      rootMessenger.registerActionHandler('AnalyticsController:getState', () => ({
-        analyticsId: 'test-analytics-id',
-        optedIn: true,
-      }));
+      rootMessenger.registerActionHandler(
+        'AnalyticsController:getState',
+        () => ({
+          analyticsId: 'test-analytics-id',
+          optedIn: true,
+        }),
+      );
 
       rootMessenger.registerActionHandler(
         'AnalyticsPrivacyService:checkDataDeleteStatus',
         jest.fn().mockRejectedValue(new Error('Service error')),
       );
 
-      const controller = new AnalyticsPrivacyController({
+      // eslint-disable-next-line @typescript-eslint/no-unused-vars
+      const testTimestamp = new Date('2026-01-15T12:00:00Z').getTime();
+      const _controller = new AnalyticsPrivacyController({
         messenger: analyticsPrivacyControllerMessenger,
         state: {
           deleteRegulationId: 'test-regulation-id',
-          deleteRegulationDate: '15/01/2024',
+          deleteRegulationTimestamp: testTimestamp,
           dataRecorded: false,
         },
       });
@@ -718,34 +892,35 @@ describe('AnalyticsPrivacyController', () => {
       );
 
       expect(status.dataDeletionRequestStatus).toBe(DataDeleteStatus.unknown);
-      expect(status.deletionRequestDate).toBe('15/01/2024');
+      expect(status.deletionRequestTimestamp).toBe(testTimestamp);
       expect(status.hasCollectedDataSinceDeletionRequest).toBe(false);
     });
   });
 
-  describe('AnalyticsPrivacyController:getDeleteRegulationCreationDate', () => {
-    it('returns the deletion date when set', () => {
-      const { controller, rootMessenger } = setupController({
+  describe('AnalyticsPrivacyController:getDeleteRegulationCreationTimestamp', () => {
+    it('returns the deletion timestamp when set', () => {
+      const testTimestamp = new Date('2026-01-15T12:00:00Z').getTime();
+      const { rootMessenger } = setupController({
         state: {
-          deleteRegulationDate: '15/01/2024',
+          deleteRegulationTimestamp: testTimestamp,
         },
       });
 
-      const date = rootMessenger.call(
-        'AnalyticsPrivacyController:getDeleteRegulationCreationDate',
+      const timestamp = rootMessenger.call(
+        'AnalyticsPrivacyController:getDeleteRegulationCreationTimestamp',
       );
 
-      expect(date).toBe('15/01/2024');
+      expect(timestamp).toBe(testTimestamp);
     });
 
-    it('returns undefined when deletion date is not set', () => {
+    it('returns undefined when deletion timestamp is not set', () => {
       const { rootMessenger } = setupController();
 
-      const date = rootMessenger.call(
-        'AnalyticsPrivacyController:getDeleteRegulationCreationDate',
+      const timestamp = rootMessenger.call(
+        'AnalyticsPrivacyController:getDeleteRegulationCreationTimestamp',
       );
 
-      expect(date).toBeUndefined();
+      expect(timestamp).toBeUndefined();
     });
   });
 
@@ -854,9 +1029,7 @@ describe('AnalyticsPrivacyController', () => {
         },
       });
 
-      rootMessenger.call(
-        'AnalyticsPrivacyController:updateDataRecordingFlag',
-      );
+      rootMessenger.call('AnalyticsPrivacyController:updateDataRecordingFlag');
 
       expect(controller.state.dataRecorded).toBe(true);
     });
@@ -906,7 +1079,7 @@ describe('AnalyticsPrivacyController', () => {
 
   describe('stateChange event', () => {
     it('emits stateChange event when state is updated', () => {
-      const { controller, rootMessenger, messenger } = setupController();
+      const { rootMessenger, messenger } = setupController();
 
       const eventListener = jest.fn();
       messenger.subscribe(

@@ -19,7 +19,7 @@ export type AnalyticsPrivacyControllerCreateDataDeletionTaskAction = {
 /**
  * Check the latest delete regulation status.
  *
- * @returns Promise containing the date, delete status and collected data flag
+ * @returns Promise containing the timestamp, delete status and collected data flag
  */
 export type AnalyticsPrivacyControllerCheckDataDeleteStatusAction = {
   type: `AnalyticsPrivacyController:checkDataDeleteStatus`;
@@ -27,14 +27,15 @@ export type AnalyticsPrivacyControllerCheckDataDeleteStatusAction = {
 };
 
 /**
- * Get the latest delete regulation request date.
+ * Get the latest delete regulation request timestamp.
  *
- * @returns The date as a DD/MM/YYYY string, or undefined
+ * @returns The timestamp (in milliseconds since epoch), or undefined
  */
-export type AnalyticsPrivacyControllerGetDeleteRegulationCreationDateAction = {
-  type: `AnalyticsPrivacyController:getDeleteRegulationCreationDate`;
-  handler: AnalyticsPrivacyController['getDeleteRegulationCreationDate'];
-};
+export type AnalyticsPrivacyControllerGetDeleteRegulationCreationTimestampAction =
+  {
+    type: `AnalyticsPrivacyController:getDeleteRegulationCreationTimestamp`;
+    handler: AnalyticsPrivacyController['getDeleteRegulationCreationTimestamp'];
+  };
 
 /**
  * Get the latest delete regulation request id.
@@ -74,7 +75,7 @@ export type AnalyticsPrivacyControllerUpdateDataRecordingFlagAction = {
 export type AnalyticsPrivacyControllerMethodActions =
   | AnalyticsPrivacyControllerCreateDataDeletionTaskAction
   | AnalyticsPrivacyControllerCheckDataDeleteStatusAction
-  | AnalyticsPrivacyControllerGetDeleteRegulationCreationDateAction
+  | AnalyticsPrivacyControllerGetDeleteRegulationCreationTimestampAction
   | AnalyticsPrivacyControllerGetDeleteRegulationIdAction
   | AnalyticsPrivacyControllerIsDataRecordedAction
   | AnalyticsPrivacyControllerUpdateDataRecordingFlagAction;

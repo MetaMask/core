@@ -3,11 +3,6 @@
  */
 
 /**
- * Date format string for deletion regulation creation date (DD/MM/YYYY).
- */
-export const DATE_FORMAT_DD_MM_YYYY = 'DD/MM/YYYY';
-
-/**
  * Segment API regulation type for DELETE_ONLY operations.
  */
 export const SEGMENT_REGULATION_TYPE_DELETE_ONLY = 'DELETE_ONLY';

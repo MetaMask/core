@@ -1,3 +1,4 @@
+import type { AnalyticsControllerGetStateAction } from '@metamask/analytics-controller';
 import type {
   ControllerGetStateAction,
   ControllerStateChangeEvent,
@@ -6,15 +7,13 @@ import type {
 import { BaseController } from '@metamask/base-controller';
 import type { Messenger } from '@metamask/messenger';
 
-import type { AnalyticsControllerGetStateAction } from '@metamask/analytics-controller';
-import type { AnalyticsPrivacyServiceActions } from './AnalyticsPrivacyService';
-import { projectLogger as log } from './AnalyticsPrivacyLogger';
 import type { AnalyticsPrivacyControllerMethodActions } from './AnalyticsPrivacyController-method-action-types';
-import {
-  DataDeleteResponseStatus,
-  DataDeleteStatus,
-  type IDeleteRegulationResponse,
-  type IDeleteRegulationStatus,
+import { projectLogger as log } from './AnalyticsPrivacyLogger';
+import type { AnalyticsPrivacyServiceActions } from './AnalyticsPrivacyService';
+import { DataDeleteResponseStatus, DataDeleteStatus } from './types';
+import type {
+  IDeleteRegulationResponse,
+  IDeleteRegulationStatus,
 } from './types';
 
 // === GENERAL ===
@@ -44,10 +43,10 @@ export type AnalyticsPrivacyControllerState = {
   deleteRegulationId: string | null;
 
   /**
-   * Segment's data deletion regulation creation date.
-   * The date when the deletion request was created, in DD/MM/YYYY format.
+   * Segment's data deletion regulation creation timestamp.
+   * The timestamp (in milliseconds since epoch) when the deletion request was created.
    */
-  deleteRegulationDate: string | null;
+  deleteRegulationTimestamp: number | null;
 };
 
 /**
@@ -59,7 +58,7 @@ export function getDefaultAnalyticsPrivacyControllerState(): AnalyticsPrivacyCon
   return {
     dataRecorded: false,
     deleteRegulationId: null,
-    deleteRegulationDate: null,
+    deleteRegulationTimestamp: null,
   };
 }
 
@@ -79,7 +78,7 @@ const analyticsPrivacyControllerMetadata = {
     includeInDebugSnapshot: true,
     usedInUi: true,
   },
-  deleteRegulationDate: {
+  deleteRegulationTimestamp: {
     includeInStateLogs: true,
     persist: true,
     includeInDebugSnapshot: true,
@@ -92,7 +91,7 @@ const analyticsPrivacyControllerMetadata = {
 const MESSENGER_EXPOSED_METHODS = [
   'createDataDeletionTask',
   'checkDataDeleteStatus',
-  'getDeleteRegulationCreationDate',
+  'getDeleteRegulationCreationTimestamp',
   'getDeleteRegulationId',
   'isDataRecorded',
   'updateDataRecordingFlag',
@@ -101,11 +100,10 @@ const MESSENGER_EXPOSED_METHODS = [
 /**
  * Returns the state of the {@link AnalyticsPrivacyController}.
  */
-export type AnalyticsPrivacyControllerGetStateAction =
-  ControllerGetStateAction<
-    typeof controllerName,
-    AnalyticsPrivacyControllerState
-  >;
+export type AnalyticsPrivacyControllerGetStateAction = ControllerGetStateAction<
+  typeof controllerName,
+  AnalyticsPrivacyControllerState
+>;
 
 /**
  * Actions that {@link AnalyticsPrivacyControllerMessenger} exposes to other consumers.
@@ -204,10 +202,7 @@ export class AnalyticsPrivacyController extends BaseController<
    * @param options.state - Initial controller state. Use `getDefaultAnalyticsPrivacyControllerState()` for defaults.
    * @param options.messenger - Messenger used to communicate with BaseController
    */
-  constructor({
-    state = {},
-    messenger,
-  }: AnalyticsPrivacyControllerOptions) {
+  constructor({ state = {}, messenger }: AnalyticsPrivacyControllerOptions) {
     const initialState: AnalyticsPrivacyControllerState = {
       ...getDefaultAnalyticsPrivacyControllerState(),
       ...state,
@@ -227,8 +222,8 @@ export class AnalyticsPrivacyController extends BaseController<
 
     log('AnalyticsPrivacyController initialized', {
       dataRecorded: this.state.dataRecorded,
-      hasDeleteRegulationId: !!this.state.deleteRegulationId,
-      deleteRegulationDate: this.state.deleteRegulationDate,
+      hasDeleteRegulationId: Boolean(this.state.deleteRegulationId),
+      deleteRegulationTimestamp: this.state.deleteRegulationTimestamp,
     });
   }
 
@@ -243,10 +238,11 @@ export class AnalyticsPrivacyController extends BaseController<
       const analyticsControllerState = await this.messenger.call(
         'AnalyticsController:getState',
       );
-      const analyticsId = analyticsControllerState.analyticsId;
+      const { analyticsId } = analyticsControllerState;
 
       if (!analyticsId || analyticsId.trim() === '') {
-        log('Analytics Deletion Task Error', new Error('Analytics ID not found'));
+        const error = new Error('Analytics ID not found');
+        log('Analytics Deletion Task Error', error);
         return {
           status: DataDeleteResponseStatus.error,
           error: 'Analytics ID not found',
@@ -264,15 +260,13 @@ export class AnalyticsPrivacyController extends BaseController<
         typeof response.regulateId === 'string' &&
         response.regulateId.trim() !== ''
       ) {
-        const currentDate = new Date();
-        const day = currentDate.getUTCDate().toString().padStart(2, '0');
-        const month = (currentDate.getUTCMonth() + 1).toString().padStart(2, '0');
-        const year = currentDate.getUTCFullYear();
-        const deletionDate = `${day}/${month}/${year}`;
+        const deletionTimestamp = Date.now();
+        // Already validated as non-empty string above
+        const regulateId = response.regulateId;
 
         this.update((state) => {
-          state.deleteRegulationId = response.regulateId as string;
-          state.deleteRegulationDate = deletionDate;
+          state.deleteRegulationId = regulateId;
+          state.deleteRegulationTimestamp = deletionTimestamp;
           state.dataRecorded = false;
         });
 
@@ -285,9 +279,13 @@ export class AnalyticsPrivacyController extends BaseController<
       return response;
     } catch (error) {
       log('Analytics Deletion Task Error', error);
+      const errorMessage =
+        error instanceof Error
+          ? error.message
+          : 'Analytics Deletion Task Error';
       return {
         status: DataDeleteResponseStatus.error,
-        error: 'Analytics Deletion Task Error',
+        error: errorMessage,
       };
     }
   }
@@ -295,11 +293,11 @@ export class AnalyticsPrivacyController extends BaseController<
   /**
    * Check the latest delete regulation status.
    *
-   * @returns Promise containing the date, delete status and collected data flag
+   * @returns Promise containing the timestamp, delete status and collected data flag
    */
   async checkDataDeleteStatus(): Promise<IDeleteRegulationStatus> {
     const status: IDeleteRegulationStatus = {
-      deletionRequestDate: undefined,
+      deletionRequestTimestamp: undefined,
       dataDeletionRequestStatus: DataDeleteStatus.unknown,
       hasCollectedDataSinceDeletionRequest: false,
     };
@@ -321,19 +319,19 @@ export class AnalyticsPrivacyController extends BaseController<
       status.dataDeletionRequestStatus = DataDeleteStatus.unknown;
     }
 
-    status.deletionRequestDate = this.state.deleteRegulationDate ?? undefined;
+    status.deletionRequestTimestamp = this.state.deleteRegulationTimestamp ?? undefined;
     status.hasCollectedDataSinceDeletionRequest = this.state.dataRecorded;
 
     return status;
   }
 
   /**
-   * Get the latest delete regulation request date.
+   * Get the latest delete regulation request timestamp.
    *
-   * @returns The date as a DD/MM/YYYY string, or undefined
+   * @returns The timestamp (in milliseconds since epoch), or undefined
    */
-  getDeleteRegulationCreationDate(): string | undefined {
-    return this.state.deleteRegulationDate ?? undefined;
+  getDeleteRegulationCreationTimestamp(): number | undefined {
+    return this.state.deleteRegulationTimestamp ?? undefined;
   }
 
   /**

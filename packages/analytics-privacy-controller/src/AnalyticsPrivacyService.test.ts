@@ -1,11 +1,10 @@
-import { HttpError } from '@metamask/controller-utils';
 import { Messenger, MOCK_ANY_NAMESPACE } from '@metamask/messenger';
 import type {
   MockAnyNamespace,
   MessengerActions,
   MessengerEvents,
 } from '@metamask/messenger';
-import nock from 'nock';
+import nock, { cleanAll, disableNetConnect, enableNetConnect } from 'nock';
 import { useFakeTimers } from 'sinon';
 import type { SinonFakeTimers } from 'sinon';
 
@@ -20,14 +19,14 @@ describe('AnalyticsPrivacyService', () => {
 
   beforeEach(() => {
     clock = useFakeTimers();
-    nock.cleanAll();
-    nock.disableNetConnect();
+    cleanAll();
+    disableNetConnect();
   });
 
   afterEach(() => {
     clock.restore();
-    nock.cleanAll();
-    nock.enableNetConnect();
+    cleanAll();
+    enableNetConnect();
   });
 
   describe('AnalyticsPrivacyService:createDataDeletionTask', () => {
@@ -155,7 +154,7 @@ describe('AnalyticsPrivacyService', () => {
       const regulateId = 'test-regulate-id';
 
       const scope = nock(segmentRegulationsEndpoint)
-        .post(`/regulations/sources/${segmentSourceId}`, (body) => {
+        .post(`/regulations/sources/${segmentSourceId}`, (body: unknown) => {
           const parsedBody = typeof body === 'string' ? JSON.parse(body) : body;
           return (
             parsedBody.regulationType === 'DELETE_ONLY' &&
@@ -383,12 +382,12 @@ describe('AnalyticsPrivacyService', () => {
         onRetryListener();
       });
 
-      await expect(
-        rootMessenger.call(
+      expect(
+        await rootMessenger.call(
           'AnalyticsPrivacyService:createDataDeletionTask',
           'test-analytics-id',
         ),
-      ).resolves.toMatchObject({
+      ).toMatchObject({
         status: DataDeleteResponseStatus.error,
       });
 
@@ -413,23 +412,23 @@ describe('AnalyticsPrivacyService', () => {
 
       // Make 3 failed requests to trigger circuit breaker
       for (let i = 0; i < 3; i++) {
-        await expect(
-          rootMessenger.call(
+        expect(
+          await rootMessenger.call(
             'AnalyticsPrivacyService:createDataDeletionTask',
             'test-analytics-id',
           ),
-        ).resolves.toMatchObject({
+        ).toMatchObject({
           status: DataDeleteResponseStatus.error,
         });
       }
 
       // 4th request should trigger circuit breaker - service catches and returns error
-      await expect(
-        rootMessenger.call(
+      expect(
+        await rootMessenger.call(
           'AnalyticsPrivacyService:createDataDeletionTask',
           'test-analytics-id',
         ),
-      ).resolves.toMatchObject({
+      ).toMatchObject({
         status: DataDeleteResponseStatus.error,
       });
 
@@ -477,12 +476,12 @@ describe('AnalyticsPrivacyService', () => {
       const onDegradedListener = jest.fn();
       service.onDegraded(onDegradedListener);
 
-      await expect(
-        rootMessenger.call(
+      expect(
+        await rootMessenger.call(
           'AnalyticsPrivacyService:createDataDeletionTask',
           'test-analytics-id',
         ),
-      ).resolves.toMatchObject({
+      ).toMatchObject({
         status: DataDeleteResponseStatus.error,
       });
 
@@ -539,9 +538,7 @@ function getMessenger(
 function getService({
   options = {},
 }: {
-  options?: Partial<
-    ConstructorParameters<typeof AnalyticsPrivacyService>[0]
-  >;
+  options?: Partial<ConstructorParameters<typeof AnalyticsPrivacyService>[0]>;
 } = {}): {
   service: AnalyticsPrivacyService;
   rootMessenger: RootMessenger;
@@ -551,12 +548,13 @@ function getService({
   const messenger = getMessenger(rootMessenger);
   const defaultSegmentSourceId = 'test-source-id';
   const defaultSegmentRegulationsEndpoint = 'https://proxy.example.com/v1beta';
-  
+
   const service = new AnalyticsPrivacyService({
     fetch,
     messenger,
     segmentSourceId: options.segmentSourceId ?? defaultSegmentSourceId,
-    segmentRegulationsEndpoint: options.segmentRegulationsEndpoint ?? defaultSegmentRegulationsEndpoint,
+    segmentRegulationsEndpoint:
+      options.segmentRegulationsEndpoint ?? defaultSegmentRegulationsEndpoint,
     ...options,
   });
 
