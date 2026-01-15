@@ -52,7 +52,7 @@
     "@metamask/controller-utils": "^11.18.0",
     "@metamask/eth-block-tracker": "^15.0.0",
     "@metamask/eth-json-rpc-infura": "^10.3.0",
-    "@metamask/eth-json-rpc-middleware": "^22.0.1",
+    "@metamask/eth-json-rpc-middleware": "^23.0.0",
     "@metamask/eth-json-rpc-provider": "^6.0.0",
     "@metamask/eth-query": "^4.0.0",
     "@metamask/json-rpc-engine": "^10.2.0",
