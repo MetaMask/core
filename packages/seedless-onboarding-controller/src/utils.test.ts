@@ -1,3 +1,4 @@
+import { EncAccountDataType } from '@metamask/toprf-secure-backup';
 import { bytesToBase64 } from '@metamask/utils';
 import { utf8ToBytes } from '@noble/ciphers/utils';
 
@@ -6,6 +7,7 @@ import {
   compareTimeuuid,
   decodeJWTToken,
   decodeNodeAuthToken,
+  getSecretTypeFromDataType,
   getTimestampFromTimeuuid,
 } from './utils';
 
@@ -239,6 +241,15 @@ describe('utils', () => {
       const earlier = '00000001-0000-1000-8000-000000000001';
       const later = '00000002-0000-1000-8000-000000000002';
       expect(compareTimeuuid(earlier, later)).toBe(-1);
+    });
+  });
+
+  describe('getSecretTypeFromDataType', () => {
+    it('should throw an error for unknown EncAccountDataType', () => {
+      const unknownDataType = 'UnknownType' as unknown as EncAccountDataType;
+      expect(() => getSecretTypeFromDataType(unknownDataType)).toThrow(
+        'Unknown EncAccountDataType: UnknownType',
+      );
     });
   });
 });

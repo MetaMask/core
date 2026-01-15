@@ -8,6 +8,7 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 ## [Unreleased]
 
 ### Added
+
 - Add `runMigrations` method to run pending data migrations for legacy secrets ([#7284](https://github.com/MetaMask/core/pull/7284))
 - Add `setMigrationVersion` method to set migration version directly for new users ([#7284](https://github.com/MetaMask/core/pull/7284))
 - Add `SeedlessOnboardingMigrationVersion` enum for tracking migration versions ([#7284](https://github.com/MetaMask/core/pull/7284))

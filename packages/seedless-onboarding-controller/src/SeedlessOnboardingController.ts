@@ -661,7 +661,10 @@ export class SeedlessOnboardingController<
         let dataType: EncAccountDataType;
 
         if (SecretMetadata.matchesType(secret, SecretType.Mnemonic)) {
-          if (hasPrimarySrp) {
+          // Preserve existing PrimarySrp designation
+          if (secret.dataType === EncAccountDataType.PrimarySrp) {
+            dataType = EncAccountDataType.PrimarySrp;
+          } else if (hasPrimarySrp) {
             dataType = EncAccountDataType.ImportedSrp;
           } else {
             dataType = EncAccountDataType.PrimarySrp;

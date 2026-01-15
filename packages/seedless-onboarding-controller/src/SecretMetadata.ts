@@ -198,10 +198,15 @@ export class SecretMetadata<DataType extends SecretDataType = Uint8Array>
     order: 'asc' | 'desc' = 'asc',
   ): number {
     // PrimarySrp always comes first (regardless of order direction)
-    if (a.dataType === EncAccountDataType.PrimarySrp) {
+    const aIsPrimary = a.dataType === EncAccountDataType.PrimarySrp;
+    const bIsPrimary = b.dataType === EncAccountDataType.PrimarySrp;
+    if (aIsPrimary && bIsPrimary) {
+      return 0; // Both PrimarySrp: treat as equal (handles data corruption gracefully)
+    }
+    if (aIsPrimary) {
       return -1;
     }
-    if (b.dataType === EncAccountDataType.PrimarySrp) {
+    if (bIsPrimary) {
       return 1;
     }
     // Use server-side createdAt if available (TIMEUUID requires timestamp extraction)

@@ -2334,6 +2334,73 @@ describe('SeedlessOnboardingController', () => {
         },
       );
     });
+
+    it('should preserve PrimarySrp designation even with inconsistent storageVersion', async () => {
+      await withController(
+        {
+          state: getMockInitialControllerState({
+            withMockAuthenticatedUser: true,
+            withMockAuthPubKey: true,
+            vault: MOCK_VAULT,
+            vaultEncryptionKey: MOCK_VAULT_ENCRYPTION_KEY,
+            vaultEncryptionSalt: MOCK_VAULT_ENCRYPTION_SALT,
+            migrationVersion: 0,
+          }),
+        },
+        async ({ controller, toprfClient }) => {
+          await controller.submitPassword(MOCK_PASSWORD);
+
+          mockFetchAuthPubKey(
+            toprfClient,
+            base64ToBytes(controller.state.authPubKey as string),
+          );
+
+          // Simulate inconsistent state: dataType is PrimarySrp but storageVersion is 'v1'
+          jest.spyOn(toprfClient, 'fetchAllSecretDataItems').mockResolvedValue([
+            {
+              data: stringToBytes(
+                JSON.stringify({
+                  data: bytesToBase64(MOCK_SEED_PHRASE),
+                  timestamp: 1000,
+                  type: SecretType.Mnemonic,
+                }),
+              ),
+              itemId: 'srp-1',
+              version: 'v1', // Inconsistent: should be 'v2' if dataType is set
+              dataType: EncAccountDataType.PrimarySrp,
+              createdAt: undefined,
+            },
+            {
+              data: stringToBytes(
+                JSON.stringify({
+                  data: bytesToBase64(MOCK_SEED_PHRASE),
+                  timestamp: 2000,
+                  type: SecretType.Mnemonic,
+                }),
+              ),
+              itemId: 'srp-2',
+              version: 'v1',
+              dataType: undefined,
+              createdAt: undefined,
+            },
+          ]);
+
+          const batchUpdateSpy = jest
+            .spyOn(toprfClient, 'batchUpdateSecretDataItems')
+            .mockResolvedValue();
+
+          await controller.runMigrations();
+
+          expect(batchUpdateSpy).toHaveBeenCalledWith({
+            updateItems: [
+              { itemId: 'srp-1', dataType: EncAccountDataType.PrimarySrp },
+              { itemId: 'srp-2', dataType: EncAccountDataType.ImportedSrp },
+            ],
+            authKeyPair: expect.any(Object),
+          });
+        },
+      );
+    });
   });
 
   describe('setMigrationVersion', () => {
@@ -4041,6 +4108,25 @@ describe('SeedlessOnboardingController', () => {
         ).toBeLessThan(0);
       });
 
+      it('should return 0 when both items are PrimarySrp (handles data corruption gracefully)', () => {
+        const primarySrp1 = new SecretMetadata(MOCK_SEED_PHRASE, {
+          timestamp: 1000,
+          dataType: EncAccountDataType.PrimarySrp,
+          createdAt: '00000001-0000-1000-8000-000000000001',
+        });
+        const primarySrp2 = new SecretMetadata(MOCK_SEED_PHRASE, {
+          timestamp: 2000,
+          dataType: EncAccountDataType.PrimarySrp,
+          createdAt: '00000002-0000-1000-8000-000000000002',
+        });
+
+        expect(SecretMetadata.compare(primarySrp1, primarySrp2, 'asc')).toBe(0);
+        expect(SecretMetadata.compare(primarySrp2, primarySrp1, 'asc')).toBe(0);
+        expect(SecretMetadata.compare(primarySrp1, primarySrp2, 'desc')).toBe(
+          0,
+        );
+      });
+
       it('should compare by createdAt (TIMEUUID) when both have createdAt', () => {
         const earlier = new SecretMetadata(MOCK_SEED_PHRASE, {
           timestamp: 1000,
@@ -4080,10 +4166,14 @@ describe('SeedlessOnboardingController', () => {
         expect(
           SecretMetadata.compare(newItem, legacyItem, 'asc'),
         ).toBeGreaterThan(0);
-        // In desc order, new item comes first
+        // In desc order, legacy item comes after new item
         expect(
           SecretMetadata.compare(legacyItem, newItem, 'desc'),
         ).toBeGreaterThan(0);
+        // In desc order, new item comes before legacy item
+        expect(
+          SecretMetadata.compare(newItem, legacyItem, 'desc'),
+        ).toBeLessThan(0);
       });
 
       it('should fall back to timestamp when both have null createdAt', () => {
