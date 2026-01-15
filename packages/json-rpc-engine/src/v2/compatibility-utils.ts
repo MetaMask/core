@@ -1,3 +1,4 @@
+import type { OptionalDataWithOptionalCause } from '@metamask/rpc-errors';
 import { getMessageFromCode, JsonRpcError } from '@metamask/rpc-errors';
 import type { Json } from '@metamask/utils';
 import { hasProperty, isObject, isValidJson } from '@metamask/utils';
@@ -133,6 +134,31 @@ export function propagateToRequest(
 }
 
 /**
+ * Deserialize the error property for a thrown error, merging in the cause where possible.
+ *
+ * @param data - The data from the thrown error.
+ * @param cause - The cause from the thrown error.
+ * @returns The deserialized data.
+ */
+function deserializeData(
+  data: unknown,
+  cause: unknown,
+): OptionalDataWithOptionalCause {
+  // If data is an object, merge with cause.
+  if (isObject(data)) {
+    return { ...data, cause };
+  }
+
+  // If data is a JSON value that's not mergeable.
+  if (isValidJson(data)) {
+    return data;
+  }
+
+  // If data is undefined, only use cause.
+  return { cause };
+}
+
+/**
  * Unserialize an error from a thrown value. Creates a {@link JsonRpcError} if
  * the thrown value is an object with a `code` property. Otherwise, creates a
  * plain {@link Error}.
@@ -171,14 +197,7 @@ export function deserializeError(thrown: unknown): Error | JsonRpcError<Json> {
 
   const { stack, cause, data } = thrown;
 
-  // If data is an object, merge with cause.
-  // If data is undefined, only use cause.
-  // If data is a JSON value that's not an object use data.
-  const mergedData = isObject(data)
-    ? { ...data, cause }
-    : isValidJson(data)
-      ? data
-      : { cause };
+  const deserializedData = deserializeData(data, cause);
 
   const error =
     code === undefined
@@ -186,7 +205,7 @@ export function deserializeError(thrown: unknown): Error | JsonRpcError<Json> {
         // eslint-disable-next-line @typescript-eslint/ban-ts-comment
         // @ts-ignore - Our error type is outdated.
         new Error(message, { cause })
-      : new JsonRpcError(code, message, mergedData);
+      : new JsonRpcError(code, message, deserializedData);
 
   if (typeof stack === 'string') {
     error.stack = stack;
