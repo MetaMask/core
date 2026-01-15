@@ -6,8 +6,8 @@ import type {
   MessengerEvents,
 } from '@metamask/messenger';
 
-import type { RampsControllerMessenger } from './RampsController';
-import { RampsController, type UserRegion } from './RampsController';
+import type { RampsControllerMessenger, UserRegion } from './RampsController';
+import { RampsController } from './RampsController';
 import type { Country, TokensResponse, Provider, State } from './RampsService';
 import type {
   RampsServiceGetGeolocationAction,
@@ -1784,6 +1784,11 @@ describe('RampsController', () => {
 
 /**
  * Creates a mock UserRegion object for testing.
+ *
+ * @param regionCode - The region code (e.g., "us-ca" or "us").
+ * @param countryName - Optional country name. If not provided, a default name will be generated.
+ * @param stateName - Optional state name. If not provided, a default name will be generated.
+ * @returns A UserRegion object with country and state information.
  */
 function createMockUserRegion(
   regionCode: string,
@@ -1796,7 +1801,7 @@ function createMockUserRegion(
 
   const country: Country = {
     isoCode: countryCode.toUpperCase(),
-    name: countryName || `Country ${countryCode.toUpperCase()}`,
+    name: countryName ?? `Country ${countryCode.toUpperCase()}`,
     flag: '🏳️',
     currency: 'USD',
     phone: { prefix: '+1', placeholder: '', template: '' },
@@ -1805,7 +1810,7 @@ function createMockUserRegion(
       states: [
         {
           stateId: stateCode.toUpperCase(),
-          name: stateName || `State ${stateCode.toUpperCase()}`,
+          name: stateName ?? `State ${stateCode.toUpperCase()}`,
           supported: true,
         },
       ],
@@ -1815,7 +1820,7 @@ function createMockUserRegion(
   const state: State | null = stateCode
     ? {
         stateId: stateCode.toUpperCase(),
-        name: stateName || `State ${stateCode.toUpperCase()}`,
+        name: stateName ?? `State ${stateCode.toUpperCase()}`,
         supported: true,
       }
     : null;
@@ -1829,6 +1834,8 @@ function createMockUserRegion(
 
 /**
  * Creates mock countries array for testing.
+ *
+ * @returns An array of mock Country objects.
  */
 function createMockCountries(): Country[] {
   return [

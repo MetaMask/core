@@ -220,7 +220,7 @@ export type RampsControllerOptions = {
 /**
  * Finds a country and state from a region code string.
  *
- * @param regionCode - The region code (e.g., "us-ca" or "fr").
+ * @param regionCode - The region code (e.g., "us-ca" or "us").
  * @param countries - Array of countries to search.
  * @returns UserRegion object with country and state, or null if not found.
  */
@@ -233,12 +233,12 @@ function findRegionFromCode(
   const countryCode = parts[0];
   const stateCode = parts[1];
 
-  const country = countries.find((c) => {
-    if (c.isoCode?.toLowerCase() === countryCode) {
+  const country = countries.find((countryItem) => {
+    if (countryItem.isoCode?.toLowerCase() === countryCode) {
       return true;
     }
-    if (c.id) {
-      const id = c.id.toLowerCase();
+    if (countryItem.id) {
+      const id = countryItem.id.toLowerCase();
       if (id.startsWith('/regions/')) {
         const extractedCode = id.replace('/regions/', '').split('/')[0];
         return extractedCode === countryCode;
@@ -255,12 +255,12 @@ function findRegionFromCode(
   let state: State | null = null;
   if (stateCode && country.states) {
     state =
-      country.states.find((s) => {
-        if (s.stateId?.toLowerCase() === stateCode) {
+      country.states.find((stateItem) => {
+        if (stateItem.stateId?.toLowerCase() === stateCode) {
           return true;
         }
-        if (s.id) {
-          const stateId = s.id.toLowerCase();
+        if (stateItem.id) {
+          const stateId = stateItem.id.toLowerCase();
           if (
             stateId.includes(`-${stateCode}`) ||
             stateId.endsWith(`/${stateCode}`)
@@ -269,7 +269,7 @@ function findRegionFromCode(
           }
         }
         return false;
-      }) || null;
+      }) ?? null;
   }
 
   return {
@@ -745,7 +745,10 @@ export class RampsController extends BaseController<
     this.update((state) => {
       const userRegionCode = state.userRegion?.regionCode;
 
-      if (userRegionCode === undefined || userRegionCode === normalizedIsoCode) {
+      if (
+        userRegionCode === undefined ||
+        userRegionCode === normalizedIsoCode
+      ) {
         state.eligibility = eligibility;
       }
     });
