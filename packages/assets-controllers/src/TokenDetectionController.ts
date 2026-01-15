@@ -752,7 +752,7 @@ export class TokenDetectionController extends StaticIntervalPollingController<To
       const tokensWithBalance: Token[] = [];
       const eventTokensDetails: string[] = [];
       for (const nonZeroTokenAddress of Object.keys(balances)) {
-        const { decimals, symbol, aggregators, iconUrl, name } =
+        const { decimals, symbol, aggregators, iconUrl, name, rwaData } =
           this.#tokensChainsCache[chainId].data[nonZeroTokenAddress];
         eventTokensDetails.push(`${symbol} - ${nonZeroTokenAddress}`);
         tokensWithBalance.push({
@@ -763,6 +763,7 @@ export class TokenDetectionController extends StaticIntervalPollingController<To
           image: iconUrl,
           isERC721: false,
           name,
+          ...(rwaData && { rwaData }),
         });
       }
 
@@ -843,7 +844,8 @@ export class TokenDetectionController extends StaticIntervalPollingController<To
         continue;
       }
 
-      const { decimals, symbol, aggregators, iconUrl, name } = tokenData;
+      const { decimals, symbol, aggregators, iconUrl, name, rwaData } =
+        tokenData;
 
       // Push to lists with checksummed address (for allTokens storage)
       eventTokensDetails.push(`${symbol} - ${checksummedTokenAddress}`);
@@ -855,6 +857,7 @@ export class TokenDetectionController extends StaticIntervalPollingController<To
         image: iconUrl,
         isERC721: false,
         name,
+        ...(rwaData && { rwaData }),
       });
     }
 
@@ -964,7 +967,8 @@ export class TokenDetectionController extends StaticIntervalPollingController<To
         continue;
       }
 
-      const { decimals, symbol, aggregators, iconUrl, name } = tokenData;
+      const { decimals, symbol, aggregators, iconUrl, name, rwaData } =
+        tokenData;
 
       eventTokensDetails.push(`${symbol} - ${checksummedTokenAddress}`);
       tokensWithBalance.push({
@@ -975,6 +979,7 @@ export class TokenDetectionController extends StaticIntervalPollingController<To
         image: iconUrl,
         isERC721: false,
         name,
+        ...(rwaData && { rwaData }),
       });
     }
 
