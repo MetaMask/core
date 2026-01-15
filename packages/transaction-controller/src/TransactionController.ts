@@ -3790,7 +3790,8 @@ export class TransactionController extends BaseController<
         nonce &&
         transaction.txParams.nonce === nonce &&
         transaction.chainId === chainId &&
-        transaction.type !== TransactionType.incoming,
+        transaction.type !== TransactionType.incoming &&
+        transaction.isTransfer === undefined,
     );
     const sameNonceTransactionIds = sameNonceTransactions.map(
       (transaction) => transaction.id,

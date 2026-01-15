@@ -1,7 +1,6 @@
 import type {
   PermissionRequest,
   PermissionTypes,
-  Signer,
 } from '@metamask/7715-permission-types';
 import type { DELEGATOR_CONTRACTS } from '@metamask/delegation-deployments';
 
@@ -18,11 +17,11 @@ export type DeployedContractsByName =
  * `TimestampEnforcer` terms, as well as the `origin` property.
  */
 export type DecodedPermission = Pick<
-  PermissionRequest<Signer, PermissionTypes>,
-  'chainId' | 'address' | 'signer'
+  PermissionRequest<PermissionTypes>,
+  'chainId' | 'from' | 'to'
 > & {
   permission: Omit<
-    PermissionRequest<Signer, PermissionTypes>['permission'],
+    PermissionRequest<PermissionTypes>['permission'],
     'isAdjustmentAllowed'
   > & {
     // PermissionRequest type does not work well without the specific permission type, so we amend it here

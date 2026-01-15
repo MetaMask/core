@@ -7,6 +7,14 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+### Added
+
+- Add BOB (0xed88) mapping to eip155:60808/erc20:0x0000000000000000000000000000000000000000 ([#7635](https://github.com/MetaMask/core/pull/7635))
+
+### Fixed
+
+- Fix native token fiat calculation for chains without market data by using currency rate fallback ([#7636](https://github.com/MetaMask/core/pull/7636))
+
 ## [95.2.0]
 
 ### Added
