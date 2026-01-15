@@ -12,6 +12,8 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 ### Added
 
 - Add `nativeAssetIdentifiers` state property that maps CAIP-2 chain IDs to CAIP-19-like native asset identifiers (e.g., `eip155:1/slip44:60`) ([#7609](https://github.com/MetaMask/core/pull/7609))
+- Add `initNativeAssetIdentifiers` method to populate `nativeAssetIdentifiers` state property ([#7609](https://github.com/MetaMask/core/pull/7609))
+  - This is designed to be called during controller initialization.
 - Add `Slip44Service` to look up SLIP-44 coin types by native currency symbol ([#7609](https://github.com/MetaMask/core/pull/7609))
 - Add `@metamask/slip44` dependency for SLIP-44 coin type lookups ([#7609](https://github.com/MetaMask/core/pull/7609))
 - Subscribe to `NetworkController:stateChange` to update `nativeAssetIdentifiers` when a network's native currency changes ([#7609](https://github.com/MetaMask/core/pull/7609))
