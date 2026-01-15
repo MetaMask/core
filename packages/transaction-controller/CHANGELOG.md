@@ -9,7 +9,7 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ### Fixed
 
-- Exclude transactions where `isTransfer` is defined when marking nonce duplicates as dropped ([#TBD](https://github.com/MetaMask/core/pull/TBD))
+- Exclude transactions where `isTransfer` is defined when marking nonce duplicates as dropped ([#7637](https://github.com/MetaMask/core/pull/7637))
 
 ## [62.9.1]
 
