@@ -179,6 +179,7 @@ describe('NetworkController', () => {
             > => ({
               fetch,
               btoa,
+              isOffline: (): boolean => false,
             }),
           }),
       ).toThrow(
@@ -208,6 +209,7 @@ describe('NetworkController', () => {
             > => ({
               fetch,
               btoa,
+              isOffline: (): boolean => false,
             }),
           }),
       ).toThrow(
@@ -244,6 +246,7 @@ describe('NetworkController', () => {
             > => ({
               fetch,
               btoa,
+              isOffline: (): boolean => false,
             }),
           }),
       ).toThrow(
@@ -279,6 +282,7 @@ describe('NetworkController', () => {
             > => ({
               fetch,
               btoa,
+              isOffline: (): boolean => false,
             }),
           }),
       ).toThrow(
@@ -314,6 +318,7 @@ describe('NetworkController', () => {
             > => ({
               fetch,
               btoa,
+              isOffline: (): boolean => false,
             }),
           }),
       ).toThrow(
@@ -359,6 +364,7 @@ describe('NetworkController', () => {
             > => ({
               fetch,
               btoa,
+              isOffline: (): boolean => false,
             }),
           }),
       ).toThrow(
@@ -399,6 +405,7 @@ describe('NetworkController', () => {
         > => ({
           fetch,
           btoa,
+          isOffline: (): boolean => false,
         }),
       });
 
@@ -452,6 +459,7 @@ describe('NetworkController', () => {
         > => ({
           fetch,
           btoa,
+          isOffline: (): boolean => false,
         }),
       });
 
@@ -4635,6 +4643,7 @@ describe('NetworkController', () => {
           > => ({
             btoa,
             fetch,
+            isOffline: (): boolean => false,
             fetchOptions: {
               headers: {
                 'X-Foo': 'Bar',
@@ -6065,6 +6074,7 @@ describe('NetworkController', () => {
             > => ({
               btoa,
               fetch,
+              isOffline: (): boolean => false,
               fetchOptions: {
                 headers: {
                   'X-Foo': 'Bar',
@@ -6297,6 +6307,7 @@ describe('NetworkController', () => {
             > => ({
               btoa,
               fetch,
+              isOffline: (): boolean => false,
               fetchOptions: {
                 headers: {
                   'X-Foo': 'Bar',
@@ -7296,6 +7307,7 @@ describe('NetworkController', () => {
             > => ({
               btoa,
               fetch,
+              isOffline: (): boolean => false,
               fetchOptions: {
                 headers: {
                   'X-Foo': 'Bar',
@@ -8165,6 +8177,7 @@ describe('NetworkController', () => {
           > => ({
             btoa,
             fetch,
+            isOffline: (): boolean => false,
             fetchOptions: {
               headers: {
                 'X-Foo': 'Bar',
@@ -9163,6 +9176,7 @@ describe('NetworkController', () => {
           > => ({
             btoa,
             fetch,
+            isOffline: (): boolean => false,
             fetchOptions: {
               headers: {
                 'X-Foo': 'Bar',
@@ -10328,6 +10342,7 @@ describe('NetworkController', () => {
             > => ({
               btoa,
               fetch,
+              isOffline: (): boolean => false,
               fetchOptions: {
                 headers: {
                   'X-Foo': 'Bar',
@@ -11044,6 +11059,7 @@ describe('NetworkController', () => {
             > => ({
               btoa,
               fetch,
+              isOffline: (): boolean => false,
               fetchOptions: {
                 headers: {
                   'X-Foo': 'Bar',
@@ -11778,6 +11794,7 @@ describe('NetworkController', () => {
             > => ({
               btoa,
               fetch,
+              isOffline: (): boolean => false,
               fetchOptions: {
                 headers: {
                   'X-Foo': 'Bar',
@@ -12487,6 +12504,7 @@ describe('NetworkController', () => {
         > => ({
           btoa,
           fetch,
+          isOffline: (): boolean => false,
           fetchOptions: {
             headers: {
               'X-Foo': 'Bar',

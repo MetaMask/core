@@ -37,6 +37,7 @@ Each package in this repository has its own README where you can find installati
 - [`@metamask/chain-agnostic-permission`](packages/chain-agnostic-permission)
 - [`@metamask/claims-controller`](packages/claims-controller)
 - [`@metamask/composable-controller`](packages/composable-controller)
+- [`@metamask/connectivity-controller`](packages/connectivity-controller)
 - [`@metamask/controller-utils`](packages/controller-utils)
 - [`@metamask/core-backend`](packages/core-backend)
 - [`@metamask/delegation-controller`](packages/delegation-controller)
@@ -113,6 +114,7 @@ linkStyle default opacity:0.5
   chain_agnostic_permission(["@metamask/chain-agnostic-permission"]);
   claims_controller(["@metamask/claims-controller"]);
   composable_controller(["@metamask/composable-controller"]);
+  connectivity_controller(["@metamask/connectivity-controller"]);
   controller_utils(["@metamask/controller-utils"]);
   core_backend(["@metamask/core-backend"]);
   delegation_controller(["@metamask/delegation-controller"]);
@@ -235,6 +237,8 @@ linkStyle default opacity:0.5
   composable_controller --> base_controller;
   composable_controller --> messenger;
   composable_controller --> json_rpc_engine;
+  connectivity_controller --> base_controller;
+  connectivity_controller --> messenger;
   core_backend --> accounts_controller;
   core_backend --> controller_utils;
   core_backend --> keyring_controller;
@@ -313,6 +317,7 @@ linkStyle default opacity:0.5
   name_controller --> controller_utils;
   name_controller --> messenger;
   network_controller --> base_controller;
+  network_controller --> connectivity_controller;
   network_controller --> controller_utils;
   network_controller --> eth_block_tracker;
   network_controller --> eth_json_rpc_middleware;
