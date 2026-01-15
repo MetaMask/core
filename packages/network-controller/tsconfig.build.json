@@ -8,6 +8,7 @@
   "references": [
     { "path": "../base-controller/tsconfig.build.json" },
     { "path": "../controller-utils/tsconfig.build.json" },
+    { "path": "../connectivity-controller/tsconfig.build.json" },
     { "path": "../eth-block-tracker/tsconfig.build.json" },
     { "path": "../eth-json-rpc-middleware/tsconfig.build.json" },
     { "path": "../eth-json-rpc-provider/tsconfig.build.json" },

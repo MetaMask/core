@@ -10,6 +10,11 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 ### Changed
 
 - Bump `@metamask/eth-json-rpc-middleware` from `^22.0.1` to `^23.0.0` ([#7634](https://github.com/MetaMask/core/pull/7634))
+- **BREAKING:** NetworkController now requires `ConnectivityController:getState` action handler to be registered on the messenger ([#7627](https://github.com/MetaMask/core/pull/7627))
+  - The `NetworkController` now depends on the `ConnectivityController` to prevent retries and suppress events when the user is offline.
+  - When offline, `NetworkController:rpcEndpointUnavailable` and `NetworkController:rpcEndpointDegraded` events are suppressed since retries don't occur and circuit breakers don't trigger.
+  - You must register a `ConnectivityController:getState` action handler on your root messenger that returns an object with a `connectivityStatus` property (`'online'` or `'offline'`).
+  - You must delegate the `ConnectivityController:getState` action from your root messenger to the `NetworkControllerMessenger` using `rootMessenger.delegate({ messenger: networkControllerMessenger, actions: ['ConnectivityController:getState'] })`.
 
 ## [28.0.0]
 
