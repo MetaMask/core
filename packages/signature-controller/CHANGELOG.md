@@ -9,6 +9,10 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [38.1.0]
 
+### Changed
+
+- Bump `@metamask/gator-permissions-controller` from `0.8.0` to `1.0.0`
+
 ## [38.0.1]
 
 ### Changed

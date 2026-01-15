@@ -9,15 +9,6 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [23.0.0]
 
-### Uncategorized
-
-- Release 748.0.0 ([#7604](https://github.com/MetaMask/core/pull/7604))
-- Release/741.0.0 ([#7583](https://github.com/MetaMask/core/pull/7583))
-- chore: Replace deprecated error reporting service calls with `Messenger.captureException` ([#7542](https://github.com/MetaMask/core/pull/7542))
-- Release 733.0.0 ([#7541](https://github.com/MetaMask/core/pull/7541))
-- Release 732.0.0 ([#7534](https://github.com/MetaMask/core/pull/7534))
-- chore(lint): Fix suppressed ESLint errors in `eth-json-rpc-middleware` package ([#7475](https://github.com/MetaMask/core/pull/7475))
-
 ### Added
 
 - Support for `wallet_getSupportedExecutionPermissions` and `wallet_getGrantedExecutionPermissions` RPC methods ([#7603](https://github.com/MetaMask/core/pull/7603))
@@ -25,6 +16,7 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 ### Changed
 
 - Upgrade `@metamask/utils` from `^11.8.1` to `^11.9.0` ([#7511](https://github.com/MetaMask/core/pull/7511))
+- **BREAKING:** Changed `wallet_requestExecutionPermissions` to comply with 7715 spec revisions.
 
 ## [22.0.1]
 
