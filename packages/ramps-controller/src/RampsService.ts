@@ -134,6 +134,14 @@ export type Country = {
    * Array of state objects.
    */
   states?: State[];
+  /**
+   * Default amount for ramps transactions.
+   */
+  defaultAmount?: number;
+  /**
+   * Quick amount options for ramps transactions.
+   */
+  quickAmounts?: number[];
 };
 
 /**
@@ -279,6 +287,17 @@ function getBaseUrl(
     default:
       throw new Error(`Invalid environment: ${String(environment)}`);
   }
+}
+
+/**
+ * Constructs an API path with an optional version prefix.
+ *
+ * @param path - The API endpoint path.
+ * @param version - The API version prefix (e.g., 'v2'). Defaults to 'v2'.
+ * @returns The versioned API path.
+ */
+function getApiPath(path: string, version: string = 'v2'): string {
+  return version ? `${version}/${path}` : path;
 }
 
 /**
@@ -513,7 +532,7 @@ export class RampsService {
   async getGeolocation(): Promise<string> {
     const textResponse = await this.#request<string>(
       RampsApiService.Orders,
-      'geolocation',
+      getApiPath('geolocation', ''),
       { responseType: 'text' },
     );
 
@@ -535,7 +554,7 @@ export class RampsService {
   async getCountries(action: 'buy' | 'sell' = 'buy'): Promise<Country[]> {
     const countries = await this.#request<Country[]>(
       RampsApiService.Regions,
-      'regions/countries',
+      getApiPath('regions/countries'),
       { action, responseType: 'json' },
     );
 
@@ -565,7 +584,7 @@ export class RampsService {
     const normalizedIsoCode = isoCode.toLowerCase().trim();
     return this.#request<Eligibility>(
       RampsApiService.Regions,
-      `regions/countries/${normalizedIsoCode}`,
+      getApiPath(`regions/countries/${normalizedIsoCode}`, ''),
       { responseType: 'json' },
     );
   }
@@ -584,7 +603,7 @@ export class RampsService {
     const normalizedRegion = region.toLowerCase().trim();
     const response = await this.#request<TokensResponse>(
       RampsApiService.Regions,
-      `regions/${normalizedRegion}/tokens`,
+      getApiPath(`regions/${normalizedRegion}/tokens`, ''),
       { action, responseType: 'json' },
     );
 
