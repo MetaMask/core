@@ -7,6 +7,10 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+### Fixed
+
+- Fix native token fiat calculation for chains without market data by using currency rate fallback ([#7636](https://github.com/MetaMask/core/pull/7636))
+
 ## [95.2.0]
 
 ### Added
