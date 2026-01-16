@@ -12,6 +12,7 @@ import type {
   Eligibility,
   TokensResponse,
   Provider,
+  State,
 } from './RampsService';
 import type {
   RampsServiceGetGeolocationAction,
@@ -47,14 +48,34 @@ export const controllerName = 'RampsController';
 // === STATE ===
 
 /**
+ * Represents the user's selected region with full country and state objects.
+ */
+export type UserRegion = {
+  /**
+   * The country object for the selected region.
+   */
+  country: Country;
+  /**
+   * The state object if a state was selected, null if only country was selected.
+   */
+  state: State | null;
+  /**
+   * The region code string (e.g., "us-ut" or "fr") used for API calls.
+   */
+  regionCode: string;
+};
+
+/**
  * Describes the shape of the state object for {@link RampsController}.
  */
 export type RampsControllerState = {
   /**
-   * The user's selected region code (e.g., "US-CA").
+   * The user's selected region with full country and state objects.
    * Initially set via geolocation fetch, but can be manually changed by the user.
+   * Once set (either via geolocation or manual selection), it will not be overwritten
+   * by subsequent geolocation fetches.
    */
-  userRegion: string | null;
+  userRegion: UserRegion | null;
   /**
    * The user's preferred provider.
    * Can be manually set by the user.
@@ -195,6 +216,70 @@ export type RampsControllerOptions = {
   /** Maximum number of entries in the request cache. Defaults to 250. */
   requestCacheMaxSize?: number;
 };
+
+// === HELPER FUNCTIONS ===
+
+/**
+ * Finds a country and state from a region code string.
+ *
+ * @param regionCode - The region code (e.g., "us-ca" or "us").
+ * @param countries - Array of countries to search.
+ * @returns UserRegion object with country and state, or null if not found.
+ */
+function findRegionFromCode(
+  regionCode: string,
+  countries: Country[],
+): UserRegion | null {
+  const normalizedCode = regionCode.toLowerCase().trim();
+  const parts = normalizedCode.split('-');
+  const countryCode = parts[0];
+  const stateCode = parts[1];
+
+  const country = countries.find((countryItem) => {
+    if (countryItem.isoCode?.toLowerCase() === countryCode) {
+      return true;
+    }
+    if (countryItem.id) {
+      const id = countryItem.id.toLowerCase();
+      if (id.startsWith('/regions/')) {
+        const extractedCode = id.replace('/regions/', '').split('/')[0];
+        return extractedCode === countryCode;
+      }
+      return id === countryCode || id.endsWith(`/${countryCode}`);
+    }
+    return false;
+  });
+
+  if (!country) {
+    return null;
+  }
+
+  let state: State | null = null;
+  if (stateCode && country.states) {
+    state =
+      country.states.find((stateItem) => {
+        if (stateItem.stateId?.toLowerCase() === stateCode) {
+          return true;
+        }
+        if (stateItem.id) {
+          const stateId = stateItem.id.toLowerCase();
+          if (
+            stateId.includes(`-${stateCode}`) ||
+            stateId.endsWith(`/${stateCode}`)
+          ) {
+            return true;
+          }
+        }
+        return false;
+      }) ?? null;
+  }
+
+  return {
+    country,
+    state,
+    regionCode: normalizedCode,
+  };
+}
 
 // === CONTROLLER DEFINITION ===
 
@@ -424,12 +509,31 @@ export class RampsController extends BaseController<
    * then automatically fetches eligibility for that region.
    *
    * @param options - Options for cache behavior.
-   * @returns The user region string.
+   * @returns The user region object.
    */
-  async updateUserRegion(options?: ExecuteRequestOptions): Promise<string> {
+  async updateUserRegion(
+    options?: ExecuteRequestOptions,
+  ): Promise<UserRegion | null> {
+    // If a userRegion already exists and forceRefresh is not requested,
+    // return it immediately without fetching geolocation.
+    // This ensures that once a region is set (either via geolocation or manual selection),
+    // it will not be overwritten by subsequent geolocation fetches.
+    if (this.state.userRegion && !options?.forceRefresh) {
+      return this.state.userRegion;
+    }
+
+    // When forceRefresh is true, clear the existing region and tokens before fetching
+    if (options?.forceRefresh) {
+      this.update((state) => {
+        state.userRegion = null;
+        state.eligibility = null;
+        state.tokens = null;
+      });
+    }
+
     const cacheKey = createCacheKey('updateUserRegion', []);
 
-    const userRegion = await this.executeRequest(
+    const regionCode = await this.executeRequest(
       cacheKey,
       async () => {
         const result = await this.messenger.call('RampsService:getGeolocation');
@@ -438,30 +542,78 @@ export class RampsController extends BaseController<
       options,
     );
 
-    const normalizedRegion = userRegion
-      ? userRegion.toLowerCase().trim()
-      : userRegion;
+    if (!regionCode) {
+      this.update((state) => {
+        state.userRegion = null;
+        state.tokens = null;
+      });
+      return null;
+    }
 
-    this.update((state) => {
-      state.userRegion = normalizedRegion;
-      state.tokens = null;
-    });
+    const normalizedRegion = regionCode.toLowerCase().trim();
 
-    if (normalizedRegion) {
-      try {
-        await this.updateEligibility(normalizedRegion, options);
-      } catch {
+    try {
+      const countries = await this.getCountries('buy', options);
+      const userRegion = findRegionFromCode(normalizedRegion, countries);
+
+      if (userRegion) {
         this.update((state) => {
-          const currentUserRegion = state.userRegion?.toLowerCase().trim();
-          if (currentUserRegion === normalizedRegion) {
-            state.eligibility = null;
+          const regionChanged =
+            state.userRegion?.regionCode !== userRegion.regionCode;
+          state.userRegion = userRegion;
+          // Clear tokens when region changes
+          if (regionChanged) {
             state.tokens = null;
           }
         });
-      }
-    }
 
-    return normalizedRegion;
+        try {
+          await this.updateEligibility(userRegion.regionCode, options);
+        } catch {
+          this.update((state) => {
+            if (state.userRegion?.regionCode === userRegion.regionCode) {
+              state.eligibility = null;
+              state.tokens = null;
+            }
+          });
+        }
+
+        return userRegion;
+      }
+
+      // Region not found in countries data
+      this.update((state) => {
+        state.userRegion = null;
+        state.tokens = null;
+      });
+
+      // Still try to fetch eligibility using just the region code string
+      // This doesn't require the full country object
+      try {
+        await this.updateEligibility(normalizedRegion, options);
+      } catch {
+        // Eligibility fetch failed - error state will be available via selectors
+      }
+
+      return null;
+    } catch {
+      // If countries fetch fails, we can't create a valid UserRegion
+      // Return null to indicate we don't have valid country data
+      this.update((state) => {
+        state.userRegion = null;
+        state.tokens = null;
+      });
+
+      // Still try to fetch eligibility using just the region code string
+      // This doesn't require the full country object
+      try {
+        await this.updateEligibility(normalizedRegion, options);
+      } catch {
+        // Eligibility fetch failed - error state will be available via selectors
+      }
+
+      return null;
+    }
   }
 
   /**
@@ -477,28 +629,58 @@ export class RampsController extends BaseController<
     options?: ExecuteRequestOptions,
   ): Promise<Eligibility> {
     const normalizedRegion = region.toLowerCase().trim();
-
-    this.update((state) => {
-      state.userRegion = normalizedRegion;
-      state.tokens = null;
-    });
+    let userRegionSetInThisCall = false;
 
     try {
-      return await this.updateEligibility(normalizedRegion, options);
-    } catch (error) {
-      // Eligibility fetch failed, but user region was successfully set.
-      // Don't let eligibility errors prevent user region state from being updated.
-      // Clear eligibility state to avoid showing stale data from a previous location.
-      // Only clear if the region still matches to avoid race conditions where a newer
-      // region change has already succeeded.
-      this.update((state) => {
-        const currentUserRegion = state.userRegion?.toLowerCase().trim();
-        if (currentUserRegion === normalizedRegion) {
-          state.eligibility = null;
+      const countries = await this.getCountries('buy', options);
+      const userRegion = findRegionFromCode(normalizedRegion, countries);
+
+      if (userRegion) {
+        this.update((state) => {
+          state.userRegion = userRegion;
           state.tokens = null;
+        });
+        userRegionSetInThisCall = true;
+
+        try {
+          return await this.updateEligibility(userRegion.regionCode, options);
+        } catch (error) {
+          this.update((state) => {
+            if (state.userRegion?.regionCode === userRegion.regionCode) {
+              state.eligibility = null;
+              state.tokens = null;
+            }
+          });
+          throw error;
         }
+      }
+
+      // Region not found in countries data
+      this.update((state) => {
+        state.userRegion = null;
+        state.tokens = null;
       });
-      throw error;
+      throw new Error(
+        `Region "${normalizedRegion}" not found in countries data. Cannot set user region without valid country information.`,
+      );
+    } catch (error) {
+      // If the error is from eligibility fetch (userRegion was set in this call), re-throw it
+      // If the error is "not found", re-throw it
+      // Otherwise, it's from countries fetch failure
+      if (
+        error instanceof Error &&
+        (error.message.includes('not found') || userRegionSetInThisCall)
+      ) {
+        throw error;
+      }
+      // Countries fetch failed
+      this.update((state) => {
+        state.userRegion = null;
+        state.tokens = null;
+      });
+      throw new Error(
+        'Failed to fetch countries data. Cannot set user region without valid country information.',
+      );
     }
   }
 
@@ -520,6 +702,9 @@ export class RampsController extends BaseController<
    * After the region is set and eligibility is determined, tokens are fetched
    * and saved to state.
    *
+   * If a userRegion already exists (from persistence or manual selection),
+   * this method will skip geolocation fetch and only fetch tokens if needed.
+   *
    * @param options - Options for cache behavior.
    * @returns Promise that resolves when initialization is complete.
    */
@@ -531,7 +716,7 @@ export class RampsController extends BaseController<
 
     if (userRegion) {
       try {
-        await this.getTokens(userRegion, 'buy', options);
+        await this.getTokens(userRegion.regionCode, 'buy', options);
       } catch {
         // Token fetch failed - error state will be available via selectors
       }
@@ -564,9 +749,12 @@ export class RampsController extends BaseController<
     );
 
     this.update((state) => {
-      const userRegion = state.userRegion?.toLowerCase().trim();
+      const userRegionCode = state.userRegion?.regionCode;
 
-      if (userRegion === undefined || userRegion === normalizedIsoCode) {
+      if (
+        userRegionCode === undefined ||
+        userRegionCode === normalizedIsoCode
+      ) {
         state.eligibility = eligibility;
       }
     });
@@ -610,7 +798,7 @@ export class RampsController extends BaseController<
     action: 'buy' | 'sell' = 'buy',
     options?: ExecuteRequestOptions,
   ): Promise<TokensResponse> {
-    const regionToUse = region ?? this.state.userRegion;
+    const regionToUse = region ?? this.state.userRegion?.regionCode;
 
     if (!regionToUse) {
       throw new Error(
@@ -634,9 +822,9 @@ export class RampsController extends BaseController<
     );
 
     this.update((state) => {
-      const userRegion = state.userRegion?.toLowerCase().trim();
+      const userRegionCode = state.userRegion?.regionCode;
 
-      if (userRegion === undefined || userRegion === normalizedRegion) {
+      if (userRegionCode === undefined || userRegionCode === normalizedRegion) {
         state.tokens = tokens;
       }
     });

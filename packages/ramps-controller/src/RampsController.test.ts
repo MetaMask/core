@@ -6,9 +6,9 @@ import type {
   MessengerEvents,
 } from '@metamask/messenger';
 
-import type { RampsControllerMessenger } from './RampsController';
+import type { RampsControllerMessenger, UserRegion } from './RampsController';
 import { RampsController } from './RampsController';
-import type { Country, TokensResponse, Provider } from './RampsService';
+import type { Country, TokensResponse, Provider, State } from './RampsService';
 import type {
   RampsServiceGetGeolocationAction,
   RampsServiceGetCountriesAction,
@@ -35,19 +35,17 @@ describe('RampsController', () => {
 
     it('accepts initial state', async () => {
       const givenState = {
-        userRegion: 'US',
+        userRegion: createMockUserRegion('us'),
       };
 
       await withController(
         { options: { state: givenState } },
         ({ controller }) => {
-          expect(controller.state).toStrictEqual({
-            eligibility: null,
-            preferredProvider: null,
-            tokens: null,
-            userRegion: 'US',
-            requests: {},
-          });
+          expect(controller.state.userRegion?.regionCode).toBe('us');
+          expect(controller.state.eligibility).toBeNull();
+          expect(controller.state.preferredProvider).toBeNull();
+          expect(controller.state.tokens).toBeNull();
+          expect(controller.state.requests).toStrictEqual({});
         },
       );
     });
@@ -68,7 +66,7 @@ describe('RampsController', () => {
 
     it('always resets requests cache on initialization', async () => {
       const givenState = {
-        userRegion: 'US',
+        userRegion: createMockUserRegion('us'),
         requests: {
           someKey: {
             status: RequestStatus.SUCCESS,
@@ -177,6 +175,10 @@ describe('RampsController', () => {
           async () => 'US-CA',
         );
         rootMessenger.registerActionHandler(
+          'RampsService:getCountries',
+          async () => createMockCountries(),
+        );
+        rootMessenger.registerActionHandler(
           'RampsService:getEligibility',
           async () => ({
             aggregator: true,
@@ -187,7 +189,39 @@ describe('RampsController', () => {
 
         await controller.updateUserRegion();
 
-        expect(controller.state.userRegion).toBe('us-ca');
+        expect(controller.state.userRegion?.regionCode).toBe('us-ca');
+        expect(controller.state.userRegion?.country.isoCode).toBe('US');
+        expect(controller.state.userRegion?.state?.stateId).toBe('CA');
+      });
+    });
+
+    it('calls getCountriesData internally when fetching countries', async () => {
+      await withController(async ({ controller, rootMessenger }) => {
+        let countriesCallCount = 0;
+        rootMessenger.registerActionHandler(
+          'RampsService:getGeolocation',
+          async () => 'US',
+        );
+        rootMessenger.registerActionHandler(
+          'RampsService:getCountries',
+          async () => {
+            countriesCallCount += 1;
+            return createMockCountries();
+          },
+        );
+        rootMessenger.registerActionHandler(
+          'RampsService:getEligibility',
+          async () => ({
+            aggregator: true,
+            deposit: true,
+            global: true,
+          }),
+        );
+
+        await controller.updateUserRegion();
+
+        expect(countriesCallCount).toBe(1);
+        expect(controller.state.userRegion?.regionCode).toBe('us');
       });
     });
 
@@ -198,6 +232,10 @@ describe('RampsController', () => {
           async () => 'US',
         );
         rootMessenger.registerActionHandler(
+          'RampsService:getCountries',
+          async () => createMockCountries(),
+        );
+        rootMessenger.registerActionHandler(
           'RampsService:getEligibility',
           async () => ({
             aggregator: true,
@@ -206,14 +244,15 @@ describe('RampsController', () => {
           }),
         );
 
-        await controller.updateUserRegion();
+        const result = await controller.updateUserRegion();
 
         const cacheKey = createCacheKey('updateUserRegion', []);
         const requestState = controller.state.requests[cacheKey];
 
         expect(requestState).toBeDefined();
         expect(requestState?.status).toBe(RequestStatus.SUCCESS);
-        expect(requestState?.data).toBe('US');
+        expect(result).toBeDefined();
+        expect(result?.regionCode).toBe('us');
         expect(requestState?.error).toBeNull();
       });
     });
@@ -227,6 +266,10 @@ describe('RampsController', () => {
             callCount += 1;
             return 'US';
           },
+        );
+        rootMessenger.registerActionHandler(
+          'RampsService:getCountries',
+          async () => createMockCountries(),
         );
         rootMessenger.registerActionHandler(
           'RampsService:getEligibility',
@@ -253,6 +296,10 @@ describe('RampsController', () => {
             callCount += 1;
             return 'US';
           },
+        );
+        rootMessenger.registerActionHandler(
+          'RampsService:getCountries',
+          async () => createMockCountries(),
         );
         rootMessenger.registerActionHandler(
           'RampsService:getEligibility',
@@ -294,10 +341,162 @@ describe('RampsController', () => {
 
         const result = await controller.updateUserRegion();
 
-        expect(result).toBeUndefined();
-        expect(controller.state.userRegion).toBeUndefined();
+        expect(result).toBeNull();
+        expect(controller.state.userRegion).toBeNull();
         expect(controller.state.eligibility).toBeNull();
       });
+    });
+
+    it('returns null when countries fetch fails', async () => {
+      await withController(async ({ controller, rootMessenger }) => {
+        rootMessenger.registerActionHandler(
+          'RampsService:getGeolocation',
+          async () => 'US-CA',
+        );
+        rootMessenger.registerActionHandler(
+          'RampsService:getCountries',
+          async () => {
+            throw new Error('Countries API error');
+          },
+        );
+        rootMessenger.registerActionHandler(
+          'RampsService:getEligibility',
+          async () => ({
+            aggregator: true,
+            deposit: true,
+            global: true,
+          }),
+        );
+
+        const result = await controller.updateUserRegion();
+
+        expect(result).toBeNull();
+        expect(controller.state.userRegion).toBeNull();
+        expect(controller.state.eligibility).toStrictEqual({
+          aggregator: true,
+          deposit: true,
+          global: true,
+        });
+      });
+    });
+
+    it('handles eligibility fetch failure when countries fetch fails', async () => {
+      await withController(async ({ controller, rootMessenger }) => {
+        rootMessenger.registerActionHandler(
+          'RampsService:getGeolocation',
+          async () => 'FR',
+        );
+        rootMessenger.registerActionHandler(
+          'RampsService:getCountries',
+          async () => {
+            throw new Error('Countries API error');
+          },
+        );
+        rootMessenger.registerActionHandler(
+          'RampsService:getEligibility',
+          async () => {
+            throw new Error('Eligibility API error');
+          },
+        );
+
+        const result = await controller.updateUserRegion();
+
+        expect(result).toBeNull();
+        expect(controller.state.userRegion).toBeNull();
+        expect(controller.state.eligibility).toBeNull();
+        expect(controller.state.tokens).toBeNull();
+      });
+    });
+
+    it('returns null when region is not found in countries data', async () => {
+      await withController(async ({ controller, rootMessenger }) => {
+        rootMessenger.registerActionHandler(
+          'RampsService:getGeolocation',
+          async () => 'XX',
+        );
+        rootMessenger.registerActionHandler(
+          'RampsService:getCountries',
+          async () => createMockCountries(),
+        );
+        rootMessenger.registerActionHandler(
+          'RampsService:getEligibility',
+          async () => ({
+            aggregator: true,
+            deposit: true,
+            global: true,
+          }),
+        );
+
+        const result = await controller.updateUserRegion();
+
+        expect(result).toBeNull();
+        expect(controller.state.userRegion).toBeNull();
+        expect(controller.state.eligibility).toStrictEqual({
+          aggregator: true,
+          deposit: true,
+          global: true,
+        });
+        expect(controller.state.tokens).toBeNull();
+      });
+    });
+
+    it('handles eligibility fetch failure when region is not found', async () => {
+      await withController(async ({ controller, rootMessenger }) => {
+        rootMessenger.registerActionHandler(
+          'RampsService:getGeolocation',
+          async () => 'YY',
+        );
+        rootMessenger.registerActionHandler(
+          'RampsService:getCountries',
+          async () => createMockCountries(),
+        );
+        rootMessenger.registerActionHandler(
+          'RampsService:getEligibility',
+          async () => {
+            throw new Error('Eligibility API error');
+          },
+        );
+
+        const result = await controller.updateUserRegion();
+
+        expect(result).toBeNull();
+        expect(controller.state.userRegion).toBeNull();
+        expect(controller.state.eligibility).toBeNull();
+        expect(controller.state.tokens).toBeNull();
+      });
+    });
+
+    it('does not overwrite existing user region when called', async () => {
+      const existingRegion = createMockUserRegion(
+        'us-co',
+        'United States',
+        'Colorado',
+      );
+      await withController(
+        {
+          options: {
+            state: {
+              userRegion: existingRegion,
+            },
+          },
+        },
+        async ({ controller, rootMessenger }) => {
+          rootMessenger.registerActionHandler(
+            'RampsService:getGeolocation',
+            async () => 'US-UT',
+          );
+          rootMessenger.registerActionHandler(
+            'RampsService:getCountries',
+            async () => createMockCountries(),
+          );
+
+          const result = await controller.updateUserRegion();
+
+          expect(result).toStrictEqual(existingRegion);
+          expect(controller.state.userRegion).toStrictEqual(existingRegion);
+          expect(controller.state.userRegion?.regionCode).toBe('us-co');
+        },
+      );
     });
   });
 
@@ -797,7 +996,7 @@ describe('RampsController', () => {
 
     it('updates eligibility when userRegion matches the ISO code', async () => {
       await withController(
-        { options: { state: { userRegion: 'us' } } },
+        { options: { state: { userRegion: createMockUserRegion('us') } } },
         async ({ controller, rootMessenger }) => {
           const mockEligibility = {
             aggregator: true,
@@ -813,7 +1012,7 @@ describe('RampsController', () => {
             },
           );
 
-          expect(controller.state.userRegion).toBe('us');
+          expect(controller.state.userRegion?.regionCode).toBe('us');
           expect(controller.state.eligibility).toBeNull();
 
           await controller.updateEligibility('US');
@@ -833,7 +1032,10 @@ describe('RampsController', () => {
       await withController(
         {
           options: {
-            state: { userRegion: 'us', eligibility: existingEligibility },
+            state: {
+              userRegion: createMockUserRegion('us'),
+              eligibility: existingEligibility,
+            },
           },
         },
         async ({ controller, rootMessenger }) => {
@@ -851,7 +1053,7 @@ describe('RampsController', () => {
             },
           );
 
-          expect(controller.state.userRegion).toBe('us');
+          expect(controller.state.userRegion?.regionCode).toBe('us');
           expect(controller.state.eligibility).toStrictEqual(
             existingEligibility,
           );
@@ -891,9 +1093,14 @@ describe('RampsController', () => {
           async (_region: string, _action?: 'buy' | 'sell') => mockTokens,
         );
 
+        rootMessenger.registerActionHandler(
+          'RampsService:getCountries',
+          async () => createMockCountries(),
+        );
+
         await controller.init();
 
-        expect(controller.state.userRegion).toBe('us');
+        expect(controller.state.userRegion?.regionCode).toBe('us');
         expect(controller.state.eligibility).toStrictEqual({
           aggregator: true,
           deposit: true,
@@ -926,6 +1133,10 @@ describe('RampsController', () => {
           async () => 'US',
         );
         rootMessenger.registerActionHandler(
+          'RampsService:getCountries',
+          async () => createMockCountries(),
+        );
+        rootMessenger.registerActionHandler(
           'RampsService:getEligibility',
           async () => ({
             aggregator: true,
@@ -942,7 +1153,7 @@ describe('RampsController', () => {
 
         await controller.init();
 
-        expect(controller.state.userRegion).toBe('us');
+        expect(controller.state.userRegion?.regionCode).toBe('us');
         expect(controller.state.eligibility).toStrictEqual({
           aggregator: true,
           deposit: true,
@@ -957,6 +1168,10 @@ describe('RampsController', () => {
     it('sets user region manually and fetches eligibility', async () => {
       await withController(async ({ controller, rootMessenger }) => {
         rootMessenger.registerActionHandler(
+          'RampsService:getCountries',
+          async () => createMockCountries(),
+        );
+        rootMessenger.registerActionHandler(
           'RampsService:getEligibility',
           async (isoCode) => {
             expect(isoCode).toBe('us-ca');
@@ -970,7 +1185,9 @@ describe('RampsController', () => {
 
         await controller.setUserRegion('US-CA');
 
-        expect(controller.state.userRegion).toBe('us-ca');
+        expect(controller.state.userRegion?.regionCode).toBe('us-ca');
+        expect(controller.state.userRegion?.country.isoCode).toBe('US');
+        expect(controller.state.userRegion?.state?.stateId).toBe('CA');
         expect(controller.state.eligibility).toStrictEqual({
           aggregator: true,
           deposit: true,
@@ -981,6 +1198,10 @@ describe('RampsController', () => {
 
     it('updates user region state and clears eligibility when eligibility fetch fails', async () => {
       await withController(async ({ controller, rootMessenger }) => {
+        rootMessenger.registerActionHandler(
+          'RampsService:getCountries',
+          async () => createMockCountries(),
+        );
         rootMessenger.registerActionHandler(
           'RampsService:getEligibility',
           async () => {
@@ -995,7 +1216,7 @@ describe('RampsController', () => {
           'Eligibility API error',
         );
 
-        expect(controller.state.userRegion).toBe('us-ca');
+        expect(controller.state.userRegion?.regionCode).toBe('us-ca');
         expect(controller.state.eligibility).toBeNull();
       });
     });
@@ -1009,6 +1230,10 @@ describe('RampsController', () => {
         };
 
         rootMessenger.registerActionHandler(
+          'RampsService:getCountries',
+          async () => createMockCountries(),
+        );
+        rootMessenger.registerActionHandler(
           'RampsService:getEligibility',
           async (isoCode) => {
             if (isoCode === 'us') {
@@ -1019,14 +1244,14 @@ describe('RampsController', () => {
         );
 
         await controller.setUserRegion('US');
-        expect(controller.state.userRegion).toBe('us');
+        expect(controller.state.userRegion?.regionCode).toBe('us');
         expect(controller.state.eligibility).toStrictEqual(usEligibility);
 
         await expect(controller.setUserRegion('FR')).rejects.toThrow(
           'Eligibility API error',
         );
 
-        expect(controller.state.userRegion).toBe('fr');
+        expect(controller.state.userRegion?.regionCode).toBe('fr');
         expect(controller.state.eligibility).toBeNull();
       });
     });
@@ -1038,6 +1263,10 @@ describe('RampsController', () => {
           allTokens: [],
         };
 
+        rootMessenger.registerActionHandler(
+          'RampsService:getCountries',
+          async () => createMockCountries(),
+        );
         rootMessenger.registerActionHandler(
           'RampsService:getEligibility',
           async () => ({
@@ -1068,6 +1297,10 @@ describe('RampsController', () => {
         };
 
         rootMessenger.registerActionHandler(
+          'RampsService:getCountries',
+          async () => createMockCountries(),
+        );
+        rootMessenger.registerActionHandler(
           'RampsService:getEligibility',
           async (isoCode) => {
             if (isoCode === 'us') {
@@ -1093,6 +1326,311 @@ describe('RampsController', () => {
           'Eligibility API error',
         );
         expect(controller.state.tokens).toBeNull();
+      });
+    });
+
+    it('finds country by id starting with /regions/', async () => {
+      await withController(async ({ controller, rootMessenger }) => {
+        const countriesWithId: Country[] = [
+          {
+            id: '/regions/us',
+            isoCode: 'XX',
+            name: 'United States',
+            flag: '🇺🇸',
+            currency: 'USD',
+            phone: { prefix: '+1', placeholder: '', template: '' },
+            supported: true,
+            states: [{ stateId: 'CA', name: 'California', supported: true }],
+          },
+        ];
+
+        rootMessenger.registerActionHandler(
+          'RampsService:getCountries',
+          async () => countriesWithId,
+        );
+        rootMessenger.registerActionHandler(
+          'RampsService:getEligibility',
+          async () => ({
+            aggregator: true,
+            deposit: true,
+            global: true,
+          }),
+        );
+
+        await controller.setUserRegion('us');
+
+        expect(controller.state.userRegion?.regionCode).toBe('us');
+        expect(controller.state.userRegion?.country.name).toBe('United States');
+      });
+    });
+
+    it('finds country by id ending with /countryCode', async () => {
+      await withController(async ({ controller, rootMessenger }) => {
+        const countriesWithId: Country[] = [
+          {
+            id: '/some/path/fr',
+            isoCode: 'YY',
+            name: 'France',
+            flag: '🇫🇷',
+            currency: 'EUR',
+            phone: { prefix: '+33', placeholder: '', template: '' },
+            supported: true,
+          },
+        ];
+
+        rootMessenger.registerActionHandler(
+          'RampsService:getCountries',
+          async () => countriesWithId,
+        );
+        rootMessenger.registerActionHandler(
+          'RampsService:getEligibility',
+          async () => ({
+            aggregator: true,
+            deposit: true,
+            global: true,
+          }),
+        );
+
+        await controller.setUserRegion('fr');
+
+        expect(controller.state.userRegion?.regionCode).toBe('fr');
+        expect(controller.state.userRegion?.country.name).toBe('France');
+      });
+    });
+
+    it('finds country by id matching countryCode directly', async () => {
+      await withController(async ({ controller, rootMessenger }) => {
+        const countriesWithId: Country[] = [
+          {
+            id: 'us',
+            isoCode: 'ZZ',
+            name: 'United States',
+            flag: '🇺🇸',
+            currency: 'USD',
+            phone: { prefix: '+1', placeholder: '', template: '' },
+            supported: true,
+          },
+        ];
+
+        rootMessenger.registerActionHandler(
+          'RampsService:getCountries',
+          async () => countriesWithId,
+        );
+        rootMessenger.registerActionHandler(
+          'RampsService:getEligibility',
+          async () => ({
+            aggregator: true,
+            deposit: true,
+            global: true,
+          }),
+        );
+
+        await controller.setUserRegion('us');
+
+        expect(controller.state.userRegion?.regionCode).toBe('us');
+        expect(controller.state.userRegion?.country.name).toBe('United States');
+      });
+    });
+
+    it('throws error when country is not found', async () => {
+      await withController(async ({ controller, rootMessenger }) => {
+        const countries: Country[] = [
+          {
+            isoCode: 'FR',
+            name: 'France',
+            flag: '🇫🇷',
+            currency: 'EUR',
+            phone: { prefix: '+33', placeholder: '', template: '' },
+            supported: true,
+          },
+        ];
+
+        rootMessenger.registerActionHandler(
+          'RampsService:getCountries',
+          async () => countries,
+        );
+
+        await expect(controller.setUserRegion('xx')).rejects.toThrow(
+          'Region "xx" not found in countries data',
+        );
+
+        expect(controller.state.userRegion).toBeNull();
+      });
+    });
+
+    it('throws error when countries fetch fails', async () => {
+      await withController(async ({ controller, rootMessenger }) => {
+        rootMessenger.registerActionHandler(
+          'RampsService:getCountries',
+          async () => {
+            throw new Error('Network error');
+          },
+        );
+
+        await expect(controller.setUserRegion('us')).rejects.toThrow(
+          'Failed to fetch countries data. Cannot set user region without valid country information.',
+        );
+
+        expect(controller.state.userRegion).toBeNull();
+        expect(controller.state.tokens).toBeNull();
+      });
+    });
+
+    it('clears pre-existing userRegion when countries fetch fails', async () => {
+      await withController(async ({ controller, rootMessenger }) => {
+        let shouldFailCountriesFetch = false;
+
+        rootMessenger.registerActionHandler(
+          'RampsService:getCountries',
+          async () => {
+            if (shouldFailCountriesFetch) {
+              throw new Error('Network error');
+            }
+            return createMockCountries();
+          },
+        );
+        rootMessenger.registerActionHandler(
+          'RampsService:getEligibility',
+          async () => ({
+            aggregator: true,
+            deposit: true,
+            global: true,
+          }),
+        );
+
+        await controller.setUserRegion('US-CA');
+        expect(controller.state.userRegion?.regionCode).toBe('us-ca');
+
+        shouldFailCountriesFetch = true;
+
+        await expect(
+          controller.setUserRegion('FR', { forceRefresh: true }),
+        ).rejects.toThrow(
+          'Failed to fetch countries data. Cannot set user region without valid country information.',
+        );
+
+        expect(controller.state.userRegion).toBeNull();
+        expect(controller.state.tokens).toBeNull();
+      });
+    });
+
+    it('finds state by id including -stateCode', async () => {
+      await withController(async ({ controller, rootMessenger }) => {
+        const countriesWithStateId: Country[] = [
+          {
+            isoCode: 'US',
+            name: 'United States',
+            flag: '🇺🇸',
+            currency: 'USD',
+            phone: { prefix: '+1', placeholder: '', template: '' },
+            supported: true,
+            states: [
+              {
+                id: '/regions/us-ny',
+                name: 'New York',
+                supported: true,
+              },
+            ],
+          },
+        ];
+
+        rootMessenger.registerActionHandler(
+          'RampsService:getCountries',
+          async () => countriesWithStateId,
+        );
+        rootMessenger.registerActionHandler(
+          'RampsService:getEligibility',
+          async () => ({
+            aggregator: true,
+            deposit: true,
+            global: true,
+          }),
+        );
+
+        await controller.setUserRegion('us-ny');
+
+        expect(controller.state.userRegion?.regionCode).toBe('us-ny');
+        expect(controller.state.userRegion?.country.isoCode).toBe('US');
+        expect(controller.state.userRegion?.state?.name).toBe('New York');
+      });
+    });
+
+    it('finds state by id ending with /stateCode', async () => {
+      await withController(async ({ controller, rootMessenger }) => {
+        const countriesWithStateId: Country[] = [
+          {
+            isoCode: 'US',
+            name: 'United States',
+            flag: '🇺🇸',
+            currency: 'USD',
+            phone: { prefix: '+1', placeholder: '', template: '' },
+            supported: true,
+            states: [
+              {
+                id: '/some/path/ca',
+                name: 'California',
+                supported: true,
+              },
+            ],
+          },
+        ];
+
+        rootMessenger.registerActionHandler(
+          'RampsService:getCountries',
+          async () => countriesWithStateId,
+        );
+        rootMessenger.registerActionHandler(
+          'RampsService:getEligibility',
+          async () => ({
+            aggregator: true,
+            deposit: true,
+            global: true,
+          }),
+        );
+
+        await controller.setUserRegion('us-ca');
+
+        expect(controller.state.userRegion?.regionCode).toBe('us-ca');
+        expect(controller.state.userRegion?.country.isoCode).toBe('US');
+        expect(controller.state.userRegion?.state?.name).toBe('California');
+      });
+    });
+
+    it('returns null state when state code does not match any state', async () => {
+      await withController(async ({ controller, rootMessenger }) => {
+        const countriesWithStates: Country[] = [
+          {
+            isoCode: 'US',
+            name: 'United States',
+            flag: '🇺🇸',
+            currency: 'USD',
+            phone: { prefix: '+1', placeholder: '', template: '' },
+            supported: true,
+            states: [
+              { stateId: 'CA', name: 'California', supported: true },
+              { stateId: 'NY', name: 'New York', supported: true },
+            ],
+          },
+        ];
+
+        rootMessenger.registerActionHandler(
+          'RampsService:getCountries',
+          async () => countriesWithStates,
+        );
+        rootMessenger.registerActionHandler(
+          'RampsService:getEligibility',
+          async () => ({
+            aggregator: true,
+            deposit: true,
+            global: true,
+          }),
+        );
+
+        await controller.setUserRegion('us-xx');
+
+        expect(controller.state.userRegion?.regionCode).toBe('us-xx');
+        expect(controller.state.userRegion?.country.isoCode).toBe('US');
+        expect(controller.state.userRegion?.state).toBeNull();
       });
     });
   });
@@ -1186,6 +1724,10 @@ describe('RampsController', () => {
           async () => 'fr',
         );
         rootMessenger.registerActionHandler(
+          'RampsService:getCountries',
+          async () => createMockCountries(),
+        );
+        rootMessenger.registerActionHandler(
           'RampsService:getEligibility',
           async (isoCode) => {
             expect(isoCode).toBe('fr');
@@ -1198,7 +1740,7 @@ describe('RampsController', () => {
 
         await controller.updateUserRegion();
 
-        expect(controller.state.userRegion).toBe('fr');
+        expect(controller.state.userRegion?.regionCode).toBe('fr');
         expect(controller.state.eligibility).toStrictEqual(mockEligibility);
       });
     });
@@ -1208,6 +1750,10 @@ describe('RampsController', () => {
         rootMessenger.registerActionHandler(
           'RampsService:getGeolocation',
           async () => 'us-ny',
+        );
+        rootMessenger.registerActionHandler(
+          'RampsService:getCountries',
+          async () => createMockCountries(),
         );
         rootMessenger.registerActionHandler(
           'RampsService:getEligibility',
@@ -1221,7 +1767,7 @@ describe('RampsController', () => {
 
         await controller.updateUserRegion();
 
-        expect(controller.state.userRegion).toBe('us-ny');
+        expect(controller.state.userRegion?.regionCode).toBe('us-ny');
         expect(controller.state.eligibility).toBeNull();
       });
     });
@@ -1245,6 +1791,10 @@ describe('RampsController', () => {
           },
         );
         rootMessenger.registerActionHandler(
+          'RampsService:getCountries',
+          async () => createMockCountries(),
+        );
+        rootMessenger.registerActionHandler(
           'RampsService:getEligibility',
           async () => {
             eligibilityCallCount += 1;
@@ -1257,12 +1807,12 @@ describe('RampsController', () => {
 
         await controller.updateUserRegion();
 
-        expect(controller.state.userRegion).toBe('us');
+        expect(controller.state.userRegion?.regionCode).toBe('us');
         expect(controller.state.eligibility).toStrictEqual(usEligibility);
 
         await controller.updateUserRegion({ forceRefresh: true });
 
-        expect(controller.state.userRegion).toBe('fr');
+        expect(controller.state.userRegion?.regionCode).toBe('fr');
         expect(controller.state.eligibility).toBeNull();
       });
     });
@@ -1290,6 +1840,10 @@ describe('RampsController', () => {
           },
         );
         rootMessenger.registerActionHandler(
+          'RampsService:getCountries',
+          async () => createMockCountries(),
+        );
+        rootMessenger.registerActionHandler(
           'RampsService:getEligibility',
           async (isoCode) => {
             if (isoCode === 'us') {
@@ -1307,7 +1861,7 @@ describe('RampsController', () => {
 
         await Promise.all([promise1, promise2]);
 
-        expect(controller.state.userRegion).toBe('fr');
+        expect(controller.state.userRegion?.regionCode).toBe('fr');
         expect(controller.state.eligibility).toStrictEqual(frEligibility);
       });
     });
@@ -1323,6 +1877,10 @@ describe('RampsController', () => {
         rootMessenger.registerActionHandler(
           'RampsService:getGeolocation',
           async () => geolocationResult,
+        );
+        rootMessenger.registerActionHandler(
+          'RampsService:getCountries',
+          async () => createMockCountries(),
         );
         rootMessenger.registerActionHandler(
           'RampsService:getEligibility',
@@ -1361,6 +1919,10 @@ describe('RampsController', () => {
         rootMessenger.registerActionHandler(
           'RampsService:getGeolocation',
           async () => geolocationResult,
+        );
+        rootMessenger.registerActionHandler(
+          'RampsService:getCountries',
+          async () => createMockCountries(),
         );
         rootMessenger.registerActionHandler(
           'RampsService:getEligibility',
@@ -1587,7 +2149,7 @@ describe('RampsController', () => {
 
     it('uses userRegion from state when region is not provided', async () => {
       await withController(
-        { options: { state: { userRegion: 'fr' } } },
+        { options: { state: { userRegion: createMockUserRegion('fr') } } },
         async ({ controller, rootMessenger }) => {
           let receivedRegion: string | undefined;
           rootMessenger.registerActionHandler(
@@ -1615,7 +2177,7 @@ describe('RampsController', () => {
 
     it('prefers provided region over userRegion in state', async () => {
       await withController(
-        { options: { state: { userRegion: 'fr' } } },
+        { options: { state: { userRegion: createMockUserRegion('fr') } } },
         async ({ controller, rootMessenger }) => {
           let receivedRegion: string | undefined;
           rootMessenger.registerActionHandler(
@@ -1635,7 +2197,7 @@ describe('RampsController', () => {
 
     it('updates tokens when userRegion matches the requested region', async () => {
       await withController(
-        { options: { state: { userRegion: 'us' } } },
+        { options: { state: { userRegion: createMockUserRegion('us') } } },
         async ({ controller, rootMessenger }) => {
           rootMessenger.registerActionHandler(
             'RampsService:getTokens',
@@ -1645,7 +2207,7 @@ describe('RampsController', () => {
             },
           );
 
-          expect(controller.state.userRegion).toBe('us');
+          expect(controller.state.userRegion?.regionCode).toBe('us');
           expect(controller.state.tokens).toBeNull();
 
           await controller.getTokens('US');
@@ -1684,7 +2246,10 @@ describe('RampsController', () => {
       await withController(
         {
           options: {
-            state: { userRegion: 'us', tokens: existingTokens },
+            state: {
+              userRegion: createMockUserRegion('us'),
+              tokens: existingTokens,
+            },
           },
         },
         async ({ controller, rootMessenger }) => {
@@ -1696,7 +2261,7 @@ describe('RampsController', () => {
             },
           );
 
-          expect(controller.state.userRegion).toBe('us');
+          expect(controller.state.userRegion?.regionCode).toBe('us');
           expect(controller.state.tokens).toStrictEqual(existingTokens);
 
           await controller.getTokens('fr');
@@ -1707,6 +2272,87 @@ describe('RampsController', () => {
     });
   });
 });
+
+/**
+ * Creates a mock UserRegion object for testing.
+ *
+ * @param regionCode - The region code (e.g., "us-ca" or "us").
+ * @param countryName - Optional country name. If not provided, a default name will be generated.
+ * @param stateName - Optional state name. If not provided, a default name will be generated.
+ * @returns A UserRegion object with country and state information.
+ */
+function createMockUserRegion(
+  regionCode: string,
+  countryName?: string,
+  stateName?: string,
+): UserRegion {
+  const parts = regionCode.toLowerCase().split('-');
+  const countryCode = parts[0];
+  const stateCode = parts[1];
+
+  const country: Country = {
+    isoCode: countryCode.toUpperCase(),
+    name: countryName ?? `Country ${countryCode.toUpperCase()}`,
+    flag: '🏳️',
+    currency: 'USD',
+    phone: { prefix: '+1', placeholder: '', template: '' },
+    supported: true,
+    ...(stateCode && {
+      states: [
+        {
+          stateId: stateCode.toUpperCase(),
+          name: stateName ?? `State ${stateCode.toUpperCase()}`,
+          supported: true,
+        },
+      ],
+    }),
+  };
+
+  const state: State | null = stateCode
+    ? {
+        stateId: stateCode.toUpperCase(),
+        name: stateName ?? `State ${stateCode.toUpperCase()}`,
+        supported: true,
+      }
+    : null;
+
+  return {
+    country,
+    state,
+    regionCode: regionCode.toLowerCase(),
+  };
+}
+
+/**
+ * Creates mock countries array for testing.
+ *
+ * @returns An array of mock Country objects.
+ */
+function createMockCountries(): Country[] {
+  return [
+    {
+      isoCode: 'US',
+      name: 'United States of America',
+      flag: '🇺🇸',
+      currency: 'USD',
+      phone: { prefix: '+1', placeholder: '', template: '' },
+      supported: true,
+      states: [
+        { stateId: 'CA', name: 'California', supported: true },
+        { stateId: 'NY', name: 'New York', supported: true },
+        { stateId: 'UT', name: 'Utah', supported: true },
+      ],
+    },
+    {
+      isoCode: 'FR',
+      name: 'France',
+      flag: '🇫🇷',
+      currency: 'EUR',
+      phone: { prefix: '+33', placeholder: '', template: '' },
+      supported: true,
+    },
+  ];
+}
 
 /**
  * The type of the messenger populated with all external actions and events
