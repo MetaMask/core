@@ -7,12 +7,7 @@ import { BaseController } from '@metamask/base-controller';
 import type { Messenger } from '@metamask/messenger';
 import type { Json } from '@metamask/utils';
 
-import type {
-  Country,
-  TokensResponse,
-  Provider,
-  State,
-} from './RampsService';
+import type { Country, TokensResponse, Provider, State } from './RampsService';
 import type {
   RampsServiceGetGeolocationAction,
   RampsServiceGetCountriesAction,
