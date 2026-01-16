@@ -11,9 +11,8 @@ export type {
   AnalyticsPrivacyServiceOptions,
 } from './AnalyticsPrivacyService';
 
+export { DataDeleteStatus, DataDeleteResponseStatus } from './types';
 export type {
-  DataDeleteStatus,
-  DataDeleteResponseStatus,
   IDeleteRegulationResponse,
   IDeleteRegulationStatus,
   IDeleteRegulationStatusResponse,
