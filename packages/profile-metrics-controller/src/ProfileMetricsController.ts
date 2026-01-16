@@ -15,9 +15,12 @@ import type {
 import type { InternalAccount } from '@metamask/keyring-internal-api';
 import type { Messenger } from '@metamask/messenger';
 import { StaticIntervalPollingController } from '@metamask/polling-controller';
+import { TransactionControllerTransactionSubmittedEvent } from '@metamask/transaction-controller';
+import { Duration, inMilliseconds } from '@metamask/utils';
 import { Mutex } from 'async-mutex';
 
 import type { ProfileMetricsServiceMethodActions } from '.';
+import type { ProfileMetricsControllerMethodActions } from '.';
 import type { AccountWithScopes } from './ProfileMetricsService';
 
 /**
@@ -26,6 +29,14 @@ import type { AccountWithScopes } from './ProfileMetricsService';
  * when composed with other controllers.
  */
 export const controllerName = 'ProfileMetricsController';
+
+/**
+ * The default delay duration before data is sent for the first time.
+ */
+export const DEFAULT_INITIAL_DELAY_DURATION = inMilliseconds(
+  10,
+  Duration.Minute,
+);
 
 /**
  * Describes the shape of the state object for {@link ProfileMetricsController}.
@@ -43,6 +54,10 @@ export type ProfileMetricsControllerState = {
    * source ID are grouped under the key "null".
    */
   syncQueue: Record<string, AccountWithScopes[]>;
+  /**
+   * The timestamp when the first data sending can be attempted.
+   */
+  initialDelayEndTimestamp?: number;
 };
 
 /**
@@ -58,6 +73,12 @@ const profileMetricsControllerMetadata = {
   syncQueue: {
     persist: true,
     includeInDebugSnapshot: false,
+    includeInStateLogs: true,
+    usedInUi: false,
+  },
+  initialDelayEndTimestamp: {
+    persist: true,
+    includeInDebugSnapshot: true,
     includeInStateLogs: true,
     usedInUi: false,
   },
@@ -78,7 +99,7 @@ export function getDefaultProfileMetricsControllerState(): ProfileMetricsControl
   };
 }
 
-const MESSENGER_EXPOSED_METHODS = [] as const;
+const MESSENGER_EXPOSED_METHODS = ['skipInitialDelay'] as const;
 
 /**
  * Retrieves the state of the {@link ProfileMetricsController}.
@@ -93,7 +114,7 @@ export type ProfileMetricsControllerGetStateAction = ControllerGetStateAction<
  */
 export type ProfileMetricsControllerActions =
   | ProfileMetricsControllerGetStateAction
-  | ProfileMetricsServiceMethodActions;
+  | ProfileMetricsControllerMethodActions;
 
 /**
  * Actions from other messengers that {@link ProfileMetricsControllerMessenger} calls.
@@ -125,7 +146,8 @@ type AllowedEvents =
   | KeyringControllerUnlockEvent
   | KeyringControllerLockEvent
   | AccountsControllerAccountAddedEvent
-  | AccountsControllerAccountRemovedEvent;
+  | AccountsControllerAccountRemovedEvent
+  | TransactionControllerTransactionSubmittedEvent;
 
 /**
  * The messenger restricted to actions and events accessed by
@@ -148,6 +170,8 @@ export class ProfileMetricsController extends StaticIntervalPollingController()<
 
   readonly #getMetaMetricsId: () => string;
 
+  readonly #initialDelayDuration: number;
+
   /**
    * Constructs a new {@link ProfileMetricsController}.
    *
@@ -162,6 +186,8 @@ export class ProfileMetricsController extends StaticIntervalPollingController()<
    * of the user.
    * @param args.interval - The interval, in milliseconds, at which the controller will
    * attempt to send user profile data. Defaults to 10 seconds.
+   * @param args.initialDelayDuration - The delay duration before data is sent
+   * for the first time, in milliseconds. Defaults to 10 minutes.
    */
   constructor({
     messenger,
@@ -169,12 +195,14 @@ export class ProfileMetricsController extends StaticIntervalPollingController()<
     assertUserOptedIn,
     getMetaMetricsId,
     interval = 10 * 1000,
+    initialDelayDuration = DEFAULT_INITIAL_DELAY_DURATION,
   }: {
     messenger: ProfileMetricsControllerMessenger;
     state?: Partial<ProfileMetricsControllerState>;
     interval?: number;
     assertUserOptedIn: () => boolean;
     getMetaMetricsId: () => string;
+    initialDelayDuration?: number;
   }) {
     super({
       messenger,
@@ -188,6 +216,7 @@ export class ProfileMetricsController extends StaticIntervalPollingController()<
 
     this.#assertUserOptedIn = assertUserOptedIn;
     this.#getMetaMetricsId = getMetaMetricsId;
+    this.#initialDelayDuration = initialDelayDuration;
 
     this.messenger.registerMethodActionHandlers(
       this,
@@ -195,15 +224,24 @@ export class ProfileMetricsController extends StaticIntervalPollingController()<
     );
 
     this.messenger.subscribe('KeyringController:unlock', () => {
-      this.#queueFirstSyncIfNeeded().catch(console.error);
       if (this.#assertUserOptedIn()) {
-        this.startPolling(null);
+        // If the user has already opted in at the start of the session,
+        // it must have opted in during onboarding, or during a previous session.
+        this.skipInitialDelay();
       }
+      this.#queueFirstSyncIfNeeded().catch(
+        this.messenger.captureException ?? console.error,
+      );
+      this.startPolling(null);
     });
 
-    this.messenger.subscribe('KeyringController:lock', () => {
-      this.stopAllPolling();
-    });
+    this.messenger.subscribe('KeyringController:lock', () =>
+      this.stopAllPolling(),
+    );
+
+    this.messenger.subscribe('TransactionController:transactionSubmitted', () =>
+      this.skipInitialDelay(),
+    );
 
     this.messenger.subscribe('AccountsController:accountAdded', (account) => {
       this.#addAccountToQueue(account).catch(console.error);
@@ -214,6 +252,16 @@ export class ProfileMetricsController extends StaticIntervalPollingController()<
     });
 
     this.setIntervalLength(interval);
+  }
+
+  /**
+   * Skip the initial delay period by setting the end timestamp to the current time.
+   * Metrics will be sent on the next poll.
+   */
+  skipInitialDelay(): void {
+    this.update((state) => {
+      state.initialDelayEndTimestamp = Date.now();
+    });
   }
 
   /**
@@ -228,6 +276,10 @@ export class ProfileMetricsController extends StaticIntervalPollingController()<
   async _executePoll(): Promise<void> {
     await this.#mutex.runExclusive(async () => {
       if (!this.#assertUserOptedIn()) {
+        return;
+      }
+      this.#setInitialDelayEndTimestampIfNull();
+      if (!this.#isInitialDelayComplete()) {
         return;
       }
       for (const [entropySourceId, accounts] of Object.entries(
@@ -281,6 +333,28 @@ export class ProfileMetricsController extends StaticIntervalPollingController()<
         state.initialEnqueueCompleted = true;
       });
     });
+  }
+
+  /**
+   * Set the initial delay end timestamp if it is not already set.
+   */
+  #setInitialDelayEndTimestampIfNull(): void {
+    this.update((state) => {
+      state.initialDelayEndTimestamp ??=
+        Date.now() + this.#initialDelayDuration;
+    });
+  }
+
+  /**
+   * Check if the initial delay end timestamp is in the past.
+   *
+   * @returns True if the initial delay period has completed, false otherwise.
+   */
+  #isInitialDelayComplete(): boolean {
+    return (
+      this.state.initialDelayEndTimestamp !== undefined &&
+      Date.now() >= this.state.initialDelayEndTimestamp
+    );
   }
 
   /**

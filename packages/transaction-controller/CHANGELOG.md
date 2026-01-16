@@ -7,6 +7,19 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+### Added
+
+- Add support for `submitHistoryLimit` feature flag to configure the maximum number of entries in the submit history ([#7648](https://github.com/MetaMask/core/pull/7648))
+  - Defaults to 100 if not provided.
+- Add support for `transactionHistoryLimit` feature flag to configure the maximum number of transactions stored in state ([#7648](https://github.com/MetaMask/core/pull/7648))
+  - Defaults to 40 if not provided.
+
+### Changed
+
+- **DEPRECATED**: The `transactionHistoryLimit` constructor option is now deprecated ([#7648](https://github.com/MetaMask/core/pull/7648))
+  - Use the `transactionHistoryLimit` feature flag in `RemoteFeatureFlagController` instead.
+  - This option will be removed in a future version.
+
 ## [62.9.2]
 
 ### Changed

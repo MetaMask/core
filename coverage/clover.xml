@@ -1,0 +1,63 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<coverage generated="1768303498189" clover="3.2.0">
+  <project timestamp="1768303498189" name="All files">
+    <metrics statements="54" coveredstatements="0" conditionals="34" coveredconditionals="0" methods="12" coveredmethods="0" elements="100" coveredelements="0" complexity="0" loc="54" ncloc="54" packages="1" files="1" classes="1"/>
+    <file name="RampsService.ts" path="/Users/georgeweiler/code/ramps/core/packages/ramps-controller/src/RampsService.ts">
+      <metrics statements="54" coveredstatements="0" conditionals="34" coveredconditionals="0" methods="12" coveredmethods="0"/>
+      <line num="159" count="0" type="stmt"/>
+      <line num="167" count="0" type="stmt"/>
+      <line num="189" count="0" type="stmt"/>
+      <line num="240" count="0" type="cond" truecount="0" falsecount="2"/>
+      <line num="242" count="0" type="cond" truecount="0" falsecount="4"/>
+      <line num="244" count="0" type="stmt"/>
+      <line num="247" count="0" type="stmt"/>
+      <line num="249" count="0" type="stmt"/>
+      <line num="357" count="0" type="stmt"/>
+      <line num="358" count="0" type="stmt"/>
+      <line num="359" count="0" type="stmt"/>
+      <line num="360" count="0" type="stmt"/>
+      <line num="361" count="0" type="stmt"/>
+      <line num="362" count="0" type="stmt"/>
+      <line num="364" count="0" type="stmt"/>
+      <line num="383" count="0" type="stmt"/>
+      <line num="398" count="0" type="stmt"/>
+      <line num="421" count="0" type="stmt"/>
+      <line num="431" count="0" type="cond" truecount="0" falsecount="2"/>
+      <line num="432" count="0" type="stmt"/>
+      <line num="434" count="0" type="stmt"/>
+      <line num="435" count="0" type="stmt"/>
+      <line num="436" count="0" type="stmt"/>
+      <line num="457" count="0" type="stmt"/>
+      <line num="458" count="0" type="stmt"/>
+      <line num="459" count="0" type="stmt"/>
+      <line num="460" count="0" type="stmt"/>
+      <line num="462" count="0" type="stmt"/>
+      <line num="463" count="0" type="cond" truecount="0" falsecount="2"/>
+      <line num="464" count="0" type="stmt"/>
+      <line num="470" count="0" type="cond" truecount="0" falsecount="2"/>
+      <line num="483" count="0" type="stmt"/>
+      <line num="489" count="0" type="stmt"/>
+      <line num="490" count="0" type="cond" truecount="0" falsecount="2"/>
+      <line num="491" count="0" type="stmt"/>
+      <line num="494" count="0" type="stmt"/>
+      <line num="505" count="0" type="stmt"/>
+      <line num="511" count="0" type="cond" truecount="0" falsecount="2"/>
+      <line num="512" count="0" type="stmt"/>
+      <line num="515" count="0" type="stmt"/>
+      <line num="516" count="0" type="cond" truecount="0" falsecount="4"/>
+      <line num="517" count="0" type="stmt"/>
+      <line num="518" count="0" type="stmt"/>
+      <line num="520" count="0" type="cond" truecount="0" falsecount="2"/>
+      <line num="523" count="0" type="stmt"/>
+      <line num="534" count="0" type="stmt"/>
+      <line num="535" count="0" type="stmt"/>
+      <line num="553" count="0" type="stmt"/>
+      <line num="554" count="0" type="stmt"/>
+      <line num="560" count="0" type="cond" truecount="0" falsecount="4"/>
+      <line num="561" count="0" type="stmt"/>
+      <line num="564" count="0" type="cond" truecount="0" falsecount="2"/>
+      <line num="568" count="0" type="stmt"/>
+      <line num="571" count="0" type="stmt"/>
+    </file>
+  </project>
+</coverage>
