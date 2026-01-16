@@ -1,6 +1,5 @@
 /* eslint-disable @typescript-eslint/no-explicit-any */
 import { IntentApiImpl } from './intent-api';
-import type { IntentSubmissionParams } from './intent-api';
 import { IntentOrderStatus } from './validators';
 import type { FetchFunction } from '../types';
 
@@ -8,14 +7,14 @@ describe('IntentApiImpl', () => {
   const baseUrl = 'https://example.com/api';
   const clientId = 'client-id';
 
-  const makeParams = (): IntentSubmissionParams => ({
-    srcChainId: '1',
+  const makeParams = {
+    srcChainId: 1,
     quoteId: 'quote-123',
     signature: '0xsig',
-    order: { some: 'payload' },
+    order: { some: 'payload' } as never,
     userAddress: '0xabc',
     aggregatorId: 'agg-1',
-  });
+  };
 
   const makeFetchMock = (): any =>
     jest.fn<ReturnType<FetchFunction>, Parameters<FetchFunction>>();
@@ -30,7 +29,7 @@ describe('IntentApiImpl', () => {
     const fetchFn = makeFetchMock().mockResolvedValue(validIntentOrderResponse);
     const api = new IntentApiImpl(baseUrl, fetchFn);
 
-    const params = makeParams();
+    const params = makeParams;
     const result = await api.submitIntent(params, clientId);
 
     expect(result).toStrictEqual(validIntentOrderResponse);
@@ -49,7 +48,7 @@ describe('IntentApiImpl', () => {
     const fetchFn = makeFetchMock().mockRejectedValue(new Error('boom'));
     const api = new IntentApiImpl(baseUrl, fetchFn);
 
-    await expect(api.submitIntent(makeParams(), clientId)).rejects.toThrow(
+    await expect(api.submitIntent(makeParams, clientId)).rejects.toThrow(
       'Failed to submit intent: boom',
     );
   });
@@ -58,7 +57,7 @@ describe('IntentApiImpl', () => {
     const fetchFn = makeFetchMock().mockRejectedValue('boom');
     const api = new IntentApiImpl(baseUrl, fetchFn);
 
-    await expect(api.submitIntent(makeParams(), clientId)).rejects.toThrow(
+    await expect(api.submitIntent(makeParams, clientId)).rejects.toThrow(
       'Failed to submit intent',
     );
   });
@@ -116,11 +115,11 @@ describe('IntentApiImpl', () => {
   it('submitIntent throws when response fails validation', async () => {
     const fetchFn = makeFetchMock().mockResolvedValue({
       foo: 'bar', // invalid IntentOrder shape
-    } as any);
+    });
 
     const api = new IntentApiImpl(baseUrl, fetchFn);
 
-    await expect(api.submitIntent(makeParams(), clientId)).rejects.toThrow(
+    await expect(api.submitIntent(makeParams, clientId)).rejects.toThrow(
       'Failed to submit intent: Invalid submitOrder response',
     );
   });
@@ -128,7 +127,7 @@ describe('IntentApiImpl', () => {
   it('getOrderStatus throws when response fails validation', async () => {
     const fetchFn = makeFetchMock().mockResolvedValue({
       foo: 'bar', // invalid IntentOrder shape
-    } as any);
+    });
 
     const api = new IntentApiImpl(baseUrl, fetchFn);
 

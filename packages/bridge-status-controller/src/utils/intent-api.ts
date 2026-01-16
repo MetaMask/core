@@ -1,17 +1,21 @@
+import type {
+  QuoteResponse,
+  IntentOrderLike,
+} from '@metamask/bridge-controller';
 import { TransactionStatus } from '@metamask/transaction-controller';
 
 import {
-  IntentOrder,
+  IntentOrderStatusResponse,
   IntentOrderStatus,
   validateIntentOrderResponse,
 } from './validators';
 import type { FetchFunction } from '../types';
 
-export type IntentSubmissionParams = {
-  srcChainId: string;
-  quoteId: string;
+type IntentSubmissionParams = {
+  srcChainId: QuoteResponse['quote']['srcChainId'];
+  quoteId: QuoteResponse['quote']['requestId'];
   signature: string;
-  order: unknown;
+  order: IntentOrderLike;
   userAddress: string;
   aggregatorId: string;
 };
@@ -26,13 +30,13 @@ export type IntentApi = {
   submitIntent(
     params: IntentSubmissionParams,
     clientId: string,
-  ): Promise<IntentOrder>;
+  ): Promise<IntentOrderStatusResponse>;
   getOrderStatus(
     orderId: string,
     aggregatorId: string,
     srcChainId: string,
     clientId: string,
-  ): Promise<IntentOrder>;
+  ): Promise<IntentOrderStatusResponse>;
 };
 
 export class IntentApiImpl implements IntentApi {
@@ -48,7 +52,7 @@ export class IntentApiImpl implements IntentApi {
   async submitIntent(
     params: IntentSubmissionParams,
     clientId: string,
-  ): Promise<IntentOrder> {
+  ): Promise<IntentOrderStatusResponse> {
     const endpoint = `${this.#baseUrl}/submitOrder`;
     try {
       const response = await this.#fetchFn(endpoint, {
@@ -59,10 +63,10 @@ export class IntentApiImpl implements IntentApi {
         },
         body: JSON.stringify(params),
       });
-      if (!validateIntentOrderResponse(response)) {
-        throw new Error('Invalid submitOrder response');
-      }
-      return response;
+      return validateIntentOrderResponse(
+        response,
+        'Invalid submitOrder response',
+      );
     } catch (error: unknown) {
       if (error instanceof Error) {
         throw new Error(`Failed to submit intent: ${error.message}`);
@@ -76,17 +80,17 @@ export class IntentApiImpl implements IntentApi {
     aggregatorId: string,
     srcChainId: string,
     clientId: string,
-  ): Promise<IntentOrder> {
+  ): Promise<IntentOrderStatusResponse> {
     const endpoint = `${this.#baseUrl}/getOrderStatus?orderId=${orderId}&aggregatorId=${encodeURIComponent(aggregatorId)}&srcChainId=${srcChainId}`;
     try {
       const response = await this.#fetchFn(endpoint, {
         method: 'GET',
         headers: getClientIdHeader(clientId),
       });
-      if (!validateIntentOrderResponse(response)) {
-        throw new Error('Invalid getOrderStatus response');
-      }
-      return response;
+      return validateIntentOrderResponse(
+        response,
+        'Invalid getOrderStatus response',
+      );
     } catch (error: unknown) {
       if (error instanceof Error) {
         throw new Error(`Failed to get order status: ${error.message}`);

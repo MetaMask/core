@@ -101,8 +101,12 @@ export type StatusResponse = Infer<typeof StatusResponseSchema>;
 export type RefuelStatusResponse = object & StatusResponse;
 
 export type BridgeHistoryItem = {
-  txMetaId: string; // Need this to handle STX that might not have a txHash immediately
-  originalTransactionId?: string; // Keep original transaction ID for intent transactions
+  /**
+   * This is the TransactionController tx id for the trade. This is used to
+   * find the transaction in state if the hash is not available.
+   * For intent orders, this is the meta id of the synthetic transaction created to display the order's status
+   */
+  txMetaId: string;
   batchId?: string;
   quote: Quote;
   status: StatusResponse;
@@ -113,6 +117,10 @@ export type BridgeHistoryItem = {
    * for backward compatibility with consumers expecting a single hash.
    */
   srcTxHashes?: string[];
+  /**
+   * This is returned by the intent provider after the intent order has been submitted.
+   */
+  intentOrderId?: string;
   startTime?: number; // timestamp in ms
   estimatedProcessingTimeInSeconds: number;
   slippagePercentage: number;
@@ -203,6 +211,7 @@ export type StartPollingForBridgeTxStatusArgs = {
   initialDestAssetBalance?: BridgeHistoryItem['initialDestAssetBalance'];
   targetContractAddress?: BridgeHistoryItem['targetContractAddress'];
   approvalTxId?: BridgeHistoryItem['approvalTxId'];
+  intentOrderId?: BridgeHistoryItem['intentOrderId'];
   isStxEnabled?: BridgeHistoryItem['isStxEnabled'];
   accountAddress: string;
 };
