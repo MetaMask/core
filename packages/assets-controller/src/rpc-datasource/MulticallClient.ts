@@ -8,6 +8,7 @@ import type {
   BalanceOfResponse,
 } from './interfaces';
 import type { Address, ChainId } from './types';
+import { reduceInBatchesSerially } from './utils';
 
 // =============================================================================
 // CONSTANTS
@@ -445,71 +446,30 @@ export class MulticallClient implements IMulticallClient {
     // Use individual calls (fallback) for now
     // TODO: Fix Multicall3 aggregate3 encoding/decoding
     const provider = this.#getProvider(chainId);
-    const responses: BalanceOfResponse[] = [];
+    const batchSize = this.#config.maxCallsPerBatch;
 
-    // Process in parallel batches
-    const batchSize = 20;
-    for (let i = 0; i < requests.length; i += batchSize) {
-      const batch = requests.slice(i, i + batchSize);
+    // Process in batches serially, with parallel calls within each batch
+    const responses = await reduceInBatchesSerially<
+      BalanceOfRequest,
+      BalanceOfResponse[]
+    >({
+      values: requests,
+      batchSize,
+      initialResult: [],
+      eachBatch: async (workingResult, batch) => {
+        const batchResults = await Promise.allSettled(
+          batch.map((req) => this.#fetchSingleBalance(provider, req)),
+        );
 
-      const batchResults = await Promise.allSettled(
-        batch.map(async (req) => {
-          try {
-            if (req.tokenAddress === ZERO_ADDRESS) {
-              // Native balance
-              const balance = await provider.getBalance(req.accountAddress);
-              return {
-                tokenAddress: req.tokenAddress,
-                accountAddress: req.accountAddress,
-                success: true,
-                balance: balance.toString(),
-              };
-            }
-            // ERC20 balance
-            const callData = encodeBalanceOf(req.accountAddress);
-            const result = await provider.call({
-              to: req.tokenAddress,
-              data: callData,
-            });
-
-            // Decode uint256 from result
-            const balance = decodeUint256(result as Hex);
-            return {
-              tokenAddress: req.tokenAddress,
-              accountAddress: req.accountAddress,
-              success: true,
-              balance,
-            };
-          } catch (error) {
-            console.log(
-              '[MulticallClient] Balance call failed for',
-              req.tokenAddress,
-              error,
-            );
-            return {
-              tokenAddress: req.tokenAddress,
-              accountAddress: req.accountAddress,
-              success: false,
-              balance: undefined,
-            };
+        for (const result of batchResults) {
+          if (result.status === 'fulfilled') {
+            workingResult.push(result.value);
           }
-        }),
-      );
-
-      for (const result of batchResults) {
-        if (result.status === 'fulfilled') {
-          responses.push(result.value);
-        } else {
-          // Should not happen since we catch inside, but just in case
-          responses.push({
-            tokenAddress: batch[responses.length - i].tokenAddress,
-            accountAddress: batch[responses.length - i].accountAddress,
-            success: false,
-            balance: undefined,
-          });
         }
-      }
-    }
+
+        return workingResult;
+      },
+    });
 
     // Log summary
     const successCount = responses.filter((resp) => resp.success).length;
@@ -553,5 +513,62 @@ export class MulticallClient implements IMulticallClient {
     }
 
     return result;
+  }
+
+  // ===========================================================================
+  // PRIVATE HELPERS
+  // ===========================================================================
+
+  /**
+   * Fetch balance for a single token/account pair.
+   *
+   * @param provider - Ethereum provider with getBalance and call methods.
+   * @param req - Balance request.
+   * @returns Balance response.
+   */
+  async #fetchSingleBalance(
+    provider: Provider,
+    req: BalanceOfRequest,
+  ): Promise<BalanceOfResponse> {
+    try {
+      if (req.tokenAddress === ZERO_ADDRESS) {
+        // Native balance
+        const balance = await provider.getBalance(req.accountAddress);
+        return {
+          tokenAddress: req.tokenAddress,
+          accountAddress: req.accountAddress,
+          success: true,
+          balance: balance.toString(),
+        };
+      }
+
+      // ERC20 balance
+      const callData = encodeBalanceOf(req.accountAddress);
+      const result = await provider.call({
+        to: req.tokenAddress,
+        data: callData,
+      });
+
+      // Decode uint256 from result
+      const balance = decodeUint256(result as Hex);
+      return {
+        tokenAddress: req.tokenAddress,
+        accountAddress: req.accountAddress,
+        success: true,
+        balance,
+      };
+    } catch (error) {
+      console.log(
+        '[MulticallClient] Balance call failed for',
+        req.tokenAddress,
+        error,
+      );
+      return {
+        tokenAddress: req.tokenAddress,
+        accountAddress: req.accountAddress,
+        success: false,
+        balance: undefined,
+      };
+    }
   }
 }
