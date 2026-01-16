@@ -467,7 +467,11 @@ describe('RampsController', () => {
     });
 
     it('does not overwrite existing user region when called', async () => {
-      const existingRegion = createMockUserRegion('us-co', 'United States', 'Colorado');
+      const existingRegion = createMockUserRegion(
+        'us-co',
+        'United States',
+        'Colorado',
+      );
       await withController(
         {
           options: {
