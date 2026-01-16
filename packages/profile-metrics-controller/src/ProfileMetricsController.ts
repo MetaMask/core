@@ -16,6 +16,7 @@ import type { InternalAccount } from '@metamask/keyring-internal-api';
 import type { Messenger } from '@metamask/messenger';
 import { StaticIntervalPollingController } from '@metamask/polling-controller';
 import { TransactionControllerTransactionSubmittedEvent } from '@metamask/transaction-controller';
+import { Duration, inMilliseconds } from '@metamask/utils';
 import { Mutex } from 'async-mutex';
 
 import type { ProfileMetricsServiceMethodActions } from '.';
@@ -30,9 +31,12 @@ import type { AccountWithScopes } from './ProfileMetricsService';
 export const controllerName = 'ProfileMetricsController';
 
 /**
- * The default delay duration before data is sent for the first time, in milliseconds.
+ * The default delay duration before data is sent for the first time.
  */
-export const DEFAULT_INITIAL_DELAY_DURATION = 10 * 60 * 1000; // 10 minutes
+export const DEFAULT_INITIAL_DELAY_DURATION = inMilliseconds(
+  10,
+  Duration.Minute,
+);
 
 /**
  * Describes the shape of the state object for {@link ProfileMetricsController}.
