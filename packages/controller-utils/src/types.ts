@@ -41,6 +41,12 @@ export const CustomNetworkType = {
   'megaeth-testnet': 'megaeth-testnet',
   'megaeth-testnet-v2': 'megaeth-testnet-v2',
   'monad-testnet': 'monad-testnet',
+  // Environment 3: Power User test networks
+  'fantom-mainnet': 'fantom-mainnet',
+  'gnosis-mainnet': 'gnosis-mainnet',
+  'cronos-mainnet': 'cronos-mainnet',
+  'moonbeam-mainnet': 'moonbeam-mainnet',
+  'moonriver-mainnet': 'moonriver-mainnet',
 } as const;
 export type CustomNetworkType =
   (typeof CustomNetworkType)[keyof typeof CustomNetworkType];
@@ -116,6 +122,12 @@ export enum BuiltInNetworkName {
   ZkSyncEraMainnet = 'zksync-era-mainnet',
   MonadMainnet = 'monad-mainnet',
   MegaEthMainnet = 'megaeth-mainnet',
+  // Environment 3: Power User test networks
+  FantomMainnet = 'fantom-mainnet',
+  GnosisMainnet = 'gnosis-mainnet',
+  CronosMainnet = 'cronos-mainnet',
+  MoonbeamMainnet = 'moonbeam-mainnet',
+  MoonriverMainnet = 'moonriver-mainnet',
 }
 
 /**
@@ -149,6 +161,12 @@ export const ChainId = {
   [BuiltInNetworkName.ZkSyncEraMainnet]: '0x144', // toHex(324)
   [BuiltInNetworkName.MonadMainnet]: '0x8f', // toHex(143)
   [BuiltInNetworkName.MegaEthMainnet]: '0x10e6', // toHex(4326)
+  // Environment 3: Power User test networks
+  [BuiltInNetworkName.FantomMainnet]: '0xfa', // toHex(250)
+  [BuiltInNetworkName.GnosisMainnet]: '0x64', // toHex(100)
+  [BuiltInNetworkName.CronosMainnet]: '0x19', // toHex(25)
+  [BuiltInNetworkName.MoonbeamMainnet]: '0x504', // toHex(1284)
+  [BuiltInNetworkName.MoonriverMainnet]: '0x505', // toHex(1285)
 } as const;
 export type ChainId = (typeof ChainId)[keyof typeof ChainId];
 
@@ -184,6 +202,12 @@ export enum NetworksTicker {
   'zksync-era-mainnet' = 'ZKSYNC',
   'monad-mainnet' = 'MONAD',
   'megaeth-mainnet' = 'MEGAETH',
+  // Environment 3: Power User test networks
+  'fantom-mainnet' = 'FTM',
+  'gnosis-mainnet' = 'xDAI',
+  'cronos-mainnet' = 'CRO',
+  'moonbeam-mainnet' = 'GLMR',
+  'moonriver-mainnet' = 'MOVR',
   rpc = '',
 }
 /* eslint-enable @typescript-eslint/naming-convention */
@@ -214,6 +238,12 @@ export const BlockExplorerUrl = {
   [BuiltInNetworkName.ZkSyncEraMainnet]: 'https://explorer.zksync.io/',
   [BuiltInNetworkName.MonadMainnet]: 'https://monadscan.com/',
   [BuiltInNetworkName.MegaEthMainnet]: 'https://explorer.megaeth.com',
+  // Environment 3: Power User test networks
+  [BuiltInNetworkName.FantomMainnet]: 'https://ftmscan.com',
+  [BuiltInNetworkName.GnosisMainnet]: 'https://gnosisscan.io',
+  [BuiltInNetworkName.CronosMainnet]: 'https://explorer.cronos.org',
+  [BuiltInNetworkName.MoonbeamMainnet]: 'https://moonscan.io',
+  [BuiltInNetworkName.MoonriverMainnet]: 'https://moonriver.moonscan.io',
 } as const satisfies Record<BuiltInNetworkType, string>;
 export type BlockExplorerUrl =
   (typeof BlockExplorerUrl)[keyof typeof BlockExplorerUrl];
@@ -243,6 +273,12 @@ export const NetworkNickname = {
   [BuiltInNetworkName.ZkSyncEraMainnet]: 'zkSync Era Mainnet',
   [BuiltInNetworkName.MonadMainnet]: 'Monad Mainnet',
   [BuiltInNetworkName.MegaEthMainnet]: 'MegaETH Mainnet',
+  // Environment 3: Power User test networks
+  [BuiltInNetworkName.FantomMainnet]: 'Fantom Opera',
+  [BuiltInNetworkName.GnosisMainnet]: 'Gnosis',
+  [BuiltInNetworkName.CronosMainnet]: 'Cronos Mainnet',
+  [BuiltInNetworkName.MoonbeamMainnet]: 'Moonbeam',
+  [BuiltInNetworkName.MoonriverMainnet]: 'Moonriver',
 } as const satisfies Record<BuiltInNetworkType, string>;
 export type NetworkNickname =
   (typeof NetworkNickname)[keyof typeof NetworkNickname];

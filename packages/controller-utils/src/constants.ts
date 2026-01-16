@@ -71,6 +71,12 @@ export const BUILT_IN_CUSTOM_NETWORKS_RPC = {
   'hyper-evm-mainnet': 'https://rpc.hyperliquid.xyz/evm',
   'zksync-era-mainnet': 'https://mainnet.era.zksync.io',
   'megaeth-mainnet': 'https://mainnet.megaeth.com/rpc',
+  // Environment 3: Power User test networks
+  'fantom-mainnet': 'https://rpcapi.fantom.network',
+  'gnosis-mainnet': 'https://gnosis-mainnet.public.blastapi.io',
+  'cronos-mainnet': 'https://evm.cronos.org',
+  'moonbeam-mainnet': 'https://rpc.api.moonbeam.network',
+  'moonriver-mainnet': 'https://rpc.api.moonriver.moonbeam.network',
 };
 
 /**
@@ -228,6 +234,42 @@ export const BUILT_IN_NETWORKS = {
     ticker: NetworksTicker['megaeth-mainnet'],
     rpcPrefs: {
       blockExplorerUrl: BlockExplorerUrl['megaeth-mainnet'],
+    },
+  },
+  // Environment 3: Power User test networks
+  [NetworkType['fantom-mainnet']]: {
+    chainId: ChainId['fantom-mainnet'],
+    ticker: NetworksTicker['fantom-mainnet'],
+    rpcPrefs: {
+      blockExplorerUrl: BlockExplorerUrl['fantom-mainnet'],
+    },
+  },
+  [NetworkType['gnosis-mainnet']]: {
+    chainId: ChainId['gnosis-mainnet'],
+    ticker: NetworksTicker['gnosis-mainnet'],
+    rpcPrefs: {
+      blockExplorerUrl: BlockExplorerUrl['gnosis-mainnet'],
+    },
+  },
+  [NetworkType['cronos-mainnet']]: {
+    chainId: ChainId['cronos-mainnet'],
+    ticker: NetworksTicker['cronos-mainnet'],
+    rpcPrefs: {
+      blockExplorerUrl: BlockExplorerUrl['cronos-mainnet'],
+    },
+  },
+  [NetworkType['moonbeam-mainnet']]: {
+    chainId: ChainId['moonbeam-mainnet'],
+    ticker: NetworksTicker['moonbeam-mainnet'],
+    rpcPrefs: {
+      blockExplorerUrl: BlockExplorerUrl['moonbeam-mainnet'],
+    },
+  },
+  [NetworkType['moonriver-mainnet']]: {
+    chainId: ChainId['moonriver-mainnet'],
+    ticker: NetworksTicker['moonriver-mainnet'],
+    rpcPrefs: {
+      blockExplorerUrl: BlockExplorerUrl['moonriver-mainnet'],
     },
   },
   [NetworkType.rpc]: {

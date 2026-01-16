@@ -879,6 +879,22 @@ function getDefaultCustomNetworkConfigurationsByChainId(): Record<
     [ChainId['monad-testnet']]: getCustomNetworkConfiguration(
       CustomNetworkType['monad-testnet'],
     ),
+    // Environment 3: Power User test networks
+    [ChainId['fantom-mainnet']]: getCustomNetworkConfiguration(
+      CustomNetworkType['fantom-mainnet'],
+    ),
+    [ChainId['gnosis-mainnet']]: getCustomNetworkConfiguration(
+      CustomNetworkType['gnosis-mainnet'],
+    ),
+    [ChainId['cronos-mainnet']]: getCustomNetworkConfiguration(
+      CustomNetworkType['cronos-mainnet'],
+    ),
+    [ChainId['moonbeam-mainnet']]: getCustomNetworkConfiguration(
+      CustomNetworkType['moonbeam-mainnet'],
+    ),
+    [ChainId['moonriver-mainnet']]: getCustomNetworkConfiguration(
+      CustomNetworkType['moonriver-mainnet'],
+    ),
   };
 }
 

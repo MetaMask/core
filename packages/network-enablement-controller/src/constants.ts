@@ -13,4 +13,10 @@ export const POPULAR_NETWORKS = [
   '0x3e7', // HyperEVM (999)
   '0x8f', // Monad (143)
   '0x10e6', // MegaETH (4326)
+  // Environment 3: Power User test networks (25 total)
+  '0xfa', // Fantom Opera (250)
+  '0x64', // Gnosis (100)
+  '0x19', // Cronos (25)
+  '0x504', // Moonbeam (1284)
+  '0x505', // Moonriver (1285)
 ];
