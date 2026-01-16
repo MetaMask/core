@@ -113,6 +113,7 @@ import {
   updateSwapsTransaction,
 } from './utils/swaps';
 import * as transactionTypeUtils from './utils/transaction-type';
+import { getHistoryLimit } from './utils/feature-flags';
 import { ErrorCode } from './utils/validation';
 import { FakeBlockTracker } from '../../../tests/fake-block-tracker';
 import { FakeProvider } from '../../../tests/fake-provider';
@@ -570,6 +571,7 @@ describe('TransactionController', () => {
   const updateFirstTimeInteractionMock = jest.mocked(
     updateFirstTimeInteraction,
   );
+  const getHistoryLimitMock = jest.mocked(getHistoryLimit);
 
   let mockEthQuery: EthQuery;
   let getNonceLockSpy: jest.Mock;
@@ -1028,6 +1030,8 @@ describe('TransactionController', () => {
     });
 
     updateFirstTimeInteractionMock.mockResolvedValue(undefined);
+
+    getHistoryLimitMock.mockReturnValue(100);
   });
 
   describe('constructor', () => {
