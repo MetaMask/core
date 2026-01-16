@@ -12,6 +12,7 @@ const DEFAULT_ACCELERATED_POLLING_INTERVAL_MS = 3 * 1000;
 const DEFAULT_BLOCK_TIME = 12 * 1000;
 const DEFAULT_GAS_ESTIMATE_FALLBACK_BLOCK_PERCENT = 35;
 const DEFAULT_GAS_ESTIMATE_BUFFER = 1;
+const DEFAULT_HISTORY_LIMIT = 100;
 const DEFAULT_INCOMING_TRANSACTIONS_POLLING_INTERVAL_MS = 1000 * 60 * 4; // 4 Minutes
 
 /**
@@ -108,6 +109,9 @@ export type TransactionControllerFeatureFlags = {
   [FeatureFlag.Transactions]?: {
     /** Maximum number of transactions that can be in an external batch. */
     batchSizeLimit?: number;
+
+    /** Maximum number of entries in the submit history. */
+    historyLimit?: number;
 
     /**
      * Accelerated polling is used to speed up the polling process for
@@ -257,6 +261,23 @@ export function getBatchSizeLimit(
   return (
     featureFlags?.[FeatureFlag.Transactions]?.batchSizeLimit ??
     DEFAULT_BATCH_SIZE_LIMIT
+  );
+}
+
+/**
+ * Retrieves the transaction history limit.
+ * Defaults to 100 if not set.
+ *
+ * @param messenger - The controller messenger instance.
+ * @returns The transaction history limit.
+ */
+export function getHistoryLimit(
+  messenger: TransactionControllerMessenger,
+): number {
+  const featureFlags = getFeatureFlags(messenger);
+  return (
+    featureFlags?.[FeatureFlag.Transactions]?.historyLimit ??
+    DEFAULT_HISTORY_LIMIT
   );
 }
 

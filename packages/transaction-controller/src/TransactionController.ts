@@ -138,6 +138,7 @@ import {
   signAuthorizationList,
 } from './utils/eip7702';
 import { validateConfirmedExternalTransaction } from './utils/external-transactions';
+import { getHistoryLimit } from './utils/feature-flags';
 import { updateFirstTimeInteraction } from './utils/first-time-interaction';
 import {
   addGasBuffer,
@@ -217,8 +218,6 @@ const metadata: StateMetadata<TransactionControllerState> = {
     usedInUi: false,
   },
 };
-
-const SUBMIT_HISTORY_LIMIT = 100;
 
 /**
  * Object with new transaction's meta and a promise resolving to the
@@ -4542,10 +4541,12 @@ export class TransactionController extends BaseController<
 
     log('Updating submit history', submitHistoryEntry);
 
+    const historyLimit = getHistoryLimit(this.messenger);
+
     this.update((state) => {
       const { submitHistory } = state;
 
-      if (submitHistory.length === SUBMIT_HISTORY_LIMIT) {
+      if (submitHistory.length >= historyLimit) {
         submitHistory.pop();
       }
 

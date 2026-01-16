@@ -17,6 +17,7 @@ import {
   getGasFeeRandomisation,
   getGasEstimateFallback,
   getGasEstimateBuffer,
+  getHistoryLimit,
   FeatureFlag,
   getIncomingTransactionsPollingInterval,
   getTimeoutAttempts,
@@ -346,6 +347,32 @@ describe('Feature Flags Utils', () => {
     it('returns default value if undefined', () => {
       mockFeatureFlags({});
       expect(getBatchSizeLimit(controllerMessenger)).toBe(10);
+    });
+  });
+
+  describe('getHistoryLimit', () => {
+    it('returns value from remote feature flag controller', () => {
+      mockFeatureFlags({
+        [FeatureFlag.Transactions]: {
+          historyLimit: 50,
+        },
+      });
+
+      expect(getHistoryLimit(controllerMessenger)).toBe(50);
+    });
+
+    it('returns default value if undefined', () => {
+      mockFeatureFlags({});
+      expect(getHistoryLimit(controllerMessenger)).toBe(100);
+    });
+
+    it('returns default value if Transactions flag is defined but historyLimit is not', () => {
+      mockFeatureFlags({
+        [FeatureFlag.Transactions]: {
+          batchSizeLimit: 5,
+        },
+      });
+      expect(getHistoryLimit(controllerMessenger)).toBe(100);
     });
   });
 
