@@ -27,27 +27,20 @@ export {
 } from './AssetsController';
 
 // =============================================================================
-// RPC SERVICES
+// RPC DATASOURCE
 // =============================================================================
 export {
   // Main Datasource
   RpcDatasource,
-  // Components
-  RpcEventEmitter,
-  MulticallClient,
-  TokenDetector,
-  BalanceFetcher,
-  // Constants
-  MULTICALL3_ADDRESS_BY_CHAIN,
   // Types - Core
   type AccountId,
-  type ChainId,
   type Address,
   type AssetType,
   type Asset,
   type AssetBalance,
-  type AssetPrice,
   type CaipAssetType,
+  type ChainId,
+  type PollingInput,
   // Types - State
   type TokenListEntry,
   type TokenListState,
@@ -56,31 +49,12 @@ export {
   // Types - Account
   type AccountInfo,
   type GetAccountFunction,
+  type GetProviderFunction,
+  type Provider,
   // Types - Events
-  type AssetsChangedEvent,
   type AssetsBalanceChangedEvent,
-  type AssetsPriceChangedEvent,
-  type OnAssetsChangedCallback,
-  type OnAssetsBalanceChangedCallback,
-  type OnAssetsPriceChangedCallback,
-  type Unsubscribe,
-  // Types - Polling
-  type PollingInput,
-  // Types - Multicall
-  type BalanceOfRequest,
-  type BalanceOfResponse,
-  // Types - Detection/Fetch
-  type TokenDetectionResult,
-  type TokenDetectionOptions,
-  type BalanceFetchResult,
-  type BalanceFetchOptions,
-  type TokenFetchInfo,
+  type AssetsChangedEvent,
   // Types - Config
   type RpcDatasourceConfig,
   type RpcDatasourceDependencies,
-  type MulticallClientConfig,
-  type TokenDetectorConfig,
-  type BalanceFetcherConfig,
-  type Provider,
-  type GetProviderFunction,
 } from './rpc-datasource';

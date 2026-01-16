@@ -41,12 +41,7 @@ export type {
 } from './config';
 
 // Multicall types
-export type {
-  BalanceOfRequest,
-  BalanceOfResponse,
-  MulticallRequest,
-  MulticallResponse,
-} from './multicall';
+export type { BalanceOfRequest, BalanceOfResponse } from './multicall';
 
 // Service types
 export type {

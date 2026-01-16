@@ -1,31 +1,7 @@
-import type { Hex } from '@metamask/utils';
-
 import type { Address } from './core';
 
 /**
- * Single call in a multicall batch.
- */
-export type MulticallRequest = {
-  /** Target contract address */
-  target: Address;
-  /** Whether this call can fail without failing the batch */
-  allowFailure: boolean;
-  /** Encoded call data */
-  callData: Hex;
-};
-
-/**
- * Result of a single call in a multicall batch.
- */
-export type MulticallResponse = {
-  /** Whether the call succeeded */
-  success: boolean;
-  /** Returned data (encoded) */
-  returnData: Hex;
-};
-
-/**
- * Balance request for multicall.
+ * Balance request for batch balance fetching.
  */
 export type BalanceOfRequest = {
   /** Token contract address (zero address for native) */
@@ -35,7 +11,7 @@ export type BalanceOfRequest = {
 };
 
 /**
- * Balance response from multicall.
+ * Balance response from batch balance fetching.
  */
 export type BalanceOfResponse = {
   /** Token contract address */

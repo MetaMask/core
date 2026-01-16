@@ -16,6 +16,8 @@ export type {
   // State
   AccountInfo,
   GetAccountFunction,
+  GetProviderFunction,
+  Provider,
   TokenListEntry,
   TokenListState,
   UserToken,
@@ -34,8 +36,6 @@ export type {
   // Multicall
   BalanceOfRequest,
   BalanceOfResponse,
-  MulticallRequest,
-  MulticallResponse,
   // Services
   BalanceFetchOptions,
   BalanceFetchResult,
@@ -47,33 +47,22 @@ export type {
 // =============================================================================
 // CLIENTS
 // =============================================================================
-export {
-  MulticallClient,
-  MULTICALL3_ADDRESS_BY_CHAIN,
-  type MulticallClientConfig,
-  type Provider,
-  type GetProviderFunction,
-} from './clients';
+export { MulticallClient, type MulticallClientConfig } from './clients';
 
 // =============================================================================
 // SERVICES
 // =============================================================================
 export {
-  TokenDetector,
   BalanceFetcher,
-  type TokenDetectorConfig,
+  TokenDetector,
   type BalanceFetcherConfig,
+  type TokenDetectorConfig,
 } from './services';
 
 // =============================================================================
 // EVENTS
 // =============================================================================
 export { RpcEventEmitter } from './events';
-
-// =============================================================================
-// UTILITIES
-// =============================================================================
-export { divideIntoBatches, reduceInBatchesSerially } from './utils';
 
 // =============================================================================
 // MAIN DATASOURCE
