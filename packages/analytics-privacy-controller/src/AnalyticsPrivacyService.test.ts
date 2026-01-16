@@ -30,7 +30,7 @@ describe('AnalyticsPrivacyService', () => {
   });
 
   describe('AnalyticsPrivacyService:createDataDeletionTask', () => {
-    it('creates a data deletion task and returns the regulateId', async () => {
+    it('returns regulateId when deletion task is created', async () => {
       const analyticsId = 'test-analytics-id';
       const regulateId = 'test-regulate-id';
 
@@ -57,7 +57,7 @@ describe('AnalyticsPrivacyService', () => {
       });
     });
 
-    it('returns error if segmentSourceId is missing', async () => {
+    it('returns error response when segmentSourceId is empty string', async () => {
       const analyticsId = 'test-analytics-id';
 
       const { rootMessenger } = getService({
@@ -78,7 +78,7 @@ describe('AnalyticsPrivacyService', () => {
       });
     });
 
-    it('returns error if segmentRegulationsEndpoint is missing', async () => {
+    it('returns error response when segmentRegulationsEndpoint is empty string', async () => {
       const analyticsId = 'test-analytics-id';
 
       const { rootMessenger } = getService({
@@ -99,7 +99,7 @@ describe('AnalyticsPrivacyService', () => {
       });
     });
 
-    it('returns error if API returns non-200 status', async () => {
+    it('returns error response when API returns 500 status', async () => {
       const analyticsId = 'test-analytics-id';
 
       nock(segmentRegulationsEndpoint)
@@ -125,7 +125,7 @@ describe('AnalyticsPrivacyService', () => {
       });
     });
 
-    it('returns error if API returns malformed response', async () => {
+    it('returns error response when API response is missing regulateId', async () => {
       const analyticsId = 'test-analytics-id';
 
       nock(segmentRegulationsEndpoint)
@@ -149,7 +149,7 @@ describe('AnalyticsPrivacyService', () => {
       });
     });
 
-    it('sends correct request body with DELETE_ONLY regulation type', async () => {
+    it('sends request body with DELETE_ONLY regulation type and analyticsId in subjectIds', async () => {
       const analyticsId = 'test-analytics-id';
       const regulateId = 'test-regulate-id';
 
@@ -182,7 +182,7 @@ describe('AnalyticsPrivacyService', () => {
       expect(scope.isDone()).toBe(true);
     });
 
-    it('sends correct Content-Type header', async () => {
+    it('sends POST request with application/vnd.segment.v1+json Content-Type header', async () => {
       const analyticsId = 'test-analytics-id';
       const regulateId = 'test-regulate-id';
 
@@ -212,7 +212,7 @@ describe('AnalyticsPrivacyService', () => {
   });
 
   describe('AnalyticsPrivacyService:checkDataDeleteStatus', () => {
-    it('checks data deletion status and returns the status', async () => {
+    it('returns dataDeleteStatus when regulation status is retrieved', async () => {
       const regulationId = 'test-regulation-id';
       const status = DataDeleteStatus.Finished;
 
@@ -241,7 +241,7 @@ describe('AnalyticsPrivacyService', () => {
       });
     });
 
-    it('returns unknown status if regulationId is missing', async () => {
+    it('returns unknown status when regulationId is empty string', async () => {
       const { rootMessenger } = getService();
 
       const response = await rootMessenger.call(
@@ -255,7 +255,7 @@ describe('AnalyticsPrivacyService', () => {
       });
     });
 
-    it('returns unknown status if segmentRegulationsEndpoint is missing', async () => {
+    it('returns unknown status when segmentRegulationsEndpoint is empty string', async () => {
       const regulationId = 'test-regulation-id';
 
       const { rootMessenger } = getService({
@@ -276,7 +276,7 @@ describe('AnalyticsPrivacyService', () => {
       });
     });
 
-    it('returns unknown status if API returns non-200 status', async () => {
+    it('returns unknown status when API returns 500 status', async () => {
       const regulationId = 'test-regulation-id';
 
       nock(segmentRegulationsEndpoint)
@@ -302,7 +302,7 @@ describe('AnalyticsPrivacyService', () => {
       });
     });
 
-    it('returns unknown status if API response is missing overallStatus', async () => {
+    it('returns unknown status when API response is missing overallStatus', async () => {
       const regulationId = 'test-regulation-id';
 
       nock(segmentRegulationsEndpoint)
@@ -330,7 +330,7 @@ describe('AnalyticsPrivacyService', () => {
       });
     });
 
-    it('sends correct Content-Type header', async () => {
+    it('sends GET request with application/vnd.segment.v1+json Content-Type header', async () => {
       const regulationId = 'test-regulation-id';
       const status = DataDeleteStatus.Running;
 
@@ -362,7 +362,7 @@ describe('AnalyticsPrivacyService', () => {
   });
 
   describe('onRetry', () => {
-    it('registers and calls retry listeners', async () => {
+    it('calls retry listener when request is retried', async () => {
       nock(segmentRegulationsEndpoint)
         .post(`/regulations/sources/${segmentSourceId}`)
         .times(2)
@@ -396,7 +396,7 @@ describe('AnalyticsPrivacyService', () => {
   });
 
   describe('onBreak', () => {
-    it('registers and calls break listeners when circuit breaker opens', async () => {
+    it('calls break listener when circuit breaker opens after multiple failures', async () => {
       nock(segmentRegulationsEndpoint)
         .post(`/regulations/sources/${segmentSourceId}`)
         .times(12)
@@ -437,7 +437,7 @@ describe('AnalyticsPrivacyService', () => {
   });
 
   describe('onDegraded', () => {
-    it('calls onDegraded listeners if the request takes longer than 5 seconds to resolve', async () => {
+    it('calls onDegraded listener when request takes longer than 5 seconds', async () => {
       nock(segmentRegulationsEndpoint)
         .post(`/regulations/sources/${segmentSourceId}`)
         .reply(200, () => {
@@ -463,7 +463,7 @@ describe('AnalyticsPrivacyService', () => {
       expect(onDegradedListener).toHaveBeenCalled();
     });
 
-    it('calls onDegraded listeners when the maximum number of retries is exceeded', async () => {
+    it('calls onDegraded listener when maximum number of retries is exceeded', async () => {
       nock(segmentRegulationsEndpoint)
         .post(`/regulations/sources/${segmentSourceId}`)
         .times(4)

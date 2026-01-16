@@ -6,7 +6,7 @@ import type { AnalyticsPrivacyControllerState } from './AnalyticsPrivacyControll
 
 describe('analyticsPrivacyControllerSelectors', () => {
   describe('selectDataRecorded', () => {
-    it('returns the dataRecorded flag from state', () => {
+    it('returns true when dataRecorded is true in state', () => {
       const state: AnalyticsPrivacyControllerState = {
         ...getDefaultAnalyticsPrivacyControllerState(),
         dataRecorded: true,
@@ -17,7 +17,7 @@ describe('analyticsPrivacyControllerSelectors', () => {
       ).toBe(true);
     });
 
-    it('returns false when dataRecorded is false', () => {
+    it('returns false when dataRecorded is false in state', () => {
       const state: AnalyticsPrivacyControllerState = {
         ...getDefaultAnalyticsPrivacyControllerState(),
         dataRecorded: false,
@@ -30,7 +30,7 @@ describe('analyticsPrivacyControllerSelectors', () => {
   });
 
   describe('selectDeleteRegulationId', () => {
-    it('returns the deleteRegulationId when set', () => {
+    it('returns deleteRegulationId string when set in state', () => {
       const state: AnalyticsPrivacyControllerState = {
         ...getDefaultAnalyticsPrivacyControllerState(),
         deleteRegulationId: 'test-regulation-id',
@@ -41,7 +41,7 @@ describe('analyticsPrivacyControllerSelectors', () => {
       ).toBe('test-regulation-id');
     });
 
-    it('returns undefined when deleteRegulationId is null', () => {
+    it('returns undefined when deleteRegulationId is null in state', () => {
       const state: AnalyticsPrivacyControllerState = {
         ...getDefaultAnalyticsPrivacyControllerState(),
         deleteRegulationId: null,
@@ -54,7 +54,7 @@ describe('analyticsPrivacyControllerSelectors', () => {
   });
 
   describe('selectDeleteRegulationTimestamp', () => {
-    it('returns the deleteRegulationTimestamp when set', () => {
+    it('returns deleteRegulationTimestamp number when set in state', () => {
       const testTimestamp = new Date('2026-01-15T12:00:00Z').getTime();
       const state: AnalyticsPrivacyControllerState = {
         ...getDefaultAnalyticsPrivacyControllerState(),
@@ -68,7 +68,7 @@ describe('analyticsPrivacyControllerSelectors', () => {
       ).toBe(testTimestamp);
     });
 
-    it('returns undefined when deleteRegulationTimestamp is null', () => {
+    it('returns undefined when deleteRegulationTimestamp is null in state', () => {
       const state: AnalyticsPrivacyControllerState = {
         ...getDefaultAnalyticsPrivacyControllerState(),
         deleteRegulationTimestamp: null,
