@@ -345,14 +345,10 @@ export class ProfileMetricsController extends StaticIntervalPollingController()<
    * @returns True if the initial delay period has completed, false otherwise.
    */
   #isInitialDelayComplete(): boolean {
-    // The following check should never be true due to the initialization logic,
-    // as the `initialDelayEndTimestamp` is always set in the constructor,
-    // but is included for type safety. Ignoring for code coverage purposes.
-    // istanbul ignore if
-    if (this.state.initialDelayEndTimestamp === undefined) {
-      return false;
-    }
-    return Date.now() >= this.state.initialDelayEndTimestamp;
+    return (
+      this.state.initialDelayEndTimestamp !== undefined &&
+      Date.now() >= this.state.initialDelayEndTimestamp
+    );
   }
 
   /**
