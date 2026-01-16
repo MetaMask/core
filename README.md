@@ -361,6 +361,7 @@ linkStyle default opacity:0.5
   profile_metrics_controller --> messenger;
   profile_metrics_controller --> polling_controller;
   profile_metrics_controller --> profile_sync_controller;
+  profile_metrics_controller --> transaction_controller;
   profile_sync_controller --> address_book_controller;
   profile_sync_controller --> base_controller;
   profile_sync_controller --> keyring_controller;
