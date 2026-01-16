@@ -270,7 +270,7 @@ export class AnalyticsPrivacyService {
   ): Promise<IDeleteRegulationResponse> {
     if (!this.#segmentSourceId || !this.#segmentRegulationsEndpoint) {
       return {
-        status: DataDeleteResponseStatus.error,
+        status: DataDeleteResponseStatus.Error,
         error: 'Segment API source ID or endpoint not found',
       };
     }
@@ -309,7 +309,7 @@ export class AnalyticsPrivacyService {
         typeof jsonResponse.data.data.regulateId === 'string'
       ) {
         return {
-          status: DataDeleteResponseStatus.ok,
+          status: DataDeleteResponseStatus.Ok,
           regulateId: jsonResponse.data.data.regulateId,
         };
       }
@@ -319,13 +319,13 @@ export class AnalyticsPrivacyService {
         new Error('Malformed response from Segment API'),
       );
       return {
-        status: DataDeleteResponseStatus.error,
+        status: DataDeleteResponseStatus.Error,
         error: 'Analytics Deletion Task Error',
       };
     } catch (error) {
       log('Analytics Deletion Task Error', error);
       return {
-        status: DataDeleteResponseStatus.error,
+        status: DataDeleteResponseStatus.Error,
         error: 'Analytics Deletion Task Error',
       };
     }
@@ -343,8 +343,8 @@ export class AnalyticsPrivacyService {
     // Early return if regulationId is missing (cannot check status) or endpoint is not configured
     if (!regulationId || !this.#segmentRegulationsEndpoint) {
       return {
-        status: DataDeleteResponseStatus.error,
-        dataDeleteStatus: DataDeleteStatus.unknown,
+        status: DataDeleteResponseStatus.Error,
+        dataDeleteStatus: DataDeleteStatus.Unknown,
       };
     }
 
@@ -372,19 +372,22 @@ export class AnalyticsPrivacyService {
       const jsonResponse =
         (await response.json()) as GetRegulationStatusResponse;
 
-      const status =
-        jsonResponse?.data?.data?.regulation?.overallStatus ||
-        DataDeleteStatus.unknown;
+      const rawStatus = jsonResponse?.data?.data?.regulation?.overallStatus;
+      const dataDeleteStatus = Object.values(DataDeleteStatus).includes(
+        rawStatus as DataDeleteStatus,
+      )
+        ? (rawStatus as DataDeleteStatus)
+        : DataDeleteStatus.Unknown;
 
       return {
-        status: DataDeleteResponseStatus.ok,
-        dataDeleteStatus: status as DataDeleteStatus,
+        status: DataDeleteResponseStatus.Ok,
+        dataDeleteStatus,
       };
     } catch (error) {
       log('Analytics Deletion Task Check Error', error);
       return {
-        status: DataDeleteResponseStatus.error,
-        dataDeleteStatus: DataDeleteStatus.unknown,
+        status: DataDeleteResponseStatus.Error,
+        dataDeleteStatus: DataDeleteStatus.Unknown,
       };
     }
   }

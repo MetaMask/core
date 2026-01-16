@@ -52,7 +52,7 @@ describe('AnalyticsPrivacyService', () => {
       );
 
       expect(response).toStrictEqual({
-        status: DataDeleteResponseStatus.ok,
+        status: DataDeleteResponseStatus.Ok,
         regulateId,
       });
     });
@@ -73,7 +73,7 @@ describe('AnalyticsPrivacyService', () => {
       );
 
       expect(response).toStrictEqual({
-        status: DataDeleteResponseStatus.error,
+        status: DataDeleteResponseStatus.Error,
         error: 'Segment API source ID or endpoint not found',
       });
     });
@@ -94,7 +94,7 @@ describe('AnalyticsPrivacyService', () => {
       );
 
       expect(response).toStrictEqual({
-        status: DataDeleteResponseStatus.error,
+        status: DataDeleteResponseStatus.Error,
         error: 'Segment API source ID or endpoint not found',
       });
     });
@@ -120,7 +120,7 @@ describe('AnalyticsPrivacyService', () => {
       );
 
       expect(response).toStrictEqual({
-        status: DataDeleteResponseStatus.error,
+        status: DataDeleteResponseStatus.Error,
         error: 'Analytics Deletion Task Error',
       });
     });
@@ -144,7 +144,7 @@ describe('AnalyticsPrivacyService', () => {
       );
 
       expect(response).toStrictEqual({
-        status: DataDeleteResponseStatus.error,
+        status: DataDeleteResponseStatus.Error,
         error: 'Analytics Deletion Task Error',
       });
     });
@@ -214,7 +214,7 @@ describe('AnalyticsPrivacyService', () => {
   describe('AnalyticsPrivacyService:checkDataDeleteStatus', () => {
     it('checks data deletion status and returns the status', async () => {
       const regulationId = 'test-regulation-id';
-      const status = DataDeleteStatus.finished;
+      const status = DataDeleteStatus.Finished;
 
       nock(segmentRegulationsEndpoint)
         .get(`/regulations/${regulationId}`)
@@ -236,7 +236,7 @@ describe('AnalyticsPrivacyService', () => {
       );
 
       expect(response).toStrictEqual({
-        status: DataDeleteResponseStatus.ok,
+        status: DataDeleteResponseStatus.Ok,
         dataDeleteStatus: status,
       });
     });
@@ -250,8 +250,8 @@ describe('AnalyticsPrivacyService', () => {
       );
 
       expect(response).toStrictEqual({
-        status: DataDeleteResponseStatus.error,
-        dataDeleteStatus: DataDeleteStatus.unknown,
+        status: DataDeleteResponseStatus.Error,
+        dataDeleteStatus: DataDeleteStatus.Unknown,
       });
     });
 
@@ -271,8 +271,8 @@ describe('AnalyticsPrivacyService', () => {
       );
 
       expect(response).toStrictEqual({
-        status: DataDeleteResponseStatus.error,
-        dataDeleteStatus: DataDeleteStatus.unknown,
+        status: DataDeleteResponseStatus.Error,
+        dataDeleteStatus: DataDeleteStatus.Unknown,
       });
     });
 
@@ -297,8 +297,8 @@ describe('AnalyticsPrivacyService', () => {
       );
 
       expect(response).toStrictEqual({
-        status: DataDeleteResponseStatus.error,
-        dataDeleteStatus: DataDeleteStatus.unknown,
+        status: DataDeleteResponseStatus.Error,
+        dataDeleteStatus: DataDeleteStatus.Unknown,
       });
     });
 
@@ -325,14 +325,14 @@ describe('AnalyticsPrivacyService', () => {
       );
 
       expect(response).toStrictEqual({
-        status: DataDeleteResponseStatus.ok,
-        dataDeleteStatus: DataDeleteStatus.unknown,
+        status: DataDeleteResponseStatus.Ok,
+        dataDeleteStatus: DataDeleteStatus.Unknown,
       });
     });
 
     it('sends correct Content-Type header', async () => {
       const regulationId = 'test-regulation-id';
-      const status = DataDeleteStatus.running;
+      const status = DataDeleteStatus.Running;
 
       const scope = nock(segmentRegulationsEndpoint, {
         reqheaders: {
@@ -388,7 +388,7 @@ describe('AnalyticsPrivacyService', () => {
           'test-analytics-id',
         ),
       ).toMatchObject({
-        status: DataDeleteResponseStatus.error,
+        status: DataDeleteResponseStatus.Error,
       });
 
       expect(onRetryListener).toHaveBeenCalled();
@@ -418,7 +418,7 @@ describe('AnalyticsPrivacyService', () => {
             'test-analytics-id',
           ),
         ).toMatchObject({
-          status: DataDeleteResponseStatus.error,
+          status: DataDeleteResponseStatus.Error,
         });
       }
 
@@ -429,7 +429,7 @@ describe('AnalyticsPrivacyService', () => {
           'test-analytics-id',
         ),
       ).toMatchObject({
-        status: DataDeleteResponseStatus.error,
+        status: DataDeleteResponseStatus.Error,
       });
 
       expect(onBreakListener).toHaveBeenCalled();
@@ -482,7 +482,7 @@ describe('AnalyticsPrivacyService', () => {
           'test-analytics-id',
         ),
       ).toMatchObject({
-        status: DataDeleteResponseStatus.error,
+        status: DataDeleteResponseStatus.Error,
       });
 
       expect(onDegradedListener).toHaveBeenCalled();

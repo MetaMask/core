@@ -1,30 +1,26 @@
 /**
  * Status values for data deletion requests from Segment API.
- * Enum member names match Segment API response values exactly.
+ * Enum values match Segment API response values exactly.
  */
-/* eslint-disable @typescript-eslint/naming-convention */
 export enum DataDeleteStatus {
-  failed = 'FAILED',
-  finished = 'FINISHED',
-  initialized = 'INITIALIZED',
-  invalid = 'INVALID',
-  notSupported = 'NOT_SUPPORTED',
-  partialSuccess = 'PARTIAL_SUCCESS',
-  running = 'RUNNING',
-  unknown = 'UNKNOWN',
+  Failed = 'FAILED',
+  Finished = 'FINISHED',
+  Initialized = 'INITIALIZED',
+  Invalid = 'INVALID',
+  NotSupported = 'NOT_SUPPORTED',
+  PartialSuccess = 'PARTIAL_SUCCESS',
+  Running = 'RUNNING',
+  Unknown = 'UNKNOWN',
 }
-/* eslint-enable @typescript-eslint/naming-convention */
 
 /**
  * Response status for deletion regulation operations.
- * Enum member names match API response values exactly.
+ * Enum values match API response values exactly.
  */
-/* eslint-disable @typescript-eslint/naming-convention */
 export enum DataDeleteResponseStatus {
-  ok = 'ok',
-  error = 'error',
+  Ok = 'ok',
+  Error = 'error',
 }
-/* eslint-enable @typescript-eslint/naming-convention */
 
 /**
  * Response from creating a data deletion task.

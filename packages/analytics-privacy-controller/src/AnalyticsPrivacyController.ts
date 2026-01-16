@@ -244,7 +244,7 @@ export class AnalyticsPrivacyController extends BaseController<
         const error = new Error('Analytics ID not found');
         log('Analytics Deletion Task Error', error);
         return {
-          status: DataDeleteResponseStatus.error,
+          status: DataDeleteResponseStatus.Error,
           error: 'Analytics ID not found',
         };
       }
@@ -255,7 +255,7 @@ export class AnalyticsPrivacyController extends BaseController<
       );
 
       if (
-        response.status === DataDeleteResponseStatus.ok &&
+        response.status === DataDeleteResponseStatus.Ok &&
         response.regulateId &&
         typeof response.regulateId === 'string' &&
         response.regulateId.trim() !== ''
@@ -284,7 +284,7 @@ export class AnalyticsPrivacyController extends BaseController<
           ? error.message
           : 'Analytics Deletion Task Error';
       return {
-        status: DataDeleteResponseStatus.error,
+        status: DataDeleteResponseStatus.Error,
         error: errorMessage,
       };
     }
@@ -298,7 +298,7 @@ export class AnalyticsPrivacyController extends BaseController<
   async checkDataDeleteStatus(): Promise<IDeleteRegulationStatus> {
     const status: IDeleteRegulationStatus = {
       deletionRequestTimestamp: undefined,
-      dataDeletionRequestStatus: DataDeleteStatus.unknown,
+      dataDeletionRequestStatus: DataDeleteStatus.Unknown,
       hasCollectedDataSinceDeletionRequest: false,
     };
 
@@ -316,7 +316,7 @@ export class AnalyticsPrivacyController extends BaseController<
         dataDeletionTaskStatus.dataDeleteStatus;
     } catch (error) {
       log('Error checkDataDeleteStatus', error);
-      status.dataDeletionRequestStatus = DataDeleteStatus.unknown;
+      status.dataDeletionRequestStatus = DataDeleteStatus.Unknown;
     }
 
     status.deletionRequestTimestamp =
