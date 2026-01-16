@@ -10,6 +10,7 @@ export type {
   // Options types
   AssetsControllerOptions,
   PollingTarget,
+  PollingAccount,
   // Action types
   AssetsControllerGetStateAction,
   AssetsControllerActions,
@@ -24,15 +25,6 @@ export {
   getDefaultAssetsControllerState,
   controllerName,
 } from './AssetsController';
-
-// =============================================================================
-// POLLING MIDDLEWARE
-// =============================================================================
-export type {
-  AssetsPollingMiddlewareConfig,
-  PollingAccount,
-} from './AssetsPollingMiddleware';
-export { AssetsPollingMiddleware } from './AssetsPollingMiddleware';
 
 // =============================================================================
 // RPC SERVICES
@@ -74,26 +66,18 @@ export {
   type Unsubscribe,
   // Types - Polling
   type PollingInput,
-  // Interfaces
-  type IRpcEventEmitter,
-  type IMulticallClient,
-  type ITokenDetector,
-  type IBalanceFetcher,
-  type IPoller,
-  // Interface sub-types
-  type MulticallRequest,
-  type MulticallResponse,
+  // Types - Multicall
   type BalanceOfRequest,
   type BalanceOfResponse,
+  // Types - Detection/Fetch
   type TokenDetectionResult,
   type TokenDetectionOptions,
   type BalanceFetchResult,
   type BalanceFetchOptions,
-  type PollerStatus,
-  type PollerConfig,
+  type TokenFetchInfo,
+  // Types - Config
   type RpcDatasourceConfig,
   type RpcDatasourceDependencies,
-  // Config types
   type MulticallClientConfig,
   type TokenDetectorConfig,
   type BalanceFetcherConfig,

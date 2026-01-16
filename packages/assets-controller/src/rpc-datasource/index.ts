@@ -2,88 +2,73 @@
 // TYPES
 // =============================================================================
 export type {
-  // Core identifiers
+  // Core
   AccountId,
-  ChainId,
   Address,
-  // Asset types
   AssetType,
+  CaipAssetType,
+  ChainId,
+  PollingInput,
+  // Assets
   Asset,
   AssetBalance,
   AssetPrice,
-  // State types
+  // State
+  AccountInfo,
+  GetAccountFunction,
   TokenListEntry,
   TokenListState,
   UserToken,
   UserTokensState,
-  // Account
-  AccountInfo,
-  GetAccountFunction,
   // Events
-  AssetsChangedEvent,
   AssetsBalanceChangedEvent,
+  AssetsChangedEvent,
   AssetsPriceChangedEvent,
-  OnAssetsChangedCallback,
   OnAssetsBalanceChangedCallback,
+  OnAssetsChangedCallback,
   OnAssetsPriceChangedCallback,
   Unsubscribe,
-  // Polling
-  PollingInput,
+  // Config
+  RpcDatasourceConfig,
+  RpcDatasourceDependencies,
+  // Multicall
+  BalanceOfRequest,
+  BalanceOfResponse,
+  MulticallRequest,
+  MulticallResponse,
+  // Services
+  BalanceFetchOptions,
+  BalanceFetchResult,
+  TokenDetectionOptions,
+  TokenDetectionResult,
+  TokenFetchInfo,
 } from './types';
 
 // =============================================================================
-// INTERFACES
+// CLIENTS
 // =============================================================================
-export type {
-  // Event Emitter
-  IRpcEventEmitter,
-  // Multicall Client
-  IMulticallClient,
-  MulticallRequest,
-  MulticallResponse,
-  BalanceOfRequest,
-  BalanceOfResponse,
-  // Token Detector
-  ITokenDetector,
-  TokenDetectionResult,
-  TokenDetectionOptions,
-  // Balance Fetcher
-  IBalanceFetcher,
-  BalanceFetchResult,
-  BalanceFetchOptions,
-  // Poller
-  IPoller,
-  PollerStatus,
-  PollerConfig,
-  // RPC Datasource
-  RpcDatasourceConfig,
-  RpcDatasourceDependencies,
-} from './interfaces';
-
-// =============================================================================
-// IMPLEMENTATIONS
-// =============================================================================
-
-// Event Emitter
-export { RpcEventEmitter } from './RpcEventEmitter';
-
-// Multicall Client
 export {
   MulticallClient,
   MULTICALL3_ADDRESS_BY_CHAIN,
   type MulticallClientConfig,
   type Provider,
   type GetProviderFunction,
-} from './MulticallClient';
+} from './clients';
 
-// Token Detector
-export { TokenDetector, type TokenDetectorConfig } from './TokenDetector';
+// =============================================================================
+// SERVICES
+// =============================================================================
+export {
+  TokenDetector,
+  BalanceFetcher,
+  type TokenDetectorConfig,
+  type BalanceFetcherConfig,
+} from './services';
 
-// Balance Fetcher
-export { BalanceFetcher, type BalanceFetcherConfig } from './BalanceFetcher';
-
-// RPC Datasource (main export)
-export { RpcDatasource } from './RpcDatasource';
+// =============================================================================
+// EVENTS
+// =============================================================================
+export { RpcEventEmitter } from './events';
 
 // =============================================================================
 // UTILITIES
@@ -91,6 +76,6 @@ export { RpcDatasource } from './RpcDatasource';
 export { divideIntoBatches, reduceInBatchesSerially } from './utils';
 
 // =============================================================================
-// RE-EXPORTS FROM UTILS
+// MAIN DATASOURCE
 // =============================================================================
-export type { CaipAssetType } from '@metamask/utils';
+export { RpcDatasource } from './RpcDatasource';

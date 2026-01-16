@@ -1,6 +1,5 @@
 import SafeEventEmitter from '@metamask/safe-event-emitter';
 
-import type { IRpcEventEmitter } from './interfaces';
 import type {
   AssetsBalanceChangedEvent,
   AssetsChangedEvent,
@@ -9,7 +8,7 @@ import type {
   OnAssetsChangedCallback,
   OnAssetsPriceChangedCallback,
   Unsubscribe,
-} from './types';
+} from '../types';
 
 /**
  * RpcEventEmitter - Event emitter for RPC datasource events.
@@ -17,10 +16,7 @@ import type {
  * Provides a pub/sub mechanism for consumers to subscribe to
  * asset detection, balance updates, and price changes.
  */
-export class RpcEventEmitter
-  extends SafeEventEmitter
-  implements IRpcEventEmitter
-{
+export class RpcEventEmitter extends SafeEventEmitter {
   onAssetsChanged(callback: OnAssetsChangedCallback): Unsubscribe {
     this.on('assetsChanged', callback);
     return () => this.off('assetsChanged', callback);

@@ -1,26 +1,20 @@
 import { StaticIntervalPollingControllerOnly } from '@metamask/polling-controller';
 
-import { BalanceFetcher } from './BalanceFetcher';
-import type {
-  BalanceFetchResult,
-  IBalanceFetcher,
-  IMulticallClient,
-  ITokenDetector,
-  RpcDatasourceConfig,
-  RpcDatasourceDependencies,
-  TokenDetectionResult,
-} from './interfaces';
-import { MulticallClient } from './MulticallClient';
-import { RpcEventEmitter } from './RpcEventEmitter';
-import { TokenDetector } from './TokenDetector';
+import { MulticallClient } from './clients';
+import { RpcEventEmitter } from './events';
+import { BalanceFetcher, TokenDetector } from './services';
 import type {
   AccountId,
+  BalanceFetchResult,
   ChainId,
   GetAccountFunction,
   OnAssetsBalanceChangedCallback,
   OnAssetsChangedCallback,
   OnAssetsPriceChangedCallback,
   PollingInput,
+  RpcDatasourceConfig,
+  RpcDatasourceDependencies,
+  TokenDetectionResult,
   TokenListState,
   Unsubscribe,
   UserTokensState,
@@ -30,9 +24,11 @@ import type {
  * Default configuration values.
  */
 const DEFAULT_CONFIG: Required<RpcDatasourceConfig> = {
-  pollingIntervalMs: 10000, // 10 seconds for faster debugging
-  detectionBatchSize: 100,
-  balanceBatchSize: 100,
+  pollingIntervalMs: 30000, // 30 seconds base polling interval
+  balanceIntervalMs: 30000, // 30 seconds for balance fetching
+  detectionIntervalMs: 180000, // 3 minutes for token detection
+  detectionBatchSize: 300,
+  balanceBatchSize: 300,
   rpcTimeoutMs: 30000,
 };
 
@@ -109,15 +105,32 @@ export class RpcDatasource extends StaticIntervalPollingControllerOnly<PollingIn
    */
   readonly #isTokenDetectionEnabled: () => boolean;
 
+  /**
+   * Interval for balance fetching (ms).
+   */
+  readonly #balanceIntervalMs: number;
+
+  /**
+   * Interval for token detection (ms).
+   */
+  readonly #detectionIntervalMs: number;
+
+  /**
+   * Track last execution times per polling key (chainId:accountId).
+   */
+  readonly #lastBalanceTime: Map<string, number> = new Map();
+
+  readonly #lastDetectionTime: Map<string, number> = new Map();
+
   // ===========================================================================
   // PUBLIC READONLY FIELDS (Components)
   // ===========================================================================
 
-  readonly multicallClient: IMulticallClient;
+  readonly multicallClient: MulticallClient;
 
-  readonly tokenDetector: ITokenDetector;
+  readonly tokenDetector: TokenDetector;
 
-  readonly balanceFetcher: IBalanceFetcher;
+  readonly balanceFetcher: BalanceFetcher;
 
   // ===========================================================================
   // CONSTRUCTOR
@@ -164,9 +177,18 @@ export class RpcDatasource extends StaticIntervalPollingControllerOnly<PollingIn
     this.#isTokenDetectionEnabled =
       dependencies.isTokenDetectionEnabled ?? ((): boolean => false);
 
+    // Store interval config
+    this.#balanceIntervalMs = mergedConfig.balanceIntervalMs;
+    this.#detectionIntervalMs = mergedConfig.detectionIntervalMs;
+
     console.log(
       '[RpcDatasource] isTokenDetectionEnabled provided:',
       Boolean(dependencies.isTokenDetectionEnabled),
+    );
+    console.log('[RpcDatasource] balanceIntervalMs:', this.#balanceIntervalMs);
+    console.log(
+      '[RpcDatasource] detectionIntervalMs:',
+      this.#detectionIntervalMs,
     );
 
     // Set polling interval (inherited from base class)
@@ -179,23 +201,16 @@ export class RpcDatasource extends StaticIntervalPollingControllerOnly<PollingIn
     // Initialize event emitter
     this.#eventEmitter = new RpcEventEmitter();
 
-    // Initialize or use provided multicall client
-    // TODO: Pass actual provider getter
-    this.multicallClient =
-      dependencies.multicallClient ??
-      new MulticallClient(() => {
-        throw new Error('Provider not configured');
-      });
+    // Initialize multicall client with provider getter from dependencies
+    this.multicallClient = new MulticallClient(dependencies.getProvider);
 
-    // Initialize or use provided token detector
-    this.tokenDetector =
-      dependencies.tokenDetector ?? new TokenDetector(this.multicallClient);
+    // Initialize token detector
+    this.tokenDetector = new TokenDetector(this.multicallClient);
     this.tokenDetector.setTokenListStateGetter(this.#getTokenListState);
     this.tokenDetector.setUserTokensStateGetter(this.#getUserTokensState);
 
-    // Initialize or use provided balance fetcher
-    this.balanceFetcher =
-      dependencies.balanceFetcher ?? new BalanceFetcher(this.multicallClient);
+    // Initialize balance fetcher
+    this.balanceFetcher = new BalanceFetcher(this.multicallClient);
     this.balanceFetcher.setUserTokensStateGetter(this.#getUserTokensState);
 
     console.log('[RpcDatasource] Constructor complete');
@@ -273,15 +288,36 @@ export class RpcDatasource extends StaticIntervalPollingControllerOnly<PollingIn
 
   async _executePoll(input: PollingInput): Promise<void> {
     const { chainId, accountId } = input;
+    const now = Date.now();
+    const pollKey = `${chainId}:${accountId}`;
 
     // Check token detection enabled state dynamically each poll
     const isTokenDetectionEnabled = this.#isTokenDetectionEnabled();
 
-    console.log('[RpcDatasource] _executePoll called:', { chainId, accountId });
-    console.log(
-      '[RpcDatasource] isTokenDetectionEnabled:',
-      isTokenDetectionEnabled,
-    );
+    // Check if enough time has passed for each operation
+    const lastBalanceTime = this.#lastBalanceTime.get(pollKey) ?? 0;
+    const lastDetectionTime = this.#lastDetectionTime.get(pollKey) ?? 0;
+
+    const shouldFetchBalances =
+      now - lastBalanceTime >= this.#balanceIntervalMs;
+    const shouldRunDetection =
+      isTokenDetectionEnabled &&
+      now - lastDetectionTime >= this.#detectionIntervalMs;
+
+    console.log('[RpcDatasource] _executePoll called:', {
+      chainId,
+      accountId,
+      shouldFetchBalances,
+      shouldRunDetection,
+      timeSinceLastBalance: now - lastBalanceTime,
+      timeSinceLastDetection: now - lastDetectionTime,
+    });
+
+    // Skip if nothing to do
+    if (!shouldFetchBalances && !shouldRunDetection) {
+      console.log('[RpcDatasource] Skipping poll - intervals not reached');
+      return;
+    }
 
     try {
       const accountAddress = this.#getAccountAddress(accountId);
@@ -292,66 +328,131 @@ export class RpcDatasource extends StaticIntervalPollingControllerOnly<PollingIn
         return;
       }
 
-      // Token detection (if enabled - checked dynamically each poll)
-      if (isTokenDetectionEnabled) {
+      // Token detection (if enabled and interval reached)
+      if (shouldRunDetection) {
         console.log('[RpcDatasource] Starting token detection...');
-        const detectionResult = await this.tokenDetector.detectTokens(
-          chainId,
-          accountId,
-          accountAddress as `0x${string}`,
-        );
+        const detectionStartTime = performance.now();
 
-        console.log('[RpcDatasource] Detection result:', {
-          detectedAssets: detectionResult.detectedAssets.length,
-          detectedBalances: detectionResult.detectedBalances.length,
-          zeroBalanceAddresses: detectionResult.zeroBalanceAddresses.length,
-          failedAddresses: detectionResult.failedAddresses.length,
-        });
-
-        if (detectionResult.detectedAssets.length > 0) {
-          // Emit assetsChanged for newly detected tokens
-          this.#eventEmitter.emitAssetsChanged({
+        try {
+          const detectionResult = await this.tokenDetector.detectTokens(
             chainId,
             accountId,
-            assets: detectionResult.detectedAssets,
-            timestamp: Date.now(),
+            accountAddress as `0x${string}`,
+          );
+
+          const detectionDuration = performance.now() - detectionStartTime;
+          console.log(
+            `[RpcDatasource] Token detection completed in ${detectionDuration.toFixed(2)}ms`,
+          );
+
+          // Update last detection time
+          this.#lastDetectionTime.set(pollKey, now);
+
+          console.log('[RpcDatasource] Detection result:', {
+            detectedAssets: detectionResult.detectedAssets.length,
+            detectedBalances: detectionResult.detectedBalances.length,
+            zeroBalanceAddresses: detectionResult.zeroBalanceAddresses.length,
+            failedAddresses: detectionResult.failedAddresses.length,
+            durationMs: detectionDuration.toFixed(2),
           });
 
-          // Also emit assetsBalanceChanged for detected token balances
-          // (we already have the balances from the detection process)
-          if (detectionResult.detectedBalances.length > 0) {
-            this.#eventEmitter.emitAssetsBalanceChanged({
+          if (detectionResult.detectedAssets.length > 0) {
+            console.log(
+              '[RpcDatasource] Emitting assetsChanged event with',
+              detectionResult.detectedAssets.length,
+              'assets',
+            );
+            // Emit assetsChanged for newly detected tokens
+            this.#eventEmitter.emitAssetsChanged({
               chainId,
               accountId,
-              balances: detectionResult.detectedBalances,
-              timestamp: Date.now(),
+              assets: detectionResult.detectedAssets,
+              timestamp: now,
             });
+
+            // Also emit assetsBalanceChanged for detected token balances
+            // (we already have the balances from the detection process)
+            if (detectionResult.detectedBalances.length > 0) {
+              console.log(
+                '[RpcDatasource] Emitting assetsBalanceChanged event with',
+                detectionResult.detectedBalances.length,
+                'balances',
+              );
+              this.#eventEmitter.emitAssetsBalanceChanged({
+                chainId,
+                accountId,
+                balances: detectionResult.detectedBalances,
+                timestamp: now,
+              });
+            }
+          } else {
+            console.log('[RpcDatasource] No new assets detected');
           }
+        } catch (detectionError) {
+          console.error(
+            '[RpcDatasource] Token detection error:',
+            detectionError,
+          );
         }
+      } else if (isTokenDetectionEnabled) {
+        console.log(
+          '[RpcDatasource] Token detection skipped - interval not reached',
+        );
       } else {
         console.log('[RpcDatasource] Token detection is disabled');
       }
 
-      // Balance fetching (always enabled)
-      console.log('[RpcDatasource] Starting balance fetching...');
-      const balanceResult = await this.balanceFetcher.fetchBalances(
-        chainId,
-        accountId,
-        accountAddress as `0x${string}`,
-      );
+      // Balance fetching (if interval reached)
+      if (shouldFetchBalances) {
+        console.log('[RpcDatasource] Starting balance fetching...');
+        const balanceStartTime = performance.now();
 
-      console.log('[RpcDatasource] Balance result:', {
-        balances: balanceResult.balances.length,
-        failedAddresses: balanceResult.failedAddresses.length,
-      });
+        try {
+          const balanceResult = await this.balanceFetcher.fetchBalances(
+            chainId,
+            accountId,
+            accountAddress as `0x${string}`,
+          );
 
-      if (balanceResult.balances.length > 0) {
-        this.#eventEmitter.emitAssetsBalanceChanged({
-          chainId,
-          accountId,
-          balances: balanceResult.balances,
-          timestamp: Date.now(),
-        });
+          const balanceDuration = performance.now() - balanceStartTime;
+          console.log(
+            `[RpcDatasource] Balance fetching completed in ${balanceDuration.toFixed(2)}ms`,
+          );
+
+          // Update last balance time
+          this.#lastBalanceTime.set(pollKey, now);
+
+          console.log('[RpcDatasource] Balance result:', {
+            balances: balanceResult.balances.length,
+            failedAddresses: balanceResult.failedAddresses.length,
+            durationMs: balanceDuration.toFixed(2),
+          });
+
+          if (balanceResult.balances.length > 0) {
+            console.log(
+              '[RpcDatasource] Emitting assetsBalanceChanged event with',
+              balanceResult.balances.length,
+              'balances',
+            );
+            this.#eventEmitter.emitAssetsBalanceChanged({
+              chainId,
+              accountId,
+              balances: balanceResult.balances,
+              timestamp: now,
+            });
+          } else {
+            console.log('[RpcDatasource] No balance updates to emit');
+          }
+        } catch (balanceError) {
+          console.error(
+            '[RpcDatasource] Balance fetching error:',
+            balanceError,
+          );
+        }
+      } else {
+        console.log(
+          '[RpcDatasource] Balance fetching skipped - interval not reached',
+        );
       }
     } catch (error) {
       console.error('[RpcDatasource] Poll error:', error);

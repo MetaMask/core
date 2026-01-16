@@ -8,13 +8,7 @@ import type { InternalAccount } from '@metamask/keyring-internal-api';
 import type { Messenger } from '@metamask/messenger';
 import type { CaipAssetType, Hex } from '@metamask/utils';
 
-import type { PollingAccount } from './AssetsPollingMiddleware';
-import { AssetsPollingMiddleware } from './AssetsPollingMiddleware';
-import type {
-  RpcDatasourceConfig,
-  RpcDatasourceDependencies,
-} from './rpc-datasource/interfaces';
-import { RpcDatasource } from './rpc-datasource/RpcDatasource';
+import { RpcDatasource } from './rpc-datasource';
 import type {
   AccountId,
   Asset,
@@ -23,10 +17,13 @@ import type {
   AssetsChangedEvent,
   AssetsPriceChangedEvent,
   ChainId,
+  GetProviderFunction,
   PollingInput,
+  RpcDatasourceConfig,
+  RpcDatasourceDependencies,
   TokenListState,
   UserTokensState,
-} from './rpc-datasource/types';
+} from './rpc-datasource';
 
 // =============================================================================
 // EXTERNAL CONTROLLER ACTION TYPES
@@ -292,6 +289,14 @@ export type AssetsControllerMessenger = Messenger<
 export type PollingTarget = PollingInput;
 
 /**
+ * Minimal account info for polling.
+ */
+export type PollingAccount = {
+  id: AccountId;
+  address: string;
+};
+
+/**
  * Options for constructing an AssetsController.
  */
 export type AssetsControllerOptions = {
@@ -299,6 +304,11 @@ export type AssetsControllerOptions = {
   messenger: AssetsControllerMessenger;
   /** Initial state */
   state?: Partial<AssetsControllerState>;
+  /**
+   * Function to get an RPC provider for a given chain.
+   * Required for token detection and balance fetching.
+   */
+  getProvider: GetProviderFunction;
   /**
    * Optional additional dependencies for RpcDatasource.
    * If not provided, the controller will use messenger calls to get
@@ -372,9 +382,9 @@ export class AssetsController extends BaseController<
   readonly #rpcDatasource: RpcDatasource;
 
   /**
-   * Internal polling middleware that manages polling lifecycle.
+   * Map of polling tokens: "chainId:accountId" -> pollingToken
    */
-  readonly #pollingMiddleware: AssetsPollingMiddleware;
+  readonly #pollingTokens: Map<string, string> = new Map();
 
   /**
    * Function to get selected account.
@@ -407,6 +417,7 @@ export class AssetsController extends BaseController<
   constructor({
     messenger,
     state,
+    getProvider,
     rpcDatasourceDependencies,
     rpcDatasourceConfig,
     getSelectedAccount,
@@ -455,21 +466,40 @@ export class AssetsController extends BaseController<
         console.log('[AssetsController] getTokenListState called');
         const rawState = this.messenger.call('TokenListController:getState');
 
-        console.log('[AssetsController] rawState ++++++++++++++:', rawState);
+        console.log('[AssetsController] rawState keys:', Object.keys(rawState));
+        console.log(
+          '[AssetsController] tokensChainsCache chainIds:',
+          Object.keys(rawState.tokensChainsCache),
+        );
 
         // Extract 'data' from each chain entry
         const tokensChainsCache: TokenListState['tokensChainsCache'] = {};
         for (const [chainId, cacheEntry] of Object.entries(
           rawState.tokensChainsCache,
         )) {
+          console.log('[AssetsController] Processing chain:', chainId, {
+            hasCacheEntry: Boolean(cacheEntry),
+            cacheEntryKeys: cacheEntry ? Object.keys(cacheEntry) : [],
+            hasData: Boolean(cacheEntry?.data),
+            dataTokenCount: cacheEntry?.data
+              ? Object.keys(cacheEntry.data).length
+              : 0,
+          });
           tokensChainsCache[chainId as Hex] =
             (cacheEntry.data as TokenListState['tokensChainsCache'][Hex]) ?? {};
         }
 
         console.log(
-          '[AssetsController] tokensChainsCache ++++++++++++++:',
-          tokensChainsCache,
+          '[AssetsController] Final tokensChainsCache chain count:',
+          Object.keys(tokensChainsCache).length,
         );
+        // Log sample for 0x1
+        if (tokensChainsCache['0x1']) {
+          console.log(
+            '[AssetsController] 0x1 token count:',
+            Object.keys(tokensChainsCache['0x1']).length,
+          );
+        }
 
         return { tokensChainsCache };
       },
@@ -485,25 +515,14 @@ export class AssetsController extends BaseController<
       // Pass through token detection enabled getter
       // This allows runtime toggling of token detection
       isTokenDetectionEnabled: this.#isTokenDetectionEnabled,
+
+      // Provider getter for RPC calls
+      getProvider,
     };
 
     // Apply any caller-provided overrides AFTER our defaults
-    if (rpcDatasourceDependencies) {
-      if (rpcDatasourceDependencies.getAccount) {
-        dependencies.getAccount = rpcDatasourceDependencies.getAccount;
-      }
-      if (rpcDatasourceDependencies.multicallClient) {
-        dependencies.multicallClient =
-          rpcDatasourceDependencies.multicallClient;
-      }
-      if (rpcDatasourceDependencies.tokenDetector) {
-        dependencies.tokenDetector = rpcDatasourceDependencies.tokenDetector;
-      }
-      if (rpcDatasourceDependencies.balanceFetcher) {
-        dependencies.balanceFetcher = rpcDatasourceDependencies.balanceFetcher;
-      }
-      // Note: We intentionally do NOT allow overriding getTokenListState
-      // and getUserTokensState since they must come from our internal state
+    if (rpcDatasourceDependencies?.getAccount) {
+      dependencies.getAccount = rpcDatasourceDependencies.getAccount;
     }
 
     console.log('[AssetsController] Built dependencies from messenger');
@@ -512,11 +531,6 @@ export class AssetsController extends BaseController<
     this.#rpcDatasource = new RpcDatasource(dependencies, rpcDatasourceConfig);
 
     console.log('[AssetsController] RpcDatasource created');
-
-    // Create polling middleware
-    this.#pollingMiddleware = new AssetsPollingMiddleware(this);
-
-    console.log('[AssetsController] Polling middleware created');
 
     // Wire up event handlers
     this.#rpcDatasource.onAssetsChanged((event) => {
@@ -562,7 +576,9 @@ export class AssetsController extends BaseController<
       console.log(
         '[AssetsController] Starting polling for selected account on selected chains',
       );
-      this.#pollingMiddleware.startPollingForAccount(account.id, chainIds);
+      for (const chainId of chainIds) {
+        this.#startPollingInternal(chainId, account.id);
+      }
     } else {
       console.log(
         '[AssetsController] No selected account or chains, polling not auto-started',
@@ -744,7 +760,10 @@ export class AssetsController extends BaseController<
    * Stop all active polling sessions.
    */
   stopAllPolling(): void {
-    this.#pollingMiddleware.stopAllPolling();
+    for (const token of this.#pollingTokens.values()) {
+      this.#rpcDatasource.stopPollingByPollingToken(token);
+    }
+    this.#pollingTokens.clear();
   }
 
   /**
@@ -757,7 +776,7 @@ export class AssetsController extends BaseController<
   }
 
   // ===========================================================================
-  // POLLING MIDDLEWARE METHODS (high-level polling control)
+  // POLLING LIFECYCLE METHODS
   // ===========================================================================
 
   /**
@@ -769,11 +788,18 @@ export class AssetsController extends BaseController<
    */
   onAccountChanged(newAccountId: AccountId, oldAccountId?: AccountId): void {
     const chainIds = this.#getSelectedChainIds?.() ?? [];
-    this.#pollingMiddleware.onAccountChanged(
-      oldAccountId,
-      newAccountId,
-      chainIds,
-    );
+
+    // Stop polling for old account
+    if (oldAccountId) {
+      for (const chainId of chainIds) {
+        this.#stopPollingInternal(chainId, oldAccountId);
+      }
+    }
+
+    // Start polling for new account
+    for (const chainId of chainIds) {
+      this.#startPollingInternal(chainId, newAccountId);
+    }
   }
 
   /**
@@ -784,8 +810,14 @@ export class AssetsController extends BaseController<
    */
   onChainToggled(chainId: ChainId, enabled: boolean): void {
     const account = this.#getSelectedAccount?.();
-    if (account) {
-      this.#pollingMiddleware.onChainToggled(chainId, enabled, [account]);
+    if (!account) {
+      return;
+    }
+
+    if (enabled) {
+      this.#startPollingInternal(chainId, account.id);
+    } else {
+      this.#stopPollingInternal(chainId, account.id);
     }
   }
 
@@ -795,11 +827,7 @@ export class AssetsController extends BaseController<
    */
   refreshPolling(): void {
     console.log('[AssetsController] refreshPolling called');
-
-    // Stop all current polling
-    this.#pollingMiddleware.stopAllPolling();
-
-    // Restart with current state
+    this.stopAllPolling();
     this.#autoStartPolling();
   }
 
@@ -809,7 +837,7 @@ export class AssetsController extends BaseController<
    * @returns Number of active polls.
    */
   getActivePollingCount(): number {
-    return this.#pollingMiddleware.getActivePollingCount();
+    return this.#pollingTokens.size;
   }
 
   // ===========================================================================
@@ -872,7 +900,7 @@ export class AssetsController extends BaseController<
    * Cleanup: stop all polling and release resources.
    */
   destroy(): void {
-    this.#pollingMiddleware.destroy();
+    this.stopAllPolling();
     this.#rpcDatasource.destroy();
   }
 
@@ -889,10 +917,20 @@ export class AssetsController extends BaseController<
   #handleAssetsChanged(event: AssetsChangedEvent): void {
     const { assets } = event;
 
+    console.log(
+      '[AssetsController] #handleAssetsChanged called with',
+      assets.length,
+      'assets',
+    );
+
     if (assets.length === 0) {
+      console.log(
+        '[AssetsController] #handleAssetsChanged: No assets to process',
+      );
       return;
     }
 
+    let updatedCount = 0;
     this.update((state) => {
       for (const asset of assets) {
         const existingMetadata = state.assetsMetadata[asset.assetId];
@@ -903,9 +941,20 @@ export class AssetsController extends BaseController<
           this.#hasMetadataChanged(existingMetadata, asset)
         ) {
           state.assetsMetadata[asset.assetId] = this.#assetToMetadata(asset);
+          updatedCount += 1;
         }
       }
     });
+
+    console.log(
+      '[AssetsController] #handleAssetsChanged: Updated',
+      updatedCount,
+      'assets in state',
+    );
+    console.log(
+      '[AssetsController] Current assetsMetadata keys:',
+      Object.keys(this.state.assetsMetadata).length,
+    );
   }
 
   /**
@@ -917,10 +966,21 @@ export class AssetsController extends BaseController<
   #handleAssetsBalanceChanged(event: AssetsBalanceChangedEvent): void {
     const { accountId, balances } = event;
 
+    console.log(
+      '[AssetsController] #handleAssetsBalanceChanged called with',
+      balances.length,
+      'balances for account',
+      accountId,
+    );
+
     if (balances.length === 0) {
+      console.log(
+        '[AssetsController] #handleAssetsBalanceChanged: No balances to process',
+      );
       return;
     }
 
+    let updatedCount = 0;
     this.update((state) => {
       // Initialize account balance map if needed
       if (!state.assetsBalance[accountId]) {
@@ -942,9 +1002,21 @@ export class AssetsController extends BaseController<
           existingBalance.amount !== newBalanceData.amount
         ) {
           state.assetsBalance[accountId][balance.assetId] = newBalanceData;
+          updatedCount += 1;
         }
       }
     });
+
+    console.log(
+      '[AssetsController] #handleAssetsBalanceChanged: Updated',
+      updatedCount,
+      'balances in state',
+    );
+    console.log(
+      '[AssetsController] Current assetsBalance for account:',
+      Object.keys(this.state.assetsBalance[accountId] ?? {}).length,
+      'assets',
+    );
   }
 
   /**
@@ -1100,5 +1172,49 @@ export class AssetsController extends BaseController<
       existing.verified !== asset.verified ||
       existing.isSpam !== asset.isSpam
     );
+  }
+
+  /**
+   * Make a unique key for chainId + accountId.
+   *
+   * @param chainId - Chain ID.
+   * @param accountId - Account ID.
+   * @returns A unique key string.
+   */
+  #makePollingKey(chainId: ChainId, accountId: AccountId): string {
+    return `${chainId}:${accountId}`;
+  }
+
+  /**
+   * Start polling for a specific chain/account if not already polling.
+   *
+   * @param chainId - Chain ID.
+   * @param accountId - Account ID.
+   */
+  #startPollingInternal(chainId: ChainId, accountId: AccountId): void {
+    const key = this.#makePollingKey(chainId, accountId);
+
+    if (this.#pollingTokens.has(key)) {
+      return; // Already polling
+    }
+
+    const token = this.#rpcDatasource.startPolling({ chainId, accountId });
+    this.#pollingTokens.set(key, token);
+  }
+
+  /**
+   * Stop polling for a specific chain/account.
+   *
+   * @param chainId - Chain ID.
+   * @param accountId - Account ID.
+   */
+  #stopPollingInternal(chainId: ChainId, accountId: AccountId): void {
+    const key = this.#makePollingKey(chainId, accountId);
+    const token = this.#pollingTokens.get(key);
+
+    if (token) {
+      this.#rpcDatasource.stopPollingByPollingToken(token);
+      this.#pollingTokens.delete(key);
+    }
   }
 }

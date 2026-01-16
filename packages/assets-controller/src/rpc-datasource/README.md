@@ -365,9 +365,11 @@ datasource.destroy();
 
 | Option | Type | Default | Description |
 |--------|------|---------|-------------|
-| `pollingIntervalMs` | number | 10000 | Polling interval in milliseconds |
-| `detectionBatchSize` | number | 100 | Max tokens per detection batch |
-| `balanceBatchSize` | number | 100 | Max tokens per balance batch |
+| `pollingIntervalMs` | number | 30000 | Base polling loop interval (30s) |
+| `balanceIntervalMs` | number | 30000 | How often to fetch balances (30s) |
+| `detectionIntervalMs` | number | 180000 | How often to run token detection (3 min) |
+| `detectionBatchSize` | number | 300 | Max tokens per detection batch |
+| `balanceBatchSize` | number | 300 | Max tokens per balance batch |
 | `rpcTimeoutMs` | number | 30000 | RPC call timeout |
 
 ### RpcDatasourceDependencies
