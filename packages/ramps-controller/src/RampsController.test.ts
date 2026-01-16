@@ -302,7 +302,6 @@ describe('RampsController', () => {
       );
     });
 
-
     it('passes filter options to the service', async () => {
       await withController(async ({ controller, rootMessenger }) => {
         let receivedOptions:
