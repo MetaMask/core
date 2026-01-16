@@ -521,8 +521,14 @@ export type TransactionControllerOptions = {
   testGasFeeFlows?: boolean;
   trace?: TraceCallback;
 
-  /** Transaction history limit. */
-  transactionHistoryLimit: number;
+  /**
+   * Transaction history limit.
+   *
+   * @deprecated Use the `transactionHistoryLimit` feature flag in
+   * `RemoteFeatureFlagController` instead. This option will be removed
+   * in a future version.
+   */
+  transactionHistoryLimit?: number;
 
   /** The controller hooks. */
   hooks: {
@@ -934,8 +940,6 @@ export class TransactionController extends BaseController<
 
   readonly #trace: TraceCallback;
 
-  readonly #transactionHistoryLimit: number;
-
   /**
    * Constructs a TransactionController.
    *
@@ -967,7 +971,6 @@ export class TransactionController extends BaseController<
       state,
       testGasFeeFlows,
       trace,
-      transactionHistoryLimit = 40,
     } = options;
 
     super({
@@ -1040,7 +1043,6 @@ export class TransactionController extends BaseController<
     this.#sign = sign;
     this.#testGasFeeFlows = testGasFeeFlows === true;
     this.#trace = trace ?? (((_request, fn) => fn?.()) as TraceCallback);
-    this.#transactionHistoryLimit = transactionHistoryLimit;
 
     const findNetworkClientIdByChainId = (chainId: Hex): string => {
       return this.messenger.call(
@@ -3475,9 +3477,7 @@ export class TransactionController extends BaseController<
     transactions: TransactionMeta[],
   ): TransactionMeta[] {
     const nonceNetworkSet = new Set();
-    const transactionHistoryLimit =
-      getTransactionHistoryLimit(this.messenger) ??
-      this.#transactionHistoryLimit;
+    const transactionHistoryLimit = getTransactionHistoryLimit(this.messenger);
 
     const txsToKeep = [...transactions]
       .sort((a, b) => (a.time > b.time ? -1 : 1)) // Descending time order
