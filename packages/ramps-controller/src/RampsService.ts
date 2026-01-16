@@ -548,7 +548,7 @@ export class RampsService {
         const hasSupportedState = country.states.some(
           (state) => state.supported !== false,
         );
-        return country.supported ?? hasSupportedState;
+        return country.supported || hasSupportedState;
       }
 
       return country.supported;
