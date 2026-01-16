@@ -13,10 +13,6 @@ import type {
 export type RpcDatasourceConfig = {
   /** Polling interval in milliseconds (default: 30000) */
   pollingIntervalMs?: number;
-  /** Enable token detection (default: false) */
-  detectTokensEnabled?: boolean;
-  /** Enable balance fetching (default: true) */
-  fetchBalancesEnabled?: boolean;
   /** Maximum tokens to check per detection batch */
   detectionBatchSize?: number;
   /** Maximum tokens to fetch per balance batch */
@@ -35,6 +31,12 @@ export type RpcDatasourceDependencies = {
   getTokenListState: () => TokenListState;
   /** Function to get user tokens state */
   getUserTokensState: () => UserTokensState;
+  /**
+   * Function to check if token detection is enabled.
+   * Called on each poll cycle to allow dynamic toggling.
+   * If not provided, token detection is disabled.
+   */
+  isTokenDetectionEnabled?: () => boolean;
   /** Optional: Custom multicall client */
   multicallClient?: IMulticallClient;
   /** Optional: Custom token detector */

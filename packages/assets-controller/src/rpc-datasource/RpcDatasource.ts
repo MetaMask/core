@@ -31,8 +31,6 @@ import type {
  */
 const DEFAULT_CONFIG: Required<RpcDatasourceConfig> = {
   pollingIntervalMs: 10000, // 10 seconds for faster debugging
-  detectTokensEnabled: true, // Enable by default for testing
-  fetchBalancesEnabled: true,
   detectionBatchSize: 100,
   balanceBatchSize: 100,
   rpcTimeoutMs: 30000,
@@ -105,9 +103,11 @@ export class RpcDatasource extends StaticIntervalPollingControllerOnly<PollingIn
 
   readonly #getUserTokensState: () => UserTokensState;
 
-  #detectTokensEnabled: boolean;
-
-  #fetchBalancesEnabled: boolean;
+  /**
+   * Dynamic getter for token detection enabled state.
+   * Called on each poll cycle to allow runtime toggling.
+   */
+  readonly #isTokenDetectionEnabled: () => boolean;
 
   // ===========================================================================
   // PUBLIC READONLY FIELDS (Components)
@@ -160,17 +160,13 @@ export class RpcDatasource extends StaticIntervalPollingControllerOnly<PollingIn
     this.#getTokenListState = dependencies.getTokenListState;
     this.#getUserTokensState = dependencies.getUserTokensState;
 
-    // Initialize state
-    this.#detectTokensEnabled = mergedConfig.detectTokensEnabled;
-    this.#fetchBalancesEnabled = mergedConfig.fetchBalancesEnabled;
+    // Store token detection getter (defaults to disabled if not provided)
+    this.#isTokenDetectionEnabled =
+      dependencies.isTokenDetectionEnabled ?? ((): boolean => false);
 
     console.log(
-      '[RpcDatasource] detectTokensEnabled:',
-      this.#detectTokensEnabled,
-    );
-    console.log(
-      '[RpcDatasource] fetchBalancesEnabled:',
-      this.#fetchBalancesEnabled,
+      '[RpcDatasource] isTokenDetectionEnabled provided:',
+      Boolean(dependencies.isTokenDetectionEnabled),
     );
 
     // Set polling interval (inherited from base class)
@@ -215,18 +211,6 @@ export class RpcDatasource extends StaticIntervalPollingControllerOnly<PollingIn
   destroy(): void {
     this.stopAllPolling();
     this.#eventEmitter.removeAllListeners();
-  }
-
-  // ===========================================================================
-  // CONFIGURATION
-  // ===========================================================================
-
-  setDetectTokensEnabled(enabled: boolean): void {
-    this.#detectTokensEnabled = enabled;
-  }
-
-  setFetchBalancesEnabled(enabled: boolean): void {
-    this.#fetchBalancesEnabled = enabled;
   }
 
   // ===========================================================================
@@ -290,14 +274,13 @@ export class RpcDatasource extends StaticIntervalPollingControllerOnly<PollingIn
   async _executePoll(input: PollingInput): Promise<void> {
     const { chainId, accountId } = input;
 
+    // Check token detection enabled state dynamically each poll
+    const isTokenDetectionEnabled = this.#isTokenDetectionEnabled();
+
     console.log('[RpcDatasource] _executePoll called:', { chainId, accountId });
     console.log(
-      '[RpcDatasource] detectTokensEnabled:',
-      this.#detectTokensEnabled,
-    );
-    console.log(
-      '[RpcDatasource] fetchBalancesEnabled:',
-      this.#fetchBalancesEnabled,
+      '[RpcDatasource] isTokenDetectionEnabled:',
+      isTokenDetectionEnabled,
     );
 
     try {
@@ -309,8 +292,8 @@ export class RpcDatasource extends StaticIntervalPollingControllerOnly<PollingIn
         return;
       }
 
-      // Token detection (if enabled)
-      if (this.#detectTokensEnabled) {
+      // Token detection (if enabled - checked dynamically each poll)
+      if (isTokenDetectionEnabled) {
         console.log('[RpcDatasource] Starting token detection...');
         const detectionResult = await this.tokenDetector.detectTokens(
           chainId,
@@ -349,30 +332,26 @@ export class RpcDatasource extends StaticIntervalPollingControllerOnly<PollingIn
         console.log('[RpcDatasource] Token detection is disabled');
       }
 
-      // Balance fetching (if enabled)
-      if (this.#fetchBalancesEnabled) {
-        console.log('[RpcDatasource] Starting balance fetching...');
-        const balanceResult = await this.balanceFetcher.fetchBalances(
+      // Balance fetching (always enabled)
+      console.log('[RpcDatasource] Starting balance fetching...');
+      const balanceResult = await this.balanceFetcher.fetchBalances(
+        chainId,
+        accountId,
+        accountAddress as `0x${string}`,
+      );
+
+      console.log('[RpcDatasource] Balance result:', {
+        balances: balanceResult.balances.length,
+        failedAddresses: balanceResult.failedAddresses.length,
+      });
+
+      if (balanceResult.balances.length > 0) {
+        this.#eventEmitter.emitAssetsBalanceChanged({
           chainId,
           accountId,
-          accountAddress as `0x${string}`,
-        );
-
-        console.log('[RpcDatasource] Balance result:', {
-          balances: balanceResult.balances.length,
-          failedAddresses: balanceResult.failedAddresses.length,
+          balances: balanceResult.balances,
+          timestamp: Date.now(),
         });
-
-        if (balanceResult.balances.length > 0) {
-          this.#eventEmitter.emitAssetsBalanceChanged({
-            chainId,
-            accountId,
-            balances: balanceResult.balances,
-            timestamp: Date.now(),
-          });
-        }
-      } else {
-        console.log('[RpcDatasource] Balance fetching is disabled');
       }
     } catch (error) {
       console.error('[RpcDatasource] Poll error:', error);

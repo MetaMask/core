@@ -41,6 +41,18 @@ export type BalanceFetchOptions = {
 };
 
 /**
+ * Token info for balance fetching.
+ */
+export type TokenFetchInfo = {
+  /** Token contract address */
+  address: Address;
+  /** Token decimals */
+  decimals: number;
+  /** Token symbol (optional) */
+  symbol?: string;
+};
+
+/**
  * Balance fetcher interface.
  *
  * Responsible for fetching token balances for an account's
@@ -84,13 +96,13 @@ export type IBalanceFetcher = {
   ): Promise<BalanceFetchResult>;
 
   /**
-   * Get token addresses to fetch from user's state.
+   * Get tokens to fetch from user's state with their metadata.
    *
    * @param chainId - Chain ID.
    * @param accountAddress - Account address.
-   * @returns Array of token addresses to fetch.
+   * @returns Array of token info (address + decimals) to fetch.
    */
-  getTokensToFetch(chainId: ChainId, accountAddress: Address): Address[];
+  getTokensToFetch(chainId: ChainId, accountAddress: Address): TokenFetchInfo[];
 
   /**
    * Set the user tokens state source.

@@ -317,6 +317,12 @@ export type AssetsControllerOptions = {
    * Used by polling middleware to determine which chains to poll.
    */
   getSelectedChainIds?: () => ChainId[];
+
+  /**
+   * Function to check if token detection is enabled.
+   * Used by polling middleware to determine if token detection should be enabled.
+   */
+  isTokenDetectionEnabled?: () => boolean;
 };
 
 /**
@@ -381,6 +387,11 @@ export class AssetsController extends BaseController<
   readonly #getSelectedChainIds: (() => ChainId[]) | undefined;
 
   /**
+   * Function to check if token detection is enabled.
+   */
+  readonly #isTokenDetectionEnabled: (() => boolean) | undefined;
+
+  /**
    * Constructs a new {@link AssetsController}.
    *
    * @param options - The options for this controller.
@@ -391,6 +402,7 @@ export class AssetsController extends BaseController<
    * @param options.rpcDatasourceConfig - Optional RpcDatasource configuration.
    * @param options.getSelectedAccount - Function to get selected account.
    * @param options.getSelectedChainIds - Function to get selected chain IDs.
+   * @param options.isTokenDetectionEnabled - Function to check if token detection is enabled.
    */
   constructor({
     messenger,
@@ -399,6 +411,7 @@ export class AssetsController extends BaseController<
     rpcDatasourceConfig,
     getSelectedAccount,
     getSelectedChainIds,
+    isTokenDetectionEnabled,
   }: AssetsControllerOptions) {
     super({
       messenger,
@@ -416,6 +429,7 @@ export class AssetsController extends BaseController<
     // Store getters
     this.#getSelectedAccount = getSelectedAccount;
     this.#getSelectedChainIds = getSelectedChainIds;
+    this.#isTokenDetectionEnabled = isTokenDetectionEnabled;
 
     // Build RpcDatasource dependencies using messenger calls
     // These can be overridden by the caller if needed
@@ -467,6 +481,10 @@ export class AssetsController extends BaseController<
         // and ignoredAssets for tokens the user has dismissed
         return this.#deriveUserTokensState();
       },
+
+      // Pass through token detection enabled getter
+      // This allows runtime toggling of token detection
+      isTokenDetectionEnabled: this.#isTokenDetectionEnabled,
     };
 
     // Apply any caller-provided overrides AFTER our defaults
@@ -736,24 +754,6 @@ export class AssetsController extends BaseController<
    */
   setPollingInterval(intervalMs: number): void {
     this.#rpcDatasource.setIntervalLength(intervalMs);
-  }
-
-  /**
-   * Enable or disable token detection during polling.
-   *
-   * @param enabled - Whether token detection should be enabled.
-   */
-  setDetectTokensEnabled(enabled: boolean): void {
-    this.#rpcDatasource.setDetectTokensEnabled(enabled);
-  }
-
-  /**
-   * Enable or disable balance fetching during polling.
-   *
-   * @param enabled - Whether balance fetching should be enabled.
-   */
-  setFetchBalancesEnabled(enabled: boolean): void {
-    this.#rpcDatasource.setFetchBalancesEnabled(enabled);
   }
 
   // ===========================================================================

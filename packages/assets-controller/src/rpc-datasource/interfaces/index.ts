@@ -22,6 +22,7 @@ export type {
   IBalanceFetcher,
   BalanceFetchResult,
   BalanceFetchOptions,
+  TokenFetchInfo,
 } from './IBalanceFetcher';
 
 // Poller
