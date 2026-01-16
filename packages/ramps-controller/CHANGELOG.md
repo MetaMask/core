@@ -10,6 +10,12 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 ### Added
 
 - Add `preferredProvider` state and `setPreferredProvider()` method to RampsController ([#7617](https://github.com/MetaMask/core/pull/7617))
+- Add `defaultAmount` and `quickAmounts` fields to the `Country` type
+
+### Changed
+
+- Update `getCountries()` endpoint to use v2 API (`v2/regions/countries`)
+- Add `getApiPath()` helper function for versioned API paths with v2 default
 
 ## [3.0.0]
 
