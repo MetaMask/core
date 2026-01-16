@@ -15,11 +15,10 @@ export enum DataDeleteStatus {
 
 /**
  * Response status for deletion regulation operations.
- * Enum values match API response values exactly.
  */
 export enum DataDeleteResponseStatus {
-  Ok = 'ok',
-  Error = 'error',
+  Success = 'ok',
+  Failure = 'error',
 }
 
 /**

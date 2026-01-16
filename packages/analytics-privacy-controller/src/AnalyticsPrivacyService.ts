@@ -270,7 +270,7 @@ export class AnalyticsPrivacyService {
   ): Promise<IDeleteRegulationResponse> {
     if (!this.#segmentSourceId || !this.#segmentRegulationsEndpoint) {
       return {
-        status: DataDeleteResponseStatus.Error,
+        status: DataDeleteResponseStatus.Failure,
         error: 'Segment API source ID or endpoint not found',
       };
     }
@@ -309,7 +309,7 @@ export class AnalyticsPrivacyService {
         typeof jsonResponse.data.data.regulateId === 'string'
       ) {
         return {
-          status: DataDeleteResponseStatus.Ok,
+          status: DataDeleteResponseStatus.Success,
           regulateId: jsonResponse.data.data.regulateId,
         };
       }
@@ -319,13 +319,13 @@ export class AnalyticsPrivacyService {
         new Error('Malformed response from Segment API'),
       );
       return {
-        status: DataDeleteResponseStatus.Error,
+        status: DataDeleteResponseStatus.Failure,
         error: 'Analytics Deletion Task Error',
       };
     } catch (error) {
       log('Analytics Deletion Task Error', error);
       return {
-        status: DataDeleteResponseStatus.Error,
+        status: DataDeleteResponseStatus.Failure,
         error: 'Analytics Deletion Task Error',
       };
     }
@@ -343,7 +343,7 @@ export class AnalyticsPrivacyService {
     // Early return if regulationId is missing (cannot check status) or endpoint is not configured
     if (!regulationId || !this.#segmentRegulationsEndpoint) {
       return {
-        status: DataDeleteResponseStatus.Error,
+        status: DataDeleteResponseStatus.Failure,
         dataDeleteStatus: DataDeleteStatus.Unknown,
       };
     }
@@ -380,13 +380,13 @@ export class AnalyticsPrivacyService {
         : DataDeleteStatus.Unknown;
 
       return {
-        status: DataDeleteResponseStatus.Ok,
+        status: DataDeleteResponseStatus.Success,
         dataDeleteStatus,
       };
     } catch (error) {
       log('Analytics Deletion Task Check Error', error);
       return {
-        status: DataDeleteResponseStatus.Error,
+        status: DataDeleteResponseStatus.Failure,
         dataDeleteStatus: DataDeleteStatus.Unknown,
       };
     }

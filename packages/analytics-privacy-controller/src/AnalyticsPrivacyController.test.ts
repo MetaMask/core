@@ -82,7 +82,7 @@ function setupController(
   rootMessenger.registerActionHandler(
     'AnalyticsPrivacyService:createDataDeletionTask',
     jest.fn().mockResolvedValue({
-      status: DataDeleteResponseStatus.Ok,
+      status: DataDeleteResponseStatus.Success,
       regulateId: 'test-regulate-id',
     }),
   );
@@ -90,7 +90,7 @@ function setupController(
   rootMessenger.registerActionHandler(
     'AnalyticsPrivacyService:checkDataDeleteStatus',
     jest.fn().mockResolvedValue({
-      status: DataDeleteResponseStatus.Ok,
+      status: DataDeleteResponseStatus.Success,
       dataDeleteStatus: DataDeleteStatus.Finished,
     }),
   );
@@ -183,7 +183,7 @@ describe('AnalyticsPrivacyController', () => {
         'AnalyticsPrivacyController:createDataDeletionTask',
       );
 
-      expect(response.status).toBe(DataDeleteResponseStatus.Ok);
+      expect(response.status).toBe(DataDeleteResponseStatus.Success);
       expect(response.regulateId).toBe('test-regulate-id');
       expect(controller.state.deleteRegulationId).toBe('test-regulate-id');
       expect(controller.state.deleteRegulationTimestamp).toBe(fixedTimestamp);
@@ -230,7 +230,7 @@ describe('AnalyticsPrivacyController', () => {
       rootMessenger.registerActionHandler(
         'AnalyticsPrivacyService:createDataDeletionTask',
         jest.fn().mockResolvedValue({
-          status: DataDeleteResponseStatus.Ok,
+          status: DataDeleteResponseStatus.Success,
           regulateId: 'test-regulate-id',
         }),
       );
@@ -274,11 +274,11 @@ describe('AnalyticsPrivacyController', () => {
         'AnalyticsPrivacyController:createDataDeletionTask',
       );
 
-      expect(response.status).toBe(DataDeleteResponseStatus.Ok);
+      expect(response.status).toBe(DataDeleteResponseStatus.Success);
       expect(response.regulateId).toBe('test-regulate-id');
 
       expect(eventListener).toHaveBeenCalledWith({
-        status: DataDeleteResponseStatus.Ok,
+        status: DataDeleteResponseStatus.Success,
         regulateId: 'test-regulate-id',
       });
     });
@@ -321,7 +321,7 @@ describe('AnalyticsPrivacyController', () => {
       rootMessenger.registerActionHandler(
         'AnalyticsPrivacyService:createDataDeletionTask',
         jest.fn().mockResolvedValue({
-          status: DataDeleteResponseStatus.Ok,
+          status: DataDeleteResponseStatus.Success,
           regulateId: 'test-regulate-id',
         }),
       );
@@ -344,7 +344,7 @@ describe('AnalyticsPrivacyController', () => {
         'AnalyticsPrivacyController:createDataDeletionTask',
       );
 
-      expect(response.status).toBe(DataDeleteResponseStatus.Error);
+      expect(response.status).toBe(DataDeleteResponseStatus.Failure);
       expect(response.error).toBe('Analytics ID not found');
     });
 
@@ -386,7 +386,7 @@ describe('AnalyticsPrivacyController', () => {
       rootMessenger.registerActionHandler(
         'AnalyticsPrivacyService:createDataDeletionTask',
         jest.fn().mockResolvedValue({
-          status: DataDeleteResponseStatus.Ok,
+          status: DataDeleteResponseStatus.Success,
           // regulateId is undefined
         }),
       );
@@ -409,7 +409,7 @@ describe('AnalyticsPrivacyController', () => {
         'AnalyticsPrivacyController:createDataDeletionTask',
       );
 
-      expect(response.status).toBe(DataDeleteResponseStatus.Ok);
+      expect(response.status).toBe(DataDeleteResponseStatus.Success);
       expect(response.regulateId).toBeUndefined();
     });
 
@@ -453,7 +453,7 @@ describe('AnalyticsPrivacyController', () => {
       rootMessenger.registerActionHandler(
         'AnalyticsPrivacyService:createDataDeletionTask',
         jest.fn().mockResolvedValue({
-          status: DataDeleteResponseStatus.Ok,
+          status: DataDeleteResponseStatus.Success,
           regulateId: '', // Empty string is falsy
         }),
       );
@@ -474,12 +474,12 @@ describe('AnalyticsPrivacyController', () => {
         'AnalyticsPrivacyController:createDataDeletionTask',
       );
 
-      expect(response.status).toBe(DataDeleteResponseStatus.Ok);
+      expect(response.status).toBe(DataDeleteResponseStatus.Success);
       // Empty string is falsy, so condition fails and state is not updated
       expect(controller.state.deleteRegulationId).toBeNull();
     });
 
-    it('returns response without updating state when regulateId is undefined', async () => {
+    it('does not update state when regulateId is undefined', async () => {
       const rootMessenger = new Messenger<
         MockAnyNamespace,
         | AnalyticsPrivacyControllerActions
@@ -517,7 +517,7 @@ describe('AnalyticsPrivacyController', () => {
       rootMessenger.registerActionHandler(
         'AnalyticsPrivacyService:createDataDeletionTask',
         jest.fn().mockResolvedValue({
-          status: DataDeleteResponseStatus.Ok,
+          status: DataDeleteResponseStatus.Success,
           regulateId: undefined as string | undefined,
         }),
       );
@@ -538,7 +538,7 @@ describe('AnalyticsPrivacyController', () => {
         'AnalyticsPrivacyController:createDataDeletionTask',
       );
 
-      expect(response.status).toBe(DataDeleteResponseStatus.Ok);
+      expect(response.status).toBe(DataDeleteResponseStatus.Success);
       expect(controller.state.deleteRegulationId).toBeNull();
     });
 
@@ -579,7 +579,7 @@ describe('AnalyticsPrivacyController', () => {
       rootMessenger.registerActionHandler(
         'AnalyticsPrivacyService:createDataDeletionTask',
         jest.fn().mockResolvedValue({
-          status: DataDeleteResponseStatus.Ok,
+          status: DataDeleteResponseStatus.Success,
           regulateId: 'test-regulate-id',
         }),
       );
@@ -602,7 +602,7 @@ describe('AnalyticsPrivacyController', () => {
         'AnalyticsPrivacyController:createDataDeletionTask',
       );
 
-      expect(response.status).toBe(DataDeleteResponseStatus.Error);
+      expect(response.status).toBe(DataDeleteResponseStatus.Failure);
       expect(response.error).toBe('Analytics ID not found');
     });
 
@@ -664,7 +664,7 @@ describe('AnalyticsPrivacyController', () => {
         'AnalyticsPrivacyController:createDataDeletionTask',
       );
 
-      expect(response.status).toBe(DataDeleteResponseStatus.Error);
+      expect(response.status).toBe(DataDeleteResponseStatus.Failure);
       expect(response.error).toBe('Analytics Deletion Task Error');
     });
 
@@ -706,7 +706,7 @@ describe('AnalyticsPrivacyController', () => {
       rootMessenger.registerActionHandler(
         'AnalyticsPrivacyService:createDataDeletionTask',
         jest.fn().mockResolvedValue({
-          status: DataDeleteResponseStatus.Error,
+          status: DataDeleteResponseStatus.Failure,
           error: 'Service error',
         }),
       );
@@ -729,7 +729,7 @@ describe('AnalyticsPrivacyController', () => {
         'AnalyticsPrivacyController:createDataDeletionTask',
       );
 
-      expect(response.status).toBe(DataDeleteResponseStatus.Error);
+      expect(response.status).toBe(DataDeleteResponseStatus.Failure);
       expect(response.error).toBe('Service error');
     });
 
@@ -771,7 +771,7 @@ describe('AnalyticsPrivacyController', () => {
       rootMessenger.registerActionHandler(
         'AnalyticsPrivacyService:createDataDeletionTask',
         jest.fn().mockResolvedValue({
-          status: DataDeleteResponseStatus.Error,
+          status: DataDeleteResponseStatus.Failure,
           error: 'Service error',
         }),
       );
@@ -863,7 +863,7 @@ describe('AnalyticsPrivacyController', () => {
       rootMessenger.registerActionHandler(
         'AnalyticsPrivacyService:checkDataDeleteStatus',
         jest.fn().mockResolvedValue({
-          status: DataDeleteResponseStatus.Ok,
+          status: DataDeleteResponseStatus.Success,
           dataDeleteStatus: DataDeleteStatus.Finished,
         }),
       );

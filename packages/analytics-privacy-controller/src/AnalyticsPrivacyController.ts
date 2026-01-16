@@ -244,7 +244,7 @@ export class AnalyticsPrivacyController extends BaseController<
         const error = new Error('Analytics ID not found');
         log('Analytics Deletion Task Error', error);
         return {
-          status: DataDeleteResponseStatus.Error,
+          status: DataDeleteResponseStatus.Failure,
           error: 'Analytics ID not found',
         };
       }
@@ -255,7 +255,7 @@ export class AnalyticsPrivacyController extends BaseController<
       );
 
       if (
-        response.status === DataDeleteResponseStatus.Ok &&
+        response.status === DataDeleteResponseStatus.Success &&
         response.regulateId &&
         typeof response.regulateId === 'string' &&
         response.regulateId.trim() !== ''
@@ -284,7 +284,7 @@ export class AnalyticsPrivacyController extends BaseController<
           ? error.message
           : 'Analytics Deletion Task Error';
       return {
-        status: DataDeleteResponseStatus.Error,
+        status: DataDeleteResponseStatus.Failure,
         error: errorMessage,
       };
     }

@@ -52,7 +52,7 @@ describe('AnalyticsPrivacyService', () => {
       );
 
       expect(response).toStrictEqual({
-        status: DataDeleteResponseStatus.Ok,
+        status: DataDeleteResponseStatus.Success,
         regulateId,
       });
     });
@@ -73,7 +73,7 @@ describe('AnalyticsPrivacyService', () => {
       );
 
       expect(response).toStrictEqual({
-        status: DataDeleteResponseStatus.Error,
+        status: DataDeleteResponseStatus.Failure,
         error: 'Segment API source ID or endpoint not found',
       });
     });
@@ -94,7 +94,7 @@ describe('AnalyticsPrivacyService', () => {
       );
 
       expect(response).toStrictEqual({
-        status: DataDeleteResponseStatus.Error,
+        status: DataDeleteResponseStatus.Failure,
         error: 'Segment API source ID or endpoint not found',
       });
     });
@@ -120,7 +120,7 @@ describe('AnalyticsPrivacyService', () => {
       );
 
       expect(response).toStrictEqual({
-        status: DataDeleteResponseStatus.Error,
+        status: DataDeleteResponseStatus.Failure,
         error: 'Analytics Deletion Task Error',
       });
     });
@@ -144,7 +144,7 @@ describe('AnalyticsPrivacyService', () => {
       );
 
       expect(response).toStrictEqual({
-        status: DataDeleteResponseStatus.Error,
+        status: DataDeleteResponseStatus.Failure,
         error: 'Analytics Deletion Task Error',
       });
     });
@@ -236,7 +236,7 @@ describe('AnalyticsPrivacyService', () => {
       );
 
       expect(response).toStrictEqual({
-        status: DataDeleteResponseStatus.Ok,
+        status: DataDeleteResponseStatus.Success,
         dataDeleteStatus: status,
       });
     });
@@ -250,7 +250,7 @@ describe('AnalyticsPrivacyService', () => {
       );
 
       expect(response).toStrictEqual({
-        status: DataDeleteResponseStatus.Error,
+        status: DataDeleteResponseStatus.Failure,
         dataDeleteStatus: DataDeleteStatus.Unknown,
       });
     });
@@ -271,7 +271,7 @@ describe('AnalyticsPrivacyService', () => {
       );
 
       expect(response).toStrictEqual({
-        status: DataDeleteResponseStatus.Error,
+        status: DataDeleteResponseStatus.Failure,
         dataDeleteStatus: DataDeleteStatus.Unknown,
       });
     });
@@ -297,7 +297,7 @@ describe('AnalyticsPrivacyService', () => {
       );
 
       expect(response).toStrictEqual({
-        status: DataDeleteResponseStatus.Error,
+        status: DataDeleteResponseStatus.Failure,
         dataDeleteStatus: DataDeleteStatus.Unknown,
       });
     });
@@ -325,7 +325,7 @@ describe('AnalyticsPrivacyService', () => {
       );
 
       expect(response).toStrictEqual({
-        status: DataDeleteResponseStatus.Ok,
+        status: DataDeleteResponseStatus.Success,
         dataDeleteStatus: DataDeleteStatus.Unknown,
       });
     });
@@ -388,7 +388,7 @@ describe('AnalyticsPrivacyService', () => {
           'test-analytics-id',
         ),
       ).toMatchObject({
-        status: DataDeleteResponseStatus.Error,
+        status: DataDeleteResponseStatus.Failure,
       });
 
       expect(onRetryListener).toHaveBeenCalled();
@@ -418,7 +418,7 @@ describe('AnalyticsPrivacyService', () => {
             'test-analytics-id',
           ),
         ).toMatchObject({
-          status: DataDeleteResponseStatus.Error,
+          status: DataDeleteResponseStatus.Failure,
         });
       }
 
@@ -429,7 +429,7 @@ describe('AnalyticsPrivacyService', () => {
           'test-analytics-id',
         ),
       ).toMatchObject({
-        status: DataDeleteResponseStatus.Error,
+        status: DataDeleteResponseStatus.Failure,
       });
 
       expect(onBreakListener).toHaveBeenCalled();
@@ -482,7 +482,7 @@ describe('AnalyticsPrivacyService', () => {
           'test-analytics-id',
         ),
       ).toMatchObject({
-        status: DataDeleteResponseStatus.Error,
+        status: DataDeleteResponseStatus.Failure,
       });
 
       expect(onDegradedListener).toHaveBeenCalled();
