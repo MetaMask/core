@@ -113,7 +113,10 @@ import {
   updateSwapsTransaction,
 } from './utils/swaps';
 import * as transactionTypeUtils from './utils/transaction-type';
-import { getHistoryLimit } from './utils/feature-flags';
+import {
+  getSubmitHistoryLimit,
+  getTransactionHistoryLimit,
+} from './utils/feature-flags';
 import { ErrorCode } from './utils/validation';
 import { FakeBlockTracker } from '../../../tests/fake-block-tracker';
 import { FakeProvider } from '../../../tests/fake-provider';
@@ -571,7 +574,8 @@ describe('TransactionController', () => {
   const updateFirstTimeInteractionMock = jest.mocked(
     updateFirstTimeInteraction,
   );
-  const getHistoryLimitMock = jest.mocked(getHistoryLimit);
+  const getSubmitHistoryLimitMock = jest.mocked(getSubmitHistoryLimit);
+  const getTransactionHistoryLimitMock = jest.mocked(getTransactionHistoryLimit);
 
   let mockEthQuery: EthQuery;
   let getNonceLockSpy: jest.Mock;
@@ -1031,7 +1035,8 @@ describe('TransactionController', () => {
 
     updateFirstTimeInteractionMock.mockResolvedValue(undefined);
 
-    getHistoryLimitMock.mockReturnValue(100);
+    getSubmitHistoryLimitMock.mockReturnValue(100);
+    getTransactionHistoryLimitMock.mockReturnValue(40);
   });
 
   describe('constructor', () => {
@@ -4960,6 +4965,8 @@ describe('TransactionController', () => {
     });
 
     it('limits max transactions when adding to state', async () => {
+      getTransactionHistoryLimitMock.mockReturnValue(1);
+
       const { controller } = setupController({
         options: { transactionHistoryLimit: 1 },
       });

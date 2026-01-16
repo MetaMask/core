@@ -17,7 +17,8 @@ import {
   getGasFeeRandomisation,
   getGasEstimateFallback,
   getGasEstimateBuffer,
-  getHistoryLimit,
+  getSubmitHistoryLimit,
+  getTransactionHistoryLimit,
   FeatureFlag,
   getIncomingTransactionsPollingInterval,
   getTimeoutAttempts,
@@ -350,29 +351,55 @@ describe('Feature Flags Utils', () => {
     });
   });
 
-  describe('getHistoryLimit', () => {
+  describe('getSubmitHistoryLimit', () => {
     it('returns value from remote feature flag controller', () => {
       mockFeatureFlags({
         [FeatureFlag.Transactions]: {
-          historyLimit: 50,
+          submitHistoryLimit: 50,
         },
       });
 
-      expect(getHistoryLimit(controllerMessenger)).toBe(50);
+      expect(getSubmitHistoryLimit(controllerMessenger)).toBe(50);
     });
 
     it('returns default value if undefined', () => {
       mockFeatureFlags({});
-      expect(getHistoryLimit(controllerMessenger)).toBe(100);
+      expect(getSubmitHistoryLimit(controllerMessenger)).toBe(100);
     });
 
-    it('returns default value if Transactions flag is defined but historyLimit is not', () => {
+    it('returns default value if Transactions flag is defined but submitHistoryLimit is not', () => {
       mockFeatureFlags({
         [FeatureFlag.Transactions]: {
           batchSizeLimit: 5,
         },
       });
-      expect(getHistoryLimit(controllerMessenger)).toBe(100);
+      expect(getSubmitHistoryLimit(controllerMessenger)).toBe(100);
+    });
+  });
+
+  describe('getTransactionHistoryLimit', () => {
+    it('returns value from remote feature flag controller', () => {
+      mockFeatureFlags({
+        [FeatureFlag.Transactions]: {
+          transactionHistoryLimit: 20,
+        },
+      });
+
+      expect(getTransactionHistoryLimit(controllerMessenger)).toBe(20);
+    });
+
+    it('returns default value if undefined', () => {
+      mockFeatureFlags({});
+      expect(getTransactionHistoryLimit(controllerMessenger)).toBe(40);
+    });
+
+    it('returns default value if Transactions flag is defined but transactionHistoryLimit is not', () => {
+      mockFeatureFlags({
+        [FeatureFlag.Transactions]: {
+          batchSizeLimit: 5,
+        },
+      });
+      expect(getTransactionHistoryLimit(controllerMessenger)).toBe(40);
     });
   });
 

@@ -138,7 +138,10 @@ import {
   signAuthorizationList,
 } from './utils/eip7702';
 import { validateConfirmedExternalTransaction } from './utils/external-transactions';
-import { getHistoryLimit } from './utils/feature-flags';
+import {
+  getSubmitHistoryLimit,
+  getTransactionHistoryLimit,
+} from './utils/feature-flags';
 import { updateFirstTimeInteraction } from './utils/first-time-interaction';
 import {
   addGasBuffer,
@@ -3472,6 +3475,9 @@ export class TransactionController extends BaseController<
     transactions: TransactionMeta[],
   ): TransactionMeta[] {
     const nonceNetworkSet = new Set();
+    const transactionHistoryLimit =
+      getTransactionHistoryLimit(this.messenger) ??
+      this.#transactionHistoryLimit;
 
     const txsToKeep = [...transactions]
       .sort((a, b) => (a.time > b.time ? -1 : 1)) // Descending time order
@@ -3486,7 +3492,7 @@ export class TransactionController extends BaseController<
           if (nonceNetworkSet.has(key)) {
             return true;
           } else if (
-            nonceNetworkSet.size < this.#transactionHistoryLimit ||
+            nonceNetworkSet.size < transactionHistoryLimit ||
             !this.#isFinalState(status)
           ) {
             nonceNetworkSet.add(key);
@@ -4541,12 +4547,12 @@ export class TransactionController extends BaseController<
 
     log('Updating submit history', submitHistoryEntry);
 
-    const historyLimit = getHistoryLimit(this.messenger);
+    const submitHistoryLimit = getSubmitHistoryLimit(this.messenger);
 
     this.update((state) => {
       const { submitHistory } = state;
 
-      if (submitHistory.length >= historyLimit) {
+      if (submitHistory.length >= submitHistoryLimit) {
         submitHistory.pop();
       }
 
