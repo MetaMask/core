@@ -499,11 +499,20 @@ export class RampsController extends BaseController<
   async updateUserRegion(
     options?: ExecuteRequestOptions,
   ): Promise<UserRegion | null> {
-    // If a userRegion already exists, return it immediately without fetching geolocation.
+    // If a userRegion already exists and forceRefresh is not requested,
+    // return it immediately without fetching geolocation.
     // This ensures that once a region is set (either via geolocation or manual selection),
     // it will not be overwritten by subsequent geolocation fetches.
-    if (this.state.userRegion) {
+    if (this.state.userRegion && !options?.forceRefresh) {
       return this.state.userRegion;
+    }
+
+    // When forceRefresh is true, clear the existing region and tokens before fetching
+    if (options?.forceRefresh) {
+      this.update((state) => {
+        state.userRegion = null;
+        state.tokens = null;
+      });
     }
 
     const cacheKey = createCacheKey('updateUserRegion', []);
@@ -533,8 +542,13 @@ export class RampsController extends BaseController<
 
       if (userRegion) {
         this.update((state) => {
+          const regionChanged =
+            state.userRegion?.regionCode !== userRegion.regionCode;
           state.userRegion = userRegion;
-          state.tokens = null;
+          // Clear tokens when region changes
+          if (regionChanged) {
+            state.tokens = null;
+          }
         });
 
         return userRegion;

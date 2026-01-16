@@ -377,7 +377,11 @@ describe('RampsController', () => {
     });
 
     it('does not overwrite existing user region when called', async () => {
-      const existingRegion = createMockUserRegion('us-co', 'United States', 'Colorado');
+      const existingRegion = createMockUserRegion(
+        'us-co',
+        'United States',
+        'Colorado',
+      );
       await withController(
         {
           options: {
@@ -933,6 +937,127 @@ describe('RampsController', () => {
     });
 
     it('finds country by id starting with /regions/', async () => {
+      await withController(async ({ controller, rootMessenger }) => {
+        const countriesWithId: Country[] = [
+          {
+            id: '/regions/us',
+            isoCode: 'XX',
+            name: 'United States',
+            flag: '🇺🇸',
+            currency: 'USD',
+            phone: { prefix: '+1', placeholder: '', template: '' },
+            supported: true,
+            states: [{ stateId: 'CA', name: 'California', supported: true }],
+          },
+        ];
+
+        rootMessenger.registerActionHandler(
+          'RampsService:getCountries',
+          async () => countriesWithId,
+        );
+
+        await controller.setUserRegion('us');
+
+        expect(controller.state.userRegion?.regionCode).toBe('us');
+        expect(controller.state.userRegion?.country.name).toBe('United States');
+      });
+    });
+
+    it('finds country by id ending with /countryCode', async () => {
+      await withController(async ({ controller, rootMessenger }) => {
+        const countriesWithId: Country[] = [
+          {
+            id: '/some/path/fr',
+            isoCode: 'YY',
+            name: 'France',
+            flag: '🇫🇷',
+            currency: 'EUR',
+            phone: { prefix: '+33', placeholder: '', template: '' },
+            supported: true,
+          },
+        ];
+
+        rootMessenger.registerActionHandler(
+          'RampsService:getCountries',
+          async () => countriesWithId,
+        );
+
+        await controller.setUserRegion('fr');
+
+        expect(controller.state.userRegion?.regionCode).toBe('fr');
+        expect(controller.state.userRegion?.country.name).toBe('France');
+      });
+    });
+
+    it('finds country by id matching countryCode directly', async () => {
+      await withController(async ({ controller, rootMessenger }) => {
+        const countriesWithId: Country[] = [
+          {
+            id: 'us',
+            isoCode: 'ZZ',
+            name: 'United States',
+            flag: '🇺🇸',
+            currency: 'USD',
+            phone: { prefix: '+1', placeholder: '', template: '' },
+            supported: true,
+          },
+        ];
+
+        rootMessenger.registerActionHandler(
+          'RampsService:getCountries',
+          async () => countriesWithId,
+        );
+
+        await controller.setUserRegion('us');
+
+        expect(controller.state.userRegion?.regionCode).toBe('us');
+        expect(controller.state.userRegion?.country.name).toBe('United States');
+      });
+    });
+
+    it('throws error when country is not found', async () => {
+      await withController(async ({ controller, rootMessenger }) => {
+        const countries: Country[] = [
+          {
+            isoCode: 'FR',
+            name: 'France',
+            flag: '🇫🇷',
+            currency: 'EUR',
+            phone: { prefix: '+33', placeholder: '', template: '' },
+            supported: true,
+          },
+        ];
+
+        rootMessenger.registerActionHandler(
+          'RampsService:getCountries',
+          async () => countries,
+        );
+
+        await expect(controller.setUserRegion('xx')).rejects.toThrow(
+          'Region "xx" not found in countries data',
+        );
+
+        expect(controller.state.userRegion).toBeNull();
+      });
+    });
+
+    it('throws error when countries fetch fails', async () => {
+      await withController(async ({ controller, rootMessenger }) => {
+        rootMessenger.registerActionHandler(
+          'RampsService:getCountries',
+          async () => {
+            throw new Error('Network error');
+          },
+        );
+
+        await expect(controller.setUserRegion('us')).rejects.toThrow(
+          'Failed to fetch countries data. Cannot set user region without valid country information.',
+        );
+
+        expect(controller.state.userRegion).toBeNull();
+        expect(controller.state.tokens).toBeNull();
+      });
+    });
       await withController(async ({ controller, rootMessenger }) => {
         const countriesWithId: Country[] = [
           {
