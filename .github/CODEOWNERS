@@ -56,6 +56,7 @@
 ## Mobile Platform Team
 /packages/app-metadata-controller @MetaMask/mobile-platform
 /packages/analytics-controller    @MetaMask/mobile-platform @MetaMask/extension-platform
+/packages/analytics-privacy-controller @MetaMask/mobile-platform @MetaMask/extension-platform
 
 ## Wallet Integrations Team
 /packages/chain-agnostic-permission        @MetaMask/wallet-integrations
@@ -109,6 +110,8 @@
 /packages/accounts-controller/package.json        @MetaMask/accounts-engineers @MetaMask/core-platform
 /packages/analytics-controller/package.json       @MetaMask/mobile-platform @MetaMask/extension-platform @MetaMask/core-platform
 /packages/analytics-controller/CHANGELOG.md       @MetaMask/mobile-platform @MetaMask/extension-platform @MetaMask/core-platform
+/packages/analytics-privacy-controller/package.json @MetaMask/mobile-platform @MetaMask/extension-platform @MetaMask/core-platform
+/packages/analytics-privacy-controller/CHANGELOG.md @MetaMask/mobile-platform @MetaMask/extension-platform @MetaMask/core-platform
 /packages/accounts-controller/CHANGELOG.md        @MetaMask/accounts-engineers @MetaMask/core-platform
 /packages/address-book-controller/package.json    @MetaMask/confirmations @MetaMask/core-platform
 /packages/address-book-controller/CHANGELOG.md    @MetaMask/confirmations @MetaMask/core-platform
