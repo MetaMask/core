@@ -321,15 +321,15 @@ export const reconstructDecodedPermission = ({
   data: DecodedPermission['permission']['data'];
   justification: string;
   specifiedOrigin: string;
-}) => {
+}): DecodedPermission => {
   if (authority !== ROOT_AUTHORITY) {
     throw new Error('Invalid authority');
   }
 
   const permission: DecodedPermission = {
     chainId: numberToHex(chainId),
-    address: delegator,
-    signer: { type: 'account', data: { address: delegate } },
+    from: delegator,
+    to: delegate,
     permission: {
       type: permissionType,
       data,

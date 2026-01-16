@@ -31,7 +31,7 @@ export type RequestSelectorResult<TData> = {
  *
  * @param getState - Function that extracts RampsControllerState from the root state.
  *   Typically a reselect selector like `selectRampsControllerState`.
- * @param method - The controller method name (e.g., 'updateGeolocation').
+ * @param method - The controller method name (e.g., 'updateUserRegion').
  * @param params - The parameters passed to the method, used to generate the cache key.
  *   Must match the params used when calling the controller method.
  * @returns A selector function that returns `{ data, isFetching, error }`.
@@ -47,14 +47,14 @@ export type RequestSelectorResult<TData> = {
  *   (rampsControllerState) => rampsControllerState,
  * );
  *
- * export const selectGeolocationRequest = createRequestSelector<
+ * export const selectUserRegionRequest = createRequestSelector<
  *   RootState,
  *   string
- * >(selectRampsControllerState, 'updateGeolocation', []);
+ * >(selectRampsControllerState, 'updateUserRegion', []);
  *
  * // In hook - use directly with useSelector, no shallowEqual needed
- * export function useRampsGeolocation() {
- *   const { isFetching, error } = useSelector(selectGeolocationRequest);
+ * export function useRampsUserRegion() {
+ *   const { isFetching, error } = useSelector(selectUserRegionRequest);
  *   // ... rest of hook
  * }
  * ```

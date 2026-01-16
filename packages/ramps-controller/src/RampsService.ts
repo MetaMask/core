@@ -44,22 +44,34 @@ export type State = {
 };
 
 /**
- * Represents eligibility information for a region.
- * Returned from the /regions/countries/{isoCode} endpoint.
+ * Represents a provider link.
  */
-export type Eligibility = {
-  /**
-   * Whether aggregator providers are available.
-   */
-  aggregator?: boolean;
-  /**
-   * Whether deposit (buy) is available.
-   */
-  deposit?: boolean;
-  /**
-   * Whether global providers are available.
-   */
-  global?: boolean;
+export type ProviderLink = {
+  name: string;
+  url: string;
+};
+
+/**
+ * Represents provider logos.
+ */
+export type ProviderLogos = {
+  light: string;
+  dark: string;
+  height: number;
+  width: number;
+};
+
+/**
+ * Represents a ramp provider.
+ */
+export type Provider = {
+  id: string;
+  name: string;
+  environmentType: string;
+  description: string;
+  hqAddress: string;
+  links: ProviderLink[];
+  logos: ProviderLogos;
 };
 
 /**
@@ -103,6 +115,62 @@ export type Country = {
    * Array of state objects.
    */
   states?: State[];
+  /**
+   * Default amount for ramps transactions.
+   */
+  defaultAmount?: number;
+  /**
+   * Quick amount options for ramps transactions.
+   */
+  quickAmounts?: number[];
+};
+
+/**
+ * Represents a token returned from the regions/{region}/tokens API.
+ */
+export type RampsToken = {
+  /**
+   * The asset identifier in CAIP-19 format (e.g., "eip155:1/erc20:0x...").
+   */
+  assetId: string;
+  /**
+   * The chain identifier in CAIP-2 format (e.g., "eip155:1").
+   */
+  chainId: string;
+  /**
+   * Token name (e.g., "USD Coin").
+   */
+  name: string;
+  /**
+   * Token symbol (e.g., "USDC").
+   */
+  symbol: string;
+  /**
+   * Number of decimals for the token.
+   */
+  decimals: number;
+  /**
+   * URL to the token icon.
+   */
+  iconUrl: string;
+  /**
+   * Whether this token is supported.
+   */
+  tokenSupported: boolean;
+};
+
+/**
+ * Response from the regions/{region}/tokens API.
+ */
+export type TokensResponse = {
+  /**
+   * Top/popular tokens for the region.
+   */
+  topTokens: RampsToken[];
+  /**
+   * All available tokens for the region.
+   */
+  allTokens: RampsToken[];
 };
 
 /**
@@ -141,7 +209,7 @@ export enum RampsApiService {
 const MESSENGER_EXPOSED_METHODS = [
   'getGeolocation',
   'getCountries',
-  'getEligibility',
+  'getTokens',
 ] as const;
 
 /**
@@ -199,6 +267,17 @@ function getBaseUrl(
     default:
       throw new Error(`Invalid environment: ${String(environment)}`);
   }
+}
+
+/**
+ * Constructs an API path with a version prefix.
+ *
+ * @param path - The API endpoint path.
+ * @param version - The API version prefix. Defaults to 'v2'.
+ * @returns The versioned API path.
+ */
+function getApiPath(path: string, version: string = 'v2'): string {
+  return `${version}/${path}`;
 }
 
 /**
@@ -455,7 +534,7 @@ export class RampsService {
   async getCountries(action: 'buy' | 'sell' = 'buy'): Promise<Country[]> {
     const countries = await this.#request<Country[]>(
       RampsApiService.Regions,
-      'regions/countries',
+      getApiPath('regions/countries'),
       { action, responseType: 'json' },
     );
 
@@ -476,17 +555,34 @@ export class RampsService {
   }
 
   /**
-   * Fetches eligibility information for a specific region.
+   * Fetches the list of available tokens for a given region and action.
    *
-   * @param isoCode - The ISO code for the region (e.g., "us", "fr", "us-ny").
-   * @returns Eligibility information for the region.
+   * @param region - The region code (e.g., "us", "fr", "us-ny").
+   * @param action - The ramp action type ('buy' or 'sell').
+   * @returns The tokens response containing topTokens and allTokens.
    */
-  async getEligibility(isoCode: string): Promise<Eligibility> {
-    const normalizedIsoCode = isoCode.toLowerCase().trim();
-    return this.#request<Eligibility>(
+  async getTokens(
+    region: string,
+    action: 'buy' | 'sell' = 'buy',
+  ): Promise<TokensResponse> {
+    const normalizedRegion = region.toLowerCase().trim();
+    const response = await this.#request<TokensResponse>(
       RampsApiService.Regions,
-      `regions/countries/${normalizedIsoCode}`,
-      { responseType: 'json' },
+      `regions/${normalizedRegion}/tokens`,
+      { action, responseType: 'json' },
     );
+
+    if (!response || typeof response !== 'object') {
+      throw new Error('Malformed response received from tokens API');
+    }
+
+    if (
+      !Array.isArray(response.topTokens) ||
+      !Array.isArray(response.allTokens)
+    ) {
+      throw new Error('Malformed response received from tokens API');
+    }
+
+    return response;
   }
 }

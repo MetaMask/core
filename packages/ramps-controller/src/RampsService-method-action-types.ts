@@ -29,14 +29,15 @@ export type RampsServiceGetCountriesAction = {
 };
 
 /**
- * Fetches eligibility information for a specific region.
+ * Fetches the list of available tokens for a given region and action.
  *
- * @param isoCode - The ISO code for the region (e.g., "us", "fr", "us-ny").
- * @returns Eligibility information for the region.
+ * @param region - The region code (e.g., "us", "fr", "us-ny").
+ * @param action - The ramp action type ('buy' or 'sell').
+ * @returns The tokens response containing topTokens and allTokens.
  */
-export type RampsServiceGetEligibilityAction = {
-  type: `RampsService:getEligibility`;
-  handler: RampsService['getEligibility'];
+export type RampsServiceGetTokensAction = {
+  type: `RampsService:getTokens`;
+  handler: RampsService['getTokens'];
 };
 
 /**
@@ -45,4 +46,4 @@ export type RampsServiceGetEligibilityAction = {
 export type RampsServiceMethodActions =
   | RampsServiceGetGeolocationAction
   | RampsServiceGetCountriesAction
-  | RampsServiceGetEligibilityAction;
+  | RampsServiceGetTokensAction;

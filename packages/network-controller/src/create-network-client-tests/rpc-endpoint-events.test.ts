@@ -1,3 +1,4 @@
+import { CONNECTIVITY_STATUSES } from '@metamask/connectivity-controller';
 import {
   ConstantBackoff,
   DEFAULT_DEGRADED_THRESHOLD,
@@ -82,6 +83,7 @@ describe('createNetworkClient - RPC endpoint events', () => {
                         policyOptions: {
                           backoff: new ConstantBackoff(backoffDuration),
                         },
+                        isOffline: (): boolean => false,
                       }),
                     },
                     async ({ makeRpcCall, clock, chainId }) => {
@@ -198,6 +200,7 @@ describe('createNetworkClient - RPC endpoint events', () => {
                         policyOptions: {
                           backoff: new ConstantBackoff(backoffDuration),
                         },
+                        isOffline: (): boolean => false,
                       }),
                     },
                     async ({ makeRpcCall, clock, chainId, rpcUrl }) => {
@@ -263,6 +266,182 @@ describe('createNetworkClient - RPC endpoint events', () => {
           );
         });
 
+        it('does not retry requests when user is offline', async () => {
+          const failoverEndpointUrl = 'https://failover.endpoint/';
+          const request = {
+            method: 'eth_gasPrice',
+            params: [],
+          };
+          const expectedError = createResourceUnavailableError(503);
+
+          await withMockedCommunications(
+            { providerType: networkClientType },
+            async (primaryComms) => {
+              await withMockedCommunications(
+                {
+                  providerType: 'custom',
+                  customRpcUrl: failoverEndpointUrl,
+                },
+                async () => {
+                  // Mock only one failure - if retries were happening, we'd need more
+                  primaryComms.mockRpcCall({
+                    request: {
+                      method: 'eth_blockNumber',
+                      params: [],
+                    },
+                    times: 1,
+                    response: {
+                      httpStatus: 503,
+                    },
+                  });
+
+                  const rootMessenger = buildRootMessenger({
+                    connectivityStatus: CONNECTIVITY_STATUSES.Offline,
+                  });
+
+                  const rpcEndpointRetriedEventHandler = jest.fn();
+                  rootMessenger.subscribe(
+                    'NetworkController:rpcEndpointRetried',
+                    rpcEndpointRetriedEventHandler,
+                  );
+
+                  await withNetworkClient(
+                    {
+                      providerType: networkClientType,
+                      networkClientId: 'AAAA-AAAA-AAAA-AAAA',
+                      isRpcFailoverEnabled: true,
+                      failoverRpcUrls: [failoverEndpointUrl],
+                      messenger: rootMessenger,
+                      getRpcServiceOptions: () => ({
+                        fetch,
+                        btoa,
+                        policyOptions: {
+                          backoff: new ConstantBackoff(backoffDuration),
+                        },
+                        isOffline: (): boolean => false,
+                      }),
+                    },
+                    async ({ makeRpcCall }) => {
+                      // When offline, errors are not retried, so the request
+                      // should fail immediately without retries
+                      await expect(makeRpcCall(request)).rejects.toThrow(
+                        expectedError,
+                      );
+
+                      // Verify that retry event was not published
+                      expect(
+                        rpcEndpointRetriedEventHandler,
+                      ).not.toHaveBeenCalled();
+                    },
+                  );
+                },
+              );
+            },
+          );
+        });
+
+        it('suppresses the NetworkController:rpcEndpointUnavailable event when user is offline', async () => {
+          const failoverEndpointUrl = 'https://failover.endpoint/';
+          const request = {
+            method: 'eth_gasPrice',
+            params: [],
+          };
+          const expectedError = createResourceUnavailableError(503);
+
+          await withMockedCommunications(
+            { providerType: networkClientType },
+            async (primaryComms) => {
+              await withMockedCommunications(
+                {
+                  providerType: 'custom',
+                  customRpcUrl: failoverEndpointUrl,
+                },
+                async (failoverComms) => {
+                  // The first time a block-cacheable request is made, the
+                  // latest block number is retrieved through the block
+                  // tracker first.
+                  primaryComms.mockRpcCall({
+                    request: {
+                      method: 'eth_blockNumber',
+                      params: [],
+                    },
+                    times: DEFAULT_MAX_CONSECUTIVE_FAILURES,
+                    response: {
+                      httpStatus: 503,
+                    },
+                  });
+                  failoverComms.mockRpcCall({
+                    request: {
+                      method: 'eth_blockNumber',
+                      params: [],
+                    },
+                    times: DEFAULT_MAX_CONSECUTIVE_FAILURES,
+                    response: {
+                      httpStatus: 503,
+                    },
+                  });
+
+                  const rootMessenger = buildRootMessenger({
+                    connectivityStatus: CONNECTIVITY_STATUSES.Offline,
+                  });
+
+                  const rpcEndpointUnavailableEventHandler = jest.fn();
+                  rootMessenger.subscribe(
+                    'NetworkController:rpcEndpointUnavailable',
+                    rpcEndpointUnavailableEventHandler,
+                  );
+
+                  await withNetworkClient(
+                    {
+                      providerType: networkClientType,
+                      networkClientId: 'AAAA-AAAA-AAAA-AAAA',
+                      isRpcFailoverEnabled: true,
+                      failoverRpcUrls: [failoverEndpointUrl],
+                      messenger: rootMessenger,
+                      getRpcServiceOptions: () => ({
+                        fetch,
+                        btoa,
+                        policyOptions: {
+                          backoff: new ConstantBackoff(backoffDuration),
+                        },
+                        isOffline: (): boolean => false,
+                      }),
+                    },
+                    async ({ makeRpcCall, clock }) => {
+                      rootMessenger.subscribe(
+                        'NetworkController:rpcEndpointRetried',
+                        () => {
+                          // Ensure that we advance to the next RPC request
+                          // retry, not the next block tracker request.
+                          clock.tick(backoffDuration);
+                        },
+                      );
+
+                      // When offline, errors are not retried, so the circuit
+                      // won't break and onServiceBreak won't be called
+                      await expect(makeRpcCall(request)).rejects.toThrow(
+                        expectedError,
+                      );
+                      await expect(makeRpcCall(request)).rejects.toThrow(
+                        expectedError,
+                      );
+                      await expect(makeRpcCall(request)).rejects.toThrow(
+                        expectedError,
+                      );
+
+                      // Event should be suppressed when offline because retries
+                      // are prevented, so onServiceBreak is never called
+                      expect(
+                        rpcEndpointUnavailableEventHandler,
+                      ).not.toHaveBeenCalled();
+                    },
+                  );
+                },
+              );
+            },
+          );
+        });
+
         it('does not publish the NetworkController:rpcEndpointChainDegraded event again if the max number of retries is reached in making requests to a failover endpoint', async () => {
           const failoverEndpointUrl = 'https://failover.endpoint/';
           const request = {
@@ -301,6 +480,7 @@ describe('createNetworkClient - RPC endpoint events', () => {
                         policyOptions: {
                           backoff: new ConstantBackoff(backoffDuration),
                         },
+                        isOffline: (): boolean => false,
                       }),
                     },
                     async ({ makeRpcCall, clock, chainId }) => {
@@ -408,6 +588,7 @@ describe('createNetworkClient - RPC endpoint events', () => {
                         policyOptions: {
                           backoff: new ConstantBackoff(backoffDuration),
                         },
+                        isOffline: (): boolean => false,
                       }),
                     },
                     async ({ makeRpcCall, clock, chainId }) => {
@@ -523,6 +704,7 @@ describe('createNetworkClient - RPC endpoint events', () => {
                         policyOptions: {
                           backoff: new ConstantBackoff(backoffDuration),
                         },
+                        isOffline: (): boolean => false,
                       }),
                     },
                     async ({ makeRpcCall, clock, chainId, rpcUrl }) => {
@@ -650,6 +832,7 @@ describe('createNetworkClient - RPC endpoint events', () => {
                         policyOptions: {
                           backoff: new ConstantBackoff(backoffDuration),
                         },
+                        isOffline: (): boolean => false,
                       }),
                     },
                     async ({ makeRpcCall, clock, chainId, rpcUrl }) => {
@@ -822,6 +1005,7 @@ describe('createNetworkClient - RPC endpoint events', () => {
                         policyOptions: {
                           backoff: new ConstantBackoff(backoffDuration),
                         },
+                        isOffline: (): boolean => false,
                       }),
                     },
                     async ({ makeRpcCall, clock, chainId }) => {
@@ -908,6 +1092,7 @@ describe('createNetworkClient - RPC endpoint events', () => {
                     policyOptions: {
                       backoff: new ConstantBackoff(backoffDuration),
                     },
+                    isOffline: (): boolean => false,
                   }),
                 },
                 async ({ makeRpcCall, clock, chainId }) => {
@@ -977,6 +1162,7 @@ describe('createNetworkClient - RPC endpoint events', () => {
                     policyOptions: {
                       backoff: new ConstantBackoff(backoffDuration),
                     },
+                    isOffline: (): boolean => false,
                   }),
                 },
                 async ({ makeRpcCall, clock, chainId }) => {
@@ -1068,6 +1254,7 @@ describe('createNetworkClient - RPC endpoint events', () => {
                     policyOptions: {
                       backoff: new ConstantBackoff(backoffDuration),
                     },
+                    isOffline: (): boolean => false,
                   }),
                 },
                 async ({ makeRpcCall, clock, chainId, rpcUrl }) => {
@@ -1117,6 +1304,158 @@ describe('createNetworkClient - RPC endpoint events', () => {
           );
         });
 
+        it('does not retry requests when user is offline (degraded scenario)', async () => {
+          const request = {
+            method: 'eth_gasPrice',
+            params: [],
+          };
+          const expectedError = createResourceUnavailableError(503);
+
+          await withMockedCommunications(
+            { providerType: networkClientType },
+            async (comms) => {
+              // Mock only one failure - if retries were happening, we'd need more
+              comms.mockRpcCall({
+                request: {
+                  method: 'eth_blockNumber',
+                  params: [],
+                },
+                times: 1,
+                response: {
+                  httpStatus: 503,
+                },
+              });
+              comms.mockRpcCall({
+                request: {
+                  method: 'eth_gasPrice',
+                  params: [],
+                },
+                times: 1,
+                response: {
+                  httpStatus: 503,
+                },
+              });
+
+              const rootMessenger = buildRootMessenger({
+                connectivityStatus: CONNECTIVITY_STATUSES.Offline,
+              });
+
+              const rpcEndpointRetriedEventHandler = jest.fn();
+              rootMessenger.subscribe(
+                'NetworkController:rpcEndpointRetried',
+                rpcEndpointRetriedEventHandler,
+              );
+
+              await withNetworkClient(
+                {
+                  providerType: networkClientType,
+                  networkClientId: 'AAAA-AAAA-AAAA-AAAA',
+                  messenger: rootMessenger,
+                  getRpcServiceOptions: () => ({
+                    fetch,
+                    btoa,
+                    policyOptions: {
+                      backoff: new ConstantBackoff(backoffDuration),
+                    },
+                    isOffline: (): boolean => false,
+                  }),
+                },
+                async ({ makeRpcCall }) => {
+                  // When offline, errors are not retried, so the request
+                  // should fail immediately without retries
+                  await expect(makeRpcCall(request)).rejects.toThrow(
+                    expectedError,
+                  );
+
+                  // Verify that retry event was not published
+                  expect(rpcEndpointRetriedEventHandler).not.toHaveBeenCalled();
+                },
+              );
+            },
+          );
+        });
+
+        it('suppresses the NetworkController:rpcEndpointDegraded event when user is offline', async () => {
+          const request = {
+            method: 'eth_gasPrice',
+            params: [],
+          };
+          const expectedError = createResourceUnavailableError(503);
+
+          await withMockedCommunications(
+            { providerType: networkClientType },
+            async (comms) => {
+              // The first time a block-cacheable request is made, the
+              // latest block number is retrieved through the block
+              // tracker first.
+              comms.mockRpcCall({
+                request: {
+                  method: 'eth_blockNumber',
+                  params: [],
+                },
+                times: DEFAULT_MAX_CONSECUTIVE_FAILURES,
+                response: {
+                  httpStatus: 503,
+                },
+              });
+
+              const rootMessenger = buildRootMessenger({
+                connectivityStatus: CONNECTIVITY_STATUSES.Offline,
+              });
+
+              const rpcEndpointDegradedEventHandler = jest.fn();
+              rootMessenger.subscribe(
+                'NetworkController:rpcEndpointDegraded',
+                rpcEndpointDegradedEventHandler,
+              );
+
+              await withNetworkClient(
+                {
+                  providerType: networkClientType,
+                  networkClientId: 'AAAA-AAAA-AAAA-AAAA',
+                  messenger: rootMessenger,
+                  getRpcServiceOptions: () => ({
+                    fetch,
+                    btoa,
+                    policyOptions: {
+                      backoff: new ConstantBackoff(backoffDuration),
+                    },
+                    isOffline: (): boolean => false,
+                  }),
+                },
+                async ({ makeRpcCall, clock }) => {
+                  rootMessenger.subscribe(
+                    'NetworkController:rpcEndpointRetried',
+                    () => {
+                      // Ensure that we advance to the next RPC request
+                      // retry, not the next block tracker request.
+                      clock.tick(backoffDuration);
+                    },
+                  );
+
+                  // When offline, errors are not retried, so the circuit
+                  // won't accumulate failures and onServiceDegraded won't be called
+                  await expect(makeRpcCall(request)).rejects.toThrow(
+                    expectedError,
+                  );
+                  await expect(makeRpcCall(request)).rejects.toThrow(
+                    expectedError,
+                  );
+                  await expect(makeRpcCall(request)).rejects.toThrow(
+                    expectedError,
+                  );
+
+                  // Event should be suppressed when offline because retries
+                  // are prevented, so onServiceDegraded is never called
+                  expect(
+                    rpcEndpointDegradedEventHandler,
+                  ).not.toHaveBeenCalled();
+                },
+              );
+            },
+          );
+        });
+
         it('publishes the NetworkController:rpcEndpointDegraded event when the time to complete a request to a primary endpoint is continually too long', async () => {
           const request = {
             method: 'eth_gasPrice',
@@ -1147,6 +1486,7 @@ describe('createNetworkClient - RPC endpoint events', () => {
                     policyOptions: {
                       backoff: new ConstantBackoff(backoffDuration),
                     },
+                    isOffline: (): boolean => false,
                   }),
                 },
                 async ({ makeRpcCall, clock, chainId, rpcUrl }) => {
@@ -1240,6 +1580,7 @@ describe('createNetworkClient - RPC endpoint events', () => {
                     policyOptions: {
                       backoff: new ConstantBackoff(backoffDuration),
                     },
+                    isOffline: (): boolean => false,
                   }),
                 },
                 async ({ makeRpcCall, chainId }) => {

@@ -7,8 +7,44 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+## [64.4.3]
+
 ### Changed
 
+- Bump `@metamask/accounts-controller` from `^35.0.1` to `^35.0.2` ([#7642](https://github.com/MetaMask/core/pull/7642))
+- Bump `@metamask/gas-fee-controller` from `^26.0.1` to `^26.0.2` ([#7642](https://github.com/MetaMask/core/pull/7642))
+- Bump `@metamask/network-controller` from `^28.0.0` to `^29.0.0` ([#7642](https://github.com/MetaMask/core/pull/7642))
+- Bump `@metamask/polling-controller` from `^16.0.1` to `^16.0.2` ([#7642](https://github.com/MetaMask/core/pull/7642))
+- Bump `@metamask/transaction-controller` from `^62.9.1` to `^62.9.2` ([#7642](https://github.com/MetaMask/core/pull/7642))
+- Bump `@metamask/bridge-controller` from `^64.4.1` to `^64.5.1` ([#7622](https://github.com/MetaMask/core/pull/7622), [#7642](https://github.com/MetaMask/core/pull/7642))
+
+## [64.4.2]
+
+### Changed
+
+- Bump `@metamask/transaction-controller` from `^62.8.0` to `^62.9.1` ([#7602](https://github.com/MetaMask/core/pull/7602), [#7604](https://github.com/MetaMask/core/pull/7604))
+- Bump `@metamask/network-controller` from `^27.2.0` to `^28.0.0` ([#7604](https://github.com/MetaMask/core/pull/7604))
+- Bump `@metamask/accounts-controller` from `^35.0.0` to `^35.0.1` ([#7604](https://github.com/MetaMask/core/pull/7604))
+- Bump `@metamask/bridge-controller` from `^64.4.0` to `^64.4.1` ([#7604](https://github.com/MetaMask/core/pull/7604))
+- Bump `@metamask/gas-fee-controller` from `^26.0.0` to `^26.0.1` ([#7604](https://github.com/MetaMask/core/pull/7604))
+- Bump `@metamask/polling-controller` from `^16.0.0` to `^16.0.1` ([#7604](https://github.com/MetaMask/core/pull/7604))
+
+## [64.4.1]
+
+### Fixed
+
+- Use `BRIDGE_PREFERRED_GAS_ESTIMATE` from `@metamask/bridge-controller` for gas price estimates to align with validation ([#7582](https://github.com/MetaMask/core/pull/7582))
+
+## [64.4.0]
+
+### Added
+
+- Add intent based transaction support ([#6547](https://github.com/MetaMask/core/pull/6547))
+
+### Changed
+
+- Bump `@metamask/transaction-controller` from `^62.7.0` to `^62.8.0` ([#7596](https://github.com/MetaMask/core/pull/7596))
+- Bump `@metamask/bridge-controller` from `^64.3.0` to `^64.4.0` ([#7596](https://github.com/MetaMask/core/pull/7596))
 - Bump `@metamask/controller-utils` from `^11.17.0` to `^11.18.0` ([#7583](https://github.com/MetaMask/core/pull/7583))
 - Bump `@metamask/network-controller` from `^27.1.0` to `^27.2.0` ([#7583](https://github.com/MetaMask/core/pull/7583))
 
@@ -16,6 +52,7 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ### Changed
 
+- **BREAKING** Use CrossChain API instead of the intent manager package for intent order submission ([#6547](https://github.com/MetaMask/core/pull/6547))
 - Bump `@metamask/snaps-controllers` from `^14.0.1` to `^17.2.0` ([#7550](https://github.com/MetaMask/core/pull/7550))
 - Upgrade `@metamask/utils` from `^11.8.1` to `^11.9.0` ([#7511](https://github.com/MetaMask/core/pull/7511))
 - Bump `@metamask/network-controller` from `^27.0.0` to `^27.1.0` ([#7534](https://github.com/MetaMask/core/pull/7534))
@@ -844,7 +881,11 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 - Initial release ([#5317](https://github.com/MetaMask/core/pull/5317))
 
-[Unreleased]: https://github.com/MetaMask/core/compare/@metamask/bridge-status-controller@64.3.0...HEAD
+[Unreleased]: https://github.com/MetaMask/core/compare/@metamask/bridge-status-controller@64.4.3...HEAD
+[64.4.3]: https://github.com/MetaMask/core/compare/@metamask/bridge-status-controller@64.4.2...@metamask/bridge-status-controller@64.4.3
+[64.4.2]: https://github.com/MetaMask/core/compare/@metamask/bridge-status-controller@64.4.1...@metamask/bridge-status-controller@64.4.2
+[64.4.1]: https://github.com/MetaMask/core/compare/@metamask/bridge-status-controller@64.4.0...@metamask/bridge-status-controller@64.4.1
+[64.4.0]: https://github.com/MetaMask/core/compare/@metamask/bridge-status-controller@64.3.0...@metamask/bridge-status-controller@64.4.0
 [64.3.0]: https://github.com/MetaMask/core/compare/@metamask/bridge-status-controller@64.2.0...@metamask/bridge-status-controller@64.3.0
 [64.2.0]: https://github.com/MetaMask/core/compare/@metamask/bridge-status-controller@64.1.0...@metamask/bridge-status-controller@64.2.0
 [64.1.0]: https://github.com/MetaMask/core/compare/@metamask/bridge-status-controller@64.0.1...@metamask/bridge-status-controller@64.1.0

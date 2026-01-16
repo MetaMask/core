@@ -275,7 +275,7 @@ describe('RampsService', () => {
 
     it('returns the countries from the cache API filtered by support', async () => {
       nock('https://on-ramp-cache.uat-api.cx.metamask.io')
-        .get('/regions/countries')
+        .get('/v2/regions/countries')
         .query({
           action: 'buy',
           sdk: '2.1.6',
@@ -326,7 +326,7 @@ describe('RampsService', () => {
 
     it('uses the production cache URL when environment is Production', async () => {
       nock('https://on-ramp-cache.api.cx.metamask.io')
-        .get('/regions/countries')
+        .get('/v2/regions/countries')
         .query({
           action: 'buy',
           sdk: '2.1.6',
@@ -379,7 +379,7 @@ describe('RampsService', () => {
 
     it('uses staging cache URL when environment is Development', async () => {
       nock('https://on-ramp-cache.uat-api.cx.metamask.io')
-        .get('/regions/countries')
+        .get('/v2/regions/countries')
         .query({
           action: 'buy',
           sdk: '2.1.6',
@@ -432,7 +432,7 @@ describe('RampsService', () => {
 
     it('passes the action parameter correctly', async () => {
       nock('https://on-ramp-cache.uat-api.cx.metamask.io')
-        .get('/regions/countries')
+        .get('/v2/regions/countries')
         .query({
           action: 'sell',
           sdk: '2.1.6',
@@ -516,7 +516,7 @@ describe('RampsService', () => {
         },
       ];
       nock('https://on-ramp-cache.uat-api.cx.metamask.io')
-        .get('/regions/countries')
+        .get('/v2/regions/countries')
         .query({
           action: 'sell',
           sdk: '2.1.6',
@@ -564,7 +564,7 @@ describe('RampsService', () => {
         },
       ];
       nock('https://on-ramp-cache.uat-api.cx.metamask.io')
-        .get('/regions/countries')
+        .get('/v2/regions/countries')
         .query({
           action: 'buy',
           sdk: '2.1.6',
@@ -584,10 +584,9 @@ describe('RampsService', () => {
       expect(countriesResponse[0]?.supported).toBe(false);
       expect(countriesResponse[0]?.states?.[0]?.supported).toBe(true);
     });
-
     it('throws if the countries API returns an error', async () => {
       nock('https://on-ramp-cache.uat-api.cx.metamask.io')
-        .get('/regions/countries')
+        .get('/v2/regions/countries')
         .query({
           action: 'buy',
           sdk: '2.1.6',
@@ -608,13 +607,13 @@ describe('RampsService', () => {
       await clock.runAllAsync();
       await flushPromises();
       await expect(countriesPromise).rejects.toThrow(
-        `Fetching 'https://on-ramp-cache.uat-api.cx.metamask.io/regions/countries?action=buy&sdk=2.1.6&controller=${CONTROLLER_VERSION}&context=mobile-ios' failed with status '500'`,
+        `Fetching 'https://on-ramp-cache.uat-api.cx.metamask.io/v2/regions/countries?action=buy&sdk=2.1.6&controller=${CONTROLLER_VERSION}&context=mobile-ios' failed with status '500'`,
       );
     });
 
     it('throws if the API returns a non-array response', async () => {
       nock('https://on-ramp-cache.uat-api.cx.metamask.io')
-        .get('/regions/countries')
+        .get('/v2/regions/countries')
         .query({
           action: 'buy',
           sdk: '2.1.6',
@@ -637,7 +636,7 @@ describe('RampsService', () => {
 
     it('throws if the API returns an object instead of an array', async () => {
       nock('https://on-ramp-cache.uat-api.cx.metamask.io')
-        .get('/regions/countries')
+        .get('/v2/regions/countries')
         .query({
           action: 'buy',
           sdk: '2.1.6',
@@ -659,89 +658,6 @@ describe('RampsService', () => {
     });
   });
 
-  describe('getEligibility', () => {
-    it('fetches eligibility for a country code', async () => {
-      nock('https://on-ramp-cache.uat-api.cx.metamask.io')
-        .get('/regions/countries/fr')
-        .query({
-          sdk: '2.1.6',
-          controller: CONTROLLER_VERSION,
-          context: 'mobile-ios',
-        })
-        .reply(200, {
-          aggregator: true,
-          deposit: true,
-          global: true,
-        });
-      const { service } = getService();
-
-      const eligibilityPromise = service.getEligibility('fr');
-      await clock.runAllAsync();
-      await flushPromises();
-      const eligibility = await eligibilityPromise;
-
-      expect(eligibility).toStrictEqual({
-        aggregator: true,
-        deposit: true,
-        global: true,
-      });
-    });
-
-    it('fetches eligibility for a state code', async () => {
-      nock('https://on-ramp-cache.uat-api.cx.metamask.io')
-        .get('/regions/countries/us-ny')
-        .query({
-          sdk: '2.1.6',
-          controller: CONTROLLER_VERSION,
-          context: 'mobile-ios',
-        })
-        .reply(200, {
-          aggregator: false,
-          deposit: true,
-          global: false,
-        });
-      const { service } = getService();
-
-      const eligibilityPromise = service.getEligibility('us-ny');
-      await clock.runAllAsync();
-      await flushPromises();
-      const eligibility = await eligibilityPromise;
-
-      expect(eligibility).toStrictEqual({
-        aggregator: false,
-        deposit: true,
-        global: false,
-      });
-    });
-
-    it('normalizes ISO code to lowercase', async () => {
-      nock('https://on-ramp-cache.uat-api.cx.metamask.io')
-        .get('/regions/countries/fr')
-        .query({
-          sdk: '2.1.6',
-          controller: CONTROLLER_VERSION,
-          context: 'mobile-ios',
-        })
-        .reply(200, {
-          aggregator: true,
-          deposit: true,
-          global: true,
-        });
-      const { service } = getService();
-
-      const eligibilityPromise = service.getEligibility('FR');
-      await clock.runAllAsync();
-      await flushPromises();
-      const eligibility = await eligibilityPromise;
-
-      expect(eligibility).toStrictEqual({
-        aggregator: true,
-        deposit: true,
-        global: true,
-      });
-    });
-  });
-
   describe('getCountries', () => {
     it('does the same thing as the messenger action', async () => {
       const mockCountries = [
@@ -755,7 +671,7 @@ describe('RampsService', () => {
         },
       ];
       nock('https://on-ramp-cache.uat-api.cx.metamask.io')
-        .get('/regions/countries')
+        .get('/v2/regions/countries')
         .query({
           action: 'buy',
           sdk: '2.1.6',
@@ -808,7 +724,7 @@ describe('RampsService', () => {
         },
       ];
       nock('https://on-ramp-cache.uat-api.cx.metamask.io')
-        .get('/regions/countries')
+        .get('/v2/regions/countries')
         .query({
           action: 'buy',
           sdk: '2.1.6',
@@ -865,7 +781,7 @@ describe('RampsService', () => {
         },
       ];
       nock('https://on-ramp-cache.uat-api.cx.metamask.io')
-        .get('/regions/countries')
+        .get('/v2/regions/countries')
         .query({
           action: 'buy',
           sdk: '2.1.6',
@@ -906,7 +822,7 @@ describe('RampsService', () => {
         },
       ];
       nock('https://on-ramp-cache.uat-api.cx.metamask.io')
-        .get('/regions/countries')
+        .get('/v2/regions/countries')
         .query({
           action: 'buy',
           sdk: '2.1.6',
@@ -923,6 +839,302 @@ describe('RampsService', () => {
 
       expect(countriesResponse[0]?.supported).toBe(true);
       expect(countriesResponse[0]?.states?.[0]?.supported).toBe(true);
+    });
+  });
+
+  describe('getTokens', () => {
+    it('does the same thing as the messenger action', async () => {
+      const mockTokens = {
+        topTokens: [
+          {
+            assetId:
+              'eip155:1/erc20:0xA0b86991c6218b36c1d19D4a2e9Eb0cE3606eB48',
+            chainId: 'eip155:1',
+            name: 'USD Coin',
+            symbol: 'USDC',
+            decimals: 6,
+            iconUrl: 'https://example.com/usdc.png',
+            tokenSupported: true,
+          },
+        ],
+        allTokens: [
+          {
+            assetId:
+              'eip155:1/erc20:0xA0b86991c6218b36c1d19D4a2e9Eb0cE3606eB48',
+            chainId: 'eip155:1',
+            name: 'USD Coin',
+            symbol: 'USDC',
+            decimals: 6,
+            iconUrl: 'https://example.com/usdc.png',
+            tokenSupported: true,
+          },
+        ],
+      };
+      nock('https://on-ramp-cache.uat-api.cx.metamask.io')
+        .get('/regions/us/tokens')
+        .query({
+          action: 'buy',
+          sdk: '2.1.6',
+          controller: CONTROLLER_VERSION,
+          context: 'mobile-ios',
+        })
+        .reply(200, mockTokens);
+      nock('https://on-ramp.uat-api.cx.metamask.io')
+        .get('/geolocation')
+        .query({
+          sdk: '2.1.6',
+          controller: CONTROLLER_VERSION,
+          context: 'mobile-ios',
+        })
+        .reply(200, 'us');
+      const { service } = getService();
+
+      const tokensPromise = service.getTokens('us', 'buy');
+      await clock.runAllAsync();
+      await flushPromises();
+      const tokensResponse = await tokensPromise;
+
+      expect(tokensResponse).toMatchInlineSnapshot(`
+        Object {
+          "allTokens": Array [
+            Object {
+              "assetId": "eip155:1/erc20:0xA0b86991c6218b36c1d19D4a2e9Eb0cE3606eB48",
+              "chainId": "eip155:1",
+              "decimals": 6,
+              "iconUrl": "https://example.com/usdc.png",
+              "name": "USD Coin",
+              "symbol": "USDC",
+              "tokenSupported": true,
+            },
+          ],
+          "topTokens": Array [
+            Object {
+              "assetId": "eip155:1/erc20:0xA0b86991c6218b36c1d19D4a2e9Eb0cE3606eB48",
+              "chainId": "eip155:1",
+              "decimals": 6,
+              "iconUrl": "https://example.com/usdc.png",
+              "name": "USD Coin",
+              "symbol": "USDC",
+              "tokenSupported": true,
+            },
+          ],
+        }
+      `);
+    });
+
+    it('uses default buy action when no argument is provided', async () => {
+      const mockTokens = {
+        topTokens: [],
+        allTokens: [],
+      };
+      nock('https://on-ramp-cache.uat-api.cx.metamask.io')
+        .get('/regions/us/tokens')
+        .query({
+          action: 'buy',
+          sdk: '2.1.6',
+          controller: CONTROLLER_VERSION,
+          context: 'mobile-ios',
+        })
+        .reply(200, mockTokens);
+      nock('https://on-ramp.uat-api.cx.metamask.io')
+        .get('/geolocation')
+        .query({
+          sdk: '2.1.6',
+          controller: CONTROLLER_VERSION,
+          context: 'mobile-ios',
+        })
+        .reply(200, 'us');
+      const { service } = getService();
+
+      const tokensPromise = service.getTokens('us');
+      await clock.runAllAsync();
+      await flushPromises();
+      const tokensResponse = await tokensPromise;
+
+      expect(tokensResponse.topTokens).toStrictEqual([]);
+      expect(tokensResponse.allTokens).toStrictEqual([]);
+    });
+
+    it('normalizes region case', async () => {
+      const mockTokens = {
+        topTokens: [],
+        allTokens: [],
+      };
+      nock('https://on-ramp-cache.uat-api.cx.metamask.io')
+        .get('/regions/us/tokens')
+        .query({
+          action: 'buy',
+          sdk: '2.1.6',
+          controller: CONTROLLER_VERSION,
+          context: 'mobile-ios',
+        })
+        .reply(200, mockTokens);
+      nock('https://on-ramp.uat-api.cx.metamask.io')
+        .get('/geolocation')
+        .query({
+          sdk: '2.1.6',
+          controller: CONTROLLER_VERSION,
+          context: 'mobile-ios',
+        })
+        .reply(200, 'us');
+      const { service } = getService();
+
+      const tokensPromise = service.getTokens('US', 'buy');
+      await clock.runAllAsync();
+      await flushPromises();
+      const tokensResponse = await tokensPromise;
+
+      expect(tokensResponse.topTokens).toStrictEqual([]);
+      expect(tokensResponse.allTokens).toStrictEqual([]);
+    });
+
+    it('handles sell action', async () => {
+      const mockTokens = {
+        topTokens: [],
+        allTokens: [],
+      };
+      nock('https://on-ramp-cache.uat-api.cx.metamask.io')
+        .get('/regions/us/tokens')
+        .query({
+          action: 'sell',
+          sdk: '2.1.6',
+          controller: CONTROLLER_VERSION,
+          context: 'mobile-ios',
+        })
+        .reply(200, mockTokens);
+      nock('https://on-ramp.uat-api.cx.metamask.io')
+        .get('/geolocation')
+        .query({
+          sdk: '2.1.6',
+          controller: CONTROLLER_VERSION,
+          context: 'mobile-ios',
+        })
+        .reply(200, 'us');
+      const { service } = getService();
+
+      const tokensPromise = service.getTokens('us', 'sell');
+      await clock.runAllAsync();
+      await flushPromises();
+      const tokensResponse = await tokensPromise;
+
+      expect(tokensResponse.topTokens).toStrictEqual([]);
+      expect(tokensResponse.allTokens).toStrictEqual([]);
+    });
+
+    it('throws error for malformed response', async () => {
+      nock('https://on-ramp-cache.uat-api.cx.metamask.io')
+        .get('/regions/us/tokens')
+        .query({
+          action: 'buy',
+          sdk: '2.1.6',
+          controller: CONTROLLER_VERSION,
+          context: 'mobile-ios',
+        })
+        .reply(200, { invalid: 'response' });
+      nock('https://on-ramp.uat-api.cx.metamask.io')
+        .get('/geolocation')
+        .query({
+          sdk: '2.1.6',
+          controller: CONTROLLER_VERSION,
+          context: 'mobile-ios',
+        })
+        .reply(200, 'us');
+      const { service } = getService();
+
+      const tokensPromise = service.getTokens('us', 'buy');
+      await clock.runAllAsync();
+      await flushPromises();
+
+      await expect(tokensPromise).rejects.toThrow(
+        'Malformed response received from tokens API',
+      );
+    });
+
+    it('throws error when response is null', async () => {
+      nock('https://on-ramp-cache.uat-api.cx.metamask.io')
+        .get('/regions/us/tokens')
+        .query({
+          action: 'buy',
+          sdk: '2.1.6',
+          controller: CONTROLLER_VERSION,
+          context: 'mobile-ios',
+        })
+        .reply(200, () => null);
+      nock('https://on-ramp.uat-api.cx.metamask.io')
+        .get('/geolocation')
+        .query({
+          sdk: '2.1.6',
+          controller: CONTROLLER_VERSION,
+          context: 'mobile-ios',
+        })
+        .reply(200, 'us');
+      const { service } = getService();
+
+      const tokensPromise = service.getTokens('us', 'buy');
+      await clock.runAllAsync();
+      await flushPromises();
+
+      await expect(tokensPromise).rejects.toThrow(
+        'Malformed response received from tokens API',
+      );
+    });
+
+    it('throws error when topTokens is not an array', async () => {
+      nock('https://on-ramp-cache.uat-api.cx.metamask.io')
+        .get('/regions/us/tokens')
+        .query({
+          action: 'buy',
+          sdk: '2.1.6',
+          controller: CONTROLLER_VERSION,
+          context: 'mobile-ios',
+        })
+        .reply(200, { topTokens: 'not an array', allTokens: [] });
+      nock('https://on-ramp.uat-api.cx.metamask.io')
+        .get('/geolocation')
+        .query({
+          sdk: '2.1.6',
+          controller: CONTROLLER_VERSION,
+          context: 'mobile-ios',
+        })
+        .reply(200, 'us');
+      const { service } = getService();
+
+      const tokensPromise = service.getTokens('us', 'buy');
+      await clock.runAllAsync();
+      await flushPromises();
+
+      await expect(tokensPromise).rejects.toThrow(
+        'Malformed response received from tokens API',
+      );
+    });
+
+    it('throws error when allTokens is not an array', async () => {
+      nock('https://on-ramp-cache.uat-api.cx.metamask.io')
+        .get('/regions/us/tokens')
+        .query({
+          action: 'buy',
+          sdk: '2.1.6',
+          controller: CONTROLLER_VERSION,
+          context: 'mobile-ios',
+        })
+        .reply(200, { topTokens: [], allTokens: 'not an array' });
+      nock('https://on-ramp.uat-api.cx.metamask.io')
+        .get('/geolocation')
+        .query({
+          sdk: '2.1.6',
+          controller: CONTROLLER_VERSION,
+          context: 'mobile-ios',
+        })
+        .reply(200, 'us');
+      const { service } = getService();
+
+      const tokensPromise = service.getTokens('us', 'buy');
+      await clock.runAllAsync();
+      await flushPromises();
+
+      await expect(tokensPromise).rejects.toThrow(
+        'Malformed response received from tokens API',
+      );
     });
   });
 });

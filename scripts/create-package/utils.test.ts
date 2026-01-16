@@ -1,3 +1,4 @@
+import * as commentJson from 'comment-json';
 import execa from 'execa';
 import fs from 'fs';
 import path from 'path';
@@ -60,8 +61,8 @@ describe('create-package/utils', () => {
       const monorepoFileData = await readMonorepoFiles();
 
       expect(monorepoFileData).toStrictEqual({
-        tsConfig: JSON.parse(tsConfig),
-        tsConfigBuild: JSON.parse(tsConfigBuild),
+        tsConfig: commentJson.parse(tsConfig),
+        tsConfigBuild: commentJson.parse(tsConfigBuild),
         nodeVersions: '>=18.0.0',
       });
     });
@@ -128,18 +129,29 @@ describe('create-package/utils', () => {
       expect(format).toHaveBeenCalledTimes(2);
       expect(fs.promises.writeFile).toHaveBeenCalledWith(
         expect.stringMatching(/tsconfig\.json$/u),
-        JSON.stringify({
-          references: [{ path: './packages/bar' }, { path: './packages/foo' }],
-        }),
+        JSON.stringify(
+          {
+            references: [
+              { path: './packages/bar' },
+              { path: './packages/foo' },
+            ],
+          },
+          null,
+          2,
+        ),
       );
       expect(fs.promises.writeFile).toHaveBeenCalledWith(
         expect.stringMatching(/tsconfig\.build\.json$/u),
-        JSON.stringify({
-          references: [
-            { path: './packages/bar' },
-            { path: './packages/foo/tsconfig.build.json' },
-          ],
-        }),
+        JSON.stringify(
+          {
+            references: [
+              { path: './packages/bar' },
+              { path: './packages/foo/tsconfig.build.json' },
+            ],
+          },
+          null,
+          2,
+        ),
       );
 
       // Postprocessing

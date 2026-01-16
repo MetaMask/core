@@ -23,7 +23,7 @@ function getTokensURL(chainId: Hex): string {
 
   return `${TOKEN_END_POINT_API}/tokens/${convertHexToDecimal(
     chainId,
-  )}?occurrenceFloor=${occurrenceFloor}&includeNativeAssets=false&includeTokenFees=false&includeAssetType=false&includeERC20Permit=false&includeStorage=false`;
+  )}?occurrenceFloor=${occurrenceFloor}&includeNativeAssets=false&includeTokenFees=false&includeAssetType=false&includeERC20Permit=false&includeStorage=false&includeRwaData=true`;
 }
 
 /**
@@ -36,7 +36,7 @@ function getTokensURL(chainId: Hex): string {
 function getTokenMetadataURL(chainId: Hex, tokenAddress: string): string {
   return `${TOKEN_END_POINT_API}/token/${convertHexToDecimal(
     chainId,
-  )}?address=${tokenAddress}`;
+  )}?address=${tokenAddress}&includeRwaData=true`;
 }
 
 /**
@@ -210,7 +210,7 @@ export async function searchTokens(
   {
     limit = 10,
     includeMarketData = false,
-    includeRwaData,
+    includeRwaData = true,
   }: SearchTokenOptions = {},
 ): Promise<{ count: number; data: TokenSearchItem[] }> {
   const tokenSearchURL = getTokenSearchURL({
@@ -228,7 +228,7 @@ export async function searchTokens(
     // The API returns an object with structure: { count: number, data: array, pageInfo: object }
     if (result && typeof result === 'object' && Array.isArray(result.data)) {
       return {
-        count: result.count || result.data.length,
+        count: result.count ?? result.data.length,
         data: result.data,
       };
     }
@@ -291,7 +291,7 @@ export async function getTrendingTokens({
   minMarketCap,
   maxMarketCap,
   excludeLabels,
-  includeRwaData,
+  includeRwaData = true,
 }: {
   chainIds: CaipChainId[];
   sortBy?: SortTrendingBy;
