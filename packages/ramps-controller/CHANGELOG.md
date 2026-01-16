@@ -15,6 +15,8 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 - Add `defaultAmount` and `quickAmounts` fields to the `Country` type ([#7645](https://github.com/MetaMask/core/pull/7645))
 
+- Add `providers` state and `getProviders()` method to RampsController. Providers are automatically fetched on init and when the region changes ([#7652](https://github.com/MetaMask/core/pull/7652))
+
 ### Changed
 
 - **BREAKING:** Change `userRegion` from `string | null` to `UserRegion | null`. Access region code via `userRegion.regionCode`. ([#7646](https://github.com/MetaMask/core/pull/7646))
