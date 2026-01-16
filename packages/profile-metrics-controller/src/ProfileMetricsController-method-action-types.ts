@@ -7,6 +7,7 @@ import type { ProfileMetricsController } from './ProfileMetricsController';
 
 /**
  * Skip the initial delay period by setting the end timestamp to the current time.
+ * Metrics will be sent on the next poll.
  */
 export type ProfileMetricsControllerSkipInitialDelayAction = {
   type: `ProfileMetricsController:skipInitialDelay`;
