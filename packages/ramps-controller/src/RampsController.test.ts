@@ -907,33 +907,6 @@ describe('RampsController', () => {
       });
     });
 
-
-
-    it('clears tokens when user region changes', async () => {
-      await withController(async ({ controller, rootMessenger }) => {
-        const mockTokens: TokensResponse = {
-          topTokens: [],
-          allTokens: [],
-        };
-
-        rootMessenger.registerActionHandler(
-          'RampsService:getCountries',
-          async () => createMockCountries(),
-        );
-        rootMessenger.registerActionHandler(
-          'RampsService:getTokens',
-          async (_region: string, _action?: 'buy' | 'sell') => mockTokens,
-        );
-
-        await controller.setUserRegion('US');
-        await controller.getTokens('us', 'buy');
-        expect(controller.state.tokens).toStrictEqual(mockTokens);
-
-        await controller.setUserRegion('FR');
-        expect(controller.state.tokens).toBeNull();
-      });
-    });
-
     it('clears tokens when user region changes', async () => {
       await withController(async ({ controller, rootMessenger }) => {
         const mockTokens: TokensResponse = {
@@ -1281,73 +1254,6 @@ describe('RampsController', () => {
           );
         },
       );
-    });
-  });
-
-
-    it('clears tokens when user region changes', async () => {
-      await withController(async ({ controller, rootMessenger }) => {
-        const mockTokens: TokensResponse = {
-          topTokens: [],
-          allTokens: [],
-        };
-
-        let geolocationResult = 'us';
-        rootMessenger.registerActionHandler(
-          'RampsService:getGeolocation',
-          async () => geolocationResult,
-        );
-        rootMessenger.registerActionHandler(
-          'RampsService:getCountries',
-          async () => createMockCountries(),
-        );
-        rootMessenger.registerActionHandler(
-          'RampsService:getTokens',
-          async (_region: string, _action?: 'buy' | 'sell') => mockTokens,
-        );
-
-        await controller.updateUserRegion();
-        await controller.getTokens('us', 'buy');
-        expect(controller.state.tokens).toStrictEqual(mockTokens);
-
-        geolocationResult = 'fr';
-
-        await controller.updateUserRegion({ forceRefresh: true });
-        expect(controller.state.tokens).toBeNull();
-      });
-    });
-
-    it('clears tokens when user region changes', async () => {
-      await withController(async ({ controller, rootMessenger }) => {
-        const mockTokens: TokensResponse = {
-          topTokens: [],
-          allTokens: [],
-        };
-
-        let geolocationResult = 'us';
-
-        rootMessenger.registerActionHandler(
-          'RampsService:getGeolocation',
-          async () => geolocationResult,
-        );
-        rootMessenger.registerActionHandler(
-          'RampsService:getCountries',
-          async () => createMockCountries(),
-        );
-        rootMessenger.registerActionHandler(
-          'RampsService:getTokens',
-          async (_region: string, _action?: 'buy' | 'sell') => mockTokens,
-        );
-
-        await controller.updateUserRegion();
-        await controller.getTokens('us', 'buy');
-        expect(controller.state.tokens).toStrictEqual(mockTokens);
-
-        geolocationResult = 'fr';
-
-        await controller.updateUserRegion({ forceRefresh: true });
-        expect(controller.state.tokens).toBeNull();
-      });
     });
   });
 
