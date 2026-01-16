@@ -502,20 +502,6 @@ export class RampsController extends BaseController<
   }
 
   /**
-   * Gets countries data from cache or fetches it if not available.
-   *
-   * @param action - The ramp action type ('buy' or 'sell').
-   * @param options - Options for cache behavior.
-   * @returns Array of countries.
-   */
-  async #getCountriesData(
-    action: 'buy' | 'sell' = 'buy',
-    options?: ExecuteRequestOptions,
-  ): Promise<Country[]> {
-    return this.getCountries(action, options);
-  }
-
-  /**
    * Updates the user's region by fetching geolocation and eligibility.
    * This method calls the RampsService to get the geolocation,
    * then automatically fetches eligibility for that region.
@@ -548,7 +534,7 @@ export class RampsController extends BaseController<
     const normalizedRegion = regionCode.toLowerCase().trim();
 
     try {
-      const countries = await this.#getCountriesData('buy', options);
+      const countries = await this.getCountries('buy', options);
       const userRegion = findRegionFromCode(normalizedRegion, countries);
 
       if (userRegion) {
@@ -621,7 +607,7 @@ export class RampsController extends BaseController<
     const normalizedRegion = region.toLowerCase().trim();
 
     try {
-      const countries = await this.#getCountriesData('buy', options);
+      const countries = await this.getCountries('buy', options);
       const userRegion = findRegionFromCode(normalizedRegion, countries);
 
       if (userRegion) {

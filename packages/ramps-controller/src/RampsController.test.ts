@@ -195,6 +195,36 @@ describe('RampsController', () => {
       });
     });
 
+    it('calls getCountriesData internally when fetching countries', async () => {
+      await withController(async ({ controller, rootMessenger }) => {
+        let countriesCallCount = 0;
+        rootMessenger.registerActionHandler(
+          'RampsService:getGeolocation',
+          async () => 'US',
+        );
+        rootMessenger.registerActionHandler(
+          'RampsService:getCountries',
+          async () => {
+            countriesCallCount += 1;
+            return createMockCountries();
+          },
+        );
+        rootMessenger.registerActionHandler(
+          'RampsService:getEligibility',
+          async () => ({
+            aggregator: true,
+            deposit: true,
+            global: true,
+          }),
+        );
+
+        await controller.updateUserRegion();
+
+        expect(countriesCallCount).toBe(1);
+        expect(controller.state.userRegion?.regionCode).toBe('us');
+      });
+    });
+
     it('stores request state in cache', async () => {
       await withController(async ({ controller, rootMessenger }) => {
         rootMessenger.registerActionHandler(
@@ -1494,6 +1524,44 @@ describe('RampsController', () => {
         expect(controller.state.userRegion?.regionCode).toBe('us-ca');
         expect(controller.state.userRegion?.country.isoCode).toBe('US');
         expect(controller.state.userRegion?.state?.name).toBe('California');
+      });
+    });
+
+    it('returns null state when state code does not match any state', async () => {
+      await withController(async ({ controller, rootMessenger }) => {
+        const countriesWithStates: Country[] = [
+          {
+            isoCode: 'US',
+            name: 'United States',
+            flag: '🇺🇸',
+            currency: 'USD',
+            phone: { prefix: '+1', placeholder: '', template: '' },
+            supported: true,
+            states: [
+              { stateId: 'CA', name: 'California', supported: true },
+              { stateId: 'NY', name: 'New York', supported: true },
+            ],
+          },
+        ];
+
+        rootMessenger.registerActionHandler(
+          'RampsService:getCountries',
+          async () => countriesWithStates,
+        );
+        rootMessenger.registerActionHandler(
+          'RampsService:getEligibility',
+          async () => ({
+            aggregator: true,
+            deposit: true,
+            global: true,
+          }),
+        );
+
+        await controller.setUserRegion('us-xx');
+
+        expect(controller.state.userRegion?.regionCode).toBe('us-xx');
+        expect(controller.state.userRegion?.country.isoCode).toBe('US');
+        expect(controller.state.userRegion?.state).toBeNull();
       });
     });
   });
