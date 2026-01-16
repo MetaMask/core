@@ -643,8 +643,7 @@ export class RampsController extends BaseController<
       // Otherwise, it's from countries fetch failure
       if (
         error instanceof Error &&
-        (error.message.includes('not found') ||
-          this.state.userRegion !== null)
+        (error.message.includes('not found') || this.state.userRegion !== null)
       ) {
         throw error;
       }

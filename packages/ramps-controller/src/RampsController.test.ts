@@ -1307,9 +1307,7 @@ describe('RampsController', () => {
             currency: 'USD',
             phone: { prefix: '+1', placeholder: '', template: '' },
             supported: true,
-            states: [
-              { stateId: 'CA', name: 'California', supported: true },
-            ],
+            states: [{ stateId: 'CA', name: 'California', supported: true }],
           },
         ];
 
