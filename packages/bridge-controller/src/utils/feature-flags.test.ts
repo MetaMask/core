@@ -3,6 +3,7 @@ import {
   getBridgeFeatureFlags,
   hasMinimumRequiredVersion,
 } from './feature-flags';
+import { DEFAULT_CHAIN_RANKING } from '../constants/bridge';
 import type {
   FeatureFlagsPlatformConfig,
   BridgeControllerMessenger,
@@ -56,6 +57,7 @@ describe('feature-flags', () => {
         maxRefreshCount: 1,
         support: true,
         minimumVersion: '0.0.0',
+        chainRanking: [],
         chains: {
           'eip155:1': {
             isActiveSrc: true,
@@ -106,6 +108,7 @@ describe('feature-flags', () => {
         maxRefreshCount: 1,
         support: true,
         minimumVersion: '0.0.0',
+        chainRanking: [],
         chains: {},
       });
     });
@@ -136,6 +139,7 @@ describe('feature-flags', () => {
         maxRefreshCount: 1,
         support: true,
         minimumVersion: '0.0.0',
+        chainRanking: [],
         chains: {
           'eip155:invalid': {
             isActiveSrc: true,
@@ -163,6 +167,7 @@ describe('feature-flags', () => {
         maxRefreshCount: 1,
         support: true,
         minimumVersion: '0.0.0',
+        chainRanking: [],
         chains: {
           '1': {
             isActiveSrc: true,
@@ -251,6 +256,7 @@ describe('feature-flags', () => {
         refreshRate: 3,
         support: true,
         minimumVersion: '0.0.0',
+        chainRanking: [],
         chains: {
           'eip155:1': {
             isActiveDest: true,
@@ -359,6 +365,7 @@ describe('feature-flags', () => {
         refreshRate: 30000,
         support: false,
         minimumVersion: '0.0.0',
+        chainRanking: [...DEFAULT_CHAIN_RANKING],
         chains: {},
       };
       expect(result).toStrictEqual(expectedBridgeConfig);

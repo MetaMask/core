@@ -111,7 +111,7 @@ export const ChainRankingItemSchema = type({
    */
   chainId: CaipChainIdStruct,
   /**
-   * The display name of the chain (e.g., "Ethereum Mainnet")
+   * The display name of the chain (e.g., "Ethereum")
    */
   name: string(),
 });

@@ -72,6 +72,7 @@ const bridgeConfig = {
   maxRefreshCount: 3,
   refreshRate: 3,
   support: true,
+  chainRanking: [],
   chains: {
     '10': { isActiveSrc: true, isActiveDest: false },
     '534352': { isActiveSrc: true, isActiveDest: false },
