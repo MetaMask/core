@@ -179,6 +179,7 @@ describe('NetworkController', () => {
             > => ({
               fetch,
               btoa,
+              isOffline: (): boolean => false,
             }),
           }),
       ).toThrow(
@@ -208,6 +209,7 @@ describe('NetworkController', () => {
             > => ({
               fetch,
               btoa,
+              isOffline: (): boolean => false,
             }),
           }),
       ).toThrow(
@@ -244,6 +246,7 @@ describe('NetworkController', () => {
             > => ({
               fetch,
               btoa,
+              isOffline: (): boolean => false,
             }),
           }),
       ).toThrow(
@@ -279,6 +282,7 @@ describe('NetworkController', () => {
             > => ({
               fetch,
               btoa,
+              isOffline: (): boolean => false,
             }),
           }),
       ).toThrow(
@@ -314,6 +318,7 @@ describe('NetworkController', () => {
             > => ({
               fetch,
               btoa,
+              isOffline: (): boolean => false,
             }),
           }),
       ).toThrow(
@@ -359,6 +364,7 @@ describe('NetworkController', () => {
             > => ({
               fetch,
               btoa,
+              isOffline: (): boolean => false,
             }),
           }),
       ).toThrow(
@@ -367,12 +373,8 @@ describe('NetworkController', () => {
     });
 
     it('corrects an invalid selectedNetworkClientId to the default RPC endpoint of the first chain, logging this fact', () => {
-      const captureExceptionMock = jest.fn();
-      const messenger = buildRootMessenger({
-        actionHandlers: {
-          'ErrorReportingService:captureException': captureExceptionMock,
-        },
-      });
+      const messenger = buildRootMessenger();
+      const captureExceptionSpy = jest.spyOn(messenger, 'captureException');
       const controllerMessenger = buildNetworkControllerMessenger(messenger);
 
       const controller = new NetworkController({
@@ -403,13 +405,14 @@ describe('NetworkController', () => {
         > => ({
           fetch,
           btoa,
+          isOffline: (): boolean => false,
         }),
       });
 
       expect(controller.state.selectedNetworkClientId).toBe(
         'BBBB-BBBB-BBBB-BBBB',
       );
-      expect(captureExceptionMock).toHaveBeenCalledWith(
+      expect(captureExceptionSpy).toHaveBeenCalledWith(
         new Error(
           "`selectedNetworkClientId` 'nonexistent' does not refer to an RPC endpoint within a network configuration; correcting to 'BBBB-BBBB-BBBB-BBBB'",
         ),
@@ -417,12 +420,8 @@ describe('NetworkController', () => {
     });
 
     it('removes invalid network client IDs from networksMetadata, logging this fact', () => {
-      const captureExceptionMock = jest.fn();
-      const messenger = buildRootMessenger({
-        actionHandlers: {
-          'ErrorReportingService:captureException': captureExceptionMock,
-        },
-      });
+      const messenger = buildRootMessenger();
+      const captureExceptionSpy = jest.spyOn(messenger, 'captureException');
       const controllerMessenger = buildNetworkControllerMessenger(messenger);
 
       const controller = new NetworkController({
@@ -460,6 +459,7 @@ describe('NetworkController', () => {
         > => ({
           fetch,
           btoa,
+          isOffline: (): boolean => false,
         }),
       });
 
@@ -472,7 +472,7 @@ describe('NetworkController', () => {
       expect(controller.state.networksMetadata).not.toHaveProperty(
         'CCCC-CCCC-CCCC-CCCC',
       );
-      expect(captureExceptionMock).toHaveBeenCalledWith(
+      expect(captureExceptionSpy).toHaveBeenCalledWith(
         new Error(
           '`networksMetadata` had invalid network client IDs, which have been removed',
         ),
@@ -3590,10 +3590,52 @@ describe('NetworkController', () => {
           },
         );
       });
-      it('calls provider of the networkClientId and returns true', async () => {
+      it('updates network metadata if undefined', async () => {
         await withController(
           {
             infuraProjectId: 'some-infura-project-id',
+          },
+          async ({ controller }) => {
+            await setFakeProvider(controller, {
+              stubs: [
+                {
+                  request: {
+                    method: 'eth_getBlockByNumber',
+                    params: ['latest', false],
+                  },
+                  response: {
+                    result: POST_1559_BLOCK,
+                  },
+                },
+                {
+                  request: {
+                    method: 'eth_getBlockByNumber',
+                    params: ['latest', false],
+                  },
+                  response: {
+                    result: POST_1559_BLOCK,
+                  },
+                },
+              ],
+            });
+            const isEIP1559Compatible =
+              await controller.getEIP1559Compatibility('linea-mainnet');
+            expect(isEIP1559Compatible).toBe(true);
+          },
+        );
+      });
+      it('updates network metadata if EIP-1559 compatibility is missing', async () => {
+        await withController(
+          {
+            infuraProjectId: 'some-infura-project-id',
+            state: {
+              networksMetadata: {
+                'linea-mainnet': {
+                  EIPS: {},
+                  status: NetworkStatus.Unknown,
+                },
+              },
+            },
           },
           async ({ controller }) => {
             await setFakeProvider(controller, {
@@ -4601,6 +4643,7 @@ describe('NetworkController', () => {
           > => ({
             btoa,
             fetch,
+            isOffline: (): boolean => false,
             fetchOptions: {
               headers: {
                 'X-Foo': 'Bar',
@@ -6031,6 +6074,7 @@ describe('NetworkController', () => {
             > => ({
               btoa,
               fetch,
+              isOffline: (): boolean => false,
               fetchOptions: {
                 headers: {
                   'X-Foo': 'Bar',
@@ -6263,6 +6307,7 @@ describe('NetworkController', () => {
             > => ({
               btoa,
               fetch,
+              isOffline: (): boolean => false,
               fetchOptions: {
                 headers: {
                   'X-Foo': 'Bar',
@@ -7262,6 +7307,7 @@ describe('NetworkController', () => {
             > => ({
               btoa,
               fetch,
+              isOffline: (): boolean => false,
               fetchOptions: {
                 headers: {
                   'X-Foo': 'Bar',
@@ -8131,6 +8177,7 @@ describe('NetworkController', () => {
           > => ({
             btoa,
             fetch,
+            isOffline: (): boolean => false,
             fetchOptions: {
               headers: {
                 'X-Foo': 'Bar',
@@ -9129,6 +9176,7 @@ describe('NetworkController', () => {
           > => ({
             btoa,
             fetch,
+            isOffline: (): boolean => false,
             fetchOptions: {
               headers: {
                 'X-Foo': 'Bar',
@@ -10294,6 +10342,7 @@ describe('NetworkController', () => {
             > => ({
               btoa,
               fetch,
+              isOffline: (): boolean => false,
               fetchOptions: {
                 headers: {
                   'X-Foo': 'Bar',
@@ -11010,6 +11059,7 @@ describe('NetworkController', () => {
             > => ({
               btoa,
               fetch,
+              isOffline: (): boolean => false,
               fetchOptions: {
                 headers: {
                   'X-Foo': 'Bar',
@@ -11744,6 +11794,7 @@ describe('NetworkController', () => {
             > => ({
               btoa,
               fetch,
+              isOffline: (): boolean => false,
               fetchOptions: {
                 headers: {
                   'X-Foo': 'Bar',
@@ -12453,6 +12504,7 @@ describe('NetworkController', () => {
         > => ({
           btoa,
           fetch,
+          isOffline: (): boolean => false,
           fetchOptions: {
             headers: {
               'X-Foo': 'Bar',

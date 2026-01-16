@@ -1,3 +1,4 @@
+import * as commentJson from 'comment-json';
 import execa from 'execa';
 import { promises as fs } from 'fs';
 import path from 'path';
@@ -75,8 +76,8 @@ export async function readMonorepoFiles(): Promise<MonorepoFileData> {
   ]);
 
   return {
-    tsConfig: JSON.parse(tsConfig) as Tsconfig,
-    tsConfigBuild: JSON.parse(tsConfigBuild) as Tsconfig,
+    tsConfig: commentJson.parse(tsConfig) as unknown as Tsconfig,
+    tsConfigBuild: commentJson.parse(tsConfigBuild) as unknown as Tsconfig,
     nodeVersions: (JSON.parse(packageJson) as PackageJson).engines.node,
   };
 }
@@ -111,11 +112,11 @@ export async function finalizeAndWriteData(
   updateTsConfigs(packageData, monorepoFileData);
   await writeJsonFile(
     REPO_TS_CONFIG,
-    JSON.stringify(monorepoFileData.tsConfig),
+    commentJson.stringify(monorepoFileData.tsConfig, null, 2),
   );
   await writeJsonFile(
     REPO_TS_CONFIG_BUILD,
-    JSON.stringify(monorepoFileData.tsConfigBuild),
+    commentJson.stringify(monorepoFileData.tsConfigBuild, null, 2),
   );
 
   // Postprocess

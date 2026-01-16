@@ -265,6 +265,7 @@ describe('ClaimsController', () => {
       impactedTxHash: '0x123',
       reimbursementWalletAddress: '0x456',
       description: 'test description',
+      updatedAt: '2025-12-17T06:10:32.213Z',
     };
     const MOCK_CLAIM_DRAFTS: ClaimDraft[] = [
       {
@@ -275,6 +276,7 @@ describe('ClaimsController', () => {
         impactedTxHash: '0x123',
         reimbursementWalletAddress: '0x456',
         description: 'test description',
+        updatedAt: '2025-12-17T06:10:32.213Z',
       },
       {
         draftId: 'mock-draft-2',
@@ -284,6 +286,7 @@ describe('ClaimsController', () => {
         impactedTxHash: '0x789',
         reimbursementWalletAddress: '0x012',
         description: 'test description 2',
+        updatedAt: '2025-12-17T06:10:32.213Z',
       },
     ];
 
@@ -295,7 +298,10 @@ describe('ClaimsController', () => {
         expect(updatedState).not.toBe(initialState);
         expect(updatedState.drafts).toHaveLength(1);
         expect(updatedState.drafts[0].draftId).toBeDefined();
-        expect(updatedState.drafts[0]).toMatchObject(MOCK_DRAFT);
+        expect(updatedState.drafts[0]).toMatchObject({
+          ...MOCK_DRAFT,
+          updatedAt: expect.any(String),
+        });
         expect(updatedState.drafts[0].draftId).toBeDefined();
       });
     });

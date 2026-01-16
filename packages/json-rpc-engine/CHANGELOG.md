@@ -7,6 +7,16 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+## [10.2.1]
+
+### Changed
+
+- Upgrade `@metamask/utils` from `^11.8.1` to `^11.9.0` ([#7511](https://github.com/MetaMask/core/pull/7511))
+
+### Fixed
+
+- Ensure non-object data in RPC errors is deserialized correctly when using JsonRpcEngine compatibility tools ([#7638](https://github.com/MetaMask/core/pull/7638))
+
 ## [10.2.0]
 
 ### Added
@@ -254,7 +264,8 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
     This change may affect consumers that depend on the eager execution of middleware _during_ request processing, _outside of_ middleware functions and request handlers.
     - In general, it is a bad practice to work with state that depends on middleware execution, while the middleware are executing.
 
-[Unreleased]: https://github.com/MetaMask/core/compare/@metamask/json-rpc-engine@10.2.0...HEAD
+[Unreleased]: https://github.com/MetaMask/core/compare/@metamask/json-rpc-engine@10.2.1...HEAD
+[10.2.1]: https://github.com/MetaMask/core/compare/@metamask/json-rpc-engine@10.2.0...@metamask/json-rpc-engine@10.2.1
 [10.2.0]: https://github.com/MetaMask/core/compare/@metamask/json-rpc-engine@10.1.1...@metamask/json-rpc-engine@10.2.0
 [10.1.1]: https://github.com/MetaMask/core/compare/@metamask/json-rpc-engine@10.1.0...@metamask/json-rpc-engine@10.1.1
 [10.1.0]: https://github.com/MetaMask/core/compare/@metamask/json-rpc-engine@10.0.3...@metamask/json-rpc-engine@10.1.0

@@ -4,7 +4,7 @@ This monorepo is a collection of packages used across multiple MetaMask clients 
 
 ## Contributing
 
-See the [Contributor Guide](./docs/contributing.md) for help on:
+See the [Contributor Documentation](./docs) for help on:
 
 - Setting up your development environment
 - Working with the monorepo
@@ -27,6 +27,7 @@ Each package in this repository has its own README where you can find installati
 - [`@metamask/announcement-controller`](packages/announcement-controller)
 - [`@metamask/app-metadata-controller`](packages/app-metadata-controller)
 - [`@metamask/approval-controller`](packages/approval-controller)
+- [`@metamask/assets-controller`](packages/assets-controller)
 - [`@metamask/assets-controllers`](packages/assets-controllers)
 - [`@metamask/base-controller`](packages/base-controller)
 - [`@metamask/bridge-controller`](packages/bridge-controller)
@@ -35,6 +36,7 @@ Each package in this repository has its own README where you can find installati
 - [`@metamask/chain-agnostic-permission`](packages/chain-agnostic-permission)
 - [`@metamask/claims-controller`](packages/claims-controller)
 - [`@metamask/composable-controller`](packages/composable-controller)
+- [`@metamask/connectivity-controller`](packages/connectivity-controller)
 - [`@metamask/controller-utils`](packages/controller-utils)
 - [`@metamask/core-backend`](packages/core-backend)
 - [`@metamask/delegation-controller`](packages/delegation-controller)
@@ -101,6 +103,7 @@ linkStyle default opacity:0.5
   announcement_controller(["@metamask/announcement-controller"]);
   app_metadata_controller(["@metamask/app-metadata-controller"]);
   approval_controller(["@metamask/approval-controller"]);
+  assets_controller(["@metamask/assets-controller"]);
   assets_controllers(["@metamask/assets-controllers"]);
   base_controller(["@metamask/base-controller"]);
   bridge_controller(["@metamask/bridge-controller"]);
@@ -109,6 +112,7 @@ linkStyle default opacity:0.5
   chain_agnostic_permission(["@metamask/chain-agnostic-permission"]);
   claims_controller(["@metamask/claims-controller"]);
   composable_controller(["@metamask/composable-controller"]);
+  connectivity_controller(["@metamask/connectivity-controller"]);
   controller_utils(["@metamask/controller-utils"]);
   core_backend(["@metamask/core-backend"]);
   delegation_controller(["@metamask/delegation-controller"]);
@@ -181,6 +185,8 @@ linkStyle default opacity:0.5
   app_metadata_controller --> messenger;
   approval_controller --> base_controller;
   approval_controller --> messenger;
+  assets_controller --> base_controller;
+  assets_controller --> messenger;
   assets_controllers --> account_tree_controller;
   assets_controllers --> accounts_controller;
   assets_controllers --> approval_controller;
@@ -220,7 +226,6 @@ linkStyle default opacity:0.5
   bridge_status_controller --> polling_controller;
   bridge_status_controller --> transaction_controller;
   chain_agnostic_permission --> controller_utils;
-  chain_agnostic_permission --> network_controller;
   chain_agnostic_permission --> permission_controller;
   claims_controller --> base_controller;
   claims_controller --> controller_utils;
@@ -230,6 +235,8 @@ linkStyle default opacity:0.5
   composable_controller --> base_controller;
   composable_controller --> messenger;
   composable_controller --> json_rpc_engine;
+  connectivity_controller --> base_controller;
+  connectivity_controller --> messenger;
   core_backend --> accounts_controller;
   core_backend --> controller_utils;
   core_backend --> keyring_controller;
@@ -265,7 +272,6 @@ linkStyle default opacity:0.5
   eth_json_rpc_middleware --> eth_json_rpc_provider;
   eth_json_rpc_middleware --> json_rpc_engine;
   eth_json_rpc_middleware --> message_manager;
-  eth_json_rpc_middleware --> error_reporting_service;
   eth_json_rpc_middleware --> network_controller;
   eth_json_rpc_provider --> json_rpc_engine;
   gas_fee_controller --> base_controller;
@@ -286,7 +292,6 @@ linkStyle default opacity:0.5
   message_manager --> messenger;
   multichain_account_service --> accounts_controller;
   multichain_account_service --> base_controller;
-  multichain_account_service --> error_reporting_service;
   multichain_account_service --> keyring_controller;
   multichain_account_service --> messenger;
   multichain_api_middleware --> chain_agnostic_permission;
@@ -310,8 +315,8 @@ linkStyle default opacity:0.5
   name_controller --> controller_utils;
   name_controller --> messenger;
   network_controller --> base_controller;
+  network_controller --> connectivity_controller;
   network_controller --> controller_utils;
-  network_controller --> error_reporting_service;
   network_controller --> eth_block_tracker;
   network_controller --> eth_json_rpc_middleware;
   network_controller --> eth_json_rpc_provider;
@@ -354,10 +359,14 @@ linkStyle default opacity:0.5
   profile_metrics_controller --> messenger;
   profile_metrics_controller --> polling_controller;
   profile_metrics_controller --> profile_sync_controller;
+  profile_metrics_controller --> transaction_controller;
   profile_sync_controller --> address_book_controller;
   profile_sync_controller --> base_controller;
   profile_sync_controller --> keyring_controller;
   profile_sync_controller --> messenger;
+  ramps_controller --> base_controller;
+  ramps_controller --> controller_utils;
+  ramps_controller --> messenger;
   rate_limit_controller --> base_controller;
   rate_limit_controller --> messenger;
   remote_feature_flag_controller --> base_controller;

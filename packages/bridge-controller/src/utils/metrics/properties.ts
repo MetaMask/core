@@ -127,6 +127,7 @@ export const getQuotesReceivedProperties = (
   warnings: QuoteWarning[] = [],
   isSubmittable: boolean = true,
   recommendedQuote?: null | (QuoteResponse & Partial<QuoteMetadata>),
+  usdBalanceSource?: number,
 ) => {
   const provider = activeQuote ? formatProviderLabel(activeQuote.quote) : '_';
   return {
@@ -138,6 +139,7 @@ export const getQuotesReceivedProperties = (
       : 0,
     usd_quoted_gas: Number(activeQuote?.gasFee?.effective?.usd ?? 0),
     usd_quoted_return: Number(activeQuote?.toTokenAmount?.usd ?? 0),
+    usd_balance_source: usdBalanceSource ?? 0,
     best_quote_provider: recommendedQuote
       ? formatProviderLabel(recommendedQuote.quote)
       : provider,

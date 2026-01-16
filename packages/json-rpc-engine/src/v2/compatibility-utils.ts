@@ -1,6 +1,7 @@
+import type { OptionalDataWithOptionalCause } from '@metamask/rpc-errors';
 import { getMessageFromCode, JsonRpcError } from '@metamask/rpc-errors';
 import type { Json } from '@metamask/utils';
-import { hasProperty, isObject } from '@metamask/utils';
+import { hasProperty, isObject, isValidJson } from '@metamask/utils';
 // ATTN: We must NOT use 'klona/full' here because it freezes properties on the clone.
 import { klona } from 'klona';
 
@@ -133,6 +134,31 @@ export function propagateToRequest(
 }
 
 /**
+ * Deserialize the error property for a thrown error, merging in the cause where possible.
+ *
+ * @param data - The data from the thrown error.
+ * @param cause - The cause from the thrown error.
+ * @returns The deserialized data.
+ */
+function deserializeData(
+  data: unknown,
+  cause: unknown,
+): OptionalDataWithOptionalCause {
+  // If data is an object, merge with cause.
+  if (isObject(data)) {
+    return { ...data, cause };
+  }
+
+  // If data is a JSON value that's not mergeable.
+  if (isValidJson(data)) {
+    return data;
+  }
+
+  // If data is undefined, only use cause.
+  return { cause };
+}
+
+/**
  * Unserialize an error from a thrown value. Creates a {@link JsonRpcError} if
  * the thrown value is an object with a `code` property. Otherwise, creates a
  * plain {@link Error}.
@@ -177,10 +203,7 @@ export function deserializeError(thrown: unknown): Error | JsonRpcError<Json> {
         // eslint-disable-next-line @typescript-eslint/ban-ts-comment
         // @ts-ignore - Our error type is outdated.
         new Error(message, { cause })
-      : new JsonRpcError(code, message, {
-          ...(isObject(data) ? data : undefined),
-          cause,
-        });
+      : new JsonRpcError(code, message, deserializeData(data, cause));
 
   if (typeof stack === 'string') {
     error.stack = stack;

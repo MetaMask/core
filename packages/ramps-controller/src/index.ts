@@ -5,15 +5,50 @@ export type {
   RampsControllerMessenger,
   RampsControllerState,
   RampsControllerStateChangeEvent,
+  RampsControllerOptions,
 } from './RampsController';
 export {
   RampsController,
   getDefaultRampsControllerState,
 } from './RampsController';
 export type {
-  OnRampServiceActions,
-  OnRampServiceEvents,
-  OnRampServiceMessenger,
-} from './OnRampService';
-export { OnRampService, OnRampEnvironment } from './OnRampService';
-export type { OnRampServiceGetGeolocationAction } from './OnRampService-method-action-types';
+  RampsServiceActions,
+  RampsServiceEvents,
+  RampsServiceMessenger,
+  Country,
+  State,
+  Eligibility,
+  CountryPhone,
+  Provider,
+  ProviderLink,
+  ProviderLogos,
+} from './RampsService';
+export {
+  RampsService,
+  RampsEnvironment,
+  RampsApiService,
+  RAMPS_SDK_VERSION,
+} from './RampsService';
+export type {
+  RampsServiceGetGeolocationAction,
+  RampsServiceGetCountriesAction,
+  RampsServiceGetEligibilityAction,
+} from './RampsService-method-action-types';
+export type {
+  RequestCache,
+  RequestState,
+  ExecuteRequestOptions,
+  PendingRequest,
+} from './RequestCache';
+export {
+  RequestStatus,
+  DEFAULT_REQUEST_CACHE_TTL,
+  DEFAULT_REQUEST_CACHE_MAX_SIZE,
+  createCacheKey,
+  isCacheExpired,
+  createLoadingState,
+  createSuccessState,
+  createErrorState,
+} from './RequestCache';
+export type { RequestSelectorResult } from './selectors';
+export { createRequestSelector } from './selectors';

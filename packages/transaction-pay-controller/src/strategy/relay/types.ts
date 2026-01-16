@@ -17,7 +17,7 @@ export type RelayQuoteRequest = {
   recipient: Hex;
   refundTo?: Hex;
   slippageTolerance?: string;
-  tradeType: 'EXPECTED_OUTPUT' | 'EXACT_OUTPUT';
+  tradeType: 'EXACT_INPUT' | 'EXACT_OUTPUT' | 'EXPECTED_OUTPUT';
   txs?: {
     to: Hex;
     data: Hex;
@@ -38,6 +38,7 @@ export type RelayQuote = {
       };
     };
     currencyOut: {
+      amount: string;
       amountFormatted: string;
       amountUsd: string;
       currency: {
@@ -79,17 +80,22 @@ export type RelayQuote = {
       status: 'complete' | 'incomplete';
     }[];
     kind: 'transaction';
+    requestId: string;
   }[];
 };
 
-export type RelayStatus = {
-  status:
-    | 'refund'
-    | 'waiting'
-    | 'failure'
-    | 'pending'
-    | 'submitted'
-    | 'success';
+export type RelayStatus =
+  | 'waiting'
+  | 'pending'
+  | 'submitted'
+  | 'success'
+  | 'delayed'
+  | 'refunded'
+  | 'refund'
+  | 'failure';
+
+export type RelayStatusResponse = {
+  status: RelayStatus;
   inTxHashes: string[];
   txHashes: string[];
   updatedAt: number;

@@ -17,6 +17,8 @@ import {
   getGasFeeRandomisation,
   getGasEstimateFallback,
   getGasEstimateBuffer,
+  getSubmitHistoryLimit,
+  getTransactionHistoryLimit,
   FeatureFlag,
   getIncomingTransactionsPollingInterval,
   getTimeoutAttempts,
@@ -349,6 +351,58 @@ describe('Feature Flags Utils', () => {
     });
   });
 
+  describe('getSubmitHistoryLimit', () => {
+    it('returns value from remote feature flag controller', () => {
+      mockFeatureFlags({
+        [FeatureFlag.Transactions]: {
+          submitHistoryLimit: 50,
+        },
+      });
+
+      expect(getSubmitHistoryLimit(controllerMessenger)).toBe(50);
+    });
+
+    it('returns default value if undefined', () => {
+      mockFeatureFlags({});
+      expect(getSubmitHistoryLimit(controllerMessenger)).toBe(100);
+    });
+
+    it('returns default value if Transactions flag is defined but submitHistoryLimit is not', () => {
+      mockFeatureFlags({
+        [FeatureFlag.Transactions]: {
+          batchSizeLimit: 5,
+        },
+      });
+      expect(getSubmitHistoryLimit(controllerMessenger)).toBe(100);
+    });
+  });
+
+  describe('getTransactionHistoryLimit', () => {
+    it('returns value from remote feature flag controller', () => {
+      mockFeatureFlags({
+        [FeatureFlag.Transactions]: {
+          transactionHistoryLimit: 20,
+        },
+      });
+
+      expect(getTransactionHistoryLimit(controllerMessenger)).toBe(20);
+    });
+
+    it('returns default value if undefined', () => {
+      mockFeatureFlags({});
+      expect(getTransactionHistoryLimit(controllerMessenger)).toBe(40);
+    });
+
+    it('returns default value if Transactions flag is defined but transactionHistoryLimit is not', () => {
+      mockFeatureFlags({
+        [FeatureFlag.Transactions]: {
+          batchSizeLimit: 5,
+        },
+      });
+      expect(getTransactionHistoryLimit(controllerMessenger)).toBe(40);
+    });
+  });
+
   describe('getAcceleratedPollingParams', () => {
     it('returns default values if no feature flags set', () => {
       mockFeatureFlags({});
@@ -359,6 +413,7 @@ describe('Feature Flags Utils', () => {
       );
 
       expect(params).toStrictEqual({
+        blockTime: 12000,
         countMax: 10,
         intervalMs: 3000,
       });
@@ -370,6 +425,7 @@ describe('Feature Flags Utils', () => {
           acceleratedPolling: {
             perChainConfig: {
               [CHAIN_ID_MOCK]: {
+                blockTime: 15000,
                 countMax: 5,
                 intervalMs: 2000,
               },
@@ -384,6 +440,7 @@ describe('Feature Flags Utils', () => {
       );
 
       expect(params).toStrictEqual({
+        blockTime: 15000,
         countMax: 5,
         intervalMs: 2000,
       });
@@ -405,6 +462,7 @@ describe('Feature Flags Utils', () => {
       );
 
       expect(params).toStrictEqual({
+        blockTime: 12000,
         countMax: 15,
         intervalMs: 4000,
       });
@@ -418,6 +476,7 @@ describe('Feature Flags Utils', () => {
             defaultIntervalMs: 4000,
             perChainConfig: {
               [CHAIN_ID_MOCK]: {
+                blockTime: 10000,
                 countMax: 5,
                 intervalMs: 2000,
               },
@@ -432,6 +491,7 @@ describe('Feature Flags Utils', () => {
       );
 
       expect(params).toStrictEqual({
+        blockTime: 10000,
         countMax: 5,
         intervalMs: 2000,
       });
@@ -445,6 +505,7 @@ describe('Feature Flags Utils', () => {
             defaultIntervalMs: 4000,
             perChainConfig: {
               [CHAIN_ID_2_MOCK]: {
+                blockTime: 8000,
                 countMax: 5,
                 intervalMs: 2000,
               },
@@ -459,6 +520,7 @@ describe('Feature Flags Utils', () => {
       );
 
       expect(params).toStrictEqual({
+        blockTime: 12000,
         countMax: 15,
         intervalMs: 4000,
       });
@@ -472,7 +534,7 @@ describe('Feature Flags Utils', () => {
             defaultIntervalMs: 4000,
             perChainConfig: {
               [CHAIN_ID_MOCK]: {
-                // Only specify countMax, intervalMs should use default
+                // Only specify countMax, intervalMs and blockTime should use default
                 countMax: 5,
               },
             },
@@ -486,6 +548,7 @@ describe('Feature Flags Utils', () => {
       );
 
       expect(params).toStrictEqual({
+        blockTime: 12000,
         countMax: 5,
         intervalMs: 4000,
       });

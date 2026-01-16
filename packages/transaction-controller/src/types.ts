@@ -230,6 +230,11 @@ export type TransactionMeta = {
    */
   isGasFeeSponsored?: boolean;
 
+  /**
+   * Whether the transaction has no lifecycle and is not signed or published.
+   */
+  isStateOnly?: boolean;
+
   /** Alternate EIP-1559 gas fee estimates for multiple priority levels. */
   gasFeeEstimates?: GasFeeEstimates;
 
@@ -252,7 +257,7 @@ export type TransactionMeta = {
   hash?: string;
 
   /**
-   * A history of mutations to TransactionMeta.
+   * @deprecated A history of mutations to TransactionMeta.
    */
   history?: TransactionHistory;
 
@@ -424,7 +429,7 @@ export type TransactionMeta = {
   selectedGasFeeToken?: Hex;
 
   /**
-   * An array of entries that describe the user's journey through the send flow.
+   * @deprecated An array of entries that describe the user's journey through the send flow.
    * This is purely attached to state logs for troubleshooting and support.
    */
   sendFlowHistory?: SendFlowHistoryEntry[];
@@ -611,6 +616,7 @@ export type TransactionBatchMeta = {
   transactions?: NestedTransactionMetadata[];
 };
 
+/** @deprecated An entry in the send flow history. */
 export type SendFlowHistoryEntry = {
   /**
    * String to indicate user interaction information.
@@ -1178,7 +1184,7 @@ type ExtendedHistoryOperation = JsonCompatibleOperation & {
 };
 
 /**
- * A transaction history entry that includes the ExtendedHistoryOperation as the first element.
+ * @deprecated A transaction history entry that includes the ExtendedHistoryOperation as the first element.
  */
 export type TransactionHistoryEntry = [
   ExtendedHistoryOperation,
@@ -1186,7 +1192,7 @@ export type TransactionHistoryEntry = [
 ];
 
 /**
- * A transaction history that includes the transaction meta as the first element.
+ * @deprecated A transaction history that includes the transaction meta as the first element.
  * And the rest of the elements are the operation arrays that were applied to the transaction meta.
  */
 export type TransactionHistory = [
@@ -2065,6 +2071,9 @@ export type MetamaskPayMetadata = {
   /** Total network fee in fiat currency, including the original and bridge transactions. */
   networkFeeFiat?: string;
 
+  /** Total amount of target token provided in fiat currency. */
+  targetFiat?: string;
+
   /** Address of the payment token that the transaction funds were sourced from. */
   tokenAddress?: Hex;
 
@@ -2113,6 +2122,13 @@ export type AddTransactionOptions = {
   /** Whether MetaMask will sponsor the gas fee for the transaction. */
   isGasFeeSponsored?: boolean;
 
+  /**
+   * Whether the transaction has no lifecycle and is not signed or published.
+   *
+   * @deprecated If absolutely necessary, update state instead via `TranasctionController:emulateTransactionUpdate`.
+   */
+  isStateOnly?: boolean;
+
   /** RPC method that requested the transaction. */
   method?: string;
 
@@ -2143,7 +2159,11 @@ export type AddTransactionOptions = {
   /** Whether to skip the initial gas calculation and rely only on the polling. */
   skipInitialGasEstimate?: boolean;
 
-  /** Options for swaps transactions. */
+  /**
+   * Options for swaps transactions.
+   *
+   * @deprecated Usage is pending removal as only used by legacy features.
+   */
   swaps?: {
     /** Whether the transaction has an approval transaction. */
     hasApproveTx?: boolean;

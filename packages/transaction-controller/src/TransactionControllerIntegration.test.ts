@@ -5,6 +5,8 @@ import type {
   ApprovalControllerEvents,
 } from '@metamask/approval-controller';
 import { ApprovalController } from '@metamask/approval-controller';
+import { CONNECTIVITY_STATUSES } from '@metamask/connectivity-controller';
+import type { ConnectivityControllerGetStateAction } from '@metamask/connectivity-controller';
 import {
   ApprovalType,
   BUILT_IN_NETWORKS,
@@ -80,6 +82,7 @@ type AllTransactionControllerEvents =
 type AllActions =
   | AllTransactionControllerActions
   | NetworkControllerActions
+  | ConnectivityControllerGetStateAction
   | ApprovalControllerActions
   | AccountsControllerActions
   | RemoteFeatureFlagControllerGetStateAction;
@@ -183,14 +186,25 @@ const setupController = async (
     namespace: MOCK_ANY_NAMESPACE,
   });
 
+  rootMessenger.registerActionHandler(
+    'ConnectivityController:getState',
+    () => ({
+      connectivityStatus: CONNECTIVITY_STATUSES.Online,
+    }),
+  );
+
   const networkControllerMessenger = new Messenger<
     'NetworkController',
-    NetworkControllerActions,
+    NetworkControllerActions | ConnectivityControllerGetStateAction,
     NetworkControllerEvents,
     typeof rootMessenger
   >({
     namespace: 'NetworkController',
     parent: rootMessenger,
+  });
+  rootMessenger.delegate({
+    messenger: networkControllerMessenger,
+    actions: ['ConnectivityController:getState'],
   });
   const networkController = new NetworkController({
     messenger: networkControllerMessenger,
@@ -200,6 +214,7 @@ const setupController = async (
     > => ({
       fetch,
       btoa,
+      isOffline: (): boolean => false,
     }),
   });
   await networkController.initializeProvider();
@@ -408,7 +423,6 @@ describe('TransactionController Integration', () => {
                 estimateType: 'dappSuggested',
               },
               userFeeLevel: 'dappSuggested',
-              sendFlowHistory: [],
             },
             {
               actionId: undefined,
@@ -443,7 +457,6 @@ describe('TransactionController Integration', () => {
                 estimateType: 'dappSuggested',
               },
               userFeeLevel: 'dappSuggested',
-              sendFlowHistory: [],
             },
           ],
         },

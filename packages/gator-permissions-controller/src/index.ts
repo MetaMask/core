@@ -45,8 +45,5 @@ export type {
   NativeTokenPeriodicPermission,
   Erc20TokenStreamPermission,
   Erc20TokenPeriodicPermission,
-  AccountSigner,
-  WalletSigner,
-  Signer,
   MetaMaskBasePermissionData,
 } from '@metamask/7715-permission-types';

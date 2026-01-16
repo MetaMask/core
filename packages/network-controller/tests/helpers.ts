@@ -1,3 +1,5 @@
+import { CONNECTIVITY_STATUSES } from '@metamask/connectivity-controller';
+import type { ConnectivityStatus } from '@metamask/connectivity-controller';
 import {
   ChainId,
   InfuraNetworkType,
@@ -5,7 +7,6 @@ import {
   NetworksTicker,
   toHex,
 } from '@metamask/controller-utils';
-import type { ErrorReportingServiceCaptureExceptionAction } from '@metamask/error-reporting-service';
 import type { InternalProvider } from '@metamask/eth-json-rpc-provider';
 import { Messenger, MOCK_ANY_NAMESPACE } from '@metamask/messenger';
 import type {
@@ -85,28 +86,29 @@ export const TESTNET = {
  * Build a root messenger that includes all events used by the network
  * controller.
  *
- * @param options - Options.
- * @param options.actionHandlers - Handlers for actions that are pre-registered
- * on the messenger.
+ * @param options - Optional configuration.
+ * @param options.connectivityStatus - The connectivity status to return by default.
+ * If not provided, defaults to Online.
  * @returns The messenger.
  */
 export function buildRootMessenger({
-  actionHandlers = {},
+  connectivityStatus = CONNECTIVITY_STATUSES.Online,
 }: {
-  actionHandlers?: {
-    'ErrorReportingService:captureException'?: ErrorReportingServiceCaptureExceptionAction['handler'];
-  };
+  connectivityStatus?: ConnectivityStatus;
 } = {}): RootMessenger {
   const rootMessenger = new Messenger<
     MockAnyNamespace,
     MessengerActions<NetworkControllerMessenger>,
     MessengerEvents<NetworkControllerMessenger>
-  >({ namespace: MOCK_ANY_NAMESPACE });
+  >({ namespace: MOCK_ANY_NAMESPACE, captureException: jest.fn() });
+
   rootMessenger.registerActionHandler(
-    'ErrorReportingService:captureException',
-    actionHandlers['ErrorReportingService:captureException'] ??
-      ((error): void => console.error(error)),
+    'ConnectivityController:getState',
+    () => ({
+      connectivityStatus,
+    }),
   );
+
   return rootMessenger;
 }
 
@@ -128,10 +130,12 @@ export function buildNetworkControllerMessenger(
     namespace: 'NetworkController',
     parent: rootMessenger,
   });
+
   rootMessenger.delegate({
     messenger: networkControllerMessenger,
-    actions: ['ErrorReportingService:captureException'],
+    actions: ['ConnectivityController:getState'],
   });
+
   return networkControllerMessenger;
 }
 
@@ -639,6 +643,7 @@ export async function withController<ReturnValue>(
     > => ({
       fetch,
       btoa,
+      isOffline: (): boolean => false,
     }),
     ...rest,
   });

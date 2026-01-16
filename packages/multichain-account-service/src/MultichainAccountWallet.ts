@@ -259,10 +259,7 @@ export class MultichainAccountWallet<
                 provider: provider.getName(),
               },
             );
-            this.#messenger.call(
-              'ErrorReportingService:captureException',
-              sentryError,
-            );
+            this.#messenger.captureException?.(sentryError);
             throw error;
           }),
       );
@@ -301,10 +298,7 @@ export class MultichainAccountWallet<
               provider: provider.getName(),
             },
           );
-          this.#messenger.call(
-            'ErrorReportingService:captureException',
-            sentryError,
-          );
+          this.#messenger.captureException?.(sentryError);
         });
     });
   }
@@ -448,10 +442,7 @@ export class MultichainAccountWallet<
             provider: evmProvider.getName(),
           },
         );
-        this.#messenger.call(
-          'ErrorReportingService:captureException',
-          sentryError,
-        );
+        this.#messenger.captureException?.(sentryError);
         throw new Error(errorMessage);
       }
 
@@ -624,10 +615,7 @@ export class MultichainAccountWallet<
                 groupIndex: targetGroupIndex,
               },
             );
-            this.#messenger.call(
-              'ErrorReportingService:captureException',
-              sentryError,
-            );
+            this.#messenger.captureException?.(sentryError);
             break;
           }
 

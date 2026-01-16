@@ -7,10 +7,75 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+## [64.5.1]
+
+### Changed
+
+- Bump `@metamask/accounts-controller` from `^35.0.1` to `^35.0.2` ([#7642](https://github.com/MetaMask/core/pull/7642))
+- Bump `@metamask/assets-controllers` from `^95.2.0` to `^95.3.0` ([#7642](https://github.com/MetaMask/core/pull/7642))
+- Bump `@metamask/gas-fee-controller` from `^26.0.1` to `^26.0.2` ([#7642](https://github.com/MetaMask/core/pull/7642))
+- Bump `@metamask/multichain-network-controller` from `^3.0.1` to `^3.0.2` ([#7642](https://github.com/MetaMask/core/pull/7642))
+- Bump `@metamask/network-controller` from `^28.0.0` to `^29.0.0` ([#7642](https://github.com/MetaMask/core/pull/7642))
+- Bump `@metamask/polling-controller` from `^16.0.1` to `^16.0.2` ([#7642](https://github.com/MetaMask/core/pull/7642))
+- Bump `@metamask/transaction-controller` from `^62.9.1` to `^62.9.2` ([#7642](https://github.com/MetaMask/core/pull/7642))
+
+## [64.5.0]
+
+### Added
+
+- Add `has_gas_included_quote` property to `QuoteFetchData` type and compute it in `QuotesReceived` event to indicate if any received quote has gas included ([#7611](https://github.com/MetaMask/core/pull/7611))
+- Add optional `usd_balance_source` property to `QuotesReceived` event and `getQuotesReceivedProperties` utility to allow clients to pass the source token balance in USD ([#7611](https://github.com/MetaMask/core/pull/7611))
+
+### Changed
+
+- Bump `@metamask/assets-controllers` from `^95.1.0` to `^95.2.0` ([#7622](https://github.com/MetaMask/core/pull/7622))
+
+## [64.4.1]
+
+### Changed
+
+- Bump `@metamask/transaction-controller` from `^62.8.0` to `^62.9.1` ([#7602](https://github.com/MetaMask/core/pull/7602), [#7604](https://github.com/MetaMask/core/pull/7604))
+- Bump `@metamask/assets-controllers` from `^95.0.0` to `^95.1.0` ([#7600](https://github.com/MetaMask/core/pull/7600))
+- Bump `@metamask/network-controller` from `^27.2.0` to `^28.0.0` ([#7604](https://github.com/MetaMask/core/pull/7604))
+- Bump `@metamask/accounts-controller` from `^35.0.0` to `^35.0.1` ([#7604](https://github.com/MetaMask/core/pull/7604))
+- Bump `@metamask/gas-fee-controller` from `^26.0.0` to `^26.0.1` ([#7604](https://github.com/MetaMask/core/pull/7604))
+- Bump `@metamask/multichain-network-controller` from `^3.0.0` to `^3.0.1` ([#7604](https://github.com/MetaMask/core/pull/7604))
+
+## [64.4.0]
+
+### Added
+
+- Add intent based transaction support ([#6547](https://github.com/MetaMask/core/pull/6547))
+
+### Changed
+
+- Bump `@metamask/transaction-controller` from `^62.7.0` to `^62.8.0` ([#7596](https://github.com/MetaMask/core/pull/7596))
+- Bump `@metamask/controller-utils` from `^11.17.0` to `^11.18.0` ([#7583](https://github.com/MetaMask/core/pull/7583))
+- Bump `@metamask/network-controller` from `^27.1.0` to `^27.2.0` ([#7583](https://github.com/MetaMask/core/pull/7583))
+- Bump `@metamask/assets-controllers` from `^94.0.0` to `^95.0.0` ([#7584](https://github.com/MetaMask/core/pull/7584))
+
+## [64.3.0]
+
+### Changed
+
+- Bump `@metamask/snaps-controllers` from `^14.0.0` to `^17.2.0` ([#7550](https://github.com/MetaMask/core/pull/7550))
+- Bump `@metamask/remote-feature-flag-controller` from `^3.1.0` to `^4.0.0` ([#7546](https://github.com/MetaMask/core/pull/7546))
+- Upgrade `@metamask/utils` from `^11.8.1` to `^11.9.0` ([#7511](https://github.com/MetaMask/core/pull/7511))
+- Bump `@metamask/network-controller` from `^27.0.0` to `^27.1.0` ([#7534](https://github.com/MetaMask/core/pull/7534))
+- Bump `@metamask/controller-utils` from `^11.16.0` to `^11.17.0` ([#7534](https://github.com/MetaMask/core/pull/7534))
+
+### Fixed
+
+- Change fee_limit param naming to feeLimit for Tron ([#7571](https://github.com/MetaMask/core/pull/7571))
+
+## [64.2.0]
+
 ### Changed
 
 - Bump `@metamask/assets-controllers` from `^93.1.0` to `^94.1.0` ([#7444](https://github.com/MetaMask/core/pull/7444), [#7488](https://github.com/MetaMask/core/pull/7488))
 - Bump `@metamask/transaction-controller` from `^62.5.0` to `^62.7.0` ([#7430](https://github.com/MetaMask/core/pull/7430), [#7494](https://github.com/MetaMask/core/pull/7494))
+- Bump `@metamask/remote-feature-flag-controller` from `^3.0.0` to `^3.1.0` ([#7519](https://github.com/MetaMask/core/pull/7519))
+- Add fee limit passthrough for Tron snap fee computation ([#7426](https://github.com/MetaMask/core/pull/7426))
 
 ## [64.1.0]
 
@@ -19,7 +84,6 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 - Bump `@metamask/assets-controllers` from `^93.0.0` to `^93.1.0` ([#7309](https://github.com/MetaMask/core/pull/7309))
 - Bump `@metamask/remote-feature-flag-controller` from `^2.0.1` to `^3.0.0` ([#7309](https://github.com/MetaMask/core/pull/7309))
 - Bump `@metamask/transaction-controller` from `^62.4.0` to `^62.5.0` ([#7325](https://github.com/MetaMask/core/pull/7325))
-- Add fee limit passthrough for Tron snap fee computation ([#7426](https://github.com/MetaMask/core/pull/7426))
 
 ### Fixed
 
@@ -946,7 +1010,13 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 - Initial release ([#5317](https://github.com/MetaMask/core/pull/5317))
 
-[Unreleased]: https://github.com/MetaMask/core/compare/@metamask/bridge-controller@64.1.0...HEAD
+[Unreleased]: https://github.com/MetaMask/core/compare/@metamask/bridge-controller@64.5.1...HEAD
+[64.5.1]: https://github.com/MetaMask/core/compare/@metamask/bridge-controller@64.5.0...@metamask/bridge-controller@64.5.1
+[64.5.0]: https://github.com/MetaMask/core/compare/@metamask/bridge-controller@64.4.1...@metamask/bridge-controller@64.5.0
+[64.4.1]: https://github.com/MetaMask/core/compare/@metamask/bridge-controller@64.4.0...@metamask/bridge-controller@64.4.1
+[64.4.0]: https://github.com/MetaMask/core/compare/@metamask/bridge-controller@64.3.0...@metamask/bridge-controller@64.4.0
+[64.3.0]: https://github.com/MetaMask/core/compare/@metamask/bridge-controller@64.2.0...@metamask/bridge-controller@64.3.0
+[64.2.0]: https://github.com/MetaMask/core/compare/@metamask/bridge-controller@64.1.0...@metamask/bridge-controller@64.2.0
 [64.1.0]: https://github.com/MetaMask/core/compare/@metamask/bridge-controller@64.0.0...@metamask/bridge-controller@64.1.0
 [64.0.0]: https://github.com/MetaMask/core/compare/@metamask/bridge-controller@63.2.0...@metamask/bridge-controller@64.0.0
 [63.2.0]: https://github.com/MetaMask/core/compare/@metamask/bridge-controller@63.1.0...@metamask/bridge-controller@63.2.0

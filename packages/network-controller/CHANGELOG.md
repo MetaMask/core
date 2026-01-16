@@ -7,6 +7,42 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+## [29.0.0]
+
+### Added
+
+- Add dependency `@metamask/connectivity-controller` `^0.1.0` ([#7642](https://github.com/MetaMask/core/pull/7642))
+
+### Changed
+
+- Bump `@metamask/eth-block-tracker` from `^15.0.0` to `^15.0.1` ([#7642](https://github.com/MetaMask/core/pull/7642))
+- Bump `@metamask/json-rpc-engine` from `^10.2.0` to `^10.2.1` ([#7642](https://github.com/MetaMask/core/pull/7642))
+- Bump `@metamask/eth-json-rpc-middleware` from `^22.0.1` to `^23.0.0` ([#7634](https://github.com/MetaMask/core/pull/7634))
+- **BREAKING:** NetworkController now requires `ConnectivityController:getState` action handler to be registered on the messenger ([#7627](https://github.com/MetaMask/core/pull/7627))
+  - The `NetworkController` now depends on the `ConnectivityController` to prevent retries and suppress events when the user is offline.
+  - When offline, `NetworkController:rpcEndpointUnavailable` and `NetworkController:rpcEndpointDegraded` events are suppressed since retries don't occur and circuit breakers don't trigger.
+  - You must register a `ConnectivityController:getState` action handler on your root messenger that returns an object with a `connectivityStatus` property (`'online'` or `'offline'`).
+  - You must delegate the `ConnectivityController:getState` action from your root messenger to the `NetworkControllerMessenger` using `rootMessenger.delegate({ messenger: networkControllerMessenger, actions: ['ConnectivityController:getState'] })`.
+
+## [28.0.0]
+
+### Changed
+
+- Corrects the previous 27.2.0 release to document breaking changes that were missed:
+  - **BREAKING:** Remove dependency on `@metamask/error-reporting-service` ([#7542](https://github.com/MetaMask/core/pull/7542))
+    - `ErrorReportingService:captureException` is no longer an allowed action on the NetworkController messenger. You do not need to delegate its `ErrorReportingService:captureException` action to the NetworkController messenger.
+
+## [27.2.0] [DEPRECATED]
+
+### Changed
+
+- Upgrade `@metamask/utils` from `^11.8.1` to `^11.9.0` ([#7511](https://github.com/MetaMask/core/pull/7511))
+- Remove dependency on `@metamask/error-reporting-service` ([#7542](https://github.com/MetaMask/core/pull/7542))
+  - The service no longer needs `ErrorReportingService:captureException`.
+- Bump `@metamask/controller-utils` from `^11.17.0` to `^11.18.0` ([#7583](https://github.com/MetaMask/core/pull/7583))
+
+## [27.1.0]
+
 ### Added
 
 - Add MegaETH Testnet "v2" as a default custom network ([#7272](https://github.com/MetaMask/core/pull/7272))
@@ -16,6 +52,11 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 ### Changed
 
 - Bump `@metamask/eth-json-rpc-middleware` from `^22.0.0` to `^22.0.1` ([#7330](https://github.com/MetaMask/core/pull/7330))
+- Bump `@metamask/controller-utils` from `^11.16.0` to `^11.17.0` ([#7534](https://github.com/MetaMask/core/pull/7534))
+
+### Fixed
+
+- Ensure `get1559CompatibilityWithNetworkClientId` updates network metadata with EIP-1559 compatibility data missing ([#7532](https://github.com/MetaMask/core/pull/7532))
 
 ## [27.0.0]
 
@@ -1056,7 +1097,11 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
     All changes listed after this point were applied to this package following the monorepo conversion.
 
-[Unreleased]: https://github.com/MetaMask/core/compare/@metamask/network-controller@27.0.0...HEAD
+[Unreleased]: https://github.com/MetaMask/core/compare/@metamask/network-controller@29.0.0...HEAD
+[29.0.0]: https://github.com/MetaMask/core/compare/@metamask/network-controller@28.0.0...@metamask/network-controller@29.0.0
+[28.0.0]: https://github.com/MetaMask/core/compare/@metamask/network-controller@27.2.0...@metamask/network-controller@28.0.0
+[27.2.0]: https://github.com/MetaMask/core/compare/@metamask/network-controller@27.1.0...@metamask/network-controller@27.2.0
+[27.1.0]: https://github.com/MetaMask/core/compare/@metamask/network-controller@27.0.0...@metamask/network-controller@27.1.0
 [27.0.0]: https://github.com/MetaMask/core/compare/@metamask/network-controller@26.0.0...@metamask/network-controller@27.0.0
 [26.0.0]: https://github.com/MetaMask/core/compare/@metamask/network-controller@25.0.0...@metamask/network-controller@26.0.0
 [25.0.0]: https://github.com/MetaMask/core/compare/@metamask/network-controller@24.3.1...@metamask/network-controller@25.0.0

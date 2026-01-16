@@ -502,7 +502,7 @@ export async function withNetworkClient<Type>(
     getRpcServiceOptions = (): Omit<
       RpcServiceOptions,
       'failoverService' | 'endpointUrl'
-    > => ({ fetch, btoa }),
+    > => ({ fetch, btoa, isOffline: (): boolean => false }),
     getBlockTrackerOptions = (): PollingBlockTrackerOptions => ({}),
     messenger = buildRootMessenger(),
     networkClientId = 'some-network-client-id',

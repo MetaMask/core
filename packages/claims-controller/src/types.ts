@@ -51,13 +51,7 @@ export type Claim = {
 export type ClaimDraft = Partial<
   Omit<
     Claim,
-    | 'id'
-    | 'shortId'
-    | 'createdAt'
-    | 'updatedAt'
-    | 'intercomId'
-    | 'status'
-    | 'attachments'
+    'id' | 'shortId' | 'createdAt' | 'intercomId' | 'status' | 'attachments'
   >
 > & {
   /**

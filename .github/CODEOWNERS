@@ -16,6 +16,8 @@
 ## Assets Team
 /packages/assets-controllers         @MetaMask/metamask-assets
 /packages/network-enablement-controller @MetaMask/metamask-assets
+/packages/token-search-discovery-controller @MetaMask/metamask-assets
+/packages/assets-controller          @MetaMask/metamask-assets
 
 ## Confirmations Team
 /packages/address-book-controller           @MetaMask/confirmations
@@ -55,9 +57,6 @@
 /packages/app-metadata-controller @MetaMask/mobile-platform
 /packages/analytics-controller    @MetaMask/mobile-platform @MetaMask/extension-platform
 
-## Portfolio Team
-/packages/token-search-discovery-controller      @MetaMask/portfolio
-
 ## Wallet Integrations Team
 /packages/chain-agnostic-permission        @MetaMask/wallet-integrations
 /packages/eip1193-permission-middleware    @MetaMask/wallet-integrations
@@ -69,6 +68,7 @@
 /packages/base-controller              @MetaMask/core-platform
 /packages/build-utils                  @MetaMask/core-platform
 /packages/composable-controller        @MetaMask/core-platform
+/packages/connectivity-controller      @MetaMask/core-platform
 /packages/controller-utils             @MetaMask/core-platform
 /packages/error-reporting-service      @MetaMask/core-platform
 /packages/eth-json-rpc-middleware      @MetaMask/core-platform
@@ -118,6 +118,8 @@
 /packages/approval-controller/CHANGELOG.md        @MetaMask/confirmations @MetaMask/core-platform
 /packages/assets-controllers/package.json         @MetaMask/metamask-assets @MetaMask/core-platform
 /packages/assets-controllers/CHANGELOG.md         @MetaMask/metamask-assets @MetaMask/core-platform
+/packages/assets-controller/package.json          @MetaMask/metamask-assets @MetaMask/core-platform
+/packages/assets-controller/CHANGELOG.md          @MetaMask/metamask-assets @MetaMask/core-platform
 /packages/chain-agnostic-permission/package.json  @MetaMask/wallet-integrations @MetaMask/core-platform
 /packages/chain-agnostic-permission/CHANGELOG.md  @MetaMask/wallet-integrations @MetaMask/core-platform
 /packages/delegation-controller/package.json      @MetaMask/delegation @MetaMask/core-platform
@@ -166,8 +168,8 @@
 /packages/user-operation-controller/CHANGELOG.md  @MetaMask/confirmations @MetaMask/core-platform
 /packages/multichain-transactions-controller/package.json @MetaMask/accounts-engineers @MetaMask/core-platform
 /packages/multichain-transactions-controller/CHANGELOG.md @MetaMask/accounts-engineers @MetaMask/core-platform
-/packages/token-search-discovery-controller/package.json      @MetaMask/portfolio @MetaMask/core-platform
-/packages/token-search-discovery-controller/CHANGELOG.md      @MetaMask/portfolio @MetaMask/core-platform
+/packages/token-search-discovery-controller/package.json      @MetaMask/metamask-assets @MetaMask/core-platform
+/packages/token-search-discovery-controller/CHANGELOG.md      @MetaMask/metamask-assets @MetaMask/core-platform
 /packages/bridge-controller/package.json                 @MetaMask/swaps-engineers @MetaMask/core-platform
 /packages/bridge-controller/CHANGELOG.md                 @MetaMask/swaps-engineers @MetaMask/core-platform
 /packages/remote-feature-flag-controller/package.json @MetaMask/extension-platform @MetaMask/mobile-platform @MetaMask/core-platform

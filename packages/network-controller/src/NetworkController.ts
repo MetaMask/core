@@ -3,6 +3,7 @@ import type {
   ControllerStateChangeEvent,
 } from '@metamask/base-controller';
 import { BaseController } from '@metamask/base-controller';
+import type { ConnectivityControllerGetStateAction } from '@metamask/connectivity-controller';
 import type { Partialize } from '@metamask/controller-utils';
 import {
   InfuraNetworkType,
@@ -16,7 +17,6 @@ import {
   BUILT_IN_CUSTOM_NETWORKS_RPC,
   BUILT_IN_NETWORKS,
 } from '@metamask/controller-utils';
-import type { ErrorReportingServiceCaptureExceptionAction } from '@metamask/error-reporting-service';
 import type { PollingBlockTrackerOptions } from '@metamask/eth-block-tracker';
 import EthQuery from '@metamask/eth-query';
 import type { Messenger } from '@metamask/messenger';
@@ -730,7 +730,7 @@ export type NetworkControllerActions =
 /**
  * All actions that {@link NetworkController} calls internally.
  */
-type AllowedActions = ErrorReportingServiceCaptureExceptionAction;
+type AllowedActions = ConnectivityControllerGetStateAction;
 
 export type NetworkControllerMessenger = Messenger<
   typeof controllerName,
@@ -1229,8 +1229,7 @@ function correctInitialState(
         firstNetworkConfiguration.rpcEndpoints[
           firstNetworkConfiguration.defaultRpcEndpointIndex
         ].networkClientId;
-      messenger.call(
-        'ErrorReportingService:captureException',
+      messenger.captureException?.(
         new Error(
           `\`selectedNetworkClientId\` '${state.selectedNetworkClientId}' does not refer to an RPC endpoint within a network configuration; correcting to '${newSelectedNetworkClientId}'`,
         ),
@@ -1242,8 +1241,7 @@ function correctInitialState(
       for (const invalidNetworkClientId of invalidNetworkClientIdsWithMetadata) {
         delete newState.networksMetadata[invalidNetworkClientId];
       }
-      messenger.call(
-        'ErrorReportingService:captureException',
+      messenger.captureException?.(
         new Error(
           '`networksMetadata` had invalid network client IDs, which have been removed',
         ),
@@ -2132,7 +2130,7 @@ export class NetworkController extends BaseController<
     networkClientId: NetworkClientId,
   ): Promise<boolean> {
     let metadata = this.state.networksMetadata[networkClientId];
-    if (metadata === undefined) {
+    if (metadata?.EIPS[1559] === undefined) {
       await this.lookupNetwork(networkClientId);
       metadata = this.state.networksMetadata[networkClientId];
     }

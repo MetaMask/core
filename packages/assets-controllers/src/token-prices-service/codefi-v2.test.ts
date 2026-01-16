@@ -123,7 +123,9 @@ describe('CodefiTokenPricesServiceV2', () => {
         circuitBreakDuration: defaultMaxRetryDelay * 10,
       });
       service.onBreak(onBreakHandler);
-      const fetchTokenPrices = () =>
+      const fetchTokenPrices = (): ReturnType<
+        typeof service.fetchTokenPrices
+      > =>
         service.fetchTokenPrices({
           assets: [
             {
@@ -237,124 +239,6 @@ describe('CodefiTokenPricesServiceV2', () => {
   });
 
   describe('fetchTokenPrices', () => {
-    it('uses the /v2/chains/{chainId}/spot-prices endpoint to gather prices forn chains not supported by v3', async () => {
-      nock('https://price.api.cx.metamask.io')
-        .get('/v2/chains/0x52/spot-prices')
-        .query({
-          tokenAddresses: ['0xAAA', '0xBBB'].join(','),
-          vsCurrency: 'ETH',
-          includeMarketData: 'true',
-        })
-        .reply(200, {
-          '0xaaa': {
-            price: 148.17205755299946,
-            currency: 'ETH',
-            pricePercentChange1d: 1,
-            priceChange1d: 1,
-            marketCap: 117219.99428314982,
-            allTimeHigh: 0.00060467892389492,
-            allTimeLow: 0.00002303954000865728,
-            totalVolume: 5155.094053542448,
-            high1d: 0.00008020715848194385,
-            low1d: 0.00007792083564549064,
-            circulatingSupply: 1494269733.9526057,
-            dilutedMarketCap: 117669.5125951733,
-            marketCapPercentChange1d: 0.76671,
-            pricePercentChange1h: -1.0736342953259423,
-            pricePercentChange7d: -7.351582573655089,
-            pricePercentChange14d: -1.0799098946709822,
-            pricePercentChange30d: -25.776321124365992,
-            pricePercentChange200d: 46.091571238599165,
-            pricePercentChange1y: -2.2992517267242754,
-          },
-          '0xbbb': {
-            price: 33689.98134554716,
-            currency: 'ETH',
-            pricePercentChange1d: 1,
-            priceChange1d: 1,
-            marketCap: 117219.99428314982,
-            allTimeHigh: 0.00060467892389492,
-            allTimeLow: 0.00002303954000865728,
-            totalVolume: 5155.094053542448,
-            high1d: 0.00008020715848194385,
-            low1d: 0.00007792083564549064,
-            circulatingSupply: 1494269733.9526057,
-            dilutedMarketCap: 117669.5125951733,
-            marketCapPercentChange1d: 0.76671,
-            pricePercentChange1h: -1.0736342953259423,
-            pricePercentChange7d: -7.351582573655089,
-            pricePercentChange14d: -1.0799098946709822,
-            pricePercentChange30d: -25.776321124365992,
-            pricePercentChange200d: 46.091571238599165,
-            pricePercentChange1y: -2.2992517267242754,
-          },
-        });
-
-      const marketDataTokensByAddress =
-        await new CodefiTokenPricesServiceV2().fetchTokenPrices({
-          assets: [
-            {
-              chainId: '0x52',
-              tokenAddress: '0xAAA',
-            },
-            {
-              chainId: '0x52',
-              tokenAddress: '0xBBB',
-            },
-          ],
-          currency: 'ETH',
-        });
-
-      expect(marketDataTokensByAddress).toStrictEqual([
-        {
-          allTimeHigh: 0.00060467892389492,
-          allTimeLow: 0.00002303954000865728,
-          chainId: '0x52',
-          circulatingSupply: 1494269733.9526057,
-          currency: 'ETH',
-          dilutedMarketCap: 117669.5125951733,
-          high1d: 0.00008020715848194385,
-          low1d: 0.00007792083564549064,
-          marketCap: 117219.99428314982,
-          marketCapPercentChange1d: 0.76671,
-          price: 148.17205755299946,
-          priceChange1d: 1,
-          pricePercentChange14d: -1.0799098946709822,
-          pricePercentChange1d: 1,
-          pricePercentChange1h: -1.0736342953259423,
-          pricePercentChange1y: -2.2992517267242754,
-          pricePercentChange200d: 46.091571238599165,
-          pricePercentChange30d: -25.776321124365992,
-          pricePercentChange7d: -7.351582573655089,
-          tokenAddress: '0xAAA',
-          totalVolume: 5155.094053542448,
-        },
-        {
-          allTimeHigh: 0.00060467892389492,
-          allTimeLow: 0.00002303954000865728,
-          chainId: '0x52',
-          circulatingSupply: 1494269733.9526057,
-          currency: 'ETH',
-          dilutedMarketCap: 117669.5125951733,
-          high1d: 0.00008020715848194385,
-          low1d: 0.00007792083564549064,
-          marketCap: 117219.99428314982,
-          marketCapPercentChange1d: 0.76671,
-          price: 33689.98134554716,
-          priceChange1d: 1,
-          pricePercentChange14d: -1.0799098946709822,
-          pricePercentChange1d: 1,
-          pricePercentChange1h: -1.0736342953259423,
-          pricePercentChange1y: -2.2992517267242754,
-          pricePercentChange200d: 46.091571238599165,
-          pricePercentChange30d: -25.776321124365992,
-          pricePercentChange7d: -7.351582573655089,
-          tokenAddress: '0xBBB',
-          totalVolume: 5155.094053542448,
-        },
-      ]);
-    });
-
     it('uses the /spot-prices endpoint of the Codefi Price API to gather prices for the given tokens', async () => {
       nock('https://price.api.cx.metamask.io')
         .get('/v3/spot-prices')
@@ -1296,7 +1180,9 @@ describe('CodefiTokenPricesServiceV2', () => {
           // break doesn't end during a retry attempt
           circuitBreakDuration: defaultMaxRetryDelay * 10,
         });
-        const fetchTokenPrices = () =>
+        const fetchTokenPrices = (): ReturnType<
+          typeof service.fetchTokenPrices
+        > =>
           service.fetchTokenPrices({
             assets: [
               {
@@ -1791,7 +1677,9 @@ describe('CodefiTokenPricesServiceV2', () => {
           // break doesn't end during a retry attempt
           circuitBreakDuration: defaultMaxRetryDelay * 10,
         });
-        const fetchExchangeRates = () =>
+        const fetchExchangeRates = (): ReturnType<
+          typeof service.fetchExchangeRates
+        > =>
           service.fetchExchangeRates({
             baseCurrency: 'eur',
             includeUsdRate: false,
@@ -1898,9 +1786,11 @@ async function fetchTokenPricesWithFakeTimers({
   retries,
 }: {
   clock: sinon.SinonFakeTimers;
-  fetchTokenPrices: () => Promise<unknown>;
+  fetchTokenPrices: () => ReturnType<
+    CodefiTokenPricesServiceV2['fetchTokenPrices']
+  >;
   retries: number;
-}) {
+}): ReturnType<CodefiTokenPricesServiceV2['fetchTokenPrices']> {
   const pendingUpdate = fetchTokenPrices();
   pendingUpdate.catch(() => {
     // suppress Unhandled Promise error
@@ -1938,9 +1828,11 @@ async function fetchExchangeRatesWithFakeTimers({
   retries,
 }: {
   clock: sinon.SinonFakeTimers;
-  fetchExchangeRates: () => Promise<unknown>;
+  fetchExchangeRates: () => ReturnType<
+    CodefiTokenPricesServiceV2['fetchExchangeRates']
+  >;
   retries: number;
-}) {
+}): ReturnType<CodefiTokenPricesServiceV2['fetchExchangeRates']> {
   const pendingUpdate = fetchExchangeRates();
   pendingUpdate.catch(() => {
     // suppress Unhandled Promise error
