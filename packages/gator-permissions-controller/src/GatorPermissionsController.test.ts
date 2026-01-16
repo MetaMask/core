@@ -1220,7 +1220,10 @@ describe('GatorPermissionsController', () => {
         request: {
           jsonrpc: '2.0',
           method: 'permissionsProvider_submitRevocation',
-          params: { permissionContext, revocationMetadata: {} },
+          params: {
+            permissionContext,
+            revocationMetadata: { txHash: undefined },
+          },
         },
       });
 
