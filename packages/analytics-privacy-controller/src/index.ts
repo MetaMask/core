@@ -5,7 +5,11 @@ export {
 export type { AnalyticsPrivacyControllerOptions } from './AnalyticsPrivacyController';
 
 export { AnalyticsPrivacyService } from './AnalyticsPrivacyService';
-export type { AnalyticsPrivacyServiceOptions } from './AnalyticsPrivacyService';
+export type {
+  AnalyticsPrivacyServiceActions,
+  AnalyticsPrivacyServiceEvents,
+  AnalyticsPrivacyServiceOptions,
+} from './AnalyticsPrivacyService';
 
 export type {
   DataDeleteStatus,
