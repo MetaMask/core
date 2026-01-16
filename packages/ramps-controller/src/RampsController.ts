@@ -605,6 +605,7 @@ export class RampsController extends BaseController<
     options?: ExecuteRequestOptions,
   ): Promise<Eligibility> {
     const normalizedRegion = region.toLowerCase().trim();
+    let userRegionSetInThisCall = false;
 
     try {
       const countries = await this.getCountries('buy', options);
@@ -615,6 +616,7 @@ export class RampsController extends BaseController<
           state.userRegion = userRegion;
           state.tokens = null;
         });
+        userRegionSetInThisCall = true;
 
         try {
           return await this.updateEligibility(userRegion.regionCode, options);
@@ -638,12 +640,12 @@ export class RampsController extends BaseController<
         `Region "${normalizedRegion}" not found in countries data. Cannot set user region without valid country information.`,
       );
     } catch (error) {
-      // If the error is from eligibility fetch (userRegion was set), re-throw it
+      // If the error is from eligibility fetch (userRegion was set in this call), re-throw it
       // If the error is "not found", re-throw it
       // Otherwise, it's from countries fetch failure
       if (
         error instanceof Error &&
-        (error.message.includes('not found') || this.state.userRegion !== null)
+        (error.message.includes('not found') || userRegionSetInThisCall)
       ) {
         throw error;
       }

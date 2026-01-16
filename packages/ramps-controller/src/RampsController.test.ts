@@ -1443,6 +1443,44 @@ describe('RampsController', () => {
       });
     });
 
+    it('clears pre-existing userRegion when countries fetch fails', async () => {
+      await withController(async ({ controller, rootMessenger }) => {
+        let shouldFailCountriesFetch = false;
+
+        rootMessenger.registerActionHandler(
+          'RampsService:getCountries',
+          async () => {
+            if (shouldFailCountriesFetch) {
+              throw new Error('Network error');
+            }
+            return createMockCountries();
+          },
+        );
+        rootMessenger.registerActionHandler(
+          'RampsService:getEligibility',
+          async () => ({
+            aggregator: true,
+            deposit: true,
+            global: true,
+          }),
+        );
+
+        await controller.setUserRegion('US-CA');
+        expect(controller.state.userRegion?.regionCode).toBe('us-ca');
+
+        shouldFailCountriesFetch = true;
+
+        await expect(
+          controller.setUserRegion('FR', { forceRefresh: true }),
+        ).rejects.toThrow(
+          'Failed to fetch countries data. Cannot set user region without valid country information.',
+        );
+
+        expect(controller.state.userRegion).toBeNull();
+        expect(controller.state.tokens).toBeNull();
+      });
+    });
+
     it('finds state by id including -stateCode', async () => {
       await withController(async ({ controller, rootMessenger }) => {
         const countriesWithStateId: Country[] = [
