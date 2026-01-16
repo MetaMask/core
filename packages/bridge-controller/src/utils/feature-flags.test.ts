@@ -3,6 +3,7 @@ import {
   getBridgeFeatureFlags,
   hasMinimumRequiredVersion,
 } from './feature-flags';
+import { DEFAULT_CHAIN_RANKING } from '../constants/bridge';
 import type {
   FeatureFlagsPlatformConfig,
   BridgeControllerMessenger,
@@ -46,6 +47,7 @@ describe('feature-flags', () => {
             isActiveDest: true,
           },
         },
+        chainRanking: [],
       };
 
       const result = formatFeatureFlags(bridgeConfig);
@@ -55,6 +57,7 @@ describe('feature-flags', () => {
         maxRefreshCount: 1,
         support: true,
         minimumVersion: '0.0.0',
+        chainRanking: [],
         chains: {
           'eip155:1': {
             isActiveSrc: true,
@@ -95,6 +98,7 @@ describe('feature-flags', () => {
         support: true,
         minimumVersion: '0.0.0',
         chains: {},
+        chainRanking: [],
       };
 
       const result = formatFeatureFlags(bridgeConfig);
@@ -104,6 +108,7 @@ describe('feature-flags', () => {
         maxRefreshCount: 1,
         support: true,
         minimumVersion: '0.0.0',
+        chainRanking: [],
         chains: {},
       });
     });
@@ -124,6 +129,7 @@ describe('feature-flags', () => {
             isActiveDest: false,
           },
         },
+        chainRanking: [],
       };
 
       const result = formatFeatureFlags(bridgeConfig);
@@ -133,6 +139,7 @@ describe('feature-flags', () => {
         maxRefreshCount: 1,
         support: true,
         minimumVersion: '0.0.0',
+        chainRanking: [],
         chains: {
           'eip155:invalid': {
             isActiveSrc: true,
@@ -160,6 +167,7 @@ describe('feature-flags', () => {
         maxRefreshCount: 1,
         support: true,
         minimumVersion: '0.0.0',
+        chainRanking: [],
         chains: {
           '1': {
             isActiveSrc: true,
@@ -248,6 +256,7 @@ describe('feature-flags', () => {
         refreshRate: 3,
         support: true,
         minimumVersion: '0.0.0',
+        chainRanking: [],
         chains: {
           'eip155:1': {
             isActiveDest: true,
@@ -356,6 +365,7 @@ describe('feature-flags', () => {
         refreshRate: 30000,
         support: false,
         minimumVersion: '0.0.0',
+        chainRanking: [...DEFAULT_CHAIN_RANKING],
         chains: {},
       };
       expect(result).toStrictEqual(expectedBridgeConfig);
@@ -373,6 +383,7 @@ describe('feature-flags', () => {
             isActiveDest: true,
           },
         },
+        chainRanking: [],
       };
 
       const bridgeConfig = {
@@ -386,6 +397,7 @@ describe('feature-flags', () => {
             isActiveDest: true,
           },
         },
+        chainRanking: [],
       };
 
       const remoteFeatureFlagControllerState = {
@@ -414,6 +426,7 @@ describe('feature-flags', () => {
             isActiveDest: true,
           },
         },
+        chainRanking: [],
       };
 
       expect(result).toStrictEqual(expectedBridgeConfig);
@@ -431,6 +444,7 @@ describe('feature-flags', () => {
             isActiveDest: true,
           },
         },
+        chainRanking: [],
       };
 
       const remoteFeatureFlagControllerState = {
@@ -458,6 +472,7 @@ describe('feature-flags', () => {
             isActiveDest: true,
           },
         },
+        chainRanking: [],
       };
 
       expect(result).toStrictEqual(expectedBridgeConfig);

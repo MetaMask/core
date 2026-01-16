@@ -30,6 +30,7 @@ import type {
   BitcoinTradeDataSchema,
   BridgeAssetSchema,
   ChainConfigurationSchema,
+  ChainRankingSchema,
   FeatureId,
   FeeDataSchema,
   IntentSchema,
@@ -66,6 +67,8 @@ export enum AssetType {
 }
 
 export type ChainConfiguration = Infer<typeof ChainConfigurationSchema>;
+
+export type ChainRanking = Infer<typeof ChainRankingSchema>;
 
 export type L1GasFees = {
   l1GasFeesInHexWei?: string; // l1 fees for approval and trade in hex wei, appended by BridgeController.#appendL1GasFees
