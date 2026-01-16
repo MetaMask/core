@@ -3,6 +3,7 @@ import type {
   ControllerStateChangeEvent,
 } from '@metamask/base-controller';
 import { BaseController } from '@metamask/base-controller';
+import type { ConnectivityControllerGetStateAction } from '@metamask/connectivity-controller';
 import type { Partialize } from '@metamask/controller-utils';
 import {
   InfuraNetworkType,
@@ -729,7 +730,7 @@ export type NetworkControllerActions =
 /**
  * All actions that {@link NetworkController} calls internally.
  */
-type AllowedActions = never;
+type AllowedActions = ConnectivityControllerGetStateAction;
 
 export type NetworkControllerMessenger = Messenger<
   typeof controllerName,

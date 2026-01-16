@@ -94,6 +94,10 @@ import {
 import { getBalanceChanges } from './utils/balance-changes';
 import { addTransactionBatch } from './utils/batch';
 import { getDelegationAddress } from './utils/eip7702';
+import {
+  getSubmitHistoryLimit,
+  getTransactionHistoryLimit,
+} from './utils/feature-flags';
 import { updateFirstTimeInteraction } from './utils/first-time-interaction';
 import {
   addGasBuffer,
@@ -570,6 +574,10 @@ describe('TransactionController', () => {
   const updateFirstTimeInteractionMock = jest.mocked(
     updateFirstTimeInteraction,
   );
+  const getSubmitHistoryLimitMock = jest.mocked(getSubmitHistoryLimit);
+  const getTransactionHistoryLimitMock = jest.mocked(
+    getTransactionHistoryLimit,
+  );
 
   let mockEthQuery: EthQuery;
   let getNonceLockSpy: jest.Mock;
@@ -1028,6 +1036,9 @@ describe('TransactionController', () => {
     });
 
     updateFirstTimeInteractionMock.mockResolvedValue(undefined);
+
+    getSubmitHistoryLimitMock.mockReturnValue(100);
+    getTransactionHistoryLimitMock.mockReturnValue(40);
   });
 
   describe('constructor', () => {
@@ -4956,6 +4967,8 @@ describe('TransactionController', () => {
     });
 
     it('limits max transactions when adding to state', async () => {
+      getTransactionHistoryLimitMock.mockReturnValue(1);
+
       const { controller } = setupController({
         options: { transactionHistoryLimit: 1 },
       });
