@@ -94,6 +94,10 @@ import {
 import { getBalanceChanges } from './utils/balance-changes';
 import { addTransactionBatch } from './utils/batch';
 import { getDelegationAddress } from './utils/eip7702';
+import {
+  getSubmitHistoryLimit,
+  getTransactionHistoryLimit,
+} from './utils/feature-flags';
 import { updateFirstTimeInteraction } from './utils/first-time-interaction';
 import {
   addGasBuffer,
@@ -113,10 +117,6 @@ import {
   updateSwapsTransaction,
 } from './utils/swaps';
 import * as transactionTypeUtils from './utils/transaction-type';
-import {
-  getSubmitHistoryLimit,
-  getTransactionHistoryLimit,
-} from './utils/feature-flags';
 import { ErrorCode } from './utils/validation';
 import { FakeBlockTracker } from '../../../tests/fake-block-tracker';
 import { FakeProvider } from '../../../tests/fake-provider';
@@ -575,7 +575,9 @@ describe('TransactionController', () => {
     updateFirstTimeInteraction,
   );
   const getSubmitHistoryLimitMock = jest.mocked(getSubmitHistoryLimit);
-  const getTransactionHistoryLimitMock = jest.mocked(getTransactionHistoryLimit);
+  const getTransactionHistoryLimitMock = jest.mocked(
+    getTransactionHistoryLimit,
+  );
 
   let mockEthQuery: EthQuery;
   let getNonceLockSpy: jest.Mock;
