@@ -67,6 +67,10 @@ export const BUILT_IN_CUSTOM_NETWORKS_RPC = {
   'megaeth-testnet': 'https://carrot.megaeth.com/rpc',
   'megaeth-testnet-v2': 'https://carrot.megaeth.com/rpc',
   'monad-testnet': 'https://testnet-rpc.monad.xyz',
+  // Mainnet networks with custom RPC URLs
+  'hyper-evm-mainnet': 'https://rpc.hyperliquid.xyz/evm',
+  'zksync-era-mainnet': 'https://mainnet.era.zksync.io',
+  'megaeth-mainnet': 'https://mainnet.megaeth.com/rpc',
 };
 
 /**
@@ -178,6 +182,54 @@ export const BUILT_IN_NETWORKS = {
       blockExplorerUrl: BlockExplorerUrl['sei-mainnet'],
     },
   },
+  // Avalanche
+  [NetworkType['avalanche-mainnet']]: {
+    chainId: ChainId['avalanche-mainnet'],
+    ticker: NetworksTicker['avalanche-mainnet'],
+    rpcPrefs: {
+      blockExplorerUrl: BlockExplorerUrl['avalanche-mainnet'],
+    },
+  },
+  // HyperEVM
+  [NetworkType['hyper-evm-mainnet']]: {
+    chainId: ChainId['hyper-evm-mainnet'],
+    ticker: NetworksTicker['hyper-evm-mainnet'],
+    rpcPrefs: {
+      blockExplorerUrl: BlockExplorerUrl['hyper-evm-mainnet'],
+    },
+  },
+  // Palm
+  [NetworkType['palm-mainnet']]: {
+    chainId: ChainId['palm-mainnet'],
+    ticker: NetworksTicker['palm-mainnet'],
+    rpcPrefs: {
+      blockExplorerUrl: BlockExplorerUrl['palm-mainnet'],
+    },
+  },
+  // zkSync Era
+  [NetworkType['zksync-era-mainnet']]: {
+    chainId: ChainId['zksync-era-mainnet'],
+    ticker: NetworksTicker['zksync-era-mainnet'],
+    rpcPrefs: {
+      blockExplorerUrl: BlockExplorerUrl['zksync-era-mainnet'],
+    },
+  },
+  // Monad
+  [NetworkType['monad-mainnet']]: {
+    chainId: ChainId['monad-mainnet'],
+    ticker: NetworksTicker['monad-mainnet'],
+    rpcPrefs: {
+      blockExplorerUrl: BlockExplorerUrl['monad-mainnet'],
+    },
+  },
+  // MegaEth
+  [NetworkType['megaeth-mainnet']]: {
+    chainId: ChainId['megaeth-mainnet'],
+    ticker: NetworksTicker['megaeth-mainnet'],
+    rpcPrefs: {
+      blockExplorerUrl: BlockExplorerUrl['megaeth-mainnet'],
+    },
+  },
   [NetworkType.rpc]: {
     chainId: undefined,
     blockExplorerUrl: undefined,
@@ -198,7 +250,7 @@ export const NETWORKS_BYPASSING_VALIDATION = {
   '0x3e7': {
     name: 'HyperEVM',
     symbol: 'HYPE',
-    rpcUrl: 'https://rpc.hyperliquid.xyz',
+    rpcUrl: 'https://rpc.hyperliquid.xyz/evm',
   },
 };
 
