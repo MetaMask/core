@@ -44,25 +44,6 @@ export type State = {
 };
 
 /**
- * Represents eligibility information for a region.
- * Returned from the /regions/countries/{isoCode} endpoint.
- */
-export type Eligibility = {
-  /**
-   * Whether aggregator providers are available.
-   */
-  aggregator?: boolean;
-  /**
-   * Whether deposit (buy) is available.
-   */
-  deposit?: boolean;
-  /**
-   * Whether global providers are available.
-   */
-  global?: boolean;
-};
-
-/**
  * Represents a provider link.
  */
 export type ProviderLink = {
@@ -228,7 +209,6 @@ export enum RampsApiService {
 const MESSENGER_EXPOSED_METHODS = [
   'getGeolocation',
   'getCountries',
-  'getEligibility',
   'getTokens',
 ] as const;
 
@@ -572,21 +552,6 @@ export class RampsService {
 
       return country.supported;
     });
-  }
-
-  /**
-   * Fetches eligibility information for a specific region.
-   *
-   * @param isoCode - The ISO code for the region (e.g., "us", "fr", "us-ny").
-   * @returns Eligibility information for the region.
-   */
-  async getEligibility(isoCode: string): Promise<Eligibility> {
-    const normalizedIsoCode = isoCode.toLowerCase().trim();
-    return this.#request<Eligibility>(
-      RampsApiService.Regions,
-      `regions/countries/${normalizedIsoCode}`,
-      { responseType: 'json' },
-    );
   }
 
   /**
