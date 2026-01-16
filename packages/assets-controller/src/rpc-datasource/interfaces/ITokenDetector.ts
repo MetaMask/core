@@ -2,6 +2,7 @@ import type {
   AccountId,
   Address,
   Asset,
+  AssetBalance,
   ChainId,
   TokenListState,
   UserTokensState,
@@ -19,6 +20,8 @@ export type TokenDetectionResult = {
   accountAddress: Address;
   /** Newly detected tokens with non-zero balances */
   detectedAssets: Asset[];
+  /** Balances for newly detected tokens */
+  detectedBalances: AssetBalance[];
   /** Tokens that were checked but had zero balance */
   zeroBalanceAddresses: Address[];
   /** Tokens that failed to be checked */

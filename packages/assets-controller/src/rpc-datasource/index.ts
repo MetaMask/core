@@ -86,6 +86,11 @@ export { BalanceFetcher, type BalanceFetcherConfig } from './BalanceFetcher';
 export { RpcDatasource } from './RpcDatasource';
 
 // =============================================================================
+// UTILITIES
+// =============================================================================
+export { divideIntoBatches, reduceInBatchesSerially } from './utils';
+
+// =============================================================================
 // RE-EXPORTS FROM UTILS
 // =============================================================================
 export type { CaipAssetType } from '@metamask/utils';

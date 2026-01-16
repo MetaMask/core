@@ -2,17 +2,37 @@
 // ASSETS CONTROLLER
 // =============================================================================
 export type {
+  // State types
   AssetsControllerState,
+  AssetMetadata,
+  AssetPriceData,
+  AssetBalanceData,
+  // Options types
+  AssetsControllerOptions,
+  PollingTarget,
+  // Action types
   AssetsControllerGetStateAction,
   AssetsControllerActions,
+  // Event types
   AssetsControllerStateChangeEvent,
   AssetsControllerEvents,
+  // Messenger types
   AssetsControllerMessenger,
 } from './AssetsController';
 export {
   AssetsController,
   getDefaultAssetsControllerState,
+  controllerName,
 } from './AssetsController';
+
+// =============================================================================
+// POLLING MIDDLEWARE
+// =============================================================================
+export type {
+  AssetsPollingMiddlewareConfig,
+  PollingAccount,
+} from './AssetsPollingMiddleware';
+export { AssetsPollingMiddleware } from './AssetsPollingMiddleware';
 
 // =============================================================================
 // RPC SERVICES

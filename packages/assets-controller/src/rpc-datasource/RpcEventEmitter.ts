@@ -12,15 +12,6 @@ import type {
 } from './types';
 
 /**
- * Event types for RpcEventEmitter.
- */
-type RpcEventEmitterEvents = {
-  assetsChanged: [AssetsChangedEvent];
-  assetsBalanceChanged: [AssetsBalanceChangedEvent];
-  assetsPriceChanged: [AssetsPriceChangedEvent];
-};
-
-/**
  * RpcEventEmitter - Event emitter for RPC datasource events.
  *
  * Provides a pub/sub mechanism for consumers to subscribe to
@@ -31,7 +22,6 @@ export class RpcEventEmitter
   implements IRpcEventEmitter
 {
   onAssetsChanged(callback: OnAssetsChangedCallback): Unsubscribe {
-    // @ts-ignore
     this.on('assetsChanged', callback);
     return () => this.off('assetsChanged', callback);
   }
@@ -39,13 +29,11 @@ export class RpcEventEmitter
   onAssetsBalanceChanged(
     callback: OnAssetsBalanceChangedCallback,
   ): Unsubscribe {
-    // @ts-ignore
     this.on('assetsBalanceChanged', callback);
     return () => this.off('assetsBalanceChanged', callback);
   }
 
   onAssetsPriceChanged(callback: OnAssetsPriceChangedCallback): Unsubscribe {
-    // @ts-ignore
     this.on('assetsPriceChanged', callback);
     return () => this.off('assetsPriceChanged', callback);
   }
@@ -62,9 +50,7 @@ export class RpcEventEmitter
     this.emit('assetsPriceChanged', event);
   }
 
-  override removeAllListeners(
-    event?: string | symbol,
-  ): this {
+  override removeAllListeners(event?: string | symbol): this {
     return super.removeAllListeners(event);
   }
 }

@@ -70,6 +70,10 @@ export type AssetBalance = {
   chainId: ChainId;
   /** Raw balance as string (wei/smallest unit) */
   balance: string;
+  /** Human-readable balance (balance / 10^decimals) */
+  formattedBalance: string;
+  /** Token decimals used for formatting */
+  decimals: number;
   /** Block number when balance was fetched */
   blockNumber?: number;
   /** Timestamp when balance was fetched */

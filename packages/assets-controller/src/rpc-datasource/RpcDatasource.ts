@@ -30,8 +30,8 @@ import type {
  * Default configuration values.
  */
 const DEFAULT_CONFIG: Required<RpcDatasourceConfig> = {
-  pollingIntervalMs: 30000,
-  detectTokensEnabled: false,
+  pollingIntervalMs: 10000, // 10 seconds for faster debugging
+  detectTokensEnabled: true, // Enable by default for testing
   fetchBalancesEnabled: true,
   detectionBatchSize: 100,
   balanceBatchSize: 100,
@@ -129,8 +129,31 @@ export class RpcDatasource extends StaticIntervalPollingControllerOnly<PollingIn
   ) {
     super();
 
+    console.log('[RpcDatasource] Constructor called');
+    console.log('[RpcDatasource] Dependencies:', dependencies);
+    console.log('[RpcDatasource] Config:', config);
+
+    // Validate dependencies
+    if (!dependencies) {
+      throw new Error('[RpcDatasource] dependencies is required');
+    }
+    if (!dependencies.getAccount) {
+      throw new Error('[RpcDatasource] dependencies.getAccount is required');
+    }
+    if (!dependencies.getTokenListState) {
+      throw new Error(
+        '[RpcDatasource] dependencies.getTokenListState is required',
+      );
+    }
+    if (!dependencies.getUserTokensState) {
+      throw new Error(
+        '[RpcDatasource] dependencies.getUserTokensState is required',
+      );
+    }
+
     // Merge config with defaults
     const mergedConfig = { ...DEFAULT_CONFIG, ...config };
+    console.log('[RpcDatasource] Merged config:', mergedConfig);
 
     // Store dependencies
     this.#getAccount = dependencies.getAccount;
@@ -141,8 +164,21 @@ export class RpcDatasource extends StaticIntervalPollingControllerOnly<PollingIn
     this.#detectTokensEnabled = mergedConfig.detectTokensEnabled;
     this.#fetchBalancesEnabled = mergedConfig.fetchBalancesEnabled;
 
+    console.log(
+      '[RpcDatasource] detectTokensEnabled:',
+      this.#detectTokensEnabled,
+    );
+    console.log(
+      '[RpcDatasource] fetchBalancesEnabled:',
+      this.#fetchBalancesEnabled,
+    );
+
     // Set polling interval (inherited from base class)
     this.setIntervalLength(mergedConfig.pollingIntervalMs);
+    console.log(
+      '[RpcDatasource] Polling interval set to:',
+      mergedConfig.pollingIntervalMs,
+    );
 
     // Initialize event emitter
     this.#eventEmitter = new RpcEventEmitter();
@@ -165,6 +201,8 @@ export class RpcDatasource extends StaticIntervalPollingControllerOnly<PollingIn
     this.balanceFetcher =
       dependencies.balanceFetcher ?? new BalanceFetcher(this.multicallClient);
     this.balanceFetcher.setUserTokensStateGetter(this.#getUserTokensState);
+
+    console.log('[RpcDatasource] Constructor complete');
   }
 
   // ===========================================================================
@@ -204,7 +242,11 @@ export class RpcDatasource extends StaticIntervalPollingControllerOnly<PollingIn
       throw new Error(`Account not found: ${accountId}`);
     }
 
-    return this.tokenDetector.detectTokens(chainId, accountId, accountAddress);
+    return this.tokenDetector.detectTokens(
+      chainId,
+      accountId,
+      accountAddress as `0x${string}`,
+    );
   }
 
   async fetchBalances(
@@ -219,7 +261,7 @@ export class RpcDatasource extends StaticIntervalPollingControllerOnly<PollingIn
     return this.balanceFetcher.fetchBalances(
       chainId,
       accountId,
-      accountAddress,
+      accountAddress as `0x${string}`,
     );
   }
 
@@ -248,38 +290,78 @@ export class RpcDatasource extends StaticIntervalPollingControllerOnly<PollingIn
   async _executePoll(input: PollingInput): Promise<void> {
     const { chainId, accountId } = input;
 
+    console.log('[RpcDatasource] _executePoll called:', { chainId, accountId });
+    console.log(
+      '[RpcDatasource] detectTokensEnabled:',
+      this.#detectTokensEnabled,
+    );
+    console.log(
+      '[RpcDatasource] fetchBalancesEnabled:',
+      this.#fetchBalancesEnabled,
+    );
+
     try {
       const accountAddress = this.#getAccountAddress(accountId);
+      console.log('[RpcDatasource] accountAddress:', accountAddress);
+
       if (!accountAddress) {
-        console.warn(`RpcDatasource: Account not found: ${accountId}`);
+        console.warn(`[RpcDatasource] Account not found: ${accountId}`);
         return;
       }
 
       // Token detection (if enabled)
       if (this.#detectTokensEnabled) {
+        console.log('[RpcDatasource] Starting token detection...');
         const detectionResult = await this.tokenDetector.detectTokens(
           chainId,
           accountId,
-          accountAddress,
+          accountAddress as `0x${string}`,
         );
 
+        console.log('[RpcDatasource] Detection result:', {
+          detectedAssets: detectionResult.detectedAssets.length,
+          detectedBalances: detectionResult.detectedBalances.length,
+          zeroBalanceAddresses: detectionResult.zeroBalanceAddresses.length,
+          failedAddresses: detectionResult.failedAddresses.length,
+        });
+
         if (detectionResult.detectedAssets.length > 0) {
+          // Emit assetsChanged for newly detected tokens
           this.#eventEmitter.emitAssetsChanged({
             chainId,
             accountId,
             assets: detectionResult.detectedAssets,
             timestamp: Date.now(),
           });
+
+          // Also emit assetsBalanceChanged for detected token balances
+          // (we already have the balances from the detection process)
+          if (detectionResult.detectedBalances.length > 0) {
+            this.#eventEmitter.emitAssetsBalanceChanged({
+              chainId,
+              accountId,
+              balances: detectionResult.detectedBalances,
+              timestamp: Date.now(),
+            });
+          }
         }
+      } else {
+        console.log('[RpcDatasource] Token detection is disabled');
       }
 
       // Balance fetching (if enabled)
       if (this.#fetchBalancesEnabled) {
+        console.log('[RpcDatasource] Starting balance fetching...');
         const balanceResult = await this.balanceFetcher.fetchBalances(
           chainId,
           accountId,
-          accountAddress,
+          accountAddress as `0x${string}`,
         );
+
+        console.log('[RpcDatasource] Balance result:', {
+          balances: balanceResult.balances.length,
+          failedAddresses: balanceResult.failedAddresses.length,
+        });
 
         if (balanceResult.balances.length > 0) {
           this.#eventEmitter.emitAssetsBalanceChanged({
@@ -289,9 +371,11 @@ export class RpcDatasource extends StaticIntervalPollingControllerOnly<PollingIn
             timestamp: Date.now(),
           });
         }
+      } else {
+        console.log('[RpcDatasource] Balance fetching is disabled');
       }
     } catch (error) {
-      console.error('RpcDatasource: Poll error:', error);
+      console.error('[RpcDatasource] Poll error:', error);
     }
   }
 
