@@ -26,7 +26,6 @@ describe('createRequestSelector', () => {
         ramps: {
           userRegion: null,
           preferredProvider: null,
-          eligibility: null,
           tokens: null,
           requests: {
             'getCryptoCurrencies:["US"]': loadingRequest,
@@ -57,7 +56,6 @@ describe('createRequestSelector', () => {
         ramps: {
           userRegion: null,
           preferredProvider: null,
-          eligibility: null,
           tokens: null,
           requests: {
             'getCryptoCurrencies:["US"]': successRequest,
@@ -91,7 +89,6 @@ describe('createRequestSelector', () => {
         ramps: {
           userRegion: null,
           preferredProvider: null,
-          eligibility: null,
           tokens: null,
           requests: {
             'getCryptoCurrencies:["US"]': errorRequest,
@@ -121,7 +118,6 @@ describe('createRequestSelector', () => {
         ramps: {
           userRegion: null,
           preferredProvider: null,
-          eligibility: null,
           tokens: null,
           requests: {},
         },
@@ -174,7 +170,6 @@ describe('createRequestSelector', () => {
         ramps: {
           userRegion: null,
           preferredProvider: null,
-          eligibility: null,
           tokens: null,
           requests: {
             'getCryptoCurrencies:["US"]': successRequest,
@@ -200,7 +195,6 @@ describe('createRequestSelector', () => {
         ramps: {
           userRegion: null,
           preferredProvider: null,
-          eligibility: null,
           tokens: null,
           requests: {
             'getCryptoCurrencies:["US"]': successRequest1,
@@ -215,7 +209,6 @@ describe('createRequestSelector', () => {
         ramps: {
           userRegion: null,
           preferredProvider: null,
-          eligibility: null,
           tokens: null,
           requests: {
             'getCryptoCurrencies:["US"]': successRequest2,
@@ -242,7 +235,6 @@ describe('createRequestSelector', () => {
         ramps: {
           userRegion: null,
           preferredProvider: null,
-          eligibility: null,
           tokens: null,
           requests: {
             'getCryptoCurrencies:["US"]': successRequest,
@@ -272,7 +264,6 @@ describe('createRequestSelector', () => {
         ramps: {
           userRegion: null,
           preferredProvider: null,
-          eligibility: null,
           tokens: null,
           requests: {
             'getData:[]': successRequest,
@@ -301,7 +292,6 @@ describe('createRequestSelector', () => {
         ramps: {
           userRegion: null,
           preferredProvider: null,
-          eligibility: null,
           tokens: null,
           requests: {
             'getCryptoCurrencies:["US"]': loadingRequest,
@@ -318,7 +308,6 @@ describe('createRequestSelector', () => {
         ramps: {
           userRegion: null,
           preferredProvider: null,
-          eligibility: null,
           tokens: null,
           requests: {
             'getCryptoCurrencies:["US"]': successRequest,
@@ -343,7 +332,6 @@ describe('createRequestSelector', () => {
         ramps: {
           userRegion: null,
           preferredProvider: null,
-          eligibility: null,
           tokens: null,
           requests: {
             'getCryptoCurrencies:["US"]': successRequest,
@@ -359,7 +347,6 @@ describe('createRequestSelector', () => {
         ramps: {
           userRegion: null,
           preferredProvider: null,
-          eligibility: null,
           tokens: null,
           requests: {
             'getCryptoCurrencies:["US"]': errorRequest,
@@ -390,7 +377,6 @@ describe('createRequestSelector', () => {
         ramps: {
           userRegion: null,
           preferredProvider: null,
-          eligibility: null,
           tokens: null,
           requests: {
             'getCryptoCurrencies:["US"]': createSuccessState(
@@ -425,7 +411,6 @@ describe('createRequestSelector', () => {
         ramps: {
           userRegion: null,
           preferredProvider: null,
-          eligibility: null,
           tokens: null,
           requests: {
             'getCryptoCurrencies:["US"]': createSuccessState(
