@@ -229,7 +229,9 @@ export class ProfileMetricsController extends StaticIntervalPollingController()<
         // it must have opted in during onboarding, or during a previous session.
         this.skipInitialDelay();
       }
-      this.#queueFirstSyncIfNeeded().catch(console.error);
+      this.#queueFirstSyncIfNeeded().catch(
+        this.messenger.captureException ?? console.error,
+      );
       this.startPolling(null);
     });
 
