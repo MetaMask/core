@@ -135,10 +135,13 @@ export type SimulationResponseLog = {
 /** Call trace of a single simulated transaction. */
 export type SimulationResponseCallTrace = {
   /** Nested calls. */
-  calls: SimulationResponseCallTrace[];
+  calls?: SimulationResponseCallTrace[] | null;
+
+  /** Error message for the call, if any. */
+  error?: string;
 
   /** Raw event logs created by the call. */
-  logs: SimulationResponseLog[];
+  logs?: SimulationResponseLog[] | null;
 };
 
 /**

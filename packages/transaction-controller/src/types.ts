@@ -1551,6 +1551,9 @@ export type SimulationData = {
   /** Whether the simulation response changed after a security check triggered a re-simulation. */
   isUpdatedAfterSecurityCheck?: boolean;
 
+  /** Error messages extracted from call traces, if any. */
+  callTraceErrors?: string[];
+
   /** Data concerning a change to the user's native balance. */
   nativeBalanceChange?: SimulationBalanceChange;
 
