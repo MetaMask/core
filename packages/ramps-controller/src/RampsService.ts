@@ -134,6 +134,14 @@ export type Country = {
    * Array of state objects.
    */
   states?: State[];
+  /**
+   * Default amount for ramps transactions.
+   */
+  defaultAmount?: number;
+  /**
+   * Quick amount options for ramps transactions.
+   */
+  quickAmounts?: number[];
 };
 
 /**
@@ -279,6 +287,17 @@ function getBaseUrl(
     default:
       throw new Error(`Invalid environment: ${String(environment)}`);
   }
+}
+
+/**
+ * Constructs an API path with a version prefix.
+ *
+ * @param path - The API endpoint path.
+ * @param version - The API version prefix. Defaults to 'v2'.
+ * @returns The versioned API path.
+ */
+function getApiPath(path: string, version: string = 'v2'): string {
+  return `${version}/${path}`;
 }
 
 /**
@@ -535,7 +554,7 @@ export class RampsService {
   async getCountries(action: 'buy' | 'sell' = 'buy'): Promise<Country[]> {
     const countries = await this.#request<Country[]>(
       RampsApiService.Regions,
-      'regions/countries',
+      getApiPath('regions/countries'),
       { action, responseType: 'json' },
     );
 
