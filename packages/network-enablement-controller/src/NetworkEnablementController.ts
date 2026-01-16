@@ -153,38 +153,40 @@ export type NetworkConfig = {
  * @returns The default state with pre-enabled networks.
  */
 const getDefaultNetworkEnablementControllerState =
-  (): NetworkEnablementControllerState => ({
-    enabledNetworkMap: {
-      [KnownCaipNamespace.Eip155]: {
-        [ChainId[BuiltInNetworkName.Mainnet]]: true,
-        [ChainId[BuiltInNetworkName.LineaMainnet]]: true,
-        [ChainId[BuiltInNetworkName.BaseMainnet]]: true,
-        [ChainId[BuiltInNetworkName.ArbitrumOne]]: true,
-        [ChainId[BuiltInNetworkName.BscMainnet]]: true,
-        [ChainId[BuiltInNetworkName.OptimismMainnet]]: true,
-        [ChainId[BuiltInNetworkName.PolygonMainnet]]: true,
-        [ChainId[BuiltInNetworkName.SeiMainnet]]: true,
+  (): NetworkEnablementControllerState => {
+    // Build the enabled EVM networks map from POPULAR_NETWORKS
+    const evmNetworks = POPULAR_NETWORKS.reduce<Record<Hex, boolean>>(
+      (acc, chainId) => {
+        acc[chainId as Hex] = true;
+        return acc;
       },
-      [KnownCaipNamespace.Solana]: {
-        [SolScope.Mainnet]: true,
-        [SolScope.Testnet]: false,
-        [SolScope.Devnet]: false,
+      {},
+    );
+
+    return {
+      enabledNetworkMap: {
+        [KnownCaipNamespace.Eip155]: evmNetworks,
+        [KnownCaipNamespace.Solana]: {
+          [SolScope.Mainnet]: true,
+          [SolScope.Testnet]: false,
+          [SolScope.Devnet]: false,
+        },
+        [KnownCaipNamespace.Bip122]: {
+          [BtcScope.Mainnet]: true,
+          [BtcScope.Testnet]: false,
+          [BtcScope.Signet]: false,
+        },
+        [KnownCaipNamespace.Tron]: {
+          [TrxScope.Mainnet]: true,
+          [TrxScope.Nile]: false,
+          [TrxScope.Shasta]: false,
+        },
       },
-      [KnownCaipNamespace.Bip122]: {
-        [BtcScope.Mainnet]: true,
-        [BtcScope.Testnet]: false,
-        [BtcScope.Signet]: false,
-      },
-      [KnownCaipNamespace.Tron]: {
-        [TrxScope.Mainnet]: true,
-        [TrxScope.Nile]: false,
-        [TrxScope.Shasta]: false,
-      },
-    },
-    // nativeAssetIdentifiers is initialized as empty and should be populated
-    // by the client using initNativeAssetIdentifiers() during controller init
-    nativeAssetIdentifiers: {},
-  });
+      // nativeAssetIdentifiers is initialized as empty and should be populated
+      // by the client using initNativeAssetIdentifiers() during controller init
+      nativeAssetIdentifiers: {},
+    };
+  };
 
 // Metadata for the controller state
 const metadata = {
