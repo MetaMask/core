@@ -1,6 +1,6 @@
 {
   "name": "@metamask/eth-block-tracker",
-  "version": "15.0.0",
+  "version": "15.0.1",
   "description": "A block tracker for the Ethereum blockchain. Keeps track of the latest block",
   "keywords": [
     "MetaMask",
@@ -62,7 +62,7 @@
   },
   "devDependencies": {
     "@metamask/auto-changelog": "^3.4.4",
-    "@metamask/json-rpc-engine": "^10.2.0",
+    "@metamask/json-rpc-engine": "^10.2.1",
     "@ts-bridge/cli": "^0.6.4",
     "@types/jest": "^27.4.1",
     "@types/json-rpc-random-id": "^1.0.1",

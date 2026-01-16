@@ -7,6 +7,13 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+## [26.0.2]
+
+### Changed
+
+- Bump `@metamask/network-controller` from `^28.0.0` to `^29.0.0` ([#7642](https://github.com/MetaMask/core/pull/7642))
+- Bump `@metamask/polling-controller` from `^16.0.1` to `^16.0.2` ([#7642](https://github.com/MetaMask/core/pull/7642))
+
 ## [26.0.1]
 
 ### Changed
@@ -481,7 +488,8 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
     All changes listed after this point were applied to this package following the monorepo conversion.
 
-[Unreleased]: https://github.com/MetaMask/core/compare/@metamask/gas-fee-controller@26.0.1...HEAD
+[Unreleased]: https://github.com/MetaMask/core/compare/@metamask/gas-fee-controller@26.0.2...HEAD
+[26.0.2]: https://github.com/MetaMask/core/compare/@metamask/gas-fee-controller@26.0.1...@metamask/gas-fee-controller@26.0.2
 [26.0.1]: https://github.com/MetaMask/core/compare/@metamask/gas-fee-controller@26.0.0...@metamask/gas-fee-controller@26.0.1
 [26.0.0]: https://github.com/MetaMask/core/compare/@metamask/gas-fee-controller@25.0.0...@metamask/gas-fee-controller@26.0.0
 [25.0.0]: https://github.com/MetaMask/core/compare/@metamask/gas-fee-controller@24.1.1...@metamask/gas-fee-controller@25.0.0

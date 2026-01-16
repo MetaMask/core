@@ -7,8 +7,16 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+## [29.0.0]
+
+### Added
+
+- Add dependency `@metamask/connectivity-controller` `^0.1.0` ([#7642](https://github.com/MetaMask/core/pull/7642))
+
 ### Changed
 
+- Bump `@metamask/eth-block-tracker` from `^15.0.0` to `^15.0.1` ([#7642](https://github.com/MetaMask/core/pull/7642))
+- Bump `@metamask/json-rpc-engine` from `^10.2.0` to `^10.2.1` ([#7642](https://github.com/MetaMask/core/pull/7642))
 - Bump `@metamask/eth-json-rpc-middleware` from `^22.0.1` to `^23.0.0` ([#7634](https://github.com/MetaMask/core/pull/7634))
 - **BREAKING:** NetworkController now requires `ConnectivityController:getState` action handler to be registered on the messenger ([#7627](https://github.com/MetaMask/core/pull/7627))
   - The `NetworkController` now depends on the `ConnectivityController` to prevent retries and suppress events when the user is offline.
@@ -1089,7 +1097,8 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
     All changes listed after this point were applied to this package following the monorepo conversion.
 
-[Unreleased]: https://github.com/MetaMask/core/compare/@metamask/network-controller@28.0.0...HEAD
+[Unreleased]: https://github.com/MetaMask/core/compare/@metamask/network-controller@29.0.0...HEAD
+[29.0.0]: https://github.com/MetaMask/core/compare/@metamask/network-controller@28.0.0...@metamask/network-controller@29.0.0
 [28.0.0]: https://github.com/MetaMask/core/compare/@metamask/network-controller@27.2.0...@metamask/network-controller@28.0.0
 [27.2.0]: https://github.com/MetaMask/core/compare/@metamask/network-controller@27.1.0...@metamask/network-controller@27.2.0
 [27.1.0]: https://github.com/MetaMask/core/compare/@metamask/network-controller@27.0.0...@metamask/network-controller@27.1.0

@@ -1,6 +1,6 @@
 {
   "name": "@metamask/connectivity-controller",
-  "version": "0.0.0",
+  "version": "0.1.0",
   "description": "ConnectivityController stores the device's internet connectivity status",
   "keywords": [
     "MetaMask",
