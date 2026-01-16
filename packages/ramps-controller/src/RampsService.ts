@@ -290,14 +290,14 @@ function getBaseUrl(
 }
 
 /**
- * Constructs an API path with an optional version prefix.
+ * Constructs an API path with a version prefix.
  *
  * @param path - The API endpoint path.
- * @param version - The API version prefix (e.g., 'v2'). If not provided, returns the path as-is.
+ * @param version - The API version prefix. Defaults to 'v2'.
  * @returns The versioned API path.
  */
-function getApiPath(path: string, version?: string): string {
-  return version ? `${version}/${path}` : path;
+function getApiPath(path: string, version: string = 'v2'): string {
+  return `${version}/${path}`;
 }
 
 /**
@@ -532,7 +532,7 @@ export class RampsService {
   async getGeolocation(): Promise<string> {
     const textResponse = await this.#request<string>(
       RampsApiService.Orders,
-      getApiPath('geolocation'),
+      'geolocation',
       { responseType: 'text' },
     );
 
@@ -554,7 +554,7 @@ export class RampsService {
   async getCountries(action: 'buy' | 'sell' = 'buy'): Promise<Country[]> {
     const countries = await this.#request<Country[]>(
       RampsApiService.Regions,
-      getApiPath('regions/countries', 'v2'),
+      getApiPath('regions/countries'),
       { action, responseType: 'json' },
     );
 
@@ -584,7 +584,7 @@ export class RampsService {
     const normalizedIsoCode = isoCode.toLowerCase().trim();
     return this.#request<Eligibility>(
       RampsApiService.Regions,
-      getApiPath(`regions/countries/${normalizedIsoCode}`),
+      `regions/countries/${normalizedIsoCode}`,
       { responseType: 'json' },
     );
   }
@@ -603,7 +603,7 @@ export class RampsService {
     const normalizedRegion = region.toLowerCase().trim();
     const response = await this.#request<TokensResponse>(
       RampsApiService.Regions,
-      getApiPath(`regions/${normalizedRegion}/tokens`),
+      `regions/${normalizedRegion}/tokens`,
       { action, responseType: 'json' },
     );
 
