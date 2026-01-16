@@ -465,6 +465,35 @@ describe('RampsController', () => {
         expect(controller.state.tokens).toBeNull();
       });
     });
+
+    it('does not overwrite existing user region when called', async () => {
+      const existingRegion = createMockUserRegion('us-co', 'United States', 'Colorado');
+      await withController(
+        {
+          options: {
+            state: {
+              userRegion: existingRegion,
+            },
+          },
+        },
+        async ({ controller, rootMessenger }) => {
+          rootMessenger.registerActionHandler(
+            'RampsService:getGeolocation',
+            async () => 'US-UT',
+          );
+          rootMessenger.registerActionHandler(
+            'RampsService:getCountries',
+            async () => createMockCountries(),
+          );
+
+          const result = await controller.updateUserRegion();
+
+          expect(result).toStrictEqual(existingRegion);
+          expect(controller.state.userRegion).toStrictEqual(existingRegion);
+          expect(controller.state.userRegion?.regionCode).toBe('us-co');
+        },
+      );
+    });
   });
 
   describe('executeRequest', () => {

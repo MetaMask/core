@@ -72,6 +72,8 @@ export type RampsControllerState = {
   /**
    * The user's selected region with full country and state objects.
    * Initially set via geolocation fetch, but can be manually changed by the user.
+   * Once set (either via geolocation or manual selection), it will not be overwritten
+   * by subsequent geolocation fetches.
    */
   userRegion: UserRegion | null;
   /**
@@ -512,6 +514,13 @@ export class RampsController extends BaseController<
   async updateUserRegion(
     options?: ExecuteRequestOptions,
   ): Promise<UserRegion | null> {
+    // If a userRegion already exists, return it immediately without fetching geolocation.
+    // This ensures that once a region is set (either via geolocation or manual selection),
+    // it will not be overwritten by subsequent geolocation fetches.
+    if (this.state.userRegion) {
+      return this.state.userRegion;
+    }
+
     const cacheKey = createCacheKey('updateUserRegion', []);
 
     const regionCode = await this.executeRequest(
@@ -677,6 +686,9 @@ export class RampsController extends BaseController<
    * This should be called once at app startup to set up the initial region.
    * After the region is set and eligibility is determined, tokens are fetched
    * and saved to state.
+   *
+   * If a userRegion already exists (from persistence or manual selection),
+   * this method will skip geolocation fetch and only fetch tokens if needed.
    *
    * @param options - Options for cache behavior.
    * @returns Promise that resolves when initialization is complete.
