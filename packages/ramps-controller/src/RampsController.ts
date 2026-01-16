@@ -12,6 +12,7 @@ import type {
   RampsServiceGetGeolocationAction,
   RampsServiceGetCountriesAction,
   RampsServiceGetTokensAction,
+  RampsServiceGetProvidersAction,
 } from './RampsService-method-action-types';
 import type {
   RequestCache as RequestCacheType,
@@ -75,6 +76,10 @@ export type RampsControllerState = {
    */
   preferredProvider: Provider | null;
   /**
+   * List of providers available for the current region.
+   */
+  providers: Provider[];
+  /**
    * Tokens fetched for the current region and action.
    * Contains topTokens and allTokens arrays.
    */
@@ -97,6 +102,12 @@ const rampsControllerMetadata = {
     usedInUi: true,
   },
   preferredProvider: {
+    persist: true,
+    includeInDebugSnapshot: true,
+    includeInStateLogs: true,
+    usedInUi: true,
+  },
+  providers: {
     persist: true,
     includeInDebugSnapshot: true,
     includeInStateLogs: true,
@@ -128,6 +139,7 @@ export function getDefaultRampsControllerState(): RampsControllerState {
   return {
     userRegion: null,
     preferredProvider: null,
+    providers: [],
     tokens: null,
     requests: {},
   };
@@ -154,7 +166,8 @@ export type RampsControllerActions = RampsControllerGetStateAction;
 type AllowedActions =
   | RampsServiceGetGeolocationAction
   | RampsServiceGetCountriesAction
-  | RampsServiceGetTokensAction;
+  | RampsServiceGetTokensAction
+  | RampsServiceGetProvidersAction;
 
 /**
  * Published when the state of {@link RampsController} changes.
@@ -502,11 +515,12 @@ export class RampsController extends BaseController<
       return this.state.userRegion;
     }
 
-    // When forceRefresh is true, clear the existing region and tokens before fetching
+    // When forceRefresh is true, clear the existing region, tokens, and providers before fetching
     if (options?.forceRefresh) {
       this.update((state) => {
         state.userRegion = null;
         state.tokens = null;
+        state.providers = [];
       });
     }
 
@@ -525,6 +539,7 @@ export class RampsController extends BaseController<
       this.update((state) => {
         state.userRegion = null;
         state.tokens = null;
+        state.providers = [];
       });
       return null;
     }
@@ -540,11 +555,21 @@ export class RampsController extends BaseController<
           const regionChanged =
             state.userRegion?.regionCode !== userRegion.regionCode;
           state.userRegion = userRegion;
-          // Clear tokens when region changes
+          // Clear tokens and providers when region changes
           if (regionChanged) {
             state.tokens = null;
+            state.providers = [];
           }
         });
+
+        // Fetch providers for the new region
+        if (userRegion.regionCode) {
+          try {
+            await this.getProviders(userRegion.regionCode, options);
+          } catch {
+            // Provider fetch failed - error state will be available via selectors
+          }
+        }
 
         return userRegion;
       }
@@ -553,6 +578,7 @@ export class RampsController extends BaseController<
       this.update((state) => {
         state.userRegion = null;
         state.tokens = null;
+        state.providers = [];
       });
 
       return null;
@@ -562,6 +588,7 @@ export class RampsController extends BaseController<
       this.update((state) => {
         state.userRegion = null;
         state.tokens = null;
+        state.providers = [];
       });
 
       return null;
@@ -590,7 +617,16 @@ export class RampsController extends BaseController<
         this.update((state) => {
           state.userRegion = userRegion;
           state.tokens = null;
+          state.providers = [];
         });
+
+        // Fetch providers for the new region
+        try {
+          await this.getProviders(userRegion.regionCode, options);
+        } catch {
+          // Provider fetch failed - error state will be available via selectors
+        }
+
         return userRegion;
       }
 
@@ -598,6 +634,7 @@ export class RampsController extends BaseController<
       this.update((state) => {
         state.userRegion = null;
         state.tokens = null;
+        state.providers = [];
       });
       throw new Error(
         `Region "${normalizedRegion}" not found in countries data. Cannot set user region without valid country information.`,
@@ -612,6 +649,7 @@ export class RampsController extends BaseController<
       this.update((state) => {
         state.userRegion = null;
         state.tokens = null;
+        state.providers = [];
       });
       throw new Error(
         'Failed to fetch countries data. Cannot set user region without valid country information.',
@@ -653,6 +691,12 @@ export class RampsController extends BaseController<
         await this.getTokens(userRegion.regionCode, 'buy', options);
       } catch {
         // Token fetch failed - error state will be available via selectors
+      }
+
+      try {
+        await this.getProviders(userRegion.regionCode, options);
+      } catch {
+        // Provider fetch failed - error state will be available via selectors
       }
     }
   }
@@ -725,5 +769,71 @@ export class RampsController extends BaseController<
     });
 
     return tokens;
+  }
+
+  /**
+   * Fetches the list of providers for a given region.
+   * The providers are saved in the controller state once fetched.
+   *
+   * @param region - The region code (e.g., "us", "fr", "us-ny"). If not provided, uses the user's region from controller state.
+   * @param options - Options for cache behavior and query filters.
+   * @param options.provider - Provider ID(s) to filter by.
+   * @param options.crypto - Crypto currency ID(s) to filter by.
+   * @param options.fiat - Fiat currency ID(s) to filter by.
+   * @param options.payments - Payment method ID(s) to filter by.
+   * @returns The providers response containing providers array.
+   */
+  async getProviders(
+    region?: string,
+    options?: ExecuteRequestOptions & {
+      provider?: string | string[];
+      crypto?: string | string[];
+      fiat?: string | string[];
+      payments?: string | string[];
+    },
+  ): Promise<{ providers: Provider[] }> {
+    const regionToUse = region ?? this.state.userRegion?.regionCode;
+
+    if (!regionToUse) {
+      throw new Error(
+        'Region is required. Either provide a region parameter or ensure userRegion is set in controller state.',
+      );
+    }
+
+    const normalizedRegion = regionToUse.toLowerCase().trim();
+    const cacheKey = createCacheKey('getProviders', [
+      normalizedRegion,
+      options?.provider,
+      options?.crypto,
+      options?.fiat,
+      options?.payments,
+    ]);
+
+    const { providers } = await this.executeRequest(
+      cacheKey,
+      async () => {
+        return this.messenger.call(
+          'RampsService:getProviders',
+          normalizedRegion,
+          {
+            provider: options?.provider,
+            crypto: options?.crypto,
+            fiat: options?.fiat,
+            payments: options?.payments,
+          },
+        );
+      },
+      options,
+    );
+
+    this.update((state) => {
+      const userRegionCode = state.userRegion?.regionCode;
+
+      if (userRegionCode === undefined || userRegionCode === normalizedRegion) {
+        state.providers = providers;
+      }
+    });
+
+    return { providers };
   }
 }
