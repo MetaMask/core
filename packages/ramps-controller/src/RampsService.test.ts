@@ -1174,7 +1174,9 @@ describe('RampsService', () => {
       const providersResponse = await providersPromise;
 
       expect(providersResponse.providers).toHaveLength(1);
-      expect(providersResponse.providers[0]?.id).toBe('/providers/paypal-staging');
+      expect(providersResponse.providers[0]?.id).toBe(
+        '/providers/paypal-staging',
+      );
     });
 
     it('normalizes region case', async () => {
@@ -1276,6 +1278,33 @@ describe('RampsService', () => {
       const providersPromise = service.getProviders('us', {
         fiat: 'USD',
         payments: 'card',
+      });
+      await clock.runAllAsync();
+      await flushPromises();
+      const providersResponse = await providersPromise;
+
+      expect(providersResponse.providers).toStrictEqual([]);
+    });
+
+    it('handles array filter options for fiat and payments', async () => {
+      const mockProviders = {
+        providers: [],
+      };
+      nock('https://on-ramp-cache.uat-api.cx.metamask.io')
+        .get('/v2/regions/us/providers')
+        .query({
+          fiat: ['USD', 'EUR'],
+          payments: ['card', 'bank'],
+          sdk: '2.1.6',
+          controller: CONTROLLER_VERSION,
+          context: 'mobile-ios',
+        })
+        .reply(200, mockProviders);
+      const { service } = getService();
+
+      const providersPromise = service.getProviders('us', {
+        fiat: ['USD', 'EUR'],
+        payments: ['card', 'bank'],
       });
       await clock.runAllAsync();
       await flushPromises();
