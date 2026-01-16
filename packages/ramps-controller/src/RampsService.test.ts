@@ -1137,6 +1137,266 @@ describe('RampsService', () => {
       );
     });
   });
+
+  describe('getProviders', () => {
+    it('fetches providers from the API', async () => {
+      const mockProviders = {
+        providers: [
+          {
+            id: '/providers/paypal-staging',
+            name: 'PayPal (Staging)',
+            environmentType: 'STAGING',
+            description: 'Test provider',
+            hqAddress: '123 Test St',
+            links: [],
+            logos: {
+              light: '/assets/paypal_light.png',
+              dark: '/assets/paypal_dark.png',
+              height: 24,
+              width: 77,
+            },
+          },
+        ],
+      };
+      nock('https://on-ramp-cache.uat-api.cx.metamask.io')
+        .get('/v2/regions/us/providers')
+        .query({
+          sdk: '2.1.6',
+          controller: CONTROLLER_VERSION,
+          context: 'mobile-ios',
+        })
+        .reply(200, mockProviders);
+      const { service } = getService();
+
+      const providersPromise = service.getProviders('us');
+      await clock.runAllAsync();
+      await flushPromises();
+      const providersResponse = await providersPromise;
+
+      expect(providersResponse.providers).toHaveLength(1);
+      expect(providersResponse.providers[0]?.id).toBe(
+        '/providers/paypal-staging',
+      );
+    });
+
+    it('normalizes region case', async () => {
+      const mockProviders = {
+        providers: [],
+      };
+      nock('https://on-ramp-cache.uat-api.cx.metamask.io')
+        .get('/v2/regions/us/providers')
+        .query({
+          sdk: '2.1.6',
+          controller: CONTROLLER_VERSION,
+          context: 'mobile-ios',
+        })
+        .reply(200, mockProviders);
+      const { service } = getService();
+
+      const providersPromise = service.getProviders('US');
+      await clock.runAllAsync();
+      await flushPromises();
+      const providersResponse = await providersPromise;
+
+      expect(providersResponse.providers).toStrictEqual([]);
+    });
+
+    it('passes filter options as query parameters', async () => {
+      const mockProviders = {
+        providers: [],
+      };
+      nock('https://on-ramp-cache.uat-api.cx.metamask.io')
+        .get('/v2/regions/us/providers')
+        .query({
+          provider: 'paypal',
+          crypto: 'ETH',
+          fiat: 'USD',
+          payments: 'card',
+          sdk: '2.1.6',
+          controller: CONTROLLER_VERSION,
+          context: 'mobile-ios',
+        })
+        .reply(200, mockProviders);
+      const { service } = getService();
+
+      const providersPromise = service.getProviders('us', {
+        provider: 'paypal',
+        crypto: 'ETH',
+        fiat: 'USD',
+        payments: 'card',
+      });
+      await clock.runAllAsync();
+      await flushPromises();
+      const providersResponse = await providersPromise;
+
+      expect(providersResponse.providers).toStrictEqual([]);
+    });
+
+    it('handles array filter options', async () => {
+      const mockProviders = {
+        providers: [],
+      };
+      nock('https://on-ramp-cache.uat-api.cx.metamask.io')
+        .get('/v2/regions/us/providers')
+        .query({
+          provider: ['paypal', 'ramp'],
+          crypto: ['ETH', 'BTC'],
+          sdk: '2.1.6',
+          controller: CONTROLLER_VERSION,
+          context: 'mobile-ios',
+        })
+        .reply(200, mockProviders);
+      const { service } = getService();
+
+      const providersPromise = service.getProviders('us', {
+        provider: ['paypal', 'ramp'],
+        crypto: ['ETH', 'BTC'],
+      });
+      await clock.runAllAsync();
+      await flushPromises();
+      const providersResponse = await providersPromise;
+
+      expect(providersResponse.providers).toStrictEqual([]);
+    });
+
+    it('handles single value filter options for fiat and payments', async () => {
+      const mockProviders = {
+        providers: [],
+      };
+      nock('https://on-ramp-cache.uat-api.cx.metamask.io')
+        .get('/v2/regions/us/providers')
+        .query({
+          fiat: 'USD',
+          payments: 'card',
+          sdk: '2.1.6',
+          controller: CONTROLLER_VERSION,
+          context: 'mobile-ios',
+        })
+        .reply(200, mockProviders);
+      const { service } = getService();
+
+      const providersPromise = service.getProviders('us', {
+        fiat: 'USD',
+        payments: 'card',
+      });
+      await clock.runAllAsync();
+      await flushPromises();
+      const providersResponse = await providersPromise;
+
+      expect(providersResponse.providers).toStrictEqual([]);
+    });
+
+    it('handles array filter options for fiat and payments', async () => {
+      const mockProviders = {
+        providers: [],
+      };
+      nock('https://on-ramp-cache.uat-api.cx.metamask.io')
+        .get('/v2/regions/us/providers')
+        .query({
+          fiat: ['USD', 'EUR'],
+          payments: ['card', 'bank'],
+          sdk: '2.1.6',
+          controller: CONTROLLER_VERSION,
+          context: 'mobile-ios',
+        })
+        .reply(200, mockProviders);
+      const { service } = getService();
+
+      const providersPromise = service.getProviders('us', {
+        fiat: ['USD', 'EUR'],
+        payments: ['card', 'bank'],
+      });
+      await clock.runAllAsync();
+      await flushPromises();
+      const providersResponse = await providersPromise;
+
+      expect(providersResponse.providers).toStrictEqual([]);
+    });
+
+    it('throws error for malformed response', async () => {
+      nock('https://on-ramp-cache.uat-api.cx.metamask.io')
+        .get('/v2/regions/us/providers')
+        .query({
+          sdk: '2.1.6',
+          controller: CONTROLLER_VERSION,
+          context: 'mobile-ios',
+        })
+        .reply(200, { invalid: 'response' });
+      const { service } = getService();
+
+      const providersPromise = service.getProviders('us');
+      await clock.runAllAsync();
+      await flushPromises();
+
+      await expect(providersPromise).rejects.toThrow(
+        'Malformed response received from providers API',
+      );
+    });
+
+    it('throws error when response is null', async () => {
+      nock('https://on-ramp-cache.uat-api.cx.metamask.io')
+        .get('/v2/regions/us/providers')
+        .query({
+          sdk: '2.1.6',
+          controller: CONTROLLER_VERSION,
+          context: 'mobile-ios',
+        })
+        .reply(200, () => null);
+      const { service } = getService();
+
+      const providersPromise = service.getProviders('us');
+      await clock.runAllAsync();
+      await flushPromises();
+
+      await expect(providersPromise).rejects.toThrow(
+        'Malformed response received from providers API',
+      );
+    });
+
+    it('throws error when providers is not an array', async () => {
+      nock('https://on-ramp-cache.uat-api.cx.metamask.io')
+        .get('/v2/regions/us/providers')
+        .query({
+          sdk: '2.1.6',
+          controller: CONTROLLER_VERSION,
+          context: 'mobile-ios',
+        })
+        .reply(200, { providers: 'not an array' });
+      const { service } = getService();
+
+      const providersPromise = service.getProviders('us');
+      await clock.runAllAsync();
+      await flushPromises();
+
+      await expect(providersPromise).rejects.toThrow(
+        'Malformed response received from providers API',
+      );
+    });
+
+    it('throws error for HTTP error response', async () => {
+      nock('https://on-ramp-cache.uat-api.cx.metamask.io')
+        .get('/v2/regions/us/providers')
+        .query({
+          sdk: '2.1.6',
+          controller: CONTROLLER_VERSION,
+          context: 'mobile-ios',
+        })
+        .times(4)
+        .reply(500, 'Internal Server Error');
+      const { service } = getService();
+      service.onRetry(() => {
+        clock.nextAsync().catch(() => undefined);
+      });
+
+      const providersPromise = service.getProviders('us');
+      await clock.runAllAsync();
+      await flushPromises();
+
+      await expect(providersPromise).rejects.toThrow(
+        `Fetching 'https://on-ramp-cache.uat-api.cx.metamask.io/v2/regions/us/providers?sdk=2.1.6&controller=${CONTROLLER_VERSION}&context=mobile-ios' failed with status '500'`,
+      );
+    });
+  });
 });
 
 /**

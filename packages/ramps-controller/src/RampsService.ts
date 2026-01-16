@@ -210,6 +210,7 @@ const MESSENGER_EXPOSED_METHODS = [
   'getGeolocation',
   'getCountries',
   'getTokens',
+  'getProviders',
 ] as const;
 
 /**
@@ -581,6 +582,84 @@ export class RampsService {
       !Array.isArray(response.allTokens)
     ) {
       throw new Error('Malformed response received from tokens API');
+    }
+
+    return response;
+  }
+
+  /**
+   * Fetches the list of providers for a given region.
+   * Supports optional query filters: provider, crypto, fiat, payments.
+   *
+   * @param regionCode - The region code (e.g., "us", "fr", "us-ny").
+   * @param options - Optional query parameters for filtering providers.
+   * @param options.provider - Provider ID(s) to filter by.
+   * @param options.crypto - Crypto currency ID(s) to filter by.
+   * @param options.fiat - Fiat currency ID(s) to filter by.
+   * @param options.payments - Payment method ID(s) to filter by.
+   * @returns The providers response containing providers array.
+   */
+  async getProviders(
+    regionCode: string,
+    options?: {
+      provider?: string | string[];
+      crypto?: string | string[];
+      fiat?: string | string[];
+      payments?: string | string[];
+    },
+  ): Promise<{ providers: Provider[] }> {
+    const normalizedRegion = regionCode.toLowerCase().trim();
+    const url = new URL(
+      getApiPath(`regions/${normalizedRegion}/providers`),
+      getBaseUrl(this.#environment, RampsApiService.Regions),
+    );
+    this.#addCommonParams(url);
+
+    if (options?.provider) {
+      const providerIds = Array.isArray(options.provider)
+        ? options.provider
+        : [options.provider];
+      providerIds.forEach((id) => url.searchParams.append('provider', id));
+    }
+
+    if (options?.crypto) {
+      const cryptoIds = Array.isArray(options.crypto)
+        ? options.crypto
+        : [options.crypto];
+      cryptoIds.forEach((id) => url.searchParams.append('crypto', id));
+    }
+
+    if (options?.fiat) {
+      const fiatIds = Array.isArray(options.fiat)
+        ? options.fiat
+        : [options.fiat];
+      fiatIds.forEach((id) => url.searchParams.append('fiat', id));
+    }
+
+    if (options?.payments) {
+      const paymentIds = Array.isArray(options.payments)
+        ? options.payments
+        : [options.payments];
+      paymentIds.forEach((id) => url.searchParams.append('payments', id));
+    }
+
+    const response = await this.#policy.execute(async () => {
+      const fetchResponse = await this.#fetch(url);
+      if (!fetchResponse.ok) {
+        throw new HttpError(
+          fetchResponse.status,
+          `Fetching '${url.toString()}' failed with status '${fetchResponse.status}'`,
+        );
+      }
+      return fetchResponse.json() as Promise<{ providers: Provider[] }>;
+    });
+
+    if (!response || typeof response !== 'object') {
+      throw new Error('Malformed response received from providers API');
+    }
+
+    if (!Array.isArray(response.providers)) {
+      throw new Error('Malformed response received from providers API');
     }
 
     return response;
