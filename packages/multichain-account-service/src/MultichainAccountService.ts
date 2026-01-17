@@ -427,12 +427,17 @@ export class MultichainAccountService {
       { mnemonic, numberOfAccounts: 1 },
     );
 
-    // The wallet is ripe for discovery
-    return new MultichainAccountWallet({
+    const wallet = new MultichainAccountWallet({
       providers: this.#providers,
       entropySource: result.id,
       messenger: this.#messenger,
     });
+
+    wallet.init({});
+    await wallet.createNextMultichainAccountGroup();
+
+    // The wallet is ripe for discovery
+    return wallet;
   }
 
   /**
@@ -452,12 +457,17 @@ export class MultichainAccountService {
 
     const entropySourceId = this.#getPrimaryEntropySourceId();
 
-    // The wallet is ripe for discovery
-    return new MultichainAccountWallet({
+    const wallet = new MultichainAccountWallet({
       providers: this.#providers,
       entropySource: entropySourceId,
       messenger: this.#messenger,
     });
+
+    wallet.init({});
+    await wallet.createNextMultichainAccountGroup();
+
+    // The wallet is ripe for discovery
+    return wallet;
   }
 
   /**
@@ -480,12 +490,17 @@ export class MultichainAccountService {
 
     const entropySourceId = this.#getPrimaryEntropySourceId();
 
-    // The wallet is ripe for discovery
-    return new MultichainAccountWallet({
+    const wallet = new MultichainAccountWallet({
       providers: this.#providers,
       entropySource: entropySourceId,
       messenger: this.#messenger,
     });
+
+    wallet.init({});
+    await wallet.createNextMultichainAccountGroup();
+
+    // The wallet is ripe for discovery
+    return wallet;
   }
 
   /**
@@ -521,8 +536,6 @@ export class MultichainAccountService {
     }
 
     assert(wallet, 'Failed to create wallet.');
-
-    wallet.init({});
 
     this.#wallets.set(wallet.id, wallet);
 
