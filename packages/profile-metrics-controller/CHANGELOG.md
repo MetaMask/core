@@ -7,12 +7,23 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+## [3.0.0]
+
+### Added
+
+- `ProfileMetricsController` contructor now accepts an optional `initialDelayDuration` parameter ([#7624](https://github.com/MetaMask/core/pull/7624))
+  - The parameter can be used to override the default time-based delay for the first data collection after opt-in
+- Add `skipInitialDelay()` method to `ProfileMetricsController` ([#7624](https://github.com/MetaMask/core/pull/7624))
+  - The method can be also called through the `ProfileMetricsController:skipInitialDelay` action via messenger
+
 ### Changed
 
+- **BREAKING:** `ProileMetricsControllerMessenger` now requires the `TransactionController:transactionSubmitted` action to be allowed ([#7624](https://github.com/MetaMask/core/pull/7624))
+- Set time-based delay for first `ProfileMetricsController` data collection after opt-in ([#7624](https://github.com/MetaMask/core/pull/7624))
 - Upgrade `@metamask/utils` from `^11.8.1` to `^11.9.0` ([#7511](https://github.com/MetaMask/core/pull/7511))
 - Bump `@metamask/controller-utils` from `^11.16.0` to `^11.18.0` ([#7534](https://github.com/MetaMask/core/pull/7534), [#7583](https://github.com/MetaMask/core/pull/7583))
-- Bump `@metamask/accounts-controller` from `^35.0.0` to `^35.0.1` ([#7604](https://github.com/MetaMask/core/pull/7604))
-- Bump `@metamask/polling-controller` from `^16.0.0` to `^16.0.1` ([#7604](https://github.com/MetaMask/core/pull/7604))
+- Bump `@metamask/accounts-controller` from `^35.0.0` to `^35.0.2` ([#7604](https://github.com/MetaMask/core/pull/7604), [#7642](https://github.com/MetaMask/core/pull/7642))
+- Bump `@metamask/polling-controller` from `^16.0.0` to `^16.0.2` ([#7604](https://github.com/MetaMask/core/pull/7604), [#7642](https://github.com/MetaMask/core/pull/7642))
 
 ## [2.0.0]
 
@@ -37,7 +48,8 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 - Initial release ([#7194](https://github.com/MetaMask/core/pull/7194), [#7196](https://github.com/MetaMask/core/pull/7196), [#7263](https://github.com/MetaMask/core/pull/7263))
 
-[Unreleased]: https://github.com/MetaMask/core/compare/@metamask/profile-metrics-controller@2.0.0...HEAD
+[Unreleased]: https://github.com/MetaMask/core/compare/@metamask/profile-metrics-controller@3.0.0...HEAD
+[3.0.0]: https://github.com/MetaMask/core/compare/@metamask/profile-metrics-controller@2.0.0...@metamask/profile-metrics-controller@3.0.0
 [2.0.0]: https://github.com/MetaMask/core/compare/@metamask/profile-metrics-controller@1.1.0...@metamask/profile-metrics-controller@2.0.0
 [1.1.0]: https://github.com/MetaMask/core/compare/@metamask/profile-metrics-controller@1.0.0...@metamask/profile-metrics-controller@1.1.0
 [1.0.0]: https://github.com/MetaMask/core/releases/tag/@metamask/profile-metrics-controller@1.0.0

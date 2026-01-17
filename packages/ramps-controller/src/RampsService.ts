@@ -44,25 +44,6 @@ export type State = {
 };
 
 /**
- * Represents eligibility information for a region.
- * Returned from the /regions/countries/{isoCode} endpoint.
- */
-export type Eligibility = {
-  /**
-   * Whether aggregator providers are available.
-   */
-  aggregator?: boolean;
-  /**
-   * Whether deposit (buy) is available.
-   */
-  deposit?: boolean;
-  /**
-   * Whether global providers are available.
-   */
-  global?: boolean;
-};
-
-/**
  * Represents a provider link.
  */
 export type ProviderLink = {
@@ -134,6 +115,14 @@ export type Country = {
    * Array of state objects.
    */
   states?: State[];
+  /**
+   * Default amount for ramps transactions.
+   */
+  defaultAmount?: number;
+  /**
+   * Quick amount options for ramps transactions.
+   */
+  quickAmounts?: number[];
 };
 
 /**
@@ -220,8 +209,8 @@ export enum RampsApiService {
 const MESSENGER_EXPOSED_METHODS = [
   'getGeolocation',
   'getCountries',
-  'getEligibility',
   'getTokens',
+  'getProviders',
 ] as const;
 
 /**
@@ -279,6 +268,17 @@ function getBaseUrl(
     default:
       throw new Error(`Invalid environment: ${String(environment)}`);
   }
+}
+
+/**
+ * Constructs an API path with a version prefix.
+ *
+ * @param path - The API endpoint path.
+ * @param version - The API version prefix. Defaults to 'v2'.
+ * @returns The versioned API path.
+ */
+function getApiPath(path: string, version: string = 'v2'): string {
+  return `${version}/${path}`;
 }
 
 /**
@@ -535,7 +535,7 @@ export class RampsService {
   async getCountries(action: 'buy' | 'sell' = 'buy'): Promise<Country[]> {
     const countries = await this.#request<Country[]>(
       RampsApiService.Regions,
-      'regions/countries',
+      getApiPath('regions/countries'),
       { action, responseType: 'json' },
     );
 
@@ -553,21 +553,6 @@ export class RampsService {
 
       return country.supported;
     });
-  }
-
-  /**
-   * Fetches eligibility information for a specific region.
-   *
-   * @param isoCode - The ISO code for the region (e.g., "us", "fr", "us-ny").
-   * @returns Eligibility information for the region.
-   */
-  async getEligibility(isoCode: string): Promise<Eligibility> {
-    const normalizedIsoCode = isoCode.toLowerCase().trim();
-    return this.#request<Eligibility>(
-      RampsApiService.Regions,
-      `regions/countries/${normalizedIsoCode}`,
-      { responseType: 'json' },
-    );
   }
 
   /**
@@ -597,6 +582,84 @@ export class RampsService {
       !Array.isArray(response.allTokens)
     ) {
       throw new Error('Malformed response received from tokens API');
+    }
+
+    return response;
+  }
+
+  /**
+   * Fetches the list of providers for a given region.
+   * Supports optional query filters: provider, crypto, fiat, payments.
+   *
+   * @param regionCode - The region code (e.g., "us", "fr", "us-ny").
+   * @param options - Optional query parameters for filtering providers.
+   * @param options.provider - Provider ID(s) to filter by.
+   * @param options.crypto - Crypto currency ID(s) to filter by.
+   * @param options.fiat - Fiat currency ID(s) to filter by.
+   * @param options.payments - Payment method ID(s) to filter by.
+   * @returns The providers response containing providers array.
+   */
+  async getProviders(
+    regionCode: string,
+    options?: {
+      provider?: string | string[];
+      crypto?: string | string[];
+      fiat?: string | string[];
+      payments?: string | string[];
+    },
+  ): Promise<{ providers: Provider[] }> {
+    const normalizedRegion = regionCode.toLowerCase().trim();
+    const url = new URL(
+      getApiPath(`regions/${normalizedRegion}/providers`),
+      getBaseUrl(this.#environment, RampsApiService.Regions),
+    );
+    this.#addCommonParams(url);
+
+    if (options?.provider) {
+      const providerIds = Array.isArray(options.provider)
+        ? options.provider
+        : [options.provider];
+      providerIds.forEach((id) => url.searchParams.append('provider', id));
+    }
+
+    if (options?.crypto) {
+      const cryptoIds = Array.isArray(options.crypto)
+        ? options.crypto
+        : [options.crypto];
+      cryptoIds.forEach((id) => url.searchParams.append('crypto', id));
+    }
+
+    if (options?.fiat) {
+      const fiatIds = Array.isArray(options.fiat)
+        ? options.fiat
+        : [options.fiat];
+      fiatIds.forEach((id) => url.searchParams.append('fiat', id));
+    }
+
+    if (options?.payments) {
+      const paymentIds = Array.isArray(options.payments)
+        ? options.payments
+        : [options.payments];
+      paymentIds.forEach((id) => url.searchParams.append('payments', id));
+    }
+
+    const response = await this.#policy.execute(async () => {
+      const fetchResponse = await this.#fetch(url);
+      if (!fetchResponse.ok) {
+        throw new HttpError(
+          fetchResponse.status,
+          `Fetching '${url.toString()}' failed with status '${fetchResponse.status}'`,
+        );
+      }
+      return fetchResponse.json() as Promise<{ providers: Provider[] }>;
+    });
+
+    if (!response || typeof response !== 'object') {
+      throw new Error('Malformed response received from providers API');
+    }
+
+    if (!Array.isArray(response.providers)) {
+      throw new Error('Malformed response received from providers API');
     }
 
     return response;

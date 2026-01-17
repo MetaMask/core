@@ -7,6 +7,13 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+### Changed
+
+- Bump `@metamask/eth-block-tracker` from `^15.0.0` to `^15.0.1` ([#7642](https://github.com/MetaMask/core/pull/7642))
+- Bump `@metamask/json-rpc-engine` from `^10.2.0` to `^10.2.1` ([#7642](https://github.com/MetaMask/core/pull/7642))
+
+## [23.0.0]
+
 ### Added
 
 - Support for `wallet_getSupportedExecutionPermissions` and `wallet_getGrantedExecutionPermissions` RPC methods ([#7603](https://github.com/MetaMask/core/pull/7603))
@@ -14,6 +21,7 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 ### Changed
 
 - Upgrade `@metamask/utils` from `^11.8.1` to `^11.9.0` ([#7511](https://github.com/MetaMask/core/pull/7511))
+- **BREAKING:** Changed `wallet_requestExecutionPermissions` to comply with 7715 spec revisions.
 
 ## [22.0.1]
 
@@ -61,7 +69,8 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
   - See [`MetaMask/eth-json-rpc-middleware`](https://github.com/MetaMask/eth-json-rpc-middleware/blob/main/CHANGELOG.md)
     for the original changelog.
 
-[Unreleased]: https://github.com/MetaMask/core/compare/@metamask/eth-json-rpc-middleware@22.0.1...HEAD
+[Unreleased]: https://github.com/MetaMask/core/compare/@metamask/eth-json-rpc-middleware@23.0.0...HEAD
+[23.0.0]: https://github.com/MetaMask/core/compare/@metamask/eth-json-rpc-middleware@22.0.1...@metamask/eth-json-rpc-middleware@23.0.0
 [22.0.1]: https://github.com/MetaMask/core/compare/@metamask/eth-json-rpc-middleware@22.0.0...@metamask/eth-json-rpc-middleware@22.0.1
 [22.0.0]: https://github.com/MetaMask/core/compare/@metamask/eth-json-rpc-middleware@21.0.0...@metamask/eth-json-rpc-middleware@22.0.0
 [21.0.0]: https://github.com/MetaMask/core/releases/tag/@metamask/eth-json-rpc-middleware@21.0.0
