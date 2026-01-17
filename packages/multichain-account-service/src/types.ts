@@ -9,14 +9,18 @@ import type {
   AccountsControllerAccountRemovedEvent,
   AccountsControllerGetAccountAction,
   AccountsControllerGetAccountByAddressAction,
+  AccountsControllerGetAccountsAction,
   AccountsControllerListMultichainAccountsAction,
 } from '@metamask/accounts-controller';
 import type { TraceCallback } from '@metamask/controller-utils';
 import type { KeyringAccount } from '@metamask/keyring-api';
 import type {
   KeyringControllerAddNewKeyringAction,
+  KeyringControllerCreateNewVaultAndKeychainAction,
+  KeyringControllerCreateNewVaultAndRestoreAction,
   KeyringControllerGetKeyringsByTypeAction,
   KeyringControllerGetStateAction,
+  KeyringControllerRemoveAccountAction,
   KeyringControllerStateChangeEvent,
   KeyringControllerWithKeyringAction,
 } from '@metamask/keyring-controller';
@@ -91,6 +95,11 @@ export type MultichainAccountServiceResyncAccountsAction = {
   handler: MultichainAccountService['resyncAccounts'];
 };
 
+export type MultichainAccountServiceRemoveMultichainAccountWalletAction = {
+  type: `${typeof serviceName}:removeMultichainAccountWallet`;
+  handler: MultichainAccountService['removeMultichainAccountWallet'];
+};
+
 export type MultichainAccountServiceEnsureCanUseSnapPlatformAction = {
   type: `${typeof serviceName}:ensureCanUseSnapPlatform`;
   handler: MultichainAccountService['ensureCanUseSnapPlatform'];
@@ -112,6 +121,7 @@ export type MultichainAccountServiceActions =
   | MultichainAccountServiceAlignWalletsAction
   | MultichainAccountServiceCreateMultichainAccountWalletAction
   | MultichainAccountServiceResyncAccountsAction
+  | MultichainAccountServiceRemoveMultichainAccountWalletAction
   | MultichainAccountServiceEnsureCanUseSnapPlatformAction;
 
 export type MultichainAccountServiceMultichainAccountGroupCreatedEvent = {
@@ -144,6 +154,7 @@ export type MultichainAccountServiceEvents =
  */
 type AllowedActions =
   | AccountsControllerListMultichainAccountsAction
+  | AccountsControllerGetAccountsAction
   | AccountsControllerGetAccountAction
   | AccountsControllerGetAccountByAddressAction
   | SnapControllerGetStateAction
@@ -153,7 +164,10 @@ type AllowedActions =
   | KeyringControllerGetKeyringsByTypeAction
   | KeyringControllerAddNewKeyringAction
   | NetworkControllerGetNetworkClientByIdAction
-  | NetworkControllerFindNetworkClientIdByChainIdAction;
+  | NetworkControllerFindNetworkClientIdByChainIdAction
+  | KeyringControllerCreateNewVaultAndKeychainAction
+  | KeyringControllerCreateNewVaultAndRestoreAction
+  | KeyringControllerRemoveAccountAction;
 
 /**
  * All events published by other modules that {@link MultichainAccountService}
