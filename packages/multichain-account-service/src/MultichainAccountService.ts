@@ -464,7 +464,9 @@ export class MultichainAccountService {
     });
 
     wallet.init({});
-    await wallet.createNextMultichainAccountGroup();
+    await wallet.createMultichainAccountGroup(0, {
+      waitForAllProvidersToFinishCreatingAccounts: false,
+    });
 
     // The wallet is ripe for discovery
     return wallet;
