@@ -841,6 +841,7 @@ describe('GatorPermissionsController', () => {
 
       const revocationParams: RevocationParams = {
         permissionContext: '0x1234567890abcdef1234567890abcdef12345678',
+        revocationMetadata: {},
       };
 
       await controller.submitRevocation(revocationParams);
@@ -869,6 +870,7 @@ describe('GatorPermissionsController', () => {
 
       const revocationParams: RevocationParams = {
         permissionContext: '0x1234567890abcdef1234567890abcdef12345678',
+        revocationMetadata: {},
       };
 
       await expect(
@@ -897,6 +899,7 @@ describe('GatorPermissionsController', () => {
 
       const revocationParams: RevocationParams = {
         permissionContext: '0x1234567890abcdef1234567890abcdef12345678',
+        revocationMetadata: {},
       };
 
       await expect(
@@ -941,6 +944,7 @@ describe('GatorPermissionsController', () => {
 
       const revocationParams: RevocationParams = {
         permissionContext: '0x1234567890abcdef1234567890abcdef12345678',
+        revocationMetadata: {},
       };
 
       // Should throw GatorPermissionsFetchError (not GatorPermissionsProviderError)
@@ -981,6 +985,7 @@ describe('GatorPermissionsController', () => {
 
       const revocationParams: RevocationParams = {
         permissionContext: '0x1234567890abcdef1234567890abcdef12345678',
+        revocationMetadata: {},
       };
 
       await controller.submitDirectRevocation(revocationParams);
@@ -1022,6 +1027,7 @@ describe('GatorPermissionsController', () => {
         '0x1234567890abcdef1234567890abcdef12345678' as Hex;
       const revocationParams: RevocationParams = {
         permissionContext,
+        revocationMetadata: {},
       };
 
       // Spy on submitRevocation to check pending state before it's called
@@ -1046,6 +1052,7 @@ describe('GatorPermissionsController', () => {
 
       const revocationParams: RevocationParams = {
         permissionContext: '0x1234567890abcdef1234567890abcdef12345678',
+        revocationMetadata: {},
       };
 
       await expect(
@@ -1076,6 +1083,7 @@ describe('GatorPermissionsController', () => {
         '0x1234567890abcdef1234567890abcdef12345678' as Hex;
       const revocationParams: RevocationParams = {
         permissionContext,
+        revocationMetadata: {},
       };
 
       await expect(
@@ -1212,7 +1220,75 @@ describe('GatorPermissionsController', () => {
         request: {
           jsonrpc: '2.0',
           method: 'permissionsProvider_submitRevocation',
-          params: { permissionContext },
+          params: {
+            permissionContext,
+            revocationMetadata: { txHash: undefined },
+          },
+        },
+      });
+
+      // Verify that permissions are refreshed after revocation (getGrantedPermissions is called)
+      expect(mockHandleRequestHandler).toHaveBeenCalledWith({
+        snapId: MOCK_GATOR_PERMISSIONS_PROVIDER_SNAP_ID,
+        origin: 'metamask',
+        handler: 'onRpcRequest',
+        request: {
+          jsonrpc: '2.0',
+          method: 'permissionsProvider_getGrantedPermissions',
+          params: { isRevoked: false },
+        },
+      });
+    });
+
+    it('should submit revocation metadata when transaction is confirmed', async () => {
+      const mockHandleRequestHandler = jest.fn().mockResolvedValue(undefined);
+      const rootMessenger = getRootMessenger({
+        snapControllerHandleRequestActionHandler: mockHandleRequestHandler,
+      });
+      const messenger = getMessenger(rootMessenger);
+
+      const controller = new GatorPermissionsController({
+        messenger,
+        state: {
+          isGatorPermissionsEnabled: true,
+          gatorPermissionsProviderSnapId:
+            MOCK_GATOR_PERMISSIONS_PROVIDER_SNAP_ID,
+        },
+      });
+
+      const txId = 'test-tx-id';
+      const permissionContext = '0x1234567890abcdef1234567890abcdef12345678';
+      const hash = '0x-mock-hash';
+
+      await controller.addPendingRevocation({ txId, permissionContext });
+
+      // Emit transaction approved event (user confirms)
+      rootMessenger.publish('TransactionController:transactionApproved', {
+        transactionMeta: { id: txId } as TransactionMeta,
+      });
+
+      // Emit transaction confirmed event
+      rootMessenger.publish('TransactionController:transactionConfirmed', {
+        id: txId,
+        hash,
+      } as TransactionMeta);
+
+      await flushPromises();
+
+      // Verify submitRevocation was called
+      expect(mockHandleRequestHandler).toHaveBeenCalledWith({
+        snapId: MOCK_GATOR_PERMISSIONS_PROVIDER_SNAP_ID,
+        origin: 'metamask',
+        handler: 'onRpcRequest',
+        request: {
+          jsonrpc: '2.0',
+          method: 'permissionsProvider_submitRevocation',
+          params: {
+            permissionContext,
+            revocationMetadata: {
+              txHash: hash,
+            },
+          },
         },
       });
 

@@ -37,6 +37,7 @@ export type {
   GatorPermissionsListByPermissionTypeAndChainId,
   DelegationDetails,
   RevocationParams,
+  RevocationMetadata,
 } from './types';
 
 export type {
