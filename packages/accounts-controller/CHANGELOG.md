@@ -23,7 +23,7 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 - Upgrade `@metamask/utils` from `^11.8.1` to `^11.9.0` ([#7511](https://github.com/MetaMask/core/pull/7511))
 - Move peer dependencies for controller and service packages to direct dependencies ([#7209](https://github.com/MetaMask/core/pull/7209), [#7258](https://github.com/MetaMask/core/pull/7258), [#7534](https://github.com/MetaMask/core/pull/7534), [#7583](https://github.com/MetaMask/core/pull/7583), [#7604](https://github.com/MetaMask/core/pull/7604))
   - The dependencies moved are:
-    - `@metamask/keyring-controller` (^25.0.0)
+    - `@metamask/keyring-controller` (^25.1.0)
     - `@metamask/network-controller` (^28.0.0)
     - `@metamask/snaps-controllers` (^14.0.1)
   - In clients, it is now possible for multiple versions of these packages to exist in the dependency tree.

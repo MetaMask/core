@@ -15,7 +15,7 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 - Move peer dependencies for controller and service packages to direct dependencies ([#7209](https://github.com/MetaMask/core/pull/7209), [#7437](https://github.com/MetaMask/core/pull/7437), [#7515](https://github.com/MetaMask/core/pull/7515), [#7594](https://github.com/MetaMask/core/pull/7594), [#7550](https://github.com/MetaMask/core/pull/7550), [#7604](https://github.com/MetaMask/core/pull/7604), [#7642](https://github.com/MetaMask/core/pull/7642))
   - The dependencies moved are:
     - `@metamask/accounts-controller` (^35.0.2)
-    - `@metamask/keyring-controller` (^25.0.0)
+    - `@metamask/keyring-controller` (^25.1.0)
     - `@metamask/multichain-account-service` (^5.0.0)
     - `@metamask/profile-sync-controller` (^27.0.0)
     - `@metamask/snaps-controllers` (^17.2.0)
