@@ -144,6 +144,9 @@
       "path": "./packages/permission-log-controller"
     },
     {
+      "path": "./packages/perps-controller"
+    },
+    {
       "path": "./packages/phishing-controller"
     },
     {

@@ -9,6 +9,6 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ### Added
 
-- Initial package scaffolding ([#7654](https://github.com/MetaMask/core/pull/7654))
+- Initial release ([#7654](https://github.com/MetaMask/core/pull/7654))
 
 [Unreleased]: https://github.com/MetaMask/core/
