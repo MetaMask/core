@@ -871,7 +871,7 @@ describe('RampsService', () => {
         ],
       };
       nock('https://on-ramp-cache.uat-api.cx.metamask.io')
-        .get('/regions/us/tokens')
+        .get('/v2/regions/us/topTokens')
         .query({
           action: 'buy',
           sdk: '2.1.6',
@@ -928,7 +928,7 @@ describe('RampsService', () => {
         allTokens: [],
       };
       nock('https://on-ramp-cache.uat-api.cx.metamask.io')
-        .get('/regions/us/tokens')
+        .get('/v2/regions/us/topTokens')
         .query({
           action: 'buy',
           sdk: '2.1.6',
@@ -961,7 +961,7 @@ describe('RampsService', () => {
         allTokens: [],
       };
       nock('https://on-ramp-cache.uat-api.cx.metamask.io')
-        .get('/regions/us/tokens')
+        .get('/v2/regions/us/topTokens')
         .query({
           action: 'buy',
           sdk: '2.1.6',
@@ -994,7 +994,7 @@ describe('RampsService', () => {
         allTokens: [],
       };
       nock('https://on-ramp-cache.uat-api.cx.metamask.io')
-        .get('/regions/us/tokens')
+        .get('/v2/regions/us/topTokens')
         .query({
           action: 'sell',
           sdk: '2.1.6',
@@ -1023,7 +1023,7 @@ describe('RampsService', () => {
 
     it('throws error for malformed response', async () => {
       nock('https://on-ramp-cache.uat-api.cx.metamask.io')
-        .get('/regions/us/tokens')
+        .get('/v2/regions/us/topTokens')
         .query({
           action: 'buy',
           sdk: '2.1.6',
@@ -1052,7 +1052,7 @@ describe('RampsService', () => {
 
     it('throws error when response is null', async () => {
       nock('https://on-ramp-cache.uat-api.cx.metamask.io')
-        .get('/regions/us/tokens')
+        .get('/v2/regions/us/topTokens')
         .query({
           action: 'buy',
           sdk: '2.1.6',
@@ -1081,7 +1081,7 @@ describe('RampsService', () => {
 
     it('throws error when topTokens is not an array', async () => {
       nock('https://on-ramp-cache.uat-api.cx.metamask.io')
-        .get('/regions/us/tokens')
+        .get('/v2/regions/us/topTokens')
         .query({
           action: 'buy',
           sdk: '2.1.6',
@@ -1110,7 +1110,7 @@ describe('RampsService', () => {
 
     it('throws error when allTokens is not an array', async () => {
       nock('https://on-ramp-cache.uat-api.cx.metamask.io')
-        .get('/regions/us/tokens')
+        .get('/v2/regions/us/topTokens')
         .query({
           action: 'buy',
           sdk: '2.1.6',
@@ -1135,6 +1135,78 @@ describe('RampsService', () => {
       await expect(tokensPromise).rejects.toThrow(
         'Malformed response received from tokens API',
       );
+    });
+
+    it('includes provider query parameter when provided', async () => {
+      const mockTokens = {
+        topTokens: [],
+        allTokens: [],
+      };
+      nock('https://on-ramp-cache.uat-api.cx.metamask.io')
+        .get('/v2/regions/us/topTokens')
+        .query({
+          action: 'buy',
+          provider: 'provider-id',
+          sdk: '2.1.6',
+          controller: CONTROLLER_VERSION,
+          context: 'mobile-ios',
+        })
+        .reply(200, mockTokens);
+      nock('https://on-ramp.uat-api.cx.metamask.io')
+        .get('/geolocation')
+        .query({
+          sdk: '2.1.6',
+          controller: CONTROLLER_VERSION,
+          context: 'mobile-ios',
+        })
+        .reply(200, 'us');
+      const { service } = getService();
+
+      const tokensPromise = service.getTokens('us', 'buy', {
+        provider: 'provider-id',
+      });
+      await clock.runAllAsync();
+      await flushPromises();
+      const tokensResponse = await tokensPromise;
+
+      expect(tokensResponse.topTokens).toStrictEqual([]);
+      expect(tokensResponse.allTokens).toStrictEqual([]);
+    });
+
+    it('includes multiple provider query parameters when array is provided', async () => {
+      const mockTokens = {
+        topTokens: [],
+        allTokens: [],
+      };
+      nock('https://on-ramp-cache.uat-api.cx.metamask.io')
+        .get('/v2/regions/us/topTokens')
+        .query({
+          action: 'buy',
+          provider: ['provider-id-1', 'provider-id-2'],
+          sdk: '2.1.6',
+          controller: CONTROLLER_VERSION,
+          context: 'mobile-ios',
+        })
+        .reply(200, mockTokens);
+      nock('https://on-ramp.uat-api.cx.metamask.io')
+        .get('/geolocation')
+        .query({
+          sdk: '2.1.6',
+          controller: CONTROLLER_VERSION,
+          context: 'mobile-ios',
+        })
+        .reply(200, 'us');
+      const { service } = getService();
+
+      const tokensPromise = service.getTokens('us', 'buy', {
+        provider: ['provider-id-1', 'provider-id-2'],
+      });
+      await clock.runAllAsync();
+      await flushPromises();
+      const tokensResponse = await tokensPromise;
+
+      expect(tokensResponse.topTokens).toStrictEqual([]);
+      expect(tokensResponse.allTokens).toStrictEqual([]);
     });
   });
 
