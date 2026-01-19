@@ -22,6 +22,7 @@ export type {
   Provider,
   ProviderLink,
   ProviderLogos,
+  RampAction,
 } from './RampsService';
 export {
   RampsService,

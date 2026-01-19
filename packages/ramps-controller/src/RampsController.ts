@@ -7,7 +7,13 @@ import { BaseController } from '@metamask/base-controller';
 import type { Messenger } from '@metamask/messenger';
 import type { Json } from '@metamask/utils';
 
-import type { Country, TokensResponse, Provider, State } from './RampsService';
+import type {
+  Country,
+  TokensResponse,
+  Provider,
+  State,
+  RampAction,
+} from './RampsService';
 import type {
   RampsServiceGetGeolocationAction,
   RampsServiceGetCountriesAction,
@@ -709,7 +715,7 @@ export class RampsController extends BaseController<
    * @returns An array of countries.
    */
   async getCountries(
-    action: 'buy' | 'sell' = 'buy',
+    action: RampAction = 'buy',
     options?: ExecuteRequestOptions,
   ): Promise<Country[]> {
     const cacheKey = createCacheKey('getCountries', [action]);
@@ -734,7 +740,7 @@ export class RampsController extends BaseController<
    */
   async getTokens(
     region?: string,
-    action: 'buy' | 'sell' = 'buy',
+    action: RampAction = 'buy',
     options?: ExecuteRequestOptions,
   ): Promise<TokensResponse> {
     const regionToUse = region ?? this.state.userRegion?.regionCode;

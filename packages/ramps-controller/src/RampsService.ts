@@ -178,6 +178,11 @@ export type TokensResponse = {
  */
 export const RAMPS_SDK_VERSION = '2.1.6';
 
+/**
+ * The type of ramp action: 'buy' or 'sell'.
+ */
+export type RampAction = 'buy' | 'sell';
+
 // === GENERAL ===
 
 /**
@@ -458,7 +463,7 @@ export class RampsService {
    * @param url - The URL to add parameters to.
    * @param action - The ramp action type (optional, not all endpoints require it).
    */
-  #addCommonParams(url: URL, action?: 'buy' | 'sell'): void {
+  #addCommonParams(url: URL, action?: RampAction): void {
     if (action) {
       url.searchParams.set('action', action);
     }
@@ -481,7 +486,7 @@ export class RampsService {
     service: RampsApiService,
     path: string,
     options: {
-      action?: 'buy' | 'sell';
+      action?: RampAction;
       responseType: 'json' | 'text';
     },
   ): Promise<TResponse> {
@@ -532,7 +537,7 @@ export class RampsService {
    * @param action - The ramp action type ('buy' or 'sell').
    * @returns An array of countries filtered by aggregator support.
    */
-  async getCountries(action: 'buy' | 'sell' = 'buy'): Promise<Country[]> {
+  async getCountries(action: RampAction = 'buy'): Promise<Country[]> {
     const countries = await this.#request<Country[]>(
       RampsApiService.Regions,
       getApiPath('regions/countries'),
@@ -564,7 +569,7 @@ export class RampsService {
    */
   async getTokens(
     region: string,
-    action: 'buy' | 'sell' = 'buy',
+    action: RampAction = 'buy',
   ): Promise<TokensResponse> {
     const normalizedRegion = region.toLowerCase().trim();
     const response = await this.#request<TokensResponse>(
