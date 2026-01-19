@@ -23,11 +23,19 @@ export async function getNextNonce(
   const {
     customNonceValue,
     isExternalSign,
+    delegationAddress,
     txParams: { from, nonce: existingNonce },
   } = txMeta;
 
   if (isExternalSign) {
     log('Skipping nonce as signed externally');
+    return [undefined, undefined];
+  }
+
+  // Skip nonce assignment for delegated transactions (EIP-7702)
+  // The delegation address manages its own nonce sequence externally
+  if (delegationAddress) {
+    log('Skipping nonce as transaction uses delegation address', delegationAddress);
     return [undefined, undefined];
   }
 
