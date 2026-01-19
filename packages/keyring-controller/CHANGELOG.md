@@ -7,6 +7,8 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+## [25.1.0]
+
 ### Uncategorized
 
 - chore(lint): Fix suppressed ESLint errors in `keyring-controller` package ([#7461](https://github.com/MetaMask/core/pull/7461))
@@ -930,7 +932,8 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
     All changes listed after this point were applied to this package following the monorepo conversion.
 
-[Unreleased]: https://github.com/MetaMask/core/compare/@metamask/keyring-controller@25.0.0...HEAD
+[Unreleased]: https://github.com/MetaMask/core/compare/@metamask/keyring-controller@25.1.0...HEAD
+[25.1.0]: https://github.com/MetaMask/core/compare/@metamask/keyring-controller@25.0.0...@metamask/keyring-controller@25.1.0
 [25.0.0]: https://github.com/MetaMask/core/compare/@metamask/keyring-controller@24.0.0...@metamask/keyring-controller@25.0.0
 [24.0.0]: https://github.com/MetaMask/core/compare/@metamask/keyring-controller@23.2.0...@metamask/keyring-controller@24.0.0
 [23.2.0]: https://github.com/MetaMask/core/compare/@metamask/keyring-controller@23.1.1...@metamask/keyring-controller@23.2.0
