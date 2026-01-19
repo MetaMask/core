@@ -185,7 +185,7 @@ export class SeedlessOnboardingError extends Error {
     message: string | SeedlessOnboardingControllerErrorMessage,
     details?: string,
   ): SeedlessOnboardingError {
-    const cause = error instanceof Error ? error : undefined;
+    const cause = error instanceof Error ? error : new Error(String(error));
     return new SeedlessOnboardingError(message, { details, cause });
   }
 
