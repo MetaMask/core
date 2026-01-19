@@ -672,7 +672,7 @@ export class RampsController extends BaseController<
   /**
    * Initializes the controller by fetching the user's region from geolocation.
    * This should be called once at app startup to set up the initial region.
-   * After the region is set, tokens and providers are fetched and saved to state.
+   * After the region is set, tokens are fetched and saved to state.
    *
    * If a userRegion already exists (from persistence or manual selection),
    * this method will skip geolocation fetch and only fetch tokens if needed.
