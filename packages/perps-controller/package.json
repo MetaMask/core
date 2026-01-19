@@ -4,9 +4,7 @@
   "description": "Controller for perpetual trading functionality in MetaMask",
   "keywords": [
     "MetaMask",
-    "Ethereum",
-    "Perps",
-    "Trading"
+    "Ethereum"
   ],
   "homepage": "https://github.com/MetaMask/core/tree/main/packages/perps-controller#readme",
   "bugs": {
