@@ -140,7 +140,7 @@ describe('ConfigRegistryController', () => {
       });
 
       expect(controller.state).toStrictEqual({
-        configs: {},
+        configs: { networks: {} },
         version: null,
         lastFetched: null,
         fetchError: null,
@@ -151,7 +151,9 @@ describe('ConfigRegistryController', () => {
     it('should set initial state when provided', () => {
       const initialState: Partial<ConfigRegistryState> = {
         configs: {
-          'test-key': MOCK_CONFIG_ENTRY,
+          networks: {
+            'test-key': MOCK_CONFIG_ENTRY,
+          },
         },
         version: 'v1.0.0',
         lastFetched: 1234567890,
@@ -163,7 +165,7 @@ describe('ConfigRegistryController', () => {
         apiService,
       });
 
-      expect(controller.state.configs).toStrictEqual(initialState.configs);
+      expect(controller.state.configs.networks).toStrictEqual(initialState.configs?.networks);
       expect(controller.state.version).toBe('v1.0.0');
       expect(controller.state.lastFetched).toBe(1234567890);
     });
@@ -187,7 +189,7 @@ describe('ConfigRegistryController', () => {
       });
 
       // Fallback config is private, but we can verify it's used when needed
-      expect(controller.state.configs).toStrictEqual({});
+      expect(controller.state.configs).toStrictEqual({ networks: {} });
     });
   });
 
@@ -207,7 +209,9 @@ describe('ConfigRegistryController', () => {
         messenger,
         state: {
           configs: {
-            'test-key': MOCK_CONFIG_ENTRY,
+            networks: {
+              'test-key': MOCK_CONFIG_ENTRY,
+            },
           },
         },
       });
@@ -221,7 +225,9 @@ describe('ConfigRegistryController', () => {
         messenger,
         state: {
           configs: {
-            'test-key': MOCK_CONFIG_ENTRY,
+            networks: {
+              'test-key': MOCK_CONFIG_ENTRY,
+            },
           },
         },
       });
@@ -256,7 +262,7 @@ describe('ConfigRegistryController', () => {
       const controller = new ConfigRegistryController({
         apiService,
         messenger,
-        state: { configs },
+        state: { configs: { networks: configs } },
       });
 
       expect(controller.getAllConfigs()).toStrictEqual(configs);
@@ -270,14 +276,14 @@ describe('ConfigRegistryController', () => {
       const controller = new ConfigRegistryController({
         apiService,
         messenger,
-        state: { configs },
+        state: { configs: { networks: configs } },
       });
 
       const result = controller.getAllConfigs();
       result.key1 = { key: 'key1', value: 'modified' };
 
       // Original should not be modified
-      expect(controller.state.configs.key1.value).toBe('value1');
+      expect(controller.state.configs.networks?.key1?.value).toBe('value1');
     });
 
     it('should work via messenger action', () => {
@@ -288,7 +294,7 @@ describe('ConfigRegistryController', () => {
       const testController = new ConfigRegistryController({
         messenger,
         apiService,
-        state: { configs },
+        state: { configs: { networks: configs } },
       });
 
       const result = messenger.call('ConfigRegistryController:getAllConfigs');
@@ -313,7 +319,9 @@ describe('ConfigRegistryController', () => {
         messenger,
         state: {
           configs: {
-            'test-key': MOCK_CONFIG_ENTRY,
+            networks: {
+              'test-key': MOCK_CONFIG_ENTRY,
+            },
           },
         },
       });
@@ -329,8 +337,10 @@ describe('ConfigRegistryController', () => {
         messenger,
         state: {
           configs: {
-            'string-key': { key: 'string-key', value: 'string-value' },
-            'number-key': { key: 'number-key', value: 42 },
+            networks: {
+              'string-key': { key: 'string-key', value: 'string-value' },
+              'number-key': { key: 'number-key', value: 42 },
+            },
           },
         },
       });
@@ -351,7 +361,7 @@ describe('ConfigRegistryController', () => {
 
       controller.setConfig('new-key', { data: 'value' });
 
-      expect(controller.state.configs['new-key']).toStrictEqual({
+      expect(controller.state.configs.networks?.['new-key']).toStrictEqual({
         key: 'new-key',
         value: { data: 'value' },
         metadata: undefined,
@@ -366,7 +376,7 @@ describe('ConfigRegistryController', () => {
 
       controller.setConfig('new-key', { data: 'value' }, { source: 'test' });
 
-      expect(controller.state.configs['new-key']).toStrictEqual({
+      expect(controller.state.configs.networks?.['new-key']).toStrictEqual({
         key: 'new-key',
         value: { data: 'value' },
         metadata: { source: 'test' },
@@ -379,14 +389,16 @@ describe('ConfigRegistryController', () => {
         apiService,
         state: {
           configs: {
-            'existing-key': { key: 'existing-key', value: 'old-value' },
+            networks: {
+              'existing-key': { key: 'existing-key', value: 'old-value' },
+            },
           },
         },
       });
 
       controller.setConfig('existing-key', 'new-value');
 
-      expect(controller.state.configs['existing-key'].value).toBe('new-value');
+      expect(controller.state.configs.networks?.['existing-key']?.value).toBe('new-value');
     });
 
     it('should work via messenger action', () => {
@@ -412,16 +424,18 @@ describe('ConfigRegistryController', () => {
         messenger,
         state: {
           configs: {
-            key1: { key: 'key1', value: 'value1' },
-            key2: { key: 'key2', value: 'value2' },
+            networks: {
+              key1: { key: 'key1', value: 'value1' },
+              key2: { key: 'key2', value: 'value2' },
+            },
           },
         },
       });
 
       controller.removeConfig('key1');
 
-      expect(controller.state.configs.key1).toBeUndefined();
-      expect(controller.state.configs.key2).toBeDefined();
+      expect(controller.state.configs.networks?.key1).toBeUndefined();
+      expect(controller.state.configs.networks?.key2).toBeDefined();
     });
 
     it('should not throw when removing non-existent key', () => {
@@ -441,15 +455,17 @@ describe('ConfigRegistryController', () => {
         apiService,
         state: {
           configs: {
-            key1: { key: 'key1', value: 'value1' },
-            key2: { key: 'key2', value: 'value2' },
+            networks: {
+              key1: { key: 'key1', value: 'value1' },
+              key2: { key: 'key2', value: 'value2' },
+            },
           },
         },
       });
 
       controller.clearConfigs();
 
-      expect(controller.state.configs).toStrictEqual({});
+      expect(controller.state.configs).toStrictEqual({ networks: {} });
     });
   });
 
@@ -529,7 +545,7 @@ describe('ConfigRegistryController', () => {
       controller.startPolling({});
       await advanceTime({ clock, duration: 0 });
 
-      expect(controller.state.configs).toStrictEqual(MOCK_FALLBACK_CONFIG);
+      expect(controller.state.configs).toStrictEqual({ networks: MOCK_FALLBACK_CONFIG });
       expect(controller.state.fetchError).toBe('Network error');
 
       controller.stopPolling();
@@ -544,7 +560,9 @@ describe('ConfigRegistryController', () => {
       });
 
       const existingConfigs = {
-        'existing-key': { key: 'existing-key', value: 'existing-value' },
+        networks: {
+          'existing-key': { key: 'existing-key', value: 'existing-value' },
+        },
       };
 
       const errorApiService = buildMockApiService({
@@ -590,7 +608,7 @@ describe('ConfigRegistryController', () => {
       await controller._executePoll({});
 
       // Since we have no configs, it should use fallback
-      expect(controller.state.configs).toStrictEqual(MOCK_FALLBACK_CONFIG);
+      expect(controller.state.configs).toStrictEqual({ networks: MOCK_FALLBACK_CONFIG });
       expect(controller.state.fetchError).toBe('Network error');
       expect(mockRemoteFeatureFlagGetState).toHaveBeenCalled();
     });
@@ -625,7 +643,7 @@ describe('ConfigRegistryController', () => {
       controller.setConfig('persist-key', 'persist-value');
 
       // Verify state is updated
-      expect(controller.state.configs['persist-key']).toBeDefined();
+      expect(controller.state.configs.networks?.['persist-key']).toBeDefined();
     });
 
     it('should persist version', () => {
@@ -681,7 +699,7 @@ describe('ConfigRegistryController', () => {
       await advanceTime({ clock, duration: 0 });
 
       expect(executePollSpy).toHaveBeenCalledTimes(1);
-      expect(controller.state.configs).toStrictEqual(MOCK_FALLBACK_CONFIG);
+      expect(controller.state.configs).toStrictEqual({ networks: MOCK_FALLBACK_CONFIG });
       expect(controller.state.fetchError).toBe(
         'Feature flag disabled - using fallback configuration',
       );
@@ -754,7 +772,7 @@ describe('ConfigRegistryController', () => {
       });
 
       expect(fetchConfigSpy).toHaveBeenCalled();
-      expect(controller.state.configs['0x1']).toBeDefined();
+      expect(controller.state.configs.networks?.['0x1']).toBeDefined();
       expect(controller.state.version).toBe('1.0.0');
       expect(controller.state.fetchError).toBeNull();
 
@@ -779,7 +797,7 @@ describe('ConfigRegistryController', () => {
       await advanceTime({ clock, duration: 0 });
 
       expect(executePollSpy).toHaveBeenCalledTimes(1);
-      expect(controller.state.configs).toStrictEqual(MOCK_FALLBACK_CONFIG);
+      expect(controller.state.configs).toStrictEqual({ networks: MOCK_FALLBACK_CONFIG });
       expect(controller.state.fetchError).toBe(
         'Feature flag disabled - using fallback configuration',
       );
@@ -804,7 +822,7 @@ describe('ConfigRegistryController', () => {
       await advanceTime({ clock, duration: 0 });
 
       expect(executePollSpy).toHaveBeenCalledTimes(1);
-      expect(controller.state.configs).toStrictEqual(MOCK_FALLBACK_CONFIG);
+      expect(controller.state.configs).toStrictEqual({ networks: MOCK_FALLBACK_CONFIG });
       expect(controller.state.fetchError).toBe(
         'Feature flag disabled - using fallback configuration',
       );

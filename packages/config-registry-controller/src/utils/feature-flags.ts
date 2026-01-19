@@ -1,6 +1,6 @@
 import type { ConfigRegistryMessenger } from '../ConfigRegistryController';
 
-const FEATURE_FLAG_KEY = 'config_registry_api_enabled';
+const FEATURE_FLAG_KEY = 'configRegistryApiEnabled';
 const DEFAULT_FEATURE_FLAG_VALUE = false;
 
 /**

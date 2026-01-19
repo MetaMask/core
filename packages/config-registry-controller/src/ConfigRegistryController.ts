@@ -25,7 +25,9 @@ export type RegistryConfigEntry = {
 };
 
 export type ConfigRegistryState = {
-  configs: Record<string, RegistryConfigEntry>;
+  configs: {
+    networks?: Record<string, RegistryConfigEntry>;
+  };
   version: string | null;
   lastFetched: number | null;
   fetchError: string | null;
@@ -165,7 +167,7 @@ export class ConfigRegistryController extends StaticIntervalPollingController<Co
       metadata: stateMetadata,
       messenger,
       state: {
-        configs: {},
+        configs: { networks: {} },
         version: null,
         lastFetched: null,
         fetchError: null,
@@ -241,7 +243,7 @@ export class ConfigRegistryController extends StaticIntervalPollingController<Co
 
       this.update((state) => {
         // eslint-disable-next-line @typescript-eslint/no-explicit-any
-        (state.configs as any) = newConfigs;
+        (state.configs as any) = { networks: newConfigs };
         state.version = result.data.data.version;
         state.lastFetched = Date.now();
         state.fetchError = null;
@@ -255,7 +257,7 @@ export class ConfigRegistryController extends StaticIntervalPollingController<Co
   #useFallbackConfig(errorMessage?: string): void {
     this.update((state) => {
       // eslint-disable-next-line @typescript-eslint/no-explicit-any
-      (state.configs as any) = { ...this.#fallbackConfig };
+      (state.configs as any) = { networks: { ...this.#fallbackConfig } };
       state.fetchError =
         errorMessage ?? 'Using fallback configuration - API unavailable';
       state.etag = null;
@@ -266,7 +268,8 @@ export class ConfigRegistryController extends StaticIntervalPollingController<Co
     const errorMessage =
       error instanceof Error ? error.message : 'Unknown error occurred';
 
-    const hasNoConfigs = Object.keys(this.state.configs).length === 0;
+    const hasNoConfigs =
+      Object.keys(this.state.configs?.networks || {}).length === 0;
 
     if (hasNoConfigs) {
       this.#useFallbackConfig(errorMessage);
@@ -278,22 +281,30 @@ export class ConfigRegistryController extends StaticIntervalPollingController<Co
   }
 
   getConfig(key: string): RegistryConfigEntry | undefined {
-    return this.state.configs[key];
+    return this.state.configs?.networks?.[key];
   }
 
   getAllConfigs(): Record<string, RegistryConfigEntry> {
-    return { ...this.state.configs };
+    return { ...(this.state.configs?.networks || {}) };
   }
 
   getConfigValue<T = Json>(key: string): T | undefined {
-    const entry = this.state.configs[key];
+    const entry = this.state.configs?.networks?.[key];
     return entry?.value as T | undefined;
   }
 
   setConfig(key: string, value: Json, metadata?: Json): void {
     this.update((state) => {
+      if (!state.configs) {
+        // eslint-disable-next-line @typescript-eslint/no-explicit-any
+        (state.configs as any) = { networks: {} };
+      }
+      if (!state.configs.networks) {
+        // eslint-disable-next-line @typescript-eslint/no-explicit-any
+        (state.configs.networks as any) = {};
+      }
       // eslint-disable-next-line @typescript-eslint/no-explicit-any
-      (state.configs as any)[key] = {
+      (state.configs.networks as any)[key] = {
         key,
         value,
         metadata,
@@ -303,13 +314,16 @@ export class ConfigRegistryController extends StaticIntervalPollingController<Co
 
   removeConfig(key: string): void {
     this.update((state) => {
-      delete state.configs[key];
+      if (state.configs?.networks) {
+        delete state.configs.networks[key];
+      }
     });
   }
 
   clearConfigs(): void {
     this.update((state) => {
-      state.configs = {};
+      // eslint-disable-next-line @typescript-eslint/no-explicit-any
+      (state.configs as any) = { networks: {} };
     });
   }
 
