@@ -935,6 +935,72 @@ describe('RampsController', () => {
     });
   });
 
+  describe('dispatch', () => {
+    it('returns the result of a successful operation', async () => {
+      await withController(async ({ controller }) => {
+        const result = await controller.dispatch(async () => 'success');
+        expect(result).toBe('success');
+      });
+    });
+
+    it('returns undefined when operation throws', async () => {
+      await withController(async ({ controller }) => {
+        const result = await controller.dispatch(async () => {
+          throw new Error('operation failed');
+        });
+        expect(result).toBeUndefined();
+      });
+    });
+
+    it('does not propagate errors to caller', async () => {
+      await withController(async ({ controller }) => {
+        await expect(
+          controller.dispatch(async () => {
+            throw new Error('should not propagate');
+          }),
+        ).resolves.toBeUndefined();
+      });
+    });
+
+    it('can wrap controller methods like updateUserRegion', async () => {
+      await withController(async ({ controller, rootMessenger }) => {
+        rootMessenger.registerActionHandler(
+          'RampsService:getGeolocation',
+          async () => 'us',
+        );
+        rootMessenger.registerActionHandler(
+          'RampsService:getCountries',
+          async () => createMockCountries(),
+        );
+        rootMessenger.registerActionHandler(
+          'RampsService:getProviders',
+          async () => ({ providers: [] }),
+        );
+
+        const result = await controller.dispatch(() =>
+          controller.updateUserRegion(),
+        );
+        expect(result?.regionCode).toBe('us');
+      });
+    });
+
+    it('returns undefined when wrapped controller method fails', async () => {
+      await withController(async ({ controller, rootMessenger }) => {
+        rootMessenger.registerActionHandler(
+          'RampsService:getGeolocation',
+          async () => {
+            throw new Error('geolocation failed');
+          },
+        );
+
+        const result = await controller.dispatch(() =>
+          controller.updateUserRegion(),
+        );
+        expect(result).toBeUndefined();
+      });
+    });
+  });
+
   describe('getCountries', () => {
     const mockCountries: Country[] = [
       {

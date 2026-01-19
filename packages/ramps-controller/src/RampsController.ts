@@ -459,6 +459,23 @@ export class RampsController extends BaseController<
   }
 
   /**
+   * Executes an async operation without throwing.
+   * Errors are captured in state via executeRequest and available via selectors.
+   * Use this for fire-and-forget calls from React effects where errors should
+   * be read from state rather than caught at the call site.
+   *
+   * @param operation - The async operation to execute.
+   * @returns The result of the operation, or undefined if it failed.
+   */
+  async dispatch<T>(operation: () => Promise<T>): Promise<T | undefined> {
+    try {
+      return await operation();
+    } catch {
+      return undefined;
+    }
+  }
+
+  /**
    * Updates the state for a specific request.
    *
    * @param cacheKey - The cache key.
@@ -672,7 +689,7 @@ export class RampsController extends BaseController<
   /**
    * Initializes the controller by fetching the user's region from geolocation.
    * This should be called once at app startup to set up the initial region.
-   * After the region is set, tokens are fetched and saved to state.
+   * After the region is set, tokens and providers are fetched in parallel.
    *
    * If a userRegion already exists (from persistence or manual selection),
    * this method will skip geolocation fetch and only fetch tokens if needed.
@@ -681,23 +698,13 @@ export class RampsController extends BaseController<
    * @returns Promise that resolves when initialization is complete.
    */
   async init(options?: ExecuteRequestOptions): Promise<void> {
-    const userRegion = await this.updateUserRegion(options).catch(() => {
-      // User region fetch failed - error state will be available via selectors
-      return null;
-    });
+    const userRegion = await this.dispatch(() => this.updateUserRegion(options));
 
     if (userRegion) {
-      try {
-        await this.getTokens(userRegion.regionCode, 'buy', options);
-      } catch {
-        // Token fetch failed - error state will be available via selectors
-      }
-
-      try {
-        await this.getProviders(userRegion.regionCode, options);
-      } catch {
-        // Provider fetch failed - error state will be available via selectors
-      }
+      await Promise.all([
+        this.dispatch(() => this.getTokens(userRegion.regionCode, 'buy', options)),
+        this.dispatch(() => this.getProviders(userRegion.regionCode, options)),
+      ]);
     }
   }
 
