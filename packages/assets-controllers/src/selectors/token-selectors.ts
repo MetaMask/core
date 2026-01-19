@@ -374,7 +374,7 @@ const selectAllMultichainAssets = createAssetListSelector(
 
         const account = accountsMap[accountId];
         const assetMetadata = multichainAssetsMetadata[assetId];
-        if (!account || !assetMetadata) {
+        if (!account || !assetMetadata?.units) {
           continue;
         }
 

@@ -7,6 +7,10 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+### Fixed
+
+- Fix `selectAllAssets` selector to handle asset metadata without `units` property ([#7658](https://github.com/MetaMask/core/pull/7658))
+
 ### Changed
 
 - Bump `@metamask/multichain-account-service` from `^5.0.0` to `^5.1.0` ([#7678](https://github.com/MetaMask/core/pull/7678))

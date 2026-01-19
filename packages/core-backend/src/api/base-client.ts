@@ -107,16 +107,27 @@ export class BaseApiClient {
       'X-Client-Version': this.clientVersion,
     };
 
-    // Use TanStack Query to cache the bearer token
-    // Wrap getBearerToken to return null instead of undefined (TanStack Query doesn't allow undefined)
+    // Get bearer token - only cache valid tokens, never cache null/undefined
     if (this.getBearerToken) {
-      const { getBearerToken } = this;
-      const token = await this.#queryClientInstance.fetchQuery({
-        queryKey: authQueryKeys.bearerToken(),
-        queryFn: async () => (await getBearerToken()) ?? null,
-        staleTime: STALE_TIMES.AUTH_TOKEN,
-        gcTime: GC_TIMES.DEFAULT,
-      });
+      const queryKey = authQueryKeys.bearerToken();
+
+      // First check if we have a valid cached token
+      let token = this.#queryClientInstance.getQueryData<string | null>(
+        queryKey,
+      );
+
+      // If no cached token, try to get a fresh one
+      if (!token) {
+        token = (await this.getBearerToken()) ?? null;
+
+        // Only cache if we got a valid token - don't cache null/undefined
+        if (token) {
+          this.#queryClientInstance.setQueryData(queryKey, token, {
+            updatedAt: Date.now(),
+          });
+        }
+      }
+
       if (token) {
         headers.Authorization = `Bearer ${token}`;
       }

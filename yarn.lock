@@ -2620,13 +2620,24 @@ __metadata:
   version: 0.0.0-use.local
   resolution: "@metamask/assets-controller@workspace:packages/assets-controller"
   dependencies:
+    "@ethereumjs/util": "npm:^9.1.0"
+    "@ethersproject/providers": "npm:^5.7.0"
+    "@metamask/account-tree-controller": "npm:^4.0.0"
     "@metamask/auto-changelog": "npm:^3.4.4"
     "@metamask/base-controller": "npm:^9.0.0"
+    "@metamask/core-backend": "npm:^5.0.0"
+    "@metamask/keyring-controller": "npm:^25.0.0"
+    "@metamask/keyring-internal-api": "npm:^9.0.0"
     "@metamask/messenger": "npm:^0.3.0"
+    "@metamask/network-enablement-controller": "npm:^4.1.0"
+    "@metamask/utils": "npm:^11.9.0"
     "@ts-bridge/cli": "npm:^0.6.4"
     "@types/jest": "npm:^27.4.1"
+    "@types/lodash": "npm:^4.14.191"
+    async-mutex: "npm:^0.5.0"
     deepmerge: "npm:^4.2.2"
     jest: "npm:^27.5.1"
+    lodash: "npm:^4.17.21"
     ts-jest: "npm:^27.1.4"
     typedoc: "npm:^0.24.8"
     typedoc-plugin-missing-exports: "npm:^2.0.0"
@@ -4249,7 +4260,7 @@ __metadata:
   languageName: unknown
   linkType: soft
 
-"@metamask/network-enablement-controller@workspace:packages/network-enablement-controller":
+"@metamask/network-enablement-controller@npm:^4.1.0, @metamask/network-enablement-controller@workspace:packages/network-enablement-controller":
   version: 0.0.0-use.local
   resolution: "@metamask/network-enablement-controller@workspace:packages/network-enablement-controller"
   dependencies:

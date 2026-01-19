@@ -7,6 +7,11 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+### Fixed
+
+- Fix auth token caching to not cache null/undefined values, ensuring token is available immediately after sign-in ([#7658](https://github.com/MetaMask/core/pull/7658))
+- Change `invalidateAuthToken()` to use `resetQueries()` for immediate cache removal ([#7658](https://github.com/MetaMask/core/pull/7658))
+
 ### Added
 
 - Add `ApiPlatformClient` for unified access to MetaMask backend APIs with TanStack Query caching ([#7658](https://github.com/MetaMask/core/pull/7658))

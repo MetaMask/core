@@ -184,9 +184,12 @@ export class ApiPlatformClient {
   /**
    * Invalidate the cached auth token.
    * Call this when the user logs out or the token expires.
+   *
+   * Uses resetQueries() instead of invalidateQueries() to completely remove
+   * the cached value, ensuring the next request fetches a fresh token immediately.
    */
   async invalidateAuthToken(): Promise<void> {
-    await this.#sharedQueryClient.invalidateQueries({
+    await this.#sharedQueryClient.resetQueries({
       queryKey: authQueryKeys.bearerToken(),
     });
   }
