@@ -66,18 +66,6 @@
     "typedoc-plugin-missing-exports": "^2.0.0",
     "typescript": "~5.3.3"
   },
-  "peerDependencies": {
-    "@metamask/accounts-controller": "^21.0.0",
-    "@metamask/network-controller": "^29.0.0"
-  },
-  "peerDependenciesMeta": {
-    "@metamask/accounts-controller": {
-      "optional": true
-    },
-    "@metamask/network-controller": {
-      "optional": true
-    }
-  },
   "engines": {
     "node": "^18.18 || >=20"
   },

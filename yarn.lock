@@ -4409,14 +4409,6 @@ __metadata:
     typedoc: "npm:^0.24.8"
     typedoc-plugin-missing-exports: "npm:^2.0.0"
     typescript: "npm:~5.3.3"
-  peerDependencies:
-    "@metamask/accounts-controller": ^21.0.0
-    "@metamask/network-controller": ^29.0.0
-  peerDependenciesMeta:
-    "@metamask/accounts-controller":
-      optional: true
-    "@metamask/network-controller":
-      optional: true
   languageName: unknown
   linkType: soft
 
