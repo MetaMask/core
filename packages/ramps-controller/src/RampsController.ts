@@ -849,7 +849,9 @@ export class RampsController extends BaseController<
    * @param options - Options for cache behavior.
    */
   triggerUpdateUserRegion(options?: ExecuteRequestOptions): void {
-    this.updateUserRegion(options).catch(() => {});
+    this.updateUserRegion(options).catch(() => {
+      // Error stored in state
+    });
   }
 
   /**
@@ -859,7 +861,9 @@ export class RampsController extends BaseController<
    * @param options - Options for cache behavior.
    */
   triggerSetUserRegion(region: string, options?: ExecuteRequestOptions): void {
-    this.setUserRegion(region, options).catch(() => {});
+    this.setUserRegion(region, options).catch(() => {
+      // Error stored in state
+    });
   }
 
   /**
@@ -872,7 +876,9 @@ export class RampsController extends BaseController<
     action: 'buy' | 'sell' = 'buy',
     options?: ExecuteRequestOptions,
   ): void {
-    this.getCountries(action, options).catch(() => {});
+    this.getCountries(action, options).catch(() => {
+      // Error stored in state
+    });
   }
 
   /**
@@ -887,7 +893,9 @@ export class RampsController extends BaseController<
     action: 'buy' | 'sell' = 'buy',
     options?: ExecuteRequestOptions,
   ): void {
-    this.getTokens(region, action, options).catch(() => {});
+    this.getTokens(region, action, options).catch(() => {
+      // Error stored in state
+    });
   }
 
   /**
@@ -905,6 +913,8 @@ export class RampsController extends BaseController<
       payments?: string | string[];
     },
   ): void {
-    this.getProviders(region, options).catch(() => {});
+    this.getProviders(region, options).catch(() => {
+      // Error stored in state
+    });
   }
 }
