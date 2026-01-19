@@ -467,7 +467,9 @@ export class RampsController extends BaseController<
    * @param operation - The async operation to execute.
    * @returns The result of the operation, or undefined if it failed.
    */
-  async dispatch<T>(operation: () => Promise<T>): Promise<T | undefined> {
+  async dispatch<TResult>(
+    operation: () => Promise<TResult>,
+  ): Promise<TResult | undefined> {
     try {
       return await operation();
     } catch {
@@ -698,11 +700,15 @@ export class RampsController extends BaseController<
    * @returns Promise that resolves when initialization is complete.
    */
   async init(options?: ExecuteRequestOptions): Promise<void> {
-    const userRegion = await this.dispatch(() => this.updateUserRegion(options));
+    const userRegion = await this.dispatch(() =>
+      this.updateUserRegion(options),
+    );
 
     if (userRegion) {
       await Promise.all([
-        this.dispatch(() => this.getTokens(userRegion.regionCode, 'buy', options)),
+        this.dispatch(() =>
+          this.getTokens(userRegion.regionCode, 'buy', options),
+        ),
         this.dispatch(() => this.getProviders(userRegion.regionCode, options)),
       ]);
     }

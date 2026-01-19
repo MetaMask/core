@@ -954,11 +954,10 @@ describe('RampsController', () => {
 
     it('does not propagate errors to caller', async () => {
       await withController(async ({ controller }) => {
-        await expect(
-          controller.dispatch(async () => {
-            throw new Error('should not propagate');
-          }),
-        ).resolves.toBeUndefined();
+        const result = await controller.dispatch(async () => {
+          throw new Error('should not propagate');
+        });
+        expect(result).toBeUndefined();
       });
     });
 
