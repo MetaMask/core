@@ -135,3 +135,75 @@ export class RecoveryError extends Error {
     return new RecoveryError(errorMessage, recoveryErrorData);
   }
 }
+
+/**
+ * Generic error class for SeedlessOnboardingController operations.
+ *
+ * Use this when you need to wrap an underlying error with additional context,
+ * or when none of the more specific error classes (PasswordSyncError, RecoveryError) apply.
+ *
+ * @example
+ * ```typescript
+ * throw new SeedlessOnboardingError(
+ *   SeedlessOnboardingControllerErrorMessage.FailedToEncryptAndStoreSecretData,
+ *   { details: 'Encryption failed during backup', cause: originalError }
+ * );
+ * ```
+ */
+export class SeedlessOnboardingError extends Error {
+  /**
+   * Additional context about the error beyond the message.
+   * Use this for human-readable details that help with debugging.
+   */
+  public details: string | undefined;
+
+  /**
+   * The underlying error that caused this error.
+   */
+  public cause: Error | undefined;
+
+  constructor(
+    message: string | SeedlessOnboardingControllerErrorMessage,
+    options?: { details?: string; cause?: Error },
+  ) {
+    super(message);
+    this.name = 'SeedlessOnboardingControllerError';
+    this.details = options?.details;
+    this.cause = options?.cause;
+  }
+
+  /**
+   * Creates a SeedlessOnboardingError from an unknown error.
+   *
+   * @param error - The original error to wrap.
+   * @param message - The error message to use.
+   * @param details - Optional additional context.
+   * @returns A new SeedlessOnboardingError instance.
+   */
+  static from(
+    error: unknown,
+    message: string | SeedlessOnboardingControllerErrorMessage,
+    details?: string,
+  ): SeedlessOnboardingError {
+    const cause = error instanceof Error ? error : undefined;
+    return new SeedlessOnboardingError(message, { details, cause });
+  }
+
+  /**
+   * Serializes the error for logging/transmission.
+   * Ensures custom properties are included in JSON output.
+   *
+   * @returns A JSON-serializable representation of the error.
+   */
+  toJSON(): Record<string, unknown> {
+    return {
+      name: this.name,
+      message: this.message,
+      details: this.details,
+      cause: this.cause instanceof Error
+        ? { name: this.cause.name, message: this.cause.message }
+        : this.cause,
+      stack: this.stack,
+    };
+  }
+}

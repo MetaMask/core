@@ -38,7 +38,7 @@ import {
   SeedlessOnboardingControllerErrorMessage,
   Web3AuthNetwork,
 } from './constants';
-import { PasswordSyncError, RecoveryError } from './errors';
+import { PasswordSyncError, RecoveryError, SeedlessOnboardingError } from './errors';
 import { projectLogger, createModuleLogger } from './logger';
 import { SecretMetadata } from './SecretMetadata';
 import type {
@@ -437,8 +437,10 @@ export class SeedlessOnboardingController<
         return authenticationResult;
       } catch (error) {
         log('Error authenticating user', error);
-        throw new Error(
-          SeedlessOnboardingControllerErrorMessage.AuthenticationError,
+        throw new SeedlessOnboardingError(
+          SeedlessOnboardingControllerErrorMessage.AuthenticationError, {
+            cause: error instanceof Error ? error : new Error(error as string),
+          }
         );
       }
     };
