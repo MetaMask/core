@@ -10,6 +10,8 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 ### Fixed
 
 - Exclude transactions where `isTransfer` is defined when marking nonce duplicates as dropped ([#7637](https://github.com/MetaMask/core/pull/7637))
+- Skip nonce assignment for EIP-7702 delegated transactions to prevent marking transactions as dropped ([#7659](https://github.com/MetaMask/core/pull/7659))
+
 
 ## [62.9.1]
 
