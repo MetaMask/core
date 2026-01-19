@@ -37,8 +37,6 @@ scripts/coverage
 # typescript
 packages/*/*.tsbuildinfo
 
-PR_DESC.md
-
 # Emacs
 \#*\#
 .#*
