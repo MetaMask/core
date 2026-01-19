@@ -672,7 +672,7 @@ export class RampsController extends BaseController<
   /**
    * Initializes the controller by fetching the user's region from geolocation.
    * This should be called once at app startup to set up the initial region.
-   * After the region is set, tokens and providers are fetched in parallel.
+   * After the region is set, tokens and providers are fetched and saved to state.
    *
    * If a userRegion already exists (from persistence or manual selection),
    * this method will skip geolocation fetch and only fetch tokens if needed.
@@ -681,18 +681,23 @@ export class RampsController extends BaseController<
    * @returns Promise that resolves when initialization is complete.
    */
   async init(options?: ExecuteRequestOptions): Promise<void> {
-    let userRegion: UserRegion | null = null;
-    try {
-      userRegion = await this.updateUserRegion(options);
-    } catch {
-      // Error stored in state
-    }
+    const userRegion = await this.updateUserRegion(options).catch(() => {
+      // User region fetch failed - error state will be available via selectors
+      return null;
+    });
 
     if (userRegion) {
-      await Promise.allSettled([
-        this.getTokens(userRegion.regionCode, 'buy', options),
-        this.getProviders(userRegion.regionCode, options),
-      ]);
+      try {
+        await this.getTokens(userRegion.regionCode, 'buy', options);
+      } catch {
+        // Token fetch failed - error state will be available via selectors
+      }
+
+      try {
+        await this.getProviders(userRegion.regionCode, options);
+      } catch {
+        // Provider fetch failed - error state will be available via selectors
+      }
     }
   }
 
