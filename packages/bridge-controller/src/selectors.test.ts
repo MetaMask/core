@@ -259,7 +259,7 @@ describe('Bridge Selectors', () => {
             ...(mockState.remoteFeatureFlags.bridgeConfig as any),
             chainRanking: [],
             chains: {
-              'eip155:1': {
+              '1': {
                 refreshRate: 41000,
                 isActiveSrc: true,
                 isActiveDest: true,
@@ -292,7 +292,7 @@ describe('Bridge Selectors', () => {
             ...(mockState.remoteFeatureFlags.bridgeConfig as any),
             chainRanking: [],
             chains: {
-              'eip155:1': {
+              '1': {
                 refreshRate: 41000,
                 isActiveSrc: true,
                 isActiveDest: true,
