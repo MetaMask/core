@@ -551,8 +551,15 @@ export class MulticallClient {
       return this.#fallbackBatchBalanceOf(provider, requests);
     }
 
+    // TODO: Re-enable Multicall3 once ABI encoding is verified
+    // For now, use individual calls which are more reliable
+    console.log(
+      `[MulticallClient] Using individual calls for ${requests.length} requests (multicall3 temporarily disabled)`,
+    );
+    return this.#fallbackBatchBalanceOf(provider, requests);
+
     // Use Multicall3
-    return this.#multicallBatchBalanceOf(provider, multicallAddress, requests);
+    // return this.#multicallBatchBalanceOf(provider, multicallAddress, requests);
   }
 
   /**
@@ -594,20 +601,29 @@ export class MulticallClient {
 
           // Encode and send aggregate3 call
           const callData = encodeAggregate3(calls);
+          console.log(
+            `[MulticallClient] Sending aggregate3 call with ${batch.length} requests`,
+          );
           const result = await provider.call({
             to: multicallAddress,
             data: callData,
           });
+          console.log(
+            `[MulticallClient] Got aggregate3 response: ${result.slice(0, 100)}...`,
+          );
 
           // Decode response
           const decoded = decodeAggregate3Response(result as Hex, batch.length);
+          console.log(`[MulticallClient] Decoded ${decoded.length} responses`);
 
           // Map results back to responses
+          let successCount = 0;
           for (let i = 0; i < batch.length; i++) {
             const { tokenAddress, accountAddress } = batch[i];
             const { success, returnData } = decoded[i];
 
             if (success && returnData && returnData.length > 2) {
+              successCount += 1;
               workingResult.push({
                 tokenAddress,
                 accountAddress,
@@ -622,14 +638,23 @@ export class MulticallClient {
               });
             }
           }
-        } catch {
-          // On error, mark all requests in batch as failed
-          for (const req of batch) {
-            workingResult.push({
-              tokenAddress: req.tokenAddress,
-              accountAddress: req.accountAddress,
-              success: false,
-            });
+          console.log(
+            `[MulticallClient] Successfully decoded ${successCount}/${batch.length} balances`,
+          );
+        } catch (error) {
+          // On aggregate3 error, fall back to individual calls for this batch
+          console.error(
+            `[MulticallClient] aggregate3 failed, falling back to individual calls:`,
+            error,
+          );
+          const fallbackResults = await Promise.allSettled(
+            batch.map((req) => this.#fetchSingleBalance(provider, req)),
+          );
+
+          for (const result of fallbackResults) {
+            if (result.status === 'fulfilled') {
+              workingResult.push(result.value);
+            }
           }
         }
 
@@ -651,7 +676,10 @@ export class MulticallClient {
     provider: Provider,
     requests: BalanceOfRequest[],
   ): Promise<BalanceOfResponse[]> {
-    const batchSize = this.#config.maxCallsPerBatch;
+    // Use smaller batch size for parallel individual calls to avoid overwhelming RPC
+    const batchSize = Math.min(this.#config.maxCallsPerBatch, 50);
+    let processedCount = 0;
+    let successCount = 0;
 
     const responses = await reduceInBatchesSerially<
       BalanceOfRequest,
@@ -668,12 +696,24 @@ export class MulticallClient {
         for (const result of batchResults) {
           if (result.status === 'fulfilled') {
             workingResult.push(result.value);
+            if (result.value.success) {
+              successCount += 1;
+            }
           }
         }
+
+        processedCount += batch.length;
+        console.log(
+          `[MulticallClient] Processed ${processedCount}/${requests.length} requests, ${successCount} with balance`,
+        );
 
         return workingResult;
       },
     });
+
+    console.log(
+      `[MulticallClient] Fallback completed: ${successCount}/${requests.length} successful`,
+    );
 
     return responses;
   }

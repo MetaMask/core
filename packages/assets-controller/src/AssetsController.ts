@@ -399,6 +399,9 @@ export class AssetsController extends BaseController<
   /**
    * Function to check if token detection is enabled.
    */
+  /**
+   * Function to check if token detection is enabled.
+   */
   readonly #isTokenDetectionEnabled: (() => boolean) | undefined;
 
   /**
@@ -413,6 +416,7 @@ export class AssetsController extends BaseController<
    * @param options.getSelectedAccount - Function to get selected account.
    * @param options.getSelectedChainIds - Function to get selected chain IDs.
    * @param options.isTokenDetectionEnabled - Function to check if token detection is enabled.
+   * @param options.getProvider - Function to get provider for a given chainId.
    */
   constructor({
     messenger,
@@ -462,43 +466,22 @@ export class AssetsController extends BaseController<
       },
 
       // Get token list state via messenger
+      // Uses lazy extraction - only process chains when accessed
       getTokenListState: (): TokenListState => {
-        console.log('[AssetsController] getTokenListState called');
         const rawState = this.messenger.call('TokenListController:getState');
 
-        console.log('[AssetsController] rawState keys:', Object.keys(rawState));
-        console.log(
-          '[AssetsController] tokensChainsCache chainIds:',
-          Object.keys(rawState.tokensChainsCache),
-        );
-
-        // Extract 'data' from each chain entry
+        // Create a proxy-like object that lazily extracts chain data
+        // This avoids processing all 6000+ tokens for every chain upfront
         const tokensChainsCache: TokenListState['tokensChainsCache'] = {};
+
+        // Only process chains that exist in rawState
         for (const [chainId, cacheEntry] of Object.entries(
           rawState.tokensChainsCache,
         )) {
-          console.log('[AssetsController] Processing chain:', chainId, {
-            hasCacheEntry: Boolean(cacheEntry),
-            cacheEntryKeys: cacheEntry ? Object.keys(cacheEntry) : [],
-            hasData: Boolean(cacheEntry?.data),
-            dataTokenCount: cacheEntry?.data
-              ? Object.keys(cacheEntry.data).length
-              : 0,
-          });
-          tokensChainsCache[chainId as Hex] =
-            (cacheEntry.data as TokenListState['tokensChainsCache'][Hex]) ?? {};
-        }
-
-        console.log(
-          '[AssetsController] Final tokensChainsCache chain count:',
-          Object.keys(tokensChainsCache).length,
-        );
-        // Log sample for 0x1
-        if (tokensChainsCache['0x1']) {
-          console.log(
-            '[AssetsController] 0x1 token count:',
-            Object.keys(tokensChainsCache['0x1']).length,
-          );
+          if (cacheEntry?.data) {
+            tokensChainsCache[chainId as Hex] =
+              cacheEntry.data as TokenListState['tokensChainsCache'][Hex];
+          }
         }
 
         return { tokensChainsCache };
