@@ -935,67 +935,178 @@ describe('RampsController', () => {
     });
   });
 
-  describe('dispatch', () => {
-    it('returns the result of a successful operation', async () => {
-      await withController(async ({ controller }) => {
-        const result = await controller.dispatch(async () => 'success');
-        expect(result).toBe('success');
-      });
-    });
+  describe('sync trigger methods', () => {
+    describe('triggerUpdateUserRegion', () => {
+      it('triggers user region update and returns void', async () => {
+        await withController(async ({ controller, rootMessenger }) => {
+          rootMessenger.registerActionHandler(
+            'RampsService:getGeolocation',
+            async () => 'us',
+          );
+          rootMessenger.registerActionHandler(
+            'RampsService:getCountries',
+            async () => createMockCountries(),
+          );
+          rootMessenger.registerActionHandler(
+            'RampsService:getProviders',
+            async () => ({ providers: [] }),
+          );
 
-    it('returns undefined when operation throws', async () => {
-      await withController(async ({ controller }) => {
-        const result = await controller.dispatch(async () => {
-          throw new Error('operation failed');
+          const result = controller.triggerUpdateUserRegion();
+          expect(result).toBeUndefined();
+
+          await new Promise((resolve) => setTimeout(resolve, 10));
+          expect(controller.state.userRegion?.regionCode).toBe('us');
         });
-        expect(result).toBeUndefined();
       });
-    });
 
-    it('does not propagate errors to caller', async () => {
-      await withController(async ({ controller }) => {
-        const result = await controller.dispatch(async () => {
-          throw new Error('should not propagate');
+      it('does not throw when update fails', async () => {
+        await withController(async ({ controller, rootMessenger }) => {
+          rootMessenger.registerActionHandler(
+            'RampsService:getGeolocation',
+            async () => {
+              throw new Error('geolocation failed');
+            },
+          );
+
+          expect(() => controller.triggerUpdateUserRegion()).not.toThrow();
         });
-        expect(result).toBeUndefined();
       });
     });
 
-    it('can wrap controller methods like updateUserRegion', async () => {
-      await withController(async ({ controller, rootMessenger }) => {
-        rootMessenger.registerActionHandler(
-          'RampsService:getGeolocation',
-          async () => 'us',
-        );
-        rootMessenger.registerActionHandler(
-          'RampsService:getCountries',
-          async () => createMockCountries(),
-        );
-        rootMessenger.registerActionHandler(
-          'RampsService:getProviders',
-          async () => ({ providers: [] }),
-        );
+    describe('triggerSetUserRegion', () => {
+      it('triggers set user region and returns void', async () => {
+        await withController(async ({ controller, rootMessenger }) => {
+          rootMessenger.registerActionHandler(
+            'RampsService:getCountries',
+            async () => createMockCountries(),
+          );
+          rootMessenger.registerActionHandler(
+            'RampsService:getProviders',
+            async () => ({ providers: [] }),
+          );
 
-        const result = await controller.dispatch(() =>
-          controller.updateUserRegion(),
-        );
-        expect(result?.regionCode).toBe('us');
+          const result = controller.triggerSetUserRegion('us');
+          expect(result).toBeUndefined();
+
+          await new Promise((resolve) => setTimeout(resolve, 10));
+          expect(controller.state.userRegion?.regionCode).toBe('us');
+        });
+      });
+
+      it('does not throw when set fails', async () => {
+        await withController(async ({ controller, rootMessenger }) => {
+          rootMessenger.registerActionHandler(
+            'RampsService:getCountries',
+            async () => {
+              throw new Error('countries failed');
+            },
+          );
+
+          expect(() => controller.triggerSetUserRegion('us')).not.toThrow();
+        });
       });
     });
 
-    it('returns undefined when wrapped controller method fails', async () => {
-      await withController(async ({ controller, rootMessenger }) => {
-        rootMessenger.registerActionHandler(
-          'RampsService:getGeolocation',
-          async () => {
-            throw new Error('geolocation failed');
+    describe('triggerGetCountries', () => {
+      it('triggers get countries and returns void', async () => {
+        await withController(async ({ controller, rootMessenger }) => {
+          rootMessenger.registerActionHandler(
+            'RampsService:getCountries',
+            async () => createMockCountries(),
+          );
+
+          const result = controller.triggerGetCountries('buy');
+          expect(result).toBeUndefined();
+        });
+      });
+
+      it('does not throw when fetch fails', async () => {
+        await withController(async ({ controller, rootMessenger }) => {
+          rootMessenger.registerActionHandler(
+            'RampsService:getCountries',
+            async () => {
+              throw new Error('countries failed');
+            },
+          );
+
+          expect(() => controller.triggerGetCountries()).not.toThrow();
+        });
+      });
+    });
+
+    describe('triggerGetTokens', () => {
+      it('triggers get tokens and returns void', async () => {
+        await withController(
+          { options: { state: { userRegion: createMockUserRegion('us') } } },
+          async ({ controller, rootMessenger }) => {
+            rootMessenger.registerActionHandler(
+              'RampsService:getTokens',
+              async () => ({ topTokens: [], allTokens: [] }),
+            );
+
+            const result = controller.triggerGetTokens();
+            expect(result).toBeUndefined();
+
+            await new Promise((resolve) => setTimeout(resolve, 10));
+            expect(controller.state.tokens).toStrictEqual({
+              topTokens: [],
+              allTokens: [],
+            });
           },
         );
+      });
 
-        const result = await controller.dispatch(() =>
-          controller.updateUserRegion(),
+      it('does not throw when fetch fails', async () => {
+        await withController(
+          { options: { state: { userRegion: createMockUserRegion('us') } } },
+          async ({ controller, rootMessenger }) => {
+            rootMessenger.registerActionHandler(
+              'RampsService:getTokens',
+              async () => {
+                throw new Error('tokens failed');
+              },
+            );
+
+            expect(() => controller.triggerGetTokens()).not.toThrow();
+          },
         );
-        expect(result).toBeUndefined();
+      });
+    });
+
+    describe('triggerGetProviders', () => {
+      it('triggers get providers and returns void', async () => {
+        await withController(
+          { options: { state: { userRegion: createMockUserRegion('us') } } },
+          async ({ controller, rootMessenger }) => {
+            rootMessenger.registerActionHandler(
+              'RampsService:getProviders',
+              async () => ({ providers: [] }),
+            );
+
+            const result = controller.triggerGetProviders();
+            expect(result).toBeUndefined();
+
+            await new Promise((resolve) => setTimeout(resolve, 10));
+            expect(controller.state.providers).toStrictEqual([]);
+          },
+        );
+      });
+
+      it('does not throw when fetch fails', async () => {
+        await withController(
+          { options: { state: { userRegion: createMockUserRegion('us') } } },
+          async ({ controller, rootMessenger }) => {
+            rootMessenger.registerActionHandler(
+              'RampsService:getProviders',
+              async () => {
+                throw new Error('providers failed');
+              },
+            );
+
+            expect(() => controller.triggerGetProviders()).not.toThrow();
+          },
+        );
       });
     });
   });

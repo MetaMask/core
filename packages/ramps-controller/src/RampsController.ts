@@ -459,25 +459,6 @@ export class RampsController extends BaseController<
   }
 
   /**
-   * Executes an async operation without throwing.
-   * Errors are captured in state via executeRequest and available via selectors.
-   * Use this for fire-and-forget calls from React effects where errors should
-   * be read from state rather than caught at the call site.
-   *
-   * @param operation - The async operation to execute.
-   * @returns The result of the operation, or undefined if it failed.
-   */
-  async dispatch<TResult>(
-    operation: () => Promise<TResult>,
-  ): Promise<TResult | undefined> {
-    try {
-      return await operation();
-    } catch {
-      return undefined;
-    }
-  }
-
-  /**
    * Updates the state for a specific request.
    *
    * @param cacheKey - The cache key.
@@ -700,16 +681,17 @@ export class RampsController extends BaseController<
    * @returns Promise that resolves when initialization is complete.
    */
   async init(options?: ExecuteRequestOptions): Promise<void> {
-    const userRegion = await this.dispatch(() =>
-      this.updateUserRegion(options),
-    );
+    let userRegion: UserRegion | null = null;
+    try {
+      userRegion = await this.updateUserRegion(options);
+    } catch {
+      // Error stored in state
+    }
 
     if (userRegion) {
-      await Promise.all([
-        this.dispatch(() =>
-          this.getTokens(userRegion.regionCode, 'buy', options),
-        ),
-        this.dispatch(() => this.getProviders(userRegion.regionCode, options)),
+      await Promise.allSettled([
+        this.getTokens(userRegion.regionCode, 'buy', options),
+        this.getProviders(userRegion.regionCode, options),
       ]);
     }
   }
@@ -848,5 +830,76 @@ export class RampsController extends BaseController<
     });
 
     return { providers };
+  }
+
+  // ============================================================
+  // Sync Trigger Methods
+  // These fire-and-forget methods are for use in React effects.
+  // Errors are stored in state and available via selectors.
+  // ============================================================
+
+  /**
+   * Triggers a user region update without throwing.
+   *
+   * @param options - Options for cache behavior.
+   */
+  triggerUpdateUserRegion(options?: ExecuteRequestOptions): void {
+    this.updateUserRegion(options).catch(() => {});
+  }
+
+  /**
+   * Triggers setting the user region without throwing.
+   *
+   * @param region - The region code to set (e.g., "US-CA").
+   * @param options - Options for cache behavior.
+   */
+  triggerSetUserRegion(region: string, options?: ExecuteRequestOptions): void {
+    this.setUserRegion(region, options).catch(() => {});
+  }
+
+  /**
+   * Triggers fetching countries without throwing.
+   *
+   * @param action - The ramp action type ('buy' or 'sell').
+   * @param options - Options for cache behavior.
+   */
+  triggerGetCountries(
+    action: 'buy' | 'sell' = 'buy',
+    options?: ExecuteRequestOptions,
+  ): void {
+    this.getCountries(action, options).catch(() => {});
+  }
+
+  /**
+   * Triggers fetching tokens without throwing.
+   *
+   * @param region - The region code. If not provided, uses userRegion from state.
+   * @param action - The ramp action type ('buy' or 'sell').
+   * @param options - Options for cache behavior.
+   */
+  triggerGetTokens(
+    region?: string,
+    action: 'buy' | 'sell' = 'buy',
+    options?: ExecuteRequestOptions,
+  ): void {
+    this.getTokens(region, action, options).catch(() => {});
+  }
+
+  /**
+   * Triggers fetching providers without throwing.
+   *
+   * @param region - The region code. If not provided, uses userRegion from state.
+   * @param options - Options for cache behavior and query filters.
+   */
+  triggerGetProviders(
+    region?: string,
+    options?: ExecuteRequestOptions & {
+      provider?: string | string[];
+      crypto?: string | string[];
+      fiat?: string | string[];
+      payments?: string | string[];
+    },
+  ): void {
+    this.getProviders(region, options).catch(() => {});
   }
 }

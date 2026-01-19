@@ -9,7 +9,7 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ### Added
 
-- Add `dispatch()` method to RampsController for fire-and-forget async operations ([#7661](https://github.com/MetaMask/core/pull/7661))
+- Add sync trigger methods to RampsController for fire-and-forget operations: `triggerUpdateUserRegion()`, `triggerSetUserRegion()`, `triggerGetCountries()`, `triggerGetTokens()`, `triggerGetProviders()` ([#7661](https://github.com/MetaMask/core/pull/7661))
 
 ## [4.0.0]
 
