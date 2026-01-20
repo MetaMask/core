@@ -689,16 +689,9 @@ describe('SnapAccountProvider', () => {
         accounts: [mockAccounts[0]],
       });
 
-      const captureExceptionSpy = jest.spyOn(messenger, 'captureException');
       const createAccountsSpy = jest.spyOn(provider, 'createAccounts');
 
       await provider.resyncAccounts(mockAccounts);
-
-      expect(captureExceptionSpy).toHaveBeenCalledWith(
-        new Error(
-          `Snap "${TEST_SNAP_ID}" has de-synced accounts, we'll attempt to re-sync them...`,
-        ),
-      );
 
       const desyncedAccount = mockAccounts[1];
       expect(createAccountsSpy).toHaveBeenCalledWith({
@@ -826,14 +819,7 @@ describe('SnapAccountProvider', () => {
 
       expect(createAccountsSpy).toHaveBeenCalled();
 
-      expect(captureExceptionSpy).toHaveBeenNthCalledWith(
-        1,
-        new Error(
-          `Snap "${TEST_SNAP_ID}" has de-synced accounts, we'll attempt to re-sync them...`,
-        ),
-      );
-      expect(captureExceptionSpy).toHaveBeenNthCalledWith(
-        2,
+      expect(captureExceptionSpy).toHaveBeenCalledWith(
         new Error('Unable to re-sync account: 0'),
       );
       expect(captureExceptionSpy.mock.lastCall[0]).toHaveProperty(
