@@ -262,17 +262,8 @@ export class TokenListController extends StaticIntervalPollingController<TokenLi
    * @returns A promise that resolves when initialization is complete.
    */
   async initialize(): Promise<void> {
-    this.#initializationPromise = this.#initializeFromStorage();
+    this.#initializationPromise = this.#loadCacheFromStorage();
     await this.#initializationPromise;
-  }
-
-  /**
-   * Internal method to load cache from storage and run migration.
-   *
-   * @returns A promise that resolves when initialization is complete.
-   */
-  async #initializeFromStorage(): Promise<void> {
-    await this.#loadCacheFromStorage();
   }
 
   /**
