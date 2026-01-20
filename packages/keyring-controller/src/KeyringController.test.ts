@@ -1674,6 +1674,59 @@ describe('KeyringController', () => {
           expect(controller.state.keyrings[1].accounts).toStrictEqual([]);
         });
       });
+
+      it('should await an async removeAccount method before removing the keyring', async () => {
+        const address = '0x5AC6D462f054690a373FABF8CC28e161003aEB19';
+
+        // Track async operation state
+        let removeAccountCompleted = false;
+        let keyringCountDuringRemove: number | undefined;
+
+        // Create a mock keyring class with an async removeAccount
+        class AsyncRemoveAccountKeyring extends MockKeyring {
+          static override type = 'Async Remove Account Keyring';
+
+          override type = 'Async Remove Account Keyring';
+
+          removeAccount = jest.fn(async () => {
+            // Simulate async operation with a delay
+            await new Promise((resolve) => setTimeout(resolve, 10));
+            removeAccountCompleted = true;
+          });
+        }
+
+        stubKeyringClassWithAccount(AsyncRemoveAccountKeyring, address);
+
+        await withController(
+          {
+            keyringBuilders: [keyringBuilderFactory(AsyncRemoveAccountKeyring)],
+          },
+          async ({ controller, messenger }) => {
+            await controller.addNewKeyring(AsyncRemoveAccountKeyring.type);
+            expect(controller.state.keyrings).toHaveLength(2);
+
+            // Subscribe to state changes to capture timing
+            messenger.subscribe('KeyringController:stateChange', () => {
+              // Record keyring count when state changes and removeAccount hasn't completed yet
+              if (
+                !removeAccountCompleted &&
+                keyringCountDuringRemove === undefined
+              ) {
+                keyringCountDuringRemove = controller.state.keyrings.length;
+              }
+            });
+
+            await controller.removeAccount(address);
+
+            // Verify removeAccount completed before the keyring was removed
+            expect(removeAccountCompleted).toBe(true);
+            // The keyring should only be removed after removeAccount completes,
+            // so the first state change should still have 2 keyrings (or be undefined if no change occurred before completion)
+            // After completion, keyring count should be 1
+            expect(controller.state.keyrings).toHaveLength(1);
+          },
+        );
+      });
     });
 
     describe('when the keyring for the given address does not support removeAccount', () => {
