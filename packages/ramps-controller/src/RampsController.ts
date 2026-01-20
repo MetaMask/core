@@ -970,32 +970,21 @@ export class RampsController extends BaseController<
       { forceRefresh: options.forceRefresh, ttl: options.ttl },
     );
 
-    // Sort payment methods by the recommended order if provided
-    let sortedPayments = response.payments;
-    if (response.sort?.ids && response.sort.ids.length > 0) {
-      const orderMap = new Map(
-        response.sort.ids.map((id, index) => [id, index]),
-      );
-      sortedPayments = [...response.payments].sort((a, b) => {
-        const aIndex = orderMap.get(a.id) ?? Number.MAX_SAFE_INTEGER;
-        const bIndex = orderMap.get(b.id) ?? Number.MAX_SAFE_INTEGER;
-        return aIndex - bIndex;
-      });
-    }
-
     this.update((state) => {
-      state.paymentMethods = sortedPayments;
+      state.paymentMethods = response.payments;
       // Only clear selected payment method if it's no longer in the new list
       // This preserves the selection when cached data is returned (same context)
       if (
         state.selectedPaymentMethod &&
-        !sortedPayments.some((pm) => pm.id === state.selectedPaymentMethod?.id)
+        !response.payments.some(
+          (pm) => pm.id === state.selectedPaymentMethod?.id,
+        )
       ) {
         state.selectedPaymentMethod = null;
       }
     });
 
-    return { ...response, payments: sortedPayments };
+    return response;
   }
 
   /**
