@@ -549,12 +549,14 @@ export class RampsController extends BaseController<
       return this.state.userRegion;
     }
 
-    // When forceRefresh is true, clear the existing region, tokens, and providers before fetching
+    // When forceRefresh is true, clear the existing region and region-dependent state before fetching
     if (options?.forceRefresh) {
       this.update((state) => {
         state.userRegion = null;
         state.tokens = null;
         state.providers = [];
+        state.paymentMethods = [];
+        state.selectedPaymentMethod = null;
       });
     }
 
@@ -574,6 +576,8 @@ export class RampsController extends BaseController<
         state.userRegion = null;
         state.tokens = null;
         state.providers = [];
+        state.paymentMethods = [];
+        state.selectedPaymentMethod = null;
       });
       return null;
     }
@@ -589,10 +593,12 @@ export class RampsController extends BaseController<
           const regionChanged =
             state.userRegion?.regionCode !== userRegion.regionCode;
           state.userRegion = userRegion;
-          // Clear tokens and providers when region changes
+          // Clear region-dependent state when region changes
           if (regionChanged) {
             state.tokens = null;
             state.providers = [];
+            state.paymentMethods = [];
+            state.selectedPaymentMethod = null;
           }
         });
 
@@ -613,6 +619,8 @@ export class RampsController extends BaseController<
         state.userRegion = null;
         state.tokens = null;
         state.providers = [];
+        state.paymentMethods = [];
+        state.selectedPaymentMethod = null;
       });
 
       return null;
@@ -623,6 +631,8 @@ export class RampsController extends BaseController<
         state.userRegion = null;
         state.tokens = null;
         state.providers = [];
+        state.paymentMethods = [];
+        state.selectedPaymentMethod = null;
       });
 
       return null;
@@ -652,6 +662,8 @@ export class RampsController extends BaseController<
           state.userRegion = userRegion;
           state.tokens = null;
           state.providers = [];
+          state.paymentMethods = [];
+          state.selectedPaymentMethod = null;
         });
 
         // Fetch providers for the new region
@@ -669,6 +681,8 @@ export class RampsController extends BaseController<
         state.userRegion = null;
         state.tokens = null;
         state.providers = [];
+        state.paymentMethods = [];
+        state.selectedPaymentMethod = null;
       });
       throw new Error(
         `Region "${normalizedRegion}" not found in countries data. Cannot set user region without valid country information.`,
@@ -684,6 +698,8 @@ export class RampsController extends BaseController<
         state.userRegion = null;
         state.tokens = null;
         state.providers = [];
+        state.paymentMethods = [];
+        state.selectedPaymentMethod = null;
       });
       throw new Error(
         'Failed to fetch countries data. Cannot set user region without valid country information.',

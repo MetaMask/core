@@ -413,7 +413,6 @@ describe('RampsController', () => {
           Object {
             "preferredProvider": null,
             "providers": Array [],
-            "selectedPaymentMethod": null,
             "tokens": null,
             "userRegion": null,
           }
