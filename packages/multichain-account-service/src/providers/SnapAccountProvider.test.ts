@@ -183,6 +183,7 @@ const setup = ({
   mocks.SnapController.handleKeyringRequest.listAccounts.mockImplementation(
     async () => accounts.map(asKeyringAccount),
   );
+  mocks.SnapController.handleKeyringRequest.deleteAccount.mockResolvedValue(null);
 
   const keyring = {
     createAccount: jest.fn(),
@@ -755,6 +756,57 @@ describe('SnapAccountProvider', () => {
       expect(
         mocks.SnapController.handleKeyringRequest.deleteAccount,
       ).not.toHaveBeenCalled();
+    });
+
+    it('handles bidirectional de-sync by deleting extra Snap accounts and recreating missing ones', async () => {
+      // Create extra accounts that only exist in the Snap
+      const extraSnapAccount1 = MockAccountBuilder.from(MOCK_HD_ACCOUNT_1)
+        .withUuid()
+        .withSnapId(TEST_SNAP_ID)
+        .get();
+      const extraSnapAccount2 = MockAccountBuilder.from(MOCK_HD_ACCOUNT_2)
+        .withUuid()
+        .withSnapId(TEST_SNAP_ID)
+        .get();
+
+      // Snap has: [mockAccounts[0], extraSnapAccount1, extraSnapAccount2] (3 accounts)
+      // MetaMask has: [mockAccounts[0], mockAccounts[1]] (2 accounts)
+      // First condition (2 < 3): delete extraSnapAccount1 and extraSnapAccount2 from Snap
+      // After deletion: snapAccounts.size = 1, so second condition (2 > 1) triggers
+      // Second condition: recreate mockAccounts[1] in Snap
+      const { provider, messenger, mocks, keyring } = setup({
+        accounts: [mockAccounts[0], extraSnapAccount1, extraSnapAccount2],
+      });
+
+      const captureExceptionSpy = jest.spyOn(messenger, 'captureException');
+      const createAccountsSpy = jest.spyOn(provider, 'createAccounts');
+
+      await provider.resyncAccounts(mockAccounts);
+
+      // Should delete the extra Snap accounts
+      expect(
+        mocks.SnapController.handleKeyringRequest.deleteAccount,
+      ).toHaveBeenCalledTimes(2);
+      expect(
+        mocks.SnapController.handleKeyringRequest.deleteAccount,
+      ).toHaveBeenCalledWith(extraSnapAccount1.id);
+      expect(
+        mocks.SnapController.handleKeyringRequest.deleteAccount,
+      ).toHaveBeenCalledWith(extraSnapAccount2.id);
+
+      // Should log the re-sync attempt for the second recovery path
+      expect(captureExceptionSpy).toHaveBeenCalledWith(
+        new Error(
+          `Snap "${TEST_SNAP_ID}" has de-synced accounts, we'll attempt to re-sync them...`,
+        ),
+      );
+
+      // Should remove from keyring and recreate the missing account
+      expect(keyring.removeAccount).toHaveBeenCalledWith(mockAccounts[1].address);
+      expect(createAccountsSpy).toHaveBeenCalledWith({
+        entropySource: mockAccounts[1].options.entropy.id,
+        groupIndex: mockAccounts[1].options.entropy.groupIndex,
+      });
     });
 
     it('does not throw errors if any provider is not able to re-sync', async () => {
