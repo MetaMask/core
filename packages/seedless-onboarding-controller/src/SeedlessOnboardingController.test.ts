@@ -1271,6 +1271,10 @@ describe('SeedlessOnboardingController', () => {
           expect(
             controller.getSecretDataBackupState(MOCK_SEED_PHRASE),
           ).toBeDefined();
+
+          expect(controller.state.migrationVersion).toBe(
+            SeedlessOnboardingMigrationVersion.V1,
+          );
         },
       );
     });

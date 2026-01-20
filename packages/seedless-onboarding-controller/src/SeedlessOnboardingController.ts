@@ -504,6 +504,9 @@ export class SeedlessOnboardingController<
           rawToprfPwEncryptionKey: pwEncKey,
           rawToprfAuthKeyPair: authKeyPair,
         });
+
+        // Mark migration as complete since this new backup was created with the new data format (dataType)
+        this.#setMigrationVersion(SeedlessOnboardingMigrationVersion.V1);
       };
 
       await this.#executeWithTokenRefresh(
