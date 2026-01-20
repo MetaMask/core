@@ -1260,12 +1260,14 @@ export class KeyringController<
         );
       }
 
-      // The `removeAccount` method of snaps keyring is async. We have to update
-      // the interface of the other keyrings to be async as well.
-      // FIXME: We do cast to `Hex` to makes the type checker happy here, and
-      // because `Keyring<State>.removeAccount` requires address to be `Hex`. Those
-      // type would need to be updated for a full non-EVM support.
-      keyring.removeAccount(address as Hex);
+      // FIXME #1: We do cast to `Hex` to make the type checker happy here, and
+      // because `Keyring<State>.removeAccount` requires address to be `Hex`.
+      // Those types would need to be updated for a full non-EVM support.
+      //
+      // FIXME #2: The `removeAccount` method of snaps keyring is async. We have
+      // to update the interface of the other keyrings to be async as well.
+      // eslint-disable-next-line @typescript-eslint/await-thenable
+      await keyring.removeAccount(address as Hex);
 
       if (shouldRemoveKeyring) {
         this.#keyrings.splice(keyringIndex, 1);
