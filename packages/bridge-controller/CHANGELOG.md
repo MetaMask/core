@@ -7,6 +7,10 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+### Fixed
+
+- Fixed a typo in polling abort naming ([#7669](https://github.com/MetaMask/core/pull/7669))
+
 ## [64.6.0]
 
 ### Added
