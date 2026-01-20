@@ -276,6 +276,30 @@ describe('multicall', () => {
         'Contract call failed',
       );
     });
+
+    it('should support INK mainnet (0xdef1)', async () => {
+      const calls: Aggregate3Call[] = [
+        {
+          target: '0x0000000000000000000000000000000000000001',
+          allowFailure: true,
+          callData:
+            '0x70a08231000000000000000000000000000000000000000000000000000000000000000a',
+        },
+      ];
+
+      jest
+        .spyOn(provider, 'call')
+        .mockResolvedValue(
+          defaultAbiCoder.encode(
+            ['tuple(bool,bytes)[]'],
+            [[[true, defaultAbiCoder.encode(['uint256'], [100])]]],
+          ),
+        );
+
+      const results = await aggregate3(calls, '0xdef1', provider);
+      expect(results).toHaveLength(1);
+      expect(results[0].success).toBe(true);
+    });
   });
 
   describe('getTokenBalancesForMultipleAddresses', () => {

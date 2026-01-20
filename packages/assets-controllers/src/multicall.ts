@@ -306,6 +306,8 @@ const MULTICALL_CONTRACT_BY_CHAINID = {
   '0x10e6': '0xcA11bde05977b3631167028862bE2a173976CA11',
   // MSU (contract they deployed by their team for us)
   '0x10b3e': '0x99423C88EB5723A590b4C644426069042f137B9e',
+  // INK Mainnet
+  '0xdef1': '0xcA11bde05977b3631167028862bE2a173976CA11',
 } as Record<Hex, Hex>;
 
 const multicallAbi = [
