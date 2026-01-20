@@ -37,6 +37,7 @@ import {
   createLoadingState,
   createSuccessState,
   createErrorState,
+  RequestStatus,
 } from './RequestCache';
 
 // === GENERAL ===
@@ -500,6 +501,7 @@ export class RampsController extends BaseController<
    */
   #updateRequestState(cacheKey: string, requestState: RequestState): void {
     const maxSize = this.#requestCacheMaxSize;
+    const ttl = this.#requestCacheTTL;
 
     this.update((state) => {
       const requests = state.requests as unknown as Record<
@@ -508,19 +510,32 @@ export class RampsController extends BaseController<
       >;
       requests[cacheKey] = requestState;
 
-      // Evict oldest entries if cache exceeds max size
+      // Evict expired entries based on TTL
+      // Only evict SUCCESS states that have exceeded their TTL
       const keys = Object.keys(requests);
+      for (const key of keys) {
+        const entry = requests[key];
+        if (
+          entry &&
+          entry.status === RequestStatus.SUCCESS &&
+          isCacheExpired(entry, ttl)
+        ) {
+          delete requests[key];
+        }
+      }
 
-      if (keys.length > maxSize) {
+      // Evict oldest entries if cache still exceeds max size
+      const remainingKeys = Object.keys(requests);
+      if (remainingKeys.length > maxSize) {
         // Sort by timestamp (oldest first)
-        const sortedKeys = keys.sort((a, b) => {
+        const sortedKeys = remainingKeys.sort((a, b) => {
           const aTime = requests[a]?.timestamp ?? 0;
           const bTime = requests[b]?.timestamp ?? 0;
           return aTime - bTime;
         });
 
         // Remove oldest entries until we're under the limit
-        const entriesToRemove = keys.length - maxSize;
+        const entriesToRemove = remainingKeys.length - maxSize;
         for (let i = 0; i < entriesToRemove; i++) {
           const keyToRemove = sortedKeys[i];
           if (keyToRemove) {
@@ -779,13 +794,16 @@ export class RampsController extends BaseController<
    *
    * @param region - The region code (e.g., "us", "fr", "us-ny"). If not provided, uses the user's region from controller state.
    * @param action - The ramp action type ('buy' or 'sell').
-   * @param options - Options for cache behavior.
+   * @param options - Options for cache behavior and query filters.
+   * @param options.provider - Provider ID(s) to filter by.
    * @returns The tokens response containing topTokens and allTokens.
    */
   async getTokens(
     region?: string,
     action: RampAction = 'buy',
-    options?: ExecuteRequestOptions,
+    options?: ExecuteRequestOptions & {
+      provider?: string | string[];
+    },
   ): Promise<TokensResponse> {
     const regionToUse = region ?? this.state.userRegion?.regionCode;
 
@@ -796,7 +814,11 @@ export class RampsController extends BaseController<
     }
 
     const normalizedRegion = regionToUse.toLowerCase().trim();
-    const cacheKey = createCacheKey('getTokens', [normalizedRegion, action]);
+    const cacheKey = createCacheKey('getTokens', [
+      normalizedRegion,
+      action,
+      options?.provider,
+    ]);
 
     const tokens = await this.executeRequest(
       cacheKey,
@@ -805,6 +827,9 @@ export class RampsController extends BaseController<
           'RampsService:getTokens',
           normalizedRegion,
           action,
+          {
+            provider: options?.provider,
+          },
         );
       },
       options,
@@ -982,6 +1007,111 @@ export class RampsController extends BaseController<
   setSelectedPaymentMethod(paymentMethod: PaymentMethod | null): void {
     this.update((state) => {
       state.selectedPaymentMethod = paymentMethod;
+    });
+  }
+
+  // ============================================================
+  // Sync Trigger Methods
+  // These fire-and-forget methods are for use in React effects.
+  // Errors are stored in state and available via selectors.
+  // ============================================================
+
+  /**
+   * Triggers a user region update without throwing.
+   *
+   * @param options - Options for cache behavior.
+   */
+  triggerUpdateUserRegion(options?: ExecuteRequestOptions): void {
+    this.updateUserRegion(options).catch(() => {
+      // Error stored in state
+    });
+  }
+
+  /**
+   * Triggers setting the user region without throwing.
+   *
+   * @param region - The region code to set (e.g., "US-CA").
+   * @param options - Options for cache behavior.
+   */
+  triggerSetUserRegion(region: string, options?: ExecuteRequestOptions): void {
+    this.setUserRegion(region, options).catch(() => {
+      // Error stored in state
+    });
+  }
+
+  /**
+   * Triggers fetching countries without throwing.
+   *
+   * @param action - The ramp action type ('buy' or 'sell').
+   * @param options - Options for cache behavior.
+   */
+  triggerGetCountries(
+    action: 'buy' | 'sell' = 'buy',
+    options?: ExecuteRequestOptions,
+  ): void {
+    this.getCountries(action, options).catch(() => {
+      // Error stored in state
+    });
+  }
+
+  /**
+   * Triggers fetching tokens without throwing.
+   *
+   * @param region - The region code. If not provided, uses userRegion from state.
+   * @param action - The ramp action type ('buy' or 'sell').
+   * @param options - Options for cache behavior.
+   */
+  triggerGetTokens(
+    region?: string,
+    action: 'buy' | 'sell' = 'buy',
+    options?: ExecuteRequestOptions,
+  ): void {
+    this.getTokens(region, action, options).catch(() => {
+      // Error stored in state
+    });
+  }
+
+  /**
+   * Triggers fetching providers without throwing.
+   *
+   * @param region - The region code. If not provided, uses userRegion from state.
+   * @param options - Options for cache behavior and query filters.
+   */
+  triggerGetProviders(
+    region?: string,
+    options?: ExecuteRequestOptions & {
+      provider?: string | string[];
+      crypto?: string | string[];
+      fiat?: string | string[];
+      payments?: string | string[];
+    },
+  ): void {
+    this.getProviders(region, options).catch(() => {
+      // Error stored in state
+    });
+  }
+
+  /**
+   * Triggers fetching payment methods without throwing.
+   *
+   * @param options - Query parameters for filtering payment methods.
+   * @param options.region - User's region code. If not provided, uses userRegion from state.
+   * @param options.fiat - Fiat currency code. If not provided, uses userRegion currency.
+   * @param options.assetId - CAIP-19 cryptocurrency identifier.
+   * @param options.provider - Provider ID path.
+   * @param options.forceRefresh - Whether to bypass cache.
+   * @param options.ttl - Custom TTL for this request.
+   */
+  triggerGetPaymentMethods(options: {
+    region?: string;
+    fiat?: string;
+    assetId: string;
+    provider: string;
+    forceRefresh?: boolean;
+    ttl?: number;
+  }): void {
+    this.getPaymentMethods(options).catch(() => {
+      // Error stored in state
     });
   }
 }

@@ -932,6 +932,50 @@ describe('RampsController', () => {
         },
       );
     });
+
+    it('evicts expired entries based on TTL regardless of cache size', async () => {
+      const shortTTL = 100;
+      await withController(
+        { options: { requestCacheTTL: shortTTL, requestCacheMaxSize: 100 } },
+        async ({ controller }) => {
+          await controller.executeRequest('key1', async () => 'data1');
+          await controller.executeRequest('key2', async () => 'data2');
+
+          const keysBeforeExpiry = Object.keys(controller.state.requests);
+          expect(keysBeforeExpiry).toContain('key1');
+          expect(keysBeforeExpiry).toContain('key2');
+
+          await new Promise((resolve) => setTimeout(resolve, shortTTL + 50));
+
+          await controller.executeRequest('key3', async () => 'data3');
+
+          const keysAfterExpiry = Object.keys(controller.state.requests);
+          expect(keysAfterExpiry).not.toContain('key1');
+          expect(keysAfterExpiry).not.toContain('key2');
+          expect(keysAfterExpiry).toContain('key3');
+        },
+      );
+    });
+
+    it('does not evict non-expired entries during TTL-based eviction', async () => {
+      const longTTL = 1000;
+      await withController(
+        { options: { requestCacheTTL: longTTL, requestCacheMaxSize: 100 } },
+        async ({ controller }) => {
+          await controller.executeRequest('key1', async () => 'data1');
+          await controller.executeRequest('key2', async () => 'data2');
+
+          await new Promise((resolve) => setTimeout(resolve, 50));
+
+          await controller.executeRequest('key3', async () => 'data3');
+
+          const keys = Object.keys(controller.state.requests);
+          expect(keys).toContain('key1');
+          expect(keys).toContain('key2');
+          expect(keys).toContain('key3');
+        },
+      );
+    });
   });
 
   describe('getRequestState', () => {
@@ -949,6 +993,182 @@ describe('RampsController', () => {
       await withController(({ controller }) => {
         const state = controller.getRequestState('non-existent');
         expect(state).toBeUndefined();
+      });
+    });
+  });
+
+  describe('sync trigger methods', () => {
+    describe('triggerUpdateUserRegion', () => {
+      it('triggers user region update and returns void', async () => {
+        await withController(async ({ controller, rootMessenger }) => {
+          rootMessenger.registerActionHandler(
+            'RampsService:getGeolocation',
+            async () => 'us',
+          );
+          rootMessenger.registerActionHandler(
+            'RampsService:getCountries',
+            async () => createMockCountries(),
+          );
+          rootMessenger.registerActionHandler(
+            'RampsService:getProviders',
+            async () => ({ providers: [] }),
+          );
+
+          const result = controller.triggerUpdateUserRegion();
+          expect(result).toBeUndefined();
+
+          await new Promise((resolve) => setTimeout(resolve, 10));
+          expect(controller.state.userRegion?.regionCode).toBe('us');
+        });
+      });
+
+      it('does not throw when update fails', async () => {
+        await withController(async ({ controller, rootMessenger }) => {
+          rootMessenger.registerActionHandler(
+            'RampsService:getGeolocation',
+            async () => {
+              throw new Error('geolocation failed');
+            },
+          );
+
+          expect(() => controller.triggerUpdateUserRegion()).not.toThrow();
+        });
+      });
+    });
+
+    describe('triggerSetUserRegion', () => {
+      it('triggers set user region and returns void', async () => {
+        await withController(async ({ controller, rootMessenger }) => {
+          rootMessenger.registerActionHandler(
+            'RampsService:getCountries',
+            async () => createMockCountries(),
+          );
+          rootMessenger.registerActionHandler(
+            'RampsService:getProviders',
+            async () => ({ providers: [] }),
+          );
+
+          const result = controller.triggerSetUserRegion('us');
+          expect(result).toBeUndefined();
+
+          await new Promise((resolve) => setTimeout(resolve, 10));
+          expect(controller.state.userRegion?.regionCode).toBe('us');
+        });
+      });
+
+      it('does not throw when set fails', async () => {
+        await withController(async ({ controller, rootMessenger }) => {
+          rootMessenger.registerActionHandler(
+            'RampsService:getCountries',
+            async () => {
+              throw new Error('countries failed');
+            },
+          );
+
+          expect(() => controller.triggerSetUserRegion('us')).not.toThrow();
+        });
+      });
+    });
+
+    describe('triggerGetCountries', () => {
+      it('triggers get countries and returns void', async () => {
+        await withController(async ({ controller, rootMessenger }) => {
+          rootMessenger.registerActionHandler(
+            'RampsService:getCountries',
+            async () => createMockCountries(),
+          );
+
+          const result = controller.triggerGetCountries('buy');
+          expect(result).toBeUndefined();
+        });
+      });
+
+      it('does not throw when fetch fails', async () => {
+        await withController(async ({ controller, rootMessenger }) => {
+          rootMessenger.registerActionHandler(
+            'RampsService:getCountries',
+            async () => {
+              throw new Error('countries failed');
+            },
+          );
+
+          expect(() => controller.triggerGetCountries()).not.toThrow();
+        });
+      });
+    });
+
+    describe('triggerGetTokens', () => {
+      it('triggers get tokens and returns void', async () => {
+        await withController(
+          { options: { state: { userRegion: createMockUserRegion('us') } } },
+          async ({ controller, rootMessenger }) => {
+            rootMessenger.registerActionHandler(
+              'RampsService:getTokens',
+              async () => ({ topTokens: [], allTokens: [] }),
+            );
+
+            const result = controller.triggerGetTokens();
+            expect(result).toBeUndefined();
+
+            await new Promise((resolve) => setTimeout(resolve, 10));
+            expect(controller.state.tokens).toStrictEqual({
+              topTokens: [],
+              allTokens: [],
+            });
+          },
+        );
+      });
+
+      it('does not throw when fetch fails', async () => {
+        await withController(
+          { options: { state: { userRegion: createMockUserRegion('us') } } },
+          async ({ controller, rootMessenger }) => {
+            rootMessenger.registerActionHandler(
+              'RampsService:getTokens',
+              async () => {
+                throw new Error('tokens failed');
+              },
+            );
+
+            expect(() => controller.triggerGetTokens()).not.toThrow();
+          },
+        );
+      });
+    });
+
+    describe('triggerGetProviders', () => {
+      it('triggers get providers and returns void', async () => {
+        await withController(
+          { options: { state: { userRegion: createMockUserRegion('us') } } },
+          async ({ controller, rootMessenger }) => {
+            rootMessenger.registerActionHandler(
+              'RampsService:getProviders',
+              async () => ({ providers: [] }),
+            );
+
+            const result = controller.triggerGetProviders();
+            expect(result).toBeUndefined();
+
+            await new Promise((resolve) => setTimeout(resolve, 10));
+            expect(controller.state.providers).toStrictEqual([]);
+          },
+        );
+      });
+
+      it('does not throw when fetch fails', async () => {
+        await withController(
+          { options: { state: { userRegion: createMockUserRegion('us') } } },
+          async ({ controller, rootMessenger }) => {
+            rootMessenger.registerActionHandler(
+              'RampsService:getProviders',
+              async () => {
+                throw new Error('providers failed');
+              },
+            );
+
+            expect(() => controller.triggerGetProviders()).not.toThrow();
+          },
+        );
       });
     });
   });
@@ -1598,7 +1818,11 @@ describe('RampsController', () => {
       await withController(async ({ controller, rootMessenger }) => {
         rootMessenger.registerActionHandler(
           'RampsService:getTokens',
-          async (_region: string, _action?: 'buy' | 'sell') => mockTokens,
+          async (
+            _region: string,
+            _action?: 'buy' | 'sell',
+            _options?: { provider?: string | string[] },
+          ) => mockTokens,
         );
 
         expect(controller.state.tokens).toBeNull();
@@ -1649,7 +1873,11 @@ describe('RampsController', () => {
         let callCount = 0;
         rootMessenger.registerActionHandler(
           'RampsService:getTokens',
-          async (_region: string, _action?: 'buy' | 'sell') => {
+          async (
+            _region: string,
+            _action?: 'buy' | 'sell',
+            _options?: { provider?: string | string[] },
+          ) => {
             callCount += 1;
             return mockTokens;
           },
@@ -1667,7 +1895,11 @@ describe('RampsController', () => {
         let receivedAction: string | undefined;
         rootMessenger.registerActionHandler(
           'RampsService:getTokens',
-          async (_region: string, action?: 'buy' | 'sell') => {
+          async (
+            _region: string,
+            action?: 'buy' | 'sell',
+            _options?: { provider?: string | string[] },
+          ) => {
             receivedAction = action;
             return mockTokens;
           },
@@ -1684,7 +1916,11 @@ describe('RampsController', () => {
         let receivedAction: string | undefined;
         rootMessenger.registerActionHandler(
           'RampsService:getTokens',
-          async (_region: string, action?: 'buy' | 'sell') => {
+          async (
+            _region: string,
+            action?: 'buy' | 'sell',
+            _options?: { provider?: string | string[] },
+          ) => {
             receivedAction = action;
             return mockTokens;
           },
@@ -1701,7 +1937,11 @@ describe('RampsController', () => {
         let callCount = 0;
         rootMessenger.registerActionHandler(
           'RampsService:getTokens',
-          async (region: string, _action?: 'buy' | 'sell') => {
+          async (
+            region: string,
+            _action?: 'buy' | 'sell',
+            _options?: { provider?: string | string[] },
+          ) => {
             callCount += 1;
             expect(region).toBe('us');
             return mockTokens;
@@ -1720,7 +1960,11 @@ describe('RampsController', () => {
         let callCount = 0;
         rootMessenger.registerActionHandler(
           'RampsService:getTokens',
-          async (_region: string, _action?: 'buy' | 'sell') => {
+          async (
+            _region: string,
+            _action?: 'buy' | 'sell',
+            _options?: { provider?: string | string[] },
+          ) => {
             callCount += 1;
             return mockTokens;
           },
@@ -1738,7 +1982,11 @@ describe('RampsController', () => {
         let callCount = 0;
         rootMessenger.registerActionHandler(
           'RampsService:getTokens',
-          async (_region: string, _action?: 'buy' | 'sell') => {
+          async (
+            _region: string,
+            _action?: 'buy' | 'sell',
+            _options?: { provider?: string | string[] },
+          ) => {
             callCount += 1;
             return mockTokens;
           },
@@ -1758,7 +2006,11 @@ describe('RampsController', () => {
           let receivedRegion: string | undefined;
           rootMessenger.registerActionHandler(
             'RampsService:getTokens',
-            async (region: string, _action?: 'buy' | 'sell') => {
+            async (
+              region: string,
+              _action?: 'buy' | 'sell',
+              _options?: { provider?: string | string[] },
+            ) => {
               receivedRegion = region;
               return mockTokens;
             },
@@ -1786,7 +2038,11 @@ describe('RampsController', () => {
           let receivedRegion: string | undefined;
           rootMessenger.registerActionHandler(
             'RampsService:getTokens',
-            async (region: string, _action?: 'buy' | 'sell') => {
+            async (
+              region: string,
+              _action?: 'buy' | 'sell',
+              _options?: { provider?: string | string[] },
+            ) => {
               receivedRegion = region;
               return mockTokens;
             },
@@ -1805,7 +2061,11 @@ describe('RampsController', () => {
         async ({ controller, rootMessenger }) => {
           rootMessenger.registerActionHandler(
             'RampsService:getTokens',
-            async (region: string, _action?: 'buy' | 'sell') => {
+            async (
+              region: string,
+              _action?: 'buy' | 'sell',
+              _options?: { provider?: string | string[] },
+            ) => {
               expect(region).toBe('us');
               return mockTokens;
             },
@@ -1859,7 +2119,11 @@ describe('RampsController', () => {
         async ({ controller, rootMessenger }) => {
           rootMessenger.registerActionHandler(
             'RampsService:getTokens',
-            async (region: string, _action?: 'buy' | 'sell') => {
+            async (
+              region: string,
+              _action?: 'buy' | 'sell',
+              _options?: { provider?: string | string[] },
+            ) => {
               expect(region).toBe('fr');
               return mockTokens;
             },
@@ -1873,6 +2137,93 @@ describe('RampsController', () => {
           expect(controller.state.tokens).toStrictEqual(existingTokens);
         },
       );
+    });
+
+    it('passes provider parameter to service', async () => {
+      await withController(async ({ controller, rootMessenger }) => {
+        let receivedProvider: string | string[] | undefined;
+        rootMessenger.registerActionHandler(
+          'RampsService:getTokens',
+          async (
+            _region: string,
+            _action?: 'buy' | 'sell',
+            options?: { provider?: string | string[] },
+          ) => {
+            receivedProvider = options?.provider;
+            return mockTokens;
+          },
+        );
+
+        await controller.getTokens('us', 'buy', { provider: 'provider-id' });
+
+        expect(receivedProvider).toBe('provider-id');
+      });
+    });
+
+    it('creates separate cache entries for different providers', async () => {
+      await withController(async ({ controller, rootMessenger }) => {
+        let callCount = 0;
+        rootMessenger.registerActionHandler(
+          'RampsService:getTokens',
+          async (
+            _region: string,
+            _action?: 'buy' | 'sell',
+            _options?: { provider?: string | string[] },
+          ) => {
+            callCount += 1;
+            return mockTokens;
+          },
+        );
+
+        await controller.getTokens('us', 'buy', { provider: 'provider-1' });
+        await controller.getTokens('us', 'buy', { provider: 'provider-2' });
+
+        expect(callCount).toBe(2);
+      });
+    });
+
+    it('uses same cache entry for same provider', async () => {
+      await withController(async ({ controller, rootMessenger }) => {
+        let callCount = 0;
+        rootMessenger.registerActionHandler(
+          'RampsService:getTokens',
+          async (
+            _region: string,
+            _action?: 'buy' | 'sell',
+            _options?: { provider?: string | string[] },
+          ) => {
+            callCount += 1;
+            return mockTokens;
+          },
+        );
+
+        await controller.getTokens('us', 'buy', { provider: 'provider-1' });
+        await controller.getTokens('us', 'buy', { provider: 'provider-1' });
+
+        expect(callCount).toBe(1);
+      });
+    });
+
+    it('creates separate cache entries for requests with and without provider', async () => {
+      await withController(async ({ controller, rootMessenger }) => {
+        let callCount = 0;
+        rootMessenger.registerActionHandler(
+          'RampsService:getTokens',
+          async (
+            _region: string,
+            _action?: 'buy' | 'sell',
+            _options?: { provider?: string | string[] },
+          ) => {
+            callCount += 1;
+            return mockTokens;
+          },
+        );
+
+        await controller.getTokens('us', 'buy');
+        await controller.getTokens('us', 'buy', { provider: 'provider-1' });
+
+        expect(callCount).toBe(2);
+      });
     });
   });
 

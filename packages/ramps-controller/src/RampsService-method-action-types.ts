@@ -30,9 +30,12 @@ export type RampsServiceGetCountriesAction = {
 
 /**
  * Fetches the list of available tokens for a given region and action.
+ * Supports optional provider filter.
  *
  * @param region - The region code (e.g., "us", "fr", "us-ny").
  * @param action - The ramp action type ('buy' or 'sell').
+ * @param options - Optional query parameters for filtering tokens.
+ * @param options.provider - Provider ID(s) to filter by.
  * @returns The tokens response containing topTokens and allTokens.
  */
 export type RampsServiceGetTokensAction = {
