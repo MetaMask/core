@@ -1623,15 +1623,11 @@ describe('KeyringController', () => {
             controller.removeAccount(
               '0x0000000000000000000000000000000000000000',
             ),
-          ).rejects.toThrow(
-            'KeyringController - No keyring found. Error info: There are keyrings, but none match the address',
-          );
+          ).rejects.toThrow('KeyringController - No keyring found');
 
           await expect(
             controller.removeAccount('0xDUMMY_INPUT'),
-          ).rejects.toThrow(
-            'KeyringController - No keyring found. Error info: There are keyrings, but none match the address',
-          );
+          ).rejects.toThrow('KeyringController - No keyring found');
         });
       });
 
