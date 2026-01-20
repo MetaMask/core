@@ -200,14 +200,6 @@ export abstract class SnapAccountProvider extends BaseBip44AccountProvider {
       // We want this part to be fast, so we only check for sizes, but we might need
       // to make a real "diff" between the 2 states to not miss any de-sync.
       if (localSnapAccounts.length > snapAccounts.size) {
-        // Accounts should never really be de-synced, so we want to log this to see how often this
-        // happens, cause that means that something else is buggy elsewhere...
-        this.messenger.captureException?.(
-          new Error(
-            `Snap "${this.snapId}" has de-synced accounts, we'll attempt to re-sync them...`,
-          ),
-        );
-
         // We always use the MetaMask list as the main reference here.
         await Promise.all(
           localSnapAccounts.map(async (account) => {
