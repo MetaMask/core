@@ -13,12 +13,15 @@ import type {
   Provider,
   State,
   RampAction,
+  PaymentMethod,
+  PaymentMethodsResponse,
 } from './RampsService';
 import type {
   RampsServiceGetGeolocationAction,
   RampsServiceGetCountriesAction,
   RampsServiceGetTokensAction,
   RampsServiceGetProvidersAction,
+  RampsServiceGetPaymentMethodsAction,
 } from './RampsService-method-action-types';
 import type {
   RequestCache as RequestCacheType,
@@ -91,6 +94,16 @@ export type RampsControllerState = {
    */
   tokens: TokensResponse | null;
   /**
+   * Payment methods available for the current context.
+   * Filtered by region, fiat, asset, and provider.
+   */
+  paymentMethods: PaymentMethod[];
+  /**
+   * The user's selected payment method.
+   * Can be manually set by the user.
+   */
+  selectedPaymentMethod: PaymentMethod | null;
+  /**
    * Cache of request states, keyed by cache key.
    * This stores loading, success, and error states for API requests.
    */
@@ -125,6 +138,18 @@ const rampsControllerMetadata = {
     includeInStateLogs: true,
     usedInUi: true,
   },
+  paymentMethods: {
+    persist: false,
+    includeInDebugSnapshot: true,
+    includeInStateLogs: true,
+    usedInUi: true,
+  },
+  selectedPaymentMethod: {
+    persist: true,
+    includeInDebugSnapshot: true,
+    includeInStateLogs: true,
+    usedInUi: true,
+  },
   requests: {
     persist: false,
     includeInDebugSnapshot: true,
@@ -147,6 +172,8 @@ export function getDefaultRampsControllerState(): RampsControllerState {
     preferredProvider: null,
     providers: [],
     tokens: null,
+    paymentMethods: [],
+    selectedPaymentMethod: null,
     requests: {},
   };
 }
@@ -173,7 +200,8 @@ type AllowedActions =
   | RampsServiceGetGeolocationAction
   | RampsServiceGetCountriesAction
   | RampsServiceGetTokensAction
-  | RampsServiceGetProvidersAction;
+  | RampsServiceGetProvidersAction
+  | RampsServiceGetPaymentMethodsAction;
 
 /**
  * Published when the state of {@link RampsController} changes.
@@ -841,5 +869,94 @@ export class RampsController extends BaseController<
     });
 
     return { providers };
+  }
+
+  /**
+   * Fetches the list of payment methods for a given context.
+   * The payment methods are saved in the controller state once fetched.
+   *
+   * @param options - Query parameters for filtering payment methods.
+   * @param options.region - User's region code. If not provided, uses the user's region from controller state.
+   * @param options.fiat - Fiat currency code (e.g., "usd"). If not provided, uses the user's region currency.
+   * @param options.assetId - CAIP-19 cryptocurrency identifier.
+   * @param options.provider - Provider ID path.
+   * @param options.forceRefresh - Whether to bypass cache.
+   * @param options.ttl - Custom TTL for this request.
+   * @returns The payment methods response containing payments array.
+   */
+  async getPaymentMethods(options: {
+    region?: string;
+    fiat?: string;
+    assetId: string;
+    provider: string;
+    forceRefresh?: boolean;
+    ttl?: number;
+  }): Promise<PaymentMethodsResponse> {
+    const regionToUse = options.region ?? this.state.userRegion?.regionCode;
+    const fiatToUse = options.fiat ?? this.state.userRegion?.country?.currency;
+
+    if (!regionToUse) {
+      throw new Error(
+        'Region is required. Either provide a region parameter or ensure userRegion is set in controller state.',
+      );
+    }
+
+    if (!fiatToUse) {
+      throw new Error(
+        'Fiat currency is required. Either provide a fiat parameter or ensure userRegion is set in controller state.',
+      );
+    }
+
+    const normalizedRegion = regionToUse.toLowerCase().trim();
+    const normalizedFiat = fiatToUse.toLowerCase().trim();
+    const cacheKey = createCacheKey('getPaymentMethods', [
+      normalizedRegion,
+      normalizedFiat,
+      options.assetId,
+      options.provider,
+    ]);
+
+    const response = await this.executeRequest(
+      cacheKey,
+      async () => {
+        return this.messenger.call('RampsService:getPaymentMethods', {
+          region: normalizedRegion,
+          fiat: normalizedFiat,
+          assetId: options.assetId,
+          provider: options.provider,
+        });
+      },
+      { forceRefresh: options.forceRefresh, ttl: options.ttl },
+    );
+
+    // Sort payment methods by the recommended order if provided
+    let sortedPayments = response.payments;
+    if (response.sort?.ids && response.sort.ids.length > 0) {
+      const orderMap = new Map(
+        response.sort.ids.map((id, index) => [id, index]),
+      );
+      sortedPayments = [...response.payments].sort((a, b) => {
+        const aIndex = orderMap.get(a.id) ?? Number.MAX_SAFE_INTEGER;
+        const bIndex = orderMap.get(b.id) ?? Number.MAX_SAFE_INTEGER;
+        return aIndex - bIndex;
+      });
+    }
+
+    this.update((state) => {
+      state.paymentMethods = sortedPayments;
+    });
+
+    return { ...response, payments: sortedPayments };
+  }
+
+  /**
+   * Sets the user's selected payment method.
+   *
+   * @param paymentMethod - The payment method to select, or null to clear.
+   */
+  setSelectedPaymentMethod(paymentMethod: PaymentMethod | null): void {
+    this.update((state) => {
+      state.selectedPaymentMethod = paymentMethod;
+    });
   }
 }

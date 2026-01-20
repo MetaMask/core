@@ -23,9 +23,11 @@ describe('RampsController', () => {
       await withController(({ controller }) => {
         expect(controller.state).toMatchInlineSnapshot(`
           Object {
+            "paymentMethods": Array [],
             "preferredProvider": null,
             "providers": Array [],
             "requests": Object {},
+            "selectedPaymentMethod": null,
             "tokens": null,
             "userRegion": null,
           }
@@ -53,9 +55,11 @@ describe('RampsController', () => {
       await withController({ options: { state: {} } }, ({ controller }) => {
         expect(controller.state).toMatchInlineSnapshot(`
           Object {
+            "paymentMethods": Array [],
             "preferredProvider": null,
             "providers": Array [],
             "requests": Object {},
+            "selectedPaymentMethod": null,
             "tokens": null,
             "userRegion": null,
           }
@@ -364,9 +368,11 @@ describe('RampsController', () => {
           ),
         ).toMatchInlineSnapshot(`
           Object {
+            "paymentMethods": Array [],
             "preferredProvider": null,
             "providers": Array [],
             "requests": Object {},
+            "selectedPaymentMethod": null,
             "tokens": null,
             "userRegion": null,
           }
@@ -384,8 +390,10 @@ describe('RampsController', () => {
           ),
         ).toMatchInlineSnapshot(`
           Object {
+            "paymentMethods": Array [],
             "preferredProvider": null,
             "providers": Array [],
+            "selectedPaymentMethod": null,
             "tokens": null,
             "userRegion": null,
           }
@@ -405,6 +413,7 @@ describe('RampsController', () => {
           Object {
             "preferredProvider": null,
             "providers": Array [],
+            "selectedPaymentMethod": null,
             "tokens": null,
             "userRegion": null,
           }
@@ -422,9 +431,11 @@ describe('RampsController', () => {
           ),
         ).toMatchInlineSnapshot(`
           Object {
+            "paymentMethods": Array [],
             "preferredProvider": null,
             "providers": Array [],
             "requests": Object {},
+            "selectedPaymentMethod": null,
             "tokens": null,
             "userRegion": null,
           }
