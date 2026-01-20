@@ -1716,6 +1716,22 @@ describe('SeedlessOnboardingController', () => {
       });
     });
 
+    it('should throw an error if PrimarySrp dataType is passed', async () => {
+      await withController(async ({ controller }) => {
+        await expect(
+          controller.addNewSecretData(
+            NEW_KEY_RING_1.seedPhrase,
+            EncAccountDataType.PrimarySrp,
+            {
+              keyringId: NEW_KEY_RING_1.id,
+            },
+          ),
+        ).rejects.toThrow(
+          'PrimarySrp cannot be added via addNewSecretData. Use createToprfKeyAndBackupSeedPhrase instead.',
+        );
+      });
+    });
+
     it('should be able to add a new seed phrase backup', async () => {
       await withController(
         {

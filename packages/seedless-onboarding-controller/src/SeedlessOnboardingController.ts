@@ -529,6 +529,12 @@ export class SeedlessOnboardingController<
       keyringId?: string;
     },
   ): Promise<void> {
+    if (dataType === EncAccountDataType.PrimarySrp) {
+      throw new Error(
+        'PrimarySrp cannot be added via addNewSecretData. Use createToprfKeyAndBackupSeedPhrase instead.',
+      );
+    }
+
     return await this.#withControllerLock(async () => {
       this.#assertIsUnlocked();
 
