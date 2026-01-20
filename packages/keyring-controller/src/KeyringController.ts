@@ -1268,7 +1268,8 @@ export class KeyringController<
       keyring.removeAccount(address as Hex);
 
       if (shouldRemoveKeyring) {
-        await this.#removeEmptyKeyrings();
+        this.#keyrings.splice(keyringIndex, 1);
+        await this.#destroyKeyring(keyring);
       }
     });
 
@@ -2574,34 +2575,6 @@ export class KeyringController<
    */
   async #destroyKeyring(keyring: EthKeyring): Promise<void> {
     await keyring.destroy?.();
-  }
-
-  /**
-   * Remove empty keyrings.
-   *
-   * Loops through the keyrings and removes the ones with empty accounts
-   * (usually after removing the last / only account) from a keyring.
-   */
-  async #removeEmptyKeyrings(): Promise<void> {
-    this.#assertControllerMutexIsLocked();
-    const validKeyrings: { keyring: EthKeyring; metadata: KeyringMetadata }[] =
-      [];
-
-    // Since getAccounts returns a Promise
-    // We need to wait to hear back form each keyring
-    // in order to decide which ones are now valid (accounts.length > 0)
-
-    await Promise.all(
-      this.#keyrings.map(async ({ keyring, metadata }) => {
-        const accounts = await keyring.getAccounts();
-        if (accounts.length > 0) {
-          validKeyrings.push({ keyring, metadata });
-        } else {
-          await this.#destroyKeyring(keyring);
-        }
-      }),
-    );
-    this.#keyrings = validKeyrings;
   }
 
   /**
