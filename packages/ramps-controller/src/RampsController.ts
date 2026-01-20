@@ -7,7 +7,13 @@ import { BaseController } from '@metamask/base-controller';
 import type { Messenger } from '@metamask/messenger';
 import type { Json } from '@metamask/utils';
 
-import type { Country, TokensResponse, Provider, State } from './RampsService';
+import type {
+  Country,
+  TokensResponse,
+  Provider,
+  State,
+  RampAction,
+} from './RampsService';
 import type {
   RampsServiceGetGeolocationAction,
   RampsServiceGetCountriesAction,
@@ -709,7 +715,7 @@ export class RampsController extends BaseController<
    * @returns An array of countries.
    */
   async getCountries(
-    action: 'buy' | 'sell' = 'buy',
+    action: RampAction = 'buy',
     options?: ExecuteRequestOptions,
   ): Promise<Country[]> {
     const cacheKey = createCacheKey('getCountries', [action]);
@@ -734,7 +740,7 @@ export class RampsController extends BaseController<
    */
   async getTokens(
     region?: string,
-    action: 'buy' | 'sell' = 'buy',
+    action: RampAction = 'buy',
     options?: ExecuteRequestOptions,
   ): Promise<TokensResponse> {
     const regionToUse = region ?? this.state.userRegion?.regionCode;
@@ -835,5 +841,86 @@ export class RampsController extends BaseController<
     });
 
     return { providers };
+  }
+
+  // ============================================================
+  // Sync Trigger Methods
+  // These fire-and-forget methods are for use in React effects.
+  // Errors are stored in state and available via selectors.
+  // ============================================================
+
+  /**
+   * Triggers a user region update without throwing.
+   *
+   * @param options - Options for cache behavior.
+   */
+  triggerUpdateUserRegion(options?: ExecuteRequestOptions): void {
+    this.updateUserRegion(options).catch(() => {
+      // Error stored in state
+    });
+  }
+
+  /**
+   * Triggers setting the user region without throwing.
+   *
+   * @param region - The region code to set (e.g., "US-CA").
+   * @param options - Options for cache behavior.
+   */
+  triggerSetUserRegion(region: string, options?: ExecuteRequestOptions): void {
+    this.setUserRegion(region, options).catch(() => {
+      // Error stored in state
+    });
+  }
+
+  /**
+   * Triggers fetching countries without throwing.
+   *
+   * @param action - The ramp action type ('buy' or 'sell').
+   * @param options - Options for cache behavior.
+   */
+  triggerGetCountries(
+    action: 'buy' | 'sell' = 'buy',
+    options?: ExecuteRequestOptions,
+  ): void {
+    this.getCountries(action, options).catch(() => {
+      // Error stored in state
+    });
+  }
+
+  /**
+   * Triggers fetching tokens without throwing.
+   *
+   * @param region - The region code. If not provided, uses userRegion from state.
+   * @param action - The ramp action type ('buy' or 'sell').
+   * @param options - Options for cache behavior.
+   */
+  triggerGetTokens(
+    region?: string,
+    action: 'buy' | 'sell' = 'buy',
+    options?: ExecuteRequestOptions,
+  ): void {
+    this.getTokens(region, action, options).catch(() => {
+      // Error stored in state
+    });
+  }
+
+  /**
+   * Triggers fetching providers without throwing.
+   *
+   * @param region - The region code. If not provided, uses userRegion from state.
+   * @param options - Options for cache behavior and query filters.
+   */
+  triggerGetProviders(
+    region?: string,
+    options?: ExecuteRequestOptions & {
+      provider?: string | string[];
+      crypto?: string | string[];
+      fiat?: string | string[];
+      payments?: string | string[];
+    },
+  ): void {
+    this.getProviders(region, options).catch(() => {
+      // Error stored in state
+    });
   }
 }
