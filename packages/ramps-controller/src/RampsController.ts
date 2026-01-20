@@ -985,15 +985,9 @@ export class RampsController extends BaseController<
 
     this.update((state) => {
       state.paymentMethods = sortedPayments;
-      // Clear selected payment method if it's no longer in the available options
-      if (
-        state.selectedPaymentMethod &&
-        !sortedPayments.some(
-          (payment) => payment.id === state.selectedPaymentMethod?.id,
-        )
-      ) {
-        state.selectedPaymentMethod = null;
-      }
+      // Always clear selected payment method when fetching new payment methods
+      // because the context (assetId, provider) may have changed and terms/fees could differ
+      state.selectedPaymentMethod = null;
     });
 
     return { ...response, payments: sortedPayments };

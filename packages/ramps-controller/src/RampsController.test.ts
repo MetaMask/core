@@ -2248,47 +2248,7 @@ describe('RampsController', () => {
       payments: [mockPaymentMethod1, mockPaymentMethod2],
     };
 
-    it('clears selectedPaymentMethod when it is no longer in the new payment methods list', async () => {
-      await withController(
-        {
-          options: {
-            state: {
-              userRegion: createMockUserRegion('us'),
-              selectedPaymentMethod: mockPaymentMethod1,
-              paymentMethods: [mockPaymentMethod1, mockPaymentMethod2],
-            },
-          },
-        },
-        async ({ controller, rootMessenger }) => {
-          // New response doesn't include the previously selected method
-          const newPaymentMethodsResponse: PaymentMethodsResponse = {
-            payments: [mockPaymentMethod2],
-          };
-
-          rootMessenger.registerActionHandler(
-            'RampsService:getPaymentMethods',
-            async () => newPaymentMethodsResponse,
-          );
-
-          expect(controller.state.selectedPaymentMethod).toStrictEqual(
-            mockPaymentMethod1,
-          );
-
-          await controller.getPaymentMethods({
-            assetId: 'eip155:1/slip44:60',
-            provider: '/providers/stripe',
-          });
-
-          // selectedPaymentMethod should be cleared since it's no longer in the list
-          expect(controller.state.selectedPaymentMethod).toBeNull();
-          expect(controller.state.paymentMethods).toStrictEqual([
-            mockPaymentMethod2,
-          ]);
-        },
-      );
-    });
-
-    it('preserves selectedPaymentMethod when it still exists in the new payment methods list', async () => {
+    it('always clears selectedPaymentMethod when fetching new payment methods', async () => {
       await withController(
         {
           options: {
@@ -2314,10 +2274,9 @@ describe('RampsController', () => {
             provider: '/providers/stripe',
           });
 
-          // selectedPaymentMethod should be preserved since it still exists in the list
-          expect(controller.state.selectedPaymentMethod).toStrictEqual(
-            mockPaymentMethod1,
-          );
+          // selectedPaymentMethod should always be cleared when fetching new payment methods
+          // because the context (assetId, provider) may have changed and terms/fees could differ
+          expect(controller.state.selectedPaymentMethod).toBeNull();
           expect(controller.state.paymentMethods).toStrictEqual([
             mockPaymentMethod1,
             mockPaymentMethod2,
