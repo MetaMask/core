@@ -19,7 +19,8 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 ### Changed
 
 - Upgrade `@metamask/utils` from `^11.8.1` to `^11.9.0` ([#7511](https://github.com/MetaMask/core/pull/7511))
-- Do not remove other empty keyrings when removing an account ([#7670](https://github.com/MetaMask/core/pull/7670))
+- Prevent the accidental removal of unrelated empty keyrings when deleting an account ([#7670](https://github.com/MetaMask/core/pull/7670))
+  - Empty keyrings were removed during account deletion, regardless of which account was being targeted.
 
 ## [25.0.0]
 
