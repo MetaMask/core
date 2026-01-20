@@ -17,11 +17,11 @@ export type ConnectivityStatus =
  */
 export type ConnectivityAdapter = {
   /**
-   * Returns the current connectivity status.
+   * Returns a promise that resolves to the current connectivity status.
    *
-   * @returns 'online' if the device is online, 'offline' otherwise.
+   * @returns A promise that resolves to 'online' if the device is online, 'offline' otherwise.
    */
-  getStatus(): ConnectivityStatus;
+  getStatus(): Promise<ConnectivityStatus>;
 
   /**
    * Registers a callback to be called when connectivity status changes.
