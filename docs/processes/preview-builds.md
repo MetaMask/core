@@ -37,9 +37,24 @@ Note that the steps above will only work if you are a member of the MetaMask eng
 
 ## Using preview builds
 
-To simulate production as best as possible, there are different instructions for using preview builds depending on whether the changes to a package you are testing are breaking or non-breaking.
+To simulate production as best as possible, there two different paths to take depending on whether you anticipate making breaking or non-breaking changes to the package you want to test.
 
 ### Testing non-breaking changes to a package
+
+If you're in a MetaMask client repo (e.g. `metamask-extension` or `metamask-mobile`), run:
+
+```bash
+yarn use-preview-build <name-of-package> <preview-version> --type non-breaking
+```
+
+For example:
+
+```bash
+yarn use-preview-build @metamask/permission-controller 13.0.2-preview-940c934 --type non-breaking
+```
+
+<details>
+<summary><strong>Manual steps</strong></summary>
 
 If you have made non-breaking changes to the package you want to test, and therefore plan on bumping the _minor_ or _patch_ part of that package's version, follow these steps:
 
@@ -97,8 +112,24 @@ If you have made non-breaking changes to the package you want to test, and there
 > "@metamask/controller-utils@^1.1.3": "npm:@metamask-previews/controller-utils@1.1.4-preview-e2df9b4",
 > "@metamask/controller-utils@^1.1.4": "npm:@metamask-previews/controller-utils@1.1.4-preview-e2df9b4",
 > ```
+</details>
 
 ### Testing breaking changes to a package
+
+If you're in a MetaMask client repo (e.g. `metamask-extension` or `metamask-mobile`), run:
+
+```bash
+yarn use-preview-build <name-of-package> <preview-version> --type breaking
+```
+
+For example:
+
+```bash
+yarn use-preview-build @metamask/permission-controller 13.0.2-preview-940c934 --type breaking
+```
+
+<details>
+<summary><strong>Manual steps</strong></summary>
 
 If you have made breaking changes to the package you want to test, and therefore plan on bumping the _major_ part of that package's version, follow these steps:
 
@@ -135,6 +166,7 @@ If you have made breaking changes to the package you want to test, and therefore
 > ```json
 > "metamask@workspace:./@metamask/network-controller@^12.4.9": "npm:@metamask-previews/network-controller@12.4.9-preview-e2df9b4",
 > ```
+</details>
 
 ### Using a preview build for a patched package
 
