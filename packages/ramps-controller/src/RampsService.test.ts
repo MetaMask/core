@@ -1208,6 +1208,31 @@ describe('RampsService', () => {
       expect(tokensResponse.topTokens).toStrictEqual([]);
       expect(tokensResponse.allTokens).toStrictEqual([]);
     });
+
+    it('throws error for HTTP error response', async () => {
+      nock('https://on-ramp-cache.uat-api.cx.metamask.io')
+        .get('/v2/regions/us/topTokens')
+        .query({
+          action: 'buy',
+          sdk: '2.1.6',
+          controller: CONTROLLER_VERSION,
+          context: 'mobile-ios',
+        })
+        .times(4)
+        .reply(500, 'Internal Server Error');
+      const { service } = getService();
+      service.onRetry(() => {
+        clock.nextAsync().catch(() => undefined);
+      });
+
+      const tokensPromise = service.getTokens('us', 'buy');
+      await clock.runAllAsync();
+      await flushPromises();
+
+      await expect(tokensPromise).rejects.toThrow(
+        `Fetching 'https://on-ramp-cache.uat-api.cx.metamask.io/v2/regions/us/topTokens?action=buy&sdk=2.1.6&controller=${CONTROLLER_VERSION}&context=mobile-ios' failed with status '500'`,
+      );
+    });
   });
 
   describe('getProviders', () => {
