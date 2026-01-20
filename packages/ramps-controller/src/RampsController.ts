@@ -34,6 +34,7 @@ import {
   createLoadingState,
   createSuccessState,
   createErrorState,
+  RequestStatus,
 } from './RequestCache';
 
 // === GENERAL ===
@@ -472,6 +473,7 @@ export class RampsController extends BaseController<
    */
   #updateRequestState(cacheKey: string, requestState: RequestState): void {
     const maxSize = this.#requestCacheMaxSize;
+    const ttl = this.#requestCacheTTL;
 
     this.update((state) => {
       const requests = state.requests as unknown as Record<
@@ -480,19 +482,32 @@ export class RampsController extends BaseController<
       >;
       requests[cacheKey] = requestState;
 
-      // Evict oldest entries if cache exceeds max size
+      // Evict expired entries based on TTL
+      // Only evict SUCCESS states that have exceeded their TTL
       const keys = Object.keys(requests);
+      for (const key of keys) {
+        const entry = requests[key];
+        if (
+          entry &&
+          entry.status === RequestStatus.SUCCESS &&
+          isCacheExpired(entry, ttl)
+        ) {
+          delete requests[key];
+        }
+      }
 
-      if (keys.length > maxSize) {
+      // Evict oldest entries if cache still exceeds max size
+      const remainingKeys = Object.keys(requests);
+      if (remainingKeys.length > maxSize) {
         // Sort by timestamp (oldest first)
-        const sortedKeys = keys.sort((a, b) => {
+        const sortedKeys = remainingKeys.sort((a, b) => {
           const aTime = requests[a]?.timestamp ?? 0;
           const bTime = requests[b]?.timestamp ?? 0;
           return aTime - bTime;
         });
 
         // Remove oldest entries until we're under the limit
-        const entriesToRemove = keys.length - maxSize;
+        const entriesToRemove = remainingKeys.length - maxSize;
         for (let i = 0; i < entriesToRemove; i++) {
           const keyToRemove = sortedKeys[i];
           if (keyToRemove) {

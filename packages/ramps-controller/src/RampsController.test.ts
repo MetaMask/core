@@ -914,6 +914,50 @@ describe('RampsController', () => {
         },
       );
     });
+
+    it('evicts expired entries based on TTL regardless of cache size', async () => {
+      const shortTTL = 100;
+      await withController(
+        { options: { requestCacheTTL: shortTTL, requestCacheMaxSize: 100 } },
+        async ({ controller }) => {
+          await controller.executeRequest('key1', async () => 'data1');
+          await controller.executeRequest('key2', async () => 'data2');
+
+          const keysBeforeExpiry = Object.keys(controller.state.requests);
+          expect(keysBeforeExpiry).toContain('key1');
+          expect(keysBeforeExpiry).toContain('key2');
+
+          await new Promise((resolve) => setTimeout(resolve, shortTTL + 50));
+
+          await controller.executeRequest('key3', async () => 'data3');
+
+          const keysAfterExpiry = Object.keys(controller.state.requests);
+          expect(keysAfterExpiry).not.toContain('key1');
+          expect(keysAfterExpiry).not.toContain('key2');
+          expect(keysAfterExpiry).toContain('key3');
+        },
+      );
+    });
+
+    it('does not evict non-expired entries during TTL-based eviction', async () => {
+      const longTTL = 1000;
+      await withController(
+        { options: { requestCacheTTL: longTTL, requestCacheMaxSize: 100 } },
+        async ({ controller }) => {
+          await controller.executeRequest('key1', async () => 'data1');
+          await controller.executeRequest('key2', async () => 'data2');
+
+          await new Promise((resolve) => setTimeout(resolve, 50));
+
+          await controller.executeRequest('key3', async () => 'data3');
+
+          const keys = Object.keys(controller.state.requests);
+          expect(keys).toContain('key1');
+          expect(keys).toContain('key2');
+          expect(keys).toContain('key3');
+        },
+      );
+    });
   });
 
   describe('getRequestState', () => {
