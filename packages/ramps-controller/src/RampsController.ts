@@ -145,7 +145,7 @@ const rampsControllerMetadata = {
     usedInUi: true,
   },
   selectedPaymentMethod: {
-    persist: true,
+    persist: false,
     includeInDebugSnapshot: true,
     includeInStateLogs: true,
     usedInUi: true,
