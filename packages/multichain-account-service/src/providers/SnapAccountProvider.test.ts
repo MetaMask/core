@@ -685,7 +685,7 @@ describe('SnapAccountProvider', () => {
     });
 
     it('creates new accounts if de-synced', async () => {
-      const { provider, messenger } = setup({
+      const { provider } = setup({
         accounts: [mockAccounts[0]],
       });
 
