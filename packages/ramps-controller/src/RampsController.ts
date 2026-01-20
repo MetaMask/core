@@ -487,7 +487,11 @@ export class RampsController extends BaseController<
       const keys = Object.keys(requests);
       for (const key of keys) {
         const entry = requests[key];
-        if (entry && entry.status === RequestStatus.SUCCESS && isCacheExpired(entry, ttl)) {
+        if (
+          entry &&
+          entry.status === RequestStatus.SUCCESS &&
+          isCacheExpired(entry, ttl)
+        ) {
           delete requests[key];
         }
       }
@@ -746,13 +750,16 @@ export class RampsController extends BaseController<
    *
    * @param region - The region code (e.g., "us", "fr", "us-ny"). If not provided, uses the user's region from controller state.
    * @param action - The ramp action type ('buy' or 'sell').
-   * @param options - Options for cache behavior.
+   * @param options - Options for cache behavior and query filters.
+   * @param options.provider - Provider ID(s) to filter by.
    * @returns The tokens response containing topTokens and allTokens.
    */
   async getTokens(
     region?: string,
     action: RampAction = 'buy',
-    options?: ExecuteRequestOptions,
+    options?: ExecuteRequestOptions & {
+      provider?: string | string[];
+    },
   ): Promise<TokensResponse> {
     const regionToUse = region ?? this.state.userRegion?.regionCode;
 
@@ -763,7 +770,11 @@ export class RampsController extends BaseController<
     }
 
     const normalizedRegion = regionToUse.toLowerCase().trim();
-    const cacheKey = createCacheKey('getTokens', [normalizedRegion, action]);
+    const cacheKey = createCacheKey('getTokens', [
+      normalizedRegion,
+      action,
+      options?.provider,
+    ]);
 
     const tokens = await this.executeRequest(
       cacheKey,
@@ -772,6 +783,9 @@ export class RampsController extends BaseController<
           'RampsService:getTokens',
           normalizedRegion,
           action,
+          {
+            provider: options?.provider,
+          },
         );
       },
       options,
