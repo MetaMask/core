@@ -548,7 +548,11 @@ export class RampsController extends BaseController<
 
   /**
    * Updates the user's region by fetching geolocation.
-   * This method calls the RampsService to get the geolocation.
+   * This method calls the RampsService to get the geolocation and resolves it
+   * against the countries list.
+   *
+   * Note: This method does not fetch providers. Callers should fetch providers
+   * separately if needed. For initialization, use init() which handles this.
    *
    * @param options - Options for cache behavior.
    * @returns The user region object.
@@ -556,15 +560,10 @@ export class RampsController extends BaseController<
   async updateUserRegion(
     options?: ExecuteRequestOptions,
   ): Promise<UserRegion | null> {
-    // If a userRegion already exists and forceRefresh is not requested,
-    // return it immediately without fetching geolocation.
-    // This ensures that once a region is set (either via geolocation or manual selection),
-    // it will not be overwritten by subsequent geolocation fetches.
     if (this.state.userRegion && !options?.forceRefresh) {
       return this.state.userRegion;
     }
 
-    // When forceRefresh is true, clear the existing region and region-dependent state before fetching
     if (options?.forceRefresh) {
       this.update((state) => {
         state.userRegion = null;
@@ -575,88 +574,20 @@ export class RampsController extends BaseController<
       });
     }
 
-    const cacheKey = createCacheKey('updateUserRegion', []);
+    const [countries, regionCode] = await Promise.all([
+      this.getCountries('buy', options).catch(() => [] as Country[]),
+      this.#getGeolocationCode(options),
+    ]);
 
-    const regionCode = await this.executeRequest(
-      cacheKey,
-      async () => {
-        const result = await this.messenger.call('RampsService:getGeolocation');
-        return result;
-      },
-      options,
-    );
-
-    if (!regionCode) {
-      this.update((state) => {
-        state.userRegion = null;
-        state.tokens = null;
-        state.providers = [];
-        state.paymentMethods = [];
-        state.selectedPaymentMethod = null;
-      });
-      return null;
-    }
-
-    const normalizedRegion = regionCode.toLowerCase().trim();
-
-    try {
-      const countries = await this.getCountries('buy', options);
-      const userRegion = findRegionFromCode(normalizedRegion, countries);
-
-      if (userRegion) {
-        this.update((state) => {
-          const regionChanged =
-            state.userRegion?.regionCode !== userRegion.regionCode;
-          state.userRegion = userRegion;
-          // Clear region-dependent state when region changes
-          if (regionChanged) {
-            state.tokens = null;
-            state.providers = [];
-            state.paymentMethods = [];
-            state.selectedPaymentMethod = null;
-          }
-        });
-
-        // Fetch providers for the new region
-        if (userRegion.regionCode) {
-          try {
-            await this.getProviders(userRegion.regionCode, options);
-          } catch {
-            // Provider fetch failed - error state will be available via selectors
-          }
-        }
-
-        return userRegion;
-      }
-
-      // Region not found in countries data
-      this.update((state) => {
-        state.userRegion = null;
-        state.tokens = null;
-        state.providers = [];
-        state.paymentMethods = [];
-        state.selectedPaymentMethod = null;
-      });
-
-      return null;
-    } catch {
-      // If countries fetch fails, we can't create a valid UserRegion
-      // Return null to indicate we don't have valid country data
-      this.update((state) => {
-        state.userRegion = null;
-        state.tokens = null;
-        state.providers = [];
-        state.paymentMethods = [];
-        state.selectedPaymentMethod = null;
-      });
-
-      return null;
-    }
+    return this.#resolveAndSetUserRegion(regionCode, countries);
   }
 
   /**
    * Sets the user's region manually (without fetching geolocation).
    * This allows users to override the detected region.
+   *
+   * Note: This method does not fetch providers. Callers should fetch providers
+   * separately if needed after the region is set.
    *
    * @param region - The region code to set (e.g., "US-CA").
    * @param options - Options for cache behavior.
@@ -668,47 +599,10 @@ export class RampsController extends BaseController<
   ): Promise<UserRegion> {
     const normalizedRegion = region.toLowerCase().trim();
 
+    let countries: Country[];
     try {
-      const countries = await this.getCountries('buy', options);
-      const userRegion = findRegionFromCode(normalizedRegion, countries);
-
-      if (userRegion) {
-        this.update((state) => {
-          state.userRegion = userRegion;
-          state.tokens = null;
-          state.providers = [];
-          state.paymentMethods = [];
-          state.selectedPaymentMethod = null;
-        });
-
-        // Fetch providers for the new region
-        try {
-          await this.getProviders(userRegion.regionCode, options);
-        } catch {
-          // Provider fetch failed - error state will be available via selectors
-        }
-
-        return userRegion;
-      }
-
-      // Region not found in countries data
-      this.update((state) => {
-        state.userRegion = null;
-        state.tokens = null;
-        state.providers = [];
-        state.paymentMethods = [];
-        state.selectedPaymentMethod = null;
-      });
-      throw new Error(
-        `Region "${normalizedRegion}" not found in countries data. Cannot set user region without valid country information.`,
-      );
-    } catch (error) {
-      // If the error is "not found", re-throw it
-      // Otherwise, it's from countries fetch failure
-      if (error instanceof Error && error.message.includes('not found')) {
-        throw error;
-      }
-      // Countries fetch failed
+      countries = await this.getCountries('buy', options);
+    } catch {
       this.update((state) => {
         state.userRegion = null;
         state.tokens = null;
@@ -720,6 +614,31 @@ export class RampsController extends BaseController<
         'Failed to fetch countries data. Cannot set user region without valid country information.',
       );
     }
+
+    const userRegion = findRegionFromCode(normalizedRegion, countries);
+
+    if (userRegion) {
+      this.update((state) => {
+        state.userRegion = userRegion;
+        state.tokens = null;
+        state.providers = [];
+        state.paymentMethods = [];
+        state.selectedPaymentMethod = null;
+      });
+
+      return userRegion;
+    }
+
+    this.update((state) => {
+      state.userRegion = null;
+      state.tokens = null;
+      state.providers = [];
+      state.paymentMethods = [];
+      state.selectedPaymentMethod = null;
+    });
+    throw new Error(
+      `Region "${normalizedRegion}" not found in countries data. Cannot set user region without valid country information.`,
+    );
   }
 
   /**
@@ -735,34 +654,139 @@ export class RampsController extends BaseController<
   }
 
   /**
+   * Fetches the geolocation code from the RampsService.
+   * This is a private helper method used by init() and updateUserRegion().
+   *
+   * @param options - Options for cache behavior.
+   * @returns The region code string, or null if geolocation fails.
+   */
+  async #getGeolocationCode(
+    options?: ExecuteRequestOptions,
+  ): Promise<string | null> {
+    const cacheKey = createCacheKey('updateUserRegion', []);
+
+    try {
+      const regionCode = await this.executeRequest(
+        cacheKey,
+        async () => {
+          const result = await this.messenger.call(
+            'RampsService:getGeolocation',
+          );
+          return result;
+        },
+        options,
+      );
+      return regionCode ?? null;
+    } catch {
+      return null;
+    }
+  }
+
+  /**
+   * Resolves and sets the user region from a region code and countries list.
+   * This is a private helper method used by init() and updateUserRegion().
+   *
+   * @param regionCode - The region code from geolocation (e.g., "us-ca").
+   * @param countries - Array of countries to search.
+   * @returns The resolved UserRegion, or null if not found.
+   */
+  #resolveAndSetUserRegion(
+    regionCode: string | null,
+    countries: Country[],
+  ): UserRegion | null {
+    if (!regionCode) {
+      this.update((state) => {
+        state.userRegion = null;
+        state.tokens = null;
+        state.providers = [];
+        state.paymentMethods = [];
+        state.selectedPaymentMethod = null;
+      });
+      return null;
+    }
+
+    const normalizedRegion = regionCode.toLowerCase().trim();
+    const userRegion = findRegionFromCode(normalizedRegion, countries);
+
+    if (userRegion) {
+      this.update((state) => {
+        const regionChanged =
+          state.userRegion?.regionCode !== userRegion.regionCode;
+        state.userRegion = userRegion;
+        if (regionChanged) {
+          state.tokens = null;
+          state.providers = [];
+          state.paymentMethods = [];
+          state.selectedPaymentMethod = null;
+        }
+      });
+      return userRegion;
+    }
+
+    this.update((state) => {
+      state.userRegion = null;
+      state.tokens = null;
+      state.providers = [];
+      state.paymentMethods = [];
+      state.selectedPaymentMethod = null;
+    });
+    return null;
+  }
+
+  /**
    * Initializes the controller by fetching the user's region from geolocation.
    * This should be called once at app startup to set up the initial region.
-   * After the region is set, tokens are fetched and saved to state.
+   * Uses parallel fetches for better performance and to prevent state mismatch.
    *
    * If a userRegion already exists (from persistence or manual selection),
-   * this method will skip geolocation fetch and only fetch tokens if needed.
+   * this method will skip geolocation fetch and only fetch region-dependent data.
    *
    * @param options - Options for cache behavior.
    * @returns Promise that resolves when initialization is complete.
    */
   async init(options?: ExecuteRequestOptions): Promise<void> {
-    const userRegion = await this.updateUserRegion(options).catch(() => {
-      // User region fetch failed - error state will be available via selectors
-      return null;
-    });
+    if (this.state.userRegion && !options?.forceRefresh) {
+      const existingRegion = this.state.userRegion;
+      await Promise.all([
+        this.getCountries('buy', options).catch(() => {
+          // Countries fetch failed - error state will be available via selectors
+        }),
+        this.getTokens(existingRegion.regionCode, 'buy', options).catch(() => {
+          // Token fetch failed - error state will be available via selectors
+        }),
+        this.getProviders(existingRegion.regionCode, options).catch(() => {
+          // Provider fetch failed - error state will be available via selectors
+        }),
+      ]);
+      return;
+    }
+
+    if (options?.forceRefresh) {
+      this.update((state) => {
+        state.userRegion = null;
+        state.tokens = null;
+        state.providers = [];
+        state.paymentMethods = [];
+        state.selectedPaymentMethod = null;
+      });
+    }
+
+    const [countries, regionCode] = await Promise.all([
+      this.getCountries('buy', options).catch(() => [] as Country[]),
+      this.#getGeolocationCode(options),
+    ]);
+
+    const userRegion = this.#resolveAndSetUserRegion(regionCode, countries);
 
     if (userRegion) {
-      try {
-        await this.getTokens(userRegion.regionCode, 'buy', options);
-      } catch {
-        // Token fetch failed - error state will be available via selectors
-      }
-
-      try {
-        await this.getProviders(userRegion.regionCode, options);
-      } catch {
-        // Provider fetch failed - error state will be available via selectors
-      }
+      await Promise.all([
+        this.getTokens(userRegion.regionCode, 'buy', options).catch(() => {
+          // Token fetch failed - error state will be available via selectors
+        }),
+        this.getProviders(userRegion.regionCode, options).catch(() => {
+          // Provider fetch failed - error state will be available via selectors
+        }),
+      ]);
     }
   }
 

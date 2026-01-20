@@ -1009,10 +1009,6 @@ describe('RampsController', () => {
             'RampsService:getCountries',
             async () => createMockCountries(),
           );
-          rootMessenger.registerActionHandler(
-            'RampsService:getProviders',
-            async () => ({ providers: [] }),
-          );
 
           const result = controller.triggerUpdateUserRegion();
           expect(result).toBeUndefined();
@@ -1042,10 +1038,6 @@ describe('RampsController', () => {
           rootMessenger.registerActionHandler(
             'RampsService:getCountries',
             async () => createMockCountries(),
-          );
-          rootMessenger.registerActionHandler(
-            'RampsService:getProviders',
-            async () => ({ providers: [] }),
           );
 
           const result = controller.triggerSetUserRegion('us');
@@ -1297,7 +1289,7 @@ describe('RampsController', () => {
   });
 
   describe('init', () => {
-    it('initializes controller by fetching user region, tokens, and providers', async () => {
+    it('initializes controller by fetching countries, user region, tokens, and providers', async () => {
       await withController(async ({ controller, rootMessenger }) => {
         const mockTokens: TokensResponse = {
           topTokens: [],
@@ -1346,12 +1338,178 @@ describe('RampsController', () => {
       });
     });
 
+    it('fetches countries and geolocation in parallel', async () => {
+      await withController(async ({ controller, rootMessenger }) => {
+        const callOrder: string[] = [];
+        let resolveCountries: () => void;
+        let resolveGeolocation: () => void;
+
+        const countriesPromise = new Promise<void>((resolve) => {
+          resolveCountries = resolve;
+        });
+        const geolocationPromise = new Promise<void>((resolve) => {
+          resolveGeolocation = resolve;
+        });
+
+        rootMessenger.registerActionHandler(
+          'RampsService:getCountries',
+          async () => {
+            callOrder.push('countries-start');
+            await countriesPromise;
+            callOrder.push('countries-end');
+            return createMockCountries();
+          },
+        );
+
+        rootMessenger.registerActionHandler(
+          'RampsService:getGeolocation',
+          async () => {
+            callOrder.push('geolocation-start');
+            await geolocationPromise;
+            callOrder.push('geolocation-end');
+            return 'US';
+          },
+        );
+
+        rootMessenger.registerActionHandler(
+          'RampsService:getTokens',
+          async () => ({ topTokens: [], allTokens: [] }),
+        );
+
+        rootMessenger.registerActionHandler(
+          'RampsService:getProviders',
+          async () => ({ providers: [] }),
+        );
+
+        const initPromise = controller.init();
+
+        await new Promise((resolve) => setTimeout(resolve, 10));
+
+        expect(callOrder).toContain('countries-start');
+        expect(callOrder).toContain('geolocation-start');
+
+        // eslint-disable-next-line @typescript-eslint/no-non-null-assertion
+        resolveCountries!();
+        // eslint-disable-next-line @typescript-eslint/no-non-null-assertion
+        resolveGeolocation!();
+
+        await initPromise;
+
+        expect(controller.state.userRegion?.regionCode).toBe('us');
+      });
+    });
+
+    it('fetches tokens and providers in parallel after region is resolved', async () => {
+      await withController(async ({ controller, rootMessenger }) => {
+        const callOrder: string[] = [];
+        let resolveTokens: () => void;
+        let resolveProviders: () => void;
+
+        const tokensPromise = new Promise<void>((resolve) => {
+          resolveTokens = resolve;
+        });
+        const providersPromise = new Promise<void>((resolve) => {
+          resolveProviders = resolve;
+        });
+
+        rootMessenger.registerActionHandler(
+          'RampsService:getCountries',
+          async () => createMockCountries(),
+        );
+
+        rootMessenger.registerActionHandler(
+          'RampsService:getGeolocation',
+          async () => 'US',
+        );
+
+        rootMessenger.registerActionHandler(
+          'RampsService:getTokens',
+          async () => {
+            callOrder.push('tokens-start');
+            await tokensPromise;
+            callOrder.push('tokens-end');
+            return { topTokens: [], allTokens: [] };
+          },
+        );
+
+        rootMessenger.registerActionHandler(
+          'RampsService:getProviders',
+          async () => {
+            callOrder.push('providers-start');
+            await providersPromise;
+            callOrder.push('providers-end');
+            return { providers: [] };
+          },
+        );
+
+        const initPromise = controller.init();
+
+        await new Promise((resolve) => setTimeout(resolve, 10));
+
+        expect(callOrder).toContain('tokens-start');
+        expect(callOrder).toContain('providers-start');
+
+        // eslint-disable-next-line @typescript-eslint/no-non-null-assertion
+        resolveTokens!();
+        // eslint-disable-next-line @typescript-eslint/no-non-null-assertion
+        resolveProviders!();
+
+        await initPromise;
+
+        expect(controller.state.userRegion?.regionCode).toBe('us');
+      });
+    });
+
+    it('skips geolocation fetch when userRegion already exists', async () => {
+      await withController(
+        { options: { state: { userRegion: createMockUserRegion('fr') } } },
+        async ({ controller, rootMessenger }) => {
+          let geolocationCalled = false;
+
+          rootMessenger.registerActionHandler(
+            'RampsService:getGeolocation',
+            async () => {
+              geolocationCalled = true;
+              return 'US';
+            },
+          );
+
+          rootMessenger.registerActionHandler(
+            'RampsService:getCountries',
+            async () => createMockCountries(),
+          );
+
+          rootMessenger.registerActionHandler(
+            'RampsService:getTokens',
+            async () => ({ topTokens: [], allTokens: [] }),
+          );
+
+          rootMessenger.registerActionHandler(
+            'RampsService:getProviders',
+            async () => ({ providers: [] }),
+          );
+
+          await controller.init();
+
+          expect(geolocationCalled).toBe(false);
+          expect(controller.state.userRegion?.regionCode).toBe('fr');
+        },
+      );
+    });
+
     it('handles initialization failure gracefully', async () => {
       await withController(async ({ controller, rootMessenger }) => {
         rootMessenger.registerActionHandler(
           'RampsService:getGeolocation',
           async () => {
             throw new Error('Network error');
+          },
+        );
+
+        rootMessenger.registerActionHandler(
+          'RampsService:getCountries',
+          async () => {
+            throw new Error('Countries error');
           },
         );
 
@@ -1450,10 +1608,9 @@ describe('RampsController', () => {
           'RampsService:getTokens',
           async (_region: string, _action?: 'buy' | 'sell') => mockTokens,
         );
-        let providersToReturn = mockProviders;
         rootMessenger.registerActionHandler(
           'RampsService:getProviders',
-          async (_regionCode: string) => ({ providers: providersToReturn }),
+          async (_regionCode: string) => ({ providers: mockProviders }),
         );
         rootMessenger.registerActionHandler(
           'RampsService:getPaymentMethods',
@@ -1461,6 +1618,7 @@ describe('RampsController', () => {
         );
 
         await controller.setUserRegion('US');
+        await controller.getProviders('us');
         await controller.getTokens('us', 'buy');
         await controller.getPaymentMethods({
           assetId: 'eip155:1/slip44:60',
@@ -1477,7 +1635,6 @@ describe('RampsController', () => {
           mockPaymentMethod,
         );
 
-        providersToReturn = [];
         await controller.setUserRegion('FR');
         expect(controller.state.tokens).toBeNull();
         expect(controller.state.providers).toStrictEqual([]);
