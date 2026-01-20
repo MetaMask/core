@@ -2473,6 +2473,192 @@ describe('RampsController', () => {
         },
       );
     });
+
+    it('places payment methods not in sort.ids at the end', async () => {
+      await withController(
+        {
+          options: {
+            state: {
+              userRegion: createMockUserRegion('us'),
+            },
+          },
+        },
+        async ({ controller, rootMessenger }) => {
+          const mockPaymentMethod3: PaymentMethod = {
+            id: '/payments/apple-pay',
+            paymentType: 'mobile-wallet',
+            name: 'Apple Pay',
+            score: 85,
+            icon: 'apple',
+          };
+
+          const responseWithPartialSort: PaymentMethodsResponse = {
+            payments: [mockPaymentMethod1, mockPaymentMethod2, mockPaymentMethod3],
+            sort: {
+              // Only includes venmo, not debit-credit-card or apple-pay
+              ids: ['/payments/venmo'],
+              sortBy: '2',
+            },
+          };
+
+          rootMessenger.registerActionHandler(
+            'RampsService:getPaymentMethods',
+            async () => responseWithPartialSort,
+          );
+
+          await controller.getPaymentMethods({
+            assetId: 'eip155:1/slip44:60',
+            provider: '/providers/stripe',
+          });
+
+          // Venmo should be first (in sort.ids), others should maintain relative order after
+          expect(controller.state.paymentMethods[0]).toStrictEqual(
+            mockPaymentMethod2,
+          ); // venmo first
+          // The other two are not in sort.ids, so they get MAX_SAFE_INTEGER and maintain relative order
+          expect(controller.state.paymentMethods.length).toBe(3);
+        },
+      );
+    });
+
+    it('throws error when fiat is not provided and userRegion has no currency', async () => {
+      // Create a mock region without currency
+      const regionWithoutCurrency: UserRegion = {
+        country: {
+          isoCode: 'US',
+          name: 'United States',
+          flag: '🇺🇸',
+          currency: undefined as unknown as string,
+          phone: { prefix: '+1', placeholder: '', template: '' },
+          supported: true,
+        },
+        state: null,
+        regionCode: 'us',
+      };
+
+      await withController(
+        {
+          options: {
+            state: {
+              userRegion: regionWithoutCurrency,
+            },
+          },
+        },
+        async ({ controller }) => {
+          await expect(
+            controller.getPaymentMethods({
+              assetId: 'eip155:1/slip44:60',
+              provider: '/providers/stripe',
+            }),
+          ).rejects.toThrow(
+            'Fiat currency is required. Either provide a fiat parameter or ensure userRegion is set in controller state.',
+          );
+        },
+      );
+    });
+  });
+
+  describe('setSelectedPaymentMethod', () => {
+    const mockPaymentMethod: PaymentMethod = {
+      id: '/payments/debit-credit-card',
+      paymentType: 'debit-credit-card',
+      name: 'Debit or Credit',
+      score: 90,
+      icon: 'card',
+    };
+
+    it('sets the selected payment method', async () => {
+      await withController(({ controller }) => {
+        expect(controller.state.selectedPaymentMethod).toBeNull();
+
+        controller.setSelectedPaymentMethod(mockPaymentMethod);
+
+        expect(controller.state.selectedPaymentMethod).toStrictEqual(
+          mockPaymentMethod,
+        );
+      });
+    });
+
+    it('clears the selected payment method when null is passed', async () => {
+      await withController(
+        {
+          options: {
+            state: {
+              selectedPaymentMethod: mockPaymentMethod,
+            },
+          },
+        },
+        ({ controller }) => {
+          expect(controller.state.selectedPaymentMethod).toStrictEqual(
+            mockPaymentMethod,
+          );
+
+          controller.setSelectedPaymentMethod(null);
+
+          expect(controller.state.selectedPaymentMethod).toBeNull();
+        },
+      );
+    });
+  });
+
+  describe('triggerGetPaymentMethods', () => {
+    const mockPaymentMethod: PaymentMethod = {
+      id: '/payments/debit-credit-card',
+      paymentType: 'debit-credit-card',
+      name: 'Debit or Credit',
+      score: 90,
+      icon: 'card',
+    };
+
+    const mockPaymentMethodsResponse: PaymentMethodsResponse = {
+      payments: [mockPaymentMethod],
+    };
+
+    it('calls getPaymentMethods without throwing', async () => {
+      await withController(
+        {
+          options: {
+            state: {
+              userRegion: createMockUserRegion('us'),
+            },
+          },
+        },
+        async ({ controller, rootMessenger }) => {
+          rootMessenger.registerActionHandler(
+            'RampsService:getPaymentMethods',
+            async () => mockPaymentMethodsResponse,
+          );
+
+          // Should not throw
+          controller.triggerGetPaymentMethods({
+            assetId: 'eip155:1/slip44:60',
+            provider: '/providers/stripe',
+          });
+
+          // Wait for the async operation to complete
+          await new Promise((resolve) => setTimeout(resolve, 0));
+
+          expect(controller.state.paymentMethods).toStrictEqual([
+            mockPaymentMethod,
+          ]);
+        },
+      );
+    });
+
+    it('does not throw when getPaymentMethods fails', async () => {
+      await withController(async ({ controller }) => {
+        // Should not throw even when getPaymentMethods would fail (no region)
+        expect(() => {
+          controller.triggerGetPaymentMethods({
+            assetId: 'eip155:1/slip44:60',
+            provider: '/providers/stripe',
+          });
+        }).not.toThrow();
+
+        // Wait for the async operation to complete
+        await new Promise((resolve) => setTimeout(resolve, 0));
+      });
+    });
   });
 });
 
