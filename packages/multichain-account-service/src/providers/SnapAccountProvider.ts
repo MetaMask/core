@@ -166,17 +166,33 @@ export abstract class SnapAccountProvider extends BaseBip44AccountProvider {
         (await this.#client.listAccounts()).map((account) => account.id),
       );
 
-      // NOTE: This should never happen, but we want to report that kind of errors still
-      // in case states are de-sync.
+      // NOTE: This should never happen, but if it does, we recover by deleting the
+      // extra accounts from the Snap to bring it back in sync with MetaMask.
       if (localSnapAccounts.length < snapAccounts.size) {
-        this.messenger.captureException?.(
-          new Error(
-            `Snap "${this.snapId}" has de-synced accounts, Snap has more accounts than MetaMask!`,
-          ),
+        // Build a set of local account IDs for quick lookup
+        const localAccountIds = new Set(
+          localSnapAccounts.map((account) => account.id),
         );
 
-        // We don't recover from this case yet.
-        return;
+        // Find and delete accounts that exist in Snap but not in MetaMask
+        await Promise.all(
+          [...snapAccounts].map(async (snapAccountId) => {
+            try {
+              if (!localAccountIds.has(snapAccountId)) {
+                // This account exists in the Snap but not in MetaMask, delete it from
+                // the Snap.
+                await this.#client.deleteAccount(snapAccountId);
+              }
+            } catch (error) {
+              const sentryError = createSentryError(
+                `Unable to delete de-synced Snap account`,
+                error as Error,
+                { provider: this.getName() },
+              );
+              this.messenger.captureException?.(sentryError);
+            }
+          }),
+        );
       }
 
       // We want this part to be fast, so we only check for sizes, but we might need

@@ -2,7 +2,10 @@ import { isBip44Account } from '@metamask/account-api';
 import type { Bip44Account } from '@metamask/account-api';
 import type { TraceCallback, TraceRequest } from '@metamask/controller-utils';
 import { KeyringRpcMethod } from '@metamask/keyring-api';
-import type { GetAccountRequest } from '@metamask/keyring-api';
+import type {
+  DeleteAccountRequest,
+  GetAccountRequest,
+} from '@metamask/keyring-api';
 import type { EntropySourceId, KeyringAccount } from '@metamask/keyring-api';
 import type { InternalAccount } from '@metamask/keyring-internal-api';
 import type { JsonRpcRequest, SnapId } from '@metamask/snaps-sdk';
@@ -129,6 +132,7 @@ const setup = ({
       handleKeyringRequest: {
         getAccount: jest.fn(),
         listAccounts: jest.fn(),
+        deleteAccount: jest.fn(),
       },
       handleRequest: jest.fn(),
     },
@@ -164,6 +168,10 @@ const setup = ({
         );
       } else if (request.method === String(KeyringRpcMethod.ListAccounts)) {
         return await mocks.SnapController.handleKeyringRequest.listAccounts();
+      } else if (request.method === String(KeyringRpcMethod.DeleteAccount)) {
+        return await mocks.SnapController.handleKeyringRequest.deleteAccount(
+          (request as DeleteAccountRequest).params.id,
+        );
       }
       throw new Error(`Unhandled method: ${request.method}`);
     },
@@ -696,18 +704,57 @@ describe('SnapAccountProvider', () => {
       });
     });
 
-    it('reports an error if a Snap has more accounts than MetaMask', async () => {
-      const { provider, messenger } = setup({ accounts: mockAccounts });
+    it('deletes extra Snap accounts when Snap has more accounts than MetaMask', async () => {
+      const { provider, mocks } = setup({ accounts: mockAccounts });
+
+      // Snap has both accounts, but MetaMask only has the first one
+      await provider.resyncAccounts([mockAccounts[0]]);
+
+      // deleteAccount should be called for the extra account in the Snap
+      expect(
+        mocks.SnapController.handleKeyringRequest.deleteAccount,
+      ).toHaveBeenCalledTimes(1);
+      expect(
+        mocks.SnapController.handleKeyringRequest.deleteAccount,
+      ).toHaveBeenCalledWith(mockAccounts[1].id);
+    });
+
+    it('handles deleteAccount errors gracefully when recovering de-synced accounts', async () => {
+      const { provider, messenger, mocks } = setup({ accounts: mockAccounts });
 
       const captureExceptionSpy = jest.spyOn(messenger, 'captureException');
-
-      await provider.resyncAccounts([mockAccounts[0]]); // Less accounts than the Snap
-
-      expect(captureExceptionSpy).toHaveBeenCalledWith(
-        new Error(
-          `Snap "${TEST_SNAP_ID}" has de-synced accounts, Snap has more accounts than MetaMask!`,
-        ),
+      const deleteError = new Error('Failed to delete account');
+      mocks.SnapController.handleKeyringRequest.deleteAccount.mockRejectedValue(
+        deleteError,
       );
+
+      // Snap has both accounts, but MetaMask only has the first one
+      await provider.resyncAccounts([mockAccounts[0]]);
+
+      // Should have attempted to delete the extra account
+      expect(
+        mocks.SnapController.handleKeyringRequest.deleteAccount,
+      ).toHaveBeenCalledWith(mockAccounts[1].id);
+
+      // Should capture the error but not throw
+      expect(captureExceptionSpy).toHaveBeenCalledWith(
+        expect.objectContaining({
+          message: 'Unable to delete de-synced Snap account',
+          cause: deleteError,
+        }),
+      );
+    });
+
+    it('does not delete accounts that exist in both Snap and MetaMask', async () => {
+      const { provider, mocks } = setup({ accounts: mockAccounts });
+
+      // Both accounts exist in both Snap and MetaMask
+      await provider.resyncAccounts(mockAccounts);
+
+      // deleteAccount should not be called since accounts are in sync
+      expect(
+        mocks.SnapController.handleKeyringRequest.deleteAccount,
+      ).not.toHaveBeenCalled();
     });
 
     it('does not throw errors if any provider is not able to re-sync', async () => {
