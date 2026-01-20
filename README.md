@@ -68,6 +68,7 @@ Each package in this repository has its own README where you can find installati
 - [`@metamask/notification-services-controller`](packages/notification-services-controller)
 - [`@metamask/permission-controller`](packages/permission-controller)
 - [`@metamask/permission-log-controller`](packages/permission-log-controller)
+- [`@metamask/perps-controller`](packages/perps-controller)
 - [`@metamask/phishing-controller`](packages/phishing-controller)
 - [`@metamask/polling-controller`](packages/polling-controller)
 - [`@metamask/preferences-controller`](packages/preferences-controller)
@@ -144,6 +145,7 @@ linkStyle default opacity:0.5
   notification_services_controller(["@metamask/notification-services-controller"]);
   permission_controller(["@metamask/permission-controller"]);
   permission_log_controller(["@metamask/permission-log-controller"]);
+  perps_controller(["@metamask/perps-controller"]);
   phishing_controller(["@metamask/phishing-controller"]);
   polling_controller(["@metamask/polling-controller"]);
   preferences_controller(["@metamask/preferences-controller"]);
@@ -341,6 +343,9 @@ linkStyle default opacity:0.5
   permission_log_controller --> base_controller;
   permission_log_controller --> json_rpc_engine;
   permission_log_controller --> messenger;
+  perps_controller --> base_controller;
+  perps_controller --> controller_utils;
+  perps_controller --> messenger;
   phishing_controller --> base_controller;
   phishing_controller --> controller_utils;
   phishing_controller --> messenger;

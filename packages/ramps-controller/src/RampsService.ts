@@ -178,6 +178,11 @@ export type TokensResponse = {
  */
 export const RAMPS_SDK_VERSION = '2.1.6';
 
+/**
+ * The type of ramp action: 'buy' or 'sell'.
+ */
+export type RampAction = 'buy' | 'sell';
+
 // === GENERAL ===
 
 /**
@@ -458,7 +463,7 @@ export class RampsService {
    * @param url - The URL to add parameters to.
    * @param action - The ramp action type (optional, not all endpoints require it).
    */
-  #addCommonParams(url: URL, action?: 'buy' | 'sell'): void {
+  #addCommonParams(url: URL, action?: RampAction): void {
     if (action) {
       url.searchParams.set('action', action);
     }
@@ -481,7 +486,7 @@ export class RampsService {
     service: RampsApiService,
     path: string,
     options: {
-      action?: 'buy' | 'sell';
+      action?: RampAction;
       responseType: 'json' | 'text';
     },
   ): Promise<TResponse> {
@@ -532,7 +537,7 @@ export class RampsService {
    * @param action - The ramp action type ('buy' or 'sell').
    * @returns An array of countries filtered by aggregator support.
    */
-  async getCountries(action: 'buy' | 'sell' = 'buy'): Promise<Country[]> {
+  async getCountries(action: RampAction = 'buy'): Promise<Country[]> {
     const countries = await this.#request<Country[]>(
       RampsApiService.Regions,
       getApiPath('regions/countries'),
@@ -557,21 +562,45 @@ export class RampsService {
 
   /**
    * Fetches the list of available tokens for a given region and action.
+   * Supports optional provider filter.
    *
    * @param region - The region code (e.g., "us", "fr", "us-ny").
    * @param action - The ramp action type ('buy' or 'sell').
+   * @param options - Optional query parameters for filtering tokens.
+   * @param options.provider - Provider ID(s) to filter by.
    * @returns The tokens response containing topTokens and allTokens.
    */
   async getTokens(
     region: string,
-    action: 'buy' | 'sell' = 'buy',
+    action: RampAction = 'buy',
+    options?: {
+      provider?: string | string[];
+    },
   ): Promise<TokensResponse> {
     const normalizedRegion = region.toLowerCase().trim();
-    const response = await this.#request<TokensResponse>(
-      RampsApiService.Regions,
-      `regions/${normalizedRegion}/tokens`,
-      { action, responseType: 'json' },
+    const url = new URL(
+      getApiPath(`regions/${normalizedRegion}/topTokens`),
+      getBaseUrl(this.#environment, RampsApiService.Regions),
     );
+    this.#addCommonParams(url, action);
+
+    if (options?.provider) {
+      const providerIds = Array.isArray(options.provider)
+        ? options.provider
+        : [options.provider];
+      providerIds.forEach((id) => url.searchParams.append('provider', id));
+    }
+
+    const response = await this.#policy.execute(async () => {
+      const fetchResponse = await this.#fetch(url);
+      if (!fetchResponse.ok) {
+        throw new HttpError(
+          fetchResponse.status,
+          `Fetching '${url.toString()}' failed with status '${fetchResponse.status}'`,
+        );
+      }
+      return fetchResponse.json() as Promise<TokensResponse>;
+    });
 
     if (!response || typeof response !== 'object') {
       throw new Error('Malformed response received from tokens API');

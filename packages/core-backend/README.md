@@ -19,6 +19,17 @@ Core backend services for MetaMask, serving as the data layer between Backend se
   - [WebSocket Connection Management](#websocket-connection-management)
     - [Connection Requirements](#connection-requirements)
     - [Connection Behavior](#connection-behavior)
+  - [HTTP API](#http-api)
+    - [Overview](#overview)
+    - [Features](#features)
+    - [Quick Start](#quick-start-1)
+    - [API Clients](#api-clients)
+      - [AccountsApiClient](#accountsapiclient)
+      - [PricesApiClient](#pricesapiclient)
+      - [TokenApiClient](#tokenapiclient)
+      - [TokensApiClient](#tokensapiclient)
+    - [Configuration](#configuration)
+    - [Cache Management](#cache-management)
   - [API Reference](#api-reference)
     - [BackendWebSocketService](#backendwebsocketservice)
       - [Constructor Options](#constructor-options)
@@ -43,6 +54,8 @@ npm install @metamask/core-backend
 ## Quick Start
 
 ### Basic Usage
+
+**WebSocket for Real-time Updates:**
 
 ```typescript
 import {
@@ -80,6 +93,28 @@ messenger.subscribe(
     console.log(`Balance updated for ${address}:`, updates);
   },
 );
+```
+
+**HTTP API for REST Requests:**
+
+```typescript
+import { ApiPlatformClient } from '@metamask/core-backend';
+
+// Create API client
+const apiClient = new ApiPlatformClient({
+  clientProduct: 'metamask-extension',
+  getBearerToken: async () => authController.getBearerToken(),
+});
+
+// Fetch data with automatic caching and deduplication
+const balances = await apiClient.accounts.fetchV5MultiAccountBalances([
+  'eip155:1:0x742d35cc6634c0532925a3b8d40c4e0e2c6e4e6',
+]);
+
+const prices = await apiClient.prices.fetchV3SpotPrices([
+  'eip155:1/slip44:60', // ETH
+  'eip155:1/erc20:0xa0b86991c6218b36c1d19d4a2e9eb0ce3606eb48', // USDC
+]);
 ```
 
 ### Integration with Controllers
@@ -147,7 +182,7 @@ graph TD
 
             subgraph "Transport Layer"
                 WSS[WebSocketService<br/>• Connection management<br/>• Automatic reconnection<br/>• Message routing<br/>• Subscription management]
-                HTTP[HTTP Service<br/>• REST API calls<br/>• Request/response handling<br/>• Error handling<br/>future]
+                HTTP[HTTP API Clients<br/>• REST API calls<br/>• Automatic caching<br/>• Request deduplication<br/>• Retry with backoff]
             end
         end
     end
@@ -343,6 +378,222 @@ The WebSocket connects when **ALL 3 conditions are true**:
 
 - ✅ **Unexpected disconnects** (network issues, server restart) → Auto-reconnect
 - ❌ **Manual disconnects** (app backgrounds, wallet locks, user signs out) → Stay disconnected
+
+## HTTP API
+
+### Overview
+
+The HTTP API provides type-safe clients for accessing MetaMask backend REST APIs. It uses `@tanstack/query-core` for intelligent caching, request deduplication, and automatic retries.
+
+**Available APIs:**
+
+| API          | Base URL                      | Purpose                                        |
+| ------------ | ----------------------------- | ---------------------------------------------- |
+| **Accounts** | `accounts.api.cx.metamask.io` | Balances, transactions, NFTs, token discovery  |
+| **Prices**   | `price.api.cx.metamask.io`    | Spot prices, exchange rates, historical prices |
+| **Token**    | `token.api.cx.metamask.io`    | Token metadata, trending, top gainers          |
+| **Tokens**   | `tokens.api.cx.metamask.io`   | Bulk asset operations, supported networks      |
+
+### Features
+
+- ✅ **Automatic request deduplication** - Identical concurrent requests share a single network call
+- ✅ **Intelligent caching** - Configurable stale times per data type (prices: 30s, balances: 1min, networks: 30min)
+- ✅ **Automatic retries** - Exponential backoff with jitter, skips 4xx errors (except 429, 408)
+- ✅ **Type safety** - Full TypeScript support with response types
+- ✅ **Bearer token caching** - Auth tokens cached for 5 minutes
+- ✅ **Unified client** - Single entry point or individual API clients
+
+### Quick Start
+
+```typescript
+import {
+  ApiPlatformClient,
+  createApiPlatformClient,
+} from '@metamask/core-backend';
+
+// Create unified client
+const client = new ApiPlatformClient({
+  clientProduct: 'metamask-extension',
+  clientVersion: '12.0.0',
+  getBearerToken: async () => authController.getBearerToken(),
+});
+
+// Access API methods through sub-clients
+const networks = await client.accounts.fetchV2SupportedNetworks();
+const balances = await client.accounts.fetchV5MultiAccountBalances([
+  'eip155:1:0x742d35cc6634c0532925a3b8d40c4e0e2c6e4e6',
+]);
+const prices = await client.prices.fetchV3SpotPrices([
+  'eip155:1/erc20:0xa0b86991c6218b36c1d19d4a2e9eb0ce3606eb48',
+]);
+const tokenList = await client.token.fetchTokenList(1);
+const assets = await client.tokens.fetchV3Assets([
+  'eip155:1/erc20:0xa0b86991c6218b36c1d19d4a2e9eb0ce3606eb48',
+]);
+```
+
+Or use individual clients:
+
+```typescript
+import { AccountsApiClient, PricesApiClient } from '@metamask/core-backend';
+
+const accountsClient = new AccountsApiClient({
+  clientProduct: 'metamask-extension',
+});
+
+const pricesClient = new PricesApiClient({
+  clientProduct: 'metamask-extension',
+  getBearerToken: async () => token,
+});
+```
+
+### API Clients
+
+#### AccountsApiClient
+
+Handles account-related operations including balances, transactions, NFTs, and token discovery.
+
+| Method                                                  | Description                                |
+| ------------------------------------------------------- | ------------------------------------------ |
+| `fetchV1SupportedNetworks()`                            | Get supported networks (v1)                |
+| `fetchV2SupportedNetworks()`                            | Get supported networks (v2)                |
+| `fetchV2ActiveNetworks(accountIds, options?)`           | Get active networks by CAIP-10 account IDs |
+| `fetchV2Balances(address, options?)`                    | Get balances for single address            |
+| `fetchV2BalancesWithOptions(address, options?)`         | Get balances with filters                  |
+| `fetchV4MultiAccountBalances(addresses, options?)`      | Get balances for multiple addresses        |
+| `fetchV5MultiAccountBalances(accountIds, options?)`     | Get balances using CAIP-10 IDs             |
+| `fetchV1TransactionByHash(chainId, txHash, options?)`   | Get transaction by hash                    |
+| `fetchV1AccountTransactions(address, options?)`         | Get account transactions                   |
+| `fetchV4MultiAccountTransactions(accountIds, options?)` | Get multi-account transactions             |
+| `fetchV1AccountRelationship(chainId, from, to)`         | Get address relationship                   |
+| `fetchV2AccountNfts(address, options?)`                 | Get account NFTs                           |
+| `fetchV2AccountTokens(address, options?)`               | Get detected ERC20 tokens                  |
+| `invalidateBalances()`                                  | Invalidate all balance cache               |
+| `invalidateAccounts()`                                  | Invalidate all account cache               |
+
+#### PricesApiClient
+
+Handles price-related operations including spot prices, exchange rates, and historical data.
+
+| Method                                                                  | Description                                      |
+| ----------------------------------------------------------------------- | ------------------------------------------------ |
+| `fetchPriceV1SupportedNetworks()`                                       | Get price-supported networks (v1)                |
+| `fetchPriceV2SupportedNetworks()`                                       | Get price-supported networks in CAIP format (v2) |
+| `fetchV1ExchangeRates(baseCurrency)`                                    | Get exchange rates for base currency             |
+| `fetchV1FiatExchangeRates()`                                            | Get fiat exchange rates                          |
+| `fetchV1CryptoExchangeRates()`                                          | Get crypto exchange rates                        |
+| `fetchV1SpotPricesByCoinIds(coinIds)`                                   | Get spot prices by CoinGecko IDs                 |
+| `fetchV1SpotPriceByCoinId(coinId, currency?)`                           | Get single coin spot price                       |
+| `fetchV1TokenPrices(chainId, addresses, options?)`                      | Get token prices on chain                        |
+| `fetchV1TokenPrice(chainId, address, currency?)`                        | Get single token price                           |
+| `fetchV2SpotPrices(chainId, addresses, options?)`                       | Get spot prices with market data                 |
+| `fetchV3SpotPrices(assetIds, options?)`                                 | Get spot prices by CAIP-19 asset IDs             |
+| `fetchV1HistoricalPricesByCoinId(coinId, options?)`                     | Get historical prices by CoinGecko ID            |
+| `fetchV1HistoricalPricesByTokenAddresses(chainId, addresses, options?)` | Get historical prices for tokens                 |
+| `fetchV1HistoricalPrices(chainId, address, options?)`                   | Get historical prices for single token           |
+| `fetchV3HistoricalPrices(chainId, assetType, options?)`                 | Get historical prices by CAIP-19                 |
+| `fetchV1HistoricalPriceGraphByCoinId(coinId, options?)`                 | Get price graph by CoinGecko ID                  |
+| `fetchV1HistoricalPriceGraphByTokenAddress(chainId, address, options?)` | Get price graph by token address                 |
+| `invalidatePrices()`                                                    | Invalidate all price cache                       |
+
+#### TokenApiClient
+
+Handles token metadata, lists, and trending/popular token discovery.
+
+| Method                                             | Description                     |
+| -------------------------------------------------- | ------------------------------- |
+| `fetchNetworks()`                                  | Get all networks                |
+| `fetchNetworkByChainId(chainId)`                   | Get network by chain ID         |
+| `fetchTokenList(chainId, options?)`                | Get token list for chain        |
+| `fetchV1TokenMetadata(chainId, address, options?)` | Get token metadata              |
+| `fetchTokenDescription(chainId, address)`          | Get token description           |
+| `fetchV3TrendingTokens(chainIds, options?)`        | Get trending tokens             |
+| `fetchV3TopGainers(chainIds, options?)`            | Get top gainers/losers          |
+| `fetchV3PopularTokens(chainIds, options?)`         | Get popular tokens              |
+| `fetchTopAssets(chainId)`                          | Get top assets for chain        |
+| `fetchV1SuggestedOccurrenceFloors()`               | Get suggested occurrence floors |
+
+#### TokensApiClient
+
+Handles bulk token operations and supported network queries.
+
+| Method                            | Description                                                 |
+| --------------------------------- | ----------------------------------------------------------- |
+| `fetchTokenV1SupportedNetworks()` | Get token-supported networks (v1)                           |
+| `fetchTokenV2SupportedNetworks()` | Get token-supported networks with full/partial support (v2) |
+| `fetchV3Assets(assetIds)`         | Fetch assets by CAIP-19 IDs                                 |
+| `invalidateTokens()`              | Invalidate all token cache                                  |
+
+### Configuration
+
+```typescript
+type ApiPlatformClientOptions = {
+  /** Client product identifier (e.g., 'metamask-extension', 'metamask-mobile') */
+  clientProduct: string;
+  /** Optional client version (default: '1.0.0') */
+  clientVersion?: string;
+  /** Function to get bearer token for authenticated requests */
+  getBearerToken?: () => Promise<string | undefined>;
+  /** Optional custom QueryClient instance for shared caching */
+  queryClient?: QueryClient;
+};
+```
+
+**Default Stale Times:**
+
+| Data Type          | Stale Time |
+| ------------------ | ---------- |
+| Prices             | 30 seconds |
+| Balances           | 1 minute   |
+| Transactions       | 30 seconds |
+| Networks           | 10 minutes |
+| Supported Networks | 30 minutes |
+| Token Metadata     | 5 minutes  |
+| Token List         | 10 minutes |
+| Exchange Rates     | 5 minutes  |
+| Trending           | 2 minutes  |
+| Auth Token         | 5 minutes  |
+
+**Override Stale Time:**
+
+```typescript
+// Use custom stale time for specific request
+const balances = await client.accounts.fetchV5MultiAccountBalances(
+  accountIds,
+  { networks: ['eip155:1'] },
+  { staleTime: 10000 }, // 10 seconds
+);
+```
+
+### Cache Management
+
+```typescript
+// Invalidate all caches
+await client.invalidateAll();
+
+// Invalidate auth token (on logout)
+await client.invalidateAuthToken();
+
+// Domain-specific invalidation
+await client.accounts.invalidateBalances();
+await client.prices.invalidatePrices();
+await client.tokens.invalidateTokens();
+
+// Clear all cached data
+client.clear();
+
+// Check if query is fetching
+const isFetching = client.isFetching(['accounts', 'balances']);
+
+// Access cached data directly
+const cached = client.getCachedData(['accounts', 'balances', 'v5', { ... }]);
+
+// Set cached data
+client.setCachedData(queryKey, data);
+
+// Access underlying QueryClient for advanced usage
+const queryClient = client.queryClient;
+```
 
 ## API Reference
 
