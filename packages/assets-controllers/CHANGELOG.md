@@ -9,7 +9,7 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ### Changed
 
-- Bump `@metamask/multichain-account-service` from `^5.0.0` to `^5.1.0` ([#7671](https://github.com/MetaMask/core/pull/7671))
+- Bump `@metamask/multichain-account-service` from `^5.0.0` to `^5.1.0` ([#7678](https://github.com/MetaMask/core/pull/7678))
 
 ## [95.3.0]
 
