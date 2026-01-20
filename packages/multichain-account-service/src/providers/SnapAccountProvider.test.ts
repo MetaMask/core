@@ -749,7 +749,7 @@ describe('SnapAccountProvider', () => {
       expect(captureExceptionSpy).toHaveBeenNthCalledWith(
         2,
         expect.objectContaining({
-          message: `Unable to delete de-synced Snap account: ${mockAccounts[1].id}`,
+          message: `Unable to delete de-synced Snap account: ${TEST_SNAP_ID}`,
           cause: deleteError,
         }),
       );

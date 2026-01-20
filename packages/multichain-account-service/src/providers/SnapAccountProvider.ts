@@ -195,7 +195,7 @@ export abstract class SnapAccountProvider extends BaseBip44AccountProvider {
               }
             } catch (error) {
               const sentryError = createSentryError(
-                `Unable to delete de-synced Snap account: ${snapAccountId}`,
+                `Unable to delete de-synced Snap account: ${this.snapId}`,
                 error as Error,
                 { provider: this.getName(), snapAccountId },
               );
