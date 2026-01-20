@@ -2452,7 +2452,11 @@ describe('RampsController', () => {
           };
 
           const responseWithPartialSort: PaymentMethodsResponse = {
-            payments: [mockPaymentMethod1, mockPaymentMethod2, mockPaymentMethod3],
+            payments: [
+              mockPaymentMethod1,
+              mockPaymentMethod2,
+              mockPaymentMethod3,
+            ],
             sort: {
               // Only includes venmo, not debit-credit-card or apple-pay
               ids: ['/payments/venmo'],
@@ -2475,7 +2479,7 @@ describe('RampsController', () => {
             mockPaymentMethod2,
           ); // venmo first
           // The other two are not in sort.ids, so they get MAX_SAFE_INTEGER and maintain relative order
-          expect(controller.state.paymentMethods.length).toBe(3);
+          expect(controller.state.paymentMethods).toHaveLength(3);
         },
       );
     });
