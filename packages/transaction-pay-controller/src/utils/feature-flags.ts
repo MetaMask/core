@@ -31,6 +31,7 @@ type FeatureFlagsRaw = {
   };
   relayQuoteUrl?: string;
   slippage?: number;
+  slippageTokens?: Record<Hex, Record<Hex, number>>;
 };
 
 export type FeatureFlags = {
@@ -101,6 +102,59 @@ export function getGasBuffer(
     featureFlags.gasBuffer?.default ??
     DEFAULT_GAS_BUFFER
   );
+}
+
+/**
+ * Get the slippage value for a specific chain ID and token address.
+ * Falls back to the general slippage feature flag, then the static default.
+ *
+ * @param messenger - Controller messenger.
+ * @param chainId - Chain ID to get slippage for.
+ * @param tokenAddress - Token address to get slippage for.
+ * @returns Slippage value as a decimal (e.g., 0.005 for 0.5%).
+ */
+export function getSlippage(
+  messenger: TransactionPayControllerMessenger,
+  chainId: Hex,
+  tokenAddress: Hex,
+): number {
+  const featureFlags = getFeatureFlagsRaw(messenger);
+
+  // Normalize chain ID and token address to lowercase for case-insensitive lookup
+  const normalizedChainId = chainId.toLowerCase() as Hex;
+  const normalizedTokenAddress = tokenAddress.toLowerCase() as Hex;
+
+  // Look for token-specific slippage (case insensitive)
+  const slippageTokens = featureFlags.slippageTokens;
+  if (slippageTokens) {
+    // Find the chain entry (case insensitive)
+    const chainEntry = Object.entries(slippageTokens).find(
+      ([key]) => key.toLowerCase() === normalizedChainId,
+    );
+
+    if (chainEntry) {
+      const [, tokenMap] = chainEntry;
+      // Find the token entry (case insensitive)
+      const tokenEntry = Object.entries(tokenMap).find(
+        ([key]) => key.toLowerCase() === normalizedTokenAddress,
+      );
+
+      if (tokenEntry) {
+        const [, slippage] = tokenEntry;
+        log('Using token-specific slippage', {
+          chainId,
+          tokenAddress,
+          slippage,
+        });
+        return slippage;
+      }
+    }
+  }
+
+  // Fall back to general slippage feature flag, then static default
+  const slippage = featureFlags.slippage ?? DEFAULT_SLIPPAGE;
+  log('Using default slippage', { chainId, tokenAddress, slippage });
+  return slippage;
 }
 
 /**

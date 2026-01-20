@@ -1,3 +1,5 @@
+import type { Hex } from '@metamask/utils';
+
 import {
   DEFAULT_GAS_BUFFER,
   DEFAULT_RELAY_FALLBACK_GAS_ESTIMATE,
@@ -6,6 +8,7 @@ import {
   DEFAULT_SLIPPAGE,
   getFeatureFlags,
   getGasBuffer,
+  getSlippage,
 } from './feature-flags';
 import { getDefaultRemoteFeatureFlagControllerState } from '../../../remote-feature-flag-controller/src/remote-feature-flag-controller';
 import { getMessengerMock } from '../tests/messenger-mock';
@@ -17,8 +20,11 @@ const RELAY_GAS_STATION_DISABLED_CHAINS_MOCK = ['0x1', '0x2'];
 const SLIPPAGE_MOCK = 0.01;
 const GAS_BUFFER_DEFAULT_MOCK = 1.5;
 const GAS_BUFFER_CHAIN_SPECIFIC_MOCK = 2.0;
-const CHAIN_ID_MOCK = '0x1';
-const CHAIN_ID_DIFFERENT_MOCK = '0x89';
+const CHAIN_ID_MOCK = '0x1' as Hex;
+const CHAIN_ID_DIFFERENT_MOCK = '0x89' as Hex;
+const TOKEN_ADDRESS_MOCK = '0xabc123def456' as Hex;
+const TOKEN_ADDRESS_DIFFERENT_MOCK = '0xdef789abc012' as Hex;
+const TOKEN_SPECIFIC_SLIPPAGE_MOCK = 0.02;
 
 describe('Feature Flags Utils', () => {
   const { messenger, getRemoteFeatureFlagControllerStateMock } =
@@ -168,6 +174,180 @@ describe('Feature Flags Utils', () => {
       const gasBuffer = getGasBuffer(messenger, CHAIN_ID_DIFFERENT_MOCK);
 
       expect(gasBuffer).toBe(DEFAULT_GAS_BUFFER);
+    });
+  });
+
+  describe('getSlippage', () => {
+    it('returns default slippage when no feature flags are set', () => {
+      const slippage = getSlippage(
+        messenger,
+        CHAIN_ID_MOCK,
+        TOKEN_ADDRESS_MOCK,
+      );
+
+      expect(slippage).toBe(DEFAULT_SLIPPAGE);
+    });
+
+    it('returns general slippage from feature flags when set', () => {
+      getRemoteFeatureFlagControllerStateMock.mockReturnValue({
+        ...getDefaultRemoteFeatureFlagControllerState(),
+        remoteFeatureFlags: {
+          confirmations_pay: {
+            slippage: SLIPPAGE_MOCK,
+          },
+        },
+      });
+
+      const slippage = getSlippage(
+        messenger,
+        CHAIN_ID_MOCK,
+        TOKEN_ADDRESS_MOCK,
+      );
+
+      expect(slippage).toBe(SLIPPAGE_MOCK);
+    });
+
+    it('returns token-specific slippage when set for specific chain and token', () => {
+      getRemoteFeatureFlagControllerStateMock.mockReturnValue({
+        ...getDefaultRemoteFeatureFlagControllerState(),
+        remoteFeatureFlags: {
+          confirmations_pay: {
+            slippage: SLIPPAGE_MOCK,
+            slippageTokens: {
+              [CHAIN_ID_MOCK]: {
+                [TOKEN_ADDRESS_MOCK]: TOKEN_SPECIFIC_SLIPPAGE_MOCK,
+              },
+            },
+          },
+        },
+      });
+
+      const slippage = getSlippage(
+        messenger,
+        CHAIN_ID_MOCK,
+        TOKEN_ADDRESS_MOCK,
+      );
+
+      expect(slippage).toBe(TOKEN_SPECIFIC_SLIPPAGE_MOCK);
+    });
+
+    it('is case insensitive for chain ID', () => {
+      getRemoteFeatureFlagControllerStateMock.mockReturnValue({
+        ...getDefaultRemoteFeatureFlagControllerState(),
+        remoteFeatureFlags: {
+          confirmations_pay: {
+            slippage: SLIPPAGE_MOCK,
+            slippageTokens: {
+              '0X1': {
+                [TOKEN_ADDRESS_MOCK]: TOKEN_SPECIFIC_SLIPPAGE_MOCK,
+              },
+            },
+          },
+        },
+      });
+
+      const slippage = getSlippage(
+        messenger,
+        '0x1' as Hex,
+        TOKEN_ADDRESS_MOCK,
+      );
+
+      expect(slippage).toBe(TOKEN_SPECIFIC_SLIPPAGE_MOCK);
+    });
+
+    it('is case insensitive for token address', () => {
+      getRemoteFeatureFlagControllerStateMock.mockReturnValue({
+        ...getDefaultRemoteFeatureFlagControllerState(),
+        remoteFeatureFlags: {
+          confirmations_pay: {
+            slippage: SLIPPAGE_MOCK,
+            slippageTokens: {
+              [CHAIN_ID_MOCK]: {
+                '0xABC123DEF456': TOKEN_SPECIFIC_SLIPPAGE_MOCK,
+              },
+            },
+          },
+        },
+      });
+
+      const slippage = getSlippage(
+        messenger,
+        CHAIN_ID_MOCK,
+        '0xabc123def456' as Hex,
+      );
+
+      expect(slippage).toBe(TOKEN_SPECIFIC_SLIPPAGE_MOCK);
+    });
+
+    it('falls back to general slippage when chain exists but token not found', () => {
+      getRemoteFeatureFlagControllerStateMock.mockReturnValue({
+        ...getDefaultRemoteFeatureFlagControllerState(),
+        remoteFeatureFlags: {
+          confirmations_pay: {
+            slippage: SLIPPAGE_MOCK,
+            slippageTokens: {
+              [CHAIN_ID_MOCK]: {
+                [TOKEN_ADDRESS_MOCK]: TOKEN_SPECIFIC_SLIPPAGE_MOCK,
+              },
+            },
+          },
+        },
+      });
+
+      const slippage = getSlippage(
+        messenger,
+        CHAIN_ID_MOCK,
+        TOKEN_ADDRESS_DIFFERENT_MOCK,
+      );
+
+      expect(slippage).toBe(SLIPPAGE_MOCK);
+    });
+
+    it('falls back to general slippage when chain not found in slippageTokens', () => {
+      getRemoteFeatureFlagControllerStateMock.mockReturnValue({
+        ...getDefaultRemoteFeatureFlagControllerState(),
+        remoteFeatureFlags: {
+          confirmations_pay: {
+            slippage: SLIPPAGE_MOCK,
+            slippageTokens: {
+              [CHAIN_ID_MOCK]: {
+                [TOKEN_ADDRESS_MOCK]: TOKEN_SPECIFIC_SLIPPAGE_MOCK,
+              },
+            },
+          },
+        },
+      });
+
+      const slippage = getSlippage(
+        messenger,
+        CHAIN_ID_DIFFERENT_MOCK,
+        TOKEN_ADDRESS_MOCK,
+      );
+
+      expect(slippage).toBe(SLIPPAGE_MOCK);
+    });
+
+    it('falls back to default slippage when slippageTokens exists but no general slippage and token not found', () => {
+      getRemoteFeatureFlagControllerStateMock.mockReturnValue({
+        ...getDefaultRemoteFeatureFlagControllerState(),
+        remoteFeatureFlags: {
+          confirmations_pay: {
+            slippageTokens: {
+              [CHAIN_ID_MOCK]: {
+                [TOKEN_ADDRESS_MOCK]: TOKEN_SPECIFIC_SLIPPAGE_MOCK,
+              },
+            },
+          },
+        },
+      });
+
+      const slippage = getSlippage(
+        messenger,
+        CHAIN_ID_DIFFERENT_MOCK,
+        TOKEN_ADDRESS_MOCK,
+      );
+
+      expect(slippage).toBe(DEFAULT_SLIPPAGE);
     });
   });
 });
