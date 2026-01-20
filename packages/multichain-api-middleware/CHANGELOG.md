@@ -7,12 +7,30 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+## [1.2.6]
+
+### Changed
+
+- Bump `@metamask/json-rpc-engine` from `^10.2.0` to `^10.2.1` ([#7642](https://github.com/MetaMask/core/pull/7642))
+- Upgrade `@metamask/utils` from `^11.8.1` to `^11.9.0` ([#7511](https://github.com/MetaMask/core/pull/7511))
+- Bump `@metamask/network-controller` from `^27.0.0` to `^29.0.0` ([#7534](https://github.com/MetaMask/core/pull/7534), [#7583](https://github.com/MetaMask/core/pull/7583), [#7604](https://github.com/MetaMask/core/pull/7604), [#7642](https://github.com/MetaMask/core/pull/7642))
+- Bump `@metamask/controller-utils` from `^11.16.0` to `^11.18.0` ([#7534](https://github.com/MetaMask/core/pull/7534), [#7583](https://github.com/MetaMask/core/pull/7583))
+- Bump `@metamask/permission-controller` from `^12.1.1` to `^12.2.0` ([#7559](https://github.com/MetaMask/core/pull/7559))
+- Bump `@metamask/chain-agnostic-permission` from `^1.3.0` to `^1.4.0` ([#7567](https://github.com/MetaMask/core/pull/7567))
+
+### Fixed
+
+- Fix `wallet_revokeSession` to handle cases where `params` is not provided ([#7551](https://github.com/MetaMask/core/pull/7551))
+
+## [1.2.5]
+
 ### Changed
 
 - Bump `@metamask/permission-controller` from `^12.1.0` to `^12.1.1` ([#7202](https://github.com/MetaMask/core/pull/7202))
 - Bump `@metamask/network-controller` from `^26.0.0` to `^27.0.0` ([#7202](https://github.com/MetaMask/core/pull/7202), [#7258](https://github.com/MetaMask/core/pull/7258))
 - Bump `@metamask/json-rpc-engine` from `^10.1.1` to `^10.2.0` ([#7202](https://github.com/MetaMask/core/pull/7202))
 - Bump `@metamask/controller-utils` from `^11.15.0` to `^11.16.0` ([#7202](https://github.com/MetaMask/core/pull/7202))
+- Bump `@metamask/chain-agnostic-permission` from `^1.2.2` to `^1.3.0` ([#7322](https://github.com/MetaMask/core/pull/7322))
 
 ## [1.2.4]
 
@@ -133,7 +151,9 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 - Initial release
 
-[Unreleased]: https://github.com/MetaMask/core/compare/@metamask/multichain-api-middleware@1.2.4...HEAD
+[Unreleased]: https://github.com/MetaMask/core/compare/@metamask/multichain-api-middleware@1.2.6...HEAD
+[1.2.6]: https://github.com/MetaMask/core/compare/@metamask/multichain-api-middleware@1.2.5...@metamask/multichain-api-middleware@1.2.6
+[1.2.5]: https://github.com/MetaMask/core/compare/@metamask/multichain-api-middleware@1.2.4...@metamask/multichain-api-middleware@1.2.5
 [1.2.4]: https://github.com/MetaMask/core/compare/@metamask/multichain-api-middleware@1.2.3...@metamask/multichain-api-middleware@1.2.4
 [1.2.3]: https://github.com/MetaMask/core/compare/@metamask/multichain-api-middleware@1.2.2...@metamask/multichain-api-middleware@1.2.3
 [1.2.2]: https://github.com/MetaMask/core/compare/@metamask/multichain-api-middleware@1.2.1...@metamask/multichain-api-middleware@1.2.2

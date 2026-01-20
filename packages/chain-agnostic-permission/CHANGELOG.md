@@ -9,6 +9,30 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ### Changed
 
+- Bump `@metamask/controller-utils` from `^11.17.0` to `^11.18.0` ([#7583](https://github.com/MetaMask/core/pull/7583))
+
+## [1.4.0]
+
+### Added
+
+- Add `Bip122AccountChangedNotifications` property in `KnownSessionProperties` enum ([#7537](https://github.com/MetaMask/core/pull/7537))
+
+### Changed
+
+- Remove `@metamask/network-controller` dependency ([#7561](https://github.com/MetaMask/core/pull/7561))
+- Upgrade `@metamask/utils` from `^11.8.1` to `^11.9.0` ([#7511](https://github.com/MetaMask/core/pull/7511))
+- Bump `@metamask/network-controller` from `^27.0.0` to `^27.1.0` ([#7534](https://github.com/MetaMask/core/pull/7534))
+- Bump `@metamask/controller-utils` from `^11.16.0` to `^11.17.0` ([#7534](https://github.com/MetaMask/core/pull/7534))
+- Bump `@metamask/permission-controller` from `^12.1.1` to `^12.2.0` ([#7559](https://github.com/MetaMask/core/pull/7559))
+
+## [1.3.0]
+
+### Added
+
+- Add `TronAccountChangedNotifications` property in `KnownSessionProperties` enum ([#7304](https://github.com/MetaMask/core/pull/7304))
+
+### Changed
+
 - Bump `@metamask/network-controller` from `^26.0.0` to `^27.0.0` ([#7202](https://github.com/MetaMask/core/pull/7202), [#7258](https://github.com/MetaMask/core/pull/7258))
 - Bump `@metamask/controller-utils` from `^11.15.0` to `^11.16.0` ([#7202](https://github.com/MetaMask/core/pull/7202))
 - Bump `@metamask/permission-controller` from `^12.1.0` to `^12.1.1` ([#6988](https://github.com/MetaMask/core/pull/6988), [#7202](https://github.com/MetaMask/core/pull/7202))
@@ -161,7 +185,9 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 - Initial release
 
-[Unreleased]: https://github.com/MetaMask/core/compare/@metamask/chain-agnostic-permission@1.2.2...HEAD
+[Unreleased]: https://github.com/MetaMask/core/compare/@metamask/chain-agnostic-permission@1.4.0...HEAD
+[1.4.0]: https://github.com/MetaMask/core/compare/@metamask/chain-agnostic-permission@1.3.0...@metamask/chain-agnostic-permission@1.4.0
+[1.3.0]: https://github.com/MetaMask/core/compare/@metamask/chain-agnostic-permission@1.2.2...@metamask/chain-agnostic-permission@1.3.0
 [1.2.2]: https://github.com/MetaMask/core/compare/@metamask/chain-agnostic-permission@1.2.1...@metamask/chain-agnostic-permission@1.2.2
 [1.2.1]: https://github.com/MetaMask/core/compare/@metamask/chain-agnostic-permission@1.2.0...@metamask/chain-agnostic-permission@1.2.1
 [1.2.0]: https://github.com/MetaMask/core/compare/@metamask/chain-agnostic-permission@1.1.1...@metamask/chain-agnostic-permission@1.2.0

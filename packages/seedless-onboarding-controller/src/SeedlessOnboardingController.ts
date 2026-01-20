@@ -1,7 +1,10 @@
 import { keccak256AndHexify } from '@metamask/auth-network-utils';
-import { BaseController, type StateMetadata } from '@metamask/base-controller';
+import { BaseController } from '@metamask/base-controller';
+import type { StateMetadata } from '@metamask/base-controller';
 import type * as encryptionUtils from '@metamask/browser-passworder';
 import type {
+  AuthenticateResult,
+  ChangeEncryptionKeyResult,
   KeyPair,
   RecoverEncryptionKeyResult,
   SEC1EncodedPublicKey,
@@ -349,7 +352,7 @@ export class SeedlessOnboardingController<
    * Gets the node details for the TOPRF operations.
    * This function can be called to get the node endpoints, indexes and pubkeys and cache them locally.
    */
-  async preloadToprfNodeDetails() {
+  async preloadToprfNodeDetails(): Promise<void> {
     try {
       await this.toprfClient.getNodeDetails();
     } catch {
@@ -387,8 +390,8 @@ export class SeedlessOnboardingController<
     refreshToken: string;
     revokeToken?: string;
     skipLock?: boolean;
-  }) {
-    const doAuthenticateWithNodes = async () => {
+  }): Promise<AuthenticateResult> {
+    const doAuthenticateWithNodes = async (): Promise<AuthenticateResult> => {
       try {
         const {
           idTokens,
@@ -604,7 +607,10 @@ export class SeedlessOnboardingController<
    * @param oldPassword - The old password to verify.
    * @returns A promise that resolves to the success of the operation.
    */
-  async changePassword(newPassword: string, oldPassword: string) {
+  async changePassword(
+    newPassword: string,
+    oldPassword: string,
+  ): Promise<void> {
     return await this.#withControllerLock(async () => {
       this.#assertIsUnlocked();
       // verify the old password of the encrypted vault
@@ -676,7 +682,7 @@ export class SeedlessOnboardingController<
     secretData:
       | (Omit<SocialBackupsMetadata, 'hash'> & { data: Uint8Array })
       | (Omit<SocialBackupsMetadata, 'hash'> & { data: Uint8Array })[],
-  ) {
+  ): void {
     this.#assertIsUnlocked();
 
     this.#filterDupesAndUpdateSocialBackupsMetadata(secretData);
@@ -697,7 +703,7 @@ export class SeedlessOnboardingController<
       skipLock?: boolean;
     },
   ): Promise<void> {
-    const doVerify = async () => {
+    const doVerify = async (): Promise<void> => {
       if (!this.state.vault) {
         throw new Error(SeedlessOnboardingControllerErrorMessage.VaultError);
       }
@@ -752,7 +758,7 @@ export class SeedlessOnboardingController<
    *
    * @returns A promise that resolves to the success of the operation.
    */
-  async setLocked() {
+  async setLocked(): Promise<void> {
     return await this.#withControllerLock(async () => {
       this.update((state) => {
         delete state.vaultEncryptionKey;
@@ -779,10 +785,10 @@ export class SeedlessOnboardingController<
     globalPassword,
   }: {
     globalPassword: string;
-  }) {
+  }): Promise<void> {
     return await this.#withControllerLock(async () => {
       this.#assertIsUnlocked();
-      const doSyncPassword = async () => {
+      const doSyncPassword = async (): Promise<void> => {
         // update vault with latest globalPassword
         const { encKey, pwEncKey, authKeyPair } =
           await this.#recoverEncKey(globalPassword);
@@ -898,7 +904,7 @@ export class SeedlessOnboardingController<
     skipLock?: boolean;
     globalAuthPubKey?: SEC1EncodedPublicKey;
   }): Promise<boolean> {
-    const doCheckIsPasswordExpired = async () => {
+    const doCheckIsPasswordExpired = async (): Promise<boolean> => {
       // cache result to reduce load on infra
       // Check cache first unless skipCache is true
       if (!options?.skipCache) {
@@ -989,7 +995,7 @@ export class SeedlessOnboardingController<
   /**
    * Clears the current state of the SeedlessOnboardingController.
    */
-  clearState() {
+  clearState(): void {
     const defaultState =
       getInitialSeedlessOnboardingControllerStateWithDefaults();
     this.update(() => {
@@ -1004,7 +1010,10 @@ export class SeedlessOnboardingController<
    * @param authPubKey - The authentication public key.
    * @returns A promise that resolves to the success of the operation.
    */
-  async #persistOprfKey(oprfKey: bigint, authPubKey: SEC1EncodedPublicKey) {
+  async #persistOprfKey(
+    oprfKey: bigint,
+    authPubKey: SEC1EncodedPublicKey,
+  ): Promise<void> {
     this.#assertIsAuthenticatedUser(this.state);
     const { authConnectionId, groupedAuthConnectionId, userId } = this.state;
 
@@ -1047,7 +1056,7 @@ export class SeedlessOnboardingController<
    *
    * @param keyringEncryptionKey - The keyring encryption key.
    */
-  async storeKeyringEncryptionKey(keyringEncryptionKey: string) {
+  async storeKeyringEncryptionKey(keyringEncryptionKey: string): Promise<void> {
     const { toprfPwEncryptionKey: encKey } =
       await this.#unlockVaultAndGetVaultData();
     await this.#storeKeyringEncryptionKey(encKey, keyringEncryptionKey);
@@ -1059,7 +1068,7 @@ export class SeedlessOnboardingController<
    *
    * @returns The keyring encryption key.
    */
-  async loadKeyringEncryptionKey() {
+  async loadKeyringEncryptionKey(): Promise<string> {
     const { toprfPwEncryptionKey: encKey } =
       await this.#unlockVaultAndGetVaultData();
     return await this.#loadKeyringEncryptionKey(encKey);
@@ -1074,7 +1083,7 @@ export class SeedlessOnboardingController<
   async #storeKeyringEncryptionKey(
     encKey: Uint8Array,
     keyringEncryptionKey: string,
-  ) {
+  ): Promise<void> {
     const aes = managedNonce(gcm)(encKey);
     const encryptedKeyringEncryptionKey = aes.encrypt(
       utf8ToBytes(keyringEncryptionKey),
@@ -1092,7 +1101,7 @@ export class SeedlessOnboardingController<
    * @param encKey - The encryption key.
    * @returns The keyring encryption key.
    */
-  async #loadKeyringEncryptionKey(encKey: Uint8Array) {
+  async #loadKeyringEncryptionKey(encKey: Uint8Array): Promise<string> {
     const { encryptedKeyringEncryptionKey: encryptedKey } = this.state;
     assertIsEncryptedKeyringEncryptionKeySet(encryptedKey);
     const encryptedPasswordBytes = base64ToBytes(encryptedKey);
@@ -1107,7 +1116,7 @@ export class SeedlessOnboardingController<
    * @param encKey - The encryption key.
    * @returns The seedless encryption key.
    */
-  async #loadSeedlessEncryptionKey(encKey: Uint8Array) {
+  async #loadSeedlessEncryptionKey(encKey: Uint8Array): Promise<string> {
     const { encryptedSeedlessEncryptionKey: encryptedKey } = this.state;
     assertIsEncryptedSeedlessEncryptionKeySet(encryptedKey);
     const encryptedKeyBytes = base64ToBytes(encryptedKey);
@@ -1173,7 +1182,7 @@ export class SeedlessOnboardingController<
   async #fetchAllSecretDataFromMetadataStore(
     encKey: Uint8Array,
     authKeyPair: KeyPair,
-  ) {
+  ): Promise<SecretMetadata[]> {
     let secretData: Uint8Array[] = [];
     try {
       // fetch and decrypt the secret data from the metadata store
@@ -1224,7 +1233,7 @@ export class SeedlessOnboardingController<
     newPassword: string;
     oldPassword: string;
     latestKeyIndex?: number;
-  }) {
+  }): Promise<ChangeEncryptionKeyResult> {
     this.#assertIsAuthenticatedUser(this.state);
     const { authConnectionId, groupedAuthConnectionId, userId } = this.state;
 
@@ -1232,19 +1241,19 @@ export class SeedlessOnboardingController<
     let pwEncKey: Uint8Array;
     let authKeyPair: KeyPair;
     let globalKeyIndex = latestKeyIndex;
-    if (!globalKeyIndex) {
+    if (globalKeyIndex) {
+      ({
+        toprfEncryptionKey: encKey,
+        toprfPwEncryptionKey: pwEncKey,
+        toprfAuthKeyPair: authKeyPair,
+      } = await this.#unlockVaultAndGetVaultData({ password: oldPassword }));
+    } else {
       ({
         encKey,
         pwEncKey,
         authKeyPair,
         keyShareIndex: globalKeyIndex,
       } = await this.#recoverEncKey(oldPassword));
-    } else {
-      ({
-        toprfEncryptionKey: encKey,
-        toprfPwEncryptionKey: pwEncKey,
-        toprfAuthKeyPair: authKeyPair,
-      } = await this.#unlockVaultAndGetVaultData({ password: oldPassword }));
     }
     const result = await this.toprfClient.changeEncKey({
       nodeAuthTokens: this.state.nodeAuthTokens,
@@ -1495,7 +1504,7 @@ export class SeedlessOnboardingController<
           keyringId?: string;
           type: SecretType;
         }[],
-  ) {
+  ): void {
     const currentBackupsMetadata = this.state.socialBackupsMetadata;
 
     const newBackupsMetadata = Array.isArray(secretData)
@@ -1649,8 +1658,8 @@ export class SeedlessOnboardingController<
     if (this.state.vault) {
       // if the access token or revoke token is not available in the state, decrypt the vault and get the access token and revoke token from the vault
       const { vaultData } = await this.#decryptAndParseVaultData({ password });
-      accessToken = accessToken || vaultData.accessToken;
-      revokeToken = revokeToken || vaultData.revokeToken;
+      accessToken = accessToken ?? vaultData.accessToken;
+      revokeToken = revokeToken ?? vaultData.revokeToken;
     }
 
     // we should always throw an error if the access token or revoke token is not available
@@ -1871,7 +1880,7 @@ export class SeedlessOnboardingController<
    * @param password - The password to encrypt the vault.
    * @returns A Promise that resolves to void.
    */
-  async renewRefreshToken(password: string) {
+  async renewRefreshToken(password: string): Promise<void> {
     return await this.#withControllerLock(async () => {
       this.#assertIsAuthenticatedUser(this.state);
       const { refreshToken, vaultEncryptionKey } = this.state;
@@ -1923,7 +1932,7 @@ export class SeedlessOnboardingController<
    *
    * @returns A Promise that resolves to void.
    */
-  async revokePendingRefreshTokens() {
+  async revokePendingRefreshTokens(): Promise<void> {
     return await this.#withControllerLock(async () => {
       this.#assertIsAuthenticatedUser(this.state);
       const { pendingToBeRevokedTokens } = this.state;
@@ -1975,10 +1984,10 @@ export class SeedlessOnboardingController<
   }: {
     refreshToken: string;
     revokeToken: string;
-  }) {
+  }): void {
     this.update((state) => {
       state.pendingToBeRevokedTokens = [
-        ...(state.pendingToBeRevokedTokens || []),
+        ...(state.pendingToBeRevokedTokens ?? []),
         { refreshToken, revokeToken },
       ];
     });
@@ -2034,10 +2043,10 @@ export class SeedlessOnboardingController<
    * @returns A promise that resolves to the result of the operation.
    * @throws The original error if it's not token-related, or refresh error if token refresh fails.
    */
-  async #executeWithTokenRefresh<T>(
-    operation: () => Promise<T>,
+  async #executeWithTokenRefresh<Result>(
+    operation: () => Promise<Result>,
     operationName: string,
-  ): Promise<T> {
+  ): Promise<Result> {
     try {
       // proactively check for expired tokens and refresh them if needed
       const isNodeAuthTokenExpired = this.checkNodeAuthTokenExpired();
@@ -2152,7 +2161,7 @@ function assertIsValidPassword(password: unknown): asserts password is string {
     throw new Error(SeedlessOnboardingControllerErrorMessage.WrongPasswordType);
   }
 
-  if (!password || !password.length) {
+  if (!password?.length) {
     throw new Error(
       SeedlessOnboardingControllerErrorMessage.InvalidEmptyPassword,
     );

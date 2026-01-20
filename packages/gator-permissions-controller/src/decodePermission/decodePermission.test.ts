@@ -5,8 +5,8 @@ import {
   createERC20TokenPeriodTransferTerms,
   createTimestampTerms,
   ROOT_AUTHORITY,
-  type Hex,
 } from '@metamask/delegation-core';
+import type { Hex } from '@metamask/delegation-core';
 import {
   CHAIN_ID,
   DELEGATOR_CONTRACTS,
@@ -357,6 +357,114 @@ describe('decodePermission', () => {
         ).toThrow('Contract not found: TimestampEnforcer');
       });
     });
+
+    describe('erc20-token-revocation', () => {
+      const expectedPermissionType = 'erc20-token-revocation';
+      const { AllowedCalldataEnforcer } = contracts;
+
+      it('matches with two AllowedCalldataEnforcer and ValueLteEnforcer and NonceEnforcer', () => {
+        const enforcers = [
+          AllowedCalldataEnforcer,
+          AllowedCalldataEnforcer,
+          ValueLteEnforcer,
+          NonceEnforcer,
+        ];
+        const result = identifyPermissionByEnforcers({ enforcers, contracts });
+        expect(result).toBe(expectedPermissionType);
+      });
+
+      it('allows TimestampEnforcer as extra', () => {
+        const enforcers = [
+          AllowedCalldataEnforcer,
+          AllowedCalldataEnforcer,
+          ValueLteEnforcer,
+          NonceEnforcer,
+          TimestampEnforcer,
+        ];
+        const result = identifyPermissionByEnforcers({ enforcers, contracts });
+        expect(result).toBe(expectedPermissionType);
+      });
+
+      it('rejects when only one AllowedCalldataEnforcer is provided', () => {
+        const enforcers = [
+          AllowedCalldataEnforcer,
+          ValueLteEnforcer,
+          NonceEnforcer,
+        ];
+        expect(() =>
+          identifyPermissionByEnforcers({ enforcers, contracts }),
+        ).toThrow('Unable to identify permission type');
+      });
+
+      it('rejects when three AllowedCalldataEnforcer are provided', () => {
+        const enforcers = [
+          AllowedCalldataEnforcer,
+          AllowedCalldataEnforcer,
+          AllowedCalldataEnforcer,
+          ValueLteEnforcer,
+          NonceEnforcer,
+        ];
+        expect(() =>
+          identifyPermissionByEnforcers({ enforcers, contracts }),
+        ).toThrow('Unable to identify permission type');
+      });
+
+      it('rejects when ValueLteEnforcer is missing', () => {
+        const enforcers = [
+          AllowedCalldataEnforcer,
+          AllowedCalldataEnforcer,
+          NonceEnforcer,
+        ];
+        expect(() =>
+          identifyPermissionByEnforcers({ enforcers, contracts }),
+        ).toThrow('Unable to identify permission type');
+      });
+
+      it('rejects forbidden extra caveat', () => {
+        const enforcers = [
+          AllowedCalldataEnforcer,
+          AllowedCalldataEnforcer,
+          ValueLteEnforcer,
+          NonceEnforcer,
+          // Not allowed for erc20-token-revocation
+          ExactCalldataEnforcer,
+        ];
+        expect(() =>
+          identifyPermissionByEnforcers({ enforcers, contracts }),
+        ).toThrow('Unable to identify permission type');
+      });
+
+      it('accepts lowercased addresses', () => {
+        const enforcers: Hex[] = [
+          AllowedCalldataEnforcer.toLowerCase() as unknown as Hex,
+          AllowedCalldataEnforcer.toLowerCase() as unknown as Hex,
+          ValueLteEnforcer.toLowerCase() as unknown as Hex,
+          NonceEnforcer.toLowerCase() as unknown as Hex,
+        ];
+        const result = identifyPermissionByEnforcers({ enforcers, contracts });
+        expect(result).toBe(expectedPermissionType);
+      });
+
+      it('throws if a contract is not found', () => {
+        const enforcers = [
+          AllowedCalldataEnforcer,
+          AllowedCalldataEnforcer,
+          ValueLteEnforcer,
+          NonceEnforcer,
+        ];
+        const contractsWithoutAllowedCalldataEnforcer = {
+          ...contracts,
+          AllowedCalldataEnforcer: undefined,
+        } as unknown as DeployedContractsByName;
+
+        expect(() =>
+          identifyPermissionByEnforcers({
+            enforcers,
+            contracts: contractsWithoutAllowedCalldataEnforcer,
+          }),
+        ).toThrow('Contract not found: AllowedCalldataEnforcer');
+      });
+    });
   });
 
   describe('getPermissionDataAndExpiry', () => {
@@ -543,7 +651,7 @@ describe('decodePermission', () => {
         const caveats = [
           {
             enforcer: TimestampEnforcer,
-            terms: `0x${'0'.repeat(68)}` as Hex,
+            terms: `0x${'0'.repeat(68)}` as const,
             args: '0x',
           } as const,
           {
@@ -1048,6 +1156,23 @@ describe('decodePermission', () => {
         ).toThrow('Value must be a hexadecimal string.');
       });
     });
+
+    describe('erc20-token-revocation', () => {
+      const permissionType = 'erc20-token-revocation';
+
+      it('returns the correct expiry and data', () => {
+        const caveats = [expiryCaveat];
+
+        const { expiry, data } = getPermissionDataAndExpiry({
+          contracts,
+          caveats,
+          permissionType,
+        });
+
+        expect(expiry).toStrictEqual(timestampBeforeThreshold);
+        expect(data).toStrictEqual({});
+      });
+    });
   });
 
   describe('reconstructDecodedPermission', () => {
@@ -1079,11 +1204,8 @@ describe('decodePermission', () => {
       });
 
       expect(result.chainId).toBe(numberToHex(chainId));
-      expect(result.address).toBe(delegator);
-      expect(result.signer).toStrictEqual({
-        type: 'account',
-        data: { address: delegate },
-      });
+      expect(result.from).toBe(delegator);
+      expect(result.to).toStrictEqual(delegate);
       expect(result.permission).toStrictEqual({
         type: permissionType,
         data,

@@ -28,7 +28,7 @@ const stateMetadata: StateMetadata<TransactionPayControllerState> = {
   },
 };
 
-const getDefaultState = () => ({
+const getDefaultState = (): TransactionPayControllerState => ({
   transactionData: {},
 });
 
@@ -67,20 +67,27 @@ export class TransactionPayController extends BaseController<
       this.#removeTransactionData.bind(this),
     );
 
+    // eslint-disable-next-line no-new
     new QuoteRefresher({
       messenger,
       updateTransactionData: this.#updateTransactionData.bind(this),
     });
   }
 
-  updatePaymentToken(request: UpdatePaymentTokenRequest) {
+  setIsMaxAmount(transactionId: string, isMaxAmount: boolean): void {
+    this.#updateTransactionData(transactionId, (transactionData) => {
+      transactionData.isMaxAmount = isMaxAmount;
+    });
+  }
+
+  updatePaymentToken(request: UpdatePaymentTokenRequest): void {
     updatePaymentToken(request, {
       messenger: this.messenger,
       updateTransactionData: this.#updateTransactionData.bind(this),
     });
   }
 
-  #removeTransactionData(transactionId: string) {
+  #removeTransactionData(transactionId: string): void {
     this.update((state) => {
       delete state.transactionData[transactionId];
     });
@@ -89,7 +96,7 @@ export class TransactionPayController extends BaseController<
   #updateTransactionData(
     transactionId: string,
     fn: (transactionData: Draft<TransactionData>) => void,
-  ) {
+  ): void {
     let shouldUpdateQuotes = false;
 
     this.update((state) => {
@@ -97,6 +104,7 @@ export class TransactionPayController extends BaseController<
       let current = transactionData[transactionId];
       const originalPaymentToken = current?.paymentToken;
       const originalTokens = current?.tokens;
+      const originalIsMaxAmount = current?.isMaxAmount;
 
       if (!current) {
         transactionData[transactionId] = {
@@ -113,8 +121,9 @@ export class TransactionPayController extends BaseController<
         current.paymentToken !== originalPaymentToken;
 
       const isTokensUpdated = current.tokens !== originalTokens;
+      const isIsMaxUpdated = current.isMaxAmount !== originalIsMaxAmount;
 
-      if (isPaymentTokenUpdated || isTokensUpdated) {
+      if (isPaymentTokenUpdated || isIsMaxUpdated || isTokensUpdated) {
         updateSourceAmounts(transactionId, current as never, this.messenger);
 
         shouldUpdateQuotes = true;
@@ -131,7 +140,7 @@ export class TransactionPayController extends BaseController<
     }
   }
 
-  #registerActionHandlers() {
+  #registerActionHandlers(): void {
     this.messenger.registerActionHandler(
       'TransactionPayController:getDelegationTransaction',
       this.#getDelegationTransaction.bind(this),
@@ -139,7 +148,13 @@ export class TransactionPayController extends BaseController<
 
     this.messenger.registerActionHandler(
       'TransactionPayController:getStrategy',
-      this.#getStrategy ?? (() => TransactionPayStrategy.Relay),
+      this.#getStrategy ??
+        ((): TransactionPayStrategy => TransactionPayStrategy.Relay),
+    );
+
+    this.messenger.registerActionHandler(
+      'TransactionPayController:setIsMaxAmount',
+      this.setIsMaxAmount.bind(this),
     );
 
     this.messenger.registerActionHandler(

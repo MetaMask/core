@@ -4,12 +4,12 @@ import type {
   JsonRpcMiddleware,
 } from '@metamask/json-rpc-engine';
 import SafeEventEmitter from '@metamask/safe-event-emitter';
-import {
-  hasProperty,
-  type JsonRpcNotification,
-  type JsonRpcParams,
-  type JsonRpcRequest,
-  type PendingJsonRpcResponse,
+import { hasProperty } from '@metamask/utils';
+import type {
+  JsonRpcNotification,
+  JsonRpcParams,
+  JsonRpcRequest,
+  PendingJsonRpcResponse,
 } from '@metamask/utils';
 import { Duplex } from 'readable-stream';
 
@@ -38,11 +38,15 @@ type Options = {
  * @param options - Configuration options for middleware.
  * @returns The event emitter, middleware, and stream.
  */
-export default function createStreamMiddleware(options: Options = {}) {
+export default function createStreamMiddleware(options: Options = {}): {
+  events: SafeEventEmitter;
+  middleware: JsonRpcMiddleware<JsonRpcParams, JsonRpcParams>;
+  stream: _Readable.Duplex;
+} {
   const idMap: IdMap = {}; // TODO: replace with actual Map
   const stream = new Duplex({
     objectMode: true,
-    read: () => undefined,
+    read: (): undefined => undefined,
     write: processMessage,
   });
 
@@ -67,7 +71,7 @@ export default function createStreamMiddleware(options: Options = {}) {
    *
    * @param req - The JSON-RPC request object.
    */
-  function sendToStream(req: JsonRpcRequest) {
+  function sendToStream(req: JsonRpcRequest): void {
     // TODO: limiting retries could be implemented here
     stream.push(req);
   }
@@ -83,7 +87,7 @@ export default function createStreamMiddleware(options: Options = {}) {
     res: PendingJsonRpcResponse<JsonRpcParams>,
     _encoding: unknown,
     streamWriteCallback: (error?: Error | null) => void,
-  ) {
+  ): void {
     let errorObj: Error | null = null;
     try {
       const isNotification = !hasProperty(res, 'id');
@@ -104,7 +108,7 @@ export default function createStreamMiddleware(options: Options = {}) {
    *
    * @param res - The response to process.
    */
-  function processResponse(res: PendingJsonRpcResponse<JsonRpcParams>) {
+  function processResponse(res: PendingJsonRpcResponse<JsonRpcParams>): void {
     const { id: responseId } = res;
     if (responseId === null) {
       return;
@@ -129,7 +133,7 @@ export default function createStreamMiddleware(options: Options = {}) {
    *
    * @param notif - The notification to process.
    */
-  function processNotification(notif: JsonRpcNotification) {
+  function processNotification(notif: JsonRpcNotification): void {
     if (options?.retryOnMessage && notif.method === options.retryOnMessage) {
       retryStuckRequests();
     }
@@ -139,7 +143,7 @@ export default function createStreamMiddleware(options: Options = {}) {
   /**
    * Retry pending requests.
    */
-  function retryStuckRequests() {
+  function retryStuckRequests(): void {
     Object.values(idMap).forEach(({ req, retryCount = 0 }) => {
       // Avoid retrying requests without an id - they cannot have matching responses so retry logic doesn't apply
       // Check for retry count below ensure that a request is not retried more than 3 times

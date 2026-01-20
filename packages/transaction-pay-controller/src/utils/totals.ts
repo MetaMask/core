@@ -15,6 +15,7 @@ import type {
  * Calculate totals for a list of quotes and tokens.
  *
  * @param request - Request parameters.
+ * @param request.isMaxAmount - Whether the transaction is a maximum amount transaction.
  * @param request.quotes - List of bridge quotes.
  * @param request.messenger - Controller messenger.
  * @param request.tokens - List of required tokens.
@@ -22,11 +23,13 @@ import type {
  * @returns The calculated totals in USD and fiat currency.
  */
 export function calculateTotals({
+  isMaxAmount,
   quotes,
   messenger,
   tokens,
   transaction,
 }: {
+  isMaxAmount?: boolean;
   quotes: TransactionPayQuote<unknown>[];
   messenger: TransactionPayControllerMessenger;
   tokens: TransactionPayRequiredToken[];
@@ -55,20 +58,26 @@ export function calculateTotals({
     : transactionNetworkFee;
 
   const sourceAmount = sumAmounts(quotes.map((quote) => quote.sourceAmount));
-  const quoteTokens = tokens.filter((t) => !t.skipIfBalance);
+  const targetAmount = sumAmounts(quotes.map((quote) => quote.targetAmount));
+
+  const quoteTokens = tokens.filter(
+    (singleToken) => !singleToken.skipIfBalance,
+  );
+
   const amountFiat = sumProperty(quoteTokens, (token) => token.amountFiat);
   const amountUsd = sumProperty(quoteTokens, (token) => token.amountUsd);
+  const hasQuotes = quotes.length > 0;
 
   const totalFiat = new BigNumber(providerFee.fiat)
     .plus(sourceNetworkFeeEstimate.fiat)
     .plus(targetNetworkFee.fiat)
-    .plus(amountFiat)
+    .plus(isMaxAmount && hasQuotes ? targetAmount.fiat : amountFiat)
     .toString(10);
 
   const totalUsd = new BigNumber(providerFee.usd)
     .plus(sourceNetworkFeeEstimate.usd)
     .plus(targetNetworkFee.usd)
-    .plus(amountUsd)
+    .plus(isMaxAmount && hasQuotes ? targetAmount.usd : amountUsd)
     .toString(10);
 
   const estimatedDuration = Number(
@@ -80,7 +89,7 @@ export function calculateTotals({
   );
 
   const isTargetGasFeeToken =
-    targetNetworkFee.isGasFeeToken ||
+    Boolean(targetNetworkFee.isGasFeeToken) ||
     quotes.some((quote) => quote.fees.isTargetGasFeeToken);
 
   return {
@@ -96,6 +105,7 @@ export function calculateTotals({
       targetNetwork: targetNetworkFee,
     },
     sourceAmount,
+    targetAmount,
     total: {
       fiat: totalFiat,
       usd: totalUsd,
@@ -140,9 +150,9 @@ function sumFiat(data: FiatValue[]): FiatValue {
  * @param getProperty - Function to extract the property to sum from each item.
  * @returns The summed value as a string.
  */
-function sumProperty<T>(
-  data: T[],
-  getProperty: (item: T) => BigNumber.Value,
+function sumProperty<DataType>(
+  data: DataType[],
+  getProperty: (item: DataType) => BigNumber.Value,
 ): string {
   return data
     .map(getProperty)

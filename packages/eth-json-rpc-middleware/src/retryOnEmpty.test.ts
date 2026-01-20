@@ -463,7 +463,7 @@ describe('createRetryOnEmptyMiddleware', () => {
         createStubForBlockNumberRequest(),
         {
           request,
-          result: () => {
+          result: (): never => {
             throw rpcErrors.invalidInput('execution reverted');
           },
         },
@@ -485,9 +485,9 @@ describe('createRetryOnEmptyMiddleware', () => {
  * @param requestStub - The request/response pair.
  * @returns The request/response pair, properly typed.
  */
-function stubGenericRequest<T extends JsonRpcParams, U extends Json>(
-  requestStub: ProviderRequestStub<T, U>,
-) {
+function stubGenericRequest<Params extends JsonRpcParams, Result extends Json>(
+  requestStub: ProviderRequestStub<Params, Result>,
+): ProviderRequestStub<Params, Result> {
   return requestStub;
 }
 
@@ -505,17 +505,17 @@ function stubGenericRequest<T extends JsonRpcParams, U extends Json>(
  * @returns The request/result pair, properly typed.
  */
 function stubRequestThatFailsThenFinallySucceeds<
-  T extends JsonRpcParams,
-  U extends Json,
+  Params extends JsonRpcParams,
+  Result extends Json,
 >({
   request,
   numberOfTimesToFail,
   successfulResult,
 }: {
-  request: ProviderRequestStub<T, U>['request'];
+  request: ProviderRequestStub<Params, Result>['request'];
   numberOfTimesToFail: number;
-  successfulResult: ProviderRequestStub<T, U>['result'];
-}): ProviderRequestStub<T, U> {
+  successfulResult: ProviderRequestStub<Params, Result>['result'];
+}): ProviderRequestStub<Params, Result> {
   return stubGenericRequest({
     request,
     result: async (callNumber) => {
@@ -557,7 +557,7 @@ async function waitForRequestToBeRetried({
   requestSpy: jest.SpyInstance;
   request: JsonRpcRequest;
   numberOfTimes: number;
-}) {
+}): Promise<void> {
   let iterationNumber = 1;
 
   while (iterationNumber <= numberOfTimes) {

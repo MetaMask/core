@@ -1,7 +1,8 @@
+import * as commentJson from 'comment-json';
 import execa from 'execa';
 import fs from 'fs';
 import path from 'path';
-import prettier from 'prettier';
+import { format } from 'prettier';
 
 import { MonorepoFiles } from './constants';
 import * as fsUtils from './fs-utils';
@@ -60,8 +61,8 @@ describe('create-package/utils', () => {
       const monorepoFileData = await readMonorepoFiles();
 
       expect(monorepoFileData).toStrictEqual({
-        tsConfig: JSON.parse(tsConfig),
-        tsConfigBuild: JSON.parse(tsConfigBuild),
+        tsConfig: commentJson.parse(tsConfig),
+        tsConfigBuild: commentJson.parse(tsConfigBuild),
         nodeVersions: '>=18.0.0',
       });
     });
@@ -101,7 +102,7 @@ describe('create-package/utils', () => {
         'mock3.file': 'PACKAGE_DESCRIPTION PACKAGE_DIRECTORY_NAME',
       });
 
-      (prettier.format as jest.Mock).mockImplementation((input) => input);
+      (format as jest.Mock).mockImplementation((input) => input);
 
       await finalizeAndWriteData(packageData, monorepoFileData);
 
@@ -125,21 +126,32 @@ describe('create-package/utils', () => {
 
       // Writing monorepo files
       expect(fs.promises.writeFile).toHaveBeenCalledTimes(2);
-      expect(prettier.format).toHaveBeenCalledTimes(2);
+      expect(format).toHaveBeenCalledTimes(2);
       expect(fs.promises.writeFile).toHaveBeenCalledWith(
         expect.stringMatching(/tsconfig\.json$/u),
-        JSON.stringify({
-          references: [{ path: './packages/bar' }, { path: './packages/foo' }],
-        }),
+        JSON.stringify(
+          {
+            references: [
+              { path: './packages/bar' },
+              { path: './packages/foo' },
+            ],
+          },
+          null,
+          2,
+        ),
       );
       expect(fs.promises.writeFile).toHaveBeenCalledWith(
         expect.stringMatching(/tsconfig\.build\.json$/u),
-        JSON.stringify({
-          references: [
-            { path: './packages/bar' },
-            { path: './packages/foo/tsconfig.build.json' },
-          ],
-        }),
+        JSON.stringify(
+          {
+            references: [
+              { path: './packages/bar' },
+              { path: './packages/foo/tsconfig.build.json' },
+            ],
+          },
+          null,
+          2,
+        ),
       );
 
       // Postprocessing

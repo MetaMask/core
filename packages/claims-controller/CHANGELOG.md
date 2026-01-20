@@ -9,6 +9,40 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ### Changed
 
+- Bump `@metamask/controller-utils` from `^11.17.0` to `^11.18.0` ([#7583](https://github.com/MetaMask/core/pull/7583))
+
+## [0.4.1]
+
+### Changed
+
+- Replaced global `console` logs with `ModuleLogger`. ([#7569](https://github.com/MetaMask/core/pull/7569))
+
+## [0.4.0]
+
+### Added
+
+- Capture claims error and report to sentry using `Messenger.captureException` method from `@metamask/messenger`. ([#7553](https://github.com/MetaMask/core/pull/7553))
+
+### Changed
+
+- Upgrade `@metamask/utils` from `^11.8.1` to `^11.9.0` ([#7511](https://github.com/MetaMask/core/pull/7511))
+- Bump `@metamask/controller-utils` from `^11.16.0` to `^11.17.0` ([#7534](https://github.com/MetaMask/core/pull/7534))
+
+## [0.3.1]
+
+### Added
+
+- Added `updatedAt` field to the claims draft. ([#7523](https://github.com/MetaMask/core/pull/7523))
+
+## [0.3.0]
+
+### Added
+
+- Added claims draft to controller and persist in the state as `drafts`. ([#7456](https://github.com/MetaMask/core/pull/7456))
+- Added public methods (CRUD) with relate to the `ClaimDraft`. ([#7456](https://github.com/MetaMask/core/pull/7456))
+
+### Changed
+
 - Bump `@metamask/controller-utils` from `^11.15.0` to `^11.16.0` ([#7202](https://github.com/MetaMask/core/pull/7202))
 
 ## [0.2.0]
@@ -35,6 +69,10 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
   - `generateMessageForClaimSignature`: generate message to sign for the claim signature.
   - `verifyClaimSignature`: verify claim signature produced by user.
 
-[Unreleased]: https://github.com/MetaMask/core/compare/@metamask/claims-controller@0.2.0...HEAD
+[Unreleased]: https://github.com/MetaMask/core/compare/@metamask/claims-controller@0.4.1...HEAD
+[0.4.1]: https://github.com/MetaMask/core/compare/@metamask/claims-controller@0.4.0...@metamask/claims-controller@0.4.1
+[0.4.0]: https://github.com/MetaMask/core/compare/@metamask/claims-controller@0.3.1...@metamask/claims-controller@0.4.0
+[0.3.1]: https://github.com/MetaMask/core/compare/@metamask/claims-controller@0.3.0...@metamask/claims-controller@0.3.1
+[0.3.0]: https://github.com/MetaMask/core/compare/@metamask/claims-controller@0.2.0...@metamask/claims-controller@0.3.0
 [0.2.0]: https://github.com/MetaMask/core/compare/@metamask/claims-controller@0.1.0...@metamask/claims-controller@0.2.0
 [0.1.0]: https://github.com/MetaMask/core/releases/tag/@metamask/claims-controller@0.1.0

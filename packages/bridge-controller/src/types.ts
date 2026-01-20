@@ -30,8 +30,10 @@ import type {
   BitcoinTradeDataSchema,
   BridgeAssetSchema,
   ChainConfigurationSchema,
+  ChainRankingSchema,
   FeatureId,
   FeeDataSchema,
+  IntentSchema,
   PlatformConfigSchema,
   ProtocolSchema,
   QuoteResponseSchema,
@@ -65,6 +67,8 @@ export enum AssetType {
 }
 
 export type ChainConfiguration = Infer<typeof ChainConfigurationSchema>;
+
+export type ChainRanking = Infer<typeof ChainRankingSchema>;
 
 export type L1GasFees = {
   l1GasFeesInHexWei?: string; // l1 fees for approval and trade in hex wei, appended by BridgeController.#appendL1GasFees
@@ -223,6 +227,7 @@ export type QuoteRequest<
 };
 
 export enum StatusTypes {
+  SUBMITTED = 'SUBMITTED',
   UNKNOWN = 'UNKNOWN',
   FAILED = 'FAILED',
   PENDING = 'PENDING',
@@ -250,6 +255,9 @@ export type FeeData = Infer<typeof FeeDataSchema>;
 export type Quote = Infer<typeof QuoteSchema>;
 
 export type TxData = Infer<typeof TxDataSchema>;
+
+export type Intent = Infer<typeof IntentSchema>;
+export type IntentOrderLike = Intent['order'];
 
 export type BitcoinTradeData = Infer<typeof BitcoinTradeDataSchema>;
 

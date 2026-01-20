@@ -6,7 +6,11 @@ import {
   SubscriptionControllerErrorMessage,
 } from './constants';
 import { SubscriptionServiceError } from './errors';
-import { SUBSCRIPTION_URL, SubscriptionService } from './SubscriptionService';
+import {
+  SUBSCRIPTION_URL,
+  SubscriptionService,
+  SubscriptionServiceConfig,
+} from './SubscriptionService';
 import type {
   StartSubscriptionRequest,
   StartCryptoSubscriptionRequest,
@@ -14,6 +18,7 @@ import type {
   PricingResponse,
   UpdatePaymentMethodCardRequest,
   UpdatePaymentMethodCryptoRequest,
+  SubscriptionEligibility,
 } from './types';
 import {
   PAYMENT_TYPES,
@@ -94,7 +99,9 @@ const MOCK_COHORTS = [
  * @param overrides - Optional overrides for the response
  * @returns Mock eligibility response
  */
-function createMockEligibilityResponse(overrides = {}) {
+function createMockEligibilityResponse(
+  overrides = {},
+): SubscriptionEligibility {
   return {
     product: PRODUCT_TYPES.SHIELD,
     canSubscribe: true,
@@ -113,7 +120,9 @@ function createMockEligibilityResponse(overrides = {}) {
  * @param [params.env] - The environment to use for the config
  * @returns The mock configuration object
  */
-function createMockConfig({ env = Env.DEV }: { env?: Env } = {}) {
+function createMockConfig({
+  env = Env.DEV,
+}: { env?: Env } = {}): SubscriptionServiceConfig {
   return {
     env,
     auth: {
@@ -144,7 +153,7 @@ function withMockSubscriptionService(
     config: ReturnType<typeof createMockConfig>;
     testUrl: string;
   }) => Promise<void>,
-) {
+): Promise<void> {
   const config = createMockConfig();
   const service = new SubscriptionService(config);
   const testUrl = getTestUrl(config.env);
@@ -218,7 +227,9 @@ describe('SubscriptionService', () => {
     it('should handle get access token error', async () => {
       await withMockSubscriptionService(async ({ service, config }) => {
         // Simulate a non-Error thrown from the auth.getAccessToken mock
-        config.auth.getAccessToken.mockRejectedValue('string error');
+        (config.auth.getAccessToken as jest.Mock).mockRejectedValue(
+          'string error',
+        );
 
         await expect(service.getSubscriptions()).rejects.toThrow(
           SubscriptionServiceError,
@@ -644,7 +655,8 @@ describe('SubscriptionService', () => {
         handleFetchMock.mockResolvedValue({});
 
         await service.linkRewards({
-          rewardSubscriptionId: 'reward_sub_123',
+          rewardAccountId:
+            'eip155:1:0x1234567890123456789012345678901234567890',
         });
 
         expect(handleFetchMock).toHaveBeenCalledWith(
@@ -653,7 +665,8 @@ describe('SubscriptionService', () => {
             method: 'POST',
             headers: MOCK_HEADERS,
             body: JSON.stringify({
-              rewardSubscriptionId: 'reward_sub_123',
+              rewardAccountId:
+                'eip155:1:0x1234567890123456789012345678901234567890',
             }),
           },
         );

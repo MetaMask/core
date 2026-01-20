@@ -24,7 +24,8 @@ import {
   WARNING_PREFIX,
 } from './logger';
 import { MultichainAccountGroup } from './MultichainAccountGroup';
-import { EvmAccountProvider, type Bip44AccountProvider } from './providers';
+import { EvmAccountProvider } from './providers';
+import type { Bip44AccountProvider } from './providers';
 import type { MultichainAccountServiceMessenger } from './types';
 import { createSentryError, toRejectedErrorMessage } from './utils';
 
@@ -258,10 +259,7 @@ export class MultichainAccountWallet<
                 provider: provider.getName(),
               },
             );
-            this.#messenger.call(
-              'ErrorReportingService:captureException',
-              sentryError,
-            );
+            this.#messenger.captureException?.(sentryError);
             throw error;
           }),
       );
@@ -300,10 +298,7 @@ export class MultichainAccountWallet<
               provider: provider.getName(),
             },
           );
-          this.#messenger.call(
-            'ErrorReportingService:captureException',
-            sentryError,
-          );
+          this.#messenger.captureException?.(sentryError);
         });
     });
   }
@@ -447,10 +442,7 @@ export class MultichainAccountWallet<
             provider: evmProvider.getName(),
           },
         );
-        this.#messenger.call(
-          'ErrorReportingService:captureException',
-          sentryError,
-        );
+        this.#messenger.captureException?.(sentryError);
         throw new Error(errorMessage);
       }
 
@@ -623,10 +615,7 @@ export class MultichainAccountWallet<
                 groupIndex: targetGroupIndex,
               },
             );
-            this.#messenger.call(
-              'ErrorReportingService:captureException',
-              sentryError,
-            );
+            this.#messenger.captureException?.(sentryError);
             break;
           }
 

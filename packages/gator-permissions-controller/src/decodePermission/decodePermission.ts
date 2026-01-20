@@ -11,7 +11,6 @@ import {
   createPermissionRulesForChainId,
   getChecksumEnforcersByChainId,
   getTermsByEnforcer,
-  isSubset,
   splitHex,
 } from './utils';
 
@@ -22,7 +21,7 @@ import {
  * A permission type matches when:
  * - All of its required enforcers are present in the provided list; and
  * - No provided enforcer falls outside the union of the type's required and
- * allowed enforcers (currently only `TimestampEnforcer` is allowed extra).
+ * optional enforcers (currently only `TimestampEnforcer` is allowed extra).
  *
  * If exactly one permission type matches, its identifier is returned.
  *
@@ -40,29 +39,47 @@ export const identifyPermissionByEnforcers = ({
   enforcers: Hex[];
   contracts: DeployedContractsByName;
 }): PermissionType => {
-  const enforcersSet = new Set(enforcers.map(getChecksumAddress));
+  // Build frequency map for enforcers (using checksummed addresses)
+  const counts = new Map<Hex, number>();
+  for (const addr of enforcers.map(getChecksumAddress)) {
+    counts.set(addr, (counts.get(addr) ?? 0) + 1);
+  }
+  const enforcersSet = new Set(counts.keys());
 
   const permissionRules = createPermissionRulesForChainId(contracts);
 
   let matchingPermissionType: PermissionType | null = null;
 
   for (const {
-    allowedEnforcers,
+    optionalEnforcers,
     requiredEnforcers,
     permissionType,
   } of permissionRules) {
-    const hasAllRequiredEnforcers = isSubset(requiredEnforcers, enforcersSet);
+    // union of optional + required enforcers. Any other address is forbidden.
+    const allowedEnforcers = new Set<Hex>([
+      ...optionalEnforcers,
+      ...requiredEnforcers.keys(),
+    ]);
 
     let hasForbiddenEnforcers = false;
 
     for (const caveat of enforcersSet) {
-      if (!allowedEnforcers.has(caveat) && !requiredEnforcers.has(caveat)) {
+      if (!allowedEnforcers.has(caveat)) {
         hasForbiddenEnforcers = true;
         break;
       }
     }
 
-    if (hasAllRequiredEnforcers && !hasForbiddenEnforcers) {
+    // exact multiplicity match for required enforcers
+    let meetsRequiredCounts = true;
+    for (const [addr, requiredCount] of requiredEnforcers.entries()) {
+      if ((counts.get(addr) ?? 0) !== requiredCount) {
+        meetsRequiredCounts = false;
+        break;
+      }
+    }
+
+    if (meetsRequiredCounts && !hasForbiddenEnforcers) {
       if (matchingPermissionType) {
         throw new Error('Multiple permission types match');
       }
@@ -249,6 +266,10 @@ export const getPermissionDataAndExpiry = ({
       };
       break;
     }
+    case 'erc20-token-revocation': {
+      data = {};
+      break;
+    }
     default:
       throw new Error('Invalid permission type');
   }
@@ -300,15 +321,15 @@ export const reconstructDecodedPermission = ({
   data: DecodedPermission['permission']['data'];
   justification: string;
   specifiedOrigin: string;
-}) => {
+}): DecodedPermission => {
   if (authority !== ROOT_AUTHORITY) {
     throw new Error('Invalid authority');
   }
 
   const permission: DecodedPermission = {
     chainId: numberToHex(chainId),
-    address: delegator,
-    signer: { type: 'account', data: { address: delegate } },
+    from: delegator,
+    to: delegate,
     permission: {
       type: permissionType,
       data,

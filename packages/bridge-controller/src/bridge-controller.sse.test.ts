@@ -10,12 +10,8 @@ import {
   DEFAULT_BRIDGE_CONTROLLER_STATE,
   ETH_USDT_ADDRESS,
 } from './constants/bridge';
-import type { QuoteResponse, TxData } from './types';
-import {
-  ChainId,
-  RequestStatus,
-  type BridgeControllerMessenger,
-} from './types';
+import { ChainId, RequestStatus } from './types';
+import type { BridgeControllerMessenger, QuoteResponse, TxData } from './types';
 import * as balanceUtils from './utils/balance';
 import { formatChainIdToDec } from './utils/caip-formatters';
 import * as featureFlagUtils from './utils/feature-flags';
@@ -122,6 +118,7 @@ describe('BridgeController SSE', function () {
           isActiveDest: true,
         },
       },
+      chainRanking: [{ chainId: 'eip155:1' as const, name: 'Ethereum' }],
     });
 
     bridgeController = new BridgeController({

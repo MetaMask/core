@@ -1,6 +1,7 @@
 import { BtcScope, SolScope, EthScope, TrxScope } from '@metamask/keyring-api';
 import type { InternalAccount } from '@metamask/keyring-internal-api';
-import { type Infer, array, object } from '@metamask/superstruct';
+import { array, object } from '@metamask/superstruct';
+import type { Infer } from '@metamask/superstruct';
 import { CaipAccountIdStruct, parseCaipAccountId } from '@metamask/utils';
 import type {
   CaipAccountAddress,

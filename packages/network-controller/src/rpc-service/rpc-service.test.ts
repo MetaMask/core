@@ -56,6 +56,7 @@ describe('RpcService', () => {
         fetch,
         btoa,
         endpointUrl,
+        isOffline: (): boolean => false,
       });
       service.onRetry(() => {
         clock.next();
@@ -106,6 +107,7 @@ describe('RpcService', () => {
         fetch,
         btoa,
         endpointUrl,
+        isOffline: (): boolean => false,
       });
       service.onRetry(() => {
         clock.next();
@@ -172,6 +174,7 @@ describe('RpcService', () => {
         fetch,
         btoa,
         endpointUrl,
+        isOffline: (): boolean => false,
       });
       service.onRetry(() => {
         clock.next();
@@ -225,6 +228,7 @@ describe('RpcService', () => {
         fetch,
         btoa,
         endpointUrl,
+        isOffline: (): boolean => false,
       });
       service.onRetry(() => {
         clock.next();
@@ -273,6 +277,7 @@ describe('RpcService', () => {
         fetch,
         btoa,
         endpointUrl,
+        isOffline: (): boolean => false,
       });
       service.onRetry(() => {
         clock.next();
@@ -320,6 +325,7 @@ describe('RpcService', () => {
         fetch,
         btoa,
         endpointUrl,
+        isOffline: (): boolean => false,
       });
       service.onRetry(() => {
         clock.next();
@@ -446,13 +452,14 @@ describe('RpcService', () => {
       testsForNonRetriableErrors({
         createService: ({ endpointUrl, expectedError }) => {
           return new RpcService({
-            fetch: () => {
+            fetch: (): never => {
               // This error could be anything.
               // eslint-disable-next-line @typescript-eslint/only-throw-error
               throw expectedError;
             },
             btoa,
             endpointUrl,
+            isOffline: (): boolean => false,
           });
         },
         expectedError: new Error('oops'),
@@ -594,6 +601,109 @@ describe('RpcService', () => {
       },
     );
 
+    describe('when offline', () => {
+      it('does not retry when offline, only makes one fetch call', async () => {
+        const expectedError = new TypeError('Failed to fetch');
+        const mockFetch = jest.fn(() => {
+          throw expectedError;
+        });
+        const service = new RpcService({
+          fetch: mockFetch,
+          btoa,
+          endpointUrl: 'https://rpc.example.chain',
+          isOffline: (): boolean => true,
+        });
+        service.onRetry(() => {
+          clock.next();
+        });
+
+        const jsonRpcRequest = {
+          id: 1,
+          jsonrpc: '2.0' as const,
+          method: 'eth_chainId',
+          params: [],
+        };
+        await expect(service.request(jsonRpcRequest)).rejects.toThrow(
+          expectedError,
+        );
+        // When offline, no retries should happen, so only 1 fetch call
+        expect(mockFetch).toHaveBeenCalledTimes(1);
+      });
+
+      it('does not call onDegraded when offline', async () => {
+        const expectedError = new TypeError('Failed to fetch');
+        const mockFetch = jest.fn(() => {
+          throw expectedError;
+        });
+        const endpointUrl = 'https://rpc.example.chain';
+        const onDegradedListener = jest.fn();
+        const service = new RpcService({
+          fetch: mockFetch,
+          btoa,
+          endpointUrl,
+          isOffline: (): boolean => true,
+        });
+        service.onRetry(() => {
+          clock.next();
+        });
+        service.onDegraded(onDegradedListener);
+
+        const jsonRpcRequest = {
+          id: 1,
+          jsonrpc: '2.0' as const,
+          method: 'eth_chainId',
+          params: [],
+        };
+        await expect(service.request(jsonRpcRequest)).rejects.toThrow(
+          expectedError,
+        );
+
+        // When offline, retries don't happen, so onDegraded should not be called
+        expect(onDegradedListener).not.toHaveBeenCalled();
+      });
+
+      it('does not call onBreak when offline', async () => {
+        const expectedError = new TypeError('Failed to fetch');
+        const mockFetch = jest.fn(() => {
+          throw expectedError;
+        });
+        const endpointUrl = 'https://rpc.example.chain';
+        const onBreakListener = jest.fn();
+        const service = new RpcService({
+          fetch: mockFetch,
+          btoa,
+          endpointUrl,
+          isOffline: (): boolean => true,
+        });
+        service.onRetry(() => {
+          clock.next();
+        });
+        service.onBreak(onBreakListener);
+
+        const jsonRpcRequest = {
+          id: 1,
+          jsonrpc: '2.0' as const,
+          method: 'eth_chainId',
+          params: [],
+        };
+        // Make multiple requests - even though we'd normally break the circuit,
+        // when offline, no retries happen so circuit won't break
+        await expect(service.request(jsonRpcRequest)).rejects.toThrow(
+          expectedError,
+        );
+        await expect(service.request(jsonRpcRequest)).rejects.toThrow(
+          expectedError,
+        );
+        await expect(service.request(jsonRpcRequest)).rejects.toThrow(
+          expectedError,
+        );
+
+        // When offline, retries don't happen, so circuit won't break and onBreak
+        // should not be called
+        expect(onBreakListener).not.toHaveBeenCalled();
+      });
+    });
+
     it('removes non-JSON-RPC-compliant properties from the request body before sending it to the endpoint', async () => {
       const endpointUrl = 'https://rpc.example.chain';
       nock(endpointUrl)
@@ -612,6 +722,7 @@ describe('RpcService', () => {
         fetch,
         btoa,
         endpointUrl,
+        isOffline: (): boolean => false,
       });
 
       // @ts-expect-error Intentionally passing bad input.
@@ -657,6 +768,7 @@ describe('RpcService', () => {
         fetch,
         btoa,
         endpointUrl: 'https://username:password@rpc.example.chain',
+        isOffline: (): boolean => false,
       });
 
       const response = await service.request({
@@ -696,6 +808,7 @@ describe('RpcService', () => {
         fetch,
         btoa,
         endpointUrl: 'https://username:password@rpc.example.chain',
+        isOffline: (): boolean => false,
       });
 
       await service.request({
@@ -731,6 +844,7 @@ describe('RpcService', () => {
         fetch,
         btoa,
         endpointUrl: 'https://username:password@rpc.example.chain',
+        isOffline: (): boolean => false,
       });
 
       await service.request(
@@ -780,6 +894,7 @@ describe('RpcService', () => {
         fetch,
         btoa,
         endpointUrl,
+        isOffline: (): boolean => false,
       });
 
       const response = await service.request({
@@ -826,6 +941,7 @@ describe('RpcService', () => {
         fetch,
         btoa,
         endpointUrl,
+        isOffline: (): boolean => false,
       });
 
       const response = await service.request(
@@ -865,6 +981,7 @@ describe('RpcService', () => {
         fetch,
         btoa,
         endpointUrl,
+        isOffline: (): boolean => false,
       });
 
       const response = await service.request({
@@ -906,6 +1023,7 @@ describe('RpcService', () => {
         fetch,
         btoa,
         endpointUrl,
+        isOffline: (): boolean => false,
       });
       service.onDegraded(onDegradedListener);
 
@@ -943,6 +1061,7 @@ describe('RpcService', () => {
         fetch,
         btoa,
         endpointUrl,
+        isOffline: (): boolean => false,
       });
       service.onAvailable(onAvailableListener);
 
@@ -994,6 +1113,7 @@ describe('RpcService', () => {
         fetch,
         btoa,
         endpointUrl,
+        isOffline: (): boolean => false,
       });
       service.onAvailable(onAvailableListener);
 
@@ -1027,9 +1147,9 @@ describe('RpcService', () => {
  * @param promiseOrFn - A promise that rejects, or a function that returns a
  * promise that rejects.
  */
-async function ignoreRejection<T>(
-  promiseOrFn: Promise<T> | (() => T | Promise<T>),
-) {
+async function ignoreRejection<Type>(
+  promiseOrFn: Promise<Type> | (() => Type | Promise<Type>),
+): Promise<void> {
   await expect(promiseOrFn).rejects.toThrow(expect.any(Error));
 }
 
@@ -1048,11 +1168,16 @@ async function ignoreRejection<T>(
  * method is expected to produce.
  */
 function testsForNonRetriableErrors({
-  beforeCreateService = () => {
+  beforeCreateService = (): void => {
     // do nothing
   },
-  createService = (args) => {
-    return new RpcService({ fetch, btoa, endpointUrl: args.endpointUrl });
+  createService = (args): RpcService => {
+    return new RpcService({
+      fetch,
+      btoa,
+      endpointUrl: args.endpointUrl,
+      isOffline: (): boolean => false,
+    });
   },
   endpointUrl = 'https://rpc.example.chain',
   rpcMethod = `eth_chainId`,
@@ -1069,7 +1194,7 @@ function testsForNonRetriableErrors({
   endpointUrl?: string;
   rpcMethod?: string;
   expectedError: string | RegExp | Error | jest.Constructable | undefined;
-}) {
+}): void {
   /* eslint-disable jest/require-top-level-describe */
 
   it('re-throws the error without retrying the request', async () => {
@@ -1176,7 +1301,7 @@ function testsForRetriableFetchErrors({
   getClock: () => SinonFakeTimers;
   producedError: Error;
   expectedError: string | jest.Constructable | RegExp | Error;
-}) {
+}): void {
   // This function is designed to be used inside of a describe, so this won't be
   // a problem in practice.
   /* eslint-disable jest/require-top-level-describe */
@@ -1190,6 +1315,7 @@ function testsForRetriableFetchErrors({
       fetch: mockFetch,
       btoa,
       endpointUrl: 'https://rpc.example.chain',
+      isOffline: (): boolean => false,
     });
     service.onRetry(() => {
       clock.next();
@@ -1218,6 +1344,7 @@ function testsForRetriableFetchErrors({
       fetch: mockFetch,
       btoa,
       endpointUrl,
+      isOffline: (): boolean => false,
     });
     service.onRetry(() => {
       clock.next();
@@ -1252,6 +1379,7 @@ function testsForRetriableFetchErrors({
       fetch: mockFetch,
       btoa,
       endpointUrl: 'https://rpc.example.chain',
+      isOffline: (): boolean => false,
     });
     service.onRetry(() => {
       clock.next();
@@ -1282,6 +1410,7 @@ function testsForRetriableFetchErrors({
       fetch: mockFetch,
       btoa,
       endpointUrl,
+      isOffline: (): boolean => false,
     });
     service.onRetry(() => {
       clock.next();
@@ -1318,6 +1447,7 @@ function testsForRetriableFetchErrors({
       btoa,
       endpointUrl,
       logger,
+      isOffline: (): boolean => false,
     });
     service.onRetry(() => {
       clock.next();
@@ -1358,6 +1488,7 @@ function testsForRetriableFetchErrors({
       btoa,
       endpointUrl,
       logger,
+      isOffline: (): boolean => false,
     });
     service.onRetry(() => {
       clock.next();
@@ -1387,6 +1518,8 @@ function testsForRetriableFetchErrors({
     const mockFetch = jest.fn(async () => {
       invocationIndex += 1;
       if (invocationIndex === DEFAULT_MAX_RETRIES + 1) {
+        // Only used for testing.
+        // eslint-disable-next-line no-restricted-globals
         return new Response(
           JSON.stringify({
             id: 1,
@@ -1403,6 +1536,7 @@ function testsForRetriableFetchErrors({
       fetch: mockFetch,
       btoa,
       endpointUrl,
+      isOffline: (): boolean => false,
     });
     service.onAvailable(onAvailableListener);
     service.onRetry(() => {
@@ -1451,7 +1585,7 @@ function testsForRetriableResponses({
   responseBody?: string;
   expectedError: string | jest.Constructable | RegExp | Error;
   expectedOnBreakError?: string | jest.Constructable | RegExp | Error;
-}) {
+}): void {
   // This function is designed to be used inside of a describe, so this won't be
   // a problem in practice.
   /* eslint-disable jest/require-top-level-describe,jest/no-identical-title */
@@ -1471,6 +1605,7 @@ function testsForRetriableResponses({
       fetch,
       btoa,
       endpointUrl: 'https://rpc.example.chain',
+      isOffline: (): boolean => false,
     });
     service.onRetry(() => {
       clock.next();
@@ -1503,6 +1638,7 @@ function testsForRetriableResponses({
       fetch,
       btoa,
       endpointUrl: 'https://rpc.example.chain',
+      isOffline: (): boolean => false,
     });
     service.onRetry(() => {
       clock.next();
@@ -1539,6 +1675,7 @@ function testsForRetriableResponses({
       fetch,
       btoa,
       endpointUrl,
+      isOffline: (): boolean => false,
     });
     service.onRetry(() => {
       clock.next();
@@ -1580,6 +1717,7 @@ function testsForRetriableResponses({
       fetch,
       btoa,
       endpointUrl,
+      isOffline: (): boolean => false,
     });
     service.onRetry(() => {
       clock.next();
@@ -1628,6 +1766,7 @@ function testsForRetriableResponses({
       btoa,
       endpointUrl,
       logger,
+      isOffline: (): boolean => false,
     });
     service.onRetry(() => {
       clock.next();
@@ -1650,6 +1789,88 @@ function testsForRetriableResponses({
         message: 'Execution prevented because the circuit breaker is open',
       }),
     );
+  });
+
+  it('does not retry when offline, only makes one request', async () => {
+    const clock = getClock();
+    const scope = nock('https://rpc.example.chain')
+      .post('/', {
+        id: 1,
+        jsonrpc: '2.0',
+        method: 'eth_chainId',
+        params: [],
+      })
+      .times(1)
+      .reply(httpStatus, responseBody);
+    const service = new RpcService({
+      fetch,
+      btoa,
+      endpointUrl: 'https://rpc.example.chain',
+      isOffline: (): boolean => true,
+    });
+    service.onRetry(() => {
+      clock.next();
+    });
+
+    const jsonRpcRequest = {
+      id: 1,
+      jsonrpc: '2.0' as const,
+      method: 'eth_chainId',
+      params: [],
+    };
+    await expect(service.request(jsonRpcRequest)).rejects.toThrow(
+      expectedError,
+    );
+    // When offline, no retries should happen, so only 1 request
+    expect(scope.isDone()).toBe(true);
+  });
+
+  it('does not call onBreak when offline', async () => {
+    const clock = getClock();
+    const scope = nock('https://rpc.example.chain')
+      .post('/', {
+        id: 1,
+        jsonrpc: '2.0',
+        method: 'eth_chainId',
+        params: [],
+      })
+      .times(3)
+      .reply(httpStatus, responseBody);
+    const endpointUrl = 'https://rpc.example.chain';
+    const onBreakListener = jest.fn();
+    const service = new RpcService({
+      fetch,
+      btoa,
+      endpointUrl,
+      isOffline: (): boolean => true,
+    });
+    service.onRetry(() => {
+      clock.next();
+    });
+    service.onBreak(onBreakListener);
+
+    const jsonRpcRequest = {
+      id: 1,
+      jsonrpc: '2.0' as const,
+      method: 'eth_chainId',
+      params: [],
+    };
+    // Make multiple requests - even though we'd normally break the circuit,
+    // when offline, no retries happen so circuit won't break
+    await expect(service.request(jsonRpcRequest)).rejects.toThrow(
+      expectedError,
+    );
+    await expect(service.request(jsonRpcRequest)).rejects.toThrow(
+      expectedError,
+    );
+    await expect(service.request(jsonRpcRequest)).rejects.toThrow(
+      expectedError,
+    );
+
+    // When offline, retries don't happen, so circuit won't break and onBreak
+    // should not be called
+    expect(onBreakListener).not.toHaveBeenCalled();
+    expect(scope.isDone()).toBe(true);
   });
 
   /* eslint-enable jest/require-top-level-describe,jest/no-identical-title */

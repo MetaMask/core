@@ -7,6 +7,56 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+### Changed
+
+- Bump `@metamask/controller-utils` from `^11.17.0` to `^11.18.0` ([#7583](https://github.com/MetaMask/core/pull/7583))
+
+## [4.0.0]
+
+### Changed
+
+- **BREAKING:** Improve threshold-based feature flag processing to ensure independent user assignment across different flags ([#7511](https://github.com/MetaMask/core/pull/7511)):
+  - Persist threshold values in controller state to avoid recalculating on app restart
+  - Skip cryptographic operations for non-threshold arrays
+  - Batch cache updates and cleanup into single state change
+  - Automatically remove stale cache entries when flags are deleted
+- Upgrade `@metamask/utils` from `^11.8.1` to `^11.9.0` ([#7511](https://github.com/MetaMask/core/pull/7511)) for native `crypto.subtle.digest` optimization ([#7511](https://github.com/MetaMask/core/pull/7511))
+- Remove `@noble/hashes` dependency since hashing utilities are now available in upgraded `@metamask/utils` ([#7511](https://github.com/MetaMask/core/pull/7511))
+- Changes to exported types ([#7511](https://github.com/MetaMask/core/pull/7511)):
+  - Add optional field `thresholdCache` to `RemoteFeatureFlagControllerState`
+- Bump `@metamask/controller-utils` from `^11.16.0` to `^11.17.0` ([#7534](https://github.com/MetaMask/core/pull/7534))
+
+## [3.1.0]
+
+### Added
+
+- Add override functionality to remote feature flags ([#7271](https://github.com/MetaMask/core/pull/7271))
+  - `setFlagOverride(flagName, value)` - Set a local override for a specific feature flag
+  - `removeFlagOverride(flagName)` - Clear the local override for a specific feature flag
+  - `clearAllFlagOverrides()` - Clear all local feature flag overrides
+- Add new optional controller state properties ([#7271](https://github.com/MetaMask/core/pull/7271))
+  - `localOverrides` - Local overrides for feature flags that take precedence over remote flags
+  - `rawRemoteFeatureFlags` - Raw flag value for all feature flags
+- Export additional controller action types ([#7271](https://github.com/MetaMask/core/pull/7271))
+  - `RemoteFeatureFlagControllerSetFlagOverrideAction`
+  - `RemoteFeatureFlagControllerremoveFlagOverrideAction`
+  - `RemoteFeatureFlagControllerclearAllFlagOverridesAction`
+
+## [3.0.0]
+
+### Added
+
+- Add version-gated feature flags with multi-version support ([#7277](https://github.com/MetaMask/core/pull/7277))
+  - Support for feature flags with multiple version entries: `{ versions: { "13.1.0": {...}, "13.2.0": {...} } }`
+  - Automatic selection of highest qualifying version based on semantic version comparison
+  - New utility functions: `isVersionFeatureFlag()`, `getVersionData()`, `isVersionAtLeast()`
+  - Enhanced type safety with `VersionEntry` and `MultiVersionFeatureFlagValue` types
+  - Comprehensive validation ensures only properly structured version entries are processed
+
+### Changed
+
+- **BREAKING:** Add required `clientVersion` parameter to constructor for version-based filtering (expects semantic version string of client app) ([#7277](https://github.com/MetaMask/core/pull/7277))
+
 ## [2.0.1]
 
 ### Changed
@@ -132,7 +182,10 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 - Initial release of the RemoteFeatureFlagController. ([#4931](https://github.com/MetaMask/core/pull/4931))
   - This controller manages the retrieval and caching of remote feature flags. It fetches feature flags from a remote API, caches them, and provides methods to access and manage these flags. The controller ensures that feature flags are refreshed based on a specified interval and handles cases where the controller is disabled or the network is unavailable.
 
-[Unreleased]: https://github.com/MetaMask/core/compare/@metamask/remote-feature-flag-controller@2.0.1...HEAD
+[Unreleased]: https://github.com/MetaMask/core/compare/@metamask/remote-feature-flag-controller@4.0.0...HEAD
+[4.0.0]: https://github.com/MetaMask/core/compare/@metamask/remote-feature-flag-controller@3.1.0...@metamask/remote-feature-flag-controller@4.0.0
+[3.1.0]: https://github.com/MetaMask/core/compare/@metamask/remote-feature-flag-controller@3.0.0...@metamask/remote-feature-flag-controller@3.1.0
+[3.0.0]: https://github.com/MetaMask/core/compare/@metamask/remote-feature-flag-controller@2.0.1...@metamask/remote-feature-flag-controller@3.0.0
 [2.0.1]: https://github.com/MetaMask/core/compare/@metamask/remote-feature-flag-controller@2.0.0...@metamask/remote-feature-flag-controller@2.0.1
 [2.0.0]: https://github.com/MetaMask/core/compare/@metamask/remote-feature-flag-controller@1.9.1...@metamask/remote-feature-flag-controller@2.0.0
 [1.9.1]: https://github.com/MetaMask/core/compare/@metamask/remote-feature-flag-controller@1.9.0...@metamask/remote-feature-flag-controller@1.9.1

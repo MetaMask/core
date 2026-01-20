@@ -1,4 +1,5 @@
-import { createModuleLogger, type Hex } from '@metamask/utils';
+import { createModuleLogger } from '@metamask/utils';
+import type { Hex } from '@metamask/utils';
 
 import { isValidSignature } from './signature';
 import { padHexToEvenLength } from './utils';
@@ -8,9 +9,12 @@ import type { TransactionControllerMessenger } from '../TransactionController';
 const DEFAULT_BATCH_SIZE_LIMIT = 10;
 const DEFAULT_ACCELERATED_POLLING_COUNT_MAX = 10;
 const DEFAULT_ACCELERATED_POLLING_INTERVAL_MS = 3 * 1000;
+const DEFAULT_BLOCK_TIME = 12 * 1000;
 const DEFAULT_GAS_ESTIMATE_FALLBACK_BLOCK_PERCENT = 35;
 const DEFAULT_GAS_ESTIMATE_BUFFER = 1;
 const DEFAULT_INCOMING_TRANSACTIONS_POLLING_INTERVAL_MS = 1000 * 60 * 4; // 4 Minutes
+const DEFAULT_SUBMIT_HISTORY_LIMIT = 100;
+const DEFAULT_TRANSACTION_HISTORY_LIMIT = 40;
 
 /**
  * Feature flags supporting the transaction controller.
@@ -107,6 +111,12 @@ export type TransactionControllerFeatureFlags = {
     /** Maximum number of transactions that can be in an external batch. */
     batchSizeLimit?: number;
 
+    /** Maximum number of entries in the submit history. */
+    submitHistoryLimit?: number;
+
+    /** Maximum number of transactions stored in state. */
+    transactionHistoryLimit?: number;
+
     /**
      * Accelerated polling is used to speed up the polling process for
      * transactions that are not yet confirmed.
@@ -115,6 +125,11 @@ export type TransactionControllerFeatureFlags = {
       /** Accelerated polling parameters on a per-chain basis. */
       perChainConfig?: {
         [chainId: Hex]: {
+          /**
+           * Block time in milliseconds.
+           */
+          blockTime?: number;
+
           /**
            * Maximum number of polling requests that can be made in a row, before
            * the normal polling resumes.
@@ -153,6 +168,23 @@ export type TransactionControllerFeatureFlags = {
        * This value is used when no specific gas estimate fallback is found for a chain ID.
        */
       default?: GasEstimateFallback;
+    };
+
+    /**
+     * Number of attempts to wait before automatically marking a transaction as failed
+     * if it has no receipt status and hash is not found on the network.
+     */
+    timeoutAttempts?: {
+      /** Automatic fail threshold on a per-chain basis. */
+      perChainConfig?: {
+        [chainId: Hex]: number;
+      };
+
+      /**
+       * Default automatic fail threshold.
+       * This value is used when no specific threshold is found for a chain ID.
+       */
+      default?: number;
     };
   };
 };
@@ -237,6 +269,40 @@ export function getBatchSizeLimit(
 }
 
 /**
+ * Retrieves the submit history limit.
+ * Defaults to 100 if not set.
+ *
+ * @param messenger - The controller messenger instance.
+ * @returns The submit history limit.
+ */
+export function getSubmitHistoryLimit(
+  messenger: TransactionControllerMessenger,
+): number {
+  const featureFlags = getFeatureFlags(messenger);
+  return (
+    featureFlags?.[FeatureFlag.Transactions]?.submitHistoryLimit ??
+    DEFAULT_SUBMIT_HISTORY_LIMIT
+  );
+}
+
+/**
+ * Retrieves the transaction history limit.
+ * Defaults to 40 if not set.
+ *
+ * @param messenger - The controller messenger instance.
+ * @returns The transaction history limit.
+ */
+export function getTransactionHistoryLimit(
+  messenger: TransactionControllerMessenger,
+): number {
+  const featureFlags = getFeatureFlags(messenger);
+  return (
+    featureFlags?.[FeatureFlag.Transactions]?.transactionHistoryLimit ??
+    DEFAULT_TRANSACTION_HISTORY_LIMIT
+  );
+}
+
+/**
  * Retrieves the accelerated polling parameters for a given chain ID.
  *
  * @param chainId - The chain ID.
@@ -246,23 +312,27 @@ export function getBatchSizeLimit(
 export function getAcceleratedPollingParams(
   chainId: Hex,
   messenger: TransactionControllerMessenger,
-): { countMax: number; intervalMs: number } {
+): { blockTime: number; countMax: number; intervalMs: number } {
   const featureFlags = getFeatureFlags(messenger);
 
   const acceleratedPollingParams =
     featureFlags?.[FeatureFlag.Transactions]?.acceleratedPolling;
 
   const countMax =
-    acceleratedPollingParams?.perChainConfig?.[chainId]?.countMax ||
-    acceleratedPollingParams?.defaultCountMax ||
+    acceleratedPollingParams?.perChainConfig?.[chainId]?.countMax ??
+    acceleratedPollingParams?.defaultCountMax ??
     DEFAULT_ACCELERATED_POLLING_COUNT_MAX;
 
   const intervalMs =
-    acceleratedPollingParams?.perChainConfig?.[chainId]?.intervalMs ||
-    acceleratedPollingParams?.defaultIntervalMs ||
+    acceleratedPollingParams?.perChainConfig?.[chainId]?.intervalMs ??
+    acceleratedPollingParams?.defaultIntervalMs ??
     DEFAULT_ACCELERATED_POLLING_INTERVAL_MS;
 
-  return { countMax, intervalMs };
+  const blockTime =
+    acceleratedPollingParams?.perChainConfig?.[chainId]?.blockTime ??
+    DEFAULT_BLOCK_TIME;
+
+  return { blockTime, countMax, intervalMs };
 }
 
 /**
@@ -280,10 +350,10 @@ export function getGasFeeRandomisation(
   const featureFlags = getFeatureFlags(messenger);
 
   const gasFeeRandomisation =
-    featureFlags?.[FeatureFlag.Transactions]?.gasFeeRandomisation || {};
+    featureFlags?.[FeatureFlag.Transactions]?.gasFeeRandomisation ?? {};
 
   return {
-    randomisedGasFeeDigits: gasFeeRandomisation.randomisedGasFeeDigits || {},
+    randomisedGasFeeDigits: gasFeeRandomisation.randomisedGasFeeDigits ?? {},
     preservedNumberOfDigits: gasFeeRandomisation.preservedNumberOfDigits,
   };
 }
@@ -379,6 +449,29 @@ export function getIncomingTransactionsPollingInterval(
   return (
     featureFlags?.[FeatureFlag.IncomingTransactions]?.pollingIntervalMs ??
     DEFAULT_INCOMING_TRANSACTIONS_POLLING_INTERVAL_MS
+  );
+}
+
+/**
+ * Retrieves the number of attempts to wait before automatically marking a transaction as dropped
+ * if it has no receipt status.
+ *
+ * @param chainId - The chain ID.
+ * @param messenger - The controller messenger instance.
+ * @returns The threshold number of attempts, or undefined if the feature is disabled.
+ */
+export function getTimeoutAttempts(
+  chainId: Hex,
+  messenger: TransactionControllerMessenger,
+): number | undefined {
+  const featureFlags = getFeatureFlags(messenger);
+
+  const timeoutAttemptsFlags =
+    featureFlags?.[FeatureFlag.Transactions]?.timeoutAttempts;
+
+  return (
+    timeoutAttemptsFlags?.perChainConfig?.[chainId] ??
+    timeoutAttemptsFlags?.default
   );
 }
 

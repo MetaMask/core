@@ -1,3 +1,5 @@
+/* eslint-disable no-new */
+
 import type { TransactionMeta } from '@metamask/transaction-controller';
 import type { Hex } from '@metamask/utils';
 
@@ -35,7 +37,7 @@ describe('TransactionPayController', () => {
    *
    * @returns The created controller.
    */
-  function createController() {
+  function createController(): TransactionPayController {
     return new TransactionPayController({
       getDelegationTransaction: jest.fn(),
       messenger,
@@ -72,6 +74,18 @@ describe('TransactionPayController', () => {
     });
   });
 
+  describe('setIsMaxAmount', () => {
+    it('updates state', () => {
+      const controller = createController();
+
+      controller.setIsMaxAmount(TRANSACTION_ID_MOCK, true);
+
+      expect(
+        controller.state.transactionData[TRANSACTION_ID_MOCK].isMaxAmount,
+      ).toBe(true);
+    });
+  });
+
   describe('getStrategy Action', () => {
     it('returns relay if no callback', async () => {
       createController();
@@ -87,7 +101,7 @@ describe('TransactionPayController', () => {
     it('returns callback value if provided', async () => {
       new TransactionPayController({
         getDelegationTransaction: jest.fn(),
-        getStrategy: () => TransactionPayStrategy.Test,
+        getStrategy: (): TransactionPayStrategy => TransactionPayStrategy.Test,
         messenger,
       });
 

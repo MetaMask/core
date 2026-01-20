@@ -54,12 +54,20 @@ export class TestStrategy implements PayStrategy<void> {
           raw: '456000',
           usd: '4.56',
         },
+        targetAmount: {
+          human: '5.67',
+          fiat: '5.67',
+          raw: '567000',
+          usd: '5.67',
+        },
         strategy: TransactionPayStrategy.Test,
       },
     ];
   }
 
-  async execute(request: PayStrategyExecuteRequest<void>) {
+  async execute(
+    request: PayStrategyExecuteRequest<void>,
+  ): ReturnType<PayStrategy<void>['execute']> {
     const { quotes } = request;
 
     log('Executing', quotes);
@@ -69,7 +77,7 @@ export class TestStrategy implements PayStrategy<void> {
     return { transactionHash: undefined };
   }
 
-  #timeout(ms: number) {
+  #timeout(ms: number): Promise<void> {
     return new Promise((resolve) => setTimeout(resolve, ms));
   }
 }

@@ -2,18 +2,16 @@ import type { LogDescription } from '@ethersproject/abi';
 import { Interface } from '@ethersproject/abi';
 import { query } from '@metamask/controller-utils';
 import type EthQuery from '@metamask/eth-query';
-import { type Hex } from '@metamask/utils';
+import type { Hex } from '@metamask/utils';
 
 import type { GetBalanceChangesRequest } from './balance-changes';
 import { getBalanceChanges, SupportedToken } from './balance-changes';
+import { simulateTransactions } from '../api/simulation-api';
 import type {
   SimulationResponseLog,
   SimulationResponseTransaction,
 } from '../api/simulation-api';
-import {
-  simulateTransactions,
-  type SimulationResponse,
-} from '../api/simulation-api';
+import type { SimulationResponse } from '../api/simulation-api';
 import {
   SimulationInvalidResponseError,
   SimulationRevertedError,
@@ -81,7 +79,7 @@ const PARSED_ERC20_TRANSFER_EVENT_MOCK = {
   args: [
     USER_ADDRESS_MOCK,
     OTHER_ADDRESS_MOCK,
-    { toHexString: () => VALUE_MOCK },
+    { toHexString: (): Hex => VALUE_MOCK },
   ],
 } as unknown as LogDescription;
 
@@ -91,7 +89,7 @@ const PARSED_ERC721_TRANSFER_EVENT_MOCK = {
   args: [
     OTHER_ADDRESS_MOCK,
     USER_ADDRESS_MOCK,
-    { toHexString: () => TOKEN_ID_MOCK },
+    { toHexString: (): Hex => TOKEN_ID_MOCK },
   ],
 } as unknown as LogDescription;
 
@@ -102,8 +100,8 @@ const PARSED_ERC1155_TRANSFER_SINGLE_EVENT_MOCK = {
     OTHER_ADDRESS_MOCK,
     OTHER_ADDRESS_MOCK,
     USER_ADDRESS_MOCK,
-    { toHexString: () => TOKEN_ID_MOCK },
-    { toHexString: () => VALUE_MOCK },
+    { toHexString: (): Hex => TOKEN_ID_MOCK },
+    { toHexString: (): Hex => VALUE_MOCK },
   ],
 } as unknown as LogDescription;
 
@@ -114,15 +112,15 @@ const PARSED_ERC1155_TRANSFER_BATCH_EVENT_MOCK = {
     OTHER_ADDRESS_MOCK,
     OTHER_ADDRESS_MOCK,
     USER_ADDRESS_MOCK,
-    [{ toHexString: () => TOKEN_ID_MOCK }],
-    [{ toHexString: () => VALUE_MOCK }],
+    [{ toHexString: (): Hex => TOKEN_ID_MOCK }],
+    [{ toHexString: (): Hex => VALUE_MOCK }],
   ],
 } as unknown as LogDescription;
 
 const PARSED_WRAPPED_ERC20_DEPOSIT_EVENT_MOCK = {
   name: 'Deposit',
   contractAddress: CONTRACT_ADDRESS_1_MOCK,
-  args: [USER_ADDRESS_MOCK, { toHexString: () => VALUE_MOCK }],
+  args: [USER_ADDRESS_MOCK, { toHexString: (): Hex => VALUE_MOCK }],
 } as unknown as LogDescription;
 
 const defaultResponseTx: SimulationResponseTransaction = {
@@ -163,7 +161,7 @@ const RESPONSE_NESTED_LOGS_MOCK: SimulationResponse = {
  * @param contractAddress - The contract address.
  * @returns The raw log mock.
  */
-function createLogMock(contractAddress: string) {
+function createLogMock(contractAddress: string): SimulationResponseLog {
   return {
     address: contractAddress,
   } as unknown as SimulationResponseLog;
@@ -199,7 +197,7 @@ function createNativeBalanceResponse(
   previousBalance: string,
   newBalance: string,
   gasCost: number = 0,
-) {
+): SimulationResponse {
   return {
     transactions: [
       {
@@ -229,7 +227,7 @@ function createNativeBalanceResponse(
 function createBalanceOfResponse(
   previousBalances: string[],
   newBalances: string[],
-) {
+): SimulationResponse {
   return {
     transactions: [
       ...previousBalances.map((previousBalance) => ({
@@ -267,7 +265,7 @@ function mockParseLog({
   erc1155?: LogDescription;
   erc20Wrapped?: LogDescription;
   erc721Legacy?: LogDescription;
-}) {
+}): void {
   const parseLogMock = jest.spyOn(Interface.prototype, 'parseLog');
 
   for (const value of [erc20, erc721, erc1155, erc20Wrapped, erc721Legacy]) {
@@ -390,7 +388,7 @@ describe('Balance Change Utils', () => {
             args: [
               OTHER_ADDRESS_MOCK,
               USER_ADDRESS_WITH_LEADING_ZERO,
-              { toHexString: () => TOKEN_ID_MOCK },
+              { toHexString: (): Hex => TOKEN_ID_MOCK },
             ],
           },
           tokenType: SupportedToken.ERC721,
@@ -789,7 +787,7 @@ describe('Balance Change Utils', () => {
             args: [
               OTHER_ADDRESS_MOCK,
               OTHER_ADDRESS_MOCK,
-              { toHexString: () => VALUE_MOCK },
+              { toHexString: (): Hex => VALUE_MOCK },
             ],
           },
         });
@@ -871,7 +869,7 @@ describe('Balance Change Utils', () => {
 
         // Contract returns 64 extra zeros in raw output of balanceOf.
         // Abi decoding should ignore them.
-        const encodeOutputWith64ExtraZeros = (value: string) =>
+        const encodeOutputWith64ExtraZeros = (value: string): Hex =>
           (encodeTo32ByteHex(value) + ''.padStart(64, '0')) as Hex;
         const RAW_BALANCE_BEFORE = encodeOutputWith64ExtraZeros(
           DECODED_BALANCE_BEFORE,

@@ -1,7 +1,8 @@
 import { updateSourceAmounts } from './source-amounts';
 import { getTokenFiatRate } from './token';
 import { getTransaction } from './transaction';
-import { TransactionPayStrategy, type TransactionPaymentToken } from '..';
+import { TransactionPayStrategy } from '..';
+import type { TransactionPaymentToken } from '..';
 import { ARBITRUM_USDC_ADDRESS, CHAIN_ID_ARBITRUM } from '../constants';
 import { getMessengerMock } from '../tests/messenger-mock';
 import type { TransactionData, TransactionPayRequiredToken } from '../types';
@@ -160,6 +161,25 @@ describe('Source Amounts Utils', () => {
       updateSourceAmounts(TRANSACTION_ID_MOCK, transactionData, messenger);
 
       expect(transactionData.sourceAmounts).toStrictEqual([]);
+    });
+
+    it('uses payment token balance if isMaxAmount is true', () => {
+      const transactionData: TransactionData = {
+        isLoading: false,
+        isMaxAmount: true,
+        paymentToken: PAYMENT_TOKEN_MOCK,
+        tokens: [TRANSACTION_TOKEN_MOCK],
+      };
+
+      updateSourceAmounts(TRANSACTION_ID_MOCK, transactionData, messenger);
+
+      expect(transactionData.sourceAmounts).toStrictEqual([
+        {
+          sourceAmountHuman: PAYMENT_TOKEN_MOCK.balanceHuman,
+          sourceAmountRaw: PAYMENT_TOKEN_MOCK.balanceRaw,
+          targetTokenAddress: TRANSACTION_TOKEN_MOCK.address,
+        },
+      ]);
     });
 
     it('does nothing if no payment token', () => {

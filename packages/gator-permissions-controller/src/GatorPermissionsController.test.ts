@@ -1,4 +1,3 @@
-import type { AccountSigner } from '@metamask/7715-permission-types';
 import { deriveStateFromMetadata } from '@metamask/base-controller';
 import {
   createTimestampTerms,
@@ -9,17 +8,17 @@ import {
   CHAIN_ID,
   DELEGATOR_CONTRACTS,
 } from '@metamask/delegation-deployments';
-import {
-  MOCK_ANY_NAMESPACE,
-  Messenger,
-  type MessengerActions,
-  type MessengerEvents,
-  type MockAnyNamespace,
+import { MOCK_ANY_NAMESPACE, Messenger } from '@metamask/messenger';
+import type {
+  MessengerActions,
+  MessengerEvents,
+  MockAnyNamespace,
 } from '@metamask/messenger';
 import type { HandleSnapRequest, HasSnap } from '@metamask/snaps-controllers';
 import type { SnapId } from '@metamask/snaps-sdk';
 import type { TransactionMeta } from '@metamask/transaction-controller';
-import { hexToBigInt, numberToHex, type Hex } from '@metamask/utils';
+import { hexToBigInt, numberToHex } from '@metamask/utils';
+import type { Hex } from '@metamask/utils';
 
 import { DELEGATION_FRAMEWORK_VERSION } from './constants';
 import { GatorPermissionsFetchError } from './errors';
@@ -45,45 +44,43 @@ const MOCK_CHAIN_ID_1: Hex = '0xaa36a7';
 const MOCK_CHAIN_ID_2: Hex = '0x1';
 const MOCK_GATOR_PERMISSIONS_PROVIDER_SNAP_ID =
   'local:http://localhost:8082' as SnapId;
-const MOCK_GATOR_PERMISSIONS_STORAGE_ENTRIES: StoredGatorPermission<
-  AccountSigner,
-  PermissionTypesWithCustom
->[] = mockGatorPermissionsStorageEntriesFactory({
-  [MOCK_CHAIN_ID_1]: {
-    nativeTokenStream: 5,
-    nativeTokenPeriodic: 5,
-    erc20TokenStream: 5,
-    erc20TokenPeriodic: 5,
-    custom: {
-      count: 2,
-      data: [
-        {
-          customData: 'customData-0',
-        },
-        {
-          customData: 'customData-1',
-        },
-      ],
+const MOCK_GATOR_PERMISSIONS_STORAGE_ENTRIES: StoredGatorPermission<PermissionTypesWithCustom>[] =
+  mockGatorPermissionsStorageEntriesFactory({
+    [MOCK_CHAIN_ID_1]: {
+      nativeTokenStream: 5,
+      nativeTokenPeriodic: 5,
+      erc20TokenStream: 5,
+      erc20TokenPeriodic: 5,
+      custom: {
+        count: 2,
+        data: [
+          {
+            customData: 'customData-0',
+          },
+          {
+            customData: 'customData-1',
+          },
+        ],
+      },
     },
-  },
-  [MOCK_CHAIN_ID_2]: {
-    nativeTokenStream: 5,
-    nativeTokenPeriodic: 5,
-    erc20TokenStream: 5,
-    erc20TokenPeriodic: 5,
-    custom: {
-      count: 2,
-      data: [
-        {
-          customData: 'customData-0',
-        },
-        {
-          customData: 'customData-1',
-        },
-      ],
+    [MOCK_CHAIN_ID_2]: {
+      nativeTokenStream: 5,
+      nativeTokenPeriodic: 5,
+      erc20TokenStream: 5,
+      erc20TokenPeriodic: 5,
+      custom: {
+        count: 2,
+        data: [
+          {
+            customData: 'customData-0',
+          },
+          {
+            customData: 'customData-1',
+          },
+        ],
+      },
     },
-  },
-});
+  });
 
 describe('GatorPermissionsController', () => {
   describe('constructor', () => {
@@ -95,6 +92,7 @@ describe('GatorPermissionsController', () => {
       expect(controller.state.isGatorPermissionsEnabled).toBe(false);
       expect(controller.state.gatorPermissionsMapSerialized).toStrictEqual(
         JSON.stringify({
+          'erc20-token-revocation': {},
           'native-token-stream': {},
           'native-token-periodic': {},
           'erc20-token-stream': {},
@@ -171,6 +169,7 @@ describe('GatorPermissionsController', () => {
       expect(controller.state.isGatorPermissionsEnabled).toBe(false);
       expect(controller.state.gatorPermissionsMapSerialized).toBe(
         JSON.stringify({
+          'erc20-token-revocation': {},
           'native-token-stream': {},
           'native-token-periodic': {},
           'erc20-token-stream': {},
@@ -222,6 +221,7 @@ describe('GatorPermissionsController', () => {
       const result = await controller.fetchAndUpdateGatorPermissions();
 
       expect(result).toStrictEqual({
+        'erc20-token-revocation': expect.any(Object),
         'native-token-stream': expect.any(Object),
         'native-token-periodic': expect.any(Object),
         'erc20-token-stream': expect.any(Object),
@@ -243,13 +243,15 @@ describe('GatorPermissionsController', () => {
       expect(controller.state.isFetchingGatorPermissions).toBe(false);
 
       // check that the gator permissions map is sanitized
-      const sanitizedCheck = (permissionType: keyof GatorPermissionsMap) => {
+      const sanitizedCheck = (
+        permissionType: keyof GatorPermissionsMap,
+      ): void => {
         const flattenedStoredGatorPermissions = Object.values(
           result[permissionType],
         ).flat();
         flattenedStoredGatorPermissions.forEach((permission) => {
-          expect(permission.permissionResponse.signer).toBeUndefined();
-          expect(permission.permissionResponse.dependencyInfo).toBeUndefined();
+          expect(permission.permissionResponse.to).toBeUndefined();
+          expect(permission.permissionResponse.dependencies).toBeUndefined();
         });
       };
 
@@ -257,6 +259,7 @@ describe('GatorPermissionsController', () => {
       sanitizedCheck('native-token-periodic');
       sanitizedCheck('erc20-token-stream');
       sanitizedCheck('erc20-token-periodic');
+      sanitizedCheck('erc20-token-revocation');
       sanitizedCheck('other');
 
       // Specifically verify that the entry with rules has rules preserved
@@ -276,6 +279,42 @@ describe('GatorPermissionsController', () => {
           },
         },
       ]);
+    });
+
+    it('categorizes erc20-token-revocation permissions into its own bucket', async () => {
+      const chainId = '0x1' as Hex;
+      // Create a minimal revocation permission entry and cast to satisfy types
+      const revocationEntry = {
+        permissionResponse: {
+          chainId,
+          from: '0x0000000000000000000000000000000000000001',
+          to: '0x0000000000000000000000000000000000000002',
+          permission: {
+            type: 'erc20-token-revocation',
+            isAdjustmentAllowed: false,
+            // Data shape is enforced by external types; not relevant for categorization
+            // eslint-disable-next-line @typescript-eslint/no-explicit-any
+            data: {} as any,
+          },
+          context: '0xdeadbeef',
+          dependencies: [],
+          delegationManager: '0x0000000000000000000000000000000000000003',
+        },
+        siteOrigin: 'https://example.org',
+      } as unknown;
+      const rootMessenger = getRootMessenger({
+        snapControllerHandleRequestActionHandler: async () =>
+          [revocationEntry] as unknown,
+      });
+      const controller = new GatorPermissionsController({
+        messenger: getGatorPermissionsControllerMessenger(rootMessenger),
+      });
+
+      await controller.enableGatorPermissions();
+      const result = await controller.fetchAndUpdateGatorPermissions();
+
+      expect(result['erc20-token-revocation']).toBeDefined();
+      expect(result['erc20-token-revocation'][chainId]).toHaveLength(1);
     });
 
     it('throws error when gator permissions are not enabled', async () => {
@@ -304,6 +343,7 @@ describe('GatorPermissionsController', () => {
       const result = await controller.fetchAndUpdateGatorPermissions();
 
       expect(result).toStrictEqual({
+        'erc20-token-revocation': {},
         'native-token-stream': {},
         'native-token-periodic': {},
         'erc20-token-stream': {},
@@ -326,6 +366,7 @@ describe('GatorPermissionsController', () => {
       const result = await controller.fetchAndUpdateGatorPermissions();
 
       expect(result).toStrictEqual({
+        'erc20-token-revocation': {},
         'native-token-stream': {},
         'native-token-periodic': {},
         'erc20-token-stream': {},
@@ -390,6 +431,7 @@ describe('GatorPermissionsController', () => {
       const { gatorPermissionsMap } = controller;
 
       expect(gatorPermissionsMap).toStrictEqual({
+        'erc20-token-revocation': {},
         'native-token-stream': {},
         'native-token-periodic': {},
         'erc20-token-stream': {},
@@ -442,10 +484,11 @@ describe('GatorPermissionsController', () => {
         'registerActionHandler',
       );
 
-      new GatorPermissionsController({
+      const controller = new GatorPermissionsController({
         messenger,
       });
 
+      expect(controller.state.isGatorPermissionsEnabled).toBe(false);
       expect(mockRegisterActionHandler).toHaveBeenCalledWith(
         'GatorPermissionsController:fetchAndUpdateGatorPermissions',
         expect.any(Function),
@@ -501,7 +544,7 @@ describe('GatorPermissionsController', () => {
         ),
       ).toMatchInlineSnapshot(`
         Object {
-          "gatorPermissionsMapSerialized": "{\\"native-token-stream\\":{},\\"native-token-periodic\\":{},\\"erc20-token-stream\\":{},\\"erc20-token-periodic\\":{},\\"other\\":{}}",
+          "gatorPermissionsMapSerialized": "{\\"erc20-token-revocation\\":{},\\"native-token-stream\\":{},\\"native-token-periodic\\":{},\\"erc20-token-stream\\":{},\\"erc20-token-periodic\\":{},\\"other\\":{}}",
           "gatorPermissionsProviderSnapId": "npm:@metamask/gator-permissions-snap",
           "isFetchingGatorPermissions": false,
           "isGatorPermissionsEnabled": false,
@@ -523,7 +566,7 @@ describe('GatorPermissionsController', () => {
         ),
       ).toMatchInlineSnapshot(`
         Object {
-          "gatorPermissionsMapSerialized": "{\\"native-token-stream\\":{},\\"native-token-periodic\\":{},\\"erc20-token-stream\\":{},\\"erc20-token-periodic\\":{},\\"other\\":{}}",
+          "gatorPermissionsMapSerialized": "{\\"erc20-token-revocation\\":{},\\"native-token-stream\\":{},\\"native-token-periodic\\":{},\\"erc20-token-stream\\":{},\\"erc20-token-periodic\\":{},\\"other\\":{}}",
           "isGatorPermissionsEnabled": false,
         }
       `);
@@ -542,7 +585,7 @@ describe('GatorPermissionsController', () => {
         ),
       ).toMatchInlineSnapshot(`
         Object {
-          "gatorPermissionsMapSerialized": "{\\"native-token-stream\\":{},\\"native-token-periodic\\":{},\\"erc20-token-stream\\":{},\\"erc20-token-periodic\\":{},\\"other\\":{}}",
+          "gatorPermissionsMapSerialized": "{\\"erc20-token-revocation\\":{},\\"native-token-stream\\":{},\\"native-token-periodic\\":{},\\"erc20-token-stream\\":{},\\"erc20-token-periodic\\":{},\\"other\\":{}}",
           "pendingRevocations": Array [],
         }
       `);
@@ -559,7 +602,9 @@ describe('GatorPermissionsController', () => {
     const delegateAddressB =
       '0x2222222222222222222222222222222222222222' as Hex;
     const metamaskOrigin = 'https://metamask.io';
-    const buildMetadata = (justification: string) => ({
+    const buildMetadata = (
+      justification: string,
+    ): { justification: string; origin: string } => ({
       justification,
       origin: metamaskOrigin,
     });
@@ -644,11 +689,8 @@ describe('GatorPermissionsController', () => {
       });
 
       expect(result.chainId).toBe(numberToHex(chainId));
-      expect(result.address).toBe(delegator);
-      expect(result.signer).toStrictEqual({
-        type: 'account',
-        data: { address: delegate },
-      });
+      expect(result.from).toBe(delegator);
+      expect(result.to).toStrictEqual(delegate);
       expect(result.permission.type).toBe('native-token-stream');
       expect(result.expiry).toBe(timestampBeforeThreshold);
       // amounts are hex-encoded in decoded data; startTime is numeric

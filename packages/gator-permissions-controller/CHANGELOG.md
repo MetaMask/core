@@ -9,18 +9,40 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ### Changed
 
+- Bump `@metamask/transaction-controller` from `^62.9.1` to `^62.9.2` ([#7642](https://github.com/MetaMask/core/pull/7642))
+
+## [1.0.0]
+
+### Changed
+
+- Bump `@metamask/snaps-controllers` from `^14.0.1` to `^17.2.0` ([#7550](https://github.com/MetaMask/core/pull/7550))
+- Bump `@metamask/snaps-sdk` from `^9.0.0` to `^10.3.0` ([#7550](https://github.com/MetaMask/core/pull/7550))
+- Bump `@metamask/snaps-utils` from `^11.0.0` to `^11.7.0` ([#7550](https://github.com/MetaMask/core/pull/7550))
+- Upgrade `@metamask/utils` from `^11.8.1` to `^11.9.0` ([#7511](https://github.com/MetaMask/core/pull/7511))
+- Bump `@metamask/transaction-controller` from `^62.5.0` to `^62.9.1` ([#7430](https://github.com/MetaMask/core/pull/7430), [#7494](https://github.com/MetaMask/core/pull/7494), [#7596](https://github.com/MetaMask/core/pull/7596), [#7602](https://github.com/MetaMask/core/pull/7602), [#7604](https://github.com/MetaMask/core/pull/7604))
+- **BREAKING:** Gator Permissions Controller and Gator Permission Decoder core types have been updated to comply with 7715 spec revisions ([#7613](https://github.com/MetaMask/core/pull/7613))
+  - Bump `@metamask/7715-permission-type` from `^0.4.0` to `^0.5.0`
+
+## [0.8.0]
+
+### Added
+
+- Export `DELEGATION_FRAMEWORK_VERSION` constant to indicate the supported Delegation Framework version ([#7195](https://github.com/MetaMask/core/pull/7195))
+
+### Changed
+
 - **BREAKING:** Permission decoding now rejects `TimestampEnforcer` caveats with zero `timestampBeforeThreshold` values ([#7195](https://github.com/MetaMask/core/pull/7195))
-- Validation errors for `TimestampEnforcer` include: invalid terms length, non-zero `timestampAfterThreshold`, and zero `timestampBeforeThreshold` ([#7195](https://github.com/MetaMask/core/pull/7195))
-- Bump `@metamask/transaction-controller` from `^62.3.1` to `^62.4.0` ([#7289](https://github.com/MetaMask/core/pull/7289))
+- `PermissionResponseSanitized` now includes `rules` property for stronger typing support ([#7195](https://github.com/MetaMask/core/pull/7195))
+- Permission decoding now resolves `erc20-token-revocation` permission type ([#7299](https://github.com/MetaMask/core/pull/7299))
+- Differentiate `erc20-token-revocation` permissions from `other` in controller state ([#7318](https://github.com/MetaMask/core/pull/7318))
+- Bump `@metamask/transaction-controller` from `^62.3.1` to `^62.5.0` ([#7289](https://github.com/MetaMask/core/pull/7289), [#7325](https://github.com/MetaMask/core/pull/7325))
 
 ## [0.7.0]
 
 ### Added
 
-- `PermissionResponseSanitized` now includes `rules` property for stronger typing support ([#7195](https://github.com/MetaMask/core/pull/7195))
-- Export `DELEGATION_FRAMEWORK_VERSION` constant for version consistency across implementations ([#7195](https://github.com/MetaMask/core/pull/7195))
 - Refresh gator permissions map after revocation state change ([#7235](https://github.com/MetaMask/core/pull/7235))
-- Add `submitDirectRevocation` method for already-disabled delegations that don't require an on-chain transaction ([#7244](https://github.com/MetaMask/core/pull/7244))
+- New `submitDirectRevocation` method for already-disabled delegations that don't require an on-chain transaction ([#7244](https://github.com/MetaMask/core/pull/7244))
 
 ### Changed
 
@@ -105,7 +127,9 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 - Initial release ([#6033](https://github.com/MetaMask/core/pull/6033))
 
-[Unreleased]: https://github.com/MetaMask/core/compare/@metamask/gator-permissions-controller@0.7.0...HEAD
+[Unreleased]: https://github.com/MetaMask/core/compare/@metamask/gator-permissions-controller@1.0.0...HEAD
+[1.0.0]: https://github.com/MetaMask/core/compare/@metamask/gator-permissions-controller@0.8.0...@metamask/gator-permissions-controller@1.0.0
+[0.8.0]: https://github.com/MetaMask/core/compare/@metamask/gator-permissions-controller@0.7.0...@metamask/gator-permissions-controller@0.8.0
 [0.7.0]: https://github.com/MetaMask/core/compare/@metamask/gator-permissions-controller@0.6.0...@metamask/gator-permissions-controller@0.7.0
 [0.6.0]: https://github.com/MetaMask/core/compare/@metamask/gator-permissions-controller@0.5.0...@metamask/gator-permissions-controller@0.6.0
 [0.5.0]: https://github.com/MetaMask/core/compare/@metamask/gator-permissions-controller@0.4.0...@metamask/gator-permissions-controller@0.5.0

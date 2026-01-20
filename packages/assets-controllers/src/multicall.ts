@@ -72,6 +72,7 @@ const MULTICALL_CONTRACT_BY_CHAINID = {
   '0xe9fe': '0xcA11bde05977b3631167028862bE2a173976CA11',
   '0xd3a0': '0xcA11bde05977b3631167028862bE2a173976CA11',
   '0x84444': '0xcA11bde05977b3631167028862bE2a173976CA11',
+  // Rootstock, bytecode OK and referenced as "RSK" in https://www.multicall3.com/deployments
   '0x1e': '0xcA11bde05977b3631167028862bE2a173976CA11',
   '0x1f': '0xcA11bde05977b3631167028862bE2a173976CA11',
   '0x2329': '0xcA11bde05977b3631167028862bE2a173976CA11',
@@ -177,6 +178,7 @@ const MULTICALL_CONTRACT_BY_CHAINID = {
   '0x45b': '0xcA11bde05977b3631167028862bE2a173976CA11',
   '0x3d': '0xcA11bde05977b3631167028862bE2a173976CA11',
   '0x41a6ace': '0xcA11bde05977b3631167028862bE2a173976CA11',
+  // Etherlink mainnet, bytecode OK and referenced in https://www.multicall3.com/deployments
   '0xa729': '0xcA11bde05977b3631167028862bE2a173976CA11',
   '0x1f47b': '0xcA11bde05977b3631167028862bE2a173976CA11',
   '0x1b59': '0xca11bde05977b3631167028862be2a173976ca11',
@@ -246,6 +248,7 @@ const MULTICALL_CONTRACT_BY_CHAINID = {
   '0x46f': '0xcA11bde05977b3631167028862bE2a173976CA11',
   '0x659': '0xca11bde05977b3631167028862be2a173976ca11',
   '0x139c968f9': '0xcA11bde05977b3631167028862bE2a173976CA11',
+  // BOB, bytecode OK and referenced in https://www.multicall3.com/deployments
   '0xed88': '0xcA11bde05977b3631167028862bE2a173976CA11',
   '0xd036': '0xcA11bde05977b3631167028862bE2a173976CA11',
   '0x1f3': '0xcA11bde05977b3631167028862bE2a173976CA11',
@@ -301,6 +304,8 @@ const MULTICALL_CONTRACT_BY_CHAINID = {
   '0x18c7': '0xcA11bde05977b3631167028862bE2a173976CA11',
   // MegaETH mainnet, contract found matching multicall3 bytecode
   '0x10e6': '0xcA11bde05977b3631167028862bE2a173976CA11',
+  // MSU (contract they deployed by their team for us)
+  '0x10b3e': '0x99423C88EB5723A590b4C644426069042f137B9e',
 } as Record<Hex, Hex>;
 
 const multicallAbi = [
@@ -801,10 +806,7 @@ const getStakedBalancesFallback = async (
 ): Promise<Record<string, BN>> => {
   const stakedBalanceMap: Record<string, BN> = {};
 
-  const stakingContractAddress =
-    STAKING_CONTRACT_ADDRESS_BY_CHAINID[
-      chainId as keyof typeof STAKING_CONTRACT_ADDRESS_BY_CHAINID
-    ];
+  const stakingContractAddress = STAKING_CONTRACT_ADDRESS_BY_CHAINID[chainId];
 
   if (!stakingContractAddress) {
     // No staking support for this chain
@@ -854,10 +856,7 @@ export const getStakedBalancesForAddresses = async (
   chainId: Hex,
   provider: Web3Provider,
 ): Promise<Record<string, BN>> => {
-  const stakingContractAddress =
-    STAKING_CONTRACT_ADDRESS_BY_CHAINID[
-      chainId as keyof typeof STAKING_CONTRACT_ADDRESS_BY_CHAINID
-    ];
+  const stakingContractAddress = STAKING_CONTRACT_ADDRESS_BY_CHAINID[chainId];
 
   if (!stakingContractAddress) {
     return {};
@@ -978,11 +977,7 @@ export const getTokenBalancesForMultipleAddresses = async (
   );
 
   // Check if Multicall3 is supported on this chain
-  if (
-    !MULTICALL_CONTRACT_BY_CHAINID[
-      chainId as keyof typeof MULTICALL_CONTRACT_BY_CHAINID
-    ]
-  ) {
+  if (!MULTICALL_CONTRACT_BY_CHAINID[chainId]) {
     // Fallback to individual balance calls when Multicall3 is not supported
     const tokenBalances = await getTokenBalancesFallback(
       uniqueTokenAddresses,

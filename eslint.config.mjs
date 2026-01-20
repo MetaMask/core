@@ -24,22 +24,10 @@ const config = createConfig([
   },
   {
     rules: {
-      // Left disabled because various properties throughough this repo are snake_case because the
-      // names come from external sources or must comply with standards
-      // e.g. `txreceipt_status`, `signTypedData_v4`, `token_id`
-      camelcase: 'off',
-      'id-length': 'off',
-
-      // TODO: re-enble most of these rules
-      'id-denylist': 'off',
-      'import-x/no-unassigned-import': 'off',
-      'no-async-promise-executor': 'off',
-      'no-case-declarations': 'off',
-      'no-negated-condition': 'off',
-      'no-new': 'off',
-      'no-param-reassign': 'off',
-      'no-restricted-syntax': 'off',
-      'require-atomic-updates': 'off',
+      // TODO: Re-enable this rule
+      // Enabling it with error suppression breaks `--fix`, because the autofixer for this rule
+      // does not work very well.
+      'jsdoc/require-jsdoc': 'off',
     },
     settings: {
       jsdoc: {
@@ -57,41 +45,6 @@ const config = createConfig([
       'scripts/create-package/**/*.ts',
     ],
     extends: [nodejs],
-    rules: {
-      // TODO: Re-enable this
-      'n/no-sync': 'off',
-    },
-  },
-  {
-    files: ['**/*.test.{js,ts}', '**/tests/**/*.{js,ts}'],
-    extends: [jest],
-    rules: {
-      // TODO: Upgrade these from warning to error in shared config
-      'jest/expect-expect': 'error',
-      'jest/no-alias-methods': 'error',
-      'jest/no-commented-out-tests': 'error',
-      'jest/no-disabled-tests': 'error',
-
-      // TODO: Re-enable this rule
-      'jest/unbound-method': 'off',
-    },
-    settings: {
-      node: {
-        version: `^${NODE_LTS_VERSION}`,
-      },
-    },
-  },
-  {
-    // These files are test helpers, not tests. We still use the Jest ESLint
-    // config here to ensure that ESLint expects a test-like environment, but
-    // various rules meant just to apply to tests have been disabled.
-    files: ['**/tests/**/*.{js,ts}'],
-    ignores: ['**/*.test.{js,ts}'],
-    rules: {
-      'jest/no-export': 'off',
-      'jest/require-top-level-describe': 'off',
-      'jest/no-if': 'off',
-    },
   },
   {
     files: ['**/*.{js,cjs}'],
@@ -123,22 +76,39 @@ const config = createConfig([
       // TODO: auto-fix breaks stuff
       '@typescript-eslint/promise-function-async': 'off',
 
-      // TODO: Re-enable this rule
-      // Enabling it with error suppression breaks `--fix`, because the autofixer for this rule
-      // does not work very well.
+      // TODO: Re-enable these rules
+      // Enabling them with error suppression breaks `--fix`, because the autofixer for these rules
+      // do not work very well.
       'jsdoc/check-tag-names': 'off',
-
-      // TODO: re-enable most of these rules
-      '@typescript-eslint/naming-convention': 'off',
-      '@typescript-eslint/no-unnecessary-type-assertion': 'off',
-      '@typescript-eslint/unbound-method': 'off',
-      '@typescript-eslint/prefer-enum-initializers': 'off',
-      '@typescript-eslint/prefer-nullish-coalescing': 'off',
-      '@typescript-eslint/prefer-optional-chain': 'off',
-      '@typescript-eslint/prefer-reduce-type-parameter': 'off',
-      'no-restricted-syntax': 'off',
-      'no-restricted-globals': 'off',
-      '@typescript-eslint/explicit-function-return-type': 'off',
+      'jsdoc/require-jsdoc': 'off',
+    },
+  },
+  {
+    files: ['**/*.test.{js,ts}', '**/tests/**/*.{js,ts}'],
+    extends: [jest],
+    rules: {
+      // TODO: Upgrade these from warning to error in shared config
+      'jest/expect-expect': 'error',
+      'jest/no-alias-methods': 'error',
+      'jest/no-commented-out-tests': 'error',
+      'jest/no-disabled-tests': 'error',
+    },
+    settings: {
+      node: {
+        version: `^${NODE_LTS_VERSION}`,
+      },
+    },
+  },
+  {
+    // These files are test helpers, not tests. We still use the Jest ESLint
+    // config here to ensure that ESLint expects a test-like environment, but
+    // various rules meant just to apply to tests have been disabled.
+    files: ['**/tests/**/*.{js,ts}'],
+    ignores: ['**/*.test.{js,ts}'],
+    rules: {
+      'jest/no-export': 'off',
+      'jest/require-top-level-describe': 'off',
+      'jest/no-if': 'off',
     },
   },
   {

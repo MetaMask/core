@@ -1,7 +1,9 @@
 import { BUILT_IN_NETWORKS, NetworkType } from '@metamask/controller-utils';
+import { PollingBlockTrackerOptions } from '@metamask/eth-block-tracker';
 
 import { createAutoManagedNetworkClient } from './create-auto-managed-network-client';
 import * as createNetworkClientModule from './create-network-client';
+import { RpcServiceOptions } from './rpc-service/rpc-service';
 import type {
   CustomNetworkClientConfiguration,
   InfuraNetworkClientConfiguration,
@@ -40,6 +42,7 @@ describe('createAutoManagedNetworkClient', () => {
           getRpcServiceOptions: () => ({
             fetch,
             btoa,
+            isOffline: (): boolean => false,
           }),
           messenger: buildNetworkControllerMessenger(),
           isRpcFailoverEnabled: false,
@@ -57,6 +60,7 @@ describe('createAutoManagedNetworkClient', () => {
             getRpcServiceOptions: () => ({
               fetch,
               btoa,
+              isOffline: (): boolean => false,
             }),
             messenger: buildNetworkControllerMessenger(),
             isRpcFailoverEnabled: false,
@@ -71,6 +75,7 @@ describe('createAutoManagedNetworkClient', () => {
           getRpcServiceOptions: () => ({
             fetch,
             btoa,
+            isOffline: (): boolean => false,
           }),
           messenger: buildNetworkControllerMessenger(),
           isRpcFailoverEnabled: false,
@@ -105,6 +110,7 @@ describe('createAutoManagedNetworkClient', () => {
             getRpcServiceOptions: () => ({
               fetch,
               btoa,
+              isOffline: (): boolean => false,
             }),
             messenger: buildNetworkControllerMessenger(),
             isRpcFailoverEnabled: false,
@@ -139,11 +145,15 @@ describe('createAutoManagedNetworkClient', () => {
             createNetworkClientModule,
             'createNetworkClient',
           );
-          const getRpcServiceOptions = () => ({
+          const getRpcServiceOptions = (): Omit<
+            RpcServiceOptions,
+            'failoverService' | 'endpointUrl'
+          > => ({
             btoa,
             fetch,
+            isOffline: (): boolean => false,
           });
-          const getBlockTrackerOptions = () => ({
+          const getBlockTrackerOptions = (): PollingBlockTrackerOptions => ({
             pollingInterval: 5000,
           });
           const messenger = buildNetworkControllerMessenger();
@@ -200,11 +210,15 @@ describe('createAutoManagedNetworkClient', () => {
             createNetworkClientModule,
             'createNetworkClient',
           );
-          const getRpcServiceOptions = () => ({
+          const getRpcServiceOptions = (): Omit<
+            RpcServiceOptions,
+            'failoverService' | 'endpointUrl'
+          > => ({
             btoa,
             fetch,
+            isOffline: (): boolean => false,
           });
-          const getBlockTrackerOptions = () => ({
+          const getBlockTrackerOptions = (): PollingBlockTrackerOptions => ({
             pollingInterval: 5000,
           });
           const messenger = buildNetworkControllerMessenger();
@@ -271,11 +285,15 @@ describe('createAutoManagedNetworkClient', () => {
             createNetworkClientModule,
             'createNetworkClient',
           );
-          const getRpcServiceOptions = () => ({
+          const getRpcServiceOptions = (): Omit<
+            RpcServiceOptions,
+            'failoverService' | 'endpointUrl'
+          > => ({
             btoa,
             fetch,
+            isOffline: (): boolean => false,
           });
-          const getBlockTrackerOptions = () => ({
+          const getBlockTrackerOptions = (): PollingBlockTrackerOptions => ({
             pollingInterval: 5000,
           });
           const messenger = buildNetworkControllerMessenger();
@@ -330,6 +348,7 @@ describe('createAutoManagedNetworkClient', () => {
           getRpcServiceOptions: () => ({
             fetch,
             btoa,
+            isOffline: (): boolean => false,
           }),
           messenger: buildNetworkControllerMessenger(),
           isRpcFailoverEnabled: false,
@@ -390,6 +409,7 @@ describe('createAutoManagedNetworkClient', () => {
             getRpcServiceOptions: () => ({
               fetch,
               btoa,
+              isOffline: (): boolean => false,
             }),
             messenger: buildNetworkControllerMessenger(),
             isRpcFailoverEnabled: false,
@@ -402,6 +422,8 @@ describe('createAutoManagedNetworkClient', () => {
           const blockNumberViaSync = await new Promise((resolve) => {
             blockTracker.once('sync', resolve);
           });
+          // False positive.
+          // eslint-disable-next-line n/no-sync
           expect(blockNumberViaSync).toStrictEqual({
             oldBlock: '0x1',
             newBlock: '0x2',
@@ -445,11 +467,15 @@ describe('createAutoManagedNetworkClient', () => {
             createNetworkClientModule,
             'createNetworkClient',
           );
-          const getRpcServiceOptions = () => ({
+          const getRpcServiceOptions = (): Omit<
+            RpcServiceOptions,
+            'failoverService' | 'endpointUrl'
+          > => ({
             btoa,
             fetch,
+            isOffline: (): boolean => false,
           });
-          const getBlockTrackerOptions = () => ({
+          const getBlockTrackerOptions = (): PollingBlockTrackerOptions => ({
             pollingInterval: 5000,
           });
           const messenger = buildNetworkControllerMessenger();
@@ -502,11 +528,15 @@ describe('createAutoManagedNetworkClient', () => {
             createNetworkClientModule,
             'createNetworkClient',
           );
-          const getRpcServiceOptions = () => ({
+          const getRpcServiceOptions = (): Omit<
+            RpcServiceOptions,
+            'failoverService' | 'endpointUrl'
+          > => ({
             btoa,
             fetch,
+            isOffline: (): boolean => false,
           });
-          const getBlockTrackerOptions = () => ({
+          const getBlockTrackerOptions = (): PollingBlockTrackerOptions => ({
             pollingInterval: 5000,
           });
           const messenger = buildNetworkControllerMessenger();
@@ -567,11 +597,15 @@ describe('createAutoManagedNetworkClient', () => {
             createNetworkClientModule,
             'createNetworkClient',
           );
-          const getRpcServiceOptions = () => ({
+          const getRpcServiceOptions = (): Omit<
+            RpcServiceOptions,
+            'failoverService' | 'endpointUrl'
+          > => ({
             btoa,
             fetch,
+            isOffline: (): boolean => false,
           });
-          const getBlockTrackerOptions = () => ({
+          const getBlockTrackerOptions = (): PollingBlockTrackerOptions => ({
             pollingInterval: 5000,
           });
           const messenger = buildNetworkControllerMessenger();
@@ -635,6 +669,7 @@ describe('createAutoManagedNetworkClient', () => {
         getRpcServiceOptions: () => ({
           fetch,
           btoa,
+          isOffline: (): boolean => false,
         }),
         messenger: buildNetworkControllerMessenger(),
         isRpcFailoverEnabled: false,

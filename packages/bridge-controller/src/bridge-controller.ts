@@ -21,16 +21,16 @@ import { CHAIN_IDS } from './constants/chains';
 import { SWAPS_CONTRACT_ADDRESSES } from './constants/swaps';
 import { TraceName } from './constants/traces';
 import { selectIsAssetExchangeRateInState } from './selectors';
-import type { QuoteRequest } from './types';
-import {
-  type L1GasFees,
-  type GenericQuoteRequest,
-  type NonEvmFees,
-  type QuoteResponse,
-  type BridgeControllerState,
-  type BridgeControllerMessenger,
-  type FetchFunction,
-  RequestStatus,
+import { RequestStatus } from './types';
+import type {
+  L1GasFees,
+  GenericQuoteRequest,
+  NonEvmFees,
+  QuoteRequest,
+  QuoteResponse,
+  BridgeControllerState,
+  BridgeControllerMessenger,
+  FetchFunction,
 } from './types';
 import { getAssetIdsForToken, toExchangeRates } from './utils/assets';
 import { hasSufficientBalance } from './utils/balance';
@@ -74,7 +74,7 @@ import type {
   RequestMetadata,
   RequiredEventContextFromClient,
 } from './utils/metrics/types';
-import { type CrossChainSwapsEventProperties } from './utils/metrics/types';
+import type { CrossChainSwapsEventProperties } from './utils/metrics/types';
 import { isValidQuoteRequest, sortQuotes } from './utils/quote';
 import { appendFeesToQuotes } from './utils/quote-fees';
 import { getMinimumBalanceForRentExemptionInLamports } from './utils/snaps';
@@ -584,7 +584,7 @@ export class BridgeController extends StaticIntervalPollingController<BridgePoll
     updatedQuoteRequest,
     context,
   }: BridgePollingInput) => {
-    this.#abortController?.abort('New quote request');
+    this.#abortController?.abort(AbortReason.NewQuoteRequest);
     this.#abortController = new AbortController();
 
     this.trackUnifiedSwapBridgeEvent(
@@ -867,6 +867,9 @@ export class BridgeController extends StaticIntervalPollingController<BridgePoll
         formatProviderLabel(quote),
       ),
       initial_load_time_all_quotes: this.state.quotesInitialLoadTime ?? 0,
+      has_gas_included_quote: this.state.quotes.some(
+        ({ quote }) => quote.gasIncluded,
+      ),
     };
   };
 

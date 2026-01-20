@@ -56,6 +56,7 @@ describe('RpcServiceChain', () => {
         {
           fetch,
           btoa,
+          isOffline: (): boolean => false,
           endpointUrl: 'https://rpc.example.chain',
         },
       ]);
@@ -73,6 +74,7 @@ describe('RpcServiceChain', () => {
         {
           fetch,
           btoa,
+          isOffline: (): boolean => false,
           endpointUrl: 'https://rpc.example.chain',
         },
       ]);
@@ -90,6 +92,7 @@ describe('RpcServiceChain', () => {
         {
           fetch,
           btoa,
+          isOffline: (): boolean => false,
           endpointUrl: 'https://rpc.example.chain',
         },
       ]);
@@ -107,6 +110,7 @@ describe('RpcServiceChain', () => {
         {
           fetch,
           btoa,
+          isOffline: (): boolean => false,
           endpointUrl: 'https://rpc.example.chain',
         },
       ]);
@@ -124,6 +128,7 @@ describe('RpcServiceChain', () => {
         {
           fetch,
           btoa,
+          isOffline: (): boolean => false,
           endpointUrl: 'https://rpc.example.chain',
         },
       ]);
@@ -143,6 +148,7 @@ describe('RpcServiceChain', () => {
         {
           fetch,
           btoa,
+          isOffline: (): boolean => false,
           endpointUrl: 'https://rpc.example.chain',
         },
       ]);
@@ -173,11 +179,13 @@ describe('RpcServiceChain', () => {
         {
           fetch,
           btoa,
+          isOffline: (): boolean => false,
           endpointUrl: 'https://first.endpoint',
         },
         {
           fetch,
           btoa,
+          isOffline: (): boolean => false,
           endpointUrl: 'https://second.endpoint',
           fetchOptions: {
             headers: {
@@ -188,6 +196,7 @@ describe('RpcServiceChain', () => {
         {
           fetch,
           btoa,
+          isOffline: (): boolean => false,
           endpointUrl: 'https://third.chain',
         },
       ]);
@@ -242,16 +251,19 @@ describe('RpcServiceChain', () => {
         {
           fetch,
           btoa,
+          isOffline: (): boolean => false,
           endpointUrl: 'https://first.endpoint',
         },
         {
           fetch,
           btoa,
+          isOffline: (): boolean => false,
           endpointUrl: 'https://second.endpoint',
         },
         {
           fetch,
           btoa,
+          isOffline: (): boolean => false,
           endpointUrl: 'https://third.chain',
         },
       ]);
@@ -345,11 +357,13 @@ describe('RpcServiceChain', () => {
         {
           fetch,
           btoa,
+          isOffline: (): boolean => false,
           endpointUrl: 'https://first.endpoint',
         },
         {
           fetch,
           btoa,
+          isOffline: (): boolean => false,
           endpointUrl: 'https://second.endpoint',
           fetchOptions: {
             headers: {
@@ -360,6 +374,7 @@ describe('RpcServiceChain', () => {
         {
           fetch,
           btoa,
+          isOffline: (): boolean => false,
           endpointUrl: 'https://third.chain',
           fetchOptions: {
             referrer: 'https://some.referrer',
@@ -427,6 +442,7 @@ describe('RpcServiceChain', () => {
         {
           fetch,
           btoa,
+          isOffline: (): boolean => false,
           endpointUrl,
         },
       ]);
@@ -501,11 +517,13 @@ describe('RpcServiceChain', () => {
         {
           fetch,
           btoa,
+          isOffline: (): boolean => false,
           endpointUrl: primaryEndpointUrl,
         },
         {
           fetch,
           btoa,
+          isOffline: (): boolean => false,
           endpointUrl: secondaryEndpointUrl,
           fetchOptions: {
             headers: {
@@ -516,6 +534,7 @@ describe('RpcServiceChain', () => {
         {
           fetch,
           btoa,
+          isOffline: (): boolean => false,
           endpointUrl: tertiaryEndpointUrl,
         },
       ]);
@@ -593,11 +612,13 @@ describe('RpcServiceChain', () => {
         {
           fetch,
           btoa,
+          isOffline: (): boolean => false,
           endpointUrl: primaryEndpointUrl,
         },
         {
           fetch,
           btoa,
+          isOffline: (): boolean => false,
           endpointUrl: secondaryEndpointUrl,
         },
       ]);
@@ -657,11 +678,13 @@ describe('RpcServiceChain', () => {
         {
           fetch,
           btoa,
+          isOffline: (): boolean => false,
           endpointUrl: primaryEndpointUrl,
         },
         {
           fetch,
           btoa,
+          isOffline: (): boolean => false,
           endpointUrl: secondaryEndpointUrl,
         },
       ]);
@@ -756,11 +779,13 @@ describe('RpcServiceChain', () => {
         {
           fetch,
           btoa,
+          isOffline: (): boolean => false,
           endpointUrl: primaryEndpointUrl,
         },
         {
           fetch,
           btoa,
+          isOffline: (): boolean => false,
           endpointUrl: secondaryEndpointUrl,
         },
       ]);
@@ -856,11 +881,13 @@ describe('RpcServiceChain', () => {
         {
           fetch,
           btoa,
+          isOffline: (): boolean => false,
           endpointUrl: primaryEndpointUrl,
         },
         {
           fetch,
           btoa,
+          isOffline: (): boolean => false,
           endpointUrl: secondaryEndpointUrl,
         },
       ]);
@@ -940,16 +967,19 @@ describe('RpcServiceChain', () => {
         {
           fetch,
           btoa,
+          isOffline: (): boolean => false,
           endpointUrl: primaryEndpointUrl,
         },
         {
           fetch,
           btoa,
+          isOffline: (): boolean => false,
           endpointUrl: secondaryEndpointUrl,
         },
         {
           fetch,
           btoa,
+          isOffline: (): boolean => false,
           endpointUrl: tertiaryEndpointUrl,
         },
       ]);
@@ -1034,6 +1064,7 @@ describe('RpcServiceChain', () => {
         {
           fetch,
           btoa,
+          isOffline: (): boolean => false,
           endpointUrl,
         },
       ]);
@@ -1091,6 +1122,7 @@ describe('RpcServiceChain', () => {
         {
           fetch,
           btoa,
+          isOffline: (): boolean => false,
           endpointUrl,
         },
       ]);
@@ -1154,6 +1186,7 @@ describe('RpcServiceChain', () => {
         {
           fetch,
           btoa,
+          isOffline: (): boolean => false,
           endpointUrl,
         },
       ]);
@@ -1219,11 +1252,13 @@ describe('RpcServiceChain', () => {
         {
           fetch,
           btoa,
+          isOffline: (): boolean => false,
           endpointUrl: primaryEndpointUrl,
         },
         {
           fetch,
           btoa,
+          isOffline: (): boolean => false,
           endpointUrl: secondaryEndpointUrl,
         },
       ]);
@@ -1292,6 +1327,7 @@ describe('RpcServiceChain', () => {
         {
           fetch,
           btoa,
+          isOffline: (): boolean => false,
           endpointUrl,
         },
       ]);
@@ -1374,11 +1410,13 @@ describe('RpcServiceChain', () => {
         {
           fetch,
           btoa,
+          isOffline: (): boolean => false,
           endpointUrl: primaryEndpointUrl,
         },
         {
           fetch,
           btoa,
+          isOffline: (): boolean => false,
           endpointUrl: secondaryEndpointUrl,
         },
       ]);
@@ -1445,6 +1483,7 @@ describe('RpcServiceChain', () => {
         {
           fetch,
           btoa,
+          isOffline: (): boolean => false,
           endpointUrl,
         },
       ]);
@@ -1509,6 +1548,7 @@ describe('RpcServiceChain', () => {
         {
           fetch,
           btoa,
+          isOffline: (): boolean => false,
           endpointUrl,
         },
       ]);
@@ -1579,6 +1619,7 @@ describe('RpcServiceChain', () => {
         {
           fetch,
           btoa,
+          isOffline: (): boolean => false,
           endpointUrl,
         },
       ]);
@@ -1655,11 +1696,13 @@ describe('RpcServiceChain', () => {
         {
           fetch,
           btoa,
+          isOffline: (): boolean => false,
           endpointUrl: primaryEndpointUrl,
         },
         {
           fetch,
           btoa,
+          isOffline: (): boolean => false,
           endpointUrl: secondaryEndpointUrl,
         },
       ]);
@@ -1739,6 +1782,7 @@ describe('RpcServiceChain', () => {
         {
           fetch,
           btoa,
+          isOffline: (): boolean => false,
           endpointUrl,
         },
       ]);
@@ -1831,11 +1875,13 @@ describe('RpcServiceChain', () => {
         {
           fetch,
           btoa,
+          isOffline: (): boolean => false,
           endpointUrl: primaryEndpointUrl,
         },
         {
           fetch,
           btoa,
+          isOffline: (): boolean => false,
           endpointUrl: secondaryEndpointUrl,
         },
       ]);
@@ -1924,6 +1970,7 @@ describe('RpcServiceChain', () => {
         {
           fetch,
           btoa,
+          isOffline: (): boolean => false,
           endpointUrl,
         },
       ]);
@@ -1976,11 +2023,13 @@ describe('RpcServiceChain', () => {
         {
           fetch,
           btoa,
+          isOffline: (): boolean => false,
           endpointUrl: primaryEndpointUrl,
         },
         {
           fetch,
           btoa,
+          isOffline: (): boolean => false,
           endpointUrl: secondaryEndpointUrl,
         },
       ]);
@@ -2046,6 +2095,7 @@ describe('RpcServiceChain', () => {
         {
           fetch,
           btoa,
+          isOffline: (): boolean => false,
           endpointUrl,
         },
       ]);
@@ -2088,7 +2138,7 @@ describe('RpcServiceChain', () => {
  * @param httpStatus - The HTTP status that the error represents.
  * @returns The RPC error.
  */
-function createResourceUnavailableError(httpStatus: number) {
+function createResourceUnavailableError(httpStatus: number): Error {
   return expect.objectContaining({
     code: errorCodes.rpc.resourceUnavailable,
     message: 'RPC endpoint not found or unavailable.',

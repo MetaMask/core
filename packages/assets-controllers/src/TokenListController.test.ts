@@ -6,12 +6,11 @@ import {
   toHex,
   InfuraNetworkType,
 } from '@metamask/controller-utils';
-import {
-  Messenger,
-  MOCK_ANY_NAMESPACE,
-  type MessengerActions,
-  type MessengerEvents,
-  type MockAnyNamespace,
+import { Messenger, MOCK_ANY_NAMESPACE } from '@metamask/messenger';
+import type {
+  MessengerActions,
+  MessengerEvents,
+  MockAnyNamespace,
 } from '@metamask/messenger';
 import type { NetworkState } from '@metamask/network-controller';
 import type { Hex } from '@metamask/utils';
@@ -103,13 +102,11 @@ const sampleMainnetTokenList = [
   },
 ];
 
-const sampleMainnetTokensChainsCache = sampleMainnetTokenList.reduce(
-  (output, current) => {
+const sampleMainnetTokensChainsCache =
+  sampleMainnetTokenList.reduce<TokenListMap>((output, current) => {
     output[current.address] = current;
     return output;
-  },
-  {} as TokenListMap,
-);
+  }, {});
 
 const sampleBinanceTokenList = [
   {
@@ -147,13 +144,11 @@ const sampleBinanceTokenList = [
   },
 ];
 
-const sampleBinanceTokensChainsCache = sampleBinanceTokenList.reduce(
-  (output, current) => {
+const sampleBinanceTokensChainsCache =
+  sampleBinanceTokenList.reduce<TokenListMap>((output, current) => {
     output[current.address] = current;
     return output;
-  },
-  {} as TokenListMap,
-);
+  }, {});
 
 const sampleSingleChainState = {
   tokenList: {
@@ -316,13 +311,11 @@ const sampleSepoliaTokenList = [
   },
 ];
 
-const sampleSepoliaTokensChainCache = sampleSepoliaTokenList.reduce(
-  (output, current) => {
+const sampleSepoliaTokensChainCache =
+  sampleSepoliaTokenList.reduce<TokenListMap>((output, current) => {
     output[current.address] = current;
     return output;
-  },
-  {} as TokenListMap,
-);
+  }, {});
 
 const sampleTwoChainState = {
   tokenList: {
@@ -1373,5 +1366,5 @@ describe('TokenListController', () => {
 function getTokensPath(chainId: Hex) {
   return `/tokens/${convertHexToDecimal(
     chainId,
-  )}?occurrenceFloor=3&includeNativeAssets=false&includeTokenFees=false&includeAssetType=false&includeERC20Permit=false&includeStorage=false`;
+  )}?occurrenceFloor=3&includeNativeAssets=false&includeTokenFees=false&includeAssetType=false&includeERC20Permit=false&includeStorage=false&includeRwaData=true`;
 }

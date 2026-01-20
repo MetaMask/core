@@ -1,17 +1,17 @@
 import { deriveStateFromMetadata } from '@metamask/base-controller';
 import type { InternalAccount } from '@metamask/keyring-internal-api';
-import {
-  Messenger,
-  MOCK_ANY_NAMESPACE,
-  type MockAnyNamespace,
-  type MessengerActions,
-  type MessengerEvents,
+import { Messenger, MOCK_ANY_NAMESPACE } from '@metamask/messenger';
+import type {
+  MockAnyNamespace,
+  MessengerActions,
+  MessengerEvents,
 } from '@metamask/messenger';
 
 import {
+  DEFAULT_INITIAL_DELAY_DURATION,
   ProfileMetricsController,
-  type ProfileMetricsControllerMessenger,
 } from './ProfileMetricsController';
+import type { ProfileMetricsControllerMessenger } from './ProfileMetricsController';
 import type {
   ProfileMetricsSubmitMetricsRequest,
   AccountWithScopes,
@@ -62,14 +62,28 @@ describe('ProfileMetricsController', () => {
 
   describe('constructor subscriptions', () => {
     describe('when KeyringController:unlock is published', () => {
-      it('starts polling', async () => {
-        await withController(async ({ controller, rootMessenger }) => {
-          const pollSpy = jest.spyOn(controller, 'startPolling');
+      it('starts polling immediately', async () => {
+        await withController(
+          { options: { assertUserOptedIn: () => true } },
+          async ({ controller, rootMessenger }) => {
+            const pollSpy = jest.spyOn(controller, 'startPolling');
 
-          rootMessenger.publish('KeyringController:unlock');
+            rootMessenger.publish('KeyringController:unlock');
 
-          expect(pollSpy).toHaveBeenCalledTimes(1);
-        });
+            expect(pollSpy).toHaveBeenCalledTimes(1);
+          },
+        );
+      });
+
+      it('disables the initial delay if the user has opted in to profile metrics', async () => {
+        await withController(
+          { options: { assertUserOptedIn: () => true } },
+          async ({ controller, rootMessenger }) => {
+            rootMessenger.publish('KeyringController:unlock');
+
+            expect(controller.state.initialDelayEndTimestamp).toBe(Date.now());
+          },
+        );
       });
 
       describe('when `initialEnqueueCompleted` is false', () => {
@@ -80,12 +94,19 @@ describe('ProfileMetricsController', () => {
               { options: { assertUserOptedIn: () => assertUserOptedIn } },
               async ({ controller, rootMessenger }) => {
                 rootMessenger.registerActionHandler(
-                  'AccountsController:listAccounts',
+                  'AccountsController:getState',
                   () => {
-                    return [
-                      createMockAccount('0xAccount1'),
-                      createMockAccount('0xAccount2', false),
-                    ];
+                    const account1 = createMockAccount('0xAccount1');
+                    const account2 = createMockAccount('0xAccount2', false);
+                    return {
+                      internalAccounts: {
+                        accounts: {
+                          [account1.id]: account1,
+                          [account2.id]: account2,
+                        },
+                        selectedAccount: account1.id,
+                      },
+                    };
                   },
                 );
 
@@ -119,12 +140,19 @@ describe('ProfileMetricsController', () => {
               },
               async ({ controller, rootMessenger }) => {
                 rootMessenger.registerActionHandler(
-                  'AccountsController:listAccounts',
+                  'AccountsController:getState',
                   () => {
-                    return [
-                      createMockAccount('0xAccount1'),
-                      createMockAccount('0xAccount2'),
-                    ];
+                    const account1 = createMockAccount('0xAccount1');
+                    const account2 = createMockAccount('0xAccount2');
+                    return {
+                      internalAccounts: {
+                        accounts: {
+                          [account1.id]: account1,
+                          [account2.id]: account2,
+                        },
+                        selectedAccount: account1.id,
+                      },
+                    };
                   },
                 );
 
@@ -150,6 +178,32 @@ describe('ProfileMetricsController', () => {
 
           expect(pollSpy).toHaveBeenCalledTimes(1);
         });
+      });
+    });
+
+    describe('when TransactionController:transactionSubmitted is published', () => {
+      it('sets `initialDelayEndTimestamp` to current timestamp to skip the initial delay on the next poll', async () => {
+        await withController(
+          {
+            options: {
+              state: {
+                initialDelayEndTimestamp:
+                  Date.now() + DEFAULT_INITIAL_DELAY_DURATION,
+              },
+            },
+          },
+          async ({ controller, rootMessenger }) => {
+            rootMessenger.publish(
+              'TransactionController:transactionSubmitted',
+              {
+                // @ts-expect-error Transaction object not needed for this test
+                foo: 'bar',
+              },
+            );
+
+            expect(controller.state.initialDelayEndTimestamp).toBe(Date.now());
+          },
+        );
       });
     });
 
@@ -279,6 +333,24 @@ describe('ProfileMetricsController', () => {
     });
   });
 
+  describe('skipInitialDelay', () => {
+    it('sets the initial delay end timestamp to the current time', async () => {
+      const pastTimestamp = Date.now() - 10000;
+      await withController(
+        {
+          options: {
+            state: { initialDelayEndTimestamp: pastTimestamp },
+          },
+        },
+        async ({ controller }) => {
+          controller.skipInitialDelay();
+
+          expect(controller.state.initialDelayEndTimestamp).toBe(Date.now());
+        },
+      );
+    });
+  });
+
   describe('_executePoll', () => {
     describe('when the user has not opted in to profile metrics', () => {
       it('does not process the sync queue', async () => {
@@ -302,159 +374,248 @@ describe('ProfileMetricsController', () => {
       });
     });
 
+    describe('when the initial delay period has not ended', () => {
+      it('does not process the sync queue', async () => {
+        const accounts: Record<string, AccountWithScopes[]> = {
+          id1: [{ address: '0xAccount1', scopes: ['eip155:1'] }],
+        };
+        await withController(
+          {
+            options: {
+              state: {
+                syncQueue: accounts,
+              },
+            },
+          },
+          async ({ controller, mockSubmitMetrics }) => {
+            await controller._executePoll();
+
+            expect(mockSubmitMetrics).not.toHaveBeenCalled();
+            expect(controller.state.syncQueue).toStrictEqual(accounts);
+          },
+        );
+      });
+    });
+
     describe('when the user has opted in to profile metrics', () => {
-      it('processes the sync queue on each poll', async () => {
-        const accounts: Record<string, AccountWithScopes[]> = {
-          id1: [{ address: '0xAccount1', scopes: ['eip155:1'] }],
-        };
-        await withController(
-          {
-            options: { state: { syncQueue: accounts } },
-          },
-          async ({ controller, getMetaMetricsId, mockSubmitMetrics }) => {
-            await controller._executePoll();
+      it('sets the correct default initial delay end timestamp if not set yet', async () => {
+        await withController(async ({ controller }) => {
+          await controller._executePoll();
 
-            expect(mockSubmitMetrics).toHaveBeenCalledTimes(1);
-            expect(mockSubmitMetrics).toHaveBeenCalledWith({
-              metametricsId: getMetaMetricsId(),
-              entropySourceId: 'id1',
-              accounts: [{ address: '0xAccount1', scopes: ['eip155:1'] }],
-            });
-            expect(controller.state.syncQueue).toStrictEqual({});
-          },
-        );
+          expect(controller.state.initialDelayEndTimestamp).toBe(
+            Date.now() + DEFAULT_INITIAL_DELAY_DURATION,
+          );
+        });
       });
 
-      it('processes the sync queue in batches grouped by entropySourceId', async () => {
-        const accounts: Record<string, AccountWithScopes[]> = {
-          id1: [
-            { address: '0xAccount1', scopes: ['eip155:1'] },
-            { address: '0xAccount2', scopes: ['eip155:1'] },
-          ],
-          id2: [{ address: '0xAccount3', scopes: ['eip155:1'] }],
-          null: [{ address: '0xAccount4', scopes: ['eip155:1'] }],
-        };
+      it('sets a custom initial delay end timestamp if provided via options', async () => {
+        const customDelay = 60_000;
         await withController(
           {
-            options: { state: { syncQueue: accounts } },
+            options: {
+              initialDelayDuration: customDelay,
+            },
           },
-          async ({ controller, getMetaMetricsId, mockSubmitMetrics }) => {
+          async ({ controller }) => {
             await controller._executePoll();
 
-            expect(mockSubmitMetrics).toHaveBeenCalledTimes(3);
-            expect(mockSubmitMetrics).toHaveBeenNthCalledWith(1, {
-              metametricsId: getMetaMetricsId(),
-              entropySourceId: 'id1',
-              accounts: [
-                { address: '0xAccount1', scopes: ['eip155:1'] },
-                { address: '0xAccount2', scopes: ['eip155:1'] },
-              ],
-            });
-            expect(mockSubmitMetrics).toHaveBeenNthCalledWith(2, {
-              metametricsId: getMetaMetricsId(),
-              entropySourceId: 'id2',
-              accounts: [{ address: '0xAccount3', scopes: ['eip155:1'] }],
-            });
-            expect(mockSubmitMetrics).toHaveBeenNthCalledWith(3, {
-              metametricsId: getMetaMetricsId(),
-              entropySourceId: null,
-              accounts: [{ address: '0xAccount4', scopes: ['eip155:1'] }],
-            });
-            expect(controller.state.syncQueue).toStrictEqual({});
-          },
-        );
-      });
-
-      it('skips one of the batches if the :submitMetrics call fails, but continues processing the rest', async () => {
-        const accounts: Record<string, AccountWithScopes[]> = {
-          id1: [{ address: '0xAccount1', scopes: ['eip155:1'] }],
-          id2: [{ address: '0xAccount2', scopes: ['eip155:1'] }],
-        };
-        await withController(
-          {
-            options: { state: { syncQueue: accounts } },
-          },
-          async ({ controller, getMetaMetricsId, mockSubmitMetrics }) => {
-            const consoleErrorSpy = jest.spyOn(console, 'error');
-            mockSubmitMetrics.mockImplementationOnce(() => {
-              throw new Error('Network error');
-            });
-
-            await controller._executePoll();
-
-            expect(mockSubmitMetrics).toHaveBeenCalledTimes(2);
-            expect(mockSubmitMetrics).toHaveBeenNthCalledWith(1, {
-              metametricsId: getMetaMetricsId(),
-              entropySourceId: 'id1',
-              accounts: [{ address: '0xAccount1', scopes: ['eip155:1'] }],
-            });
-            expect(mockSubmitMetrics).toHaveBeenNthCalledWith(2, {
-              metametricsId: getMetaMetricsId(),
-              entropySourceId: 'id2',
-              accounts: [{ address: '0xAccount2', scopes: ['eip155:1'] }],
-            });
-            expect(controller.state.syncQueue).toStrictEqual({
-              id1: [{ address: '0xAccount1', scopes: ['eip155:1'] }],
-            });
-            expect(consoleErrorSpy).toHaveBeenCalledWith(
-              'Failed to submit profile metrics for entropy source ID id1:',
-              expect.any(Error),
+            expect(controller.state.initialDelayEndTimestamp).toBe(
+              Date.now() + customDelay,
             );
           },
         );
+      });
+
+      it('retains the existing initial delay end timestamp if already set', async () => {
+        const pastTimestamp = Date.now() - 10000;
+        await withController(
+          {
+            options: {
+              state: { initialDelayEndTimestamp: pastTimestamp },
+            },
+          },
+          async ({ controller }) => {
+            await controller._executePoll();
+
+            expect(controller.state.initialDelayEndTimestamp).toBe(
+              pastTimestamp,
+            );
+          },
+        );
+      });
+
+      describe('when the initial delay period has ended', () => {
+        it('processes the sync queue on each poll', async () => {
+          const accounts: Record<string, AccountWithScopes[]> = {
+            id1: [{ address: '0xAccount1', scopes: ['eip155:1'] }],
+          };
+          await withController(
+            {
+              options: {
+                state: { syncQueue: accounts, initialDelayEndTimestamp: 0 },
+              },
+            },
+            async ({ controller, getMetaMetricsId, mockSubmitMetrics }) => {
+              await controller._executePoll();
+
+              expect(mockSubmitMetrics).toHaveBeenCalledTimes(1);
+              expect(mockSubmitMetrics).toHaveBeenCalledWith({
+                metametricsId: getMetaMetricsId(),
+                entropySourceId: 'id1',
+                accounts: [{ address: '0xAccount1', scopes: ['eip155:1'] }],
+              });
+              expect(controller.state.syncQueue).toStrictEqual({});
+            },
+          );
+        });
+
+        it('processes the sync queue in batches grouped by entropySourceId', async () => {
+          const accounts: Record<string, AccountWithScopes[]> = {
+            id1: [
+              { address: '0xAccount1', scopes: ['eip155:1'] },
+              { address: '0xAccount2', scopes: ['eip155:1'] },
+            ],
+            id2: [{ address: '0xAccount3', scopes: ['eip155:1'] }],
+            null: [{ address: '0xAccount4', scopes: ['eip155:1'] }],
+          };
+          await withController(
+            {
+              options: {
+                state: { syncQueue: accounts, initialDelayEndTimestamp: 0 },
+              },
+            },
+            async ({ controller, getMetaMetricsId, mockSubmitMetrics }) => {
+              await controller._executePoll();
+
+              expect(mockSubmitMetrics).toHaveBeenCalledTimes(3);
+              expect(mockSubmitMetrics).toHaveBeenNthCalledWith(1, {
+                metametricsId: getMetaMetricsId(),
+                entropySourceId: 'id1',
+                accounts: [
+                  { address: '0xAccount1', scopes: ['eip155:1'] },
+                  { address: '0xAccount2', scopes: ['eip155:1'] },
+                ],
+              });
+              expect(mockSubmitMetrics).toHaveBeenNthCalledWith(2, {
+                metametricsId: getMetaMetricsId(),
+                entropySourceId: 'id2',
+                accounts: [{ address: '0xAccount3', scopes: ['eip155:1'] }],
+              });
+              expect(mockSubmitMetrics).toHaveBeenNthCalledWith(3, {
+                metametricsId: getMetaMetricsId(),
+                entropySourceId: null,
+                accounts: [{ address: '0xAccount4', scopes: ['eip155:1'] }],
+              });
+              expect(controller.state.syncQueue).toStrictEqual({});
+            },
+          );
+        });
+
+        it('skips one of the batches if the :submitMetrics call fails, but continues processing the rest', async () => {
+          const accounts: Record<string, AccountWithScopes[]> = {
+            id1: [{ address: '0xAccount1', scopes: ['eip155:1'] }],
+            id2: [{ address: '0xAccount2', scopes: ['eip155:1'] }],
+          };
+          await withController(
+            {
+              options: {
+                state: { syncQueue: accounts, initialDelayEndTimestamp: 0 },
+              },
+            },
+            async ({ controller, getMetaMetricsId, mockSubmitMetrics }) => {
+              const consoleErrorSpy = jest.spyOn(console, 'error');
+              mockSubmitMetrics.mockImplementationOnce(() => {
+                throw new Error('Network error');
+              });
+
+              await controller._executePoll();
+
+              expect(mockSubmitMetrics).toHaveBeenCalledTimes(2);
+              expect(mockSubmitMetrics).toHaveBeenNthCalledWith(1, {
+                metametricsId: getMetaMetricsId(),
+                entropySourceId: 'id1',
+                accounts: [{ address: '0xAccount1', scopes: ['eip155:1'] }],
+              });
+              expect(mockSubmitMetrics).toHaveBeenNthCalledWith(2, {
+                metametricsId: getMetaMetricsId(),
+                entropySourceId: 'id2',
+                accounts: [{ address: '0xAccount2', scopes: ['eip155:1'] }],
+              });
+              expect(controller.state.syncQueue).toStrictEqual({
+                id1: [{ address: '0xAccount1', scopes: ['eip155:1'] }],
+              });
+              expect(consoleErrorSpy).toHaveBeenCalledWith(
+                'Failed to submit profile metrics for entropy source ID id1:',
+                expect.any(Error),
+              );
+            },
+          );
+        });
       });
     });
   });
 
   describe('metadata', () => {
     it('includes expected state in debug snapshots', async () => {
-      await withController(({ controller }) => {
-        expect(
-          deriveStateFromMetadata(
-            controller.state,
-            controller.metadata,
-            'includeInDebugSnapshot',
-          ),
-        ).toMatchInlineSnapshot(`
-          Object {
-            "initialEnqueueCompleted": false,
-          }
-        `);
-      });
+      await withController(
+        { options: { state: { initialDelayEndTimestamp: 10 } } },
+        ({ controller }) => {
+          expect(
+            deriveStateFromMetadata(
+              controller.state,
+              controller.metadata,
+              'includeInDebugSnapshot',
+            ),
+          ).toMatchInlineSnapshot(`
+            Object {
+              "initialDelayEndTimestamp": 10,
+              "initialEnqueueCompleted": false,
+            }
+         `);
+        },
+      );
     });
 
     it('includes expected state in state logs', async () => {
-      await withController(({ controller }) => {
-        expect(
-          deriveStateFromMetadata(
-            controller.state,
-            controller.metadata,
-            'includeInStateLogs',
-          ),
-        ).toMatchInlineSnapshot(`
-          Object {
-            "initialEnqueueCompleted": false,
-            "syncQueue": Object {},
-          }
-        `);
-      });
+      await withController(
+        { options: { state: { initialDelayEndTimestamp: 10 } } },
+        ({ controller }) => {
+          expect(
+            deriveStateFromMetadata(
+              controller.state,
+              controller.metadata,
+              'includeInStateLogs',
+            ),
+          ).toMatchInlineSnapshot(`
+            Object {
+              "initialDelayEndTimestamp": 10,
+              "initialEnqueueCompleted": false,
+              "syncQueue": Object {},
+            }
+         `);
+        },
+      );
     });
 
     it('persists expected state', async () => {
-      await withController(({ controller }) => {
-        expect(
-          deriveStateFromMetadata(
-            controller.state,
-            controller.metadata,
-            'persist',
-          ),
-        ).toMatchInlineSnapshot(`
-          Object {
-            "initialEnqueueCompleted": false,
-            "syncQueue": Object {},
-          }
+      await withController(
+        { options: { state: { initialDelayEndTimestamp: 10 } } },
+        ({ controller }) => {
+          expect(
+            deriveStateFromMetadata(
+              controller.state,
+              controller.metadata,
+              'persist',
+            ),
+          ).toMatchInlineSnapshot(`
+            Object {
+              "initialDelayEndTimestamp": 10,
+              "initialEnqueueCompleted": false,
+              "syncQueue": Object {},
+            }
         `);
-      });
+        },
+      );
     });
 
     it('exposes expected state to UI', async () => {
@@ -530,7 +691,7 @@ function getMessenger(
   rootMessenger.delegate({
     messenger,
     actions: [
-      'AccountsController:listAccounts',
+      'AccountsController:getState',
       'ProfileMetricsService:submitMetrics',
     ],
     events: [
@@ -538,6 +699,7 @@ function getMessenger(
       'KeyringController:lock',
       'AccountsController:accountAdded',
       'AccountsController:accountRemoved',
+      'TransactionController:transactionSubmitted',
     ],
   });
   return messenger;

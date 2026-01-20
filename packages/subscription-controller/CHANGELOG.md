@@ -7,6 +7,28 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+### Changed
+
+- Bump `@metamask/polling-controller` from `^16.0.0` to `^16.0.2` ([#7604](https://github.com/MetaMask/core/pull/7604), [#7642](https://github.com/MetaMask/core/pull/7642))
+- Bump `@metamask/transaction-controller` from `^62.4.0` to `^62.9.2` ([#7325](https://github.com/MetaMask/core/pull/7325), [#7430](https://github.com/MetaMask/core/pull/7430), [#7494](https://github.com/MetaMask/core/pull/7494), [#7596](https://github.com/MetaMask/core/pull/7596), [#7602](https://github.com/MetaMask/core/pull/7602), [#7604](https://github.com/MetaMask/core/pull/7604), [#7642](https://github.com/MetaMask/core/pull/7642))
+- Bump `@metamask/utils` from `^11.8.1` to `^11.9.0` ([#7511](https://github.com/MetaMask/core/pull/7511))
+- Bump `@metamask/controller-utils` from `^11.16.0` to `^11.18.0` ([#7534](https://github.com/MetaMask/core/pull/7534), [#7583](https://github.com/MetaMask/core/pull/7583))
+
+## [5.4.0]
+
+### Changed
+
+- Updated `GetSubscriptionsResponse` and controller state to include `rewardAccountId` property ([#7319](https://github.com/MetaMask/core/pull/7319))
+
+## [5.3.1]
+
+### Changed
+
+- Renamed parameters related to rewards linking with shield. ([#7311](https://github.com/MetaMask/core/pull/7311))
+  - Renamed from `rewardSubscriptionId` to `rewardAccountId`.
+
+## [5.3.0]
+
 ### Added
 
 - Added new method, `linkRewards` to link rewards to the existing subscription. ([#7283](https://github.com/MetaMask/core/pull/7283))
@@ -239,7 +261,10 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 - Bump `@metamask/controller-utils` from `^11.12.0` to `^11.14.0` ([#6620](https://github.com/MetaMask/core/pull/6620), [#6629](https://github.com/MetaMask/core/pull/6629))
 - Bump `@metamask/utils` from `^11.4.2` to `^11.8.0` ([#6588](https://github.com/MetaMask/core/pull/6588))
 
-[Unreleased]: https://github.com/MetaMask/core/compare/@metamask/subscription-controller@5.2.0...HEAD
+[Unreleased]: https://github.com/MetaMask/core/compare/@metamask/subscription-controller@5.4.0...HEAD
+[5.4.0]: https://github.com/MetaMask/core/compare/@metamask/subscription-controller@5.3.1...@metamask/subscription-controller@5.4.0
+[5.3.1]: https://github.com/MetaMask/core/compare/@metamask/subscription-controller@5.3.0...@metamask/subscription-controller@5.3.1
+[5.3.0]: https://github.com/MetaMask/core/compare/@metamask/subscription-controller@5.2.0...@metamask/subscription-controller@5.3.0
 [5.2.0]: https://github.com/MetaMask/core/compare/@metamask/subscription-controller@5.1.0...@metamask/subscription-controller@5.2.0
 [5.1.0]: https://github.com/MetaMask/core/compare/@metamask/subscription-controller@5.0.0...@metamask/subscription-controller@5.1.0
 [5.0.0]: https://github.com/MetaMask/core/compare/@metamask/subscription-controller@4.2.2...@metamask/subscription-controller@5.0.0

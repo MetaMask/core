@@ -33,7 +33,7 @@ export function testsForRpcMethodsThatCheckForBlockHashInResponse(
     numberOfParameters,
     providerType,
   }: TestsForRpcMethodThatCheckForBlockHashInResponseOptions,
-) {
+): void {
   it('does not hit the RPC endpoint more than once for identical requests and it has a valid blockHash', async () => {
     const requests = [{ method }, { method }];
     const mockResult = { blockHash: '0x1' };

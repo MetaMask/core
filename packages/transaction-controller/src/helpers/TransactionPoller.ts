@@ -1,5 +1,6 @@
 import type { BlockTracker } from '@metamask/network-controller';
-import { createModuleLogger, type Hex } from '@metamask/utils';
+import { createModuleLogger } from '@metamask/utils';
+import type { Hex } from '@metamask/utils';
 import { isEqual } from 'lodash';
 
 import { projectLogger } from '../logger';
@@ -52,7 +53,7 @@ export class TransactionPoller {
    *
    * @param listener - The listener to call on every interval.
    */
-  start(listener: (latestBlockNumber: string) => Promise<void>) {
+  start(listener: (latestBlockNumber: string) => Promise<void>): void {
     if (this.#running) {
       return;
     }
@@ -69,7 +70,7 @@ export class TransactionPoller {
    * Stop the poller.
    * Remove all timeouts and block tracker listeners.
    */
-  stop() {
+  stop(): void {
     if (!this.#running) {
       return;
     }
@@ -92,7 +93,7 @@ export class TransactionPoller {
    *
    * @param pendingTransactions - The pending transactions to poll.
    */
-  setPendingTransactions(pendingTransactions: TransactionMeta[]) {
+  setPendingTransactions(pendingTransactions: TransactionMeta[]): void {
     const currentPendingTransactionIds = (this.#pendingTransactions ?? []).map(
       (tx) => tx.id,
     );
@@ -120,7 +121,7 @@ export class TransactionPoller {
     }
   }
 
-  #queue() {
+  #queue(): void {
     if (!this.#running) {
       return;
     }
@@ -132,7 +133,7 @@ export class TransactionPoller {
 
     if (this.#acceleratedCount >= countMax) {
       // eslint-disable-next-line @typescript-eslint/no-misused-promises
-      this.#blockTrackerListener = (latestBlockNumber) =>
+      this.#blockTrackerListener = (latestBlockNumber): Promise<void> =>
         this.#interval(false, latestBlockNumber);
 
       this.#blockTracker.on('latest', this.#blockTrackerListener);
@@ -151,7 +152,10 @@ export class TransactionPoller {
     }, intervalMs);
   }
 
-  async #interval(isAccelerated: boolean, latestBlockNumber?: string) {
+  async #interval(
+    isAccelerated: boolean,
+    latestBlockNumber?: string,
+  ): Promise<void> {
     if (isAccelerated) {
       log('Accelerated interval', this.#acceleratedCount + 1);
     } else {
@@ -168,7 +172,7 @@ export class TransactionPoller {
     }
   }
 
-  #stopTimeout() {
+  #stopTimeout(): void {
     if (!this.#timeout) {
       return;
     }
@@ -177,7 +181,7 @@ export class TransactionPoller {
     this.#timeout = undefined;
   }
 
-  #stopBlockTracker() {
+  #stopBlockTracker(): void {
     if (!this.#blockTrackerListener) {
       return;
     }

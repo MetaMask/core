@@ -1,4 +1,8 @@
-import type { AccountWalletId, Bip44Account } from '@metamask/account-api';
+import type {
+  AccountGroupId,
+  AccountWalletId,
+  Bip44Account,
+} from '@metamask/account-api';
 import {
   AccountGroupType,
   AccountWalletType,
@@ -6,7 +10,6 @@ import {
   toAccountWalletId,
   toMultichainAccountGroupId,
   toMultichainAccountWalletId,
-  type AccountGroupId,
 } from '@metamask/account-api';
 import type { AccountId } from '@metamask/accounts-controller';
 import { deriveStateFromMetadata } from '@metamask/base-controller';
@@ -36,7 +39,7 @@ import type { BackupAndSyncAnalyticsEventPayload } from './backup-and-sync/analy
 import { BackupAndSyncService } from './backup-and-sync/service';
 import { isAccountGroupNameUnique } from './group';
 import { getAccountWalletNameFromKeyringType } from './rules/keyring';
-import { type AccountTreeControllerState } from './types';
+import type { AccountTreeControllerState } from './types';
 import {
   getAccountTreeControllerMessenger,
   getRootMessenger,

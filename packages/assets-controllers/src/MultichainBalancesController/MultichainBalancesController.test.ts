@@ -13,12 +13,11 @@ import {
 } from '@metamask/keyring-api';
 import { KeyringTypes } from '@metamask/keyring-controller';
 import type { InternalAccount } from '@metamask/keyring-internal-api';
-import {
-  MOCK_ANY_NAMESPACE,
-  Messenger,
-  type MessengerActions,
-  type MessengerEvents,
-  type MockAnyNamespace,
+import { MOCK_ANY_NAMESPACE, Messenger } from '@metamask/messenger';
+import type {
+  MessengerActions,
+  MessengerEvents,
+  MockAnyNamespace,
 } from '@metamask/messenger';
 import { v4 as uuidv4 } from 'uuid';
 

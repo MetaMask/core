@@ -1,8 +1,8 @@
 import { Contract } from '@ethersproject/contracts';
-import type { ApprovalControllerMessenger } from '@metamask/approval-controller';
-import {
-  ApprovalController,
-  type ApprovalControllerState,
+import { ApprovalController } from '@metamask/approval-controller';
+import type {
+  ApprovalControllerMessenger,
+  ApprovalControllerState,
 } from '@metamask/approval-controller';
 import { deriveStateFromMetadata } from '@metamask/base-controller';
 import contractMaps from '@metamask/contract-metadata';
@@ -14,12 +14,11 @@ import {
   InfuraNetworkType,
 } from '@metamask/controller-utils';
 import type { InternalAccount } from '@metamask/keyring-internal-api';
-import {
-  Messenger,
-  MOCK_ANY_NAMESPACE,
-  type MockAnyNamespace,
-  type MessengerActions,
-  type MessengerEvents,
+import { Messenger, MOCK_ANY_NAMESPACE } from '@metamask/messenger';
+import type {
+  MockAnyNamespace,
+  MessengerActions,
+  MessengerEvents,
 } from '@metamask/messenger';
 import type {
   NetworkClientConfiguration,
@@ -1622,7 +1621,7 @@ describe('TokensController', () => {
             .get(
               `/token/${convertHexToDecimal(
                 chainId,
-              )}?address=${dummyTokenAddress}`,
+              )}?address=${dummyTokenAddress}&includeRwaData=true`,
             )
             .reply(200, { error })
             .persist();
@@ -2384,6 +2383,73 @@ describe('TokensController', () => {
         expect(addAndShowApprovalRequestSpy).toHaveBeenCalledWith({
           id: requestId,
           origin: ORIGIN_METAMASK,
+          type: ApprovalType.WatchAsset,
+          requestData: {
+            id: requestId,
+            interactingAddress: '0x1',
+            asset,
+          },
+        });
+      });
+    });
+
+    it('falls back to ORIGIN_METAMASK when origin is empty string', async () => {
+      await withController(async ({ controller, approvalController }) => {
+        const requestId = '12345';
+        const addAndShowApprovalRequestSpy = jest
+          .spyOn(approvalController, 'addAndShowApprovalRequest')
+          .mockResolvedValue(undefined);
+        const asset = buildToken();
+        ContractMock.mockReturnValue(
+          buildMockEthersERC721Contract({ supportsInterface: false }),
+        );
+        uuidV1Mock.mockReturnValue(requestId);
+
+        await controller.watchAsset({
+          asset,
+          type: 'ERC20',
+          origin: '',
+          networkClientId: 'mainnet',
+        });
+
+        expect(addAndShowApprovalRequestSpy).toHaveBeenCalledWith({
+          id: requestId,
+          origin: ORIGIN_METAMASK,
+          type: ApprovalType.WatchAsset,
+          requestData: {
+            id: requestId,
+            interactingAddress: '0x1',
+            asset,
+          },
+        });
+      });
+    });
+
+    it('uses origin param when requestMetadata.origin is empty string', async () => {
+      await withController(async ({ controller, approvalController }) => {
+        const requestId = '12345';
+        const addAndShowApprovalRequestSpy = jest
+          .spyOn(approvalController, 'addAndShowApprovalRequest')
+          .mockResolvedValue(undefined);
+        const asset = buildToken();
+        ContractMock.mockReturnValue(
+          buildMockEthersERC721Contract({ supportsInterface: false }),
+        );
+        uuidV1Mock.mockReturnValue(requestId);
+
+        await controller.watchAsset({
+          asset,
+          type: 'ERC20',
+          origin: 'https://example.test',
+          requestMetadata: {
+            origin: '',
+          },
+          networkClientId: 'mainnet',
+        });
+
+        expect(addAndShowApprovalRequestSpy).toHaveBeenCalledWith({
+          id: requestId,
+          origin: 'https://example.test',
           type: ApprovalType.WatchAsset,
           requestData: {
             id: requestId,

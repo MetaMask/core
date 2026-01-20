@@ -17,14 +17,11 @@ import {
 } from './constants/bridge';
 import { SWAPS_API_V2_BASE_URL } from './constants/swaps';
 import * as selectors from './selectors';
-import {
-  ChainId,
-  RequestStatus,
-  SortOrder,
-  StatusTypes,
-  type BridgeControllerMessenger,
-  type QuoteResponse,
-  type GenericQuoteRequest,
+import { ChainId, RequestStatus, SortOrder, StatusTypes } from './types';
+import type {
+  BridgeControllerMessenger,
+  QuoteResponse,
+  GenericQuoteRequest,
 } from './types';
 import * as balanceUtils from './utils/balance';
 import { getNativeAssetForChainId, isSolanaChainId } from './utils/bridge';
@@ -75,6 +72,7 @@ const bridgeConfig = {
   maxRefreshCount: 3,
   refreshRate: 3,
   support: true,
+  chainRanking: [],
   chains: {
     '10': { isActiveSrc: true, isActiveDest: false },
     '534352': { isActiveSrc: true, isActiveDest: false },
@@ -1119,6 +1117,7 @@ describe('BridgeController', function () {
         provider: 'provider_bridge',
         best_quote_provider: 'provider_bridge2',
         can_submit: true,
+        usd_balance_source: 0,
       },
     );
 
@@ -2369,6 +2368,7 @@ describe('BridgeController', function () {
           provider: 'provider_bridge',
           best_quote_provider: 'provider_bridge2',
           can_submit: true,
+          usd_balance_source: 0,
         },
       );
       expect(messengerMock.call.mock.calls).toMatchSnapshot();
@@ -2672,6 +2672,7 @@ describe('BridgeController', function () {
           provider: 'provider_bridge',
           best_quote_provider: 'provider_bridge2',
           can_submit: true,
+          usd_balance_source: 0,
         },
       );
       expect(trackMetaMetricsFn).toHaveBeenCalledTimes(0);
@@ -2703,6 +2704,7 @@ describe('BridgeController', function () {
         enabled: true,
         minimumVersion: '13.8.0',
       },
+      chainRanking: [{ chainId: 'eip155:1' as const, name: 'Ethereum' }],
     };
 
     const quotesByDecreasingProcessingTime = [...mockBridgeQuotesSolErc20];

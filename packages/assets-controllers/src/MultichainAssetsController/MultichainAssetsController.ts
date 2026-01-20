@@ -4,11 +4,11 @@ import type {
   AccountsControllerAccountRemovedEvent,
   AccountsControllerListMultichainAccountsAction,
 } from '@metamask/accounts-controller';
-import {
-  BaseController,
-  type ControllerGetStateAction,
-  type ControllerStateChangeEvent,
-  type StateMetadata,
+import { BaseController } from '@metamask/base-controller';
+import type {
+  ControllerGetStateAction,
+  ControllerStateChangeEvent,
+  StateMetadata,
 } from '@metamask/base-controller';
 import { isEvmAccountType } from '@metamask/keyring-api';
 import type {
@@ -30,11 +30,8 @@ import type {
 } from '@metamask/snaps-controllers';
 import type { FungibleAssetMetadata, Snap, SnapId } from '@metamask/snaps-sdk';
 import { HandlerType } from '@metamask/snaps-utils';
-import {
-  isCaipAssetType,
-  parseCaipAssetType,
-  type CaipChainId,
-} from '@metamask/utils';
+import { isCaipAssetType, parseCaipAssetType } from '@metamask/utils';
+import type { CaipChainId } from '@metamask/utils';
 import type { Json, JsonRpcRequest } from '@metamask/utils';
 import type { MutexInterface } from 'async-mutex';
 import { Mutex } from 'async-mutex';

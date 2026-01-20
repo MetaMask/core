@@ -7,9 +7,161 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+## [95.3.0]
+
+### Added
+
+- Add BOB (0xed88) mapping to eip155:60808/erc20:0x0000000000000000000000000000000000000000 ([#7635](https://github.com/MetaMask/core/pull/7635))
+
+### Changed
+
+- Bump `@metamask/accounts-controller` from `^35.0.1` to `^35.0.2` ([#7642](https://github.com/MetaMask/core/pull/7642))
+- Bump `@metamask/network-controller` from `^28.0.0` to `^29.0.0` ([#7642](https://github.com/MetaMask/core/pull/7642))
+- Bump `@metamask/polling-controller` from `^16.0.1` to `^16.0.2` ([#7642](https://github.com/MetaMask/core/pull/7642))
+- Bump `@metamask/transaction-controller` from `^62.9.1` to `^62.9.2` ([#7642](https://github.com/MetaMask/core/pull/7642))
+
+### Fixed
+
+- Fix native token fiat calculation for chains without market data by using currency rate fallback ([#7636](https://github.com/MetaMask/core/pull/7636))
+
+## [95.2.0]
+
+### Added
+
+- Add RWA data to asset fetching endpoints ([#7548](https://github.com/MetaMask/core/pull/7548))
+- Add Rootstock (0x1e) mapping to eip155:30/erc20:0x542fda317318ebf1d3deaf76e0b632741a7e677d for RBTC ([#7601](https://github.com/MetaMask/core/pull/7601))
+
+### Changed
+
+- Bump `@metamask/transaction-controller` from `^62.8.0` to `^62.9.1` ([#7602](https://github.com/MetaMask/core/pull/7602), [#7604](https://github.com/MetaMask/core/pull/7604))
+- Bump `@metamask/network-controller` from `^27.2.0` to `^28.0.0` ([#7604](https://github.com/MetaMask/core/pull/7604))
+- Bump `@metamask/accounts-controller` from `^35.0.0` to `^35.0.1` ([#7604](https://github.com/MetaMask/core/pull/7604))
+- Bump `@metamask/polling-controller` from `^16.0.0` to `^16.0.1` ([#7604](https://github.com/MetaMask/core/pull/7604))
+- Update Plasma (0x2611) mapping to eip155:9745/erc20:0xeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeee for XPL ([#7601](https://github.com/MetaMask/core/pull/7601))
+- `TokensController.watchAsset` now supports optional origin/page metadata and safely falls back for empty origins to avoid rejected approvals ([#7612](https://github.com/MetaMask/core/pull/7612))
+- Refactor `CurrencyRateController` exchange rate fetching with improved fallback logic ([#7606](https://github.com/MetaMask/core/pull/7606))
+  - Improved partial success handling: when some currencies succeed via the Price API and others fail, only failed currencies trigger the fallback mechanism
+  - Extracted helper methods for better code organization and testability
+
+## [95.1.0]
+
+### Added
+
+- Add RWA (Real World Assets) data support for token metadata endpoint ([#7595](https://github.com/MetaMask/core/pull/7595))
+  - Update token service to include RWA data in API requests by appending `includeRwaData=true` parameter to token list API calls
+  - `TokenListController` now includes `rwaData` optional field in `TokenListToken` type to support RWA data in token list retrieval
+  - Reduced `TokenListController` cache time from 24hrs to 4hrs.
+
+### Changed
+
+- Bump `@metamask/multichain-account-service` from `^4.1.0` to `^5.0.0` ([#7594](https://github.com/MetaMask/core/pull/7594))
+- Bump `@metamask/transaction-controller` from `^62.7.0` to `^62.8.0` ([#7596](https://github.com/MetaMask/core/pull/7596))
+- `AccountTrackerController` now triggers an immediate balance refresh when the keyring is unlocked, instead of waiting for the next polling cycle ([#7585](https://github.com/MetaMask/core/pull/7585))
+
+### Fixed
+
+- Add missing native coin non-zero address for networks: Gnosis and MSU ([#7592](https://github.com/MetaMask/core/pull/7592))
+
+## [95.0.0]
+
+### Added
+
+- Add RWA (Real World Assets) data support to token service ([#7560](https://github.com/MetaMask/core/pull/7560))
+  - Add `includeRwaData` optional parameter to `getTrendingTokens` function to include RWA data in results
+  - Add `TokenRwaData` type for RWA token metadata (market hours, pause times, ticker, instrument type)
+  - Add `TokenSearchItem` type with optional `rwaData` field for token search results
+  - Add `rwaData` optional field to `TrendingAsset` type
+- Update spot-prices endpoint list of supported chains and assets ([#7543](https://github.com/MetaMask/core/pull/7543))
+- Export `selectAllAssets` ([#7496](https://github.com/MetaMask/core/pull/7496))
+- Add multicall address for `MSU (MapleStory Universe)` ([#7453](https://github.com/MetaMask/core/pull/7453))
+- Add MSU (MapleStory Universe) and Etherlink in Spot Prices support ([#7453](https://github.com/MetaMask/core/pull/7453))
+- Set MSU native token address to `eip155:68414/erc20:0xf2b51cc1850fed939658317a22d73d3482767591` instead of `eip155:68414/erc20:0x0000000000000000000000000000000000000000` - particular case where the native token doesn't have the zero address ([#7578](https://github.com/MetaMask/core/pull/7578))
+
+### Changed
+
+- Bump `@metamask/snaps-controllers` from `^14.0.1` to `^17.2.0` ([#7550](https://github.com/MetaMask/core/pull/7550))
+- Bump `@metamask/snaps-sdk` from `^9.0.0` to `^10.3.0` ([#7550](https://github.com/MetaMask/core/pull/7550))
+- Bump `@metamask/snaps-utils` from `^11.0.0` to `^11.7.0` ([#7550](https://github.com/MetaMask/core/pull/7550))
+- Upgrade `@metamask/utils` from `^11.8.1` to `^11.9.0` ([#7511](https://github.com/MetaMask/core/pull/7511))
+- Bump `@metamask/permission-controller` from `^12.1.1` to `^12.2.0` ([#7559](https://github.com/MetaMask/core/pull/7559))
+- **BREAKING:** `AccountTrackerController` now requires `KeyringController:getState` action and `KeyringController:lock` event in addition to existing allowed actions and events ([#7492](https://github.com/MetaMask/core/pull/7492))
+  - Added `#isLocked` property to track keyring lock state, initialized from `KeyringController:getState`
+  - Added `isActive` getter that returns `true` when keyring is unlocked and user is onboarded
+  - Balance updates are now skipped when controller is not active (locked or not onboarded)
+  - `KeyringController:unlock` event now only updates lock state without triggering immediate refresh
+  - `KeyringController:lock` event sets controller to inactive state
+- `AccountTrackerController` now only refreshes balances for the newly added network on `NetworkController:networkAdded` event instead of all networks ([#7492](https://github.com/MetaMask/core/pull/7492))
+- Bump `@metamask/transaction-controller` from `^62.5.0` to `^62.7.0` ([#7494](https://github.com/MetaMask/core/pull/7494))
+- Bump `@metamask/multichain-account-service` from `^4.0.1` to `^4.1.0` ([#7515](https://github.com/MetaMask/core/pull/7515)
+- Bump `@metamask/controller-utils` from `^11.16.0` to `^11.18.0` ([#7534](https://github.com/MetaMask/core/pull/7534), [#7583](https://github.com/MetaMask/core/pull/7583))
+- Bump `@metamask/network-controller` from `^27.0.0` to `^27.2.0` ([#7534](https://github.com/MetaMask/core/pull/7534), [#7583](https://github.com/MetaMask/core/pull/7583))
+
+## [94.1.0]
+
+### Added
+
+- Add `excludeLabels` parameter to `getTrendingTokens` to filter out tokens by labels (e.g., 'stable_coin', 'blue_chip') ([#7466](https://github.com/MetaMask/core/pull/7466))
+- Add support for spot prices on multiple new chains: Apechain, Lens, Plume, Flow EVM, Berachain, xrpl-evm, Fraxtal, Lukso, xdc-network, and Plasma ([#7465](https://github.com/MetaMask/core/pull/7465))
+- Add `ape` to `SUPPORTED_CURRENCIES` for ApeCoin/Apechain native token ([#7465](https://github.com/MetaMask/core/pull/7465))
+- Add `isOnboarded` constructor option to `TokenBalancesController` and `AccountTrackerController` ([#7469](https://github.com/MetaMask/core/pull/7469))
+  - When `isOnboarded()` returns `false`, balance updates are skipped to prevent unnecessary API calls during onboarding
+  - `TokenBalancesController.isActive` now also checks `isOnboarded()` in addition to `isUnlocked`
+  - `AccountTrackerController.#refreshAccounts` now checks `isOnboarded()` before fetching balances
+
+### Fixed
+
+- Fix `TokenBalancesController` to evaluate `allowExternalServices` dynamically instead of only at constructor time ([#7469](https://github.com/MetaMask/core/pull/7469))
+  - Previously, the `#balanceFetchers` array was built once in the constructor, so changes to `allowExternalServices()` after initialization were not reflected
+  - Now `allowExternalServices()` is stored as a function and evaluated dynamically in the fetcher's `supports` method
+- Fix `TokenDetectionController` methods `addDetectedTokensViaPolling` and `addDetectedTokensViaWs` to refresh token metadata cache before use ([#7469](https://github.com/MetaMask/core/pull/7469))
+  - Previously, these methods used a potentially stale/empty `#tokensChainsCache` from construction time
+  - Now they fetch the latest `tokensChainsCache` from `TokenListController:getState` before looking up token metadata
+- Fix `AccountTrackerController.syncBalanceWithAddresses` to also check `isOnboarded()` before fetching balances ([#7469](https://github.com/MetaMask/core/pull/7469))
+  - Previously, only `#refreshAccounts` checked `isOnboarded()`, but `syncBalanceWithAddresses` would still make RPC calls during onboarding
+  - Now `syncBalanceWithAddresses` returns an empty object when `isOnboarded()` returns `false`
+
+## [94.0.0]
+
+### Added
+
+- Add `firstPageOnly` and `signal` options to `NftDetectionController.detectNfts()` method to allow fetching only the first page of NFTs and aborting detection operations ([#7436](https://github.com/MetaMask/core/pull/7436))
+- Support for Monad in NFT assets-controllers, [#7254](https://github.com/MetaMask/core/pull/7254)
+
+### Changed
+
+- Bump `@metamask/transaction-controller` from `^62.4.0` to `^62.5.0` ([#7325](https://github.com/MetaMask/core/pull/7325))
+- **BREAKING:** Replace Account API v2 with Account API v4 for token auto-detection ([#7408](https://github.com/MetaMask/core/pull/7408))
+  - `TokenDetectionController` now delegates token detection for Account API v4 supported chains to `TokenBalancesController`
+  - RPC-based detection continues to be used for chains not supported by Account API v4
+  - Added `forceRpc` parameter to `TokenDetectionController.detectTokens()` to force RPC-based detection
+  - `TokenDetectionController:detectTokens` action is now registered for cross-controller communication
+- `TokenBalancesController` now triggers RPC-based token detection as fallback when Account API v4 fails or returns unprocessed chains ([#7408](https://github.com/MetaMask/core/pull/7408))
+  - Calls `TokenDetectionController:detectTokens` with `forceRpc: true` when fetcher fails
+  - Calls `TokenDetectionController:detectTokens` with `forceRpc: true` for any unprocessed chain IDs returned by the API
+- Refactored `TokenBalancesController` for improved code organization and maintainability ([#7408](https://github.com/MetaMask/core/pull/7408))
+- Remove warning logs for failed chain balance fetches in RPC balance fetcher ([#7429](https://github.com/MetaMask/core/pull/7429))
+- Reduce severity of ERC721 metadata interface log from `console.error` to `console.warn` ([#7412](https://github.com/MetaMask/core/pull/7412))
+  - Fixes [#24988](https://github.com/MetaMask/metamask-extension/issues/24988)
+- Bump `@metamask/transaction-controller` from `^62.4.0` to `^62.6.0` ([#7325](https://github.com/MetaMask/core/pull/7325), [#7430](https://github.com/MetaMask/core/pull/7430))
+- Bump `@metamask/multichain-account-service` from `^4.0.0` to `^4.0.1` ([#7437](https://github.com/MetaMask/core/pull/7437)
+
+### Fixed
+
+- Fix stale `accountsAssets` reference in `MultichainAssetsRatesController` causing incorrect conversion rates for non-EVM chains when currency is changed ([#7424](https://github.com/MetaMask/core/pull/7424))
+  - `MultichainAssetsRatesController` now dynamically fetches fresh state instead of caching a reference that becomes stale due to Immer's immutable updates
+- **BREAKING:** `NftDetectionController` now calls a new function `NftController:addNfts` that reduces API calls to bulk-scan to batch multiple NFTs URLs ([#7411](https://github.com/MetaMask/core/pull/7411))
+- Added decimal precision (default 9dp) for `CurrencyRateController` `conversionRate` and `conversionRate` properties. ([#7324](https://github.com/MetaMask/core/pull/7324))
+  - This fixes any BigNumber conversion errors due to exceeding the 15 significant digit limit
+
+## [93.1.0]
+
 ### Added
 
 - Add multicall address for Chains: `MegaETH Testnet V2`, `MegaETH Mainnet` ([#7287](https://github.com/MetaMask/core/pull/7287))
+
+### Fixed
+
+- Fix trending tokens API request to use correct `sort` query parameter instead of `sortBy` ([#7310](https://github.com/MetaMask/core/pull/7310))
 
 ## [93.0.0]
 
@@ -2376,7 +2528,14 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 - Use Ethers for AssetsContractController ([#845](https://github.com/MetaMask/core/pull/845))
 
-[Unreleased]: https://github.com/MetaMask/core/compare/@metamask/assets-controllers@93.0.0...HEAD
+[Unreleased]: https://github.com/MetaMask/core/compare/@metamask/assets-controllers@95.3.0...HEAD
+[95.3.0]: https://github.com/MetaMask/core/compare/@metamask/assets-controllers@95.2.0...@metamask/assets-controllers@95.3.0
+[95.2.0]: https://github.com/MetaMask/core/compare/@metamask/assets-controllers@95.1.0...@metamask/assets-controllers@95.2.0
+[95.1.0]: https://github.com/MetaMask/core/compare/@metamask/assets-controllers@95.0.0...@metamask/assets-controllers@95.1.0
+[95.0.0]: https://github.com/MetaMask/core/compare/@metamask/assets-controllers@94.1.0...@metamask/assets-controllers@95.0.0
+[94.1.0]: https://github.com/MetaMask/core/compare/@metamask/assets-controllers@94.0.0...@metamask/assets-controllers@94.1.0
+[94.0.0]: https://github.com/MetaMask/core/compare/@metamask/assets-controllers@93.1.0...@metamask/assets-controllers@94.0.0
+[93.1.0]: https://github.com/MetaMask/core/compare/@metamask/assets-controllers@93.0.0...@metamask/assets-controllers@93.1.0
 [93.0.0]: https://github.com/MetaMask/core/compare/@metamask/assets-controllers@92.0.0...@metamask/assets-controllers@93.0.0
 [92.0.0]: https://github.com/MetaMask/core/compare/@metamask/assets-controllers@91.0.0...@metamask/assets-controllers@92.0.0
 [91.0.0]: https://github.com/MetaMask/core/compare/@metamask/assets-controllers@90.0.0...@metamask/assets-controllers@91.0.0

@@ -5,10 +5,10 @@ import type { AccountWalletEntropyObject } from '../../wallet';
 import type { BackupAndSyncAnalyticsAction } from '../analytics';
 import { BackupAndSyncAnalyticsEvent } from '../analytics';
 import type { ProfileId } from '../authentication';
-import {
-  UserStorageSyncedWalletGroupSchema,
-  type BackupAndSyncContext,
-  type UserStorageSyncedWalletGroup,
+import { UserStorageSyncedWalletGroupSchema } from '../types';
+import type {
+  BackupAndSyncContext,
+  UserStorageSyncedWalletGroup,
 } from '../types';
 import {
   pushGroupToUserStorage,

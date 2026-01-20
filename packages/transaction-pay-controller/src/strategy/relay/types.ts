@@ -15,7 +15,9 @@ export type RelayQuoteRequest = {
   originChainId: number;
   originCurrency: Hex;
   recipient: Hex;
-  tradeType: 'EXPECTED_OUTPUT' | 'EXACT_OUTPUT';
+  refundTo?: Hex;
+  slippageTolerance?: string;
+  tradeType: 'EXACT_INPUT' | 'EXACT_OUTPUT' | 'EXPECTED_OUTPUT';
   txs?: {
     to: Hex;
     data: Hex;
@@ -36,6 +38,7 @@ export type RelayQuote = {
       };
     };
     currencyOut: {
+      amount: string;
       amountFormatted: string;
       amountUsd: string;
       currency: {
@@ -45,11 +48,17 @@ export type RelayQuote = {
       minimumAmount: string;
     };
     timeEstimate: number;
+    totalImpact: {
+      usd: string;
+    };
   };
   fees: {
     relayer: {
       amountUsd: string;
     };
+  };
+  metamask: {
+    gasLimits: number[];
   };
   request: RelayQuoteRequest;
   steps: {
@@ -66,22 +75,27 @@ export type RelayQuote = {
         maxFeePerGas: string;
         maxPriorityFeePerGas: string;
         to: Hex;
-        value: string;
+        value?: string;
       };
       status: 'complete' | 'incomplete';
     }[];
     kind: 'transaction';
+    requestId: string;
   }[];
 };
 
-export type RelayStatus = {
-  status:
-    | 'refund'
-    | 'waiting'
-    | 'failure'
-    | 'pending'
-    | 'submitted'
-    | 'success';
+export type RelayStatus =
+  | 'waiting'
+  | 'pending'
+  | 'submitted'
+  | 'success'
+  | 'delayed'
+  | 'refunded'
+  | 'refund'
+  | 'failure';
+
+export type RelayStatusResponse = {
+  status: RelayStatus;
   inTxHashes: string[];
   txHashes: string[];
   updatedAt: number;

@@ -75,10 +75,13 @@ export const MULTIPLE_MOCK_SECRET_METADATA = [
  * @returns The mock secret data get response
  */
 export function createMockSecretDataGetResponse<
-  T extends
+  DataType extends
     | Uint8Array
     | { data: Uint8Array; timestamp?: number; type?: SecretType },
->(secretDataArr: T[], password: string) {
+>(
+  secretDataArr: DataType[],
+  password: string,
+): { success: boolean; data: string[]; ids: string[] } {
   const mockToprfEncryptor = new MockToprfEncryptorDecryptor();
   const ids: string[] = [];
 
@@ -90,7 +93,7 @@ export function createMockSecretDataGetResponse<
       b64SecretData = Buffer.from(secretData).toString('base64');
     } else {
       b64SecretData = Buffer.from(secretData.data).toString('base64');
-      timestamp = secretData.timestamp || Date.now();
+      timestamp = secretData.timestamp ?? Date.now();
       type = secretData.type;
     }
 

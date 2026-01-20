@@ -1,5 +1,6 @@
 import type { Caveat } from '@metamask/delegation-core';
-import { getChecksumAddress, type Hex } from '@metamask/utils';
+import { getChecksumAddress } from '@metamask/utils';
+import type { Hex } from '@metamask/utils';
 
 import type { DeployedContractsByName } from './types';
 import {
@@ -11,18 +12,18 @@ import {
 } from './utils';
 
 // Helper to build a contracts map with lowercase addresses
-const buildContracts = (): DeployedContractsByName =>
-  ({
-    ERC20PeriodTransferEnforcer: '0x1111111111111111111111111111111111111111',
-    ERC20StreamingEnforcer: '0x2222222222222222222222222222222222222222',
-    ExactCalldataEnforcer: '0x3333333333333333333333333333333333333333',
-    NativeTokenPeriodTransferEnforcer:
-      '0x4444444444444444444444444444444444444444',
-    NativeTokenStreamingEnforcer: '0x5555555555555555555555555555555555555555',
-    TimestampEnforcer: '0x6666666666666666666666666666666666666666',
-    ValueLteEnforcer: '0x7777777777777777777777777777777777777777',
-    NonceEnforcer: '0x8888888888888888888888888888888888888888',
-  }) as unknown as DeployedContractsByName;
+const buildContracts = (): DeployedContractsByName => ({
+  ERC20PeriodTransferEnforcer: '0x1111111111111111111111111111111111111111',
+  ERC20StreamingEnforcer: '0x2222222222222222222222222222222222222222',
+  ExactCalldataEnforcer: '0x3333333333333333333333333333333333333333',
+  NativeTokenPeriodTransferEnforcer:
+    '0x4444444444444444444444444444444444444444',
+  NativeTokenStreamingEnforcer: '0x5555555555555555555555555555555555555555',
+  TimestampEnforcer: '0x6666666666666666666666666666666666666666',
+  ValueLteEnforcer: '0x7777777777777777777777777777777777777777',
+  NonceEnforcer: '0x8888888888888888888888888888888888888888',
+  AllowedCalldataEnforcer: '0x9999999999999999999999999999999999999999',
+});
 
 describe('getChecksumEnforcersByChainId', () => {
   it('returns checksummed addresses for all known enforcers', () => {
@@ -31,23 +32,26 @@ describe('getChecksumEnforcersByChainId', () => {
 
     expect(result).toStrictEqual({
       erc20StreamingEnforcer: getChecksumAddress(
-        contracts.ERC20StreamingEnforcer as Hex,
+        contracts.ERC20StreamingEnforcer,
       ),
       erc20PeriodicEnforcer: getChecksumAddress(
-        contracts.ERC20PeriodTransferEnforcer as Hex,
+        contracts.ERC20PeriodTransferEnforcer,
       ),
       nativeTokenStreamingEnforcer: getChecksumAddress(
-        contracts.NativeTokenStreamingEnforcer as Hex,
+        contracts.NativeTokenStreamingEnforcer,
       ),
       nativeTokenPeriodicEnforcer: getChecksumAddress(
-        contracts.NativeTokenPeriodTransferEnforcer as Hex,
+        contracts.NativeTokenPeriodTransferEnforcer,
       ),
       exactCalldataEnforcer: getChecksumAddress(
-        contracts.ExactCalldataEnforcer as Hex,
+        contracts.ExactCalldataEnforcer,
       ),
-      valueLteEnforcer: getChecksumAddress(contracts.ValueLteEnforcer as Hex),
-      timestampEnforcer: getChecksumAddress(contracts.TimestampEnforcer as Hex),
-      nonceEnforcer: getChecksumAddress(contracts.NonceEnforcer as Hex),
+      valueLteEnforcer: getChecksumAddress(contracts.ValueLteEnforcer),
+      timestampEnforcer: getChecksumAddress(contracts.TimestampEnforcer),
+      nonceEnforcer: getChecksumAddress(contracts.NonceEnforcer),
+      allowedCalldataEnforcer: getChecksumAddress(
+        contracts.AllowedCalldataEnforcer,
+      ),
     });
   });
 
@@ -72,10 +76,17 @@ describe('createPermissionRulesForChainId', () => {
       valueLteEnforcer,
       timestampEnforcer,
       nonceEnforcer,
+      allowedCalldataEnforcer,
     } = getChecksumEnforcersByChainId(contracts);
 
+    // erc20-token-stream
+    // erc20-token-periodic
+    // native-token-stream
+    // native-token-periodic
+    // erc20-token-revocation
+    const permissionTypeCount = 5;
     const rules = createPermissionRulesForChainId(contracts);
-    expect(rules).toHaveLength(4);
+    expect(rules).toHaveLength(permissionTypeCount);
 
     const byType = Object.fromEntries(rules.map((r) => [r.permissionType, r]));
 
@@ -84,16 +95,18 @@ describe('createPermissionRulesForChainId', () => {
     expect(byType['native-token-stream'].permissionType).toBe(
       'native-token-stream',
     );
-    expect(byType['native-token-stream'].allowedEnforcers.size).toBe(1);
+    expect(byType['native-token-stream'].optionalEnforcers.size).toBe(1);
     expect(
-      byType['native-token-stream'].allowedEnforcers.has(timestampEnforcer),
+      byType['native-token-stream'].optionalEnforcers.has(timestampEnforcer),
     ).toBe(true);
     expect(byType['native-token-stream'].requiredEnforcers.size).toBe(3);
-    expect(byType['native-token-stream'].requiredEnforcers).toStrictEqual(
-      new Set<Hex>([
-        nativeTokenStreamingEnforcer,
-        exactCalldataEnforcer,
-        nonceEnforcer,
+    expect(
+      Array.from(byType['native-token-stream'].requiredEnforcers.entries()),
+    ).toStrictEqual(
+      expect.arrayContaining([
+        [nativeTokenStreamingEnforcer, 1],
+        [exactCalldataEnforcer, 1],
+        [nonceEnforcer, 1],
       ]),
     );
 
@@ -102,16 +115,18 @@ describe('createPermissionRulesForChainId', () => {
     expect(byType['native-token-periodic'].permissionType).toBe(
       'native-token-periodic',
     );
-    expect(byType['native-token-periodic'].allowedEnforcers.size).toBe(1);
+    expect(byType['native-token-periodic'].optionalEnforcers.size).toBe(1);
     expect(
-      byType['native-token-periodic'].allowedEnforcers.has(timestampEnforcer),
+      byType['native-token-periodic'].optionalEnforcers.has(timestampEnforcer),
     ).toBe(true);
     expect(byType['native-token-periodic'].requiredEnforcers.size).toBe(3);
-    expect(byType['native-token-periodic'].requiredEnforcers).toStrictEqual(
-      new Set<Hex>([
-        nativeTokenPeriodicEnforcer,
-        exactCalldataEnforcer,
-        nonceEnforcer,
+    expect(
+      Array.from(byType['native-token-periodic'].requiredEnforcers.entries()),
+    ).toStrictEqual(
+      expect.arrayContaining([
+        [nativeTokenPeriodicEnforcer, 1],
+        [exactCalldataEnforcer, 1],
+        [nonceEnforcer, 1],
       ]),
     );
 
@@ -120,13 +135,19 @@ describe('createPermissionRulesForChainId', () => {
     expect(byType['erc20-token-stream'].permissionType).toBe(
       'erc20-token-stream',
     );
-    expect(byType['erc20-token-stream'].allowedEnforcers.size).toBe(1);
+    expect(byType['erc20-token-stream'].optionalEnforcers.size).toBe(1);
     expect(
-      byType['erc20-token-stream'].allowedEnforcers.has(timestampEnforcer),
+      byType['erc20-token-stream'].optionalEnforcers.has(timestampEnforcer),
     ).toBe(true);
     expect(byType['erc20-token-stream'].requiredEnforcers.size).toBe(3);
-    expect(byType['erc20-token-stream'].requiredEnforcers).toStrictEqual(
-      new Set<Hex>([erc20StreamingEnforcer, valueLteEnforcer, nonceEnforcer]),
+    expect(
+      Array.from(byType['erc20-token-stream'].requiredEnforcers.entries()),
+    ).toStrictEqual(
+      expect.arrayContaining([
+        [erc20StreamingEnforcer, 1],
+        [valueLteEnforcer, 1],
+        [nonceEnforcer, 1],
+      ]),
     );
 
     // erc20-token-periodic
@@ -134,13 +155,39 @@ describe('createPermissionRulesForChainId', () => {
     expect(byType['erc20-token-periodic'].permissionType).toBe(
       'erc20-token-periodic',
     );
-    expect(byType['erc20-token-periodic'].allowedEnforcers.size).toBe(1);
+    expect(byType['erc20-token-periodic'].optionalEnforcers.size).toBe(1);
     expect(
-      byType['erc20-token-periodic'].allowedEnforcers.has(timestampEnforcer),
+      byType['erc20-token-periodic'].optionalEnforcers.has(timestampEnforcer),
     ).toBe(true);
     expect(byType['erc20-token-periodic'].requiredEnforcers.size).toBe(3);
-    expect(byType['erc20-token-periodic'].requiredEnforcers).toStrictEqual(
-      new Set<Hex>([erc20PeriodicEnforcer, valueLteEnforcer, nonceEnforcer]),
+    expect(
+      Array.from(byType['erc20-token-periodic'].requiredEnforcers.entries()),
+    ).toStrictEqual(
+      expect.arrayContaining([
+        [erc20PeriodicEnforcer, 1],
+        [valueLteEnforcer, 1],
+        [nonceEnforcer, 1],
+      ]),
+    );
+
+    // erc20-token-revocation
+    expect(byType['erc20-token-revocation']).toBeDefined();
+    expect(byType['erc20-token-revocation'].permissionType).toBe(
+      'erc20-token-revocation',
+    );
+    expect(byType['erc20-token-revocation'].optionalEnforcers.size).toBe(1);
+    expect(
+      byType['erc20-token-revocation'].optionalEnforcers.has(timestampEnforcer),
+    ).toBe(true);
+    expect(byType['erc20-token-revocation'].requiredEnforcers.size).toBe(3);
+    expect(
+      Array.from(byType['erc20-token-revocation'].requiredEnforcers.entries()),
+    ).toStrictEqual(
+      expect.arrayContaining([
+        [allowedCalldataEnforcer, 2],
+        [valueLteEnforcer, 1],
+        [nonceEnforcer, 1],
+      ]),
     );
   });
 });

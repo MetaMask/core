@@ -1,6 +1,6 @@
 {
   "name": "@metamask/storage-service",
-  "version": "0.0.0",
+  "version": "0.0.1",
   "description": "Platform-agnostic service for storing large, infrequently accessed controller data",
   "keywords": [
     "MetaMask",
@@ -49,7 +49,7 @@
   },
   "dependencies": {
     "@metamask/messenger": "^0.3.0",
-    "@metamask/utils": "^11.8.1"
+    "@metamask/utils": "^11.9.0"
   },
   "devDependencies": {
     "@metamask/auto-changelog": "^3.4.4",

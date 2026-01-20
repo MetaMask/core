@@ -1,10 +1,7 @@
 import { handleFetch } from '@metamask/controller-utils';
 
-import {
-  getEnvUrls,
-  SubscriptionControllerErrorMessage,
-  type Env,
-} from './constants';
+import { getEnvUrls, SubscriptionControllerErrorMessage } from './constants';
+import type { Env } from './constants';
 import { SubscriptionServiceError } from './errors';
 import type {
   AssignCohortRequest,
@@ -34,7 +31,7 @@ export type SubscriptionServiceConfig = {
   auth: AuthUtils;
 };
 
-export const SUBSCRIPTION_URL = (env: Env, path: string) =>
+export const SUBSCRIPTION_URL = (env: Env, path: string): string =>
   `${getEnvUrls(env).subscriptionApiUrl}/v1/${path}`;
 
 export class SubscriptionService implements ISubscriptionService {
@@ -100,7 +97,9 @@ export class SubscriptionService implements ISubscriptionService {
     );
   }
 
-  async updatePaymentMethodCrypto(request: UpdatePaymentMethodCryptoRequest) {
+  async updatePaymentMethodCrypto(
+    request: UpdatePaymentMethodCryptoRequest,
+  ): Promise<void> {
     const path = `subscriptions/${request.subscriptionId}/payment-method/crypto`;
     await this.#makeRequest(path, 'PATCH', {
       ...request,
@@ -134,7 +133,7 @@ export class SubscriptionService implements ISubscriptionService {
       canSubscribe: result.canSubscribe || false,
       canViewEntryModal: result.canViewEntryModal || false,
       cohorts: result.cohorts || [],
-      assignedCohort: result.assignedCohort || null,
+      assignedCohort: result.assignedCohort ?? null,
       hasAssignedCohortExpired: result.hasAssignedCohortExpired || false,
     }));
   }
@@ -180,8 +179,8 @@ export class SubscriptionService implements ISubscriptionService {
   /**
    * Link rewards to a subscription.
    *
-   * @param request - Request object containing the reward subscription ID.
-   * @example { rewardSubscriptionId: '1234567890' }
+   * @param request - Request object containing the reward account ID.
+   * @example { rewardAccountId: 'eip155:1:0x1234567890123456789012345678901234567890' }
    * @returns The response from the API.
    */
   async linkRewards(
@@ -221,8 +220,9 @@ export class SubscriptionService implements ISubscriptionService {
       });
 
       return response;
-    } catch (e) {
-      const errorMessage = e instanceof Error ? e.message : JSON.stringify(e);
+    } catch (error) {
+      const errorMessage =
+        error instanceof Error ? error.message : JSON.stringify(error);
 
       throw new SubscriptionServiceError(
         `failed to make request. ${errorMessage}`,
@@ -230,6 +230,7 @@ export class SubscriptionService implements ISubscriptionService {
     }
   }
 
+  // eslint-disable-next-line @typescript-eslint/naming-convention
   async #getAuthorizationHeader(): Promise<{ Authorization: string }> {
     const accessToken = await this.authUtils.getAccessToken();
     return { Authorization: `Bearer ${accessToken}` };

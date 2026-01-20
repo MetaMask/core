@@ -34,7 +34,7 @@ export function testsForRpcFailoverBehavior({
   isRetriableFailure: boolean;
   getExpectedError: (url: string) => Error | jest.Constructable;
   getExpectedBreakError?: (url: string) => Error | jest.Constructable;
-}) {
+}): void {
   const blockNumber = '0x100';
   const backoffDuration = 100;
   const maxConsecutiveFailures = 15;
@@ -88,6 +88,7 @@ export function testsForRpcFailoverBehavior({
                 getRpcServiceOptions: () => ({
                   fetch,
                   btoa,
+                  isOffline: (): boolean => false,
                   policyOptions: {
                     backoff: new ConstantBackoff(backoffDuration),
                   },
@@ -177,7 +178,11 @@ export function testsForRpcFailoverBehavior({
                   failoverRpcUrls: ['https://failover.endpoint'],
                   messenger,
                   getRpcServiceOptions: (rpcEndpointUrl) => {
-                    const commonOptions = { fetch, btoa };
+                    const commonOptions = {
+                      fetch,
+                      btoa,
+                      isOffline: (): boolean => false,
+                    };
                     if (rpcEndpointUrl === 'https://failover.endpoint') {
                       const headers: HeadersInit = {
                         'X-Baz': 'Qux',
@@ -263,6 +268,7 @@ export function testsForRpcFailoverBehavior({
             getRpcServiceOptions: () => ({
               fetch,
               btoa,
+              isOffline: (): boolean => false,
               policyOptions: {
                 backoff: new ConstantBackoff(backoffDuration),
               },

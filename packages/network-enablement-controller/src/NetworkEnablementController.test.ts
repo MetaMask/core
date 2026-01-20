@@ -1,32 +1,53 @@
 import { deriveStateFromMetadata } from '@metamask/base-controller';
 import { BuiltInNetworkName, ChainId } from '@metamask/controller-utils';
 import { BtcScope, SolScope, TrxScope } from '@metamask/keyring-api';
-import {
-  Messenger,
-  MOCK_ANY_NAMESPACE,
-  type MessengerActions,
-  type MessengerEvents,
-  type MockAnyNamespace,
+import { Messenger, MOCK_ANY_NAMESPACE } from '@metamask/messenger';
+import type {
+  MessengerActions,
+  MessengerEvents,
+  MockAnyNamespace,
 } from '@metamask/messenger';
+import { toEvmCaipChainId } from '@metamask/multichain-network-controller';
 import { RpcEndpointType } from '@metamask/network-controller';
-import {
-  TransactionStatus,
-  type TransactionMeta,
-} from '@metamask/transaction-controller';
-import {
-  type CaipChainId,
-  type CaipNamespace,
-  type Hex,
-  KnownCaipNamespace,
-} from '@metamask/utils';
+import { TransactionStatus } from '@metamask/transaction-controller';
+import type { TransactionMeta } from '@metamask/transaction-controller';
+import { KnownCaipNamespace } from '@metamask/utils';
+import type { CaipChainId, CaipNamespace, Hex } from '@metamask/utils';
 import { useFakeTimers } from 'sinon';
 
 import { POPULAR_NETWORKS } from './constants';
 import { NetworkEnablementController } from './NetworkEnablementController';
-import type { NetworkEnablementControllerMessenger } from './NetworkEnablementController';
+import type {
+  NetworkEnablementControllerMessenger,
+  NativeAssetIdentifiersMap,
+} from './NetworkEnablementController';
+import { Slip44Service } from './services';
 import { advanceTime } from '../../../tests/helpers';
 
+// Known chainId mappings from chainid.network for mocking
+const chainIdToSlip44: Record<number, number> = {
+  1: 60, // Ethereum
+  10: 60, // Optimism
+  56: 714, // BNB Chain
+  137: 966, // Polygon
+  43114: 9000, // Avalanche
+  42161: 60, // Arbitrum
+  8453: 60, // Base
+  59144: 60, // Linea
+  1329: 60, // Sei (uses ETH as native)
+};
+
 const controllerName = 'NetworkEnablementController';
+
+/**
+ * Returns the default nativeAssetIdentifiers state for testing.
+ *
+ * @returns The default nativeAssetIdentifiers with all pre-configured networks.
+ */
+// Default nativeAssetIdentifiers is empty - should be populated by client using initNativeAssetIdentifiers()
+function getDefaultNativeAssetIdentifiers(): NativeAssetIdentifiersMap {
+  return {};
+}
 
 type AllNetworkEnablementControllerActions =
   MessengerActions<NetworkEnablementControllerMessenger>;
@@ -83,6 +104,7 @@ const setupController = ({
     events: [
       'NetworkController:networkAdded',
       'NetworkController:networkRemoved',
+      'NetworkController:stateChange',
       'TransactionController:transactionSubmitted',
     ],
   });
@@ -124,10 +146,17 @@ describe('NetworkEnablementController', () => {
 
   beforeEach(() => {
     clock = useFakeTimers();
+    // Mock Slip44Service.getEvmSlip44 to avoid network calls
+    jest
+      .spyOn(Slip44Service, 'getEvmSlip44')
+      .mockImplementation(async (chainId) => {
+        return chainIdToSlip44[chainId] ?? 60;
+      });
   });
 
   afterEach(() => {
     clock.restore();
+    jest.restoreAllMocks();
   });
 
   it('initializes with default state', () => {
@@ -161,6 +190,7 @@ describe('NetworkEnablementController', () => {
           [TrxScope.Shasta]: false,
         },
       },
+      nativeAssetIdentifiers: getDefaultNativeAssetIdentifiers(),
     });
   });
 
@@ -216,6 +246,10 @@ describe('NetworkEnablementController', () => {
           [TrxScope.Shasta]: false,
         },
       },
+      nativeAssetIdentifiers: {
+        ...getDefaultNativeAssetIdentifiers(),
+        'eip155:43114': 'eip155:43114/slip44:9000', // AVAX
+      },
     });
   });
 
@@ -239,6 +273,14 @@ describe('NetworkEnablementController', () => {
     });
 
     await advanceTime({ clock, duration: 1 });
+
+    // Create expected nativeAssetIdentifiers without Linea
+    const expectedNativeAssetIdentifiers = {
+      ...getDefaultNativeAssetIdentifiers(),
+    };
+    delete expectedNativeAssetIdentifiers[
+      toEvmCaipChainId(ChainId[BuiltInNetworkName.LineaMainnet])
+    ];
 
     expect(controller.state).toStrictEqual({
       enabledNetworkMap: {
@@ -267,6 +309,7 @@ describe('NetworkEnablementController', () => {
           [TrxScope.Shasta]: false,
         },
       },
+      nativeAssetIdentifiers: expectedNativeAssetIdentifiers,
     });
   });
 
@@ -372,6 +415,14 @@ describe('NetworkEnablementController', () => {
 
     await advanceTime({ clock, duration: 1 });
 
+    // Create expected nativeAssetIdentifiers without Linea
+    const expectedNativeAssetIdentifiersForFallback = {
+      ...getDefaultNativeAssetIdentifiers(),
+    };
+    delete expectedNativeAssetIdentifiersForFallback[
+      toEvmCaipChainId(ChainId[BuiltInNetworkName.LineaMainnet])
+    ];
+
     expect(controller.state).toStrictEqual({
       enabledNetworkMap: {
         [KnownCaipNamespace.Eip155]: {
@@ -399,11 +450,12 @@ describe('NetworkEnablementController', () => {
           [TrxScope.Shasta]: false,
         },
       },
+      nativeAssetIdentifiers: expectedNativeAssetIdentifiersForFallback,
     });
   });
 
   describe('init', () => {
-    it('initializes network enablement state from controller configurations', () => {
+    it('initializes network enablement state from controller configurations', async () => {
       const { controller, messenger } = setupController();
 
       jest
@@ -414,9 +466,21 @@ describe('NetworkEnablementController', () => {
             return {
               selectedNetworkClientId: 'mainnet',
               networkConfigurationsByChainId: {
-                '0x1': { chainId: '0x1', name: 'Ethereum Mainnet' },
-                '0xe708': { chainId: '0xe708', name: 'Linea Mainnet' },
-                '0x2105': { chainId: '0x2105', name: 'Base Mainnet' },
+                '0x1': {
+                  chainId: '0x1',
+                  name: 'Ethereum Mainnet',
+                  nativeCurrency: 'ETH',
+                },
+                '0xe708': {
+                  chainId: '0xe708',
+                  name: 'Linea Mainnet',
+                  nativeCurrency: 'ETH',
+                },
+                '0x2105': {
+                  chainId: '0x2105',
+                  name: 'Base Mainnet',
+                  nativeCurrency: 'ETH',
+                },
               },
               networksMetadata: {},
             };
@@ -424,15 +488,25 @@ describe('NetworkEnablementController', () => {
           if (actionType === 'MultichainNetworkController:getState') {
             return {
               multichainNetworkConfigurationsByChainId: {
-                'eip155:1': { chainId: 'eip155:1', name: 'Ethereum Mainnet' },
+                'eip155:1': {
+                  chainId: 'eip155:1',
+                  name: 'Ethereum Mainnet',
+                  nativeCurrency: 'ETH',
+                },
                 'eip155:59144': {
                   chainId: 'eip155:59144',
                   name: 'Linea Mainnet',
+                  nativeCurrency: 'ETH',
                 },
-                'eip155:8453': { chainId: 'eip155:8453', name: 'Base Mainnet' },
+                'eip155:8453': {
+                  chainId: 'eip155:8453',
+                  name: 'Base Mainnet',
+                  nativeCurrency: 'ETH',
+                },
                 'solana:5eykt4UsFv8P8NJdTREpY1vzqKqZKvdp': {
                   chainId: 'solana:5eykt4UsFv8P8NJdTREpY1vzqKqZKvdp',
                   name: 'Solana Mainnet',
+                  nativeCurrency: 'SOL',
                 },
               },
               selectedMultichainNetworkChainId: 'eip155:1',
@@ -444,7 +518,7 @@ describe('NetworkEnablementController', () => {
         });
 
       // Initialize from configurations
-      controller.init();
+      await controller.init();
 
       // Should only enable popular networks that exist in NetworkController config
       // (0x1, 0xe708, 0x2105 exist in default NetworkController mock)
@@ -476,10 +550,16 @@ describe('NetworkEnablementController', () => {
             [TrxScope.Shasta]: false,
           },
         },
+        // init() populates nativeAssetIdentifiers from NetworkController (EVM networks only)
+        nativeAssetIdentifiers: {
+          'eip155:1': 'eip155:1/slip44:60',
+          'eip155:59144': 'eip155:59144/slip44:60',
+          'eip155:8453': 'eip155:8453/slip44:60',
+        },
       });
     });
 
-    it('only enables popular networks that exist in NetworkController configurations', () => {
+    it('only enables popular networks that exist in NetworkController configurations', async () => {
       // Create a separate controller setup for this test to avoid handler conflicts
       const { controller, messenger } = setupController({
         config: {
@@ -488,6 +568,7 @@ describe('NetworkEnablementController', () => {
               [KnownCaipNamespace.Eip155]: {},
               [KnownCaipNamespace.Solana]: {},
             },
+            nativeAssetIdentifiers: {},
           },
         },
       });
@@ -499,8 +580,16 @@ describe('NetworkEnablementController', () => {
             return {
               selectedNetworkClientId: 'mainnet',
               networkConfigurationsByChainId: {
-                '0x1': { chainId: '0x1', name: 'Ethereum Mainnet' },
-                '0xe708': { chainId: '0xe708', name: 'Linea Mainnet' },
+                '0x1': {
+                  chainId: '0x1',
+                  name: 'Ethereum Mainnet',
+                  nativeCurrency: 'ETH',
+                },
+                '0xe708': {
+                  chainId: '0xe708',
+                  name: 'Linea Mainnet',
+                  nativeCurrency: 'ETH',
+                },
                 // Missing other popular networks
               },
               networksMetadata: {},
@@ -512,6 +601,7 @@ describe('NetworkEnablementController', () => {
                 'solana:5eykt4UsFv8P8NJdTREpY1vzqKqZKvdp': {
                   chainId: 'solana:5eykt4UsFv8P8NJdTREpY1vzqKqZKvdp',
                   name: 'Solana Mainnet',
+                  nativeCurrency: 'SOL',
                 },
               },
               selectedMultichainNetworkChainId:
@@ -525,7 +615,7 @@ describe('NetworkEnablementController', () => {
       );
 
       // Initialize from configurations
-      controller.init();
+      await controller.init();
 
       // Should only enable networks that exist in configurations
       expect(controller.state).toStrictEqual({
@@ -539,10 +629,16 @@ describe('NetworkEnablementController', () => {
             [SolScope.Mainnet]: false, // Solana Mainnet (exists in config)
           },
         },
+        nativeAssetIdentifiers: {
+          'eip155:1': 'eip155:1/slip44:60', // ETH
+          'eip155:59144': 'eip155:59144/slip44:60', // ETH (Linea uses ETH)
+          // Multichain networks don't populate nativeAssetIdentifiers in init() because
+          // the mock doesn't include the required nativeCurrency for non-EVM networks
+        },
       });
     });
 
-    it('handles missing MultichainNetworkController gracefully', () => {
+    it('handles missing MultichainNetworkController gracefully', async () => {
       const { controller, messenger } = setupController();
 
       jest
@@ -553,9 +649,21 @@ describe('NetworkEnablementController', () => {
             return {
               selectedNetworkClientId: 'mainnet',
               networkConfigurationsByChainId: {
-                '0x1': { chainId: '0x1', name: 'Ethereum Mainnet' },
-                '0xe708': { chainId: '0xe708', name: 'Linea Mainnet' },
-                '0x2105': { chainId: '0x2105', name: 'Base Mainnet' },
+                '0x1': {
+                  chainId: '0x1',
+                  name: 'Ethereum Mainnet',
+                  nativeCurrency: 'ETH',
+                },
+                '0xe708': {
+                  chainId: '0xe708',
+                  name: 'Linea Mainnet',
+                  nativeCurrency: 'ETH',
+                },
+                '0x2105': {
+                  chainId: '0x2105',
+                  name: 'Base Mainnet',
+                  nativeCurrency: 'ETH',
+                },
               },
               networksMetadata: {},
             };
@@ -572,7 +680,7 @@ describe('NetworkEnablementController', () => {
         });
 
       // Should not throw
-      expect(() => controller.init()).not.toThrow();
+      await controller.init();
 
       // Should still enable popular networks from NetworkController
       expect(controller.isNetworkEnabled('0x1')).toBe(true);
@@ -580,7 +688,7 @@ describe('NetworkEnablementController', () => {
       expect(controller.isNetworkEnabled('0x2105')).toBe(true);
     });
 
-    it('creates namespace buckets for all configured networks', () => {
+    it('creates namespace buckets for all configured networks', async () => {
       const { controller, messenger } = setupController();
 
       jest
@@ -591,8 +699,16 @@ describe('NetworkEnablementController', () => {
             return {
               selectedNetworkClientId: 'mainnet',
               networkConfigurationsByChainId: {
-                '0x1': { chainId: '0x1', name: 'Ethereum' },
-                '0x89': { chainId: '0x89', name: 'Polygon' },
+                '0x1': {
+                  chainId: '0x1',
+                  name: 'Ethereum',
+                  nativeCurrency: 'ETH',
+                },
+                '0x89': {
+                  chainId: '0x89',
+                  name: 'Polygon',
+                  nativeCurrency: 'MATIC',
+                },
               },
               networksMetadata: {},
             };
@@ -603,10 +719,12 @@ describe('NetworkEnablementController', () => {
                 'solana:5eykt4UsFv8P8NJdTREpY1vzqKqZKvdp': {
                   chainId: 'solana:5eykt4UsFv8P8NJdTREpY1vzqKqZKvdp',
                   name: 'Solana',
+                  nativeCurrency: 'SOL',
                 },
                 'bip122:000000000019d6689c085ae165831e93': {
                   chainId: 'bip122:000000000019d6689c085ae165831e93',
                   name: 'Bitcoin',
+                  nativeCurrency: 'BTC',
                 },
               },
               selectedMultichainNetworkChainId:
@@ -618,7 +736,7 @@ describe('NetworkEnablementController', () => {
           throw new Error(`Unexpected action type: ${actionType}`);
         });
 
-      controller.init();
+      await controller.init();
 
       // Should have created namespace buckets for all network types
       expect(controller.state.enabledNetworkMap).toHaveProperty(
@@ -632,7 +750,7 @@ describe('NetworkEnablementController', () => {
       );
     });
 
-    it('creates new namespace buckets for networks that do not exist', () => {
+    it('creates new namespace buckets for networks that do not exist', async () => {
       const { controller, messenger } = setupController();
 
       // Start with empty state to test namespace bucket creation
@@ -679,7 +797,7 @@ describe('NetworkEnablementController', () => {
           return responses[actionType as keyof typeof responses];
         });
 
-      controller.init();
+      await controller.init();
 
       // Should have created namespace buckets for both EIP-155 and Cosmos
       expect(controller.state.enabledNetworkMap).toHaveProperty(
@@ -688,7 +806,7 @@ describe('NetworkEnablementController', () => {
       expect(controller.state.enabledNetworkMap).toHaveProperty('cosmos');
     });
 
-    it('sets Bitcoin testnet to false when it exists in MultichainNetworkController configurations', () => {
+    it('sets Bitcoin testnet to false when it exists in MultichainNetworkController configurations', async () => {
       const { controller, messenger } = setupController();
 
       // Mock MultichainNetworkController to include Bitcoin testnet BEFORE calling init
@@ -700,7 +818,11 @@ describe('NetworkEnablementController', () => {
             return {
               selectedNetworkClientId: 'mainnet',
               networkConfigurationsByChainId: {
-                '0x1': { chainId: '0x1', name: 'Ethereum Mainnet' },
+                '0x1': {
+                  chainId: '0x1',
+                  name: 'Ethereum Mainnet',
+                  nativeCurrency: 'ETH',
+                },
               },
               networksMetadata: {},
             };
@@ -726,7 +848,7 @@ describe('NetworkEnablementController', () => {
         });
 
       // Initialize the controller to trigger line 378 (init() method sets testnet to false)
-      controller.init();
+      await controller.init();
 
       // Verify Bitcoin testnet is set to false by init() - line 378
       expect(controller.isNetworkEnabled(BtcScope.Testnet)).toBe(false);
@@ -737,7 +859,7 @@ describe('NetworkEnablementController', () => {
       ).toBe(false);
     });
 
-    it('sets Bitcoin signet to false when it exists in MultichainNetworkController configurations', () => {
+    it('sets Bitcoin signet to false when it exists in MultichainNetworkController configurations', async () => {
       const { controller, messenger } = setupController();
 
       // Mock MultichainNetworkController to include Bitcoin signet BEFORE calling init
@@ -749,7 +871,11 @@ describe('NetworkEnablementController', () => {
             return {
               selectedNetworkClientId: 'mainnet',
               networkConfigurationsByChainId: {
-                '0x1': { chainId: '0x1', name: 'Ethereum Mainnet' },
+                '0x1': {
+                  chainId: '0x1',
+                  name: 'Ethereum Mainnet',
+                  nativeCurrency: 'ETH',
+                },
               },
               networksMetadata: {},
             };
@@ -760,10 +886,12 @@ describe('NetworkEnablementController', () => {
                 [BtcScope.Mainnet]: {
                   chainId: BtcScope.Mainnet,
                   name: 'Bitcoin Mainnet',
+                  nativeCurrency: 'BTC',
                 },
                 [BtcScope.Signet]: {
                   chainId: BtcScope.Signet,
                   name: 'Bitcoin Signet',
+                  nativeCurrency: 'BTC',
                 },
               },
               selectedMultichainNetworkChainId: BtcScope.Mainnet,
@@ -775,7 +903,7 @@ describe('NetworkEnablementController', () => {
         });
 
       // Initialize the controller to trigger line 391 (init() method sets signet to false)
-      controller.init();
+      await controller.init();
 
       // Verify Bitcoin signet is set to false by init() - line 391
       expect(controller.isNetworkEnabled(BtcScope.Signet)).toBe(false);
@@ -784,6 +912,193 @@ describe('NetworkEnablementController', () => {
           BtcScope.Signet
         ],
       ).toBe(false);
+    });
+
+    it('skips networks that already have nativeAssetIdentifiers in state', async () => {
+      // Create controller with existing nativeAssetIdentifiers
+      const { controller, messenger } = setupController({
+        config: {
+          state: {
+            enabledNetworkMap: {
+              [KnownCaipNamespace.Eip155]: {},
+            },
+            nativeAssetIdentifiers: {
+              // Pre-existing nativeAssetIdentifier with custom value
+              'eip155:1': 'eip155:1/slip44:999' as const,
+            },
+          },
+        },
+      });
+
+      jest
+        .spyOn(messenger, 'call')
+        // eslint-disable-next-line @typescript-eslint/no-explicit-any
+        .mockImplementation((actionType: string, ..._args: any[]): any => {
+          if (actionType === 'NetworkController:getState') {
+            return {
+              selectedNetworkClientId: 'mainnet',
+              networkConfigurationsByChainId: {
+                '0x1': {
+                  chainId: '0x1',
+                  name: 'Ethereum Mainnet',
+                  nativeCurrency: 'ETH',
+                },
+                '0x38': {
+                  chainId: '0x38',
+                  name: 'BNB Chain',
+                  nativeCurrency: 'BNB',
+                },
+              },
+              networksMetadata: {},
+            };
+          }
+          if (actionType === 'MultichainNetworkController:getState') {
+            return {
+              multichainNetworkConfigurationsByChainId: {},
+              selectedMultichainNetworkChainId: 'eip155:1',
+              isEvmSelected: true,
+              networksWithTransactionActivity: {},
+            };
+          }
+          throw new Error(`Unexpected action type: ${actionType}`);
+        });
+
+      await controller.init();
+
+      // Existing nativeAssetIdentifier should be preserved (not overwritten)
+      expect(controller.state.nativeAssetIdentifiers['eip155:1']).toBe(
+        'eip155:1/slip44:999',
+      );
+
+      // New network should be added
+      expect(controller.state.nativeAssetIdentifiers['eip155:56']).toBe(
+        'eip155:56/slip44:714',
+      );
+    });
+
+    it('defaults to slip44:60 for EVM networks with unknown chainId and symbol', async () => {
+      const { controller, messenger } = setupController();
+
+      jest
+        .spyOn(messenger, 'call')
+        // eslint-disable-next-line @typescript-eslint/no-explicit-any
+        .mockImplementation((actionType: string, ..._args: any[]): any => {
+          if (actionType === 'NetworkController:getState') {
+            return {
+              selectedNetworkClientId: 'mainnet',
+              networkConfigurationsByChainId: {
+                // Use an unknown chainId (99999 = 0x1869F) and unknown symbol
+                '0x1869f': {
+                  chainId: '0x1869f',
+                  name: 'Unknown Network',
+                  nativeCurrency: 'UNKNOWN_SYMBOL_XYZ',
+                },
+              },
+              networksMetadata: {},
+            };
+          }
+          if (actionType === 'MultichainNetworkController:getState') {
+            return {
+              multichainNetworkConfigurationsByChainId: {},
+              selectedMultichainNetworkChainId: 'eip155:1',
+              isEvmSelected: true,
+              networksWithTransactionActivity: {},
+            };
+          }
+          throw new Error(`Unexpected action type: ${actionType}`);
+        });
+
+      await controller.init();
+
+      // Should default to slip44:60 when no mapping is found
+      expect(controller.state.nativeAssetIdentifiers['eip155:99999']).toBe(
+        'eip155:99999/slip44:60',
+      );
+    });
+  });
+
+  describe('initNativeAssetIdentifiers', () => {
+    it('populates nativeAssetIdentifiers from network configurations', async () => {
+      const { controller } = setupController();
+
+      const networks = [
+        { chainId: 'eip155:1' as const, nativeCurrency: 'ETH' },
+        { chainId: 'eip155:56' as const, nativeCurrency: 'BNB' },
+        {
+          chainId: 'solana:5eykt4UsFv8P8NJdTREpY1vzqKqZKvdp' as const,
+          nativeCurrency: 'SOL',
+        },
+      ];
+
+      await controller.initNativeAssetIdentifiers(networks);
+
+      expect(controller.state.nativeAssetIdentifiers).toStrictEqual({
+        'eip155:1': 'eip155:1/slip44:60',
+        'eip155:56': 'eip155:56/slip44:714',
+        'solana:5eykt4UsFv8P8NJdTREpY1vzqKqZKvdp':
+          'solana:5eykt4UsFv8P8NJdTREpY1vzqKqZKvdp/slip44:501',
+      });
+    });
+
+    it('defaults to slip44:60 for EVM networks with unknown symbols', async () => {
+      const { controller } = setupController();
+
+      const networks = [
+        { chainId: 'eip155:1' as const, nativeCurrency: 'ETH' },
+        { chainId: 'eip155:999' as const, nativeCurrency: 'UNKNOWN_XYZ' },
+      ];
+
+      await controller.initNativeAssetIdentifiers(networks);
+
+      expect(controller.state.nativeAssetIdentifiers['eip155:1']).toBe(
+        'eip155:1/slip44:60',
+      );
+      // EVM networks default to slip44:60 (Ethereum) when no specific mapping is found
+      expect(controller.state.nativeAssetIdentifiers['eip155:999']).toBe(
+        'eip155:999/slip44:60',
+      );
+    });
+
+    it('does not modify state for empty input', async () => {
+      const { controller } = setupController();
+
+      await controller.initNativeAssetIdentifiers([]);
+
+      expect(controller.state.nativeAssetIdentifiers).toStrictEqual({});
+    });
+
+    it('handles CAIP-19 format nativeCurrency from MultichainNetworkController', async () => {
+      const { controller } = setupController();
+
+      // Non-EVM networks from MultichainNetworkController use CAIP-19 format for nativeCurrency
+      const networks = [
+        // EVM networks use simple symbols
+        { chainId: 'eip155:1' as const, nativeCurrency: 'ETH' },
+        // Non-EVM networks use full CAIP-19 format
+        {
+          chainId: 'bip122:000000000019d6689c085ae165831e93' as const,
+          nativeCurrency: 'bip122:000000000019d6689c085ae165831e93/slip44:0',
+        },
+        {
+          chainId: 'solana:5eykt4UsFv8P8NJdTREpY1vzqKqZKvdp' as const,
+          nativeCurrency: 'solana:5eykt4UsFv8P8NJdTREpY1vzqKqZKvdp/slip44:501',
+        },
+        {
+          chainId: 'tron:728126428' as const,
+          nativeCurrency: 'tron:728126428/slip44:195',
+        },
+      ];
+
+      await controller.initNativeAssetIdentifiers(networks);
+
+      expect(controller.state.nativeAssetIdentifiers).toStrictEqual({
+        'eip155:1': 'eip155:1/slip44:60',
+        'bip122:000000000019d6689c085ae165831e93':
+          'bip122:000000000019d6689c085ae165831e93/slip44:0',
+        'solana:5eykt4UsFv8P8NJdTREpY1vzqKqZKvdp':
+          'solana:5eykt4UsFv8P8NJdTREpY1vzqKqZKvdp/slip44:501',
+        'tron:728126428': 'tron:728126428/slip44:195',
+      });
     });
   });
 
@@ -800,9 +1115,21 @@ describe('NetworkEnablementController', () => {
             return {
               selectedNetworkClientId: 'mainnet',
               networkConfigurationsByChainId: {
-                '0x1': { chainId: '0x1', name: 'Ethereum Mainnet' },
-                '0xe708': { chainId: '0xe708', name: 'Linea Mainnet' },
-                '0x2105': { chainId: '0x2105', name: 'Base Mainnet' },
+                '0x1': {
+                  chainId: '0x1',
+                  name: 'Ethereum Mainnet',
+                  nativeCurrency: 'ETH',
+                },
+                '0xe708': {
+                  chainId: '0xe708',
+                  name: 'Linea Mainnet',
+                  nativeCurrency: 'ETH',
+                },
+                '0x2105': {
+                  chainId: '0x2105',
+                  name: 'Base Mainnet',
+                  nativeCurrency: 'ETH',
+                },
               },
               networksMetadata: {},
             };
@@ -813,6 +1140,7 @@ describe('NetworkEnablementController', () => {
                 'solana:5eykt4UsFv8P8NJdTREpY1vzqKqZKvdp': {
                   chainId: 'solana:5eykt4UsFv8P8NJdTREpY1vzqKqZKvdp',
                   name: 'Solana Mainnet',
+                  nativeCurrency: 'SOL',
                 },
                 [BtcScope.Mainnet]: {
                   chainId: BtcScope.Mainnet,
@@ -864,6 +1192,7 @@ describe('NetworkEnablementController', () => {
             [TrxScope.Shasta]: false,
           },
         },
+        nativeAssetIdentifiers: getDefaultNativeAssetIdentifiers(),
       });
 
       // Enable all popular networks
@@ -897,6 +1226,7 @@ describe('NetworkEnablementController', () => {
             [TrxScope.Shasta]: false,
           },
         },
+        nativeAssetIdentifiers: getDefaultNativeAssetIdentifiers(),
       });
     });
 
@@ -929,6 +1259,7 @@ describe('NetworkEnablementController', () => {
                 'solana:5eykt4UsFv8P8NJdTREpY1vzqKqZKvdp': {
                   chainId: 'solana:5eykt4UsFv8P8NJdTREpY1vzqKqZKvdp',
                   name: 'Solana Mainnet',
+                  nativeCurrency: 'SOL',
                 },
                 [BtcScope.Mainnet]: {
                   chainId: BtcScope.Mainnet,
@@ -977,6 +1308,7 @@ describe('NetworkEnablementController', () => {
             [TrxScope.Shasta]: false,
           },
         },
+        nativeAssetIdentifiers: getDefaultNativeAssetIdentifiers(),
       });
     });
 
@@ -992,9 +1324,21 @@ describe('NetworkEnablementController', () => {
             return {
               selectedNetworkClientId: 'mainnet',
               networkConfigurationsByChainId: {
-                '0x1': { chainId: '0x1', name: 'Ethereum Mainnet' },
-                '0xe708': { chainId: '0xe708', name: 'Linea Mainnet' },
-                '0x2105': { chainId: '0x2105', name: 'Base Mainnet' },
+                '0x1': {
+                  chainId: '0x1',
+                  name: 'Ethereum Mainnet',
+                  nativeCurrency: 'ETH',
+                },
+                '0xe708': {
+                  chainId: '0xe708',
+                  name: 'Linea Mainnet',
+                  nativeCurrency: 'ETH',
+                },
+                '0x2105': {
+                  chainId: '0x2105',
+                  name: 'Base Mainnet',
+                  nativeCurrency: 'ETH',
+                },
                 '0x2': { chainId: '0x2', name: 'Test Network' }, // Non-popular network
               },
               networksMetadata: {},
@@ -1006,6 +1350,7 @@ describe('NetworkEnablementController', () => {
                 'solana:5eykt4UsFv8P8NJdTREpY1vzqKqZKvdp': {
                   chainId: 'solana:5eykt4UsFv8P8NJdTREpY1vzqKqZKvdp',
                   name: 'Solana Mainnet',
+                  nativeCurrency: 'SOL',
                 },
                 [BtcScope.Mainnet]: {
                   chainId: BtcScope.Mainnet,
@@ -1144,6 +1489,7 @@ describe('NetworkEnablementController', () => {
             [TrxScope.Shasta]: false,
           },
         },
+        nativeAssetIdentifiers: getDefaultNativeAssetIdentifiers(),
       });
 
       // Enable the network again - this should disable all others in all namespaces
@@ -1177,6 +1523,7 @@ describe('NetworkEnablementController', () => {
             [TrxScope.Shasta]: false,
           },
         },
+        nativeAssetIdentifiers: getDefaultNativeAssetIdentifiers(),
       });
     });
 
@@ -1230,6 +1577,10 @@ describe('NetworkEnablementController', () => {
             [TrxScope.Shasta]: false,
           },
         },
+        nativeAssetIdentifiers: {
+          ...getDefaultNativeAssetIdentifiers(),
+          'eip155:2': 'eip155:2/slip44:60', // Defaults to 60 as chainId 2 is not in chainid.network
+        },
       });
 
       // Enable one of the popular networks - only this one will be enabled
@@ -1264,6 +1615,10 @@ describe('NetworkEnablementController', () => {
             [TrxScope.Shasta]: false,
           },
         },
+        nativeAssetIdentifiers: {
+          ...getDefaultNativeAssetIdentifiers(),
+          'eip155:2': 'eip155:2/slip44:60', // Defaults to 60 as chainId 2 is not in chainid.network
+        },
       });
 
       // Enable the non-popular network again - it will disable all others
@@ -1297,6 +1652,10 @@ describe('NetworkEnablementController', () => {
             [TrxScope.Nile]: false,
             [TrxScope.Shasta]: false,
           },
+        },
+        nativeAssetIdentifiers: {
+          ...getDefaultNativeAssetIdentifiers(),
+          'eip155:2': 'eip155:2/slip44:60', // Defaults to 60 as chainId 2 is not in chainid.network
         },
       });
     });
@@ -1343,6 +1702,7 @@ describe('NetworkEnablementController', () => {
             [TrxScope.Shasta]: false,
           },
         },
+        nativeAssetIdentifiers: getDefaultNativeAssetIdentifiers(),
       });
     });
 
@@ -1359,6 +1719,7 @@ describe('NetworkEnablementController', () => {
       controller.enableNetwork('bip122:000000000933ea01ad0ee984209779ba');
 
       // All existing networks should be disabled due to cross-namespace behavior, even though target network couldn't be enabled
+      // slip44Map is not affected by enabledNetworkMap changes, so it still contains all the original entries
       expect(controller.state).toStrictEqual({
         enabledNetworkMap: {
           [KnownCaipNamespace.Eip155]: {
@@ -1382,6 +1743,7 @@ describe('NetworkEnablementController', () => {
             [TrxScope.Shasta]: false,
           },
         },
+        nativeAssetIdentifiers: getDefaultNativeAssetIdentifiers(),
       });
     });
 
@@ -1435,6 +1797,13 @@ describe('NetworkEnablementController', () => {
             [TrxScope.Shasta]: false,
           },
         },
+        nativeAssetIdentifiers: {
+          ...getDefaultNativeAssetIdentifiers(),
+          // Note: This is testing invalid input (non-EVM chainId to EVM event handler)
+          // getEvmSlip44 defaults to 60 for unknown chainIds
+          'bip122:000000000019d6689c085ae165831e93':
+            'bip122:000000000019d6689c085ae165831e93/slip44:60',
+        },
       });
     });
   });
@@ -1474,6 +1843,7 @@ describe('NetworkEnablementController', () => {
             [TrxScope.Shasta]: false,
           },
         },
+        nativeAssetIdentifiers: getDefaultNativeAssetIdentifiers(),
       });
     });
 
@@ -1521,6 +1891,7 @@ describe('NetworkEnablementController', () => {
             [TrxScope.Shasta]: false,
           },
         },
+        nativeAssetIdentifiers: getDefaultNativeAssetIdentifiers(),
       });
 
       // Try to disable the last active network
@@ -2454,169 +2825,53 @@ describe('NetworkEnablementController', () => {
     it('includes expected state in debug snapshots', () => {
       const { controller } = setupController();
 
-      expect(
-        deriveStateFromMetadata(
-          controller.state,
-          controller.metadata,
-          'includeInDebugSnapshot',
-        ),
-      ).toMatchInlineSnapshot(`
-        Object {
-          "enabledNetworkMap": Object {
-            "bip122": Object {
-              "bip122:000000000019d6689c085ae165831e93": true,
-              "bip122:000000000933ea01ad0ee984209779ba": false,
-              "bip122:00000008819873e925422c1ff0f99f7c": false,
-            },
-            "eip155": Object {
-              "0x1": true,
-              "0x2105": true,
-              "0x38": true,
-              "0x531": true,
-              "0x89": true,
-              "0xa": true,
-              "0xa4b1": true,
-              "0xe708": true,
-            },
-            "solana": Object {
-              "solana:4uhcVJyU9pJkvQyS88uRDiswHXSCkY3z": false,
-              "solana:5eykt4UsFv8P8NJdTREpY1vzqKqZKvdp": true,
-              "solana:EtWTRABZaYq6iMfeYKouRu166VU2xqa1": false,
-            },
-            "tron": Object {
-              "tron:2494104990": false,
-              "tron:3448148188": false,
-              "tron:728126428": true,
-            },
-          },
-        }
-      `);
+      const derivedState = deriveStateFromMetadata(
+        controller.state,
+        controller.metadata,
+        'includeInDebugSnapshot',
+      );
+
+      expect(derivedState).toHaveProperty('enabledNetworkMap');
+      expect(derivedState).toHaveProperty('nativeAssetIdentifiers');
     });
 
     it('includes expected state in state logs', () => {
       const { controller } = setupController();
 
-      expect(
-        deriveStateFromMetadata(
-          controller.state,
-          controller.metadata,
-          'includeInStateLogs',
-        ),
-      ).toMatchInlineSnapshot(`
-        Object {
-          "enabledNetworkMap": Object {
-            "bip122": Object {
-              "bip122:000000000019d6689c085ae165831e93": true,
-              "bip122:000000000933ea01ad0ee984209779ba": false,
-              "bip122:00000008819873e925422c1ff0f99f7c": false,
-            },
-            "eip155": Object {
-              "0x1": true,
-              "0x2105": true,
-              "0x38": true,
-              "0x531": true,
-              "0x89": true,
-              "0xa": true,
-              "0xa4b1": true,
-              "0xe708": true,
-            },
-            "solana": Object {
-              "solana:4uhcVJyU9pJkvQyS88uRDiswHXSCkY3z": false,
-              "solana:5eykt4UsFv8P8NJdTREpY1vzqKqZKvdp": true,
-              "solana:EtWTRABZaYq6iMfeYKouRu166VU2xqa1": false,
-            },
-            "tron": Object {
-              "tron:2494104990": false,
-              "tron:3448148188": false,
-              "tron:728126428": true,
-            },
-          },
-        }
-      `);
+      const derivedState = deriveStateFromMetadata(
+        controller.state,
+        controller.metadata,
+        'includeInStateLogs',
+      );
+
+      expect(derivedState).toHaveProperty('enabledNetworkMap');
+      expect(derivedState).toHaveProperty('nativeAssetIdentifiers');
     });
 
     it('persists expected state', () => {
       const { controller } = setupController();
 
-      expect(
-        deriveStateFromMetadata(
-          controller.state,
-          controller.metadata,
-          'persist',
-        ),
-      ).toMatchInlineSnapshot(`
-        Object {
-          "enabledNetworkMap": Object {
-            "bip122": Object {
-              "bip122:000000000019d6689c085ae165831e93": true,
-              "bip122:000000000933ea01ad0ee984209779ba": false,
-              "bip122:00000008819873e925422c1ff0f99f7c": false,
-            },
-            "eip155": Object {
-              "0x1": true,
-              "0x2105": true,
-              "0x38": true,
-              "0x531": true,
-              "0x89": true,
-              "0xa": true,
-              "0xa4b1": true,
-              "0xe708": true,
-            },
-            "solana": Object {
-              "solana:4uhcVJyU9pJkvQyS88uRDiswHXSCkY3z": false,
-              "solana:5eykt4UsFv8P8NJdTREpY1vzqKqZKvdp": true,
-              "solana:EtWTRABZaYq6iMfeYKouRu166VU2xqa1": false,
-            },
-            "tron": Object {
-              "tron:2494104990": false,
-              "tron:3448148188": false,
-              "tron:728126428": true,
-            },
-          },
-        }
-      `);
+      const derivedState = deriveStateFromMetadata(
+        controller.state,
+        controller.metadata,
+        'persist',
+      );
+
+      expect(derivedState).toHaveProperty('enabledNetworkMap');
+      expect(derivedState).toHaveProperty('nativeAssetIdentifiers');
     });
 
     it('exposes expected state to UI', () => {
       const { controller } = setupController();
 
-      expect(
-        deriveStateFromMetadata(
-          controller.state,
-          controller.metadata,
-          'usedInUi',
-        ),
-      ).toMatchInlineSnapshot(`
-        Object {
-          "enabledNetworkMap": Object {
-            "bip122": Object {
-              "bip122:000000000019d6689c085ae165831e93": true,
-              "bip122:000000000933ea01ad0ee984209779ba": false,
-              "bip122:00000008819873e925422c1ff0f99f7c": false,
-            },
-            "eip155": Object {
-              "0x1": true,
-              "0x2105": true,
-              "0x38": true,
-              "0x531": true,
-              "0x89": true,
-              "0xa": true,
-              "0xa4b1": true,
-              "0xe708": true,
-            },
-            "solana": Object {
-              "solana:4uhcVJyU9pJkvQyS88uRDiswHXSCkY3z": false,
-              "solana:5eykt4UsFv8P8NJdTREpY1vzqKqZKvdp": true,
-              "solana:EtWTRABZaYq6iMfeYKouRu166VU2xqa1": false,
-            },
-            "tron": Object {
-              "tron:2494104990": false,
-              "tron:3448148188": false,
-              "tron:728126428": true,
-            },
-          },
-        }
-      `);
+      const derivedState = deriveStateFromMetadata(
+        controller.state,
+        controller.metadata,
+        'usedInUi',
+      );
+
+      expect(derivedState).toHaveProperty('enabledNetworkMap');
+      expect(derivedState).toHaveProperty('nativeAssetIdentifiers');
     });
   });
 

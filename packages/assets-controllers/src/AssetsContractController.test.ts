@@ -7,12 +7,11 @@ import {
   NetworkType,
 } from '@metamask/controller-utils';
 import HttpProvider from '@metamask/ethjs-provider-http';
-import {
-  Messenger,
-  MOCK_ANY_NAMESPACE,
-  type MessengerActions,
-  type MessengerEvents,
-  type MockAnyNamespace,
+import { Messenger, MOCK_ANY_NAMESPACE } from '@metamask/messenger';
+import type {
+  MessengerActions,
+  MessengerEvents,
+  MockAnyNamespace,
 } from '@metamask/messenger';
 import type {
   Provider,
@@ -114,6 +113,7 @@ async function setupAssetContractControllers({
     getRpcServiceOptions: () => ({
       fetch,
       btoa,
+      isOffline: (): boolean => false,
     }),
   });
   if (useNetworkControllerProvider) {
@@ -704,7 +704,7 @@ describe('AssetsContractController', () => {
       await setupAssetContractControllers();
     assetsContract.setProvider(provider);
     const errorLogSpy = jest
-      .spyOn(console, 'error')
+      .spyOn(console, 'warn')
       .mockImplementationOnce(() => {
         /**/
       });
