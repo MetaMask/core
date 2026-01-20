@@ -1411,7 +1411,15 @@ describe('RampsController', () => {
       });
     });
 
-    it('clears tokens and providers when user region changes', async () => {
+    it('clears tokens, providers, paymentMethods, and selectedPaymentMethod when user region changes', async () => {
+      const mockPaymentMethod: PaymentMethod = {
+        id: '/payments/test-card',
+        paymentType: 'debit-credit-card',
+        name: 'Test Card',
+        score: 90,
+        icon: 'card',
+      };
+
       await withController(async ({ controller, rootMessenger }) => {
         const mockTokens: TokensResponse = {
           topTokens: [],
@@ -1447,16 +1455,34 @@ describe('RampsController', () => {
           'RampsService:getProviders',
           async (_regionCode: string) => ({ providers: providersToReturn }),
         );
+        rootMessenger.registerActionHandler(
+          'RampsService:getPaymentMethods',
+          async () => ({ payments: [mockPaymentMethod] }),
+        );
 
         await controller.setUserRegion('US');
         await controller.getTokens('us', 'buy');
+        await controller.getPaymentMethods({
+          assetId: 'eip155:1/slip44:60',
+          provider: '/providers/test',
+        });
+        controller.setSelectedPaymentMethod(mockPaymentMethod);
+
         expect(controller.state.tokens).toStrictEqual(mockTokens);
         expect(controller.state.providers).toStrictEqual(mockProviders);
+        expect(controller.state.paymentMethods).toStrictEqual([
+          mockPaymentMethod,
+        ]);
+        expect(controller.state.selectedPaymentMethod).toStrictEqual(
+          mockPaymentMethod,
+        );
 
         providersToReturn = [];
         await controller.setUserRegion('FR');
         expect(controller.state.tokens).toBeNull();
         expect(controller.state.providers).toStrictEqual([]);
+        expect(controller.state.paymentMethods).toStrictEqual([]);
+        expect(controller.state.selectedPaymentMethod).toBeNull();
       });
     });
     it('finds country by id starting with /regions/', async () => {
