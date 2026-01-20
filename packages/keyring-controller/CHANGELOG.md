@@ -22,6 +22,10 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 - Prevent the accidental removal of unrelated empty keyrings when deleting an account ([#7670](https://github.com/MetaMask/core/pull/7670))
   - Empty keyrings were removed during account deletion, regardless of which account was being targeted.
 
+### Fixed
+
+- Fixed a bug where `removeAccount` would not prevent deletion of the primary keyring because of missing address normalization ([#7670](https://github.com/MetaMask/core/pull/7670))
+
 ## [25.0.0]
 
 ### Added
