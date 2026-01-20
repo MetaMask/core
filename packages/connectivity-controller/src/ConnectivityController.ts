@@ -54,7 +54,7 @@ export function getDefaultConnectivityControllerState(): ConnectivityControllerS
   };
 }
 
-const MESSENGER_EXPOSED_METHODS = ['setStatus'] as const;
+const MESSENGER_EXPOSED_METHODS = ['setConnectivityStatus'] as const;
 
 /**
  * Retrieves the state of the {@link ConnectivityController}.
@@ -180,7 +180,7 @@ export class ConnectivityController extends BaseController<
    *
    * @param status - The connectivity status to set.
    */
-  setStatus(status: ConnectivityStatus): void {
+  setConnectivityStatus(status: ConnectivityStatus): void {
     this.update((draftState) => {
       draftState.connectivityStatus = status;
     });

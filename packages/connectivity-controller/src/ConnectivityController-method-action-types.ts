@@ -10,13 +10,13 @@ import type { ConnectivityController } from './ConnectivityController';
  *
  * @param status - The connectivity status to set.
  */
-export type ConnectivityControllerSetStatusAction = {
-  type: `ConnectivityController:setStatus`;
-  handler: ConnectivityController['setStatus'];
+export type ConnectivityControllerSetConnectivityStatusAction = {
+  type: `ConnectivityController:setConnectivityStatus`;
+  handler: ConnectivityController['setConnectivityStatus'];
 };
 
 /**
  * Union of all ConnectivityController action types.
  */
 export type ConnectivityControllerMethodActions =
-  ConnectivityControllerSetStatusAction;
+  ConnectivityControllerSetConnectivityStatusAction;

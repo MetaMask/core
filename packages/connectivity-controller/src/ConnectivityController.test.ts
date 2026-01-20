@@ -169,14 +169,14 @@ describe('ConnectivityController', () => {
     });
   });
 
-  describe('setStatus', () => {
+  describe('setConnectivityStatus', () => {
     it('updates state when called directly', async () => {
       await withController(({ controller }) => {
         expect(controller.state.connectivityStatus).toBe(
           CONNECTIVITY_STATUSES.Online,
         );
 
-        controller.setStatus(CONNECTIVITY_STATUSES.Offline);
+        controller.setConnectivityStatus(CONNECTIVITY_STATUSES.Offline);
 
         expect(controller.state.connectivityStatus).toBe(
           CONNECTIVITY_STATUSES.Offline,
@@ -191,7 +191,7 @@ describe('ConnectivityController', () => {
         );
 
         rootMessenger.call(
-          'ConnectivityController:setStatus',
+          'ConnectivityController:setConnectivityStatus',
           CONNECTIVITY_STATUSES.Offline,
         );
 
@@ -215,7 +215,7 @@ describe('ConnectivityController', () => {
             CONNECTIVITY_STATUSES.Offline,
           );
 
-          controller.setStatus(CONNECTIVITY_STATUSES.Online);
+          controller.setConnectivityStatus(CONNECTIVITY_STATUSES.Online);
 
           expect(controller.state.connectivityStatus).toBe(
             CONNECTIVITY_STATUSES.Online,
@@ -239,7 +239,7 @@ describe('ConnectivityController', () => {
           );
 
           rootMessenger.call(
-            'ConnectivityController:setStatus',
+            'ConnectivityController:setConnectivityStatus',
             CONNECTIVITY_STATUSES.Online,
           );
 
