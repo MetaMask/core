@@ -935,6 +935,182 @@ describe('RampsController', () => {
     });
   });
 
+  describe('sync trigger methods', () => {
+    describe('triggerUpdateUserRegion', () => {
+      it('triggers user region update and returns void', async () => {
+        await withController(async ({ controller, rootMessenger }) => {
+          rootMessenger.registerActionHandler(
+            'RampsService:getGeolocation',
+            async () => 'us',
+          );
+          rootMessenger.registerActionHandler(
+            'RampsService:getCountries',
+            async () => createMockCountries(),
+          );
+          rootMessenger.registerActionHandler(
+            'RampsService:getProviders',
+            async () => ({ providers: [] }),
+          );
+
+          const result = controller.triggerUpdateUserRegion();
+          expect(result).toBeUndefined();
+
+          await new Promise((resolve) => setTimeout(resolve, 10));
+          expect(controller.state.userRegion?.regionCode).toBe('us');
+        });
+      });
+
+      it('does not throw when update fails', async () => {
+        await withController(async ({ controller, rootMessenger }) => {
+          rootMessenger.registerActionHandler(
+            'RampsService:getGeolocation',
+            async () => {
+              throw new Error('geolocation failed');
+            },
+          );
+
+          expect(() => controller.triggerUpdateUserRegion()).not.toThrow();
+        });
+      });
+    });
+
+    describe('triggerSetUserRegion', () => {
+      it('triggers set user region and returns void', async () => {
+        await withController(async ({ controller, rootMessenger }) => {
+          rootMessenger.registerActionHandler(
+            'RampsService:getCountries',
+            async () => createMockCountries(),
+          );
+          rootMessenger.registerActionHandler(
+            'RampsService:getProviders',
+            async () => ({ providers: [] }),
+          );
+
+          const result = controller.triggerSetUserRegion('us');
+          expect(result).toBeUndefined();
+
+          await new Promise((resolve) => setTimeout(resolve, 10));
+          expect(controller.state.userRegion?.regionCode).toBe('us');
+        });
+      });
+
+      it('does not throw when set fails', async () => {
+        await withController(async ({ controller, rootMessenger }) => {
+          rootMessenger.registerActionHandler(
+            'RampsService:getCountries',
+            async () => {
+              throw new Error('countries failed');
+            },
+          );
+
+          expect(() => controller.triggerSetUserRegion('us')).not.toThrow();
+        });
+      });
+    });
+
+    describe('triggerGetCountries', () => {
+      it('triggers get countries and returns void', async () => {
+        await withController(async ({ controller, rootMessenger }) => {
+          rootMessenger.registerActionHandler(
+            'RampsService:getCountries',
+            async () => createMockCountries(),
+          );
+
+          const result = controller.triggerGetCountries('buy');
+          expect(result).toBeUndefined();
+        });
+      });
+
+      it('does not throw when fetch fails', async () => {
+        await withController(async ({ controller, rootMessenger }) => {
+          rootMessenger.registerActionHandler(
+            'RampsService:getCountries',
+            async () => {
+              throw new Error('countries failed');
+            },
+          );
+
+          expect(() => controller.triggerGetCountries()).not.toThrow();
+        });
+      });
+    });
+
+    describe('triggerGetTokens', () => {
+      it('triggers get tokens and returns void', async () => {
+        await withController(
+          { options: { state: { userRegion: createMockUserRegion('us') } } },
+          async ({ controller, rootMessenger }) => {
+            rootMessenger.registerActionHandler(
+              'RampsService:getTokens',
+              async () => ({ topTokens: [], allTokens: [] }),
+            );
+
+            const result = controller.triggerGetTokens();
+            expect(result).toBeUndefined();
+
+            await new Promise((resolve) => setTimeout(resolve, 10));
+            expect(controller.state.tokens).toStrictEqual({
+              topTokens: [],
+              allTokens: [],
+            });
+          },
+        );
+      });
+
+      it('does not throw when fetch fails', async () => {
+        await withController(
+          { options: { state: { userRegion: createMockUserRegion('us') } } },
+          async ({ controller, rootMessenger }) => {
+            rootMessenger.registerActionHandler(
+              'RampsService:getTokens',
+              async () => {
+                throw new Error('tokens failed');
+              },
+            );
+
+            expect(() => controller.triggerGetTokens()).not.toThrow();
+          },
+        );
+      });
+    });
+
+    describe('triggerGetProviders', () => {
+      it('triggers get providers and returns void', async () => {
+        await withController(
+          { options: { state: { userRegion: createMockUserRegion('us') } } },
+          async ({ controller, rootMessenger }) => {
+            rootMessenger.registerActionHandler(
+              'RampsService:getProviders',
+              async () => ({ providers: [] }),
+            );
+
+            const result = controller.triggerGetProviders();
+            expect(result).toBeUndefined();
+
+            await new Promise((resolve) => setTimeout(resolve, 10));
+            expect(controller.state.providers).toStrictEqual([]);
+          },
+        );
+      });
+
+      it('does not throw when fetch fails', async () => {
+        await withController(
+          { options: { state: { userRegion: createMockUserRegion('us') } } },
+          async ({ controller, rootMessenger }) => {
+            rootMessenger.registerActionHandler(
+              'RampsService:getProviders',
+              async () => {
+                throw new Error('providers failed');
+              },
+            );
+
+            expect(() => controller.triggerGetProviders()).not.toThrow();
+          },
+        );
+      });
+    });
+  });
+
   describe('getCountries', () => {
     const mockCountries: Country[] = [
       {
