@@ -15,7 +15,11 @@ import type {
   RampsServiceGetTokensAction,
   RampsServiceGetProvidersAction,
 } from './RampsService-method-action-types';
-import { RequestStatus, createCacheKey } from './RequestCache';
+import {
+  RequestStatus,
+  createCacheKey,
+  DEFAULT_REQUEST_CACHE_TTL,
+} from './RequestCache';
 
 describe('RampsController', () => {
   describe('constructor', () => {
@@ -911,6 +915,50 @@ describe('RampsController', () => {
           expect(keys).not.toContain('no-timestamp-2');
           expect(keys).toContain('with-timestamp');
           expect(keys).toContain('key4');
+        },
+      );
+    });
+
+    it('evicts expired entries based on TTL regardless of cache size', async () => {
+      const shortTTL = 100;
+      await withController(
+        { options: { requestCacheTTL: shortTTL, requestCacheMaxSize: 100 } },
+        async ({ controller }) => {
+          await controller.executeRequest('key1', async () => 'data1');
+          await controller.executeRequest('key2', async () => 'data2');
+
+          const keysBeforeExpiry = Object.keys(controller.state.requests);
+          expect(keysBeforeExpiry).toContain('key1');
+          expect(keysBeforeExpiry).toContain('key2');
+
+          await new Promise((resolve) => setTimeout(resolve, shortTTL + 50));
+
+          await controller.executeRequest('key3', async () => 'data3');
+
+          const keysAfterExpiry = Object.keys(controller.state.requests);
+          expect(keysAfterExpiry).not.toContain('key1');
+          expect(keysAfterExpiry).not.toContain('key2');
+          expect(keysAfterExpiry).toContain('key3');
+        },
+      );
+    });
+
+    it('does not evict non-expired entries during TTL-based eviction', async () => {
+      const longTTL = 1000;
+      await withController(
+        { options: { requestCacheTTL: longTTL, requestCacheMaxSize: 100 } },
+        async ({ controller }) => {
+          await controller.executeRequest('key1', async () => 'data1');
+          await controller.executeRequest('key2', async () => 'data2');
+
+          await new Promise((resolve) => setTimeout(resolve, 50));
+
+          await controller.executeRequest('key3', async () => 'data3');
+
+          const keys = Object.keys(controller.state.requests);
+          expect(keys).toContain('key1');
+          expect(keys).toContain('key2');
+          expect(keys).toContain('key3');
         },
       );
     });
