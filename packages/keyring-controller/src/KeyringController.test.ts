@@ -1572,6 +1572,21 @@ describe('KeyringController', () => {
         });
       });
 
+      it('should not remove primary keyring when address is not normalized', async () => {
+        await withController(async ({ controller, initialState }) => {
+          const account = initialState.keyrings[0].accounts[0] as Hex;
+          // Convert to checksummed/uppercase address (non-normalized), keeping 0x prefix lowercase
+          const nonNormalizedAccount = `0x${account.slice(2).toUpperCase()}`;
+          await expect(
+            controller.removeAccount(nonNormalizedAccount),
+          ).rejects.toThrow(
+            KeyringControllerErrorMessage.LastAccountInPrimaryKeyring,
+          );
+          expect(controller.state.keyrings).toHaveLength(1);
+          expect(controller.state.keyrings[0].accounts).toHaveLength(1);
+        });
+      });
+
       it('should not remove primary keyring if it has no accounts even if it has more than one HD keyring', async () => {
         await withController(async ({ controller }) => {
           await controller.addNewKeyring(KeyringTypes.hd);
