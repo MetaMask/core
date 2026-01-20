@@ -15,10 +15,7 @@ import type {
   RampsServiceGetTokensAction,
   RampsServiceGetProvidersAction,
 } from './RampsService-method-action-types';
-import {
-  RequestStatus,
-  createCacheKey,
-} from './RequestCache';
+import { RequestStatus, createCacheKey } from './RequestCache';
 
 describe('RampsController', () => {
   describe('constructor', () => {
