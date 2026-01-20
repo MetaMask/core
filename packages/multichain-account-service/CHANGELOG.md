@@ -10,7 +10,7 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 ### Changed
 
 - Bump `@metamask/accounts-controller` from `^35.0.0` to `^35.0.2` ([#7604](https://github.com/MetaMask/core/pull/7604), [#7642](https://github.com/MetaMask/core/pull/7642))
-- Remove Sentry log before attempting Snap account re-sync ([#7672](https://github.com/MetaMask/core/pull/7672))
+- Remove Sentry log before attempting Snap account re-sync ([#7675](https://github.com/MetaMask/core/pull/7675))
 
 ### Fixed
 
