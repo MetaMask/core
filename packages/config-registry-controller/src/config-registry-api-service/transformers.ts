@@ -35,11 +35,11 @@ function toHexChainId(chainId: string): Hex | null {
   const trimmed = chainId.trim();
 
   if (trimmed.startsWith('0x') || trimmed.startsWith('0X')) {
-    const hex = trimmed.toLowerCase();
-    if (!/^0x[0-9a-f]+$/iu.test(hex)) {
+    const hexValue = trimmed.toLowerCase();
+    if (!/^0x[0-9a-f]+$/iu.test(hexValue)) {
       return null;
     }
-    return hex as Hex;
+    return hexValue as Hex;
   }
 
   const decimal = Number.parseInt(trimmed, 10);
@@ -47,7 +47,7 @@ function toHexChainId(chainId: string): Hex | null {
     return null;
   }
 
-  return `0x${decimal.toString(16)}` as Hex;
+  return `0x${decimal.toString(16)}`;
 }
 
 /**
@@ -76,7 +76,7 @@ function transformRpcEndpoint(
   }
 
   const baseEndpoint = {
-    networkClientId: networkClientId as string,
+    networkClientId,
     failoverUrls: Array.isArray(failoverUrls)
       ? failoverUrls.filter(
           (failoverUrl): failoverUrl is string =>
@@ -135,19 +135,34 @@ export function transformNetworkConfig(
     return null;
   }
 
-  const transformedEndpoints = rpcEndpoints
-    .map(transformRpcEndpoint)
-    .filter((endpoint): endpoint is RpcEndpoint => endpoint !== null);
+  // Transform endpoints and track original indices to filtered indices mapping
+  const transformedEndpoints: RpcEndpoint[] = [];
+  const originalToFilteredIndexMap = new Map<number, number>();
+
+  rpcEndpoints.forEach((endpoint, originalIndex) => {
+    const transformed = transformRpcEndpoint(endpoint);
+    if (transformed !== null) {
+      originalToFilteredIndexMap.set(
+        originalIndex,
+        transformedEndpoints.length,
+      );
+      transformedEndpoints.push(transformed);
+    }
+  });
 
   if (transformedEndpoints.length === 0) {
     return null;
   }
 
-  const defaultRpcEndpointIndex = networkConfig.defaultRpcEndpointIndex ?? 0;
-  if (
-    defaultRpcEndpointIndex < 0 ||
-    defaultRpcEndpointIndex >= transformedEndpoints.length
-  ) {
+  // Adjust defaultRpcEndpointIndex to account for filtered endpoints
+  const originalDefaultRpcEndpointIndex =
+    networkConfig.defaultRpcEndpointIndex ?? 0;
+  const adjustedDefaultRpcEndpointIndex = originalToFilteredIndexMap.get(
+    originalDefaultRpcEndpointIndex,
+  );
+
+  if (adjustedDefaultRpcEndpointIndex === undefined) {
+    // The original default index pointed to an invalid endpoint
     return null;
   }
 
@@ -155,18 +170,37 @@ export function transformNetworkConfig(
     return null;
   }
 
-  const validBlockExplorerUrls = blockExplorerUrls.filter(
-    (blockExplorerUrl): blockExplorerUrl is string =>
-      typeof blockExplorerUrl === 'string' && blockExplorerUrl.length > 0,
-  );
+  // Filter block explorer URLs and track original indices to filtered indices mapping
+  const validBlockExplorerUrls: string[] = [];
+  const blockExplorerOriginalToFilteredIndexMap = new Map<number, number>();
 
+  blockExplorerUrls.forEach((blockExplorerUrl, originalIndex) => {
+    if (typeof blockExplorerUrl === 'string' && blockExplorerUrl.length > 0) {
+      blockExplorerOriginalToFilteredIndexMap.set(
+        originalIndex,
+        validBlockExplorerUrls.length,
+      );
+      validBlockExplorerUrls.push(blockExplorerUrl);
+    }
+  });
+
+  // Adjust defaultBlockExplorerUrlIndex to account for filtered URLs
   const { defaultBlockExplorerUrlIndex } = networkConfig;
-  if (
-    defaultBlockExplorerUrlIndex !== undefined &&
-    (defaultBlockExplorerUrlIndex < 0 ||
-      defaultBlockExplorerUrlIndex >= validBlockExplorerUrls.length)
-  ) {
-    return null;
+  let adjustedDefaultBlockExplorerUrlIndex: number | undefined;
+
+  if (defaultBlockExplorerUrlIndex !== undefined) {
+    const adjusted = blockExplorerOriginalToFilteredIndexMap.get(
+      defaultBlockExplorerUrlIndex,
+    );
+
+    if (adjusted === undefined) {
+      // The original default index pointed to an invalid URL
+      return null;
+    }
+
+    adjustedDefaultBlockExplorerUrlIndex = adjusted;
+  } else if (validBlockExplorerUrls.length > 0) {
+    adjustedDefaultBlockExplorerUrlIndex = 0;
   }
 
   return {
@@ -175,11 +209,8 @@ export function transformNetworkConfig(
     nativeCurrency,
     rpcEndpoints: transformedEndpoints,
     blockExplorerUrls: validBlockExplorerUrls,
-    defaultRpcEndpointIndex,
-    defaultBlockExplorerUrlIndex:
-      validBlockExplorerUrls.length > 0
-        ? (defaultBlockExplorerUrlIndex ?? 0)
-        : undefined,
+    defaultRpcEndpointIndex: adjustedDefaultRpcEndpointIndex,
+    defaultBlockExplorerUrlIndex: adjustedDefaultBlockExplorerUrlIndex,
     lastUpdatedAt: networkConfig.lastUpdatedAt,
   };
 }
@@ -266,7 +297,7 @@ export function compareWithExistingNetworks(
   const foundExistingChainIds: Hex[] = [];
 
   for (const network of transformedNetworks) {
-    if (!network || !network.chainId) {
+    if (!network?.chainId) {
       continue;
     }
 

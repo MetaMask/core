@@ -1,11 +1,11 @@
-import {
-  Messenger,
-  MOCK_ANY_NAMESPACE,
-  type MockAnyNamespace,
-} from '@metamask/messenger';
+import type { MockAnyNamespace } from '@metamask/messenger';
+import { Messenger, MOCK_ANY_NAMESPACE } from '@metamask/messenger';
 import { useFakeTimers } from 'sinon';
 
-import type { AbstractConfigRegistryApiService } from './config-registry-api-service';
+import type {
+  AbstractConfigRegistryApiService,
+  FetchConfigResult,
+} from './config-registry-api-service';
 import {
   ConfigRegistryController,
   DEFAULT_POLLING_INTERVAL,
@@ -83,7 +83,7 @@ function buildMockApiService(
   overrides: Partial<AbstractConfigRegistryApiService> = {},
 ): AbstractConfigRegistryApiService {
   return {
-    async fetchConfig() {
+    async fetchConfig(): Promise<FetchConfigResult> {
       return {
         data: {
           data: {
@@ -775,6 +775,146 @@ describe('ConfigRegistryController', () => {
       expect(controller.state.fetchError).toBeNull();
 
       controller.stopPolling();
+    });
+
+    it('should filter networks to only include featured, active, non-testnet networks', async () => {
+      mockRemoteFeatureFlagGetState.mockReturnValue({
+        remoteFeatureFlags: {
+          configRegistryApiEnabled: true,
+        },
+        cacheTimestamp: Date.now(),
+      });
+
+      const mockNetworks = [
+        {
+          // Should be included: featured, active, non-testnet
+          chainId: '0x1',
+          name: 'Ethereum Mainnet',
+          nativeCurrency: 'ETH',
+          rpcEndpoints: [
+            {
+              url: 'https://mainnet.infura.io/v3/{infuraProjectId}',
+              type: 'infura',
+              networkClientId: 'mainnet',
+              failoverUrls: [],
+            },
+          ],
+          blockExplorerUrls: ['https://etherscan.io'],
+          defaultRpcEndpointIndex: 0,
+          defaultBlockExplorerUrlIndex: 0,
+          isTestnet: false,
+          isFeatured: true,
+          isActive: true,
+          isDefault: false,
+          isDeprecated: false,
+          priority: 0,
+          isDeletable: false,
+        },
+        {
+          // Should be excluded: testnet
+          chainId: '0x5',
+          name: 'Goerli',
+          nativeCurrency: 'ETH',
+          rpcEndpoints: [
+            {
+              url: 'https://goerli.infura.io/v3/{infuraProjectId}',
+              type: 'infura',
+              networkClientId: 'goerli',
+              failoverUrls: [],
+            },
+          ],
+          blockExplorerUrls: ['https://goerli.etherscan.io'],
+          defaultRpcEndpointIndex: 0,
+          defaultBlockExplorerUrlIndex: 0,
+          isTestnet: true,
+          isFeatured: true,
+          isActive: true,
+          isDefault: false,
+          isDeprecated: false,
+          priority: 0,
+          isDeletable: false,
+        },
+        {
+          // Should be excluded: not featured
+          chainId: '0xa',
+          name: 'Optimism',
+          nativeCurrency: 'ETH',
+          rpcEndpoints: [
+            {
+              url: 'https://optimism.infura.io/v3/{infuraProjectId}',
+              type: 'infura',
+              networkClientId: 'optimism',
+              failoverUrls: [],
+            },
+          ],
+          blockExplorerUrls: ['https://optimistic.etherscan.io'],
+          defaultRpcEndpointIndex: 0,
+          defaultBlockExplorerUrlIndex: 0,
+          isTestnet: false,
+          isFeatured: false,
+          isActive: true,
+          isDefault: false,
+          isDeprecated: false,
+          priority: 0,
+          isDeletable: false,
+        },
+        {
+          // Should be excluded: not active
+          chainId: '0x89',
+          name: 'Polygon',
+          nativeCurrency: 'MATIC',
+          rpcEndpoints: [
+            {
+              url: 'https://polygon.infura.io/v3/{infuraProjectId}',
+              type: 'infura',
+              networkClientId: 'polygon',
+              failoverUrls: [],
+            },
+          ],
+          blockExplorerUrls: ['https://polygonscan.com'],
+          defaultRpcEndpointIndex: 0,
+          defaultBlockExplorerUrlIndex: 0,
+          isTestnet: false,
+          isFeatured: true,
+          isActive: false,
+          isDefault: false,
+          isDeprecated: false,
+          priority: 0,
+          isDeletable: false,
+        },
+      ];
+
+      const fetchConfigSpy = jest.fn().mockResolvedValue({
+        data: {
+          data: {
+            version: '1.0.0',
+            timestamp: Date.now(),
+            networks: mockNetworks,
+          },
+        },
+        notModified: false,
+        etag: 'test-etag',
+      });
+
+      const mockApiService = buildMockApiService({
+        fetchConfig: fetchConfigSpy,
+      });
+
+      const controller = new ConfigRegistryController({
+        messenger,
+        apiService: mockApiService,
+      });
+
+      await controller._executePoll({});
+
+      // Only the first network (0x1) should be stored
+      expect(controller.state.configs.networks?.['0x1']).toBeDefined();
+      expect(controller.state.configs.networks?.['0x5']).toBeUndefined();
+      expect(controller.state.configs.networks?.['0xa']).toBeUndefined();
+      expect(controller.state.configs.networks?.['0x89']).toBeUndefined();
+      expect(Object.keys(controller.state.configs.networks ?? {})).toHaveLength(
+        1,
+      );
     });
 
     it('should default to fallback when feature flag is not set', async () => {

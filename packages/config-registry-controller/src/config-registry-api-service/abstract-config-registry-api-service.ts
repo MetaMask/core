@@ -37,11 +37,16 @@ export type FetchConfigOptions = {
   etag?: string;
 };
 
-export type FetchConfigResult = {
-  data: RegistryConfigApiResponse;
-  etag?: string;
-  notModified: boolean;
-};
+export type FetchConfigResult =
+  | {
+      notModified: true;
+      etag?: string;
+    }
+  | {
+      notModified: false;
+      data: RegistryConfigApiResponse;
+      etag?: string;
+    };
 
 export type AbstractConfigRegistryApiService = Partial<
   Pick<ServicePolicy, 'onBreak' | 'onDegraded'>

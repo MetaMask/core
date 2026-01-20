@@ -1,7 +1,10 @@
 import nock, { cleanAll } from 'nock';
 import { useFakeTimers } from 'sinon';
 
-import type { RegistryConfigApiResponse } from './abstract-config-registry-api-service';
+import type {
+  FetchConfigResult,
+  RegistryConfigApiResponse,
+} from './abstract-config-registry-api-service';
 import {
   ConfigRegistryApiService,
   DEFAULT_API_BASE_URL,
@@ -81,7 +84,9 @@ describe('ConfigRegistryApiService', () => {
 
       expect(result.notModified).toBe(false);
       expect(result.etag).toBe('"test-etag-123"');
-      expect(result.data).toStrictEqual(MOCK_API_RESPONSE);
+      expect(
+        (result as Extract<FetchConfigResult, { notModified: false }>).data,
+      ).toStrictEqual(MOCK_API_RESPONSE);
       expect(scope.isDone()).toBe(true);
     });
 
@@ -173,7 +178,10 @@ describe('ConfigRegistryApiService', () => {
 
       const result = await service.fetchConfig();
 
-      expect(result.data).toStrictEqual(MOCK_API_RESPONSE);
+      expect(result.notModified).toBe(false);
+      expect(
+        (result as Extract<FetchConfigResult, { notModified: false }>).data,
+      ).toStrictEqual(MOCK_API_RESPONSE);
       expect(successScope.isDone()).toBe(true);
     });
   });
@@ -241,12 +249,15 @@ describe('ConfigRegistryApiService', () => {
 
   describe('custom fetch function', () => {
     it('should use custom fetch function when provided', async () => {
+      const mockHeaders = {
+        get: jest.fn().mockReturnValue('"custom-etag"'),
+      };
       const customFetch = jest.fn().mockResolvedValue({
         ok: true,
         status: 200,
-        headers: new Headers({ ETag: '"custom-etag"' }),
+        headers: mockHeaders,
         json: async () => MOCK_API_RESPONSE,
-      } as Response);
+      } as unknown as Response);
 
       const service = new ConfigRegistryApiService({
         fetch: customFetch,
@@ -257,7 +268,10 @@ describe('ConfigRegistryApiService', () => {
       const result = await service.fetchConfig();
 
       expect(customFetch).toHaveBeenCalled();
-      expect(result.data).toStrictEqual(MOCK_API_RESPONSE);
+      expect(result.notModified).toBe(false);
+      expect(
+        (result as Extract<FetchConfigResult, { notModified: false }>).data,
+      ).toStrictEqual(MOCK_API_RESPONSE);
     });
   });
 

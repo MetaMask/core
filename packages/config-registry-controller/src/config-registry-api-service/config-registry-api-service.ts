@@ -32,9 +32,7 @@ export type ConfigRegistryApiServiceOptions = {
   circuitBreakDuration?: number;
 };
 
-export class ConfigRegistryApiService
-  implements AbstractConfigRegistryApiService
-{
+export class ConfigRegistryApiService implements AbstractConfigRegistryApiService {
   readonly #policy: ServicePolicy;
 
   readonly #apiBaseUrl: string;
@@ -81,11 +79,15 @@ export class ConfigRegistryApiService
     });
   }
 
-  onBreak(...args: Parameters<ServicePolicy['onBreak']>) {
+  onBreak(
+    ...args: Parameters<ServicePolicy['onBreak']>
+  ): ReturnType<ServicePolicy['onBreak']> {
     return this.#policy.onBreak(...args);
   }
 
-  onDegraded(...args: Parameters<ServicePolicy['onDegraded']>) {
+  onDegraded(
+    ...args: Parameters<ServicePolicy['onDegraded']>
+  ): ReturnType<ServicePolicy['onDegraded']> {
     return this.#policy.onDegraded(...args);
   }
 
@@ -148,9 +150,10 @@ export class ConfigRegistryApiService
     });
 
     if ((response as unknown as { status?: number }).status === 304) {
+      const etag = response.headers.get('ETag') ?? undefined;
       return {
-        data: {} as RegistryConfigApiResponse,
         notModified: true,
+        etag,
       };
     }
 

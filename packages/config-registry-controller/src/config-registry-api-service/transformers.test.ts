@@ -420,6 +420,107 @@ describe('transformers', () => {
       expect(result?.defaultRpcEndpointIndex).toBe(1);
     });
 
+    it('should adjust defaultRpcEndpointIndex when invalid endpoints are filtered out', () => {
+      const config = {
+        ...VALID_NETWORK_CONFIG,
+        rpcEndpoints: [
+          {
+            // Invalid endpoint (missing networkClientId) - will be filtered out
+            url: 'https://invalid.infura.io/v3/{infuraProjectId}',
+            type: 'infura',
+            networkClientId: '',
+            failoverUrls: [],
+          },
+          {
+            // Valid endpoint at original index 1
+            url: 'https://mainnet.infura.io/v3/{infuraProjectId}',
+            type: 'infura',
+            networkClientId: 'mainnet',
+            failoverUrls: [],
+          },
+          {
+            // Valid endpoint at original index 2
+            url: 'https://backup.infura.io/v3/{infuraProjectId}',
+            type: 'infura',
+            networkClientId: 'mainnet',
+            failoverUrls: [],
+          },
+        ],
+        defaultRpcEndpointIndex: 1, // Points to mainnet endpoint
+      };
+
+      const result = transformNetworkConfig(config);
+
+      // After filtering, the array becomes [mainnet, backup]
+      // Original index 1 (mainnet) should now be at index 0
+      expect(result?.defaultRpcEndpointIndex).toBe(0);
+      expect(result?.rpcEndpoints[result.defaultRpcEndpointIndex].url).toBe(
+        'https://mainnet.infura.io/v3/{infuraProjectId}',
+      );
+    });
+
+    it('should return null when defaultRpcEndpointIndex points to invalid endpoint', () => {
+      const config = {
+        ...VALID_NETWORK_CONFIG,
+        rpcEndpoints: [
+          {
+            url: 'https://mainnet.infura.io/v3/{infuraProjectId}',
+            type: 'infura',
+            networkClientId: 'mainnet',
+            failoverUrls: [],
+          },
+          {
+            // Invalid endpoint (missing networkClientId) - will be filtered out
+            url: 'https://invalid.infura.io/v3/{infuraProjectId}',
+            type: 'infura',
+            networkClientId: '',
+            failoverUrls: [],
+          },
+        ],
+        defaultRpcEndpointIndex: 1, // Points to invalid endpoint
+      };
+
+      const result = transformNetworkConfig(config);
+
+      expect(result).toBeNull();
+    });
+
+    it('should adjust defaultBlockExplorerUrlIndex when invalid URLs are filtered out', () => {
+      const config = {
+        ...VALID_NETWORK_CONFIG,
+        blockExplorerUrls: [
+          '', // Invalid empty URL - will be filtered out
+          'https://etherscan.io', // Valid URL at original index 1
+          'https://blockscout.com', // Valid URL at original index 2
+        ],
+        defaultBlockExplorerUrlIndex: 1, // Points to etherscan
+      };
+
+      const result = transformNetworkConfig(config);
+
+      // After filtering, the array becomes [etherscan, blockscout]
+      // Original index 1 (etherscan) should now be at index 0
+      expect(result?.defaultBlockExplorerUrlIndex).toBe(0);
+      expect(
+        result?.blockExplorerUrls[result.defaultBlockExplorerUrlIndex ?? 0],
+      ).toBe('https://etherscan.io');
+    });
+
+    it('should return null when defaultBlockExplorerUrlIndex points to invalid URL', () => {
+      const config = {
+        ...VALID_NETWORK_CONFIG,
+        blockExplorerUrls: [
+          'https://etherscan.io',
+          '', // Invalid empty URL - will be filtered out
+        ],
+        defaultBlockExplorerUrlIndex: 1, // Points to invalid URL
+      };
+
+      const result = transformNetworkConfig(config);
+
+      expect(result).toBeNull();
+    });
+
     it('should preserve lastUpdatedAt', () => {
       const timestamp = 1234567890;
       const config = {
@@ -487,7 +588,7 @@ describe('transformers', () => {
       const result = filterNetworks(networks, { isFeatured: true });
 
       expect(result).toHaveLength(2);
-      expect(result.every((n) => n.isFeatured)).toBe(true);
+      expect(result.every((network) => network.isFeatured)).toBe(true);
     });
 
     it('should filter by isTestnet', () => {
@@ -501,7 +602,7 @@ describe('transformers', () => {
       const result = filterNetworks(networks, { isActive: true });
 
       expect(result).toHaveLength(2);
-      expect(result.every((n) => n.isActive)).toBe(true);
+      expect(result.every((network) => network.isActive)).toBe(true);
     });
 
     it('should filter by isDeprecated', () => {

@@ -1,16 +1,19 @@
-import {
-  type ControllerGetStateAction,
-  type ControllerStateChangeEvent,
+import type {
+  ControllerGetStateAction,
+  ControllerStateChangeEvent,
 } from '@metamask/base-controller';
 import type { Messenger } from '@metamask/messenger';
 import { StaticIntervalPollingController } from '@metamask/polling-controller';
 import type { RemoteFeatureFlagControllerState } from '@metamask/remote-feature-flag-controller';
 import type { Json } from '@metamask/utils';
 
-import type { AbstractConfigRegistryApiService } from './config-registry-api-service';
+import type {
+  AbstractConfigRegistryApiService,
+  FetchConfigResult,
+} from './config-registry-api-service';
 import {
   ConfigRegistryApiService,
-  type FetchConfigResult,
+  filterNetworks,
 } from './config-registry-api-service';
 import { isConfigRegistryApiEnabled } from './utils/feature-flags';
 
@@ -228,8 +231,15 @@ export class ConfigRegistryController extends StaticIntervalPollingController<Co
         return;
       }
 
+      // Filter networks: only featured, active, non-testnet networks
+      const filteredNetworks = filterNetworks(result.data.data.networks, {
+        isFeatured: true,
+        isActive: true,
+        isTestnet: false,
+      });
+
       const newConfigs: Record<string, RegistryConfigEntry> = {};
-      for (const network of result.data.data.networks) {
+      for (const network of filteredNetworks) {
         newConfigs[network.chainId] = {
           key: network.chainId,
           value: network as unknown as Json,
@@ -264,7 +274,7 @@ export class ConfigRegistryController extends StaticIntervalPollingController<Co
       error instanceof Error ? error.message : 'Unknown error occurred';
 
     const hasNoConfigs =
-      Object.keys(this.state.configs?.networks || {}).length === 0;
+      Object.keys(this.state.configs?.networks ?? {}).length === 0;
 
     if (hasNoConfigs) {
       this.#useFallbackConfig(errorMessage);
@@ -280,12 +290,12 @@ export class ConfigRegistryController extends StaticIntervalPollingController<Co
   }
 
   getAllConfigs(): Record<string, RegistryConfigEntry> {
-    return { ...(this.state.configs?.networks || {}) };
+    return { ...(this.state.configs?.networks ?? {}) };
   }
 
-  getConfigValue<T = Json>(key: string): T | undefined {
+  getConfigValue<TValue = Json>(key: string): TValue | undefined {
     const entry = this.state.configs?.networks?.[key];
-    return entry?.value as T | undefined;
+    return entry?.value as TValue | undefined;
   }
 
   setConfig(key: string, value: Json, metadata?: Json): void {
@@ -327,6 +337,6 @@ export class ConfigRegistryController extends StaticIntervalPollingController<Co
   }
 
   stopPolling(): void {
-    this.stopAllPolling();
+    super.stopAllPolling();
   }
 }
