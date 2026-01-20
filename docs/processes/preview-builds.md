@@ -170,7 +170,7 @@ If you have made breaking changes to the package you want to test, and therefore
 
 ### Using a preview build for a patched package
 
-When you go to add a resolution for a package you want to test following steps in either of the sections above, you may find that the package is patched. An entry for a patched dependency looks like this:
+Sometimes the package you want to test is patched, and its entry in `dependencies` will look like this:
 
 ```json
 "@metamask/<PACKAGE_NAME>": "patch:@metamask/<PACKAGE_NAME>@npm:<ESCAPED_VERSION_RANGE>#~/.yarn/patches/<PATCH_NAME>.patch"
@@ -182,7 +182,7 @@ where:
 - `ESCAPED_VERSION_RANGE` is the version range, but where characters like `^` are escaped (for instance, `^` will appear as `%3A`).
 - `PATCH_NAME` is the filename for a patch. It is usually dash-separated, starts with the package name, and ends with the commit ID from which the patch was created.
 
-You will need to ensure that you keep the patch when you use a preview build for the package. To do this:
+Note that at this time, the `use-preview-build` script mentioned above does not support patched dependencies. You will need to follow the manual steps, ensuring that you keep the patch when you add the resolution. To do this:
 
 1. Look for the escaped version range on the right-hand side of the dependency entry and mentally parse it to determine the underlying version range that the patch is being applied to.
 
