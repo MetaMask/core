@@ -1,7 +1,12 @@
 import type { NetworkClientId } from '@metamask/network-controller';
+import type { TransactionType } from '@metamask/transaction-controller';
 import type { CaipChainId, Hex } from '@metamask/utils';
 
 import type { SmartTransactionsNetworkConfig } from './featureFlags';
+
+export type SentinelMeta = {
+  txType?: TransactionType;
+};
 
 /** API */
 export enum APIType {
@@ -125,6 +130,11 @@ export type UnsignedTransaction = any;
 
 // TODO
 export type SignedTransaction = any;
+
+export type SignedTransactionWithMetadata = {
+  tx: string;
+  metadata?: SentinelMeta;
+};
 
 // TODO
 export type SignedCanceledTransaction = any;

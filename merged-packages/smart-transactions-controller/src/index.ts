@@ -15,6 +15,8 @@ export {
   type IndividualTxFees,
   type FeatureFlags,
   type SmartTransaction,
+  type SentinelMeta,
+  type SignedTransactionWithMetadata,
   type SmartTransactionsNetworkConfig,
   type SmartTransactionsFeatureFlagsConfig,
   SmartTransactionMinedTx,

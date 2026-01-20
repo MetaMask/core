@@ -52,6 +52,7 @@ import type {
   IndividualTxFees,
   SignedCanceledTransaction,
   SignedTransaction,
+  SignedTransactionWithMetadata,
   SmartTransaction,
   SmartTransactionsStatus,
   UnsignedTransaction,
@@ -903,10 +904,12 @@ export class SmartTransactionsController extends StaticIntervalPollingController
     txParams,
     signedTransactions,
     signedCanceledTransactions = [],
+    signedTransactionsWithMetadata,
     networkClientId,
   }: {
     signedTransactions: SignedTransaction[];
     signedCanceledTransactions?: SignedCanceledTransaction[];
+    signedTransactionsWithMetadata?: SignedTransactionWithMetadata[];
     transactionMeta?: TransactionMeta;
     txParams?: TransactionParams;
     networkClientId?: NetworkClientId;
@@ -930,6 +933,7 @@ export class SmartTransactionsController extends StaticIntervalPollingController
             body: JSON.stringify({
               rawTxs: signedTransactions,
               rawCancelTxs: signedCanceledTransactions,
+              rawTxsWithMetadata: signedTransactionsWithMetadata,
             }),
           },
         ),

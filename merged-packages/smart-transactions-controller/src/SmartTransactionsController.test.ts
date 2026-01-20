@@ -24,6 +24,7 @@ import type {
 import {
   type TransactionParams,
   TransactionStatus,
+  TransactionType,
 } from '@metamask/transaction-controller';
 import type { Hex } from '@metamask/utils';
 import nock from 'nock';
@@ -1490,6 +1491,75 @@ describe('SmartTransactionsController', () => {
         // Verify the request was made with an empty rawCancelTxs array
         expect(requestBody).toBeDefined();
         expect(requestBody.rawCancelTxs).toStrictEqual([]);
+      });
+    });
+
+    it('includes signedTransactionsWithMetadata in request body as rawTxsWithMetadata', async () => {
+      await withController(async ({ controller }) => {
+        const signedTransaction = createSignedTransaction();
+        const submitTransactionsApiResponse =
+          createSubmitTransactionsApiResponse();
+
+        const signedTransactionsWithMetadata = [
+          {
+            tx: signedTransaction,
+            metadata: {
+              txType: TransactionType.swap,
+            },
+          },
+        ];
+
+        let requestBody: any;
+        nock(API_BASE_URL)
+          .post(
+            `/networks/${ethereumChainIdDec}/submitTransactions?stxControllerVersion=${packageJson.version}`,
+            (body) => {
+              requestBody = body;
+              return true;
+            },
+          )
+          .reply(200, submitTransactionsApiResponse);
+
+        await controller.submitSignedTransactions({
+          signedTransactions: [signedTransaction],
+          signedTransactionsWithMetadata,
+          txParams: createTxParams(),
+        });
+
+        // Verify the request includes rawTxsWithMetadata
+        expect(requestBody).toBeDefined();
+        expect(requestBody.rawTxsWithMetadata).toStrictEqual(
+          signedTransactionsWithMetadata,
+        );
+      });
+    });
+
+    it('omits rawTxsWithMetadata from request body when signedTransactionsWithMetadata is not provided', async () => {
+      await withController(async ({ controller }) => {
+        const signedTransaction = createSignedTransaction();
+        const submitTransactionsApiResponse =
+          createSubmitTransactionsApiResponse();
+
+        let requestBody: any;
+        nock(API_BASE_URL)
+          .post(
+            `/networks/${ethereumChainIdDec}/submitTransactions?stxControllerVersion=${packageJson.version}`,
+            (body) => {
+              requestBody = body;
+              return true;
+            },
+          )
+          .reply(200, submitTransactionsApiResponse);
+
+        await controller.submitSignedTransactions({
+          signedTransactions: [signedTransaction],
+          txParams: createTxParams(),
+          // signedTransactionsWithMetadata not provided
+        });
+
+        // Verify the request does not include rawTxsWithMetadata
+        expect(requestBody).toBeDefined();
+        expect(requestBody.rawTxsWithMetadata).toBeUndefined();
       });
     });
 
