@@ -140,6 +140,8 @@ export class ConnectivityController extends BaseController<
   ConnectivityControllerState,
   ConnectivityControllerMessenger
 > {
+  readonly #connectivityAdapter: ConnectivityAdapter;
+
   /**
    * Constructs a new {@link ConnectivityController}.
    *
@@ -151,28 +153,31 @@ export class ConnectivityController extends BaseController<
     messenger,
     connectivityAdapter,
   }: ConnectivityControllerOptions) {
-    const initialStatus = connectivityAdapter.getStatus();
-
     super({
       messenger,
       metadata: connectivityControllerMetadata,
       name: controllerName,
-      state: {
-        ...getDefaultConnectivityControllerState(),
-        connectivityStatus: initialStatus,
-      },
+      state: getDefaultConnectivityControllerState(),
     });
 
-    connectivityAdapter.onConnectivityChange((status) => {
-      this.update((draftState) => {
-        draftState.connectivityStatus = status;
-      });
-    });
+    this.#connectivityAdapter = connectivityAdapter;
+
+    this.#connectivityAdapter.onConnectivityChange(
+      this.setConnectivityStatus.bind(this),
+    );
 
     this.messenger.registerMethodActionHandlers(
       this,
       MESSENGER_EXPOSED_METHODS,
     );
+  }
+
+  /**
+   * Initializes the controller by fetching the initial connectivity status.
+   */
+  async init(): Promise<void> {
+    const initialStatus = await this.#connectivityAdapter.getStatus();
+    this.setConnectivityStatus(initialStatus);
   }
 
   /**
