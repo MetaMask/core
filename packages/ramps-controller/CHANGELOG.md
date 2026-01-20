@@ -10,10 +10,7 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 ### Added
 
 - Export `RampAction` type for `'buy' | 'sell'` ramp actions ([#7663](https://github.com/MetaMask/core/pull/7663))
-- Add `PaymentMethod` and `PaymentMethodsResponse` types for payment method data
-- Add `getPaymentMethods()` method to RampsService for fetching available payment methods by region, fiat, asset, and provider
-- Add `paymentMethods` state and `getPaymentMethods()` method to RampsController for managing payment method options
-- Add `selectedPaymentMethod` state and `setSelectedPaymentMethod()` method to RampsController for tracking user's payment method selection
+- Add payment methods support with `getPaymentMethods()` method, `paymentMethods` and `selectedPaymentMethod` state
 
 ## [4.0.0]
 
