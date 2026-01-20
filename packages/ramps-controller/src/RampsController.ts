@@ -985,9 +985,14 @@ export class RampsController extends BaseController<
 
     this.update((state) => {
       state.paymentMethods = sortedPayments;
-      // Always clear selected payment method when fetching new payment methods
-      // because the context (assetId, provider) may have changed and terms/fees could differ
-      state.selectedPaymentMethod = null;
+      // Only clear selected payment method if it's no longer in the new list
+      // This preserves the selection when cached data is returned (same context)
+      if (
+        state.selectedPaymentMethod &&
+        !sortedPayments.some((pm) => pm.id === state.selectedPaymentMethod?.id)
+      ) {
+        state.selectedPaymentMethod = null;
+      }
     });
 
     return { ...response, payments: sortedPayments };

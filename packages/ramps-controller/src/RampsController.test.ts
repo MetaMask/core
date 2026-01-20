@@ -2248,7 +2248,7 @@ describe('RampsController', () => {
       payments: [mockPaymentMethod1, mockPaymentMethod2],
     };
 
-    it('always clears selectedPaymentMethod when fetching new payment methods', async () => {
+    it('preserves selectedPaymentMethod when it exists in the new payment methods list', async () => {
       await withController(
         {
           options: {
@@ -2274,8 +2274,53 @@ describe('RampsController', () => {
             provider: '/providers/stripe',
           });
 
-          // selectedPaymentMethod should always be cleared when fetching new payment methods
-          // because the context (assetId, provider) may have changed and terms/fees could differ
+          // selectedPaymentMethod should be preserved when it exists in the new list
+          expect(controller.state.selectedPaymentMethod).toStrictEqual(
+            mockPaymentMethod1,
+          );
+          expect(controller.state.paymentMethods).toStrictEqual([
+            mockPaymentMethod1,
+            mockPaymentMethod2,
+          ]);
+        },
+      );
+    });
+
+    it('clears selectedPaymentMethod when it no longer exists in the new payment methods list', async () => {
+      const removedPaymentMethod: PaymentMethod = {
+        id: '/payments/removed-method',
+        paymentType: 'removed',
+        name: 'Removed Method',
+        score: 50,
+        icon: 'removed',
+      };
+
+      await withController(
+        {
+          options: {
+            state: {
+              userRegion: createMockUserRegion('us'),
+              selectedPaymentMethod: removedPaymentMethod,
+              paymentMethods: [removedPaymentMethod],
+            },
+          },
+        },
+        async ({ controller, rootMessenger }) => {
+          rootMessenger.registerActionHandler(
+            'RampsService:getPaymentMethods',
+            async () => mockPaymentMethodsResponse,
+          );
+
+          expect(controller.state.selectedPaymentMethod).toStrictEqual(
+            removedPaymentMethod,
+          );
+
+          await controller.getPaymentMethods({
+            assetId: 'eip155:1/slip44:60',
+            provider: '/providers/stripe',
+          });
+
+          // selectedPaymentMethod should be cleared when it's not in the new list
           expect(controller.state.selectedPaymentMethod).toBeNull();
           expect(controller.state.paymentMethods).toStrictEqual([
             mockPaymentMethod1,
