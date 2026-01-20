@@ -99,7 +99,11 @@ async function getSingleQuote(
     targetTokenAddress,
   } = request;
 
-  const slippageDecimal = getSlippage(messenger, sourceChainId, sourceTokenAddress);
+  const slippageDecimal = getSlippage(
+    messenger,
+    sourceChainId,
+    sourceTokenAddress,
+  );
 
   const slippageTolerance = new BigNumber(slippageDecimal * 100 * 100).toFixed(
     0,

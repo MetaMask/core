@@ -246,11 +246,7 @@ describe('Feature Flags Utils', () => {
         },
       });
 
-      const slippage = getSlippage(
-        messenger,
-        '0x1' as Hex,
-        TOKEN_ADDRESS_MOCK,
-      );
+      const slippage = getSlippage(messenger, '0x1' as Hex, TOKEN_ADDRESS_MOCK);
 
       expect(slippage).toBe(TOKEN_SPECIFIC_SLIPPAGE_MOCK);
     });

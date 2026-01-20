@@ -125,7 +125,7 @@ export function getSlippage(
   const normalizedTokenAddress = tokenAddress.toLowerCase() as Hex;
 
   // Look for token-specific slippage (case insensitive)
-  const slippageTokens = featureFlags.slippageTokens;
+  const { slippageTokens } = featureFlags;
   if (slippageTokens) {
     // Find the chain entry (case insensitive)
     const chainEntry = Object.entries(slippageTokens).find(
