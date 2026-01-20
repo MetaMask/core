@@ -737,10 +737,19 @@ describe('SnapAccountProvider', () => {
         mocks.SnapController.handleKeyringRequest.deleteAccount,
       ).toHaveBeenCalledWith(mockAccounts[1].id);
 
-      // Should capture the error but not throw
-      expect(captureExceptionSpy).toHaveBeenCalledWith(
+      // Should log the initial de-sync detection
+      expect(captureExceptionSpy).toHaveBeenNthCalledWith(
+        1,
+        new Error(
+          `Snap "${TEST_SNAP_ID}" has de-synced accounts (Snap has more), we'll attempt to re-sync them...`,
+        ),
+      );
+
+      // Should capture the deletion error but not throw
+      expect(captureExceptionSpy).toHaveBeenNthCalledWith(
+        2,
         expect.objectContaining({
-          message: 'Unable to delete de-synced Snap account',
+          message: `Unable to delete de-synced Snap account: ${mockAccounts[1].id}`,
           cause: deleteError,
         }),
       );
@@ -794,8 +803,15 @@ describe('SnapAccountProvider', () => {
         mocks.SnapController.handleKeyringRequest.deleteAccount,
       ).toHaveBeenCalledWith(extraSnapAccount2.id);
 
-      // Should log the re-sync attempt for the second recovery path
-      expect(captureExceptionSpy).toHaveBeenCalledWith(
+      // Should log the re-sync attempt for both recovery paths
+      expect(captureExceptionSpy).toHaveBeenNthCalledWith(
+        1,
+        new Error(
+          `Snap "${TEST_SNAP_ID}" has de-synced accounts (Snap has more), we'll attempt to re-sync them...`,
+        ),
+      );
+      expect(captureExceptionSpy).toHaveBeenNthCalledWith(
+        2,
         new Error(
           `Snap "${TEST_SNAP_ID}" has de-synced accounts, we'll attempt to re-sync them...`,
         ),

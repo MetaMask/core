@@ -169,6 +169,14 @@ export abstract class SnapAccountProvider extends BaseBip44AccountProvider {
       // NOTE: This should never happen, but if it does, we recover by deleting the
       // extra accounts from the Snap to bring it back in sync with MetaMask.
       if (localSnapAccounts.length < snapAccounts.size) {
+        // Accounts should never really be de-synced, so we want to log this to see how often this
+        // happens, cause that means that something else is buggy elsewhere...
+        this.messenger.captureException?.(
+          new Error(
+            `Snap "${this.snapId}" has de-synced accounts (Snap has more), we'll attempt to re-sync them...`,
+          ),
+        );
+
         // Build a set of local account IDs for quick lookup
         const localAccountIds = new Set(
           localSnapAccounts.map((account) => account.id),
@@ -187,9 +195,9 @@ export abstract class SnapAccountProvider extends BaseBip44AccountProvider {
               }
             } catch (error) {
               const sentryError = createSentryError(
-                `Unable to delete de-synced Snap account`,
+                `Unable to delete de-synced Snap account: ${snapAccountId}`,
                 error as Error,
-                { provider: this.getName() },
+                { provider: this.getName(), snapAccountId },
               );
               this.messenger.captureException?.(sentryError);
             }
