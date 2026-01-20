@@ -9,8 +9,30 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ### Added
 
+- Added chainRanking type to feature flags ([#6933](https://github.com/MetaMask/core/pull/6933))
+
+## [64.5.1]
+
+### Changed
+
+- Bump `@metamask/accounts-controller` from `^35.0.1` to `^35.0.2` ([#7642](https://github.com/MetaMask/core/pull/7642))
+- Bump `@metamask/assets-controllers` from `^95.2.0` to `^95.3.0` ([#7642](https://github.com/MetaMask/core/pull/7642))
+- Bump `@metamask/gas-fee-controller` from `^26.0.1` to `^26.0.2` ([#7642](https://github.com/MetaMask/core/pull/7642))
+- Bump `@metamask/multichain-network-controller` from `^3.0.1` to `^3.0.2` ([#7642](https://github.com/MetaMask/core/pull/7642))
+- Bump `@metamask/network-controller` from `^28.0.0` to `^29.0.0` ([#7642](https://github.com/MetaMask/core/pull/7642))
+- Bump `@metamask/polling-controller` from `^16.0.1` to `^16.0.2` ([#7642](https://github.com/MetaMask/core/pull/7642))
+- Bump `@metamask/transaction-controller` from `^62.9.1` to `^62.9.2` ([#7642](https://github.com/MetaMask/core/pull/7642))
+
+## [64.5.0]
+
+### Added
+
 - Add `has_gas_included_quote` property to `QuoteFetchData` type and compute it in `QuotesReceived` event to indicate if any received quote has gas included ([#7611](https://github.com/MetaMask/core/pull/7611))
 - Add optional `usd_balance_source` property to `QuotesReceived` event and `getQuotesReceivedProperties` utility to allow clients to pass the source token balance in USD ([#7611](https://github.com/MetaMask/core/pull/7611))
+
+### Changed
+
+- Bump `@metamask/assets-controllers` from `^95.1.0` to `^95.2.0` ([#7622](https://github.com/MetaMask/core/pull/7622))
 
 ## [64.4.1]
 
@@ -992,7 +1014,9 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 - Initial release ([#5317](https://github.com/MetaMask/core/pull/5317))
 
-[Unreleased]: https://github.com/MetaMask/core/compare/@metamask/bridge-controller@64.4.1...HEAD
+[Unreleased]: https://github.com/MetaMask/core/compare/@metamask/bridge-controller@64.5.1...HEAD
+[64.5.1]: https://github.com/MetaMask/core/compare/@metamask/bridge-controller@64.5.0...@metamask/bridge-controller@64.5.1
+[64.5.0]: https://github.com/MetaMask/core/compare/@metamask/bridge-controller@64.4.1...@metamask/bridge-controller@64.5.0
 [64.4.1]: https://github.com/MetaMask/core/compare/@metamask/bridge-controller@64.4.0...@metamask/bridge-controller@64.4.1
 [64.4.0]: https://github.com/MetaMask/core/compare/@metamask/bridge-controller@64.3.0...@metamask/bridge-controller@64.4.0
 [64.3.0]: https://github.com/MetaMask/core/compare/@metamask/bridge-controller@64.2.0...@metamask/bridge-controller@64.3.0

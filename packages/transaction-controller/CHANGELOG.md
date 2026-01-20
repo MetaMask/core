@@ -7,6 +7,31 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+### Added
+
+- Add support for `submitHistoryLimit` feature flag to configure the maximum number of entries in the submit history ([#7648](https://github.com/MetaMask/core/pull/7648))
+  - Defaults to 100 if not provided.
+- Add support for `transactionHistoryLimit` feature flag to configure the maximum number of transactions stored in state ([#7648](https://github.com/MetaMask/core/pull/7648))
+  - Defaults to 40 if not provided.
+
+### Changed
+
+- **DEPRECATED**: The `transactionHistoryLimit` constructor option is now deprecated ([#7648](https://github.com/MetaMask/core/pull/7648))
+  - Use the `transactionHistoryLimit` feature flag in `RemoteFeatureFlagController` instead.
+  - This option will be removed in a future version.
+
+## [62.9.2]
+
+### Changed
+
+- Bump `@metamask/accounts-controller` from `^35.0.1` to `^35.0.2` ([#7642](https://github.com/MetaMask/core/pull/7642))
+- Bump `@metamask/gas-fee-controller` from `^26.0.1` to `^26.0.2` ([#7642](https://github.com/MetaMask/core/pull/7642))
+- Bump `@metamask/network-controller` from `^28.0.0` to `^29.0.0` ([#7642](https://github.com/MetaMask/core/pull/7642))
+
+### Fixed
+
+- Exclude transactions where `isTransfer` is defined when marking nonce duplicates as dropped ([#7637](https://github.com/MetaMask/core/pull/7637))
+
 ## [62.9.1]
 
 ### Changed
@@ -2073,7 +2098,8 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
     All changes listed after this point were applied to this package following the monorepo conversion.
 
-[Unreleased]: https://github.com/MetaMask/core/compare/@metamask/transaction-controller@62.9.1...HEAD
+[Unreleased]: https://github.com/MetaMask/core/compare/@metamask/transaction-controller@62.9.2...HEAD
+[62.9.2]: https://github.com/MetaMask/core/compare/@metamask/transaction-controller@62.9.1...@metamask/transaction-controller@62.9.2
 [62.9.1]: https://github.com/MetaMask/core/compare/@metamask/transaction-controller@62.9.0...@metamask/transaction-controller@62.9.1
 [62.9.0]: https://github.com/MetaMask/core/compare/@metamask/transaction-controller@62.8.0...@metamask/transaction-controller@62.9.0
 [62.8.0]: https://github.com/MetaMask/core/compare/@metamask/transaction-controller@62.7.0...@metamask/transaction-controller@62.8.0

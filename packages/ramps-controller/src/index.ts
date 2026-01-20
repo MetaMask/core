@@ -6,6 +6,7 @@ export type {
   RampsControllerState,
   RampsControllerStateChangeEvent,
   RampsControllerOptions,
+  UserRegion,
 } from './RampsController';
 export {
   RampsController,
@@ -17,11 +18,11 @@ export type {
   RampsServiceMessenger,
   Country,
   State,
-  Eligibility,
   CountryPhone,
   Provider,
   ProviderLink,
   ProviderLogos,
+  RampAction,
 } from './RampsService';
 export {
   RampsService,
@@ -32,7 +33,6 @@ export {
 export type {
   RampsServiceGetGeolocationAction,
   RampsServiceGetCountriesAction,
-  RampsServiceGetEligibilityAction,
 } from './RampsService-method-action-types';
 export type {
   RequestCache,

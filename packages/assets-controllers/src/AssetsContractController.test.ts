@@ -113,6 +113,7 @@ async function setupAssetContractControllers({
     getRpcServiceOptions: () => ({
       fetch,
       btoa,
+      isOffline: (): boolean => false,
     }),
   });
   if (useNetworkControllerProvider) {
