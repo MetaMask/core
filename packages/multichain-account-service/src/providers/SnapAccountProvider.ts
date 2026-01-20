@@ -182,6 +182,8 @@ export abstract class SnapAccountProvider extends BaseBip44AccountProvider {
                 // This account exists in the Snap but not in MetaMask, delete it from
                 // the Snap.
                 await this.#client.deleteAccount(snapAccountId);
+                // Update the local Set so subsequent checks use the correct size
+                snapAccounts.delete(snapAccountId);
               }
             } catch (error) {
               const sentryError = createSentryError(
