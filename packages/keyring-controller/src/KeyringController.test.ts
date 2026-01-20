@@ -1645,6 +1645,35 @@ describe('KeyringController', () => {
           expect(controller.state.keyrings).toHaveLength(1);
         });
       });
+
+      it('should not remove other empty keyrings when removing an account', async () => {
+        await withController(async ({ controller }) => {
+          // Import an account, creating a Simple keyring with 1 account
+          const importedAccount = await controller.importAccountWithStrategy(
+            AccountImportStrategy.privateKey,
+            [privateKey],
+          );
+
+          // Add an empty Simple keyring (no accounts)
+          await controller.addNewKeyring(KeyringTypes.simple);
+
+          // We now have: 1 HD keyring + 1 Simple keyring (with account) + 1 empty Simple keyring = 3 keyrings
+          expect(controller.state.keyrings).toHaveLength(3);
+          expect(controller.state.keyrings[1].accounts).toStrictEqual([
+            importedAccount,
+          ]);
+          expect(controller.state.keyrings[2].accounts).toStrictEqual([]);
+
+          // Remove the imported account (empties the first Simple keyring)
+          await controller.removeAccount(importedAccount);
+
+          // Only the targeted keyring should be removed, the other empty Simple keyring should remain
+          expect(controller.state.keyrings).toHaveLength(2);
+          expect(controller.state.keyrings[0].type).toBe(KeyringTypes.hd);
+          expect(controller.state.keyrings[1].type).toBe(KeyringTypes.simple);
+          expect(controller.state.keyrings[1].accounts).toStrictEqual([]);
+        });
+      });
     });
 
     describe('when the keyring for the given address does not support removeAccount', () => {
