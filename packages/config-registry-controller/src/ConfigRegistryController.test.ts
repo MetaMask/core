@@ -117,7 +117,7 @@ describe('ConfigRegistryController', () => {
 
     mockRemoteFeatureFlagGetState = jest.fn().mockReturnValue({
       remoteFeatureFlags: {
-        config_registry_api_enabled: true,
+        configRegistryApiEnabled: true,
       },
       cacheTimestamp: Date.now(),
     });
@@ -531,7 +531,7 @@ describe('ConfigRegistryController', () => {
     it('should use fallback config when no configs exist', async () => {
       mockRemoteFeatureFlagGetState.mockReturnValue({
         remoteFeatureFlags: {
-          config_registry_api_enabled: true,
+          configRegistryApiEnabled: true,
         },
         cacheTimestamp: Date.now(),
       });
@@ -557,7 +557,7 @@ describe('ConfigRegistryController', () => {
     it('should not use fallback when configs already exist', async () => {
       mockRemoteFeatureFlagGetState.mockReturnValue({
         remoteFeatureFlags: {
-          config_registry_api_enabled: true,
+          configRegistryApiEnabled: true,
         },
         cacheTimestamp: Date.now(),
       });
@@ -589,7 +589,7 @@ describe('ConfigRegistryController', () => {
     it('should handle errors during polling', async () => {
       mockRemoteFeatureFlagGetState.mockReturnValueOnce({
         remoteFeatureFlags: {
-          config_registry_api_enabled: true,
+          configRegistryApiEnabled: true,
         },
         cacheTimestamp: Date.now(),
       });
@@ -684,7 +684,7 @@ describe('ConfigRegistryController', () => {
     it('should use fallback config when feature flag is disabled', async () => {
       mockRemoteFeatureFlagGetState.mockReturnValue({
         remoteFeatureFlags: {
-          config_registry_api_enabled: false,
+          configRegistryApiEnabled: false,
         },
         cacheTimestamp: Date.now(),
       });
@@ -714,7 +714,7 @@ describe('ConfigRegistryController', () => {
     it('should use API when feature flag is enabled', async () => {
       mockRemoteFeatureFlagGetState.mockReturnValue({
         remoteFeatureFlags: {
-          config_registry_api_enabled: true,
+          configRegistryApiEnabled: true,
         },
         cacheTimestamp: Date.now(),
       });
