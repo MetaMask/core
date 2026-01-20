@@ -233,11 +233,6 @@ export class ConfigRegistryController extends StaticIntervalPollingController<Co
         newConfigs[network.chainId] = {
           key: network.chainId,
           value: network as unknown as Json,
-          metadata: {
-            name: network.name,
-            isTestnet: network.isTestnet,
-            isFeatured: network.isFeatured,
-          } as unknown as Json,
         };
       }
 

@@ -50,7 +50,7 @@ function getConfigRegistryControllerMessenger(): {
   >({
     namespace,
     parent: rootMessenger,
-  });
+  }) as ConfigRegistryMessenger;
 
   rootMessenger.delegate({
     messenger: configRegistryControllerMessenger,
@@ -165,7 +165,9 @@ describe('ConfigRegistryController', () => {
         apiService,
       });
 
-      expect(controller.state.configs.networks).toStrictEqual(initialState.configs?.networks);
+      expect(controller.state.configs.networks).toStrictEqual(
+        initialState.configs?.networks,
+      );
       expect(controller.state.version).toBe('v1.0.0');
       expect(controller.state.lastFetched).toBe(1234567890);
     });
@@ -398,7 +400,9 @@ describe('ConfigRegistryController', () => {
 
       controller.setConfig('existing-key', 'new-value');
 
-      expect(controller.state.configs.networks?.['existing-key']?.value).toBe('new-value');
+      expect(controller.state.configs.networks?.['existing-key']?.value).toBe(
+        'new-value',
+      );
     });
 
     it('should work via messenger action', () => {
@@ -542,13 +546,12 @@ describe('ConfigRegistryController', () => {
         fallbackConfig: MOCK_FALLBACK_CONFIG,
       });
 
-      controller.startPolling({});
-      await advanceTime({ clock, duration: 0 });
+      await controller._executePoll({});
 
-      expect(controller.state.configs).toStrictEqual({ networks: MOCK_FALLBACK_CONFIG });
+      expect(controller.state.configs).toStrictEqual({
+        networks: MOCK_FALLBACK_CONFIG,
+      });
       expect(controller.state.fetchError).toBe('Network error');
-
-      controller.stopPolling();
     });
 
     it('should not use fallback when configs already exist', async () => {
@@ -576,14 +579,11 @@ describe('ConfigRegistryController', () => {
         fallbackConfig: MOCK_FALLBACK_CONFIG,
       });
 
-      controller.startPolling({});
-      await advanceTime({ clock, duration: 0 });
+      await controller._executePoll({});
 
       // Should keep existing configs, not use fallback
       expect(controller.state.configs).toStrictEqual(existingConfigs);
       expect(controller.state.fetchError).toBe('Network error');
-
-      controller.stopPolling();
     });
 
     it('should handle errors during polling', async () => {
@@ -608,7 +608,9 @@ describe('ConfigRegistryController', () => {
       await controller._executePoll({});
 
       // Since we have no configs, it should use fallback
-      expect(controller.state.configs).toStrictEqual({ networks: MOCK_FALLBACK_CONFIG });
+      expect(controller.state.configs).toStrictEqual({
+        networks: MOCK_FALLBACK_CONFIG,
+      });
       expect(controller.state.fetchError).toBe('Network error');
       expect(mockRemoteFeatureFlagGetState).toHaveBeenCalled();
     });
@@ -699,7 +701,9 @@ describe('ConfigRegistryController', () => {
       await advanceTime({ clock, duration: 0 });
 
       expect(executePollSpy).toHaveBeenCalledTimes(1);
-      expect(controller.state.configs).toStrictEqual({ networks: MOCK_FALLBACK_CONFIG });
+      expect(controller.state.configs).toStrictEqual({
+        networks: MOCK_FALLBACK_CONFIG,
+      });
       expect(controller.state.fetchError).toBe(
         'Feature flag disabled - using fallback configuration',
       );
@@ -762,14 +766,8 @@ describe('ConfigRegistryController', () => {
         apiService: mockApiService,
       });
 
-      controller.startPolling({});
-
-      await advanceTime({ clock, duration: 0 });
-      // Wait for async operations to complete
-      await new Promise((resolve) => {
-        setTimeout(resolve, 10);
-        clock.tick(10);
-      });
+      const executePollPromise = controller._executePoll({});
+      await executePollPromise;
 
       expect(fetchConfigSpy).toHaveBeenCalled();
       expect(controller.state.configs.networks?.['0x1']).toBeDefined();
@@ -797,7 +795,9 @@ describe('ConfigRegistryController', () => {
       await advanceTime({ clock, duration: 0 });
 
       expect(executePollSpy).toHaveBeenCalledTimes(1);
-      expect(controller.state.configs).toStrictEqual({ networks: MOCK_FALLBACK_CONFIG });
+      expect(controller.state.configs).toStrictEqual({
+        networks: MOCK_FALLBACK_CONFIG,
+      });
       expect(controller.state.fetchError).toBe(
         'Feature flag disabled - using fallback configuration',
       );
@@ -822,7 +822,9 @@ describe('ConfigRegistryController', () => {
       await advanceTime({ clock, duration: 0 });
 
       expect(executePollSpy).toHaveBeenCalledTimes(1);
-      expect(controller.state.configs).toStrictEqual({ networks: MOCK_FALLBACK_CONFIG });
+      expect(controller.state.configs).toStrictEqual({
+        networks: MOCK_FALLBACK_CONFIG,
+      });
       expect(controller.state.fetchError).toBe(
         'Feature flag disabled - using fallback configuration',
       );
