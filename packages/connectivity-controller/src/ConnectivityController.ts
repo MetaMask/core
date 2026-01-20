@@ -6,6 +6,7 @@ import type {
 import { BaseController } from '@metamask/base-controller';
 import type { Messenger } from '@metamask/messenger';
 
+import { ConnectivityControllerMethodActions } from './ConnectivityController-method-action-types';
 import { CONNECTIVITY_STATUSES } from './types';
 import type { ConnectivityAdapter, ConnectivityStatus } from './types';
 
@@ -53,6 +54,8 @@ export function getDefaultConnectivityControllerState(): ConnectivityControllerS
   };
 }
 
+const MESSENGER_EXPOSED_METHODS = ['setStatus'] as const;
+
 /**
  * Retrieves the state of the {@link ConnectivityController}.
  */
@@ -65,7 +68,8 @@ export type ConnectivityControllerGetStateAction = ControllerGetStateAction<
  * Actions that {@link ConnectivityControllerMessenger} exposes to other consumers.
  */
 export type ConnectivityControllerActions =
-  ConnectivityControllerGetStateAction;
+  | ConnectivityControllerGetStateAction
+  | ConnectivityControllerMethodActions;
 
 /**
  * Actions from other messengers that {@link ConnectivityControllerMessenger} calls.
@@ -163,6 +167,22 @@ export class ConnectivityController extends BaseController<
       this.update((draftState) => {
         draftState.connectivityStatus = status;
       });
+    });
+
+    this.messenger.registerMethodActionHandlers(
+      this,
+      MESSENGER_EXPOSED_METHODS,
+    );
+  }
+
+  /**
+   * Sets the connectivity status.
+   *
+   * @param status - The connectivity status to set.
+   */
+  setStatus(status: ConnectivityStatus): void {
+    this.update((draftState) => {
+      draftState.connectivityStatus = status;
     });
   }
 }

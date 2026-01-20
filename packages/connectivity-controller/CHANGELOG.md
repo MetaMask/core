@@ -7,6 +7,11 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+### Added
+
+- Add `setStatus` method to manually set connectivity status ([#7676](https://github.com/MetaMask/core/pull/7676))
+  - The method is exposed as a messenger action `ConnectivityController:setStatus`
+
 ## [0.1.0]
 
 ### Added

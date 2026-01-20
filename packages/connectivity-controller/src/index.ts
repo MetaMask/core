@@ -6,6 +6,7 @@ export type {
   ConnectivityControllerEvents,
   ConnectivityControllerMessenger,
 } from './ConnectivityController';
+export type { ConnectivityControllerSetStatusAction } from './ConnectivityController-method-action-types';
 export type { ConnectivityAdapter, ConnectivityStatus } from './types';
 export { CONNECTIVITY_STATUSES } from './types';
 export {
