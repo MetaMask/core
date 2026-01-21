@@ -7,6 +7,15 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+### Added
+
+- Add `ApiPlatformClient` for unified access to MetaMask backend APIs with TanStack Query caching ([#7658](https://github.com/MetaMask/core/pull/7658))
+  - Automatic request deduplication and intelligent caching
+  - Automatic retries with exponential backoff for transient failures
+  - Support for Accounts API, Price API, Token API, and Tokens API endpoints
+  - Export helper functions `shouldRetry` and `calculateRetryDelay` for custom retry logic
+  - Export API types for external consumers
+
 ### Changed
 
 - Upgrade `@metamask/utils` from `^11.8.1` to `^11.9.0` ([#7511](https://github.com/MetaMask/core/pull/7511))

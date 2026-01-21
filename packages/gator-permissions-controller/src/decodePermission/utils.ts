@@ -38,8 +38,18 @@ const ENFORCER_CONTRACT_NAMES = {
  */
 export const getChecksumEnforcersByChainId = (
   contracts: DeployedContractsByName,
-) => {
-  const getChecksumContractAddress = (contractName: string) => {
+): {
+  erc20StreamingEnforcer: Hex;
+  erc20PeriodicEnforcer: Hex;
+  nativeTokenStreamingEnforcer: Hex;
+  nativeTokenPeriodicEnforcer: Hex;
+  exactCalldataEnforcer: Hex;
+  valueLteEnforcer: Hex;
+  timestampEnforcer: Hex;
+  nonceEnforcer: Hex;
+  allowedCalldataEnforcer: Hex;
+} => {
+  const getChecksumContractAddress = (contractName: string): Hex => {
     const address = contracts[contractName];
 
     if (!address) {
@@ -181,9 +191,12 @@ export const createPermissionRulesForChainId: (
  * @param superset - The set expected to contain all elements of `subset`.
  * @returns `true` if `subset` ⊆ `superset`, otherwise `false`.
  */
-export const isSubset = <T>(subset: Set<T>, superset: Set<T>): boolean => {
-  for (const x of subset) {
-    if (!superset.has(x)) {
+export const isSubset = <TElement>(
+  subset: Set<TElement>,
+  superset: Set<TElement>,
+): boolean => {
+  for (const element of subset) {
+    if (!superset.has(element)) {
       return false;
     }
   }
