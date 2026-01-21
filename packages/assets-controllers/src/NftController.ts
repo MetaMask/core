@@ -63,7 +63,6 @@ import type {
   Collection,
   Attributes,
   LastSale,
-  GetCollectionsResponse,
   TopBid,
 } from './NftDetectionController';
 import type { NetworkControllerFindNetworkClientIdByChainIdAction } from '../../network-controller/src/NetworkController';
@@ -607,11 +606,7 @@ export class NftController extends BaseController<
       },
       rarityRank && { rarityRank },
       rarity && { rarity },
-      collection && {
-        collection: {
-          ...(collection || {}),
-        },
-      },
+      collection && { collection },
     );
 
     return nftMetadata;
