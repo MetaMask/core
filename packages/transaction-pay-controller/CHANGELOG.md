@@ -10,8 +10,6 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 ### Added
 
 - Add `slippageTokens` feature flag support for token-specific slippage configuration ([#7673](https://github.com/MetaMask/core/pull/7673))
-  - Add `getSlippage` utility function that retrieves slippage values keyed by chain ID and token address (case-insensitive).
-  - Falls back to general `slippage` feature flag, then static default (0.005).
 
 ### Changed
 

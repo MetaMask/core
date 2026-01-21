@@ -119,42 +119,46 @@ export function getSlippage(
   tokenAddress: Hex,
 ): number {
   const featureFlags = getFeatureFlagsRaw(messenger);
-
-  // Normalize chain ID and token address to lowercase for case-insensitive lookup
-  const normalizedChainId = chainId.toLowerCase() as Hex;
-  const normalizedTokenAddress = tokenAddress.toLowerCase() as Hex;
-
-  // Look for token-specific slippage (case insensitive)
   const { slippageTokens } = featureFlags;
-  if (slippageTokens) {
-    // Find the chain entry (case insensitive)
-    const chainEntry = Object.entries(slippageTokens).find(
-      ([key]) => key.toLowerCase() === normalizedChainId,
-    );
 
-    if (chainEntry) {
-      const [, tokenMap] = chainEntry;
-      // Find the token entry (case insensitive)
-      const tokenEntry = Object.entries(tokenMap).find(
-        ([key]) => key.toLowerCase() === normalizedTokenAddress,
-      );
+  const tokenMap = getCaseInsensitive(slippageTokens, chainId);
+  const tokenSlippage = getCaseInsensitive(tokenMap, tokenAddress);
 
-      if (tokenEntry) {
-        const [, slippage] = tokenEntry;
-        log('Using token-specific slippage', {
-          chainId,
-          tokenAddress,
-          slippage,
-        });
-        return slippage;
-      }
-    }
+  if (tokenSlippage !== undefined) {
+    log('Using token-specific slippage', {
+      chainId,
+      tokenAddress,
+      slippage: tokenSlippage,
+    });
+    return tokenSlippage;
   }
 
-  // Fall back to general slippage feature flag, then static default
   const slippage = featureFlags.slippage ?? DEFAULT_SLIPPAGE;
   log('Using default slippage', { chainId, tokenAddress, slippage });
   return slippage;
+}
+
+/**
+ * Get a value from a record using a case-insensitive key lookup.
+ *
+ * @param record - The record to search.
+ * @param key - The key to look up (case-insensitive).
+ * @returns The value if found, undefined otherwise.
+ */
+function getCaseInsensitive<T>(
+  record: Record<string, T> | undefined,
+  key: string,
+): T | undefined {
+  if (!record) {
+    return undefined;
+  }
+
+  const normalizedKey = key.toLowerCase();
+  const entry = Object.entries(record).find(
+    ([k]) => k.toLowerCase() === normalizedKey,
+  );
+
+  return entry?.[1];
 }
 
 /**
