@@ -534,7 +534,7 @@ export class SeedlessOnboardingController<
   ): Promise<void> {
     if (dataType === EncAccountDataType.PrimarySrp) {
       throw new Error(
-        'PrimarySrp cannot be added via addNewSecretData. Use createToprfKeyAndBackupSeedPhrase instead.',
+        SeedlessOnboardingControllerErrorMessage.PrimarySrpCannotBeAddedViaAddNewSecretData,
       );
     }
 

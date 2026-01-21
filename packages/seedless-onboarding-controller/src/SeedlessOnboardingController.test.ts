@@ -1731,7 +1731,7 @@ describe('SeedlessOnboardingController', () => {
             },
           ),
         ).rejects.toThrow(
-          'PrimarySrp cannot be added via addNewSecretData. Use createToprfKeyAndBackupSeedPhrase instead.',
+          SeedlessOnboardingControllerErrorMessage.PrimarySrpCannotBeAddedViaAddNewSecretData,
         );
       });
     });

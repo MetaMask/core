@@ -60,4 +60,5 @@ export enum SeedlessOnboardingControllerErrorMessage {
   FailedToFetchAuthPubKey = `${controllerName} - Failed to fetch latest auth pub key`,
   InvalidPasswordOutdatedCache = `${controllerName} - Invalid password outdated cache provided.`,
   FailedToRefreshJWTTokens = `${controllerName} - Failed to refresh JWT tokens`,
+  PrimarySrpCannotBeAddedViaAddNewSecretData = `${controllerName} - PrimarySrp cannot be added via addNewSecretData. Use createToprfKeyAndBackupSeedPhrase instead.`,
 }
