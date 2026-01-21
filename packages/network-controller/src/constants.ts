@@ -31,6 +31,10 @@ export enum NetworkStatus {
    * status only applies to Infura networks.
    */
   Blocked = 'blocked',
+  /**
+   * Some other status for testing.
+   */
+  Test = 'test',
 }
 
 export const INFURA_BLOCKED_KEY = 'countryBlocked';
