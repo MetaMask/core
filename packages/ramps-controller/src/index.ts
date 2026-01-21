@@ -23,6 +23,8 @@ export type {
   ProviderLink,
   ProviderLogos,
   RampAction,
+  PaymentMethod,
+  PaymentMethodsResponse,
 } from './RampsService';
 export {
   RampsService,
@@ -33,6 +35,7 @@ export {
 export type {
   RampsServiceGetGeolocationAction,
   RampsServiceGetCountriesAction,
+  RampsServiceGetPaymentMethodsAction,
 } from './RampsService-method-action-types';
 export type {
   RequestCache,

@@ -10,5 +10,13 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 ### Added
 
 - Initial release ([#7587](https://github.com/MetaMask/core/pull/7587))
+- Add `MulticallClient` for batching RPC calls using Multicall3 contract ([#7677](https://github.com/MetaMask/core/pull/7677))
+- Add batch utilities (`divideIntoBatches`, `reduceInBatchesSerially`) for processing arrays in batches ([#7677](https://github.com/MetaMask/core/pull/7677))
+- Add `TokenDetector` service for detecting ERC-20 tokens with non-zero balances on a chain ([#7683](https://github.com/MetaMask/core/pull/7683))
+- Add `viem` dependency for ABI encoding/decoding in MulticallClient
+
+### Changed
+
+- Refactor `MulticallClient` to use viem for ABI encoding/decoding instead of manual implementation
 
 [Unreleased]: https://github.com/MetaMask/core/

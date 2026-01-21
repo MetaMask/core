@@ -7,6 +7,12 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+### Changed
+
+- Removed call to NFT collections endpoint ([#7687](https://github.com/MetaMask/core/pull/7687))
+- Bump `@metamask/multichain-account-service` from `^5.0.0` to `^5.1.0` ([#7678](https://github.com/MetaMask/core/pull/7678))
+- Set zero address for native token of Henesys/MSU ([#7666](https://github.com/MetaMask/core/pull/7666))
+
 ## [95.3.0]
 
 ### Added
