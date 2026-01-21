@@ -112,6 +112,7 @@ If you have made non-breaking changes to the package you want to test, and there
 > "@metamask/controller-utils@^1.1.3": "npm:@metamask-previews/controller-utils@1.1.4-preview-e2df9b4",
 > "@metamask/controller-utils@^1.1.4": "npm:@metamask-previews/controller-utils@1.1.4-preview-e2df9b4",
 > ```
+
 </details>
 
 ### Testing breaking changes to a package
@@ -166,6 +167,7 @@ If you have made breaking changes to the package you want to test, and therefore
 > ```json
 > "metamask@workspace:./@metamask/network-controller@^12.4.9": "npm:@metamask-previews/network-controller@12.4.9-preview-e2df9b4",
 > ```
+
 </details>
 
 ### Using a preview build for a patched package
