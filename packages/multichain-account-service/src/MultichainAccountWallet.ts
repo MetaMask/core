@@ -577,10 +577,68 @@ export class MultichainAccountWallet<
       // from there).
       let maxGroupIndex = this.getNextGroupIndex();
 
+      // Track which providers have been batch-processed to skip sequential discovery
+      const batchProcessedProviders = new Set<Bip44AccountProvider<Account>>();
+
+      // OPTIMIZATION: Batch EVM account discovery to avoid N vault updates.
+      // First, find how many active accounts exist (read-only, no vault writes),
+      // then create them all in a single withKeyring call (one vault write).
+      const evmProvider = this.#providers.find(
+        (p) => p instanceof EvmAccountProvider,
+      ) as EvmAccountProvider | undefined;
+
+      if (evmProvider) {
+        try {
+          this.#log(
+            `[EVM] Batch discovery: checking for active accounts starting at index ${maxGroupIndex}...`,
+          );
+
+          const activeCount = await evmProvider.findActiveAccountCount({
+            entropySource: this.#entropySource,
+            startIndex: maxGroupIndex,
+          });
+
+          if (activeCount > 0) {
+            this.#log(
+              `[EVM] Found ${activeCount} active accounts. Creating in batch...`,
+            );
+            await evmProvider.bulkCreateAccounts({
+              entropySource: this.#entropySource,
+              count: maxGroupIndex + activeCount,
+            });
+            maxGroupIndex += activeCount;
+            this.#log(
+              `[EVM] Batch creation complete. New maxGroupIndex: ${maxGroupIndex}`,
+            );
+          } else {
+            this.#log(`[EVM] No new active accounts found.`);
+          }
+
+          // Mark EVM as batch-processed so we skip sequential discovery for it
+          batchProcessedProviders.add(
+            evmProvider as unknown as Bip44AccountProvider<Account>,
+          );
+        } catch (error) {
+          this.#log(
+            `${WARNING_PREFIX} [EVM] Batch discovery failed, falling back to sequential:`,
+            error,
+          );
+          // Don't add to batchProcessedProviders - will fall through to sequential discovery
+        }
+      }
+
       // One serialized loop per provider; all run concurrently
       const runProviderDiscovery = async (
         context: AccountProviderDiscoveryContext<Account>,
       ) => {
+        // Skip providers that were already batch-processed
+        if (batchProcessedProviders.has(context.provider)) {
+          this.#log(
+            `[${context.provider.getName()}] Skipping sequential discovery (batch-processed)`,
+          );
+          return;
+        }
+
         const providerName = context.provider.getName();
         const message = (stepName: string, groupIndex: number) =>
           `[${providerName}] Discovery ${stepName} for group index: ${groupIndex}`;
