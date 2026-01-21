@@ -22,6 +22,7 @@ import {
   convertHexToDecimal,
 } from '@metamask/controller-utils';
 import type { TraceCallback, TraceContext } from '@metamask/controller-utils';
+import type { AccountActivityServiceTransactionUpdatedEvent } from '@metamask/core-backend';
 import EthQuery from '@metamask/eth-query';
 import type {
   FetchGasFeeEstimateOptions,
@@ -602,7 +603,9 @@ export type AllowedActions =
 /**
  * The external events available to the {@link TransactionController}.
  */
-export type AllowedEvents = NetworkControllerStateChangeEvent;
+export type AllowedEvents =
+  | AccountActivityServiceTransactionUpdatedEvent
+  | NetworkControllerStateChangeEvent;
 
 /**
  * Represents the `TransactionController:stateChange` event.

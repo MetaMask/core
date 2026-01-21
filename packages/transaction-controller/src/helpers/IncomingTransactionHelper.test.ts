@@ -1,3 +1,4 @@
+import type { Transaction as AccountActivityTransaction } from '@metamask/core-backend';
 import type { Hex } from '@metamask/utils';
 
 import { IncomingTransactionHelper } from './IncomingTransactionHelper';
@@ -5,7 +6,10 @@ import type { TransactionControllerMessenger } from '..';
 import { flushPromises } from '../../../../tests/helpers';
 import { TransactionStatus, TransactionType } from '../types';
 import type { RemoteTransactionSource, TransactionMeta } from '../types';
-import { getIncomingTransactionsPollingInterval } from '../utils/feature-flags';
+import {
+  getIncomingTransactionsPollingInterval,
+  isEnhancedHistoryRetrievalEnabled,
+} from '../utils/feature-flags';
 
 jest.useFakeTimers();
 
@@ -131,6 +135,8 @@ describe('IncomingTransactionHelper', () => {
     jest
       .mocked(getIncomingTransactionsPollingInterval)
       .mockReturnValue(1000 * 30);
+
+    jest.mocked(isEnhancedHistoryRetrievalEnabled).mockReturnValue(false);
   });
 
   describe('on interval', () => {
@@ -505,6 +511,401 @@ describe('IncomingTransactionHelper', () => {
           tags: [CLIENT_MOCK, TAG_MOCK, TAG_2_MOCK],
         }),
       );
+    });
+  });
+
+  describe('enhanced history retrieval mode', () => {
+    let subscribeMock: jest.Mock;
+    let unsubscribeMock: jest.Mock;
+    let transactionUpdatedHandler: (tx: AccountActivityTransaction) => void;
+
+    beforeEach(() => {
+      jest.mocked(isEnhancedHistoryRetrievalEnabled).mockReturnValue(true);
+
+      subscribeMock = jest.fn().mockImplementation((_event, handler) => {
+        transactionUpdatedHandler = handler;
+      });
+      unsubscribeMock = jest.fn();
+    });
+
+    function createMessengerMock(): TransactionControllerMessenger {
+      return {
+        subscribe: subscribeMock,
+        unsubscribe: unsubscribeMock,
+      } as unknown as TransactionControllerMessenger;
+    }
+
+    describe('start', () => {
+      it('calls update once and subscribes to transactionUpdated event', async () => {
+        const remoteTransactionSource = createRemoteTransactionSourceMock([]);
+
+        const helper = new IncomingTransactionHelper({
+          ...CONTROLLER_ARGS_MOCK,
+          messenger: createMessengerMock(),
+          remoteTransactionSource,
+        });
+
+        helper.start();
+        await flushPromises();
+
+        expect(remoteTransactionSource.fetchTransactions).toHaveBeenCalledTimes(
+          1,
+        );
+        expect(subscribeMock).toHaveBeenCalledWith(
+          'AccountActivityService:transactionUpdated',
+          expect.any(Function),
+        );
+      });
+
+      it('does not start polling interval', async () => {
+        const helper = new IncomingTransactionHelper({
+          ...CONTROLLER_ARGS_MOCK,
+          messenger: createMessengerMock(),
+          remoteTransactionSource: createRemoteTransactionSourceMock([]),
+        });
+
+        helper.start();
+        await flushPromises();
+
+        expect(jest.getTimerCount()).toBe(0);
+      });
+
+      it('does nothing if already started', async () => {
+        const remoteTransactionSource = createRemoteTransactionSourceMock([]);
+
+        const helper = new IncomingTransactionHelper({
+          ...CONTROLLER_ARGS_MOCK,
+          messenger: createMessengerMock(),
+          remoteTransactionSource,
+        });
+
+        helper.start();
+        await flushPromises();
+
+        helper.start();
+
+        expect(subscribeMock).toHaveBeenCalledTimes(1);
+      });
+    });
+
+    describe('stop', () => {
+      it('unsubscribes from transactionUpdated event', async () => {
+        const helper = new IncomingTransactionHelper({
+          ...CONTROLLER_ARGS_MOCK,
+          messenger: createMessengerMock(),
+          remoteTransactionSource: createRemoteTransactionSourceMock([]),
+        });
+
+        helper.start();
+        await flushPromises();
+
+        helper.stop();
+
+        expect(unsubscribeMock).toHaveBeenCalledWith(
+          'AccountActivityService:transactionUpdated',
+          expect.any(Function),
+        );
+      });
+
+      it('does not call unsubscribe if not started', () => {
+        const helper = new IncomingTransactionHelper({
+          ...CONTROLLER_ARGS_MOCK,
+          messenger: createMessengerMock(),
+          remoteTransactionSource: createRemoteTransactionSourceMock([]),
+        });
+
+        helper.stop();
+
+        expect(unsubscribeMock).not.toHaveBeenCalled();
+      });
+    });
+
+    describe('on transactionUpdated event', () => {
+      it('triggers update when transaction is to current account', async () => {
+        const remoteTransactionSource = createRemoteTransactionSourceMock([]);
+
+        const helper = new IncomingTransactionHelper({
+          ...CONTROLLER_ARGS_MOCK,
+          messenger: createMessengerMock(),
+          remoteTransactionSource,
+        });
+
+        helper.start();
+        await flushPromises();
+
+        jest.mocked(remoteTransactionSource.fetchTransactions).mockClear();
+
+        transactionUpdatedHandler({
+          id: 'tx-123',
+          chain: 'eip155:1',
+          status: 'confirmed',
+          timestamp: Date.now(),
+          from: '0xother',
+          to: ADDRESS_MOCK,
+        });
+
+        await flushPromises();
+
+        expect(remoteTransactionSource.fetchTransactions).toHaveBeenCalledTimes(
+          1,
+        );
+      });
+
+      it('triggers update when transaction is from current account', async () => {
+        const remoteTransactionSource = createRemoteTransactionSourceMock([]);
+
+        const helper = new IncomingTransactionHelper({
+          ...CONTROLLER_ARGS_MOCK,
+          messenger: createMessengerMock(),
+          remoteTransactionSource,
+        });
+
+        helper.start();
+        await flushPromises();
+
+        jest.mocked(remoteTransactionSource.fetchTransactions).mockClear();
+
+        transactionUpdatedHandler({
+          id: 'tx-123',
+          chain: 'eip155:1',
+          status: 'confirmed',
+          timestamp: Date.now(),
+          from: ADDRESS_MOCK,
+          to: '0xother',
+        });
+
+        await flushPromises();
+
+        expect(remoteTransactionSource.fetchTransactions).toHaveBeenCalledTimes(
+          1,
+        );
+      });
+
+      it('ignores transaction not for current account', async () => {
+        const remoteTransactionSource = createRemoteTransactionSourceMock([]);
+
+        const helper = new IncomingTransactionHelper({
+          ...CONTROLLER_ARGS_MOCK,
+          messenger: createMessengerMock(),
+          remoteTransactionSource,
+        });
+
+        helper.start();
+        await flushPromises();
+
+        jest.mocked(remoteTransactionSource.fetchTransactions).mockClear();
+
+        transactionUpdatedHandler({
+          id: 'tx-123',
+          chain: 'eip155:1',
+          status: 'confirmed',
+          timestamp: Date.now(),
+          from: '0xother1',
+          to: '0xother2',
+        });
+
+        await flushPromises();
+
+        expect(
+          remoteTransactionSource.fetchTransactions,
+        ).not.toHaveBeenCalled();
+      });
+
+      it('handles case-insensitive address comparison', async () => {
+        const remoteTransactionSource = createRemoteTransactionSourceMock([]);
+
+        const helper = new IncomingTransactionHelper({
+          ...CONTROLLER_ARGS_MOCK,
+          messenger: createMessengerMock(),
+          remoteTransactionSource,
+        });
+
+        helper.start();
+        await flushPromises();
+
+        jest.mocked(remoteTransactionSource.fetchTransactions).mockClear();
+
+        transactionUpdatedHandler({
+          id: 'tx-123',
+          chain: 'eip155:1',
+          status: 'confirmed',
+          timestamp: Date.now(),
+          from: '0xother',
+          to: ADDRESS_MOCK.toUpperCase(),
+        });
+
+        await flushPromises();
+
+        expect(remoteTransactionSource.fetchTransactions).toHaveBeenCalledTimes(
+          1,
+        );
+      });
+    });
+
+    describe('error handling', () => {
+      it('handles error in initial update gracefully', async () => {
+        const remoteTransactionSource = createRemoteTransactionSourceMock([], {
+          error: true,
+        });
+
+        const helper = new IncomingTransactionHelper({
+          ...CONTROLLER_ARGS_MOCK,
+          messenger: createMessengerMock(),
+          remoteTransactionSource,
+        });
+
+        helper.start();
+        await flushPromises();
+
+        expect(subscribeMock).toHaveBeenCalled();
+      });
+
+      it('handles error in update after transaction event gracefully', async () => {
+        const remoteTransactionSource = createRemoteTransactionSourceMock([]);
+
+        const helper = new IncomingTransactionHelper({
+          ...CONTROLLER_ARGS_MOCK,
+          messenger: createMessengerMock(),
+          remoteTransactionSource,
+        });
+
+        helper.start();
+        await flushPromises();
+
+        jest
+          .mocked(remoteTransactionSource.fetchTransactions)
+          .mockRejectedValueOnce(new Error('Test Error'));
+
+        transactionUpdatedHandler({
+          id: 'tx-123',
+          chain: 'eip155:1',
+          status: 'confirmed',
+          timestamp: Date.now(),
+          from: '0xother',
+          to: ADDRESS_MOCK,
+        });
+
+        await flushPromises();
+
+        expect(helper).toBeDefined();
+      });
+    });
+  });
+
+  describe('legacy polling mode', () => {
+    it('uses polling when enhanced mode is disabled', async () => {
+      jest.mocked(isEnhancedHistoryRetrievalEnabled).mockReturnValue(false);
+
+      const helper = new IncomingTransactionHelper({
+        ...CONTROLLER_ARGS_MOCK,
+        remoteTransactionSource: createRemoteTransactionSourceMock([]),
+      });
+
+      helper.start();
+      await flushPromises();
+
+      expect(jest.getTimerCount()).toBe(1);
+    });
+
+    it('clears timeout on stop when polling is active', async () => {
+      jest.mocked(isEnhancedHistoryRetrievalEnabled).mockReturnValue(false);
+
+      const helper = new IncomingTransactionHelper({
+        ...CONTROLLER_ARGS_MOCK,
+        remoteTransactionSource: createRemoteTransactionSourceMock([]),
+      });
+
+      helper.start();
+      await flushPromises();
+
+      jest.advanceTimersByTime(30000);
+      await flushPromises();
+
+      expect(jest.getTimerCount()).toBe(1);
+
+      helper.stop();
+
+      expect(jest.getTimerCount()).toBe(0);
+    });
+
+    it('handles error in initial polling gracefully', async () => {
+      jest.mocked(isEnhancedHistoryRetrievalEnabled).mockReturnValue(false);
+
+      const remoteTransactionSource = createRemoteTransactionSourceMock([], {
+        error: true,
+      });
+
+      const helper = new IncomingTransactionHelper({
+        ...CONTROLLER_ARGS_MOCK,
+        remoteTransactionSource,
+      });
+
+      helper.start();
+      await flushPromises();
+
+      expect(helper).toBeDefined();
+    });
+
+    // eslint-disable-next-line jest/expect-expect
+    it('handles error in polling interval gracefully', async () => {
+      jest.mocked(isEnhancedHistoryRetrievalEnabled).mockReturnValue(false);
+
+      const remoteTransactionSource = createRemoteTransactionSourceMock([]);
+
+      const helper = new IncomingTransactionHelper({
+        ...CONTROLLER_ARGS_MOCK,
+        remoteTransactionSource,
+      });
+
+      helper.start();
+      await flushPromises();
+
+      jest
+        .mocked(remoteTransactionSource.fetchTransactions)
+        .mockRejectedValueOnce(new Error('Test Error'));
+
+      jest.advanceTimersByTime(30000);
+      await flushPromises();
+    });
+
+    it('reschedules timeout after interval completes', async () => {
+      jest.mocked(isEnhancedHistoryRetrievalEnabled).mockReturnValue(false);
+
+      const helper = new IncomingTransactionHelper({
+        ...CONTROLLER_ARGS_MOCK,
+        remoteTransactionSource: createRemoteTransactionSourceMock([]),
+      });
+
+      helper.start();
+      await flushPromises();
+
+      expect(jest.getTimerCount()).toBe(1);
+
+      jest.advanceTimersByTime(30000);
+      await flushPromises();
+
+      expect(jest.getTimerCount()).toBe(1);
+    });
+  });
+
+  describe('trimTransactions', () => {
+    it('does not emit when all unique transactions are truncated', async () => {
+      const listener = jest.fn();
+
+      const helper = new IncomingTransactionHelper({
+        ...CONTROLLER_ARGS_MOCK,
+        remoteTransactionSource: createRemoteTransactionSourceMock([
+          TRANSACTION_MOCK_2,
+        ]),
+        trimTransactions: (transactions) =>
+          transactions.filter((tx) => tx.id !== TRANSACTION_MOCK_2.id),
+      });
+
+      helper.hub.on('transactions', listener);
+
+      await helper.update();
+
+      expect(listener).not.toHaveBeenCalled();
     });
   });
 });

@@ -1,4 +1,5 @@
 import type { AccountsController } from '@metamask/accounts-controller';
+import type { Transaction as AccountActivityTransaction } from '@metamask/core-backend';
 import type { Hex } from '@metamask/utils';
 // This package purposefully relies on Node's EventEmitter module.
 // eslint-disable-next-line import-x/no-nodejs-modules
@@ -7,7 +8,10 @@ import EventEmitter from 'events';
 import type { TransactionControllerMessenger } from '..';
 import { incomingTransactionsLogger as log } from '../logger';
 import type { RemoteTransactionSource, TransactionMeta } from '../types';
-import { getIncomingTransactionsPollingInterval } from '../utils/feature-flags';
+import {
+  getIncomingTransactionsPollingInterval,
+  isEnhancedHistoryRetrievalEnabled,
+} from '../utils/feature-flags';
 
 export type IncomingTransactionOptions = {
   /** Name of the client to include in requests. */
@@ -59,6 +63,12 @@ export class IncomingTransactionHelper {
 
   readonly #updateTransactions?: boolean;
 
+  readonly #isEnhancedHistoryEnabled: boolean;
+
+  #transactionUpdatedHandler?: (
+    transaction: AccountActivityTransaction,
+  ) => void;
+
   constructor({
     client,
     getCurrentAccount,
@@ -95,6 +105,8 @@ export class IncomingTransactionHelper {
     this.#remoteTransactionSource = remoteTransactionSource;
     this.#trimTransactions = trimTransactions;
     this.#updateTransactions = updateTransactions;
+    this.#isEnhancedHistoryEnabled =
+      isEnhancedHistoryRetrievalEnabled(messenger);
   }
 
   start(): void {
@@ -106,11 +118,41 @@ export class IncomingTransactionHelper {
       return;
     }
 
+    this.#isRunning = true;
+
+    if (this.#isEnhancedHistoryEnabled) {
+      this.#startEnhancedMode();
+    } else {
+      this.#startPollingMode();
+    }
+  }
+
+  stop(): void {
+    if (this.#timeoutId) {
+      clearTimeout(this.#timeoutId as number);
+    }
+
+    if (this.#transactionUpdatedHandler) {
+      this.#messenger.unsubscribe(
+        'AccountActivityService:transactionUpdated',
+        this.#transactionUpdatedHandler,
+      );
+      this.#transactionUpdatedHandler = undefined;
+    }
+
+    if (!this.#isRunning) {
+      return;
+    }
+
+    this.#isRunning = false;
+
+    log('Stopped');
+  }
+
+  #startPollingMode(): void {
     const interval = this.#getInterval();
 
     log('Started polling', { interval });
-
-    this.#isRunning = true;
 
     if (this.#isUpdating) {
       return;
@@ -121,18 +163,45 @@ export class IncomingTransactionHelper {
     });
   }
 
-  stop(): void {
-    if (this.#timeoutId) {
-      clearTimeout(this.#timeoutId as number);
+  #startEnhancedMode(): void {
+    log('Started enhanced mode (event-driven)');
+
+    this.update().catch((error) => {
+      log('Initial update in enhanced mode failed', error);
+    });
+
+    this.#transactionUpdatedHandler = (
+      transaction: AccountActivityTransaction,
+    ): void => {
+      this.#onTransactionUpdated(transaction);
+    };
+
+    this.#messenger.subscribe(
+      'AccountActivityService:transactionUpdated',
+      this.#transactionUpdatedHandler,
+    );
+  }
+
+  #onTransactionUpdated(transaction: AccountActivityTransaction): void {
+    const currentAccount = this.#getCurrentAccount();
+    const currentAddress = currentAccount?.address?.toLowerCase();
+
+    const txTo = transaction.to?.toLowerCase();
+    const txFrom = transaction.from?.toLowerCase();
+
+    if (
+      currentAddress &&
+      (txTo === currentAddress || txFrom === currentAddress)
+    ) {
+      log('Received relevant transaction update, triggering update', {
+        txId: transaction.id,
+        chain: transaction.chain,
+      });
+
+      this.update().catch((error) => {
+        log('Update after transaction event failed', error);
+      });
     }
-
-    if (!this.#isRunning) {
-      return;
-    }
-
-    this.#isRunning = false;
-
-    log('Stopped polling');
   }
 
   async #onInterval(): Promise<void> {

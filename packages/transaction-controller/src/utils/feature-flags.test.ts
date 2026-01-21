@@ -22,6 +22,7 @@ import {
   FeatureFlag,
   getIncomingTransactionsPollingInterval,
   getTimeoutAttempts,
+  isEnhancedHistoryRetrievalEnabled,
 } from './feature-flags';
 import { isValidSignature } from './signature';
 import type { TransactionControllerMessenger } from '..';
@@ -864,6 +865,48 @@ describe('Feature Flags Utils', () => {
       });
 
       expect(getTimeoutAttempts(CHAIN_ID_MOCK, controllerMessenger)).toBe(0);
+    });
+  });
+
+  describe('isEnhancedHistoryRetrievalEnabled', () => {
+    it('returns true when enabled is true', () => {
+      mockFeatureFlags({
+        [FeatureFlag.EnhancedHistoryRetrieval]: {
+          enabled: true,
+        },
+      });
+
+      expect(isEnhancedHistoryRetrievalEnabled(controllerMessenger)).toBe(true);
+    });
+
+    it('returns false when enabled is false', () => {
+      mockFeatureFlags({
+        [FeatureFlag.EnhancedHistoryRetrieval]: {
+          enabled: false,
+        },
+      });
+
+      expect(isEnhancedHistoryRetrievalEnabled(controllerMessenger)).toBe(
+        false,
+      );
+    });
+
+    it('returns false when flag is not present', () => {
+      mockFeatureFlags({});
+
+      expect(isEnhancedHistoryRetrievalEnabled(controllerMessenger)).toBe(
+        false,
+      );
+    });
+
+    it('returns false when enabled property is not present', () => {
+      mockFeatureFlags({
+        [FeatureFlag.EnhancedHistoryRetrieval]: {},
+      });
+
+      expect(isEnhancedHistoryRetrievalEnabled(controllerMessenger)).toBe(
+        false,
+      );
     });
   });
 });
