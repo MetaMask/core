@@ -65,9 +65,11 @@ export class IncomingTransactionHelper {
 
   readonly #isEnhancedHistoryEnabled: boolean;
 
-  #transactionUpdatedHandler?: (
+  #transactionUpdatedHandler = (
     transaction: AccountActivityTransaction,
-  ) => void;
+  ): void => {
+    this.#onTransactionUpdated(transaction);
+  };
 
   constructor({
     client,
@@ -132,13 +134,10 @@ export class IncomingTransactionHelper {
       clearTimeout(this.#timeoutId as number);
     }
 
-    if (this.#transactionUpdatedHandler) {
-      this.#messenger.unsubscribe(
-        'AccountActivityService:transactionUpdated',
-        this.#transactionUpdatedHandler,
-      );
-      this.#transactionUpdatedHandler = undefined;
-    }
+    this.#messenger.unsubscribe(
+      'AccountActivityService:transactionUpdated',
+      this.#transactionUpdatedHandler,
+    );
 
     if (!this.#isRunning) {
       return;
@@ -169,12 +168,6 @@ export class IncomingTransactionHelper {
     this.update().catch((error) => {
       log('Initial update in enhanced mode failed', error);
     });
-
-    this.#transactionUpdatedHandler = (
-      transaction: AccountActivityTransaction,
-    ): void => {
-      this.#onTransactionUpdated(transaction);
-    };
 
     this.#messenger.subscribe(
       'AccountActivityService:transactionUpdated',
