@@ -9,12 +9,13 @@ import type { Messenger } from '@metamask/messenger';
 import type { HandleSnapRequest, HasSnap } from '@metamask/snaps-controllers';
 import type { SnapId } from '@metamask/snaps-sdk';
 import { HandlerType } from '@metamask/snaps-utils';
-import type {
-  TransactionControllerTransactionApprovedEvent,
-  TransactionControllerTransactionConfirmedEvent,
-  TransactionControllerTransactionDroppedEvent,
-  TransactionControllerTransactionFailedEvent,
-  TransactionControllerTransactionRejectedEvent,
+import {
+  TransactionStatus,
+  type TransactionControllerTransactionApprovedEvent,
+  type TransactionControllerTransactionConfirmedEvent,
+  type TransactionControllerTransactionDroppedEvent,
+  type TransactionControllerTransactionFailedEvent,
+  type TransactionControllerTransactionRejectedEvent,
 } from '@metamask/transaction-controller';
 import type { Hex, Json } from '@metamask/utils';
 
@@ -35,7 +36,6 @@ import {
 import { controllerLog } from './logger';
 import { GatorPermissionsSnapRpcMethod } from './types';
 import type {
-  RevocationMetadata,
   StoredGatorPermissionSanitized,
 } from './types';
 import type {
@@ -950,14 +950,23 @@ export default class GatorPermissionsController extends BaseController<
           txHash: transactionMeta.hash,
         });
 
-        // Attach metadata by parsing the confirmed transactionMeta
-        const { hash } = transactionMeta;
-        const revocationMetadata: RevocationMetadata = {
-          txHash: hash as Hex | undefined,
-        };
-        if (hash === undefined) {
+
+        if (transactionMeta.status !== TransactionStatus.confirmed) {
+          controllerLog('Transaction not confirmed, skipping revocation', {
+            txId,
+            permissionContext,
+            status: transactionMeta.status,
+          });
+          cleanup(transactionMeta.id);
+          refreshPermissions('transaction not confirmed');
+          return;
+        } 
+
+        const txHash = transactionMeta.hash as Hex | undefined;
+
+        if (txHash === undefined) {
           controllerLog(
-            'Failed to attach transaction hash after revocation transaction confirmed',
+            'Failed to resolve transaction hash after revocation transaction confirmed',
             {
               txId,
               permissionContext,
@@ -968,7 +977,7 @@ export default class GatorPermissionsController extends BaseController<
           );
         }
 
-        this.submitRevocation({ permissionContext, revocationMetadata })
+        this.submitRevocation({ permissionContext, txHash })
           .catch((error) => {
             controllerLog(
               'Failed to submit revocation after transaction confirmed',
