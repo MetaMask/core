@@ -75,6 +75,61 @@ export type Provider = {
 };
 
 /**
+ * Represents a payment method for funding a purchase.
+ */
+export type PaymentMethod = {
+  /**
+   * Canonical payment method ID (e.g., "/payments/debit-credit-card").
+   */
+  id: string;
+  /**
+   * Payment type identifier (e.g., "debit-credit-card", "bank-transfer").
+   */
+  paymentType: string;
+  /**
+   * User-facing name for the payment method.
+   */
+  name: string;
+  /**
+   * Score for sorting payment methods (higher is better).
+   */
+  score: number;
+  /**
+   * Icon identifier for the payment method.
+   */
+  icon: string;
+  /**
+   * Localized disclaimer text (optional).
+   */
+  disclaimer?: string;
+  /**
+   * Human-readable delay description (e.g., "5 to 10 minutes.").
+   */
+  delay?: string;
+  /**
+   * Localized pending order description (optional).
+   */
+  pendingOrderDescription?: string;
+};
+
+/**
+ * Response from the paymentMethods API.
+ */
+export type PaymentMethodsResponse = {
+  /**
+   * List of available payment methods.
+   */
+  payments: PaymentMethod[];
+  /**
+   * Recommended sorting for payment methods.
+   */
+  sort?: {
+    ids: string[];
+    sortBy: string;
+  };
+};
+
+/**
  * Represents a country returned from the regions/countries API.
  */
 export type Country = {
@@ -216,6 +271,7 @@ const MESSENGER_EXPOSED_METHODS = [
   'getCountries',
   'getTokens',
   'getProviders',
+  'getPaymentMethods',
 ] as const;
 
 /**
@@ -562,21 +618,45 @@ export class RampsService {
 
   /**
    * Fetches the list of available tokens for a given region and action.
+   * Supports optional provider filter.
    *
    * @param region - The region code (e.g., "us", "fr", "us-ny").
    * @param action - The ramp action type ('buy' or 'sell').
+   * @param options - Optional query parameters for filtering tokens.
+   * @param options.provider - Provider ID(s) to filter by.
    * @returns The tokens response containing topTokens and allTokens.
    */
   async getTokens(
     region: string,
     action: RampAction = 'buy',
+    options?: {
+      provider?: string | string[];
+    },
   ): Promise<TokensResponse> {
     const normalizedRegion = region.toLowerCase().trim();
-    const response = await this.#request<TokensResponse>(
-      RampsApiService.Regions,
-      `regions/${normalizedRegion}/tokens`,
-      { action, responseType: 'json' },
+    const url = new URL(
+      getApiPath(`regions/${normalizedRegion}/topTokens`),
+      getBaseUrl(this.#environment, RampsApiService.Regions),
     );
+    this.#addCommonParams(url, action);
+
+    if (options?.provider) {
+      const providerIds = Array.isArray(options.provider)
+        ? options.provider
+        : [options.provider];
+      providerIds.forEach((id) => url.searchParams.append('provider', id));
+    }
+
+    const response = await this.#policy.execute(async () => {
+      const fetchResponse = await this.#fetch(url);
+      if (!fetchResponse.ok) {
+        throw new HttpError(
+          fetchResponse.status,
+          `Fetching '${url.toString()}' failed with status '${fetchResponse.status}'`,
+        );
+      }
+      return fetchResponse.json() as Promise<TokensResponse>;
+    });
 
     if (!response || typeof response !== 'object') {
       throw new Error('Malformed response received from tokens API');
@@ -665,6 +745,55 @@ export class RampsService {
 
     if (!Array.isArray(response.providers)) {
       throw new Error('Malformed response received from providers API');
+    }
+
+    return response;
+  }
+
+  /**
+   * Fetches the list of payment methods for a given region, asset, and provider.
+   *
+   * @param options - Query parameters for filtering payment methods.
+   * @param options.region - User's region code (e.g., "us-al").
+   * @param options.fiat - Fiat currency code (e.g., "usd").
+   * @param options.assetId - CAIP-19 cryptocurrency identifier.
+   * @param options.provider - Provider ID path.
+   * @returns The payment methods response containing payments array.
+   */
+  async getPaymentMethods(options: {
+    region: string;
+    fiat: string;
+    assetId: string;
+    provider: string;
+  }): Promise<PaymentMethodsResponse> {
+    const url = new URL(
+      getApiPath('paymentMethods'),
+      getBaseUrl(this.#environment, RampsApiService.Regions),
+    );
+    this.#addCommonParams(url);
+
+    url.searchParams.set('region', options.region.toLowerCase().trim());
+    url.searchParams.set('fiat', options.fiat.toLowerCase().trim());
+    url.searchParams.set('assetId', options.assetId);
+    url.searchParams.set('provider', options.provider);
+
+    const response = await this.#policy.execute(async () => {
+      const fetchResponse = await this.#fetch(url);
+      if (!fetchResponse.ok) {
+        throw new HttpError(
+          fetchResponse.status,
+          `Fetching '${url.toString()}' failed with status '${fetchResponse.status}'`,
+        );
+      }
+      return fetchResponse.json() as Promise<PaymentMethodsResponse>;
+    });
+
+    if (!response || typeof response !== 'object') {
+      throw new Error('Malformed response received from paymentMethods API');
+    }
+
+    if (!Array.isArray(response.payments)) {
+      throw new Error('Malformed response received from paymentMethods API');
     }
 
     return response;

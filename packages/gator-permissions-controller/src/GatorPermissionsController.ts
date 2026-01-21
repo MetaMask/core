@@ -9,6 +9,7 @@ import type { Messenger } from '@metamask/messenger';
 import type { HandleSnapRequest, HasSnap } from '@metamask/snaps-controllers';
 import type { SnapId } from '@metamask/snaps-sdk';
 import { HandlerType } from '@metamask/snaps-utils';
+import { TransactionStatus } from '@metamask/transaction-controller';
 import type {
   TransactionControllerTransactionApprovedEvent,
   TransactionControllerTransactionConfirmedEvent,
@@ -846,7 +847,7 @@ export default class GatorPermissionsController extends BaseController<
     };
 
     // Helper to refresh permissions after transaction state change
-    const refreshPermissions = (context: string) => {
+    const refreshPermissions = (context: string): void => {
       this.fetchAndUpdateGatorPermissions({ isRevoked: false }).catch(
         (error) => {
           controllerLog(`Failed to refresh permissions after ${context}`, {
@@ -859,7 +860,7 @@ export default class GatorPermissionsController extends BaseController<
     };
 
     // Helper to unsubscribe from approval/rejection events after decision is made
-    const cleanupApprovalHandlers = () => {
+    const cleanupApprovalHandlers = (): void => {
       if (handlers.approved) {
         this.messenger.unsubscribe(
           'TransactionController:transactionApproved',
@@ -877,7 +878,7 @@ export default class GatorPermissionsController extends BaseController<
     };
 
     // Cleanup function to unsubscribe from all events and clear timeout
-    const cleanup = (txIdToRemove: string, removeFromState = true) => {
+    const cleanup = (txIdToRemove: string, removeFromState = true): void => {
       cleanupApprovalHandlers();
       if (handlers.confirmed) {
         this.messenger.unsubscribe(
@@ -908,7 +909,7 @@ export default class GatorPermissionsController extends BaseController<
     };
 
     // Handle approved transaction - add to pending revocations state
-    handlers.approved = (payload) => {
+    handlers.approved = (payload): void => {
       if (payload.transactionMeta.id === txId) {
         controllerLog(
           'Transaction approved by user, adding to pending revocations',
@@ -926,7 +927,7 @@ export default class GatorPermissionsController extends BaseController<
     };
 
     // Handle rejected transaction - cleanup without adding to state
-    handlers.rejected = (payload) => {
+    handlers.rejected = (payload): void => {
       if (payload.transactionMeta.id === txId) {
         controllerLog('Transaction rejected by user, cleaning up listeners', {
           txId,
@@ -939,14 +940,41 @@ export default class GatorPermissionsController extends BaseController<
     };
 
     // Handle confirmed transaction - submit revocation
-    handlers.confirmed = (transactionMeta) => {
+    handlers.confirmed = (transactionMeta): void => {
       if (transactionMeta.id === txId) {
         controllerLog('Transaction confirmed, submitting revocation', {
           txId,
           permissionContext,
+          txHash: transactionMeta.hash,
         });
 
-        this.submitRevocation({ permissionContext })
+        if (transactionMeta.status !== TransactionStatus.confirmed) {
+          controllerLog('Transaction not confirmed, skipping revocation', {
+            txId,
+            permissionContext,
+            status: transactionMeta.status,
+          });
+          cleanup(transactionMeta.id);
+          refreshPermissions('transaction not confirmed');
+          return;
+        }
+
+        const txHash = transactionMeta.hash as Hex | undefined;
+
+        if (txHash === undefined) {
+          controllerLog(
+            'Failed to resolve transaction hash after revocation transaction confirmed',
+            {
+              txId,
+              permissionContext,
+              error: new Error(
+                'Confirmed transaction is missing transaction hash',
+              ),
+            },
+          );
+        }
+
+        this.submitRevocation({ permissionContext, txHash })
           .catch((error) => {
             controllerLog(
               'Failed to submit revocation after transaction confirmed',
@@ -964,7 +992,7 @@ export default class GatorPermissionsController extends BaseController<
     };
 
     // Handle failed transaction - cleanup without submitting revocation
-    handlers.failed = (payload) => {
+    handlers.failed = (payload): void => {
       if (payload.transactionMeta.id === txId) {
         controllerLog('Transaction failed, cleaning up revocation listener', {
           txId,
@@ -979,7 +1007,7 @@ export default class GatorPermissionsController extends BaseController<
     };
 
     // Handle dropped transaction - cleanup without submitting revocation
-    handlers.dropped = (payload) => {
+    handlers.dropped = (payload): void => {
       if (payload.transactionMeta.id === txId) {
         controllerLog('Transaction dropped, cleaning up revocation listener', {
           txId,

@@ -23,7 +23,9 @@ import type {
 } from '../../types';
 import {
   DEFAULT_RELAY_QUOTE_URL,
+  DEFAULT_SLIPPAGE,
   getGasBuffer,
+  getSlippage,
 } from '../../utils/feature-flags';
 import {
   calculateGasCost,
@@ -41,6 +43,7 @@ jest.mock('../../utils/gas');
 jest.mock('../../utils/feature-flags', () => ({
   ...jest.requireActual('../../utils/feature-flags'),
   getGasBuffer: jest.fn(),
+  getSlippage: jest.fn(),
 }));
 
 jest.mock('@metamask/controller-utils', () => ({
@@ -151,6 +154,7 @@ describe('Relay Quotes Utils', () => {
   const getNativeTokenMock = jest.mocked(getNativeToken);
   const getTokenBalanceMock = jest.mocked(getTokenBalance);
   const getGasBufferMock = jest.mocked(getGasBuffer);
+  const getSlippageMock = jest.mocked(getSlippage);
 
   const calculateTransactionGasCostMock = jest.mocked(
     calculateTransactionGasCost,
@@ -200,6 +204,7 @@ describe('Relay Quotes Utils', () => {
     });
 
     getGasBufferMock.mockReturnValue(1.0);
+    getSlippageMock.mockReturnValue(DEFAULT_SLIPPAGE);
     getDelegationTransactionMock.mockResolvedValue(DELEGATION_RESULT_MOCK);
     getGasFeeTokensMock.mockResolvedValue([]);
     findNetworkClientIdByChainIdMock.mockReturnValue(NETWORK_CLIENT_ID_MOCK);
