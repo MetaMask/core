@@ -7790,9 +7790,9 @@ __metadata:
   linkType: hard
 
 "comment-parser@npm:^1.4.1":
-  version: 1.4.3
-  resolution: "comment-parser@npm:1.4.3"
-  checksum: 10/9e82c5653625f1d4ea86049f371446882d572aac2b4e5762efe5cbaab6b60eccbd3163fe9d4b8c768a6c9f5e5697d88c870d446c0bf72433635772dbde53013b
+  version: 1.4.4
+  resolution: "comment-parser@npm:1.4.4"
+  checksum: 10/e2480c88288ad479525c81eca0b1711a4b5157e756ed723e7ae95c1da4468266a621a2f46097abf30553ba0373557e2467adb2490368f0aac12093d0e2ef4633
   languageName: node
   linkType: hard
 
@@ -8196,7 +8196,7 @@ __metadata:
   languageName: node
   linkType: hard
 
-"detect-indent@npm:^7.0.1":
+"detect-indent@npm:^7.0.2":
   version: 7.0.2
   resolution: "detect-indent@npm:7.0.2"
   checksum: 10/ef215d1b55a14f677ce03e840973b25362b6f8cd3f566bc82831fa1abb2be6a95423729bc573dc2334b1371ad7be18d9ec67e1a9611b71a04cb6d63f0d8e54cc
@@ -9700,10 +9700,10 @@ __metadata:
   languageName: node
   linkType: hard
 
-"git-hooks-list@npm:^4.0.0":
-  version: 4.1.1
-  resolution: "git-hooks-list@npm:4.1.1"
-  checksum: 10/a56c8cc3dab505bde2c6de032164a9113968ab7f249dfe2c9f2f23be872165f88c91e097994e009d31e56dd1e81c1f714d0972133314d8d3c6bd92a847ba562f
+"git-hooks-list@npm:^4.1.1":
+  version: 4.2.1
+  resolution: "git-hooks-list@npm:4.2.1"
+  checksum: 10/39449520045539c03b1d45d3a010424849152d6f723b638c6f19cb8c8b0993bb30ed5ef09653f4d1c1356f5fb51a396059096d8bdfcb6ca7ccb54f6e26efc338
   languageName: node
   linkType: hard
 
@@ -12667,16 +12667,16 @@ __metadata:
   linkType: hard
 
 "prettier-plugin-packagejson@npm:^2.4.5":
-  version: 2.5.21
-  resolution: "prettier-plugin-packagejson@npm:2.5.21"
+  version: 2.5.22
+  resolution: "prettier-plugin-packagejson@npm:2.5.22"
   dependencies:
-    sort-package-json: "npm:3.5.0"
+    sort-package-json: "npm:3.6.0"
   peerDependencies:
     prettier: ">= 1.16.0"
   peerDependenciesMeta:
     prettier:
       optional: true
-  checksum: 10/04d10f1a5dada1e4179588dcd0d52ec13680554b26e73fd260c02f8f29ae9d6e78d7458203dd553c6b02237928dab119475415598cd487288a79921126373122
+  checksum: 10/874ba785d6c3c32abca23470cebfd7b80de7b546c0b3752a83cf5aea7a8030885f0c3a91ef40c52373c1be144b46983d1e5bc6d492096d79604441eae6ed1be0
   languageName: node
   linkType: hard
 
@@ -13595,27 +13595,27 @@ __metadata:
   languageName: node
   linkType: hard
 
-"sort-object-keys@npm:^2.0.0":
+"sort-object-keys@npm:^2.0.1":
   version: 2.1.0
   resolution: "sort-object-keys@npm:2.1.0"
   checksum: 10/a0a18a6f4ab601adb889204a83e2664a4810042dd9680e588cabb47fffd40473939ce3fda5a28fdb58bac0762a7b45ad442815465b978d4b243bab840df3d7cd
   languageName: node
   linkType: hard
 
-"sort-package-json@npm:3.5.0":
-  version: 3.5.0
-  resolution: "sort-package-json@npm:3.5.0"
+"sort-package-json@npm:3.6.0":
+  version: 3.6.0
+  resolution: "sort-package-json@npm:3.6.0"
   dependencies:
-    detect-indent: "npm:^7.0.1"
+    detect-indent: "npm:^7.0.2"
     detect-newline: "npm:^4.0.1"
-    git-hooks-list: "npm:^4.0.0"
+    git-hooks-list: "npm:^4.1.1"
     is-plain-obj: "npm:^4.1.0"
-    semver: "npm:^7.7.1"
-    sort-object-keys: "npm:^2.0.0"
-    tinyglobby: "npm:^0.2.12"
+    semver: "npm:^7.7.3"
+    sort-object-keys: "npm:^2.0.1"
+    tinyglobby: "npm:^0.2.15"
   bin:
     sort-package-json: cli.js
-  checksum: 10/902ac1524c85a9c512170aad6e77e471e7237c91ba3d1e6653dcd0f05a6fd786efce276a79f82283828f2f7ee8ac28b8d17c97e3d5dfd688f629b4696a712d85
+  checksum: 10/1489edd177dc325c1e5fbfa55e9583dfea8caa950363b43f797d99986f00b722644275f4dfd5491265519365d6394a5fec9fe5d360ed83b74317fdc9fc071ba1
   languageName: node
   linkType: hard
 

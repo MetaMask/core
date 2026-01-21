@@ -32,7 +32,9 @@ export type ConfigRegistryApiServiceOptions = {
   circuitBreakDuration?: number;
 };
 
-export class ConfigRegistryApiService implements AbstractConfigRegistryApiService {
+export class ConfigRegistryApiService
+  implements AbstractConfigRegistryApiService
+{
   readonly #policy: ServicePolicy;
 
   readonly #apiBaseUrl: string;
