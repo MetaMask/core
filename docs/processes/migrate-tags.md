@@ -1,6 +1,6 @@
-# `migrate-tags`
+# Migrating tags from other repos
 
-When migrating libraries into the core monorepo, the original git history is transferred using the `git-filter-repo` tool (instructions [here](https://github.com/MetaMask/core/issues/1079#issuecomment-1700126302)), but tags attached to release commits are excluded from the process. This is because the tag names (`v[major].[minor].[patch]`) first need to be adjusted to conform to the scheme used by the core repo (`@metamask/<package-name>@[major].[minor].[patch]`).
+When migrating libraries into the core monorepo, the original git history is transferred using the `git-filter-repo` tool (instructions [here](./package-migration-process-guide.md)), but tags attached to release commits are excluded from the process. This is because the tag names (`v[major].[minor].[patch]`) first need to be adjusted to conform to the scheme used by the core repo (`@metamask/<package-name>@[major].[minor].[patch]`).
 
 The `./scripts/migrate-tags.sh` script automates the process of enumerating the tags and associated release commit messages in the original repo, searching the migrated git history in the core repo's `merged-packages/<package-name>` directory for each commit message, creating tags with correctly-formatted names and attaching them to the found release commits, and pushing those tags to the core repo.
 

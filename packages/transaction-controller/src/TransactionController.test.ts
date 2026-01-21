@@ -94,6 +94,10 @@ import {
 import { getBalanceChanges } from './utils/balance-changes';
 import { addTransactionBatch } from './utils/batch';
 import { getDelegationAddress } from './utils/eip7702';
+import {
+  getSubmitHistoryLimit,
+  getTransactionHistoryLimit,
+} from './utils/feature-flags';
 import { updateFirstTimeInteraction } from './utils/first-time-interaction';
 import {
   addGasBuffer,
@@ -570,6 +574,10 @@ describe('TransactionController', () => {
   const updateFirstTimeInteractionMock = jest.mocked(
     updateFirstTimeInteraction,
   );
+  const getSubmitHistoryLimitMock = jest.mocked(getSubmitHistoryLimit);
+  const getTransactionHistoryLimitMock = jest.mocked(
+    getTransactionHistoryLimit,
+  );
 
   let mockEthQuery: EthQuery;
   let getNonceLockSpy: jest.Mock;
@@ -1028,6 +1036,9 @@ describe('TransactionController', () => {
     });
 
     updateFirstTimeInteractionMock.mockResolvedValue(undefined);
+
+    getSubmitHistoryLimitMock.mockReturnValue(100);
+    getTransactionHistoryLimitMock.mockReturnValue(40);
   });
 
   describe('constructor', () => {
@@ -2745,6 +2756,112 @@ describe('TransactionController', () => {
         await flushPromises();
 
         expect(controller.state.transactions[0].isGasFeeSponsored).toBe(false);
+      });
+    });
+
+    describe('with isStateOnly', () => {
+      it('sets isStateOnly on transaction metadata', async () => {
+        const { controller } = setupController();
+
+        await controller.addTransaction(
+          {
+            from: ACCOUNT_MOCK,
+            to: ACCOUNT_MOCK,
+          },
+          {
+            isStateOnly: true,
+            networkClientId: NETWORK_CLIENT_ID_MOCK,
+          },
+        );
+
+        expect(controller.state.transactions[0].isStateOnly).toBe(true);
+      });
+
+      it('does not update simulation data', async () => {
+        getBalanceChangesMock.mockResolvedValueOnce({
+          simulationData: SIMULATION_DATA_RESULT_MOCK,
+        });
+
+        const { controller } = setupController();
+
+        await controller.addTransaction(
+          {
+            from: ACCOUNT_MOCK,
+            to: ACCOUNT_MOCK,
+          },
+          {
+            isStateOnly: true,
+            networkClientId: NETWORK_CLIENT_ID_MOCK,
+          },
+        );
+
+        await flushPromises();
+
+        expect(getBalanceChangesMock).toHaveBeenCalledTimes(0);
+        expect(controller.state.transactions[0].simulationData).toBeUndefined();
+      });
+
+      it('marks transaction as submitted', async () => {
+        const { controller } = setupController({
+          messengerOptions: {
+            addTransactionApprovalRequest: {
+              state: 'approved',
+            },
+          },
+        });
+
+        const { result } = await controller.addTransaction(
+          {
+            from: ACCOUNT_MOCK,
+            gas: '0x0',
+            gasPrice: '0x0',
+            to: ACCOUNT_MOCK,
+            value: '0x0',
+          },
+          {
+            isStateOnly: true,
+            networkClientId: NETWORK_CLIENT_ID_MOCK,
+          },
+        );
+
+        await result;
+
+        expect(signMock).not.toHaveBeenCalled();
+        expect(controller.state.transactions).toMatchObject([
+          expect.objectContaining({
+            isStateOnly: true,
+            status: TransactionStatus.submitted,
+            submittedTime: expect.any(Number),
+          }),
+        ]);
+      });
+
+      it('returns empty string as result hash', async () => {
+        const { controller } = setupController({
+          messengerOptions: {
+            addTransactionApprovalRequest: {
+              state: 'approved',
+            },
+          },
+        });
+
+        const { result } = await controller.addTransaction(
+          {
+            from: ACCOUNT_MOCK,
+            gas: '0x0',
+            gasPrice: '0x0',
+            to: ACCOUNT_MOCK,
+            value: '0x0',
+          },
+          {
+            isStateOnly: true,
+            networkClientId: NETWORK_CLIENT_ID_MOCK,
+          },
+        );
+
+        const hash = await result;
+
+        expect(hash).toBe('');
       });
     });
 
@@ -4850,6 +4967,8 @@ describe('TransactionController', () => {
     });
 
     it('limits max transactions when adding to state', async () => {
+      getTransactionHistoryLimitMock.mockReturnValue(1);
+
       const { controller } = setupController({
         options: { transactionHistoryLimit: 1 },
       });
@@ -5532,6 +5651,12 @@ describe('TransactionController', () => {
           type: TransactionType.incoming,
         };
 
+        const isTransferTransaction = {
+          ...duplicate_1,
+          id: 'testId9',
+          isTransfer: true,
+        };
+
         const { controller } = setupController({
           options: {
             state: {
@@ -5541,6 +5666,7 @@ describe('TransactionController', () => {
                 wrongNonce,
                 wrongFrom,
                 wrongType,
+                isTransferTransaction,
                 duplicate_1,
                 duplicate_2,
                 duplicate_3,
@@ -5560,6 +5686,7 @@ describe('TransactionController', () => {
           TransactionStatus.submitted,
           TransactionStatus.submitted,
           TransactionStatus.confirmed,
+          TransactionStatus.submitted,
           TransactionStatus.dropped,
           TransactionStatus.dropped,
           TransactionStatus.failed,
@@ -5573,6 +5700,7 @@ describe('TransactionController', () => {
           undefined,
           undefined,
           undefined,
+          undefined,
           confirmed.hash,
           confirmed.hash,
           confirmed.hash,
@@ -5581,6 +5709,7 @@ describe('TransactionController', () => {
         expect(
           controller.state.transactions.map((tx) => tx.replacedById),
         ).toStrictEqual([
+          undefined,
           undefined,
           undefined,
           undefined,

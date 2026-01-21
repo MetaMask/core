@@ -1,6 +1,6 @@
 {
   "name": "@metamask/sample-controllers",
-  "version": "4.0.0",
+  "version": "4.0.2",
   "description": "Sample package to illustrate best practices for controllers",
   "keywords": [
     "MetaMask",
@@ -50,7 +50,7 @@
   "dependencies": {
     "@metamask/base-controller": "^9.0.0",
     "@metamask/messenger": "^0.3.0",
-    "@metamask/network-controller": "^27.2.0",
+    "@metamask/network-controller": "^29.0.0",
     "@metamask/utils": "^11.9.0"
   },
   "devDependencies": {

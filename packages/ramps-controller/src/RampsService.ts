@@ -44,22 +44,89 @@ export type State = {
 };
 
 /**
- * Represents eligibility information for a region.
- * Returned from the /regions/countries/{isoCode} endpoint.
+ * Represents a provider link.
  */
-export type Eligibility = {
+export type ProviderLink = {
+  name: string;
+  url: string;
+};
+
+/**
+ * Represents provider logos.
+ */
+export type ProviderLogos = {
+  light: string;
+  dark: string;
+  height: number;
+  width: number;
+};
+
+/**
+ * Represents a ramp provider.
+ */
+export type Provider = {
+  id: string;
+  name: string;
+  environmentType: string;
+  description: string;
+  hqAddress: string;
+  links: ProviderLink[];
+  logos: ProviderLogos;
+};
+
+/**
+ * Represents a payment method for funding a purchase.
+ */
+export type PaymentMethod = {
   /**
-   * Whether aggregator providers are available.
+   * Canonical payment method ID (e.g., "/payments/debit-credit-card").
    */
-  aggregator?: boolean;
+  id: string;
   /**
-   * Whether deposit (buy) is available.
+   * Payment type identifier (e.g., "debit-credit-card", "bank-transfer").
    */
-  deposit?: boolean;
+  paymentType: string;
   /**
-   * Whether global providers are available.
+   * User-facing name for the payment method.
    */
-  global?: boolean;
+  name: string;
+  /**
+   * Score for sorting payment methods (higher is better).
+   */
+  score: number;
+  /**
+   * Icon identifier for the payment method.
+   */
+  icon: string;
+  /**
+   * Localized disclaimer text (optional).
+   */
+  disclaimer?: string;
+  /**
+   * Human-readable delay description (e.g., "5 to 10 minutes.").
+   */
+  delay?: string;
+  /**
+   * Localized pending order description (optional).
+   */
+  pendingOrderDescription?: string;
+};
+
+/**
+ * Response from the paymentMethods API.
+ */
+export type PaymentMethodsResponse = {
+  /**
+   * List of available payment methods.
+   */
+  payments: PaymentMethod[];
+  /**
+   * Recommended sorting for payment methods.
+   */
+  sort?: {
+    ids: string[];
+    sortBy: string;
+  };
 };
 
 /**
@@ -103,12 +170,73 @@ export type Country = {
    * Array of state objects.
    */
   states?: State[];
+  /**
+   * Default amount for ramps transactions.
+   */
+  defaultAmount?: number;
+  /**
+   * Quick amount options for ramps transactions.
+   */
+  quickAmounts?: number[];
+};
+
+/**
+ * Represents a token returned from the regions/{region}/tokens API.
+ */
+export type RampsToken = {
+  /**
+   * The asset identifier in CAIP-19 format (e.g., "eip155:1/erc20:0x...").
+   */
+  assetId: string;
+  /**
+   * The chain identifier in CAIP-2 format (e.g., "eip155:1").
+   */
+  chainId: string;
+  /**
+   * Token name (e.g., "USD Coin").
+   */
+  name: string;
+  /**
+   * Token symbol (e.g., "USDC").
+   */
+  symbol: string;
+  /**
+   * Number of decimals for the token.
+   */
+  decimals: number;
+  /**
+   * URL to the token icon.
+   */
+  iconUrl: string;
+  /**
+   * Whether this token is supported.
+   */
+  tokenSupported: boolean;
+};
+
+/**
+ * Response from the regions/{region}/tokens API.
+ */
+export type TokensResponse = {
+  /**
+   * Top/popular tokens for the region.
+   */
+  topTokens: RampsToken[];
+  /**
+   * All available tokens for the region.
+   */
+  allTokens: RampsToken[];
 };
 
 /**
  * The SDK version to send with API requests. (backwards-compatibility)
  */
 export const RAMPS_SDK_VERSION = '2.1.6';
+
+/**
+ * The type of ramp action: 'buy' or 'sell'.
+ */
+export type RampAction = 'buy' | 'sell';
 
 // === GENERAL ===
 
@@ -141,7 +269,9 @@ export enum RampsApiService {
 const MESSENGER_EXPOSED_METHODS = [
   'getGeolocation',
   'getCountries',
-  'getEligibility',
+  'getTokens',
+  'getProviders',
+  'getPaymentMethods',
 ] as const;
 
 /**
@@ -199,6 +329,17 @@ function getBaseUrl(
     default:
       throw new Error(`Invalid environment: ${String(environment)}`);
   }
+}
+
+/**
+ * Constructs an API path with a version prefix.
+ *
+ * @param path - The API endpoint path.
+ * @param version - The API version prefix. Defaults to 'v2'.
+ * @returns The versioned API path.
+ */
+function getApiPath(path: string, version: string = 'v2'): string {
+  return `${version}/${path}`;
 }
 
 /**
@@ -378,7 +519,7 @@ export class RampsService {
    * @param url - The URL to add parameters to.
    * @param action - The ramp action type (optional, not all endpoints require it).
    */
-  #addCommonParams(url: URL, action?: 'buy' | 'sell'): void {
+  #addCommonParams(url: URL, action?: RampAction): void {
     if (action) {
       url.searchParams.set('action', action);
     }
@@ -401,7 +542,7 @@ export class RampsService {
     service: RampsApiService,
     path: string,
     options: {
-      action?: 'buy' | 'sell';
+      action?: RampAction;
       responseType: 'json' | 'text';
     },
   ): Promise<TResponse> {
@@ -452,10 +593,10 @@ export class RampsService {
    * @param action - The ramp action type ('buy' or 'sell').
    * @returns An array of countries filtered by aggregator support.
    */
-  async getCountries(action: 'buy' | 'sell' = 'buy'): Promise<Country[]> {
+  async getCountries(action: RampAction = 'buy'): Promise<Country[]> {
     const countries = await this.#request<Country[]>(
       RampsApiService.Regions,
-      'regions/countries',
+      getApiPath('regions/countries'),
       { action, responseType: 'json' },
     );
 
@@ -476,17 +617,185 @@ export class RampsService {
   }
 
   /**
-   * Fetches eligibility information for a specific region.
+   * Fetches the list of available tokens for a given region and action.
+   * Supports optional provider filter.
    *
-   * @param isoCode - The ISO code for the region (e.g., "us", "fr", "us-ny").
-   * @returns Eligibility information for the region.
+   * @param region - The region code (e.g., "us", "fr", "us-ny").
+   * @param action - The ramp action type ('buy' or 'sell').
+   * @param options - Optional query parameters for filtering tokens.
+   * @param options.provider - Provider ID(s) to filter by.
+   * @returns The tokens response containing topTokens and allTokens.
    */
-  async getEligibility(isoCode: string): Promise<Eligibility> {
-    const normalizedIsoCode = isoCode.toLowerCase().trim();
-    return this.#request<Eligibility>(
-      RampsApiService.Regions,
-      `regions/countries/${normalizedIsoCode}`,
-      { responseType: 'json' },
+  async getTokens(
+    region: string,
+    action: RampAction = 'buy',
+    options?: {
+      provider?: string | string[];
+    },
+  ): Promise<TokensResponse> {
+    const normalizedRegion = region.toLowerCase().trim();
+    const url = new URL(
+      getApiPath(`regions/${normalizedRegion}/topTokens`),
+      getBaseUrl(this.#environment, RampsApiService.Regions),
     );
+    this.#addCommonParams(url, action);
+
+    if (options?.provider) {
+      const providerIds = Array.isArray(options.provider)
+        ? options.provider
+        : [options.provider];
+      providerIds.forEach((id) => url.searchParams.append('provider', id));
+    }
+
+    const response = await this.#policy.execute(async () => {
+      const fetchResponse = await this.#fetch(url);
+      if (!fetchResponse.ok) {
+        throw new HttpError(
+          fetchResponse.status,
+          `Fetching '${url.toString()}' failed with status '${fetchResponse.status}'`,
+        );
+      }
+      return fetchResponse.json() as Promise<TokensResponse>;
+    });
+
+    if (!response || typeof response !== 'object') {
+      throw new Error('Malformed response received from tokens API');
+    }
+
+    if (
+      !Array.isArray(response.topTokens) ||
+      !Array.isArray(response.allTokens)
+    ) {
+      throw new Error('Malformed response received from tokens API');
+    }
+
+    return response;
+  }
+
+  /**
+   * Fetches the list of providers for a given region.
+   * Supports optional query filters: provider, crypto, fiat, payments.
+   *
+   * @param regionCode - The region code (e.g., "us", "fr", "us-ny").
+   * @param options - Optional query parameters for filtering providers.
+   * @param options.provider - Provider ID(s) to filter by.
+   * @param options.crypto - Crypto currency ID(s) to filter by.
+   * @param options.fiat - Fiat currency ID(s) to filter by.
+   * @param options.payments - Payment method ID(s) to filter by.
+   * @returns The providers response containing providers array.
+   */
+  async getProviders(
+    regionCode: string,
+    options?: {
+      provider?: string | string[];
+      crypto?: string | string[];
+      fiat?: string | string[];
+      payments?: string | string[];
+    },
+  ): Promise<{ providers: Provider[] }> {
+    const normalizedRegion = regionCode.toLowerCase().trim();
+    const url = new URL(
+      getApiPath(`regions/${normalizedRegion}/providers`),
+      getBaseUrl(this.#environment, RampsApiService.Regions),
+    );
+    this.#addCommonParams(url);
+
+    if (options?.provider) {
+      const providerIds = Array.isArray(options.provider)
+        ? options.provider
+        : [options.provider];
+      providerIds.forEach((id) => url.searchParams.append('provider', id));
+    }
+
+    if (options?.crypto) {
+      const cryptoIds = Array.isArray(options.crypto)
+        ? options.crypto
+        : [options.crypto];
+      cryptoIds.forEach((id) => url.searchParams.append('crypto', id));
+    }
+
+    if (options?.fiat) {
+      const fiatIds = Array.isArray(options.fiat)
+        ? options.fiat
+        : [options.fiat];
+      fiatIds.forEach((id) => url.searchParams.append('fiat', id));
+    }
+
+    if (options?.payments) {
+      const paymentIds = Array.isArray(options.payments)
+        ? options.payments
+        : [options.payments];
+      paymentIds.forEach((id) => url.searchParams.append('payments', id));
+    }
+
+    const response = await this.#policy.execute(async () => {
+      const fetchResponse = await this.#fetch(url);
+      if (!fetchResponse.ok) {
+        throw new HttpError(
+          fetchResponse.status,
+          `Fetching '${url.toString()}' failed with status '${fetchResponse.status}'`,
+        );
+      }
+      return fetchResponse.json() as Promise<{ providers: Provider[] }>;
+    });
+
+    if (!response || typeof response !== 'object') {
+      throw new Error('Malformed response received from providers API');
+    }
+
+    if (!Array.isArray(response.providers)) {
+      throw new Error('Malformed response received from providers API');
+    }
+
+    return response;
+  }
+
+  /**
+   * Fetches the list of payment methods for a given region, asset, and provider.
+   *
+   * @param options - Query parameters for filtering payment methods.
+   * @param options.region - User's region code (e.g., "us-al").
+   * @param options.fiat - Fiat currency code (e.g., "usd").
+   * @param options.assetId - CAIP-19 cryptocurrency identifier.
+   * @param options.provider - Provider ID path.
+   * @returns The payment methods response containing payments array.
+   */
+  async getPaymentMethods(options: {
+    region: string;
+    fiat: string;
+    assetId: string;
+    provider: string;
+  }): Promise<PaymentMethodsResponse> {
+    const url = new URL(
+      getApiPath('paymentMethods'),
+      getBaseUrl(this.#environment, RampsApiService.Regions),
+    );
+    this.#addCommonParams(url);
+
+    url.searchParams.set('region', options.region.toLowerCase().trim());
+    url.searchParams.set('fiat', options.fiat.toLowerCase().trim());
+    url.searchParams.set('assetId', options.assetId);
+    url.searchParams.set('provider', options.provider);
+
+    const response = await this.#policy.execute(async () => {
+      const fetchResponse = await this.#fetch(url);
+      if (!fetchResponse.ok) {
+        throw new HttpError(
+          fetchResponse.status,
+          `Fetching '${url.toString()}' failed with status '${fetchResponse.status}'`,
+        );
+      }
+      return fetchResponse.json() as Promise<PaymentMethodsResponse>;
+    });
+
+    if (!response || typeof response !== 'object') {
+      throw new Error('Malformed response received from paymentMethods API');
+    }
+
+    if (!Array.isArray(response.payments)) {
+      throw new Error('Malformed response received from paymentMethods API');
+    }
+
+    return response;
   }
 }

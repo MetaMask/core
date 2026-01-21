@@ -1,3 +1,4 @@
+import { BRIDGE_PREFERRED_GAS_ESTIMATE } from '@metamask/bridge-controller';
 import type { TokenAmountValues, TxData } from '@metamask/bridge-controller';
 import { toHex } from '@metamask/controller-utils';
 import type {
@@ -21,7 +22,8 @@ const getTransaction1559GasFeeEstimates = (
   txGasFeeEstimates: FeeMarketGasFeeEstimates,
   estimatedBaseFee: string,
 ) => {
-  const { maxFeePerGas, maxPriorityFeePerGas } = txGasFeeEstimates?.high ?? {};
+  const { maxFeePerGas, maxPriorityFeePerGas } =
+    txGasFeeEstimates?.[BRIDGE_PREFERRED_GAS_ESTIMATE] ?? {};
 
   const baseAndPriorityFeePerGas = maxPriorityFeePerGas
     ? new BigNumber(estimatedBaseFee, 10)

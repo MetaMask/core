@@ -124,11 +124,6 @@
       "count": 2
     }
   },
-  "packages/announcement-controller/src/AnnouncementController.test.ts": {
-    "@typescript-eslint/explicit-function-return-type": {
-      "count": 1
-    }
-  },
   "packages/approval-controller/src/ApprovalController.test.ts": {
     "@typescript-eslint/explicit-function-return-type": {
       "count": 22
@@ -187,13 +182,7 @@
   },
   "packages/assets-controllers/src/CurrencyRateController.ts": {
     "@typescript-eslint/explicit-function-return-type": {
-      "count": 3
-    },
-    "no-negated-condition": {
       "count": 1
-    },
-    "no-restricted-syntax": {
-      "count": 3
     }
   },
   "packages/assets-controllers/src/DeFiPositionsController/DeFiPositionsController.test.ts": {
@@ -359,7 +348,7 @@
   },
   "packages/assets-controllers/src/TokenListController.ts": {
     "@typescript-eslint/explicit-function-return-type": {
-      "count": 6
+      "count": 1
     },
     "no-restricted-syntax": {
       "count": 7
@@ -402,9 +391,6 @@
     },
     "@typescript-eslint/no-unused-vars": {
       "count": 1
-    },
-    "@typescript-eslint/prefer-nullish-coalescing": {
-      "count": 4
     },
     "@typescript-eslint/prefer-optional-chain": {
       "count": 4
@@ -687,7 +673,7 @@
   },
   "packages/bridge-controller/src/utils/metrics/types.ts": {
     "@typescript-eslint/naming-convention": {
-      "count": 81
+      "count": 83
     }
   },
   "packages/bridge-controller/src/utils/quote-fees.ts": {
@@ -754,25 +740,6 @@
     },
     "no-new": {
       "count": 1
-    }
-  },
-  "packages/bridge-status-controller/src/bridge-status-controller.ts": {
-    "@typescript-eslint/explicit-function-return-type": {
-      "count": 20
-    },
-    "@typescript-eslint/naming-convention": {
-      "count": 5
-    },
-    "camelcase": {
-      "count": 8
-    },
-    "id-length": {
-      "count": 1
-    }
-  },
-  "packages/bridge-status-controller/src/types.ts": {
-    "@typescript-eslint/naming-convention": {
-      "count": 7
     }
   },
   "packages/bridge-status-controller/src/utils/bridge-status.ts": {
@@ -1124,48 +1091,6 @@
       "count": 1
     }
   },
-  "packages/gator-permissions-controller/src/GatorPermissionsController.test.ts": {
-    "@typescript-eslint/explicit-function-return-type": {
-      "count": 2
-    },
-    "id-denylist": {
-      "count": 2
-    },
-    "no-new": {
-      "count": 1
-    }
-  },
-  "packages/gator-permissions-controller/src/GatorPermissionsController.ts": {
-    "@typescript-eslint/explicit-function-return-type": {
-      "count": 16
-    }
-  },
-  "packages/gator-permissions-controller/src/decodePermission/decodePermission.ts": {
-    "@typescript-eslint/explicit-function-return-type": {
-      "count": 1
-    }
-  },
-  "packages/gator-permissions-controller/src/decodePermission/utils.test.ts": {
-    "id-length": {
-      "count": 1
-    }
-  },
-  "packages/gator-permissions-controller/src/decodePermission/utils.ts": {
-    "@typescript-eslint/explicit-function-return-type": {
-      "count": 2
-    },
-    "@typescript-eslint/naming-convention": {
-      "count": 1
-    },
-    "id-length": {
-      "count": 1
-    }
-  },
-  "packages/gator-permissions-controller/src/test/mocks.ts": {
-    "@typescript-eslint/explicit-function-return-type": {
-      "count": 1
-    }
-  },
   "packages/logging-controller/src/LoggingController.test.ts": {
     "@typescript-eslint/explicit-function-return-type": {
       "count": 1
@@ -1215,14 +1140,6 @@
     },
     "no-restricted-globals": {
       "count": 1
-    }
-  },
-  "packages/multichain-account-service/src/MultichainAccountService.test.ts": {
-    "@typescript-eslint/explicit-function-return-type": {
-      "count": 1
-    },
-    "@typescript-eslint/naming-convention": {
-      "count": 4
     }
   },
   "packages/multichain-account-service/src/MultichainAccountService.ts": {
@@ -1282,24 +1199,11 @@
       "count": 1
     }
   },
-  "packages/multichain-account-service/src/providers/SnapAccountProvider.ts": {
-    "@typescript-eslint/explicit-function-return-type": {
-      "count": 1
-    },
-    "@typescript-eslint/naming-convention": {
-      "count": 1
-    }
-  },
   "packages/multichain-account-service/src/providers/SolAccountProvider.ts": {
     "@typescript-eslint/naming-convention": {
       "count": 2
     },
     "id-length": {
-      "count": 1
-    }
-  },
-  "packages/multichain-account-service/src/providers/TrxAccountProvider.test.ts": {
-    "no-negated-condition": {
       "count": 1
     }
   },
@@ -1515,17 +1419,6 @@
     },
     "jsdoc/require-returns": {
       "count": 1
-    }
-  },
-  "packages/network-enablement-controller/src/NetworkEnablementController.ts": {
-    "@typescript-eslint/explicit-function-return-type": {
-      "count": 1
-    },
-    "@typescript-eslint/prefer-nullish-coalescing": {
-      "count": 2
-    },
-    "id-length": {
-      "count": 7
     }
   },
   "packages/network-enablement-controller/src/selectors.ts": {

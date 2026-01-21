@@ -9,8 +9,48 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ### Changed
 
+- Bump `@metamask/bridge-controller` from `^64.5.1` to `^64.6.1` ([#7667](https://github.com/MetaMask/core/pull/7667), [#7672](https://github.com/MetaMask/core/pull/7672))
+
+## [11.0.2]
+
+### Changed
+
+- Bump `@metamask/assets-controllers` from `^95.1.0` to `^95.3.0` ([#7622](https://github.com/MetaMask/core/pull/7622), [#7642](https://github.com/MetaMask/core/pull/7642))
+- Bump `@metamask/bridge-controller` from `^64.4.1` to `^64.5.1` ([#7622](https://github.com/MetaMask/core/pull/7622), [#7642](https://github.com/MetaMask/core/pull/7642))
+- Bump `@metamask/bridge-status-controller` from `^64.4.2` to `^64.4.3` ([#7642](https://github.com/MetaMask/core/pull/7642))
+- Bump `@metamask/gas-fee-controller` from `^26.0.1` to `^26.0.2` ([#7642](https://github.com/MetaMask/core/pull/7642))
+- Bump `@metamask/network-controller` from `^28.0.0` to `^29.0.0` ([#7642](https://github.com/MetaMask/core/pull/7642))
+- Bump `@metamask/transaction-controller` from `^62.9.1` to `^62.9.2` ([#7642](https://github.com/MetaMask/core/pull/7642))
+
+## [11.0.1]
+
+### Changed
+
+- Bump `@metamask/network-controller` from `^27.2.0` to `^28.0.0` ([#7604](https://github.com/MetaMask/core/pull/7604))
+- Bump `@metamask/bridge-controller` from `^64.4.0` to `^64.4.1` ([#7604](https://github.com/MetaMask/core/pull/7604))
+- Bump `@metamask/bridge-status-controller` from `^64.4.1` to `^64.4.2` ([#7604](https://github.com/MetaMask/core/pull/7604))
+- Bump `@metamask/gas-fee-controller` from `^26.0.0` to `^26.0.1` ([#7604](https://github.com/MetaMask/core/pull/7604))
+- Bump `@metamask/transaction-controller` from `^62.9.0` to `^62.9.1` ([#7604](https://github.com/MetaMask/core/pull/7604))
+
+## [11.0.0]
+
+### Added
+
+- **BREAKING:** Support max amount quotes ([#7562](https://github.com/MetaMask/core/pull/7562))
+  - Add `TransactionPayController:setIsMaxAmount` messenger action.
+  - Add `isMaxAmount` property to `TransactionData` type.
+  - Add `targetAmount` property to `TransactionPayQuote` and `TransactionPayTotals`.
+  - Update Relay quote requests to use `EXACT_INPUT` trade type when max amount is selected.
+  - Update totals calculation to account for max amount selection.
+
+### Changed
+
 - Bump `@metamask/controller-utils` from `^11.17.0` to `^11.18.0` ([#7583](https://github.com/MetaMask/core/pull/7583))
 - Bump `@metamask/network-controller` from `^27.1.0` to `^27.2.0` ([#7583](https://github.com/MetaMask/core/pull/7583))
+- Bump `@metamask/assets-controllers` from `^94.0.0` to `^95.1.0` ([#7584](https://github.com/MetaMask/core/pull/7584), [#7600](https://github.com/MetaMask/core/pull/7600))
+- Bump `@metamask/transaction-controller` from `^62.7.0` to `^62.9.0` ([#7596](https://github.com/MetaMask/core/pull/7596), [#7602](https://github.com/MetaMask/core/pull/7602))
+- Bump `@metamask/bridge-controller` from `^64.3.0` to `^64.4.0` ([#7596](https://github.com/MetaMask/core/pull/7596))
+- Bump `@metamask/bridge-status-controller` from `^64.3.0` to `^64.4.1` ([#7596](https://github.com/MetaMask/core/pull/7596), [#7597](https://github.com/MetaMask/core/pull/7597))
 
 ## [10.6.0]
 
@@ -236,7 +276,10 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 - Initial release ([#6820](https://github.com/MetaMask/core/pull/6820))
 
-[Unreleased]: https://github.com/MetaMask/core/compare/@metamask/transaction-pay-controller@10.6.0...HEAD
+[Unreleased]: https://github.com/MetaMask/core/compare/@metamask/transaction-pay-controller@11.0.2...HEAD
+[11.0.2]: https://github.com/MetaMask/core/compare/@metamask/transaction-pay-controller@11.0.1...@metamask/transaction-pay-controller@11.0.2
+[11.0.1]: https://github.com/MetaMask/core/compare/@metamask/transaction-pay-controller@11.0.0...@metamask/transaction-pay-controller@11.0.1
+[11.0.0]: https://github.com/MetaMask/core/compare/@metamask/transaction-pay-controller@10.6.0...@metamask/transaction-pay-controller@11.0.0
 [10.6.0]: https://github.com/MetaMask/core/compare/@metamask/transaction-pay-controller@10.5.0...@metamask/transaction-pay-controller@10.6.0
 [10.5.0]: https://github.com/MetaMask/core/compare/@metamask/transaction-pay-controller@10.4.0...@metamask/transaction-pay-controller@10.5.0
 [10.4.0]: https://github.com/MetaMask/core/compare/@metamask/transaction-pay-controller@10.3.0...@metamask/transaction-pay-controller@10.4.0

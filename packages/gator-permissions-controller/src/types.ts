@@ -1,6 +1,5 @@
 import type {
   PermissionTypes,
-  Signer,
   BasePermission,
   NativeTokenStreamPermission,
   NativeTokenPeriodicPermission,
@@ -55,13 +54,10 @@ export type PermissionTypesWithCustom = PermissionTypes | CustomPermission;
 /**
  * Represents a ERC-7715 permission request.
  *
- * @template Signer - The type of the signer provided, either an AccountSigner or WalletSigner.
+ * @template to - The type of the signer provided, either an AccountSigner or WalletSigner.
  * @template Permission - The type of the permission provided.
  */
-export type PermissionRequest<
-  TSigner extends Signer,
-  TPermission extends PermissionTypesWithCustom,
-> = {
+export type PermissionRequest<TPermission extends PermissionTypesWithCustom> = {
   /**
    * hex-encoding of uint256 defined the chain with EIP-155
    */
@@ -72,15 +68,15 @@ export type PermissionRequest<
    * The account being targeted for this permission request.
    * It is optional to let the user choose which account to grant permission from.
    */
-  address?: Hex;
+  from?: Hex;
 
   /**
-   * An account that is associated with the recipient of the granted 7715 permission or alternatively the wallet will manage the session.
+   * A field that identifies the DApp session account associated with the permission
    */
-  signer: TSigner;
+  to: Hex;
 
   /**
-   * Defines the allowed behavior the signer can do on behalf of the account.
+   * Defines the allowed behavior the `to` account can do on behalf of the `from` account.
    */
   permission: TPermission;
 
@@ -90,85 +86,68 @@ export type PermissionRequest<
 /**
  * Represents a ERC-7715 permission response.
  *
- * @template Signer - The type of the signer provided, either an AccountSigner or WalletSigner.
  * @template Permission - The type of the permission provided.
  */
-export type PermissionResponse<
-  TSigner extends Signer,
-  TPermission extends PermissionTypesWithCustom,
-> = PermissionRequest<TSigner, TPermission> & {
-  /**
-   * Is a catch-all to identify a permission for revoking permissions or submitting
-   * Defined in ERC-7710.
-   */
-  context: Hex;
+export type PermissionResponse<TPermission extends PermissionTypesWithCustom> =
+  PermissionRequest<TPermission> & {
+    /**
+     * Is a catch-all to identify a permission for revoking permissions or submitting
+     * Defined in ERC-7710.
+     */
+    context: Hex;
 
-  /**
-   * The dependencyInfo field is required and contains information needed to deploy accounts.
-   * Each entry specifies a factory contract and its associated deployment data.
-   * If no account deployment is needed when redeeming the permission, this array must be empty.
-   * When non-empty, DApps MUST deploy the accounts by calling the factory contract with factoryData as the calldata.
-   * Defined in ERC-4337.
-   */
-  dependencyInfo: {
-    factory: Hex;
-    factoryData: Hex;
-  }[];
+    /**
+     * The dependencyInfo field is required and contains information needed to deploy accounts.
+     * Each entry specifies a factory contract and its associated deployment data.
+     * If no account deployment is needed when redeeming the permission, this array must be empty.
+     * When non-empty, DApps MUST deploy the accounts by calling the factory contract with factoryData as the calldata.
+     * Defined in ERC-4337.
+     */
+    dependencies: {
+      factory: Hex;
+      factoryData: Hex;
+    }[];
 
-  /**
-   * If the signer type is account then delegationManager is required as defined in ERC-7710.
-   */
-  signerMeta: {
+    /**
+     * Is required as defined in ERC-7710.
+     */
     delegationManager: Hex;
   };
-};
 
 /**
  * Represents a sanitized version of the PermissionResponse type.
- * Internal fields (dependencyInfo, signer) are removed
+ * Internal fields (dependencies, to) are removed
  *
- * @template Signer - The type of the signer provided, either an AccountSigner or WalletSigner.
  * @template Permission - The type of the permission provided.
  */
 export type PermissionResponseSanitized<
-  TSigner extends Signer,
   TPermission extends PermissionTypesWithCustom,
-> = Omit<PermissionResponse<TSigner, TPermission>, 'dependencyInfo' | 'signer'>;
+> = Omit<PermissionResponse<TPermission>, 'dependencies' | 'to'>;
 
 /**
- * Represents a gator ERC-7715 granted(ie. signed by an user account) permission entry that is stored in profile sync.
+ * Represents a gator ERC-7715 granted(ie. signed by a user's account) permission entry that is stored in profile sync.
  *
- * @template Signer - The type of the signer provided, either an AccountSigner or WalletSigner.
  * @template Permission - The type of the permission provided
  */
 export type StoredGatorPermission<
-  TSigner extends Signer,
   TPermission extends PermissionTypesWithCustom,
 > = {
-  permissionResponse: PermissionResponse<TSigner, TPermission>;
+  permissionResponse: PermissionResponse<TPermission>;
   siteOrigin: string;
-  /**
-   * Flag indicating whether this permission has been revoked.
-   */
-  isRevoked?: boolean;
+  revocationMetadata?: RevocationMetadata;
 };
 
 /**
  * Represents a sanitized version of the StoredGatorPermission type. Some fields have been removed but the fields are still present in profile sync.
  *
- * @template Signer - The type of the signer provided, either an AccountSigner or WalletSigner.
  * @template Permission - The type of the permission provided.
  */
 export type StoredGatorPermissionSanitized<
-  TSigner extends Signer,
   TPermission extends PermissionTypesWithCustom,
 > = {
-  permissionResponse: PermissionResponseSanitized<TSigner, TPermission>;
+  permissionResponse: PermissionResponseSanitized<TPermission>;
   siteOrigin: string;
-  /**
-   * Flag indicating whether this permission has been revoked.
-   */
-  isRevoked?: boolean;
+  revocationMetadata?: RevocationMetadata;
 };
 
 /**
@@ -176,37 +155,32 @@ export type StoredGatorPermissionSanitized<
  */
 export type GatorPermissionsMap = {
   'erc20-token-revocation': {
-    [chainId: Hex]: StoredGatorPermissionSanitized<
-      Signer,
-      Erc20TokenRevocationPermission
-    >[];
+    [
+      chainId: Hex
+    ]: StoredGatorPermissionSanitized<Erc20TokenRevocationPermission>[];
   };
   'native-token-stream': {
-    [chainId: Hex]: StoredGatorPermissionSanitized<
-      Signer,
-      NativeTokenStreamPermission
-    >[];
+    [
+      chainId: Hex
+    ]: StoredGatorPermissionSanitized<NativeTokenStreamPermission>[];
   };
   'native-token-periodic': {
-    [chainId: Hex]: StoredGatorPermissionSanitized<
-      Signer,
-      NativeTokenPeriodicPermission
-    >[];
+    [
+      chainId: Hex
+    ]: StoredGatorPermissionSanitized<NativeTokenPeriodicPermission>[];
   };
   'erc20-token-stream': {
-    [chainId: Hex]: StoredGatorPermissionSanitized<
-      Signer,
-      Erc20TokenStreamPermission
-    >[];
+    [
+      chainId: Hex
+    ]: StoredGatorPermissionSanitized<Erc20TokenStreamPermission>[];
   };
   'erc20-token-periodic': {
-    [chainId: Hex]: StoredGatorPermissionSanitized<
-      Signer,
-      Erc20TokenPeriodicPermission
-    >[];
+    [
+      chainId: Hex
+    ]: StoredGatorPermissionSanitized<Erc20TokenPeriodicPermission>[];
   };
   other: {
-    [chainId: Hex]: StoredGatorPermissionSanitized<Signer, CustomPermission>[];
+    [chainId: Hex]: StoredGatorPermissionSanitized<CustomPermission>[];
   };
 };
 
@@ -238,13 +212,28 @@ export type DelegationDetails = Pick<
 >;
 
 /**
- * Represents the parameters for submitting a revocation.
+ * Represents the metadata for confirmed transaction revocation.
+ */
+export type RevocationMetadata = {
+  // The timestamp at which the revocation was recorded in storage.
+  recordedAt: number;
+  // The hash of the transaction that was used to revoke the permission. Optional because we might not have submitted the transaction ourselves.
+  txHash?: Hex | undefined;
+};
+
+/**
+ * Parameters for the `permissionsProvider_submitRevocation` method
  */
 export type RevocationParams = {
   /**
    * The permission context as a hex string that identifies the permission to revoke.
    */
   permissionContext: Hex;
+
+  /**
+   * The hash of the transaction that was used to revoke the permission. Optional because we might not have submitted the transaction ourselves.
+   */
+  txHash: Hex | undefined;
 };
 
 /**

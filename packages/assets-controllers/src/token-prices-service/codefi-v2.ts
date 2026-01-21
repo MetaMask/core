@@ -221,6 +221,9 @@ const chainIdToNativeTokenAddress: Record<Hex, Hex> = {
   '0x89': '0x0000000000000000000000000000000000001010', // Polygon
   '0x440': '0xdeaddeaddeaddeaddeaddeaddeaddeaddead0000', // Metis Andromeda
   '0x1388': '0xdeaddeaddeaddeaddeaddeaddeaddeaddead0000', // Mantle
+  '0x64': '0xe91d153e0b41518a2ce8dd3d7944fa863463a97d', // Gnosis
+  '0x1e': '0x542fda317318ebf1d3deaf76e0b632741a7e677d', // Rootstock Mainnet - Native symbol: RBTC
+  '0x2611': '0xeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeee', // Plasma mainnet - native symbol: XPL
 };
 
 /**
@@ -240,6 +243,7 @@ export const SPOT_PRICES_SUPPORT_INFO = {
   '0x1': 'eip155:1/slip44:60', // Ethereum Mainnet - Native symbol: ETH
   '0xa': 'eip155:10/slip44:60', // OP Mainnet - Native symbol: ETH
   '0x19': 'eip155:25/slip44:394', // Cronos Mainnet - Native symbol: CRO
+  '0x1e': 'eip155:30/slip44:137', // Rootstock Mainnet - Native symbol: RBTC
   '0x2a': 'eip155:42/erc20:0x0000000000000000000000000000000000000000', // Lukso - native symbol: LYX
   '0x32': 'eip155:50/erc20:0x0000000000000000000000000000000000000000', // xdc-network - native symbol: XDC
   '0x38': 'eip155:56/slip44:714', // BNB Smart Chain Mainnet - Native symbol: BNB
@@ -257,7 +261,7 @@ export const SPOT_PRICES_SUPPORT_INFO = {
   '0xe8': 'eip155:232/erc20:0x0000000000000000000000000000000000000000', // Lens Mainnet - Native symbol: GHO
   '0xfa': 'eip155:250/slip44:1007', // Fantom Opera - Native symbol: FTM
   '0xfc': 'eip155:252/erc20:0x0000000000000000000000000000000000000000', // Fraxtal - native symbol: FRAX
-  '0x10b3e': 'eip155:68414/erc20:0xf2b51cc1850fed939658317a22d73d3482767591', // MapleStory Universe - no slip44
+  '0x10b3e': 'eip155:68414/erc20:0x0000000000000000000000000000000000000000', // MapleStory Universe - no slip44
   '0x120': 'eip155:288/slip44:60', // Boba Network (Ethereum L2) - Native symbol: ETH
   '0x141': 'eip155:321/slip44:641', // KCC Mainnet - Native symbol: KCS
   '0x144': 'eip155:324/slip44:60', // zkSync Era Mainnet (Ethereum L2) - Native symbol: ETH
@@ -276,7 +280,7 @@ export const SPOT_PRICES_SUPPORT_INFO = {
   '0x10e6': 'eip155:4326/erc20:0x0000000000000000000000000000000000000000', // MegaETH Mainnet - Native symbol: ETH
   '0x1388': 'eip155:5000/erc20:0xdeaddeaddeaddeaddeaddeaddeaddeaddead0000', // Mantle - Native symbol: MNT
   '0x2105': 'eip155:8453/slip44:60', // Base - Native symbol: ETH
-  '0x2611': 'eip155:9745/erc20:0x0000000000000000000000000000000000000000', // Plasma mainnet - native symbol: XPL
+  '0x2611': 'eip155:9745/erc20:0xeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeee', // Plasma mainnet - native symbol: XPL
   '0x2710': 'eip155:10000/slip44:145', // Smart Bitcoin Cash - Native symbol: BCH
   '0x8173': 'eip155:33139/erc20:0x0000000000000000000000000000000000000000', // Apechain Mainnet - Native symbol: APE
   '0xa3c3': 'eip155:41923/erc20:0x0000000000000000000000000000000000000000', // EDU Chain - Native symbol: EDU
@@ -286,6 +290,7 @@ export const SPOT_PRICES_SUPPORT_INFO = {
   '0xa867': 'eip155:43111/erc20:0x0000000000000000000000000000000000000000', // Hemi - Native symbol: ETH
   '0xa86a': 'eip155:43114/slip44:9005', // Avalanche C-Chain - Native symbol: AVAX
   '0xe708': 'eip155:59144/slip44:60', // Linea Mainnet - Native symbol: ETH
+  '0xed88': 'eip155:60808/erc20:0x0000000000000000000000000000000000000000', // BOB - Native symbol: ETH
   '0x138de': 'eip155:80094/erc20:0x0000000000000000000000000000000000000000', // Berachain - Native symbol: Bera',
   '0x13c31': 'eip155:81457/slip44:60', // Blast Mainnet - Native symbol: ETH
   '0x17dcd': 'eip155:97741/erc20:0x0000000000000000000000000000000000000000', // Pepe Unchained Mainnet - Native symbol: PEPU

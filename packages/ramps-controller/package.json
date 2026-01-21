@@ -1,6 +1,6 @@
 {
   "name": "@metamask/ramps-controller",
-  "version": "2.1.0",
+  "version": "4.1.0",
   "description": "A controller for managing cryptocurrency on/off ramps functionality",
   "keywords": [
     "MetaMask",

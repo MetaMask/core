@@ -25,7 +25,11 @@ import type {
   NetworkControllerFindNetworkClientIdByChainIdAction,
   NetworkControllerGetNetworkClientByIdAction,
 } from '@metamask/network-controller';
-import type { HandleSnapRequest as SnapControllerHandleSnapRequestAction } from '@metamask/snaps-controllers';
+import type {
+  HandleSnapRequest as SnapControllerHandleSnapRequestAction,
+  SnapControllerGetStateAction,
+  SnapStateChange as SnapControllerStateChangeEvent,
+} from '@metamask/snaps-controllers';
 
 import type {
   MultichainAccountService,
@@ -87,6 +91,11 @@ export type MultichainAccountServiceResyncAccountsAction = {
   handler: MultichainAccountService['resyncAccounts'];
 };
 
+export type MultichainAccountServiceEnsureCanUseSnapPlatformAction = {
+  type: `${typeof serviceName}:ensureCanUseSnapPlatform`;
+  handler: MultichainAccountService['ensureCanUseSnapPlatform'];
+};
+
 /**
  * All actions that {@link MultichainAccountService} registers so that other
  * modules can call them.
@@ -102,7 +111,8 @@ export type MultichainAccountServiceActions =
   | MultichainAccountServiceAlignWalletAction
   | MultichainAccountServiceAlignWalletsAction
   | MultichainAccountServiceCreateMultichainAccountWalletAction
-  | MultichainAccountServiceResyncAccountsAction;
+  | MultichainAccountServiceResyncAccountsAction
+  | MultichainAccountServiceEnsureCanUseSnapPlatformAction;
 
 export type MultichainAccountServiceMultichainAccountGroupCreatedEvent = {
   type: `${typeof serviceName}:multichainAccountGroupCreated`;
@@ -136,6 +146,7 @@ type AllowedActions =
   | AccountsControllerListMultichainAccountsAction
   | AccountsControllerGetAccountAction
   | AccountsControllerGetAccountByAddressAction
+  | SnapControllerGetStateAction
   | SnapControllerHandleSnapRequestAction
   | KeyringControllerWithKeyringAction
   | KeyringControllerGetStateAction
@@ -149,6 +160,7 @@ type AllowedActions =
  * subscribes to.
  */
 type AllowedEvents =
+  | SnapControllerStateChangeEvent
   | KeyringControllerStateChangeEvent
   | AccountsControllerAccountAddedEvent
   | AccountsControllerAccountRemovedEvent;

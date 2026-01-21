@@ -1,4 +1,4 @@
-# Package Migration Process Guide
+# Package migration process guide
 
 This document outlines the process for migrating a MetaMask library into the core monorepo. The migration target is assumed to comply with the requirements defined by [`metamask-module-template`](https://github.com/MetaMask/metamask-module-template) and [`module-lint`](https://github.com/MetaMask/module-lint).
 
