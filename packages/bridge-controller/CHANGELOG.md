@@ -7,6 +7,8 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+## [64.7.0]
+
 ### Changed
 
 - Made chainRanking an optional flag ([#7691](https://github.com/MetaMask/core/pull/7691))
@@ -1026,7 +1028,8 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 - Initial release ([#5317](https://github.com/MetaMask/core/pull/5317))
 
-[Unreleased]: https://github.com/MetaMask/core/compare/@metamask/bridge-controller@64.6.1...HEAD
+[Unreleased]: https://github.com/MetaMask/core/compare/@metamask/bridge-controller@64.7.0...HEAD
+[64.7.0]: https://github.com/MetaMask/core/compare/@metamask/bridge-controller@64.6.1...@metamask/bridge-controller@64.7.0
 [64.6.1]: https://github.com/MetaMask/core/compare/@metamask/bridge-controller@64.6.0...@metamask/bridge-controller@64.6.1
 [64.6.0]: https://github.com/MetaMask/core/compare/@metamask/bridge-controller@64.5.1...@metamask/bridge-controller@64.6.0
 [64.5.1]: https://github.com/MetaMask/core/compare/@metamask/bridge-controller@64.5.0...@metamask/bridge-controller@64.5.1
