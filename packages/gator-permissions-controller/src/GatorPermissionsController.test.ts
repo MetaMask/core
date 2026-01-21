@@ -197,7 +197,7 @@ describe('GatorPermissionsController', () => {
                 isAdjustmentAllowed: false,
                 data: {
                   target: '0x1234567890123456789012345678901234567890',
-                  sig: '0xabcd',
+                  signature: '0xabcd',
                   expiry: 1735689600, // Example expiry timestamp
                 },
               },
@@ -275,7 +275,7 @@ describe('GatorPermissionsController', () => {
           isAdjustmentAllowed: false,
           data: {
             target: '0x1234567890123456789012345678901234567890',
-            sig: '0xabcd',
+            signature: '0xabcd',
             expiry: 1735689600,
           },
         },

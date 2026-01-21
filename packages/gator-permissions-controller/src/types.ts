@@ -233,7 +233,7 @@ export type RevocationParams = {
   /**
    * The hash of the transaction that was used to revoke the permission. Optional because we might not have submitted the transaction ourselves.
    */
-  txHash : Hex | undefined;
+  txHash: Hex | undefined;
 };
 
 /**
