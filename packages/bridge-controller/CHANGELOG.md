@@ -7,6 +7,10 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+### Changed
+
+- Made chainRanking an optional flag ([#7691](https://github.com/MetaMask/core/pull/7691))
+
 ## [64.6.1]
 
 ### Fixed
