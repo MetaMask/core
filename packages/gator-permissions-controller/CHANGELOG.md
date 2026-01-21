@@ -7,6 +7,10 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+### Added
+
+- **BREAKING:** Now passes the hash of the transaction that revoked the permission, when invoking the Gator Permissions Snap to mark the stored permission as revoked. ([#7503](https://github.com/MetaMask/core/pull/7503))
+
 ### Changed
 
 - Bump `@metamask/transaction-controller` from `^62.9.1` to `^62.9.2` ([#7642](https://github.com/MetaMask/core/pull/7642))
