@@ -221,5 +221,133 @@ describe('EIP-5792', () => {
         `No matching bundle found`,
       );
     });
+
+    it('includes error information when transaction status is reverted with error', () => {
+      const errorMock = {
+        name: 'TransactionError',
+        message: 'Transaction reverted: insufficient funds',
+        code: 'INSUFFICIENT_FUNDS',
+        rpc: { data: '0x08c379a0' },
+      };
+
+      getTransactionControllerStateMock.mockReturnValueOnce({
+        transactions: [
+          {
+            ...TRANSACTION_META_MOCK,
+            status: TransactionStatus.failed,
+            hash: '0x123',
+            error: errorMock,
+            txReceipt: {
+              ...TRANSACTION_META_MOCK.txReceipt,
+              status: '0x0',
+            },
+          },
+        ],
+      } as unknown as TransactionControllerState);
+
+      const result = getCallsStatus(messenger, BATCH_ID_MOCK);
+
+      expect(result?.status).toStrictEqual(GetCallsStatusCode.REVERTED);
+      expect(result?.error).toStrictEqual({
+        message: errorMock.message,
+        code: errorMock.code,
+        name: errorMock.name,
+        rpc: errorMock.rpc,
+      });
+    });
+
+    it('includes error information when transaction status is dropped with error', () => {
+      const errorMock = {
+        name: 'TransactionError',
+        message: 'Transaction dropped',
+        code: 'DROPPED',
+      };
+
+      getTransactionControllerStateMock.mockReturnValueOnce({
+        transactions: [
+          {
+            ...TRANSACTION_META_MOCK,
+            status: TransactionStatus.dropped,
+            error: errorMock,
+          },
+        ],
+      } as unknown as TransactionControllerState);
+
+      const result = getCallsStatus(messenger, BATCH_ID_MOCK);
+
+      expect(result?.status).toStrictEqual(GetCallsStatusCode.REVERTED);
+      expect(result?.error).toStrictEqual({
+        message: errorMock.message,
+        code: errorMock.code,
+        name: errorMock.name,
+      });
+    });
+
+    it('includes error information when receipt status is 0x0 even without transaction error', () => {
+      getTransactionControllerStateMock.mockReturnValueOnce({
+        transactions: [
+          {
+            ...TRANSACTION_META_MOCK,
+            status: TransactionStatus.failed,
+            hash: '0x123',
+            txReceipt: {
+              ...TRANSACTION_META_MOCK.txReceipt,
+              status: '0x0',
+            },
+          },
+        ],
+      } as unknown as TransactionControllerState);
+
+      const result = getCallsStatus(messenger, BATCH_ID_MOCK);
+
+      expect(result?.status).toStrictEqual(GetCallsStatusCode.REVERTED);
+      expect(result?.error).toStrictEqual({
+        message: 'Transaction reverted',
+      });
+    });
+
+    it('does not include error information when status is not REVERTED', () => {
+      getTransactionControllerStateMock.mockReturnValueOnce({
+        transactions: [
+          {
+            ...TRANSACTION_META_MOCK,
+            status: TransactionStatus.confirmed,
+            error: {
+              name: 'SomeError',
+              message: 'Some error message',
+            },
+          },
+        ],
+      } as unknown as TransactionControllerState);
+
+      const result = getCallsStatus(messenger, BATCH_ID_MOCK);
+
+      expect(result?.status).toStrictEqual(GetCallsStatusCode.CONFIRMED);
+      expect(result?.error).toBeUndefined();
+    });
+
+    it('includes only message when error has minimal information', () => {
+      const errorMock = {
+        message: 'Transaction failed',
+      };
+
+      getTransactionControllerStateMock.mockReturnValueOnce({
+        transactions: [
+          {
+            ...TRANSACTION_META_MOCK,
+            status: TransactionStatus.failed,
+            hash: '0x123',
+            error: errorMock,
+          },
+        ],
+      } as unknown as TransactionControllerState);
+
+      const result = getCallsStatus(messenger, BATCH_ID_MOCK);
+
+      expect(result?.status).toStrictEqual(GetCallsStatusCode.REVERTED);
+      expect(result?.error).toStrictEqual({
+        message: errorMock.message,
+      });
+    });
   });
 });
