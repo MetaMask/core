@@ -4,6 +4,7 @@ exports[`BridgeStatusController constructor rehydrates the tx history state 1`] 
 Object {
   "bridgeTxMetaId1": Object {
     "account": "0xaccount1",
+    "actionId": undefined,
     "approvalTxId": undefined,
     "attempts": undefined,
     "batchId": undefined,
@@ -208,6 +209,7 @@ exports[`BridgeStatusController startPollingForBridgeTxStatus sets the inital tx
 Object {
   "bridgeTxMetaId1": Object {
     "account": "0xaccount1",
+    "actionId": undefined,
     "approvalTxId": undefined,
     "batchId": undefined,
     "estimatedProcessingTimeInSeconds": 15,
@@ -410,6 +412,7 @@ Object {
 exports[`BridgeStatusController submitTx: EVM bridge should call handleMobileHardwareWalletDelay for hardware wallet on mobile 2`] = `
 Object {
   "account": "0xaccount1",
+  "actionId": "1234567890.456",
   "approvalTxId": "test-approval-tx-id",
   "batchId": undefined,
   "estimatedProcessingTimeInSeconds": 15,
@@ -646,6 +649,7 @@ Object {
 exports[`BridgeStatusController submitTx: EVM bridge should delay after submitting base approval 2`] = `
 Object {
   "account": "0xaccount1",
+  "actionId": "1234567890.456",
   "approvalTxId": "test-approval-tx-id",
   "batchId": undefined,
   "estimatedProcessingTimeInSeconds": 15,
@@ -882,6 +886,7 @@ Object {
 exports[`BridgeStatusController submitTx: EVM bridge should delay after submitting linea approval 2`] = `
 Object {
   "account": "0xaccount1",
+  "actionId": "1234567890.456",
   "approvalTxId": "test-approval-tx-id",
   "batchId": undefined,
   "estimatedProcessingTimeInSeconds": 15,
@@ -1119,6 +1124,7 @@ Object {
 exports[`BridgeStatusController submitTx: EVM bridge should handle smart transactions and include quotesReceivedContext 2`] = `
 Object {
   "account": "0xaccount1",
+  "actionId": undefined,
   "approvalTxId": undefined,
   "batchId": "batchId1",
   "estimatedProcessingTimeInSeconds": 15,
@@ -1382,6 +1388,7 @@ Object {
 exports[`BridgeStatusController submitTx: EVM bridge should not call handleMobileHardwareWalletDelay on extension 2`] = `
 Object {
   "account": "0xaccount1",
+  "actionId": "1234567890.456",
   "approvalTxId": "test-approval-tx-id",
   "batchId": undefined,
   "estimatedProcessingTimeInSeconds": 15,
@@ -1618,6 +1625,7 @@ Object {
 exports[`BridgeStatusController submitTx: EVM bridge should not call handleMobileHardwareWalletDelay with true for non-hardware wallet on mobile 2`] = `
 Object {
   "account": "0xaccount1",
+  "actionId": "1234567890.456",
   "approvalTxId": "test-approval-tx-id",
   "batchId": undefined,
   "estimatedProcessingTimeInSeconds": 15,
@@ -1854,6 +1862,7 @@ Object {
 exports[`BridgeStatusController submitTx: EVM bridge should reset USDT allowance 2`] = `
 Object {
   "account": "0xaccount1",
+  "actionId": "1234567890.456",
   "approvalTxId": "test-approval-tx-id",
   "batchId": undefined,
   "estimatedProcessingTimeInSeconds": 15,
@@ -2194,6 +2203,7 @@ Object {
 exports[`BridgeStatusController submitTx: EVM bridge should successfully submit an EVM bridge transaction with approval 2`] = `
 Object {
   "account": "0xaccount1",
+  "actionId": "1234567890.456",
   "approvalTxId": "test-approval-tx-id",
   "batchId": undefined,
   "estimatedProcessingTimeInSeconds": 15,
@@ -2450,6 +2460,7 @@ Object {
 exports[`BridgeStatusController submitTx: EVM bridge should successfully submit an EVM bridge transaction with no approval 2`] = `
 Object {
   "account": "0xaccount1",
+  "actionId": "1234567890.456",
   "approvalTxId": undefined,
   "batchId": undefined,
   "estimatedProcessingTimeInSeconds": 15,
@@ -2857,6 +2868,7 @@ Object {
 exports[`BridgeStatusController submitTx: EVM swap should handle smart transactions 2`] = `
 Object {
   "account": "0xaccount1",
+  "actionId": undefined,
   "approvalTxId": undefined,
   "batchId": "batchId1",
   "estimatedProcessingTimeInSeconds": 0,
@@ -3210,6 +3222,7 @@ Object {
 exports[`BridgeStatusController submitTx: EVM swap should successfully submit an EVM swap transaction with no approval 2`] = `
 Object {
   "account": "0xaccount1",
+  "actionId": "1234567890.456",
   "approvalTxId": undefined,
   "batchId": undefined,
   "estimatedProcessingTimeInSeconds": 0,
@@ -3423,6 +3436,7 @@ Object {
 exports[`BridgeStatusController submitTx: EVM swap should use quote txFee when gasIncluded is true and STX is off (Max native token swap) 2`] = `
 Object {
   "account": "0xaccount1",
+  "actionId": "1234567890.456",
   "approvalTxId": undefined,
   "batchId": undefined,
   "estimatedProcessingTimeInSeconds": 0,
@@ -3722,6 +3736,7 @@ Object {
 exports[`BridgeStatusController submitTx: Solana bridge should successfully submit a transaction 4`] = `
 Object {
   "account": "0x123...",
+  "actionId": undefined,
   "approvalTxId": undefined,
   "batchId": undefined,
   "estimatedProcessingTimeInSeconds": 300,
@@ -4057,6 +4072,7 @@ Object {
 exports[`BridgeStatusController submitTx: Solana swap should successfully submit a transaction 3`] = `
 Object {
   "account": "0x123...",
+  "actionId": undefined,
   "approvalTxId": undefined,
   "batchId": undefined,
   "estimatedProcessingTimeInSeconds": 300,
@@ -4433,6 +4449,7 @@ Object {
 exports[`BridgeStatusController submitTx: Tron swap with approval should successfully submit a Tron bridge with approval transaction 4`] = `
 Object {
   "account": "TRX123...",
+  "actionId": undefined,
   "approvalTxId": "approval-signature",
   "batchId": undefined,
   "estimatedProcessingTimeInSeconds": 30,
@@ -4652,6 +4669,7 @@ Object {
 exports[`BridgeStatusController submitTx: Tron swap with approval should successfully submit a Tron swap with approval transaction 3`] = `
 Object {
   "account": "TRX123...",
+  "actionId": undefined,
   "approvalTxId": "approval-signature",
   "batchId": undefined,
   "estimatedProcessingTimeInSeconds": 30,

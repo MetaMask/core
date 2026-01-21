@@ -342,12 +342,14 @@ const getMockStartPollingForBridgeTxStatusArgs = ({
 const MockTxHistory = {
   getInitNoSrcTxHash: ({
     txMetaId = 'bridgeTxMetaId1',
+    actionId = undefined,
     account = '0xaccount1',
     srcChainId = 42161,
     destChainId = 10,
   } = {}): Record<string, BridgeHistoryItem> => ({
     [txMetaId]: {
       txMetaId,
+      actionId,
       originalTransactionId: txMetaId,
       quote: getMockQuote({ srcChainId, destChainId }),
       startTime: 1729964825189,
@@ -366,12 +368,14 @@ const MockTxHistory = {
   }),
   getInit: ({
     txMetaId = 'bridgeTxMetaId1',
+    actionId = undefined,
     account = '0xaccount1',
     srcChainId = 42161,
     destChainId = 10,
   } = {}): Record<string, BridgeHistoryItem> => ({
     [txMetaId]: {
       txMetaId,
+      actionId,
       originalTransactionId: txMetaId,
       quote: getMockQuote({ srcChainId, destChainId }),
       startTime: 1729964825189,
@@ -390,6 +394,7 @@ const MockTxHistory = {
   getPending: ({
     txMetaId = 'bridgeTxMetaId1',
     batchId = undefined,
+    actionId = undefined,
     approvalTxId = undefined,
     srcTxHash = '0xsrcTxHash1',
     account = '0xaccount1',
@@ -399,6 +404,7 @@ const MockTxHistory = {
   } = {}): Record<string, BridgeHistoryItem> => ({
     [txMetaId]: {
       txMetaId,
+      actionId,
       originalTransactionId: txMetaId,
       batchId,
       quote: getMockQuote({ srcChainId, destChainId }),
@@ -429,6 +435,7 @@ const MockTxHistory = {
   }),
   getUnknown: ({
     txMetaId = 'bridgeTxMetaId2',
+    actionId = undefined,
     srcTxHash = '0xsrcTxHash2',
     account = '0xaccount1',
     srcChainId = 42161,
@@ -436,6 +443,7 @@ const MockTxHistory = {
   } = {}): Record<string, BridgeHistoryItem> => ({
     [txMetaId]: {
       txMetaId,
+      actionId,
       originalTransactionId: txMetaId,
       quote: getMockQuote({ srcChainId, destChainId }),
       startTime: 1729964825189,
@@ -464,6 +472,7 @@ const MockTxHistory = {
   }),
   getPendingSwap: ({
     txMetaId = 'swapTxMetaId1',
+    actionId = undefined,
     srcTxHash = '0xsrcTxHash1',
     account = '0xaccount1',
     srcChainId = 42161,
@@ -472,6 +481,7 @@ const MockTxHistory = {
   } = {}): Record<string, BridgeHistoryItem> => ({
     [txMetaId]: {
       txMetaId,
+      actionId,
       originalTransactionId: txMetaId,
       quote: getMockQuote({ srcChainId, destChainId }),
       startTime: 1729964825189,
@@ -499,6 +509,7 @@ const MockTxHistory = {
   }),
   getComplete: ({
     txMetaId = 'bridgeTxMetaId1',
+    actionId = undefined,
     batchId = undefined,
     srcTxHash = '0xsrcTxHash1',
     account = '0xaccount1',
@@ -507,6 +518,7 @@ const MockTxHistory = {
   } = {}): Record<string, BridgeHistoryItem> => ({
     [txMetaId]: {
       txMetaId,
+      actionId,
       originalTransactionId: txMetaId,
       batchId,
       featureId: undefined,
