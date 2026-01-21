@@ -55,7 +55,7 @@
     "@ethersproject/providers": "^5.7.0",
     "@metamask/accounts-controller": "^35.0.2",
     "@metamask/assets-controllers": "^95.3.0",
-    "@metamask/base-controller": "^9.0.0",
+    "@metamask/base-controller": "^9.1.0",
     "@metamask/controller-utils": "^11.18.0",
     "@metamask/gas-fee-controller": "^26.0.2",
     "@metamask/keyring-api": "^21.0.0",

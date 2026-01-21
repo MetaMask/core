@@ -50,7 +50,7 @@
   "dependencies": {
     "@metamask/accounts-controller": "^35.0.2",
     "@metamask/approval-controller": "^8.0.0",
-    "@metamask/base-controller": "^9.0.0",
+    "@metamask/base-controller": "^9.1.0",
     "@metamask/controller-utils": "^11.18.0",
     "@metamask/eth-sig-util": "^8.2.0",
     "@metamask/gator-permissions-controller": "^1.1.0",
