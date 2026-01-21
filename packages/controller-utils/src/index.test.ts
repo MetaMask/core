@@ -92,6 +92,10 @@ describe('@metamask/controller-utils', () => {
         "parseDomainParts",
         "isValidSIWEOrigin",
         "detectSIWE",
+        "EventStats",
+        "onSameEventValuesLogHandler",
+        "DEFAULT_HANDLERS",
+        "EventAnalyzer",
       ]
     `);
   });

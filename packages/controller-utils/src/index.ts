@@ -88,3 +88,4 @@ export {
 } from './util';
 export * from './types';
 export * from './siwe';
+export * from './EventAnalyzer';
