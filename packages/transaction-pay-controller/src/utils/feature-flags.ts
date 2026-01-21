@@ -145,10 +145,10 @@ export function getSlippage(
  * @param key - The key to look up (case-insensitive).
  * @returns The value if found, undefined otherwise.
  */
-function getCaseInsensitive<T>(
-  record: Record<string, T> | undefined,
+function getCaseInsensitive<Value>(
+  record: Record<string, Value> | undefined,
   key: string,
-): T | undefined {
+): Value | undefined {
   if (!record) {
     return undefined;
   }
