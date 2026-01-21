@@ -31,6 +31,7 @@ describe('RampsController', () => {
       await withController(({ controller }) => {
         expect(controller.state).toMatchInlineSnapshot(`
           Object {
+            "countries": Array [],
             "paymentMethods": Array [],
             "preferredProvider": null,
             "providers": Array [],
@@ -63,6 +64,7 @@ describe('RampsController', () => {
       await withController({ options: { state: {} } }, ({ controller }) => {
         expect(controller.state).toMatchInlineSnapshot(`
           Object {
+            "countries": Array [],
             "paymentMethods": Array [],
             "preferredProvider": null,
             "providers": Array [],
@@ -363,6 +365,22 @@ describe('RampsController', () => {
         );
       });
     });
+
+    it('updates providers when userRegion is null', async () => {
+      await withController(async ({ controller, rootMessenger }) => {
+        rootMessenger.registerActionHandler(
+          'RampsService:getProviders',
+          async (_regionCode: string) => ({ providers: mockProviders }),
+        );
+
+        expect(controller.state.userRegion).toBeNull();
+        expect(controller.state.providers).toStrictEqual([]);
+
+        await controller.getProviders('us');
+
+        expect(controller.state.providers).toStrictEqual(mockProviders);
+      });
+    });
   });
 
   describe('metadata', () => {
@@ -376,6 +394,7 @@ describe('RampsController', () => {
           ),
         ).toMatchInlineSnapshot(`
           Object {
+            "countries": Array [],
             "paymentMethods": Array [],
             "preferredProvider": null,
             "providers": Array [],
@@ -398,6 +417,7 @@ describe('RampsController', () => {
           ),
         ).toMatchInlineSnapshot(`
           Object {
+            "countries": Array [],
             "paymentMethods": Array [],
             "preferredProvider": null,
             "providers": Array [],
@@ -419,6 +439,7 @@ describe('RampsController', () => {
           ),
         ).toMatchInlineSnapshot(`
           Object {
+            "countries": Array [],
             "preferredProvider": null,
             "providers": Array [],
             "tokens": null,
@@ -438,6 +459,7 @@ describe('RampsController', () => {
           ),
         ).toMatchInlineSnapshot(`
           Object {
+            "countries": Array [],
             "paymentMethods": Array [],
             "preferredProvider": null,
             "providers": Array [],
@@ -451,216 +473,6 @@ describe('RampsController', () => {
     });
   });
 
-  describe('updateUserRegion', () => {
-    it('updates user region state when region is fetched', async () => {
-      await withController(async ({ controller, rootMessenger }) => {
-        rootMessenger.registerActionHandler(
-          'RampsService:getGeolocation',
-          async () => 'US-CA',
-        );
-        rootMessenger.registerActionHandler(
-          'RampsService:getCountries',
-          async () => createMockCountries(),
-        );
-
-        await controller.updateUserRegion();
-
-        expect(controller.state.userRegion?.regionCode).toBe('us-ca');
-        expect(controller.state.userRegion?.country.isoCode).toBe('US');
-        expect(controller.state.userRegion?.state?.stateId).toBe('CA');
-      });
-    });
-
-    it('calls getCountriesData internally when fetching countries', async () => {
-      await withController(async ({ controller, rootMessenger }) => {
-        let countriesCallCount = 0;
-        rootMessenger.registerActionHandler(
-          'RampsService:getGeolocation',
-          async () => 'US',
-        );
-        rootMessenger.registerActionHandler(
-          'RampsService:getCountries',
-          async () => {
-            countriesCallCount += 1;
-            return createMockCountries();
-          },
-        );
-        await controller.updateUserRegion();
-
-        expect(countriesCallCount).toBe(1);
-        expect(controller.state.userRegion?.regionCode).toBe('us');
-      });
-    });
-
-    it('stores request state in cache', async () => {
-      await withController(async ({ controller, rootMessenger }) => {
-        rootMessenger.registerActionHandler(
-          'RampsService:getGeolocation',
-          async () => 'US',
-        );
-        rootMessenger.registerActionHandler(
-          'RampsService:getCountries',
-          async () => createMockCountries(),
-        );
-
-        const result = await controller.updateUserRegion();
-
-        const cacheKey = createCacheKey('updateUserRegion', []);
-        const requestState = controller.state.requests[cacheKey];
-
-        expect(requestState).toBeDefined();
-        expect(requestState?.status).toBe(RequestStatus.SUCCESS);
-        expect(result).toBeDefined();
-        expect(result?.regionCode).toBe('us');
-        expect(requestState?.error).toBeNull();
-      });
-    });
-
-    it('returns cached result on subsequent calls within TTL', async () => {
-      await withController(async ({ controller, rootMessenger }) => {
-        let callCount = 0;
-        rootMessenger.registerActionHandler(
-          'RampsService:getGeolocation',
-          async () => {
-            callCount += 1;
-            return 'US';
-          },
-        );
-        rootMessenger.registerActionHandler(
-          'RampsService:getCountries',
-          async () => createMockCountries(),
-        );
-
-        await controller.updateUserRegion();
-        await controller.updateUserRegion();
-
-        expect(callCount).toBe(1);
-      });
-    });
-
-    it('makes a new request when forceRefresh is true', async () => {
-      await withController(async ({ controller, rootMessenger }) => {
-        let callCount = 0;
-        rootMessenger.registerActionHandler(
-          'RampsService:getGeolocation',
-          async () => {
-            callCount += 1;
-            return 'US';
-          },
-        );
-        rootMessenger.registerActionHandler(
-          'RampsService:getCountries',
-          async () => createMockCountries(),
-        );
-
-        await controller.updateUserRegion();
-        await controller.updateUserRegion({ forceRefresh: true });
-
-        expect(callCount).toBe(2);
-      });
-    });
-
-    it('handles null geolocation result', async () => {
-      await withController(async ({ controller, rootMessenger }) => {
-        rootMessenger.registerActionHandler(
-          'RampsService:getGeolocation',
-          async () => null as unknown as string,
-        );
-
-        const result = await controller.updateUserRegion();
-
-        expect(result).toBeNull();
-        expect(controller.state.userRegion).toBeNull();
-      });
-    });
-
-    it('handles undefined geolocation result', async () => {
-      await withController(async ({ controller, rootMessenger }) => {
-        rootMessenger.registerActionHandler(
-          'RampsService:getGeolocation',
-          async () => undefined as unknown as string,
-        );
-
-        const result = await controller.updateUserRegion();
-
-        expect(result).toBeNull();
-        expect(controller.state.userRegion).toBeNull();
-      });
-    });
-
-    it('returns null when countries fetch fails', async () => {
-      await withController(async ({ controller, rootMessenger }) => {
-        rootMessenger.registerActionHandler(
-          'RampsService:getGeolocation',
-          async () => 'FR',
-        );
-        rootMessenger.registerActionHandler(
-          'RampsService:getCountries',
-          async () => {
-            throw new Error('Countries API error');
-          },
-        );
-
-        const result = await controller.updateUserRegion();
-
-        expect(result).toBeNull();
-        expect(controller.state.userRegion).toBeNull();
-        expect(controller.state.tokens).toBeNull();
-      });
-    });
-
-    it('returns null when region is not found in countries data', async () => {
-      await withController(async ({ controller, rootMessenger }) => {
-        rootMessenger.registerActionHandler(
-          'RampsService:getGeolocation',
-          async () => 'XX',
-        );
-        rootMessenger.registerActionHandler(
-          'RampsService:getCountries',
-          async () => createMockCountries(),
-        );
-
-        const result = await controller.updateUserRegion();
-
-        expect(result).toBeNull();
-        expect(controller.state.userRegion).toBeNull();
-        expect(controller.state.tokens).toBeNull();
-      });
-    });
-
-    it('does not overwrite existing user region when called', async () => {
-      const existingRegion = createMockUserRegion(
-        'us-co',
-        'United States',
-        'Colorado',
-      );
-      await withController(
-        {
-          options: {
-            state: {
-              userRegion: existingRegion,
-            },
-          },
-        },
-        async ({ controller, rootMessenger }) => {
-          rootMessenger.registerActionHandler(
-            'RampsService:getGeolocation',
-            async () => 'US-UT',
-          );
-          rootMessenger.registerActionHandler(
-            'RampsService:getCountries',
-            async () => createMockCountries(),
-          );
-
-          const result = await controller.updateUserRegion();
-
-          expect(result).toStrictEqual(existingRegion);
-          expect(controller.state.userRegion).toStrictEqual(existingRegion);
-          expect(controller.state.userRegion?.regionCode).toBe('us-co');
-        },
-      );
-    });
-  });
 
   describe('executeRequest', () => {
     it('deduplicates concurrent requests with the same cache key', async () => {
@@ -998,43 +810,6 @@ describe('RampsController', () => {
   });
 
   describe('sync trigger methods', () => {
-    describe('triggerUpdateUserRegion', () => {
-      it('triggers user region update and returns void', async () => {
-        await withController(async ({ controller, rootMessenger }) => {
-          rootMessenger.registerActionHandler(
-            'RampsService:getGeolocation',
-            async () => 'us',
-          );
-          rootMessenger.registerActionHandler(
-            'RampsService:getCountries',
-            async () => createMockCountries(),
-          );
-          rootMessenger.registerActionHandler(
-            'RampsService:getProviders',
-            async () => ({ providers: [] }),
-          );
-
-          const result = controller.triggerUpdateUserRegion();
-          expect(result).toBeUndefined();
-
-          await new Promise((resolve) => setTimeout(resolve, 10));
-          expect(controller.state.userRegion?.regionCode).toBe('us');
-        });
-      });
-
-      it('does not throw when update fails', async () => {
-        await withController(async ({ controller, rootMessenger }) => {
-          rootMessenger.registerActionHandler(
-            'RampsService:getGeolocation',
-            async () => {
-              throw new Error('geolocation failed');
-            },
-          );
-
-          expect(() => controller.triggerUpdateUserRegion()).not.toThrow();
-        });
-      });
-    });
 
     describe('triggerSetUserRegion', () => {
       it('triggers set user region and returns void', async () => {
@@ -1209,6 +984,8 @@ describe('RampsController', () => {
           async () => mockCountries,
         );
 
+        expect(controller.state.countries).toEqual([]);
+
         const countries = await controller.getCountries('buy');
 
         expect(countries).toMatchInlineSnapshot(`
@@ -1240,6 +1017,7 @@ describe('RampsController', () => {
             },
           ]
         `);
+        expect(controller.state.countries).toEqual(mockCountries);
       });
     });
 
@@ -1294,59 +1072,66 @@ describe('RampsController', () => {
         expect(receivedAction).toBe('buy');
       });
     });
+
+    it('logs error and rethrows when countries fetch fails', async () => {
+      await withController(async ({ controller, rootMessenger }) => {
+        const consoleErrorSpy = jest
+          .spyOn(console, 'error')
+          .mockImplementation(() => {});
+        const error = new Error('Countries API error');
+        rootMessenger.registerActionHandler(
+          'RampsService:getCountries',
+          async () => {
+            throw error;
+          },
+        );
+
+        await expect(controller.getCountries('buy')).rejects.toThrow(
+          'Countries API error',
+        );
+
+        expect(consoleErrorSpy).toHaveBeenCalledWith(
+          '****** RAMP CONTROLLER GET COUNTRIES ERROR ******',
+          error,
+        );
+
+        consoleErrorSpy.mockRestore();
+      });
+    });
   });
 
   describe('init', () => {
-    it('initializes controller by fetching user region, tokens, and providers', async () => {
+    it('initializes controller by fetching geolocation and setting user region', async () => {
       await withController(async ({ controller, rootMessenger }) => {
-        const mockTokens: TokensResponse = {
-          topTokens: [],
-          allTokens: [],
-        };
-        const mockProviders: Provider[] = [
-          {
-            id: '/providers/test',
-            name: 'Test Provider',
-            environmentType: 'STAGING',
-            description: 'Test',
-            hqAddress: '123 Test St',
-            links: [],
-            logos: {
-              light: '/assets/test_light.png',
-              dark: '/assets/test_dark.png',
-              height: 24,
-              width: 77,
-            },
-          },
-        ];
-
+        const mockCountries = createMockCountries();
         rootMessenger.registerActionHandler(
           'RampsService:getGeolocation',
           async () => 'US',
         );
         rootMessenger.registerActionHandler(
+          'RampsService:getCountries',
+          async () => mockCountries,
+        );
+        rootMessenger.registerActionHandler(
           'RampsService:getTokens',
-          async (_region: string, _action?: 'buy' | 'sell') => mockTokens,
+          async () => ({ topTokens: [], allTokens: [] }),
         );
         rootMessenger.registerActionHandler(
           'RampsService:getProviders',
-          async (_regionCode: string) => ({ providers: mockProviders }),
+          async () => ({ providers: [] }),
         );
 
-        rootMessenger.registerActionHandler(
-          'RampsService:getCountries',
-          async () => createMockCountries(),
-        );
+        expect(controller.state.countries).toEqual([]);
 
         await controller.init();
 
         expect(controller.state.userRegion?.regionCode).toBe('us');
-        expect(controller.state.tokens).toStrictEqual(mockTokens);
-        expect(controller.state.providers).toStrictEqual(mockProviders);
+        expect(controller.state.userRegion?.country.isoCode).toBe('US');
+        expect(controller.state.countries).toEqual(mockCountries);
       });
     });
 
-    it('handles initialization failure gracefully', async () => {
+    it('throws when geolocation fetch fails', async () => {
       await withController(async ({ controller, rootMessenger }) => {
         rootMessenger.registerActionHandler(
           'RampsService:getGeolocation',
@@ -1355,12 +1140,118 @@ describe('RampsController', () => {
           },
         );
 
-        await controller.init();
-
-        expect(controller.state.userRegion).toBeNull();
-        expect(controller.state.tokens).toBeNull();
-        expect(controller.state.providers).toStrictEqual([]);
+        await expect(controller.init()).rejects.toThrow('Network error');
       });
+    });
+
+    it('throws when geolocation returns null', async () => {
+      await withController(async ({ controller, rootMessenger }) => {
+        rootMessenger.registerActionHandler(
+          'RampsService:getGeolocation',
+          async () => null as unknown as string,
+        );
+
+        await expect(controller.init()).rejects.toThrow(
+          'Failed to fetch geolocation',
+        );
+      });
+    });
+
+    it('throws when region is not found in countries data', async () => {
+      await withController(async ({ controller, rootMessenger }) => {
+        rootMessenger.registerActionHandler(
+          'RampsService:getGeolocation',
+          async () => 'XX',
+        );
+        rootMessenger.registerActionHandler(
+          'RampsService:getCountries',
+          async () => createMockCountries(),
+        );
+
+        await expect(controller.init()).rejects.toThrow(
+          'Region "XX" not found in countries data. Cannot initialize controller.',
+        );
+      });
+    });
+
+    it('skips geolocation fetch when userRegion already exists', async () => {
+      const existingUserRegion = createMockUserRegion('fr');
+      const mockCountries = createMockCountries();
+      let geolocationCallCount = 0;
+
+      await withController(
+        { options: { state: { userRegion: existingUserRegion } } },
+        async ({ controller, rootMessenger }) => {
+          rootMessenger.registerActionHandler(
+            'RampsService:getGeolocation',
+            async () => {
+              geolocationCallCount += 1;
+              return 'US';
+            },
+          );
+          rootMessenger.registerActionHandler(
+            'RampsService:getCountries',
+            async () => mockCountries,
+          );
+          rootMessenger.registerActionHandler(
+            'RampsService:getTokens',
+            async () => ({ topTokens: [], allTokens: [] }),
+          );
+          rootMessenger.registerActionHandler(
+            'RampsService:getProviders',
+            async () => ({ providers: [] }),
+          );
+
+          expect(controller.state.countries).toEqual([]);
+
+          await controller.init();
+
+          await new Promise((resolve) => setTimeout(resolve, 10));
+
+          expect(geolocationCallCount).toBe(0);
+          expect(controller.state.userRegion).toStrictEqual(existingUserRegion);
+          expect(controller.state.countries).toEqual(mockCountries);
+        },
+      );
+    });
+
+    it('skips countries fetch when countries already exist in state', async () => {
+      const existingUserRegion = createMockUserRegion('fr');
+      const existingCountries = createMockCountries();
+      let countriesCallCount = 0;
+
+      await withController(
+        {
+          options: {
+            state: {
+              userRegion: existingUserRegion,
+              countries: existingCountries,
+            },
+          },
+        },
+        async ({ controller, rootMessenger }) => {
+          rootMessenger.registerActionHandler(
+            'RampsService:getCountries',
+            async () => {
+              countriesCallCount += 1;
+              return createMockCountries();
+            },
+          );
+          rootMessenger.registerActionHandler(
+            'RampsService:getTokens',
+            async () => ({ topTokens: [], allTokens: [] }),
+          );
+          rootMessenger.registerActionHandler(
+            'RampsService:getProviders',
+            async () => ({ providers: [] }),
+          );
+
+          await controller.init();
+
+          expect(countriesCallCount).toBe(0);
+          expect(controller.state.countries).toEqual(existingCountries);
+        },
+      );
     });
 
     it('handles token fetch failure gracefully when region is set', async () => {
@@ -1582,7 +1473,7 @@ describe('RampsController', () => {
         );
 
         await expect(controller.setUserRegion('xx')).rejects.toThrow(
-          'Region "xx" not found in countries data',
+          'Failed to fetch countries data. Cannot set user region without valid country information.',
         );
 
         expect(controller.state.userRegion).toBeNull();
@@ -2249,6 +2140,28 @@ describe('RampsController', () => {
         await controller.getTokens('us', 'buy', { provider: 'provider-1' });
 
         expect(callCount).toBe(2);
+      });
+    });
+
+    it('updates tokens when userRegion is null', async () => {
+      await withController(async ({ controller, rootMessenger }) => {
+        rootMessenger.registerActionHandler(
+          'RampsService:getTokens',
+          async (
+            _region: string,
+            _action?: 'buy' | 'sell',
+            _options?: { provider?: string | string[] },
+          ) => {
+            return mockTokens;
+          },
+        );
+
+        expect(controller.state.userRegion).toBeNull();
+        expect(controller.state.tokens).toBeNull();
+
+        await controller.getTokens('us', 'buy');
+
+        expect(controller.state.tokens).toStrictEqual(mockTokens);
       });
     });
   });
