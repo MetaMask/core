@@ -1,3 +1,8 @@
+/* eslint-disable @typescript-eslint/no-misused-promises */
+import type {
+  AccountTreeControllerGetAccountsFromSelectedAccountGroupAction,
+  AccountTreeControllerSelectedAccountGroupChangeEvent,
+} from '@metamask/account-tree-controller';
 import type {
   AccountsControllerAccountAddedEvent,
   AccountsControllerAccountAssetListUpdatedEvent,
@@ -139,7 +144,8 @@ type AllowedActions =
   | HandleSnapRequest
   | GetAllSnaps
   | GetPermissions
-  | AccountsControllerListMultichainAccountsAction;
+  | AccountsControllerListMultichainAccountsAction
+  | AccountTreeControllerGetAccountsFromSelectedAccountGroupAction;
 
 /**
  * Events that this controller is allowed to subscribe.
@@ -147,7 +153,8 @@ type AllowedActions =
 type AllowedEvents =
   | AccountsControllerAccountAddedEvent
   | AccountsControllerAccountRemovedEvent
-  | AccountsControllerAccountAssetListUpdatedEvent;
+  | AccountsControllerAccountAssetListUpdatedEvent
+  | AccountTreeControllerSelectedAccountGroupChangeEvent;
 
 /**
  * Messenger type for the MultichainAssetsController.
@@ -218,17 +225,72 @@ export class MultichainAssetsController extends BaseController<
 
     this.#snaps = {};
 
+    // THIS EVENT IS TOO SPAMMY
     this.messenger.subscribe(
       'AccountsController:accountAdded',
-      async (account) => await this.#handleOnAccountAddedEvent(account),
+      async (account) => {
+        // This will be filtering against the selected account
+        const internalAccounts: InternalAccount[] = this.messenger.call(
+          'AccountTreeController:getAccountsFromSelectedAccountGroup',
+        );
+
+        // only add if in the selected acc group & add acc group
+        if (internalAccounts.find((acc) => acc.id === account.id)) {
+          console.log(
+            'MultichainAssetsController - AccountsController:accountAdded - adding multiple in group',
+            internalAccounts,
+          );
+          await this.#handleOnAccountsAddedEvent(internalAccounts);
+        }
+        // if (internalAccounts.find((acc) => acc.id === account.id)) {
+        //   for (const acc of internalAccounts) {
+        //     await this.#handleOnAccountAdded(acc);
+        //   }
+        // }
+      },
     );
     this.messenger.subscribe(
       'AccountsController:accountRemoved',
-      async (account) => await this.#handleOnAccountRemovedEvent(account),
+      async (account) => {
+        console.log(
+          'MultichainAssetsController - AccountsController:accountRemoved',
+          account,
+        );
+        await this.#handleOnAccountRemovedEvent(account);
+      },
     );
     this.messenger.subscribe(
       'AccountsController:accountAssetListUpdated',
-      async (event) => await this.#handleAccountAssetListUpdatedEvent(event),
+      async (event) => {
+        console.log(
+          'MultichainAssetsController - AccountsController:accountAssetListUpdated',
+          event,
+        );
+        await this.#handleAccountAssetListUpdatedEvent(event);
+      },
+    );
+
+    // NEW EVENT ON ACCONUT CHANGE
+    this.messenger.subscribe(
+      'AccountTreeController:selectedAccountGroupChange',
+      async (event) => {
+        // (parameter) event: "" | `entropy:${string}/${string}` | `keyring:${string}/${string}` | `snap:${string}/${string}`
+        // entropy:01KA0ZVBSH0KSRVN92Q8M7FT9T/0
+
+        const internalAccounts: InternalAccount[] = this.messenger.call(
+          'AccountTreeController:getAccountsFromSelectedAccountGroup',
+        );
+        console.log(
+          'MultichainAssetsController - AccountTreeController:selectedAccountGroupChange',
+          {
+            event,
+            internalAccounts,
+          },
+        );
+
+        // POTENTIAL FIX HERE
+        await this.#handleOnAccountsAddedEvent(internalAccounts);
+      },
     );
 
     this.#registerMessageHandlers();
@@ -242,11 +304,17 @@ export class MultichainAssetsController extends BaseController<
     );
   }
 
-  async #handleOnAccountAddedEvent(account: InternalAccount) {
+  // THIS IS LOCKED WITH A MUTEX -- PREVENTING MULTIPLE UPDATES WHEN CALLED FREQUENTLY
+  async #handleOnAccountsAddedEvent(accounts: InternalAccount[]) {
     return this.#withControllerLock(async () =>
-      this.#handleOnAccountAdded(account),
+      this.#handleOnAccountAddedMultiple(accounts),
     );
   }
+  // async #handleOnAccountAddedEvent(account: InternalAccount) {
+  //   return this.#withControllerLock(async () =>
+  //     this.#handleOnAccountAdded(account),
+  //   );
+  // }
 
   /**
    * Constructor helper for registering the controller's messaging system
@@ -494,6 +562,7 @@ export class MultichainAssetsController extends BaseController<
       // Nothing to do here for EVM accounts
       return;
     }
+    // THIS IS LOCKED WITH A MUTEX -- PREVENTING MULTIPLE UPDATES WHEN CALLED FREQUENTLY
     this.#assertControllerMutexIsLocked();
 
     // Get assets list
@@ -514,6 +583,79 @@ export class MultichainAssetsController extends BaseController<
           },
         },
       });
+    }
+  }
+
+  async #handleOnAccountAddedMultiple(
+    accounts: InternalAccount[],
+  ): Promise<void> {
+    console.log(
+      'MultichainAssetsController - handleOnAccountAddedMultiple start',
+      accounts,
+    );
+
+    // THIS IS LOCKED WITH A MUTEX -- PREVENTING MULTIPLE UPDATES WHEN CALLED FREQUENTLY
+    this.#assertControllerMutexIsLocked();
+
+    for (const account of accounts) {
+      console.log(
+        'MultichainAssetsController - handleOnAccountAddedMultiple attempt adding',
+        account,
+      );
+
+      if (!this.#isNonEvmAccount(account)) {
+        // Nothing to do here for EVM accounts
+        console.log(
+          'MultichainAssetsController - handleOnAccountAddedMultiple skipped',
+          account,
+        );
+
+        continue;
+      }
+
+      // Get assets list
+      if (account.metadata.snap) {
+        try {
+          console.log(
+            'MultichainAssetsController - handleOnAccountAddedMultiple calling getAssetsList',
+            { account },
+          );
+          const assets = await this.#getAssetsList(
+            account.id,
+            account.metadata.snap.id,
+          );
+          console.log(
+            'MultichainAssetsController - handleOnAccountAddedMultiple calling refreshAssetsMetadata',
+            { account },
+          );
+          await this.#refreshAssetsMetadata(assets);
+          console.log(
+            'MultichainAssetsController - handleOnAccountAddedMultiple adding/updating',
+            { account, assets },
+          );
+          this.update((state) => {
+            state.accountsAssets[account.id] = assets;
+          });
+          this.messenger.publish(`${controllerName}:accountAssetListUpdated`, {
+            assets: {
+              [account.id]: {
+                added: assets,
+                removed: [],
+              },
+            },
+          });
+        } catch (e) {
+          let message: string = '';
+          if (e instanceof Error) {
+            message = e.stack ?? '';
+          }
+          console.log('MultichainAssetsController - account add failed', {
+            e,
+            message,
+            eMessage: String(e),
+          });
+        }
+      }
     }
   }
 
