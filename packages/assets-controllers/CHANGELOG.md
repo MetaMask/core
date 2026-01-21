@@ -7,10 +7,6 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
-### Added
-  - Add INK Mainnet (0xdef1) to spot prices support with mapping `eip155:57073/slip44:60` ([#XXXX](https://github.com/MetaMask/core/pull/XXXX))                                                                      
-  - Add multicall contract address for INK Mainnet (0xdef1) ([#XXXX](https://github.com/MetaMask/core/pull/XXXX))                         
-
 ## [95.3.0]
 
 ### Added
