@@ -40,6 +40,9 @@
 ## Earn Team
 /packages/earn-controller                   @MetaMask/earn
 
+## Social AI Team
+/packages/ai-controllers                    @MetaMask/social-ai
+
 ## Ramp Team
 /packages/ramps-controller                  @MetaMask/ramp
 
