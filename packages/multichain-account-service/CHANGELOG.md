@@ -7,9 +7,16 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+## [5.1.0]
+
+### Added
+
+- Recover from Snap account de-sync when Snap has more accounts than MetaMask ([#7671](https://github.com/MetaMask/core/pull/7671))
+
 ### Changed
 
 - Bump `@metamask/accounts-controller` from `^35.0.0` to `^35.0.2` ([#7604](https://github.com/MetaMask/core/pull/7604), [#7642](https://github.com/MetaMask/core/pull/7642))
+- Remove Sentry log before attempting Snap account re-sync ([#7675](https://github.com/MetaMask/core/pull/7675))
 
 ## [5.0.0]
 
@@ -334,7 +341,8 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 - Add `MultichainAccountService` ([#6141](https://github.com/MetaMask/core/pull/6141)), ([#6165](https://github.com/MetaMask/core/pull/6165))
   - This service manages multichain accounts/wallets.
 
-[Unreleased]: https://github.com/MetaMask/core/compare/@metamask/multichain-account-service@5.0.0...HEAD
+[Unreleased]: https://github.com/MetaMask/core/compare/@metamask/multichain-account-service@5.1.0...HEAD
+[5.1.0]: https://github.com/MetaMask/core/compare/@metamask/multichain-account-service@5.0.0...@metamask/multichain-account-service@5.1.0
 [5.0.0]: https://github.com/MetaMask/core/compare/@metamask/multichain-account-service@4.1.0...@metamask/multichain-account-service@5.0.0
 [4.1.0]: https://github.com/MetaMask/core/compare/@metamask/multichain-account-service@4.0.1...@metamask/multichain-account-service@4.1.0
 [4.0.1]: https://github.com/MetaMask/core/compare/@metamask/multichain-account-service@4.0.0...@metamask/multichain-account-service@4.0.1

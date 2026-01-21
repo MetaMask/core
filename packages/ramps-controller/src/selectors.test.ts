@@ -28,6 +28,8 @@ describe('createRequestSelector', () => {
           preferredProvider: null,
           providers: [],
           tokens: null,
+          paymentMethods: [],
+          selectedPaymentMethod: null,
           requests: {
             'getCryptoCurrencies:["US"]': loadingRequest,
           },
@@ -59,6 +61,8 @@ describe('createRequestSelector', () => {
           preferredProvider: null,
           providers: [],
           tokens: null,
+          paymentMethods: [],
+          selectedPaymentMethod: null,
           requests: {
             'getCryptoCurrencies:["US"]': successRequest,
           },
@@ -93,6 +97,8 @@ describe('createRequestSelector', () => {
           preferredProvider: null,
           providers: [],
           tokens: null,
+          paymentMethods: [],
+          selectedPaymentMethod: null,
           requests: {
             'getCryptoCurrencies:["US"]': errorRequest,
           },
@@ -123,6 +129,8 @@ describe('createRequestSelector', () => {
           preferredProvider: null,
           providers: [],
           tokens: null,
+          paymentMethods: [],
+          selectedPaymentMethod: null,
           requests: {},
         },
       };
@@ -176,6 +184,8 @@ describe('createRequestSelector', () => {
           preferredProvider: null,
           providers: [],
           tokens: null,
+          paymentMethods: [],
+          selectedPaymentMethod: null,
           requests: {
             'getCryptoCurrencies:["US"]': successRequest,
           },
@@ -202,6 +212,8 @@ describe('createRequestSelector', () => {
           preferredProvider: null,
           providers: [],
           tokens: null,
+          paymentMethods: [],
+          selectedPaymentMethod: null,
           requests: {
             'getCryptoCurrencies:["US"]': successRequest1,
           },
@@ -217,6 +229,8 @@ describe('createRequestSelector', () => {
           preferredProvider: null,
           providers: [],
           tokens: null,
+          paymentMethods: [],
+          selectedPaymentMethod: null,
           requests: {
             'getCryptoCurrencies:["US"]': successRequest2,
           },
@@ -244,6 +258,8 @@ describe('createRequestSelector', () => {
           preferredProvider: null,
           providers: [],
           tokens: null,
+          paymentMethods: [],
+          selectedPaymentMethod: null,
           requests: {
             'getCryptoCurrencies:["US"]': successRequest,
           },
@@ -274,6 +290,8 @@ describe('createRequestSelector', () => {
           preferredProvider: null,
           providers: [],
           tokens: null,
+          paymentMethods: [],
+          selectedPaymentMethod: null,
           requests: {
             'getData:[]': successRequest,
           },
@@ -303,6 +321,8 @@ describe('createRequestSelector', () => {
           preferredProvider: null,
           providers: [],
           tokens: null,
+          paymentMethods: [],
+          selectedPaymentMethod: null,
           requests: {
             'getCryptoCurrencies:["US"]': loadingRequest,
           },
@@ -320,6 +340,8 @@ describe('createRequestSelector', () => {
           preferredProvider: null,
           providers: [],
           tokens: null,
+          paymentMethods: [],
+          selectedPaymentMethod: null,
           requests: {
             'getCryptoCurrencies:["US"]': successRequest,
           },
@@ -345,6 +367,8 @@ describe('createRequestSelector', () => {
           preferredProvider: null,
           providers: [],
           tokens: null,
+          paymentMethods: [],
+          selectedPaymentMethod: null,
           requests: {
             'getCryptoCurrencies:["US"]': successRequest,
           },
@@ -361,6 +385,8 @@ describe('createRequestSelector', () => {
           preferredProvider: null,
           providers: [],
           tokens: null,
+          paymentMethods: [],
+          selectedPaymentMethod: null,
           requests: {
             'getCryptoCurrencies:["US"]': errorRequest,
           },
@@ -392,6 +418,8 @@ describe('createRequestSelector', () => {
           preferredProvider: null,
           providers: [],
           tokens: null,
+          paymentMethods: [],
+          selectedPaymentMethod: null,
           requests: {
             'getCryptoCurrencies:["US"]': createSuccessState(
               ['ETH'],
@@ -427,6 +455,8 @@ describe('createRequestSelector', () => {
           preferredProvider: null,
           providers: [],
           tokens: null,
+          paymentMethods: [],
+          selectedPaymentMethod: null,
           requests: {
             'getCryptoCurrencies:["US"]': createSuccessState(
               ['ETH'],
