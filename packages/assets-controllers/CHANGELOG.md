@@ -15,6 +15,10 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 - Removed call to NFT collections endpoint ([#7687](https://github.com/MetaMask/core/pull/7687))
 
+### Removed
+
+- Remove unused deprecated `getNFTContractInfo` function from NftController ([#7703](https://github.com/MetaMask/core/pull/7703))
+
 ### Fixed
 
 - Fix crash in `selectAllMultichainAssets` selector when asset metadata is missing `units` property ([#7702](https://github.com/MetaMask/core/pull/7702))
