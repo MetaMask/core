@@ -24,6 +24,7 @@ import {
   toBatchTxParams,
   getAddTransactionBatchParams,
   findAndUpdateTransactionsInBatch,
+  getHistoryKey,
 } from './transaction';
 import { APPROVAL_DELAY_MS } from '../constants';
 import type { BridgeStatusControllerMessenger } from '../types';
@@ -2035,6 +2036,26 @@ describe('Bridge Status Controller Transaction Utils', () => {
 
       // Should not match since it's looking for bridge but finds batch type
       expect(mockUpdateTransactionFn).not.toHaveBeenCalled();
+    });
+  });
+
+  describe('getHistoryKey', () => {
+    it('returns actionId when both actionId and bridgeTxMetaId are provided', () => {
+      expect(getHistoryKey('action-123', 'tx-456')).toBe('action-123');
+    });
+
+    it('returns bridgeTxMetaId when only bridgeTxMetaId is provided', () => {
+      expect(getHistoryKey(undefined, 'tx-456')).toBe('tx-456');
+    });
+
+    it('returns actionId when only actionId is provided', () => {
+      expect(getHistoryKey('action-123', undefined)).toBe('action-123');
+    });
+
+    it('throws error when neither actionId nor bridgeTxMetaId is provided', () => {
+      expect(() => getHistoryKey(undefined, undefined)).toThrow(
+        'Cannot add tx to history: either actionId or bridgeTxMeta.id must be provided',
+      );
     });
   });
 });

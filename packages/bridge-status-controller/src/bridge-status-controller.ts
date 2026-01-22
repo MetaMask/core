@@ -78,6 +78,7 @@ import {
   findAndUpdateTransactionsInBatch,
   getAddTransactionBatchParams,
   getClientRequest,
+  getHistoryKey,
   getStatusRequestParams,
   handleApprovalDelay,
   handleMobileHardwareWalletDelay,
@@ -482,12 +483,7 @@ export class BridgeStatusController extends StaticIntervalPollingController<Brid
     // Determine the key for this history item:
     // - For pre-submission (non-batch EVM): use actionId
     // - For post-submission or other cases: use bridgeTxMeta.id
-    const historyKey = actionId ?? bridgeTxMeta?.id;
-    if (!historyKey) {
-      throw new Error(
-        'Cannot add tx to history: either actionId or bridgeTxMeta.id must be provided',
-      );
-    }
+    const historyKey = getHistoryKey(actionId, bridgeTxMeta?.id);
 
     // Write all non-status fields to state so we can reference the quote in Activity list without the Bridge API
     // We know it's in progress but not the exact status yet
