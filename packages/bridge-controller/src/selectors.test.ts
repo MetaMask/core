@@ -1144,7 +1144,7 @@ describe('Bridge Selectors', () => {
         refreshRate: 3,
         maxRefreshCount: 1,
         support: true,
-        chainRanking: [],
+        chainRanking: [...DEFAULT_CHAIN_RANKING],
         chains: {
           'eip155:1': {
             isActiveSrc: true,

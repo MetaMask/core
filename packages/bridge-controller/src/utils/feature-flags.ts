@@ -2,7 +2,10 @@ import type { RemoteFeatureFlagControllerState } from '@metamask/remote-feature-
 
 import { formatChainIdToCaip } from './caip-formatters';
 import { validateFeatureFlagsResponse } from './validators';
-import { DEFAULT_FEATURE_FLAG_CONFIG } from '../constants/bridge';
+import {
+  DEFAULT_CHAIN_RANKING,
+  DEFAULT_FEATURE_FLAG_CONFIG,
+} from '../constants/bridge';
 import type { FeatureFlagsPlatformConfig, ChainConfiguration } from '../types';
 
 export const formatFeatureFlags = (
@@ -27,7 +30,15 @@ export const processFeatureFlags = (
   bridgeFeatureFlags: unknown,
 ): FeatureFlagsPlatformConfig => {
   if (validateFeatureFlagsResponse(bridgeFeatureFlags)) {
-    return formatFeatureFlags(bridgeFeatureFlags);
+    const formattedFlags = formatFeatureFlags(bridgeFeatureFlags);
+    // If chainRanking is undefined or empty, use the default chainRanking
+    if (!formattedFlags.chainRanking || formattedFlags.chainRanking.length === 0) {
+      return {
+        ...formattedFlags,
+        chainRanking: [...DEFAULT_CHAIN_RANKING],
+      };
+    }
+    return formattedFlags;
   }
   return DEFAULT_FEATURE_FLAG_CONFIG;
 };
