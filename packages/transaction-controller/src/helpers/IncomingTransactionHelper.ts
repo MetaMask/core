@@ -69,16 +69,16 @@ export class IncomingTransactionHelper {
 
   readonly #isEnhancedHistoryEnabled: boolean;
 
-  readonly #transactionUpdatedHandler = (
-    transaction: AccountActivityTransaction,
-  ): void => {
-    this.#onTransactionUpdated(transaction);
-  };
-
   readonly #connectionStateChangedHandler = (
     connectionInfo: WebSocketConnectionInfo,
   ): void => {
     this.#onConnectionStateChanged(connectionInfo);
+  };
+
+  readonly #transactionUpdatedHandler = (
+    transaction: AccountActivityTransaction,
+  ): void => {
+    this.#onTransactionUpdated(transaction);
   };
 
   readonly #selectedAccountChangedHandler = (): void => {
