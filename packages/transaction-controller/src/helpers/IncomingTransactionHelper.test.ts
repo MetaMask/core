@@ -521,7 +521,7 @@ describe('IncomingTransactionHelper', () => {
     });
   });
 
-  describe('enhanced history retrieval mode', () => {
+  describe('transaction history retrieval when flag enhanced-history-retrieval is enabled', () => {
     let subscribeMock: jest.Mock;
     let unsubscribeMock: jest.Mock;
     let transactionUpdatedHandler: (tx: AccountActivityTransaction) => void;
@@ -565,7 +565,7 @@ describe('IncomingTransactionHelper', () => {
     }
 
     describe('constructor', () => {
-      it('subscribes to connectionStateChanged when enhanced mode is enabled', async () => {
+      it('subscribes to connectionStateChanged when flag enhanced-history-retrieval is enabled', async () => {
         const messenger = createMessengerMock();
 
         // eslint-disable-next-line no-new
@@ -583,7 +583,7 @@ describe('IncomingTransactionHelper', () => {
         );
       });
 
-      it('does not subscribe to connectionStateChanged when enhanced mode is disabled', async () => {
+      it('does not subscribe to connectionStateChanged when flag enhanced-history-retrieval is disabled', async () => {
         jest.mocked(isEnhancedHistoryRetrievalEnabled).mockReturnValue(false);
         const messenger = createMessengerMock();
 
@@ -604,7 +604,7 @@ describe('IncomingTransactionHelper', () => {
     });
 
     describe('start', () => {
-      it('does not start polling when enhanced mode is enabled', async () => {
+      it('does not start polling when flag enhanced-history-retrieval is enabled', async () => {
         const helper = new IncomingTransactionHelper({
           ...CONTROLLER_ARGS_MOCK,
           messenger: createMessengerMock(),
@@ -816,7 +816,7 @@ describe('IncomingTransactionHelper', () => {
     });
 
     describe('error handling', () => {
-      it('handles error in enhanced mode initial update when getCurrentAccount throws', async () => {
+      it('handles error in during transaction history retrieval initial update when getCurrentAccount throws', async () => {
         let callCount = 0;
         const getCurrentAccountMock = jest.fn().mockImplementation(() => {
           callCount += 1;
@@ -921,7 +921,7 @@ describe('IncomingTransactionHelper', () => {
   });
 
   describe('legacy polling mode', () => {
-    it('uses polling when enhanced mode is disabled', async () => {
+    it('uses polling when flag enhanced-history-retrieval is disabled', async () => {
       jest.mocked(isEnhancedHistoryRetrievalEnabled).mockReturnValue(false);
 
       const helper = new IncomingTransactionHelper({
