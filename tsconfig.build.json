@@ -17,6 +17,9 @@
       "path": "./packages/address-book-controller/tsconfig.build.json"
     },
     {
+      "path": "./packages/ai-controllers/tsconfig.build.json"
+    },
+    {
       "path": "./packages/analytics-controller/tsconfig.build.json"
     },
     {
