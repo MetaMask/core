@@ -584,7 +584,7 @@ export class BridgeController extends StaticIntervalPollingController<BridgePoll
     updatedQuoteRequest,
     context,
   }: BridgePollingInput) => {
-    this.#abortController?.abort('New quote request');
+    this.#abortController?.abort(AbortReason.NewQuoteRequest);
     this.#abortController = new AbortController();
 
     this.trackUnifiedSwapBridgeEvent(

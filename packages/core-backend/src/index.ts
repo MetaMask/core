@@ -1,8 +1,60 @@
-/**
- * @file Backend platform services for MetaMask.
- */
+// Core Backend Package Exports
 
-// Transaction and balance update types
+// ============================================================================
+// BACKEND WEBSOCKET SERVICE
+// ============================================================================
+
+export {
+  BackendWebSocketService,
+  getCloseReason,
+  WebSocketState,
+  WebSocketEventType,
+} from './BackendWebSocketService';
+
+export type {
+  BackendWebSocketServiceOptions,
+  ClientRequestMessage,
+  ServerResponseMessage,
+  ServerNotificationMessage,
+  WebSocketMessage,
+  ChannelCallback,
+  WebSocketSubscription,
+  WebSocketConnectionInfo,
+  BackendWebSocketServiceActions,
+  BackendWebSocketServiceConnectionStateChangedEvent,
+  BackendWebSocketServiceEvents,
+  BackendWebSocketServiceMessenger,
+} from './BackendWebSocketService';
+
+// ============================================================================
+// ACCOUNT ACTIVITY SERVICE
+// ============================================================================
+
+export {
+  AccountActivityService,
+  ACCOUNT_ACTIVITY_SERVICE_ALLOWED_ACTIONS,
+  ACCOUNT_ACTIVITY_SERVICE_ALLOWED_EVENTS,
+} from './AccountActivityService';
+
+export type {
+  SystemNotificationData,
+  SubscriptionOptions,
+  AccountActivityServiceOptions,
+  AccountActivityServiceActions,
+  AllowedActions as AccountActivityServiceAllowedActions,
+  AccountActivityServiceTransactionUpdatedEvent,
+  AccountActivityServiceBalanceUpdatedEvent,
+  AccountActivityServiceSubscriptionErrorEvent,
+  AccountActivityServiceStatusChangedEvent,
+  AccountActivityServiceEvents,
+  AllowedEvents as AccountActivityServiceAllowedEvents,
+  AccountActivityServiceMessenger,
+} from './AccountActivityService';
+
+// ============================================================================
+// SHARED TYPES
+// ============================================================================
+
 export type {
   Transaction,
   Asset,
@@ -12,31 +64,79 @@ export type {
   AccountActivityMessage,
 } from './types';
 
-// WebSocket Service - following MetaMask Data Services pattern
-export type {
-  BackendWebSocketServiceOptions,
-  WebSocketMessage,
-  WebSocketConnectionInfo,
-  WebSocketSubscription,
-  BackendWebSocketServiceActions,
-  BackendWebSocketServiceMessenger,
-  BackendWebSocketServiceEvents,
-  BackendWebSocketServiceConnectionStateChangedEvent,
-  WebSocketState,
-  WebSocketEventType,
-} from './BackendWebSocketService';
-export { BackendWebSocketService } from './BackendWebSocketService';
+// ============================================================================
+// API PLATFORM CLIENT
+// ============================================================================
 
-// Account Activity Service
+export {
+  ApiPlatformClient,
+  createApiPlatformClient,
+  // Individual API clients
+  AccountsApiClient,
+  PricesApiClient,
+  TokenApiClient,
+  TokensApiClient,
+  // Constants
+  API_URLS,
+  STALE_TIMES,
+  GC_TIMES,
+  // Helpers
+  calculateRetryDelay,
+  shouldRetry,
+  // Errors
+  HttpError,
+} from './api';
+
+// ============================================================================
+// API PLATFORM CLIENT TYPES
+// ============================================================================
+
 export type {
-  SubscriptionOptions,
-  AccountActivityServiceOptions,
-  AccountActivityServiceActions,
-  AccountActivityServiceTransactionUpdatedEvent,
-  AccountActivityServiceBalanceUpdatedEvent,
-  AccountActivityServiceSubscriptionErrorEvent,
-  AccountActivityServiceStatusChangedEvent,
-  AccountActivityServiceEvents,
-  AccountActivityServiceMessenger,
-} from './AccountActivityService';
-export { AccountActivityService } from './AccountActivityService';
+  // Client options
+  ApiPlatformClientOptions,
+  FetchOptions,
+  // Shared types
+  PageInfo,
+  SupportedCurrency,
+  MarketDataDetails,
+  // Accounts API types
+  V5BalanceItem,
+  V5BalancesResponse,
+  V2BalanceItem,
+  V2BalancesResponse,
+  V4BalancesResponse,
+  V1SupportedNetworksResponse,
+  V2SupportedNetworksResponse,
+  V2ActiveNetworksResponse,
+  V1TransactionByHashResponse,
+  V1AccountTransactionsResponse,
+  V4MultiAccountTransactionsResponse,
+  ValueTransfer,
+  V1AccountRelationshipResult,
+  NftItem,
+  V2NftsResponse,
+  TokenDiscoveryItem,
+  V2TokensResponse,
+  // Prices API types
+  V3SpotPricesResponse,
+  CoinGeckoSpotPrice,
+  ExchangeRateInfo,
+  V1ExchangeRatesResponse,
+  PriceSupportedNetworksResponse,
+  V1HistoricalPricesResponse,
+  V3HistoricalPricesResponse,
+  // Token API types
+  TokenMetadata,
+  V1TokenDescriptionResponse,
+  NetworkInfo,
+  TopAsset,
+  TrendingSortBy,
+  TrendingToken,
+  TopGainersSortOption,
+  TrendingSortOption,
+  V1SuggestedOccurrenceFloorsResponse,
+  // Tokens API types
+  V1TokenSupportedNetworksResponse,
+  V2TokenSupportedNetworksResponse,
+  V3AssetResponse,
+} from './api';

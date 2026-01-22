@@ -155,6 +155,9 @@
       "path": "./packages/permission-log-controller/tsconfig.build.json"
     },
     {
+      "path": "./packages/perps-controller/tsconfig.build.json"
+    },
+    {
       "path": "./packages/phishing-controller/tsconfig.build.json"
     },
     {

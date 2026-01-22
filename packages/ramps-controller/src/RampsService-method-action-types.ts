@@ -29,21 +29,13 @@ export type RampsServiceGetCountriesAction = {
 };
 
 /**
- * Fetches eligibility information for a specific region.
- *
- * @param isoCode - The ISO code for the region (e.g., "us", "fr", "us-ny").
- * @returns Eligibility information for the region.
- */
-export type RampsServiceGetEligibilityAction = {
-  type: `RampsService:getEligibility`;
-  handler: RampsService['getEligibility'];
-};
-
-/**
  * Fetches the list of available tokens for a given region and action.
+ * Supports optional provider filter.
  *
  * @param region - The region code (e.g., "us", "fr", "us-ny").
  * @param action - The ramp action type ('buy' or 'sell').
+ * @param options - Optional query parameters for filtering tokens.
+ * @param options.provider - Provider ID(s) to filter by.
  * @returns The tokens response containing topTokens and allTokens.
  */
 export type RampsServiceGetTokensAction = {
@@ -52,10 +44,43 @@ export type RampsServiceGetTokensAction = {
 };
 
 /**
+ * Fetches the list of providers for a given region.
+ * Supports optional query filters: provider, crypto, fiat, payments.
+ *
+ * @param regionCode - The region code (e.g., "us", "fr", "us-ny").
+ * @param options - Optional query parameters for filtering providers.
+ * @param options.provider - Provider ID(s) to filter by.
+ * @param options.crypto - Crypto currency ID(s) to filter by.
+ * @param options.fiat - Fiat currency ID(s) to filter by.
+ * @param options.payments - Payment method ID(s) to filter by.
+ * @returns The providers response containing providers array.
+ */
+export type RampsServiceGetProvidersAction = {
+  type: `RampsService:getProviders`;
+  handler: RampsService['getProviders'];
+};
+
+/**
+ * Fetches the list of payment methods for a given region, asset, and provider.
+ *
+ * @param options - Query parameters for filtering payment methods.
+ * @param options.region - User's region code (e.g., "us-al").
+ * @param options.fiat - Fiat currency code (e.g., "usd").
+ * @param options.assetId - CAIP-19 cryptocurrency identifier.
+ * @param options.provider - Provider ID path.
+ * @returns The payment methods response containing payments array.
+ */
+export type RampsServiceGetPaymentMethodsAction = {
+  type: `RampsService:getPaymentMethods`;
+  handler: RampsService['getPaymentMethods'];
+};
+
+/**
  * Union of all RampsService action types.
  */
 export type RampsServiceMethodActions =
   | RampsServiceGetGeolocationAction
   | RampsServiceGetCountriesAction
-  | RampsServiceGetEligibilityAction
-  | RampsServiceGetTokensAction;
+  | RampsServiceGetTokensAction
+  | RampsServiceGetProvidersAction
+  | RampsServiceGetPaymentMethodsAction;

@@ -26,8 +26,10 @@ describe('createRequestSelector', () => {
         ramps: {
           userRegion: null,
           preferredProvider: null,
-          eligibility: null,
+          providers: [],
           tokens: null,
+          paymentMethods: [],
+          selectedPaymentMethod: null,
           requests: {
             'getCryptoCurrencies:["US"]': loadingRequest,
           },
@@ -57,8 +59,10 @@ describe('createRequestSelector', () => {
         ramps: {
           userRegion: null,
           preferredProvider: null,
-          eligibility: null,
+          providers: [],
           tokens: null,
+          paymentMethods: [],
+          selectedPaymentMethod: null,
           requests: {
             'getCryptoCurrencies:["US"]': successRequest,
           },
@@ -91,8 +95,10 @@ describe('createRequestSelector', () => {
         ramps: {
           userRegion: null,
           preferredProvider: null,
-          eligibility: null,
+          providers: [],
           tokens: null,
+          paymentMethods: [],
+          selectedPaymentMethod: null,
           requests: {
             'getCryptoCurrencies:["US"]': errorRequest,
           },
@@ -121,8 +127,10 @@ describe('createRequestSelector', () => {
         ramps: {
           userRegion: null,
           preferredProvider: null,
-          eligibility: null,
+          providers: [],
           tokens: null,
+          paymentMethods: [],
+          selectedPaymentMethod: null,
           requests: {},
         },
       };
@@ -174,8 +182,10 @@ describe('createRequestSelector', () => {
         ramps: {
           userRegion: null,
           preferredProvider: null,
-          eligibility: null,
+          providers: [],
           tokens: null,
+          paymentMethods: [],
+          selectedPaymentMethod: null,
           requests: {
             'getCryptoCurrencies:["US"]': successRequest,
           },
@@ -200,8 +210,10 @@ describe('createRequestSelector', () => {
         ramps: {
           userRegion: null,
           preferredProvider: null,
-          eligibility: null,
+          providers: [],
           tokens: null,
+          paymentMethods: [],
+          selectedPaymentMethod: null,
           requests: {
             'getCryptoCurrencies:["US"]': successRequest1,
           },
@@ -215,8 +227,10 @@ describe('createRequestSelector', () => {
         ramps: {
           userRegion: null,
           preferredProvider: null,
-          eligibility: null,
+          providers: [],
           tokens: null,
+          paymentMethods: [],
+          selectedPaymentMethod: null,
           requests: {
             'getCryptoCurrencies:["US"]': successRequest2,
           },
@@ -242,8 +256,10 @@ describe('createRequestSelector', () => {
         ramps: {
           userRegion: null,
           preferredProvider: null,
-          eligibility: null,
+          providers: [],
           tokens: null,
+          paymentMethods: [],
+          selectedPaymentMethod: null,
           requests: {
             'getCryptoCurrencies:["US"]': successRequest,
           },
@@ -272,8 +288,10 @@ describe('createRequestSelector', () => {
         ramps: {
           userRegion: null,
           preferredProvider: null,
-          eligibility: null,
+          providers: [],
           tokens: null,
+          paymentMethods: [],
+          selectedPaymentMethod: null,
           requests: {
             'getData:[]': successRequest,
           },
@@ -301,8 +319,10 @@ describe('createRequestSelector', () => {
         ramps: {
           userRegion: null,
           preferredProvider: null,
-          eligibility: null,
+          providers: [],
           tokens: null,
+          paymentMethods: [],
+          selectedPaymentMethod: null,
           requests: {
             'getCryptoCurrencies:["US"]': loadingRequest,
           },
@@ -318,8 +338,10 @@ describe('createRequestSelector', () => {
         ramps: {
           userRegion: null,
           preferredProvider: null,
-          eligibility: null,
+          providers: [],
           tokens: null,
+          paymentMethods: [],
+          selectedPaymentMethod: null,
           requests: {
             'getCryptoCurrencies:["US"]': successRequest,
           },
@@ -343,8 +365,10 @@ describe('createRequestSelector', () => {
         ramps: {
           userRegion: null,
           preferredProvider: null,
-          eligibility: null,
+          providers: [],
           tokens: null,
+          paymentMethods: [],
+          selectedPaymentMethod: null,
           requests: {
             'getCryptoCurrencies:["US"]': successRequest,
           },
@@ -359,8 +383,10 @@ describe('createRequestSelector', () => {
         ramps: {
           userRegion: null,
           preferredProvider: null,
-          eligibility: null,
+          providers: [],
           tokens: null,
+          paymentMethods: [],
+          selectedPaymentMethod: null,
           requests: {
             'getCryptoCurrencies:["US"]': errorRequest,
           },
@@ -390,8 +416,10 @@ describe('createRequestSelector', () => {
         ramps: {
           userRegion: null,
           preferredProvider: null,
-          eligibility: null,
+          providers: [],
           tokens: null,
+          paymentMethods: [],
+          selectedPaymentMethod: null,
           requests: {
             'getCryptoCurrencies:["US"]': createSuccessState(
               ['ETH'],
@@ -425,8 +453,10 @@ describe('createRequestSelector', () => {
         ramps: {
           userRegion: null,
           preferredProvider: null,
-          eligibility: null,
+          providers: [],
           tokens: null,
+          paymentMethods: [],
+          selectedPaymentMethod: null,
           requests: {
             'getCryptoCurrencies:["US"]': createSuccessState(
               ['ETH'],

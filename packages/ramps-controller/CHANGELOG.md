@@ -7,9 +7,44 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+## [4.1.0]
+
+### Added
+
+- Add sync trigger methods to RampsController ([#7662](https://github.com/MetaMask/core/pull/7662))
+
+- Export `RampAction` type for `'buy' | 'sell'` ramp actions ([#7663](https://github.com/MetaMask/core/pull/7663))
+- Add payment methods support with `getPaymentMethods()` method, `paymentMethods` and `selectedPaymentMethod` state ([#7665](https://github.com/MetaMask/core/pull/7665))
+
+### Changed
+
+- Evict expired cache entries based on TTL in addition to size-based eviction ([#7674](https://github.com/MetaMask/core/pull/7674))
+
+- Update `getTokens()` to use v2 API endpoint and support optional provider parameter ([#7664](https://github.com/MetaMask/core/pull/7664))
+
+## [4.0.0]
+
 ### Added
 
 - Add `preferredProvider` state and `setPreferredProvider()` method to RampsController ([#7617](https://github.com/MetaMask/core/pull/7617))
+
+- Export `UserRegion` type ([#7646](https://github.com/MetaMask/core/pull/7646))
+
+- Add `defaultAmount` and `quickAmounts` fields to the `Country` type ([#7645](https://github.com/MetaMask/core/pull/7645))
+
+- Add `providers` state and `getProviders()` method to RampsController. Providers are automatically fetched on init and when the region changes ([#7652](https://github.com/MetaMask/core/pull/7652))
+
+### Changed
+
+- **BREAKING:** Change `userRegion` from `string | null` to `UserRegion | null`. Access region code via `userRegion.regionCode`. ([#7646](https://github.com/MetaMask/core/pull/7646))
+
+- Update `getCountries()` endpoint to use v2 API (`v2/regions/countries`) ([#7645](https://github.com/MetaMask/core/pull/7645))
+
+- Add `getApiPath()` helper function for versioned API paths with v2 default ([#7645](https://github.com/MetaMask/core/pull/7645))
+
+### Removed
+
+- **BREAKING:** Remove eligibility concept from RampsController. The `eligibility` state, `updateEligibility()` method, and `getEligibility()` service method have been removed. The `Eligibility` type and `RampsServiceGetEligibilityAction` are no longer exported. ([#7651](https://github.com/MetaMask/core/pull/7645))
 
 ## [3.0.0]
 
@@ -59,7 +94,9 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
   - Add `OnRampService` for interacting with the OnRamp API
   - Add geolocation detection via IP address lookup
 
-[Unreleased]: https://github.com/MetaMask/core/compare/@metamask/ramps-controller@3.0.0...HEAD
+[Unreleased]: https://github.com/MetaMask/core/compare/@metamask/ramps-controller@4.1.0...HEAD
+[4.1.0]: https://github.com/MetaMask/core/compare/@metamask/ramps-controller@4.0.0...@metamask/ramps-controller@4.1.0
+[4.0.0]: https://github.com/MetaMask/core/compare/@metamask/ramps-controller@3.0.0...@metamask/ramps-controller@4.0.0
 [3.0.0]: https://github.com/MetaMask/core/compare/@metamask/ramps-controller@2.1.0...@metamask/ramps-controller@3.0.0
 [2.1.0]: https://github.com/MetaMask/core/compare/@metamask/ramps-controller@2.0.0...@metamask/ramps-controller@2.1.0
 [2.0.0]: https://github.com/MetaMask/core/compare/@metamask/ramps-controller@1.0.0...@metamask/ramps-controller@2.0.0

@@ -7,6 +7,30 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+## [64.8.0]
+
+### Changed
+
+- Added check to return default values if chainRanking is empty ([#7698](https://github.com/MetaMask/core/pull/7698))
+
+## [64.7.0]
+
+### Changed
+
+- Made chainRanking an optional flag ([#7691](https://github.com/MetaMask/core/pull/7691))
+
+## [64.6.1]
+
+### Fixed
+
+- Fixed a typo in polling abort naming ([#7669](https://github.com/MetaMask/core/pull/7669))
+
+## [64.6.0]
+
+### Added
+
+- Added chainRanking type to feature flags ([#6933](https://github.com/MetaMask/core/pull/6933))
+
 ## [64.5.1]
 
 ### Changed
@@ -1010,7 +1034,11 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 - Initial release ([#5317](https://github.com/MetaMask/core/pull/5317))
 
-[Unreleased]: https://github.com/MetaMask/core/compare/@metamask/bridge-controller@64.5.1...HEAD
+[Unreleased]: https://github.com/MetaMask/core/compare/@metamask/bridge-controller@64.8.0...HEAD
+[64.8.0]: https://github.com/MetaMask/core/compare/@metamask/bridge-controller@64.7.0...@metamask/bridge-controller@64.8.0
+[64.7.0]: https://github.com/MetaMask/core/compare/@metamask/bridge-controller@64.6.1...@metamask/bridge-controller@64.7.0
+[64.6.1]: https://github.com/MetaMask/core/compare/@metamask/bridge-controller@64.6.0...@metamask/bridge-controller@64.6.1
+[64.6.0]: https://github.com/MetaMask/core/compare/@metamask/bridge-controller@64.5.1...@metamask/bridge-controller@64.6.0
 [64.5.1]: https://github.com/MetaMask/core/compare/@metamask/bridge-controller@64.5.0...@metamask/bridge-controller@64.5.1
 [64.5.0]: https://github.com/MetaMask/core/compare/@metamask/bridge-controller@64.4.1...@metamask/bridge-controller@64.5.0
 [64.4.1]: https://github.com/MetaMask/core/compare/@metamask/bridge-controller@64.4.0...@metamask/bridge-controller@64.4.1
