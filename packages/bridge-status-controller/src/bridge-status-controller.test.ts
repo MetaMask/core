@@ -935,7 +935,9 @@ describe('BridgeStatusController', () => {
 
       expect(() => {
         bridgeStatusController.startPollingForBridgeTxStatus(argsWithoutId);
-      }).toThrow('Cannot start polling: bridgeTxMeta.id is required for polling');
+      }).toThrow(
+        'Cannot start polling: bridgeTxMeta.id is required for polling',
+      );
 
       bridgeStatusController.stopAllPolling();
     });
@@ -957,7 +959,9 @@ describe('BridgeStatusController', () => {
 
       expect(() => {
         bridgeStatusController.startPollingForBridgeTxStatus(argsWithoutMeta);
-      }).toThrow('Cannot start polling: bridgeTxMeta.id is required for polling');
+      }).toThrow(
+        'Cannot start polling: bridgeTxMeta.id is required for polling',
+      );
 
       bridgeStatusController.stopAllPolling();
     });
