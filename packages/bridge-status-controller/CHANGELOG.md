@@ -11,6 +11,10 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 - Bump `@metamask/bridge-controller` from `^64.5.1` to `^64.7.0` ([#7667](https://github.com/MetaMask/core/pull/7667), [#7672](https://github.com/MetaMask/core/pull/7672), [#7694](https://github.com/MetaMask/core/pull/7694))
 
+### Fixed
+
+- Fix Tron same-chain swap polling and Completed event tracking ([#7697](https://github.com/MetaMask/core/pull/7697))
+
 ## [64.4.3]
 
 ### Changed
