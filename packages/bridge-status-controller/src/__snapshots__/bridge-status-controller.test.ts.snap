@@ -4609,13 +4609,6 @@ Array [
       "snapId": "npm:@metamask/tron-snap",
     },
   ],
-  Array [
-    "AccountsController:getAccountByAddress",
-    "TRX123...",
-  ],
-  Array [
-    "TransactionController:getState",
-  ],
 ]
 `;
 
