@@ -173,7 +173,11 @@ export class SeedlessOnboardingError extends Error {
       if (options.cause instanceof Error) {
         this.cause = options.cause;
       } else {
-        this.cause = new Error(String(options.cause));
+        const causeMessage =
+          typeof options.cause === 'string'
+            ? options.cause
+            : JSON.stringify(options.cause);
+        this.cause = new Error(causeMessage);
       }
     }
   }
@@ -189,9 +193,10 @@ export class SeedlessOnboardingError extends Error {
       name: this.name,
       message: this.message,
       details: this.details,
-      cause: this.cause instanceof Error
-        ? { name: this.cause.name, message: this.cause.message }
-        : this.cause,
+      cause:
+        this.cause instanceof Error
+          ? { name: this.cause.name, message: this.cause.message }
+          : this.cause,
       stack: this.stack,
     };
   }
