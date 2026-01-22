@@ -79,6 +79,7 @@ import {
   getAddTransactionBatchParams,
   getClientRequest,
   getHistoryKey,
+  getIntentFromQuote,
   getStatusRequestParams,
   handleApprovalDelay,
   handleMobileHardwareWalletDelay,
@@ -1735,12 +1736,9 @@ export class BridgeStatusController extends StaticIntervalPollingController<Brid
     );
 
     try {
-      const { intent } = (quoteResponse as QuoteResponse & { intent?: Intent })
-        .quote;
-
-      if (!intent) {
-        throw new Error('submitIntent: missing intent data');
-      }
+      const intent = getIntentFromQuote(
+        quoteResponse as QuoteResponse & { quote: { intent?: Intent } },
+      );
 
       // If backend provided an approval tx for this intent quote, submit it first (on-chain),
       // then proceed with off-chain intent submission.

@@ -8,6 +8,7 @@ import {
   isCrossChain,
 } from '@metamask/bridge-controller';
 import type {
+  Intent,
   QuoteMetadata,
   QuoteResponse,
   Trade,
@@ -474,4 +475,21 @@ export function getHistoryKey(
     );
   }
   return historyKey;
+}
+
+/**
+ * Extracts and validates the intent data from a quote response.
+ *
+ * @param quoteResponse - The quote response that may contain intent data
+ * @returns The intent data from the quote
+ * @throws Error if the quote does not contain intent data
+ */
+export function getIntentFromQuote(
+  quoteResponse: QuoteResponse & { quote: { intent?: Intent } },
+): Intent {
+  const { intent } = quoteResponse.quote;
+  if (!intent) {
+    throw new Error('submitIntent: missing intent data');
+  }
+  return intent;
 }
