@@ -1,0 +1,455 @@
+import type { InternalAccount } from '@metamask/keyring-internal-api';
+import type { CaipAssetType, CaipChainId, Json } from '@metamask/utils';
+
+/**
+ * CAIP-19 compliant asset identifier
+ * Format: "{chainId}/{assetNamespace}:{assetReference}[/tokenId]"
+ *
+ * Examples:
+ * - Native: "eip155:1/slip44:60" (ETH)
+ * - ERC20: "eip155:1/erc20:0xA0b86991c6218b36c1d19D4a2e9Eb0cE3606eB48" (USDC)
+ * - ERC721: "eip155:1/erc721:0xBC4CA0EdA7647A8aB7C2061c2E118A18a936f13D/1234" (BAYC #1234)
+ * - SPL: "solana:5eykt4UsFv8P8NJdTREpY1vzqKqZKvdp/spl:EPjFWdd5AufqSSqeM2qN1xzybapC8G4wEGGkZwyTDt1v"
+ */
+export type Caip19AssetId = CaipAssetType;
+
+/**
+ * InternalAccount UUID from AccountsController
+ * Not the blockchain address!
+ */
+export type AccountId = string;
+
+/**
+ * CAIP-2 chain identifier
+ */
+export type ChainId = CaipChainId;
+
+// ============================================================================
+// ASSET TYPES - Defined by metadata structure
+// ============================================================================
+
+/**
+ * Asset types define the metadata structure, not blockchain implementation.
+ * - "fungible" includes: native, erc20, spl - all share balance, symbol, decimals
+ * - "nft" includes: erc721, erc1155 - include tokenId, image, attributes
+ */
+export type AssetType = 'fungible' | 'nft' | 'collectible';
+
+/**
+ * Token standards - blockchain implementation details
+ */
+export type TokenStandard =
+  | 'native'
+  | 'erc20'
+  | 'erc721'
+  | 'erc1155'
+  | 'spl'
+  | string;
+
+// ============================================================================
+// METADATA TYPES (vary by asset type)
+// ============================================================================
+
+/**
+ * Base metadata attributes shared by ALL asset types.
+ */
+export type BaseAssetMetadata = {
+  /** Token standard - how it's implemented on the blockchain */
+  type: TokenStandard;
+  /** Display symbol (e.g., "ETH", "USDC") */
+  symbol: string;
+  /** Full name (e.g., "Ethereum", "USD Coin") */
+  name: string;
+  /** Token decimals (18 for ETH, 6 for USDC, etc.) */
+  decimals: number;
+  /** Logo URL or data URI */
+  image?: string;
+};
+
+/**
+ * Metadata for fungible tokens
+ * Asset Type: "fungible"
+ * Includes: native, ERC-20, SPL, and other fungible token standards
+ */
+export type FungibleAssetMetadata = {
+  type: 'native' | 'erc20' | 'spl';
+  /** Spam detection flag */
+  isSpam?: boolean;
+  /** Verification status */
+  verified?: boolean;
+  /** Token list memberships */
+  collections?: string[];
+} & BaseAssetMetadata;
+
+/**
+ * Metadata for ERC721 NFTs
+ * Asset Type: "nft"
+ */
+export type ERC721AssetMetadata = {
+  type: 'erc721';
+  decimals: 0;
+  /** Collection name */
+  collectionName?: string;
+  /** Collection size */
+  collectionSize?: number;
+  /** NFT traits/attributes - must be Json-serializable */
+  traits?: Record<string, Json>;
+  /** Rarity score */
+  rarity?: number;
+  /** Verification status */
+  verified?: boolean;
+} & BaseAssetMetadata;
+
+/**
+ * Metadata for ERC1155 multi-tokens
+ */
+export type ERC1155AssetMetadata = {
+  type: 'erc1155';
+  /** Token URI */
+  tokenUri?: string;
+  /** Token category */
+  category?: string;
+  /** Spam detection flag */
+  isSpam?: boolean;
+} & BaseAssetMetadata;
+
+/**
+ * Union type representing all possible asset metadata types.
+ * All types must be JSON-serializable.
+ */
+export type AssetMetadata =
+  | FungibleAssetMetadata
+  | ERC721AssetMetadata
+  | ERC1155AssetMetadata
+  | (BaseAssetMetadata & { [key: string]: Json });
+
+// ============================================================================
+// PRICE TYPES (vary by asset type)
+// ============================================================================
+
+/**
+ * Base price attributes.
+ */
+export type BaseAssetPrice = {
+  /** Current price in USD */
+  price: number;
+  /** 24h price change percentage */
+  priceChange24h?: number;
+  /** Timestamp of last price update */
+  lastUpdated: number;
+};
+
+/**
+ * Price data for fungible tokens (native, ERC20, SPL)
+ */
+export type FungibleAssetPrice = {
+  /** Market capitalization */
+  marketCap?: number;
+  /** 24h trading volume */
+  volume24h?: number;
+  /** Circulating supply */
+  circulatingSupply?: number;
+  /** Total supply */
+  totalSupply?: number;
+} & BaseAssetPrice;
+
+/**
+ * Price data for NFT collections
+ */
+export type NFTAssetPrice = {
+  /** Floor price */
+  floorPrice?: number;
+  /** Last sale price */
+  lastSalePrice?: number;
+  /** Collection trading volume */
+  collectionVolume?: number;
+  /** Average price */
+  averagePrice?: number;
+  /** Number of sales in 24h */
+  sales24h?: number;
+} & BaseAssetPrice;
+
+/**
+ * Union type representing all possible asset price types.
+ * All types must be JSON-serializable.
+ */
+export type AssetPrice =
+  | FungibleAssetPrice
+  | NFTAssetPrice
+  | (BaseAssetPrice & { [key: string]: Json });
+
+// ============================================================================
+// BALANCE TYPES (vary by asset type)
+// ============================================================================
+
+/**
+ * Balance data for fungible tokens (native, ERC20, SPL).
+ */
+export type FungibleAssetBalance = {
+  /** Raw balance amount as string (e.g., "1000000000" for 1000 USDC) */
+  amount: string;
+};
+
+/**
+ * Balance data for ERC721 NFTs.
+ * Each tokenId has its own CAIP-19 asset ID, so always "1".
+ */
+export type ERC721AssetBalance = {
+  /** Always "1" for ERC721 (non-fungible) */
+  amount: '1';
+};
+
+/**
+ * Balance data for ERC1155 multi-tokens.
+ */
+export type ERC1155AssetBalance = {
+  /** Quantity owned of this specific tokenId */
+  amount: string;
+};
+
+/**
+ * Union type representing all possible asset balance types.
+ * All types must be JSON-serializable.
+ */
+export type AssetBalance =
+  | FungibleAssetBalance
+  | ERC721AssetBalance
+  | ERC1155AssetBalance
+  | { amount: string; [key: string]: Json };
+
+// ============================================================================
+// DATA SOURCE TYPES
+// ============================================================================
+
+/**
+ * Data type dimension - what kind of data
+ */
+export type DataType = 'balance' | 'metadata' | 'price';
+
+/**
+ * Request for data from data sources
+ */
+export type DataRequest = {
+  /** Accounts to fetch data for */
+  accounts: InternalAccount[];
+  /** CAIP-2 chain IDs */
+  chainIds: ChainId[];
+  /** Filter by asset types */
+  assetTypes?: AssetType[];
+  /** Which data to fetch */
+  dataTypes: DataType[];
+  /** Specific CAIP-19 asset IDs */
+  customAssets?: Caip19AssetId[];
+  /** Force fresh fetch, bypass cache */
+  forceUpdate?: boolean;
+  /** Hint for polling interval (ms) - used by data sources that implement polling */
+  updateInterval?: number;
+};
+
+/**
+ * Response from data sources
+ */
+export type DataResponse = {
+  /** Metadata for assets (shared across accounts) */
+  assetsMetadata?: Record<Caip19AssetId, AssetMetadata>;
+  /** Price data for assets (shared across accounts) */
+  assetsPrice?: Record<Caip19AssetId, AssetPrice>;
+  /** Balance data per account */
+  assetsBalance?: Record<AccountId, Record<Caip19AssetId, AssetBalance>>;
+  /** Errors encountered, keyed by chain ID */
+  errors?: Record<ChainId, string>;
+  /** Detected assets (assets that do not have metadata) */
+  detectedAssets?: Record<AccountId, Caip19AssetId[]>;
+};
+
+// ============================================================================
+// UNIFIED MIDDLEWARE TYPES
+// ============================================================================
+
+/**
+ * Internal state structure for AssetsController following normalized design.
+ *
+ * Keys use CAIP identifiers:
+ * - assetsMetadata keys: CAIP-19 asset IDs (e.g., "eip155:1/erc20:0x...")
+ * - assetsBalance outer keys: Account IDs (InternalAccount.id UUIDs)
+ * - assetsBalance inner keys: CAIP-19 asset IDs
+ * - customAssets outer keys: Account IDs (InternalAccount.id UUIDs)
+ * - customAssets inner values: CAIP-19 asset IDs array
+ */
+export type AssetsControllerStateInternal = {
+  /** Shared metadata for all assets (stored once per asset) */
+  assetsMetadata: Record<Caip19AssetId, AssetMetadata>;
+  /** Per-account balance data */
+  assetsBalance: Record<AccountId, Record<Caip19AssetId, AssetBalance>>;
+  /** Custom assets added by users per account */
+  customAssets: Record<AccountId, Caip19AssetId[]>;
+};
+
+/**
+ * Base context for all middleware operations.
+ * Contains the common interface shared by fetch and subscribe.
+ */
+export type Context = {
+  /** The data request */
+  request: DataRequest;
+  /** The response data (mutated by middlewares) */
+  response: DataResponse;
+  /** Get current assets state */
+  getAssetsState: () => AssetsControllerStateInternal;
+};
+
+/**
+ * Next function for middleware chain
+ */
+export type NextFunction = (context: Context) => Promise<Context>;
+
+/**
+ * Middleware function - works for both fetch and subscribe operations.
+ */
+export type Middleware = (
+  context: Context,
+  next: NextFunction,
+) => Promise<Context>;
+
+/**
+ * Wraps a middleware to only execute if specific dataTypes are requested.
+ *
+ * @param dataTypes - DataTypes that must be in the request for middleware to run
+ * @param middleware - The middleware to conditionally execute
+ * @returns A middleware that skips execution if none of the dataTypes are requested
+ *
+ * @example
+ * ```typescript
+ * // Only runs for metadata requests
+ * const metadataMiddleware = forDataTypes(['metadata'], async (ctx, next) => {
+ *   const result = await next(ctx);
+ *   // Enrich metadata...
+ *   return result;
+ * });
+ *
+ * // Runs for balance or price requests
+ * const balanceOrPriceMiddleware = forDataTypes(['balance', 'price'], async (ctx, next) => {
+ *   const result = await next(ctx);
+ *   // Process balances or prices...
+ *   return result;
+ * });
+ * ```
+ */
+export function forDataTypes(
+  dataTypes: DataType[],
+  middleware: Middleware,
+): Middleware {
+  return async (ctx, next) => {
+    const requestedTypes = ctx.request.dataTypes;
+    const shouldRun = dataTypes.some((dt) => requestedTypes.includes(dt));
+
+    if (!shouldRun) {
+      return next(ctx);
+    }
+
+    return middleware(ctx, next);
+  };
+}
+
+/**
+ * Context for fetch operations.
+ * Extends base Context - no additional fields needed for fetch.
+ */
+export type FetchContext = Context;
+
+// Legacy aliases for backwards compatibility
+export type FetchNextFunction = NextFunction;
+export type FetchMiddleware = Middleware;
+
+/**
+ * Data source ID.
+ *
+ * Data sources follow a standard messenger pattern:
+ * - `${id}:getActiveChains` - action to get active chains
+ * - `${id}:activeChainsUpdated` - event when chains change
+ *
+ * Registration order determines subscription order.
+ */
+export type DataSourceDefinition = string;
+
+/**
+ * Registered data source
+ */
+export type RegisteredDataSource = DataSourceDefinition;
+
+/**
+ * Subscription response
+ */
+export type SubscriptionResponse = {
+  /** Chains actively subscribed */
+  chains: ChainId[];
+  /** Account ID being watched */
+  accountId: AccountId;
+  /** Asset types being watched */
+  assetTypes: AssetType[];
+  /** Data types being kept fresh */
+  dataTypes: DataType[];
+  /** Cleanup function */
+  unsubscribe: () => void;
+};
+
+// ============================================================================
+// COMBINED ASSET TYPE (for UI)
+// ============================================================================
+
+/**
+ * Combined asset type matching state structure: balance, metadata, price
+ */
+export type Asset = {
+  /** CAIP-19 asset ID */
+  id: Caip19AssetId;
+  /** CAIP-2 chain ID (extracted from id) */
+  chainId: ChainId;
+  /** Balance data */
+  balance: AssetBalance;
+  /** Metadata (symbol, name, decimals, etc.) */
+  metadata: AssetMetadata;
+  /** Price data */
+  price: AssetPrice;
+  /** Computed fiat value (balance × price) */
+  fiatValue: number;
+};
+
+// ============================================================================
+// EVENT TYPES
+// ============================================================================
+
+/**
+ * Event emitted when balances change
+ */
+export type BalanceChangeEvent = {
+  accountId: AccountId;
+  assetId: Caip19AssetId;
+  previousAmount: string;
+  newAmount: string;
+  timestamp: number;
+};
+
+/**
+ * Event emitted when prices change
+ */
+export type PriceChangeEvent = {
+  assetIds: Caip19AssetId[];
+  timestamp: number;
+};
+
+/**
+ * Event emitted when metadata changes
+ */
+export type MetadataChangeEvent = {
+  assetId: Caip19AssetId;
+  changes: Partial<AssetMetadata>;
+};
+
+/**
+ * Event emitted when assets without metadata are detected
+ */
+export type AssetsDetectedEvent = {
+  accountId: AccountId;
+  assetIds: Caip19AssetId[];
+};
