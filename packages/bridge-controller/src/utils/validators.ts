@@ -213,9 +213,6 @@ export const StepSchema = type({
 
 const RefuelDataSchema = StepSchema;
 
-// Allow digit strings for amounts/validTo for flexibility across providers
-const DigitStringOrNumberSchema = union([TruthyDigitStringSchema, number()]);
-
 /**
  * Identifier of the intent protocol used for order creation and submission.
  *
@@ -254,8 +251,7 @@ export const IntentOrderSchema = type({
    * Can be provided as a UNIX timestamp in seconds, either as a number
    * or as a digit string, depending on provider requirements.
    */
-  validTo: DigitStringOrNumberSchema,
-
+  validTo: number(),
   /**
    * Arbitrary application-specific data attached to the order.
    */
@@ -304,6 +300,8 @@ export const IntentOrderSchema = type({
    * Provided for convenience when building the EIP-712 domain and message.
    */
   from: optional(HexAddressSchema),
+  sellTokenBalance: string(),
+  buyTokenBalance: string(),
 });
 
 /**
