@@ -395,7 +395,7 @@ const selectAllMultichainAssets = createAssetListSelector(
             }
           | undefined = multichainBalances[accountId]?.[assetId];
 
-        const decimals = assetMetadata.units.find(
+        const decimals = assetMetadata.units?.find(
           (unit) =>
             unit.name === assetMetadata.name &&
             unit.symbol === assetMetadata.symbol,
