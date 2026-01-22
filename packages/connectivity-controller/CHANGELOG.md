@@ -13,6 +13,9 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
   - The controller now initializes with a default state (online) and requires calling `init()` to fetch the actual status
 - Add `setConnectivityStatus` method to manually set connectivity status ([#7676](https://github.com/MetaMask/core/pull/7676))
   - The method is exposed as a messenger action `ConnectivityController:setConnectivityStatus`
+- Add `connectivityControllerSelectors` with `selectConnectivityStatus` and `selectIsOffline` selectors ([#7701](https://github.com/MetaMask/core/pull/7701))
+  - `selectConnectivityStatus` returns the current connectivity status from the controller state
+  - `selectIsOffline` is a memoized selector that returns `true` when the device is offline
 
 ### Changed
 
