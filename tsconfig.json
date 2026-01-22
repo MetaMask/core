@@ -18,6 +18,9 @@
       "path": "./packages/address-book-controller"
     },
     {
+      "path": "./packages/ai-controllers"
+    },
+    {
       "path": "./packages/analytics-controller"
     },
     {
