@@ -180,8 +180,7 @@ export class SeedlessOnboardingError extends Error {
           try {
             causeMessage = JSON.stringify(options.cause);
           } catch {
-            // Handle circular references, BigInt, or other non-serializable values
-            causeMessage = String(options.cause);
+            causeMessage = 'Unknown error';
           }
         }
         this.cause = new Error(causeMessage);
