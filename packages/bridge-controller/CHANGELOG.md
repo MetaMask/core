@@ -7,6 +7,10 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+### Changed
+
+- Added check to return default values if chainRanking is empty ([#7698](https://github.com/MetaMask/core/pull/7698))
+
 ## [64.7.0]
 
 ### Changed
