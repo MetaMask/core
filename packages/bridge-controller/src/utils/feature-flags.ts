@@ -32,7 +32,10 @@ export const processFeatureFlags = (
   if (validateFeatureFlagsResponse(bridgeFeatureFlags)) {
     const formattedFlags = formatFeatureFlags(bridgeFeatureFlags);
     // If chainRanking is undefined or empty, use the default chainRanking
-    if (!formattedFlags.chainRanking || formattedFlags.chainRanking.length === 0) {
+    if (
+      !formattedFlags.chainRanking ||
+      formattedFlags.chainRanking.length === 0
+    ) {
       return {
         ...formattedFlags,
         chainRanking: [...DEFAULT_CHAIN_RANKING],
