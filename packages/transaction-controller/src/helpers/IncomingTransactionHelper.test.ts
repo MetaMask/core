@@ -1,4 +1,8 @@
-import type { Transaction as AccountActivityTransaction } from '@metamask/core-backend';
+import type {
+  Transaction as AccountActivityTransaction,
+  WebSocketConnectionInfo,
+} from '@metamask/core-backend';
+import { WebSocketState } from '@metamask/core-backend';
 import type { Hex } from '@metamask/utils';
 
 import { IncomingTransactionHelper } from './IncomingTransactionHelper';
@@ -521,12 +525,20 @@ describe('IncomingTransactionHelper', () => {
     let subscribeMock: jest.Mock;
     let unsubscribeMock: jest.Mock;
     let transactionUpdatedHandler: (tx: AccountActivityTransaction) => void;
+    let connectionStateChangedHandler: (info: WebSocketConnectionInfo) => void;
+    let selectedAccountChangedHandler: () => void;
 
     beforeEach(() => {
       jest.mocked(isEnhancedHistoryRetrievalEnabled).mockReturnValue(true);
 
-      subscribeMock = jest.fn().mockImplementation((_event, handler) => {
-        transactionUpdatedHandler = handler;
+      subscribeMock = jest.fn().mockImplementation((event, handler) => {
+        if (event === 'AccountActivityService:transactionUpdated') {
+          transactionUpdatedHandler = handler;
+        } else if (event === 'BackendWebSocketService:connectionStateChanged') {
+          connectionStateChangedHandler = handler;
+        } else if (event === 'AccountsController:selectedAccountChange') {
+          selectedAccountChangedHandler = handler;
+        }
       });
       unsubscribeMock = jest.fn();
     });
@@ -538,29 +550,78 @@ describe('IncomingTransactionHelper', () => {
       } as unknown as TransactionControllerMessenger;
     }
 
-    describe('start', () => {
-      it('calls update once and subscribes to transactionUpdated event', async () => {
+    function createConnectionInfo(
+      state: WebSocketState,
+    ): WebSocketConnectionInfo {
+      return {
+        state,
+        url: 'wss://test.com',
+        reconnectAttempts: 0,
+        timeout: 10000,
+        reconnectDelay: 10000,
+        maxReconnectDelay: 60000,
+        requestTimeout: 30000,
+      };
+    }
+
+    describe('constructor', () => {
+      it('subscribes to connectionStateChanged when enhanced mode is enabled', async () => {
+        const messenger = createMessengerMock();
+
+        // eslint-disable-next-line no-new
+        new IncomingTransactionHelper({
+          ...CONTROLLER_ARGS_MOCK,
+          messenger,
+          remoteTransactionSource: createRemoteTransactionSourceMock([]),
+        });
+
+        await flushPromises();
+
+        expect(subscribeMock).toHaveBeenCalledWith(
+          'BackendWebSocketService:connectionStateChanged',
+          expect.any(Function),
+        );
+      });
+
+      it('does not call update in constructor when enhanced mode is enabled', async () => {
         const remoteTransactionSource = createRemoteTransactionSourceMock([]);
 
-        const helper = new IncomingTransactionHelper({
+        // eslint-disable-next-line no-new
+        new IncomingTransactionHelper({
           ...CONTROLLER_ARGS_MOCK,
           messenger: createMessengerMock(),
           remoteTransactionSource,
         });
 
-        helper.start();
         await flushPromises();
 
-        expect(remoteTransactionSource.fetchTransactions).toHaveBeenCalledTimes(
-          1,
-        );
-        expect(subscribeMock).toHaveBeenCalledWith(
-          'AccountActivityService:transactionUpdated',
+        expect(
+          remoteTransactionSource.fetchTransactions,
+        ).not.toHaveBeenCalled();
+      });
+
+      it('does not subscribe to connectionStateChanged when enhanced mode is disabled', async () => {
+        jest.mocked(isEnhancedHistoryRetrievalEnabled).mockReturnValue(false);
+        const messenger = createMessengerMock();
+
+        // eslint-disable-next-line no-new
+        new IncomingTransactionHelper({
+          ...CONTROLLER_ARGS_MOCK,
+          messenger,
+          remoteTransactionSource: createRemoteTransactionSourceMock([]),
+        });
+
+        await flushPromises();
+
+        expect(subscribeMock).not.toHaveBeenCalledWith(
+          'BackendWebSocketService:connectionStateChanged',
           expect.any(Function),
         );
       });
+    });
 
-      it('does not start polling interval', async () => {
+    describe('start', () => {
+      it('does not start polling when enhanced mode is enabled', async () => {
         const helper = new IncomingTransactionHelper({
           ...CONTROLLER_ARGS_MOCK,
           messenger: createMessengerMock(),
@@ -572,155 +633,277 @@ describe('IncomingTransactionHelper', () => {
 
         expect(jest.getTimerCount()).toBe(0);
       });
+    });
 
-      it('does nothing if already started', async () => {
+    describe('on WebSocket connected', () => {
+      it('starts enhanced mode when WebSocket connects', async () => {
         const remoteTransactionSource = createRemoteTransactionSourceMock([]);
 
-        const helper = new IncomingTransactionHelper({
+        // eslint-disable-next-line no-new
+        new IncomingTransactionHelper({
           ...CONTROLLER_ARGS_MOCK,
           messenger: createMessengerMock(),
           remoteTransactionSource,
         });
 
-        helper.start();
         await flushPromises();
 
-        helper.start();
+        jest.mocked(remoteTransactionSource.fetchTransactions).mockClear();
 
-        expect(subscribeMock).toHaveBeenCalledTimes(1);
+        connectionStateChangedHandler(
+          createConnectionInfo(WebSocketState.CONNECTED),
+        );
+        await flushPromises();
+
+        expect(remoteTransactionSource.fetchTransactions).toHaveBeenCalledTimes(
+          1,
+        );
+        expect(subscribeMock).toHaveBeenCalledWith(
+          'AccountActivityService:transactionUpdated',
+          expect.any(Function),
+        );
+      });
+
+      it('subscribes to selectedAccountChange when WebSocket connects', async () => {
+        // eslint-disable-next-line no-new
+        new IncomingTransactionHelper({
+          ...CONTROLLER_ARGS_MOCK,
+          messenger: createMessengerMock(),
+          remoteTransactionSource: createRemoteTransactionSourceMock([]),
+        });
+
+        await flushPromises();
+
+        connectionStateChangedHandler(
+          createConnectionInfo(WebSocketState.CONNECTED),
+        );
+        await flushPromises();
+
+        expect(subscribeMock).toHaveBeenCalledWith(
+          'AccountsController:selectedAccountChange',
+          expect.any(Function),
+        );
+      });
+
+      it('triggers update on selectedAccountChange event after WebSocket connects', async () => {
+        const remoteTransactionSource = createRemoteTransactionSourceMock([]);
+
+        // eslint-disable-next-line no-new
+        new IncomingTransactionHelper({
+          ...CONTROLLER_ARGS_MOCK,
+          messenger: createMessengerMock(),
+          remoteTransactionSource,
+        });
+
+        await flushPromises();
+
+        connectionStateChangedHandler(
+          createConnectionInfo(WebSocketState.CONNECTED),
+        );
+        await flushPromises();
+
+        jest.mocked(remoteTransactionSource.fetchTransactions).mockClear();
+
+        selectedAccountChangedHandler();
+
+        await flushPromises();
+
+        expect(remoteTransactionSource.fetchTransactions).toHaveBeenCalledTimes(
+          1,
+        );
+      });
+
+      it('triggers update on transactionUpdated event after WebSocket connects', async () => {
+        const remoteTransactionSource = createRemoteTransactionSourceMock([]);
+
+        // eslint-disable-next-line no-new
+        new IncomingTransactionHelper({
+          ...CONTROLLER_ARGS_MOCK,
+          messenger: createMessengerMock(),
+          remoteTransactionSource,
+        });
+
+        await flushPromises();
+
+        connectionStateChangedHandler(
+          createConnectionInfo(WebSocketState.CONNECTED),
+        );
+        await flushPromises();
+
+        jest.mocked(remoteTransactionSource.fetchTransactions).mockClear();
+
+        transactionUpdatedHandler({
+          id: 'tx-123',
+          chain: 'eip155:1',
+          status: 'confirmed',
+          timestamp: Date.now(),
+          from: '0xother',
+          to: ADDRESS_MOCK,
+        });
+
+        await flushPromises();
+
+        expect(remoteTransactionSource.fetchTransactions).toHaveBeenCalledTimes(
+          1,
+        );
+      });
+
+      it('does not start transaction history retrieval if disabled', async () => {
+        const remoteTransactionSource = createRemoteTransactionSourceMock([]);
+
+        // eslint-disable-next-line no-new
+        new IncomingTransactionHelper({
+          ...CONTROLLER_ARGS_MOCK,
+          isEnabled: (): boolean => false,
+          messenger: createMessengerMock(),
+          remoteTransactionSource,
+        });
+
+        await flushPromises();
+
+        connectionStateChangedHandler(
+          createConnectionInfo(WebSocketState.CONNECTED),
+        );
+        await flushPromises();
+
+        expect(
+          remoteTransactionSource.fetchTransactions,
+        ).not.toHaveBeenCalled();
+        expect(subscribeMock).not.toHaveBeenCalledWith(
+          'AccountActivityService:transactionUpdated',
+          expect.any(Function),
+        );
+        expect(subscribeMock).not.toHaveBeenCalledWith(
+          'AccountsController:selectedAccountChange',
+          expect.any(Function),
+        );
+      });
+    });
+
+    describe('on WebSocket disconnected', () => {
+      it('unsubscribes from transactionUpdated when WebSocket disconnects', async () => {
+        // eslint-disable-next-line no-new
+        new IncomingTransactionHelper({
+          ...CONTROLLER_ARGS_MOCK,
+          messenger: createMessengerMock(),
+          remoteTransactionSource: createRemoteTransactionSourceMock([]),
+        });
+
+        await flushPromises();
+
+        connectionStateChangedHandler(
+          createConnectionInfo(WebSocketState.CONNECTED),
+        );
+        await flushPromises();
+
+        connectionStateChangedHandler(
+          createConnectionInfo(WebSocketState.DISCONNECTED),
+        );
+
+        expect(unsubscribeMock).toHaveBeenCalledWith(
+          'AccountActivityService:transactionUpdated',
+          expect.any(Function),
+        );
+      });
+
+      it('unsubscribes from selectedAccountChange when WebSocket disconnects', async () => {
+        // eslint-disable-next-line no-new
+        new IncomingTransactionHelper({
+          ...CONTROLLER_ARGS_MOCK,
+          messenger: createMessengerMock(),
+          remoteTransactionSource: createRemoteTransactionSourceMock([]),
+        });
+
+        await flushPromises();
+
+        connectionStateChangedHandler(
+          createConnectionInfo(WebSocketState.CONNECTED),
+        );
+        await flushPromises();
+
+        connectionStateChangedHandler(
+          createConnectionInfo(WebSocketState.DISCONNECTED),
+        );
+
+        expect(unsubscribeMock).toHaveBeenCalledWith(
+          'AccountsController:selectedAccountChange',
+          expect.any(Function),
+        );
       });
     });
 
     describe('stop', () => {
-      it('unsubscribes from transactionUpdated event', async () => {
+      it('does not unsubscribe from enhanced mode events because stop only handles polling', async () => {
         const helper = new IncomingTransactionHelper({
           ...CONTROLLER_ARGS_MOCK,
           messenger: createMessengerMock(),
           remoteTransactionSource: createRemoteTransactionSourceMock([]),
         });
 
-        helper.start();
         await flushPromises();
 
         helper.stop();
 
-        expect(unsubscribeMock).toHaveBeenCalledWith(
-          'AccountActivityService:transactionUpdated',
-          expect.any(Function),
-        );
-      });
-
-      it('calls unsubscribe even if not started', () => {
-        const helper = new IncomingTransactionHelper({
-          ...CONTROLLER_ARGS_MOCK,
-          messenger: createMessengerMock(),
-          remoteTransactionSource: createRemoteTransactionSourceMock([]),
-        });
-
-        helper.stop();
-
-        expect(unsubscribeMock).toHaveBeenCalledWith(
-          'AccountActivityService:transactionUpdated',
-          expect.any(Function),
-        );
-      });
-    });
-
-    describe('on transactionUpdated event', () => {
-      it('triggers update when transactionUpdated event is received', async () => {
-        const remoteTransactionSource = createRemoteTransactionSourceMock([]);
-
-        const helper = new IncomingTransactionHelper({
-          ...CONTROLLER_ARGS_MOCK,
-          messenger: createMessengerMock(),
-          remoteTransactionSource,
-        });
-
-        helper.start();
-        await flushPromises();
-
-        jest.mocked(remoteTransactionSource.fetchTransactions).mockClear();
-
-        transactionUpdatedHandler({
-          id: 'tx-123',
-          chain: 'eip155:1',
-          status: 'confirmed',
-          timestamp: Date.now(),
-          from: '0xother',
-          to: ADDRESS_MOCK,
-        });
-
-        await flushPromises();
-
-        expect(remoteTransactionSource.fetchTransactions).toHaveBeenCalledTimes(
-          1,
-        );
-      });
-
-      it('triggers update for any transaction regardless of addresses', async () => {
-        const remoteTransactionSource = createRemoteTransactionSourceMock([]);
-
-        const helper = new IncomingTransactionHelper({
-          ...CONTROLLER_ARGS_MOCK,
-          messenger: createMessengerMock(),
-          remoteTransactionSource,
-        });
-
-        helper.start();
-        await flushPromises();
-
-        jest.mocked(remoteTransactionSource.fetchTransactions).mockClear();
-
-        transactionUpdatedHandler({
-          id: 'tx-123',
-          chain: 'eip155:1',
-          status: 'confirmed',
-          timestamp: Date.now(),
-          from: '0xother1',
-          to: '0xother2',
-        });
-
-        await flushPromises();
-
-        expect(remoteTransactionSource.fetchTransactions).toHaveBeenCalledTimes(
-          1,
-        );
+        expect(unsubscribeMock).not.toHaveBeenCalled();
       });
     });
 
     describe('error handling', () => {
-      it('handles error in initial update gracefully', async () => {
-        const remoteTransactionSource = createRemoteTransactionSourceMock([], {
-          error: true,
+      it('handles error in enhanced mode initial update when getCurrentAccount throws', async () => {
+        let callCount = 0;
+        const getCurrentAccountMock = jest.fn().mockImplementation(() => {
+          callCount += 1;
+          if (callCount === 1) {
+            throw new Error('Account error');
+          }
+          return CONTROLLER_ARGS_MOCK.getCurrentAccount();
         });
 
-        const helper = new IncomingTransactionHelper({
+        // eslint-disable-next-line no-new
+        new IncomingTransactionHelper({
           ...CONTROLLER_ARGS_MOCK,
+          getCurrentAccount: getCurrentAccountMock,
           messenger: createMessengerMock(),
-          remoteTransactionSource,
+          remoteTransactionSource: createRemoteTransactionSourceMock([]),
         });
 
-        helper.start();
         await flushPromises();
 
-        expect(subscribeMock).toHaveBeenCalled();
+        connectionStateChangedHandler(
+          createConnectionInfo(WebSocketState.CONNECTED),
+        );
+        await flushPromises();
+
+        expect(subscribeMock).toHaveBeenCalledWith(
+          'AccountActivityService:transactionUpdated',
+          expect.any(Function),
+        );
       });
 
-      it('handles error in update after transaction event gracefully', async () => {
-        const remoteTransactionSource = createRemoteTransactionSourceMock([]);
-
-        const helper = new IncomingTransactionHelper({
-          ...CONTROLLER_ARGS_MOCK,
-          messenger: createMessengerMock(),
-          remoteTransactionSource,
+      it('handles error in update after transaction event when getCurrentAccount throws', async () => {
+        let callCount = 0;
+        const getCurrentAccountMock = jest.fn().mockImplementation(() => {
+          callCount += 1;
+          if (callCount === 2) {
+            throw new Error('Account error');
+          }
+          return CONTROLLER_ARGS_MOCK.getCurrentAccount();
         });
 
-        helper.start();
+        // eslint-disable-next-line no-new
+        new IncomingTransactionHelper({
+          ...CONTROLLER_ARGS_MOCK,
+          getCurrentAccount: getCurrentAccountMock,
+          messenger: createMessengerMock(),
+          remoteTransactionSource: createRemoteTransactionSourceMock([]),
+        });
+
         await flushPromises();
 
-        jest
-          .mocked(remoteTransactionSource.fetchTransactions)
-          .mockRejectedValueOnce(new Error('Test Error'));
+        connectionStateChangedHandler(
+          createConnectionInfo(WebSocketState.CONNECTED),
+        );
+        await flushPromises();
 
         transactionUpdatedHandler({
           id: 'tx-123',
@@ -733,7 +916,39 @@ describe('IncomingTransactionHelper', () => {
 
         await flushPromises();
 
-        expect(helper).toBeDefined();
+        expect(getCurrentAccountMock).toHaveBeenCalledTimes(2);
+      });
+
+      it('handles error in update after account change event when getCurrentAccount throws', async () => {
+        let callCount = 0;
+        const getCurrentAccountMock = jest.fn().mockImplementation(() => {
+          callCount += 1;
+          if (callCount === 2) {
+            throw new Error('Account error');
+          }
+          return CONTROLLER_ARGS_MOCK.getCurrentAccount();
+        });
+
+        // eslint-disable-next-line no-new
+        new IncomingTransactionHelper({
+          ...CONTROLLER_ARGS_MOCK,
+          getCurrentAccount: getCurrentAccountMock,
+          messenger: createMessengerMock(),
+          remoteTransactionSource: createRemoteTransactionSourceMock([]),
+        });
+
+        await flushPromises();
+
+        connectionStateChangedHandler(
+          createConnectionInfo(WebSocketState.CONNECTED),
+        );
+        await flushPromises();
+
+        selectedAccountChangedHandler();
+
+        await flushPromises();
+
+        expect(getCurrentAccountMock).toHaveBeenCalledTimes(2);
       });
     });
   });
@@ -784,6 +999,25 @@ describe('IncomingTransactionHelper', () => {
       const helper = new IncomingTransactionHelper({
         ...CONTROLLER_ARGS_MOCK,
         remoteTransactionSource,
+      });
+
+      helper.start();
+      await flushPromises();
+
+      expect(helper).toBeDefined();
+    });
+
+    it('handles error in initial polling when getCurrentAccount throws', async () => {
+      jest.mocked(isEnhancedHistoryRetrievalEnabled).mockReturnValue(false);
+
+      const getCurrentAccountMock = jest.fn().mockImplementation(() => {
+        throw new Error('Account error');
+      });
+
+      const helper = new IncomingTransactionHelper({
+        ...CONTROLLER_ARGS_MOCK,
+        getCurrentAccount: getCurrentAccountMock,
+        remoteTransactionSource: createRemoteTransactionSourceMock([]),
       });
 
       helper.start();
@@ -843,7 +1077,7 @@ describe('IncomingTransactionHelper', () => {
         remoteTransactionSource: createRemoteTransactionSourceMock([
           TRANSACTION_MOCK_2,
         ]),
-        trimTransactions: (transactions) =>
+        trimTransactions: (transactions): TransactionMeta[] =>
           transactions.filter((tx) => tx.id !== TRANSACTION_MOCK_2.id),
       });
 

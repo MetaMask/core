@@ -1,5 +1,9 @@
 import type { AccountsController } from '@metamask/accounts-controller';
-import type { Transaction as AccountActivityTransaction } from '@metamask/core-backend';
+import type {
+  Transaction as AccountActivityTransaction,
+  WebSocketConnectionInfo,
+} from '@metamask/core-backend';
+import { WebSocketState } from '@metamask/core-backend';
 import type { Hex } from '@metamask/utils';
 // This package purposefully relies on Node's EventEmitter module.
 // eslint-disable-next-line import-x/no-nodejs-modules
@@ -65,10 +69,20 @@ export class IncomingTransactionHelper {
 
   readonly #isEnhancedHistoryEnabled: boolean;
 
-  #transactionUpdatedHandler = (
+  readonly #transactionUpdatedHandler = (
     transaction: AccountActivityTransaction,
   ): void => {
     this.#onTransactionUpdated(transaction);
+  };
+
+  readonly #connectionStateChangedHandler = (
+    connectionInfo: WebSocketConnectionInfo,
+  ): void => {
+    this.#onConnectionStateChanged(connectionInfo);
+  };
+
+  readonly #selectedAccountChangedHandler = (): void => {
+    this.#onSelectedAccountChanged();
   };
 
   constructor({
@@ -109,10 +123,17 @@ export class IncomingTransactionHelper {
     this.#updateTransactions = updateTransactions;
     this.#isEnhancedHistoryEnabled =
       isEnhancedHistoryRetrievalEnabled(messenger);
+
+    if (this.#isEnhancedHistoryEnabled) {
+      this.#messenger.subscribe(
+        'BackendWebSocketService:connectionStateChanged',
+        this.#connectionStateChangedHandler,
+      );
+    }
   }
 
   start(): void {
-    if (this.#isRunning) {
+    if (this.#isRunning || this.#isEnhancedHistoryEnabled) {
       return;
     }
 
@@ -120,38 +141,11 @@ export class IncomingTransactionHelper {
       return;
     }
 
-    this.#isRunning = true;
-
-    if (this.#isEnhancedHistoryEnabled) {
-      this.#startEnhancedMode();
-    } else {
-      this.#startPollingMode();
-    }
-  }
-
-  stop(): void {
-    if (this.#timeoutId) {
-      clearTimeout(this.#timeoutId as number);
-    }
-
-    this.#messenger.unsubscribe(
-      'AccountActivityService:transactionUpdated',
-      this.#transactionUpdatedHandler,
-    );
-
-    if (!this.#isRunning) {
-      return;
-    }
-
-    this.#isRunning = false;
-
-    log('Stopped');
-  }
-
-  #startPollingMode(): void {
     const interval = this.#getInterval();
 
     log('Started polling', { interval });
+
+    this.#isRunning = true;
 
     if (this.#isUpdating) {
       return;
@@ -162,16 +156,63 @@ export class IncomingTransactionHelper {
     });
   }
 
-  #startEnhancedMode(): void {
-    log('Started enhanced mode (event-driven)');
+  stop(): void {
+    if (this.#timeoutId) {
+      clearTimeout(this.#timeoutId as number);
+    }
+
+    if (!this.#isRunning) {
+      return;
+    }
+
+    this.#isRunning = false;
+
+    log('Stopped polling');
+  }
+
+  #onConnectionStateChanged(connectionInfo: WebSocketConnectionInfo): void {
+    if (connectionInfo.state === WebSocketState.CONNECTED) {
+      log('WebSocket connected, starting enhanced mode');
+      this.#startTransactionHistoryRetrieval();
+    } else if (connectionInfo.state === WebSocketState.DISCONNECTED) {
+      log('WebSocket disconnected, stopping enhanced mode');
+      this.#stopTransactionHistoryRetrieval();
+    }
+  }
+
+  #startTransactionHistoryRetrieval(): void {
+    if (!this.#canStart()) {
+      return;
+    }
+
+    log('Started transaction history retrieval (event-driven)');
 
     this.update().catch((error) => {
-      log('Initial update in enhanced mode failed', error);
+      log('Initial update in transaction history retrieval failed', error);
     });
 
     this.#messenger.subscribe(
       'AccountActivityService:transactionUpdated',
       this.#transactionUpdatedHandler,
+    );
+
+    this.#messenger.subscribe(
+      'AccountsController:selectedAccountChange',
+      this.#selectedAccountChangedHandler,
+    );
+  }
+
+  #stopTransactionHistoryRetrieval(): void {
+    log('Stopped transaction history retrieval');
+
+    this.#messenger.unsubscribe(
+      'AccountActivityService:transactionUpdated',
+      this.#transactionUpdatedHandler,
+    );
+
+    this.#messenger.unsubscribe(
+      'AccountsController:selectedAccountChange',
+      this.#selectedAccountChangedHandler,
     );
   }
 
@@ -183,6 +224,14 @@ export class IncomingTransactionHelper {
 
     this.update().catch((error) => {
       log('Update after transaction event failed', error);
+    });
+  }
+
+  #onSelectedAccountChanged(): void {
+    log('Selected account changed, triggering update');
+
+    this.update().catch((error) => {
+      log('Update after account change failed', error);
     });
   }
 

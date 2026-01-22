@@ -3,6 +3,7 @@ import type {
   AccountsController,
   AccountsControllerGetSelectedAccountAction,
   AccountsControllerGetStateAction,
+  AccountsControllerSelectedAccountChangeEvent,
 } from '@metamask/accounts-controller';
 import type {
   AcceptResultCallbacks,
@@ -22,7 +23,10 @@ import {
   convertHexToDecimal,
 } from '@metamask/controller-utils';
 import type { TraceCallback, TraceContext } from '@metamask/controller-utils';
-import type { AccountActivityServiceTransactionUpdatedEvent } from '@metamask/core-backend';
+import type {
+  AccountActivityServiceTransactionUpdatedEvent,
+  BackendWebSocketServiceConnectionStateChangedEvent,
+} from '@metamask/core-backend';
 import EthQuery from '@metamask/eth-query';
 import type {
   FetchGasFeeEstimateOptions,
@@ -605,6 +609,8 @@ export type AllowedActions =
  */
 export type AllowedEvents =
   | AccountActivityServiceTransactionUpdatedEvent
+  | AccountsControllerSelectedAccountChangeEvent
+  | BackendWebSocketServiceConnectionStateChangedEvent
   | NetworkControllerStateChangeEvent;
 
 /**
