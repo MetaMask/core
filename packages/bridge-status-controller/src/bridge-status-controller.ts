@@ -215,7 +215,7 @@ export class BridgeStatusController extends StaticIntervalPollingController<Brid
     this.messenger.subscribe(
       'TransactionController:transactionFailed',
       ({ transactionMeta }) => {
-        const { type, status, id, actionId } = transactionMeta;
+        const { type, status, id: txMetaId, actionId } = transactionMeta;
 
         if (
           type &&
@@ -235,17 +235,17 @@ export class BridgeStatusController extends StaticIntervalPollingController<Brid
           this.#markTxAsFailed(transactionMeta);
           // Track failed event
           if (status !== TransactionStatus.rejected) {
-            // Look up history by id first, then by actionId (for pre-submission failures)
+            // Look up history by txMetaId first, then by actionId (for pre-submission failures)
             let historyKey: string | undefined;
-            if (this.state.txHistory[id]) {
-              historyKey = id;
+            if (this.state.txHistory[txMetaId]) {
+              historyKey = txMetaId;
             } else if (actionId && this.state.txHistory[actionId]) {
               historyKey = actionId;
             }
 
             this.#trackUnifiedSwapBridgeEvent(
               UnifiedSwapBridgeEventName.Failed,
-              historyKey ?? id,
+              historyKey ?? txMetaId,
               getEVMTxPropertiesFromTransactionMeta(transactionMeta),
             );
           }
@@ -256,15 +256,15 @@ export class BridgeStatusController extends StaticIntervalPollingController<Brid
     this.messenger.subscribe(
       'TransactionController:transactionConfirmed',
       (transactionMeta) => {
-        const { type, id, chainId } = transactionMeta;
+        const { type, id: txMetaId, chainId } = transactionMeta;
         if (type === TransactionType.swap) {
           this.#trackUnifiedSwapBridgeEvent(
             UnifiedSwapBridgeEventName.Completed,
-            id,
+            txMetaId,
           );
         }
         if (type === TransactionType.bridge && !isNonEvmChainId(chainId)) {
-          this.#startPollingForTxId(id);
+          this.#startPollingForTxId(txMetaId);
         }
       },
     );
