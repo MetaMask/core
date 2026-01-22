@@ -173,10 +173,17 @@ export class SeedlessOnboardingError extends Error {
       if (options.cause instanceof Error) {
         this.cause = options.cause;
       } else {
-        const causeMessage =
-          typeof options.cause === 'string'
-            ? options.cause
-            : JSON.stringify(options.cause);
+        let causeMessage: string;
+        if (typeof options.cause === 'string') {
+          causeMessage = options.cause;
+        } else {
+          try {
+            causeMessage = JSON.stringify(options.cause);
+          } catch {
+            // Handle circular references, BigInt, or other non-serializable values
+            causeMessage = String(options.cause);
+          }
+        }
         this.cause = new Error(causeMessage);
       }
     }
