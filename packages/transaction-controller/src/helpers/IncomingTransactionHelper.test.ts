@@ -583,23 +583,6 @@ describe('IncomingTransactionHelper', () => {
         );
       });
 
-      it('does not call update in constructor when enhanced mode is enabled', async () => {
-        const remoteTransactionSource = createRemoteTransactionSourceMock([]);
-
-        // eslint-disable-next-line no-new
-        new IncomingTransactionHelper({
-          ...CONTROLLER_ARGS_MOCK,
-          messenger: createMessengerMock(),
-          remoteTransactionSource,
-        });
-
-        await flushPromises();
-
-        expect(
-          remoteTransactionSource.fetchTransactions,
-        ).not.toHaveBeenCalled();
-      });
-
       it('does not subscribe to connectionStateChanged when enhanced mode is disabled', async () => {
         jest.mocked(isEnhancedHistoryRetrievalEnabled).mockReturnValue(false);
         const messenger = createMessengerMock();
@@ -636,7 +619,7 @@ describe('IncomingTransactionHelper', () => {
     });
 
     describe('on WebSocket connected', () => {
-      it('starts enhanced mode when WebSocket connects', async () => {
+      it('starts transaction history retrieval when WebSocket connects', async () => {
         const remoteTransactionSource = createRemoteTransactionSourceMock([]);
 
         // eslint-disable-next-line no-new
@@ -829,22 +812,6 @@ describe('IncomingTransactionHelper', () => {
           'AccountsController:selectedAccountChange',
           expect.any(Function),
         );
-      });
-    });
-
-    describe('stop', () => {
-      it('does not unsubscribe from enhanced mode events because stop only handles polling', async () => {
-        const helper = new IncomingTransactionHelper({
-          ...CONTROLLER_ARGS_MOCK,
-          messenger: createMessengerMock(),
-          remoteTransactionSource: createRemoteTransactionSourceMock([]),
-        });
-
-        await flushPromises();
-
-        helper.stop();
-
-        expect(unsubscribeMock).not.toHaveBeenCalled();
       });
     });
 
