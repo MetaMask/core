@@ -763,7 +763,7 @@ describe('BridgeStatusController', () => {
       jest.clearAllMocks();
       jest.clearAllTimers();
       // eslint-disable-next-line no-empty-function
-      consoleFnSpy = jest.spyOn(console, 'warn').mockImplementation(() => {});
+      consoleFnSpy = jest.spyOn(console, 'warn').mockImplementation(() => { });
     });
 
     afterEach(() => {
@@ -4091,7 +4091,7 @@ describe('BridgeStatusController', () => {
       jest.clearAllTimers();
       jest.clearAllMocks();
       // eslint-disable-next-line no-empty-function
-      consoleFnSpy = jest.spyOn(console, 'warn').mockImplementation(() => {});
+      consoleFnSpy = jest.spyOn(console, 'warn').mockImplementation(() => { });
       mockMessenger = new Messenger({ namespace: MOCK_ANY_NAMESPACE });
       mockBridgeStatusMessenger = new Messenger({
         namespace: BRIDGE_STATUS_CONTROLLER_NAME,
