@@ -21,8 +21,4 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 - Refactor `MulticallClient` to use viem for ABI encoding/decoding instead of manual implementation
 
-### Removed
-
-- Remove unused deprecated `getNFTContractInfo` function from NftController
-
 [Unreleased]: https://github.com/MetaMask/core/

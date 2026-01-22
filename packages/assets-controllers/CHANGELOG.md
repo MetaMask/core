@@ -21,6 +21,10 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 - Bump `@metamask/multichain-account-service` from `^5.0.0` to `^5.1.0` ([#7678](https://github.com/MetaMask/core/pull/7678))
 - Set zero address for native token of Henesys/MSU ([#7666](https://github.com/MetaMask/core/pull/7666))
 
+### Removed
+
+- Remove unused deprecated `getNFTContractInfo` function from NftController ([#7703](https://github.com/MetaMask/core/pull/7703))
+
 ## [95.3.0]
 
 ### Added
