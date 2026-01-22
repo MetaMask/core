@@ -1629,7 +1629,6 @@ export class BridgeStatusController extends StaticIntervalPollingController<Brid
           this.#addTxToHistory(
             {
               accountAddress: selectedAccount.address,
-              bridgeTxMeta: {} as TransactionMeta,
               statusRequest: {
                 ...getStatusRequestParams(quoteResponse),
                 srcTxHash: '', // Not available yet
