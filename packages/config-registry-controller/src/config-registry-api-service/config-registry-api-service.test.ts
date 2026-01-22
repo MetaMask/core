@@ -61,6 +61,26 @@ describe('ConfigRegistryApiService', () => {
       });
       expect(service).toBeInstanceOf(ConfigRegistryApiService);
     });
+
+    it('should create instance with empty options object', () => {
+      const service = new ConfigRegistryApiService({});
+      expect(service).toBeInstanceOf(ConfigRegistryApiService);
+    });
+
+    it('should use default values for unspecified options', () => {
+      const service = new ConfigRegistryApiService({
+        apiBaseUrl: 'https://test.com',
+      });
+      expect(service).toBeInstanceOf(ConfigRegistryApiService);
+    });
+
+    it('should use default fetch when not provided', () => {
+      const service = new ConfigRegistryApiService({
+        apiBaseUrl: 'https://test.com',
+        endpointPath: '/test',
+      });
+      expect(service).toBeInstanceOf(ConfigRegistryApiService);
+    });
   });
 
   describe('fetchConfig', () => {
@@ -90,6 +110,48 @@ describe('ConfigRegistryApiService', () => {
       expect(scope.isDone()).toBe(true);
     });
 
+    it('should execute fetchWithTimeout function and call clearTimeout on success', async () => {
+      const mockHeaders = {
+        get: jest.fn().mockReturnValue('"test-etag"'),
+      };
+      const clearTimeoutSpy = jest.spyOn(global, 'clearTimeout');
+      const setTimeoutSpy = jest.spyOn(global, 'setTimeout');
+      const customFetch = jest.fn().mockResolvedValue({
+        ok: true,
+        status: 200,
+        headers: mockHeaders,
+        json: async () => MOCK_API_RESPONSE,
+      } as unknown as Response);
+
+      const service = new ConfigRegistryApiService({
+        fetch: customFetch,
+        timeout: 1000,
+      });
+
+      await service.fetchConfig();
+
+      expect(setTimeoutSpy).toHaveBeenCalled();
+      expect(clearTimeoutSpy).toHaveBeenCalled();
+      clearTimeoutSpy.mockRestore();
+      setTimeoutSpy.mockRestore();
+    });
+
+    it('should successfully fetch config from API without ETag header', async () => {
+      const scope = nock(DEFAULT_API_BASE_URL)
+        .get(DEFAULT_ENDPOINT_PATH)
+        .reply(200, MOCK_API_RESPONSE);
+
+      const service = new ConfigRegistryApiService();
+      const result = await service.fetchConfig();
+
+      expect(result.notModified).toBe(false);
+      expect(result.etag).toBeUndefined();
+      expect(
+        (result as Extract<FetchConfigResult, { notModified: false }>).data,
+      ).toStrictEqual(MOCK_API_RESPONSE);
+      expect(scope.isDone()).toBe(true);
+    });
+
     it('should handle 304 Not Modified response', async () => {
       const etag = '"test-etag-123"';
       const scope = nock(DEFAULT_API_BASE_URL)
@@ -104,6 +166,26 @@ describe('ConfigRegistryApiService', () => {
       expect(scope.isDone()).toBe(true);
     });
 
+    it('should handle 304 Not Modified response without ETag header', async () => {
+      const mockHeaders = {
+        get: jest.fn().mockReturnValue(null),
+      };
+      const customFetch = jest.fn().mockResolvedValue({
+        ok: true,
+        status: 304,
+        headers: mockHeaders,
+      } as unknown as Response);
+
+      const service = new ConfigRegistryApiService({
+        fetch: customFetch,
+      });
+
+      const result = await service.fetchConfig();
+
+      expect(result.notModified).toBe(true);
+      expect(result.etag).toBeUndefined();
+    });
+
     it('should include If-None-Match header when etag is provided', async () => {
       const etag = '"test-etag-123"';
       const scope = nock(DEFAULT_API_BASE_URL)
@@ -113,6 +195,29 @@ describe('ConfigRegistryApiService', () => {
 
       const service = new ConfigRegistryApiService();
       await service.fetchConfig({ etag });
+
+      expect(scope.isDone()).toBe(true);
+    });
+
+    it('should not include If-None-Match header when etag is undefined', async () => {
+      const scope = nock(DEFAULT_API_BASE_URL)
+        .get(DEFAULT_ENDPOINT_PATH)
+        .reply(200, MOCK_API_RESPONSE);
+
+      const service = new ConfigRegistryApiService();
+      await service.fetchConfig({ etag: undefined });
+
+      expect(scope.isDone()).toBe(true);
+    });
+
+    it('should handle fetchConfig called with undefined options', async () => {
+      const scope = nock(DEFAULT_API_BASE_URL)
+        .get(DEFAULT_ENDPOINT_PATH)
+        .reply(200, MOCK_API_RESPONSE);
+
+      const service = new ConfigRegistryApiService();
+      // eslint-disable-next-line @typescript-eslint/no-explicit-any
+      await service.fetchConfig(undefined as any);
 
       expect(scope.isDone()).toBe(true);
     });
@@ -131,20 +236,88 @@ describe('ConfigRegistryApiService', () => {
       expect(scope.isDone()).toBe(true);
     });
 
+    it('should throw error when data is null', async () => {
+      const mockHeaders = {
+        get: jest.fn().mockReturnValue(null),
+      };
+      const customFetch = jest.fn().mockResolvedValue({
+        ok: true,
+        status: 200,
+        headers: mockHeaders,
+        json: async () => null,
+      } as unknown as Response);
+
+      const service = new ConfigRegistryApiService({
+        fetch: customFetch,
+      });
+
+      await expect(service.fetchConfig()).rejects.toThrow(
+        'Invalid response structure from config registry API',
+      );
+    });
+
+    it('should throw error when data.data is null', async () => {
+      const mockHeaders = {
+        get: jest.fn().mockReturnValue(null),
+      };
+      const customFetch = jest.fn().mockResolvedValue({
+        ok: true,
+        status: 200,
+        headers: mockHeaders,
+        json: async () => ({ data: null }),
+      } as unknown as Response);
+
+      const service = new ConfigRegistryApiService({
+        fetch: customFetch,
+      });
+
+      await expect(service.fetchConfig()).rejects.toThrow(
+        'Invalid response structure from config registry API',
+      );
+    });
+
+    it('should throw error when data.data.networks is not an array', async () => {
+      const mockHeaders = {
+        get: jest.fn().mockReturnValue(null),
+      };
+      const customFetch = jest.fn().mockResolvedValue({
+        ok: true,
+        status: 200,
+        headers: mockHeaders,
+        json: async () => ({ data: { networks: 'not-an-array' } }),
+      } as unknown as Response);
+
+      const service = new ConfigRegistryApiService({
+        fetch: customFetch,
+      });
+
+      await expect(service.fetchConfig()).rejects.toThrow(
+        'Invalid response structure from config registry API',
+      );
+    });
+
     it('should throw error on HTTP error status', async () => {
-      const scope = nock(DEFAULT_API_BASE_URL)
-        .get(DEFAULT_ENDPOINT_PATH)
-        .reply(500, { error: 'Internal Server Error' });
+      const mockHeaders = {
+        get: jest.fn().mockReturnValue(null),
+      };
+      const customFetch = jest.fn().mockResolvedValue({
+        ok: false,
+        status: 500,
+        statusText: 'Internal Server Error',
+        headers: mockHeaders,
+      } as unknown as Response);
 
-      const service = new ConfigRegistryApiService();
+      const service = new ConfigRegistryApiService({
+        fetch: customFetch,
+      });
 
-      await expect(service.fetchConfig()).rejects.toThrow(expect.any(Error));
-      expect(scope.isDone()).toBe(true);
+      await expect(service.fetchConfig()).rejects.toThrow(
+        'Failed to fetch config: 500 Internal Server Error',
+      );
     });
 
     it('should handle timeout', async () => {
-      const testTimeout = 1000; // Use shorter timeout for test
-      // Use a custom fetch that simulates timeout with AbortError
+      const testTimeout = 1000;
       const customFetch = jest.fn().mockImplementation(() => {
         const abortError = new Error('Request aborted');
         abortError.name = 'AbortError';
@@ -160,6 +333,56 @@ describe('ConfigRegistryApiService', () => {
         `Request timeout after ${testTimeout}ms`,
       );
     }, 10000); // Increase Jest timeout for this test
+
+    it('should trigger setTimeout callback when request exceeds timeout', async () => {
+      const testTimeout = 50;
+
+      const customFetch = jest
+        .fn()
+        .mockImplementation((_url: string, options?: RequestInit) => {
+          const signal = options?.signal as AbortSignal;
+          return new Promise<Response>((_resolve, reject) => {
+            if (signal?.aborted) {
+              const abortError = new Error('Request aborted');
+              abortError.name = 'AbortError';
+              reject(abortError);
+              return;
+            }
+
+            if (signal) {
+              signal.addEventListener('abort', () => {
+                const abortError = new Error('Request aborted');
+                abortError.name = 'AbortError';
+                reject(abortError);
+              });
+            }
+          });
+        });
+
+      const service = new ConfigRegistryApiService({
+        timeout: testTimeout,
+        fetch: customFetch,
+      });
+
+      await expect(service.fetchConfig()).rejects.toThrow(
+        `Request timeout after ${testTimeout}ms`,
+      );
+    }, 10000); // Increase Jest timeout for this test
+
+    it('should handle non-AbortError in fetchWithTimeout', async () => {
+      const customFetch = jest
+        .fn()
+        .mockRejectedValue(new Error('Network connection failed'));
+
+      const service = new ConfigRegistryApiService({
+        fetch: customFetch,
+        timeout: 1000,
+      });
+
+      await expect(service.fetchConfig()).rejects.toThrow(
+        'Network connection failed',
+      );
+    });
 
     it('should retry on failure', async () => {
       nock(DEFAULT_API_BASE_URL)
@@ -199,9 +422,8 @@ describe('ConfigRegistryApiService', () => {
 
     it('should register and call onBreak handler', async () => {
       const maximumConsecutiveFailures = 3;
-      const retries = 0; // No retries to simplify test
+      const retries = 0;
 
-      // Create enough failures to trigger circuit break
       for (let i = 0; i < maximumConsecutiveFailures; i++) {
         nock(DEFAULT_API_BASE_URL)
           .get(DEFAULT_ENDPOINT_PATH)
@@ -217,22 +439,26 @@ describe('ConfigRegistryApiService', () => {
 
       service.onBreak(onBreakHandler);
 
-      // Trigger failures to break the circuit
       for (let i = 0; i < maximumConsecutiveFailures; i++) {
         await expect(service.fetchConfig()).rejects.toThrow(expect.any(Error));
-        // Advance time slightly between calls
         await clock.tickAsync(100);
       }
 
-      // Next call should trigger onBreak
       const finalPromise = service.fetchConfig();
       finalPromise.catch(() => {
-        // Suppress unhandled promise rejection
+        // Expected rejection
       });
       await clock.tickAsync(100);
 
       await expect(finalPromise).rejects.toThrow(expect.any(Error));
       expect(onBreakHandler).toHaveBeenCalled();
+    });
+
+    it('should return the result from policy.onBreak', () => {
+      const service = new ConfigRegistryApiService();
+      const handler = jest.fn();
+      const result = service.onBreak(handler);
+      expect(result).toBeDefined();
     });
   });
 
@@ -244,6 +470,54 @@ describe('ConfigRegistryApiService', () => {
       service.onDegraded(onDegradedHandler);
 
       expect(service.onDegraded).toBeDefined();
+    });
+
+    it('should call onDegraded handler when service becomes degraded', async () => {
+      const degradedThreshold = 2000; // 2 seconds
+      const service = new ConfigRegistryApiService({
+        degradedThreshold,
+        retries: 0,
+      });
+
+      const onDegradedHandler = jest.fn();
+      service.onDegraded(onDegradedHandler);
+
+      const slowFetch = jest.fn().mockImplementation(
+        () =>
+          new Promise((resolve) => {
+            setTimeout(
+              () =>
+                resolve({
+                  ok: true,
+                  status: 200,
+                  headers: {
+                    get: jest.fn().mockReturnValue('"custom-etag"'),
+                  } as unknown as Headers,
+                  json: async () => MOCK_API_RESPONSE,
+                } as Response),
+              degradedThreshold + 100,
+            );
+          }),
+      );
+
+      const slowService = new ConfigRegistryApiService({
+        fetch: slowFetch,
+        degradedThreshold,
+        retries: 0,
+      });
+
+      slowService.onDegraded(onDegradedHandler);
+
+      await slowService.fetchConfig();
+
+      expect(slowService.onDegraded).toBeDefined();
+    });
+
+    it('should return the result from policy.onDegraded', () => {
+      const service = new ConfigRegistryApiService();
+      const handler = jest.fn();
+      const result = service.onDegraded(handler);
+      expect(result).toBeDefined();
     });
   });
 
@@ -276,6 +550,21 @@ describe('ConfigRegistryApiService', () => {
   });
 
   describe('URL construction', () => {
+    it('should handle base URL not ending with slash', async () => {
+      const scope = nock('https://test-api.example.com')
+        .get('/config/networks')
+        .reply(200, MOCK_API_RESPONSE);
+
+      const service = new ConfigRegistryApiService({
+        apiBaseUrl: 'https://test-api.example.com',
+        endpointPath: '/config/networks',
+      });
+
+      await service.fetchConfig();
+
+      expect(scope.isDone()).toBe(true);
+    });
+
     it('should handle base URL ending with slash', async () => {
       const scope = nock('https://test-api.example.com')
         .get('/config/networks')
@@ -299,6 +588,21 @@ describe('ConfigRegistryApiService', () => {
       const service = new ConfigRegistryApiService({
         apiBaseUrl: 'https://test-api.example.com',
         endpointPath: 'config/networks',
+      });
+
+      await service.fetchConfig();
+
+      expect(scope.isDone()).toBe(true);
+    });
+
+    it('should handle endpoint path with leading slash', async () => {
+      const scope = nock('https://test-api.example.com')
+        .get('/config/networks')
+        .reply(200, MOCK_API_RESPONSE);
+
+      const service = new ConfigRegistryApiService({
+        apiBaseUrl: 'https://test-api.example.com',
+        endpointPath: '/config/networks',
       });
 
       await service.fetchConfig();

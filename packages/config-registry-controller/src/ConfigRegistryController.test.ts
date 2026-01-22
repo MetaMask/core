@@ -190,8 +190,21 @@ describe('ConfigRegistryController', () => {
         fallbackConfig: MOCK_FALLBACK_CONFIG,
       });
 
-      // Fallback config is private, but we can verify it's used when needed
       expect(controller.state.configs).toStrictEqual({ networks: {} });
+    });
+
+    it('should use default ConfigRegistryApiService when apiService is not provided', () => {
+      const controller = new ConfigRegistryController({
+        messenger,
+      });
+
+      expect(controller.state).toStrictEqual({
+        configs: { networks: {} },
+        version: null,
+        lastFetched: null,
+        fetchError: null,
+        etag: null,
+      });
     });
   });
 
@@ -284,7 +297,6 @@ describe('ConfigRegistryController', () => {
       const result = controller.getAllConfigs();
       result.key1 = { key: 'key1', value: 'modified' };
 
-      // Original should not be modified
       expect(controller.state.configs.networks?.key1?.value).toBe('value1');
     });
 
@@ -302,6 +314,32 @@ describe('ConfigRegistryController', () => {
       const result = messenger.call('ConfigRegistryController:getAllConfigs');
       expect(result).toStrictEqual(configs);
       expect(testController.getAllConfigs()).toStrictEqual(configs);
+    });
+
+    it('should return empty object when state.configs is undefined', () => {
+      const controller = new ConfigRegistryController({
+        apiService,
+        messenger,
+        state: {
+          // eslint-disable-next-line @typescript-eslint/no-explicit-any
+          configs: undefined as any,
+        },
+      });
+
+      expect(controller.getAllConfigs()).toStrictEqual({});
+    });
+
+    it('should return empty object when state.configs.networks is undefined', () => {
+      const controller = new ConfigRegistryController({
+        apiService,
+        messenger,
+        state: {
+          // eslint-disable-next-line @typescript-eslint/no-explicit-any
+          configs: {} as any,
+        },
+      });
+
+      expect(controller.getAllConfigs()).toStrictEqual({});
     });
   });
 
@@ -418,6 +456,42 @@ describe('ConfigRegistryController', () => {
       );
 
       expect(controller.getConfig('test-key')?.value).toBe('test-value');
+    });
+
+    it('should initialize configs when state.configs is undefined', () => {
+      const controller = new ConfigRegistryController({
+        messenger,
+        apiService,
+        state: {
+          // eslint-disable-next-line @typescript-eslint/no-explicit-any
+          configs: undefined as any,
+        },
+      });
+
+      controller.setConfig('new-key', 'value');
+
+      expect(controller.state.configs?.networks?.['new-key']).toBeDefined();
+      expect(controller.state.configs?.networks?.['new-key']?.value).toBe(
+        'value',
+      );
+    });
+
+    it('should initialize networks when state.configs.networks is undefined', () => {
+      const controller = new ConfigRegistryController({
+        messenger,
+        apiService,
+        state: {
+          // eslint-disable-next-line @typescript-eslint/no-explicit-any
+          configs: {} as any,
+        },
+      });
+
+      controller.setConfig('new-key', 'value');
+
+      expect(controller.state.configs?.networks?.['new-key']).toBeDefined();
+      expect(controller.state.configs?.networks?.['new-key']?.value).toBe(
+        'value',
+      );
     });
   });
 
@@ -554,7 +628,7 @@ describe('ConfigRegistryController', () => {
       expect(controller.state.fetchError).toBe('Network error');
     });
 
-    it('should not use fallback when configs already exist', async () => {
+    it('should set fetchError when configs already exist (not use fallback)', async () => {
       mockRemoteFeatureFlagGetState.mockReturnValue({
         remoteFeatureFlags: {
           configRegistryApiEnabled: true,
@@ -581,7 +655,6 @@ describe('ConfigRegistryController', () => {
 
       await controller._executePoll({});
 
-      // Should keep existing configs, not use fallback
       expect(controller.state.configs).toStrictEqual(existingConfigs);
       expect(controller.state.fetchError).toBe('Network error');
     });
@@ -604,15 +677,96 @@ describe('ConfigRegistryController', () => {
         fallbackConfig: MOCK_FALLBACK_CONFIG,
       });
 
-      // Call _executePoll directly to test error handling
       await controller._executePoll({});
 
-      // Since we have no configs, it should use fallback
       expect(controller.state.configs).toStrictEqual({
         networks: MOCK_FALLBACK_CONFIG,
       });
       expect(controller.state.fetchError).toBe('Network error');
       expect(mockRemoteFeatureFlagGetState).toHaveBeenCalled();
+    });
+
+    it('should handle notModified response and clear fetchError', async () => {
+      mockRemoteFeatureFlagGetState.mockReturnValue({
+        remoteFeatureFlags: {
+          configRegistryApiEnabled: true,
+        },
+        cacheTimestamp: Date.now(),
+      });
+
+      const notModifiedApiService = buildMockApiService({
+        fetchConfig: jest.fn().mockResolvedValue({
+          notModified: true,
+          etag: '"test-etag"',
+        }),
+      });
+
+      const controller = new ConfigRegistryController({
+        apiService: notModifiedApiService,
+        messenger,
+        state: {
+          fetchError: 'Previous error',
+        },
+      });
+
+      await controller._executePoll({});
+
+      expect(controller.state.fetchError).toBeNull();
+      expect(controller.state.etag).toBeNull();
+    });
+
+    it('should handle non-Error exceptions', async () => {
+      mockRemoteFeatureFlagGetState.mockReturnValue({
+        remoteFeatureFlags: {
+          configRegistryApiEnabled: true,
+        },
+        cacheTimestamp: Date.now(),
+      });
+
+      const errorApiService = buildMockApiService({
+        fetchConfig: jest.fn().mockRejectedValue('String error'), // Not an Error instance
+      });
+
+      const controller = new ConfigRegistryController({
+        apiService: errorApiService,
+        messenger,
+        fallbackConfig: MOCK_FALLBACK_CONFIG,
+      });
+
+      await controller._executePoll({});
+
+      expect(controller.state.configs).toStrictEqual({
+        networks: MOCK_FALLBACK_CONFIG,
+      });
+      expect(controller.state.fetchError).toBe('Unknown error occurred');
+    });
+
+    it('should handle error when state.configs is null', async () => {
+      mockRemoteFeatureFlagGetState.mockReturnValue({
+        remoteFeatureFlags: {
+          configRegistryApiEnabled: true,
+        },
+        cacheTimestamp: Date.now(),
+      });
+
+      const errorApiService = buildMockApiService({
+        fetchConfig: jest.fn().mockRejectedValue(new Error('Network error')),
+      });
+
+      const controller = new ConfigRegistryController({
+        apiService: errorApiService,
+        messenger,
+        fallbackConfig: MOCK_FALLBACK_CONFIG,
+        // eslint-disable-next-line @typescript-eslint/no-explicit-any
+        state: { configs: null as any },
+      });
+
+      await controller._executePoll({});
+
+      expect(controller.state.configs).toStrictEqual({
+        networks: MOCK_FALLBACK_CONFIG,
+      });
+      expect(controller.state.fetchError).toBe('Network error');
     });
 
     it('should work via messenger actions', async () => {
@@ -644,7 +798,6 @@ describe('ConfigRegistryController', () => {
 
       controller.setConfig('persist-key', 'persist-value');
 
-      // Verify state is updated
       expect(controller.state.configs.networks?.['persist-key']).toBeDefined();
     });
 
@@ -677,6 +830,53 @@ describe('ConfigRegistryController', () => {
       });
 
       expect(controller.state.fetchError).toBe('Test error');
+    });
+
+    it('should use default error message when useFallbackConfig is called without errorMessage', () => {
+      const controller = new ConfigRegistryController({
+        messenger,
+        apiService,
+        fallbackConfig: MOCK_FALLBACK_CONFIG,
+      });
+
+      // eslint-disable-next-line @typescript-eslint/no-explicit-any
+      (controller as any).useFallbackConfig();
+
+      expect(controller.state.configs).toStrictEqual({
+        networks: MOCK_FALLBACK_CONFIG,
+      });
+      expect(controller.state.fetchError).toBe(
+        'Using fallback configuration - API unavailable',
+      );
+      expect(controller.state.etag).toBeNull();
+    });
+  });
+
+  describe('startPolling', () => {
+    it('should return a polling token string', () => {
+      const controller = new ConfigRegistryController({
+        messenger,
+        apiService,
+      });
+
+      const token = controller.startPolling({});
+      expect(typeof token).toBe('string');
+      expect(token.length).toBeGreaterThan(0);
+
+      controller.stopPolling();
+    });
+
+    it('should return a polling token string when called without input', () => {
+      const controller = new ConfigRegistryController({
+        messenger,
+        apiService,
+      });
+
+      const token = controller.startPolling();
+      expect(typeof token).toBe('string');
+      expect(token.length).toBeGreaterThan(0);
+
+      controller.stopPolling();
     });
   });
 
@@ -787,7 +987,6 @@ describe('ConfigRegistryController', () => {
 
       const mockNetworks = [
         {
-          // Should be included: featured, active, non-testnet
           chainId: '0x1',
           name: 'Ethereum Mainnet',
           nativeCurrency: 'ETH',
@@ -811,7 +1010,6 @@ describe('ConfigRegistryController', () => {
           isDeletable: false,
         },
         {
-          // Should be excluded: testnet
           chainId: '0x5',
           name: 'Goerli',
           nativeCurrency: 'ETH',
@@ -835,7 +1033,6 @@ describe('ConfigRegistryController', () => {
           isDeletable: false,
         },
         {
-          // Should be excluded: not featured
           chainId: '0xa',
           name: 'Optimism',
           nativeCurrency: 'ETH',
@@ -859,7 +1056,6 @@ describe('ConfigRegistryController', () => {
           isDeletable: false,
         },
         {
-          // Should be excluded: not active
           chainId: '0x89',
           name: 'Polygon',
           nativeCurrency: 'MATIC',
@@ -907,7 +1103,6 @@ describe('ConfigRegistryController', () => {
 
       await controller._executePoll({});
 
-      // Only the first network (0x1) should be stored
       expect(controller.state.configs.networks?.['0x1']).toBeDefined();
       expect(controller.state.configs.networks?.['0x5']).toBeUndefined();
       expect(controller.state.configs.networks?.['0xa']).toBeUndefined();

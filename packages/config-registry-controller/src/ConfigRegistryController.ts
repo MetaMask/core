@@ -213,7 +213,7 @@ export class ConfigRegistryController extends StaticIntervalPollingController<Co
     const isApiEnabled = isConfigRegistryApiEnabled(this.messenger);
 
     if (!isApiEnabled) {
-      this.#useFallbackConfig(
+      this.useFallbackConfig(
         'Feature flag disabled - using fallback configuration',
       );
       return;
@@ -259,7 +259,7 @@ export class ConfigRegistryController extends StaticIntervalPollingController<Co
     }
   }
 
-  #useFallbackConfig(errorMessage?: string): void {
+  protected useFallbackConfig(errorMessage?: string): void {
     this.update((state) => {
       // eslint-disable-next-line @typescript-eslint/no-explicit-any
       (state.configs as any) = { networks: { ...this.#fallbackConfig } };
@@ -277,7 +277,7 @@ export class ConfigRegistryController extends StaticIntervalPollingController<Co
       Object.keys(this.state.configs?.networks ?? {}).length === 0;
 
     if (hasNoConfigs) {
-      this.#useFallbackConfig(errorMessage);
+      this.useFallbackConfig(errorMessage);
     } else {
       this.update((state) => {
         state.fetchError = errorMessage;

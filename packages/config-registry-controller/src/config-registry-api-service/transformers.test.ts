@@ -420,39 +420,71 @@ describe('transformers', () => {
       expect(result?.defaultRpcEndpointIndex).toBe(1);
     });
 
+    it('should default defaultRpcEndpointIndex to 0 when not provided', () => {
+      const config = {
+        ...VALID_NETWORK_CONFIG,
+        rpcEndpoints: [
+          {
+            url: 'https://mainnet.infura.io/v3/{infuraProjectId}',
+            type: 'infura',
+            networkClientId: 'mainnet',
+            failoverUrls: [],
+          },
+        ],
+      } as NetworkConfig;
+
+      const result = transformNetworkConfig(config);
+
+      expect(result?.defaultRpcEndpointIndex).toBe(0);
+    });
+
+    it('should default defaultRpcEndpointIndex to 0 when undefined at runtime', () => {
+      const config = {
+        ...VALID_NETWORK_CONFIG,
+        rpcEndpoints: [
+          {
+            url: 'https://mainnet.infura.io/v3/{infuraProjectId}',
+            type: 'infura',
+            networkClientId: 'mainnet',
+            failoverUrls: [],
+          },
+        ],
+        defaultRpcEndpointIndex: undefined,
+      } as unknown as NetworkConfig;
+
+      const result = transformNetworkConfig(config);
+
+      expect(result?.defaultRpcEndpointIndex).toBe(0);
+    });
+
     it('should adjust defaultRpcEndpointIndex when invalid endpoints are filtered out', () => {
       const config = {
         ...VALID_NETWORK_CONFIG,
         rpcEndpoints: [
           {
-            // Invalid endpoint (missing networkClientId) - will be filtered out
             url: 'https://invalid.infura.io/v3/{infuraProjectId}',
             type: 'infura',
             networkClientId: '',
             failoverUrls: [],
           },
           {
-            // Valid endpoint at original index 1
             url: 'https://mainnet.infura.io/v3/{infuraProjectId}',
             type: 'infura',
             networkClientId: 'mainnet',
             failoverUrls: [],
           },
           {
-            // Valid endpoint at original index 2
             url: 'https://backup.infura.io/v3/{infuraProjectId}',
             type: 'infura',
             networkClientId: 'mainnet',
             failoverUrls: [],
           },
         ],
-        defaultRpcEndpointIndex: 1, // Points to mainnet endpoint
+        defaultRpcEndpointIndex: 1,
       };
 
       const result = transformNetworkConfig(config);
 
-      // After filtering, the array becomes [mainnet, backup]
-      // Original index 1 (mainnet) should now be at index 0
       expect(result?.defaultRpcEndpointIndex).toBe(0);
       expect(result?.rpcEndpoints[result.defaultRpcEndpointIndex].url).toBe(
         'https://mainnet.infura.io/v3/{infuraProjectId}',
@@ -470,14 +502,13 @@ describe('transformers', () => {
             failoverUrls: [],
           },
           {
-            // Invalid endpoint (missing networkClientId) - will be filtered out
             url: 'https://invalid.infura.io/v3/{infuraProjectId}',
             type: 'infura',
             networkClientId: '',
             failoverUrls: [],
           },
         ],
-        defaultRpcEndpointIndex: 1, // Points to invalid endpoint
+        defaultRpcEndpointIndex: 1,
       };
 
       const result = transformNetworkConfig(config);
@@ -489,17 +520,15 @@ describe('transformers', () => {
       const config = {
         ...VALID_NETWORK_CONFIG,
         blockExplorerUrls: [
-          '', // Invalid empty URL - will be filtered out
-          'https://etherscan.io', // Valid URL at original index 1
-          'https://blockscout.com', // Valid URL at original index 2
+          '',
+          'https://etherscan.io',
+          'https://blockscout.com',
         ],
-        defaultBlockExplorerUrlIndex: 1, // Points to etherscan
+        defaultBlockExplorerUrlIndex: 1,
       };
 
       const result = transformNetworkConfig(config);
 
-      // After filtering, the array becomes [etherscan, blockscout]
-      // Original index 1 (etherscan) should now be at index 0
       expect(result?.defaultBlockExplorerUrlIndex).toBe(0);
       expect(
         result?.blockExplorerUrls[result.defaultBlockExplorerUrlIndex ?? 0],
@@ -509,11 +538,8 @@ describe('transformers', () => {
     it('should return null when defaultBlockExplorerUrlIndex points to invalid URL', () => {
       const config = {
         ...VALID_NETWORK_CONFIG,
-        blockExplorerUrls: [
-          'https://etherscan.io',
-          '', // Invalid empty URL - will be filtered out
-        ],
-        defaultBlockExplorerUrlIndex: 1, // Points to invalid URL
+        blockExplorerUrls: ['https://etherscan.io', ''],
+        defaultBlockExplorerUrlIndex: 1,
       };
 
       const result = transformNetworkConfig(config);
