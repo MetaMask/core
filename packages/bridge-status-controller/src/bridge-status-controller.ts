@@ -276,20 +276,23 @@ export class BridgeStatusController extends StaticIntervalPollingController<Brid
   }
 
   // Mark tx as failed in txHistory if either the approval or trade fails
-  readonly #markTxAsFailed = ({ id, actionId }: TransactionMeta): void => {
-    // Look up by txMeta.id first
-    let txHistoryKey: string | undefined = this.state.txHistory[id]
-      ? id
+  readonly #markTxAsFailed = ({
+    id: txMetaId,
+    actionId,
+  }: TransactionMeta): void => {
+    // Look up by txMetaId first
+    let txHistoryKey: string | undefined = this.state.txHistory[txMetaId]
+      ? txMetaId
       : undefined;
 
-    // If not found by id, try looking up by actionId (for pre-submission failures)
+    // If not found by txMetaId, try looking up by actionId (for pre-submission failures)
     if (!txHistoryKey && actionId && this.state.txHistory[actionId]) {
       txHistoryKey = actionId;
     }
 
     // If still not found, try looking up by approvalTxId
     txHistoryKey ??= Object.keys(this.state.txHistory).find(
-      (key) => this.state.txHistory[key].approvalTxId === id,
+      (key) => this.state.txHistory[key].approvalTxId === txMetaId,
     );
 
     if (!txHistoryKey) {
