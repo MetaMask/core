@@ -7,6 +7,10 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+### Added
+
+- Add dynamic fetching of supported currencies from `/v1/supportedVsCurrencies` API endpoint with fallback to hardcoded list ([#7699](https://github.com/MetaMask/core/pull/7699))
+
 ### Changed
 
 - Removed call to NFT collections endpoint ([#7687](https://github.com/MetaMask/core/pull/7687))
