@@ -7,6 +7,8 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+## [96.0.0]
+
 ### Added
 
 - Add dynamic fetching of supported currencies from `/v1/supportedVsCurrencies` API endpoint with fallback to hardcoded list ([#7699](https://github.com/MetaMask/core/pull/7699))
@@ -14,16 +16,16 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 ### Changed
 
 - Removed call to NFT collections endpoint ([#7687](https://github.com/MetaMask/core/pull/7687))
+- Bump `@metamask/multichain-account-service` from `^5.0.0` to `^5.1.0` ([#7678](https://github.com/MetaMask/core/pull/7678))
+- Set zero address for native token of Henesys/MSU ([#7666](https://github.com/MetaMask/core/pull/7666))
 
 ### Removed
 
-- Remove unused deprecated `getNFTContractInfo` function from NftController ([#7703](https://github.com/MetaMask/core/pull/7703))
+- **BREAKING:** Remove unused deprecated `getNFTContractInfo` function from NftController ([#7703](https://github.com/MetaMask/core/pull/7703))
 
 ### Fixed
 
 - Fix crash in `selectAllMultichainAssets` selector when asset metadata is missing `units` property ([#7702](https://github.com/MetaMask/core/pull/7702))
-- Bump `@metamask/multichain-account-service` from `^5.0.0` to `^5.1.0` ([#7678](https://github.com/MetaMask/core/pull/7678))
-- Set zero address for native token of Henesys/MSU ([#7666](https://github.com/MetaMask/core/pull/7666))
 
 ## [95.3.0]
 
@@ -2546,7 +2548,8 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 - Use Ethers for AssetsContractController ([#845](https://github.com/MetaMask/core/pull/845))
 
-[Unreleased]: https://github.com/MetaMask/core/compare/@metamask/assets-controllers@95.3.0...HEAD
+[Unreleased]: https://github.com/MetaMask/core/compare/@metamask/assets-controllers@96.0.0...HEAD
+[96.0.0]: https://github.com/MetaMask/core/compare/@metamask/assets-controllers@95.3.0...@metamask/assets-controllers@96.0.0
 [95.3.0]: https://github.com/MetaMask/core/compare/@metamask/assets-controllers@95.2.0...@metamask/assets-controllers@95.3.0
 [95.2.0]: https://github.com/MetaMask/core/compare/@metamask/assets-controllers@95.1.0...@metamask/assets-controllers@95.2.0
 [95.1.0]: https://github.com/MetaMask/core/compare/@metamask/assets-controllers@95.0.0...@metamask/assets-controllers@95.1.0
