@@ -21,7 +21,10 @@ console.error = jest.fn();
 const CHAIN_ID_MOCK = '0x1' as const;
 const ADDRESS_MOCK = '0x1';
 const SYSTEM_TIME_MOCK = 1000 * 60 * 60 * 24 * 2;
-const MESSENGER_MOCK = {} as unknown as TransactionControllerMessenger;
+const MESSENGER_MOCK = {
+  subscribe: jest.fn(),
+  unsubscribe: jest.fn(),
+} as unknown as TransactionControllerMessenger;
 const TAG_MOCK = 'test1';
 const TAG_2_MOCK = 'test2';
 const CLIENT_MOCK = 'test-client';
@@ -607,7 +610,7 @@ describe('IncomingTransactionHelper', () => {
         );
       });
 
-      it('does not call unsubscribe if not started', () => {
+      it('calls unsubscribe even if not started', () => {
         const helper = new IncomingTransactionHelper({
           ...CONTROLLER_ARGS_MOCK,
           messenger: createMessengerMock(),
@@ -616,12 +619,15 @@ describe('IncomingTransactionHelper', () => {
 
         helper.stop();
 
-        expect(unsubscribeMock).not.toHaveBeenCalled();
+        expect(unsubscribeMock).toHaveBeenCalledWith(
+          'AccountActivityService:transactionUpdated',
+          expect.any(Function),
+        );
       });
     });
 
     describe('on transactionUpdated event', () => {
-      it('triggers update when transaction is to current account', async () => {
+      it('triggers update when transactionUpdated event is received', async () => {
         const remoteTransactionSource = createRemoteTransactionSourceMock([]);
 
         const helper = new IncomingTransactionHelper({
@@ -651,37 +657,7 @@ describe('IncomingTransactionHelper', () => {
         );
       });
 
-      it('triggers update when transaction is from current account', async () => {
-        const remoteTransactionSource = createRemoteTransactionSourceMock([]);
-
-        const helper = new IncomingTransactionHelper({
-          ...CONTROLLER_ARGS_MOCK,
-          messenger: createMessengerMock(),
-          remoteTransactionSource,
-        });
-
-        helper.start();
-        await flushPromises();
-
-        jest.mocked(remoteTransactionSource.fetchTransactions).mockClear();
-
-        transactionUpdatedHandler({
-          id: 'tx-123',
-          chain: 'eip155:1',
-          status: 'confirmed',
-          timestamp: Date.now(),
-          from: ADDRESS_MOCK,
-          to: '0xother',
-        });
-
-        await flushPromises();
-
-        expect(remoteTransactionSource.fetchTransactions).toHaveBeenCalledTimes(
-          1,
-        );
-      });
-
-      it('ignores transaction not for current account', async () => {
+      it('triggers update for any transaction regardless of addresses', async () => {
         const remoteTransactionSource = createRemoteTransactionSourceMock([]);
 
         const helper = new IncomingTransactionHelper({
@@ -702,36 +678,6 @@ describe('IncomingTransactionHelper', () => {
           timestamp: Date.now(),
           from: '0xother1',
           to: '0xother2',
-        });
-
-        await flushPromises();
-
-        expect(
-          remoteTransactionSource.fetchTransactions,
-        ).not.toHaveBeenCalled();
-      });
-
-      it('handles case-insensitive address comparison', async () => {
-        const remoteTransactionSource = createRemoteTransactionSourceMock([]);
-
-        const helper = new IncomingTransactionHelper({
-          ...CONTROLLER_ARGS_MOCK,
-          messenger: createMessengerMock(),
-          remoteTransactionSource,
-        });
-
-        helper.start();
-        await flushPromises();
-
-        jest.mocked(remoteTransactionSource.fetchTransactions).mockClear();
-
-        transactionUpdatedHandler({
-          id: 'tx-123',
-          chain: 'eip155:1',
-          status: 'confirmed',
-          timestamp: Date.now(),
-          from: '0xother',
-          to: ADDRESS_MOCK.toUpperCase(),
         });
 
         await flushPromises();

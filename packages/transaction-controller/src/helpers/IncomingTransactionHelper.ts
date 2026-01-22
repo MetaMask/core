@@ -176,25 +176,14 @@ export class IncomingTransactionHelper {
   }
 
   #onTransactionUpdated(transaction: AccountActivityTransaction): void {
-    const currentAccount = this.#getCurrentAccount();
-    const currentAddress = currentAccount?.address?.toLowerCase();
+    log('Received relevant transaction update, triggering update', {
+      txId: transaction.id,
+      chain: transaction.chain,
+    });
 
-    const txTo = transaction.to?.toLowerCase();
-    const txFrom = transaction.from?.toLowerCase();
-
-    if (
-      currentAddress &&
-      (txTo === currentAddress || txFrom === currentAddress)
-    ) {
-      log('Received relevant transaction update, triggering update', {
-        txId: transaction.id,
-        chain: transaction.chain,
-      });
-
-      this.update().catch((error) => {
-        log('Update after transaction event failed', error);
-      });
-    }
+    this.update().catch((error) => {
+      log('Update after transaction event failed', error);
+    });
   }
 
   async #onInterval(): Promise<void> {
