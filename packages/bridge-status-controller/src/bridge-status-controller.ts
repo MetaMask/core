@@ -15,6 +15,7 @@ import {
   UnifiedSwapBridgeEventName,
   formatChainIdToCaip,
   isCrossChain,
+  isTronChainId,
   isEvmTxData,
   isHardwareWallet,
   MetricsActionType,
@@ -252,6 +253,10 @@ export class BridgeStatusController extends StaticIntervalPollingController<Brid
             UnifiedSwapBridgeEventName.Completed,
             id,
           );
+          // Tron swaps use async settlement and need polling for dest tx hash
+          if (isTronChainId(chainId)) {
+            this.#startPollingForTxId(id);
+          }
         }
         if (type === TransactionType.bridge && !isNonEvmChainId(chainId)) {
           this.#startPollingForTxId(id);
@@ -510,7 +515,12 @@ export class BridgeStatusController extends StaticIntervalPollingController<Brid
     const { quote } = txHistoryItem;
     const isIntent = txId.startsWith('intent:');
     const isBridgeTx = isCrossChain(quote.srcChainId, quote.destChainId);
-    if (isBridgeTx || isIntent) {
+
+    // Tron same-chain swaps use async settlement and need polling
+    const isTronSameChainSwap =
+      !isBridgeTx && !isIntent && isTronChainId(quote.srcChainId);
+
+    if (isBridgeTx || isIntent || isTronSameChainSwap) {
       this.#pollingTokensByTxMetaId[txId] = this.startPolling({
         bridgeTxMetaId: txId,
       });
