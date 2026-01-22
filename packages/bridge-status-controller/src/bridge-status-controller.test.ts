@@ -918,6 +918,30 @@ describe('BridgeStatusController', () => {
       jest.clearAllMocks();
     });
 
+    it('throws error when bridgeTxMeta.id is not provided', () => {
+      const bridgeStatusController = new BridgeStatusController({
+        messenger: getMessengerMock(),
+        clientId: BridgeClientId.EXTENSION,
+        fetchFn: jest.fn(),
+        addTransactionFn: jest.fn(),
+        addTransactionBatchFn: jest.fn(),
+        updateTransactionFn: jest.fn(),
+        estimateGasFeeFn: jest.fn(),
+      });
+
+      const argsWithoutId = getMockStartPollingForBridgeTxStatusArgs();
+      // Remove the id from bridgeTxMeta
+      argsWithoutId.bridgeTxMeta = {} as never;
+
+      expect(() => {
+        bridgeStatusController.startPollingForBridgeTxStatus(argsWithoutId);
+      }).toThrow(
+        'Cannot add tx to history: either actionId or bridgeTxMeta.id must be provided',
+      );
+
+      bridgeStatusController.stopAllPolling();
+    });
+
     it('sets the inital tx history state', async () => {
       // Setup
       const bridgeStatusController = new BridgeStatusController({
