@@ -935,9 +935,29 @@ describe('BridgeStatusController', () => {
 
       expect(() => {
         bridgeStatusController.startPollingForBridgeTxStatus(argsWithoutId);
-      }).toThrow(
-        'Cannot add tx to history: either actionId or bridgeTxMeta.id must be provided',
-      );
+      }).toThrow('Cannot start polling: bridgeTxMeta.id is required for polling');
+
+      bridgeStatusController.stopAllPolling();
+    });
+
+    it('throws error when bridgeTxMeta is undefined', () => {
+      const bridgeStatusController = new BridgeStatusController({
+        messenger: getMessengerMock(),
+        clientId: BridgeClientId.EXTENSION,
+        fetchFn: jest.fn(),
+        addTransactionFn: jest.fn(),
+        addTransactionBatchFn: jest.fn(),
+        updateTransactionFn: jest.fn(),
+        estimateGasFeeFn: jest.fn(),
+      });
+
+      const argsWithoutMeta = getMockStartPollingForBridgeTxStatusArgs();
+      // Remove bridgeTxMeta entirely
+      argsWithoutMeta.bridgeTxMeta = undefined as never;
+
+      expect(() => {
+        bridgeStatusController.startPollingForBridgeTxStatus(argsWithoutMeta);
+      }).toThrow('Cannot start polling: bridgeTxMeta.id is required for polling');
 
       bridgeStatusController.stopAllPolling();
     });

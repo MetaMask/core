@@ -609,6 +609,12 @@ export class BridgeStatusController extends StaticIntervalPollingController<Brid
   ): void => {
     const { bridgeTxMeta } = txHistoryMeta;
 
+    if (!bridgeTxMeta?.id) {
+      throw new Error(
+        'Cannot start polling: bridgeTxMeta.id is required for polling',
+      );
+    }
+
     this.#addTxToHistory(txHistoryMeta);
     this.#startPollingForTxId(bridgeTxMeta.id);
   };
