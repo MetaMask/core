@@ -164,29 +164,18 @@ export class SeedlessOnboardingError extends Error {
 
   constructor(
     message: string | SeedlessOnboardingControllerErrorMessage,
-    options?: { details?: string; cause?: Error },
+    options?: { details?: string; cause?: unknown },
   ) {
     super(message);
     this.name = 'SeedlessOnboardingControllerError';
     this.details = options?.details;
-    this.cause = options?.cause;
-  }
-
-  /**
-   * Creates a SeedlessOnboardingError from an unknown error.
-   *
-   * @param error - The original error to wrap.
-   * @param message - The error message to use.
-   * @param details - Optional additional context.
-   * @returns A new SeedlessOnboardingError instance.
-   */
-  static from(
-    error: unknown,
-    message: string | SeedlessOnboardingControllerErrorMessage,
-    details?: string,
-  ): SeedlessOnboardingError {
-    const cause = error instanceof Error ? error : new Error(String(error));
-    return new SeedlessOnboardingError(message, { details, cause });
+    if (options?.cause) {
+      if (options.cause instanceof Error) {
+        this.cause = options.cause;
+      } else {
+        this.cause = new Error(String(options.cause));
+      }
+    }
   }
 
   /**

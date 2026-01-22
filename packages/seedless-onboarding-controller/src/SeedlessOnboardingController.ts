@@ -439,7 +439,7 @@ export class SeedlessOnboardingController<
         log('Error authenticating user', error);
         throw new SeedlessOnboardingError(
           SeedlessOnboardingControllerErrorMessage.AuthenticationError, {
-            cause: error instanceof Error ? error : new Error(String(error)),
+            cause: error,
           }
         );
       }
