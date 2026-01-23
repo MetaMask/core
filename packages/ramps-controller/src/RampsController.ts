@@ -604,11 +604,16 @@ export class RampsController extends BaseController<
       // Only cleanup state if region is actually changing
       const regionChanged =
         normalizedRegion !== this.state.userRegion?.regionCode;
-      if (regionChanged) {
-        this.#cleanupState();
-      }
 
+      // Set the new region atomically with cleanup to avoid intermediate null state
       this.update((state: Draft<RampsControllerState>) => {
+        if (regionChanged) {
+          state.preferredProvider = null;
+          state.tokens = null;
+          state.providers = [];
+          state.paymentMethods = [];
+          state.selectedPaymentMethod = null;
+        }
         state.userRegion = userRegion;
       });
 
