@@ -624,6 +624,7 @@ export class RampsService {
 
       if (country.states && country.states.length > 0) {
         const hasSupportedState = country.states.some(
+          // eslint-disable-next-line @typescript-eslint/prefer-nullish-coalescing -- intentionally using || to treat false as unsupported
           (state) => state.supported?.buy || state.supported?.sell,
         );
         return isCountrySupported || hasSupportedState;
