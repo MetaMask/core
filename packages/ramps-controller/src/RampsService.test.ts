@@ -742,6 +742,47 @@ describe('RampsService', () => {
         sell: true,
       });
     });
+
+    it('includes country when state has undefined buy but truthy sell', async () => {
+      const mockCountries = [
+        {
+          isoCode: 'US',
+          id: '/regions/us',
+          flag: '🇺🇸',
+          name: 'United States',
+          phone: { prefix: '+1', placeholder: '', template: '' },
+          currency: 'USD',
+          supported: { buy: false, sell: false },
+          states: [
+            {
+              id: '/regions/us-tx',
+              stateId: 'TX',
+              name: 'Texas',
+              supported: { sell: true },
+            },
+          ],
+        },
+      ];
+      nock('https://on-ramp-cache.uat-api.cx.metamask.io')
+        .get('/v2/regions/countries')
+        .query({
+          sdk: '2.1.6',
+          controller: CONTROLLER_VERSION,
+          context: 'mobile-ios',
+        })
+        .reply(200, mockCountries);
+      const { service } = getService();
+
+      const countriesPromise = service.getCountries();
+      await clock.runAllAsync();
+      await flushPromises();
+      const countriesResponse = await countriesPromise;
+
+      expect(countriesResponse).toHaveLength(1);
+      expect(countriesResponse[0]?.states?.[0]?.supported).toStrictEqual({
+        sell: true,
+      });
+    });
   });
 
   describe('getTokens', () => {
