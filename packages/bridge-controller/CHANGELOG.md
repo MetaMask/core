@@ -11,6 +11,10 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 - Updated s3 link in mock ([#7710](https://github.com/MetaMask/core/pull/7710))
 
+### Removed
+
+- Remove `getMinimumBalanceForRentExemptionInLamports`, `getMinimumBalanceForRentExemptionRequest`, `selectMinimumBalanceForRentExemptionInSOL`, and `minimumBalanceForRentExemptionInLamports` from state ([#7715](https://github.com/MetaMask/core/pull/7715))
+
 ## [64.8.1]
 
 ### Changed
