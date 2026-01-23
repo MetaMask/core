@@ -39,7 +39,6 @@ import {
   isCrossChain,
   isEthUsdt,
   isNonEvmChainId,
-  isSolanaChainId,
 } from './utils/bridge';
 import {
   formatAddressToCaipReference,
