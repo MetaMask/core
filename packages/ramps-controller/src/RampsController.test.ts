@@ -1240,7 +1240,7 @@ describe('RampsController', () => {
             },
           );
 
-          await controller.hydrateState();
+          controller.hydrateState();
 
           await new Promise((resolve) => setTimeout(resolve, 10));
 
