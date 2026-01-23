@@ -1,5 +1,6 @@
 {
   "metamask/accounts-controller": "team-accounts-framework",
+  "metamask/ai-controllers": "team-social-ai",
   "metamask/multichain-transactions-controller": "team-confirmations",
   "metamask/multichain-account-service": "team-accounts-framework",
   "metamask/account-tree-controller": "team-accounts-framework",
@@ -23,6 +24,7 @@
   "metamask/eip-7702-internal-rpc-middleware": "team-delegation",
   "metamask/earn-controller": "team-earn",
   "metamask/notification-services-controller": "team-assets",
+  "metamask/perps-controller": "team-perps",
   "metamask/phishing-controller": "team-product-safety",
   "metamask/bridge-controller": "team-swaps-and-bridge",
   "metamask/bridge-status-controller": "team-swaps-and-bridge",

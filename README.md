@@ -23,6 +23,7 @@ Each package in this repository has its own README where you can find installati
 - [`@metamask/account-tree-controller`](packages/account-tree-controller)
 - [`@metamask/accounts-controller`](packages/accounts-controller)
 - [`@metamask/address-book-controller`](packages/address-book-controller)
+- [`@metamask/ai-controllers`](packages/ai-controllers)
 - [`@metamask/analytics-controller`](packages/analytics-controller)
 - [`@metamask/announcement-controller`](packages/announcement-controller)
 - [`@metamask/app-metadata-controller`](packages/app-metadata-controller)
@@ -68,6 +69,7 @@ Each package in this repository has its own README where you can find installati
 - [`@metamask/notification-services-controller`](packages/notification-services-controller)
 - [`@metamask/permission-controller`](packages/permission-controller)
 - [`@metamask/permission-log-controller`](packages/permission-log-controller)
+- [`@metamask/perps-controller`](packages/perps-controller)
 - [`@metamask/phishing-controller`](packages/phishing-controller)
 - [`@metamask/polling-controller`](packages/polling-controller)
 - [`@metamask/preferences-controller`](packages/preferences-controller)
@@ -99,6 +101,7 @@ linkStyle default opacity:0.5
   account_tree_controller(["@metamask/account-tree-controller"]);
   accounts_controller(["@metamask/accounts-controller"]);
   address_book_controller(["@metamask/address-book-controller"]);
+  ai_controllers(["@metamask/ai-controllers"]);
   analytics_controller(["@metamask/analytics-controller"]);
   announcement_controller(["@metamask/announcement-controller"]);
   app_metadata_controller(["@metamask/app-metadata-controller"]);
@@ -144,6 +147,7 @@ linkStyle default opacity:0.5
   notification_services_controller(["@metamask/notification-services-controller"]);
   permission_controller(["@metamask/permission-controller"]);
   permission_log_controller(["@metamask/permission-log-controller"]);
+  perps_controller(["@metamask/perps-controller"]);
   phishing_controller(["@metamask/phishing-controller"]);
   polling_controller(["@metamask/polling-controller"]);
   preferences_controller(["@metamask/preferences-controller"]);
@@ -185,6 +189,8 @@ linkStyle default opacity:0.5
   app_metadata_controller --> messenger;
   approval_controller --> base_controller;
   approval_controller --> messenger;
+  assets_controller --> base_controller;
+  assets_controller --> messenger;
   assets_controllers --> account_tree_controller;
   assets_controllers --> accounts_controller;
   assets_controllers --> approval_controller;
@@ -313,6 +319,7 @@ linkStyle default opacity:0.5
   name_controller --> controller_utils;
   name_controller --> messenger;
   network_controller --> base_controller;
+  network_controller --> connectivity_controller;
   network_controller --> controller_utils;
   network_controller --> eth_block_tracker;
   network_controller --> eth_json_rpc_middleware;
@@ -338,6 +345,9 @@ linkStyle default opacity:0.5
   permission_log_controller --> base_controller;
   permission_log_controller --> json_rpc_engine;
   permission_log_controller --> messenger;
+  perps_controller --> base_controller;
+  perps_controller --> controller_utils;
+  perps_controller --> messenger;
   phishing_controller --> base_controller;
   phishing_controller --> controller_utils;
   phishing_controller --> messenger;
@@ -356,6 +366,7 @@ linkStyle default opacity:0.5
   profile_metrics_controller --> messenger;
   profile_metrics_controller --> polling_controller;
   profile_metrics_controller --> profile_sync_controller;
+  profile_metrics_controller --> transaction_controller;
   profile_sync_controller --> address_book_controller;
   profile_sync_controller --> base_controller;
   profile_sync_controller --> keyring_controller;

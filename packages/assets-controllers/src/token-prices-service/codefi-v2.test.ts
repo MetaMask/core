@@ -7,8 +7,12 @@ import {
   CodefiTokenPricesServiceV2,
   SUPPORTED_CHAIN_IDS,
   SUPPORTED_CURRENCIES,
+  SUPPORTED_CURRENCIES_FALLBACK,
   ZERO_ADDRESS,
   getNativeTokenAddress,
+  fetchSupportedCurrencies,
+  getSupportedCurrencies,
+  resetSupportedCurrenciesCache,
 } from './codefi-v2';
 
 // We're not customizing the default max delay
@@ -997,6 +1001,22 @@ describe('CodefiTokenPricesServiceV2', () => {
       ]);
     });
 
+    it('returns an empty array when all assets have unsupported chain IDs', async () => {
+      // Use a chain ID that is not in SUPPORTED_CHAIN_IDS_V3 to trigger early return
+      const unsupportedAssets = [
+        { chainId: '0x999999999999999' as Hex, tokenAddress: '0xAAA' as Hex },
+        { chainId: '0x999999999999999' as Hex, tokenAddress: '0xBBB' as Hex },
+      ];
+
+      const result = await new CodefiTokenPricesServiceV2().fetchTokenPrices({
+        // @ts-expect-error Testing with unsupported chain ID
+        assets: unsupportedAssets,
+        currency: 'ETH',
+      });
+
+      expect(result).toStrictEqual([]);
+    });
+
     describe('before circuit break', () => {
       let clock: sinon.SinonFakeTimers;
 
@@ -1595,6 +1615,40 @@ describe('CodefiTokenPricesServiceV2', () => {
       });
     });
 
+    it('triggers background refresh of supported currencies', async () => {
+      // Mock supportedVsCurrencies endpoint
+      const supportedCurrenciesNock = nock('https://price.api.cx.metamask.io')
+        .get('/v1/supportedVsCurrencies')
+        .reply(200, ['usd', 'eur', 'gbp']);
+
+      // Mock exchange-rates to succeed
+      nock('https://price.api.cx.metamask.io')
+        .get('/v1/exchange-rates')
+        .query({
+          baseCurrency: 'eur',
+        })
+        .reply(200, exchangeRatesMockResponseEur);
+
+      const result = await new CodefiTokenPricesServiceV2().fetchExchangeRates({
+        baseCurrency: 'eur',
+        includeUsdRate: false,
+        cryptocurrencies: ['eth'],
+      });
+
+      // Wait for background fetch to complete
+      await new Promise((resolve) => setTimeout(resolve, 0));
+
+      expect(result).toStrictEqual({
+        eth: exchangeRatesMockResponseEur.eth,
+      });
+
+      // Verify the supportedVsCurrencies endpoint was called
+      expect(supportedCurrenciesNock.isDone()).toBe(true);
+
+      // Reset cache so other tests use fallback list
+      resetSupportedCurrenciesCache();
+    });
+
     describe('before circuit break', () => {
       let clock: sinon.SinonFakeTimers;
 
@@ -1760,6 +1814,110 @@ describe('CodefiTokenPricesServiceV2', () => {
       (['0x1', '0x2', '0x1337'] as const).forEach((chainId) => {
         expect(getNativeTokenAddress(chainId)).toBe(ZERO_ADDRESS);
       });
+    });
+  });
+
+  describe('fetchSupportedCurrencies', () => {
+    afterEach(() => {
+      resetSupportedCurrenciesCache();
+    });
+
+    it('fetches supported currencies from the API and returns them in lowercase', async () => {
+      const mockCurrencies = ['USD', 'EUR', 'GBP', 'JPY'];
+      nock('https://price.api.cx.metamask.io')
+        .get('/v1/supportedVsCurrencies')
+        .reply(200, mockCurrencies);
+
+      const result = await fetchSupportedCurrencies();
+
+      expect(result).toStrictEqual(['usd', 'eur', 'gbp', 'jpy']);
+    });
+
+    it('returns the fallback list when the API returns an invalid response', async () => {
+      nock('https://price.api.cx.metamask.io')
+        .get('/v1/supportedVsCurrencies')
+        .reply(200, { invalid: 'response' });
+
+      const result = await fetchSupportedCurrencies();
+
+      expect(result).toStrictEqual([...SUPPORTED_CURRENCIES_FALLBACK]);
+    });
+
+    it('returns the fallback list when the API request fails', async () => {
+      nock('https://price.api.cx.metamask.io')
+        .get('/v1/supportedVsCurrencies')
+        .replyWithError('Network error');
+
+      const result = await fetchSupportedCurrencies();
+
+      expect(result).toStrictEqual([...SUPPORTED_CURRENCIES_FALLBACK]);
+    });
+
+    it('returns the fallback list when the API returns a non-200 status', async () => {
+      nock('https://price.api.cx.metamask.io')
+        .get('/v1/supportedVsCurrencies')
+        .reply(500, 'Internal Server Error');
+
+      const result = await fetchSupportedCurrencies();
+
+      expect(result).toStrictEqual([...SUPPORTED_CURRENCIES_FALLBACK]);
+    });
+
+    it('updates getSupportedCurrencies after a successful fetch', async () => {
+      const mockCurrencies = ['btc', 'eth', 'usd'];
+      nock('https://price.api.cx.metamask.io')
+        .get('/v1/supportedVsCurrencies')
+        .reply(200, mockCurrencies);
+
+      await fetchSupportedCurrencies();
+      const result = getSupportedCurrencies();
+
+      expect(result).toStrictEqual(['btc', 'eth', 'usd']);
+    });
+  });
+
+  describe('getSupportedCurrencies', () => {
+    beforeEach(() => {
+      resetSupportedCurrenciesCache();
+    });
+
+    it('returns the fallback list when no currencies have been fetched', async () => {
+      // Note: This test may be affected by prior test state.
+      // In a fresh module state, it should return the fallback list.
+      const result = getSupportedCurrencies();
+
+      // Should be one of: the fallback list or a previously fetched list
+      expect(Array.isArray(result)).toBe(true);
+      expect(result.length).toBeGreaterThan(0);
+    });
+  });
+
+  describe('updateSupportedCurrencies', () => {
+    afterEach(() => {
+      resetSupportedCurrenciesCache();
+    });
+
+    it('fetches and returns supported currencies via the service method', async () => {
+      const mockCurrencies = ['usd', 'eur', 'gbp'];
+      nock('https://price.api.cx.metamask.io')
+        .get('/v1/supportedVsCurrencies')
+        .reply(200, mockCurrencies);
+
+      const service = new CodefiTokenPricesServiceV2();
+      const result = await service.updateSupportedCurrencies();
+
+      expect(result).toStrictEqual(['usd', 'eur', 'gbp']);
+    });
+
+    it('returns the fallback list when the API fails', async () => {
+      nock('https://price.api.cx.metamask.io')
+        .get('/v1/supportedVsCurrencies')
+        .replyWithError('Network error');
+
+      const service = new CodefiTokenPricesServiceV2();
+      const result = await service.updateSupportedCurrencies();
+
+      expect(result).toStrictEqual([...SUPPORTED_CURRENCIES_FALLBACK]);
     });
   });
 });

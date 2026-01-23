@@ -7,6 +7,19 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+## [1.1.0]
+
+### Changed
+
+- Calls to `permissionsProvider_submitRevocation` now include the hash of the transaction that revoked the permission if available. ([#7503](https://github.com/MetaMask/core/pull/7503))
+- Bump `@metamask/transaction-controller` from `^62.9.1` to `^62.9.2` ([#7642](https://github.com/MetaMask/core/pull/7642))
+
+### Fixed
+
+- Ensure revocation transaction is successful before marking stored permission as revoked ([#7503](https://github.com/MetaMask/core/pull/7503))
+
+## [1.0.0]
+
 ### Changed
 
 - Bump `@metamask/snaps-controllers` from `^14.0.1` to `^17.2.0` ([#7550](https://github.com/MetaMask/core/pull/7550))
@@ -121,7 +134,9 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 - Initial release ([#6033](https://github.com/MetaMask/core/pull/6033))
 
-[Unreleased]: https://github.com/MetaMask/core/compare/@metamask/gator-permissions-controller@0.8.0...HEAD
+[Unreleased]: https://github.com/MetaMask/core/compare/@metamask/gator-permissions-controller@1.1.0...HEAD
+[1.1.0]: https://github.com/MetaMask/core/compare/@metamask/gator-permissions-controller@1.0.0...@metamask/gator-permissions-controller@1.1.0
+[1.0.0]: https://github.com/MetaMask/core/compare/@metamask/gator-permissions-controller@0.8.0...@metamask/gator-permissions-controller@1.0.0
 [0.8.0]: https://github.com/MetaMask/core/compare/@metamask/gator-permissions-controller@0.7.0...@metamask/gator-permissions-controller@0.8.0
 [0.7.0]: https://github.com/MetaMask/core/compare/@metamask/gator-permissions-controller@0.6.0...@metamask/gator-permissions-controller@0.7.0
 [0.6.0]: https://github.com/MetaMask/core/compare/@metamask/gator-permissions-controller@0.5.0...@metamask/gator-permissions-controller@0.6.0

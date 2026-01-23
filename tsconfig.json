@@ -18,6 +18,9 @@
       "path": "./packages/address-book-controller"
     },
     {
+      "path": "./packages/ai-controllers"
+    },
+    {
       "path": "./packages/analytics-controller"
     },
     {
@@ -142,6 +145,9 @@
     },
     {
       "path": "./packages/permission-log-controller"
+    },
+    {
+      "path": "./packages/perps-controller"
     },
     {
       "path": "./packages/phishing-controller"

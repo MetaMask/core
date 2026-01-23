@@ -125,7 +125,7 @@ export type PermissionResponseSanitized<
 > = Omit<PermissionResponse<TPermission>, 'dependencies' | 'to'>;
 
 /**
- * Represents a gator ERC-7715 granted(ie. signed by an user account) permission entry that is stored in profile sync.
+ * Represents a gator ERC-7715 granted(ie. signed by a user's account) permission entry that is stored in profile sync.
  *
  * @template Permission - The type of the permission provided
  */
@@ -134,10 +134,7 @@ export type StoredGatorPermission<
 > = {
   permissionResponse: PermissionResponse<TPermission>;
   siteOrigin: string;
-  /**
-   * Flag indicating whether this permission has been revoked.
-   */
-  isRevoked?: boolean;
+  revocationMetadata?: RevocationMetadata;
 };
 
 /**
@@ -150,10 +147,7 @@ export type StoredGatorPermissionSanitized<
 > = {
   permissionResponse: PermissionResponseSanitized<TPermission>;
   siteOrigin: string;
-  /**
-   * Flag indicating whether this permission has been revoked.
-   */
-  isRevoked?: boolean;
+  revocationMetadata?: RevocationMetadata;
 };
 
 /**
@@ -218,13 +212,28 @@ export type DelegationDetails = Pick<
 >;
 
 /**
- * Represents the parameters for submitting a revocation.
+ * Represents the metadata for confirmed transaction revocation.
+ */
+export type RevocationMetadata = {
+  // The timestamp at which the revocation was recorded in storage.
+  recordedAt: number;
+  // The hash of the transaction that was used to revoke the permission. Optional because we might not have submitted the transaction ourselves.
+  txHash?: Hex | undefined;
+};
+
+/**
+ * Parameters for the `permissionsProvider_submitRevocation` method
  */
 export type RevocationParams = {
   /**
    * The permission context as a hex string that identifies the permission to revoke.
    */
   permissionContext: Hex;
+
+  /**
+   * The hash of the transaction that was used to revoke the permission. Optional because we might not have submitted the transaction ourselves.
+   */
+  txHash: Hex | undefined;
 };
 
 /**
