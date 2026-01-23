@@ -837,7 +837,7 @@ describe('RampsController', () => {
             async () => createMockCountries(),
           );
 
-          const result = controller.triggerGetCountries('buy');
+          const result = controller.triggerGetCountries();
           expect(result).toBeUndefined();
         });
       });
@@ -944,7 +944,7 @@ describe('RampsController', () => {
           template: '(XXX) XXX-XXXX',
         },
         currency: 'USD',
-        supported: true,
+        supported: { buy: true, sell: true },
         recommended: true,
       },
       {
@@ -957,7 +957,7 @@ describe('RampsController', () => {
           template: 'XXX XXXXXXX',
         },
         currency: 'EUR',
-        supported: true,
+        supported: { buy: true, sell: false },
       },
     ];
 
@@ -970,7 +970,7 @@ describe('RampsController', () => {
 
         expect(controller.state.countries).toStrictEqual([]);
 
-        const countries = await controller.getCountries('buy');
+        const countries = await controller.getCountries();
 
         expect(countries).toMatchInlineSnapshot(`
           Array [
@@ -985,7 +985,10 @@ describe('RampsController', () => {
                 "template": "(XXX) XXX-XXXX",
               },
               "recommended": true,
-              "supported": true,
+              "supported": Object {
+                "buy": true,
+                "sell": true,
+              },
             },
             Object {
               "currency": "EUR",
@@ -997,7 +1000,10 @@ describe('RampsController', () => {
                 "prefix": "+43",
                 "template": "XXX XXXXXXX",
               },
-              "supported": true,
+              "supported": Object {
+                "buy": true,
+                "sell": false,
+              },
             },
           ]
         `);
@@ -1016,44 +1022,10 @@ describe('RampsController', () => {
           },
         );
 
-        await controller.getCountries('buy');
-        await controller.getCountries('buy');
-
-        expect(callCount).toBe(1);
-      });
-    });
-
-    it('fetches countries with sell action', async () => {
-      await withController(async ({ controller, rootMessenger }) => {
-        let receivedAction: string | undefined;
-        rootMessenger.registerActionHandler(
-          'RampsService:getCountries',
-          async (action?: 'buy' | 'sell') => {
-            receivedAction = action;
-            return mockCountries;
-          },
-        );
-
-        await controller.getCountries('sell');
-
-        expect(receivedAction).toBe('sell');
-      });
-    });
-
-    it('uses default buy action when no argument is provided', async () => {
-      await withController(async ({ controller, rootMessenger }) => {
-        let receivedAction: string | undefined;
-        rootMessenger.registerActionHandler(
-          'RampsService:getCountries',
-          async (action?: 'buy' | 'sell') => {
-            receivedAction = action;
-            return mockCountries;
-          },
-        );
-
+        await controller.getCountries();
         await controller.getCountries();
 
-        expect(receivedAction).toBe('buy');
+        expect(callCount).toBe(1);
       });
     });
   });
@@ -1520,8 +1492,8 @@ describe('RampsController', () => {
           flag: '🇺🇸',
           currency: 'USD',
           phone: { prefix: '+1', placeholder: '', template: '' },
-          supported: true,
-          states: [{ stateId: 'CA', name: 'California', supported: true }],
+          supported: { buy: true, sell: true },
+          states: [{ stateId: 'CA', name: 'California', supported: { buy: true, sell: true } }],
         },
       ];
 
@@ -1562,7 +1534,7 @@ describe('RampsController', () => {
           flag: '🇫🇷',
           currency: 'EUR',
           phone: { prefix: '+33', placeholder: '', template: '' },
-          supported: true,
+          supported: { buy: true, sell: true },
         },
       ];
 
@@ -1601,7 +1573,7 @@ describe('RampsController', () => {
           flag: '🇺🇸',
           currency: 'USD',
           phone: { prefix: '+1', placeholder: '', template: '' },
-          supported: true,
+          supported: { buy: true, sell: true },
         },
       ];
 
@@ -1641,7 +1613,7 @@ describe('RampsController', () => {
           flag: '🇫🇷',
           currency: 'EUR',
           phone: { prefix: '+33', placeholder: '', template: '' },
-          supported: true,
+          supported: { buy: true, sell: true },
         },
       ];
 
@@ -1703,12 +1675,12 @@ describe('RampsController', () => {
           flag: '🇺🇸',
           currency: 'USD',
           phone: { prefix: '+1', placeholder: '', template: '' },
-          supported: true,
+          supported: { buy: true, sell: true },
           states: [
             {
               id: '/regions/us-ny',
               name: 'New York',
-              supported: true,
+              supported: { buy: true, sell: true },
             },
           ],
         },
@@ -1749,12 +1721,12 @@ describe('RampsController', () => {
           flag: '🇺🇸',
           currency: 'USD',
           phone: { prefix: '+1', placeholder: '', template: '' },
-          supported: true,
+          supported: { buy: true, sell: true },
           states: [
             {
               id: '/some/path/ca',
               name: 'California',
-              supported: true,
+              supported: { buy: true, sell: true },
             },
           ],
         },
@@ -1795,10 +1767,10 @@ describe('RampsController', () => {
           flag: '🇺🇸',
           currency: 'USD',
           phone: { prefix: '+1', placeholder: '', template: '' },
-          supported: true,
+          supported: { buy: true, sell: true },
           states: [
-            { stateId: 'CA', name: 'California', supported: true },
-            { stateId: 'NY', name: 'New York', supported: true },
+            { stateId: 'CA', name: 'California', supported: { buy: true, sell: true } },
+            { stateId: 'NY', name: 'New York', supported: { buy: true, sell: true } },
           ],
         },
       ];
@@ -2577,7 +2549,7 @@ describe('RampsController', () => {
           flag: '🇺🇸',
           currency: undefined as unknown as string,
           phone: { prefix: '+1', placeholder: '', template: '' },
-          supported: true,
+          supported: { buy: true, sell: true },
         },
         state: null,
         regionCode: 'us',
@@ -2732,13 +2704,13 @@ function createMockUserRegion(
     flag: '🏳️',
     currency: 'USD',
     phone: { prefix: '+1', placeholder: '', template: '' },
-    supported: true,
+    supported: { buy: true, sell: true },
     ...(stateCode && {
       states: [
         {
           stateId: stateCode.toUpperCase(),
           name: stateName ?? `State ${stateCode.toUpperCase()}`,
-          supported: true,
+          supported: { buy: true, sell: true },
         },
       ],
     }),
@@ -2748,7 +2720,7 @@ function createMockUserRegion(
     ? {
         stateId: stateCode.toUpperCase(),
         name: stateName ?? `State ${stateCode.toUpperCase()}`,
-        supported: true,
+        supported: { buy: true, sell: true },
       }
     : null;
 
@@ -2772,11 +2744,11 @@ function createMockCountries(): Country[] {
       flag: '🇺🇸',
       currency: 'USD',
       phone: { prefix: '+1', placeholder: '', template: '' },
-      supported: true,
+      supported: { buy: true, sell: true },
       states: [
-        { stateId: 'CA', name: 'California', supported: true },
-        { stateId: 'NY', name: 'New York', supported: true },
-        { stateId: 'UT', name: 'Utah', supported: true },
+        { stateId: 'CA', name: 'California', supported: { buy: true, sell: true } },
+        { stateId: 'NY', name: 'New York', supported: { buy: true, sell: true } },
+        { stateId: 'UT', name: 'Utah', supported: { buy: true, sell: true } },
       ],
     },
     {
@@ -2785,7 +2757,7 @@ function createMockCountries(): Country[] {
       flag: '🇫🇷',
       currency: 'EUR',
       phone: { prefix: '+33', placeholder: '', template: '' },
-      supported: true,
+      supported: { buy: true, sell: true },
     },
   ];
 }

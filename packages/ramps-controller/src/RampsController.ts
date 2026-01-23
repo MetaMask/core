@@ -654,7 +654,7 @@ export class RampsController extends BaseController<
    * @returns Promise that resolves when initialization is complete.
    */
   async init(options?: ExecuteRequestOptions): Promise<void> {
-    await this.getCountries('buy', options);
+    await this.getCountries(options);
 
     let regionCode = this.state.userRegion?.regionCode;
     regionCode ??= await this.messenger.call('RampsService:getGeolocation');
@@ -681,23 +681,20 @@ export class RampsController extends BaseController<
   }
 
   /**
-   * Fetches the list of supported countries for a given ramp action.
+   * Fetches the list of supported countries.
+   * The API returns countries with support information for both buy and sell actions.
    * The countries are saved in the controller state once fetched.
    *
-   * @param action - The ramp action type ('buy' or 'sell').
    * @param options - Options for cache behavior.
    * @returns An array of countries.
    */
-  async getCountries(
-    action: RampAction = 'buy',
-    options?: ExecuteRequestOptions,
-  ): Promise<Country[]> {
-    const cacheKey = createCacheKey('getCountries', [action]);
+  async getCountries(options?: ExecuteRequestOptions): Promise<Country[]> {
+    const cacheKey = createCacheKey('getCountries', []);
 
     const countries = await this.executeRequest(
       cacheKey,
       async () => {
-        return this.messenger.call('RampsService:getCountries', action);
+        return this.messenger.call('RampsService:getCountries');
       },
       options,
     );
@@ -940,14 +937,10 @@ export class RampsController extends BaseController<
   /**
    * Triggers fetching countries without throwing.
    *
-   * @param action - The ramp action type ('buy' or 'sell').
    * @param options - Options for cache behavior.
    */
-  triggerGetCountries(
-    action: 'buy' | 'sell' = 'buy',
-    options?: ExecuteRequestOptions,
-  ): void {
-    this.getCountries(action, options).catch(() => {
+  triggerGetCountries(options?: ExecuteRequestOptions): void {
+    this.getCountries(options).catch(() => {
       // Error stored in state
     });
   }
