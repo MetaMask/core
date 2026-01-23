@@ -136,10 +136,7 @@ export class ConfigRegistryApiService
       const res = await fetchWithTimeout();
 
       if (res.status === 304) {
-        return {
-          status: 304,
-          headers: res.headers,
-        } as unknown as Response;
+        return res;
       }
 
       if (!res.ok) {
@@ -151,7 +148,7 @@ export class ConfigRegistryApiService
       return res;
     });
 
-    if ((response as unknown as { status?: number }).status === 304) {
+    if (response.status === 304) {
       const etag = response.headers.get('ETag') ?? undefined;
       return {
         notModified: true,

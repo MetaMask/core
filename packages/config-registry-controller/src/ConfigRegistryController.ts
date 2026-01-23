@@ -195,6 +195,17 @@ export class ConfigRegistryController extends StaticIntervalPollingController<nu
       return;
     }
 
+    // Check if enough time has passed since last fetch to respect the polling interval
+    const pollingInterval =
+      this.getIntervalLength() ?? DEFAULT_POLLING_INTERVAL;
+    const now = Date.now();
+    const { lastFetched } = this.state;
+
+    if (lastFetched !== null && now - lastFetched < pollingInterval) {
+      // Not enough time has passed, skip the fetch
+      return;
+    }
+
     try {
       const result: FetchConfigResult = await this.messenger.call(
         'ConfigRegistryApiService:fetchConfig',
@@ -206,8 +217,22 @@ export class ConfigRegistryController extends StaticIntervalPollingController<nu
       if (result.notModified) {
         this.update((state) => {
           state.fetchError = null;
+          if (result.etag !== undefined) {
+            state.etag = result.etag ?? null;
+          }
         });
         return;
+      }
+
+      // Validate API response structure to prevent runtime crashes
+      if (
+        !result.data?.data ||
+        !Array.isArray(result.data.data.networks) ||
+        typeof result.data.data.version !== 'string'
+      ) {
+        throw new Error(
+          'Invalid response structure from config registry API: missing or malformed data',
+        );
       }
 
       // Filter networks: only featured, active, non-testnet networks
@@ -235,8 +260,14 @@ export class ConfigRegistryController extends StaticIntervalPollingController<nu
         state.etag = result.etag ?? null;
       });
     } catch (error) {
+      const errorInstance =
+        error instanceof Error ? error : new Error(String(error));
+
+      if (this.messenger.captureException) {
+        this.messenger.captureException(errorInstance);
+      }
+
       this.#handleFetchError(error);
-      throw error;
     }
   }
 
