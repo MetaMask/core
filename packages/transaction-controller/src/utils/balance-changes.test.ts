@@ -998,7 +998,11 @@ describe('Balance Change Utils', () => {
 
         expect(result).toStrictEqual({
           simulationData: {
-            callTraceErrors: ['Root error', 'Nested error', 'Deeply nested error'],
+            callTraceErrors: [
+              'Root error',
+              'Nested error',
+              'Deeply nested error',
+            ],
             nativeBalanceChange: undefined,
             tokenBalanceChanges: [],
           },
