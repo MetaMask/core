@@ -23,7 +23,7 @@ import type {
   RampsServiceGetProvidersAction,
   RampsServiceGetPaymentMethodsAction,
 } from './RampsService-method-action-types';
-import { RequestStatus, createCacheKey } from './RequestCache';
+import { RequestStatus } from './RequestCache';
 
 describe('RampsController', () => {
   describe('constructor', () => {
@@ -456,7 +456,6 @@ describe('RampsController', () => {
       });
     });
   });
-
 
   describe('executeRequest', () => {
     it('deduplicates concurrent requests with the same cache key', async () => {
@@ -1096,7 +1095,9 @@ describe('RampsController', () => {
 
           await controller.init();
 
-          expect(controller.state.countries).toStrictEqual(createMockCountries());
+          expect(controller.state.countries).toStrictEqual(
+            createMockCountries(),
+          );
           expect(controller.state.userRegion?.regionCode).toBe('us-ca');
         },
       );
@@ -1128,7 +1129,9 @@ describe('RampsController', () => {
           },
         );
 
-        await expect(controller.init()).rejects.toThrow('Countries fetch error');
+        await expect(controller.init()).rejects.toThrow(
+          'Countries fetch error',
+        );
       });
     });
   });
@@ -1325,7 +1328,9 @@ describe('RampsController', () => {
           await controller.setUserRegion('us');
 
           expect(controller.state.userRegion?.regionCode).toBe('us');
-          expect(controller.state.userRegion?.country.name).toBe('United States');
+          expect(controller.state.userRegion?.country.name).toBe(
+            'United States',
+          );
         },
       );
     });
@@ -1403,7 +1408,9 @@ describe('RampsController', () => {
           await controller.setUserRegion('us');
 
           expect(controller.state.userRegion?.regionCode).toBe('us');
-          expect(controller.state.userRegion?.country.name).toBe('United States');
+          expect(controller.state.userRegion?.country.name).toBe(
+            'United States',
+          );
         },
       );
     });

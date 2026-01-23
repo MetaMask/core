@@ -503,7 +503,6 @@ export class RampsController extends BaseController<
       state.providers = [];
       state.paymentMethods = [];
       state.selectedPaymentMethod = null;
-      state.requests = {};
     });
   }
 
@@ -585,19 +584,22 @@ export class RampsController extends BaseController<
     const normalizedRegion = region.toLowerCase().trim();
 
     try {
-      const countries = this.state.countries;
-      if(!countries || countries.length === 0) {
+      const { countries } = this.state;
+      if (!countries || countries.length === 0) {
         this.#cleanupState();
-        throw new Error('No countries found. Cannot set user region without valid country information.');
+        throw new Error(
+          'No countries found. Cannot set user region without valid country information.',
+        );
       }
 
       const userRegion = findRegionFromCode(normalizedRegion, countries);
 
-      if(!userRegion) {
+      if (!userRegion) {
         this.#cleanupState();
-        throw new Error(`Region "${normalizedRegion}" not found in countries data. Cannot set user region without valid country information.`);
+        throw new Error(
+          `Region "${normalizedRegion}" not found in countries data. Cannot set user region without valid country information.`,
+        );
       }
-
 
       this.#cleanupState();
       this.update((state: Draft<RampsControllerState>) => {
@@ -635,26 +637,26 @@ export class RampsController extends BaseController<
    * @returns Promise that resolves when initialization is complete.
    */
   async init(options?: ExecuteRequestOptions): Promise<void> {
-     await this.getCountries('buy', options);
-    
+    await this.getCountries('buy', options);
+
     let regionCode = this.state.userRegion?.regionCode;
-    if(!regionCode) {
-      regionCode = await this.messenger.call(
-        'RampsService:getGeolocation',
+    regionCode ??= await this.messenger.call('RampsService:getGeolocation');
+
+    if (!regionCode) {
+      throw new Error(
+        'Failed to fetch geolocation. Cannot initialize controller without valid region information.',
       );
     }
 
-    if(!regionCode) {
-      throw new Error('Failed to fetch geolocation. Cannot initialize controller without valid region information.');
-    }
-
-    this.triggerSetUserRegion(regionCode, options);
+    await this.setUserRegion(regionCode, options);
   }
 
-  async hydrateState(options?: ExecuteRequestOptions  ): Promise<void> {
+  async hydrateState(options?: ExecuteRequestOptions): Promise<void> {
     const regionCode = this.state.userRegion?.regionCode;
-    if(!regionCode) {
-      throw new Error('Region code is required. Cannot hydrate state without valid region information.');
+    if (!regionCode) {
+      throw new Error(
+        'Region code is required. Cannot hydrate state without valid region information.',
+      );
     }
 
     this.triggerGetTokens(regionCode, 'buy', options);
@@ -675,15 +677,14 @@ export class RampsController extends BaseController<
   ): Promise<Country[]> {
     const cacheKey = createCacheKey('getCountries', [action]);
 
-       const countries = await this.executeRequest(
-        cacheKey,
-        async () => {
-          return this.messenger.call('RampsService:getCountries', action);
-        },
-        options,
-      );
+    const countries = await this.executeRequest(
+      cacheKey,
+      async () => {
+        return this.messenger.call('RampsService:getCountries', action);
+      },
+      options,
+    );
 
-    
     this.update((state: Draft<RampsControllerState>) => {
       state.countries = countries;
     });
