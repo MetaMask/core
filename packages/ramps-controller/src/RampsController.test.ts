@@ -365,6 +365,24 @@ describe('RampsController', () => {
         );
       });
     });
+
+    it('does not update state when doNotUpdateState is true', async () => {
+      await withController(async ({ controller, rootMessenger }) => {
+        rootMessenger.registerActionHandler(
+          'RampsService:getProviders',
+          async () => ({ providers: mockProviders }),
+        );
+
+        expect(controller.state.providers).toStrictEqual([]);
+
+        const result = await controller.getProviders('us', {
+          doNotUpdateState: true,
+        });
+
+        expect(result.providers).toStrictEqual(mockProviders);
+        expect(controller.state.providers).toStrictEqual([]);
+      });
+    });
   });
 
   describe('metadata', () => {
@@ -1055,6 +1073,42 @@ describe('RampsController', () => {
         await controller.getCountries();
 
         expect(receivedAction).toBe('buy');
+      });
+    });
+
+    it('does not update state when doNotUpdateState is true', async () => {
+      await withController(async ({ controller, rootMessenger }) => {
+        rootMessenger.registerActionHandler(
+          'RampsService:getCountries',
+          async () => mockCountries,
+        );
+
+        expect(controller.state.countries).toStrictEqual([]);
+
+        const countries = await controller.getCountries('buy', {
+          doNotUpdateState: true,
+        });
+
+        expect(countries).toStrictEqual(mockCountries);
+        expect(controller.state.countries).toStrictEqual([]);
+      });
+    });
+
+    it('still updates request cache when doNotUpdateState is true', async () => {
+      await withController(async ({ controller, rootMessenger }) => {
+        rootMessenger.registerActionHandler(
+          'RampsService:getCountries',
+          async () => mockCountries,
+        );
+
+        await controller.getCountries('buy', { doNotUpdateState: true });
+
+        const cacheKey = createCacheKey('getCountries', ['buy']);
+        const requestState = controller.getRequestState(cacheKey);
+
+        expect(requestState).toBeDefined();
+        expect(requestState?.status).toBe(RequestStatus.SUCCESS);
+        expect(requestState?.data).toStrictEqual(mockCountries);
       });
     });
   });
@@ -2127,6 +2181,24 @@ describe('RampsController', () => {
         expect(callCount).toBe(2);
       });
     });
+
+    it('does not update state when doNotUpdateState is true', async () => {
+      await withController(async ({ controller, rootMessenger }) => {
+        rootMessenger.registerActionHandler(
+          'RampsService:getTokens',
+          async () => mockTokens,
+        );
+
+        expect(controller.state.tokens).toBeNull();
+
+        const tokens = await controller.getTokens('us', 'buy', {
+          doNotUpdateState: true,
+        });
+
+        expect(tokens).toStrictEqual(mockTokens);
+        expect(controller.state.tokens).toBeNull();
+      });
+    });
   });
 
   describe('getPaymentMethods', () => {
@@ -2375,6 +2447,38 @@ describe('RampsController', () => {
           ).rejects.toThrow(
             'Fiat currency is required. Either provide a fiat parameter or ensure userRegion is set in controller state.',
           );
+        },
+      );
+    });
+
+    it('does not update state when doNotUpdateState is true', async () => {
+      await withController(
+        {
+          options: {
+            state: {
+              userRegion: createMockUserRegion('us'),
+            },
+          },
+        },
+        async ({ controller, rootMessenger }) => {
+          rootMessenger.registerActionHandler(
+            'RampsService:getPaymentMethods',
+            async () => mockPaymentMethodsResponse,
+          );
+
+          expect(controller.state.paymentMethods).toStrictEqual([]);
+
+          const response = await controller.getPaymentMethods({
+            assetId: 'eip155:1/slip44:60',
+            provider: '/providers/stripe',
+            doNotUpdateState: true,
+          });
+
+          expect(response.payments).toStrictEqual([
+            mockPaymentMethod1,
+            mockPaymentMethod2,
+          ]);
+          expect(controller.state.paymentMethods).toStrictEqual([]);
         },
       );
     });

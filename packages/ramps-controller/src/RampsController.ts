@@ -679,14 +679,15 @@ export class RampsController extends BaseController<
         cacheKey,
         async () => {
           return this.messenger.call('RampsService:getCountries', action);
-        },
-        options,
-      );
+      },
+      options,
+    );
 
-    
-    this.update((state: Draft<RampsControllerState>) => {
-      state.countries = countries;
-    });
+    if (!options?.doNotUpdateState) {
+      this.update((state: Draft<RampsControllerState>) => {
+        state.countries = countries;
+      });
+    }
 
     return countries;
   }
@@ -738,13 +739,15 @@ export class RampsController extends BaseController<
       options,
     );
 
-    this.update((state: Draft<RampsControllerState>) => {
-      const userRegionCode = state.userRegion?.regionCode;
+    if (!options?.doNotUpdateState) {
+      this.update((state: Draft<RampsControllerState>) => {
+        const userRegionCode = state.userRegion?.regionCode;
 
-      if (userRegionCode === undefined || userRegionCode === normalizedRegion) {
-        state.tokens = tokens;
-      }
-    });
+        if (userRegionCode === undefined || userRegionCode === normalizedRegion) {
+          state.tokens = tokens;
+        }
+      });
+    }
 
     return tokens;
   }
@@ -804,13 +807,15 @@ export class RampsController extends BaseController<
       options,
     );
 
-    this.update((state: Draft<RampsControllerState>) => {
-      const userRegionCode = state.userRegion?.regionCode;
+    if (!options?.doNotUpdateState) {
+      this.update((state: Draft<RampsControllerState>) => {
+        const userRegionCode = state.userRegion?.regionCode;
 
-      if (userRegionCode === undefined || userRegionCode === normalizedRegion) {
-        state.providers = providers;
-      }
-    });
+        if (userRegionCode === undefined || userRegionCode === normalizedRegion) {
+          state.providers = providers;
+        }
+      });
+    }
 
     return { providers };
   }
@@ -835,6 +840,7 @@ export class RampsController extends BaseController<
     provider: string;
     forceRefresh?: boolean;
     ttl?: number;
+    doNotUpdateState?: boolean;
   }): Promise<PaymentMethodsResponse> {
     const regionToUse = options.region ?? this.state.userRegion?.regionCode;
     const fiatToUse = options.fiat ?? this.state.userRegion?.country?.currency;
@@ -870,22 +876,28 @@ export class RampsController extends BaseController<
           provider: options.provider,
         });
       },
-      { forceRefresh: options.forceRefresh, ttl: options.ttl },
+      {
+        forceRefresh: options.forceRefresh,
+        ttl: options.ttl,
+        doNotUpdateState: options.doNotUpdateState,
+      },
     );
 
-    this.update((state: Draft<RampsControllerState>) => {
-      state.paymentMethods = response.payments;
-      // Only clear selected payment method if it's no longer in the new list
-      // This preserves the selection when cached data is returned (same context)
-      if (
-        state.selectedPaymentMethod &&
-        !response.payments.some(
-          (pm: PaymentMethod) => pm.id === state.selectedPaymentMethod?.id,
-        )
-      ) {
-        state.selectedPaymentMethod = null;
-      }
-    });
+    if (!options?.doNotUpdateState) {
+      this.update((state: Draft<RampsControllerState>) => {
+        state.paymentMethods = response.payments;
+        // Only clear selected payment method if it's no longer in the new list
+        // This preserves the selection when cached data is returned (same context)
+        if (
+          state.selectedPaymentMethod &&
+          !response.payments.some(
+            (pm: PaymentMethod) => pm.id === state.selectedPaymentMethod?.id,
+          )
+        ) {
+          state.selectedPaymentMethod = null;
+        }
+      });
+    }
 
     return response;
   }
@@ -989,6 +1001,7 @@ export class RampsController extends BaseController<
     provider: string;
     forceRefresh?: boolean;
     ttl?: number;
+    doNotUpdateState?: boolean;
   }): void {
     this.getPaymentMethods(options).catch(() => {
       // Error stored in state

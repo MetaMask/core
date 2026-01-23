@@ -135,6 +135,8 @@ export type ExecuteRequestOptions = {
   forceRefresh?: boolean;
   /** Custom TTL for this request in milliseconds */
   ttl?: number;
+  /** If true, skip updating controller state (but still update request cache for deduplication) */
+  doNotUpdateState?: boolean;
 };
 
 /**
