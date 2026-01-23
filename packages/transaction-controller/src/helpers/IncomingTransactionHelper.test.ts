@@ -12,7 +12,7 @@ import { TransactionStatus, TransactionType } from '../types';
 import type { RemoteTransactionSource, TransactionMeta } from '../types';
 import {
   getIncomingTransactionsPollingInterval,
-  isEnhancedHistoryRetrievalEnabled,
+  isIncomingTransactionsUseWebsocketsEnabled,
 } from '../utils/feature-flags';
 
 jest.useFakeTimers();
@@ -134,6 +134,12 @@ async function runInterval(
 }
 
 describe('IncomingTransactionHelper', () => {
+  let subscribeMock: jest.Mock;
+  let unsubscribeMock: jest.Mock;
+  let transactionUpdatedHandler: (tx: AccountActivityTransaction) => void;
+  let connectionStateChangedHandler: (info: WebSocketConnectionInfo) => void;
+  let selectedAccountChangedHandler: () => void;
+
   beforeEach(() => {
     jest.resetAllMocks();
     jest.clearAllTimers();
@@ -143,7 +149,24 @@ describe('IncomingTransactionHelper', () => {
       .mocked(getIncomingTransactionsPollingInterval)
       .mockReturnValue(1000 * 30);
 
-    jest.mocked(isEnhancedHistoryRetrievalEnabled).mockReturnValue(false);
+    jest
+      .mocked(isIncomingTransactionsUseWebsocketsEnabled)
+      .mockReturnValue(false);
+
+    jest
+      .mocked(isIncomingTransactionsUseWebsocketsEnabled)
+      .mockReturnValue(true);
+
+    subscribeMock = jest.fn().mockImplementation((event, handler) => {
+      if (event === 'AccountActivityService:transactionUpdated') {
+        transactionUpdatedHandler = handler;
+      } else if (event === 'BackendWebSocketService:connectionStateChanged') {
+        connectionStateChangedHandler = handler;
+      } else if (event === 'AccountsController:selectedAccountChange') {
+        selectedAccountChangedHandler = handler;
+      }
+    });
+    unsubscribeMock = jest.fn();
   });
 
   describe('on interval', () => {
@@ -521,28 +544,7 @@ describe('IncomingTransactionHelper', () => {
     });
   });
 
-  describe('transaction history retrieval when flag enhanced-history-retrieval is enabled', () => {
-    let subscribeMock: jest.Mock;
-    let unsubscribeMock: jest.Mock;
-    let transactionUpdatedHandler: (tx: AccountActivityTransaction) => void;
-    let connectionStateChangedHandler: (info: WebSocketConnectionInfo) => void;
-    let selectedAccountChangedHandler: () => void;
-
-    beforeEach(() => {
-      jest.mocked(isEnhancedHistoryRetrievalEnabled).mockReturnValue(true);
-
-      subscribeMock = jest.fn().mockImplementation((event, handler) => {
-        if (event === 'AccountActivityService:transactionUpdated') {
-          transactionUpdatedHandler = handler;
-        } else if (event === 'BackendWebSocketService:connectionStateChanged') {
-          connectionStateChangedHandler = handler;
-        } else if (event === 'AccountsController:selectedAccountChange') {
-          selectedAccountChangedHandler = handler;
-        }
-      });
-      unsubscribeMock = jest.fn();
-    });
-
+  describe('transaction history retrieval when useWebsockets is enabled', () => {
     function createMessengerMock(): TransactionControllerMessenger {
       return {
         subscribe: subscribeMock,
@@ -565,7 +567,7 @@ describe('IncomingTransactionHelper', () => {
     }
 
     describe('constructor', () => {
-      it('subscribes to connectionStateChanged when flag enhanced-history-retrieval is enabled', async () => {
+      it('subscribes to connectionStateChanged when useWebsockets is enabled', async () => {
         const messenger = createMessengerMock();
 
         // eslint-disable-next-line no-new
@@ -583,8 +585,10 @@ describe('IncomingTransactionHelper', () => {
         );
       });
 
-      it('does not subscribe to connectionStateChanged when flag enhanced-history-retrieval is disabled', async () => {
-        jest.mocked(isEnhancedHistoryRetrievalEnabled).mockReturnValue(false);
+      it('does not subscribe to connectionStateChanged when useWebsockets is disabled', async () => {
+        jest
+          .mocked(isIncomingTransactionsUseWebsocketsEnabled)
+          .mockReturnValue(false);
         const messenger = createMessengerMock();
 
         // eslint-disable-next-line no-new
@@ -604,7 +608,7 @@ describe('IncomingTransactionHelper', () => {
     });
 
     describe('start', () => {
-      it('does not start polling when flag enhanced-history-retrieval is enabled', async () => {
+      it('does not start polling when useWebsockets is enabled', async () => {
         const helper = new IncomingTransactionHelper({
           ...CONTROLLER_ARGS_MOCK,
           messenger: createMessengerMock(),
@@ -921,8 +925,10 @@ describe('IncomingTransactionHelper', () => {
   });
 
   describe('legacy polling mode', () => {
-    it('uses polling when flag enhanced-history-retrieval is disabled', async () => {
-      jest.mocked(isEnhancedHistoryRetrievalEnabled).mockReturnValue(false);
+    it('uses polling when useWebsockets is disabled', async () => {
+      jest
+        .mocked(isIncomingTransactionsUseWebsocketsEnabled)
+        .mockReturnValue(false);
 
       const helper = new IncomingTransactionHelper({
         ...CONTROLLER_ARGS_MOCK,
@@ -936,7 +942,9 @@ describe('IncomingTransactionHelper', () => {
     });
 
     it('clears timeout on stop when polling is active', async () => {
-      jest.mocked(isEnhancedHistoryRetrievalEnabled).mockReturnValue(false);
+      jest
+        .mocked(isIncomingTransactionsUseWebsocketsEnabled)
+        .mockReturnValue(false);
 
       const helper = new IncomingTransactionHelper({
         ...CONTROLLER_ARGS_MOCK,
@@ -957,7 +965,9 @@ describe('IncomingTransactionHelper', () => {
     });
 
     it('handles error in initial polling gracefully', async () => {
-      jest.mocked(isEnhancedHistoryRetrievalEnabled).mockReturnValue(false);
+      jest
+        .mocked(isIncomingTransactionsUseWebsocketsEnabled)
+        .mockReturnValue(false);
 
       const remoteTransactionSource = createRemoteTransactionSourceMock([], {
         error: true,
@@ -975,7 +985,9 @@ describe('IncomingTransactionHelper', () => {
     });
 
     it('handles error in initial polling when getCurrentAccount throws', async () => {
-      jest.mocked(isEnhancedHistoryRetrievalEnabled).mockReturnValue(false);
+      jest
+        .mocked(isIncomingTransactionsUseWebsocketsEnabled)
+        .mockReturnValue(false);
 
       const getCurrentAccountMock = jest.fn().mockImplementation(() => {
         throw new Error('Account error');
@@ -995,7 +1007,9 @@ describe('IncomingTransactionHelper', () => {
 
     // eslint-disable-next-line jest/expect-expect
     it('handles error in polling interval gracefully', async () => {
-      jest.mocked(isEnhancedHistoryRetrievalEnabled).mockReturnValue(false);
+      jest
+        .mocked(isIncomingTransactionsUseWebsocketsEnabled)
+        .mockReturnValue(false);
 
       const remoteTransactionSource = createRemoteTransactionSourceMock([]);
 
@@ -1016,7 +1030,9 @@ describe('IncomingTransactionHelper', () => {
     });
 
     it('reschedules timeout after interval completes', async () => {
-      jest.mocked(isEnhancedHistoryRetrievalEnabled).mockReturnValue(false);
+      jest
+        .mocked(isIncomingTransactionsUseWebsocketsEnabled)
+        .mockReturnValue(false);
 
       const helper = new IncomingTransactionHelper({
         ...CONTROLLER_ARGS_MOCK,

@@ -14,7 +14,7 @@ import { incomingTransactionsLogger as log } from '../logger';
 import type { RemoteTransactionSource, TransactionMeta } from '../types';
 import {
   getIncomingTransactionsPollingInterval,
-  isEnhancedHistoryRetrievalEnabled,
+  isIncomingTransactionsUseWebsocketsEnabled,
 } from '../utils/feature-flags';
 
 export type IncomingTransactionOptions = {
@@ -67,7 +67,7 @@ export class IncomingTransactionHelper {
 
   readonly #updateTransactions?: boolean;
 
-  readonly #isEnhancedHistoryEnabled: boolean;
+  readonly #useWebsockets: boolean;
 
   readonly #connectionStateChangedHandler = (
     connectionInfo: WebSocketConnectionInfo,
@@ -121,10 +121,9 @@ export class IncomingTransactionHelper {
     this.#remoteTransactionSource = remoteTransactionSource;
     this.#trimTransactions = trimTransactions;
     this.#updateTransactions = updateTransactions;
-    this.#isEnhancedHistoryEnabled =
-      isEnhancedHistoryRetrievalEnabled(messenger);
+    this.#useWebsockets = isIncomingTransactionsUseWebsocketsEnabled(messenger);
 
-    if (this.#isEnhancedHistoryEnabled) {
+    if (this.#useWebsockets) {
       this.#messenger.subscribe(
         'BackendWebSocketService:connectionStateChanged',
         this.#connectionStateChangedHandler,
@@ -133,7 +132,7 @@ export class IncomingTransactionHelper {
   }
 
   start(): void {
-    if (this.#isRunning || this.#isEnhancedHistoryEnabled) {
+    if (this.#isRunning || this.#useWebsockets) {
       return;
     }
 

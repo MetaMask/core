@@ -21,7 +21,6 @@ const DEFAULT_TRANSACTION_HISTORY_LIMIT = 40;
  */
 export enum FeatureFlag {
   EIP7702 = 'confirmations_eip_7702',
-  EnhancedHistoryRetrieval = 'enhanced_history_retrieval',
   GasBuffer = 'confirmations_gas_buffer',
   IncomingTransactions = 'confirmations_incoming_transactions',
   Transactions = 'confirmations_transactions',
@@ -40,12 +39,6 @@ type GasEstimateFallback = {
 };
 
 export type TransactionControllerFeatureFlags = {
-  /** Feature flag to enable enhanced history retrieval using event-driven updates. */
-  [FeatureFlag.EnhancedHistoryRetrieval]?: {
-    /** Whether enhanced history retrieval is enabled. */
-    enabled?: boolean;
-  };
-
   /** Feature flags to support EIP-7702 / type-4 transactions. */
   [FeatureFlag.EIP7702]?: {
     /**
@@ -111,6 +104,9 @@ export type TransactionControllerFeatureFlags = {
   [FeatureFlag.IncomingTransactions]?: {
     /** Interval between requests to accounts API to retrieve incoming transactions. */
     pollingIntervalMs?: number;
+
+    /** Whether to use WebSocket for event-driven transaction updates instead of polling. */
+    useWebsockets?: boolean;
   };
 
   /** Miscellaneous feature flags to support the transaction controller. */
@@ -483,18 +479,20 @@ export function getTimeoutAttempts(
 }
 
 /**
- * Checks if enhanced history retrieval is enabled.
+ * Checks if WebSocket-based transaction updates are enabled.
  * When enabled, incoming transactions are fetched via event-driven updates
  * instead of polling.
  *
  * @param messenger - The controller messenger instance.
- * @returns True if enhanced history retrieval is enabled, false otherwise.
+ * @returns True if WebSocket updates are enabled, false otherwise.
  */
-export function isEnhancedHistoryRetrievalEnabled(
+export function isIncomingTransactionsUseWebsocketsEnabled(
   messenger: TransactionControllerMessenger,
 ): boolean {
   const featureFlags = getFeatureFlags(messenger);
-  return featureFlags?.[FeatureFlag.EnhancedHistoryRetrieval]?.enabled ?? false;
+  return (
+    featureFlags?.[FeatureFlag.IncomingTransactions]?.useWebsockets ?? false
+  );
 }
 
 /**

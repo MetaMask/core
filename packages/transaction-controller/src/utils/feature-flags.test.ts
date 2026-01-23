@@ -22,7 +22,7 @@ import {
   FeatureFlag,
   getIncomingTransactionsPollingInterval,
   getTimeoutAttempts,
-  isEnhancedHistoryRetrievalEnabled,
+  isIncomingTransactionsUseWebsocketsEnabled,
 } from './feature-flags';
 import { isValidSignature } from './signature';
 import type { TransactionControllerMessenger } from '..';
@@ -868,45 +868,47 @@ describe('Feature Flags Utils', () => {
     });
   });
 
-  describe('isEnhancedHistoryRetrievalEnabled', () => {
-    it('returns true when enabled is true', () => {
+  describe('isIncomingTransactionsUseWebsocketsEnabled', () => {
+    it('returns true when useWebsockets is true', () => {
       mockFeatureFlags({
-        [FeatureFlag.EnhancedHistoryRetrieval]: {
-          enabled: true,
+        [FeatureFlag.IncomingTransactions]: {
+          useWebsockets: true,
         },
       });
 
-      expect(isEnhancedHistoryRetrievalEnabled(controllerMessenger)).toBe(true);
+      expect(
+        isIncomingTransactionsUseWebsocketsEnabled(controllerMessenger),
+      ).toBe(true);
     });
 
-    it('returns false when enabled is false', () => {
+    it('returns false when useWebsockets is false', () => {
       mockFeatureFlags({
-        [FeatureFlag.EnhancedHistoryRetrieval]: {
-          enabled: false,
+        [FeatureFlag.IncomingTransactions]: {
+          useWebsockets: false,
         },
       });
 
-      expect(isEnhancedHistoryRetrievalEnabled(controllerMessenger)).toBe(
-        false,
-      );
+      expect(
+        isIncomingTransactionsUseWebsocketsEnabled(controllerMessenger),
+      ).toBe(false);
     });
 
     it('returns false when flag is not present', () => {
       mockFeatureFlags({});
 
-      expect(isEnhancedHistoryRetrievalEnabled(controllerMessenger)).toBe(
-        false,
-      );
+      expect(
+        isIncomingTransactionsUseWebsocketsEnabled(controllerMessenger),
+      ).toBe(false);
     });
 
-    it('returns false when enabled property is not present', () => {
+    it('returns false when useWebsockets property is not present', () => {
       mockFeatureFlags({
-        [FeatureFlag.EnhancedHistoryRetrieval]: {},
+        [FeatureFlag.IncomingTransactions]: {},
       });
 
-      expect(isEnhancedHistoryRetrievalEnabled(controllerMessenger)).toBe(
-        false,
-      );
+      expect(
+        isIncomingTransactionsUseWebsocketsEnabled(controllerMessenger),
+      ).toBe(false);
     });
   });
 });
