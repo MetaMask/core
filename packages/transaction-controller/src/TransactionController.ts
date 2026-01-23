@@ -1463,6 +1463,10 @@ export class TransactionController extends BaseController<
             },
             (tx) => {
               tx.delegationAddress = delegationAddress;
+              // EIP-7702 transactions are signed externally via delegation
+              if (delegationAddress) {
+                tx.isExternalSign = true;
+              }
             },
           );
 
