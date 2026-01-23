@@ -503,7 +503,6 @@ export class RampsController extends BaseController<
       state.providers = [];
       state.paymentMethods = [];
       state.selectedPaymentMethod = null;
-      state.requests = {};
     });
   }
 
@@ -585,26 +584,47 @@ export class RampsController extends BaseController<
     const normalizedRegion = region.toLowerCase().trim();
 
     try {
-      const countries = this.state.countries;
-      if(!countries || countries.length === 0) {
+      const { countries } = this.state;
+      if (!countries || countries.length === 0) {
         this.#cleanupState();
-        throw new Error('No countries found. Cannot set user region without valid country information.');
+        throw new Error(
+          'No countries found. Cannot set user region without valid country information.',
+        );
       }
 
       const userRegion = findRegionFromCode(normalizedRegion, countries);
 
-      if(!userRegion) {
+      if (!userRegion) {
         this.#cleanupState();
-        throw new Error(`Region "${normalizedRegion}" not found in countries data. Cannot set user region without valid country information.`);
+        throw new Error(
+          `Region "${normalizedRegion}" not found in countries data. Cannot set user region without valid country information.`,
+        );
       }
 
+      // Only cleanup state if region is actually changing
+      const regionChanged =
+        normalizedRegion !== this.state.userRegion?.regionCode;
 
-      this.#cleanupState();
+      // Set the new region atomically with cleanup to avoid intermediate null state
       this.update((state: Draft<RampsControllerState>) => {
+        if (regionChanged) {
+          state.preferredProvider = null;
+          state.tokens = null;
+          state.providers = [];
+          state.paymentMethods = [];
+          state.selectedPaymentMethod = null;
+        }
         state.userRegion = userRegion;
       });
-      this.triggerGetTokens(userRegion.regionCode, 'buy', options);
-      this.triggerGetProviders(userRegion.regionCode, options);
+
+      // Only trigger fetches if region changed or if data is missing
+      if (regionChanged || !this.state.tokens) {
+        this.triggerGetTokens(userRegion.regionCode, 'buy', options);
+      }
+      if (regionChanged || this.state.providers.length === 0) {
+        this.triggerGetProviders(userRegion.regionCode, options);
+      }
+
       return userRegion;
     } catch (error) {
       this.#cleanupState();
@@ -635,26 +655,26 @@ export class RampsController extends BaseController<
    * @returns Promise that resolves when initialization is complete.
    */
   async init(options?: ExecuteRequestOptions): Promise<void> {
-     await this.getCountries('buy', options);
-    
+    await this.getCountries('buy', options);
+
     let regionCode = this.state.userRegion?.regionCode;
-    if(!regionCode) {
-      regionCode = await this.messenger.call(
-        'RampsService:getGeolocation',
+    regionCode ??= await this.messenger.call('RampsService:getGeolocation');
+
+    if (!regionCode) {
+      throw new Error(
+        'Failed to fetch geolocation. Cannot initialize controller without valid region information.',
       );
     }
 
-    if(!regionCode) {
-      throw new Error('Failed to fetch geolocation. Cannot initialize controller without valid region information.');
-    }
-
-    this.triggerSetUserRegion(regionCode, options);
+    await this.setUserRegion(regionCode, options);
   }
 
-  async hydrateState(options?: ExecuteRequestOptions  ): Promise<void> {
+  hydrateState(options?: ExecuteRequestOptions): void {
     const regionCode = this.state.userRegion?.regionCode;
-    if(!regionCode) {
-      throw new Error('Region code is required. Cannot hydrate state without valid region information.');
+    if (!regionCode) {
+      throw new Error(
+        'Region code is required. Cannot hydrate state without valid region information.',
+      );
     }
 
     this.triggerGetTokens(regionCode, 'buy', options);
@@ -675,10 +695,10 @@ export class RampsController extends BaseController<
   ): Promise<Country[]> {
     const cacheKey = createCacheKey('getCountries', [action]);
 
-       const countries = await this.executeRequest(
-        cacheKey,
-        async () => {
-          return this.messenger.call('RampsService:getCountries', action);
+    const countries = await this.executeRequest(
+      cacheKey,
+      async () => {
+        return this.messenger.call('RampsService:getCountries', action);
       },
       options,
     );

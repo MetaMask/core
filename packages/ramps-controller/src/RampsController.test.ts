@@ -23,7 +23,7 @@ import type {
   RampsServiceGetProvidersAction,
   RampsServiceGetPaymentMethodsAction,
 } from './RampsService-method-action-types';
-import { RequestStatus, createCacheKey } from './RequestCache';
+import { RequestStatus } from './RequestCache';
 
 describe('RampsController', () => {
   describe('constructor', () => {
@@ -474,7 +474,6 @@ describe('RampsController', () => {
       });
     });
   });
-
 
   describe('executeRequest', () => {
     it('deduplicates concurrent requests with the same cache key', async () => {
@@ -1150,8 +1149,85 @@ describe('RampsController', () => {
 
           await controller.init();
 
-          expect(controller.state.countries).toStrictEqual(createMockCountries());
+          expect(controller.state.countries).toStrictEqual(
+            createMockCountries(),
+          );
           expect(controller.state.userRegion?.regionCode).toBe('us-ca');
+        },
+      );
+    });
+
+    it('does not clear persisted state when init() is called with same persisted region', async () => {
+      const mockTokens: TokensResponse = {
+        topTokens: [],
+        allTokens: [],
+      };
+      const mockProviders: Provider[] = [
+        {
+          id: '/providers/test',
+          name: 'Test Provider',
+          environmentType: 'STAGING',
+          description: 'Test',
+          hqAddress: '123 Test St',
+          links: [],
+          logos: {
+            light: '/assets/test_light.png',
+            dark: '/assets/test_dark.png',
+            height: 24,
+            width: 77,
+          },
+        },
+      ];
+      const mockPreferredProvider: Provider = {
+        id: '/providers/preferred',
+        name: 'Preferred Provider',
+        environmentType: 'STAGING',
+        description: 'Preferred',
+        hqAddress: '456 Preferred St',
+        links: [],
+        logos: {
+          light: '/assets/preferred_light.png',
+          dark: '/assets/preferred_dark.png',
+          height: 24,
+          width: 77,
+        },
+      };
+
+      await withController(
+        {
+          options: {
+            state: {
+              countries: createMockCountries(),
+              userRegion: createMockUserRegion('us'),
+              tokens: mockTokens,
+              providers: mockProviders,
+              preferredProvider: mockPreferredProvider,
+            },
+          },
+        },
+        async ({ controller, rootMessenger }) => {
+          rootMessenger.registerActionHandler(
+            'RampsService:getCountries',
+            async () => createMockCountries(),
+          );
+          rootMessenger.registerActionHandler(
+            'RampsService:getTokens',
+            async () => ({ topTokens: [], allTokens: [] }),
+          );
+          rootMessenger.registerActionHandler(
+            'RampsService:getProviders',
+            async () => ({ providers: [] }),
+          );
+
+          await controller.init();
+
+          // Verify persisted state is preserved
+          expect(controller.state.userRegion?.regionCode).toBe('us');
+          expect(controller.state.tokens).toStrictEqual(mockTokens);
+          expect(controller.state.providers).toStrictEqual(mockProviders);
+          expect(controller.state.preferredProvider).toStrictEqual(
+            mockPreferredProvider,
+          );
         },
       );
     });
@@ -1182,7 +1258,9 @@ describe('RampsController', () => {
           },
         );
 
-        await expect(controller.init()).rejects.toThrow('Countries fetch error');
+        await expect(controller.init()).rejects.toThrow(
+          'Countries fetch error',
+        );
       });
     });
   });
@@ -1216,7 +1294,7 @@ describe('RampsController', () => {
             },
           );
 
-          await controller.hydrateState();
+          controller.hydrateState();
 
           await new Promise((resolve) => setTimeout(resolve, 10));
 
@@ -1228,7 +1306,7 @@ describe('RampsController', () => {
 
     it('throws error when userRegion is not set', async () => {
       await withController(async ({ controller }) => {
-        await expect(controller.hydrateState()).rejects.toThrow(
+        expect(() => controller.hydrateState()).toThrow(
           'Region code is required. Cannot hydrate state without valid region information.',
         );
       });
@@ -1344,6 +1422,149 @@ describe('RampsController', () => {
         },
       );
     });
+
+    it('does not clear persisted state when setting the same region', async () => {
+      const mockTokens: TokensResponse = {
+        topTokens: [],
+        allTokens: [],
+      };
+      const mockProviders: Provider[] = [
+        {
+          id: '/providers/test',
+          name: 'Test Provider',
+          environmentType: 'STAGING',
+          description: 'Test',
+          hqAddress: '123 Test St',
+          links: [],
+          logos: {
+            light: '/assets/test_light.png',
+            dark: '/assets/test_dark.png',
+            height: 24,
+            width: 77,
+          },
+        },
+      ];
+      const mockPreferredProvider: Provider = {
+        id: '/providers/preferred',
+        name: 'Preferred Provider',
+        environmentType: 'STAGING',
+        description: 'Preferred',
+        hqAddress: '456 Preferred St',
+        links: [],
+        logos: {
+          light: '/assets/preferred_light.png',
+          dark: '/assets/preferred_dark.png',
+          height: 24,
+          width: 77,
+        },
+      };
+
+      await withController(
+        {
+          options: {
+            state: {
+              countries: createMockCountries(),
+              userRegion: createMockUserRegion('us'),
+              tokens: mockTokens,
+              providers: mockProviders,
+              preferredProvider: mockPreferredProvider,
+            },
+          },
+        },
+        async ({ controller, rootMessenger }) => {
+          rootMessenger.registerActionHandler(
+            'RampsService:getTokens',
+            async () => ({ topTokens: [], allTokens: [] }),
+          );
+          rootMessenger.registerActionHandler(
+            'RampsService:getProviders',
+            async () => ({ providers: [] }),
+          );
+
+          // Set the same region
+          await controller.setUserRegion('US');
+
+          // Verify persisted state is preserved
+          expect(controller.state.userRegion?.regionCode).toBe('us');
+          expect(controller.state.tokens).toStrictEqual(mockTokens);
+          expect(controller.state.providers).toStrictEqual(mockProviders);
+          expect(controller.state.preferredProvider).toStrictEqual(
+            mockPreferredProvider,
+          );
+        },
+      );
+    });
+
+    it('clears persisted state when setting a different region', async () => {
+      const mockTokens: TokensResponse = {
+        topTokens: [],
+        allTokens: [],
+      };
+      const mockProviders: Provider[] = [
+        {
+          id: '/providers/test',
+          name: 'Test Provider',
+          environmentType: 'STAGING',
+          description: 'Test',
+          hqAddress: '123 Test St',
+          links: [],
+          logos: {
+            light: '/assets/test_light.png',
+            dark: '/assets/test_dark.png',
+            height: 24,
+            width: 77,
+          },
+        },
+      ];
+      const mockPreferredProvider: Provider = {
+        id: '/providers/preferred',
+        name: 'Preferred Provider',
+        environmentType: 'STAGING',
+        description: 'Preferred',
+        hqAddress: '456 Preferred St',
+        links: [],
+        logos: {
+          light: '/assets/preferred_light.png',
+          dark: '/assets/preferred_dark.png',
+          height: 24,
+          width: 77,
+        },
+      };
+
+      await withController(
+        {
+          options: {
+            state: {
+              countries: createMockCountries(),
+              userRegion: createMockUserRegion('us'),
+              tokens: mockTokens,
+              providers: mockProviders,
+              preferredProvider: mockPreferredProvider,
+            },
+          },
+        },
+        async ({ controller, rootMessenger }) => {
+          rootMessenger.registerActionHandler(
+            'RampsService:getTokens',
+            async () => ({ topTokens: [], allTokens: [] }),
+          );
+          rootMessenger.registerActionHandler(
+            'RampsService:getProviders',
+            async () => ({ providers: [] }),
+          );
+
+          // Set a different region
+          await controller.setUserRegion('FR');
+
+          // Verify persisted state is cleared
+          expect(controller.state.userRegion?.regionCode).toBe('fr');
+          expect(controller.state.tokens).toBeNull();
+          expect(controller.state.providers).toStrictEqual([]);
+          expect(controller.state.preferredProvider).toBeNull();
+        },
+      );
+    });
+
     it('finds country by id starting with /regions/', async () => {
       const countriesWithId: Country[] = [
         {
@@ -1379,7 +1600,9 @@ describe('RampsController', () => {
           await controller.setUserRegion('us');
 
           expect(controller.state.userRegion?.regionCode).toBe('us');
-          expect(controller.state.userRegion?.country.name).toBe('United States');
+          expect(controller.state.userRegion?.country.name).toBe(
+            'United States',
+          );
         },
       );
     });
@@ -1457,7 +1680,9 @@ describe('RampsController', () => {
           await controller.setUserRegion('us');
 
           expect(controller.state.userRegion?.regionCode).toBe('us');
-          expect(controller.state.userRegion?.country.name).toBe('United States');
+          expect(controller.state.userRegion?.country.name).toBe(
+            'United States',
+          );
         },
       );
     });
