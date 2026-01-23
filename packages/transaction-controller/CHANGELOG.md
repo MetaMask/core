@@ -20,6 +20,10 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
   - Use the `transactionHistoryLimit` feature flag in `RemoteFeatureFlagController` instead.
   - This option will be removed in a future version.
 
+### Fixed
+
+- Set `isExternalSign` for sponsored transactions to skip nonce assignment ([#7659](https://github.com/MetaMask/core/pull/7659))
+
 ## [62.9.2]
 
 ### Changed
@@ -31,7 +35,6 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 ### Fixed
 
 - Exclude transactions where `isTransfer` is defined when marking nonce duplicates as dropped ([#7637](https://github.com/MetaMask/core/pull/7637))
-- Set `isExternalSign` for sponsored transactions to skip nonce assignment ([#7659](https://github.com/MetaMask/core/pull/7659))
 
 ## [62.9.1]
 
