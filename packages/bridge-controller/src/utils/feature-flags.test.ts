@@ -152,6 +152,32 @@ describe('feature-flags', () => {
         },
       });
     });
+
+    it('should preserve non-empty chainRanking', () => {
+      const customChainRanking = [
+        { chainId: 'eip155:1' as const, name: 'Ethereum' },
+        { chainId: 'eip155:137' as const, name: 'Polygon' },
+      ];
+      const bridgeConfig: FeatureFlagsPlatformConfig = {
+        refreshRate: 3,
+        maxRefreshCount: 1,
+        support: true,
+        minimumVersion: '0.0.0',
+        chains: {},
+        chainRanking: customChainRanking,
+      };
+
+      const result = formatFeatureFlags(bridgeConfig);
+
+      expect(result).toStrictEqual({
+        refreshRate: 3,
+        maxRefreshCount: 1,
+        support: true,
+        minimumVersion: '0.0.0',
+        chainRanking: customChainRanking,
+        chains: {},
+      });
+    });
   });
   describe('getBridgeFeatureFlags', () => {
     const mockMessenger = {
@@ -256,7 +282,7 @@ describe('feature-flags', () => {
         refreshRate: 3,
         support: true,
         minimumVersion: '0.0.0',
-        chainRanking: [],
+        chainRanking: [...DEFAULT_CHAIN_RANKING],
         chains: {
           'eip155:1': {
             isActiveDest: true,
@@ -426,7 +452,7 @@ describe('feature-flags', () => {
             isActiveDest: true,
           },
         },
-        chainRanking: [],
+        chainRanking: [...DEFAULT_CHAIN_RANKING],
       };
 
       expect(result).toStrictEqual(expectedBridgeConfig);
@@ -472,7 +498,57 @@ describe('feature-flags', () => {
             isActiveDest: true,
           },
         },
-        chainRanking: [],
+        chainRanking: [...DEFAULT_CHAIN_RANKING],
+      };
+
+      expect(result).toStrictEqual(expectedBridgeConfig);
+    });
+
+    it('should preserve non-empty chainRanking from remote config', async () => {
+      const customChainRanking = [
+        { chainId: 'eip155:1' as const, name: 'Ethereum' },
+        { chainId: 'eip155:137' as const, name: 'Polygon' },
+      ];
+      const bridgeConfig = {
+        refreshRate: 3,
+        maxRefreshCount: 1,
+        support: true,
+        minimumVersion: '0.0.0',
+        chains: {
+          '1': {
+            isActiveSrc: true,
+            isActiveDest: true,
+          },
+        },
+        chainRanking: customChainRanking,
+      };
+
+      const remoteFeatureFlagControllerState = {
+        cacheTimestamp: 1745515389440,
+        remoteFeatureFlags: {
+          bridgeConfig,
+          assetsNotificationsEnabled: false,
+        },
+      };
+
+      (mockMessenger.call as jest.Mock).mockImplementation(() => {
+        return remoteFeatureFlagControllerState;
+      });
+
+      const result = getBridgeFeatureFlags(mockMessenger);
+
+      const expectedBridgeConfig = {
+        refreshRate: 3,
+        maxRefreshCount: 1,
+        support: true,
+        minimumVersion: '0.0.0',
+        chains: {
+          'eip155:1': {
+            isActiveSrc: true,
+            isActiveDest: true,
+          },
+        },
+        chainRanking: customChainRanking,
       };
 
       expect(result).toStrictEqual(expectedBridgeConfig);

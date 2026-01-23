@@ -29,7 +29,11 @@ import type {
   TransactionPayControllerMessenger,
   TransactionPayQuote,
 } from '../../types';
-import { getFeatureFlags, getGasBuffer } from '../../utils/feature-flags';
+import {
+  getFeatureFlags,
+  getGasBuffer,
+  getSlippage,
+} from '../../utils/feature-flags';
 import { calculateGasCost, calculateGasFeeTokenCost } from '../../utils/gas';
 import {
   getNativeToken,
@@ -83,11 +87,6 @@ async function getSingleQuote(
   fullRequest: PayStrategyGetQuotesRequest,
 ): Promise<TransactionPayQuote<RelayQuote>> {
   const { messenger, transaction } = fullRequest;
-  const { slippage: slippageDecimal } = getFeatureFlags(messenger);
-
-  const slippageTolerance = new BigNumber(slippageDecimal * 100 * 100).toFixed(
-    0,
-  );
 
   const {
     from,
@@ -99,6 +98,16 @@ async function getSingleQuote(
     targetChainId,
     targetTokenAddress,
   } = request;
+
+  const slippageDecimal = getSlippage(
+    messenger,
+    sourceChainId,
+    sourceTokenAddress,
+  );
+
+  const slippageTolerance = new BigNumber(slippageDecimal * 100 * 100).toFixed(
+    0,
+  );
 
   try {
     const body: RelayQuoteRequest = {

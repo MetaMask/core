@@ -8,12 +8,20 @@ import type {
 
 import type { RampsControllerMessenger, UserRegion } from './RampsController';
 import { RampsController } from './RampsController';
-import type { Country, TokensResponse, Provider, State } from './RampsService';
+import type {
+  Country,
+  TokensResponse,
+  Provider,
+  State,
+  PaymentMethod,
+  PaymentMethodsResponse,
+} from './RampsService';
 import type {
   RampsServiceGetGeolocationAction,
   RampsServiceGetCountriesAction,
   RampsServiceGetTokensAction,
   RampsServiceGetProvidersAction,
+  RampsServiceGetPaymentMethodsAction,
 } from './RampsService-method-action-types';
 import { RequestStatus, createCacheKey } from './RequestCache';
 
@@ -23,9 +31,11 @@ describe('RampsController', () => {
       await withController(({ controller }) => {
         expect(controller.state).toMatchInlineSnapshot(`
           Object {
+            "paymentMethods": Array [],
             "preferredProvider": null,
             "providers": Array [],
             "requests": Object {},
+            "selectedPaymentMethod": null,
             "tokens": null,
             "userRegion": null,
           }
@@ -53,9 +63,11 @@ describe('RampsController', () => {
       await withController({ options: { state: {} } }, ({ controller }) => {
         expect(controller.state).toMatchInlineSnapshot(`
           Object {
+            "paymentMethods": Array [],
             "preferredProvider": null,
             "providers": Array [],
             "requests": Object {},
+            "selectedPaymentMethod": null,
             "tokens": null,
             "userRegion": null,
           }
@@ -364,9 +376,11 @@ describe('RampsController', () => {
           ),
         ).toMatchInlineSnapshot(`
           Object {
+            "paymentMethods": Array [],
             "preferredProvider": null,
             "providers": Array [],
             "requests": Object {},
+            "selectedPaymentMethod": null,
             "tokens": null,
             "userRegion": null,
           }
@@ -384,8 +398,10 @@ describe('RampsController', () => {
           ),
         ).toMatchInlineSnapshot(`
           Object {
+            "paymentMethods": Array [],
             "preferredProvider": null,
             "providers": Array [],
+            "selectedPaymentMethod": null,
             "tokens": null,
             "userRegion": null,
           }
@@ -422,9 +438,11 @@ describe('RampsController', () => {
           ),
         ).toMatchInlineSnapshot(`
           Object {
+            "paymentMethods": Array [],
             "preferredProvider": null,
             "providers": Array [],
             "requests": Object {},
+            "selectedPaymentMethod": null,
             "tokens": null,
             "userRegion": null,
           }
@@ -1393,7 +1411,15 @@ describe('RampsController', () => {
       });
     });
 
-    it('clears tokens and providers when user region changes', async () => {
+    it('clears tokens, providers, paymentMethods, and selectedPaymentMethod when user region changes', async () => {
+      const mockPaymentMethod: PaymentMethod = {
+        id: '/payments/test-card',
+        paymentType: 'debit-credit-card',
+        name: 'Test Card',
+        score: 90,
+        icon: 'card',
+      };
+
       await withController(async ({ controller, rootMessenger }) => {
         const mockTokens: TokensResponse = {
           topTokens: [],
@@ -1429,16 +1455,34 @@ describe('RampsController', () => {
           'RampsService:getProviders',
           async (_regionCode: string) => ({ providers: providersToReturn }),
         );
+        rootMessenger.registerActionHandler(
+          'RampsService:getPaymentMethods',
+          async () => ({ payments: [mockPaymentMethod] }),
+        );
 
         await controller.setUserRegion('US');
         await controller.getTokens('us', 'buy');
+        await controller.getPaymentMethods({
+          assetId: 'eip155:1/slip44:60',
+          provider: '/providers/test',
+        });
+        controller.setSelectedPaymentMethod(mockPaymentMethod);
+
         expect(controller.state.tokens).toStrictEqual(mockTokens);
         expect(controller.state.providers).toStrictEqual(mockProviders);
+        expect(controller.state.paymentMethods).toStrictEqual([
+          mockPaymentMethod,
+        ]);
+        expect(controller.state.selectedPaymentMethod).toStrictEqual(
+          mockPaymentMethod,
+        );
 
         providersToReturn = [];
         await controller.setUserRegion('FR');
         expect(controller.state.tokens).toBeNull();
         expect(controller.state.providers).toStrictEqual([]);
+        expect(controller.state.paymentMethods).toStrictEqual([]);
+        expect(controller.state.selectedPaymentMethod).toBeNull();
       });
     });
     it('finds country by id starting with /regions/', async () => {
@@ -2208,6 +2252,360 @@ describe('RampsController', () => {
       });
     });
   });
+
+  describe('getPaymentMethods', () => {
+    const mockPaymentMethod1: PaymentMethod = {
+      id: '/payments/debit-credit-card',
+      paymentType: 'debit-credit-card',
+      name: 'Debit or Credit',
+      score: 90,
+      icon: 'card',
+    };
+
+    const mockPaymentMethod2: PaymentMethod = {
+      id: '/payments/venmo',
+      paymentType: 'bank-transfer',
+      name: 'Venmo',
+      score: 95,
+      icon: 'bank',
+    };
+
+    const mockPaymentMethodsResponse: PaymentMethodsResponse = {
+      payments: [mockPaymentMethod1, mockPaymentMethod2],
+    };
+
+    it('preserves selectedPaymentMethod when it exists in the new payment methods list', async () => {
+      await withController(
+        {
+          options: {
+            state: {
+              userRegion: createMockUserRegion('us'),
+              selectedPaymentMethod: mockPaymentMethod1,
+              paymentMethods: [mockPaymentMethod1, mockPaymentMethod2],
+            },
+          },
+        },
+        async ({ controller, rootMessenger }) => {
+          rootMessenger.registerActionHandler(
+            'RampsService:getPaymentMethods',
+            async () => mockPaymentMethodsResponse,
+          );
+
+          expect(controller.state.selectedPaymentMethod).toStrictEqual(
+            mockPaymentMethod1,
+          );
+
+          await controller.getPaymentMethods({
+            assetId: 'eip155:1/slip44:60',
+            provider: '/providers/stripe',
+          });
+
+          // selectedPaymentMethod should be preserved when it exists in the new list
+          expect(controller.state.selectedPaymentMethod).toStrictEqual(
+            mockPaymentMethod1,
+          );
+          expect(controller.state.paymentMethods).toStrictEqual([
+            mockPaymentMethod1,
+            mockPaymentMethod2,
+          ]);
+        },
+      );
+    });
+
+    it('clears selectedPaymentMethod when it no longer exists in the new payment methods list', async () => {
+      const removedPaymentMethod: PaymentMethod = {
+        id: '/payments/removed-method',
+        paymentType: 'removed',
+        name: 'Removed Method',
+        score: 50,
+        icon: 'removed',
+      };
+
+      await withController(
+        {
+          options: {
+            state: {
+              userRegion: createMockUserRegion('us'),
+              selectedPaymentMethod: removedPaymentMethod,
+              paymentMethods: [removedPaymentMethod],
+            },
+          },
+        },
+        async ({ controller, rootMessenger }) => {
+          rootMessenger.registerActionHandler(
+            'RampsService:getPaymentMethods',
+            async () => mockPaymentMethodsResponse,
+          );
+
+          expect(controller.state.selectedPaymentMethod).toStrictEqual(
+            removedPaymentMethod,
+          );
+
+          await controller.getPaymentMethods({
+            assetId: 'eip155:1/slip44:60',
+            provider: '/providers/stripe',
+          });
+
+          // selectedPaymentMethod should be cleared when it's not in the new list
+          expect(controller.state.selectedPaymentMethod).toBeNull();
+          expect(controller.state.paymentMethods).toStrictEqual([
+            mockPaymentMethod1,
+            mockPaymentMethod2,
+          ]);
+        },
+      );
+    });
+
+    it('handles null selectedPaymentMethod when fetching new payment methods', async () => {
+      await withController(
+        {
+          options: {
+            state: {
+              userRegion: createMockUserRegion('us'),
+              selectedPaymentMethod: null,
+              paymentMethods: [],
+            },
+          },
+        },
+        async ({ controller, rootMessenger }) => {
+          rootMessenger.registerActionHandler(
+            'RampsService:getPaymentMethods',
+            async () => mockPaymentMethodsResponse,
+          );
+
+          expect(controller.state.selectedPaymentMethod).toBeNull();
+
+          await controller.getPaymentMethods({
+            assetId: 'eip155:1/slip44:60',
+            provider: '/providers/stripe',
+          });
+
+          // selectedPaymentMethod should remain null
+          expect(controller.state.selectedPaymentMethod).toBeNull();
+          expect(controller.state.paymentMethods).toStrictEqual([
+            mockPaymentMethod1,
+            mockPaymentMethod2,
+          ]);
+        },
+      );
+    });
+
+    it('updates paymentMethods state with fetched payment methods', async () => {
+      await withController(
+        {
+          options: {
+            state: {
+              userRegion: createMockUserRegion('us'),
+            },
+          },
+        },
+        async ({ controller, rootMessenger }) => {
+          rootMessenger.registerActionHandler(
+            'RampsService:getPaymentMethods',
+            async () => mockPaymentMethodsResponse,
+          );
+
+          expect(controller.state.paymentMethods).toStrictEqual([]);
+
+          await controller.getPaymentMethods({
+            assetId: 'eip155:1/slip44:60',
+            provider: '/providers/stripe',
+          });
+
+          expect(controller.state.paymentMethods).toStrictEqual([
+            mockPaymentMethod1,
+            mockPaymentMethod2,
+          ]);
+        },
+      );
+    });
+
+    it('throws error when region is not provided and userRegion is not set', async () => {
+      await withController(async ({ controller }) => {
+        await expect(
+          controller.getPaymentMethods({
+            assetId: 'eip155:1/slip44:60',
+            provider: '/providers/stripe',
+          }),
+        ).rejects.toThrow(
+          'Region is required. Either provide a region parameter or ensure userRegion is set in controller state.',
+        );
+      });
+    });
+
+    it('uses userRegion from state when region is not provided', async () => {
+      await withController(
+        {
+          options: {
+            state: {
+              userRegion: createMockUserRegion('fr'),
+            },
+          },
+        },
+        async ({ controller, rootMessenger }) => {
+          let receivedRegion: string | undefined;
+          rootMessenger.registerActionHandler(
+            'RampsService:getPaymentMethods',
+            async (options: {
+              region: string;
+              fiat: string;
+              assetId: string;
+              provider: string;
+            }) => {
+              receivedRegion = options.region;
+              return mockPaymentMethodsResponse;
+            },
+          );
+
+          await controller.getPaymentMethods({
+            assetId: 'eip155:1/slip44:60',
+            provider: '/providers/stripe',
+          });
+
+          expect(receivedRegion).toBe('fr');
+        },
+      );
+    });
+
+    it('throws error when fiat is not provided and userRegion has no currency', async () => {
+      // Create a mock region without currency
+      const regionWithoutCurrency: UserRegion = {
+        country: {
+          isoCode: 'US',
+          name: 'United States',
+          flag: '🇺🇸',
+          currency: undefined as unknown as string,
+          phone: { prefix: '+1', placeholder: '', template: '' },
+          supported: true,
+        },
+        state: null,
+        regionCode: 'us',
+      };
+
+      await withController(
+        {
+          options: {
+            state: {
+              userRegion: regionWithoutCurrency,
+            },
+          },
+        },
+        async ({ controller }) => {
+          await expect(
+            controller.getPaymentMethods({
+              assetId: 'eip155:1/slip44:60',
+              provider: '/providers/stripe',
+            }),
+          ).rejects.toThrow(
+            'Fiat currency is required. Either provide a fiat parameter or ensure userRegion is set in controller state.',
+          );
+        },
+      );
+    });
+  });
+
+  describe('setSelectedPaymentMethod', () => {
+    const mockPaymentMethod: PaymentMethod = {
+      id: '/payments/debit-credit-card',
+      paymentType: 'debit-credit-card',
+      name: 'Debit or Credit',
+      score: 90,
+      icon: 'card',
+    };
+
+    it('sets the selected payment method', async () => {
+      await withController(({ controller }) => {
+        expect(controller.state.selectedPaymentMethod).toBeNull();
+
+        controller.setSelectedPaymentMethod(mockPaymentMethod);
+
+        expect(controller.state.selectedPaymentMethod).toStrictEqual(
+          mockPaymentMethod,
+        );
+      });
+    });
+
+    it('clears the selected payment method when null is passed', async () => {
+      await withController(
+        {
+          options: {
+            state: {
+              selectedPaymentMethod: mockPaymentMethod,
+            },
+          },
+        },
+        ({ controller }) => {
+          expect(controller.state.selectedPaymentMethod).toStrictEqual(
+            mockPaymentMethod,
+          );
+
+          controller.setSelectedPaymentMethod(null);
+
+          expect(controller.state.selectedPaymentMethod).toBeNull();
+        },
+      );
+    });
+  });
+
+  describe('triggerGetPaymentMethods', () => {
+    const mockPaymentMethod: PaymentMethod = {
+      id: '/payments/debit-credit-card',
+      paymentType: 'debit-credit-card',
+      name: 'Debit or Credit',
+      score: 90,
+      icon: 'card',
+    };
+
+    const mockPaymentMethodsResponse: PaymentMethodsResponse = {
+      payments: [mockPaymentMethod],
+    };
+
+    it('calls getPaymentMethods without throwing', async () => {
+      await withController(
+        {
+          options: {
+            state: {
+              userRegion: createMockUserRegion('us'),
+            },
+          },
+        },
+        async ({ controller, rootMessenger }) => {
+          rootMessenger.registerActionHandler(
+            'RampsService:getPaymentMethods',
+            async () => mockPaymentMethodsResponse,
+          );
+
+          // Should not throw
+          controller.triggerGetPaymentMethods({
+            assetId: 'eip155:1/slip44:60',
+            provider: '/providers/stripe',
+          });
+
+          // Wait for the async operation to complete
+          await new Promise((resolve) => setTimeout(resolve, 0));
+
+          expect(controller.state.paymentMethods).toStrictEqual([
+            mockPaymentMethod,
+          ]);
+        },
+      );
+    });
+
+    it('does not throw when getPaymentMethods fails', async () => {
+      await withController(async ({ controller }) => {
+        // Should not throw even when getPaymentMethods would fail (no region)
+        expect(() => {
+          controller.triggerGetPaymentMethods({
+            assetId: 'eip155:1/slip44:60',
+            provider: '/providers/stripe',
+          });
+        }).not.toThrow();
+
+        // Wait for the async operation to complete
+        await new Promise((resolve) => setTimeout(resolve, 0));
+      });
+    });
+  });
 });
 
 /**
@@ -2301,7 +2699,8 @@ type RootMessenger = Messenger<
   | RampsServiceGetGeolocationAction
   | RampsServiceGetCountriesAction
   | RampsServiceGetTokensAction
-  | RampsServiceGetProvidersAction,
+  | RampsServiceGetProvidersAction
+  | RampsServiceGetPaymentMethodsAction,
   MessengerEvents<RampsControllerMessenger>
 >;
 
@@ -2350,6 +2749,7 @@ function getMessenger(rootMessenger: RootMessenger): RampsControllerMessenger {
       'RampsService:getCountries',
       'RampsService:getTokens',
       'RampsService:getProviders',
+      'RampsService:getPaymentMethods',
     ],
   });
   return messenger;

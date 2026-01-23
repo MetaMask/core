@@ -63,7 +63,6 @@ import type {
   Collection,
   Attributes,
   LastSale,
-  GetCollectionsResponse,
   TopBid,
 } from './NftDetectionController';
 import type { NetworkControllerFindNetworkClientIdByChainIdAction } from '../../network-controller/src/NetworkController';
@@ -527,10 +526,6 @@ export class NftController extends BaseController<
     });
   }
 
-  #getNftCollectionApi(): string {
-    return `${NFT_API_BASE_URL}/collections`;
-  }
-
   /**
    * Request individual NFT information from NFT API.
    *
@@ -562,21 +557,7 @@ export class NftController extends BaseController<
           },
         },
       });
-    // Params for getCollections API call
-    const getCollectionParams = new URLSearchParams({
-      chainId: '1',
-      id: `${nftInformation?.tokens[0]?.token?.collection?.id as string}`,
-    }).toString();
-    // Fetch collection information using collectionId
-    const collectionInformation: GetCollectionsResponse | undefined =
-      await fetchWithErrorHandling({
-        url: `${NFT_API_BASE_URL as string}/collections?${getCollectionParams}`,
-        options: {
-          headers: {
-            Version: NFT_API_VERSION,
-          },
-        },
-      });
+
     // if we were still unable to fetch the data we return out the default/null of `NftMetadata`
     if (!nftInformation?.tokens?.[0]?.token) {
       return {
@@ -621,20 +602,7 @@ export class NftController extends BaseController<
       },
       rarityRank && { rarityRank },
       rarity && { rarity },
-      (collection || collectionInformation) && {
-        collection: {
-          ...(collection || {}),
-          creator:
-            collection?.creator ||
-            collectionInformation?.collections[0].creator,
-          openseaVerificationStatus:
-            collectionInformation?.collections[0].openseaVerificationStatus,
-          contractDeployedAt:
-            collectionInformation?.collections[0].contractDeployedAt,
-          ownerCount: collectionInformation?.collections[0].ownerCount,
-          topBid: collectionInformation?.collections[0].topBid,
-        },
-      },
+      collection && { collection },
     );
 
     return nftMetadata;
@@ -2105,34 +2073,6 @@ export class NftController extends BaseController<
     });
 
     return true;
-  }
-
-  /**
-   * Fetches NFT Collection Metadata from the NFT API.
-   *
-   * @param contractAddresses - The contract addresses of the NFTs.
-   * @param chainId - The chain ID of the network where the NFT is located.
-   * @returns NFT collections metadata.
-   */
-  async getNFTContractInfo(
-    contractAddresses: string[],
-    chainId: Hex,
-  ): Promise<{
-    collections: Collection[];
-  }> {
-    const url = new URL(this.#getNftCollectionApi());
-
-    url.searchParams.append('chainId', chainId);
-
-    for (const address of contractAddresses) {
-      url.searchParams.append('contract', address);
-    }
-
-    return await handleFetch(url, {
-      headers: {
-        Version: NFT_API_VERSION,
-      },
-    });
   }
 
   async _requestApproval(suggestedNftMeta: SuggestedNftMeta): Promise<unknown> {

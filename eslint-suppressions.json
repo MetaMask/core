@@ -262,7 +262,7 @@
       "count": 2
     },
     "@typescript-eslint/prefer-nullish-coalescing": {
-      "count": 9
+      "count": 6
     },
     "@typescript-eslint/prefer-optional-chain": {
       "count": 1
@@ -1086,32 +1086,6 @@
   "packages/gas-fee-controller/src/gas-util.ts": {
     "@typescript-eslint/explicit-function-return-type": {
       "count": 2
-    },
-    "id-length": {
-      "count": 1
-    }
-  },
-  "packages/gator-permissions-controller/src/GatorPermissionsController.test.ts": {
-    "id-denylist": {
-      "count": 2
-    }
-  },
-  "packages/gator-permissions-controller/src/GatorPermissionsController.ts": {
-    "@typescript-eslint/explicit-function-return-type": {
-      "count": 8
-    }
-  },
-  "packages/gator-permissions-controller/src/decodePermission/utils.test.ts": {
-    "id-length": {
-      "count": 1
-    }
-  },
-  "packages/gator-permissions-controller/src/decodePermission/utils.ts": {
-    "@typescript-eslint/explicit-function-return-type": {
-      "count": 2
-    },
-    "@typescript-eslint/naming-convention": {
-      "count": 1
     },
     "id-length": {
       "count": 1

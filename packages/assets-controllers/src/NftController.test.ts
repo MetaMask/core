@@ -2213,47 +2213,6 @@ describe('NftController', () => {
         defaultSelectedAccount: OWNER_ACCOUNT,
       });
 
-      const testTopBid = {
-        id: 'id',
-        sourceDomain: 'opensea.io',
-        price: {
-          currency: {
-            contract: '0x01',
-            name: 'Wrapped Ether',
-            symbol: 'WETH',
-            decimals: 18,
-          },
-          amount: {
-            raw: '201300000000000000',
-            decimal: 0.2013,
-            usd: 716.46131,
-            native: 0.2013,
-          },
-          netAmount: {
-            raw: '196267500000000000',
-            decimal: 0.19627,
-            usd: 698.54978,
-            native: 0.19627,
-          },
-        },
-        maker: 'testMaker',
-        validFrom: 1719228327,
-        validUntil: 1719228927,
-      };
-
-      nock(NFT_API_BASE_URL)
-        .get(`/collections?chainId=1&id=0x1`)
-        .reply(200, {
-          collections: [
-            {
-              contractDeployedAt: 'timestampTest',
-              ownerCount: '989',
-              openseaVerificationStatus: 'verified',
-              topBid: testTopBid,
-            },
-          ],
-        });
-
       await nftController.addNft('0x01', '1', 'mainnet');
       expect(
         nftController.state.allNfts[OWNER_ACCOUNT.address][ChainId.mainnet][0],
@@ -2273,10 +2232,6 @@ describe('NftController', () => {
           id: '0x1',
           creator: 'Oxaddress',
           tokenCount: 0,
-          contractDeployedAt: 'timestampTest',
-          ownerCount: '989',
-          openseaVerificationStatus: 'verified',
-          topBid: testTopBid,
         },
       });
     });
@@ -2346,12 +2301,7 @@ describe('NftController', () => {
         tokenURI:
           'https://ipfs.gitcoin.co:443/api/v0/cat/QmPmt6EAaioN78ECnW5oCL8v2YvVSpoBjLCjrXhhsAvoov',
         collection: {
-          contractDeployedAt: undefined,
-          creator: undefined,
           id: ERC721_KUDOSADDRESS,
-          openseaVerificationStatus: undefined,
-          ownerCount: undefined,
-          topBid: undefined,
         },
       });
 
@@ -2398,19 +2348,6 @@ describe('NftController', () => {
           ],
         });
 
-      nock(NFT_API_BASE_URL)
-        .get(`/collections?chainId=1&id=${ERC721_KUDOSADDRESS}`)
-        .reply(200, {
-          collections: [
-            {
-              contractDeployedAt: 'timestampTest',
-              ownerCount: '989',
-              openseaVerificationStatus: 'verified',
-              creator: '0xcreator',
-            },
-          ],
-        });
-
       nock('https://ipfs.gitcoin.co:443')
         .get('/api/v0/cat/QmPmt6EAaioN78ECnW5oCL8v2YvVSpoBjLCjrXhhsAvoov')
         .reply(200, {
@@ -2441,11 +2378,6 @@ describe('NftController', () => {
           'https://ipfs.gitcoin.co:443/api/v0/cat/QmPmt6EAaioN78ECnW5oCL8v2YvVSpoBjLCjrXhhsAvoov',
         collection: {
           id: ERC721_KUDOSADDRESS,
-          creator: '0xcreator',
-          contractDeployedAt: 'timestampTest',
-          ownerCount: '989',
-          openseaVerificationStatus: 'verified',
-          topBid: undefined,
         },
       });
 
@@ -2852,11 +2784,6 @@ describe('NftController', () => {
             tokenCount: '10',
             image: 'Kudos logo (from proxy API)',
             name: 'Kudos',
-            creator: undefined,
-            openseaVerificationStatus: undefined,
-            ownerCount: undefined,
-            contractDeployedAt: undefined,
-            topBid: undefined,
           },
         },
       ]);
@@ -2921,17 +2848,6 @@ describe('NftController', () => {
           ],
         });
 
-      nock(NFT_API_BASE_URL)
-        .get(`/collections?chainId=1&id=${ERC721_KUDOSADDRESS}`)
-        .reply(200, {
-          collections: [
-            {
-              creator: '0xcreator',
-              openseaVerificationStatus: 'verified',
-            },
-          ],
-        });
-
       await nftController.addNft(
         '0x6EbeAf8e8E946F0716E6533A6f2cefc83f60e8Ab',
         '123',
@@ -2981,11 +2897,6 @@ describe('NftController', () => {
             tokenCount: '10',
             image: 'Kudos logo (from proxy API)',
             name: 'Kudos',
-            creator: '0xcreator',
-            openseaVerificationStatus: 'verified',
-            ownerCount: undefined,
-            contractDeployedAt: undefined,
-            topBid: undefined,
           },
         },
       ]);
@@ -5625,49 +5536,6 @@ describe('NftController', () => {
     );
 
     expect(updateNftMetadataSpy).not.toHaveBeenCalled();
-  });
-
-  describe('getNFTContractInfo', () => {
-    it('fetches NFT collections metadata successfully', async () => {
-      const contractAddresses = [
-        '0xb47e3cd837dDF8e4c57F05d70Ab865de6e193BBB',
-        '0xb47e3cd837dDF8e4c57F05d70Ab865de6e193BBB',
-      ];
-      const collections = [
-        {
-          id: contractAddresses[0],
-          name: 'CryptoPunks',
-          slug: 'cryptopunks',
-          symbol: 'PUNK',
-          imageUrl: 'url',
-        },
-        {
-          id: contractAddresses[1],
-          name: 'Kudos',
-          slug: 'kudos',
-          symbol: 'KUDOS',
-          imageUrl: 'url',
-        },
-      ];
-      nock(NFT_API_BASE_URL)
-        .get(
-          `/collections?chainId=0x1&contract=${contractAddresses[0]}&contract=${contractAddresses[1]}`,
-        )
-        .reply(200, {
-          collections,
-        });
-
-      const { nftController } = setupController();
-
-      const response = await nftController.getNFTContractInfo(
-        contractAddresses,
-        ChainId.mainnet,
-      );
-
-      expect(response).toStrictEqual({
-        collections,
-      });
-    });
   });
 
   describe('resetState', () => {
