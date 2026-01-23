@@ -37,6 +37,7 @@ describe('RampsController', () => {
             "providers": Array [],
             "requests": Object {},
             "selectedPaymentMethod": null,
+            "selectedToken": null,
             "tokens": null,
             "userRegion": null,
           }
@@ -70,6 +71,7 @@ describe('RampsController', () => {
             "providers": Array [],
             "requests": Object {},
             "selectedPaymentMethod": null,
+            "selectedToken": null,
             "tokens": null,
             "userRegion": null,
           }

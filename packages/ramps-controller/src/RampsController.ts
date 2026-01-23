@@ -6,7 +6,6 @@ import type {
 import { BaseController } from '@metamask/base-controller';
 import type { Messenger } from '@metamask/messenger';
 import type { Json } from '@metamask/utils';
-import type { Draft } from 'immer';
 
 import type {
   Country,
@@ -16,6 +15,7 @@ import type {
   RampAction,
   PaymentMethod,
   PaymentMethodsResponse,
+  RampsToken,
 } from './RampsService';
 import type {
   RampsServiceGetGeolocationAction,
@@ -110,6 +110,11 @@ export type RampsControllerState = {
    */
   selectedPaymentMethod: PaymentMethod | null;
   /**
+   * The user's selected token.
+   * When set, automatically fetches and sets payment methods for that token.
+   */
+  selectedToken: RampsToken | null;
+  /**
    * Cache of request states, keyed by cache key.
    * This stores loading, success, and error states for API requests.
    */
@@ -162,6 +167,12 @@ const rampsControllerMetadata = {
     includeInStateLogs: true,
     usedInUi: true,
   },
+  selectedToken: {
+    persist: true,
+    includeInDebugSnapshot: true,
+    includeInStateLogs: true,
+    usedInUi: true,
+  },
   requests: {
     persist: false,
     includeInDebugSnapshot: true,
@@ -187,6 +198,7 @@ export function getDefaultRampsControllerState(): RampsControllerState {
     tokens: null,
     paymentMethods: [],
     selectedPaymentMethod: null,
+    selectedToken: null,
     requests: {},
   };
 }
@@ -486,7 +498,7 @@ export class RampsController extends BaseController<
    * @param cacheKey - The cache key to remove.
    */
   #removeRequestState(cacheKey: string): void {
-    this.update((state: Draft<RampsControllerState>) => {
+    this.update((state) => {
       const requests = state.requests as unknown as Record<
         string,
         RequestState | undefined
@@ -496,7 +508,7 @@ export class RampsController extends BaseController<
   }
 
   #cleanupState(): void {
-    this.update((state: Draft<RampsControllerState>) => {
+    this.update((state) => {
       state.userRegion = null;
       state.preferredProvider = null;
       state.tokens = null;
@@ -526,7 +538,7 @@ export class RampsController extends BaseController<
     const maxSize = this.#requestCacheMaxSize;
     const ttl = this.#requestCacheTTL;
 
-    this.update((state: Draft<RampsControllerState>) => {
+    this.update((state) => {
       const requests = state.requests as unknown as Record<
         string,
         RequestState | undefined
@@ -606,7 +618,7 @@ export class RampsController extends BaseController<
         normalizedRegion !== this.state.userRegion?.regionCode;
 
       // Set the new region atomically with cleanup to avoid intermediate null state
-      this.update((state: Draft<RampsControllerState>) => {
+      this.update((state) => {
         if (regionChanged) {
           state.preferredProvider = null;
           state.tokens = null;
@@ -635,13 +647,31 @@ export class RampsController extends BaseController<
   /**
    * Sets the user's preferred provider.
    * This allows users to set their preferred ramp provider.
+   * If a token is already selected, automatically fetches payment methods for that token.
    *
    * @param provider - The provider object to set.
    */
   setPreferredProvider(provider: Provider | null): void {
-    this.update((state: Draft<RampsControllerState>) => {
+    const hadProvider = this.state.preferredProvider !== null;
+    this.update((state) => {
       state.preferredProvider = provider;
     });
+
+    // If token is selected and provider changed, fetch payment methods
+    if (this.state.selectedToken && provider) {
+      this.#fetchAndSetPaymentMethods(
+        provider.id,
+        this.state.selectedToken,
+      ).catch(() => {
+        // Error stored in state
+      });
+    } else if (hadProvider && !provider && this.state.selectedToken) {
+      // Provider was cleared, clear payment methods
+      this.update((state) => {
+        state.paymentMethods = [];
+        state.selectedPaymentMethod = null;
+      });
+    }
   }
 
   /**
@@ -704,7 +734,7 @@ export class RampsController extends BaseController<
     );
 
     if (!options?.doNotUpdateState) {
-      this.update((state: Draft<RampsControllerState>) => {
+      this.update((state) => {
         state.countries = countries;
       });
     }
@@ -760,10 +790,13 @@ export class RampsController extends BaseController<
     );
 
     if (!options?.doNotUpdateState) {
-      this.update((state: Draft<RampsControllerState>) => {
+      this.update((state) => {
         const userRegionCode = state.userRegion?.regionCode;
 
-        if (userRegionCode === undefined || userRegionCode === normalizedRegion) {
+        if (
+          userRegionCode === undefined ||
+          userRegionCode === normalizedRegion
+        ) {
           state.tokens = tokens;
         }
       });
@@ -828,10 +861,13 @@ export class RampsController extends BaseController<
     );
 
     if (!options?.doNotUpdateState) {
-      this.update((state: Draft<RampsControllerState>) => {
+      this.update((state) => {
         const userRegionCode = state.userRegion?.regionCode;
 
-        if (userRegionCode === undefined || userRegionCode === normalizedRegion) {
+        if (
+          userRegionCode === undefined ||
+          userRegionCode === normalizedRegion
+        ) {
           state.providers = providers;
         }
       });
@@ -851,6 +887,7 @@ export class RampsController extends BaseController<
    * @param options.provider - Provider ID path.
    * @param options.forceRefresh - Whether to bypass cache.
    * @param options.ttl - Custom TTL for this request.
+   * @param options.doNotUpdateState - If true, does not update controller state with results.
    * @returns The payment methods response containing payments array.
    */
   async getPaymentMethods(options: {
@@ -904,7 +941,7 @@ export class RampsController extends BaseController<
     );
 
     if (!options?.doNotUpdateState) {
-      this.update((state: Draft<RampsControllerState>) => {
+      this.update((state) => {
         state.paymentMethods = response.payments;
         // Only clear selected payment method if it's no longer in the new list
         // This preserves the selection when cached data is returned (same context)
@@ -923,12 +960,95 @@ export class RampsController extends BaseController<
   }
 
   /**
+   * Sets the user's selected token.
+   * Automatically fetches and sets payment methods for that token, and auto-selects the first one.
+   *
+   * @param token - The token object, or null to clear.
+   * @param options - Options for cache behavior.
+   */
+  async setSelectedToken(
+    token: RampsToken | null,
+    options?: ExecuteRequestOptions,
+  ): Promise<void> {
+    this.update((state) => {
+      state.selectedToken = token;
+    });
+
+    if (!token) {
+      // Clear payment methods when token is cleared
+      this.update((state) => {
+        state.paymentMethods = [];
+        state.selectedPaymentMethod = null;
+      });
+      return;
+    }
+
+    // Automatically fetch payment methods for the selected token
+    const provider = this.state.preferredProvider ?? this.state.providers[0];
+    if (provider) {
+      await this.#fetchAndSetPaymentMethods(provider.id, token, options);
+    } else {
+      // No provider available, clear payment methods
+      this.update((state) => {
+        state.paymentMethods = [];
+        state.selectedPaymentMethod = null;
+      });
+    }
+  }
+
+  /**
+   * Fetches payment methods for the given provider and token, then auto-selects the first one.
+   *
+   * @param providerId - The provider ID.
+   * @param token - The token object (optional, uses selectedToken if not provided).
+   * @param options - Options for cache behavior.
+   */
+  async #fetchAndSetPaymentMethods(
+    providerId: string,
+    token?: RampsToken,
+    options?: ExecuteRequestOptions,
+  ): Promise<void> {
+    const tokenToUse = token ?? this.state.selectedToken;
+    if (!tokenToUse) {
+      return;
+    }
+
+    const { assetId } = tokenToUse;
+
+    const regionCode = this.state.userRegion?.regionCode;
+    const fiatCurrency = this.state.userRegion?.country?.currency;
+
+    if (!regionCode || !fiatCurrency) {
+      return;
+    }
+
+    try {
+      const response = await this.getPaymentMethods({
+        assetId,
+        provider: providerId,
+        region: regionCode,
+        fiat: fiatCurrency,
+        ...options,
+      });
+
+      // Auto-select the first payment method
+      if (response.payments.length > 0) {
+        this.update((state) => {
+          state.selectedPaymentMethod = response.payments[0];
+        });
+      }
+    } catch {
+      // Error is stored in request state, no need to throw
+    }
+  }
+
+  /**
    * Sets the user's selected payment method.
    *
    * @param paymentMethod - The payment method to select, or null to clear.
    */
   setSelectedPaymentMethod(paymentMethod: PaymentMethod | null): void {
-    this.update((state: Draft<RampsControllerState>) => {
+    this.update((state) => {
       state.selectedPaymentMethod = paymentMethod;
     });
   }
@@ -1013,6 +1133,7 @@ export class RampsController extends BaseController<
    * @param options.provider - Provider ID path.
    * @param options.forceRefresh - Whether to bypass cache.
    * @param options.ttl - Custom TTL for this request.
+   * @param options.doNotUpdateState - If true, does not update controller state with results.
    */
   triggerGetPaymentMethods(options: {
     region?: string;
