@@ -3,17 +3,22 @@
  */
 
 import { QueryClient } from '@tanstack/query-core';
+import type { QueryKey } from '@tanstack/query-core';
 
 import {
   API_URLS,
   STALE_TIMES,
   GC_TIMES,
-  authQueryKeys,
   calculateRetryDelay,
   shouldRetry,
   HttpError,
 } from './shared-types';
 import type { ApiPlatformClientOptions } from './shared-types';
+
+// Auth query keys - shared for token management across clients
+export const authQueryKeys = {
+  bearerToken: (): QueryKey => ['auth', 'bearerToken'],
+} as const;
 
 export type { ApiPlatformClientOptions };
 
@@ -49,6 +54,19 @@ export class BaseApiClient {
    */
   get queryClient(): QueryClient {
     return this.#queryClientInstance;
+  }
+
+  /**
+   * Invalidate the cached auth token.
+   * Call this when the user logs out or the token expires.
+   *
+   * Uses resetQueries() instead of invalidateQueries() to completely remove
+   * the cached value, ensuring the next request fetches a fresh token immediately.
+   */
+  async invalidateAuthToken(): Promise<void> {
+    await this.#queryClientInstance.resetQueries({
+      queryKey: authQueryKeys.bearerToken(),
+    });
   }
 
   constructor(options: ApiPlatformClientOptions) {
@@ -107,18 +125,31 @@ export class BaseApiClient {
       'X-Client-Version': this.clientVersion,
     };
 
-    // Use TanStack Query to cache the bearer token
-    // Wrap getBearerToken to return null instead of undefined (TanStack Query doesn't allow undefined)
+    // Get bearer token using fetchQuery for automatic deduplication
     if (this.getBearerToken) {
+      const queryKey = authQueryKeys.bearerToken();
       const { getBearerToken } = this;
-      const token = await this.#queryClientInstance.fetchQuery({
-        queryKey: authQueryKeys.bearerToken(),
-        queryFn: async () => (await getBearerToken()) ?? null,
-        staleTime: STALE_TIMES.AUTH_TOKEN,
-        gcTime: GC_TIMES.DEFAULT,
-      });
-      if (token) {
+
+      try {
+        // fetchQuery handles caching and deduplicates concurrent requests
+        const token = await this.#queryClientInstance.fetchQuery({
+          queryKey,
+          queryFn: async () => {
+            const result = await getBearerToken();
+            // Throw if no token - prevents caching null/undefined
+            // so subsequent requests can retry (e.g., after user logs in)
+            if (!result) {
+              throw new Error('No bearer token available');
+            }
+            return result;
+          },
+          staleTime: STALE_TIMES.AUTH_TOKEN,
+          retry: false, // Don't retry auth failures
+        });
+
         headers.Authorization = `Bearer ${token}`;
+      } catch {
+        // No token available - continue without auth header
       }
     }
 
