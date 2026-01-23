@@ -80,6 +80,12 @@ export class TransactionPayController extends BaseController<
     });
   }
 
+  setIsPostQuote(transactionId: string, isPostQuote: boolean): void {
+    this.#updateTransactionData(transactionId, (transactionData) => {
+      transactionData.isPostQuote = isPostQuote;
+    });
+  }
+
   updatePaymentToken(request: UpdatePaymentTokenRequest): void {
     updatePaymentToken(request, {
       messenger: this.messenger,
@@ -105,6 +111,7 @@ export class TransactionPayController extends BaseController<
       const originalPaymentToken = current?.paymentToken;
       const originalTokens = current?.tokens;
       const originalIsMaxAmount = current?.isMaxAmount;
+      const originalIsPostQuote = current?.isPostQuote;
 
       if (!current) {
         transactionData[transactionId] = {
@@ -122,8 +129,14 @@ export class TransactionPayController extends BaseController<
 
       const isTokensUpdated = current.tokens !== originalTokens;
       const isIsMaxUpdated = current.isMaxAmount !== originalIsMaxAmount;
+      const isPostQuoteUpdated = current.isPostQuote !== originalIsPostQuote;
 
-      if (isPaymentTokenUpdated || isIsMaxUpdated || isTokensUpdated) {
+      if (
+        isPaymentTokenUpdated ||
+        isIsMaxUpdated ||
+        isTokensUpdated ||
+        isPostQuoteUpdated
+      ) {
         updateSourceAmounts(transactionId, current as never, this.messenger);
 
         shouldUpdateQuotes = true;
@@ -155,6 +168,11 @@ export class TransactionPayController extends BaseController<
     this.messenger.registerActionHandler(
       'TransactionPayController:setIsMaxAmount',
       this.setIsMaxAmount.bind(this),
+    );
+
+    this.messenger.registerActionHandler(
+      'TransactionPayController:setIsPostQuote',
+      this.setIsPostQuote.bind(this),
     );
 
     this.messenger.registerActionHandler(

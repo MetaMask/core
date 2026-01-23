@@ -209,5 +209,79 @@ describe('Source Amounts Utils', () => {
     it('does nothing if no transaction data', () => {
       updateSourceAmounts(TRANSACTION_ID_MOCK, undefined, messenger);
     });
+
+    describe('post-quote (withdrawal) flow', () => {
+      it('calculates source amounts from tokens for post-quote flow', () => {
+        const transactionData: TransactionData = {
+          isLoading: false,
+          isPostQuote: true,
+          paymentToken: {
+            address: '0xdef',
+            balanceFiat: '100.00',
+            balanceHuman: '1.00',
+            balanceRaw: '1000000000000000000',
+            balanceUsd: '100.00',
+            chainId: '0x38',
+            decimals: 18,
+            symbol: 'BNB',
+          },
+          tokens: [
+            {
+              ...TRANSACTION_TOKEN_MOCK,
+              skipIfBalance: false,
+            },
+          ],
+        };
+
+        updateSourceAmounts(TRANSACTION_ID_MOCK, transactionData, messenger);
+
+        expect(transactionData.sourceAmounts).toStrictEqual([
+          {
+            sourceAmountHuman: TRANSACTION_TOKEN_MOCK.amountHuman,
+            sourceAmountRaw: TRANSACTION_TOKEN_MOCK.amountRaw,
+            targetTokenAddress: TRANSACTION_TOKEN_MOCK.address,
+          },
+        ]);
+      });
+
+      it('filters out skipIfBalance tokens in post-quote flow', () => {
+        const transactionData: TransactionData = {
+          isLoading: false,
+          isPostQuote: true,
+          paymentToken: {
+            address: '0xdef',
+            balanceFiat: '100.00',
+            balanceHuman: '1.00',
+            balanceRaw: '1000000000000000000',
+            balanceUsd: '100.00',
+            chainId: '0x38',
+            decimals: 18,
+            symbol: 'BNB',
+          },
+          tokens: [
+            {
+              ...TRANSACTION_TOKEN_MOCK,
+              skipIfBalance: true,
+            },
+          ],
+        };
+
+        updateSourceAmounts(TRANSACTION_ID_MOCK, transactionData, messenger);
+
+        expect(transactionData.sourceAmounts).toStrictEqual([]);
+      });
+
+      it('does nothing for post-quote if no paymentToken', () => {
+        const transactionData: TransactionData = {
+          isLoading: false,
+          isPostQuote: true,
+          tokens: [TRANSACTION_TOKEN_MOCK],
+        };
+
+        updateSourceAmounts(TRANSACTION_ID_MOCK, transactionData, messenger);
+
+        expect(transactionData.sourceAmounts).toBeUndefined();
+      });
+    });
   });
 });

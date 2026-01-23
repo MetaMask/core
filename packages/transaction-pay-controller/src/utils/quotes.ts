@@ -55,11 +55,13 @@ export async function updateQuotes(
 
   log('Updating quotes', { transactionId });
 
-  const { isMaxAmount, paymentToken, sourceAmounts, tokens } = transactionData;
+  const { isMaxAmount, isPostQuote, paymentToken, sourceAmounts, tokens } =
+    transactionData;
 
   const requests = buildQuoteRequests({
     from: transaction.txParams.from as Hex,
     isMaxAmount: isMaxAmount ?? false,
+    isPostQuote,
     paymentToken,
     sourceAmounts,
     tokens,
@@ -89,6 +91,7 @@ export async function updateQuotes(
 
     syncTransaction({
       batchTransactions,
+      isPostQuote,
       messenger: messenger as never,
       paymentToken,
       totals,
@@ -114,19 +117,22 @@ export async function updateQuotes(
  *
  * @param request - Request object.
  * @param request.batchTransactions - Batch transactions to sync.
+ * @param request.isPostQuote - Whether this is a post-quote (withdrawal) flow.
  * @param request.messenger - Messenger instance.
- * @param request.paymentToken - Payment token used.
+ * @param request.paymentToken - Payment token (source for deposits, destination for withdrawals).
  * @param request.totals - Calculated totals.
  * @param request.transactionId - ID of the transaction to sync.
  */
 function syncTransaction({
   batchTransactions,
+  isPostQuote,
   messenger,
   paymentToken,
   totals,
   transactionId,
 }: {
   batchTransactions: BatchTransaction[];
+  isPostQuote?: boolean;
   messenger: TransactionPayControllerMessenger;
   paymentToken: TransactionPaymentToken | undefined;
   totals: TransactionPayTotals;
@@ -149,6 +155,7 @@ function syncTransaction({
       tx.metamaskPay = {
         bridgeFeeFiat: totals.fees.provider.usd,
         chainId: paymentToken.chainId,
+        isPostQuote,
         networkFeeFiat: totals.fees.sourceNetwork.estimate.usd,
         targetFiat: totals.targetAmount.usd,
         tokenAddress: paymentToken.address,
@@ -213,7 +220,8 @@ export async function refreshQuotes(
  * @param request - Request parameters.
  * @param request.from - Address from which the transaction is sent.
  * @param request.isMaxAmount - Whether the transaction is a maximum amount transaction.
- * @param request.paymentToken - Payment token used for the transaction.
+ * @param request.isPostQuote - Whether this is a post-quote (withdrawal) flow.
+ * @param request.paymentToken - Payment token (source for deposits, destination for withdrawals).
  * @param request.sourceAmounts - Source amounts for the transaction.
  * @param request.tokens - Required tokens for the transaction.
  * @param request.transactionId - ID of the transaction.
@@ -222,6 +230,7 @@ export async function refreshQuotes(
 function buildQuoteRequests({
   from,
   isMaxAmount,
+  isPostQuote,
   paymentToken,
   sourceAmounts,
   tokens,
@@ -229,6 +238,7 @@ function buildQuoteRequests({
 }: {
   from: Hex;
   isMaxAmount: boolean;
+  isPostQuote?: boolean;
   paymentToken: TransactionPaymentToken | undefined;
   sourceAmounts: TransactionPaySourceAmount[] | undefined;
   tokens: TransactionPayRequiredToken[];
@@ -238,6 +248,20 @@ function buildQuoteRequests({
     return [];
   }
 
+  if (isPostQuote) {
+    // Post-quote flow: source = transaction's required token, target = paymentToken (destination)
+    // The user is withdrawing and wants to receive funds in paymentToken
+    return buildPostQuoteRequests({
+      from,
+      isMaxAmount,
+      destinationToken: paymentToken,
+      sourceAmounts,
+      tokens,
+      transactionId,
+    });
+  }
+
+  // Standard flow: source = paymentToken, target = required tokens
   const requests = (sourceAmounts ?? []).map((sourceAmount) => {
     const token = tokens.find(
       (singleToken) => singleToken.address === sourceAmount.targetTokenAddress,
@@ -261,6 +285,83 @@ function buildQuoteRequests({
   }
 
   return requests;
+}
+
+/**
+ * Build quote requests for post-quote (withdrawal) flows.
+ * In this flow, the source is the transaction's required token (e.g., Polygon USDC.e),
+ * and the target is the user's selected destination token (paymentToken).
+ *
+ * @param request - Request parameters.
+ * @param request.from - Address from which the transaction is sent.
+ * @param request.isMaxAmount - Whether the transaction is a maximum amount transaction.
+ * @param request.destinationToken - Destination token for withdrawal (paymentToken in post-quote mode).
+ * @param request.sourceAmounts - Source amounts for the transaction.
+ * @param request.tokens - Required tokens for the transaction.
+ * @param request.transactionId - ID of the transaction.
+ * @returns Array of quote requests for withdrawal flow.
+ */
+function buildPostQuoteRequests({
+  from,
+  isMaxAmount,
+  destinationToken,
+  sourceAmounts,
+  tokens,
+  transactionId,
+}: {
+  from: Hex;
+  isMaxAmount: boolean;
+  destinationToken: TransactionPaymentToken;
+  sourceAmounts: TransactionPaySourceAmount[] | undefined;
+  tokens: TransactionPayRequiredToken[];
+  transactionId: string;
+}): QuoteRequest[] {
+  // For withdrawals, the required token (e.g., Polygon USDC.e) becomes the SOURCE
+  // and the destinationToken (paymentToken) becomes the TARGET/destination
+  const sourceToken = tokens.find((token) => !token.skipIfBalance);
+
+  if (!sourceToken) {
+    log('No source token found for post-quote request', { transactionId });
+    return [];
+  }
+
+  // Find the source amount for this token
+  const sourceAmount = sourceAmounts?.find(
+    (amount) =>
+      amount.targetTokenAddress.toLowerCase() ===
+      sourceToken.address.toLowerCase(),
+  );
+
+  // Check if source and target are the same token on the same chain
+  const isSameToken =
+    sourceToken.address.toLowerCase() ===
+      destinationToken.address.toLowerCase() &&
+    sourceToken.chainId === destinationToken.chainId;
+
+  if (isSameToken) {
+    // For same-token-same-chain, no quote is needed - the withdrawal goes directly to user
+    // Return empty to indicate no bridging required
+    log('Same token same chain - no bridge needed', { transactionId });
+    return [];
+  }
+
+  const request: QuoteRequest = {
+    from,
+    isMaxAmount,
+    sourceBalanceRaw: sourceToken.balanceRaw,
+    sourceTokenAmount: sourceAmount?.sourceAmountRaw ?? sourceToken.amountRaw,
+    sourceChainId: sourceToken.chainId,
+    sourceTokenAddress: sourceToken.address,
+    // For post-quote withdrawals, use EXACT_INPUT - user specifies how much to withdraw,
+    // and we show them how much they'll receive after fees
+    targetAmountMinimum: '0',
+    targetChainId: destinationToken.chainId,
+    targetTokenAddress: destinationToken.address,
+  };
+
+  log('Post-quote request built', { transactionId, request });
+
+  return [request];
 }
 
 /**

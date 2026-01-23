@@ -2,7 +2,6 @@ import type {
   CurrencyRateControllerActions,
   TokenBalancesControllerGetStateAction,
 } from '@metamask/assets-controllers';
-import type { TokenListControllerActions } from '@metamask/assets-controllers';
 import type { TokenRatesControllerGetStateAction } from '@metamask/assets-controllers';
 import type { TokensControllerGetStateAction } from '@metamask/assets-controllers';
 import type { AccountTrackerControllerGetStateAction } from '@metamask/assets-controllers';
@@ -47,7 +46,6 @@ export type AllowedActions =
   | NetworkControllerGetNetworkClientByIdAction
   | RemoteFeatureFlagControllerGetStateAction
   | TokenBalancesControllerGetStateAction
-  | TokenListControllerActions
   | TokenRatesControllerGetStateAction
   | TokensControllerGetStateAction
   | TransactionControllerAddTransactionAction
@@ -85,6 +83,12 @@ export type TransactionPayControllerUpdatePaymentTokenAction = {
   handler: (request: UpdatePaymentTokenRequest) => void;
 };
 
+/** Action to set the post-quote flag for a transaction. */
+export type TransactionPayControllerSetIsPostQuoteAction = {
+  type: `${typeof CONTROLLER_NAME}:setIsPostQuote`;
+  handler: (transactionId: string, isPostQuote: boolean) => void;
+};
+
 /** Action to set the max amount flag for a transaction. */
 export type TransactionPayControllerSetIsMaxAmountAction = {
   type: `${typeof CONTROLLER_NAME}:setIsMaxAmount`;
@@ -102,6 +106,7 @@ export type TransactionPayControllerActions =
   | TransactionPayControllerGetStateAction
   | TransactionPayControllerGetStrategyAction
   | TransactionPayControllerSetIsMaxAmountAction
+  | TransactionPayControllerSetIsPostQuoteAction
   | TransactionPayControllerUpdatePaymentTokenAction;
 
 export type TransactionPayControllerEvents =
@@ -142,7 +147,20 @@ export type TransactionData = {
   /** Whether the user has selected the maximum amount. */
   isMaxAmount?: boolean;
 
-  /** Source token selected for the transaction. */
+  /**
+   * Whether this is a post-quote transaction (e.g., withdrawal flow).
+   * When true, the paymentToken represents the destination token,
+   * and the quote source is derived from the transaction's output token.
+   * Used for Predict/Perps withdrawals where funds flow:
+   * withdrawal → bridge/swap → destination token
+   */
+  isPostQuote?: boolean;
+
+  /**
+   * Token selected for the transaction.
+   * - For deposits (isPostQuote=false): This is the SOURCE/payment token
+   * - For withdrawals (isPostQuote=true): This is the DESTINATION token
+   */
   paymentToken?: TransactionPaymentToken;
 
   /** Quotes retrieved for the transaction. */

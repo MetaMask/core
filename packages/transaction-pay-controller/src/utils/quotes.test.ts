@@ -413,4 +413,137 @@ describe('Quotes Utils', () => {
       expect(updateTransactionDataMock).toHaveBeenCalledTimes(0);
     });
   });
+
+  describe('post-quote (withdrawal) flow', () => {
+    const DESTINATION_TOKEN_MOCK: TransactionPaymentToken = {
+      address: '0xdef' as Hex,
+      balanceFiat: '100.00',
+      balanceHuman: '1.00',
+      balanceRaw: '1000000000000000000',
+      balanceUsd: '100.00',
+      chainId: '0x38',
+      decimals: 18,
+      symbol: 'BNB',
+    };
+
+    const SOURCE_TOKEN_MOCK: TransactionPayRequiredToken = {
+      address: '0x456' as Hex,
+      amountHuman: '10',
+      amountRaw: '10000000',
+      balanceRaw: '50000000',
+      chainId: '0x89' as Hex,
+      decimals: 6,
+      symbol: 'USDC.e',
+      skipIfBalance: false,
+    } as TransactionPayRequiredToken;
+
+    const POST_QUOTE_TRANSACTION_DATA: TransactionData = {
+      isLoading: false,
+      isPostQuote: true,
+      paymentToken: DESTINATION_TOKEN_MOCK,
+      sourceAmounts: [
+        {
+          sourceAmountHuman: '10',
+          sourceAmountRaw: '10000000',
+          targetTokenAddress: '0x456' as Hex,
+        } as TransactionPaySourceAmount,
+      ],
+      tokens: [SOURCE_TOKEN_MOCK],
+    };
+
+    it('builds post-quote request with paymentToken as target', async () => {
+      await run({
+        transactionData: POST_QUOTE_TRANSACTION_DATA,
+      });
+
+      expect(getQuotesMock).toHaveBeenCalledWith({
+        messenger,
+        requests: [
+          {
+            from: TRANSACTION_META_MOCK.txParams.from,
+            isMaxAmount: false,
+            sourceBalanceRaw: SOURCE_TOKEN_MOCK.balanceRaw,
+            sourceChainId: SOURCE_TOKEN_MOCK.chainId,
+            sourceTokenAddress: SOURCE_TOKEN_MOCK.address,
+            sourceTokenAmount: '10000000',
+            targetAmountMinimum: '0',
+            targetChainId: DESTINATION_TOKEN_MOCK.chainId,
+            targetTokenAddress: DESTINATION_TOKEN_MOCK.address,
+          },
+        ],
+        transaction: TRANSACTION_META_MOCK,
+      });
+    });
+
+    it('does not fetch quotes for same-token-same-chain withdrawal', async () => {
+      const sameTokenData: TransactionData = {
+        ...POST_QUOTE_TRANSACTION_DATA,
+        paymentToken: {
+          ...DESTINATION_TOKEN_MOCK,
+          address: SOURCE_TOKEN_MOCK.address,
+          chainId: SOURCE_TOKEN_MOCK.chainId,
+        },
+      };
+
+      await run({
+        transactionData: sameTokenData,
+      });
+
+      // When requests array is empty, getQuotes is not called
+      expect(getQuotesMock).not.toHaveBeenCalled();
+    });
+
+    it('does not fetch quotes if no source token found', async () => {
+      const noSourceTokenData: TransactionData = {
+        ...POST_QUOTE_TRANSACTION_DATA,
+        tokens: [{ ...SOURCE_TOKEN_MOCK, skipIfBalance: true }],
+      };
+
+      await run({
+        transactionData: noSourceTokenData,
+      });
+
+      // When requests array is empty, getQuotes is not called
+      expect(getQuotesMock).not.toHaveBeenCalled();
+    });
+
+    it('returns empty requests if no paymentToken', async () => {
+      const noPaymentTokenData: TransactionData = {
+        ...POST_QUOTE_TRANSACTION_DATA,
+        paymentToken: undefined,
+      };
+
+      await run({
+        transactionData: noPaymentTokenData,
+      });
+
+      expect(getQuotesMock).not.toHaveBeenCalled();
+    });
+
+    it('uses sourceToken.amountRaw when no matching sourceAmount', async () => {
+      const noMatchingSourceAmountData: TransactionData = {
+        ...POST_QUOTE_TRANSACTION_DATA,
+        sourceAmounts: [
+          {
+            sourceAmountRaw: '99999',
+            targetTokenAddress: '0xdifferent' as Hex,
+          } as TransactionPaySourceAmount,
+        ],
+      };
+
+      await run({
+        transactionData: noMatchingSourceAmountData,
+      });
+
+      expect(getQuotesMock).toHaveBeenCalledWith({
+        messenger,
+        requests: [
+          expect.objectContaining({
+            sourceTokenAmount: SOURCE_TOKEN_MOCK.amountRaw,
+          }),
+        ],
+        transaction: TRANSACTION_META_MOCK,
+      });
+    });
+  });
 });

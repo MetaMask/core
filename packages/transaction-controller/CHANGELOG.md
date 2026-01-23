@@ -7,6 +7,10 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+### Added
+
+- Add `isPostQuote` field to `MetamaskPayMetadata` type for withdrawal flows ([#7773](https://github.com/MetaMask/core/pull/7773))
+
 ## [62.11.0]
 
 ### Added

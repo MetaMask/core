@@ -59,8 +59,13 @@ export async function getRelayQuotes(
 
   try {
     const normalizedRequests = requests
-      // Ignore gas fee token requests
-      .filter((singleRequest) => singleRequest.targetAmountMinimum !== '0')
+      // Ignore gas fee token requests (which have both target=0 and source=0)
+      // but keep post-quote requests (which have target=0 but source>0)
+      .filter(
+        (singleRequest) =>
+          singleRequest.targetAmountMinimum !== '0' ||
+          singleRequest.sourceTokenAmount !== '0',
+      )
       .map((singleRequest) => normalizeRequest(singleRequest));
 
     log('Normalized requests', normalizedRequests);
@@ -111,15 +116,20 @@ async function getSingleQuote(
   );
 
   try {
+    // For post-quote (withdrawal) flows, use EXACT_INPUT - user specifies how much
+    // to withdraw, and we show them how much they'll receive after fees.
+    // For regular flows with a target amount, use EXPECTED_OUTPUT.
+    const useExactInput = isMaxAmount === true || targetAmountMinimum === '0';
+
     const body: RelayQuoteRequest = {
-      amount: isMaxAmount ? sourceTokenAmount : targetAmountMinimum,
+      amount: useExactInput ? sourceTokenAmount : targetAmountMinimum,
       destinationChainId: Number(targetChainId),
       destinationCurrency: targetTokenAddress,
       originChainId: Number(sourceChainId),
       originCurrency: sourceTokenAddress,
       recipient: from,
       slippageTolerance,
-      tradeType: isMaxAmount ? 'EXACT_INPUT' : 'EXPECTED_OUTPUT',
+      tradeType: useExactInput ? 'EXACT_INPUT' : 'EXPECTED_OUTPUT',
       user: from,
     };
 
@@ -140,7 +150,7 @@ async function getSingleQuote(
 
     log('Fetched relay quote', quote);
 
-    return normalizeQuote(quote, request, fullRequest);
+    return await normalizeQuote(quote, request, fullRequest);
   } catch (error) {
     log('Error fetching relay quote', error);
     throw error;
