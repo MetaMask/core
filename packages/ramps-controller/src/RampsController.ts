@@ -6,7 +6,6 @@ import type {
 import { BaseController } from '@metamask/base-controller';
 import type { Messenger } from '@metamask/messenger';
 import type { Json } from '@metamask/utils';
-import type { Draft } from 'immer';
 
 import type {
   Country,
@@ -486,7 +485,7 @@ export class RampsController extends BaseController<
    * @param cacheKey - The cache key to remove.
    */
   #removeRequestState(cacheKey: string): void {
-    this.update((state: Draft<RampsControllerState>) => {
+    this.update((state) => {
       const requests = state.requests as unknown as Record<
         string,
         RequestState | undefined
@@ -496,7 +495,7 @@ export class RampsController extends BaseController<
   }
 
   #cleanupState(): void {
-    this.update((state: Draft<RampsControllerState>) => {
+    this.update((state) => {
       state.userRegion = null;
       state.preferredProvider = null;
       state.tokens = null;
@@ -526,7 +525,7 @@ export class RampsController extends BaseController<
     const maxSize = this.#requestCacheMaxSize;
     const ttl = this.#requestCacheTTL;
 
-    this.update((state: Draft<RampsControllerState>) => {
+    this.update((state) => {
       const requests = state.requests as unknown as Record<
         string,
         RequestState | undefined
@@ -606,7 +605,7 @@ export class RampsController extends BaseController<
         normalizedRegion !== this.state.userRegion?.regionCode;
 
       // Set the new region atomically with cleanup to avoid intermediate null state
-      this.update((state: Draft<RampsControllerState>) => {
+      this.update((state) => {
         if (regionChanged) {
           state.preferredProvider = null;
           state.tokens = null;
@@ -639,7 +638,7 @@ export class RampsController extends BaseController<
    * @param provider - The provider object to set.
    */
   setPreferredProvider(provider: Provider | null): void {
-    this.update((state: Draft<RampsControllerState>) => {
+    this.update((state) => {
       state.preferredProvider = provider;
     });
   }
@@ -704,7 +703,7 @@ export class RampsController extends BaseController<
     );
 
     if (!options?.doNotUpdateState) {
-      this.update((state: Draft<RampsControllerState>) => {
+      this.update((state) => {
         state.countries = countries;
       });
     }
@@ -760,7 +759,7 @@ export class RampsController extends BaseController<
     );
 
     if (!options?.doNotUpdateState) {
-      this.update((state: Draft<RampsControllerState>) => {
+      this.update((state) => {
         const userRegionCode = state.userRegion?.regionCode;
 
         if (userRegionCode === undefined || userRegionCode === normalizedRegion) {
@@ -828,7 +827,7 @@ export class RampsController extends BaseController<
     );
 
     if (!options?.doNotUpdateState) {
-      this.update((state: Draft<RampsControllerState>) => {
+      this.update((state) => {
         const userRegionCode = state.userRegion?.regionCode;
 
         if (userRegionCode === undefined || userRegionCode === normalizedRegion) {
@@ -904,7 +903,7 @@ export class RampsController extends BaseController<
     );
 
     if (!options?.doNotUpdateState) {
-      this.update((state: Draft<RampsControllerState>) => {
+      this.update((state) => {
         state.paymentMethods = response.payments;
         // Only clear selected payment method if it's no longer in the new list
         // This preserves the selection when cached data is returned (same context)
@@ -928,7 +927,7 @@ export class RampsController extends BaseController<
    * @param paymentMethod - The payment method to select, or null to clear.
    */
   setSelectedPaymentMethod(paymentMethod: PaymentMethod | null): void {
-    this.update((state: Draft<RampsControllerState>) => {
+    this.update((state) => {
       state.selectedPaymentMethod = paymentMethod;
     });
   }
