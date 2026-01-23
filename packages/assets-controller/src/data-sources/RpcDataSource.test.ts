@@ -1,5 +1,4 @@
 /* eslint-disable jest/unbound-method */
-/* eslint-disable import-x/no-extraneous-dependencies */
 import type { InternalAccount } from '@metamask/keyring-internal-api';
 import { Messenger, MOCK_ANY_NAMESPACE } from '@metamask/messenger';
 import type {
@@ -147,6 +146,9 @@ async function withController<ReturnValue>(
       'NetworkController:getNetworkClientById',
       'AssetsController:activeChainsUpdate',
       'AssetsController:assetsUpdate',
+      'AssetsController:getState',
+      'TokenListController:getState',
+      'NetworkEnablementController:getState',
     ],
     events: ['NetworkController:stateChange'],
   });
@@ -181,6 +183,29 @@ async function withController<ReturnValue>(
   messenger.registerActionHandler(
     'AssetsController:assetsUpdate',
     jest.fn().mockResolvedValue(undefined),
+  );
+
+  // Mock AssetsController:getState
+  messenger.registerActionHandler('AssetsController:getState', () => ({
+    allTokens: {},
+    allDetectedTokens: {},
+    allIgnoredTokens: {},
+  }));
+
+  // Mock TokenListController:getState
+  messenger.registerActionHandler('TokenListController:getState', () => ({
+    tokensChainsCache: {},
+  }));
+
+  // Mock NetworkEnablementController:getState
+  messenger.registerActionHandler(
+    'NetworkEnablementController:getState',
+    () => ({
+      enabledNetworkMap: {},
+      nativeAssetIdentifiers: {
+        [MOCK_CHAIN_ID_CAIP]: `${MOCK_CHAIN_ID_CAIP}/slip44:60`,
+      },
+    }),
   );
 
   const controller = new RpcDataSource({
@@ -223,9 +248,27 @@ describe('RpcDataSource', () => {
       });
     });
 
-    it('initializes with custom poll interval', async () => {
+    it('initializes with custom balance interval', async () => {
       await withController(
-        { options: { pollInterval: 60000 } },
+        { options: { balanceInterval: 60000 } },
+        ({ controller }) => {
+          expect(controller).toBeDefined();
+        },
+      );
+    });
+
+    it('initializes with custom detection interval', async () => {
+      await withController(
+        { options: { detectionInterval: 300000 } },
+        ({ controller }) => {
+          expect(controller).toBeDefined();
+        },
+      );
+    });
+
+    it('initializes with token detection enabled', async () => {
+      await withController(
+        { options: { tokenDetectionEnabled: true } },
         ({ controller }) => {
           expect(controller).toBeDefined();
         },
