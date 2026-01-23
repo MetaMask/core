@@ -149,7 +149,7 @@ export async function getBalanceChanges(
 
     const gasUsed = transactionResponse?.gasUsed;
     const simulationData = {
-      ...(callTraceErrors?.length ? { callTraceErrors } : {}),
+      callTraceErrors,
       nativeBalanceChange,
       tokenBalanceChanges,
     };
@@ -172,7 +172,7 @@ export async function getBalanceChanges(
 
     return {
       simulationData: {
-        ...(callTraceErrors?.length ? { callTraceErrors } : {}),
+        callTraceErrors,
         tokenBalanceChanges: [],
         error: {
           code,
@@ -651,13 +651,11 @@ function extractCallTraceErrors(call?: SimulationResponseCallTrace): string[] {
 
   const errors = call.error ? [call.error] : [];
   const nestedCalls = call.calls ?? [];
+  const nestedErrors = nestedCalls.flatMap((nestedCall) =>
+    extractCallTraceErrors(nestedCall),
+  );
 
-  return [
-    ...errors,
-    ...nestedCalls
-      .map((nestedCall) => extractCallTraceErrors(nestedCall))
-      .flat(),
-  ];
+  return [...errors, ...nestedErrors];
 }
 
 /**
