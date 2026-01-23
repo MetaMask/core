@@ -35,9 +35,18 @@ export function updateSourceAmounts(
     return;
   }
 
-  const { isMaxAmount, paymentToken, tokens } = transactionData;
+  const { isMaxAmount, isPostQuote, paymentToken, tokens } = transactionData;
 
   if (!tokens.length || !paymentToken) {
+    return;
+  }
+
+  // For post-quote (withdrawal) flows, source amounts are calculated differently
+  // The source is the transaction's required token, not the selected token
+  if (isPostQuote) {
+    const sourceAmounts = calculatePostQuoteSourceAmounts(tokens);
+    log('Updated post-quote source amounts', { transactionId, sourceAmounts });
+    transactionData.sourceAmounts = sourceAmounts;
     return;
   }
 
@@ -56,6 +65,25 @@ export function updateSourceAmounts(
   log('Updated source amounts', { transactionId, sourceAmounts });
 
   transactionData.sourceAmounts = sourceAmounts;
+}
+
+/**
+ * Calculate source amounts for post-quote (withdrawal) flows.
+ * In this flow, the required tokens ARE the source tokens.
+ *
+ * @param tokens - Required tokens from the transaction.
+ * @returns Array of source amounts.
+ */
+function calculatePostQuoteSourceAmounts(
+  tokens: TransactionPayRequiredToken[],
+): TransactionPaySourceAmount[] {
+  return tokens
+    .filter((token) => !token.skipIfBalance)
+    .map((token) => ({
+      sourceAmountHuman: token.amountHuman,
+      sourceAmountRaw: token.amountRaw,
+      targetTokenAddress: token.address,
+    }));
 }
 
 /**

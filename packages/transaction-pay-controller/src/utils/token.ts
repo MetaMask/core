@@ -10,7 +10,10 @@ import {
   NATIVE_TOKEN_ADDRESS,
   POLYGON_USDCE_ADDRESS,
 } from '../constants';
-import type { FiatRates, TransactionPayControllerMessenger } from '../types';
+import type {
+  FiatRates,
+  TransactionPayControllerMessenger,
+} from '../types';
 
 const STABLECOINS: Record<Hex, Hex[]> = {
   [CHAIN_ID_ARBITRUM]: [ARBITRUM_USDC_ADDRESS.toLowerCase() as Hex],
@@ -141,12 +144,12 @@ export function getTokenInfo(
         singleToken.address.toLowerCase() === normalizedTokenAddress,
     );
 
-  if (!token && !isNative) {
-    return undefined;
-  }
-
   if (token && !isNative) {
     return { decimals: Number(token.decimals), symbol: token.symbol };
+  }
+
+  if (!token && !isNative) {
+    return undefined;
   }
 
   const ticker = getTicker(chainId, messenger);
@@ -263,3 +266,4 @@ function getTicker(
     return undefined;
   }
 }
+

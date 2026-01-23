@@ -639,7 +639,27 @@ describe('Relay Quotes Utils', () => {
       );
     });
 
-    it('ignores requests with no target minimum', async () => {
+    it('ignores gas fee token requests (target=0 and source=0)', async () => {
+      successfulFetchMock.mockResolvedValue({
+        json: async () => QUOTE_MOCK,
+      } as never);
+
+      await getRelayQuotes({
+        messenger,
+        requests: [
+          {
+            ...QUOTE_REQUEST_MOCK,
+            targetAmountMinimum: '0',
+            sourceTokenAmount: '0',
+          },
+        ],
+        transaction: TRANSACTION_META_MOCK,
+      });
+
+      expect(successfulFetchMock).not.toHaveBeenCalled();
+    });
+
+    it('processes post-quote requests (target=0 but source>0)', async () => {
       successfulFetchMock.mockResolvedValue({
         json: async () => QUOTE_MOCK,
       } as never);
@@ -650,7 +670,14 @@ describe('Relay Quotes Utils', () => {
         transaction: TRANSACTION_META_MOCK,
       });
 
-      expect(successfulFetchMock).not.toHaveBeenCalled();
+      expect(successfulFetchMock).toHaveBeenCalled();
+
+      const body = JSON.parse(
+        successfulFetchMock.mock.calls[0][1]?.body as string,
+      );
+
+      expect(body.tradeType).toBe('EXACT_INPUT');
+      expect(body.amount).toBe(QUOTE_REQUEST_MOCK.sourceTokenAmount);
     });
 
     it('includes duration in quote', async () => {
