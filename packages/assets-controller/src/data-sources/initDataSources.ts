@@ -148,6 +148,20 @@ export type DataSources = {
 };
 
 /**
+ * Configuration options for RpcDataSource.
+ */
+export type RpcDataSourceConfig = {
+  /** Balance polling interval in ms (default: 30s) */
+  balanceInterval?: number;
+  /** Token detection polling interval in ms (default: 180s / 3 min) */
+  detectionInterval?: number;
+  /** Whether token detection is enabled (default: false) */
+  tokenDetectionEnabled?: boolean;
+  /** Request timeout in ms (default: 10s) */
+  timeout?: number;
+};
+
+/**
  * Options for initializing data sources.
  */
 export type InitDataSourcesOptions = {
@@ -159,6 +173,9 @@ export type InitDataSourcesOptions = {
 
   /** ApiPlatformClient for cached API calls */
   queryApiClient: ApiPlatformClient;
+
+  /** Optional configuration for RpcDataSource */
+  rpcDataSourceConfig?: RpcDataSourceConfig;
 };
 
 // ============================================================================
@@ -203,6 +220,9 @@ export function initMessengers<
       'NetworkController:getNetworkClientById',
       'AssetsController:activeChainsUpdate',
       'AssetsController:assetsUpdate',
+      'AssetsController:getState',
+      'TokenListController:getState',
+      'NetworkEnablementController:getState',
     ],
     events: ['NetworkController:stateChange'],
     messenger: rpcMessenger,
@@ -327,11 +347,13 @@ export function initMessengers<
  * @returns Object containing all data source instances
  */
 export function initDataSources(options: InitDataSourcesOptions): DataSources {
-  const { messengers, snapProvider, queryApiClient } = options;
+  const { messengers, snapProvider, queryApiClient, rpcDataSourceConfig } =
+    options;
 
   // Initialize primary data sources (provide balance data)
   const rpcDataSource = new RpcDataSource({
     messenger: messengers.rpcMessenger,
+    ...rpcDataSourceConfig,
   });
 
   const backendWebsocketDataSource = new BackendWebsocketDataSource({
