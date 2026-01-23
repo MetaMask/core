@@ -7,6 +7,16 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+### Added
+
+- Add `hydrateState()` method to fetch providers and tokens for user region ([#7707](https://github.com/MetaMask/core/pull/7707))
+- Add `countries` state to RampsController with 24 hour TTL caching ([#7707](https://github.com/MetaMask/core/pull/7707))
+
+### Changed
+
+- Reorganize `init()` to only fetch geolocation and countries; remove token and provider fetching ([#7707](https://github.com/MetaMask/core/pull/7707))
+
+
 ## [4.1.0]
 
 ### Added
