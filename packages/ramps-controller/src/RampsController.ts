@@ -664,7 +664,7 @@ export class RampsController extends BaseController<
     await this.setUserRegion(regionCode, options);
   }
 
-  async hydrateState(options?: ExecuteRequestOptions): Promise<void> {
+  hydrateState(options?: ExecuteRequestOptions): void {
     const regionCode = this.state.userRegion?.regionCode;
     if (!regionCode) {
       throw new Error(
