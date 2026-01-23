@@ -101,7 +101,8 @@ export type StatusResponse = Infer<typeof StatusResponseSchema>;
 export type RefuelStatusResponse = object & StatusResponse;
 
 export type BridgeHistoryItem = {
-  txMetaId: string; // Need this to handle STX that might not have a txHash immediately
+  txMetaId?: string; // Optional: not available pre-submission or on sync failure
+  actionId?: string; // Only for non-batch EVM transactions
   originalTransactionId?: string; // Keep original transaction ID for intent transactions
   batchId?: string;
   quote: Quote;
@@ -195,7 +196,7 @@ export type QuoteMetadataSerialized = {
 };
 
 export type StartPollingForBridgeTxStatusArgs = {
-  bridgeTxMeta: TransactionMeta;
+  bridgeTxMeta?: TransactionMeta;
   statusRequest: StatusRequest;
   quoteResponse: QuoteResponse & QuoteMetadata;
   startTime?: BridgeHistoryItem['startTime'];

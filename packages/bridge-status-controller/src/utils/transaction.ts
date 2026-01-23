@@ -8,6 +8,7 @@ import {
   isCrossChain,
 } from '@metamask/bridge-controller';
 import type {
+  Intent,
   QuoteMetadata,
   QuoteResponse,
   Trade,
@@ -453,3 +454,42 @@ export const findAndUpdateTransactionsInBatch = ({
 
   return txBatch;
 };
+
+/**
+ * Determines the key to use for storing a bridge history item.
+ * Uses actionId for pre-submission tracking, or bridgeTxMetaId for post-submission.
+ *
+ * @param actionId - The action ID used for pre-submission tracking
+ * @param bridgeTxMetaId - The transaction meta ID from bridgeTxMeta
+ * @returns The key to use for the history item
+ * @throws Error if neither actionId nor bridgeTxMetaId is provided
+ */
+export function getHistoryKey(
+  actionId: string | undefined,
+  bridgeTxMetaId: string | undefined,
+): string {
+  const historyKey = actionId ?? bridgeTxMetaId;
+  if (!historyKey) {
+    throw new Error(
+      'Cannot add tx to history: either actionId or bridgeTxMeta.id must be provided',
+    );
+  }
+  return historyKey;
+}
+
+/**
+ * Extracts and validates the intent data from a quote response.
+ *
+ * @param quoteResponse - The quote response that may contain intent data
+ * @returns The intent data from the quote
+ * @throws Error if the quote does not contain intent data
+ */
+export function getIntentFromQuote(
+  quoteResponse: QuoteResponse & { quote: { intent?: Intent } },
+): Intent {
+  const { intent } = quoteResponse.quote;
+  if (!intent) {
+    throw new Error('submitIntent: missing intent data');
+  }
+  return intent;
+}
