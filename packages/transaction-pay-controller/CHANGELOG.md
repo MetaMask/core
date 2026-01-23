@@ -7,13 +7,17 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+## [11.1.0]
+
 ### Added
 
 - Add `slippageTokens` feature flag support for token-specific slippage configuration ([#7673](https://github.com/MetaMask/core/pull/7673))
 
 ### Changed
 
-- Bump `@metamask/bridge-controller` from `^64.5.1` to `^64.7.0` ([#7667](https://github.com/MetaMask/core/pull/7667), [#7672](https://github.com/MetaMask/core/pull/7672), [#7694](https://github.com/MetaMask/core/pull/7694), [#7700](https://github.com/MetaMask/core/pull/7700))
+- Bump `@metamask/bridge-controller` from `^64.5.1` to `^64.8.1` ([#7667](https://github.com/MetaMask/core/pull/7667), [#7672](https://github.com/MetaMask/core/pull/7672), [#7694](https://github.com/MetaMask/core/pull/7694), [#7700](https://github.com/MetaMask/core/pull/7700), [#7704](https://github.com/MetaMask/core/pull/7704))
+- Bump `@metamask/assets-controllers` from `^95.3.0` to `^96.0.0` ([#7704](https://github.com/MetaMask/core/pull/7704))
+- Bump `@metamask/bridge-status-controller` from `^64.4.3` to `^64.4.4` ([#7704](https://github.com/MetaMask/core/pull/7704))
 
 ## [11.0.2]
 
@@ -280,7 +284,8 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 - Initial release ([#6820](https://github.com/MetaMask/core/pull/6820))
 
-[Unreleased]: https://github.com/MetaMask/core/compare/@metamask/transaction-pay-controller@11.0.2...HEAD
+[Unreleased]: https://github.com/MetaMask/core/compare/@metamask/transaction-pay-controller@11.1.0...HEAD
+[11.1.0]: https://github.com/MetaMask/core/compare/@metamask/transaction-pay-controller@11.0.2...@metamask/transaction-pay-controller@11.1.0
 [11.0.2]: https://github.com/MetaMask/core/compare/@metamask/transaction-pay-controller@11.0.1...@metamask/transaction-pay-controller@11.0.2
 [11.0.1]: https://github.com/MetaMask/core/compare/@metamask/transaction-pay-controller@11.0.0...@metamask/transaction-pay-controller@11.0.1
 [11.0.0]: https://github.com/MetaMask/core/compare/@metamask/transaction-pay-controller@10.6.0...@metamask/transaction-pay-controller@11.0.0

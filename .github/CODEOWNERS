@@ -40,6 +40,9 @@
 ## Earn Team
 /packages/earn-controller                   @MetaMask/earn
 
+## Social AI Team
+/packages/ai-controllers                    @MetaMask/social-ai
+
 ## Ramp Team
 /packages/ramps-controller                  @MetaMask/ramp
 
@@ -199,3 +202,5 @@
 /packages/core-backend/CHANGELOG.md           @MetaMask/core-platform @MetaMask/metamask-assets
 /packages/claims-controller/package.json @MetaMask/web3auth @MetaMask/core-platform
 /packages/claims-controller/CHANGELOG.md @MetaMask/web3auth @MetaMask/core-platform
+/packages/ai-controllers/package.json @MetaMask/social-ai @MetaMask/core-platform
+/packages/ai-controllers/CHANGELOG.md @MetaMask/social-ai @MetaMask/core-platform
