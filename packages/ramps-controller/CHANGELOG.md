@@ -9,12 +9,16 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ### Added
 
+- Add `doNotUpdateState` option to `ExecuteRequestOptions` to allow external consumers to use controller methods without updating state ([#7708](https://github.com/MetaMask/core/pull/7708))
 - Add `hydrateState()` method to fetch providers and tokens for user region ([#7707](https://github.com/MetaMask/core/pull/7707))
 - Add `countries` state to RampsController with 24 hour TTL caching ([#7707](https://github.com/MetaMask/core/pull/7707))
+- Add `SupportedActions` type for `{ buy: boolean; sell: boolean }` support info ([#7707](https://github.com/MetaMask/core/pull/7707))
 
 ### Changed
 
 - Reorganize `init()` to only fetch geolocation and countries; remove token and provider fetching ([#7707](https://github.com/MetaMask/core/pull/7707))
+- **BREAKING:** Change `Country.supported` and `State.supported` from `boolean` to `SupportedActions` object. The API now returns buy/sell support info in a single call.
+- **BREAKING:** Remove `action` parameter from `getCountries()`. Countries are no longer fetched separately for buy/sell actions.
 
 ## [4.1.0]
 

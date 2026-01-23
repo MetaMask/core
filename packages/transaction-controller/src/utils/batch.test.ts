@@ -1112,6 +1112,79 @@ describe('Batch Utils', () => {
         doesChainSupportEIP7702Mock.mockReturnValueOnce(false);
       });
 
+      it('returns provided batch ID', async () => {
+        const publishBatchHook: jest.MockedFn<PublishBatchHook> = jest.fn();
+
+        addTransactionMock
+          .mockResolvedValueOnce({
+            transactionMeta: {
+              ...TRANSACTION_META_MOCK,
+              id: TRANSACTION_ID_MOCK,
+            },
+            result: Promise.resolve(''),
+          })
+          .mockResolvedValueOnce({
+            transactionMeta: {
+              ...TRANSACTION_META_MOCK,
+              id: TRANSACTION_ID_2_MOCK,
+            },
+            result: Promise.resolve(''),
+          });
+
+        publishBatchHook.mockResolvedValue({
+          results: [
+            {
+              transactionHash: TRANSACTION_HASH_MOCK,
+            },
+            {
+              transactionHash: TRANSACTION_HASH_2_MOCK,
+            },
+          ],
+        });
+
+        const resultPromise = addTransactionBatch({
+          ...request,
+          publishBatchHook,
+          request: {
+            ...request.request,
+            batchId: BATCH_ID_CUSTOM_MOCK,
+            disable7702: true,
+          },
+        });
+
+        await flushPromises();
+
+        const publishHooks = addTransactionMock.mock.calls.map(
+          ([, options]) => options.publishHook,
+        );
+
+        publishHooks[0]?.(
+          TRANSACTION_META_MOCK,
+          TRANSACTION_SIGNATURE_MOCK,
+        ).catch(() => {
+          // Intentionally empty
+        });
+
+        publishHooks[1]?.(
+          TRANSACTION_META_MOCK,
+          TRANSACTION_SIGNATURE_2_MOCK,
+        ).catch(() => {
+          // Intentionally empty
+        });
+
+        await flushPromises();
+
+        const result = await resultPromise;
+
+        expect(result.batchId).toBe(BATCH_ID_CUSTOM_MOCK);
+        expect(addTransactionMock.mock.calls[0][1].batchId).toBe(
+          BATCH_ID_CUSTOM_MOCK,
+        );
+        expect(addTransactionMock.mock.calls[1][1].batchId).toBe(
+          BATCH_ID_CUSTOM_MOCK,
+        );
+      });
+
       it('adds each nested transaction', async () => {
         const publishBatchHook = jest.fn();
 
