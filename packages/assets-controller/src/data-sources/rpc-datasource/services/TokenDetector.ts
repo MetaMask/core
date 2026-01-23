@@ -1,3 +1,4 @@
+import { StaticIntervalPollingControllerOnly } from '@metamask/polling-controller';
 import type { CaipAssetType } from '@metamask/utils';
 
 import type { MulticallClient } from '../clients';
@@ -16,28 +17,88 @@ import type {
 } from '../types';
 import { reduceInBatchesSerially } from '../utils';
 
+const DEFAULT_DETECTION_INTERVAL = 180_000; // 3 minutes
+
 export type TokenDetectorConfig = {
   defaultBatchSize?: number;
   defaultTimeoutMs?: number;
+  /** Polling interval in ms (default: 3 minutes) */
+  pollingInterval?: number;
 };
 
-export class TokenDetector {
+/**
+ * Polling input for TokenDetector - identifies what to poll for.
+ */
+export type DetectionPollingInput = {
+  /** Chain ID (hex format) */
+  chainId: ChainId;
+  /** Account ID */
+  accountId: AccountId;
+  /** Account address */
+  accountAddress: Address;
+};
+
+/**
+ * Callback type for token detection updates.
+ */
+export type OnDetectionUpdateCallback = (result: TokenDetectionResult) => void;
+
+/**
+ * TokenDetector - Detects tokens with non-zero balances via multicall.
+ * Extends StaticIntervalPollingControllerOnly for built-in polling support.
+ */
+export class TokenDetector extends StaticIntervalPollingControllerOnly<DetectionPollingInput>() {
   readonly #multicallClient: MulticallClient;
 
-  readonly #config: Required<TokenDetectorConfig>;
+  readonly #config: Required<Omit<TokenDetectorConfig, 'pollingInterval'>>;
 
   #getTokenListState: (() => TokenListState) | undefined;
 
+  #onDetectionUpdate: OnDetectionUpdateCallback | undefined;
+
   constructor(multicallClient: MulticallClient, config?: TokenDetectorConfig) {
+    super();
     this.#multicallClient = multicallClient;
     this.#config = {
       defaultBatchSize: config?.defaultBatchSize ?? 300,
       defaultTimeoutMs: config?.defaultTimeoutMs ?? 30000,
     };
+
+    // Set the polling interval
+    this.setIntervalLength(
+      config?.pollingInterval ?? DEFAULT_DETECTION_INTERVAL,
+    );
+  }
+
+  /**
+   * Set the callback to receive detection updates during polling.
+   *
+   * @param callback - Function to call with detection results.
+   */
+  setOnDetectionUpdate(callback: OnDetectionUpdateCallback): void {
+    this.#onDetectionUpdate = callback;
   }
 
   setTokenListStateGetter(getTokenListState: () => TokenListState): void {
     this.#getTokenListState = getTokenListState;
+  }
+
+  /**
+   * Execute a poll cycle (required by base class).
+   * Detects tokens and calls the update callback.
+   *
+   * @param input - The polling input.
+   */
+  async _executePoll(input: DetectionPollingInput): Promise<void> {
+    const result = await this.detectTokens(
+      input.chainId,
+      input.accountId,
+      input.accountAddress,
+    );
+
+    if (this.#onDetectionUpdate && result.detectedAssets.length > 0) {
+      this.#onDetectionUpdate(result);
+    }
   }
 
   getTokensToCheck(chainId: ChainId): Address[] {
