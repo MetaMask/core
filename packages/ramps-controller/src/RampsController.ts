@@ -601,12 +601,25 @@ export class RampsController extends BaseController<
         );
       }
 
-      this.#cleanupState();
+      // Only cleanup state if region is actually changing
+      const regionChanged =
+        normalizedRegion !== this.state.userRegion?.regionCode;
+      if (regionChanged) {
+        this.#cleanupState();
+      }
+
       this.update((state: Draft<RampsControllerState>) => {
         state.userRegion = userRegion;
       });
-      this.triggerGetTokens(userRegion.regionCode, 'buy', options);
-      this.triggerGetProviders(userRegion.regionCode, options);
+
+      // Only trigger fetches if region changed or if data is missing
+      if (regionChanged || !this.state.tokens) {
+        this.triggerGetTokens(userRegion.regionCode, 'buy', options);
+      }
+      if (regionChanged || this.state.providers.length === 0) {
+        this.triggerGetProviders(userRegion.regionCode, options);
+      }
+
       return userRegion;
     } catch (error) {
       this.#cleanupState();
