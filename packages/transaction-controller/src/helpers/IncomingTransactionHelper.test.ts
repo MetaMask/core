@@ -153,10 +153,6 @@ describe('IncomingTransactionHelper', () => {
       .mocked(isIncomingTransactionsUseWebsocketsEnabled)
       .mockReturnValue(false);
 
-    jest
-      .mocked(isIncomingTransactionsUseWebsocketsEnabled)
-      .mockReturnValue(true);
-
     subscribeMock = jest.fn().mockImplementation((event, handler) => {
       if (event === 'AccountActivityService:transactionUpdated') {
         transactionUpdatedHandler = handler;
@@ -545,6 +541,12 @@ describe('IncomingTransactionHelper', () => {
   });
 
   describe('transaction history retrieval when useWebsockets is enabled', () => {
+    beforeEach(() => {
+      jest
+        .mocked(isIncomingTransactionsUseWebsocketsEnabled)
+        .mockReturnValue(true);
+    });
+
     function createMessengerMock(): TransactionControllerMessenger {
       return {
         subscribe: subscribeMock,
