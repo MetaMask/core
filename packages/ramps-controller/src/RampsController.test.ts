@@ -1252,7 +1252,7 @@ describe('RampsController', () => {
 
     it('throws error when userRegion is not set', async () => {
       await withController(async ({ controller }) => {
-        await expect(controller.hydrateState()).rejects.toThrow(
+        expect(() => controller.hydrateState()).toThrow(
           'Region code is required. Cannot hydrate state without valid region information.',
         );
       });
