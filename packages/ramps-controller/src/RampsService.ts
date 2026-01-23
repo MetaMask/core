@@ -624,7 +624,7 @@ export class RampsService {
 
       if (country.states && country.states.length > 0) {
         const hasSupportedState = country.states.some(
-          (state) => state.supported?.buy || state.supported?.sell,
+          (state) => state.supported?.buy ?? state.supported?.sell,
         );
         return isCountrySupported || hasSupportedState;
       }

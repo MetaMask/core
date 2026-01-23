@@ -1493,7 +1493,13 @@ describe('RampsController', () => {
           currency: 'USD',
           phone: { prefix: '+1', placeholder: '', template: '' },
           supported: { buy: true, sell: true },
-          states: [{ stateId: 'CA', name: 'California', supported: { buy: true, sell: true } }],
+          states: [
+            {
+              stateId: 'CA',
+              name: 'California',
+              supported: { buy: true, sell: true },
+            },
+          ],
         },
       ];
 
@@ -1769,8 +1775,16 @@ describe('RampsController', () => {
           phone: { prefix: '+1', placeholder: '', template: '' },
           supported: { buy: true, sell: true },
           states: [
-            { stateId: 'CA', name: 'California', supported: { buy: true, sell: true } },
-            { stateId: 'NY', name: 'New York', supported: { buy: true, sell: true } },
+            {
+              stateId: 'CA',
+              name: 'California',
+              supported: { buy: true, sell: true },
+            },
+            {
+              stateId: 'NY',
+              name: 'New York',
+              supported: { buy: true, sell: true },
+            },
           ],
         },
       ];
@@ -2746,8 +2760,16 @@ function createMockCountries(): Country[] {
       phone: { prefix: '+1', placeholder: '', template: '' },
       supported: { buy: true, sell: true },
       states: [
-        { stateId: 'CA', name: 'California', supported: { buy: true, sell: true } },
-        { stateId: 'NY', name: 'New York', supported: { buy: true, sell: true } },
+        {
+          stateId: 'CA',
+          name: 'California',
+          supported: { buy: true, sell: true },
+        },
+        {
+          stateId: 'NY',
+          name: 'New York',
+          supported: { buy: true, sell: true },
+        },
         { stateId: 'UT', name: 'Utah', supported: { buy: true, sell: true } },
       ],
     },
