@@ -467,6 +467,7 @@ async function addTransactionBatchWithHook(
   } = request;
 
   const {
+    batchId: batchIdOverride,
     from,
     networkClientId,
     origin,
@@ -514,7 +515,7 @@ async function addTransactionBatchWithHook(
   }
 
   let txBatchMeta: TransactionBatchMeta | undefined;
-  const batchId = generateBatchId();
+  const batchId = batchIdOverride ?? generateBatchId();
 
   const nestedTransactions = requestedTransactions.map((tx) => ({
     ...tx,
