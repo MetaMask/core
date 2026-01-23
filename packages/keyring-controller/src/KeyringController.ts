@@ -60,6 +60,7 @@ export enum KeyringTypes {
   oneKey = 'OneKey Hardware',
   ledger = 'Ledger Hardware',
   lattice = 'Lattice Hardware',
+  keystone = 'Keystone Hardware',
   snap = 'Snap Keyring',
   /* eslint-enable @typescript-eslint/naming-convention */
 }
