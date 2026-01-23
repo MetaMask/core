@@ -1,25 +1,29 @@
 import type {
   ControllerGetStateAction,
   ControllerStateChangeEvent,
+  StateMetadata,
 } from '@metamask/base-controller';
+import type {
+  KeyringControllerLockEvent,
+  KeyringControllerUnlockEvent,
+} from '@metamask/keyring-controller';
 import type { Messenger } from '@metamask/messenger';
 import { StaticIntervalPollingController } from '@metamask/polling-controller';
 import type { RemoteFeatureFlagControllerState } from '@metamask/remote-feature-flag-controller';
+import { Duration, inMilliseconds } from '@metamask/utils';
 import type { Json } from '@metamask/utils';
 
 import type {
-  AbstractConfigRegistryApiService,
+  FetchConfigOptions,
   FetchConfigResult,
+  NetworkConfig,
 } from './config-registry-api-service';
-import {
-  ConfigRegistryApiService,
-  filterNetworks,
-} from './config-registry-api-service';
+import { filterNetworks } from './config-registry-api-service';
 import { isConfigRegistryApiEnabled } from './utils/feature-flags';
 
 const controllerName = 'ConfigRegistryController';
 
-export const DEFAULT_POLLING_INTERVAL = 24 * 60 * 60 * 1000;
+export const DEFAULT_POLLING_INTERVAL = inMilliseconds(1, Duration.Day);
 
 export type RegistryConfigEntry = {
   key: string;
@@ -27,9 +31,15 @@ export type RegistryConfigEntry = {
   metadata?: Json;
 };
 
+export type NetworkConfigEntry = {
+  key: string;
+  value: NetworkConfig;
+  metadata?: Json;
+};
+
 export type ConfigRegistryState = {
   configs: {
-    networks?: Record<string, RegistryConfigEntry>;
+    networks?: Record<string, NetworkConfigEntry>;
   };
   version: string | null;
   lastFetched: number | null;
@@ -40,44 +50,37 @@ export type ConfigRegistryState = {
 const stateMetadata = {
   configs: {
     persist: true,
-    anonymous: false,
     includeInStateLogs: false,
     includeInDebugSnapshot: true,
     usedInUi: true,
   },
   version: {
     persist: true,
-    anonymous: false,
     includeInStateLogs: true,
     includeInDebugSnapshot: true,
     usedInUi: false,
   },
   lastFetched: {
     persist: true,
-    anonymous: false,
     includeInStateLogs: true,
     includeInDebugSnapshot: true,
     usedInUi: false,
   },
   fetchError: {
     persist: true,
-    anonymous: false,
     includeInStateLogs: true,
     includeInDebugSnapshot: true,
     usedInUi: false,
   },
   etag: {
     persist: true,
-    anonymous: false,
     includeInStateLogs: false,
     includeInDebugSnapshot: false,
     usedInUi: false,
   },
-};
+} satisfies StateMetadata<ConfigRegistryState>;
 
-const DEFAULT_FALLBACK_CONFIG: Record<string, RegistryConfigEntry> = {};
-
-type ConfigRegistryPollingInput = Record<string, never>;
+const DEFAULT_FALLBACK_CONFIG: Record<string, NetworkConfigEntry> = {};
 
 export type ConfigRegistryControllerStateChangeEvent =
   ControllerStateChangeEvent<typeof controllerName, ConfigRegistryState>;
@@ -87,24 +90,9 @@ export type ConfigRegistryControllerGetStateAction = ControllerGetStateAction<
   ConfigRegistryState
 >;
 
-export type ConfigRegistryControllerGetConfigAction = {
-  type: `${typeof controllerName}:getConfig`;
-  handler: ConfigRegistryController['getConfig'];
-};
-
-export type ConfigRegistryControllerSetConfigAction = {
-  type: `${typeof controllerName}:setConfig`;
-  handler: ConfigRegistryController['setConfig'];
-};
-
-export type ConfigRegistryControllerGetAllConfigsAction = {
-  type: `${typeof controllerName}:getAllConfigs`;
-  handler: ConfigRegistryController['getAllConfigs'];
-};
-
 export type ConfigRegistryControllerStartPollingAction = {
   type: `${typeof controllerName}:startPolling`;
-  handler: (input: ConfigRegistryPollingInput) => string;
+  handler: (input: null) => string;
 };
 
 export type ConfigRegistryControllerStopPollingAction = {
@@ -114,18 +102,25 @@ export type ConfigRegistryControllerStopPollingAction = {
 
 export type ConfigRegistryControllerActions =
   | ConfigRegistryControllerGetStateAction
-  | ConfigRegistryControllerGetConfigAction
-  | ConfigRegistryControllerSetConfigAction
-  | ConfigRegistryControllerGetAllConfigsAction
   | ConfigRegistryControllerStartPollingAction
   | ConfigRegistryControllerStopPollingAction
   | {
       type: 'RemoteFeatureFlagController:getState';
       handler: () => RemoteFeatureFlagControllerState;
+    }
+  | {
+      type: 'KeyringController:getState';
+      handler: () => { isUnlocked: boolean };
+    }
+  | {
+      type: 'ConfigRegistryApiService:fetchConfig';
+      handler: (options?: FetchConfigOptions) => Promise<FetchConfigResult>;
     };
 
 export type ConfigRegistryControllerEvents =
-  ConfigRegistryControllerStateChangeEvent;
+  | KeyringControllerUnlockEvent
+  | KeyringControllerLockEvent
+  | ConfigRegistryControllerStateChangeEvent;
 
 export type ConfigRegistryMessenger = Messenger<
   typeof controllerName,
@@ -137,33 +132,29 @@ export type ConfigRegistryControllerOptions = {
   messenger: ConfigRegistryMessenger;
   state?: Partial<ConfigRegistryState>;
   pollingInterval?: number;
-  fallbackConfig?: Record<string, RegistryConfigEntry>;
-  apiService?: AbstractConfigRegistryApiService;
+  fallbackConfig?: Record<string, NetworkConfigEntry>;
 };
 
-export class ConfigRegistryController extends StaticIntervalPollingController<ConfigRegistryPollingInput>()<
+export class ConfigRegistryController extends StaticIntervalPollingController<null>()<
   typeof controllerName,
   ConfigRegistryState,
   ConfigRegistryMessenger
 > {
-  readonly #fallbackConfig: Record<string, RegistryConfigEntry>;
-
-  readonly #apiService: AbstractConfigRegistryApiService;
+  readonly #fallbackConfig: Record<string, NetworkConfigEntry>;
 
   /**
    * @param options - The controller options.
-   * @param options.messenger - The controller messenger.
+   * @param options.messenger - The controller messenger. Must have
+   * `ConfigRegistryApiService:fetchConfig` action handler registered.
    * @param options.state - Initial state.
    * @param options.pollingInterval - Polling interval in milliseconds.
    * @param options.fallbackConfig - Fallback configuration.
-   * @param options.apiService - The API service.
    */
   constructor({
     messenger,
     state = {},
     pollingInterval = DEFAULT_POLLING_INTERVAL,
     fallbackConfig = DEFAULT_FALLBACK_CONFIG,
-    apiService = new ConfigRegistryApiService(),
   }: ConfigRegistryControllerOptions) {
     super({
       name: controllerName,
@@ -181,35 +172,20 @@ export class ConfigRegistryController extends StaticIntervalPollingController<Co
 
     this.setIntervalLength(pollingInterval);
     this.#fallbackConfig = fallbackConfig;
-    this.#apiService = apiService;
-
-    this.messenger.registerActionHandler(
-      `${controllerName}:getConfig`,
-      (key: string) => this.getConfig(key),
-    );
-
-    this.messenger.registerActionHandler(
-      `${controllerName}:setConfig`,
-      (key: string, value: Json, metadata?: Json) =>
-        this.setConfig(key, value, metadata),
-    );
-
-    this.messenger.registerActionHandler(
-      `${controllerName}:getAllConfigs`,
-      () => this.getAllConfigs(),
-    );
 
     this.messenger.registerActionHandler(
       `${controllerName}:startPolling`,
-      (input: ConfigRegistryPollingInput) => this.startPolling(input),
+      (input: null) => this.startPolling(input),
     );
 
     this.messenger.registerActionHandler(`${controllerName}:stopPolling`, () =>
       this.stopPolling(),
     );
+
+    this.#registerKeyringEventListeners();
   }
 
-  async _executePoll(_input: ConfigRegistryPollingInput): Promise<void> {
+  async _executePoll(_input: null): Promise<void> {
     const isApiEnabled = isConfigRegistryApiEnabled(this.messenger);
 
     if (!isApiEnabled) {
@@ -220,9 +196,12 @@ export class ConfigRegistryController extends StaticIntervalPollingController<Co
     }
 
     try {
-      const result: FetchConfigResult = await this.#apiService.fetchConfig({
-        etag: this.state.etag ?? undefined,
-      });
+      const result: FetchConfigResult = await this.messenger.call(
+        'ConfigRegistryApiService:fetchConfig',
+        {
+          etag: this.state.etag ?? undefined,
+        },
+      );
 
       if (result.notModified) {
         this.update((state) => {
@@ -238,17 +217,18 @@ export class ConfigRegistryController extends StaticIntervalPollingController<Co
         isTestnet: false,
       });
 
-      const newConfigs: Record<string, RegistryConfigEntry> = {};
+      const newConfigs: Record<string, NetworkConfigEntry> = {};
       for (const network of filteredNetworks) {
         newConfigs[network.chainId] = {
           key: network.chainId,
-          value: network as unknown as Json,
+          value: network,
         };
       }
 
       this.update((state) => {
-        // eslint-disable-next-line @typescript-eslint/no-explicit-any
-        (state.configs as any) = { networks: newConfigs };
+        (state.configs as ConfigRegistryState['configs']) = {
+          networks: newConfigs,
+        };
         state.version = result.data.data.version;
         state.lastFetched = Date.now();
         state.fetchError = null;
@@ -256,13 +236,15 @@ export class ConfigRegistryController extends StaticIntervalPollingController<Co
       });
     } catch (error) {
       this.#handleFetchError(error);
+      throw error;
     }
   }
 
   protected useFallbackConfig(errorMessage?: string): void {
     this.update((state) => {
-      // eslint-disable-next-line @typescript-eslint/no-explicit-any
-      (state.configs as any) = { networks: { ...this.#fallbackConfig } };
+      (state.configs as ConfigRegistryState['configs']) = {
+        networks: { ...this.#fallbackConfig },
+      };
       state.fetchError =
         errorMessage ?? 'Using fallback configuration - API unavailable';
       state.etag = null;
@@ -285,54 +267,33 @@ export class ConfigRegistryController extends StaticIntervalPollingController<Co
     }
   }
 
-  getConfig(key: string): RegistryConfigEntry | undefined {
-    return this.state.configs?.networks?.[key];
-  }
-
-  getAllConfigs(): Record<string, RegistryConfigEntry> {
-    return { ...(this.state.configs?.networks ?? {}) };
-  }
-
-  getConfigValue<TValue = Json>(key: string): TValue | undefined {
-    const entry = this.state.configs?.networks?.[key];
-    return entry?.value as TValue | undefined;
-  }
-
-  setConfig(key: string, value: Json, metadata?: Json): void {
-    this.update((state) => {
-      if (!state.configs) {
-        // eslint-disable-next-line @typescript-eslint/no-explicit-any
-        (state.configs as any) = { networks: {} };
+  /**
+   * Registers event listeners for KeyringController unlock/lock events.
+   * Automatically starts polling when unlocked and stops when locked.
+   */
+  #registerKeyringEventListeners(): void {
+    // Check initial unlock state and start polling if already unlocked
+    try {
+      const { isUnlocked } = this.messenger.call('KeyringController:getState');
+      if (isUnlocked) {
+        this.startPolling(null);
       }
-      if (!state.configs.networks) {
-        // eslint-disable-next-line @typescript-eslint/no-explicit-any
-        (state.configs.networks as any) = {};
-      }
-      // eslint-disable-next-line @typescript-eslint/no-explicit-any
-      (state.configs.networks as any)[key] = {
-        key,
-        value,
-        metadata,
-      };
+    } catch {
+      // KeyringController may not be available, silently handle
+    }
+
+    // Subscribe to unlock event - start polling
+    this.messenger.subscribe('KeyringController:unlock', () => {
+      this.startPolling(null);
+    });
+
+    // Subscribe to lock event - stop polling
+    this.messenger.subscribe('KeyringController:lock', () => {
+      this.stopPolling();
     });
   }
 
-  removeConfig(key: string): void {
-    this.update((state) => {
-      if (state.configs?.networks) {
-        delete state.configs.networks[key];
-      }
-    });
-  }
-
-  clearConfigs(): void {
-    this.update((state) => {
-      // eslint-disable-next-line @typescript-eslint/no-explicit-any
-      (state.configs as any) = { networks: {} };
-    });
-  }
-
-  startPolling(input: ConfigRegistryPollingInput = {}): string {
+  startPolling(input: null = null): string {
     return super.startPolling(input);
   }
 

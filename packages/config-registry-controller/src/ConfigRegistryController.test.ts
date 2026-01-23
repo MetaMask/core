@@ -5,6 +5,7 @@ import { useFakeTimers } from 'sinon';
 import type {
   AbstractConfigRegistryApiService,
   FetchConfigResult,
+  NetworkConfig,
 } from './config-registry-api-service';
 import {
   ConfigRegistryController,
@@ -13,7 +14,7 @@ import {
 import type {
   ConfigRegistryMessenger,
   ConfigRegistryState,
-  RegistryConfigEntry,
+  NetworkConfigEntry,
 } from './ConfigRegistryController';
 import { advanceTime } from '../../../tests/helpers';
 
@@ -21,8 +22,17 @@ const namespace = 'ConfigRegistryController' as const;
 
 type RootMessenger = Messenger<
   MockAnyNamespace,
-  { type: 'RemoteFeatureFlagController:getState'; handler: () => unknown },
-  never
+  | { type: 'RemoteFeatureFlagController:getState'; handler: () => unknown }
+  | {
+      type: 'KeyringController:getState';
+      handler: () => { isUnlocked: boolean };
+    }
+  | {
+      type: 'ConfigRegistryApiService:fetchConfig';
+      handler: (options?: { etag?: string }) => Promise<FetchConfigResult>;
+    },
+  | { type: 'KeyringController:unlock'; payload: [] }
+  | { type: 'KeyringController:lock'; payload: [] }
 >;
 
 /**
@@ -36,8 +46,17 @@ function getConfigRegistryControllerMessenger(): {
 } {
   const rootMessenger = new Messenger<
     MockAnyNamespace,
-    { type: 'RemoteFeatureFlagController:getState'; handler: () => unknown },
-    never
+    | { type: 'RemoteFeatureFlagController:getState'; handler: () => unknown }
+    | {
+        type: 'KeyringController:getState';
+        handler: () => { isUnlocked: boolean };
+      }
+    | {
+        type: 'ConfigRegistryApiService:fetchConfig';
+        handler: (options?: { etag?: string }) => Promise<FetchConfigResult>;
+      },
+    | { type: 'KeyringController:unlock'; payload: [] }
+    | { type: 'KeyringController:lock'; payload: [] }
   >({
     namespace: MOCK_ANY_NAMESPACE,
   });
@@ -45,7 +64,8 @@ function getConfigRegistryControllerMessenger(): {
   const configRegistryControllerMessenger = new Messenger<
     typeof namespace,
     never,
-    never,
+    | { type: 'KeyringController:unlock'; payload: [] }
+    | { type: 'KeyringController:lock'; payload: [] },
     typeof rootMessenger
   >({
     namespace,
@@ -54,35 +74,78 @@ function getConfigRegistryControllerMessenger(): {
 
   rootMessenger.delegate({
     messenger: configRegistryControllerMessenger,
-    actions: ['RemoteFeatureFlagController:getState'] as never[],
+    actions: [
+      'RemoteFeatureFlagController:getState',
+      'KeyringController:getState',
+      'ConfigRegistryApiService:fetchConfig',
+    ] as never[],
+    events: ['KeyringController:unlock', 'KeyringController:lock'] as never[],
   });
 
   return { messenger: configRegistryControllerMessenger, rootMessenger };
 }
 
-const MOCK_CONFIG_ENTRY: RegistryConfigEntry = {
+/**
+ * Creates a mock NetworkConfig for testing.
+ *
+ * @param overrides - Optional properties to override in the default NetworkConfig.
+ * @returns A mock NetworkConfig object.
+ */
+function createMockNetworkConfig(
+  overrides: Partial<NetworkConfig> = {},
+): NetworkConfig {
+  return {
+    chainId: '0x1',
+    name: 'Ethereum Mainnet',
+    nativeCurrency: 'ETH',
+    rpcEndpoints: [
+      {
+        url: 'https://mainnet.infura.io/v3/{infuraProjectId}',
+        type: 'infura',
+        networkClientId: 'mainnet',
+        failoverUrls: [],
+      },
+    ],
+    blockExplorerUrls: ['https://etherscan.io'],
+    defaultRpcEndpointIndex: 0,
+    defaultBlockExplorerUrlIndex: 0,
+    isActive: true,
+    isTestnet: false,
+    isDefault: true,
+    isFeatured: true,
+    isDeprecated: false,
+    priority: 0,
+    isDeletable: false,
+    ...overrides,
+  };
+}
+
+const MOCK_CONFIG_ENTRY: NetworkConfigEntry = {
   key: 'test-key',
-  value: { test: 'value' },
+  value: createMockNetworkConfig({ chainId: '0x1', name: 'Test Network' }),
   metadata: { source: 'test' },
 };
 
-const MOCK_FALLBACK_CONFIG: Record<string, RegistryConfigEntry> = {
+const MOCK_FALLBACK_CONFIG: Record<string, NetworkConfigEntry> = {
   'fallback-key': {
     key: 'fallback-key',
-    value: { fallback: true },
+    value: createMockNetworkConfig({
+      chainId: '0x2',
+      name: 'Fallback Network',
+    }),
   },
 };
 
 /**
- * Builds a mock API service.
+ * Builds a mock API service fetch handler.
  *
  * @param overrides - The properties of the API service you want to provide explicitly.
- * @returns The built mock API service.
+ * @returns A handler function for the fetchConfig action.
  */
-function buildMockApiService(
+function buildMockApiServiceHandler(
   overrides: Partial<AbstractConfigRegistryApiService> = {},
-): AbstractConfigRegistryApiService {
-  return {
+): (options?: { etag?: string }) => Promise<FetchConfigResult> {
+  const defaultService: AbstractConfigRegistryApiService = {
     async fetchConfig(): Promise<FetchConfigResult> {
       return {
         data: {
@@ -97,23 +160,31 @@ function buildMockApiService(
     },
     onBreak: jest.fn(),
     onDegraded: jest.fn(),
-    ...overrides,
   };
+
+  const service = { ...defaultService, ...overrides };
+  return (options?: { etag?: string }) => service.fetchConfig(options);
 }
 
 describe('ConfigRegistryController', () => {
   let clock: sinon.SinonFakeTimers;
   let messenger: ConfigRegistryMessenger;
   let rootMessenger: RootMessenger;
-  let apiService: AbstractConfigRegistryApiService;
+  let mockApiServiceHandler: jest.Mock;
   let mockRemoteFeatureFlagGetState: jest.Mock;
+  let mockKeyringControllerGetState: jest.Mock;
 
   beforeEach(() => {
     clock = useFakeTimers();
     const messengers = getConfigRegistryControllerMessenger();
     messenger = messengers.messenger;
     rootMessenger = messengers.rootMessenger;
-    apiService = buildMockApiService();
+    mockApiServiceHandler = jest.fn(buildMockApiServiceHandler());
+
+    rootMessenger.registerActionHandler(
+      'ConfigRegistryApiService:fetchConfig',
+      mockApiServiceHandler,
+    );
 
     mockRemoteFeatureFlagGetState = jest.fn().mockReturnValue({
       remoteFeatureFlags: {
@@ -126,17 +197,26 @@ describe('ConfigRegistryController', () => {
       'RemoteFeatureFlagController:getState',
       mockRemoteFeatureFlagGetState,
     );
+
+    mockKeyringControllerGetState = jest.fn().mockReturnValue({
+      isUnlocked: false,
+    });
+
+    rootMessenger.registerActionHandler(
+      'KeyringController:getState',
+      mockKeyringControllerGetState,
+    );
   });
 
   afterEach(() => {
     clock.restore();
+    mockApiServiceHandler.mockReset();
   });
 
   describe('constructor', () => {
     it('should set default state', () => {
       const controller = new ConfigRegistryController({
         messenger,
-        apiService,
       });
 
       expect(controller.state).toStrictEqual({
@@ -162,7 +242,6 @@ describe('ConfigRegistryController', () => {
       const controller = new ConfigRegistryController({
         messenger,
         state: initialState,
-        apiService,
       });
 
       expect(controller.state.configs.networks).toStrictEqual(
@@ -175,7 +254,6 @@ describe('ConfigRegistryController', () => {
     it('should set custom polling interval', () => {
       const customInterval = 5000;
       const controller = new ConfigRegistryController({
-        apiService,
         messenger,
         pollingInterval: customInterval,
       });
@@ -185,7 +263,6 @@ describe('ConfigRegistryController', () => {
 
     it('should set fallback config', () => {
       const controller = new ConfigRegistryController({
-        apiService,
         messenger,
         fallbackConfig: MOCK_FALLBACK_CONFIG,
       });
@@ -193,7 +270,7 @@ describe('ConfigRegistryController', () => {
       expect(controller.state.configs).toStrictEqual({ networks: {} });
     });
 
-    it('should use default ConfigRegistryApiService when apiService is not provided', () => {
+    it('should work when API service is registered on messenger', () => {
       const controller = new ConfigRegistryController({
         messenger,
       });
@@ -208,354 +285,14 @@ describe('ConfigRegistryController', () => {
     });
   });
 
-  describe('getConfig', () => {
-    it('should return undefined for non-existent key', () => {
-      const controller = new ConfigRegistryController({
-        apiService,
-        messenger,
-      });
-
-      expect(controller.getConfig('non-existent')).toBeUndefined();
-    });
-
-    it('should return config entry for existing key', () => {
-      const controller = new ConfigRegistryController({
-        apiService,
-        messenger,
-        state: {
-          configs: {
-            networks: {
-              'test-key': MOCK_CONFIG_ENTRY,
-            },
-          },
-        },
-      });
-
-      expect(controller.getConfig('test-key')).toStrictEqual(MOCK_CONFIG_ENTRY);
-    });
-
-    it('should work via messenger action', () => {
-      const testController = new ConfigRegistryController({
-        apiService,
-        messenger,
-        state: {
-          configs: {
-            networks: {
-              'test-key': MOCK_CONFIG_ENTRY,
-            },
-          },
-        },
-      });
-
-      const result = messenger.call(
-        'ConfigRegistryController:getConfig',
-        'test-key',
-      );
-      expect(result).toStrictEqual(MOCK_CONFIG_ENTRY);
-      expect(testController.getConfig('test-key')).toStrictEqual(
-        MOCK_CONFIG_ENTRY,
-      );
-    });
-  });
-
-  describe('getAllConfigs', () => {
-    it('should return empty object when no configs', () => {
-      const controller = new ConfigRegistryController({
-        apiService,
-        messenger,
-      });
-
-      expect(controller.getAllConfigs()).toStrictEqual({});
-    });
-
-    it('should return all configs', () => {
-      const configs = {
-        key1: { key: 'key1', value: 'value1' },
-        key2: { key: 'key2', value: 'value2' },
-      };
-
-      const controller = new ConfigRegistryController({
-        apiService,
-        messenger,
-        state: { configs: { networks: configs } },
-      });
-
-      expect(controller.getAllConfigs()).toStrictEqual(configs);
-    });
-
-    it('should return a copy, not a reference', () => {
-      const configs = {
-        key1: { key: 'key1', value: 'value1' },
-      };
-
-      const controller = new ConfigRegistryController({
-        apiService,
-        messenger,
-        state: { configs: { networks: configs } },
-      });
-
-      const result = controller.getAllConfigs();
-      result.key1 = { key: 'key1', value: 'modified' };
-
-      expect(controller.state.configs.networks?.key1?.value).toBe('value1');
-    });
-
-    it('should work via messenger action', () => {
-      const configs = {
-        key1: { key: 'key1', value: 'value1' },
-      };
-
-      const testController = new ConfigRegistryController({
-        messenger,
-        apiService,
-        state: { configs: { networks: configs } },
-      });
-
-      const result = messenger.call('ConfigRegistryController:getAllConfigs');
-      expect(result).toStrictEqual(configs);
-      expect(testController.getAllConfigs()).toStrictEqual(configs);
-    });
-
-    it('should return empty object when state.configs is undefined', () => {
-      const controller = new ConfigRegistryController({
-        apiService,
-        messenger,
-        state: {
-          // eslint-disable-next-line @typescript-eslint/no-explicit-any
-          configs: undefined as any,
-        },
-      });
-
-      expect(controller.getAllConfigs()).toStrictEqual({});
-    });
-
-    it('should return empty object when state.configs.networks is undefined', () => {
-      const controller = new ConfigRegistryController({
-        apiService,
-        messenger,
-        state: {
-          // eslint-disable-next-line @typescript-eslint/no-explicit-any
-          configs: {} as any,
-        },
-      });
-
-      expect(controller.getAllConfigs()).toStrictEqual({});
-    });
-  });
-
-  describe('getConfigValue', () => {
-    it('should return undefined for non-existent key', () => {
-      const controller = new ConfigRegistryController({
-        apiService,
-        messenger,
-      });
-
-      expect(controller.getConfigValue('non-existent')).toBeUndefined();
-    });
-
-    it('should return value for existing key', () => {
-      const controller = new ConfigRegistryController({
-        apiService,
-        messenger,
-        state: {
-          configs: {
-            networks: {
-              'test-key': MOCK_CONFIG_ENTRY,
-            },
-          },
-        },
-      });
-
-      expect(controller.getConfigValue('test-key')).toStrictEqual({
-        test: 'value',
-      });
-    });
-
-    it('should return typed value', () => {
-      const controller = new ConfigRegistryController({
-        apiService,
-        messenger,
-        state: {
-          configs: {
-            networks: {
-              'string-key': { key: 'string-key', value: 'string-value' },
-              'number-key': { key: 'number-key', value: 42 },
-            },
-          },
-        },
-      });
-
-      expect(controller.getConfigValue<string>('string-key')).toBe(
-        'string-value',
-      );
-      expect(controller.getConfigValue<number>('number-key')).toBe(42);
-    });
-  });
-
-  describe('setConfig', () => {
-    it('should set a new config entry', () => {
-      const controller = new ConfigRegistryController({
-        messenger,
-        apiService,
-      });
-
-      controller.setConfig('new-key', { data: 'value' });
-
-      expect(controller.state.configs.networks?.['new-key']).toStrictEqual({
-        key: 'new-key',
-        value: { data: 'value' },
-        metadata: undefined,
-      });
-    });
-
-    it('should set config with metadata', () => {
-      const controller = new ConfigRegistryController({
-        apiService,
-        messenger,
-      });
-
-      controller.setConfig('new-key', { data: 'value' }, { source: 'test' });
-
-      expect(controller.state.configs.networks?.['new-key']).toStrictEqual({
-        key: 'new-key',
-        value: { data: 'value' },
-        metadata: { source: 'test' },
-      });
-    });
-
-    it('should update existing config', () => {
-      const controller = new ConfigRegistryController({
-        messenger,
-        apiService,
-        state: {
-          configs: {
-            networks: {
-              'existing-key': { key: 'existing-key', value: 'old-value' },
-            },
-          },
-        },
-      });
-
-      controller.setConfig('existing-key', 'new-value');
-
-      expect(controller.state.configs.networks?.['existing-key']?.value).toBe(
-        'new-value',
-      );
-    });
-
-    it('should work via messenger action', () => {
-      const controller = new ConfigRegistryController({
-        messenger,
-        apiService,
-      });
-
-      messenger.call(
-        'ConfigRegistryController:setConfig',
-        'test-key',
-        'test-value',
-      );
-
-      expect(controller.getConfig('test-key')?.value).toBe('test-value');
-    });
-
-    it('should initialize configs when state.configs is undefined', () => {
-      const controller = new ConfigRegistryController({
-        messenger,
-        apiService,
-        state: {
-          // eslint-disable-next-line @typescript-eslint/no-explicit-any
-          configs: undefined as any,
-        },
-      });
-
-      controller.setConfig('new-key', 'value');
-
-      expect(controller.state.configs?.networks?.['new-key']).toBeDefined();
-      expect(controller.state.configs?.networks?.['new-key']?.value).toBe(
-        'value',
-      );
-    });
-
-    it('should initialize networks when state.configs.networks is undefined', () => {
-      const controller = new ConfigRegistryController({
-        messenger,
-        apiService,
-        state: {
-          // eslint-disable-next-line @typescript-eslint/no-explicit-any
-          configs: {} as any,
-        },
-      });
-
-      controller.setConfig('new-key', 'value');
-
-      expect(controller.state.configs?.networks?.['new-key']).toBeDefined();
-      expect(controller.state.configs?.networks?.['new-key']?.value).toBe(
-        'value',
-      );
-    });
-  });
-
-  describe('removeConfig', () => {
-    it('should remove existing config', () => {
-      const controller = new ConfigRegistryController({
-        apiService,
-        messenger,
-        state: {
-          configs: {
-            networks: {
-              key1: { key: 'key1', value: 'value1' },
-              key2: { key: 'key2', value: 'value2' },
-            },
-          },
-        },
-      });
-
-      controller.removeConfig('key1');
-
-      expect(controller.state.configs.networks?.key1).toBeUndefined();
-      expect(controller.state.configs.networks?.key2).toBeDefined();
-    });
-
-    it('should not throw when removing non-existent key', () => {
-      const controller = new ConfigRegistryController({
-        messenger,
-        apiService,
-      });
-
-      expect(() => controller.removeConfig('non-existent')).not.toThrow();
-    });
-  });
-
-  describe('clearConfigs', () => {
-    it('should clear all configs', () => {
-      const controller = new ConfigRegistryController({
-        messenger,
-        apiService,
-        state: {
-          configs: {
-            networks: {
-              key1: { key: 'key1', value: 'value1' },
-              key2: { key: 'key2', value: 'value2' },
-            },
-          },
-        },
-      });
-
-      controller.clearConfigs();
-
-      expect(controller.state.configs).toStrictEqual({ networks: {} });
-    });
-  });
-
   describe('polling', () => {
     it('should start polling', async () => {
       const controller = new ConfigRegistryController({
-        apiService,
         messenger,
       });
 
       const executePollSpy = jest.spyOn(controller, '_executePoll');
-      controller.startPolling({});
+      controller.startPolling(null);
 
       await advanceTime({ clock, duration: 0 });
 
@@ -566,13 +303,12 @@ describe('ConfigRegistryController', () => {
     it('should poll at specified interval', async () => {
       const pollingInterval = 1000;
       const controller = new ConfigRegistryController({
-        apiService,
         messenger,
         pollingInterval,
       });
 
       const executePollSpy = jest.spyOn(controller, '_executePoll');
-      controller.startPolling({});
+      controller.startPolling(null);
 
       await advanceTime({ clock, duration: 0 });
       executePollSpy.mockClear();
@@ -585,12 +321,11 @@ describe('ConfigRegistryController', () => {
 
     it('should stop polling', async () => {
       const controller = new ConfigRegistryController({
-        apiService,
         messenger,
       });
 
       const executePollSpy = jest.spyOn(controller, '_executePoll');
-      controller.startPolling({});
+      controller.startPolling(null);
 
       await advanceTime({ clock, duration: 0 });
       executePollSpy.mockClear();
@@ -610,17 +345,16 @@ describe('ConfigRegistryController', () => {
         cacheTimestamp: Date.now(),
       });
 
-      const errorApiService = buildMockApiService({
-        fetchConfig: jest.fn().mockRejectedValue(new Error('Network error')),
-      });
+      mockApiServiceHandler.mockRejectedValue(new Error('Network error'));
 
       const controller = new ConfigRegistryController({
-        apiService: errorApiService,
         messenger,
         fallbackConfig: MOCK_FALLBACK_CONFIG,
       });
 
-      await controller._executePoll({});
+      await expect(controller._executePoll(null)).rejects.toThrow(
+        'Network error',
+      );
 
       expect(controller.state.configs).toStrictEqual({
         networks: MOCK_FALLBACK_CONFIG,
@@ -638,22 +372,27 @@ describe('ConfigRegistryController', () => {
 
       const existingConfigs = {
         networks: {
-          'existing-key': { key: 'existing-key', value: 'existing-value' },
+          'existing-key': {
+            key: 'existing-key',
+            value: createMockNetworkConfig({
+              chainId: '0x3',
+              name: 'Existing Network',
+            }),
+          },
         },
       };
 
-      const errorApiService = buildMockApiService({
-        fetchConfig: jest.fn().mockRejectedValue(new Error('Network error')),
-      });
+      mockApiServiceHandler.mockRejectedValue(new Error('Network error'));
 
       const controller = new ConfigRegistryController({
-        apiService: errorApiService,
         messenger,
         state: { configs: existingConfigs },
         fallbackConfig: MOCK_FALLBACK_CONFIG,
       });
 
-      await controller._executePoll({});
+      await expect(controller._executePoll(null)).rejects.toThrow(
+        'Network error',
+      );
 
       expect(controller.state.configs).toStrictEqual(existingConfigs);
       expect(controller.state.fetchError).toBe('Network error');
@@ -667,17 +406,16 @@ describe('ConfigRegistryController', () => {
         cacheTimestamp: Date.now(),
       });
 
-      const errorApiService = buildMockApiService({
-        fetchConfig: jest.fn().mockRejectedValue(new Error('Network error')),
-      });
+      mockApiServiceHandler.mockRejectedValue(new Error('Network error'));
 
       const controller = new ConfigRegistryController({
-        apiService: errorApiService,
         messenger,
         fallbackConfig: MOCK_FALLBACK_CONFIG,
       });
 
-      await controller._executePoll({});
+      await expect(controller._executePoll(null)).rejects.toThrow(
+        'Network error',
+      );
 
       expect(controller.state.configs).toStrictEqual({
         networks: MOCK_FALLBACK_CONFIG,
@@ -694,22 +432,19 @@ describe('ConfigRegistryController', () => {
         cacheTimestamp: Date.now(),
       });
 
-      const notModifiedApiService = buildMockApiService({
-        fetchConfig: jest.fn().mockResolvedValue({
-          notModified: true,
-          etag: '"test-etag"',
-        }),
+      mockApiServiceHandler.mockResolvedValue({
+        notModified: true,
+        etag: '"test-etag"',
       });
 
       const controller = new ConfigRegistryController({
-        apiService: notModifiedApiService,
         messenger,
         state: {
           fetchError: 'Previous error',
         },
       });
 
-      await controller._executePoll({});
+      await controller._executePoll(null);
 
       expect(controller.state.fetchError).toBeNull();
       expect(controller.state.etag).toBeNull();
@@ -723,17 +458,14 @@ describe('ConfigRegistryController', () => {
         cacheTimestamp: Date.now(),
       });
 
-      const errorApiService = buildMockApiService({
-        fetchConfig: jest.fn().mockRejectedValue('String error'), // Not an Error instance
-      });
+      mockApiServiceHandler.mockRejectedValue('String error'); // Not an Error instance
 
       const controller = new ConfigRegistryController({
-        apiService: errorApiService,
         messenger,
         fallbackConfig: MOCK_FALLBACK_CONFIG,
       });
 
-      await controller._executePoll({});
+      await expect(controller._executePoll(null)).rejects.toBe('String error');
 
       expect(controller.state.configs).toStrictEqual({
         networks: MOCK_FALLBACK_CONFIG,
@@ -749,19 +481,18 @@ describe('ConfigRegistryController', () => {
         cacheTimestamp: Date.now(),
       });
 
-      const errorApiService = buildMockApiService({
-        fetchConfig: jest.fn().mockRejectedValue(new Error('Network error')),
-      });
+      mockApiServiceHandler.mockRejectedValue(new Error('Network error'));
 
       const controller = new ConfigRegistryController({
-        apiService: errorApiService,
         messenger,
         fallbackConfig: MOCK_FALLBACK_CONFIG,
         // eslint-disable-next-line @typescript-eslint/no-explicit-any
         state: { configs: null as any },
       });
 
-      await controller._executePoll({});
+      await expect(controller._executePoll(null)).rejects.toThrow(
+        'Network error',
+      );
 
       expect(controller.state.configs).toStrictEqual({
         networks: MOCK_FALLBACK_CONFIG,
@@ -771,13 +502,15 @@ describe('ConfigRegistryController', () => {
 
     it('should work via messenger actions', async () => {
       const controller = new ConfigRegistryController({
-        apiService,
         messenger,
       });
 
       const executePollSpy = jest.spyOn(controller, '_executePoll');
 
-      const token = messenger.call('ConfigRegistryController:startPolling', {});
+      const token = messenger.call(
+        'ConfigRegistryController:startPolling',
+        null,
+      );
       expect(typeof token).toBe('string');
 
       await advanceTime({ clock, duration: 0 });
@@ -790,21 +523,9 @@ describe('ConfigRegistryController', () => {
   });
 
   describe('state persistence', () => {
-    it('should persist configs', () => {
-      const controller = new ConfigRegistryController({
-        messenger,
-        apiService,
-      });
-
-      controller.setConfig('persist-key', 'persist-value');
-
-      expect(controller.state.configs.networks?.['persist-key']).toBeDefined();
-    });
-
     it('should persist version', () => {
       const controller = new ConfigRegistryController({
         messenger,
-        apiService,
         state: { version: 'v1.0.0' },
       });
 
@@ -815,7 +536,6 @@ describe('ConfigRegistryController', () => {
       const timestamp = Date.now();
       const controller = new ConfigRegistryController({
         messenger,
-        apiService,
         state: { lastFetched: timestamp },
       });
 
@@ -825,7 +545,6 @@ describe('ConfigRegistryController', () => {
     it('should persist fetchError', () => {
       const controller = new ConfigRegistryController({
         messenger,
-        apiService,
         state: { fetchError: 'Test error' },
       });
 
@@ -835,7 +554,6 @@ describe('ConfigRegistryController', () => {
     it('should use default error message when useFallbackConfig is called without errorMessage', () => {
       const controller = new ConfigRegistryController({
         messenger,
-        apiService,
         fallbackConfig: MOCK_FALLBACK_CONFIG,
       });
 
@@ -856,10 +574,9 @@ describe('ConfigRegistryController', () => {
     it('should return a polling token string', () => {
       const controller = new ConfigRegistryController({
         messenger,
-        apiService,
       });
 
-      const token = controller.startPolling({});
+      const token = controller.startPolling(null);
       expect(typeof token).toBe('string');
       expect(token.length).toBeGreaterThan(0);
 
@@ -869,10 +586,9 @@ describe('ConfigRegistryController', () => {
     it('should return a polling token string when called without input', () => {
       const controller = new ConfigRegistryController({
         messenger,
-        apiService,
       });
 
-      const token = controller.startPolling();
+      const token = controller.startPolling(null);
       expect(typeof token).toBe('string');
       expect(token.length).toBeGreaterThan(0);
 
@@ -891,12 +607,11 @@ describe('ConfigRegistryController', () => {
 
       const controller = new ConfigRegistryController({
         messenger,
-        apiService,
         fallbackConfig: MOCK_FALLBACK_CONFIG,
       });
 
       const executePollSpy = jest.spyOn(controller, '_executePoll');
-      controller.startPolling({});
+      controller.startPolling(null);
 
       await advanceTime({ clock, duration: 0 });
 
@@ -957,16 +672,13 @@ describe('ConfigRegistryController', () => {
         etag: 'test-etag',
       });
 
-      const mockApiService = buildMockApiService({
-        fetchConfig: fetchConfigSpy,
-      });
+      mockApiServiceHandler.mockImplementation(fetchConfigSpy);
 
       const controller = new ConfigRegistryController({
         messenger,
-        apiService: mockApiService,
       });
 
-      const executePollPromise = controller._executePoll({});
+      const executePollPromise = controller._executePoll(null);
       await executePollPromise;
 
       expect(fetchConfigSpy).toHaveBeenCalled();
@@ -1092,16 +804,13 @@ describe('ConfigRegistryController', () => {
         etag: 'test-etag',
       });
 
-      const mockApiService = buildMockApiService({
-        fetchConfig: fetchConfigSpy,
-      });
+      mockApiServiceHandler.mockImplementation(fetchConfigSpy);
 
       const controller = new ConfigRegistryController({
         messenger,
-        apiService: mockApiService,
       });
 
-      await controller._executePoll({});
+      await controller._executePoll(null);
 
       expect(controller.state.configs.networks?.['0x1']).toBeDefined();
       expect(controller.state.configs.networks?.['0x5']).toBeUndefined();
@@ -1120,12 +829,11 @@ describe('ConfigRegistryController', () => {
 
       const controller = new ConfigRegistryController({
         messenger,
-        apiService,
         fallbackConfig: MOCK_FALLBACK_CONFIG,
       });
 
       const executePollSpy = jest.spyOn(controller, '_executePoll');
-      controller.startPolling({});
+      controller.startPolling(null);
 
       await advanceTime({ clock, duration: 0 });
 
@@ -1147,12 +855,11 @@ describe('ConfigRegistryController', () => {
 
       const controller = new ConfigRegistryController({
         messenger,
-        apiService,
         fallbackConfig: MOCK_FALLBACK_CONFIG,
       });
 
       const executePollSpy = jest.spyOn(controller, '_executePoll');
-      controller.startPolling({});
+      controller.startPolling(null);
 
       await advanceTime({ clock, duration: 0 });
 
@@ -1163,6 +870,101 @@ describe('ConfigRegistryController', () => {
       expect(controller.state.fetchError).toBe(
         'Feature flag disabled - using fallback configuration',
       );
+
+      controller.stopPolling();
+    });
+  });
+
+  describe('KeyringController event listeners', () => {
+    it('should start polling when KeyringController is already unlocked on initialization', async () => {
+      mockKeyringControllerGetState.mockReturnValue({
+        isUnlocked: true,
+      });
+
+      const controller = new ConfigRegistryController({
+        messenger,
+      });
+
+      const executePollSpy = jest.spyOn(controller, '_executePoll');
+
+      await advanceTime({ clock, duration: 0 });
+
+      expect(mockKeyringControllerGetState).toHaveBeenCalled();
+      // Verify polling started by checking if _executePoll was called
+      expect(executePollSpy).toHaveBeenCalledTimes(1);
+
+      controller.stopPolling();
+    });
+
+    it('should handle KeyringController:getState error gracefully when KeyringController is unavailable', () => {
+      mockKeyringControllerGetState.mockImplementation(() => {
+        throw new Error('KeyringController not available');
+      });
+
+      const controller = new ConfigRegistryController({
+        messenger,
+      });
+
+      // Should not have started polling
+      expect(controller.state.lastFetched).toBeNull();
+    });
+
+    it('should start polling when KeyringController:unlock event is published', async () => {
+      const controller = new ConfigRegistryController({
+        messenger,
+      });
+
+      const executePollSpy = jest.spyOn(controller, '_executePoll');
+      const startPollingSpy = jest.spyOn(controller, 'startPolling');
+
+      // Initially locked, so polling should not have started
+      expect(startPollingSpy).not.toHaveBeenCalled();
+
+      // Publish unlock event on root messenger
+      rootMessenger.publish('KeyringController:unlock');
+
+      await advanceTime({ clock, duration: 0 });
+
+      expect(startPollingSpy).toHaveBeenCalledWith(null);
+      expect(executePollSpy).toHaveBeenCalledTimes(1);
+
+      controller.stopPolling();
+    });
+
+    it('should stop polling when KeyringController:lock event is published', async () => {
+      mockKeyringControllerGetState.mockReturnValue({
+        isUnlocked: true,
+      });
+
+      const controller = new ConfigRegistryController({
+        messenger,
+      });
+
+      const stopPollingSpy = jest.spyOn(controller, 'stopPolling');
+
+      // Polling should have started
+      await advanceTime({ clock, duration: 0 });
+      expect(stopPollingSpy).not.toHaveBeenCalled();
+
+      // Publish lock event on root messenger
+      rootMessenger.publish('KeyringController:lock');
+
+      expect(stopPollingSpy).toHaveBeenCalled();
+    });
+
+    it('should call startPolling with default parameter when called without arguments', async () => {
+      const controller = new ConfigRegistryController({
+        messenger,
+      });
+
+      const executePollSpy = jest.spyOn(controller, '_executePoll');
+
+      // Call startPolling without arguments to test default parameter
+      controller.startPolling();
+
+      // Verify polling started by checking if _executePoll is called
+      await advanceTime({ clock, duration: 0 });
+      expect(executePollSpy).toHaveBeenCalledTimes(1);
 
       controller.stopPolling();
     });
