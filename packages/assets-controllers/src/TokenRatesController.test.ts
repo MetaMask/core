@@ -68,7 +68,11 @@ function buildTokenRatesControllerMessenger(
   });
   messenger.delegate({
     messenger: tokenRatesControllerMessenger,
-    actions: ['TokensController:getState', 'NetworkController:getState'],
+    actions: [
+      'TokensController:getState',
+      'NetworkController:getState',
+      'NetworkEnablementController:getState',
+    ],
     events: ['TokensController:stateChange', 'NetworkController:stateChange'],
   });
   return tokenRatesControllerMessenger;
@@ -82,6 +86,49 @@ describe('TokenRatesController', () => {
           marketData: {},
         });
       });
+    });
+
+    it('should call setNativeAssetIdentifiers on tokenPricesService if available', async () => {
+      const setNativeAssetIdentifiers = jest.fn();
+      const tokenPricesService = buildMockTokenPricesService({
+        setNativeAssetIdentifiers,
+      });
+
+      await withController(
+        {
+          options: {
+            tokenPricesService,
+          },
+        },
+        async () => {
+          expect(setNativeAssetIdentifiers).toHaveBeenCalledWith({
+            'eip155:1': 'eip155:1/slip44:60',
+            'eip155:137': 'eip155:137/slip44:966',
+          });
+        },
+      );
+    });
+
+    it('should not fail if tokenPricesService does not have setNativeAssetIdentifiers', async () => {
+      const tokenPricesService = buildMockTokenPricesService();
+      // Explicitly remove setNativeAssetIdentifiers to simulate an old service
+      delete (
+        tokenPricesService as Partial<AbstractTokenPricesService>
+      ).setNativeAssetIdentifiers;
+
+      await withController(
+        {
+          options: {
+            tokenPricesService,
+          },
+        },
+        async ({ controller }) => {
+          // Should not throw and controller should be created
+          expect(controller.state).toStrictEqual({
+            marketData: {},
+          });
+        },
+      );
     });
   });
 
@@ -1213,6 +1260,18 @@ async function withController<ReturnValue>(
     }),
   );
 
+  // Register NetworkEnablementController:getState handler
+  messenger.registerActionHandler(
+    'NetworkEnablementController:getState',
+    jest.fn().mockReturnValue({
+      enabledNetworkMap: {},
+      nativeAssetIdentifiers: {
+        'eip155:1': 'eip155:1/slip44:60',
+        'eip155:137': 'eip155:137/slip44:966',
+      },
+    }),
+  );
+
   const controller = new TokenRatesController({
     tokenPricesService: buildMockTokenPricesService(),
     messenger: buildTokenRatesControllerMessenger(messenger),
@@ -1259,6 +1318,7 @@ function buildMockTokenPricesService(
     validateCurrencySupported(_currency: unknown): _currency is string {
       return true;
     },
+    setNativeAssetIdentifiers: jest.fn(),
     ...overrides,
   };
 }
