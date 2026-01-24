@@ -411,36 +411,58 @@ export class RampsController extends BaseController<
   ): Promise<TResult> {
     const ttl = options?.ttl ?? this.#requestCacheTTL;
 
-    // Check for existing pending request - join it instead of making a duplicate
+    console.log('[RampsController] executeRequest called:', {
+      cacheKey,
+      forceRefresh: options?.forceRefresh,
+      ttl,
+    });
+
     const pending = this.#pendingRequests.get(cacheKey);
     if (pending) {
+      console.log('[RampsController] executeRequest - returning pending request');
       return pending.promise as Promise<TResult>;
     }
 
-    // Check cache validity (unless force refresh)
     if (!options?.forceRefresh) {
       const cached = this.state.requests[cacheKey];
       if (cached && !isCacheExpired(cached, ttl)) {
+        console.log('[RampsController] executeRequest - cache HIT:', {
+          cacheKey,
+          cachedStatus: cached.status,
+          cachedTimestamp: cached.timestamp,
+        });
         return cached.data as TResult;
       }
+      console.log('[RampsController] executeRequest - cache MISS:', {
+        cacheKey,
+        hasCached: !!cached,
+        isExpired: cached ? isCacheExpired(cached, ttl) : 'N/A',
+      });
+    } else {
+      console.log(
+        '[RampsController] executeRequest - forceRefresh, skipping cache',
+      );
     }
 
-    // Create abort controller for this request
     const abortController = new AbortController();
     const lastFetchedAt = Date.now();
 
-    // Update state to loading
     this.#updateRequestState(cacheKey, createLoadingState());
 
-    // Create the fetch promise
     const promise = (async (): Promise<TResult> => {
       try {
+        console.log('[RampsController] executeRequest - fetching data...');
         const data = await fetcher(abortController.signal);
 
-        // Don't update state if aborted
         if (abortController.signal.aborted) {
+          console.log('[RampsController] executeRequest - request was aborted');
           throw new Error('Request was aborted');
         }
+
+        console.log('[RampsController] executeRequest - fetch SUCCESS:', {
+          cacheKey,
+          dataType: typeof data,
+        });
 
         this.#updateRequestState(
           cacheKey,
@@ -448,12 +470,15 @@ export class RampsController extends BaseController<
         );
         return data;
       } catch (error) {
-        // Don't update state if aborted
         if (abortController.signal.aborted) {
           throw error;
         }
 
         const errorMessage = (error as Error)?.message;
+        console.log('[RampsController] executeRequest - fetch ERROR:', {
+          cacheKey,
+          errorMessage,
+        });
 
         this.#updateRequestState(
           cacheKey,
@@ -461,7 +486,6 @@ export class RampsController extends BaseController<
         );
         throw error;
       } finally {
-        // Only delete if this is still our entry (not replaced by a new request)
         const currentPending = this.#pendingRequests.get(cacheKey);
         if (currentPending?.abortController === abortController) {
           this.#pendingRequests.delete(cacheKey);
@@ -469,7 +493,6 @@ export class RampsController extends BaseController<
       }
     })();
 
-    // Store pending request for deduplication
     this.#pendingRequests.set(cacheKey, { promise, abortController });
 
     return promise;
@@ -613,11 +636,9 @@ export class RampsController extends BaseController<
         );
       }
 
-      // Only cleanup state if region is actually changing
       const regionChanged =
         normalizedRegion !== this.state.userRegion?.regionCode;
 
-      // Set the new region atomically with cleanup to avoid intermediate null state
       this.update((state) => {
         if (regionChanged) {
           state.preferredProvider = null;
@@ -629,7 +650,6 @@ export class RampsController extends BaseController<
         state.userRegion = userRegion;
       });
 
-      // Only trigger fetches if region changed or if data is missing
       if (regionChanged || !this.state.tokens) {
         this.triggerGetTokens(userRegion.regionCode, 'buy', options);
       }
@@ -652,28 +672,53 @@ export class RampsController extends BaseController<
    * @param provider - The provider object to set.
    */
   setPreferredProvider(provider: Provider | null): void {
-<<<<<<< HEAD
+    console.log('[RampsController] setPreferredProvider called with:', {
+      providerId: provider?.id ?? null,
+      providerName: provider?.name ?? null,
+      currentSelectedToken: this.state.selectedToken?.assetId ?? null,
+      hadProvider: this.state.preferredProvider !== null,
+    });
+
     const hadProvider = this.state.preferredProvider !== null;
-=======
->>>>>>> 910d8769ff6d2f88aa994a6432364e05832be447
     this.update((state) => {
       state.preferredProvider = provider;
     });
 
     // If token is selected and provider changed, fetch payment methods
     if (this.state.selectedToken && provider) {
+      console.log(
+        '[RampsController] setPreferredProvider - Token exists, fetching payment methods',
+        {
+          providerId: provider.id,
+          tokenAssetId: this.state.selectedToken.assetId,
+        },
+      );
       this.#fetchAndSetPaymentMethods(
         provider.id,
         this.state.selectedToken,
-      ).catch(() => {
-        // Error stored in state
+      ).catch((error) => {
+        console.log(
+          '[RampsController] setPreferredProvider - Error fetching payment methods:',
+          error,
+        );
       });
     } else if (hadProvider && !provider && this.state.selectedToken) {
-      // Provider was cleared, clear payment methods
+      console.log(
+        '[RampsController] setPreferredProvider - Provider cleared, clearing payment methods',
+      );
       this.update((state) => {
         state.paymentMethods = [];
         state.selectedPaymentMethod = null;
       });
+    } else {
+      console.log(
+        '[RampsController] setPreferredProvider - No payment methods fetch needed',
+        {
+          hasSelectedToken: !!this.state.selectedToken,
+          hasProvider: !!provider,
+          hadProvider,
+        },
+      );
     }
   }
 
@@ -709,6 +754,11 @@ export class RampsController extends BaseController<
         'Region code is required. Cannot hydrate state without valid region information.',
       );
     }
+
+    console.log('[RampsController] hydrateState:', {
+      regionCode,
+      options,
+    });
 
     this.triggerGetTokens(regionCode, 'buy', options);
     this.triggerGetProviders(regionCode, options);
@@ -834,6 +884,11 @@ export class RampsController extends BaseController<
       );
     }
 
+    console.log('[RampsController] getProviders called with:', {
+      regionToUse,
+      options,
+    });
+
     const normalizedRegion = regionToUse.toLowerCase().trim();
     const cacheKey = createCacheKey('getProviders', [
       normalizedRegion,
@@ -842,6 +897,12 @@ export class RampsController extends BaseController<
       options?.fiat,
       options?.payments,
     ]);
+
+    console.log('[RampsController] getProviders - executing request:', {
+      cacheKey,
+      normalizedRegion,
+      options,
+    });
 
     const { providers } = await this.executeRequest(
       cacheKey,
@@ -860,6 +921,10 @@ export class RampsController extends BaseController<
       options,
     );
 
+    console.log('[RampsController] getProviders - executeRequest result:', {
+      providers
+    });
+
     if (!options?.doNotUpdateState) {
       this.update((state) => {
         const userRegionCode = state.userRegion?.regionCode;
@@ -868,6 +933,10 @@ export class RampsController extends BaseController<
           userRegionCode === undefined ||
           userRegionCode === normalizedRegion
         ) {
+          
+          console.log('[RampsController] getProviders - updating state with providers:', {
+            providers,
+          });
           state.providers = providers;
         }
       });
@@ -880,42 +949,61 @@ export class RampsController extends BaseController<
    * Fetches the list of payment methods for a given context.
    * The payment methods are saved in the controller state once fetched.
    *
+   * @param region - User's region code. If not provided, uses the user's region from controller state.
    * @param options - Query parameters for filtering payment methods.
-   * @param options.region - User's region code. If not provided, uses the user's region from controller state.
    * @param options.fiat - Fiat currency code (e.g., "usd"). If not provided, uses the user's region currency.
    * @param options.assetId - CAIP-19 cryptocurrency identifier.
    * @param options.provider - Provider ID path.
    * @param options.forceRefresh - Whether to bypass cache.
    * @param options.ttl - Custom TTL for this request.
-<<<<<<< HEAD
    * @param options.doNotUpdateState - If true, does not update controller state with results.
-=======
-   * @param options.doNotUpdateState - If true, skip updating controller state (but still update request cache for deduplication).
->>>>>>> 910d8769ff6d2f88aa994a6432364e05832be447
    * @returns The payment methods response containing payments array.
    */
-  async getPaymentMethods(options: {
-    region?: string;
-    fiat?: string;
-    assetId: string;
-    provider: string;
-    forceRefresh?: boolean;
-    ttl?: number;
-    doNotUpdateState?: boolean;
-  }): Promise<PaymentMethodsResponse> {
-    const regionToUse = options.region ?? this.state.userRegion?.regionCode;
-    const fiatToUse = options.fiat ?? this.state.userRegion?.country?.currency;
+  async getPaymentMethods(
+    region?: string,
+    options?: ExecuteRequestOptions & {
+      fiat?: string;
+      assetId: string;
+      provider: string;
+    },
+  ): Promise<PaymentMethodsResponse> {
+    console.log('[RampsController] getPaymentMethods called with:', {
+      region,
+      options,
+    });
+
+    const regionToUse = region ?? this.state.userRegion?.regionCode;
+    const fiatToUse = options?.fiat ?? this.state.userRegion?.country?.currency;
+
+    console.log('[RampsController] getPaymentMethods - resolved values:', {
+      regionToUse,
+      fiatToUse,
+    });
 
     if (!regionToUse) {
+      console.log('[RampsController] getPaymentMethods - Error: Region missing');
       throw new Error(
         'Region is required. Either provide a region parameter or ensure userRegion is set in controller state.',
       );
     }
 
     if (!fiatToUse) {
+      console.log(
+        '[RampsController] getPaymentMethods - Error: Fiat currency missing',
+      );
       throw new Error(
         'Fiat currency is required. Either provide a fiat parameter or ensure userRegion is set in controller state.',
       );
+    }
+
+    if (!options?.assetId) {
+      console.log('[RampsController] getPaymentMethods - Error: assetId missing');
+      throw new Error('assetId is required.');
+    }
+
+    if (!options?.provider) {
+      console.log('[RampsController] getPaymentMethods - Error: provider missing');
+      throw new Error('provider is required.');
     }
 
     const normalizedRegion = regionToUse.toLowerCase().trim();
@@ -927,37 +1015,66 @@ export class RampsController extends BaseController<
       options.provider,
     ]);
 
+    console.log('[RampsController] getPaymentMethods - executing request:', {
+      cacheKey,
+      normalizedRegion,
+      normalizedFiat,
+      assetId: options.assetId,
+      provider: options.provider,
+    });
+
     const response = await this.executeRequest(
       cacheKey,
       async () => {
-        return this.messenger.call('RampsService:getPaymentMethods', {
+        console.log(
+          '[RampsController] getPaymentMethods - calling RampsService:getPaymentMethods',
+        );
+        const result = this.messenger.call('RampsService:getPaymentMethods', {
           region: normalizedRegion,
           fiat: normalizedFiat,
           assetId: options.assetId,
           provider: options.provider,
         });
+        console.log(
+          '[RampsController] getPaymentMethods - RampsService:getPaymentMethods returned:',
+          result,
+        );
+        return result;
       },
-      {
-        forceRefresh: options.forceRefresh,
-        ttl: options.ttl,
-        doNotUpdateState: options.doNotUpdateState,
-      },
+      options,
     );
 
+    console.log('[RampsController] getPaymentMethods - executeRequest result:', {
+      paymentsCount: response.payments?.length ?? 0,
+      doNotUpdateState: options?.doNotUpdateState,
+    });
+
     if (!options?.doNotUpdateState) {
+      console.log(
+        '[RampsController] getPaymentMethods - updating state with payments:',
+        {
+          paymentsCount: response.payments.length,
+          currentSelectedPaymentMethod: this.state.selectedPaymentMethod?.id,
+        },
+      );
       this.update((state) => {
         state.paymentMethods = response.payments;
-        // Only clear selected payment method if it's no longer in the new list
-        // This preserves the selection when cached data is returned (same context)
         if (
           state.selectedPaymentMethod &&
           !response.payments.some(
             (pm: PaymentMethod) => pm.id === state.selectedPaymentMethod?.id,
           )
         ) {
+          console.log(
+            '[RampsController] getPaymentMethods - clearing selectedPaymentMethod (not in new list)',
+          );
           state.selectedPaymentMethod = null;
         }
       });
+      console.log(
+        '[RampsController] getPaymentMethods - state updated, paymentMethods count:',
+        this.state.paymentMethods.length,
+      );
     }
 
     return response;
@@ -974,12 +1091,17 @@ export class RampsController extends BaseController<
     token: RampsToken | null,
     options?: ExecuteRequestOptions,
   ): Promise<void> {
+    console.log('[RampsController] setSelectedToken called with:', {
+      token: token ? { assetId: token.assetId, symbol: token.symbol } : null,
+      options,
+    });
+
     this.update((state) => {
       state.selectedToken = token;
     });
 
     if (!token) {
-      // Clear payment methods when token is cleared
+      console.log('[RampsController] Token is null, clearing payment methods');
       this.update((state) => {
         state.paymentMethods = [];
         state.selectedPaymentMethod = null;
@@ -989,10 +1111,26 @@ export class RampsController extends BaseController<
 
     // Automatically fetch payment methods for the selected token
     const provider = this.state.preferredProvider ?? this.state.providers[0];
+    console.log('[RampsController] setSelectedToken - provider resolution:', {
+      preferredProvider: this.state.preferredProvider?.id ?? null,
+      firstProvider: this.state.providers[0]?.id ?? null,
+      providersCount: this.state.providers.length,
+      resolvedProvider: provider?.id ?? null,
+    });
+
     if (provider) {
+      console.log(
+        '[RampsController] Calling #fetchAndSetPaymentMethods with:',
+        {
+          providerId: provider.id,
+          tokenAssetId: token.assetId,
+        },
+      );
       await this.#fetchAndSetPaymentMethods(provider.id, token, options);
     } else {
-      // No provider available, clear payment methods
+      console.log(
+        '[RampsController] No provider available, clearing payment methods',
+      );
       this.update((state) => {
         state.paymentMethods = [];
         state.selectedPaymentMethod = null;
@@ -1012,8 +1150,17 @@ export class RampsController extends BaseController<
     token?: RampsToken,
     options?: ExecuteRequestOptions,
   ): Promise<void> {
+    console.log('[RampsController] #fetchAndSetPaymentMethods called with:', {
+      providerId,
+      token: token ? { assetId: token.assetId, symbol: token.symbol } : null,
+      options,
+    });
+
     const tokenToUse = token ?? this.state.selectedToken;
     if (!tokenToUse) {
+      console.log(
+        '[RampsController] #fetchAndSetPaymentMethods - No token available, returning early',
+      );
       return;
     }
 
@@ -1022,27 +1169,66 @@ export class RampsController extends BaseController<
     const regionCode = this.state.userRegion?.regionCode;
     const fiatCurrency = this.state.userRegion?.country?.currency;
 
+    console.log('[RampsController] #fetchAndSetPaymentMethods - Context:', {
+      assetId,
+      regionCode,
+      fiatCurrency,
+      userRegion: this.state.userRegion,
+    });
+
     if (!regionCode || !fiatCurrency) {
+      console.log(
+        '[RampsController] #fetchAndSetPaymentMethods - Missing regionCode or fiatCurrency, returning early',
+        { regionCode, fiatCurrency },
+      );
       return;
     }
 
     try {
-      const response = await this.getPaymentMethods({
+      console.log(
+        '[RampsController] #fetchAndSetPaymentMethods - Calling getPaymentMethods with:',
+        {
+          regionCode,
+          assetId,
+          provider: providerId,
+          fiat: fiatCurrency,
+        },
+      );
+
+      const response = await this.getPaymentMethods(regionCode, {
         assetId,
         provider: providerId,
-        region: regionCode,
         fiat: fiatCurrency,
         ...options,
       });
 
+      console.log(
+        '[RampsController] #fetchAndSetPaymentMethods - getPaymentMethods response:',
+        {
+          paymentsCount: response.payments.length,
+          payments: response.payments.map((p) => ({ id: p.id, name: p.name })),
+        },
+      );
+
       // Auto-select the first payment method
       if (response.payments.length > 0) {
+        console.log(
+          '[RampsController] #fetchAndSetPaymentMethods - Auto-selecting first payment method:',
+          { id: response.payments[0].id, name: response.payments[0].name },
+        );
         this.update((state) => {
           state.selectedPaymentMethod = response.payments[0];
         });
+      } else {
+        console.log(
+          '[RampsController] #fetchAndSetPaymentMethods - No payment methods returned',
+        );
       }
-    } catch {
-      // Error is stored in request state, no need to throw
+    } catch (error) {
+      console.log(
+        '[RampsController] #fetchAndSetPaymentMethods - Error fetching payment methods:',
+        error,
+      );
     }
   }
 
@@ -1118,7 +1304,12 @@ export class RampsController extends BaseController<
       payments?: string | string[];
     },
   ): void {
-    this.getProviders(region, options).catch(() => {
+    console.log('[RampsController] triggerGetProviders called with:', {
+      region,
+      options,
+    });
+    this.getProviders(region, options).catch((error) => {
+      console.log('[RampsController] triggerGetProviders - Error:', error);
       // Error stored in state
     });
   }
@@ -1126,29 +1317,24 @@ export class RampsController extends BaseController<
   /**
    * Triggers fetching payment methods without throwing.
    *
+   * @param region - User's region code. If not provided, uses userRegion from state.
    * @param options - Query parameters for filtering payment methods.
-   * @param options.region - User's region code. If not provided, uses userRegion from state.
    * @param options.fiat - Fiat currency code. If not provided, uses userRegion currency.
    * @param options.assetId - CAIP-19 cryptocurrency identifier.
    * @param options.provider - Provider ID path.
    * @param options.forceRefresh - Whether to bypass cache.
    * @param options.ttl - Custom TTL for this request.
-<<<<<<< HEAD
    * @param options.doNotUpdateState - If true, does not update controller state with results.
-=======
-   * @param options.doNotUpdateState - If true, skip updating controller state.
->>>>>>> 910d8769ff6d2f88aa994a6432364e05832be447
    */
-  triggerGetPaymentMethods(options: {
-    region?: string;
-    fiat?: string;
-    assetId: string;
-    provider: string;
-    forceRefresh?: boolean;
-    ttl?: number;
-    doNotUpdateState?: boolean;
-  }): void {
-    this.getPaymentMethods(options).catch(() => {
+  triggerGetPaymentMethods(
+    region?: string,
+    options?: ExecuteRequestOptions & {
+      fiat?: string;
+      assetId: string;
+      provider: string;
+    },
+  ): void {
+    this.getPaymentMethods(region, options).catch(() => {
       // Error stored in state
     });
   }

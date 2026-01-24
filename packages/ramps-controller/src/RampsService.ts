@@ -356,6 +356,69 @@ function getApiPath(path: string, version: string = 'v2'): string {
   return `${version}/${path}`;
 }
 
+const PAYMENT_METHOD_POOL: PaymentMethod[] = [
+  {
+    id: '/payments/debit-credit-card',
+    paymentType: 'debit-credit-card',
+    name: 'Debit or Credit',
+    score: 90,
+    icon: 'card',
+    disclaimer: "Credit card purchases may incur your bank's cash advance fees.",
+    delay: '5 to 10 minutes.',
+    pendingOrderDescription: 'Card purchases may take a few minutes to complete.',
+  },
+  {
+    id: '/payments/bank-transfer',
+    paymentType: 'bank-transfer',
+    name: 'Bank Transfer',
+    score: 80,
+    icon: 'bank',
+    disclaimer: 'Bank transfers may take 1-3 business days.',
+    delay: '1-3 business days',
+    pendingOrderDescription: 'Bank transfers may take 1-3 business days to complete.',
+  },
+  {
+    id: '/payments/apple-pay',
+    paymentType: 'apple-pay',
+    name: 'Apple Pay',
+    score: 95,
+    icon: 'apple',
+    delay: '5 to 10 minutes.',
+    pendingOrderDescription: 'Apple Pay purchases may take a few minutes to complete.',
+  },
+  {
+    id: '/payments/google-pay',
+    paymentType: 'google-pay',
+    name: 'Google Pay',
+    score: 92,
+    icon: 'google',
+    delay: '5 to 10 minutes.',
+    pendingOrderDescription: 'Google Pay purchases may take a few minutes to complete.',
+  },
+  {
+    id: '/payments/paypal',
+    paymentType: 'paypal',
+    name: 'PayPal',
+    score: 85,
+    icon: 'paypal',
+    disclaimer: 'PayPal transactions may have additional fees.',
+    delay: '10 to 15 minutes.',
+    pendingOrderDescription: 'PayPal purchases may take a few minutes to complete.',
+  },
+];
+
+/**
+ * Generates a mock payment methods response with a random subset of payment methods.
+ * Returns 3 random payment methods from a pool of 5.
+ *
+ * @returns A PaymentMethodsResponse with 3 randomly selected payment methods.
+ */
+export function generatePaymentMethodMockResponse(): PaymentMethodsResponse {
+  const shuffled = [...PAYMENT_METHOD_POOL].sort(() => Math.random() - 0.5);
+  const selected = shuffled.slice(0, 3);
+  return { payments: selected };
+}
+
 /**
  * This service object is responsible for interacting with the Ramps API.
  *
@@ -619,8 +682,8 @@ export class RampsService {
     }
 
     return countries.filter((country) => {
-      const isCountrySupported =
-        country.supported.buy || country.supported.sell;
+      const isCountrySupported = true
+        // country.supported.buy || country.supported.sell;
 
       if (country.states && country.states.length > 0) {
         const hasSupportedState = country.states.some(
@@ -711,12 +774,20 @@ export class RampsService {
       payments?: string | string[];
     },
   ): Promise<{ providers: Provider[] }> {
+    console.log('[RampsService] getProviders called with:', {
+      regionCode,
+      options,
+    });
     const normalizedRegion = regionCode.toLowerCase().trim();
     const url = new URL(
       getApiPath(`regions/${normalizedRegion}/providers`),
       getBaseUrl(this.#environment, RampsApiService.Regions),
     );
+    console.log('[RampsService] getProviders - url:', {
+      url: url.toString(),
+    });
     this.#addCommonParams(url);
+
 
     if (options?.provider) {
       const providerIds = Array.isArray(options.provider)
@@ -746,15 +817,81 @@ export class RampsService {
       paymentIds.forEach((id) => url.searchParams.append('payments', id));
     }
 
-    const response = await this.#policy.execute(async () => {
-      const fetchResponse = await this.#fetch(url);
-      if (!fetchResponse.ok) {
-        throw new HttpError(
-          fetchResponse.status,
-          `Fetching '${url.toString()}' failed with status '${fetchResponse.status}'`,
-        );
-      }
-      return fetchResponse.json() as Promise<{ providers: Provider[] }>;
+    // const response = await this.#policy.execute(async () => {
+    //   const fetchResponse = await this.#fetch(url);
+    //   if (!fetchResponse.ok) {
+    //     throw new HttpError(
+    //       fetchResponse.status,
+    //       `Fetching '${url.toString()}' failed with status '${fetchResponse.status}'`,
+    //     );
+    //   }
+    //   return fetchResponse.json() as Promise<{ providers: Provider[] }>;
+    // });
+
+    const response: { providers: Provider[] } = {
+      providers: [
+      {
+        id: '/providers/transak',
+        name: 'Transak',
+        environmentType: 'PRODUCTION',
+        description:
+          'Per Transak: "The fastest and securest way to buy 100+ cryptocurrencies on 75+ blockchains. Pay via Apple Pay, UPI, bank transfer or use your debit or credit card."',
+        hqAddress: '35 Shearing Street, Bury St. Edmunds, IP32 6FE, United Kingdom',
+        links: [
+          { name: 'Homepage', url: 'https://www.transak.com/' },
+          { name: 'Privacy Policy', url: 'https://transak.com/privacy-policy' },
+          { name: 'Support', url: 'https://support.transak.com/hc/en-us' },
+        ],
+        logos: {
+          light: 'https://on-ramp-content.api.cx.metamask.io/assets/providers/transak_light.png',
+          dark: 'https://on-ramp-content.api.cx.metamask.io/assets/providers/transak_dark.png',
+          height: 24,
+          width: 90,
+        },
+      },
+      {
+        id: '/providers/moonpay',
+        name: 'Moonpay',
+        environmentType: 'PRODUCTION',
+        description:
+          'Per MoonPay: "MoonPay provides a smooth experience for converting between fiat currencies and cryptocurrencies."',
+        hqAddress: '8 The Green, Dover, DE, 19901, USA',
+        links: [
+          { name: 'Homepage', url: 'https://www.moonpay.com/' },
+          { name: 'Privacy Policy', url: 'https://www.moonpay.com/legal/privacy_policy' },
+          { name: 'Support', url: 'https://support.moonpay.com/hc/en-gb/categories/360001595097-Customer-Support-Help-Center' },
+        ],
+        logos: {
+          light: 'https://on-ramp-content.api.cx.metamask.io/assets/providers/moonpay_light.png',
+          dark: 'https://on-ramp-content.api.cx.metamask.io/assets/providers/moonpay_dark.png',
+          height: 24,
+          width: 88,
+        },
+      },
+      {
+        id: '/providers/stripe',
+        name: 'Stripe',
+        environmentType: 'PRODUCTION',
+        description:
+          'Per Stripe: "The Stripe crypto onramp gives web3 developers an easy and fast way for their consumers to purchase crypto with a credit card, debit card, or ACH."',
+        hqAddress: '354 Oyster Point Blvd, South San Francisco, CA 94080, USA',
+        links: [
+          { name: 'Homepage', url: 'https://crypto.link.com' },
+          { name: 'Support', url: 'https://support.link.com/topics/crypto' },
+          { name: 'Privacy Policy', url: 'https://link.com/privacy' },
+        ],
+        logos: {
+          light: 'https://on-ramp-content.api.cx.metamask.io/assets/providers/stripe_light.png',
+          dark: 'https://on-ramp-content.api.cx.metamask.io/assets/providers/stripe_dark.png',
+          height: 24,
+          width: 100,
+        },
+        },
+      ],
+    };
+
+    console.log('[RampsService] getProviders - response:', {
+      response,
     });
 
     if (!response || typeof response !== 'object') {
@@ -795,16 +932,18 @@ export class RampsService {
     url.searchParams.set('assetId', options.assetId);
     url.searchParams.set('provider', options.provider);
 
-    const response = await this.#policy.execute(async () => {
-      const fetchResponse = await this.#fetch(url);
-      if (!fetchResponse.ok) {
-        throw new HttpError(
-          fetchResponse.status,
-          `Fetching '${url.toString()}' failed with status '${fetchResponse.status}'`,
-        );
-      }
-      return fetchResponse.json() as Promise<PaymentMethodsResponse>;
-    });
+    // const response = await this.#policy.execute(async () => {
+    //   const fetchResponse = await this.#fetch(url);
+    //   if (!fetchResponse.ok) {
+    //     throw new HttpError(
+    //       fetchResponse.status,
+    //       `Fetching '${url.toString()}' failed with status '${fetchResponse.status}'`,
+    //     );
+    //   }
+    //   return fetchResponse.json() as Promise<PaymentMethodsResponse>;
+    // });
+
+    const response = generatePaymentMethodMockResponse();
 
     if (!response || typeof response !== 'object') {
       throw new Error('Malformed response received from paymentMethods API');

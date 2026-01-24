@@ -404,6 +404,7 @@ describe('RampsController', () => {
             "providers": Array [],
             "requests": Object {},
             "selectedPaymentMethod": null,
+            "selectedToken": null,
             "tokens": null,
             "userRegion": null,
           }
@@ -426,6 +427,7 @@ describe('RampsController', () => {
             "preferredProvider": null,
             "providers": Array [],
             "selectedPaymentMethod": null,
+            "selectedToken": null,
             "tokens": null,
             "userRegion": null,
           }
@@ -446,6 +448,7 @@ describe('RampsController', () => {
             "countries": Array [],
             "preferredProvider": null,
             "providers": Array [],
+            "selectedToken": null,
             "tokens": null,
             "userRegion": null,
           }
@@ -469,6 +472,7 @@ describe('RampsController', () => {
             "providers": Array [],
             "requests": Object {},
             "selectedPaymentMethod": null,
+            "selectedToken": null,
             "tokens": null,
             "userRegion": null,
           }
@@ -1371,7 +1375,7 @@ describe('RampsController', () => {
 
           await controller.setUserRegion('US');
           await new Promise((resolve) => setTimeout(resolve, 50));
-          await controller.getPaymentMethods({
+          await controller.getPaymentMethods(undefined, {
             assetId: 'eip155:1/slip44:60',
             provider: '/providers/test',
           });
@@ -2456,7 +2460,7 @@ describe('RampsController', () => {
             mockPaymentMethod1,
           );
 
-          await controller.getPaymentMethods({
+          await controller.getPaymentMethods(undefined, {
             assetId: 'eip155:1/slip44:60',
             provider: '/providers/stripe',
           });
@@ -2502,7 +2506,7 @@ describe('RampsController', () => {
             removedPaymentMethod,
           );
 
-          await controller.getPaymentMethods({
+          await controller.getPaymentMethods(undefined, {
             assetId: 'eip155:1/slip44:60',
             provider: '/providers/stripe',
           });
@@ -2536,7 +2540,7 @@ describe('RampsController', () => {
 
           expect(controller.state.selectedPaymentMethod).toBeNull();
 
-          await controller.getPaymentMethods({
+          await controller.getPaymentMethods(undefined, {
             assetId: 'eip155:1/slip44:60',
             provider: '/providers/stripe',
           });
@@ -2568,7 +2572,7 @@ describe('RampsController', () => {
 
           expect(controller.state.paymentMethods).toStrictEqual([]);
 
-          await controller.getPaymentMethods({
+          await controller.getPaymentMethods(undefined, {
             assetId: 'eip155:1/slip44:60',
             provider: '/providers/stripe',
           });
@@ -2584,7 +2588,7 @@ describe('RampsController', () => {
     it('throws error when region is not provided and userRegion is not set', async () => {
       await withController(async ({ controller }) => {
         await expect(
-          controller.getPaymentMethods({
+          controller.getPaymentMethods(undefined, {
             assetId: 'eip155:1/slip44:60',
             provider: '/providers/stripe',
           }),
@@ -2618,7 +2622,7 @@ describe('RampsController', () => {
             },
           );
 
-          await controller.getPaymentMethods({
+          await controller.getPaymentMethods(undefined, {
             assetId: 'eip155:1/slip44:60',
             provider: '/providers/stripe',
           });
@@ -2653,7 +2657,7 @@ describe('RampsController', () => {
         },
         async ({ controller }) => {
           await expect(
-            controller.getPaymentMethods({
+            controller.getPaymentMethods(undefined, {
               assetId: 'eip155:1/slip44:60',
               provider: '/providers/stripe',
             }),
@@ -2681,7 +2685,7 @@ describe('RampsController', () => {
 
           expect(controller.state.paymentMethods).toStrictEqual([]);
 
-          const response = await controller.getPaymentMethods({
+          const response = await controller.getPaymentMethods(undefined, {
             assetId: 'eip155:1/slip44:60',
             provider: '/providers/stripe',
             doNotUpdateState: true,
@@ -2769,7 +2773,7 @@ describe('RampsController', () => {
           );
 
           // Should not throw
-          controller.triggerGetPaymentMethods({
+          controller.triggerGetPaymentMethods(undefined, {
             assetId: 'eip155:1/slip44:60',
             provider: '/providers/stripe',
           });
@@ -2788,7 +2792,7 @@ describe('RampsController', () => {
       await withController(async ({ controller }) => {
         // Should not throw even when getPaymentMethods would fail (no region)
         expect(() => {
-          controller.triggerGetPaymentMethods({
+          controller.triggerGetPaymentMethods(undefined, {
             assetId: 'eip155:1/slip44:60',
             provider: '/providers/stripe',
           });
