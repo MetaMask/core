@@ -32,7 +32,6 @@ export {
   RampsEnvironment,
   RampsApiService,
   RAMPS_SDK_VERSION,
-  generatePaymentMethodMockResponse,
 } from './RampsService';
 export type {
   RampsServiceGetGeolocationAction,
