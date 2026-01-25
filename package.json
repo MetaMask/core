@@ -63,7 +63,6 @@
     "@metamask/eth-block-tracker": "^15.0.1",
     "@metamask/eth-json-rpc-provider": "^6.0.0",
     "@metamask/json-rpc-engine": "^10.2.1",
-    "@metamask/network-controller": "^29.0.0",
     "@metamask/utils": "^11.9.0",
     "@ts-bridge/cli": "^0.6.4",
     "@types/jest": "^27.4.1",

@@ -8,7 +8,6 @@
     { "path": "../controller-utils" },
     { "path": "../keyring-controller" },
     { "path": "../messenger" },
-    { "path": "../network-controller" },
     { "path": "../polling-controller" },
     { "path": "../profile-sync-controller" },
     { "path": "../remote-feature-flag-controller" }
