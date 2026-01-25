@@ -112,9 +112,8 @@ describe('TokenRatesController', () => {
     it('should not fail if tokenPricesService does not have setNativeAssetIdentifiers', async () => {
       const tokenPricesService = buildMockTokenPricesService();
       // Explicitly remove setNativeAssetIdentifiers to simulate an old service
-      delete (
-        tokenPricesService as Partial<AbstractTokenPricesService>
-      ).setNativeAssetIdentifiers;
+      delete (tokenPricesService as Partial<AbstractTokenPricesService>)
+        .setNativeAssetIdentifiers;
 
       await withController(
         {
