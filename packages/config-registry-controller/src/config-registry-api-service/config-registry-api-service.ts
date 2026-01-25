@@ -6,25 +6,26 @@ import {
   DEFAULT_MAX_RETRIES,
 } from '@metamask/controller-utils';
 import type { ServicePolicy } from '@metamask/controller-utils';
+import { SDK } from '@metamask/profile-sync-controller';
 
-import type {
-  AbstractConfigRegistryApiService,
-  FetchConfigOptions,
-  FetchConfigResult,
-  RegistryConfigApiResponse,
-} from './abstract-config-registry-api-service';
+import { validateRegistryConfigApiResponse } from './types';
+import type { FetchConfigOptions, FetchConfigResult } from './types';
 
-export const DEFAULT_API_BASE_URL =
-  'https://client-config.uat-api.cx.metamask.io/v1';
+const ENDPOINT_PATH = '/config/networks';
 
-export const DEFAULT_ENDPOINT_PATH = '/config/networks';
-
-export const DEFAULT_TIMEOUT = 10 * 1000;
+/**
+ * Returns the base URL for the config registry API for the given environment.
+ *
+ * @param env - The environment to get the URL for.
+ * @returns The base URL for the environment.
+ */
+export function getConfigRegistryUrl(env: SDK.Env): string {
+  const envPrefix = env === SDK.Env.PRD ? '' : `${env}-`;
+  return `https://client-config.${envPrefix}api.cx.metamask.io/v1${ENDPOINT_PATH}`;
+}
 
 export type ConfigRegistryApiServiceOptions = {
-  apiBaseUrl?: string;
-  endpointPath?: string;
-  timeout?: number;
+  env?: SDK.Env;
   fetch?: typeof fetch;
   degradedThreshold?: number;
   retries?: number;
@@ -32,16 +33,10 @@ export type ConfigRegistryApiServiceOptions = {
   circuitBreakDuration?: number;
 };
 
-export class ConfigRegistryApiService
-  implements AbstractConfigRegistryApiService
-{
+export class ConfigRegistryApiService {
   readonly #policy: ServicePolicy;
 
-  readonly #apiBaseUrl: string;
-
-  readonly #endpointPath: string;
-
-  readonly #timeout: number;
+  readonly #url: string;
 
   readonly #fetch: typeof fetch;
 
@@ -49,9 +44,7 @@ export class ConfigRegistryApiService
    * Construct a Config Registry API Service.
    *
    * @param options - The options for constructing the service.
-   * @param options.apiBaseUrl - The base URL for the API. Defaults to the UAT API URL.
-   * @param options.endpointPath - The endpoint path. Defaults to '/config/networks'.
-   * @param options.timeout - Timeout for HTTP requests in milliseconds. Defaults to 10 seconds.
+   * @param options.env - The environment to determine the correct API endpoints. Defaults to UAT.
    * @param options.fetch - Custom fetch function for testing or custom implementations. Defaults to the global fetch.
    * @param options.degradedThreshold - The length of time (in milliseconds) that governs when the service is regarded as degraded. Defaults to 5 seconds.
    * @param options.retries - Number of retry attempts for each fetch request. Defaults to 3.
@@ -59,18 +52,14 @@ export class ConfigRegistryApiService
    * @param options.circuitBreakDuration - The amount of time to wait when the circuit breaks from too many consecutive failures. Defaults to 2 minutes.
    */
   constructor({
-    apiBaseUrl = DEFAULT_API_BASE_URL,
-    endpointPath = DEFAULT_ENDPOINT_PATH,
-    timeout = DEFAULT_TIMEOUT,
+    env = SDK.Env.UAT,
     fetch: customFetch = globalThis.fetch,
     degradedThreshold = DEFAULT_DEGRADED_THRESHOLD,
     retries = DEFAULT_MAX_RETRIES,
     maximumConsecutiveFailures = DEFAULT_MAX_CONSECUTIVE_FAILURES,
     circuitBreakDuration = DEFAULT_CIRCUIT_BREAK_DURATION,
   }: ConfigRegistryApiServiceOptions = {}) {
-    this.#apiBaseUrl = apiBaseUrl;
-    this.#endpointPath = endpointPath;
-    this.#timeout = timeout;
+    this.#url = getConfigRegistryUrl(env);
     this.#fetch = customFetch;
 
     this.#policy = createServicePolicy({
@@ -96,14 +85,6 @@ export class ConfigRegistryApiService
   async fetchConfig(
     options: FetchConfigOptions = {},
   ): Promise<FetchConfigResult> {
-    const baseUrl = this.#apiBaseUrl.endsWith('/')
-      ? this.#apiBaseUrl.slice(0, -1)
-      : this.#apiBaseUrl;
-    const endpointPath = this.#endpointPath.startsWith('/')
-      ? this.#endpointPath
-      : `/${this.#endpointPath}`;
-    const url = new URL(`${baseUrl}${endpointPath}`);
-
     const headers: HeadersInit = {
       'Cache-Control': 'no-cache',
     };
@@ -112,28 +93,10 @@ export class ConfigRegistryApiService
       headers['If-None-Match'] = options.etag;
     }
 
-    const fetchWithTimeout = async (): Promise<Response> => {
-      const controller = new AbortController();
-      const timeoutId = setTimeout(() => controller.abort(), this.#timeout);
-
-      try {
-        const response = await this.#fetch(url.toString(), {
-          headers,
-          signal: controller.signal,
-        });
-        clearTimeout(timeoutId);
-        return response;
-      } catch (error) {
-        clearTimeout(timeoutId);
-        if (error instanceof Error && error.name === 'AbortError') {
-          throw new Error(`Request timeout after ${this.#timeout}ms`);
-        }
-        throw error;
-      }
-    };
-
     const response = await this.#policy.execute(async () => {
-      const res = await fetchWithTimeout();
+      const res = await this.#fetch(this.#url, {
+        headers,
+      });
 
       if (res.status === 304) {
         return res;
@@ -151,22 +114,20 @@ export class ConfigRegistryApiService
     if (response.status === 304) {
       const etag = response.headers.get('ETag') ?? undefined;
       return {
-        notModified: true,
+        modified: false,
         etag,
       };
     }
 
     const etag = response.headers.get('ETag') ?? undefined;
-    const data = (await response.json()) as RegistryConfigApiResponse;
+    const jsonData = await response.json();
 
-    if (!data?.data || !Array.isArray(data.data.networks)) {
-      throw new Error('Invalid response structure from config registry API');
-    }
+    validateRegistryConfigApiResponse(jsonData);
 
     return {
-      data,
+      data: jsonData,
       etag,
-      notModified: false,
+      modified: true,
     };
   }
 }

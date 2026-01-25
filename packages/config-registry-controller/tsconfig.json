@@ -10,6 +10,7 @@
     { "path": "../messenger" },
     { "path": "../network-controller" },
     { "path": "../polling-controller" },
+    { "path": "../profile-sync-controller" },
     { "path": "../remote-feature-flag-controller" }
   ],
   "include": ["../../types", "./src"]

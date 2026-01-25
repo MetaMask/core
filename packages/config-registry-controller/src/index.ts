@@ -1,5 +1,4 @@
 export type {
-  RegistryConfigEntry,
   ConfigRegistryState,
   ConfigRegistryControllerOptions,
   ConfigRegistryControllerActions,
@@ -15,7 +14,6 @@ export {
   DEFAULT_POLLING_INTERVAL,
 } from './ConfigRegistryController';
 export type {
-  AbstractConfigRegistryApiService,
   FetchConfigOptions,
   FetchConfigResult,
   NetworkConfig,
@@ -25,9 +23,7 @@ export type {
 } from './config-registry-api-service';
 export {
   ConfigRegistryApiService,
-  DEFAULT_API_BASE_URL,
-  DEFAULT_ENDPOINT_PATH,
-  DEFAULT_TIMEOUT,
+  getConfigRegistryUrl,
   filterNetworks,
 } from './config-registry-api-service';
 export { isConfigRegistryApiEnabled } from './utils/feature-flags';

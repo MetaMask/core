@@ -19,17 +19,11 @@ import type {
   NetworkConfig,
 } from './config-registry-api-service';
 import { filterNetworks } from './config-registry-api-service';
-import { isConfigRegistryApiEnabled } from './utils/feature-flags';
+import { isConfigRegistryApiEnabled as defaultIsConfigRegistryApiEnabled } from './utils/feature-flags';
 
 const controllerName = 'ConfigRegistryController';
 
 export const DEFAULT_POLLING_INTERVAL = inMilliseconds(1, Duration.Day);
-
-export type RegistryConfigEntry = {
-  key: string;
-  value: Json;
-  metadata?: Json;
-};
 
 export type NetworkConfigEntry = {
   key: string;
@@ -68,8 +62,8 @@ const stateMetadata = {
   },
   fetchError: {
     persist: true,
-    includeInStateLogs: true,
-    includeInDebugSnapshot: true,
+    includeInStateLogs: false,
+    includeInDebugSnapshot: false,
     usedInUi: false,
   },
   etag: {
@@ -97,7 +91,7 @@ export type ConfigRegistryControllerStartPollingAction = {
 
 export type ConfigRegistryControllerStopPollingAction = {
   type: `${typeof controllerName}:stopPolling`;
-  handler: () => void;
+  handler: (token?: string) => void;
 };
 
 export type ConfigRegistryControllerActions =
@@ -133,6 +127,7 @@ export type ConfigRegistryControllerOptions = {
   state?: Partial<ConfigRegistryState>;
   pollingInterval?: number;
   fallbackConfig?: Record<string, NetworkConfigEntry>;
+  isConfigRegistryApiEnabled?: (messenger: ConfigRegistryMessenger) => boolean;
 };
 
 export class ConfigRegistryController extends StaticIntervalPollingController<null>()<
@@ -142,6 +137,16 @@ export class ConfigRegistryController extends StaticIntervalPollingController<nu
 > {
   readonly #fallbackConfig: Record<string, NetworkConfigEntry>;
 
+  readonly #isConfigRegistryApiEnabled: (
+    messenger: ConfigRegistryMessenger,
+  ) => boolean;
+
+  readonly #unlockHandler: () => void;
+
+  readonly #lockHandler: () => void;
+
+  #delayedPollTimeoutId: ReturnType<typeof setTimeout> | null = null;
+
   /**
    * @param options - The controller options.
    * @param options.messenger - The controller messenger. Must have
@@ -149,44 +154,59 @@ export class ConfigRegistryController extends StaticIntervalPollingController<nu
    * @param options.state - Initial state.
    * @param options.pollingInterval - Polling interval in milliseconds.
    * @param options.fallbackConfig - Fallback configuration.
+   * @param options.isConfigRegistryApiEnabled - Function to check if the config
+   * registry API is enabled. Defaults to checking the remote feature flag.
    */
   constructor({
     messenger,
     state = {},
     pollingInterval = DEFAULT_POLLING_INTERVAL,
     fallbackConfig = DEFAULT_FALLBACK_CONFIG,
+    isConfigRegistryApiEnabled = defaultIsConfigRegistryApiEnabled,
   }: ConfigRegistryControllerOptions) {
     super({
       name: controllerName,
       metadata: stateMetadata,
       messenger,
       state: {
-        configs: { networks: {} },
-        version: null,
-        lastFetched: null,
-        fetchError: null,
-        etag: null,
-        ...state,
+        configs: {
+          networks: state.configs?.networks ?? { ...fallbackConfig },
+        },
+        version: state.version ?? null,
+        lastFetched: state.lastFetched ?? null,
+        fetchError: state.fetchError ?? null,
+        etag: state.etag ?? null,
       },
     });
 
     this.setIntervalLength(pollingInterval);
     this.#fallbackConfig = fallbackConfig;
+    this.#isConfigRegistryApiEnabled = isConfigRegistryApiEnabled;
+
+    // Store handlers for cleanup
+    this.#unlockHandler = (): void => {
+      this.startPolling(null);
+    };
+
+    this.#lockHandler = (): void => {
+      this.stopPolling();
+    };
 
     this.messenger.registerActionHandler(
       `${controllerName}:startPolling`,
       (input: null) => this.startPolling(input),
     );
 
-    this.messenger.registerActionHandler(`${controllerName}:stopPolling`, () =>
-      this.stopPolling(),
+    this.messenger.registerActionHandler(
+      `${controllerName}:stopPolling`,
+      (token?: string) => this.stopPolling(token),
     );
 
     this.#registerKeyringEventListeners();
   }
 
   async _executePoll(_input: null): Promise<void> {
-    const isApiEnabled = isConfigRegistryApiEnabled(this.messenger);
+    const isApiEnabled = this.#isConfigRegistryApiEnabled(this.messenger);
 
     if (!isApiEnabled) {
       this.useFallbackConfig(
@@ -214,25 +234,15 @@ export class ConfigRegistryController extends StaticIntervalPollingController<nu
         },
       );
 
-      if (result.notModified) {
+      if (!result.modified) {
         this.update((state) => {
           state.fetchError = null;
+          state.lastFetched = Date.now();
           if (result.etag !== undefined) {
             state.etag = result.etag ?? null;
           }
         });
         return;
-      }
-
-      // Validate API response structure to prevent runtime crashes
-      if (
-        !result.data?.data ||
-        !Array.isArray(result.data.data.networks) ||
-        typeof result.data.data.version !== 'string'
-      ) {
-        throw new Error(
-          'Invalid response structure from config registry API: missing or malformed data',
-        );
       }
 
       // Filter networks: only featured, active, non-testnet networks
@@ -242,11 +252,46 @@ export class ConfigRegistryController extends StaticIntervalPollingController<nu
         isTestnet: false,
       });
 
+      // Group networks by chainId to detect duplicates
+      const networksByChainId = new Map<
+        string,
+        { network: NetworkConfig; index: number }[]
+      >();
+      filteredNetworks.forEach((network, index) => {
+        const existing = networksByChainId.get(network.chainId) ?? [];
+        existing.push({ network, index });
+        networksByChainId.set(network.chainId, existing);
+      });
+
+      // Build configs, handling duplicates by keeping highest priority network
       const newConfigs: Record<string, NetworkConfigEntry> = {};
-      for (const network of filteredNetworks) {
-        newConfigs[network.chainId] = {
-          key: network.chainId,
-          value: network,
+      for (const [chainId, networks] of networksByChainId) {
+        if (networks.length > 1) {
+          // Duplicate chainIds detected - log warning and keep highest priority
+          const duplicateNames = networks
+            .map((networkEntry) => networkEntry.network.name)
+            .join(', ');
+          const warningMessage = `Duplicate chainId ${chainId} detected in config registry API response. Networks: ${duplicateNames}. Keeping network with highest priority.`;
+
+          if (this.messenger.captureException) {
+            this.messenger.captureException(new Error(warningMessage));
+          }
+
+          // Sort by priority (lower number = higher priority), then by index (first occurrence)
+          networks.sort((a, b) => {
+            const priorityDiff = a.network.priority - b.network.priority;
+            if (priorityDiff === 0) {
+              return a.index - b.index;
+            }
+            return priorityDiff;
+          });
+        }
+
+        // Use the first network (highest priority if duplicates existed)
+        const selectedNetwork = networks[0].network;
+        newConfigs[chainId] = {
+          key: chainId,
+          value: selectedNetwork,
         };
       }
 
@@ -286,16 +331,10 @@ export class ConfigRegistryController extends StaticIntervalPollingController<nu
     const errorMessage =
       error instanceof Error ? error.message : 'Unknown error occurred';
 
-    const hasNoConfigs =
-      Object.keys(this.state.configs?.networks ?? {}).length === 0;
-
-    if (hasNoConfigs) {
-      this.useFallbackConfig(errorMessage);
-    } else {
-      this.update((state) => {
-        state.fetchError = errorMessage;
-      });
-    }
+    this.update((state) => {
+      state.fetchError = errorMessage;
+      state.lastFetched = Date.now();
+    });
   }
 
   /**
@@ -314,21 +353,95 @@ export class ConfigRegistryController extends StaticIntervalPollingController<nu
     }
 
     // Subscribe to unlock event - start polling
-    this.messenger.subscribe('KeyringController:unlock', () => {
-      this.startPolling(null);
-    });
+    this.messenger.subscribe('KeyringController:unlock', this.#unlockHandler);
 
     // Subscribe to lock event - stop polling
-    this.messenger.subscribe('KeyringController:lock', () => {
-      this.stopPolling();
-    });
+    this.messenger.subscribe('KeyringController:lock', this.#lockHandler);
   }
 
   startPolling(input: null = null): string {
-    return super.startPolling(input);
+    const token = super.startPolling(input);
+
+    // Calculate delay based on lastFetched to respect 24-hour interval
+    const pollingInterval =
+      this.getIntervalLength() ?? DEFAULT_POLLING_INTERVAL;
+    const now = Date.now();
+    const { lastFetched } = this.state;
+
+    if (lastFetched !== null) {
+      const timeSinceLastFetch = now - lastFetched;
+      const remainingTime = pollingInterval - timeSinceLastFetch;
+
+      if (remainingTime > 0) {
+        // Not enough time has passed, delay the first poll
+        // Clear any existing timeout before stopping polling
+        if (this.#delayedPollTimeoutId !== null) {
+          clearTimeout(this.#delayedPollTimeoutId);
+          this.#delayedPollTimeoutId = null;
+        }
+
+        // Stop the immediate poll that was just started
+        this.stopPolling();
+
+        // Schedule the first poll after the remaining time
+        this.#delayedPollTimeoutId = setTimeout(() => {
+          this.#delayedPollTimeoutId = null;
+          super.startPolling(input);
+        }, remainingTime);
+
+        return token;
+      }
+    }
+
+    // Enough time has passed or first time, proceed with normal polling
+    return token;
   }
 
-  stopPolling(): void {
-    super.stopAllPolling();
+  stopPolling(token?: string): void {
+    // Clear any pending delayed poll timeout
+    if (this.#delayedPollTimeoutId !== null) {
+      clearTimeout(this.#delayedPollTimeoutId);
+      this.#delayedPollTimeoutId = null;
+    }
+
+    if (token) {
+      // Stop specific polling session by token
+      super.stopPollingByPollingToken(token);
+    } else {
+      // Stop all polling (backward compatible)
+      super.stopAllPolling();
+    }
+  }
+
+  /**
+   * Prepares the controller for garbage collection by cleaning up event listeners,
+   * action handlers, and timers.
+   */
+  override destroy(): void {
+    // Stop polling and clear any pending timeouts
+    this.stopPolling();
+
+    // Unsubscribe from event listeners
+    try {
+      this.messenger.unsubscribe(
+        'KeyringController:unlock',
+        this.#unlockHandler,
+      );
+    } catch {
+      // Handler may not be subscribed, silently handle
+    }
+
+    try {
+      this.messenger.unsubscribe('KeyringController:lock', this.#lockHandler);
+    } catch {
+      // Handler may not be subscribed, silently handle
+    }
+
+    // Unregister action handlers
+    this.messenger.unregisterActionHandler(`${controllerName}:startPolling`);
+    this.messenger.unregisterActionHandler(`${controllerName}:stopPolling`);
+
+    // Call parent destroy to clean up base controller subscriptions
+    super.destroy();
   }
 }

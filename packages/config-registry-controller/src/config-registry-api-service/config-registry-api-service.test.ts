@@ -1,15 +1,12 @@
+import { SDK } from '@metamask/profile-sync-controller';
 import nock, { cleanAll } from 'nock';
 import { useFakeTimers } from 'sinon';
 
-import type {
-  FetchConfigResult,
-  RegistryConfigApiResponse,
-} from './abstract-config-registry-api-service';
 import {
   ConfigRegistryApiService,
-  DEFAULT_API_BASE_URL,
-  DEFAULT_ENDPOINT_PATH,
+  getConfigRegistryUrl,
 } from './config-registry-api-service';
+import type { FetchConfigResult, RegistryConfigApiResponse } from './types';
 
 const MOCK_API_RESPONSE: RegistryConfigApiResponse = {
   data: {
@@ -44,6 +41,29 @@ const MOCK_API_RESPONSE: RegistryConfigApiResponse = {
 };
 
 describe('ConfigRegistryApiService', () => {
+  describe('getConfigRegistryUrl', () => {
+    it('should return UAT URL for UAT environment', () => {
+      const url = getConfigRegistryUrl(SDK.Env.UAT);
+      expect(url).toBe(
+        'https://client-config.uat-api.cx.metamask.io/v1/config/networks',
+      );
+    });
+
+    it('should return DEV URL for DEV environment', () => {
+      const url = getConfigRegistryUrl(SDK.Env.DEV);
+      expect(url).toBe(
+        'https://client-config.dev-api.cx.metamask.io/v1/config/networks',
+      );
+    });
+
+    it('should return PRD URL for PRD environment', () => {
+      const url = getConfigRegistryUrl(SDK.Env.PRD);
+      expect(url).toBe(
+        'https://client-config.api.cx.metamask.io/v1/config/networks',
+      );
+    });
+  });
+
   describe('constructor', () => {
     it('should create instance with default options', () => {
       const service = new ConfigRegistryApiService();
@@ -53,9 +73,7 @@ describe('ConfigRegistryApiService', () => {
     it('should create instance with custom options', () => {
       const customFetch = jest.fn();
       const service = new ConfigRegistryApiService({
-        apiBaseUrl: 'https://custom-api.example.com',
-        endpointPath: '/custom/path',
-        timeout: 5000,
+        env: SDK.Env.DEV,
         fetch: customFetch,
         retries: 5,
       });
@@ -69,15 +87,14 @@ describe('ConfigRegistryApiService', () => {
 
     it('should use default values for unspecified options', () => {
       const service = new ConfigRegistryApiService({
-        apiBaseUrl: 'https://test.com',
+        env: SDK.Env.PRD,
       });
       expect(service).toBeInstanceOf(ConfigRegistryApiService);
     });
 
     it('should use default fetch when not provided', () => {
       const service = new ConfigRegistryApiService({
-        apiBaseUrl: 'https://test.com',
-        endpointPath: '/test',
+        env: SDK.Env.DEV,
       });
       expect(service).toBeInstanceOf(ConfigRegistryApiService);
     });
@@ -93,8 +110,8 @@ describe('ConfigRegistryApiService', () => {
     });
 
     it('should successfully fetch config from API', async () => {
-      const scope = nock(DEFAULT_API_BASE_URL)
-        .get(DEFAULT_ENDPOINT_PATH)
+      const scope = nock('https://client-config.uat-api.cx.metamask.io')
+        .get('/v1/config/networks')
         .reply(200, MOCK_API_RESPONSE, {
           ETag: '"test-etag-123"',
         });
@@ -102,67 +119,41 @@ describe('ConfigRegistryApiService', () => {
       const service = new ConfigRegistryApiService();
       const result = await service.fetchConfig();
 
-      expect(result.notModified).toBe(false);
+      expect(result.modified).toBe(true);
       expect(result.etag).toBe('"test-etag-123"');
       expect(
-        (result as Extract<FetchConfigResult, { notModified: false }>).data,
+        (result as Extract<FetchConfigResult, { modified: true }>).data,
       ).toStrictEqual(MOCK_API_RESPONSE);
       expect(scope.isDone()).toBe(true);
     });
 
-    it('should execute fetchWithTimeout function and call clearTimeout on success', async () => {
-      const mockHeaders = {
-        get: jest.fn().mockReturnValue('"test-etag"'),
-      };
-      const clearTimeoutSpy = jest.spyOn(global, 'clearTimeout');
-      const setTimeoutSpy = jest.spyOn(global, 'setTimeout');
-      const customFetch = jest.fn().mockResolvedValue({
-        ok: true,
-        status: 200,
-        headers: mockHeaders,
-        json: async () => MOCK_API_RESPONSE,
-      } as unknown as Response);
-
-      const service = new ConfigRegistryApiService({
-        fetch: customFetch,
-        timeout: 1000,
-      });
-
-      await service.fetchConfig();
-
-      expect(setTimeoutSpy).toHaveBeenCalled();
-      expect(clearTimeoutSpy).toHaveBeenCalled();
-      clearTimeoutSpy.mockRestore();
-      setTimeoutSpy.mockRestore();
-    });
-
     it('should successfully fetch config from API without ETag header', async () => {
-      const scope = nock(DEFAULT_API_BASE_URL)
-        .get(DEFAULT_ENDPOINT_PATH)
+      const scope = nock('https://client-config.uat-api.cx.metamask.io')
+        .get('/v1/config/networks')
         .reply(200, MOCK_API_RESPONSE);
 
       const service = new ConfigRegistryApiService();
       const result = await service.fetchConfig();
 
-      expect(result.notModified).toBe(false);
+      expect(result.modified).toBe(true);
       expect(result.etag).toBeUndefined();
       expect(
-        (result as Extract<FetchConfigResult, { notModified: false }>).data,
+        (result as Extract<FetchConfigResult, { modified: true }>).data,
       ).toStrictEqual(MOCK_API_RESPONSE);
       expect(scope.isDone()).toBe(true);
     });
 
     it('should handle 304 Not Modified response', async () => {
       const etag = '"test-etag-123"';
-      const scope = nock(DEFAULT_API_BASE_URL)
-        .get(DEFAULT_ENDPOINT_PATH)
+      const scope = nock('https://client-config.uat-api.cx.metamask.io')
+        .get('/v1/config/networks')
         .matchHeader('If-None-Match', etag)
         .reply(304);
 
       const service = new ConfigRegistryApiService();
       const result = await service.fetchConfig({ etag });
 
-      expect(result.notModified).toBe(true);
+      expect(result.modified).toBe(false);
       expect(scope.isDone()).toBe(true);
     });
 
@@ -182,14 +173,14 @@ describe('ConfigRegistryApiService', () => {
 
       const result = await service.fetchConfig();
 
-      expect(result.notModified).toBe(true);
+      expect(result.modified).toBe(false);
       expect(result.etag).toBeUndefined();
     });
 
     it('should include If-None-Match header when etag is provided', async () => {
       const etag = '"test-etag-123"';
-      const scope = nock(DEFAULT_API_BASE_URL)
-        .get(DEFAULT_ENDPOINT_PATH)
+      const scope = nock('https://client-config.uat-api.cx.metamask.io')
+        .get('/v1/config/networks')
         .matchHeader('If-None-Match', etag)
         .reply(200, MOCK_API_RESPONSE);
 
@@ -200,8 +191,8 @@ describe('ConfigRegistryApiService', () => {
     });
 
     it('should not include If-None-Match header when etag is undefined', async () => {
-      const scope = nock(DEFAULT_API_BASE_URL)
-        .get(DEFAULT_ENDPOINT_PATH)
+      const scope = nock('https://client-config.uat-api.cx.metamask.io')
+        .get('/v1/config/networks')
         .reply(200, MOCK_API_RESPONSE);
 
       const service = new ConfigRegistryApiService();
@@ -211,8 +202,8 @@ describe('ConfigRegistryApiService', () => {
     });
 
     it('should handle fetchConfig called with undefined options', async () => {
-      const scope = nock(DEFAULT_API_BASE_URL)
-        .get(DEFAULT_ENDPOINT_PATH)
+      const scope = nock('https://client-config.uat-api.cx.metamask.io')
+        .get('/v1/config/networks')
         .reply(200, MOCK_API_RESPONSE);
 
       const service = new ConfigRegistryApiService();
@@ -224,15 +215,13 @@ describe('ConfigRegistryApiService', () => {
 
     it('should throw error on invalid response structure', async () => {
       const invalidResponse = { invalid: 'data' };
-      const scope = nock(DEFAULT_API_BASE_URL)
-        .get(DEFAULT_ENDPOINT_PATH)
+      const scope = nock('https://client-config.uat-api.cx.metamask.io')
+        .get('/v1/config/networks')
         .reply(200, invalidResponse);
 
       const service = new ConfigRegistryApiService();
 
-      await expect(service.fetchConfig()).rejects.toThrow(
-        'Invalid response structure from config registry API',
-      );
+      await expect(service.fetchConfig()).rejects.toThrow(expect.any(Error));
       expect(scope.isDone()).toBe(true);
     });
 
@@ -251,9 +240,7 @@ describe('ConfigRegistryApiService', () => {
         fetch: customFetch,
       });
 
-      await expect(service.fetchConfig()).rejects.toThrow(
-        'Invalid response structure from config registry API',
-      );
+      await expect(service.fetchConfig()).rejects.toThrow(expect.any(Error));
     });
 
     it('should throw error when data.data is null', async () => {
@@ -271,9 +258,7 @@ describe('ConfigRegistryApiService', () => {
         fetch: customFetch,
       });
 
-      await expect(service.fetchConfig()).rejects.toThrow(
-        'Invalid response structure from config registry API',
-      );
+      await expect(service.fetchConfig()).rejects.toThrow(expect.any(Error));
     });
 
     it('should throw error when data.data.networks is not an array', async () => {
@@ -291,9 +276,7 @@ describe('ConfigRegistryApiService', () => {
         fetch: customFetch,
       });
 
-      await expect(service.fetchConfig()).rejects.toThrow(
-        'Invalid response structure from config registry API',
-      );
+      await expect(service.fetchConfig()).rejects.toThrow(expect.any(Error));
     });
 
     it('should throw error on HTTP error status', async () => {
@@ -316,67 +299,13 @@ describe('ConfigRegistryApiService', () => {
       );
     });
 
-    it('should handle timeout', async () => {
-      const testTimeout = 1000;
-      const customFetch = jest.fn().mockImplementation(() => {
-        const abortError = new Error('Request aborted');
-        abortError.name = 'AbortError';
-        return Promise.reject(abortError);
-      });
-
-      const service = new ConfigRegistryApiService({
-        timeout: testTimeout,
-        fetch: customFetch,
-      });
-
-      await expect(service.fetchConfig()).rejects.toThrow(
-        `Request timeout after ${testTimeout}ms`,
-      );
-    }, 10000); // Increase Jest timeout for this test
-
-    it('should trigger setTimeout callback when request exceeds timeout', async () => {
-      const testTimeout = 50;
-
-      const customFetch = jest
-        .fn()
-        .mockImplementation((_url: string, options?: RequestInit) => {
-          const signal = options?.signal as AbortSignal;
-          return new Promise<Response>((_resolve, reject) => {
-            if (signal?.aborted) {
-              const abortError = new Error('Request aborted');
-              abortError.name = 'AbortError';
-              reject(abortError);
-              return;
-            }
-
-            if (signal) {
-              signal.addEventListener('abort', () => {
-                const abortError = new Error('Request aborted');
-                abortError.name = 'AbortError';
-                reject(abortError);
-              });
-            }
-          });
-        });
-
-      const service = new ConfigRegistryApiService({
-        timeout: testTimeout,
-        fetch: customFetch,
-      });
-
-      await expect(service.fetchConfig()).rejects.toThrow(
-        `Request timeout after ${testTimeout}ms`,
-      );
-    }, 10000); // Increase Jest timeout for this test
-
-    it('should handle non-AbortError in fetchWithTimeout', async () => {
+    it('should handle network errors', async () => {
       const customFetch = jest
         .fn()
         .mockRejectedValue(new Error('Network connection failed'));
 
       const service = new ConfigRegistryApiService({
         fetch: customFetch,
-        timeout: 1000,
       });
 
       await expect(service.fetchConfig()).rejects.toThrow(
@@ -385,14 +314,14 @@ describe('ConfigRegistryApiService', () => {
     });
 
     it('should retry on failure', async () => {
-      nock(DEFAULT_API_BASE_URL)
-        .get(DEFAULT_ENDPOINT_PATH)
+      nock('https://client-config.uat-api.cx.metamask.io')
+        .get('/v1/config/networks')
         .replyWithError('Network error');
-      nock(DEFAULT_API_BASE_URL)
-        .get(DEFAULT_ENDPOINT_PATH)
+      nock('https://client-config.uat-api.cx.metamask.io')
+        .get('/v1/config/networks')
         .replyWithError('Network error');
-      const successScope = nock(DEFAULT_API_BASE_URL)
-        .get(DEFAULT_ENDPOINT_PATH)
+      const successScope = nock('https://client-config.uat-api.cx.metamask.io')
+        .get('/v1/config/networks')
         .reply(200, MOCK_API_RESPONSE);
 
       const service = new ConfigRegistryApiService({
@@ -401,9 +330,9 @@ describe('ConfigRegistryApiService', () => {
 
       const result = await service.fetchConfig();
 
-      expect(result.notModified).toBe(false);
+      expect(result.modified).toBe(true);
       expect(
-        (result as Extract<FetchConfigResult, { notModified: false }>).data,
+        (result as Extract<FetchConfigResult, { modified: true }>).data,
       ).toStrictEqual(MOCK_API_RESPONSE);
       expect(successScope.isDone()).toBe(true);
     });
@@ -425,8 +354,8 @@ describe('ConfigRegistryApiService', () => {
       const retries = 0;
 
       for (let i = 0; i < maximumConsecutiveFailures; i++) {
-        nock(DEFAULT_API_BASE_URL)
-          .get(DEFAULT_ENDPOINT_PATH)
+        nock('https://client-config.uat-api.cx.metamask.io')
+          .get('/v1/config/networks')
           .replyWithError('Network error');
       }
 
@@ -535,29 +464,26 @@ describe('ConfigRegistryApiService', () => {
 
       const service = new ConfigRegistryApiService({
         fetch: customFetch,
-        apiBaseUrl: 'https://custom-api.example.com',
-        endpointPath: '/custom/path',
       });
 
       const result = await service.fetchConfig();
 
       expect(customFetch).toHaveBeenCalled();
-      expect(result.notModified).toBe(false);
+      expect(result.modified).toBe(true);
       expect(
-        (result as Extract<FetchConfigResult, { notModified: false }>).data,
+        (result as Extract<FetchConfigResult, { modified: true }>).data,
       ).toStrictEqual(MOCK_API_RESPONSE);
     });
   });
 
-  describe('URL construction', () => {
-    it('should handle base URL not ending with slash', async () => {
-      const scope = nock('https://test-api.example.com')
-        .get('/config/networks')
+  describe('environment configuration', () => {
+    it('should use DEV environment URL when env is DEV', async () => {
+      const scope = nock('https://client-config.dev-api.cx.metamask.io')
+        .get('/v1/config/networks')
         .reply(200, MOCK_API_RESPONSE);
 
       const service = new ConfigRegistryApiService({
-        apiBaseUrl: 'https://test-api.example.com',
-        endpointPath: '/config/networks',
+        env: SDK.Env.DEV,
       });
 
       await service.fetchConfig();
@@ -565,14 +491,13 @@ describe('ConfigRegistryApiService', () => {
       expect(scope.isDone()).toBe(true);
     });
 
-    it('should handle base URL ending with slash', async () => {
-      const scope = nock('https://test-api.example.com')
-        .get('/config/networks')
+    it('should use UAT environment URL when env is UAT', async () => {
+      const scope = nock('https://client-config.uat-api.cx.metamask.io')
+        .get('/v1/config/networks')
         .reply(200, MOCK_API_RESPONSE);
 
       const service = new ConfigRegistryApiService({
-        apiBaseUrl: 'https://test-api.example.com/',
-        endpointPath: '/config/networks',
+        env: SDK.Env.UAT,
       });
 
       await service.fetchConfig();
@@ -580,14 +505,13 @@ describe('ConfigRegistryApiService', () => {
       expect(scope.isDone()).toBe(true);
     });
 
-    it('should handle endpoint path without leading slash', async () => {
-      const scope = nock('https://test-api.example.com')
-        .get('/config/networks')
+    it('should use PRD environment URL when env is PRD', async () => {
+      const scope = nock('https://client-config.api.cx.metamask.io')
+        .get('/v1/config/networks')
         .reply(200, MOCK_API_RESPONSE);
 
       const service = new ConfigRegistryApiService({
-        apiBaseUrl: 'https://test-api.example.com',
-        endpointPath: 'config/networks',
+        env: SDK.Env.PRD,
       });
 
       await service.fetchConfig();
@@ -595,15 +519,12 @@ describe('ConfigRegistryApiService', () => {
       expect(scope.isDone()).toBe(true);
     });
 
-    it('should handle endpoint path with leading slash', async () => {
-      const scope = nock('https://test-api.example.com')
-        .get('/config/networks')
+    it('should default to UAT environment', async () => {
+      const scope = nock('https://client-config.uat-api.cx.metamask.io')
+        .get('/v1/config/networks')
         .reply(200, MOCK_API_RESPONSE);
 
-      const service = new ConfigRegistryApiService({
-        apiBaseUrl: 'https://test-api.example.com',
-        endpointPath: '/config/networks',
-      });
+      const service = new ConfigRegistryApiService();
 
       await service.fetchConfig();
 
