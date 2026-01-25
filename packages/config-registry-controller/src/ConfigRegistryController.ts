@@ -147,6 +147,8 @@ export class ConfigRegistryController extends StaticIntervalPollingController<nu
 
   #delayedPollTimeoutId: ReturnType<typeof setTimeout> | null = null;
 
+  readonly #delayedPollTokenMap: Map<string, string> = new Map();
+
   /**
    * @param options - The controller options.
    * @param options.messenger - The controller messenger. Must have
@@ -360,8 +362,6 @@ export class ConfigRegistryController extends StaticIntervalPollingController<nu
   }
 
   startPolling(input: null = null): string {
-    const token = super.startPolling(input);
-
     // Calculate delay based on lastFetched to respect 24-hour interval
     const pollingInterval =
       this.getIntervalLength() ?? DEFAULT_POLLING_INTERVAL;
@@ -374,27 +374,28 @@ export class ConfigRegistryController extends StaticIntervalPollingController<nu
 
       if (remainingTime > 0) {
         // Not enough time has passed, delay the first poll
-        // Clear any existing timeout before stopping polling
+        // Clear any existing timeout before scheduling a new one
         if (this.#delayedPollTimeoutId !== null) {
           clearTimeout(this.#delayedPollTimeoutId);
           this.#delayedPollTimeoutId = null;
         }
 
-        // Stop the immediate poll that was just started
-        this.stopPolling();
+        // Generate a placeholder token that will map to the actual token
+        const placeholderToken = `delayed-${Date.now()}-${Math.random()}`;
 
         // Schedule the first poll after the remaining time
         this.#delayedPollTimeoutId = setTimeout(() => {
           this.#delayedPollTimeoutId = null;
-          super.startPolling(input);
+          const actualToken = super.startPolling(input);
+          this.#delayedPollTokenMap.set(placeholderToken, actualToken);
         }, remainingTime);
 
-        return token;
+        return placeholderToken;
       }
     }
 
     // Enough time has passed or first time, proceed with normal polling
-    return token;
+    return super.startPolling(input);
   }
 
   stopPolling(token?: string): void {
@@ -405,10 +406,19 @@ export class ConfigRegistryController extends StaticIntervalPollingController<nu
     }
 
     if (token) {
-      // Stop specific polling session by token
-      super.stopPollingByPollingToken(token);
+      // Check if this is a placeholder token that needs mapping
+      const actualToken = this.#delayedPollTokenMap.get(token);
+      if (actualToken) {
+        // Remove from map and stop the actual polling session
+        this.#delayedPollTokenMap.delete(token);
+        super.stopPollingByPollingToken(actualToken);
+      } else {
+        // Stop specific polling session by token
+        super.stopPollingByPollingToken(token);
+      }
     } else {
       // Stop all polling (backward compatible)
+      this.#delayedPollTokenMap.clear();
       super.stopAllPolling();
     }
   }
@@ -420,6 +430,7 @@ export class ConfigRegistryController extends StaticIntervalPollingController<nu
   override destroy(): void {
     // Stop polling and clear any pending timeouts
     this.stopPolling();
+    this.#delayedPollTokenMap.clear();
 
     // Unsubscribe from event listeners
     try {

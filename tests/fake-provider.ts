@@ -1,11 +1,3 @@
-import { InternalProvider } from '@metamask/eth-json-rpc-provider';
-import { JsonRpcEngineV2 } from '@metamask/json-rpc-engine/v2';
-import type {
-  JsonRpcMiddleware,
-  MiddlewareContext,
-  ResultConstraint,
-} from '@metamask/json-rpc-engine/v2';
-import type { Provider } from '@metamask/network-controller';
 import type {
   Json,
   JsonRpcId,
@@ -15,6 +7,20 @@ import type {
   JsonRpcVersion2,
 } from '@metamask/utils';
 import { inspect, isDeepStrictEqual } from 'util';
+
+import { InternalProvider } from '@metamask/eth-json-rpc-provider';
+import { JsonRpcEngineV2 } from '@metamask/json-rpc-engine/v2';
+import type {
+  JsonRpcMiddleware,
+  MiddlewareContext,
+  ResultConstraint,
+} from '@metamask/json-rpc-engine/v2';
+
+type Provider = InternalProvider<
+  MiddlewareContext<
+    { origin: string; skipCache: boolean } & Record<string, unknown>
+  >
+>;
 
 // Store this in case it gets stubbed later
 const originalSetTimeout = global.setTimeout;
@@ -221,27 +227,30 @@ export class FakeProvider
       }
 
       throw new Error(message);
-    } else {
-      const stub = this.#stubs[index];
+    }
 
-      if (stub.discardAfterMatching !== false) {
-        this.#stubs.splice(index, 1);
-      }
+    const stub = this.#stubs[index];
+    if (stub === undefined) {
+      throw new Error('Stub not found at index');
+    }
 
-      if (stub.delay) {
-        originalSetTimeout(() => {
-          // TODO: Either fix this lint violation or explain why it's necessary to ignore.
-          // eslint-disable-next-line @typescript-eslint/no-floating-promises
-          this.#handleRequest(stub, callback);
-        }, stub.delay);
-      } else {
+    if (stub.discardAfterMatching !== false) {
+      this.#stubs.splice(index, 1);
+    }
+
+    if (stub.delay) {
+      originalSetTimeout(() => {
         // TODO: Either fix this lint violation or explain why it's necessary to ignore.
         // eslint-disable-next-line @typescript-eslint/no-floating-promises
         this.#handleRequest(stub, callback);
-      }
-
-      this.calledStubs.push({ ...stub });
+      }, stub.delay);
+    } else {
+      // TODO: Either fix this lint violation or explain why it's necessary to ignore.
+      // eslint-disable-next-line @typescript-eslint/no-floating-promises
+      this.#handleRequest(stub, callback);
     }
+
+    this.calledStubs.push(stub);
   }
 
   async #handleRequest(
