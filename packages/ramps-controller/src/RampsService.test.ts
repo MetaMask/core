@@ -94,6 +94,55 @@ describe('RampsService', () => {
       expect(geolocationResponse).toBe('us-tx');
     });
 
+    it('uses baseUrlOverride when provided', async () => {
+      nock('http://localhost:3000')
+        .get('/geolocation')
+        .query({
+          sdk: '2.1.6',
+          controller: CONTROLLER_VERSION,
+          context: 'mobile-ios',
+        })
+        .reply(200, 'local-test');
+      const { rootMessenger } = getService({
+        options: { baseUrlOverride: 'http://localhost:3000' },
+      });
+
+      const geolocationPromise = rootMessenger.call(
+        'RampsService:getGeolocation',
+      );
+      await clock.runAllAsync();
+      await flushPromises();
+      const geolocationResponse = await geolocationPromise;
+
+      expect(geolocationResponse).toBe('local-test');
+    });
+
+    it('baseUrlOverride takes precedence over environment', async () => {
+      nock('http://localhost:4000')
+        .get('/geolocation')
+        .query({
+          sdk: '2.1.6',
+          controller: CONTROLLER_VERSION,
+          context: 'mobile-ios',
+        })
+        .reply(200, 'override-test');
+      const { rootMessenger } = getService({
+        options: {
+          environment: RampsEnvironment.Production,
+          baseUrlOverride: 'http://localhost:4000',
+        },
+      });
+
+      const geolocationPromise = rootMessenger.call(
+        'RampsService:getGeolocation',
+      );
+      await clock.runAllAsync();
+      await flushPromises();
+      const geolocationResponse = await geolocationPromise;
+
+      expect(geolocationResponse).toBe('override-test');
+    });
+
     it('throws if the API returns an empty response', async () => {
       nock('https://on-ramp.uat-api.cx.metamask.io')
         .get('/geolocation')

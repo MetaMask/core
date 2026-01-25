@@ -326,12 +326,18 @@ export type RampsServiceMessenger = Messenger<
  *
  * @param environment - The environment to use.
  * @param service - The API service type (determines if cache URL is used).
+ * @param baseUrlOverride - Optional base URL override for local development.
  * @returns The base URL for API requests.
  */
 function getBaseUrl(
   environment: RampsEnvironment,
   service: RampsApiService,
+  baseUrlOverride?: string,
 ): string {
+  if (baseUrlOverride) {
+    return baseUrlOverride;
+  }
+
   const cache = service === RampsApiService.Regions ? '-cache' : '';
 
   switch (environment) {
@@ -497,6 +503,12 @@ export class RampsService {
   readonly #context: string;
 
   /**
+   * Optional base URL override for local development.
+   * When set, this URL will be used instead of the environment-based URL.
+   */
+  readonly #baseUrlOverride?: string;
+
+  /**
    * Constructs a new RampsService object.
    *
    * @param args - The constructor arguments.
@@ -509,6 +521,9 @@ export class RampsService {
    * `node-fetch`).
    * @param args.policyOptions - Options to pass to `createServicePolicy`, which
    * is used to wrap each request. See {@link CreateServicePolicyOptions}.
+   * @param args.baseUrlOverride - Optional base URL override for local development.
+   * When provided, this URL will be used for all API requests instead of the
+   * environment-based URLs. Useful for pointing to a local API server.
    */
   constructor({
     messenger,
@@ -516,12 +531,14 @@ export class RampsService {
     context,
     fetch: fetchFunction,
     policyOptions = {},
+    baseUrlOverride,
   }: {
     messenger: RampsServiceMessenger;
     environment?: RampsEnvironment;
     context: string;
     fetch: typeof fetch;
     policyOptions?: CreateServicePolicyOptions;
+    baseUrlOverride?: string;
   }) {
     this.name = serviceName;
     this.#messenger = messenger;
@@ -529,6 +546,7 @@ export class RampsService {
     this.#policy = createServicePolicy(policyOptions);
     this.#environment = environment;
     this.#context = context;
+    this.#baseUrlOverride = baseUrlOverride;
 
     this.#messenger.registerMethodActionHandlers(
       this,
@@ -624,7 +642,7 @@ export class RampsService {
     },
   ): Promise<TResponse> {
     return this.#policy.execute(async () => {
-      const baseUrl = getBaseUrl(this.#environment, service);
+      const baseUrl = getBaseUrl(this.#environment, service, this.#baseUrlOverride);
       const url = new URL(path, baseUrl);
       this.#addCommonParams(url, options.action);
 
@@ -673,7 +691,7 @@ export class RampsService {
   async getCountries(): Promise<Country[]> {
     const countries = await this.#request<Country[]>(
       RampsApiService.Regions,
-      getApiPath('regions/countries'),
+      getApiPath('regions-v2/countries'),
       { responseType: 'json' },
     );
 
@@ -717,7 +735,7 @@ export class RampsService {
     const normalizedRegion = region.toLowerCase().trim();
     const url = new URL(
       getApiPath(`regions/${normalizedRegion}/topTokens`),
-      getBaseUrl(this.#environment, RampsApiService.Regions),
+      getBaseUrl(this.#environment, RampsApiService.Regions, this.#baseUrlOverride),
     );
     this.#addCommonParams(url, action);
 
@@ -781,7 +799,7 @@ export class RampsService {
     const normalizedRegion = regionCode.toLowerCase().trim();
     const url = new URL(
       getApiPath(`regions/${normalizedRegion}/providers`),
-      getBaseUrl(this.#environment, RampsApiService.Regions),
+      getBaseUrl(this.#environment, RampsApiService.Regions, this.#baseUrlOverride),
     );
     console.log('[RampsService] getProviders - url:', {
       url: url.toString(),
@@ -923,7 +941,7 @@ export class RampsService {
   }): Promise<PaymentMethodsResponse> {
     const url = new URL(
       getApiPath('paymentMethods'),
-      getBaseUrl(this.#environment, RampsApiService.Regions),
+      getBaseUrl(this.#environment, RampsApiService.Regions, this.#baseUrlOverride),
     );
     this.#addCommonParams(url);
 
