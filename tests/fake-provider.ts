@@ -1,3 +1,10 @@
+import { InternalProvider } from '@metamask/eth-json-rpc-provider';
+import { JsonRpcEngineV2 } from '@metamask/json-rpc-engine/v2';
+import type {
+  JsonRpcMiddleware,
+  MiddlewareContext,
+  ResultConstraint,
+} from '@metamask/json-rpc-engine/v2';
 import type {
   Json,
   JsonRpcId,
@@ -7,14 +14,6 @@ import type {
   JsonRpcVersion2,
 } from '@metamask/utils';
 import { inspect, isDeepStrictEqual } from 'util';
-
-import { InternalProvider } from '@metamask/eth-json-rpc-provider';
-import { JsonRpcEngineV2 } from '@metamask/json-rpc-engine/v2';
-import type {
-  JsonRpcMiddleware,
-  MiddlewareContext,
-  ResultConstraint,
-} from '@metamask/json-rpc-engine/v2';
 
 type Provider = InternalProvider<
   MiddlewareContext<

@@ -2173,7 +2173,6 @@ describe('ConfigRegistryController', () => {
       );
     });
 
-
     it('should use custom isConfigRegistryApiEnabled function when provided', async () => {
       const customIsEnabled = jest.fn().mockReturnValue(true);
       await withController(
