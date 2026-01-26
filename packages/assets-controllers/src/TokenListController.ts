@@ -257,7 +257,7 @@ export class TokenListController extends StaticIntervalPollingController<TokenLi
    * @returns A promise that resolves when initialization is complete.
    */
   async initialize(): Promise<void> {
-    await this.#loadCacheFromStorage();
+    await this.#synchronizeCacheWithStorage();
   }
 
   /**
@@ -339,17 +339,18 @@ export class TokenListController extends StaticIntervalPollingController<TokenLi
   }
 
   /**
-   * Load tokensChainsCache from StorageService into state.
-   * Loads all cached chains from separate per-chain files in parallel.
-   * Called during initialization to restore cached data.
+   * Synchronize tokensChainsCache between state and storage bidirectionally.
    *
-   * Note: This method merges loaded data with existing state to avoid
-   * overwriting any fresh data that may have been fetched concurrently.
-   * Caller must hold the mutex.
+   * This method:
+   * 1. Loads cached chains from storage (per-chain files) in parallel
+   * 2. Merges loaded data into state (preferring existing state to avoid overwriting fresh data)
+   * 3. Persists any chains that exist in state but not in storage
    *
-   * @returns A promise that resolves when loading is complete.
+   * Called during initialization to ensure state and storage are consistent.
+   *
+   * @returns A promise that resolves when synchronization is complete.
    */
-  async #loadCacheFromStorage(): Promise<void> {
+  async #synchronizeCacheWithStorage(): Promise<void> {
     try {
       const allKeys = await this.messenger.call(
         'StorageService:getAllKeys',
@@ -418,11 +419,28 @@ export class TokenListController extends StaticIntervalPollingController<TokenLi
           }
         });
 
-        // Note: The update() call above triggers #onCacheChanged. Chains that were
-        // just loaded from storage are tracked in #chainsLoadedFromStorage and will
-        // be skipped from persistence (since they're already in storage).
-        // Chains from initial state that were NOT overwritten will still be persisted
-        // correctly, as they're not in #chainsLoadedFromStorage.
+        // Note: The update() call above only triggers #onCacheChanged if chains
+        // were actually added to state. If initial state already contains chains
+        // from storage, the update() is a no-op and #onCacheChanged is never called.
+      }
+
+      // Persist chains that exist in state but were not loaded from storage.
+      // This handles the case where initial state contains chains that don't exist
+      // in storage yet (e.g., fresh data from API). Without this, those chains
+      // would be lost on the next app restart.
+      const loadedChainIds = new Set(Object.keys(loadedCache) as Hex[]);
+      const chainsInState = new Set(
+        Object.keys(this.state.tokensChainsCache) as Hex[],
+      );
+      for (const chainId of chainsInState) {
+        if (!loadedChainIds.has(chainId)) {
+          this.#changedChainsToPersist.add(chainId);
+        }
+      }
+
+      // Persist any chains that need to be saved
+      if (this.#changedChainsToPersist.size > 0) {
+        this.#debouncePersist();
       }
     } catch (error) {
       console.error(
