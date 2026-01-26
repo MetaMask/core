@@ -2023,10 +2023,11 @@ describe('SeedlessOnboardingController', () => {
             'fetchAllSecretDataItems',
           );
 
-          await controller.runMigrations();
+          const result = await controller.runMigrations();
 
           // Should not fetch data since migration is already complete
           expect(fetchAllSecretDataSpy).not.toHaveBeenCalled();
+          expect(result).toBe(false);
         },
       );
     });
@@ -2166,7 +2167,7 @@ describe('SeedlessOnboardingController', () => {
             .spyOn(toprfClient, 'batchUpdateSecretDataItems')
             .mockResolvedValue();
 
-          await controller.runMigrations();
+          const result = await controller.runMigrations();
 
           // srp-1 -> PrimarySrp, srp-2 -> ImportedSrp, pk-1 -> ImportedPrivateKey
           // Skipped: srp-migrated, PW_BACKUP, undefined itemId, unknown-1
@@ -2186,6 +2187,7 @@ describe('SeedlessOnboardingController', () => {
           expect(controller.state.migrationVersion).toBe(
             SeedlessOnboardingMigrationVersion.V1,
           );
+          expect(result).toBe(true);
         },
       );
     });
@@ -2234,13 +2236,15 @@ describe('SeedlessOnboardingController', () => {
             'batchUpdateSecretDataItems',
           );
 
-          await controller.runMigrations();
+          const result = await controller.runMigrations();
 
           expect(updateSpy).not.toHaveBeenCalled();
           expect(batchUpdateSpy).not.toHaveBeenCalled();
           expect(controller.state.migrationVersion).toBe(
             SeedlessOnboardingMigrationVersion.V1,
           );
+          // Should return false since no items were actually updated
+          expect(result).toBe(false);
         },
       );
     });
@@ -2269,11 +2273,13 @@ describe('SeedlessOnboardingController', () => {
             .spyOn(toprfClient, 'fetchAllSecretDataItems')
             .mockResolvedValue([]);
 
-          await controller.runMigrations();
+          const result = await controller.runMigrations();
 
           expect(controller.state.migrationVersion).toBe(
             SeedlessOnboardingMigrationVersion.V1,
           );
+          // Should return false since no items were found to migrate
+          expect(result).toBe(false);
         },
       );
     });
@@ -2324,7 +2330,7 @@ describe('SeedlessOnboardingController', () => {
             'batchUpdateSecretDataItems',
           );
 
-          await controller.runMigrations();
+          const result = await controller.runMigrations();
 
           expect(updateSpy).toHaveBeenCalledWith({
             itemId: 'srp-1',
@@ -2335,6 +2341,7 @@ describe('SeedlessOnboardingController', () => {
           expect(controller.state.migrationVersion).toBe(
             SeedlessOnboardingMigrationVersion.V1,
           );
+          expect(result).toBe(true);
         },
       );
     });
@@ -2426,7 +2433,7 @@ describe('SeedlessOnboardingController', () => {
             .spyOn(toprfClient, 'batchUpdateSecretDataItems')
             .mockResolvedValue();
 
-          await controller.runMigrations();
+          const result = await controller.runMigrations();
 
           expect(batchUpdateSpy).toHaveBeenCalledWith({
             updateItems: [
@@ -2435,6 +2442,7 @@ describe('SeedlessOnboardingController', () => {
             ],
             authKeyPair: expect.any(Object),
           });
+          expect(result).toBe(true);
         },
       );
     });

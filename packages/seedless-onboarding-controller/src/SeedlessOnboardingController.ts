@@ -574,10 +574,11 @@ export class SeedlessOnboardingController<
    * Migrations are idempotent - running this multiple times is safe.
    * The migration version is tracked in state to prevent re-running migrations.
    *
-   * @returns A promise that resolves when all migrations are complete.
+   * @returns A promise that resolves to `true` if data was actually migrated
+   * (items were updated on the server), `false` otherwise.
    * @throws If the password is outdated (changed on another device).
    */
-  async runMigrations(): Promise<void> {
+  async runMigrations(): Promise<boolean> {
     return await this.#withControllerLock(async () => {
       this.#assertIsUnlocked();
 
@@ -587,8 +588,9 @@ export class SeedlessOnboardingController<
       });
 
       if (this.state.migrationVersion < SeedlessOnboardingMigrationVersion.V1) {
-        await this.#migrateDataTypes();
+        return this.#migrateDataTypes();
       }
+      return false;
     });
   }
 
@@ -620,9 +622,10 @@ export class SeedlessOnboardingController<
    * Note: The SDK's updateSecretDataItem automatically sets version to 'v2'
    * when updating dataType, ensuring migrated items are marked as v2.
    *
-   * @returns A promise that resolves when the migration is complete.
+   * @returns A promise that resolves to `true` if items were actually updated
+   * on the server, `false` if no items needed migration.
    */
-  async #migrateDataTypes(): Promise<void> {
+  async #migrateDataTypes(): Promise<boolean> {
     return await this.#executeWithTokenRefresh(async () => {
       const { toprfEncryptionKey, toprfAuthKeyPair } =
         await this.#unlockVaultAndGetVaultData();
@@ -641,7 +644,7 @@ export class SeedlessOnboardingController<
             SeedlessOnboardingControllerErrorMessage.NoSecretDataFound
         ) {
           this.#setMigrationVersion(SeedlessOnboardingMigrationVersion.V1);
-          return;
+          return false;
         }
         throw error;
       }
@@ -705,6 +708,8 @@ export class SeedlessOnboardingController<
       }
 
       this.#setMigrationVersion(SeedlessOnboardingMigrationVersion.V1);
+
+      return updates.length > 0;
     }, 'migrateDataTypes');
   }
 
