@@ -8,7 +8,10 @@ import type { InternalAccount } from '@metamask/keyring-internal-api';
 import type { SnapId } from '@metamask/snaps-sdk';
 
 import { SnapAccountProvider } from './SnapAccountProvider';
-import type { SnapAccountProviderConfig } from './SnapAccountProvider';
+import type {
+  RestrictedSnapKeyring,
+  SnapAccountProviderConfig,
+} from './SnapAccountProvider';
 import { withRetry, withTimeout } from './utils';
 import { traceFallback } from '../analytics';
 import { TraceName } from '../constants/traces';
@@ -55,18 +58,18 @@ export class TrxAccountProvider extends SnapAccountProvider {
     );
   }
 
-  async createAccounts({
+  async #createAccounts({
+    keyring,
     entropySource,
     groupIndex: index,
   }: {
+    keyring: RestrictedSnapKeyring;
     entropySource: EntropySourceId;
     groupIndex: number;
   }): Promise<Bip44Account<KeyringAccount>[]> {
     return this.withMaxConcurrency(async () => {
-      const createAccount = await this.getRestrictedSnapAccountCreator();
-
       const account = await withTimeout(
-        createAccount({
+        keyring.createAccount({
           entropySource,
           index,
           addressType: TrxAccountType.Eoa,
@@ -80,6 +83,22 @@ export class TrxAccountProvider extends SnapAccountProvider {
     });
   }
 
+  async createAccounts({
+    entropySource,
+    groupIndex: index,
+  }: {
+    entropySource: EntropySourceId;
+    groupIndex: number;
+  }): Promise<Bip44Account<KeyringAccount>[]> {
+    return this.withSnap(async ({ keyring }) => {
+      return this.#createAccounts({
+        keyring,
+        entropySource,
+        groupIndex: index,
+      });
+    });
+  }
+
   async discoverAccounts({
     entropySource,
     groupIndex,
@@ -87,45 +106,48 @@ export class TrxAccountProvider extends SnapAccountProvider {
     entropySource: EntropySourceId;
     groupIndex: number;
   }): Promise<Bip44Account<KeyringAccount>[]> {
-    return await super.trace(
-      {
-        name: TraceName.SnapDiscoverAccounts,
-        data: {
-          provider: this.getName(),
-        },
-      },
-      async () => {
-        if (!this.config.discovery.enabled) {
-          return [];
-        }
-
-        const discoveredAccounts = await withRetry(
-          () =>
-            withTimeout(
-              this.client.discoverAccounts(
-                [TrxScope.Mainnet],
-                entropySource,
-                groupIndex,
-              ),
-              this.config.discovery.timeoutMs,
-            ),
-          {
-            maxAttempts: this.config.discovery.maxAttempts,
-            backOffMs: this.config.discovery.backOffMs,
+    return this.withSnap(async ({ client, keyring }) => {
+      return await super.trace(
+        {
+          name: TraceName.SnapDiscoverAccounts,
+          data: {
+            provider: this.getName(),
           },
-        );
+        },
+        async () => {
+          if (!this.config.discovery.enabled) {
+            return [];
+          }
 
-        if (!discoveredAccounts.length) {
-          return [];
-        }
+          const discoveredAccounts = await withRetry(
+            () =>
+              withTimeout(
+                client.discoverAccounts(
+                  [TrxScope.Mainnet],
+                  entropySource,
+                  groupIndex,
+                ),
+                this.config.discovery.timeoutMs,
+              ),
+            {
+              maxAttempts: this.config.discovery.maxAttempts,
+              backOffMs: this.config.discovery.backOffMs,
+            },
+          );
 
-        const createdAccounts = await this.createAccounts({
-          entropySource,
-          groupIndex,
-        });
+          if (!discoveredAccounts.length) {
+            return [];
+          }
 
-        return createdAccounts;
-      },
-    );
+          const createdAccounts = await this.#createAccounts({
+            keyring,
+            entropySource,
+            groupIndex,
+          });
+
+          return createdAccounts;
+        },
+      );
+    });
   }
 }

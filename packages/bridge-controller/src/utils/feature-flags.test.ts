@@ -3,6 +3,7 @@ import {
   getBridgeFeatureFlags,
   hasMinimumRequiredVersion,
 } from './feature-flags';
+import { DEFAULT_CHAIN_RANKING } from '../constants/bridge';
 import type {
   FeatureFlagsPlatformConfig,
   BridgeControllerMessenger,
@@ -46,6 +47,7 @@ describe('feature-flags', () => {
             isActiveDest: true,
           },
         },
+        chainRanking: [],
       };
 
       const result = formatFeatureFlags(bridgeConfig);
@@ -55,6 +57,7 @@ describe('feature-flags', () => {
         maxRefreshCount: 1,
         support: true,
         minimumVersion: '0.0.0',
+        chainRanking: [],
         chains: {
           'eip155:1': {
             isActiveSrc: true,
@@ -95,6 +98,7 @@ describe('feature-flags', () => {
         support: true,
         minimumVersion: '0.0.0',
         chains: {},
+        chainRanking: [],
       };
 
       const result = formatFeatureFlags(bridgeConfig);
@@ -104,6 +108,7 @@ describe('feature-flags', () => {
         maxRefreshCount: 1,
         support: true,
         minimumVersion: '0.0.0',
+        chainRanking: [],
         chains: {},
       });
     });
@@ -124,6 +129,7 @@ describe('feature-flags', () => {
             isActiveDest: false,
           },
         },
+        chainRanking: [],
       };
 
       const result = formatFeatureFlags(bridgeConfig);
@@ -133,6 +139,7 @@ describe('feature-flags', () => {
         maxRefreshCount: 1,
         support: true,
         minimumVersion: '0.0.0',
+        chainRanking: [],
         chains: {
           'eip155:invalid': {
             isActiveSrc: true,
@@ -143,6 +150,32 @@ describe('feature-flags', () => {
             isActiveDest: false,
           },
         },
+      });
+    });
+
+    it('should preserve non-empty chainRanking', () => {
+      const customChainRanking = [
+        { chainId: 'eip155:1' as const, name: 'Ethereum' },
+        { chainId: 'eip155:137' as const, name: 'Polygon' },
+      ];
+      const bridgeConfig: FeatureFlagsPlatformConfig = {
+        refreshRate: 3,
+        maxRefreshCount: 1,
+        support: true,
+        minimumVersion: '0.0.0',
+        chains: {},
+        chainRanking: customChainRanking,
+      };
+
+      const result = formatFeatureFlags(bridgeConfig);
+
+      expect(result).toStrictEqual({
+        refreshRate: 3,
+        maxRefreshCount: 1,
+        support: true,
+        minimumVersion: '0.0.0',
+        chainRanking: customChainRanking,
+        chains: {},
       });
     });
   });
@@ -160,6 +193,7 @@ describe('feature-flags', () => {
         maxRefreshCount: 1,
         support: true,
         minimumVersion: '0.0.0',
+        chainRanking: [],
         chains: {
           '1': {
             isActiveSrc: true,
@@ -248,6 +282,7 @@ describe('feature-flags', () => {
         refreshRate: 3,
         support: true,
         minimumVersion: '0.0.0',
+        chainRanking: [...DEFAULT_CHAIN_RANKING],
         chains: {
           'eip155:1': {
             isActiveDest: true,
@@ -356,6 +391,7 @@ describe('feature-flags', () => {
         refreshRate: 30000,
         support: false,
         minimumVersion: '0.0.0',
+        chainRanking: [...DEFAULT_CHAIN_RANKING],
         chains: {},
       };
       expect(result).toStrictEqual(expectedBridgeConfig);
@@ -373,6 +409,7 @@ describe('feature-flags', () => {
             isActiveDest: true,
           },
         },
+        chainRanking: [],
       };
 
       const bridgeConfig = {
@@ -386,6 +423,7 @@ describe('feature-flags', () => {
             isActiveDest: true,
           },
         },
+        chainRanking: [],
       };
 
       const remoteFeatureFlagControllerState = {
@@ -414,6 +452,7 @@ describe('feature-flags', () => {
             isActiveDest: true,
           },
         },
+        chainRanking: [...DEFAULT_CHAIN_RANKING],
       };
 
       expect(result).toStrictEqual(expectedBridgeConfig);
@@ -431,6 +470,7 @@ describe('feature-flags', () => {
             isActiveDest: true,
           },
         },
+        chainRanking: [],
       };
 
       const remoteFeatureFlagControllerState = {
@@ -458,6 +498,57 @@ describe('feature-flags', () => {
             isActiveDest: true,
           },
         },
+        chainRanking: [...DEFAULT_CHAIN_RANKING],
+      };
+
+      expect(result).toStrictEqual(expectedBridgeConfig);
+    });
+
+    it('should preserve non-empty chainRanking from remote config', async () => {
+      const customChainRanking = [
+        { chainId: 'eip155:1' as const, name: 'Ethereum' },
+        { chainId: 'eip155:137' as const, name: 'Polygon' },
+      ];
+      const bridgeConfig = {
+        refreshRate: 3,
+        maxRefreshCount: 1,
+        support: true,
+        minimumVersion: '0.0.0',
+        chains: {
+          '1': {
+            isActiveSrc: true,
+            isActiveDest: true,
+          },
+        },
+        chainRanking: customChainRanking,
+      };
+
+      const remoteFeatureFlagControllerState = {
+        cacheTimestamp: 1745515389440,
+        remoteFeatureFlags: {
+          bridgeConfig,
+          assetsNotificationsEnabled: false,
+        },
+      };
+
+      (mockMessenger.call as jest.Mock).mockImplementation(() => {
+        return remoteFeatureFlagControllerState;
+      });
+
+      const result = getBridgeFeatureFlags(mockMessenger);
+
+      const expectedBridgeConfig = {
+        refreshRate: 3,
+        maxRefreshCount: 1,
+        support: true,
+        minimumVersion: '0.0.0',
+        chains: {
+          'eip155:1': {
+            isActiveSrc: true,
+            isActiveDest: true,
+          },
+        },
+        chainRanking: customChainRanking,
       };
 
       expect(result).toStrictEqual(expectedBridgeConfig);

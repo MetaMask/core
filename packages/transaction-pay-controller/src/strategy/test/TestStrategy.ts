@@ -54,6 +54,12 @@ export class TestStrategy implements PayStrategy<void> {
           raw: '456000',
           usd: '4.56',
         },
+        targetAmount: {
+          human: '5.67',
+          fiat: '5.67',
+          raw: '567000',
+          usd: '5.67',
+        },
         strategy: TransactionPayStrategy.Test,
       },
     ];

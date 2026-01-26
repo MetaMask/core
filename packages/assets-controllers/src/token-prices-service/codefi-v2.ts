@@ -26,8 +26,9 @@ import type { MarketDataDetails } from '../TokenRatesController';
 /**
  * The list of currencies that can be supplied as the `vsCurrency` parameter to
  * the `/spot-prices` endpoint, in lowercase form.
+ * This is the fallback list used when the API is unavailable.
  */
-export const SUPPORTED_CURRENCIES = [
+export const SUPPORTED_CURRENCIES_FALLBACK = [
   // Bitcoin
   'btc',
   // Ether
@@ -205,6 +206,12 @@ export const SUPPORTED_CURRENCIES = [
 ] as const;
 
 /**
+ * @deprecated Use `getSupportedCurrencies()` or `fetchSupportedCurrencies()` instead.
+ * This is an alias for backward compatibility.
+ */
+export const SUPPORTED_CURRENCIES = SUPPORTED_CURRENCIES_FALLBACK;
+
+/**
  * Represents the zero address, commonly used as a placeholder in blockchain transactions.
  * In the context of fetching market data, the zero address is utilized to retrieve information
  * specifically for native currencies. This allows for a standardized approach to query market
@@ -221,6 +228,9 @@ const chainIdToNativeTokenAddress: Record<Hex, Hex> = {
   '0x89': '0x0000000000000000000000000000000000001010', // Polygon
   '0x440': '0xdeaddeaddeaddeaddeaddeaddeaddeaddead0000', // Metis Andromeda
   '0x1388': '0xdeaddeaddeaddeaddeaddeaddeaddeaddead0000', // Mantle
+  '0x64': '0xe91d153e0b41518a2ce8dd3d7944fa863463a97d', // Gnosis
+  '0x1e': '0x542fda317318ebf1d3deaf76e0b632741a7e677d', // Rootstock Mainnet - Native symbol: RBTC
+  '0x2611': '0xeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeee', // Plasma mainnet - native symbol: XPL
 };
 
 /**
@@ -240,6 +250,7 @@ export const SPOT_PRICES_SUPPORT_INFO = {
   '0x1': 'eip155:1/slip44:60', // Ethereum Mainnet - Native symbol: ETH
   '0xa': 'eip155:10/slip44:60', // OP Mainnet - Native symbol: ETH
   '0x19': 'eip155:25/slip44:394', // Cronos Mainnet - Native symbol: CRO
+  '0x1e': 'eip155:30/slip44:137', // Rootstock Mainnet - Native symbol: RBTC
   '0x2a': 'eip155:42/erc20:0x0000000000000000000000000000000000000000', // Lukso - native symbol: LYX
   '0x32': 'eip155:50/erc20:0x0000000000000000000000000000000000000000', // xdc-network - native symbol: XDC
   '0x38': 'eip155:56/slip44:714', // BNB Smart Chain Mainnet - Native symbol: BNB
@@ -276,7 +287,7 @@ export const SPOT_PRICES_SUPPORT_INFO = {
   '0x10e6': 'eip155:4326/erc20:0x0000000000000000000000000000000000000000', // MegaETH Mainnet - Native symbol: ETH
   '0x1388': 'eip155:5000/erc20:0xdeaddeaddeaddeaddeaddeaddeaddeaddead0000', // Mantle - Native symbol: MNT
   '0x2105': 'eip155:8453/slip44:60', // Base - Native symbol: ETH
-  '0x2611': 'eip155:9745/erc20:0x0000000000000000000000000000000000000000', // Plasma mainnet - native symbol: XPL
+  '0x2611': 'eip155:9745/erc20:0xeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeee', // Plasma mainnet - native symbol: XPL
   '0x2710': 'eip155:10000/slip44:145', // Smart Bitcoin Cash - Native symbol: BCH
   '0x8173': 'eip155:33139/erc20:0x0000000000000000000000000000000000000000', // Apechain Mainnet - Native symbol: APE
   '0xa3c3': 'eip155:41923/erc20:0x0000000000000000000000000000000000000000', // EDU Chain - Native symbol: EDU
@@ -286,6 +297,7 @@ export const SPOT_PRICES_SUPPORT_INFO = {
   '0xa867': 'eip155:43111/erc20:0x0000000000000000000000000000000000000000', // Hemi - Native symbol: ETH
   '0xa86a': 'eip155:43114/slip44:9005', // Avalanche C-Chain - Native symbol: AVAX
   '0xe708': 'eip155:59144/slip44:60', // Linea Mainnet - Native symbol: ETH
+  '0xed88': 'eip155:60808/erc20:0x0000000000000000000000000000000000000000', // BOB - Native symbol: ETH
   '0x138de': 'eip155:80094/erc20:0x0000000000000000000000000000000000000000', // Berachain - Native symbol: Bera',
   '0x13c31': 'eip155:81457/slip44:60', // Blast Mainnet - Native symbol: ETH
   '0x17dcd': 'eip155:97741/erc20:0x0000000000000000000000000000000000000000', // Pepe Unchained Mainnet - Native symbol: PEPU
@@ -310,8 +322,8 @@ export const SPOT_PRICES_SUPPORT_INFO = {
  * the `/spot-prices` endpoint. Covers both uppercase and lowercase versions.
  */
 type SupportedCurrency =
-  | (typeof SUPPORTED_CURRENCIES)[number]
-  | Uppercase<(typeof SUPPORTED_CURRENCIES)[number]>;
+  | (typeof SUPPORTED_CURRENCIES_FALLBACK)[number]
+  | Uppercase<(typeof SUPPORTED_CURRENCIES_FALLBACK)[number]>;
 
 /**
  * The list of chain IDs that can be supplied in the URL for the `/spot-prices`
@@ -345,6 +357,61 @@ const SUPPORTED_CHAIN_IDS_V3 = Object.keys(SPOT_PRICES_SUPPORT_INFO).filter(
 const BASE_URL_V1 = 'https://price.api.cx.metamask.io/v1';
 
 const BASE_URL_V3 = 'https://price.api.cx.metamask.io/v3';
+
+/**
+ * In-memory store for the last successfully fetched supported currencies.
+ */
+let lastFetchedCurrencies: string[] | null = null;
+
+/**
+ * Fetches the list of supported currencies from the API.
+ * Falls back to the hardcoded list if the fetch fails.
+ *
+ * @returns The list of supported currencies in lowercase.
+ */
+export async function fetchSupportedCurrencies(): Promise<string[]> {
+  try {
+    const url = `${BASE_URL_V1}/supportedVsCurrencies`;
+    const response = await handleFetch(url, {
+      headers: { 'Cache-Control': 'no-cache' },
+    });
+
+    if (Array.isArray(response)) {
+      const currencies = response.map((currency: string) =>
+        currency.toLowerCase(),
+      );
+      lastFetchedCurrencies = currencies;
+      return currencies;
+    }
+
+    // Invalid response format, fall back to hardcoded list
+    return [...SUPPORTED_CURRENCIES_FALLBACK];
+  } catch {
+    // On any error, fall back to the hardcoded list
+    return [...SUPPORTED_CURRENCIES_FALLBACK];
+  }
+}
+
+/**
+ * Synchronously gets the list of supported currencies.
+ * Returns the last fetched value if available, otherwise returns the fallback list.
+ *
+ * @returns The list of supported currencies in lowercase.
+ */
+export function getSupportedCurrencies(): readonly string[] {
+  if (lastFetchedCurrencies !== null) {
+    return lastFetchedCurrencies;
+  }
+  return SUPPORTED_CURRENCIES_FALLBACK;
+}
+
+/**
+ * Resets the supported currencies cache.
+ * This is primarily intended for testing purposes.
+ */
+export function resetSupportedCurrenciesCache(): void {
+  lastFetchedCurrencies = null;
+}
 
 /**
  * This version of the token prices service uses V2 of the Codefi Price API to
@@ -552,6 +619,12 @@ export class CodefiTokenPricesServiceV2
     includeUsdRate: boolean;
     cryptocurrencies: string[];
   }): Promise<ExchangeRatesByCurrency<SupportedCurrency>> {
+    // Refresh supported currencies in background (non-blocking)
+    // This ensures the list stays fresh during normal polling
+    // Note: fetchSupportedCurrencies handles errors internally and always resolves
+    // eslint-disable-next-line @typescript-eslint/no-floating-promises
+    fetchSupportedCurrencies();
+
     const url = new URL(`${BASE_URL_V1}/exchange-rates`);
     url.searchParams.append('baseCurrency', baseCurrency);
 
@@ -657,10 +730,19 @@ export class CodefiTokenPricesServiceV2
    * @returns True if the API supports the currency, false otherwise.
    */
   validateCurrencySupported(currency: unknown): currency is SupportedCurrency {
-    const supportedCurrencies: readonly string[] = SUPPORTED_CURRENCIES;
+    const supportedCurrencies = getSupportedCurrencies();
     return (
       typeof currency === 'string' &&
       supportedCurrencies.includes(currency.toLowerCase())
     );
+  }
+
+  /**
+   * Fetches the list of supported currencies from the API.
+   *
+   * @returns The list of supported currencies.
+   */
+  async updateSupportedCurrencies(): Promise<string[]> {
+    return fetchSupportedCurrencies();
   }
 }

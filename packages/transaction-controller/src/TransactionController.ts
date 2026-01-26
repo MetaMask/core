@@ -138,6 +138,10 @@ import {
   signAuthorizationList,
 } from './utils/eip7702';
 import { validateConfirmedExternalTransaction } from './utils/external-transactions';
+import {
+  getSubmitHistoryLimit,
+  getTransactionHistoryLimit,
+} from './utils/feature-flags';
 import { updateFirstTimeInteraction } from './utils/first-time-interaction';
 import {
   addGasBuffer,
@@ -217,8 +221,6 @@ const metadata: StateMetadata<TransactionControllerState> = {
     usedInUi: false,
   },
 };
-
-const SUBMIT_HISTORY_LIMIT = 100;
 
 /**
  * Object with new transaction's meta and a promise resolving to the
@@ -519,8 +521,14 @@ export type TransactionControllerOptions = {
   testGasFeeFlows?: boolean;
   trace?: TraceCallback;
 
-  /** Transaction history limit. */
-  transactionHistoryLimit: number;
+  /**
+   * Transaction history limit.
+   *
+   * @deprecated Use the `transactionHistoryLimit` feature flag in
+   * `RemoteFeatureFlagController` instead. This option will be removed
+   * in a future version.
+   */
+  transactionHistoryLimit?: number;
 
   /** The controller hooks. */
   hooks: {
@@ -932,8 +940,6 @@ export class TransactionController extends BaseController<
 
   readonly #trace: TraceCallback;
 
-  readonly #transactionHistoryLimit: number;
-
   /**
    * Constructs a TransactionController.
    *
@@ -965,7 +971,6 @@ export class TransactionController extends BaseController<
       state,
       testGasFeeFlows,
       trace,
-      transactionHistoryLimit = 40,
     } = options;
 
     super({
@@ -1038,7 +1043,6 @@ export class TransactionController extends BaseController<
     this.#sign = sign;
     this.#testGasFeeFlows = testGasFeeFlows === true;
     this.#trace = trace ?? (((_request, fn) => fn?.()) as TraceCallback);
-    this.#transactionHistoryLimit = transactionHistoryLimit;
 
     const findNetworkClientIdByChainId = (chainId: Hex): string => {
       return this.messenger.call(
@@ -1263,6 +1267,7 @@ export class TransactionController extends BaseController<
       gasFeeToken,
       isGasFeeIncluded,
       isGasFeeSponsored,
+      isStateOnly,
       method,
       nestedTransactions,
       networkClientId,
@@ -1362,6 +1367,7 @@ export class TransactionController extends BaseController<
           isGasFeeIncluded,
           isGasFeeSponsored,
           isFirstTimeInteraction: undefined,
+          isStateOnly,
           nestedTransactions,
           networkClientId,
           origin,
@@ -1468,8 +1474,7 @@ export class TransactionController extends BaseController<
         })
         .catch(noop);
 
-      // eslint-disable-next-line no-negated-condition
-      if (requireApproval !== false) {
+      if (requireApproval !== false && !isStateOnly) {
         this.#updateSimulationData(addedTransactionMeta, {
           traceContext,
         }).catch((error) => {
@@ -3070,7 +3075,20 @@ export class TransactionController extends BaseController<
       traceContext?: TraceContext;
     },
   ): Promise<string> {
-    const transactionId = transactionMeta.id;
+    const { id: transactionId, isStateOnly } = transactionMeta;
+
+    if (isStateOnly) {
+      this.#updateTransactionInternal(
+        { transactionId, skipValidation: true },
+        (tx) => {
+          tx.status = TransactionStatus.submitted;
+          tx.submittedTime = new Date().getTime();
+        },
+      );
+
+      return '';
+    }
+
     let resultCallbacks: AcceptResultCallbacks | undefined;
     const { meta, isCompleted } = this.#isTransactionCompleted(transactionId);
 
@@ -3459,6 +3477,7 @@ export class TransactionController extends BaseController<
     transactions: TransactionMeta[],
   ): TransactionMeta[] {
     const nonceNetworkSet = new Set();
+    const transactionHistoryLimit = getTransactionHistoryLimit(this.messenger);
 
     const txsToKeep = [...transactions]
       .sort((a, b) => (a.time > b.time ? -1 : 1)) // Descending time order
@@ -3473,7 +3492,7 @@ export class TransactionController extends BaseController<
           if (nonceNetworkSet.has(key)) {
             return true;
           } else if (
-            nonceNetworkSet.size < this.#transactionHistoryLimit ||
+            nonceNetworkSet.size < transactionHistoryLimit ||
             !this.#isFinalState(status)
           ) {
             nonceNetworkSet.add(key);
@@ -3776,7 +3795,8 @@ export class TransactionController extends BaseController<
         nonce &&
         transaction.txParams.nonce === nonce &&
         transaction.chainId === chainId &&
-        transaction.type !== TransactionType.incoming,
+        transaction.type !== TransactionType.incoming &&
+        transaction.isTransfer === undefined,
     );
     const sameNonceTransactionIds = sameNonceTransactions.map(
       (transaction) => transaction.id,
@@ -4527,10 +4547,12 @@ export class TransactionController extends BaseController<
 
     log('Updating submit history', submitHistoryEntry);
 
+    const submitHistoryLimit = getSubmitHistoryLimit(this.messenger);
+
     this.update((state) => {
       const { submitHistory } = state;
 
-      if (submitHistory.length === SUBMIT_HISTORY_LIMIT) {
+      if (submitHistory.length >= submitHistoryLimit) {
         submitHistory.pop();
       }
 

@@ -6,6 +6,7 @@ export type {
   RampsControllerState,
   RampsControllerStateChangeEvent,
   RampsControllerOptions,
+  UserRegion,
 } from './RampsController';
 export {
   RampsController,
@@ -15,9 +16,28 @@ export type {
   RampsServiceActions,
   RampsServiceEvents,
   RampsServiceMessenger,
+  Country,
+  State,
+  SupportedActions,
+  CountryPhone,
+  Provider,
+  ProviderLink,
+  ProviderLogos,
+  RampAction,
+  PaymentMethod,
+  PaymentMethodsResponse,
 } from './RampsService';
-export { RampsService, RampsEnvironment } from './RampsService';
-export type { RampsServiceGetGeolocationAction } from './RampsService-method-action-types';
+export {
+  RampsService,
+  RampsEnvironment,
+  RampsApiService,
+  RAMPS_SDK_VERSION,
+} from './RampsService';
+export type {
+  RampsServiceGetGeolocationAction,
+  RampsServiceGetCountriesAction,
+  RampsServiceGetPaymentMethodsAction,
+} from './RampsService-method-action-types';
 export type {
   RequestCache,
   RequestState,
@@ -34,3 +54,5 @@ export {
   createSuccessState,
   createErrorState,
 } from './RequestCache';
+export type { RequestSelectorResult } from './selectors';
+export { createRequestSelector } from './selectors';

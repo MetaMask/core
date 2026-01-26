@@ -31,7 +31,7 @@ import type {
 import type { CaipAssetType } from '@metamask/utils';
 
 import type { BridgeStatusController } from './bridge-status-controller';
-import type { BRIDGE_STATUS_CONTROLLER_NAME } from './constants';
+import { BRIDGE_STATUS_CONTROLLER_NAME } from './constants';
 import type { StatusResponseSchema } from './utils/validators';
 
 // All fields need to be types not interfaces, same with their children fields
@@ -45,8 +45,7 @@ export enum BridgeClientId {
 export type FetchFunction = (
   input: RequestInfo | URL,
   init?: RequestInit,
-  // eslint-disable-next-line @typescript-eslint/no-explicit-any
-) => Promise<any>;
+) => Promise<unknown>;
 
 /**
  * These fields are specific to Solana transactions and can likely be infered from TransactionMeta
@@ -102,10 +101,19 @@ export type StatusResponse = Infer<typeof StatusResponseSchema>;
 export type RefuelStatusResponse = object & StatusResponse;
 
 export type BridgeHistoryItem = {
-  txMetaId: string; // Need this to handle STX that might not have a txHash immediately
+  txMetaId?: string; // Optional: not available pre-submission or on sync failure
+  actionId?: string; // Only for non-batch EVM transactions
+  originalTransactionId?: string; // Keep original transaction ID for intent transactions
   batchId?: string;
   quote: Quote;
   status: StatusResponse;
+  /**
+   * For intent-based orders (e.g., CoW) that can be partially filled across
+   * multiple on-chain settlements, we keep all discovered source tx hashes here.
+   * The canonical status.srcChain.txHash continues to hold the latest known hash
+   * for backward compatibility with consumers expecting a single hash.
+   */
+  srcTxHashes?: string[];
   startTime?: number; // timestamp in ms
   estimatedProcessingTimeInSeconds: number;
   slippagePercentage: number;
@@ -140,13 +148,14 @@ export type BridgeHistoryItem = {
 };
 
 export enum BridgeStatusAction {
-  START_POLLING_FOR_BRIDGE_TX_STATUS = 'startPollingForBridgeTxStatus',
-  WIPE_BRIDGE_STATUS = 'wipeBridgeStatus',
-  GET_STATE = 'getState',
-  RESET_STATE = 'resetState',
-  SUBMIT_TX = 'submitTx',
-  RESTART_POLLING_FOR_FAILED_ATTEMPTS = 'restartPollingForFailedAttempts',
-  GET_BRIDGE_HISTORY_ITEM_BY_TX_META_ID = 'getBridgeHistoryItemByTxMetaId',
+  StartPollingForBridgeTxStatus = 'StartPollingForBridgeTxStatus',
+  WipeBridgeStatus = 'WipeBridgeStatus',
+  GetState = 'GetState',
+  ResetState = 'ResetState',
+  SubmitTx = 'SubmitTx',
+  SubmitIntent = 'SubmitIntent',
+  RestartPollingForFailedAttempts = 'RestartPollingForFailedAttempts',
+  GetBridgeHistoryItemByTxMetaId = 'GetBridgeHistoryItemByTxMetaId',
 }
 
 export type TokenAmountValuesSerialized = {
@@ -187,7 +196,7 @@ export type QuoteMetadataSerialized = {
 };
 
 export type StartPollingForBridgeTxStatusArgs = {
-  bridgeTxMeta: TransactionMeta;
+  bridgeTxMeta?: TransactionMeta;
   statusRequest: StatusRequest;
   quoteResponse: QuoteResponse & QuoteMetadata;
   startTime?: BridgeHistoryItem['startTime'];
@@ -232,22 +241,25 @@ export type BridgeStatusControllerGetStateAction = ControllerGetStateAction<
 
 // Maps to BridgeController function names
 export type BridgeStatusControllerStartPollingForBridgeTxStatusAction =
-  BridgeStatusControllerAction<BridgeStatusAction.START_POLLING_FOR_BRIDGE_TX_STATUS>;
+  BridgeStatusControllerAction<'startPollingForBridgeTxStatus'>;
 
 export type BridgeStatusControllerWipeBridgeStatusAction =
-  BridgeStatusControllerAction<BridgeStatusAction.WIPE_BRIDGE_STATUS>;
+  BridgeStatusControllerAction<'wipeBridgeStatus'>;
 
 export type BridgeStatusControllerResetStateAction =
-  BridgeStatusControllerAction<BridgeStatusAction.RESET_STATE>;
+  BridgeStatusControllerAction<'resetState'>;
 
 export type BridgeStatusControllerSubmitTxAction =
-  BridgeStatusControllerAction<BridgeStatusAction.SUBMIT_TX>;
+  BridgeStatusControllerAction<'submitTx'>;
+
+export type BridgeStatusControllerSubmitIntentAction =
+  BridgeStatusControllerAction<'submitIntent'>;
 
 export type BridgeStatusControllerRestartPollingForFailedAttemptsAction =
-  BridgeStatusControllerAction<BridgeStatusAction.RESTART_POLLING_FOR_FAILED_ATTEMPTS>;
+  BridgeStatusControllerAction<'restartPollingForFailedAttempts'>;
 
 export type BridgeStatusControllerGetBridgeHistoryItemByTxMetaIdAction =
-  BridgeStatusControllerAction<BridgeStatusAction.GET_BRIDGE_HISTORY_ITEM_BY_TX_META_ID>;
+  BridgeStatusControllerAction<'getBridgeHistoryItemByTxMetaId'>;
 
 export type BridgeStatusControllerActions =
   | BridgeStatusControllerStartPollingForBridgeTxStatusAction
@@ -255,6 +267,7 @@ export type BridgeStatusControllerActions =
   | BridgeStatusControllerResetStateAction
   | BridgeStatusControllerGetStateAction
   | BridgeStatusControllerSubmitTxAction
+  | BridgeStatusControllerSubmitIntentAction
   | BridgeStatusControllerRestartPollingForFailedAttemptsAction
   | BridgeStatusControllerGetBridgeHistoryItemByTxMetaIdAction;
 

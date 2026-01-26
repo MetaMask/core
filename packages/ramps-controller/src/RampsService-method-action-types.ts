@@ -17,6 +17,70 @@ export type RampsServiceGetGeolocationAction = {
 };
 
 /**
+ * Makes a request to the cached API to retrieve the list of supported countries.
+ * The API returns countries with support information for both buy and sell actions.
+ * Filters countries based on aggregator support (preserves OnRampSDK logic).
+ *
+ * @returns An array of countries filtered by aggregator support.
+ */
+export type RampsServiceGetCountriesAction = {
+  type: `RampsService:getCountries`;
+  handler: RampsService['getCountries'];
+};
+
+/**
+ * Fetches the list of available tokens for a given region and action.
+ * Supports optional provider filter.
+ *
+ * @param region - The region code (e.g., "us", "fr", "us-ny").
+ * @param action - The ramp action type ('buy' or 'sell').
+ * @param options - Optional query parameters for filtering tokens.
+ * @param options.provider - Provider ID(s) to filter by.
+ * @returns The tokens response containing topTokens and allTokens.
+ */
+export type RampsServiceGetTokensAction = {
+  type: `RampsService:getTokens`;
+  handler: RampsService['getTokens'];
+};
+
+/**
+ * Fetches the list of providers for a given region.
+ * Supports optional query filters: provider, crypto, fiat, payments.
+ *
+ * @param regionCode - The region code (e.g., "us", "fr", "us-ny").
+ * @param options - Optional query parameters for filtering providers.
+ * @param options.provider - Provider ID(s) to filter by.
+ * @param options.crypto - Crypto currency ID(s) to filter by.
+ * @param options.fiat - Fiat currency ID(s) to filter by.
+ * @param options.payments - Payment method ID(s) to filter by.
+ * @returns The providers response containing providers array.
+ */
+export type RampsServiceGetProvidersAction = {
+  type: `RampsService:getProviders`;
+  handler: RampsService['getProviders'];
+};
+
+/**
+ * Fetches the list of payment methods for a given region, asset, and provider.
+ *
+ * @param options - Query parameters for filtering payment methods.
+ * @param options.region - User's region code (e.g., "us-al").
+ * @param options.fiat - Fiat currency code (e.g., "usd").
+ * @param options.assetId - CAIP-19 cryptocurrency identifier.
+ * @param options.provider - Provider ID path.
+ * @returns The payment methods response containing payments array.
+ */
+export type RampsServiceGetPaymentMethodsAction = {
+  type: `RampsService:getPaymentMethods`;
+  handler: RampsService['getPaymentMethods'];
+};
+
+/**
  * Union of all RampsService action types.
  */
-export type RampsServiceMethodActions = RampsServiceGetGeolocationAction;
+export type RampsServiceMethodActions =
+  | RampsServiceGetGeolocationAction
+  | RampsServiceGetCountriesAction
+  | RampsServiceGetTokensAction
+  | RampsServiceGetProvidersAction
+  | RampsServiceGetPaymentMethodsAction;

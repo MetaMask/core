@@ -5,6 +5,7 @@ import type {
   EthKeyring,
   InternalAccount,
 } from '@metamask/keyring-internal-api';
+import { SnapControllerState } from '@metamask/snaps-controllers';
 
 import { AccountProviderWrapper } from './AccountProviderWrapper';
 import { SnapAccountProviderConfig } from './SnapAccountProvider';
@@ -43,7 +44,7 @@ class MockTronKeyring {
     .fn()
     .mockImplementation((_, { index }) => {
       // Use the provided index or fallback to accounts length
-      const groupIndex = index !== undefined ? index : this.accounts.length;
+      const groupIndex = index ?? this.accounts.length;
 
       // Check if an account already exists for this group index (idempotent behavior)
       const found = this.accounts.find(
@@ -69,6 +70,11 @@ class MockTronKeyring {
 
   // Add discoverAccounts method to match the provider's usage
   discoverAccounts = jest.fn().mockResolvedValue([]);
+}
+class MockTrxAccountProvider extends TrxAccountProvider {
+  override async ensureCanUseSnapPlatform(): Promise<void> {
+    // Override to avoid waiting during tests.
+  }
 }
 
 /**
@@ -101,6 +107,11 @@ function setup({
   };
 } {
   const keyring = new MockTronKeyring(accounts);
+
+  messenger.registerActionHandler(
+    'SnapController:getState',
+    () => ({ isReady: true }) as SnapControllerState,
+  );
 
   messenger.registerActionHandler(
     'AccountsController:listMultichainAccounts',
@@ -137,7 +148,7 @@ function setup({
   const multichainMessenger = getMultichainAccountServiceMessenger(messenger);
   const provider = new AccountProviderWrapper(
     multichainMessenger,
-    new TrxAccountProvider(multichainMessenger, config),
+    new MockTrxAccountProvider(multichainMessenger, config),
   );
 
   return {
@@ -359,7 +370,7 @@ describe('TrxAccountProvider', () => {
 
       const multichainMessenger =
         getMultichainAccountServiceMessenger(messenger);
-      const trxProvider = new TrxAccountProvider(
+      const trxProvider = new MockTrxAccountProvider(
         multichainMessenger,
         undefined,
         mockTrace,
@@ -413,7 +424,7 @@ describe('TrxAccountProvider', () => {
 
       const multichainMessenger =
         getMultichainAccountServiceMessenger(messenger);
-      const trxProvider = new TrxAccountProvider(
+      const trxProvider = new MockTrxAccountProvider(
         multichainMessenger,
         undefined,
         mockTrace,
@@ -446,7 +457,7 @@ describe('TrxAccountProvider', () => {
 
       const multichainMessenger =
         getMultichainAccountServiceMessenger(messenger);
-      const trxProvider = new TrxAccountProvider(
+      const trxProvider = new MockTrxAccountProvider(
         multichainMessenger,
         undefined,
         mockTrace,

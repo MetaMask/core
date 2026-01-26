@@ -66,6 +66,26 @@ describe('wallet_revokeSession', () => {
     );
   });
 
+  it('revokes the CAIP-25 endowment permission when params is not specified', async () => {
+    const { handler, revokePermissionForOrigin, response } =
+      createMockedHandler();
+    const requestWithoutParams = {
+      origin: 'http://test.com',
+      jsonrpc: '2.0' as const,
+      id: 1,
+      method: 'wallet_revokeSession',
+    } as JsonRpcRequest & {
+      origin: string;
+      params: { scopes?: string[] };
+    };
+
+    await handler(requestWithoutParams);
+    expect(revokePermissionForOrigin).toHaveBeenCalledWith(
+      Caip25EndowmentPermissionName,
+    );
+    expect(response.result).toBe(true);
+  });
+
   it('partially revokes the CAIP-25 endowment permission if `scopes` param is passed in', async () => {
     const { handler, getCaveatForOrigin, updateCaveat } = createMockedHandler();
     getCaveatForOrigin.mockImplementation(() => ({
