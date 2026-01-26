@@ -123,11 +123,6 @@ export class TokenListController extends StaticIntervalPollingController<TokenLi
   TokenListControllerMessenger
 > {
   /**
-   * Promise that resolves when initialization (loading cache from storage) is complete.
-   */
-  #initializationPromise: Promise<void> = Promise.resolve();
-
-  /**
    * Debounce timer for persisting state changes to storage.
    */
   #persistDebounceTimer?: ReturnType<typeof setTimeout>;
@@ -262,8 +257,7 @@ export class TokenListController extends StaticIntervalPollingController<TokenLi
    * @returns A promise that resolves when initialization is complete.
    */
   async initialize(): Promise<void> {
-    this.#initializationPromise = this.#loadCacheFromStorage();
-    await this.#initializationPromise;
+    await this.#loadCacheFromStorage();
   }
 
   /**
