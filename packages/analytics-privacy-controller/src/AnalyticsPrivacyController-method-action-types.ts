@@ -10,6 +10,7 @@ import type { AnalyticsPrivacyController } from './AnalyticsPrivacyController';
  * This is necessary to respect the GDPR and CCPA regulations.
  *
  * @returns Promise containing the status of the request
+ * @throws Error if analytics ID is missing or if the service call fails
  */
 export type AnalyticsPrivacyControllerCreateDataDeletionTaskAction = {
   type: `AnalyticsPrivacyController:createDataDeletionTask`;

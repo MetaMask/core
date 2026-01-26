@@ -243,7 +243,7 @@ describe('AnalyticsPrivacyController', () => {
       });
     });
 
-    it('returns error response when analyticsId is empty string', async () => {
+    it('throws error when analyticsId is empty string', async () => {
       const rootMessenger = new Messenger<
         MockAnyNamespace,
         AnalyticsPrivacyControllerActions | AnalyticsPrivacyServiceActions,
@@ -280,17 +280,14 @@ describe('AnalyticsPrivacyController', () => {
         analyticsId: '', // Empty string to test the !analyticsId check
       });
 
-      const response = await rootMessenger.call(
-        'AnalyticsPrivacyController:createDataDeletionTask',
-      );
-
-      expect(response.status).toBe(DATA_DELETE_RESPONSE_STATUSES.Failure);
-      expect(response.error).toBe(
+      await expect(
+        rootMessenger.call('AnalyticsPrivacyController:createDataDeletionTask'),
+      ).rejects.toThrow(
         'Analytics ID not found. You need to provide a valid analytics ID when initializing the AnalyticsPrivacyController.',
       );
     });
 
-    it('returns error response without updating state when service throws error for missing regulateId', async () => {
+    it('throws error without updating state when service throws error for missing regulateId', async () => {
       const rootMessenger = new Messenger<
         MockAnyNamespace,
         AnalyticsPrivacyControllerActions | AnalyticsPrivacyServiceActions,
@@ -330,17 +327,14 @@ describe('AnalyticsPrivacyController', () => {
         analyticsId: 'test-analytics-id',
       });
 
-      const response = await rootMessenger.call(
-        'AnalyticsPrivacyController:createDataDeletionTask',
-      );
-
-      expect(response.status).toBe(DATA_DELETE_RESPONSE_STATUSES.Failure);
-      expect(response.error).toBe(
+      await expect(
+        rootMessenger.call('AnalyticsPrivacyController:createDataDeletionTask'),
+      ).rejects.toThrow(
         'Malformed response from Segment API: missing or invalid regulateId',
       );
     });
 
-    it('returns error response without updating state when service throws error for empty regulateId', async () => {
+    it('throws error without updating state when service throws error for empty regulateId', async () => {
       const rootMessenger = new Messenger<
         MockAnyNamespace,
         AnalyticsPrivacyControllerActions | AnalyticsPrivacyServiceActions,
@@ -378,19 +372,16 @@ describe('AnalyticsPrivacyController', () => {
         analyticsId: 'test-analytics-id',
       });
 
-      const response = await rootMessenger.call(
-        'AnalyticsPrivacyController:createDataDeletionTask',
-      );
-
-      expect(response.status).toBe(DATA_DELETE_RESPONSE_STATUSES.Failure);
-      expect(response.error).toBe(
+      await expect(
+        rootMessenger.call('AnalyticsPrivacyController:createDataDeletionTask'),
+      ).rejects.toThrow(
         'Malformed response from Segment API: missing or invalid regulateId',
       );
       // State should not be updated when service throws error
       expect(controller.state.deleteRegulationId).toBeNull();
     });
 
-    it('returns error response and does not update state when service throws error for undefined regulateId', async () => {
+    it('throws error and does not update state when service throws error for undefined regulateId', async () => {
       const rootMessenger = new Messenger<
         MockAnyNamespace,
         AnalyticsPrivacyControllerActions | AnalyticsPrivacyServiceActions,
@@ -428,18 +419,15 @@ describe('AnalyticsPrivacyController', () => {
         analyticsId: 'test-analytics-id',
       });
 
-      const response = await rootMessenger.call(
-        'AnalyticsPrivacyController:createDataDeletionTask',
-      );
-
-      expect(response.status).toBe(DATA_DELETE_RESPONSE_STATUSES.Failure);
-      expect(response.error).toBe(
+      await expect(
+        rootMessenger.call('AnalyticsPrivacyController:createDataDeletionTask'),
+      ).rejects.toThrow(
         'Malformed response from Segment API: missing or invalid regulateId',
       );
       expect(controller.state.deleteRegulationId).toBeNull();
     });
 
-    it('returns error response with default message when service throws non-Error value', async () => {
+    it('throws error when service throws non-Error value', async () => {
       const rootMessenger = new Messenger<
         MockAnyNamespace,
         AnalyticsPrivacyControllerActions | AnalyticsPrivacyServiceActions,
@@ -473,15 +461,12 @@ describe('AnalyticsPrivacyController', () => {
         analyticsId: 'test-analytics-id',
       });
 
-      const response = await rootMessenger.call(
-        'AnalyticsPrivacyController:createDataDeletionTask',
-      );
-
-      expect(response.status).toBe(DATA_DELETE_RESPONSE_STATUSES.Failure);
-      expect(response.error).toBe('Analytics Deletion Task Error');
+      await expect(
+        rootMessenger.call('AnalyticsPrivacyController:createDataDeletionTask'),
+      ).rejects.toBe('String error');
     });
 
-    it('returns error response when service throws error', async () => {
+    it('throws error when service throws error', async () => {
       const rootMessenger = new Messenger<
         MockAnyNamespace,
         AnalyticsPrivacyControllerActions | AnalyticsPrivacyServiceActions,
@@ -515,12 +500,9 @@ describe('AnalyticsPrivacyController', () => {
         analyticsId: 'test-analytics-id',
       });
 
-      const response = await rootMessenger.call(
-        'AnalyticsPrivacyController:createDataDeletionTask',
-      );
-
-      expect(response.status).toBe(DATA_DELETE_RESPONSE_STATUSES.Failure);
-      expect(response.error).toBe('Service error');
+      await expect(
+        rootMessenger.call('AnalyticsPrivacyController:createDataDeletionTask'),
+      ).rejects.toThrow('Service error');
     });
 
     it('preserves initial state when service throws error', async () => {
@@ -545,15 +527,20 @@ describe('AnalyticsPrivacyController', () => {
         jest.fn().mockRejectedValue(new Error('Service error')),
       );
 
+      rootMessenger.delegate({
+        messenger: analyticsPrivacyControllerMessenger,
+        actions: ['AnalyticsPrivacyService:createDataDeletionTask'],
+      });
+
       const controller = new AnalyticsPrivacyController({
         messenger: analyticsPrivacyControllerMessenger,
         analyticsId: 'test-analytics-id',
       });
       const initialState = controller.state;
 
-      await rootMessenger.call(
-        'AnalyticsPrivacyController:createDataDeletionTask',
-      );
+      await expect(
+        rootMessenger.call('AnalyticsPrivacyController:createDataDeletionTask'),
+      ).rejects.toThrow('Service error');
 
       expect(controller.state).toStrictEqual(initialState);
     });

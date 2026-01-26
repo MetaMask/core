@@ -9,7 +9,7 @@ import type { Messenger } from '@metamask/messenger';
 import type { AnalyticsPrivacyControllerMethodActions } from './AnalyticsPrivacyController-method-action-types';
 import type { AnalyticsPrivacyServiceActions } from './AnalyticsPrivacyService';
 import { projectLogger as log } from './logger';
-import { DATA_DELETE_RESPONSE_STATUSES, DATA_DELETE_STATUSES } from './types';
+import { DATA_DELETE_STATUSES } from './types';
 import type {
   IDeleteRegulationResponse,
   IDeleteRegulationStatus,
@@ -246,54 +246,40 @@ export class AnalyticsPrivacyController extends BaseController<
    * This is necessary to respect the GDPR and CCPA regulations.
    *
    * @returns Promise containing the status of the request
+   * @throws Error if analytics ID is missing or if the service call fails
    */
   async createDataDeletionTask(): Promise<IDeleteRegulationResponse> {
-    try {
-      if (!this.#analyticsId || this.#analyticsId.trim() === '') {
-        const error = new Error(
-          'Analytics ID not found. You need to provide a valid analytics ID when initializing the AnalyticsPrivacyController.',
-        );
-        log('Analytics Deletion Task Error', error);
-        return {
-          status: DATA_DELETE_RESPONSE_STATUSES.Failure,
-          error: error.message,
-        };
-      }
-
-      const response = await this.messenger.call(
-        'AnalyticsPrivacyService:createDataDeletionTask',
-        this.#analyticsId,
+    if (!this.#analyticsId || this.#analyticsId.trim() === '') {
+      const error = new Error(
+        'Analytics ID not found. You need to provide a valid analytics ID when initializing the AnalyticsPrivacyController.',
       );
-
-      const deletionTimestamp = Date.now();
-      // Service validates and throws if regulateId is missing, so it's always defined here
-      const { regulateId } = response;
-      // Type assertion is safe because service throws if regulateId is missing
-      const validRegulateId: string = regulateId as string;
-
-      this.update((state) => {
-        state.deleteRegulationId = validRegulateId;
-        state.deleteRegulationTimestamp = deletionTimestamp;
-        state.hasCollectedDataSinceDeletionRequest = false;
-      });
-
-      this.messenger.publish(
-        `${controllerName}:dataDeletionTaskCreated`,
-        response,
-      );
-
-      return response;
-    } catch (error) {
       log('Analytics Deletion Task Error', error);
-      const errorMessage =
-        error instanceof Error
-          ? error.message
-          : 'Analytics Deletion Task Error';
-      return {
-        status: DATA_DELETE_RESPONSE_STATUSES.Failure,
-        error: errorMessage,
-      };
+      throw error;
     }
+
+    const response = await this.messenger.call(
+      'AnalyticsPrivacyService:createDataDeletionTask',
+      this.#analyticsId,
+    );
+
+    const deletionTimestamp = Date.now();
+    // Service validates and throws if regulateId is missing, so it's always defined here
+    const { regulateId } = response;
+    // Type assertion is safe because service throws if regulateId is missing
+    const validRegulateId: string = regulateId as string;
+
+    this.update((state) => {
+      state.deleteRegulationId = validRegulateId;
+      state.deleteRegulationTimestamp = deletionTimestamp;
+      state.hasCollectedDataSinceDeletionRequest = false;
+    });
+
+    this.messenger.publish(
+      `${controllerName}:dataDeletionTaskCreated`,
+      response,
+    );
+
+    return response;
   }
 
   /**
