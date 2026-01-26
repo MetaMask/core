@@ -1998,9 +1998,6 @@ describe('RampsController', () => {
           expect(controller.state.paymentMethods).toStrictEqual([
             mockPaymentMethod,
           ]);
-          expect(controller.state.selectedPaymentMethod).toStrictEqual(
-            mockPaymentMethod,
-          );
         },
       );
     });
@@ -2977,15 +2974,13 @@ describe('RampsController', () => {
           );
 
           await controller.setSelectedToken(mockToken);
+          await new Promise((resolve) => setTimeout(resolve, 10));
 
           expect(paymentMethodsCalled).toBe(true);
           expect(controller.state.selectedToken).toStrictEqual(mockToken);
           expect(controller.state.paymentMethods).toStrictEqual([
             mockPaymentMethod,
           ]);
-          expect(controller.state.selectedPaymentMethod).toStrictEqual(
-            mockPaymentMethod,
-          );
         },
       );
     });
@@ -3142,46 +3137,6 @@ describe('RampsController', () => {
 
           expect(paymentMethodsCalled).toBe(false);
           expect(controller.state.selectedToken).toStrictEqual(mockToken);
-        },
-      );
-    });
-
-    it('auto-selects the first payment method when payment methods are fetched', async () => {
-      const paymentMethod1 = {
-        id: '/payments/card',
-        paymentType: 'debit-credit-card',
-        name: 'Card',
-        score: 90,
-        icon: 'card',
-      };
-      const paymentMethod2 = {
-        id: '/payments/bank',
-        paymentType: 'bank-transfer',
-        name: 'Bank',
-        score: 80,
-        icon: 'bank',
-      };
-
-      await withController(
-        {
-          options: {
-            state: {
-              userRegion: createMockUserRegion('us'),
-              providers: [mockProvider],
-            },
-          },
-        },
-        async ({ controller, rootMessenger }) => {
-          rootMessenger.registerActionHandler(
-            'RampsService:getPaymentMethods',
-            async () => ({ payments: [paymentMethod1, paymentMethod2] }),
-          );
-
-          await controller.setSelectedToken(mockToken);
-
-          expect(controller.state.selectedPaymentMethod).toStrictEqual(
-            paymentMethod1,
-          );
         },
       );
     });

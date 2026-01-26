@@ -648,10 +648,10 @@ export class RampsController extends BaseController<
 
     // If token is selected and provider changed, fetch payment methods
     if (this.state.selectedToken && provider) {
-      this.#triggerFetchAndSetPaymentMethods(
-        provider.id,
-        this.state.selectedToken,
-      );
+      this.triggerGetPaymentMethods(undefined, {
+        assetId: this.state.selectedToken.assetId,
+        provider: provider.id,
+      });
     } else if (hadProvider && !provider && this.state.selectedToken) {
       this.update((state) => {
         state.paymentMethods = [];
@@ -937,15 +937,11 @@ export class RampsController extends BaseController<
 
   /**
    * Sets the user's selected token.
-   * Automatically fetches and sets payment methods for that token, and auto-selects the first one.
+   * Automatically fetches payment methods for that token.
    *
    * @param token - The token object, or null to clear.
-   * @param options - Options for cache behavior.
    */
-  async setSelectedToken(
-    token: RampsToken | null,
-    options?: ExecuteRequestOptions,
-  ): Promise<void> {
+  async setSelectedToken(token: RampsToken | null): Promise<void> {
     this.update((state) => {
       state.selectedToken = token;
     });
@@ -962,71 +958,16 @@ export class RampsController extends BaseController<
     const provider = this.state.preferredProvider ?? this.state.providers[0];
 
     if (provider) {
-      try {
-        await this.#fetchAndSetPaymentMethods(provider.id, token, options);
-      } catch {
-        // Error stored in request state
-      }
+      this.triggerGetPaymentMethods(undefined, {
+        assetId: token.assetId,
+        provider: provider.id,
+      });
     } else {
       this.update((state) => {
         state.paymentMethods = [];
         state.selectedPaymentMethod = null;
       });
     }
-  }
-
-  /**
-   * Fetches payment methods for the given provider and token, then auto-selects the first one.
-   *
-   * @param providerId - The provider ID.
-   * @param token - The token object.
-   * @param options - Options for cache behavior.
-   */
-  async #fetchAndSetPaymentMethods(
-    providerId: string,
-    token: RampsToken,
-    options?: ExecuteRequestOptions,
-  ): Promise<void> {
-    const { assetId } = token;
-
-    const regionCode = this.state.userRegion?.regionCode;
-    const fiatCurrency = this.state.userRegion?.country?.currency;
-
-    if (!regionCode || !fiatCurrency) {
-      return;
-    }
-
-    const response = await this.getPaymentMethods(regionCode, {
-      assetId,
-      provider: providerId,
-      fiat: fiatCurrency,
-      ...options,
-    });
-
-    // Auto-select the first payment method
-    if (response.payments.length > 0) {
-      this.update((state) => {
-        state.selectedPaymentMethod = response.payments[0];
-      });
-    }
-  }
-
-  /**
-   * Triggers fetching and setting payment methods without throwing.
-   * Errors are handled internally by #fetchAndSetPaymentMethods.
-   *
-   * @param providerId - The provider ID.
-   * @param token - The token object.
-   * @param options - Options for cache behavior.
-   */
-  #triggerFetchAndSetPaymentMethods(
-    providerId: string,
-    token: RampsToken,
-    options?: ExecuteRequestOptions,
-  ): void {
-    this.#fetchAndSetPaymentMethods(providerId, token, options).catch(() => {
-      // Error stored in state
-    });
   }
 
   /**
