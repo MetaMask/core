@@ -7,6 +7,15 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+### Changed
+
+- **BREAKING:** `TokenListController` now persists `tokensChainsCache` via `StorageService` and requires clients to call `initialize()` after construction ([#7413](https://github.com/MetaMask/core/pull/7413))
+  - Each chain's token cache is stored in a separate file, reducing write amplification
+  - All chains are loaded in parallel at startup to maintain compatibility with TokenDetectionController
+  - `tokensChainsCache` state metadata now has `persist: false` to prevent duplicate persistence
+  - Clients must call `await controller.initialize()` before using the controller
+  - State changes are automatically persisted via debounced subscription
+
 ## [97.0.0]
 
 ### Added
@@ -76,6 +85,7 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ### Changed
 
+- Bump `@metamask/transaction-controller` from `^62.8.0` to `^62.9.0` ([#7602](https://github.com/MetaMask/core/pull/7602))
 - Bump `@metamask/transaction-controller` from `^62.8.0` to `^62.9.1` ([#7602](https://github.com/MetaMask/core/pull/7602), [#7604](https://github.com/MetaMask/core/pull/7604))
 - Bump `@metamask/network-controller` from `^27.2.0` to `^28.0.0` ([#7604](https://github.com/MetaMask/core/pull/7604))
 - Bump `@metamask/accounts-controller` from `^35.0.0` to `^35.0.1` ([#7604](https://github.com/MetaMask/core/pull/7604))

@@ -2715,6 +2715,7 @@ __metadata:
     "@metamask/snaps-controllers": "npm:^17.2.0"
     "@metamask/snaps-sdk": "npm:^10.3.0"
     "@metamask/snaps-utils": "npm:^11.7.0"
+    "@metamask/storage-service": "npm:^0.0.1"
     "@metamask/transaction-controller": "npm:^62.9.2"
     "@metamask/utils": "npm:^11.9.0"
     "@ts-bridge/cli": "npm:^0.6.4"
@@ -5024,7 +5025,7 @@ __metadata:
   languageName: node
   linkType: hard
 
-"@metamask/storage-service@workspace:packages/storage-service":
+"@metamask/storage-service@npm:^0.0.1, @metamask/storage-service@workspace:packages/storage-service":
   version: 0.0.0-use.local
   resolution: "@metamask/storage-service@workspace:packages/storage-service"
   dependencies:
