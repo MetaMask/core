@@ -1545,14 +1545,14 @@ export type SimulationError = {
 
 /** Simulation data for a transaction. */
 export type SimulationData = {
+  /** Error messages extracted from call traces, if any. */
+  callTraceErrors?: string[];
+
   /** Error data if the simulation failed or the transaction reverted. */
   error?: SimulationError;
 
   /** Whether the simulation response changed after a security check triggered a re-simulation. */
   isUpdatedAfterSecurityCheck?: boolean;
-
-  /** Error messages extracted from call traces, if any. */
-  callTraceErrors?: string[];
 
   /** Data concerning a change to the user's native balance. */
   nativeBalanceChange?: SimulationBalanceChange;
