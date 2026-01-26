@@ -703,7 +703,6 @@ export class TokenListController extends StaticIntervalPollingController<TokenLi
     }
     this.#changedChainsToPersist.clear();
     this.#chainsLoadedFromStorage.clear();
-    this.#previousTokensChainsCache = {};
 
     // Wait for any in-flight persist operation to complete before clearing storage.
     // This prevents race conditions where persist setItem calls interleave with
@@ -732,6 +731,8 @@ export class TokenListController extends StaticIntervalPollingController<TokenLi
         this.update((state) => {
           state.tokensChainsCache = {};
         });
+        // Reset previous cache after state is cleared to prevent false "new chain" detections
+        this.#previousTokensChainsCache = {};
         return;
       }
 
@@ -772,6 +773,9 @@ export class TokenListController extends StaticIntervalPollingController<TokenLi
           state.tokensChainsCache = preservedCache;
         }
       });
+
+      // Reset previous cache after state is cleared to prevent false "new chain" detections
+      this.#previousTokensChainsCache = { ...this.state.tokensChainsCache };
     } catch (error) {
       console.error(
         'TokenListController: Failed to clear cache from storage:',
@@ -781,6 +785,7 @@ export class TokenListController extends StaticIntervalPollingController<TokenLi
       this.update((state) => {
         state.tokensChainsCache = {};
       });
+      this.#previousTokensChainsCache = {};
     }
   }
 
