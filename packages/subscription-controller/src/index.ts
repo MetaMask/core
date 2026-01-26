@@ -29,6 +29,7 @@ export type {
   Subscription,
   AuthUtils,
   CancelSubscriptionRequest,
+  CancelType,
   ISubscriptionService,
   StartCryptoSubscriptionRequest,
   StartCryptoSubscriptionResponse,
