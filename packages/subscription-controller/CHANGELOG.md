@@ -7,6 +7,10 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+### Added
+
+- Added `CancelType` to `Subscription` and `CancelSubscriptionRequest` for `cancelSubscription` method ([#7720](https://github.com/MetaMask/core/pull/7720))
+
 ### Changed
 
 - Bump `@metamask/polling-controller` from `^16.0.0` to `^16.0.2` ([#7604](https://github.com/MetaMask/core/pull/7604), [#7642](https://github.com/MetaMask/core/pull/7642))
