@@ -54,7 +54,9 @@ export class SubscriptionService implements ISubscriptionService {
     params: CancelSubscriptionRequest,
   ): Promise<Subscription> {
     const path = `subscriptions/${params.subscriptionId}/cancel`;
-    return await this.#makeRequest(path, 'POST', {});
+    return await this.#makeRequest(path, 'POST', {
+      cancelAtPeriodEnd: params.cancelAtPeriodEnd,
+    });
   }
 
   async unCancelSubscription(params: {
