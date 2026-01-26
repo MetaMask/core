@@ -317,9 +317,16 @@ export class TokenListController extends StaticIntervalPollingController<TokenLi
    * clearingTokenListData() can wait for it to complete before removing
    * items from storage, preventing race conditions.
    *
+   * If a persist operation is already in-flight, this method returns early
+   * and relies on the debounce mechanism to retry with accumulated changes.
+   *
    * @returns A promise that resolves when changed chains are persisted.
    */
   async #persistChangedChains(): Promise<void> {
+    if (this.#persistInFlightPromise) {
+      return;
+    }
+
     const chainsToPersist = [...this.#changedChainsToPersist];
     this.#changedChainsToPersist.clear();
 
@@ -329,7 +336,7 @@ export class TokenListController extends StaticIntervalPollingController<TokenLi
 
     this.#persistInFlightPromise = Promise.all(
       chainsToPersist.map((chainId) => this.#saveChainCacheToStorage(chainId)),
-    ).then(() => undefined); // Convert Promise<void[]> to Promise<void>
+    ).then(() => undefined);
 
     try {
       await this.#persistInFlightPromise;
@@ -361,10 +368,6 @@ export class TokenListController extends StaticIntervalPollingController<TokenLi
       const cacheKeys = allKeys.filter((key) =>
         key.startsWith(`${TokenListController.#storageKeyPrefix}:`),
       );
-
-      if (cacheKeys.length === 0) {
-        return;
-      }
 
       // Load all chains in parallel
       const chainCaches = await Promise.all(
