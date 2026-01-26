@@ -27,6 +27,7 @@ import type {
 import type {
   RequestCache as RequestCacheType,
   RequestState,
+  CacheOptions,
   ExecuteRequestOptions,
   PendingRequest,
 } from './RequestCache';
@@ -577,12 +578,12 @@ export class RampsController extends BaseController<
    * This allows users to override the detected region.
    *
    * @param region - The region code to set (e.g., "US-CA").
-   * @param options - Options for cache behavior.
+   * @param options - Options for cache behavior (doNotUpdateState is not supported as this is inherently stateful).
    * @returns The user region object.
    */
   async setUserRegion(
     region: string,
-    options?: ExecuteRequestOptions,
+    options?: CacheOptions,
   ): Promise<UserRegion> {
     const normalizedRegion = region.toLowerCase().trim();
 
@@ -668,10 +669,10 @@ export class RampsController extends BaseController<
    * If a userRegion already exists (from persistence or manual selection),
    * this method will skip geolocation fetch and use the existing region.
    *
-   * @param options - Options for cache behavior.
+   * @param options - Options for cache behavior (doNotUpdateState is not supported as this is inherently stateful).
    * @returns Promise that resolves when initialization is complete.
    */
-  async init(options?: ExecuteRequestOptions): Promise<void> {
+  async init(options?: CacheOptions): Promise<void> {
     await this.getCountries(options);
 
     let regionCode = this.state.userRegion?.regionCode;
@@ -686,7 +687,7 @@ export class RampsController extends BaseController<
     await this.setUserRegion(regionCode, options);
   }
 
-  hydrateState(options?: ExecuteRequestOptions): void {
+  hydrateState(options?: CacheOptions): void {
     const regionCode = this.state.userRegion?.regionCode;
     if (!regionCode) {
       throw new Error(
@@ -1046,9 +1047,9 @@ export class RampsController extends BaseController<
    * Triggers setting the user region without throwing.
    *
    * @param region - The region code to set (e.g., "US-CA").
-   * @param options - Options for cache behavior.
+   * @param options - Options for cache behavior (doNotUpdateState is not supported as this is inherently stateful).
    */
-  triggerSetUserRegion(region: string, options?: ExecuteRequestOptions): void {
+  triggerSetUserRegion(region: string, options?: CacheOptions): void {
     this.setUserRegion(region, options).catch(() => {
       // Error stored in state
     });

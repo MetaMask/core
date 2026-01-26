@@ -128,13 +128,20 @@ export function createErrorState(
 }
 
 /**
- * Options for executing a cached request.
+ * Options for controlling cache behavior without affecting state updates.
+ * Use this for stateful operations like setUserRegion() and init().
  */
-export type ExecuteRequestOptions = {
+export type CacheOptions = {
   /** Force a refresh even if cached data exists */
   forceRefresh?: boolean;
   /** Custom TTL for this request in milliseconds */
   ttl?: number;
+};
+
+/**
+ * Options for executing a cached request.
+ */
+export type ExecuteRequestOptions = CacheOptions & {
   /** If true, skip updating controller state (but still update request cache for deduplication) */
   doNotUpdateState?: boolean;
 };
