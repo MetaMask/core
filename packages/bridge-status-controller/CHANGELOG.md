@@ -7,6 +7,10 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+### Changed
+
+- Bump `@metamask/bridge-controller` from `^64.8.1` to `^64.8.2` ([#7722](https://github.com/MetaMask/core/pull/7722))
+
 ### Fixed
 
 - Fix transaction failure tracking for pre-submission failures by using `actionId` as a temporary history key ([#7696](https://github.com/MetaMask/core/pull/7696))
