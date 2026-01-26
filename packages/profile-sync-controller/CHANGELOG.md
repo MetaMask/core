@@ -9,7 +9,7 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ### Changed
 
-- Centralize authentication error handling into a single `handleServiceError` helper for consistent error management across all service functions ([#7721](https://github.com/MetaMask/core/pull/7721))
+- Centralize authentication error handling into a single `throwServiceError` helper for consistent error management across all service functions ([#7721](https://github.com/MetaMask/core/pull/7721))
   - This fixes authentication services crashing when server returns non-JSON error responses.
 - Bump `@metamask/snaps-controllers` from `^14.0.1` to `^17.2.0` ([#7550](https://github.com/MetaMask/core/pull/7550))
 - Bump `@metamask/snaps-sdk` from `^9.0.0` to `^10.3.0` ([#7550](https://github.com/MetaMask/core/pull/7550))

@@ -48,30 +48,41 @@ const createMockResponse = (
 
   const textValue = typeof body === 'string' ? body : JSON.stringify(body);
 
+  // Create a Headers-like object with get() method
+  const headersObj = {
+    ...headers,
+    get: (name: string): string | null => {
+      const key = Object.keys(headers).find(
+        (k) => k.toLowerCase() === name.toLowerCase(),
+      );
+      return key ? headers[key] : null;
+    },
+  };
+
   const mockResponse = {
     ok,
     status,
-    headers: new Headers(headers),
-    json: async () => {
+    headers: headersObj,
+    json: async (): Promise<unknown> => {
       if (jsonShouldFail) {
         throw new SyntaxError('Unexpected token');
       }
       return body;
     },
-    text: async () => {
+    text: async (): Promise<string> => {
       if (textShouldFail) {
         throw new Error('Text read error');
       }
       return textValue;
     },
-    clone: function (): Response {
+    clone: (): Response => {
       return createMockResponse(body, options);
     },
   };
 
   // Make it pass instanceof Response check
   Object.setPrototypeOf(mockResponse, OriginalResponse.prototype);
-  return mockResponse as Response;
+  return mockResponse as unknown as Response;
 };
 
 describe('services', () => {
@@ -128,7 +139,7 @@ describe('services', () => {
 
       const result = await getNonce('test-id', Env.DEV);
 
-      expect(result).toEqual({
+      expect(result).toStrictEqual({
         nonce: 'test-nonce',
         identifier: 'test-identifier',
         expiresIn: 3600,
@@ -207,7 +218,9 @@ describe('services', () => {
       await expect(getNonce('test-id', Env.DEV)).rejects.toThrow(
         RateLimitedError,
       );
-      const error = await getNonce('test-id', Env.DEV).catch((e) => e);
+      const error = await getNonce('test-id', Env.DEV).catch(
+        (caughtError) => caughtError,
+      );
       expect(error.retryAfterMs).toBe(60000);
     });
 
@@ -219,7 +232,9 @@ describe('services', () => {
       );
       mockFetch.mockResolvedValue(mockResponse);
 
-      const error = await getNonce('test-id', Env.DEV).catch((e) => e);
+      const error = await getNonce('test-id', Env.DEV).catch(
+        (caughtError) => caughtError,
+      );
       expect(error).toBeInstanceOf(RateLimitedError);
       expect(error.retryAfterMs).toBeGreaterThan(0);
       expect(error.retryAfterMs).toBeLessThanOrEqual(30000);
@@ -232,7 +247,9 @@ describe('services', () => {
       );
       mockFetch.mockResolvedValue(mockResponse);
 
-      const error = await getNonce('test-id', Env.DEV).catch((e) => e);
+      const error = await getNonce('test-id', Env.DEV).catch(
+        (caughtError) => caughtError,
+      );
       expect(error).toBeInstanceOf(RateLimitedError);
       expect(error.retryAfterMs).toBeUndefined();
     });
@@ -280,7 +297,9 @@ describe('services', () => {
       });
       mockFetch.mockResolvedValue(mockResponse);
 
-      const error = await getNonce('test-id', Env.DEV).catch((e) => e);
+      const error = await getNonce('test-id', Env.DEV).catch(
+        (caughtError) => caughtError,
+      );
       expect(error.message).toContain('A'.repeat(150));
       expect(error.message.length).toBeLessThan(250);
     });
@@ -308,7 +327,7 @@ describe('services', () => {
         Env.DEV,
       );
 
-      expect(result).toEqual({
+      expect(result).toStrictEqual({
         token: 'jwt-token',
         expiresIn: 3600,
         profile: {
@@ -413,7 +432,7 @@ describe('services', () => {
         'signature',
         AuthType.SRP,
         Env.DEV,
-      ).catch((e) => e);
+      ).catch((caughtError) => caughtError);
 
       expect(error).toBeInstanceOf(RateLimitedError);
       expect(error.retryAfterMs).toBe(120000);
@@ -454,12 +473,12 @@ describe('services', () => {
         expect.stringContaining('/oauth2/token'),
         expect.objectContaining({
           method: 'POST',
-          headers: expect.any(Headers),
+          headers: expect.any(Object),
         }),
       );
 
       const callArgs = mockFetch.mock.calls[0];
-      const body = callArgs[1].body;
+      const { body } = callArgs[1];
       expect(body).toContain(
         'grant_type=urn%3Aietf%3Aparams%3Aoauth%3Agrant-type%3Ajwt-bearer',
       );
@@ -521,9 +540,13 @@ describe('services', () => {
       const mockResponse = createMockResponse({}, { ok: true, status: 200 });
       mockFetch.mockResolvedValue(mockResponse);
 
-      await expect(
-        pairIdentifiers('nonce-123', mockLogins, 'access-token', Env.DEV),
-      ).resolves.toBeUndefined();
+      const result = await pairIdentifiers(
+        'nonce-123',
+        mockLogins,
+        'access-token',
+        Env.DEV,
+      );
+      expect(result).toBeUndefined();
 
       expect(mockFetch).toHaveBeenCalledWith(
         expect.any(URL),
@@ -581,7 +604,7 @@ describe('services', () => {
         mockLogins,
         'access-token',
         Env.DEV,
-      ).catch((e) => e);
+      ).catch((caughtError) => caughtError);
 
       expect(error).toBeInstanceOf(RateLimitedError);
       expect(error.retryAfterMs).toBe(30000);
@@ -609,7 +632,7 @@ describe('services', () => {
 
       const result = await getUserProfileLineage(Env.DEV, 'access-token');
 
-      expect(result).toEqual(mockLineageResponse);
+      expect(result).toStrictEqual(mockLineageResponse);
       expect(mockFetch).toHaveBeenCalledWith(
         expect.any(URL),
         expect.objectContaining({
@@ -689,7 +712,9 @@ describe('services', () => {
       );
       mockFetch.mockResolvedValue(mockResponse);
 
-      const error = await getNonce('test-id', Env.DEV).catch((e) => e);
+      const error = await getNonce('test-id', Env.DEV).catch(
+        (caughtError) => caughtError,
+      );
       expect(error).toBeInstanceOf(RateLimitedError);
       expect(error.retryAfterMs).toBeUndefined();
     });
@@ -701,7 +726,9 @@ describe('services', () => {
       );
       mockFetch.mockResolvedValue(mockResponse);
 
-      const error = await getNonce('test-id', Env.DEV).catch((e) => e);
+      const error = await getNonce('test-id', Env.DEV).catch(
+        (caughtError) => caughtError,
+      );
       expect(error).toBeInstanceOf(RateLimitedError);
       expect(error.retryAfterMs).toBeUndefined();
     });
