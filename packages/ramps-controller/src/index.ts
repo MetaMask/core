@@ -41,6 +41,7 @@ export type {
 export type {
   RequestCache,
   RequestState,
+  CacheOptions,
   ExecuteRequestOptions,
   PendingRequest,
 } from './RequestCache';
