@@ -7,6 +7,10 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+### Changed
+
+- Updated s3 link in mock ([#7710](https://github.com/MetaMask/core/pull/7710))
+
 ## [64.8.1]
 
 ### Changed

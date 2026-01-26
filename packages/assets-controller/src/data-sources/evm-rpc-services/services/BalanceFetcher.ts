@@ -1,3 +1,4 @@
+import { StaticIntervalPollingControllerOnly } from '@metamask/polling-controller';
 import type { CaipAssetType } from '@metamask/utils';
 
 import type { MulticallClient } from '../clients';
@@ -16,6 +17,8 @@ import type {
 } from '../types';
 import { reduceInBatchesSerially } from '../utils';
 
+const DEFAULT_BALANCE_INTERVAL = 30_000; // 30 seconds
+
 const ZERO_ADDRESS: Address =
   '0x0000000000000000000000000000000000000000' as Address;
 
@@ -23,26 +26,82 @@ export type BalanceFetcherConfig = {
   defaultBatchSize?: number;
   defaultTimeoutMs?: number;
   includeNativeByDefault?: boolean;
+  /** Polling interval in ms (default: 30s) */
+  pollingInterval?: number;
 };
 
-export class BalanceFetcher {
+/**
+ * Polling input for BalanceFetcher - identifies what to poll for.
+ */
+export type BalancePollingInput = {
+  /** Chain ID (hex format) */
+  chainId: ChainId;
+  /** Account ID */
+  accountId: AccountId;
+  /** Account address */
+  accountAddress: Address;
+};
+
+/**
+ * Callback type for balance updates.
+ */
+export type OnBalanceUpdateCallback = (result: BalanceFetchResult) => void;
+
+/**
+ * BalanceFetcher - Fetches token balances via multicall.
+ * Extends StaticIntervalPollingControllerOnly for built-in polling support.
+ */
+export class BalanceFetcher extends StaticIntervalPollingControllerOnly<BalancePollingInput>() {
   readonly #multicallClient: MulticallClient;
 
-  readonly #config: Required<BalanceFetcherConfig>;
+  readonly #config: Required<Omit<BalanceFetcherConfig, 'pollingInterval'>>;
 
   #getUserTokensState: (() => UserTokensState) | undefined;
 
+  #onBalanceUpdate: OnBalanceUpdateCallback | undefined;
+
   constructor(multicallClient: MulticallClient, config?: BalanceFetcherConfig) {
+    super();
     this.#multicallClient = multicallClient;
     this.#config = {
       defaultBatchSize: config?.defaultBatchSize ?? 300,
       defaultTimeoutMs: config?.defaultTimeoutMs ?? 30000,
       includeNativeByDefault: config?.includeNativeByDefault ?? true,
     };
+
+    // Set the polling interval
+    this.setIntervalLength(config?.pollingInterval ?? DEFAULT_BALANCE_INTERVAL);
+  }
+
+  /**
+   * Set the callback to receive balance updates during polling.
+   *
+   * @param callback - Function to call with balance results.
+   */
+  setOnBalanceUpdate(callback: OnBalanceUpdateCallback): void {
+    this.#onBalanceUpdate = callback;
   }
 
   setUserTokensStateGetter(getUserTokensState: () => UserTokensState): void {
     this.#getUserTokensState = getUserTokensState;
+  }
+
+  /**
+   * Execute a poll cycle (required by base class).
+   * Fetches balances and calls the update callback.
+   *
+   * @param input - The polling input.
+   */
+  async _executePoll(input: BalancePollingInput): Promise<void> {
+    const result = await this.fetchBalances(
+      input.chainId,
+      input.accountId,
+      input.accountAddress,
+    );
+
+    if (this.#onBalanceUpdate && result.balances.length > 0) {
+      this.#onBalanceUpdate(result);
+    }
   }
 
   getTokensToFetch(
