@@ -63,7 +63,7 @@ async function getResponseErrorMessage(response: Response): Promise<string> {
       'message' in responseBody
         ? responseBody.message
         : responseBody.error_description;
-    error = responseBody.error;
+    error = responseBody.error ?? 'unknown';
   } catch {
     try {
       const textContent = await clonedResponse.text();
