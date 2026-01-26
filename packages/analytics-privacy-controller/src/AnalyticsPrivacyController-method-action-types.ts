@@ -62,7 +62,16 @@ export type AnalyticsPrivacyControllerIsDataRecordedAction = {
  * This method should be called after tracking events to ensure
  * the data recording flag is properly updated for data deletion workflows.
  *
- * @param saveDataRecording - Whether to save the data recording flag (default: true)
+ * The flag can only be set to `true` (indicating data has been collected).
+ * It cannot be explicitly set to `false` - it is only reset to `false` when
+ * a new deletion task is created via `createDataDeletionTask`.
+ *
+ * If `saveDataRecording` is `false` or the flag is already `true`, this method
+ * does nothing. This design ensures the flag only moves from `false` to `true`
+ * and cannot be manually reset, maintaining data integrity for compliance tracking.
+ *
+ * @param saveDataRecording - Whether to save the data recording flag (default: true).
+ * When `false`, this method is a no-op regardless of current state.
  */
 export type AnalyticsPrivacyControllerUpdateDataRecordingFlagAction = {
   type: `AnalyticsPrivacyController:updateDataRecordingFlag`;

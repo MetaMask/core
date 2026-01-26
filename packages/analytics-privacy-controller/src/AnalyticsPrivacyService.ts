@@ -6,18 +6,28 @@ import { createServicePolicy, HttpError } from '@metamask/controller-utils';
 import type { Messenger } from '@metamask/messenger';
 import type { IDisposable } from 'cockatiel';
 
-import { projectLogger as log } from './AnalyticsPrivacyLogger';
 import type { AnalyticsPrivacyServiceMethodActions } from './AnalyticsPrivacyService-method-action-types';
-import {
-  SEGMENT_REGULATION_TYPE_DELETE_ONLY,
-  SEGMENT_SUBJECT_TYPE_USER_ID,
-  SEGMENT_CONTENT_TYPE,
-} from './constants';
-import { DataDeleteResponseStatus, DataDeleteStatus } from './types';
+import { DATA_DELETE_RESPONSE_STATUSES, DATA_DELETE_STATUSES } from './types';
+import type { DataDeleteStatus } from './types';
 import type {
   IDeleteRegulationResponse,
   IDeleteRegulationStatusResponse,
 } from './types';
+
+/**
+ * Segment API regulation type for DELETE_ONLY operations.
+ */
+const SEGMENT_REGULATION_TYPE_DELETE_ONLY = 'DELETE_ONLY';
+
+/**
+ * Segment API subject type for user ID operations.
+ */
+const SEGMENT_SUBJECT_TYPE_USER_ID = 'USER_ID';
+
+/**
+ * Segment API Content-Type header value.
+ */
+const SEGMENT_CONTENT_TYPE = 'application/vnd.segment.v1+json';
 
 // === GENERAL ===
 
@@ -111,8 +121,11 @@ export type AnalyticsPrivacyServiceOptions = {
   segmentSourceId: string;
 
   /**
-   * Base URL for the proxy endpoint (not Segment API directly).
-   * The proxy forwards requests to Segment API and adds authentication tokens.
+   * Base URL for the proxy endpoint that communicates with Segment's Regulations API.
+   * This is a proxy endpoint (not Segment API directly) that forwards requests to Segment's
+   * Regulations API and adds authentication tokens. The endpoint URL varies by environment
+   * (e.g., development, staging, production) and should be configured accordingly.
+   * Example: 'https://proxy.example.com/v1beta'
    */
   segmentRegulationsEndpoint: string;
 
@@ -121,6 +134,17 @@ export type AnalyticsPrivacyServiceOptions = {
    */
   policyOptions?: CreateServicePolicyOptions;
 };
+
+/**
+ * Type guard to check if a value is a valid DataDeleteStatus.
+ *
+ * @param status - The value to check.
+ * @returns True if the value is a valid DataDeleteStatus.
+ */
+function isDataDeleteStatus(status: unknown): status is DataDeleteStatus {
+  const dataDeleteStatuses: string[] = Object.values(DATA_DELETE_STATUSES);
+  return dataDeleteStatuses.includes(status as string);
+}
 
 /**
  * This service object is responsible for making requests to the Segment Regulations API
@@ -187,7 +211,8 @@ export class AnalyticsPrivacyService {
   readonly #segmentSourceId: string;
 
   /**
-   * Base URL for the proxy endpoint.
+   * Base URL for the proxy endpoint that communicates with Segment's Regulations API.
+   * This endpoint varies by environment and forwards requests to Segment API with authentication.
    */
   readonly #segmentRegulationsEndpoint: string;
 
@@ -269,66 +294,51 @@ export class AnalyticsPrivacyService {
     analyticsId: string,
   ): Promise<IDeleteRegulationResponse> {
     if (!this.#segmentSourceId || !this.#segmentRegulationsEndpoint) {
-      return {
-        status: DataDeleteResponseStatus.Failure,
-        error: 'Segment API source ID or endpoint not found',
-      };
+      throw new Error('Segment API source ID or endpoint not found');
     }
 
-    try {
-      const url = `${this.#segmentRegulationsEndpoint}/regulations/sources/${this.#segmentSourceId}`;
-      const body = JSON.stringify({
-        regulationType: SEGMENT_REGULATION_TYPE_DELETE_ONLY,
-        subjectType: SEGMENT_SUBJECT_TYPE_USER_ID,
-        subjectIds: [analyticsId],
+    const url = `${this.#segmentRegulationsEndpoint}/regulations/sources/${this.#segmentSourceId}`;
+    const body = JSON.stringify({
+      regulationType: SEGMENT_REGULATION_TYPE_DELETE_ONLY,
+      subjectType: SEGMENT_SUBJECT_TYPE_USER_ID,
+      subjectIds: [analyticsId],
+    });
+
+    const response = await this.#policy.execute(async () => {
+      const localResponse = await this.#fetch(url, {
+        method: 'POST',
+        headers: {
+          'Content-Type': SEGMENT_CONTENT_TYPE,
+        },
+        body,
       });
 
-      const response = await this.#policy.execute(async () => {
-        const localResponse = await this.#fetch(url, {
-          method: 'POST',
-          headers: {
-            'Content-Type': SEGMENT_CONTENT_TYPE,
-          },
-          body,
-        });
-
-        if (!localResponse.ok) {
-          throw new HttpError(
-            localResponse.status,
-            `Creating data deletion task failed with status '${localResponse.status}'`,
-          );
-        }
-
-        return localResponse;
-      });
-
-      const jsonResponse = (await response.json()) as CreateRegulationResponse;
-
-      if (
-        jsonResponse?.data?.data?.regulateId &&
-        typeof jsonResponse.data.data.regulateId === 'string'
-      ) {
-        return {
-          status: DataDeleteResponseStatus.Success,
-          regulateId: jsonResponse.data.data.regulateId,
-        };
+      if (!localResponse.ok) {
+        throw new HttpError(
+          localResponse.status,
+          `Creating data deletion task failed with status '${localResponse.status}'`,
+        );
       }
 
-      log(
-        'Analytics Deletion Task Error',
-        new Error('Malformed response from Segment API'),
+      return localResponse;
+    });
+
+    const jsonResponse = (await response.json()) as CreateRegulationResponse;
+
+    if (
+      !jsonResponse?.data?.data?.regulateId ||
+      typeof jsonResponse.data.data.regulateId !== 'string' ||
+      jsonResponse.data.data.regulateId.trim() === ''
+    ) {
+      throw new Error(
+        'Malformed response from Segment API: missing or invalid regulateId',
       );
-      return {
-        status: DataDeleteResponseStatus.Failure,
-        error: 'Analytics Deletion Task Error',
-      };
-    } catch (error) {
-      log('Analytics Deletion Task Error', error);
-      return {
-        status: DataDeleteResponseStatus.Failure,
-        error: 'Analytics Deletion Task Error',
-      };
     }
+
+    return {
+      status: DATA_DELETE_RESPONSE_STATUSES.Success,
+      regulateId: jsonResponse.data.data.regulateId,
+    };
   }
 
   /**
@@ -340,55 +350,40 @@ export class AnalyticsPrivacyService {
   async checkDataDeleteStatus(
     regulationId: string,
   ): Promise<IDeleteRegulationStatusResponse> {
-    // Early return if regulationId is missing (cannot check status) or endpoint is not configured
     if (!regulationId || !this.#segmentRegulationsEndpoint) {
-      return {
-        status: DataDeleteResponseStatus.Failure,
-        dataDeleteStatus: DataDeleteStatus.Unknown,
-      };
+      throw new Error('Regulation ID or endpoint not configured');
     }
 
-    try {
-      const url = `${this.#segmentRegulationsEndpoint}/regulations/${regulationId}`;
+    const url = `${this.#segmentRegulationsEndpoint}/regulations/${regulationId}`;
 
-      const response = await this.#policy.execute(async () => {
-        const localResponse = await this.#fetch(url, {
-          method: 'GET',
-          headers: {
-            'Content-Type': SEGMENT_CONTENT_TYPE,
-          },
-        });
-
-        if (!localResponse.ok) {
-          throw new HttpError(
-            localResponse.status,
-            `Checking data deletion status failed with status '${localResponse.status}'`,
-          );
-        }
-
-        return localResponse;
+    const response = await this.#policy.execute(async () => {
+      const localResponse = await this.#fetch(url, {
+        method: 'GET',
+        headers: {
+          'Content-Type': SEGMENT_CONTENT_TYPE,
+        },
       });
 
-      const jsonResponse =
-        (await response.json()) as GetRegulationStatusResponse;
+      if (!localResponse.ok) {
+        throw new HttpError(
+          localResponse.status,
+          `Checking data deletion status failed with status '${localResponse.status}'`,
+        );
+      }
 
-      const rawStatus = jsonResponse?.data?.data?.regulation?.overallStatus;
-      const dataDeleteStatus = Object.values(DataDeleteStatus).includes(
-        rawStatus as DataDeleteStatus,
-      )
-        ? (rawStatus as DataDeleteStatus)
-        : DataDeleteStatus.Unknown;
+      return localResponse;
+    });
 
-      return {
-        status: DataDeleteResponseStatus.Success,
-        dataDeleteStatus,
-      };
-    } catch (error) {
-      log('Analytics Deletion Task Check Error', error);
-      return {
-        status: DataDeleteResponseStatus.Failure,
-        dataDeleteStatus: DataDeleteStatus.Unknown,
-      };
-    }
+    const jsonResponse = (await response.json()) as GetRegulationStatusResponse;
+
+    const rawStatus = jsonResponse?.data?.data?.regulation?.overallStatus;
+    const dataDeleteStatus = isDataDeleteStatus(rawStatus)
+      ? rawStatus
+      : DATA_DELETE_STATUSES.Unknown;
+
+    return {
+      status: DATA_DELETE_RESPONSE_STATUSES.Success,
+      dataDeleteStatus,
+    };
   }
 }

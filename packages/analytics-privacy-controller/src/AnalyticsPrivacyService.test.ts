@@ -10,7 +10,7 @@ import type { SinonFakeTimers } from 'sinon';
 
 import type { AnalyticsPrivacyServiceMessenger } from './AnalyticsPrivacyService';
 import { AnalyticsPrivacyService } from './AnalyticsPrivacyService';
-import { DataDeleteResponseStatus, DataDeleteStatus } from './types';
+import { DATA_DELETE_RESPONSE_STATUSES, DATA_DELETE_STATUSES } from './types';
 
 describe('AnalyticsPrivacyService', () => {
   let clock: SinonFakeTimers;
@@ -52,12 +52,12 @@ describe('AnalyticsPrivacyService', () => {
       );
 
       expect(response).toStrictEqual({
-        status: DataDeleteResponseStatus.Success,
+        status: DATA_DELETE_RESPONSE_STATUSES.Success,
         regulateId,
       });
     });
 
-    it('returns error response when segmentSourceId is empty string', async () => {
+    it('throws error when segmentSourceId is empty string', async () => {
       const analyticsId = 'test-analytics-id';
 
       const { rootMessenger } = getService({
@@ -67,18 +67,15 @@ describe('AnalyticsPrivacyService', () => {
         },
       });
 
-      const response = await rootMessenger.call(
-        'AnalyticsPrivacyService:createDataDeletionTask',
-        analyticsId,
-      );
-
-      expect(response).toStrictEqual({
-        status: DataDeleteResponseStatus.Failure,
-        error: 'Segment API source ID or endpoint not found',
-      });
+      await expect(
+        rootMessenger.call(
+          'AnalyticsPrivacyService:createDataDeletionTask',
+          analyticsId,
+        ),
+      ).rejects.toThrow('Segment API source ID or endpoint not found');
     });
 
-    it('returns error response when segmentRegulationsEndpoint is empty string', async () => {
+    it('throws error when segmentRegulationsEndpoint is empty string', async () => {
       const analyticsId = 'test-analytics-id';
 
       const { rootMessenger } = getService({
@@ -88,18 +85,15 @@ describe('AnalyticsPrivacyService', () => {
         },
       });
 
-      const response = await rootMessenger.call(
-        'AnalyticsPrivacyService:createDataDeletionTask',
-        analyticsId,
-      );
-
-      expect(response).toStrictEqual({
-        status: DataDeleteResponseStatus.Failure,
-        error: 'Segment API source ID or endpoint not found',
-      });
+      await expect(
+        rootMessenger.call(
+          'AnalyticsPrivacyService:createDataDeletionTask',
+          analyticsId,
+        ),
+      ).rejects.toThrow('Segment API source ID or endpoint not found');
     });
 
-    it('returns error response when API returns 500 status', async () => {
+    it('throws error when API returns 500 status', async () => {
       const analyticsId = 'test-analytics-id';
 
       nock(segmentRegulationsEndpoint)
@@ -114,18 +108,15 @@ describe('AnalyticsPrivacyService', () => {
         },
       });
 
-      const response = await rootMessenger.call(
-        'AnalyticsPrivacyService:createDataDeletionTask',
-        analyticsId,
-      );
-
-      expect(response).toStrictEqual({
-        status: DataDeleteResponseStatus.Failure,
-        error: 'Analytics Deletion Task Error',
-      });
+      await expect(
+        rootMessenger.call(
+          'AnalyticsPrivacyService:createDataDeletionTask',
+          analyticsId,
+        ),
+      ).rejects.toThrow('Creating data deletion task failed');
     });
 
-    it('returns error response when API response is missing regulateId', async () => {
+    it('throws error when API response is missing regulateId', async () => {
       const analyticsId = 'test-analytics-id';
 
       nock(segmentRegulationsEndpoint)
@@ -138,15 +129,14 @@ describe('AnalyticsPrivacyService', () => {
 
       const { rootMessenger } = getService();
 
-      const response = await rootMessenger.call(
-        'AnalyticsPrivacyService:createDataDeletionTask',
-        analyticsId,
+      await expect(
+        rootMessenger.call(
+          'AnalyticsPrivacyService:createDataDeletionTask',
+          analyticsId,
+        ),
+      ).rejects.toThrow(
+        'Malformed response from Segment API: missing or invalid regulateId',
       );
-
-      expect(response).toStrictEqual({
-        status: DataDeleteResponseStatus.Failure,
-        error: 'Analytics Deletion Task Error',
-      });
     });
 
     it('sends request body with DELETE_ONLY regulation type and analyticsId in subjectIds', async () => {
@@ -214,7 +204,7 @@ describe('AnalyticsPrivacyService', () => {
   describe('AnalyticsPrivacyService:checkDataDeleteStatus', () => {
     it('returns dataDeleteStatus when regulation status is retrieved', async () => {
       const regulationId = 'test-regulation-id';
-      const status = DataDeleteStatus.Finished;
+      const status = DATA_DELETE_STATUSES.Finished;
 
       nock(segmentRegulationsEndpoint)
         .get(`/regulations/${regulationId}`)
@@ -236,26 +226,20 @@ describe('AnalyticsPrivacyService', () => {
       );
 
       expect(response).toStrictEqual({
-        status: DataDeleteResponseStatus.Success,
+        status: DATA_DELETE_RESPONSE_STATUSES.Success,
         dataDeleteStatus: status,
       });
     });
 
-    it('returns unknown status when regulationId is empty string', async () => {
+    it('throws error when regulationId is empty string', async () => {
       const { rootMessenger } = getService();
 
-      const response = await rootMessenger.call(
-        'AnalyticsPrivacyService:checkDataDeleteStatus',
-        '',
-      );
-
-      expect(response).toStrictEqual({
-        status: DataDeleteResponseStatus.Failure,
-        dataDeleteStatus: DataDeleteStatus.Unknown,
-      });
+      await expect(
+        rootMessenger.call('AnalyticsPrivacyService:checkDataDeleteStatus', ''),
+      ).rejects.toThrow('Regulation ID or endpoint not configured');
     });
 
-    it('returns unknown status when segmentRegulationsEndpoint is empty string', async () => {
+    it('throws error when segmentRegulationsEndpoint is empty string', async () => {
       const regulationId = 'test-regulation-id';
 
       const { rootMessenger } = getService({
@@ -265,18 +249,15 @@ describe('AnalyticsPrivacyService', () => {
         },
       });
 
-      const response = await rootMessenger.call(
-        'AnalyticsPrivacyService:checkDataDeleteStatus',
-        regulationId,
-      );
-
-      expect(response).toStrictEqual({
-        status: DataDeleteResponseStatus.Failure,
-        dataDeleteStatus: DataDeleteStatus.Unknown,
-      });
+      await expect(
+        rootMessenger.call(
+          'AnalyticsPrivacyService:checkDataDeleteStatus',
+          regulationId,
+        ),
+      ).rejects.toThrow('Regulation ID or endpoint not configured');
     });
 
-    it('returns unknown status when API returns 500 status', async () => {
+    it('throws error when API returns 500 status', async () => {
       const regulationId = 'test-regulation-id';
 
       nock(segmentRegulationsEndpoint)
@@ -291,15 +272,12 @@ describe('AnalyticsPrivacyService', () => {
         },
       });
 
-      const response = await rootMessenger.call(
-        'AnalyticsPrivacyService:checkDataDeleteStatus',
-        regulationId,
-      );
-
-      expect(response).toStrictEqual({
-        status: DataDeleteResponseStatus.Failure,
-        dataDeleteStatus: DataDeleteStatus.Unknown,
-      });
+      await expect(
+        rootMessenger.call(
+          'AnalyticsPrivacyService:checkDataDeleteStatus',
+          regulationId,
+        ),
+      ).rejects.toThrow('Checking data deletion status failed');
     });
 
     it('returns unknown status when API response is missing overallStatus', async () => {
@@ -325,14 +303,14 @@ describe('AnalyticsPrivacyService', () => {
       );
 
       expect(response).toStrictEqual({
-        status: DataDeleteResponseStatus.Success,
-        dataDeleteStatus: DataDeleteStatus.Unknown,
+        status: DATA_DELETE_RESPONSE_STATUSES.Success,
+        dataDeleteStatus: DATA_DELETE_STATUSES.Unknown,
       });
     });
 
     it('sends GET request with application/vnd.segment.v1+json Content-Type header', async () => {
       const regulationId = 'test-regulation-id';
-      const status = DataDeleteStatus.Running;
+      const status = DATA_DELETE_STATUSES.Running;
 
       const scope = nock(segmentRegulationsEndpoint, {
         reqheaders: {
@@ -382,14 +360,12 @@ describe('AnalyticsPrivacyService', () => {
         onRetryListener();
       });
 
-      expect(
-        await rootMessenger.call(
+      await expect(
+        rootMessenger.call(
           'AnalyticsPrivacyService:createDataDeletionTask',
           'test-analytics-id',
         ),
-      ).toMatchObject({
-        status: DataDeleteResponseStatus.Failure,
-      });
+      ).rejects.toThrow('Creating data deletion task failed');
 
       expect(onRetryListener).toHaveBeenCalled();
     });
@@ -412,25 +388,21 @@ describe('AnalyticsPrivacyService', () => {
 
       // Make 3 failed requests to trigger circuit breaker
       for (let i = 0; i < 3; i++) {
-        expect(
-          await rootMessenger.call(
+        await expect(
+          rootMessenger.call(
             'AnalyticsPrivacyService:createDataDeletionTask',
             'test-analytics-id',
           ),
-        ).toMatchObject({
-          status: DataDeleteResponseStatus.Failure,
-        });
+        ).rejects.toThrow('Creating data deletion task failed');
       }
 
-      // 4th request should trigger circuit breaker - service catches and returns error
-      expect(
-        await rootMessenger.call(
+      // 4th request should trigger circuit breaker - service throws error
+      await expect(
+        rootMessenger.call(
           'AnalyticsPrivacyService:createDataDeletionTask',
           'test-analytics-id',
         ),
-      ).toMatchObject({
-        status: DataDeleteResponseStatus.Failure,
-      });
+      ).rejects.toThrow('Execution prevented because the circuit breaker is open');
 
       expect(onBreakListener).toHaveBeenCalled();
     });
@@ -476,14 +448,12 @@ describe('AnalyticsPrivacyService', () => {
       const onDegradedListener = jest.fn();
       service.onDegraded(onDegradedListener);
 
-      expect(
-        await rootMessenger.call(
+      await expect(
+        rootMessenger.call(
           'AnalyticsPrivacyService:createDataDeletionTask',
           'test-analytics-id',
         ),
-      ).toMatchObject({
-        status: DataDeleteResponseStatus.Failure,
-      });
+      ).rejects.toThrow('Creating data deletion task failed');
 
       expect(onDegradedListener).toHaveBeenCalled();
     });

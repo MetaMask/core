@@ -8,9 +8,9 @@ import { BaseController } from '@metamask/base-controller';
 import type { Messenger } from '@metamask/messenger';
 
 import type { AnalyticsPrivacyControllerMethodActions } from './AnalyticsPrivacyController-method-action-types';
-import { projectLogger as log } from './AnalyticsPrivacyLogger';
 import type { AnalyticsPrivacyServiceActions } from './AnalyticsPrivacyService';
-import { DataDeleteResponseStatus, DataDeleteStatus } from './types';
+import { projectLogger as log } from './logger';
+import { DATA_DELETE_RESPONSE_STATUSES, DATA_DELETE_STATUSES } from './types';
 import type {
   IDeleteRegulationResponse,
   IDeleteRegulationStatus,
@@ -34,7 +34,7 @@ export type AnalyticsPrivacyControllerState = {
   /**
    * Indicates if data has been recorded since the last deletion request.
    */
-  dataRecorded: boolean;
+  hasCollectedDataSinceDeletionRequest: boolean;
 
   /**
    * Segment's data deletion regulation ID.
@@ -56,7 +56,7 @@ export type AnalyticsPrivacyControllerState = {
  */
 export function getDefaultAnalyticsPrivacyControllerState(): AnalyticsPrivacyControllerState {
   return {
-    dataRecorded: false,
+    hasCollectedDataSinceDeletionRequest: false,
     deleteRegulationId: null,
     deleteRegulationTimestamp: null,
   };
@@ -66,7 +66,7 @@ export function getDefaultAnalyticsPrivacyControllerState(): AnalyticsPrivacyCon
  * The metadata for each property in {@link AnalyticsPrivacyControllerState}.
  */
 const analyticsPrivacyControllerMetadata = {
-  dataRecorded: {
+  hasCollectedDataSinceDeletionRequest: {
     includeInStateLogs: true,
     persist: true,
     includeInDebugSnapshot: true,
@@ -221,7 +221,8 @@ export class AnalyticsPrivacyController extends BaseController<
     );
 
     log('AnalyticsPrivacyController initialized', {
-      dataRecorded: this.state.dataRecorded,
+      hasCollectedDataSinceDeletionRequest:
+        this.state.hasCollectedDataSinceDeletionRequest,
       hasDeleteRegulationId: Boolean(this.state.deleteRegulationId),
       deleteRegulationTimestamp: this.state.deleteRegulationTimestamp,
     });
@@ -241,11 +242,13 @@ export class AnalyticsPrivacyController extends BaseController<
       const { analyticsId } = analyticsControllerState;
 
       if (!analyticsId || analyticsId.trim() === '') {
-        const error = new Error('Analytics ID not found');
+        const error = new Error(
+          'Analytics ID not found. You need to set up AnalyticsController with an analytics ID. You can do this by initializing the AnalyticsController with a valid analytics ID before creating a data deletion task.',
+        );
         log('Analytics Deletion Task Error', error);
         return {
-          status: DataDeleteResponseStatus.Failure,
-          error: 'Analytics ID not found',
+          status: DATA_DELETE_RESPONSE_STATUSES.Failure,
+          error: error.message,
         };
       }
 
@@ -254,27 +257,22 @@ export class AnalyticsPrivacyController extends BaseController<
         analyticsId,
       );
 
-      if (
-        response.status === DataDeleteResponseStatus.Success &&
-        response.regulateId &&
-        typeof response.regulateId === 'string' &&
-        response.regulateId.trim() !== ''
-      ) {
-        const deletionTimestamp = Date.now();
-        // Already validated as non-empty string above
-        const { regulateId } = response;
+      const deletionTimestamp = Date.now();
+      // Service validates and throws if regulateId is missing, so it's always defined here
+      const { regulateId } = response;
+      // Type assertion is safe because service throws if regulateId is missing
+      const validRegulateId: string = regulateId as string;
 
-        this.update((state) => {
-          state.deleteRegulationId = regulateId;
-          state.deleteRegulationTimestamp = deletionTimestamp;
-          state.dataRecorded = false;
-        });
+      this.update((state) => {
+        state.deleteRegulationId = validRegulateId;
+        state.deleteRegulationTimestamp = deletionTimestamp;
+        state.hasCollectedDataSinceDeletionRequest = false;
+      });
 
-        this.messenger.publish(
-          `${controllerName}:dataDeletionTaskCreated`,
-          response,
-        );
-      }
+      this.messenger.publish(
+        `${controllerName}:dataDeletionTaskCreated`,
+        response,
+      );
 
       return response;
     } catch (error) {
@@ -284,7 +282,7 @@ export class AnalyticsPrivacyController extends BaseController<
           ? error.message
           : 'Analytics Deletion Task Error';
       return {
-        status: DataDeleteResponseStatus.Failure,
+        status: DATA_DELETE_RESPONSE_STATUSES.Failure,
         error: errorMessage,
       };
     }
@@ -298,7 +296,7 @@ export class AnalyticsPrivacyController extends BaseController<
   async checkDataDeleteStatus(): Promise<IDeleteRegulationStatus> {
     const status: IDeleteRegulationStatus = {
       deletionRequestTimestamp: undefined,
-      dataDeletionRequestStatus: DataDeleteStatus.Unknown,
+      dataDeletionRequestStatus: DATA_DELETE_STATUSES.Unknown,
       hasCollectedDataSinceDeletionRequest: false,
     };
 
@@ -316,12 +314,13 @@ export class AnalyticsPrivacyController extends BaseController<
         dataDeletionTaskStatus.dataDeleteStatus;
     } catch (error) {
       log('Error checkDataDeleteStatus', error);
-      status.dataDeletionRequestStatus = DataDeleteStatus.Unknown;
+      status.dataDeletionRequestStatus = DATA_DELETE_STATUSES.Unknown;
     }
 
     status.deletionRequestTimestamp =
       this.state.deleteRegulationTimestamp ?? undefined;
-    status.hasCollectedDataSinceDeletionRequest = this.state.dataRecorded;
+    status.hasCollectedDataSinceDeletionRequest =
+      this.state.hasCollectedDataSinceDeletionRequest;
 
     return status;
   }
@@ -350,7 +349,7 @@ export class AnalyticsPrivacyController extends BaseController<
    * @returns true if events have been recorded since the last deletion request
    */
   isDataRecorded(): boolean {
-    return this.state.dataRecorded;
+    return this.state.hasCollectedDataSinceDeletionRequest;
   }
 
   /**
@@ -358,12 +357,21 @@ export class AnalyticsPrivacyController extends BaseController<
    * This method should be called after tracking events to ensure
    * the data recording flag is properly updated for data deletion workflows.
    *
-   * @param saveDataRecording - Whether to save the data recording flag (default: true)
+   * The flag can only be set to `true` (indicating data has been collected).
+   * It cannot be explicitly set to `false` - it is only reset to `false` when
+   * a new deletion task is created via `createDataDeletionTask`.
+   *
+   * If `saveDataRecording` is `false` or the flag is already `true`, this method
+   * does nothing. This design ensures the flag only moves from `false` to `true`
+   * and cannot be manually reset, maintaining data integrity for compliance tracking.
+   *
+   * @param saveDataRecording - Whether to save the data recording flag (default: true).
+   *   When `false`, this method is a no-op regardless of current state.
    */
   updateDataRecordingFlag(saveDataRecording: boolean = true): void {
-    if (saveDataRecording && !this.state.dataRecorded) {
+    if (saveDataRecording && !this.state.hasCollectedDataSinceDeletionRequest) {
       this.update((state) => {
-        state.dataRecorded = true;
+        state.hasCollectedDataSinceDeletionRequest = true;
       });
 
       this.messenger.publish(

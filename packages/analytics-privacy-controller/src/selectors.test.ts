@@ -5,26 +5,30 @@ import {
 import type { AnalyticsPrivacyControllerState } from './AnalyticsPrivacyController';
 
 describe('analyticsPrivacyControllerSelectors', () => {
-  describe('selectDataRecorded', () => {
-    it('returns true when dataRecorded is true in state', () => {
+  describe('selectHasCollectedDataSinceDeletionRequest', () => {
+    it('returns true when hasCollectedDataSinceDeletionRequest is true in state', () => {
       const state: AnalyticsPrivacyControllerState = {
         ...getDefaultAnalyticsPrivacyControllerState(),
-        dataRecorded: true,
+        hasCollectedDataSinceDeletionRequest: true,
       };
 
       expect(
-        analyticsPrivacyControllerSelectors.selectDataRecorded(state),
+        analyticsPrivacyControllerSelectors.selectHasCollectedDataSinceDeletionRequest(
+          state,
+        ),
       ).toBe(true);
     });
 
-    it('returns false when dataRecorded is false in state', () => {
+    it('returns false when hasCollectedDataSinceDeletionRequest is false in state', () => {
       const state: AnalyticsPrivacyControllerState = {
         ...getDefaultAnalyticsPrivacyControllerState(),
-        dataRecorded: false,
+        hasCollectedDataSinceDeletionRequest: false,
       };
 
       expect(
-        analyticsPrivacyControllerSelectors.selectDataRecorded(state),
+        analyticsPrivacyControllerSelectors.selectHasCollectedDataSinceDeletionRequest(
+          state,
+        ),
       ).toBe(false);
     });
   });

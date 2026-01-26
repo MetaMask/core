@@ -6,8 +6,9 @@ import type { AnalyticsPrivacyControllerState } from './AnalyticsPrivacyControll
  * @param state - The controller state
  * @returns Whether data has been recorded since the last deletion request
  */
-const selectDataRecorded = (state: AnalyticsPrivacyControllerState): boolean =>
-  state.dataRecorded;
+const selectHasCollectedDataSinceDeletionRequest = (
+  state: AnalyticsPrivacyControllerState,
+): boolean => state.hasCollectedDataSinceDeletionRequest;
 
 /**
  * Selects the delete regulation ID from the controller state.
@@ -34,7 +35,7 @@ const selectDeleteRegulationTimestamp = (
  * These can be used with Redux or directly with controller state.
  */
 export const analyticsPrivacyControllerSelectors = {
-  selectDataRecorded,
+  selectHasCollectedDataSinceDeletionRequest,
   selectDeleteRegulationId,
   selectDeleteRegulationTimestamp,
 };
