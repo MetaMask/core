@@ -9,7 +9,8 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ### Changed
 
-- Bump `@metamask/bridge-status-controller` from `^64.4.4` to `^64.4.5` ([#7724](https://github.com/MetaMask/core/pull/7724))
+- Bump `@metamask/bridge-controller` from `^64.8.2` to `^65.0.0` ([#7727](https://github.com/MetaMask/core/pull/7727))
+- Bump `@metamask/bridge-status-controller` from `^64.4.5` to `^65.0.0` ([#7727](https://github.com/MetaMask/core/pull/7727))
 
 ## [11.1.1]
 
@@ -17,6 +18,7 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 - Bump `@metamask/assets-controllers` from `^96.0.0` to `^97.0.0` ([#7722](https://github.com/MetaMask/core/pull/7722))
 - Bump `@metamask/bridge-controller` from `^64.8.1` to `^64.8.2` ([#7722](https://github.com/MetaMask/core/pull/7722))
+- Bump `@metamask/bridge-status-controller` from `^64.4.4` to `^64.4.5` ([#7722](https://github.com/MetaMask/core/pull/7722))
 
 ## [11.1.0]
 
