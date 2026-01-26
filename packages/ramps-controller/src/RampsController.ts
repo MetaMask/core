@@ -648,12 +648,10 @@ export class RampsController extends BaseController<
 
     // If token is selected and provider changed, fetch payment methods
     if (this.state.selectedToken && provider) {
-      this.#fetchAndSetPaymentMethods(
+      this.#triggerFetchAndSetPaymentMethods(
         provider.id,
         this.state.selectedToken,
-      ).catch(() => {
-        // Error stored in state
-      });
+      );
     } else if (hadProvider && !provider && this.state.selectedToken) {
       this.update((state) => {
         state.paymentMethods = [];
@@ -879,8 +877,8 @@ export class RampsController extends BaseController<
     region?: string,
     options?: ExecuteRequestOptions & {
       fiat?: string;
-      assetId: string;
-      provider: string;
+      assetId?: string;
+      provider?: string;
     },
   ): Promise<PaymentMethodsResponse> {
     const regionToUse = region ?? this.state.userRegion?.regionCode;
@@ -898,21 +896,13 @@ export class RampsController extends BaseController<
       );
     }
 
-    if (!options?.assetId) {
-      throw new Error('assetId is required.');
-    }
-
-    if (!options?.provider) {
-      throw new Error('provider is required.');
-    }
-
     const normalizedRegion = regionToUse.toLowerCase().trim();
     const normalizedFiat = fiatToUse.toLowerCase().trim();
     const cacheKey = createCacheKey('getPaymentMethods', [
       normalizedRegion,
       normalizedFiat,
-      options.assetId,
-      options.provider,
+      options?.assetId,
+      options?.provider,
     ]);
 
     const response = await this.executeRequest(
@@ -921,8 +911,8 @@ export class RampsController extends BaseController<
         return this.messenger.call('RampsService:getPaymentMethods', {
           region: normalizedRegion,
           fiat: normalizedFiat,
-          assetId: options.assetId,
-          provider: options.provider,
+          assetId: options?.assetId,
+          provider: options?.provider,
         });
       },
       options,
@@ -972,7 +962,11 @@ export class RampsController extends BaseController<
     const provider = this.state.preferredProvider ?? this.state.providers[0];
 
     if (provider) {
-      await this.#fetchAndSetPaymentMethods(provider.id, token, options);
+      try {
+        await this.#fetchAndSetPaymentMethods(provider.id, token, options);
+      } catch {
+        // Error stored in request state
+      }
     } else {
       this.update((state) => {
         state.paymentMethods = [];
@@ -985,20 +979,15 @@ export class RampsController extends BaseController<
    * Fetches payment methods for the given provider and token, then auto-selects the first one.
    *
    * @param providerId - The provider ID.
-   * @param token - The token object (optional, uses selectedToken if not provided).
+   * @param token - The token object.
    * @param options - Options for cache behavior.
    */
   async #fetchAndSetPaymentMethods(
     providerId: string,
-    token?: RampsToken,
+    token: RampsToken,
     options?: ExecuteRequestOptions,
   ): Promise<void> {
-    const tokenToUse = token ?? this.state.selectedToken;
-    if (!tokenToUse) {
-      return;
-    }
-
-    const { assetId } = tokenToUse;
+    const { assetId } = token;
 
     const regionCode = this.state.userRegion?.regionCode;
     const fiatCurrency = this.state.userRegion?.country?.currency;
@@ -1007,23 +996,37 @@ export class RampsController extends BaseController<
       return;
     }
 
-    try {
-      const response = await this.getPaymentMethods(regionCode, {
-        assetId,
-        provider: providerId,
-        fiat: fiatCurrency,
-        ...options,
-      });
+    const response = await this.getPaymentMethods(regionCode, {
+      assetId,
+      provider: providerId,
+      fiat: fiatCurrency,
+      ...options,
+    });
 
-      // Auto-select the first payment method
-      if (response.payments.length > 0) {
-        this.update((state) => {
-          state.selectedPaymentMethod = response.payments[0];
-        });
-      }
-    } catch {
-      // Error stored in state
+    // Auto-select the first payment method
+    if (response.payments.length > 0) {
+      this.update((state) => {
+        state.selectedPaymentMethod = response.payments[0];
+      });
     }
+  }
+
+  /**
+   * Triggers fetching and setting payment methods without throwing.
+   * Errors are handled internally by #fetchAndSetPaymentMethods.
+   *
+   * @param providerId - The provider ID.
+   * @param token - The token object.
+   * @param options - Options for cache behavior.
+   */
+  #triggerFetchAndSetPaymentMethods(
+    providerId: string,
+    token: RampsToken,
+    options?: ExecuteRequestOptions,
+  ): void {
+    this.#fetchAndSetPaymentMethods(providerId, token, options).catch(() => {
+      // Error stored in state
+    });
   }
 
   /**

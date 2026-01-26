@@ -1950,6 +1950,145 @@ describe('RampsController', () => {
         },
       );
     });
+
+    it('fetches payment methods when token is already selected and provider is set', async () => {
+      const mockToken = {
+        assetId: 'eip155:1/slip44:60',
+        chainId: 'eip155:1',
+        name: 'Ethereum',
+        symbol: 'ETH',
+        decimals: 18,
+        iconUrl: 'https://example.com/eth.png',
+        tokenSupported: true,
+      };
+
+      const mockPaymentMethod = {
+        id: '/payments/card',
+        paymentType: 'debit-credit-card',
+        name: 'Card',
+        score: 90,
+        icon: 'card',
+      };
+
+      await withController(
+        {
+          options: {
+            state: {
+              userRegion: createMockUserRegion('us'),
+              selectedToken: mockToken,
+              providers: [mockProvider],
+            },
+          },
+        },
+        async ({ controller, rootMessenger }) => {
+          let paymentMethodsCalled = false;
+          rootMessenger.registerActionHandler(
+            'RampsService:getPaymentMethods',
+            async () => {
+              paymentMethodsCalled = true;
+              return { payments: [mockPaymentMethod] };
+            },
+          );
+
+          controller.setPreferredProvider(mockProvider);
+
+          await new Promise((resolve) => setTimeout(resolve, 50));
+
+          expect(paymentMethodsCalled).toBe(true);
+          expect(controller.state.paymentMethods).toStrictEqual([
+            mockPaymentMethod,
+          ]);
+          expect(controller.state.selectedPaymentMethod).toStrictEqual(
+            mockPaymentMethod,
+          );
+        },
+      );
+    });
+
+    it('handles payment methods fetch error gracefully when auto-fetching', async () => {
+      const mockToken = {
+        assetId: 'eip155:1/slip44:60',
+        chainId: 'eip155:1',
+        name: 'Ethereum',
+        symbol: 'ETH',
+        decimals: 18,
+        iconUrl: 'https://example.com/eth.png',
+        tokenSupported: true,
+      };
+
+      await withController(
+        {
+          options: {
+            state: {
+              userRegion: createMockUserRegion('us'),
+              selectedToken: mockToken,
+              providers: [mockProvider],
+            },
+          },
+        },
+        async ({ controller, rootMessenger }) => {
+          rootMessenger.registerActionHandler(
+            'RampsService:getPaymentMethods',
+            async () => {
+              throw new Error('Payment methods fetch failed');
+            },
+          );
+
+          expect(() =>
+            controller.setPreferredProvider(mockProvider),
+          ).not.toThrow();
+
+          await new Promise((resolve) => setTimeout(resolve, 50));
+        },
+      );
+    });
+
+    it('clears payment methods when provider is set to null and token is selected', async () => {
+      const mockToken = {
+        assetId: 'eip155:1/slip44:60',
+        chainId: 'eip155:1',
+        name: 'Ethereum',
+        symbol: 'ETH',
+        decimals: 18,
+        iconUrl: 'https://example.com/eth.png',
+        tokenSupported: true,
+      };
+
+      const mockPaymentMethod = {
+        id: '/payments/card',
+        paymentType: 'debit-credit-card',
+        name: 'Card',
+        score: 90,
+        icon: 'card',
+      };
+
+      await withController(
+        {
+          options: {
+            state: {
+              preferredProvider: mockProvider,
+              selectedToken: mockToken,
+              paymentMethods: [mockPaymentMethod],
+              selectedPaymentMethod: mockPaymentMethod,
+            },
+          },
+        },
+        ({ controller }) => {
+          expect(controller.state.paymentMethods).toStrictEqual([
+            mockPaymentMethod,
+          ]);
+          expect(controller.state.selectedPaymentMethod).toStrictEqual(
+            mockPaymentMethod,
+          );
+
+          controller.setPreferredProvider(null);
+
+          expect(controller.state.preferredProvider).toBeNull();
+          expect(controller.state.paymentMethods).toStrictEqual([]);
+          expect(controller.state.selectedPaymentMethod).toBeNull();
+        },
+      );
+    });
   });
 
   describe('getTokens', () => {
@@ -2614,8 +2753,8 @@ describe('RampsController', () => {
             async (options: {
               region: string;
               fiat: string;
-              assetId: string;
-              provider: string;
+              assetId?: string;
+              provider?: string;
             }) => {
               receivedRegion = options.region;
               return mockPaymentMethodsResponse;
@@ -2737,6 +2876,333 @@ describe('RampsController', () => {
           );
 
           controller.setSelectedPaymentMethod(null);
+
+          expect(controller.state.selectedPaymentMethod).toBeNull();
+        },
+      );
+    });
+  });
+
+  describe('setSelectedToken', () => {
+    const mockToken = {
+      assetId: 'eip155:1/slip44:60',
+      chainId: 'eip155:1',
+      name: 'Ethereum',
+      symbol: 'ETH',
+      decimals: 18,
+      iconUrl: 'https://example.com/eth.png',
+      tokenSupported: true,
+    };
+
+    const mockProvider: Provider = {
+      id: '/providers/test-provider',
+      name: 'Test Provider',
+      environmentType: 'STAGING',
+      description: 'Test',
+      hqAddress: '123 Test St',
+      links: [],
+      logos: {
+        light: '/assets/test_light.png',
+        dark: '/assets/test_dark.png',
+        height: 24,
+        width: 77,
+      },
+    };
+
+    const mockPaymentMethod = {
+      id: '/payments/card',
+      paymentType: 'debit-credit-card',
+      name: 'Card',
+      score: 90,
+      icon: 'card',
+    };
+
+    it('sets the selected token in state', async () => {
+      await withController(async ({ controller }) => {
+        expect(controller.state.selectedToken).toBeNull();
+
+        await controller.setSelectedToken(mockToken);
+
+        expect(controller.state.selectedToken).toStrictEqual(mockToken);
+      });
+    });
+
+    it('clears payment methods when token is set to null', async () => {
+      await withController(
+        {
+          options: {
+            state: {
+              selectedToken: mockToken,
+              paymentMethods: [mockPaymentMethod],
+              selectedPaymentMethod: mockPaymentMethod,
+            },
+          },
+        },
+        async ({ controller }) => {
+          expect(controller.state.selectedToken).toStrictEqual(mockToken);
+          expect(controller.state.paymentMethods).toStrictEqual([
+            mockPaymentMethod,
+          ]);
+          expect(controller.state.selectedPaymentMethod).toStrictEqual(
+            mockPaymentMethod,
+          );
+
+          await controller.setSelectedToken(null);
+
+          expect(controller.state.selectedToken).toBeNull();
+          expect(controller.state.paymentMethods).toStrictEqual([]);
+          expect(controller.state.selectedPaymentMethod).toBeNull();
+        },
+      );
+    });
+
+    it('fetches payment methods when token is set and provider exists', async () => {
+      await withController(
+        {
+          options: {
+            state: {
+              userRegion: createMockUserRegion('us'),
+              providers: [mockProvider],
+            },
+          },
+        },
+        async ({ controller, rootMessenger }) => {
+          let paymentMethodsCalled = false;
+          rootMessenger.registerActionHandler(
+            'RampsService:getPaymentMethods',
+            async () => {
+              paymentMethodsCalled = true;
+              return { payments: [mockPaymentMethod] };
+            },
+          );
+
+          await controller.setSelectedToken(mockToken);
+
+          expect(paymentMethodsCalled).toBe(true);
+          expect(controller.state.selectedToken).toStrictEqual(mockToken);
+          expect(controller.state.paymentMethods).toStrictEqual([
+            mockPaymentMethod,
+          ]);
+          expect(controller.state.selectedPaymentMethod).toStrictEqual(
+            mockPaymentMethod,
+          );
+        },
+      );
+    });
+
+    it('uses preferredProvider over providers[0] when fetching payment methods', async () => {
+      const preferredProvider: Provider = {
+        ...mockProvider,
+        id: '/providers/preferred',
+        name: 'Preferred Provider',
+      };
+
+      await withController(
+        {
+          options: {
+            state: {
+              userRegion: createMockUserRegion('us'),
+              providers: [mockProvider],
+              preferredProvider,
+            },
+          },
+        },
+        async ({ controller, rootMessenger }) => {
+          let receivedProviderId: string | undefined;
+          rootMessenger.registerActionHandler(
+            'RampsService:getPaymentMethods',
+            async (options: {
+              region: string;
+              fiat: string;
+              assetId?: string;
+              provider?: string;
+            }) => {
+              receivedProviderId = options.provider;
+              return { payments: [mockPaymentMethod] };
+            },
+          );
+
+          await controller.setSelectedToken(mockToken);
+
+          expect(receivedProviderId).toBe('/providers/preferred');
+        },
+      );
+    });
+
+    it('clears payment methods when no provider is available', async () => {
+      await withController(
+        {
+          options: {
+            state: {
+              userRegion: createMockUserRegion('us'),
+              providers: [],
+              preferredProvider: null,
+              paymentMethods: [mockPaymentMethod],
+              selectedPaymentMethod: mockPaymentMethod,
+            },
+          },
+        },
+        async ({ controller }) => {
+          await controller.setSelectedToken(mockToken);
+
+          expect(controller.state.selectedToken).toStrictEqual(mockToken);
+          expect(controller.state.paymentMethods).toStrictEqual([]);
+          expect(controller.state.selectedPaymentMethod).toBeNull();
+        },
+      );
+    });
+
+    it('handles payment methods fetch error gracefully', async () => {
+      await withController(
+        {
+          options: {
+            state: {
+              userRegion: createMockUserRegion('us'),
+              providers: [mockProvider],
+            },
+          },
+        },
+        async ({ controller, rootMessenger }) => {
+          rootMessenger.registerActionHandler(
+            'RampsService:getPaymentMethods',
+            async () => {
+              throw new Error('Payment methods fetch failed');
+            },
+          );
+
+          await controller.setSelectedToken(mockToken);
+
+          expect(controller.state.selectedToken).toStrictEqual(mockToken);
+        },
+      );
+    });
+
+    it('does not fetch payment methods when regionCode is missing', async () => {
+      await withController(
+        {
+          options: {
+            state: {
+              userRegion: null,
+              providers: [mockProvider],
+            },
+          },
+        },
+        async ({ controller, rootMessenger }) => {
+          let paymentMethodsCalled = false;
+          rootMessenger.registerActionHandler(
+            'RampsService:getPaymentMethods',
+            async () => {
+              paymentMethodsCalled = true;
+              return { payments: [mockPaymentMethod] };
+            },
+          );
+
+          await controller.setSelectedToken(mockToken);
+
+          expect(paymentMethodsCalled).toBe(false);
+          expect(controller.state.selectedToken).toStrictEqual(mockToken);
+        },
+      );
+    });
+
+    it('does not fetch payment methods when fiat currency is missing', async () => {
+      const regionWithoutCurrency: UserRegion = {
+        country: {
+          isoCode: 'US',
+          name: 'United States',
+          flag: '🇺🇸',
+          currency: undefined as unknown as string,
+          phone: { prefix: '+1', placeholder: '', template: '' },
+          supported: { buy: true, sell: true },
+        },
+        state: null,
+        regionCode: 'us',
+      };
+
+      await withController(
+        {
+          options: {
+            state: {
+              userRegion: regionWithoutCurrency,
+              providers: [mockProvider],
+            },
+          },
+        },
+        async ({ controller, rootMessenger }) => {
+          let paymentMethodsCalled = false;
+          rootMessenger.registerActionHandler(
+            'RampsService:getPaymentMethods',
+            async () => {
+              paymentMethodsCalled = true;
+              return { payments: [mockPaymentMethod] };
+            },
+          );
+
+          await controller.setSelectedToken(mockToken);
+
+          expect(paymentMethodsCalled).toBe(false);
+          expect(controller.state.selectedToken).toStrictEqual(mockToken);
+        },
+      );
+    });
+
+    it('auto-selects the first payment method when payment methods are fetched', async () => {
+      const paymentMethod1 = {
+        id: '/payments/card',
+        paymentType: 'debit-credit-card',
+        name: 'Card',
+        score: 90,
+        icon: 'card',
+      };
+      const paymentMethod2 = {
+        id: '/payments/bank',
+        paymentType: 'bank-transfer',
+        name: 'Bank',
+        score: 80,
+        icon: 'bank',
+      };
+
+      await withController(
+        {
+          options: {
+            state: {
+              userRegion: createMockUserRegion('us'),
+              providers: [mockProvider],
+            },
+          },
+        },
+        async ({ controller, rootMessenger }) => {
+          rootMessenger.registerActionHandler(
+            'RampsService:getPaymentMethods',
+            async () => ({ payments: [paymentMethod1, paymentMethod2] }),
+          );
+
+          await controller.setSelectedToken(mockToken);
+
+          expect(controller.state.selectedPaymentMethod).toStrictEqual(
+            paymentMethod1,
+          );
+        },
+      );
+    });
+
+    it('does not auto-select payment method when no payment methods are returned', async () => {
+      await withController(
+        {
+          options: {
+            state: {
+              userRegion: createMockUserRegion('us'),
+              providers: [mockProvider],
+            },
+          },
+        },
+        async ({ controller, rootMessenger }) => {
+          rootMessenger.registerActionHandler(
+            'RampsService:getPaymentMethods',
+            async () => ({ payments: [] }),
+          );
+
+          await controller.setSelectedToken(mockToken);
 
           expect(controller.state.selectedPaymentMethod).toBeNull();
         },

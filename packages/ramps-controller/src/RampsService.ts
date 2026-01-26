@@ -774,15 +774,15 @@ export class RampsService {
    * @param options - Query parameters for filtering payment methods.
    * @param options.region - User's region code (e.g., "us-al").
    * @param options.fiat - Fiat currency code (e.g., "usd").
-   * @param options.assetId - CAIP-19 cryptocurrency identifier.
-   * @param options.provider - Provider ID path.
+   * @param options.assetId - CAIP-19 cryptocurrency identifier (optional).
+   * @param options.provider - Provider ID path (optional).
    * @returns The payment methods response containing payments array.
    */
   async getPaymentMethods(options: {
     region: string;
     fiat: string;
-    assetId: string;
-    provider: string;
+    assetId?: string;
+    provider?: string;
   }): Promise<PaymentMethodsResponse> {
     const normalizedRegion = options.region.toLowerCase().trim();
     const url = new URL(
@@ -792,8 +792,12 @@ export class RampsService {
     this.#addCommonParams(url);
 
     url.searchParams.set('fiat', options.fiat.toLowerCase().trim());
-    url.searchParams.set('crypto', options.assetId);
-    url.searchParams.set('provider', options.provider);
+    if (options.assetId) {
+      url.searchParams.set('crypto', options.assetId);
+    }
+    if (options.provider) {
+      url.searchParams.set('provider', options.provider);
+    }
 
     const response = await this.#policy.execute(async () => {
       const fetchResponse = await this.#fetch(url);
