@@ -262,7 +262,7 @@
       "count": 2
     },
     "@typescript-eslint/prefer-nullish-coalescing": {
-      "count": 9
+      "count": 6
     },
     "@typescript-eslint/prefer-optional-chain": {
       "count": 1
@@ -358,7 +358,7 @@
   },
   "packages/assets-controllers/src/TokenSearchDiscoveryDataController/TokenSearchDiscoveryDataController.test.ts": {
     "@typescript-eslint/explicit-function-return-type": {
-      "count": 3
+      "count": 2
     }
   },
   "packages/assets-controllers/src/TokenSearchDiscoveryDataController/TokenSearchDiscoveryDataController.ts": {
@@ -366,7 +366,7 @@
       "count": 1
     },
     "no-negated-condition": {
-      "count": 2
+      "count": 1
     }
   },
   "packages/assets-controllers/src/TokensController.test.ts": {
@@ -1078,32 +1078,6 @@
   "packages/gas-fee-controller/src/gas-util.ts": {
     "@typescript-eslint/explicit-function-return-type": {
       "count": 2
-    },
-    "id-length": {
-      "count": 1
-    }
-  },
-  "packages/gator-permissions-controller/src/GatorPermissionsController.test.ts": {
-    "id-denylist": {
-      "count": 2
-    }
-  },
-  "packages/gator-permissions-controller/src/GatorPermissionsController.ts": {
-    "@typescript-eslint/explicit-function-return-type": {
-      "count": 8
-    }
-  },
-  "packages/gator-permissions-controller/src/decodePermission/utils.test.ts": {
-    "id-length": {
-      "count": 1
-    }
-  },
-  "packages/gator-permissions-controller/src/decodePermission/utils.ts": {
-    "@typescript-eslint/explicit-function-return-type": {
-      "count": 2
-    },
-    "@typescript-eslint/naming-convention": {
-      "count": 1
     },
     "id-length": {
       "count": 1

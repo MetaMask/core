@@ -18,9 +18,9 @@ export type RampsServiceGetGeolocationAction = {
 
 /**
  * Makes a request to the cached API to retrieve the list of supported countries.
+ * The API returns countries with support information for both buy and sell actions.
  * Filters countries based on aggregator support (preserves OnRampSDK logic).
  *
- * @param action - The ramp action type ('buy' or 'sell').
  * @returns An array of countries filtered by aggregator support.
  */
 export type RampsServiceGetCountriesAction = {
@@ -30,9 +30,12 @@ export type RampsServiceGetCountriesAction = {
 
 /**
  * Fetches the list of available tokens for a given region and action.
+ * Supports optional provider filter.
  *
  * @param region - The region code (e.g., "us", "fr", "us-ny").
  * @param action - The ramp action type ('buy' or 'sell').
+ * @param options - Optional query parameters for filtering tokens.
+ * @param options.provider - Provider ID(s) to filter by.
  * @returns The tokens response containing topTokens and allTokens.
  */
 export type RampsServiceGetTokensAction = {
@@ -58,10 +61,26 @@ export type RampsServiceGetProvidersAction = {
 };
 
 /**
+ * Fetches the list of payment methods for a given region, asset, and provider.
+ *
+ * @param options - Query parameters for filtering payment methods.
+ * @param options.region - User's region code (e.g., "us-al").
+ * @param options.fiat - Fiat currency code (e.g., "usd").
+ * @param options.assetId - CAIP-19 cryptocurrency identifier.
+ * @param options.provider - Provider ID path.
+ * @returns The payment methods response containing payments array.
+ */
+export type RampsServiceGetPaymentMethodsAction = {
+  type: `RampsService:getPaymentMethods`;
+  handler: RampsService['getPaymentMethods'];
+};
+
+/**
  * Union of all RampsService action types.
  */
 export type RampsServiceMethodActions =
   | RampsServiceGetGeolocationAction
   | RampsServiceGetCountriesAction
   | RampsServiceGetTokensAction
-  | RampsServiceGetProvidersAction;
+  | RampsServiceGetProvidersAction
+  | RampsServiceGetPaymentMethodsAction;

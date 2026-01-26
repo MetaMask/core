@@ -9,16 +9,22 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ### Added
 
+- Add support for enhanced transaction history retrieval via WebSocket events ([#7689](https://github.com/MetaMask/core/pull/7689))
 - Add support for `submitHistoryLimit` feature flag to configure the maximum number of entries in the submit history ([#7648](https://github.com/MetaMask/core/pull/7648))
   - Defaults to 100 if not provided.
 - Add support for `transactionHistoryLimit` feature flag to configure the maximum number of transactions stored in state ([#7648](https://github.com/MetaMask/core/pull/7648))
   - Defaults to 40 if not provided.
+- Add optional `callTraceErrors` to `simulationData` ([#7641](https://github.com/MetaMask/core/pull/7641))
 
 ### Changed
 
 - **DEPRECATED**: The `transactionHistoryLimit` constructor option is now deprecated ([#7648](https://github.com/MetaMask/core/pull/7648))
   - Use the `transactionHistoryLimit` feature flag in `RemoteFeatureFlagController` instead.
   - This option will be removed in a future version.
+
+### Fixed
+
+- Ensure provided `batchId` is used in `addTransactionBatch` when going through the publish batch hook route ([#7705](https://github.com/MetaMask/core/pull/7705))
 
 ## [62.9.2]
 
