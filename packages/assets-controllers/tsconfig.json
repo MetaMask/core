@@ -13,6 +13,7 @@
     { "path": "../controller-utils" },
     { "path": "../keyring-controller" },
     { "path": "../network-controller" },
+    { "path": "../network-enablement-controller" },
     { "path": "../messenger" },
     { "path": "../preferences-controller" },
     { "path": "../phishing-controller" },
