@@ -9,7 +9,7 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ### Fixed
 
-- Centralize authentication error handling into a single `handleServiceError` helper for consistent error management across all service functions ([#XXXX](https://github.com/MetaMask/core/pull/XXXX))
+- Centralize authentication error handling into a single `handleServiceError` helper for consistent error management across all service functions ([#7721](https://github.com/MetaMask/core/pull/7721))
   - This fixes authentication services crashing when server returns non-JSON error responses.
 
 ### Changed
