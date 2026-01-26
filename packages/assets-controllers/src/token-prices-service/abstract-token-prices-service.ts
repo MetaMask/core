@@ -1,7 +1,12 @@
 import type { ServicePolicy } from '@metamask/controller-utils';
-import type { CaipAssetType, Hex } from '@metamask/utils';
+import type { CaipAssetType, CaipChainId, Hex } from '@metamask/utils';
 
 import type { MarketDataDetails } from '../TokenRatesController';
+
+/**
+ * A map of CAIP-2 chain IDs to their native asset identifiers (CAIP-19 format).
+ */
+export type NativeAssetIdentifiersMap = Record<CaipChainId, CaipAssetType>;
 
 /**
  * Represents an exchange rate.
@@ -103,4 +108,14 @@ export type AbstractTokenPricesService<
    * @returns True if the API supports the currency, false otherwise.
    */
   validateCurrencySupported(currency: unknown): currency is Currency;
+
+  /**
+   * Sets the native asset identifiers map for resolving native token CAIP-19 IDs.
+   * This should be called with data from NetworkEnablementController.state.nativeAssetIdentifiers.
+   *
+   * @param nativeAssetIdentifiers - Map of CAIP-2 chain IDs to native asset identifiers.
+   */
+  setNativeAssetIdentifiers?(
+    nativeAssetIdentifiers: NativeAssetIdentifiersMap,
+  ): void;
 };

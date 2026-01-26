@@ -7,6 +7,27 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+### Added
+
+- Add dynamic fetching of supported networks from `/v2/supportedNetworks` API endpoint with fallback to hardcoded list ([#7716](https://github.com/MetaMask/core/pull/7716))
+  - Add `fetchSupportedNetworks()`, `getSupportedNetworks()`, and `resetSupportedNetworksCache()` exports from token-prices-service
+  - Add `setNativeAssetIdentifiers()` method to `CodefiTokenPricesServiceV2` for CAIP-19 native token lookups
+  - Add `updateSupportedNetworks()` method to `CodefiTokenPricesServiceV2`
+  - Add `NativeAssetIdentifiersMap` type export from token-prices-service
+- Integrate `TokenRatesController` with `NetworkEnablementController` to use native asset identifiers for token price lookups ([#7716](https://github.com/MetaMask/core/pull/7716))
+
+### Changed
+
+- Bump `@metamask/keyring-controller` from `^25.0.0` to `^25.1.0` ([#7713](https://github.com/MetaMask/core/pull/7713))
+- Add `@metamask/network-enablement-controller` as a dependency ([#7716](https://github.com/MetaMask/core/pull/7716))
+
+### Removed
+
+- **BREAKING:** Remove swaps token fetching functionality from TokenSearchDiscoveryDataController ([#7712](https://github.com/MetaMask/core/pull/7712))
+  - Remove `swapsTokenAddressesByChainId` from controller state
+  - Remove `swapsSupportedChainIds`, `fetchTokens`, and `fetchSwapsTokensThresholdMs` constructor parameters
+  - Remove `fetchSwapsTokens` method
+
 ## [96.0.0]
 
 ### Added

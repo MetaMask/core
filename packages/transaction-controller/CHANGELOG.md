@@ -13,6 +13,7 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
   - Defaults to 100 if not provided.
 - Add support for `transactionHistoryLimit` feature flag to configure the maximum number of transactions stored in state ([#7648](https://github.com/MetaMask/core/pull/7648))
   - Defaults to 40 if not provided.
+- Add optional `callTraceErrors` to `simulationData` ([#7641](https://github.com/MetaMask/core/pull/7641))
 
 ### Changed
 
@@ -23,6 +24,7 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 ### Fixed
 
 - Set `isExternalSign` for sponsored transactions to skip nonce assignment ([#7659](https://github.com/MetaMask/core/pull/7659))
+- Ensure provided `batchId` is used in `addTransactionBatch` when going through the publish batch hook route ([#7705](https://github.com/MetaMask/core/pull/7705))
 
 ## [62.9.2]
 

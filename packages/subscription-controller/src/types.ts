@@ -134,6 +134,7 @@ export type StartSubscriptionRequest = {
   isTrialRequested: boolean;
   recurringInterval: RecurringInterval;
   successUrl?: string;
+  cancelUrl?: string;
   useTestClock?: boolean;
 
   /**
@@ -430,6 +431,7 @@ export type UpdatePaymentMethodCardRequest = {
    */
   recurringInterval: RecurringInterval;
   successUrl?: string;
+  cancelUrl?: string;
 };
 
 export type UpdatePaymentMethodCardResponse = {

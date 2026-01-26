@@ -13,6 +13,9 @@ import {
   fetchSupportedCurrencies,
   getSupportedCurrencies,
   resetSupportedCurrenciesCache,
+  fetchSupportedNetworks,
+  getSupportedNetworks,
+  resetSupportedNetworksCache,
 } from './codefi-v2';
 
 // We're not customizing the default max delay
@@ -1918,6 +1921,237 @@ describe('CodefiTokenPricesServiceV2', () => {
       const result = await service.updateSupportedCurrencies();
 
       expect(result).toStrictEqual([...SUPPORTED_CURRENCIES_FALLBACK]);
+    });
+  });
+
+  describe('fetchSupportedNetworks', () => {
+    afterEach(() => {
+      resetSupportedNetworksCache();
+    });
+
+    it('fetches supported networks from the API and returns them', async () => {
+      const mockResponse = {
+        fullSupport: ['eip155:1', 'eip155:137'],
+        partialSupport: {
+          spotPricesV2: ['eip155:1', 'eip155:137', 'eip155:56'],
+          spotPricesV3: ['eip155:1', 'eip155:137', 'eip155:42161'],
+        },
+      };
+      nock('https://price.api.cx.metamask.io')
+        .get('/v2/supportedNetworks')
+        .reply(200, mockResponse);
+
+      const result = await fetchSupportedNetworks();
+
+      expect(result).toStrictEqual(mockResponse);
+    });
+
+    it('returns the fallback list when the API returns an invalid response', async () => {
+      nock('https://price.api.cx.metamask.io')
+        .get('/v2/supportedNetworks')
+        .reply(200, { invalid: 'response' });
+
+      const result = await fetchSupportedNetworks();
+
+      expect(result.fullSupport).toBeDefined();
+      expect(result.partialSupport).toBeDefined();
+      expect(result.partialSupport.spotPricesV3).toBeDefined();
+    });
+
+    it('returns the fallback list when the API request fails', async () => {
+      nock('https://price.api.cx.metamask.io')
+        .get('/v2/supportedNetworks')
+        .replyWithError('Network error');
+
+      const result = await fetchSupportedNetworks();
+
+      expect(result.fullSupport).toBeDefined();
+      expect(result.partialSupport).toBeDefined();
+      expect(result.partialSupport.spotPricesV3).toBeDefined();
+    });
+
+    it('updates getSupportedNetworks after a successful fetch', async () => {
+      const mockResponse = {
+        fullSupport: ['eip155:1'],
+        partialSupport: {
+          spotPricesV2: ['eip155:1', 'eip155:56'],
+          spotPricesV3: ['eip155:1', 'eip155:42161'],
+        },
+      };
+      nock('https://price.api.cx.metamask.io')
+        .get('/v2/supportedNetworks')
+        .reply(200, mockResponse);
+
+      await fetchSupportedNetworks();
+      const result = getSupportedNetworks();
+
+      expect(result).toStrictEqual(mockResponse);
+    });
+  });
+
+  describe('getSupportedNetworks', () => {
+    beforeEach(() => {
+      resetSupportedNetworksCache();
+    });
+
+    it('returns the fallback list when no networks have been fetched', () => {
+      const result = getSupportedNetworks();
+
+      expect(result.fullSupport).toBeDefined();
+      expect(result.partialSupport).toBeDefined();
+      expect(result.partialSupport.spotPricesV3).toBeDefined();
+      expect(Array.isArray(result.fullSupport)).toBe(true);
+      expect(Array.isArray(result.partialSupport.spotPricesV3)).toBe(true);
+    });
+  });
+
+  describe('updateSupportedNetworks', () => {
+    afterEach(() => {
+      resetSupportedNetworksCache();
+    });
+
+    it('fetches and returns supported networks via the service method', async () => {
+      const mockResponse = {
+        fullSupport: ['eip155:1', 'eip155:10'],
+        partialSupport: {
+          spotPricesV2: ['eip155:1'],
+          spotPricesV3: ['eip155:1', 'eip155:10'],
+        },
+      };
+      nock('https://price.api.cx.metamask.io')
+        .get('/v2/supportedNetworks')
+        .reply(200, mockResponse);
+
+      const service = new CodefiTokenPricesServiceV2();
+      const result = await service.updateSupportedNetworks();
+
+      expect(result).toStrictEqual(mockResponse);
+    });
+
+    it('returns the fallback list when the API fails', async () => {
+      nock('https://price.api.cx.metamask.io')
+        .get('/v2/supportedNetworks')
+        .replyWithError('Network error');
+
+      const service = new CodefiTokenPricesServiceV2();
+      const result = await service.updateSupportedNetworks();
+
+      expect(result.fullSupport).toBeDefined();
+      expect(result.partialSupport).toBeDefined();
+    });
+  });
+
+  describe('setNativeAssetIdentifiers', () => {
+    afterEach(() => {
+      resetSupportedNetworksCache();
+    });
+
+    it('sets native asset identifiers and uses them in fetchTokenPrices', async () => {
+      // Mock supportedNetworks to include our test chain
+      const mockNetworksResponse = {
+        fullSupport: ['eip155:1'],
+        partialSupport: {
+          spotPricesV2: [],
+          spotPricesV3: ['eip155:1'],
+        },
+      };
+      nock('https://price.api.cx.metamask.io')
+        .get('/v2/supportedNetworks')
+        .reply(200, mockNetworksResponse)
+        .persist();
+
+      // Pre-populate the cache
+      await fetchSupportedNetworks();
+
+      const customNativeAssetId = 'eip155:1/slip44:60';
+      const nativeAssetIdentifiers = {
+        'eip155:1': customNativeAssetId,
+      };
+
+      // Mock the spot-prices response
+      nock('https://price.api.cx.metamask.io')
+        .get('/v3/spot-prices')
+        .query(true)
+        .reply(200, {
+          [customNativeAssetId]: {
+            price: 2000,
+            currency: 'USD',
+            pricePercentChange1d: 1,
+            priceChange1d: 1,
+            marketCap: 1000000,
+            allTimeHigh: 5000,
+            allTimeLow: 100,
+            totalVolume: 50000,
+            high1d: 2100,
+            low1d: 1900,
+            circulatingSupply: 1000000,
+            dilutedMarketCap: 2000000,
+            marketCapPercentChange1d: 0.5,
+            pricePercentChange1h: 0.1,
+            pricePercentChange7d: 5,
+            pricePercentChange14d: 10,
+            pricePercentChange30d: 15,
+            pricePercentChange200d: 50,
+            pricePercentChange1y: 100,
+          },
+        });
+
+      const service = new CodefiTokenPricesServiceV2();
+      service.setNativeAssetIdentifiers(
+        nativeAssetIdentifiers as Record<
+          `${string}:${string}`,
+          `${string}:${string}/${string}:${string}`
+        >,
+      );
+
+      const result = await service.fetchTokenPrices({
+        assets: [{ chainId: '0x1', tokenAddress: ZERO_ADDRESS }],
+        currency: 'USD',
+      });
+
+      expect(result).toHaveLength(1);
+      expect(result[0].price).toBe(2000);
+    });
+  });
+
+  describe('validateChainIdSupported with dynamic networks', () => {
+    afterEach(() => {
+      resetSupportedNetworksCache();
+    });
+
+    it('returns true for chains in the dynamic supported networks list', async () => {
+      const mockResponse = {
+        fullSupport: ['eip155:999999'],
+        partialSupport: {
+          spotPricesV2: [],
+          spotPricesV3: ['eip155:999999'],
+        },
+      };
+      nock('https://price.api.cx.metamask.io')
+        .get('/v2/supportedNetworks')
+        .reply(200, mockResponse);
+
+      await fetchSupportedNetworks();
+
+      const service = new CodefiTokenPricesServiceV2();
+      // 0xf423f = 999999 in hex
+      expect(service.validateChainIdSupported('0xf423f')).toBe(true);
+    });
+
+    it('returns true for chains in the hardcoded fallback list', () => {
+      resetSupportedNetworksCache();
+
+      const service = new CodefiTokenPricesServiceV2();
+      // 0x1 (Ethereum mainnet) should always be in the hardcoded list
+      expect(service.validateChainIdSupported('0x1')).toBe(true);
+    });
+
+    it('returns false for unsupported chains', () => {
+      resetSupportedNetworksCache();
+
+      const service = new CodefiTokenPricesServiceV2();
+      // Some random chain ID that's not supported
+      expect(service.validateChainIdSupported('0xdeadbeef')).toBe(false);
     });
   });
 });
