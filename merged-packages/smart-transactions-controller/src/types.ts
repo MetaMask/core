@@ -6,7 +6,31 @@ import type { SmartTransactionsNetworkConfig } from './featureFlags';
 
 export type SentinelMeta = {
   txType?: TransactionType;
+  feature?: Feature;
+  kind?: Kind;
+  client?: ClientId;
+  wallet?: string;
 };
+
+// This list does not belong here, but as these are reported to tx-sentinel, it is ok to have it here for now.
+export enum Feature {
+  Swap = 'Swap',
+  Staking = 'Staking',
+  Ramp = 'Ramp',
+  Prediction = 'Prediction',
+  Perp = 'Perp',
+  Earn = 'Earn',
+  Card = 'Card',
+  Bridge = 'Bridge',
+  dAppTransaction = 'dAppTransaction',
+}
+
+export enum Kind {
+  Regular = 'Regular',
+  STX = 'STX',
+  GaslessSendBundle = 'GaslessSendBundle',
+  GaslessEIP7702 = 'GaslessEIP7702',
+}
 
 /** API */
 export enum APIType {

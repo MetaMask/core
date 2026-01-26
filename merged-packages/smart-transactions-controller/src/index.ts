@@ -23,6 +23,8 @@ export {
   SmartTransactionCancellationReason,
   SmartTransactionStatuses,
   ClientId,
+  Feature,
+  Kind,
 } from './types';
 export { MetaMetricsEventName, MetaMetricsEventCategory } from './constants';
 export {
