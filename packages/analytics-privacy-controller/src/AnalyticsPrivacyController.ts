@@ -1,4 +1,3 @@
-import type { AnalyticsControllerGetStateAction } from '@metamask/analytics-controller';
 import type {
   ControllerGetStateAction,
   ControllerStateChangeEvent,
@@ -115,9 +114,7 @@ export type AnalyticsPrivacyControllerActions =
 /**
  * Actions from other messengers that {@link AnalyticsPrivacyControllerMessenger} calls.
  */
-type AllowedActions =
-  | AnalyticsControllerGetStateAction
-  | AnalyticsPrivacyServiceActions;
+type AllowedActions = AnalyticsPrivacyServiceActions;
 
 /**
  * Event emitted when a data deletion task is created.
@@ -181,6 +178,10 @@ export type AnalyticsPrivacyControllerOptions = {
    * Messenger used to communicate with BaseController and other controllers.
    */
   messenger: AnalyticsPrivacyControllerMessenger;
+  /**
+   * Analytics ID used for data deletion requests.
+   */
+  analyticsId: string;
 };
 
 /**
@@ -196,13 +197,23 @@ export class AnalyticsPrivacyController extends BaseController<
   AnalyticsPrivacyControllerMessenger
 > {
   /**
+   * Analytics ID used for data deletion requests.
+   */
+  readonly #analyticsId: string;
+
+  /**
    * Constructs an AnalyticsPrivacyController instance.
    *
    * @param options - Controller options
    * @param options.state - Initial controller state. Use `getDefaultAnalyticsPrivacyControllerState()` for defaults.
    * @param options.messenger - Messenger used to communicate with BaseController
+   * @param options.analyticsId - Analytics ID used for data deletion requests
    */
-  constructor({ state = {}, messenger }: AnalyticsPrivacyControllerOptions) {
+  constructor({
+    state = {},
+    messenger,
+    analyticsId,
+  }: AnalyticsPrivacyControllerOptions) {
     const initialState: AnalyticsPrivacyControllerState = {
       ...getDefaultAnalyticsPrivacyControllerState(),
       ...state,
@@ -214,6 +225,8 @@ export class AnalyticsPrivacyController extends BaseController<
       state: initialState,
       messenger,
     });
+
+    this.#analyticsId = analyticsId;
 
     this.messenger.registerMethodActionHandlers(
       this,
@@ -236,14 +249,9 @@ export class AnalyticsPrivacyController extends BaseController<
    */
   async createDataDeletionTask(): Promise<IDeleteRegulationResponse> {
     try {
-      const analyticsControllerState = this.messenger.call(
-        'AnalyticsController:getState',
-      );
-      const { analyticsId } = analyticsControllerState;
-
-      if (!analyticsId || analyticsId.trim() === '') {
+      if (!this.#analyticsId || this.#analyticsId.trim() === '') {
         const error = new Error(
-          'Analytics ID not found. You need to set up AnalyticsController with an analytics ID. You can do this by initializing the AnalyticsController with a valid analytics ID before creating a data deletion task.',
+          'Analytics ID not found. You need to provide a valid analytics ID when initializing the AnalyticsPrivacyController.',
         );
         log('Analytics Deletion Task Error', error);
         return {
@@ -254,7 +262,7 @@ export class AnalyticsPrivacyController extends BaseController<
 
       const response = await this.messenger.call(
         'AnalyticsPrivacyService:createDataDeletionTask',
-        analyticsId,
+        this.#analyticsId,
       );
 
       const deletionTimestamp = Date.now();

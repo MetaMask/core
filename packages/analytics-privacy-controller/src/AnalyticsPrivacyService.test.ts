@@ -402,7 +402,9 @@ describe('AnalyticsPrivacyService', () => {
           'AnalyticsPrivacyService:createDataDeletionTask',
           'test-analytics-id',
         ),
-      ).rejects.toThrow('Execution prevented because the circuit breaker is open');
+      ).rejects.toThrow(
+        'Execution prevented because the circuit breaker is open',
+      );
 
       expect(onBreakListener).toHaveBeenCalled();
     });

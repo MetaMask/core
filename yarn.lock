@@ -2554,7 +2554,7 @@ __metadata:
   languageName: unknown
   linkType: soft
 
-"@metamask/analytics-controller@npm:^1.0.0, @metamask/analytics-controller@workspace:packages/analytics-controller":
+"@metamask/analytics-controller@workspace:packages/analytics-controller":
   version: 0.0.0-use.local
   resolution: "@metamask/analytics-controller@workspace:packages/analytics-controller"
   dependencies:
@@ -2577,7 +2577,6 @@ __metadata:
   version: 0.0.0-use.local
   resolution: "@metamask/analytics-privacy-controller@workspace:packages/analytics-privacy-controller"
   dependencies:
-    "@metamask/analytics-controller": "npm:^1.0.0"
     "@metamask/auto-changelog": "npm:^3.4.4"
     "@metamask/base-controller": "npm:^9.0.0"
     "@metamask/controller-utils": "npm:^11.18.0"
