@@ -107,6 +107,11 @@ async function throwServiceError(
   errorPrefix: string,
   ErrorClass: new (message: string) => Error,
 ): Promise<never> {
+  // Re-throw RateLimitedError as-is (don't wrap it)
+  if (error instanceof RateLimitedError) {
+    throw error;
+  }
+
   // Not a Response-like object - handle as regular error
   if (!isErrorResponse(error)) {
     const errorMessage = error instanceof Error ? error.message : String(error);
@@ -209,7 +214,7 @@ export async function pairIdentifiers(
     });
 
     if (!response.ok) {
-      return throwServiceError(
+      return await throwServiceError(
         response,
         'Unable to pair identifiers',
         PairError,
@@ -217,7 +222,11 @@ export async function pairIdentifiers(
     }
     return undefined;
   } catch (error) {
-    return throwServiceError(error, 'Unable to pair identifiers', PairError);
+    return await throwServiceError(
+      error,
+      'Unable to pair identifiers',
+      PairError,
+    );
   }
 }
 
@@ -235,7 +244,7 @@ export async function getNonce(id: string, env: Env): Promise<NonceResponse> {
   try {
     const nonceResponse = await fetch(nonceUrl.toString());
     if (!nonceResponse.ok) {
-      return throwServiceError(
+      return await throwServiceError(
         nonceResponse,
         'Failed to get nonce',
         NonceRetrievalError,
@@ -249,7 +258,11 @@ export async function getNonce(id: string, env: Env): Promise<NonceResponse> {
       expiresIn: nonceJson.expires_in,
     };
   } catch (error) {
-    return throwServiceError(error, 'Failed to get nonce', NonceRetrievalError);
+    return await throwServiceError(
+      error,
+      'Failed to get nonce',
+      NonceRetrievalError,
+    );
   }
 }
 
@@ -284,7 +297,7 @@ export async function authorizeOIDC(
     });
 
     if (!response.ok) {
-      return throwServiceError(
+      return await throwServiceError(
         response,
         'Unable to get access token',
         SignInError,
@@ -298,7 +311,11 @@ export async function authorizeOIDC(
       obtainedAt: Date.now(),
     };
   } catch (error) {
-    return throwServiceError(error, 'Unable to get access token', SignInError);
+    return await throwServiceError(
+      error,
+      'Unable to get access token',
+      SignInError,
+    );
   }
 }
 
@@ -347,7 +364,7 @@ export async function authenticate(
     });
 
     if (!response.ok) {
-      return throwServiceError(
+      return await throwServiceError(
         response,
         `${authType} login failed`,
         SignInError,
@@ -365,7 +382,11 @@ export async function authenticate(
       },
     };
   } catch (error) {
-    return throwServiceError(error, `${authType} login failed`, SignInError);
+    return await throwServiceError(
+      error,
+      `${authType} login failed`,
+      SignInError,
+    );
   }
 }
 
@@ -391,7 +412,7 @@ export async function getUserProfileLineage(
     });
 
     if (!response.ok) {
-      return throwServiceError(
+      return await throwServiceError(
         response,
         'Failed to get profile lineage',
         SignInError,
@@ -401,7 +422,7 @@ export async function getUserProfileLineage(
     const profileJson: UserProfileLineage = await response.json();
     return profileJson;
   } catch (error) {
-    return throwServiceError(
+    return await throwServiceError(
       error,
       'Failed to get profile lineage',
       SignInError,

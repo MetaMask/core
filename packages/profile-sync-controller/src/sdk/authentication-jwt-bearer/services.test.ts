@@ -288,6 +288,21 @@ describe('services', () => {
       );
     });
 
+    it('should handle missing error field in JSON response', async () => {
+      const mockResponse = createMockResponse(
+        {
+          message: 'Something went wrong',
+          // no error field
+        },
+        { ok: false, status: 500 },
+      );
+      mockFetch.mockResolvedValue(mockResponse);
+
+      await expect(getNonce('test-id', Env.DEV)).rejects.toThrow(
+        'Failed to get nonce: HTTP 500 - Something went wrong (error: unknown)',
+      );
+    });
+
     it('should truncate long text responses', async () => {
       const longText = 'A'.repeat(200);
       const mockResponse = createMockResponse(longText, {
