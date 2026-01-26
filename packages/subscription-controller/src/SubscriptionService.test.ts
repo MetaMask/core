@@ -21,6 +21,7 @@ import type {
   SubscriptionEligibility,
 } from './types';
 import {
+  CANCEL_TYPES,
   PAYMENT_TYPES,
   PRODUCT_TYPES,
   RECURRING_INTERVALS,
@@ -59,6 +60,7 @@ const MOCK_SUBSCRIPTION: Subscription = {
     },
   },
   isEligibleForSupport: true,
+  cancelType: CANCEL_TYPES.ALLOWED_AT_PERIOD_END,
 };
 
 const MOCK_ACCESS_TOKEN = 'mock-access-token-12345';
