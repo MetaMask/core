@@ -784,15 +784,15 @@ export class RampsService {
     assetId: string;
     provider: string;
   }): Promise<PaymentMethodsResponse> {
+    const normalizedRegion = options.region.toLowerCase().trim();
     const url = new URL(
-      getApiPath('paymentMethods'),
+      getApiPath(`regions/${normalizedRegion}/payments`),
       getBaseUrl(this.#environment, RampsApiService.Regions),
     );
     this.#addCommonParams(url);
 
-    url.searchParams.set('region', options.region.toLowerCase().trim());
     url.searchParams.set('fiat', options.fiat.toLowerCase().trim());
-    url.searchParams.set('assetId', options.assetId);
+    url.searchParams.set('crypto', options.assetId);
     url.searchParams.set('provider', options.provider);
 
     const response = await this.#policy.execute(async () => {

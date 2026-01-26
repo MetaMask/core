@@ -1472,11 +1472,10 @@ describe('RampsService', () => {
 
     it('fetches payment methods from the API', async () => {
       nock('https://on-ramp-cache.uat-api.cx.metamask.io')
-        .get('/v2/paymentMethods')
+        .get('/v2/regions/us-al/payments')
         .query({
-          region: 'us-al',
           fiat: 'usd',
-          assetId: 'eip155:1/slip44:60',
+          crypto: 'eip155:1/slip44:60',
           provider: '/providers/stripe',
           sdk: '2.1.6',
           controller: CONTROLLER_VERSION,
@@ -1507,11 +1506,10 @@ describe('RampsService', () => {
 
     it('normalizes region and fiat case', async () => {
       nock('https://on-ramp-cache.uat-api.cx.metamask.io')
-        .get('/v2/paymentMethods')
+        .get('/v2/regions/us-al/payments')
         .query({
-          region: 'us-al',
           fiat: 'usd',
-          assetId: 'eip155:1/slip44:60',
+          crypto: 'eip155:1/slip44:60',
           provider: '/providers/stripe',
           sdk: '2.1.6',
           controller: CONTROLLER_VERSION,
@@ -1535,11 +1533,10 @@ describe('RampsService', () => {
 
     it('throws error for malformed response', async () => {
       nock('https://on-ramp-cache.uat-api.cx.metamask.io')
-        .get('/v2/paymentMethods')
+        .get('/v2/regions/us-al/payments')
         .query({
-          region: 'us-al',
           fiat: 'usd',
-          assetId: 'eip155:1/slip44:60',
+          crypto: 'eip155:1/slip44:60',
           provider: '/providers/stripe',
           sdk: '2.1.6',
           controller: CONTROLLER_VERSION,
@@ -1564,11 +1561,10 @@ describe('RampsService', () => {
 
     it('throws error when response is null', async () => {
       nock('https://on-ramp-cache.uat-api.cx.metamask.io')
-        .get('/v2/paymentMethods')
+        .get('/v2/regions/us-al/payments')
         .query({
-          region: 'us-al',
           fiat: 'usd',
-          assetId: 'eip155:1/slip44:60',
+          crypto: 'eip155:1/slip44:60',
           provider: '/providers/stripe',
           sdk: '2.1.6',
           controller: CONTROLLER_VERSION,
@@ -1593,11 +1589,10 @@ describe('RampsService', () => {
 
     it('throws error when payments is not an array', async () => {
       nock('https://on-ramp-cache.uat-api.cx.metamask.io')
-        .get('/v2/paymentMethods')
+        .get('/v2/regions/us-al/payments')
         .query({
-          region: 'us-al',
           fiat: 'usd',
-          assetId: 'eip155:1/slip44:60',
+          crypto: 'eip155:1/slip44:60',
           provider: '/providers/stripe',
           sdk: '2.1.6',
           controller: CONTROLLER_VERSION,
@@ -1622,11 +1617,10 @@ describe('RampsService', () => {
 
     it('throws error for HTTP error response', async () => {
       nock('https://on-ramp-cache.uat-api.cx.metamask.io')
-        .get('/v2/paymentMethods')
+        .get('/v2/regions/us-al/payments')
         .query({
-          region: 'us-al',
           fiat: 'usd',
-          assetId: 'eip155:1/slip44:60',
+          crypto: 'eip155:1/slip44:60',
           provider: '/providers/stripe',
           sdk: '2.1.6',
           controller: CONTROLLER_VERSION,
@@ -1649,7 +1643,7 @@ describe('RampsService', () => {
       await flushPromises();
 
       await expect(paymentMethodsPromise).rejects.toThrow(
-        `Fetching 'https://on-ramp-cache.uat-api.cx.metamask.io/v2/paymentMethods?sdk=2.1.6&controller=${CONTROLLER_VERSION}&context=mobile-ios&region=us-al&fiat=usd&assetId=eip155%3A1%2Fslip44%3A60&provider=%2Fproviders%2Fstripe' failed with status '500'`,
+        `Fetching 'https://on-ramp-cache.uat-api.cx.metamask.io/v2/regions/us-al/payments?sdk=2.1.6&controller=${CONTROLLER_VERSION}&context=mobile-ios&fiat=usd&crypto=eip155%3A1%2Fslip44%3A60&provider=%2Fproviders%2Fstripe' failed with status '500'`,
       );
     });
   });
