@@ -10,6 +10,7 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 ### Added
 
 - Added `CancelType` to `Subscription` and `CancelSubscriptionRequest` for `cancelSubscription` method ([#7720](https://github.com/MetaMask/core/pull/7720))
+- Added `cancelUrl` property to `StartSubscriptionRequest` and `UpdatePaymentMethodCardRequest` ([#7719](https://github.com/MetaMask/core/pull/7719))
 
 ### Changed
 
