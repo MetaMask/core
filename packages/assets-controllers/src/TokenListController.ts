@@ -318,12 +318,17 @@ export class TokenListController extends StaticIntervalPollingController<TokenLi
    * items from storage, preventing race conditions.
    *
    * If a persist operation is already in-flight, this method returns early
-   * and relies on the debounce mechanism to retry with accumulated changes.
+   * and reschedules the debounce to ensure accumulated changes are retried
+   * after the current operation completes.
    *
    * @returns A promise that resolves when changed chains are persisted.
    */
   async #persistChangedChains(): Promise<void> {
     if (this.#persistInFlightPromise) {
+      // Reschedule debounce to retry accumulated changes after in-flight persist completes
+      if (this.#changedChainsToPersist.size > 0) {
+        this.#debouncePersist();
+      }
       return;
     }
 
@@ -445,6 +450,8 @@ export class TokenListController extends StaticIntervalPollingController<TokenLi
       if (this.#changedChainsToPersist.size > 0) {
         this.#debouncePersist();
       }
+
+      this.#previousTokensChainsCache = { ...this.state.tokensChainsCache };
     } catch (error) {
       console.error(
         'TokenListController: Failed to load cache from storage:',
