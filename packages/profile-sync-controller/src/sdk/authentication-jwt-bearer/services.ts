@@ -41,40 +41,78 @@ function parseRetryAfter(retryAfterHeader: string | null): number | null {
 }
 
 /**
- * Handle HTTP error responses with rate limiting support.
+ * Extracts error details from a Response object.
  *
  * @param response - The HTTP response object
- * @param errorPrefix - Optional prefix for the error message
- * @throws RateLimitedError for 429 responses
- * @throws Error for other error responses
+ * @returns Formatted error message with HTTP status and response body
  */
-async function handleErrorResponse(
-  response: Response,
-  errorPrefix?: string,
-): Promise<never> {
+async function getResponseErrorMessage(response: Response): Promise<string> {
   const { status } = response;
-  const retryAfterHeader = response.headers.get('Retry-After');
-  const retryAfterMs = parseRetryAfter(retryAfterHeader);
+  const clonedResponse = response.clone();
 
-  const responseBody = (await response.json()) as
-    | ErrorMessage
-    | { error_description: string; error: string };
+  let message = 'Unknown error';
+  let error = 'unknown';
 
-  const message =
-    'message' in responseBody
-      ? responseBody.message
-      : responseBody.error_description;
-  const { error } = responseBody;
+  try {
+    const responseBody = (await response.json()) as
+      | ErrorMessage
+      | { error_description: string; error: string };
 
-  if (status === HTTP_STATUS_CODES.TOO_MANY_REQUESTS) {
-    throw new RateLimitedError(
-      `HTTP ${HTTP_STATUS_CODES.TOO_MANY_REQUESTS}: ${message} (error: ${error})`,
-      retryAfterMs ?? undefined,
-    );
+    message =
+      'message' in responseBody
+        ? responseBody.message
+        : responseBody.error_description;
+    error = responseBody.error;
+  } catch {
+    try {
+      const textContent = await clonedResponse.text();
+      message = textContent
+        ? textContent.slice(0, 150)
+        : 'Non-JSON error response';
+      error = 'non_json_response';
+    } catch {
+      message = 'Unable to parse error response';
+      error = 'unparseable_response';
+    }
   }
 
-  const prefix = errorPrefix ? `${errorPrefix} ` : '';
-  throw new Error(`${prefix}HTTP ${status} error: ${message}, error: ${error}`);
+  return `HTTP ${status} - ${message} (error: ${error})`;
+}
+
+/**
+ * Handles any error from service calls consistently.
+ * Supports Response objects (non-OK HTTP responses), regular Errors, and unknown types.
+ *
+ * @param e - The caught error (can be Response, Error, or unknown)
+ * @param errorPrefix - Context prefix for the error message
+ * @param ErrorClass - The domain-specific error class to throw
+ * @throws The appropriate error type (RateLimitedError for 429, otherwise ErrorClass)
+ */
+async function handleServiceError(
+  e: unknown,
+  errorPrefix: string,
+  ErrorClass: new (message: string) => Error,
+): Promise<never> {
+  // Handle non-OK HTTP responses
+  if (e instanceof Response) {
+    const { status } = e;
+    const responseMessage = await getResponseErrorMessage(e);
+
+    if (status === HTTP_STATUS_CODES.TOO_MANY_REQUESTS) {
+      const retryAfterHeader = e.headers.get('Retry-After');
+      const retryAfterMs = parseRetryAfter(retryAfterHeader);
+      throw new RateLimitedError(
+        `${errorPrefix}: ${responseMessage}`,
+        retryAfterMs ?? undefined,
+      );
+    }
+
+    throw new ErrorClass(`${errorPrefix}: ${responseMessage}`);
+  }
+
+  // Handle regular errors (network failures, JSON parsing, etc.)
+  const errorMessage = e instanceof Error ? e.message : String(e);
+  throw new ErrorClass(`${errorPrefix}: ${errorMessage}`);
 }
 
 export const NONCE_URL = (env: Env) =>
@@ -153,17 +191,10 @@ export async function pairIdentifiers(
     });
 
     if (!response.ok) {
-      await handleErrorResponse(response);
+      throw response;
     }
   } catch (e) {
-    // Re-throw RateLimitedError to preserve 429 status and retry metadata
-    if (RateLimitedError.isRateLimitError(e)) {
-      throw e;
-    }
-    /* istanbul ignore next */
-    const errorMessage =
-      e instanceof Error ? e.message : JSON.stringify(e ?? '');
-    throw new PairError(`unable to pair identifiers: ${errorMessage}`);
+    return handleServiceError(e, 'Unable to pair identifiers', PairError);
   }
 }
 
@@ -181,7 +212,7 @@ export async function getNonce(id: string, env: Env): Promise<NonceResponse> {
   try {
     const nonceResponse = await fetch(nonceUrl.toString());
     if (!nonceResponse.ok) {
-      await handleErrorResponse(nonceResponse);
+      throw nonceResponse;
     }
 
     const nonceJson = await nonceResponse.json();
@@ -191,14 +222,7 @@ export async function getNonce(id: string, env: Env): Promise<NonceResponse> {
       expiresIn: nonceJson.expires_in,
     };
   } catch (e) {
-    // Re-throw RateLimitedError to preserve 429 status and retry metadata
-    if (RateLimitedError.isRateLimitError(e)) {
-      throw e;
-    }
-    /* istanbul ignore next */
-    const errorMessage =
-      e instanceof Error ? e.message : JSON.stringify(e ?? '');
-    throw new NonceRetrievalError(`failed to generate nonce: ${errorMessage}`);
+    return handleServiceError(e, 'Failed to get nonce', NonceRetrievalError);
   }
 }
 
@@ -233,7 +257,7 @@ export async function authorizeOIDC(
     });
 
     if (!response.ok) {
-      await handleErrorResponse(response);
+      throw response;
     }
 
     const accessTokenResponse = await response.json();
@@ -243,14 +267,7 @@ export async function authorizeOIDC(
       obtainedAt: Date.now(),
     };
   } catch (e) {
-    // Re-throw RateLimitedError to preserve 429 status and retry metadata
-    if (RateLimitedError.isRateLimitError(e)) {
-      throw e;
-    }
-    /* istanbul ignore next */
-    const errorMessage =
-      e instanceof Error ? e.message : JSON.stringify(e ?? '');
-    throw new SignInError(`unable to get access token: ${errorMessage}`);
+    return handleServiceError(e, 'Unable to get access token', SignInError);
   }
 }
 
@@ -299,7 +316,7 @@ export async function authenticate(
     });
 
     if (!response.ok) {
-      await handleErrorResponse(response, `${authType} login`);
+      throw response;
     }
 
     const loginResponse = await response.json();
@@ -313,14 +330,7 @@ export async function authenticate(
       },
     };
   } catch (e) {
-    // Re-throw RateLimitedError to preserve 429 status and retry metadata
-    if (RateLimitedError.isRateLimitError(e)) {
-      throw e;
-    }
-    /* istanbul ignore next */
-    const errorMessage =
-      e instanceof Error ? e.message : JSON.stringify(e ?? '');
-    throw new SignInError(`unable to perform SRP login: ${errorMessage}`);
+    return handleServiceError(e, `${authType} login failed`, SignInError);
   }
 }
 
@@ -346,20 +356,12 @@ export async function getUserProfileLineage(
     });
 
     if (!response.ok) {
-      await handleErrorResponse(response, 'profile lineage');
+      throw response;
     }
 
     const profileJson: UserProfileLineage = await response.json();
-
     return profileJson;
   } catch (e) {
-    // Re-throw RateLimitedError to preserve 429 status and retry metadata
-    if (RateLimitedError.isRateLimitError(e)) {
-      throw e;
-    }
-    /* istanbul ignore next */
-    const errorMessage =
-      e instanceof Error ? e.message : JSON.stringify(e ?? '');
-    throw new SignInError(`failed to get profile lineage: ${errorMessage}`);
+    return handleServiceError(e, 'Failed to get profile lineage', SignInError);
   }
 }
