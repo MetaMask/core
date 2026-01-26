@@ -11,6 +11,13 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 - Bump `@metamask/keyring-controller` from `^25.0.0` to `^25.1.0` ([#7713](https://github.com/MetaMask/core/pull/7713))
 
+### Removed
+
+- **BREAKING:** Remove swaps token fetching functionality from TokenSearchDiscoveryDataController ([#7712](https://github.com/MetaMask/core/pull/7712))
+  - Remove `swapsTokenAddressesByChainId` from controller state
+  - Remove `swapsSupportedChainIds`, `fetchTokens`, and `fetchSwapsTokensThresholdMs` constructor parameters
+  - Remove `fetchSwapsTokens` method
+
 ## [96.0.0]
 
 ### Added
