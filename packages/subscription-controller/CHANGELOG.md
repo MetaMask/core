@@ -7,10 +7,6 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
-### Uncategorized
-
-- Chore/w3a controllers linting ([#7455](https://github.com/MetaMask/core/pull/7455))
-
 ### Added
 
 - Add `cancelUrl` property to `StartSubscriptionRequest` and `UpdatePaymentMethodCardRequest` ([#7719](https://github.com/MetaMask/core/pull/7719))

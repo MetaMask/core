@@ -7,6 +7,8 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+## [97.0.0]
+
 ### Added
 
 - Add dynamic fetching of supported networks from `/v2/supportedNetworks` API endpoint with fallback to hardcoded list ([#7716](https://github.com/MetaMask/core/pull/7716))
@@ -2569,7 +2571,8 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 - Use Ethers for AssetsContractController ([#845](https://github.com/MetaMask/core/pull/845))
 
-[Unreleased]: https://github.com/MetaMask/core/compare/@metamask/assets-controllers@96.0.0...HEAD
+[Unreleased]: https://github.com/MetaMask/core/compare/@metamask/assets-controllers@97.0.0...HEAD
+[97.0.0]: https://github.com/MetaMask/core/compare/@metamask/assets-controllers@96.0.0...@metamask/assets-controllers@97.0.0
 [96.0.0]: https://github.com/MetaMask/core/compare/@metamask/assets-controllers@95.3.0...@metamask/assets-controllers@96.0.0
 [95.3.0]: https://github.com/MetaMask/core/compare/@metamask/assets-controllers@95.2.0...@metamask/assets-controllers@95.3.0
 [95.2.0]: https://github.com/MetaMask/core/compare/@metamask/assets-controllers@95.1.0...@metamask/assets-controllers@95.2.0
