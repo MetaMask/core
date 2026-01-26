@@ -28,6 +28,7 @@ export {
 export type {
   Subscription,
   AuthUtils,
+  CancelSubscriptionRequest,
   ISubscriptionService,
   StartCryptoSubscriptionRequest,
   StartCryptoSubscriptionResponse,
@@ -70,6 +71,7 @@ export type {
   ModalType,
 } from './types';
 export {
+  CANCEL_TYPES,
   CRYPTO_PAYMENT_METHOD_ERRORS,
   SUBSCRIPTION_STATUSES,
   PRODUCT_TYPES,
