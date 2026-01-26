@@ -17,7 +17,7 @@ export {
 export type {
   FetchConfigOptions,
   FetchConfigResult,
-  NetworkConfig,
+  RegistryNetworkConfig,
   RegistryConfigApiResponse,
   ConfigRegistryApiServiceOptions,
   NetworkFilterOptions,

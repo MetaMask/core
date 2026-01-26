@@ -1,7 +1,7 @@
 import { filterNetworks } from './transformers';
-import type { NetworkConfig } from './types';
+import type { RegistryNetworkConfig } from './types';
 
-const VALID_NETWORK_CONFIG: NetworkConfig = {
+const VALID_NETWORK_CONFIG: RegistryNetworkConfig = {
   chainId: '0x1',
   name: 'Ethereum Mainnet',
   nativeCurrency: 'ETH',
@@ -27,7 +27,7 @@ const VALID_NETWORK_CONFIG: NetworkConfig = {
 
 describe('transformers', () => {
   describe('filterNetworks', () => {
-    const networks: NetworkConfig[] = [
+    const networks: RegistryNetworkConfig[] = [
       {
         ...VALID_NETWORK_CONFIG,
         isFeatured: true,
@@ -106,26 +106,6 @@ describe('transformers', () => {
 
       expect(result).toHaveLength(1);
       expect(result[0].chainId).toBe('0x1');
-    });
-
-    it('should return empty array for non-array input', () => {
-      const result = filterNetworks(null as unknown as NetworkConfig[]);
-
-      expect(result).toStrictEqual([]);
-    });
-
-    it('should filter out invalid network objects', () => {
-      const invalidNetworks = [
-        null,
-        undefined,
-        'invalid',
-        123,
-        ...networks,
-      ] as unknown as NetworkConfig[];
-
-      const result = filterNetworks(invalidNetworks);
-
-      expect(result).toHaveLength(3);
     });
 
     it('should return empty array for empty input', () => {

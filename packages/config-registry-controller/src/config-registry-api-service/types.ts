@@ -15,7 +15,7 @@ const RpcEndpointSchema = type({
   failoverUrls: array(string()),
 });
 
-export const NetworkConfigSchema = type({
+export const RegistryNetworkConfigSchema = type({
   chainId: string(),
   name: string(),
   nativeCurrency: string(),
@@ -39,11 +39,11 @@ export const RegistryConfigApiResponseSchema = type({
   data: type({
     version: string(),
     timestamp: number(),
-    networks: array(NetworkConfigSchema),
+    networks: array(RegistryNetworkConfigSchema),
   }),
 });
 
-export type NetworkConfig = {
+export type RegistryNetworkConfig = {
   chainId: string;
   name: string;
   nativeCurrency: string;
@@ -72,7 +72,7 @@ export type RegistryConfigApiResponse = {
   data: {
     version: string;
     timestamp: number;
-    networks: NetworkConfig[];
+    networks: RegistryNetworkConfig[];
   };
 };
 

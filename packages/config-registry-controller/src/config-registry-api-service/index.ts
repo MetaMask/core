@@ -1,7 +1,7 @@
 export type {
   FetchConfigOptions,
   FetchConfigResult,
-  NetworkConfig,
+  RegistryNetworkConfig,
   RegistryConfigApiResponse,
 } from './types';
 

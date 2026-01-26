@@ -1,4 +1,4 @@
-import type { NetworkConfig } from './types';
+import type { RegistryNetworkConfig } from './types';
 
 export type NetworkFilterOptions = {
   isFeatured?: boolean;
@@ -14,18 +14,10 @@ export type NetworkFilterOptions = {
  * @returns Filtered array of network configurations.
  */
 export function filterNetworks(
-  networks: NetworkConfig[],
+  networks: RegistryNetworkConfig[],
   options: NetworkFilterOptions = {},
-): NetworkConfig[] {
-  if (!Array.isArray(networks)) {
-    return [];
-  }
-
+): RegistryNetworkConfig[] {
   return networks.filter((network) => {
-    if (!network || typeof network !== 'object') {
-      return false;
-    }
-
     if (options.isFeatured !== undefined) {
       if (network.isFeatured !== options.isFeatured) {
         return false;

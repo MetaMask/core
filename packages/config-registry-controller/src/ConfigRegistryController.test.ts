@@ -4,7 +4,7 @@ import { useFakeTimers } from 'sinon';
 
 import type {
   FetchConfigResult,
-  NetworkConfig,
+  RegistryNetworkConfig,
 } from './config-registry-api-service';
 import {
   ConfigRegistryController,
@@ -85,14 +85,14 @@ function getConfigRegistryControllerMessenger(): {
 }
 
 /**
- * Creates a mock NetworkConfig for testing.
+ * Creates a mock RegistryNetworkConfig for testing.
  *
- * @param overrides - Optional properties to override in the default NetworkConfig.
- * @returns A mock NetworkConfig object.
+ * @param overrides - Optional properties to override in the default RegistryNetworkConfig.
+ * @returns A mock RegistryNetworkConfig object.
  */
 function createMockNetworkConfig(
-  overrides: Partial<NetworkConfig> = {},
-): NetworkConfig {
+  overrides: Partial<RegistryNetworkConfig> = {},
+): RegistryNetworkConfig {
   return {
     chainId: '0x1',
     name: 'Ethereum Mainnet',
@@ -218,6 +218,9 @@ async function withController<ReturnValue>(
     ...options,
   });
 
+  // Initialize the controller after creation
+  controller.init();
+
   try {
     return await testFunction({
       controller,
@@ -229,6 +232,8 @@ async function withController<ReturnValue>(
       mockKeyringControllerGetState,
     });
   } finally {
+    controller.stopPolling();
+    controller.destroy();
     clock.restore();
     mockApiServiceHandler.mockReset();
   }
@@ -1392,24 +1397,6 @@ describe('ConfigRegistryController', () => {
         },
       );
     });
-
-    it('should use default error message when useFallbackConfig is called without errorMessage', async () => {
-      await withController(
-        { options: { fallbackConfig: MOCK_FALLBACK_CONFIG } },
-        ({ controller }) => {
-          // eslint-disable-next-line @typescript-eslint/no-explicit-any
-          (controller as any).useFallbackConfig();
-
-          expect(controller.state.configs).toStrictEqual({
-            networks: MOCK_FALLBACK_CONFIG,
-          });
-          expect(controller.state.fetchError).toBe(
-            'Using fallback configuration - API unavailable',
-          );
-          expect(controller.state.etag).toBeNull();
-        },
-      );
-    });
   });
 
   describe('startPolling', () => {
@@ -1689,7 +1676,7 @@ describe('ConfigRegistryController', () => {
           await controller._executePoll(null);
 
           expect(fetchConfigSpy).toHaveBeenCalled();
-          expect(controller.state.configs.networks?.['0x1']).toBeDefined();
+          expect(controller.state.configs.networks['0x1']).toBeDefined();
           expect(controller.state.version).toBe('1.0.0');
           expect(controller.state.fetchError).toBeNull();
         },
@@ -1821,13 +1808,13 @@ describe('ConfigRegistryController', () => {
 
           await controller._executePoll(null);
 
-          expect(controller.state.configs.networks?.['0x1']).toBeDefined();
-          expect(controller.state.configs.networks?.['0x5']).toBeUndefined();
-          expect(controller.state.configs.networks?.['0xa']).toBeUndefined();
-          expect(controller.state.configs.networks?.['0x89']).toBeUndefined();
-          expect(
-            Object.keys(controller.state.configs.networks ?? {}),
-          ).toHaveLength(1);
+          expect(controller.state.configs.networks['0x1']).toBeDefined();
+          expect(controller.state.configs.networks['0x5']).toBeUndefined();
+          expect(controller.state.configs.networks['0xa']).toBeUndefined();
+          expect(controller.state.configs.networks['0x89']).toBeUndefined();
+          expect(Object.keys(controller.state.configs.networks)).toHaveLength(
+            1,
+          );
         },
       );
     });
@@ -2004,17 +1991,17 @@ describe('ConfigRegistryController', () => {
           );
 
           // Verify highest priority network was kept
-          expect(testController.state.configs.networks?.['0x1']).toBeDefined();
+          expect(testController.state.configs.networks['0x1']).toBeDefined();
+          expect(testController.state.configs.networks['0x1']?.value.name).toBe(
+            'Ethereum Mainnet (High Priority)',
+          );
           expect(
-            testController.state.configs.networks?.['0x1']?.value.name,
-          ).toBe('Ethereum Mainnet (High Priority)');
-          expect(
-            testController.state.configs.networks?.['0x1']?.value
-              .rpcEndpoints[0].type,
+            testController.state.configs.networks['0x1']?.value.rpcEndpoints[0]
+              .type,
           ).toBe('alchemy');
 
           // Verify other networks are still present
-          expect(testController.state.configs.networks?.['0x89']).toBeDefined();
+          expect(testController.state.configs.networks['0x89']).toBeDefined();
         },
       );
     });
@@ -2165,10 +2152,10 @@ describe('ConfigRegistryController', () => {
           expect(warningCall).toBeDefined();
 
           // Verify first occurrence was kept (since priorities are equal)
-          expect(testController.state.configs.networks?.['0x1']).toBeDefined();
-          expect(
-            testController.state.configs.networks?.['0x1']?.value.name,
-          ).toBe('Ethereum Mainnet (First)');
+          expect(testController.state.configs.networks['0x1']).toBeDefined();
+          expect(testController.state.configs.networks['0x1']?.value.name).toBe(
+            'Ethereum Mainnet (First)',
+          );
         },
       );
     });
@@ -2224,7 +2211,7 @@ describe('ConfigRegistryController', () => {
 
           expect(customIsEnabled).toHaveBeenCalledWith(messenger);
           expect(mockApiServiceHandler).toHaveBeenCalled();
-          expect(controller.state.configs.networks?.['0x1']).toBeDefined();
+          expect(controller.state.configs.networks['0x1']).toBeDefined();
           expect(controller.state.version).toBe('1.0.0');
         },
       );
@@ -2381,6 +2368,9 @@ describe('ConfigRegistryController', () => {
         const controller = new ConfigRegistryController({
           messenger: testMessenger,
         });
+
+        // Initialize the controller after creation
+        controller.init();
 
         const executePollSpy = jest.spyOn(controller, '_executePoll');
 

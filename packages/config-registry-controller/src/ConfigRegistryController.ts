@@ -16,7 +16,7 @@ import type { Json } from '@metamask/utils';
 import type {
   FetchConfigOptions,
   FetchConfigResult,
-  NetworkConfig,
+  RegistryNetworkConfig,
 } from './config-registry-api-service';
 import { filterNetworks } from './config-registry-api-service';
 import { isConfigRegistryApiEnabled as defaultIsConfigRegistryApiEnabled } from './utils/feature-flags';
@@ -27,17 +27,49 @@ export const DEFAULT_POLLING_INTERVAL = inMilliseconds(1, Duration.Day);
 
 export type NetworkConfigEntry = {
   key: string;
-  value: NetworkConfig;
+  value: RegistryNetworkConfig;
   metadata?: Json;
 };
 
+/**
+ * State for the ConfigRegistryController.
+ *
+ * Tracks network configurations fetched from the config registry API,
+ * along with metadata about the fetch status and caching.
+ */
 export type ConfigRegistryState = {
+  /**
+   * Network configurations organized by chain ID.
+   * Contains the actual network configuration data fetched from the API.
+   */
   configs: {
-    networks?: Record<string, NetworkConfigEntry>;
+    networks: Record<string, NetworkConfigEntry>;
   };
+  /**
+   * Semantic version string of the configuration data from the API.
+   * Indicates the version/schema of the configuration structure itself
+   * (e.g., "v1.0.0", "1.0.0").
+   * This is different from `etag` which is used for HTTP cache validation.
+   */
   version: string | null;
+  /**
+   * Timestamp (milliseconds since epoch) of when the configuration
+   * was last successfully fetched from the API.
+   */
   lastFetched: number | null;
+  /**
+   * Error message if the last fetch attempt failed.
+   * Null if the last fetch was successful.
+   */
   fetchError: string | null;
+  /**
+   * HTTP entity tag (ETag) used for cache validation.
+   * Sent as `If-None-Match` header in subsequent requests to check
+   * if the content has changed. If the server returns 304 Not Modified,
+   * the full response body is not downloaded, improving efficiency.
+   * This is different from `version` which is a semantic version string
+   * indicating the schema/version of the configuration data itself.
+   */
   etag: string | null;
 };
 
@@ -207,11 +239,30 @@ export class ConfigRegistryController extends StaticIntervalPollingController<nu
     this.#registerKeyringEventListeners();
   }
 
+  /**
+   * Initializes the controller by checking the KeyringController unlock state
+   * and starting polling if already unlocked.
+   *
+   * This method should be called after all controllers have been initialized
+   * to avoid runtime dependencies during construction. If KeyringController
+   * is not available, this method will silently skip initialization.
+   */
+  init(): void {
+    try {
+      const { isUnlocked } = this.messenger.call('KeyringController:getState');
+      if (isUnlocked) {
+        this.startPolling(null);
+      }
+    } catch {
+      // KeyringController may not be available, silently handle
+    }
+  }
+
   async _executePoll(_input: null): Promise<void> {
     const isApiEnabled = this.#isConfigRegistryApiEnabled(this.messenger);
 
     if (!isApiEnabled) {
-      this.useFallbackConfig(
+      this.#useFallbackConfig(
         'Feature flag disabled - using fallback configuration',
       );
       return;
@@ -257,7 +308,7 @@ export class ConfigRegistryController extends StaticIntervalPollingController<nu
       // Group networks by chainId to detect duplicates
       const networksByChainId = new Map<
         string,
-        { network: NetworkConfig; index: number }[]
+        { network: RegistryNetworkConfig; index: number }[]
       >();
       filteredNetworks.forEach((network, index) => {
         const existing = networksByChainId.get(network.chainId) ?? [];
@@ -298,6 +349,8 @@ export class ConfigRegistryController extends StaticIntervalPollingController<nu
       }
 
       this.update((state) => {
+        // eslint-disable-next-line @typescript-eslint/ban-ts-comment
+        // @ts-ignore - Type instantiation is excessively deep
         (state.configs as ConfigRegistryState['configs']) = {
           networks: newConfigs,
         };
@@ -318,13 +371,12 @@ export class ConfigRegistryController extends StaticIntervalPollingController<nu
     }
   }
 
-  protected useFallbackConfig(errorMessage?: string): void {
+  #useFallbackConfig(errorMessage: string): void {
     this.update((state) => {
-      (state.configs as ConfigRegistryState['configs']) = {
-        networks: { ...this.#fallbackConfig },
-      };
-      state.fetchError =
-        errorMessage ?? 'Using fallback configuration - API unavailable';
+      // eslint-disable-next-line @typescript-eslint/ban-ts-comment
+      // @ts-ignore - Type instantiation is excessively deep
+      state.configs.networks = { ...this.#fallbackConfig };
+      state.fetchError = errorMessage;
       state.etag = null;
     });
   }
@@ -341,19 +393,9 @@ export class ConfigRegistryController extends StaticIntervalPollingController<nu
 
   /**
    * Registers event listeners for KeyringController unlock/lock events.
-   * Automatically starts polling when unlocked and stops when locked.
+   * The listeners will automatically start polling when unlocked and stop when locked.
    */
   #registerKeyringEventListeners(): void {
-    // Check initial unlock state and start polling if already unlocked
-    try {
-      const { isUnlocked } = this.messenger.call('KeyringController:getState');
-      if (isUnlocked) {
-        this.startPolling(null);
-      }
-    } catch {
-      // KeyringController may not be available, silently handle
-    }
-
     // Subscribe to unlock event - start polling
     this.messenger.subscribe('KeyringController:unlock', this.#unlockHandler);
 
