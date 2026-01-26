@@ -7,11 +7,17 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+## [22.2.0]
+
+### Added
+
+- Add `Feature`, `Kind`, `Client` and `Wallet` fields to `SentinelMeta` ([#560](https://github.com/MetaMask/smart-transactions-controller/pull/560))
+
 ## [22.1.0]
 
 ### Added
 
-- feat: add support for signed transactions with metadata in SmartTransactionsController ([#557](https://github.com/MetaMask/smart-transactions-controller/pull/557))
+- Add support for signed transactions with metadata in SmartTransactionsController ([#557](https://github.com/MetaMask/smart-transactions-controller/pull/557))
 
 ## [22.0.0]
 
@@ -698,7 +704,8 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 - Add initial SmartTransactionsController ([#1](https://github.com/MetaMask/smart-transactions-controller/pull/1))
 - Initial commit
 
-[Unreleased]: https://github.com/MetaMask/smart-transactions-controller/compare/v22.1.0...HEAD
+[Unreleased]: https://github.com/MetaMask/smart-transactions-controller/compare/v22.2.0...HEAD
+[22.2.0]: https://github.com/MetaMask/smart-transactions-controller/compare/v22.1.0...v22.2.0
 [22.1.0]: https://github.com/MetaMask/smart-transactions-controller/compare/v22.0.0...v22.1.0
 [22.0.0]: https://github.com/MetaMask/smart-transactions-controller/compare/v21.1.0...v22.0.0
 [21.1.0]: https://github.com/MetaMask/smart-transactions-controller/compare/v21.0.0...v21.1.0
