@@ -84,7 +84,7 @@ async function executeSingleQuote(
     },
   );
 
-  await submitTransactions(quote, transaction.id, messenger);
+  await submitTransactions(quote, transaction, messenger);
 
   const targetHash = await waitForRelayCompletion(quote.original);
 
@@ -169,15 +169,16 @@ function normalizeParams(
  * Submit transactions for a relay quote.
  *
  * @param quote - Relay quote.
- * @param parentTransactionId - ID of the parent transaction.
+ * @param parentTransactionMeta - Parent transaction meta.
  * @param messenger - Controller messenger.
  * @returns Hash of the last submitted transaction.
  */
 async function submitTransactions(
   quote: TransactionPayQuote<RelayQuote>,
-  parentTransactionId: string,
+  parentTransactionMeta: TransactionMeta,
   messenger: TransactionPayControllerMessenger,
 ): Promise<Hex> {
+  const parentTransactionId = parentTransactionMeta.id;
   const { steps } = quote.original;
   const params = steps.flatMap((step) => step.items).map((item) => item.data);
   const invalidKind = steps.find((step) => step.kind !== 'transaction')?.kind;
@@ -261,7 +262,7 @@ async function submitTransactions(
         networkClientId,
         origin: ORIGIN_METAMASK,
         requireApproval: false,
-        type: TransactionType.relayDeposit,
+        type: parentTransactionMeta.type ?? TransactionType.relayDeposit,
       },
     );
   } else {
@@ -279,8 +280,8 @@ async function submitTransactions(
       },
       type:
         index === 0
-          ? TransactionType.tokenMethodApprove
-          : TransactionType.relayDeposit,
+          ? (parentTransactionMeta.type ?? TransactionType.tokenMethodApprove)
+          : (parentTransactionMeta.type ?? TransactionType.relayDeposit),
     }));
 
     await messenger.call('TransactionController:addTransactionBatch', {
