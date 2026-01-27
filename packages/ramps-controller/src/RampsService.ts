@@ -821,10 +821,6 @@ export class RampsService {
     url.searchParams.set('crypto', options.assetId);
     url.searchParams.set('provider', options.provider);
 
-    console.log('[RampsService] getPaymentMethods:', {
-      url: url.toString(),
-    });
-
     const response = await this.#policy.execute(async () => {
       const fetchResponse = await this.#fetch(url);
       if (!fetchResponse.ok) {
@@ -835,8 +831,7 @@ export class RampsService {
       }
       return fetchResponse.json() as Promise<PaymentMethodsResponse>;
     });
-    console.log('[RampsService] response:', response);
-
+    
     if (!response || typeof response !== 'object') {
       throw new Error('Malformed response received from paymentMethods API');
     }

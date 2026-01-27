@@ -1983,7 +1983,7 @@ describe('RampsController', () => {
 
           expect(controller.state.selectedToken).toBeNull();
 
-          await controller.setSelectedToken(mockToken);
+          controller.setSelectedToken(mockToken);
 
           expect(controller.state.selectedToken).toStrictEqual(mockToken);
         },
@@ -1992,15 +1992,15 @@ describe('RampsController', () => {
 
     it('throws error when token is not provided', async () => {
       await withController(async ({ controller }) => {
-        await expect(
+        expect(() =>
           controller.setSelectedToken(null as unknown as RampsToken),
-        ).rejects.toThrow('Token is required.');
+        ).toThrow('Token is required.');
       });
     });
 
     it('throws error when region is not set', async () => {
       await withController(async ({ controller }) => {
-        await expect(controller.setSelectedToken(mockToken)).rejects.toThrow(
+        expect(() => controller.setSelectedToken(mockToken)).toThrow(
           'Region is required. Cannot set selected token without valid region information.',
         );
       });
@@ -2030,7 +2030,7 @@ describe('RampsController', () => {
             },
           );
 
-          await controller.setSelectedToken(mockToken);
+          controller.setSelectedToken(mockToken);
           await new Promise((resolve) => setTimeout(resolve, 10));
 
           expect(receivedAssetId).toBe(mockToken.assetId);
@@ -2062,7 +2062,7 @@ describe('RampsController', () => {
             symbol: 'USDT',
           };
 
-          await controller.setSelectedToken(newToken);
+          controller.setSelectedToken(newToken);
 
           expect(controller.state.selectedToken).toStrictEqual(newToken);
         },

@@ -799,7 +799,7 @@ export class RampsController extends BaseController<
    *
    * @param token - The token object, or null to clear.
    */
-  async setSelectedToken(token: RampsToken): Promise<void> {
+  setSelectedToken(token: RampsToken): void {
     if (!token) {
       throw new Error('Token is required.');
     }
