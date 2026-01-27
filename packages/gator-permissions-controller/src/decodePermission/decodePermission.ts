@@ -285,12 +285,6 @@ export const getPermissionDataAndExpiry = ({
         (caveat) => caveat.enforcer === allowedCalldataEnforcer,
       );
 
-      if (allowedCalldataCaveats.length !== 2) {
-        throw new Error(
-          'Invalid erc20-token-revocation terms: expected two AllowedCalldataEnforcer caveats',
-        );
-      }
-
       const allowedCalldataTerms = allowedCalldataCaveats.map((caveat) =>
         caveat.terms.toLowerCase(),
       );

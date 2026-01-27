@@ -1228,32 +1228,6 @@ describe('decodePermission', () => {
         );
       });
 
-      it('rejects when only one AllowedCalldataEnforcer caveat is provided', () => {
-        const caveats = [
-          expiryCaveat,
-          {
-            enforcer: AllowedCalldataEnforcer,
-            terms: approveSelectorTerms,
-            args: '0x',
-          } as const,
-          {
-            enforcer: ValueLteEnforcer,
-            terms: zeroValueLteTerms,
-            args: '0x',
-          } as const,
-        ];
-
-        expect(() =>
-          getPermissionDataAndExpiry({
-            contracts,
-            caveats,
-            permissionType,
-          }),
-        ).toThrow(
-          'Invalid erc20-token-revocation terms: expected two AllowedCalldataEnforcer caveats',
-        );
-      });
-
       it('rejects non-zero valueLte terms', () => {
         const caveats = [
           expiryCaveat,
