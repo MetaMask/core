@@ -7,6 +7,11 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+### Added
+
+- Add `getAccountContext` method and `AccountTreeController:getAccountContext` action ([#7741](https://github.com/MetaMask/core/pull/7741))
+  - This can be used to map an account back to its position (wallet, group) in the account tree.
+
 ### Changed
 
 - Bump `@metamask/snaps-sdk` from `^9.0.0` to `^10.3.0` ([#7550](https://github.com/MetaMask/core/pull/7550))
