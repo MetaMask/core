@@ -417,12 +417,12 @@ export class RampsController extends BaseController<
       return pending.promise as Promise<TResult>;
     }
 
-    if (!options?.forceRefresh) {
-      const cached = this.state.requests[cacheKey];
-      if (cached && !isCacheExpired(cached, ttl)) {
-        return cached.data as TResult;
-      }
-    }
+    // if (!options?.forceRefresh) {
+    //   const cached = this.state.requests[cacheKey];
+    //   if (cached && !isCacheExpired(cached, ttl)) {
+    //     return cached.data as TResult;
+    //   }
+    // }
 
     // Create abort controller for this request
     const abortController = new AbortController();
@@ -646,20 +646,36 @@ export class RampsController extends BaseController<
   }
 
   /**
-   * Sets the user's selected provider.
-   * This allows users to set their selected ramp provider.
+   * Sets the user's selected provider by ID.
+   * Looks up the provider from the current providers in state and automatically
+   * fetches payment methods for that provider.
    *
-   * @param provider - The provider object to set.
+   * @param providerId - The provider ID (e.g., "/providers/moonpay").
+   * @throws If providerId is not provided, region is not set, providers are not loaded, or provider is not found.
    */
-  setSelectedProvider(provider: Provider): void {
-    if (!provider) {
-      throw new Error('Provider is required.');
+  setSelectedProvider(providerId: string): void {
+    if (!providerId) {
+      throw new Error('Provider ID is required.');
     }
 
     const regionCode = this.state.userRegion?.regionCode;
     if (!regionCode) {
       throw new Error(
         'Region is required. Cannot set selected provider without valid region information.',
+      );
+    }
+
+    const { providers } = this.state;
+    if (!providers || providers.length === 0) {
+      throw new Error(
+        'Providers not loaded. Cannot set selected provider before providers are fetched.',
+      );
+    }
+
+    const provider = providers.find((p) => p.id === providerId);
+    if (!provider) {
+      throw new Error(
+        `Provider with ID "${providerId}" not found in available providers.`,
       );
     }
 
@@ -794,20 +810,39 @@ export class RampsController extends BaseController<
   }
 
   /**
-   * Sets the user's selected token.
-   * Automatically fetches payment methods for that token.
+   * Sets the user's selected token by asset ID.
+   * Looks up the token from the current tokens in state and automatically
+   * fetches payment methods for that token.
    *
-   * @param token - The token object, or null to clear.
+   * @param assetId - The asset identifier in CAIP-19 format (e.g., "eip155:1/erc20:0x...").
+   * @throws If assetId is not provided, region is not set, tokens are not loaded, or token is not found.
    */
-  setSelectedToken(token: RampsToken): void {
-    if (!token) {
-      throw new Error('Token is required.');
+  setSelectedToken(assetId: string): void {
+    if (!assetId) {
+      throw new Error('Asset ID is required.');
     }
 
     const regionCode = this.state.userRegion?.regionCode;
     if (!regionCode) {
       throw new Error(
         'Region is required. Cannot set selected token without valid region information.',
+      );
+    }
+
+    const { tokens } = this.state;
+    if (!tokens) {
+      throw new Error(
+        'Tokens not loaded. Cannot set selected token before tokens are fetched.',
+      );
+    }
+
+    const token =
+      tokens.allTokens.find((t) => t.assetId === assetId) ??
+      tokens.topTokens.find((t) => t.assetId === assetId);
+
+    if (!token) {
+      throw new Error(
+        `Token with asset ID "${assetId}" not found in available tokens.`,
       );
     }
 
@@ -966,11 +1001,34 @@ export class RampsController extends BaseController<
   }
 
   /**
-   * Sets the user's selected payment method.
+   * Sets the user's selected payment method by ID.
+   * Looks up the payment method from the current payment methods in state.
    *
-   * @param paymentMethod - The payment method to select, or null to clear.
+   * @param paymentMethodId - The payment method ID (e.g., "/payments/debit-credit-card"), or null to clear.
+   * @throws If payment methods are not loaded or payment method is not found.
    */
-  setSelectedPaymentMethod(paymentMethod: PaymentMethod | null): void {
+  setSelectedPaymentMethod(paymentMethodId: string | null): void {
+    if (paymentMethodId === null) {
+      this.update((state) => {
+        state.selectedPaymentMethod = null;
+      });
+      return;
+    }
+
+    const { paymentMethods } = this.state;
+    if (!paymentMethods || paymentMethods.length === 0) {
+      throw new Error(
+        'Payment methods not loaded. Cannot set selected payment method before payment methods are fetched.',
+      );
+    }
+
+    const paymentMethod = paymentMethods.find((p) => p.id === paymentMethodId);
+    if (!paymentMethod) {
+      throw new Error(
+        `Payment method with ID "${paymentMethodId}" not found in available payment methods.`,
+      );
+    }
+
     this.update((state) => {
       state.selectedPaymentMethod = paymentMethod;
     });
