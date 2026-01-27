@@ -528,7 +528,7 @@ export class NftDetectionController extends BaseController<
     const chainIdsString = chainIds.join('&chainIds=');
     return `${
       NFT_API_BASE_URL as string
-    }/users/${address}/tokens?chainIds=${chainIdsString}&limit=100&includeTopBid=true&continuation=${next ?? ''}`;
+    }/users/${address}/tokens?chainIds=${chainIdsString}&limit=50&includeTopBid=true&continuation=${next ?? ''}`;
   }
 
   async #getOwnerNfts(
