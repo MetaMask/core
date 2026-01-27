@@ -417,7 +417,6 @@ export class RampsController extends BaseController<
       return pending.promise as Promise<TResult>;
     }
 
-    // Check cache validity (unless force refresh)
     if (!options?.forceRefresh) {
       const cached = this.state.requests[cacheKey];
       if (cached && !isCacheExpired(cached, ttl)) {
@@ -511,6 +510,7 @@ export class RampsController extends BaseController<
     this.update((state) => {
       state.userRegion = null;
       state.selectedProvider = null;
+      state.selectedToken = null;
       state.tokens = null;
       state.providers = [];
       state.paymentMethods = [];
@@ -621,6 +621,7 @@ export class RampsController extends BaseController<
       this.update((state) => {
         if (regionChanged) {
           state.selectedProvider = null;
+          state.selectedToken = null;
           state.tokens = null;
           state.providers = [];
           state.paymentMethods = [];
@@ -803,11 +804,18 @@ export class RampsController extends BaseController<
       throw new Error('Token is required.');
     }
 
+    const regionCode = this.state.userRegion?.regionCode;
+    if (!regionCode) {
+      throw new Error(
+        'Region is required. Cannot set selected token without valid region information.',
+      );
+    }
+
     this.update((state) => {
       state.selectedToken = token;
     });
 
-    this.triggerGetPaymentMethods(undefined, {
+    this.triggerGetPaymentMethods(regionCode, {
       assetId: token.assetId,
     });
   }

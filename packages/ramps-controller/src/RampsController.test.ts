@@ -1455,6 +1455,15 @@ describe('RampsController', () => {
           width: 77,
         },
       };
+      const mockSelectedToken = {
+        assetId: 'eip155:1/erc20:0xA0b86991c6218b36c1d19D4a2e9Eb0cE3606eB48',
+        chainId: 'eip155:1',
+        name: 'USD Coin',
+        symbol: 'USDC',
+        decimals: 6,
+        iconUrl: 'https://example.com/usdc.png',
+        tokenSupported: true,
+      };
 
       await withController(
         {
@@ -1465,6 +1474,7 @@ describe('RampsController', () => {
               tokens: mockTokens,
               providers: mockProviders,
               selectedProvider: mockSelectedProvider,
+              selectedToken: mockSelectedToken,
             },
           },
         },
@@ -1486,6 +1496,7 @@ describe('RampsController', () => {
           expect(controller.state.tokens).toBeNull();
           expect(controller.state.providers).toStrictEqual([]);
           expect(controller.state.selectedProvider).toBeNull();
+          expect(controller.state.selectedToken).toBeNull();
         },
       );
     });
@@ -1984,6 +1995,14 @@ describe('RampsController', () => {
         await expect(
           controller.setSelectedToken(null as unknown as RampsToken),
         ).rejects.toThrow('Token is required.');
+      });
+    });
+
+    it('throws error when region is not set', async () => {
+      await withController(async ({ controller }) => {
+        await expect(controller.setSelectedToken(mockToken)).rejects.toThrow(
+          'Region is required. Cannot set selected token without valid region information.',
+        );
       });
     });
 
