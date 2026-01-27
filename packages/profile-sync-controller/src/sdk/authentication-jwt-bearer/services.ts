@@ -107,8 +107,8 @@ async function throwServiceError(
   errorPrefix: string,
   ErrorClass: new (message: string) => Error,
 ): Promise<never> {
-  // Re-throw RateLimitedError as-is (don't wrap it)
-  if (error instanceof RateLimitedError) {
+  // Re-throw RateLimitedError or matching ErrorClass as-is (don't double-wrap)
+  if (error instanceof RateLimitedError || error instanceof ErrorClass) {
     throw error;
   }
 
