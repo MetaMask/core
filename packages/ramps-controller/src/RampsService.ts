@@ -86,9 +86,9 @@ export type Provider = {
   hqAddress: string;
   links: ProviderLink[];
   logos: ProviderLogos;
-  supportedCryptoCurrencies: Map<string, boolean>;
-  supportedFiatCurrencies: Map<string, boolean>;
-  supportedPaymentMethods: Map<string, boolean>;
+  supportedCryptoCurrencies?: Record<string, boolean>;
+  supportedFiatCurrencies?: Record<string, boolean>;
+  supportedPaymentMethods?: Record<string, boolean>;
 };
 
 /**
