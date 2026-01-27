@@ -417,12 +417,12 @@ export class RampsController extends BaseController<
       return pending.promise as Promise<TResult>;
     }
 
-    // if (!options?.forceRefresh) {
-    //   const cached = this.state.requests[cacheKey];
-    //   if (cached && !isCacheExpired(cached, ttl)) {
-    //     return cached.data as TResult;
-    //   }
-    // }
+    if (!options?.forceRefresh) {
+      const cached = this.state.requests[cacheKey];
+      if (cached && !isCacheExpired(cached, ttl)) {
+        return cached.data as TResult;
+      }
+    }
 
     // Create abort controller for this request
     const abortController = new AbortController();
@@ -741,7 +741,7 @@ export class RampsController extends BaseController<
       async () => {
         return this.messenger.call('RampsService:getCountries');
       },
-      options,
+      { forceRefresh: true, ...options },
     );
 
     this.update((state) => {
@@ -795,7 +795,7 @@ export class RampsController extends BaseController<
           },
         );
       },
-      options,
+      { forceRefresh: true, ...options },
     );
 
     this.update((state) => {
@@ -907,7 +907,7 @@ export class RampsController extends BaseController<
           },
         );
       },
-      options,
+      { forceRefresh: true, ...options },
     );
 
     this.update((state) => {
@@ -948,10 +948,11 @@ export class RampsController extends BaseController<
     const fiatToUse =
       options?.fiat ?? this.state.userRegion?.country?.currency ?? null;
 
-    const assetIdToUse =
-      options?.assetId ?? this.state.selectedToken?.assetId ?? '';
-    const providerToUse =
-      options?.provider ?? this.state.selectedProvider?.id ?? '';
+    const selectedTokenAtStart = this.state.selectedToken?.assetId ?? '';
+    const selectedProviderAtStart = this.state.selectedProvider?.id ?? '';
+
+    const assetIdToUse = options?.assetId ?? selectedTokenAtStart;
+    const providerToUse = options?.provider ?? selectedProviderAtStart;
 
     if (!regionCode) {
       throw new Error(
@@ -988,12 +989,21 @@ export class RampsController extends BaseController<
     );
 
     this.update((state) => {
-      state.paymentMethods = response.payments;
-      const currentSelectionStillValid = response.payments.some(
-        (pm: PaymentMethod) => pm.id === state.selectedPaymentMethod?.id,
-      );
-      if (!currentSelectionStillValid) {
-        state.selectedPaymentMethod = response.payments[0] ?? null;
+      const currentAssetId = state.selectedToken?.assetId ?? '';
+      const currentProviderId = state.selectedProvider?.id ?? '';
+
+      const tokenSelectionUnchanged = selectedTokenAtStart === currentAssetId;
+      const providerSelectionUnchanged =
+        selectedProviderAtStart === currentProviderId;
+
+      if (tokenSelectionUnchanged && providerSelectionUnchanged) {
+        state.paymentMethods = response.payments;
+        const currentSelectionStillValid = response.payments.some(
+          (pm: PaymentMethod) => pm.id === state.selectedPaymentMethod?.id,
+        );
+        if (!currentSelectionStillValid) {
+          state.selectedPaymentMethod = response.payments[0] ?? null;
+        }
       }
     });
 

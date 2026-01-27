@@ -465,6 +465,23 @@ describe('RampsController', () => {
   });
 
   describe('executeRequest', () => {
+    it('returns cached data when available and not expired', async () => {
+      await withController(async ({ controller }) => {
+        let callCount = 0;
+        const fetcher = async (): Promise<string> => {
+          callCount += 1;
+          return 'cached-result';
+        };
+
+        await controller.executeRequest('cache-test-key', fetcher);
+        expect(callCount).toBe(1);
+
+        const result = await controller.executeRequest('cache-test-key', fetcher);
+        expect(callCount).toBe(1);
+        expect(result).toBe('cached-result');
+      });
+    });
+
     it('deduplicates concurrent requests with the same cache key', async () => {
       await withController(async ({ controller }) => {
         let callCount = 0;
@@ -3073,6 +3090,280 @@ describe('RampsController', () => {
 
           expect(receivedAssetId).toBe('');
           expect(receivedProvider).toBe('');
+        },
+      );
+    });
+
+    it('does not update paymentMethods when selectedToken changes during request', async () => {
+      const tokenA: RampsToken = {
+        assetId: 'eip155:1/erc20:0xTokenA',
+        chainId: 'eip155:1',
+        name: 'Token A',
+        symbol: 'TOKA',
+        decimals: 18,
+        iconUrl: 'https://example.com/toka.png',
+        tokenSupported: true,
+      };
+
+      const tokenB: RampsToken = {
+        assetId: 'eip155:1/erc20:0xTokenB',
+        chainId: 'eip155:1',
+        name: 'Token B',
+        symbol: 'TOKB',
+        decimals: 18,
+        iconUrl: 'https://example.com/tokb.png',
+        tokenSupported: true,
+      };
+
+      const paymentMethodsForTokenA: PaymentMethod[] = [
+        {
+          id: '/payments/token-a',
+          paymentType: 'debit-credit-card',
+          name: 'Payment Method for Token A',
+          score: 90,
+          icon: 'card',
+        },
+      ];
+
+      const paymentMethodsForTokenB: PaymentMethod[] = [
+        {
+          id: '/payments/token-b',
+          paymentType: 'bank-transfer',
+          name: 'Payment Method for Token B',
+          score: 95,
+          icon: 'bank',
+        },
+      ];
+
+      await withController(
+        {
+          options: {
+            state: {
+              userRegion: createMockUserRegion('us-ca'),
+              selectedToken: tokenA,
+              selectedProvider: null,
+              paymentMethods: [],
+              tokens: {
+                topTokens: [tokenA, tokenB],
+                allTokens: [tokenA, tokenB],
+              },
+            },
+          },
+        },
+        async ({ controller, rootMessenger }) => {
+          let resolveTokenARequest: (
+            value: { payments: PaymentMethod[] },
+          ) => void;
+          const tokenARequestPromise = new Promise<{
+            payments: PaymentMethod[];
+          }>((resolve) => {
+            resolveTokenARequest = resolve;
+          });
+
+          let callCount = 0;
+          rootMessenger.registerActionHandler(
+            'RampsService:getPaymentMethods',
+            async (options: { assetId: string }) => {
+              callCount += 1;
+              if (options.assetId === tokenA.assetId) {
+                return tokenARequestPromise;
+              }
+              return { payments: paymentMethodsForTokenB };
+            },
+          );
+
+          const tokenAPaymentMethodsPromise = controller.getPaymentMethods(
+            'us-ca',
+            {
+              assetId: tokenA.assetId,
+            },
+          );
+
+          controller.setSelectedToken(tokenB.assetId);
+          await new Promise((resolve) => setTimeout(resolve, 10));
+
+          resolveTokenARequest!({ payments: paymentMethodsForTokenA });
+          await tokenAPaymentMethodsPromise;
+
+          expect(controller.state.selectedToken).toStrictEqual(tokenB);
+          expect(controller.state.paymentMethods).toStrictEqual(
+            paymentMethodsForTokenB,
+          );
+          expect(callCount).toBe(2);
+        },
+      );
+    });
+
+    it('does not update paymentMethods when selectedProvider changes during request', async () => {
+      const providerA: Provider = {
+        id: '/providers/provider-a',
+        name: 'Provider A',
+        environmentType: 'STAGING',
+        description: 'Provider A description',
+        hqAddress: '123 Provider A St',
+        links: [],
+        logos: {
+          light: '/assets/provider_a_light.png',
+          dark: '/assets/provider_a_dark.png',
+          height: 24,
+          width: 77,
+        },
+      };
+
+      const providerB: Provider = {
+        id: '/providers/provider-b',
+        name: 'Provider B',
+        environmentType: 'STAGING',
+        description: 'Provider B description',
+        hqAddress: '456 Provider B St',
+        links: [],
+        logos: {
+          light: '/assets/provider_b_light.png',
+          dark: '/assets/provider_b_dark.png',
+          height: 24,
+          width: 77,
+        },
+      };
+
+      const paymentMethodsForProviderA: PaymentMethod[] = [
+        {
+          id: '/payments/provider-a',
+          paymentType: 'debit-credit-card',
+          name: 'Payment Method for Provider A',
+          score: 90,
+          icon: 'card',
+        },
+      ];
+
+      const paymentMethodsForProviderB: PaymentMethod[] = [
+        {
+          id: '/payments/provider-b',
+          paymentType: 'bank-transfer',
+          name: 'Payment Method for Provider B',
+          score: 95,
+          icon: 'bank',
+        },
+      ];
+
+      await withController(
+        {
+          options: {
+            state: {
+              userRegion: createMockUserRegion('us-ca'),
+              selectedToken: null,
+              selectedProvider: providerA,
+              paymentMethods: [],
+              providers: [providerA, providerB],
+            },
+          },
+        },
+        async ({ controller, rootMessenger }) => {
+          let resolveProviderARequest: (
+            value: { payments: PaymentMethod[] },
+          ) => void;
+          const providerARequestPromise = new Promise<{
+            payments: PaymentMethod[];
+          }>((resolve) => {
+            resolveProviderARequest = resolve;
+          });
+
+          let callCount = 0;
+          rootMessenger.registerActionHandler(
+            'RampsService:getPaymentMethods',
+            async (options: { provider: string }) => {
+              callCount += 1;
+              if (options.provider === providerA.id) {
+                return providerARequestPromise;
+              }
+              return { payments: paymentMethodsForProviderB };
+            },
+          );
+
+          const providerAPaymentMethodsPromise = controller.getPaymentMethods(
+            'us-ca',
+            {
+              provider: providerA.id,
+            },
+          );
+
+          controller.setSelectedProvider(providerB.id);
+          await new Promise((resolve) => setTimeout(resolve, 10));
+
+          resolveProviderARequest!({ payments: paymentMethodsForProviderA });
+          await providerAPaymentMethodsPromise;
+
+          expect(controller.state.selectedProvider).toStrictEqual(providerB);
+          expect(controller.state.paymentMethods).toStrictEqual(
+            paymentMethodsForProviderB,
+          );
+          expect(callCount).toBe(2);
+        },
+      );
+    });
+
+    it('updates paymentMethods when selectedToken and selectedProvider match the request', async () => {
+      const token: RampsToken = {
+        assetId: 'eip155:1/erc20:0xToken',
+        chainId: 'eip155:1',
+        name: 'Token',
+        symbol: 'TOK',
+        decimals: 18,
+        iconUrl: 'https://example.com/tok.png',
+        tokenSupported: true,
+      };
+
+      const provider: Provider = {
+        id: '/providers/test-provider',
+        name: 'Test Provider',
+        environmentType: 'STAGING',
+        description: 'Test provider',
+        hqAddress: '123 Test St',
+        links: [],
+        logos: {
+          light: '/assets/test_light.png',
+          dark: '/assets/test_dark.png',
+          height: 24,
+          width: 77,
+        },
+      };
+
+      const newPaymentMethods: PaymentMethod[] = [
+        {
+          id: '/payments/new',
+          paymentType: 'debit-credit-card',
+          name: 'New Payment Method',
+          score: 95,
+          icon: 'card',
+        },
+      ];
+
+      await withController(
+        {
+          options: {
+            state: {
+              userRegion: createMockUserRegion('us-ca'),
+              selectedToken: token,
+              selectedProvider: provider,
+              paymentMethods: [],
+            },
+          },
+        },
+        async ({ controller, rootMessenger }) => {
+          rootMessenger.registerActionHandler(
+            'RampsService:getPaymentMethods',
+            async () => ({ payments: newPaymentMethods }),
+          );
+
+          await controller.getPaymentMethods('us-ca', {
+            assetId: token.assetId,
+            provider: provider.id,
+          });
+
+          expect(controller.state.selectedToken).toStrictEqual(token);
+          expect(controller.state.selectedProvider).toStrictEqual(provider);
+          expect(controller.state.paymentMethods).toStrictEqual(
+            newPaymentMethods,
+          );
         },
       );
     });
