@@ -9,7 +9,6 @@ import type {
 } from '.';
 import { createWalletMiddleware } from '.';
 import { createHandleParams, createRequest } from '../test/util/helpers';
-import { JsonRpcEngine } from '@metamask/json-rpc-engine';
 
 const DANGEROUS_PROTOTYPE_PROPERTIES = [
   '__proto__',
@@ -30,14 +29,6 @@ const testTxHash =
   '0xceb3240213640d89419829f3e8011d015af7a7ab3b54c14fdf125620ce5b8697';
 const testMsgSig =
   '0x68dc980608bceb5f99f691e62c32caccaee05317309015e9454eba1a14c3cd4505d1dd098b8339801239c9bcaac3c4df95569dcf307108b92f68711379be14d81c';
-
-function createTestSetup() {
-  const getAccounts = async (): Promise<never[]> => [];
-  const engine = JsonRpcEngineV2.create({
-    middleware: [createWalletMiddleware({ getAccounts })],
-  });
-  return { engine };
-}
   
 describe('wallet', () => {
   describe('accounts', () => {
