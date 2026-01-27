@@ -9,14 +9,19 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ### Changed
 
+- Expand NFT auto-detection to include BSC, Polygon, Avalanche, and Base chains in addition to existing supported chains ([#7730](https://github.com/MetaMask/core/pull/7730))
+- Increase NFT API batch limit from 50 to 100 NFTs per request ([#7730](https://github.com/MetaMask/core/pull/7730))
+
+## [98.0.0]
+
+### Changed
+
 - **BREAKING:** `TokenListController` now persists `tokensChainsCache` via `StorageService` and requires clients to call `initialize()` after construction ([#7413](https://github.com/MetaMask/core/pull/7413))
   - Each chain's token cache is stored in a separate file, reducing write amplification
   - All chains are loaded in parallel at startup to maintain compatibility with TokenDetectionController
   - `tokensChainsCache` state metadata now has `persist: false` to prevent duplicate persistence
   - Clients must call `await controller.initialize()` before using the controller
   - State changes are automatically persisted via debounced subscription
-- Expand NFT auto-detection to include BSC, Polygon, Avalanche, and Base chains in addition to existing supported chains ([#7730](https://github.com/MetaMask/core/pull/7730))
-- Increase NFT API batch limit from 50 to 100 NFTs per request ([#7730](https://github.com/MetaMask/core/pull/7730))
 
 ## [97.0.0]
 
@@ -2583,7 +2588,8 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 - Use Ethers for AssetsContractController ([#845](https://github.com/MetaMask/core/pull/845))
 
-[Unreleased]: https://github.com/MetaMask/core/compare/@metamask/assets-controllers@97.0.0...HEAD
+[Unreleased]: https://github.com/MetaMask/core/compare/@metamask/assets-controllers@98.0.0...HEAD
+[98.0.0]: https://github.com/MetaMask/core/compare/@metamask/assets-controllers@97.0.0...@metamask/assets-controllers@98.0.0
 [97.0.0]: https://github.com/MetaMask/core/compare/@metamask/assets-controllers@96.0.0...@metamask/assets-controllers@97.0.0
 [96.0.0]: https://github.com/MetaMask/core/compare/@metamask/assets-controllers@95.3.0...@metamask/assets-controllers@96.0.0
 [95.3.0]: https://github.com/MetaMask/core/compare/@metamask/assets-controllers@95.2.0...@metamask/assets-controllers@95.3.0
