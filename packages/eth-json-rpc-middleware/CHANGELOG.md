@@ -7,10 +7,18 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+### Added
+
+- Add prototype pollution validation for `signTypedData` methods (V1, V3, V4) to block dangerous properties (`__proto__`, `constructor`, `prototype`, etc.) in message data
+
 ### Changed
 
 - Bump `@metamask/eth-block-tracker` from `^15.0.0` to `^15.0.1` ([#7642](https://github.com/MetaMask/core/pull/7642))
 - Bump `@metamask/json-rpc-engine` from `^10.2.0` to `^10.2.1` ([#7642](https://github.com/MetaMask/core/pull/7642))
+
+### Fixed
+
+- Fix prototype pollution tests to use `createHandleParams` helper for proper context setup
 
 ## [23.0.0]
 
