@@ -1,8 +1,11 @@
 import { AiDigestControllerErrorMessage } from './ai-digest-constants';
 import type { DigestService, DigestData } from './ai-digest-types';
 
+export type DigestProvider = 'claude' | 'xai';
+
 export type AiDigestServiceConfig = {
   baseUrl: string;
+  provider: DigestProvider;
 };
 
 type ApiResponse = {
@@ -14,8 +17,11 @@ type ApiResponse = {
 export class AiDigestService implements DigestService {
   readonly #baseUrl: string;
 
+  readonly #provider: DigestProvider;
+
   constructor(config: AiDigestServiceConfig) {
     this.#baseUrl = config.baseUrl;
+    this.#provider = config.provider;
   }
 
   async fetchDigest(coingeckoSlug: string): Promise<DigestData> {
@@ -26,7 +32,7 @@ export class AiDigestService implements DigestService {
       },
       body: JSON.stringify({
         asset: coingeckoSlug,
-        provider: 'litellm',
+        provider: this.#provider,
       }),
     });
 
@@ -40,7 +46,8 @@ export class AiDigestService implements DigestService {
 
     if (!data.success || data.data === undefined) {
       throw new Error(
-        data.error?.message ?? AiDigestControllerErrorMessage.API_RETURNED_ERROR,
+        data.error?.message ??
+          AiDigestControllerErrorMessage.API_RETURNED_ERROR,
       );
     }
 
