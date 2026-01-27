@@ -430,7 +430,6 @@ describe('RampsController', () => {
           Object {
             "countries": Array [],
             "providers": Array [],
-            "selectedProvider": null,
             "tokens": null,
             "userRegion": null,
           }
