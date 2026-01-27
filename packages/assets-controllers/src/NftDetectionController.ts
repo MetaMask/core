@@ -66,7 +66,7 @@ export type NftDetectionControllerMessenger = Messenger<
 /**
  * Default set of supported networks for NFT detection.
  */
-const DEFAULT_SUPPORTED_NFT_DETECTION_NETWORKS: Set<Hex> = new Set([
+const supportedNftDetectionNetworks: Set<Hex> = new Set([
   '0x1', // Mainnet
   '0x38', // BSC
   '0x89', // Polygon
@@ -441,8 +441,6 @@ export class NftDetectionController extends BaseController<
 
   #inProcessNftFetchingUpdates: Record<`${string}:${string}`, Promise<void>>;
 
-  readonly #supportedNetworks: Set<Hex>;
-
   /**
    * The controller options
    *
@@ -451,20 +449,17 @@ export class NftDetectionController extends BaseController<
    * @param options.disabled - Represents previous value of useNftDetection. Used to detect changes of useNftDetection. Default value is true.
    * @param options.addNfts - Add multiple NFTs.
    * @param options.getNftState - Gets the current state of the Assets controller.
-   * @param options.supportedNetworks - Optional set of supported chain IDs for NFT detection. Defaults to a predefined set of networks.
    */
   constructor({
     messenger,
     disabled = false,
     addNfts,
     getNftState,
-    supportedNetworks = DEFAULT_SUPPORTED_NFT_DETECTION_NETWORKS,
   }: {
     messenger: NftDetectionControllerMessenger;
     disabled: boolean;
     addNfts: NftController['addNfts'];
     getNftState: () => NftControllerState;
-    supportedNetworks?: Set<Hex>;
   }) {
     super({
       name: controllerName,
@@ -474,7 +469,6 @@ export class NftDetectionController extends BaseController<
     });
     this.#disabled = disabled;
     this.#inProcessNftFetchingUpdates = {};
-    this.#supportedNetworks = supportedNetworks;
 
     this.#getNftState = getNftState;
     this.#addNfts = addNfts;
@@ -583,7 +577,7 @@ export class NftDetectionController extends BaseController<
 
     // filter out unsupported chainIds
     const supportedChainIds = chainIds.filter((chainId) =>
-      this.#supportedNetworks.has(chainId),
+      supportedNftDetectionNetworks.has(chainId),
     );
     /* istanbul ignore if */
     if (supportedChainIds.length === 0 || this.#disabled) {

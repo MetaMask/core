@@ -510,61 +510,6 @@ describe('NftDetectionController', () => {
     );
   });
 
-  it('should allow custom supported networks to be passed in constructor', async () => {
-    const selectedAddress = '0x123';
-    const selectedAccount = createMockInternalAccount({
-      address: selectedAddress,
-    });
-    const mockGetSelectedAccount = jest.fn().mockReturnValue(selectedAccount);
-    const mockAddNfts = jest.fn();
-
-    // Define custom supported networks (only Mainnet and BSC)
-    const customSupportedNetworks = new Set<`0x${string}`>(['0x1', '0x38']);
-
-    await withController(
-      {
-        options: {
-          supportedNetworks: customSupportedNetworks,
-          addNfts: mockAddNfts,
-        },
-        mockGetSelectedAccount,
-      },
-      async ({ controller, controllerEvents }) => {
-        controllerEvents.triggerPreferencesStateChange({
-          ...getDefaultPreferencesState(),
-          useNftDetection: true,
-        });
-
-        await advanceTime({
-          clock,
-          duration: 1,
-        });
-        mockAddNfts.mockReset();
-
-        // Try to detect on Polygon (0x89) which is NOT in custom supported networks
-        const mockApiCallPolygon = nock(NFT_API_BASE_URL)
-          .get(`/users/${selectedAddress}/tokens`)
-          .query({
-            continuation: '',
-            limit: '100',
-            chainIds: '137',
-            includeTopBid: true,
-          })
-          .reply(200, {
-            tokens: [],
-          });
-
-        await controller.detectNfts(['0x89'], {
-          userAddress: selectedAddress,
-        });
-
-        // API should NOT be called for unsupported network
-        expect(mockApiCallPolygon.isDone()).toBe(false);
-        expect(mockAddNfts).not.toHaveBeenCalled();
-      },
-    );
-  });
-
   it('should detect and add NFTs correctly when blockaid result is not included in response', async () => {
     const mockAddNfts = jest.fn();
     const selectedAddress = '0x1';
