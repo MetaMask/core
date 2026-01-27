@@ -7,6 +7,10 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+### Fixed
+
+- Correctly validate `erc20-token-revocation` terms when decoding permission. ([#7729](https://github.com/MetaMask/core/pull/7729))
+
 ## [1.1.0]
 
 ### Changed
