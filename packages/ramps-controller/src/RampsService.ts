@@ -746,9 +746,6 @@ export class RampsService {
     );
     this.#addCommonParams(url);
 
-    console.log('[RampsService] getProviders options:', options);
-    console.log('[RampsService] getProviders url:', url.toString());
-
     if (options?.provider) {
       const providerIds = Array.isArray(options.provider)
         ? options.provider
@@ -787,8 +784,6 @@ export class RampsService {
       }
       return fetchResponse.json() as Promise<{ providers: Provider[] }>;
     });
-
-    console.log('[RampsService] getProviders response:', response);
 
     if (!response || typeof response !== 'object') {
       throw new Error('Malformed response received from providers API');

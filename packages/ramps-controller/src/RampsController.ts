@@ -156,7 +156,7 @@ const rampsControllerMetadata = {
     usedInUi: true,
   },
   selectedToken: {
-    persist: true,
+    persist: false,
     includeInDebugSnapshot: true,
     includeInStateLogs: true,
     usedInUi: true,
@@ -672,20 +672,12 @@ export class RampsController extends BaseController<
       );
     }
 
-    const provider = providers.find((p) => p.id === providerId);
+    const provider = providers.find((provider) => provider.id === providerId);
     if (!provider) {
       throw new Error(
         `Provider with ID "${providerId}" not found in available providers.`,
       );
     }
-
-    this.update((state) => {
-      state.selectedProvider = provider;
-    });
-
-    this.triggerGetPaymentMethods(regionCode, {
-      provider: provider.id,
-    });
   }
 
   /**
@@ -741,7 +733,7 @@ export class RampsController extends BaseController<
       async () => {
         return this.messenger.call('RampsService:getCountries');
       },
-      { forceRefresh: true, ...options },
+      options
     );
 
     this.update((state) => {

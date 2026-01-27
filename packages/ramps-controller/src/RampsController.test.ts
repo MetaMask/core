@@ -476,7 +476,10 @@ describe('RampsController', () => {
         await controller.executeRequest('cache-test-key', fetcher);
         expect(callCount).toBe(1);
 
-        const result = await controller.executeRequest('cache-test-key', fetcher);
+        const result = await controller.executeRequest(
+          'cache-test-key',
+          fetcher,
+        );
         expect(callCount).toBe(1);
         expect(result).toBe('cached-result');
       });
@@ -3151,9 +3154,9 @@ describe('RampsController', () => {
           },
         },
         async ({ controller, rootMessenger }) => {
-          let resolveTokenARequest: (
-            value: { payments: PaymentMethod[] },
-          ) => void;
+          let resolveTokenARequest: (value: {
+            payments: PaymentMethod[];
+          }) => void;
           const tokenARequestPromise = new Promise<{
             payments: PaymentMethod[];
           }>((resolve) => {
@@ -3258,9 +3261,9 @@ describe('RampsController', () => {
           },
         },
         async ({ controller, rootMessenger }) => {
-          let resolveProviderARequest: (
-            value: { payments: PaymentMethod[] },
-          ) => void;
+          let resolveProviderARequest: (value: {
+            payments: PaymentMethod[];
+          }) => void;
           const providerARequestPromise = new Promise<{
             payments: PaymentMethod[];
           }>((resolve) => {
