@@ -2958,7 +2958,7 @@ describe('RampsController', () => {
     });
 
     it('uses selectedProvider id from state when provider is not provided', async () => {
-      const mockSelectedProvider: Provider = {
+      const testProvider: Provider = {
         id: '/providers/paypal-staging',
         name: 'PayPal (Staging)',
         environmentType: 'STAGING',
@@ -2978,7 +2978,7 @@ describe('RampsController', () => {
           options: {
             state: {
               userRegion: createMockUserRegion('us-ca'),
-              selectedProvider: mockSelectedProvider,
+              selectedProvider: testProvider,
             },
           },
         },
@@ -3001,7 +3001,7 @@ describe('RampsController', () => {
             assetId: 'eip155:1/slip44:60',
           });
 
-          expect(receivedProvider).toBe(mockSelectedProvider.id);
+          expect(receivedProvider).toBe(testProvider.id);
         },
       );
     });
