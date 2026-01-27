@@ -229,6 +229,13 @@ export class TokenListController extends StaticIntervalPollingController<TokenLi
    */
   async initialize(): Promise<void> {
     await this.#synchronizeCacheWithStorage();
+
+    // Subscribe to state changes to automatically persist tokensChainsCache
+    this.messenger.subscribe(
+      'TokenListController:stateChange',
+      (newCache: TokensChainsCache) => this.#onCacheChanged(newCache),
+      (controllerState) => controllerState.tokensChainsCache,
+    );
   }
 
   /**
@@ -404,13 +411,6 @@ export class TokenListController extends StaticIntervalPollingController<TokenLi
       console.error(
         'TokenListController: Failed to load cache from storage:',
         error,
-      );
-    } finally {
-      // Subscribe to state changes to automatically persist tokensChainsCache
-      this.messenger.subscribe(
-        'TokenListController:stateChange',
-        (newCache: TokensChainsCache) => this.#onCacheChanged(newCache),
-        (controllerState) => controllerState.tokensChainsCache,
       );
     }
   }
