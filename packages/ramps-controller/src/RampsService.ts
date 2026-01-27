@@ -86,6 +86,9 @@ export type Provider = {
   hqAddress: string;
   links: ProviderLink[];
   logos: ProviderLogos;
+  supportedCryptoCurrencies: Map<string, boolean>;
+  supportedFiatCurrencies: Map<string, boolean>;
+  supportedPaymentMethods: Map<string, boolean>;
 };
 
 /**
@@ -831,7 +834,7 @@ export class RampsService {
       }
       return fetchResponse.json() as Promise<PaymentMethodsResponse>;
     });
-    
+
     if (!response || typeof response !== 'object') {
       throw new Error('Malformed response received from paymentMethods API');
     }
