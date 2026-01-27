@@ -189,6 +189,21 @@ export class SeedlessOnboardingError extends Error {
   }
 
   /**
+   * Serializes the cause error for JSON output.
+   *
+   * @returns A JSON-serializable representation of the cause.
+   */
+  #serializeCause(): Record<string, unknown> | undefined {
+    if (this.cause instanceof SeedlessOnboardingError) {
+      return this.cause.toJSON();
+    }
+    if (this.cause instanceof Error) {
+      return { name: this.cause.name, message: this.cause.message };
+    }
+    return undefined;
+  }
+
+  /**
    * Serializes the error for logging/transmission.
    * Ensures custom properties are included in JSON output.
    *
@@ -199,12 +214,7 @@ export class SeedlessOnboardingError extends Error {
       name: this.name,
       message: this.message,
       details: this.details,
-      cause:
-        this.cause instanceof SeedlessOnboardingError
-          ? this.cause.toJSON()
-          : this.cause instanceof Error
-            ? { name: this.cause.name, message: this.cause.message }
-            : this.cause,
+      cause: this.#serializeCause(),
       stack: this.stack,
     };
   }
