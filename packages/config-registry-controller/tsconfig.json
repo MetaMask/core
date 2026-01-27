@@ -1,0 +1,14 @@
+{
+  "extends": "../../tsconfig.packages.json",
+  "compilerOptions": {
+    "baseUrl": "./"
+  },
+  "references": [
+    { "path": "../../packages/base-controller" },
+    { "path": "../../packages/controller-utils" },
+    { "path": "../../packages/keyring-controller" },
+    { "path": "../../packages/messenger" },
+    { "path": "../../packages/polling-controller" }
+  ],
+  "include": ["../../types", "./src"]
+}
