@@ -64,7 +64,7 @@ export type NftDetectionControllerMessenger = Messenger<
 >;
 
 /**
- * Default set of supported networks for NFT detection.
+ * A set of supported networks for NFT detection.
  */
 const supportedNftDetectionNetworks: Set<Hex> = new Set([
   '0x1', // Mainnet
