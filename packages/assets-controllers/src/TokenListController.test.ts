@@ -397,7 +397,6 @@ const existingState = {
       data: sampleMainnetTokensChainsCache,
     },
   },
-  preventPollingOnNetworkRestart: false,
 };
 
 const outdatedExistingState = {
@@ -431,7 +430,6 @@ const outdatedExistingState = {
       data: sampleMainnetTokensChainsCache,
     },
   },
-  preventPollingOnNetworkRestart: false,
 };
 
 const expiredCacheExistingState: TokenListState = {
@@ -464,7 +462,6 @@ const expiredCacheExistingState: TokenListState = {
       },
     },
   },
-  preventPollingOnNetworkRestart: false,
 };
 
 type AllTokenListControllerActions =
@@ -507,15 +504,6 @@ const getMessenger = (): RootMessenger => {
 
   // eslint-disable-next-line @typescript-eslint/no-explicit-any
   (messenger as any).registerActionHandler(
-    'StorageService:removeItem',
-    (controllerNamespace: string, key: string) => {
-      const storageKey = `${controllerNamespace}:${key}`;
-      mockStorage.delete(storageKey);
-    },
-  );
-
-  // eslint-disable-next-line @typescript-eslint/no-explicit-any
-  (messenger as any).registerActionHandler(
     'StorageService:getAllKeys',
     (controllerNamespace: string) => {
       const keys: string[] = [];
@@ -552,7 +540,6 @@ const getRestrictedMessenger = (
       'NetworkController:getNetworkClientById',
       'StorageService:getItem',
       'StorageService:setItem',
-      'StorageService:removeItem',
       'StorageService:getAllKeys',
     ],
     events: ['NetworkController:stateChange'],
@@ -576,13 +563,11 @@ describe('TokenListController', () => {
     const restrictedMessenger = getRestrictedMessenger(messenger);
     const controller = new TokenListController({
       chainId: ChainId.mainnet,
-      preventPollingOnNetworkRestart: false,
       messenger: restrictedMessenger,
     });
 
     expect(controller.state).toStrictEqual({
       tokensChainsCache: {},
-      preventPollingOnNetworkRestart: false,
     });
 
     controller.destroy();
@@ -594,7 +579,6 @@ describe('TokenListController', () => {
     const restrictedMessenger = getRestrictedMessenger(messenger);
     const controller = new TokenListController({
       chainId: ChainId.mainnet,
-      preventPollingOnNetworkRestart: false,
       messenger: restrictedMessenger,
       state: existingState,
     });
@@ -629,14 +613,13 @@ describe('TokenListController', () => {
           data: sampleMainnetTokensChainsCache,
         },
       },
-      preventPollingOnNetworkRestart: false,
     });
 
     controller.destroy();
     messenger.clearEventSubscriptions('NetworkController:stateChange');
   });
 
-  it('should initiate without preventPollingOnNetworkRestart', async () => {
+  it('should initialize with empty tokensChainsCache', async () => {
     const messenger = getMessenger();
     const restrictedMessenger = getRestrictedMessenger(messenger);
     const controller = new TokenListController({
@@ -646,7 +629,6 @@ describe('TokenListController', () => {
 
     expect(controller.state).toStrictEqual({
       tokensChainsCache: {},
-      preventPollingOnNetworkRestart: false,
     });
 
     controller.destroy();
@@ -657,7 +639,6 @@ describe('TokenListController', () => {
     const restrictedMessenger = getRestrictedMessenger(messenger);
     const controller = new TokenListController({
       chainId: ChainId.mainnet,
-      preventPollingOnNetworkRestart: false,
       interval: 100,
       messenger: restrictedMessenger,
     });
@@ -691,7 +672,6 @@ describe('TokenListController', () => {
     const controller = new TokenListController({
       chainId: ChainId.mainnet,
       onNetworkStateChange: (cb) => (onNetworkStateChangeCallback = cb),
-      preventPollingOnNetworkRestart: false,
       interval: 100,
       messenger: restrictedMessenger,
     });
@@ -794,7 +774,6 @@ describe('TokenListController', () => {
     const restrictedMessenger = getRestrictedMessenger(messenger);
     const controller = new TokenListController({
       chainId: ChainId.mainnet,
-      preventPollingOnNetworkRestart: false,
       interval: 100,
       messenger: restrictedMessenger,
     });
@@ -819,7 +798,6 @@ describe('TokenListController', () => {
     const restrictedMessenger = getRestrictedMessenger(messenger);
     const controller = new TokenListController({
       chainId: ChainId.mainnet,
-      preventPollingOnNetworkRestart: false,
       interval: 100,
       messenger: restrictedMessenger,
     });
@@ -847,7 +825,6 @@ describe('TokenListController', () => {
 
     const controller = new TokenListController({
       chainId: ChainId.mainnet,
-      preventPollingOnNetworkRestart: false,
       interval: 100,
       messenger: restrictedMessenger,
     });
@@ -877,7 +854,6 @@ describe('TokenListController', () => {
     const restrictedMessenger = getRestrictedMessenger(messenger);
     const controller = new TokenListController({
       chainId: ChainId.mainnet,
-      preventPollingOnNetworkRestart: false,
       interval: 100,
       messenger: restrictedMessenger,
     });
@@ -899,7 +875,6 @@ describe('TokenListController', () => {
     const restrictedMessenger = getRestrictedMessenger(messenger);
     const controller = new TokenListController({
       chainId: ChainId.sepolia,
-      preventPollingOnNetworkRestart: false,
       interval: 100,
       messenger: restrictedMessenger,
     });
@@ -923,7 +898,6 @@ describe('TokenListController', () => {
     const restrictedMessenger = getRestrictedMessenger(messenger);
     const controller = new TokenListController({
       chainId: ChainId.mainnet,
-      preventPollingOnNetworkRestart: false,
       messenger: restrictedMessenger,
       interval: 750,
     });
@@ -963,7 +937,6 @@ describe('TokenListController', () => {
     const restrictedMessenger = getRestrictedMessenger(messenger);
     const controller = new TokenListController({
       chainId: ChainId.mainnet,
-      preventPollingOnNetworkRestart: false,
       messenger: restrictedMessenger,
       interval: 100,
       state: existingState,
@@ -986,7 +959,6 @@ describe('TokenListController', () => {
     const restrictedMessenger = getRestrictedMessenger(messenger);
     const controller = new TokenListController({
       chainId: ChainId.mainnet,
-      preventPollingOnNetworkRestart: false,
       messenger: restrictedMessenger,
       state: outdatedExistingState,
     });
@@ -1011,7 +983,6 @@ describe('TokenListController', () => {
     const restrictedMessenger = getRestrictedMessenger(messenger);
     const controller = new TokenListController({
       chainId: ChainId.mainnet,
-      preventPollingOnNetworkRestart: false,
       messenger: restrictedMessenger,
       state: expiredCacheExistingState,
     });
@@ -1061,7 +1032,6 @@ describe('TokenListController', () => {
     const restrictedMessenger = getRestrictedMessenger(messenger);
     const controller = new TokenListController({
       chainId: ChainId.mainnet,
-      preventPollingOnNetworkRestart: false,
       messenger: restrictedMessenger,
       state: existingState,
       interval: 100,
@@ -1122,172 +1092,6 @@ describe('TokenListController', () => {
     controller.destroy();
   });
 
-  it('should clear the tokenList and tokensChainsCache', async () => {
-    const messenger = getMessenger();
-    const restrictedMessenger = getRestrictedMessenger(messenger);
-    const controller = new TokenListController({
-      chainId: ChainId.mainnet,
-      preventPollingOnNetworkRestart: false,
-      messenger: restrictedMessenger,
-      state: existingState,
-    });
-    expect(controller.state).toStrictEqual(existingState);
-    await controller.clearingTokenListData();
-
-    expect(controller.state.tokensChainsCache).toStrictEqual({});
-
-    controller.destroy();
-  });
-
-  it('should update preventPollingOnNetworkRestart and restart the polling on network restart', async () => {
-    nock(tokenService.TOKEN_END_POINT_API)
-      .get(getTokensPath(ChainId.mainnet))
-      .reply(200, sampleMainnetTokenList)
-      .get(getTokensPath(ChainId.sepolia))
-      .reply(200, {
-        error: `ChainId ${convertHexToDecimal(
-          ChainId.sepolia,
-        )} is not supported`,
-      })
-      .get(getTokensPath(toHex(56)))
-      .reply(200, sampleBinanceTokenList)
-      .persist();
-
-    const selectedCustomNetworkClientId = 'selectedCustomNetworkClientId';
-    const messenger = getMessenger();
-    const getNetworkClientById = buildMockGetNetworkClientById({
-      [InfuraNetworkType.mainnet]: buildInfuraNetworkClientConfiguration(
-        InfuraNetworkType.mainnet,
-      ),
-      [selectedCustomNetworkClientId]: buildCustomNetworkClientConfiguration({
-        chainId: toHex(56),
-      }),
-    });
-    messenger.registerActionHandler(
-      'NetworkController:getNetworkClientById',
-      getNetworkClientById,
-    );
-    const restrictedMessenger = getRestrictedMessenger(messenger);
-    const controller = new TokenListController({
-      chainId: ChainId.sepolia,
-      preventPollingOnNetworkRestart: true,
-      messenger: restrictedMessenger,
-      interval: 100,
-    });
-    await controller.start();
-    messenger.publish(
-      'NetworkController:stateChange',
-      {
-        selectedNetworkClientId: InfuraNetworkType.mainnet,
-        networkConfigurationsByChainId: {},
-        networksMetadata: {},
-        // @ts-expect-error This property isn't used and will get removed later.
-        providerConfig: {},
-      },
-      [],
-    );
-
-    expect(controller.state).toStrictEqual({
-      tokensChainsCache: {},
-      preventPollingOnNetworkRestart: true,
-    });
-    controller.updatePreventPollingOnNetworkRestart(false);
-    expect(controller.state).toStrictEqual({
-      tokensChainsCache: {},
-      preventPollingOnNetworkRestart: false,
-    });
-  });
-
-  it('should handle errors when clearing data on network change', async () => {
-    // Create messenger where getAllKeys throws during network change
-    const messenger = new Messenger({
-      namespace: MOCK_ANY_NAMESPACE,
-    });
-
-    // Register getAllKeys to throw error
-    // eslint-disable-next-line @typescript-eslint/no-explicit-any
-    (messenger as any).registerActionHandler(
-      'StorageService:getAllKeys',
-      () => {
-        throw new Error('Failed to get keys during network change');
-      },
-    );
-
-    // Register other handlers
-    // eslint-disable-next-line @typescript-eslint/no-explicit-any
-    (messenger as any).registerActionHandler(
-      'StorageService:getItem',
-      () => ({}),
-    );
-    // eslint-disable-next-line @typescript-eslint/no-explicit-any
-    (messenger as any).registerActionHandler(
-      'StorageService:setItem',
-      (_controllerNamespace: string, _key: string, _value: unknown) => {
-        // Do nothing - testing error path
-      },
-    );
-    // eslint-disable-next-line @typescript-eslint/no-explicit-any
-    (messenger as any).registerActionHandler(
-      'StorageService:removeItem',
-      (_controllerNamespace: string, _key: string) => {
-        // Do nothing - testing error path
-      },
-    );
-
-    const getNetworkClientById = buildMockGetNetworkClientById({
-      [InfuraNetworkType.mainnet]: buildInfuraNetworkClientConfiguration(
-        InfuraNetworkType.mainnet,
-      ),
-      [InfuraNetworkType.sepolia]: buildInfuraNetworkClientConfiguration(
-        InfuraNetworkType.sepolia,
-      ),
-    });
-    // eslint-disable-next-line @typescript-eslint/no-explicit-any
-    (messenger as any).registerActionHandler(
-      'NetworkController:getNetworkClientById',
-      getNetworkClientById,
-    );
-
-    const restrictedMessenger = getRestrictedMessenger(messenger);
-
-    const controller = new TokenListController({
-      chainId: ChainId.mainnet,
-      preventPollingOnNetworkRestart: true,
-      messenger: restrictedMessenger,
-    });
-
-    // Initialize the controller
-    await controller.initialize();
-
-    // Mock console.error to verify error handling
-    const consoleErrorSpy = jest.spyOn(console, 'error').mockImplementation();
-
-    // Trigger network change (should try to clear data and catch error)
-    // Using type assertion since we're testing with a minimal messenger
-    // eslint-disable-next-line @typescript-eslint/no-explicit-any
-    (messenger as any).publish(
-      'NetworkController:stateChange',
-      {
-        selectedNetworkClientId: InfuraNetworkType.sepolia,
-        networkConfigurationsByChainId: {},
-        networksMetadata: {},
-      },
-      [],
-    );
-
-    // Wait for async error handling
-    await new Promise((resolve) => setTimeout(resolve, 100));
-
-    // Verify error was logged from clearingTokenListData's internal error handling
-    expect(consoleErrorSpy).toHaveBeenCalledWith(
-      'TokenListController: Failed to clear cache from storage:',
-      expect.any(Error),
-    );
-
-    consoleErrorSpy.mockRestore();
-    controller.destroy();
-  });
-
   describe('startPolling', () => {
     let clock: sinon.SinonFakeTimers;
     const pollingIntervalTime = 1000;
@@ -1322,7 +1126,6 @@ describe('TokenListController', () => {
       const restrictedMessenger = getRestrictedMessenger(messenger);
       const controller = new TokenListController({
         chainId: ChainId.mainnet,
-        preventPollingOnNetworkRestart: false,
         messenger: restrictedMessenger,
         state: expiredCacheExistingState,
         interval: pollingIntervalTime,
@@ -1339,7 +1142,6 @@ describe('TokenListController', () => {
     it('should update tokenList state and tokensChainsCache', async () => {
       const startingState: TokenListState = {
         tokensChainsCache: {},
-        preventPollingOnNetworkRestart: false,
       };
 
       const fetchTokenListByChainIdSpy = jest
@@ -1382,7 +1184,6 @@ describe('TokenListController', () => {
       const restrictedMessenger = getRestrictedMessenger(messenger);
       const controller = new TokenListController({
         chainId: ChainId.sepolia,
-        preventPollingOnNetworkRestart: false,
         messenger: restrictedMessenger,
         state: startingState,
         interval: pollingIntervalTime,
@@ -1448,7 +1249,6 @@ describe('TokenListController', () => {
         ),
       ).toMatchInlineSnapshot(`
         Object {
-          "preventPollingOnNetworkRestart": false,
           "tokensChainsCache": Object {},
         }
       `);
@@ -1481,11 +1281,7 @@ describe('TokenListController', () => {
           controller.metadata,
           'persist',
         ),
-      ).toMatchInlineSnapshot(`
-        Object {
-          "preventPollingOnNetworkRestart": false,
-        }
-      `);
+      ).toMatchInlineSnapshot(`Object {}`);
     });
 
     it('exposes expected state to UI', () => {
@@ -1572,7 +1368,6 @@ describe('TokenListController', () => {
             timestamp: Date.now(),
           },
         },
-        preventPollingOnNetworkRestart: false,
       };
 
       const controller = new TokenListController({
@@ -1605,7 +1400,7 @@ describe('TokenListController', () => {
       const controller = new TokenListController({
         chainId: ChainId.mainnet,
         messenger: restrictedMessenger,
-        state: { tokensChainsCache: {}, preventPollingOnNetworkRestart: false },
+        state: { tokensChainsCache: {} },
       });
 
       // Initialize the controller to trigger migration logic
@@ -1693,54 +1488,6 @@ describe('TokenListController', () => {
       controller.destroy();
     });
 
-    it('should clear tokensChainsCache from StorageService when clearing data', async () => {
-      const messenger = getMessenger();
-      const restrictedMessenger = getRestrictedMessenger(messenger);
-
-      // Pre-populate StorageService (per-chain file)
-      const chainData: DataCache = {
-        data: sampleMainnetTokensChainsCache,
-        timestamp: Date.now(),
-      };
-      const chainStorageKey = `tokensChainsCache:${ChainId.mainnet}`;
-      await messenger.call(
-        'StorageService:setItem',
-        'TokenListController',
-        chainStorageKey,
-        chainData,
-      );
-
-      const controller = new TokenListController({
-        chainId: ChainId.mainnet,
-        messenger: restrictedMessenger,
-        state: {
-          tokensChainsCache: {
-            [ChainId.mainnet]: chainData,
-          },
-          preventPollingOnNetworkRestart: false,
-        },
-      });
-
-      // Wait a bit for async initialization to complete
-      await new Promise((resolve) => setTimeout(resolve, 50));
-
-      await controller.clearingTokenListData();
-
-      // Verify data was removed from StorageService (per-chain file removed)
-      const allKeys = await messenger.call(
-        'StorageService:getAllKeys',
-        'TokenListController',
-      );
-      const cacheKeys = allKeys.filter((key) =>
-        key.startsWith('tokensChainsCache:'),
-      );
-
-      expect(cacheKeys).toHaveLength(0);
-      expect(controller.state.tokensChainsCache).toStrictEqual({});
-
-      controller.destroy();
-    });
-
     it('should handle errors when loading individual chain cache files', async () => {
       // Pre-populate storage with two chains
       const validChainData: DataCache = {
@@ -1790,14 +1537,6 @@ describe('TokenListController', () => {
         },
       );
 
-      // eslint-disable-next-line @typescript-eslint/no-explicit-any
-      (messengerWithErrors as any).registerActionHandler(
-        'StorageService:removeItem',
-        (controllerNamespace: string, key: string) => {
-          const storageKey = `${controllerNamespace}:${key}`;
-          mockStorage.delete(storageKey);
-        },
-      );
 
       // eslint-disable-next-line @typescript-eslint/no-explicit-any
       (messengerWithErrors as any).registerActionHandler(
@@ -1875,14 +1614,6 @@ describe('TokenListController', () => {
         },
       );
 
-      // eslint-disable-next-line @typescript-eslint/no-explicit-any
-      (messengerWithErrors as any).registerActionHandler(
-        'StorageService:removeItem',
-        (controllerNamespace: string, key: string) => {
-          const storageKey = `${controllerNamespace}:${key}`;
-          mockStorage.delete(storageKey);
-        },
-      );
 
       // eslint-disable-next-line @typescript-eslint/no-explicit-any
       (messengerWithErrors as any).registerActionHandler(
@@ -1968,14 +1699,6 @@ describe('TokenListController', () => {
         () => [],
       );
 
-      // Register removeItem (not used in this test but required)
-      // eslint-disable-next-line @typescript-eslint/no-explicit-any
-      (messengerWithErrors as any).registerActionHandler(
-        'StorageService:removeItem',
-        () => {
-          // Do nothing
-        },
-      );
 
       const restrictedMessenger = getRestrictedMessenger(messengerWithErrors);
 
@@ -2005,92 +1728,6 @@ describe('TokenListController', () => {
         `TokenListController: Failed to save cache for ${ChainId.mainnet}:`,
         expect.any(Error),
       );
-
-      consoleErrorSpy.mockRestore();
-      controller.destroy();
-    });
-
-    it('should handle errors when clearing cache from StorageService', async () => {
-      // Create messenger where getAllKeys throws only during clear
-      const messengerWithErrors = new Messenger({
-        namespace: MOCK_ANY_NAMESPACE,
-      });
-
-      let shouldThrow = false;
-      // Register getAllKeys to throw error only when flag is set
-      // eslint-disable-next-line @typescript-eslint/no-explicit-any
-      (messengerWithErrors as any).registerActionHandler(
-        'StorageService:getAllKeys',
-        () => {
-          if (shouldThrow) {
-            throw new Error('Failed to get keys');
-          }
-          return []; // Return empty array for initialization
-        },
-      );
-
-      // Register other handlers
-      // eslint-disable-next-line @typescript-eslint/no-explicit-any
-      (messengerWithErrors as any).registerActionHandler(
-        'StorageService:getItem',
-        () => ({}),
-      );
-      // eslint-disable-next-line @typescript-eslint/no-explicit-any
-      (messengerWithErrors as any).registerActionHandler(
-        'StorageService:setItem',
-        (_controllerNamespace: string, _key: string, _value: unknown) => {
-          // Do nothing - testing error path in getAllKeys
-        },
-      );
-      // eslint-disable-next-line @typescript-eslint/no-explicit-any
-      (messengerWithErrors as any).registerActionHandler(
-        'StorageService:removeItem',
-        (_controllerNamespace: string, _key: string) => {
-          // Do nothing - testing error path in getAllKeys
-        },
-      );
-
-      const restrictedMessenger = getRestrictedMessenger(messengerWithErrors);
-
-      // Initialize controller with pre-populated state
-      const initialCache = {
-        [ChainId.mainnet]: {
-          timestamp: Date.now(),
-          data: sampleMainnetTokensChainsCache,
-        },
-      };
-      const controller = new TokenListController({
-        chainId: ChainId.mainnet,
-        messenger: restrictedMessenger,
-        state: { tokensChainsCache: initialCache },
-      });
-
-      // Initialize the controller
-      await controller.initialize();
-
-      // Verify cache exists before clearing
-      expect(
-        Object.keys(controller.state.tokensChainsCache).length,
-      ).toBeGreaterThan(0);
-
-      // Now enable throwing to test error handling during clear
-      shouldThrow = true;
-
-      // Mock console.error
-      const consoleErrorSpy = jest.spyOn(console, 'error').mockImplementation();
-
-      // Try to clear - should catch error but still clear state
-      await controller.clearingTokenListData();
-
-      // Verify error was logged
-      expect(consoleErrorSpy).toHaveBeenCalledWith(
-        'TokenListController: Failed to clear cache from storage:',
-        expect.any(Error),
-      );
-
-      // Verify state was still cleared despite the error
-      // This ensures consistent behavior with the no-keys case
-      expect(controller.state.tokensChainsCache).toStrictEqual({});
 
       consoleErrorSpy.mockRestore();
       controller.destroy();
@@ -2135,14 +1772,6 @@ describe('TokenListController', () => {
         },
       );
 
-      // eslint-disable-next-line @typescript-eslint/no-explicit-any
-      (trackingMessenger as any).registerActionHandler(
-        'StorageService:removeItem',
-        (controllerNamespace: string, key: string) => {
-          const storageKey = `${controllerNamespace}:${key}`;
-          mockStorage.delete(storageKey);
-        },
-      );
 
       // eslint-disable-next-line @typescript-eslint/no-explicit-any
       (trackingMessenger as any).registerActionHandler(
@@ -2235,14 +1864,6 @@ describe('TokenListController', () => {
         },
       );
 
-      // eslint-disable-next-line @typescript-eslint/no-explicit-any
-      (trackingMessenger as any).registerActionHandler(
-        'StorageService:removeItem',
-        (controllerNamespace: string, key: string) => {
-          const storageKey = `${controllerNamespace}:${key}`;
-          mockStorage.delete(storageKey);
-        },
-      );
 
       // eslint-disable-next-line @typescript-eslint/no-explicit-any
       (trackingMessenger as any).registerActionHandler(
@@ -2324,14 +1945,6 @@ describe('TokenListController', () => {
         },
       );
 
-      // eslint-disable-next-line @typescript-eslint/no-explicit-any
-      (trackingMessenger as any).registerActionHandler(
-        'StorageService:removeItem',
-        (controllerNamespace: string, key: string) => {
-          const storageKey = `${controllerNamespace}:${key}`;
-          mockStorage.delete(storageKey);
-        },
-      );
 
       // eslint-disable-next-line @typescript-eslint/no-explicit-any
       (trackingMessenger as any).registerActionHandler(
@@ -2364,7 +1977,6 @@ describe('TokenListController', () => {
           tokensChainsCache: {
             [ChainId.mainnet]: chainAData,
           },
-          preventPollingOnNetworkRestart: false,
         },
       });
 
