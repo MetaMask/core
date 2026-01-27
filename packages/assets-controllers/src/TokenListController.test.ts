@@ -1511,6 +1511,66 @@ describe('TokenListController', () => {
       expect(result).toBeUndefined();
     });
 
+    it('should save data updated before initialization to StorageService', async () => {
+      // Setup stale mainnet data in storage
+      const validChainData: DataCache = {
+        data: sampleMainnetTokensChainsCache,
+        timestamp: 1,
+      };
+      mockStorage.set(
+        `TokenListController:tokensChainsCache:${ChainId.mainnet}`,
+        validChainData,
+      );
+      const messenger = getMessenger();
+      const restrictedMessenger = getRestrictedMessenger(messenger);
+
+      // Create controller with delayed initialization, and fetch tokens
+      const controller = new TokenListController({
+        chainId: ChainId.mainnet,
+        messenger: restrictedMessenger,
+      });
+
+      nock(tokenService.TOKEN_END_POINT_API)
+        .get(getTokensPath(ChainId.mainnet))
+        .reply(200, sampleMainnetTokenList);
+      nock(tokenService.TOKEN_END_POINT_API)
+        .get(getTokensPath(toHex(56)))
+        .reply(200, sampleBinanceTokenList);
+
+      await controller.fetchTokenList(ChainId.mainnet);
+      await controller.fetchTokenList(toHex(56));
+      const savedCache = controller.state.tokensChainsCache;
+      expect(savedCache[ChainId.mainnet]).toBeDefined();
+      expect(savedCache[toHex(56)]).toBeDefined();
+      await controller.initialize();
+
+      // Wait for debounced persistence to complete (500ms + buffer)
+      await new Promise((resolve) => setTimeout(resolve, 600));
+
+      controller.destroy();
+
+      // Verify data is in StorageService (per-chain file)
+      const mainnetStorageKey = `tokensChainsCache:${ChainId.mainnet}`;
+      const { result: mainnetResult } = await messenger.call(
+        'StorageService:getItem',
+        'TokenListController',
+        mainnetStorageKey,
+      );
+      const binanceStorageKey = `tokensChainsCache:${toHex(56)}`;
+      const { result: binanceResult } = await messenger.call(
+        'StorageService:getItem',
+        'TokenListController',
+        binanceStorageKey,
+      );
+
+      // Confirm fresh results overwrite stale
+      expect(mainnetResult).toBeDefined();
+      expect(mainnetResult).toStrictEqual(savedCache[ChainId.mainnet]);
+      // Confirm results not in storage previously are persisted
+      expect(binanceResult).toBeDefined();
+      expect(binanceResult).toStrictEqual(savedCache[toHex(56)]);
+    });
+
     it('should handle errors when loading individual chain cache files', async () => {
       // Pre-populate storage with two chains
       const validChainData: DataCache = {

@@ -367,6 +367,11 @@ export class TokenListController extends StaticIntervalPollingController<TokenLi
         }
       });
 
+      // Chains in state _before loading persisted state_, from a recent update
+      const chainsInState = new Set(
+        Object.keys(this.state.tokensChainsCache) as Hex[],
+      );
+
       // Merge loaded cache with existing state, preferring existing data
       // (which may be fresher if fetched during initialization)
       if (Object.keys(loadedCache).length > 0) {
@@ -385,14 +390,8 @@ export class TokenListController extends StaticIntervalPollingController<TokenLi
       // This handles the case where initial state contains chains that don't exist
       // in storage yet (e.g., fresh data from API). Without this, those chains
       // would be lost on the next app restart.
-      const loadedChainIds = new Set(Object.keys(loadedCache) as Hex[]);
-      const chainsInState = new Set(
-        Object.keys(this.state.tokensChainsCache) as Hex[],
-      );
       for (const chainId of chainsInState) {
-        if (!loadedChainIds.has(chainId)) {
-          this.#changedChainsToPersist.add(chainId);
-        }
+        this.#changedChainsToPersist.add(chainId);
       }
 
       // Persist any chains that need to be saved
