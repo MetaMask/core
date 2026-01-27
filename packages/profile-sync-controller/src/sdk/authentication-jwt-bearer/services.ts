@@ -216,7 +216,7 @@ export async function pairIdentifiers(
     if (!response.ok) {
       return await throwServiceError(
         response,
-        'Unable to pair identifiers',
+        'Failed to pair identifiers',
         PairError,
       );
     }
@@ -224,7 +224,7 @@ export async function pairIdentifiers(
   } catch (error) {
     return await throwServiceError(
       error,
-      'Unable to pair identifiers',
+      'Failed to pair identifiers',
       PairError,
     );
   }
@@ -299,7 +299,7 @@ export async function authorizeOIDC(
     if (!response.ok) {
       return await throwServiceError(
         response,
-        'Unable to get access token',
+        'Failed to get access token',
         SignInError,
       );
     }
@@ -313,7 +313,7 @@ export async function authorizeOIDC(
   } catch (error) {
     return await throwServiceError(
       error,
-      'Unable to get access token',
+      'Failed to get access token',
       SignInError,
     );
   }
@@ -366,7 +366,7 @@ export async function authenticate(
     if (!response.ok) {
       return await throwServiceError(
         response,
-        `${authType} login failed`,
+        `Failed to login with ${authType}`,
         SignInError,
       );
     }
@@ -384,7 +384,7 @@ export async function authenticate(
   } catch (error) {
     return await throwServiceError(
       error,
-      `${authType} login failed`,
+      `Failed to login with ${authType}`,
       SignInError,
     );
   }

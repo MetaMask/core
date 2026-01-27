@@ -415,7 +415,7 @@ describe('services', () => {
       ).rejects.toThrow(SignInError);
       await expect(
         authenticate('raw-message', 'signature', AuthType.SRP, Env.DEV),
-      ).rejects.toThrow('SRP login failed: Connection refused');
+      ).rejects.toThrow('Failed to login with SRP: Connection refused');
     });
 
     it('should throw SignInError on error response', async () => {
@@ -431,7 +431,7 @@ describe('services', () => {
       await expect(
         authenticate('raw-message', 'signature', AuthType.SRP, Env.DEV),
       ).rejects.toThrow(
-        'SRP login failed: HTTP 401 - Invalid signature (error: auth_failed)',
+        'Failed to login with SRP: HTTP 401 - Invalid signature (error: auth_failed)',
       );
     });
 
@@ -508,7 +508,7 @@ describe('services', () => {
       ).rejects.toThrow(SignInError);
       await expect(
         authorizeOIDC('jwt-token', Env.DEV, Platform.EXTENSION),
-      ).rejects.toThrow('Unable to get access token: CORS error');
+      ).rejects.toThrow('Failed to get access token: CORS error');
     });
 
     it('should throw SignInError on error response', async () => {
@@ -524,7 +524,7 @@ describe('services', () => {
       await expect(
         authorizeOIDC('jwt-token', Env.DEV, Platform.EXTENSION),
       ).rejects.toThrow(
-        'Unable to get access token: HTTP 400 - Invalid assertion (error: invalid_grant)',
+        'Failed to get access token: HTTP 400 - Invalid assertion (error: invalid_grant)',
       );
     });
 
@@ -587,7 +587,7 @@ describe('services', () => {
       ).rejects.toThrow(PairError);
       await expect(
         pairIdentifiers('nonce-123', mockLogins, 'access-token', Env.DEV),
-      ).rejects.toThrow('Unable to pair identifiers: Network timeout');
+      ).rejects.toThrow('Failed to pair identifiers: Network timeout');
     });
 
     it('should throw PairError on error response', async () => {
@@ -603,7 +603,7 @@ describe('services', () => {
       await expect(
         pairIdentifiers('nonce-123', mockLogins, 'access-token', Env.DEV),
       ).rejects.toThrow(
-        'Unable to pair identifiers: HTTP 400 - Invalid nonce (error: invalid_request)',
+        'Failed to pair identifiers: HTTP 400 - Invalid nonce (error: invalid_request)',
       );
     });
 
