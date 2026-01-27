@@ -35,12 +35,18 @@ export type DataDeleteResponseStatus =
 
 /**
  * Response from creating a data deletion task.
+ * When status is Success, regulateId is guaranteed to be present.
+ * When status is Failure, error is guaranteed to be present.
  */
-export type IDeleteRegulationResponse = {
-  status: DataDeleteResponseStatus;
-  regulateId?: string; // Using exact API field name from Segment API response
-  error?: string;
-};
+export type IDeleteRegulationResponse =
+  | {
+      status: typeof DATA_DELETE_RESPONSE_STATUSES.Success;
+      regulateId: string; // Using exact API field name from Segment API response
+    }
+  | {
+      status: typeof DATA_DELETE_RESPONSE_STATUSES.Failure;
+      error: string;
+    };
 
 /**
  * Status information for a data deletion request.

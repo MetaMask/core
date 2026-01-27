@@ -45,10 +45,9 @@ describe('analyticsPrivacyControllerSelectors', () => {
       ).toBe('test-regulation-id');
     });
 
-    it('returns undefined when deleteRegulationId is null in state', () => {
+    it('returns undefined when deleteRegulationId is not set in state', () => {
       const state: AnalyticsPrivacyControllerState = {
         ...getDefaultAnalyticsPrivacyControllerState(),
-        deleteRegulationId: null,
       };
 
       expect(
@@ -72,10 +71,9 @@ describe('analyticsPrivacyControllerSelectors', () => {
       ).toBe(testTimestamp);
     });
 
-    it('returns undefined when deleteRegulationTimestamp is null in state', () => {
+    it('returns undefined when deleteRegulationTimestamp is not set in state', () => {
       const state: AnalyticsPrivacyControllerState = {
         ...getDefaultAnalyticsPrivacyControllerState(),
-        deleteRegulationTimestamp: null,
       };
 
       expect(

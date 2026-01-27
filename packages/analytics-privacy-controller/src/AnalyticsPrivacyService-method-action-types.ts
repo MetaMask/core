@@ -9,7 +9,8 @@ import type { AnalyticsPrivacyService } from './AnalyticsPrivacyService';
  * Creates a DELETE_ONLY regulation for the given analyticsId.
  *
  * @param analyticsId - The analytics ID of the user for whom to create the deletion task.
- * @returns Promise resolving to the deletion regulation response.
+ * @returns Promise resolving to a successful deletion regulation response.
+ * @throws Error if the request fails or the response is invalid.
  */
 export type AnalyticsPrivacyServiceCreateDataDeletionTaskAction = {
   type: `AnalyticsPrivacyService:createDataDeletionTask`;
@@ -20,7 +21,8 @@ export type AnalyticsPrivacyServiceCreateDataDeletionTaskAction = {
  * Checks the status of a regulation by ID.
  *
  * @param regulationId - The regulation ID to check.
- * @returns Promise resolving to the regulation status response.
+ * @returns Promise resolving to a successful regulation status response.
+ * @throws Error if the request fails or the response is invalid.
  */
 export type AnalyticsPrivacyServiceCheckDataDeleteStatusAction = {
   type: `AnalyticsPrivacyService:checkDataDeleteStatus`;

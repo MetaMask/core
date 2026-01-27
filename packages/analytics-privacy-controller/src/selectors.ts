@@ -18,7 +18,7 @@ const selectHasCollectedDataSinceDeletionRequest = (
  */
 const selectDeleteRegulationId = (
   state: AnalyticsPrivacyControllerState,
-): string | undefined => state.deleteRegulationId ?? undefined;
+): string | undefined => state.deleteRegulationId;
 
 /**
  * Selects the delete regulation creation timestamp from the controller state.
@@ -28,7 +28,7 @@ const selectDeleteRegulationId = (
  */
 const selectDeleteRegulationTimestamp = (
   state: AnalyticsPrivacyControllerState,
-): number | undefined => state.deleteRegulationTimestamp ?? undefined;
+): number | undefined => state.deleteRegulationTimestamp;
 
 /**
  * Selectors for the AnalyticsPrivacyController state.

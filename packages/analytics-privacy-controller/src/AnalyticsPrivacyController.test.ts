@@ -99,14 +99,14 @@ function setupController(
 
 describe('AnalyticsPrivacyController', () => {
   describe('getDefaultAnalyticsPrivacyControllerState', () => {
-    it('returns default state with hasCollectedDataSinceDeletionRequest false and null regulation fields', () => {
+    it('returns default state with hasCollectedDataSinceDeletionRequest false and undefined regulation fields', () => {
       const defaults = getDefaultAnalyticsPrivacyControllerState();
 
       expect(defaults).toStrictEqual({
         hasCollectedDataSinceDeletionRequest: false,
-        deleteRegulationId: null,
-        deleteRegulationTimestamp: null,
       });
+      expect(defaults.deleteRegulationId).toBeUndefined();
+      expect(defaults.deleteRegulationTimestamp).toBeUndefined();
     });
 
     it('returns identical values on each call', () => {
@@ -146,8 +146,8 @@ describe('AnalyticsPrivacyController', () => {
       const { controller } = setupController({ state: partialState });
 
       expect(controller.state.hasCollectedDataSinceDeletionRequest).toBe(true);
-      expect(controller.state.deleteRegulationId).toBeNull();
-      expect(controller.state.deleteRegulationTimestamp).toBeNull();
+      expect(controller.state.deleteRegulationId).toBeUndefined();
+      expect(controller.state.deleteRegulationTimestamp).toBeUndefined();
     });
   });
 
@@ -378,7 +378,7 @@ describe('AnalyticsPrivacyController', () => {
         'Malformed response from Segment API: missing or invalid regulateId',
       );
       // State should not be updated when service throws error
-      expect(controller.state.deleteRegulationId).toBeNull();
+      expect(controller.state.deleteRegulationId).toBeUndefined();
     });
 
     it('throws error and does not update state when service throws error for undefined regulateId', async () => {
@@ -424,7 +424,7 @@ describe('AnalyticsPrivacyController', () => {
       ).rejects.toThrow(
         'Malformed response from Segment API: missing or invalid regulateId',
       );
-      expect(controller.state.deleteRegulationId).toBeNull();
+      expect(controller.state.deleteRegulationId).toBeUndefined();
     });
 
     it('throws error when service throws non-Error value', async () => {
@@ -582,7 +582,7 @@ describe('AnalyticsPrivacyController', () => {
       });
     });
 
-    it('returns undefined timestamp when deleteRegulationTimestamp is null', async () => {
+    it('returns undefined timestamp when deleteRegulationTimestamp is not set', async () => {
       const rootMessenger = new Messenger<
         MockAnyNamespace,
         AnalyticsPrivacyControllerActions | AnalyticsPrivacyServiceActions,
@@ -618,7 +618,6 @@ describe('AnalyticsPrivacyController', () => {
         analyticsId: 'test-analytics-id',
         state: {
           deleteRegulationId: 'test-regulation-id',
-          deleteRegulationTimestamp: null, // null timestamp
           hasCollectedDataSinceDeletionRequest: false,
         },
       });
@@ -633,7 +632,7 @@ describe('AnalyticsPrivacyController', () => {
       );
     });
 
-    it('returns unknown deletion status when service throws Error', async () => {
+    it('throws error when service throws Error', async () => {
       const rootMessenger = new Messenger<
         MockAnyNamespace,
         AnalyticsPrivacyControllerActions | AnalyticsPrivacyServiceActions,
@@ -655,7 +654,11 @@ describe('AnalyticsPrivacyController', () => {
         jest.fn().mockRejectedValue(new Error('Service error')),
       );
 
-      const testTimestamp = new Date('2026-01-15T12:00:00Z').getTime();
+      rootMessenger.delegate({
+        messenger: analyticsPrivacyControllerMessenger,
+        actions: ['AnalyticsPrivacyService:checkDataDeleteStatus'],
+      });
+
       // Controller is instantiated to register action handlers
       // eslint-disable-next-line @typescript-eslint/no-unused-vars
       const _controller = new AnalyticsPrivacyController({
@@ -663,99 +666,14 @@ describe('AnalyticsPrivacyController', () => {
         analyticsId: 'test-analytics-id',
         state: {
           deleteRegulationId: 'test-regulation-id',
-          deleteRegulationTimestamp: testTimestamp,
+          deleteRegulationTimestamp: new Date('2026-01-15T12:00:00Z').getTime(),
           hasCollectedDataSinceDeletionRequest: false,
         },
       });
 
-      const status = await rootMessenger.call(
-        'AnalyticsPrivacyController:checkDataDeleteStatus',
-      );
-
-      expect(status.dataDeletionRequestStatus).toBe(
-        DATA_DELETE_STATUSES.Unknown,
-      );
-      expect(status.deletionRequestTimestamp).toBe(testTimestamp);
-      expect(status.hasCollectedDataSinceDeletionRequest).toBe(false);
-    });
-  });
-
-  describe('AnalyticsPrivacyController:getDeleteRegulationCreationTimestamp', () => {
-    it('returns the deletion timestamp when set', () => {
-      const testTimestamp = new Date('2026-01-15T12:00:00Z').getTime();
-      const { rootMessenger } = setupController({
-        state: {
-          deleteRegulationTimestamp: testTimestamp,
-        },
-      });
-
-      const timestamp = rootMessenger.call(
-        'AnalyticsPrivacyController:getDeleteRegulationCreationTimestamp',
-      );
-
-      expect(timestamp).toBe(testTimestamp);
-    });
-
-    it('returns undefined when deletion timestamp is not set', () => {
-      const { rootMessenger } = setupController();
-
-      const timestamp = rootMessenger.call(
-        'AnalyticsPrivacyController:getDeleteRegulationCreationTimestamp',
-      );
-
-      expect(timestamp).toBeUndefined();
-    });
-  });
-
-  describe('AnalyticsPrivacyController:getDeleteRegulationId', () => {
-    it('returns the regulation ID when set', () => {
-      const { rootMessenger } = setupController({
-        state: {
-          deleteRegulationId: 'test-regulation-id',
-        },
-      });
-
-      const id = rootMessenger.call(
-        'AnalyticsPrivacyController:getDeleteRegulationId',
-      );
-
-      expect(id).toBe('test-regulation-id');
-    });
-
-    it('returns undefined when regulation ID is not set', () => {
-      const { rootMessenger } = setupController();
-
-      const id = rootMessenger.call(
-        'AnalyticsPrivacyController:getDeleteRegulationId',
-      );
-
-      expect(id).toBeUndefined();
-    });
-  });
-
-  describe('AnalyticsPrivacyController:isDataRecorded', () => {
-    it('returns true when data has been recorded', () => {
-      const { rootMessenger } = setupController({
-        state: {
-          hasCollectedDataSinceDeletionRequest: true,
-        },
-      });
-
-      const isRecorded = rootMessenger.call(
-        'AnalyticsPrivacyController:isDataRecorded',
-      );
-
-      expect(isRecorded).toBe(true);
-    });
-
-    it('returns false when data has not been recorded', () => {
-      const { rootMessenger } = setupController();
-
-      const isRecorded = rootMessenger.call(
-        'AnalyticsPrivacyController:isDataRecorded',
-      );
-
-      expect(isRecorded).toBe(false);
+      await expect(
+        rootMessenger.call('AnalyticsPrivacyController:checkDataDeleteStatus'),
+      ).rejects.toThrow('Service error');
     });
   });
 

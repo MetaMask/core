@@ -9,7 +9,7 @@ import type { Messenger } from '@metamask/messenger';
 import type { AnalyticsPrivacyControllerMethodActions } from './AnalyticsPrivacyController-method-action-types';
 import type { AnalyticsPrivacyServiceActions } from './AnalyticsPrivacyService';
 import { projectLogger as log } from './logger';
-import { DATA_DELETE_STATUSES } from './types';
+import { DATA_DELETE_RESPONSE_STATUSES, DATA_DELETE_STATUSES } from './types';
 import type {
   IDeleteRegulationResponse,
   IDeleteRegulationStatus,
@@ -39,13 +39,13 @@ export type AnalyticsPrivacyControllerState = {
    * Segment's data deletion regulation ID.
    * The ID returned by the Segment delete API which allows checking the status of the deletion request.
    */
-  deleteRegulationId: string | null;
+  deleteRegulationId?: string;
 
   /**
    * Segment's data deletion regulation creation timestamp.
    * The timestamp (in milliseconds since epoch) when the deletion request was created.
    */
-  deleteRegulationTimestamp: number | null;
+  deleteRegulationTimestamp?: number;
 };
 
 /**
@@ -56,8 +56,6 @@ export type AnalyticsPrivacyControllerState = {
 export function getDefaultAnalyticsPrivacyControllerState(): AnalyticsPrivacyControllerState {
   return {
     hasCollectedDataSinceDeletionRequest: false,
-    deleteRegulationId: null,
-    deleteRegulationTimestamp: null,
   };
 }
 
@@ -90,9 +88,6 @@ const analyticsPrivacyControllerMetadata = {
 const MESSENGER_EXPOSED_METHODS = [
   'createDataDeletionTask',
   'checkDataDeleteStatus',
-  'getDeleteRegulationCreationTimestamp',
-  'getDeleteRegulationId',
-  'isDataRecorded',
   'updateDataRecordingFlag',
 ] as const;
 
@@ -245,10 +240,13 @@ export class AnalyticsPrivacyController extends BaseController<
    * Creates a new delete regulation for the user.
    * This is necessary to respect the GDPR and CCPA regulations.
    *
-   * @returns Promise containing the status of the request
+   * @returns Promise containing the status of the request with regulateId
    * @throws Error if analytics ID is missing or if the service call fails
    */
-  async createDataDeletionTask(): Promise<IDeleteRegulationResponse> {
+  async createDataDeletionTask(): Promise<{
+    status: typeof DATA_DELETE_RESPONSE_STATUSES.Success;
+    regulateId: string;
+  }> {
     if (!this.#analyticsId || this.#analyticsId.trim() === '') {
       const error = new Error(
         'Analytics ID not found. You need to provide a valid analytics ID when initializing the AnalyticsPrivacyController.',
@@ -263,13 +261,10 @@ export class AnalyticsPrivacyController extends BaseController<
     );
 
     const deletionTimestamp = Date.now();
-    // Service validates and throws if regulateId is missing, so it's always defined here
-    const { regulateId } = response;
-    // Type assertion is safe because service throws if regulateId is missing
-    const validRegulateId: string = regulateId as string;
-
+    // Service validates and throws on all errors, so if we reach here, the response
+    // is guaranteed to be a success response with regulateId present
     this.update((state) => {
-      state.deleteRegulationId = validRegulateId;
+      state.deleteRegulationId = response.regulateId;
       state.deleteRegulationTimestamp = deletionTimestamp;
       state.hasCollectedDataSinceDeletionRequest = false;
     });
@@ -295,55 +290,24 @@ export class AnalyticsPrivacyController extends BaseController<
     };
 
     if (!this.state.deleteRegulationId) {
+      status.hasCollectedDataSinceDeletionRequest =
+        this.state.hasCollectedDataSinceDeletionRequest;
       return status;
     }
 
-    try {
-      const dataDeletionTaskStatus = await this.messenger.call(
-        'AnalyticsPrivacyService:checkDataDeleteStatus',
-        this.state.deleteRegulationId,
-      );
+    // Service validates and throws on all errors, so if we reach here, the response
+    // is guaranteed to be a success response with dataDeleteStatus present
+    const dataDeletionTaskStatus = await this.messenger.call(
+      'AnalyticsPrivacyService:checkDataDeleteStatus',
+      this.state.deleteRegulationId,
+    );
 
-      status.dataDeletionRequestStatus =
-        dataDeletionTaskStatus.dataDeleteStatus;
-    } catch (error) {
-      log('Error checkDataDeleteStatus', error);
-      status.dataDeletionRequestStatus = DATA_DELETE_STATUSES.Unknown;
-    }
-
-    status.deletionRequestTimestamp =
-      this.state.deleteRegulationTimestamp ?? undefined;
+    status.dataDeletionRequestStatus = dataDeletionTaskStatus.dataDeleteStatus;
+    status.deletionRequestTimestamp = this.state.deleteRegulationTimestamp;
     status.hasCollectedDataSinceDeletionRequest =
       this.state.hasCollectedDataSinceDeletionRequest;
 
     return status;
-  }
-
-  /**
-   * Get the latest delete regulation request timestamp.
-   *
-   * @returns The timestamp (in milliseconds since epoch), or undefined
-   */
-  getDeleteRegulationCreationTimestamp(): number | undefined {
-    return this.state.deleteRegulationTimestamp ?? undefined;
-  }
-
-  /**
-   * Get the latest delete regulation request id.
-   *
-   * @returns The id string, or undefined
-   */
-  getDeleteRegulationId(): string | undefined {
-    return this.state.deleteRegulationId ?? undefined;
-  }
-
-  /**
-   * Indicate if events have been recorded since the last deletion request.
-   *
-   * @returns true if events have been recorded since the last deletion request
-   */
-  isDataRecorded(): boolean {
-    return this.state.hasCollectedDataSinceDeletionRequest;
   }
 
   /**

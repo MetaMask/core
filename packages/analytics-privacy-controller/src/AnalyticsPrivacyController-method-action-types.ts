@@ -9,7 +9,7 @@ import type { AnalyticsPrivacyController } from './AnalyticsPrivacyController';
  * Creates a new delete regulation for the user.
  * This is necessary to respect the GDPR and CCPA regulations.
  *
- * @returns Promise containing the status of the request
+ * @returns Promise containing the status of the request with regulateId
  * @throws Error if analytics ID is missing or if the service call fails
  */
 export type AnalyticsPrivacyControllerCreateDataDeletionTaskAction = {
@@ -25,37 +25,6 @@ export type AnalyticsPrivacyControllerCreateDataDeletionTaskAction = {
 export type AnalyticsPrivacyControllerCheckDataDeleteStatusAction = {
   type: `AnalyticsPrivacyController:checkDataDeleteStatus`;
   handler: AnalyticsPrivacyController['checkDataDeleteStatus'];
-};
-
-/**
- * Get the latest delete regulation request timestamp.
- *
- * @returns The timestamp (in milliseconds since epoch), or undefined
- */
-export type AnalyticsPrivacyControllerGetDeleteRegulationCreationTimestampAction =
-  {
-    type: `AnalyticsPrivacyController:getDeleteRegulationCreationTimestamp`;
-    handler: AnalyticsPrivacyController['getDeleteRegulationCreationTimestamp'];
-  };
-
-/**
- * Get the latest delete regulation request id.
- *
- * @returns The id string, or undefined
- */
-export type AnalyticsPrivacyControllerGetDeleteRegulationIdAction = {
-  type: `AnalyticsPrivacyController:getDeleteRegulationId`;
-  handler: AnalyticsPrivacyController['getDeleteRegulationId'];
-};
-
-/**
- * Indicate if events have been recorded since the last deletion request.
- *
- * @returns true if events have been recorded since the last deletion request
- */
-export type AnalyticsPrivacyControllerIsDataRecordedAction = {
-  type: `AnalyticsPrivacyController:isDataRecorded`;
-  handler: AnalyticsPrivacyController['isDataRecorded'];
 };
 
 /**
@@ -85,7 +54,4 @@ export type AnalyticsPrivacyControllerUpdateDataRecordingFlagAction = {
 export type AnalyticsPrivacyControllerMethodActions =
   | AnalyticsPrivacyControllerCreateDataDeletionTaskAction
   | AnalyticsPrivacyControllerCheckDataDeleteStatusAction
-  | AnalyticsPrivacyControllerGetDeleteRegulationCreationTimestampAction
-  | AnalyticsPrivacyControllerGetDeleteRegulationIdAction
-  | AnalyticsPrivacyControllerIsDataRecordedAction
   | AnalyticsPrivacyControllerUpdateDataRecordingFlagAction;

@@ -9,10 +9,6 @@ import type { IDisposable } from 'cockatiel';
 import type { AnalyticsPrivacyServiceMethodActions } from './AnalyticsPrivacyService-method-action-types';
 import { DATA_DELETE_RESPONSE_STATUSES, DATA_DELETE_STATUSES } from './types';
 import type { DataDeleteStatus } from './types';
-import type {
-  IDeleteRegulationResponse,
-  IDeleteRegulationStatusResponse,
-} from './types';
 
 /**
  * Segment API regulation type for DELETE_ONLY operations.
@@ -288,11 +284,13 @@ export class AnalyticsPrivacyService {
    * Creates a DELETE_ONLY regulation for the given analyticsId.
    *
    * @param analyticsId - The analytics ID of the user for whom to create the deletion task.
-   * @returns Promise resolving to the deletion regulation response.
+   * @returns Promise resolving to a successful deletion regulation response.
+   * @throws Error if the request fails or the response is invalid.
    */
-  async createDataDeletionTask(
-    analyticsId: string,
-  ): Promise<IDeleteRegulationResponse> {
+  async createDataDeletionTask(analyticsId: string): Promise<{
+    status: typeof DATA_DELETE_RESPONSE_STATUSES.Success;
+    regulateId: string;
+  }> {
     if (!this.#segmentSourceId || !this.#segmentRegulationsEndpoint) {
       throw new Error('Segment API source ID or endpoint not found');
     }
@@ -345,11 +343,13 @@ export class AnalyticsPrivacyService {
    * Checks the status of a regulation by ID.
    *
    * @param regulationId - The regulation ID to check.
-   * @returns Promise resolving to the regulation status response.
+   * @returns Promise resolving to a successful regulation status response.
+   * @throws Error if the request fails or the response is invalid.
    */
-  async checkDataDeleteStatus(
-    regulationId: string,
-  ): Promise<IDeleteRegulationStatusResponse> {
+  async checkDataDeleteStatus(regulationId: string): Promise<{
+    status: typeof DATA_DELETE_RESPONSE_STATUSES.Success;
+    dataDeleteStatus: DataDeleteStatus;
+  }> {
     if (!regulationId || !this.#segmentRegulationsEndpoint) {
       throw new Error('Regulation ID or endpoint not configured');
     }
