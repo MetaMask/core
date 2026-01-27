@@ -10,7 +10,6 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 ### Changed
 
 - Expand NFT auto-detection to include BSC, Polygon, Avalanche, and Base chains in addition to existing supported chains ([#7730](https://github.com/MetaMask/core/pull/7730))
-- Increase NFT API batch limit from 50 to 100 NFTs per request ([#7730](https://github.com/MetaMask/core/pull/7730))
 
 ## [98.0.0]
 
