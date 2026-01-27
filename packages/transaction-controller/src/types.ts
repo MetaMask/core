@@ -28,6 +28,21 @@ type MakeJsonCompatible<T> = T extends Json
 type JsonCompatibleOperation = MakeJsonCompatible<Operation>;
 
 /**
+ * Feature identifier transaction metadata.
+ */
+export enum Feature {
+  Swap = 'Swap',
+  Staking = 'Staking',
+  Ramp = 'Ramp',
+  Prediction = 'Prediction',
+  Perp = 'Perp',
+  Earn = 'Earn',
+  Card = 'Card',
+  Bridge = 'Bridge',
+  dAppTransaction = 'dAppTransaction',
+}
+
+/**
  * Information about a single transaction such as status and block number.
  */
 export type TransactionMeta = {
@@ -148,6 +163,11 @@ export type TransactionMeta = {
    * String to indicate what device the transaction was confirmed on.
    */
   deviceConfirmedOn?: WalletDevice;
+
+  /**
+   * Feature identifier for transaction metadata.
+   */
+  feature?: Feature;
 
   /**
    * The Network ID as per EIP-155 of the destination chain of a bridge transaction.
@@ -1731,6 +1751,9 @@ export type TransactionBatchSingleRequest = {
     signedTransaction: Hex;
   };
 
+  /** Feature identifier for transaction metadata. */
+  feature?: Feature;
+
   /** Parameters of the single transaction. */
   params: BatchTransactionParams;
 
@@ -1756,6 +1779,9 @@ export type TransactionBatchRequest = {
 
   /** Whether to disable upgrading the account to an EIP-7702. */
   disableUpgrade?: boolean;
+
+  /** Feature identifier for transaction metadata. Applied to all transactions in the batch unless overridden per transaction. */
+  feature?: Feature;
 
   /** Address of the account to submit the transaction batch. */
   from: Hex;
@@ -2115,6 +2141,9 @@ export type AddTransactionOptions = {
 
   /** Whether to disable the gas estimation buffer. */
   disableGasBuffer?: boolean;
+
+  /** Feature identifier for Sentinel metadata. */
+  feature?: Feature;
 
   /** Address of an ERC-20 token to pay for the gas fee, if the user has insufficient native balance. */
   gasFeeToken?: Hex;

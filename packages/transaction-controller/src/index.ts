@@ -96,6 +96,7 @@ export type {
   ValidateSecurityRequest,
 } from './types';
 export {
+  Feature,
   GasFeeEstimateLevel,
   GasFeeEstimateType,
   SimulationErrorCode,

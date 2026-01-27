@@ -57,6 +57,7 @@ export class ExtraTransactionsPublishHook {
     const {
       batchTransactions,
       batchTransactionsOptions,
+      feature,
       id: transactionId,
       networkClientId,
       txParams,
@@ -163,6 +164,7 @@ export class ExtraTransactionsPublishHook {
     };
 
     await this.#addTransactionBatch({
+      feature,
       from,
       networkClientId,
       requireApproval: false,

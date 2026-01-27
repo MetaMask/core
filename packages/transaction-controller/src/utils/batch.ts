@@ -296,6 +296,7 @@ async function addTransactionBatchWith7702(
   const {
     batchId: batchIdOverride,
     disableUpgrade,
+    feature,
     from,
     gasFeeToken,
     gasLimit7702,
@@ -428,6 +429,7 @@ async function addTransactionBatchWith7702(
 
   const { result } = await addTransaction(txParams, {
     batchId,
+    feature,
     gasFeeToken,
     isGasFeeIncluded: userRequest.isGasFeeIncluded,
     isGasFeeSponsored: userRequest.isGasFeeSponsored,
@@ -631,7 +633,7 @@ async function processTransactionWithHook(
 ): Promise<
   Omit<PublishBatchHookTransaction, 'signedTx'> & { type?: TransactionType }
 > {
-  const { assetsFiatValues, existingTransaction, params, type } =
+  const { assetsFiatValues, existingTransaction, feature, params, type } =
     nestedTransaction;
 
   const {
@@ -641,7 +643,7 @@ async function processTransactionWithHook(
     updateTransaction,
   } = request;
 
-  const { from, networkClientId, origin } = userRequest;
+  const { from, networkClientId, origin, feature: batchFeature } = userRequest;
 
   if (existingTransaction) {
     const { id, onPublish } = existingTransaction;
@@ -660,6 +662,17 @@ async function processTransactionWithHook(
 
     updateTransaction({ transactionId: id }, (_transactionMeta) => {
       _transactionMeta.batchId = batchId;
+
+      // Per-transaction feature (explicit override) takes priority
+      if (feature !== undefined) {
+        _transactionMeta.feature = feature;
+      } else if (
+        _transactionMeta.feature === undefined &&
+        batchFeature !== undefined
+      ) {
+        // Only apply batch feature if transaction doesn't have one
+        _transactionMeta.feature = batchFeature;
+      }
 
       if (newNonce) {
         _transactionMeta.txParams.nonce = toHex(newNonce);
@@ -711,6 +724,7 @@ async function processTransactionWithHook(
       assetsFiatValues,
       batchId,
       disableGasBuffer: true,
+      feature: feature ?? batchFeature,
       networkClientId,
       origin,
       publishHook,
@@ -965,6 +979,8 @@ async function convertTransactionToEIP7702({
 
   log('Estimated gas for converted EIP-7702 transaction', newGasResult);
 
+  const { feature: batchFeature } = request.request;
+
   updateTransaction(
     { transactionId: existingTransactionMeta.id },
     (transactionMeta) => {
@@ -979,6 +995,11 @@ async function convertTransactionToEIP7702({
         existingTransactionMeta.txParams.maxPriorityFeePerGas;
       transactionMeta.txParams.nonce = existingTransactionMeta.txParams.nonce;
       transactionMeta.txParams.type ??= TransactionEnvelopeType.feeMarket;
+
+      // Only apply batch feature if transaction doesn't already have one
+      if (transactionMeta.feature === undefined && batchFeature !== undefined) {
+        transactionMeta.feature = batchFeature;
+      }
     },
   );
 

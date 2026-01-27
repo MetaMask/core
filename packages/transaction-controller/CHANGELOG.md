@@ -9,6 +9,10 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ### Added
 
+- Add `Feature` enum and optional `feature` property to `TransactionMeta`, `TransactionBatchRequest`, `TransactionBatchSingleRequest`, and `AddTransactionOptions` for transaction metadata ([#7726](https://github.com/MetaMask/core/pull/7726))
+  - Per-transaction `feature` always applies (can override existing transaction's feature).
+  - Batch-level `feature` applies only to transactions that don't already have a `feature` set.
+  - `ExtraTransactionsPublishHook` propagates the original transaction's `feature` to batch transactions.
 - Add support for enhanced transaction history retrieval via WebSocket events ([#7689](https://github.com/MetaMask/core/pull/7689))
 - Add support for `submitHistoryLimit` feature flag to configure the maximum number of entries in the submit history ([#7648](https://github.com/MetaMask/core/pull/7648))
   - Defaults to 100 if not provided.

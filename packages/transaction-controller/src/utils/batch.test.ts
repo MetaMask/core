@@ -22,6 +22,7 @@ import {
 import { simulateGasBatch } from './gas';
 import { validateBatchRequest } from './validation';
 import {
+  Feature,
   TransactionEnvelopeType,
   determineTransactionType,
   TransactionType,
@@ -492,6 +493,356 @@ describe('Batch Utils', () => {
       expect(
         addTransactionMock.mock.calls[0][1].nestedTransactions?.[1].type,
       ).toBe(TransactionType.bridgeApproval);
+    });
+
+    it('applies batch-level feature to all transactions', async () => {
+      const publishBatchHook: jest.MockedFn<PublishBatchHook> = jest.fn();
+      mockRequestApproval(MESSENGER_MOCK, {
+        state: 'approved',
+      });
+
+      addTransactionMock
+        .mockResolvedValueOnce({
+          transactionMeta: {
+            ...TRANSACTION_META_MOCK,
+            id: TRANSACTION_ID_MOCK,
+          },
+          result: Promise.resolve(''),
+        })
+        .mockResolvedValueOnce({
+          transactionMeta: {
+            ...TRANSACTION_META_MOCK,
+            id: TRANSACTION_ID_2_MOCK,
+          },
+          result: Promise.resolve(''),
+        });
+
+      addTransactionBatch({
+        ...request,
+        publishBatchHook,
+        request: {
+          ...request.request,
+          feature: Feature.Prediction,
+          disable7702: true,
+        },
+      }).catch(() => {
+        // Intentionally empty
+      });
+
+      await flushPromises();
+
+      expect(addTransactionMock).toHaveBeenCalledTimes(2);
+      expect(addTransactionMock.mock.calls[0][1].feature).toBe(
+        Feature.Prediction,
+      );
+      expect(addTransactionMock.mock.calls[1][1].feature).toBe(
+        Feature.Prediction,
+      );
+    });
+
+    it('allows per-transaction feature to override batch-level feature', async () => {
+      const publishBatchHook: jest.MockedFn<PublishBatchHook> = jest.fn();
+      mockRequestApproval(MESSENGER_MOCK, {
+        state: 'approved',
+      });
+
+      addTransactionMock
+        .mockResolvedValueOnce({
+          transactionMeta: {
+            ...TRANSACTION_META_MOCK,
+            id: TRANSACTION_ID_MOCK,
+          },
+          result: Promise.resolve(''),
+        })
+        .mockResolvedValueOnce({
+          transactionMeta: {
+            ...TRANSACTION_META_MOCK,
+            id: TRANSACTION_ID_2_MOCK,
+          },
+          result: Promise.resolve(''),
+        });
+
+      addTransactionBatch({
+        ...request,
+        publishBatchHook,
+        request: {
+          ...request.request,
+          feature: Feature.Prediction,
+          transactions: [
+            {
+              ...request.request.transactions[0],
+              feature: Feature.Swap,
+            },
+            {
+              ...request.request.transactions[1],
+              // No per-transaction feature, should use batch-level
+            },
+          ],
+          disable7702: true,
+        },
+      }).catch(() => {
+        // Intentionally empty
+      });
+
+      await flushPromises();
+
+      expect(addTransactionMock).toHaveBeenCalledTimes(2);
+      expect(addTransactionMock.mock.calls[0][1].feature).toBe(Feature.Swap);
+      expect(addTransactionMock.mock.calls[1][1].feature).toBe(
+        Feature.Prediction,
+      );
+    });
+
+    it('applies batch-level feature to existing transaction without a feature', async () => {
+      const publishBatchHook: jest.MockedFn<PublishBatchHook> = jest.fn();
+      const onPublish = jest.fn();
+      mockRequestApproval(MESSENGER_MOCK, {
+        state: 'approved',
+      });
+
+      const existingTransactionMock = {
+        id: TRANSACTION_ID_MOCK,
+        txParams: {
+          nonce: NONCE_MOCK,
+        },
+        // No feature set on existing transaction
+      } as TransactionMeta;
+
+      getTransactionMock.mockReturnValue(existingTransactionMock);
+
+      addTransactionMock.mockResolvedValueOnce({
+        transactionMeta: {
+          ...TRANSACTION_META_MOCK,
+          id: TRANSACTION_ID_2_MOCK,
+        },
+        result: Promise.resolve(''),
+      });
+
+      addTransactionBatch({
+        ...request,
+        publishBatchHook,
+        request: {
+          ...request.request,
+          feature: Feature.Bridge,
+          transactions: [
+            {
+              ...request.request.transactions[0],
+              existingTransaction: {
+                id: TRANSACTION_ID_MOCK,
+                onPublish,
+                signedTransaction: TRANSACTION_SIGNATURE_MOCK,
+              },
+            },
+            {
+              ...request.request.transactions[1],
+            },
+          ],
+          disable7702: true,
+        },
+      }).catch(() => {
+        // Intentionally empty
+      });
+
+      await flushPromises();
+
+      // Verify updateTransaction was called with the batch-level feature
+      expect(updateTransactionMock).toHaveBeenCalled();
+      const updateCallback = updateTransactionMock.mock.calls[0][1];
+      const updatedTransaction = {} as TransactionMeta;
+      updateCallback(updatedTransaction);
+      expect(updatedTransaction.feature).toBe(Feature.Bridge);
+
+      // Verify new transaction also gets the batch-level feature
+      expect(addTransactionMock).toHaveBeenCalledTimes(1);
+      expect(addTransactionMock.mock.calls[0][1].feature).toBe(Feature.Bridge);
+    });
+
+    it('preserves existing transaction feature when batch-level feature is provided', async () => {
+      const publishBatchHook: jest.MockedFn<PublishBatchHook> = jest.fn();
+      const onPublish = jest.fn();
+      mockRequestApproval(MESSENGER_MOCK, {
+        state: 'approved',
+      });
+
+      const existingTransactionMock = {
+        id: TRANSACTION_ID_MOCK,
+        txParams: {
+          nonce: NONCE_MOCK,
+        },
+        feature: Feature.Swap, // Existing transaction already has a feature
+      } as TransactionMeta;
+
+      getTransactionMock.mockReturnValue(existingTransactionMock);
+
+      addTransactionMock.mockResolvedValueOnce({
+        transactionMeta: {
+          ...TRANSACTION_META_MOCK,
+          id: TRANSACTION_ID_2_MOCK,
+        },
+        result: Promise.resolve(''),
+      });
+
+      addTransactionBatch({
+        ...request,
+        publishBatchHook,
+        request: {
+          ...request.request,
+          feature: Feature.Bridge, // Batch has different feature
+          transactions: [
+            {
+              ...request.request.transactions[0],
+              existingTransaction: {
+                id: TRANSACTION_ID_MOCK,
+                onPublish,
+                signedTransaction: TRANSACTION_SIGNATURE_MOCK,
+              },
+            },
+            {
+              ...request.request.transactions[1],
+            },
+          ],
+          disable7702: true,
+        },
+      }).catch(() => {
+        // Intentionally empty
+      });
+
+      await flushPromises();
+
+      // Verify updateTransaction was called but feature is NOT overwritten
+      expect(updateTransactionMock).toHaveBeenCalled();
+      const updateCallback = updateTransactionMock.mock.calls[0][1];
+      const updatedTransaction = {
+        feature: Feature.Swap,
+      } as TransactionMeta;
+      updateCallback(updatedTransaction);
+      // Existing feature (Swap) should be preserved, not overwritten by batch feature (Bridge)
+      expect(updatedTransaction.feature).toBe(Feature.Swap);
+    });
+
+    it('per-transaction feature overrides existing transaction feature', async () => {
+      const publishBatchHook: jest.MockedFn<PublishBatchHook> = jest.fn();
+      const onPublish = jest.fn();
+      mockRequestApproval(MESSENGER_MOCK, {
+        state: 'approved',
+      });
+
+      const existingTransactionMock = {
+        id: TRANSACTION_ID_MOCK,
+        txParams: {
+          nonce: NONCE_MOCK,
+        },
+        feature: Feature.Bridge, // Existing transaction has a feature
+      } as TransactionMeta;
+
+      getTransactionMock.mockReturnValue(existingTransactionMock);
+
+      addTransactionMock.mockResolvedValueOnce({
+        transactionMeta: {
+          ...TRANSACTION_META_MOCK,
+          id: TRANSACTION_ID_2_MOCK,
+        },
+        result: Promise.resolve(''),
+      });
+
+      addTransactionBatch({
+        ...request,
+        publishBatchHook,
+        request: {
+          ...request.request,
+          feature: Feature.Prediction, // Batch feature (should not apply since per-tx is set)
+          transactions: [
+            {
+              ...request.request.transactions[0],
+              feature: Feature.Swap, // Per-transaction feature should override existing
+              existingTransaction: {
+                id: TRANSACTION_ID_MOCK,
+                onPublish,
+                signedTransaction: TRANSACTION_SIGNATURE_MOCK,
+              },
+            },
+            {
+              ...request.request.transactions[1],
+            },
+          ],
+          disable7702: true,
+        },
+      }).catch(() => {
+        // Intentionally empty
+      });
+
+      await flushPromises();
+
+      // Verify updateTransaction was called with the per-transaction feature (Swap)
+      // overriding the existing feature (Bridge)
+      expect(updateTransactionMock).toHaveBeenCalled();
+      const updateCallback = updateTransactionMock.mock.calls[0][1];
+      const updatedTransaction = {
+        feature: Feature.Bridge, // Simulates existing feature
+      } as TransactionMeta;
+      updateCallback(updatedTransaction);
+      // Per-transaction feature (Swap) should override existing feature (Bridge)
+      expect(updatedTransaction.feature).toBe(Feature.Swap);
+    });
+
+    it('does not set feature on existing transaction when no feature provided', async () => {
+      const publishBatchHook: jest.MockedFn<PublishBatchHook> = jest.fn();
+      const onPublish = jest.fn();
+      mockRequestApproval(MESSENGER_MOCK, {
+        state: 'approved',
+      });
+
+      const existingTransactionMock = {
+        id: TRANSACTION_ID_MOCK,
+        txParams: {
+          nonce: NONCE_MOCK,
+        },
+      } as TransactionMeta;
+
+      getTransactionMock.mockReturnValue(existingTransactionMock);
+
+      addTransactionMock.mockResolvedValueOnce({
+        transactionMeta: {
+          ...TRANSACTION_META_MOCK,
+          id: TRANSACTION_ID_2_MOCK,
+        },
+        result: Promise.resolve(''),
+      });
+
+      addTransactionBatch({
+        ...request,
+        publishBatchHook,
+        request: {
+          ...request.request,
+          // No batch-level feature
+          transactions: [
+            {
+              ...request.request.transactions[0],
+              // No per-transaction feature
+              existingTransaction: {
+                id: TRANSACTION_ID_MOCK,
+                onPublish,
+                signedTransaction: TRANSACTION_SIGNATURE_MOCK,
+              },
+            },
+            {
+              ...request.request.transactions[1],
+            },
+          ],
+          disable7702: true,
+        },
+      }).catch(() => {
+        // Intentionally empty
+      });
+
+      await flushPromises();
+
+      // Verify updateTransaction was called but feature is not set
+      expect(updateTransactionMock).toHaveBeenCalled();
+      const updateCallback = updateTransactionMock.mock.calls[0][1];
+      const updatedTransaction = {} as TransactionMeta;
+      updateCallback(updatedTransaction);
+      expect(updatedTransaction.feature).toBeUndefined();
     });
 
     it('returns provided batch ID', async () => {
