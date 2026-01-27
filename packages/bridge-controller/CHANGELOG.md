@@ -25,10 +25,6 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 - Bump `@metamask/assets-controllers` from `^96.0.0` to `^97.0.0` ([#7722](https://github.com/MetaMask/core/pull/7722))
 
-### Removed
-
-- **BREAKING:** Remove `getMinimumBalanceForRentExemptionInLamports`, `getMinimumBalanceForRentExemptionRequest`, `selectMinimumBalanceForRentExemptionInSOL`, and `minimumBalanceForRentExemptionInLamports` from state ([#7715](https://github.com/MetaMask/core/pull/7715))
-
 ## [64.8.1]
 
 ### Changed
