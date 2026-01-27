@@ -2626,6 +2626,32 @@ describe('BridgeStatusController', () => {
       expect(mockMessengerCall.mock.calls).toMatchSnapshot();
     });
 
+    it('should skip rekeying when pre-submission history is missing', async () => {
+      setupEventTrackingMocks(mockMessengerCall);
+      setupBridgeMocks(mockMessengerCall);
+
+      const { controller } = getController(mockMessengerCall);
+      const updateSpy = jest
+        .spyOn(
+          controller as unknown as {
+            update: (updater: (state: unknown) => void) => void;
+          },
+          'update',
+        )
+        .mockImplementation(() => undefined);
+
+      const { approval, ...quoteWithoutApproval } = mockEvmQuoteResponse;
+      const result = await controller.submitTx(
+        (quoteWithoutApproval.trade as TxData).from,
+        quoteWithoutApproval,
+        false,
+      );
+      controller.stopAllPolling();
+
+      expect(controller.state.txHistory[result.id]).toBeUndefined();
+      updateSpy.mockRestore();
+    });
+
     it('should handle smart transactions and include quotesReceivedContext', async () => {
       setupEventTrackingMocks(mockMessengerCall);
       setupBridgeStxMocks(mockMessengerCall);

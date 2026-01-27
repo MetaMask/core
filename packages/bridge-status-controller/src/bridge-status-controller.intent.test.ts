@@ -267,7 +267,10 @@ const loadControllerWithMocks = (): any => {
   };
 };
 
-const setup = (options?: { selectedChainId?: string }): any => {
+const setup = (options?: {
+  selectedChainId?: string;
+  approvalStatus?: TransactionStatus;
+}): any => {
   const accountAddress = '0xAccount1';
   const { messenger, transactions } = createMessengerHarness(
     accountAddress,
@@ -294,7 +297,7 @@ const setup = (options?: { selectedChainId?: string }): any => {
       const approvalTx: Tx = {
         id: 'approvalTxId1',
         type: reqOpts.type,
-        status: TransactionStatus.failed, // makes #waitForTxConfirmation throw quickly
+        status: options?.approvalStatus ?? TransactionStatus.failed,
         chainId: txParams.chainId,
         hash,
       };
@@ -408,6 +411,70 @@ describe('BridgeStatusController (intent swaps)', () => {
 
     // Optional: ensure we never called the intent API submit
     expect(submitIntentMock).not.toHaveBeenCalled();
+  });
+
+  it('submitIntent: waits for approval confirmation when approval succeeds', async () => {
+    const { controller, accountAddress, submitIntentMock } = setup({
+      approvalStatus: TransactionStatus.confirmed,
+    });
+
+    submitIntentMock.mockResolvedValue({
+      id: 'order-uid-approval-ok',
+      status: IntentOrderStatus.SUBMITTED,
+      txHash: undefined,
+      metadata: { txHashes: [] },
+    });
+
+    const quoteResponse = minimalIntentQuoteResponse({
+      approval: {
+        chainId: 1,
+        from: accountAddress,
+        to: '0x0000000000000000000000000000000000000001',
+        data: '0x',
+        value: '0x0',
+        gasLimit: 21000,
+      },
+    });
+
+    const result = await controller.submitIntent({
+      quoteResponse,
+      signature: '0xsig',
+      accountAddress,
+    });
+
+    expect(result).toBeDefined();
+    expect(submitIntentMock).toHaveBeenCalled();
+  });
+
+  it('submitIntent: logs and continues when history update fails', async () => {
+    const { controller, accountAddress, submitIntentMock, startPollingSpy } =
+      setup({ approvalStatus: TransactionStatus.confirmed });
+
+    submitIntentMock.mockResolvedValue({
+      id: 'order-uid-history-fail',
+      status: IntentOrderStatus.SUBMITTED,
+      txHash: undefined,
+      metadata: { txHashes: [] },
+    });
+
+    const consoleSpy = jest
+      .spyOn(console, 'error')
+      .mockImplementation(() => undefined);
+    jest.spyOn(controller, 'update').mockImplementation(() => {
+      throw new Error('boom');
+    });
+
+    const quoteResponse = minimalIntentQuoteResponse();
+
+    const result = await controller.submitIntent({
+      quoteResponse,
+      signature: '0xsig',
+      accountAddress,
+    });
+
+    expect(result).toBeDefined();
+    expect(startPollingSpy).not.toHaveBeenCalled();
+    expect(consoleSpy).toHaveBeenCalled();
   });
 
   it('intent polling: updates history, merges tx hashes, updates TC tx, and stops polling on COMPLETED', async () => {
