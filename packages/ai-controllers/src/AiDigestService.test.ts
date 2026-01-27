@@ -40,18 +40,26 @@ describe('AiDigestService', () => {
 
     const service = new AiDigestService({ baseUrl: 'http://test.com' });
 
-    await expect(service.fetchDigest('ethereum')).rejects.toThrow('API request failed: 500');
+    await expect(service.fetchDigest('ethereum')).rejects.toThrow(
+      'API request failed: 500',
+    );
   });
 
   it('throws on API error response', async () => {
     mockFetch.mockResolvedValue({
       ok: true,
-      json: () => Promise.resolve({ success: false, error: { message: 'Invalid asset' } }),
+      json: () =>
+        Promise.resolve({
+          success: false,
+          error: { message: 'Invalid asset' },
+        }),
     });
 
     const service = new AiDigestService({ baseUrl: 'http://test.com' });
 
-    await expect(service.fetchDigest('invalid')).rejects.toThrow('Invalid asset');
+    await expect(service.fetchDigest('invalid')).rejects.toThrow(
+      'Invalid asset',
+    );
   });
 
   it('throws default error when no message', async () => {
@@ -62,6 +70,8 @@ describe('AiDigestService', () => {
 
     const service = new AiDigestService({ baseUrl: 'http://test.com' });
 
-    await expect(service.fetchDigest('invalid')).rejects.toThrow('API returned error');
+    await expect(service.fetchDigest('invalid')).rejects.toThrow(
+      'API returned error',
+    );
   });
 });

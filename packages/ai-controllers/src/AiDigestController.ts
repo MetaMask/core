@@ -6,12 +6,16 @@ import type {
 import { BaseController } from '@metamask/base-controller';
 import type { Messenger } from '@metamask/messenger';
 
-import { controllerName, CACHE_DURATION_MS, MAX_CACHE_ENTRIES } from './ai-digest-constants';
+import {
+  controllerName,
+  CACHE_DURATION_MS,
+  MAX_CACHE_ENTRIES,
+} from './ai-digest-constants';
 import { DIGEST_STATUS } from './ai-digest-types';
 import type {
   AiDigestControllerState,
   DigestEntry,
-  IAiDigestService,
+  DigestService,
 } from './ai-digest-types';
 
 export type AiDigestControllerFetchDigestAction = {
@@ -56,7 +60,7 @@ export type AiDigestControllerMessenger = Messenger<
 export type AiDigestControllerOptions = {
   messenger: AiDigestControllerMessenger;
   state?: Partial<AiDigestControllerState>;
-  digestService: IAiDigestService;
+  digestService: DigestService;
 };
 
 export function getDefaultAiDigestControllerState(): AiDigestControllerState {
@@ -79,13 +83,9 @@ export class AiDigestController extends BaseController<
   AiDigestControllerState,
   AiDigestControllerMessenger
 > {
-  readonly #digestService: IAiDigestService;
+  readonly #digestService: DigestService;
 
-  constructor({
-    messenger,
-    state,
-    digestService,
-  }: AiDigestControllerOptions) {
+  constructor({ messenger, state, digestService }: AiDigestControllerOptions) {
     super({
       name: controllerName,
       metadata: aiDigestControllerMetadata,
@@ -179,6 +179,8 @@ export class AiDigestController extends BaseController<
 
   /**
    * Evicts stale (TTL expired) and oldest entries (FIFO) if cache exceeds max size.
+   *
+   * @param state - The current controller state to evict entries from.
    */
   #evictStaleEntries(state: AiDigestControllerState): void {
     const now = Date.now();

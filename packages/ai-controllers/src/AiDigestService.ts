@@ -1,5 +1,5 @@
 import { AiDigestControllerErrorMessage } from './ai-digest-constants';
-import type { IAiDigestService, DigestData } from './ai-digest-types';
+import type { DigestService, DigestData } from './ai-digest-types';
 
 export type AiDigestServiceConfig = {
   baseUrl: string;
@@ -11,7 +11,7 @@ type ApiResponse = {
   error?: { message?: string };
 };
 
-export class AiDigestService implements IAiDigestService {
+export class AiDigestService implements DigestService {
   readonly #baseUrl: string;
 
   constructor(config: AiDigestServiceConfig) {

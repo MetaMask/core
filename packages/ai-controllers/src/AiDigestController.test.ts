@@ -15,7 +15,9 @@ const mockData = {
 };
 
 const createMessenger = (): AiDigestControllerMessenger => {
-  return new Messenger({ namespace: 'AiDigestController' }) as AiDigestControllerMessenger;
+  return new Messenger({
+    namespace: 'AiDigestController',
+  }) as AiDigestControllerMessenger;
 };
 
 describe('AiDigestController', () => {
@@ -34,7 +36,7 @@ describe('AiDigestController', () => {
 
     expect(result.status).toBe(DIGEST_STATUS.SUCCESS);
     expect(result.data).toStrictEqual(mockData);
-    expect(controller.state.digests['ethereum']).toBeDefined();
+    expect(controller.state.digests.ethereum).toBeDefined();
   });
 
   it('returns cached digest on subsequent calls', async () => {
@@ -67,7 +69,9 @@ describe('AiDigestController', () => {
   });
 
   it('handles fetch errors', async () => {
-    const mockService = { fetchDigest: jest.fn().mockRejectedValue(new Error('Network error')) };
+    const mockService = {
+      fetchDigest: jest.fn().mockRejectedValue(new Error('Network error')),
+    };
     const controller = new AiDigestController({
       messenger: createMessenger(),
       digestService: mockService,
@@ -80,7 +84,9 @@ describe('AiDigestController', () => {
   });
 
   it('handles non-Error throws', async () => {
-    const mockService = { fetchDigest: jest.fn().mockRejectedValue('string error') };
+    const mockService = {
+      fetchDigest: jest.fn().mockRejectedValue('string error'),
+    };
     const controller = new AiDigestController({
       messenger: createMessenger(),
       digestService: mockService,
@@ -102,7 +108,7 @@ describe('AiDigestController', () => {
     await controller.fetchDigest('ethereum');
     controller.clearDigest('ethereum');
 
-    expect(controller.state.digests['ethereum']).toBeUndefined();
+    expect(controller.state.digests.ethereum).toBeUndefined();
   });
 
   it('clears all digests', async () => {
@@ -131,8 +137,8 @@ describe('AiDigestController', () => {
     jest.advanceTimersByTime(CACHE_DURATION_MS + 1);
     await controller.fetchDigest('bitcoin');
 
-    expect(controller.state.digests['ethereum']).toBeUndefined();
-    expect(controller.state.digests['bitcoin']).toBeDefined();
+    expect(controller.state.digests.ethereum).toBeUndefined();
+    expect(controller.state.digests.bitcoin).toBeDefined();
     jest.useRealTimers();
   });
 
@@ -147,23 +153,30 @@ describe('AiDigestController', () => {
       await controller.fetchDigest(`asset${i}`);
     }
 
-    expect(Object.keys(controller.state.digests).length).toBe(MAX_CACHE_ENTRIES);
-    expect(controller.state.digests['asset0']).toBeUndefined();
+    expect(Object.keys(controller.state.digests)).toHaveLength(
+      MAX_CACHE_ENTRIES,
+    );
+    expect(controller.state.digests.asset0).toBeUndefined();
   });
 
   it('registers action handlers', async () => {
     const mockService = { fetchDigest: jest.fn().mockResolvedValue(mockData) };
     const messenger = createMessenger();
-    new AiDigestController({
+    const controller = new AiDigestController({
       messenger,
       digestService: mockService,
     });
 
-    const result = await messenger.call('AiDigestController:fetchDigest', 'ethereum');
+    const result = await messenger.call(
+      'AiDigestController:fetchDigest',
+      'ethereum',
+    );
     expect(result.status).toBe(DIGEST_STATUS.SUCCESS);
 
     messenger.call('AiDigestController:clearDigest', 'ethereum');
     messenger.call('AiDigestController:clearAllDigests');
+
+    expect(controller.state.digests).toStrictEqual({});
   });
 
   it('uses expected cache constants', () => {

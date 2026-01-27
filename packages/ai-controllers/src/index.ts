@@ -21,8 +21,8 @@ export type {
   AiDigestControllerState,
   DigestData,
   DigestEntry,
+  DigestService,
   DigestStatus,
-  IAiDigestService,
 } from './ai-digest-types';
 export { DIGEST_STATUS } from './ai-digest-types';
 

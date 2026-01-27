@@ -23,6 +23,6 @@ export type AiDigestControllerState = {
   digests: Record<string, DigestEntry>;
 };
 
-export interface IAiDigestService {
+export type DigestService = {
   fetchDigest(assetId: string): Promise<DigestData>;
-}
+};
