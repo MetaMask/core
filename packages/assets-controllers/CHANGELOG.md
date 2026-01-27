@@ -7,6 +7,10 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+### Added
+
+- Add `DEFAULT_SUPPORTED_NFT_DETECTION_NETWORKS` constant and configurable `supportedNetworks` parameter to `NftDetectionController` constructor ([#7730](https://github.com/MetaMask/core/pull/7730))
+
 ### Changed
 
 - **BREAKING:** `TokenListController` now persists `tokensChainsCache` via `StorageService` and requires clients to call `initialize()` after construction ([#7413](https://github.com/MetaMask/core/pull/7413))
@@ -15,6 +19,8 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
   - `tokensChainsCache` state metadata now has `persist: false` to prevent duplicate persistence
   - Clients must call `await controller.initialize()` before using the controller
   - State changes are automatically persisted via debounced subscription
+- Expand NFT auto-detection support from Ethereum, Linea, Sei, and Monad to all supported chains (Mainnet, BSC, Polygon, Avalanche, Linea, Base, Sei, Monad) ([#7730](https://github.com/MetaMask/core/pull/7730))
+- Increase NFT API batch limit from 50 to 100 to fetch more NFTs per request ([#7730](https://github.com/MetaMask/core/pull/7730))
 
 ## [97.0.0]
 
