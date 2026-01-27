@@ -14,6 +14,7 @@ import {
   parseCaipChainId,
 } from '@metamask/utils';
 import type { Hex } from '@metamask/utils';
+import BigNumberJS from 'bignumber.js';
 
 import type { SubscriptionRequest } from './AbstractDataSource';
 import {
@@ -38,6 +39,7 @@ import type {
   ChainId,
   Caip19AssetId,
   AssetBalance,
+  AssetMetadata,
   DataRequest,
   DataResponse,
   Middleware,
@@ -176,6 +178,7 @@ type AssetsControllerGetStateAction = {
     allTokens: Record<string, Record<string, { address: string }[]>>;
     allDetectedTokens: Record<string, Record<string, { address: string }[]>>;
     allIgnoredTokens: Record<string, Record<string, string[]>>;
+    assetsMetadata: Record<Caip19AssetId, AssetMetadata>;
   };
 };
 
@@ -347,7 +350,7 @@ export class RpcDataSource extends BaseController<
     const getUserTokensState = (): UserTokensState => {
       return this.messenger.call(
         'AssetsController:getState',
-      ) as UserTokensState;
+      ) as unknown as UserTokensState;
     };
 
     // Initialize BalanceFetcher with polling interval
@@ -380,10 +383,58 @@ export class RpcDataSource extends BaseController<
    */
   #handleBalanceUpdate(result: BalanceFetchResult): void {
     const accountBalances: Record<string, { amount: string }> = {};
+    const assetsMetadata: Record<Caip19AssetId, AssetMetadata> = {};
 
+    // Get existing metadata from AssetsController state for ERC20 tokens
+    const existingMetadata = this.#getExistingAssetsMetadata();
+
+    // First pass: collect all metadata
     for (const balance of result.balances) {
+      const isNative = balance.assetId.includes('/slip44:');
+      if (isNative) {
+        const chainIdDecimal = parseInt(result.chainId, 16);
+        const caipChainId = `eip155:${chainIdDecimal}` as ChainId;
+        const chainStatus = this.#chainStatuses[caipChainId];
+
+        if (chainStatus) {
+          assetsMetadata[balance.assetId] = {
+            type: 'native',
+            symbol: chainStatus.nativeCurrency,
+            name: chainStatus.nativeCurrency,
+            decimals: 18,
+          };
+        }
+      } else {
+        // For ERC20 tokens, try existing metadata from state first
+        const existingMeta = existingMetadata[balance.assetId];
+
+        if (existingMeta) {
+          assetsMetadata[balance.assetId] = existingMeta;
+        } else {
+          // Fallback to token list if not in state
+          const tokenListMeta = this.#getTokenMetadataFromTokenList(
+            balance.assetId,
+          );
+          if (tokenListMeta) {
+            assetsMetadata[balance.assetId] = tokenListMeta;
+          }
+        }
+      }
+    }
+
+    // Second pass: convert balances to human-readable format using metadata
+    for (const balance of result.balances) {
+      const metadata = assetsMetadata[balance.assetId];
+      let humanReadableAmount = balance.balance;
+
+      if (metadata?.decimals !== undefined) {
+        const rawAmount = new BigNumberJS(balance.balance);
+        const divisor = new BigNumberJS(10).pow(metadata.decimals);
+        humanReadableAmount = rawAmount.dividedBy(divisor).toString();
+      }
+
       accountBalances[balance.assetId] = {
-        amount: balance.balance,
+        amount: humanReadableAmount,
       };
     }
 
@@ -392,6 +443,18 @@ export class RpcDataSource extends BaseController<
         [result.accountId]: accountBalances,
       },
     };
+
+    // Include metadata if we have any
+    if (Object.keys(assetsMetadata).length > 0) {
+      response.assetsMetadata = assetsMetadata;
+    }
+
+    log('Balance update response', {
+      accountId: result.accountId,
+      balanceAssetIds: Object.keys(accountBalances),
+      metadataAssetIds: Object.keys(assetsMetadata),
+      metadataCount: Object.keys(assetsMetadata).length,
+    });
 
     this.messenger
       .call('AssetsController:assetsUpdate', response, CONTROLLER_NAME)
@@ -416,14 +479,43 @@ export class RpcDataSource extends BaseController<
       },
     };
 
-    // Add balances for detected tokens
+    // Include metadata from detected assets (extracted from token list by TokenDetector)
+    if (result.detectedAssets.length > 0) {
+      response.assetsMetadata = {};
+      for (const asset of result.detectedAssets) {
+        // Only include if we have metadata (symbol and decimals at minimum)
+        if (asset.symbol && asset.decimals !== undefined) {
+          response.assetsMetadata[asset.assetId] = {
+            type: 'erc20',
+            symbol: asset.symbol,
+            name: asset.name ?? asset.symbol,
+            decimals: asset.decimals,
+            image: asset.image,
+          };
+        }
+      }
+    }
+
+    // Add balances for detected tokens (converted to human-readable format)
     if (result.detectedBalances.length > 0) {
       response.assetsBalance = {
         [result.accountId]: {},
       };
       for (const balance of result.detectedBalances) {
+        // Get decimals from the detected asset metadata
+        const detectedAsset = result.detectedAssets.find(
+          (asset) => asset.assetId === balance.assetId,
+        );
+        let humanReadableAmount = balance.balance;
+
+        if (detectedAsset?.decimals !== undefined) {
+          const rawAmount = new BigNumberJS(balance.balance);
+          const divisor = new BigNumberJS(10).pow(detectedAsset.decimals);
+          humanReadableAmount = rawAmount.dividedBy(divisor).toString();
+        }
+
         response.assetsBalance[result.accountId][balance.assetId] = {
-          amount: balance.balance,
+          amount: humanReadableAmount,
         };
       }
     }
@@ -749,6 +841,7 @@ export class RpcDataSource extends BaseController<
       string,
       Record<Caip19AssetId, AssetBalance>
     > = {};
+    const assetsMetadata: Record<Caip19AssetId, AssetMetadata> = {};
     const failedChains: ChainId[] = [];
 
     // Fetch balances for each chain using BalanceFetcher
@@ -776,10 +869,54 @@ export class RpcDataSource extends BaseController<
             assetsBalance[accountId] = {};
           }
 
-          // Convert balances to response format
+          // Get existing metadata from state for ERC20 tokens
+          const existingMetadata = this.#getExistingAssetsMetadata();
+
+          // First pass: collect metadata for all balances
           for (const balance of result.balances) {
+            const isNative = balance.assetId.includes('/slip44:');
+            if (isNative) {
+              const chainStatus = this.#chainStatuses[chainId];
+
+              if (chainStatus) {
+                assetsMetadata[balance.assetId] = {
+                  type: 'native',
+                  symbol: chainStatus.nativeCurrency,
+                  name: chainStatus.nativeCurrency,
+                  decimals: 18,
+                };
+              }
+            } else {
+              // For ERC20 tokens, try existing metadata from state first
+              const existingMeta = existingMetadata[balance.assetId];
+
+              if (existingMeta) {
+                assetsMetadata[balance.assetId] = existingMeta;
+              } else {
+                // Fallback to token list if not in state
+                const tokenListMeta = this.#getTokenMetadataFromTokenList(
+                  balance.assetId,
+                );
+                if (tokenListMeta) {
+                  assetsMetadata[balance.assetId] = tokenListMeta;
+                }
+              }
+            }
+          }
+
+          // Second pass: convert balances to human-readable format
+          for (const balance of result.balances) {
+            const metadata = assetsMetadata[balance.assetId];
+            let humanReadableAmount = balance.balance;
+
+            if (metadata?.decimals !== undefined) {
+              const rawAmount = new BigNumberJS(balance.balance);
+              const divisor = new BigNumberJS(10).pow(metadata.decimals);
+              humanReadableAmount = rawAmount.dividedBy(divisor).toString();
+            }
+
             assetsBalance[accountId][balance.assetId] = {
-              amount: balance.balance,
+              amount: humanReadableAmount,
             };
           }
         } catch (error) {
@@ -790,6 +927,17 @@ export class RpcDataSource extends BaseController<
           }
           const nativeAssetId = this.#buildNativeAssetId(chainId);
           assetsBalance[accountId][nativeAssetId] = { amount: '0' };
+
+          // Even on error, include native token metadata
+          const chainStatus = this.#chainStatuses[chainId];
+          if (chainStatus) {
+            assetsMetadata[nativeAssetId] = {
+              type: 'native',
+              symbol: chainStatus.nativeCurrency,
+              name: chainStatus.nativeCurrency,
+              decimals: 18,
+            };
+          }
 
           if (!failedChains.includes(chainId)) {
             failedChains.push(chainId);
@@ -818,6 +966,11 @@ export class RpcDataSource extends BaseController<
     }
 
     response.assetsBalance = assetsBalance;
+
+    // Include metadata for native tokens if we have any
+    if (Object.keys(assetsMetadata).length > 0) {
+      response.assetsMetadata = assetsMetadata;
+    }
 
     return response;
   }
@@ -921,6 +1074,14 @@ export class RpcDataSource extends BaseController<
             ...accountBalances,
           };
         }
+      }
+
+      if (response.assetsMetadata) {
+        context.response.assetsMetadata ??= {};
+        context.response.assetsMetadata = {
+          ...context.response.assetsMetadata,
+          ...response.assetsMetadata,
+        };
       }
 
       const failedChains = new Set(Object.keys(response.errors ?? {}));
@@ -1077,6 +1238,85 @@ export class RpcDataSource extends BaseController<
 
     return (nativeAssetIdentifiers[chainId] ??
       `${chainId}/slip44:60`) as Caip19AssetId;
+  }
+
+  /**
+   * Get existing assets metadata from AssetsController state.
+   * Used to include metadata for ERC20 tokens when returning balance updates.
+   *
+   * @returns Record of asset IDs to their metadata.
+   */
+  #getExistingAssetsMetadata(): Record<Caip19AssetId, AssetMetadata> {
+    try {
+      const state = this.messenger.call('AssetsController:getState');
+      return (state.assetsMetadata ?? {}) as unknown as Record<
+        Caip19AssetId,
+        AssetMetadata
+      >;
+    } catch {
+      // If AssetsController:getState fails, return empty metadata
+      return {};
+    }
+  }
+
+  /**
+   * Get token metadata from TokenListController for an ERC20 token.
+   * Used as a fallback when metadata is not in AssetsController state.
+   *
+   * @param assetId - The CAIP-19 asset ID (e.g., "eip155:1/erc20:0x...")
+   * @returns Token metadata if found in token list, undefined otherwise.
+   */
+  #getTokenMetadataFromTokenList(
+    assetId: Caip19AssetId,
+  ): AssetMetadata | undefined {
+    try {
+      // Parse asset ID to get chain and token address
+      // Format: eip155:{chainId}/erc20:{address}
+      const [chainPart, assetPart] = assetId.split('/');
+      if (!assetPart?.startsWith('erc20:')) {
+        return undefined;
+      }
+
+      const tokenAddress = assetPart.slice(6); // Remove 'erc20:' prefix
+      const chainIdDecimal = chainPart.split(':')[1];
+      const hexChainId = `0x${parseInt(chainIdDecimal, 10).toString(16)}`;
+
+      const tokenListState = this.messenger.call(
+        'TokenListController:getState',
+      );
+      const chainCacheEntry = tokenListState.tokensChainsCache[hexChainId];
+      const chainTokenList = chainCacheEntry?.data;
+
+      if (!chainTokenList) {
+        return undefined;
+      }
+
+      // Look up token by address (case-insensitive)
+      const lowerAddress = tokenAddress.toLowerCase();
+      for (const [address, tokenData] of Object.entries(chainTokenList)) {
+        if (address.toLowerCase() === lowerAddress) {
+          const token = tokenData as {
+            symbol?: string;
+            name?: string;
+            decimals?: number;
+            iconUrl?: string;
+          };
+          if (token.symbol && token.decimals !== undefined) {
+            return {
+              type: 'erc20',
+              symbol: token.symbol,
+              name: token.name ?? token.symbol,
+              decimals: token.decimals,
+              image: token.iconUrl,
+            };
+          }
+        }
+      }
+
+      return undefined;
+    } catch {
+      return undefined;
+    }
   }
 
   /**
