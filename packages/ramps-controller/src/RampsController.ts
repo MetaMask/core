@@ -672,12 +672,23 @@ export class RampsController extends BaseController<
       );
     }
 
-    const provider = providers.find((provider) => provider.id === providerId);
+    const provider = providers.find((prov) => prov.id === providerId);
     if (!provider) {
       throw new Error(
         `Provider with ID "${providerId}" not found in available providers.`,
       );
     }
+
+    this.update((state) => {
+      state.selectedProvider = provider;
+    });
+
+    // fetch payment methods for the the new provider
+    // this is needed because you can change providers without changing the token
+    // (getPaymentMethods will use state as its default)
+    this.triggerGetPaymentMethods(regionCode, {
+      provider: provider.id,
+    });
   }
 
   /**
@@ -733,7 +744,7 @@ export class RampsController extends BaseController<
       async () => {
         return this.messenger.call('RampsService:getCountries');
       },
-      options
+      { ttl: 24 * 60 * 60 * 1000, ...options },
     );
 
     this.update((state) => {
@@ -829,8 +840,8 @@ export class RampsController extends BaseController<
     }
 
     const token =
-      tokens.allTokens.find((t) => t.assetId === assetId) ??
-      tokens.topTokens.find((t) => t.assetId === assetId);
+      tokens.allTokens.find((tok) => tok.assetId === assetId) ??
+      tokens.topTokens.find((tok) => tok.assetId === assetId);
 
     if (!token) {
       throw new Error(
@@ -1024,7 +1035,9 @@ export class RampsController extends BaseController<
       );
     }
 
-    const paymentMethod = paymentMethods.find((p) => p.id === paymentMethodId);
+    const paymentMethod = paymentMethods.find(
+      (pm) => pm.id === paymentMethodId,
+    );
     if (!paymentMethod) {
       throw new Error(
         `Payment method with ID "${paymentMethodId}" not found in available payment methods.`,

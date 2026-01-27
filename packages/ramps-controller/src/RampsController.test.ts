@@ -431,7 +431,6 @@ describe('RampsController', () => {
             "countries": Array [],
             "providers": Array [],
             "selectedProvider": null,
-            "selectedToken": null,
             "tokens": null,
             "userRegion": null,
           }
@@ -1038,7 +1037,7 @@ describe('RampsController', () => {
       });
     });
 
-    it('makes fresh request each time (caching disabled)', async () => {
+    it('caches countries for 24 hours', async () => {
       await withController(async ({ controller, rootMessenger }) => {
         let callCount = 0;
         rootMessenger.registerActionHandler(
@@ -1052,7 +1051,7 @@ describe('RampsController', () => {
         await controller.getCountries();
         await controller.getCountries();
 
-        expect(callCount).toBe(2);
+        expect(callCount).toBe(1);
       });
     });
   });
@@ -3156,7 +3155,9 @@ describe('RampsController', () => {
         async ({ controller, rootMessenger }) => {
           let resolveTokenARequest: (value: {
             payments: PaymentMethod[];
-          }) => void;
+          }) => void = () => {
+            // Will be replaced by Promise constructor
+          };
           const tokenARequestPromise = new Promise<{
             payments: PaymentMethod[];
           }>((resolve) => {
@@ -3185,7 +3186,7 @@ describe('RampsController', () => {
           controller.setSelectedToken(tokenB.assetId);
           await new Promise((resolve) => setTimeout(resolve, 10));
 
-          resolveTokenARequest!({ payments: paymentMethodsForTokenA });
+          resolveTokenARequest({ payments: paymentMethodsForTokenA });
           await tokenAPaymentMethodsPromise;
 
           expect(controller.state.selectedToken).toStrictEqual(tokenB);
@@ -3263,7 +3264,9 @@ describe('RampsController', () => {
         async ({ controller, rootMessenger }) => {
           let resolveProviderARequest: (value: {
             payments: PaymentMethod[];
-          }) => void;
+          }) => void = () => {
+            // Will be replaced by Promise constructor
+          };
           const providerARequestPromise = new Promise<{
             payments: PaymentMethod[];
           }>((resolve) => {
@@ -3292,7 +3295,7 @@ describe('RampsController', () => {
           controller.setSelectedProvider(providerB.id);
           await new Promise((resolve) => setTimeout(resolve, 10));
 
-          resolveProviderARequest!({ payments: paymentMethodsForProviderA });
+          resolveProviderARequest({ payments: paymentMethodsForProviderA });
           await providerAPaymentMethodsPromise;
 
           expect(controller.state.selectedProvider).toStrictEqual(providerB);
