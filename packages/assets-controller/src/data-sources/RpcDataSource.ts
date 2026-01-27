@@ -20,11 +20,11 @@ import {
   BalanceFetcher,
   MulticallClient,
   TokenDetector,
-} from './rpc-datasource';
+} from './evm-rpc-services';
 import type {
   BalancePollingInput,
   DetectionPollingInput,
-} from './rpc-datasource';
+} from './evm-rpc-services';
 import type {
   Address,
   Provider as RpcProvider,
@@ -32,7 +32,7 @@ import type {
   UserTokensState,
   BalanceFetchResult,
   TokenDetectionResult,
-} from './rpc-datasource';
+} from './evm-rpc-services';
 import { projectLogger, createModuleLogger } from '../logger';
 import type {
   ChainId,
