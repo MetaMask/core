@@ -9,6 +9,17 @@ import type {
 } from '.';
 import { createWalletMiddleware } from '.';
 import { createHandleParams, createRequest } from '../test/util/helpers';
+import { JsonRpcEngine } from '@metamask/json-rpc-engine';
+
+const DANGEROUS_PROTOTYPE_PROPERTIES = [
+  '__proto__',
+  'constructor',
+  'prototype',
+  '__defineGetter__',
+  '__defineSetter__',
+  '__lookupGetter__',
+  '__lookupSetter__',
+] as const;
 
 const testAddresses = [
   '0xbe93f9bacbcffc8ee6663f2647917ed7a20a57bb',
@@ -20,6 +31,14 @@ const testTxHash =
 const testMsgSig =
   '0x68dc980608bceb5f99f691e62c32caccaee05317309015e9454eba1a14c3cd4505d1dd098b8339801239c9bcaac3c4df95569dcf307108b92f68711379be14d81c';
 
+function createTestSetup() {
+  const getAccounts = async (): Promise<never[]> => [];
+  const engine = JsonRpcEngineV2.create({
+    middleware: [createWalletMiddleware({ getAccounts })],
+  });
+  return { engine };
+}
+  
 describe('wallet', () => {
   describe('accounts', () => {
     it('returns null for coinbase when no accounts', async () => {
@@ -901,6 +920,106 @@ describe('wallet', () => {
       );
       expect(ecrecoverResult).toBeDefined();
       expect(ecrecoverResult).toStrictEqual(signParams.addressHex);
+    });
+  });
+
+  describe('prototype pollution validation', () => {
+    describe('signTypedData (V1)', () => {
+      DANGEROUS_PROTOTYPE_PROPERTIES.forEach((dangerousProperty) => {
+        it(`should throw if value contains nested ${dangerousProperty}`, async () => {
+          const getAccounts = async () => testAddresses.slice();
+          const processTypedMessage = async () => testMsgSig;
+          const engine = JsonRpcEngineV2.create({
+            middleware: [createWalletMiddleware({ getAccounts, processTypedMessage })],
+          });
+
+          const value = {};
+          Object.defineProperty(value, dangerousProperty, {
+            value: 'malicious',
+            enumerable: true,
+          });
+          const message = [{ type: 'object', name: 'data', value }];
+          const payload = {
+            method: 'eth_signTypedData',
+            params: [message, testAddresses[0]],
+          };
+
+          await expect(
+            engine.handle(...createHandleParams(payload)),
+          ).rejects.toThrow('Invalid input.');
+        });
+      });
+    });
+
+    describe('signTypedDataV3', () => {
+      DANGEROUS_PROTOTYPE_PROPERTIES.forEach((dangerousProperty) => {
+        it(`should throw if message contains ${dangerousProperty}`, async () => {
+          const getAccounts = async () => testAddresses.slice();
+          const processTypedMessageV3 = async () => testMsgSig;
+          const engine = JsonRpcEngineV2.create({
+            middleware: [createWalletMiddleware({ getAccounts, processTypedMessageV3 })],
+          });
+    
+          const msgObj = {};
+          Object.defineProperty(msgObj, dangerousProperty, {
+            value: 'malicious',
+            enumerable: true,
+          });
+          const message = {
+            types: {
+              EIP712Domain: [{ name: 'name', type: 'string' }],
+            },
+            primaryType: 'EIP712Domain',
+            domain: {},
+            message: msgObj,
+          };
+
+          const payload = {
+            method: 'eth_signTypedData_v3',
+            params: [testAddresses[0], JSON.stringify(message)],
+          };
+
+          await expect(
+            engine.handle(...createHandleParams(payload)),
+          ).rejects.toThrow('Invalid input.');
+        });
+      });
+    });
+
+    describe('signTypedDataV4', () => {
+      DANGEROUS_PROTOTYPE_PROPERTIES.forEach((dangerousProperty) => {
+        it(`should throw if message contains ${dangerousProperty}`, async () => {
+          const getAccounts = async () => testAddresses.slice();
+          const processTypedMessageV4 = async () => testMsgSig;
+          const engine = JsonRpcEngineV2.create({
+            middleware: [createWalletMiddleware({ getAccounts, processTypedMessageV4 })],
+          });
+
+          const msgObj = {};
+          Object.defineProperty(msgObj, dangerousProperty, {
+            value: 'malicious',
+            enumerable: true,
+          });
+          const message = {
+            types: {
+              EIP712Domain: [{ name: 'name', type: 'string' }],
+              Permit: [{ name: 'owner', type: 'address' }],
+            },
+            primaryType: 'Permit',
+            domain: {},
+            message: msgObj,
+          };
+
+          const payload = {
+            method: 'eth_signTypedData_v4',
+            params: [testAddresses[0], JSON.stringify(message)],
+          };
+
+          await expect(
+            engine.handle(...createHandleParams(payload)),
+          ).rejects.toThrow('Invalid input.');
+        });
+      });
     });
   });
 });
