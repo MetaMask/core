@@ -1295,6 +1295,21 @@ describe('RampsController', () => {
         icon: 'card',
       };
 
+      const mockSelectedProvider: Provider = {
+        id: '/providers/test',
+        name: 'Test Provider',
+        environmentType: 'STAGING',
+        description: 'Test',
+        hqAddress: '123 Test St',
+        links: [],
+        logos: {
+          light: '/assets/test_light.png',
+          dark: '/assets/test_dark.png',
+          height: 24,
+          width: 77,
+        },
+      };
+
       await withController(
         {
           options: {
@@ -1308,22 +1323,7 @@ describe('RampsController', () => {
             topTokens: [],
             allTokens: [],
           };
-          const mockProviders: Provider[] = [
-            {
-              id: '/providers/test',
-              name: 'Test Provider',
-              environmentType: 'STAGING',
-              description: 'Test',
-              hqAddress: '123 Test St',
-              links: [],
-              logos: {
-                light: '/assets/test_light.png',
-                dark: '/assets/test_dark.png',
-                height: 24,
-                width: 77,
-              },
-            },
-          ];
+          const mockProviders: Provider[] = [mockSelectedProvider];
 
           rootMessenger.registerActionHandler(
             'RampsService:getTokens',
@@ -1341,10 +1341,7 @@ describe('RampsController', () => {
 
           await controller.setUserRegion('US-ca');
           await new Promise((resolve) => setTimeout(resolve, 50));
-          await controller.getPaymentMethods('us-ca', {
-            assetId: 'eip155:1/slip44:60',
-            provider: '/providers/test',
-          });
+          await controller.getPaymentMethods('us-ca');
           controller.setSelectedPaymentMethod(mockPaymentMethod.id);
 
           expect(controller.state.tokens).toStrictEqual(mockTokens);
@@ -2667,6 +2664,31 @@ describe('RampsController', () => {
       payments: [mockPaymentMethod1, mockPaymentMethod2],
     };
 
+    const mockSelectedToken: RampsToken = {
+      assetId: 'eip155:1/slip44:60',
+      chainId: 'eip155:1',
+      name: 'Ethereum',
+      symbol: 'ETH',
+      decimals: 18,
+      iconUrl: 'https://example.com/eth.png',
+      tokenSupported: true,
+    };
+
+    const mockSelectedProvider: Provider = {
+      id: '/providers/stripe',
+      name: 'Stripe',
+      environmentType: 'PRODUCTION',
+      description: 'Stripe payment provider',
+      hqAddress: '123 Test St',
+      links: [],
+      logos: {
+        light: '/assets/stripe_light.png',
+        dark: '/assets/stripe_dark.png',
+        height: 24,
+        width: 77,
+      },
+    };
+
     it('preserves selectedPaymentMethod when it exists in the new payment methods list', async () => {
       await withController(
         {
@@ -2675,6 +2697,8 @@ describe('RampsController', () => {
               userRegion: createMockUserRegion('us-ca'),
               selectedPaymentMethod: mockPaymentMethod1,
               paymentMethods: [mockPaymentMethod1, mockPaymentMethod2],
+              selectedToken: mockSelectedToken,
+              selectedProvider: mockSelectedProvider,
             },
           },
         },
@@ -2693,7 +2717,6 @@ describe('RampsController', () => {
             provider: '/providers/stripe',
           });
 
-          // selectedPaymentMethod should be preserved when it exists in the new list
           expect(controller.state.selectedPaymentMethod).toStrictEqual(
             mockPaymentMethod1,
           );
@@ -2721,6 +2744,8 @@ describe('RampsController', () => {
               userRegion: createMockUserRegion('us-ca'),
               selectedPaymentMethod: removedPaymentMethod,
               paymentMethods: [removedPaymentMethod],
+              selectedToken: mockSelectedToken,
+              selectedProvider: mockSelectedProvider,
             },
           },
         },
@@ -2758,6 +2783,8 @@ describe('RampsController', () => {
               userRegion: createMockUserRegion('us-ca'),
               selectedPaymentMethod: null,
               paymentMethods: [],
+              selectedToken: mockSelectedToken,
+              selectedProvider: mockSelectedProvider,
             },
           },
         },
@@ -2791,6 +2818,8 @@ describe('RampsController', () => {
           options: {
             state: {
               userRegion: createMockUserRegion('us-ca'),
+              selectedToken: mockSelectedToken,
+              selectedProvider: mockSelectedProvider,
             },
           },
         },
@@ -3027,6 +3056,8 @@ describe('RampsController', () => {
               userRegion: createMockUserRegion('us-ca'),
               selectedPaymentMethod: removedPaymentMethod,
               paymentMethods: [removedPaymentMethod],
+              selectedToken: mockSelectedToken,
+              selectedProvider: mockSelectedProvider,
             },
           },
         },
@@ -3470,12 +3501,39 @@ describe('RampsController', () => {
       payments: [mockPaymentMethod],
     };
 
+    const mockSelectedToken: RampsToken = {
+      assetId: 'eip155:1/slip44:60',
+      chainId: 'eip155:1',
+      name: 'Ethereum',
+      symbol: 'ETH',
+      decimals: 18,
+      iconUrl: 'https://example.com/eth.png',
+      tokenSupported: true,
+    };
+
+    const mockSelectedProvider: Provider = {
+      id: '/providers/stripe',
+      name: 'Stripe',
+      environmentType: 'PRODUCTION',
+      description: 'Stripe payment provider',
+      hqAddress: '123 Test St',
+      links: [],
+      logos: {
+        light: '/assets/stripe_light.png',
+        dark: '/assets/stripe_dark.png',
+        height: 24,
+        width: 77,
+      },
+    };
+
     it('calls getPaymentMethods without throwing', async () => {
       await withController(
         {
           options: {
             state: {
               userRegion: createMockUserRegion('us-ca'),
+              selectedToken: mockSelectedToken,
+              selectedProvider: mockSelectedProvider,
             },
           },
         },

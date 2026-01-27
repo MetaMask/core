@@ -995,9 +995,8 @@ export class RampsController extends BaseController<
       const currentAssetId = state.selectedToken?.assetId ?? '';
       const currentProviderId = state.selectedProvider?.id ?? '';
 
-      const tokenSelectionUnchanged = selectedTokenAtStart === currentAssetId;
-      const providerSelectionUnchanged =
-        selectedProviderAtStart === currentProviderId;
+      const tokenSelectionUnchanged = assetIdToUse === currentAssetId;
+      const providerSelectionUnchanged = providerToUse === currentProviderId;
 
       if (tokenSelectionUnchanged && providerSelectionUnchanged) {
         state.paymentMethods = response.payments;
