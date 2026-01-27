@@ -9,7 +9,7 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ### Added
 
-- Add `getAccountContext` method and `AccountTreeController:getAccountContext` action ([#TODO](https://github.com/MetaMask/core/pull/TODO))
+- Add `getAccountContext` method and `AccountTreeController:getAccountContext` action ([#7741](https://github.com/MetaMask/core/pull/7741))
   - This can be used to map an account back to its position (wallet, group) in the account tree.
 
 ### Changed
