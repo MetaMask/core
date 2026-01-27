@@ -29,7 +29,7 @@ const testTxHash =
   '0xceb3240213640d89419829f3e8011d015af7a7ab3b54c14fdf125620ce5b8697';
 const testMsgSig =
   '0x68dc980608bceb5f99f691e62c32caccaee05317309015e9454eba1a14c3cd4505d1dd098b8339801239c9bcaac3c4df95569dcf307108b92f68711379be14d81c';
-  
+
 describe('wallet', () => {
   describe('accounts', () => {
     it('returns null for coinbase when no accounts', async () => {
@@ -918,10 +918,13 @@ describe('wallet', () => {
     describe('signTypedData (V1)', () => {
       DANGEROUS_PROTOTYPE_PROPERTIES.forEach((dangerousProperty) => {
         it(`should throw if value contains nested ${dangerousProperty}`, async () => {
-          const getAccounts = async () => testAddresses.slice();
-          const processTypedMessage = async () => testMsgSig;
+          const getAccounts = async (): Promise<string[]> =>
+            testAddresses.slice();
+          const processTypedMessage = async (): Promise<string> => testMsgSig;
           const engine = JsonRpcEngineV2.create({
-            middleware: [createWalletMiddleware({ getAccounts, processTypedMessage })],
+            middleware: [
+              createWalletMiddleware({ getAccounts, processTypedMessage }),
+            ],
           });
 
           const value = {};
@@ -945,12 +948,15 @@ describe('wallet', () => {
     describe('signTypedDataV3', () => {
       DANGEROUS_PROTOTYPE_PROPERTIES.forEach((dangerousProperty) => {
         it(`should throw if message contains ${dangerousProperty}`, async () => {
-          const getAccounts = async () => testAddresses.slice();
-          const processTypedMessageV3 = async () => testMsgSig;
+          const getAccounts = async (): Promise<string[]> =>
+            testAddresses.slice();
+          const processTypedMessageV3 = async (): Promise<string> => testMsgSig;
           const engine = JsonRpcEngineV2.create({
-            middleware: [createWalletMiddleware({ getAccounts, processTypedMessageV3 })],
+            middleware: [
+              createWalletMiddleware({ getAccounts, processTypedMessageV3 }),
+            ],
           });
-    
+
           const msgObj = {};
           Object.defineProperty(msgObj, dangerousProperty, {
             value: 'malicious',
@@ -980,10 +986,13 @@ describe('wallet', () => {
     describe('signTypedDataV4', () => {
       DANGEROUS_PROTOTYPE_PROPERTIES.forEach((dangerousProperty) => {
         it(`should throw if message contains ${dangerousProperty}`, async () => {
-          const getAccounts = async () => testAddresses.slice();
-          const processTypedMessageV4 = async () => testMsgSig;
+          const getAccounts = async (): Promise<string[]> =>
+            testAddresses.slice();
+          const processTypedMessageV4 = async (): Promise<string> => testMsgSig;
           const engine = JsonRpcEngineV2.create({
-            middleware: [createWalletMiddleware({ getAccounts, processTypedMessageV4 })],
+            middleware: [
+              createWalletMiddleware({ getAccounts, processTypedMessageV4 }),
+            ],
           });
 
           const msgObj = {};
