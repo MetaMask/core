@@ -25,6 +25,7 @@ describe('createRequestSelector', () => {
       const state: TestRootState = {
         ramps: {
           userRegion: null,
+          countries: [],
           preferredProvider: null,
           providers: [],
           tokens: null,
@@ -58,6 +59,7 @@ describe('createRequestSelector', () => {
       const state: TestRootState = {
         ramps: {
           userRegion: null,
+          countries: [],
           preferredProvider: null,
           providers: [],
           tokens: null,
@@ -94,6 +96,7 @@ describe('createRequestSelector', () => {
       const state: TestRootState = {
         ramps: {
           userRegion: null,
+          countries: [],
           preferredProvider: null,
           providers: [],
           tokens: null,
@@ -126,6 +129,7 @@ describe('createRequestSelector', () => {
       const state: TestRootState = {
         ramps: {
           userRegion: null,
+          countries: [],
           preferredProvider: null,
           providers: [],
           tokens: null,
@@ -181,6 +185,7 @@ describe('createRequestSelector', () => {
       const state: TestRootState = {
         ramps: {
           userRegion: null,
+          countries: [],
           preferredProvider: null,
           providers: [],
           tokens: null,
@@ -209,6 +214,7 @@ describe('createRequestSelector', () => {
       const state1: TestRootState = {
         ramps: {
           userRegion: null,
+          countries: [],
           preferredProvider: null,
           providers: [],
           tokens: null,
@@ -226,6 +232,7 @@ describe('createRequestSelector', () => {
       const state2: TestRootState = {
         ramps: {
           userRegion: null,
+          countries: [],
           preferredProvider: null,
           providers: [],
           tokens: null,
@@ -255,6 +262,7 @@ describe('createRequestSelector', () => {
       const state: TestRootState = {
         ramps: {
           userRegion: null,
+          countries: [],
           preferredProvider: null,
           providers: [],
           tokens: null,
@@ -287,6 +295,7 @@ describe('createRequestSelector', () => {
       const state: TestRootState = {
         ramps: {
           userRegion: null,
+          countries: [],
           preferredProvider: null,
           providers: [],
           tokens: null,
@@ -318,6 +327,7 @@ describe('createRequestSelector', () => {
       const loadingState: TestRootState = {
         ramps: {
           userRegion: null,
+          countries: [],
           preferredProvider: null,
           providers: [],
           tokens: null,
@@ -337,6 +347,7 @@ describe('createRequestSelector', () => {
       const successState: TestRootState = {
         ramps: {
           userRegion: null,
+          countries: [],
           preferredProvider: null,
           providers: [],
           tokens: null,
@@ -364,6 +375,7 @@ describe('createRequestSelector', () => {
       const successState: TestRootState = {
         ramps: {
           userRegion: null,
+          countries: [],
           preferredProvider: null,
           providers: [],
           tokens: null,
@@ -382,6 +394,7 @@ describe('createRequestSelector', () => {
       const errorState: TestRootState = {
         ramps: {
           userRegion: null,
+          countries: [],
           preferredProvider: null,
           providers: [],
           tokens: null,
@@ -415,6 +428,7 @@ describe('createRequestSelector', () => {
       const state: TestRootState = {
         ramps: {
           userRegion: null,
+          countries: [],
           preferredProvider: null,
           providers: [],
           tokens: null,
@@ -452,6 +466,7 @@ describe('createRequestSelector', () => {
       const state: TestRootState = {
         ramps: {
           userRegion: null,
+          countries: [],
           preferredProvider: null,
           providers: [],
           tokens: null,

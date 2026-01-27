@@ -18,6 +18,20 @@ export type CountryPhone = {
 };
 
 /**
+ * Indicates whether a region supports buy and/or sell actions.
+ */
+export type SupportedActions = {
+  /**
+   * Whether buy actions are supported.
+   */
+  buy: boolean;
+  /**
+   * Whether sell actions are supported.
+   */
+  sell: boolean;
+};
+
+/**
  * Represents a state/province within a country.
  */
 export type State = {
@@ -34,9 +48,9 @@ export type State = {
    */
   stateId?: string;
   /**
-   * Whether this state is supported for ramps.
+   * Whether this state is supported for buy and/or sell ramp actions.
    */
-  supported?: boolean;
+  supported?: SupportedActions;
   /**
    * Whether this state is recommended.
    */
@@ -159,9 +173,9 @@ export type Country = {
    */
   currency: string;
   /**
-   * Whether this country is supported for ramps.
+   * Whether this country is supported for buy and/or sell ramp actions.
    */
-  supported: boolean;
+  supported: SupportedActions;
   /**
    * Whether this country is recommended.
    */
@@ -588,16 +602,16 @@ export class RampsService {
 
   /**
    * Makes a request to the cached API to retrieve the list of supported countries.
+   * The API returns countries with support information for both buy and sell actions.
    * Filters countries based on aggregator support (preserves OnRampSDK logic).
    *
-   * @param action - The ramp action type ('buy' or 'sell').
    * @returns An array of countries filtered by aggregator support.
    */
-  async getCountries(action: RampAction = 'buy'): Promise<Country[]> {
+  async getCountries(): Promise<Country[]> {
     const countries = await this.#request<Country[]>(
       RampsApiService.Regions,
       getApiPath('regions/countries'),
-      { action, responseType: 'json' },
+      { responseType: 'json' },
     );
 
     if (!Array.isArray(countries)) {
@@ -605,14 +619,18 @@ export class RampsService {
     }
 
     return countries.filter((country) => {
+      const isCountrySupported =
+        country.supported.buy || country.supported.sell;
+
       if (country.states && country.states.length > 0) {
         const hasSupportedState = country.states.some(
-          (state) => state.supported !== false,
+          // eslint-disable-next-line @typescript-eslint/prefer-nullish-coalescing -- intentionally using || to treat false as unsupported
+          (state) => state.supported?.buy || state.supported?.sell,
         );
-        return country.supported || hasSupportedState;
+        return isCountrySupported || hasSupportedState;
       }
 
-      return country.supported;
+      return isCountrySupported;
     });
   }
 

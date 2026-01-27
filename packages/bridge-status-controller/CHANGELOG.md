@@ -7,6 +7,12 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+## [64.4.5]
+
+### Changed
+
+- Bump `@metamask/bridge-controller` from `^64.8.1` to `^64.8.2` ([#7722](https://github.com/MetaMask/core/pull/7722))
+
 ### Fixed
 
 - Fix transaction failure tracking for pre-submission failures by using `actionId` as a temporary history key ([#7696](https://github.com/MetaMask/core/pull/7696))
@@ -891,7 +897,8 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 - Initial release ([#5317](https://github.com/MetaMask/core/pull/5317))
 
-[Unreleased]: https://github.com/MetaMask/core/compare/@metamask/bridge-status-controller@64.4.4...HEAD
+[Unreleased]: https://github.com/MetaMask/core/compare/@metamask/bridge-status-controller@64.4.5...HEAD
+[64.4.5]: https://github.com/MetaMask/core/compare/@metamask/bridge-status-controller@64.4.4...@metamask/bridge-status-controller@64.4.5
 [64.4.4]: https://github.com/MetaMask/core/compare/@metamask/bridge-status-controller@64.4.3...@metamask/bridge-status-controller@64.4.4
 [64.4.3]: https://github.com/MetaMask/core/compare/@metamask/bridge-status-controller@64.4.2...@metamask/bridge-status-controller@64.4.3
 [64.4.2]: https://github.com/MetaMask/core/compare/@metamask/bridge-status-controller@64.4.1...@metamask/bridge-status-controller@64.4.2

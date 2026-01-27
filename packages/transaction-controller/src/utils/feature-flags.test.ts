@@ -22,6 +22,7 @@ import {
   FeatureFlag,
   getIncomingTransactionsPollingInterval,
   getTimeoutAttempts,
+  isIncomingTransactionsUseWebsocketsEnabled,
 } from './feature-flags';
 import { isValidSignature } from './signature';
 import type { TransactionControllerMessenger } from '..';
@@ -864,6 +865,50 @@ describe('Feature Flags Utils', () => {
       });
 
       expect(getTimeoutAttempts(CHAIN_ID_MOCK, controllerMessenger)).toBe(0);
+    });
+  });
+
+  describe('isIncomingTransactionsUseWebsocketsEnabled', () => {
+    it('returns true when useWebsockets is true', () => {
+      mockFeatureFlags({
+        [FeatureFlag.IncomingTransactions]: {
+          useWebsockets: true,
+        },
+      });
+
+      expect(
+        isIncomingTransactionsUseWebsocketsEnabled(controllerMessenger),
+      ).toBe(true);
+    });
+
+    it('returns false when useWebsockets is false', () => {
+      mockFeatureFlags({
+        [FeatureFlag.IncomingTransactions]: {
+          useWebsockets: false,
+        },
+      });
+
+      expect(
+        isIncomingTransactionsUseWebsocketsEnabled(controllerMessenger),
+      ).toBe(false);
+    });
+
+    it('returns false when flag is not present', () => {
+      mockFeatureFlags({});
+
+      expect(
+        isIncomingTransactionsUseWebsocketsEnabled(controllerMessenger),
+      ).toBe(false);
+    });
+
+    it('returns false when useWebsockets property is not present', () => {
+      mockFeatureFlags({
+        [FeatureFlag.IncomingTransactions]: {},
+      });
+
+      expect(
+        isIncomingTransactionsUseWebsocketsEnabled(controllerMessenger),
+      ).toBe(false);
     });
   });
 });

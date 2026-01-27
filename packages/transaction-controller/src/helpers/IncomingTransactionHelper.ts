@@ -1,4 +1,9 @@
 import type { AccountsController } from '@metamask/accounts-controller';
+import type {
+  Transaction as AccountActivityTransaction,
+  WebSocketConnectionInfo,
+} from '@metamask/core-backend';
+import { WebSocketState } from '@metamask/core-backend';
 import type { Hex } from '@metamask/utils';
 // This package purposefully relies on Node's EventEmitter module.
 // eslint-disable-next-line import-x/no-nodejs-modules
@@ -7,7 +12,10 @@ import EventEmitter from 'events';
 import type { TransactionControllerMessenger } from '..';
 import { incomingTransactionsLogger as log } from '../logger';
 import type { RemoteTransactionSource, TransactionMeta } from '../types';
-import { getIncomingTransactionsPollingInterval } from '../utils/feature-flags';
+import {
+  getIncomingTransactionsPollingInterval,
+  isIncomingTransactionsUseWebsocketsEnabled,
+} from '../utils/feature-flags';
 
 export type IncomingTransactionOptions = {
   /** Name of the client to include in requests. */
@@ -59,6 +67,24 @@ export class IncomingTransactionHelper {
 
   readonly #updateTransactions?: boolean;
 
+  readonly #useWebsockets: boolean;
+
+  readonly #connectionStateChangedHandler = (
+    connectionInfo: WebSocketConnectionInfo,
+  ): void => {
+    this.#onConnectionStateChanged(connectionInfo);
+  };
+
+  readonly #transactionUpdatedHandler = (
+    transaction: AccountActivityTransaction,
+  ): void => {
+    this.#onTransactionUpdated(transaction);
+  };
+
+  readonly #selectedAccountChangedHandler = (): void => {
+    this.#onSelectedAccountChanged();
+  };
+
   constructor({
     client,
     getCurrentAccount,
@@ -95,10 +121,18 @@ export class IncomingTransactionHelper {
     this.#remoteTransactionSource = remoteTransactionSource;
     this.#trimTransactions = trimTransactions;
     this.#updateTransactions = updateTransactions;
+    this.#useWebsockets = isIncomingTransactionsUseWebsocketsEnabled(messenger);
+
+    if (this.#useWebsockets) {
+      this.#messenger.subscribe(
+        'BackendWebSocketService:connectionStateChanged',
+        this.#connectionStateChangedHandler,
+      );
+    }
   }
 
   start(): void {
-    if (this.#isRunning) {
+    if (this.#isRunning || this.#useWebsockets) {
       return;
     }
 
@@ -133,6 +167,71 @@ export class IncomingTransactionHelper {
     this.#isRunning = false;
 
     log('Stopped polling');
+  }
+
+  #onConnectionStateChanged(connectionInfo: WebSocketConnectionInfo): void {
+    if (connectionInfo.state === WebSocketState.CONNECTED) {
+      log('WebSocket connected, starting enhanced mode');
+      this.#startTransactionHistoryRetrieval();
+    } else if (connectionInfo.state === WebSocketState.DISCONNECTED) {
+      log('WebSocket disconnected, stopping enhanced mode');
+      this.#stopTransactionHistoryRetrieval();
+    }
+  }
+
+  #startTransactionHistoryRetrieval(): void {
+    if (!this.#canStart()) {
+      return;
+    }
+
+    log('Started transaction history retrieval (event-driven)');
+
+    this.update().catch((error) => {
+      log('Initial update in transaction history retrieval failed', error);
+    });
+
+    this.#messenger.subscribe(
+      'AccountActivityService:transactionUpdated',
+      this.#transactionUpdatedHandler,
+    );
+
+    this.#messenger.subscribe(
+      'AccountsController:selectedAccountChange',
+      this.#selectedAccountChangedHandler,
+    );
+  }
+
+  #stopTransactionHistoryRetrieval(): void {
+    log('Stopped transaction history retrieval');
+
+    this.#messenger.unsubscribe(
+      'AccountActivityService:transactionUpdated',
+      this.#transactionUpdatedHandler,
+    );
+
+    this.#messenger.unsubscribe(
+      'AccountsController:selectedAccountChange',
+      this.#selectedAccountChangedHandler,
+    );
+  }
+
+  #onTransactionUpdated(transaction: AccountActivityTransaction): void {
+    log('Received relevant transaction update, triggering update', {
+      txId: transaction.id,
+      chain: transaction.chain,
+    });
+
+    this.update().catch((error) => {
+      log('Update after transaction event failed', error);
+    });
+  }
+
+  #onSelectedAccountChanged(): void {
+    log('Selected account changed, triggering update');
+
+    this.update().catch((error) => {
+      log('Update after account change failed', error);
+    });
   }
 
   async #onInterval(): Promise<void> {

@@ -18,6 +18,7 @@ export type {
   RampsServiceMessenger,
   Country,
   State,
+  SupportedActions,
   CountryPhone,
   Provider,
   ProviderLink,

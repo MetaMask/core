@@ -1,10 +1,10 @@
 import type { ApiPlatformClient } from '@metamask/core-backend';
-import { Messenger, MOCK_ANY_NAMESPACE } from '@metamask/messenger';
-import type { MockAnyNamespace } from '@metamask/messenger';
+import { Messenger } from '@metamask/messenger';
 
 import { AccountsApiDataSource } from './AccountsApiDataSource';
 import { BackendWebsocketDataSource } from './BackendWebsocketDataSource';
-import { initDataSources, initMessengers } from './initDataSources';
+import { initMessengers, initDataSources } from './initDataSources';
+import type { DataSourceMessengers } from './initDataSources';
 import { PriceDataSource } from './PriceDataSource';
 import { RpcDataSource } from './RpcDataSource';
 import { SnapDataSource } from './SnapDataSource';
@@ -12,7 +12,7 @@ import type { SnapProvider } from './SnapDataSource';
 import { TokenDataSource } from './TokenDataSource';
 import { DetectionMiddleware } from '../middlewares';
 
-// Mock all data source modules - Jest hoists these automatically
+// Mock all data sources
 jest.mock('./RpcDataSource');
 jest.mock('./BackendWebsocketDataSource');
 jest.mock('./AccountsApiDataSource');
@@ -21,7 +21,6 @@ jest.mock('./TokenDataSource');
 jest.mock('./PriceDataSource');
 jest.mock('../middlewares');
 
-// Cast mocked classes for type safety
 const MockRpcDataSource = RpcDataSource as jest.MockedClass<
   typeof RpcDataSource
 >;
@@ -45,26 +44,27 @@ const MockDetectionMiddleware = DetectionMiddleware as jest.MockedClass<
   typeof DetectionMiddleware
 >;
 
-function createMockRootMessenger(): Messenger<
-  MockAnyNamespace,
-  // eslint-disable-next-line @typescript-eslint/no-explicit-any
-  any,
-  // eslint-disable-next-line @typescript-eslint/no-explicit-any
-  any
-> {
-  return new Messenger({ namespace: MOCK_ANY_NAMESPACE });
-}
-
 function createMockSnapProvider(): SnapProvider {
   return {
-    handleRequest: jest.fn(),
+    request: jest.fn(),
   } as unknown as SnapProvider;
 }
 
-function createMockApiPlatformClient(): ApiPlatformClient {
+function createMockQueryApiClient(): ApiPlatformClient {
   return {
-    query: jest.fn(),
+    fetch: jest.fn(),
   } as unknown as ApiPlatformClient;
+}
+
+function createMockRootMessenger(): Messenger<string, never, never> {
+  const messenger = new Messenger({
+    namespace: 'root',
+  });
+
+  // Mock delegate method
+  jest.spyOn(messenger, 'delegate').mockImplementation(jest.fn());
+
+  return messenger;
 }
 
 describe('initDataSources', () => {
@@ -73,7 +73,7 @@ describe('initDataSources', () => {
   });
 
   describe('initMessengers', () => {
-    it('creates all required messengers', () => {
+    it('creates messengers for all data sources', () => {
       const rootMessenger = createMockRootMessenger();
 
       const messengers = initMessengers({ messenger: rootMessenger });
@@ -87,43 +87,164 @@ describe('initDataSources', () => {
       expect(messengers).toHaveProperty('detectionMessenger');
     });
 
-    it('creates messengers with correct namespaces', () => {
+    it('creates RpcDataSource messenger with correct namespace', () => {
       const rootMessenger = createMockRootMessenger();
 
       const messengers = initMessengers({ messenger: rootMessenger });
 
-      // Verify messengers are Messenger instances by checking they have expected methods
-      expect(typeof messengers.rpcMessenger.call).toBe('function');
-      expect(typeof messengers.backendWebsocketMessenger.call).toBe('function');
-      expect(typeof messengers.accountsApiMessenger.call).toBe('function');
-      expect(typeof messengers.snapMessenger.call).toBe('function');
-      expect(typeof messengers.tokenMessenger.call).toBe('function');
-      expect(typeof messengers.priceMessenger.call).toBe('function');
-      expect(typeof messengers.detectionMessenger.call).toBe('function');
+      expect(messengers.rpcMessenger).toBeDefined();
     });
 
-    it('returns messengers that can be used to create data sources', () => {
+    it('creates BackendWebsocketDataSource messenger with correct namespace', () => {
       const rootMessenger = createMockRootMessenger();
 
       const messengers = initMessengers({ messenger: rootMessenger });
 
-      // Each messenger should be defined and usable
-      expect(messengers.rpcMessenger).toBeDefined();
       expect(messengers.backendWebsocketMessenger).toBeDefined();
+    });
+
+    it('creates AccountsApiDataSource messenger with correct namespace', () => {
+      const rootMessenger = createMockRootMessenger();
+
+      const messengers = initMessengers({ messenger: rootMessenger });
+
       expect(messengers.accountsApiMessenger).toBeDefined();
+    });
+
+    it('creates SnapDataSource messenger with correct namespace', () => {
+      const rootMessenger = createMockRootMessenger();
+
+      const messengers = initMessengers({ messenger: rootMessenger });
+
       expect(messengers.snapMessenger).toBeDefined();
+    });
+
+    it('creates TokenDataSource messenger with correct namespace', () => {
+      const rootMessenger = createMockRootMessenger();
+
+      const messengers = initMessengers({ messenger: rootMessenger });
+
       expect(messengers.tokenMessenger).toBeDefined();
+    });
+
+    it('creates PriceDataSource messenger with correct namespace', () => {
+      const rootMessenger = createMockRootMessenger();
+
+      const messengers = initMessengers({ messenger: rootMessenger });
+
       expect(messengers.priceMessenger).toBeDefined();
+    });
+
+    it('creates DetectionMiddleware messenger with correct namespace', () => {
+      const rootMessenger = createMockRootMessenger();
+
+      const messengers = initMessengers({ messenger: rootMessenger });
+
       expect(messengers.detectionMessenger).toBeDefined();
+    });
+
+    it('delegates actions and events for RpcDataSource', () => {
+      const rootMessenger = createMockRootMessenger();
+
+      initMessengers({ messenger: rootMessenger });
+
+      expect(rootMessenger.delegate).toHaveBeenCalledWith(
+        expect.objectContaining({
+          actions: expect.arrayContaining([
+            'NetworkController:getState',
+            'NetworkController:getNetworkClientById',
+            'AssetsController:activeChainsUpdate',
+            'AssetsController:assetsUpdate',
+          ]),
+          events: expect.arrayContaining(['NetworkController:stateChange']),
+        }),
+      );
+    });
+
+    it('delegates actions and events for BackendWebsocketDataSource', () => {
+      const rootMessenger = createMockRootMessenger();
+
+      initMessengers({ messenger: rootMessenger });
+
+      expect(rootMessenger.delegate).toHaveBeenCalledWith(
+        expect.objectContaining({
+          actions: expect.arrayContaining([
+            'BackendWebSocketService:subscribe',
+            'BackendWebSocketService:unsubscribe',
+            'BackendWebSocketService:getState',
+            'BackendWebSocketService:getConnectionInfo',
+            'BackendWebSocketService:findSubscriptionsByChannelPrefix',
+            'AssetsController:activeChainsUpdate',
+            'AssetsController:assetsUpdate',
+          ]),
+          events: expect.arrayContaining([
+            'BackendWebSocketService:stateChange',
+            'BackendWebSocketService:connectionStateChanged',
+            'AccountsApiDataSource:activeChainsUpdated',
+          ]),
+        }),
+      );
+    });
+
+    it('delegates actions for AccountsApiDataSource', () => {
+      const rootMessenger = createMockRootMessenger();
+
+      initMessengers({ messenger: rootMessenger });
+
+      expect(rootMessenger.delegate).toHaveBeenCalledWith(
+        expect.objectContaining({
+          actions: expect.arrayContaining([
+            'AssetsController:activeChainsUpdate',
+            'AssetsController:assetsUpdate',
+          ]),
+        }),
+      );
+    });
+
+    it('delegates actions and events for SnapDataSource', () => {
+      const rootMessenger = createMockRootMessenger();
+
+      initMessengers({ messenger: rootMessenger });
+
+      expect(rootMessenger.delegate).toHaveBeenCalledWith(
+        expect.objectContaining({
+          actions: expect.arrayContaining([
+            'AssetsController:activeChainsUpdate',
+            'AssetsController:assetsUpdate',
+          ]),
+          events: expect.arrayContaining([
+            'AccountsController:accountBalancesUpdated',
+          ]),
+        }),
+      );
+    });
+
+    it('delegates actions for PriceDataSource', () => {
+      const rootMessenger = createMockRootMessenger();
+
+      initMessengers({ messenger: rootMessenger });
+
+      expect(rootMessenger.delegate).toHaveBeenCalledWith(
+        expect.objectContaining({
+          actions: expect.arrayContaining([
+            'AssetsController:getState',
+            'AssetsController:assetsUpdate',
+          ]),
+        }),
+      );
     });
   });
 
   describe('initDataSources', () => {
-    it('creates all data source instances', () => {
+    function createMockMessengers(): DataSourceMessengers {
       const rootMessenger = createMockRootMessenger();
-      const messengers = initMessengers({ messenger: rootMessenger });
+      return initMessengers({ messenger: rootMessenger });
+    }
+
+    it('creates all data source instances', () => {
+      const messengers = createMockMessengers();
       const snapProvider = createMockSnapProvider();
-      const queryApiClient = createMockApiPlatformClient();
+      const queryApiClient = createMockQueryApiClient();
 
       const dataSources = initDataSources({
         messengers,
@@ -140,11 +261,10 @@ describe('initDataSources', () => {
       expect(dataSources).toHaveProperty('detectionMiddleware');
     });
 
-    it('initializes RpcDataSource with correct options', () => {
-      const rootMessenger = createMockRootMessenger();
-      const messengers = initMessengers({ messenger: rootMessenger });
+    it('creates RpcDataSource with correct messenger', () => {
+      const messengers = createMockMessengers();
       const snapProvider = createMockSnapProvider();
-      const queryApiClient = createMockApiPlatformClient();
+      const queryApiClient = createMockQueryApiClient();
 
       initDataSources({
         messengers,
@@ -152,47 +272,15 @@ describe('initDataSources', () => {
         queryApiClient,
       });
 
-      expect(MockRpcDataSource).toHaveBeenCalledTimes(1);
       expect(MockRpcDataSource).toHaveBeenCalledWith({
         messenger: messengers.rpcMessenger,
       });
     });
 
-    it('initializes RpcDataSource with custom config options', () => {
-      const rootMessenger = createMockRootMessenger();
-      const messengers = initMessengers({ messenger: rootMessenger });
+    it('creates BackendWebsocketDataSource with correct messenger', () => {
+      const messengers = createMockMessengers();
       const snapProvider = createMockSnapProvider();
-      const queryApiClient = createMockApiPlatformClient();
-
-      const rpcDataSourceConfig = {
-        balanceInterval: 60000,
-        detectionInterval: 300000,
-        tokenDetectionEnabled: true,
-        timeout: 15000,
-      };
-
-      initDataSources({
-        messengers,
-        snapProvider,
-        queryApiClient,
-        rpcDataSourceConfig,
-      });
-
-      expect(MockRpcDataSource).toHaveBeenCalledTimes(1);
-      expect(MockRpcDataSource).toHaveBeenCalledWith({
-        messenger: messengers.rpcMessenger,
-        balanceInterval: 60000,
-        detectionInterval: 300000,
-        tokenDetectionEnabled: true,
-        timeout: 15000,
-      });
-    });
-
-    it('initializes BackendWebsocketDataSource with correct options', () => {
-      const rootMessenger = createMockRootMessenger();
-      const messengers = initMessengers({ messenger: rootMessenger });
-      const snapProvider = createMockSnapProvider();
-      const queryApiClient = createMockApiPlatformClient();
+      const queryApiClient = createMockQueryApiClient();
 
       initDataSources({
         messengers,
@@ -200,17 +288,15 @@ describe('initDataSources', () => {
         queryApiClient,
       });
 
-      expect(MockBackendWebsocketDataSource).toHaveBeenCalledTimes(1);
       expect(MockBackendWebsocketDataSource).toHaveBeenCalledWith({
         messenger: messengers.backendWebsocketMessenger,
       });
     });
 
-    it('initializes AccountsApiDataSource with messenger and queryApiClient', () => {
-      const rootMessenger = createMockRootMessenger();
-      const messengers = initMessengers({ messenger: rootMessenger });
+    it('creates AccountsApiDataSource with correct options', () => {
+      const messengers = createMockMessengers();
       const snapProvider = createMockSnapProvider();
-      const queryApiClient = createMockApiPlatformClient();
+      const queryApiClient = createMockQueryApiClient();
 
       initDataSources({
         messengers,
@@ -218,18 +304,16 @@ describe('initDataSources', () => {
         queryApiClient,
       });
 
-      expect(MockAccountsApiDataSource).toHaveBeenCalledTimes(1);
       expect(MockAccountsApiDataSource).toHaveBeenCalledWith({
         messenger: messengers.accountsApiMessenger,
         queryApiClient,
       });
     });
 
-    it('initializes SnapDataSource with messenger and snapProvider', () => {
-      const rootMessenger = createMockRootMessenger();
-      const messengers = initMessengers({ messenger: rootMessenger });
+    it('creates SnapDataSource with correct options', () => {
+      const messengers = createMockMessengers();
       const snapProvider = createMockSnapProvider();
-      const queryApiClient = createMockApiPlatformClient();
+      const queryApiClient = createMockQueryApiClient();
 
       initDataSources({
         messengers,
@@ -237,18 +321,16 @@ describe('initDataSources', () => {
         queryApiClient,
       });
 
-      expect(MockSnapDataSource).toHaveBeenCalledTimes(1);
       expect(MockSnapDataSource).toHaveBeenCalledWith({
         messenger: messengers.snapMessenger,
         snapProvider,
       });
     });
 
-    it('initializes TokenDataSource with messenger and queryApiClient', () => {
-      const rootMessenger = createMockRootMessenger();
-      const messengers = initMessengers({ messenger: rootMessenger });
+    it('creates TokenDataSource with correct options', () => {
+      const messengers = createMockMessengers();
       const snapProvider = createMockSnapProvider();
-      const queryApiClient = createMockApiPlatformClient();
+      const queryApiClient = createMockQueryApiClient();
 
       initDataSources({
         messengers,
@@ -256,18 +338,16 @@ describe('initDataSources', () => {
         queryApiClient,
       });
 
-      expect(MockTokenDataSource).toHaveBeenCalledTimes(1);
       expect(MockTokenDataSource).toHaveBeenCalledWith({
         messenger: messengers.tokenMessenger,
         queryApiClient,
       });
     });
 
-    it('initializes PriceDataSource with messenger and queryApiClient', () => {
-      const rootMessenger = createMockRootMessenger();
-      const messengers = initMessengers({ messenger: rootMessenger });
+    it('creates PriceDataSource with correct options', () => {
+      const messengers = createMockMessengers();
       const snapProvider = createMockSnapProvider();
-      const queryApiClient = createMockApiPlatformClient();
+      const queryApiClient = createMockQueryApiClient();
 
       initDataSources({
         messengers,
@@ -275,18 +355,16 @@ describe('initDataSources', () => {
         queryApiClient,
       });
 
-      expect(MockPriceDataSource).toHaveBeenCalledTimes(1);
       expect(MockPriceDataSource).toHaveBeenCalledWith({
         messenger: messengers.priceMessenger,
         queryApiClient,
       });
     });
 
-    it('initializes DetectionMiddleware with correct options', () => {
-      const rootMessenger = createMockRootMessenger();
-      const messengers = initMessengers({ messenger: rootMessenger });
+    it('creates DetectionMiddleware with correct messenger', () => {
+      const messengers = createMockMessengers();
       const snapProvider = createMockSnapProvider();
-      const queryApiClient = createMockApiPlatformClient();
+      const queryApiClient = createMockQueryApiClient();
 
       initDataSources({
         messengers,
@@ -294,17 +372,15 @@ describe('initDataSources', () => {
         queryApiClient,
       });
 
-      expect(MockDetectionMiddleware).toHaveBeenCalledTimes(1);
       expect(MockDetectionMiddleware).toHaveBeenCalledWith({
         messenger: messengers.detectionMessenger,
       });
     });
 
-    it('returns instances of the correct types', () => {
-      const rootMessenger = createMockRootMessenger();
-      const messengers = initMessengers({ messenger: rootMessenger });
+    it('returns instances of correct types', () => {
+      const messengers = createMockMessengers();
       const snapProvider = createMockSnapProvider();
-      const queryApiClient = createMockApiPlatformClient();
+      const queryApiClient = createMockQueryApiClient();
 
       const dataSources = initDataSources({
         messengers,
@@ -312,91 +388,19 @@ describe('initDataSources', () => {
         queryApiClient,
       });
 
-      // Since we're using mocks, check that the instances are what the mocks return
-      expect(dataSources.rpcDataSource).toBe(
-        MockRpcDataSource.mock.instances[0],
+      expect(dataSources.rpcDataSource).toBeInstanceOf(MockRpcDataSource);
+      expect(dataSources.backendWebsocketDataSource).toBeInstanceOf(
+        MockBackendWebsocketDataSource,
       );
-      expect(dataSources.backendWebsocketDataSource).toBe(
-        MockBackendWebsocketDataSource.mock.instances[0],
+      expect(dataSources.accountsApiDataSource).toBeInstanceOf(
+        MockAccountsApiDataSource,
       );
-      expect(dataSources.accountsApiDataSource).toBe(
-        MockAccountsApiDataSource.mock.instances[0],
+      expect(dataSources.snapDataSource).toBeInstanceOf(MockSnapDataSource);
+      expect(dataSources.tokenDataSource).toBeInstanceOf(MockTokenDataSource);
+      expect(dataSources.priceDataSource).toBeInstanceOf(MockPriceDataSource);
+      expect(dataSources.detectionMiddleware).toBeInstanceOf(
+        MockDetectionMiddleware,
       );
-      expect(dataSources.snapDataSource).toBe(
-        MockSnapDataSource.mock.instances[0],
-      );
-      expect(dataSources.tokenDataSource).toBe(
-        MockTokenDataSource.mock.instances[0],
-      );
-      expect(dataSources.priceDataSource).toBe(
-        MockPriceDataSource.mock.instances[0],
-      );
-      expect(dataSources.detectionMiddleware).toBe(
-        MockDetectionMiddleware.mock.instances[0],
-      );
-    });
-  });
-
-  describe('integration', () => {
-    it('initMessengers and initDataSources work together', () => {
-      const rootMessenger = createMockRootMessenger();
-      const snapProvider = createMockSnapProvider();
-      const queryApiClient = createMockApiPlatformClient();
-
-      // This is the typical usage pattern
-      const messengers = initMessengers({ messenger: rootMessenger });
-      const dataSources = initDataSources({
-        messengers,
-        snapProvider,
-        queryApiClient,
-      });
-
-      // All data sources should be created
-      expect(Object.keys(dataSources)).toHaveLength(7);
-
-      // Each data source constructor should have been called once
-      expect(MockRpcDataSource).toHaveBeenCalledTimes(1);
-      expect(MockBackendWebsocketDataSource).toHaveBeenCalledTimes(1);
-      expect(MockAccountsApiDataSource).toHaveBeenCalledTimes(1);
-      expect(MockSnapDataSource).toHaveBeenCalledTimes(1);
-      expect(MockTokenDataSource).toHaveBeenCalledTimes(1);
-      expect(MockPriceDataSource).toHaveBeenCalledTimes(1);
-      expect(MockDetectionMiddleware).toHaveBeenCalledTimes(1);
-    });
-
-    it('can initialize multiple times with different messengers', () => {
-      const rootMessenger1 = createMockRootMessenger();
-      const rootMessenger2 = createMockRootMessenger();
-      const snapProvider = createMockSnapProvider();
-      const queryApiClient = createMockApiPlatformClient();
-
-      const messengers1 = initMessengers({ messenger: rootMessenger1 });
-      const messengers2 = initMessengers({ messenger: rootMessenger2 });
-
-      const dataSources1 = initDataSources({
-        messengers: messengers1,
-        snapProvider,
-        queryApiClient,
-      });
-
-      const dataSources2 = initDataSources({
-        messengers: messengers2,
-        snapProvider,
-        queryApiClient,
-      });
-
-      // Both sets of data sources should be created
-      expect(dataSources1.rpcDataSource).toBeDefined();
-      expect(dataSources2.rpcDataSource).toBeDefined();
-
-      // Each constructor should have been called twice
-      expect(MockRpcDataSource).toHaveBeenCalledTimes(2);
-      expect(MockBackendWebsocketDataSource).toHaveBeenCalledTimes(2);
-      expect(MockAccountsApiDataSource).toHaveBeenCalledTimes(2);
-      expect(MockSnapDataSource).toHaveBeenCalledTimes(2);
-      expect(MockTokenDataSource).toHaveBeenCalledTimes(2);
-      expect(MockPriceDataSource).toHaveBeenCalledTimes(2);
-      expect(MockDetectionMiddleware).toHaveBeenCalledTimes(2);
     });
   });
 });

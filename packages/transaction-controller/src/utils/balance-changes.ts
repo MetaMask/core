@@ -121,6 +121,8 @@ export async function getBalanceChanges(
 ): Promise<{ simulationData: SimulationData; gasUsed?: Hex }> {
   log('Request', request);
 
+  let callTraceErrors: string[] | undefined;
+
   try {
     const response = await baseRequest({
       request,
@@ -130,7 +132,9 @@ export async function getBalanceChanges(
       },
     });
 
-    const transactionError = response.transactions?.[0]?.error;
+    const transactionResponse = response.transactions?.[0];
+    callTraceErrors = extractCallTraceErrors(transactionResponse?.callTrace);
+    const transactionError = transactionResponse?.error;
 
     if (transactionError) {
       throw new SimulationError(transactionError);
@@ -143,8 +147,9 @@ export async function getBalanceChanges(
 
     const tokenBalanceChanges = await getTokenBalanceChanges(request, events);
 
-    const gasUsed = response.transactions?.[0]?.gasUsed;
+    const gasUsed = transactionResponse?.gasUsed;
     const simulationData = {
+      callTraceErrors,
       nativeBalanceChange,
       tokenBalanceChanges,
     };
@@ -167,6 +172,7 @@ export async function getBalanceChanges(
 
     return {
       simulationData: {
+        callTraceErrors,
         tokenBalanceChanges: [],
         error: {
           code,
@@ -630,6 +636,26 @@ function extractLogs(
     ...logs,
     ...nestedCalls.map((nestedCall) => extractLogs(nestedCall)).flat(),
   ];
+}
+
+/**
+ * Extract all error messages from a call trace tree.
+ *
+ * @param call - The root call trace.
+ * @returns An array of error messages.
+ */
+function extractCallTraceErrors(call?: SimulationResponseCallTrace): string[] {
+  if (!call) {
+    return [];
+  }
+
+  const errors = call.error ? [call.error] : [];
+  const nestedCalls = call.calls ?? [];
+  const nestedErrors = nestedCalls.flatMap((nestedCall) =>
+    extractCallTraceErrors(nestedCall),
+  );
+
+  return [...errors, ...nestedErrors];
 }
 
 /**

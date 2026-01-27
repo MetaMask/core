@@ -44,6 +44,7 @@ import type {
   ISubscriptionService,
 } from './types';
 import {
+  CANCEL_TYPES,
   MODAL_TYPE,
   PAYMENT_TYPES,
   PRODUCT_TYPES,
@@ -84,6 +85,7 @@ const MOCK_SUBSCRIPTION: Subscription = {
     },
   },
   isEligibleForSupport: true,
+  cancelType: CANCEL_TYPES.ALLOWED_AT_PERIOD_END,
 };
 
 const MOCK_PRODUCT_PRICE: ProductPricing = {
