@@ -671,8 +671,11 @@ export class SeedlessOnboardingController<
         );
       } catch (error) {
         log('Error changing password', error);
-        throw new Error(
+        throw new SeedlessOnboardingError(
           SeedlessOnboardingControllerErrorMessage.FailedToChangePassword,
+          {
+            cause: error,
+          },
         );
       }
     });
@@ -948,8 +951,11 @@ export class SeedlessOnboardingController<
           })
           .catch((error) => {
             log('Error fetching auth pub key', error);
-            throw new Error(
+            throw new SeedlessOnboardingError(
               SeedlessOnboardingControllerErrorMessage.FailedToFetchAuthPubKey,
+              {
+                cause: error,
+              },
             );
           });
         globalAuthPubKey = authPubKey;
@@ -1038,8 +1044,11 @@ export class SeedlessOnboardingController<
         throw error;
       }
       log('Error persisting local encryption key', error);
-      throw new Error(
+      throw new SeedlessOnboardingError(
         SeedlessOnboardingControllerErrorMessage.FailedToPersistOprfKey,
+        {
+          cause: error,
+        },
       );
     }
   }
@@ -1202,8 +1211,11 @@ export class SeedlessOnboardingController<
       if (this.#isAuthTokenError(error)) {
         throw error;
       }
-      throw new Error(
+      throw new SeedlessOnboardingError(
         SeedlessOnboardingControllerErrorMessage.FailedToFetchSecretMetadata,
+        {
+          cause: error,
+        },
       );
     }
 
@@ -1812,8 +1824,11 @@ export class SeedlessOnboardingController<
       })
       .catch((error) => {
         log('Error fetching auth pub key', error);
-        throw new Error(
+        throw new SeedlessOnboardingError(
           SeedlessOnboardingControllerErrorMessage.FailedToFetchAuthPubKey,
+          {
+            cause: error,
+          },
         );
       });
     const isPasswordOutdated = await this.checkIsPasswordOutdated({
@@ -1851,8 +1866,11 @@ export class SeedlessOnboardingController<
       refreshToken,
     }).catch((error) => {
       log('Error refreshing JWT tokens', error);
-      throw new Error(
+      throw new SeedlessOnboardingError(
         SeedlessOnboardingControllerErrorMessage.FailedToRefreshJWTTokens,
+        {
+          cause: error,
+        },
       );
     });
 
@@ -1873,8 +1891,11 @@ export class SeedlessOnboardingController<
       });
     } catch (error) {
       log('Error refreshing node auth tokens', error);
-      throw new Error(
+      throw new SeedlessOnboardingError(
         SeedlessOnboardingControllerErrorMessage.AuthenticationError,
+        {
+          cause: error,
+        },
       );
     }
   }
