@@ -389,7 +389,7 @@ export class MultichainAccountService {
   #getPrimaryEntropySourceId(): EntropySourceId {
     const { keyrings } = this.#messenger.call('KeyringController:getState');
     const primaryKeyring = keyrings.find(
-      (keyring) => keyring.type === 'HD Key Tree',
+      (keyring) => keyring.type === KeyringTypes.hd,
     );
     assert(primaryKeyring, 'Primary keyring not found');
     return primaryKeyring.metadata.id;
@@ -427,17 +427,11 @@ export class MultichainAccountService {
       { mnemonic, numberOfAccounts: 1 },
     );
 
-    const wallet = new MultichainAccountWallet({
+    return new MultichainAccountWallet({
       providers: this.#providers,
       entropySource: result.id,
       messenger: this.#messenger,
     });
-
-    wallet.init({});
-    await wallet.createNextMultichainAccountGroup();
-
-    // The wallet is ripe for discovery
-    return wallet;
   }
 
   /**
@@ -457,19 +451,11 @@ export class MultichainAccountService {
 
     const entropySourceId = this.#getPrimaryEntropySourceId();
 
-    const wallet = new MultichainAccountWallet({
+    return new MultichainAccountWallet({
       providers: this.#providers,
       entropySource: entropySourceId,
       messenger: this.#messenger,
     });
-
-    wallet.init({});
-    await wallet.createMultichainAccountGroup(0, {
-      waitForAllProvidersToFinishCreatingAccounts: false,
-    });
-
-    // The wallet is ripe for discovery
-    return wallet;
   }
 
   /**
@@ -492,17 +478,11 @@ export class MultichainAccountService {
 
     const entropySourceId = this.#getPrimaryEntropySourceId();
 
-    const wallet = new MultichainAccountWallet({
+    return new MultichainAccountWallet({
       providers: this.#providers,
       entropySource: entropySourceId,
       messenger: this.#messenger,
     });
-
-    wallet.init({});
-    await wallet.createNextMultichainAccountGroup();
-
-    // The wallet is ripe for discovery
-    return wallet;
   }
 
   /**
@@ -538,6 +518,15 @@ export class MultichainAccountService {
     }
 
     assert(wallet, 'Failed to create wallet.');
+
+    wallet.init({});
+    // READ THIS CAREFULLY:
+    // We do not await for non-EVM account creations as they
+    // are depending on the Snap platform to be ready (which is, waiting for onboarding to be completed).
+    // Awaiting for this might cause a deadlock otherwise (during onboarding at least).
+    await wallet.createMultichainAccountGroup(0, {
+      waitForAllProvidersToFinishCreatingAccounts: false,
+    });
 
     this.#wallets.set(wallet.id, wallet);
 
