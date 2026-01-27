@@ -646,16 +646,19 @@ export class RampsController extends BaseController<
   }
 
   /**
-   * Sets the user's selected provider by ID.
+   * Sets the user's selected provider by ID, or clears the selection.
    * Looks up the provider from the current providers in state and automatically
    * fetches payment methods for that provider.
    *
-   * @param providerId - The provider ID (e.g., "/providers/moonpay").
-   * @throws If providerId is not provided, region is not set, providers are not loaded, or provider is not found.
+   * @param providerId - The provider ID (e.g., "/providers/moonpay"), or null to clear.
+   * @throws If region is not set, providers are not loaded, or provider is not found.
    */
-  setSelectedProvider(providerId: string): void {
-    if (!providerId) {
-      throw new Error('Provider ID is required.');
+  setSelectedProvider(providerId: string | null): void {
+    if (providerId === null) {
+      this.update((state) => {
+        state.selectedProvider = null;
+      });
+      return;
     }
 
     const regionCode = this.state.userRegion?.regionCode;

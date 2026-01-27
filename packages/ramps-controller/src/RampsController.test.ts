@@ -1911,20 +1911,23 @@ describe('RampsController', () => {
       );
     });
 
-    it('throws error when provider ID is not provided', async () => {
+    it('clears selected provider when null is provided', async () => {
       await withController(
         {
           options: {
             state: {
               userRegion: createMockUserRegion('us-ca'),
               providers: [mockProvider],
+              selectedProvider: mockProvider,
             },
           },
         },
         ({ controller }) => {
-          expect(() => {
-            controller.setSelectedProvider(null as unknown as string);
-          }).toThrow('Provider ID is required.');
+          expect(controller.state.selectedProvider).toStrictEqual(mockProvider);
+
+          controller.setSelectedProvider(null);
+
+          expect(controller.state.selectedProvider).toBeNull();
         },
       );
     });
