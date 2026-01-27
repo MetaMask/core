@@ -190,6 +190,52 @@ describe('SeedlessOnboardingError', () => {
         message: 'Custom error message',
       });
     });
+
+    it('serializes SeedlessOnboardingError cause with details preserved', () => {
+      const innerError = new SeedlessOnboardingError('Inner error', {
+        details: 'Inner debugging context',
+      });
+      const outerError = new SeedlessOnboardingError('Outer error', {
+        details: 'Outer debugging context',
+        cause: innerError,
+      });
+
+      const json = outerError.toJSON();
+
+      expect(json.name).toBe('SeedlessOnboardingControllerError');
+      expect(json.message).toBe('Outer error');
+      expect(json.details).toBe('Outer debugging context');
+      expect(json.cause).toStrictEqual({
+        name: 'SeedlessOnboardingControllerError',
+        message: 'Inner error',
+        details: 'Inner debugging context',
+        cause: undefined,
+        stack: innerError.stack,
+      });
+    });
+
+    it('serializes deeply nested SeedlessOnboardingError chain', () => {
+      const rootError = new Error('Root cause');
+      const level1 = new SeedlessOnboardingError('Level 1', {
+        details: 'Level 1 details',
+        cause: rootError,
+      });
+      const level2 = new SeedlessOnboardingError('Level 2', {
+        details: 'Level 2 details',
+        cause: level1,
+      });
+
+      const json = level2.toJSON();
+
+      expect(json.details).toBe('Level 2 details');
+      const level1Json = json.cause as Record<string, unknown>;
+      expect(level1Json.message).toBe('Level 1');
+      expect(level1Json.details).toBe('Level 1 details');
+      expect(level1Json.cause).toStrictEqual({
+        name: 'Error',
+        message: 'Root cause',
+      });
+    });
   });
 
   describe('inheritance', () => {
@@ -204,7 +250,7 @@ describe('SeedlessOnboardingError', () => {
       const error = new SeedlessOnboardingError('Test');
 
       expect(error.stack).toBeDefined();
-      expect(error.stack).toContain('SeedlessOnboardingError');
+      expect(error.stack).toContain('SeedlessOnboardingControllerError');
     });
   });
 });

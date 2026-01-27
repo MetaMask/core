@@ -200,9 +200,11 @@ export class SeedlessOnboardingError extends Error {
       message: this.message,
       details: this.details,
       cause:
-        this.cause instanceof Error
-          ? { name: this.cause.name, message: this.cause.message }
-          : this.cause,
+        this.cause instanceof SeedlessOnboardingError
+          ? this.cause.toJSON()
+          : this.cause instanceof Error
+            ? { name: this.cause.name, message: this.cause.message }
+            : this.cause,
       stack: this.stack,
     };
   }
