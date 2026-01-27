@@ -6,7 +6,12 @@ import type { CaipAssetType } from '@metamask/utils';
 
 import { projectLogger, createModuleLogger } from '../logger';
 import { forDataTypes } from '../types';
-import type { Caip19AssetId, AssetMetadata, Middleware } from '../types';
+import type {
+  Caip19AssetId,
+  AssetMetadata,
+  Middleware,
+  FungibleAssetMetadata,
+} from '../types';
 
 // ============================================================================
 // CONSTANTS
@@ -59,6 +64,18 @@ export type TokenDataSourceOptions = {
 // HELPER FUNCTIONS
 // ============================================================================
 
+/**
+ * Transform V3 API response to FungibleAssetMetadata for state storage.
+ *
+ * Mapping:
+ * - assetId → used to derive `type` (native/erc20/spl)
+ * - iconUrl → image
+ * - All other fields map directly
+ *
+ * @param assetId - CAIP-19 asset ID used to derive token type.
+ * @param assetData - V3 API response data.
+ * @returns FungibleAssetMetadata for state storage.
+ */
 function transformV3AssetResponseToMetadata(
   assetId: string,
   assetData: V3AssetResponse,
@@ -72,13 +89,28 @@ function transformV3AssetResponseToMetadata(
     tokenType = 'spl';
   }
 
-  return {
+  const metadata: FungibleAssetMetadata = {
+    // Type derived from assetId
     type: tokenType,
+    // BaseAssetMetadata fields
     name: assetData.name,
     symbol: assetData.symbol,
     decimals: assetData.decimals,
-    image: assetData.iconUrl ?? assetData.iconUrlThumbnail,
+    image: assetData.iconUrl,
+    // Direct mapping fields
+    coingeckoId: assetData.coingeckoId,
+    occurrences: assetData.occurrences,
+    aggregators: assetData.aggregators,
+    labels: assetData.labels,
+    erc20Permit: assetData.erc20Permit,
+    fees: assetData.fees,
+    honeypotStatus: assetData.honeypotStatus,
+    storage: assetData.storage,
+    isContractVerified: assetData.isContractVerified,
+    description: assetData.description,
   };
+
+  return metadata;
 }
 
 // ============================================================================
@@ -232,8 +264,16 @@ export class TokenDataSource {
       try {
         // Use ApiPlatformClient for fetching asset metadata
         // API returns an array with assetId as a property on each item
-        const metadataResponse =
-          await this.#apiClient.tokens.fetchV3Assets(supportedAssetIds);
+        const metadataResponse = await this.#apiClient.tokens.fetchV3Assets(
+          supportedAssetIds,
+          {
+            includeIconUrl: true,
+            includeMarketData: true,
+            includeMetadata: true,
+            includeLabels: true,
+            includeRwaData: true,
+          },
+        );
 
         response.assetsMetadata ??= {};
 
