@@ -36,6 +36,11 @@ export type {
   // Asset types
   AssetType,
   TokenStandard,
+  // Contract data types
+  TokenFees,
+  HoneypotStatus,
+  StorageSlots,
+  LocalizedDescription,
   // Metadata types
   BaseAssetMetadata,
   FungibleAssetMetadata,
