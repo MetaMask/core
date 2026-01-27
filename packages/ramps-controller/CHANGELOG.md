@@ -12,12 +12,16 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 - Add `hydrateState()` method to fetch providers and tokens for user region ([#7707](https://github.com/MetaMask/core/pull/7707))
 - Add `countries` state to RampsController with 24 hour TTL caching ([#7707](https://github.com/MetaMask/core/pull/7707))
 - Add `SupportedActions` type for `{ buy: boolean; sell: boolean }` support info
+- Add `selectedToken` state and `setSelectedToken()` method to RampsController ([#7734](https://github.com/MetaMask/core/pull/7734))
+- Add `RampsEnvironment.Local` option to RampsService for local development ([#7734](https://github.com/MetaMask/core/pull/7734))
 
 ### Changed
 
 - Reorganize `init()` to only fetch geolocation and countries; remove token and provider fetching ([#7707](https://github.com/MetaMask/core/pull/7707))
 - **BREAKING:** Change `Country.supported` and `State.supported` from `boolean` to `SupportedActions` object. The API now returns buy/sell support info in a single call.
 - **BREAKING:** Remove `action` parameter from `getCountries()`. Countries are no longer fetched separately for buy/sell actions.
+- **BREAKING:** Rename `preferredProvider` to `selectedProvider` and `setPreferredProvider()` to `setSelectedProvider()` in RampsController ([#7734](https://github.com/MetaMask/core/pull/7734))
+- **BREAKING:** Change `getPaymentMethods(options)` to `getPaymentMethods(region, options)` with region as first parameter ([#7734](https://github.com/MetaMask/core/pull/7734))
 
 ## [4.1.0]
 
