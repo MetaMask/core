@@ -130,14 +130,6 @@ export class TokenListController extends StaticIntervalPollingController<TokenLi
   readonly #changedChainsToPersist: Set<Hex> = new Set();
 
   /**
-   * Tracks chains that were just loaded from storage and should skip
-   * the next persistence cycle. This prevents redundant writes where
-   * data loaded from storage would be immediately written back.
-   * Chains are removed from this set after being skipped once.
-   */
-  readonly #chainsLoadedFromStorage: Set<Hex> = new Set();
-
-  /**
    * Previous tokensChainsCache for detecting which chains changed.
    */
   #previousTokensChainsCache: TokensChainsCache = {};
@@ -211,13 +203,6 @@ export class TokenListController extends StaticIntervalPollingController<TokenLi
     this.#chainId = chainId;
     this.#abortController = new AbortController();
 
-    // Subscribe to state changes to automatically persist tokensChainsCache
-    this.messenger.subscribe(
-      'TokenListController:stateChange',
-      (newCache: TokensChainsCache) => this.#onCacheChanged(newCache),
-      (controllerState) => controllerState.tokensChainsCache,
-    );
-
     if (onNetworkStateChange) {
       // TODO: Either fix this lint violation or explain why it's necessary to ignore.
       // eslint-disable-next-line @typescript-eslint/no-misused-promises
@@ -260,13 +245,7 @@ export class TokenListController extends StaticIntervalPollingController<TokenLi
 
       // Chain is new or timestamp changed (indicating data update)
       if (!prevData || prevData.timestamp !== newData.timestamp) {
-        // Skip persistence for chains that were just loaded from storage
-        // (they don't need to be written back immediately)
-        if (this.#chainsLoadedFromStorage.has(chainId)) {
-          this.#chainsLoadedFromStorage.delete(chainId); // Clean up - future updates should persist
-        } else {
-          this.#changedChainsToPersist.add(chainId);
-        }
+        this.#changedChainsToPersist.add(chainId);
       }
     }
 
@@ -391,14 +370,6 @@ export class TokenListController extends StaticIntervalPollingController<TokenLi
       // Merge loaded cache with existing state, preferring existing data
       // (which may be fresher if fetched during initialization)
       if (Object.keys(loadedCache).length > 0) {
-        // Track which chains we're actually loading from storage
-        // These will be skipped in the next #onCacheChanged to avoid redundant writes
-        for (const chainId of Object.keys(loadedCache) as Hex[]) {
-          if (!this.state.tokensChainsCache[chainId]) {
-            this.#chainsLoadedFromStorage.add(chainId);
-          }
-        }
-
         this.update((state) => {
           // Only load chains that don't already exist in state
           // This prevents overwriting fresh API data with stale cached data
@@ -408,10 +379,6 @@ export class TokenListController extends StaticIntervalPollingController<TokenLi
             }
           }
         });
-
-        // Note: The update() call above only triggers #onCacheChanged if chains
-        // were actually added to state. If initial state already contains chains
-        // from storage, the update() is a no-op and #onCacheChanged is never called.
       }
 
       // Persist chains that exist in state but were not loaded from storage.
@@ -438,6 +405,13 @@ export class TokenListController extends StaticIntervalPollingController<TokenLi
       console.error(
         'TokenListController: Failed to load cache from storage:',
         error,
+      );
+    } finally {
+      // Subscribe to state changes to automatically persist tokensChainsCache
+      this.messenger.subscribe(
+        'TokenListController:stateChange',
+        (newCache: TokensChainsCache) => this.#onCacheChanged(newCache),
+        (controllerState) => controllerState.tokensChainsCache,
       );
     }
   }
@@ -548,7 +522,6 @@ export class TokenListController extends StaticIntervalPollingController<TokenLi
       this.#persistDebounceTimer = undefined;
     }
     this.#changedChainsToPersist.clear();
-    this.#chainsLoadedFromStorage.clear();
   }
 
   /**

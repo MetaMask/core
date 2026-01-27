@@ -1414,6 +1414,7 @@ describe('TokenListController', () => {
         chainId: ChainId.mainnet,
         messenger: restrictedMessenger,
       });
+      await controller1.initialize();
 
       nock(tokenService.TOKEN_END_POINT_API)
         .get(getTokensPath(ChainId.mainnet))
@@ -1451,6 +1452,7 @@ describe('TokenListController', () => {
         chainId: ChainId.mainnet,
         messenger: restrictedMessenger,
       });
+      await controller.initialize();
 
       await controller.fetchTokenList(ChainId.mainnet);
 
@@ -1471,6 +1473,42 @@ describe('TokenListController', () => {
       expect(resultCache.timestamp).toBeDefined();
 
       controller.destroy();
+    });
+
+    it('should not save to StorageService before initialization', async () => {
+      const messenger = getMessenger();
+      const restrictedMessenger = getRestrictedMessenger(messenger);
+
+      // Create controller and fetch tokens
+      const controller1 = new TokenListController({
+        chainId: ChainId.mainnet,
+        messenger: restrictedMessenger,
+      });
+      // skip initialization
+
+      nock(tokenService.TOKEN_END_POINT_API)
+        .get(getTokensPath(ChainId.mainnet))
+        .reply(200, sampleMainnetTokenList);
+
+      await controller1.fetchTokenList(ChainId.mainnet);
+      expect(
+        controller1.state.tokensChainsCache[ChainId.mainnet],
+      ).toBeDefined();
+
+      // Wait for debounced persistence to complete (500ms + buffer)
+      await new Promise((resolve) => setTimeout(resolve, 600));
+
+      controller1.destroy();
+
+      // Verify data is in StorageService (per-chain file)
+      const chainStorageKey = `tokensChainsCache:${ChainId.mainnet}`;
+      const { result } = await messenger.call(
+        'StorageService:getItem',
+        'TokenListController',
+        chainStorageKey,
+      );
+
+      expect(result).toBeUndefined();
     });
 
     it('should handle errors when loading individual chain cache files', async () => {
