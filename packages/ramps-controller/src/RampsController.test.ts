@@ -942,7 +942,7 @@ describe('RampsController', () => {
   describe('getCountries', () => {
     const mockCountries: Country[] = [
       {
-        isoCode: 'US-ca',
+        isoCode: 'US',
         flag: '🇺🇸',
         name: 'United States of America',
         phone: {
@@ -1261,7 +1261,7 @@ describe('RampsController', () => {
           await controller.setUserRegion('US-CA');
 
           expect(controller.state.userRegion?.regionCode).toBe('us-ca');
-          expect(controller.state.userRegion?.country.isoCode).toBe('US-ca');
+          expect(controller.state.userRegion?.country.isoCode).toBe('US');
           expect(controller.state.userRegion?.state?.stateId).toBe('CA');
         },
       );
@@ -1580,13 +1580,20 @@ describe('RampsController', () => {
     it('finds country by id matching countryCode directly', async () => {
       const countriesWithId: Country[] = [
         {
-          id: 'us-ca',
+          id: 'us',
           isoCode: 'ZZ',
           name: 'United States',
           flag: '🇺🇸',
           currency: 'USD',
           phone: { prefix: '+1', placeholder: '', template: '' },
           supported: { buy: true, sell: true },
+          states: [
+            {
+              stateId: 'CA',
+              name: 'California',
+              supported: { buy: true, sell: true },
+            },
+          ],
         },
       ];
 
@@ -1683,7 +1690,7 @@ describe('RampsController', () => {
     it('finds state by id including -stateCode', async () => {
       const countriesWithStateId: Country[] = [
         {
-          isoCode: 'US-ca',
+          isoCode: 'US',
           name: 'United States',
           flag: '🇺🇸',
           currency: 'USD',
@@ -1720,7 +1727,7 @@ describe('RampsController', () => {
           await controller.setUserRegion('us-ny');
 
           expect(controller.state.userRegion?.regionCode).toBe('us-ny');
-          expect(controller.state.userRegion?.country.isoCode).toBe('US-ca');
+          expect(controller.state.userRegion?.country.isoCode).toBe('US');
           expect(controller.state.userRegion?.state?.name).toBe('New York');
         },
       );
@@ -1729,7 +1736,7 @@ describe('RampsController', () => {
     it('finds state by id ending with /stateCode', async () => {
       const countriesWithStateId: Country[] = [
         {
-          isoCode: 'US-ca',
+          isoCode: 'US',
           name: 'United States',
           flag: '🇺🇸',
           currency: 'USD',
@@ -1766,7 +1773,7 @@ describe('RampsController', () => {
           await controller.setUserRegion('us-ca');
 
           expect(controller.state.userRegion?.regionCode).toBe('us-ca');
-          expect(controller.state.userRegion?.country.isoCode).toBe('US-ca');
+          expect(controller.state.userRegion?.country.isoCode).toBe('US');
           expect(controller.state.userRegion?.state?.name).toBe('California');
         },
       );
@@ -1775,7 +1782,7 @@ describe('RampsController', () => {
     it('returns null state when state code does not match any state', async () => {
       const countriesWithStates: Country[] = [
         {
-          isoCode: 'US-ca',
+          isoCode: 'US',
           name: 'United States',
           flag: '🇺🇸',
           currency: 'USD',
@@ -1817,7 +1824,7 @@ describe('RampsController', () => {
           await controller.setUserRegion('us-xx');
 
           expect(controller.state.userRegion?.regionCode).toBe('us-xx');
-          expect(controller.state.userRegion?.country.isoCode).toBe('US-ca');
+          expect(controller.state.userRegion?.country.isoCode).toBe('US');
           expect(controller.state.userRegion?.state).toBeNull();
         },
       );
@@ -2698,7 +2705,7 @@ describe('RampsController', () => {
     it('throws error when fiat is not provided and userRegion has no currency', async () => {
       const regionWithoutCurrency: UserRegion = {
         country: {
-          isoCode: 'US-ca',
+          isoCode: 'US',
           name: 'United States',
           flag: '🇺🇸',
           currency: undefined as unknown as string,
@@ -3101,7 +3108,7 @@ function createMockUserRegion(
 function createMockCountries(): Country[] {
   return [
     {
-      isoCode: 'US-ca',
+      isoCode: 'US',
       name: 'United States of America',
       flag: '🇺🇸',
       currency: 'USD',
