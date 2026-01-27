@@ -652,7 +652,6 @@ function validateVerifyingContract(data: string): void {
   }
 }
 
-
 const DANGEROUS_PROTOTYPE_PROPERTIES = [
   '__proto__',
   'constructor',
