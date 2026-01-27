@@ -66,19 +66,70 @@ export type BaseAssetMetadata = {
   image?: string;
 };
 
+// ============================================================================
+// TOKEN CONTRACT DATA TYPES
+// ============================================================================
+
+/** Fee information for token transfers */
+export type TokenFees = {
+  avgFee: number;
+  maxFee: number;
+  minFee: number;
+};
+
+/** Honeypot detection status */
+export type HoneypotStatus = {
+  honeypotIs: boolean;
+  goPlus?: boolean;
+};
+
+/** Storage slot information for the contract */
+export type StorageSlots = {
+  balance: number;
+  approval: number;
+};
+
+/** Localized description */
+export type LocalizedDescription = {
+  en: string;
+};
+
+// ============================================================================
+// ASSET METADATA TYPES
+// ============================================================================
+
 /**
- * Metadata for fungible tokens
- * Asset Type: "fungible"
- * Includes: native, ERC-20, SPL, and other fungible token standards
+ * Metadata for fungible tokens.
+ * Structure mirrors V3AssetResponse from the Tokens API.
+ *
+ * Differences from V3AssetResponse:
+ * - `type` is derived from assetId namespace (not in API response)
+ * - `image` maps from API's `iconUrl`
+ * - `assetId` is not stored (used as the key)
  */
 export type FungibleAssetMetadata = {
+  /** Token type derived from assetId namespace */
   type: 'native' | 'erc20' | 'spl';
-  /** Spam detection flag */
-  isSpam?: boolean;
-  /** Verification status */
-  verified?: boolean;
-  /** Token list memberships */
-  collections?: string[];
+  /** CoinGecko ID for price lookups */
+  coingeckoId?: string;
+  /** Number of token list occurrences */
+  occurrences?: number;
+  /** DEX/aggregator integrations */
+  aggregators?: string[];
+  /** Asset labels/tags (e.g., "stable_coin") */
+  labels?: string[];
+  /** Whether the token supports ERC-20 permit */
+  erc20Permit?: boolean;
+  /** Fee information for token transfers */
+  fees?: TokenFees;
+  /** Honeypot detection status */
+  honeypotStatus?: HoneypotStatus;
+  /** Storage slot information for the contract */
+  storage?: StorageSlots;
+  /** Whether the contract is verified */
+  isContractVerified?: boolean;
+  /** Localized description */
+  description?: LocalizedDescription;
 } & BaseAssetMetadata;
 
 /**
