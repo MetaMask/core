@@ -33,7 +33,7 @@ Note that the package template in `scripts/create-package/package-template` also
 
 ### Configuration files
 
-The monorepo uses a hierarchical configuration approach for different tools:
+The monorepo uses a hierarchical configuration approach for different tools. For most tools, root-level config files define shared settings, while package-level files extend or customize them.
 
 ### Contributing teams and codeowners
 
@@ -91,14 +91,27 @@ Follow test-driven development when making changes:
 3. **Make tests pass:** Implement changes to make the tests pass.
 4. **Run tests after changes:** Always run tests after making code changes to ensure nothing is broken.
 
+Additionally, make sure the following checks pass after completing a request:
+
+- There should be no lint violations or type errors.
+- All tests should pass.
+- All changelogs should pass validation.
+
 ### Performing operations across the monorepo
 
 - Run `yarn workspace <package-name> run <script>` to run a package script within a package.
-- Run `yarn workspace <package-name> exec <command>` to run a command within a package.
-- Run `yarn workspace foreach --all run <script>` to run a package script across all repos.
-- Run `yarn workspace foreach --all exec <command>` to run a command across all repos.
+- Run `yarn workspace <package-name> exec <command>` to run an executable within a package.
+- Run `yarn workspace <package-name> add <dependency>` to add a dependency to a package.
+- Run `yarn workspace <package-name> add -D <dependency>` to add a development dependency to a package.
+- Run `yarn workspaces foreach --all run <script>` to run a package script across all packages.
+- Run `yarn workspaces foreach --all exec <command>` to run an executable across all packages.
+- Run `yarn workspaces foreach --all add <dependency>` to add a dependency to all packages.
+- Run `yarn workspaces foreach --all add -D <dependency>` to add a development dependency to all packages.
 - Run `yarn run <script>` to run a package script defined in the root `package.json`.
-- Run `yarn exec <command>` to run a command available at the root of the project.
+- Run `yarn exec <command>` to run an executable from the root of the project.
+- Run `yarn add <dependency>` to add a dependency to the root `package.json`.
+- Run `yarn add -D <dependency>` to add a dependency to the root `package.json`.
+- Run `yarn up -R <dependency>` to upgrade a dependency across the monorepo.
 
 For more on these commands, see:
 
@@ -114,6 +127,7 @@ For more on these commands, see:
 ### Linting and formatting
 
 - Run `yarn lint` to check for code quality issues across the monorepo.
+- Run `yarn validate:changelog` to check for formatting issues in changelogs.
 - Run `yarn lint:fix` to automatically fix fixable violations.
 
 ### Building packages
@@ -144,6 +158,7 @@ Each consumer-facing change to a package should be accompanied by one or more en
   - Do not simply reuse the PR title in the entry, but describe exact changes to the API or usable surface area of the project.
   - When there are multiple upgrades to a package in the same release, combine them into a single entry.
   - Each changelog entry should describe one kind of change; if an entry describes too many things, split it up.
+- After updating a changelog, run `yarn validate:changelog` and fix any errors reported.
 
 ## Creating releases
 
@@ -170,8 +185,36 @@ Use `yarn create-package --name <name> --description <description>` to add a new
 
 ### Controllers
 
-When adding or updating controllers in packages, make sure to abide by the guidelines in `docs/controller-guidelines.md`. Use `SampleGasPricesController` and `SamplePetnamesController` in the `sample-controllers` package as examples for implementation and tests.
+When adding or updating controllers in packages, follow these guidelines:
 
-### Services
+- Controller classes should extend `BaseController`.
+- Controllers should not be stateless; if a controller does not have state, it should be a service.
+- The controller should define a public messenger type.
+- All messenger actions and events should be publicly defined. The default set should include the `:getState` action and `:stateChange` event.
+- All actions and events the messenger uses from other controllers and services should also be declared in the messenger type.
+- Controllers should initialize state by combining default and provided state. Provided state should be optional.
+- The constructor should take `messenger` and `state` options at a minimum.
+- Make sure to write comprehensive tests for the controller class.
 
-When adding or updating services in packages, use the `sample-gas-prices-service/` directory in the `sample-controllers` package as examples for implementation and tests.
+Use the full set of guidelines is in `docs/controller-guidelines.md` for reference.
+
+Use `SampleGasPricesController` and `SamplePetnamesController` in the `sample-controllers` package as examples for implementation and tests.
+
+### Data services
+
+When adding or updating data services in packages, follow these guidelines:
+
+- Data services should define a public messenger type.
+- All methods defined on the service class should be exposed through the messenger.
+- All messenger actions and events should be publicly defined.
+- All actions and events the messenger uses from other services should also be declared in the messenger type.
+- The constructor should take `messenger` and `fetch` options at a minimum.
+- The constructor should construct a policy using the `createServicePolicy` function.
+- Each method in a service class should represent a single endpoint of an API.
+- Use the policy to wrap each request to the endpoint.
+- If a request has a non-2xx response, throw an error.
+- Validate each request's response (throwing an error if invalid) before returning its data.
+- Service classes should also define `onRetry`, `onBreak`, and `onDegraded` methods.
+- Make sure to write comprehensive tests for the service class.
+
+Use the `sample-gas-prices-service/` directory in the `sample-controllers` package as examples for implementation and tests.
