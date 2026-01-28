@@ -25,9 +25,11 @@ describe('createRequestSelector', () => {
       const state: TestRootState = {
         ramps: {
           userRegion: null,
-          preferredProvider: null,
+          countries: [],
+          selectedProvider: null,
           providers: [],
           tokens: null,
+          selectedToken: null,
           paymentMethods: [],
           selectedPaymentMethod: null,
           requests: {
@@ -58,9 +60,11 @@ describe('createRequestSelector', () => {
       const state: TestRootState = {
         ramps: {
           userRegion: null,
-          preferredProvider: null,
+          countries: [],
+          selectedProvider: null,
           providers: [],
           tokens: null,
+          selectedToken: null,
           paymentMethods: [],
           selectedPaymentMethod: null,
           requests: {
@@ -94,9 +98,11 @@ describe('createRequestSelector', () => {
       const state: TestRootState = {
         ramps: {
           userRegion: null,
-          preferredProvider: null,
+          countries: [],
+          selectedProvider: null,
           providers: [],
           tokens: null,
+          selectedToken: null,
           paymentMethods: [],
           selectedPaymentMethod: null,
           requests: {
@@ -126,9 +132,11 @@ describe('createRequestSelector', () => {
       const state: TestRootState = {
         ramps: {
           userRegion: null,
-          preferredProvider: null,
+          countries: [],
+          selectedProvider: null,
           providers: [],
           tokens: null,
+          selectedToken: null,
           paymentMethods: [],
           selectedPaymentMethod: null,
           requests: {},
@@ -181,9 +189,11 @@ describe('createRequestSelector', () => {
       const state: TestRootState = {
         ramps: {
           userRegion: null,
-          preferredProvider: null,
+          countries: [],
+          selectedProvider: null,
           providers: [],
           tokens: null,
+          selectedToken: null,
           paymentMethods: [],
           selectedPaymentMethod: null,
           requests: {
@@ -209,9 +219,11 @@ describe('createRequestSelector', () => {
       const state1: TestRootState = {
         ramps: {
           userRegion: null,
-          preferredProvider: null,
+          countries: [],
+          selectedProvider: null,
           providers: [],
           tokens: null,
+          selectedToken: null,
           paymentMethods: [],
           selectedPaymentMethod: null,
           requests: {
@@ -226,9 +238,11 @@ describe('createRequestSelector', () => {
       const state2: TestRootState = {
         ramps: {
           userRegion: null,
-          preferredProvider: null,
+          countries: [],
+          selectedProvider: null,
           providers: [],
           tokens: null,
+          selectedToken: null,
           paymentMethods: [],
           selectedPaymentMethod: null,
           requests: {
@@ -255,9 +269,11 @@ describe('createRequestSelector', () => {
       const state: TestRootState = {
         ramps: {
           userRegion: null,
-          preferredProvider: null,
+          countries: [],
+          selectedProvider: null,
           providers: [],
           tokens: null,
+          selectedToken: null,
           paymentMethods: [],
           selectedPaymentMethod: null,
           requests: {
@@ -287,9 +303,11 @@ describe('createRequestSelector', () => {
       const state: TestRootState = {
         ramps: {
           userRegion: null,
-          preferredProvider: null,
+          countries: [],
+          selectedProvider: null,
           providers: [],
           tokens: null,
+          selectedToken: null,
           paymentMethods: [],
           selectedPaymentMethod: null,
           requests: {
@@ -318,9 +336,11 @@ describe('createRequestSelector', () => {
       const loadingState: TestRootState = {
         ramps: {
           userRegion: null,
-          preferredProvider: null,
+          countries: [],
+          selectedProvider: null,
           providers: [],
           tokens: null,
+          selectedToken: null,
           paymentMethods: [],
           selectedPaymentMethod: null,
           requests: {
@@ -337,9 +357,11 @@ describe('createRequestSelector', () => {
       const successState: TestRootState = {
         ramps: {
           userRegion: null,
-          preferredProvider: null,
+          countries: [],
+          selectedProvider: null,
           providers: [],
           tokens: null,
+          selectedToken: null,
           paymentMethods: [],
           selectedPaymentMethod: null,
           requests: {
@@ -364,9 +386,11 @@ describe('createRequestSelector', () => {
       const successState: TestRootState = {
         ramps: {
           userRegion: null,
-          preferredProvider: null,
+          countries: [],
+          selectedProvider: null,
           providers: [],
           tokens: null,
+          selectedToken: null,
           paymentMethods: [],
           selectedPaymentMethod: null,
           requests: {
@@ -382,9 +406,11 @@ describe('createRequestSelector', () => {
       const errorState: TestRootState = {
         ramps: {
           userRegion: null,
-          preferredProvider: null,
+          countries: [],
+          selectedProvider: null,
           providers: [],
           tokens: null,
+          selectedToken: null,
           paymentMethods: [],
           selectedPaymentMethod: null,
           requests: {
@@ -415,9 +441,11 @@ describe('createRequestSelector', () => {
       const state: TestRootState = {
         ramps: {
           userRegion: null,
-          preferredProvider: null,
+          countries: [],
+          selectedProvider: null,
           providers: [],
           tokens: null,
+          selectedToken: null,
           paymentMethods: [],
           selectedPaymentMethod: null,
           requests: {
@@ -452,9 +480,11 @@ describe('createRequestSelector', () => {
       const state: TestRootState = {
         ramps: {
           userRegion: null,
-          preferredProvider: null,
+          countries: [],
+          selectedProvider: null,
           providers: [],
           tokens: null,
+          selectedToken: null,
           paymentMethods: [],
           selectedPaymentMethod: null,
           requests: {

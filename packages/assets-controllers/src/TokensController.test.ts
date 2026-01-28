@@ -3184,7 +3184,6 @@ describe('TokensController', () => {
 
         messenger.publish(
           'TokenListController:stateChange',
-          // @ts-expect-error Passing a partial TokensState for brevity
           {
             tokensChainsCache: {
               [ChainId.mainnet]: {
