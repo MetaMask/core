@@ -14,7 +14,11 @@ import {
   TOPRFErrorCode,
   TOPRFError,
 } from '@metamask/toprf-secure-backup';
-import { base64ToBytes, bytesToBase64 } from '@metamask/utils';
+import {
+  base64ToBytes,
+  bytesToBase64,
+  isNullOrUndefined,
+} from '@metamask/utils';
 import { gcm } from '@noble/ciphers/aes';
 import { bytesToUtf8, utf8ToBytes } from '@noble/ciphers/utils';
 import { managedNonce } from '@noble/ciphers/webcrypto';
@@ -107,7 +111,10 @@ const seedlessOnboardingMetadata: StateMetadata<SeedlessOnboardingControllerStat
       usedInUi: false,
     },
     nodeAuthTokens: {
-      includeInStateLogs: false,
+      // We sanitize the `authToken` field from the `nodeAuthTokens` to avoid logging the actual token.
+      // The reason we include this in the state logs is to help with debugging in case of any issues.
+      includeInStateLogs: (nodeAuthTokens) =>
+        !isNullOrUndefined(nodeAuthTokens),
       persist: true,
       includeInDebugSnapshot: false,
       usedInUi: false,
