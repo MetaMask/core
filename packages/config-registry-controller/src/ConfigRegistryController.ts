@@ -9,7 +9,7 @@ import type {
 } from '@metamask/keyring-controller';
 import type { Messenger } from '@metamask/messenger';
 import { StaticIntervalPollingController } from '@metamask/polling-controller';
-import type { RemoteFeatureFlagControllerState } from '@metamask/remote-feature-flag-controller';
+import { RemoteFeatureFlagControllerGetStateAction } from '@metamask/remote-feature-flag-controller';
 import { Duration, inMilliseconds } from '@metamask/utils';
 import type { Json } from '@metamask/utils';
 
@@ -20,7 +20,6 @@ import type {
 } from './config-registry-api-service';
 import { filterNetworks } from './config-registry-api-service';
 import { isConfigRegistryApiEnabled as defaultIsConfigRegistryApiEnabled } from './utils/feature-flags';
-import { RemoteFeatureFlagControllerGetStateAction } from '@metamask/remote-feature-flag-controller';
 
 const controllerName = 'ConfigRegistryController';
 
