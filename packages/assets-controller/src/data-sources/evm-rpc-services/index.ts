@@ -1,12 +1,12 @@
 export type {
   Address,
+  AssetsBalanceState,
   ChainId,
   GetProviderFunction,
   Provider,
   BalanceOfRequest,
   BalanceOfResponse,
   TokenListState,
-  UserTokensState,
   BalanceFetchResult,
   TokenDetectionResult,
 } from './types';

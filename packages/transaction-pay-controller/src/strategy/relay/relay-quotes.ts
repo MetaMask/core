@@ -30,6 +30,7 @@ import type {
   TransactionPayQuote,
 } from '../../types';
 import {
+  getEIP7702SupportedChains,
   getFeatureFlags,
   getGasBuffer,
   getSlippage,
@@ -501,6 +502,20 @@ async function calculateSourceNetworkCost(
     log('Skipping gas station as disabled chain', {
       sourceChainId,
       disabledChainIds: relayDisabledGasStationChains,
+    });
+
+    return result;
+  }
+
+  const supportedChains = getEIP7702SupportedChains(messenger);
+  const chainSupportsGasStation = supportedChains.some(
+    (supportedChainId) =>
+      supportedChainId.toLowerCase() === sourceChainId.toLowerCase(),
+  );
+
+  if (!chainSupportsGasStation) {
+    log('Skipping gas station as chain does not support EIP-7702', {
+      sourceChainId,
     });
 
     return result;
