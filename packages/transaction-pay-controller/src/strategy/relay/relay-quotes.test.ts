@@ -1009,7 +1009,7 @@ describe('Relay Quotes Utils', () => {
         });
       });
 
-      it('throws if insufficient native balance and chain does not support EIP-7702', async () => {
+      it('not using gas fee token if insufficient native balance and chain does not support EIP-7702', async () => {
         const lineaQuoteRequest: QuoteRequest = {
           ...QUOTE_REQUEST_MOCK,
           sourceChainId: CHAIN_ID_LINEA,
@@ -1024,15 +1024,27 @@ describe('Relay Quotes Utils', () => {
           QUOTE_REQUEST_MOCK.sourceChainId,
         ]);
 
-        await expect(
-          getRelayQuotes({
-            messenger,
-            requests: [lineaQuoteRequest],
-            transaction: TRANSACTION_META_MOCK,
-          }),
-        ).rejects.toThrow(
-          'Insufficient native balance for gas and chain does not support gas station',
-        );
+        const result = await getRelayQuotes({
+          messenger,
+          requests: [lineaQuoteRequest],
+          transaction: TRANSACTION_META_MOCK,
+        });
+
+        expect(result[0].fees.isSourceGasFeeToken).toBeUndefined();
+        expect(result[0].fees.sourceNetwork).toStrictEqual({
+          estimate: {
+            fiat: '4.56',
+            human: '1.725',
+            raw: '1725000000000000',
+            usd: '3.45',
+          },
+          max: {
+            fiat: '4.56',
+            human: '1.725',
+            raw: '1725000000000000',
+            usd: '3.45',
+          },
+        });
       });
     });
 

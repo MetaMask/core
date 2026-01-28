@@ -518,9 +518,7 @@ async function calculateSourceNetworkCost(
       sourceChainId,
     });
 
-    throw new Error(
-      'Insufficient native balance for gas and chain does not support gas station',
-    );
+    return result;
   }
 
   log('Checking gas fee tokens as insufficient native balance', {
