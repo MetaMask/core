@@ -62,6 +62,7 @@ export type RelayQuote = {
   };
   request: RelayQuoteRequest;
   steps: {
+    id?: string;
     items: {
       check: {
         endpoint: string;

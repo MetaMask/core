@@ -396,6 +396,26 @@ describe('Relay Submit Utils', () => {
       expect(successfulFetchMock).toHaveBeenCalledTimes(0);
     });
 
+    it('waits for relay status if same chain with single deposit step', async () => {
+      request.quotes[0].original.details.currencyOut.currency.chainId = 1;
+      request.quotes[0].original.steps = [
+        {
+          ...request.quotes[0].original.steps[0],
+          id: 'deposit',
+        },
+      ];
+
+      await submitRelayQuotes(request);
+
+      expect(successfulFetchMock).toHaveBeenCalledTimes(1);
+      expect(successfulFetchMock).toHaveBeenCalledWith(
+        `${RELAY_STATUS_URL}?requestId=${REQUEST_ID_MOCK}`,
+        {
+          method: 'GET',
+        },
+      );
+    });
+
     it('throws if transaction fails to confirm', async () => {
       waitForTransactionConfirmedMock.mockRejectedValue(
         new Error('Transaction failed'),
