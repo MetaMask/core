@@ -14,7 +14,7 @@ export class AiDigestService implements DigestService {
 
   async fetchDigest(assetId: string): Promise<DigestData> {
     const response = await fetch(
-      `${this.#baseUrl}/digests/assets/${assetId}/latest`,
+      `${this.#baseUrl}/digests/assets/${encodeURIComponent(assetId)}/latest`,
     );
 
     if (!response.ok) {

@@ -36,7 +36,7 @@ describe('AiDigestService', () => {
 
     expect(result).toStrictEqual(mockDigestResponse);
     expect(mockFetch).toHaveBeenCalledWith(
-      'http://test.com/digests/assets/eth-ethereum/latest',
+      `http://test.com/digests/assets/${encodeURIComponent('eth-ethereum')}/latest`,
     );
   });
 
