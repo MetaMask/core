@@ -269,7 +269,10 @@ const loadControllerWithMocks = (): any => {
   };
 };
 
-const setup = (options?: { selectedChainId?: string }): any => {
+const setup = (options?: {
+  selectedChainId?: string;
+  approvalStatus?: TransactionStatus;
+}): any => {
   const accountAddress = '0xAccount1';
   const { messenger, transactions } = createMessengerHarness(
     accountAddress,
@@ -297,7 +300,7 @@ const setup = (options?: { selectedChainId?: string }): any => {
       const approvalTx: Tx = {
         id: 'approvalTxId1',
         type: reqOpts.type,
-        status: TransactionStatus.failed, // makes #waitForTxConfirmation throw quickly
+        status: options?.approvalStatus ?? TransactionStatus.failed,
         chainId: txParams.chainId,
         hash,
       };
@@ -411,6 +414,76 @@ describe('BridgeStatusController (intent swaps)', () => {
     expect(startPollingSpy).not.toHaveBeenCalled();
 
     // Optional: ensure we never called the intent API submit
+    expect(submitIntentMock).not.toHaveBeenCalled();
+  });
+
+  it('submitIntent: completes when approval tx confirms', async () => {
+    const { controller, accountAddress, submitIntentMock } = setup({
+      approvalStatus: TransactionStatus.confirmed,
+    });
+
+    const orderUid = 'order-uid-approve-1';
+    submitIntentMock.mockResolvedValue({
+      id: orderUid,
+      status: IntentOrderStatus.SUBMITTED,
+      txHash: undefined,
+      metadata: { txHashes: [] },
+    });
+
+    const quoteResponse = minimalIntentQuoteResponse({
+      approval: {
+        chainId: 1,
+        from: accountAddress,
+        to: '0x0000000000000000000000000000000000000001',
+        data: '0x',
+        value: '0x0',
+        gasLimit: 21000,
+      },
+    });
+
+    await expect(
+      controller.submitIntent({
+        quoteResponse,
+        signature: '0xsig',
+        accountAddress,
+      }),
+    ).resolves.toBeDefined();
+
+    expect(submitIntentMock).toHaveBeenCalled();
+  });
+
+  it('submitIntent: throws when approval tx is rejected', async () => {
+    const { controller, accountAddress, submitIntentMock } = setup({
+      approvalStatus: TransactionStatus.rejected,
+    });
+
+    const orderUid = 'order-uid-approve-2';
+    submitIntentMock.mockResolvedValue({
+      id: orderUid,
+      status: IntentOrderStatus.SUBMITTED,
+      txHash: undefined,
+      metadata: { txHashes: [] },
+    });
+
+    const quoteResponse = minimalIntentQuoteResponse({
+      approval: {
+        chainId: 1,
+        from: accountAddress,
+        to: '0x0000000000000000000000000000000000000001',
+        data: '0x',
+        value: '0x0',
+        gasLimit: 21000,
+      },
+    });
+
+    await expect(
+      controller.submitIntent({
+        quoteResponse,
+        signature: '0xsig',
+        accountAddress,
+      }),
+    ).rejects.toThrow(/approval/iu);
+
     expect(submitIntentMock).not.toHaveBeenCalled();
   });
 

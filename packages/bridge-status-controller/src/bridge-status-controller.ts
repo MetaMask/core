@@ -60,6 +60,10 @@ import {
   getStatusRequestWithSrcTxHash,
   shouldSkipFetchDueToFetchFailures,
 } from './utils/bridge-status';
+import {
+  rekeyHistoryItemInState,
+  waitForTxConfirmation,
+} from './utils/bridge-status-controller-helpers';
 import { getTxGasEstimates } from './utils/gas';
 import {
   IntentApiImpl,
@@ -553,31 +557,8 @@ export class BridgeStatusController extends StaticIntervalPollingController<Brid
     actionId: string,
     txMeta: { id: string; hash?: string },
   ): void => {
-    const historyItem = this.state.txHistory[actionId];
-    /* c8 ignore next */
-    if (!historyItem) {
-      return;
-    }
-
     this.update((state) => {
-      // Update fields that weren't available pre-submission
-      const updatedItem: BridgeHistoryItem = {
-        ...historyItem,
-        txMetaId: txMeta.id,
-        originalTransactionId: historyItem.originalTransactionId ?? txMeta.id,
-        status: {
-          ...historyItem.status,
-          srcChain: {
-            ...historyItem.status.srcChain,
-            txHash: txMeta.hash ?? historyItem.status.srcChain?.txHash,
-          },
-        },
-      };
-
-      // Add under new key (txMeta.id)
-      state.txHistory[txMeta.id] = updatedItem;
-      // Remove old key (actionId)
-      delete state.txHistory[actionId];
+      rekeyHistoryItemInState(state, actionId, txMeta);
     });
   };
 
@@ -1013,39 +994,10 @@ export class BridgeStatusController extends StaticIntervalPollingController<Brid
       pollMs = 3_000,
     }: { timeoutMs?: number; pollMs?: number } = {},
   ): Promise<TransactionMeta> => {
-    /* c8 ignore start */
-    const start = Date.now();
-    // Poll the TransactionController state for status changes
-    // We intentionally keep this simple to avoid extra wiring/subscriptions in this controller
-    // and because we only need it for the rare intent+approval path.
-    while (true) {
-      const { transactions } = this.messenger.call(
-        'TransactionController:getState',
-      );
-      const meta = transactions.find((tx: TransactionMeta) => tx.id === txId);
-
-      if (meta) {
-        // Treat both 'confirmed' and 'finalized' as success to match TC lifecycle
-
-        if (meta.status === TransactionStatus.confirmed) {
-          return meta;
-        }
-        if (
-          meta.status === TransactionStatus.failed ||
-          meta.status === TransactionStatus.dropped ||
-          meta.status === TransactionStatus.rejected
-        ) {
-          throw new Error('Approval transaction did not confirm');
-        }
-      }
-
-      if (Date.now() - start > timeoutMs) {
-        throw new Error('Timed out waiting for approval confirmation');
-      }
-
-      await new Promise((resolve) => setTimeout(resolve, pollMs));
-    }
-    /* c8 ignore stop */
+    return await waitForTxConfirmation(this.messenger, txId, {
+      timeoutMs,
+      pollMs,
+    });
   };
 
   readonly #handleApprovalTx = async (

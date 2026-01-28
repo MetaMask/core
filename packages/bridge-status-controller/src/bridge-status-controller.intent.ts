@@ -32,7 +32,6 @@ export class IntentStatusManager {
     // Use the original transaction ID (not the bridge history key)
     const originalTxId =
       historyItem.originalTransactionId ?? historyItem.txMetaId;
-    /* c8 ignore next */
     if (!originalTxId) {
       return;
     }
@@ -81,13 +80,11 @@ export class IntentStatusManager {
         `BridgeStatusController - Intent order status updated: ${intentOrderStatus}`,
       );
     } catch (error) {
-      /* c8 ignore start */
       console.error('📝 [Intent polling] Failed to update transaction status', {
         originalTxId,
         bridgeHistoryKey: bridgeTxMetaId,
         error,
       });
     }
-    /* c8 ignore stop */
   };
 }
