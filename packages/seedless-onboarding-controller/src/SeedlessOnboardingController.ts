@@ -14,11 +14,7 @@ import {
   TOPRFErrorCode,
   TOPRFError,
 } from '@metamask/toprf-secure-backup';
-import {
-  base64ToBytes,
-  bytesToBase64,
-  isNullOrUndefined,
-} from '@metamask/utils';
+import { base64ToBytes, bytesToBase64 } from '@metamask/utils';
 import { gcm } from '@noble/ciphers/aes';
 import { bytesToUtf8, utf8ToBytes } from '@noble/ciphers/utils';
 import { managedNonce } from '@noble/ciphers/webcrypto';
@@ -111,8 +107,7 @@ const seedlessOnboardingMetadata: StateMetadata<SeedlessOnboardingControllerStat
       usedInUi: false,
     },
     nodeAuthTokens: {
-      includeInStateLogs: (nodeAuthTokens) =>
-        !isNullOrUndefined(nodeAuthTokens),
+      includeInStateLogs: false,
       persist: true,
       includeInDebugSnapshot: false,
       usedInUi: false,
@@ -172,28 +167,26 @@ const seedlessOnboardingMetadata: StateMetadata<SeedlessOnboardingControllerStat
       usedInUi: false,
     },
     refreshToken: {
-      includeInStateLogs: (refreshToken) => !isNullOrUndefined(refreshToken),
+      includeInStateLogs: false,
       persist: true,
       includeInDebugSnapshot: false,
       usedInUi: false,
     },
     revokeToken: {
-      includeInStateLogs: (revokeToken) => !isNullOrUndefined(revokeToken),
+      includeInStateLogs: false,
       persist: false,
       includeInDebugSnapshot: false,
       usedInUi: false,
     },
     pendingToBeRevokedTokens: {
-      includeInStateLogs: (pendingToBeRevokedTokens) =>
-        !isNullOrUndefined(pendingToBeRevokedTokens) &&
-        pendingToBeRevokedTokens.length > 0,
+      includeInStateLogs: false,
       persist: true,
       includeInDebugSnapshot: false,
       usedInUi: false,
     },
     // stays in vault
     accessToken: {
-      includeInStateLogs: (accessToken) => !isNullOrUndefined(accessToken),
+      includeInStateLogs: false,
       persist: false,
       includeInDebugSnapshot: false,
       usedInUi: false,
@@ -201,8 +194,7 @@ const seedlessOnboardingMetadata: StateMetadata<SeedlessOnboardingControllerStat
     // stays outside of vault as this token is accessed by the metadata service
     // before the vault is created or unlocked.
     metadataAccessToken: {
-      includeInStateLogs: (metadataAccessToken) =>
-        !isNullOrUndefined(metadataAccessToken),
+      includeInStateLogs: false,
       persist: true,
       includeInDebugSnapshot: false,
       usedInUi: false,
