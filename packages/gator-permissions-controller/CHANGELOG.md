@@ -9,9 +9,9 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [1.1.2]
 
-### Changed
+### Fixed
 
-- Bump `@metamask/transaction-controller` from `^62.10.0` to `^62.11.0` ([#7760](https://github.com/MetaMask/core/pull/7760))
+- Bump `@metamask/transaction-controller` from `^62.10.0` to `^62.11.0` to resolve mismatching `WebSocketState` enum export in `@metamask/core-backend` transient dependency ([#7760](https://github.com/MetaMask/core/pull/7760))
 
 ## [1.1.1]
 
