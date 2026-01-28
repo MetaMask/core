@@ -53,7 +53,7 @@ function createMockMessenger(
   assetsBalanceState?: AssetsBalanceState,
 ): BalanceFetcherMessenger {
   return {
-    call: (_action: 'AssetsController:getState') => {
+    call: (_action: 'AssetsController:getState'): AssetsBalanceState => {
       return assetsBalanceState ?? { assetsBalance: {} };
     },
   };

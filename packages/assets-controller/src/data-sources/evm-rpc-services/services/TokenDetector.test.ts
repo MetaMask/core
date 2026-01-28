@@ -79,7 +79,7 @@ function createMockMessenger(
   tokenListState?: TokenListState,
 ): TokenDetectorMessenger {
   return {
-    call: (_action: 'TokenListController:getState') => {
+    call: (_action: 'TokenListController:getState'): TokenListState => {
       return tokenListState ?? { tokensChainsCache: {} };
     },
   };
@@ -901,6 +901,5 @@ describe('TokenDetector', () => {
         },
       );
     });
-
   });
 });

@@ -111,10 +111,7 @@ export class BalanceFetcher extends StaticIntervalPollingControllerOnly<BalanceP
     }
   }
 
-  getTokensToFetch(
-    chainId: ChainId,
-    accountId: AccountId,
-  ): TokenFetchInfo[] {
+  getTokensToFetch(chainId: ChainId, accountId: AccountId): TokenFetchInfo[] {
     const state = this.#messenger.call('AssetsController:getState');
 
     if (!state?.assetsBalance) {
@@ -134,10 +131,7 @@ export class BalanceFetcher extends StaticIntervalPollingControllerOnly<BalanceP
 
     for (const assetId of Object.keys(accountBalances)) {
       // Only process ERC20 tokens on the current chain
-      if (
-        assetId.startsWith(caipChainPrefix) &&
-        assetId.includes('/erc20:')
-      ) {
+      if (assetId.startsWith(caipChainPrefix) && assetId.includes('/erc20:')) {
         // Parse token address from CAIP-19: eip155:1/erc20:0x...
         const tokenAddress = assetId.split('/erc20:')[1] as Address;
         if (tokenAddress) {
