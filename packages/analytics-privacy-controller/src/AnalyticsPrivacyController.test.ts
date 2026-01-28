@@ -678,55 +678,22 @@ describe('AnalyticsPrivacyController', () => {
   });
 
   describe('AnalyticsPrivacyController:updateDataRecordingFlag', () => {
-    it('sets hasCollectedDataSinceDeletionRequest to true when saveDataRecording is true', () => {
+    it('sets hasCollectedDataSinceDeletionRequest to true', () => {
       const { controller, rootMessenger } = setupController({
         state: {
           hasCollectedDataSinceDeletionRequest: false,
         },
       });
 
-      rootMessenger.call(
-        'AnalyticsPrivacyController:updateDataRecordingFlag',
-        true,
-      );
+      rootMessenger.call('AnalyticsPrivacyController:updateDataRecordingFlag');
 
       expect(controller.state.hasCollectedDataSinceDeletionRequest).toBe(true);
-    });
-
-    it('preserves hasCollectedDataSinceDeletionRequest value when saveDataRecording is false', () => {
-      const { controller, rootMessenger } = setupController({
-        state: {
-          hasCollectedDataSinceDeletionRequest: false,
-        },
-      });
-
-      rootMessenger.call(
-        'AnalyticsPrivacyController:updateDataRecordingFlag',
-        false,
-      );
-
-      expect(controller.state.hasCollectedDataSinceDeletionRequest).toBe(false);
     });
 
     it('preserves hasCollectedDataSinceDeletionRequest value when already true', () => {
       const { controller, rootMessenger } = setupController({
         state: {
           hasCollectedDataSinceDeletionRequest: true,
-        },
-      });
-
-      rootMessenger.call(
-        'AnalyticsPrivacyController:updateDataRecordingFlag',
-        true,
-      );
-
-      expect(controller.state.hasCollectedDataSinceDeletionRequest).toBe(true);
-    });
-
-    it('sets hasCollectedDataSinceDeletionRequest to true when saveDataRecording is omitted', () => {
-      const { controller, rootMessenger } = setupController({
-        state: {
-          hasCollectedDataSinceDeletionRequest: false,
         },
       });
 
@@ -748,18 +715,15 @@ describe('AnalyticsPrivacyController', () => {
         eventListener,
       );
 
-      rootMessenger.call(
-        'AnalyticsPrivacyController:updateDataRecordingFlag',
-        true,
-      );
+      rootMessenger.call('AnalyticsPrivacyController:updateDataRecordingFlag');
 
       expect(eventListener).toHaveBeenCalledWith(true);
     });
 
-    it('does not emit event when saveDataRecording is false', () => {
+    it('does not emit dataRecordingFlagUpdated event when hasCollectedDataSinceDeletionRequest is already true', () => {
       const { rootMessenger } = setupController({
         state: {
-          hasCollectedDataSinceDeletionRequest: false,
+          hasCollectedDataSinceDeletionRequest: true,
         },
       });
 
@@ -769,10 +733,7 @@ describe('AnalyticsPrivacyController', () => {
         eventListener,
       );
 
-      rootMessenger.call(
-        'AnalyticsPrivacyController:updateDataRecordingFlag',
-        false,
-      );
+      rootMessenger.call('AnalyticsPrivacyController:updateDataRecordingFlag');
 
       expect(eventListener).not.toHaveBeenCalled();
     });
@@ -780,7 +741,11 @@ describe('AnalyticsPrivacyController', () => {
 
   describe('stateChange event', () => {
     it('emits stateChange event with new state when hasCollectedDataSinceDeletionRequest is updated', () => {
-      const { rootMessenger, messenger } = setupController();
+      const { rootMessenger, messenger } = setupController({
+        state: {
+          hasCollectedDataSinceDeletionRequest: false,
+        },
+      });
 
       const eventListener = jest.fn();
       messenger.subscribe(
@@ -788,14 +753,29 @@ describe('AnalyticsPrivacyController', () => {
         eventListener,
       );
 
-      rootMessenger.call(
-        'AnalyticsPrivacyController:updateDataRecordingFlag',
-        true,
-      );
+      rootMessenger.call('AnalyticsPrivacyController:updateDataRecordingFlag');
 
       expect(eventListener).toHaveBeenCalled();
       const [newState] = eventListener.mock.calls[0];
       expect(newState.hasCollectedDataSinceDeletionRequest).toBe(true);
+    });
+
+    it('does not emit stateChange event when hasCollectedDataSinceDeletionRequest is already true', () => {
+      const { rootMessenger, messenger } = setupController({
+        state: {
+          hasCollectedDataSinceDeletionRequest: true,
+        },
+      });
+
+      const eventListener = jest.fn();
+      messenger.subscribe(
+        'AnalyticsPrivacyController:stateChange',
+        eventListener,
+      );
+
+      rootMessenger.call('AnalyticsPrivacyController:updateDataRecordingFlag');
+
+      expect(eventListener).not.toHaveBeenCalled();
     });
   });
 });

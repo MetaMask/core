@@ -319,15 +319,9 @@ export class AnalyticsPrivacyController extends BaseController<
    * It cannot be explicitly set to `false` - it is only reset to `false` when
    * a new deletion task is created via `createDataDeletionTask`.
    *
-   * If `saveDataRecording` is `false` or the flag is already `true`, this method
-   * does nothing. This design ensures the flag only moves from `false` to `true`
-   * and cannot be manually reset, maintaining data integrity for compliance tracking.
-   *
-   * @param saveDataRecording - Whether to save the data recording flag (default: true).
-   *   When `false`, this method is a no-op regardless of current state.
    */
-  updateDataRecordingFlag(saveDataRecording: boolean = true): void {
-    if (saveDataRecording && !this.state.hasCollectedDataSinceDeletionRequest) {
+  updateDataRecordingFlag(): void {
+    if (!this.state.hasCollectedDataSinceDeletionRequest) {
       this.update((state) => {
         state.hasCollectedDataSinceDeletionRequest = true;
       });
