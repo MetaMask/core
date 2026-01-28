@@ -73,7 +73,7 @@ export class IncomingTransactionHelper {
   readonly #useWebsockets: boolean;
 
   // Chains that need polling (start with all supported, remove as they come up)
-  readonly #chainsToPolls: Hex[] = [...SUPPORTED_CHAIN_IDS];
+  readonly #chainsToPoll: Hex[] = [...SUPPORTED_CHAIN_IDS];
 
   readonly #connectionStateChangedHandler = (
     connectionInfo: WebSocketConnectionInfo,
@@ -311,8 +311,8 @@ export class IncomingTransactionHelper {
 
     // When websockets enabled and we have specific chains to poll, only fetch those
     const chainIds =
-      this.#useWebsockets && this.#chainsToPolls.length > 0
-        ? this.#chainsToPolls
+      this.#useWebsockets && this.#chainsToPoll.length > 0
+        ? this.#chainsToPoll
         : undefined;
 
     let remoteTransactions: TransactionMeta[] = [];
@@ -452,17 +452,17 @@ export class IncomingTransactionHelper {
       }
 
       if (status === 'up') {
-        const index = this.#chainsToPolls.indexOf(hexChainId);
+        const index = this.#chainsToPoll.indexOf(hexChainId);
         if (index !== -1) {
-          this.#chainsToPolls.splice(index, 1);
+          this.#chainsToPoll.splice(index, 1);
           hasChanges = true;
           log('Supported network came up, removed from polling list', {
             chainId: hexChainId,
           });
         }
-      } else if (!this.#chainsToPolls.includes(hexChainId)) {
+      } else if (!this.#chainsToPoll.includes(hexChainId)) {
         // status === 'down'
-        this.#chainsToPolls.push(hexChainId);
+        this.#chainsToPoll.push(hexChainId);
         hasChanges = true;
         log('Supported network went down, added to polling list', {
           chainId: hexChainId,
@@ -474,12 +474,12 @@ export class IncomingTransactionHelper {
       return;
     }
 
-    if (this.#chainsToPolls.length === 0) {
+    if (this.#chainsToPoll.length === 0) {
       log('Stopping fallback polling - all networks up');
       this.stop();
     } else {
       log('Starting fallback polling - some networks need polling', {
-        chainsToPolls: this.#chainsToPolls,
+        chainsToPoll: this.#chainsToPoll,
       });
       this.#startPolling();
     }
