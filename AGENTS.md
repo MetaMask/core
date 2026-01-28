@@ -158,8 +158,12 @@ Use `yarn create-package --name <name> --description <description>` to add a new
 ### General package guidelines
 
 - Each package should have an `index.ts` file in `src/` that explicitly lists all exports.
-- Avoid barrel exports (`export * from './file'`). Instead, explicitly name each export:
+- Avoid barrel exports (`export * from './file'`).ts`. Instead, explicitly name each export:
   ```typescript
+  // Bad
+  export * from './foo-controller';
+
+  // Good
   export { FooController } from './foo-controller';
   export type { FooControllerMessenger } from './foo-controller';
   ```
