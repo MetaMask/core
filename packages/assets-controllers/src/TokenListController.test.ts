@@ -1522,7 +1522,6 @@ describe('TokenListController', () => {
         },
       );
 
-
       // eslint-disable-next-line @typescript-eslint/no-explicit-any
       (messengerWithErrors as any).registerActionHandler(
         'StorageService:getAllKeys',
@@ -1598,7 +1597,6 @@ describe('TokenListController', () => {
           throw new Error('Storage write failed');
         },
       );
-
 
       // eslint-disable-next-line @typescript-eslint/no-explicit-any
       (messengerWithErrors as any).registerActionHandler(
@@ -1684,7 +1682,6 @@ describe('TokenListController', () => {
         () => [],
       );
 
-
       const restrictedMessenger = getRestrictedMessenger(messengerWithErrors);
 
       // Mock console.error to verify it's called for persistence errors
@@ -1756,7 +1753,6 @@ describe('TokenListController', () => {
           mockStorage.set(storageKey, value);
         },
       );
-
 
       // eslint-disable-next-line @typescript-eslint/no-explicit-any
       (trackingMessenger as any).registerActionHandler(
@@ -1849,7 +1845,6 @@ describe('TokenListController', () => {
         },
       );
 
-
       // eslint-disable-next-line @typescript-eslint/no-explicit-any
       (trackingMessenger as any).registerActionHandler(
         'StorageService:getAllKeys',
@@ -1929,7 +1924,6 @@ describe('TokenListController', () => {
           mockStorage.set(storageKey, value);
         },
       );
-
 
       // eslint-disable-next-line @typescript-eslint/no-explicit-any
       (trackingMessenger as any).registerActionHandler(
