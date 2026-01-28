@@ -86,6 +86,8 @@ export type AssetsControllerState = {
   assetsMetadata: { [assetId: string]: Json };
   /** Per-account balance data */
   assetsBalance: { [accountId: string]: { [assetId: string]: Json } };
+  /** Price data for assets */
+  assetsPrice: { [assetId: string]: Json };
   /** Custom assets added by users per account (CAIP-19 asset IDs) */
   customAssets: { [accountId: string]: string[] };
 };
@@ -93,12 +95,13 @@ export type AssetsControllerState = {
 /**
  * Returns the default state for AssetsController.
  *
- * @returns The default AssetsController state with empty metadata, balance, and customAssets maps.
+ * @returns The default AssetsController state with empty metadata, balance, price, and customAssets maps.
  */
 export function getDefaultAssetsControllerState(): AssetsControllerState {
   return {
     assetsMetadata: {},
     assetsBalance: {},
+    assetsPrice: {},
     customAssets: {},
   };
 }
@@ -275,6 +278,12 @@ const stateMetadata: StateMetadata<AssetsControllerState> = {
     includeInDebugSnapshot: false,
     usedInUi: true,
   },
+  assetsPrice: {
+    persist: false,
+    includeInStateLogs: false,
+    includeInDebugSnapshot: false,
+    usedInUi: true,
+  },
   customAssets: {
     persist: true,
     includeInStateLogs: false,
@@ -419,9 +428,6 @@ export class AssetsController extends BaseController<
       'AccountTreeController:getAccountsFromSelectedAccountGroup',
     );
   }
-
-  /** Price data for assets (in-memory only, not persisted) */
-  #assetsPrice: Record<Caip19AssetId, AssetPrice> = {};
 
   /**
    * Registered data sources with their available chains.
@@ -1050,19 +1056,10 @@ export class AssetsController extends BaseController<
 
     try {
       const previousState = this.state;
-      const previousPrices = { ...this.#assetsPrice };
+      const previousPrices = { ...this.state.assetsPrice };
       // Use detectedAssets from response (assets without metadata)
       const detectedAssets: Record<AccountId, Caip19AssetId[]> =
         normalizedResponse.detectedAssets ?? {};
-
-      // Update prices in memory (not persisted in state)
-      if (normalizedResponse.assetsPrice) {
-        for (const [key, value] of Object.entries(
-          normalizedResponse.assetsPrice,
-        )) {
-          this.#assetsPrice[key as Caip19AssetId] = value;
-        }
-      }
 
       // Track actual changes for logging
       const changedBalances: {
@@ -1083,6 +1080,7 @@ export class AssetsController extends BaseController<
           string,
           Record<string, unknown>
         >;
+        const prices = state.assetsPrice as unknown as Record<string, unknown>;
 
         if (normalizedResponse.assetsMetadata) {
           for (const [key, value] of Object.entries(
@@ -1131,6 +1129,15 @@ export class AssetsController extends BaseController<
             }
 
             Object.assign(balances[accountId], accountBalances);
+          }
+        }
+
+        // Update prices in state
+        if (normalizedResponse.assetsPrice) {
+          for (const [key, value] of Object.entries(
+            normalizedResponse.assetsPrice,
+          )) {
+            prices[key] = value;
           }
         }
       });
@@ -1250,7 +1257,7 @@ export class AssetsController extends BaseController<
         }
 
         const typedBalance = balance as AssetBalance;
-        const priceRaw = this.#assetsPrice[typedAssetId];
+        const priceRaw = this.state.assetsPrice[typedAssetId] as AssetPrice;
         const price: AssetPrice = priceRaw ?? {
           price: 0,
           lastUpdated: 0,
