@@ -781,6 +781,12 @@ export enum TransactionType {
   perpsDeposit = 'perpsDeposit',
 
   /**
+   * Deposit funds and place an order for trading via Perps.
+   * Supports paying with any token, not just native assets.
+   */
+  perpsDepositAndOrder = 'perpsDepositAndOrder',
+
+  /**
    * A transaction for personal sign.
    */
   personalSign = 'personal_sign',

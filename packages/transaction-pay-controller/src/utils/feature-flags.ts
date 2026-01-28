@@ -162,6 +162,23 @@ function getCaseInsensitive<Value>(
 }
 
 /**
+ * Retrieves the supported EIP-7702 chains from feature flags.
+ *
+ * @param messenger - Controller messenger.
+ * @returns Array of chain IDs that support EIP-7702.
+ */
+export function getEIP7702SupportedChains(
+  messenger: TransactionPayControllerMessenger,
+): Hex[] {
+  const state = messenger.call('RemoteFeatureFlagController:getState');
+  const eip7702Flags = state.remoteFeatureFlags.confirmations_eip_7702 as
+    | { supportedChains?: Hex[] }
+    | undefined;
+
+  return eip7702Flags?.supportedChains ?? [];
+}
+
+/**
  * Get the raw feature flags from the remote feature flag controller.
  *
  * @param messenger - Controller messenger.
