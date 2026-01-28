@@ -12,6 +12,10 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 - Add INK (0xdef1) mapping to eip155:57073/slip44:60 ([#7688](https://github.com/MetaMask/core/pull/7688))
 - Add multicall address for the chain: `Tempo Testnet` ([#7753](https://github.com/MetaMask/core/pull/7753))
 
+### Changed
+
+- Bump `@metamask/transaction-controller` from `^62.10.0` to `^62.11.0` ([#7760](https://github.com/MetaMask/core/pull/7760))
+
 ## [99.0.0]
 
 ### Changed
