@@ -4443,14 +4443,18 @@ __metadata:
     "@metamask/controller-utils": "npm:^11.18.0"
     "@metamask/messenger": "npm:^0.3.0"
     "@metamask/utils": "npm:^11.9.0"
+    "@nktkas/hyperliquid": "npm:^0.30.2"
     "@ts-bridge/cli": "npm:^0.6.4"
     "@types/jest": "npm:^27.4.1"
+    "@types/uuid": "npm:^8.3.4"
+    bignumber.js: "npm:^9.1.2"
     deepmerge: "npm:^4.2.2"
     jest: "npm:^27.5.1"
     ts-jest: "npm:^27.1.4"
     typedoc: "npm:^0.24.8"
     typedoc-plugin-missing-exports: "npm:^2.0.0"
     typescript: "npm:~5.3.3"
+    uuid: "npm:^8.3.2"
   languageName: unknown
   linkType: soft
 
@@ -5282,6 +5286,27 @@ __metadata:
   languageName: node
   linkType: hard
 
+"@nktkas/hyperliquid@npm:^0.30.2":
+  version: 0.30.3
+  resolution: "@nktkas/hyperliquid@npm:0.30.3"
+  dependencies:
+    "@nktkas/rews": "npm:^1.2.3"
+    "@noble/hashes": "npm:^2.0.1"
+    micro-eth-signer: "npm:^0.18.1"
+    valibot: "npm:1.2.0"
+  bin:
+    hyperliquid: esm/bin/cli.js
+  checksum: 10/77af9142ab2bdc7d042d3b621c72391e5bb0d8ed3b39209ff33eb6e274e809026554c92fba5fe0318a83cc24690f5c23e9006c82704b779fac3575f1da0949f8
+  languageName: node
+  linkType: hard
+
+"@nktkas/rews@npm:^1.2.3":
+  version: 1.2.3
+  resolution: "@nktkas/rews@npm:1.2.3"
+  checksum: 10/032d7373ba976167d6f8f24746e9f2ebf20768811943ce8d33ffbb28fab0ad6259800177bd9964449f8fd67c5ef7e781fcee9f1d9bbbffd55f133e4a4c6d9fce
+  languageName: node
+  linkType: hard
+
 "@noble/ciphers@npm:^1.2.1, @noble/ciphers@npm:^1.3.0":
   version: 1.3.0
   resolution: "@noble/ciphers@npm:1.3.0"
@@ -5325,6 +5350,15 @@ __metadata:
   languageName: node
   linkType: hard
 
+"@noble/curves@npm:^2.0.0":
+  version: 2.0.1
+  resolution: "@noble/curves@npm:2.0.1"
+  dependencies:
+    "@noble/hashes": "npm:2.0.1"
+  checksum: 10/e826af523f40a671601a6d07f98df16c3afe1cbd0349c3ba4d7b31f6dba7dc743822719f260bd291716b6b42b8dc327f94a76b4852359aa85f79df461eb22bfc
+  languageName: node
+  linkType: hard
+
 "@noble/hashes@npm:1.3.2":
   version: 1.3.2
   resolution: "@noble/hashes@npm:1.3.2"
@@ -5343,6 +5377,13 @@ __metadata:
   version: 1.8.0
   resolution: "@noble/hashes@npm:1.8.0"
   checksum: 10/474b7f56bc6fb2d5b3a42132561e221b0ea4f91e590f4655312ca13667840896b34195e2b53b7f097ec080a1fdd3b58d902c2a8d0fbdf51d2e238b53808a177e
+  languageName: node
+  linkType: hard
+
+"@noble/hashes@npm:2.0.1, @noble/hashes@npm:^2.0.0, @noble/hashes@npm:^2.0.1":
+  version: 2.0.1
+  resolution: "@noble/hashes@npm:2.0.1"
+  checksum: 10/f4d00e7564eb4ff4e6d16be151dd0e404aede35f91e4372b0a8a6ec888379c1dd1e02c721b480af8e7853bea9637185b5cb9533970c5b77d60c254ead0cfd8f7
   languageName: node
   linkType: hard
 
@@ -5580,6 +5621,13 @@ __metadata:
   version: 1.1.0
   resolution: "@protobufjs/utf8@npm:1.1.0"
   checksum: 10/131e289c57534c1d73a0e55782d6751dd821db1583cb2f7f7e017c9d6747addaebe79f28120b2e0185395d990aad347fb14ffa73ef4096fa38508d61a0e64602
+  languageName: node
+  linkType: hard
+
+"@scure/base@npm:2.0.0":
+  version: 2.0.0
+  resolution: "@scure/base@npm:2.0.0"
+  checksum: 10/8fb86024f22e9c532d513b8df8a672252e58bd5695920ce646162287f0accd38e89cab58722a738b3d247b5dcf7760362ae2d82d502be7e62a555f5d98f8a110
   languageName: node
   linkType: hard
 
@@ -6300,7 +6348,7 @@ __metadata:
   languageName: node
   linkType: hard
 
-"@types/uuid@npm:^8.3.0":
+"@types/uuid@npm:^8.3.0, @types/uuid@npm:^8.3.4":
   version: 8.3.4
   resolution: "@types/uuid@npm:8.3.4"
   checksum: 10/6f11f3ff70f30210edaa8071422d405e9c1d4e53abbe50fdce365150d3c698fe7bbff65c1e71ae080cbfb8fded860dbb5e174da96fdbbdfcaa3fb3daa474d20f
@@ -11528,10 +11576,30 @@ __metadata:
   languageName: node
   linkType: hard
 
+"micro-eth-signer@npm:^0.18.1":
+  version: 0.18.1
+  resolution: "micro-eth-signer@npm:0.18.1"
+  dependencies:
+    "@noble/curves": "npm:^2.0.0"
+    "@noble/hashes": "npm:^2.0.0"
+    micro-packed: "npm:^0.8.0"
+  checksum: 10/daa1127b0f4bffa1ffbe0c0d0f0d5bab98636697e1936a0fa552e0bb3b853b3f6733198219d2791323160feb30c12622b366dffd18ad794ec68a0a8fbaa255f1
+  languageName: node
+  linkType: hard
+
 "micro-ftch@npm:^0.3.1":
   version: 0.3.1
   resolution: "micro-ftch@npm:0.3.1"
   checksum: 10/a7ab07d25e28ec4ae492ce4542ea9b06eee85538742b3b1263b247366ee8872f2c5ce9c8651138b2f1d22c8212f691a7b8b5384fe86ead5aff1852e211f1c035
+  languageName: node
+  linkType: hard
+
+"micro-packed@npm:^0.8.0":
+  version: 0.8.0
+  resolution: "micro-packed@npm:0.8.0"
+  dependencies:
+    "@scure/base": "npm:2.0.0"
+  checksum: 10/94bc96387be56d95ca758fcaddbeacdd8095344c3cc51b813637587f4b013853088f046d9a2e81354d583f384ec44c35aa008683aa13397d700ddf7b70aff77e
   languageName: node
   linkType: hard
 
@@ -14239,6 +14307,18 @@ __metadata:
     convert-source-map: "npm:^1.6.0"
     source-map: "npm:^0.7.3"
   checksum: 10/db5469f133a7cfb7680a28ddfb31aad2cc64f282fa7cf0c8e91f91bfd542bf61597260282be28c9648f0f2114963a24b273ed92af9a5cad6cb629c708ca72f8e
+  languageName: node
+  linkType: hard
+
+"valibot@npm:1.2.0":
+  version: 1.2.0
+  resolution: "valibot@npm:1.2.0"
+  peerDependencies:
+    typescript: ">=5"
+  peerDependenciesMeta:
+    typescript:
+      optional: true
+  checksum: 10/5f9c15e6f5a2b8eae75332a3317e46e995a1763efe1b91e57bc5064e36f0feba734367c88013d53255bdf09fb9204bf3598d2ca0c3f468c8726095b1c3551926
   languageName: node
   linkType: hard
 

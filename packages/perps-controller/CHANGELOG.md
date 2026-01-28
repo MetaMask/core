@@ -9,6 +9,18 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ### Added
 
-- Initial release ([#7654](https://github.com/MetaMask/core/pull/7654))
+- Complete PerpsController implementation migrated from MetaMask Mobile
+  - `PerpsController` - Main controller class with full trading functionality (~3,000 lines)
+  - `selectors.ts` - 8 state selectors for UI integration
+  - `types/` - Comprehensive TypeScript type definitions
+  - `constants/` - Configuration constants (perpsConfig, hyperLiquidConfig, errorCodes)
+  - `utils/` - 18 utility modules for calculations, formatting, validation
+  - `services/` - 8 service modules (Trading, MarketData, Eligibility, etc.)
+  - `providers/` - HyperLiquidProvider, AggregatedPerpsProvider
+  - `platform-services/` - HyperLiquid client, subscription, and wallet services
+  - `routing/` - ProviderRouter for multi-provider support
+  - `aggregation/` - SubscriptionMultiplexer for WebSocket management
+- Test infrastructure with mocks for HyperLiquid SDK and platform dependencies
+- 40 unit tests covering controller initialization and selectors
 
 [Unreleased]: https://github.com/MetaMask/core/
