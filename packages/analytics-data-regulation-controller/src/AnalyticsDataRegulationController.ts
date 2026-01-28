@@ -10,10 +10,7 @@ import type { AnalyticsDataRegulationControllerMethodActions } from './Analytics
 import type { AnalyticsDataRegulationServiceActions } from './AnalyticsDataRegulationService';
 import { projectLogger as log } from './logger';
 import { DATA_DELETE_RESPONSE_STATUSES, DATA_DELETE_STATUSES } from './types';
-import type {
-  IDeleteRegulationResponse,
-  IDeleteRegulationStatus,
-} from './types';
+import type { DeleteRegulationResponse, DeleteRegulationStatus } from './types';
 
 // === GENERAL ===
 
@@ -117,7 +114,7 @@ type AllowedActions = AnalyticsDataRegulationServiceActions;
  */
 export type DataDeletionTaskCreatedEvent = {
   type: `${typeof controllerName}:dataDeletionTaskCreated`;
-  payload: [IDeleteRegulationResponse];
+  payload: [DeleteRegulationResponse];
 };
 
 /**
@@ -283,14 +280,14 @@ export class AnalyticsDataRegulationController extends BaseController<
    *
    * @returns Promise containing the timestamp, delete status and collected data flag
    */
-  async checkDataDeleteStatus(): Promise<IDeleteRegulationStatus> {
+  async checkDataDeleteStatus(): Promise<DeleteRegulationStatus> {
     // Capture all state values before async call to ensure consistency
     // in case createDataDeletionTask() completes concurrently
     const { deleteRegulationId } = this.state;
     const { deleteRegulationTimestamp } = this.state;
     const { hasCollectedDataSinceDeletionRequest } = this.state;
 
-    const status: IDeleteRegulationStatus = {
+    const status: DeleteRegulationStatus = {
       deletionRequestTimestamp: deleteRegulationTimestamp ?? undefined,
       dataDeletionRequestStatus: DATA_DELETE_STATUSES.Unknown,
       hasCollectedDataSinceDeletionRequest,

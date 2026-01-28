@@ -37,7 +37,7 @@ export type DataDeleteResponseStatus =
  * Response from creating a data deletion task.
  * The service throws errors on failure, so this type only represents the Success case.
  */
-export type IDeleteRegulationResponse = {
+export type DeleteRegulationResponse = {
   status: typeof DATA_DELETE_RESPONSE_STATUSES.Success;
   regulateId: string; // Using exact API field name from Segment API response
 };
@@ -45,7 +45,7 @@ export type IDeleteRegulationResponse = {
 /**
  * Status information for a data deletion request.
  */
-export type IDeleteRegulationStatus = {
+export type DeleteRegulationStatus = {
   deletionRequestTimestamp?: number;
   hasCollectedDataSinceDeletionRequest: boolean;
   dataDeletionRequestStatus: DataDeleteStatus;
@@ -54,7 +54,7 @@ export type IDeleteRegulationStatus = {
 /**
  * Response from checking data deletion status.
  */
-export type IDeleteRegulationStatusResponse = {
+export type DeleteRegulationStatusResponse = {
   status: DataDeleteResponseStatus;
   dataDeleteStatus: DataDeleteStatus;
 };

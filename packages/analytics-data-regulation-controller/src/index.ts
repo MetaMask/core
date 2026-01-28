@@ -17,10 +17,7 @@ export {
   type DataDeleteStatus,
   type DataDeleteResponseStatus,
 } from './types';
-export type {
-  IDeleteRegulationResponse,
-  IDeleteRegulationStatus,
-} from './types';
+export type { DeleteRegulationResponse, DeleteRegulationStatus } from './types';
 
 export type { AnalyticsDataRegulationControllerState } from './AnalyticsDataRegulationController';
 
