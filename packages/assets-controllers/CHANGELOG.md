@@ -14,13 +14,13 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ### Removed
 
-- **BREAKING:** Remove `clearingTokenListData()` method from `TokenListController`
+- **BREAKING:** Remove `clearingTokenListData()` method from `TokenListController` ([#7743](https://github.com/MetaMask/core/pull/7743))
   - Token list cache is now persistent across network changes and should not be cleared
-- **BREAKING:** Remove `preventPollingOnNetworkRestart` state property from `TokenListController`
+- **BREAKING:** Remove `preventPollingOnNetworkRestart` state property from `TokenListController` ([#7743](https://github.com/MetaMask/core/pull/7743))
   - Constructor parameter `preventPollingOnNetworkRestart` is no longer accepted
   - Method `updatePreventPollingOnNetworkRestart()` has been removed
   - State no longer includes `preventPollingOnNetworkRestart` field
-- **BREAKING:** Remove `StorageServiceRemoveItemAction` from `TokenListController` allowed actions
+- Remove `StorageServiceRemoveItemAction` from `TokenListController` allowed actions ([#7743](https://github.com/MetaMask/core/pull/7743))
   - No longer needed as cache clearing functionality has been removed
 
 ## [98.0.0]
