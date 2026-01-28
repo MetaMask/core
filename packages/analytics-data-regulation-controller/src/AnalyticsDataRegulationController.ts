@@ -288,7 +288,7 @@ export class AnalyticsDataRegulationController extends BaseController<
     const { hasCollectedDataSinceDeletionRequest } = this.state;
 
     const status: DeleteRegulationStatus = {
-      deletionRequestTimestamp: deleteRegulationTimestamp ?? undefined,
+      deletionRequestTimestamp: deleteRegulationTimestamp,
       dataDeletionRequestStatus: DATA_DELETE_STATUSES.Unknown,
       hasCollectedDataSinceDeletionRequest,
     };

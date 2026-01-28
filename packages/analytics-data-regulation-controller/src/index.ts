@@ -8,6 +8,7 @@ export { AnalyticsDataRegulationService } from './AnalyticsDataRegulationService
 export type {
   AnalyticsDataRegulationServiceActions,
   AnalyticsDataRegulationServiceEvents,
+  AnalyticsDataRegulationServiceMessenger,
   AnalyticsDataRegulationServiceOptions,
 } from './AnalyticsDataRegulationService';
 

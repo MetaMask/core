@@ -51,10 +51,3 @@ export type DeleteRegulationStatus = {
   dataDeletionRequestStatus: DataDeleteStatus;
 };
 
-/**
- * Response from checking data deletion status.
- */
-export type DeleteRegulationStatusResponse = {
-  status: DataDeleteResponseStatus;
-  dataDeleteStatus: DataDeleteStatus;
-};
