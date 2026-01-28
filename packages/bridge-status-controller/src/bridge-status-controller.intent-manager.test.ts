@@ -3,8 +3,8 @@ import { StatusTypes } from '@metamask/bridge-controller';
 import { TransactionStatus } from '@metamask/transaction-controller';
 
 import { IntentStatusManager } from './bridge-status-controller.intent';
-import { translateIntentOrderToBridgeStatus } from './utils/intent-api';
 import type { BridgeHistoryItem } from './types';
+import { translateIntentOrderToBridgeStatus } from './utils/intent-api';
 import { IntentOrderStatus } from './utils/validators';
 
 const makeHistoryItem = (
@@ -25,7 +25,7 @@ const makeHistoryItem = (
     slippagePercentage: 0,
     hasApprovalTx: false,
     ...overrides,
-  } as BridgeHistoryItem);
+  }) as BridgeHistoryItem;
 
 describe('IntentStatusManager', () => {
   it('returns early when no original tx id is present', () => {
@@ -49,7 +49,10 @@ describe('IntentStatusManager', () => {
 
     manager.syncTransactionFromIntentStatus(
       'order-1',
-      makeHistoryItem({ txMetaId: undefined, originalTransactionId: undefined }),
+      makeHistoryItem({
+        txMetaId: undefined,
+        originalTransactionId: undefined,
+      }),
       translation,
       IntentOrderStatus.SUBMITTED,
     );

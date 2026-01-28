@@ -7,11 +7,13 @@ import {
 } from './bridge-status-controller-helpers';
 import type { BridgeStatusControllerState } from '../types';
 
-const makeState = (overrides?: Partial<BridgeStatusControllerState>) =>
+const makeState = (
+  overrides?: Partial<BridgeStatusControllerState>,
+): BridgeStatusControllerState =>
   ({
     txHistory: {},
     ...overrides,
-  } as BridgeStatusControllerState);
+  }) as BridgeStatusControllerState;
 
 describe('bridge-status-controller helpers', () => {
   it('rekeyHistoryItemInState returns false when history item missing', () => {
@@ -62,12 +64,11 @@ describe('bridge-status-controller helpers', () => {
       })),
     } as any;
 
-    await expect(
-      waitForTxConfirmation(messenger, 'tx1', {
-        timeoutMs: 10,
-        pollMs: 1,
-      }),
-    ).resolves.toEqual(expect.objectContaining({ id: 'tx1' }));
+    const promise = waitForTxConfirmation(messenger, 'tx1', {
+      timeoutMs: 10,
+      pollMs: 1,
+    });
+    expect(await promise).toStrictEqual(expect.objectContaining({ id: 'tx1' }));
   });
 
   it('waitForTxConfirmation throws when rejected', async () => {
@@ -79,12 +80,15 @@ describe('bridge-status-controller helpers', () => {
       })),
     } as any;
 
-    await expect(
-      waitForTxConfirmation(messenger, 'tx1', {
-        timeoutMs: 10,
-        pollMs: 1,
+    const promise = waitForTxConfirmation(messenger, 'tx1', {
+      timeoutMs: 10,
+      pollMs: 1,
+    });
+    expect(await promise.catch((error) => error)).toStrictEqual(
+      expect.objectContaining({
+        message: expect.stringMatching(/did not confirm/iu),
       }),
-    ).rejects.toThrow(/did not confirm/iu);
+    );
   });
 
   it('waitForTxConfirmation times out when status never changes', async () => {
@@ -109,7 +113,11 @@ describe('bridge-status-controller helpers', () => {
     jest.advanceTimersByTime(1);
     await Promise.resolve();
 
-    await expect(promise).rejects.toThrow(/Timed out/iu);
+    expect(await promise.catch((error) => error)).toStrictEqual(
+      expect.objectContaining({
+        message: expect.stringMatching(/Timed out/iu),
+      }),
+    );
 
     nowSpy.mockRestore();
     jest.useRealTimers();

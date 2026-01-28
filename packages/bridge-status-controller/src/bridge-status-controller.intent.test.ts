@@ -1,4 +1,5 @@
 /* eslint-disable @typescript-eslint/no-explicit-any */
+/* eslint-disable jest/no-restricted-matchers */
 import {
   StatusTypes,
   UnifiedSwapBridgeEventName,
@@ -398,13 +399,16 @@ describe('BridgeStatusController (intent swaps)', () => {
       },
     });
 
-    await expect(
-      controller.submitIntent({
-        quoteResponse,
-        signature: '0xsig',
-        accountAddress,
+    const promise = controller.submitIntent({
+      quoteResponse,
+      signature: '0xsig',
+      accountAddress,
+    });
+    expect(await promise.catch((error: any) => error)).toStrictEqual(
+      expect.objectContaining({
+        message: expect.stringMatching(/approval/iu),
       }),
-    ).rejects.toThrow(/approval/iu);
+    );
 
     // Since we throw before intent order submission succeeds, we should not create the history item
     // (and therefore should not start polling).
@@ -476,13 +480,16 @@ describe('BridgeStatusController (intent swaps)', () => {
       },
     });
 
-    await expect(
-      controller.submitIntent({
-        quoteResponse,
-        signature: '0xsig',
-        accountAddress,
+    const promise = controller.submitIntent({
+      quoteResponse,
+      signature: '0xsig',
+      accountAddress,
+    });
+    expect(await promise.catch((error: any) => error)).toStrictEqual(
+      expect.objectContaining({
+        message: expect.stringMatching(/approval/iu),
       }),
-    ).rejects.toThrow(/approval/iu);
+    );
 
     expect(submitIntentMock).not.toHaveBeenCalled();
   });

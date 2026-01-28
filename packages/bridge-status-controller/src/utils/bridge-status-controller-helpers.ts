@@ -1,7 +1,8 @@
-import type { BridgeStatusControllerMessenger } from '../types';
-import type { BridgeStatusControllerState } from '../types';
 import type { TransactionMeta } from '@metamask/transaction-controller';
 import { TransactionStatus } from '@metamask/transaction-controller';
+
+import type { BridgeStatusControllerMessenger } from '../types';
+import type { BridgeStatusControllerState } from '../types';
 
 export const rekeyHistoryItemInState = (
   state: BridgeStatusControllerState,
