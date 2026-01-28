@@ -771,9 +771,9 @@ export enum TransactionType {
   lendingWithdraw = 'lendingWithdraw',
 
   /**
-   * A transaction that claims yield from a Merkl Yield contract.
+   * A transaction that claims yield from a mUSD contract.
    */
-  merklYieldClaim = 'merklYieldClaim',
+  musdClaim = 'musdClaim',
 
   /**
    * A transaction that converts tokens to mUSD.
