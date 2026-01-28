@@ -56,48 +56,48 @@ describe('transformers', () => {
       },
     ];
 
-    it('should return all networks when no filters applied', () => {
+    it('returns all networks when no filters applied', () => {
       const result = filterNetworks(networks);
 
       expect(result).toHaveLength(3);
     });
 
-    it('should filter by isFeatured', () => {
+    it('filters by isFeatured', () => {
       const result = filterNetworks(networks, { isFeatured: true });
 
       expect(result).toHaveLength(2);
       expect(result.every((network) => network.isFeatured)).toBe(true);
     });
 
-    it('should filter by isTestnet', () => {
+    it('filters by isTestnet', () => {
       const result = filterNetworks(networks, { isTestnet: true });
 
       expect(result).toHaveLength(1);
       expect(result[0].chainId).toBe('0x5');
     });
 
-    it('should filter by isActive', () => {
+    it('filters by isActive', () => {
       const result = filterNetworks(networks, { isActive: true });
 
       expect(result).toHaveLength(2);
       expect(result.every((network) => network.isActive)).toBe(true);
     });
 
-    it('should filter by isDeprecated', () => {
+    it('filters by isDeprecated', () => {
       const result = filterNetworks(networks, { isDeprecated: true });
 
       expect(result).toHaveLength(1);
       expect(result[0].chainId).toBe('0x2a');
     });
 
-    it('should filter by isDefault', () => {
+    it('filters by isDefault', () => {
       const result = filterNetworks(networks, { isDefault: true });
 
       expect(result).toHaveLength(1);
       expect(result[0].chainId).toBe('0x1');
     });
 
-    it('should filter by multiple criteria', () => {
+    it('filters by multiple criteria', () => {
       const result = filterNetworks(networks, {
         isFeatured: true,
         isActive: true,
@@ -108,7 +108,7 @@ describe('transformers', () => {
       expect(result[0].chainId).toBe('0x1');
     });
 
-    it('should return empty array for empty input', () => {
+    it('returns empty array for empty input', () => {
       const result = filterNetworks([]);
 
       expect(result).toStrictEqual([]);

@@ -241,7 +241,7 @@ async function withController<ReturnValue>(
 
 describe('ConfigRegistryController', () => {
   describe('constructor', () => {
-    it('should set default state', async () => {
+    it('sets default state', async () => {
       await withController(({ controller }) => {
         expect(controller.state).toStrictEqual({
           configs: { networks: {} },
@@ -253,7 +253,7 @@ describe('ConfigRegistryController', () => {
       });
     });
 
-    it('should set initial state when provided', async () => {
+    it('sets initial state when provided', async () => {
       const initialState: Partial<ConfigRegistryState> = {
         configs: {
           networks: {
@@ -276,7 +276,7 @@ describe('ConfigRegistryController', () => {
       );
     });
 
-    it('should set custom polling interval', async () => {
+    it('sets custom polling interval', async () => {
       const customInterval = 5000;
       await withController(
         { options: { pollingInterval: customInterval } },
@@ -286,7 +286,7 @@ describe('ConfigRegistryController', () => {
       );
     });
 
-    it('should set fallback config', async () => {
+    it('sets fallback config', async () => {
       await withController(
         { options: { fallbackConfig: MOCK_FALLBACK_CONFIG } },
         ({ controller }) => {
@@ -297,7 +297,7 @@ describe('ConfigRegistryController', () => {
       );
     });
 
-    it('should work when API service is registered on messenger', async () => {
+    it('works when API service is registered on messenger', async () => {
       await withController(({ controller }) => {
         expect(controller.state).toStrictEqual({
           configs: { networks: {} },
@@ -311,7 +311,7 @@ describe('ConfigRegistryController', () => {
   });
 
   describe('polling', () => {
-    it('should start polling', async () => {
+    it('starts polling', async () => {
       await withController(async ({ controller, clock }) => {
         const executePollSpy = jest.spyOn(controller, '_executePoll');
         controller.startPolling(null);
@@ -323,7 +323,7 @@ describe('ConfigRegistryController', () => {
       });
     });
 
-    it('should poll at specified interval', async () => {
+    it('polls at specified interval', async () => {
       const pollingInterval = 1000;
       await withController(
         { options: { pollingInterval } },
@@ -342,7 +342,7 @@ describe('ConfigRegistryController', () => {
       );
     });
 
-    it('should stop polling', async () => {
+    it('stops polling', async () => {
       await withController(async ({ controller, clock }) => {
         const executePollSpy = jest.spyOn(controller, '_executePoll');
         controller.startPolling(null);
@@ -358,7 +358,7 @@ describe('ConfigRegistryController', () => {
       });
     });
 
-    it('should use fallback config when no configs exist', async () => {
+    it('uses fallback config when no configs exist', async () => {
       await withController(
         { options: { fallbackConfig: MOCK_FALLBACK_CONFIG } },
         async ({ mockRemoteFeatureFlagGetState, mockApiServiceHandler }) => {
@@ -449,7 +449,7 @@ describe('ConfigRegistryController', () => {
       );
     });
 
-    it('should set fetchError when configs already exist (not use fallback)', async () => {
+    it('sets fetchError when configs already exist (not use fallback)', async () => {
       const existingConfigs = {
         networks: {
           'existing-key': {
@@ -556,7 +556,7 @@ describe('ConfigRegistryController', () => {
       );
     });
 
-    it('should handle errors during polling', async () => {
+    it('handles errors during polling', async () => {
       await withController(
         { options: { fallbackConfig: MOCK_FALLBACK_CONFIG } },
         async ({ mockRemoteFeatureFlagGetState, mockApiServiceHandler }) => {
@@ -648,7 +648,7 @@ describe('ConfigRegistryController', () => {
       );
     });
 
-    it('should handle unmodified response and clear fetchError', async () => {
+    it('handles unmodified response and clears fetchError', async () => {
       await withController(
         {
           options: {
@@ -691,7 +691,7 @@ describe('ConfigRegistryController', () => {
       );
     });
 
-    it('should handle unmodified response and preserve existing etag when not provided', async () => {
+    it('handles unmodified response and preserves existing etag when not provided', async () => {
       await withController(
         {
           options: {
@@ -734,7 +734,7 @@ describe('ConfigRegistryController', () => {
       );
     });
 
-    it('should handle unmodified response and set etag to null when explicitly null', async () => {
+    it('handles unmodified response and sets etag to null when explicitly null', async () => {
       await withController(
         {
           options: {
@@ -778,7 +778,7 @@ describe('ConfigRegistryController', () => {
       );
     });
 
-    it('should handle validation error from service', async () => {
+    it('handles validation error from service', async () => {
       await withController(
         async ({ mockRemoteFeatureFlagGetState, mockApiServiceHandler }) => {
           mockRemoteFeatureFlagGetState.mockReturnValue({
@@ -872,7 +872,7 @@ describe('ConfigRegistryController', () => {
       );
     });
 
-    it('should handle validation error when result.data.data is missing', async () => {
+    it('handles validation error when result.data.data is missing', async () => {
       await withController(
         async ({
           controller,
@@ -900,7 +900,7 @@ describe('ConfigRegistryController', () => {
       );
     });
 
-    it('should handle validation error when result.data.data.networks is not an array', async () => {
+    it('handles validation error when result.data.data.networks is not an array', async () => {
       await withController(
         async ({
           controller,
@@ -928,7 +928,7 @@ describe('ConfigRegistryController', () => {
       );
     });
 
-    it('should handle validation error when result.data.data.version is not a string', async () => {
+    it('handles validation error when result.data.data.version is not a string', async () => {
       await withController(
         async ({
           controller,
@@ -956,7 +956,7 @@ describe('ConfigRegistryController', () => {
       );
     });
 
-    it('should skip fetch when lastFetched is within polling interval', async () => {
+    it('skips fetch when lastFetched is within polling interval', async () => {
       const recentTimestamp = Date.now() - 1000;
       await withController(
         {
@@ -989,7 +989,7 @@ describe('ConfigRegistryController', () => {
       );
     });
 
-    it('should proceed with fetch when lastFetched is null', async () => {
+    it('proceeds with fetch when lastFetched is null', async () => {
       await withController(
         {
           options: {
@@ -1034,7 +1034,7 @@ describe('ConfigRegistryController', () => {
       );
     });
 
-    it('should proceed with fetch when enough time has passed since lastFetched', async () => {
+    it('proceeds with fetch when enough time has passed since lastFetched', async () => {
       const now = Date.now();
       const oldTimestamp = now - DEFAULT_POLLING_INTERVAL - 1000;
       await withController(
@@ -1085,7 +1085,7 @@ describe('ConfigRegistryController', () => {
       );
     });
 
-    it('should use custom polling interval when checking lastFetched', async () => {
+    it('uses custom polling interval when checking lastFetched', async () => {
       const customInterval = 5000;
       const recentTimestamp = Date.now() - 3000;
       await withController(
@@ -1120,7 +1120,7 @@ describe('ConfigRegistryController', () => {
       );
     });
 
-    it('should use DEFAULT_POLLING_INTERVAL when getIntervalLength returns undefined', async () => {
+    it('uses DEFAULT_POLLING_INTERVAL when getIntervalLength returns undefined', async () => {
       const recentTimestamp = Date.now() - 1000;
       await withController(
         {
@@ -1157,7 +1157,7 @@ describe('ConfigRegistryController', () => {
       );
     });
 
-    it('should handle non-Error exceptions', async () => {
+    it('handles non-Error exceptions', async () => {
       await withController(
         { options: { fallbackConfig: MOCK_FALLBACK_CONFIG } },
         async ({ mockRemoteFeatureFlagGetState, mockApiServiceHandler }) => {
@@ -1250,7 +1250,7 @@ describe('ConfigRegistryController', () => {
       );
     });
 
-    it('should handle error when state.configs is null', async () => {
+    it('handles error when state.configs is null', async () => {
       await withController(
         {
           options: {
@@ -1349,7 +1349,7 @@ describe('ConfigRegistryController', () => {
       );
     });
 
-    it('should work via messenger actions', async () => {
+    it('works via messenger actions', async () => {
       await withController(async ({ controller, messenger, clock }) => {
         const executePollSpy = jest.spyOn(controller, '_executePoll');
 
@@ -1370,7 +1370,7 @@ describe('ConfigRegistryController', () => {
   });
 
   describe('state persistence', () => {
-    it('should persist version', async () => {
+    it('persists version', async () => {
       await withController(
         { options: { state: { version: 'v1.0.0' } } },
         ({ controller }) => {
@@ -1379,7 +1379,7 @@ describe('ConfigRegistryController', () => {
       );
     });
 
-    it('should persist lastFetched', async () => {
+    it('persists lastFetched', async () => {
       const timestamp = Date.now();
       await withController(
         { options: { state: { lastFetched: timestamp } } },
@@ -1389,7 +1389,7 @@ describe('ConfigRegistryController', () => {
       );
     });
 
-    it('should persist fetchError', async () => {
+    it('persists fetchError', async () => {
       await withController(
         { options: { state: { fetchError: 'Test error' } } },
         ({ controller }) => {
@@ -1400,7 +1400,7 @@ describe('ConfigRegistryController', () => {
   });
 
   describe('startPolling', () => {
-    it('should return a polling token string', async () => {
+    it('returns a polling token string', async () => {
       await withController(({ controller }) => {
         const token = controller.startPolling(null);
         expect(typeof token).toBe('string');
@@ -1410,7 +1410,7 @@ describe('ConfigRegistryController', () => {
       });
     });
 
-    it('should return a polling token string when called without input', async () => {
+    it('returns a polling token string when called without input', async () => {
       await withController(({ controller }) => {
         const token = controller.startPolling(null);
         expect(typeof token).toBe('string');
@@ -1420,7 +1420,7 @@ describe('ConfigRegistryController', () => {
       });
     });
 
-    it('should delay first poll when lastFetched is recent', async () => {
+    it('delays first poll when lastFetched is recent', async () => {
       const pollingInterval = 10000;
       const recentTimestamp = Date.now() - 2000;
       const remainingTime = pollingInterval - 2000;
@@ -1448,7 +1448,7 @@ describe('ConfigRegistryController', () => {
       );
     });
 
-    it('should proceed immediately when lastFetched is null', async () => {
+    it('proceeds immediately when lastFetched is null', async () => {
       await withController(
         {
           options: {
@@ -1469,7 +1469,7 @@ describe('ConfigRegistryController', () => {
       );
     });
 
-    it('should proceed immediately when lastFetched is old enough', async () => {
+    it('proceeds immediately when lastFetched is old enough', async () => {
       const pollingInterval = 10000;
       const now = Date.now();
       const oldTimestamp = now - pollingInterval - 1000;
@@ -1496,7 +1496,7 @@ describe('ConfigRegistryController', () => {
       );
     });
 
-    it('should proceed immediately when lastFetched is exactly at polling interval', async () => {
+    it('proceeds immediately when lastFetched is exactly at polling interval', async () => {
       const pollingInterval = 10000;
       const now = Date.now();
       const exactTimestamp = now - pollingInterval - 1;
@@ -1523,7 +1523,7 @@ describe('ConfigRegistryController', () => {
       );
     });
 
-    it('should use DEFAULT_POLLING_INTERVAL when getIntervalLength returns undefined', async () => {
+    it('uses DEFAULT_POLLING_INTERVAL when getIntervalLength returns undefined', async () => {
       const recentTimestamp = Date.now() - 1000;
       await withController(
         {
@@ -1549,7 +1549,7 @@ describe('ConfigRegistryController', () => {
       );
     });
 
-    it('should clear existing timeout when startPolling is called multiple times', async () => {
+    it('clears existing timeout when startPolling is called multiple times', async () => {
       const pollingInterval = 10000;
       const recentTimestamp = Date.now() - 2000;
       await withController(
@@ -1590,7 +1590,7 @@ describe('ConfigRegistryController', () => {
   });
 
   describe('feature flag', () => {
-    it('should use fallback config when feature flag is disabled', async () => {
+    it('uses fallback config when feature flag is disabled', async () => {
       await withController(
         { options: { fallbackConfig: MOCK_FALLBACK_CONFIG } },
         async ({ controller, clock, mockRemoteFeatureFlagGetState }) => {
@@ -1619,7 +1619,7 @@ describe('ConfigRegistryController', () => {
       );
     });
 
-    it('should use API when feature flag is enabled', async () => {
+    it('uses API when feature flag is enabled', async () => {
       await withController(
         async ({
           controller,
@@ -1683,7 +1683,7 @@ describe('ConfigRegistryController', () => {
       );
     });
 
-    it('should filter networks to only include featured, active, non-testnet networks', async () => {
+    it('filters networks to only include featured, active, non-testnet networks', async () => {
       await withController(
         async ({
           controller,
@@ -1819,7 +1819,7 @@ describe('ConfigRegistryController', () => {
       );
     });
 
-    it('should handle duplicate chainIds by keeping highest priority network and logging warning', async () => {
+    it('handles duplicate chainIds by keeping highest priority network and logging warning', async () => {
       await withController(
         async ({ mockRemoteFeatureFlagGetState, mockApiServiceHandler }) => {
           mockRemoteFeatureFlagGetState.mockReturnValue({
@@ -2006,7 +2006,7 @@ describe('ConfigRegistryController', () => {
       );
     });
 
-    it('should handle duplicate chainIds with same priority by keeping first occurrence', async () => {
+    it('handles duplicate chainIds with same priority by keeping first occurrence', async () => {
       await withController(
         async ({ mockRemoteFeatureFlagGetState, mockApiServiceHandler }) => {
           mockRemoteFeatureFlagGetState.mockReturnValue({
@@ -2160,7 +2160,7 @@ describe('ConfigRegistryController', () => {
       );
     });
 
-    it('should use custom isConfigRegistryApiEnabled function when provided', async () => {
+    it('uses custom isConfigRegistryApiEnabled function when provided', async () => {
       const customIsEnabled = jest.fn().mockReturnValue(true);
       await withController(
         {
@@ -2217,7 +2217,7 @@ describe('ConfigRegistryController', () => {
       );
     });
 
-    it('should use custom isConfigRegistryApiEnabled function returning false', async () => {
+    it('uses custom isConfigRegistryApiEnabled function returning false', async () => {
       const customIsEnabled = jest.fn().mockReturnValue(false);
       await withController(
         {
@@ -2241,7 +2241,7 @@ describe('ConfigRegistryController', () => {
       );
     });
 
-    it('should default to fallback when feature flag is not set', async () => {
+    it('defaults to fallback when feature flag is not set', async () => {
       await withController(
         { options: { fallbackConfig: MOCK_FALLBACK_CONFIG } },
         async ({ controller, clock, mockRemoteFeatureFlagGetState }) => {
@@ -2268,7 +2268,7 @@ describe('ConfigRegistryController', () => {
       );
     });
 
-    it('should default to fallback when RemoteFeatureFlagController is unavailable', async () => {
+    it('defaults to fallback when RemoteFeatureFlagController is unavailable', async () => {
       await withController(
         { options: { fallbackConfig: MOCK_FALLBACK_CONFIG } },
         async ({ controller, clock, mockRemoteFeatureFlagGetState }) => {
@@ -2296,7 +2296,7 @@ describe('ConfigRegistryController', () => {
   });
 
   describe('KeyringController event listeners', () => {
-    it('should start polling when KeyringController is already unlocked on initialization', async () => {
+    it('starts polling when KeyringController is already unlocked on initialization', async () => {
       await withController(async ({ clock }) => {
         const mockKeyringControllerGetState = jest.fn().mockReturnValue({
           isUnlocked: true,
@@ -2383,7 +2383,7 @@ describe('ConfigRegistryController', () => {
       });
     });
 
-    it('should handle KeyringController:getState error gracefully when KeyringController is unavailable', async () => {
+    it('handles KeyringController:getState error gracefully when KeyringController is unavailable', async () => {
       await withController(({ controller, mockKeyringControllerGetState }) => {
         mockKeyringControllerGetState.mockImplementation(() => {
           throw new Error('KeyringController not available');
@@ -2393,7 +2393,7 @@ describe('ConfigRegistryController', () => {
       });
     });
 
-    it('should start polling when KeyringController:unlock event is published', async () => {
+    it('starts polling when KeyringController:unlock event is published', async () => {
       await withController(async ({ controller, clock, rootMessenger }) => {
         const executePollSpy = jest.spyOn(controller, '_executePoll');
         const startPollingSpy = jest.spyOn(controller, 'startPolling');
@@ -2411,7 +2411,7 @@ describe('ConfigRegistryController', () => {
       });
     });
 
-    it('should stop polling when KeyringController:lock event is published', async () => {
+    it('stops polling when KeyringController:lock event is published', async () => {
       await withController(
         async ({
           controller,
@@ -2435,7 +2435,7 @@ describe('ConfigRegistryController', () => {
       );
     });
 
-    it('should call startPolling with default parameter when called without arguments', async () => {
+    it('calls startPolling with default parameter when called without arguments', async () => {
       await withController(async ({ controller, clock }) => {
         const executePollSpy = jest.spyOn(controller, '_executePoll');
 
@@ -2450,7 +2450,7 @@ describe('ConfigRegistryController', () => {
   });
 
   describe('stopPolling', () => {
-    it('should clear pending delayed poll timeout when stopping', async () => {
+    it('clears pending delayed poll timeout when stopping', async () => {
       const pollingInterval = 10000;
       const recentTimestamp = Date.now() - 2000;
       await withController(
@@ -2480,14 +2480,14 @@ describe('ConfigRegistryController', () => {
       );
     });
 
-    it('should handle clearing timeout when no timeout exists', async () => {
+    it('handles clearing timeout when no timeout exists', async () => {
       await withController(({ controller }) => {
         // Should not throw when stopping without a pending timeout
         expect(() => controller.stopPolling()).not.toThrow();
       });
     });
 
-    it('should stop delayed poll using placeholder token', async () => {
+    it('stops delayed poll using placeholder token', async () => {
       const pollingInterval = 10000;
       const recentTimestamp = Date.now() - 2000;
       await withController(
@@ -2517,7 +2517,7 @@ describe('ConfigRegistryController', () => {
       );
     });
 
-    it('should stop delayed poll using placeholder token after timeout fires', async () => {
+    it('stops delayed poll using placeholder token after timeout fires', async () => {
       const pollingInterval = 10000;
       const recentTimestamp = Date.now() - 2000;
       const remainingTime = pollingInterval - 2000;
@@ -2549,7 +2549,7 @@ describe('ConfigRegistryController', () => {
       );
     });
 
-    it('should stop all polling when called without token (backward compatible)', async () => {
+    it('stops all polling when called without token (backward compatible)', async () => {
       await withController(async ({ controller, clock }) => {
         const executePollSpy = jest.spyOn(controller, '_executePoll');
 
@@ -2569,7 +2569,7 @@ describe('ConfigRegistryController', () => {
       });
     });
 
-    it('should stop specific polling session when called with token', async () => {
+    it('stops specific polling session when called with token', async () => {
       await withController(async ({ controller, clock }) => {
         const executePollSpy = jest.spyOn(controller, '_executePoll');
 
@@ -2596,7 +2596,7 @@ describe('ConfigRegistryController', () => {
       });
     });
 
-    it('should work via messenger action with token', async () => {
+    it('works via messenger action with token', async () => {
       await withController(async ({ controller, messenger, clock }) => {
         const executePollSpy = jest.spyOn(controller, '_executePoll');
 
@@ -2617,7 +2617,7 @@ describe('ConfigRegistryController', () => {
       });
     });
 
-    it('should work via messenger action without token (backward compatible)', async () => {
+    it('works via messenger action without token (backward compatible)', async () => {
       await withController(async ({ controller, messenger, clock }) => {
         const executePollSpy = jest.spyOn(controller, '_executePoll');
 
@@ -2640,7 +2640,7 @@ describe('ConfigRegistryController', () => {
   });
 
   describe('destroy', () => {
-    it('should clean up event listeners and action handlers', async () => {
+    it('cleans up event listeners and action handlers', async () => {
       await withController(({ controller, messenger }) => {
         const unsubscribeSpy = jest.spyOn(messenger, 'unsubscribe');
         const unregisterActionHandlerSpy = jest.spyOn(
@@ -2669,7 +2669,7 @@ describe('ConfigRegistryController', () => {
       });
     });
 
-    it('should handle unsubscribe errors gracefully', async () => {
+    it('handles unsubscribe errors gracefully', async () => {
       await withController(({ controller, messenger }) => {
         jest.spyOn(messenger, 'unsubscribe').mockImplementation(() => {
           throw new Error('Handler not subscribed');
@@ -2680,7 +2680,7 @@ describe('ConfigRegistryController', () => {
       });
     });
 
-    it('should clear pending timeout when destroying', async () => {
+    it('clears pending timeout when destroying', async () => {
       const pollingInterval = 10000;
       const recentTimestamp = Date.now() - 2000;
       await withController(
