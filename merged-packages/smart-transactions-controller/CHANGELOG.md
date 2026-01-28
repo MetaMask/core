@@ -7,9 +7,11 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+## [22.3.0]
+
 ### Changed
 
-- Change `client` field type in `SentinelMeta` from `ClientId` enum to `string` for flexible device identification ([#562](https://github.com/MetaMask/smart-transactions-controller/pull/562))
+- Change `client` field type in `SentinelMeta` from `ClientId` enum to `string` for device identification ([#562](https://github.com/MetaMask/smart-transactions-controller/pull/562))
 
 ## [22.2.0]
 
@@ -708,7 +710,8 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 - Add initial SmartTransactionsController ([#1](https://github.com/MetaMask/smart-transactions-controller/pull/1))
 - Initial commit
 
-[Unreleased]: https://github.com/MetaMask/smart-transactions-controller/compare/v22.2.0...HEAD
+[Unreleased]: https://github.com/MetaMask/smart-transactions-controller/compare/v22.3.0...HEAD
+[22.3.0]: https://github.com/MetaMask/smart-transactions-controller/compare/v22.2.0...v22.3.0
 [22.2.0]: https://github.com/MetaMask/smart-transactions-controller/compare/v22.1.0...v22.2.0
 [22.1.0]: https://github.com/MetaMask/smart-transactions-controller/compare/v22.0.0...v22.1.0
 [22.0.0]: https://github.com/MetaMask/smart-transactions-controller/compare/v21.1.0...v22.0.0
