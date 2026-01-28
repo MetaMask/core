@@ -1059,22 +1059,19 @@ export class RampsService {
     this.#addCommonParams(url, action);
 
     // Build region ID in the format expected by the API
-    url.searchParams.set('regionId', `/regions/${normalizedRegion}`);
+    url.searchParams.set('region', normalizedRegion);
     url.searchParams.set(
-      'fiatCurrencyId',
-      `/currencies/fiat/${normalizedFiat}`,
+      'fiat',
+      normalizedFiat,
     );
-    url.searchParams.set('cryptoCurrencyId', params.assetId);
+    url.searchParams.set('crypto', params.assetId);
     url.searchParams.set('amount', String(params.amount));
     url.searchParams.set('walletAddress', params.walletAddress);
 
-    if (params.redirectUrl) {
-      url.searchParams.set('redirectUrl', params.redirectUrl);
-    }
 
     // Add payment methods as array parameters
     params.paymentMethods.forEach((paymentMethod) => {
-      url.searchParams.append('paymentMethodId', paymentMethod);
+      url.searchParams.append('payments', paymentMethod);
     });
 
     // Add provider filter if specified

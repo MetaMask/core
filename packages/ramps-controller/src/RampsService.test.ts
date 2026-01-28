@@ -1713,12 +1713,12 @@ describe('RampsService', () => {
           sdk: '2.1.6',
           controller: CONTROLLER_VERSION,
           context: 'mobile-ios',
-          regionId: '/regions/us',
-          fiatCurrencyId: '/currencies/fiat/usd',
-          cryptoCurrencyId: 'eip155:1/slip44:60',
+          region: 'us',
+          fiat: 'usd',
+          crypto: 'eip155:1/slip44:60',
           amount: '100',
           walletAddress: '0x1234567890abcdef1234567890abcdef12345678',
-          paymentMethodId: '/payments/debit-credit-card',
+          payments: '/payments/debit-credit-card',
         })
         .reply(200, mockQuotesResponse);
       const { service } = getService();
@@ -1749,12 +1749,12 @@ describe('RampsService', () => {
           sdk: '2.1.6',
           controller: CONTROLLER_VERSION,
           context: 'mobile-ios',
-          regionId: '/regions/us',
-          fiatCurrencyId: '/currencies/fiat/usd',
-          cryptoCurrencyId: 'eip155:1/slip44:60',
+          region: 'us',
+          fiat: 'usd',
+          crypto: 'eip155:1/slip44:60',
           amount: '100',
           walletAddress: '0x1234567890abcdef1234567890abcdef12345678',
-          paymentMethodId: '/payments/debit-credit-card',
+          payments: '/payments/debit-credit-card',
         })
         .reply(200, mockQuotesResponse);
       const { service } = getService();
@@ -1782,12 +1782,12 @@ describe('RampsService', () => {
           sdk: '2.1.6',
           controller: CONTROLLER_VERSION,
           context: 'mobile-ios',
-          regionId: '/regions/us',
-          fiatCurrencyId: '/currencies/fiat/usd',
-          cryptoCurrencyId: 'eip155:1/slip44:60',
+          region: 'us',
+          fiat: 'usd',
+          crypto: 'eip155:1/slip44:60',
           amount: '100',
           walletAddress: '0x1234567890abcdef1234567890abcdef12345678',
-          paymentMethodId: [
+          payments: [
             '/payments/debit-credit-card',
             '/payments/bank-transfer',
           ],
@@ -1821,12 +1821,12 @@ describe('RampsService', () => {
           sdk: '2.1.6',
           controller: CONTROLLER_VERSION,
           context: 'mobile-ios',
-          regionId: '/regions/us',
-          fiatCurrencyId: '/currencies/fiat/usd',
-          cryptoCurrencyId: 'eip155:1/slip44:60',
+          region: 'us',
+          fiat: 'usd',
+          crypto: 'eip155:1/slip44:60',
           amount: '100',
           walletAddress: '0x1234567890abcdef1234567890abcdef12345678',
-          paymentMethodId: '/payments/debit-credit-card',
+          payments: '/payments/debit-credit-card',
           providers: '/providers/moonpay',
         })
         .reply(200, mockQuotesResponse);
@@ -1856,13 +1856,12 @@ describe('RampsService', () => {
           sdk: '2.1.6',
           controller: CONTROLLER_VERSION,
           context: 'mobile-ios',
-          regionId: '/regions/us',
-          fiatCurrencyId: '/currencies/fiat/usd',
-          cryptoCurrencyId: 'eip155:1/slip44:60',
+          region: 'us',
+          fiat: 'usd',
+          crypto: 'eip155:1/slip44:60',
           amount: '100',
           walletAddress: '0x1234567890abcdef1234567890abcdef12345678',
-          paymentMethodId: '/payments/debit-credit-card',
-          redirectUrl: 'https://example.com/callback',
+          payments: '/payments/debit-credit-card',
         })
         .reply(200, mockQuotesResponse);
       const { service } = getService();
@@ -1891,12 +1890,12 @@ describe('RampsService', () => {
           sdk: '2.1.6',
           controller: CONTROLLER_VERSION,
           context: 'mobile-ios',
-          regionId: '/regions/us',
-          fiatCurrencyId: '/currencies/fiat/usd',
-          cryptoCurrencyId: 'eip155:1/slip44:60',
+          region: 'us',
+          fiat: 'usd',
+          crypto: 'eip155:1/slip44:60',
           amount: '0.1',
           walletAddress: '0x1234567890abcdef1234567890abcdef12345678',
-          paymentMethodId: '/payments/bank-transfer',
+          payments: '/payments/bank-transfer',
         })
         .reply(200, mockQuotesResponse);
       const { service } = getService();
@@ -1925,12 +1924,12 @@ describe('RampsService', () => {
           sdk: '2.1.6',
           controller: CONTROLLER_VERSION,
           context: 'mobile-ios',
-          regionId: '/regions/us',
-          fiatCurrencyId: '/currencies/fiat/usd',
-          cryptoCurrencyId: 'eip155:1/slip44:60',
+          region: 'us',
+          fiat: 'usd',
+          crypto: 'eip155:1/slip44:60',
           amount: '100',
           walletAddress: '0x1234567890abcdef1234567890abcdef12345678',
-          paymentMethodId: '/payments/debit-credit-card',
+          payments: '/payments/debit-credit-card',
         })
         .reply(200, { invalid: 'response' });
       const { service } = getService();
@@ -1959,12 +1958,12 @@ describe('RampsService', () => {
           sdk: '2.1.6',
           controller: CONTROLLER_VERSION,
           context: 'mobile-ios',
-          regionId: '/regions/us',
-          fiatCurrencyId: '/currencies/fiat/usd',
-          cryptoCurrencyId: 'eip155:1/slip44:60',
+          region: 'us',
+          fiat: 'usd',
+          crypto: 'eip155:1/slip44:60',
           amount: '100',
           walletAddress: '0x1234567890abcdef1234567890abcdef12345678',
-          paymentMethodId: '/payments/debit-credit-card',
+          payments: '/payments/debit-credit-card',
         })
         .reply(200, () => null);
       const { service } = getService();
@@ -1993,12 +1992,12 @@ describe('RampsService', () => {
           sdk: '2.1.6',
           controller: CONTROLLER_VERSION,
           context: 'mobile-ios',
-          regionId: '/regions/us',
-          fiatCurrencyId: '/currencies/fiat/usd',
-          cryptoCurrencyId: 'eip155:1/slip44:60',
+          region: 'us',
+          fiat: 'usd',
+          crypto: 'eip155:1/slip44:60',
           amount: '100',
           walletAddress: '0x1234567890abcdef1234567890abcdef12345678',
-          paymentMethodId: '/payments/debit-credit-card',
+          payments: '/payments/debit-credit-card',
         })
         .reply(200, { success: 'not an array', sorted: [], error: [] });
       const { service } = getService();
@@ -2027,12 +2026,12 @@ describe('RampsService', () => {
           sdk: '2.1.6',
           controller: CONTROLLER_VERSION,
           context: 'mobile-ios',
-          regionId: '/regions/us',
-          fiatCurrencyId: '/currencies/fiat/usd',
-          cryptoCurrencyId: 'eip155:1/slip44:60',
+          region: 'us',
+          fiat: 'usd',
+          crypto: 'eip155:1/slip44:60',
           amount: '100',
           walletAddress: '0x1234567890abcdef1234567890abcdef12345678',
-          paymentMethodId: '/payments/debit-credit-card',
+          payments: '/payments/debit-credit-card',
         })
         .times(4)
         .reply(500, 'Internal Server Error');
@@ -2063,12 +2062,12 @@ describe('RampsService', () => {
           sdk: '2.1.6',
           controller: CONTROLLER_VERSION,
           context: 'mobile-ios',
-          regionId: '/regions/us',
-          fiatCurrencyId: '/currencies/fiat/usd',
-          cryptoCurrencyId: 'eip155:1/slip44:60',
+          region: 'us',
+          fiat: 'usd',
+          crypto: 'eip155:1/slip44:60',
           amount: '100',
           walletAddress: '0x1234567890abcdef1234567890abcdef12345678',
-          paymentMethodId: '/payments/debit-credit-card',
+          payments: '/payments/debit-credit-card',
         })
         .reply(200, mockQuotesResponse);
       const { service } = getService({
