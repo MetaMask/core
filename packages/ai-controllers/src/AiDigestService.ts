@@ -1,40 +1,21 @@
 import { AiDigestControllerErrorMessage } from './ai-digest-constants';
 import type { DigestService, DigestData } from './ai-digest-types';
 
-export type DigestProvider = 'claude' | 'xai';
-
 export type AiDigestServiceConfig = {
   baseUrl: string;
-  provider: DigestProvider;
-};
-
-type ApiResponse = {
-  success: boolean;
-  data?: DigestData;
-  error?: { message?: string };
 };
 
 export class AiDigestService implements DigestService {
   readonly #baseUrl: string;
 
-  readonly #provider: DigestProvider;
-
   constructor(config: AiDigestServiceConfig) {
     this.#baseUrl = config.baseUrl;
-    this.#provider = config.provider;
   }
 
-  async fetchDigest(coingeckoSlug: string): Promise<DigestData> {
-    const response = await fetch(`${this.#baseUrl}/api/analyze`, {
-      method: 'POST',
-      headers: {
-        'Content-Type': 'application/json',
-      },
-      body: JSON.stringify({
-        asset: coingeckoSlug,
-        provider: this.#provider,
-      }),
-    });
+  async fetchDigest(assetId: string): Promise<DigestData> {
+    const response = await fetch(
+      `${this.#baseUrl}/digests/assets/${assetId}/latest`,
+    );
 
     if (!response.ok) {
       throw new Error(
@@ -42,15 +23,14 @@ export class AiDigestService implements DigestService {
       );
     }
 
-    const data: ApiResponse = await response.json();
+    const data: DigestData = await response.json();
 
-    if (!data.success || data.data === undefined || data.data === null) {
+    if (!data.success) {
       throw new Error(
-        data.error?.message ??
-          AiDigestControllerErrorMessage.API_RETURNED_ERROR,
+        data.error ?? AiDigestControllerErrorMessage.API_RETURNED_ERROR,
       );
     }
 
-    return data.data;
+    return data;
   }
 }

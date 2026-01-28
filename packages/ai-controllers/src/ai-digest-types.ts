@@ -7,8 +7,20 @@ export const DIGEST_STATUS = {
 
 export type DigestStatus = (typeof DIGEST_STATUS)[keyof typeof DIGEST_STATUS];
 
+/**
+ * Response from the digest API.
+ */
 export type DigestData = {
-  [key: string]: string | number | boolean | null;
+  id: string;
+  assetId: string;
+  assetSymbol?: string;
+  digest: string;
+  generatedAt: string;
+  processingTime: number;
+  success: boolean;
+  error?: string;
+  createdAt: string;
+  updatedAt: string;
 };
 
 export type DigestEntry = {

@@ -14,7 +14,7 @@ export {
   getDefaultAiDigestControllerState,
 } from './AiDigestController';
 
-export type { AiDigestServiceConfig, DigestProvider } from './AiDigestService';
+export type { AiDigestServiceConfig } from './AiDigestService';
 export { AiDigestService } from './AiDigestService';
 
 export type {

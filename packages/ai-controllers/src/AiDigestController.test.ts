@@ -10,8 +10,15 @@ import {
 import type { AiDigestControllerMessenger } from '.';
 
 const mockData = {
-  summary: 'Test summary',
-  analysis: 'Test analysis',
+  id: '123e4567-e89b-12d3-a456-426614174000',
+  assetId: 'eth-ethereum',
+  assetSymbol: 'ETH',
+  digest: 'ETH is trading at $3,245.67 (+2.3% 24h).',
+  generatedAt: '2026-01-21T10:30:00.000Z',
+  processingTime: 1523,
+  success: true,
+  createdAt: '2026-01-21T10:30:00.000Z',
+  updatedAt: '2026-01-21T10:30:00.000Z',
 };
 
 const createMessenger = (): AiDigestControllerMessenger => {
