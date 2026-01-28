@@ -181,6 +181,7 @@ export function mapIntentOrderStatusToTransactionStatus(
       return TransactionStatus.confirmed;
     case IntentOrderStatus.FAILED:
     case IntentOrderStatus.EXPIRED:
+    case IntentOrderStatus.CANCELLED:
       return TransactionStatus.failed;
     default:
       return TransactionStatus.submitted;
