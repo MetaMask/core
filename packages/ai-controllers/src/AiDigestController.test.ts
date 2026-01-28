@@ -208,4 +208,31 @@ describe('AiDigestController', () => {
     expect(controller.state.digests['failing-asset']).toBeUndefined();
     expect(controller.state.digests.ethereum).toBeDefined();
   });
+
+  it('evicts orphaned loading entries on next successful fetch', async () => {
+    const mockService = { fetchDigest: jest.fn().mockResolvedValue(mockData) };
+    const controller = new AiDigestController({
+      messenger: createMessenger(),
+      digestService: mockService,
+      state: {
+        digests: {
+          'orphaned-asset': {
+            asset: 'orphaned-asset',
+            status: DIGEST_STATUS.LOADING,
+          },
+        },
+      },
+    });
+
+    // Verify loading entry exists
+    expect(controller.state.digests['orphaned-asset']?.status).toBe(
+      DIGEST_STATUS.LOADING,
+    );
+
+    // Fetch a successful entry - should evict the orphaned loading entry
+    await controller.fetchDigest('ethereum');
+
+    expect(controller.state.digests['orphaned-asset']).toBeUndefined();
+    expect(controller.state.digests.ethereum).toBeDefined();
+  });
 });
