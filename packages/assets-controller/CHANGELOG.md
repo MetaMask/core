@@ -21,6 +21,9 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ### Changed
 
+- Convert asset balances to human-readable format using token decimals across all data sources (`RpcDataSource`, `AccountsApiDataSource`, `BackendWebsocketDataSource`)
+- Store native token metadata (type, symbol, name, decimals) in `assetsMetadata` derived from `NetworkController` chain status
+- `AccountsApiDataSource` now includes `assetsMetadata` in response with token info from V5 API
 - Bump `@metamask/keyring-controller` from `^25.0.0` to `^25.1.0` ([#7713](https://github.com/MetaMask/core/pull/7713))
 - Refactor `MulticallClient` to use viem for ABI encoding/decoding instead of manual implementation
 - Refactor `RpcDataSource` to delegate polling to `BalanceFetcher` and `TokenDetector` services ([#7709](https://github.com/MetaMask/core/pull/7709))
