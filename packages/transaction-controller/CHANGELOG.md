@@ -9,7 +9,7 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [62.11.0]
 
-### Uncategorized
+### Changed
 
 - fix: issue in releasing transaction controller due to core-backend dependency ([#7748](https://github.com/MetaMask/core/pull/7748))
 
