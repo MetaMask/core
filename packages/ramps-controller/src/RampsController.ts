@@ -915,7 +915,7 @@ export class RampsController extends BaseController<
           },
         );
       },
-      { forceRefresh: true, ...options },
+      options,
     );
 
     this.update((state) => {
@@ -938,29 +938,23 @@ export class RampsController extends BaseController<
    * @param options.fiat - Fiat currency code (e.g., "usd"). If not provided, uses the user's region currency.
    * @param options.assetId - CAIP-19 cryptocurrency identifier.
    * @param options.provider - Provider ID path.
-   * @param options.forceRefresh - Whether to bypass cache.
-   * @param options.ttl - Custom TTL for this request.
    * @returns The payment methods response containing payments array.
    */
   async getPaymentMethods(
     region?: string,
-    options?: {
+    options?: ExecuteRequestOptions & {
       fiat?: string;
       assetId?: string;
       provider?: string;
-      forceRefresh?: boolean;
-      ttl?: number;
     },
   ): Promise<PaymentMethodsResponse> {
     const regionCode = region ?? this.state.userRegion?.regionCode ?? null;
     const fiatToUse =
       options?.fiat ?? this.state.userRegion?.country?.currency ?? null;
-
-    const selectedTokenAtStart = this.state.selectedToken?.assetId ?? '';
-    const selectedProviderAtStart = this.state.selectedProvider?.id ?? '';
-
-    const assetIdToUse = options?.assetId ?? selectedTokenAtStart;
-    const providerToUse = options?.provider ?? selectedProviderAtStart;
+    const assetIdToUse =
+      options?.assetId ?? this.state.selectedToken?.assetId ?? '';
+    const providerToUse =
+      options?.provider ?? this.state.selectedProvider?.id ?? '';
 
     if (!regionCode) {
       throw new Error(
@@ -993,7 +987,7 @@ export class RampsController extends BaseController<
           provider: providerToUse,
         });
       },
-      { forceRefresh: options?.forceRefresh, ttl: options?.ttl },
+      options
     );
 
     this.update((state) => {
@@ -1003,8 +997,13 @@ export class RampsController extends BaseController<
       const tokenSelectionUnchanged = assetIdToUse === currentAssetId;
       const providerSelectionUnchanged = providerToUse === currentProviderId;
 
+      // this is a race condition check to ensure that the selected token and provider in state are the same as the tokens we're requesting for 
+      // ex: if the user rapidly changes the token or provider, the in-flight payment methods might not be valid
+      // so this check will ensure that the payment methods are still valid for the token and provider that were requested
       if (tokenSelectionUnchanged && providerSelectionUnchanged) {
         state.paymentMethods = response.payments;
+
+        // this will auto-select the first payment method if the selected payment method is not in the new payment methods
         const currentSelectionStillValid = response.payments.some(
           (pm: PaymentMethod) => pm.id === state.selectedPaymentMethod?.id,
         );
@@ -1024,8 +1023,8 @@ export class RampsController extends BaseController<
    * @param paymentMethodId - The payment method ID (e.g., "/payments/debit-credit-card"), or null to clear.
    * @throws If payment methods are not loaded or payment method is not found.
    */
-  setSelectedPaymentMethod(paymentMethodId: string | null): void {
-    if (paymentMethodId === null) {
+  setSelectedPaymentMethod(paymentMethodId?: string): void {
+    if (!paymentMethodId) {
       this.update((state) => {
         state.selectedPaymentMethod = null;
       });
@@ -1127,17 +1126,13 @@ export class RampsController extends BaseController<
    * @param options.fiat - Fiat currency code. If not provided, uses userRegion currency.
    * @param options.assetId - CAIP-19 cryptocurrency identifier.
    * @param options.provider - Provider ID path.
-   * @param options.forceRefresh - Whether to bypass cache.
-   * @param options.ttl - Custom TTL for this request.
    */
   triggerGetPaymentMethods(
     region?: string,
-    options?: {
+    options?: ExecuteRequestOptions & {
       fiat?: string;
       assetId?: string;
       provider?: string;
-      forceRefresh?: boolean;
-      ttl?: number;
     },
   ): void {
     this.getPaymentMethods(region, options).catch(() => {

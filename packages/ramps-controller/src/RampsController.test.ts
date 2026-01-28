@@ -156,7 +156,7 @@ describe('RampsController', () => {
       });
     });
 
-    it('makes fresh request each time (caching disabled)', async () => {
+    it('caches responses for the same region', async () => {
       await withController(async ({ controller, rootMessenger }) => {
         let callCount = 0;
         rootMessenger.registerActionHandler(
@@ -170,11 +170,11 @@ describe('RampsController', () => {
         await controller.getProviders('us-ca');
         await controller.getProviders('us-ca');
 
-        expect(callCount).toBe(2);
+        expect(callCount).toBe(1);
       });
     });
 
-    it('normalizes region case when calling service', async () => {
+    it('normalizes region case and caches with normalized key', async () => {
       await withController(async ({ controller, rootMessenger }) => {
         let callCount = 0;
         rootMessenger.registerActionHandler(
@@ -189,7 +189,7 @@ describe('RampsController', () => {
         await controller.getProviders('US-ca');
         await controller.getProviders('us-ca');
 
-        expect(callCount).toBe(2);
+        expect(callCount).toBe(1);
       });
     });
 
@@ -3407,7 +3407,7 @@ describe('RampsController', () => {
             mockPaymentMethod,
           );
 
-          controller.setSelectedPaymentMethod(null);
+          controller.setSelectedPaymentMethod(undefined);
 
           expect(controller.state.selectedPaymentMethod).toBeNull();
         },
