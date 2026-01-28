@@ -4,6 +4,7 @@ import type {
   Transaction as AccountActivityTransaction,
   WebSocketConnectionInfo,
 } from '@metamask/core-backend';
+import { WebSocketState } from '@metamask/core-backend';
 import type { Hex } from '@metamask/utils';
 import { isCaipChainId, parseCaipChainId } from '@metamask/utils';
 // This package purposefully relies on Node's EventEmitter module.
@@ -37,11 +38,6 @@ export type IncomingTransactionOptions = {
 };
 
 const TAG_POLLING = 'automatic-polling';
-
-enum WebSocketState {
-  CONNECTED = 'connected',
-  DISCONNECTED = 'disconnected',
-}
 
 export class IncomingTransactionHelper {
   hub: EventEmitter;
@@ -305,11 +301,7 @@ export class IncomingTransactionHelper {
       tags: finalTags,
     });
 
-    if (!this.#canStart() || this.#chainsToPolls.length === 0) {
-      log('Cannot start polling', {
-        canStart: this.#canStart(),
-        chainsToPolls: this.#chainsToPolls,
-      });
+    if (!this.#canStart()) {
       return;
     }
 
@@ -317,13 +309,19 @@ export class IncomingTransactionHelper {
     const includeTokenTransfers = this.#includeTokenTransfers ?? true;
     const updateTransactions = this.#updateTransactions ?? false;
 
+    // When websockets enabled and we have specific chains to poll, only fetch those
+    const chainIds =
+      this.#useWebsockets && this.#chainsToPolls.length > 0
+        ? this.#chainsToPolls
+        : undefined;
+
     let remoteTransactions: TransactionMeta[] = [];
 
     try {
       remoteTransactions =
         await this.#remoteTransactionSource.fetchTransactions({
           address: account.address as Hex,
-          chainIds: this.#chainsToPolls,
+          chainIds,
           includeTokenTransfers,
           tags: finalTags,
           updateTransactions,
