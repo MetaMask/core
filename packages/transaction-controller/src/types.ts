@@ -1118,6 +1118,12 @@ export interface RemoteTransactionSourceRequest {
   address: Hex;
 
   /**
+   * Optional array of chain IDs to fetch transactions for.
+   * If not provided, defaults to all supported chains.
+   */
+  chainIds?: Hex[];
+
+  /**
    * Whether to also include incoming token transfers.
    */
   includeTokenTransfers: boolean;

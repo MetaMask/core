@@ -5,6 +5,7 @@ import type {
 import { WebSocketState } from '@metamask/core-backend';
 import type { Hex } from '@metamask/utils';
 
+import { SUPPORTED_CHAIN_IDS } from './AccountsApiRemoteTransactionSource';
 import { IncomingTransactionHelper } from './IncomingTransactionHelper';
 import type { TransactionControllerMessenger } from '..';
 import { flushPromises } from '../../../../tests/helpers';
@@ -22,7 +23,6 @@ jest.mock('../utils/feature-flags');
 // eslint-disable-next-line jest/prefer-spy-on
 console.error = jest.fn();
 
-const CHAIN_ID_MOCK = '0x1' as const;
 const ADDRESS_MOCK = '0x1';
 const SYSTEM_TIME_MOCK = 1000 * 60 * 60 * 24 * 2;
 const MESSENGER_MOCK = {
@@ -85,7 +85,7 @@ const createRemoteTransactionSourceMock = (
     error?: boolean;
   } = {},
 ): RemoteTransactionSource => ({
-  getSupportedChains: jest.fn(() => chainIds ?? [CHAIN_ID_MOCK]),
+  getSupportedChains: jest.fn(() => chainIds ?? SUPPORTED_CHAIN_IDS),
   fetchTransactions: jest.fn(() =>
     error
       ? Promise.reject(new Error('Test Error'))
@@ -131,6 +131,37 @@ async function runInterval(
     transactions: incomingTransactionsListener.mock.calls[0]?.[0],
     incomingTransactionsListener,
   };
+}
+
+const MAINNET_CAIP2 = 'eip155:1';
+const POLYGON_CAIP2 = 'eip155:137';
+const UNSUPPORTED_CAIP2 = 'eip155:2457';
+
+// Helper to convert hex chain ID to CAIP-2 format
+const hexToCaip2 = (hexChainId: string): string => {
+  const decimal = parseInt(hexChainId, 16);
+  return `eip155:${decimal}`;
+};
+
+// Convert all supported hex chain IDs to CAIP-2 format for testing
+const SUPPORTED_CAIP2_CHAINS = SUPPORTED_CHAIN_IDS.map(hexToCaip2);
+
+let statusChangedHandler: (event: {
+  chainIds: string[];
+  status: 'up' | 'down';
+}) => void;
+
+function createMessengerMockWithStatusChanged(): TransactionControllerMessenger {
+  const localSubscribeMock = jest.fn().mockImplementation((event, handler) => {
+    if (event === 'AccountActivityService:statusChanged') {
+      statusChangedHandler = handler;
+    }
+  });
+
+  return {
+    subscribe: localSubscribeMock,
+    unsubscribe: jest.fn(),
+  } as unknown as TransactionControllerMessenger;
 }
 
 describe('IncomingTransactionHelper', () => {
@@ -1071,6 +1102,223 @@ describe('IncomingTransactionHelper', () => {
       await helper.update();
 
       expect(listener).not.toHaveBeenCalled();
+    });
+  });
+
+  describe('network fallback mechanism', () => {
+    describe('when useWebsockets is true', () => {
+      beforeEach(() => {
+        jest
+          .mocked(isIncomingTransactionsUseWebsocketsEnabled)
+          .mockReturnValue(true);
+      });
+
+      it('starts polling when a supported network goes down', async () => {
+        const messenger = createMessengerMockWithStatusChanged();
+
+        // eslint-disable-next-line no-new
+        new IncomingTransactionHelper({
+          ...CONTROLLER_ARGS_MOCK,
+          messenger,
+          remoteTransactionSource: createRemoteTransactionSourceMock([]),
+        });
+
+        await flushPromises();
+
+        expect(jest.getTimerCount()).toBe(0);
+
+        // First, bring all supported networks UP
+        statusChangedHandler({
+          chainIds: SUPPORTED_CAIP2_CHAINS,
+          status: 'up',
+        });
+
+        await flushPromises();
+
+        // All networks are up, so polling should not be running
+        expect(jest.getTimerCount()).toBe(0);
+
+        // When one supported network goes down, polling should start
+        // because not all supported networks are up
+        statusChangedHandler({
+          chainIds: [MAINNET_CAIP2],
+          status: 'down',
+        });
+
+        await flushPromises();
+
+        expect(jest.getTimerCount()).toBe(1);
+      });
+
+      it('continues polling when one network comes up but others are still down', async () => {
+        const messenger = createMessengerMockWithStatusChanged();
+
+        // eslint-disable-next-line no-new
+        new IncomingTransactionHelper({
+          ...CONTROLLER_ARGS_MOCK,
+          messenger,
+          remoteTransactionSource: createRemoteTransactionSourceMock([]),
+        });
+
+        await flushPromises();
+
+        // First, bring all supported networks UP
+        statusChangedHandler({
+          chainIds: SUPPORTED_CAIP2_CHAINS,
+          status: 'up',
+        });
+
+        await flushPromises();
+
+        // Bring down two networks
+        statusChangedHandler({
+          chainIds: [MAINNET_CAIP2, POLYGON_CAIP2],
+          status: 'down',
+        });
+
+        await flushPromises();
+
+        expect(jest.getTimerCount()).toBe(1);
+
+        // Bring one network back up, but others are still down
+        statusChangedHandler({
+          chainIds: [MAINNET_CAIP2],
+          status: 'up',
+        });
+
+        await flushPromises();
+
+        // Polling should continue because not all networks are up
+        expect(jest.getTimerCount()).toBe(1);
+      });
+
+      it('stops polling when all supported networks are back up', async () => {
+        const messenger = createMessengerMockWithStatusChanged();
+
+        // eslint-disable-next-line no-new
+        new IncomingTransactionHelper({
+          ...CONTROLLER_ARGS_MOCK,
+          messenger,
+          remoteTransactionSource: createRemoteTransactionSourceMock([]),
+        });
+
+        await flushPromises();
+
+        // First, bring all supported networks UP
+        statusChangedHandler({
+          chainIds: SUPPORTED_CAIP2_CHAINS,
+          status: 'up',
+        });
+
+        await flushPromises();
+
+        // Bring down all supported networks
+        statusChangedHandler({
+          chainIds: SUPPORTED_CAIP2_CHAINS,
+          status: 'down',
+        });
+
+        await flushPromises();
+
+        expect(jest.getTimerCount()).toBe(1);
+
+        // Bring all supported networks back up
+        statusChangedHandler({
+          chainIds: SUPPORTED_CAIP2_CHAINS,
+          status: 'up',
+        });
+
+        await flushPromises();
+
+        // Polling should stop because all networks are up
+        expect(jest.getTimerCount()).toBe(0);
+      });
+
+      it('does not start polling again if already polling', async () => {
+        const messenger = createMessengerMockWithStatusChanged();
+        const remoteTransactionSource = createRemoteTransactionSourceMock([]);
+
+        // eslint-disable-next-line no-new
+        new IncomingTransactionHelper({
+          ...CONTROLLER_ARGS_MOCK,
+          messenger,
+          remoteTransactionSource,
+        });
+
+        await flushPromises();
+
+        // First, bring all supported networks UP
+        statusChangedHandler({
+          chainIds: SUPPORTED_CAIP2_CHAINS,
+          status: 'up',
+        });
+
+        await flushPromises();
+
+        // First network goes down, polling starts
+        statusChangedHandler({
+          chainIds: [MAINNET_CAIP2],
+          status: 'down',
+        });
+
+        await flushPromises();
+
+        expect(jest.getTimerCount()).toBe(1);
+
+        // Another network goes down, but polling is already running
+        statusChangedHandler({
+          chainIds: [POLYGON_CAIP2],
+          status: 'down',
+        });
+
+        await flushPromises();
+
+        // Should still have only 1 timer (no duplicate polling)
+        expect(jest.getTimerCount()).toBe(1);
+      });
+
+      it('does not start polling before first statusChanged event', async () => {
+        const messenger = createMessengerMockWithStatusChanged();
+
+        // eslint-disable-next-line no-new
+        new IncomingTransactionHelper({
+          ...CONTROLLER_ARGS_MOCK,
+          messenger,
+          remoteTransactionSource: createRemoteTransactionSourceMock([]),
+        });
+
+        await flushPromises();
+
+        // Polling should not start automatically on initialization
+        expect(jest.getTimerCount()).toBe(0);
+      });
+    });
+
+    describe('when useWebsockets is false', () => {
+      it('does not subscribe to statusChanged events', async () => {
+        jest
+          .mocked(isIncomingTransactionsUseWebsocketsEnabled)
+          .mockReturnValue(false);
+        const localSubscribeMock = jest.fn();
+        const messenger = {
+          subscribe: localSubscribeMock,
+          unsubscribe: jest.fn(),
+        } as unknown as TransactionControllerMessenger;
+
+        // eslint-disable-next-line no-new
+        new IncomingTransactionHelper({
+          ...CONTROLLER_ARGS_MOCK,
+          messenger,
+          remoteTransactionSource: createRemoteTransactionSourceMock([]),
+        });
+
+        await flushPromises();
+
+        expect(localSubscribeMock).not.toHaveBeenCalledWith(
+          'AccountActivityService:statusChanged',
+          expect.any(Function),
+        );
+      });
     });
   });
 });

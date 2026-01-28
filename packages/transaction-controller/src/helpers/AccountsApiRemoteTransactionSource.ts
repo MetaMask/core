@@ -50,11 +50,11 @@ export class AccountsApiRemoteTransactionSource
   async fetchTransactions(
     request: RemoteTransactionSourceRequest,
   ): Promise<TransactionMeta[]> {
-    const { address } = request;
+    const { address, chainIds } = request;
 
     const responseTransactions = await this.#queryTransactions(
       request,
-      SUPPORTED_CHAIN_IDS,
+      chainIds ?? SUPPORTED_CHAIN_IDS,
     );
 
     log(
