@@ -822,12 +822,17 @@ export class RampsController extends BaseController<
    * Looks up the token from the current tokens in state and automatically
    * fetches payment methods for that token.
    *
-   * @param assetId - The asset identifier in CAIP-19 format (e.g., "eip155:1/erc20:0x...").
-   * @throws If assetId is not provided, region is not set, tokens are not loaded, or token is not found.
+   * @param assetId - The asset identifier in CAIP-19 format (e.g., "eip155:1/erc20:0x..."), or undefined to clear.
+   * @throws If region is not set, tokens are not loaded, or token is not found.
    */
-  setSelectedToken(assetId: string): void {
+  setSelectedToken(assetId?: string): void {
     if (!assetId) {
-      throw new Error('Asset ID is required.');
+      this.update((state) => {
+        state.selectedToken = null;
+        state.paymentMethods = [];
+        state.selectedPaymentMethod = null;
+      });
+      return;
     }
 
     const regionCode = this.state.userRegion?.regionCode;
@@ -987,7 +992,7 @@ export class RampsController extends BaseController<
           provider: providerToUse,
         });
       },
-      options
+      options,
     );
 
     this.update((state) => {
@@ -997,7 +1002,7 @@ export class RampsController extends BaseController<
       const tokenSelectionUnchanged = assetIdToUse === currentAssetId;
       const providerSelectionUnchanged = providerToUse === currentProviderId;
 
-      // this is a race condition check to ensure that the selected token and provider in state are the same as the tokens we're requesting for 
+      // this is a race condition check to ensure that the selected token and provider in state are the same as the tokens we're requesting for
       // ex: if the user rapidly changes the token or provider, the in-flight payment methods might not be valid
       // so this check will ensure that the payment methods are still valid for the token and provider that were requested
       if (tokenSelectionUnchanged && providerSelectionUnchanged) {

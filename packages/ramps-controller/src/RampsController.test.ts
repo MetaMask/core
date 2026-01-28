@@ -2040,6 +2040,14 @@ describe('RampsController', () => {
       allTokens: [mockToken],
     };
 
+    const mockPaymentMethod: PaymentMethod = {
+      id: '/payments/debit-credit-card',
+      paymentType: 'debit-credit-card',
+      name: 'Debit or Credit',
+      score: 90,
+      icon: 'card',
+    };
+
     it('sets selected token by asset ID', async () => {
       await withController(
         {
@@ -2065,12 +2073,31 @@ describe('RampsController', () => {
       );
     });
 
-    it('throws error when asset ID is not provided', async () => {
-      await withController(async ({ controller }) => {
-        expect(() =>
-          controller.setSelectedToken(null as unknown as string),
-        ).toThrow('Asset ID is required.');
-      });
+    it('clears selected token when called without asset ID', async () => {
+      await withController(
+        {
+          options: {
+            state: {
+              userRegion: createMockUserRegion('us-ca'),
+              tokens: mockTokensResponse,
+              selectedToken: mockToken,
+              paymentMethods: [mockPaymentMethod],
+              selectedPaymentMethod: mockPaymentMethod,
+            },
+          },
+        },
+        ({ controller }) => {
+          expect(controller.state.selectedToken).toStrictEqual(mockToken);
+          expect(controller.state.paymentMethods).toHaveLength(1);
+          expect(controller.state.selectedPaymentMethod).not.toBeNull();
+
+          controller.setSelectedToken(undefined);
+
+          expect(controller.state.selectedToken).toBeNull();
+          expect(controller.state.paymentMethods).toStrictEqual([]);
+          expect(controller.state.selectedPaymentMethod).toBeNull();
+        },
+      );
     });
 
     it('throws error when region is not set', async () => {
