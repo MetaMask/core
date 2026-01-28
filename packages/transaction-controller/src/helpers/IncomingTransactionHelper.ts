@@ -11,6 +11,7 @@ import { isCaipChainId, parseCaipChainId } from '@metamask/utils';
 // eslint-disable-next-line import-x/no-nodejs-modules
 import EventEmitter from 'events';
 
+import { SUPPORTED_CHAIN_IDS } from './AccountsApiRemoteTransactionSource';
 import type { TransactionControllerMessenger } from '..';
 import { incomingTransactionsLogger as log } from '../logger';
 import type { RemoteTransactionSource, TransactionMeta } from '../types';
@@ -18,7 +19,6 @@ import {
   getIncomingTransactionsPollingInterval,
   isIncomingTransactionsUseWebsocketsEnabled,
 } from '../utils/feature-flags';
-import { SUPPORTED_CHAIN_IDS } from './AccountsApiRemoteTransactionSource';
 
 export type IncomingTransactionOptions = {
   /** Name of the client to include in requests. */
@@ -270,7 +270,9 @@ export class IncomingTransactionHelper {
     this.#isUpdating = true;
 
     try {
-      await this.update({ isInterval: true });
+      // When websockets enabled, only poll chains that are not confirmed up
+      const chainIds = this.#useWebsockets ? this.#chainsToPoll : undefined;
+      await this.update({ chainIds, isInterval: true });
     } catch (error) {
       console.error('Error while checking incoming transactions', error);
     }
@@ -291,9 +293,14 @@ export class IncomingTransactionHelper {
   }
 
   async update({
+    chainIds,
     isInterval,
     tags,
-  }: { isInterval?: boolean; tags?: string[] } = {}): Promise<void> {
+  }: {
+    chainIds?: Hex[];
+    isInterval?: boolean;
+    tags?: string[];
+  } = {}): Promise<void> {
     const finalTags = this.#getTags(tags, isInterval);
 
     log('Checking for incoming transactions', {
@@ -308,12 +315,6 @@ export class IncomingTransactionHelper {
     const account = this.#getCurrentAccount();
     const includeTokenTransfers = this.#includeTokenTransfers ?? true;
     const updateTransactions = this.#updateTransactions ?? false;
-
-    // When websockets enabled and we have specific chains to poll, only fetch those
-    const chainIds =
-      this.#useWebsockets && this.#chainsToPoll.length > 0
-        ? this.#chainsToPoll
-        : undefined;
 
     let remoteTransactions: TransactionMeta[] = [];
 
@@ -351,7 +352,7 @@ export class IncomingTransactionHelper {
           (currentTx) =>
             currentTx.hash?.toLowerCase() === tx.hash?.toLowerCase() &&
             currentTx.txParams.from?.toLowerCase() ===
-            tx.txParams.from?.toLowerCase() &&
+              tx.txParams.from?.toLowerCase() &&
             currentTx.type === tx.type,
         ),
     );

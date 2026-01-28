@@ -10,6 +10,7 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 ### Added
 
 - Add `perpsDepositAndOrder` to `TransactionType` ([#7755](https://github.com/MetaMask/core/pull/7755))
+- Add network fallback mechanism to `IncomingTransactionHelper` for WebSocket-based transaction retrieval ([#7759](https://github.com/MetaMask/core/pull/7759))
 
 ## [62.10.0]
 
