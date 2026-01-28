@@ -1990,11 +1990,19 @@ describe('RampsController', () => {
       );
     });
 
-    it('updates selected provider when a new provider is set', async () => {
+    it('updates selected provider and clears payment methods when a new provider is set', async () => {
       const newProvider: Provider = {
         ...mockProvider,
         id: '/providers/ramp-network-staging',
         name: 'Ramp Network (Staging)',
+      };
+
+      const existingPaymentMethod: PaymentMethod = {
+        id: '/payments/existing-card',
+        paymentType: 'debit-credit-card',
+        name: 'Existing Card',
+        score: 90,
+        icon: 'card',
       };
 
       await withController(
@@ -2004,6 +2012,8 @@ describe('RampsController', () => {
               selectedProvider: mockProvider,
               userRegion: createMockUserRegion('us-ca'),
               providers: [mockProvider, newProvider],
+              paymentMethods: [existingPaymentMethod],
+              selectedPaymentMethod: existingPaymentMethod,
             },
           },
         },
@@ -2013,12 +2023,21 @@ describe('RampsController', () => {
             async () => ({ payments: [] }),
           );
 
+          expect(controller.state.paymentMethods).toStrictEqual([
+            existingPaymentMethod,
+          ]);
+          expect(controller.state.selectedPaymentMethod).toStrictEqual(
+            existingPaymentMethod,
+          );
+
           controller.setSelectedProvider(newProvider.id);
 
           expect(controller.state.selectedProvider).toStrictEqual(newProvider);
           expect(controller.state.selectedProvider?.id).toBe(
             '/providers/ramp-network-staging',
           );
+          expect(controller.state.paymentMethods).toStrictEqual([]);
+          expect(controller.state.selectedPaymentMethod).toBeNull();
         },
       );
     });
@@ -2187,7 +2206,7 @@ describe('RampsController', () => {
       );
     });
 
-    it('updates selected token when a new token is set', async () => {
+    it('updates selected token and clears payment methods when a new token is set', async () => {
       const newToken: RampsToken = {
         ...mockToken,
         assetId: 'eip155:1/erc20:0xdAC17F958D2ee523a2206206994597C13D831ec7',
@@ -2207,6 +2226,8 @@ describe('RampsController', () => {
               selectedToken: mockToken,
               userRegion: createMockUserRegion('us-ca'),
               tokens: tokensWithBoth,
+              paymentMethods: [mockPaymentMethod],
+              selectedPaymentMethod: mockPaymentMethod,
             },
           },
         },
@@ -2216,9 +2237,18 @@ describe('RampsController', () => {
             async () => ({ payments: [] }),
           );
 
+          expect(controller.state.paymentMethods).toStrictEqual([
+            mockPaymentMethod,
+          ]);
+          expect(controller.state.selectedPaymentMethod).toStrictEqual(
+            mockPaymentMethod,
+          );
+
           controller.setSelectedToken(newToken.assetId);
 
           expect(controller.state.selectedToken).toStrictEqual(newToken);
+          expect(controller.state.paymentMethods).toStrictEqual([]);
+          expect(controller.state.selectedPaymentMethod).toBeNull();
         },
       );
     });

@@ -686,9 +686,11 @@ export class RampsController extends BaseController<
 
     this.update((state) => {
       state.selectedProvider = provider;
+      state.paymentMethods = [];
+      state.selectedPaymentMethod = null;
     });
 
-    // fetch payment methods for the the new provider
+    // fetch payment methods for the new provider
     // this is needed because you can change providers without changing the token
     // (getPaymentMethods will use state as its default)
     this.triggerGetPaymentMethods(regionCode, {
@@ -861,6 +863,8 @@ export class RampsController extends BaseController<
 
     this.update((state) => {
       state.selectedToken = token;
+      state.paymentMethods = [];
+      state.selectedPaymentMethod = null;
     });
 
     this.triggerGetPaymentMethods(regionCode, {
