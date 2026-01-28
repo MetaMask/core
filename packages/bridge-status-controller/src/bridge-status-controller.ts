@@ -751,18 +751,6 @@ export class BridgeStatusController extends StaticIntervalPollingController<Brid
         validationFailures = response.validationFailures;
       }
 
-      // 4. Create bridge history item
-
-      const statusHash = status.srcChain.txHash ? [status.srcChain.txHash] : [];
-      const mergedHashes = [
-        ...(historyItem.srcTxHashes ?? []),
-        ...intentHashes,
-        ...statusHash,
-      ];
-      const nextSrcTxHashes = mergedHashes.length
-        ? Array.from(new Set(mergedHashes))
-        : historyItem.srcTxHashes;
-
       if (validationFailures.length > 0) {
         this.#trackUnifiedSwapBridgeEvent(
           UnifiedSwapBridgeEventName.StatusValidationFailed,
@@ -775,6 +763,18 @@ export class BridgeStatusController extends StaticIntervalPollingController<Brid
           `Bridge status validation failed: ${validationFailures.join(', ')}`,
         );
       }
+
+      const statusHash = status.srcChain.txHash ? [status.srcChain.txHash] : [];
+      const mergedHashes = [
+        ...(historyItem.srcTxHashes ?? []),
+        ...intentHashes,
+        ...statusHash,
+      ];
+      const nextSrcTxHashes = mergedHashes.length
+        ? Array.from(new Set(mergedHashes))
+        : historyItem.srcTxHashes;
+
+      // 4. Create bridge history item
 
       const newBridgeHistoryItem = {
         ...historyItem,
@@ -855,62 +855,62 @@ export class BridgeStatusController extends StaticIntervalPollingController<Brid
     // Use the original transaction ID (not the bridge history key)
     const originalTxId =
       historyItem.originalTransactionId ?? historyItem.txMetaId;
-    if (originalTxId) {
-      try {
-        // Merge with existing TransactionMeta to avoid wiping required fields
-        const { transactions } = this.messenger.call(
-          'TransactionController:getState',
-        );
-        const existingTxMeta = transactions.find(
-          (tx: TransactionMeta) => tx.id === originalTxId,
-        );
-        if (existingTxMeta) {
-          const isComplete =
-            intentTranslation.status.status === StatusTypes.COMPLETE;
-          const updatedTxMeta: TransactionMeta = {
-            ...existingTxMeta,
-            status: intentTranslation.transactionStatus,
-            ...(intentTranslation.txHash
-              ? { hash: intentTranslation.txHash }
-              : {}),
-            ...(intentTranslation.txHash
-              ? ({
-                  txReceipt: {
-                    ...(
-                      existingTxMeta as unknown as {
-                        txReceipt: Record<string, unknown>;
-                      }
-                    ).txReceipt,
-                    transactionHash: intentTranslation.txHash,
-                    status: (isComplete ? '0x1' : '0x0') as unknown as string,
-                  },
-                } as Partial<TransactionMeta>)
-              : {}),
-          } as TransactionMeta;
-
-          this.#updateTransactionFn(
-            updatedTxMeta,
-            `BridgeStatusController - Intent order status updated: ${intentOrderStatus}`,
-          );
-        } else {
-          console.warn(
-            '📝 [Intent polling] Skipping update; transaction not found',
-            { originalTxId, bridgeHistoryKey: bridgeTxMetaId },
-          );
-        }
-      } catch (error) {
-        /* c8 ignore start */
-        console.error(
-          '📝 [Intent polling] Failed to update transaction status',
-          {
-            originalTxId,
-            bridgeHistoryKey: bridgeTxMetaId,
-            error,
-          },
-        );
-      }
-      /* c8 ignore stop */
+    if (!originalTxId) {
+      return;
     }
+
+    try {
+      // Merge with existing TransactionMeta to avoid wiping required fields
+      const { transactions } = this.messenger.call(
+        'TransactionController:getState',
+      );
+      const existingTxMeta = transactions.find(
+        (tx: TransactionMeta) => tx.id === originalTxId,
+      );
+      if (!existingTxMeta) {
+        console.warn(
+          '📝 [Intent polling] Skipping update; transaction not found',
+          { originalTxId, bridgeHistoryKey: bridgeTxMetaId },
+        );
+        return;
+      }
+
+      const { txHash } = intentTranslation;
+      const isComplete =
+        intentTranslation.status.status === StatusTypes.COMPLETE;
+      const existingTxReceipt = (
+        existingTxMeta as { txReceipt?: Record<string, unknown> }
+      ).txReceipt;
+      const txReceiptUpdate = txHash
+        ? {
+            txReceipt: {
+              ...existingTxReceipt,
+              transactionHash: txHash,
+              status: (isComplete ? '0x1' : '0x0') as unknown as string,
+            },
+          }
+        : {};
+
+      const updatedTxMeta: TransactionMeta = {
+        ...existingTxMeta,
+        status: intentTranslation.transactionStatus,
+        ...(txHash ? { hash: txHash } : {}),
+        ...txReceiptUpdate,
+      } as TransactionMeta;
+
+      this.#updateTransactionFn(
+        updatedTxMeta,
+        `BridgeStatusController - Intent order status updated: ${intentOrderStatus}`,
+      );
+    } catch (error) {
+      /* c8 ignore start */
+      console.error('📝 [Intent polling] Failed to update transaction status', {
+        originalTxId,
+        bridgeHistoryKey: bridgeTxMetaId,
+        error,
+      });
+    }
+    /* c8 ignore stop */
   };
 
   readonly #getSrcTxHash = (bridgeTxMetaId: string): string | undefined => {

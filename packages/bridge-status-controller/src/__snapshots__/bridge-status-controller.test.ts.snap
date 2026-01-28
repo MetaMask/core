@@ -114,6 +114,9 @@ Object {
       ],
     },
     "slippagePercentage": 0,
+    "srcTxHashes": Array [
+      "0xsrcTxHash1",
+    ],
     "startTime": 1729964825189,
     "status": Object {
       "destChain": Object {

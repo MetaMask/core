@@ -416,6 +416,7 @@ const MockTxHistory = {
         srcTxHash,
         srcChainId,
       }),
+      srcTxHashes: srcTxHash ? [srcTxHash] : undefined,
       targetContractAddress: '0x23981fC34e69eeDFE2BD9a0a9fCb0719Fe09DbFC',
       initialDestAssetBalance: undefined,
       pricingData: {
@@ -457,6 +458,7 @@ const MockTxHistory = {
           txHash: srcTxHash,
         },
       },
+      srcTxHashes: srcTxHash ? [srcTxHash] : undefined,
       targetContractAddress: '0x23981fC34e69eeDFE2BD9a0a9fCb0719Fe09DbFC',
       initialDestAssetBalance: undefined,
       pricingData: {
@@ -492,6 +494,7 @@ const MockTxHistory = {
         srcTxHash,
         srcChainId,
       }),
+      srcTxHashes: srcTxHash ? [srcTxHash] : undefined,
       targetContractAddress: '0x23981fC34e69eeDFE2BD9a0a9fCb0719Fe09DbFC',
       initialDestAssetBalance: undefined,
       pricingData: {
@@ -529,6 +532,7 @@ const MockTxHistory = {
       slippagePercentage: 0,
       account,
       status: MockStatusResponse.getComplete({ srcTxHash }),
+      srcTxHashes: srcTxHash ? [srcTxHash] : undefined,
       targetContractAddress: '0x23981fC34e69eeDFE2BD9a0a9fCb0719Fe09DbFC',
       initialDestAssetBalance: undefined,
       pricingData: {
