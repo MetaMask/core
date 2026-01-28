@@ -50,4 +50,3 @@ export type DeleteRegulationStatus = {
   hasCollectedDataSinceDeletionRequest: boolean;
   dataDeletionRequestStatus: DataDeleteStatus;
 };
-
