@@ -1036,23 +1036,6 @@ describe('RampsController', () => {
       });
     });
 
-    it('caches countries for 24 hours', async () => {
-      await withController(async ({ controller, rootMessenger }) => {
-        let callCount = 0;
-        rootMessenger.registerActionHandler(
-          'RampsService:getCountries',
-          async () => {
-            callCount += 1;
-            return mockCountries;
-          },
-        );
-
-        await controller.getCountries();
-        await controller.getCountries();
-
-        expect(callCount).toBe(1);
-      });
-    });
   });
 
   describe('init', () => {
@@ -1911,7 +1894,15 @@ describe('RampsController', () => {
       );
     });
 
-    it('clears selected provider when null is provided', async () => {
+    it('clears selected provider, paymentMethods, and selectedPaymentMethod when null is provided', async () => {
+      const mockPaymentMethod: PaymentMethod = {
+        id: '/payments/test-card',
+        paymentType: 'debit-credit-card',
+        name: 'Test Card',
+        score: 90,
+        icon: 'card',
+      };
+
       await withController(
         {
           options: {
@@ -1919,15 +1910,25 @@ describe('RampsController', () => {
               userRegion: createMockUserRegion('us-ca'),
               providers: [mockProvider],
               selectedProvider: mockProvider,
+              paymentMethods: [mockPaymentMethod],
+              selectedPaymentMethod: mockPaymentMethod,
             },
           },
         },
         ({ controller }) => {
           expect(controller.state.selectedProvider).toStrictEqual(mockProvider);
+          expect(controller.state.paymentMethods).toStrictEqual([
+            mockPaymentMethod,
+          ]);
+          expect(controller.state.selectedPaymentMethod).toStrictEqual(
+            mockPaymentMethod,
+          );
 
           controller.setSelectedProvider(null);
 
           expect(controller.state.selectedProvider).toBeNull();
+          expect(controller.state.paymentMethods).toStrictEqual([]);
+          expect(controller.state.selectedPaymentMethod).toBeNull();
         },
       );
     });
@@ -2286,28 +2287,6 @@ describe('RampsController', () => {
       });
     });
 
-    it('makes fresh request each time (caching disabled)', async () => {
-      await withController(async ({ controller, rootMessenger }) => {
-        let callCount = 0;
-        rootMessenger.registerActionHandler(
-          'RampsService:getTokens',
-          async (
-            _region: string,
-            _action?: 'buy' | 'sell',
-            _options?: { provider?: string | string[] },
-          ) => {
-            callCount += 1;
-            return mockTokens;
-          },
-        );
-
-        await controller.getTokens('us-ca', 'buy');
-        await controller.getTokens('us-ca', 'buy');
-
-        expect(callCount).toBe(2);
-      });
-    });
-
     it('fetches tokens with sell action', async () => {
       await withController(async ({ controller, rootMessenger }) => {
         let receivedAction: string | undefined;
@@ -2352,7 +2331,7 @@ describe('RampsController', () => {
 
     it('normalizes region case when calling service', async () => {
       await withController(async ({ controller, rootMessenger }) => {
-        let callCount = 0;
+        let receivedRegion: string | undefined;
         rootMessenger.registerActionHandler(
           'RampsService:getTokens',
           async (
@@ -2360,16 +2339,14 @@ describe('RampsController', () => {
             _action?: 'buy' | 'sell',
             _options?: { provider?: string | string[] },
           ) => {
-            callCount += 1;
-            expect(region).toBe('us-ca');
+            receivedRegion = region;
             return mockTokens;
           },
         );
 
         await controller.getTokens('US-ca', 'buy');
-        await controller.getTokens('us-ca', 'buy');
 
-        expect(callCount).toBe(2);
+        expect(receivedRegion).toBe('us-ca');
       });
     });
 
@@ -2595,28 +2572,6 @@ describe('RampsController', () => {
 
         await controller.getTokens('us-ca', 'buy', { provider: 'provider-1' });
         await controller.getTokens('us-ca', 'buy', { provider: 'provider-2' });
-
-        expect(callCount).toBe(2);
-      });
-    });
-
-    it('makes fresh request for same provider each time (caching disabled)', async () => {
-      await withController(async ({ controller, rootMessenger }) => {
-        let callCount = 0;
-        rootMessenger.registerActionHandler(
-          'RampsService:getTokens',
-          async (
-            _region: string,
-            _action?: 'buy' | 'sell',
-            _options?: { provider?: string | string[] },
-          ) => {
-            callCount += 1;
-            return mockTokens;
-          },
-        );
-
-        await controller.getTokens('us-ca', 'buy', { provider: 'provider-1' });
-        await controller.getTokens('us-ca', 'buy', { provider: 'provider-1' });
 
         expect(callCount).toBe(2);
       });

@@ -657,6 +657,8 @@ export class RampsController extends BaseController<
     if (providerId === null) {
       this.update((state) => {
         state.selectedProvider = null;
+        state.paymentMethods = [];
+        state.selectedPaymentMethod = null;
       });
       return;
     }
@@ -747,7 +749,7 @@ export class RampsController extends BaseController<
       async () => {
         return this.messenger.call('RampsService:getCountries');
       },
-      { ttl: 24 * 60 * 60 * 1000, ...options },
+      options,
     );
 
     this.update((state) => {
@@ -801,7 +803,7 @@ export class RampsController extends BaseController<
           },
         );
       },
-      { forceRefresh: true, ...options },
+      options,
     );
 
     this.update((state) => {
