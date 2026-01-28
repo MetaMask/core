@@ -1035,7 +1035,6 @@ describe('RampsController', () => {
         expect(controller.state.countries).toStrictEqual(mockCountries);
       });
     });
-
   });
 
   describe('init', () => {
