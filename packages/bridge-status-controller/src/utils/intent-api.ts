@@ -1,3 +1,4 @@
+import { StatusTypes } from '@metamask/bridge-controller';
 import { TransactionStatus } from '@metamask/transaction-controller';
 
 import {
@@ -5,7 +6,7 @@ import {
   IntentOrderStatus,
   validateIntentOrderResponse,
 } from './validators';
-import type { FetchFunction } from '../types';
+import type { FetchFunction, StatusResponse } from '../types';
 
 export type IntentSubmissionParams = {
   srcChainId: string;
@@ -95,6 +96,78 @@ export class IntentApiImpl implements IntentApi {
     }
   }
 }
+
+export type IntentStatusTranslation = {
+  status: StatusResponse;
+  srcTxHashes: string[];
+  txHash?: string;
+  transactionStatus: TransactionStatus;
+};
+
+const normalizeIntentTxHashes = (intentOrder: IntentOrder): string[] => {
+  const { txHashes } = intentOrder.metadata ?? {};
+  if (Array.isArray(txHashes)) {
+    if (txHashes.length > 0) {
+      return txHashes;
+    }
+    if (intentOrder.txHash) {
+      return [intentOrder.txHash];
+    }
+    return [];
+  }
+  if (typeof txHashes === 'string' && txHashes.length > 0) {
+    return [txHashes];
+  }
+  if (intentOrder.txHash) {
+    return [intentOrder.txHash];
+  }
+  return [];
+};
+
+export const translateIntentOrderToBridgeStatus = (
+  intentOrder: IntentOrder,
+  srcChainId: number,
+  fallbackTxHash?: string,
+): IntentStatusTranslation => {
+  let statusType: StatusTypes;
+  switch (intentOrder.status) {
+    case IntentOrderStatus.CONFIRMED:
+    case IntentOrderStatus.COMPLETED:
+      statusType = StatusTypes.COMPLETE;
+      break;
+    case IntentOrderStatus.FAILED:
+    case IntentOrderStatus.EXPIRED:
+    case IntentOrderStatus.CANCELLED:
+      statusType = StatusTypes.FAILED;
+      break;
+    case IntentOrderStatus.PENDING:
+      statusType = StatusTypes.PENDING;
+      break;
+    case IntentOrderStatus.SUBMITTED:
+      statusType = StatusTypes.SUBMITTED;
+      break;
+    default:
+      statusType = StatusTypes.UNKNOWN;
+  }
+
+  const txHash = intentOrder.txHash ?? fallbackTxHash ?? '';
+  const status: StatusResponse = {
+    status: statusType,
+    srcChain: {
+      chainId: srcChainId,
+      txHash,
+    },
+  };
+
+  return {
+    status,
+    txHash: intentOrder.txHash,
+    srcTxHashes: normalizeIntentTxHashes(intentOrder),
+    transactionStatus: mapIntentOrderStatusToTransactionStatus(
+      intentOrder.status,
+    ),
+  };
+};
 
 export function mapIntentOrderStatusToTransactionStatus(
   intentStatus: IntentOrderStatus,

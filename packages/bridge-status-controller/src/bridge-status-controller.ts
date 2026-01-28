@@ -63,6 +63,7 @@ import { getTxGasEstimates } from './utils/gas';
 import {
   IntentApiImpl,
   mapIntentOrderStatusToTransactionStatus,
+  translateIntentOrderToBridgeStatus,
 } from './utils/intent-api';
 import {
   getFinalizedTxProperties,
@@ -86,7 +87,6 @@ import {
   handleNonEvmTxResponse,
   generateActionId,
 } from './utils/transaction';
-import { IntentOrder, IntentOrderStatus } from './utils/validators';
 
 const metadata: StateMetadata<BridgeStatusControllerState> = {
   // We want to persist the bridge status state so that we can show the proper data for the Activity list
@@ -547,6 +547,7 @@ export class BridgeStatusController extends StaticIntervalPollingController<Brid
     txMeta: { id: string; hash?: string },
   ): void => {
     const historyItem = this.state.txHistory[actionId];
+    /* c8 ignore next */
     if (!historyItem) {
       return;
     }
@@ -585,7 +586,7 @@ export class BridgeStatusController extends StaticIntervalPollingController<Brid
       return;
     }
     const { quote } = txHistoryItem;
-    const isIntent = txId.startsWith('intent:');
+    const isIntent = Boolean(quote.intent);
     const isBridgeTx = isCrossChain(quote.srcChainId, quote.destChainId);
     if (isBridgeTx || isIntent) {
       this.#pollingTokensByTxMetaId[txId] = this.startPolling({
@@ -676,42 +677,91 @@ export class BridgeStatusController extends StaticIntervalPollingController<Brid
   readonly #fetchBridgeTxStatus = async ({
     bridgeTxMetaId,
   }: FetchBridgeTxStatusArgs): Promise<void> => {
+    // 1. Check for history item
+
     const { txHistory } = this.state;
-
-    // Intent-based items: poll intent provider instead of Bridge API
-    if (bridgeTxMetaId.startsWith('intent:')) {
-      await this.#fetchIntentOrderStatus({ bridgeTxMetaId });
+    const historyItem = txHistory[bridgeTxMetaId];
+    if (!historyItem) {
       return;
     }
 
-    if (
-      shouldSkipFetchDueToFetchFailures(txHistory[bridgeTxMetaId]?.attempts)
-    ) {
+    // 2. Check for previous failures
+
+    if (shouldSkipFetchDueToFetchFailures(historyItem.attempts)) {
       return;
     }
+
+    // 3. Fetch transcation status
 
     try {
-      // We try here because we receive 500 errors from Bridge API if we try to fetch immediately after submitting the source tx
-      // Oddly mostly happens on Optimism, never on Arbitrum. By the 2nd fetch, the Bridge API responds properly.
-      // Also srcTxHash may not be available immediately for STX, so we don't want to fetch in those cases
-      const historyItem = txHistory[bridgeTxMetaId];
-      const srcTxHash = this.#getSrcTxHash(bridgeTxMetaId);
-      if (!srcTxHash) {
-        return;
+      let status: BridgeHistoryItem['status'];
+      let validationFailures: string[] = [];
+      let intentTranslation: ReturnType<
+        typeof translateIntentOrderToBridgeStatus
+      > | null = null;
+      let intentOrderStatus: string | undefined;
+      let intentHashes: string[] = [];
+
+      const isIntent = Boolean(historyItem.quote.intent);
+
+      if (isIntent) {
+        const { srcChainId } = historyItem.quote;
+
+        const intentApi = new IntentApiImpl(
+          this.#config.customBridgeApiBaseUrl,
+          this.#fetchFn,
+        );
+        const intentOrder = await intentApi.getOrderStatus(
+          bridgeTxMetaId,
+          historyItem.quote.intent?.protocol ?? '',
+          srcChainId.toString(),
+          this.#clientId,
+        );
+
+        intentOrderStatus = intentOrder.status;
+        intentTranslation = translateIntentOrderToBridgeStatus(
+          intentOrder,
+          srcChainId,
+          historyItem.status.srcChain.txHash,
+        );
+        status = intentTranslation.status;
+        intentHashes = intentTranslation.srcTxHashes;
+      } else {
+        // We try here because we receive 500 errors from Bridge API if we try to fetch immediately after submitting the source tx
+        // Oddly mostly happens on Optimism, never on Arbitrum. By the 2nd fetch, the Bridge API responds properly.
+        // Also srcTxHash may not be available immediately for STX, so we don't want to fetch in those cases
+        const srcTxHash = this.#getSrcTxHash(bridgeTxMetaId);
+        if (!srcTxHash) {
+          return;
+        }
+
+        this.#updateSrcTxHash(bridgeTxMetaId, srcTxHash);
+
+        const statusRequest = getStatusRequestWithSrcTxHash(
+          historyItem.quote,
+          srcTxHash,
+        );
+        const response = await fetchBridgeTxStatus(
+          statusRequest,
+          this.#clientId,
+          this.#fetchFn,
+          this.#config.customBridgeApiBaseUrl,
+        );
+        status = response.status;
+        validationFailures = response.validationFailures;
       }
 
-      this.#updateSrcTxHash(bridgeTxMetaId, srcTxHash);
+      // 4. Create bridge history item
 
-      const statusRequest = getStatusRequestWithSrcTxHash(
-        historyItem.quote,
-        srcTxHash,
-      );
-      const { status, validationFailures } = await fetchBridgeTxStatus(
-        statusRequest,
-        this.#clientId,
-        this.#fetchFn,
-        this.#config.customBridgeApiBaseUrl,
-      );
+      const statusHash = status.srcChain.txHash ? [status.srcChain.txHash] : [];
+      const mergedHashes = [
+        ...(historyItem.srcTxHashes ?? []),
+        ...intentHashes,
+        ...statusHash,
+      ];
+      const nextSrcTxHashes = mergedHashes.length
+        ? Array.from(new Set(mergedHashes))
+        : historyItem.srcTxHashes;
 
       if (validationFailures.length > 0) {
         this.#trackUnifiedSwapBridgeEvent(
@@ -735,6 +785,7 @@ export class BridgeStatusController extends StaticIntervalPollingController<Brid
             ? Date.now()
             : undefined, // TODO make this more accurate by looking up dest txHash block time
         attempts: undefined,
+        srcTxHashes: nextSrcTxHashes,
       };
 
       // No need to purge these on network change or account change, TransactionController does not purge either.
@@ -744,6 +795,17 @@ export class BridgeStatusController extends StaticIntervalPollingController<Brid
       this.update((state) => {
         state.txHistory[bridgeTxMetaId] = newBridgeHistoryItem;
       });
+
+      if (isIntent && intentTranslation && intentOrderStatus) {
+        this.#syncTransactionFromIntentStatus(
+          bridgeTxMetaId,
+          historyItem,
+          intentTranslation,
+          intentOrderStatus,
+        );
+      }
+
+      // 5. After effects
 
       const pollingToken = this.#pollingTokensByTxMetaId[bridgeTxMetaId];
 
@@ -783,144 +845,18 @@ export class BridgeStatusController extends StaticIntervalPollingController<Brid
     }
   };
 
-  readonly #fetchIntentOrderStatus = async ({
-    bridgeTxMetaId,
-  }: FetchBridgeTxStatusArgs): Promise<void> => {
-    /* c8 ignore start */
-    const { txHistory } = this.state;
-    const historyItem = txHistory[bridgeTxMetaId];
-
-    if (!historyItem) {
-      return;
-    }
-
-    // Backoff handling
-
-    if (shouldSkipFetchDueToFetchFailures(historyItem.attempts)) {
-      return;
-    }
-
-    try {
-      const orderId = bridgeTxMetaId.replace(/^intent:/u, '');
-      const { srcChainId } = historyItem.quote;
-
-      // Extract provider name from order metadata or default to empty
-      const providerName = historyItem.quote.intent?.protocol ?? '';
-
-      const intentApi = new IntentApiImpl(
-        this.#config.customBridgeApiBaseUrl,
-        this.#fetchFn,
-      );
-      const intentOrder = await intentApi.getOrderStatus(
-        orderId,
-        providerName,
-        srcChainId.toString(),
-        this.#clientId,
-      );
-
-      // Update bridge history with intent order status
-      this.#updateBridgeHistoryFromIntentOrder(
-        bridgeTxMetaId,
-        intentOrder,
-        historyItem,
-      );
-    } catch (error) {
-      console.error('Failed to fetch intent order status:', error);
-      this.#handleFetchFailure(bridgeTxMetaId);
-    }
-    /* c8 ignore stop */
-  };
-
-  #updateBridgeHistoryFromIntentOrder(
+  readonly #syncTransactionFromIntentStatus = (
     bridgeTxMetaId: string,
-    intentOrder: IntentOrder,
     historyItem: BridgeHistoryItem,
-  ): void {
-    const { srcChainId } = historyItem.quote;
-
-    // Map intent order status to bridge status using enum values
-    let statusType: StatusTypes;
-    const isComplete = [
-      IntentOrderStatus.CONFIRMED,
-      IntentOrderStatus.COMPLETED,
-    ].includes(intentOrder.status);
-    const isFailed = [
-      IntentOrderStatus.FAILED,
-      IntentOrderStatus.EXPIRED,
-      IntentOrderStatus.CANCELLED,
-    ].includes(intentOrder.status);
-    const isPending = [IntentOrderStatus.PENDING].includes(intentOrder.status);
-    const isSubmitted = [IntentOrderStatus.SUBMITTED].includes(
-      intentOrder.status,
-    );
-
-    if (isComplete) {
-      statusType = StatusTypes.COMPLETE;
-    } else if (isFailed) {
-      statusType = StatusTypes.FAILED;
-    } else if (isPending) {
-      statusType = StatusTypes.PENDING;
-    } else if (isSubmitted) {
-      statusType = StatusTypes.SUBMITTED;
-    } else {
-      statusType = StatusTypes.UNKNOWN;
-    }
-
-    // Extract transaction hashes from intent order
-    const txHash = intentOrder.txHash ?? '';
-    // Check metadata for additional transaction hashes
-    const metadataTxHashes = Array.isArray(intentOrder.metadata.txHashes)
-      ? intentOrder.metadata.txHashes
-      : [];
-
-    let allHashes: string[];
-    if (metadataTxHashes.length > 0) {
-      allHashes = metadataTxHashes;
-    } else if (txHash) {
-      allHashes = [txHash];
-    } else {
-      allHashes = [];
-    }
-
-    const newStatus = {
-      status: statusType,
-      srcChain: {
-        chainId: srcChainId,
-        txHash: txHash ?? historyItem.status.srcChain.txHash ?? '',
-      },
-    } as typeof historyItem.status;
-
-    const newBridgeHistoryItem = {
-      ...historyItem,
-      status: newStatus,
-      completionTime:
-        newStatus.status === StatusTypes.COMPLETE ||
-        newStatus.status === StatusTypes.FAILED
-          ? Date.now()
-          : undefined,
-      attempts: undefined,
-      srcTxHashes:
-        allHashes.length > 0
-          ? Array.from(
-              new Set([...(historyItem.srcTxHashes ?? []), ...allHashes]),
-            )
-          : historyItem.srcTxHashes,
-    };
-
-    this.update((state) => {
-      state.txHistory[bridgeTxMetaId] = newBridgeHistoryItem;
-    });
-
+    intentTranslation: ReturnType<typeof translateIntentOrderToBridgeStatus>,
+    intentOrderStatus: string,
+  ): void => {
     // Update the actual transaction in TransactionController to sync with intent status
-    // Use the original transaction ID (not the intent: prefixed bridge history key)
+    // Use the original transaction ID (not the bridge history key)
     const originalTxId =
       historyItem.originalTransactionId ?? historyItem.txMetaId;
-    if (originalTxId && !originalTxId.startsWith('intent:')) {
+    if (originalTxId) {
       try {
-        const transactionStatus = mapIntentOrderStatusToTransactionStatus(
-          intentOrder.status,
-        );
-
         // Merge with existing TransactionMeta to avoid wiping required fields
         const { transactions } = this.messenger.call(
           'TransactionController:getState',
@@ -929,11 +865,15 @@ export class BridgeStatusController extends StaticIntervalPollingController<Brid
           (tx: TransactionMeta) => tx.id === originalTxId,
         );
         if (existingTxMeta) {
+          const isComplete =
+            intentTranslation.status.status === StatusTypes.COMPLETE;
           const updatedTxMeta: TransactionMeta = {
             ...existingTxMeta,
-            status: transactionStatus,
-            ...(txHash ? { hash: txHash } : {}),
-            ...(txHash
+            status: intentTranslation.transactionStatus,
+            ...(intentTranslation.txHash
+              ? { hash: intentTranslation.txHash }
+              : {}),
+            ...(intentTranslation.txHash
               ? ({
                   txReceipt: {
                     ...(
@@ -941,7 +881,7 @@ export class BridgeStatusController extends StaticIntervalPollingController<Brid
                         txReceipt: Record<string, unknown>;
                       }
                     ).txReceipt,
-                    transactionHash: txHash,
+                    transactionHash: intentTranslation.txHash,
                     status: (isComplete ? '0x1' : '0x0') as unknown as string,
                   },
                 } as Partial<TransactionMeta>)
@@ -950,18 +890,18 @@ export class BridgeStatusController extends StaticIntervalPollingController<Brid
 
           this.#updateTransactionFn(
             updatedTxMeta,
-            `BridgeStatusController - Intent order status updated: ${intentOrder.status}`,
+            `BridgeStatusController - Intent order status updated: ${intentOrderStatus}`,
           );
         } else {
           console.warn(
-            '📝 [fetchIntentOrderStatus] Skipping update; transaction not found',
+            '📝 [Intent polling] Skipping update; transaction not found',
             { originalTxId, bridgeHistoryKey: bridgeTxMetaId },
           );
         }
       } catch (error) {
         /* c8 ignore start */
         console.error(
-          '📝 [fetchIntentOrderStatus] Failed to update transaction status',
+          '📝 [Intent polling] Failed to update transaction status',
           {
             originalTxId,
             bridgeHistoryKey: bridgeTxMetaId,
@@ -971,28 +911,7 @@ export class BridgeStatusController extends StaticIntervalPollingController<Brid
       }
       /* c8 ignore stop */
     }
-
-    const pollingToken = this.#pollingTokensByTxMetaId[bridgeTxMetaId];
-    const isFinal =
-      newStatus.status === StatusTypes.COMPLETE ||
-      newStatus.status === StatusTypes.FAILED;
-    if (isFinal && pollingToken) {
-      this.stopPollingByPollingToken(pollingToken);
-      delete this.#pollingTokensByTxMetaId[bridgeTxMetaId];
-
-      if (newStatus.status === StatusTypes.COMPLETE) {
-        this.#trackUnifiedSwapBridgeEvent(
-          UnifiedSwapBridgeEventName.Completed,
-          bridgeTxMetaId,
-        );
-      } else if (newStatus.status === StatusTypes.FAILED) {
-        this.#trackUnifiedSwapBridgeEvent(
-          UnifiedSwapBridgeEventName.Failed,
-          bridgeTxMetaId,
-        );
-      }
-    }
-  }
+  };
 
   readonly #getSrcTxHash = (bridgeTxMetaId: string): string | undefined => {
     const { txHistory } = this.state;
@@ -1853,13 +1772,13 @@ export class BridgeStatusController extends StaticIntervalPollingController<Brid
 
       // Record in bridge history with actual transaction metadata
       try {
-        // Use 'intent:' prefix for intent transactions
-        const bridgeHistoryKey = `intent:${orderUid}`;
+        // Use orderId as the history key for intent transactions
+        const bridgeHistoryKey = orderUid;
 
         // Create a bridge transaction metadata that includes the original txId
         const bridgeTxMetaForHistory = {
           ...syntheticMeta,
-          id: bridgeHistoryKey, // Use intent: prefix for bridge history key
+          id: bridgeHistoryKey,
           originalTransactionId: syntheticMeta.id, // Keep original txId for TransactionController updates
         } as TransactionMeta;
 
@@ -1879,7 +1798,7 @@ export class BridgeStatusController extends StaticIntervalPollingController<Brid
           startTime,
         });
 
-        // Start polling using the intent: prefixed key to route to intent manager
+        // Start polling using the orderId key to route to intent manager
         this.#startPollingForTxId(bridgeHistoryKey);
       } catch (error) {
         console.error(

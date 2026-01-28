@@ -21,8 +21,8 @@ type Tx = Pick<TransactionMeta, 'id' | 'status'> & {
 
 const seedIntentHistory = (controller: any): any => {
   controller.update((state: any) => {
-    state.txHistory['intent:1'] = {
-      txMetaId: 'intent:1',
+    state.txHistory['order-1'] = {
+      txMetaId: 'order-1',
       originalTransactionId: 'tx1',
       quote: {
         srcChainId: 1,
@@ -183,6 +183,11 @@ const loadControllerWithMocks = (): any => {
 
   const fetchBridgeTxStatusMock = jest.fn();
   const getStatusRequestWithSrcTxHashMock = jest.fn();
+  const getStatusRequestParamsMock = jest.fn().mockReturnValue({
+    srcChainId: 1,
+    destChainId: 1,
+    srcTxHash: '',
+  });
 
   // ADD THIS
   const shouldSkipFetchDueToFetchFailuresMock = jest
@@ -227,11 +232,7 @@ const loadControllerWithMocks = (): any => {
         handleMobileHardwareWalletDelay: jest.fn().mockResolvedValue(undefined),
 
         // keep your existing getStatusRequestParams stub here if you have it
-        getStatusRequestParams: jest.fn().mockReturnValue({
-          srcChainId: 1,
-          destChainId: 1,
-          srcTxHash: '',
-        }),
+        getStatusRequestParams: getStatusRequestParamsMock,
       };
     });
 
@@ -264,6 +265,7 @@ const loadControllerWithMocks = (): any => {
     fetchBridgeTxStatusMock,
     getStatusRequestWithSrcTxHashMock,
     shouldSkipFetchDueToFetchFailuresMock,
+    getStatusRequestParamsMock,
   };
 };
 
@@ -281,6 +283,7 @@ const setup = (options?: { selectedChainId?: string }): any => {
     fetchBridgeTxStatusMock,
     getStatusRequestWithSrcTxHashMock,
     shouldSkipFetchDueToFetchFailuresMock,
+    getStatusRequestParamsMock,
   } = loadControllerWithMocks();
 
   const addTransactionFn = jest.fn(async (txParams: any, reqOpts: any) => {
@@ -355,6 +358,7 @@ const setup = (options?: { selectedChainId?: string }): any => {
     fetchBridgeTxStatusMock,
     getStatusRequestWithSrcTxHashMock,
     shouldSkipFetchDueToFetchFailuresMock,
+    getStatusRequestParamsMock,
   };
 };
 
@@ -399,15 +403,56 @@ describe('BridgeStatusController (intent swaps)', () => {
       }),
     ).rejects.toThrow(/approval/iu);
 
-    // Since we throw before intent order submission succeeds, we should not create the intent:* history item
+    // Since we throw before intent order submission succeeds, we should not create the history item
     // (and therefore should not start polling).
-    const historyKey = `intent:${orderUid}`;
+    const historyKey = orderUid;
     expect(controller.state.txHistory[historyKey]).toBeUndefined();
 
     expect(startPollingSpy).not.toHaveBeenCalled();
 
     // Optional: ensure we never called the intent API submit
     expect(submitIntentMock).not.toHaveBeenCalled();
+  });
+
+  it('submitIntent: logs error when history update fails but still returns tx meta', async () => {
+    const {
+      controller,
+      accountAddress,
+      submitIntentMock,
+      getStatusRequestParamsMock,
+    } = setup();
+
+    const orderUid = 'order-uid-log-1';
+
+    submitIntentMock.mockResolvedValue({
+      id: orderUid,
+      status: IntentOrderStatus.SUBMITTED,
+      txHash: undefined,
+      metadata: { txHashes: [] },
+    });
+
+    getStatusRequestParamsMock.mockImplementation(() => {
+      throw new Error('boom');
+    });
+
+    const quoteResponse = minimalIntentQuoteResponse();
+    const consoleSpy = jest
+      .spyOn(console, 'error')
+      .mockImplementation(() => undefined);
+
+    const result = await controller.submitIntent({
+      quoteResponse,
+      signature: '0xsig',
+      accountAddress,
+    });
+
+    expect(result).toBeDefined();
+    expect(consoleSpy).toHaveBeenCalledWith(
+      expect.stringContaining('Failed to add to bridge history'),
+      expect.any(Error),
+    );
+
+    consoleSpy.mockRestore();
   });
 
   it('intent polling: updates history, merges tx hashes, updates TC tx, and stops polling on COMPLETED', async () => {
@@ -436,7 +481,7 @@ describe('BridgeStatusController (intent swaps)', () => {
       accountAddress,
     });
 
-    const historyKey = `intent:${orderUid}`;
+    const historyKey = orderUid;
 
     // Seed existing hashes via controller.update (state is frozen)
     controller.update((state: any) => {
@@ -488,7 +533,7 @@ describe('BridgeStatusController (intent swaps)', () => {
       accountAddress,
     });
 
-    const historyKey = `intent:${orderUid}`;
+    const historyKey = orderUid;
 
     // Remove TC tx so update branch logs "transaction not found"
     transactions.splice(0, transactions.length);
@@ -537,7 +582,7 @@ describe('BridgeStatusController (intent swaps)', () => {
       accountAddress,
     });
 
-    const historyKey = `intent:${orderUid}`;
+    const historyKey = orderUid;
 
     // Prime attempts so next failure hits MAX_ATTEMPTS
     controller.update((state: any) => {
@@ -1369,9 +1414,9 @@ describe('BridgeStatusController (target uncovered branches)', () => {
       metadata: { txHashes: [] },
     });
 
-    await controller._executePoll({ bridgeTxMetaId: 'intent:1' });
+    await controller._executePoll({ bridgeTxMetaId: 'order-1' });
 
-    expect(controller.state.txHistory['intent:1'].status.status).toBe(
+    expect(controller.state.txHistory['order-1'].status.status).toBe(
       StatusTypes.PENDING,
     );
   });
@@ -1388,9 +1433,9 @@ describe('BridgeStatusController (target uncovered branches)', () => {
       metadata: { txHashes: [] },
     });
 
-    await controller._executePoll({ bridgeTxMetaId: 'intent:1' });
+    await controller._executePoll({ bridgeTxMetaId: 'order-1' });
 
-    expect(controller.state.txHistory['intent:1'].status.status).toBe(
+    expect(controller.state.txHistory['order-1'].status.status).toBe(
       StatusTypes.SUBMITTED,
     );
   });
@@ -1407,10 +1452,18 @@ describe('BridgeStatusController (target uncovered branches)', () => {
       metadata: { txHashes: [] },
     });
 
-    await controller._executePoll({ bridgeTxMetaId: 'intent:1' });
+    await controller._executePoll({ bridgeTxMetaId: 'order-1' });
 
-    expect(controller.state.txHistory['intent:1'].status.status).toBe(
+    expect(controller.state.txHistory['order-1'].status.status).toBe(
       StatusTypes.UNKNOWN,
     );
+  });
+
+  it('bridge polling: returns early when history item is missing', async () => {
+    const { controller, fetchBridgeTxStatusMock } = setup();
+
+    await controller._executePoll({ bridgeTxMetaId: 'missing-history' });
+
+    expect(fetchBridgeTxStatusMock).not.toHaveBeenCalled();
   });
 });
