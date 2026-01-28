@@ -15,6 +15,9 @@ import type {
   RampAction,
   PaymentMethod,
   PaymentMethodsResponse,
+  QuotesResponse,
+  Quote,
+  GetQuotesParams,
 } from './RampsService';
 import type {
   RampsServiceGetGeolocationAction,
@@ -22,6 +25,7 @@ import type {
   RampsServiceGetTokensAction,
   RampsServiceGetProvidersAction,
   RampsServiceGetPaymentMethodsAction,
+  RampsServiceGetQuotesAction,
 } from './RampsService-method-action-types';
 import type {
   RequestCache as RequestCacheType,
@@ -109,6 +113,11 @@ export type RampsControllerState = {
    */
   selectedPaymentMethod: PaymentMethod | null;
   /**
+   * Quotes fetched for the current context.
+   * Contains quotes from multiple providers for the given parameters.
+   */
+  quotes: QuotesResponse | null;
+  /**
    * Cache of request states, keyed by cache key.
    * This stores loading, success, and error states for API requests.
    */
@@ -161,6 +170,12 @@ const rampsControllerMetadata = {
     includeInStateLogs: true,
     usedInUi: true,
   },
+  quotes: {
+    persist: false,
+    includeInDebugSnapshot: true,
+    includeInStateLogs: false,
+    usedInUi: true,
+  },
   requests: {
     persist: false,
     includeInDebugSnapshot: true,
@@ -186,6 +201,7 @@ export function getDefaultRampsControllerState(): RampsControllerState {
     tokens: null,
     paymentMethods: [],
     selectedPaymentMethod: null,
+    quotes: null,
     requests: {},
   };
 }
@@ -213,7 +229,8 @@ type AllowedActions =
   | RampsServiceGetCountriesAction
   | RampsServiceGetTokensAction
   | RampsServiceGetProvidersAction
-  | RampsServiceGetPaymentMethodsAction;
+  | RampsServiceGetPaymentMethodsAction
+  | RampsServiceGetQuotesAction;
 
 /**
  * Published when the state of {@link RampsController} changes.
@@ -916,6 +933,114 @@ export class RampsController extends BaseController<
     });
   }
 
+  /**
+   * Fetches quotes from all providers for a given set of parameters.
+   * The quotes are saved in the controller state once fetched.
+   *
+   * @param options - The parameters for fetching quotes.
+   * @param options.region - User's region code. If not provided, uses userRegion from state.
+   * @param options.fiat - Fiat currency code. If not provided, uses userRegion currency.
+   * @param options.assetId - CAIP-19 cryptocurrency identifier.
+   * @param options.amount - The amount (in fiat for buy, crypto for sell).
+   * @param options.walletAddress - The destination wallet address.
+   * @param options.paymentMethods - Array of payment method IDs. If not provided, uses paymentMethods from state.
+   * @param options.provider - Optional provider ID to filter quotes.
+   * @param options.redirectUrl - Optional redirect URL after order completion.
+   * @param options.action - The ramp action type. Defaults to 'buy'.
+   * @param options.forceRefresh - Whether to bypass cache.
+   * @param options.ttl - Custom TTL for this request.
+   * @returns The quotes response containing success, sorted, error, and customActions.
+   */
+  async getQuotes(options: {
+    region?: string;
+    fiat?: string;
+    assetId: string;
+    amount: number;
+    walletAddress: string;
+    paymentMethods?: string[];
+    provider?: string;
+    redirectUrl?: string;
+    action?: RampAction;
+    forceRefresh?: boolean;
+    ttl?: number;
+  }): Promise<QuotesResponse> {
+    const regionToUse = options.region ?? this.state.userRegion?.regionCode;
+    const fiatToUse = options.fiat ?? this.state.userRegion?.country?.currency;
+    const paymentMethodsToUse =
+      options.paymentMethods ??
+      this.state.paymentMethods.map((pm: PaymentMethod) => pm.id);
+    const action = options.action ?? 'buy';
+
+    if (!regionToUse) {
+      throw new Error(
+        'Region is required. Either provide a region parameter or ensure userRegion is set in controller state.',
+      );
+    }
+
+    if (!fiatToUse) {
+      throw new Error(
+        'Fiat currency is required. Either provide a fiat parameter or ensure userRegion is set in controller state.',
+      );
+    }
+
+    if (!paymentMethodsToUse || paymentMethodsToUse.length === 0) {
+      throw new Error(
+        'Payment methods are required. Either provide paymentMethods parameter or ensure paymentMethods are set in controller state.',
+      );
+    }
+
+    const normalizedRegion = regionToUse.toLowerCase().trim();
+    const normalizedFiat = fiatToUse.toLowerCase().trim();
+
+    const cacheKey = createCacheKey('getQuotes', [
+      normalizedRegion,
+      normalizedFiat,
+      options.assetId,
+      options.amount,
+      options.walletAddress,
+      paymentMethodsToUse.sort().join(','),
+      options.provider,
+      action,
+    ]);
+
+    const params: GetQuotesParams = {
+      region: normalizedRegion,
+      fiat: normalizedFiat,
+      assetId: options.assetId,
+      amount: options.amount,
+      walletAddress: options.walletAddress,
+      paymentMethods: paymentMethodsToUse,
+      provider: options.provider,
+      redirectUrl: options.redirectUrl,
+      action,
+    };
+
+    const response = await this.executeRequest(
+      cacheKey,
+      async () => {
+        return this.messenger.call('RampsService:getQuotes', params);
+      },
+      { forceRefresh: options.forceRefresh, ttl: options.ttl },
+    );
+
+    this.update((state) => {
+      state.quotes = response;
+    });
+
+    return response;
+  }
+
+  /**
+   * Extracts the widget URL from a quote for redirect providers.
+   * Returns the widget URL if available, or null if the quote doesn't have one.
+   *
+   * @param quote - The quote to extract the widget URL from.
+   * @returns The widget URL string, or null if not available.
+   */
+  getWidgetUrl(quote: Quote): string | null {
+    return quote.quote?.widgetUrl ?? null;
+  }
+
   // ============================================================
   // Sync Trigger Methods
   // These fire-and-forget methods are for use in React effects.
@@ -1002,6 +1127,40 @@ export class RampsController extends BaseController<
     ttl?: number;
   }): void {
     this.getPaymentMethods(options).catch(() => {
+      // Error stored in state
+    });
+  }
+
+  /**
+   * Triggers fetching quotes without throwing.
+   *
+   * @param options - The parameters for fetching quotes.
+   * @param options.region - User's region code. If not provided, uses userRegion from state.
+   * @param options.fiat - Fiat currency code. If not provided, uses userRegion currency.
+   * @param options.assetId - CAIP-19 cryptocurrency identifier.
+   * @param options.amount - The amount (in fiat for buy, crypto for sell).
+   * @param options.walletAddress - The destination wallet address.
+   * @param options.paymentMethods - Array of payment method IDs. If not provided, uses paymentMethods from state.
+   * @param options.provider - Optional provider ID to filter quotes.
+   * @param options.redirectUrl - Optional redirect URL after order completion.
+   * @param options.action - The ramp action type. Defaults to 'buy'.
+   * @param options.forceRefresh - Whether to bypass cache.
+   * @param options.ttl - Custom TTL for this request.
+   */
+  triggerGetQuotes(options: {
+    region?: string;
+    fiat?: string;
+    assetId: string;
+    amount: number;
+    walletAddress: string;
+    paymentMethods?: string[];
+    provider?: string;
+    redirectUrl?: string;
+    action?: RampAction;
+    forceRefresh?: boolean;
+    ttl?: number;
+  }): void {
+    this.getQuotes(options).catch(() => {
       // Error stored in state
     });
   }

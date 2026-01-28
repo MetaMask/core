@@ -9,6 +9,12 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ### Added
 
+- Add quotes functionality to RampsController ([#7747](https://github.com/MetaMask/core/pull/7747))
+  - Add `getQuotes()` method to fetch quotes from multiple providers
+  - Add `getWidgetUrl()` helper method to extract widget URL from a quote
+  - Add `triggerGetQuotes()` fire-and-forget method for React effects
+  - Add `quotes` state to store fetched quotes response
+  - Add `Quote`, `QuotesResponse`, `GetQuotesParams`, and related types
 - Add `hydrateState()` method to fetch providers and tokens for user region ([#7707](https://github.com/MetaMask/core/pull/7707))
 - Add `countries` state to RampsController with 24 hour TTL caching ([#7707](https://github.com/MetaMask/core/pull/7707))
 - Add `SupportedActions` type for `{ buy: boolean; sell: boolean }` support info

@@ -31,6 +31,7 @@ describe('createRequestSelector', () => {
           tokens: null,
           paymentMethods: [],
           selectedPaymentMethod: null,
+          quotes: null,
           requests: {
             'getCryptoCurrencies:["US"]': loadingRequest,
           },
@@ -65,6 +66,7 @@ describe('createRequestSelector', () => {
           tokens: null,
           paymentMethods: [],
           selectedPaymentMethod: null,
+          quotes: null,
           requests: {
             'getCryptoCurrencies:["US"]': successRequest,
           },
@@ -102,6 +104,7 @@ describe('createRequestSelector', () => {
           tokens: null,
           paymentMethods: [],
           selectedPaymentMethod: null,
+          quotes: null,
           requests: {
             'getCryptoCurrencies:["US"]': errorRequest,
           },
@@ -135,6 +138,7 @@ describe('createRequestSelector', () => {
           tokens: null,
           paymentMethods: [],
           selectedPaymentMethod: null,
+          quotes: null,
           requests: {},
         },
       };
@@ -191,6 +195,7 @@ describe('createRequestSelector', () => {
           tokens: null,
           paymentMethods: [],
           selectedPaymentMethod: null,
+          quotes: null,
           requests: {
             'getCryptoCurrencies:["US"]': successRequest,
           },
@@ -220,6 +225,7 @@ describe('createRequestSelector', () => {
           tokens: null,
           paymentMethods: [],
           selectedPaymentMethod: null,
+          quotes: null,
           requests: {
             'getCryptoCurrencies:["US"]': successRequest1,
           },
@@ -238,6 +244,7 @@ describe('createRequestSelector', () => {
           tokens: null,
           paymentMethods: [],
           selectedPaymentMethod: null,
+          quotes: null,
           requests: {
             'getCryptoCurrencies:["US"]': successRequest2,
           },
@@ -268,6 +275,7 @@ describe('createRequestSelector', () => {
           tokens: null,
           paymentMethods: [],
           selectedPaymentMethod: null,
+          quotes: null,
           requests: {
             'getCryptoCurrencies:["US"]': successRequest,
           },
@@ -301,6 +309,7 @@ describe('createRequestSelector', () => {
           tokens: null,
           paymentMethods: [],
           selectedPaymentMethod: null,
+          quotes: null,
           requests: {
             'getData:[]': successRequest,
           },
@@ -333,6 +342,7 @@ describe('createRequestSelector', () => {
           tokens: null,
           paymentMethods: [],
           selectedPaymentMethod: null,
+          quotes: null,
           requests: {
             'getCryptoCurrencies:["US"]': loadingRequest,
           },
@@ -353,6 +363,7 @@ describe('createRequestSelector', () => {
           tokens: null,
           paymentMethods: [],
           selectedPaymentMethod: null,
+          quotes: null,
           requests: {
             'getCryptoCurrencies:["US"]': successRequest,
           },
@@ -381,6 +392,7 @@ describe('createRequestSelector', () => {
           tokens: null,
           paymentMethods: [],
           selectedPaymentMethod: null,
+          quotes: null,
           requests: {
             'getCryptoCurrencies:["US"]': successRequest,
           },
@@ -400,6 +412,7 @@ describe('createRequestSelector', () => {
           tokens: null,
           paymentMethods: [],
           selectedPaymentMethod: null,
+          quotes: null,
           requests: {
             'getCryptoCurrencies:["US"]': errorRequest,
           },
@@ -434,6 +447,7 @@ describe('createRequestSelector', () => {
           tokens: null,
           paymentMethods: [],
           selectedPaymentMethod: null,
+          quotes: null,
           requests: {
             'getCryptoCurrencies:["US"]': createSuccessState(
               ['ETH'],
@@ -472,6 +486,7 @@ describe('createRequestSelector', () => {
           tokens: null,
           paymentMethods: [],
           selectedPaymentMethod: null,
+          quotes: null,
           requests: {
             'getCryptoCurrencies:["US"]': createSuccessState(
               ['ETH'],
