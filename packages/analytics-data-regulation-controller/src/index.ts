@@ -1,15 +1,15 @@
 export {
-  AnalyticsPrivacyController,
-  getDefaultAnalyticsPrivacyControllerState,
-} from './AnalyticsPrivacyController';
-export type { AnalyticsPrivacyControllerOptions } from './AnalyticsPrivacyController';
+  AnalyticsDataRegulationController,
+  getDefaultAnalyticsDataRegulationControllerState,
+} from './AnalyticsDataRegulationController';
+export type { AnalyticsDataRegulationControllerOptions } from './AnalyticsDataRegulationController';
 
-export { AnalyticsPrivacyService } from './AnalyticsPrivacyService';
+export { AnalyticsDataRegulationService } from './AnalyticsDataRegulationService';
 export type {
-  AnalyticsPrivacyServiceActions,
-  AnalyticsPrivacyServiceEvents,
-  AnalyticsPrivacyServiceOptions,
-} from './AnalyticsPrivacyService';
+  AnalyticsDataRegulationServiceActions,
+  AnalyticsDataRegulationServiceEvents,
+  AnalyticsDataRegulationServiceOptions,
+} from './AnalyticsDataRegulationService';
 
 export {
   DATA_DELETE_STATUSES,
@@ -23,17 +23,17 @@ export type {
   IDeleteRegulationStatusResponse,
 } from './types';
 
-export type { AnalyticsPrivacyControllerState } from './AnalyticsPrivacyController';
+export type { AnalyticsDataRegulationControllerState } from './AnalyticsDataRegulationController';
 
-export { analyticsPrivacyControllerSelectors } from './selectors';
+export { analyticsDataRegulationControllerSelectors } from './selectors';
 
-export type { AnalyticsPrivacyControllerMessenger } from './AnalyticsPrivacyController';
+export type { AnalyticsDataRegulationControllerMessenger } from './AnalyticsDataRegulationController';
 
 export type {
-  AnalyticsPrivacyControllerActions,
-  AnalyticsPrivacyControllerEvents,
-  AnalyticsPrivacyControllerGetStateAction,
-  AnalyticsPrivacyControllerStateChangeEvent,
+  AnalyticsDataRegulationControllerActions,
+  AnalyticsDataRegulationControllerEvents,
+  AnalyticsDataRegulationControllerGetStateAction,
+  AnalyticsDataRegulationControllerStateChangeEvent,
   DataDeletionTaskCreatedEvent,
   DataRecordingFlagUpdatedEvent,
-} from './AnalyticsPrivacyController';
+} from './AnalyticsDataRegulationController';
