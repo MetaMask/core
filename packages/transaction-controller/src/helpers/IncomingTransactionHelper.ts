@@ -305,7 +305,11 @@ export class IncomingTransactionHelper {
       tags: finalTags,
     });
 
-    if (!this.#canStart()) {
+    if (!this.#canStart() || this.#chainsToPolls.length === 0) {
+      log('Cannot start polling', {
+        canStart: this.#canStart(),
+        chainsToPolls: this.#chainsToPolls,
+      });
       return;
     }
 

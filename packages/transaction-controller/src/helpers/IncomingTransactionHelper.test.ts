@@ -135,7 +135,6 @@ async function runInterval(
 
 const MAINNET_CAIP2 = 'eip155:1';
 const POLYGON_CAIP2 = 'eip155:137';
-const UNSUPPORTED_CAIP2 = 'eip155:2457';
 
 // Helper to convert hex chain ID to CAIP-2 format
 const hexToCaip2 = (hexChainId: string): string => {
