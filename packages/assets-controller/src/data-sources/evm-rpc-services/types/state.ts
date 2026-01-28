@@ -69,3 +69,20 @@ export type UserTokensState = {
   /** Ignored tokens: chainId -> address[] */
   allIgnoredTokens: Record<ChainId, Record<Address, Address[]>>;
 };
+
+/**
+ * Single asset balance entry.
+ */
+export type AssetBalanceEntry = {
+  /** Human-readable balance amount */
+  amount: string;
+};
+
+/**
+ * Assets balance state shape (from AssetsController).
+ * Maps accountId -> assetId (CAIP-19) -> balance entry.
+ */
+export type AssetsBalanceState = {
+  /** Balance data per account: accountId -> assetId -> balance */
+  assetsBalance: Record<string, Record<string, AssetBalanceEntry>>;
+};

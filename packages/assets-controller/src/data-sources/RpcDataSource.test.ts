@@ -191,6 +191,7 @@ async function withController<ReturnValue>(
     allDetectedTokens: {},
     allIgnoredTokens: {},
     assetsMetadata: {},
+    assetsBalance: {},
   }));
 
   // Mock TokenListController:getState

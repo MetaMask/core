@@ -1666,24 +1666,9 @@ export class AssetsController extends BaseController<
       removedChains,
     });
 
-    // Clean up state for disabled chains
-    if (removedChains.length > 0) {
-      const removedChainsSet = new Set(removedChains);
-      this.update((state) => {
-        const balances = state.assetsBalance as unknown as Record<
-          string,
-          Record<string, unknown>
-        >;
-        for (const accountId of Object.keys(balances)) {
-          for (const assetId of Object.keys(balances[accountId])) {
-            const assetChainId = extractChainId(assetId as Caip19AssetId);
-            if (removedChainsSet.has(assetChainId)) {
-              delete balances[accountId][assetId];
-            }
-          }
-        }
-      });
-    }
+    // Note: We intentionally do NOT delete balance data for disabled chains.
+    // Users may want to see historical balances even if the network is currently disabled.
+    // The data will simply not be updated until the network is re-enabled.
 
     // Refresh subscriptions for new chain set
     this.#subscribeToDataSources();

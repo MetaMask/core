@@ -30,7 +30,6 @@ import type {
   Address,
   Provider as RpcProvider,
   TokenListState,
-  UserTokensState,
   BalanceFetchResult,
   TokenDetectionResult,
 } from './evm-rpc-services';
@@ -171,7 +170,7 @@ type TokenListControllerGetStateAction = {
   };
 };
 
-// AssetsController:getState action (for user tokens state)
+// AssetsController:getState action (for user tokens state and assets balance)
 type AssetsControllerGetStateAction = {
   type: 'AssetsController:getState';
   handler: () => {
@@ -179,6 +178,7 @@ type AssetsControllerGetStateAction = {
     allDetectedTokens: Record<string, Record<string, { address: string }[]>>;
     allIgnoredTokens: Record<string, Record<string, string[]>>;
     assetsMetadata: Record<Caip19AssetId, AssetMetadata>;
+    assetsBalance: Record<string, Record<string, { amount: string }>>;
   };
 };
 
@@ -340,33 +340,47 @@ export class RpcDataSource extends BaseController<
       return this.#getMulticallProvider(hexChainId);
     });
 
-    // Create state getters using messenger
-    const getTokenListState = (): TokenListState => {
-      return this.messenger.call(
-        'TokenListController:getState',
-      ) as TokenListState;
+    // Create messenger adapters for BalanceFetcher and TokenDetector
+    const balanceFetcherMessenger = {
+      call: (
+        _action: 'AssetsController:getState',
+      ): {
+        assetsBalance: Record<string, Record<string, { amount: string }>>;
+      } => {
+        const state = this.messenger.call('AssetsController:getState');
+        return {
+          assetsBalance: (state.assetsBalance ?? {}) as Record<
+            string,
+            Record<string, { amount: string }>
+          >,
+        };
+      },
     };
 
-    const getUserTokensState = (): UserTokensState => {
-      return this.messenger.call(
-        'AssetsController:getState',
-      ) as unknown as UserTokensState;
+    const tokenDetectorMessenger = {
+      call: (_action: 'TokenListController:getState'): TokenListState => {
+        return this.messenger.call(
+          'TokenListController:getState',
+        ) as TokenListState;
+      },
     };
 
     // Initialize BalanceFetcher with polling interval
-    this.#balanceFetcher = new BalanceFetcher(this.#multicallClient, {
-      pollingInterval: balanceInterval,
-    });
-    this.#balanceFetcher.setUserTokensStateGetter(getUserTokensState);
+    this.#balanceFetcher = new BalanceFetcher(
+      this.#multicallClient,
+      balanceFetcherMessenger,
+      { pollingInterval: balanceInterval },
+    );
     this.#balanceFetcher.setOnBalanceUpdate(
       this.#handleBalanceUpdate.bind(this),
     );
 
     // Initialize TokenDetector with polling interval
-    this.#tokenDetector = new TokenDetector(this.#multicallClient, {
-      pollingInterval: detectionInterval,
-    });
-    this.#tokenDetector.setTokenListStateGetter(getTokenListState);
+    this.#tokenDetector = new TokenDetector(
+      this.#multicallClient,
+      tokenDetectorMessenger,
+      { pollingInterval: detectionInterval },
+    );
     this.#tokenDetector.setOnDetectionUpdate(
       this.#handleDetectionUpdate.bind(this),
     );
@@ -377,24 +391,38 @@ export class RpcDataSource extends BaseController<
   }
 
   /**
-   * Handle balance update from BalanceFetcher.
+   * Convert a raw balance to human-readable format using decimals.
    *
-   * @param result - The balance fetch result.
+   * @param rawBalance - The raw balance string.
+   * @param decimals - The number of decimals for the token.
+   * @returns The human-readable balance string.
    */
-  #handleBalanceUpdate(result: BalanceFetchResult): void {
-    const accountBalances: Record<string, { amount: string }> = {};
-    const assetsMetadata: Record<Caip19AssetId, AssetMetadata> = {};
+  #convertToHumanReadable(rawBalance: string, decimals: number): string {
+    const rawAmount = new BigNumberJS(rawBalance);
+    const divisor = new BigNumberJS(10).pow(decimals);
+    return rawAmount.dividedBy(divisor).toString();
+  }
 
-    // Get existing metadata from AssetsController state for ERC20 tokens
+  /**
+   * Collect metadata for a list of balance entries.
+   * For native tokens, generates metadata from chain status.
+   * For ERC20 tokens, looks up from existing state or token list.
+   *
+   * @param balances - Array of balance entries with assetId.
+   * @param chainId - The CAIP-2 chain ID.
+   * @returns Record of asset metadata keyed by asset ID.
+   */
+  #collectMetadataForBalances(
+    balances: { assetId: Caip19AssetId }[],
+    chainId: ChainId,
+  ): Record<Caip19AssetId, AssetMetadata> {
+    const assetsMetadata: Record<Caip19AssetId, AssetMetadata> = {};
     const existingMetadata = this.#getExistingAssetsMetadata();
 
-    // First pass: collect all metadata
-    for (const balance of result.balances) {
+    for (const balance of balances) {
       const isNative = balance.assetId.includes('/slip44:');
       if (isNative) {
-        const chainIdDecimal = parseInt(result.chainId, 16);
-        const caipChainId = `eip155:${chainIdDecimal}` as ChainId;
-        const chainStatus = this.#chainStatuses[caipChainId];
+        const chainStatus = this.#chainStatuses[chainId];
 
         if (chainStatus) {
           assetsMetadata[balance.assetId] = {
@@ -422,38 +450,74 @@ export class RpcDataSource extends BaseController<
       }
     }
 
-    // Second pass: convert balances to human-readable format using metadata
+    return assetsMetadata;
+  }
+
+  /**
+   * Handle balance update from BalanceFetcher.
+   *
+   * @param result - The balance fetch result.
+   */
+  #handleBalanceUpdate(result: BalanceFetchResult): void {
+    const newBalances: Record<string, { amount: string }> = {};
+
+    // Convert hex chain ID to CAIP-2 format
+    const chainIdDecimal = parseInt(result.chainId, 16);
+    const caipChainId = `eip155:${chainIdDecimal}` as ChainId;
+
+    // Collect metadata for all balances
+    const assetsMetadata = this.#collectMetadataForBalances(
+      result.balances,
+      caipChainId,
+    );
+
+    // Convert balances to human-readable format using metadata
     for (const balance of result.balances) {
       const metadata = assetsMetadata[balance.assetId];
-      let humanReadableAmount = balance.balance;
+      const humanReadableAmount =
+        metadata?.decimals === undefined
+          ? balance.balance
+          : this.#convertToHumanReadable(balance.balance, metadata.decimals);
 
-      if (metadata?.decimals !== undefined) {
-        const rawAmount = new BigNumberJS(balance.balance);
-        const divisor = new BigNumberJS(10).pow(metadata.decimals);
-        humanReadableAmount = rawAmount.dividedBy(divisor).toString();
-      }
-
-      accountBalances[balance.assetId] = {
+      newBalances[balance.assetId] = {
         amount: humanReadableAmount,
       };
     }
 
-    const response: DataResponse = {
-      assetsBalance: {
-        [result.accountId]: accountBalances,
-      },
+    // Get existing state and merge with new balances
+    const existingState = this.messenger.call('AssetsController:getState');
+    const existingAccountBalances = (existingState.assetsBalance?.[
+      result.accountId
+    ] ?? {}) as Record<string, { amount: string }>;
+    const existingMetadata = (existingState.assetsMetadata ?? {}) as Record<
+      string,
+      AssetMetadata
+    >;
+
+    // Merge existing balances with new balances (new takes precedence)
+    const mergedBalances = {
+      ...existingAccountBalances,
+      ...newBalances,
     };
 
-    // Include metadata if we have any
-    if (Object.keys(assetsMetadata).length > 0) {
-      response.assetsMetadata = assetsMetadata;
-    }
+    // Merge existing metadata with new metadata (new takes precedence)
+    const mergedMetadata = {
+      ...existingMetadata,
+      ...assetsMetadata,
+    };
+
+    const response: DataResponse = {
+      assetsBalance: {
+        [result.accountId]: mergedBalances,
+      },
+      assetsMetadata: mergedMetadata,
+    };
 
     log('Balance update response', {
       accountId: result.accountId,
-      balanceAssetIds: Object.keys(accountBalances),
-      metadataAssetIds: Object.keys(assetsMetadata),
-      metadataCount: Object.keys(assetsMetadata).length,
+      newBalanceCount: Object.keys(newBalances).length,
+      existingBalanceCount: Object.keys(existingAccountBalances).length,
+      mergedBalanceCount: Object.keys(mergedBalances).length,
     });
 
     this.messenger
@@ -473,19 +537,29 @@ export class RpcDataSource extends BaseController<
       count: result.detectedAssets.length,
     });
 
+    // Get existing state to merge with
+    const existingState = this.messenger.call('AssetsController:getState');
+    const existingAccountBalances = (existingState.assetsBalance?.[
+      result.accountId
+    ] ?? {}) as Record<string, { amount: string }>;
+    const existingMetadata = (existingState.assetsMetadata ?? {}) as Record<
+      string,
+      AssetMetadata
+    >;
+
     const response: DataResponse = {
       detectedAssets: {
         [result.accountId]: result.detectedAssets.map((asset) => asset.assetId),
       },
     };
 
-    // Include metadata from detected assets (extracted from token list by TokenDetector)
+    // Build new metadata from detected assets
+    const newMetadata: Record<Caip19AssetId, AssetMetadata> = {};
     if (result.detectedAssets.length > 0) {
-      response.assetsMetadata = {};
       for (const asset of result.detectedAssets) {
         // Only include if we have metadata (symbol and decimals at minimum)
         if (asset.symbol && asset.decimals !== undefined) {
-          response.assetsMetadata[asset.assetId] = {
+          newMetadata[asset.assetId] = {
             type: 'erc20',
             symbol: asset.symbol,
             name: asset.name ?? asset.symbol,
@@ -496,29 +570,40 @@ export class RpcDataSource extends BaseController<
       }
     }
 
-    // Add balances for detected tokens (converted to human-readable format)
+    // Build new balances from detected tokens
+    const newBalances: Record<string, { amount: string }> = {};
     if (result.detectedBalances.length > 0) {
-      response.assetsBalance = {
-        [result.accountId]: {},
-      };
       for (const balance of result.detectedBalances) {
         // Get decimals from the detected asset metadata
         const detectedAsset = result.detectedAssets.find(
           (asset) => asset.assetId === balance.assetId,
         );
-        let humanReadableAmount = balance.balance;
+        const humanReadableAmount =
+          detectedAsset?.decimals === undefined
+            ? balance.balance
+            : this.#convertToHumanReadable(
+                balance.balance,
+                detectedAsset.decimals,
+              );
 
-        if (detectedAsset?.decimals !== undefined) {
-          const rawAmount = new BigNumberJS(balance.balance);
-          const divisor = new BigNumberJS(10).pow(detectedAsset.decimals);
-          humanReadableAmount = rawAmount.dividedBy(divisor).toString();
-        }
-
-        response.assetsBalance[result.accountId][balance.assetId] = {
+        newBalances[balance.assetId] = {
           amount: humanReadableAmount,
         };
       }
     }
+
+    // Merge existing with new (new takes precedence)
+    response.assetsMetadata = {
+      ...existingMetadata,
+      ...newMetadata,
+    };
+
+    response.assetsBalance = {
+      [result.accountId]: {
+        ...existingAccountBalances,
+        ...newBalances,
+      },
+    };
 
     this.messenger
       .call('AssetsController:assetsUpdate', response, CONTROLLER_NAME)
@@ -869,51 +954,23 @@ export class RpcDataSource extends BaseController<
             assetsBalance[accountId] = {};
           }
 
-          // Get existing metadata from state for ERC20 tokens
-          const existingMetadata = this.#getExistingAssetsMetadata();
+          // Collect metadata for all balances
+          const balanceMetadata = this.#collectMetadataForBalances(
+            result.balances,
+            chainId,
+          );
+          Object.assign(assetsMetadata, balanceMetadata);
 
-          // First pass: collect metadata for all balances
-          for (const balance of result.balances) {
-            const isNative = balance.assetId.includes('/slip44:');
-            if (isNative) {
-              const chainStatus = this.#chainStatuses[chainId];
-
-              if (chainStatus) {
-                assetsMetadata[balance.assetId] = {
-                  type: 'native',
-                  symbol: chainStatus.nativeCurrency,
-                  name: chainStatus.nativeCurrency,
-                  decimals: 18,
-                };
-              }
-            } else {
-              // For ERC20 tokens, try existing metadata from state first
-              const existingMeta = existingMetadata[balance.assetId];
-
-              if (existingMeta) {
-                assetsMetadata[balance.assetId] = existingMeta;
-              } else {
-                // Fallback to token list if not in state
-                const tokenListMeta = this.#getTokenMetadataFromTokenList(
-                  balance.assetId,
-                );
-                if (tokenListMeta) {
-                  assetsMetadata[balance.assetId] = tokenListMeta;
-                }
-              }
-            }
-          }
-
-          // Second pass: convert balances to human-readable format
+          // Convert balances to human-readable format
           for (const balance of result.balances) {
             const metadata = assetsMetadata[balance.assetId];
-            let humanReadableAmount = balance.balance;
-
-            if (metadata?.decimals !== undefined) {
-              const rawAmount = new BigNumberJS(balance.balance);
-              const divisor = new BigNumberJS(10).pow(metadata.decimals);
-              humanReadableAmount = rawAmount.dividedBy(divisor).toString();
-            }
+            const humanReadableAmount =
+              metadata?.decimals === undefined
+                ? balance.balance
+                : this.#convertToHumanReadable(
+                    balance.balance,
+                    metadata.decimals,
+                  );
 
             assetsBalance[accountId][balance.assetId] = {
               amount: humanReadableAmount,
@@ -1015,11 +1072,36 @@ export class RpcDataSource extends BaseController<
 
       // Convert detected assets to DataResponse format
       const balances: Record<Caip19AssetId, AssetBalance> = {};
+      const assetsMetadata: Record<Caip19AssetId, AssetMetadata> = {};
 
-      // Add balances for detected tokens
+      // Build metadata from detected assets
+      for (const asset of result.detectedAssets) {
+        if (asset.symbol && asset.decimals !== undefined) {
+          assetsMetadata[asset.assetId] = {
+            type: 'erc20',
+            symbol: asset.symbol,
+            name: asset.name ?? asset.symbol,
+            decimals: asset.decimals,
+            image: asset.image,
+          };
+        }
+      }
+
+      // Add balances for detected tokens (converted to human-readable format)
       for (const balance of result.detectedBalances) {
+        const detectedAsset = result.detectedAssets.find(
+          (asset) => asset.assetId === balance.assetId,
+        );
+        const humanReadableAmount =
+          detectedAsset?.decimals === undefined
+            ? balance.balance
+            : this.#convertToHumanReadable(
+                balance.balance,
+                detectedAsset.decimals,
+              );
+
         balances[balance.assetId] = {
-          amount: balance.balance,
+          amount: humanReadableAmount,
         };
       }
 
@@ -1031,6 +1113,11 @@ export class RpcDataSource extends BaseController<
           [accountId]: balances,
         },
       };
+
+      // Include metadata if we have any
+      if (Object.keys(assetsMetadata).length > 0) {
+        response.assetsMetadata = assetsMetadata;
+      }
 
       return response;
     } catch (error) {
@@ -1132,21 +1219,20 @@ export class RpcDataSource extends BaseController<
       return;
     }
 
-    // Handle subscription update
+    // Handle subscription update - restart polling for new chains
     if (isUpdate) {
       const existing = this.#activeSubscriptions.get(subscriptionId);
       if (existing) {
-        log('Updating existing subscription', {
+        log('Updating existing subscription - restarting polling', {
           subscriptionId,
-          chainsToSubscribe,
+          existingChains: existing.chains,
+          newChains: chainsToSubscribe,
         });
-        existing.chains = chainsToSubscribe;
-        existing.accounts = request.accounts;
-        return;
+        // Don't return early - continue to unsubscribe and restart polling
       }
     }
 
-    // Clean up existing subscription
+    // Clean up existing subscription (stops old polling)
     await this.unsubscribe(subscriptionId);
 
     // Start polling through BalanceFetcher and TokenDetector
