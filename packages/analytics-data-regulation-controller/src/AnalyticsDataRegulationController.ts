@@ -94,10 +94,11 @@ const MESSENGER_EXPOSED_METHODS = [
 /**
  * Returns the state of the {@link AnalyticsDataRegulationController}.
  */
-export type AnalyticsDataRegulationControllerGetStateAction = ControllerGetStateAction<
-  typeof controllerName,
-  AnalyticsDataRegulationControllerState
->;
+export type AnalyticsDataRegulationControllerGetStateAction =
+  ControllerGetStateAction<
+    typeof controllerName,
+    AnalyticsDataRegulationControllerState
+  >;
 
 /**
  * Actions that {@link AnalyticsDataRegulationControllerMessenger} exposes to other consumers.

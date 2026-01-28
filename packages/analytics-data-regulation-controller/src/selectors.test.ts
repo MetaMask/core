@@ -41,7 +41,9 @@ describe('analyticsDataRegulationControllerSelectors', () => {
       };
 
       expect(
-        analyticsDataRegulationControllerSelectors.selectDeleteRegulationId(state),
+        analyticsDataRegulationControllerSelectors.selectDeleteRegulationId(
+          state,
+        ),
       ).toBe('test-regulation-id');
     });
 
@@ -51,7 +53,9 @@ describe('analyticsDataRegulationControllerSelectors', () => {
       };
 
       expect(
-        analyticsDataRegulationControllerSelectors.selectDeleteRegulationId(state),
+        analyticsDataRegulationControllerSelectors.selectDeleteRegulationId(
+          state,
+        ),
       ).toBeUndefined();
     });
   });

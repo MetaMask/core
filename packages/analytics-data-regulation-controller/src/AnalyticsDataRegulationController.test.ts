@@ -24,7 +24,8 @@ type SetupControllerReturn = {
   messenger: AnalyticsDataRegulationControllerMessenger;
   rootMessenger: Messenger<
     MockAnyNamespace,
-    AnalyticsDataRegulationControllerActions | AnalyticsDataRegulationServiceActions,
+    | AnalyticsDataRegulationControllerActions
+    | AnalyticsDataRegulationServiceActions,
     AnalyticsDataRegulationControllerEvents
   >;
 };
@@ -44,13 +45,15 @@ function setupController(
 
   const rootMessenger = new Messenger<
     MockAnyNamespace,
-    AnalyticsDataRegulationControllerActions | AnalyticsDataRegulationServiceActions,
+    | AnalyticsDataRegulationControllerActions
+    | AnalyticsDataRegulationServiceActions,
     AnalyticsDataRegulationControllerEvents
   >({ namespace: MOCK_ANY_NAMESPACE });
 
   const analyticsDataRegulationControllerMessenger = new Messenger<
     'AnalyticsDataRegulationController',
-    AnalyticsDataRegulationControllerActions | AnalyticsDataRegulationServiceActions,
+    | AnalyticsDataRegulationControllerActions
+    | AnalyticsDataRegulationServiceActions,
     AnalyticsDataRegulationControllerEvents,
     typeof rootMessenger
   >({
@@ -175,13 +178,15 @@ describe('AnalyticsDataRegulationController', () => {
     it('stores deletion timestamp as number when task is created', async () => {
       const rootMessenger = new Messenger<
         MockAnyNamespace,
-        AnalyticsDataRegulationControllerActions | AnalyticsDataRegulationServiceActions,
+        | AnalyticsDataRegulationControllerActions
+        | AnalyticsDataRegulationServiceActions,
         AnalyticsDataRegulationControllerEvents
       >({ namespace: MOCK_ANY_NAMESPACE });
 
       const analyticsDataRegulationControllerMessenger = new Messenger<
         'AnalyticsDataRegulationController',
-        AnalyticsDataRegulationControllerActions | AnalyticsDataRegulationServiceActions,
+        | AnalyticsDataRegulationControllerActions
+        | AnalyticsDataRegulationServiceActions,
         AnalyticsDataRegulationControllerEvents,
         typeof rootMessenger
       >({
@@ -246,13 +251,15 @@ describe('AnalyticsDataRegulationController', () => {
     it('throws error when analyticsId is empty string', async () => {
       const rootMessenger = new Messenger<
         MockAnyNamespace,
-        AnalyticsDataRegulationControllerActions | AnalyticsDataRegulationServiceActions,
+        | AnalyticsDataRegulationControllerActions
+        | AnalyticsDataRegulationServiceActions,
         AnalyticsDataRegulationControllerEvents
       >({ namespace: MOCK_ANY_NAMESPACE });
 
       const analyticsDataRegulationControllerMessenger = new Messenger<
         'AnalyticsDataRegulationController',
-        AnalyticsDataRegulationControllerActions | AnalyticsDataRegulationServiceActions,
+        | AnalyticsDataRegulationControllerActions
+        | AnalyticsDataRegulationServiceActions,
         AnalyticsDataRegulationControllerEvents,
         typeof rootMessenger
       >({
@@ -281,7 +288,9 @@ describe('AnalyticsDataRegulationController', () => {
       });
 
       await expect(
-        rootMessenger.call('AnalyticsDataRegulationController:createDataDeletionTask'),
+        rootMessenger.call(
+          'AnalyticsDataRegulationController:createDataDeletionTask',
+        ),
       ).rejects.toThrow(
         'Analytics ID not found. You need to provide a valid analytics ID when initializing the AnalyticsDataRegulationController.',
       );
@@ -290,13 +299,15 @@ describe('AnalyticsDataRegulationController', () => {
     it('throws error without updating state when service throws error for missing regulateId', async () => {
       const rootMessenger = new Messenger<
         MockAnyNamespace,
-        AnalyticsDataRegulationControllerActions | AnalyticsDataRegulationServiceActions,
+        | AnalyticsDataRegulationControllerActions
+        | AnalyticsDataRegulationServiceActions,
         AnalyticsDataRegulationControllerEvents
       >({ namespace: MOCK_ANY_NAMESPACE });
 
       const analyticsDataRegulationControllerMessenger = new Messenger<
         'AnalyticsDataRegulationController',
-        AnalyticsDataRegulationControllerActions | AnalyticsDataRegulationServiceActions,
+        | AnalyticsDataRegulationControllerActions
+        | AnalyticsDataRegulationServiceActions,
         AnalyticsDataRegulationControllerEvents,
         typeof rootMessenger
       >({
@@ -328,7 +339,9 @@ describe('AnalyticsDataRegulationController', () => {
       });
 
       await expect(
-        rootMessenger.call('AnalyticsDataRegulationController:createDataDeletionTask'),
+        rootMessenger.call(
+          'AnalyticsDataRegulationController:createDataDeletionTask',
+        ),
       ).rejects.toThrow(
         'Malformed response from Segment API: missing or invalid regulateId',
       );
@@ -337,13 +350,15 @@ describe('AnalyticsDataRegulationController', () => {
     it('throws error without updating state when service throws error for empty regulateId', async () => {
       const rootMessenger = new Messenger<
         MockAnyNamespace,
-        AnalyticsDataRegulationControllerActions | AnalyticsDataRegulationServiceActions,
+        | AnalyticsDataRegulationControllerActions
+        | AnalyticsDataRegulationServiceActions,
         AnalyticsDataRegulationControllerEvents
       >({ namespace: MOCK_ANY_NAMESPACE });
 
       const analyticsDataRegulationControllerMessenger = new Messenger<
         'AnalyticsDataRegulationController',
-        AnalyticsDataRegulationControllerActions | AnalyticsDataRegulationServiceActions,
+        | AnalyticsDataRegulationControllerActions
+        | AnalyticsDataRegulationServiceActions,
         AnalyticsDataRegulationControllerEvents,
         typeof rootMessenger
       >({
@@ -373,7 +388,9 @@ describe('AnalyticsDataRegulationController', () => {
       });
 
       await expect(
-        rootMessenger.call('AnalyticsDataRegulationController:createDataDeletionTask'),
+        rootMessenger.call(
+          'AnalyticsDataRegulationController:createDataDeletionTask',
+        ),
       ).rejects.toThrow(
         'Malformed response from Segment API: missing or invalid regulateId',
       );
@@ -384,13 +401,15 @@ describe('AnalyticsDataRegulationController', () => {
     it('throws error and does not update state when service throws error for undefined regulateId', async () => {
       const rootMessenger = new Messenger<
         MockAnyNamespace,
-        AnalyticsDataRegulationControllerActions | AnalyticsDataRegulationServiceActions,
+        | AnalyticsDataRegulationControllerActions
+        | AnalyticsDataRegulationServiceActions,
         AnalyticsDataRegulationControllerEvents
       >({ namespace: MOCK_ANY_NAMESPACE });
 
       const analyticsDataRegulationControllerMessenger = new Messenger<
         'AnalyticsDataRegulationController',
-        AnalyticsDataRegulationControllerActions | AnalyticsDataRegulationServiceActions,
+        | AnalyticsDataRegulationControllerActions
+        | AnalyticsDataRegulationServiceActions,
         AnalyticsDataRegulationControllerEvents,
         typeof rootMessenger
       >({
@@ -420,7 +439,9 @@ describe('AnalyticsDataRegulationController', () => {
       });
 
       await expect(
-        rootMessenger.call('AnalyticsDataRegulationController:createDataDeletionTask'),
+        rootMessenger.call(
+          'AnalyticsDataRegulationController:createDataDeletionTask',
+        ),
       ).rejects.toThrow(
         'Malformed response from Segment API: missing or invalid regulateId',
       );
@@ -430,13 +451,15 @@ describe('AnalyticsDataRegulationController', () => {
     it('throws error when service throws non-Error value', async () => {
       const rootMessenger = new Messenger<
         MockAnyNamespace,
-        AnalyticsDataRegulationControllerActions | AnalyticsDataRegulationServiceActions,
+        | AnalyticsDataRegulationControllerActions
+        | AnalyticsDataRegulationServiceActions,
         AnalyticsDataRegulationControllerEvents
       >({ namespace: MOCK_ANY_NAMESPACE });
 
       const analyticsDataRegulationControllerMessenger = new Messenger<
         'AnalyticsDataRegulationController',
-        AnalyticsDataRegulationControllerActions | AnalyticsDataRegulationServiceActions,
+        | AnalyticsDataRegulationControllerActions
+        | AnalyticsDataRegulationServiceActions,
         AnalyticsDataRegulationControllerEvents,
         typeof rootMessenger
       >({
@@ -462,20 +485,24 @@ describe('AnalyticsDataRegulationController', () => {
       });
 
       await expect(
-        rootMessenger.call('AnalyticsDataRegulationController:createDataDeletionTask'),
+        rootMessenger.call(
+          'AnalyticsDataRegulationController:createDataDeletionTask',
+        ),
       ).rejects.toBe('String error');
     });
 
     it('throws error when service throws error', async () => {
       const rootMessenger = new Messenger<
         MockAnyNamespace,
-        AnalyticsDataRegulationControllerActions | AnalyticsDataRegulationServiceActions,
+        | AnalyticsDataRegulationControllerActions
+        | AnalyticsDataRegulationServiceActions,
         AnalyticsDataRegulationControllerEvents
       >({ namespace: MOCK_ANY_NAMESPACE });
 
       const analyticsDataRegulationControllerMessenger = new Messenger<
         'AnalyticsDataRegulationController',
-        AnalyticsDataRegulationControllerActions | AnalyticsDataRegulationServiceActions,
+        | AnalyticsDataRegulationControllerActions
+        | AnalyticsDataRegulationServiceActions,
         AnalyticsDataRegulationControllerEvents,
         typeof rootMessenger
       >({
@@ -501,20 +528,24 @@ describe('AnalyticsDataRegulationController', () => {
       });
 
       await expect(
-        rootMessenger.call('AnalyticsDataRegulationController:createDataDeletionTask'),
+        rootMessenger.call(
+          'AnalyticsDataRegulationController:createDataDeletionTask',
+        ),
       ).rejects.toThrow('Service error');
     });
 
     it('preserves initial state when service throws error', async () => {
       const rootMessenger = new Messenger<
         MockAnyNamespace,
-        AnalyticsDataRegulationControllerActions | AnalyticsDataRegulationServiceActions,
+        | AnalyticsDataRegulationControllerActions
+        | AnalyticsDataRegulationServiceActions,
         AnalyticsDataRegulationControllerEvents
       >({ namespace: MOCK_ANY_NAMESPACE });
 
       const analyticsDataRegulationControllerMessenger = new Messenger<
         'AnalyticsDataRegulationController',
-        AnalyticsDataRegulationControllerActions | AnalyticsDataRegulationServiceActions,
+        | AnalyticsDataRegulationControllerActions
+        | AnalyticsDataRegulationServiceActions,
         AnalyticsDataRegulationControllerEvents,
         typeof rootMessenger
       >({
@@ -539,7 +570,9 @@ describe('AnalyticsDataRegulationController', () => {
       const initialState = controller.state;
 
       await expect(
-        rootMessenger.call('AnalyticsDataRegulationController:createDataDeletionTask'),
+        rootMessenger.call(
+          'AnalyticsDataRegulationController:createDataDeletionTask',
+        ),
       ).rejects.toThrow('Service error');
 
       expect(controller.state).toStrictEqual(initialState);
@@ -585,13 +618,15 @@ describe('AnalyticsDataRegulationController', () => {
     it('returns undefined timestamp when deleteRegulationTimestamp is not set', async () => {
       const rootMessenger = new Messenger<
         MockAnyNamespace,
-        AnalyticsDataRegulationControllerActions | AnalyticsDataRegulationServiceActions,
+        | AnalyticsDataRegulationControllerActions
+        | AnalyticsDataRegulationServiceActions,
         AnalyticsDataRegulationControllerEvents
       >({ namespace: MOCK_ANY_NAMESPACE });
 
       const analyticsDataRegulationControllerMessenger = new Messenger<
         'AnalyticsDataRegulationController',
-        AnalyticsDataRegulationControllerActions | AnalyticsDataRegulationServiceActions,
+        | AnalyticsDataRegulationControllerActions
+        | AnalyticsDataRegulationServiceActions,
         AnalyticsDataRegulationControllerEvents,
         typeof rootMessenger
       >({
@@ -635,13 +670,15 @@ describe('AnalyticsDataRegulationController', () => {
     it('throws error when service throws Error', async () => {
       const rootMessenger = new Messenger<
         MockAnyNamespace,
-        AnalyticsDataRegulationControllerActions | AnalyticsDataRegulationServiceActions,
+        | AnalyticsDataRegulationControllerActions
+        | AnalyticsDataRegulationServiceActions,
         AnalyticsDataRegulationControllerEvents
       >({ namespace: MOCK_ANY_NAMESPACE });
 
       const analyticsDataRegulationControllerMessenger = new Messenger<
         'AnalyticsDataRegulationController',
-        AnalyticsDataRegulationControllerActions | AnalyticsDataRegulationServiceActions,
+        | AnalyticsDataRegulationControllerActions
+        | AnalyticsDataRegulationServiceActions,
         AnalyticsDataRegulationControllerEvents,
         typeof rootMessenger
       >({
@@ -672,7 +709,9 @@ describe('AnalyticsDataRegulationController', () => {
       });
 
       await expect(
-        rootMessenger.call('AnalyticsDataRegulationController:checkDataDeleteStatus'),
+        rootMessenger.call(
+          'AnalyticsDataRegulationController:checkDataDeleteStatus',
+        ),
       ).rejects.toThrow('Service error');
     });
   });
@@ -685,7 +724,9 @@ describe('AnalyticsDataRegulationController', () => {
         },
       });
 
-      rootMessenger.call('AnalyticsDataRegulationController:updateDataRecordingFlag');
+      rootMessenger.call(
+        'AnalyticsDataRegulationController:updateDataRecordingFlag',
+      );
 
       expect(controller.state.hasCollectedDataSinceDeletionRequest).toBe(true);
     });
@@ -697,7 +738,9 @@ describe('AnalyticsDataRegulationController', () => {
         },
       });
 
-      rootMessenger.call('AnalyticsDataRegulationController:updateDataRecordingFlag');
+      rootMessenger.call(
+        'AnalyticsDataRegulationController:updateDataRecordingFlag',
+      );
 
       expect(controller.state.hasCollectedDataSinceDeletionRequest).toBe(true);
     });
@@ -715,7 +758,9 @@ describe('AnalyticsDataRegulationController', () => {
         eventListener,
       );
 
-      rootMessenger.call('AnalyticsDataRegulationController:updateDataRecordingFlag');
+      rootMessenger.call(
+        'AnalyticsDataRegulationController:updateDataRecordingFlag',
+      );
 
       expect(eventListener).toHaveBeenCalledWith(true);
     });
@@ -733,7 +778,9 @@ describe('AnalyticsDataRegulationController', () => {
         eventListener,
       );
 
-      rootMessenger.call('AnalyticsDataRegulationController:updateDataRecordingFlag');
+      rootMessenger.call(
+        'AnalyticsDataRegulationController:updateDataRecordingFlag',
+      );
 
       expect(eventListener).not.toHaveBeenCalled();
     });
@@ -753,7 +800,9 @@ describe('AnalyticsDataRegulationController', () => {
         eventListener,
       );
 
-      rootMessenger.call('AnalyticsDataRegulationController:updateDataRecordingFlag');
+      rootMessenger.call(
+        'AnalyticsDataRegulationController:updateDataRecordingFlag',
+      );
 
       expect(eventListener).toHaveBeenCalled();
       const [newState] = eventListener.mock.calls[0];
@@ -773,7 +822,9 @@ describe('AnalyticsDataRegulationController', () => {
         eventListener,
       );
 
-      rootMessenger.call('AnalyticsDataRegulationController:updateDataRecordingFlag');
+      rootMessenger.call(
+        'AnalyticsDataRegulationController:updateDataRecordingFlag',
+      );
 
       expect(eventListener).not.toHaveBeenCalled();
     });

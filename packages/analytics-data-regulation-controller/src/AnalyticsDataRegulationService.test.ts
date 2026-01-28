@@ -235,7 +235,10 @@ describe('AnalyticsDataRegulationService', () => {
       const { rootMessenger } = getService();
 
       await expect(
-        rootMessenger.call('AnalyticsDataRegulationService:checkDataDeleteStatus', ''),
+        rootMessenger.call(
+          'AnalyticsDataRegulationService:checkDataDeleteStatus',
+          '',
+        ),
       ).rejects.toThrow('Regulation ID or endpoint not configured');
     });
 
@@ -510,7 +513,9 @@ function getMessenger(
 function getService({
   options = {},
 }: {
-  options?: Partial<ConstructorParameters<typeof AnalyticsDataRegulationService>[0]>;
+  options?: Partial<
+    ConstructorParameters<typeof AnalyticsDataRegulationService>[0]
+  >;
 } = {}): {
   service: AnalyticsDataRegulationService;
   rootMessenger: RootMessenger;
