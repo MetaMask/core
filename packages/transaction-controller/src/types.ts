@@ -781,6 +781,12 @@ export enum TransactionType {
   perpsDeposit = 'perpsDeposit',
 
   /**
+   * Deposit funds and place an order for trading via Perps.
+   * Supports paying with any token, not just native assets.
+   */
+  perpsDepositAndOrder = 'perpsDepositAndOrder',
+
+  /**
    * A transaction for personal sign.
    */
   personalSign = 'personal_sign',
@@ -1545,6 +1551,9 @@ export type SimulationError = {
 
 /** Simulation data for a transaction. */
 export type SimulationData = {
+  /** Error messages extracted from call traces, if any. */
+  callTraceErrors?: string[];
+
   /** Error data if the simulation failed or the transaction reverted. */
   error?: SimulationError;
 

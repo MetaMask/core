@@ -14,6 +14,7 @@ export type {
   AccountTreeControllerSetSelectedAccountGroupAction,
   AccountTreeControllerGetSelectedAccountGroupAction,
   AccountTreeControllerGetAccountsFromSelectedAccountGroupAction,
+  AccountTreeControllerGetAccountContextAction,
   AccountTreeControllerSetAccountWalletNameAction,
   AccountTreeControllerSetAccountGroupNameAction,
   AccountTreeControllerSetAccountGroupPinnedAction,
@@ -24,6 +25,8 @@ export type {
   AccountTreeControllerEvents,
   AccountTreeControllerMessenger,
 } from './types';
+
+export type { AccountContext } from './AccountTreeController';
 
 export {
   AccountTreeController,

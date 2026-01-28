@@ -495,7 +495,7 @@
           "protocol": {
             "name": "celer",
             "displayName": "Celer",
-            "icon": "https://socketicons.s3.amazonaws.com/Celer+Light.png"
+            "icon": "https://media.socket.tech/bridges/celer.svg"
           },
           "srcAsset": {
             "chainId": 10,

@@ -38,6 +38,7 @@ import type {
   LinkRewardsRequest,
   StartCryptoSubscriptionResponse,
   StartSubscriptionResponse,
+  CancelSubscriptionRequest,
 } from './types';
 import type {
   ISubscriptionService,
@@ -450,13 +451,11 @@ export class SubscriptionController extends StaticIntervalPollingController()<
     );
   }
 
-  async cancelSubscription(request: { subscriptionId: string }): Promise<void> {
+  async cancelSubscription(request: CancelSubscriptionRequest): Promise<void> {
     this.#assertIsUserSubscribed({ subscriptionId: request.subscriptionId });
 
     const cancelledSubscription =
-      await this.#subscriptionService.cancelSubscription({
-        subscriptionId: request.subscriptionId,
-      });
+      await this.#subscriptionService.cancelSubscription(request);
 
     this.update((state) => {
       state.subscriptions = state.subscriptions.map((subscription) =>
