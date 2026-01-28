@@ -519,6 +519,7 @@ export class RampsController extends BaseController<
       state.providers = [];
       state.paymentMethods = [];
       state.selectedPaymentMethod = null;
+      state.quotes = null;
     });
   }
 
@@ -629,6 +630,7 @@ export class RampsController extends BaseController<
           state.providers = [];
           state.paymentMethods = [];
           state.selectedPaymentMethod = null;
+          state.quotes = null;
         }
         state.userRegion = userRegion;
       });
@@ -998,8 +1000,9 @@ export class RampsController extends BaseController<
       options.assetId,
       options.amount,
       options.walletAddress,
-      paymentMethodsToUse.sort().join(','),
+      [...paymentMethodsToUse].sort().join(','),
       options.provider,
+      options.redirectUrl,
       action,
     ]);
 

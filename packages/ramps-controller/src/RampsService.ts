@@ -252,7 +252,7 @@ export type QuoteError = {
   /**
    * Error message.
    */
-  err?: string;
+  error?: string;
 };
 
 /**
@@ -1060,7 +1060,10 @@ export class RampsService {
 
     // Build region ID in the format expected by the API
     url.searchParams.set('regionId', `/regions/${normalizedRegion}`);
-    url.searchParams.set('fiatCurrencyId', `/currencies/fiat/${normalizedFiat}`);
+    url.searchParams.set(
+      'fiatCurrencyId',
+      `/currencies/fiat/${normalizedFiat}`,
+    );
     url.searchParams.set('cryptoCurrencyId', params.assetId);
     url.searchParams.set('amount', String(params.amount));
     url.searchParams.set('walletAddress', params.walletAddress);
