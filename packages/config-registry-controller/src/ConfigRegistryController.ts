@@ -258,6 +258,23 @@ export class ConfigRegistryController extends StaticIntervalPollingController<nu
     }
   }
 
+  /**
+   * Returns the remaining delay in ms before the next fetch is allowed (0 if allowed now).
+   * Used by both startPolling (to delay the first poll) and _executePoll (to skip if too soon).
+   *
+   * @returns Remaining ms to wait; 0 if fetch is allowed now.
+   */
+  #getRemainingPollingDelayMs(): number {
+    const pollingInterval =
+      this.getIntervalLength() ?? DEFAULT_POLLING_INTERVAL;
+    const now = Date.now();
+    const { lastFetched } = this.state;
+    if (lastFetched === null) {
+      return 0;
+    }
+    return Math.max(0, pollingInterval - (now - lastFetched));
+  }
+
   async _executePoll(_input: null): Promise<void> {
     const isApiEnabled = this.#isConfigRegistryApiEnabled(this.messenger);
 
@@ -268,14 +285,7 @@ export class ConfigRegistryController extends StaticIntervalPollingController<nu
       return;
     }
 
-    // Check if enough time has passed since last fetch to respect the polling interval
-    const pollingInterval =
-      this.getIntervalLength() ?? DEFAULT_POLLING_INTERVAL;
-    const now = Date.now();
-    const { lastFetched } = this.state;
-
-    if (lastFetched !== null && now - lastFetched < pollingInterval) {
-      // Not enough time has passed, skip the fetch
+    if (this.#getRemainingPollingDelayMs() > 0) {
       return;
     }
 
@@ -377,6 +387,7 @@ export class ConfigRegistryController extends StaticIntervalPollingController<nu
       // @ts-ignore - Type instantiation is excessively deep
       state.configs.networks = { ...this.#fallbackConfig };
       state.fetchError = errorMessage;
+      state.lastFetched = null;
       state.etag = null;
     });
   }
@@ -404,36 +415,27 @@ export class ConfigRegistryController extends StaticIntervalPollingController<nu
   }
 
   startPolling(input: null = null): string {
-    // Calculate delay based on lastFetched to respect 24-hour interval
-    const pollingInterval =
-      this.getIntervalLength() ?? DEFAULT_POLLING_INTERVAL;
-    const now = Date.now();
-    const { lastFetched } = this.state;
+    const remainingTime = this.#getRemainingPollingDelayMs();
 
-    if (lastFetched !== null) {
-      const timeSinceLastFetch = now - lastFetched;
-      const remainingTime = pollingInterval - timeSinceLastFetch;
-
-      if (remainingTime > 0) {
-        // Not enough time has passed, delay the first poll
-        // Clear any existing timeout before scheduling a new one
-        if (this.#delayedPollTimeoutId !== null) {
-          clearTimeout(this.#delayedPollTimeoutId);
-          this.#delayedPollTimeoutId = null;
-        }
-
-        // Generate a placeholder token that will map to the actual token
-        const placeholderToken = `delayed-${Date.now()}-${Math.random()}`;
-
-        // Schedule the first poll after the remaining time
-        this.#delayedPollTimeoutId = setTimeout(() => {
-          this.#delayedPollTimeoutId = null;
-          const actualToken = super.startPolling(input);
-          this.#delayedPollTokenMap.set(placeholderToken, actualToken);
-        }, remainingTime);
-
-        return placeholderToken;
+    if (remainingTime > 0) {
+      // Not enough time has passed, delay the first poll
+      // Clear any existing timeout before scheduling a new one
+      if (this.#delayedPollTimeoutId !== null) {
+        clearTimeout(this.#delayedPollTimeoutId);
+        this.#delayedPollTimeoutId = null;
       }
+
+      // Generate a placeholder token that will map to the actual token
+      const placeholderToken = `delayed-${Date.now()}-${Math.random()}`;
+
+      // Schedule the first poll after the remaining time
+      this.#delayedPollTimeoutId = setTimeout(() => {
+        this.#delayedPollTimeoutId = null;
+        const actualToken = super.startPolling(input);
+        this.#delayedPollTokenMap.set(placeholderToken, actualToken);
+      }, remainingTime);
+
+      return placeholderToken;
     }
 
     // Enough time has passed or first time, proceed with normal polling

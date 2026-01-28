@@ -24,7 +24,6 @@ export type {
 } from './config-registry-api-service';
 export {
   ConfigRegistryApiService,
-  getConfigRegistryUrl,
   filterNetworks,
 } from './config-registry-api-service';
 export { isConfigRegistryApiEnabled } from './utils/feature-flags';

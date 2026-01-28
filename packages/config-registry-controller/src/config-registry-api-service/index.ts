@@ -5,10 +5,7 @@ export type {
   RegistryConfigApiResponse,
 } from './types';
 
-export {
-  ConfigRegistryApiService,
-  getConfigRegistryUrl,
-} from './config-registry-api-service';
+export { ConfigRegistryApiService } from './config-registry-api-service';
 
 export type { ConfigRegistryApiServiceOptions } from './config-registry-api-service';
 

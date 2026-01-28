@@ -2,10 +2,7 @@ import { SDK } from '@metamask/profile-sync-controller';
 import nock, { cleanAll } from 'nock';
 import { useFakeTimers } from 'sinon';
 
-import {
-  ConfigRegistryApiService,
-  getConfigRegistryUrl,
-} from './config-registry-api-service';
+import { ConfigRegistryApiService } from './config-registry-api-service';
 import type { FetchConfigResult, RegistryConfigApiResponse } from './types';
 
 const MOCK_API_RESPONSE: RegistryConfigApiResponse = {
@@ -41,26 +38,35 @@ const MOCK_API_RESPONSE: RegistryConfigApiResponse = {
 };
 
 describe('ConfigRegistryApiService', () => {
-  describe('getConfigRegistryUrl', () => {
-    it('should return UAT URL for UAT environment', () => {
-      const url = getConfigRegistryUrl(SDK.Env.UAT);
-      expect(url).toBe(
-        'https://client-config.uat-api.cx.metamask.io/v1/config/networks',
-      );
+  describe('constructor URL by env', () => {
+    it('uses UAT URL when env is UAT', async () => {
+      const scope = nock('https://client-config.uat-api.cx.metamask.io')
+        .get('/v1/config/networks')
+        .reply(200, MOCK_API_RESPONSE);
+
+      const service = new ConfigRegistryApiService({ env: SDK.Env.UAT });
+      await service.fetchConfig();
+      expect(scope.isDone()).toBe(true);
     });
 
-    it('should return DEV URL for DEV environment', () => {
-      const url = getConfigRegistryUrl(SDK.Env.DEV);
-      expect(url).toBe(
-        'https://client-config.dev-api.cx.metamask.io/v1/config/networks',
-      );
+    it('uses DEV URL when env is DEV', async () => {
+      const scope = nock('https://client-config.dev-api.cx.metamask.io')
+        .get('/v1/config/networks')
+        .reply(200, MOCK_API_RESPONSE);
+
+      const service = new ConfigRegistryApiService({ env: SDK.Env.DEV });
+      await service.fetchConfig();
+      expect(scope.isDone()).toBe(true);
     });
 
-    it('should return PRD URL for PRD environment', () => {
-      const url = getConfigRegistryUrl(SDK.Env.PRD);
-      expect(url).toBe(
-        'https://client-config.api.cx.metamask.io/v1/config/networks',
-      );
+    it('uses PRD URL when env is PRD', async () => {
+      const scope = nock('https://client-config.api.cx.metamask.io')
+        .get('/v1/config/networks')
+        .reply(200, MOCK_API_RESPONSE);
+
+      const service = new ConfigRegistryApiService({ env: SDK.Env.PRD });
+      await service.fetchConfig();
+      expect(scope.isDone()).toBe(true);
     });
   });
 

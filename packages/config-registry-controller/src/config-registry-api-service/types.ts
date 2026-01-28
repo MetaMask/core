@@ -1,3 +1,4 @@
+import type { Infer } from '@metamask/superstruct';
 import {
   array,
   assert,
@@ -43,38 +44,11 @@ export const RegistryConfigApiResponseSchema = type({
   }),
 });
 
-export type RegistryNetworkConfig = {
-  chainId: string;
-  name: string;
-  nativeCurrency: string;
-  rpcEndpoints: {
-    url: string;
-    type: string;
-    networkClientId: string;
-    failoverUrls: string[];
-  }[];
-  blockExplorerUrls: string[];
-  defaultRpcEndpointIndex: number;
-  defaultBlockExplorerUrlIndex: number;
-  lastUpdatedAt?: number;
-  networkImageUrl?: string;
-  nativeTokenImageUrl?: string;
-  isActive: boolean;
-  isTestnet: boolean;
-  isDefault: boolean;
-  isFeatured: boolean;
-  isDeprecated: boolean;
-  priority: number;
-  isDeletable: boolean;
-};
+export type RegistryNetworkConfig = Infer<typeof RegistryNetworkConfigSchema>;
 
-export type RegistryConfigApiResponse = {
-  data: {
-    version: string;
-    timestamp: number;
-    networks: RegistryNetworkConfig[];
-  };
-};
+export type RegistryConfigApiResponse = Infer<
+  typeof RegistryConfigApiResponseSchema
+>;
 
 export function validateRegistryConfigApiResponse(
   data: unknown,

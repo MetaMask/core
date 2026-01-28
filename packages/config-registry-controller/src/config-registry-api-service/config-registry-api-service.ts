@@ -19,7 +19,7 @@ const ENDPOINT_PATH = '/config/networks';
  * @param env - The environment to get the URL for.
  * @returns The base URL for the environment.
  */
-export function getConfigRegistryUrl(env: SDK.Env): string {
+function getConfigRegistryUrl(env: SDK.Env): string {
   const envPrefix = env === SDK.Env.PRD ? '' : `${env}-`;
   return `https://client-config.${envPrefix}api.cx.metamask.io/v1${ENDPOINT_PATH}`;
 }
