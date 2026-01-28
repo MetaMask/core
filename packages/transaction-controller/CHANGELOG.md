@@ -7,6 +7,10 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+### Added
+
+- Add `perpsDepositAndOrder` to `TransactionType` ([#TBD](https://github.com/MetaMask/core/pull/TBD))
+
 ## [62.10.0]
 
 ### Added
