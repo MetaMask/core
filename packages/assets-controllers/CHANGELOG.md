@@ -12,6 +12,17 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 - Bump `@metamask/transaction-controller` from `^62.9.2` to `^62.10.0` ([#7737](https://github.com/MetaMask/core/pull/7737))
 - Expand NFT auto-detection to include BSC, Polygon, Avalanche, and Base chains in addition to existing supported chains ([#7730](https://github.com/MetaMask/core/pull/7730))
 
+### Removed
+
+- **BREAKING:** Remove `clearingTokenListData()` method from `TokenListController` ([#7743](https://github.com/MetaMask/core/pull/7743))
+  - Token list cache is now persistent across network changes and should not be cleared
+- **BREAKING:** Remove `preventPollingOnNetworkRestart` state property from `TokenListController` ([#7743](https://github.com/MetaMask/core/pull/7743))
+  - Constructor parameter `preventPollingOnNetworkRestart` is no longer accepted
+  - Method `updatePreventPollingOnNetworkRestart()` has been removed
+  - State no longer includes `preventPollingOnNetworkRestart` field
+- Remove `StorageServiceRemoveItemAction` from `TokenListController` allowed actions ([#7743](https://github.com/MetaMask/core/pull/7743))
+  - No longer needed as cache clearing functionality has been removed
+
 ## [98.0.0]
 
 ### Changed
