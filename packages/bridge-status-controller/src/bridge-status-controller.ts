@@ -37,6 +37,7 @@ import type {
 import { numberToHex } from '@metamask/utils';
 import type { Hex } from '@metamask/utils';
 
+import { IntentStatusManager } from './bridge-status-controller.intent';
 import {
   BRIDGE_PROD_API_BASE_URL,
   BRIDGE_STATUS_CONTROLLER_NAME,
@@ -113,6 +114,8 @@ export class BridgeStatusController extends StaticIntervalPollingController<Brid
 > {
   #pollingTokensByTxMetaId: Record<SrcTxMetaId, string> = {};
 
+  readonly #intentStatusManager: IntentStatusManager;
+
   readonly #clientId: BridgeClientId;
 
   readonly #fetchFn: FetchFunction;
@@ -178,6 +181,10 @@ export class BridgeStatusController extends StaticIntervalPollingController<Brid
         config?.customBridgeApiBaseUrl ?? BRIDGE_PROD_API_BASE_URL,
     };
     this.#trace = traceFn ?? (((_request, fn) => fn?.()) as TraceCallback);
+    this.#intentStatusManager = new IntentStatusManager({
+      messenger: this.messenger,
+      updateTransactionFn: this.#updateTransactionFn,
+    });
 
     // Register action handlers
     this.messenger.registerActionHandler(
@@ -797,7 +804,7 @@ export class BridgeStatusController extends StaticIntervalPollingController<Brid
       });
 
       if (isIntent && intentTranslation && intentOrderStatus) {
-        this.#syncTransactionFromIntentStatus(
+        this.#intentStatusManager.syncTransactionFromIntentStatus(
           bridgeTxMetaId,
           historyItem,
           intentTranslation,
@@ -843,74 +850,6 @@ export class BridgeStatusController extends StaticIntervalPollingController<Brid
       console.warn('Failed to fetch bridge tx status', error);
       this.#handleFetchFailure(bridgeTxMetaId);
     }
-  };
-
-  readonly #syncTransactionFromIntentStatus = (
-    bridgeTxMetaId: string,
-    historyItem: BridgeHistoryItem,
-    intentTranslation: ReturnType<typeof translateIntentOrderToBridgeStatus>,
-    intentOrderStatus: string,
-  ): void => {
-    // Update the actual transaction in TransactionController to sync with intent status
-    // Use the original transaction ID (not the bridge history key)
-    const originalTxId =
-      historyItem.originalTransactionId ?? historyItem.txMetaId;
-    if (!originalTxId) {
-      return;
-    }
-
-    try {
-      // Merge with existing TransactionMeta to avoid wiping required fields
-      const { transactions } = this.messenger.call(
-        'TransactionController:getState',
-      );
-      const existingTxMeta = transactions.find(
-        (tx: TransactionMeta) => tx.id === originalTxId,
-      );
-      if (!existingTxMeta) {
-        console.warn(
-          '📝 [Intent polling] Skipping update; transaction not found',
-          { originalTxId, bridgeHistoryKey: bridgeTxMetaId },
-        );
-        return;
-      }
-
-      const { txHash } = intentTranslation;
-      const isComplete =
-        intentTranslation.status.status === StatusTypes.COMPLETE;
-      const existingTxReceipt = (
-        existingTxMeta as { txReceipt?: Record<string, unknown> }
-      ).txReceipt;
-      const txReceiptUpdate = txHash
-        ? {
-            txReceipt: {
-              ...existingTxReceipt,
-              transactionHash: txHash,
-              status: (isComplete ? '0x1' : '0x0') as unknown as string,
-            },
-          }
-        : {};
-
-      const updatedTxMeta: TransactionMeta = {
-        ...existingTxMeta,
-        status: intentTranslation.transactionStatus,
-        ...(txHash ? { hash: txHash } : {}),
-        ...txReceiptUpdate,
-      } as TransactionMeta;
-
-      this.#updateTransactionFn(
-        updatedTxMeta,
-        `BridgeStatusController - Intent order status updated: ${intentOrderStatus}`,
-      );
-    } catch (error) {
-      /* c8 ignore start */
-      console.error('📝 [Intent polling] Failed to update transaction status', {
-        originalTxId,
-        bridgeHistoryKey: bridgeTxMetaId,
-        error,
-      });
-    }
-    /* c8 ignore stop */
   };
 
   readonly #getSrcTxHash = (bridgeTxMetaId: string): string | undefined => {

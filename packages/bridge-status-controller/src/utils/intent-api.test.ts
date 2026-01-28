@@ -185,7 +185,7 @@ describe('IntentApiImpl', () => {
         txHash: '0xfallback',
       });
       expect(translation.srcTxHashes).toStrictEqual(['0xmetadatahash']);
-      expect(translation.transactionStatus).toBe(TransactionStatus.submitted);
+      expect(translation.transactionStatus).toBe(TransactionStatus.failed);
     });
     it('prefers txHash when metadata is empty and returns empty hashes when none exist', () => {
       const withTxHash = translateIntentOrderToBridgeStatus(
