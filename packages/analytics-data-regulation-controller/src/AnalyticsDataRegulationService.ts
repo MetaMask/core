@@ -6,7 +6,7 @@ import { createServicePolicy, HttpError } from '@metamask/controller-utils';
 import type { Messenger } from '@metamask/messenger';
 import type { IDisposable } from 'cockatiel';
 
-import type { AnalyticsPrivacyServiceMethodActions } from './AnalyticsPrivacyService-method-action-types';
+import type { AnalyticsDataRegulationServiceMethodActions } from './AnalyticsDataRegulationService-method-action-types';
 import { DATA_DELETE_RESPONSE_STATUSES, DATA_DELETE_STATUSES } from './types';
 import type { DataDeleteStatus } from './types';
 
@@ -28,10 +28,10 @@ const SEGMENT_CONTENT_TYPE = 'application/vnd.segment.v1+json';
 // === GENERAL ===
 
 /**
- * The name of the {@link AnalyticsPrivacyService}, used to namespace the
+ * The name of the {@link AnalyticsDataRegulationService}, used to namespace the
  * service's actions and events.
  */
-export const serviceName = 'AnalyticsPrivacyService';
+export const serviceName = 'AnalyticsDataRegulationService';
 
 // === MESSENGER ===
 
@@ -41,34 +41,34 @@ const MESSENGER_EXPOSED_METHODS = [
 ] as const;
 
 /**
- * Actions that {@link AnalyticsPrivacyService} exposes to other consumers.
+ * Actions that {@link AnalyticsDataRegulationService} exposes to other consumers.
  */
-export type AnalyticsPrivacyServiceActions =
-  AnalyticsPrivacyServiceMethodActions;
+export type AnalyticsDataRegulationServiceActions =
+  AnalyticsDataRegulationServiceMethodActions;
 
 /**
- * Actions from other messengers that {@link AnalyticsPrivacyServiceMessenger} calls.
+ * Actions from other messengers that {@link AnalyticsDataRegulationServiceMessenger} calls.
  */
 type AllowedActions = never;
 
 /**
- * Events that {@link AnalyticsPrivacyService} exposes to other consumers.
+ * Events that {@link AnalyticsDataRegulationService} exposes to other consumers.
  */
-export type AnalyticsPrivacyServiceEvents = never;
+export type AnalyticsDataRegulationServiceEvents = never;
 
 /**
- * Events from other messengers that {@link AnalyticsPrivacyService} subscribes to.
+ * Events from other messengers that {@link AnalyticsDataRegulationService} subscribes to.
  */
 type AllowedEvents = never;
 
 /**
  * The messenger which is restricted to actions and events accessed by
- * {@link AnalyticsPrivacyService}.
+ * {@link AnalyticsDataRegulationService}.
  */
-export type AnalyticsPrivacyServiceMessenger = Messenger<
+export type AnalyticsDataRegulationServiceMessenger = Messenger<
   typeof serviceName,
-  AnalyticsPrivacyServiceActions | AllowedActions,
-  AnalyticsPrivacyServiceEvents | AllowedEvents
+  AnalyticsDataRegulationServiceActions | AllowedActions,
+  AnalyticsDataRegulationServiceEvents | AllowedEvents
 >;
 
 // === SERVICE DEFINITION ===
@@ -98,13 +98,13 @@ type GetRegulationStatusResponse = {
 };
 
 /**
- * Options for constructing {@link AnalyticsPrivacyService}.
+ * Options for constructing {@link AnalyticsDataRegulationService}.
  */
-export type AnalyticsPrivacyServiceOptions = {
+export type AnalyticsDataRegulationServiceOptions = {
   /**
    * The messenger suited for this service.
    */
-  messenger: AnalyticsPrivacyServiceMessenger;
+  messenger: AnalyticsDataRegulationServiceMessenger;
 
   /**
    * A function that can be used to make an HTTP request.
@@ -151,26 +151,26 @@ function isDataDeleteStatus(status: unknown): status is DataDeleteStatus {
  * ```ts
  * import { Messenger } from '@metamask/messenger';
  * import type {
- *   AnalyticsPrivacyServiceActions,
- *   AnalyticsPrivacyServiceEvents,
- * } from '@metamask/analytics-privacy-controller';
+ *   AnalyticsDataRegulationServiceActions,
+ *   AnalyticsDataRegulationServiceEvents,
+ * } from '@metamask/analytics-data-regulation-controller';
  *
  * const rootMessenger = new Messenger<
  *   'Root',
- *   AnalyticsPrivacyServiceActions,
- *   AnalyticsPrivacyServiceEvents
+ *   AnalyticsDataRegulationServiceActions,
+ *   AnalyticsDataRegulationServiceEvents
  * >({ namespace: 'Root' });
  * const serviceMessenger = new Messenger<
- *   'AnalyticsPrivacyService',
- *   AnalyticsPrivacyServiceActions,
- *   AnalyticsPrivacyServiceEvents,
+ *   'AnalyticsDataRegulationService',
+ *   AnalyticsDataRegulationServiceActions,
+ *   AnalyticsDataRegulationServiceEvents,
  *   typeof rootMessenger,
  * >({
- *   namespace: 'AnalyticsPrivacyService',
+ *   namespace: 'AnalyticsDataRegulationService',
  *   parent: rootMessenger,
  * });
  * // Instantiate the service to register its actions on the messenger
- * new AnalyticsPrivacyService({
+ * new AnalyticsDataRegulationService({
  *   messenger: serviceMessenger,
  *   fetch,
  *   segmentSourceId: 'abc123',
@@ -180,12 +180,12 @@ function isDataDeleteStatus(status: unknown): status is DataDeleteStatus {
  * // Later...
  * // Create a data deletion task
  * const response = await rootMessenger.call(
- *   'AnalyticsPrivacyService:createDataDeletionTask',
+ *   'AnalyticsDataRegulationService:createDataDeletionTask',
  *   'user-analytics-id',
  * );
  * ```
  */
-export class AnalyticsPrivacyService {
+export class AnalyticsDataRegulationService {
   /**
    * The name of the service.
    */
@@ -194,7 +194,7 @@ export class AnalyticsPrivacyService {
   /**
    * The messenger suited for this service.
    */
-  readonly #messenger: AnalyticsPrivacyServiceMessenger;
+  readonly #messenger: AnalyticsDataRegulationServiceMessenger;
 
   /**
    * A function that can be used to make an HTTP request.
@@ -220,11 +220,11 @@ export class AnalyticsPrivacyService {
   readonly #policy: ServicePolicy;
 
   /**
-   * Constructs a new AnalyticsPrivacyService object.
+   * Constructs a new AnalyticsDataRegulationService object.
    *
    * @param options - The constructor options.
    */
-  constructor(options: AnalyticsPrivacyServiceOptions) {
+  constructor(options: AnalyticsDataRegulationServiceOptions) {
     this.name = serviceName;
     this.#messenger = options.messenger;
     this.#fetch = options.fetch;

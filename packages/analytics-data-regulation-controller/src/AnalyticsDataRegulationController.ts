@@ -6,8 +6,8 @@ import type {
 import { BaseController } from '@metamask/base-controller';
 import type { Messenger } from '@metamask/messenger';
 
-import type { AnalyticsPrivacyControllerMethodActions } from './AnalyticsPrivacyController-method-action-types';
-import type { AnalyticsPrivacyServiceActions } from './AnalyticsPrivacyService';
+import type { AnalyticsDataRegulationControllerMethodActions } from './AnalyticsDataRegulationController-method-action-types';
+import type { AnalyticsDataRegulationServiceActions } from './AnalyticsDataRegulationService';
 import { projectLogger as log } from './logger';
 import { DATA_DELETE_RESPONSE_STATUSES, DATA_DELETE_STATUSES } from './types';
 import type {
@@ -18,18 +18,18 @@ import type {
 // === GENERAL ===
 
 /**
- * The name of the {@link AnalyticsPrivacyController}, used to namespace the
+ * The name of the {@link AnalyticsDataRegulationController}, used to namespace the
  * controller's actions and events and to namespace the controller's state data
  * when composed with other controllers.
  */
-export const controllerName = 'AnalyticsPrivacyController';
+export const controllerName = 'AnalyticsDataRegulationController';
 
 // === STATE ===
 
 /**
- * Describes the shape of the state object for {@link AnalyticsPrivacyController}.
+ * Describes the shape of the state object for {@link AnalyticsDataRegulationController}.
  */
-export type AnalyticsPrivacyControllerState = {
+export type AnalyticsDataRegulationControllerState = {
   /**
    * Indicates if data has been recorded since the last deletion request.
    */
@@ -49,20 +49,20 @@ export type AnalyticsPrivacyControllerState = {
 };
 
 /**
- * Returns default values for AnalyticsPrivacyController state.
+ * Returns default values for AnalyticsDataRegulationController state.
  *
  * @returns Default state
  */
-export function getDefaultAnalyticsPrivacyControllerState(): AnalyticsPrivacyControllerState {
+export function getDefaultAnalyticsDataRegulationControllerState(): AnalyticsDataRegulationControllerState {
   return {
     hasCollectedDataSinceDeletionRequest: false,
   };
 }
 
 /**
- * The metadata for each property in {@link AnalyticsPrivacyControllerState}.
+ * The metadata for each property in {@link AnalyticsDataRegulationControllerState}.
  */
-const analyticsPrivacyControllerMetadata = {
+const analyticsDataRegulationControllerMetadata = {
   hasCollectedDataSinceDeletionRequest: {
     includeInStateLogs: true,
     persist: true,
@@ -81,7 +81,7 @@ const analyticsPrivacyControllerMetadata = {
     includeInDebugSnapshot: true,
     usedInUi: true,
   },
-} satisfies StateMetadata<AnalyticsPrivacyControllerState>;
+} satisfies StateMetadata<AnalyticsDataRegulationControllerState>;
 
 // === MESSENGER ===
 
@@ -92,24 +92,24 @@ const MESSENGER_EXPOSED_METHODS = [
 ] as const;
 
 /**
- * Returns the state of the {@link AnalyticsPrivacyController}.
+ * Returns the state of the {@link AnalyticsDataRegulationController}.
  */
-export type AnalyticsPrivacyControllerGetStateAction = ControllerGetStateAction<
+export type AnalyticsDataRegulationControllerGetStateAction = ControllerGetStateAction<
   typeof controllerName,
-  AnalyticsPrivacyControllerState
+  AnalyticsDataRegulationControllerState
 >;
 
 /**
- * Actions that {@link AnalyticsPrivacyControllerMessenger} exposes to other consumers.
+ * Actions that {@link AnalyticsDataRegulationControllerMessenger} exposes to other consumers.
  */
-export type AnalyticsPrivacyControllerActions =
-  | AnalyticsPrivacyControllerGetStateAction
-  | AnalyticsPrivacyControllerMethodActions;
+export type AnalyticsDataRegulationControllerActions =
+  | AnalyticsDataRegulationControllerGetStateAction
+  | AnalyticsDataRegulationControllerMethodActions;
 
 /**
- * Actions from other messengers that {@link AnalyticsPrivacyControllerMessenger} calls.
+ * Actions from other messengers that {@link AnalyticsDataRegulationControllerMessenger} calls.
  */
-type AllowedActions = AnalyticsPrivacyServiceActions;
+type AllowedActions = AnalyticsDataRegulationServiceActions;
 
 /**
  * Event emitted when a data deletion task is created.
@@ -128,51 +128,51 @@ export type DataRecordingFlagUpdatedEvent = {
 };
 
 /**
- * Event emitted when the state of the {@link AnalyticsPrivacyController} changes.
+ * Event emitted when the state of the {@link AnalyticsDataRegulationController} changes.
  */
-export type AnalyticsPrivacyControllerStateChangeEvent =
+export type AnalyticsDataRegulationControllerStateChangeEvent =
   ControllerStateChangeEvent<
     typeof controllerName,
-    AnalyticsPrivacyControllerState
+    AnalyticsDataRegulationControllerState
   >;
 
 /**
- * Events that {@link AnalyticsPrivacyControllerMessenger} exposes to other consumers.
+ * Events that {@link AnalyticsDataRegulationControllerMessenger} exposes to other consumers.
  */
-export type AnalyticsPrivacyControllerEvents =
-  | AnalyticsPrivacyControllerStateChangeEvent
+export type AnalyticsDataRegulationControllerEvents =
+  | AnalyticsDataRegulationControllerStateChangeEvent
   | DataDeletionTaskCreatedEvent
   | DataRecordingFlagUpdatedEvent;
 
 /**
- * Events from other messengers that {@link AnalyticsPrivacyControllerMessenger} subscribes to.
+ * Events from other messengers that {@link AnalyticsDataRegulationControllerMessenger} subscribes to.
  */
 type AllowedEvents = never;
 
 /**
  * The messenger restricted to actions and events accessed by
- * {@link AnalyticsPrivacyController}.
+ * {@link AnalyticsDataRegulationController}.
  */
-export type AnalyticsPrivacyControllerMessenger = Messenger<
+export type AnalyticsDataRegulationControllerMessenger = Messenger<
   typeof controllerName,
-  AnalyticsPrivacyControllerActions | AllowedActions,
-  AnalyticsPrivacyControllerEvents | AllowedEvents
+  AnalyticsDataRegulationControllerActions | AllowedActions,
+  AnalyticsDataRegulationControllerEvents | AllowedEvents
 >;
 
 // === CONTROLLER DEFINITION ===
 
 /**
- * The options that AnalyticsPrivacyController takes.
+ * The options that AnalyticsDataRegulationController takes.
  */
-export type AnalyticsPrivacyControllerOptions = {
+export type AnalyticsDataRegulationControllerOptions = {
   /**
    * Initial controller state.
    */
-  state?: Partial<AnalyticsPrivacyControllerState>;
+  state?: Partial<AnalyticsDataRegulationControllerState>;
   /**
    * Messenger used to communicate with BaseController and other controllers.
    */
-  messenger: AnalyticsPrivacyControllerMessenger;
+  messenger: AnalyticsDataRegulationControllerMessenger;
   /**
    * Analytics ID used for data deletion requests.
    */
@@ -180,16 +180,16 @@ export type AnalyticsPrivacyControllerOptions = {
 };
 
 /**
- * The AnalyticsPrivacyController manages analytics privacy and GDPR/CCPA data deletion functionality.
+ * The AnalyticsDataRegulationController manages analytics privacy and GDPR/CCPA data deletion functionality.
  * It communicates with Segment's Regulations API via a proxy to create and monitor data deletion requests.
  *
  * This controller follows the MetaMask controller pattern and integrates with the
  * messenger system to allow other controllers and components to manage data deletion tasks.
  */
-export class AnalyticsPrivacyController extends BaseController<
+export class AnalyticsDataRegulationController extends BaseController<
   typeof controllerName,
-  AnalyticsPrivacyControllerState,
-  AnalyticsPrivacyControllerMessenger
+  AnalyticsDataRegulationControllerState,
+  AnalyticsDataRegulationControllerMessenger
 > {
   /**
    * Analytics ID used for data deletion requests.
@@ -197,10 +197,10 @@ export class AnalyticsPrivacyController extends BaseController<
   readonly #analyticsId: string;
 
   /**
-   * Constructs an AnalyticsPrivacyController instance.
+   * Constructs an AnalyticsDataRegulationController instance.
    *
    * @param options - Controller options
-   * @param options.state - Initial controller state. Use `getDefaultAnalyticsPrivacyControllerState()` for defaults.
+   * @param options.state - Initial controller state. Use `getDefaultAnalyticsDataRegulationControllerState()` for defaults.
    * @param options.messenger - Messenger used to communicate with BaseController
    * @param options.analyticsId - Analytics ID used for data deletion requests
    */
@@ -208,15 +208,15 @@ export class AnalyticsPrivacyController extends BaseController<
     state = {},
     messenger,
     analyticsId,
-  }: AnalyticsPrivacyControllerOptions) {
-    const initialState: AnalyticsPrivacyControllerState = {
-      ...getDefaultAnalyticsPrivacyControllerState(),
+  }: AnalyticsDataRegulationControllerOptions) {
+    const initialState: AnalyticsDataRegulationControllerState = {
+      ...getDefaultAnalyticsDataRegulationControllerState(),
       ...state,
     };
 
     super({
       name: controllerName,
-      metadata: analyticsPrivacyControllerMetadata,
+      metadata: analyticsDataRegulationControllerMetadata,
       state: initialState,
       messenger,
     });
@@ -228,7 +228,7 @@ export class AnalyticsPrivacyController extends BaseController<
       MESSENGER_EXPOSED_METHODS,
     );
 
-    log('AnalyticsPrivacyController initialized', {
+    log('AnalyticsDataRegulationController initialized', {
       hasCollectedDataSinceDeletionRequest:
         this.state.hasCollectedDataSinceDeletionRequest,
       hasDeleteRegulationId: Boolean(this.state.deleteRegulationId),
@@ -249,14 +249,14 @@ export class AnalyticsPrivacyController extends BaseController<
   }> {
     if (!this.#analyticsId || this.#analyticsId.trim() === '') {
       const error = new Error(
-        'Analytics ID not found. You need to provide a valid analytics ID when initializing the AnalyticsPrivacyController.',
+        'Analytics ID not found. You need to provide a valid analytics ID when initializing the AnalyticsDataRegulationController.',
       );
       log('Analytics Deletion Task Error', error);
       throw error;
     }
 
     const response = await this.messenger.call(
-      'AnalyticsPrivacyService:createDataDeletionTask',
+      'AnalyticsDataRegulationService:createDataDeletionTask',
       this.#analyticsId,
     );
 
@@ -298,7 +298,7 @@ export class AnalyticsPrivacyController extends BaseController<
     // Service validates and throws on all errors, so if we reach here, the response
     // is guaranteed to be a success response with dataDeleteStatus present
     const dataDeletionTaskStatus = await this.messenger.call(
-      'AnalyticsPrivacyService:checkDataDeleteStatus',
+      'AnalyticsDataRegulationService:checkDataDeleteStatus',
       this.state.deleteRegulationId,
     );
 

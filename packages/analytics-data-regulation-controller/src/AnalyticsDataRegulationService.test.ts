@@ -8,11 +8,11 @@ import nock, { cleanAll, disableNetConnect, enableNetConnect } from 'nock';
 import { useFakeTimers } from 'sinon';
 import type { SinonFakeTimers } from 'sinon';
 
-import type { AnalyticsPrivacyServiceMessenger } from './AnalyticsPrivacyService';
-import { AnalyticsPrivacyService } from './AnalyticsPrivacyService';
+import type { AnalyticsDataRegulationServiceMessenger } from './AnalyticsDataRegulationService';
+import { AnalyticsDataRegulationService } from './AnalyticsDataRegulationService';
 import { DATA_DELETE_RESPONSE_STATUSES, DATA_DELETE_STATUSES } from './types';
 
-describe('AnalyticsPrivacyService', () => {
+describe('AnalyticsDataRegulationService', () => {
   let clock: SinonFakeTimers;
   const segmentSourceId = 'test-source-id';
   const segmentRegulationsEndpoint = 'https://proxy.example.com/v1beta';
@@ -29,7 +29,7 @@ describe('AnalyticsPrivacyService', () => {
     enableNetConnect();
   });
 
-  describe('AnalyticsPrivacyService:createDataDeletionTask', () => {
+  describe('AnalyticsDataRegulationService:createDataDeletionTask', () => {
     it('returns regulateId when deletion task is created', async () => {
       const analyticsId = 'test-analytics-id';
       const regulateId = 'test-regulate-id';
@@ -47,7 +47,7 @@ describe('AnalyticsPrivacyService', () => {
       const { rootMessenger } = getService();
 
       const response = await rootMessenger.call(
-        'AnalyticsPrivacyService:createDataDeletionTask',
+        'AnalyticsDataRegulationService:createDataDeletionTask',
         analyticsId,
       );
 
@@ -69,7 +69,7 @@ describe('AnalyticsPrivacyService', () => {
 
       await expect(
         rootMessenger.call(
-          'AnalyticsPrivacyService:createDataDeletionTask',
+          'AnalyticsDataRegulationService:createDataDeletionTask',
           analyticsId,
         ),
       ).rejects.toThrow('Segment API source ID or endpoint not found');
@@ -87,7 +87,7 @@ describe('AnalyticsPrivacyService', () => {
 
       await expect(
         rootMessenger.call(
-          'AnalyticsPrivacyService:createDataDeletionTask',
+          'AnalyticsDataRegulationService:createDataDeletionTask',
           analyticsId,
         ),
       ).rejects.toThrow('Segment API source ID or endpoint not found');
@@ -110,7 +110,7 @@ describe('AnalyticsPrivacyService', () => {
 
       await expect(
         rootMessenger.call(
-          'AnalyticsPrivacyService:createDataDeletionTask',
+          'AnalyticsDataRegulationService:createDataDeletionTask',
           analyticsId,
         ),
       ).rejects.toThrow('Creating data deletion task failed');
@@ -131,7 +131,7 @@ describe('AnalyticsPrivacyService', () => {
 
       await expect(
         rootMessenger.call(
-          'AnalyticsPrivacyService:createDataDeletionTask',
+          'AnalyticsDataRegulationService:createDataDeletionTask',
           analyticsId,
         ),
       ).rejects.toThrow(
@@ -165,7 +165,7 @@ describe('AnalyticsPrivacyService', () => {
       const { rootMessenger } = getService();
 
       await rootMessenger.call(
-        'AnalyticsPrivacyService:createDataDeletionTask',
+        'AnalyticsDataRegulationService:createDataDeletionTask',
         analyticsId,
       );
 
@@ -193,7 +193,7 @@ describe('AnalyticsPrivacyService', () => {
       const { rootMessenger } = getService();
 
       await rootMessenger.call(
-        'AnalyticsPrivacyService:createDataDeletionTask',
+        'AnalyticsDataRegulationService:createDataDeletionTask',
         analyticsId,
       );
 
@@ -201,7 +201,7 @@ describe('AnalyticsPrivacyService', () => {
     });
   });
 
-  describe('AnalyticsPrivacyService:checkDataDeleteStatus', () => {
+  describe('AnalyticsDataRegulationService:checkDataDeleteStatus', () => {
     it('returns dataDeleteStatus when regulation status is retrieved', async () => {
       const regulationId = 'test-regulation-id';
       const status = DATA_DELETE_STATUSES.Finished;
@@ -221,7 +221,7 @@ describe('AnalyticsPrivacyService', () => {
       const { rootMessenger } = getService();
 
       const response = await rootMessenger.call(
-        'AnalyticsPrivacyService:checkDataDeleteStatus',
+        'AnalyticsDataRegulationService:checkDataDeleteStatus',
         regulationId,
       );
 
@@ -235,7 +235,7 @@ describe('AnalyticsPrivacyService', () => {
       const { rootMessenger } = getService();
 
       await expect(
-        rootMessenger.call('AnalyticsPrivacyService:checkDataDeleteStatus', ''),
+        rootMessenger.call('AnalyticsDataRegulationService:checkDataDeleteStatus', ''),
       ).rejects.toThrow('Regulation ID or endpoint not configured');
     });
 
@@ -251,7 +251,7 @@ describe('AnalyticsPrivacyService', () => {
 
       await expect(
         rootMessenger.call(
-          'AnalyticsPrivacyService:checkDataDeleteStatus',
+          'AnalyticsDataRegulationService:checkDataDeleteStatus',
           regulationId,
         ),
       ).rejects.toThrow('Regulation ID or endpoint not configured');
@@ -274,7 +274,7 @@ describe('AnalyticsPrivacyService', () => {
 
       await expect(
         rootMessenger.call(
-          'AnalyticsPrivacyService:checkDataDeleteStatus',
+          'AnalyticsDataRegulationService:checkDataDeleteStatus',
           regulationId,
         ),
       ).rejects.toThrow('Checking data deletion status failed');
@@ -298,7 +298,7 @@ describe('AnalyticsPrivacyService', () => {
       const { rootMessenger } = getService();
 
       const response = await rootMessenger.call(
-        'AnalyticsPrivacyService:checkDataDeleteStatus',
+        'AnalyticsDataRegulationService:checkDataDeleteStatus',
         regulationId,
       );
 
@@ -331,7 +331,7 @@ describe('AnalyticsPrivacyService', () => {
       const { rootMessenger } = getService();
 
       await rootMessenger.call(
-        'AnalyticsPrivacyService:checkDataDeleteStatus',
+        'AnalyticsDataRegulationService:checkDataDeleteStatus',
         regulationId,
       );
 
@@ -362,7 +362,7 @@ describe('AnalyticsPrivacyService', () => {
 
       await expect(
         rootMessenger.call(
-          'AnalyticsPrivacyService:createDataDeletionTask',
+          'AnalyticsDataRegulationService:createDataDeletionTask',
           'test-analytics-id',
         ),
       ).rejects.toThrow('Creating data deletion task failed');
@@ -390,7 +390,7 @@ describe('AnalyticsPrivacyService', () => {
       for (let i = 0; i < 3; i++) {
         await expect(
           rootMessenger.call(
-            'AnalyticsPrivacyService:createDataDeletionTask',
+            'AnalyticsDataRegulationService:createDataDeletionTask',
             'test-analytics-id',
           ),
         ).rejects.toThrow('Creating data deletion task failed');
@@ -399,7 +399,7 @@ describe('AnalyticsPrivacyService', () => {
       // 4th request should trigger circuit breaker - service throws error
       await expect(
         rootMessenger.call(
-          'AnalyticsPrivacyService:createDataDeletionTask',
+          'AnalyticsDataRegulationService:createDataDeletionTask',
           'test-analytics-id',
         ),
       ).rejects.toThrow(
@@ -430,7 +430,7 @@ describe('AnalyticsPrivacyService', () => {
       service.onDegraded(onDegradedListener);
 
       await rootMessenger.call(
-        'AnalyticsPrivacyService:createDataDeletionTask',
+        'AnalyticsDataRegulationService:createDataDeletionTask',
         'test-analytics-id',
       );
 
@@ -452,7 +452,7 @@ describe('AnalyticsPrivacyService', () => {
 
       await expect(
         rootMessenger.call(
-          'AnalyticsPrivacyService:createDataDeletionTask',
+          'AnalyticsDataRegulationService:createDataDeletionTask',
           'test-analytics-id',
         ),
       ).rejects.toThrow('Creating data deletion task failed');
@@ -468,8 +468,8 @@ describe('AnalyticsPrivacyService', () => {
  */
 type RootMessenger = Messenger<
   MockAnyNamespace,
-  MessengerActions<AnalyticsPrivacyServiceMessenger>,
-  MessengerEvents<AnalyticsPrivacyServiceMessenger>
+  MessengerActions<AnalyticsDataRegulationServiceMessenger>,
+  MessengerEvents<AnalyticsDataRegulationServiceMessenger>
 >;
 
 /**
@@ -491,9 +491,9 @@ function getRootMessenger(): RootMessenger {
  */
 function getMessenger(
   rootMessenger: RootMessenger,
-): AnalyticsPrivacyServiceMessenger {
+): AnalyticsDataRegulationServiceMessenger {
   return new Messenger({
-    namespace: 'AnalyticsPrivacyService',
+    namespace: 'AnalyticsDataRegulationService',
     parent: rootMessenger,
   });
 }
@@ -510,18 +510,18 @@ function getMessenger(
 function getService({
   options = {},
 }: {
-  options?: Partial<ConstructorParameters<typeof AnalyticsPrivacyService>[0]>;
+  options?: Partial<ConstructorParameters<typeof AnalyticsDataRegulationService>[0]>;
 } = {}): {
-  service: AnalyticsPrivacyService;
+  service: AnalyticsDataRegulationService;
   rootMessenger: RootMessenger;
-  messenger: AnalyticsPrivacyServiceMessenger;
+  messenger: AnalyticsDataRegulationServiceMessenger;
 } {
   const rootMessenger = getRootMessenger();
   const messenger = getMessenger(rootMessenger);
   const defaultSegmentSourceId = 'test-source-id';
   const defaultSegmentRegulationsEndpoint = 'https://proxy.example.com/v1beta';
 
-  const service = new AnalyticsPrivacyService({
+  const service = new AnalyticsDataRegulationService({
     fetch,
     messenger,
     segmentSourceId: options.segmentSourceId ?? defaultSegmentSourceId,

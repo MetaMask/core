@@ -2573,9 +2573,9 @@ __metadata:
   languageName: unknown
   linkType: soft
 
-"@metamask/analytics-privacy-controller@workspace:packages/analytics-privacy-controller":
+"@metamask/analytics-data-regulation-controller@workspace:packages/analytics-data-regulation-controller":
   version: 0.0.0-use.local
-  resolution: "@metamask/analytics-privacy-controller@workspace:packages/analytics-privacy-controller"
+  resolution: "@metamask/analytics-data-regulation-controller@workspace:packages/analytics-data-regulation-controller"
   dependencies:
     "@metamask/auto-changelog": "npm:^3.4.4"
     "@metamask/base-controller": "npm:^9.0.0"

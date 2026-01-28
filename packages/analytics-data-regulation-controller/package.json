@@ -1,12 +1,12 @@
 {
-  "name": "@metamask/analytics-privacy-controller",
+  "name": "@metamask/analytics-data-regulation-controller",
   "version": "0.0.0",
   "description": "Controller for managing analytics privacy and GDPR/CCPA data deletion functionality",
   "keywords": [
     "MetaMask",
     "Ethereum"
   ],
-  "homepage": "https://github.com/MetaMask/core/tree/main/packages/analytics-privacy-controller#readme",
+  "homepage": "https://github.com/MetaMask/core/tree/main/packages/analytics-data-regulation-controller#readme",
   "bugs": {
     "url": "https://github.com/MetaMask/core/issues"
   },
@@ -38,8 +38,8 @@
     "build": "ts-bridge --project tsconfig.build.json --verbose --clean --no-references",
     "build:all": "ts-bridge --project tsconfig.build.json --verbose --clean",
     "build:docs": "typedoc",
-    "changelog:update": "../../scripts/update-changelog.sh @metamask/analytics-privacy-controller",
-    "changelog:validate": "../../scripts/validate-changelog.sh @metamask/analytics-privacy-controller",
+    "changelog:update": "../../scripts/update-changelog.sh @metamask/analytics-data-regulation-controller",
+    "changelog:validate": "../../scripts/validate-changelog.sh @metamask/analytics-data-regulation-controller",
     "publish:preview": "yarn npm publish --tag preview",
     "since-latest-release": "../../scripts/since-latest-release.sh",
     "test": "NODE_OPTIONS=--experimental-vm-modules jest --reporters=jest-silent-reporter",

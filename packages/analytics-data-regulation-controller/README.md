@@ -1,14 +1,14 @@
-# `@metamask/analytics-privacy-controller`
+# `@metamask/analytics-data-regulation-controller`
 
 Controller for managing analytics privacy and GDPR/CCPA data deletion functionality
 
 ## Installation
 
-`yarn add @metamask/analytics-privacy-controller`
+`yarn add @metamask/analytics-data-regulation-controller`
 
 or
 
-`npm install @metamask/analytics-privacy-controller`
+`npm install @metamask/analytics-data-regulation-controller`
 
 ## Contributing
 
