@@ -8,7 +8,7 @@ export type SentinelMeta = {
   txType?: TransactionType;
   feature?: Feature;
   kind?: Kind;
-  client?: ClientId;
+  client?: string;
   wallet?: string;
 };
 

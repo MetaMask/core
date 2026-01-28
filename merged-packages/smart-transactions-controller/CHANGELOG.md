@@ -7,6 +7,10 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+### Changed
+
+- Change `client` field type in `SentinelMeta` from `ClientId` enum to `string` for flexible device identification ([#562](https://github.com/MetaMask/smart-transactions-controller/pull/562))
+
 ## [22.2.0]
 
 ### Added
