@@ -30,6 +30,7 @@ import type {
   TransactionPayQuote,
 } from '../../types';
 import {
+  getEIP7702SupportedChains,
   getFeatureFlags,
   getGasBuffer,
   getSlippage,
@@ -504,6 +505,22 @@ async function calculateSourceNetworkCost(
     });
 
     return result;
+  }
+
+  const supportedChains = getEIP7702SupportedChains(messenger);
+  const chainSupportsGasStation = supportedChains.some(
+    (supportedChainId) =>
+      supportedChainId.toLowerCase() === sourceChainId.toLowerCase(),
+  );
+
+  if (!chainSupportsGasStation) {
+    log('Skipping gas station as chain does not support EIP-7702', {
+      sourceChainId,
+    });
+
+    throw new Error(
+      'Insufficient native balance for gas and chain does not support gas station',
+    );
   }
 
   log('Checking gas fee tokens as insufficient native balance', {

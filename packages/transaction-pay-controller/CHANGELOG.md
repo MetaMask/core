@@ -7,6 +7,10 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+### Fixed
+
+- Disable gasless deposits in Relay strategy if chain does not support EIP-7702 ([#7754](https://github.com/MetaMask/core/pull/7754))
+
 ## [12.0.1]
 
 ### Changed
