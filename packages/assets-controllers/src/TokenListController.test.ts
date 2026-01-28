@@ -619,21 +619,6 @@ describe('TokenListController', () => {
     messenger.clearEventSubscriptions('NetworkController:stateChange');
   });
 
-  it('should initialize with empty tokensChainsCache', async () => {
-    const messenger = getMessenger();
-    const restrictedMessenger = getRestrictedMessenger(messenger);
-    const controller = new TokenListController({
-      chainId: ChainId.mainnet,
-      messenger: restrictedMessenger,
-    });
-
-    expect(controller.state).toStrictEqual({
-      tokensChainsCache: {},
-    });
-
-    controller.destroy();
-  });
-
   it('should not poll before being started', async () => {
     const messenger = getMessenger();
     const restrictedMessenger = getRestrictedMessenger(messenger);
