@@ -35,18 +35,12 @@ export type DataDeleteResponseStatus =
 
 /**
  * Response from creating a data deletion task.
- * When status is Success, regulateId is guaranteed to be present.
- * When status is Failure, error is guaranteed to be present.
+ * The service throws errors on failure, so this type only represents the Success case.
  */
-export type IDeleteRegulationResponse =
-  | {
-      status: typeof DATA_DELETE_RESPONSE_STATUSES.Success;
-      regulateId: string; // Using exact API field name from Segment API response
-    }
-  | {
-      status: typeof DATA_DELETE_RESPONSE_STATUSES.Failure;
-      error: string;
-    };
+export type IDeleteRegulationResponse = {
+  status: typeof DATA_DELETE_RESPONSE_STATUSES.Success;
+  regulateId: string; // Using exact API field name from Segment API response
+};
 
 /**
  * Status information for a data deletion request.
@@ -64,17 +58,3 @@ export type IDeleteRegulationStatusResponse = {
   status: DataDeleteResponseStatus;
   dataDeleteStatus: DataDeleteStatus;
 };
-
-/**
- * Timestamp for deletion regulation creation (milliseconds since epoch).
- */
-export type DataDeleteTimestamp = number | undefined;
-
-/**
- * Regulation ID from Segment API.
- * This type uses `undefined` (rather than `null`) to match the return type of selectors
- * and getter methods that convert `null` state values to `undefined` for consistency
- * with optional return types. The controller state stores `null`, but external APIs
- * return `undefined` for optional values.
- */
-export type DataDeleteRegulationId = string | undefined;

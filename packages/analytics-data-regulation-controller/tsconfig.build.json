@@ -6,7 +6,6 @@
     "rootDir": "./src"
   },
   "references": [
-    { "path": "../analytics-controller/tsconfig.build.json" },
     { "path": "../base-controller/tsconfig.build.json" },
     { "path": "../controller-utils/tsconfig.build.json" },
     { "path": "../messenger/tsconfig.build.json" }

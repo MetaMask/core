@@ -284,15 +284,19 @@ export class AnalyticsDataRegulationController extends BaseController<
    * @returns Promise containing the timestamp, delete status and collected data flag
    */
   async checkDataDeleteStatus(): Promise<IDeleteRegulationStatus> {
+    // Capture all state values before async call to ensure consistency
+    // in case createDataDeletionTask() completes concurrently
+    const { deleteRegulationId } = this.state;
+    const { deleteRegulationTimestamp } = this.state;
+    const { hasCollectedDataSinceDeletionRequest } = this.state;
+
     const status: IDeleteRegulationStatus = {
-      deletionRequestTimestamp: undefined,
+      deletionRequestTimestamp: deleteRegulationTimestamp ?? undefined,
       dataDeletionRequestStatus: DATA_DELETE_STATUSES.Unknown,
-      hasCollectedDataSinceDeletionRequest: false,
+      hasCollectedDataSinceDeletionRequest,
     };
 
-    if (!this.state.deleteRegulationId) {
-      status.hasCollectedDataSinceDeletionRequest =
-        this.state.hasCollectedDataSinceDeletionRequest;
+    if (!deleteRegulationId) {
       return status;
     }
 
@@ -300,13 +304,10 @@ export class AnalyticsDataRegulationController extends BaseController<
     // is guaranteed to be a success response with dataDeleteStatus present
     const dataDeletionTaskStatus = await this.messenger.call(
       'AnalyticsDataRegulationService:checkDataDeleteStatus',
-      this.state.deleteRegulationId,
+      deleteRegulationId,
     );
 
     status.dataDeletionRequestStatus = dataDeletionTaskStatus.dataDeleteStatus;
-    status.deletionRequestTimestamp = this.state.deleteRegulationTimestamp;
-    status.hasCollectedDataSinceDeletionRequest =
-      this.state.hasCollectedDataSinceDeletionRequest;
 
     return status;
   }

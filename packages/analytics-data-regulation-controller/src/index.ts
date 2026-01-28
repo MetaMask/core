@@ -20,7 +20,6 @@ export {
 export type {
   IDeleteRegulationResponse,
   IDeleteRegulationStatus,
-  IDeleteRegulationStatusResponse,
 } from './types';
 
 export type { AnalyticsDataRegulationControllerState } from './AnalyticsDataRegulationController';
