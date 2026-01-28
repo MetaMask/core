@@ -20,8 +20,7 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
   - Constructor parameter `preventPollingOnNetworkRestart` is no longer accepted
   - Method `updatePreventPollingOnNetworkRestart()` has been removed
   - State no longer includes `preventPollingOnNetworkRestart` field
-- Remove `StorageServiceRemoveItemAction` from `TokenListController` allowed actions
-  - No longer needed as cache clearing functionality has been removed
+- **BREAKING:** Remove `StorageServiceRemoveItemAction` from `TokenListController` allowed actions
 
 ## [98.0.0]
 
