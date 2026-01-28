@@ -62,6 +62,7 @@ const ORIGINAL_QUOTE_MOCK = {
   request: {},
   steps: [
     {
+      id: 'swap',
       kind: 'transaction',
       requestId: REQUEST_ID_MOCK,
       items: [
