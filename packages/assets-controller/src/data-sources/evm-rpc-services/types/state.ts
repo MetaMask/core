@@ -39,33 +39,18 @@ export type TokenListState = {
 };
 
 /**
- * Token entry from user's imported/detected tokens.
+ * Single asset balance entry.
  */
-export type UserToken = {
-  /** Contract address */
-  address: Address;
-  /** Token symbol */
-  symbol: string;
-  /** Token name */
-  name?: string;
-  /** Token decimals */
-  decimals: number;
-  /** Logo URL */
-  image?: string;
-  /** Whether token was auto-detected */
-  isERC721?: boolean;
-  /** Aggregator sources */
-  aggregators?: string[];
+export type AssetBalanceEntry = {
+  /** Human-readable balance amount */
+  amount: string;
 };
 
 /**
- * User tokens state shape (from TokensController).
+ * Assets balance state shape (from AssetsController).
+ * Maps accountId -> assetId (CAIP-19) -> balance entry.
  */
-export type UserTokensState = {
-  /** All imported tokens: chainId -> accountAddress -> Token[] */
-  allTokens: Record<ChainId, Record<Address, UserToken[]>>;
-  /** All detected tokens: chainId -> accountAddress -> Token[] */
-  allDetectedTokens: Record<ChainId, Record<Address, UserToken[]>>;
-  /** Ignored tokens: chainId -> address[] */
-  allIgnoredTokens: Record<ChainId, Record<Address, Address[]>>;
+export type AssetsBalanceState = {
+  /** Balance data per account: accountId -> assetId -> balance */
+  assetsBalance: Record<string, Record<string, AssetBalanceEntry>>;
 };
