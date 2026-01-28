@@ -133,7 +133,7 @@ For more on these commands, see:
 ### Building packages
 
 - Run `yarn build` to build all packages.
-- Run `yarn workspace <workspaceName> run build` to build a single package.
+- Run `yarn workspace <package-name> run build` to build a single package.
 - Built files appear in `dist/` directories and are what gets published to NPM. Test files, secrets, or other things that should not be public should not show up in this directory.
 
 ### Updating changelogs
