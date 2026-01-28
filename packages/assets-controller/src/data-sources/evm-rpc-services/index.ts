@@ -7,7 +7,6 @@ export type {
   BalanceOfRequest,
   BalanceOfResponse,
   TokenListState,
-  UserTokensState,
   BalanceFetchResult,
   TokenDetectionResult,
 } from './types';

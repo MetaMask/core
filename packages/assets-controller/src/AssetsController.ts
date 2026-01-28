@@ -1256,11 +1256,11 @@ export class AssetsController extends BaseController<
           lastUpdated: 0,
         };
 
-        // Compute fiat value using BigNumber for precision with large balances
+        // Compute fiat value using BigNumber for precision
+        // Note: typedBalance.amount is already in human-readable format (e.g., "1" for 1 ETH)
+        // so we do NOT divide by 10^decimals here
         const balanceAmount = new BigNumberJS(typedBalance.amount || '0');
-        const divisor = new BigNumberJS(10).pow(metadata.decimals);
-        const normalizedAmount = balanceAmount.dividedBy(divisor);
-        const fiatValue = normalizedAmount
+        const fiatValue = balanceAmount
           .multipliedBy(price.price || 0)
           .toNumber();
 

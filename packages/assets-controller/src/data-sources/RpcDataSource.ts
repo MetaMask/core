@@ -445,6 +445,16 @@ export class RpcDataSource extends BaseController<
           );
           if (tokenListMeta) {
             assetsMetadata[balance.assetId] = tokenListMeta;
+          } else {
+            // Default metadata for unknown ERC20 tokens.
+            // Use 18 decimals (the standard for most ERC20 tokens)
+            // to ensure consistent human-readable balance format.
+            assetsMetadata[balance.assetId] = {
+              type: 'erc20',
+              symbol: '',
+              name: '',
+              decimals: 18,
+            };
           }
         }
       }
@@ -474,50 +484,30 @@ export class RpcDataSource extends BaseController<
     // Convert balances to human-readable format using metadata
     for (const balance of result.balances) {
       const metadata = assetsMetadata[balance.assetId];
-      const humanReadableAmount =
-        metadata?.decimals === undefined
-          ? balance.balance
-          : this.#convertToHumanReadable(balance.balance, metadata.decimals);
+      // Default to 18 decimals (ERC20 standard) for consistent human-readable format
+      const decimals = metadata?.decimals ?? 18;
+      const humanReadableAmount = this.#convertToHumanReadable(
+        balance.balance,
+        decimals,
+      );
 
       newBalances[balance.assetId] = {
         amount: humanReadableAmount,
       };
     }
 
-    // Get existing state and merge with new balances
-    const existingState = this.messenger.call('AssetsController:getState');
-    const existingAccountBalances = (existingState.assetsBalance?.[
-      result.accountId
-    ] ?? {}) as Record<string, { amount: string }>;
-    const existingMetadata = (existingState.assetsMetadata ?? {}) as Record<
-      string,
-      AssetMetadata
-    >;
-
-    // Merge existing balances with new balances (new takes precedence)
-    const mergedBalances = {
-      ...existingAccountBalances,
-      ...newBalances,
-    };
-
-    // Merge existing metadata with new metadata (new takes precedence)
-    const mergedMetadata = {
-      ...existingMetadata,
-      ...assetsMetadata,
-    };
-
+    // Only send new data to AssetsController - it handles merging atomically
+    // to avoid race conditions when concurrent updates occur for the same account
     const response: DataResponse = {
       assetsBalance: {
-        [result.accountId]: mergedBalances,
+        [result.accountId]: newBalances,
       },
-      assetsMetadata: mergedMetadata,
+      assetsMetadata,
     };
 
     log('Balance update response', {
       accountId: result.accountId,
       newBalanceCount: Object.keys(newBalances).length,
-      existingBalanceCount: Object.keys(existingAccountBalances).length,
-      mergedBalanceCount: Object.keys(mergedBalances).length,
     });
 
     this.messenger
@@ -536,22 +526,6 @@ export class RpcDataSource extends BaseController<
     log('Detected new tokens', {
       count: result.detectedAssets.length,
     });
-
-    // Get existing state to merge with
-    const existingState = this.messenger.call('AssetsController:getState');
-    const existingAccountBalances = (existingState.assetsBalance?.[
-      result.accountId
-    ] ?? {}) as Record<string, { amount: string }>;
-    const existingMetadata = (existingState.assetsMetadata ?? {}) as Record<
-      string,
-      AssetMetadata
-    >;
-
-    const response: DataResponse = {
-      detectedAssets: {
-        [result.accountId]: result.detectedAssets.map((asset) => asset.assetId),
-      },
-    };
 
     // Build new metadata from detected assets
     const newMetadata: Record<Caip19AssetId, AssetMetadata> = {};
@@ -578,13 +552,12 @@ export class RpcDataSource extends BaseController<
         const detectedAsset = result.detectedAssets.find(
           (asset) => asset.assetId === balance.assetId,
         );
-        const humanReadableAmount =
-          detectedAsset?.decimals === undefined
-            ? balance.balance
-            : this.#convertToHumanReadable(
-                balance.balance,
-                detectedAsset.decimals,
-              );
+        // Default to 18 decimals (ERC20 standard) for consistent human-readable format
+        const decimals = detectedAsset?.decimals ?? 18;
+        const humanReadableAmount = this.#convertToHumanReadable(
+          balance.balance,
+          decimals,
+        );
 
         newBalances[balance.assetId] = {
           amount: humanReadableAmount,
@@ -592,16 +565,15 @@ export class RpcDataSource extends BaseController<
       }
     }
 
-    // Merge existing with new (new takes precedence)
-    response.assetsMetadata = {
-      ...existingMetadata,
-      ...newMetadata,
-    };
-
-    response.assetsBalance = {
-      [result.accountId]: {
-        ...existingAccountBalances,
-        ...newBalances,
+    // Only send new data to AssetsController - it handles merging atomically
+    // to avoid race conditions when concurrent updates occur for the same account
+    const response: DataResponse = {
+      detectedAssets: {
+        [result.accountId]: result.detectedAssets.map((asset) => asset.assetId),
+      },
+      assetsMetadata: newMetadata,
+      assetsBalance: {
+        [result.accountId]: newBalances,
       },
     };
 
@@ -964,13 +936,12 @@ export class RpcDataSource extends BaseController<
           // Convert balances to human-readable format
           for (const balance of result.balances) {
             const metadata = assetsMetadata[balance.assetId];
-            const humanReadableAmount =
-              metadata?.decimals === undefined
-                ? balance.balance
-                : this.#convertToHumanReadable(
-                    balance.balance,
-                    metadata.decimals,
-                  );
+            // Default to 18 decimals (ERC20 standard) for consistent human-readable format
+            const decimals = metadata?.decimals ?? 18;
+            const humanReadableAmount = this.#convertToHumanReadable(
+              balance.balance,
+              decimals,
+            );
 
             assetsBalance[accountId][balance.assetId] = {
               amount: humanReadableAmount,
@@ -1092,13 +1063,12 @@ export class RpcDataSource extends BaseController<
         const detectedAsset = result.detectedAssets.find(
           (asset) => asset.assetId === balance.assetId,
         );
-        const humanReadableAmount =
-          detectedAsset?.decimals === undefined
-            ? balance.balance
-            : this.#convertToHumanReadable(
-                balance.balance,
-                detectedAsset.decimals,
-              );
+        // Default to 18 decimals (ERC20 standard) for consistent human-readable format
+        const decimals = detectedAsset?.decimals ?? 18;
+        const humanReadableAmount = this.#convertToHumanReadable(
+          balance.balance,
+          decimals,
+        );
 
         balances[balance.assetId] = {
           amount: humanReadableAmount,
