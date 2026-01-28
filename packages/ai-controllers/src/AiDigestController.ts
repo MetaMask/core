@@ -178,7 +178,7 @@ export class AiDigestController extends BaseController<
   }
 
   /**
-   * Evicts stale (TTL expired) and oldest entries (FIFO) if cache exceeds max size.
+   * Evicts stale (TTL expired), error, and oldest entries (FIFO) if cache exceeds max size.
    *
    * @param state - The current controller state to evict entries from.
    */
@@ -187,17 +187,25 @@ export class AiDigestController extends BaseController<
     const entries = Object.entries(state.digests);
     const keysToDelete: string[] = [];
 
-    // Collect stale and fresh entries
+    // Collect fresh entries (with fetchedAt) and mark stale/error entries for deletion
     const freshEntries: [string, DigestEntry & { fetchedAt: number }][] = [];
     for (const [key, entry] of entries) {
-      if (entry.fetchedAt && now - entry.fetchedAt >= CACHE_DURATION_MS) {
+      // Evict error entries to prevent unbounded accumulation
+      if (entry.status === DIGEST_STATUS.ERROR) {
+        keysToDelete.push(key);
+      } else if (
+        entry.fetchedAt !== undefined &&
+        now - entry.fetchedAt >= CACHE_DURATION_MS
+      ) {
+        // Evict stale entries (TTL expired)
         keysToDelete.push(key);
       } else if (entry.fetchedAt !== undefined) {
+        // Keep fresh entries for size-based eviction check
         freshEntries.push([key, entry as DigestEntry & { fetchedAt: number }]);
       }
     }
 
-    // Collect oldest entries
+    // Evict oldest entries if over max cache size
     if (freshEntries.length > MAX_CACHE_ENTRIES) {
       freshEntries.sort((a, b) => a[1].fetchedAt - b[1].fetchedAt);
       const entriesToRemove = freshEntries.length - MAX_CACHE_ENTRIES;

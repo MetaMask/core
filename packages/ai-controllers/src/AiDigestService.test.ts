@@ -106,4 +106,20 @@ describe('AiDigestService', () => {
       'API returned error',
     );
   });
+
+  it('throws when API returns null data', async () => {
+    mockFetch.mockResolvedValue({
+      ok: true,
+      json: () => Promise.resolve({ success: true, data: null }),
+    });
+
+    const service = new AiDigestService({
+      baseUrl: 'http://test.com',
+      provider: 'claude',
+    });
+
+    await expect(service.fetchDigest('ethereum')).rejects.toThrow(
+      'API returned error',
+    );
+  });
 });

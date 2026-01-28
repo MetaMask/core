@@ -44,7 +44,7 @@ export class AiDigestService implements DigestService {
 
     const data: ApiResponse = await response.json();
 
-    if (!data.success || data.data === undefined) {
+    if (!data.success || data.data === undefined || data.data === null) {
       throw new Error(
         data.error?.message ??
           AiDigestControllerErrorMessage.API_RETURNED_ERROR,

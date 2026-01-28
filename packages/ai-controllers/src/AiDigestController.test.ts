@@ -183,4 +183,29 @@ describe('AiDigestController', () => {
     expect(CACHE_DURATION_MS).toBe(10 * 60 * 1000);
     expect(MAX_CACHE_ENTRIES).toBe(50);
   });
+
+  it('evicts error entries on next successful fetch', async () => {
+    const mockService = {
+      fetchDigest: jest
+        .fn()
+        .mockRejectedValueOnce(new Error('Network error'))
+        .mockResolvedValue(mockData),
+    };
+    const controller = new AiDigestController({
+      messenger: createMessenger(),
+      digestService: mockService,
+    });
+
+    // Create an error entry
+    await controller.fetchDigest('failing-asset');
+    expect(controller.state.digests['failing-asset']?.status).toBe(
+      DIGEST_STATUS.ERROR,
+    );
+
+    // Fetch a successful entry - should evict the error entry
+    await controller.fetchDigest('ethereum');
+
+    expect(controller.state.digests['failing-asset']).toBeUndefined();
+    expect(controller.state.digests.ethereum).toBeDefined();
+  });
 });
