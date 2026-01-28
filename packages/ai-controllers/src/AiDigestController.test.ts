@@ -242,4 +242,27 @@ describe('AiDigestController', () => {
     expect(controller.state.digests['orphaned-asset']).toBeUndefined();
     expect(controller.state.digests.ethereum).toBeDefined();
   });
+
+  it('evicts invalid entries without fetchedAt on next successful fetch', async () => {
+    const mockService = { fetchDigest: jest.fn().mockResolvedValue(mockData) };
+    const controller = new AiDigestController({
+      messenger: createMessenger(),
+      digestService: mockService,
+      state: {
+        digests: {
+          'invalid-entry': {
+            asset: 'invalid-entry',
+            status: DIGEST_STATUS.SUCCESS,
+            // Missing fetchedAt - invalid state from corruption
+          },
+        },
+      },
+    });
+
+    // Fetch a successful entry - should evict the invalid entry
+    await controller.fetchDigest('ethereum');
+
+    expect(controller.state.digests['invalid-entry']).toBeUndefined();
+    expect(controller.state.digests.ethereum).toBeDefined();
+  });
 });

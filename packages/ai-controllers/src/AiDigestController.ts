@@ -196,13 +196,13 @@ export class AiDigestController extends BaseController<
         entry.status === DIGEST_STATUS.LOADING
       ) {
         keysToDelete.push(key);
-      } else if (
-        entry.fetchedAt !== undefined &&
-        now - entry.fetchedAt >= CACHE_DURATION_MS
-      ) {
+      } else if (entry.fetchedAt === undefined) {
+        // Evict invalid entries (e.g., SUCCESS/IDLE without fetchedAt from corrupted state)
+        keysToDelete.push(key);
+      } else if (now - entry.fetchedAt >= CACHE_DURATION_MS) {
         // Evict stale entries (TTL expired)
         keysToDelete.push(key);
-      } else if (entry.fetchedAt !== undefined) {
+      } else {
         // Keep fresh entries for size-based eviction check
         freshEntries.push([key, entry as DigestEntry & { fetchedAt: number }]);
       }
