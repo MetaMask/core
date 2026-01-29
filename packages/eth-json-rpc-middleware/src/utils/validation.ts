@@ -3,8 +3,8 @@ import type { Struct, StructError } from '@metamask/superstruct';
 import { validate } from '@metamask/superstruct';
 import type { Hex } from '@metamask/utils';
 
-import type { WalletMiddlewareContext } from '../wallet';
 import { parseTypedMessage } from './normalize';
+import type { WalletMiddlewareContext } from '../wallet';
 
 /**
  * Validates and normalizes a keyholder address for transaction- and
@@ -98,8 +98,7 @@ function formatValidationError(error: StructError, message: string): string {
     .join('\n')}`;
 }
 
-
-const DANGEROUS_PROTOTYPE_PROPERTIES = [
+export const DANGEROUS_PROTOTYPE_PROPERTIES = [
   '__proto__',
   'constructor',
   'prototype',

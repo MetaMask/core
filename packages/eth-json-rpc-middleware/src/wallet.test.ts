@@ -9,16 +9,7 @@ import type {
 } from '.';
 import { createWalletMiddleware } from '.';
 import { createHandleParams, createRequest } from '../test/util/helpers';
-
-const DANGEROUS_PROTOTYPE_PROPERTIES = [
-  '__proto__',
-  'constructor',
-  'prototype',
-  '__defineGetter__',
-  '__defineSetter__',
-  '__lookupGetter__',
-  '__lookupSetter__',
-] as const;
+import { DANGEROUS_PROTOTYPE_PROPERTIES } from './utils/validation';
 
 const testAddresses = [
   '0xbe93f9bacbcffc8ee6663f2647917ed7a20a57bb',
