@@ -202,6 +202,50 @@ export class EvmAccountProvider extends BaseBip44AccountProvider {
   }
 
   /**
+   * Create accounts for all group indices from 0 to maxGroupIndex (inclusive).
+   *
+   * @param opts - The options for the creation of the accounts.
+   * @param opts.entropySource - The entropy source to use for the creation of the accounts.
+   * @param opts.maxGroupIndex - The maximum group index (inclusive).
+   * @returns Map from group index to array of created accounts.
+   */
+  async createMaxAccounts({
+    entropySource,
+    maxGroupIndex,
+  }: {
+    entropySource: EntropySourceId;
+    maxGroupIndex: number;
+  }): Promise<Map<number, Bip44Account<KeyringAccount>[]>> {
+    const accountsMap = new Map<number, Bip44Account<KeyringAccount>[]>();
+
+    for (let groupIndex = 0; groupIndex <= maxGroupIndex; groupIndex++) {
+      const [address] = await this.#createAccount({
+        entropySource,
+        groupIndex,
+        throwOnGap: false,
+      });
+
+      const accountId = this.#getAccountId(address);
+
+      const account = this.messenger.call(
+        'AccountsController:getAccount',
+        accountId,
+      );
+
+      // We MUST have the associated internal account.
+      assertInternalAccountExists(account);
+
+      const accountsArray = [account];
+      assertAreBip44Accounts(accountsArray);
+
+      this.accounts.add(account.id);
+      accountsMap.set(groupIndex, accountsArray);
+    }
+
+    return accountsMap;
+  }
+
+  /**
    * Get the transaction count for an EVM account.
    * This method uses a retry and timeout mechanism to handle transient failures.
    *

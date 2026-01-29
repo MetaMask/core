@@ -70,6 +70,21 @@ export type Bip44AccountProvider<
     groupIndex: number;
   }): Promise<Account['id'][]>;
   /**
+   * Create accounts for all group indices from 0 to maxGroupIndex (inclusive).
+   *
+   * @param options - The options for creating the accounts.
+   * @param options.entropySource - The entropy source.
+   * @param options.maxGroupIndex - The maximum group index (inclusive).
+   * @returns Map from group index to array of created accounts.
+   */
+  createMaxAccounts({
+    entropySource,
+    maxGroupIndex,
+  }: {
+    entropySource: EntropySourceId;
+    maxGroupIndex: number;
+  }): Promise<Map<number, Account[]>>;
+  /**
    * Re-synchronize MetaMask accounts and the providers accounts if needed.
    *
    * NOTE: This is mostly required if one of the providers (keyrings or Snaps)
@@ -203,6 +218,14 @@ export abstract class BaseBip44AccountProvider<
     entropySource: EntropySourceId;
     groupIndex: number;
   }): Promise<Account[]>;
+
+  abstract createMaxAccounts({
+    entropySource,
+    maxGroupIndex,
+  }: {
+    entropySource: EntropySourceId;
+    maxGroupIndex: number;
+  }): Promise<Map<number, Account[]>>;
 
   abstract discoverAccounts({
     entropySource,
