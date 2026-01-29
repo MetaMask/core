@@ -18,8 +18,11 @@ export type {
 export {
   Web3AuthNetwork,
   SeedlessOnboardingControllerErrorMessage,
+  SeedlessOnboardingMigrationVersion,
   AuthConnection,
   SecretType,
 } from './constants';
 export { SecretMetadata } from './SecretMetadata';
 export { RecoveryError } from './errors';
+
+export { EncAccountDataType } from '@metamask/toprf-secure-backup';

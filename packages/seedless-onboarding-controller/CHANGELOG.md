@@ -7,10 +7,34 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+### Added
+
+- Add `runMigrations` method to run pending data migrations for legacy secrets ([#7284](https://github.com/MetaMask/core/pull/7284))
+- Add `setMigrationVersion` method to set migration version directly for new users ([#7284](https://github.com/MetaMask/core/pull/7284))
+- Add `SeedlessOnboardingMigrationVersion` enum for tracking migration versions ([#7284](https://github.com/MetaMask/core/pull/7284))
+- Add `migrationVersion` to controller state to track applied migrations ([#7284](https://github.com/MetaMask/core/pull/7284))
+- Add `itemId`, `dataType`, `createdAt`, and `storageVersion` storage-level properties to `SecretMetadata` ([#7284](https://github.com/MetaMask/core/pull/7284))
+- Add `SecretMetadata.compare` static method for comparing metadata with PrimarySrp prioritization and TIMEUUID-based sorting ([#7284](https://github.com/MetaMask/core/pull/7284))
+- Add `SecretMetadata.compareByTimestamp` static method for comparing metadata by timestamp ([#7284](https://github.com/MetaMask/core/pull/7284))
+- Add `SecretMetadata.matchesType` static method for checking if metadata matches a given type ([#7284](https://github.com/MetaMask/core/pull/7284))
+- Re-export `EncAccountDataType` from `@metamask/toprf-secure-backup` ([#7284](https://github.com/MetaMask/core/pull/7284))
+
 ### Changed
 
+- **BREAKING:** Change `addNewSecretData` method signature to require `dataType: EncAccountDataType` instead of `type: SecretType` ([#7284](https://github.com/MetaMask/core/pull/7284))
+  - `SecretType` is now derived internally from `EncAccountDataType`
+  - Encrypted payload still includes `type` for backward compatibility with older clients
+- **BREAKING:** Remove `parseSecretsFromMetadataStore`, `fromBatch`, and `sort` methods from `SecretMetadata` ([#7284](https://github.com/MetaMask/core/pull/7284))
+  - Use `SecretMetadata.compare` or `SecretMetadata.compareByTimestamp` for sorting
+  - Use `SecretMetadata.matchesType` for filtering
+- **BREAKING:** Change `SecretMetadata.fromRawMetadata` signature to require `storageMetadata` parameter ([#7284](https://github.com/MetaMask/core/pull/7284))
+- **BREAKING:** Remove `version` getter from `SecretMetadata`; use `storageVersion` instead ([#7284](https://github.com/MetaMask/core/pull/7284))
 - Bump `@metamask/keyring-controller` from `^25.0.0` to `^25.1.0` ([#7713](https://github.com/MetaMask/core/pull/7713))
 - Upgrade `@metamask/utils` from `^11.8.1` to `^11.9.0` ([#7511](https://github.com/MetaMask/core/pull/7511))
+
+### Fixed
+
+- Fix TIMEUUID sorting by extracting actual timestamps instead of using lexicographic comparison ([#7284](https://github.com/MetaMask/core/pull/7284))
 
 ## [7.1.0]
 
