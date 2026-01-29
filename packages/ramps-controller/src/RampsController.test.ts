@@ -1106,10 +1106,15 @@ describe('RampsController', () => {
 
     it('sets userRegionError to Unknown error when error has no message', async () => {
       await withController(async ({ controller, rootMessenger }) => {
+        const errorWithoutMessage = Object.assign(new Error(), {
+          code: 'ERR_NO_MESSAGE',
+          message: undefined,
+        }) as Error & { code: string };
+
         rootMessenger.registerActionHandler(
           'RampsService:getCountries',
           async () => {
-            throw { code: 'ERR_NO_MESSAGE' };
+            throw errorWithoutMessage;
           },
         );
 

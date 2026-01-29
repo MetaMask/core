@@ -704,7 +704,7 @@ export class RampsController extends BaseController<
    *
    * @param promise - The promise to execute.
    */
-  #fireAndForget<T>(promise: Promise<T>): void {
+  #fireAndForget<Result>(promise: Promise<Result>): void {
     promise.catch((_error: unknown) => undefined);
   }
 
@@ -734,6 +734,9 @@ export class RampsController extends BaseController<
           break;
         case 'quotes':
           state.quotesLoading = loading;
+          break;
+        /* istanbul ignore next: exhaustive switch */
+        default:
           break;
       }
     });
@@ -765,6 +768,9 @@ export class RampsController extends BaseController<
           break;
         case 'quotes':
           state.quotesError = error;
+          break;
+        /* istanbul ignore next: exhaustive switch */
+        default:
           break;
       }
     });
@@ -884,7 +890,9 @@ export class RampsController extends BaseController<
       });
 
       if (regionChanged || !this.state.tokens) {
-        this.#fireAndForget(this.getTokens(userRegion.regionCode, 'buy', options));
+        this.#fireAndForget(
+          this.getTokens(userRegion.regionCode, 'buy', options),
+        );
       }
       if (regionChanged || this.state.providers.length === 0) {
         this.#fireAndForget(this.getProviders(userRegion.regionCode, options));
