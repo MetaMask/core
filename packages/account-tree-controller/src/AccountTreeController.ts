@@ -794,6 +794,16 @@ export class AccountTreeController extends BaseController<
   }
 
   /**
+   * Gets the account's context which contains its wallet ID, group ID, and sort order.
+   *
+   * @param accountId - Account ID.
+   * @returns The account context if found, undefined otherwise.
+   */
+  getAccountContext(accountId: AccountId): AccountContext | undefined {
+    return this.#accountIdToContext.get(accountId);
+  }
+
+  /**
    * Handles "AccountsController:accountAdded" event to insert
    * new accounts into the tree.
    *
@@ -1545,6 +1555,11 @@ export class AccountTreeController extends BaseController<
     this.messenger.registerActionHandler(
       `${controllerName}:getAccountsFromSelectedAccountGroup`,
       this.getAccountsFromSelectedAccountGroup.bind(this),
+    );
+
+    this.messenger.registerActionHandler(
+      `${controllerName}:getAccountContext`,
+      this.getAccountContext.bind(this),
     );
 
     this.messenger.registerActionHandler(

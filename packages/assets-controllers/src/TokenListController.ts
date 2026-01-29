@@ -14,7 +14,6 @@ import { StaticIntervalPollingController } from '@metamask/polling-controller';
 import type {
   StorageServiceSetItemAction,
   StorageServiceGetItemAction,
-  StorageServiceRemoveItemAction,
   StorageServiceGetAllKeysAction,
 } from '@metamask/storage-service';
 import type { Hex } from '@metamask/utils';
@@ -55,7 +54,6 @@ export type TokensChainsCache = {
 
 export type TokenListState = {
   tokensChainsCache: TokensChainsCache;
-  preventPollingOnNetworkRestart: boolean;
 };
 
 export type TokenListStateChange = ControllerStateChangeEvent<
@@ -76,7 +74,6 @@ type AllowedActions =
   | NetworkControllerGetNetworkClientByIdAction
   | StorageServiceSetItemAction
   | StorageServiceGetItemAction
-  | StorageServiceRemoveItemAction
   | StorageServiceGetAllKeysAction;
 
 type AllowedEvents = NetworkControllerStateChangeEvent;
@@ -94,18 +91,11 @@ const metadata: StateMetadata<TokenListState> = {
     includeInDebugSnapshot: true,
     usedInUi: true,
   },
-  preventPollingOnNetworkRestart: {
-    includeInStateLogs: false,
-    persist: true,
-    includeInDebugSnapshot: true,
-    usedInUi: false,
-  },
 };
 
 export const getDefaultTokenListState = (): TokenListState => {
   return {
     tokensChainsCache: {},
-    preventPollingOnNetworkRestart: false,
   };
 };
 
@@ -129,7 +119,7 @@ export class TokenListController extends StaticIntervalPollingController<TokenLi
 
   /**
    * Promise that resolves when the current persist operation completes.
-   * Used to prevent race conditions between persist and clear operations.
+   * Used to prevent race conditions between persist operations.
    */
   #persistInFlightPromise?: Promise<void>;
 
@@ -190,11 +180,9 @@ export class TokenListController extends StaticIntervalPollingController<TokenLi
    * @param options.cacheRefreshThreshold - The token cache expiry time, in milliseconds.
    * @param options.messenger - A restricted messenger.
    * @param options.state - Initial state to set on this controller.
-   * @param options.preventPollingOnNetworkRestart - Determines whether to prevent poilling on network restart in extension.
    */
   constructor({
     chainId,
-    preventPollingOnNetworkRestart = false,
     onNetworkStateChange,
     interval = DEFAULT_INTERVAL,
     cacheRefreshThreshold = DEFAULT_THRESHOLD,
@@ -202,7 +190,6 @@ export class TokenListController extends StaticIntervalPollingController<TokenLi
     state,
   }: {
     chainId: Hex;
-    preventPollingOnNetworkRestart?: boolean;
     onNetworkStateChange?: (
       listener: (networkState: NetworkState) => void,
     ) => void;
@@ -222,7 +209,6 @@ export class TokenListController extends StaticIntervalPollingController<TokenLi
     this.setIntervalLength(interval);
     this.#cacheRefreshThreshold = cacheRefreshThreshold;
     this.#chainId = chainId;
-    this.updatePreventPollingOnNetworkRestart(preventPollingOnNetworkRestart);
     this.#abortController = new AbortController();
 
     // Subscribe to state changes to automatically persist tokensChainsCache
@@ -312,10 +298,6 @@ export class TokenListController extends StaticIntervalPollingController<TokenLi
   /**
    * Persist only the chains that have changed to storage.
    * Reduces write amplification by skipping unchanged chains.
-   *
-   * Tracks the in-flight operation via #persistInFlightPromise so that
-   * clearingTokenListData() can wait for it to complete before removing
-   * items from storage, preventing race conditions.
    *
    * If a persist operation is already in-flight, this method returns early
    * and reschedules the debounce to ensure accumulated changes are retried
@@ -511,10 +493,6 @@ export class TokenListController extends StaticIntervalPollingController<TokenLi
       this.#abortController.abort();
       this.#abortController = new AbortController();
       this.#chainId = chainId;
-      if (this.state.preventPollingOnNetworkRestart) {
-        // eslint-disable-next-line @typescript-eslint/no-floating-promises
-        this.clearingTokenListData();
-      }
     }
   }
 
@@ -682,125 +660,6 @@ export class TokenListController extends StaticIntervalPollingController<TokenLi
     return (
       timestamp !== undefined && now - timestamp < this.#cacheRefreshThreshold
     );
-  }
-
-  /**
-   * Clearing tokenList and tokensChainsCache explicitly.
-   * This clears both state and all per-chain files in StorageService.
-   *
-   * Uses Promise.allSettled to handle partial failures gracefully.
-   * After all removal attempts complete, state is updated to match storage:
-   * - Successfully removed chains are cleared from state
-   * - Failed removals are kept in state to maintain consistency with storage
-   *
-   * Note: This method explicitly deletes from storage rather than relying on the
-   * stateChange subscription, since the subscription handles saves, not deletes.
-   */
-  async clearingTokenListData(): Promise<void> {
-    if (this.#persistDebounceTimer) {
-      clearTimeout(this.#persistDebounceTimer);
-      this.#persistDebounceTimer = undefined;
-    }
-    this.#changedChainsToPersist.clear();
-    this.#chainsLoadedFromStorage.clear();
-
-    // Wait for any in-flight persist operation to complete before clearing storage.
-    // This prevents race conditions where persist setItem calls interleave with
-    // our removeItem calls, potentially re-saving data after we remove it.
-    if (this.#persistInFlightPromise) {
-      try {
-        await this.#persistInFlightPromise;
-      } catch {
-        // Ignore
-      }
-    }
-
-    try {
-      const allKeys = await this.messenger.call(
-        'StorageService:getAllKeys',
-        name,
-      );
-
-      // Filter and remove all tokensChainsCache keys
-      const cacheKeys = allKeys.filter((key) =>
-        key.startsWith(`${TokenListController.#storageKeyPrefix}:`),
-      );
-
-      if (cacheKeys.length === 0) {
-        // No storage keys to remove, just clear state
-        this.update((state) => {
-          state.tokensChainsCache = {};
-        });
-        // Reset previous cache after state is cleared to prevent false "new chain" detections
-        this.#previousTokensChainsCache = {};
-        return;
-      }
-
-      // Use Promise.allSettled to handle partial failures gracefully.
-      // This ensures all removals are attempted and we can track which succeeded.
-      const results = await Promise.allSettled(
-        cacheKeys.map((key) =>
-          this.messenger.call('StorageService:removeItem', name, key),
-        ),
-      );
-
-      // Identify which chains failed to be removed from storage
-      const failedChainIds = new Set<Hex>();
-      results.forEach((result, index) => {
-        if (result.status === 'rejected') {
-          const key = cacheKeys[index];
-          const chainId = key.split(':')[1] as Hex;
-          failedChainIds.add(chainId);
-          console.error(
-            `TokenListController: Failed to remove cache for chain ${chainId}:`,
-            result.reason,
-          );
-        }
-      });
-
-      // Update state to match storage: keep only chains that failed to be removed
-      this.update((state) => {
-        if (failedChainIds.size === 0) {
-          state.tokensChainsCache = {};
-        } else {
-          // Keep only chains that failed to be removed from storage
-          const preservedCache: TokensChainsCache = {};
-          for (const chainId of failedChainIds) {
-            if (state.tokensChainsCache[chainId]) {
-              preservedCache[chainId] = state.tokensChainsCache[chainId];
-            }
-          }
-          state.tokensChainsCache = preservedCache;
-        }
-      });
-
-      // Reset previous cache after state is cleared to prevent false "new chain" detections
-      this.#previousTokensChainsCache = { ...this.state.tokensChainsCache };
-    } catch (error) {
-      console.error(
-        'TokenListController: Failed to clear cache from storage:',
-        error,
-      );
-      // Still clear state even if storage access fails
-      this.update((state) => {
-        state.tokensChainsCache = {};
-      });
-      this.#previousTokensChainsCache = {};
-    }
-  }
-
-  /**
-   * Updates preventPollingOnNetworkRestart from extension.
-   *
-   * @param shouldPreventPolling - Determine whether to prevent polling on network change
-   */
-  updatePreventPollingOnNetworkRestart(shouldPreventPolling: boolean): void {
-    this.update(() => {
-      return {
-        ...this.state,
-        preventPollingOnNetworkRestart: shouldPreventPolling,
-      };
-    });
   }
 }
 

@@ -24,6 +24,9 @@
       "path": "./packages/analytics-controller"
     },
     {
+      "path": "./packages/analytics-data-regulation-controller"
+    },
+    {
       "path": "./packages/announcement-controller"
     },
     {

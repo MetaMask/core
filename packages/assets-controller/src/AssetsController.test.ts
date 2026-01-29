@@ -199,6 +199,7 @@ describe('AssetsController', () => {
       expect(defaultState).toStrictEqual({
         assetsMetadata: {},
         assetsBalance: {},
+        assetsPrice: {},
         customAssets: {},
       });
     });
@@ -210,6 +211,7 @@ describe('AssetsController', () => {
         expect(controller.state).toStrictEqual({
           assetsMetadata: {},
           assetsBalance: {},
+          assetsPrice: {},
           customAssets: {},
         });
       });
@@ -578,6 +580,29 @@ describe('AssetsController', () => {
         await controller.handleAssetsUpdate({}, 'TestSource');
 
         expect(controller.state.assetsBalance).toStrictEqual({});
+      });
+    });
+
+    it('updates state with price data', async () => {
+      await withController(async ({ controller }) => {
+        await controller.handleAssetsUpdate(
+          {
+            assetsPrice: {
+              [MOCK_ASSET_ID]: {
+                price: 1.0,
+                pricePercentChange1d: 0.5,
+                lastUpdated: Date.now(),
+              },
+            },
+          },
+          'TestSource',
+        );
+
+        expect(controller.state.assetsPrice[MOCK_ASSET_ID]).toBeDefined();
+        expect(
+          (controller.state.assetsPrice[MOCK_ASSET_ID] as { price: number })
+            .price,
+        ).toBe(1.0);
       });
     });
   });

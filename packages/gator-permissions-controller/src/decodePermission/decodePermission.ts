@@ -174,6 +174,8 @@ export const getPermissionDataAndExpiry = ({
     nativeTokenStreamingEnforcer,
     nativeTokenPeriodicEnforcer,
     timestampEnforcer,
+    allowedCalldataEnforcer,
+    valueLteEnforcer,
   } = getChecksumEnforcersByChainId(contracts);
 
   const expiryTerms = getTermsByEnforcer({
@@ -267,6 +269,49 @@ export const getPermissionDataAndExpiry = ({
       break;
     }
     case 'erc20-token-revocation': {
+      // 0 value for ValueLteEnforcer
+      const ZERO_32_BYTES =
+        '0x0000000000000000000000000000000000000000000000000000000000000000' as const;
+
+      // Approve() 4byte selector starting at index 0
+      const ERC20_APPROVE_SELECTOR_TERMS =
+        '0x0000000000000000000000000000000000000000000000000000000000000000095ea7b3' as const;
+
+      // 0 amount starting at index 24
+      const ERC20_APPROVE_ZERO_AMOUNT_TERMS =
+        '0x00000000000000000000000000000000000000000000000000000000000000240000000000000000000000000000000000000000000000000000000000000000' as const;
+
+      const allowedCalldataCaveats = checksumCaveats.filter(
+        (caveat) => caveat.enforcer === allowedCalldataEnforcer,
+      );
+
+      const allowedCalldataTerms = allowedCalldataCaveats.map((caveat) =>
+        caveat.terms.toLowerCase(),
+      );
+
+      const hasApproveSelector = allowedCalldataTerms.includes(
+        ERC20_APPROVE_SELECTOR_TERMS,
+      );
+
+      const hasZeroAmount = allowedCalldataTerms.includes(
+        ERC20_APPROVE_ZERO_AMOUNT_TERMS,
+      );
+
+      if (!hasApproveSelector || !hasZeroAmount) {
+        throw new Error(
+          'Invalid erc20-token-revocation terms: expected approve selector and zero amount constraints',
+        );
+      }
+
+      const valueLteTerms = getTermsByEnforcer({
+        caveats: checksumCaveats,
+        enforcer: valueLteEnforcer,
+      });
+
+      if (valueLteTerms !== ZERO_32_BYTES) {
+        throw new Error('Invalid ValueLteEnforcer terms: maxValue must be 0');
+      }
+
       data = {};
       break;
     }
