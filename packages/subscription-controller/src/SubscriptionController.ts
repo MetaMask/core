@@ -64,7 +64,7 @@ export type SubscriptionControllerState = {
    */
   lastSelectedPaymentMethod?: Record<
     ProductType,
-    CachedLastSelectedPaymentMethod | null
+    CachedLastSelectedPaymentMethod
   >;
 };
 
@@ -722,10 +722,9 @@ export class SubscriptionController extends StaticIntervalPollingController()<
   clearLastSelectedPaymentMethod(product: ProductType): void {
     this.update((state) => {
       if (state.lastSelectedPaymentMethod) {
-        state.lastSelectedPaymentMethod = {
-          ...state.lastSelectedPaymentMethod,
-          [product]: null,
-        };
+        const { [product]: _, ...rest } = state.lastSelectedPaymentMethod;
+        state.lastSelectedPaymentMethod =
+          rest as typeof state.lastSelectedPaymentMethod;
       }
     });
   }
@@ -1007,7 +1006,7 @@ export class SubscriptionController extends StaticIntervalPollingController()<
    * @throws an error if the value is not a valid crypto payment method.
    */
   #assertIsPaymentMethodCrypto(
-    value: CachedLastSelectedPaymentMethod | null | undefined,
+    value: CachedLastSelectedPaymentMethod | undefined,
   ): asserts value is Required<CachedLastSelectedPaymentMethod> {
     if (
       !value ||

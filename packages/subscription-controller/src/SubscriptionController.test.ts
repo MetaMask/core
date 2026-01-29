@@ -1785,9 +1785,7 @@ describe('SubscriptionController', () => {
 
           controller.clearLastSelectedPaymentMethod(PRODUCT_TYPES.SHIELD);
 
-          expect(controller.state.lastSelectedPaymentMethod).toStrictEqual({
-            [PRODUCT_TYPES.SHIELD]: null,
-          });
+          expect(controller.state.lastSelectedPaymentMethod).toStrictEqual({});
         },
       );
     });
@@ -1802,7 +1800,7 @@ describe('SubscriptionController', () => {
       });
     });
 
-    it('should set the product to null while preserving the state object', async () => {
+    it('should remove the product key while preserving the state object', async () => {
       await withController(
         {
           state: {
@@ -1819,14 +1817,14 @@ describe('SubscriptionController', () => {
         async ({ controller }) => {
           expect(
             controller.state.lastSelectedPaymentMethod?.[PRODUCT_TYPES.SHIELD],
-          ).not.toBeNull();
+          ).toBeDefined();
 
           controller.clearLastSelectedPaymentMethod(PRODUCT_TYPES.SHIELD);
 
           expect(controller.state.lastSelectedPaymentMethod).toBeDefined();
           expect(
             controller.state.lastSelectedPaymentMethod?.[PRODUCT_TYPES.SHIELD],
-          ).toBeNull();
+          ).toBeUndefined();
         },
       );
     });
