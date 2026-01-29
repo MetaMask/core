@@ -11,11 +11,11 @@ import {
   CACHE_DURATION_MS,
   MAX_CACHE_ENTRIES,
 } from './ai-digest-constants';
-import { DIGEST_STATUS } from './ai-digest-types';
 import type {
   AiDigestControllerState,
   DigestEntry,
   DigestService,
+  DigestData,
 } from './ai-digest-types';
 
 export type AiDigestControllerFetchDigestAction = {
@@ -115,59 +115,34 @@ export class AiDigestController extends BaseController<
     );
   }
 
-  async fetchDigest(coingeckoSlug: string): Promise<DigestEntry> {
-    const existingDigest = this.state.digests[coingeckoSlug];
-    if (
-      existingDigest?.status === DIGEST_STATUS.SUCCESS &&
-      existingDigest.fetchedAt
-    ) {
+  async fetchDigest(assetId: string): Promise<DigestData> {
+    const existingDigest = this.state.digests[assetId];
+    if (existingDigest) {
       const age = Date.now() - existingDigest.fetchedAt;
       if (age < CACHE_DURATION_MS) {
-        return existingDigest;
+        return existingDigest.data;
       }
     }
 
+    const data = await this.#digestService.fetchDigest(assetId);
+
+    const entry: DigestEntry = {
+      asset: assetId,
+      fetchedAt: Date.now(),
+      data,
+    };
+
     this.update((state) => {
-      state.digests[coingeckoSlug] = {
-        asset: coingeckoSlug,
-        status: DIGEST_STATUS.LOADING,
-      };
+      state.digests[assetId] = entry;
+      this.#evictStaleEntries(state);
     });
 
-    try {
-      const data = await this.#digestService.fetchDigest(coingeckoSlug);
-
-      const entry: DigestEntry = {
-        asset: coingeckoSlug,
-        status: DIGEST_STATUS.SUCCESS,
-        fetchedAt: Date.now(),
-        data,
-      };
-
-      this.update((state) => {
-        state.digests[coingeckoSlug] = entry;
-        this.#evictStaleEntries(state);
-      });
-
-      return entry;
-    } catch (error) {
-      const entry: DigestEntry = {
-        asset: coingeckoSlug,
-        status: DIGEST_STATUS.ERROR,
-        error: error instanceof Error ? error.message : 'Unknown error',
-      };
-
-      this.update((state) => {
-        state.digests[coingeckoSlug] = entry;
-      });
-
-      return entry;
-    }
+    return data;
   }
 
-  clearDigest(coingeckoSlug: string): void {
+  clearDigest(assetId: string): void {
     this.update((state) => {
-      delete state.digests[coingeckoSlug];
+      delete state.digests[assetId];
     });
   }
 
@@ -178,7 +153,7 @@ export class AiDigestController extends BaseController<
   }
 
   /**
-   * Evicts stale (TTL expired), error, loading, and oldest entries (FIFO) if cache exceeds max size.
+   * Evicts stale (TTL expired) and oldest entries (FIFO) if cache exceeds max size.
    *
    * @param state - The current controller state to evict entries from.
    */
@@ -186,25 +161,13 @@ export class AiDigestController extends BaseController<
     const now = Date.now();
     const entries = Object.entries(state.digests);
     const keysToDelete: string[] = [];
+    const freshEntries: [string, DigestEntry][] = [];
 
-    // Collect fresh entries (with fetchedAt) and mark stale/error/loading entries for deletion
-    const freshEntries: [string, DigestEntry & { fetchedAt: number }][] = [];
     for (const [key, entry] of entries) {
-      // Evict error and loading entries to prevent unbounded accumulation
-      if (
-        entry.status === DIGEST_STATUS.ERROR ||
-        entry.status === DIGEST_STATUS.LOADING
-      ) {
-        keysToDelete.push(key);
-      } else if (entry.fetchedAt === undefined) {
-        // Evict invalid entries (e.g., SUCCESS/IDLE without fetchedAt from corrupted state)
-        keysToDelete.push(key);
-      } else if (now - entry.fetchedAt >= CACHE_DURATION_MS) {
-        // Evict stale entries (TTL expired)
+      if (now - entry.fetchedAt >= CACHE_DURATION_MS) {
         keysToDelete.push(key);
       } else {
-        // Keep fresh entries for size-based eviction check
-        freshEntries.push([key, entry as DigestEntry & { fetchedAt: number }]);
+        freshEntries.push([key, entry]);
       }
     }
 
@@ -217,7 +180,6 @@ export class AiDigestController extends BaseController<
       }
     }
 
-    // Delete the entries
     for (const key of keysToDelete) {
       delete state.digests[key];
     }

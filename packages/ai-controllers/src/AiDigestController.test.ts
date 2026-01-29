@@ -3,7 +3,6 @@ import { Messenger } from '@metamask/messenger';
 import {
   AiDigestController,
   getDefaultAiDigestControllerState,
-  DIGEST_STATUS,
   CACHE_DURATION_MS,
   MAX_CACHE_ENTRIES,
 } from '.';
@@ -41,9 +40,9 @@ describe('AiDigestController', () => {
 
     const result = await controller.fetchDigest('ethereum');
 
-    expect(result.status).toBe(DIGEST_STATUS.SUCCESS);
-    expect(result.data).toStrictEqual(mockData);
+    expect(result).toStrictEqual(mockData);
     expect(controller.state.digests.ethereum).toBeDefined();
+    expect(controller.state.digests.ethereum.data).toStrictEqual(mockData);
   });
 
   it('returns cached digest on subsequent calls', async () => {
@@ -75,7 +74,7 @@ describe('AiDigestController', () => {
     jest.useRealTimers();
   });
 
-  it('handles fetch errors', async () => {
+  it('throws on fetch errors', async () => {
     const mockService = {
       fetchDigest: jest.fn().mockRejectedValue(new Error('Network error')),
     };
@@ -84,25 +83,10 @@ describe('AiDigestController', () => {
       digestService: mockService,
     });
 
-    const result = await controller.fetchDigest('ethereum');
-
-    expect(result.status).toBe(DIGEST_STATUS.ERROR);
-    expect(result.error).toBe('Network error');
-  });
-
-  it('handles non-Error throws', async () => {
-    const mockService = {
-      fetchDigest: jest.fn().mockRejectedValue('string error'),
-    };
-    const controller = new AiDigestController({
-      messenger: createMessenger(),
-      digestService: mockService,
-    });
-
-    const result = await controller.fetchDigest('ethereum');
-
-    expect(result.status).toBe(DIGEST_STATUS.ERROR);
-    expect(result.error).toBe('Unknown error');
+    await expect(controller.fetchDigest('ethereum')).rejects.toThrow(
+      'Network error',
+    );
+    expect(controller.state.digests.ethereum).toBeUndefined();
   });
 
   it('clears a specific digest', async () => {
@@ -178,7 +162,7 @@ describe('AiDigestController', () => {
       'AiDigestController:fetchDigest',
       'ethereum',
     );
-    expect(result.status).toBe(DIGEST_STATUS.SUCCESS);
+    expect(result).toStrictEqual(mockData);
 
     messenger.call('AiDigestController:clearDigest', 'ethereum');
     messenger.call('AiDigestController:clearAllDigests');
@@ -189,80 +173,5 @@ describe('AiDigestController', () => {
   it('uses expected cache constants', () => {
     expect(CACHE_DURATION_MS).toBe(10 * 60 * 1000);
     expect(MAX_CACHE_ENTRIES).toBe(50);
-  });
-
-  it('evicts error entries on next successful fetch', async () => {
-    const mockService = {
-      fetchDigest: jest
-        .fn()
-        .mockRejectedValueOnce(new Error('Network error'))
-        .mockResolvedValue(mockData),
-    };
-    const controller = new AiDigestController({
-      messenger: createMessenger(),
-      digestService: mockService,
-    });
-
-    // Create an error entry
-    await controller.fetchDigest('failing-asset');
-    expect(controller.state.digests['failing-asset']?.status).toBe(
-      DIGEST_STATUS.ERROR,
-    );
-
-    // Fetch a successful entry - should evict the error entry
-    await controller.fetchDigest('ethereum');
-
-    expect(controller.state.digests['failing-asset']).toBeUndefined();
-    expect(controller.state.digests.ethereum).toBeDefined();
-  });
-
-  it('evicts orphaned loading entries on next successful fetch', async () => {
-    const mockService = { fetchDigest: jest.fn().mockResolvedValue(mockData) };
-    const controller = new AiDigestController({
-      messenger: createMessenger(),
-      digestService: mockService,
-      state: {
-        digests: {
-          'orphaned-asset': {
-            asset: 'orphaned-asset',
-            status: DIGEST_STATUS.LOADING,
-          },
-        },
-      },
-    });
-
-    // Verify loading entry exists
-    expect(controller.state.digests['orphaned-asset']?.status).toBe(
-      DIGEST_STATUS.LOADING,
-    );
-
-    // Fetch a successful entry - should evict the orphaned loading entry
-    await controller.fetchDigest('ethereum');
-
-    expect(controller.state.digests['orphaned-asset']).toBeUndefined();
-    expect(controller.state.digests.ethereum).toBeDefined();
-  });
-
-  it('evicts invalid entries without fetchedAt on next successful fetch', async () => {
-    const mockService = { fetchDigest: jest.fn().mockResolvedValue(mockData) };
-    const controller = new AiDigestController({
-      messenger: createMessenger(),
-      digestService: mockService,
-      state: {
-        digests: {
-          'invalid-entry': {
-            asset: 'invalid-entry',
-            status: DIGEST_STATUS.SUCCESS,
-            // Missing fetchedAt - invalid state from corruption
-          },
-        },
-      },
-    });
-
-    // Fetch a successful entry - should evict the invalid entry
-    await controller.fetchDigest('ethereum');
-
-    expect(controller.state.digests['invalid-entry']).toBeUndefined();
-    expect(controller.state.digests.ethereum).toBeDefined();
   });
 });

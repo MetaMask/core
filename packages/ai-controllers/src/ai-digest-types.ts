@@ -1,12 +1,3 @@
-export const DIGEST_STATUS = {
-  IDLE: 'idle',
-  LOADING: 'loading',
-  SUCCESS: 'success',
-  ERROR: 'error',
-} as const;
-
-export type DigestStatus = (typeof DIGEST_STATUS)[keyof typeof DIGEST_STATUS];
-
 /**
  * Response from the digest API.
  */
@@ -23,12 +14,13 @@ export type DigestData = {
   updatedAt: string;
 };
 
+/**
+ * A cached digest entry. Only successful fetches are stored.
+ */
 export type DigestEntry = {
   asset: string;
-  status: DigestStatus;
-  fetchedAt?: number;
-  data?: DigestData;
-  error?: string;
+  fetchedAt: number;
+  data: DigestData;
 };
 
 export type AiDigestControllerState = {

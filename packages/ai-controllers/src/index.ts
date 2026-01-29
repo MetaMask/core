@@ -22,9 +22,7 @@ export type {
   DigestData,
   DigestEntry,
   DigestService,
-  DigestStatus,
 } from './ai-digest-types';
-export { DIGEST_STATUS } from './ai-digest-types';
 
 export {
   controllerName as aiDigestControllerName,
