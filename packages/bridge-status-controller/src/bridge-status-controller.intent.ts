@@ -4,7 +4,7 @@ import { TransactionMeta } from '@metamask/transaction-controller';
 
 import type { BridgeStatusControllerMessenger } from './types';
 import type { BridgeHistoryItem } from './types';
-import { translateIntentOrderToBridgeStatus } from './utils/intent-api';
+import { IntentStatusTranslation } from './utils/intent-api';
 
 export class IntentStatusManager {
   readonly #messenger: BridgeStatusControllerMessenger;
@@ -25,7 +25,7 @@ export class IntentStatusManager {
   syncTransactionFromIntentStatus = (
     bridgeTxMetaId: string,
     historyItem: BridgeHistoryItem,
-    intentTranslation: ReturnType<typeof translateIntentOrderToBridgeStatus>,
+    intentTranslation: IntentStatusTranslation,
     intentOrderStatus: string,
   ): void => {
     // Update the actual transaction in TransactionController to sync with intent status

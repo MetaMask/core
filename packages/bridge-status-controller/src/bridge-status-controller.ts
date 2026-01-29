@@ -67,6 +67,7 @@ import {
 import { getTxGasEstimates } from './utils/gas';
 import {
   IntentApiImpl,
+  IntentStatusTranslation,
   mapIntentOrderStatusToTransactionStatus,
   translateIntentOrderToBridgeStatus,
 } from './utils/intent-api';
@@ -684,9 +685,7 @@ export class BridgeStatusController extends StaticIntervalPollingController<Brid
     try {
       let status: BridgeHistoryItem['status'];
       let validationFailures: string[] = [];
-      let intentTranslation: ReturnType<
-        typeof translateIntentOrderToBridgeStatus
-      > | null = null;
+      let intentTranslation: IntentStatusTranslation | null = null;
       let intentOrderStatus: string | undefined;
       let intentHashes: string[] = [];
 
