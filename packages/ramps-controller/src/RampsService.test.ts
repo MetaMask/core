@@ -1862,6 +1862,7 @@ describe('RampsService', () => {
           amount: '100',
           walletAddress: '0x1234567890abcdef1234567890abcdef12345678',
           payments: '/payments/debit-credit-card',
+          redirectUrl: 'https://example.com/callback',
         })
         .reply(200, mockQuotesResponse);
       const { service } = getService();

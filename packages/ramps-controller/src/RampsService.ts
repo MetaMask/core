@@ -1079,6 +1079,11 @@ export class RampsService {
       url.searchParams.append('providers', params.provider);
     }
 
+    // Add redirect URL if specified
+    if (params.redirectUrl) {
+      url.searchParams.set('redirectUrl', params.redirectUrl);
+    }
+
     const response = await this.#policy.execute(async () => {
       const fetchResponse = await this.#fetch(url);
       if (!fetchResponse.ok) {

@@ -53,6 +53,12 @@ import {
  */
 export const controllerName = 'RampsController';
 
+/**
+ * Default TTL for quotes requests (15 seconds).
+ * Quotes are time-sensitive and should have a shorter cache duration.
+ */
+const DEFAULT_QUOTES_TTL = 15000;
+
 // === STATE ===
 
 /**
@@ -991,6 +997,18 @@ export class RampsController extends BaseController<
       );
     }
 
+    if (options.amount <= 0 || !Number.isFinite(options.amount)) {
+      throw new Error('Amount must be a positive finite number.');
+    }
+
+    if (!options.assetId || options.assetId.trim() === '') {
+      throw new Error('assetId is required.');
+    }
+
+    if (!options.walletAddress || options.walletAddress.trim() === '') {
+      throw new Error('walletAddress is required.');
+    }
+
     const normalizedRegion = regionToUse.toLowerCase().trim();
     const normalizedFiat = fiatToUse.toLowerCase().trim();
 
@@ -1023,7 +1041,10 @@ export class RampsController extends BaseController<
       async () => {
         return this.messenger.call('RampsService:getQuotes', params);
       },
-      { forceRefresh: options.forceRefresh, ttl: options.ttl },
+      {
+        forceRefresh: options.forceRefresh,
+        ttl: options.ttl ?? DEFAULT_QUOTES_TTL,
+      },
     );
 
     this.update((state) => {

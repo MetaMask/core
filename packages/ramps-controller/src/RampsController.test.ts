@@ -2876,6 +2876,128 @@ describe('RampsController', () => {
       );
     });
 
+    it('throws when amount is not a positive finite number', async () => {
+      await withController(
+        {
+          options: {
+            state: {
+              userRegion: createMockUserRegion('us'),
+              paymentMethods: [
+                {
+                  id: '/payments/debit-credit-card',
+                  paymentType: 'debit-credit-card',
+                  name: 'Debit or Credit',
+                  score: 90,
+                  icon: 'card',
+                },
+              ],
+            },
+          },
+        },
+        async ({ controller }) => {
+          await expect(
+            controller.getQuotes({
+              assetId: 'eip155:1/slip44:60',
+              amount: 0,
+              walletAddress: '0x1234567890abcdef1234567890abcdef12345678',
+            }),
+          ).rejects.toThrow('Amount must be a positive finite number');
+
+          await expect(
+            controller.getQuotes({
+              assetId: 'eip155:1/slip44:60',
+              amount: -100,
+              walletAddress: '0x1234567890abcdef1234567890abcdef12345678',
+            }),
+          ).rejects.toThrow('Amount must be a positive finite number');
+
+          await expect(
+            controller.getQuotes({
+              assetId: 'eip155:1/slip44:60',
+              amount: Infinity,
+              walletAddress: '0x1234567890abcdef1234567890abcdef12345678',
+            }),
+          ).rejects.toThrow('Amount must be a positive finite number');
+        },
+      );
+    });
+
+    it('throws when assetId is empty', async () => {
+      await withController(
+        {
+          options: {
+            state: {
+              userRegion: createMockUserRegion('us'),
+              paymentMethods: [
+                {
+                  id: '/payments/debit-credit-card',
+                  paymentType: 'debit-credit-card',
+                  name: 'Debit or Credit',
+                  score: 90,
+                  icon: 'card',
+                },
+              ],
+            },
+          },
+        },
+        async ({ controller }) => {
+          await expect(
+            controller.getQuotes({
+              assetId: '',
+              amount: 100,
+              walletAddress: '0x1234567890abcdef1234567890abcdef12345678',
+            }),
+          ).rejects.toThrow('assetId is required');
+
+          await expect(
+            controller.getQuotes({
+              assetId: '   ',
+              amount: 100,
+              walletAddress: '0x1234567890abcdef1234567890abcdef12345678',
+            }),
+          ).rejects.toThrow('assetId is required');
+        },
+      );
+    });
+
+    it('throws when walletAddress is empty', async () => {
+      await withController(
+        {
+          options: {
+            state: {
+              userRegion: createMockUserRegion('us'),
+              paymentMethods: [
+                {
+                  id: '/payments/debit-credit-card',
+                  paymentType: 'debit-credit-card',
+                  name: 'Debit or Credit',
+                  score: 90,
+                  icon: 'card',
+                },
+              ],
+            },
+          },
+        },
+        async ({ controller }) => {
+          await expect(
+            controller.getQuotes({
+              assetId: 'eip155:1/slip44:60',
+              amount: 100,
+              walletAddress: '',
+            }),
+          ).rejects.toThrow('walletAddress is required');
+
+          await expect(
+            controller.getQuotes({
+              assetId: 'eip155:1/slip44:60',
+              amount: 100,
+              walletAddress: '   ',
+            }),
+          ).rejects.toThrow('walletAddress is required');
+        },
+      );
+    });
+
     it('caches quotes response', async () => {
       await withController(
         {
