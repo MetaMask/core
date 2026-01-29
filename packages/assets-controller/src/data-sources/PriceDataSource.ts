@@ -10,12 +10,12 @@ import { projectLogger, createModuleLogger } from '../logger';
 import { forDataTypes } from '../types';
 import type {
   Caip19AssetId,
-  AssetPrice,
   AssetBalance,
   AccountId,
   ChainId,
   DataRequest,
   DataResponse,
+  FungibleAssetPrice,
   Middleware,
 } from '../types';
 
@@ -158,13 +158,8 @@ function isPriceableAsset(assetId: Caip19AssetId): boolean {
   return !NON_PRICEABLE_ASSET_PATTERNS.some((pattern) => pattern.test(assetId));
 }
 
-/** Market data item from spot prices response */
-type SpotPriceMarketData = {
-  price: number;
-  pricePercentChange1d?: number;
-  marketCap?: number;
-  totalVolume?: number;
-};
+/** Market data item from spot prices response (same as FungibleAssetPrice without lastUpdated) */
+type SpotPriceMarketData = Omit<FungibleAssetPrice, 'lastUpdated'>;
 
 /**
  * Type guard to check if market data has a valid price
@@ -179,19 +174,6 @@ function isValidMarketData(data: unknown): data is SpotPriceMarketData {
     'price' in data &&
     typeof (data as SpotPriceMarketData).price === 'number'
   );
-}
-
-function transformMarketDataToAssetPrice(
-  marketData: SpotPriceMarketData,
-): AssetPrice {
-  return {
-    price: marketData.price,
-    priceChange24h: marketData.pricePercentChange1d,
-    lastUpdated: Date.now(),
-    // Extended market data
-    marketCap: marketData.marketCap,
-    volume24h: marketData.totalVolume,
-  };
 }
 
 // ============================================================================
@@ -328,10 +310,7 @@ export class PriceDataSource {
       }
 
       try {
-        const priceResponse = await this.#fetchSpotPrices(
-          priceableAssetIds,
-          true, // includeMarketData
-        );
+        const priceResponse = await this.#fetchSpotPrices(priceableAssetIds);
 
         response.assetsPrice ??= {};
 
@@ -341,8 +320,10 @@ export class PriceDataSource {
           }
 
           const caipAssetId = assetId as Caip19AssetId;
-          response.assetsPrice[caipAssetId] =
-            transformMarketDataToAssetPrice(marketData);
+          response.assetsPrice[caipAssetId] = {
+            ...marketData,
+            lastUpdated: Date.now(),
+          };
         }
       } catch (error) {
         log('Failed to fetch prices via middleware', { error });
@@ -361,16 +342,12 @@ export class PriceDataSource {
    * Fetch spot prices with caching and deduplication via query service.
    *
    * @param assetIds - Array of CAIP-19 asset IDs
-   * @param includeMarketData - Whether to include market data
    * @returns Spot prices response
    */
-  async #fetchSpotPrices(
-    assetIds: string[],
-    includeMarketData: boolean,
-  ): Promise<V3SpotPricesResponse> {
+  async #fetchSpotPrices(assetIds: string[]): Promise<V3SpotPricesResponse> {
     return this.#apiClient.prices.fetchV3SpotPrices(assetIds, {
       currency: this.#currency,
-      includeMarketData,
+      includeMarketData: true,
     });
   }
 
@@ -448,10 +425,7 @@ export class PriceDataSource {
     }
 
     try {
-      const priceResponse = await this.#fetchSpotPrices(
-        [...assetIds],
-        true, // includeMarketData
-      );
+      const priceResponse = await this.#fetchSpotPrices([...assetIds]);
 
       response.assetsPrice = {};
 
@@ -462,8 +436,10 @@ export class PriceDataSource {
         }
 
         const caipAssetId = assetId as Caip19AssetId;
-        response.assetsPrice[caipAssetId] =
-          transformMarketDataToAssetPrice(marketData);
+        response.assetsPrice[caipAssetId] = {
+          ...marketData,
+          lastUpdated: Date.now(),
+        };
       }
     } catch (error) {
       log('Failed to fetch prices', { error });

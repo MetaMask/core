@@ -86,6 +86,9 @@ export type Provider = {
   hqAddress: string;
   links: ProviderLink[];
   logos: ProviderLogos;
+  supportedCryptoCurrencies?: Record<string, boolean>;
+  supportedFiatCurrencies?: Record<string, boolean>;
+  supportedPaymentMethods?: Record<string, boolean>;
 };
 
 /**
@@ -480,6 +483,7 @@ export enum RampsEnvironment {
   Production = 'production',
   Staging = 'staging',
   Development = 'development',
+  Local = 'local',
 }
 
 /**
@@ -554,6 +558,8 @@ function getBaseUrl(
     case RampsEnvironment.Staging:
     case RampsEnvironment.Development:
       return `https://on-ramp${cache}.uat-api.cx.metamask.io`;
+    case RampsEnvironment.Local:
+      return 'http://localhost:3000';
     default:
       throw new Error(`Invalid environment: ${String(environment)}`);
   }
@@ -648,6 +654,11 @@ export class RampsService {
   readonly #context: string;
 
   /**
+   * Optional base URL override for local development.
+   */
+  readonly #baseUrlOverride?: string;
+
+  /**
    * Constructs a new RampsService object.
    *
    * @param args - The constructor arguments.
@@ -660,6 +671,7 @@ export class RampsService {
    * `node-fetch`).
    * @param args.policyOptions - Options to pass to `createServicePolicy`, which
    * is used to wrap each request. See {@link CreateServicePolicyOptions}.
+   * @param args.baseUrlOverride - Optional base URL override for local development.
    */
   constructor({
     messenger,
@@ -667,12 +679,14 @@ export class RampsService {
     context,
     fetch: fetchFunction,
     policyOptions = {},
+    baseUrlOverride,
   }: {
     messenger: RampsServiceMessenger;
     environment?: RampsEnvironment;
     context: string;
     fetch: typeof fetch;
     policyOptions?: CreateServicePolicyOptions;
+    baseUrlOverride?: string;
   }) {
     this.name = serviceName;
     this.#messenger = messenger;
@@ -680,11 +694,25 @@ export class RampsService {
     this.#policy = createServicePolicy(policyOptions);
     this.#environment = environment;
     this.#context = context;
+    this.#baseUrlOverride = baseUrlOverride;
 
     this.#messenger.registerMethodActionHandlers(
       this,
       MESSENGER_EXPOSED_METHODS,
     );
+  }
+
+  /**
+   * Gets the base URL for API requests, respecting the baseUrlOverride if set.
+   *
+   * @param service - The API service type.
+   * @returns The base URL to use.
+   */
+  #getBaseUrl(service: RampsApiService): string {
+    if (this.#baseUrlOverride) {
+      return this.#baseUrlOverride;
+    }
+    return getBaseUrl(this.#environment, service);
   }
 
   /**
@@ -775,7 +803,7 @@ export class RampsService {
     },
   ): Promise<TResponse> {
     return this.#policy.execute(async () => {
-      const baseUrl = getBaseUrl(this.#environment, service);
+      const baseUrl = this.#getBaseUrl(service);
       const url = new URL(path, baseUrl);
       this.#addCommonParams(url, options.action);
 
@@ -868,7 +896,7 @@ export class RampsService {
     const normalizedRegion = region.toLowerCase().trim();
     const url = new URL(
       getApiPath(`regions/${normalizedRegion}/topTokens`),
-      getBaseUrl(this.#environment, RampsApiService.Regions),
+      this.#getBaseUrl(RampsApiService.Regions),
     );
     this.#addCommonParams(url, action);
 
@@ -928,7 +956,7 @@ export class RampsService {
     const normalizedRegion = regionCode.toLowerCase().trim();
     const url = new URL(
       getApiPath(`regions/${normalizedRegion}/providers`),
-      getBaseUrl(this.#environment, RampsApiService.Regions),
+      this.#getBaseUrl(RampsApiService.Regions),
     );
     this.#addCommonParams(url);
 
@@ -998,15 +1026,16 @@ export class RampsService {
     assetId: string;
     provider: string;
   }): Promise<PaymentMethodsResponse> {
+    const normalizedRegion = options.region.toLowerCase().trim();
     const url = new URL(
-      getApiPath('paymentMethods'),
-      getBaseUrl(this.#environment, RampsApiService.Regions),
+      getApiPath(`regions/${normalizedRegion}/payments`),
+      this.#getBaseUrl(RampsApiService.Regions),
     );
     this.#addCommonParams(url);
 
     url.searchParams.set('region', options.region.toLowerCase().trim());
     url.searchParams.set('fiat', options.fiat.toLowerCase().trim());
-    url.searchParams.set('assetId', options.assetId);
+    url.searchParams.set('crypto', options.assetId);
     url.searchParams.set('provider', options.provider);
 
     const response = await this.#policy.execute(async () => {

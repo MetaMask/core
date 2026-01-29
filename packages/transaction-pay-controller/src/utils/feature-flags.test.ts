@@ -6,6 +6,7 @@ import {
   DEFAULT_RELAY_FALLBACK_GAS_MAX,
   DEFAULT_RELAY_QUOTE_URL,
   DEFAULT_SLIPPAGE,
+  getEIP7702SupportedChains,
   getFeatureFlags,
   getGasBuffer,
   getSlippage,
@@ -344,6 +345,44 @@ describe('Feature Flags Utils', () => {
       );
 
       expect(slippage).toBe(DEFAULT_SLIPPAGE);
+    });
+  });
+
+  describe('getEIP7702SupportedChains', () => {
+    it('returns empty array when no feature flags are set', () => {
+      const supportedChains = getEIP7702SupportedChains(messenger);
+
+      expect(supportedChains).toStrictEqual([]);
+    });
+
+    it('returns supported chains from feature flags', () => {
+      const expectedChains = [CHAIN_ID_MOCK, CHAIN_ID_DIFFERENT_MOCK];
+
+      getRemoteFeatureFlagControllerStateMock.mockReturnValue({
+        ...getDefaultRemoteFeatureFlagControllerState(),
+        remoteFeatureFlags: {
+          confirmations_eip_7702: {
+            supportedChains: expectedChains,
+          },
+        },
+      });
+
+      const supportedChains = getEIP7702SupportedChains(messenger);
+
+      expect(supportedChains).toStrictEqual(expectedChains);
+    });
+
+    it('returns empty array when confirmations_eip_7702 exists but supportedChains is undefined', () => {
+      getRemoteFeatureFlagControllerStateMock.mockReturnValue({
+        ...getDefaultRemoteFeatureFlagControllerState(),
+        remoteFeatureFlags: {
+          confirmations_eip_7702: {},
+        },
+      });
+
+      const supportedChains = getEIP7702SupportedChains(messenger);
+
+      expect(supportedChains).toStrictEqual([]);
     });
   });
 });

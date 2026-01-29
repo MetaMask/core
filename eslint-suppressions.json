@@ -559,7 +559,7 @@
   },
   "packages/bridge-controller/src/bridge-controller.test.ts": {
     "@typescript-eslint/explicit-function-return-type": {
-      "count": 1
+      "count": 2
     },
     "@typescript-eslint/prefer-nullish-coalescing": {
       "count": 1
@@ -567,7 +567,7 @@
   },
   "packages/bridge-controller/src/bridge-controller.ts": {
     "@typescript-eslint/explicit-function-return-type": {
-      "count": 17
+      "count": 18
     },
     "@typescript-eslint/naming-convention": {
       "count": 4
@@ -580,7 +580,7 @@
   },
   "packages/bridge-controller/src/selectors.ts": {
     "@typescript-eslint/explicit-function-return-type": {
-      "count": 24
+      "count": 25
     },
     "@typescript-eslint/naming-convention": {
       "count": 1
@@ -694,7 +694,7 @@
   },
   "packages/bridge-controller/src/utils/snaps.ts": {
     "@typescript-eslint/explicit-function-return-type": {
-      "count": 1
+      "count": 3
     }
   },
   "packages/bridge-controller/src/utils/swaps.ts": {
@@ -1688,20 +1688,6 @@
       "count": 1
     },
     "id-length": {
-      "count": 1
-    }
-  },
-  "packages/profile-sync-controller/src/sdk/authentication-jwt-bearer/services.ts": {
-    "@typescript-eslint/explicit-function-return-type": {
-      "count": 6
-    },
-    "@typescript-eslint/naming-convention": {
-      "count": 4
-    },
-    "id-length": {
-      "count": 5
-    },
-    "no-restricted-globals": {
       "count": 1
     }
   },

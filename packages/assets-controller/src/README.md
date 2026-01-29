@@ -387,10 +387,10 @@ Record<AccountId, Record<Caip19AssetId, Asset>>;
 interface Asset {
   id: Caip19AssetId; // "eip155:1/erc20:0xA0b8..."
   chainId: ChainId; // "eip155:1"
-  balance: AssetBalance; // { amount: "1000000" }
+  balance: AssetBalance; // { amount: "1.5" } (human-readable format)
   metadata: AssetMetadata; // { type, symbol, name, decimals, image, ... }
   price: AssetPrice; // { price: 2500, priceChange24h: 2.5, ... }
-  fiatValue: number; // Computed: (balance / 10^decimals) * price
+  fiatValue: number; // Computed: balance.amount * price
 }
 ```
 
@@ -742,9 +742,8 @@ export const selectAssetsForAccount = (state, accountId) => {
     const metadata = assetsMetadata[assetId];
     const price = assetsPrice[assetId] || { price: 0 };
 
-    const normalizedAmount =
-      parseFloat(balance.amount) / Math.pow(10, metadata.decimals);
-    const fiatValue = normalizedAmount * price.price;
+    // balance.amount is already in human-readable format (e.g., "1.5" for 1.5 ETH)
+    const fiatValue = parseFloat(balance.amount) * price.price;
 
     return {
       id: assetId,
