@@ -306,6 +306,7 @@ describe('Balance Change Utils', () => {
 
           expect(result).toStrictEqual({
             simulationData: {
+              callTraceErrors: [],
               nativeBalanceChange: {
                 difference: DIFFERENCE_MOCK,
                 isDecrease,
@@ -328,6 +329,7 @@ describe('Balance Change Utils', () => {
 
         expect(result).toStrictEqual({
           simulationData: {
+            callTraceErrors: [],
             nativeBalanceChange: undefined,
             tokenBalanceChanges: [],
           },
@@ -344,6 +346,7 @@ describe('Balance Change Utils', () => {
 
         expect(result).toStrictEqual({
           simulationData: {
+            callTraceErrors: [],
             nativeBalanceChange: {
               difference: '0x7',
               isDecrease: false,
@@ -465,6 +468,7 @@ describe('Balance Change Utils', () => {
 
           expect(result).toStrictEqual({
             simulationData: {
+              callTraceErrors: [],
               nativeBalanceChange: undefined,
               tokenBalanceChanges: [
                 {
@@ -515,6 +519,7 @@ describe('Balance Change Utils', () => {
 
         expect(result).toStrictEqual({
           simulationData: {
+            callTraceErrors: [],
             nativeBalanceChange: undefined,
             tokenBalanceChanges: [
               {
@@ -574,6 +579,7 @@ describe('Balance Change Utils', () => {
 
         expect(result).toStrictEqual({
           simulationData: {
+            callTraceErrors: [],
             nativeBalanceChange: undefined,
             tokenBalanceChanges: [
               {
@@ -621,6 +627,7 @@ describe('Balance Change Utils', () => {
 
         expect(result).toStrictEqual({
           simulationData: {
+            callTraceErrors: [],
             nativeBalanceChange: undefined,
             tokenBalanceChanges: [
               {
@@ -732,6 +739,7 @@ describe('Balance Change Utils', () => {
         );
         expect(result).toStrictEqual({
           simulationData: {
+            callTraceErrors: [],
             nativeBalanceChange: undefined,
             tokenBalanceChanges: [
               {
@@ -773,6 +781,7 @@ describe('Balance Change Utils', () => {
 
         expect(result).toStrictEqual({
           simulationData: {
+            callTraceErrors: [],
             nativeBalanceChange: undefined,
             tokenBalanceChanges: [],
           },
@@ -800,6 +809,7 @@ describe('Balance Change Utils', () => {
 
         expect(result).toStrictEqual({
           simulationData: {
+            callTraceErrors: [],
             nativeBalanceChange: undefined,
             tokenBalanceChanges: [],
           },
@@ -824,6 +834,7 @@ describe('Balance Change Utils', () => {
 
         expect(result).toStrictEqual({
           simulationData: {
+            callTraceErrors: [],
             nativeBalanceChange: undefined,
             tokenBalanceChanges: [],
           },
@@ -844,6 +855,7 @@ describe('Balance Change Utils', () => {
 
         expect(result).toStrictEqual({
           simulationData: {
+            callTraceErrors: [],
             nativeBalanceChange: undefined,
             tokenBalanceChanges: [
               {
@@ -902,6 +914,7 @@ describe('Balance Change Utils', () => {
 
         expect(result).toStrictEqual({
           simulationData: {
+            callTraceErrors: [],
             nativeBalanceChange: undefined,
             tokenBalanceChanges: [
               {
@@ -920,6 +933,128 @@ describe('Balance Change Utils', () => {
       });
     });
 
+    describe('returns call trace errors', () => {
+      it('from root call trace', async () => {
+        simulateTransactionsMock.mockResolvedValueOnce({
+          transactions: [
+            {
+              ...defaultResponseTx,
+              callTrace: {
+                calls: [],
+                logs: [],
+                error: 'Root error',
+              },
+            },
+          ],
+          sponsorship: {
+            isSponsored: false,
+            error: null,
+          },
+        });
+
+        const result = await getBalanceChanges(REQUEST_MOCK);
+
+        expect(result).toStrictEqual({
+          simulationData: {
+            callTraceErrors: ['Root error'],
+            nativeBalanceChange: undefined,
+            tokenBalanceChanges: [],
+          },
+          gasUsed: undefined,
+        });
+      });
+
+      it('from nested call traces', async () => {
+        simulateTransactionsMock.mockResolvedValueOnce({
+          transactions: [
+            {
+              ...defaultResponseTx,
+              callTrace: {
+                calls: [
+                  {
+                    calls: [
+                      {
+                        calls: [],
+                        logs: [],
+                        error: 'Deeply nested error',
+                      },
+                    ],
+                    logs: [],
+                    error: 'Nested error',
+                  },
+                ],
+                logs: [],
+                error: 'Root error',
+              },
+            },
+          ],
+          sponsorship: {
+            isSponsored: false,
+            error: null,
+          },
+        });
+
+        const result = await getBalanceChanges(REQUEST_MOCK);
+
+        expect(result).toStrictEqual({
+          simulationData: {
+            callTraceErrors: [
+              'Root error',
+              'Nested error',
+              'Deeply nested error',
+            ],
+            nativeBalanceChange: undefined,
+            tokenBalanceChanges: [],
+          },
+          gasUsed: undefined,
+        });
+      });
+
+      it('as empty array when no errors in call trace', async () => {
+        simulateTransactionsMock.mockResolvedValueOnce(
+          createNativeBalanceResponse(BALANCE_1_MOCK, BALANCE_2_MOCK),
+        );
+
+        const result = await getBalanceChanges(REQUEST_MOCK);
+
+        expect(result.simulationData.callTraceErrors).toStrictEqual([]);
+      });
+
+      it('in error response when call trace errors exist', async () => {
+        simulateTransactionsMock.mockResolvedValueOnce({
+          transactions: [
+            {
+              ...defaultResponseTx,
+              error: 'Transaction failed',
+              callTrace: {
+                calls: [],
+                logs: [],
+                error: 'Call trace error',
+              },
+            },
+          ],
+          sponsorship: {
+            isSponsored: false,
+            error: null,
+          },
+        });
+
+        const result = await getBalanceChanges(REQUEST_MOCK);
+
+        expect(result).toStrictEqual({
+          simulationData: {
+            callTraceErrors: ['Call trace error'],
+            tokenBalanceChanges: [],
+            error: {
+              code: undefined,
+              message: 'Transaction failed',
+            },
+          },
+          gasUsed: undefined,
+        });
+      });
+    });
+
     describe('returns error', () => {
       it('if API request throws', async () => {
         simulateTransactionsMock.mockRejectedValueOnce({
@@ -931,6 +1066,7 @@ describe('Balance Change Utils', () => {
 
         expect(result).toStrictEqual({
           simulationData: {
+            callTraceErrors: undefined,
             tokenBalanceChanges: [],
             error: {
               code: ERROR_CODE_MOCK,
@@ -950,6 +1086,7 @@ describe('Balance Change Utils', () => {
 
         expect(result).toStrictEqual({
           simulationData: {
+            callTraceErrors: undefined,
             tokenBalanceChanges: [],
             error: {
               code: ERROR_CODE_MOCK,
@@ -973,6 +1110,7 @@ describe('Balance Change Utils', () => {
 
         expect(result).toStrictEqual({
           simulationData: {
+            callTraceErrors: [],
             tokenBalanceChanges: [],
             error: {
               code: SimulationErrorCode.InvalidResponse,
@@ -1001,6 +1139,7 @@ describe('Balance Change Utils', () => {
 
         expect(result).toStrictEqual({
           simulationData: {
+            callTraceErrors: [],
             tokenBalanceChanges: [],
             error: {
               code: SimulationErrorCode.Reverted,
@@ -1029,6 +1168,7 @@ describe('Balance Change Utils', () => {
 
         expect(result).toStrictEqual({
           simulationData: {
+            callTraceErrors: [],
             tokenBalanceChanges: [],
             error: {
               code: undefined,
@@ -1049,6 +1189,7 @@ describe('Balance Change Utils', () => {
 
         expect(result).toStrictEqual({
           simulationData: {
+            callTraceErrors: undefined,
             tokenBalanceChanges: [],
             error: {
               code: SimulationErrorCode.Reverted,

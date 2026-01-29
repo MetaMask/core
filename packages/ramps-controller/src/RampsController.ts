@@ -15,6 +15,7 @@ import type {
   RampAction,
   PaymentMethod,
   PaymentMethodsResponse,
+  RampsToken,
 } from './RampsService';
 import type {
   RampsServiceGetGeolocationAction,
@@ -81,10 +82,14 @@ export type RampsControllerState = {
    */
   userRegion: UserRegion | null;
   /**
-   * The user's preferred provider.
+   * The user's selected provider.
    * Can be manually set by the user.
    */
-  preferredProvider: Provider | null;
+  selectedProvider: Provider | null;
+  /**
+   * List of countries available for ramp actions.
+   */
+  countries: Country[];
   /**
    * List of providers available for the current region.
    */
@@ -94,6 +99,11 @@ export type RampsControllerState = {
    * Contains topTokens and allTokens arrays.
    */
   tokens: TokensResponse | null;
+  /**
+   * The user's selected token.
+   * When set, automatically fetches and sets payment methods for that token.
+   */
+  selectedToken: RampsToken | null;
   /**
    * Payment methods available for the current context.
    * Filtered by region, fiat, asset, and provider.
@@ -121,7 +131,13 @@ const rampsControllerMetadata = {
     includeInStateLogs: true,
     usedInUi: true,
   },
-  preferredProvider: {
+  selectedProvider: {
+    persist: false,
+    includeInDebugSnapshot: true,
+    includeInStateLogs: true,
+    usedInUi: true,
+  },
+  countries: {
     persist: true,
     includeInDebugSnapshot: true,
     includeInStateLogs: true,
@@ -135,6 +151,12 @@ const rampsControllerMetadata = {
   },
   tokens: {
     persist: true,
+    includeInDebugSnapshot: true,
+    includeInStateLogs: true,
+    usedInUi: true,
+  },
+  selectedToken: {
+    persist: false,
     includeInDebugSnapshot: true,
     includeInStateLogs: true,
     usedInUi: true,
@@ -170,9 +192,11 @@ const rampsControllerMetadata = {
 export function getDefaultRampsControllerState(): RampsControllerState {
   return {
     userRegion: null,
-    preferredProvider: null,
+    selectedProvider: null,
+    countries: [],
     providers: [],
     tokens: null,
+    selectedToken: null,
     paymentMethods: [],
     selectedPaymentMethod: null,
     requests: {},
@@ -393,7 +417,6 @@ export class RampsController extends BaseController<
       return pending.promise as Promise<TResult>;
     }
 
-    // Check cache validity (unless force refresh)
     if (!options?.forceRefresh) {
       const cached = this.state.requests[cacheKey];
       if (cached && !isCacheExpired(cached, ttl)) {
@@ -483,6 +506,18 @@ export class RampsController extends BaseController<
     });
   }
 
+  #cleanupState(): void {
+    this.update((state) => {
+      state.userRegion = null;
+      state.selectedProvider = null;
+      state.selectedToken = null;
+      state.tokens = null;
+      state.providers = [];
+      state.paymentMethods = [];
+      state.selectedPaymentMethod = null;
+    });
+  }
+
   /**
    * Gets the state of a specific cached request.
    *
@@ -547,114 +582,6 @@ export class RampsController extends BaseController<
   }
 
   /**
-   * Updates the user's region by fetching geolocation.
-   * This method calls the RampsService to get the geolocation.
-   *
-   * @param options - Options for cache behavior.
-   * @returns The user region object.
-   */
-  async updateUserRegion(
-    options?: ExecuteRequestOptions,
-  ): Promise<UserRegion | null> {
-    // If a userRegion already exists and forceRefresh is not requested,
-    // return it immediately without fetching geolocation.
-    // This ensures that once a region is set (either via geolocation or manual selection),
-    // it will not be overwritten by subsequent geolocation fetches.
-    if (this.state.userRegion && !options?.forceRefresh) {
-      return this.state.userRegion;
-    }
-
-    // When forceRefresh is true, clear the existing region and region-dependent state before fetching
-    if (options?.forceRefresh) {
-      this.update((state) => {
-        state.userRegion = null;
-        state.tokens = null;
-        state.providers = [];
-        state.paymentMethods = [];
-        state.selectedPaymentMethod = null;
-      });
-    }
-
-    const cacheKey = createCacheKey('updateUserRegion', []);
-
-    const regionCode = await this.executeRequest(
-      cacheKey,
-      async () => {
-        const result = await this.messenger.call('RampsService:getGeolocation');
-        return result;
-      },
-      options,
-    );
-
-    if (!regionCode) {
-      this.update((state) => {
-        state.userRegion = null;
-        state.tokens = null;
-        state.providers = [];
-        state.paymentMethods = [];
-        state.selectedPaymentMethod = null;
-      });
-      return null;
-    }
-
-    const normalizedRegion = regionCode.toLowerCase().trim();
-
-    try {
-      const countries = await this.getCountries('buy', options);
-      const userRegion = findRegionFromCode(normalizedRegion, countries);
-
-      if (userRegion) {
-        this.update((state) => {
-          const regionChanged =
-            state.userRegion?.regionCode !== userRegion.regionCode;
-          state.userRegion = userRegion;
-          // Clear region-dependent state when region changes
-          if (regionChanged) {
-            state.tokens = null;
-            state.providers = [];
-            state.paymentMethods = [];
-            state.selectedPaymentMethod = null;
-          }
-        });
-
-        // Fetch providers for the new region
-        if (userRegion.regionCode) {
-          try {
-            await this.getProviders(userRegion.regionCode, options);
-          } catch {
-            // Provider fetch failed - error state will be available via selectors
-          }
-        }
-
-        return userRegion;
-      }
-
-      // Region not found in countries data
-      this.update((state) => {
-        state.userRegion = null;
-        state.tokens = null;
-        state.providers = [];
-        state.paymentMethods = [];
-        state.selectedPaymentMethod = null;
-      });
-
-      return null;
-    } catch {
-      // If countries fetch fails, we can't create a valid UserRegion
-      // Return null to indicate we don't have valid country data
-      this.update((state) => {
-        state.userRegion = null;
-        state.tokens = null;
-        state.providers = [];
-        state.paymentMethods = [];
-        state.selectedPaymentMethod = null;
-      });
-
-      return null;
-    }
-  }
-
-  /**
    * Sets the user's region manually (without fetching geolocation).
    * This allows users to override the detected region.
    *
@@ -669,123 +596,169 @@ export class RampsController extends BaseController<
     const normalizedRegion = region.toLowerCase().trim();
 
     try {
-      const countries = await this.getCountries('buy', options);
+      const { countries } = this.state;
+      if (!countries || countries.length === 0) {
+        this.#cleanupState();
+        throw new Error(
+          'No countries found. Cannot set user region without valid country information.',
+        );
+      }
+
       const userRegion = findRegionFromCode(normalizedRegion, countries);
 
-      if (userRegion) {
-        this.update((state) => {
-          state.userRegion = userRegion;
+      if (!userRegion) {
+        this.#cleanupState();
+        throw new Error(
+          `Region "${normalizedRegion}" not found in countries data. Cannot set user region without valid country information.`,
+        );
+      }
+
+      // Only cleanup state if region is actually changing
+      const regionChanged =
+        normalizedRegion !== this.state.userRegion?.regionCode;
+
+      // Set the new region atomically with cleanup to avoid intermediate null state
+      this.update((state) => {
+        if (regionChanged) {
+          state.selectedProvider = null;
+          state.selectedToken = null;
           state.tokens = null;
           state.providers = [];
           state.paymentMethods = [];
           state.selectedPaymentMethod = null;
-        });
-
-        // Fetch providers for the new region
-        try {
-          await this.getProviders(userRegion.regionCode, options);
-        } catch {
-          // Provider fetch failed - error state will be available via selectors
         }
+        state.userRegion = userRegion;
+      });
 
-        return userRegion;
+      // Only trigger fetches if region changed or if data is missing
+      if (regionChanged || !this.state.tokens) {
+        this.triggerGetTokens(userRegion.regionCode, 'buy', options);
+      }
+      if (regionChanged || this.state.providers.length === 0) {
+        this.triggerGetProviders(userRegion.regionCode, options);
       }
 
-      // Region not found in countries data
-      this.update((state) => {
-        state.userRegion = null;
-        state.tokens = null;
-        state.providers = [];
-        state.paymentMethods = [];
-        state.selectedPaymentMethod = null;
-      });
-      throw new Error(
-        `Region "${normalizedRegion}" not found in countries data. Cannot set user region without valid country information.`,
-      );
+      return userRegion;
     } catch (error) {
-      // If the error is "not found", re-throw it
-      // Otherwise, it's from countries fetch failure
-      if (error instanceof Error && error.message.includes('not found')) {
-        throw error;
-      }
-      // Countries fetch failed
-      this.update((state) => {
-        state.userRegion = null;
-        state.tokens = null;
-        state.providers = [];
-        state.paymentMethods = [];
-        state.selectedPaymentMethod = null;
-      });
-      throw new Error(
-        'Failed to fetch countries data. Cannot set user region without valid country information.',
-      );
+      this.#cleanupState();
+      throw error;
     }
   }
 
   /**
-   * Sets the user's preferred provider.
-   * This allows users to set their preferred ramp provider.
+   * Sets the user's selected provider by ID, or clears the selection.
+   * Looks up the provider from the current providers in state and automatically
+   * fetches payment methods for that provider.
    *
-   * @param provider - The provider object to set.
+   * @param providerId - The provider ID (e.g., "/providers/moonpay"), or null to clear.
+   * @throws If region is not set, providers are not loaded, or provider is not found.
    */
-  setPreferredProvider(provider: Provider | null): void {
+  setSelectedProvider(providerId: string | null): void {
+    if (providerId === null) {
+      this.update((state) => {
+        state.selectedProvider = null;
+        state.paymentMethods = [];
+        state.selectedPaymentMethod = null;
+      });
+      return;
+    }
+
+    const regionCode = this.state.userRegion?.regionCode;
+    if (!regionCode) {
+      throw new Error(
+        'Region is required. Cannot set selected provider without valid region information.',
+      );
+    }
+
+    const { providers } = this.state;
+    if (!providers || providers.length === 0) {
+      throw new Error(
+        'Providers not loaded. Cannot set selected provider before providers are fetched.',
+      );
+    }
+
+    const provider = providers.find((prov) => prov.id === providerId);
+    if (!provider) {
+      throw new Error(
+        `Provider with ID "${providerId}" not found in available providers.`,
+      );
+    }
+
     this.update((state) => {
-      state.preferredProvider = provider;
+      state.selectedProvider = provider;
+      state.paymentMethods = [];
+      state.selectedPaymentMethod = null;
+    });
+
+    // fetch payment methods for the new provider
+    // this is needed because you can change providers without changing the token
+    // (getPaymentMethods will use state as its default)
+    this.triggerGetPaymentMethods(regionCode, {
+      provider: provider.id,
     });
   }
 
   /**
    * Initializes the controller by fetching the user's region from geolocation.
    * This should be called once at app startup to set up the initial region.
-   * After the region is set, tokens are fetched and saved to state.
    *
    * If a userRegion already exists (from persistence or manual selection),
-   * this method will skip geolocation fetch and only fetch tokens if needed.
+   * this method will skip geolocation fetch and use the existing region.
    *
    * @param options - Options for cache behavior.
    * @returns Promise that resolves when initialization is complete.
    */
   async init(options?: ExecuteRequestOptions): Promise<void> {
-    const userRegion = await this.updateUserRegion(options).catch(() => {
-      // User region fetch failed - error state will be available via selectors
-      return null;
-    });
+    await this.getCountries(options);
 
-    if (userRegion) {
-      try {
-        await this.getTokens(userRegion.regionCode, 'buy', options);
-      } catch {
-        // Token fetch failed - error state will be available via selectors
-      }
+    let regionCode = this.state.userRegion?.regionCode;
+    regionCode ??= await this.messenger.call('RampsService:getGeolocation');
 
-      try {
-        await this.getProviders(userRegion.regionCode, options);
-      } catch {
-        // Provider fetch failed - error state will be available via selectors
-      }
+    if (!regionCode) {
+      throw new Error(
+        'Failed to fetch geolocation. Cannot initialize controller without valid region information.',
+      );
     }
+
+    await this.setUserRegion(regionCode, options);
+  }
+
+  hydrateState(options?: ExecuteRequestOptions): void {
+    const regionCode = this.state.userRegion?.regionCode;
+    if (!regionCode) {
+      throw new Error(
+        'Region code is required. Cannot hydrate state without valid region information.',
+      );
+    }
+
+    this.triggerGetTokens(regionCode, 'buy', options);
+    this.triggerGetProviders(regionCode, options);
   }
 
   /**
-   * Fetches the list of supported countries for a given ramp action.
+   * Fetches the list of supported countries.
+   * The API returns countries with support information for both buy and sell actions.
+   * The countries are saved in the controller state once fetched.
    *
-   * @param action - The ramp action type ('buy' or 'sell').
    * @param options - Options for cache behavior.
    * @returns An array of countries.
    */
-  async getCountries(
-    action: RampAction = 'buy',
-    options?: ExecuteRequestOptions,
-  ): Promise<Country[]> {
-    const cacheKey = createCacheKey('getCountries', [action]);
+  async getCountries(options?: ExecuteRequestOptions): Promise<Country[]> {
+    const cacheKey = createCacheKey('getCountries', []);
 
-    return this.executeRequest(
+    const countries = await this.executeRequest(
       cacheKey,
       async () => {
-        return this.messenger.call('RampsService:getCountries', action);
+        return this.messenger.call('RampsService:getCountries');
       },
       options,
     );
+
+    this.update((state) => {
+      state.countries = countries;
+    });
+
+    return countries;
   }
 
   /**
@@ -844,6 +817,59 @@ export class RampsController extends BaseController<
     });
 
     return tokens;
+  }
+
+  /**
+   * Sets the user's selected token by asset ID.
+   * Looks up the token from the current tokens in state and automatically
+   * fetches payment methods for that token.
+   *
+   * @param assetId - The asset identifier in CAIP-19 format (e.g., "eip155:1/erc20:0x..."), or undefined to clear.
+   * @throws If region is not set, tokens are not loaded, or token is not found.
+   */
+  setSelectedToken(assetId?: string): void {
+    if (!assetId) {
+      this.update((state) => {
+        state.selectedToken = null;
+        state.paymentMethods = [];
+        state.selectedPaymentMethod = null;
+      });
+      return;
+    }
+
+    const regionCode = this.state.userRegion?.regionCode;
+    if (!regionCode) {
+      throw new Error(
+        'Region is required. Cannot set selected token without valid region information.',
+      );
+    }
+
+    const { tokens } = this.state;
+    if (!tokens) {
+      throw new Error(
+        'Tokens not loaded. Cannot set selected token before tokens are fetched.',
+      );
+    }
+
+    const token =
+      tokens.allTokens.find((tok) => tok.assetId === assetId) ??
+      tokens.topTokens.find((tok) => tok.assetId === assetId);
+
+    if (!token) {
+      throw new Error(
+        `Token with asset ID "${assetId}" not found in available tokens.`,
+      );
+    }
+
+    this.update((state) => {
+      state.selectedToken = token;
+      state.paymentMethods = [];
+      state.selectedPaymentMethod = null;
+    });
+
+    this.triggerGetPaymentMethods(regionCode, {
+      assetId: token.assetId,
+    });
   }
 
   /**
@@ -916,27 +942,30 @@ export class RampsController extends BaseController<
    * Fetches the list of payment methods for a given context.
    * The payment methods are saved in the controller state once fetched.
    *
+   * @param region - User's region code (e.g. "fr", "us-ny").
    * @param options - Query parameters for filtering payment methods.
-   * @param options.region - User's region code. If not provided, uses the user's region from controller state.
    * @param options.fiat - Fiat currency code (e.g., "usd"). If not provided, uses the user's region currency.
    * @param options.assetId - CAIP-19 cryptocurrency identifier.
    * @param options.provider - Provider ID path.
-   * @param options.forceRefresh - Whether to bypass cache.
-   * @param options.ttl - Custom TTL for this request.
    * @returns The payment methods response containing payments array.
    */
-  async getPaymentMethods(options: {
-    region?: string;
-    fiat?: string;
-    assetId: string;
-    provider: string;
-    forceRefresh?: boolean;
-    ttl?: number;
-  }): Promise<PaymentMethodsResponse> {
-    const regionToUse = options.region ?? this.state.userRegion?.regionCode;
-    const fiatToUse = options.fiat ?? this.state.userRegion?.country?.currency;
+  async getPaymentMethods(
+    region?: string,
+    options?: ExecuteRequestOptions & {
+      fiat?: string;
+      assetId?: string;
+      provider?: string;
+    },
+  ): Promise<PaymentMethodsResponse> {
+    const regionCode = region ?? this.state.userRegion?.regionCode ?? null;
+    const fiatToUse =
+      options?.fiat ?? this.state.userRegion?.country?.currency ?? null;
+    const assetIdToUse =
+      options?.assetId ?? this.state.selectedToken?.assetId ?? '';
+    const providerToUse =
+      options?.provider ?? this.state.selectedProvider?.id ?? '';
 
-    if (!regionToUse) {
+    if (!regionCode) {
       throw new Error(
         'Region is required. Either provide a region parameter or ensure userRegion is set in controller state.',
       );
@@ -948,13 +977,13 @@ export class RampsController extends BaseController<
       );
     }
 
-    const normalizedRegion = regionToUse.toLowerCase().trim();
+    const normalizedRegion = regionCode.toLowerCase().trim();
     const normalizedFiat = fiatToUse.toLowerCase().trim();
     const cacheKey = createCacheKey('getPaymentMethods', [
       normalizedRegion,
       normalizedFiat,
-      options.assetId,
-      options.provider,
+      assetIdToUse,
+      providerToUse,
     ]);
 
     const response = await this.executeRequest(
@@ -963,24 +992,33 @@ export class RampsController extends BaseController<
         return this.messenger.call('RampsService:getPaymentMethods', {
           region: normalizedRegion,
           fiat: normalizedFiat,
-          assetId: options.assetId,
-          provider: options.provider,
+          assetId: assetIdToUse,
+          provider: providerToUse,
         });
       },
-      { forceRefresh: options.forceRefresh, ttl: options.ttl },
+      options,
     );
 
     this.update((state) => {
-      state.paymentMethods = response.payments;
-      // Only clear selected payment method if it's no longer in the new list
-      // This preserves the selection when cached data is returned (same context)
-      if (
-        state.selectedPaymentMethod &&
-        !response.payments.some(
-          (pm) => pm.id === state.selectedPaymentMethod?.id,
-        )
-      ) {
-        state.selectedPaymentMethod = null;
+      const currentAssetId = state.selectedToken?.assetId ?? '';
+      const currentProviderId = state.selectedProvider?.id ?? '';
+
+      const tokenSelectionUnchanged = assetIdToUse === currentAssetId;
+      const providerSelectionUnchanged = providerToUse === currentProviderId;
+
+      // this is a race condition check to ensure that the selected token and provider in state are the same as the tokens we're requesting for
+      // ex: if the user rapidly changes the token or provider, the in-flight payment methods might not be valid
+      // so this check will ensure that the payment methods are still valid for the token and provider that were requested
+      if (tokenSelectionUnchanged && providerSelectionUnchanged) {
+        state.paymentMethods = response.payments;
+
+        // this will auto-select the first payment method if the selected payment method is not in the new payment methods
+        const currentSelectionStillValid = response.payments.some(
+          (pm: PaymentMethod) => pm.id === state.selectedPaymentMethod?.id,
+        );
+        if (!currentSelectionStillValid) {
+          state.selectedPaymentMethod = response.payments[0] ?? null;
+        }
       }
     });
 
@@ -988,11 +1026,36 @@ export class RampsController extends BaseController<
   }
 
   /**
-   * Sets the user's selected payment method.
+   * Sets the user's selected payment method by ID.
+   * Looks up the payment method from the current payment methods in state.
    *
-   * @param paymentMethod - The payment method to select, or null to clear.
+   * @param paymentMethodId - The payment method ID (e.g., "/payments/debit-credit-card"), or null to clear.
+   * @throws If payment methods are not loaded or payment method is not found.
    */
-  setSelectedPaymentMethod(paymentMethod: PaymentMethod | null): void {
+  setSelectedPaymentMethod(paymentMethodId?: string): void {
+    if (!paymentMethodId) {
+      this.update((state) => {
+        state.selectedPaymentMethod = null;
+      });
+      return;
+    }
+
+    const { paymentMethods } = this.state;
+    if (!paymentMethods || paymentMethods.length === 0) {
+      throw new Error(
+        'Payment methods not loaded. Cannot set selected payment method before payment methods are fetched.',
+      );
+    }
+
+    const paymentMethod = paymentMethods.find(
+      (pm) => pm.id === paymentMethodId,
+    );
+    if (!paymentMethod) {
+      throw new Error(
+        `Payment method with ID "${paymentMethodId}" not found in available payment methods.`,
+      );
+    }
+
     this.update((state) => {
       state.selectedPaymentMethod = paymentMethod;
     });
@@ -1003,17 +1066,6 @@ export class RampsController extends BaseController<
   // These fire-and-forget methods are for use in React effects.
   // Errors are stored in state and available via selectors.
   // ============================================================
-
-  /**
-   * Triggers a user region update without throwing.
-   *
-   * @param options - Options for cache behavior.
-   */
-  triggerUpdateUserRegion(options?: ExecuteRequestOptions): void {
-    this.updateUserRegion(options).catch(() => {
-      // Error stored in state
-    });
-  }
 
   /**
    * Triggers setting the user region without throwing.
@@ -1030,14 +1082,10 @@ export class RampsController extends BaseController<
   /**
    * Triggers fetching countries without throwing.
    *
-   * @param action - The ramp action type ('buy' or 'sell').
    * @param options - Options for cache behavior.
    */
-  triggerGetCountries(
-    action: 'buy' | 'sell' = 'buy',
-    options?: ExecuteRequestOptions,
-  ): void {
-    this.getCountries(action, options).catch(() => {
+  triggerGetCountries(options?: ExecuteRequestOptions): void {
+    this.getCountries(options).catch(() => {
       // Error stored in state
     });
   }
@@ -1082,23 +1130,21 @@ export class RampsController extends BaseController<
   /**
    * Triggers fetching payment methods without throwing.
    *
+   * @param region - User's region code (e.g., "us", "fr", "us-ny").
    * @param options - Query parameters for filtering payment methods.
-   * @param options.region - User's region code. If not provided, uses userRegion from state.
    * @param options.fiat - Fiat currency code. If not provided, uses userRegion currency.
    * @param options.assetId - CAIP-19 cryptocurrency identifier.
    * @param options.provider - Provider ID path.
-   * @param options.forceRefresh - Whether to bypass cache.
-   * @param options.ttl - Custom TTL for this request.
    */
-  triggerGetPaymentMethods(options: {
-    region?: string;
-    fiat?: string;
-    assetId: string;
-    provider: string;
-    forceRefresh?: boolean;
-    ttl?: number;
-  }): void {
-    this.getPaymentMethods(options).catch(() => {
+  triggerGetPaymentMethods(
+    region?: string,
+    options?: ExecuteRequestOptions & {
+      fiat?: string;
+      assetId?: string;
+      provider?: string;
+    },
+  ): void {
+    this.getPaymentMethods(region, options).catch(() => {
       // Error stored in state
     });
   }

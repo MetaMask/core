@@ -9,6 +9,7 @@
     { "path": "../approval-controller" },
     { "path": "../base-controller" },
     { "path": "../controller-utils" },
+    { "path": "../core-backend" },
     { "path": "../gas-fee-controller" },
     { "path": "../network-controller" },
     { "path": "../messenger" },

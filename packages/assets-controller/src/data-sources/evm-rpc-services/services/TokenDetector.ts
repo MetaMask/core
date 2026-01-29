@@ -1,3 +1,4 @@
+import { StaticIntervalPollingControllerOnly } from '@metamask/polling-controller';
 import type { CaipAssetType } from '@metamask/utils';
 
 import type { MulticallClient } from '../clients';
@@ -16,38 +17,124 @@ import type {
 } from '../types';
 import { reduceInBatchesSerially } from '../utils';
 
+const DEFAULT_DETECTION_INTERVAL = 180_000; // 3 minutes
+
+/**
+ * Minimal messenger interface for TokenDetector.
+ */
+export type TokenDetectorMessenger = {
+  call: (action: 'TokenListController:getState') => TokenListState;
+};
+
 export type TokenDetectorConfig = {
   defaultBatchSize?: number;
   defaultTimeoutMs?: number;
+  /** Polling interval in ms (default: 3 minutes) */
+  pollingInterval?: number;
 };
 
-export class TokenDetector {
+/**
+ * Polling input for TokenDetector - identifies what to poll for.
+ */
+export type DetectionPollingInput = {
+  /** Chain ID (hex format) */
+  chainId: ChainId;
+  /** Account ID */
+  accountId: AccountId;
+  /** Account address */
+  accountAddress: Address;
+};
+
+/**
+ * Callback type for token detection updates.
+ */
+export type OnDetectionUpdateCallback = (result: TokenDetectionResult) => void;
+
+/**
+ * TokenDetector - Detects tokens with non-zero balances via multicall.
+ * Extends StaticIntervalPollingControllerOnly for built-in polling support.
+ */
+export class TokenDetector extends StaticIntervalPollingControllerOnly<DetectionPollingInput>() {
   readonly #multicallClient: MulticallClient;
 
-  readonly #config: Required<TokenDetectorConfig>;
+  readonly #messenger: TokenDetectorMessenger;
 
-  #getTokenListState: (() => TokenListState) | undefined;
+  readonly #config: Required<Omit<TokenDetectorConfig, 'pollingInterval'>>;
 
-  constructor(multicallClient: MulticallClient, config?: TokenDetectorConfig) {
+  #onDetectionUpdate: OnDetectionUpdateCallback | undefined;
+
+  constructor(
+    multicallClient: MulticallClient,
+    messenger: TokenDetectorMessenger,
+    config?: TokenDetectorConfig,
+  ) {
+    super();
     this.#multicallClient = multicallClient;
+    this.#messenger = messenger;
     this.#config = {
       defaultBatchSize: config?.defaultBatchSize ?? 300,
       defaultTimeoutMs: config?.defaultTimeoutMs ?? 30000,
     };
+
+    // Set the polling interval
+    this.setIntervalLength(
+      config?.pollingInterval ?? DEFAULT_DETECTION_INTERVAL,
+    );
   }
 
-  setTokenListStateGetter(getTokenListState: () => TokenListState): void {
-    this.#getTokenListState = getTokenListState;
+  /**
+   * Set the callback to receive detection updates during polling.
+   *
+   * @param callback - Function to call with detection results.
+   */
+  setOnDetectionUpdate(callback: OnDetectionUpdateCallback): void {
+    this.#onDetectionUpdate = callback;
+  }
+
+  /**
+   * Execute a poll cycle (required by base class).
+   * Detects tokens and calls the update callback.
+   *
+   * @param input - The polling input.
+   */
+  async _executePoll(input: DetectionPollingInput): Promise<void> {
+    // Check if token list is available for this chain
+    const tokensToCheck = this.getTokensToCheck(input.chainId);
+    if (tokensToCheck.length === 0) {
+      // No tokens in list for chain, will retry on next poll
+      return;
+    }
+
+    const result = await this.detectTokens(
+      input.chainId,
+      input.accountId,
+      input.accountAddress,
+    );
+
+    if (this.#onDetectionUpdate && result.detectedAssets.length > 0) {
+      this.#onDetectionUpdate(result);
+    }
   }
 
   getTokensToCheck(chainId: ChainId): Address[] {
-    const tokenListState = this.#getTokenListState?.();
+    const tokenListState = this.#messenger.call('TokenListController:getState');
 
-    if (!tokenListState) {
+    // Defensive check for tokensChainsCache
+    if (!tokenListState?.tokensChainsCache) {
       return [];
     }
 
-    const chainCacheEntry = tokenListState.tokensChainsCache[chainId];
+    // Try direct lookup first
+    let chainCacheEntry = tokenListState.tokensChainsCache[chainId];
+
+    // If not found, try normalizing the chain ID (e.g., 0x0a -> 0xa)
+    if (!chainCacheEntry) {
+      const normalizedChainId: ChainId = `0x${parseInt(chainId, 16).toString(
+        16,
+      )}`;
+      chainCacheEntry = tokenListState.tokensChainsCache[normalizedChainId];
+    }
+
     const chainTokenList = chainCacheEntry?.data;
 
     if (!chainTokenList) {
@@ -227,8 +314,8 @@ export class TokenDetector {
     chainId: ChainId,
     tokenAddress: Address,
   ): TokenListEntry | undefined {
-    const tokenListState = this.#getTokenListState?.();
-    if (!tokenListState) {
+    const tokenListState = this.#messenger.call('TokenListController:getState');
+    if (!tokenListState?.tokensChainsCache) {
       return undefined;
     }
 

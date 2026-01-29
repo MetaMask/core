@@ -2,7 +2,7 @@
  * Shared types, constants, and utilities for the API Platform Client.
  */
 
-import type { QueryClient, QueryKey } from '@tanstack/query-core';
+import type { QueryClient } from '@tanstack/query-core';
 
 // ============================================================================
 // SHARED TYPES
@@ -186,14 +186,6 @@ export const RETRY_CONFIG = {
   MAX_RETRIES: 3,
   BASE_DELAY: 1000,
   MAX_DELAY: 5_000,
-} as const;
-
-// ============================================================================
-// QUERY KEYS (Auth only - client-specific keys in their respective folders)
-// ============================================================================
-
-export const authQueryKeys = {
-  bearerToken: (): QueryKey => ['auth', 'bearerToken'],
 } as const;
 
 // ============================================================================

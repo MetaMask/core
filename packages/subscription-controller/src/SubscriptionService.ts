@@ -24,6 +24,7 @@ import type {
   SubmitSponsorshipIntentsRequest,
   LinkRewardsRequest,
   SubscriptionApiGeneralResponse,
+  CancelSubscriptionRequest,
 } from './types';
 
 export type SubscriptionServiceConfig = {
@@ -49,11 +50,13 @@ export class SubscriptionService implements ISubscriptionService {
     return await this.#makeRequest(path);
   }
 
-  async cancelSubscription(params: {
-    subscriptionId: string;
-  }): Promise<Subscription> {
+  async cancelSubscription(
+    params: CancelSubscriptionRequest,
+  ): Promise<Subscription> {
     const path = `subscriptions/${params.subscriptionId}/cancel`;
-    return await this.#makeRequest(path, 'POST', {});
+    return await this.#makeRequest(path, 'POST', {
+      cancelAtPeriodEnd: params.cancelAtPeriodEnd,
+    });
   }
 
   async unCancelSubscription(params: {

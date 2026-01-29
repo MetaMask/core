@@ -260,14 +260,15 @@ describe('ApiPlatformClient', () => {
       expect(cachedData).toBeUndefined();
     });
 
-    it('invalidates auth token cache', async () => {
+    it('resets auth token cache (completely removes it)', async () => {
       const queryKey = ['auth', 'bearerToken'];
       client.setCachedData(queryKey, 'test-token');
 
       await client.invalidateAuthToken();
 
-      const queryState = client.queryClient.getQueryState(queryKey);
-      expect(queryState?.isInvalidated).toBe(true);
+      // resetQueries removes the query from cache entirely
+      const cachedData = client.queryClient.getQueryData(queryKey);
+      expect(cachedData).toBeUndefined();
     });
 
     it('invalidates balances cache via accounts client', async () => {

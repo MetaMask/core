@@ -27,21 +27,11 @@ export const MAX_TOKEN_DISPLAY_DATA_LENGTH = 10;
 
 export type TokenSearchDiscoveryDataControllerState = {
   tokenDisplayData: TokenDisplayData[];
-  swapsTokenAddressesByChainId: Record<
-    Hex,
-    { lastFetched: number; addresses: string[]; isFetching: boolean }
-  >;
 };
 
 const tokenSearchDiscoveryDataControllerMetadata: StateMetadata<TokenSearchDiscoveryDataControllerState> =
   {
     tokenDisplayData: {
-      includeInStateLogs: false,
-      persist: true,
-      includeInDebugSnapshot: false,
-      usedInUi: true,
-    },
-    swapsTokenAddressesByChainId: {
       includeInStateLogs: false,
       persist: true,
       includeInDebugSnapshot: false,
@@ -116,7 +106,6 @@ export type TokenSearchDiscoveryDataControllerMessenger = Messenger<
 export function getDefaultTokenSearchDiscoveryDataControllerState(): TokenSearchDiscoveryDataControllerState {
   return {
     tokenDisplayData: [],
-    swapsTokenAddressesByChainId: {},
   };
 }
 
@@ -133,26 +122,14 @@ export class TokenSearchDiscoveryDataController extends BaseController<
 
   readonly #tokenPricesService: AbstractTokenPricesService;
 
-  readonly #swapsSupportedChainIds: Hex[];
-
-  readonly #fetchTokens: (chainId: Hex) => Promise<{ address: string }[]>;
-
-  readonly #fetchSwapsTokensThresholdMs: number;
-
   constructor({
     state = {},
     messenger,
     tokenPricesService,
-    swapsSupportedChainIds,
-    fetchTokens,
-    fetchSwapsTokensThresholdMs,
   }: {
     state?: Partial<TokenSearchDiscoveryDataControllerState>;
     messenger: TokenSearchDiscoveryDataControllerMessenger;
     tokenPricesService: AbstractTokenPricesService;
-    swapsSupportedChainIds: Hex[];
-    fetchTokens: (chainId: Hex) => Promise<{ address: string }[]>;
-    fetchSwapsTokensThresholdMs: number;
   }) {
     super({
       name: controllerName,
@@ -166,9 +143,6 @@ export class TokenSearchDiscoveryDataController extends BaseController<
 
     this.#abortController = new AbortController();
     this.#tokenPricesService = tokenPricesService;
-    this.#swapsSupportedChainIds = swapsSupportedChainIds;
-    this.#fetchTokens = fetchTokens;
-    this.#fetchSwapsTokensThresholdMs = fetchSwapsTokensThresholdMs;
   }
 
   async #fetchPriceData(chainId: Hex, address: string) {
@@ -189,47 +163,7 @@ export class TokenSearchDiscoveryDataController extends BaseController<
     }
   }
 
-  async fetchSwapsTokens(chainId: Hex): Promise<void> {
-    if (!this.#swapsSupportedChainIds.includes(chainId)) {
-      return;
-    }
-
-    const swapsTokens = this.state.swapsTokenAddressesByChainId[chainId];
-    if (
-      (!swapsTokens ||
-        swapsTokens.lastFetched <
-          Date.now() - this.#fetchSwapsTokensThresholdMs) &&
-      !swapsTokens?.isFetching
-    ) {
-      try {
-        this.update((state) => {
-          if (!state.swapsTokenAddressesByChainId[chainId]) {
-            state.swapsTokenAddressesByChainId[chainId] = {
-              lastFetched: Date.now(),
-              addresses: [],
-              isFetching: true,
-            };
-          } else {
-            state.swapsTokenAddressesByChainId[chainId].isFetching = true;
-          }
-        });
-        const tokens = await this.#fetchTokens(chainId);
-        this.update((state) => {
-          state.swapsTokenAddressesByChainId[chainId] = {
-            lastFetched: Date.now(),
-            addresses: tokens.map((token) => token.address),
-            isFetching: false,
-          };
-        });
-      } catch (error) {
-        console.error(error);
-      }
-    }
-  }
-
   async fetchTokenDisplayData(chainId: Hex, address: string): Promise<void> {
-    await this.fetchSwapsTokens(chainId);
-
     let tokenMetadata: TokenListToken | undefined;
     try {
       tokenMetadata = await fetchTokenMetadata<TokenListToken>(

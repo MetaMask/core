@@ -1,3 +1,4 @@
+import { StaticIntervalPollingControllerOnly } from '@metamask/polling-controller';
 import type { CaipAssetType } from '@metamask/utils';
 
 import type { MulticallClient } from '../clients';
@@ -5,79 +6,146 @@ import type {
   AccountId,
   Address,
   AssetBalance,
+  AssetsBalanceState,
   BalanceFetchOptions,
   BalanceFetchResult,
   BalanceOfRequest,
   BalanceOfResponse,
   ChainId,
   TokenFetchInfo,
-  UserToken,
-  UserTokensState,
 } from '../types';
 import { reduceInBatchesSerially } from '../utils';
 
+const DEFAULT_BALANCE_INTERVAL = 30_000; // 30 seconds
+
 const ZERO_ADDRESS: Address =
   '0x0000000000000000000000000000000000000000' as Address;
+
+/**
+ * Minimal messenger interface for BalanceFetcher.
+ */
+export type BalanceFetcherMessenger = {
+  call: (action: 'AssetsController:getState') => AssetsBalanceState;
+};
 
 export type BalanceFetcherConfig = {
   defaultBatchSize?: number;
   defaultTimeoutMs?: number;
   includeNativeByDefault?: boolean;
+  /** Polling interval in ms (default: 30s) */
+  pollingInterval?: number;
 };
 
-export class BalanceFetcher {
+/**
+ * Polling input for BalanceFetcher - identifies what to poll for.
+ */
+export type BalancePollingInput = {
+  /** Chain ID (hex format) */
+  chainId: ChainId;
+  /** Account ID */
+  accountId: AccountId;
+  /** Account address */
+  accountAddress: Address;
+};
+
+/**
+ * Callback type for balance updates.
+ */
+export type OnBalanceUpdateCallback = (result: BalanceFetchResult) => void;
+
+/**
+ * BalanceFetcher - Fetches token balances via multicall.
+ * Extends StaticIntervalPollingControllerOnly for built-in polling support.
+ */
+export class BalanceFetcher extends StaticIntervalPollingControllerOnly<BalancePollingInput>() {
   readonly #multicallClient: MulticallClient;
 
-  readonly #config: Required<BalanceFetcherConfig>;
+  readonly #messenger: BalanceFetcherMessenger;
 
-  #getUserTokensState: (() => UserTokensState) | undefined;
+  readonly #config: Required<Omit<BalanceFetcherConfig, 'pollingInterval'>>;
 
-  constructor(multicallClient: MulticallClient, config?: BalanceFetcherConfig) {
+  #onBalanceUpdate: OnBalanceUpdateCallback | undefined;
+
+  constructor(
+    multicallClient: MulticallClient,
+    messenger: BalanceFetcherMessenger,
+    config?: BalanceFetcherConfig,
+  ) {
+    super();
     this.#multicallClient = multicallClient;
+    this.#messenger = messenger;
     this.#config = {
       defaultBatchSize: config?.defaultBatchSize ?? 300,
       defaultTimeoutMs: config?.defaultTimeoutMs ?? 30000,
       includeNativeByDefault: config?.includeNativeByDefault ?? true,
     };
+
+    // Set the polling interval
+    this.setIntervalLength(config?.pollingInterval ?? DEFAULT_BALANCE_INTERVAL);
   }
 
-  setUserTokensStateGetter(getUserTokensState: () => UserTokensState): void {
-    this.#getUserTokensState = getUserTokensState;
+  /**
+   * Set the callback to receive balance updates during polling.
+   *
+   * @param callback - Function to call with balance results.
+   */
+  setOnBalanceUpdate(callback: OnBalanceUpdateCallback): void {
+    this.#onBalanceUpdate = callback;
   }
 
-  getTokensToFetch(
-    chainId: ChainId,
-    accountAddress: Address,
-  ): TokenFetchInfo[] {
-    const userTokensState = this.#getUserTokensState?.();
+  /**
+   * Execute a poll cycle (required by base class).
+   * Fetches balances and calls the update callback.
+   *
+   * @param input - The polling input.
+   */
+  async _executePoll(input: BalancePollingInput): Promise<void> {
+    const result = await this.fetchBalances(
+      input.chainId,
+      input.accountId,
+      input.accountAddress,
+    );
 
-    if (!userTokensState) {
+    if (this.#onBalanceUpdate && result.balances.length > 0) {
+      this.#onBalanceUpdate(result);
+    }
+  }
+
+  getTokensToFetch(chainId: ChainId, accountId: AccountId): TokenFetchInfo[] {
+    const state = this.#messenger.call('AssetsController:getState');
+
+    if (!state?.assetsBalance) {
       return [];
     }
 
-    const tokenMap = new Map<string, TokenFetchInfo>();
-
-    const addToken = (token: UserToken): void => {
-      const lowerAddress = token.address.toLowerCase();
-      if (!tokenMap.has(lowerAddress)) {
-        tokenMap.set(lowerAddress, {
-          address: token.address,
-          decimals: token.decimals,
-          symbol: token.symbol,
-        });
-      }
-    };
-
-    const importedTokens =
-      userTokensState.allTokens[chainId]?.[accountAddress] ?? [];
-    for (const token of importedTokens) {
-      addToken(token);
+    const accountBalances = state.assetsBalance[accountId];
+    if (!accountBalances) {
+      return [];
     }
 
-    const detectedTokens =
-      userTokensState.allDetectedTokens[chainId]?.[accountAddress] ?? [];
-    for (const token of detectedTokens) {
-      addToken(token);
+    // Convert hex chainId to decimal for CAIP-2 matching
+    const chainIdDecimal = parseInt(chainId, 16);
+    const caipChainPrefix = `eip155:${chainIdDecimal}/`;
+
+    const tokenMap = new Map<string, TokenFetchInfo>();
+
+    for (const assetId of Object.keys(accountBalances)) {
+      // Only process ERC20 tokens on the current chain
+      if (assetId.startsWith(caipChainPrefix) && assetId.includes('/erc20:')) {
+        // Parse token address from CAIP-19: eip155:1/erc20:0x...
+        const tokenAddress = assetId.split('/erc20:')[1] as Address;
+        if (tokenAddress) {
+          const lowerAddress = tokenAddress.toLowerCase();
+          if (!tokenMap.has(lowerAddress)) {
+            tokenMap.set(lowerAddress, {
+              address: tokenAddress,
+              // Decimals will be fetched from metadata or defaulted
+              decimals: 18,
+              symbol: '',
+            });
+          }
+        }
+      }
     }
 
     return Array.from(tokenMap.values());
@@ -89,7 +157,7 @@ export class BalanceFetcher {
     accountAddress: Address,
     options?: BalanceFetchOptions,
   ): Promise<BalanceFetchResult> {
-    const tokens = this.getTokensToFetch(chainId, accountAddress);
+    const tokens = this.getTokensToFetch(chainId, accountId);
     const tokenAddresses = tokens.map((token) => token.address);
 
     return this.fetchBalancesForTokens(

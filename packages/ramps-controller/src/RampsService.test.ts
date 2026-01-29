@@ -94,6 +94,52 @@ describe('RampsService', () => {
       expect(geolocationResponse).toBe('us-tx');
     });
 
+    it('uses localhost URL when environment is Local', async () => {
+      nock('http://localhost:3000')
+        .get('/geolocation')
+        .query({
+          sdk: '2.1.6',
+          controller: CONTROLLER_VERSION,
+          context: 'mobile-ios',
+        })
+        .reply(200, 'us-tx');
+      const { rootMessenger } = getService({
+        options: { environment: RampsEnvironment.Local },
+      });
+
+      const geolocationPromise = rootMessenger.call(
+        'RampsService:getGeolocation',
+      );
+      await clock.runAllAsync();
+      await flushPromises();
+      const geolocationResponse = await geolocationPromise;
+
+      expect(geolocationResponse).toBe('us-tx');
+    });
+
+    it('uses baseUrlOverride when provided', async () => {
+      nock('http://custom-url.test')
+        .get('/geolocation')
+        .query({
+          sdk: '2.1.6',
+          controller: CONTROLLER_VERSION,
+          context: 'mobile-ios',
+        })
+        .reply(200, 'us-tx');
+      const { rootMessenger } = getService({
+        options: { baseUrlOverride: 'http://custom-url.test' },
+      });
+
+      const geolocationPromise = rootMessenger.call(
+        'RampsService:getGeolocation',
+      );
+      await clock.runAllAsync();
+      await flushPromises();
+      const geolocationResponse = await geolocationPromise;
+
+      expect(geolocationResponse).toBe('us-tx');
+    });
+
     it('throws if the API returns an empty response', async () => {
       nock('https://on-ramp.uat-api.cx.metamask.io')
         .get('/geolocation')
@@ -256,7 +302,7 @@ describe('RampsService', () => {
           template: '(XXX) XXX-XXXX',
         },
         currency: 'USD',
-        supported: true,
+        supported: { buy: true, sell: true },
         recommended: true,
       },
       {
@@ -269,7 +315,7 @@ describe('RampsService', () => {
           template: 'XXX XXXXXXX',
         },
         currency: 'EUR',
-        supported: true,
+        supported: { buy: true, sell: false },
       },
     ];
 
@@ -277,7 +323,6 @@ describe('RampsService', () => {
       nock('https://on-ramp-cache.uat-api.cx.metamask.io')
         .get('/v2/regions/countries')
         .query({
-          action: 'buy',
           sdk: '2.1.6',
           controller: CONTROLLER_VERSION,
           context: 'mobile-ios',
@@ -285,10 +330,7 @@ describe('RampsService', () => {
         .reply(200, mockCountriesResponse);
       const { rootMessenger } = getService();
 
-      const countriesPromise = rootMessenger.call(
-        'RampsService:getCountries',
-        'buy',
-      );
+      const countriesPromise = rootMessenger.call('RampsService:getCountries');
       await clock.runAllAsync();
       await flushPromises();
       const countriesResponse = await countriesPromise;
@@ -306,7 +348,10 @@ describe('RampsService', () => {
               "template": "(XXX) XXX-XXXX",
             },
             "recommended": true,
-            "supported": true,
+            "supported": Object {
+              "buy": true,
+              "sell": true,
+            },
           },
           Object {
             "currency": "EUR",
@@ -318,7 +363,10 @@ describe('RampsService', () => {
               "prefix": "+43",
               "template": "XXX XXXXXXX",
             },
-            "supported": true,
+            "supported": Object {
+              "buy": true,
+              "sell": false,
+            },
           },
         ]
       `);
@@ -328,7 +376,6 @@ describe('RampsService', () => {
       nock('https://on-ramp-cache.api.cx.metamask.io')
         .get('/v2/regions/countries')
         .query({
-          action: 'buy',
           sdk: '2.1.6',
           controller: CONTROLLER_VERSION,
           context: 'mobile-ios',
@@ -338,10 +385,7 @@ describe('RampsService', () => {
         options: { environment: RampsEnvironment.Production },
       });
 
-      const countriesPromise = rootMessenger.call(
-        'RampsService:getCountries',
-        'buy',
-      );
+      const countriesPromise = rootMessenger.call('RampsService:getCountries');
       await clock.runAllAsync();
       await flushPromises();
       const countriesResponse = await countriesPromise;
@@ -359,7 +403,10 @@ describe('RampsService', () => {
               "template": "(XXX) XXX-XXXX",
             },
             "recommended": true,
-            "supported": true,
+            "supported": Object {
+              "buy": true,
+              "sell": true,
+            },
           },
           Object {
             "currency": "EUR",
@@ -371,7 +418,10 @@ describe('RampsService', () => {
               "prefix": "+43",
               "template": "XXX XXXXXXX",
             },
-            "supported": true,
+            "supported": Object {
+              "buy": true,
+              "sell": false,
+            },
           },
         ]
       `);
@@ -381,7 +431,6 @@ describe('RampsService', () => {
       nock('https://on-ramp-cache.uat-api.cx.metamask.io')
         .get('/v2/regions/countries')
         .query({
-          action: 'buy',
           sdk: '2.1.6',
           controller: CONTROLLER_VERSION,
           context: 'mobile-ios',
@@ -391,10 +440,7 @@ describe('RampsService', () => {
         options: { environment: RampsEnvironment.Development },
       });
 
-      const countriesPromise = rootMessenger.call(
-        'RampsService:getCountries',
-        'buy',
-      );
+      const countriesPromise = rootMessenger.call('RampsService:getCountries');
       await clock.runAllAsync();
       await flushPromises();
       const countriesResponse = await countriesPromise;
@@ -412,7 +458,10 @@ describe('RampsService', () => {
               "template": "(XXX) XXX-XXXX",
             },
             "recommended": true,
-            "supported": true,
+            "supported": Object {
+              "buy": true,
+              "sell": true,
+            },
           },
           Object {
             "currency": "EUR",
@@ -424,72 +473,16 @@ describe('RampsService', () => {
               "prefix": "+43",
               "template": "XXX XXXXXXX",
             },
-            "supported": true,
+            "supported": Object {
+              "buy": true,
+              "sell": false,
+            },
           },
         ]
       `);
     });
 
-    it('passes the action parameter correctly', async () => {
-      nock('https://on-ramp-cache.uat-api.cx.metamask.io')
-        .get('/v2/regions/countries')
-        .query({
-          action: 'sell',
-          sdk: '2.1.6',
-          controller: CONTROLLER_VERSION,
-          context: 'mobile-ios',
-        })
-        .reply(200, mockCountriesResponse);
-      nock('https://on-ramp.uat-api.cx.metamask.io')
-        .get('/geolocation')
-        .query({
-          sdk: '2.1.6',
-          controller: CONTROLLER_VERSION,
-          context: 'mobile-ios',
-        })
-        .reply(200, 'us');
-      const { rootMessenger } = getService();
-
-      const countriesPromise = rootMessenger.call(
-        'RampsService:getCountries',
-        'sell',
-      );
-      await clock.runAllAsync();
-      await flushPromises();
-      const countriesResponse = await countriesPromise;
-
-      expect(countriesResponse).toMatchInlineSnapshot(`
-        Array [
-          Object {
-            "currency": "USD",
-            "flag": "🇺🇸",
-            "isoCode": "US",
-            "name": "United States of America",
-            "phone": Object {
-              "placeholder": "(555) 123-4567",
-              "prefix": "+1",
-              "template": "(XXX) XXX-XXXX",
-            },
-            "recommended": true,
-            "supported": true,
-          },
-          Object {
-            "currency": "EUR",
-            "flag": "🇦🇹",
-            "isoCode": "AT",
-            "name": "Austria",
-            "phone": Object {
-              "placeholder": "660 1234567",
-              "prefix": "+43",
-              "template": "XXX XXXXXXX",
-            },
-            "supported": true,
-          },
-        ]
-      `);
-    });
-
-    it('includes country with unsupported country but supported state for sell action', async () => {
+    it('includes country with unsupported country but supported state', async () => {
       const mockCountriesWithUnsupportedCountry = [
         {
           isoCode: 'US',
@@ -498,19 +491,19 @@ describe('RampsService', () => {
           name: 'United States',
           phone: { prefix: '+1', placeholder: '', template: '' },
           currency: 'USD',
-          supported: false,
+          supported: { buy: false, sell: false },
           states: [
             {
               id: '/regions/us-tx',
               stateId: 'TX',
               name: 'Texas',
-              supported: true,
+              supported: { buy: true, sell: true },
             },
             {
               id: '/regions/us-ny',
               stateId: 'NY',
               name: 'New York',
-              supported: false,
+              supported: { buy: false, sell: false },
             },
           ],
         },
@@ -518,7 +511,6 @@ describe('RampsService', () => {
       nock('https://on-ramp-cache.uat-api.cx.metamask.io')
         .get('/v2/regions/countries')
         .query({
-          action: 'sell',
           sdk: '2.1.6',
           controller: CONTROLLER_VERSION,
           context: 'mobile-ios',
@@ -526,19 +518,25 @@ describe('RampsService', () => {
         .reply(200, mockCountriesWithUnsupportedCountry);
       const { service } = getService();
 
-      const countriesPromise = service.getCountries('sell');
+      const countriesPromise = service.getCountries();
       await clock.runAllAsync();
       await flushPromises();
       const countriesResponse = await countriesPromise;
 
       expect(countriesResponse).toHaveLength(1);
       expect(countriesResponse[0]?.isoCode).toBe('US');
-      expect(countriesResponse[0]?.supported).toBe(false);
-      expect(countriesResponse[0]?.states?.[0]?.supported).toBe(true);
+      expect(countriesResponse[0]?.supported).toStrictEqual({
+        buy: false,
+        sell: false,
+      });
+      expect(countriesResponse[0]?.states?.[0]?.supported).toStrictEqual({
+        buy: true,
+        sell: true,
+      });
     });
 
-    it('includes country with unsupported country but supported state for buy action', async () => {
-      const mockCountriesWithUnsupportedCountry = [
+    it('filters out countries with no supported actions', async () => {
+      const mockCountriesWithNoSupport = [
         {
           isoCode: 'US',
           id: '/regions/us',
@@ -546,49 +544,41 @@ describe('RampsService', () => {
           name: 'United States',
           phone: { prefix: '+1', placeholder: '', template: '' },
           currency: 'USD',
-          supported: false,
-          states: [
-            {
-              id: '/regions/us-tx',
-              stateId: 'TX',
-              name: 'Texas',
-              supported: true,
-            },
-            {
-              id: '/regions/us-ny',
-              stateId: 'NY',
-              name: 'New York',
-              supported: false,
-            },
-          ],
+          supported: { buy: true, sell: false },
+        },
+        {
+          isoCode: 'XX',
+          id: '/regions/xx',
+          flag: '🏳️',
+          name: 'Unsupported Country',
+          phone: { prefix: '+0', placeholder: '', template: '' },
+          currency: 'XXX',
+          supported: { buy: false, sell: false },
         },
       ];
       nock('https://on-ramp-cache.uat-api.cx.metamask.io')
         .get('/v2/regions/countries')
         .query({
-          action: 'buy',
           sdk: '2.1.6',
           controller: CONTROLLER_VERSION,
           context: 'mobile-ios',
         })
-        .reply(200, mockCountriesWithUnsupportedCountry);
+        .reply(200, mockCountriesWithNoSupport);
       const { service } = getService();
 
-      const countriesPromise = service.getCountries('buy');
+      const countriesPromise = service.getCountries();
       await clock.runAllAsync();
       await flushPromises();
       const countriesResponse = await countriesPromise;
 
       expect(countriesResponse).toHaveLength(1);
       expect(countriesResponse[0]?.isoCode).toBe('US');
-      expect(countriesResponse[0]?.supported).toBe(false);
-      expect(countriesResponse[0]?.states?.[0]?.supported).toBe(true);
     });
+
     it('throws if the countries API returns an error', async () => {
       nock('https://on-ramp-cache.uat-api.cx.metamask.io')
         .get('/v2/regions/countries')
         .query({
-          action: 'buy',
           sdk: '2.1.6',
           controller: CONTROLLER_VERSION,
           context: 'mobile-ios',
@@ -600,14 +590,11 @@ describe('RampsService', () => {
         clock.nextAsync().catch(() => undefined);
       });
 
-      const countriesPromise = rootMessenger.call(
-        'RampsService:getCountries',
-        'buy',
-      );
+      const countriesPromise = rootMessenger.call('RampsService:getCountries');
       await clock.runAllAsync();
       await flushPromises();
       await expect(countriesPromise).rejects.toThrow(
-        `Fetching 'https://on-ramp-cache.uat-api.cx.metamask.io/v2/regions/countries?action=buy&sdk=2.1.6&controller=${CONTROLLER_VERSION}&context=mobile-ios' failed with status '500'`,
+        `Fetching 'https://on-ramp-cache.uat-api.cx.metamask.io/v2/regions/countries?sdk=2.1.6&controller=${CONTROLLER_VERSION}&context=mobile-ios' failed with status '500'`,
       );
     });
 
@@ -615,7 +602,6 @@ describe('RampsService', () => {
       nock('https://on-ramp-cache.uat-api.cx.metamask.io')
         .get('/v2/regions/countries')
         .query({
-          action: 'buy',
           sdk: '2.1.6',
           controller: CONTROLLER_VERSION,
           context: 'mobile-ios',
@@ -623,10 +609,7 @@ describe('RampsService', () => {
         .reply(200, () => null);
       const { rootMessenger } = getService();
 
-      const countriesPromise = rootMessenger.call(
-        'RampsService:getCountries',
-        'buy',
-      );
+      const countriesPromise = rootMessenger.call('RampsService:getCountries');
       await clock.runAllAsync();
       await flushPromises();
       await expect(countriesPromise).rejects.toThrow(
@@ -638,7 +621,6 @@ describe('RampsService', () => {
       nock('https://on-ramp-cache.uat-api.cx.metamask.io')
         .get('/v2/regions/countries')
         .query({
-          action: 'buy',
           sdk: '2.1.6',
           controller: CONTROLLER_VERSION,
           context: 'mobile-ios',
@@ -646,10 +628,7 @@ describe('RampsService', () => {
         .reply(200, { error: 'Something went wrong' });
       const { rootMessenger } = getService();
 
-      const countriesPromise = rootMessenger.call(
-        'RampsService:getCountries',
-        'buy',
-      );
+      const countriesPromise = rootMessenger.call('RampsService:getCountries');
       await clock.runAllAsync();
       await flushPromises();
       await expect(countriesPromise).rejects.toThrow(
@@ -667,29 +646,20 @@ describe('RampsService', () => {
           name: 'United States',
           phone: { prefix: '+1', placeholder: '', template: '' },
           currency: 'USD',
-          supported: true,
+          supported: { buy: true, sell: true },
         },
       ];
       nock('https://on-ramp-cache.uat-api.cx.metamask.io')
         .get('/v2/regions/countries')
         .query({
-          action: 'buy',
           sdk: '2.1.6',
           controller: CONTROLLER_VERSION,
           context: 'mobile-ios',
         })
         .reply(200, mockCountries);
-      nock('https://on-ramp.uat-api.cx.metamask.io')
-        .get('/geolocation')
-        .query({
-          sdk: '2.1.6',
-          controller: CONTROLLER_VERSION,
-          context: 'mobile-ios',
-        })
-        .reply(200, 'us');
       const { service } = getService();
 
-      const countriesPromise = service.getCountries('buy');
+      const countriesPromise = service.getCountries();
       await clock.runAllAsync();
       await flushPromises();
       const countriesResponse = await countriesPromise;
@@ -706,48 +676,13 @@ describe('RampsService', () => {
               "prefix": "+1",
               "template": "",
             },
-            "supported": true,
+            "supported": Object {
+              "buy": true,
+              "sell": true,
+            },
           },
         ]
       `);
-    });
-
-    it('uses default buy action when no argument is provided', async () => {
-      const mockCountries = [
-        {
-          isoCode: 'US',
-          flag: '🇺🇸',
-          name: 'United States',
-          phone: { prefix: '+1', placeholder: '', template: '' },
-          currency: 'USD',
-          supported: true,
-        },
-      ];
-      nock('https://on-ramp-cache.uat-api.cx.metamask.io')
-        .get('/v2/regions/countries')
-        .query({
-          action: 'buy',
-          sdk: '2.1.6',
-          controller: CONTROLLER_VERSION,
-          context: 'mobile-ios',
-        })
-        .reply(200, mockCountries);
-      nock('https://on-ramp.uat-api.cx.metamask.io')
-        .get('/geolocation')
-        .query({
-          sdk: '2.1.6',
-          controller: CONTROLLER_VERSION,
-          context: 'mobile-ios',
-        })
-        .reply(200, 'us');
-      const { service } = getService();
-
-      const countriesPromise = service.getCountries();
-      await clock.runAllAsync();
-      await flushPromises();
-      const countriesResponse = await countriesPromise;
-
-      expect(countriesResponse[0]?.isoCode).toBe('US');
     });
 
     it('filters countries with states by support', async () => {
@@ -763,19 +698,19 @@ describe('RampsService', () => {
             template: '(XXX) XXX-XXXX',
           },
           currency: 'USD',
-          supported: true,
+          supported: { buy: true, sell: true },
           states: [
             {
               id: '/regions/us-tx',
               stateId: 'TX',
               name: 'Texas',
-              supported: true,
+              supported: { buy: true, sell: true },
             },
             {
               id: '/regions/us-ny',
               stateId: 'NY',
               name: 'New York',
-              supported: false,
+              supported: { buy: false, sell: false },
             },
           ],
         },
@@ -783,7 +718,6 @@ describe('RampsService', () => {
       nock('https://on-ramp-cache.uat-api.cx.metamask.io')
         .get('/v2/regions/countries')
         .query({
-          action: 'buy',
           sdk: '2.1.6',
           controller: CONTROLLER_VERSION,
           context: 'mobile-ios',
@@ -791,14 +725,23 @@ describe('RampsService', () => {
         .reply(200, mockCountriesWithStates);
       const { service } = getService();
 
-      const countriesPromise = service.getCountries('buy');
+      const countriesPromise = service.getCountries();
       await clock.runAllAsync();
       await flushPromises();
       const countriesResponse = await countriesPromise;
 
-      expect(countriesResponse[0]?.supported).toBe(true);
-      expect(countriesResponse[0]?.states?.[0]?.supported).toBe(true);
-      expect(countriesResponse[0]?.states?.[1]?.supported).toBe(false);
+      expect(countriesResponse[0]?.supported).toStrictEqual({
+        buy: true,
+        sell: true,
+      });
+      expect(countriesResponse[0]?.states?.[0]?.supported).toStrictEqual({
+        buy: true,
+        sell: true,
+      });
+      expect(countriesResponse[0]?.states?.[1]?.supported).toStrictEqual({
+        buy: false,
+        sell: false,
+      });
     });
 
     it('filters countries with states correctly', async () => {
@@ -810,13 +753,13 @@ describe('RampsService', () => {
           name: 'United States',
           phone: { prefix: '+1', placeholder: '', template: '' },
           currency: 'USD',
-          supported: true,
+          supported: { buy: true, sell: false },
           states: [
             {
               id: '/regions/us-tx',
               stateId: 'TX',
               name: 'Texas',
-              supported: true,
+              supported: { buy: true, sell: true },
             },
           ],
         },
@@ -824,7 +767,6 @@ describe('RampsService', () => {
       nock('https://on-ramp-cache.uat-api.cx.metamask.io')
         .get('/v2/regions/countries')
         .query({
-          action: 'buy',
           sdk: '2.1.6',
           controller: CONTROLLER_VERSION,
           context: 'mobile-ios',
@@ -832,13 +774,60 @@ describe('RampsService', () => {
         .reply(200, mockCountries);
       const { service } = getService();
 
-      const countriesPromise = service.getCountries('buy');
+      const countriesPromise = service.getCountries();
       await clock.runAllAsync();
       await flushPromises();
       const countriesResponse = await countriesPromise;
 
-      expect(countriesResponse[0]?.supported).toBe(true);
-      expect(countriesResponse[0]?.states?.[0]?.supported).toBe(true);
+      expect(countriesResponse[0]?.supported).toStrictEqual({
+        buy: true,
+        sell: false,
+      });
+      expect(countriesResponse[0]?.states?.[0]?.supported).toStrictEqual({
+        buy: true,
+        sell: true,
+      });
+    });
+
+    it('includes country when state has undefined buy but truthy sell', async () => {
+      const mockCountries = [
+        {
+          isoCode: 'US',
+          id: '/regions/us',
+          flag: '🇺🇸',
+          name: 'United States',
+          phone: { prefix: '+1', placeholder: '', template: '' },
+          currency: 'USD',
+          supported: { buy: false, sell: false },
+          states: [
+            {
+              id: '/regions/us-tx',
+              stateId: 'TX',
+              name: 'Texas',
+              supported: { sell: true },
+            },
+          ],
+        },
+      ];
+      nock('https://on-ramp-cache.uat-api.cx.metamask.io')
+        .get('/v2/regions/countries')
+        .query({
+          sdk: '2.1.6',
+          controller: CONTROLLER_VERSION,
+          context: 'mobile-ios',
+        })
+        .reply(200, mockCountries);
+      const { service } = getService();
+
+      const countriesPromise = service.getCountries();
+      await clock.runAllAsync();
+      await flushPromises();
+      const countriesResponse = await countriesPromise;
+
+      expect(countriesResponse).toHaveLength(1);
+      expect(countriesResponse[0]?.states?.[0]?.supported).toStrictEqual({
+        sell: true,
+      });
     });
   });
 
@@ -1529,11 +1518,11 @@ describe('RampsService', () => {
 
     it('fetches payment methods from the API', async () => {
       nock('https://on-ramp-cache.uat-api.cx.metamask.io')
-        .get('/v2/paymentMethods')
+        .get('/v2/regions/us-al/payments')
         .query({
           region: 'us-al',
           fiat: 'usd',
-          assetId: 'eip155:1/slip44:60',
+          crypto: 'eip155:1/slip44:60',
           provider: '/providers/stripe',
           sdk: '2.1.6',
           controller: CONTROLLER_VERSION,
@@ -1564,11 +1553,11 @@ describe('RampsService', () => {
 
     it('normalizes region and fiat case', async () => {
       nock('https://on-ramp-cache.uat-api.cx.metamask.io')
-        .get('/v2/paymentMethods')
+        .get('/v2/regions/us-al/payments')
         .query({
           region: 'us-al',
           fiat: 'usd',
-          assetId: 'eip155:1/slip44:60',
+          crypto: 'eip155:1/slip44:60',
           provider: '/providers/stripe',
           sdk: '2.1.6',
           controller: CONTROLLER_VERSION,
@@ -1592,11 +1581,11 @@ describe('RampsService', () => {
 
     it('throws error for malformed response', async () => {
       nock('https://on-ramp-cache.uat-api.cx.metamask.io')
-        .get('/v2/paymentMethods')
+        .get('/v2/regions/us-al/payments')
         .query({
           region: 'us-al',
           fiat: 'usd',
-          assetId: 'eip155:1/slip44:60',
+          crypto: 'eip155:1/slip44:60',
           provider: '/providers/stripe',
           sdk: '2.1.6',
           controller: CONTROLLER_VERSION,
@@ -1621,11 +1610,11 @@ describe('RampsService', () => {
 
     it('throws error when response is null', async () => {
       nock('https://on-ramp-cache.uat-api.cx.metamask.io')
-        .get('/v2/paymentMethods')
+        .get('/v2/regions/us-al/payments')
         .query({
           region: 'us-al',
           fiat: 'usd',
-          assetId: 'eip155:1/slip44:60',
+          crypto: 'eip155:1/slip44:60',
           provider: '/providers/stripe',
           sdk: '2.1.6',
           controller: CONTROLLER_VERSION,
@@ -1650,11 +1639,11 @@ describe('RampsService', () => {
 
     it('throws error when payments is not an array', async () => {
       nock('https://on-ramp-cache.uat-api.cx.metamask.io')
-        .get('/v2/paymentMethods')
+        .get('/v2/regions/us-al/payments')
         .query({
           region: 'us-al',
           fiat: 'usd',
-          assetId: 'eip155:1/slip44:60',
+          crypto: 'eip155:1/slip44:60',
           provider: '/providers/stripe',
           sdk: '2.1.6',
           controller: CONTROLLER_VERSION,
@@ -1679,11 +1668,11 @@ describe('RampsService', () => {
 
     it('throws error for HTTP error response', async () => {
       nock('https://on-ramp-cache.uat-api.cx.metamask.io')
-        .get('/v2/paymentMethods')
+        .get('/v2/regions/us-al/payments')
         .query({
           region: 'us-al',
           fiat: 'usd',
-          assetId: 'eip155:1/slip44:60',
+          crypto: 'eip155:1/slip44:60',
           provider: '/providers/stripe',
           sdk: '2.1.6',
           controller: CONTROLLER_VERSION,
@@ -1706,7 +1695,7 @@ describe('RampsService', () => {
       await flushPromises();
 
       await expect(paymentMethodsPromise).rejects.toThrow(
-        `Fetching 'https://on-ramp-cache.uat-api.cx.metamask.io/v2/paymentMethods?sdk=2.1.6&controller=${CONTROLLER_VERSION}&context=mobile-ios&region=us-al&fiat=usd&assetId=eip155%3A1%2Fslip44%3A60&provider=%2Fproviders%2Fstripe' failed with status '500'`,
+        `Fetching 'https://on-ramp-cache.uat-api.cx.metamask.io/v2/regions/us-al/payments?sdk=2.1.6&controller=${CONTROLLER_VERSION}&context=mobile-ios&region=us-al&fiat=usd&crypto=eip155%3A1%2Fslip44%3A60&provider=%2Fproviders%2Fstripe' failed with status '500'`,
       );
     });
   });

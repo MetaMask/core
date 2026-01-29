@@ -18,7 +18,13 @@
       "path": "./packages/address-book-controller"
     },
     {
+      "path": "./packages/ai-controllers"
+    },
+    {
       "path": "./packages/analytics-controller"
+    },
+    {
+      "path": "./packages/analytics-data-regulation-controller"
     },
     {
       "path": "./packages/announcement-controller"
