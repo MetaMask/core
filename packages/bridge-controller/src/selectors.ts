@@ -454,6 +454,13 @@ export const selectBridgeQuotes = createStructuredBridgeSelector({
   isQuoteGoingToRefresh: selectIsQuoteGoingToRefresh,
 });
 
+export const selectMinimumBalanceForRentExemptionInSOL = (
+  state: BridgeAppState,
+) =>
+  new BigNumber(state.minimumBalanceForRentExemptionInLamports ?? 0)
+    .div(10 ** 9)
+    .toString();
+
 export const selectDefaultSlippagePercentage = createBridgeSelector(
   [
     (state) => selectBridgeFeatureFlags(state).chains,

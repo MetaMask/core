@@ -3,7 +3,6 @@ import type {
   Transaction as AccountActivityTransaction,
   WebSocketConnectionInfo,
 } from '@metamask/core-backend';
-import { WebSocketState } from '@metamask/core-backend';
 import type { Hex } from '@metamask/utils';
 // This package purposefully relies on Node's EventEmitter module.
 // eslint-disable-next-line import-x/no-nodejs-modules
@@ -35,6 +34,11 @@ export type IncomingTransactionOptions = {
 };
 
 const TAG_POLLING = 'automatic-polling';
+
+enum WebSocketState {
+  CONNECTED = 'connected',
+  DISCONNECTED = 'disconnected',
+}
 
 export class IncomingTransactionHelper {
   hub: EventEmitter;

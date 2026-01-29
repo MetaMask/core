@@ -66,19 +66,70 @@ export type BaseAssetMetadata = {
   image?: string;
 };
 
+// ============================================================================
+// TOKEN CONTRACT DATA TYPES
+// ============================================================================
+
+/** Fee information for token transfers */
+export type TokenFees = {
+  avgFee: number;
+  maxFee: number;
+  minFee: number;
+};
+
+/** Honeypot detection status */
+export type HoneypotStatus = {
+  honeypotIs: boolean;
+  goPlus?: boolean;
+};
+
+/** Storage slot information for the contract */
+export type StorageSlots = {
+  balance: number;
+  approval: number;
+};
+
+/** Localized description */
+export type LocalizedDescription = {
+  en: string;
+};
+
+// ============================================================================
+// ASSET METADATA TYPES
+// ============================================================================
+
 /**
- * Metadata for fungible tokens
- * Asset Type: "fungible"
- * Includes: native, ERC-20, SPL, and other fungible token standards
+ * Metadata for fungible tokens.
+ * Structure mirrors V3AssetResponse from the Tokens API.
+ *
+ * Differences from V3AssetResponse:
+ * - `type` is derived from assetId namespace (not in API response)
+ * - `image` maps from API's `iconUrl`
+ * - `assetId` is not stored (used as the key)
  */
 export type FungibleAssetMetadata = {
+  /** Token type derived from assetId namespace */
   type: 'native' | 'erc20' | 'spl';
-  /** Spam detection flag */
-  isSpam?: boolean;
-  /** Verification status */
-  verified?: boolean;
-  /** Token list memberships */
-  collections?: string[];
+  /** CoinGecko ID for price lookups */
+  coingeckoId?: string;
+  /** Number of token list occurrences */
+  occurrences?: number;
+  /** DEX/aggregator integrations */
+  aggregators?: string[];
+  /** Asset labels/tags (e.g., "stable_coin") */
+  labels?: string[];
+  /** Whether the token supports ERC-20 permit */
+  erc20Permit?: boolean;
+  /** Fee information for token transfers */
+  fees?: TokenFees;
+  /** Honeypot detection status */
+  honeypotStatus?: HoneypotStatus;
+  /** Storage slot information for the contract */
+  storage?: StorageSlots;
+  /** Whether the contract is verified */
+  isContractVerified?: boolean;
+  /** Localized description */
+  description?: LocalizedDescription;
 } & BaseAssetMetadata;
 
 /**
@@ -133,25 +184,56 @@ export type AssetMetadata =
 export type BaseAssetPrice = {
   /** Current price in USD */
   price: number;
-  /** 24h price change percentage */
-  priceChange24h?: number;
   /** Timestamp of last price update */
   lastUpdated: number;
 };
 
 /**
  * Price data for fungible tokens (native, ERC20, SPL)
+ * Matches V3SpotPricesResponse from the Price API.
  */
 export type FungibleAssetPrice = {
+  /** CoinGecko ID */
+  id?: string;
+  /** Current price in USD */
+  price: number;
   /** Market capitalization */
   marketCap?: number;
+  /** All-time high price */
+  allTimeHigh?: number;
+  /** All-time low price */
+  allTimeLow?: number;
   /** 24h trading volume */
-  volume24h?: number;
+  totalVolume?: number;
+  /** 24h high price */
+  high1d?: number;
+  /** 24h low price */
+  low1d?: number;
   /** Circulating supply */
   circulatingSupply?: number;
-  /** Total supply */
-  totalSupply?: number;
-} & BaseAssetPrice;
+  /** Fully diluted market cap */
+  dilutedMarketCap?: number;
+  /** 24h market cap change percentage */
+  marketCapPercentChange1d?: number;
+  /** 24h price change in USD */
+  priceChange1d?: number;
+  /** 1h price change percentage */
+  pricePercentChange1h?: number;
+  /** 24h price change percentage */
+  pricePercentChange1d?: number;
+  /** 7d price change percentage */
+  pricePercentChange7d?: number;
+  /** 14d price change percentage */
+  pricePercentChange14d?: number;
+  /** 30d price change percentage */
+  pricePercentChange30d?: number;
+  /** 200d price change percentage */
+  pricePercentChange200d?: number;
+  /** 1y price change percentage */
+  pricePercentChange1y?: number;
+  /** Timestamp of last price update (added by client) */
+  lastUpdated: number;
+};
 
 /**
  * Price data for NFT collections
@@ -273,6 +355,7 @@ export type DataResponse = {
  * - assetsMetadata keys: CAIP-19 asset IDs (e.g., "eip155:1/erc20:0x...")
  * - assetsBalance outer keys: Account IDs (InternalAccount.id UUIDs)
  * - assetsBalance inner keys: CAIP-19 asset IDs
+ * - assetsPrice keys: CAIP-19 asset IDs
  * - customAssets outer keys: Account IDs (InternalAccount.id UUIDs)
  * - customAssets inner values: CAIP-19 asset IDs array
  */
@@ -281,6 +364,8 @@ export type AssetsControllerStateInternal = {
   assetsMetadata: Record<Caip19AssetId, AssetMetadata>;
   /** Per-account balance data */
   assetsBalance: Record<AccountId, Record<Caip19AssetId, AssetBalance>>;
+  /** Price data for assets */
+  assetsPrice: Record<Caip19AssetId, AssetPrice>;
   /** Custom assets added by users per account */
   customAssets: Record<AccountId, Caip19AssetId[]>;
 };

@@ -7,6 +7,12 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+### Changed
+
+- Bump `@metamask/transaction-controller` from `^62.9.2` to `^62.11.0` ([#7737](https://github.com/MetaMask/core/pull/7737), [#7760](https://github.com/MetaMask/core/pull/7760))
+
+## [5.4.1]
+
 ### Added
 
 - Added `CancelType` to `Subscription` and `CancelSubscriptionRequest` for `cancelSubscription` method ([#7720](https://github.com/MetaMask/core/pull/7720))
@@ -266,7 +272,8 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 - Bump `@metamask/controller-utils` from `^11.12.0` to `^11.14.0` ([#6620](https://github.com/MetaMask/core/pull/6620), [#6629](https://github.com/MetaMask/core/pull/6629))
 - Bump `@metamask/utils` from `^11.4.2` to `^11.8.0` ([#6588](https://github.com/MetaMask/core/pull/6588))
 
-[Unreleased]: https://github.com/MetaMask/core/compare/@metamask/subscription-controller@5.4.0...HEAD
+[Unreleased]: https://github.com/MetaMask/core/compare/@metamask/subscription-controller@5.4.1...HEAD
+[5.4.1]: https://github.com/MetaMask/core/compare/@metamask/subscription-controller@5.4.0...@metamask/subscription-controller@5.4.1
 [5.4.0]: https://github.com/MetaMask/core/compare/@metamask/subscription-controller@5.3.1...@metamask/subscription-controller@5.4.0
 [5.3.1]: https://github.com/MetaMask/core/compare/@metamask/subscription-controller@5.3.0...@metamask/subscription-controller@5.3.1
 [5.3.0]: https://github.com/MetaMask/core/compare/@metamask/subscription-controller@5.2.0...@metamask/subscription-controller@5.3.0

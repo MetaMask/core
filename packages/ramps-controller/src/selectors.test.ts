@@ -26,9 +26,10 @@ describe('createRequestSelector', () => {
         ramps: {
           userRegion: null,
           countries: [],
-          preferredProvider: null,
+          selectedProvider: null,
           providers: [],
           tokens: null,
+          selectedToken: null,
           paymentMethods: [],
           selectedPaymentMethod: null,
           requests: {
@@ -60,9 +61,10 @@ describe('createRequestSelector', () => {
         ramps: {
           userRegion: null,
           countries: [],
-          preferredProvider: null,
+          selectedProvider: null,
           providers: [],
           tokens: null,
+          selectedToken: null,
           paymentMethods: [],
           selectedPaymentMethod: null,
           requests: {
@@ -97,9 +99,10 @@ describe('createRequestSelector', () => {
         ramps: {
           userRegion: null,
           countries: [],
-          preferredProvider: null,
+          selectedProvider: null,
           providers: [],
           tokens: null,
+          selectedToken: null,
           paymentMethods: [],
           selectedPaymentMethod: null,
           requests: {
@@ -130,9 +133,10 @@ describe('createRequestSelector', () => {
         ramps: {
           userRegion: null,
           countries: [],
-          preferredProvider: null,
+          selectedProvider: null,
           providers: [],
           tokens: null,
+          selectedToken: null,
           paymentMethods: [],
           selectedPaymentMethod: null,
           requests: {},
@@ -186,9 +190,10 @@ describe('createRequestSelector', () => {
         ramps: {
           userRegion: null,
           countries: [],
-          preferredProvider: null,
+          selectedProvider: null,
           providers: [],
           tokens: null,
+          selectedToken: null,
           paymentMethods: [],
           selectedPaymentMethod: null,
           requests: {
@@ -215,9 +220,10 @@ describe('createRequestSelector', () => {
         ramps: {
           userRegion: null,
           countries: [],
-          preferredProvider: null,
+          selectedProvider: null,
           providers: [],
           tokens: null,
+          selectedToken: null,
           paymentMethods: [],
           selectedPaymentMethod: null,
           requests: {
@@ -233,9 +239,10 @@ describe('createRequestSelector', () => {
         ramps: {
           userRegion: null,
           countries: [],
-          preferredProvider: null,
+          selectedProvider: null,
           providers: [],
           tokens: null,
+          selectedToken: null,
           paymentMethods: [],
           selectedPaymentMethod: null,
           requests: {
@@ -263,9 +270,10 @@ describe('createRequestSelector', () => {
         ramps: {
           userRegion: null,
           countries: [],
-          preferredProvider: null,
+          selectedProvider: null,
           providers: [],
           tokens: null,
+          selectedToken: null,
           paymentMethods: [],
           selectedPaymentMethod: null,
           requests: {
@@ -296,9 +304,10 @@ describe('createRequestSelector', () => {
         ramps: {
           userRegion: null,
           countries: [],
-          preferredProvider: null,
+          selectedProvider: null,
           providers: [],
           tokens: null,
+          selectedToken: null,
           paymentMethods: [],
           selectedPaymentMethod: null,
           requests: {
@@ -328,9 +337,10 @@ describe('createRequestSelector', () => {
         ramps: {
           userRegion: null,
           countries: [],
-          preferredProvider: null,
+          selectedProvider: null,
           providers: [],
           tokens: null,
+          selectedToken: null,
           paymentMethods: [],
           selectedPaymentMethod: null,
           requests: {
@@ -348,9 +358,10 @@ describe('createRequestSelector', () => {
         ramps: {
           userRegion: null,
           countries: [],
-          preferredProvider: null,
+          selectedProvider: null,
           providers: [],
           tokens: null,
+          selectedToken: null,
           paymentMethods: [],
           selectedPaymentMethod: null,
           requests: {
@@ -376,9 +387,10 @@ describe('createRequestSelector', () => {
         ramps: {
           userRegion: null,
           countries: [],
-          preferredProvider: null,
+          selectedProvider: null,
           providers: [],
           tokens: null,
+          selectedToken: null,
           paymentMethods: [],
           selectedPaymentMethod: null,
           requests: {
@@ -395,9 +407,10 @@ describe('createRequestSelector', () => {
         ramps: {
           userRegion: null,
           countries: [],
-          preferredProvider: null,
+          selectedProvider: null,
           providers: [],
           tokens: null,
+          selectedToken: null,
           paymentMethods: [],
           selectedPaymentMethod: null,
           requests: {
@@ -429,9 +442,10 @@ describe('createRequestSelector', () => {
         ramps: {
           userRegion: null,
           countries: [],
-          preferredProvider: null,
+          selectedProvider: null,
           providers: [],
           tokens: null,
+          selectedToken: null,
           paymentMethods: [],
           selectedPaymentMethod: null,
           requests: {
@@ -467,9 +481,10 @@ describe('createRequestSelector', () => {
         ramps: {
           userRegion: null,
           countries: [],
-          preferredProvider: null,
+          selectedProvider: null,
           providers: [],
           tokens: null,
+          selectedToken: null,
           paymentMethods: [],
           selectedPaymentMethod: null,
           requests: {
