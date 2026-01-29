@@ -158,10 +158,10 @@ export class IncomingTransactionHelper {
       return;
     }
 
-    this.#startPolling();
+    this.#startPolling(true);
   }
 
-  #startPolling(): void {
+  #startPolling(initialPolling = false): void {
     if (this.#isRunning) {
       return;
     }
@@ -183,7 +183,7 @@ export class IncomingTransactionHelper {
     }
 
     this.#onInterval().catch((error) => {
-      log('Polling failed', error);
+      log(initialPolling ? 'Initial polling failed' : 'Polling failed', error);
     });
   }
 
@@ -352,7 +352,7 @@ export class IncomingTransactionHelper {
           (currentTx) =>
             currentTx.hash?.toLowerCase() === tx.hash?.toLowerCase() &&
             currentTx.txParams.from?.toLowerCase() ===
-              tx.txParams.from?.toLowerCase() &&
+            tx.txParams.from?.toLowerCase() &&
             currentTx.type === tx.type,
         ),
     );
@@ -449,6 +449,10 @@ export class IncomingTransactionHelper {
       const hexChainId = this.#caip2ToHex(caip2ChainId);
 
       if (!hexChainId || !SUPPORTED_CHAIN_IDS.includes(hexChainId)) {
+        log('Chain ID not recognized or not supported', {
+          caip2ChainId,
+          hexChainId,
+        });
         continue;
       }
 
@@ -461,8 +465,7 @@ export class IncomingTransactionHelper {
             chainId: hexChainId,
           });
         }
-      } else if (!this.#chainsToPoll.includes(hexChainId)) {
-        // status === 'down'
+      } else if (status === 'down' && !this.#chainsToPoll.includes(hexChainId)) {
         this.#chainsToPoll.push(hexChainId);
         hasChanges = true;
         log('Supported network went down, added to polling list', {
@@ -472,6 +475,9 @@ export class IncomingTransactionHelper {
     }
 
     if (!hasChanges) {
+      log('No changes to polling list', {
+        chainsToPoll: this.#chainsToPoll,
+      });
       return;
     }
 
