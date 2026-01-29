@@ -465,7 +465,10 @@ export class IncomingTransactionHelper {
             chainId: hexChainId,
           });
         }
-      } else if (status === 'down' && !this.#chainsToPoll.includes(hexChainId)) {
+      } else if (
+        status === 'down' &&
+        !this.#chainsToPoll.includes(hexChainId)
+      ) {
         this.#chainsToPoll.push(hexChainId);
         hasChanges = true;
         log('Supported network went down, added to polling list', {
