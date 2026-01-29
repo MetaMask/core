@@ -35,28 +35,43 @@ describe('RampsController', () => {
       await withController(({ controller }) => {
         expect(controller.state).toMatchInlineSnapshot(`
           Object {
-            "countries": Array [],
-            "countriesError": null,
-            "countriesLoading": false,
-            "paymentMethods": Array [],
-            "paymentMethodsError": null,
-            "paymentMethodsLoading": false,
-            "providers": Array [],
-            "providersError": null,
-            "providersLoading": false,
-            "quotes": null,
-            "quotesError": null,
-            "quotesLoading": false,
+            "countries": Object {
+              "data": Array [],
+              "error": null,
+              "isLoading": false,
+              "selected": null,
+            },
+            "paymentMethods": Object {
+              "data": Array [],
+              "error": null,
+              "isLoading": false,
+              "selected": null,
+            },
+            "providers": Object {
+              "data": Array [],
+              "error": null,
+              "isLoading": false,
+              "selected": null,
+            },
+            "quotes": Object {
+              "data": null,
+              "error": null,
+              "isLoading": false,
+              "selected": null,
+            },
             "requests": Object {},
-            "selectedPaymentMethod": null,
-            "selectedProvider": null,
-            "selectedToken": null,
-            "tokens": null,
-            "tokensError": null,
-            "tokensLoading": false,
-            "userRegion": null,
-            "userRegionError": null,
-            "userRegionLoading": false,
+            "tokens": Object {
+              "data": null,
+              "error": null,
+              "isLoading": false,
+              "selected": null,
+            },
+            "userRegion": Object {
+              "data": null,
+              "error": null,
+              "isLoading": false,
+              "selected": null,
+            },
           }
         `);
       });
@@ -64,15 +79,15 @@ describe('RampsController', () => {
 
     it('accepts initial state', async () => {
       const givenState = {
-        userRegion: createMockUserRegion('us-ca'),
+        userRegion: createResourceState(createMockUserRegion('us-ca')),
       };
 
       await withController(
         { options: { state: givenState } },
         ({ controller }) => {
-          expect(controller.state.userRegion?.regionCode).toBe('us-ca');
-          expect(controller.state.selectedProvider).toBeNull();
-          expect(controller.state.tokens).toBeNull();
+          expect(controller.state.userRegion.data?.regionCode).toBe('us-ca');
+          expect(controller.state.providers.selected).toBeNull();
+          expect(controller.state.tokens.data).toBeNull();
           expect(controller.state.requests).toStrictEqual({});
         },
       );
@@ -82,28 +97,43 @@ describe('RampsController', () => {
       await withController({ options: { state: {} } }, ({ controller }) => {
         expect(controller.state).toMatchInlineSnapshot(`
           Object {
-            "countries": Array [],
-            "countriesError": null,
-            "countriesLoading": false,
-            "paymentMethods": Array [],
-            "paymentMethodsError": null,
-            "paymentMethodsLoading": false,
-            "providers": Array [],
-            "providersError": null,
-            "providersLoading": false,
-            "quotes": null,
-            "quotesError": null,
-            "quotesLoading": false,
+            "countries": Object {
+              "data": Array [],
+              "error": null,
+              "isLoading": false,
+              "selected": null,
+            },
+            "paymentMethods": Object {
+              "data": Array [],
+              "error": null,
+              "isLoading": false,
+              "selected": null,
+            },
+            "providers": Object {
+              "data": Array [],
+              "error": null,
+              "isLoading": false,
+              "selected": null,
+            },
+            "quotes": Object {
+              "data": null,
+              "error": null,
+              "isLoading": false,
+              "selected": null,
+            },
             "requests": Object {},
-            "selectedPaymentMethod": null,
-            "selectedProvider": null,
-            "selectedToken": null,
-            "tokens": null,
-            "tokensError": null,
-            "tokensLoading": false,
-            "userRegion": null,
-            "userRegionError": null,
-            "userRegionLoading": false,
+            "tokens": Object {
+              "data": null,
+              "error": null,
+              "isLoading": false,
+              "selected": null,
+            },
+            "userRegion": Object {
+              "data": null,
+              "error": null,
+              "isLoading": false,
+              "selected": null,
+            },
           }
         `);
       });
@@ -111,7 +141,7 @@ describe('RampsController', () => {
 
     it('always resets requests cache on initialization', async () => {
       const givenState = {
-        userRegion: createMockUserRegion('us-ca'),
+        userRegion: createResourceState(createMockUserRegion('us-ca')),
         requests: {
           someKey: {
             status: RequestStatus.SUCCESS,
@@ -176,12 +206,12 @@ describe('RampsController', () => {
           async (_regionCode: string) => ({ providers: mockProviders }),
         );
 
-        expect(controller.state.providers).toStrictEqual([]);
+        expect(controller.state.providers.data).toStrictEqual([]);
 
         const result = await controller.getProviders('us-ca');
 
         expect(result.providers).toStrictEqual(mockProviders);
-        expect(controller.state.providers).toStrictEqual(mockProviders);
+        expect(controller.state.providers.data).toStrictEqual(mockProviders);
       });
     });
 
@@ -242,7 +272,7 @@ describe('RampsController', () => {
 
     it('uses userRegion from state when region is not provided', async () => {
       await withController(
-        { options: { state: { userRegion: createMockUserRegion('fr') } } },
+        { options: { state: { userRegion: createResourceState(createMockUserRegion('fr')) } } },
         async ({ controller, rootMessenger }) => {
           let receivedRegion: string | undefined;
           rootMessenger.registerActionHandler(
@@ -262,7 +292,7 @@ describe('RampsController', () => {
 
     it('prefers provided region over userRegion in state', async () => {
       await withController(
-        { options: { state: { userRegion: createMockUserRegion('fr') } } },
+        { options: { state: { userRegion: createResourceState(createMockUserRegion('fr')) } } },
         async ({ controller, rootMessenger }) => {
           let receivedRegion: string | undefined;
           rootMessenger.registerActionHandler(
@@ -282,7 +312,7 @@ describe('RampsController', () => {
 
     it('updates providers when userRegion matches the requested region', async () => {
       await withController(
-        { options: { state: { userRegion: createMockUserRegion('us-ca') } } },
+        { options: { state: { userRegion: createResourceState(createMockUserRegion('us-ca')) } } },
         async ({ controller, rootMessenger }) => {
           rootMessenger.registerActionHandler(
             'RampsService:getProviders',
@@ -292,12 +322,12 @@ describe('RampsController', () => {
             },
           );
 
-          expect(controller.state.userRegion?.regionCode).toBe('us-ca');
-          expect(controller.state.providers).toStrictEqual([]);
+          expect(controller.state.userRegion.data?.regionCode).toBe('us-ca');
+          expect(controller.state.providers.data).toStrictEqual([]);
 
           await controller.getProviders('US-ca');
 
-          expect(controller.state.providers).toStrictEqual(mockProviders);
+          expect(controller.state.providers.data).toStrictEqual(mockProviders);
         },
       );
     });
@@ -324,8 +354,8 @@ describe('RampsController', () => {
         {
           options: {
             state: {
-              userRegion: createMockUserRegion('us-ca'),
-              providers: existingProviders,
+              userRegion: createResourceState(createMockUserRegion('us-ca')),
+              providers: createResourceState(existingProviders, null),
             },
           },
         },
@@ -338,12 +368,12 @@ describe('RampsController', () => {
             },
           );
 
-          expect(controller.state.userRegion?.regionCode).toBe('us-ca');
-          expect(controller.state.providers).toStrictEqual(existingProviders);
+          expect(controller.state.userRegion.data?.regionCode).toBe('us-ca');
+          expect(controller.state.providers.data).toStrictEqual(existingProviders);
 
           await controller.getProviders('fr');
 
-          expect(controller.state.providers).toStrictEqual(existingProviders);
+          expect(controller.state.providers.data).toStrictEqual(existingProviders);
         },
       );
     });
@@ -908,7 +938,7 @@ describe('RampsController', () => {
           async () => mockCountries,
         );
 
-        expect(controller.state.countries).toStrictEqual([]);
+        expect(controller.state.countries.data).toStrictEqual([]);
 
         const countries = await controller.getCountries();
 
@@ -947,7 +977,7 @@ describe('RampsController', () => {
             },
           ]
         `);
-        expect(controller.state.countries).toStrictEqual(mockCountries);
+        expect(controller.state.countries.data).toStrictEqual(mockCountries);
       });
     });
   });
@@ -966,8 +996,8 @@ describe('RampsController', () => {
 
         await controller.init();
 
-        expect(controller.state.countries).toStrictEqual(createMockCountries());
-        expect(controller.state.userRegion?.regionCode).toBe('us-ca');
+        expect(controller.state.countries.data).toStrictEqual(createMockCountries());
+        expect(controller.state.userRegion.data?.regionCode).toBe('us-ca');
       });
     });
 
@@ -977,7 +1007,7 @@ describe('RampsController', () => {
         {
           options: {
             state: {
-              userRegion: existingRegion,
+              userRegion: createResourceState(existingRegion),
             },
           },
         },
@@ -989,10 +1019,10 @@ describe('RampsController', () => {
 
           await controller.init();
 
-          expect(controller.state.countries).toStrictEqual(
+          expect(controller.state.countries.data).toStrictEqual(
             createMockCountries(),
           );
-          expect(controller.state.userRegion?.regionCode).toBe('us-ca');
+          expect(controller.state.userRegion.data?.regionCode).toBe('us-ca');
         },
       );
     });
@@ -1037,11 +1067,10 @@ describe('RampsController', () => {
         {
           options: {
             state: {
-              countries: createMockCountries(),
-              userRegion: createMockUserRegion('us-ca'),
-              tokens: mockTokens,
-              providers: mockProviders,
-              selectedProvider: mockSelectedProvider,
+              countries: createResourceState(createMockCountries()),
+              userRegion: createResourceState(createMockUserRegion('us-ca')),
+              tokens: createResourceState(mockTokens, null),
+              providers: createResourceState(mockProviders, mockSelectedProvider),
             },
           },
         },
@@ -1062,10 +1091,10 @@ describe('RampsController', () => {
           await controller.init();
 
           // Verify persisted state is preserved
-          expect(controller.state.userRegion?.regionCode).toBe('us-ca');
-          expect(controller.state.tokens).toStrictEqual(mockTokens);
-          expect(controller.state.providers).toStrictEqual(mockProviders);
-          expect(controller.state.selectedProvider).toStrictEqual(
+          expect(controller.state.userRegion.data?.regionCode).toBe('us-ca');
+          expect(controller.state.tokens.data).toStrictEqual(mockTokens);
+          expect(controller.state.providers.data).toStrictEqual(mockProviders);
+          expect(controller.state.providers.selected).toStrictEqual(
             mockSelectedProvider,
           );
         },
@@ -1121,7 +1150,7 @@ describe('RampsController', () => {
         await expect(controller.init()).rejects.toMatchObject({
           code: 'ERR_NO_MESSAGE',
         });
-        expect(controller.state.userRegionError).toBe('Unknown error');
+        expect(controller.state.userRegion.error).toBe('Unknown error');
       });
     });
   });
@@ -1132,7 +1161,7 @@ describe('RampsController', () => {
         {
           options: {
             state: {
-              userRegion: createMockUserRegion('us-ca'),
+              userRegion: createResourceState(createMockUserRegion('us-ca')),
             },
           },
         },
@@ -1180,7 +1209,7 @@ describe('RampsController', () => {
         {
           options: {
             state: {
-              countries: createMockCountries(),
+              countries: createResourceState(createMockCountries()),
             },
           },
         },
@@ -1196,9 +1225,9 @@ describe('RampsController', () => {
 
           await controller.setUserRegion('US-CA');
 
-          expect(controller.state.userRegion?.regionCode).toBe('us-ca');
-          expect(controller.state.userRegion?.country.isoCode).toBe('US');
-          expect(controller.state.userRegion?.state?.stateId).toBe('CA');
+          expect(controller.state.userRegion.data?.regionCode).toBe('us-ca');
+          expect(controller.state.userRegion.data?.country.isoCode).toBe('US');
+          expect(controller.state.userRegion.data?.state?.stateId).toBe('CA');
         },
       );
     });
@@ -1231,7 +1260,7 @@ describe('RampsController', () => {
         {
           options: {
             state: {
-              countries: createMockCountries(),
+              countries: createResourceState(createMockCountries()),
             },
           },
         },
@@ -1261,22 +1290,22 @@ describe('RampsController', () => {
           await controller.getPaymentMethods('us-ca');
           controller.setSelectedPaymentMethod(mockPaymentMethod.id);
 
-          expect(controller.state.tokens).toStrictEqual(mockTokens);
-          expect(controller.state.providers).toStrictEqual(mockProviders);
-          expect(controller.state.paymentMethods).toStrictEqual([
+          expect(controller.state.tokens.data).toStrictEqual(mockTokens);
+          expect(controller.state.providers.data).toStrictEqual(mockProviders);
+          expect(controller.state.paymentMethods.data).toStrictEqual([
             mockPaymentMethod,
           ]);
-          expect(controller.state.selectedPaymentMethod).toStrictEqual(
+          expect(controller.state.paymentMethods.selected).toStrictEqual(
             mockPaymentMethod,
           );
 
           providersToReturn = [];
           await controller.setUserRegion('FR');
           await new Promise((resolve) => setTimeout(resolve, 50));
-          expect(controller.state.tokens).toStrictEqual(mockTokens);
-          expect(controller.state.providers).toStrictEqual([]);
-          expect(controller.state.paymentMethods).toStrictEqual([]);
-          expect(controller.state.selectedPaymentMethod).toBeNull();
+          expect(controller.state.tokens.data).toStrictEqual(mockTokens);
+          expect(controller.state.providers.data).toStrictEqual([]);
+          expect(controller.state.paymentMethods.data).toStrictEqual([]);
+          expect(controller.state.paymentMethods.selected).toBeNull();
         },
       );
     });
@@ -1321,11 +1350,10 @@ describe('RampsController', () => {
         {
           options: {
             state: {
-              countries: createMockCountries(),
-              userRegion: createMockUserRegion('us-ca'),
-              tokens: mockTokens,
-              providers: mockProviders,
-              selectedProvider: mockSelectedProvider,
+              countries: createResourceState(createMockCountries()),
+              userRegion: createResourceState(createMockUserRegion('us-ca')),
+              tokens: createResourceState(mockTokens, null),
+              providers: createResourceState(mockProviders, mockSelectedProvider),
             },
           },
         },
@@ -1343,10 +1371,10 @@ describe('RampsController', () => {
           await controller.setUserRegion('US-ca');
 
           // Verify persisted state is preserved
-          expect(controller.state.userRegion?.regionCode).toBe('us-ca');
-          expect(controller.state.tokens).toStrictEqual(mockTokens);
-          expect(controller.state.providers).toStrictEqual(mockProviders);
-          expect(controller.state.selectedProvider).toStrictEqual(
+          expect(controller.state.userRegion.data?.regionCode).toBe('us-ca');
+          expect(controller.state.tokens.data).toStrictEqual(mockTokens);
+          expect(controller.state.providers.data).toStrictEqual(mockProviders);
+          expect(controller.state.providers.selected).toStrictEqual(
             mockSelectedProvider,
           );
         },
@@ -1402,12 +1430,10 @@ describe('RampsController', () => {
         {
           options: {
             state: {
-              countries: createMockCountries(),
-              userRegion: createMockUserRegion('us-ca'),
-              tokens: mockTokens,
-              providers: mockProviders,
-              selectedProvider: mockSelectedProvider,
-              selectedToken: mockSelectedToken,
+              countries: createResourceState(createMockCountries()),
+              userRegion: createResourceState(createMockUserRegion('us-ca')),
+              tokens: createResourceState(mockTokens, mockSelectedToken),
+              providers: createResourceState(mockProviders, mockSelectedProvider),
             },
           },
         },
@@ -1425,11 +1451,11 @@ describe('RampsController', () => {
           await controller.setUserRegion('FR');
 
           // Verify persisted state is cleared
-          expect(controller.state.userRegion?.regionCode).toBe('fr');
-          expect(controller.state.tokens).toBeNull();
-          expect(controller.state.providers).toStrictEqual([]);
-          expect(controller.state.selectedProvider).toBeNull();
-          expect(controller.state.selectedToken).toBeNull();
+          expect(controller.state.userRegion.data?.regionCode).toBe('fr');
+          expect(controller.state.tokens.data).toBeNull();
+          expect(controller.state.providers.data).toStrictEqual([]);
+          expect(controller.state.providers.selected).toBeNull();
+          expect(controller.state.tokens.selected).toBeNull();
         },
       );
     });
@@ -1458,7 +1484,7 @@ describe('RampsController', () => {
         {
           options: {
             state: {
-              countries: countriesWithId,
+              countries: createResourceState(countriesWithId),
             },
           },
         },
@@ -1474,8 +1500,8 @@ describe('RampsController', () => {
 
           await controller.setUserRegion('us-ca');
 
-          expect(controller.state.userRegion?.regionCode).toBe('us-ca');
-          expect(controller.state.userRegion?.country.name).toBe(
+          expect(controller.state.userRegion.data?.regionCode).toBe('us-ca');
+          expect(controller.state.userRegion.data?.country.name).toBe(
             'United States',
           );
         },
@@ -1499,7 +1525,7 @@ describe('RampsController', () => {
         {
           options: {
             state: {
-              countries: countriesWithId,
+              countries: createResourceState(countriesWithId),
             },
           },
         },
@@ -1515,8 +1541,8 @@ describe('RampsController', () => {
 
           await controller.setUserRegion('fr');
 
-          expect(controller.state.userRegion?.regionCode).toBe('fr');
-          expect(controller.state.userRegion?.country.name).toBe('France');
+          expect(controller.state.userRegion.data?.regionCode).toBe('fr');
+          expect(controller.state.userRegion.data?.country.name).toBe('France');
         },
       );
     });
@@ -1545,7 +1571,7 @@ describe('RampsController', () => {
         {
           options: {
             state: {
-              countries: countriesWithId,
+              countries: createResourceState(countriesWithId),
             },
           },
         },
@@ -1561,8 +1587,8 @@ describe('RampsController', () => {
 
           await controller.setUserRegion('us-ca');
 
-          expect(controller.state.userRegion?.regionCode).toBe('us-ca');
-          expect(controller.state.userRegion?.country.name).toBe(
+          expect(controller.state.userRegion.data?.regionCode).toBe('us-ca');
+          expect(controller.state.userRegion.data?.country.name).toBe(
             'United States',
           );
         },
@@ -1585,7 +1611,7 @@ describe('RampsController', () => {
         {
           options: {
             state: {
-              countries,
+              countries: createResourceState(countries),
             },
           },
         },
@@ -1594,7 +1620,7 @@ describe('RampsController', () => {
             'Region "xx" not found in countries data',
           );
 
-          expect(controller.state.userRegion).toBeNull();
+          expect(controller.state.userRegion.data).toBeNull();
         },
       );
     });
@@ -1605,8 +1631,8 @@ describe('RampsController', () => {
           'No countries found. Cannot set user region without valid country information.',
         );
 
-        expect(controller.state.userRegion).toBeNull();
-        expect(controller.state.tokens).toBeNull();
+        expect(controller.state.userRegion.data).toBeNull();
+        expect(controller.state.tokens.data).toBeNull();
       });
     });
 
@@ -1615,8 +1641,8 @@ describe('RampsController', () => {
         {
           options: {
             state: {
-              countries: [],
-              userRegion: createMockUserRegion('us-ca'),
+              countries: createResourceState([]),
+              userRegion: createResourceState(createMockUserRegion('us-ca')),
             },
           },
         },
@@ -1625,8 +1651,8 @@ describe('RampsController', () => {
             'No countries found. Cannot set user region without valid country information.',
           );
 
-          expect(controller.state.userRegion).toBeNull();
-          expect(controller.state.tokens).toBeNull();
+          expect(controller.state.userRegion.data).toBeNull();
+          expect(controller.state.tokens.data).toBeNull();
         },
       );
     });
@@ -1654,7 +1680,7 @@ describe('RampsController', () => {
         {
           options: {
             state: {
-              countries: countriesWithStateId,
+              countries: createResourceState(countriesWithStateId),
             },
           },
         },
@@ -1670,9 +1696,9 @@ describe('RampsController', () => {
 
           await controller.setUserRegion('us-ny');
 
-          expect(controller.state.userRegion?.regionCode).toBe('us-ny');
-          expect(controller.state.userRegion?.country.isoCode).toBe('US');
-          expect(controller.state.userRegion?.state?.name).toBe('New York');
+          expect(controller.state.userRegion.data?.regionCode).toBe('us-ny');
+          expect(controller.state.userRegion.data?.country.isoCode).toBe('US');
+          expect(controller.state.userRegion.data?.state?.name).toBe('New York');
         },
       );
     });
@@ -1700,7 +1726,7 @@ describe('RampsController', () => {
         {
           options: {
             state: {
-              countries: countriesWithStateId,
+              countries: createResourceState(countriesWithStateId),
             },
           },
         },
@@ -1716,9 +1742,9 @@ describe('RampsController', () => {
 
           await controller.setUserRegion('us-ca');
 
-          expect(controller.state.userRegion?.regionCode).toBe('us-ca');
-          expect(controller.state.userRegion?.country.isoCode).toBe('US');
-          expect(controller.state.userRegion?.state?.name).toBe('California');
+          expect(controller.state.userRegion.data?.regionCode).toBe('us-ca');
+          expect(controller.state.userRegion.data?.country.isoCode).toBe('US');
+          expect(controller.state.userRegion.data?.state?.name).toBe('California');
         },
       );
     });
@@ -1751,7 +1777,7 @@ describe('RampsController', () => {
         {
           options: {
             state: {
-              countries: countriesWithStates,
+              countries: createResourceState(countriesWithStates),
             },
           },
         },
@@ -1767,9 +1793,9 @@ describe('RampsController', () => {
 
           await controller.setUserRegion('us-xx');
 
-          expect(controller.state.userRegion?.regionCode).toBe('us-xx');
-          expect(controller.state.userRegion?.country.isoCode).toBe('US');
-          expect(controller.state.userRegion?.state).toBeNull();
+          expect(controller.state.userRegion.data?.regionCode).toBe('us-xx');
+          expect(controller.state.userRegion.data?.country.isoCode).toBe('US');
+          expect(controller.state.userRegion.data?.state).toBeNull();
         },
       );
     });
@@ -1809,8 +1835,8 @@ describe('RampsController', () => {
         {
           options: {
             state: {
-              userRegion: createMockUserRegion('us-ca'),
-              providers: [mockProvider],
+              userRegion: createResourceState(createMockUserRegion('us-ca')),
+              providers: createResourceState([mockProvider], null),
             },
           },
         },
@@ -1820,11 +1846,11 @@ describe('RampsController', () => {
             async () => ({ payments: [] }),
           );
 
-          expect(controller.state.selectedProvider).toBeNull();
+          expect(controller.state.providers.selected).toBeNull();
 
           controller.setSelectedProvider(mockProvider.id);
 
-          expect(controller.state.selectedProvider).toStrictEqual(mockProvider);
+          expect(controller.state.providers.selected).toStrictEqual(mockProvider);
         },
       );
     });
@@ -1842,28 +1868,26 @@ describe('RampsController', () => {
         {
           options: {
             state: {
-              userRegion: createMockUserRegion('us-ca'),
-              providers: [mockProvider],
-              selectedProvider: mockProvider,
-              paymentMethods: [mockPaymentMethod],
-              selectedPaymentMethod: mockPaymentMethod,
+              userRegion: createResourceState(createMockUserRegion('us-ca')),
+              providers: createResourceState([mockProvider], mockProvider),
+              paymentMethods: createResourceState([mockPaymentMethod], mockPaymentMethod),
             },
           },
         },
         ({ controller }) => {
-          expect(controller.state.selectedProvider).toStrictEqual(mockProvider);
-          expect(controller.state.paymentMethods).toStrictEqual([
+          expect(controller.state.providers.selected).toStrictEqual(mockProvider);
+          expect(controller.state.paymentMethods.data).toStrictEqual([
             mockPaymentMethod,
           ]);
-          expect(controller.state.selectedPaymentMethod).toStrictEqual(
+          expect(controller.state.paymentMethods.selected).toStrictEqual(
             mockPaymentMethod,
           );
 
           controller.setSelectedProvider(null);
 
-          expect(controller.state.selectedProvider).toBeNull();
-          expect(controller.state.paymentMethods).toStrictEqual([]);
-          expect(controller.state.selectedPaymentMethod).toBeNull();
+          expect(controller.state.providers.selected).toBeNull();
+          expect(controller.state.paymentMethods.data).toStrictEqual([]);
+          expect(controller.state.paymentMethods.selected).toBeNull();
         },
       );
     });
@@ -1873,7 +1897,7 @@ describe('RampsController', () => {
         {
           options: {
             state: {
-              providers: [mockProvider],
+              providers: createResourceState([mockProvider], null),
             },
           },
         },
@@ -1892,7 +1916,7 @@ describe('RampsController', () => {
         {
           options: {
             state: {
-              userRegion: createMockUserRegion('us-ca'),
+              userRegion: createResourceState(createMockUserRegion('us-ca')),
             },
           },
         },
@@ -1911,8 +1935,8 @@ describe('RampsController', () => {
         {
           options: {
             state: {
-              userRegion: createMockUserRegion('us-ca'),
-              providers: [mockProvider],
+              userRegion: createResourceState(createMockUserRegion('us-ca')),
+              providers: createResourceState([mockProvider], null),
             },
           },
         },
@@ -1945,11 +1969,9 @@ describe('RampsController', () => {
         {
           options: {
             state: {
-              selectedProvider: mockProvider,
-              userRegion: createMockUserRegion('us-ca'),
-              providers: [mockProvider, newProvider],
-              paymentMethods: [existingPaymentMethod],
-              selectedPaymentMethod: existingPaymentMethod,
+              userRegion: createResourceState(createMockUserRegion('us-ca')),
+              providers: createResourceState([mockProvider, newProvider], mockProvider),
+              paymentMethods: createResourceState([existingPaymentMethod], existingPaymentMethod),
             },
           },
         },
@@ -1959,21 +1981,21 @@ describe('RampsController', () => {
             async () => ({ payments: [] }),
           );
 
-          expect(controller.state.paymentMethods).toStrictEqual([
+          expect(controller.state.paymentMethods.data).toStrictEqual([
             existingPaymentMethod,
           ]);
-          expect(controller.state.selectedPaymentMethod).toStrictEqual(
+          expect(controller.state.paymentMethods.selected).toStrictEqual(
             existingPaymentMethod,
           );
 
           controller.setSelectedProvider(newProvider.id);
 
-          expect(controller.state.selectedProvider).toStrictEqual(newProvider);
-          expect(controller.state.selectedProvider?.id).toBe(
+          expect(controller.state.providers.selected).toStrictEqual(newProvider);
+          expect(controller.state.providers.selected?.id).toBe(
             '/providers/ramp-network-staging',
           );
-          expect(controller.state.paymentMethods).toStrictEqual([]);
-          expect(controller.state.selectedPaymentMethod).toBeNull();
+          expect(controller.state.paymentMethods.data).toStrictEqual([]);
+          expect(controller.state.paymentMethods.selected).toBeNull();
         },
       );
     });
@@ -2008,8 +2030,8 @@ describe('RampsController', () => {
         {
           options: {
             state: {
-              userRegion: createMockUserRegion('us-ca'),
-              tokens: mockTokensResponse,
+              userRegion: createResourceState(createMockUserRegion('us-ca')),
+              tokens: createResourceState(mockTokensResponse, null),
             },
           },
         },
@@ -2019,11 +2041,11 @@ describe('RampsController', () => {
             async () => ({ payments: [] }),
           );
 
-          expect(controller.state.selectedToken).toBeNull();
+          expect(controller.state.tokens.selected).toBeNull();
 
           controller.setSelectedToken(mockToken.assetId);
 
-          expect(controller.state.selectedToken).toStrictEqual(mockToken);
+          expect(controller.state.tokens.selected).toStrictEqual(mockToken);
         },
       );
     });
@@ -2033,24 +2055,22 @@ describe('RampsController', () => {
         {
           options: {
             state: {
-              userRegion: createMockUserRegion('us-ca'),
-              tokens: mockTokensResponse,
-              selectedToken: mockToken,
-              paymentMethods: [mockPaymentMethod],
-              selectedPaymentMethod: mockPaymentMethod,
+              userRegion: createResourceState(createMockUserRegion('us-ca')),
+              tokens: createResourceState(mockTokensResponse, mockToken),
+              paymentMethods: createResourceState([mockPaymentMethod], mockPaymentMethod),
             },
           },
         },
         ({ controller }) => {
-          expect(controller.state.selectedToken).toStrictEqual(mockToken);
-          expect(controller.state.paymentMethods).toHaveLength(1);
-          expect(controller.state.selectedPaymentMethod).not.toBeNull();
+          expect(controller.state.tokens.selected).toStrictEqual(mockToken);
+          expect(controller.state.paymentMethods.data).toHaveLength(1);
+          expect(controller.state.paymentMethods.selected).not.toBeNull();
 
           controller.setSelectedToken(undefined);
 
-          expect(controller.state.selectedToken).toBeNull();
-          expect(controller.state.paymentMethods).toStrictEqual([]);
-          expect(controller.state.selectedPaymentMethod).toBeNull();
+          expect(controller.state.tokens.selected).toBeNull();
+          expect(controller.state.paymentMethods.data).toStrictEqual([]);
+          expect(controller.state.paymentMethods.selected).toBeNull();
         },
       );
     });
@@ -2060,7 +2080,7 @@ describe('RampsController', () => {
         {
           options: {
             state: {
-              tokens: mockTokensResponse,
+              tokens: createResourceState(mockTokensResponse, null),
             },
           },
         },
@@ -2077,7 +2097,7 @@ describe('RampsController', () => {
         {
           options: {
             state: {
-              userRegion: createMockUserRegion('us-ca'),
+              userRegion: createResourceState(createMockUserRegion('us-ca')),
             },
           },
         },
@@ -2094,8 +2114,8 @@ describe('RampsController', () => {
         {
           options: {
             state: {
-              userRegion: createMockUserRegion('us-ca'),
-              tokens: mockTokensResponse,
+              userRegion: createResourceState(createMockUserRegion('us-ca')),
+              tokens: createResourceState(mockTokensResponse, null),
             },
           },
         },
@@ -2114,8 +2134,8 @@ describe('RampsController', () => {
         {
           options: {
             state: {
-              userRegion: createMockUserRegion('us-ca'),
-              tokens: mockTokensResponse,
+              userRegion: createResourceState(createMockUserRegion('us-ca')),
+              tokens: createResourceState(mockTokensResponse, null),
             },
           },
         },
@@ -2159,11 +2179,9 @@ describe('RampsController', () => {
         {
           options: {
             state: {
-              selectedToken: mockToken,
-              userRegion: createMockUserRegion('us-ca'),
-              tokens: tokensWithBoth,
-              paymentMethods: [mockPaymentMethod],
-              selectedPaymentMethod: mockPaymentMethod,
+              userRegion: createResourceState(createMockUserRegion('us-ca')),
+              tokens: createResourceState(tokensWithBoth, mockToken),
+              paymentMethods: createResourceState([mockPaymentMethod], mockPaymentMethod),
             },
           },
         },
@@ -2173,18 +2191,18 @@ describe('RampsController', () => {
             async () => ({ payments: [] }),
           );
 
-          expect(controller.state.paymentMethods).toStrictEqual([
+          expect(controller.state.paymentMethods.data).toStrictEqual([
             mockPaymentMethod,
           ]);
-          expect(controller.state.selectedPaymentMethod).toStrictEqual(
+          expect(controller.state.paymentMethods.selected).toStrictEqual(
             mockPaymentMethod,
           );
 
           controller.setSelectedToken(newToken.assetId);
 
-          expect(controller.state.selectedToken).toStrictEqual(newToken);
-          expect(controller.state.paymentMethods).toStrictEqual([]);
-          expect(controller.state.selectedPaymentMethod).toBeNull();
+          expect(controller.state.tokens.selected).toStrictEqual(newToken);
+          expect(controller.state.paymentMethods.data).toStrictEqual([]);
+          expect(controller.state.paymentMethods.selected).toBeNull();
         },
       );
     });
@@ -2236,7 +2254,7 @@ describe('RampsController', () => {
           ) => mockTokens,
         );
 
-        expect(controller.state.tokens).toBeNull();
+        expect(controller.state.tokens.data).toBeNull();
 
         const tokens = await controller.getTokens('us-ca', 'buy');
 
@@ -2275,7 +2293,7 @@ describe('RampsController', () => {
             ],
           }
         `);
-        expect(controller.state.tokens).toStrictEqual(mockTokens);
+        expect(controller.state.tokens.data).toStrictEqual(mockTokens);
       });
     });
 
@@ -2388,7 +2406,7 @@ describe('RampsController', () => {
 
     it('uses userRegion from state when region is not provided', async () => {
       await withController(
-        { options: { state: { userRegion: createMockUserRegion('fr') } } },
+        { options: { state: { userRegion: createResourceState(createMockUserRegion('fr')) } } },
         async ({ controller, rootMessenger }) => {
           let receivedRegion: string | undefined;
           rootMessenger.registerActionHandler(
@@ -2420,7 +2438,7 @@ describe('RampsController', () => {
 
     it('prefers provided region over userRegion in state', async () => {
       await withController(
-        { options: { state: { userRegion: createMockUserRegion('fr') } } },
+        { options: { state: { userRegion: createResourceState(createMockUserRegion('fr')) } } },
         async ({ controller, rootMessenger }) => {
           let receivedRegion: string | undefined;
           rootMessenger.registerActionHandler(
@@ -2444,7 +2462,7 @@ describe('RampsController', () => {
 
     it('updates tokens when userRegion matches the requested region', async () => {
       await withController(
-        { options: { state: { userRegion: createMockUserRegion('us-ca') } } },
+        { options: { state: { userRegion: createResourceState(createMockUserRegion('us-ca')) } } },
         async ({ controller, rootMessenger }) => {
           rootMessenger.registerActionHandler(
             'RampsService:getTokens',
@@ -2458,12 +2476,12 @@ describe('RampsController', () => {
             },
           );
 
-          expect(controller.state.userRegion?.regionCode).toBe('us-ca');
-          expect(controller.state.tokens).toBeNull();
+          expect(controller.state.userRegion.data?.regionCode).toBe('us-ca');
+          expect(controller.state.tokens.data).toBeNull();
 
           await controller.getTokens('US-ca');
 
-          expect(controller.state.tokens).toStrictEqual(mockTokens);
+          expect(controller.state.tokens.data).toStrictEqual(mockTokens);
         },
       );
     });
@@ -2498,8 +2516,8 @@ describe('RampsController', () => {
         {
           options: {
             state: {
-              userRegion: createMockUserRegion('us-ca'),
-              tokens: existingTokens,
+              userRegion: createResourceState(createMockUserRegion('us-ca')),
+              tokens: createResourceState(existingTokens, null),
             },
           },
         },
@@ -2516,12 +2534,12 @@ describe('RampsController', () => {
             },
           );
 
-          expect(controller.state.userRegion?.regionCode).toBe('us-ca');
-          expect(controller.state.tokens).toStrictEqual(existingTokens);
+          expect(controller.state.userRegion.data?.regionCode).toBe('us-ca');
+          expect(controller.state.tokens.data).toStrictEqual(existingTokens);
 
           await controller.getTokens('fr');
 
-          expect(controller.state.tokens).toStrictEqual(existingTokens);
+          expect(controller.state.tokens.data).toStrictEqual(existingTokens);
         },
       );
     });
@@ -2643,11 +2661,10 @@ describe('RampsController', () => {
         {
           options: {
             state: {
-              userRegion: createMockUserRegion('us-ca'),
-              selectedPaymentMethod: mockPaymentMethod1,
-              paymentMethods: [mockPaymentMethod1, mockPaymentMethod2],
-              selectedToken: mockSelectedToken,
-              selectedProvider: mockSelectedProvider,
+              userRegion: createResourceState(createMockUserRegion('us-ca')),
+              paymentMethods: createResourceState([mockPaymentMethod1, mockPaymentMethod2], mockPaymentMethod1),
+              tokens: createResourceState(null, mockSelectedToken),
+              providers: createResourceState([], mockSelectedProvider),
             },
           },
         },
@@ -2657,7 +2674,7 @@ describe('RampsController', () => {
             async () => mockPaymentMethodsResponse,
           );
 
-          expect(controller.state.selectedPaymentMethod).toStrictEqual(
+          expect(controller.state.paymentMethods.selected).toStrictEqual(
             mockPaymentMethod1,
           );
 
@@ -2666,10 +2683,10 @@ describe('RampsController', () => {
             provider: '/providers/stripe',
           });
 
-          expect(controller.state.selectedPaymentMethod).toStrictEqual(
+          expect(controller.state.paymentMethods.selected).toStrictEqual(
             mockPaymentMethod1,
           );
-          expect(controller.state.paymentMethods).toStrictEqual([
+          expect(controller.state.paymentMethods.data).toStrictEqual([
             mockPaymentMethod1,
             mockPaymentMethod2,
           ]);
@@ -2690,11 +2707,10 @@ describe('RampsController', () => {
         {
           options: {
             state: {
-              userRegion: createMockUserRegion('us-ca'),
-              selectedPaymentMethod: removedPaymentMethod,
-              paymentMethods: [removedPaymentMethod],
-              selectedToken: mockSelectedToken,
-              selectedProvider: mockSelectedProvider,
+              userRegion: createResourceState(createMockUserRegion('us-ca')),
+              paymentMethods: createResourceState([removedPaymentMethod], removedPaymentMethod),
+              tokens: createResourceState(null, mockSelectedToken),
+              providers: createResourceState([], mockSelectedProvider),
             },
           },
         },
@@ -2704,7 +2720,7 @@ describe('RampsController', () => {
             async () => mockPaymentMethodsResponse,
           );
 
-          expect(controller.state.selectedPaymentMethod).toStrictEqual(
+          expect(controller.state.paymentMethods.selected).toStrictEqual(
             removedPaymentMethod,
           );
 
@@ -2713,10 +2729,10 @@ describe('RampsController', () => {
             provider: '/providers/stripe',
           });
 
-          expect(controller.state.selectedPaymentMethod).toStrictEqual(
+          expect(controller.state.paymentMethods.selected).toStrictEqual(
             mockPaymentMethod1,
           );
-          expect(controller.state.paymentMethods).toStrictEqual([
+          expect(controller.state.paymentMethods.data).toStrictEqual([
             mockPaymentMethod1,
             mockPaymentMethod2,
           ]);
@@ -2729,11 +2745,10 @@ describe('RampsController', () => {
         {
           options: {
             state: {
-              userRegion: createMockUserRegion('us-ca'),
-              selectedPaymentMethod: null,
-              paymentMethods: [],
-              selectedToken: mockSelectedToken,
-              selectedProvider: mockSelectedProvider,
+              userRegion: createResourceState(createMockUserRegion('us-ca')),
+              paymentMethods: createResourceState([], null),
+              tokens: createResourceState(null, mockSelectedToken),
+              providers: createResourceState([], mockSelectedProvider),
             },
           },
         },
@@ -2743,17 +2758,17 @@ describe('RampsController', () => {
             async () => mockPaymentMethodsResponse,
           );
 
-          expect(controller.state.selectedPaymentMethod).toBeNull();
+          expect(controller.state.paymentMethods.selected).toBeNull();
 
           await controller.getPaymentMethods('us-ca', {
             assetId: 'eip155:1/slip44:60',
             provider: '/providers/stripe',
           });
 
-          expect(controller.state.selectedPaymentMethod).toStrictEqual(
+          expect(controller.state.paymentMethods.selected).toStrictEqual(
             mockPaymentMethod1,
           );
-          expect(controller.state.paymentMethods).toStrictEqual([
+          expect(controller.state.paymentMethods.data).toStrictEqual([
             mockPaymentMethod1,
             mockPaymentMethod2,
           ]);
@@ -2766,9 +2781,9 @@ describe('RampsController', () => {
         {
           options: {
             state: {
-              userRegion: createMockUserRegion('us-ca'),
-              selectedToken: mockSelectedToken,
-              selectedProvider: mockSelectedProvider,
+              userRegion: createResourceState(createMockUserRegion('us-ca')),
+              tokens: createResourceState(null, mockSelectedToken),
+              providers: createResourceState([], mockSelectedProvider),
             },
           },
         },
@@ -2778,14 +2793,14 @@ describe('RampsController', () => {
             async () => mockPaymentMethodsResponse,
           );
 
-          expect(controller.state.paymentMethods).toStrictEqual([]);
+          expect(controller.state.paymentMethods.data).toStrictEqual([]);
 
           await controller.getPaymentMethods('us-ca', {
             assetId: 'eip155:1/slip44:60',
             provider: '/providers/stripe',
           });
 
-          expect(controller.state.paymentMethods).toStrictEqual([
+          expect(controller.state.paymentMethods.data).toStrictEqual([
             mockPaymentMethod1,
             mockPaymentMethod2,
           ]);
@@ -2798,7 +2813,7 @@ describe('RampsController', () => {
         {
           options: {
             state: {
-              userRegion: createMockUserRegion('us-ca'),
+              userRegion: createResourceState(createMockUserRegion('us-ca')),
             },
           },
         },
@@ -2845,7 +2860,7 @@ describe('RampsController', () => {
         {
           options: {
             state: {
-              userRegion: regionWithoutCurrency,
+              userRegion: createResourceState(regionWithoutCurrency),
             },
           },
         },
@@ -2877,8 +2892,8 @@ describe('RampsController', () => {
         {
           options: {
             state: {
-              userRegion: createMockUserRegion('us-ca'),
-              selectedToken: mockToken,
+              userRegion: createResourceState(createMockUserRegion('us-ca')),
+              tokens: createResourceState(null, mockToken),
             },
           },
         },
@@ -2926,8 +2941,8 @@ describe('RampsController', () => {
         {
           options: {
             state: {
-              userRegion: createMockUserRegion('us-ca'),
-              selectedProvider: testProvider,
+              userRegion: createResourceState(createMockUserRegion('us-ca')),
+              providers: createResourceState([], testProvider),
             },
           },
         },
@@ -2960,7 +2975,7 @@ describe('RampsController', () => {
         {
           options: {
             state: {
-              userRegion: createMockUserRegion('fr'),
+              userRegion: createResourceState(createMockUserRegion('fr')),
             },
           },
         },
@@ -3002,11 +3017,10 @@ describe('RampsController', () => {
         {
           options: {
             state: {
-              userRegion: createMockUserRegion('us-ca'),
-              selectedPaymentMethod: removedPaymentMethod,
-              paymentMethods: [removedPaymentMethod],
-              selectedToken: mockSelectedToken,
-              selectedProvider: mockSelectedProvider,
+              userRegion: createResourceState(createMockUserRegion('us-ca')),
+              paymentMethods: createResourceState([removedPaymentMethod], removedPaymentMethod),
+              tokens: createResourceState(null, mockSelectedToken),
+              providers: createResourceState([], mockSelectedProvider),
             },
           },
         },
@@ -3021,8 +3035,8 @@ describe('RampsController', () => {
             provider: '/providers/stripe',
           });
 
-          expect(controller.state.selectedPaymentMethod).toBeNull();
-          expect(controller.state.paymentMethods).toStrictEqual([]);
+          expect(controller.state.paymentMethods.selected).toBeNull();
+          expect(controller.state.paymentMethods.data).toStrictEqual([]);
         },
       );
     });
@@ -3045,9 +3059,9 @@ describe('RampsController', () => {
         {
           options: {
             state: {
-              userRegion: createMockUserRegion('us-ca'),
-              selectedToken: null,
-              selectedProvider: null,
+              userRegion: createResourceState(createMockUserRegion('us-ca')),
+              tokens: createResourceState(null, null),
+              providers: createResourceState([], null),
             },
           },
         },
@@ -3121,14 +3135,16 @@ describe('RampsController', () => {
         {
           options: {
             state: {
-              userRegion: createMockUserRegion('us-ca'),
-              selectedToken: tokenA,
-              selectedProvider: null,
-              paymentMethods: [],
-              tokens: {
-                topTokens: [tokenA, tokenB],
-                allTokens: [tokenA, tokenB],
-              },
+              userRegion: createResourceState(createMockUserRegion('us-ca')),
+              tokens: createResourceState(
+                {
+                  topTokens: [tokenA, tokenB],
+                  allTokens: [tokenA, tokenB],
+                },
+                tokenA,
+              ),
+              providers: createResourceState([], null),
+              paymentMethods: createResourceState([], null),
             },
           },
         },
@@ -3169,8 +3185,8 @@ describe('RampsController', () => {
           resolveTokenARequest({ payments: paymentMethodsForTokenA });
           await tokenAPaymentMethodsPromise;
 
-          expect(controller.state.selectedToken).toStrictEqual(tokenB);
-          expect(controller.state.paymentMethods).toStrictEqual(
+          expect(controller.state.tokens.selected).toStrictEqual(tokenB);
+          expect(controller.state.paymentMethods.data).toStrictEqual(
             paymentMethodsForTokenB,
           );
           expect(callCount).toBe(2);
@@ -3233,11 +3249,10 @@ describe('RampsController', () => {
         {
           options: {
             state: {
-              userRegion: createMockUserRegion('us-ca'),
-              selectedToken: null,
-              selectedProvider: providerA,
-              paymentMethods: [],
-              providers: [providerA, providerB],
+              userRegion: createResourceState(createMockUserRegion('us-ca')),
+              tokens: createResourceState(null, null),
+              providers: createResourceState([providerA, providerB], providerA),
+              paymentMethods: createResourceState([], null),
             },
           },
         },
@@ -3278,8 +3293,8 @@ describe('RampsController', () => {
           resolveProviderARequest({ payments: paymentMethodsForProviderA });
           await providerAPaymentMethodsPromise;
 
-          expect(controller.state.selectedProvider).toStrictEqual(providerB);
-          expect(controller.state.paymentMethods).toStrictEqual(
+          expect(controller.state.providers.selected).toStrictEqual(providerB);
+          expect(controller.state.paymentMethods.data).toStrictEqual(
             paymentMethodsForProviderB,
           );
           expect(callCount).toBe(2);
@@ -3327,10 +3342,10 @@ describe('RampsController', () => {
         {
           options: {
             state: {
-              userRegion: createMockUserRegion('us-ca'),
-              selectedToken: token,
-              selectedProvider: provider,
-              paymentMethods: [],
+              userRegion: createResourceState(createMockUserRegion('us-ca')),
+              tokens: createResourceState(null, token),
+              providers: createResourceState([], provider),
+              paymentMethods: createResourceState([], null),
             },
           },
         },
@@ -3345,9 +3360,9 @@ describe('RampsController', () => {
             provider: provider.id,
           });
 
-          expect(controller.state.selectedToken).toStrictEqual(token);
-          expect(controller.state.selectedProvider).toStrictEqual(provider);
-          expect(controller.state.paymentMethods).toStrictEqual(
+          expect(controller.state.tokens.selected).toStrictEqual(token);
+          expect(controller.state.providers.selected).toStrictEqual(provider);
+          expect(controller.state.paymentMethods.data).toStrictEqual(
             newPaymentMethods,
           );
         },
@@ -3369,16 +3384,16 @@ describe('RampsController', () => {
         {
           options: {
             state: {
-              paymentMethods: [mockPaymentMethod],
+              paymentMethods: createResourceState([mockPaymentMethod], null),
             },
           },
         },
         ({ controller }) => {
-          expect(controller.state.selectedPaymentMethod).toBeNull();
+          expect(controller.state.paymentMethods.selected).toBeNull();
 
           controller.setSelectedPaymentMethod(mockPaymentMethod.id);
 
-          expect(controller.state.selectedPaymentMethod).toStrictEqual(
+          expect(controller.state.paymentMethods.selected).toStrictEqual(
             mockPaymentMethod,
           );
         },
@@ -3390,19 +3405,18 @@ describe('RampsController', () => {
         {
           options: {
             state: {
-              selectedPaymentMethod: mockPaymentMethod,
-              paymentMethods: [mockPaymentMethod],
+              paymentMethods: createResourceState([mockPaymentMethod], mockPaymentMethod),
             },
           },
         },
         ({ controller }) => {
-          expect(controller.state.selectedPaymentMethod).toStrictEqual(
+          expect(controller.state.paymentMethods.selected).toStrictEqual(
             mockPaymentMethod,
           );
 
           controller.setSelectedPaymentMethod(undefined);
 
-          expect(controller.state.selectedPaymentMethod).toBeNull();
+          expect(controller.state.paymentMethods.selected).toBeNull();
         },
       );
     });
@@ -3422,7 +3436,7 @@ describe('RampsController', () => {
         {
           options: {
             state: {
-              paymentMethods: [mockPaymentMethod],
+              paymentMethods: createResourceState([mockPaymentMethod], null),
             },
           },
         },
@@ -3473,8 +3487,8 @@ describe('RampsController', () => {
         {
           options: {
             state: {
-              userRegion: createMockUserRegion('us'),
-              paymentMethods: [
+              userRegion: createResourceState(createMockUserRegion('us')),
+              paymentMethods: createResourceState([
                 {
                   id: '/payments/debit-credit-card',
                   paymentType: 'debit-credit-card',
@@ -3482,7 +3496,7 @@ describe('RampsController', () => {
                   score: 90,
                   icon: 'card',
                 },
-              ],
+              ], null),
             },
           },
         },
@@ -3492,7 +3506,7 @@ describe('RampsController', () => {
             async () => mockQuotesResponse,
           );
 
-          expect(controller.state.quotes).toBeNull();
+          expect(controller.state.quotes.data).toBeNull();
 
           const result = await controller.getQuotes({
             assetId: 'eip155:1/slip44:60',
@@ -3502,7 +3516,7 @@ describe('RampsController', () => {
 
           expect(result.success).toHaveLength(1);
           expect(result.success[0]?.provider).toBe('/providers/moonpay');
-          expect(controller.state.quotes).toStrictEqual(mockQuotesResponse);
+          expect(controller.state.quotes.data).toStrictEqual(mockQuotesResponse);
         },
       );
     });
@@ -3512,8 +3526,8 @@ describe('RampsController', () => {
         {
           options: {
             state: {
-              userRegion: createMockUserRegion('us'),
-              paymentMethods: [
+              userRegion: createResourceState(createMockUserRegion('us')),
+              paymentMethods: createResourceState([
                 {
                   id: '/payments/debit-credit-card',
                   paymentType: 'debit-credit-card',
@@ -3521,7 +3535,7 @@ describe('RampsController', () => {
                   score: 90,
                   icon: 'card',
                 },
-              ],
+              ], null),
             },
           },
         },
@@ -3562,7 +3576,7 @@ describe('RampsController', () => {
         {
           options: {
             state: {
-              userRegion: {
+              userRegion: createResourceState({
                 country: {
                   isoCode: 'US',
                   name: 'United States',
@@ -3573,7 +3587,7 @@ describe('RampsController', () => {
                 },
                 state: null,
                 regionCode: 'us',
-              },
+              }),
             },
           },
         },
@@ -3595,8 +3609,8 @@ describe('RampsController', () => {
         {
           options: {
             state: {
-              userRegion: createMockUserRegion('us'),
-              paymentMethods: [],
+              userRegion: createResourceState(createMockUserRegion('us')),
+              paymentMethods: createResourceState([], null),
             },
           },
         },
@@ -3617,8 +3631,8 @@ describe('RampsController', () => {
         {
           options: {
             state: {
-              userRegion: createMockUserRegion('us'),
-              paymentMethods: [
+              userRegion: createResourceState(createMockUserRegion('us')),
+              paymentMethods: createResourceState([
                 {
                   id: '/payments/debit-credit-card',
                   paymentType: 'debit-credit-card',
@@ -3626,7 +3640,7 @@ describe('RampsController', () => {
                   score: 90,
                   icon: 'card',
                 },
-              ],
+              ], null),
             },
           },
         },
@@ -3663,8 +3677,8 @@ describe('RampsController', () => {
         {
           options: {
             state: {
-              userRegion: createMockUserRegion('us'),
-              paymentMethods: [
+              userRegion: createResourceState(createMockUserRegion('us')),
+              paymentMethods: createResourceState([
                 {
                   id: '/payments/debit-credit-card',
                   paymentType: 'debit-credit-card',
@@ -3672,7 +3686,7 @@ describe('RampsController', () => {
                   score: 90,
                   icon: 'card',
                 },
-              ],
+              ], null),
             },
           },
         },
@@ -3701,8 +3715,8 @@ describe('RampsController', () => {
         {
           options: {
             state: {
-              userRegion: createMockUserRegion('us'),
-              paymentMethods: [
+              userRegion: createResourceState(createMockUserRegion('us')),
+              paymentMethods: createResourceState([
                 {
                   id: '/payments/debit-credit-card',
                   paymentType: 'debit-credit-card',
@@ -3710,7 +3724,7 @@ describe('RampsController', () => {
                   score: 90,
                   icon: 'card',
                 },
-              ],
+              ], null),
             },
           },
         },
@@ -3739,8 +3753,8 @@ describe('RampsController', () => {
         {
           options: {
             state: {
-              userRegion: createMockUserRegion('us'),
-              paymentMethods: [
+              userRegion: createResourceState(createMockUserRegion('us')),
+              paymentMethods: createResourceState([
                 {
                   id: '/payments/debit-credit-card',
                   paymentType: 'debit-credit-card',
@@ -3748,7 +3762,7 @@ describe('RampsController', () => {
                   score: 90,
                   icon: 'card',
                 },
-              ],
+              ], null),
             },
           },
         },
@@ -3805,8 +3819,8 @@ describe('RampsController', () => {
         {
           options: {
             state: {
-              userRegion: createMockUserRegion('us'),
-              countries: [
+              userRegion: createResourceState(createMockUserRegion('us')),
+              countries: createResourceState([
                 {
                   isoCode: 'US',
                   flag: '🇺🇸',
@@ -3823,8 +3837,8 @@ describe('RampsController', () => {
                   currency: 'EUR',
                   supported: { buy: true, sell: true },
                 },
-              ],
-              paymentMethods: [
+              ]),
+              paymentMethods: createResourceState([
                 {
                   id: '/payments/debit-credit-card',
                   paymentType: 'debit-credit-card',
@@ -3832,7 +3846,7 @@ describe('RampsController', () => {
                   score: 90,
                   icon: 'card',
                 },
-              ],
+              ], null),
             },
           },
         },
@@ -3867,7 +3881,7 @@ describe('RampsController', () => {
           await quotesPromise;
 
           // Quotes should not be updated because region changed
-          expect(controller.state.quotes).toBeNull();
+          expect(controller.state.quotes.data).toBeNull();
         },
       );
     });
@@ -4010,6 +4024,25 @@ function createMockCountries(): Country[] {
       supported: { buy: true, sell: true },
     },
   ];
+}
+
+/**
+ * Creates a ResourceState object for testing.
+ *
+ * @param data - The resource data.
+ * @param selected - The selected item (optional).
+ * @returns A ResourceState object.
+ */
+function createResourceState<TData, TSelected = null>(
+  data: TData,
+  selected: TSelected = null as TSelected,
+) {
+  return {
+    data,
+    selected,
+    isLoading: false,
+    error: null,
+  };
 }
 
 /**
