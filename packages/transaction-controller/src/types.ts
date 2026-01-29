@@ -771,6 +771,11 @@ export enum TransactionType {
   lendingWithdraw = 'lendingWithdraw',
 
   /**
+   * A transaction that claims yield from a mUSD contract.
+   */
+  musdClaim = 'musdClaim',
+
+  /**
    * A transaction that converts tokens to mUSD.
    */
   musdConversion = 'musdConversion',
