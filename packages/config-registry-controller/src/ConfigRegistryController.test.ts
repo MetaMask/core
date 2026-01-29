@@ -1,4 +1,8 @@
-import type { MockAnyNamespace } from '@metamask/messenger';
+import type {
+  MockAnyNamespace,
+  MessengerActions,
+  MessengerEvents,
+} from '@metamask/messenger';
 import { Messenger, MOCK_ANY_NAMESPACE } from '@metamask/messenger';
 import { useFakeTimers } from 'sinon';
 
@@ -19,20 +23,11 @@ import { advanceTime } from '../../../tests/helpers';
 
 const namespace = 'ConfigRegistryController' as const;
 
-type RootMessenger = Messenger<
-  MockAnyNamespace,
-  | { type: 'RemoteFeatureFlagController:getState'; handler: () => unknown }
-  | {
-      type: 'KeyringController:getState';
-      handler: () => { isUnlocked: boolean };
-    }
-  | {
-      type: 'ConfigRegistryApiService:fetchConfig';
-      handler: (options?: { etag?: string }) => Promise<FetchConfigResult>;
-    },
-  | { type: 'KeyringController:unlock'; payload: [] }
-  | { type: 'KeyringController:lock'; payload: [] }
->;
+type AllActions = MessengerActions<ConfigRegistryMessenger>;
+
+type AllEvents = MessengerEvents<ConfigRegistryMessenger>;
+
+type RootMessenger = Messenger<MockAnyNamespace, AllActions, AllEvents>;
 
 /**
  * Constructs a messenger for ConfigRegistryController.
@@ -43,42 +38,28 @@ function getConfigRegistryControllerMessenger(): {
   messenger: ConfigRegistryMessenger;
   rootMessenger: RootMessenger;
 } {
-  const rootMessenger = new Messenger<
-    MockAnyNamespace,
-    | { type: 'RemoteFeatureFlagController:getState'; handler: () => unknown }
-    | {
-        type: 'KeyringController:getState';
-        handler: () => { isUnlocked: boolean };
-      }
-    | {
-        type: 'ConfigRegistryApiService:fetchConfig';
-        handler: (options?: { etag?: string }) => Promise<FetchConfigResult>;
-      },
-    | { type: 'KeyringController:unlock'; payload: [] }
-    | { type: 'KeyringController:lock'; payload: [] }
-  >({
+  const rootMessenger: RootMessenger = new Messenger({
     namespace: MOCK_ANY_NAMESPACE,
   });
 
-  const configRegistryControllerMessenger = new Messenger<
-    typeof namespace,
-    never,
-    | { type: 'KeyringController:unlock'; payload: [] }
-    | { type: 'KeyringController:lock'; payload: [] },
-    typeof rootMessenger
-  >({
-    namespace,
-    parent: rootMessenger,
-  }) as ConfigRegistryMessenger;
+  const configRegistryControllerMessenger: ConfigRegistryMessenger =
+    new Messenger<
+      typeof namespace,
+      AllActions,
+      AllEvents,
+      typeof rootMessenger
+    >({
+      namespace,
+      parent: rootMessenger,
+    });
 
   rootMessenger.delegate({
     messenger: configRegistryControllerMessenger,
     actions: [
       'RemoteFeatureFlagController:getState',
-      'KeyringController:getState',
       'ConfigRegistryApiService:fetchConfig',
-    ] as never[],
-    events: ['KeyringController:unlock', 'KeyringController:lock'] as never[],
+    ],
+    events: ['KeyringController:unlock', 'KeyringController:lock'],
   });
 
   return { messenger: configRegistryControllerMessenger, rootMessenger };
@@ -168,7 +149,6 @@ type WithControllerCallback<ReturnValue> = (args: {
   messenger: ConfigRegistryMessenger;
   mockApiServiceHandler: jest.Mock;
   mockRemoteFeatureFlagGetState: jest.Mock;
-  mockKeyringControllerGetState: jest.Mock;
 }) => Promise<ReturnValue> | ReturnValue;
 
 type WithControllerOptions = {
@@ -204,22 +184,10 @@ async function withController<ReturnValue>(
     mockRemoteFeatureFlagGetState,
   );
 
-  const mockKeyringControllerGetState = jest.fn().mockReturnValue({
-    isUnlocked: false,
-  });
-
-  rootMessenger.registerActionHandler(
-    'KeyringController:getState',
-    mockKeyringControllerGetState,
-  );
-
   const controller = new ConfigRegistryController({
     messenger,
     ...options,
   });
-
-  // Initialize the controller after creation
-  controller.init();
 
   try {
     return await testFunction({
@@ -229,11 +197,9 @@ async function withController<ReturnValue>(
       messenger,
       mockApiServiceHandler,
       mockRemoteFeatureFlagGetState,
-      mockKeyringControllerGetState,
     });
   } finally {
     controller.stopPolling();
-    controller.destroy();
     clock.restore();
     mockApiServiceHandler.mockReset();
   }
@@ -521,10 +487,6 @@ describe('ConfigRegistryController', () => {
           testRootMessenger.registerActionHandler(
             'RemoteFeatureFlagController:getState',
             mockRemoteFeatureFlagGetState,
-          );
-          testRootMessenger.registerActionHandler(
-            'KeyringController:getState',
-            jest.fn().mockReturnValue({ isUnlocked: false }),
           );
           testRootMessenger.delegate({
             messenger: testMessenger,
@@ -2296,103 +2258,6 @@ describe('ConfigRegistryController', () => {
   });
 
   describe('KeyringController event listeners', () => {
-    it('starts polling when KeyringController is already unlocked on initialization', async () => {
-      await withController(async ({ clock }) => {
-        const mockKeyringControllerGetState = jest.fn().mockReturnValue({
-          isUnlocked: true,
-        });
-
-        const testRootMessenger = new Messenger<
-          MockAnyNamespace,
-          | {
-              type: 'RemoteFeatureFlagController:getState';
-              handler: () => unknown;
-            }
-          | {
-              type: 'KeyringController:getState';
-              handler: () => { isUnlocked: boolean };
-            }
-          | {
-              type: 'ConfigRegistryApiService:fetchConfig';
-              handler: (options?: {
-                etag?: string;
-              }) => Promise<FetchConfigResult>;
-            },
-          | { type: 'KeyringController:unlock'; payload: [] }
-          | { type: 'KeyringController:lock'; payload: [] }
-        >({
-          namespace: MOCK_ANY_NAMESPACE,
-        });
-
-        const testMessenger = new Messenger<
-          typeof namespace,
-          never,
-          | { type: 'KeyringController:unlock'; payload: [] }
-          | { type: 'KeyringController:lock'; payload: [] },
-          typeof testRootMessenger
-        >({
-          namespace,
-          parent: testRootMessenger,
-        }) as ConfigRegistryMessenger;
-
-        testRootMessenger.registerActionHandler(
-          'ConfigRegistryApiService:fetchConfig',
-          jest.fn(buildMockApiServiceHandler()),
-        );
-        testRootMessenger.registerActionHandler(
-          'RemoteFeatureFlagController:getState',
-          jest.fn().mockReturnValue({
-            remoteFeatureFlags: {
-              configRegistryApiEnabled: true,
-            },
-            cacheTimestamp: Date.now(),
-          }),
-        );
-        testRootMessenger.registerActionHandler(
-          'KeyringController:getState',
-          mockKeyringControllerGetState,
-        );
-        testRootMessenger.delegate({
-          messenger: testMessenger,
-          actions: [
-            'RemoteFeatureFlagController:getState',
-            'KeyringController:getState',
-            'ConfigRegistryApiService:fetchConfig',
-          ] as never[],
-          events: [
-            'KeyringController:unlock',
-            'KeyringController:lock',
-          ] as never[],
-        });
-
-        const controller = new ConfigRegistryController({
-          messenger: testMessenger,
-        });
-
-        // Initialize the controller after creation
-        controller.init();
-
-        const executePollSpy = jest.spyOn(controller, '_executePoll');
-
-        await advanceTime({ clock, duration: 100 });
-
-        expect(mockKeyringControllerGetState).toHaveBeenCalled();
-        expect(executePollSpy).toHaveBeenCalledTimes(1);
-
-        controller.stopPolling();
-      });
-    });
-
-    it('handles KeyringController:getState error gracefully when KeyringController is unavailable', async () => {
-      await withController(({ controller, mockKeyringControllerGetState }) => {
-        mockKeyringControllerGetState.mockImplementation(() => {
-          throw new Error('KeyringController not available');
-        });
-
-        expect(controller.state.lastFetched).toBeNull();
-      });
-    });
-
     it('starts polling when KeyringController:unlock event is published', async () => {
       await withController(async ({ controller, clock, rootMessenger }) => {
         const executePollSpy = jest.spyOn(controller, '_executePoll');
@@ -2412,27 +2277,16 @@ describe('ConfigRegistryController', () => {
     });
 
     it('stops polling when KeyringController:lock event is published', async () => {
-      await withController(
-        async ({
-          controller,
-          clock,
-          rootMessenger,
-          mockKeyringControllerGetState,
-        }) => {
-          mockKeyringControllerGetState.mockReturnValue({
-            isUnlocked: true,
-          });
+      await withController(async ({ controller, clock, rootMessenger }) => {
+        const stopPollingSpy = jest.spyOn(controller, 'stopPolling');
 
-          const stopPollingSpy = jest.spyOn(controller, 'stopPolling');
+        await advanceTime({ clock, duration: 0 });
+        expect(stopPollingSpy).not.toHaveBeenCalled();
 
-          await advanceTime({ clock, duration: 0 });
-          expect(stopPollingSpy).not.toHaveBeenCalled();
+        rootMessenger.publish('KeyringController:lock');
 
-          rootMessenger.publish('KeyringController:lock');
-
-          expect(stopPollingSpy).toHaveBeenCalled();
-        },
-      );
+        expect(stopPollingSpy).toHaveBeenCalled();
+      });
     });
 
     it('calls startPolling with default parameter when called without arguments', async () => {
@@ -2636,78 +2490,6 @@ describe('ConfigRegistryController', () => {
         await advanceTime({ clock, duration: DEFAULT_POLLING_INTERVAL });
         expect(executePollSpy).not.toHaveBeenCalled();
       });
-    });
-  });
-
-  describe('destroy', () => {
-    it('cleans up event listeners and action handlers', async () => {
-      await withController(({ controller, messenger }) => {
-        const unsubscribeSpy = jest.spyOn(messenger, 'unsubscribe');
-        const unregisterActionHandlerSpy = jest.spyOn(
-          messenger,
-          'unregisterActionHandler',
-        );
-        const stopPollingSpy = jest.spyOn(controller, 'stopPolling');
-
-        controller.destroy();
-
-        expect(stopPollingSpy).toHaveBeenCalled();
-        expect(unsubscribeSpy).toHaveBeenCalledWith(
-          'KeyringController:unlock',
-          expect.any(Function),
-        );
-        expect(unsubscribeSpy).toHaveBeenCalledWith(
-          'KeyringController:lock',
-          expect.any(Function),
-        );
-        expect(unregisterActionHandlerSpy).toHaveBeenCalledWith(
-          'ConfigRegistryController:startPolling',
-        );
-        expect(unregisterActionHandlerSpy).toHaveBeenCalledWith(
-          'ConfigRegistryController:stopPolling',
-        );
-      });
-    });
-
-    it('handles unsubscribe errors gracefully', async () => {
-      await withController(({ controller, messenger }) => {
-        jest.spyOn(messenger, 'unsubscribe').mockImplementation(() => {
-          throw new Error('Handler not subscribed');
-        });
-
-        // Should not throw even if unsubscribe fails
-        expect(() => controller.destroy()).not.toThrow();
-      });
-    });
-
-    it('clears pending timeout when destroying', async () => {
-      const pollingInterval = 10000;
-      const recentTimestamp = Date.now() - 2000;
-      await withController(
-        {
-          options: {
-            pollingInterval,
-            state: {
-              lastFetched: recentTimestamp,
-            },
-          },
-        },
-        async ({ controller, clock }) => {
-          const executePollSpy = jest.spyOn(controller, '_executePoll');
-          controller.startPolling(null);
-
-          // Verify timeout was set
-          await advanceTime({ clock, duration: 0 });
-          expect(executePollSpy).not.toHaveBeenCalled();
-
-          // Destroy should clear the timeout
-          controller.destroy();
-
-          // Advance time past when the timeout would have fired
-          await advanceTime({ clock, duration: pollingInterval });
-          expect(executePollSpy).not.toHaveBeenCalled();
-        },
-      );
     });
   });
 });

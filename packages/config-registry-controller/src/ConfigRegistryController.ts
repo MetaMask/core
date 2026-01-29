@@ -9,7 +9,7 @@ import type {
 } from '@metamask/keyring-controller';
 import type { Messenger } from '@metamask/messenger';
 import { StaticIntervalPollingController } from '@metamask/polling-controller';
-import type { RemoteFeatureFlagControllerState } from '@metamask/remote-feature-flag-controller';
+import { RemoteFeatureFlagControllerGetStateAction } from '@metamask/remote-feature-flag-controller';
 import { Duration, inMilliseconds } from '@metamask/utils';
 import type { Json } from '@metamask/utils';
 
@@ -130,14 +130,7 @@ export type ConfigRegistryControllerActions =
   | ConfigRegistryControllerGetStateAction
   | ConfigRegistryControllerStartPollingAction
   | ConfigRegistryControllerStopPollingAction
-  | {
-      type: 'RemoteFeatureFlagController:getState';
-      handler: () => RemoteFeatureFlagControllerState;
-    }
-  | {
-      type: 'KeyringController:getState';
-      handler: () => { isUnlocked: boolean };
-    }
+  | RemoteFeatureFlagControllerGetStateAction
   | {
       type: 'ConfigRegistryApiService:fetchConfig';
       handler: (options?: FetchConfigOptions) => Promise<FetchConfigResult>;
@@ -172,10 +165,6 @@ export class ConfigRegistryController extends StaticIntervalPollingController<nu
   readonly #isConfigRegistryApiEnabled: (
     messenger: ConfigRegistryMessenger,
   ) => boolean;
-
-  readonly #unlockHandler: () => void;
-
-  readonly #lockHandler: () => void;
 
   #delayedPollTimeoutId: ReturnType<typeof setTimeout> | null = null;
 
@@ -217,15 +206,6 @@ export class ConfigRegistryController extends StaticIntervalPollingController<nu
     this.#fallbackConfig = fallbackConfig;
     this.#isConfigRegistryApiEnabled = isConfigRegistryApiEnabled;
 
-    // Store handlers for cleanup
-    this.#unlockHandler = (): void => {
-      this.startPolling(null);
-    };
-
-    this.#lockHandler = (): void => {
-      this.stopPolling();
-    };
-
     this.messenger.registerActionHandler(
       `${controllerName}:startPolling`,
       (input: null) => this.startPolling(input),
@@ -236,26 +216,13 @@ export class ConfigRegistryController extends StaticIntervalPollingController<nu
       (token?: string) => this.stopPolling(token),
     );
 
-    this.#registerKeyringEventListeners();
-  }
+    this.messenger.subscribe('KeyringController:unlock', () =>
+      this.startPolling(null),
+    );
 
-  /**
-   * Initializes the controller by checking the KeyringController unlock state
-   * and starting polling if already unlocked.
-   *
-   * This method should be called after all controllers have been initialized
-   * to avoid runtime dependencies during construction. If KeyringController
-   * is not available, this method will silently skip initialization.
-   */
-  init(): void {
-    try {
-      const { isUnlocked } = this.messenger.call('KeyringController:getState');
-      if (isUnlocked) {
-        this.startPolling(null);
-      }
-    } catch {
-      // KeyringController may not be available, silently handle
-    }
+    this.messenger.subscribe('KeyringController:lock', () =>
+      this.stopPolling(),
+    );
   }
 
   /**
@@ -402,18 +369,6 @@ export class ConfigRegistryController extends StaticIntervalPollingController<nu
     });
   }
 
-  /**
-   * Registers event listeners for KeyringController unlock/lock events.
-   * The listeners will automatically start polling when unlocked and stop when locked.
-   */
-  #registerKeyringEventListeners(): void {
-    // Subscribe to unlock event - start polling
-    this.messenger.subscribe('KeyringController:unlock', this.#unlockHandler);
-
-    // Subscribe to lock event - stop polling
-    this.messenger.subscribe('KeyringController:lock', this.#lockHandler);
-  }
-
   startPolling(input: null = null): string {
     const remainingTime = this.#getRemainingPollingDelayMs();
 
@@ -465,38 +420,5 @@ export class ConfigRegistryController extends StaticIntervalPollingController<nu
       this.#delayedPollTokenMap.clear();
       super.stopAllPolling();
     }
-  }
-
-  /**
-   * Prepares the controller for garbage collection by cleaning up event listeners,
-   * action handlers, and timers.
-   */
-  override destroy(): void {
-    // Stop polling and clear any pending timeouts
-    this.stopPolling();
-    this.#delayedPollTokenMap.clear();
-
-    // Unsubscribe from event listeners
-    try {
-      this.messenger.unsubscribe(
-        'KeyringController:unlock',
-        this.#unlockHandler,
-      );
-    } catch {
-      // Handler may not be subscribed, silently handle
-    }
-
-    try {
-      this.messenger.unsubscribe('KeyringController:lock', this.#lockHandler);
-    } catch {
-      // Handler may not be subscribed, silently handle
-    }
-
-    // Unregister action handlers
-    this.messenger.unregisterActionHandler(`${controllerName}:startPolling`);
-    this.messenger.unregisterActionHandler(`${controllerName}:stopPolling`);
-
-    // Call parent destroy to clean up base controller subscriptions
-    super.destroy();
   }
 }
