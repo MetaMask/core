@@ -1,3 +1,4 @@
+/* eslint-disable @typescript-eslint/naming-convention */
 import type { CaipAssetType, CaipChainId } from '@metamask/utils';
 
 import type {
@@ -212,6 +213,15 @@ export type RequiredEventContextFromClient = {
   [UnifiedSwapBridgeEventName.StatusValidationFailed]: {
     failures: string[];
   };
+  [UnifiedSwapBridgeEventName.AssetPickerOpened]: {
+    location: 'source' | 'destination';
+  };
+  [UnifiedSwapBridgeEventName.AssetSelected]: {
+    token_symbol: string;
+    token_address: string | null;
+    chain_id: CaipChainId | null;
+    location: 'source' | 'destination';
+  };
 };
 
 /**
@@ -268,6 +278,8 @@ export type EventPropertiesFromControllerState = {
   [UnifiedSwapBridgeEventName.StatusValidationFailed]: RequestParams & {
     refresh_count: number;
   };
+  [UnifiedSwapBridgeEventName.AssetPickerOpened]: null;
+  [UnifiedSwapBridgeEventName.AssetSelected]: null;
 };
 
 /**
