@@ -4,6 +4,7 @@ import type { TokenRatesControllerState } from '@metamask/assets-controllers';
 import type { Hex } from '@metamask/utils';
 
 import {
+  buildTokenData,
   getTokenBalance,
   getTokenInfo,
   getTokenFiatRate,
@@ -469,6 +470,175 @@ describe('Token Utils', () => {
         { chainId: '0x2', tokenAddress: NATIVE_TOKEN_ADDRESS, balance: '80' },
         { chainId: '0x3', tokenAddress: NATIVE_TOKEN_ADDRESS, balance: '96' },
       ]);
+    });
+  });
+
+  describe('buildTokenData', () => {
+    beforeEach(() => {
+      getTokensControllerStateMock.mockReturnValue({
+        allTokens: {
+          [CHAIN_ID_MOCK]: {
+            test123: [
+              {
+                address: TOKEN_ADDRESS_MOCK.toLowerCase() as Hex,
+                decimals: DECIMALS_MOCK,
+                symbol: SYMBOL_MOCK,
+              },
+            ],
+          },
+        },
+      } as never);
+
+      getTokenBalanceControllerStateMock.mockReturnValue({
+        tokenBalances: {
+          [FROM_MOCK.toLowerCase()]: {
+            [CHAIN_ID_MOCK]: {
+              [TOKEN_ADDRESS_MOCK]: '0x1e8480' as Hex, // 2000000
+            },
+          },
+        },
+      } as never);
+
+      getCurrencyRateControllerStateMock.mockReturnValue({
+        currencyRates: {
+          [TICKER_MOCK]: {
+            conversionRate: 2.0,
+            usdConversionRate: 3.0,
+          },
+        },
+      });
+
+      getTokenRatesControllerStateMock.mockReturnValue({
+        marketData: {
+          [CHAIN_ID_MOCK]: {
+            [TOKEN_ADDRESS_MOCK]: {
+              price: 1.5,
+            },
+          },
+        },
+      } as TokenRatesControllerState);
+
+      findNetworkClientIdByChainIdMock.mockReturnValue(NETWORK_CLIENT_ID_MOCK);
+
+      getNetworkClientByIdMock.mockReturnValue({
+        configuration: { ticker: TICKER_MOCK },
+      } as never);
+    });
+
+    it('builds token data with balance and fiat values', () => {
+      const result = buildTokenData({
+        chainId: CHAIN_ID_MOCK,
+        from: FROM_MOCK,
+        messenger,
+        tokenAddress: TOKEN_ADDRESS_MOCK,
+      });
+
+      expect(result).toStrictEqual({
+        address: TOKEN_ADDRESS_MOCK,
+        balanceFiat: '6',
+        balanceHuman: '2',
+        balanceRaw: '2000000',
+        balanceUsd: '9',
+        chainId: CHAIN_ID_MOCK,
+        decimals: DECIMALS_MOCK,
+        symbol: SYMBOL_MOCK,
+      });
+    });
+
+    it('returns undefined if token info not found', () => {
+      getTokensControllerStateMock.mockReturnValue({
+        allTokens: {},
+      } as never);
+
+      const result = buildTokenData({
+        chainId: CHAIN_ID_MOCK,
+        from: FROM_MOCK,
+        messenger,
+        tokenAddress: TOKEN_ADDRESS_MOCK,
+      });
+
+      expect(result).toBeUndefined();
+    });
+
+    it('returns undefined if fiat rate not found', () => {
+      getCurrencyRateControllerStateMock.mockReturnValue({
+        currencyRates: {},
+      });
+
+      getTokenRatesControllerStateMock.mockReturnValue({
+        marketData: {},
+      } as TokenRatesControllerState);
+
+      const result = buildTokenData({
+        chainId: CHAIN_ID_MOCK,
+        from: FROM_MOCK,
+        messenger,
+        tokenAddress: TOKEN_ADDRESS_MOCK,
+      });
+
+      expect(result).toBeUndefined();
+    });
+  });
+
+  describe('getTokenInfo - TokenListController fallback', () => {
+    it('falls back to TokenListController for unknown tokens', () => {
+      const {
+        messenger: testMessenger,
+        getTokensControllerStateMock: tokensStateMock,
+        getTokenListControllerStateMock,
+      } = getMessengerMock();
+
+      tokensStateMock.mockReturnValue({
+        allTokens: {},
+      } as never);
+
+      getTokenListControllerStateMock.mockReturnValue({
+        tokensChainsCache: {
+          [CHAIN_ID_MOCK]: {
+            data: {
+              [TOKEN_ADDRESS_MOCK.toLowerCase()]: {
+                decimals: 8,
+                symbol: 'LISTTOKEN',
+              },
+            },
+          },
+        },
+      } as never);
+
+      const result = getTokenInfo(
+        testMessenger,
+        TOKEN_ADDRESS_MOCK,
+        CHAIN_ID_MOCK,
+      );
+
+      expect(result).toStrictEqual({
+        decimals: 8,
+        symbol: 'LISTTOKEN',
+      });
+    });
+
+    it('returns undefined if token not in TokenListController', () => {
+      const {
+        messenger: testMessenger,
+        getTokensControllerStateMock: tokensStateMock,
+        getTokenListControllerStateMock,
+      } = getMessengerMock();
+
+      tokensStateMock.mockReturnValue({
+        allTokens: {},
+      } as never);
+
+      getTokenListControllerStateMock.mockReturnValue({
+        tokensChainsCache: {},
+      } as never);
+
+      const result = getTokenInfo(
+        testMessenger,
+        TOKEN_ADDRESS_MOCK,
+        CHAIN_ID_MOCK,
+      );
+
+      expect(result).toBeUndefined();
     });
   });
 });

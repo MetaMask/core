@@ -2,6 +2,7 @@ import type { TokensControllerGetStateAction } from '@metamask/assets-controller
 import type { TokenBalancesControllerGetStateAction } from '@metamask/assets-controllers';
 import type { TokenRatesControllerGetStateAction } from '@metamask/assets-controllers';
 import type { AccountTrackerControllerGetStateAction } from '@metamask/assets-controllers';
+import type { GetTokenListState } from '@metamask/assets-controllers';
 import type { BridgeStatusControllerGetStateAction } from '@metamask/bridge-status-controller';
 import type {
   MessengerActions,
@@ -91,6 +92,10 @@ export function getMessengerMock({
 
   const getTokensControllerStateMock: jest.MockedFn<
     TokensControllerGetStateAction['handler']
+  > = jest.fn();
+
+  const getTokenListControllerStateMock: jest.MockedFn<
+    GetTokenListState['handler']
   > = jest.fn();
 
   const getTokenBalanceControllerStateMock: jest.MockedFn<
@@ -198,6 +203,11 @@ export function getMessengerMock({
     );
 
     messenger.registerActionHandler(
+      'TokenListController:getState',
+      getTokenListControllerStateMock,
+    );
+
+    messenger.registerActionHandler(
       'TokenBalancesController:getState',
       getTokenBalanceControllerStateMock,
     );
@@ -263,6 +273,7 @@ export function getMessengerMock({
     getRemoteFeatureFlagControllerStateMock,
     getStrategyMock,
     getTokenBalanceControllerStateMock,
+    getTokenListControllerStateMock,
     getTokenRatesControllerStateMock,
     getTokensControllerStateMock,
     getTransactionControllerStateMock,

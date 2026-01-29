@@ -10,7 +10,11 @@ import {
   NATIVE_TOKEN_ADDRESS,
   POLYGON_USDCE_ADDRESS,
 } from '../constants';
-import type { FiatRates, TransactionPayControllerMessenger } from '../types';
+import type {
+  FiatRates,
+  TransactionPayControllerMessenger,
+  TransactionPaymentToken,
+} from '../types';
 
 const STABLECOINS: Record<Hex, Hex[]> = {
   [CHAIN_ID_ARBITRUM]: [ARBITRUM_USDC_ADDRESS.toLowerCase() as Hex],
@@ -134,6 +138,7 @@ export function getTokenInfo(
   const isNative =
     normalizedTokenAddress === getNativeToken(chainId).toLowerCase();
 
+  // First, check user's added tokens
   const token = Object.values(controllerState.allTokens?.[chainId] ?? {})
     .flat()
     .find(
@@ -141,12 +146,23 @@ export function getTokenInfo(
         singleToken.address.toLowerCase() === normalizedTokenAddress,
     );
 
-  if (!token && !isNative) {
-    return undefined;
-  }
-
   if (token && !isNative) {
     return { decimals: Number(token.decimals), symbol: token.symbol };
+  }
+
+  // Fallback to TokenListController for known tokens not yet added by user
+  if (!token && !isNative) {
+    const tokenListInfo = getTokenInfoFromTokenList(
+      messenger,
+      tokenAddress,
+      chainId,
+    );
+
+    if (tokenListInfo) {
+      return tokenListInfo;
+    }
+
+    return undefined;
   }
 
   const ticker = getTicker(chainId, messenger);
@@ -262,4 +278,101 @@ function getTicker(
   } catch {
     return undefined;
   }
+}
+
+/**
+ * Get token info from TokenListController.
+ * This provides a fallback for tokens that aren't in the user's token list yet.
+ *
+ * @param messenger - Controller messenger.
+ * @param tokenAddress - Address of the token contract.
+ * @param chainId - Id of the chain.
+ * @returns The token info or undefined if not found.
+ */
+function getTokenInfoFromTokenList(
+  messenger: TransactionPayControllerMessenger,
+  tokenAddress: Hex,
+  chainId: Hex,
+): { decimals: number; symbol: string } | undefined {
+  try {
+    const tokenListState = messenger.call('TokenListController:getState');
+    const normalizedAddress = tokenAddress.toLowerCase() as Hex;
+
+    // TokenListController stores tokens by chain ID and address
+    const tokensByChain = tokenListState.tokensChainsCache?.[chainId];
+    const tokenData = tokensByChain?.data?.[normalizedAddress];
+
+    if (tokenData?.decimals !== undefined && tokenData?.symbol) {
+      return {
+        decimals: Number(tokenData.decimals),
+        symbol: tokenData.symbol,
+      };
+    }
+
+    return undefined;
+  } catch {
+    // TokenListController might not be available
+    return undefined;
+  }
+}
+
+/**
+ * Build full token data from a token address and chain ID.
+ * Used by both payment token and selected token update actions.
+ *
+ * @param request - The token request parameters.
+ * @param request.chainId - The chain ID.
+ * @param request.from - The address to get the token balance for.
+ * @param request.messenger - The transaction pay controller messenger.
+ * @param request.tokenAddress - The token address.
+ * @returns The token data or undefined if the token data could not be retrieved.
+ */
+export function buildTokenData({
+  chainId,
+  from,
+  messenger,
+  tokenAddress,
+}: {
+  chainId: Hex;
+  from: Hex;
+  messenger: TransactionPayControllerMessenger;
+  tokenAddress: Hex;
+}): TransactionPaymentToken | undefined {
+  const { decimals, symbol } =
+    getTokenInfo(messenger, tokenAddress, chainId) ?? {};
+
+  if (decimals === undefined || !symbol) {
+    return undefined;
+  }
+
+  const tokenFiatRate = getTokenFiatRate(messenger, tokenAddress, chainId);
+
+  if (tokenFiatRate === undefined) {
+    return undefined;
+  }
+
+  const balance = getTokenBalance(messenger, from, chainId, tokenAddress);
+  const balanceRawValue = new BigNumber(balance);
+  const balanceHumanValue = new BigNumber(balance).shiftedBy(-decimals);
+  const balanceRaw = balanceRawValue.toFixed(0);
+  const balanceHuman = balanceHumanValue.toString(10);
+
+  const balanceFiat = balanceHumanValue
+    .multipliedBy(tokenFiatRate.fiatRate)
+    .toString(10);
+
+  const balanceUsd = balanceHumanValue
+    .multipliedBy(tokenFiatRate.usdRate)
+    .toString(10);
+
+  return {
+    address: tokenAddress,
+    balanceFiat,
+    balanceHuman,
+    balanceRaw,
+    balanceUsd,
+    chainId,
+    decimals,
+    symbol,
+  };
 }
