@@ -1699,6 +1699,557 @@ describe('RampsService', () => {
       );
     });
   });
+
+  describe('getQuotes', () => {
+    const mockQuotesResponse = {
+      success: [
+        {
+          provider: '/providers/moonpay',
+          quote: {
+            amountIn: 100,
+            amountOut: '0.05',
+            paymentMethod: '/payments/debit-credit-card',
+            amountOutInFiat: 98,
+            widgetUrl: 'https://buy.moonpay.com/widget?txId=123',
+          },
+          metadata: {
+            reliability: 95,
+            tags: {
+              isBestRate: true,
+              isMostReliable: false,
+            },
+          },
+        },
+        {
+          provider: '/providers/transak',
+          quote: {
+            amountIn: 100,
+            amountOut: '0.048',
+            paymentMethod: '/payments/debit-credit-card',
+            amountOutInFiat: 96,
+          },
+          metadata: {
+            reliability: 88,
+            tags: {
+              isBestRate: false,
+              isMostReliable: true,
+            },
+          },
+        },
+      ],
+      sorted: [
+        {
+          sortBy: 'price',
+          ids: ['/providers/moonpay', '/providers/transak'],
+        },
+        {
+          sortBy: 'reliability',
+          ids: ['/providers/transak', '/providers/moonpay'],
+        },
+      ],
+      error: [],
+      customActions: [],
+    };
+
+    it('fetches quotes from the API', async () => {
+      nock('https://on-ramp.uat-api.cx.metamask.io')
+        .get('/v2/orders/all/quotes')
+        .query({
+          action: 'buy',
+          sdk: '2.1.6',
+          controller: CONTROLLER_VERSION,
+          context: 'mobile-ios',
+          region: 'us',
+          fiat: 'usd',
+          crypto: 'eip155:1/slip44:60',
+          amount: '100',
+          walletAddress: '0x1234567890abcdef1234567890abcdef12345678',
+          payments: '/payments/debit-credit-card',
+        })
+        .reply(200, mockQuotesResponse);
+      const { service } = getService();
+
+      const quotesPromise = service.getQuotes({
+        region: 'us',
+        fiat: 'usd',
+        assetId: 'eip155:1/slip44:60',
+        amount: 100,
+        walletAddress: '0x1234567890abcdef1234567890abcdef12345678',
+        paymentMethods: ['/payments/debit-credit-card'],
+      });
+      await clock.runAllAsync();
+      await flushPromises();
+      const quotesResponse = await quotesPromise;
+
+      expect(quotesResponse.success).toHaveLength(2);
+      expect(quotesResponse.success[0]?.provider).toBe('/providers/moonpay');
+      expect(quotesResponse.sorted).toHaveLength(2);
+      expect(quotesResponse.error).toHaveLength(0);
+    });
+
+    it('normalizes region and fiat case', async () => {
+      nock('https://on-ramp.uat-api.cx.metamask.io')
+        .get('/v2/orders/all/quotes')
+        .query({
+          action: 'buy',
+          sdk: '2.1.6',
+          controller: CONTROLLER_VERSION,
+          context: 'mobile-ios',
+          region: 'us',
+          fiat: 'usd',
+          crypto: 'eip155:1/slip44:60',
+          amount: '100',
+          walletAddress: '0x1234567890abcdef1234567890abcdef12345678',
+          payments: '/payments/debit-credit-card',
+        })
+        .reply(200, mockQuotesResponse);
+      const { service } = getService();
+
+      const quotesPromise = service.getQuotes({
+        region: 'US',
+        fiat: 'USD',
+        assetId: 'eip155:1/slip44:60',
+        amount: 100,
+        walletAddress: '0x1234567890abcdef1234567890abcdef12345678',
+        paymentMethods: ['/payments/debit-credit-card'],
+      });
+      await clock.runAllAsync();
+      await flushPromises();
+      const quotesResponse = await quotesPromise;
+
+      expect(quotesResponse.success).toHaveLength(2);
+    });
+
+    it('includes multiple payment methods', async () => {
+      nock('https://on-ramp.uat-api.cx.metamask.io')
+        .get('/v2/orders/all/quotes')
+        .query({
+          action: 'buy',
+          sdk: '2.1.6',
+          controller: CONTROLLER_VERSION,
+          context: 'mobile-ios',
+          region: 'us',
+          fiat: 'usd',
+          crypto: 'eip155:1/slip44:60',
+          amount: '100',
+          walletAddress: '0x1234567890abcdef1234567890abcdef12345678',
+          payments: ['/payments/debit-credit-card', '/payments/bank-transfer'],
+        })
+        .reply(200, mockQuotesResponse);
+      const { service } = getService();
+
+      const quotesPromise = service.getQuotes({
+        region: 'us',
+        fiat: 'usd',
+        assetId: 'eip155:1/slip44:60',
+        amount: 100,
+        walletAddress: '0x1234567890abcdef1234567890abcdef12345678',
+        paymentMethods: [
+          '/payments/debit-credit-card',
+          '/payments/bank-transfer',
+        ],
+      });
+      await clock.runAllAsync();
+      await flushPromises();
+      const quotesResponse = await quotesPromise;
+
+      expect(quotesResponse.success).toHaveLength(2);
+    });
+
+    it('includes provider filter when specified', async () => {
+      nock('https://on-ramp.uat-api.cx.metamask.io')
+        .get('/v2/orders/all/quotes')
+        .query({
+          action: 'buy',
+          sdk: '2.1.6',
+          controller: CONTROLLER_VERSION,
+          context: 'mobile-ios',
+          region: 'us',
+          fiat: 'usd',
+          crypto: 'eip155:1/slip44:60',
+          amount: '100',
+          walletAddress: '0x1234567890abcdef1234567890abcdef12345678',
+          payments: '/payments/debit-credit-card',
+          providers: '/providers/moonpay',
+        })
+        .reply(200, mockQuotesResponse);
+      const { service } = getService();
+
+      const quotesPromise = service.getQuotes({
+        region: 'us',
+        fiat: 'usd',
+        assetId: 'eip155:1/slip44:60',
+        amount: 100,
+        walletAddress: '0x1234567890abcdef1234567890abcdef12345678',
+        paymentMethods: ['/payments/debit-credit-card'],
+        provider: '/providers/moonpay',
+      });
+      await clock.runAllAsync();
+      await flushPromises();
+      const quotesResponse = await quotesPromise;
+
+      expect(quotesResponse.success).toHaveLength(2);
+    });
+
+    it('includes redirect URL when specified', async () => {
+      nock('https://on-ramp.uat-api.cx.metamask.io')
+        .get('/v2/orders/all/quotes')
+        .query({
+          action: 'buy',
+          sdk: '2.1.6',
+          controller: CONTROLLER_VERSION,
+          context: 'mobile-ios',
+          region: 'us',
+          fiat: 'usd',
+          crypto: 'eip155:1/slip44:60',
+          amount: '100',
+          walletAddress: '0x1234567890abcdef1234567890abcdef12345678',
+          payments: '/payments/debit-credit-card',
+          redirectUrl: 'https://example.com/callback',
+        })
+        .reply(200, mockQuotesResponse);
+      const { service } = getService();
+
+      const quotesPromise = service.getQuotes({
+        region: 'us',
+        fiat: 'usd',
+        assetId: 'eip155:1/slip44:60',
+        amount: 100,
+        walletAddress: '0x1234567890abcdef1234567890abcdef12345678',
+        paymentMethods: ['/payments/debit-credit-card'],
+        redirectUrl: 'https://example.com/callback',
+      });
+      await clock.runAllAsync();
+      await flushPromises();
+      const quotesResponse = await quotesPromise;
+
+      expect(quotesResponse.success).toHaveLength(2);
+    });
+
+    it('handles sell action', async () => {
+      nock('https://on-ramp.uat-api.cx.metamask.io')
+        .get('/v2/orders/all/quotes')
+        .query({
+          action: 'sell',
+          sdk: '2.1.6',
+          controller: CONTROLLER_VERSION,
+          context: 'mobile-ios',
+          region: 'us',
+          fiat: 'usd',
+          crypto: 'eip155:1/slip44:60',
+          amount: '0.1',
+          walletAddress: '0x1234567890abcdef1234567890abcdef12345678',
+          payments: '/payments/bank-transfer',
+        })
+        .reply(200, mockQuotesResponse);
+      const { service } = getService();
+
+      const quotesPromise = service.getQuotes({
+        region: 'us',
+        fiat: 'usd',
+        assetId: 'eip155:1/slip44:60',
+        amount: 0.1,
+        walletAddress: '0x1234567890abcdef1234567890abcdef12345678',
+        paymentMethods: ['/payments/bank-transfer'],
+        action: 'sell',
+      });
+      await clock.runAllAsync();
+      await flushPromises();
+      const quotesResponse = await quotesPromise;
+
+      expect(quotesResponse.success).toHaveLength(2);
+    });
+
+    it('throws error for malformed response', async () => {
+      nock('https://on-ramp.uat-api.cx.metamask.io')
+        .get('/v2/orders/all/quotes')
+        .query({
+          action: 'buy',
+          sdk: '2.1.6',
+          controller: CONTROLLER_VERSION,
+          context: 'mobile-ios',
+          region: 'us',
+          fiat: 'usd',
+          crypto: 'eip155:1/slip44:60',
+          amount: '100',
+          walletAddress: '0x1234567890abcdef1234567890abcdef12345678',
+          payments: '/payments/debit-credit-card',
+        })
+        .reply(200, { invalid: 'response' });
+      const { service } = getService();
+
+      const quotesPromise = service.getQuotes({
+        region: 'us',
+        fiat: 'usd',
+        assetId: 'eip155:1/slip44:60',
+        amount: 100,
+        walletAddress: '0x1234567890abcdef1234567890abcdef12345678',
+        paymentMethods: ['/payments/debit-credit-card'],
+      });
+      await clock.runAllAsync();
+      await flushPromises();
+
+      await expect(quotesPromise).rejects.toThrow(
+        'Malformed response received from quotes API',
+      );
+    });
+
+    it('throws error when response is null', async () => {
+      nock('https://on-ramp.uat-api.cx.metamask.io')
+        .get('/v2/orders/all/quotes')
+        .query({
+          action: 'buy',
+          sdk: '2.1.6',
+          controller: CONTROLLER_VERSION,
+          context: 'mobile-ios',
+          region: 'us',
+          fiat: 'usd',
+          crypto: 'eip155:1/slip44:60',
+          amount: '100',
+          walletAddress: '0x1234567890abcdef1234567890abcdef12345678',
+          payments: '/payments/debit-credit-card',
+        })
+        .reply(200, () => null);
+      const { service } = getService();
+
+      const quotesPromise = service.getQuotes({
+        region: 'us',
+        fiat: 'usd',
+        assetId: 'eip155:1/slip44:60',
+        amount: 100,
+        walletAddress: '0x1234567890abcdef1234567890abcdef12345678',
+        paymentMethods: ['/payments/debit-credit-card'],
+      });
+      await clock.runAllAsync();
+      await flushPromises();
+
+      await expect(quotesPromise).rejects.toThrow(
+        'Malformed response received from quotes API',
+      );
+    });
+
+    it('throws error when success is not an array', async () => {
+      nock('https://on-ramp.uat-api.cx.metamask.io')
+        .get('/v2/orders/all/quotes')
+        .query({
+          action: 'buy',
+          sdk: '2.1.6',
+          controller: CONTROLLER_VERSION,
+          context: 'mobile-ios',
+          region: 'us',
+          fiat: 'usd',
+          crypto: 'eip155:1/slip44:60',
+          amount: '100',
+          walletAddress: '0x1234567890abcdef1234567890abcdef12345678',
+          payments: '/payments/debit-credit-card',
+        })
+        .reply(200, { success: 'not an array', sorted: [], error: [] });
+      const { service } = getService();
+
+      const quotesPromise = service.getQuotes({
+        region: 'us',
+        fiat: 'usd',
+        assetId: 'eip155:1/slip44:60',
+        amount: 100,
+        walletAddress: '0x1234567890abcdef1234567890abcdef12345678',
+        paymentMethods: ['/payments/debit-credit-card'],
+      });
+      await clock.runAllAsync();
+      await flushPromises();
+
+      await expect(quotesPromise).rejects.toThrow(
+        'Malformed response received from quotes API',
+      );
+    });
+
+    it('throws error when sorted is not an array', async () => {
+      nock('https://on-ramp.uat-api.cx.metamask.io')
+        .get('/v2/orders/all/quotes')
+        .query({
+          action: 'buy',
+          sdk: '2.1.6',
+          controller: CONTROLLER_VERSION,
+          context: 'mobile-ios',
+          region: 'us',
+          fiat: 'usd',
+          crypto: 'eip155:1/slip44:60',
+          amount: '100',
+          walletAddress: '0x1234567890abcdef1234567890abcdef12345678',
+          payments: '/payments/debit-credit-card',
+        })
+        .reply(200, {
+          success: [],
+          sorted: 'not an array',
+          error: [],
+          customActions: [],
+        });
+      const { service } = getService();
+
+      const quotesPromise = service.getQuotes({
+        region: 'us',
+        fiat: 'usd',
+        assetId: 'eip155:1/slip44:60',
+        amount: 100,
+        walletAddress: '0x1234567890abcdef1234567890abcdef12345678',
+        paymentMethods: ['/payments/debit-credit-card'],
+      });
+      await clock.runAllAsync();
+      await flushPromises();
+
+      await expect(quotesPromise).rejects.toThrow(
+        'Malformed response received from quotes API',
+      );
+    });
+
+    it('throws error when error is not an array', async () => {
+      nock('https://on-ramp.uat-api.cx.metamask.io')
+        .get('/v2/orders/all/quotes')
+        .query({
+          action: 'buy',
+          sdk: '2.1.6',
+          controller: CONTROLLER_VERSION,
+          context: 'mobile-ios',
+          region: 'us',
+          fiat: 'usd',
+          crypto: 'eip155:1/slip44:60',
+          amount: '100',
+          walletAddress: '0x1234567890abcdef1234567890abcdef12345678',
+          payments: '/payments/debit-credit-card',
+        })
+        .reply(200, {
+          success: [],
+          sorted: [],
+          error: 'not an array',
+          customActions: [],
+        });
+      const { service } = getService();
+
+      const quotesPromise = service.getQuotes({
+        region: 'us',
+        fiat: 'usd',
+        assetId: 'eip155:1/slip44:60',
+        amount: 100,
+        walletAddress: '0x1234567890abcdef1234567890abcdef12345678',
+        paymentMethods: ['/payments/debit-credit-card'],
+      });
+      await clock.runAllAsync();
+      await flushPromises();
+
+      await expect(quotesPromise).rejects.toThrow(
+        'Malformed response received from quotes API',
+      );
+    });
+
+    it('throws error when customActions is not an array', async () => {
+      nock('https://on-ramp.uat-api.cx.metamask.io')
+        .get('/v2/orders/all/quotes')
+        .query({
+          action: 'buy',
+          sdk: '2.1.6',
+          controller: CONTROLLER_VERSION,
+          context: 'mobile-ios',
+          region: 'us',
+          fiat: 'usd',
+          crypto: 'eip155:1/slip44:60',
+          amount: '100',
+          walletAddress: '0x1234567890abcdef1234567890abcdef12345678',
+          payments: '/payments/debit-credit-card',
+        })
+        .reply(200, {
+          success: [],
+          sorted: [],
+          error: [],
+          customActions: 'not an array',
+        });
+      const { service } = getService();
+
+      const quotesPromise = service.getQuotes({
+        region: 'us',
+        fiat: 'usd',
+        assetId: 'eip155:1/slip44:60',
+        amount: 100,
+        walletAddress: '0x1234567890abcdef1234567890abcdef12345678',
+        paymentMethods: ['/payments/debit-credit-card'],
+      });
+      await clock.runAllAsync();
+      await flushPromises();
+
+      await expect(quotesPromise).rejects.toThrow(
+        'Malformed response received from quotes API',
+      );
+    });
+
+    it('throws error for HTTP error response', async () => {
+      nock('https://on-ramp.uat-api.cx.metamask.io')
+        .get('/v2/orders/all/quotes')
+        .query({
+          action: 'buy',
+          sdk: '2.1.6',
+          controller: CONTROLLER_VERSION,
+          context: 'mobile-ios',
+          region: 'us',
+          fiat: 'usd',
+          crypto: 'eip155:1/slip44:60',
+          amount: '100',
+          walletAddress: '0x1234567890abcdef1234567890abcdef12345678',
+          payments: '/payments/debit-credit-card',
+        })
+        .times(4)
+        .reply(500, 'Internal Server Error');
+      const { service } = getService();
+      service.onRetry(() => {
+        clock.nextAsync().catch(() => undefined);
+      });
+
+      const quotesPromise = service.getQuotes({
+        region: 'us',
+        fiat: 'usd',
+        assetId: 'eip155:1/slip44:60',
+        amount: 100,
+        walletAddress: '0x1234567890abcdef1234567890abcdef12345678',
+        paymentMethods: ['/payments/debit-credit-card'],
+      });
+      await clock.runAllAsync();
+      await flushPromises();
+
+      await expect(quotesPromise).rejects.toThrow("failed with status '500'");
+    });
+
+    it('uses production URL when environment is Production', async () => {
+      nock('https://on-ramp.api.cx.metamask.io')
+        .get('/v2/orders/all/quotes')
+        .query({
+          action: 'buy',
+          sdk: '2.1.6',
+          controller: CONTROLLER_VERSION,
+          context: 'mobile-ios',
+          region: 'us',
+          fiat: 'usd',
+          crypto: 'eip155:1/slip44:60',
+          amount: '100',
+          walletAddress: '0x1234567890abcdef1234567890abcdef12345678',
+          payments: '/payments/debit-credit-card',
+        })
+        .reply(200, mockQuotesResponse);
+      const { service } = getService({
+        options: { environment: RampsEnvironment.Production },
+      });
+
+      const quotesPromise = service.getQuotes({
+        region: 'us',
+        fiat: 'usd',
+        assetId: 'eip155:1/slip44:60',
+        amount: 100,
+        walletAddress: '0x1234567890abcdef1234567890abcdef12345678',
+        paymentMethods: ['/payments/debit-credit-card'],
+      });
+      await clock.runAllAsync();
+      await flushPromises();
+      const quotesResponse = await quotesPromise;
+
+      expect(quotesResponse.success).toHaveLength(2);
+    });
+  });
 });
 
 /**

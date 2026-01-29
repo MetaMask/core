@@ -26,6 +26,14 @@ export type {
   RampAction,
   PaymentMethod,
   PaymentMethodsResponse,
+  Quote,
+  QuoteError,
+  QuoteSortBy,
+  QuoteSortOrder,
+  QuoteCryptoTranslation,
+  QuoteCustomAction,
+  QuotesResponse,
+  GetQuotesParams,
 } from './RampsService';
 export {
   RampsService,
@@ -37,6 +45,7 @@ export type {
   RampsServiceGetGeolocationAction,
   RampsServiceGetCountriesAction,
   RampsServiceGetPaymentMethodsAction,
+  RampsServiceGetQuotesAction,
 } from './RampsService-method-action-types';
 export type {
   RequestCache,
