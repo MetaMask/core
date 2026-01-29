@@ -11,7 +11,7 @@ export const DEFAULT_GAS_BUFFER = 1.0;
 export const DEFAULT_RELAY_FALLBACK_GAS_ESTIMATE = 900000;
 export const DEFAULT_RELAY_FALLBACK_GAS_MAX = 1500000;
 export const DEFAULT_RELAY_QUOTE_URL = `${RELAY_URL_BASE}/quote`;
-export const DEFAULT_SLIPPAGE = 0.005;
+export const DEFAULT_SLIPPAGE = 0.02;
 
 type FeatureFlagsRaw = {
   gasBuffer?: {
@@ -111,7 +111,7 @@ export function getGasBuffer(
  * @param messenger - Controller messenger.
  * @param chainId - Chain ID to get slippage for.
  * @param tokenAddress - Token address to get slippage for.
- * @returns Slippage value as a decimal (e.g., 0.005 for 0.5%).
+ * @returns Slippage value as a decimal (e.g., 0.02 for 2%).
  */
 export function getSlippage(
   messenger: TransactionPayControllerMessenger,

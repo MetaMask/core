@@ -36,7 +36,7 @@ const ATTEMPTS_MAX_DEFAULT = 5;
 const BUFFER_INITIAL_DEFAULT = 0.04;
 const BUFFER_STEP_DEFAULT = 0.04;
 const BUFFER_SUBSEQUENT_DEFAULT = 0.05;
-const SLIPPAGE_DEFAULT = 0.005;
+const SLIPPAGE_DEFAULT = 0.02;
 
 const FEATURE_ID_BY_TRANSACTION_TYPE = new Map<TransactionType, FeatureId>([
   [TransactionType.perpsDeposit, FeatureId.PERPS],
