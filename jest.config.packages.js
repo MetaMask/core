@@ -80,6 +80,9 @@ module.exports = {
   // Here we ensure that Jest resolves `@metamask/*` imports to the uncompiled source code for packages that live in this repo.
   // NOTE: This must be synchronized with the `paths` option in `tsconfig.base.json`.
   moduleNameMapper: {
+    // Force uuid and yaml to use CommonJS versions to avoid ESM browser bundle issues
+    '^uuid$': require.resolve('uuid'),
+    '^yaml$': require.resolve('yaml'),
     '^@metamask/json-rpc-engine/v2$': [
       '<rootDir>/../json-rpc-engine/src/v2/index.ts',
     ],
