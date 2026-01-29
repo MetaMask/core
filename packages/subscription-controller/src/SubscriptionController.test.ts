@@ -1762,6 +1762,76 @@ describe('SubscriptionController', () => {
     });
   });
 
+  describe('clearLastSelectedPaymentMethod', () => {
+    it('should clear last selected payment method successfully', async () => {
+      await withController(
+        {
+          state: {
+            lastSelectedPaymentMethod: {
+              [PRODUCT_TYPES.SHIELD]: {
+                type: PAYMENT_TYPES.byCard,
+                plan: RECURRING_INTERVALS.month,
+              },
+            },
+          },
+        },
+        async ({ controller }) => {
+          expect(controller.state.lastSelectedPaymentMethod).toStrictEqual({
+            [PRODUCT_TYPES.SHIELD]: {
+              type: PAYMENT_TYPES.byCard,
+              plan: RECURRING_INTERVALS.month,
+            },
+          });
+
+          controller.clearLastSelectedPaymentMethod(PRODUCT_TYPES.SHIELD);
+
+          expect(controller.state.lastSelectedPaymentMethod).toStrictEqual({
+            [PRODUCT_TYPES.SHIELD]: null,
+          });
+        },
+      );
+    });
+
+    it('should do nothing when lastSelectedPaymentMethod is undefined', async () => {
+      await withController(async ({ controller }) => {
+        expect(controller.state.lastSelectedPaymentMethod).toBeUndefined();
+
+        controller.clearLastSelectedPaymentMethod(PRODUCT_TYPES.SHIELD);
+
+        expect(controller.state.lastSelectedPaymentMethod).toBeUndefined();
+      });
+    });
+
+    it('should set the product to null while preserving the state object', async () => {
+      await withController(
+        {
+          state: {
+            lastSelectedPaymentMethod: {
+              [PRODUCT_TYPES.SHIELD]: {
+                type: PAYMENT_TYPES.byCrypto,
+                paymentTokenAddress: '0x123',
+                paymentTokenSymbol: 'USDT',
+                plan: RECURRING_INTERVALS.month,
+              },
+            },
+          },
+        },
+        async ({ controller }) => {
+          expect(
+            controller.state.lastSelectedPaymentMethod?.[PRODUCT_TYPES.SHIELD],
+          ).not.toBeNull();
+
+          controller.clearLastSelectedPaymentMethod(PRODUCT_TYPES.SHIELD);
+
+          expect(controller.state.lastSelectedPaymentMethod).toBeDefined();
+          expect(
+            controller.state.lastSelectedPaymentMethod?.[PRODUCT_TYPES.SHIELD],
+          ).toBeNull();
+        },
+      );
+    });
+  });
+
   describe('submitSponsorshipIntents', () => {
     const MOCK_SUBMISSION_INTENTS_REQUEST: SubmitSponsorshipIntentsMethodParams =
       {
