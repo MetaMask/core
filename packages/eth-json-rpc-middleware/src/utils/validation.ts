@@ -4,6 +4,7 @@ import { validate } from '@metamask/superstruct';
 import type { Hex } from '@metamask/utils';
 
 import type { WalletMiddlewareContext } from '../wallet';
+import { parseTypedMessage } from './normalize';
 
 /**
  * Validates and normalizes a keyholder address for transaction- and
@@ -95,4 +96,95 @@ function formatValidationError(error: StructError, message: string): string {
         `${failure.path.join(' > ')}${failure.path.length ? ' - ' : ''}${failure.message}`,
     )
     .join('\n')}`;
+}
+
+
+const DANGEROUS_PROTOTYPE_PROPERTIES = [
+  '__proto__',
+  'constructor',
+  'prototype',
+  '__defineGetter__',
+  '__defineSetter__',
+  '__lookupGetter__',
+  '__lookupSetter__',
+] as const;
+
+/**
+ * Checks if a property name is dangerous for prototype pollution.
+ *
+ * @param key - The property name to check
+ * @returns True if the property name is dangerous
+ */
+function isDangerousProperty(key: string): boolean {
+  return (DANGEROUS_PROTOTYPE_PROPERTIES as readonly string[]).includes(key);
+}
+
+/**
+ * Recursively checks an object for dangerous prototype pollution properties.
+ *
+ * @param obj - The object to check
+ * @throws rpcErrors.invalidInput() if a dangerous property is found
+ */
+function checkObjectForPrototypePollution(obj: unknown): void {
+  if (obj === null || obj === undefined) {
+    return;
+  }
+
+  if (Array.isArray(obj)) {
+    for (const item of obj) {
+      checkObjectForPrototypePollution(item);
+    }
+    return;
+  }
+
+  if (typeof obj === 'object') {
+    for (const key of Object.getOwnPropertyNames(
+      obj as Record<string, unknown>,
+    )) {
+      if (isDangerousProperty(key)) {
+        throw rpcErrors.invalidInput();
+      }
+      checkObjectForPrototypePollution((obj as Record<string, unknown>)[key]);
+    }
+  }
+}
+
+/**
+ * Validates V1 typed data (array format) for prototype pollution attacks.
+ * V1 format: [{ type: 'string', name: 'fieldName', value: 'data' }, ...]
+ *
+ * @param data - The V1 typed data array to validate
+ * @throws rpcErrors.invalidInput() if prototype pollution is detected
+ */
+export function validateTypedDataV1ForPrototypePollution(
+  data: Record<string, unknown>[],
+): void {
+  if (!data || !Array.isArray(data)) {
+    return;
+  }
+
+  for (const item of data) {
+    if (item && typeof item === 'object') {
+      // Only check the 'value' field (the message data) for dangerous properties
+      if (item.value !== null && typeof item.value === 'object') {
+        checkObjectForPrototypePollution(item.value);
+      }
+    }
+  }
+}
+
+/**
+ * Validates V3/V4 typed data (EIP-712 format) for prototype pollution attacks.
+ * Only checks the message field for dangerous properties.
+ *
+ * @param data - The stringified typed data to validate
+ * @throws rpcErrors.invalidInput() if prototype pollution is detected
+ */
+export function validateTypedDataForPrototypePollution(data: string): void {
+  const { message } = parseTypedMessage(data);
+
+  // Check message recursively for dangerous properties
+  if (message !== undefined) {
+    checkObjectForPrototypePollution(message);
+  }
 }
