@@ -516,11 +516,9 @@ export class BridgeStatusController extends StaticIntervalPollingController<Brid
       historyItem.quote.destChainId,
     );
 
-    // Tron same-chain swaps use async settlement and need polling
-    const isTronSameChainSwap =
-      !isBridgeTx && !isIntent && isTronChainId(historyItem.quote.srcChainId);
+    const isTronTx = isTronChainId(historyItem.quote.srcChainId);
 
-    return isBridgeTx || isIntent || isTronSameChainSwap;
+    return isBridgeTx || isIntent || isTronTx;
   };
 
   /**
@@ -1396,8 +1394,7 @@ export class BridgeStatusController extends StaticIntervalPollingController<Brid
       quoteResponse.quote.srcChainId,
       quoteResponse.quote.destChainId,
     );
-    const isTronSameChainSwap =
-      !isBridgeTx && isTronChainId(quoteResponse.quote.srcChainId);
+    const isTronTx = isTronChainId(quoteResponse.quote.srcChainId);
 
     // Submit non-EVM tx (Solana, BTC, Tron)
     if (isNonEvmChainId(quoteResponse.quote.srcChainId)) {
@@ -1578,7 +1575,7 @@ export class BridgeStatusController extends StaticIntervalPollingController<Brid
         // Start polling for bridge tx status
         this.#startPollingForTxId(txMeta.id);
         // Track non-EVM Swap completed event
-        if (!isBridgeTx && !isTronSameChainSwap) {
+        if (!(isBridgeTx || isTronTx)) {
           this.#trackUnifiedSwapBridgeEvent(
             UnifiedSwapBridgeEventName.Completed,
             txMeta.id,
