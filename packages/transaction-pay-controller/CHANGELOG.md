@@ -7,6 +7,10 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+### Changed
+
+- Update default slippage from 0.5% to 2% for better support of long-tail tokens ([#7776](https://github.com/MetaMask/core/pull/7776))
+
 ## [12.0.2]
 
 ### Changed
