@@ -82,107 +82,69 @@ export type UserRegion = {
 };
 
 /**
+ * Generic type for resource state that bundles data with loading/error states.
+ * @template TData - The type of the resource data
+ * @template TSelected - The type of the selected item (defaults to null for resources without selection)
+ */
+export type ResourceState<TData, TSelected = null> = {
+  /**
+   * The resource data.
+   */
+  data: TData;
+  /**
+   * The currently selected item, or null if none selected.
+   */
+  selected: TSelected;
+  /**
+   * Whether the resource is currently being fetched.
+   */
+  isLoading: boolean;
+  /**
+   * Error message if the fetch failed, or null.
+   */
+  error: string | null;
+};
+
+/**
  * Describes the shape of the state object for {@link RampsController}.
  */
 export type RampsControllerState = {
   /**
-   * The user's selected region with full country and state objects.
+   * The user's region state with data, loading, and error.
+   * Data contains the full country and state objects.
    * Initially set via geolocation fetch, but can be manually changed by the user.
-   * Once set (either via geolocation or manual selection), it will not be overwritten
-   * by subsequent geolocation fetches.
    */
-  userRegion: UserRegion | null;
+  userRegion: ResourceState<UserRegion | null>;
   /**
-   * The user's selected provider.
-   * Can be manually set by the user.
+   * Countries resource state with data, loading, and error.
+   * Data contains the list of countries available for ramp actions.
    */
-  selectedProvider: Provider | null;
+  countries: ResourceState<Country[]>;
   /**
-   * List of countries available for ramp actions.
+   * Providers resource state with data, selected, loading, and error.
+   * Data contains the list of providers available for the current region.
    */
-  countries: Country[];
+  providers: ResourceState<Provider[], Provider | null>;
   /**
-   * List of providers available for the current region.
+   * Tokens resource state with data, selected, loading, and error.
+   * Data contains topTokens and allTokens arrays.
    */
-  providers: Provider[];
+  tokens: ResourceState<TokensResponse | null, RampsToken | null>;
   /**
-   * Tokens fetched for the current region and action.
-   * Contains topTokens and allTokens arrays.
+   * Payment methods resource state with data, selected, loading, and error.
+   * Data contains payment methods filtered by region, fiat, asset, and provider.
    */
-  tokens: TokensResponse | null;
+  paymentMethods: ResourceState<PaymentMethod[], PaymentMethod | null>;
   /**
-   * The user's selected token.
-   * When set, automatically fetches and sets payment methods for that token.
+   * Quotes resource state with data, loading, and error.
+   * Data contains quotes from multiple providers for the given parameters.
    */
-  selectedToken: RampsToken | null;
-  /**
-   * Payment methods available for the current context.
-   * Filtered by region, fiat, asset, and provider.
-   */
-  paymentMethods: PaymentMethod[];
-  /**
-   * The user's selected payment method.
-   * Can be manually set by the user.
-   */
-  selectedPaymentMethod: PaymentMethod | null;
-  /**
-   * Quotes fetched for the current context.
-   * Contains quotes from multiple providers for the given parameters.
-   */
-  quotes: QuotesResponse | null;
+  quotes: ResourceState<QuotesResponse | null>;
   /**
    * Cache of request states, keyed by cache key.
    * This stores loading, success, and error states for API requests.
    */
   requests: RequestCacheType;
-  /**
-   * Whether user region is currently being fetched.
-   */
-  userRegionLoading: boolean;
-  /**
-   * Error message if the user region fetch failed, or null.
-   */
-  userRegionError: string | null;
-  /**
-   * Whether countries are currently being fetched.
-   */
-  countriesLoading: boolean;
-  /**
-   * Error message if the countries fetch failed, or null.
-   */
-  countriesError: string | null;
-  /**
-   * Whether providers are currently being fetched.
-   */
-  providersLoading: boolean;
-  /**
-   * Error message if the providers fetch failed, or null.
-   */
-  providersError: string | null;
-  /**
-   * Whether tokens are currently being fetched.
-   */
-  tokensLoading: boolean;
-  /**
-   * Error message if the tokens fetch failed, or null.
-   */
-  tokensError: string | null;
-  /**
-   * Whether payment methods are currently being fetched.
-   */
-  paymentMethodsLoading: boolean;
-  /**
-   * Error message if the payment methods fetch failed, or null.
-   */
-  paymentMethodsError: string | null;
-  /**
-   * Whether quotes are currently being fetched.
-   */
-  quotesLoading: boolean;
-  /**
-   * Error message if the quotes fetch failed, or null.
-   */
-  quotesError: string | null;
 };
 
 /**
@@ -191,12 +153,6 @@ export type RampsControllerState = {
 const rampsControllerMetadata = {
   userRegion: {
     persist: true,
-    includeInDebugSnapshot: true,
-    includeInStateLogs: true,
-    usedInUi: true,
-  },
-  selectedProvider: {
-    persist: false,
     includeInDebugSnapshot: true,
     includeInStateLogs: true,
     usedInUi: true,
@@ -219,19 +175,7 @@ const rampsControllerMetadata = {
     includeInStateLogs: true,
     usedInUi: true,
   },
-  selectedToken: {
-    persist: false,
-    includeInDebugSnapshot: true,
-    includeInStateLogs: true,
-    usedInUi: true,
-  },
   paymentMethods: {
-    persist: false,
-    includeInDebugSnapshot: true,
-    includeInStateLogs: true,
-    usedInUi: true,
-  },
-  selectedPaymentMethod: {
     persist: false,
     includeInDebugSnapshot: true,
     includeInStateLogs: true,
@@ -249,79 +193,28 @@ const rampsControllerMetadata = {
     includeInStateLogs: false,
     usedInUi: true,
   },
-  userRegionLoading: {
-    persist: false,
-    includeInDebugSnapshot: true,
-    includeInStateLogs: false,
-    usedInUi: true,
-  },
-  userRegionError: {
-    persist: false,
-    includeInDebugSnapshot: true,
-    includeInStateLogs: false,
-    usedInUi: true,
-  },
-  countriesLoading: {
-    persist: false,
-    includeInDebugSnapshot: true,
-    includeInStateLogs: false,
-    usedInUi: true,
-  },
-  countriesError: {
-    persist: false,
-    includeInDebugSnapshot: true,
-    includeInStateLogs: false,
-    usedInUi: true,
-  },
-  providersLoading: {
-    persist: false,
-    includeInDebugSnapshot: true,
-    includeInStateLogs: false,
-    usedInUi: true,
-  },
-  providersError: {
-    persist: false,
-    includeInDebugSnapshot: true,
-    includeInStateLogs: false,
-    usedInUi: true,
-  },
-  tokensLoading: {
-    persist: false,
-    includeInDebugSnapshot: true,
-    includeInStateLogs: false,
-    usedInUi: true,
-  },
-  tokensError: {
-    persist: false,
-    includeInDebugSnapshot: true,
-    includeInStateLogs: false,
-    usedInUi: true,
-  },
-  paymentMethodsLoading: {
-    persist: false,
-    includeInDebugSnapshot: true,
-    includeInStateLogs: false,
-    usedInUi: true,
-  },
-  paymentMethodsError: {
-    persist: false,
-    includeInDebugSnapshot: true,
-    includeInStateLogs: false,
-    usedInUi: true,
-  },
-  quotesLoading: {
-    persist: false,
-    includeInDebugSnapshot: true,
-    includeInStateLogs: false,
-    usedInUi: true,
-  },
-  quotesError: {
-    persist: false,
-    includeInDebugSnapshot: true,
-    includeInStateLogs: false,
-    usedInUi: true,
-  },
 } satisfies StateMetadata<RampsControllerState>;
+
+/**
+ * Creates a default resource state object.
+ *
+ * @template TData - The type of the resource data.
+ * @template TSelected - The type of the selected item.
+ * @param data - The initial data value.
+ * @param selected - The initial selected value.
+ * @returns A ResourceState object with default loading and error values.
+ */
+function createDefaultResourceState<TData, TSelected = null>(
+  data: TData,
+  selected: TSelected = null as TSelected,
+): ResourceState<TData, TSelected> {
+  return {
+    data,
+    selected,
+    isLoading: false,
+    error: null,
+  };
+}
 
 /**
  * Constructs the default {@link RampsController} state. This allows
@@ -333,28 +226,22 @@ const rampsControllerMetadata = {
  */
 export function getDefaultRampsControllerState(): RampsControllerState {
   return {
-    userRegion: null,
-    selectedProvider: null,
-    countries: [],
-    providers: [],
-    tokens: null,
-    selectedToken: null,
-    paymentMethods: [],
-    selectedPaymentMethod: null,
-    quotes: null,
+    userRegion: createDefaultResourceState<UserRegion | null>(null),
+    countries: createDefaultResourceState<Country[]>([]),
+    providers: createDefaultResourceState<Provider[], Provider | null>(
+      [],
+      null,
+    ),
+    tokens: createDefaultResourceState<TokensResponse | null, RampsToken | null>(
+      null,
+      null,
+    ),
+    paymentMethods: createDefaultResourceState<
+      PaymentMethod[],
+      PaymentMethod | null
+    >([], null),
+    quotes: createDefaultResourceState<QuotesResponse | null>(null),
     requests: {},
-    userRegionLoading: false,
-    userRegionError: null,
-    countriesLoading: false,
-    countriesError: null,
-    providersLoading: false,
-    providersError: null,
-    tokensLoading: false,
-    tokensError: null,
-    paymentMethodsLoading: false,
-    paymentMethodsError: null,
-    quotesLoading: false,
-    quotesError: null,
   };
 }
 
@@ -687,14 +574,14 @@ export class RampsController extends BaseController<
 
   #cleanupState(): void {
     this.update((state) => {
-      state.userRegion = null;
-      state.selectedProvider = null;
-      state.selectedToken = null;
-      state.tokens = null;
-      state.providers = [];
-      state.paymentMethods = [];
-      state.selectedPaymentMethod = null;
-      state.quotes = null;
+      state.userRegion.data = null;
+      state.providers.selected = null;
+      state.tokens.selected = null;
+      state.tokens.data = null;
+      state.providers.data = [];
+      state.paymentMethods.data = [];
+      state.paymentMethods.selected = null;
+      state.quotes.data = null;
     });
   }
 
@@ -718,22 +605,22 @@ export class RampsController extends BaseController<
     this.update((state) => {
       switch (resourceType) {
         case 'userRegion':
-          state.userRegionLoading = loading;
+          state.userRegion.isLoading = loading;
           break;
         case 'countries':
-          state.countriesLoading = loading;
+          state.countries.isLoading = loading;
           break;
         case 'providers':
-          state.providersLoading = loading;
+          state.providers.isLoading = loading;
           break;
         case 'tokens':
-          state.tokensLoading = loading;
+          state.tokens.isLoading = loading;
           break;
         case 'paymentMethods':
-          state.paymentMethodsLoading = loading;
+          state.paymentMethods.isLoading = loading;
           break;
         case 'quotes':
-          state.quotesLoading = loading;
+          state.quotes.isLoading = loading;
           break;
         /* istanbul ignore next: exhaustive switch */
         default:
@@ -752,22 +639,22 @@ export class RampsController extends BaseController<
     this.update((state) => {
       switch (resourceType) {
         case 'userRegion':
-          state.userRegionError = error;
+          state.userRegion.error = error;
           break;
         case 'countries':
-          state.countriesError = error;
+          state.countries.error = error;
           break;
         case 'providers':
-          state.providersError = error;
+          state.providers.error = error;
           break;
         case 'tokens':
-          state.tokensError = error;
+          state.tokens.error = error;
           break;
         case 'paymentMethods':
-          state.paymentMethodsError = error;
+          state.paymentMethods.error = error;
           break;
         case 'quotes':
-          state.quotesError = error;
+          state.quotes.error = error;
           break;
         /* istanbul ignore next: exhaustive switch */
         default:
@@ -854,15 +741,15 @@ export class RampsController extends BaseController<
     const normalizedRegion = region.toLowerCase().trim();
 
     try {
-      const { countries } = this.state;
-      if (!countries || countries.length === 0) {
+      const countriesData = this.state.countries.data;
+      if (!countriesData || countriesData.length === 0) {
         this.#cleanupState();
         throw new Error(
           'No countries found. Cannot set user region without valid country information.',
         );
       }
 
-      const userRegion = findRegionFromCode(normalizedRegion, countries);
+      const userRegion = findRegionFromCode(normalizedRegion, countriesData);
 
       if (!userRegion) {
         this.#cleanupState();
@@ -873,28 +760,28 @@ export class RampsController extends BaseController<
 
       // Only cleanup state if region is actually changing
       const regionChanged =
-        normalizedRegion !== this.state.userRegion?.regionCode;
+        normalizedRegion !== this.state.userRegion.data?.regionCode;
 
       // Set the new region atomically with cleanup to avoid intermediate null state
       this.update((state) => {
         if (regionChanged) {
-          state.selectedProvider = null;
-          state.selectedToken = null;
-          state.tokens = null;
-          state.providers = [];
-          state.paymentMethods = [];
-          state.selectedPaymentMethod = null;
-          state.quotes = null;
+          state.providers.selected = null;
+          state.tokens.selected = null;
+          state.tokens.data = null;
+          state.providers.data = [];
+          state.paymentMethods.data = [];
+          state.paymentMethods.selected = null;
+          state.quotes.data = null;
         }
-        state.userRegion = userRegion;
+        state.userRegion.data = userRegion;
       });
 
-      if (regionChanged || !this.state.tokens) {
+      if (regionChanged || !this.state.tokens.data) {
         this.#fireAndForget(
           this.getTokens(userRegion.regionCode, 'buy', options),
         );
       }
-      if (regionChanged || this.state.providers.length === 0) {
+      if (regionChanged || this.state.providers.data.length === 0) {
         this.#fireAndForget(this.getProviders(userRegion.regionCode, options));
       }
 
@@ -916,21 +803,21 @@ export class RampsController extends BaseController<
   setSelectedProvider(providerId: string | null): void {
     if (providerId === null) {
       this.update((state) => {
-        state.selectedProvider = null;
-        state.paymentMethods = [];
-        state.selectedPaymentMethod = null;
+        state.providers.selected = null;
+        state.paymentMethods.data = [];
+        state.paymentMethods.selected = null;
       });
       return;
     }
 
-    const regionCode = this.state.userRegion?.regionCode;
+    const regionCode = this.state.userRegion.data?.regionCode;
     if (!regionCode) {
       throw new Error(
         'Region is required. Cannot set selected provider without valid region information.',
       );
     }
 
-    const { providers } = this.state;
+    const providers = this.state.providers.data;
     if (!providers || providers.length === 0) {
       throw new Error(
         'Providers not loaded. Cannot set selected provider before providers are fetched.',
@@ -945,9 +832,9 @@ export class RampsController extends BaseController<
     }
 
     this.update((state) => {
-      state.selectedProvider = provider;
-      state.paymentMethods = [];
-      state.selectedPaymentMethod = null;
+      state.providers.selected = provider;
+      state.paymentMethods.data = [];
+      state.paymentMethods.selected = null;
     });
 
     this.#fireAndForget(
@@ -971,7 +858,7 @@ export class RampsController extends BaseController<
     try {
       await this.getCountries(options);
 
-      let regionCode = this.state.userRegion?.regionCode;
+      let regionCode = this.state.userRegion.data?.regionCode;
       regionCode ??= await this.messenger.call('RampsService:getGeolocation');
 
       if (!regionCode) {
@@ -994,7 +881,7 @@ export class RampsController extends BaseController<
   }
 
   hydrateState(options?: ExecuteRequestOptions): void {
-    const regionCode = this.state.userRegion?.regionCode;
+    const regionCode = this.state.userRegion.data?.regionCode;
     if (!regionCode) {
       throw new Error(
         'Region code is required. Cannot hydrate state without valid region information.',
@@ -1025,7 +912,7 @@ export class RampsController extends BaseController<
     );
 
     this.update((state) => {
-      state.countries = countries;
+      state.countries.data = countries;
     });
 
     return countries;
@@ -1048,7 +935,7 @@ export class RampsController extends BaseController<
       provider?: string | string[];
     },
   ): Promise<TokensResponse> {
-    const regionToUse = region ?? this.state.userRegion?.regionCode;
+    const regionToUse = region ?? this.state.userRegion.data?.regionCode;
 
     if (!regionToUse) {
       throw new Error(
@@ -1079,10 +966,10 @@ export class RampsController extends BaseController<
     );
 
     this.update((state) => {
-      const userRegionCode = state.userRegion?.regionCode;
+      const userRegionCode = state.userRegion.data?.regionCode;
 
       if (userRegionCode === undefined || userRegionCode === normalizedRegion) {
-        state.tokens = tokens;
+        state.tokens.data = tokens;
       }
     });
 
@@ -1100,21 +987,21 @@ export class RampsController extends BaseController<
   setSelectedToken(assetId?: string): void {
     if (!assetId) {
       this.update((state) => {
-        state.selectedToken = null;
-        state.paymentMethods = [];
-        state.selectedPaymentMethod = null;
+        state.tokens.selected = null;
+        state.paymentMethods.data = [];
+        state.paymentMethods.selected = null;
       });
       return;
     }
 
-    const regionCode = this.state.userRegion?.regionCode;
+    const regionCode = this.state.userRegion.data?.regionCode;
     if (!regionCode) {
       throw new Error(
         'Region is required. Cannot set selected token without valid region information.',
       );
     }
 
-    const { tokens } = this.state;
+    const tokens = this.state.tokens.data;
     if (!tokens) {
       throw new Error(
         'Tokens not loaded. Cannot set selected token before tokens are fetched.',
@@ -1132,9 +1019,9 @@ export class RampsController extends BaseController<
     }
 
     this.update((state) => {
-      state.selectedToken = token;
-      state.paymentMethods = [];
-      state.selectedPaymentMethod = null;
+      state.tokens.selected = token;
+      state.paymentMethods.data = [];
+      state.paymentMethods.selected = null;
     });
 
     this.#fireAndForget(
@@ -1163,7 +1050,7 @@ export class RampsController extends BaseController<
       payments?: string | string[];
     },
   ): Promise<{ providers: Provider[] }> {
-    const regionToUse = region ?? this.state.userRegion?.regionCode;
+    const regionToUse = region ?? this.state.userRegion.data?.regionCode;
 
     if (!regionToUse) {
       throw new Error(
@@ -1198,10 +1085,10 @@ export class RampsController extends BaseController<
     );
 
     this.update((state) => {
-      const userRegionCode = state.userRegion?.regionCode;
+      const userRegionCode = state.userRegion.data?.regionCode;
 
       if (userRegionCode === undefined || userRegionCode === normalizedRegion) {
-        state.providers = providers;
+        state.providers.data = providers;
       }
     });
 
@@ -1227,13 +1114,13 @@ export class RampsController extends BaseController<
       provider?: string;
     },
   ): Promise<PaymentMethodsResponse> {
-    const regionCode = region ?? this.state.userRegion?.regionCode ?? null;
+    const regionCode = region ?? this.state.userRegion.data?.regionCode ?? null;
     const fiatToUse =
-      options?.fiat ?? this.state.userRegion?.country?.currency ?? null;
+      options?.fiat ?? this.state.userRegion.data?.country?.currency ?? null;
     const assetIdToUse =
-      options?.assetId ?? this.state.selectedToken?.assetId ?? '';
+      options?.assetId ?? this.state.tokens.selected?.assetId ?? '';
     const providerToUse =
-      options?.provider ?? this.state.selectedProvider?.id ?? '';
+      options?.provider ?? this.state.providers.selected?.id ?? '';
 
     if (!regionCode) {
       throw new Error(
@@ -1270,8 +1157,8 @@ export class RampsController extends BaseController<
     );
 
     this.update((state) => {
-      const currentAssetId = state.selectedToken?.assetId ?? '';
-      const currentProviderId = state.selectedProvider?.id ?? '';
+      const currentAssetId = state.tokens.selected?.assetId ?? '';
+      const currentProviderId = state.providers.selected?.id ?? '';
 
       const tokenSelectionUnchanged = assetIdToUse === currentAssetId;
       const providerSelectionUnchanged = providerToUse === currentProviderId;
@@ -1280,14 +1167,14 @@ export class RampsController extends BaseController<
       // ex: if the user rapidly changes the token or provider, the in-flight payment methods might not be valid
       // so this check will ensure that the payment methods are still valid for the token and provider that were requested
       if (tokenSelectionUnchanged && providerSelectionUnchanged) {
-        state.paymentMethods = response.payments;
+        state.paymentMethods.data = response.payments;
 
         // this will auto-select the first payment method if the selected payment method is not in the new payment methods
         const currentSelectionStillValid = response.payments.some(
-          (pm: PaymentMethod) => pm.id === state.selectedPaymentMethod?.id,
+          (pm: PaymentMethod) => pm.id === state.paymentMethods.selected?.id,
         );
         if (!currentSelectionStillValid) {
-          state.selectedPaymentMethod = response.payments[0] ?? null;
+          state.paymentMethods.selected = response.payments[0] ?? null;
         }
       }
     });
@@ -1305,12 +1192,12 @@ export class RampsController extends BaseController<
   setSelectedPaymentMethod(paymentMethodId?: string): void {
     if (!paymentMethodId) {
       this.update((state) => {
-        state.selectedPaymentMethod = null;
+        state.paymentMethods.selected = null;
       });
       return;
     }
 
-    const { paymentMethods } = this.state;
+    const paymentMethods = this.state.paymentMethods.data;
     if (!paymentMethods || paymentMethods.length === 0) {
       throw new Error(
         'Payment methods not loaded. Cannot set selected payment method before payment methods are fetched.',
@@ -1327,7 +1214,7 @@ export class RampsController extends BaseController<
     }
 
     this.update((state) => {
-      state.selectedPaymentMethod = paymentMethod;
+      state.paymentMethods.selected = paymentMethod;
     });
   }
 
@@ -1362,11 +1249,11 @@ export class RampsController extends BaseController<
     forceRefresh?: boolean;
     ttl?: number;
   }): Promise<QuotesResponse> {
-    const regionToUse = options.region ?? this.state.userRegion?.regionCode;
-    const fiatToUse = options.fiat ?? this.state.userRegion?.country?.currency;
+    const regionToUse = options.region ?? this.state.userRegion.data?.regionCode;
+    const fiatToUse = options.fiat ?? this.state.userRegion.data?.country?.currency;
     const paymentMethodsToUse =
       options.paymentMethods ??
-      this.state.paymentMethods.map((pm: PaymentMethod) => pm.id);
+      this.state.paymentMethods.data.map((pm: PaymentMethod) => pm.id);
     const action = options.action ?? 'buy';
 
     if (!regionToUse) {
@@ -1439,10 +1326,10 @@ export class RampsController extends BaseController<
     );
 
     this.update((state) => {
-      const userRegionCode = state.userRegion?.regionCode;
+      const userRegionCode = state.userRegion.data?.regionCode;
 
       if (userRegionCode === undefined || userRegionCode === normalizedRegion) {
-        state.quotes = response;
+        state.quotes.data = response;
       }
     });
 
