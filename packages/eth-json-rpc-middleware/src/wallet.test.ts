@@ -1,7 +1,6 @@
 import { MessageTypes, TypedMessage } from '@metamask/eth-sig-util';
 import { JsonRpcEngineV2 } from '@metamask/json-rpc-engine/v2';
 
-import { createHandleParams, createRequest } from '../test/util/helpers';
 import type {
   MessageParams,
   TransactionParams,
@@ -9,6 +8,7 @@ import type {
   TypedMessageV1Params,
 } from '.';
 import { createWalletMiddleware } from '.';
+import { createHandleParams, createRequest } from '../test/util/helpers';
 
 const testAddresses = [
   '0xbe93f9bacbcffc8ee6663f2647917ed7a20a57bb',
