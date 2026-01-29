@@ -90,12 +90,14 @@ export type AssetsControllerState = {
   assetsPrice: { [assetId: string]: Json };
   /** Custom assets added by users per account (CAIP-19 asset IDs) */
   customAssets: { [accountId: string]: string[] };
+  /** Hidden assets per account (CAIP-19 asset IDs) - assets user chose to hide */
+  hiddenAssets: { [accountId: string]: string[] };
 };
 
 /**
  * Returns the default state for AssetsController.
  *
- * @returns The default AssetsController state with empty metadata, balance, price, and customAssets maps.
+ * @returns The default AssetsController state with empty metadata, balance, price, customAssets, and hiddenAssets maps.
  */
 export function getDefaultAssetsControllerState(): AssetsControllerState {
   return {
@@ -103,6 +105,7 @@ export function getDefaultAssetsControllerState(): AssetsControllerState {
     assetsBalance: {},
     assetsPrice: {},
     customAssets: {},
+    hiddenAssets: {},
   };
 }
 
@@ -160,6 +163,21 @@ export type AssetsControllerGetCustomAssetsAction = {
   handler: AssetsController['getCustomAssets'];
 };
 
+export type AssetsControllerHideAssetAction = {
+  type: `${typeof CONTROLLER_NAME}:hideAsset`;
+  handler: AssetsController['hideAsset'];
+};
+
+export type AssetsControllerUnhideAssetAction = {
+  type: `${typeof CONTROLLER_NAME}:unhideAsset`;
+  handler: AssetsController['unhideAsset'];
+};
+
+export type AssetsControllerGetHiddenAssetsAction = {
+  type: `${typeof CONTROLLER_NAME}:getHiddenAssets`;
+  handler: AssetsController['getHiddenAssets'];
+};
+
 export type AssetsControllerActions =
   | AssetsControllerGetStateAction
   | AssetsControllerGetAssetsAction
@@ -170,7 +188,10 @@ export type AssetsControllerActions =
   | AssetsControllerAssetsUpdateAction
   | AssetsControllerAddCustomAssetAction
   | AssetsControllerRemoveCustomAssetAction
-  | AssetsControllerGetCustomAssetsAction;
+  | AssetsControllerGetCustomAssetsAction
+  | AssetsControllerHideAssetAction
+  | AssetsControllerUnhideAssetAction
+  | AssetsControllerGetHiddenAssetsAction;
 
 export type AssetsControllerStateChangeEvent = ControllerStateChangeEvent<
   typeof CONTROLLER_NAME,
@@ -287,6 +308,12 @@ const stateMetadata: StateMetadata<AssetsControllerState> = {
     usedInUi: true,
   },
   customAssets: {
+    persist: true,
+    includeInStateLogs: false,
+    includeInDebugSnapshot: false,
+    usedInUi: true,
+  },
+  hiddenAssets: {
     persist: true,
     includeInStateLogs: false,
     includeInDebugSnapshot: false,
@@ -627,6 +654,21 @@ export class AssetsController extends BaseController<
       'AssetsController:getCustomAssets',
       this.getCustomAssets.bind(this),
     );
+
+    this.messenger.registerActionHandler(
+      'AssetsController:hideAsset',
+      this.hideAsset.bind(this),
+    );
+
+    this.messenger.registerActionHandler(
+      'AssetsController:unhideAsset',
+      this.unhideAsset.bind(this),
+    );
+
+    this.messenger.registerActionHandler(
+      'AssetsController:getHiddenAssets',
+      this.getHiddenAssets.bind(this),
+    );
   }
 
   // ============================================================================
@@ -872,6 +914,7 @@ export class AssetsController extends BaseController<
   /**
    * Add a custom asset for an account.
    * Custom assets are included in subscription and fetch operations.
+   * Adding a custom asset also unhides it if it was previously hidden.
    *
    * @param accountId - The account ID to add the custom asset for.
    * @param assetId - The CAIP-19 asset ID to add.
@@ -893,6 +936,19 @@ export class AssetsController extends BaseController<
       // Only add if not already present
       if (!customAssets[accountId].includes(normalizedAssetId)) {
         customAssets[accountId].push(normalizedAssetId);
+      }
+
+      // Remove from hidden assets if it was hidden (unhide the asset)
+      const hiddenAssets = state.hiddenAssets as Record<string, string[]>;
+      if (hiddenAssets[accountId]) {
+        hiddenAssets[accountId] = hiddenAssets[accountId].filter(
+          (id) => id !== normalizedAssetId,
+        );
+
+        // Clean up empty arrays
+        if (hiddenAssets[accountId].length === 0) {
+          delete hiddenAssets[accountId];
+        }
       }
     });
 
@@ -941,6 +997,85 @@ export class AssetsController extends BaseController<
    */
   getCustomAssets(accountId: AccountId): Caip19AssetId[] {
     return (this.state.customAssets[accountId] ?? []) as Caip19AssetId[];
+  }
+
+  // ============================================================================
+  // HIDDEN ASSETS MANAGEMENT
+  // ============================================================================
+
+  /**
+   * Hide an asset for an account.
+   * Hidden assets are excluded from the asset list returned by getAssets.
+   *
+   * @param accountId - The account ID to hide the asset for.
+   * @param assetId - The CAIP-19 asset ID to hide.
+   */
+  hideAsset(accountId: AccountId, assetId: Caip19AssetId): void {
+    const normalizedAssetId = normalizeAssetId(assetId);
+
+    log('Hiding asset', { accountId, assetId: normalizedAssetId });
+
+    this.update((state) => {
+      const hiddenAssets = state.hiddenAssets as Record<string, string[]>;
+      if (!hiddenAssets[accountId]) {
+        hiddenAssets[accountId] = [];
+      }
+
+      // Only add if not already present
+      if (!hiddenAssets[accountId].includes(normalizedAssetId)) {
+        hiddenAssets[accountId].push(normalizedAssetId);
+      }
+    });
+  }
+
+  /**
+   * Unhide an asset for an account.
+   *
+   * @param accountId - The account ID to unhide the asset for.
+   * @param assetId - The CAIP-19 asset ID to unhide.
+   */
+  unhideAsset(accountId: AccountId, assetId: Caip19AssetId): void {
+    const normalizedAssetId = normalizeAssetId(assetId);
+
+    log('Unhiding asset', { accountId, assetId: normalizedAssetId });
+
+    this.update((state) => {
+      const hiddenAssets = state.hiddenAssets as Record<string, string[]>;
+      if (hiddenAssets[accountId]) {
+        hiddenAssets[accountId] = hiddenAssets[accountId].filter(
+          (id) => id !== normalizedAssetId,
+        );
+
+        // Clean up empty arrays
+        if (hiddenAssets[accountId].length === 0) {
+          delete hiddenAssets[accountId];
+        }
+      }
+    });
+  }
+
+  /**
+   * Get all hidden assets for an account.
+   *
+   * @param accountId - The account ID to get hidden assets for.
+   * @returns Array of CAIP-19 asset IDs for the account's hidden assets.
+   */
+  getHiddenAssets(accountId: AccountId): Caip19AssetId[] {
+    return (this.state.hiddenAssets[accountId] ?? []) as Caip19AssetId[];
+  }
+
+  /**
+   * Check if an asset is hidden for an account.
+   *
+   * @param accountId - The account ID to check.
+   * @param assetId - The CAIP-19 asset ID to check.
+   * @returns True if the asset is hidden, false otherwise.
+   */
+  isAssetHidden(accountId: AccountId, assetId: Caip19AssetId): boolean {
+    const normalizedAssetId = normalizeAssetId(assetId);
+    return (
+      this.state.hiddenAssets[accountId]?.includes(normalizedAssetId) ?? false
+    );
   }
 
   // ============================================================================
@@ -1244,9 +1379,19 @@ export class AssetsController extends BaseController<
       result[account.id] = {};
 
       const accountBalances = this.state.assetsBalance[account.id] ?? {};
+      // Get hidden assets for this account
+      const hiddenAssets = new Set(
+        (this.state.hiddenAssets[account.id] ?? []) as string[],
+      );
 
       for (const [assetId, balance] of Object.entries(accountBalances)) {
         const typedAssetId = assetId as Caip19AssetId;
+
+        // Skip hidden assets
+        if (hiddenAssets.has(typedAssetId)) {
+          continue;
+        }
+
         const assetChainId = extractChainId(typedAssetId);
 
         if (!chainIdSet.has(assetChainId)) {
@@ -1783,5 +1928,8 @@ export class AssetsController extends BaseController<
       'AssetsController:removeCustomAsset',
     );
     this.messenger.unregisterActionHandler('AssetsController:getCustomAssets');
+    this.messenger.unregisterActionHandler('AssetsController:hideAsset');
+    this.messenger.unregisterActionHandler('AssetsController:unhideAsset');
+    this.messenger.unregisterActionHandler('AssetsController:getHiddenAssets');
   }
 }

@@ -123,6 +123,9 @@ export class BalanceFetcher extends StaticIntervalPollingControllerOnly<BalanceP
       return [];
     }
 
+    // Get hidden assets for this account
+    const hiddenAssets = new Set(state.hiddenAssets?.[accountId] ?? []);
+
     // Convert hex chainId to decimal for CAIP-2 matching
     const chainIdDecimal = parseInt(chainId, 16);
     const caipChainPrefix = `eip155:${chainIdDecimal}/`;
@@ -130,6 +133,11 @@ export class BalanceFetcher extends StaticIntervalPollingControllerOnly<BalanceP
     const tokenMap = new Map<string, TokenFetchInfo>();
 
     for (const assetId of Object.keys(accountBalances)) {
+      // Skip hidden assets
+      if (hiddenAssets.has(assetId)) {
+        continue;
+      }
+
       // Only process ERC20 tokens on the current chain
       if (assetId.startsWith(caipChainPrefix) && assetId.includes('/erc20:')) {
         // Parse token address from CAIP-19: eip155:1/erc20:0x...

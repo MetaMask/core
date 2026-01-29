@@ -201,6 +201,7 @@ describe('AssetsController', () => {
         assetsBalance: {},
         assetsPrice: {},
         customAssets: {},
+        hiddenAssets: {},
       });
     });
   });
@@ -213,6 +214,7 @@ describe('AssetsController', () => {
           assetsBalance: {},
           assetsPrice: {},
           customAssets: {},
+          hiddenAssets: {},
         });
       });
     });
