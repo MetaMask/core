@@ -174,6 +174,7 @@ Use `yarn create-package --name <name> --description <description>` to add a new
 
 - Each package should have an `index.ts` file in `src/` that explicitly lists all exports.
 - Avoid barrel exports (`export * from './file'`).ts`. Instead, explicitly name each export:
+
   ```typescript
   // Bad
   export * from './foo-controller';
