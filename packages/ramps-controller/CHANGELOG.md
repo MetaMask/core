@@ -10,6 +10,7 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 ### Added
 
 - Add quotes functionality to RampsController ([#7747](https://github.com/MetaMask/core/pull/7747))
+- Add `quotesLoading` and `quotesError` state properties for quotes resource loading/error tracking ([#7779](https://github.com/MetaMask/core/pull/7779))
 
 ## [5.0.0]
 
