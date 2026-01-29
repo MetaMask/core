@@ -7,6 +7,10 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+### Added
+
+- Add network fallback mechanism to `IncomingTransactionHelper` for WebSocket-based transaction retrieval ([#7759](https://github.com/MetaMask/core/pull/7759))
+
 ## [62.11.0]
 
 ### Added
