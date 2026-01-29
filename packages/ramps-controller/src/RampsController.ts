@@ -653,6 +653,16 @@ export class RampsController extends BaseController<
   }
 
   /**
+   * Executes a promise without awaiting, swallowing errors.
+   * Errors are stored in state via executeRequest.
+   *
+   * @param promise - The promise to execute.
+   */
+  #fireAndForget<T>(promise: Promise<T>): void {
+    promise.catch((_error: unknown) => undefined);
+  }
+
+  /**
    * Sets the loading state for a resource type.
    *
    * @param resourceType - The type of resource.
@@ -820,12 +830,11 @@ export class RampsController extends BaseController<
         state.userRegion = userRegion;
       });
 
-      // Only trigger fetches if region changed or if data is missing
       if (regionChanged || !this.state.tokens) {
-        this.triggerGetTokens(userRegion.regionCode, 'buy', options);
+        this.#fireAndForget(this.getTokens(userRegion.regionCode, 'buy', options));
       }
       if (regionChanged || this.state.providers.length === 0) {
-        this.triggerGetProviders(userRegion.regionCode, options);
+        this.#fireAndForget(this.getProviders(userRegion.regionCode, options));
       }
 
       return userRegion;
@@ -880,12 +889,9 @@ export class RampsController extends BaseController<
       state.selectedPaymentMethod = null;
     });
 
-    // fetch payment methods for the new provider
-    // this is needed because you can change providers without changing the token
-    // (getPaymentMethods will use state as its default)
-    this.triggerGetPaymentMethods(regionCode, {
-      provider: provider.id,
-    });
+    this.#fireAndForget(
+      this.getPaymentMethods(regionCode, { provider: provider.id }),
+    );
   }
 
   /**
@@ -934,8 +940,8 @@ export class RampsController extends BaseController<
       );
     }
 
-    this.triggerGetTokens(regionCode, 'buy', options);
-    this.triggerGetProviders(regionCode, options);
+    this.#fireAndForget(this.getTokens(regionCode, 'buy', options));
+    this.#fireAndForget(this.getProviders(regionCode, options));
   }
 
   /**
@@ -1070,9 +1076,9 @@ export class RampsController extends BaseController<
       state.selectedPaymentMethod = null;
     });
 
-    this.triggerGetPaymentMethods(regionCode, {
-      assetId: token.assetId,
-    });
+    this.#fireAndForget(
+      this.getPaymentMethods(regionCode, { assetId: token.assetId }),
+    );
   }
 
   /**
@@ -1264,91 +1270,4 @@ export class RampsController extends BaseController<
     });
   }
 
-  // ============================================================
-  // Sync Trigger Methods
-  // These fire-and-forget methods are for use in React effects.
-  // Errors are stored in state and available via selectors.
-  // ============================================================
-
-  /**
-   * Triggers setting the user region without throwing.
-   *
-   * @param region - The region code to set (e.g., "US-CA").
-   * @param options - Options for cache behavior.
-   */
-  triggerSetUserRegion(region: string, options?: ExecuteRequestOptions): void {
-    this.setUserRegion(region, options).catch(() => {
-      // Error stored in state
-    });
-  }
-
-  /**
-   * Triggers fetching countries without throwing.
-   *
-   * @param options - Options for cache behavior.
-   */
-  triggerGetCountries(options?: ExecuteRequestOptions): void {
-    this.getCountries(options).catch(() => {
-      // Error stored in state
-    });
-  }
-
-  /**
-   * Triggers fetching tokens without throwing.
-   *
-   * @param region - The region code. If not provided, uses userRegion from state.
-   * @param action - The ramp action type ('buy' or 'sell').
-   * @param options - Options for cache behavior.
-   */
-  triggerGetTokens(
-    region?: string,
-    action: 'buy' | 'sell' = 'buy',
-    options?: ExecuteRequestOptions,
-  ): void {
-    this.getTokens(region, action, options).catch(() => {
-      // Error stored in state
-    });
-  }
-
-  /**
-   * Triggers fetching providers without throwing.
-   *
-   * @param region - The region code. If not provided, uses userRegion from state.
-   * @param options - Options for cache behavior and query filters.
-   */
-  triggerGetProviders(
-    region?: string,
-    options?: ExecuteRequestOptions & {
-      provider?: string | string[];
-      crypto?: string | string[];
-      fiat?: string | string[];
-      payments?: string | string[];
-    },
-  ): void {
-    this.getProviders(region, options).catch(() => {
-      // Error stored in state
-    });
-  }
-
-  /**
-   * Triggers fetching payment methods without throwing.
-   *
-   * @param region - User's region code (e.g., "us", "fr", "us-ny").
-   * @param options - Query parameters for filtering payment methods.
-   * @param options.fiat - Fiat currency code. If not provided, uses userRegion currency.
-   * @param options.assetId - CAIP-19 cryptocurrency identifier.
-   * @param options.provider - Provider ID path.
-   */
-  triggerGetPaymentMethods(
-    region?: string,
-    options?: ExecuteRequestOptions & {
-      fiat?: string;
-      assetId?: string;
-      provider?: string;
-    },
-  ): void {
-    this.getPaymentMethods(region, options).catch(() => {
-      // Error stored in state
-    });
-  }
 }

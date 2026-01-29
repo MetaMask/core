@@ -33,14 +33,24 @@ describe('RampsController', () => {
         expect(controller.state).toMatchInlineSnapshot(`
           Object {
             "countries": Array [],
+            "countriesError": null,
+            "countriesLoading": false,
             "paymentMethods": Array [],
+            "paymentMethodsError": null,
+            "paymentMethodsLoading": false,
             "providers": Array [],
+            "providersError": null,
+            "providersLoading": false,
             "requests": Object {},
             "selectedPaymentMethod": null,
             "selectedProvider": null,
             "selectedToken": null,
             "tokens": null,
+            "tokensError": null,
+            "tokensLoading": false,
             "userRegion": null,
+            "userRegionError": null,
+            "userRegionLoading": false,
           }
         `);
       });
@@ -67,14 +77,24 @@ describe('RampsController', () => {
         expect(controller.state).toMatchInlineSnapshot(`
           Object {
             "countries": Array [],
+            "countriesError": null,
+            "countriesLoading": false,
             "paymentMethods": Array [],
+            "paymentMethodsError": null,
+            "paymentMethodsLoading": false,
             "providers": Array [],
+            "providersError": null,
+            "providersLoading": false,
             "requests": Object {},
             "selectedPaymentMethod": null,
             "selectedProvider": null,
             "selectedToken": null,
             "tokens": null,
+            "tokensError": null,
+            "tokensLoading": false,
             "userRegion": null,
+            "userRegionError": null,
+            "userRegionLoading": false,
           }
         `);
       });
@@ -382,14 +402,24 @@ describe('RampsController', () => {
         ).toMatchInlineSnapshot(`
           Object {
             "countries": Array [],
+            "countriesError": null,
+            "countriesLoading": false,
             "paymentMethods": Array [],
+            "paymentMethodsError": null,
+            "paymentMethodsLoading": false,
             "providers": Array [],
+            "providersError": null,
+            "providersLoading": false,
             "requests": Object {},
             "selectedPaymentMethod": null,
             "selectedProvider": null,
             "selectedToken": null,
             "tokens": null,
+            "tokensError": null,
+            "tokensLoading": false,
             "userRegion": null,
+            "userRegionError": null,
+            "userRegionLoading": false,
           }
         `);
       });
@@ -448,14 +478,24 @@ describe('RampsController', () => {
         ).toMatchInlineSnapshot(`
           Object {
             "countries": Array [],
+            "countriesError": null,
+            "countriesLoading": false,
             "paymentMethods": Array [],
+            "paymentMethodsError": null,
+            "paymentMethodsLoading": false,
             "providers": Array [],
+            "providersError": null,
+            "providersLoading": false,
             "requests": Object {},
             "selectedPaymentMethod": null,
             "selectedProvider": null,
             "selectedToken": null,
             "tokens": null,
+            "tokensError": null,
+            "tokensLoading": false,
             "userRegion": null,
+            "userRegionError": null,
+            "userRegionLoading": false,
           }
         `);
       });
@@ -817,146 +857,6 @@ describe('RampsController', () => {
     });
   });
 
-  describe('sync trigger methods', () => {
-    describe('triggerSetUserRegion', () => {
-      it('triggers set user region and returns void', async () => {
-        await withController(
-          {
-            options: {
-              state: {
-                countries: createMockCountries(),
-              },
-            },
-          },
-          async ({ controller, rootMessenger }) => {
-            rootMessenger.registerActionHandler(
-              'RampsService:getTokens',
-              async () => ({ topTokens: [], allTokens: [] }),
-            );
-            rootMessenger.registerActionHandler(
-              'RampsService:getProviders',
-              async () => ({ providers: [] }),
-            );
-
-            const result = controller.triggerSetUserRegion('us-ca');
-            expect(result).toBeUndefined();
-
-            await new Promise((resolve) => setTimeout(resolve, 10));
-            expect(controller.state.userRegion?.regionCode).toBe('us-ca');
-          },
-        );
-      });
-
-      it('does not throw when set fails', async () => {
-        await withController(async ({ controller }) => {
-          expect(() => controller.triggerSetUserRegion('us-ca')).not.toThrow();
-        });
-      });
-    });
-
-    describe('triggerGetCountries', () => {
-      it('triggers get countries and returns void', async () => {
-        await withController(async ({ controller, rootMessenger }) => {
-          rootMessenger.registerActionHandler(
-            'RampsService:getCountries',
-            async () => createMockCountries(),
-          );
-
-          const result = controller.triggerGetCountries();
-          expect(result).toBeUndefined();
-        });
-      });
-
-      it('does not throw when fetch fails', async () => {
-        await withController(async ({ controller, rootMessenger }) => {
-          rootMessenger.registerActionHandler(
-            'RampsService:getCountries',
-            async () => {
-              throw new Error('countries failed');
-            },
-          );
-
-          expect(() => controller.triggerGetCountries()).not.toThrow();
-        });
-      });
-    });
-
-    describe('triggerGetTokens', () => {
-      it('triggers get tokens and returns void', async () => {
-        await withController(
-          { options: { state: { userRegion: createMockUserRegion('us-ca') } } },
-          async ({ controller, rootMessenger }) => {
-            rootMessenger.registerActionHandler(
-              'RampsService:getTokens',
-              async () => ({ topTokens: [], allTokens: [] }),
-            );
-
-            const result = controller.triggerGetTokens();
-            expect(result).toBeUndefined();
-
-            await new Promise((resolve) => setTimeout(resolve, 10));
-            expect(controller.state.tokens).toStrictEqual({
-              topTokens: [],
-              allTokens: [],
-            });
-          },
-        );
-      });
-
-      it('does not throw when fetch fails', async () => {
-        await withController(
-          { options: { state: { userRegion: createMockUserRegion('us-ca') } } },
-          async ({ controller, rootMessenger }) => {
-            rootMessenger.registerActionHandler(
-              'RampsService:getTokens',
-              async () => {
-                throw new Error('tokens failed');
-              },
-            );
-
-            expect(() => controller.triggerGetTokens()).not.toThrow();
-          },
-        );
-      });
-    });
-
-    describe('triggerGetProviders', () => {
-      it('triggers get providers and returns void', async () => {
-        await withController(
-          { options: { state: { userRegion: createMockUserRegion('us-ca') } } },
-          async ({ controller, rootMessenger }) => {
-            rootMessenger.registerActionHandler(
-              'RampsService:getProviders',
-              async () => ({ providers: [] }),
-            );
-
-            const result = controller.triggerGetProviders();
-            expect(result).toBeUndefined();
-
-            await new Promise((resolve) => setTimeout(resolve, 10));
-            expect(controller.state.providers).toStrictEqual([]);
-          },
-        );
-      });
-
-      it('does not throw when fetch fails', async () => {
-        await withController(
-          { options: { state: { userRegion: createMockUserRegion('us-ca') } } },
-          async ({ controller, rootMessenger }) => {
-            rootMessenger.registerActionHandler(
-              'RampsService:getProviders',
-              async () => {
-                throw new Error('providers failed');
-              },
-            );
-
-            expect(() => controller.triggerGetProviders()).not.toThrow();
-          },
-        );
-      });
-    });
-  });
-
   describe('getCountries', () => {
     const mockCountries: Country[] = [
       {
@@ -1186,6 +1086,22 @@ describe('RampsController', () => {
         await expect(controller.init()).rejects.toThrow(
           'Countries fetch error',
         );
+      });
+    });
+
+    it('sets userRegionError to Unknown error when error has no message', async () => {
+      await withController(async ({ controller, rootMessenger }) => {
+        rootMessenger.registerActionHandler(
+          'RampsService:getCountries',
+          async () => {
+            throw { code: 'ERR_NO_MESSAGE' };
+          },
+        );
+
+        await expect(controller.init()).rejects.toMatchObject({
+          code: 'ERR_NO_MESSAGE',
+        });
+        expect(controller.state.userRegionError).toBe('Unknown error');
       });
     });
   });
@@ -3501,88 +3417,6 @@ describe('RampsController', () => {
     });
   });
 
-  describe('triggerGetPaymentMethods', () => {
-    const mockPaymentMethod: PaymentMethod = {
-      id: '/payments/debit-credit-card',
-      paymentType: 'debit-credit-card',
-      name: 'Debit or Credit',
-      score: 90,
-      icon: 'card',
-    };
-
-    const mockPaymentMethodsResponse: PaymentMethodsResponse = {
-      payments: [mockPaymentMethod],
-    };
-
-    const mockSelectedToken: RampsToken = {
-      assetId: 'eip155:1/slip44:60',
-      chainId: 'eip155:1',
-      name: 'Ethereum',
-      symbol: 'ETH',
-      decimals: 18,
-      iconUrl: 'https://example.com/eth.png',
-      tokenSupported: true,
-    };
-
-    const mockSelectedProvider: Provider = {
-      id: '/providers/stripe',
-      name: 'Stripe',
-      environmentType: 'PRODUCTION',
-      description: 'Stripe payment provider',
-      hqAddress: '123 Test St',
-      links: [],
-      logos: {
-        light: '/assets/stripe_light.png',
-        dark: '/assets/stripe_dark.png',
-        height: 24,
-        width: 77,
-      },
-    };
-
-    it('calls getPaymentMethods without throwing', async () => {
-      await withController(
-        {
-          options: {
-            state: {
-              userRegion: createMockUserRegion('us-ca'),
-              selectedToken: mockSelectedToken,
-              selectedProvider: mockSelectedProvider,
-            },
-          },
-        },
-        async ({ controller, rootMessenger }) => {
-          rootMessenger.registerActionHandler(
-            'RampsService:getPaymentMethods',
-            async () => mockPaymentMethodsResponse,
-          );
-
-          controller.triggerGetPaymentMethods('us-ca', {
-            assetId: 'eip155:1/slip44:60',
-            provider: '/providers/stripe',
-          });
-
-          await new Promise((resolve) => setTimeout(resolve, 0));
-
-          expect(controller.state.paymentMethods).toStrictEqual([
-            mockPaymentMethod,
-          ]);
-        },
-      );
-    });
-
-    it('does not throw when getPaymentMethods fails', async () => {
-      await withController(async ({ controller }) => {
-        expect(() => {
-          controller.triggerGetPaymentMethods('us-ca', {
-            assetId: 'eip155:1/slip44:60',
-            provider: '/providers/stripe',
-          });
-        }).not.toThrow();
-
-        await new Promise((resolve) => setTimeout(resolve, 0));
-      });
-    });
-  });
 });
 
 /**
