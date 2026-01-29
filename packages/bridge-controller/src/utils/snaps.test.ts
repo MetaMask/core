@@ -1,6 +1,10 @@
+import { SolScope } from '@metamask/keyring-api';
 import { v4 as uuid } from 'uuid';
 
-import { computeFeeRequest } from './snaps';
+import {
+  getMinimumBalanceForRentExemptionRequest,
+  computeFeeRequest,
+} from './snaps';
 
 jest.mock('uuid', () => ({
   v4: jest.fn(),
@@ -10,6 +14,29 @@ describe('Snaps Utils', () => {
   beforeEach(() => {
     jest.clearAllMocks();
     (uuid as jest.Mock).mockReturnValue('test-uuid-1234');
+  });
+
+  describe('getMinimumBalanceForRentExemptionRequest', () => {
+    it('should create a proper request for getting minimum balance for rent exemption', () => {
+      const snapId = 'test-snap-id';
+      const result = getMinimumBalanceForRentExemptionRequest(snapId);
+
+      expect(result.snapId).toBe(snapId);
+      expect(result.origin).toBe('metamask');
+      expect(result.handler).toBe('onProtocolRequest');
+      expect(result.request.method).toBe(' ');
+      expect(result.request.jsonrpc).toBe('2.0');
+      expect(result.request.params.scope).toBe(SolScope.Mainnet);
+      expect(result.request.params.request.id).toBe('test-uuid-1234');
+      expect(result.request.params.request.jsonrpc).toBe('2.0');
+      expect(result.request.params.request.method).toBe(
+        'getMinimumBalanceForRentExemption',
+      );
+      expect(result.request.params.request.params).toStrictEqual([
+        0,
+        { commitment: 'confirmed' },
+      ]);
+    });
   });
 
   describe('computeFeeRequest', () => {

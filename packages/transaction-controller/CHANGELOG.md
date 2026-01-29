@@ -7,6 +7,12 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+## [62.12.0]
+
+### Added
+
+- Add `musdClaim` transaction type ([#7723](https://github.com/MetaMask/core/pull/7723))
+
 ## [62.11.0]
 
 ### Added
@@ -2116,7 +2122,8 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
     All changes listed after this point were applied to this package following the monorepo conversion.
 
-[Unreleased]: https://github.com/MetaMask/core/compare/@metamask/transaction-controller@62.11.0...HEAD
+[Unreleased]: https://github.com/MetaMask/core/compare/@metamask/transaction-controller@62.12.0...HEAD
+[62.12.0]: https://github.com/MetaMask/core/compare/@metamask/transaction-controller@62.11.0...@metamask/transaction-controller@62.12.0
 [62.11.0]: https://github.com/MetaMask/core/compare/@metamask/transaction-controller@62.10.0...@metamask/transaction-controller@62.11.0
 [62.10.0]: https://github.com/MetaMask/core/compare/@metamask/transaction-controller@62.9.2...@metamask/transaction-controller@62.10.0
 [62.9.2]: https://github.com/MetaMask/core/compare/@metamask/transaction-controller@62.9.1...@metamask/transaction-controller@62.9.2

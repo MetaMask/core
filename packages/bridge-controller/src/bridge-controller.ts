@@ -39,6 +39,7 @@ import {
   isCrossChain,
   isEthUsdt,
   isNonEvmChainId,
+  isSolanaChainId,
 } from './utils/bridge';
 import {
   formatAddressToCaipReference,
@@ -76,6 +77,7 @@ import type {
 import type { CrossChainSwapsEventProperties } from './utils/metrics/types';
 import { isValidQuoteRequest, sortQuotes } from './utils/quote';
 import { appendFeesToQuotes } from './utils/quote-fees';
+import { getMinimumBalanceForRentExemptionInLamports } from './utils/snaps';
 import type { FeatureId } from './utils/validators';
 
 const metadata: StateMetadata<BridgeControllerState> = {
@@ -122,6 +124,12 @@ const metadata: StateMetadata<BridgeControllerState> = {
     usedInUi: true,
   },
   assetExchangeRates: {
+    includeInStateLogs: true,
+    persist: false,
+    includeInDebugSnapshot: false,
+    usedInUi: true,
+  },
+  minimumBalanceForRentExemptionInLamports: {
     includeInStateLogs: true,
     persist: false,
     includeInDebugSnapshot: false,
@@ -552,6 +560,8 @@ export class BridgeController extends StaticIntervalPollingController<BridgePoll
         DEFAULT_BRIDGE_CONTROLLER_STATE.quotesRefreshCount;
       state.assetExchangeRates =
         DEFAULT_BRIDGE_CONTROLLER_STATE.assetExchangeRates;
+      state.minimumBalanceForRentExemptionInLamports =
+        DEFAULT_BRIDGE_CONTROLLER_STATE.minimumBalanceForRentExemptionInLamports;
     });
   };
 
@@ -611,6 +621,12 @@ export class BridgeController extends StaticIntervalPollingController<BridgePoll
         async () => {
           const selectedAccount = this.#getMultichainSelectedAccount(
             updatedQuoteRequest.walletAddress,
+          );
+          // This call is not awaited to prevent blocking quote fetching if the snap takes too long to respond
+          // eslint-disable-next-line @typescript-eslint/no-floating-promises
+          this.#setMinimumBalanceForRentExemptionInLamports(
+            updatedQuoteRequest.srcChainId,
+            selectedAccount?.metadata?.snap?.id,
           );
           // Use SSE if enabled and return early
           if (shouldStream) {
@@ -781,6 +797,21 @@ export class BridgeController extends StaticIntervalPollingController<BridgePoll
       },
       this.#clientVersion,
     );
+  };
+
+  readonly #setMinimumBalanceForRentExemptionInLamports = async (
+    srcChainId: GenericQuoteRequest['srcChainId'],
+    snapId?: string,
+  ) => {
+    if (!isSolanaChainId(srcChainId) || !snapId) {
+      return;
+    }
+    const minimumBalanceForRentExemptionInLamports =
+      await getMinimumBalanceForRentExemptionInLamports(snapId, this.messenger);
+    this.update((state) => {
+      state.minimumBalanceForRentExemptionInLamports =
+        minimumBalanceForRentExemptionInLamports;
+    });
   };
 
   #getMultichainSelectedAccount(

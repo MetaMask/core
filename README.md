@@ -25,6 +25,7 @@ Each package in this repository has its own README where you can find installati
 - [`@metamask/address-book-controller`](packages/address-book-controller)
 - [`@metamask/ai-controllers`](packages/ai-controllers)
 - [`@metamask/analytics-controller`](packages/analytics-controller)
+- [`@metamask/analytics-data-regulation-controller`](packages/analytics-data-regulation-controller)
 - [`@metamask/announcement-controller`](packages/announcement-controller)
 - [`@metamask/app-metadata-controller`](packages/app-metadata-controller)
 - [`@metamask/approval-controller`](packages/approval-controller)
@@ -103,6 +104,7 @@ linkStyle default opacity:0.5
   address_book_controller(["@metamask/address-book-controller"]);
   ai_controllers(["@metamask/ai-controllers"]);
   analytics_controller(["@metamask/analytics-controller"]);
+  analytics_data_regulation_controller(["@metamask/analytics-data-regulation-controller"]);
   announcement_controller(["@metamask/announcement-controller"]);
   app_metadata_controller(["@metamask/app-metadata-controller"]);
   approval_controller(["@metamask/approval-controller"]);
