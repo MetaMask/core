@@ -440,28 +440,43 @@ describe('RampsController', () => {
           ),
         ).toMatchInlineSnapshot(`
           Object {
-            "countries": Array [],
-            "countriesError": null,
-            "countriesLoading": false,
-            "paymentMethods": Array [],
-            "paymentMethodsError": null,
-            "paymentMethodsLoading": false,
-            "providers": Array [],
-            "providersError": null,
-            "providersLoading": false,
-            "quotes": null,
-            "quotesError": null,
-            "quotesLoading": false,
+            "countries": Object {
+              "data": Array [],
+              "error": null,
+              "isLoading": false,
+              "selected": null,
+            },
+            "paymentMethods": Object {
+              "data": Array [],
+              "error": null,
+              "isLoading": false,
+              "selected": null,
+            },
+            "providers": Object {
+              "data": Array [],
+              "error": null,
+              "isLoading": false,
+              "selected": null,
+            },
+            "quotes": Object {
+              "data": null,
+              "error": null,
+              "isLoading": false,
+              "selected": null,
+            },
             "requests": Object {},
-            "selectedPaymentMethod": null,
-            "selectedProvider": null,
-            "selectedToken": null,
-            "tokens": null,
-            "tokensError": null,
-            "tokensLoading": false,
-            "userRegion": null,
-            "userRegionError": null,
-            "userRegionLoading": false,
+            "tokens": Object {
+              "data": null,
+              "error": null,
+              "isLoading": false,
+              "selected": null,
+            },
+            "userRegion": Object {
+              "data": null,
+              "error": null,
+              "isLoading": false,
+              "selected": null,
+            },
           }
         `);
       });
@@ -477,14 +492,36 @@ describe('RampsController', () => {
           ),
         ).toMatchInlineSnapshot(`
           Object {
-            "countries": Array [],
-            "paymentMethods": Array [],
-            "providers": Array [],
-            "selectedPaymentMethod": null,
-            "selectedProvider": null,
-            "selectedToken": null,
-            "tokens": null,
-            "userRegion": null,
+            "countries": Object {
+              "data": Array [],
+              "error": null,
+              "isLoading": false,
+              "selected": null,
+            },
+            "paymentMethods": Object {
+              "data": Array [],
+              "error": null,
+              "isLoading": false,
+              "selected": null,
+            },
+            "providers": Object {
+              "data": Array [],
+              "error": null,
+              "isLoading": false,
+              "selected": null,
+            },
+            "tokens": Object {
+              "data": null,
+              "error": null,
+              "isLoading": false,
+              "selected": null,
+            },
+            "userRegion": Object {
+              "data": null,
+              "error": null,
+              "isLoading": false,
+              "selected": null,
+            },
           }
         `);
       });
@@ -500,10 +537,30 @@ describe('RampsController', () => {
           ),
         ).toMatchInlineSnapshot(`
           Object {
-            "countries": Array [],
-            "providers": Array [],
-            "tokens": null,
-            "userRegion": null,
+            "countries": Object {
+              "data": Array [],
+              "error": null,
+              "isLoading": false,
+              "selected": null,
+            },
+            "providers": Object {
+              "data": Array [],
+              "error": null,
+              "isLoading": false,
+              "selected": null,
+            },
+            "tokens": Object {
+              "data": null,
+              "error": null,
+              "isLoading": false,
+              "selected": null,
+            },
+            "userRegion": Object {
+              "data": null,
+              "error": null,
+              "isLoading": false,
+              "selected": null,
+            },
           }
         `);
       });
@@ -519,28 +576,43 @@ describe('RampsController', () => {
           ),
         ).toMatchInlineSnapshot(`
           Object {
-            "countries": Array [],
-            "countriesError": null,
-            "countriesLoading": false,
-            "paymentMethods": Array [],
-            "paymentMethodsError": null,
-            "paymentMethodsLoading": false,
-            "providers": Array [],
-            "providersError": null,
-            "providersLoading": false,
-            "quotes": null,
-            "quotesError": null,
-            "quotesLoading": false,
+            "countries": Object {
+              "data": Array [],
+              "error": null,
+              "isLoading": false,
+              "selected": null,
+            },
+            "paymentMethods": Object {
+              "data": Array [],
+              "error": null,
+              "isLoading": false,
+              "selected": null,
+            },
+            "providers": Object {
+              "data": Array [],
+              "error": null,
+              "isLoading": false,
+              "selected": null,
+            },
+            "quotes": Object {
+              "data": null,
+              "error": null,
+              "isLoading": false,
+              "selected": null,
+            },
             "requests": Object {},
-            "selectedPaymentMethod": null,
-            "selectedProvider": null,
-            "selectedToken": null,
-            "tokens": null,
-            "tokensError": null,
-            "tokensLoading": false,
-            "userRegion": null,
-            "userRegionError": null,
-            "userRegionLoading": false,
+            "tokens": Object {
+              "data": null,
+              "error": null,
+              "isLoading": false,
+              "selected": null,
+            },
+            "userRegion": Object {
+              "data": null,
+              "error": null,
+              "isLoading": false,
+              "selected": null,
+            },
           }
         `);
       });
