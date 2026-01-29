@@ -29,6 +29,7 @@ import type {
   RequestState,
   ExecuteRequestOptions,
   PendingRequest,
+  ResourceType,
 } from './RequestCache';
 import {
   DEFAULT_REQUEST_CACHE_TTL,
@@ -119,6 +120,46 @@ export type RampsControllerState = {
    * This stores loading, success, and error states for API requests.
    */
   requests: RequestCacheType;
+  /**
+   * Whether user region is currently being fetched.
+   */
+  userRegionLoading: boolean;
+  /**
+   * Error message if the user region fetch failed, or null.
+   */
+  userRegionError: string | null;
+  /**
+   * Whether countries are currently being fetched.
+   */
+  countriesLoading: boolean;
+  /**
+   * Error message if the countries fetch failed, or null.
+   */
+  countriesError: string | null;
+  /**
+   * Whether providers are currently being fetched.
+   */
+  providersLoading: boolean;
+  /**
+   * Error message if the providers fetch failed, or null.
+   */
+  providersError: string | null;
+  /**
+   * Whether tokens are currently being fetched.
+   */
+  tokensLoading: boolean;
+  /**
+   * Error message if the tokens fetch failed, or null.
+   */
+  tokensError: string | null;
+  /**
+   * Whether payment methods are currently being fetched.
+   */
+  paymentMethodsLoading: boolean;
+  /**
+   * Error message if the payment methods fetch failed, or null.
+   */
+  paymentMethodsError: string | null;
 };
 
 /**
@@ -179,6 +220,66 @@ const rampsControllerMetadata = {
     includeInStateLogs: false,
     usedInUi: true,
   },
+  userRegionLoading: {
+    persist: false,
+    includeInDebugSnapshot: true,
+    includeInStateLogs: false,
+    usedInUi: true,
+  },
+  userRegionError: {
+    persist: false,
+    includeInDebugSnapshot: true,
+    includeInStateLogs: false,
+    usedInUi: true,
+  },
+  countriesLoading: {
+    persist: false,
+    includeInDebugSnapshot: true,
+    includeInStateLogs: false,
+    usedInUi: true,
+  },
+  countriesError: {
+    persist: false,
+    includeInDebugSnapshot: true,
+    includeInStateLogs: false,
+    usedInUi: true,
+  },
+  providersLoading: {
+    persist: false,
+    includeInDebugSnapshot: true,
+    includeInStateLogs: false,
+    usedInUi: true,
+  },
+  providersError: {
+    persist: false,
+    includeInDebugSnapshot: true,
+    includeInStateLogs: false,
+    usedInUi: true,
+  },
+  tokensLoading: {
+    persist: false,
+    includeInDebugSnapshot: true,
+    includeInStateLogs: false,
+    usedInUi: true,
+  },
+  tokensError: {
+    persist: false,
+    includeInDebugSnapshot: true,
+    includeInStateLogs: false,
+    usedInUi: true,
+  },
+  paymentMethodsLoading: {
+    persist: false,
+    includeInDebugSnapshot: true,
+    includeInStateLogs: false,
+    usedInUi: true,
+  },
+  paymentMethodsError: {
+    persist: false,
+    includeInDebugSnapshot: true,
+    includeInStateLogs: false,
+    usedInUi: true,
+  },
 } satisfies StateMetadata<RampsControllerState>;
 
 /**
@@ -200,6 +301,16 @@ export function getDefaultRampsControllerState(): RampsControllerState {
     paymentMethods: [],
     selectedPaymentMethod: null,
     requests: {},
+    userRegionLoading: false,
+    userRegionError: null,
+    countriesLoading: false,
+    countriesError: null,
+    providersLoading: false,
+    providersError: null,
+    tokensLoading: false,
+    tokensError: null,
+    paymentMethodsLoading: false,
+    paymentMethodsError: null,
   };
 }
 
@@ -427,9 +538,15 @@ export class RampsController extends BaseController<
     // Create abort controller for this request
     const abortController = new AbortController();
     const lastFetchedAt = Date.now();
+    const { resourceType } = options ?? {};
 
     // Update state to loading
     this.#updateRequestState(cacheKey, createLoadingState());
+
+    // Set resource-level loading state (only on cache miss)
+    if (resourceType) {
+      this.#setResourceLoading(resourceType, true);
+    }
 
     // Create the fetch promise
     const promise = (async (): Promise<TResult> => {
@@ -445,6 +562,12 @@ export class RampsController extends BaseController<
           cacheKey,
           createSuccessState(data as Json, lastFetchedAt),
         );
+
+        // Clear error on success
+        if (resourceType) {
+          this.#setResourceError(resourceType, null);
+        }
+
         return data;
       } catch (error) {
         // Don't update state if aborted
@@ -452,18 +575,29 @@ export class RampsController extends BaseController<
           throw error;
         }
 
-        const errorMessage = (error as Error)?.message;
+        const errorMessage = (error as Error)?.message ?? 'Unknown error';
 
         this.#updateRequestState(
           cacheKey,
-          createErrorState(errorMessage ?? 'Unknown error', lastFetchedAt),
+          createErrorState(errorMessage, lastFetchedAt),
         );
+
+        // Set resource-level error
+        if (resourceType) {
+          this.#setResourceError(resourceType, errorMessage);
+        }
+
         throw error;
       } finally {
         // Only delete if this is still our entry (not replaced by a new request)
         const currentPending = this.#pendingRequests.get(cacheKey);
         if (currentPending?.abortController === abortController) {
           this.#pendingRequests.delete(cacheKey);
+        }
+
+        // Clear resource-level loading state
+        if (resourceType) {
+          this.#setResourceLoading(resourceType, false);
         }
       }
     })();
@@ -515,6 +649,62 @@ export class RampsController extends BaseController<
       state.providers = [];
       state.paymentMethods = [];
       state.selectedPaymentMethod = null;
+    });
+  }
+
+  /**
+   * Sets the loading state for a resource type.
+   *
+   * @param resourceType - The type of resource.
+   * @param loading - Whether the resource is loading.
+   */
+  #setResourceLoading(resourceType: ResourceType, loading: boolean): void {
+    this.update((state) => {
+      switch (resourceType) {
+        case 'userRegion':
+          state.userRegionLoading = loading;
+          break;
+        case 'countries':
+          state.countriesLoading = loading;
+          break;
+        case 'providers':
+          state.providersLoading = loading;
+          break;
+        case 'tokens':
+          state.tokensLoading = loading;
+          break;
+        case 'paymentMethods':
+          state.paymentMethodsLoading = loading;
+          break;
+      }
+    });
+  }
+
+  /**
+   * Sets the error state for a resource type.
+   *
+   * @param resourceType - The type of resource.
+   * @param error - The error message, or null to clear.
+   */
+  #setResourceError(resourceType: ResourceType, error: string | null): void {
+    this.update((state) => {
+      switch (resourceType) {
+        case 'userRegion':
+          state.userRegionError = error;
+          break;
+        case 'countries':
+          state.countriesError = error;
+          break;
+        case 'providers':
+          state.providersError = error;
+          break;
+        case 'tokens':
+          state.tokensError = error;
+          break;
+        case 'paymentMethods':
+          state.paymentMethodsError = error;
+          break;
+      }
     });
   }
 
@@ -709,18 +899,31 @@ export class RampsController extends BaseController<
    * @returns Promise that resolves when initialization is complete.
    */
   async init(options?: ExecuteRequestOptions): Promise<void> {
-    await this.getCountries(options);
+    this.#setResourceLoading('userRegion', true);
 
-    let regionCode = this.state.userRegion?.regionCode;
-    regionCode ??= await this.messenger.call('RampsService:getGeolocation');
+    try {
+      await this.getCountries(options);
 
-    if (!regionCode) {
-      throw new Error(
-        'Failed to fetch geolocation. Cannot initialize controller without valid region information.',
+      let regionCode = this.state.userRegion?.regionCode;
+      regionCode ??= await this.messenger.call('RampsService:getGeolocation');
+
+      if (!regionCode) {
+        throw new Error(
+          'Failed to fetch geolocation. Cannot initialize controller without valid region information.',
+        );
+      }
+
+      await this.setUserRegion(regionCode, options);
+      this.#setResourceError('userRegion', null);
+    } catch (error) {
+      this.#setResourceError(
+        'userRegion',
+        (error as Error)?.message ?? 'Unknown error',
       );
+      throw error;
+    } finally {
+      this.#setResourceLoading('userRegion', false);
     }
-
-    await this.setUserRegion(regionCode, options);
   }
 
   hydrateState(options?: ExecuteRequestOptions): void {
@@ -751,7 +954,7 @@ export class RampsController extends BaseController<
       async () => {
         return this.messenger.call('RampsService:getCountries');
       },
-      options,
+      { ...options, resourceType: 'countries' },
     );
 
     this.update((state) => {
@@ -805,7 +1008,7 @@ export class RampsController extends BaseController<
           },
         );
       },
-      options,
+      { ...options, resourceType: 'tokens' },
     );
 
     this.update((state) => {
@@ -924,7 +1127,7 @@ export class RampsController extends BaseController<
           },
         );
       },
-      options,
+      { ...options, resourceType: 'providers' },
     );
 
     this.update((state) => {
@@ -996,7 +1199,7 @@ export class RampsController extends BaseController<
           provider: providerToUse,
         });
       },
-      options,
+      { ...options, resourceType: 'paymentMethods' },
     );
 
     this.update((state) => {

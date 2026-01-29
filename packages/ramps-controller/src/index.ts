@@ -43,6 +43,7 @@ export type {
   RequestState,
   ExecuteRequestOptions,
   PendingRequest,
+  ResourceType,
 } from './RequestCache';
 export {
   RequestStatus,

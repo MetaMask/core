@@ -1,6 +1,16 @@
 import type { Json } from '@metamask/utils';
 
 /**
+ * Types of resources that can have loading/error states.
+ */
+export type ResourceType =
+  | 'userRegion'
+  | 'countries'
+  | 'providers'
+  | 'tokens'
+  | 'paymentMethods';
+
+/**
  * Status of a cached request.
  */
 export enum RequestStatus {
@@ -135,6 +145,8 @@ export type ExecuteRequestOptions = {
   forceRefresh?: boolean;
   /** Custom TTL for this request in milliseconds */
   ttl?: number;
+  /** Resource type to update loading/error states for */
+  resourceType?: ResourceType;
 };
 
 /**
