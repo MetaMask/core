@@ -7,15 +7,18 @@ export type {
   TransactionPayControllerMessenger,
   TransactionPayControllerOptions,
   TransactionPayControllerSetIsMaxAmountAction,
+  TransactionPayControllerSetIsPostQuoteAction,
   TransactionPayControllerState,
   TransactionPayControllerStateChangeEvent,
   TransactionPayControllerUpdatePaymentTokenAction,
+  TransactionPayControllerUpdateSelectedTokenAction,
   TransactionPaymentToken,
   TransactionPayQuote,
   TransactionPayRequiredToken,
   TransactionPaySourceAmount,
   TransactionPayTotals,
   UpdatePaymentTokenRequest,
+  UpdateSelectedTokenRequest,
 } from './types';
 export { TransactionPayStrategy } from './constants';
 export { TransactionPayController } from './TransactionPayController';

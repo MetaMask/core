@@ -85,6 +85,18 @@ export type TransactionPayControllerUpdatePaymentTokenAction = {
   handler: (request: UpdatePaymentTokenRequest) => void;
 };
 
+/** Action to update the selected token for a transaction (used for withdrawals). */
+export type TransactionPayControllerUpdateSelectedTokenAction = {
+  type: `${typeof CONTROLLER_NAME}:updateSelectedToken`;
+  handler: (request: UpdateSelectedTokenRequest) => void;
+};
+
+/** Action to set the post-quote flag for a transaction. */
+export type TransactionPayControllerSetIsPostQuoteAction = {
+  type: `${typeof CONTROLLER_NAME}:setIsPostQuote`;
+  handler: (transactionId: string, isPostQuote: boolean) => void;
+};
+
 /** Action to set the max amount flag for a transaction. */
 export type TransactionPayControllerSetIsMaxAmountAction = {
   type: `${typeof CONTROLLER_NAME}:setIsMaxAmount`;
@@ -102,7 +114,9 @@ export type TransactionPayControllerActions =
   | TransactionPayControllerGetStateAction
   | TransactionPayControllerGetStrategyAction
   | TransactionPayControllerSetIsMaxAmountAction
-  | TransactionPayControllerUpdatePaymentTokenAction;
+  | TransactionPayControllerSetIsPostQuoteAction
+  | TransactionPayControllerUpdatePaymentTokenAction
+  | TransactionPayControllerUpdateSelectedTokenAction;
 
 export type TransactionPayControllerEvents =
   TransactionPayControllerStateChangeEvent;
@@ -142,7 +156,26 @@ export type TransactionData = {
   /** Whether the user has selected the maximum amount. */
   isMaxAmount?: boolean;
 
-  /** Source token selected for the transaction. */
+  /**
+   * Whether this is a post-quote transaction (e.g., withdrawal flow).
+   * When true, the selectedToken represents the destination token,
+   * and the quote source is derived from the transaction's native token.
+   * Used for Predict/Perps withdrawals where funds flow:
+   * withdrawal → bridge/swap → destination token
+   */
+  isPostQuote?: boolean;
+
+  /**
+   * Token selected for the transaction.
+   * - For deposits (isPostQuote=false): This is the SOURCE/payment token
+   * - For withdrawals (isPostQuote=true): This is the DESTINATION token
+   */
+  selectedToken?: TransactionPaymentToken;
+
+  /**
+   * @deprecated Use selectedToken instead. Kept for backwards compatibility.
+   * Source token selected for the transaction.
+   */
   paymentToken?: TransactionPaymentToken;
 
   /** Quotes retrieved for the transaction. */
@@ -447,6 +480,18 @@ export type UpdatePaymentTokenRequest = {
   tokenAddress: Hex;
 
   /** Chain ID of the new payment token. */
+  chainId: Hex;
+};
+
+/** Request to update the selected token for a transaction (used for withdrawals). */
+export type UpdateSelectedTokenRequest = {
+  /** ID of the transaction to update. */
+  transactionId: string;
+
+  /** Address of the selected token. */
+  tokenAddress: Hex;
+
+  /** Chain ID of the selected token. */
   chainId: Hex;
 };
 

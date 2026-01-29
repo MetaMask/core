@@ -7,6 +7,11 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+### Added
+
+- Add `isPostQuote` and `selectedToken` fields to `TransactionData` type for withdrawal flows ([#7773](https://github.com/MetaMask/core/pull/7773))
+- Add `UpdateSelectedTokenRequest` type and related action types ([#7773](https://github.com/MetaMask/core/pull/7773))
+
 ## [12.0.2]
 
 ### Changed
