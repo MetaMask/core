@@ -9,7 +9,7 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ### Added
 
-- Added SubscriptionController `clearLastSelectedPaymentMethod` method and udpate `lastSelectedPaymentMethod` property to have nullable value ([#7768](https://github.com/MetaMask/core/pull/7768))
+- Added SubscriptionController `clearLastSelectedPaymentMethod` method ([#7768](https://github.com/MetaMask/core/pull/7768))
 
 ### Changed
 
