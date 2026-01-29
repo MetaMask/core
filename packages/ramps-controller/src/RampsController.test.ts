@@ -3991,7 +3991,7 @@ describe('RampsController', () => {
           },
         },
         async ({ controller, rootMessenger }) => {
-          let regionChangeResolve: () => void;
+          let regionChangeResolve: (() => void) | undefined;
           const regionChangePromise = new Promise<void>((resolve) => {
             regionChangeResolve = resolve;
           });
@@ -4015,7 +4015,9 @@ describe('RampsController', () => {
           await controller.setUserRegion('fr');
 
           // Resolve the quotes request
-          regionChangeResolve!();
+          if (regionChangeResolve) {
+            regionChangeResolve();
+          }
           await quotesPromise;
 
           // Quotes should not be updated because region changed
