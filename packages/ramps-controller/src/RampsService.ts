@@ -1060,14 +1060,10 @@ export class RampsService {
 
     // Build region ID in the format expected by the API
     url.searchParams.set('region', normalizedRegion);
-    url.searchParams.set(
-      'fiat',
-      normalizedFiat,
-    );
+    url.searchParams.set('fiat', normalizedFiat);
     url.searchParams.set('crypto', params.assetId);
     url.searchParams.set('amount', String(params.amount));
     url.searchParams.set('walletAddress', params.walletAddress);
-
 
     // Add payment methods as array parameters
     params.paymentMethods.forEach((paymentMethod) => {
@@ -1099,7 +1095,12 @@ export class RampsService {
       throw new Error('Malformed response received from quotes API');
     }
 
-    if (!Array.isArray(response.success)) {
+    if (
+      !Array.isArray(response.success) ||
+      !Array.isArray(response.sorted) ||
+      !Array.isArray(response.error) ||
+      !Array.isArray(response.customActions)
+    ) {
       throw new Error('Malformed response received from quotes API');
     }
 

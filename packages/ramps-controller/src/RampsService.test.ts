@@ -1787,10 +1787,7 @@ describe('RampsService', () => {
           crypto: 'eip155:1/slip44:60',
           amount: '100',
           walletAddress: '0x1234567890abcdef1234567890abcdef12345678',
-          payments: [
-            '/payments/debit-credit-card',
-            '/payments/bank-transfer',
-          ],
+          payments: ['/payments/debit-credit-card', '/payments/bank-transfer'],
         })
         .reply(200, mockQuotesResponse);
       const { service } = getService();
@@ -2001,6 +1998,123 @@ describe('RampsService', () => {
           payments: '/payments/debit-credit-card',
         })
         .reply(200, { success: 'not an array', sorted: [], error: [] });
+      const { service } = getService();
+
+      const quotesPromise = service.getQuotes({
+        region: 'us',
+        fiat: 'usd',
+        assetId: 'eip155:1/slip44:60',
+        amount: 100,
+        walletAddress: '0x1234567890abcdef1234567890abcdef12345678',
+        paymentMethods: ['/payments/debit-credit-card'],
+      });
+      await clock.runAllAsync();
+      await flushPromises();
+
+      await expect(quotesPromise).rejects.toThrow(
+        'Malformed response received from quotes API',
+      );
+    });
+
+    it('throws error when sorted is not an array', async () => {
+      nock('https://on-ramp.uat-api.cx.metamask.io')
+        .get('/v2/orders/all/quotes')
+        .query({
+          action: 'buy',
+          sdk: '2.1.6',
+          controller: CONTROLLER_VERSION,
+          context: 'mobile-ios',
+          region: 'us',
+          fiat: 'usd',
+          crypto: 'eip155:1/slip44:60',
+          amount: '100',
+          walletAddress: '0x1234567890abcdef1234567890abcdef12345678',
+          payments: '/payments/debit-credit-card',
+        })
+        .reply(200, {
+          success: [],
+          sorted: 'not an array',
+          error: [],
+          customActions: [],
+        });
+      const { service } = getService();
+
+      const quotesPromise = service.getQuotes({
+        region: 'us',
+        fiat: 'usd',
+        assetId: 'eip155:1/slip44:60',
+        amount: 100,
+        walletAddress: '0x1234567890abcdef1234567890abcdef12345678',
+        paymentMethods: ['/payments/debit-credit-card'],
+      });
+      await clock.runAllAsync();
+      await flushPromises();
+
+      await expect(quotesPromise).rejects.toThrow(
+        'Malformed response received from quotes API',
+      );
+    });
+
+    it('throws error when error is not an array', async () => {
+      nock('https://on-ramp.uat-api.cx.metamask.io')
+        .get('/v2/orders/all/quotes')
+        .query({
+          action: 'buy',
+          sdk: '2.1.6',
+          controller: CONTROLLER_VERSION,
+          context: 'mobile-ios',
+          region: 'us',
+          fiat: 'usd',
+          crypto: 'eip155:1/slip44:60',
+          amount: '100',
+          walletAddress: '0x1234567890abcdef1234567890abcdef12345678',
+          payments: '/payments/debit-credit-card',
+        })
+        .reply(200, {
+          success: [],
+          sorted: [],
+          error: 'not an array',
+          customActions: [],
+        });
+      const { service } = getService();
+
+      const quotesPromise = service.getQuotes({
+        region: 'us',
+        fiat: 'usd',
+        assetId: 'eip155:1/slip44:60',
+        amount: 100,
+        walletAddress: '0x1234567890abcdef1234567890abcdef12345678',
+        paymentMethods: ['/payments/debit-credit-card'],
+      });
+      await clock.runAllAsync();
+      await flushPromises();
+
+      await expect(quotesPromise).rejects.toThrow(
+        'Malformed response received from quotes API',
+      );
+    });
+
+    it('throws error when customActions is not an array', async () => {
+      nock('https://on-ramp.uat-api.cx.metamask.io')
+        .get('/v2/orders/all/quotes')
+        .query({
+          action: 'buy',
+          sdk: '2.1.6',
+          controller: CONTROLLER_VERSION,
+          context: 'mobile-ios',
+          region: 'us',
+          fiat: 'usd',
+          crypto: 'eip155:1/slip44:60',
+          amount: '100',
+          walletAddress: '0x1234567890abcdef1234567890abcdef12345678',
+          payments: '/payments/debit-credit-card',
+        })
+        .reply(200, {
+          success: [],
+          sorted: [],
+          error: [],
+          customActions: 'not an array',
+        });
       const { service } = getService();
 
       const quotesPromise = service.getQuotes({

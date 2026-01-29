@@ -1048,7 +1048,11 @@ export class RampsController extends BaseController<
     );
 
     this.update((state) => {
-      state.quotes = response;
+      const userRegionCode = state.userRegion?.regionCode;
+
+      if (userRegionCode === undefined || userRegionCode === normalizedRegion) {
+        state.quotes = response;
+      }
     });
 
     return response;

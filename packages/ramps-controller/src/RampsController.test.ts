@@ -3063,6 +3063,76 @@ describe('RampsController', () => {
         });
       });
     });
+
+    it('does not update state when region changes during request', async () => {
+      await withController(
+        {
+          options: {
+            state: {
+              userRegion: createMockUserRegion('us'),
+              countries: [
+                {
+                  isoCode: 'US',
+                  flag: '🇺🇸',
+                  name: 'United States',
+                  phone: { prefix: '+1', placeholder: '', template: '' },
+                  currency: 'USD',
+                  supported: { buy: true, sell: true },
+                },
+                {
+                  isoCode: 'FR',
+                  flag: '🇫🇷',
+                  name: 'France',
+                  phone: { prefix: '+33', placeholder: '', template: '' },
+                  currency: 'EUR',
+                  supported: { buy: true, sell: true },
+                },
+              ],
+              paymentMethods: [
+                {
+                  id: '/payments/debit-credit-card',
+                  paymentType: 'debit-credit-card',
+                  name: 'Debit or Credit',
+                  score: 90,
+                  icon: 'card',
+                },
+              ],
+            },
+          },
+        },
+        async ({ controller, rootMessenger }) => {
+          let regionChangeResolve: () => void;
+          const regionChangePromise = new Promise<void>((resolve) => {
+            regionChangeResolve = resolve;
+          });
+
+          rootMessenger.registerActionHandler(
+            'RampsService:getQuotes',
+            async () => {
+              // Simulate region change during request
+              await regionChangePromise;
+              return mockQuotesResponse;
+            },
+          );
+
+          const quotesPromise = controller.getQuotes({
+            assetId: 'eip155:1/slip44:60',
+            amount: 100,
+            walletAddress: '0x1234567890abcdef1234567890abcdef12345678',
+          });
+
+          // Change region while request is in flight
+          await controller.setUserRegion('fr');
+
+          // Resolve the quotes request
+          regionChangeResolve!();
+          await quotesPromise;
+
+          // Quotes should not be updated because region changed
+          expect(controller.state.quotes).toBeNull();
+        },
+      );
+    });
   });
 
   describe('getWidgetUrl', () => {
