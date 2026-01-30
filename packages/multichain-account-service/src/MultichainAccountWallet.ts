@@ -581,6 +581,7 @@ export class MultichainAccountWallet<
       waitForAllProvidersToFinishCreatingAccounts?: boolean;
     } = { waitForAllProvidersToFinishCreatingAccounts: false },
   ): Promise<(MultichainAccountGroup<Account> | null)[]> {
+    // TODO: We should not need nulls here, but EVM provider might fail to create some groups sometimes...
     return await this.#withLock('in-progress:create-accounts', async () => {
       // Validation.
       if (maxGroupIndex < 0) {

@@ -659,7 +659,8 @@ export class MultichainAccountService {
   }: {
     maxGroupIndex: number;
     entropySource: EntropySourceId;
-  }): Promise<MultichainAccountGroup<Bip44Account<KeyringAccount>>[]> {
+  }): Promise<(MultichainAccountGroup<Bip44Account<KeyringAccount>> | null)[]> {
+    // TODO: We should not need nulls here, but EVM provider might fail to create some groups sometimes...
     return await this.#getWallet(entropySource).createMultichainAccountGroups(
       maxGroupIndex,
     );

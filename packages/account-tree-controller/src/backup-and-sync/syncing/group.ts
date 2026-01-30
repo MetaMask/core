@@ -111,13 +111,17 @@ export const createMultichainAccountGroupsBatch = async (
     const createdGroupIds: string[] = [];
 
     for (const group of groups) {
-      createdGroupIds.push(group.id);
+      // TODO: A group should not be null here, but EVM provider might fail to create some groups sometimes, which means
+      // we can end up having an "empty group" for some time.
+      if (group) {
+        createdGroupIds.push(group.id);
 
-      // Emit analytics event.
-      context.emitAnalyticsEventFn({
-        action: analyticsAction,
-        profileId,
-      });
+        // Emit analytics event.
+        context.emitAnalyticsEventFn({
+          action: analyticsAction,
+          profileId,
+        });
+      }
     }
 
     backupAndSyncLogger(
