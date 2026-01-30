@@ -1762,7 +1762,7 @@ describe('SubscriptionController', () => {
     });
   });
 
-  describe('clearSubscriptionState', () => {
+  describe('clearState', () => {
     it('should reset state to default values', async () => {
       await withController(
         {
@@ -1787,7 +1787,7 @@ describe('SubscriptionController', () => {
             MOCK_PRICE_INFO_RESPONSE,
           );
 
-          controller.clearSubscriptionState();
+          controller.clearState();
 
           expect(controller.state).toStrictEqual(
             getDefaultSubscriptionControllerState(),

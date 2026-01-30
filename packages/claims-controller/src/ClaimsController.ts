@@ -295,7 +295,7 @@ export class ClaimsController extends BaseController<
   /**
    * Clears the claims state and resets to default values.
    */
-  clearClaimsState(): void {
+  clearState(): void {
     this.update(() => {
       return getDefaultClaimsControllerState();
     });

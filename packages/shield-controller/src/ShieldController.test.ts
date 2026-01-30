@@ -594,7 +594,7 @@ describe('ShieldController', () => {
     });
   });
 
-  describe('clearShieldState', () => {
+  describe('clearState', () => {
     it('should reset state to default values', () => {
       const txMeta = generateMockTxMeta();
       const { controller } = setup({
@@ -612,7 +612,7 @@ describe('ShieldController', () => {
       expect(Object.keys(controller.state.coverageResults)).toHaveLength(1);
       expect(controller.state.orderedTransactionHistory).toHaveLength(1);
 
-      controller.clearShieldState();
+      controller.clearState();
 
       expect(controller.state).toStrictEqual(getDefaultShieldControllerState());
       expect(Object.keys(controller.state.coverageResults)).toHaveLength(0);

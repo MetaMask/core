@@ -246,7 +246,7 @@ export class ShieldController extends BaseController<
   /**
    * Clears the shield state and resets to default values.
    */
-  clearShieldState(): void {
+  clearState(): void {
     this.update(() => {
       return getDefaultShieldControllerState();
     });

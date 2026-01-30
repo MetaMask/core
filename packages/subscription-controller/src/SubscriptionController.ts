@@ -909,7 +909,7 @@ export class SubscriptionController extends StaticIntervalPollingController()<
   /**
    * Clears the subscription state and resets to default values.
    */
-  clearSubscriptionState(): void {
+  clearState(): void {
     const defaultState = getDefaultSubscriptionControllerState();
     this.update(() => {
       return defaultState;

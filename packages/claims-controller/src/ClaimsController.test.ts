@@ -385,7 +385,7 @@ describe('ClaimsController', () => {
     });
   });
 
-  describe('clearClaimsState', () => {
+  describe('clearState', () => {
     it('should reset state to default values', async () => {
       await withController(
         {
@@ -401,7 +401,7 @@ describe('ClaimsController', () => {
           expect(controller.state.claims).toHaveLength(2);
           expect(controller.state.drafts).toHaveLength(2);
 
-          controller.clearClaimsState();
+          controller.clearState();
 
           expect(controller.state).toStrictEqual(
             getDefaultClaimsControllerState(),
