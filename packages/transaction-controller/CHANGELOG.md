@@ -9,17 +9,17 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ### Added
 
-- Add new `updateTransaction` overload that accepts an object with `transactionId` and `callback` properties
-- Add new `UpdateTransactionRequest` type for the new `updateTransaction` overload parameters
-- Add new `TransactionController:updateTransactionObj` messenger action for the new `updateTransaction` overload
-- Add new `TransactionControllerUpdateTransactionObjAction` type for the new messenger action
+- Add new `updateTransaction` overload that accepts an object with `transactionId` and `callback` properties ([#7784](https://github.com/MetaMask/core/pull/7784))
+- Add new `UpdateTransactionRequest` type for the new `updateTransaction` overload parameters ([#7784](https://github.com/MetaMask/core/pull/7784))
+- Add new `TransactionController:updateTransactionObj` messenger action for the new `updateTransaction` overload ([#7784](https://github.com/MetaMask/core/pull/7784))
+- Add new `TransactionControllerUpdateTransactionObjAction` type for the new messenger action ([#7784](https://github.com/MetaMask/core/pull/7784))
 
 ### Changed
 
-- **DEPRECATED**: The `updateTransaction(transactionMeta, note)` signature is now deprecated
+- **DEPRECATED**: The `updateTransaction(transactionMeta, note)` signature is now deprecated ([#7784](https://github.com/MetaMask/core/pull/7784))
   - Use `updateTransaction({ transactionId, callback })` instead.
   - This signature will be removed in a future version.
-- **DEPRECATED**: The `TransactionControllerUpdateTransactionAction` type is now deprecated
+- **DEPRECATED**: The `TransactionControllerUpdateTransactionAction` type is now deprecated ([#7784](https://github.com/MetaMask/core/pull/7784))
   - Use `TransactionControllerUpdateTransactionObjAction` instead.
   - This type will be removed in a future version.
 
