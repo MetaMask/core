@@ -1360,6 +1360,8 @@ export class TransactionController extends BaseController<
     const existingTransactionMeta = this.#getTransactionWithActionId(actionId);
 
     // If a request to add a transaction with the same actionId is submitted again, a new transaction will not be created for it.
+    // EIP-7702 batch transactions (with nestedTransactions) are signed externally via delegation
+    const isEIP7702Batch = Boolean(nestedTransactions?.length);
     let addedTransactionMeta: TransactionMeta = existingTransactionMeta
       ? cloneDeep(existingTransactionMeta)
       : {
@@ -1372,6 +1374,7 @@ export class TransactionController extends BaseController<
           deviceConfirmedOn,
           disableGasBuffer,
           id: random(),
+          isExternalSign: isEIP7702Batch,
           isGasFeeTokenIgnoredIfBalance: Boolean(gasFeeToken),
           isGasFeeIncluded,
           isGasFeeSponsored,
@@ -1466,6 +1469,8 @@ export class TransactionController extends BaseController<
 
       this.#addMetadata(addedTransactionMeta);
 
+      // Record delegationAddress for metrics, but do not use it to determine isExternalSign.
+      // Only EIP-7702 batch transactions (with nestedTransactions) should have isExternalSign = true.
       delegationAddressPromise
         .then((delegationAddress) => {
           this.#updateTransactionInternal(
