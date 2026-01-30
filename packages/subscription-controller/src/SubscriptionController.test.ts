@@ -1762,6 +1762,44 @@ describe('SubscriptionController', () => {
     });
   });
 
+  describe('clearSubscriptionState', () => {
+    it('should reset state to default values', async () => {
+      await withController(
+        {
+          state: {
+            subscriptions: [MOCK_SUBSCRIPTION],
+            pricing: MOCK_PRICE_INFO_RESPONSE,
+            lastSelectedPaymentMethod: {
+              [PRODUCT_TYPES.SHIELD]: {
+                type: PAYMENT_TYPES.byCrypto,
+                paymentTokenAddress: '0xtoken',
+                paymentTokenSymbol: 'USDT',
+                plan: RECURRING_INTERVALS.month,
+              },
+            },
+          },
+        },
+        async ({ controller }) => {
+          expect(controller.state.subscriptions).toStrictEqual([
+            MOCK_SUBSCRIPTION,
+          ]);
+          expect(controller.state.pricing).toStrictEqual(
+            MOCK_PRICE_INFO_RESPONSE,
+          );
+
+          controller.clearSubscriptionState();
+
+          expect(controller.state).toStrictEqual(
+            getDefaultSubscriptionControllerState(),
+          );
+          expect(controller.state.subscriptions).toHaveLength(0);
+          expect(controller.state.pricing).toBeUndefined();
+          expect(controller.state.lastSelectedPaymentMethod).toBeUndefined();
+        },
+      );
+    });
+  });
+
   describe('submitSponsorshipIntents', () => {
     const MOCK_SUBMISSION_INTENTS_REQUEST: SubmitSponsorshipIntentsMethodParams =
       {
