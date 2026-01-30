@@ -243,6 +243,15 @@ export class ShieldController extends BaseController<
     );
   }
 
+  /**
+   * Clears the shield state and resets to default values.
+   */
+  clearShieldState(): void {
+    this.update(() => {
+      return getDefaultShieldControllerState();
+    });
+  }
+
   #handleSignatureControllerStateChange(
     signatureRequests: Record<string, SignatureRequest>,
     previousSignatureRequests: Record<string, SignatureRequest> | undefined,
