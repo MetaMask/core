@@ -1811,7 +1811,10 @@ describe('SubscriptionController', () => {
                 paymentTokenSymbol: 'USDT',
                 plan: RECURRING_INTERVALS.month,
               },
-            },
+              'test-product-type': {
+                type: PAYMENT_TYPES.byCard,
+              },
+            } as Record<ProductType, CachedLastSelectedPaymentMethod>,
           },
         },
         async ({ controller }) => {
@@ -1821,7 +1824,11 @@ describe('SubscriptionController', () => {
 
           controller.clearLastSelectedPaymentMethod(PRODUCT_TYPES.SHIELD);
 
-          expect(controller.state.lastSelectedPaymentMethod).toBeDefined();
+          expect(
+            controller.state.lastSelectedPaymentMethod?.[
+              'test-product-type' as ProductType
+            ],
+          ).toBeDefined();
           expect(
             controller.state.lastSelectedPaymentMethod?.[PRODUCT_TYPES.SHIELD],
           ).toBeUndefined();
