@@ -7,6 +7,10 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+### Added
+
+- Added `clearShieldState` to clear/reset the shield controller state. ([#7780](https://github.com/MetaMask/core/pull/7780))
+
 ### Changed
 
 - Bump `@metamask/transaction-controller` from `^62.9.1` to `^62.12.0` ([#7642](https://github.com/MetaMask/core/pull/7642), [#7737](https://github.com/MetaMask/core/pull/7737), [#7760](https://github.com/MetaMask/core/pull/7760), [#7775](https://github.com/MetaMask/core/pull/7775))
