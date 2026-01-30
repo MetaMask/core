@@ -423,9 +423,6 @@
     "@typescript-eslint/explicit-function-return-type": {
       "count": 6
     },
-    "@typescript-eslint/naming-convention": {
-      "count": 22
-    },
     "no-negated-condition": {
       "count": 2
     }
