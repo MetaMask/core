@@ -23,6 +23,8 @@ import { normalizeTypedMessage, parseTypedMessage } from './utils/normalize';
 import {
   resemblesAddress,
   validateAndNormalizeKeyholder as validateKeyholder,
+  validateTypedDataForPrototypePollution,
+  validateTypedDataV1ForPrototypePollution,
 } from './utils/validation';
 
 export type TransactionParams = {
@@ -323,6 +325,7 @@ export function createWalletMiddleware({
     const message = params[0];
     const address = await validateAndNormalizeKeyholder(params[1], context);
     const version = 'V1';
+    validateTypedDataV1ForPrototypePollution(message);
     // Not using nullish coalescing, since `params` may be `null`.
     // eslint-disable-next-line @typescript-eslint/prefer-nullish-coalescing
     const extraParams = params[2] || {};
@@ -366,6 +369,7 @@ export function createWalletMiddleware({
     const message = normalizeTypedMessage(params[1]);
     validatePrimaryType(message);
     validateVerifyingContract(message);
+    validateTypedDataForPrototypePollution(message);
     const version = 'V3';
     const msgParams: TypedMessageParams = {
       data: message,
@@ -406,6 +410,7 @@ export function createWalletMiddleware({
     const message = normalizeTypedMessage(params[1]);
     validatePrimaryType(message);
     validateVerifyingContract(message);
+    validateTypedDataForPrototypePollution(message);
     const version = 'V4';
     const msgParams: TypedMessageParams = {
       data: message,
