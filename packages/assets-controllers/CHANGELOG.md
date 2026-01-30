@@ -7,6 +7,12 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+### Added
+
+- Add `HYPEREVM` support ([#7790](https://github.com/MetaMask/core/pull/7790))
+  - Add `HYPEREVM` in `SupportedTokenDetectionNetworks`
+  - Add `HYPEREVM` in `SUPPORTED_NETWORKS_ACCOUNTS_API_V4`
+
 ### Changed
 
 - Bump `@metamask/transaction-controller` from `^62.11.0` to `^62.12.0` ([#7775](https://github.com/MetaMask/core/pull/7775))
