@@ -10,6 +10,7 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 ### Added
 
 - Added new public method `clearState` to clear/reset the subscription controller state. ([#7780](https://github.com/MetaMask/core/pull/7780))
+- Added SubscriptionController `clearLastSelectedPaymentMethod` method ([#7768](https://github.com/MetaMask/core/pull/7768))
 
 ### Changed
 
