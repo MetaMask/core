@@ -84,7 +84,48 @@ export function setupBip44AccountProvider({
       // Assuming this never fails.
       getAccounts().find((account) => account.id === id),
   );
-  mocks.createAccounts.mockResolvedValue([]);
+  mocks.createAccounts.mockImplementation(
+    async ({
+      groupIndex,
+    }: {
+      entropySource: EntropySourceId;
+      groupIndex: number;
+    }) => {
+      // Filter accounts from mockAccounts based on groupIndex
+      const accountsForGroup = mocks.mockAccounts.filter((account) => {
+        if ('options' in account && account.options?.entropy) {
+          const entropy = account.options.entropy;
+          if (entropy.type === 'mnemonic' && 'groupIndex' in entropy) {
+            return entropy.groupIndex === groupIndex;
+          }
+        }
+        return false;
+      });
+      // Add accounts to the provider's internal store
+      for (const acc of accountsForGroup) {
+        mocks.accounts.add(acc.id);
+      }
+      return accountsForGroup;
+    },
+  );
+  mocks.createMaxAccounts.mockImplementation(
+    async ({
+      maxGroupIndex,
+    }: {
+      entropySource: EntropySourceId;
+      maxGroupIndex: number;
+    }) => {
+      const result: KeyringAccount[][] = [];
+      for (let groupIndex = 0; groupIndex <= maxGroupIndex; groupIndex++) {
+        const accounts = await mocks.createAccounts({
+          entropySource: '' as EntropySourceId,
+          groupIndex,
+        });
+        result.push(accounts);
+      }
+      return result;
+    },
+  );
   mocks.alignAccounts.mockImplementation(
     async ({
       entropySource,

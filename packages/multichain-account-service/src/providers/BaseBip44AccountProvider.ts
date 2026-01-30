@@ -75,7 +75,7 @@ export type Bip44AccountProvider<
    * @param options - The options for creating the accounts.
    * @param options.entropySource - The entropy source.
    * @param options.maxGroupIndex - The maximum group index (inclusive).
-   * @returns Map from group index to array of created accounts.
+   * @returns Array of account arrays indexed by group index.
    */
   createMaxAccounts({
     entropySource,
@@ -83,7 +83,7 @@ export type Bip44AccountProvider<
   }: {
     entropySource: EntropySourceId;
     maxGroupIndex: number;
-  }): Promise<Map<number, Account[]>>;
+  }): Promise<Account[][]>;
   /**
    * Re-synchronize MetaMask accounts and the providers accounts if needed.
    *
@@ -225,7 +225,7 @@ export abstract class BaseBip44AccountProvider<
   }: {
     entropySource: EntropySourceId;
     maxGroupIndex: number;
-  }): Promise<Map<number, Account[]>>;
+  }): Promise<Account[][]>;
 
   abstract discoverAccounts({
     entropySource,

@@ -207,7 +207,7 @@ export class EvmAccountProvider extends BaseBip44AccountProvider {
    * @param opts - The options for the creation of the accounts.
    * @param opts.entropySource - The entropy source to use for the creation of the accounts.
    * @param opts.maxGroupIndex - The maximum group index (inclusive).
-   * @returns Map from group index to array of created accounts.
+   * @returns Array of account arrays indexed by group index.
    */
   async createMaxAccounts({
     entropySource,
@@ -215,8 +215,8 @@ export class EvmAccountProvider extends BaseBip44AccountProvider {
   }: {
     entropySource: EntropySourceId;
     maxGroupIndex: number;
-  }): Promise<Map<number, Bip44Account<KeyringAccount>[]>> {
-    const accountsMap = new Map<number, Bip44Account<KeyringAccount>[]>();
+  }): Promise<Bip44Account<KeyringAccount>[][]> {
+    const result: Bip44Account<KeyringAccount>[][] = [];
 
     for (let groupIndex = 0; groupIndex <= maxGroupIndex; groupIndex++) {
       const [address] = await this.#createAccount({
@@ -235,14 +235,14 @@ export class EvmAccountProvider extends BaseBip44AccountProvider {
       // We MUST have the associated internal account.
       assertInternalAccountExists(account);
 
-      const accountsArray = [account];
-      assertAreBip44Accounts(accountsArray);
+      const accountsForGroup = [account];
+      assertAreBip44Accounts(accountsForGroup);
 
       this.accounts.add(account.id);
-      accountsMap.set(groupIndex, accountsArray);
+      result.push(accountsForGroup);
     }
 
-    return accountsMap;
+    return result;
   }
 
   /**

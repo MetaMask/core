@@ -131,19 +131,19 @@ export class AccountProviderWrapper extends BaseBip44AccountProvider {
   }
 
   /**
-   * Implement abstract method: Create accounts for multiple group indices, returns empty map when disabled.
+   * Implement abstract method: Create accounts for multiple group indices, returns empty array when disabled.
    *
    * @param options - Account creation options.
    * @param options.entropySource - The entropy source to use.
    * @param options.maxGroupIndex - The maximum group index (inclusive).
-   * @returns Promise resolving to map of group indices to created accounts, or empty map if disabled.
+   * @returns Promise resolving to array of account arrays indexed by group index, or empty array if disabled.
    */
   async createMaxAccounts(options: {
     entropySource: EntropySourceId;
     maxGroupIndex: number;
-  }): Promise<Map<number, Bip44Account<KeyringAccount>[]>> {
+  }): Promise<Bip44Account<KeyringAccount>[][]> {
     if (!this.isEnabled) {
-      return new Map();
+      return [];
     }
     return this.provider.createMaxAccounts(options);
   }

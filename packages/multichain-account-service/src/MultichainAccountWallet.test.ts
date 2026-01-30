@@ -458,19 +458,19 @@ describe('MultichainAccountWallet', () => {
 
       const [evmProvider, solProvider] = providers;
 
-      const evmAccountsArray = [
+      const evmAccounts = [
         [mockEvmAccount0],
         [mockEvmAccount1],
         [mockEvmAccount2],
       ];
-      const solAccountsArray = [
+      const solAccounts = [
         [mockSolAccount0],
         [mockSolAccount1],
         [mockSolAccount2],
       ];
 
-      evmProvider.createMaxAccounts.mockResolvedValue(evmAccountsArray);
-      solProvider.createMaxAccounts.mockResolvedValue(solAccountsArray);
+      evmProvider.createMaxAccounts.mockResolvedValue(evmAccounts);
+      solProvider.createMaxAccounts.mockResolvedValue(solAccounts);
 
       const groups = await wallet.createMultichainAccountGroups(maxGroupIndex);
 
@@ -508,12 +508,12 @@ describe('MultichainAccountWallet', () => {
       await wallet.createMultichainAccountGroup(0);
 
       // Now create 0-2, should skip 0.
-      const evmAccountsArray = [
+      const evmAccounts = [
         [mockEvmAccount0],
         [mockEvmAccount1],
         [mockEvmAccount2],
       ];
-      evmProvider.createMaxAccounts.mockResolvedValue(evmAccountsArray);
+      evmProvider.createMaxAccounts.mockResolvedValue(evmAccounts);
 
       const groups = await wallet.createMultichainAccountGroups(2);
 
@@ -549,13 +549,17 @@ describe('MultichainAccountWallet', () => {
       evmProvider.createAccounts.mockResolvedValueOnce([mockEvmAccount1]);
       await wallet.createMultichainAccountGroup(1);
 
-      // Now create 0-1, should return existing without calling createMaxAccounts.
-      evmProvider.createMaxAccounts.mockClear();
+      // Now create 0-1, should return existing groups. createMaxAccounts is called (it's idempotent).
+      const evmAccounts = [[mockEvmAccount0], [mockEvmAccount1]];
+      evmProvider.createMaxAccounts.mockResolvedValue(evmAccounts);
 
       const groups = await wallet.createMultichainAccountGroups(1);
 
       expect(groups).toHaveLength(2);
-      expect(evmProvider.createMaxAccounts).not.toHaveBeenCalled();
+      expect(evmProvider.createMaxAccounts).toHaveBeenCalledWith({
+        entropySource: expect.any(String),
+        maxGroupIndex: 1,
+      });
     });
 
     it('creates only group 0 when maxGroupIndex is 0', async () => {
@@ -570,8 +574,8 @@ describe('MultichainAccountWallet', () => {
 
       const [evmProvider] = providers;
 
-      const evmAccountsArray = [[mockEvmAccount0]];
-      evmProvider.createMaxAccounts.mockResolvedValue(evmAccountsArray);
+      const evmAccounts = [[mockEvmAccount0]];
+      evmProvider.createMaxAccounts.mockResolvedValue(evmAccounts);
 
       const groups = await wallet.createMultichainAccountGroups(0);
 
@@ -618,8 +622,8 @@ describe('MultichainAccountWallet', () => {
 
       const [evmProvider, solProvider] = providers;
 
-      const evmAccountsArray = [[mockEvmAccount0]];
-      evmProvider.createMaxAccounts.mockResolvedValue(evmAccountsArray);
+      const evmAccounts = [[mockEvmAccount0]];
+      evmProvider.createMaxAccounts.mockResolvedValue(evmAccounts);
       solProvider.createMaxAccounts.mockRejectedValue(
         new Error('Solana provider error'),
       );
@@ -646,8 +650,8 @@ describe('MultichainAccountWallet', () => {
 
       const [evmProvider, solProvider] = providers;
 
-      const evmAccountsArray = [[mockEvmAccount0]];
-      evmProvider.createMaxAccounts.mockResolvedValue(evmAccountsArray);
+      const evmAccounts = [[mockEvmAccount0]];
+      evmProvider.createMaxAccounts.mockResolvedValue(evmAccounts);
       solProvider.createMaxAccounts.mockRejectedValue(
         new Error('Solana provider error'),
       );
@@ -675,11 +679,11 @@ describe('MultichainAccountWallet', () => {
 
       const [evmProvider] = providers;
 
-      const evmAccountsArray = [
+      const evmAccounts = [
         [mockEvmAccount0],
         [mockEvmAccount1],
       ];
-      evmProvider.createMaxAccounts.mockResolvedValue(evmAccountsArray);
+      evmProvider.createMaxAccounts.mockResolvedValue(evmAccounts);
 
       const mockGroupCreated = jest.fn();
       messenger.subscribe(

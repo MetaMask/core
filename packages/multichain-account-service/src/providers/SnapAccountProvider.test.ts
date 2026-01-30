@@ -86,13 +86,13 @@ class MockSnapAccountProvider extends SnapAccountProvider {
   }: {
     entropySource: EntropySourceId;
     maxGroupIndex: number;
-  }): Promise<Map<number, Bip44Account<KeyringAccount>[]>> {
-    const accountsMap = new Map<number, Bip44Account<KeyringAccount>[]>();
+  }): Promise<Bip44Account<KeyringAccount>[][]> {
+    const result: Bip44Account<KeyringAccount>[][] = [];
     for (let groupIndex = 0; groupIndex <= maxGroupIndex; groupIndex++) {
       const accounts = await this.createAccounts({ entropySource, groupIndex });
-      accountsMap.set(groupIndex, accounts);
+      result.push(accounts);
     }
-    return accountsMap;
+    return result;
   }
 
   async createAccounts(options: {

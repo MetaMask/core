@@ -622,7 +622,7 @@ export class MultichainAccountWallet<
 
       // Create or update groups with EVM accounts.
       for (let groupIndex = 0; groupIndex <= maxGroupIndex; groupIndex++) {
-        const evmAccounts = allEvmAccounts.get(groupIndex);
+        const evmAccounts = allEvmAccounts[groupIndex];
 
         // Skip if EVM provider doesn't have accounts for this index.
         if (!evmAccounts || evmAccounts.length === 0) {
@@ -652,7 +652,7 @@ export class MultichainAccountWallet<
               groupIndex <= maxGroupIndex;
               groupIndex++
             ) {
-              const accounts = allOtherAccounts.get(groupIndex);
+              const accounts = allOtherAccounts[groupIndex];
 
               // Skip if provider doesn't have accounts for this index.
               if (!accounts || accounts.length === 0) {

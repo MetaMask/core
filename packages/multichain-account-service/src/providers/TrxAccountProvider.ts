@@ -106,7 +106,7 @@ export class TrxAccountProvider extends SnapAccountProvider {
    * @param opts - The options for the creation of the accounts.
    * @param opts.entropySource - The entropy source to use for the creation of the accounts.
    * @param opts.maxGroupIndex - The maximum group index (inclusive).
-   * @returns Map from group index to array of created accounts.
+   * @returns Array of account arrays indexed by group index.
    */
   async createMaxAccounts({
     entropySource,
@@ -114,18 +114,18 @@ export class TrxAccountProvider extends SnapAccountProvider {
   }: {
     entropySource: EntropySourceId;
     maxGroupIndex: number;
-  }): Promise<Map<number, Bip44Account<KeyringAccount>[]>> {
-    const accountsMap = new Map<number, Bip44Account<KeyringAccount>[]>();
+  }): Promise<Bip44Account<KeyringAccount>[][]> {
+    const result: Bip44Account<KeyringAccount>[][] = [];
 
     for (let groupIndex = 0; groupIndex <= maxGroupIndex; groupIndex++) {
       const accounts = await this.createAccounts({
         entropySource,
         groupIndex,
       });
-      accountsMap.set(groupIndex, accounts);
+      result.push(accounts);
     }
 
-    return accountsMap;
+    return result;
   }
 
   async discoverAccounts({

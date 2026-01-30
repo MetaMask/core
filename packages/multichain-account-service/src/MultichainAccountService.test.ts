@@ -603,8 +603,8 @@ describe('MultichainAccountService', () => {
       });
 
       expect(groups).toHaveLength(2);
-      expect(groups[0].groupIndex).toBe(0);
-      expect(groups[1].groupIndex).toBe(1);
+      expect(groups[0]?.groupIndex).toBe(0);
+      expect(groups[1]?.groupIndex).toBe(1);
     });
 
     it('returns existing groups when they already exist (idempotent)', async () => {
@@ -630,7 +630,7 @@ describe('MultichainAccountService', () => {
       });
 
       expect(groups).toHaveLength(1);
-      expect(groups[0].groupIndex).toBe(0);
+      expect(groups[0]?.groupIndex).toBe(0);
     });
 
     it('emits multichainAccountGroupCreated events for newly created groups', async () => {
@@ -653,7 +653,10 @@ describe('MultichainAccountService', () => {
         maxGroupIndex: 1,
       });
 
-      expect(publishSpy).toHaveBeenCalledTimes(2);
+      const groupCreatedCalls = publishSpy.mock.calls.filter(
+        (call) => call[0] === 'MultichainAccountService:multichainAccountGroupCreated',
+      );
+      expect(groupCreatedCalls).toHaveLength(2);
       expect(publishSpy).toHaveBeenCalledWith(
         'MultichainAccountService:multichainAccountGroupCreated',
         expect.objectContaining({ groupIndex: 0 }),
