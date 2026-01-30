@@ -79,7 +79,7 @@
     "@metamask/snaps-controllers": "^17.2.0",
     "@metamask/snaps-sdk": "^10.3.0",
     "@metamask/snaps-utils": "^11.7.0",
-    "@metamask/storage-service": "^1.0.0",
+    "@metamask/storage-service": "^0.0.1",
     "@metamask/transaction-controller": "^62.12.0",
     "@metamask/utils": "^11.9.0",
     "@types/bn.js": "^5.1.5",
