@@ -197,6 +197,61 @@ export class MultichainAccountWallet<
   }
 
   /**
+   * Get or create a multichain account group for a given group index and provider accounts.
+   * If the group exists, it updates it with the provider's accounts.
+   * If the group doesn't exist, it creates a new group and publishes the creation event.
+   *
+   * @param groupIndex - The group index.
+   * @param providerName - The name of the provider.
+   * @param accounts - The accounts from the provider.
+   * @returns The group.
+   */
+  #getOrCreateMultichainAccountGroup(
+    groupIndex: number,
+    providerName: string,
+    accounts: Account[],
+  ): MultichainAccountGroup<Account> {
+    let group = this.#accountGroups.get(groupIndex);
+
+    if (group) {
+      // Group exists, update it with accounts.
+      group.update({
+        [providerName]: accounts.map((account) => account.id),
+      });
+      return group;
+    }
+
+    // Group doesn't exist yet, create it with this provider's accounts.
+    group = new MultichainAccountGroup({
+      wallet: this,
+      providers: this.#providers,
+      groupIndex,
+      messenger: this.#messenger,
+    });
+
+    group.init({
+      [providerName]: accounts.map((account) => account.id),
+    });
+
+    // Register the account group to internal map.
+    this.#accountGroups.set(groupIndex, group);
+
+    this.#log(
+      `New group created: [${group.id}] at index ${groupIndex} (by ${providerName})`,
+    );
+
+    // Publish event for newly created group.
+    if (this.#initialized) {
+      this.#messenger.publish(
+        'MultichainAccountService:multichainAccountGroupCreated',
+        group,
+      );
+    }
+
+    return group;
+  }
+
+  /**
    * Create accounts with non‑EVM providers. Optional throttling is managed by each provider internally.
    * When awaitAll is true, waits for all providers and throws if any failed.
    * When false, starts work in background and logs errors without throwing.
@@ -517,14 +572,15 @@ export class MultichainAccountWallet<
    * the `waitForAllProvidersToFinishCreatingAccounts` option is set to `true`. If `false`,
    * errors from non-EVM providers will be logged but ignored, and only errors from the
    * EVM provider will be thrown.
-   * @returns Array of all multichain account groups from 0 to maxGroupIndex.
+   * @returns Array where each index corresponds to a group index. Contains the group at that
+   * index, or null if the group doesn't exist (e.g., if EVM provider failed to create it).
    */
   async createMultichainAccountGroups(
     maxGroupIndex: number,
     options: {
       waitForAllProvidersToFinishCreatingAccounts?: boolean;
     } = { waitForAllProvidersToFinishCreatingAccounts: false },
-  ): Promise<MultichainAccountGroup<Account>[]> {
+  ): Promise<(MultichainAccountGroup<Account> | null)[]> {
     return await this.#withLock('in-progress:create-accounts', async () => {
       // Validation.
       if (maxGroupIndex < 0) {
@@ -540,34 +596,9 @@ export class MultichainAccountWallet<
         'EVM account provider must be first',
       );
 
-      // Determine which indices need to be created (skip existing).
-      const indicesToCreate: number[] = [];
-      const existingGroups: MultichainAccountGroup<Account>[] = [];
-
-      for (let groupIndex = 0; groupIndex <= maxGroupIndex; groupIndex++) {
-        const existingGroup = this.getMultichainAccountGroup(groupIndex);
-        if (existingGroup) {
-          this.#log(
-            `Group ${groupIndex} already exists: [${existingGroup.id}] (idempotent)`,
-          );
-          existingGroups.push(existingGroup);
-        } else {
-          indicesToCreate.push(groupIndex);
-        }
-      }
-
-      // If all groups exist, return them.
-      if (indicesToCreate.length === 0) {
-        this.#log('All groups already exist, returning existing groups');
-        return existingGroups;
-      }
-
-      this.#log(
-        `Creating ${indicesToCreate.length} new groups at indices: ${indicesToCreate.join(', ')}`,
-      );
-
-      // Create EVM accounts for all missing indices (always awaited).
-      const evmAccountsMap = await evmProvider
+      // Create EVM accounts for all indices (always awaited).
+      // Provider is idempotent, so it will return existing accounts if they already exist.
+      const allEvmAccounts = await evmProvider
         .createMaxAccounts({
           entropySource: this.#entropySource,
           maxGroupIndex,
@@ -588,58 +619,50 @@ export class MultichainAccountWallet<
           throw error;
         });
 
-      // Create groups and initialize with EVM accounts.
-      const createdGroups: MultichainAccountGroup<Account>[] = [];
+      // Create or update groups with EVM accounts.
+      for (let groupIndex = 0; groupIndex <= maxGroupIndex; groupIndex++) {
+        const evmAccounts = allEvmAccounts.get(groupIndex);
 
-      for (const groupIndex of indicesToCreate) {
-        const evmAccounts = evmAccountsMap.get(groupIndex);
-        if (!evmAccounts) {
-          throw new Error(
-            `EVM provider did not return accounts for group index ${groupIndex}`,
-          );
+        // Skip if EVM provider doesn't have accounts for this index.
+        if (!evmAccounts || evmAccounts.length === 0) {
+          this.#log(`Skipping group ${groupIndex} - no EVM accounts available`);
+          continue;
         }
 
-        const group = new MultichainAccountGroup({
-          wallet: this,
-          providers: this.#providers,
+        this.#getOrCreateMultichainAccountGroup(
           groupIndex,
-          messenger: this.#messenger,
-        });
-
-        group.init({
-          [evmProvider.getName()]: evmAccounts.map((account) => account.id),
-        });
-
-        // Register the account group to internal map.
-        this.#accountGroups.set(groupIndex, group);
-
-        this.#log(`New group created: [${group.id}] at index ${groupIndex}`);
-
-        createdGroups.push(group);
+          evmProvider.getName(),
+          evmAccounts,
+        );
       }
 
-      // Create non-EVM accounts for all new groups.
+      // Create non-EVM accounts for all groups.
       if (otherProviders.length > 0) {
         const nonEvmPromises = otherProviders.map(async (provider) => {
           try {
-            const accountsMap = await provider.createMaxAccounts({
+            const allOtherAccounts = await provider.createMaxAccounts({
               entropySource: this.#entropySource,
               maxGroupIndex,
             });
 
-            // Initialize each group with the provider's accounts.
-            for (const groupIndex of indicesToCreate) {
-              const accounts = accountsMap.get(groupIndex);
-              if (accounts && accounts.length > 0) {
-                const group = this.#accountGroups.get(groupIndex);
-                if (group) {
-                  group.update({
-                    [provider.getName()]: accounts.map(
-                      (account: Account) => account.id,
-                    ),
-                  });
-                }
+            // Create or update each group with the provider's accounts.
+            for (
+              let groupIndex = 0;
+              groupIndex <= maxGroupIndex;
+              groupIndex++
+            ) {
+              const accounts = allOtherAccounts.get(groupIndex);
+
+              // Skip if provider doesn't have accounts for this index.
+              if (!accounts || accounts.length === 0) {
+                continue;
               }
+
+              this.#getOrCreateMultichainAccountGroup(
+                groupIndex,
+                provider.getName(),
+                accounts,
+              );
             }
           } catch (error) {
             const errorMessage = `Unable to create accounts for some groups with provider "${provider.getName()}". Error: ${(error as Error).message}`;
@@ -670,27 +693,16 @@ export class MultichainAccountWallet<
         }
       }
 
-      // Publish events for newly created groups.
-      if (this.#initialized) {
-        for (const group of createdGroups) {
-          this.#messenger.publish(
-            'MultichainAccountService:multichainAccountGroupCreated',
-            group,
-          );
-        }
-      }
-
-      this.#log(
-        `Successfully created ${createdGroups.length} new groups`,
-      );
-
-      // Return all groups (existing + newly created) in order.
-      const allGroups: MultichainAccountGroup<Account>[] = [];
+      // Return all groups from 0 to maxGroupIndex.
+      // Use null for missing groups to maintain index alignment.
+      const allGroups: (MultichainAccountGroup<Account> | null)[] = [];
       for (let groupIndex = 0; groupIndex <= maxGroupIndex; groupIndex++) {
         const group = this.#accountGroups.get(groupIndex);
-        if (group) {
-          allGroups.push(group);
-        }
+        // NOTE: There is a possibility that some groups are missing here. The EVM provider
+        // might fail to create some groups. This can happen if the derived address is already
+        // owned by another keyring (e.g imported private key). For now, we use `null` to indicate
+        // missing groups.
+        allGroups[groupIndex] = group ?? null;
       }
 
       return allGroups;

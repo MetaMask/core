@@ -458,26 +458,29 @@ describe('MultichainAccountWallet', () => {
 
       const [evmProvider, solProvider] = providers;
 
-      const evmAccountsMap = new Map([
-        [0, [mockEvmAccount0]],
-        [1, [mockEvmAccount1]],
-        [2, [mockEvmAccount2]],
-      ]);
-      const solAccountsMap = new Map([
-        [0, [mockSolAccount0]],
-        [1, [mockSolAccount1]],
-        [2, [mockSolAccount2]],
-      ]);
+      const evmAccountsArray = [
+        [mockEvmAccount0],
+        [mockEvmAccount1],
+        [mockEvmAccount2],
+      ];
+      const solAccountsArray = [
+        [mockSolAccount0],
+        [mockSolAccount1],
+        [mockSolAccount2],
+      ];
 
-      evmProvider.createMaxAccounts.mockResolvedValue(evmAccountsMap);
-      solProvider.createMaxAccounts.mockResolvedValue(solAccountsMap);
+      evmProvider.createMaxAccounts.mockResolvedValue(evmAccountsArray);
+      solProvider.createMaxAccounts.mockResolvedValue(solAccountsArray);
 
       const groups = await wallet.createMultichainAccountGroups(maxGroupIndex);
 
       expect(groups).toHaveLength(3);
-      expect(groups[0].groupIndex).toBe(0);
-      expect(groups[1].groupIndex).toBe(1);
-      expect(groups[2].groupIndex).toBe(2);
+      expect(groups[0]).not.toBeNull();
+      expect(groups[0]?.groupIndex).toBe(0);
+      expect(groups[1]).not.toBeNull();
+      expect(groups[1]?.groupIndex).toBe(1);
+      expect(groups[2]).not.toBeNull();
+      expect(groups[2]?.groupIndex).toBe(2);
     });
 
     it('skips existing groups (idempotent)', async () => {
@@ -505,19 +508,22 @@ describe('MultichainAccountWallet', () => {
       await wallet.createMultichainAccountGroup(0);
 
       // Now create 0-2, should skip 0.
-      const evmAccountsMap = new Map([
-        [0, [mockEvmAccount0]],
-        [1, [mockEvmAccount1]],
-        [2, [mockEvmAccount2]],
-      ]);
-      evmProvider.createMaxAccounts.mockResolvedValue(evmAccountsMap);
+      const evmAccountsArray = [
+        [mockEvmAccount0],
+        [mockEvmAccount1],
+        [mockEvmAccount2],
+      ];
+      evmProvider.createMaxAccounts.mockResolvedValue(evmAccountsArray);
 
       const groups = await wallet.createMultichainAccountGroups(2);
 
       expect(groups).toHaveLength(3);
-      expect(groups[0].groupIndex).toBe(0);
-      expect(groups[1].groupIndex).toBe(1);
-      expect(groups[2].groupIndex).toBe(2);
+      expect(groups[0]).not.toBeNull();
+      expect(groups[0]?.groupIndex).toBe(0);
+      expect(groups[1]).not.toBeNull();
+      expect(groups[1]?.groupIndex).toBe(1);
+      expect(groups[2]).not.toBeNull();
+      expect(groups[2]?.groupIndex).toBe(2);
     });
 
     it('returns existing groups when all groups already exist', async () => {
@@ -564,13 +570,14 @@ describe('MultichainAccountWallet', () => {
 
       const [evmProvider] = providers;
 
-      const evmAccountsMap = new Map([[0, [mockEvmAccount0]]]);
-      evmProvider.createMaxAccounts.mockResolvedValue(evmAccountsMap);
+      const evmAccountsArray = [[mockEvmAccount0]];
+      evmProvider.createMaxAccounts.mockResolvedValue(evmAccountsArray);
 
       const groups = await wallet.createMultichainAccountGroups(0);
 
       expect(groups).toHaveLength(1);
-      expect(groups[0].groupIndex).toBe(0);
+      expect(groups[0]).not.toBeNull();
+      expect(groups[0]?.groupIndex).toBe(0);
     });
 
     it('throws validation error when maxGroupIndex is negative', async () => {
@@ -611,8 +618,8 @@ describe('MultichainAccountWallet', () => {
 
       const [evmProvider, solProvider] = providers;
 
-      const evmAccountsMap = new Map([[0, [mockEvmAccount0]]]);
-      evmProvider.createMaxAccounts.mockResolvedValue(evmAccountsMap);
+      const evmAccountsArray = [[mockEvmAccount0]];
+      evmProvider.createMaxAccounts.mockResolvedValue(evmAccountsArray);
       solProvider.createMaxAccounts.mockRejectedValue(
         new Error('Solana provider error'),
       );
@@ -623,7 +630,8 @@ describe('MultichainAccountWallet', () => {
 
       // The groups should still be created even if non-EVM provider fails.
       expect(groups).toHaveLength(1);
-      expect(groups[0].groupIndex).toBe(0);
+      expect(groups[0]).not.toBeNull();
+      expect(groups[0]?.groupIndex).toBe(0);
     });
 
     it('throws when non-EVM provider fails with waitForAll:true', async () => {
@@ -638,8 +646,8 @@ describe('MultichainAccountWallet', () => {
 
       const [evmProvider, solProvider] = providers;
 
-      const evmAccountsMap = new Map([[0, [mockEvmAccount0]]]);
-      evmProvider.createMaxAccounts.mockResolvedValue(evmAccountsMap);
+      const evmAccountsArray = [[mockEvmAccount0]];
+      evmProvider.createMaxAccounts.mockResolvedValue(evmAccountsArray);
       solProvider.createMaxAccounts.mockRejectedValue(
         new Error('Solana provider error'),
       );
@@ -667,11 +675,11 @@ describe('MultichainAccountWallet', () => {
 
       const [evmProvider] = providers;
 
-      const evmAccountsMap = new Map([
-        [0, [mockEvmAccount0]],
-        [1, [mockEvmAccount1]],
-      ]);
-      evmProvider.createMaxAccounts.mockResolvedValue(evmAccountsMap);
+      const evmAccountsArray = [
+        [mockEvmAccount0],
+        [mockEvmAccount1],
+      ];
+      evmProvider.createMaxAccounts.mockResolvedValue(evmAccountsArray);
 
       const mockGroupCreated = jest.fn();
       messenger.subscribe(
