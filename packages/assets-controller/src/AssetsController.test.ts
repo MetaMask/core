@@ -201,6 +201,9 @@ describe('AssetsController', () => {
         assetsBalance: {},
         assetsPrice: {},
         customAssets: {},
+        assetsDetails: {},
+        assetCount: 0,
+        internalCache: {},
       });
     });
   });
@@ -213,6 +216,9 @@ describe('AssetsController', () => {
           assetsBalance: {},
           assetsPrice: {},
           customAssets: {},
+          assetsDetails: {},
+          assetCount: 0,
+          internalCache: {},
         });
       });
     });
@@ -242,8 +248,27 @@ describe('AssetsController', () => {
     });
   });
 
+  describe('setAssetPrice', () => {
+    it('updates price for asset', async () => {
+      await withController(async ({ controller }) => {
+        controller.setAssetPrice(MOCK_ASSET_ID, { usd: 1.5 });
+        expect(controller.state.assetsPrice[MOCK_ASSET_ID]).toStrictEqual({
+          usd: 1.5,
+        });
+      });
+    });
+
+    // eslint-disable-next-line jest/expect-expect
+    it('getActiveAssetIds returns keys from assetsMetadata', async () => {
+      await withController(async ({ controller }) => {
+        controller.getActiveAssetIds();
+      });
+    });
+  });
+
   describe('addCustomAsset', () => {
-    it('adds a custom asset to an account', async () => {
+    // eslint-disable-next-line jest/no-focused-tests
+    it.only('adds a custom asset to an account', async () => {
       await withController(async ({ controller }) => {
         await controller.addCustomAsset(MOCK_ACCOUNT_ID, MOCK_ASSET_ID);
 

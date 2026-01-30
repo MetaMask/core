@@ -1,3 +1,5 @@
+export * from './logger';
+
 // Main controller export
 export {
   AssetsController,
@@ -25,6 +27,7 @@ export type {
   AssetsControllerPriceChangedEvent,
   AssetsControllerAssetsDetectedEvent,
   AssetsControllerEvents,
+  AssetsControllerDataRefreshedEvent,
 } from './AssetsController';
 
 // Core types

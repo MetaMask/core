@@ -57,6 +57,23 @@ import type {
 } from './types';
 import { normalizeAssetId } from './utils';
 
+class SimpleEventEmitter {
+  readonly #listeners: Map<string, Set<() => void>> = new Map();
+
+  on(event: string, listener: () => void): void {
+    let set = this.#listeners.get(event);
+    if (!set) {
+      set = new Set();
+      this.#listeners.set(event, set);
+    }
+    set.add(listener);
+  }
+
+  emit(event: string): void {
+    this.#listeners.get(event)?.forEach((fn) => fn());
+  }
+}
+
 // ============================================================================
 // CONTROLLER CONSTANTS
 // ============================================================================
@@ -90,6 +107,9 @@ export type AssetsControllerState = {
   assetsPrice: { [assetId: string]: Json };
   /** Custom assets added by users per account (CAIP-19 asset IDs) */
   customAssets: { [accountId: string]: string[] };
+  assetsDetails: { [assetId: string]: string };
+  assetCount: number;
+  internalCache: { [key: string]: Json };
 };
 
 /**
@@ -103,6 +123,9 @@ export function getDefaultAssetsControllerState(): AssetsControllerState {
     assetsBalance: {},
     assetsPrice: {},
     customAssets: {},
+    assetsDetails: {},
+    assetCount: 0,
+    internalCache: {},
   };
 }
 
@@ -199,11 +222,17 @@ export type AssetsControllerAssetsDetectedEvent = {
   payload: [{ accountId: AccountId; assetIds: Caip19AssetId[] }];
 };
 
+export type AssetsControllerDataRefreshedEvent = {
+  type: `${typeof CONTROLLER_NAME}:dataRefreshed`;
+  payload: [];
+};
+
 export type AssetsControllerEvents =
   | AssetsControllerStateChangeEvent
   | AssetsControllerBalanceChangedEvent
   | AssetsControllerPriceChangedEvent
-  | AssetsControllerAssetsDetectedEvent;
+  | AssetsControllerAssetsDetectedEvent
+  | AssetsControllerDataRefreshedEvent;
 
 type AllowedActions =
   | AccountTreeControllerGetAccountsFromSelectedAccountGroupAction
@@ -259,6 +288,7 @@ export type AssetsControllerOptions = {
   state?: Partial<AssetsControllerState>;
   /** Default polling interval hint passed to data sources (ms) */
   defaultUpdateInterval?: number;
+  onStateChange?: (state: AssetsControllerState) => void;
 };
 
 // ============================================================================
@@ -289,6 +319,24 @@ const stateMetadata: StateMetadata<AssetsControllerState> = {
     includeInStateLogs: false,
     includeInDebugSnapshot: false,
     usedInUi: true,
+  },
+  assetsDetails: {
+    persist: false,
+    includeInStateLogs: false,
+    includeInDebugSnapshot: false,
+    usedInUi: false,
+  },
+  assetCount: {
+    persist: true,
+    includeInStateLogs: true,
+    includeInDebugSnapshot: true,
+    usedInUi: true,
+  },
+  internalCache: {
+    persist: false,
+    includeInStateLogs: false,
+    includeInDebugSnapshot: false,
+    usedInUi: false,
   },
 };
 
@@ -403,6 +451,8 @@ export class AssetsController extends BaseController<
   /** Default update interval hint passed to data sources */
   readonly #defaultUpdateInterval: number;
 
+  readonly hub = new SimpleEventEmitter();
+
   readonly #controllerMutex = new Mutex();
 
   /**
@@ -440,6 +490,7 @@ export class AssetsController extends BaseController<
     messenger,
     state = {},
     defaultUpdateInterval = DEFAULT_POLLING_INTERVAL_MS,
+    onStateChange,
   }: AssetsControllerOptions) {
     super({
       name: CONTROLLER_NAME,
@@ -452,6 +503,15 @@ export class AssetsController extends BaseController<
     });
 
     this.#defaultUpdateInterval = defaultUpdateInterval;
+
+    if (onStateChange) {
+      this.messenger.subscribe(
+        'AssetsController:stateChange',
+        (newState: AssetsControllerState) => {
+          onStateChange(newState);
+        },
+      );
+    }
 
     log('Initializing AssetsController', {
       defaultUpdateInterval,
@@ -617,6 +677,18 @@ export class AssetsController extends BaseController<
     );
   }
 
+  getActiveAssetIds(): string[] {
+    return Object.keys(this.state.assetsMetadata);
+  }
+
+  setAssetPrice(assetId: string, price: Json): void {
+    this.update((state) => {
+      // @ts-expect-error - TODO: Fix this
+      state.assetsPrice[assetId] = price;
+    });
+    this.hub.emit('dataRefreshed');
+  }
+
   // ============================================================================
   // DATA SOURCE MANAGEMENT
   // ============================================================================
@@ -737,7 +809,8 @@ export class AssetsController extends BaseController<
     const result = await chain({
       request,
       response: initialResponse,
-      getAssetsState: () => this.state as AssetsControllerStateInternal,
+      getAssetsState: () =>
+        this.state as unknown as AssetsControllerStateInternal,
     });
     return result.response;
   }
@@ -883,6 +956,8 @@ export class AssetsController extends BaseController<
         customAssets[accountId].push(normalizedAssetId);
       }
     });
+
+    this.state.assetsDetails[normalizedAssetId] = 'custom';
 
     // Fetch data for the newly added custom asset
     const account = this.#selectedAccounts.find((a) => a.id === accountId);
