@@ -381,9 +381,7 @@ export type UpdateTransactionRequest = {
  */
 export type TransactionControllerUpdateTransactionObjAction = {
   type: `${typeof controllerName}:updateTransactionObj`;
-  handler: (
-    request: UpdateTransactionRequest,
-  ) => Readonly<TransactionMeta>;
+  handler: (request: UpdateTransactionRequest) => Readonly<TransactionMeta>;
 };
 
 /** Add a single transaction to be submitted after approval. */
@@ -1918,6 +1916,8 @@ export class TransactionController extends BaseController<
     }));
 
     log('Transaction updated', { transactionId, note });
+
+    return undefined;
   }
 
   /**
