@@ -2543,6 +2543,8 @@ __metadata:
   resolution: "@metamask/ai-controllers@workspace:packages/ai-controllers"
   dependencies:
     "@metamask/auto-changelog": "npm:^3.4.4"
+    "@metamask/base-controller": "npm:^9.0.0"
+    "@metamask/messenger": "npm:^0.3.0"
     "@ts-bridge/cli": "npm:^0.6.4"
     "@types/jest": "npm:^27.5.2"
     deepmerge: "npm:^4.2.2"
