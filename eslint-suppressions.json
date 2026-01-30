@@ -1895,16 +1895,6 @@
       "count": 2
     }
   },
-  "packages/token-search-discovery-controller/src/token-discovery-api-service/token-discovery-api-service.ts": {
-    "@typescript-eslint/explicit-function-return-type": {
-      "count": 1
-    }
-  },
-  "packages/token-search-discovery-controller/src/types.ts": {
-    "@typescript-eslint/naming-convention": {
-      "count": 18
-    }
-  },
   "packages/user-operation-controller/src/UserOperationController.test.ts": {
     "@typescript-eslint/explicit-function-return-type": {
       "count": 6
