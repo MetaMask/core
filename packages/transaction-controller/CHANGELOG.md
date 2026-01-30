@@ -7,6 +7,22 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+### Added
+
+- Add new `updateTransaction` overload that accepts an object with `transactionId` and `callback` properties
+- Add new `UpdateTransactionRequest` type for the new `updateTransaction` overload parameters
+- Add new `TransactionController:updateTransactionObj` messenger action for the new `updateTransaction` overload
+- Add new `TransactionControllerUpdateTransactionObjAction` type for the new messenger action
+
+### Changed
+
+- **DEPRECATED**: The `updateTransaction(transactionMeta, note)` signature is now deprecated
+  - Use `updateTransaction({ transactionId, callback })` instead.
+  - This signature will be removed in a future version.
+- **DEPRECATED**: The `TransactionControllerUpdateTransactionAction` type is now deprecated
+  - Use `TransactionControllerUpdateTransactionObjAction` instead.
+  - This type will be removed in a future version.
+
 ## [62.12.0]
 
 ### Added

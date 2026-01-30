@@ -359,10 +359,31 @@ export type TransactionControllerGetTransactionsAction = {
  *
  * @param transactionMeta - The new transaction to store in state.
  * @param note - A note or update reason to be logged.
+ * @deprecated Use TransactionControllerUpdateTransactionObjAction instead.
  */
 export type TransactionControllerUpdateTransactionAction = {
   type: `${typeof controllerName}:updateTransaction`;
-  handler: TransactionController['updateTransaction'];
+  handler: (transactionMeta: TransactionMeta, note: string) => void;
+};
+
+/**
+ * Request object for updating a transaction using a callback.
+ */
+export type UpdateTransactionRequest = {
+  /** The ID of the transaction to update. */
+  transactionId: string;
+  /** A callback that receives the current transaction and returns the updated transaction or void. */
+  callback: (transactionMeta: TransactionMeta) => TransactionMeta | void;
+};
+
+/**
+ * Updates an existing transaction in state using a callback function.
+ */
+export type TransactionControllerUpdateTransactionObjAction = {
+  type: `${typeof controllerName}:updateTransactionObj`;
+  handler: (
+    request: UpdateTransactionRequest,
+  ) => Readonly<TransactionMeta>;
 };
 
 /** Add a single transaction to be submitted after approval. */
@@ -420,6 +441,7 @@ export type TransactionControllerActions =
   | TransactionControllerGetTransactionsAction
   | TransactionControllerUpdateCustodialTransactionAction
   | TransactionControllerUpdateTransactionAction
+  | TransactionControllerUpdateTransactionObjAction
   | TransactionControllerEmulateNewTransaction
   | TransactionControllerEmulateTransactionUpdate;
 
@@ -1861,8 +1883,34 @@ export class TransactionController extends BaseController<
    *
    * @param transactionMeta - The new transaction to store in state.
    * @param note - A note or update reason to be logged.
+   * @deprecated Use the object form `updateTransaction({ transactionId, callback })` instead.
    */
-  updateTransaction(transactionMeta: TransactionMeta, note: string): void {
+  updateTransaction(transactionMeta: TransactionMeta, note: string): void;
+
+  /**
+   * Updates an existing transaction in state using a callback function.
+   *
+   * @param request - The update request containing transactionId and callback.
+   * @param request.transactionId - The ID of the transaction to update.
+   * @param request.callback - A callback that receives the current transaction and returns the updated transaction or void.
+   * @returns The updated transaction metadata.
+   */
+  updateTransaction(
+    request: UpdateTransactionRequest,
+  ): Readonly<TransactionMeta>;
+
+  updateTransaction(
+    transactionMetaOrRequest: TransactionMeta | UpdateTransactionRequest,
+    note?: string,
+  ): void | Readonly<TransactionMeta> {
+    // New form: object with transactionId and callback
+    if ('callback' in transactionMetaOrRequest) {
+      const { transactionId, callback } = transactionMetaOrRequest;
+      return this.#updateTransactionInternal({ transactionId }, callback);
+    }
+
+    // Old form (deprecated): transactionMeta and note
+    const transactionMeta = transactionMetaOrRequest;
     const { id: transactionId } = transactionMeta;
 
     this.#updateTransactionInternal({ transactionId }, () => ({
@@ -4648,6 +4696,11 @@ export class TransactionController extends BaseController<
     this.messenger.registerActionHandler(
       `${controllerName}:updateTransaction`,
       this.updateTransaction.bind(this),
+    );
+
+    this.messenger.registerActionHandler(
+      `${controllerName}:updateTransactionObj`,
+      (request: UpdateTransactionRequest) => this.updateTransaction(request),
     );
   }
 

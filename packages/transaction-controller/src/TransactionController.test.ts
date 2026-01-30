@@ -8368,6 +8368,68 @@ describe('TransactionController', () => {
       });
     });
 
+    describe('TransactionController:updateTransactionObj', () => {
+      it('calls updateTransaction with callback via messenger', () => {
+        const transaction = {
+          ...TRANSACTION_META_MOCK,
+          txParams: {
+            from: ACCOUNT_MOCK,
+            to: ACCOUNT_2_MOCK,
+          },
+        };
+        const { controller, messenger } = setupController({
+          options: {
+            state: {
+              transactions: [transaction],
+            },
+          },
+        });
+
+        const result = messenger.call(
+          'TransactionController:updateTransactionObj',
+          {
+            transactionId: transaction.id,
+            callback: (txMeta: TransactionMeta) => {
+              txMeta.txParams.value = '0x3';
+            },
+          },
+        );
+
+        expect(controller.state.transactions[0].txParams.value).toBe('0x3');
+        expect(result).toBeDefined();
+        expect(result.id).toBe(transaction.id);
+      });
+
+      it('returns updated transaction metadata', () => {
+        const transaction = {
+          ...TRANSACTION_META_MOCK,
+          txParams: {
+            from: ACCOUNT_MOCK,
+            to: ACCOUNT_2_MOCK,
+          },
+        };
+        const { messenger } = setupController({
+          options: {
+            state: {
+              transactions: [transaction],
+            },
+          },
+        });
+
+        const result = messenger.call(
+          'TransactionController:updateTransactionObj',
+          {
+            transactionId: transaction.id,
+            callback: (txMeta: TransactionMeta) => {
+              txMeta.txParams.value = '0x4';
+            },
+          },
+        );
+
+        expect(result.txParams.value).toBe('0x4');
+      });
+    });
+
     describe('TransactionController:getGasFeeTokens', () => {
       it('returns gas fee tokens', async () => {
         const { messenger } = setupController();
