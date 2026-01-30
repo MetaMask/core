@@ -1,6 +1,6 @@
 {
   "name": "@metamask/claims-controller",
-  "version": "0.4.1",
+  "version": "0.4.2",
   "description": "Controller handling shield subscription claims logic",
   "keywords": [
     "MetaMask",
