@@ -7,6 +7,7 @@ export type {
   MultichainAccountServiceGetMultichainAccountWalletsAction,
   MultichainAccountServiceGetMultichainAccountGroupsAction,
   MultichainAccountServiceCreateMultichainAccountGroupAction,
+  MultichainAccountServiceCreateMultichainAccountGroupsAction,
   MultichainAccountServiceCreateNextMultichainAccountGroupAction,
   MultichainAccountServiceSetBasicFunctionalityAction,
   MultichainAccountServiceMultichainAccountGroupCreatedEvent,
