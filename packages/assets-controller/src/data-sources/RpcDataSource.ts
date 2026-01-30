@@ -179,6 +179,7 @@ type AssetsControllerGetStateAction = {
     allIgnoredTokens: Record<string, Record<string, string[]>>;
     assetsMetadata: Record<Caip19AssetId, AssetMetadata>;
     assetsBalance: Record<string, Record<string, { amount: string }>>;
+    hiddenAssets: Record<string, string[]>;
   };
 };
 
@@ -346,6 +347,7 @@ export class RpcDataSource extends BaseController<
         _action: 'AssetsController:getState',
       ): {
         assetsBalance: Record<string, Record<string, { amount: string }>>;
+        hiddenAssets?: Record<string, string[]>;
       } => {
         const state = this.messenger.call('AssetsController:getState');
         return {
@@ -353,6 +355,7 @@ export class RpcDataSource extends BaseController<
             string,
             Record<string, { amount: string }>
           >,
+          hiddenAssets: state.hiddenAssets ?? {},
         };
       },
     };

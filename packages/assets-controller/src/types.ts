@@ -358,6 +358,8 @@ export type DataResponse = {
  * - assetsPrice keys: CAIP-19 asset IDs
  * - customAssets outer keys: Account IDs (InternalAccount.id UUIDs)
  * - customAssets inner values: CAIP-19 asset IDs array
+ * - hiddenAssets outer keys: Account IDs (InternalAccount.id UUIDs)
+ * - hiddenAssets inner values: CAIP-19 asset IDs array
  */
 export type AssetsControllerStateInternal = {
   /** Shared metadata for all assets (stored once per asset) */
@@ -368,6 +370,8 @@ export type AssetsControllerStateInternal = {
   assetsPrice: Record<Caip19AssetId, AssetPrice>;
   /** Custom assets added by users per account */
   customAssets: Record<AccountId, Caip19AssetId[]>;
+  /** Hidden assets per account - assets user chose to hide */
+  hiddenAssets: Record<AccountId, Caip19AssetId[]>;
 };
 
 /**

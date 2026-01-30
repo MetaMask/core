@@ -53,4 +53,6 @@ export type AssetBalanceEntry = {
 export type AssetsBalanceState = {
   /** Balance data per account: accountId -> assetId -> balance */
   assetsBalance: Record<string, Record<string, AssetBalanceEntry>>;
+  /** Hidden assets per account: accountId -> array of hidden asset IDs */
+  hiddenAssets?: Record<string, string[]>;
 };
