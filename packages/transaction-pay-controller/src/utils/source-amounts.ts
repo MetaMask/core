@@ -1,20 +1,23 @@
+import type { Hex } from '@metamask/utils';
 import { createModuleLogger } from '@metamask/utils';
 import { BigNumber } from 'bignumber.js';
 
+import { getStrategyByName } from './strategy';
 import { getTokenFiatRate } from './token';
 import { getTransaction } from './transaction';
-import type {
-  TransactionPayControllerMessenger,
-  TransactionPaymentToken,
-} from '..';
-import { TransactionPayStrategy } from '..';
-import type { TransactionMeta } from '../../../transaction-controller/src';
-import { ARBITRUM_USDC_ADDRESS, CHAIN_ID_ARBITRUM } from '../constants';
+import {
+  ARBITRUM_USDC_ADDRESS,
+  CHAIN_ID_ARBITRUM,
+  TransactionPayStrategy,
+} from '../constants';
 import { projectLogger } from '../logger';
 import type {
-  TransactionPaySourceAmount,
+  PayStrategyGetQuotesRequest,
   TransactionData,
+  TransactionPayControllerMessenger,
+  TransactionPaymentToken,
   TransactionPayRequiredToken,
+  TransactionPaySourceAmount,
 } from '../types';
 
 const log = createModuleLogger(projectLogger, 'source-amounts');
@@ -41,14 +44,22 @@ export function updateSourceAmounts(
     return;
   }
 
+  const strategy = getStrategyType(
+    transactionId,
+    paymentToken,
+    tokens,
+    isMaxAmount ?? false,
+    messenger,
+  );
+
   const sourceAmounts = tokens
     .map((singleToken) =>
       calculateSourceAmount(
         paymentToken,
         singleToken,
         messenger,
-        transactionId,
         isMaxAmount ?? false,
+        strategy,
       ),
     )
     .filter(Boolean) as TransactionPaySourceAmount[];
@@ -64,16 +75,16 @@ export function updateSourceAmounts(
  * @param paymentToken - Selected payment token.
  * @param token - Target token to cover.
  * @param messenger - Controller messenger.
- * @param transactionId - ID of the transaction.
  * @param isMaxAmount - Whether the transaction is a maximum amount transaction.
+ * @param strategy - Payment strategy.
  * @returns The source amount or undefined if calculation failed.
  */
 function calculateSourceAmount(
   paymentToken: TransactionPaymentToken,
   token: TransactionPayRequiredToken,
   messenger: TransactionPayControllerMessenger,
-  transactionId: string,
   isMaxAmount: boolean,
+  strategy: TransactionPayStrategy,
 ): TransactionPaySourceAmount | undefined {
   const paymentTokenFiatRate = getTokenFiatRate(
     messenger,
@@ -93,8 +104,6 @@ function calculateSourceAmount(
     });
     return undefined;
   }
-
-  const strategy = getStrategyType(transactionId, messenger);
 
   const isSameTokenSelected =
     token.address.toLowerCase() === paymentToken.address.toLowerCase() &&
@@ -159,17 +168,60 @@ function isQuoteAlwaysRequired(
  * Get the strategy type for a transaction.
  *
  * @param transactionId - ID of the transaction.
+ * @param paymentToken - Selected payment token.
+ * @param tokens - Tokens required by the transaction.
+ * @param isMaxAmount - Whether the transaction is a maximum amount transaction.
  * @param messenger - Controller messenger.
  * @returns Payment strategy type.
  */
 function getStrategyType(
   transactionId: string,
+  paymentToken: TransactionPaymentToken,
+  tokens: TransactionPayRequiredToken[],
+  isMaxAmount: boolean,
   messenger: TransactionPayControllerMessenger,
 ): TransactionPayStrategy {
-  const transaction = getTransaction(
-    transactionId,
-    messenger,
-  ) as TransactionMeta;
+  const transaction = getTransaction(transactionId, messenger);
 
-  return messenger.call('TransactionPayController:getStrategy', transaction);
+  if (!transaction) {
+    return TransactionPayStrategy.Relay;
+  }
+
+  const from = transaction.txParams.from as Hex;
+
+  const requests = tokens.map((singleToken) => ({
+    from,
+    isMaxAmount,
+    sourceBalanceRaw: paymentToken.balanceRaw,
+    sourceChainId: paymentToken.chainId,
+    sourceTokenAddress: paymentToken.address,
+    sourceTokenAmount: singleToken.amountRaw,
+    targetAmountMinimum: singleToken.allowUnderMinimum
+      ? '0'
+      : singleToken.amountRaw,
+    targetChainId: singleToken.chainId,
+    targetTokenAddress: singleToken.address,
+  }));
+
+  const request = {
+    messenger,
+    requests,
+    transaction,
+  } as PayStrategyGetQuotesRequest;
+
+  const strategyOrder =
+    messenger.call('TransactionPayController:getStrategies', transaction) ?? [];
+
+  for (const strategyName of strategyOrder) {
+    try {
+      const strategy = getStrategyByName(strategyName);
+      if (!strategy.supports || strategy.supports(request)) {
+        return strategyName;
+      }
+    } catch {
+      continue;
+    }
+  }
+
+  return strategyOrder[0] ?? TransactionPayStrategy.Relay;
 }

@@ -39,13 +39,15 @@ export class BridgeStrategy implements PayStrategy<TransactionPayBridgeQuote> {
   async execute(
     request: PayStrategyExecuteRequest<TransactionPayBridgeQuote>,
   ): ReturnType<PayStrategy<TransactionPayBridgeQuote>['execute']> {
-    const { isSmartTransaction, quotes, messenger, transaction } = request;
+    const { isSmartTransaction, onSubmitted, quotes, messenger, transaction } =
+      request;
     const from = transaction.txParams.from as Hex;
 
     await submitBridgeQuotes({
       from,
       isSmartTransaction,
       messenger,
+      onSubmitted,
       quotes,
       transaction,
     });

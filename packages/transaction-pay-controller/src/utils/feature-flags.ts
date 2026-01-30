@@ -2,6 +2,7 @@ import type { Hex } from '@metamask/utils';
 import { createModuleLogger } from '@metamask/utils';
 
 import type { TransactionPayControllerMessenger } from '..';
+import { TransactionPayStrategy } from '../constants';
 import { projectLogger } from '../logger';
 import { RELAY_URL_BASE } from '../strategy/relay/constants';
 
@@ -12,6 +13,11 @@ export const DEFAULT_RELAY_FALLBACK_GAS_ESTIMATE = 900000;
 export const DEFAULT_RELAY_FALLBACK_GAS_MAX = 1500000;
 export const DEFAULT_RELAY_QUOTE_URL = `${RELAY_URL_BASE}/quote`;
 export const DEFAULT_SLIPPAGE = 0.005;
+export const DEFAULT_ACROSS_API_BASE = 'https://app.across.to/api';
+export const DEFAULT_STRATEGY_ORDER = [
+  TransactionPayStrategy.Relay,
+  TransactionPayStrategy.Across,
+];
 
 type FeatureFlagsRaw = {
   gasBuffer?: {
@@ -32,6 +38,7 @@ type FeatureFlagsRaw = {
   relayQuoteUrl?: string;
   slippage?: number;
   slippageTokens?: Record<Hex, Record<Hex, number>>;
+  payStrategies?: PayStrategiesConfigRaw;
 };
 
 export type FeatureFlags = {
@@ -42,6 +49,38 @@ export type FeatureFlags = {
   };
   relayQuoteUrl: string;
   slippage: number;
+};
+
+export type PayStrategyConfigRaw = {
+  allowSameChain?: boolean;
+  apiBase?: string;
+  apiKey?: string;
+  apiKeyHeader?: string;
+  apiKeyPrefix?: string;
+  appFee?: string;
+  appFeeRecipient?: string;
+  enabled?: boolean;
+  integratorId?: string;
+};
+
+export type PayStrategiesConfigRaw = {
+  across?: PayStrategyConfigRaw;
+  relay?: {
+    enabled?: boolean;
+    relayQuoteUrl?: string;
+  };
+};
+
+export type PayStrategiesConfig = {
+  across: PayStrategyConfigRaw & {
+    allowSameChain: boolean;
+    apiBase: string;
+    enabled: boolean;
+  };
+  relay: {
+    enabled: boolean;
+    relayQuoteUrl: string;
+  };
 };
 
 /**
@@ -82,6 +121,59 @@ export function getFeatureFlags(
   log('Feature flags:', { raw: featureFlags, result });
 
   return result;
+}
+
+/**
+ * Get Pay Strategies configuration.
+ *
+ * @param messenger - Controller messenger.
+ * @returns Pay Strategies configuration.
+ */
+export function getPayStrategiesConfig(
+  messenger: TransactionPayControllerMessenger,
+): PayStrategiesConfig {
+  const featureFlags = getFeatureFlagsRaw(messenger);
+  const payStrategies = featureFlags.payStrategies ?? {};
+
+  const acrossRaw = payStrategies.across ?? {};
+  const relayRaw = payStrategies.relay ?? {};
+
+  const across = {
+    allowSameChain: acrossRaw.allowSameChain ?? false,
+    apiBase: acrossRaw.apiBase ?? DEFAULT_ACROSS_API_BASE,
+    apiKey: acrossRaw.apiKey,
+    apiKeyHeader: acrossRaw.apiKeyHeader,
+    apiKeyPrefix: acrossRaw.apiKeyPrefix,
+    appFee: acrossRaw.appFee,
+    appFeeRecipient: acrossRaw.appFeeRecipient,
+    enabled: acrossRaw.enabled ?? true,
+    integratorId: acrossRaw.integratorId,
+  };
+
+  const relay = {
+    enabled: relayRaw.enabled ?? true,
+    relayQuoteUrl:
+      relayRaw.relayQuoteUrl ??
+      featureFlags.relayQuoteUrl ??
+      DEFAULT_RELAY_QUOTE_URL,
+  };
+
+  return {
+    across,
+    relay,
+  };
+}
+
+/**
+ * Get ordered list of strategies to try.
+ *
+ * @param _messenger - Controller messenger.
+ * @returns Ordered strategy list.
+ */
+export function getStrategyOrder(
+  _messenger: TransactionPayControllerMessenger,
+): TransactionPayStrategy[] {
+  return [...DEFAULT_STRATEGY_ORDER];
 }
 
 /**
@@ -170,12 +262,18 @@ function getCaseInsensitive<Value>(
 export function getEIP7702SupportedChains(
   messenger: TransactionPayControllerMessenger,
 ): Hex[] {
-  const state = messenger.call('RemoteFeatureFlagController:getState');
-  const eip7702Flags = state.remoteFeatureFlags.confirmations_eip_7702 as
-    | { supportedChains?: Hex[] }
-    | undefined;
+  try {
+    const state = messenger.call('RemoteFeatureFlagController:getState') as
+      | { remoteFeatureFlags?: Record<string, unknown> }
+      | undefined;
+    const eip7702Flags = state?.remoteFeatureFlags?.confirmations_eip_7702 as
+      | { supportedChains?: Hex[] }
+      | undefined;
 
-  return eip7702Flags?.supportedChains ?? [];
+    return eip7702Flags?.supportedChains ?? [];
+  } catch {
+    return [];
+  }
 }
 
 /**
@@ -187,6 +285,13 @@ export function getEIP7702SupportedChains(
 function getFeatureFlagsRaw(
   messenger: TransactionPayControllerMessenger,
 ): FeatureFlagsRaw {
-  const state = messenger.call('RemoteFeatureFlagController:getState');
-  return (state.remoteFeatureFlags.confirmations_pay as FeatureFlagsRaw) ?? {};
+  try {
+    const state = messenger.call('RemoteFeatureFlagController:getState') as
+      | { remoteFeatureFlags?: Record<string, FeatureFlagsRaw> }
+      | undefined;
+
+    return state?.remoteFeatureFlags?.confirmations_pay ?? {};
+  } catch {
+    return {};
+  }
 }
