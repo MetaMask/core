@@ -7,12 +7,6 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
-### Uncategorized
-
-- chore: upgrade Jest-related packages to latest 27.x versions ([#7792](https://github.com/MetaMask/core/pull/7792))
-- chore(lint): Fix suppressed ESLint errors in `preferences-controller` package ([#7433](https://github.com/MetaMask/core/pull/7433))
-- chore: Update ESLint config packages to v15 ([#7305](https://github.com/MetaMask/core/pull/7305))
-
 ### Changed
 
 - Upgrade `@metamask/utils` from `^11.8.1` to `^11.9.0` ([#7511](https://github.com/MetaMask/core/pull/7511))
