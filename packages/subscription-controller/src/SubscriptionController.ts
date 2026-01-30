@@ -944,6 +944,16 @@ export class SubscriptionController extends StaticIntervalPollingController()<
   }
 
   /**
+   * Clears the subscription state and resets to default values.
+   */
+  clearState(): void {
+    const defaultState = getDefaultSubscriptionControllerState();
+    this.update(() => {
+      return defaultState;
+    });
+  }
+
+  /**
    * Triggers an access token refresh.
    */
   triggerAccessTokenRefresh(): void {
