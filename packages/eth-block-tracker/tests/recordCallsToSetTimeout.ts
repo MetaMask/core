@@ -52,9 +52,9 @@ class SetTimeoutRecorder {
    * called.
    */
   async next(): Promise<void> {
-    // Resolve pending Promises first. Pending Promises always get resolved before a `setTimeout`
-    // callback in practice, so this better reflects a real scenario.
-    jest.runOnlyPendingTimers();
+    // Flush pending Promise microtasks first. In JS runtimes, microtasks run
+    // before timer callbacks, so this better reflects real event-loop ordering.
+    await Promise.resolve();
 
     await new Promise<void>((resolve) => {
       if (this.calls.length > 0) {
@@ -69,9 +69,8 @@ class SetTimeoutRecorder {
         });
       }
     });
-    // Resolve pending Promises before returning to better emulate a real scenario.
-    // This ensures tests can't accidentally insert synchronous code after a `setTimeout`.
-    jest.runOnlyPendingTimers();
+    // Flush pending Promise microtasks before returning.
+    await Promise.resolve();
   }
 
   /**
@@ -84,9 +83,9 @@ class SetTimeoutRecorder {
    * given duration is called.
    */
   async nextMatchingDuration(duration: number): Promise<void> {
-    // Resolve pending Promises first. Pending Promises always get resolved before a `setTimeout`
-    // callback in practice, so this better reflects a real scenario.
-    jest.runOnlyPendingTimers();
+    // Flush pending Promise microtasks first. In JS runtimes, microtasks run
+    // before timer callbacks, so this better reflects real event-loop ordering.
+    await Promise.resolve();
 
     await new Promise<void>((resolve) => {
       const index = this.calls.findIndex((call) => call.duration === duration);
@@ -108,9 +107,8 @@ class SetTimeoutRecorder {
         resolve();
       }
     });
-    // Resolve pending Promises before returning to better emulate a real scenario.
-    // This ensures tests can't accidentally insert synchronous code after a `setTimeout`.
-    jest.runOnlyPendingTimers();
+    // Flush pending Promise microtasks before returning.
+    await Promise.resolve();
   }
 
   findCallsMatchingDuration(duration: number): SetTimeoutCall[] {

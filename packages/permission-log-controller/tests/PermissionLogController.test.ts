@@ -94,7 +94,7 @@ const mockNext =
   };
 
 const initClock = (): void => {
-  jest.useFakeTimers('modern');
+  jest.useFakeTimers();
   jest.setSystemTime(new Date(1));
 };
 
