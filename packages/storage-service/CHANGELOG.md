@@ -7,6 +7,11 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+### Added
+
+- Add optional `initialData` parameter to `InMemoryStorageAdapter` constructor for pre-populating storage during tests
+- Add `InitialStorageData` type export for typing initial data passed to `InMemoryStorageAdapter`
+
 ### Changed
 
 - Upgrade `@metamask/utils` from `^11.8.1` to `^11.9.0` ([#7511](https://github.com/MetaMask/core/pull/7511))
