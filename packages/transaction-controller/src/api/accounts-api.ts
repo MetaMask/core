@@ -109,6 +109,7 @@ const SUPPORTED_CHAIN_IDS_FOR_RELATIONSHIP_API = [
   534352, // Scroll
   1329, // Sei
   143, // Monad
+  999, // HyperEVM
 ];
 
 const log = createModuleLogger(projectLogger, 'accounts-api');

@@ -7,6 +7,12 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+### Added
+
+- Add support for HYPEREVM (chain ID `0x3e7`) ([#7770](https://github.com/MetaMask/core/pull/7770))
+  - Add `HYPEREVM` into constant `ETHERSCAN_SUPPORTED_CHAIN_IDS`
+  - Update default controller state so HYPEREVM (Chain ID `0x3e7`) is automatically enabled in `showIncomingTransactions`
+
 ### Changed
 
 - Upgrade `@metamask/utils` from `^11.8.1` to `^11.9.0` ([#7511](https://github.com/MetaMask/core/pull/7511))

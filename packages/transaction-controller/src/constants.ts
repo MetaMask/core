@@ -5,6 +5,7 @@ export const CHAIN_IDS = {
   BASE_TESTNET: '0x14a33',
   BSC: '0x38',
   BSC_TESTNET: '0x61',
+  HYPEREVM: '0x3e7',
   OPTIMISM: '0xa',
   OPTIMISM_TESTNET: '0x1a4',
   OPBNB: '0xcc',
