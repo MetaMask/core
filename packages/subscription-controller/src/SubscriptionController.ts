@@ -111,6 +111,16 @@ export type SubscriptionControllerSubmitSponsorshipIntentsAction = {
   handler: SubscriptionController['submitSponsorshipIntents'];
 };
 
+export type SubscriptionControllerCacheLastSelectedPaymentMethodAction = {
+  type: `${typeof controllerName}:cacheLastSelectedPaymentMethod`;
+  handler: SubscriptionController['cacheLastSelectedPaymentMethod'];
+};
+
+export type SubscriptionControllerClearLastSelectedPaymentMethodAction = {
+  type: `${typeof controllerName}:clearLastSelectedPaymentMethod`;
+  handler: SubscriptionController['clearLastSelectedPaymentMethod'];
+};
+
 export type SubscriptionControllerLinkRewardsAction = {
   type: `${typeof controllerName}:linkRewards`;
   handler: SubscriptionController['linkRewards'];
@@ -139,7 +149,9 @@ export type SubscriptionControllerActions =
   | SubscriptionControllerGetBillingPortalUrlAction
   | SubscriptionControllerSubmitSponsorshipIntentsAction
   | SubscriptionControllerSubmitShieldSubscriptionCryptoApprovalAction
-  | SubscriptionControllerLinkRewardsAction;
+  | SubscriptionControllerLinkRewardsAction
+  | SubscriptionControllerCacheLastSelectedPaymentMethodAction
+  | SubscriptionControllerClearLastSelectedPaymentMethodAction;
 
 export type AllowedActions =
   | AuthenticationController.AuthenticationControllerGetBearerToken
@@ -352,6 +364,16 @@ export class SubscriptionController extends StaticIntervalPollingController()<
     this.messenger.registerActionHandler(
       `${controllerName}:linkRewards`,
       this.linkRewards.bind(this),
+    );
+
+    this.messenger.registerActionHandler(
+      `${controllerName}:cacheLastSelectedPaymentMethod`,
+      this.cacheLastSelectedPaymentMethod.bind(this),
+    );
+
+    this.messenger.registerActionHandler(
+      `${controllerName}:clearLastSelectedPaymentMethod`,
+      this.clearLastSelectedPaymentMethod.bind(this),
     );
   }
 
