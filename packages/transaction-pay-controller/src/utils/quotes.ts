@@ -147,6 +147,7 @@ function syncTransaction({
       tx.batchTransactionsOptions = {};
 
       tx.metamaskPay = {
+        ...tx.metamaskPay,
         bridgeFeeFiat: totals.fees.provider.usd,
         chainId: paymentToken.chainId,
         networkFeeFiat: totals.fees.sourceNetwork.estimate.usd,

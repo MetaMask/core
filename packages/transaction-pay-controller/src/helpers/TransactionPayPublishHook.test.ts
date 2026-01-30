@@ -1,6 +1,7 @@
 import type {
   PublishHookResult,
   TransactionMeta,
+  TransactionControllerState,
 } from '@metamask/transaction-controller';
 
 import { TransactionPayPublishHook } from './TransactionPayPublishHook';
@@ -27,8 +28,13 @@ describe('TransactionPayPublishHook', () => {
   const isSmartTransactionMock = jest.fn();
   const executeMock = jest.fn();
 
-  const { messenger, getControllerStateMock, getStrategyMock } =
-    getMessengerMock();
+  const {
+    messenger,
+    getControllerStateMock,
+    getStrategyMock,
+    getTransactionControllerStateMock,
+    updateTransactionMock,
+  } = getMessengerMock();
 
   let hook: TransactionPayPublishHook;
 
@@ -65,6 +71,10 @@ describe('TransactionPayPublishHook', () => {
     } as TransactionPayControllerState);
 
     getStrategyMock.mockReturnValue(TransactionPayStrategy.Test);
+
+    getTransactionControllerStateMock.mockReturnValue({
+      transactions: [TRANSACTION_META_MOCK],
+    } as TransactionControllerState);
   });
 
   it('executes strategy with quotes', async () => {
@@ -91,5 +101,33 @@ describe('TransactionPayPublishHook', () => {
     executeMock.mockRejectedValue(new Error('Test error'));
 
     await expect(runHook()).rejects.toThrow('Test error');
+  });
+
+  it('stores execution latency in metadata', async () => {
+    const nowSpy = jest.spyOn(Date, 'now');
+    nowSpy
+      .mockReturnValueOnce(1000)
+      .mockReturnValueOnce(1400)
+      .mockReturnValue(1400);
+
+    await runHook();
+
+    expect(updateTransactionMock).toHaveBeenCalled();
+    const updatedTx = updateTransactionMock.mock.calls[0][0];
+    expect(updatedTx.metamaskPay?.executionLatencyMs).toBe(400);
+
+    nowSpy.mockRestore();
+  });
+
+  it('swallows errors when updating execution metrics', async () => {
+    updateTransactionMock.mockImplementation(() => {
+      throw new Error('Update failed');
+    });
+    executeMock.mockResolvedValue({ transactionHash: '0xhash' });
+
+    await expect(runHook()).resolves.toStrictEqual({
+      transactionHash: '0xhash',
+    });
+    expect(updateTransactionMock).toHaveBeenCalled();
   });
 });

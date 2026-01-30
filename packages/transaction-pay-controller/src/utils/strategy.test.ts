@@ -5,6 +5,7 @@ import { TransactionPayStrategy } from '../constants';
 import { BridgeStrategy } from '../strategy/bridge/BridgeStrategy';
 import { RelayStrategy } from '../strategy/relay/RelayStrategy';
 import { TestStrategy } from '../strategy/test/TestStrategy';
+import { TokenPayStrategy } from '../strategy/token-pay/TokenPayStrategy';
 import { getMessengerMock } from '../tests/messenger-mock';
 
 const TRANSACTION_META_MOCK = {} as TransactionMeta;
@@ -41,6 +42,14 @@ describe('Strategy Utils', () => {
       expect(strategy).toBeInstanceOf(RelayStrategy);
     });
 
+    it('returns TokenPayStrategy if strategy name is TokenPay', async () => {
+      getStrategyMock.mockReturnValue(TransactionPayStrategy.TokenPay);
+
+      const strategy = getStrategy(messenger, TRANSACTION_META_MOCK);
+
+      expect(strategy).toBeInstanceOf(TokenPayStrategy);
+    });
+
     it('throws if strategy name is unknown', async () => {
       getStrategyMock.mockReturnValue('UnknownStrategy' as never);
 
@@ -64,6 +73,11 @@ describe('Strategy Utils', () => {
     it('returns RelayStrategy if strategy name is Relay', () => {
       const strategy = getStrategyByName(TransactionPayStrategy.Relay);
       expect(strategy).toBeInstanceOf(RelayStrategy);
+    });
+
+    it('returns TokenPayStrategy if strategy name is TokenPay', () => {
+      const strategy = getStrategyByName(TransactionPayStrategy.TokenPay);
+      expect(strategy).toBeInstanceOf(TokenPayStrategy);
     });
 
     it('throws if strategy name is unknown', () => {

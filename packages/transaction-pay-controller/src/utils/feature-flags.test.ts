@@ -1,6 +1,7 @@
 import type { Hex } from '@metamask/utils';
 
 import {
+  DEFAULT_ACROSS_API_BASE,
   DEFAULT_GAS_BUFFER,
   DEFAULT_RELAY_FALLBACK_GAS_ESTIMATE,
   DEFAULT_RELAY_FALLBACK_GAS_MAX,
@@ -10,6 +11,7 @@ import {
   getFeatureFlags,
   getGasBuffer,
   getSlippage,
+  getTokenPayConfig,
 } from './feature-flags';
 import { getDefaultRemoteFeatureFlagControllerState } from '../../../remote-feature-flag-controller/src/remote-feature-flag-controller';
 import { getMessengerMock } from '../tests/messenger-mock';
@@ -383,6 +385,69 @@ describe('Feature Flags Utils', () => {
       const supportedChains = getEIP7702SupportedChains(messenger);
 
       expect(supportedChains).toStrictEqual([]);
+    });
+  });
+
+  describe('getTokenPayConfig', () => {
+    it('returns defaults when token pay config is missing', () => {
+      const config = getTokenPayConfig(messenger);
+
+      expect(config.primaryProvider).toBe('relay');
+      expect(config.providerOrder).toStrictEqual(['relay', 'across']);
+      expect(config.providers.across).toStrictEqual(
+        expect.objectContaining({
+          allowSameChain: false,
+          apiBase: DEFAULT_ACROSS_API_BASE,
+          enabled: true,
+        }),
+      );
+      expect(config.providers.relay).toStrictEqual(
+        expect.objectContaining({
+          enabled: true,
+          relayQuoteUrl: DEFAULT_RELAY_QUOTE_URL,
+        }),
+      );
+    });
+
+    it('falls back to the primary provider when provider order is empty', () => {
+      getRemoteFeatureFlagControllerStateMock.mockReturnValue({
+        ...getDefaultRemoteFeatureFlagControllerState(),
+        remoteFeatureFlags: {
+          confirmations_pay: {
+            tokenPay: {
+              primaryProvider: 'across',
+              providerOrder: [],
+              providers: {
+                across: {
+                  allowSameChain: true,
+                  enabled: false,
+                },
+                relay: {
+                  enabled: false,
+                  relayQuoteUrl: RELAY_QUOTE_URL_MOCK,
+                },
+              },
+            },
+          },
+        },
+      });
+
+      const config = getTokenPayConfig(messenger);
+
+      expect(config.primaryProvider).toBe('across');
+      expect(config.providerOrder).toStrictEqual(['across']);
+      expect(config.providers.across).toStrictEqual(
+        expect.objectContaining({
+          allowSameChain: true,
+          enabled: false,
+        }),
+      );
+      expect(config.providers.relay).toStrictEqual(
+        expect.objectContaining({
+          enabled: false,
+          relayQuoteUrl: RELAY_QUOTE_URL_MOCK,
+        }),
+      );
     });
   });
 });

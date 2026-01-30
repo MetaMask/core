@@ -12,6 +12,9 @@ export const DEFAULT_RELAY_FALLBACK_GAS_ESTIMATE = 900000;
 export const DEFAULT_RELAY_FALLBACK_GAS_MAX = 1500000;
 export const DEFAULT_RELAY_QUOTE_URL = `${RELAY_URL_BASE}/quote`;
 export const DEFAULT_SLIPPAGE = 0.005;
+export const DEFAULT_ACROSS_API_BASE = 'https://app.across.to/api';
+
+export type TokenPayProviderId = 'relay' | 'across';
 
 type FeatureFlagsRaw = {
   gasBuffer?: {
@@ -32,6 +35,7 @@ type FeatureFlagsRaw = {
   relayQuoteUrl?: string;
   slippage?: number;
   slippageTokens?: Record<Hex, Record<Hex, number>>;
+  tokenPay?: TokenPayConfigRaw;
 };
 
 export type FeatureFlags = {
@@ -42,6 +46,47 @@ export type FeatureFlags = {
   };
   relayQuoteUrl: string;
   slippage: number;
+};
+
+export type TokenPayProviderConfigRaw = {
+  allowSameChain?: boolean;
+  apiBase?: string;
+  apiKey?: string;
+  apiKeyHeader?: string;
+  apiKeyPrefix?: string;
+  appFee?: string;
+  appFeeRecipient?: string;
+  enabled?: boolean;
+  integratorId?: string;
+  slippage?: number;
+};
+
+export type TokenPayConfigRaw = {
+  primaryProvider?: TokenPayProviderId;
+  providerOrder?: TokenPayProviderId[];
+  providers?: {
+    across?: TokenPayProviderConfigRaw;
+    relay?: {
+      enabled?: boolean;
+      relayQuoteUrl?: string;
+    };
+  };
+};
+
+export type TokenPayConfig = {
+  primaryProvider: TokenPayProviderId;
+  providerOrder: TokenPayProviderId[];
+  providers: {
+    across: TokenPayProviderConfigRaw & {
+      allowSameChain: boolean;
+      apiBase: string;
+      enabled: boolean;
+    };
+    relay: {
+      enabled: boolean;
+      relayQuoteUrl: string;
+    };
+  };
 };
 
 /**
@@ -82,6 +127,62 @@ export function getFeatureFlags(
   log('Feature flags:', { raw: featureFlags, result });
 
   return result;
+}
+
+/**
+ * Get Token Pay configuration.
+ *
+ * @param messenger - Controller messenger.
+ * @returns Token Pay configuration.
+ */
+export function getTokenPayConfig(
+  messenger: TransactionPayControllerMessenger,
+): TokenPayConfig {
+  const featureFlags = getFeatureFlagsRaw(messenger);
+  const tokenPay = featureFlags.tokenPay ?? {};
+
+  const primaryProvider = tokenPay.primaryProvider ?? 'relay';
+  const providerOrder = tokenPay.providerOrder ?? [
+    primaryProvider,
+    'relay',
+    'across',
+  ];
+
+  // dedupe
+  const normalizedOrder = Array.from(new Set(providerOrder.filter(Boolean)));
+
+  const acrossRaw = tokenPay.providers?.across ?? {};
+  const relayRaw = tokenPay.providers?.relay ?? {};
+
+  const across = {
+    allowSameChain: acrossRaw.allowSameChain ?? false,
+    apiBase: acrossRaw.apiBase ?? DEFAULT_ACROSS_API_BASE,
+    apiKey: acrossRaw.apiKey,
+    apiKeyHeader: acrossRaw.apiKeyHeader,
+    apiKeyPrefix: acrossRaw.apiKeyPrefix,
+    appFee: acrossRaw.appFee,
+    appFeeRecipient: acrossRaw.appFeeRecipient,
+    enabled: acrossRaw.enabled ?? true,
+    integratorId: acrossRaw.integratorId,
+    slippage: acrossRaw.slippage,
+  };
+
+  const relay = {
+    enabled: relayRaw.enabled ?? true,
+    relayQuoteUrl:
+      relayRaw.relayQuoteUrl ??
+      featureFlags.relayQuoteUrl ??
+      DEFAULT_RELAY_QUOTE_URL,
+  };
+
+  return {
+    primaryProvider,
+    providerOrder: normalizedOrder.length ? normalizedOrder : [primaryProvider],
+    providers: {
+      across,
+      relay,
+    },
+  };
 }
 
 /**

@@ -44,6 +44,23 @@ Quotes are retrieved from the [Relay API](https://docs.relay.link/what-is-relay)
 
 The resulting transaction deposits the necessary funds (on the source network), then a Relayer on the target chain immediately transfers the necessary funds and optionally executes any requested call data.
 
+### TokenPay (provider routing)
+
+The `TokenPayStrategy` routes quote and execution requests through provider adapters (currently Relay and Across).
+
+Provider selection is determined by feature flags:
+
+- `tokenPay.providerOrder` controls priority (default: `[primaryProvider, 'relay', 'across']`).
+- Each provider can be enabled/disabled via `tokenPay.providers.<id>.enabled`.
+- Providers may also implement capability gating in `supports(...)` (e.g., Across rejects same-chain swaps).
+
+Routing behavior:
+
+- The strategy selects the **first** provider in order that is enabled and returns `supports(...) === true`.
+- If no provider supports the request, the strategy throws, and the controller returns no quotes.
+- There is **no automatic fallback** if the selected provider throws during quote retrieval or execution; errors surface and quotes are left empty. (Future work could introduce fallback on specific error types.)
+- Current limitation: provider-specific capability checks that happen during quote building (e.g., Across rejecting type-4/EIP-7702 transactions) do not fall back to lower-priority providers. If we add a third provider after Across that supports type-4, we should consider adding fallback logic or moving that check into `supports(...)` to avoid returning no quotes.
+
 ## Lifecycle
 
 The high level interaction with the `TransactionPayController` is as follows:

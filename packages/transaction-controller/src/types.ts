@@ -836,6 +836,11 @@ export enum TransactionType {
   relayDeposit = 'relayDeposit',
 
   /**
+   * Deposit funds for Across quote.
+   */
+  acrossDeposit = 'acrossDeposit',
+
+  /**
    * When a transaction is failed it can be retried by
    * resubmitting the same transaction with a higher gas fee. This type is also used
    * to speed up pending transactions. This is accomplished by creating a new tx with
@@ -2107,6 +2112,9 @@ export type MetamaskPayMetadata = {
 
   /** Total cost of the transaction in fiat currency, including gas, fees, and the funds themselves. */
   totalFiat?: string;
+
+  /** Total time spent executing the MetaMask Pay flow, in milliseconds. */
+  executionLatencyMs?: number;
 };
 
 /**

@@ -4,6 +4,7 @@ import { TransactionPayStrategy } from '../constants';
 import { BridgeStrategy } from '../strategy/bridge/BridgeStrategy';
 import { RelayStrategy } from '../strategy/relay/RelayStrategy';
 import { TestStrategy } from '../strategy/test/TestStrategy';
+import { TokenPayStrategy } from '../strategy/token-pay/TokenPayStrategy';
 import type { PayStrategy, TransactionPayControllerMessenger } from '../types';
 
 /**
@@ -40,6 +41,9 @@ export function getStrategyByName(
 
     case TransactionPayStrategy.Relay:
       return new RelayStrategy() as never;
+
+    case TransactionPayStrategy.TokenPay:
+      return new TokenPayStrategy() as never;
 
     case TransactionPayStrategy.Test:
       return new TestStrategy() as never;

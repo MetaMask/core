@@ -10,6 +10,7 @@ import type {
   TransactionPayQuote,
 } from '../types';
 import { getStrategy } from '../utils/strategy';
+import { updateTransaction } from '../utils/transaction';
 
 const log = createModuleLogger(projectLogger, 'pay-publish-hook');
 
@@ -70,11 +71,34 @@ export class TransactionPayPublishHook {
 
     const strategy = getStrategy(this.#messenger, transactionMeta);
 
-    return await strategy.execute({
+    const start = Date.now();
+    const result = await strategy.execute({
       isSmartTransaction: this.#isSmartTransaction,
       quotes,
       messenger: this.#messenger,
       transaction: transactionMeta,
     });
+
+    const executionLatencyMs = Date.now() - start;
+
+    try {
+      updateTransaction(
+        {
+          transactionId,
+          messenger: this.#messenger,
+          note: 'Update MetaMask Pay execution metrics',
+        },
+        (tx) => {
+          tx.metamaskPay = {
+            ...tx.metamaskPay,
+            executionLatencyMs,
+          };
+        },
+      );
+    } catch (error) {
+      log('Failed to update execution metrics', error);
+    }
+
+    return result;
   }
 }

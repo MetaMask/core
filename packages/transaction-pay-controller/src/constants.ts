@@ -16,5 +16,6 @@ export const POLYGON_USDCE_ADDRESS =
 export enum TransactionPayStrategy {
   Bridge = 'bridge',
   Relay = 'relay',
+  TokenPay = 'tokenPay',
   Test = 'test',
 }

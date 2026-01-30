@@ -314,6 +314,27 @@ describe('Quotes Utils', () => {
       });
     });
 
+    it('preserves existing metamask pay metadata', async () => {
+      await run();
+
+      const transactionMetaMock = {
+        metamaskPay: { executionLatencyMs: 1234 },
+      } as TransactionMeta;
+      updateTransactionMock.mock.calls[0][1](transactionMetaMock);
+
+      expect(transactionMetaMock.metamaskPay?.executionLatencyMs).toBe(1234);
+      expect(transactionMetaMock).toMatchObject({
+        metamaskPay: {
+          bridgeFeeFiat: TOTALS_MOCK.fees.provider.usd,
+          chainId: TRANSACTION_DATA_MOCK.paymentToken?.chainId,
+          networkFeeFiat: TOTALS_MOCK.fees.sourceNetwork.estimate.usd,
+          targetFiat: TOTALS_MOCK.targetAmount.usd,
+          tokenAddress: TRANSACTION_DATA_MOCK.paymentToken?.address,
+          totalFiat: TOTALS_MOCK.total.usd,
+        },
+      });
+    });
+
     it('does nothing if transaction is not unapproved', async () => {
       getTransactionMock.mockReturnValue({
         ...TRANSACTION_META_MOCK,
