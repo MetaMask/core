@@ -7,6 +7,7 @@ export type {
   RampsControllerStateChangeEvent,
   RampsControllerOptions,
   UserRegion,
+  ResourceState,
 } from './RampsController';
 export {
   RampsController,
@@ -34,6 +35,8 @@ export type {
   QuoteCustomAction,
   QuotesResponse,
   GetQuotesParams,
+  RampsToken,
+  TokensResponse,
 } from './RampsService';
 export {
   RampsService,
@@ -52,6 +55,7 @@ export type {
   RequestState,
   ExecuteRequestOptions,
   PendingRequest,
+  ResourceType,
 } from './RequestCache';
 export {
   RequestStatus,
