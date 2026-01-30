@@ -33,6 +33,8 @@ export type {
   TransactionControllerUnapprovedTransactionAddedEvent,
   TransactionControllerUpdateCustodialTransactionAction,
   TransactionControllerUpdateTransactionAction,
+  TransactionControllerUpdateTransactionObjAction,
+  UpdateTransactionRequest,
   TransactionControllerMessenger,
   TransactionControllerOptions,
 } from './TransactionController';
