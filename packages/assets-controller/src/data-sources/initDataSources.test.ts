@@ -8,7 +8,6 @@ import type { DataSourceMessengers } from './initDataSources';
 import { PriceDataSource } from './PriceDataSource';
 import { RpcDataSource } from './RpcDataSource';
 import { SnapDataSource } from './SnapDataSource';
-import type { SnapProvider } from './SnapDataSource';
 import { TokenDataSource } from './TokenDataSource';
 import { DetectionMiddleware } from '../middlewares';
 
@@ -43,12 +42,6 @@ const MockPriceDataSource = PriceDataSource as jest.MockedClass<
 const MockDetectionMiddleware = DetectionMiddleware as jest.MockedClass<
   typeof DetectionMiddleware
 >;
-
-function createMockSnapProvider(): SnapProvider {
-  return {
-    request: jest.fn(),
-  } as unknown as SnapProvider;
-}
 
 function createMockQueryApiClient(): ApiPlatformClient {
   return {
@@ -243,12 +236,10 @@ describe('initDataSources', () => {
 
     it('creates all data source instances', () => {
       const messengers = createMockMessengers();
-      const snapProvider = createMockSnapProvider();
       const queryApiClient = createMockQueryApiClient();
 
       const dataSources = initDataSources({
         messengers,
-        snapProvider,
         queryApiClient,
       });
 
@@ -263,12 +254,10 @@ describe('initDataSources', () => {
 
     it('creates RpcDataSource with correct messenger', () => {
       const messengers = createMockMessengers();
-      const snapProvider = createMockSnapProvider();
       const queryApiClient = createMockQueryApiClient();
 
       initDataSources({
         messengers,
-        snapProvider,
         queryApiClient,
       });
 
@@ -279,12 +268,10 @@ describe('initDataSources', () => {
 
     it('creates BackendWebsocketDataSource with correct messenger', () => {
       const messengers = createMockMessengers();
-      const snapProvider = createMockSnapProvider();
       const queryApiClient = createMockQueryApiClient();
 
       initDataSources({
         messengers,
-        snapProvider,
         queryApiClient,
       });
 
@@ -295,12 +282,10 @@ describe('initDataSources', () => {
 
     it('creates AccountsApiDataSource with correct options', () => {
       const messengers = createMockMessengers();
-      const snapProvider = createMockSnapProvider();
       const queryApiClient = createMockQueryApiClient();
 
       initDataSources({
         messengers,
-        snapProvider,
         queryApiClient,
       });
 
@@ -312,29 +297,24 @@ describe('initDataSources', () => {
 
     it('creates SnapDataSource with correct options', () => {
       const messengers = createMockMessengers();
-      const snapProvider = createMockSnapProvider();
       const queryApiClient = createMockQueryApiClient();
 
       initDataSources({
         messengers,
-        snapProvider,
         queryApiClient,
       });
 
       expect(MockSnapDataSource).toHaveBeenCalledWith({
         messenger: messengers.snapMessenger,
-        snapProvider,
       });
     });
 
     it('creates TokenDataSource with correct options', () => {
       const messengers = createMockMessengers();
-      const snapProvider = createMockSnapProvider();
       const queryApiClient = createMockQueryApiClient();
 
       initDataSources({
         messengers,
-        snapProvider,
         queryApiClient,
       });
 
@@ -346,12 +326,10 @@ describe('initDataSources', () => {
 
     it('creates PriceDataSource with correct options', () => {
       const messengers = createMockMessengers();
-      const snapProvider = createMockSnapProvider();
       const queryApiClient = createMockQueryApiClient();
 
       initDataSources({
         messengers,
-        snapProvider,
         queryApiClient,
       });
 
@@ -363,12 +341,10 @@ describe('initDataSources', () => {
 
     it('creates DetectionMiddleware with correct messenger', () => {
       const messengers = createMockMessengers();
-      const snapProvider = createMockSnapProvider();
       const queryApiClient = createMockQueryApiClient();
 
       initDataSources({
         messengers,
-        snapProvider,
         queryApiClient,
       });
 
@@ -379,12 +355,10 @@ describe('initDataSources', () => {
 
     it('returns instances of correct types', () => {
       const messengers = createMockMessengers();
-      const snapProvider = createMockSnapProvider();
       const queryApiClient = createMockQueryApiClient();
 
       const dataSources = initDataSources({
         messengers,
-        snapProvider,
         queryApiClient,
       });
 
