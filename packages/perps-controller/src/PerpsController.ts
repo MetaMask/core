@@ -873,6 +873,24 @@ export class PerpsController extends BaseController<
   }
 
   /**
+   * Debug method for validating Core integration.
+   * Logs via injected debugLogger and returns debug info.
+   *
+   * @returns Debug information object
+   */
+  debug(): { timestamp: string; source: string; message: string } {
+    const debugInfo = {
+      timestamp: new Date().toISOString(),
+      source: '@metamask/perps-controller',
+      message: 'DEBUG v5 - Hello from Core PerpsController!',
+    };
+
+    this.debugLog('[PerpsController.debug]', debugInfo);
+
+    return debugInfo;
+  }
+
+  /**
    * Get metrics instance from platform dependencies
    */
   private getMetrics(): PerpsPlatformDependencies['metrics'] {

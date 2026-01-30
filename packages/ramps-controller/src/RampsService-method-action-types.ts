@@ -76,6 +76,27 @@ export type RampsServiceGetPaymentMethodsAction = {
 };
 
 /**
+ * Fetches quotes from all providers for a given set of parameters.
+ * Uses the V2 orders API to get quotes for multiple payment methods at once.
+ *
+ * @param params - The parameters for fetching quotes.
+ * @param params.region - User's region code (e.g., "us", "us-ca").
+ * @param params.paymentMethods - Array of payment method IDs.
+ * @param params.assetId - CAIP-19 cryptocurrency identifier.
+ * @param params.fiat - Fiat currency code (e.g., "usd").
+ * @param params.amount - The amount (in fiat for buy, crypto for sell).
+ * @param params.walletAddress - The destination wallet address.
+ * @param params.redirectUrl - Optional redirect URL after order completion.
+ * @param params.provider - Optional provider ID to filter quotes.
+ * @param params.action - The ramp action type. Defaults to 'buy'.
+ * @returns The quotes response containing success, sorted, error, and customActions.
+ */
+export type RampsServiceGetQuotesAction = {
+  type: `RampsService:getQuotes`;
+  handler: RampsService['getQuotes'];
+};
+
+/**
  * Union of all RampsService action types.
  */
 export type RampsServiceMethodActions =
@@ -83,4 +104,5 @@ export type RampsServiceMethodActions =
   | RampsServiceGetCountriesAction
   | RampsServiceGetTokensAction
   | RampsServiceGetProvidersAction
-  | RampsServiceGetPaymentMethodsAction;
+  | RampsServiceGetPaymentMethodsAction
+  | RampsServiceGetQuotesAction;

@@ -9,6 +9,40 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ### Changed
 
+- Bump `@metamask/transaction-controller` from `^62.11.0` to `^62.12.0` ([#7775](https://github.com/MetaMask/core/pull/7775))
+
+## [99.1.0]
+
+### Added
+
+- Add multicall address for the chain: `Tempo Testnet` ([#7753](https://github.com/MetaMask/core/pull/7753))
+
+### Changed
+
+- Bump `@metamask/transaction-controller` from `^62.10.0` to `^62.11.0` ([#7760](https://github.com/MetaMask/core/pull/7760))
+
+## [99.0.0]
+
+### Changed
+
+- Bump `@metamask/transaction-controller` from `^62.9.2` to `^62.10.0` ([#7737](https://github.com/MetaMask/core/pull/7737))
+- Expand NFT auto-detection to include BSC, Polygon, Avalanche, and Base chains in addition to existing supported chains ([#7730](https://github.com/MetaMask/core/pull/7730))
+
+### Removed
+
+- **BREAKING:** Remove `clearingTokenListData()` method from `TokenListController` ([#7743](https://github.com/MetaMask/core/pull/7743))
+  - Token list cache is now persistent across network changes and should not be cleared
+- **BREAKING:** Remove `preventPollingOnNetworkRestart` state property from `TokenListController` ([#7743](https://github.com/MetaMask/core/pull/7743))
+  - Constructor parameter `preventPollingOnNetworkRestart` is no longer accepted
+  - Method `updatePreventPollingOnNetworkRestart()` has been removed
+  - State no longer includes `preventPollingOnNetworkRestart` field
+- Remove `StorageServiceRemoveItemAction` from `TokenListController` allowed actions ([#7743](https://github.com/MetaMask/core/pull/7743))
+  - No longer needed as cache clearing functionality has been removed
+
+## [98.0.0]
+
+### Changed
+
 - **BREAKING:** `TokenListController` now persists `tokensChainsCache` via `StorageService` and requires clients to call `initialize()` after construction ([#7413](https://github.com/MetaMask/core/pull/7413))
   - Each chain's token cache is stored in a separate file, reducing write amplification
   - All chains are loaded in parallel at startup to maintain compatibility with TokenDetectionController
@@ -2581,7 +2615,10 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 - Use Ethers for AssetsContractController ([#845](https://github.com/MetaMask/core/pull/845))
 
-[Unreleased]: https://github.com/MetaMask/core/compare/@metamask/assets-controllers@97.0.0...HEAD
+[Unreleased]: https://github.com/MetaMask/core/compare/@metamask/assets-controllers@99.1.0...HEAD
+[99.1.0]: https://github.com/MetaMask/core/compare/@metamask/assets-controllers@99.0.0...@metamask/assets-controllers@99.1.0
+[99.0.0]: https://github.com/MetaMask/core/compare/@metamask/assets-controllers@98.0.0...@metamask/assets-controllers@99.0.0
+[98.0.0]: https://github.com/MetaMask/core/compare/@metamask/assets-controllers@97.0.0...@metamask/assets-controllers@98.0.0
 [97.0.0]: https://github.com/MetaMask/core/compare/@metamask/assets-controllers@96.0.0...@metamask/assets-controllers@97.0.0
 [96.0.0]: https://github.com/MetaMask/core/compare/@metamask/assets-controllers@95.3.0...@metamask/assets-controllers@96.0.0
 [95.3.0]: https://github.com/MetaMask/core/compare/@metamask/assets-controllers@95.2.0...@metamask/assets-controllers@95.3.0

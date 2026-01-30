@@ -234,10 +234,10 @@ describe('PriceDataSource', () => {
     );
     expect(response.assetsPrice?.[MOCK_NATIVE_ASSET]).toStrictEqual({
       price: 2500,
-      priceChange24h: 2.5,
+      pricePercentChange1d: 2.5,
       lastUpdated: expect.any(Number),
       marketCap: 1000000000,
-      volume24h: 50000000,
+      totalVolume: 50000000,
     });
 
     controller.destroy();
@@ -632,10 +632,10 @@ describe('PriceDataSource', () => {
     );
     expect(context.response.assetsPrice?.[MOCK_TOKEN_ASSET]).toStrictEqual({
       price: 1.0,
-      priceChange24h: 2.5,
+      pricePercentChange1d: 2.5,
       lastUpdated: expect.any(Number),
       marketCap: 1000000000,
-      volume24h: 50000000,
+      totalVolume: 50000000,
     });
     expect(next).toHaveBeenCalledWith(context);
 
