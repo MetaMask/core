@@ -40,6 +40,7 @@ function getConfigRegistryControllerMessenger(): {
 } {
   const rootMessenger: RootMessenger = new Messenger({
     namespace: MOCK_ANY_NAMESPACE,
+    captureException: jest.fn(),
   });
 
   const configRegistryControllerMessenger: ConfigRegistryMessenger =
@@ -327,90 +328,29 @@ describe('ConfigRegistryController', () => {
     it('uses fallback config when no configs exist', async () => {
       await withController(
         { options: { fallbackConfig: MOCK_FALLBACK_CONFIG } },
-        async ({ mockRemoteFeatureFlagGetState, mockApiServiceHandler }) => {
+        async ({
+          mockRemoteFeatureFlagGetState,
+          mockApiServiceHandler,
+          rootMessenger,
+          controller,
+        }) => {
           mockRemoteFeatureFlagGetState.mockReturnValue({
             remoteFeatureFlags: {
               configRegistryApiEnabled: true,
             },
             cacheTimestamp: Date.now(),
           });
-
           mockApiServiceHandler.mockRejectedValue(new Error('Network error'));
 
-          const captureExceptionSpy = jest.fn();
-          const testRootMessenger = new Messenger<
-            MockAnyNamespace,
-            | {
-                type: 'RemoteFeatureFlagController:getState';
-                handler: () => unknown;
-              }
-            | {
-                type: 'KeyringController:getState';
-                handler: () => { isUnlocked: boolean };
-              }
-            | {
-                type: 'ConfigRegistryApiService:fetchConfig';
-                handler: (options?: {
-                  etag?: string;
-                }) => Promise<FetchConfigResult>;
-              },
-            | { type: 'KeyringController:unlock'; payload: [] }
-            | { type: 'KeyringController:lock'; payload: [] }
-          >({
-            namespace: MOCK_ANY_NAMESPACE,
-            captureException: captureExceptionSpy,
-          });
+          await controller._executePoll(null);
 
-          const testMessenger = new Messenger<
-            typeof namespace,
-            never,
-            | { type: 'KeyringController:unlock'; payload: [] }
-            | { type: 'KeyringController:lock'; payload: [] },
-            typeof testRootMessenger
-          >({
-            namespace,
-            parent: testRootMessenger,
-          }) as ConfigRegistryMessenger;
-
-          testRootMessenger.registerActionHandler(
-            'ConfigRegistryApiService:fetchConfig',
-            mockApiServiceHandler,
-          );
-          testRootMessenger.registerActionHandler(
-            'RemoteFeatureFlagController:getState',
-            mockRemoteFeatureFlagGetState,
-          );
-          testRootMessenger.registerActionHandler(
-            'KeyringController:getState',
-            jest.fn().mockReturnValue({ isUnlocked: false }),
-          );
-          testRootMessenger.delegate({
-            messenger: testMessenger,
-            actions: [
-              'RemoteFeatureFlagController:getState',
-              'KeyringController:getState',
-              'ConfigRegistryApiService:fetchConfig',
-            ] as never[],
-            events: [
-              'KeyringController:unlock',
-              'KeyringController:lock',
-            ] as never[],
-          });
-
-          const testController = new ConfigRegistryController({
-            messenger: testMessenger,
-            fallbackConfig: MOCK_FALLBACK_CONFIG,
-          });
-
-          await testController._executePoll(null);
-
-          expect(captureExceptionSpy).toHaveBeenCalledWith(
+          expect(rootMessenger.captureException).toHaveBeenCalledWith(
             expect.objectContaining({ message: 'Network error' }),
           );
-          expect(testController.state.configs).toStrictEqual({
+          expect(controller.state.configs).toStrictEqual({
             networks: MOCK_FALLBACK_CONFIG,
           });
-          expect(testController.state.fetchError).toBe('Network error');
+          expect(controller.state.fetchError).toBe('Network error');
         },
       );
     });
@@ -435,85 +375,27 @@ describe('ConfigRegistryController', () => {
             fallbackConfig: MOCK_FALLBACK_CONFIG,
           },
         },
-        async ({ mockRemoteFeatureFlagGetState, mockApiServiceHandler }) => {
+        async ({
+          controller,
+          rootMessenger,
+          mockRemoteFeatureFlagGetState,
+          mockApiServiceHandler,
+        }) => {
           mockRemoteFeatureFlagGetState.mockReturnValue({
             remoteFeatureFlags: {
               configRegistryApiEnabled: true,
             },
             cacheTimestamp: Date.now(),
           });
-
           mockApiServiceHandler.mockRejectedValue(new Error('Network error'));
 
-          const captureExceptionSpy = jest.fn();
-          const testRootMessenger = new Messenger<
-            MockAnyNamespace,
-            | {
-                type: 'RemoteFeatureFlagController:getState';
-                handler: () => unknown;
-              }
-            | {
-                type: 'KeyringController:getState';
-                handler: () => { isUnlocked: boolean };
-              }
-            | {
-                type: 'ConfigRegistryApiService:fetchConfig';
-                handler: (options?: {
-                  etag?: string;
-                }) => Promise<FetchConfigResult>;
-              },
-            | { type: 'KeyringController:unlock'; payload: [] }
-            | { type: 'KeyringController:lock'; payload: [] }
-          >({
-            namespace: MOCK_ANY_NAMESPACE,
-            captureException: captureExceptionSpy,
-          });
+          await controller._executePoll(null);
 
-          const testMessenger = new Messenger<
-            typeof namespace,
-            never,
-            | { type: 'KeyringController:unlock'; payload: [] }
-            | { type: 'KeyringController:lock'; payload: [] },
-            typeof testRootMessenger
-          >({
-            namespace,
-            parent: testRootMessenger,
-          }) as ConfigRegistryMessenger;
-
-          testRootMessenger.registerActionHandler(
-            'ConfigRegistryApiService:fetchConfig',
-            mockApiServiceHandler,
-          );
-          testRootMessenger.registerActionHandler(
-            'RemoteFeatureFlagController:getState',
-            mockRemoteFeatureFlagGetState,
-          );
-          testRootMessenger.delegate({
-            messenger: testMessenger,
-            actions: [
-              'RemoteFeatureFlagController:getState',
-              'KeyringController:getState',
-              'ConfigRegistryApiService:fetchConfig',
-            ] as never[],
-            events: [
-              'KeyringController:unlock',
-              'KeyringController:lock',
-            ] as never[],
-          });
-
-          const testController = new ConfigRegistryController({
-            messenger: testMessenger,
-            state: { configs: existingConfigs },
-            fallbackConfig: MOCK_FALLBACK_CONFIG,
-          });
-
-          await testController._executePoll(null);
-
-          expect(captureExceptionSpy).toHaveBeenCalledWith(
+          expect(rootMessenger.captureException).toHaveBeenCalledWith(
             expect.objectContaining({ message: 'Network error' }),
           );
-          expect(testController.state.configs).toStrictEqual(existingConfigs);
-          expect(testController.state.fetchError).toBe('Network error');
+          expect(controller.state.configs).toStrictEqual(existingConfigs);
+          expect(controller.state.fetchError).toBe('Network error');
         },
       );
     });
@@ -521,90 +403,29 @@ describe('ConfigRegistryController', () => {
     it('handles errors during polling', async () => {
       await withController(
         { options: { fallbackConfig: MOCK_FALLBACK_CONFIG } },
-        async ({ mockRemoteFeatureFlagGetState, mockApiServiceHandler }) => {
+        async ({
+          controller,
+          rootMessenger,
+          mockRemoteFeatureFlagGetState,
+          mockApiServiceHandler,
+        }) => {
           mockRemoteFeatureFlagGetState.mockReturnValueOnce({
             remoteFeatureFlags: {
               configRegistryApiEnabled: true,
             },
             cacheTimestamp: Date.now(),
           });
-
           mockApiServiceHandler.mockRejectedValue(new Error('Network error'));
 
-          const captureExceptionSpy = jest.fn();
-          const testRootMessenger = new Messenger<
-            MockAnyNamespace,
-            | {
-                type: 'RemoteFeatureFlagController:getState';
-                handler: () => unknown;
-              }
-            | {
-                type: 'KeyringController:getState';
-                handler: () => { isUnlocked: boolean };
-              }
-            | {
-                type: 'ConfigRegistryApiService:fetchConfig';
-                handler: (options?: {
-                  etag?: string;
-                }) => Promise<FetchConfigResult>;
-              },
-            | { type: 'KeyringController:unlock'; payload: [] }
-            | { type: 'KeyringController:lock'; payload: [] }
-          >({
-            namespace: MOCK_ANY_NAMESPACE,
-            captureException: captureExceptionSpy,
-          });
+          await controller._executePoll(null);
 
-          const testMessenger = new Messenger<
-            typeof namespace,
-            never,
-            | { type: 'KeyringController:unlock'; payload: [] }
-            | { type: 'KeyringController:lock'; payload: [] },
-            typeof testRootMessenger
-          >({
-            namespace,
-            parent: testRootMessenger,
-          }) as ConfigRegistryMessenger;
-
-          testRootMessenger.registerActionHandler(
-            'ConfigRegistryApiService:fetchConfig',
-            mockApiServiceHandler,
-          );
-          testRootMessenger.registerActionHandler(
-            'RemoteFeatureFlagController:getState',
-            mockRemoteFeatureFlagGetState,
-          );
-          testRootMessenger.registerActionHandler(
-            'KeyringController:getState',
-            jest.fn().mockReturnValue({ isUnlocked: false }),
-          );
-          testRootMessenger.delegate({
-            messenger: testMessenger,
-            actions: [
-              'RemoteFeatureFlagController:getState',
-              'KeyringController:getState',
-              'ConfigRegistryApiService:fetchConfig',
-            ] as never[],
-            events: [
-              'KeyringController:unlock',
-              'KeyringController:lock',
-            ] as never[],
-          });
-
-          const testController = new ConfigRegistryController({
-            messenger: testMessenger,
-            fallbackConfig: MOCK_FALLBACK_CONFIG,
-          });
-
-          await testController._executePoll(null);
-
-          expect(captureExceptionSpy).toHaveBeenCalledWith(
+          expect(rootMessenger.captureException).toHaveBeenCalledWith(
             expect.objectContaining({ message: 'Network error' }),
           );
-          expect(testController.state.configs).toStrictEqual({
+          expect(controller.state.configs).toStrictEqual({
             networks: MOCK_FALLBACK_CONFIG,
           });
-          expect(testController.state.fetchError).toBe('Network error');
+          expect(controller.state.fetchError).toBe('Network error');
           expect(mockRemoteFeatureFlagGetState).toHaveBeenCalled();
         },
       );
@@ -742,92 +563,31 @@ describe('ConfigRegistryController', () => {
 
     it('handles validation error from service', async () => {
       await withController(
-        async ({ mockRemoteFeatureFlagGetState, mockApiServiceHandler }) => {
+        async ({
+          controller,
+          rootMessenger,
+          mockRemoteFeatureFlagGetState,
+          mockApiServiceHandler,
+        }) => {
           mockRemoteFeatureFlagGetState.mockReturnValue({
             remoteFeatureFlags: {
               configRegistryApiEnabled: true,
             },
             cacheTimestamp: Date.now(),
           });
-
           const validationError = new Error(
             'Validation error from superstruct',
           );
           mockApiServiceHandler.mockRejectedValue(validationError);
 
-          const captureExceptionSpy = jest.fn();
-          const testRootMessenger = new Messenger<
-            MockAnyNamespace,
-            | {
-                type: 'RemoteFeatureFlagController:getState';
-                handler: () => unknown;
-              }
-            | {
-                type: 'KeyringController:getState';
-                handler: () => { isUnlocked: boolean };
-              }
-            | {
-                type: 'ConfigRegistryApiService:fetchConfig';
-                handler: (options?: {
-                  etag?: string;
-                }) => Promise<FetchConfigResult>;
-              },
-            | { type: 'KeyringController:unlock'; payload: [] }
-            | { type: 'KeyringController:lock'; payload: [] }
-          >({
-            namespace: MOCK_ANY_NAMESPACE,
-            captureException: captureExceptionSpy,
-          });
+          await controller._executePoll(null);
 
-          const testMessenger = new Messenger<
-            typeof namespace,
-            never,
-            | { type: 'KeyringController:unlock'; payload: [] }
-            | { type: 'KeyringController:lock'; payload: [] },
-            typeof testRootMessenger
-          >({
-            namespace,
-            parent: testRootMessenger,
-          }) as ConfigRegistryMessenger;
-
-          testRootMessenger.registerActionHandler(
-            'ConfigRegistryApiService:fetchConfig',
-            mockApiServiceHandler,
-          );
-          testRootMessenger.registerActionHandler(
-            'RemoteFeatureFlagController:getState',
-            mockRemoteFeatureFlagGetState,
-          );
-          testRootMessenger.registerActionHandler(
-            'KeyringController:getState',
-            jest.fn().mockReturnValue({ isUnlocked: false }),
-          );
-
-          testRootMessenger.delegate({
-            messenger: testMessenger,
-            actions: [
-              'RemoteFeatureFlagController:getState',
-              'KeyringController:getState',
-              'ConfigRegistryApiService:fetchConfig',
-            ] as never[],
-            events: [
-              'KeyringController:unlock',
-              'KeyringController:lock',
-            ] as never[],
-          });
-
-          const testController = new ConfigRegistryController({
-            messenger: testMessenger,
-          });
-
-          await testController._executePoll(null);
-
-          expect(captureExceptionSpy).toHaveBeenCalledWith(
+          expect(rootMessenger.captureException).toHaveBeenCalledWith(
             expect.objectContaining({
               message: 'Validation error from superstruct',
             }),
           );
-          expect(testController.state.fetchError).toBe(
+          expect(controller.state.fetchError).toBe(
             'Validation error from superstruct',
           );
         },
@@ -1122,191 +882,64 @@ describe('ConfigRegistryController', () => {
     it('handles non-Error exceptions', async () => {
       await withController(
         { options: { fallbackConfig: MOCK_FALLBACK_CONFIG } },
-        async ({ mockRemoteFeatureFlagGetState, mockApiServiceHandler }) => {
+        async ({
+          controller,
+          rootMessenger,
+          mockRemoteFeatureFlagGetState,
+          mockApiServiceHandler,
+        }) => {
           mockRemoteFeatureFlagGetState.mockReturnValue({
             remoteFeatureFlags: {
               configRegistryApiEnabled: true,
             },
             cacheTimestamp: Date.now(),
           });
-
           mockApiServiceHandler.mockRejectedValue('String error');
 
-          const captureExceptionSpy = jest.fn();
-          const testRootMessenger = new Messenger<
-            MockAnyNamespace,
-            | {
-                type: 'RemoteFeatureFlagController:getState';
-                handler: () => unknown;
-              }
-            | {
-                type: 'KeyringController:getState';
-                handler: () => { isUnlocked: boolean };
-              }
-            | {
-                type: 'ConfigRegistryApiService:fetchConfig';
-                handler: (options?: {
-                  etag?: string;
-                }) => Promise<FetchConfigResult>;
-              },
-            | { type: 'KeyringController:unlock'; payload: [] }
-            | { type: 'KeyringController:lock'; payload: [] }
-          >({
-            namespace: MOCK_ANY_NAMESPACE,
-            captureException: captureExceptionSpy,
-          });
+          await controller._executePoll(null);
 
-          const testMessenger = new Messenger<
-            typeof namespace,
-            never,
-            | { type: 'KeyringController:unlock'; payload: [] }
-            | { type: 'KeyringController:lock'; payload: [] },
-            typeof testRootMessenger
-          >({
-            namespace,
-            parent: testRootMessenger,
-          }) as ConfigRegistryMessenger;
-
-          testRootMessenger.registerActionHandler(
-            'ConfigRegistryApiService:fetchConfig',
-            mockApiServiceHandler,
-          );
-          testRootMessenger.registerActionHandler(
-            'RemoteFeatureFlagController:getState',
-            mockRemoteFeatureFlagGetState,
-          );
-          testRootMessenger.registerActionHandler(
-            'KeyringController:getState',
-            jest.fn().mockReturnValue({ isUnlocked: false }),
-          );
-          testRootMessenger.delegate({
-            messenger: testMessenger,
-            actions: [
-              'RemoteFeatureFlagController:getState',
-              'KeyringController:getState',
-              'ConfigRegistryApiService:fetchConfig',
-            ] as never[],
-            events: [
-              'KeyringController:unlock',
-              'KeyringController:lock',
-            ] as never[],
-          });
-
-          const testController = new ConfigRegistryController({
-            messenger: testMessenger,
-            fallbackConfig: MOCK_FALLBACK_CONFIG,
-          });
-
-          await testController._executePoll(null);
-
-          expect(captureExceptionSpy).toHaveBeenCalledWith(
+          expect(rootMessenger.captureException).toHaveBeenCalledWith(
             expect.objectContaining({ message: 'String error' }),
           );
-          expect(testController.state.configs).toStrictEqual({
+          expect(controller.state.configs).toStrictEqual({
             networks: MOCK_FALLBACK_CONFIG,
           });
-          expect(testController.state.fetchError).toBe(
-            'Unknown error occurred',
-          );
+          expect(controller.state.fetchError).toBe('Unknown error occurred');
         },
       );
     });
 
-    it('handles error when state.configs is null', async () => {
+    it('handles error when state.configs is `undefined`', async () => {
       await withController(
         {
           options: {
             fallbackConfig: MOCK_FALLBACK_CONFIG,
-            // eslint-disable-next-line @typescript-eslint/no-explicit-any
-            state: { configs: null as any },
+            state: { configs: undefined },
           },
         },
-        async ({ mockRemoteFeatureFlagGetState, mockApiServiceHandler }) => {
+        async ({
+          controller,
+          rootMessenger,
+          mockRemoteFeatureFlagGetState,
+          mockApiServiceHandler,
+        }) => {
           mockRemoteFeatureFlagGetState.mockReturnValue({
             remoteFeatureFlags: {
               configRegistryApiEnabled: true,
             },
             cacheTimestamp: Date.now(),
           });
-
           mockApiServiceHandler.mockRejectedValue(new Error('Network error'));
 
-          const captureExceptionSpy = jest.fn();
-          const testRootMessenger = new Messenger<
-            MockAnyNamespace,
-            | {
-                type: 'RemoteFeatureFlagController:getState';
-                handler: () => unknown;
-              }
-            | {
-                type: 'KeyringController:getState';
-                handler: () => { isUnlocked: boolean };
-              }
-            | {
-                type: 'ConfigRegistryApiService:fetchConfig';
-                handler: (options?: {
-                  etag?: string;
-                }) => Promise<FetchConfigResult>;
-              },
-            | { type: 'KeyringController:unlock'; payload: [] }
-            | { type: 'KeyringController:lock'; payload: [] }
-          >({
-            namespace: MOCK_ANY_NAMESPACE,
-            captureException: captureExceptionSpy,
-          });
+          await controller._executePoll(null);
 
-          const testMessenger = new Messenger<
-            typeof namespace,
-            never,
-            | { type: 'KeyringController:unlock'; payload: [] }
-            | { type: 'KeyringController:lock'; payload: [] },
-            typeof testRootMessenger
-          >({
-            namespace,
-            parent: testRootMessenger,
-          }) as ConfigRegistryMessenger;
-
-          testRootMessenger.registerActionHandler(
-            'ConfigRegistryApiService:fetchConfig',
-            mockApiServiceHandler,
-          );
-          testRootMessenger.registerActionHandler(
-            'RemoteFeatureFlagController:getState',
-            mockRemoteFeatureFlagGetState,
-          );
-          testRootMessenger.registerActionHandler(
-            'KeyringController:getState',
-            jest.fn().mockReturnValue({ isUnlocked: false }),
-          );
-          testRootMessenger.delegate({
-            messenger: testMessenger,
-            actions: [
-              'RemoteFeatureFlagController:getState',
-              'KeyringController:getState',
-              'ConfigRegistryApiService:fetchConfig',
-            ] as never[],
-            events: [
-              'KeyringController:unlock',
-              'KeyringController:lock',
-            ] as never[],
-          });
-
-          const testController = new ConfigRegistryController({
-            messenger: testMessenger,
-            fallbackConfig: MOCK_FALLBACK_CONFIG,
-            // eslint-disable-next-line @typescript-eslint/no-explicit-any
-            state: { configs: null as any },
-          });
-
-          await testController._executePoll(null);
-
-          expect(captureExceptionSpy).toHaveBeenCalledWith(
+          expect(rootMessenger.captureException).toHaveBeenCalledWith(
             expect.objectContaining({ message: 'Network error' }),
           );
-          expect(testController.state.configs).toStrictEqual({
+          expect(controller.state.configs).toStrictEqual({
             networks: MOCK_FALLBACK_CONFIG,
           });
-          expect(testController.state.fetchError).toBe('Network error');
+          expect(controller.state.fetchError).toBe('Network error');
         },
       );
     });
@@ -1783,78 +1416,18 @@ describe('ConfigRegistryController', () => {
 
     it('handles duplicate chainIds by keeping highest priority network and logging warning', async () => {
       await withController(
-        async ({ mockRemoteFeatureFlagGetState, mockApiServiceHandler }) => {
+        async ({
+          controller,
+          rootMessenger,
+          mockRemoteFeatureFlagGetState,
+          mockApiServiceHandler,
+        }) => {
           mockRemoteFeatureFlagGetState.mockReturnValue({
             remoteFeatureFlags: {
               configRegistryApiEnabled: true,
             },
             cacheTimestamp: Date.now(),
           });
-
-          const captureExceptionSpy = jest.fn();
-          const testRootMessenger = new Messenger<
-            MockAnyNamespace,
-            | {
-                type: 'RemoteFeatureFlagController:getState';
-                handler: () => unknown;
-              }
-            | {
-                type: 'KeyringController:getState';
-                handler: () => { isUnlocked: boolean };
-              }
-            | {
-                type: 'ConfigRegistryApiService:fetchConfig';
-                handler: (options?: {
-                  etag?: string;
-                }) => Promise<FetchConfigResult>;
-              },
-            | { type: 'KeyringController:unlock'; payload: [] }
-            | { type: 'KeyringController:lock'; payload: [] }
-          >({
-            namespace: MOCK_ANY_NAMESPACE,
-            captureException: captureExceptionSpy,
-          });
-
-          const testMessenger = new Messenger<
-            typeof namespace,
-            never,
-            | { type: 'KeyringController:unlock'; payload: [] }
-            | { type: 'KeyringController:lock'; payload: [] },
-            typeof testRootMessenger
-          >({
-            namespace,
-            parent: testRootMessenger,
-          }) as ConfigRegistryMessenger;
-
-          testRootMessenger.registerActionHandler(
-            'ConfigRegistryApiService:fetchConfig',
-            mockApiServiceHandler,
-          );
-          testRootMessenger.registerActionHandler(
-            'RemoteFeatureFlagController:getState',
-            mockRemoteFeatureFlagGetState,
-          );
-          testRootMessenger.registerActionHandler(
-            'KeyringController:getState',
-            jest.fn().mockReturnValue({ isUnlocked: false }),
-          );
-          testRootMessenger.delegate({
-            messenger: testMessenger,
-            actions: [
-              'RemoteFeatureFlagController:getState',
-              'KeyringController:getState',
-              'ConfigRegistryApiService:fetchConfig',
-            ] as never[],
-            events: [
-              'KeyringController:unlock',
-              'KeyringController:lock',
-            ] as never[],
-          });
-
-          const testController = new ConfigRegistryController({
-            messenger: testMessenger,
-          });
-
           // Mock API response with duplicate chainIds
           const mockNetworks = [
             {
@@ -1927,7 +1500,6 @@ describe('ConfigRegistryController', () => {
               isDeletable: false,
             },
           ];
-
           mockApiServiceHandler.mockResolvedValue({
             data: {
               data: {
@@ -1939,11 +1511,15 @@ describe('ConfigRegistryController', () => {
             modified: true,
             etag: 'test-etag',
           });
+          const captureExceptionSpy = jest.spyOn(
+            rootMessenger,
+            'captureException',
+          );
 
-          await testController._executePoll(null);
+          await controller._executePoll(null);
 
           // Verify warning was logged
-          expect(captureExceptionSpy).toHaveBeenCalled();
+          expect(rootMessenger.captureException).toHaveBeenCalled();
           const warningCall = captureExceptionSpy.mock.calls.find((call) =>
             call[0]?.message?.includes('Duplicate chainId 0x1'),
           );
@@ -1951,97 +1527,35 @@ describe('ConfigRegistryController', () => {
           expect(warningCall?.[0]?.message).toContain(
             'Ethereum Mainnet (Low Priority), Ethereum Mainnet (High Priority)',
           );
-
           // Verify highest priority network was kept
-          expect(testController.state.configs.networks['0x1']).toBeDefined();
-          expect(testController.state.configs.networks['0x1']?.value.name).toBe(
+          expect(controller.state.configs.networks['0x1']).toBeDefined();
+          expect(controller.state.configs.networks['0x1']?.value.name).toBe(
             'Ethereum Mainnet (High Priority)',
           );
           expect(
-            testController.state.configs.networks['0x1']?.value.rpcEndpoints[0]
+            controller.state.configs.networks['0x1']?.value.rpcEndpoints[0]
               .type,
           ).toBe('alchemy');
-
           // Verify other networks are still present
-          expect(testController.state.configs.networks['0x89']).toBeDefined();
+          expect(controller.state.configs.networks['0x89']).toBeDefined();
         },
       );
     });
 
     it('handles duplicate chainIds with same priority by keeping first occurrence', async () => {
       await withController(
-        async ({ mockRemoteFeatureFlagGetState, mockApiServiceHandler }) => {
+        async ({
+          controller,
+          rootMessenger,
+          mockRemoteFeatureFlagGetState,
+          mockApiServiceHandler,
+        }) => {
           mockRemoteFeatureFlagGetState.mockReturnValue({
             remoteFeatureFlags: {
               configRegistryApiEnabled: true,
             },
             cacheTimestamp: Date.now(),
           });
-
-          const captureExceptionSpy = jest.fn();
-          const testRootMessenger = new Messenger<
-            MockAnyNamespace,
-            | {
-                type: 'RemoteFeatureFlagController:getState';
-                handler: () => unknown;
-              }
-            | {
-                type: 'KeyringController:getState';
-                handler: () => { isUnlocked: boolean };
-              }
-            | {
-                type: 'ConfigRegistryApiService:fetchConfig';
-                handler: (options?: {
-                  etag?: string;
-                }) => Promise<FetchConfigResult>;
-              },
-            | { type: 'KeyringController:unlock'; payload: [] }
-            | { type: 'KeyringController:lock'; payload: [] }
-          >({
-            namespace: MOCK_ANY_NAMESPACE,
-            captureException: captureExceptionSpy,
-          });
-
-          const testMessenger = new Messenger<
-            typeof namespace,
-            never,
-            | { type: 'KeyringController:unlock'; payload: [] }
-            | { type: 'KeyringController:lock'; payload: [] },
-            typeof testRootMessenger
-          >({
-            namespace,
-            parent: testRootMessenger,
-          }) as ConfigRegistryMessenger;
-
-          testRootMessenger.registerActionHandler(
-            'ConfigRegistryApiService:fetchConfig',
-            mockApiServiceHandler,
-          );
-          testRootMessenger.registerActionHandler(
-            'RemoteFeatureFlagController:getState',
-            mockRemoteFeatureFlagGetState,
-          );
-          testRootMessenger.registerActionHandler(
-            'KeyringController:getState',
-            jest.fn().mockReturnValue({ isUnlocked: false }),
-          );
-          testRootMessenger.delegate({
-            messenger: testMessenger,
-            actions: [
-              'RemoteFeatureFlagController:getState',
-              'KeyringController:getState',
-              'ConfigRegistryApiService:fetchConfig',
-            ] as never[],
-            events: [
-              'KeyringController:unlock',
-              'KeyringController:lock',
-            ] as never[],
-          });
-
-          const testController = new ConfigRegistryController({
-            messenger: testMessenger,
-          });
-
           // Mock API response with duplicate chainIds having same priority
           const mockNetworks = [
             {
@@ -2091,7 +1605,6 @@ describe('ConfigRegistryController', () => {
               isDeletable: false,
             },
           ];
-
           mockApiServiceHandler.mockResolvedValue({
             data: {
               data: {
@@ -2103,8 +1616,12 @@ describe('ConfigRegistryController', () => {
             modified: true,
             etag: 'test-etag',
           });
+          const captureExceptionSpy = jest.spyOn(
+            rootMessenger,
+            'captureException',
+          );
 
-          await testController._executePoll(null);
+          await controller._executePoll(null);
 
           // Verify warning was logged
           expect(captureExceptionSpy).toHaveBeenCalled();
@@ -2114,8 +1631,8 @@ describe('ConfigRegistryController', () => {
           expect(warningCall).toBeDefined();
 
           // Verify first occurrence was kept (since priorities are equal)
-          expect(testController.state.configs.networks['0x1']).toBeDefined();
-          expect(testController.state.configs.networks['0x1']?.value.name).toBe(
+          expect(controller.state.configs.networks['0x1']).toBeDefined();
+          expect(controller.state.configs.networks['0x1']?.value.name).toBe(
             'Ethereum Mainnet (First)',
           );
         },
