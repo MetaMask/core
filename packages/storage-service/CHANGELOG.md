@@ -9,10 +9,6 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [1.0.0]
 
-### Uncategorized
-
-- chore: upgrade Jest-related packages to latest 27.x versions ([#7792](https://github.com/MetaMask/core/pull/7792))
-
 ### Added
 
 - Add optional `initialData` parameter to `InMemoryStorageAdapter` constructor for pre-populating storage during tests ([#7791](https://github.com/MetaMask/core/pull/7791))
