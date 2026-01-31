@@ -68,7 +68,12 @@ export type GetTokenListState = ControllerGetStateAction<
   TokenListState
 >;
 
-export type TokenListControllerActions = GetTokenListState;
+export type ForceRefreshTokenList = {
+  type: `${typeof name}:forceRefreshTokenList`;
+  handler: (chainId: Hex) => Promise<void>;
+};
+
+export type TokenListControllerActions = GetTokenListState | ForceRefreshTokenList;
 
 type AllowedActions =
   | NetworkControllerGetNetworkClientByIdAction
@@ -133,6 +138,12 @@ export class TokenListController extends StaticIntervalPollingController<TokenLi
    * Previous tokensChainsCache for detecting which chains changed.
    */
   #previousTokensChainsCache: TokensChainsCache = {};
+
+  /**
+   * Tracks whether the controller has been initialized.
+   * Used to safely unregister action handlers in destroy().
+   */
+  #isInitialized = false;
 
   /**
    * Debounce delay for persisting state changes (in milliseconds).
@@ -236,6 +247,14 @@ export class TokenListController extends StaticIntervalPollingController<TokenLi
       (newCache: TokensChainsCache) => this.#onCacheChanged(newCache),
       (controllerState) => controllerState.tokensChainsCache,
     );
+
+    // Register action handlers
+    this.messenger.registerActionHandler(
+      `${name}:forceRefreshTokenList`,
+      (chainId: Hex) => this.forceRefreshTokenList(chainId),
+    );
+
+    this.#isInitialized = true;
   }
 
   /**
@@ -521,6 +540,11 @@ export class TokenListController extends StaticIntervalPollingController<TokenLi
       this.#persistDebounceTimer = undefined;
     }
     this.#changedChainsToPersist.clear();
+
+    // Unregister action handlers if they were registered
+    if (this.#isInitialized) {
+      this.messenger.unregisterActionHandler(`${name}:forceRefreshTokenList`);
+    }
   }
 
   /**
@@ -563,16 +587,13 @@ export class TokenListController extends StaticIntervalPollingController<TokenLi
   }
 
   /**
-   * Fetching token list from the Token Service API. This will fetch tokens across chains.
-   * State changes are automatically persisted via the stateChange subscription.
+   * Internal helper method to fetch and update token list from the API.
+   * Handles token formatting, state updates, and error handling.
    *
-   * @param chainId - The chainId of the current chain triggering the fetch.
+   * @param chainId - The chainId of the chain to fetch tokens for.
+   * @returns A promise that resolves when the operation completes.
    */
-  async fetchTokenList(chainId: Hex): Promise<void> {
-    if (this.isCacheValid(chainId)) {
-      return;
-    }
-
+  async #fetchAndUpdateTokenList(chainId: Hex): Promise<void> {
     // Fetch fresh token list from the API
     const tokensFromAPI = await safelyExecute(
       () =>
@@ -612,17 +633,29 @@ export class TokenListController extends StaticIntervalPollingController<TokenLi
     // Only initialize with a new timestamp if there's no existing cache.
     // If there's existing cache, keep it as-is without updating the timestamp
     // to avoid making stale data appear "fresh" and preventing retry attempts.
-    if (!tokensFromAPI) {
-      const existingCache = this.state.tokensChainsCache[chainId];
-      if (!existingCache) {
-        // No existing cache - initialize empty (persistence happens automatically)
-        const newDataCache: DataCache = { data: {}, timestamp: Date.now() };
-        this.update((state) => {
-          state.tokensChainsCache[chainId] = newDataCache;
-        });
-      }
-      // If there's existing cache, keep it as-is (don't update timestamp or persist)
+    const existingCache = this.state.tokensChainsCache[chainId];
+    if (!existingCache) {
+      // No existing cache - initialize empty (persistence happens automatically)
+      const newDataCache: DataCache = { data: {}, timestamp: Date.now() };
+      this.update((state) => {
+        state.tokensChainsCache[chainId] = newDataCache;
+      });
     }
+    // If there's existing cache, keep it as-is (don't update timestamp or persist)
+  }
+
+  /**
+   * Fetching token list from the Token Service API. This will fetch tokens across chains.
+   * State changes are automatically persisted via the stateChange subscription.
+   *
+   * @param chainId - The chainId of the current chain triggering the fetch.
+   */
+  async fetchTokenList(chainId: Hex): Promise<void> {
+    if (this.isCacheValid(chainId)) {
+      return;
+    }
+
+    await this.#fetchAndUpdateTokenList(chainId);
   }
 
   isCacheValid(chainId: Hex): boolean {
@@ -632,6 +665,21 @@ export class TokenListController extends StaticIntervalPollingController<TokenLi
     return (
       timestamp !== undefined && now - timestamp < this.#cacheRefreshThreshold
     );
+  }
+
+  /**
+   * Force refresh the token list for a specific chain, bypassing cache validation.
+   * This method will fetch fresh data from the API regardless of cache validity.
+   *
+   * @param chainId - The chainId of the chain to refresh.
+   * @returns A promise that resolves when the refresh is complete.
+   */
+  async forceRefreshTokenList(chainId: Hex): Promise<void> {
+    if (!isTokenListSupportedForNetwork(chainId)) {
+      return;
+    }
+
+    await this.#fetchAndUpdateTokenList(chainId);
   }
 }
 
