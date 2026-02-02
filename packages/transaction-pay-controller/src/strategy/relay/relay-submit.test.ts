@@ -5,11 +5,7 @@ import type { Hex } from '@metamask/utils';
 import { cloneDeep } from 'lodash';
 
 import { RELAY_STATUS_URL } from './constants';
-import {
-  getSubmitContext,
-  setupTransactionCollection,
-  submitRelayQuotes,
-} from './relay-submit';
+import { submitRelayQuotes } from './relay-submit';
 import type { RelayQuote } from './types';
 import { getMessengerMock } from '../../tests/messenger-mock';
 import type {
@@ -558,92 +554,6 @@ describe('Relay Submit Utils', () => {
           ],
         }),
       );
-    });
-  });
-
-  describe('getSubmitContext', () => {
-    it('extracts and normalizes params from quote', () => {
-      const quote = REQUEST_MOCK.quotes[0];
-      const context = getSubmitContext(quote, messenger);
-
-      expect(context).toStrictEqual({
-        from: FROM_MOCK,
-        gasFeeToken: undefined,
-        gasLimits: [21000, 21000],
-        networkClientId: NETWORK_CLIENT_ID_MOCK,
-        normalizedParams: [
-          {
-            data: '0x1234',
-            from: FROM_MOCK,
-            gas: '0x5208',
-            maxFeePerGas: '0x5d21dba00',
-            maxPriorityFeePerGas: '0x3b9aca00',
-            to: '0xfedcb',
-            value: '0x4d2',
-          },
-        ],
-        sourceChainId: CHAIN_ID_MOCK,
-        sourceTokenAddress: TOKEN_ADDRESS_MOCK,
-      });
-    });
-
-    it('returns gas fee token if isSourceGasFeeToken', () => {
-      const quote = {
-        ...REQUEST_MOCK.quotes[0],
-        fees: { ...REQUEST_MOCK.quotes[0].fees, isSourceGasFeeToken: true },
-      };
-      const context = getSubmitContext(quote, messenger);
-
-      expect(context.gasFeeToken).toBe(TOKEN_ADDRESS_MOCK);
-    });
-
-    it('throws if step kind is unsupported', () => {
-      const quote = cloneDeep(REQUEST_MOCK.quotes[0]);
-      quote.original.steps[0].kind = 'unsupported' as never;
-
-      expect(() => getSubmitContext(quote, messenger)).toThrow(
-        'Unsupported step kind: unsupported',
-      );
-    });
-  });
-
-  describe('setupTransactionCollection', () => {
-    it('collects transaction IDs and updates parent transaction', () => {
-      const { transactionIds, end } = setupTransactionCollection({
-        sourceChainId: CHAIN_ID_MOCK,
-        from: FROM_MOCK,
-        messenger,
-        parentTransactionId: ORIGINAL_TRANSACTION_ID_MOCK,
-        note: 'Test note',
-      });
-
-      expect(transactionIds).toStrictEqual([TRANSACTION_META_MOCK.id]);
-      expect(updateTransactionMock).toHaveBeenCalledWith(
-        {
-          transactionId: ORIGINAL_TRANSACTION_ID_MOCK,
-          messenger,
-          note: 'Test note',
-        },
-        expect.any(Function),
-      );
-      expect(typeof end).toBe('function');
-    });
-
-    it('adds transaction ID to requiredTransactionIds', () => {
-      setupTransactionCollection({
-        sourceChainId: CHAIN_ID_MOCK,
-        from: FROM_MOCK,
-        messenger,
-        parentTransactionId: ORIGINAL_TRANSACTION_ID_MOCK,
-        note: 'Test note',
-      });
-
-      const txDraft = { txParams: {} } as TransactionMeta;
-      updateTransactionMock.mock.calls[0][1](txDraft);
-
-      expect(txDraft.requiredTransactionIds).toStrictEqual([
-        TRANSACTION_META_MOCK.id,
-      ]);
     });
   });
 });

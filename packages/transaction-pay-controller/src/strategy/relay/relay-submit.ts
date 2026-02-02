@@ -49,7 +49,7 @@ type SubmitContext = {
  * @param messenger - Controller messenger.
  * @returns Submit context with normalized params and metadata.
  */
-export function getSubmitContext(
+function getSubmitContext(
   quote: TransactionPayQuote<RelayQuote>,
   messenger: TransactionPayControllerMessenger,
 ): SubmitContext {
@@ -99,7 +99,7 @@ export function getSubmitContext(
  * @param options.note - Note for the transaction update.
  * @returns Object with transactionIds array and end function.
  */
-export function setupTransactionCollection({
+function setupTransactionCollection({
   sourceChainId,
   from,
   messenger,
