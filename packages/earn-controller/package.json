@@ -61,7 +61,7 @@
   },
   "devDependencies": {
     "@metamask/auto-changelog": "^3.4.4",
-    "@metamask/transaction-controller": "^62.12.0",
+    "@metamask/transaction-controller": "^62.13.0",
     "@ts-bridge/cli": "^0.6.4",
     "@types/jest": "^27.5.2",
     "deepmerge": "^4.2.2",
