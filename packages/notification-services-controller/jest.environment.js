@@ -1,4 +1,4 @@
-const JSDOMEnvironment = require('jest-environment-jsdom').default;
+const { TestEnvironment } = require('jest-environment-jsdom');
 
 /**
  * ProfileSync SDK & Controllers depends on @noble/hashes, which as of 1.3.2 relies on the
@@ -6,7 +6,7 @@ const JSDOMEnvironment = require('jest-environment-jsdom').default;
  *
  * There are also EIP6963 utils that utilize window
  */
-class CustomTestEnvironment extends JSDOMEnvironment {
+class CustomTestEnvironment extends TestEnvironment {
   async setup() {
     await super.setup();
 
