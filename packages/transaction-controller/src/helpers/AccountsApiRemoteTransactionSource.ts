@@ -30,6 +30,7 @@ export const SUPPORTED_CHAIN_IDS: Hex[] = [
   CHAIN_IDS.SCROLL,
   CHAIN_IDS.SEI,
   CHAIN_IDS.MONAD,
+  CHAIN_IDS.HYPEREVM,
 ];
 
 const log = createModuleLogger(
