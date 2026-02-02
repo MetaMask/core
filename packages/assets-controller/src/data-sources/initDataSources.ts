@@ -37,7 +37,6 @@ import type {
   SnapDataSourceActions,
   SnapDataSourceEvents,
   SnapDataSourceMessenger,
-  SnapProvider,
 } from './SnapDataSource';
 import { TokenDataSource } from './TokenDataSource';
 import type {
@@ -168,9 +167,6 @@ export type InitDataSourcesOptions = {
   /** Messengers for each data source */
   messengers: DataSourceMessengers;
 
-  /** Snap provider for communicating with snaps */
-  snapProvider: SnapProvider;
-
   /** ApiPlatformClient for cached API calls */
   queryApiClient: ApiPlatformClient;
 
@@ -274,10 +270,17 @@ export function initMessengers<
     actions: [
       'AssetsController:activeChainsUpdate',
       'AssetsController:assetsUpdate',
+      // SnapController actions for direct snap communication
+      'SnapController:getRunnableSnaps',
+      'SnapController:handleRequest',
+      // PermissionController action for dynamic snap discovery
+      'PermissionController:getPermissions',
     ],
     events: [
       // Snap keyring balance updates - snaps emit this when balances change
       'AccountsController:accountBalancesUpdated',
+      // Permission changes for runtime snap discovery
+      'PermissionController:stateChange',
     ],
     messenger: snapMessenger,
   });
@@ -339,7 +342,7 @@ export function initMessengers<
  * // Then initialize data sources
  * const dataSources = initDataSources({
  *   messengers,
- *   snapProvider: snapController,
+ *   queryApiClient,
  * });
  * ```
  *
@@ -347,8 +350,7 @@ export function initMessengers<
  * @returns Object containing all data source instances
  */
 export function initDataSources(options: InitDataSourcesOptions): DataSources {
-  const { messengers, snapProvider, queryApiClient, rpcDataSourceConfig } =
-    options;
+  const { messengers, queryApiClient, rpcDataSourceConfig } = options;
 
   // Initialize primary data sources (provide balance data)
   const rpcDataSource = new RpcDataSource({
@@ -367,7 +369,6 @@ export function initDataSources(options: InitDataSourcesOptions): DataSources {
 
   const snapDataSource = new SnapDataSource({
     messenger: messengers.snapMessenger,
-    snapProvider,
   });
 
   // Initialize middleware data sources (enrich responses)

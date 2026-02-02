@@ -1,6 +1,9 @@
 import { toHex } from '@metamask/controller-utils';
 
-import { ClaimsController } from './ClaimsController';
+import {
+  ClaimsController,
+  getDefaultClaimsControllerState,
+} from './ClaimsController';
 import { ClaimsControllerErrorMessages, ClaimStatusEnum } from './constants';
 import type {
   Claim,
@@ -17,6 +20,35 @@ const mockClaimServiceGenerateMessageForClaimSignature = jest.fn();
 const mockKeyringControllerSignPersonalMessage = jest.fn();
 const mockClaimsServiceGetClaims = jest.fn();
 const mockClaimsServiceFetchClaimsConfigurations = jest.fn();
+
+const MOCK_CLAIM_1: Claim = {
+  id: 'mock-claim-1',
+  shortId: 'mock-claim-1',
+  status: ClaimStatusEnum.CREATED,
+  createdAt: '2021-01-01',
+  updatedAt: '2021-01-01',
+  chainId: '0x1',
+  email: 'test@test.com',
+  impactedWalletAddress: '0x123',
+  impactedTxHash: '0x123',
+  reimbursementWalletAddress: '0x456',
+  description: 'test description',
+  signature: '0xdeadbeef',
+};
+const MOCK_CLAIM_2: Claim = {
+  id: 'mock-claim-2',
+  shortId: 'mock-claim-2',
+  status: ClaimStatusEnum.CREATED,
+  createdAt: '2021-01-01',
+  updatedAt: '2021-01-01',
+  chainId: '0x1',
+  email: 'test2@test.com',
+  impactedWalletAddress: '0x789',
+  impactedTxHash: '0x789',
+  reimbursementWalletAddress: '0x012',
+  description: 'test description 2',
+  signature: '0xdeadbeef',
+};
 
 /**
  * Builds a controller based on the given options and calls the given function with that controller.
@@ -210,35 +242,6 @@ describe('ClaimsController', () => {
   });
 
   describe('getClaims', () => {
-    const MOCK_CLAIM_1: Claim = {
-      id: 'mock-claim-1',
-      shortId: 'mock-claim-1',
-      status: ClaimStatusEnum.CREATED,
-      createdAt: '2021-01-01',
-      updatedAt: '2021-01-01',
-      chainId: '0x1',
-      email: 'test@test.com',
-      impactedWalletAddress: '0x123',
-      impactedTxHash: '0x123',
-      reimbursementWalletAddress: '0x456',
-      description: 'test description',
-      signature: '0xdeadbeef',
-    };
-    const MOCK_CLAIM_2: Claim = {
-      id: 'mock-claim-2',
-      shortId: 'mock-claim-2',
-      status: ClaimStatusEnum.CREATED,
-      createdAt: '2021-01-01',
-      updatedAt: '2021-01-01',
-      chainId: '0x1',
-      email: 'test2@test.com',
-      impactedWalletAddress: '0x789',
-      impactedTxHash: '0x789',
-      reimbursementWalletAddress: '0x012',
-      description: 'test description 2',
-      signature: '0xdeadbeef',
-    };
-
     it('should be able to get the list of claims', async () => {
       await withController(async ({ controller }) => {
         mockClaimsServiceGetClaims.mockResolvedValueOnce([
@@ -377,6 +380,34 @@ describe('ClaimsController', () => {
           controller.deleteAllClaimDrafts();
           const updatedState = controller.state;
           expect(updatedState.drafts).toHaveLength(0);
+        },
+      );
+    });
+  });
+
+  describe('clearState', () => {
+    it('should reset state to default values', async () => {
+      await withController(
+        {
+          state: {
+            claims: [MOCK_CLAIM_1, MOCK_CLAIM_2],
+            drafts: [MOCK_CLAIM_1, MOCK_CLAIM_2].map((claim) => ({
+              draftId: claim.id,
+              ...claim,
+            })),
+          },
+        },
+        async ({ controller }) => {
+          expect(controller.state.claims).toHaveLength(2);
+          expect(controller.state.drafts).toHaveLength(2);
+
+          controller.clearState();
+
+          expect(controller.state).toStrictEqual(
+            getDefaultClaimsControllerState(),
+          );
+          expect(controller.state.claims).toHaveLength(0);
+          expect(controller.state.drafts).toHaveLength(0);
         },
       );
     });

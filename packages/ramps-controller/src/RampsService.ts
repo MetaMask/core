@@ -146,6 +146,219 @@ export type PaymentMethodsResponse = {
   };
 };
 
+// === QUOTES TYPES ===
+
+/**
+ * Sort criteria for quotes.
+ */
+export type QuoteSortBy = 'price' | 'reliability';
+
+/**
+ * Represents crypto translation info for a quote.
+ */
+export type QuoteCryptoTranslation = {
+  /**
+   * The crypto currency ID.
+   */
+  id?: string;
+  /**
+   * The crypto symbol.
+   */
+  symbol?: string;
+  /**
+   * The chain ID.
+   */
+  chainId?: string;
+};
+
+/**
+ * Represents an individual quote from a provider.
+ */
+export type Quote = {
+  /**
+   * The provider ID (e.g., "/providers/moonpay").
+   */
+  provider: string;
+  /**
+   * The quote details.
+   */
+  quote: {
+    /**
+     * The amount the user is paying (in fiat for buy, crypto for sell).
+     */
+    amountIn: number | string;
+    /**
+     * The amount the user will receive (in crypto for buy, fiat for sell).
+     */
+    amountOut: number | string;
+    /**
+     * The payment method used for this quote.
+     */
+    paymentMethod: string;
+    /**
+     * The fiat value of the output amount (for buy actions).
+     */
+    amountOutInFiat?: number;
+    /**
+     * The widget URL for redirect providers.
+     */
+    widgetUrl?: string;
+    /**
+     * Crypto translation info for display.
+     */
+    cryptoTranslation?: QuoteCryptoTranslation;
+    /**
+     * Total fees in the source currency.
+     */
+    totalFees?: number | string;
+    /**
+     * Network fees.
+     */
+    networkFee?: number | string;
+    /**
+     * Provider fees.
+     */
+    providerFee?: number | string;
+  };
+  /**
+   * Metadata about the quote.
+   */
+  metadata?: {
+    /**
+     * Reliability score for the provider (0-100).
+     */
+    reliability?: number;
+    /**
+     * Tags for the quote.
+     */
+    tags?: {
+      /**
+       * Whether this is the best rate quote.
+       */
+      isBestRate?: boolean;
+      /**
+       * Whether this is the most reliable provider.
+       */
+      isMostReliable?: boolean;
+    };
+  };
+};
+
+/**
+ * Represents an error from a provider when fetching quotes.
+ */
+export type QuoteError = {
+  /**
+   * The provider ID that failed.
+   */
+  provider: string;
+  /**
+   * Error message.
+   */
+  error?: string;
+};
+
+/**
+ * Sort order information for quotes.
+ */
+export type QuoteSortOrder = {
+  /**
+   * The sort criteria.
+   */
+  sortBy: QuoteSortBy;
+  /**
+   * Provider IDs in sorted order.
+   */
+  ids: string[];
+};
+
+/**
+ * Custom action for a provider (e.g., Apple Pay).
+ */
+export type QuoteCustomAction = {
+  /**
+   * Buy action details.
+   */
+  buy: {
+    /**
+     * Provider ID.
+     */
+    providerId: string;
+  };
+  /**
+   * Payment method ID this action applies to.
+   */
+  paymentMethodId: string;
+  /**
+   * Supported payment method IDs.
+   */
+  supportedPaymentMethodIds: string[];
+};
+
+/**
+ * Response from the quotes API.
+ */
+export type QuotesResponse = {
+  /**
+   * Successfully retrieved quotes.
+   */
+  success: Quote[];
+  /**
+   * Sort orders for the quotes.
+   */
+  sorted: QuoteSortOrder[];
+  /**
+   * Errors from providers that failed to return quotes.
+   */
+  error: QuoteError[];
+  /**
+   * Custom actions available from providers.
+   */
+  customActions: QuoteCustomAction[];
+};
+
+/**
+ * Parameters for fetching quotes.
+ */
+export type GetQuotesParams = {
+  /**
+   * The region code (e.g., "us", "us-ca").
+   */
+  region: string;
+  /**
+   * Array of payment method IDs to get quotes for.
+   */
+  paymentMethods: string[];
+  /**
+   * The CAIP-19 asset ID (e.g., "eip155:1/erc20:0x...").
+   */
+  assetId: string;
+  /**
+   * The fiat currency code (e.g., "usd").
+   */
+  fiat: string;
+  /**
+   * The amount (in fiat for buy, crypto for sell).
+   */
+  amount: number;
+  /**
+   * The destination wallet address.
+   */
+  walletAddress: string;
+  /**
+   * Optional redirect URL after order completion.
+   */
+  redirectUrl?: string;
+  /**
+   * Optional provider ID to filter quotes.
+   */
+  provider?: string;
+  /**
+   * The ramp action type. Defaults to 'buy'.
+   */
+  action?: RampAction;
+};
+
 /**
  * Represents a country returned from the regions/countries API.
  */
@@ -290,6 +503,7 @@ const MESSENGER_EXPOSED_METHODS = [
   'getTokens',
   'getProviders',
   'getPaymentMethods',
+  'getQuotes',
 ] as const;
 
 /**
@@ -841,6 +1055,82 @@ export class RampsService {
 
     if (!Array.isArray(response.payments)) {
       throw new Error('Malformed response received from paymentMethods API');
+    }
+
+    return response;
+  }
+
+  /**
+   * Fetches quotes from all providers for a given set of parameters.
+   * Uses the V2 orders API to get quotes for multiple payment methods at once.
+   *
+   * @param params - The parameters for fetching quotes.
+   * @param params.region - User's region code (e.g., "us", "us-ca").
+   * @param params.paymentMethods - Array of payment method IDs.
+   * @param params.assetId - CAIP-19 cryptocurrency identifier.
+   * @param params.fiat - Fiat currency code (e.g., "usd").
+   * @param params.amount - The amount (in fiat for buy, crypto for sell).
+   * @param params.walletAddress - The destination wallet address.
+   * @param params.redirectUrl - Optional redirect URL after order completion.
+   * @param params.provider - Optional provider ID to filter quotes.
+   * @param params.action - The ramp action type. Defaults to 'buy'.
+   * @returns The quotes response containing success, sorted, error, and customActions.
+   */
+  async getQuotes(params: GetQuotesParams): Promise<QuotesResponse> {
+    const normalizedRegion = params.region.toLowerCase().trim();
+    const normalizedFiat = params.fiat.toLowerCase().trim();
+    const action = params.action ?? 'buy';
+
+    const url = new URL(
+      getApiPath('orders/all/quotes'),
+      getBaseUrl(this.#environment, RampsApiService.Orders),
+    );
+    this.#addCommonParams(url, action);
+
+    // Build region ID in the format expected by the API
+    url.searchParams.set('region', normalizedRegion);
+    url.searchParams.set('fiat', normalizedFiat);
+    url.searchParams.set('crypto', params.assetId);
+    url.searchParams.set('amount', String(params.amount));
+    url.searchParams.set('walletAddress', params.walletAddress);
+
+    // Add payment methods as array parameters
+    params.paymentMethods.forEach((paymentMethod) => {
+      url.searchParams.append('payments', paymentMethod);
+    });
+
+    // Add provider filter if specified
+    if (params.provider) {
+      url.searchParams.append('providers', params.provider);
+    }
+
+    // Add redirect URL if specified
+    if (params.redirectUrl) {
+      url.searchParams.set('redirectUrl', params.redirectUrl);
+    }
+
+    const response = await this.#policy.execute(async () => {
+      const fetchResponse = await this.#fetch(url);
+      if (!fetchResponse.ok) {
+        throw new HttpError(
+          fetchResponse.status,
+          `Fetching '${url.toString()}' failed with status '${fetchResponse.status}'`,
+        );
+      }
+      return fetchResponse.json() as Promise<QuotesResponse>;
+    });
+
+    if (!response || typeof response !== 'object') {
+      throw new Error('Malformed response received from quotes API');
+    }
+
+    if (
+      !Array.isArray(response.success) ||
+      !Array.isArray(response.sorted) ||
+      !Array.isArray(response.error) ||
+      !Array.isArray(response.customActions)
+    ) {
+      throw new Error('Malformed response received from quotes API');
     }
 
     return response;

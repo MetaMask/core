@@ -75,6 +75,7 @@ export const CHAIN_IDS = {
   MODE_SEPOLIA: '0x397',
   MODE: '0x868b',
   MONAD: '0x8f',
+  HYPEREVM: '0x3e7',
 } as const;
 
 export const NETWORK_TYPES = {
@@ -126,6 +127,7 @@ export const MODE_SEPOLIA_DISPLAY_NAME = 'Mode Sepolia';
 export const MODE_DISPLAY_NAME = 'Mode Mainnet';
 export const SEI_DISPLAY_NAME = 'Sei Network';
 export const MONAD_DISPLAY_NAME = 'Monad';
+export const HYPEREVM_DISPLAY_NAME = 'HyperEVM';
 
 export const NETWORK_TO_NAME_MAP = {
   [NETWORK_TYPES.GOERLI]: GOERLI_DISPLAY_NAME,
@@ -159,4 +161,5 @@ export const NETWORK_TO_NAME_MAP = {
   [CHAIN_IDS.LISK_SEPOLIA]: LISK_SEPOLIA_DISPLAY_NAME,
   [CHAIN_IDS.SEI]: SEI_DISPLAY_NAME,
   [CHAIN_IDS.MONAD]: MONAD_DISPLAY_NAME,
+  [CHAIN_IDS.HYPEREVM]: HYPEREVM_DISPLAY_NAME,
 } as const;
