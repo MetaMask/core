@@ -1,7 +1,12 @@
 import { keccak256AndHexify } from '@metamask/auth-network-utils';
 import { BaseController } from '@metamask/base-controller';
-import type { StateMetadata } from '@metamask/base-controller';
+import type {
+  ControllerGetStateAction,
+  ControllerStateChangeEvent,
+  StateMetadata,
+} from '@metamask/base-controller';
 import type * as encryptionUtils from '@metamask/browser-passworder';
+import { Messenger } from '@metamask/messenger';
 import type {
   AuthenticateResult,
   ChangeEncryptionKeyResult,
@@ -43,8 +48,6 @@ import { projectLogger, createModuleLogger } from './logger';
 import { SecretMetadata } from './SecretMetadata';
 import type {
   MutuallyExclusiveCallback,
-  SeedlessOnboardingControllerMessenger,
-  SeedlessOnboardingControllerOptions,
   SeedlessOnboardingControllerState,
   AuthenticatedUserDetails,
   SocialBackupsMetadata,
@@ -54,6 +57,7 @@ import type {
   RenewRefreshToken,
   VaultData,
   DeserializedVaultData,
+  ToprfKeyDeriver,
 } from './types';
 import {
   decodeJWTToken,
@@ -63,6 +67,110 @@ import {
 } from './utils';
 
 const log = createModuleLogger(projectLogger, controllerName);
+
+// Actions
+export type SeedlessOnboardingControllerGetStateAction =
+  ControllerGetStateAction<
+    typeof controllerName,
+    SeedlessOnboardingControllerState
+  >;
+export type SeedlessOnboardingControllerGetAccessTokenAction = {
+  type: `${typeof controllerName}:getAccessToken`;
+  handler: SeedlessOnboardingController<
+    encryptionUtils.EncryptionKey,
+    encryptionUtils.KeyDerivationOptions
+  >['getAccessToken'];
+};
+export type SeedlessOnboardingControllerActions =
+  | SeedlessOnboardingControllerGetStateAction
+  | SeedlessOnboardingControllerGetAccessTokenAction;
+
+type AllowedActions = never;
+
+// Events
+export type SeedlessOnboardingControllerStateChangeEvent =
+  ControllerStateChangeEvent<
+    typeof controllerName,
+    SeedlessOnboardingControllerState
+  >;
+export type SeedlessOnboardingControllerEvents =
+  SeedlessOnboardingControllerStateChangeEvent;
+
+type AllowedEvents = never;
+
+// Messenger
+export type SeedlessOnboardingControllerMessenger = Messenger<
+  typeof controllerName,
+  SeedlessOnboardingControllerActions | AllowedActions,
+  SeedlessOnboardingControllerEvents | AllowedEvents
+>;
+
+/**
+ * Seedless Onboarding Controller Options.
+ *
+ * @param messenger - The messenger to use for this controller.
+ * @param state - The initial state to set on this controller.
+ * @param encryptor - The encryptor to use for encrypting and decrypting seedless onboarding vault.
+ */
+export type SeedlessOnboardingControllerOptions<
+  EncryptionKey,
+  SupportedKeyDerivationParams,
+> = {
+  messenger: SeedlessOnboardingControllerMessenger;
+
+  /**
+   * Initial state to set on this controller.
+   */
+  state?: Partial<SeedlessOnboardingControllerState>;
+
+  /**
+   * Encryptor to use for encrypting and decrypting seedless onboarding vault.
+   *
+   * @default browser-passworder @link https://github.com/MetaMask/browser-passworder
+   */
+  encryptor: VaultEncryptor<EncryptionKey, SupportedKeyDerivationParams>;
+
+  /**
+   * A function to get a new jwt token using refresh token.
+   */
+  refreshJWTToken: RefreshJWTToken;
+
+  /**
+   * A function to revoke the refresh token.
+   */
+  revokeRefreshToken: RevokeRefreshToken;
+
+  /**
+   * A function to renew the refresh token and get new revoke token.
+   */
+  renewRefreshToken: RenewRefreshToken;
+
+  /**
+   * Optional key derivation interface for the TOPRF client.
+   *
+   * If provided, it will be used as an additional step during
+   * key derivation. This can be used, for example, to inject a slow key
+   * derivation step to protect against local brute force attacks on the
+   * password.
+   *
+   * @default browser-passworder @link https://github.com/MetaMask/browser-passworder
+   */
+  toprfKeyDeriver?: ToprfKeyDeriver;
+
+  /**
+   * Type of Web3Auth network to be used for the Seedless Onboarding flow.
+   *
+   * @default Web3AuthNetwork.Mainnet
+   */
+  network?: Web3AuthNetwork;
+
+  /**
+   * The TTL of the password outdated cache in milliseconds.
+   *
+   * @default PASSWORD_OUTDATED_CACHE_TTL_MS
+   */
+  passwordOutdatedCacheTTL?: number;
+};
 
 /**
  * Get the initial state for the Seedless Onboarding Controller with defaults.
@@ -1971,6 +2079,29 @@ export class SeedlessOnboardingController<
   }
 
   /**
+   * Get the access token from the state.
+   *
+   * If the tokens are expired, the method will refresh them and return the new access token.
+   *
+   * @returns The access token.
+   */
+  async getAccessToken(): Promise<string | undefined> {
+    return this.#withControllerLock(async () => {
+      try {
+        this.#assertIsUnlocked();
+        // if the tokens are expired, refresh them and return the access token
+        const accessToken = await this.#executeWithTokenRefresh(async () => {
+          return this.state.accessToken;
+        }, 'getAccessToken');
+        return accessToken;
+      } catch (error) {
+        log('Error getting access token', error);
+        return undefined;
+      }
+    });
+  }
+
+  /**
    * Add a pending refresh, revoke token to the state to be revoked later.
    *
    * @param params - The parameters for adding a pending refresh, revoke token.
@@ -2047,22 +2178,7 @@ export class SeedlessOnboardingController<
     operationName: string,
   ): Promise<Result> {
     try {
-      // proactively check for expired tokens and refresh them if needed
-      const isNodeAuthTokenExpired = this.checkNodeAuthTokenExpired();
-      const isMetadataAccessTokenExpired =
-        this.checkMetadataAccessTokenExpired();
-      // access token is only accessible when the vault is unlocked
-      // so skip the check if the vault is locked
-      let isAccessTokenExpired = false;
-      if (this.#isUnlocked) {
-        isAccessTokenExpired = this.checkAccessTokenExpired();
-      }
-
-      if (
-        isNodeAuthTokenExpired ||
-        isMetadataAccessTokenExpired ||
-        isAccessTokenExpired
-      ) {
+      if (this.#checkTokensExpired()) {
         log(
           `JWT token expired during ${operationName}, attempting to refresh tokens`,
           'node auth token exp check',
@@ -2092,6 +2208,29 @@ export class SeedlessOnboardingController<
         throw error;
       }
     }
+  }
+
+  /**
+   * Check if the tokens are expired.
+   *
+   * @returns True if the tokens are expired, false otherwise.
+   */
+  #checkTokensExpired(): boolean {
+    // proactively check for expired tokens and refresh them if needed
+    const isNodeAuthTokenExpired = this.checkNodeAuthTokenExpired();
+    const isMetadataAccessTokenExpired = this.checkMetadataAccessTokenExpired();
+    // access token is only accessible when the vault is unlocked
+    // so skip the check if the vault is locked
+    let isAccessTokenExpired = false;
+    if (this.#isUnlocked) {
+      isAccessTokenExpired = this.checkAccessTokenExpired();
+    }
+
+    return (
+      isNodeAuthTokenExpired ||
+      isMetadataAccessTokenExpired ||
+      isAccessTokenExpired
+    );
   }
 
   /**
