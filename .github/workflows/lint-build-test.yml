@@ -39,6 +39,10 @@ jobs:
           is-high-risk-environment: false
           node-version: ${{ matrix.node-version }}
       - run: yarn lint
+        env:
+          # Optimize Node.js memory for ESLint performance in large monorepos
+          # See: https://typescript-eslint.io/troubleshooting/typed-linting/performance
+          NODE_OPTIONS: '--max-semi-space-size=256'
       - name: Require clean working directory
         shell: bash
         run: |
