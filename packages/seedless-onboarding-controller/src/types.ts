@@ -180,10 +180,8 @@ export type SeedlessOnboardingControllerState =
 /**
  * Encryptor interface for encrypting and decrypting seedless onboarding vault.
  */
-export type VaultEncryptor<EncryptionKey, SupportedKeyDerivationParams> = Omit<
-  Encryptor<EncryptionKey, SupportedKeyDerivationParams>,
-  'encryptWithKey'
->;
+export type VaultEncryptor<EncryptionKey, SupportedKeyDerivationParams> =
+  Encryptor<EncryptionKey, SupportedKeyDerivationParams>;
 
 /**
  * Additional key deriver for the TOPRF client.
