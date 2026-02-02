@@ -8,11 +8,12 @@ import type {
   GetCapabilitiesResult,
 } from '../types';
 
-type GetAccounts = (req: JsonRpcRequest) => Promise<string[]>;
+type GetPermittedAccountsForOrigin = () => Promise<string[]>;
 
 const ADDRESS_MOCK = '0x123abc123abc123abc123abc123abc123abc123a';
 const CHAIN_ID_MOCK = '0x1';
 const CHAIN_ID_2_MOCK = '0x2';
+const ORIGIN_MOCK = 'https://example.com';
 
 const RESULT_MOCK = {
   testCapability: {
@@ -21,14 +22,15 @@ const RESULT_MOCK = {
 };
 
 const REQUEST_MOCK = {
+  origin: ORIGIN_MOCK,
   params: [ADDRESS_MOCK],
 };
 
 describe('wallet_getCapabilities', () => {
-  let request: JsonRpcRequest;
+  let request: JsonRpcRequest & { origin: string };
   let params: GetCapabilitiesParams;
   let response: PendingJsonRpcResponse<GetCapabilitiesResult>;
-  let getAccountsMock: jest.MockedFn<GetAccounts>;
+  let getPermittedAccountsForOriginMock: jest.MockedFn<GetPermittedAccountsForOrigin>;
   let getCapabilitiesMock: jest.MockedFunction<GetCapabilitiesHook>;
 
   /**
@@ -37,7 +39,7 @@ describe('wallet_getCapabilities', () => {
    */
   async function callMethod() {
     return walletGetCapabilities(request, response, {
-      getAccounts: getAccountsMock,
+      getPermittedAccountsForOrigin: getPermittedAccountsForOriginMock,
       getCapabilities: getCapabilitiesMock,
     });
   }
@@ -45,11 +47,11 @@ describe('wallet_getCapabilities', () => {
   beforeEach(() => {
     jest.resetAllMocks();
 
-    request = klona(REQUEST_MOCK) as JsonRpcRequest;
+    request = klona(REQUEST_MOCK) as JsonRpcRequest & { origin: string };
     params = request.params as GetCapabilitiesParams;
     response = {} as PendingJsonRpcResponse<GetCapabilitiesResult>;
 
-    getAccountsMock = jest.fn().mockResolvedValue([ADDRESS_MOCK]);
+    getPermittedAccountsForOriginMock = jest.fn().mockResolvedValue([ADDRESS_MOCK]);
     getCapabilitiesMock = jest.fn().mockResolvedValue(RESULT_MOCK);
   });
 
@@ -82,7 +84,7 @@ describe('wallet_getCapabilities', () => {
   it('throws if no hook', async () => {
     await expect(
       walletGetCapabilities(request, response, {
-        getAccounts: getAccountsMock,
+        getPermittedAccountsForOrigin: getPermittedAccountsForOriginMock,
       }),
     ).rejects.toMatchInlineSnapshot(`[Error: Method not supported.]`);
   });
@@ -128,7 +130,7 @@ describe('wallet_getCapabilities', () => {
   });
 
   it('throws if from is not in accounts', async () => {
-    getAccountsMock.mockResolvedValueOnce([]);
+    getPermittedAccountsForOriginMock.mockResolvedValueOnce([]);
 
     await expect(callMethod()).rejects.toMatchInlineSnapshot(
       `[Error: The requested account and/or method has not been authorized by the user.]`,

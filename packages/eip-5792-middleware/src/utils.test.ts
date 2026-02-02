@@ -306,60 +306,58 @@ describe('getAccountKeyringType', () => {
 
 describe('validateAndNormalizeKeyholder', () => {
   const ADDRESS_MOCK = '0xABCDabcdABCDabcdABCDabcdABCDabcdABCDabcd';
-  const REQUEST_MOCK = {} as JsonRpcRequest;
 
-  let getAccountsMock: jest.MockedFn<
-    (req: JsonRpcRequest) => Promise<string[]>
+  let getPermittedAccountsForOriginMock: jest.MockedFn<
+    () => Promise<string[]>
   >;
 
   beforeEach(() => {
     jest.resetAllMocks();
 
-    getAccountsMock = jest.fn().mockResolvedValue([ADDRESS_MOCK]);
+    getPermittedAccountsForOriginMock = jest.fn().mockResolvedValue([ADDRESS_MOCK]);
   });
 
   it('returns lowercase address', async () => {
     const result = await validateAndNormalizeKeyholder(
       ADDRESS_MOCK,
-      REQUEST_MOCK,
       {
-        getAccounts: getAccountsMock,
+        getPermittedAccountsForOrigin: getPermittedAccountsForOriginMock,
       },
     );
 
     expect(result).toBe(ADDRESS_MOCK.toLowerCase());
   });
 
-  it('throws if address not returned by get accounts hook', async () => {
-    getAccountsMock.mockResolvedValueOnce([]);
+  it('throws if address not returned by get permitted accounts for origin hook', async () => {
+    getPermittedAccountsForOriginMock.mockResolvedValueOnce([]);
 
     await expect(
-      validateAndNormalizeKeyholder(ADDRESS_MOCK, REQUEST_MOCK, {
-        getAccounts: getAccountsMock,
+      validateAndNormalizeKeyholder(ADDRESS_MOCK, {
+        getPermittedAccountsForOrigin: getPermittedAccountsForOriginMock,
       }),
     ).rejects.toThrow(providerErrors.unauthorized());
   });
 
   it('throws if address is not string', async () => {
     await expect(
-      validateAndNormalizeKeyholder(123 as never, REQUEST_MOCK, {
-        getAccounts: getAccountsMock,
+      validateAndNormalizeKeyholder(123 as never, {
+        getPermittedAccountsForOrigin: getPermittedAccountsForOriginMock,
       }),
     ).rejects.toThrow('Invalid parameters: must provide an Ethereum address.');
   });
 
   it('throws if address is empty string', async () => {
     await expect(
-      validateAndNormalizeKeyholder('' as never, REQUEST_MOCK, {
-        getAccounts: getAccountsMock,
+      validateAndNormalizeKeyholder('' as never, {
+        getPermittedAccountsForOrigin: getPermittedAccountsForOriginMock,
       }),
     ).rejects.toThrow('Invalid parameters: must provide an Ethereum address.');
   });
 
   it('throws if address length is not 40', async () => {
     await expect(
-      validateAndNormalizeKeyholder('0x123', REQUEST_MOCK, {
-        getAccounts: getAccountsMock,
+      validateAndNormalizeKeyholder('0x123', {
+        getPermittedAccountsForOrigin: getPermittedAccountsForOriginMock,
       }),
     ).rejects.toThrow('Invalid parameters: must provide an Ethereum address.');
   });
