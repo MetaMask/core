@@ -74,15 +74,43 @@ describe('TransactionPayController', () => {
     });
   });
 
-  describe('setIsMaxAmount', () => {
-    it('updates state', () => {
+  describe('setTransactionConfig', () => {
+    it('updates isMaxAmount in state', () => {
       const controller = createController();
 
-      controller.setIsMaxAmount(TRANSACTION_ID_MOCK, true);
+      controller.setTransactionConfig(TRANSACTION_ID_MOCK, (config) => {
+        config.isMaxAmount = true;
+      });
 
       expect(
         controller.state.transactionData[TRANSACTION_ID_MOCK].isMaxAmount,
       ).toBe(true);
+    });
+
+    it('updates isPostQuote in state', () => {
+      const controller = createController();
+
+      controller.setTransactionConfig(TRANSACTION_ID_MOCK, (config) => {
+        config.isPostQuote = true;
+      });
+
+      expect(
+        controller.state.transactionData[TRANSACTION_ID_MOCK].isPostQuote,
+      ).toBe(true);
+    });
+
+    it('updates multiple config properties at once', () => {
+      const controller = createController();
+
+      controller.setTransactionConfig(TRANSACTION_ID_MOCK, (config) => {
+        config.isMaxAmount = true;
+        config.isPostQuote = true;
+      });
+
+      const transactionData =
+        controller.state.transactionData[TRANSACTION_ID_MOCK];
+      expect(transactionData.isMaxAmount).toBe(true);
+      expect(transactionData.isPostQuote).toBe(true);
     });
   });
 

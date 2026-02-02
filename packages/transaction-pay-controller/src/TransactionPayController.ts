@@ -9,6 +9,7 @@ import { CONTROLLER_NAME, TransactionPayStrategy } from './constants';
 import { QuoteRefresher } from './helpers/QuoteRefresher';
 import type {
   GetDelegationTransactionCallback,
+  TransactionConfigCallback,
   TransactionData,
   TransactionPayControllerMessenger,
   TransactionPayControllerOptions,
@@ -74,15 +75,20 @@ export class TransactionPayController extends BaseController<
     });
   }
 
-  setIsMaxAmount(transactionId: string, isMaxAmount: boolean): void {
+  setTransactionConfig(
+    transactionId: string,
+    callback: TransactionConfigCallback,
+  ): void {
     this.#updateTransactionData(transactionId, (transactionData) => {
-      transactionData.isMaxAmount = isMaxAmount;
-    });
-  }
+      const config = {
+        isMaxAmount: transactionData.isMaxAmount,
+        isPostQuote: transactionData.isPostQuote,
+      };
 
-  setIsPostQuote(transactionId: string, isPostQuote: boolean): void {
-    this.#updateTransactionData(transactionId, (transactionData) => {
-      transactionData.isPostQuote = isPostQuote;
+      callback(config);
+
+      transactionData.isMaxAmount = config.isMaxAmount;
+      transactionData.isPostQuote = config.isPostQuote;
     });
   }
 
@@ -166,13 +172,8 @@ export class TransactionPayController extends BaseController<
     );
 
     this.messenger.registerActionHandler(
-      'TransactionPayController:setIsMaxAmount',
-      this.setIsMaxAmount.bind(this),
-    );
-
-    this.messenger.registerActionHandler(
-      'TransactionPayController:setIsPostQuote',
-      this.setIsPostQuote.bind(this),
+      'TransactionPayController:setTransactionConfig',
+      this.setTransactionConfig.bind(this),
     );
 
     this.messenger.registerActionHandler(

@@ -83,16 +83,29 @@ export type TransactionPayControllerUpdatePaymentTokenAction = {
   handler: (request: UpdatePaymentTokenRequest) => void;
 };
 
-/** Action to set the post-quote flag for a transaction. */
-export type TransactionPayControllerSetIsPostQuoteAction = {
-  type: `${typeof CONTROLLER_NAME}:setIsPostQuote`;
-  handler: (transactionId: string, isPostQuote: boolean) => void;
+/** Configurable properties of a transaction. */
+export type TransactionConfig = {
+  /** Whether the user has selected the maximum amount. */
+  isMaxAmount?: boolean;
+
+  /**
+   * Whether this is a post-quote transaction.
+   * When true, the paymentToken represents the destination token,
+   * and the quote source is derived from the transaction's output token.
+   */
+  isPostQuote?: boolean;
 };
 
-/** Action to set the max amount flag for a transaction. */
-export type TransactionPayControllerSetIsMaxAmountAction = {
-  type: `${typeof CONTROLLER_NAME}:setIsMaxAmount`;
-  handler: (transactionId: string, isMaxAmount: boolean) => void;
+/** Callback to update transaction config. */
+export type TransactionConfigCallback = (config: TransactionConfig) => void;
+
+/** Action to update transaction configuration using a callback. */
+export type TransactionPayControllerSetTransactionConfigAction = {
+  type: `${typeof CONTROLLER_NAME}:setTransactionConfig`;
+  handler: (
+    transactionId: string,
+    callback: TransactionConfigCallback,
+  ) => void;
 };
 
 export type TransactionPayControllerStateChangeEvent =
@@ -105,8 +118,7 @@ export type TransactionPayControllerActions =
   | TransactionPayControllerGetDelegationTransactionAction
   | TransactionPayControllerGetStateAction
   | TransactionPayControllerGetStrategyAction
-  | TransactionPayControllerSetIsMaxAmountAction
-  | TransactionPayControllerSetIsPostQuoteAction
+  | TransactionPayControllerSetTransactionConfigAction
   | TransactionPayControllerUpdatePaymentTokenAction;
 
 export type TransactionPayControllerEvents =

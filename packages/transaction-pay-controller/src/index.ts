@@ -1,4 +1,6 @@
 export type {
+  TransactionConfig,
+  TransactionConfigCallback,
   TransactionPayControllerActions,
   TransactionPayControllerEvents,
   TransactionPayControllerGetDelegationTransactionAction,
@@ -6,8 +8,7 @@ export type {
   TransactionPayControllerGetStrategyAction,
   TransactionPayControllerMessenger,
   TransactionPayControllerOptions,
-  TransactionPayControllerSetIsMaxAmountAction,
-  TransactionPayControllerSetIsPostQuoteAction,
+  TransactionPayControllerSetTransactionConfigAction,
   TransactionPayControllerState,
   TransactionPayControllerStateChangeEvent,
   TransactionPayControllerUpdatePaymentTokenAction,
