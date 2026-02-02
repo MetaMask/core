@@ -116,10 +116,10 @@ async function getSingleQuote(
   );
 
   try {
-    // For post-quote flows, use EXACT_INPUT - user specifies how much to send,
+    // For post-quote or max amount flows, use EXACT_INPUT - user specifies how much to send,
     // and we show them how much they'll receive after fees.
     // For regular flows with a target amount, use EXPECTED_OUTPUT.
-    const useExactInput = isMaxAmount === true || targetAmountMinimum === '0';
+    const useExactInput = isMaxAmount === true || request.isPostQuote === true;
 
     const body: RelayQuoteRequest = {
       amount: useExactInput ? sourceTokenAmount : targetAmountMinimum,
