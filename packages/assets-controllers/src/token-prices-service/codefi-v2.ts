@@ -233,7 +233,7 @@ const chainIdToNativeTokenAddress: Record<Hex, Hex> = {
   '0x64': '0xe91d153e0b41518a2ce8dd3d7944fa863463a97d', // Gnosis
   '0x1e': '0x542fda317318ebf1d3deaf76e0b632741a7e677d', // Rootstock Mainnet - Native symbol: RBTC
   '0x2611': '0xeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeee', // Plasma mainnet - native symbol: XPL
-  '0x15b38': '0x677F7e16C7Dd57be1D4C8aD1244883214953DC47', // Chiliz Mainnet - Native symbol: CHZ
+  '0x15b38': '0x677f7e16c7dd57be1d4c8ad1244883214953dc47', // Chiliz Mainnet - Native symbol: CHZ
 };
 
 /**
@@ -312,7 +312,7 @@ export const SPOT_PRICES_SUPPORT_INFO = {
   '0x15f900': 'eip155:1440000/erc20:0x0000000000000000000000000000000000000000', // xrpl-evm - native symbol: XRP
   '0x4e454152': 'eip155:1313161554/slip44:60', // Aurora Mainnet (Ethereum L2 on NEAR) - Native symbol: ETH
   '0x63564c40': 'eip155:1666600000/slip44:1023', // Harmony Mainnet Shard 0 - Native symbol: ONE
-  '0x15b38': 'eip155:88888/erc20:0x677F7e16C7Dd57be1D4C8aD1244883214953DC47', // Chiliz Mainnet - Native symbol: CHZ
+  '0x15b38': 'eip155:88888/erc20:0x677f7e16c7dd57be1d4c8ad1244883214953dc47', // Chiliz Mainnet - Native symbol: CHZ
 } as const;
 
 // MISSING CHAINS WITH NO NATIVE ASSET PRICES
