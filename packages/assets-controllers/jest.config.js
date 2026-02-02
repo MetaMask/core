@@ -32,7 +32,4 @@ module.exports = merge(baseConfig, {
 
   // We rely on `window` to make requests
   testEnvironment: '<rootDir>/jest.environment.js',
-
-  // Watchman isn't available in some environments (e.g. sandboxed CI/containers)
-  watchman: false,
 });
