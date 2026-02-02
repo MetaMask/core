@@ -7,11 +7,14 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+### Added
+
+- Add optional `rwaData` support when adding tokens in `TokensController` ([#7804](https://github.com/MetaMask/core/pull/7804)).
+
 ## [99.2.0]
 
 ### Added
 
-- Add optional `rwaData` support when adding tokens in `TokensController` ([#7804](https://github.com/MetaMask/core/pull/7804)).
 - Add `HYPEREVM` support ([#7790](https://github.com/MetaMask/core/pull/7790))
   - Add `HYPEREVM` in `SupportedTokenDetectionNetworks`
   - Add `HYPEREVM` in `SUPPORTED_NETWORKS_ACCOUNTS_API_V4`
