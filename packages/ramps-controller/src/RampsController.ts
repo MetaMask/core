@@ -251,7 +251,8 @@ export function getDefaultRampsControllerState(): RampsControllerState {
  * Mutates state in place; use from within controller update() for atomic updates.
  *
  * @param state - The state object to mutate.
- * @param options - When clearUserRegionData is true, sets userRegion.data to null (e.g. for full cleanup).
+ * @param options - Options for the reset.
+ * @param options.clearUserRegionData - When true, sets userRegion.data to null (e.g. for full cleanup).
  */
 function resetDependentResources(
   state: RampsControllerState,
@@ -642,10 +643,9 @@ export class RampsController extends BaseController<
 
   #cleanupState(): void {
     this.update((state) =>
-      resetDependentResources(
-        state as unknown as RampsControllerState,
-        { clearUserRegionData: true },
-      ),
+      resetDependentResources(state as unknown as RampsControllerState, {
+        clearUserRegionData: true,
+      }),
     );
   }
 
@@ -812,9 +812,6 @@ export class RampsController extends BaseController<
 
       if (needsRefetch) {
         this.#setUserRegionRefetchCount += 1;
-        if (this.#setUserRegionRefetchCount === 1) {
-          this.#setResourceLoading('userRegion', true);
-        }
       }
 
       this.update((state) => {
@@ -824,7 +821,9 @@ export class RampsController extends BaseController<
         state.userRegion.data = userRegion;
       });
 
-
+      if (needsRefetch && this.#setUserRegionRefetchCount === 1) {
+        this.#setResourceLoading('userRegion', true);
+      }
       // this code is needed to prevent race conditions in the unlikely event that the user's region is changed rapidly
       const refetchPromises: Promise<unknown>[] = [];
       if (regionChanged || !this.state.tokens.data) {
