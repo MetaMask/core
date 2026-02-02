@@ -28,6 +28,8 @@ import {
   MOCK_SNAP_ACCOUNT_2,
   MOCK_SOL_ACCOUNT_1,
   MockAccountBuilder,
+  mockCreateAccountsOnce,
+  mockCreateMaxAccountsOnce,
 } from './tests';
 import {
   MOCK_HD_KEYRING_1,
@@ -94,8 +96,9 @@ function mockAccountProvider<Provider extends Bip44AccountProvider>(
   providerClass: new (messenger: MultichainAccountServiceMessenger) => Provider,
   mocks: MockAccountProvider,
   accounts: KeyringAccount[],
-  idx: number,
-  _type: KeyringAccount['type'],
+  index: number,
+  name: string,
+  type: KeyringAccount['type'],
 ): void {
   jest.mocked(providerClass).mockImplementation((...args) => {
     mocks.constructor(...args);
@@ -105,21 +108,13 @@ function mockAccountProvider<Provider extends Bip44AccountProvider>(
   setupBip44AccountProvider({
     mocks,
     accounts,
-    index: idx,
+    index,
   });
 
-  // Provide stable provider name and compatibility logic for grouping
-  if (providerClass === (EvmAccountProvider as unknown)) {
-    mocks.getName.mockReturnValue(EVM_ACCOUNT_PROVIDER_NAME);
-    mocks.isAccountCompatible?.mockImplementation(
-      (account: KeyringAccount) => account.type === EthAccountType.Eoa,
-    );
-  } else if (providerClass === (SolAccountProvider as unknown)) {
-    mocks.getName.mockReturnValue(SOL_ACCOUNT_PROVIDER_NAME);
-    mocks.isAccountCompatible?.mockImplementation(
-      (account: KeyringAccount) => account.type === SolAccountType.DataAccount,
-    );
-  }
+  mocks.getName.mockReturnValue(name);
+  mocks.isAccountCompatible?.mockImplementation(
+    (account: KeyringAccount) => account.type === type,
+  );
 }
 
 async function setup({
@@ -239,6 +234,7 @@ async function setup({
       mocks.EvmAccountProvider,
       accounts,
       0,
+      EVM_ACCOUNT_PROVIDER_NAME,
       EthAccountType.Eoa,
     );
     mockAccountProvider<SolAccountProvider>(
@@ -246,6 +242,7 @@ async function setup({
       mocks.SolAccountProvider,
       accounts,
       1,
+      SOL_ACCOUNT_PROVIDER_NAME,
       SolAccountType.DataAccount,
     );
   }
@@ -637,34 +634,44 @@ describe('MultichainAccountService', () => {
       const mockEvmAccount0 = MockAccountBuilder.from(MOCK_HD_ACCOUNT_1)
         .withEntropySource(MOCK_HD_KEYRING_1.metadata.id)
         .withGroupIndex(0)
+        .withUuid()
         .get();
       const mockEvmAccount1 = MockAccountBuilder.from(MOCK_HD_ACCOUNT_1)
         .withEntropySource(MOCK_HD_KEYRING_1.metadata.id)
         .withGroupIndex(1)
+        .withUuid()
+        .get();
+      const mockEvmAccount2 = MockAccountBuilder.from(MOCK_HD_ACCOUNT_1)
+        .withEntropySource(MOCK_HD_KEYRING_1.metadata.id)
+        .withGroupIndex(2)
+        .withUuid()
         .get();
 
-      const { service, messenger } = await setup({
-        accounts: [mockEvmAccount0, mockEvmAccount1],
+      const { service, messenger, mocks } = await setup({
+        accounts: [mockEvmAccount0],
       });
-      const publishSpy = jest.spyOn(messenger, 'publish');
+
+      const mockMultichainAccountGroupCreated = jest.fn();
+      messenger.subscribe(
+        'MultichainAccountService:multichainAccountGroupCreated',
+        mockMultichainAccountGroupCreated,
+      );
+
+      mockCreateMaxAccountsOnce(mocks.EvmAccountProvider, [
+        // The `createMaxAccounts` method is idempotennt and must include
+        // existing accounts too.
+        [mockEvmAccount0],
+        // Those are the 2 new accounts to be created.
+        [mockEvmAccount1],
+        [mockEvmAccount2],
+      ]);
 
       await service.createMultichainAccountGroups({
         entropySource: MOCK_HD_KEYRING_1.metadata.id,
-        maxGroupIndex: 1,
+        maxGroupIndex: 2,
       });
 
-      const groupCreatedCalls = publishSpy.mock.calls.filter(
-        (call) => call[0] === 'MultichainAccountService:multichainAccountGroupCreated',
-      );
-      expect(groupCreatedCalls).toHaveLength(2);
-      expect(publishSpy).toHaveBeenCalledWith(
-        'MultichainAccountService:multichainAccountGroupCreated',
-        expect.objectContaining({ groupIndex: 0 }),
-      );
-      expect(publishSpy).toHaveBeenCalledWith(
-        'MultichainAccountService:multichainAccountGroupCreated',
-        expect.objectContaining({ groupIndex: 1 }),
-      );
+      expect(mockMultichainAccountGroupCreated).toHaveBeenCalledTimes(2);
     });
   });
 
@@ -825,6 +832,31 @@ describe('MultichainAccountService', () => {
       expect(firstGroup.groupIndex).toBe(0);
       expect(firstGroup.getAccounts()).toHaveLength(1);
       expect(firstGroup.getAccounts()[0]).toStrictEqual(MOCK_HD_ACCOUNT_1);
+    });
+
+    it('creates a multichain account group with MultichainAccountService:createMultichainAccountGroups', async () => {
+      const accounts = [MOCK_HD_ACCOUNT_1, MOCK_HD_ACCOUNT_2];
+      const { messenger } = await setup({ accounts });
+
+      const groups = await messenger.call(
+        'MultichainAccountService:createMultichainAccountGroups',
+        {
+          entropySource: MOCK_HD_KEYRING_1.metadata.id,
+          maxGroupIndex: 1,
+        },
+      );
+
+      expect(groups).toHaveLength(2);
+
+      expect(groups[0]).not.toBeNull();
+      expect(groups[0]?.groupIndex).toBe(0);
+      expect(groups[0]?.getAccounts()).toHaveLength(1);
+      expect(groups[0]?.getAccounts()[0]).toStrictEqual(MOCK_HD_ACCOUNT_1);
+
+      expect(groups[1]).not.toBeNull();
+      expect(groups[1]?.groupIndex).toBe(0);
+      expect(groups[1]?.getAccounts()).toHaveLength(1);
+      expect(groups[1]?.getAccounts()[0]).toStrictEqual(MOCK_HD_ACCOUNT_2);
     });
 
     it('aligns a multichain account wallet with MultichainAccountService:alignWallet', async () => {
@@ -1119,6 +1151,27 @@ describe('MultichainAccountService', () => {
       wrapper.setEnabled(false);
 
       const result = await wrapper.createAccounts(options);
+      expect(result).toStrictEqual([]);
+    });
+
+    it('returns empty array when createMaxAccounts() is disabled', async () => {
+      const options = {
+        entropySource: MOCK_HD_ACCOUNT_1.options.entropy.id,
+        maxGroupIndex: 0,
+      };
+
+      // Enable first - should work normally
+      (solProvider.createMaxAccounts as jest.Mock).mockResolvedValue([
+        [MOCK_HD_ACCOUNT_1],
+      ]);
+      expect(await wrapper.createMaxAccounts(options)).toStrictEqual([
+        [MOCK_HD_ACCOUNT_1],
+      ]);
+
+      // Disable - should return empty array and not call underlying provider
+      wrapper.setEnabled(false);
+
+      const result = await wrapper.createMaxAccounts(options);
       expect(result).toStrictEqual([]);
     });
 

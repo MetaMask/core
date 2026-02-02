@@ -71,7 +71,7 @@ export function setupBip44AccountProvider({
   });
   mocks.isDisabled.mockImplementation(() => !mocks.isEnabled);
 
-  const getAccounts = () =>
+  const getAccounts = (): KeyringAccount[] =>
     mocks.mockAccounts.filter((account) =>
       [...mocks.accounts].includes(account.id),
     );
@@ -167,13 +167,51 @@ export function mockCreateAccountsOnce(
 ): void {
   provider.createAccounts.mockImplementationOnce(async () => {
     // Add newly created accounts to the provider's internal store
-    for (const acc of created) {
-      if (!provider.mockAccounts.some((a) => a.id === acc.id)) {
-        provider.mockAccounts.push(acc);
+    for (const account of created) {
+      if (
+        !provider.mockAccounts.some(
+          (existingAccount) => existingAccount.id === account.id,
+        )
+      ) {
+        provider.mockAccounts.push(account);
       }
     }
     // Merge IDs into the visible list used by getAccounts/getAccount
     const ids = created.map((a) => a.id);
+    for (const id of ids) {
+      provider.accounts.add(id);
+    }
+
+    return created;
+  });
+}
+
+/**
+ * Helper to mock a single createMaxAccounts call while updating the provider's
+ * internal state so subsequent getAccount/getAccounts can resolve the accounts.
+ *
+ * @param provider - The mock provider whose createMaxAccounts call to mock.
+ * @param created - The accounts to be returned and persisted in the mock state.
+ */
+export function mockCreateMaxAccountsOnce(
+  provider: MockAccountProvider,
+  created: KeyringAccount[][],
+): void {
+  provider.createMaxAccounts.mockImplementationOnce(async () => {
+    // Add newly created accounts to the provider's internal store
+    for (const group of created) {
+      for (const account of group) {
+        if (
+          !provider.mockAccounts.some(
+            (existingAccount) => existingAccount.id === account.id,
+          )
+        ) {
+          provider.mockAccounts.push(account);
+        }
+      }
+    }
+    // Merge IDs into the visible list used by getAccounts/getAccount
+    const ids = created.flat().map((account) => account.id);
     for (const id of ids) {
       provider.accounts.add(id);
     }
