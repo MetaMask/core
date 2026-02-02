@@ -157,8 +157,8 @@ jest.mock('../assetsUtil', () => ({
   accountAddressToCaipReference: jest.fn(),
   reduceInBatchesSerially: jest.fn(),
   SupportedStakedBalanceNetworks: {
-    mainnet: '0x1',
-    hoodi: '0x4268',
+    Mainnet: '0x1',
+    Hoodi: '0x4268',
   },
   STAKING_CONTRACT_ADDRESS_BY_CHAINID: {
     '0x1': '0x4FEF9D741011476750A243aC70b9789a63dd47Df',

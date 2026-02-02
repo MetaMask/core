@@ -16,6 +16,8 @@ export type {
   SubscriptionControllerOptions,
   SubscriptionControllerStateChangeEvent,
   SubscriptionControllerSubmitSponsorshipIntentsAction,
+  SubscriptionControllerCacheLastSelectedPaymentMethodAction,
+  SubscriptionControllerClearLastSelectedPaymentMethodAction,
   SubscriptionControllerLinkRewardsAction,
   SubscriptionControllerSubmitShieldSubscriptionCryptoApprovalAction,
   AllowedActions,
