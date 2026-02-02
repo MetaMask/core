@@ -143,10 +143,12 @@ describe('PermissionLogController', () => {
 
         logMiddleware(request, expectedResponse, mockNext(false), noop);
 
-        expect(permissionLogController.state.permissionActivityLog).toHaveLength(
-          1,
-        );
-        expect(permissionLogController.state.permissionActivityLog).toStrictEqual([
+        expect(
+          permissionLogController.state.permissionActivityLog,
+        ).toHaveLength(1);
+        expect(
+          permissionLogController.state.permissionActivityLog,
+        ).toStrictEqual([
           {
             id: REQUEST_IDS.a,
             method: 'eth_accounts',
@@ -165,9 +167,9 @@ describe('PermissionLogController', () => {
 
         logMiddleware(request, expectedResponse, mockNext(true), noop);
 
-        expect(permissionLogController.state.permissionActivityLog).toHaveLength(
-          2,
-        );
+        expect(
+          permissionLogController.state.permissionActivityLog,
+        ).toHaveLength(2);
       });
 
       it('records activity for a failed restricted method request', () => {
@@ -187,10 +189,12 @@ describe('PermissionLogController', () => {
 
         logMiddleware(request, expectedResponse, mockNext(false), noop);
 
-        expect(permissionLogController.state.permissionActivityLog).toHaveLength(
-          1,
-        );
-        expect(permissionLogController.state.permissionActivityLog).toStrictEqual([
+        expect(
+          permissionLogController.state.permissionActivityLog,
+        ).toHaveLength(1);
+        expect(
+          permissionLogController.state.permissionActivityLog,
+        ).toStrictEqual([
           {
             id: REQUEST_IDS.a,
             method: 'eth_accounts',
@@ -220,10 +224,12 @@ describe('PermissionLogController', () => {
 
         logMiddleware(request, expectedResponse, mockNext(false), noop);
 
-        expect(permissionLogController.state.permissionActivityLog).toHaveLength(
-          1,
-        );
-        expect(permissionLogController.state.permissionActivityLog).toStrictEqual([
+        expect(
+          permissionLogController.state.permissionActivityLog,
+        ).toHaveLength(1);
+        expect(
+          permissionLogController.state.permissionActivityLog,
+        ).toStrictEqual([
           {
             id: REQUEST_IDS.a,
             method: 'eth_requestAccounts',
@@ -244,7 +250,9 @@ describe('PermissionLogController', () => {
           origin: SUBJECTS.a.origin,
         });
 
-        const request = RPC_REQUESTS.wallet_requestPermissions(SUBJECTS.a.origin);
+        const request = RPC_REQUESTS.wallet_requestPermissions(
+          SUBJECTS.a.origin,
+        );
         const expectedResponse: PendingJsonRpcResponse<Permission[]> = {
           id: request.id,
           jsonrpc: '2.0',
@@ -253,10 +261,12 @@ describe('PermissionLogController', () => {
 
         logMiddleware(request, expectedResponse, mockNext(false), noop);
 
-        expect(permissionLogController.state.permissionActivityLog).toHaveLength(
-          1,
-        );
-        expect(permissionLogController.state.permissionActivityLog).toStrictEqual([
+        expect(
+          permissionLogController.state.permissionActivityLog,
+        ).toHaveLength(1);
+        expect(
+          permissionLogController.state.permissionActivityLog,
+        ).toStrictEqual([
           {
             id: REQUEST_IDS.a,
             method: 'wallet_requestPermissions',
@@ -286,9 +296,9 @@ describe('PermissionLogController', () => {
 
         logMiddleware(request, expectedResponse, mockNext(false), noop);
 
-        expect(permissionLogController.state.permissionActivityLog).toHaveLength(
-          0,
-        );
+        expect(
+          permissionLogController.state.permissionActivityLog,
+        ).toHaveLength(0);
       });
 
       it('handles internal methods correctly', () => {
@@ -308,7 +318,9 @@ describe('PermissionLogController', () => {
           jsonrpc: '2.0',
           method: 'metamask_getProviderState',
         };
-        const expectedResponse: PendingJsonRpcResponse<Record<string, unknown>> = {
+        const expectedResponse: PendingJsonRpcResponse<
+          Record<string, unknown>
+        > = {
           id: request.id,
           jsonrpc: '2.0',
           result: {},
@@ -316,9 +328,9 @@ describe('PermissionLogController', () => {
 
         logMiddleware(request, expectedResponse, mockNext(false), noop);
 
-        expect(permissionLogController.state.permissionActivityLog).toHaveLength(
-          0,
-        );
+        expect(
+          permissionLogController.state.permissionActivityLog,
+        ).toHaveLength(0);
       });
 
       it('enforces log limit', () => {
@@ -341,9 +353,9 @@ describe('PermissionLogController', () => {
           logMiddleware(request, expectedResponse, mockNext(false), noop);
         }
 
-        expect(permissionLogController.state.permissionActivityLog).toHaveLength(
-          LOG_LIMIT,
-        );
+        expect(
+          permissionLogController.state.permissionActivityLog,
+        ).toHaveLength(LOG_LIMIT);
       });
     });
 
@@ -417,7 +429,9 @@ describe('PermissionLogController', () => {
 
         logMiddleware(request, expectedResponse, mockNext(false), noop);
 
-        expect(permissionLogController.state.permissionHistory).toStrictEqual({});
+        expect(permissionLogController.state.permissionHistory).toStrictEqual(
+          {},
+        );
       });
 
       it('updates history if wallet_requestPermissions returns permissions', () => {
@@ -428,7 +442,9 @@ describe('PermissionLogController', () => {
           origin: SUBJECTS.a.origin,
         });
 
-        const request = RPC_REQUESTS.wallet_requestPermissions(SUBJECTS.a.origin);
+        const request = RPC_REQUESTS.wallet_requestPermissions(
+          SUBJECTS.a.origin,
+        );
         const expectedResponse: PendingJsonRpcResponse<Permission[]> = {
           id: request.id,
           jsonrpc: '2.0',
@@ -533,7 +549,9 @@ describe('PermissionLogController', () => {
           noop,
         );
 
-        expect(permissionLogController.state.permissionHistory).toStrictEqual({});
+        expect(permissionLogController.state.permissionHistory).toStrictEqual(
+          {},
+        );
       });
     });
   });

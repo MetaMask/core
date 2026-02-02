@@ -1041,8 +1041,7 @@ export class SubscriptionController extends StaticIntervalPollingController()<
     value: CachedLastSelectedPaymentMethod | undefined,
   ): asserts value is Required<CachedLastSelectedPaymentMethod> {
     if (
-      !value ||
-      value.type !== PAYMENT_TYPES.byCrypto ||
+      value?.type !== PAYMENT_TYPES.byCrypto ||
       !value.paymentTokenAddress ||
       !value.paymentTokenSymbol
     ) {
