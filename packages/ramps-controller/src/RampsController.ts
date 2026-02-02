@@ -246,6 +246,39 @@ export function getDefaultRampsControllerState(): RampsControllerState {
   };
 }
 
+/**
+ * Resets region-dependent resources (userRegion, providers, tokens, paymentMethods, quotes).
+ * Mutates state in place; use from within controller update() for atomic updates.
+ *
+ * @param state - The state object to mutate.
+ * @param options - When clearUserRegionData is true, sets userRegion.data to null (e.g. for full cleanup).
+ */
+function resetDependentResources(
+  state: RampsControllerState,
+  options?: { clearUserRegionData?: boolean },
+): void {
+  if (options?.clearUserRegionData) {
+    state.userRegion.data = null;
+  }
+  state.userRegion.isLoading = false;
+  state.userRegion.error = null;
+  state.providers.selected = null;
+  state.providers.data = [];
+  state.providers.isLoading = false;
+  state.providers.error = null;
+  state.tokens.selected = null;
+  state.tokens.data = null;
+  state.tokens.isLoading = false;
+  state.tokens.error = null;
+  state.paymentMethods.data = [];
+  state.paymentMethods.selected = null;
+  state.paymentMethods.isLoading = false;
+  state.paymentMethods.error = null;
+  state.quotes.data = null;
+  state.quotes.isLoading = false;
+  state.quotes.error = null;
+}
+
 // === MESSENGER ===
 
 /**
@@ -408,7 +441,13 @@ export class RampsController extends BaseController<
    * Count of in-flight requests per resource type.
    * Used so isLoading is only cleared when the last request for that resource finishes.
    */
-  #pendingResourceCount: Map<ResourceType, number> = new Map();
+  readonly #pendingResourceCount: Map<ResourceType, number> = new Map();
+
+  /**
+   * Count of in-flight setUserRegion refetch batches.
+   * Used so userRegion.isLoading is only cleared when the last batch's refetches finish (avoids race when region is changed rapidly or when init() clears loading before refetches complete).
+   */
+  #setUserRegionRefetchCount = 0;
 
   /**
    * Clears the pending resource count map. Used only in tests to exercise the
@@ -602,26 +641,12 @@ export class RampsController extends BaseController<
   }
 
   #cleanupState(): void {
-    this.update((state) => {
-      state.userRegion.data = null;
-      state.userRegion.isLoading = false;
-      state.userRegion.error = null;
-      state.providers.selected = null;
-      state.providers.data = [];
-      state.providers.isLoading = false;
-      state.providers.error = null;
-      state.tokens.selected = null;
-      state.tokens.data = null;
-      state.tokens.isLoading = false;
-      state.tokens.error = null;
-      state.paymentMethods.data = [];
-      state.paymentMethods.selected = null;
-      state.paymentMethods.isLoading = false;
-      state.paymentMethods.error = null;
-      state.quotes.data = null;
-      state.quotes.isLoading = false;
-      state.quotes.error = null;
-    });
+    this.update((state) =>
+      resetDependentResources(
+        state as unknown as RampsControllerState,
+        { clearUserRegionData: true },
+      ),
+    );
   }
 
   /**
@@ -786,31 +811,21 @@ export class RampsController extends BaseController<
         this.state.providers.data.length === 0;
 
       if (needsRefetch) {
-        this.#setResourceLoading('userRegion', true);
+        this.#setUserRegionRefetchCount += 1;
+        if (this.#setUserRegionRefetchCount === 1) {
+          this.#setResourceLoading('userRegion', true);
+        }
       }
 
       this.update((state) => {
         if (regionChanged) {
-          state.userRegion.error = null;
-          state.providers.selected = null;
-          state.providers.data = [];
-          state.providers.isLoading = false;
-          state.providers.error = null;
-          state.tokens.selected = null;
-          state.tokens.data = null;
-          state.tokens.isLoading = false;
-          state.tokens.error = null;
-          state.paymentMethods.data = [];
-          state.paymentMethods.selected = null;
-          state.paymentMethods.isLoading = false;
-          state.paymentMethods.error = null;
-          state.quotes.data = null;
-          state.quotes.isLoading = false;
-          state.quotes.error = null;
+          resetDependentResources(state as unknown as RampsControllerState);
         }
         state.userRegion.data = userRegion;
       });
 
+
+      // this code is needed to prevent race conditions in the unlikely event that the user's region is changed rapidly
       const refetchPromises: Promise<unknown>[] = [];
       if (regionChanged || !this.state.tokens.data) {
         refetchPromises.push(
@@ -818,16 +833,22 @@ export class RampsController extends BaseController<
         );
       }
       if (regionChanged || this.state.providers.data.length === 0) {
-        refetchPromises.push(
-          this.getProviders(userRegion.regionCode, options),
-        );
+        refetchPromises.push(this.getProviders(userRegion.regionCode, options));
       }
       if (refetchPromises.length > 0) {
         this.#fireAndForget(
           Promise.all(refetchPromises).finally(() => {
-            this.#setResourceLoading('userRegion', false);
+            this.#setUserRegionRefetchCount = Math.max(
+              0,
+              this.#setUserRegionRefetchCount - 1,
+            );
+            if (this.#setUserRegionRefetchCount === 0) {
+              this.#setResourceLoading('userRegion', false);
+            }
           }),
         );
+      } else {
+        this.#setResourceLoading('userRegion', false);
       }
 
       return userRegion;
@@ -900,6 +921,7 @@ export class RampsController extends BaseController<
   async init(options?: ExecuteRequestOptions): Promise<void> {
     this.#setResourceLoading('userRegion', true);
 
+    let setUserRegionCompleted = false;
     try {
       await this.getCountries(options);
 
@@ -913,6 +935,7 @@ export class RampsController extends BaseController<
       }
 
       await this.setUserRegion(regionCode, options);
+      setUserRegionCompleted = true;
       this.#setResourceError('userRegion', null);
     } catch (error) {
       this.#setResourceError(
@@ -921,7 +944,9 @@ export class RampsController extends BaseController<
       );
       throw error;
     } finally {
-      this.#setResourceLoading('userRegion', false);
+      if (!setUserRegionCompleted) {
+        this.#setResourceLoading('userRegion', false);
+      }
     }
   }
 
