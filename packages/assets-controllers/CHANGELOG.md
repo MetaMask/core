@@ -7,6 +7,10 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+### Added
+
+- Add INK (0xdef1) mapping to eip155:57073/slip44:60 ([#7688](https://github.com/MetaMask/core/pull/7688))
+
 ## [99.2.0]
 
 ### Added
@@ -30,7 +34,6 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ### Added
 
-- Add INK (0xdef1) mapping to eip155:57073/slip44:60 ([#7688](https://github.com/MetaMask/core/pull/7688))
 - Add multicall3 address for chain: `Tempo Testnet` ([#7753](https://github.com/MetaMask/core/pull/7753))
 
 ### Changed
