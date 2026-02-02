@@ -337,14 +337,17 @@ export class BridgeController extends StaticIntervalPollingController<BridgePoll
    *
    * @param quoteRequest - The parameters for quote requests to fetch
    * @param abortSignal - The abort signal to cancel all the requests
-   * @param featureId - The feature ID that maps to quoteParam overrides from LD
+   * @param featureIdOverride - Optional feature ID override (for backward compatibility). If not provided, uses featureId from quoteRequest.
    * @returns A list of validated quotes
    */
   fetchQuotes = async (
     quoteRequest: GenericQuoteRequest,
     abortSignal: AbortSignal | null = null,
-    featureId: FeatureId | null = null,
+    featureIdOverride: FeatureId | null = null,
   ): Promise<(QuoteResponse & L1GasFees & NonEvmFees)[]> => {
+    // Use override if provided (ex: perps case), otherwise use from request (ex: card case)
+    const featureId = featureIdOverride ?? quoteRequest.featureId ?? null;
+
     const bridgeFeatureFlags = getBridgeFeatureFlags(this.messenger);
     // If featureId is specified, retrieve the quoteRequestOverrides for that featureId
     const quoteRequestOverrides = featureId
@@ -640,6 +643,7 @@ export class BridgeController extends StaticIntervalPollingController<BridgePoll
           const quotes = await this.fetchQuotes(
             updatedQuoteRequest,
             this.#abortController?.signal,
+            updatedQuoteRequest.featureId ?? null,
           );
           this.update((state) => {
             // Set the initial load time if this is the first fetch

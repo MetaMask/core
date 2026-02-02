@@ -6,6 +6,7 @@ import {
   formatChainIdToCaip,
   formatChainIdToHex,
   isCrossChain,
+  FeatureId,
 } from '@metamask/bridge-controller';
 import type {
   Intent,
@@ -37,6 +38,53 @@ import type {
 } from '../types';
 
 export const generateActionId = () => (Date.now() + Math.random()).toString();
+
+/**
+ * Gets the appropriate transaction type based on whether it's a bridge transaction
+ * and the optional feature ID.
+ *
+ * @param isBridgeTx - Whether the transaction is a cross-chain bridge transaction
+ * @param featureId - Optional feature ID for feature-specific transaction types
+ * @returns The transaction type
+ */
+export const getBridgeTransactionType = (
+  isBridgeTx: boolean,
+  featureId?: FeatureId,
+): TransactionType => {
+  switch (featureId) {
+    case FeatureId.CARD:
+      return isBridgeTx
+        ? TransactionType.cardBridgeDeposit
+        : TransactionType.cardSwapDeposit;
+    // For now this handles the perps case for example but we could have more cases for it as well.
+    default:
+      return isBridgeTx ? TransactionType.bridge : TransactionType.swap;
+  }
+};
+
+/**
+ * Gets the appropriate approval transaction type based on whether it's a bridge transaction
+ * and the optional feature ID.
+ *
+ * @param isBridgeTx - Whether the transaction is a cross-chain bridge transaction
+ * @param featureId - Optional feature ID for feature-specific transaction types
+ * @returns The approval transaction type
+ */
+export const getBridgeApprovalTransactionType = (
+  isBridgeTx: boolean,
+  featureId?: FeatureId,
+): TransactionType => {
+  switch (featureId) {
+    case FeatureId.CARD:
+      return isBridgeTx
+        ? TransactionType.cardBridgeApproval
+        : TransactionType.cardSwapApproval;
+    default:
+      return isBridgeTx
+        ? TransactionType.bridgeApproval
+        : TransactionType.swapApproval;
+  }
+};
 
 export const getStatusRequestParams = (quoteResponse: QuoteResponse) => {
   return {
@@ -159,7 +207,7 @@ export const handleNonEvmTxResponse = (
     chainId: hexChainId,
     networkClientId: snapId ?? hexChainId,
     txParams: { from: selectedAccountAddress, data: tradeData },
-    type: isBridgeTx ? TransactionType.bridge : TransactionType.swap,
+    type: getBridgeTransactionType(isBridgeTx, quoteResponse.featureId),
     status: TransactionStatus.submitted,
     hash, // Add the transaction signature as hash
     origin: snapId,
@@ -280,6 +328,7 @@ export const getAddTransactionBatchParams = async ({
     },
     sentAmount,
     toTokenAmount,
+    featureId,
   },
   requireApproval = false,
   estimateGasFeeFn,
@@ -325,9 +374,7 @@ export const getAddTransactionBatchParams = async ({
       isGasless ? txFee : undefined,
     );
     transactions.push({
-      type: isBridgeTx
-        ? TransactionType.bridgeApproval
-        : TransactionType.swapApproval,
+      type: getBridgeApprovalTransactionType(isBridgeTx, featureId),
       params: toBatchTxParams(disable7702, resetApproval, gasFees),
     });
   }
@@ -342,9 +389,7 @@ export const getAddTransactionBatchParams = async ({
       isGasless ? txFee : undefined,
     );
     transactions.push({
-      type: isBridgeTx
-        ? TransactionType.bridgeApproval
-        : TransactionType.swapApproval,
+      type: getBridgeApprovalTransactionType(isBridgeTx, featureId),
       params: toBatchTxParams(disable7702, approval, gasFees),
     });
   }
@@ -358,7 +403,7 @@ export const getAddTransactionBatchParams = async ({
     isGasless ? txFee : undefined,
   );
   transactions.push({
-    type: isBridgeTx ? TransactionType.bridge : TransactionType.swap,
+    type: getBridgeTransactionType(isBridgeTx, featureId),
     params: toBatchTxParams(disable7702, trade, gasFees),
     assetsFiatValues: {
       sending: sentAmount?.valueInCurrency?.toString(),
