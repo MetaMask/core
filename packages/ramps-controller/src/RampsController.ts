@@ -460,6 +460,19 @@ export class RampsController extends BaseController<
     this.#pendingResourceCount.clear();
   }
 
+  #clearPendingResourceCountForDependentResources(): void {
+    const types: ResourceType[] = [
+      'userRegion',
+      'providers',
+      'tokens',
+      'paymentMethods',
+      'quotes',
+    ];
+    for (const resourceType of types) {
+      this.#pendingResourceCount.delete(resourceType);
+    }
+  }
+
   /**
    * Constructs a new {@link RampsController}.
    *
@@ -642,6 +655,7 @@ export class RampsController extends BaseController<
   }
 
   #cleanupState(): void {
+    this.#clearPendingResourceCountForDependentResources();
     this.update((state) =>
       resetDependentResources(state as unknown as RampsControllerState, {
         clearUserRegionData: true,
@@ -814,6 +828,9 @@ export class RampsController extends BaseController<
         this.#setUserRegionRefetchCount += 1;
       }
 
+      if (regionChanged) {
+        this.#clearPendingResourceCountForDependentResources();
+      }
       this.update((state) => {
         if (regionChanged) {
           resetDependentResources(state as unknown as RampsControllerState);
