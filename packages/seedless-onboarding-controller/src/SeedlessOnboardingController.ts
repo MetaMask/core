@@ -433,6 +433,11 @@ export class SeedlessOnboardingController<
     this.#refreshJWTToken = refreshJWTToken;
     this.#revokeRefreshToken = revokeRefreshToken;
     this.#renewRefreshToken = renewRefreshToken;
+
+    this.messenger.registerActionHandler(
+      'SeedlessOnboardingController:getAccessToken',
+      this.getAccessToken.bind(this),
+    );
   }
 
   async fetchMetadataAccessCreds(): Promise<{
