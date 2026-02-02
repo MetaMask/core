@@ -299,6 +299,7 @@ export enum ChainId {
   TRON = 728126428,
   SEI = 1329,
   MONAD = 143,
+  HYPEREVM = 999,
 }
 
 export type FeatureFlagsPlatformConfig = Infer<typeof PlatformConfigSchema>;
@@ -352,6 +353,11 @@ export type BridgeControllerState = {
    * Asset exchange rates for EVM and multichain assets that are not indexed by the assets controllers
    */
   assetExchangeRates: Record<CaipAssetType, ExchangeRate>;
+  /**
+   * When the src token is SOL, this needs to be subtracted from their balance to determine
+   * the max amount that can be sent.
+   */
+  minimumBalanceForRentExemptionInLamports: string | null;
 };
 
 export type BridgeControllerAction<

@@ -7,6 +7,32 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+### Changed
+
+- Bump `@metamask/transaction-controller` from `^62.11.0` to `^62.12.0` ([#7775](https://github.com/MetaMask/core/pull/7775))
+
+## [12.0.2]
+
+### Changed
+
+- Bump `@metamask/assets-controllers` from `^99.0.0` to `^99.1.0` ([#7771](https://github.com/MetaMask/core/pull/7771))
+- Bump `@metamask/bridge-controller` from `^65.0.1` to `^65.1.0` ([#7763](https://github.com/MetaMask/core/pull/7763))
+- Bump `@metamask/bridge-status-controller` from `^65.0.0` to `^65.0.1` ([#7763](https://github.com/MetaMask/core/pull/7763))
+- Bump `@metamask/transaction-controller` from `^62.10.0` to `^62.11.0` ([#7760](https://github.com/MetaMask/core/pull/7760))
+- Poll Relay status for same-chain quotes with a single deposit step ([#7761](https://github.com/MetaMask/core/pull/7761))
+
+### Fixed
+
+- Skip gas fee token in Relay strategy if chain does not support EIP-7702 ([#7754](https://github.com/MetaMask/core/pull/7754))
+
+## [12.0.1]
+
+### Changed
+
+- Bump `@metamask/assets-controllers` from `^98.0.0` to `^99.0.0` ([#7751](https://github.com/MetaMask/core/pull/7751))
+- Bump `@metamask/bridge-controller` from `^65.0.0` to `^65.0.1` ([#7751](https://github.com/MetaMask/core/pull/7751))
+- Bump `@metamask/transaction-controller` from `^62.9.2` to `^62.10.0` ([#7737](https://github.com/MetaMask/core/pull/7737))
+
 ## [12.0.0]
 
 ### Changed
@@ -299,7 +325,9 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 - Initial release ([#6820](https://github.com/MetaMask/core/pull/6820))
 
-[Unreleased]: https://github.com/MetaMask/core/compare/@metamask/transaction-pay-controller@12.0.0...HEAD
+[Unreleased]: https://github.com/MetaMask/core/compare/@metamask/transaction-pay-controller@12.0.2...HEAD
+[12.0.2]: https://github.com/MetaMask/core/compare/@metamask/transaction-pay-controller@12.0.1...@metamask/transaction-pay-controller@12.0.2
+[12.0.1]: https://github.com/MetaMask/core/compare/@metamask/transaction-pay-controller@12.0.0...@metamask/transaction-pay-controller@12.0.1
 [12.0.0]: https://github.com/MetaMask/core/compare/@metamask/transaction-pay-controller@11.1.1...@metamask/transaction-pay-controller@12.0.0
 [11.1.1]: https://github.com/MetaMask/core/compare/@metamask/transaction-pay-controller@11.1.0...@metamask/transaction-pay-controller@11.1.1
 [11.1.0]: https://github.com/MetaMask/core/compare/@metamask/transaction-pay-controller@11.0.2...@metamask/transaction-pay-controller@11.1.0

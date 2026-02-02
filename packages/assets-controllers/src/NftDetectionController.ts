@@ -64,13 +64,15 @@ export type NftDetectionControllerMessenger = Messenger<
 >;
 
 /**
- * A set of supported networks for NFT detection.
+ * Set of supported networks for NFT detection.
  */
 const supportedNftDetectionNetworks: Set<Hex> = new Set([
-  // TODO: We should consider passing this constant from the NftDetectionController contructor
-  // to reduce the complexity to add further network into this constant
   '0x1', // Mainnet
+  '0x38', // BSC
+  '0x89', // Polygon
+  '0xa86a', // Avalanche
   '0xe708', // Linea Mainnet
+  '0x2105', // Base
   '0x531', // Sei
   '0x8f', // Monad
 ]);

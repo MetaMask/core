@@ -23,6 +23,9 @@
       "path": "./packages/analytics-controller/tsconfig.build.json"
     },
     {
+      "path": "./packages/analytics-data-regulation-controller/tsconfig.build.json"
+    },
+    {
       "path": "./packages/announcement-controller/tsconfig.build.json"
     },
     {
@@ -201,9 +204,6 @@
     },
     {
       "path": "./packages/subscription-controller/tsconfig.build.json"
-    },
-    {
-      "path": "./packages/token-search-discovery-controller/tsconfig.build.json"
     },
     {
       "path": "./packages/transaction-controller/tsconfig.build.json"

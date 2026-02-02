@@ -63,9 +63,17 @@ function createMockAssetResponse(
     symbol: 'TEST',
     decimals: 18,
     iconUrl: 'https://example.com/icon.png',
-    iconUrlThumbnail: 'https://example.com/icon-thumb.png',
+    coingeckoId: 'test-token',
+    occurrences: 5,
+    aggregators: ['metamask'],
+    labels: ['defi'],
+    erc20Permit: true,
+    fees: { avgFee: 0, maxFee: 0, minFee: 0 },
+    honeypotStatus: { honeypotIs: false },
+    storage: { balance: 1, approval: 2 },
+    isContractVerified: true,
     ...overrides,
-  } as V3AssetResponse;
+  };
 }
 
 function createDataRequest(overrides?: Partial<DataRequest>): DataRequest {
@@ -197,15 +205,32 @@ describe('TokenDataSource', () => {
 
     await controller.assetsMiddleware(context, next);
 
-    expect(apiClient.tokens.fetchV3Assets).toHaveBeenCalledWith([
-      MOCK_TOKEN_ASSET,
-    ]);
+    expect(apiClient.tokens.fetchV3Assets).toHaveBeenCalledWith(
+      [MOCK_TOKEN_ASSET],
+      {
+        includeIconUrl: true,
+        includeLabels: true,
+        includeMarketData: true,
+        includeMetadata: true,
+        includeRwaData: true,
+      },
+    );
     expect(context.response.assetsMetadata?.[MOCK_TOKEN_ASSET]).toStrictEqual({
       type: 'erc20',
       name: 'Test Token',
       symbol: 'TEST',
       decimals: 18,
       image: 'https://example.com/icon.png',
+      coingeckoId: 'test-token',
+      occurrences: 5,
+      aggregators: ['metamask'],
+      labels: ['defi'],
+      erc20Permit: true,
+      fees: { avgFee: 0, maxFee: 0, minFee: 0 },
+      honeypotStatus: { honeypotIs: false },
+      storage: { balance: 1, approval: 2 },
+      isContractVerified: true,
+      description: undefined,
     });
     expect(next).toHaveBeenCalledWith(context);
   });
@@ -295,9 +320,16 @@ describe('TokenDataSource', () => {
 
     await controller.assetsMiddleware(context, next);
 
-    expect(apiClient.tokens.fetchV3Assets).toHaveBeenCalledWith([
-      MOCK_TOKEN_ASSET,
-    ]);
+    expect(apiClient.tokens.fetchV3Assets).toHaveBeenCalledWith(
+      [MOCK_TOKEN_ASSET],
+      {
+        includeIconUrl: true,
+        includeLabels: true,
+        includeMarketData: true,
+        includeMetadata: true,
+        includeRwaData: true,
+      },
+    );
   });
 
   it('middleware filters assets by supported networks', async () => {
@@ -320,9 +352,16 @@ describe('TokenDataSource', () => {
 
     await controller.assetsMiddleware(context, next);
 
-    expect(apiClient.tokens.fetchV3Assets).toHaveBeenCalledWith([
-      MOCK_TOKEN_ASSET,
-    ]);
+    expect(apiClient.tokens.fetchV3Assets).toHaveBeenCalledWith(
+      [MOCK_TOKEN_ASSET],
+      {
+        includeIconUrl: true,
+        includeLabels: true,
+        includeMarketData: true,
+        includeMetadata: true,
+        includeRwaData: true,
+      },
+    );
   });
 
   it('middleware passes to next when no assets from supported networks', async () => {
@@ -446,33 +485,6 @@ describe('TokenDataSource', () => {
     expect(context.response.assetsMetadata?.[MOCK_SPL_ASSET]?.type).toBe('spl');
   });
 
-  it('middleware uses iconUrlThumbnail when iconUrl is not available', async () => {
-    const { controller } = setupController({
-      supportedNetworks: ['eip155:1'],
-      assetsResponse: [
-        createMockAssetResponse(MOCK_TOKEN_ASSET, {
-          iconUrl: undefined,
-          iconUrlThumbnail: 'https://example.com/thumb.png',
-        }),
-      ],
-    });
-
-    const next = jest.fn().mockResolvedValue(undefined);
-    const context = createMiddlewareContext({
-      response: {
-        detectedAssets: {
-          'mock-account-id': [MOCK_TOKEN_ASSET],
-        },
-      },
-    });
-
-    await controller.assetsMiddleware(context, next);
-
-    expect(context.response.assetsMetadata?.[MOCK_TOKEN_ASSET]?.image).toBe(
-      'https://example.com/thumb.png',
-    );
-  });
-
   it('middleware merges metadata into existing response', async () => {
     const anotherAsset =
       'eip155:1/erc20:0x6b175474e89094c44da98b954eedeac495271d0f' as Caip19AssetId;
@@ -535,6 +547,13 @@ describe('TokenDataSource', () => {
 
     expect(apiClient.tokens.fetchV3Assets).toHaveBeenCalledWith(
       expect.arrayContaining([MOCK_TOKEN_ASSET, secondAsset]),
+      {
+        includeIconUrl: true,
+        includeLabels: true,
+        includeMarketData: true,
+        includeMetadata: true,
+        includeRwaData: true,
+      },
     );
     expect(context.response.assetsMetadata?.[MOCK_TOKEN_ASSET]).toBeDefined();
     expect(context.response.assetsMetadata?.[secondAsset]).toBeDefined();
@@ -558,9 +577,16 @@ describe('TokenDataSource', () => {
 
     await controller.assetsMiddleware(context, next);
 
-    expect(apiClient.tokens.fetchV3Assets).toHaveBeenCalledWith([
-      MOCK_TOKEN_ASSET,
-    ]);
+    expect(apiClient.tokens.fetchV3Assets).toHaveBeenCalledWith(
+      [MOCK_TOKEN_ASSET],
+      {
+        includeIconUrl: true,
+        includeLabels: true,
+        includeMarketData: true,
+        includeMetadata: true,
+        includeRwaData: true,
+      },
+    );
   });
 
   it('middleware includes partial support networks', async () => {
@@ -585,9 +611,16 @@ describe('TokenDataSource', () => {
 
     await controller.assetsMiddleware(context, next);
 
-    expect(apiClient.tokens.fetchV3Assets).toHaveBeenCalledWith([
-      MOCK_TOKEN_ASSET,
-    ]);
+    expect(apiClient.tokens.fetchV3Assets).toHaveBeenCalledWith(
+      [MOCK_TOKEN_ASSET],
+      {
+        includeIconUrl: true,
+        includeLabels: true,
+        includeMarketData: true,
+        includeMetadata: true,
+        includeRwaData: true,
+      },
+    );
   });
 
   it('middleware filters out invalid CAIP asset IDs', async () => {
@@ -610,8 +643,15 @@ describe('TokenDataSource', () => {
 
     await controller.assetsMiddleware(context, next);
 
-    expect(apiClient.tokens.fetchV3Assets).toHaveBeenCalledWith([
-      MOCK_TOKEN_ASSET,
-    ]);
+    expect(apiClient.tokens.fetchV3Assets).toHaveBeenCalledWith(
+      [MOCK_TOKEN_ASSET],
+      {
+        includeIconUrl: true,
+        includeLabels: true,
+        includeMarketData: true,
+        includeMetadata: true,
+        includeRwaData: true,
+      },
+    );
   });
 });

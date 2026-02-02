@@ -1,14 +1,15 @@
 import { BalanceFetcher } from './BalanceFetcher';
 import type {
   BalanceFetcherConfig,
+  BalanceFetcherMessenger,
   BalancePollingInput,
 } from './BalanceFetcher';
 import type { MulticallClient } from '../clients';
 import type {
   Address,
+  AssetsBalanceState,
   BalanceOfResponse,
   ChainId,
-  UserTokensState,
 } from '../types';
 
 // =============================================================================
@@ -37,36 +38,24 @@ const createMockMulticallClient = (): jest.Mocked<MulticallClient> =>
     batchBalanceOf: jest.fn(),
   }) as unknown as jest.Mocked<MulticallClient>;
 
-function createMockUserTokensState(
-  chainId: ChainId,
-  accountAddress: Address,
-  importedTokens: {
-    address: Address;
-    symbol: string;
-    decimals: number;
-    name?: string;
-  }[] = [],
-  detectedTokens: {
-    address: Address;
-    symbol: string;
-    decimals: number;
-    name?: string;
-  }[] = [],
-): UserTokensState {
-  const importedMap: Record<Address, (typeof importedTokens)[number][]> = {};
-  if (importedTokens.length > 0) {
-    importedMap[accountAddress] = importedTokens;
-  }
-
-  const detectedMap: Record<Address, (typeof detectedTokens)[number][]> = {};
-  if (detectedTokens.length > 0) {
-    detectedMap[accountAddress] = detectedTokens;
-  }
-
+function createMockAssetsBalanceState(
+  accountId: string,
+  balances: Record<string, { amount: string }> = {},
+): AssetsBalanceState {
   return {
-    allTokens: { [chainId]: importedMap },
-    allDetectedTokens: { [chainId]: detectedMap },
-    allIgnoredTokens: {},
+    assetsBalance: {
+      [accountId]: balances,
+    },
+  };
+}
+
+function createMockMessenger(
+  assetsBalanceState?: AssetsBalanceState,
+): BalanceFetcherMessenger {
+  return {
+    call: (_action: 'AssetsController:getState'): AssetsBalanceState => {
+      return assetsBalanceState ?? { assetsBalance: {} };
+    },
   };
 }
 
@@ -85,7 +74,7 @@ function createMockBalanceResponse(
 
 type WithControllerOptions = {
   config?: BalanceFetcherConfig;
-  userTokensState?: UserTokensState;
+  assetsBalanceState?: AssetsBalanceState;
 };
 
 type WithControllerCallback<ReturnValue> = (params: {
@@ -106,14 +95,15 @@ async function withController<ReturnValue>(
     | [WithControllerCallback<ReturnValue>]
 ): Promise<ReturnValue> {
   const [options, fn] = args.length === 2 ? args : [{}, args[0]];
-  const { config, userTokensState } = options;
+  const { config, assetsBalanceState } = options;
 
   const mockMulticallClient = createMockMulticallClient();
-  const controller = new BalanceFetcher(mockMulticallClient, config);
-
-  if (userTokensState) {
-    controller.setUserTokensStateGetter(() => userTokensState);
-  }
+  const mockMessenger = createMockMessenger(assetsBalanceState);
+  const controller = new BalanceFetcher(
+    mockMulticallClient,
+    mockMessenger,
+    config,
+  );
 
   try {
     return await fn({ controller, mockMulticallClient });
@@ -185,11 +175,6 @@ describe('BalanceFetcher', () => {
       await withController(async ({ controller, mockMulticallClient }) => {
         const mockCallback = jest.fn();
         controller.setOnBalanceUpdate(mockCallback);
-        controller.setUserTokensStateGetter(() => ({
-          allTokens: {},
-          allDetectedTokens: {},
-          allIgnoredTokens: {},
-        }));
 
         mockMulticallClient.batchBalanceOf.mockResolvedValue([
           createMockBalanceResponse(
@@ -222,11 +207,6 @@ describe('BalanceFetcher', () => {
       await withController(async ({ controller, mockMulticallClient }) => {
         const mockCallback = jest.fn();
         controller.setOnBalanceUpdate(mockCallback);
-        controller.setUserTokensStateGetter(() => ({
-          allTokens: {},
-          allDetectedTokens: {},
-          allIgnoredTokens: {},
-        }));
 
         mockMulticallClient.batchBalanceOf.mockResolvedValue([]);
 
@@ -294,94 +274,46 @@ describe('BalanceFetcher', () => {
     });
   });
 
-  describe('setUserTokensStateGetter', () => {
-    it('sets the user tokens state getter', async () => {
-      const mockState = createMockUserTokensState(
-        MAINNET_CHAIN_ID,
-        TEST_ACCOUNT,
-        [{ address: TEST_TOKEN_1, symbol: 'USDC', decimals: 6 }],
-      );
-
-      await withController(
-        { userTokensState: mockState },
-        async ({ controller }) => {
-          const tokens = controller.getTokensToFetch(
-            MAINNET_CHAIN_ID,
-            TEST_ACCOUNT,
-          );
-          expect(tokens).toHaveLength(1);
-          expect(tokens[0].address).toBe(TEST_TOKEN_1);
-        },
-      );
-    });
-  });
-
   describe('getTokensToFetch', () => {
-    it('returns empty array when no state getter is set', async () => {
+    it('returns empty array when no balances exist', async () => {
       await withController(async ({ controller }) => {
         const tokens = controller.getTokensToFetch(
           MAINNET_CHAIN_ID,
-          TEST_ACCOUNT,
+          TEST_ACCOUNT_ID,
         );
         expect(tokens).toStrictEqual([]);
       });
     });
 
-    it('returns imported tokens', async () => {
-      const mockState = createMockUserTokensState(
-        MAINNET_CHAIN_ID,
-        TEST_ACCOUNT,
-        [
-          { address: TEST_TOKEN_1, symbol: 'USDC', decimals: 6 },
-          { address: TEST_TOKEN_2, symbol: 'USDT', decimals: 6 },
-        ],
-      );
+    it('returns tokens from assetsBalance state', async () => {
+      const mockState = createMockAssetsBalanceState(TEST_ACCOUNT_ID, {
+        [`eip155:1/erc20:${TEST_TOKEN_1}`]: { amount: '100' },
+        [`eip155:1/erc20:${TEST_TOKEN_2}`]: { amount: '200' },
+      });
 
       await withController(
-        { userTokensState: mockState },
+        { assetsBalanceState: mockState },
         async ({ controller }) => {
           const tokens = controller.getTokensToFetch(
             MAINNET_CHAIN_ID,
-            TEST_ACCOUNT,
+            TEST_ACCOUNT_ID,
           );
           expect(tokens).toHaveLength(2);
         },
       );
     });
 
-    it('combines and deduplicates imported and detected tokens', async () => {
-      const mockState = createMockUserTokensState(
-        MAINNET_CHAIN_ID,
-        TEST_ACCOUNT,
-        [{ address: TEST_TOKEN_1, symbol: 'USDC', decimals: 6 }],
-        [{ address: TEST_TOKEN_1, symbol: 'USDC', decimals: 6 }],
-      );
-
-      await withController(
-        { userTokensState: mockState },
-        async ({ controller }) => {
-          const tokens = controller.getTokensToFetch(
-            MAINNET_CHAIN_ID,
-            TEST_ACCOUNT,
-          );
-          expect(tokens).toHaveLength(1);
-        },
-      );
-    });
-
     it('returns empty array when chain has no tokens', async () => {
-      const mockState = createMockUserTokensState(
-        MAINNET_CHAIN_ID,
-        TEST_ACCOUNT,
-        [{ address: TEST_TOKEN_1, symbol: 'USDC', decimals: 6 }],
-      );
+      const mockState = createMockAssetsBalanceState(TEST_ACCOUNT_ID, {
+        [`eip155:1/erc20:${TEST_TOKEN_1}`]: { amount: '100' },
+      });
 
       await withController(
-        { userTokensState: mockState },
+        { assetsBalanceState: mockState },
         async ({ controller }) => {
           const tokens = controller.getTokensToFetch(
             POLYGON_CHAIN_ID,
-            TEST_ACCOUNT,
+            TEST_ACCOUNT_ID,
           );
           expect(tokens).toStrictEqual([]);
         },

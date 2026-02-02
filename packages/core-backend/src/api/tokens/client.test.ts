@@ -82,8 +82,16 @@ describe('TokensApiClient', () => {
           name: 'Test Token',
           symbol: 'TKN',
           decimals: 18,
-          address: '0xtoken',
-          chainId: 1,
+          iconUrl: 'https://example.com/icon.png',
+          coingeckoId: 'test-token',
+          occurrences: 5,
+          aggregators: ['metamask'],
+          labels: ['defi'],
+          erc20Permit: true,
+          fees: { avgFee: 0, maxFee: 0, minFee: 0 },
+          honeypotStatus: { honeypotIs: false },
+          storage: { balance: 1, approval: 2 },
+          isContractVerified: true,
         },
       ];
       mockFetch.mockResolvedValueOnce(createMockResponse(mockResponse));

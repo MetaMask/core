@@ -12,6 +12,7 @@ import type {
   V1TokenSupportedNetworksResponse,
   V2TokenSupportedNetworksResponse,
   V3AssetResponse,
+  V3AssetsQueryOptions,
 } from './types';
 import { BaseApiClient, API_URLS, STALE_TIMES, GC_TIMES } from '../base-client';
 import type { FetchOptions } from '../shared-types';
@@ -91,22 +92,31 @@ export class TokensApiClient extends BaseApiClient {
    * Fetch assets by IDs (v3) with caching.
    *
    * @param assetIds - Array of CAIP-19 asset IDs.
-   * @param options - Fetch options including cache settings.
+   * @param queryOptions - Query options to include additional data in response.
+   * @param fetchOptions - Fetch options including cache settings.
    * @returns Array of asset responses.
    */
   async fetchV3Assets(
     assetIds: string[],
-    options?: FetchOptions,
+    queryOptions?: V3AssetsQueryOptions,
+    fetchOptions?: FetchOptions,
   ): Promise<V3AssetResponse[]> {
     return this.queryClient.fetchQuery({
-      queryKey: ['tokens', 'v3Assets', { assetIds: [...assetIds].sort() }],
+      queryKey: [
+        'tokens',
+        'v3Assets',
+        { assetIds: [...assetIds].sort(), ...queryOptions },
+      ],
       queryFn: ({ signal }: QueryFunctionContext) =>
         this.fetch<V3AssetResponse[]>(API_URLS.TOKENS, '/v3/assets', {
           signal,
-          params: { assetIds },
+          params: {
+            assetIds,
+            ...queryOptions,
+          },
         }),
-      staleTime: options?.staleTime ?? STALE_TIMES.TOKEN_METADATA,
-      gcTime: options?.gcTime ?? GC_TIMES.EXTENDED,
+      staleTime: fetchOptions?.staleTime ?? STALE_TIMES.TOKEN_METADATA,
+      gcTime: fetchOptions?.gcTime ?? GC_TIMES.EXTENDED,
     });
   }
 }

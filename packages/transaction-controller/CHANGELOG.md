@@ -9,6 +9,31 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ### Added
 
+- Add `HYPEREVM` network support ([#7770](https://github.com/MetaMask/core/pull/7770))
+  - Add account address relationship API support
+  - Add incoming transactions API support
+- Add network fallback mechanism to `IncomingTransactionHelper` for WebSocket-based transaction retrieval ([#7759](https://github.com/MetaMask/core/pull/7759))
+
+## [62.12.0]
+
+### Added
+
+- Add `musdClaim` transaction type ([#7723](https://github.com/MetaMask/core/pull/7723))
+
+## [62.11.0]
+
+### Added
+
+- Add `perpsDepositAndOrder` to `TransactionType` ([#7755](https://github.com/MetaMask/core/pull/7755))
+
+### Changed
+
+- fix: issue in releasing transaction controller due to core-backend dependency ([#7748](https://github.com/MetaMask/core/pull/7748))
+
+## [62.10.0]
+
+### Added
+
 - Add support for enhanced transaction history retrieval via WebSocket events ([#7689](https://github.com/MetaMask/core/pull/7689))
 - Add support for `submitHistoryLimit` feature flag to configure the maximum number of entries in the submit history ([#7648](https://github.com/MetaMask/core/pull/7648))
   - Defaults to 100 if not provided.
@@ -2104,7 +2129,10 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
     All changes listed after this point were applied to this package following the monorepo conversion.
 
-[Unreleased]: https://github.com/MetaMask/core/compare/@metamask/transaction-controller@62.9.2...HEAD
+[Unreleased]: https://github.com/MetaMask/core/compare/@metamask/transaction-controller@62.12.0...HEAD
+[62.12.0]: https://github.com/MetaMask/core/compare/@metamask/transaction-controller@62.11.0...@metamask/transaction-controller@62.12.0
+[62.11.0]: https://github.com/MetaMask/core/compare/@metamask/transaction-controller@62.10.0...@metamask/transaction-controller@62.11.0
+[62.10.0]: https://github.com/MetaMask/core/compare/@metamask/transaction-controller@62.9.2...@metamask/transaction-controller@62.10.0
 [62.9.2]: https://github.com/MetaMask/core/compare/@metamask/transaction-controller@62.9.1...@metamask/transaction-controller@62.9.2
 [62.9.1]: https://github.com/MetaMask/core/compare/@metamask/transaction-controller@62.9.0...@metamask/transaction-controller@62.9.1
 [62.9.0]: https://github.com/MetaMask/core/compare/@metamask/transaction-controller@62.8.0...@metamask/transaction-controller@62.9.0
