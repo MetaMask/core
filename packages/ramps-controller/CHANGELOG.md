@@ -7,13 +7,15 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+### Changed
+
+- **BREAKING:** Restructure `RampsControllerState` to use nested `ResourceState` objects for each resource with `data`, `selected`, `isLoading`, and `error` ([#7779](https://github.com/MetaMask/core/pull/7779))
+
 ## [5.1.0]
 
 ### Added
 
 - Add quotes functionality to RampsController ([#7747](https://github.com/MetaMask/core/pull/7747))
-- Add `quotesLoading` and `quotesError` state properties for quotes resource loading/error tracking ([#7779](https://github.com/MetaMask/core/pull/7779))
-
 ### Fixed
 
 - Fix `getQuotes()` to trim `assetId` and `walletAddress` parameters before use ([#7793](https://github.com/MetaMask/core/pull/7793))
