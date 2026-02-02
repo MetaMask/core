@@ -5477,7 +5477,7 @@ describe('SeedlessOnboardingController', () => {
       MOCK_VAULT_ENCRYPTION_SALT = mockResult.vaultEncryptionSalt;
     });
 
-    it('should return the access token when controller is unlocked', async () => {
+    it('should return the access token', async () => {
       await withController(
         {
           state: getMockInitialControllerState({
@@ -5503,6 +5503,11 @@ describe('SeedlessOnboardingController', () => {
           state: {
             nodeAuthTokens: MOCK_NODE_AUTH_TOKENS,
             metadataAccessToken,
+            userId,
+            authConnectionId,
+            groupedAuthConnectionId,
+            authConnection,
+            refreshToken,
           },
         },
         async ({ controller }) => {
@@ -5512,7 +5517,20 @@ describe('SeedlessOnboardingController', () => {
       );
     });
 
-    it('should return undefined when error is thrown', async () => {
+    it('should throw error when user is not authenticated', async () => {
+      await withController(
+        {
+          state: {},
+        },
+        async ({ controller }) => {
+          await expect(controller.getAccessToken()).rejects.toThrow(
+            SeedlessOnboardingControllerErrorMessage.MissingAuthUserInfo,
+          );
+        },
+      );
+    });
+
+    it('should throw error when authentication fails', async () => {
       await withController(
         {
           state: getMockInitialControllerState({
@@ -5526,13 +5544,18 @@ describe('SeedlessOnboardingController', () => {
         async ({ controller }) => {
           jest
             .spyOn(controller, 'checkNodeAuthTokenExpired')
-            .mockImplementationOnce(() => {
-              throw new Error('test');
-            });
-          await controller.submitPassword(MOCK_PASSWORD);
+            .mockReturnValueOnce(true);
+          jest
+            .spyOn(controller, 'authenticate')
+            .mockRejectedValueOnce(
+              new Error(
+                SeedlessOnboardingControllerErrorMessage.AuthenticationError,
+              ),
+            );
 
-          const result = await controller.getAccessToken();
-          expect(result).toBeUndefined();
+          await expect(controller.getAccessToken()).rejects.toThrow(
+            SeedlessOnboardingControllerErrorMessage.AuthenticationError,
+          );
         },
       );
     });

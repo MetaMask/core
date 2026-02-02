@@ -74,6 +74,13 @@ export type SeedlessOnboardingControllerGetStateAction =
     typeof controllerName,
     SeedlessOnboardingControllerState
   >;
+
+/**
+ * Get the access token from the controller.
+ * If the tokens are expired, the method will refresh them and return the new access token.
+ *
+ * @returns The access token.
+ */
 export type SeedlessOnboardingControllerGetAccessTokenAction = {
   type: `${typeof controllerName}:getAccessToken`;
   handler: SeedlessOnboardingController<
@@ -2087,16 +2094,11 @@ export class SeedlessOnboardingController<
    */
   async getAccessToken(): Promise<string | undefined> {
     return this.#withControllerLock(async () => {
-      try {
-        // if the tokens are expired, refresh them and return the access token
-        const accessToken = await this.#executeWithTokenRefresh(async () => {
-          return this.state.accessToken;
-        }, 'getAccessToken');
-        return accessToken;
-      } catch (error) {
-        log('Error getting access token', error);
-        return undefined;
-      }
+      this.#assertIsAuthenticatedUser(this.state);
+
+      return this.#executeWithTokenRefresh(async () => {
+        return this.state.accessToken;
+      }, 'getAccessToken');
     });
   }
 
