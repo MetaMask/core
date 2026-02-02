@@ -95,34 +95,6 @@ export class BtcAccountProvider extends SnapAccountProvider {
     });
   }
 
-  /**
-   * Create accounts for all group indices from 0 to maxGroupIndex (inclusive).
-   *
-   * @param opts - The options for the creation of the accounts.
-   * @param opts.entropySource - The entropy source to use for the creation of the accounts.
-   * @param opts.maxGroupIndex - The maximum group index (inclusive).
-   * @returns Array of account arrays indexed by group index.
-   */
-  async createMaxAccounts({
-    entropySource,
-    maxGroupIndex,
-  }: {
-    entropySource: EntropySourceId;
-    maxGroupIndex: number;
-  }): Promise<Bip44Account<KeyringAccount>[][]> {
-    const result: Bip44Account<KeyringAccount>[][] = [];
-
-    for (let groupIndex = 0; groupIndex <= maxGroupIndex; groupIndex++) {
-      const accounts = await this.createAccounts({
-        entropySource,
-        groupIndex,
-      });
-      result.push(accounts);
-    }
-
-    return result;
-  }
-
   async discoverAccounts({
     entropySource,
     groupIndex,

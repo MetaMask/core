@@ -234,6 +234,31 @@ export abstract class SnapAccountProvider extends BaseBip44AccountProvider {
     });
   }
 
+  async createMaxAccounts({
+    entropySource,
+    maxGroupIndex,
+  }: {
+    entropySource: EntropySourceId;
+    maxGroupIndex: number;
+  }): Promise<Bip44Account<KeyringAccount>[][]> {
+    // NOTE: This is a fallback implementation that simply calls `createAccounts` for
+    // each group index. Providers can override this method with a more efficient
+    // implementation if needed.
+    return this.withSnap(async () => {
+      const result: Bip44Account<KeyringAccount>[][] = [];
+
+      for (let groupIndex = 0; groupIndex <= maxGroupIndex; groupIndex++) {
+        const accounts = await this.createAccounts({
+          entropySource,
+          groupIndex,
+        });
+        result.push(accounts);
+      }
+
+      return result;
+    });
+  }
+
   async #withSnapKeyring<CallbackResult = void>(
     operation: ({
       keyring,
