@@ -19,6 +19,7 @@ import type {
   Quote,
   GetQuotesParams,
   RampsToken,
+  RampsServiceActions,
 } from './RampsService';
 import type {
   RampsServiceGetGeolocationAction,
@@ -54,6 +55,22 @@ import {
  * when composed with other controllers.
  */
 export const controllerName = 'RampsController';
+
+/**
+ * RampsService action types that RampsController calls via the messenger.
+ * Any host (e.g. mobile) that creates a RampsController messenger must delegate
+ * these actions from the root messenger so the controller can function.
+ */
+export const RAMPS_CONTROLLER_REQUIRED_SERVICE_ACTIONS: ReadonlyArray<
+  RampsServiceActions['type']
+> = [
+  'RampsService:getGeolocation',
+  'RampsService:getCountries',
+  'RampsService:getTokens',
+  'RampsService:getProviders',
+  'RampsService:getPaymentMethods',
+  'RampsService:getQuotes',
+];
 
 /**
  * Default TTL for quotes requests (15 seconds).
@@ -570,9 +587,12 @@ export class RampsController extends BaseController<
           createSuccessState(data as Json, lastFetchedAt),
         );
 
-        // Clear error on success
         if (resourceType) {
-          this.#setResourceError(resourceType, null);
+          const isCurrent =
+            !options?.isResultCurrent || options.isResultCurrent();
+          if (isCurrent) {
+            this.#setResourceError(resourceType, null);
+          }
         }
 
         return data;
@@ -589,9 +609,12 @@ export class RampsController extends BaseController<
           createErrorState(errorMessage, lastFetchedAt),
         );
 
-        // Set resource-level error
         if (resourceType) {
-          this.#setResourceError(resourceType, errorMessage);
+          const isCurrent =
+            !options?.isResultCurrent || options.isResultCurrent();
+          if (isCurrent) {
+            this.#setResourceError(resourceType, errorMessage);
+          }
         }
 
         throw error;
@@ -838,7 +861,7 @@ export class RampsController extends BaseController<
         state.userRegion.data = userRegion;
       });
 
-      if (needsRefetch && this.#setUserRegionRefetchCount === 1) {
+      if (needsRefetch) {
         this.#setResourceLoading('userRegion', true);
       }
       // this code is needed to prevent race conditions in the unlikely event that the user's region is changed rapidly
@@ -1048,7 +1071,13 @@ export class RampsController extends BaseController<
           },
         );
       },
-      { ...options, resourceType: 'tokens' },
+      {
+        ...options,
+        resourceType: 'tokens',
+        isResultCurrent: () =>
+          this.state.userRegion.data?.regionCode === undefined ||
+          this.state.userRegion.data?.regionCode === normalizedRegion,
+      },
     );
 
     this.update((state) => {
@@ -1167,7 +1196,13 @@ export class RampsController extends BaseController<
           },
         );
       },
-      { ...options, resourceType: 'providers' },
+      {
+        ...options,
+        resourceType: 'providers',
+        isResultCurrent: () =>
+          this.state.userRegion.data?.regionCode === undefined ||
+          this.state.userRegion.data?.regionCode === normalizedRegion,
+      },
     );
 
     this.update((state) => {
@@ -1239,7 +1274,20 @@ export class RampsController extends BaseController<
           provider: providerToUse,
         });
       },
-      { ...options, resourceType: 'paymentMethods' },
+      {
+        ...options,
+        resourceType: 'paymentMethods',
+        isResultCurrent: () => {
+          const regionMatch =
+            this.state.userRegion.data?.regionCode === undefined ||
+            this.state.userRegion.data?.regionCode === normalizedRegion;
+          const tokenMatch =
+            (this.state.tokens.selected?.assetId ?? '') === assetIdToUse;
+          const providerMatch =
+            (this.state.providers.selected?.id ?? '') === providerToUse;
+          return regionMatch && tokenMatch && providerMatch;
+        },
+      },
     );
 
     this.update((state) => {
@@ -1412,6 +1460,9 @@ export class RampsController extends BaseController<
         forceRefresh: options.forceRefresh,
         ttl: options.ttl ?? DEFAULT_QUOTES_TTL,
         resourceType: 'quotes',
+        isResultCurrent: () =>
+          this.state.userRegion.data?.regionCode === undefined ||
+          this.state.userRegion.data?.regionCode === normalizedRegion,
       },
     );
 

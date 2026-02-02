@@ -1,3 +1,6 @@
+import * as fs from 'fs';
+import * as path from 'path';
+
 import { deriveStateFromMetadata } from '@metamask/base-controller';
 import { Messenger, MOCK_ANY_NAMESPACE } from '@metamask/messenger';
 import type {
@@ -11,7 +14,10 @@ import type {
   ResourceState,
   UserRegion,
 } from './RampsController';
-import { RampsController } from './RampsController';
+import {
+  RampsController,
+  RAMPS_CONTROLLER_REQUIRED_SERVICE_ACTIONS,
+} from './RampsController';
 import type {
   Country,
   TokensResponse,
@@ -34,6 +40,35 @@ import type {
 import { RequestStatus } from './RequestCache';
 
 describe('RampsController', () => {
+  describe('RAMPS_CONTROLLER_REQUIRED_SERVICE_ACTIONS', () => {
+    it('includes every RampsService action that RampsController calls', () => {
+      const controllerPath = path.join(__dirname, 'RampsController.ts');
+      const source = fs.readFileSync(controllerPath, 'utf-8');
+      const callPattern =
+        /messenger\.call\s*\(\s*['"](RampsService:[^'"]+)['"]/g;
+      const calledActions = new Set<string>();
+      let match: RegExpExecArray | null;
+      while ((match = callPattern.exec(source)) !== null) {
+        calledActions.add(match[1]);
+      }
+      const requiredSet = new Set(
+        RAMPS_CONTROLLER_REQUIRED_SERVICE_ACTIONS as readonly string[],
+      );
+      const missing = [...calledActions].filter((a) => !requiredSet.has(a));
+      const extra = [...requiredSet].filter((a) => !calledActions.has(a));
+      if (missing.length > 0) {
+        throw new Error(
+          `RampsController calls these actions but they are not in RAMPS_CONTROLLER_REQUIRED_SERVICE_ACTIONS: ${missing.join(', ')}. Add them so hosts (e.g. mobile) delegate them.`,
+        );
+      }
+      if (extra.length > 0) {
+        throw new Error(
+          `RAMPS_CONTROLLER_REQUIRED_SERVICE_ACTIONS contains actions not called by RampsController: ${extra.join(', ')}. Remove them or use them.`,
+        );
+      }
+    });
+  });
+
   describe('constructor', () => {
     it('uses default state when no state is provided', async () => {
       await withController(({ controller }) => {
@@ -4399,14 +4434,7 @@ function getMessenger(rootMessenger: RootMessenger): RampsControllerMessenger {
   });
   rootMessenger.delegate({
     messenger,
-    actions: [
-      'RampsService:getGeolocation',
-      'RampsService:getCountries',
-      'RampsService:getTokens',
-      'RampsService:getProviders',
-      'RampsService:getPaymentMethods',
-      'RampsService:getQuotes',
-    ],
+    actions: [...RAMPS_CONTROLLER_REQUIRED_SERVICE_ACTIONS],
   });
   return messenger;
 }

@@ -12,6 +12,7 @@ export type {
 export {
   RampsController,
   getDefaultRampsControllerState,
+  RAMPS_CONTROLLER_REQUIRED_SERVICE_ACTIONS,
 } from './RampsController';
 export type {
   RampsServiceActions,
