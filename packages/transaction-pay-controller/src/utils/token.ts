@@ -18,6 +18,23 @@ const STABLECOINS: Record<Hex, Hex[]> = {
 };
 
 /**
+ * Check if two tokens are the same (same address and chain).
+ *
+ * @param token1 - First token identifier.
+ * @param token2 - Second token identifier.
+ * @returns True if tokens are the same, false otherwise.
+ */
+export function isSameToken(
+  token1: { address: Hex; chainId: Hex },
+  token2: { address: Hex; chainId: Hex },
+): boolean {
+  return (
+    token1.address.toLowerCase() === token2.address.toLowerCase() &&
+    token1.chainId === token2.chainId
+  );
+}
+
+/**
  * Get the token balance for a specific account and token.
  *
  * @param messenger - Controller messenger.

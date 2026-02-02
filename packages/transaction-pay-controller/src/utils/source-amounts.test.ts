@@ -7,7 +7,10 @@ import { ARBITRUM_USDC_ADDRESS, CHAIN_ID_ARBITRUM } from '../constants';
 import { getMessengerMock } from '../tests/messenger-mock';
 import type { TransactionData, TransactionPayRequiredToken } from '../types';
 
-jest.mock('./token');
+jest.mock('./token', () => ({
+  ...jest.requireActual('./token'),
+  getTokenFiatRate: jest.fn(),
+}));
 jest.mock('./transaction');
 
 const PAYMENT_TOKEN_MOCK: TransactionPaymentToken = {
@@ -211,20 +214,22 @@ describe('Source Amounts Utils', () => {
     });
 
     describe('post-quote (withdrawal) flow', () => {
+      const DESTINATION_TOKEN_MOCK = {
+        address: '0xdef' as const,
+        balanceFiat: '100.00',
+        balanceHuman: '1.00',
+        balanceRaw: '1000000000000000000',
+        balanceUsd: '100.00',
+        chainId: '0x38' as const,
+        decimals: 18,
+        symbol: 'BNB',
+      };
+
       it('calculates source amounts from tokens for post-quote flow', () => {
         const transactionData: TransactionData = {
           isLoading: false,
           isPostQuote: true,
-          paymentToken: {
-            address: '0xdef',
-            balanceFiat: '100.00',
-            balanceHuman: '1.00',
-            balanceRaw: '1000000000000000000',
-            balanceUsd: '100.00',
-            chainId: '0x38',
-            decimals: 18,
-            symbol: 'BNB',
-          },
+          paymentToken: DESTINATION_TOKEN_MOCK,
           tokens: [
             {
               ...TRANSACTION_TOKEN_MOCK,
@@ -239,7 +244,10 @@ describe('Source Amounts Utils', () => {
           {
             sourceAmountHuman: TRANSACTION_TOKEN_MOCK.amountHuman,
             sourceAmountRaw: TRANSACTION_TOKEN_MOCK.amountRaw,
-            targetTokenAddress: TRANSACTION_TOKEN_MOCK.address,
+            sourceBalanceRaw: TRANSACTION_TOKEN_MOCK.balanceRaw,
+            sourceChainId: TRANSACTION_TOKEN_MOCK.chainId,
+            sourceTokenAddress: TRANSACTION_TOKEN_MOCK.address,
+            targetTokenAddress: DESTINATION_TOKEN_MOCK.address,
           },
         ]);
       });
@@ -248,16 +256,7 @@ describe('Source Amounts Utils', () => {
         const transactionData: TransactionData = {
           isLoading: false,
           isPostQuote: true,
-          paymentToken: {
-            address: '0xdef',
-            balanceFiat: '100.00',
-            balanceHuman: '1.00',
-            balanceRaw: '1000000000000000000',
-            balanceUsd: '100.00',
-            chainId: '0x38',
-            decimals: 18,
-            symbol: 'BNB',
-          },
+          paymentToken: DESTINATION_TOKEN_MOCK,
           tokens: [
             {
               ...TRANSACTION_TOKEN_MOCK,

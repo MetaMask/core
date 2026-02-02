@@ -445,7 +445,10 @@ describe('Quotes Utils', () => {
         {
           sourceAmountHuman: '10',
           sourceAmountRaw: '10000000',
-          targetTokenAddress: '0x456' as Hex,
+          sourceBalanceRaw: SOURCE_TOKEN_MOCK.balanceRaw,
+          sourceChainId: SOURCE_TOKEN_MOCK.chainId,
+          sourceTokenAddress: SOURCE_TOKEN_MOCK.address,
+          targetTokenAddress: DESTINATION_TOKEN_MOCK.address,
         } as TransactionPaySourceAmount,
       ],
       tokens: [SOURCE_TOKEN_MOCK],
@@ -493,17 +496,24 @@ describe('Quotes Utils', () => {
       expect(getQuotesMock).not.toHaveBeenCalled();
     });
 
-    it('does not fetch quotes if no source token found', async () => {
+    it('does not fetch quotes if sourceAmounts missing required fields', async () => {
       const noSourceTokenData: TransactionData = {
         ...POST_QUOTE_TRANSACTION_DATA,
-        tokens: [{ ...SOURCE_TOKEN_MOCK, skipIfBalance: true }],
+        sourceAmounts: [
+          {
+            sourceAmountHuman: '10',
+            sourceAmountRaw: '10000000',
+            // Missing sourceTokenAddress, sourceChainId, sourceBalanceRaw
+            targetTokenAddress: DESTINATION_TOKEN_MOCK.address,
+          } as TransactionPaySourceAmount,
+        ],
       };
 
       await run({
         transactionData: noSourceTokenData,
       });
 
-      // When requests array is empty, getQuotes is not called
+      // When sourceAmounts missing required fields, requests array is empty
       expect(getQuotesMock).not.toHaveBeenCalled();
     });
 
@@ -520,7 +530,7 @@ describe('Quotes Utils', () => {
       expect(getQuotesMock).not.toHaveBeenCalled();
     });
 
-    it('uses sourceToken.amountRaw when no matching sourceAmount', async () => {
+    it('does not fetch quotes when no matching sourceAmount found', async () => {
       const noMatchingSourceAmountData: TransactionData = {
         ...POST_QUOTE_TRANSACTION_DATA,
         sourceAmounts: [
@@ -535,15 +545,8 @@ describe('Quotes Utils', () => {
         transactionData: noMatchingSourceAmountData,
       });
 
-      expect(getQuotesMock).toHaveBeenCalledWith({
-        messenger,
-        requests: [
-          expect.objectContaining({
-            sourceTokenAmount: SOURCE_TOKEN_MOCK.amountRaw,
-          }),
-        ],
-        transaction: TRANSACTION_META_MOCK,
-      });
+      // When no matching sourceAmount is found, requests array is empty
+      expect(getQuotesMock).not.toHaveBeenCalled();
     });
   });
 });

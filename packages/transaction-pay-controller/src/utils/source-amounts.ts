@@ -1,7 +1,7 @@
 import { createModuleLogger } from '@metamask/utils';
 import { BigNumber } from 'bignumber.js';
 
-import { getTokenFiatRate } from './token';
+import { getTokenFiatRate, isSameToken } from './token';
 import { getTransaction } from './transaction';
 import type {
   TransactionPayControllerMessenger,
@@ -81,7 +81,25 @@ function calculatePostQuoteSourceAmounts(
   paymentToken: TransactionPaymentToken,
 ): TransactionPaySourceAmount[] {
   return tokens
-    .filter((token) => !token.skipIfBalance)
+    .filter((token) => {
+      if (token.skipIfBalance) {
+        return false;
+      }
+
+      // Skip zero amounts
+      if (token.amountRaw === '0') {
+        log('Skipping token as zero amount', { tokenAddress: token.address });
+        return false;
+      }
+
+      // Skip same token on same chain
+      if (isSameToken(token, paymentToken)) {
+        log('Skipping token as same as destination token');
+        return false;
+      }
+
+      return true;
+    })
     .map((token) => ({
       sourceAmountHuman: token.amountHuman,
       sourceAmountRaw: token.amountRaw,
@@ -129,14 +147,9 @@ function calculateSourceAmount(
   }
 
   const strategy = getStrategyType(transactionId, messenger);
-
-  const isSameTokenSelected =
-    token.address.toLowerCase() === paymentToken.address.toLowerCase() &&
-    token.chainId === paymentToken.chainId;
-
   const isAlwaysRequired = isQuoteAlwaysRequired(token, strategy);
 
-  if (isSameTokenSelected && !isAlwaysRequired) {
+  if (isSameToken(token, paymentToken) && !isAlwaysRequired) {
     log('Skipping token as same as payment token');
     return undefined;
   }
