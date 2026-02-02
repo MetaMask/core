@@ -236,6 +236,118 @@ describe('RampsController', () => {
         },
       );
     });
+
+    it('migrates legacy countries array to ResourceState', async () => {
+      const legacyCountries = createMockCountries();
+      const legacyState = { countries: legacyCountries as never };
+
+      await withController(
+        { options: { state: legacyState } },
+        ({ controller }) => {
+          expect(controller.state.countries).toMatchObject({
+            data: legacyCountries,
+            selected: null,
+            isLoading: false,
+            error: null,
+          });
+        },
+      );
+    });
+
+    it('migrates legacy quotes object to ResourceState', async () => {
+      const legacyQuotes: QuotesResponse = {
+        success: [],
+        sorted: [],
+        error: [],
+        customActions: [],
+      };
+      const legacyState = { quotes: legacyQuotes as never };
+
+      await withController(
+        { options: { state: legacyState } },
+        ({ controller }) => {
+          expect(controller.state.quotes).toMatchObject({
+            data: legacyQuotes,
+            selected: null,
+            isLoading: false,
+            error: null,
+          });
+        },
+      );
+    });
+
+    it('partially migrates state (preserves already-migrated fields, migrates legacy fields)', async () => {
+      const legacyCountries = createMockCountries();
+      const alreadyMigratedProviders = createResourceState<Provider[], Provider | null>(
+        [],
+        null,
+      );
+      const partialState = {
+        providers: alreadyMigratedProviders,
+        countries: legacyCountries,
+        userRegion: 'us-ca',
+      } as never;
+
+      await withController(
+        { options: { state: partialState } },
+        ({ controller }) => {
+          expect(controller.state.providers).toStrictEqual(
+            alreadyMigratedProviders,
+          );
+          expect(controller.state.countries).toMatchObject({
+            data: legacyCountries,
+            selected: null,
+            isLoading: false,
+            error: null,
+          });
+          expect(controller.state.userRegion).toMatchObject({
+            data: null,
+            selected: null,
+            isLoading: false,
+            error: null,
+          });
+        },
+      );
+    });
+
+    it('passes already-migrated state through unchanged', async () => {
+      const migratedState = {
+        userRegion: createResourceState(createMockUserRegion('us-ca')),
+        countries: createResourceState(createMockCountries()),
+        providers: createResourceState<Provider[], Provider | null>([], null),
+        tokens: createResourceState<TokensResponse | null, RampsToken | null>(
+          null,
+          null,
+        ),
+        paymentMethods: createResourceState<PaymentMethod[], PaymentMethod | null>(
+          [],
+          null,
+        ),
+        quotes: createResourceState<QuotesResponse | null>(null),
+      };
+
+      await withController(
+        { options: { state: migratedState } },
+        ({ controller }) => {
+          expect(controller.state.userRegion).toStrictEqual(
+            migratedState.userRegion,
+          );
+          expect(controller.state.countries).toStrictEqual(
+            migratedState.countries,
+          );
+          expect(controller.state.providers).toStrictEqual(
+            migratedState.providers,
+          );
+          expect(controller.state.tokens).toStrictEqual(migratedState.tokens);
+          expect(controller.state.paymentMethods).toStrictEqual(
+            migratedState.paymentMethods,
+          );
+          expect(controller.state.quotes).toStrictEqual(
+            migratedState.quotes,
+          );
+        },
+      );
+    });
   });
 
   describe('getProviders', () => {
