@@ -7,10 +7,16 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+## [5.1.0]
+
 ### Added
 
 - Add quotes functionality to RampsController ([#7747](https://github.com/MetaMask/core/pull/7747))
 - Add `quotesLoading` and `quotesError` state properties for quotes resource loading/error tracking ([#7779](https://github.com/MetaMask/core/pull/7779))
+
+### Fixed
+
+- Fix `getQuotes()` to trim `assetId` and `walletAddress` parameters before use ([#7793](https://github.com/MetaMask/core/pull/7793))
 
 ## [5.0.0]
 
@@ -117,7 +123,8 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
   - Add `OnRampService` for interacting with the OnRamp API
   - Add geolocation detection via IP address lookup
 
-[Unreleased]: https://github.com/MetaMask/core/compare/@metamask/ramps-controller@5.0.0...HEAD
+[Unreleased]: https://github.com/MetaMask/core/compare/@metamask/ramps-controller@5.1.0...HEAD
+[5.1.0]: https://github.com/MetaMask/core/compare/@metamask/ramps-controller@5.0.0...@metamask/ramps-controller@5.1.0
 [5.0.0]: https://github.com/MetaMask/core/compare/@metamask/ramps-controller@4.1.0...@metamask/ramps-controller@5.0.0
 [4.1.0]: https://github.com/MetaMask/core/compare/@metamask/ramps-controller@4.0.0...@metamask/ramps-controller@4.1.0
 [4.0.0]: https://github.com/MetaMask/core/compare/@metamask/ramps-controller@3.0.0...@metamask/ramps-controller@4.0.0

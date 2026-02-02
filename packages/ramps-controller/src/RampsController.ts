@@ -1288,13 +1288,15 @@ export class RampsController extends BaseController<
 
     const normalizedRegion = regionToUse.toLowerCase().trim();
     const normalizedFiat = fiatToUse.toLowerCase().trim();
+    const normalizedAssetId = options.assetId.trim();
+    const normalizedWalletAddress = options.walletAddress.trim();
 
     const cacheKey = createCacheKey('getQuotes', [
       normalizedRegion,
       normalizedFiat,
-      options.assetId,
+      normalizedAssetId,
       options.amount,
-      options.walletAddress,
+      normalizedWalletAddress,
       [...paymentMethodsToUse].sort().join(','),
       options.provider,
       options.redirectUrl,
@@ -1304,9 +1306,9 @@ export class RampsController extends BaseController<
     const params: GetQuotesParams = {
       region: normalizedRegion,
       fiat: normalizedFiat,
-      assetId: options.assetId,
+      assetId: normalizedAssetId,
       amount: options.amount,
-      walletAddress: options.walletAddress,
+      walletAddress: normalizedWalletAddress,
       paymentMethods: paymentMethodsToUse,
       provider: options.provider,
       redirectUrl: options.redirectUrl,

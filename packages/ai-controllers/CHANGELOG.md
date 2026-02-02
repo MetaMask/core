@@ -10,5 +10,6 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 ### Added
 
 - Initial release ([#7693](https://github.com/MetaMask/core/pull/7693))
+- Add `AiDigestController` for fetching and caching AI-generated asset digests ([#7746](https://github.com/MetaMask/core/pull/7746))
 
 [Unreleased]: https://github.com/MetaMask/core/

@@ -3886,6 +3886,45 @@ describe('RampsController', () => {
       });
     });
 
+    it('trims assetId and walletAddress before sending to service', async () => {
+      await withController(
+        {
+          options: {
+            state: {
+              userRegion: createMockUserRegion('us'),
+              paymentMethods: [
+                {
+                  id: '/payments/debit-credit-card',
+                  paymentType: 'debit-credit-card',
+                  name: 'Debit or Credit',
+                  score: 90,
+                  icon: 'card',
+                },
+              ],
+            },
+          },
+        },
+        async ({ controller, rootMessenger }) => {
+          rootMessenger.registerActionHandler(
+            'RampsService:getQuotes',
+            async (params) => {
+              expect(params.assetId).toBe('eip155:1/slip44:60');
+              expect(params.walletAddress).toBe(
+                '0x1234567890abcdef1234567890abcdef12345678',
+              );
+              return mockQuotesResponse;
+            },
+          );
+
+          await controller.getQuotes({
+            assetId: '  eip155:1/slip44:60  ',
+            amount: 100,
+            walletAddress: '  0x1234567890abcdef1234567890abcdef12345678  ',
+          });
+        },
+      );
+    });
+
     it('does not update state when region changes during request', async () => {
       await withController(
         {
