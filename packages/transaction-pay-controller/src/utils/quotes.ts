@@ -345,6 +345,8 @@ function buildPostQuoteRequests({
 
   log('Post-quote request built', { transactionId, request });
 
+  // Currently only single token withdrawals are supported.
+  // Multiple token support would require multiple quotes for each required token.
   return [request];
 }
 
