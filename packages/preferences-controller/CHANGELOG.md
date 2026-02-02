@@ -7,6 +7,14 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+## [22.1.0]
+
+### Added
+
+- Add support for HYPEREVM (chain ID `0x3e7`) ([#7770](https://github.com/MetaMask/core/pull/7770))
+  - Add `HYPEREVM` into constant `ETHERSCAN_SUPPORTED_CHAIN_IDS`
+  - Update default controller state so HYPEREVM (Chain ID `0x3e7`) is automatically enabled in `showIncomingTransactions`
+
 ### Changed
 
 - Upgrade `@metamask/utils` from `^11.8.1` to `^11.9.0` ([#7511](https://github.com/MetaMask/core/pull/7511))
@@ -485,7 +493,8 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
     All changes listed after this point were applied to this package following the monorepo conversion.
 
-[Unreleased]: https://github.com/MetaMask/core/compare/@metamask/preferences-controller@22.0.0...HEAD
+[Unreleased]: https://github.com/MetaMask/core/compare/@metamask/preferences-controller@22.1.0...HEAD
+[22.1.0]: https://github.com/MetaMask/core/compare/@metamask/preferences-controller@22.0.0...@metamask/preferences-controller@22.1.0
 [22.0.0]: https://github.com/MetaMask/core/compare/@metamask/preferences-controller@21.0.0...@metamask/preferences-controller@22.0.0
 [21.0.0]: https://github.com/MetaMask/core/compare/@metamask/preferences-controller@20.1.1...@metamask/preferences-controller@21.0.0
 [20.1.1]: https://github.com/MetaMask/core/compare/@metamask/preferences-controller@20.1.0...@metamask/preferences-controller@20.1.1

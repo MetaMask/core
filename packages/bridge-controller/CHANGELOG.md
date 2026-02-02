@@ -7,10 +7,17 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+## [65.2.0]
+
+### Added
+
+- Add `HYPEREVM` network support ([#7787](https://github.com/MetaMask/core/pull/7787))
+  - Add `HYPEREVM` into constants `ALLOWED_BRIDGE_CHAIN_IDS`, `SWAPS_TOKEN_OBJECT` and `NETWORK_TO_NAME_MAP`
+
 ### Changed
 
-- Bump `@metamask/transaction-controller` from `^62.11.0` to `^62.12.0` ([#7775](https://github.com/MetaMask/core/pull/7775))
-- Bump `@metamask/assets-controllers` from `^99.0.0` to `^99.1.0` ([#7771](https://github.com/MetaMask/core/pull/7771))
+- Bump `@metamask/transaction-controller` from `^62.11.0` to `^62.13.0` ([#7775](https://github.com/MetaMask/core/pull/7775), [#7802](https://github.com/MetaMask/core/pull/7802))
+- Bump `@metamask/assets-controllers` from `^99.0.0` to `^99.2.0` ([#7771](https://github.com/MetaMask/core/pull/7771), [#7802](https://github.com/MetaMask/core/pull/7802))
 
 ## [65.1.0]
 
@@ -1076,7 +1083,8 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 - Initial release ([#5317](https://github.com/MetaMask/core/pull/5317))
 
-[Unreleased]: https://github.com/MetaMask/core/compare/@metamask/bridge-controller@65.1.0...HEAD
+[Unreleased]: https://github.com/MetaMask/core/compare/@metamask/bridge-controller@65.2.0...HEAD
+[65.2.0]: https://github.com/MetaMask/core/compare/@metamask/bridge-controller@65.1.0...@metamask/bridge-controller@65.2.0
 [65.1.0]: https://github.com/MetaMask/core/compare/@metamask/bridge-controller@65.0.1...@metamask/bridge-controller@65.1.0
 [65.0.1]: https://github.com/MetaMask/core/compare/@metamask/bridge-controller@65.0.0...@metamask/bridge-controller@65.0.1
 [65.0.0]: https://github.com/MetaMask/core/compare/@metamask/bridge-controller@64.8.2...@metamask/bridge-controller@65.0.0
