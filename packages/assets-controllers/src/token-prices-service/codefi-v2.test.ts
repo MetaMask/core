@@ -1987,6 +1987,39 @@ describe('CodefiTokenPricesServiceV2', () => {
 
       expect(result).toStrictEqual(mockResponse);
     });
+
+    it('deduplicates concurrent requests to the same endpoint', async () => {
+      const mockResponse = {
+        fullSupport: ['eip155:1'],
+        partialSupport: {
+          spotPricesV2: ['eip155:1', 'eip155:56'],
+          spotPricesV3: ['eip155:1', 'eip155:42161'],
+        },
+      };
+      // Only set up the mock to respond once
+      nock('https://price.api.cx.metamask.io')
+        .get('/v2/supportedNetworks')
+        .reply(200, mockResponse);
+
+      // Make 5 concurrent calls
+      const promises = [
+        fetchSupportedNetworks(),
+        fetchSupportedNetworks(),
+        fetchSupportedNetworks(),
+        fetchSupportedNetworks(),
+        fetchSupportedNetworks(),
+      ];
+
+      const results = await Promise.all(promises);
+
+      // All promises should resolve to the same response
+      results.forEach((result) => {
+        expect(result).toStrictEqual(mockResponse);
+      });
+
+      // Verify no pending mocks (i.e., only one request was made)
+      expect(nock.isDone()).toBe(true);
+    });
   });
 
   describe('getSupportedNetworks', () => {

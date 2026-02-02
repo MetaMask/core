@@ -368,6 +368,11 @@ type SupportedNetworksResponse = {
 let lastFetchedSupportedNetworks: SupportedNetworksResponse | null = null;
 
 /**
+ * In-flight promise to prevent concurrent requests to the same endpoint.
+ */
+let inFlightFetchPromise: Promise<SupportedNetworksResponse> | null = null;
+
+/**
  * Converts a CAIP-2 chain ID (e.g., 'eip155:1') to a hex chain ID (e.g., '0x1').
  *
  * @param caipChainId - The CAIP-2 chain ID string.
@@ -384,32 +389,46 @@ function caipChainIdToHex(caipChainId: string): Hex | null {
 /**
  * Fetches the list of supported networks from the API.
  * Falls back to the hardcoded list if the fetch fails.
+ * Deduplicates concurrent requests by returning the same promise if a fetch is already in progress.
  *
  * @returns The supported networks response.
  */
 export async function fetchSupportedNetworks(): Promise<SupportedNetworksResponse> {
-  try {
-    const url = `${BASE_URL_V2}/supportedNetworks`;
-    const response = await handleFetch(url, {
-      headers: { 'Cache-Control': 'no-cache' },
-    });
-
-    if (
-      response &&
-      typeof response === 'object' &&
-      'fullSupport' in response &&
-      'partialSupport' in response
-    ) {
-      lastFetchedSupportedNetworks = response as SupportedNetworksResponse;
-      return lastFetchedSupportedNetworks;
-    }
-
-    // Invalid response format, fall back to hardcoded list
-    return getSupportedNetworksFallback();
-  } catch {
-    // On any error, fall back to the hardcoded list
-    return getSupportedNetworksFallback();
+  // If a fetch is already in progress, return the same promise
+  if (inFlightFetchPromise) {
+    return inFlightFetchPromise;
   }
+
+  // Start a new fetch and cache the promise
+  inFlightFetchPromise = (async (): Promise<SupportedNetworksResponse> => {
+    try {
+      const url = `${BASE_URL_V2}/supportedNetworks`;
+      const response = await handleFetch(url, {
+        headers: { 'Cache-Control': 'no-cache' },
+      });
+
+      if (
+        response &&
+        typeof response === 'object' &&
+        'fullSupport' in response &&
+        'partialSupport' in response
+      ) {
+        lastFetchedSupportedNetworks = response as SupportedNetworksResponse;
+        return lastFetchedSupportedNetworks;
+      }
+
+      // Invalid response format, fall back to hardcoded list
+      return getSupportedNetworksFallback();
+    } catch {
+      // On any error, fall back to the hardcoded list
+      return getSupportedNetworksFallback();
+    } finally {
+      // Clear the in-flight promise once the request completes
+      inFlightFetchPromise = null;
+    }
+  })();
+
+  return inFlightFetchPromise;
 }
 
 /**
@@ -453,6 +472,7 @@ function getSupportedNetworksFallback(): SupportedNetworksResponse {
  */
 export function resetSupportedNetworksCache(): void {
   lastFetchedSupportedNetworks = null;
+  inFlightFetchPromise = null;
 }
 
 /**
@@ -687,8 +707,10 @@ export class CodefiTokenPricesServiceV2
     // Refresh supported networks in background (non-blocking)
     // This ensures the list stays fresh during normal polling
     // Note: fetchSupportedNetworks handles errors internally and always resolves
-    // eslint-disable-next-line @typescript-eslint/no-floating-promises
-    fetchSupportedNetworks();
+    if (!lastFetchedSupportedNetworks) {
+      // eslint-disable-next-line @typescript-eslint/no-floating-promises
+      fetchSupportedNetworks();
+    }
 
     // Get dynamically fetched supported chain IDs for V3
     const supportedChainIdsV3 = getSupportedChainIdsV3AsHex();
@@ -791,8 +813,10 @@ export class CodefiTokenPricesServiceV2
     // Refresh supported currencies in background (non-blocking)
     // This ensures the list stays fresh during normal polling
     // Note: fetchSupportedCurrencies handles errors internally and always resolves
-    // eslint-disable-next-line @typescript-eslint/no-floating-promises
-    fetchSupportedCurrencies();
+    if (!lastFetchedCurrencies) {
+      // eslint-disable-next-line @typescript-eslint/no-floating-promises
+      fetchSupportedCurrencies();
+    }
 
     const url = new URL(`${BASE_URL_V1}/exchange-rates`);
     url.searchParams.append('baseCurrency', baseCurrency);
