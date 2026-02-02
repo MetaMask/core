@@ -80,21 +80,6 @@ class MockSnapAccountProvider extends SnapAccountProvider {
     return [];
   }
 
-  async createMaxAccounts({
-    entropySource,
-    maxGroupIndex,
-  }: {
-    entropySource: EntropySourceId;
-    maxGroupIndex: number;
-  }): Promise<Bip44Account<KeyringAccount>[][]> {
-    const result: Bip44Account<KeyringAccount>[][] = [];
-    for (let groupIndex = 0; groupIndex <= maxGroupIndex; groupIndex++) {
-      const accounts = await this.createAccounts({ entropySource, groupIndex });
-      result.push(accounts);
-    }
-    return result;
-  }
-
   async createAccounts(options: {
     entropySource: EntropySourceId;
     groupIndex: number;
@@ -845,6 +830,162 @@ describe('SnapAccountProvider', () => {
       expect(
         mocks.MultichainAccountService.ensureCanUseSnapPlatform,
       ).toHaveBeenCalledTimes(1);
+    });
+  });
+
+  describe('createMaxAccounts', () => {
+    it('creates accounts for all group indices from 0 to maxGroupIndex', async () => {
+      const { provider, tracker } = setup();
+
+      const result = await provider.createMaxAccounts({
+        entropySource: TEST_ENTROPY_SOURCE,
+        maxGroupIndex: 2,
+      });
+
+      // Should return array with 3 elements (indices 0, 1, 2).
+      expect(result).toHaveLength(3);
+
+      // Each element should be an array.
+      expect(Array.isArray(result[0])).toBe(true);
+      expect(Array.isArray(result[1])).toBe(true);
+      expect(Array.isArray(result[2])).toBe(true);
+
+      // Should have called createAccounts for each group index.
+      expect(tracker.startLog).toStrictEqual([0, 1, 2]);
+      expect(tracker.endLog).toStrictEqual([0, 1, 2]);
+    });
+
+    it('returns array structure where index corresponds to group index', async () => {
+      const { provider } = setup();
+
+      const result = await provider.createMaxAccounts({
+        entropySource: TEST_ENTROPY_SOURCE,
+        maxGroupIndex: 1,
+      });
+
+      // result[0] should contain accounts for group 0.
+      expect(result).toHaveLength(2);
+      expect(result[0]).toBeDefined();
+
+      // result[1] should contain accounts for group 1.
+      expect(result[1]).toBeDefined();
+    });
+
+    it('handles maxGroupIndex of 0 (single account)', async () => {
+      const { provider } = setup();
+
+      const result = await provider.createMaxAccounts({
+        entropySource: TEST_ENTROPY_SOURCE,
+        maxGroupIndex: 0,
+      });
+
+      expect(result).toHaveLength(1);
+      expect(result[0]).toBeDefined();
+    });
+
+    it('respects maxConcurrency limits when creating accounts', async () => {
+      const { provider, tracker } = setup({ maxConcurrency: 1 });
+
+      await provider.createMaxAccounts({
+        entropySource: TEST_ENTROPY_SOURCE,
+        maxGroupIndex: 3,
+      });
+
+      // With maxConcurrency=1, only 1 operation should run at a time.
+      expect(tracker.maxActiveCount).toBe(1);
+
+      // But all 4 accounts should be created.
+      expect(tracker.startLog).toHaveLength(4);
+      expect(tracker.endLog).toHaveLength(4);
+    });
+
+    it('creates accounts sequentially even when maxConcurrency allows more', async () => {
+      const { provider, tracker } = setup({ maxConcurrency: 3 });
+
+      await provider.createMaxAccounts({
+        entropySource: TEST_ENTROPY_SOURCE,
+        maxGroupIndex: 5,
+      });
+
+      // Since createMaxAccounts calls createAccounts sequentially, only 1 operation runs at a time.
+      expect(tracker.maxActiveCount).toBe(1);
+
+      // All 6 accounts should be created.
+      expect(tracker.startLog).toHaveLength(6);
+      expect(tracker.endLog).toHaveLength(6);
+    });
+
+    it('ensures snap platform is ready before creating accounts', async () => {
+      const { provider, mocks } = setup();
+
+      await provider.createMaxAccounts({
+        entropySource: TEST_ENTROPY_SOURCE,
+        maxGroupIndex: 1,
+      });
+
+      // Should have called ensureCanUseSnapPlatform.
+      expect(
+        mocks.MultichainAccountService.ensureCanUseSnapPlatform,
+      ).toHaveBeenCalledTimes(1);
+    });
+
+    it('throws if snap platform is not ready', async () => {
+      const { provider, mocks } = setup();
+
+      const platformError = new Error('Snap platform not ready');
+      mocks.MultichainAccountService.ensureCanUseSnapPlatform.mockRejectedValue(
+        platformError,
+      );
+
+      await expect(
+        provider.createMaxAccounts({
+          entropySource: TEST_ENTROPY_SOURCE,
+          maxGroupIndex: 1,
+        }),
+      ).rejects.toThrow('Snap platform not ready');
+    });
+
+    it('creates accounts sequentially in order', async () => {
+      const { provider, tracker } = setup({ maxConcurrency: 1 });
+
+      await provider.createMaxAccounts({
+        entropySource: TEST_ENTROPY_SOURCE,
+        maxGroupIndex: 4,
+      });
+
+      // With maxConcurrency=1, accounts should be created in strict order.
+      expect(tracker.startLog).toStrictEqual([0, 1, 2, 3, 4]);
+      expect(tracker.endLog).toStrictEqual([0, 1, 2, 3, 4]);
+    });
+
+    it('creates large number of accounts', async () => {
+      const { provider, tracker } = setup({ maxConcurrency: 5 });
+
+      await provider.createMaxAccounts({
+        entropySource: TEST_ENTROPY_SOURCE,
+        maxGroupIndex: 9,
+      });
+
+      // Should create all 10 accounts (0-9).
+      expect(tracker.startLog).toHaveLength(10);
+      expect(tracker.endLog).toHaveLength(10);
+
+      // Since createMaxAccounts calls createAccounts sequentially, maxActiveCount is 1.
+      expect(tracker.maxActiveCount).toBe(1);
+    });
+
+    it('propagates errors from createAccounts', async () => {
+      const { provider } = setup();
+
+      const createError = new Error('Failed to create account');
+      jest.spyOn(provider, 'createAccounts').mockRejectedValue(createError);
+
+      await expect(
+        provider.createMaxAccounts({
+          entropySource: TEST_ENTROPY_SOURCE,
+          maxGroupIndex: 2,
+        }),
+      ).rejects.toThrow('Failed to create account');
     });
   });
 });
