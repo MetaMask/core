@@ -13,7 +13,12 @@ type TestRootState = {
 function createDefaultResourceState<TData, TSelected = null>(
   data: TData,
   selected: TSelected = null as TSelected,
-) {
+): {
+  data: TData;
+  selected: TSelected;
+  isLoading: boolean;
+  error: null;
+} {
   return {
     data,
     selected,

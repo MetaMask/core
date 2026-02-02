@@ -272,7 +272,13 @@ describe('RampsController', () => {
 
     it('uses userRegion from state when region is not provided', async () => {
       await withController(
-        { options: { state: { userRegion: createResourceState(createMockUserRegion('fr')) } } },
+        {
+          options: {
+            state: {
+              userRegion: createResourceState(createMockUserRegion('fr')),
+            },
+          },
+        },
         async ({ controller, rootMessenger }) => {
           let receivedRegion: string | undefined;
           rootMessenger.registerActionHandler(
@@ -292,7 +298,13 @@ describe('RampsController', () => {
 
     it('prefers provided region over userRegion in state', async () => {
       await withController(
-        { options: { state: { userRegion: createResourceState(createMockUserRegion('fr')) } } },
+        {
+          options: {
+            state: {
+              userRegion: createResourceState(createMockUserRegion('fr')),
+            },
+          },
+        },
         async ({ controller, rootMessenger }) => {
           let receivedRegion: string | undefined;
           rootMessenger.registerActionHandler(
@@ -312,7 +324,13 @@ describe('RampsController', () => {
 
     it('updates providers when userRegion matches the requested region', async () => {
       await withController(
-        { options: { state: { userRegion: createResourceState(createMockUserRegion('us-ca')) } } },
+        {
+          options: {
+            state: {
+              userRegion: createResourceState(createMockUserRegion('us-ca')),
+            },
+          },
+        },
         async ({ controller, rootMessenger }) => {
           rootMessenger.registerActionHandler(
             'RampsService:getProviders',
@@ -369,11 +387,15 @@ describe('RampsController', () => {
           );
 
           expect(controller.state.userRegion.data?.regionCode).toBe('us-ca');
-          expect(controller.state.providers.data).toStrictEqual(existingProviders);
+          expect(controller.state.providers.data).toStrictEqual(
+            existingProviders,
+          );
 
           await controller.getProviders('fr');
 
-          expect(controller.state.providers.data).toStrictEqual(existingProviders);
+          expect(controller.state.providers.data).toStrictEqual(
+            existingProviders,
+          );
         },
       );
     });
@@ -1068,7 +1090,9 @@ describe('RampsController', () => {
 
         await controller.init();
 
-        expect(controller.state.countries.data).toStrictEqual(createMockCountries());
+        expect(controller.state.countries.data).toStrictEqual(
+          createMockCountries(),
+        );
         expect(controller.state.userRegion.data?.regionCode).toBe('us-ca');
       });
     });
@@ -1142,7 +1166,10 @@ describe('RampsController', () => {
               countries: createResourceState(createMockCountries()),
               userRegion: createResourceState(createMockUserRegion('us-ca')),
               tokens: createResourceState(mockTokens, null),
-              providers: createResourceState(mockProviders, mockSelectedProvider),
+              providers: createResourceState(
+                mockProviders,
+                mockSelectedProvider,
+              ),
             },
           },
         },
@@ -1425,7 +1452,10 @@ describe('RampsController', () => {
               countries: createResourceState(createMockCountries()),
               userRegion: createResourceState(createMockUserRegion('us-ca')),
               tokens: createResourceState(mockTokens, null),
-              providers: createResourceState(mockProviders, mockSelectedProvider),
+              providers: createResourceState(
+                mockProviders,
+                mockSelectedProvider,
+              ),
             },
           },
         },
@@ -1505,7 +1535,10 @@ describe('RampsController', () => {
               countries: createResourceState(createMockCountries()),
               userRegion: createResourceState(createMockUserRegion('us-ca')),
               tokens: createResourceState(mockTokens, mockSelectedToken),
-              providers: createResourceState(mockProviders, mockSelectedProvider),
+              providers: createResourceState(
+                mockProviders,
+                mockSelectedProvider,
+              ),
             },
           },
         },
@@ -1770,7 +1803,9 @@ describe('RampsController', () => {
 
           expect(controller.state.userRegion.data?.regionCode).toBe('us-ny');
           expect(controller.state.userRegion.data?.country.isoCode).toBe('US');
-          expect(controller.state.userRegion.data?.state?.name).toBe('New York');
+          expect(controller.state.userRegion.data?.state?.name).toBe(
+            'New York',
+          );
         },
       );
     });
@@ -1816,7 +1851,9 @@ describe('RampsController', () => {
 
           expect(controller.state.userRegion.data?.regionCode).toBe('us-ca');
           expect(controller.state.userRegion.data?.country.isoCode).toBe('US');
-          expect(controller.state.userRegion.data?.state?.name).toBe('California');
+          expect(controller.state.userRegion.data?.state?.name).toBe(
+            'California',
+          );
         },
       );
     });
@@ -1922,7 +1959,9 @@ describe('RampsController', () => {
 
           controller.setSelectedProvider(mockProvider.id);
 
-          expect(controller.state.providers.selected).toStrictEqual(mockProvider);
+          expect(controller.state.providers.selected).toStrictEqual(
+            mockProvider,
+          );
         },
       );
     });
@@ -1942,12 +1981,17 @@ describe('RampsController', () => {
             state: {
               userRegion: createResourceState(createMockUserRegion('us-ca')),
               providers: createResourceState([mockProvider], mockProvider),
-              paymentMethods: createResourceState([mockPaymentMethod], mockPaymentMethod),
+              paymentMethods: createResourceState(
+                [mockPaymentMethod],
+                mockPaymentMethod,
+              ),
             },
           },
         },
         ({ controller }) => {
-          expect(controller.state.providers.selected).toStrictEqual(mockProvider);
+          expect(controller.state.providers.selected).toStrictEqual(
+            mockProvider,
+          );
           expect(controller.state.paymentMethods.data).toStrictEqual([
             mockPaymentMethod,
           ]);
@@ -2042,8 +2086,14 @@ describe('RampsController', () => {
           options: {
             state: {
               userRegion: createResourceState(createMockUserRegion('us-ca')),
-              providers: createResourceState([mockProvider, newProvider], mockProvider),
-              paymentMethods: createResourceState([existingPaymentMethod], existingPaymentMethod),
+              providers: createResourceState(
+                [mockProvider, newProvider],
+                mockProvider,
+              ),
+              paymentMethods: createResourceState(
+                [existingPaymentMethod],
+                existingPaymentMethod,
+              ),
             },
           },
         },
@@ -2062,7 +2112,9 @@ describe('RampsController', () => {
 
           controller.setSelectedProvider(newProvider.id);
 
-          expect(controller.state.providers.selected).toStrictEqual(newProvider);
+          expect(controller.state.providers.selected).toStrictEqual(
+            newProvider,
+          );
           expect(controller.state.providers.selected?.id).toBe(
             '/providers/ramp-network-staging',
           );
@@ -2129,7 +2181,10 @@ describe('RampsController', () => {
             state: {
               userRegion: createResourceState(createMockUserRegion('us-ca')),
               tokens: createResourceState(mockTokensResponse, mockToken),
-              paymentMethods: createResourceState([mockPaymentMethod], mockPaymentMethod),
+              paymentMethods: createResourceState(
+                [mockPaymentMethod],
+                mockPaymentMethod,
+              ),
             },
           },
         },
@@ -2253,7 +2308,10 @@ describe('RampsController', () => {
             state: {
               userRegion: createResourceState(createMockUserRegion('us-ca')),
               tokens: createResourceState(tokensWithBoth, mockToken),
-              paymentMethods: createResourceState([mockPaymentMethod], mockPaymentMethod),
+              paymentMethods: createResourceState(
+                [mockPaymentMethod],
+                mockPaymentMethod,
+              ),
             },
           },
         },
@@ -2478,7 +2536,13 @@ describe('RampsController', () => {
 
     it('uses userRegion from state when region is not provided', async () => {
       await withController(
-        { options: { state: { userRegion: createResourceState(createMockUserRegion('fr')) } } },
+        {
+          options: {
+            state: {
+              userRegion: createResourceState(createMockUserRegion('fr')),
+            },
+          },
+        },
         async ({ controller, rootMessenger }) => {
           let receivedRegion: string | undefined;
           rootMessenger.registerActionHandler(
@@ -2510,7 +2574,13 @@ describe('RampsController', () => {
 
     it('prefers provided region over userRegion in state', async () => {
       await withController(
-        { options: { state: { userRegion: createResourceState(createMockUserRegion('fr')) } } },
+        {
+          options: {
+            state: {
+              userRegion: createResourceState(createMockUserRegion('fr')),
+            },
+          },
+        },
         async ({ controller, rootMessenger }) => {
           let receivedRegion: string | undefined;
           rootMessenger.registerActionHandler(
@@ -2534,7 +2604,13 @@ describe('RampsController', () => {
 
     it('updates tokens when userRegion matches the requested region', async () => {
       await withController(
-        { options: { state: { userRegion: createResourceState(createMockUserRegion('us-ca')) } } },
+        {
+          options: {
+            state: {
+              userRegion: createResourceState(createMockUserRegion('us-ca')),
+            },
+          },
+        },
         async ({ controller, rootMessenger }) => {
           rootMessenger.registerActionHandler(
             'RampsService:getTokens',
@@ -2734,7 +2810,10 @@ describe('RampsController', () => {
           options: {
             state: {
               userRegion: createResourceState(createMockUserRegion('us-ca')),
-              paymentMethods: createResourceState([mockPaymentMethod1, mockPaymentMethod2], mockPaymentMethod1),
+              paymentMethods: createResourceState(
+                [mockPaymentMethod1, mockPaymentMethod2],
+                mockPaymentMethod1,
+              ),
               tokens: createResourceState(null, mockSelectedToken),
               providers: createResourceState([], mockSelectedProvider),
             },
@@ -2780,7 +2859,10 @@ describe('RampsController', () => {
           options: {
             state: {
               userRegion: createResourceState(createMockUserRegion('us-ca')),
-              paymentMethods: createResourceState([removedPaymentMethod], removedPaymentMethod),
+              paymentMethods: createResourceState(
+                [removedPaymentMethod],
+                removedPaymentMethod,
+              ),
               tokens: createResourceState(null, mockSelectedToken),
               providers: createResourceState([], mockSelectedProvider),
             },
@@ -3090,7 +3172,10 @@ describe('RampsController', () => {
           options: {
             state: {
               userRegion: createResourceState(createMockUserRegion('us-ca')),
-              paymentMethods: createResourceState([removedPaymentMethod], removedPaymentMethod),
+              paymentMethods: createResourceState(
+                [removedPaymentMethod],
+                removedPaymentMethod,
+              ),
               tokens: createResourceState(null, mockSelectedToken),
               providers: createResourceState([], mockSelectedProvider),
             },
@@ -3477,7 +3562,10 @@ describe('RampsController', () => {
         {
           options: {
             state: {
-              paymentMethods: createResourceState([mockPaymentMethod], mockPaymentMethod),
+              paymentMethods: createResourceState(
+                [mockPaymentMethod],
+                mockPaymentMethod,
+              ),
             },
           },
         },
@@ -3560,15 +3648,18 @@ describe('RampsController', () => {
           options: {
             state: {
               userRegion: createResourceState(createMockUserRegion('us')),
-              paymentMethods: createResourceState([
-                {
-                  id: '/payments/debit-credit-card',
-                  paymentType: 'debit-credit-card',
-                  name: 'Debit or Credit',
-                  score: 90,
-                  icon: 'card',
-                },
-              ], null),
+              paymentMethods: createResourceState(
+                [
+                  {
+                    id: '/payments/debit-credit-card',
+                    paymentType: 'debit-credit-card',
+                    name: 'Debit or Credit',
+                    score: 90,
+                    icon: 'card',
+                  },
+                ],
+                null,
+              ),
             },
           },
         },
@@ -3588,7 +3679,9 @@ describe('RampsController', () => {
 
           expect(result.success).toHaveLength(1);
           expect(result.success[0]?.provider).toBe('/providers/moonpay');
-          expect(controller.state.quotes.data).toStrictEqual(mockQuotesResponse);
+          expect(controller.state.quotes.data).toStrictEqual(
+            mockQuotesResponse,
+          );
         },
       );
     });
@@ -3599,15 +3692,18 @@ describe('RampsController', () => {
           options: {
             state: {
               userRegion: createResourceState(createMockUserRegion('us')),
-              paymentMethods: createResourceState([
-                {
-                  id: '/payments/debit-credit-card',
-                  paymentType: 'debit-credit-card',
-                  name: 'Debit or Credit',
-                  score: 90,
-                  icon: 'card',
-                },
-              ], null),
+              paymentMethods: createResourceState(
+                [
+                  {
+                    id: '/payments/debit-credit-card',
+                    paymentType: 'debit-credit-card',
+                    name: 'Debit or Credit',
+                    score: 90,
+                    icon: 'card',
+                  },
+                ],
+                null,
+              ),
             },
           },
         },
@@ -3704,15 +3800,18 @@ describe('RampsController', () => {
           options: {
             state: {
               userRegion: createResourceState(createMockUserRegion('us')),
-              paymentMethods: createResourceState([
-                {
-                  id: '/payments/debit-credit-card',
-                  paymentType: 'debit-credit-card',
-                  name: 'Debit or Credit',
-                  score: 90,
-                  icon: 'card',
-                },
-              ], null),
+              paymentMethods: createResourceState(
+                [
+                  {
+                    id: '/payments/debit-credit-card',
+                    paymentType: 'debit-credit-card',
+                    name: 'Debit or Credit',
+                    score: 90,
+                    icon: 'card',
+                  },
+                ],
+                null,
+              ),
             },
           },
         },
@@ -3750,15 +3849,18 @@ describe('RampsController', () => {
           options: {
             state: {
               userRegion: createResourceState(createMockUserRegion('us')),
-              paymentMethods: createResourceState([
-                {
-                  id: '/payments/debit-credit-card',
-                  paymentType: 'debit-credit-card',
-                  name: 'Debit or Credit',
-                  score: 90,
-                  icon: 'card',
-                },
-              ], null),
+              paymentMethods: createResourceState(
+                [
+                  {
+                    id: '/payments/debit-credit-card',
+                    paymentType: 'debit-credit-card',
+                    name: 'Debit or Credit',
+                    score: 90,
+                    icon: 'card',
+                  },
+                ],
+                null,
+              ),
             },
           },
         },
@@ -3788,15 +3890,18 @@ describe('RampsController', () => {
           options: {
             state: {
               userRegion: createResourceState(createMockUserRegion('us')),
-              paymentMethods: createResourceState([
-                {
-                  id: '/payments/debit-credit-card',
-                  paymentType: 'debit-credit-card',
-                  name: 'Debit or Credit',
-                  score: 90,
-                  icon: 'card',
-                },
-              ], null),
+              paymentMethods: createResourceState(
+                [
+                  {
+                    id: '/payments/debit-credit-card',
+                    paymentType: 'debit-credit-card',
+                    name: 'Debit or Credit',
+                    score: 90,
+                    icon: 'card',
+                  },
+                ],
+                null,
+              ),
             },
           },
         },
@@ -3826,15 +3931,18 @@ describe('RampsController', () => {
           options: {
             state: {
               userRegion: createResourceState(createMockUserRegion('us')),
-              paymentMethods: createResourceState([
-                {
-                  id: '/payments/debit-credit-card',
-                  paymentType: 'debit-credit-card',
-                  name: 'Debit or Credit',
-                  score: 90,
-                  icon: 'card',
-                },
-              ], null),
+              paymentMethods: createResourceState(
+                [
+                  {
+                    id: '/payments/debit-credit-card',
+                    paymentType: 'debit-credit-card',
+                    name: 'Debit or Credit',
+                    score: 90,
+                    icon: 'card',
+                  },
+                ],
+                null,
+              ),
             },
           },
         },
@@ -3949,15 +4057,18 @@ describe('RampsController', () => {
                   supported: { buy: true, sell: true },
                 },
               ]),
-              paymentMethods: createResourceState([
-                {
-                  id: '/payments/debit-credit-card',
-                  paymentType: 'debit-credit-card',
-                  name: 'Debit or Credit',
-                  score: 90,
-                  icon: 'card',
-                },
-              ], null),
+              paymentMethods: createResourceState(
+                [
+                  {
+                    id: '/payments/debit-credit-card',
+                    paymentType: 'debit-credit-card',
+                    name: 'Debit or Credit',
+                    score: 90,
+                    icon: 'card',
+                  },
+                ],
+                null,
+              ),
             },
           },
         },

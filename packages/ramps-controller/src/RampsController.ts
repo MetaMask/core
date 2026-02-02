@@ -83,6 +83,7 @@ export type UserRegion = {
 
 /**
  * Generic type for resource state that bundles data with loading/error states.
+ *
  * @template TData - The type of the resource data
  * @template TSelected - The type of the selected item (defaults to null for resources without selection)
  */
@@ -232,10 +233,10 @@ export function getDefaultRampsControllerState(): RampsControllerState {
       [],
       null,
     ),
-    tokens: createDefaultResourceState<TokensResponse | null, RampsToken | null>(
-      null,
-      null,
-    ),
+    tokens: createDefaultResourceState<
+      TokensResponse | null,
+      RampsToken | null
+    >(null, null),
     paymentMethods: createDefaultResourceState<
       PaymentMethod[],
       PaymentMethod | null
@@ -1249,8 +1250,10 @@ export class RampsController extends BaseController<
     forceRefresh?: boolean;
     ttl?: number;
   }): Promise<QuotesResponse> {
-    const regionToUse = options.region ?? this.state.userRegion.data?.regionCode;
-    const fiatToUse = options.fiat ?? this.state.userRegion.data?.country?.currency;
+    const regionToUse =
+      options.region ?? this.state.userRegion.data?.regionCode;
+    const fiatToUse =
+      options.fiat ?? this.state.userRegion.data?.country?.currency;
     const paymentMethodsToUse =
       options.paymentMethods ??
       this.state.paymentMethods.data.map((pm: PaymentMethod) => pm.id);
