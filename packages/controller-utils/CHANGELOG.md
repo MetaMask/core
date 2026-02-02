@@ -7,6 +7,8 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+### Added
+
 - Add INK (0xed88) mapping to eip155:57073/erc20:0x0000000000000000000000000000000000000000 ([#7688](https://github.com/MetaMask/core/pull/7688))
 
 ## [11.18.0]
