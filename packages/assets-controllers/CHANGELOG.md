@@ -7,6 +7,12 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+### Uncategorized
+
+- chore: removed token-search-discovery-controller package ([#7789](https://github.com/MetaMask/core/pull/7789))
+- chore: Simplify TokenListController initialization ([#7740](https://github.com/MetaMask/core/pull/7740))
+- chore: upgrade Jest-related packages to latest 27.x versions ([#7792](https://github.com/MetaMask/core/pull/7792))
+
 ### Added
 
 - Add `HYPEREVM` support ([#7790](https://github.com/MetaMask/core/pull/7790))
