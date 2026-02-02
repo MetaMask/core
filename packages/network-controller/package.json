@@ -74,7 +74,7 @@
     "@metamask/auto-changelog": "^3.4.4",
     "@ts-bridge/cli": "^0.6.4",
     "@types/deep-freeze-strict": "^1.1.0",
-    "@types/jest": "^27.4.1",
+    "@types/jest": "^27.5.2",
     "@types/jest-when": "^2.7.3",
     "@types/lodash": "^4.14.191",
     "@types/node-fetch": "^2.6.12",
@@ -87,7 +87,7 @@
     "nock": "^13.3.1",
     "node-fetch": "^2.7.0",
     "sinon": "^9.2.4",
-    "ts-jest": "^27.1.4",
+    "ts-jest": "^27.1.5",
     "typedoc": "^0.24.8",
     "typedoc-plugin-missing-exports": "^2.0.0",
     "typescript": "~5.3.3"

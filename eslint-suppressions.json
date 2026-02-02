@@ -423,9 +423,6 @@
     "@typescript-eslint/explicit-function-return-type": {
       "count": 6
     },
-    "@typescript-eslint/naming-convention": {
-      "count": 22
-    },
     "no-negated-condition": {
       "count": 2
     }
@@ -1691,20 +1688,6 @@
       "count": 1
     }
   },
-  "packages/profile-sync-controller/src/sdk/authentication-jwt-bearer/services.ts": {
-    "@typescript-eslint/explicit-function-return-type": {
-      "count": 6
-    },
-    "@typescript-eslint/naming-convention": {
-      "count": 4
-    },
-    "id-length": {
-      "count": 5
-    },
-    "no-restricted-globals": {
-      "count": 1
-    }
-  },
   "packages/profile-sync-controller/src/sdk/authentication-jwt-bearer/types.ts": {
     "@typescript-eslint/naming-convention": {
       "count": 5
@@ -1910,16 +1893,6 @@
     },
     "id-length": {
       "count": 2
-    }
-  },
-  "packages/token-search-discovery-controller/src/token-discovery-api-service/token-discovery-api-service.ts": {
-    "@typescript-eslint/explicit-function-return-type": {
-      "count": 1
-    }
-  },
-  "packages/token-search-discovery-controller/src/types.ts": {
-    "@typescript-eslint/naming-convention": {
-      "count": 18
     }
   },
   "packages/user-operation-controller/src/UserOperationController.test.ts": {

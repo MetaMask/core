@@ -14,7 +14,6 @@ module.exports = merge(baseConfig, {
   // The display name when running multiple projects
   displayName,
 
-  // An object that configures minimum threshold enforcement for coverage results
   coverageThreshold: {
     global: {
       branches: 100,

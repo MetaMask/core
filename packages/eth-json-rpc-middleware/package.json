@@ -72,7 +72,7 @@
     "@metamask/network-controller": "^29.0.0",
     "@ts-bridge/cli": "^0.6.4",
     "@types/deep-freeze-strict": "^1.1.0",
-    "@types/jest": "^27.4.1",
+    "@types/jest": "^27.5.2",
     "@types/pify": "^5.0.2",
     "deep-freeze-strict": "^1.1.1",
     "deepmerge": "^4.2.2",

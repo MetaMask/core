@@ -111,10 +111,14 @@ async function executeSingleQuote(
  * @returns A promise that resolves when the Relay request is complete.
  */
 async function waitForRelayCompletion(quote: RelayQuote): Promise<Hex> {
-  if (
+  const isSameChain =
     quote.details.currencyIn.currency.chainId ===
-    quote.details.currencyOut.currency.chainId
-  ) {
+    quote.details.currencyOut.currency.chainId;
+
+  const isSingleDepositStep =
+    quote.steps.length === 1 && quote.steps[0].id === 'deposit';
+
+  if (isSameChain && !isSingleDepositStep) {
     log('Skipping polling as same chain');
     return FALLBACK_HASH;
   }
