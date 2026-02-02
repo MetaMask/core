@@ -24,6 +24,7 @@ import {
 } from '@metamask/controller-utils';
 import type { TraceCallback, TraceContext } from '@metamask/controller-utils';
 import type {
+  AccountActivityServiceStatusChangedEvent,
   AccountActivityServiceTransactionUpdatedEvent,
   BackendWebSocketServiceConnectionStateChangedEvent,
 } from '@metamask/core-backend';
@@ -608,6 +609,7 @@ export type AllowedActions =
  * The external events available to the {@link TransactionController}.
  */
 export type AllowedEvents =
+  | AccountActivityServiceStatusChangedEvent
   | AccountActivityServiceTransactionUpdatedEvent
   | AccountsControllerSelectedAccountChangeEvent
   | BackendWebSocketServiceConnectionStateChangedEvent

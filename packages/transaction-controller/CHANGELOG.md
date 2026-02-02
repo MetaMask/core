@@ -7,6 +7,13 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+### Added
+
+- Add `HYPEREVM` network support ([#7770](https://github.com/MetaMask/core/pull/7770))
+  - Add account address relationship API support
+  - Add incoming transactions API support
+- Add network fallback mechanism to `IncomingTransactionHelper` for WebSocket-based transaction retrieval ([#7759](https://github.com/MetaMask/core/pull/7759))
+
 ## [62.12.0]
 
 ### Added

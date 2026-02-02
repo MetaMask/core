@@ -2744,7 +2744,7 @@ __metadata:
     "@metamask/snaps-controllers": "npm:^17.2.0"
     "@metamask/snaps-sdk": "npm:^10.3.0"
     "@metamask/snaps-utils": "npm:^11.7.0"
-    "@metamask/storage-service": "npm:^0.0.1"
+    "@metamask/storage-service": "npm:^1.0.0"
     "@metamask/transaction-controller": "npm:^62.12.0"
     "@metamask/utils": "npm:^11.9.0"
     "@ts-bridge/cli": "npm:^0.6.4"
@@ -5054,7 +5054,7 @@ __metadata:
   languageName: node
   linkType: hard
 
-"@metamask/storage-service@npm:^0.0.1, @metamask/storage-service@workspace:packages/storage-service":
+"@metamask/storage-service@npm:^1.0.0, @metamask/storage-service@workspace:packages/storage-service":
   version: 0.0.0-use.local
   resolution: "@metamask/storage-service@workspace:packages/storage-service"
   dependencies:
@@ -5110,26 +5110,6 @@ __metadata:
   checksum: 10/1255c599de9237f06df2390719d6dfcb1f168873df61bbaad5ce376efbc057e2030260b94855569313faeb412b7df9b062d209f4b0b163a3dc02f29d42139e1f
   languageName: node
   linkType: hard
-
-"@metamask/token-search-discovery-controller@workspace:packages/token-search-discovery-controller":
-  version: 0.0.0-use.local
-  resolution: "@metamask/token-search-discovery-controller@workspace:packages/token-search-discovery-controller"
-  dependencies:
-    "@metamask/auto-changelog": "npm:^3.4.4"
-    "@metamask/base-controller": "npm:^9.0.0"
-    "@metamask/messenger": "npm:^0.3.0"
-    "@metamask/utils": "npm:^11.9.0"
-    "@ts-bridge/cli": "npm:^0.6.4"
-    "@types/jest": "npm:^27.5.2"
-    deepmerge: "npm:^4.2.2"
-    jest: "npm:^27.5.1"
-    nock: "npm:^13.3.1"
-    ts-jest: "npm:^27.1.5"
-    typedoc: "npm:^0.24.8"
-    typedoc-plugin-missing-exports: "npm:^2.0.0"
-    typescript: "npm:~5.3.3"
-  languageName: unknown
-  linkType: soft
 
 "@metamask/toprf-secure-backup@npm:^0.11.0":
   version: 0.11.0
