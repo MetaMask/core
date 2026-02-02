@@ -5497,19 +5497,15 @@ describe('SeedlessOnboardingController', () => {
       );
     });
 
-    it('should return undefined when controller is locked', async () => {
+    it('should return undefined when accessToken is not set', async () => {
       await withController(
         {
-          state: getMockInitialControllerState({
-            withMockAuthenticatedUser: true,
-            accessToken: MOCK_ACCESS_TOKEN,
-            vault: MOCK_VAULT,
-            vaultEncryptionKey: MOCK_VAULT_ENCRYPTION_KEY,
-            vaultEncryptionSalt: MOCK_VAULT_ENCRYPTION_SALT,
-          }),
+          state: {
+            nodeAuthTokens: MOCK_NODE_AUTH_TOKENS,
+            metadataAccessToken,
+          },
         },
         async ({ controller }) => {
-          // Controller is locked by default, so don't call submitPassword
           const result = await controller.getAccessToken();
           expect(result).toBeUndefined();
         },

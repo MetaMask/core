@@ -2088,7 +2088,6 @@ export class SeedlessOnboardingController<
   async getAccessToken(): Promise<string | undefined> {
     return this.#withControllerLock(async () => {
       try {
-        this.#assertIsUnlocked();
         // if the tokens are expired, refresh them and return the access token
         const accessToken = await this.#executeWithTokenRefresh(async () => {
           return this.state.accessToken;
