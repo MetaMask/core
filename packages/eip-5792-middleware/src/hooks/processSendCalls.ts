@@ -1,5 +1,5 @@
 import type { KeyringTypes } from '@metamask/keyring-controller';
-import { JsonRpcError, rpcErrors } from '@metamask/rpc-errors';
+import { JsonRpcError, providerErrors, rpcErrors } from '@metamask/rpc-errors';
 import type {
   BatchTransactionParams,
   IsAtomicBatchSupportedResultEntry,
@@ -47,6 +47,7 @@ export type ProcessSendCallsHooks = {
     request: ValidateSecurityRequest,
     chainId: Hex,
   ) => Promise<void>;
+  getPermittedAccountsForOrigin: () => Promise<Hex[]>;
   /** Function to validate if auxiliary funds capability is supported. */
   isAuxiliaryFundsSupported: (chainId: Hex) => boolean;
 };
@@ -82,6 +83,7 @@ export async function processSendCalls(
     getDismissSmartAccountSuggestionEnabled,
     isAtomicBatchSupported,
     validateSecurity: validateSecurityHook,
+    getPermittedAccountsForOrigin,
     isAuxiliaryFundsSupported,
   } = hooks;
 
@@ -94,9 +96,12 @@ export async function processSendCalls(
     networkClientId,
   ).configuration;
 
-  const from =
-    paramFrom ??
-    (messenger.call('AccountsController:getSelectedAccount').address as Hex);
+  const [selectedAccount] = await getPermittedAccountsForOrigin()
+  const from = paramFrom ?? selectedAccount;
+
+  if (!from) {
+    throw providerErrors.unauthorized();
+  }
 
   const securityAlertId = uuid();
   const validateSecurity = validateSecurityHook.bind(null, securityAlertId);
