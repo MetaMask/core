@@ -35,6 +35,7 @@
   "metamask/multichain-api-middleware": "team-wallet-integrations",
   "metamask/selected-network-controller": "team-wallet-integrations",
   "metamask/eip-5792-middleware": "team-wallet-integrations",
+  "metamask/application-state-controller": "team-core-platform",
   "metamask/base-controller": "team-core-platform",
   "metamask/build-utils": "team-core-platform",
   "metamask/composable-controller": "team-core-platform",
