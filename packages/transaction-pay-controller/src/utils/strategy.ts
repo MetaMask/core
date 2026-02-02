@@ -2,6 +2,7 @@ import type { TransactionMeta } from '@metamask/transaction-controller';
 
 import { TransactionPayStrategy } from '../constants';
 import { BridgeStrategy } from '../strategy/bridge/BridgeStrategy';
+import { FiatStrategy } from '../strategy/fiat/FiatStrategy';
 import { RelayStrategy } from '../strategy/relay/RelayStrategy';
 import { TestStrategy } from '../strategy/test/TestStrategy';
 import type { PayStrategy, TransactionPayControllerMessenger } from '../types';
@@ -43,6 +44,9 @@ export function getStrategyByName(
 
     case TransactionPayStrategy.Test:
       return new TestStrategy() as never;
+
+    case TransactionPayStrategy.Fiat:
+      return new FiatStrategy() as never;
 
     default:
       throw new Error(`Unknown strategy: ${strategyName as string}`);
