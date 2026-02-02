@@ -1,6 +1,10 @@
 import type { Json } from '@metamask/utils';
 
-import type { StorageAdapter, StorageGetResult } from './types';
+import type {
+  InitialStorageData,
+  StorageAdapter,
+  StorageGetResult,
+} from './types';
 import { STORAGE_KEY_PREFIX } from './types';
 
 /**
@@ -18,12 +22,25 @@ import { STORAGE_KEY_PREFIX } from './types';
  * - Production (unless data is truly ephemeral)
  * - Data that needs to persist across restarts
  *
- * @example
+ * @example Basic usage
  * ```typescript
  * const adapter = new InMemoryStorageAdapter();
  * await adapter.setItem('SnapController', 'snap-id:sourceCode', 'const x = 1;');
  * const value = await adapter.getItem('SnapController', 'snap-id:sourceCode'); // 'const x = 1;'
  * // After restart: data is lost
+ * ```
+ *
+ * @example Initialize with data (useful for testing)
+ * ```typescript
+ * const adapter = new InMemoryStorageAdapter({
+ *   SnapController: {
+ *     'snap-id:sourceCode': 'const x = 1;',
+ *     'snap-id:manifest': { name: 'My Snap' },
+ *   },
+ *   TokenListController: {
+ *     cache: { '0x1': ['token1', 'token2'] },
+ *   },
+ * });
  * ```
  */
 export class InMemoryStorageAdapter implements StorageAdapter {
@@ -35,9 +52,21 @@ export class InMemoryStorageAdapter implements StorageAdapter {
 
   /**
    * Constructs a new InMemoryStorageAdapter.
+   *
+   * @param initialData - Optional initial data to populate the storage.
+   * Useful for setting up test fixtures without calling setItem multiple times.
    */
-  constructor() {
+  constructor(initialData?: InitialStorageData) {
     this.#storage = new Map();
+
+    if (initialData) {
+      for (const [namespace, items] of Object.entries(initialData)) {
+        for (const [key, value] of Object.entries(items)) {
+          const fullKey = `${STORAGE_KEY_PREFIX}${namespace}:${key}`;
+          this.#storage.set(fullKey, JSON.stringify(value));
+        }
+      }
+    }
   }
 
   /**

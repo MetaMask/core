@@ -4,6 +4,30 @@ import type { Json } from '@metamask/utils';
 import type { StorageServiceMethodActions } from './StorageService-method-action-types';
 
 /**
+ * Initial data structure for populating InMemoryStorageAdapter.
+ * Useful for setting up test fixtures.
+ *
+ * @example
+ * ```typescript
+ * const initialData: InitialStorageData = {
+ *   SnapController: {
+ *     'snap-id:sourceCode': 'const x = 1;',
+ *     'snap-id:manifest': { name: 'My Snap' },
+ *   },
+ *   TokenListController: {
+ *     cache: { '0x1': ['token1', 'token2'] },
+ *   },
+ * };
+ * const adapter = new InMemoryStorageAdapter(initialData);
+ * ```
+ */
+export type InitialStorageData = {
+  [namespace: string]: {
+    [key: string]: Json;
+  };
+};
+
+/**
  * Result type for getItem operations.
  * Distinguishes between: found data, not found, and error conditions.
  *
