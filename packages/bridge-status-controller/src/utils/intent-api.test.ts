@@ -164,7 +164,6 @@ describe('IntentApiImpl', () => {
           txHash: '0xhash1',
         },
       });
-      expect(translation.srcTxHashes).toStrictEqual(['0xhash1', '0xhash2']);
       expect(translation.transactionStatus).toBe(TransactionStatus.confirmed);
     });
 
@@ -184,7 +183,6 @@ describe('IntentApiImpl', () => {
         chainId: 10,
         txHash: '0xfallback',
       });
-      expect(translation.srcTxHashes).toStrictEqual(['0xmetadatahash']);
       expect(translation.transactionStatus).toBe(TransactionStatus.failed);
     });
     it('prefers txHash when metadata is empty and returns empty hashes when none exist', () => {
@@ -198,7 +196,7 @@ describe('IntentApiImpl', () => {
         1,
       );
 
-      expect(withTxHash.srcTxHashes).toStrictEqual(['0xonlyhash']);
+      expect(withTxHash.status.srcChain.txHash).toBe('0xonlyhash');
 
       const withoutHashes = translateIntentOrderToBridgeStatus(
         {
@@ -209,7 +207,6 @@ describe('IntentApiImpl', () => {
         1,
       );
 
-      expect(withoutHashes.srcTxHashes).toStrictEqual([]);
       expect(withoutHashes.status.status).toBe(StatusTypes.SUBMITTED);
 
       const emptyMetadataWithTxHash = translateIntentOrderToBridgeStatus(
@@ -222,9 +219,9 @@ describe('IntentApiImpl', () => {
         1,
       );
 
-      expect(emptyMetadataWithTxHash.srcTxHashes).toStrictEqual([
+      expect(emptyMetadataWithTxHash.status.srcChain.txHash).toBe(
         '0xfallbackhash',
-      ]);
+      );
     });
   });
 });

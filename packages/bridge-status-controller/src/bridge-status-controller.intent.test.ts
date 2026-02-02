@@ -563,11 +563,6 @@ describe('BridgeStatusController (intent swaps)', () => {
 
     const historyKey = orderUid;
 
-    // Seed existing hashes via controller.update (state is frozen)
-    controller.update((state: any) => {
-      state.txHistory[historyKey].srcTxHashes = ['0xold1'];
-    });
-
     getOrderStatusMock.mockResolvedValue({
       id: orderUid,
       status: IntentOrderStatus.COMPLETED,
@@ -579,9 +574,7 @@ describe('BridgeStatusController (intent swaps)', () => {
 
     const updated = controller.state.txHistory[historyKey];
     expect(updated.status.status).toBe(StatusTypes.COMPLETE);
-    expect(updated.srcTxHashes).toStrictEqual(
-      expect.arrayContaining(['0xold1', '0xnewhash']),
-    );
+    expect(updated.status.srcChain.txHash).toBe('0xnewhash');
 
     expect(stopPollingSpy).toHaveBeenCalledWith('poll-token-1');
   });
@@ -629,9 +622,7 @@ describe('BridgeStatusController (intent swaps)', () => {
 
     const updated = controller.state.txHistory[historyKey];
     expect(updated.status.status).toBe(StatusTypes.FAILED);
-    expect(updated.srcTxHashes).toStrictEqual(
-      expect.arrayContaining(['0xonlyhash']),
-    );
+    expect(updated.status.srcChain.txHash).toBe('0xonlyhash');
 
     expect(stopPollingSpy).toHaveBeenCalledWith('poll-token-1');
   });

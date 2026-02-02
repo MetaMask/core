@@ -99,29 +99,8 @@ export class IntentApiImpl implements IntentApi {
 
 export type IntentStatusTranslation = {
   status: StatusResponse;
-  srcTxHashes: string[];
   txHash?: string;
   transactionStatus: TransactionStatus;
-};
-
-const normalizeIntentTxHashes = (intentOrder: IntentOrder): string[] => {
-  const { txHashes } = intentOrder.metadata ?? {};
-  if (Array.isArray(txHashes)) {
-    if (txHashes.length > 0) {
-      return txHashes;
-    }
-    if (intentOrder.txHash) {
-      return [intentOrder.txHash];
-    }
-    return [];
-  }
-  if (typeof txHashes === 'string' && txHashes.length > 0) {
-    return [txHashes];
-  }
-  if (intentOrder.txHash) {
-    return [intentOrder.txHash];
-  }
-  return [];
 };
 
 export const translateIntentOrderToBridgeStatus = (
@@ -162,7 +141,6 @@ export const translateIntentOrderToBridgeStatus = (
   return {
     status,
     txHash: intentOrder.txHash,
-    srcTxHashes: normalizeIntentTxHashes(intentOrder),
     transactionStatus: mapIntentOrderStatusToTransactionStatus(
       intentOrder.status,
     ),

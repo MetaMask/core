@@ -685,7 +685,6 @@ export class BridgeStatusController extends StaticIntervalPollingController<Brid
       let validationFailures: string[] = [];
       let intentTranslation: IntentStatusTranslation | null = null;
       let intentOrderStatus: string | undefined;
-      let intentHashes: string[] = [];
 
       const isIntent = Boolean(historyItem.quote.intent);
 
@@ -710,7 +709,6 @@ export class BridgeStatusController extends StaticIntervalPollingController<Brid
           historyItem.status.srcChain.txHash,
         );
         status = intentTranslation.status;
-        intentHashes = intentTranslation.srcTxHashes;
       } else {
         // We try here because we receive 500 errors from Bridge API if we try to fetch immediately after submitting the source tx
         // Oddly mostly happens on Optimism, never on Arbitrum. By the 2nd fetch, the Bridge API responds properly.
@@ -749,16 +747,6 @@ export class BridgeStatusController extends StaticIntervalPollingController<Brid
         );
       }
 
-      const statusHash = status.srcChain.txHash ? [status.srcChain.txHash] : [];
-      const mergedHashes = [
-        ...(historyItem.srcTxHashes ?? []),
-        ...intentHashes,
-        ...statusHash,
-      ];
-      const nextSrcTxHashes = mergedHashes.length
-        ? Array.from(new Set(mergedHashes))
-        : historyItem.srcTxHashes;
-
       // 4. Create bridge history item
 
       const newBridgeHistoryItem = {
@@ -770,7 +758,6 @@ export class BridgeStatusController extends StaticIntervalPollingController<Brid
             ? Date.now()
             : undefined, // TODO make this more accurate by looking up dest txHash block time
         attempts: undefined,
-        srcTxHashes: nextSrcTxHashes,
       };
 
       // No need to purge these on network change or account change, TransactionController does not purge either.
