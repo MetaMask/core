@@ -932,39 +932,33 @@ describe('RemoteFeatureFlagController', () => {
 
   describe('threshold cache cleanup', () => {
     it('removes stale threshold cache entries when flags are removed from server', async () => {
+      // Use fake timers from the start to ensure consistent Date.now() behavior
+      jest.useFakeTimers();
+      const initialTime = Date.now();
+
       // Arrange
-      const clientConfigApiService = buildClientConfigApiService({
-        remoteFeatureFlags: {
-          flagA: [
-            {
-              name: 'groupA',
-              scope: { type: 'threshold', value: 1.0 },
-              value: true,
-            },
-          ],
-          flagB: [
-            {
-              name: 'groupB',
-              scope: { type: 'threshold', value: 1.0 },
-              value: false,
-            },
-          ],
-        },
-      });
-      const controller = createController({
-        clientConfigApiService,
-        getMetaMetricsId: () => MOCK_METRICS_ID,
-      });
-
-      // Act - First update: both flags processed
-      await controller.updateRemoteFeatureFlags();
-      const cacheAfterFirst = controller.state.thresholdCache;
-      expect(Object.keys(cacheAfterFirst ?? {})).toHaveLength(2);
-
-      // Update server to remove flagA
-      jest
-        .spyOn(clientConfigApiService, 'fetchRemoteFeatureFlags')
-        .mockResolvedValue({
+      const fetchSpy = jest
+        .fn()
+        .mockResolvedValueOnce({
+          remoteFeatureFlags: {
+            flagA: [
+              {
+                name: 'groupA',
+                scope: { type: 'threshold', value: 1.0 },
+                value: true,
+              },
+            ],
+            flagB: [
+              {
+                name: 'groupB',
+                scope: { type: 'threshold', value: 1.0 },
+                value: false,
+              },
+            ],
+          },
+          cacheTimestamp: Date.now(),
+        })
+        .mockResolvedValueOnce({
           remoteFeatureFlags: {
             flagB: [
               {
@@ -977,9 +971,23 @@ describe('RemoteFeatureFlagController', () => {
           cacheTimestamp: Date.now(),
         });
 
-      // Force cache expiration
-      jest.useFakeTimers();
-      jest.advanceTimersByTime(2 * DEFAULT_CACHE_DURATION);
+      const clientConfigApiService = {
+        fetchRemoteFeatureFlags: fetchSpy,
+      } as AbstractClientConfigApiService;
+
+      const controller = createController({
+        clientConfigApiService,
+        getMetaMetricsId: () => MOCK_METRICS_ID,
+        state: { remoteFeatureFlags: {}, cacheTimestamp: 0 },
+      });
+
+      // Act - First update: both flags processed
+      await controller.updateRemoteFeatureFlags();
+      const cacheAfterFirst = controller.state.thresholdCache;
+      expect(Object.keys(cacheAfterFirst ?? {})).toHaveLength(2);
+
+      // Force cache expiration by advancing time
+      jest.setSystemTime(initialTime + 2 * DEFAULT_CACHE_DURATION);
 
       // Second update: flagA removed from server
       await controller.updateRemoteFeatureFlags();
