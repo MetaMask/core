@@ -4,7 +4,6 @@ import {
   assert,
   boolean,
   number,
-  object,
   optional,
   string,
   type,
@@ -17,19 +16,22 @@ const RpcEndpointSchema = type({
   failoverUrls: array(string()),
 });
 
+/**
+ * Schema for a single network in the API response.
+ * Matches the flat shape returned by the config registry API
+ * (all fields at top level, not nested under "network").
+ */
 export const RegistryNetworkConfigSchema = type({
-  network: object({
-    chainId: string(),
-    name: string(),
-    nativeCurrency: string(),
-    rpcEndpoints: array(RpcEndpointSchema),
-    blockExplorerUrls: array(string()),
-    defaultRpcEndpointIndex: number(),
-    defaultBlockExplorerUrlIndex: number(),
-    lastUpdatedAt: optional(number()),
-    networkImageUrl: optional(string()),
-    nativeTokenImageUrl: optional(string()),
-  }),
+  chainId: string(),
+  name: string(),
+  nativeCurrency: string(),
+  rpcEndpoints: array(RpcEndpointSchema),
+  blockExplorerUrls: array(string()),
+  defaultRpcEndpointIndex: number(),
+  defaultBlockExplorerUrlIndex: number(),
+  lastUpdatedAt: optional(number()),
+  networkImageUrl: optional(string()),
+  nativeTokenImageUrl: optional(string()),
   isActive: boolean(),
   isTestnet: boolean(),
   isDefault: boolean(),

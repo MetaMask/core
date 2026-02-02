@@ -8,6 +8,7 @@ import type {
   KeyringControllerUnlockEvent,
 } from '@metamask/keyring-controller';
 import type { Messenger } from '@metamask/messenger';
+import type { NetworkConfiguration } from '@metamask/network-controller';
 import { StaticIntervalPollingController } from '@metamask/polling-controller';
 import { RemoteFeatureFlagControllerGetStateAction } from '@metamask/remote-feature-flag-controller';
 import { Duration, inMilliseconds } from '@metamask/utils';
@@ -20,7 +21,6 @@ import type {
 } from './config-registry-api-service';
 import { filterNetworks } from './config-registry-api-service';
 import { isConfigRegistryApiEnabled as defaultIsConfigRegistryApiEnabled } from './utils/feature-flags';
-import { NetworkConfiguration } from '../../network-controller/src/NetworkController';
 
 const controllerName = 'ConfigRegistryController';
 
@@ -41,10 +41,10 @@ export type NetworkConfigEntry = {
 export type ConfigRegistryState = {
   /**
    * Network configurations organized by chain ID.
-   * Contains the actual network configuration data fetched from the API.
+   * Uses the same shape as NetworkController for compatibility.
    */
   configs: {
-    networks: Record<string, RegistryNetworkConfig>;
+    networks: Record<string, NetworkConfiguration>;
   };
   /**
    * Semantic version string of the configuration data from the API.
@@ -96,7 +96,7 @@ const stateMetadata = {
   },
 } satisfies StateMetadata<ConfigRegistryState>;
 
-const DEFAULT_FALLBACK_CONFIG: Record<string, NetworkConfigEntry> = {};
+const DEFAULT_FALLBACK_CONFIG: Record<string, NetworkConfiguration> = {};
 
 export type ConfigRegistryControllerStateChangeEvent =
   ControllerStateChangeEvent<typeof controllerName, ConfigRegistryState>;
@@ -141,7 +141,7 @@ export type ConfigRegistryControllerOptions = {
   messenger: ConfigRegistryMessenger;
   state?: Partial<ConfigRegistryState>;
   pollingInterval?: number;
-  fallbackConfig?: Record<string, NetworkConfigEntry>;
+  fallbackConfig?: Record<string, NetworkConfiguration>;
   isConfigRegistryApiEnabled?: (messenger: ConfigRegistryMessenger) => boolean;
 };
 
@@ -150,8 +150,6 @@ export class ConfigRegistryController extends StaticIntervalPollingController<nu
   ConfigRegistryState,
   ConfigRegistryMessenger
 > {
-  readonly #fallbackConfig: Record<string, NetworkConfigEntry>;
-
   readonly #isConfigRegistryApiEnabled: (
     messenger: ConfigRegistryMessenger,
   ) => boolean;
@@ -188,7 +186,6 @@ export class ConfigRegistryController extends StaticIntervalPollingController<nu
     });
 
     this.setIntervalLength(pollingInterval);
-    this.#fallbackConfig = fallbackConfig;
     this.#isConfigRegistryApiEnabled = isConfigRegistryApiEnabled;
 
     this.messenger.registerActionHandler(
@@ -214,7 +211,6 @@ export class ConfigRegistryController extends StaticIntervalPollingController<nu
 
     if (!isApiEnabled) {
       // The config registry API will use the configuration that is already
-      // in the state
       return;
     }
 
@@ -240,62 +236,20 @@ export class ConfigRegistryController extends StaticIntervalPollingController<nu
         return;
       }
 
-      // Filter networks: only featured, active, non-testnet networks
-      const filteredNetworks = filterNetworks(result.data.data.networks, {
+      const apiNetworks = result.data.data.networks;
+      const filteredNetworks = filterNetworks(apiNetworks, {
         isFeatured: true,
         isActive: true,
         isTestnet: false,
       });
-
-      // Group networks by chainId to detect duplicates
-      const networksByChainId = new Map<
-        string,
-        { network: RegistryNetworkConfig; index: number }[]
-      >();
-      filteredNetworks.forEach((network, index) => {
-        const existing = networksByChainId.get(network.chainId) ?? [];
-        existing.push({ network, index });
-        networksByChainId.set(network.chainId, existing);
+      const newConfigs: Record<string, NetworkConfiguration> = {};
+      filteredNetworks.forEach((registryConfig) => {
+        const { chainId } = registryConfig;
+        newConfigs[chainId] = registryConfig as unknown as NetworkConfiguration;
       });
 
-      // Build configs, handling duplicates by keeping highest priority network
-      const newConfigs: Record<string, NetworkConfigEntry> = {};
-      for (const [chainId, networks] of networksByChainId) {
-        if (networks.length > 1) {
-          // Duplicate chainIds detected - log warning and keep highest priority
-          const duplicateNames = networks
-            .map((networkEntry) => networkEntry.network.name)
-            .join(', ');
-          const warningMessage = `Duplicate chainId ${chainId} detected in config registry API response. Networks: ${duplicateNames}. Keeping network with highest priority.`;
-
-          if (this.messenger.captureException) {
-            this.messenger.captureException(new Error(warningMessage));
-          }
-
-          // Sort by priority (lower number = higher priority), then by index (first occurrence)
-          networks.sort((a, b) => {
-            const priorityDiff = a.network.priority - b.network.priority;
-            if (priorityDiff === 0) {
-              return a.index - b.index;
-            }
-            return priorityDiff;
-          });
-        }
-
-        // Use the first network (highest priority if duplicates existed)
-        const selectedNetwork = networks[0].network;
-        newConfigs[chainId] = {
-          key: chainId,
-          value: selectedNetwork,
-        };
-      }
-
       this.update((state) => {
-        // eslint-disable-next-line @typescript-eslint/ban-ts-comment
-        // @ts-ignore - Type instantiation is excessively deep
-        (state.configs as ConfigRegistryState['configs']) = {
-          networks: newConfigs,
-        };
+        state.configs.networks = newConfigs;
         state.version = result.data.data.version;
         state.lastFetched = Date.now();
         state.etag = result.etag ?? null;

@@ -4,21 +4,19 @@ import type {
   MessengerEvents,
 } from '@metamask/messenger';
 import { Messenger, MOCK_ANY_NAMESPACE } from '@metamask/messenger';
+import type { NetworkConfiguration } from '@metamask/network-controller';
 import { useFakeTimers } from 'sinon';
 
+import type { FetchConfigResult } from './config-registry-api-service';
 import type {
-  FetchConfigResult,
-  RegistryNetworkConfig,
-} from './config-registry-api-service';
+  ConfigRegistryMessenger,
+  ConfigRegistryState,
+} from './ConfigRegistryController';
 import {
   ConfigRegistryController,
   DEFAULT_POLLING_INTERVAL,
 } from './ConfigRegistryController';
-import type {
-  ConfigRegistryMessenger,
-  ConfigRegistryState,
-  NetworkConfigEntry,
-} from './ConfigRegistryController';
+import { createMockNetworkConfig } from './test-helpers';
 import { advanceTime } from '../../../tests/helpers';
 
 const namespace = 'ConfigRegistryController' as const;
@@ -40,6 +38,7 @@ function getConfigRegistryControllerMessenger(): {
 } {
   const rootMessenger: RootMessenger = new Messenger({
     namespace: MOCK_ANY_NAMESPACE,
+    captureException: jest.fn(),
   });
 
   const configRegistryControllerMessenger: ConfigRegistryMessenger =
@@ -65,55 +64,11 @@ function getConfigRegistryControllerMessenger(): {
   return { messenger: configRegistryControllerMessenger, rootMessenger };
 }
 
-/**
- * Creates a mock RegistryNetworkConfig for testing.
- *
- * @param overrides - Optional properties to override in the default RegistryNetworkConfig.
- * @returns A mock RegistryNetworkConfig object.
- */
-function createMockNetworkConfig(
-  overrides: Partial<RegistryNetworkConfig> = {},
-): RegistryNetworkConfig {
-  return {
-    chainId: '0x1',
-    name: 'Ethereum Mainnet',
-    nativeCurrency: 'ETH',
-    rpcEndpoints: [
-      {
-        url: 'https://mainnet.infura.io/v3/{infuraProjectId}',
-        type: 'infura',
-        networkClientId: 'mainnet',
-        failoverUrls: [],
-      },
-    ],
-    blockExplorerUrls: ['https://etherscan.io'],
-    defaultRpcEndpointIndex: 0,
-    defaultBlockExplorerUrlIndex: 0,
-    isActive: true,
-    isTestnet: false,
-    isDefault: true,
-    isFeatured: true,
-    isDeprecated: false,
-    priority: 0,
-    isDeletable: false,
-    ...overrides,
-  };
-}
-
-const MOCK_CONFIG_ENTRY: NetworkConfigEntry = {
-  key: 'test-key',
-  value: createMockNetworkConfig({ chainId: '0x1', name: 'Test Network' }),
-  metadata: { source: 'test' },
-};
-
-const MOCK_FALLBACK_CONFIG: Record<string, NetworkConfigEntry> = {
-  'fallback-key': {
-    key: 'fallback-key',
-    value: createMockNetworkConfig({
-      chainId: '0x2',
-      name: 'Fallback Network',
-    }),
-  },
+const MOCK_FALLBACK_CONFIG: Record<string, NetworkConfiguration> = {
+  'fallback-key': createMockNetworkConfig({
+    chainId: '0x2',
+    name: 'Fallback Network',
+  }) as NetworkConfiguration,
 };
 
 /**
@@ -199,7 +154,7 @@ async function withController<ReturnValue>(
       mockRemoteFeatureFlagGetState,
     });
   } finally {
-    controller.stopPolling();
+    controller.stopAllPolling();
     clock.restore();
     mockApiServiceHandler.mockReset();
   }
@@ -213,19 +168,20 @@ describe('ConfigRegistryController', () => {
           configs: { networks: {} },
           version: null,
           lastFetched: null,
-          fetchError: null,
           etag: null,
         });
       });
     });
 
     it('sets initial state when provided', async () => {
+      const initialNetworks: Record<string, NetworkConfiguration> = {
+        'test-key': createMockNetworkConfig({
+          chainId: '0x1',
+          name: 'Test Network',
+        }) as NetworkConfiguration,
+      };
       const initialState: Partial<ConfigRegistryState> = {
-        configs: {
-          networks: {
-            'test-key': MOCK_CONFIG_ENTRY,
-          },
-        },
+        configs: { networks: initialNetworks },
         version: 'v1.0.0',
         lastFetched: 1234567890,
       };
@@ -234,7 +190,7 @@ describe('ConfigRegistryController', () => {
         { options: { state: initialState } },
         ({ controller }) => {
           expect(controller.state.configs.networks).toStrictEqual(
-            initialState.configs?.networks,
+            initialNetworks,
           );
           expect(controller.state.version).toBe('v1.0.0');
           expect(controller.state.lastFetched).toBe(1234567890);
@@ -269,7 +225,6 @@ describe('ConfigRegistryController', () => {
           configs: { networks: {} },
           version: null,
           lastFetched: null,
-          fetchError: null,
           etag: null,
         });
       });
@@ -285,7 +240,7 @@ describe('ConfigRegistryController', () => {
         await advanceTime({ clock, duration: 0 });
 
         expect(executePollSpy).toHaveBeenCalledTimes(1);
-        controller.stopPolling();
+        controller.stopAllPolling();
       });
     });
 
@@ -303,7 +258,7 @@ describe('ConfigRegistryController', () => {
           await advanceTime({ clock, duration: pollingInterval });
 
           expect(executePollSpy).toHaveBeenCalledTimes(1);
-          controller.stopPolling();
+          controller.stopAllPolling();
         },
       );
     });
@@ -316,7 +271,7 @@ describe('ConfigRegistryController', () => {
         await advanceTime({ clock, duration: 0 });
         executePollSpy.mockClear();
 
-        controller.stopPolling();
+        controller.stopAllPolling();
 
         await advanceTime({ clock, duration: DEFAULT_POLLING_INTERVAL });
 
@@ -410,23 +365,18 @@ describe('ConfigRegistryController', () => {
           expect(testController.state.configs).toStrictEqual({
             networks: MOCK_FALLBACK_CONFIG,
           });
-          expect(testController.state.fetchError).toBe('Network error');
         },
       );
     });
 
-    it('sets fetchError when configs already exist (not use fallback)', async () => {
-      const existingConfigs = {
-        networks: {
-          'existing-key': {
-            key: 'existing-key',
-            value: createMockNetworkConfig({
-              chainId: '0x3',
-              name: 'Existing Network',
-            }),
-          },
-        },
+    it('keeps existing configs when fetch fails and configs already exist', async () => {
+      const existingNetworks: Record<string, NetworkConfiguration> = {
+        'existing-key': createMockNetworkConfig({
+          chainId: '0x3',
+          name: 'Existing Network',
+        }) as NetworkConfiguration,
       };
+      const existingConfigs = { networks: existingNetworks };
 
       await withController(
         {
@@ -512,8 +462,9 @@ describe('ConfigRegistryController', () => {
           expect(captureExceptionSpy).toHaveBeenCalledWith(
             expect.objectContaining({ message: 'Network error' }),
           );
-          expect(testController.state.configs).toStrictEqual(existingConfigs);
-          expect(testController.state.fetchError).toBe('Network error');
+          expect(testController.state.configs.networks).toStrictEqual(
+            existingNetworks,
+          );
         },
       );
     });
@@ -604,21 +555,13 @@ describe('ConfigRegistryController', () => {
           expect(testController.state.configs).toStrictEqual({
             networks: MOCK_FALLBACK_CONFIG,
           });
-          expect(testController.state.fetchError).toBe('Network error');
           expect(mockRemoteFeatureFlagGetState).toHaveBeenCalled();
         },
       );
     });
 
-    it('handles unmodified response and clears fetchError', async () => {
+    it('handles unmodified response and updates lastFetched and etag', async () => {
       await withController(
-        {
-          options: {
-            state: {
-              fetchError: 'Previous error',
-            },
-          },
-        },
         async ({
           controller,
           mockRemoteFeatureFlagGetState,
@@ -640,7 +583,6 @@ describe('ConfigRegistryController', () => {
           await controller._executePoll(null);
           const afterTimestamp = Date.now();
 
-          expect(controller.state.fetchError).toBeNull();
           expect(controller.state.etag).toBe('"test-etag"');
           expect(controller.state.lastFetched).not.toBeNull();
           expect(controller.state.lastFetched).toBeGreaterThanOrEqual(
@@ -658,7 +600,6 @@ describe('ConfigRegistryController', () => {
         {
           options: {
             state: {
-              fetchError: 'Previous error',
               etag: '"existing-etag"',
             },
           },
@@ -683,7 +624,6 @@ describe('ConfigRegistryController', () => {
           await controller._executePoll(null);
           const afterTimestamp = Date.now();
 
-          expect(controller.state.fetchError).toBeNull();
           expect(controller.state.etag).toBe('"existing-etag"');
           expect(controller.state.lastFetched).not.toBeNull();
           expect(controller.state.lastFetched).toBeGreaterThanOrEqual(
@@ -701,7 +641,6 @@ describe('ConfigRegistryController', () => {
         {
           options: {
             state: {
-              fetchError: 'Previous error',
               etag: '"existing-etag"',
             },
           },
@@ -727,7 +666,6 @@ describe('ConfigRegistryController', () => {
           await controller._executePoll(null);
           const afterTimestamp = Date.now();
 
-          expect(controller.state.fetchError).toBeNull();
           expect(controller.state.etag).toBeNull();
           expect(controller.state.lastFetched).not.toBeNull();
           expect(controller.state.lastFetched).toBeGreaterThanOrEqual(
@@ -827,9 +765,6 @@ describe('ConfigRegistryController', () => {
               message: 'Validation error from superstruct',
             }),
           );
-          expect(testController.state.fetchError).toBe(
-            'Validation error from superstruct',
-          );
         },
       );
     });
@@ -838,6 +773,7 @@ describe('ConfigRegistryController', () => {
       await withController(
         async ({
           controller,
+          rootMessenger,
           mockRemoteFeatureFlagGetState,
           mockApiServiceHandler,
         }) => {
@@ -855,8 +791,10 @@ describe('ConfigRegistryController', () => {
 
           await controller._executePoll(null);
 
-          expect(controller.state.fetchError).toBe(
-            'Validation error: data.data is missing',
+          expect(rootMessenger.captureException).toHaveBeenCalledWith(
+            expect.objectContaining({
+              message: 'Validation error: data.data is missing',
+            }),
           );
         },
       );
@@ -866,6 +804,7 @@ describe('ConfigRegistryController', () => {
       await withController(
         async ({
           controller,
+          rootMessenger,
           mockRemoteFeatureFlagGetState,
           mockApiServiceHandler,
         }) => {
@@ -883,8 +822,10 @@ describe('ConfigRegistryController', () => {
 
           await controller._executePoll(null);
 
-          expect(controller.state.fetchError).toBe(
-            'Validation error: data.data.networks is not an array',
+          expect(rootMessenger.captureException).toHaveBeenCalledWith(
+            expect.objectContaining({
+              message: 'Validation error: data.data.networks is not an array',
+            }),
           );
         },
       );
@@ -894,6 +835,7 @@ describe('ConfigRegistryController', () => {
       await withController(
         async ({
           controller,
+          rootMessenger,
           mockRemoteFeatureFlagGetState,
           mockApiServiceHandler,
         }) => {
@@ -911,20 +853,23 @@ describe('ConfigRegistryController', () => {
 
           await controller._executePoll(null);
 
-          expect(controller.state.fetchError).toBe(
-            'Validation error: data.data.version is not a string',
+          expect(rootMessenger.captureException).toHaveBeenCalledWith(
+            expect.objectContaining({
+              message: 'Validation error: data.data.version is not a string',
+            }),
           );
         },
       );
     });
 
-    it('skips fetch when lastFetched is within polling interval', async () => {
-      const recentTimestamp = Date.now() - 1000;
+    it('skips fetch when lastFetched is in the future', async () => {
+      const now = Date.now();
+      const futureTimestamp = now + 10000;
       await withController(
         {
           options: {
             state: {
-              lastFetched: recentTimestamp,
+              lastFetched: futureTimestamp,
             },
           },
         },
@@ -933,7 +878,7 @@ describe('ConfigRegistryController', () => {
             remoteFeatureFlags: {
               configRegistryApiEnabled: true,
             },
-            cacheTimestamp: Date.now(),
+            cacheTimestamp: now,
           });
 
           const fetchConfigSpy = jest.spyOn(
@@ -1205,9 +1150,6 @@ describe('ConfigRegistryController', () => {
           expect(testController.state.configs).toStrictEqual({
             networks: MOCK_FALLBACK_CONFIG,
           });
-          expect(testController.state.fetchError).toBe(
-            'Unknown error occurred',
-          );
         },
       );
     });
@@ -1306,7 +1248,6 @@ describe('ConfigRegistryController', () => {
           expect(testController.state.configs).toStrictEqual({
             networks: MOCK_FALLBACK_CONFIG,
           });
-          expect(testController.state.fetchError).toBe('Network error');
         },
       );
     });
@@ -1350,15 +1291,6 @@ describe('ConfigRegistryController', () => {
         },
       );
     });
-
-    it('persists fetchError', async () => {
-      await withController(
-        { options: { state: { fetchError: 'Test error' } } },
-        ({ controller }) => {
-          expect(controller.state.fetchError).toBe('Test error');
-        },
-      );
-    });
   });
 
   describe('startPolling', () => {
@@ -1368,7 +1300,7 @@ describe('ConfigRegistryController', () => {
         expect(typeof token).toBe('string');
         expect(token.length).toBeGreaterThan(0);
 
-        controller.stopPolling();
+        controller.stopAllPolling();
       });
     });
 
@@ -1378,7 +1310,7 @@ describe('ConfigRegistryController', () => {
         expect(typeof token).toBe('string');
         expect(token.length).toBeGreaterThan(0);
 
-        controller.stopPolling();
+        controller.stopAllPolling();
       });
     });
 
@@ -1399,13 +1331,15 @@ describe('ConfigRegistryController', () => {
           const executePollSpy = jest.spyOn(controller, '_executePoll');
           controller.startPolling(null);
 
+          // StaticIntervalPollingController runs first poll after 0ms (executePoll may early-return due to lastFetched)
           await advanceTime({ clock, duration: 0 });
-          expect(executePollSpy).not.toHaveBeenCalled();
+          expect(executePollSpy).toHaveBeenCalledTimes(1);
 
+          // Next poll is scheduled at pollingInterval; advancing remainingTime+1 does not reach it
           await advanceTime({ clock, duration: remainingTime + 1 });
           expect(executePollSpy).toHaveBeenCalledTimes(1);
 
-          controller.stopPolling();
+          controller.stopAllPolling();
         },
       );
     });
@@ -1426,7 +1360,7 @@ describe('ConfigRegistryController', () => {
           await advanceTime({ clock, duration: 0 });
           expect(executePollSpy).toHaveBeenCalledTimes(1);
 
-          controller.stopPolling();
+          controller.stopAllPolling();
         },
       );
     });
@@ -1452,7 +1386,7 @@ describe('ConfigRegistryController', () => {
           await advanceTime({ clock, duration: 1 });
           expect(executePollSpy).toHaveBeenCalledTimes(1);
 
-          controller.stopPolling();
+          controller.stopAllPolling();
           jest.restoreAllMocks();
         },
       );
@@ -1479,7 +1413,7 @@ describe('ConfigRegistryController', () => {
           await advanceTime({ clock, duration: 1 });
           expect(executePollSpy).toHaveBeenCalledTimes(1);
 
-          controller.stopPolling();
+          controller.stopAllPolling();
           jest.restoreAllMocks();
         },
       );
@@ -1503,10 +1437,11 @@ describe('ConfigRegistryController', () => {
           const executePollSpy = jest.spyOn(controller, '_executePoll');
           controller.startPolling(null);
 
+          // StaticIntervalPollingController runs first poll after 0ms
           await advanceTime({ clock, duration: 0 });
-          expect(executePollSpy).not.toHaveBeenCalled();
+          expect(executePollSpy).toHaveBeenCalledTimes(1);
 
-          controller.stopPolling();
+          controller.stopAllPolling();
         },
       );
     });
@@ -1527,25 +1462,24 @@ describe('ConfigRegistryController', () => {
           const executePollSpy = jest.spyOn(controller, '_executePoll');
           const clearTimeoutSpy = jest.spyOn(global, 'clearTimeout');
 
-          // First call sets a timeout
+          // First call runs first poll after 0ms
           controller.startPolling(null);
           await advanceTime({ clock, duration: 0 });
-          expect(executePollSpy).not.toHaveBeenCalled();
+          expect(executePollSpy).toHaveBeenCalledTimes(1);
 
           const clearTimeoutCallCountBefore = clearTimeoutSpy.mock.calls.length;
 
-          // Second call should clear the existing timeout (from first call) and set a new one
-          // This tests the defensive check that clears any existing timeout
+          // Second call reuses same session (same input); no new _startPolling, so no extra executePoll
           controller.startPolling(null);
           await advanceTime({ clock, duration: 0 });
-          expect(executePollSpy).not.toHaveBeenCalled();
+          expect(executePollSpy).toHaveBeenCalledTimes(1);
 
-          // Verify clearTimeout was called to clear the previous timeout
-          expect(clearTimeoutSpy.mock.calls.length).toBeGreaterThan(
+          // _startPolling clears before setting; clearTimeout is used when rescheduling after executePoll
+          expect(clearTimeoutSpy.mock.calls.length).toBeGreaterThanOrEqual(
             clearTimeoutCallCountBefore,
           );
 
-          controller.stopPolling();
+          controller.stopAllPolling();
         },
       );
     });
@@ -1572,11 +1506,8 @@ describe('ConfigRegistryController', () => {
           expect(controller.state.configs).toStrictEqual({
             networks: MOCK_FALLBACK_CONFIG,
           });
-          expect(controller.state.fetchError).toBe(
-            'Feature flag disabled - using fallback configuration',
-          );
 
-          controller.stopPolling();
+          controller.stopAllPolling();
         },
       );
     });
@@ -1640,7 +1571,6 @@ describe('ConfigRegistryController', () => {
           expect(fetchConfigSpy).toHaveBeenCalled();
           expect(controller.state.configs.networks['0x1']).toBeDefined();
           expect(controller.state.version).toBe('1.0.0');
-          expect(controller.state.fetchError).toBeNull();
         },
       );
     });
@@ -1942,33 +1872,21 @@ describe('ConfigRegistryController', () => {
 
           await testController._executePoll(null);
 
-          // Verify warning was logged
-          expect(captureExceptionSpy).toHaveBeenCalled();
-          const warningCall = captureExceptionSpy.mock.calls.find((call) =>
-            call[0]?.message?.includes('Duplicate chainId 0x1'),
-          );
-          expect(warningCall).toBeDefined();
-          expect(warningCall?.[0]?.message).toContain(
-            'Ethereum Mainnet (Low Priority), Ethereum Mainnet (High Priority)',
-          );
-
-          // Verify highest priority network was kept
+          // Last occurrence overwrites (no grouping/priority)
           expect(testController.state.configs.networks['0x1']).toBeDefined();
-          expect(testController.state.configs.networks['0x1']?.value.name).toBe(
+          expect(testController.state.configs.networks['0x1']?.name).toBe(
             'Ethereum Mainnet (High Priority)',
           );
           expect(
-            testController.state.configs.networks['0x1']?.value.rpcEndpoints[0]
-              .type,
+            testController.state.configs.networks['0x1']?.rpcEndpoints[0].type,
           ).toBe('alchemy');
 
-          // Verify other networks are still present
           expect(testController.state.configs.networks['0x89']).toBeDefined();
         },
       );
     });
 
-    it('handles duplicate chainIds with same priority by keeping first occurrence', async () => {
+    it('handles duplicate chainIds by keeping last occurrence', async () => {
       await withController(
         async ({ mockRemoteFeatureFlagGetState, mockApiServiceHandler }) => {
           mockRemoteFeatureFlagGetState.mockReturnValue({
@@ -2106,17 +2024,10 @@ describe('ConfigRegistryController', () => {
 
           await testController._executePoll(null);
 
-          // Verify warning was logged
-          expect(captureExceptionSpy).toHaveBeenCalled();
-          const warningCall = captureExceptionSpy.mock.calls.find((call) =>
-            call[0]?.message?.includes('Duplicate chainId 0x1'),
-          );
-          expect(warningCall).toBeDefined();
-
-          // Verify first occurrence was kept (since priorities are equal)
+          // Last occurrence overwrites
           expect(testController.state.configs.networks['0x1']).toBeDefined();
-          expect(testController.state.configs.networks['0x1']?.value.name).toBe(
-            'Ethereum Mainnet (First)',
+          expect(testController.state.configs.networks['0x1']?.name).toBe(
+            'Ethereum Mainnet (Second)',
           );
         },
       );
@@ -2196,9 +2107,6 @@ describe('ConfigRegistryController', () => {
           expect(controller.state.configs).toStrictEqual({
             networks: MOCK_FALLBACK_CONFIG,
           });
-          expect(controller.state.fetchError).toBe(
-            'Feature flag disabled - using fallback configuration',
-          );
         },
       );
     });
@@ -2221,11 +2129,8 @@ describe('ConfigRegistryController', () => {
           expect(controller.state.configs).toStrictEqual({
             networks: MOCK_FALLBACK_CONFIG,
           });
-          expect(controller.state.fetchError).toBe(
-            'Feature flag disabled - using fallback configuration',
-          );
 
-          controller.stopPolling();
+          controller.stopAllPolling();
         },
       );
     });
@@ -2247,11 +2152,8 @@ describe('ConfigRegistryController', () => {
           expect(controller.state.configs).toStrictEqual({
             networks: MOCK_FALLBACK_CONFIG,
           });
-          expect(controller.state.fetchError).toBe(
-            'Feature flag disabled - using fallback configuration',
-          );
 
-          controller.stopPolling();
+          controller.stopAllPolling();
         },
       );
     });
@@ -2272,13 +2174,13 @@ describe('ConfigRegistryController', () => {
         expect(startPollingSpy).toHaveBeenCalledWith(null);
         expect(executePollSpy).toHaveBeenCalledTimes(1);
 
-        controller.stopPolling();
+        controller.stopAllPolling();
       });
     });
 
     it('stops polling when KeyringController:lock event is published', async () => {
       await withController(async ({ controller, clock, rootMessenger }) => {
-        const stopPollingSpy = jest.spyOn(controller, 'stopPolling');
+        const stopPollingSpy = jest.spyOn(controller, 'stopAllPolling');
 
         await advanceTime({ clock, duration: 0 });
         expect(stopPollingSpy).not.toHaveBeenCalled();
@@ -2293,12 +2195,12 @@ describe('ConfigRegistryController', () => {
       await withController(async ({ controller, clock }) => {
         const executePollSpy = jest.spyOn(controller, '_executePoll');
 
-        controller.startPolling();
+        controller.startPolling(null);
 
         await advanceTime({ clock, duration: 0 });
         expect(executePollSpy).toHaveBeenCalledTimes(1);
 
-        controller.stopPolling();
+        controller.stopAllPolling();
       });
     });
   });
@@ -2320,16 +2222,16 @@ describe('ConfigRegistryController', () => {
           const executePollSpy = jest.spyOn(controller, '_executePoll');
           controller.startPolling(null);
 
-          // Verify timeout was set (poll should not execute immediately)
+          // StaticIntervalPollingController runs first poll after 0ms
           await advanceTime({ clock, duration: 0 });
-          expect(executePollSpy).not.toHaveBeenCalled();
+          expect(executePollSpy).toHaveBeenCalledTimes(1);
 
-          // Stop polling should clear the timeout
-          controller.stopPolling();
+          // Stop polling should clear the next scheduled timeout
+          controller.stopAllPolling();
 
-          // Advance time past when the timeout would have fired
+          // Advance time past when the next poll would have fired
           await advanceTime({ clock, duration: pollingInterval });
-          expect(executePollSpy).not.toHaveBeenCalled();
+          expect(executePollSpy).toHaveBeenCalledTimes(1);
         },
       );
     });
@@ -2337,7 +2239,7 @@ describe('ConfigRegistryController', () => {
     it('handles clearing timeout when no timeout exists', async () => {
       await withController(({ controller }) => {
         // Should not throw when stopping without a pending timeout
-        expect(() => controller.stopPolling()).not.toThrow();
+        expect(() => controller.stopAllPolling()).not.toThrow();
       });
     });
 
@@ -2357,16 +2259,16 @@ describe('ConfigRegistryController', () => {
           const executePollSpy = jest.spyOn(controller, '_executePoll');
           const token = controller.startPolling(null);
 
-          // Verify timeout was set (poll should not execute immediately)
+          // StaticIntervalPollingController runs first poll after 0ms
           await advanceTime({ clock, duration: 0 });
-          expect(executePollSpy).not.toHaveBeenCalled();
+          expect(executePollSpy).toHaveBeenCalledTimes(1);
 
           // Stop polling using the placeholder token
-          controller.stopPolling(token);
+          controller.stopPollingByPollingToken(token);
 
-          // Advance time past when the timeout would have fired
+          // Advance time past when the next poll would have fired
           await advanceTime({ clock, duration: pollingInterval });
-          expect(executePollSpy).not.toHaveBeenCalled();
+          expect(executePollSpy).toHaveBeenCalledTimes(1);
         },
       );
     });
@@ -2394,7 +2296,7 @@ describe('ConfigRegistryController', () => {
           executePollSpy.mockClear();
 
           // Stop polling using the placeholder token (should map to actual token)
-          controller.stopPolling(token);
+          controller.stopPollingByPollingToken(token);
 
           // Advance time to verify polling stopped
           await advanceTime({ clock, duration: pollingInterval });
@@ -2416,7 +2318,7 @@ describe('ConfigRegistryController', () => {
         executePollSpy.mockClear();
 
         // Stop without token should stop all polling
-        controller.stopPolling();
+        controller.stopAllPolling();
 
         await advanceTime({ clock, duration: DEFAULT_POLLING_INTERVAL });
         expect(executePollSpy).not.toHaveBeenCalled();
@@ -2433,18 +2335,17 @@ describe('ConfigRegistryController', () => {
         expect(executePollSpy).toHaveBeenCalledTimes(1);
         executePollSpy.mockClear();
 
-        // Start polling from consumer B (should reuse same polling session)
-        controller.startPolling(null);
+        // Start polling from consumer B (reuses same polling session)
+        const tokenB = controller.startPolling(null);
         await advanceTime({ clock, duration: 0 });
-        // Since both use same input (null), they share the same polling session
-        // So stopping one token should stop the shared session
         expect(executePollSpy).toHaveBeenCalledTimes(0);
         executePollSpy.mockClear();
 
-        // Stop consumer A's polling session
-        controller.stopPolling(tokenA);
+        // Stop both consumers so the shared session is fully stopped
+        controller.stopPollingByPollingToken(tokenA);
+        controller.stopPollingByPollingToken(tokenB);
 
-        // Polling should stop for both since they share the same session
+        // No more polls after session is stopped
         await advanceTime({ clock, duration: DEFAULT_POLLING_INTERVAL });
         expect(executePollSpy).not.toHaveBeenCalled();
       });

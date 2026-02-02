@@ -1,59 +1,33 @@
-import { filterNetworks } from './transformers';
+import { filterNetworks } from './filters';
 import type { RegistryNetworkConfig } from './types';
+import { createMockNetworkConfig } from '../test-helpers';
 
-const VALID_NETWORK_CONFIG: RegistryNetworkConfig = {
-  chainId: '0x1',
-  name: 'Ethereum Mainnet',
-  nativeCurrency: 'ETH',
-  rpcEndpoints: [
-    {
-      url: 'https://mainnet.infura.io/v3/{infuraProjectId}',
-      type: 'infura',
-      networkClientId: 'mainnet',
-      failoverUrls: ['https://backup.infura.io/v3/{infuraProjectId}'],
-    },
-  ],
-  blockExplorerUrls: ['https://etherscan.io'],
-  defaultRpcEndpointIndex: 0,
-  defaultBlockExplorerUrlIndex: 0,
-  isActive: true,
-  isTestnet: false,
-  isDefault: true,
-  isFeatured: true,
-  isDeprecated: false,
-  priority: 0,
-  isDeletable: false,
-};
-
-describe('transformers', () => {
+describe('filters', () => {
   describe('filterNetworks', () => {
     const networks: RegistryNetworkConfig[] = [
-      {
-        ...VALID_NETWORK_CONFIG,
+      createMockNetworkConfig({
         isFeatured: true,
         isTestnet: false,
         isActive: true,
         isDeprecated: false,
         isDefault: true,
-      },
-      {
-        ...VALID_NETWORK_CONFIG,
+      }),
+      createMockNetworkConfig({
         chainId: '0x5',
         isFeatured: false,
         isTestnet: true,
         isActive: true,
         isDeprecated: false,
         isDefault: false,
-      },
-      {
-        ...VALID_NETWORK_CONFIG,
+      }),
+      createMockNetworkConfig({
         chainId: '0x2a',
         isFeatured: true,
         isTestnet: false,
         isActive: false,
         isDeprecated: true,
         isDefault: false,
-      },
+      }),
     ];
 
     it('returns all networks when no filters applied', () => {

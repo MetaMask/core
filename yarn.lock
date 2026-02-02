@@ -2981,6 +2981,7 @@ __metadata:
     "@metamask/base-controller": "npm:^9.0.0"
     "@metamask/controller-utils": "npm:^11.18.0"
     "@metamask/messenger": "npm:^0.3.0"
+    "@metamask/network-controller": "npm:^29.0.0"
     "@metamask/polling-controller": "npm:^16.0.2"
     "@metamask/profile-sync-controller": "npm:^27.0.0"
     "@metamask/remote-feature-flag-controller": "npm:^4.0.0"
