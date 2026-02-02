@@ -348,6 +348,102 @@ export type RampsControllerOptions = {
   requestCacheMaxSize?: number;
 };
 
+/**
+ * Returns true if the value looks like a ResourceState (has data and isLoading).
+ * Used to detect legacy persisted state that used flat arrays or top-level selected*.
+ */
+function isResourceStateShape(
+  value: unknown,
+): value is ResourceState<unknown, unknown> {
+  return (
+    value !== null &&
+    typeof value === 'object' &&
+    'data' in value &&
+    'isLoading' in value
+  );
+}
+
+/**
+ * Migrates legacy persisted RampsController state to the nested ResourceState shape.
+ * Old state had e.g. providers as Provider[], selectedProvider at top level;
+ * new state has providers: { data, selected, isLoading, error }.
+ * Returns a copy of state with legacy fields normalized and top-level selected*
+ * removed so the constructor merge works correctly.
+ */
+function migrateLegacyRampsControllerState(
+  state: Partial<RampsControllerState> & Record<string, unknown>,
+): Partial<RampsControllerState> & Record<string, unknown> {
+  if (!state || typeof state !== 'object') {
+    return state ?? {};
+  }
+
+  const normalized = { ...state };
+
+  if (
+    'selectedProvider' in normalized ||
+    'selectedToken' in normalized ||
+    'selectedPaymentMethod' in normalized
+  ) {
+    delete normalized.selectedProvider;
+    delete normalized.selectedToken;
+    delete normalized.selectedPaymentMethod;
+  }
+
+  if (Array.isArray(state.providers)) {
+    normalized.providers = createDefaultResourceState(
+      state.providers,
+      (state.selectedProvider as Provider | null) ?? null,
+    );
+  }
+
+  if (state.tokens != null && !isResourceStateShape(state.tokens)) {
+    normalized.tokens = createDefaultResourceState<
+      TokensResponse | null,
+      RampsToken | null
+    >(
+      state.tokens as TokensResponse | null,
+      (state.selectedToken as RampsToken | null) ?? null,
+    );
+  }
+
+  if (Array.isArray(state.paymentMethods)) {
+    normalized.paymentMethods = createDefaultResourceState(
+      state.paymentMethods,
+      (state.selectedPaymentMethod as PaymentMethod | null) ?? null,
+    );
+  }
+
+
+  // migrate legacy userRegion shape to the nested ResourceState shape
+  if (typeof state.userRegion === 'string') {
+    normalized.userRegion = createDefaultResourceState<UserRegion | null>(null);
+  } else if (
+    state.userRegion != null &&
+    !isResourceStateShape(state.userRegion)
+  ) {
+    normalized.userRegion = createDefaultResourceState(
+      state.userRegion as UserRegion | null,
+      null,
+    );
+  }
+
+  if (Array.isArray(state.countries)) {
+    normalized.countries = createDefaultResourceState(
+      state.countries as Country[],
+      null,
+    );
+  }
+
+  if (state.quotes != null && !isResourceStateShape(state.quotes)) {
+    normalized.quotes = createDefaultResourceState<QuotesResponse | null>(
+      state.quotes as QuotesResponse | null,
+      null,
+    );
+  }
+
+  return normalized;
+}
+
 // === HELPER FUNCTIONS ===
 
 /**
@@ -476,13 +572,16 @@ export class RampsController extends BaseController<
     requestCacheTTL = DEFAULT_REQUEST_CACHE_TTL,
     requestCacheMaxSize = DEFAULT_REQUEST_CACHE_MAX_SIZE,
   }: RampsControllerOptions) {
+    const normalizedState = migrateLegacyRampsControllerState(
+      (state ?? {}) as Partial<RampsControllerState> & Record<string, unknown>,
+    );
     super({
       messenger,
       metadata: rampsControllerMetadata,
       name: controllerName,
       state: {
         ...getDefaultRampsControllerState(),
-        ...state,
+        ...normalizedState,
         // Always reset requests cache on initialization (non-persisted)
         requests: {},
       },
@@ -641,6 +740,9 @@ export class RampsController extends BaseController<
     });
   }
 
+  /**
+   * Cleans up the state by resetting all region-dependent resources.
+   */
   #cleanupState(): void {
     this.update((state) =>
       resetDependentResources(state as unknown as RampsControllerState, {

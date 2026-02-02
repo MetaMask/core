@@ -164,6 +164,78 @@ describe('RampsController', () => {
         },
       );
     });
+
+    it('migrates legacy persisted state (flat providers + top-level selectedProvider) to nested ResourceState', async () => {
+      const legacyProviders: Provider[] = [
+        {
+          id: '/providers/legacy',
+          name: 'Legacy Provider',
+          environmentType: 'STAGING',
+          description: '',
+          hqAddress: '',
+          links: [],
+          logos: { light: '', dark: '', height: 0, width: 0 },
+        },
+      ];
+      const legacySelectedProvider = legacyProviders[0];
+      const legacyState = {
+        providers: legacyProviders,
+        selectedProvider: legacySelectedProvider,
+        tokens: { topTokens: [], allTokens: [] } as TokensResponse,
+        selectedToken: null,
+        paymentMethods: [] as PaymentMethod[],
+        selectedPaymentMethod: null,
+      };
+
+      await withController(
+        { options: { state: legacyState as never } },
+        ({ controller }) => {
+          expect(controller.state.providers).toMatchObject({
+            data: legacyProviders,
+            selected: legacySelectedProvider,
+            isLoading: false,
+            error: null,
+          });
+          expect(controller.state.tokens).toMatchObject({
+            data: { topTokens: [], allTokens: [] },
+            selected: null,
+            isLoading: false,
+            error: null,
+          });
+          expect(controller.state.paymentMethods).toMatchObject({
+            data: [],
+            selected: null,
+            isLoading: false,
+            error: null,
+          });
+          expect(
+            (controller.state as Record<string, unknown>).selectedProvider,
+          ).toBeUndefined();
+          expect(
+            (controller.state as Record<string, unknown>).selectedToken,
+          ).toBeUndefined();
+          expect(
+            (controller.state as Record<string, unknown>).selectedPaymentMethod,
+          ).toBeUndefined();
+        },
+      );
+    });
+
+    it('migrates legacy string userRegion to null so init() will geolocate and set correct object', async () => {
+      const legacyState = { userRegion: 'us-ca' as never };
+
+      await withController(
+        { options: { state: legacyState } },
+        ({ controller }) => {
+          expect(controller.state.userRegion).toMatchObject({
+            data: null,
+            selected: null,
+            isLoading: false,
+            error: null,
+          });
+        },
+      );
+    });
   });
 
   describe('getProviders', () => {
