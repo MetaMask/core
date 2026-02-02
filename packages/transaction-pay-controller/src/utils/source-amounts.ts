@@ -44,7 +44,11 @@ export function updateSourceAmounts(
   // For post-quote (withdrawal) flows, source amounts are calculated differently
   // The source is the transaction's required token, not the selected token
   if (isPostQuote) {
-    const sourceAmounts = calculatePostQuoteSourceAmounts(tokens, paymentToken);
+    const sourceAmounts = calculatePostQuoteSourceAmounts(
+      tokens,
+      paymentToken,
+      isMaxAmount ?? false,
+    );
     log('Updated post-quote source amounts', { transactionId, sourceAmounts });
     transactionData.sourceAmounts = sourceAmounts;
     return;
@@ -74,11 +78,13 @@ export function updateSourceAmounts(
  *
  * @param tokens - Required tokens from the transaction.
  * @param paymentToken - Selected payment/destination token.
+ * @param isMaxAmount - Whether the transaction is a maximum amount transaction.
  * @returns Array of source amounts.
  */
 function calculatePostQuoteSourceAmounts(
   tokens: TransactionPayRequiredToken[],
   paymentToken: TransactionPaymentToken,
+  isMaxAmount: boolean,
 ): TransactionPaySourceAmount[] {
   return tokens
     .filter((token) => {
@@ -86,8 +92,8 @@ function calculatePostQuoteSourceAmounts(
         return false;
       }
 
-      // Skip zero amounts
-      if (token.amountRaw === '0') {
+      // Skip zero amounts (unless max amount, where we use balance)
+      if (token.amountRaw === '0' && !isMaxAmount) {
         log('Skipping token as zero amount', { tokenAddress: token.address });
         return false;
       }
@@ -101,8 +107,8 @@ function calculatePostQuoteSourceAmounts(
       return true;
     })
     .map((token) => ({
-      sourceAmountHuman: token.amountHuman,
-      sourceAmountRaw: token.amountRaw,
+      sourceAmountHuman: isMaxAmount ? token.balanceHuman : token.amountHuman,
+      sourceAmountRaw: isMaxAmount ? token.balanceRaw : token.amountRaw,
       sourceBalanceRaw: token.balanceRaw,
       sourceChainId: token.chainId,
       sourceTokenAddress: token.address,

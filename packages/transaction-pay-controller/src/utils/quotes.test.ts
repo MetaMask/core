@@ -478,14 +478,12 @@ describe('Quotes Utils', () => {
       });
     });
 
-    it('does not fetch quotes for same-token-same-chain withdrawal', async () => {
+    it('does not fetch quotes when sourceAmounts is empty (same-token filtered in source-amounts)', async () => {
       const sameTokenData: TransactionData = {
         ...POST_QUOTE_TRANSACTION_DATA,
-        paymentToken: {
-          ...DESTINATION_TOKEN_MOCK,
-          address: SOURCE_TOKEN_MOCK.address,
-          chainId: SOURCE_TOKEN_MOCK.chainId,
-        },
+        // Same-token-same-chain cases are filtered out in source-amounts.ts,
+        // so sourceAmounts would be empty
+        sourceAmounts: [],
       };
 
       await run({

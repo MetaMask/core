@@ -5,7 +5,6 @@ import type { Hex, Json } from '@metamask/utils';
 import { createModuleLogger } from '@metamask/utils';
 
 import { getStrategy, getStrategyByName } from './strategy';
-import { isSameToken } from './token';
 import { calculateTotals } from './totals';
 import { getTransaction, updateTransaction } from './transaction';
 import { projectLogger } from '../logger';
@@ -320,25 +319,13 @@ function buildPostQuoteRequests({
       destinationToken.address.toLowerCase(),
   );
 
+  // Same-token-same-chain cases are already filtered in source-amounts.ts
   if (
     !sourceAmount?.sourceTokenAddress ||
     !sourceAmount.sourceChainId ||
     !sourceAmount.sourceBalanceRaw
   ) {
     log('No source amount found for post-quote request', { transactionId });
-    return [];
-  }
-
-  // Check if source and target are the same token on the same chain
-  const sourceToken = {
-    address: sourceAmount.sourceTokenAddress,
-    chainId: sourceAmount.sourceChainId,
-  };
-
-  if (isSameToken(sourceToken, destinationToken)) {
-    // For same-token-same-chain, no quote is needed - the withdrawal goes directly to user
-    // Return empty to indicate no bridging required
-    log('Same token same chain - no bridge needed', { transactionId });
     return [];
   }
 

@@ -281,6 +281,34 @@ describe('Source Amounts Utils', () => {
 
         expect(transactionData.sourceAmounts).toBeUndefined();
       });
+
+      it('uses token balance when isMaxAmount is true in post-quote flow', () => {
+        const transactionData: TransactionData = {
+          isLoading: false,
+          isMaxAmount: true,
+          isPostQuote: true,
+          paymentToken: DESTINATION_TOKEN_MOCK,
+          tokens: [
+            {
+              ...TRANSACTION_TOKEN_MOCK,
+              skipIfBalance: false,
+            },
+          ],
+        };
+
+        updateSourceAmounts(TRANSACTION_ID_MOCK, transactionData, messenger);
+
+        expect(transactionData.sourceAmounts).toStrictEqual([
+          {
+            sourceAmountHuman: TRANSACTION_TOKEN_MOCK.balanceHuman,
+            sourceAmountRaw: TRANSACTION_TOKEN_MOCK.balanceRaw,
+            sourceBalanceRaw: TRANSACTION_TOKEN_MOCK.balanceRaw,
+            sourceChainId: TRANSACTION_TOKEN_MOCK.chainId,
+            sourceTokenAddress: TRANSACTION_TOKEN_MOCK.address,
+            targetTokenAddress: DESTINATION_TOKEN_MOCK.address,
+          },
+        ]);
+      });
     });
   });
 });
