@@ -37,6 +37,34 @@ import type { Draft } from 'immer';
 
 import type { CONTROLLER_NAME, TransactionPayStrategy } from './constants';
 
+/** Quote data for a fiat payment. */
+export type FiatPaymentQuote = {
+  /** Provider fee in fiat currency (e.g. "2.50"). */
+  providerFeeFiat: string;
+  /** Provider fee in USD (e.g. "2.50"). */
+  providerFeeUsd: string;
+  /** Total amount in fiat currency (amountFiat + providerFeeFiat). */
+  totalFiat: string;
+  /** Total amount in USD. */
+  totalUsd: string;
+  /** Estimated duration in seconds. */
+  estimatedDurationSeconds: number;
+};
+
+/** Data for a fiat payment selection. */
+export type FiatPaymentData = {
+  /** Provider ID (PoC: 'transak'). */
+  providerId: string;
+  /** Provider method to use for payment. (PoC: 'credit_debit_card' | 'apple_pay') */
+  method: string;
+  /** Provider method name to use for payment. (PoC: 'Credit Debit Card' | 'Apple Pay') */
+  methodName: string;
+  /** User-entered amount in fiat (e.g. "50"). */
+  amountFiat?: string;
+  /** Fiat currency (PoC: 'usd'). */
+  fiatCurrency?: 'usd';
+};
+
 export type AllowedActions =
   | AccountTrackerControllerGetStateAction
   | BridgeControllerActions
@@ -76,7 +104,10 @@ export type TransactionPayControllerGetDelegationTransactionAction = {
 /** Action to get the pay strategy type used for a transaction. */
 export type TransactionPayControllerGetStrategyAction = {
   type: `${typeof CONTROLLER_NAME}:getStrategy`;
-  handler: (transaction: TransactionMeta) => TransactionPayStrategy;
+  handler: (
+    transaction: TransactionMeta,
+    transactionData?: TransactionData,
+  ) => TransactionPayStrategy;
 };
 
 /** Action to update the payment token for a transaction. */
@@ -91,6 +122,15 @@ export type TransactionPayControllerSetIsMaxAmountAction = {
   handler: (transactionId: string, isMaxAmount: boolean) => void;
 };
 
+/** Action to set the fiat payment data for a transaction. */
+export type TransactionPayControllerSetFiatPaymentAction = {
+  type: `${typeof CONTROLLER_NAME}:setFiatPayment`;
+  handler: (
+    transactionId: string,
+    fiatPayment: FiatPaymentData | undefined,
+  ) => void;
+};
+
 export type TransactionPayControllerStateChangeEvent =
   ControllerStateChangeEvent<
     typeof CONTROLLER_NAME,
@@ -101,6 +141,7 @@ export type TransactionPayControllerActions =
   | TransactionPayControllerGetDelegationTransactionAction
   | TransactionPayControllerGetStateAction
   | TransactionPayControllerGetStrategyAction
+  | TransactionPayControllerSetFiatPaymentAction
   | TransactionPayControllerSetIsMaxAmountAction
   | TransactionPayControllerUpdatePaymentTokenAction;
 
@@ -119,7 +160,10 @@ export type TransactionPayControllerOptions = {
   getDelegationTransaction: GetDelegationTransactionCallback;
 
   /** Callback to select the PayStrategy for a transaction. */
-  getStrategy?: (transaction: TransactionMeta) => TransactionPayStrategy;
+  getStrategy?: (
+    transaction: TransactionMeta,
+    transactionData?: TransactionData,
+  ) => TransactionPayStrategy;
 
   /** Controller messenger. */
   messenger: TransactionPayControllerMessenger;
@@ -159,6 +203,9 @@ export type TransactionData = {
 
   /** Calculated totals for the transaction. */
   totals?: TransactionPayTotals;
+
+  /** Fiat payment data if user selected fiat payment method. */
+  fiatPayment?: FiatPaymentData;
 };
 
 /** A token required by a transaction. */

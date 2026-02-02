@@ -31,7 +31,7 @@ export function updateSourceAmounts(
   transactionData: TransactionData | undefined,
   messenger: TransactionPayControllerMessenger,
 ): void {
-  if (!transactionData) {
+  if (!transactionData || transactionData.fiatPayment) {
     return;
   }
 

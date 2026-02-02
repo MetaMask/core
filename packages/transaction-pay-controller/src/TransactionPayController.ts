@@ -8,6 +8,7 @@ import { updatePaymentToken } from './actions/update-payment-token';
 import { CONTROLLER_NAME, TransactionPayStrategy } from './constants';
 import { QuoteRefresher } from './helpers/QuoteRefresher';
 import type {
+  FiatPaymentData,
   GetDelegationTransactionCallback,
   TransactionData,
   TransactionPayControllerMessenger,
@@ -41,6 +42,7 @@ export class TransactionPayController extends BaseController<
 
   readonly #getStrategy?: (
     transaction: TransactionMeta,
+    transactionData?: TransactionData,
   ) => TransactionPayStrategy;
 
   constructor({
@@ -77,6 +79,26 @@ export class TransactionPayController extends BaseController<
   setIsMaxAmount(transactionId: string, isMaxAmount: boolean): void {
     this.#updateTransactionData(transactionId, (transactionData) => {
       transactionData.isMaxAmount = isMaxAmount;
+    });
+  }
+
+  setFiatPayment(
+    transactionId: string,
+    fiatPayment: FiatPaymentData | undefined,
+  ): void {
+    this.#updateTransactionData(transactionId, (transactionData) => {
+      transactionData.fiatPayment = fiatPayment;
+
+      // When setting fiat payment, clear token-based fields
+      if (fiatPayment !== undefined) {
+        transactionData.paymentToken = undefined;
+        transactionData.sourceAmounts = undefined;
+        transactionData.quotes = undefined;
+        transactionData.totals = undefined;
+        transactionData.isMaxAmount = undefined;
+        transactionData.isLoading = false;
+        transactionData.quotesLastUpdated = undefined;
+      }
     });
   }
 
@@ -148,13 +170,23 @@ export class TransactionPayController extends BaseController<
 
     this.messenger.registerActionHandler(
       'TransactionPayController:getStrategy',
-      this.#getStrategy ??
-        ((): TransactionPayStrategy => TransactionPayStrategy.Relay),
+      (transaction: TransactionMeta): TransactionPayStrategy => {
+        const transactionData = this.state.transactionData?.[transaction.id];
+        return (
+          this.#getStrategy?.(transaction, transactionData) ??
+          TransactionPayStrategy.Relay
+        );
+      },
     );
 
     this.messenger.registerActionHandler(
       'TransactionPayController:setIsMaxAmount',
       this.setIsMaxAmount.bind(this),
+    );
+
+    this.messenger.registerActionHandler(
+      'TransactionPayController:setFiatPayment',
+      this.setFiatPayment.bind(this),
     );
 
     this.messenger.registerActionHandler(
