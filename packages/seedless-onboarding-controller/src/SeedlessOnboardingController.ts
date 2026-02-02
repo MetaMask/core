@@ -1983,6 +1983,9 @@ export class SeedlessOnboardingController<
         refreshToken,
         skipLock: true,
       });
+
+      // update the vault with new access token
+      await this.#updateVaultAfterAuthTokenRefresh(accessToken);
     } catch (error) {
       log('Error refreshing node auth tokens', error);
       throw new Error(
@@ -2214,6 +2217,55 @@ export class SeedlessOnboardingController<
         throw error;
       }
     }
+  }
+
+  async #updateVaultAfterAuthTokenRefresh(accessToken: string): Promise<void> {
+    if (!this.#isUnlocked) {
+      // we just temporarily store the access token in the state
+      // when user attempts to unlock the vault, we will use this access token to update the vault
+      this.update((state) => {
+        state.accessToken = accessToken;
+      });
+      return;
+    }
+
+    const { vaultEncryptionKey, vaultEncryptionSalt } = this.state;
+    if (
+      !vaultEncryptionKey ||
+      !vaultEncryptionSalt ||
+      !this.#cachedDecryptedVaultData
+    ) {
+      throw new Error(
+        SeedlessOnboardingControllerErrorMessage.MissingCredentials,
+      );
+    }
+
+    // update the cached decrypted vault data with the new access token
+    this.#cachedDecryptedVaultData.accessToken = accessToken;
+
+    const serializedVaultData = serializeVaultData(
+      this.#cachedDecryptedVaultData,
+    );
+
+    const encryptionKey =
+      await this.#vaultEncryptor.importKey(vaultEncryptionKey);
+    const updatedEncVault = await this.#vaultEncryptor.encryptWithKey(
+      encryptionKey,
+      serializedVaultData,
+    );
+
+    // NOTE: Referenced from keyring-controller!
+    // We need to include the salt used to derive
+    // the encryption key, to be able to derive it
+    // from password again.
+    updatedEncVault.salt = vaultEncryptionSalt;
+
+    this.update((state) => {
+      state.vault = JSON.stringify(updatedEncVault);
+      state.vaultEncryptionSalt = vaultEncryptionSalt;
+      state.accessToken = accessToken;
+      state.vaultEncryptionKey = vaultEncryptionKey;
+    });
   }
 
   /**
