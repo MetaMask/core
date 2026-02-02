@@ -51,6 +51,7 @@ import { ERC1155Standard } from './Standards/NftStandards/ERC1155/ERC1155Standar
 import {
   fetchTokenMetadata,
   TOKEN_METADATA_NO_SUPPORT_ERROR,
+  TokenRwaData,
 } from './token-service';
 import type {
   TokenListStateChange,
@@ -288,6 +289,9 @@ export class TokensController extends BaseController<
                 if (cachedToken && cachedToken.name && !token.name) {
                   token.name = cachedToken.name; // Update the token name
                 }
+                if (cachedToken?.rwaData) {
+                  token.rwaData = cachedToken.rwaData; // Update the token RWA data
+                }
               }
             }
           }
@@ -416,6 +420,7 @@ export class TokensController extends BaseController<
    * @param options.image - Image of the token.
    * @param options.interactingAddress - The address of the account to add a token to.
    * @param options.networkClientId - Network Client ID.
+   * @param options.rwaData - Optional RWA data for the token.
    * @returns Current token list.
    */
   async addToken({
@@ -426,6 +431,7 @@ export class TokensController extends BaseController<
     image,
     interactingAddress,
     networkClientId,
+    rwaData,
   }: {
     address: string;
     symbol: string;
@@ -434,6 +440,7 @@ export class TokensController extends BaseController<
     image?: string;
     interactingAddress?: string;
     networkClientId: NetworkClientId;
+    rwaData?: TokenRwaData;
   }): Promise<Token[]> {
     const releaseLock = await this.#mutex.acquire();
     const { allTokens, allIgnoredTokens, allDetectedTokens } = this.state;
@@ -473,7 +480,7 @@ export class TokensController extends BaseController<
         isERC721,
         aggregators: formatAggregatorNames(tokenMetadata?.aggregators ?? []),
         name,
-        ...(tokenMetadata?.rwaData && { rwaData: tokenMetadata.rwaData }),
+        ...(rwaData !== undefined && { rwaData }),
       };
       const previousIndex = newTokens.findIndex(
         (token) => token.address.toLowerCase() === address.toLowerCase(),
@@ -986,7 +993,7 @@ export class TokensController extends BaseController<
 
     await this.#requestApproval(suggestedAssetMeta);
 
-    const { address, symbol, decimals, name, image } = asset;
+    const { address, symbol, decimals, name, image, rwaData } = asset;
     await this.addToken({
       address,
       symbol,
@@ -995,6 +1002,7 @@ export class TokensController extends BaseController<
       image,
       interactingAddress: suggestedAssetMeta.interactingAddress,
       networkClientId,
+      rwaData,
     });
   }
 
