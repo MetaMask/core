@@ -60,10 +60,6 @@ import {
   getStatusRequestWithSrcTxHash,
   shouldSkipFetchDueToFetchFailures,
 } from './utils/bridge-status';
-import {
-  rekeyHistoryItemInState,
-  waitForTxConfirmation,
-} from './utils/bridge-status-controller-helpers';
 import { getTxGasEstimates } from './utils/gas';
 import {
   IntentApiImpl,
@@ -92,6 +88,8 @@ import {
   handleMobileHardwareWalletDelay,
   handleNonEvmTxResponse,
   generateActionId,
+  waitForTxConfirmation,
+  rekeyHistoryItemInState,
 } from './utils/transaction';
 
 const metadata: StateMetadata<BridgeStatusControllerState> = {
