@@ -597,37 +597,35 @@ export class RampsController extends BaseController<
   }
 
   /**
+   * Updates a single field (isLoading or error) on a resource state.
+   * All resources share the same ResourceState structure, so we use
+   * dynamic property access to avoid duplicating switch statements.
+   *
+   * @param resourceType - The type of resource.
+   * @param field - The field to update ('isLoading' or 'error').
+   * @param value - The value to set.
+   */
+  #updateResourceField(
+    resourceType: ResourceType,
+    field: 'isLoading' | 'error',
+    value: boolean | string | null,
+  ): void {
+    this.update((state) => {
+      const resource = state[resourceType];
+      if (resource) {
+        (resource as Record<string, unknown>)[field] = value;
+      }
+    });
+  }
+
+  /**
    * Sets the loading state for a resource type.
    *
    * @param resourceType - The type of resource.
    * @param loading - Whether the resource is loading.
    */
   #setResourceLoading(resourceType: ResourceType, loading: boolean): void {
-    this.update((state) => {
-      switch (resourceType) {
-        case 'userRegion':
-          state.userRegion.isLoading = loading;
-          break;
-        case 'countries':
-          state.countries.isLoading = loading;
-          break;
-        case 'providers':
-          state.providers.isLoading = loading;
-          break;
-        case 'tokens':
-          state.tokens.isLoading = loading;
-          break;
-        case 'paymentMethods':
-          state.paymentMethods.isLoading = loading;
-          break;
-        case 'quotes':
-          state.quotes.isLoading = loading;
-          break;
-        /* istanbul ignore next: exhaustive switch */
-        default:
-          break;
-      }
-    });
+    this.#updateResourceField(resourceType, 'isLoading', loading);
   }
 
   /**
@@ -637,31 +635,7 @@ export class RampsController extends BaseController<
    * @param error - The error message, or null to clear.
    */
   #setResourceError(resourceType: ResourceType, error: string | null): void {
-    this.update((state) => {
-      switch (resourceType) {
-        case 'userRegion':
-          state.userRegion.error = error;
-          break;
-        case 'countries':
-          state.countries.error = error;
-          break;
-        case 'providers':
-          state.providers.error = error;
-          break;
-        case 'tokens':
-          state.tokens.error = error;
-          break;
-        case 'paymentMethods':
-          state.paymentMethods.error = error;
-          break;
-        case 'quotes':
-          state.quotes.error = error;
-          break;
-        /* istanbul ignore next: exhaustive switch */
-        default:
-          break;
-      }
-    });
+    this.#updateResourceField(resourceType, 'error', error);
   }
 
   /**

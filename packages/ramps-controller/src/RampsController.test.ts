@@ -6,7 +6,11 @@ import type {
   MessengerEvents,
 } from '@metamask/messenger';
 
-import type { RampsControllerMessenger, UserRegion } from './RampsController';
+import type {
+  RampsControllerMessenger,
+  ResourceState,
+  UserRegion,
+} from './RampsController';
 import { RampsController } from './RampsController';
 import type {
   Country,
@@ -3999,16 +4003,19 @@ describe('RampsController', () => {
         {
           options: {
             state: {
-              userRegion: createMockUserRegion('us'),
-              paymentMethods: [
-                {
-                  id: '/payments/debit-credit-card',
-                  paymentType: 'debit-credit-card',
-                  name: 'Debit or Credit',
-                  score: 90,
-                  icon: 'card',
-                },
-              ],
+              userRegion: createResourceState(createMockUserRegion('us')),
+              paymentMethods: createResourceState(
+                [
+                  {
+                    id: '/payments/debit-credit-card',
+                    paymentType: 'debit-credit-card',
+                    name: 'Debit or Credit',
+                    score: 90,
+                    icon: 'card',
+                  },
+                ],
+                null,
+              ),
             },
           },
         },
@@ -4258,7 +4265,7 @@ function createMockCountries(): Country[] {
 function createResourceState<TData, TSelected = null>(
   data: TData,
   selected: TSelected = null as TSelected,
-) {
+): ResourceState<TData, TSelected> {
   return {
     data,
     selected,
