@@ -729,6 +729,26 @@ export enum TransactionType {
   cancel = 'cancel',
 
   /**
+   * A bridge deposit transaction initiated via Card.
+   */
+  cardBridgeDeposit = 'cardBridgeDeposit',
+
+  /**
+   * An approval transaction for a bridge initiated via Card.
+   */
+  cardBridgeApproval = 'cardBridgeApproval',
+
+  /**
+   * A swap deposit transaction initiated via Card.
+   */
+  cardSwapDeposit = 'cardSwapDeposit',
+
+  /**
+   * An approval transaction for a swap initiated via Card.
+   */
+  cardSwapApproval = 'cardSwapApproval',
+
+  /**
    * A transaction that is interacting with a smart contract's methods that we
    * have not treated as a special case, such as approve, transfer, and
    * transferfrom.
