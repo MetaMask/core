@@ -102,10 +102,7 @@ export type TransactionConfigCallback = (config: TransactionConfig) => void;
 /** Action to update transaction configuration using a callback. */
 export type TransactionPayControllerSetTransactionConfigAction = {
   type: `${typeof CONTROLLER_NAME}:setTransactionConfig`;
-  handler: (
-    transactionId: string,
-    callback: TransactionConfigCallback,
-  ) => void;
+  handler: (transactionId: string, callback: TransactionConfigCallback) => void;
 };
 
 export type TransactionPayControllerStateChangeEvent =
@@ -308,6 +305,9 @@ export type QuoteRequest = {
 
   /** Whether the transaction is a maximum amount transaction. */
   isMaxAmount?: boolean;
+
+  /** Whether this is a post-quote (withdrawal) flow. */
+  isPostQuote?: boolean;
 
   /** Balance of the source token in atomic format without factoring token decimals. */
   sourceBalanceRaw: string;

@@ -332,6 +332,7 @@ function buildPostQuoteRequests({
   const request: QuoteRequest = {
     from,
     isMaxAmount,
+    isPostQuote: true,
     sourceBalanceRaw: sourceAmount.sourceBalanceRaw,
     sourceTokenAmount: sourceAmount.sourceAmountRaw,
     sourceChainId: sourceAmount.sourceChainId,
