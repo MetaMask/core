@@ -104,6 +104,18 @@ module.exports = {
   // A preset that is used as a base for Jest's configuration
   preset: 'ts-jest',
 
+  // ts-jest configuration - use isolatedModules to skip type checking during tests
+  // Type checking should be done separately via `yarn build:types` or the IDE
+  transform: {
+    '^.+\\.tsx?$': [
+      'ts-jest',
+      {
+        isolatedModules: true,
+        diagnostics: false,
+      },
+    ],
+  },
+
   // The path to the Prettier executable used to format snapshots
   // Jest doesn't support Prettier 3 yet, so we use Prettier 2
   prettierPath: require.resolve('prettier-2'),
