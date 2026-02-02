@@ -7,6 +7,8 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+## [62.13.0]
+
 ### Added
 
 - Add `HYPEREVM` network support ([#7770](https://github.com/MetaMask/core/pull/7770))
@@ -2129,7 +2131,8 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
     All changes listed after this point were applied to this package following the monorepo conversion.
 
-[Unreleased]: https://github.com/MetaMask/core/compare/@metamask/transaction-controller@62.12.0...HEAD
+[Unreleased]: https://github.com/MetaMask/core/compare/@metamask/transaction-controller@62.13.0...HEAD
+[62.13.0]: https://github.com/MetaMask/core/compare/@metamask/transaction-controller@62.12.0...@metamask/transaction-controller@62.13.0
 [62.12.0]: https://github.com/MetaMask/core/compare/@metamask/transaction-controller@62.11.0...@metamask/transaction-controller@62.12.0
 [62.11.0]: https://github.com/MetaMask/core/compare/@metamask/transaction-controller@62.10.0...@metamask/transaction-controller@62.11.0
 [62.10.0]: https://github.com/MetaMask/core/compare/@metamask/transaction-controller@62.9.2...@metamask/transaction-controller@62.10.0
