@@ -659,14 +659,20 @@ describe('Relay Quotes Utils', () => {
       expect(successfulFetchMock).not.toHaveBeenCalled();
     });
 
-    it('processes post-quote requests (target=0 but source>0)', async () => {
+    it('processes post-quote requests', async () => {
       successfulFetchMock.mockResolvedValue({
         json: async () => QUOTE_MOCK,
       } as never);
 
       await getRelayQuotes({
         messenger,
-        requests: [{ ...QUOTE_REQUEST_MOCK, targetAmountMinimum: '0' }],
+        requests: [
+          {
+            ...QUOTE_REQUEST_MOCK,
+            targetAmountMinimum: '0',
+            isPostQuote: true,
+          },
+        ],
         transaction: TRANSACTION_META_MOCK,
       });
 

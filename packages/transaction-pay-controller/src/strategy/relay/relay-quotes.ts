@@ -133,7 +133,11 @@ async function getSingleQuote(
       user: from,
     };
 
-    await processTransactions(transaction, request, body, messenger);
+    // Skip transaction processing for post-quote flows - the original transaction
+    // will be included in the batch separately, not as part of the quote
+    if (!request.isPostQuote) {
+      await processTransactions(transaction, request, body, messenger);
+    }
 
     const url = getFeatureFlags(messenger).relayQuoteUrl;
 
