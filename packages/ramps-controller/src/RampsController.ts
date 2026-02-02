@@ -405,6 +405,22 @@ export class RampsController extends BaseController<
   readonly #pendingRequests: Map<string, PendingRequest> = new Map();
 
   /**
+   * Count of in-flight requests per resource type.
+   * Used so isLoading is only cleared when the last request for that resource finishes.
+   */
+  #pendingResourceCount: Map<ResourceType, number> = new Map();
+
+  /**
+   * Clears the pending resource count map. Used only in tests to exercise the
+   * defensive path when get() returns undefined in the finally block.
+   *
+   * @internal
+   */
+  clearPendingResourceCountForTest(): void {
+    this.#pendingResourceCount.clear();
+  }
+
+  /**
    * Constructs a new {@link RampsController}.
    *
    * @param args - The constructor arguments.
@@ -476,9 +492,14 @@ export class RampsController extends BaseController<
     // Update state to loading
     this.#updateRequestState(cacheKey, createLoadingState());
 
-    // Set resource-level loading state (only on cache miss)
+    // Set resource-level loading state (only on cache miss). Ref-count so concurrent
+    // requests for the same resource type (different cache keys) keep isLoading true.
     if (resourceType) {
-      this.#setResourceLoading(resourceType, true);
+      const count = this.#pendingResourceCount.get(resourceType) ?? 0;
+      this.#pendingResourceCount.set(resourceType, count + 1);
+      if (count === 0) {
+        this.#setResourceLoading(resourceType, true);
+      }
     }
 
     // Create the fetch promise
@@ -528,9 +549,16 @@ export class RampsController extends BaseController<
           this.#pendingRequests.delete(cacheKey);
         }
 
-        // Clear resource-level loading state
+        // Clear resource-level loading state only when no requests for this resource remain
         if (resourceType) {
-          this.#setResourceLoading(resourceType, false);
+          const count = this.#pendingResourceCount.get(resourceType) ?? 0;
+          const next = Math.max(0, count - 1);
+          if (next === 0) {
+            this.#pendingResourceCount.delete(resourceType);
+            this.#setResourceLoading(resourceType, false);
+          } else {
+            this.#pendingResourceCount.set(resourceType, next);
+          }
         }
       }
     })();
@@ -576,13 +604,23 @@ export class RampsController extends BaseController<
   #cleanupState(): void {
     this.update((state) => {
       state.userRegion.data = null;
+      state.userRegion.isLoading = false;
+      state.userRegion.error = null;
       state.providers.selected = null;
+      state.providers.data = [];
+      state.providers.isLoading = false;
+      state.providers.error = null;
       state.tokens.selected = null;
       state.tokens.data = null;
-      state.providers.data = [];
+      state.tokens.isLoading = false;
+      state.tokens.error = null;
       state.paymentMethods.data = [];
       state.paymentMethods.selected = null;
+      state.paymentMethods.isLoading = false;
+      state.paymentMethods.error = null;
       state.quotes.data = null;
+      state.quotes.isLoading = false;
+      state.quotes.error = null;
     });
   }
 
@@ -705,6 +743,12 @@ export class RampsController extends BaseController<
    * Sets the user's region manually (without fetching geolocation).
    * This allows users to override the detected region.
    *
+   * Sets userRegion.isLoading to true while the region is being applied and
+   * tokens/providers are refetched (when the region actually changes), so
+   * the UI can show a loading indicator when called directly (e.g. from a
+   * region selector). Clears loading when refetches complete or when no
+   * refetch is needed.
+   *
    * @param region - The region code to set (e.g., "US-CA").
    * @param options - Options for cache behavior.
    * @returns The user region object.
@@ -733,31 +777,57 @@ export class RampsController extends BaseController<
         );
       }
 
-      // Only cleanup state if region is actually changing
       const regionChanged =
         normalizedRegion !== this.state.userRegion.data?.regionCode;
 
-      // Set the new region atomically with cleanup to avoid intermediate null state
+      const needsRefetch =
+        regionChanged ||
+        !this.state.tokens.data ||
+        this.state.providers.data.length === 0;
+
+      if (needsRefetch) {
+        this.#setResourceLoading('userRegion', true);
+      }
+
       this.update((state) => {
         if (regionChanged) {
+          state.userRegion.error = null;
           state.providers.selected = null;
+          state.providers.data = [];
+          state.providers.isLoading = false;
+          state.providers.error = null;
           state.tokens.selected = null;
           state.tokens.data = null;
-          state.providers.data = [];
+          state.tokens.isLoading = false;
+          state.tokens.error = null;
           state.paymentMethods.data = [];
           state.paymentMethods.selected = null;
+          state.paymentMethods.isLoading = false;
+          state.paymentMethods.error = null;
           state.quotes.data = null;
+          state.quotes.isLoading = false;
+          state.quotes.error = null;
         }
         state.userRegion.data = userRegion;
       });
 
+      const refetchPromises: Promise<unknown>[] = [];
       if (regionChanged || !this.state.tokens.data) {
-        this.#fireAndForget(
+        refetchPromises.push(
           this.getTokens(userRegion.regionCode, 'buy', options),
         );
       }
       if (regionChanged || this.state.providers.data.length === 0) {
-        this.#fireAndForget(this.getProviders(userRegion.regionCode, options));
+        refetchPromises.push(
+          this.getProviders(userRegion.regionCode, options),
+        );
+      }
+      if (refetchPromises.length > 0) {
+        this.#fireAndForget(
+          Promise.all(refetchPromises).finally(() => {
+            this.#setResourceLoading('userRegion', false);
+          }),
+        );
       }
 
       return userRegion;

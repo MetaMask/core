@@ -747,6 +747,75 @@ describe('RampsController', () => {
         );
       });
     });
+
+    it('keeps resource isLoading true until last concurrent request (different cache keys) finishes', async () => {
+      await withController(async ({ controller }) => {
+        let resolveFirst: (value: string) => void;
+        let resolveSecond: (value: string) => void;
+        const fetcherA = async (): Promise<string> => {
+          return new Promise<string>((resolve) => {
+            resolveFirst = resolve;
+          });
+        };
+        const fetcherB = async (): Promise<string> => {
+          return new Promise<string>((resolve) => {
+            resolveSecond = resolve;
+          });
+        };
+
+        const promiseA = controller.executeRequest(
+          'providers-key-a',
+          fetcherA,
+          { resourceType: 'providers' },
+        );
+        const promiseB = controller.executeRequest(
+          'providers-key-b',
+          fetcherB,
+          { resourceType: 'providers' },
+        );
+
+        expect(controller.state.providers.isLoading).toBe(true);
+
+        // eslint-disable-next-line @typescript-eslint/no-non-null-assertion
+        resolveFirst!('result-a');
+        await promiseA;
+
+        expect(controller.state.providers.isLoading).toBe(true);
+
+        // eslint-disable-next-line @typescript-eslint/no-non-null-assertion
+        resolveSecond!('result-b');
+        await promiseB;
+
+        expect(controller.state.providers.isLoading).toBe(false);
+      });
+    });
+
+    it('clears resource loading when ref-count hits zero even if map was cleared (defensive)', async () => {
+      await withController(async ({ controller }) => {
+        let resolveFetcher: (value: string) => void;
+        const fetcher = async (): Promise<string> => {
+          return new Promise<string>((resolve) => {
+            resolveFetcher = resolve;
+          });
+        };
+
+        const promise = controller.executeRequest(
+          'providers-defensive-key',
+          fetcher,
+          { resourceType: 'providers' },
+        );
+
+        expect(controller.state.providers.isLoading).toBe(true);
+
+        controller.clearPendingResourceCountForTest();
+
+        // eslint-disable-next-line @typescript-eslint/no-non-null-assertion
+        resolveFetcher!('result');
+        await promise;
+
+        expect(controller.state.providers.isLoading).toBe(false);
+      });
+    });
   });
 
   describe('abortRequest', () => {
