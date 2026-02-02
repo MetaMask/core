@@ -121,241 +121,370 @@ describe('PermissionLogController', () => {
         initClock();
       });
 
-      afterEach(() => {
+      afterAll(() => {
         tearDownClock();
       });
 
       it('records activity for a successful restricted method request', () => {
-        const permissionLogController = initController({
-          restrictedMethods: new Set(PERM_NAMES.eth_accounts),
+        const controller = initController({
+          restrictedMethods: new Set(['test_method']),
         });
-
-        const { logMiddleware } = permissionLogController.createMiddleware({
-          origin: SUBJECTS.a.origin,
-        });
-
-        let request = RPC_REQUESTS.eth_accounts(SUBJECTS.a.origin);
-        const expectedResponse: PendingJsonRpcResponse<string[]> = {
-          id: request.id,
-          jsonrpc: '2.0',
-          result: ACCOUNTS.a.permitted,
+        const logMiddleware = controller.createMiddleware();
+        const req = RPC_REQUESTS.test_method(SUBJECTS.a.origin);
+        const res = {
+          ...PendingJsonRpcResponseStruct.TYPE,
+          result: ['bar'],
         };
 
-        logMiddleware(request, expectedResponse, mockNext(false), noop);
+        logMiddleware(req, res, mockNext(true), noop);
 
-        expect(
-          permissionLogController.state.permissionActivityLog,
-        ).toHaveLength(1);
-        expect(
-          permissionLogController.state.permissionActivityLog,
-        ).toStrictEqual([
+        expect(controller.state.permissionActivityLog).toStrictEqual([
           {
-            id: REQUEST_IDS.a,
-            method: 'eth_accounts',
-            origin: SUBJECTS.a.origin,
+            id: req.id,
+            method: req.method,
+            origin: req.origin,
             methodType: LOG_METHOD_TYPES.restricted,
-            requestTime: 1,
-            responseTime: 1,
             success: true,
+            requestTime: 1,
+            responseTime: 2,
           },
         ]);
-
-        // test response with empty accounts
-        request = RPC_REQUESTS.eth_accounts(SUBJECTS.a.origin);
-        expectedResponse.result = [];
-        expectedResponse.id = request.id;
-
-        logMiddleware(request, expectedResponse, mockNext(true), noop);
-
-        expect(
-          permissionLogController.state.permissionActivityLog,
-        ).toHaveLength(2);
       });
 
       it('records activity for a failed restricted method request', () => {
-        const permissionLogController = initController({
-          restrictedMethods: new Set(PERM_NAMES.eth_accounts),
+        const controller = initController({
+          restrictedMethods: new Set(['eth_accounts']),
         });
-        const { logMiddleware } = permissionLogController.createMiddleware({
-          origin: SUBJECTS.a.origin,
-        });
-
-        const request = RPC_REQUESTS.eth_accounts(SUBJECTS.a.origin);
-        const expectedResponse: PendingJsonRpcResponse<string[]> = {
-          id: request.id,
+        const logMiddleware = controller.createMiddleware();
+        const req = RPC_REQUESTS.eth_accounts(SUBJECTS.b.origin);
+        const res: PendingJsonRpcResponse = {
+          id: REQUEST_IDS.a,
           jsonrpc: '2.0',
-          error: new CustomError('test error', 1),
+          error: new CustomError('Unauthorized.', 1),
         };
 
-        logMiddleware(request, expectedResponse, mockNext(false), noop);
+        logMiddleware(req, res, mockNext(true), noop);
 
-        expect(
-          permissionLogController.state.permissionActivityLog,
-        ).toHaveLength(1);
-        expect(
-          permissionLogController.state.permissionActivityLog,
-        ).toStrictEqual([
+        expect(controller.state.permissionActivityLog).toStrictEqual([
           {
-            id: REQUEST_IDS.a,
-            method: 'eth_accounts',
-            origin: SUBJECTS.a.origin,
+            id: req.id,
+            method: req.method,
+            origin: req.origin,
             methodType: LOG_METHOD_TYPES.restricted,
-            requestTime: 1,
-            responseTime: 1,
             success: false,
-          },
-        ]);
-      });
-
-      it('records activity for eth_requestAccounts', () => {
-        const permissionLogController = initController({
-          restrictedMethods: new Set(PERM_NAMES.eth_accounts),
-        });
-        const { logMiddleware } = permissionLogController.createMiddleware({
-          origin: SUBJECTS.a.origin,
-        });
-
-        const request = RPC_REQUESTS.eth_requestAccounts(SUBJECTS.a.origin);
-        const expectedResponse: PendingJsonRpcResponse<string[]> = {
-          id: request.id,
-          jsonrpc: '2.0',
-          result: ACCOUNTS.a.permitted,
-        };
-
-        logMiddleware(request, expectedResponse, mockNext(false), noop);
-
-        expect(
-          permissionLogController.state.permissionActivityLog,
-        ).toHaveLength(1);
-        expect(
-          permissionLogController.state.permissionActivityLog,
-        ).toStrictEqual([
-          {
-            id: REQUEST_IDS.a,
-            method: 'eth_requestAccounts',
-            origin: SUBJECTS.a.origin,
-            methodType: LOG_METHOD_TYPES.restricted,
             requestTime: 1,
-            responseTime: 1,
-            success: true,
+            responseTime: 2,
           },
         ]);
       });
 
-      it('records activity for wallet_requestPermissions', () => {
-        const permissionLogController = initController({
-          restrictedMethods: new Set(PERM_NAMES.eth_accounts),
+      it('records activity for a restricted method request with successful eth_requestAccounts', () => {
+        const controller = initController({
+          restrictedMethods: new Set([]),
         });
-        const { logMiddleware } = permissionLogController.createMiddleware({
-          origin: SUBJECTS.a.origin,
-        });
-
-        const request = RPC_REQUESTS.wallet_requestPermissions(
-          SUBJECTS.a.origin,
-        );
-        const expectedResponse: PendingJsonRpcResponse<Permission[]> = {
-          id: request.id,
-          jsonrpc: '2.0',
-          result: [PERMS.finalizedEthAccounts(ACCOUNTS.a.permitted)],
+        const logMiddleware = controller.createMiddleware();
+        const req = RPC_REQUESTS.eth_requestAccounts(SUBJECTS.c.origin);
+        const res = {
+          ...PendingJsonRpcResponseStruct.TYPE,
+          result: ACCOUNTS.c.permitted,
         };
 
-        logMiddleware(request, expectedResponse, mockNext(false), noop);
+        logMiddleware(req, res, mockNext(true), noop);
 
-        expect(
-          permissionLogController.state.permissionActivityLog,
-        ).toHaveLength(1);
-        expect(
-          permissionLogController.state.permissionActivityLog,
-        ).toStrictEqual([
+        expect(controller.state.permissionActivityLog).toStrictEqual([
           {
-            id: REQUEST_IDS.a,
-            method: 'wallet_requestPermissions',
-            origin: SUBJECTS.a.origin,
+            id: req.id,
+            method: req.method,
+            origin: req.origin,
             methodType: LOG_METHOD_TYPES.restricted,
-            requestTime: 1,
-            responseTime: 1,
             success: true,
+            requestTime: 1,
+            responseTime: 2,
           },
         ]);
       });
 
-      it('ignores unrestricted methods', () => {
-        const permissionLogController = initController({
-          restrictedMethods: new Set(PERM_NAMES.eth_accounts),
+      it('handles a restricted method request without a response', () => {
+        const controller = initController({
+          restrictedMethods: new Set(['test_method']),
         });
-        const { logMiddleware } = permissionLogController.createMiddleware({
-          origin: SUBJECTS.a.origin,
-        });
+        const logMiddleware = controller.createMiddleware();
+        const req = RPC_REQUESTS.test_method(SUBJECTS.a.origin);
+        // @ts-expect-error We are intentionally passing bad input.
+        const res: PendingJsonRpcResponse = null;
 
-        const request = RPC_REQUESTS.net_version(SUBJECTS.a.origin);
-        const expectedResponse: PendingJsonRpcResponse<string> = {
-          id: request.id,
-          jsonrpc: '2.0',
-          result: '1',
-        };
+        logMiddleware(req, res, mockNext(true), noop);
 
-        logMiddleware(request, expectedResponse, mockNext(false), noop);
-
-        expect(
-          permissionLogController.state.permissionActivityLog,
-        ).toHaveLength(0);
+        expect(controller.state.permissionActivityLog).toStrictEqual([
+          {
+            id: req.id,
+            method: req.method,
+            origin: req.origin,
+            methodType: LOG_METHOD_TYPES.restricted,
+            success: null,
+            requestTime: 1,
+            responseTime: null,
+          },
+        ]);
       });
 
-      it('handles internal methods correctly', () => {
-        const permissionLogController = initController({
-          restrictedMethods: new Set([
-            'eth_accounts',
-            'eth_requestAccounts',
-            'wallet_requestPermissions',
-          ]),
+      it('ensures that "request" and "response" properties are not present in log entries', () => {
+        const controller = initController({
+          restrictedMethods: new Set([]),
         });
-        const { logMiddleware } = permissionLogController.createMiddleware({
-          origin: SUBJECTS.a.origin,
-        });
-
-        const request: JsonRpcRequest = {
-          id: nanoid(),
-          jsonrpc: '2.0',
-          method: 'metamask_getProviderState',
-        };
-        const expectedResponse: PendingJsonRpcResponse<
-          Record<string, unknown>
-        > = {
-          id: request.id,
-          jsonrpc: '2.0',
-          result: {},
+        const logMiddleware = controller.createMiddleware();
+        const req = RPC_REQUESTS.test_method(SUBJECTS.a.origin);
+        const res = {
+          ...PendingJsonRpcResponseStruct.TYPE,
+          result: ['bar'],
         };
 
-        logMiddleware(request, expectedResponse, mockNext(false), noop);
+        logMiddleware(req, res, mockNext(false), noop);
 
-        expect(
-          permissionLogController.state.permissionActivityLog,
-        ).toHaveLength(0);
+        controller.state.permissionActivityLog.forEach((entry) => {
+          expect(entry).not.toHaveProperty('request');
+          expect(entry).not.toHaveProperty('response');
+        });
       });
 
-      it('enforces log limit', () => {
-        const permissionLogController = initController({
-          restrictedMethods: new Set(PERM_NAMES.eth_accounts),
+      it('handles responses added out of order', () => {
+        const controller = initController({
+          restrictedMethods: new Set(['test_method']),
         });
-        const { logMiddleware } = permissionLogController.createMiddleware({
-          origin: SUBJECTS.a.origin,
-        });
+        const logMiddleware = controller.createMiddleware();
+        const handlerArray: JsonRpcEngineReturnHandler[] = [];
+        const req = RPC_REQUESTS.test_method(SUBJECTS.a.origin);
 
-        // add LOG_LIMIT + 1 entries
-        for (let i = 0; i < LOG_LIMIT + 1; i++) {
-          const request = RPC_REQUESTS.eth_accounts(SUBJECTS.a.origin);
-          const expectedResponse: PendingJsonRpcResponse<string[]> = {
-            id: request.id,
-            jsonrpc: '2.0',
-            result: ACCOUNTS.a.permitted,
-          };
+        // get make requests
+        const id1 = nanoid();
+        req.id = id1;
+        const res1 = {
+          ...PendingJsonRpcResponseStruct.TYPE,
+          result: [id1],
+        };
 
-          logMiddleware(request, expectedResponse, mockNext(false), noop);
+        logMiddleware(req, res1, getSavedMockNext(handlerArray, true), noop);
+
+        const id2 = nanoid();
+        req.id = id2;
+        const res2 = {
+          ...PendingJsonRpcResponseStruct.TYPE,
+          result: [id2],
+        };
+        logMiddleware(req, res2, getSavedMockNext(handlerArray, true), noop);
+
+        const id3 = nanoid();
+        req.id = id3;
+        const res3 = {
+          ...PendingJsonRpcResponseStruct.TYPE,
+          result: [id3],
+        };
+        logMiddleware(req, res3, getSavedMockNext(handlerArray, true), noop);
+
+        // all entries should be in correct order
+        expect(controller.state.permissionActivityLog).toMatchObject([
+          {
+            id: id1,
+            responseTime: null,
+          },
+          {
+            id: id2,
+            responseTime: null,
+          },
+          {
+            id: id3,
+            responseTime: null,
+          },
+        ]);
+
+        for (const i of [1, 2, 0]) {
+          handlerArray[i](noop);
         }
 
+        expect(controller.state.permissionActivityLog).toStrictEqual([
+          {
+            id: id1,
+            method: req.method,
+            origin: req.origin,
+            methodType: LOG_METHOD_TYPES.restricted,
+            success: true,
+            requestTime: 1,
+            responseTime: 4,
+          },
+          {
+            id: id2,
+            method: req.method,
+            origin: req.origin,
+            methodType: LOG_METHOD_TYPES.restricted,
+            success: true,
+            requestTime: 2,
+            responseTime: 4,
+          },
+          {
+            id: id3,
+            method: req.method,
+            origin: req.origin,
+            methodType: LOG_METHOD_TYPES.restricted,
+            success: true,
+            requestTime: 3,
+            responseTime: 4,
+          },
+        ]);
+      });
+
+      it('handles a lack of response', () => {
+        const controller = initController({
+          restrictedMethods: new Set(['test_method']),
+        });
+        const logMiddleware = controller.createMiddleware();
+        const req1 = {
+          ...RPC_REQUESTS.test_method(SUBJECTS.a.origin),
+          id: REQUEST_IDS.a,
+        };
+
+        // noop for next handler prevents recording of response
+        logMiddleware(
+          req1,
+          {
+            ...PendingJsonRpcResponseStruct.TYPE,
+            result: ['bar'],
+          },
+          noop,
+          noop,
+        );
+
+        expect(controller.state.permissionActivityLog).toStrictEqual([
+          {
+            id: req1.id,
+            method: req1.method,
+            origin: req1.origin,
+            methodType: LOG_METHOD_TYPES.restricted,
+            success: null,
+            requestTime: 1,
+            responseTime: null,
+          },
+        ]);
+
+        // next request should be handled as normal
+        const req2 = {
+          ...RPC_REQUESTS.test_method(SUBJECTS.b.origin),
+          id: REQUEST_IDS.b,
+        };
+
+        logMiddleware(
+          req2,
+          {
+            ...PendingJsonRpcResponseStruct.TYPE,
+            result: ACCOUNTS.b.permitted,
+          },
+          mockNext(true),
+          noop,
+        );
+
+        expect(controller.state.permissionActivityLog).toStrictEqual([
+          {
+            id: req1.id,
+            method: req1.method,
+            origin: req1.origin,
+            methodType: LOG_METHOD_TYPES.restricted,
+            success: null,
+            requestTime: 1,
+            responseTime: null,
+          },
+          {
+            id: req2.id,
+            method: req2.method,
+            origin: req2.origin,
+            methodType: LOG_METHOD_TYPES.restricted,
+            success: true,
+            requestTime: 1,
+            responseTime: 2,
+          },
+        ]);
+      });
+
+      it('ignores activity for expected methods', () => {
+        const controller = initController({
+          restrictedMethods: new Set([]),
+        });
+        const logMiddleware = controller.createMiddleware();
+        expect(controller.state.permissionActivityLog).toHaveLength(0);
+
+        const res = {
+          ...PendingJsonRpcResponseStruct.TYPE,
+          result: ['bar'],
+        };
+
+        const ignoredMethods = [
+          RPC_REQUESTS.metamask_sendDomainMetadata(SUBJECTS.c.origin, 'foobar'),
+          RPC_REQUESTS.custom(SUBJECTS.b.origin, 'eth_getBlockNumber'),
+          RPC_REQUESTS.custom(SUBJECTS.b.origin, 'net_version'),
+        ];
+
+        ignoredMethods.forEach((req) => {
+          logMiddleware(req, res, mockNext(false), noop);
+        });
+
+        expect(controller.state.permissionActivityLog).toHaveLength(0);
+      });
+
+      it('fills up the log to its limit without exceeding', () => {
+        const controller = initController({
+          restrictedMethods: new Set(['test_method']),
+        });
+        const logMiddleware = controller.createMiddleware();
+        const req = RPC_REQUESTS.test_method(SUBJECTS.a.origin);
+        const res = { ...PendingJsonRpcResponseStruct.TYPE, result: ['bar'] };
+
+        for (let i = 0; i < LOG_LIMIT; i++) {
+          logMiddleware({ ...req, id: nanoid() }, res, mockNext(false), noop);
+        }
+
+        expect(controller.state.permissionActivityLog).toHaveLength(LOG_LIMIT);
+      });
+
+      it('removes the oldest log entry when a new one is added after reaching the limit', () => {
+        const controller = initController({
+          restrictedMethods: new Set(['test_method']),
+        });
+        const logMiddleware = controller.createMiddleware();
+        const req = RPC_REQUESTS.test_method(SUBJECTS.a.origin);
+        const res = { ...PendingJsonRpcResponseStruct.TYPE, result: ['bar'] };
+
+        for (let i = 0; i < LOG_LIMIT; i++) {
+          logMiddleware({ ...req, id: nanoid() }, res, mockNext(false), noop);
+        }
+
+        const firstLogIdAfterFilling =
+          controller.state.permissionActivityLog[0].id;
+
+        const newLogId = nanoid();
+        logMiddleware({ ...req, id: newLogId }, res, mockNext(false), noop);
+
+        expect(controller.state.permissionActivityLog).toHaveLength(LOG_LIMIT);
+        expect(controller.state.permissionActivityLog[0].id).not.toBe(
+          firstLogIdAfterFilling,
+        );
         expect(
-          permissionLogController.state.permissionActivityLog,
-        ).toHaveLength(LOG_LIMIT);
+          controller.state.permissionActivityLog.find(
+            (log) => log.id === newLogId,
+          ),
+        ).toBeDefined();
+      });
+
+      it('ensures the log does not exceed the limit when adding multiple entries', () => {
+        const controller = initController({
+          restrictedMethods: new Set(['test_method']),
+        });
+        const logMiddleware = controller.createMiddleware();
+        const req = RPC_REQUESTS.test_method(SUBJECTS.a.origin);
+        const res = { ...PendingJsonRpcResponseStruct.TYPE, result: ['bar'] };
+
+        for (let i = 0; i < LOG_LIMIT + 5; i++) {
+          logMiddleware({ ...req, id: nanoid() }, res, mockNext(false), noop);
+        }
+
+        expect(controller.state.permissionActivityLog).toHaveLength(LOG_LIMIT);
       });
     });
 
@@ -368,189 +497,297 @@ describe('PermissionLogController', () => {
         tearDownClock();
       });
 
-      it('adds expected history entry when eth_accounts return accounts', () => {
-        const permissionLogController = initController({
-          restrictedMethods: new Set(PERM_NAMES.eth_accounts),
+      it('only updates history on responses', () => {
+        const controller = initController({
+          restrictedMethods: new Set([]),
         });
-        const { logMiddleware } = permissionLogController.createMiddleware({
-          origin: SUBJECTS.a.origin,
-        });
-
-        const request = RPC_REQUESTS.eth_accounts(SUBJECTS.a.origin);
-        const expectedResponse: PendingJsonRpcResponse<string[]> = {
-          id: request.id,
-          jsonrpc: '2.0',
-          result: ACCOUNTS.a.permitted,
-        };
-
-        logMiddleware(request, expectedResponse, mockNext(false), noop);
-
-        expect(permissionLogController.state.permissionHistory).toStrictEqual(
-          EXPECTED_HISTORIES.case1[0],
-        );
-      });
-
-      it('creates eth_accounts entry when eth_requestAccounts is called', () => {
-        const permissionLogController = initController({
-          restrictedMethods: new Set(PERM_NAMES.eth_accounts),
-        });
-        const { logMiddleware } = permissionLogController.createMiddleware({
-          origin: SUBJECTS.a.origin,
-        });
-
-        const request = RPC_REQUESTS.eth_requestAccounts(SUBJECTS.a.origin);
-        const expectedResponse: PendingJsonRpcResponse<string[]> = {
-          id: request.id,
-          jsonrpc: '2.0',
-          result: ACCOUNTS.a.permitted,
-        };
-
-        logMiddleware(request, expectedResponse, mockNext(false), noop);
-
-        expect(permissionLogController.state.permissionHistory).toStrictEqual(
-          EXPECTED_HISTORIES.case1[0],
-        );
-      });
-
-      it('does not update history if eth_accounts return empty', () => {
-        const permissionLogController = initController({
-          restrictedMethods: new Set(PERM_NAMES.eth_accounts),
-        });
-        const { logMiddleware } = permissionLogController.createMiddleware({
-          origin: SUBJECTS.a.origin,
-        });
-
-        const request = RPC_REQUESTS.eth_accounts(SUBJECTS.a.origin);
-        const expectedResponse: PendingJsonRpcResponse<string[]> = {
-          id: request.id,
-          jsonrpc: '2.0',
-          result: [],
-        };
-
-        logMiddleware(request, expectedResponse, mockNext(false), noop);
-
-        expect(permissionLogController.state.permissionHistory).toStrictEqual(
-          {},
-        );
-      });
-
-      it('updates history if wallet_requestPermissions returns permissions', () => {
-        const permissionLogController = initController({
-          restrictedMethods: new Set(PERM_NAMES.eth_accounts),
-        });
-        const { logMiddleware } = permissionLogController.createMiddleware({
-          origin: SUBJECTS.a.origin,
-        });
-
-        const request = RPC_REQUESTS.wallet_requestPermissions(
+        const logMiddleware = controller.createMiddleware();
+        const req = RPC_REQUESTS.requestPermission(
           SUBJECTS.a.origin,
+          PERM_NAMES.test_method,
         );
-        const expectedResponse: PendingJsonRpcResponse<Permission[]> = {
-          id: request.id,
-          jsonrpc: '2.0',
-          result: [PERMS.finalizedEthAccounts(ACCOUNTS.a.permitted)],
+        const res = {
+          ...PendingJsonRpcResponseStruct.TYPE,
+          result: [PERMS.granted.test_method()],
         };
 
-        logMiddleware(request, expectedResponse, mockNext(false), noop);
+        // noop => no response
+        logMiddleware(req, res, noop, noop);
 
-        expect(permissionLogController.state.permissionHistory).toStrictEqual(
-          EXPECTED_HISTORIES.case1[0],
-        );
+        expect(controller.state.permissionHistory).toStrictEqual({});
+
+        // response => records granted permissions
+        logMiddleware(req, res, mockNext(false), noop);
+
+        const { permissionHistory } = controller.state;
+        expect(Object.keys(permissionHistory)).toHaveLength(1);
+        expect(permissionHistory[SUBJECTS.a.origin]).toBeDefined();
       });
 
-      it('handles multiple origins correctly', () => {
-        const permissionLogController = initController({
-          restrictedMethods: new Set(PERM_NAMES.eth_accounts),
+      it('ignores malformed permissions requests', () => {
+        const controller = initController({
+          restrictedMethods: new Set([]),
         });
-        const { logMiddleware: logMiddlewareA } =
-          permissionLogController.createMiddleware({
-            origin: SUBJECTS.a.origin,
-          });
-        const { logMiddleware: logMiddlewareB } =
-          permissionLogController.createMiddleware({
-            origin: SUBJECTS.b.origin,
-          });
-
-        // subject a requests
-        let request = RPC_REQUESTS.eth_accounts(SUBJECTS.a.origin);
-        let expectedResponse: PendingJsonRpcResponse<string[]> = {
-          id: request.id,
-          jsonrpc: '2.0',
-          result: ACCOUNTS.a.permitted,
-        };
-
-        logMiddlewareA(request, expectedResponse, mockNext(false), noop);
-
-        // subject b requests
-        request = RPC_REQUESTS.eth_accounts(SUBJECTS.b.origin);
-        expectedResponse = {
-          id: request.id,
-          jsonrpc: '2.0',
-          result: ACCOUNTS.b.permitted,
-        };
-
-        logMiddlewareB(request, expectedResponse, mockNext(true), noop);
-
-        expect(permissionLogController.state.permissionHistory).toStrictEqual(
-          EXPECTED_HISTORIES.case2[0],
+        const logMiddleware = controller.createMiddleware();
+        const req = RPC_REQUESTS.requestPermission(
+          SUBJECTS.a.origin,
+          PERM_NAMES.test_method,
         );
-      });
-
-      it('updates history if accounts changed', () => {
-        const permissionLogController = initController({
-          restrictedMethods: new Set(PERM_NAMES.eth_accounts),
-        });
-        const { logMiddleware } = permissionLogController.createMiddleware({
-          origin: SUBJECTS.a.origin,
-        });
-
-        const request1 = RPC_REQUESTS.eth_accounts(SUBJECTS.a.origin);
-        const expectedResponse1: PendingJsonRpcResponse<string[]> = {
-          id: request1.id,
-          jsonrpc: '2.0',
-          result: ACCOUNTS.a.permitted,
+        const res = {
+          ...PendingJsonRpcResponseStruct.TYPE,
+          result: [PERMS.granted.test_method()],
         };
 
-        logMiddleware(request1, expectedResponse1, mockNext(false), noop);
-
-        const request2 = RPC_REQUESTS.eth_accounts(SUBJECTS.a.origin);
-        const expectedResponse2: PendingJsonRpcResponse<string[]> = {
-          id: request2.id,
-          jsonrpc: '2.0',
-          result: ACCOUNTS.b.permitted,
-        };
-
-        logMiddleware(request2, expectedResponse2, mockNext(true), noop);
-
-        expect(permissionLogController.state.permissionHistory).toStrictEqual(
-          EXPECTED_HISTORIES.case3[0],
-        );
-      });
-
-      it('does not update history if result is not an array', () => {
-        const permissionLogController = initController({
-          restrictedMethods: new Set(PERM_NAMES.eth_accounts),
-        });
-        const { logMiddleware } = permissionLogController.createMiddleware({
-          origin: SUBJECTS.a.origin,
-        });
-
-        const request = RPC_REQUESTS.eth_accounts(SUBJECTS.a.origin);
-        const expectedResponse: PendingJsonRpcResponse<null> = {
-          id: request.id,
-          jsonrpc: '2.0',
-          result: null,
-        };
-
+        // no params => no response
         logMiddleware(
-          request,
-          expectedResponse as unknown as PendingJsonRpcResponse<string[]>,
+          {
+            ...req,
+            params: undefined,
+          },
+          res,
           mockNext(false),
           noop,
         );
 
-        expect(permissionLogController.state.permissionHistory).toStrictEqual(
-          {},
+        expect(controller.state.permissionHistory).toStrictEqual({});
+      });
+
+      it('records and updates account history as expected', async () => {
+        const controller = initController({
+          restrictedMethods: new Set([]),
+        });
+        const logMiddleware = controller.createMiddleware();
+        const req = RPC_REQUESTS.requestPermission(
+          SUBJECTS.a.origin,
+          PERM_NAMES.eth_accounts,
+        );
+        const res = {
+          ...PendingJsonRpcResponseStruct.TYPE,
+          result: [PERMS.granted.eth_accounts(ACCOUNTS.a.permitted)],
+        };
+
+        logMiddleware(req, res, mockNext(false), noop);
+
+        expect(controller.state.permissionHistory).toStrictEqual(
+          EXPECTED_HISTORIES.case1[0],
+        );
+
+        // mock permission requested again, with another approved account
+        jest.advanceTimersByTime(1);
+        res.result = [PERMS.granted.eth_accounts([ACCOUNTS.a.permitted[0]])];
+
+        logMiddleware(req, res, mockNext(false), noop);
+
+        expect(controller.state.permissionHistory).toStrictEqual(
+          EXPECTED_HISTORIES.case1[1],
+        );
+      });
+
+      it('handles eth_accounts response without caveats', async () => {
+        const controller = initController({
+          restrictedMethods: new Set([]),
+        });
+        const logMiddleware = controller.createMiddleware();
+        const req = RPC_REQUESTS.requestPermission(
+          SUBJECTS.a.origin,
+          PERM_NAMES.eth_accounts,
+        );
+        const res: PendingJsonRpcResponse<Permission[]> = {
+          ...PendingJsonRpcResponseStruct.TYPE,
+          result: [PERMS.granted.eth_accounts(ACCOUNTS.a.permitted)],
+        };
+        delete res.result?.[0].caveats;
+
+        logMiddleware(req, res, mockNext(false), noop);
+
+        expect(controller.state.permissionHistory).toStrictEqual(
+          EXPECTED_HISTORIES.case2[0],
+        );
+      });
+
+      it('handles extra caveats for eth_accounts', async () => {
+        const controller = initController({
+          restrictedMethods: new Set([]),
+        });
+        const logMiddleware = controller.createMiddleware();
+        const req = RPC_REQUESTS.requestPermission(
+          SUBJECTS.a.origin,
+          PERM_NAMES.eth_accounts,
+        );
+        const res = {
+          ...PendingJsonRpcResponseStruct.TYPE,
+          result: [PERMS.granted.eth_accounts(ACCOUNTS.a.permitted)],
+        };
+        // @ts-expect-error We are intentionally passing bad input.
+        res.result[0].caveats.push({ foo: 'bar' });
+
+        logMiddleware(req, res, mockNext(false), noop);
+
+        expect(controller.state.permissionHistory).toStrictEqual(
+          EXPECTED_HISTORIES.case1[0],
+        );
+      });
+
+      // wallet_requestPermissions returns all permissions approved for the
+      // requesting origin, including old ones
+      it('handles unrequested permissions on the response', async () => {
+        const controller = initController({
+          restrictedMethods: new Set([]),
+        });
+        const logMiddleware = controller.createMiddleware();
+        const req = RPC_REQUESTS.requestPermission(
+          SUBJECTS.a.origin,
+          PERM_NAMES.eth_accounts,
+        );
+        const res = {
+          ...PendingJsonRpcResponseStruct.TYPE,
+          result: [
+            PERMS.granted.eth_accounts(ACCOUNTS.a.permitted),
+            PERMS.granted.test_method(),
+          ],
+        };
+
+        logMiddleware(req, res, mockNext(false), noop);
+
+        expect(controller.state.permissionHistory).toStrictEqual(
+          EXPECTED_HISTORIES.case1[0],
+        );
+      });
+
+      it('does not update history if no new permissions are approved', async () => {
+        const controller = initController({
+          restrictedMethods: new Set([]),
+        });
+        const logMiddleware = controller.createMiddleware();
+        let req = RPC_REQUESTS.requestPermission(
+          SUBJECTS.a.origin,
+          PERM_NAMES.test_method,
+        );
+        let res = {
+          ...PendingJsonRpcResponseStruct.TYPE,
+          result: [PERMS.granted.test_method()],
+        };
+
+        logMiddleware(req, res, mockNext(false), noop);
+
+        expect(controller.state.permissionHistory).toStrictEqual(
+          EXPECTED_HISTORIES.case4[0],
+        );
+
+        // new permission requested, but not approved
+        jest.advanceTimersByTime(1);
+
+        req = RPC_REQUESTS.requestPermission(
+          SUBJECTS.a.origin,
+          PERM_NAMES.eth_accounts,
+        );
+        res = {
+          ...PendingJsonRpcResponseStruct.TYPE,
+          result: [PERMS.granted.test_method()],
+        };
+
+        logMiddleware(req, res, mockNext(false), noop);
+
+        // history should be unmodified
+        expect(controller.state.permissionHistory).toStrictEqual(
+          EXPECTED_HISTORIES.case4[0],
+        );
+      });
+
+      it('records and updates history for multiple origins, regardless of response order', async () => {
+        const controller = initController({
+          restrictedMethods: new Set([]),
+        });
+        const logMiddleware = controller.createMiddleware();
+
+        const round1: {
+          req: JsonRpcRequest;
+          res: PendingJsonRpcResponse<Permission[]>;
+        }[] = [
+          {
+            req: RPC_REQUESTS.requestPermission(
+              SUBJECTS.a.origin,
+              PERM_NAMES.test_method,
+            ),
+            res: {
+              ...PendingJsonRpcResponseStruct.TYPE,
+              result: [PERMS.granted.test_method()],
+            },
+          },
+          {
+            req: RPC_REQUESTS.requestPermission(
+              SUBJECTS.b.origin,
+              PERM_NAMES.eth_accounts,
+            ),
+            res: {
+              ...PendingJsonRpcResponseStruct.TYPE,
+              result: [PERMS.granted.eth_accounts(ACCOUNTS.b.permitted)],
+            },
+          },
+          {
+            req: RPC_REQUESTS.requestPermissions(SUBJECTS.c.origin, {
+              [PERM_NAMES.test_method]: {},
+              [PERM_NAMES.eth_accounts]: {},
+            }),
+            res: {
+              ...PendingJsonRpcResponseStruct.TYPE,
+              result: [
+                PERMS.granted.test_method(),
+                PERMS.granted.eth_accounts(ACCOUNTS.c.permitted),
+              ],
+            },
+          },
+        ];
+        const handlers1: JsonRpcEngineReturnHandler[] = [];
+
+        // make requests and process responses out of order
+        round1.forEach(({ req, res }) => {
+          logMiddleware(req, res, getSavedMockNext(handlers1, false), noop);
+        });
+
+        for (const i of [1, 2, 0]) {
+          handlers1[i](noop);
+        }
+
+        expect(controller.state.permissionHistory).toStrictEqual(
+          EXPECTED_HISTORIES.case3[0],
+        );
+
+        // make next round of requests
+        jest.advanceTimersByTime(1);
+
+        // nothing for second origin in this round
+        const round2: {
+          req: JsonRpcRequest;
+          res: PendingJsonRpcResponse<Permission[]>;
+        }[] = [
+          {
+            req: RPC_REQUESTS.requestPermission(
+              SUBJECTS.a.origin,
+              PERM_NAMES.test_method,
+            ),
+            res: {
+              ...PendingJsonRpcResponseStruct.TYPE,
+              result: [PERMS.granted.test_method()],
+            },
+          },
+          {
+            req: RPC_REQUESTS.requestPermissions(SUBJECTS.c.origin, {
+              [PERM_NAMES.eth_accounts]: {},
+            }),
+            res: {
+              ...PendingJsonRpcResponseStruct.TYPE,
+              result: [PERMS.granted.eth_accounts(ACCOUNTS.b.permitted)],
+            },
+          },
+        ];
+
+        round2.forEach(({ req, res }) => {
+          logMiddleware(req, res, mockNext(false), noop);
+        });
+
+        expect(controller.state.permissionHistory).toStrictEqual(
+          EXPECTED_HISTORIES.case3[1],
         );
       });
     });
@@ -565,104 +802,118 @@ describe('PermissionLogController', () => {
       tearDownClock();
     });
 
-    it('updates history if origin and accounts are provided', () => {
-      const permissionLogController = initController({
-        restrictedMethods: new Set(PERM_NAMES.eth_accounts),
+    it('does nothing if the list of accounts is empty', () => {
+      const controller = initController({
+        restrictedMethods: new Set([]),
       });
 
-      permissionLogController.updateAccountsHistory(
-        SUBJECTS.a.origin,
-        ACCOUNTS.a.permitted,
-      );
+      controller.updateAccountsHistory('foo.com', []);
 
-      expect(permissionLogController.state.permissionHistory).toStrictEqual(
-        EXPECTED_HISTORIES.case1[0],
-      );
+      expect(controller.state.permissionHistory).toStrictEqual({});
     });
 
-    it('does not update history if accounts is empty', () => {
-      const permissionLogController = initController({
-        restrictedMethods: new Set(PERM_NAMES.eth_accounts),
-      });
-
-      permissionLogController.updateAccountsHistory(SUBJECTS.a.origin, []);
-
-      expect(permissionLogController.state.permissionHistory).toStrictEqual({});
-    });
-
-    it('updates existing history entry', () => {
-      const permissionLogController = initController({
-        restrictedMethods: new Set(PERM_NAMES.eth_accounts),
-        state: { permissionHistory: EXPECTED_HISTORIES.case1[0] },
+    it('updates the account history', () => {
+      const controller = initController({
+        restrictedMethods: new Set(['eth_accounts']),
+        state: {
+          permissionHistory: {
+            'foo.com': {
+              [PERM_NAMES.eth_accounts]: {
+                accounts: {
+                  '0x1': 1,
+                },
+                lastApproved: 1,
+              },
+            },
+          },
+        },
       });
 
       jest.advanceTimersByTime(1);
+      controller.updateAccountsHistory('foo.com', ['0x1', '0x2']);
 
-      permissionLogController.updateAccountsHistory(
-        SUBJECTS.a.origin,
-        ACCOUNTS.b.permitted,
-      );
-
-      expect(permissionLogController.state.permissionHistory).toStrictEqual(
-        EXPECTED_HISTORIES.case3[0],
-      );
+      expect(controller.state.permissionHistory).toStrictEqual({
+        'foo.com': {
+          [PERM_NAMES.eth_accounts]: {
+            accounts: {
+              '0x1': 2,
+              '0x2': 2,
+            },
+            lastApproved: 1,
+          },
+        },
+      });
     });
   });
 
-  describe('state derivation', () => {
-    it('derives state from metadata correctly', () => {
-      const permissionLogController = initController({
-        restrictedMethods: new Set(PERM_NAMES.eth_accounts),
+  describe('metadata', () => {
+    it('includes expected state in debug snapshots', () => {
+      const controller = initController({
+        restrictedMethods: new Set(['test_method']),
       });
 
-      const derivedState = deriveStateFromMetadata(
-        permissionLogController.state,
-        permissionLogController.metadata,
-      );
-
-      expect(derivedState.permissionHistory).toStrictEqual(
-        permissionLogController.state.permissionHistory,
-      );
-      expect(derivedState.permissionActivityLog).toStrictEqual(
-        permissionLogController.state.permissionActivityLog,
-      );
-    });
-  });
-
-  describe('createRpcMethodMiddleware', () => {
-    beforeEach(() => {
-      initClock();
+      expect(
+        deriveStateFromMetadata(
+          controller.state,
+          controller.metadata,
+          'includeInDebugSnapshot',
+        ),
+      ).toMatchInlineSnapshot(`Object {}`);
     });
 
-    afterEach(() => {
-      tearDownClock();
-    });
-
-    it('calls handler when middleware processes request', () => {
-      const permissionLogController = initController({
-        restrictedMethods: new Set(PERM_NAMES.eth_accounts),
-      });
-      const handlers: (JsonRpcEngineReturnHandler | undefined)[] = [];
-      const { logMiddleware } = permissionLogController.createMiddleware({
-        origin: SUBJECTS.a.origin,
+    it('includes expected state in state logs', () => {
+      const controller = initController({
+        restrictedMethods: new Set(['test_method']),
       });
 
-      const request = RPC_REQUESTS.eth_accounts(SUBJECTS.a.origin);
-      const expectedResponse: PendingJsonRpcResponse<string[]> = {
-        id: request.id,
-        jsonrpc: '2.0',
-        result: ACCOUNTS.a.permitted,
-      };
+      expect(
+        deriveStateFromMetadata(
+          controller.state,
+          controller.metadata,
+          'includeInStateLogs',
+        ),
+      ).toMatchInlineSnapshot(`
+        Object {
+          "permissionActivityLog": Array [],
+          "permissionHistory": Object {},
+        }
+      `);
+    });
 
-      logMiddleware(
-        request,
-        expectedResponse,
-        getSavedMockNext(handlers, false),
-        noop,
-      );
+    it('persists expected state', () => {
+      const controller = initController({
+        restrictedMethods: new Set(['test_method']),
+      });
 
-      expect(handlers).toHaveLength(1);
-      expect(PendingJsonRpcResponseStruct.is(expectedResponse)).toBe(true);
+      expect(
+        deriveStateFromMetadata(
+          controller.state,
+          controller.metadata,
+          'persist',
+        ),
+      ).toMatchInlineSnapshot(`
+        Object {
+          "permissionHistory": Object {},
+        }
+      `);
+    });
+
+    it('exposes expected state to UI', () => {
+      const controller = initController({
+        restrictedMethods: new Set(['test_method']),
+      });
+
+      expect(
+        deriveStateFromMetadata(
+          controller.state,
+          controller.metadata,
+          'usedInUi',
+        ),
+      ).toMatchInlineSnapshot(`
+        Object {
+          "permissionHistory": Object {},
+        }
+      `);
     });
   });
 });
