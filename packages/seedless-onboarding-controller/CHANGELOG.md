@@ -7,6 +7,12 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+### Added
+
+- Added new public method, `getAccessToken`. ([#7800](https://github.com/MetaMask/core/pull/7800))
+  - Clients can use this method to get `accessToken` from the controller, instead of directly accessing from the state.
+  - This method also adds refresh token mechanism when `accessToken` is expired, hence preventing expired token usage in the clients.
+
 ### Changed
 
 - Update StateMetadata's `includeInStateLogs` property. ([#7750](https://github.com/MetaMask/core/pull/7750))
