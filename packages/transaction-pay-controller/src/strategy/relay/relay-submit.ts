@@ -179,7 +179,7 @@ async function executeSingleQuote(
 ): Promise<{ transactionHash?: Hex }> {
   log('Executing single quote', quote);
 
-  const isPostQuote = transaction.metamaskPay?.isPostQuote;
+  const isPostQuote = quote.request.isPostQuote;
 
   updateTransaction(
     {
