@@ -7,9 +7,17 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+### Added
+
+- Add new `SeedlessOnboardingError` class for generic controller errors with support for `cause` and `details` properties ([#XXXX](https://github.com/MetaMask/core/pull/XXXX))
+  - Enables proper error chaining by wrapping underlying errors with additional context
+  - Includes `toJSON()` method for serialization in logging/transmission
+
 ### Changed
 
 - Upgrade `@metamask/utils` from `^11.8.1` to `^11.9.0` ([#7511](https://github.com/MetaMask/core/pull/7511))
+- Refactor controller methods to throw `SeedlessOnboardingError` with original error as `cause` for better error tracing ([#XXXX](https://github.com/MetaMask/core/pull/XXXX))
+  - Affected methods: `authenticate`, `changePassword`, `#persistLocalEncryptionKey`, `#fetchAndParseSecretMetadata`, `refreshAuthTokens`
 
 ## [7.1.0]
 
