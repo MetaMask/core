@@ -7,6 +7,10 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+### Added
+
+- Add CHZ (0x15b38) mapping to eip155:88888/erc20:0x677F7e16C7Dd57be1D4C8aD1244883214953DC47 ([#7794](https://github.com/MetaMask/core/pull/7794))
+
 ## [99.2.0]
 
 ### Added
@@ -18,7 +22,6 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 ### Changed
 
 - Bump `@metamask/transaction-controller` from `^62.11.0` to `^62.12.0` ([#7775](https://github.com/MetaMask/core/pull/7775))
-- Add CHZ (0x15b38) mapping to eip155:88888/erc20:0x677F7e16C7Dd57be1D4C8aD1244883214953DC47 ([#7794]())
 - Simplify TokenListController initialization ([#7740](https://github.com/MetaMask/core/pull/7740))
 - Bump `@metamask/storage-service` from `^0.0.1` to `^1.0.0` ([#7797](https://github.com/MetaMask/core/pull/7797))
 - Bump `@metamask/transaction-controller` from `^62.11.0` to `^62.13.0` ([#7775](https://github.com/MetaMask/core/pull/7775), [#7802](https://github.com/MetaMask/core/pull/7802))
@@ -27,6 +30,7 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 ### Removed
 
 - Removed token-search-discovery-controller package ([#7789](https://github.com/MetaMask/core/pull/7789))
+- Adds CHZ (0x15b38) mapping to eip155:88888/erc20:0x677F7e16C7Dd57be1D4C8aD1244883214953DC47 ([#7794](https://github.com/MetaMask/core/pull/7794))
 
 ## [99.1.0]
 
