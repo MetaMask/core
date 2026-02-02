@@ -157,18 +157,18 @@ export type TransactionData = {
   isMaxAmount?: boolean;
 
   /**
-   * Whether this is a post-quote transaction (e.g., withdrawal flow).
+   * Whether this is a post-quote transaction.
    * When true, the paymentToken represents the destination token,
    * and the quote source is derived from the transaction's output token.
-   * Used for Predict/Perps withdrawals where funds flow:
-   * withdrawal → bridge/swap → destination token
+   * Used when funds need to be moved after a transaction completes
+   * (e.g., bridging output to a different token/chain).
    */
   isPostQuote?: boolean;
 
   /**
    * Token selected for the transaction.
-   * - For deposits (isPostQuote=false): This is the SOURCE/payment token
-   * - For withdrawals (isPostQuote=true): This is the DESTINATION token
+   * - For standard flows (isPostQuote=false): This is the SOURCE/payment token
+   * - For post-quote flows (isPostQuote=true): This is the DESTINATION token
    */
   paymentToken?: TransactionPaymentToken;
 
@@ -306,7 +306,7 @@ export type QuoteRequest = {
   /** Whether the transaction is a maximum amount transaction. */
   isMaxAmount?: boolean;
 
-  /** Whether this is a post-quote (withdrawal) flow. */
+  /** Whether this is a post-quote flow. */
   isPostQuote?: boolean;
 
   /** Balance of the source token in atomic format without factoring token decimals. */

@@ -192,8 +192,8 @@ async function executeSingleQuote(
     },
   );
 
-  // For post-quote (withdrawal) flows, create an atomic batch with:
-  // 1. Original transaction (e.g., Safe withdrawal)
+  // For post-quote flows, create an atomic batch with:
+  // 1. Original transaction
   // 2. Relay deposit transaction
   if (isPostQuote) {
     await submitPostQuoteTransactions(quote, transaction, messenger);
@@ -220,9 +220,9 @@ async function executeSingleQuote(
 }
 
 /**
- * Submit transactions for a post-quote (withdrawal) flow.
+ * Submit transactions for a post-quote flow.
  * Creates an atomic 7702 batch containing:
- * 1. Original transaction (e.g., Safe withdrawal)
+ * 1. Original transaction
  * 2. Relay deposit transaction
  *
  * @param quote - Relay quote.

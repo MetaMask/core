@@ -117,9 +117,9 @@ export async function updateQuotes(
  *
  * @param request - Request object.
  * @param request.batchTransactions - Batch transactions to sync.
- * @param request.isPostQuote - Whether this is a post-quote (withdrawal) flow.
+ * @param request.isPostQuote - Whether this is a post-quote flow.
  * @param request.messenger - Messenger instance.
- * @param request.paymentToken - Payment token (source for deposits, destination for withdrawals).
+ * @param request.paymentToken - Payment token (source for standard flows, destination for post-quote).
  * @param request.totals - Calculated totals.
  * @param request.transactionId - ID of the transaction to sync.
  */
@@ -220,8 +220,8 @@ export async function refreshQuotes(
  * @param request - Request parameters.
  * @param request.from - Address from which the transaction is sent.
  * @param request.isMaxAmount - Whether the transaction is a maximum amount transaction.
- * @param request.isPostQuote - Whether this is a post-quote (withdrawal) flow.
- * @param request.paymentToken - Payment token (source for deposits, destination for withdrawals).
+ * @param request.isPostQuote - Whether this is a post-quote flow.
+ * @param request.paymentToken - Payment token (source for standard flows, destination for post-quote).
  * @param request.sourceAmounts - Source amounts for the transaction.
  * @param request.tokens - Required tokens for the transaction.
  * @param request.transactionId - ID of the transaction.
@@ -250,7 +250,7 @@ function buildQuoteRequests({
 
   if (isPostQuote) {
     // Post-quote flow: source = transaction's required token, target = paymentToken (destination)
-    // The user is withdrawing and wants to receive funds in paymentToken
+    // The user wants to receive the transaction output in paymentToken
     return buildPostQuoteRequests({
       from,
       isMaxAmount,
@@ -287,17 +287,17 @@ function buildQuoteRequests({
 }
 
 /**
- * Build quote requests for post-quote (withdrawal) flows.
- * In this flow, the source is the transaction's required token (e.g., Polygon USDC.e),
+ * Build quote requests for post-quote flows.
+ * In this flow, the source is the transaction's required token,
  * and the target is the user's selected destination token (paymentToken).
  *
  * @param request - Request parameters.
  * @param request.from - Address from which the transaction is sent.
  * @param request.isMaxAmount - Whether the transaction is a maximum amount transaction.
- * @param request.destinationToken - Destination token for withdrawal (paymentToken in post-quote mode).
+ * @param request.destinationToken - Destination token (paymentToken in post-quote mode).
  * @param request.sourceAmounts - Source amounts for the transaction (includes source token info).
  * @param request.transactionId - ID of the transaction.
- * @returns Array of quote requests for withdrawal flow.
+ * @returns Array of quote requests for post-quote flow.
  */
 function buildPostQuoteRequests({
   from,
@@ -337,7 +337,7 @@ function buildPostQuoteRequests({
     sourceTokenAmount: sourceAmount.sourceAmountRaw,
     sourceChainId: sourceAmount.sourceChainId,
     sourceTokenAddress: sourceAmount.sourceTokenAddress,
-    // For post-quote withdrawals, use EXACT_INPUT - user specifies how much to withdraw,
+    // For post-quote flows, use EXACT_INPUT - user specifies how much to send,
     // and we show them how much they'll receive after fees
     targetAmountMinimum: '0',
     targetChainId: destinationToken.chainId,
@@ -346,7 +346,7 @@ function buildPostQuoteRequests({
 
   log('Post-quote request built', { transactionId, request });
 
-  // Currently only single token withdrawals are supported.
+  // Currently only single token post-quote flows are supported.
   // Multiple token support would require multiple quotes for each required token.
   return [request];
 }
