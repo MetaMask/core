@@ -22,5 +22,5 @@ if (typeof globalThis.fetch !== 'undefined') {
 // This ensures we're using isomorphic-fetch (compatible with browser/mobile) while
 // getting node-fetch under the hood (compatible with nock in tests)
 // Using require() here allows us to clear native fetch first, which is necessary for nock compatibility
-// eslint-disable-next-line @typescript-eslint/no-require-imports
+// eslint-disable-next-line @typescript-eslint/no-require-imports, import-x/no-unassigned-import
 require('isomorphic-fetch');
