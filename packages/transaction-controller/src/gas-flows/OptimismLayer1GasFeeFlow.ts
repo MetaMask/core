@@ -1,5 +1,6 @@
 import { handleFetch } from '@metamask/controller-utils';
-import { type Hex, hexToNumber } from '@metamask/utils';
+import { hexToNumber } from '@metamask/utils';
+import type { Hex } from '@metamask/utils';
 
 import { OracleLayer1GasFeeFlow } from './OracleLayer1GasFeeFlow';
 import { CHAIN_IDS } from '../constants';
@@ -40,8 +41,7 @@ export class OptimismLayer1GasFeeFlow extends OracleLayer1GasFeeFlow {
   }): Promise<boolean> {
     const chainIdAsNumber = hexToNumber(transactionMeta.chainId);
 
-    const supportedChains =
-      await OptimismLayer1GasFeeFlow.fetchOptimismSupportedChains();
+    const supportedChains = await this.#fetchOptimismSupportedChains();
 
     if (supportedChains?.has(chainIdAsNumber)) {
       return true;
@@ -57,7 +57,7 @@ export class OptimismLayer1GasFeeFlow extends OracleLayer1GasFeeFlow {
    *
    * @returns A set of supported OP-stack chain IDs or null on failure.
    */
-  private static async fetchOptimismSupportedChains(): Promise<Set<number> | null> {
+  async #fetchOptimismSupportedChains(): Promise<Set<number> | null> {
     try {
       const res: SupportedNetworksResponse = await handleFetch(
         GAS_SUPPORTED_NETWORKS_ENDPOINT,

@@ -5,9 +5,12 @@ import type {
   AccountWalletObject,
 } from '@metamask/account-tree-controller';
 import type { AccountsControllerState } from '@metamask/accounts-controller';
+import { TrxScope } from '@metamask/keyring-api';
 import type { NetworkState } from '@metamask/network-controller';
 import type { Hex } from '@metamask/utils';
+import { cloneDeep } from 'lodash';
 
+import { MOCK_TRON_TOKENS } from './__fixtures__/arrange-tron-state';
 import { selectAssetsBySelectedAccountGroup } from './token-selectors';
 import type { AccountGroupMultichainAccountObject } from '../../../account-tree-controller/src/group';
 import type { CurrencyRateState } from '../CurrencyRateController';
@@ -917,6 +920,196 @@ describe('token-selectors', () => {
       });
 
       expect(result).toStrictEqual(expectedMockResult);
+    });
+
+    const arrangeTronState = () => {
+      const state = cloneDeep(mockedMergedState);
+
+      // Add Tron account to the selected account group
+      state.accountTree.wallets['entropy:01K1TJY9QPSCKNBSVGZNG510GJ'].groups[
+        'entropy:01K1TJY9QPSCKNBSVGZNG510GJ/0'
+      ].accounts.push('de5c3465-d01e-4091-a219-232903e982bb');
+
+      // Add Tron account to accounts controller
+      state.internalAccounts.accounts['de5c3465-d01e-4091-a219-232903e982bb'] =
+        {
+          id: 'de5c3465-d01e-4091-a219-232903e982bb',
+          address: 'TYasKMTpukV8rLfkSzqrFH7VcCwjBFJ7s9',
+          type: 'tron:eoa',
+          scopes: ['tron:728126428', 'tron:3448148188', 'tron:2494104990'],
+          methods: ['tron_signTransaction', 'tron_signMessage'],
+          options: {
+            entropySource: '01K1TJY9QPSCKNBSVGZNG510GJ',
+            groupIndex: 0,
+          },
+          metadata: {
+            name: 'Tron Account 1',
+            keyring: { type: 'Snap Keyring' },
+            importTime: Date.now(),
+          },
+        };
+
+      // Extract asset IDs from MOCK_TRON_TOKENS and add to accountsAssets
+      const allTronAssetIds = Object.values(MOCK_TRON_TOKENS)
+        .flat()
+        .map((token) => token.assetId);
+      state.accountsAssets['de5c3465-d01e-4091-a219-232903e982bb'] =
+        allTronAssetIds;
+
+      // Create metadata from MOCK_TRON_TOKENS
+      Object.values(MOCK_TRON_TOKENS)
+        .flat()
+        .forEach((token) => {
+          state.assetsMetadata[token.assetId] = {
+            fungible: true,
+            iconUrl: token.image,
+            name: token.name,
+            symbol: token.symbol,
+            units: [
+              {
+                decimals: token.decimals,
+                name: token.name,
+                symbol: token.symbol,
+              },
+            ],
+          };
+        });
+
+      // Create balances from MOCK_TRON_TOKENS
+      state.balances['de5c3465-d01e-4091-a219-232903e982bb'] = {};
+      Object.values(MOCK_TRON_TOKENS)
+        .flat()
+        .forEach((token) => {
+          state.balances['de5c3465-d01e-4091-a219-232903e982bb'][
+            token.assetId
+          ] = {
+            amount: token.balance,
+            unit: token.symbol,
+          };
+        });
+
+      // Create conversion rates from MOCK_TRON_TOKENS (only for tokens with fiat data)
+      Object.values(MOCK_TRON_TOKENS)
+        .flat()
+        .forEach((token) => {
+          if (token.fiat?.conversionRate) {
+            state.conversionRates[token.assetId] = {
+              rate: token.fiat.conversionRate.toString(),
+              conversionTime: Date.now(),
+            };
+          }
+        });
+
+      return state;
+    };
+
+    it('filters out tron staked tokens', () => {
+      const state = arrangeTronState();
+
+      const result = selectAssetsBySelectedAccountGroup(state);
+
+      expect(result[TrxScope.Mainnet]).toHaveLength(1);
+      expect(result[TrxScope.Nile]).toHaveLength(1);
+      expect(result[TrxScope.Shasta]).toHaveLength(1);
+    });
+
+    it('does not filter out tron staked tokens', () => {
+      const state = arrangeTronState();
+
+      const result = selectAssetsBySelectedAccountGroup(state, {
+        filterTronStakedTokens: false,
+      });
+
+      expect(result[TrxScope.Mainnet].length > 1).toBe(true);
+      expect(result[TrxScope.Nile].length > 1).toBe(true);
+      expect(result[TrxScope.Shasta].length > 1).toBe(true);
+    });
+
+    it('calculates fiat for native token using currency rate fallback when market data is missing', () => {
+      // Setup: Add a new chain (Ink chain 0xdef1) with native balance but NO market data
+      const inkChainId = '0xdef1' as Hex;
+      const stateWithInkChain = {
+        ...mockedMergedState,
+        // Add Ink chain to network configuration
+        networkConfigurationsByChainId: {
+          ...mockNetworkControllerState.networkConfigurationsByChainId,
+          [inkChainId]: {
+            nativeCurrency: 'ETH', // Ink chain uses ETH as native currency
+          },
+        },
+        // Add native balance for the account on Ink chain
+        accountsByChainId: {
+          ...mockAccountsTrackerControllerState.accountsByChainId,
+          [inkChainId]: {
+            '0x2bd63233fe369b0f13eaf25292af5a9b63d2b7ab': {
+              balance: '0xDE0B6B3A7640000', // 1 ETH (1000000000000000000 wei)
+            },
+          },
+        },
+        // Market data does NOT include Ink chain native token
+        // (using existing mockTokenRatesControllerState which doesn't have 0xdef1)
+      };
+
+      const result = selectAssetsBySelectedAccountGroup(stateWithInkChain);
+
+      // Find the Ink chain native token
+      const inkNativeToken = result[inkChainId]?.find(
+        (asset) => asset.isNative,
+      );
+
+      // Should have fiat calculated using the ETH currency rate fallback
+      expect(inkNativeToken).toStrictEqual({
+        accountType: 'eip155:eoa',
+        accountId: 'd7f11451-9d79-4df4-a012-afd253443639',
+        chainId: inkChainId,
+        assetId: '0x0000000000000000000000000000000000000000',
+        address: '0x0000000000000000000000000000000000000000',
+        image: '',
+        name: 'Ethereum',
+        symbol: 'ETH',
+        isNative: true,
+        decimals: 18,
+        rawBalance: '0xDE0B6B3A7640000',
+        balance: '1',
+        fiat: {
+          balance: 2400, // 1 ETH * 2400 USD/ETH
+          conversionRate: 2400,
+          currency: 'USD',
+        },
+      });
+    });
+
+    it('returns undefined fiat for native token when both market data and currency rate are missing', () => {
+      const inkChainId = '0xdef1' as Hex;
+      const stateWithMissingCurrencyRate = {
+        ...mockedMergedState,
+        networkConfigurationsByChainId: {
+          ...mockNetworkControllerState.networkConfigurationsByChainId,
+          [inkChainId]: {
+            nativeCurrency: 'INK', // Custom native currency with no currency rate
+          },
+        },
+        accountsByChainId: {
+          ...mockAccountsTrackerControllerState.accountsByChainId,
+          [inkChainId]: {
+            '0x2bd63233fe369b0f13eaf25292af5a9b63d2b7ab': {
+              balance: '0xDE0B6B3A7640000',
+            },
+          },
+        },
+        // currencyRates doesn't have 'INK', only 'ETH'
+      };
+
+      const result = selectAssetsBySelectedAccountGroup(
+        stateWithMissingCurrencyRate,
+      );
+
+      const inkNativeToken = result[inkChainId]?.find(
+        (asset) => asset.isNative,
+      );
+
+      // Should have undefined fiat since there's no currency rate for 'INK'
+      expect(inkNativeToken?.fiat).toBeUndefined();
     });
   });
 });

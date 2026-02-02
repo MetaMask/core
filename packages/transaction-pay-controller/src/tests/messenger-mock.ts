@@ -15,6 +15,9 @@ import type { RemoteFeatureFlagControllerGetStateAction } from '@metamask/remote
 import type {
   TransactionControllerAddTransactionAction,
   TransactionControllerAddTransactionBatchAction,
+  TransactionControllerEstimateGasAction,
+  TransactionControllerEstimateGasBatchAction,
+  TransactionControllerGetGasFeeTokensAction,
   TransactionControllerGetStateAction,
 } from '@metamask/transaction-controller';
 import type { TransactionControllerUpdateTransactionAction } from '@metamask/transaction-controller';
@@ -25,7 +28,7 @@ import type {
   TransactionPayControllerGetDelegationTransactionAction,
   TransactionPayControllerGetStrategyAction,
 } from '../types';
-import { type TransactionPayControllerGetStateAction } from '../types';
+import type { TransactionPayControllerGetStateAction } from '../types';
 
 type AllActions = MessengerActions<TransactionPayControllerMessenger>;
 type AllEvents = MessengerEvents<TransactionPayControllerMessenger>;
@@ -38,6 +41,7 @@ type RootMessenger = Messenger<MockAnyNamespace, AllActions, AllEvents>;
  * @param options.skipRegister - Whether to skip registering action handlers.
  * @returns The mock messenger and associated mock functions.
  */
+// eslint-disable-next-line @typescript-eslint/explicit-function-return-type
 export function getMessengerMock({
   skipRegister,
 }: { skipRegister?: boolean } = {}) {
@@ -109,6 +113,18 @@ export function getMessengerMock({
 
   const getDelegationTransactionMock: jest.MockedFn<
     TransactionPayControllerGetDelegationTransactionAction['handler']
+  > = jest.fn();
+
+  const getGasFeeTokensMock: jest.MockedFn<
+    TransactionControllerGetGasFeeTokensAction['handler']
+  > = jest.fn();
+
+  const estimateGasMock: jest.MockedFn<
+    TransactionControllerEstimateGasAction['handler']
+  > = jest.fn();
+
+  const estimateGasBatchMock: jest.MockedFn<
+    TransactionControllerEstimateGasBatchAction['handler']
   > = jest.fn();
 
   const messenger: RootMessenger = new Messenger({
@@ -210,6 +226,21 @@ export function getMessengerMock({
       'TransactionPayController:getDelegationTransaction',
       getDelegationTransactionMock,
     );
+
+    messenger.registerActionHandler(
+      'TransactionController:getGasFeeTokens',
+      getGasFeeTokensMock,
+    );
+
+    messenger.registerActionHandler(
+      'TransactionController:estimateGas',
+      estimateGasMock,
+    );
+
+    messenger.registerActionHandler(
+      'TransactionController:estimateGasBatch',
+      estimateGasBatchMock,
+    );
   }
 
   const publish = messenger.publish.bind(messenger);
@@ -217,6 +248,8 @@ export function getMessengerMock({
   return {
     addTransactionMock,
     addTransactionBatchMock,
+    estimateGasMock,
+    estimateGasBatchMock,
     fetchQuotesMock,
     findNetworkClientIdByChainIdMock,
     getAccountTrackerControllerStateMock,
@@ -225,6 +258,7 @@ export function getMessengerMock({
     getCurrencyRateControllerStateMock,
     getDelegationTransactionMock,
     getGasFeeControllerStateMock,
+    getGasFeeTokensMock,
     getNetworkClientByIdMock,
     getRemoteFeatureFlagControllerStateMock,
     getStrategyMock,

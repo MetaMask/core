@@ -1,11 +1,10 @@
 import { deriveStateFromMetadata } from '@metamask/base-controller';
 import { getDefaultKeyringState } from '@metamask/keyring-controller';
-import {
-  Messenger,
-  MOCK_ANY_NAMESPACE,
-  type MessengerActions,
-  type MessengerEvents,
-  type MockAnyNamespace,
+import { Messenger, MOCK_ANY_NAMESPACE } from '@metamask/messenger';
+import type {
+  MessengerActions,
+  MessengerEvents,
+  MockAnyNamespace,
 } from '@metamask/messenger';
 import { cloneDeep } from 'lodash';
 
@@ -611,6 +610,7 @@ describe('PreferencesController', () => {
             "0x1": true,
             "0x13881": true,
             "0x38": true,
+            "0x3e7": true,
             "0x5": true,
             "0x504": true,
             "0x505": true,
@@ -674,6 +674,7 @@ describe('PreferencesController', () => {
             "0x1": true,
             "0x13881": true,
             "0x38": true,
+            "0x3e7": true,
             "0x5": true,
             "0x504": true,
             "0x505": true,
@@ -739,6 +740,7 @@ describe('PreferencesController', () => {
             "0x1": true,
             "0x13881": true,
             "0x38": true,
+            "0x3e7": true,
             "0x5": true,
             "0x504": true,
             "0x505": true,
@@ -803,6 +805,7 @@ describe('PreferencesController', () => {
             "0x1": true,
             "0x13881": true,
             "0x38": true,
+            "0x3e7": true,
             "0x5": true,
             "0x504": true,
             "0x505": true,
@@ -881,7 +884,7 @@ function setupPreferencesController({
 }: {
   options?: Partial<ConstructorParameters<typeof PreferencesController>[0]>;
   messenger?: RootMessenger;
-} = {}) {
+} = {}): PreferencesController {
   const preferencesControllerMessenger = new Messenger<
     'PreferencesController',
     AllPreferencesControllerActions,

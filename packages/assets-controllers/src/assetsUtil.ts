@@ -14,8 +14,10 @@ import BN from 'bn.js';
 import { CID } from 'multiformats/cid';
 
 import type { Nft, NftMetadata } from './NftController';
+import { getNativeTokenAddress } from './token-prices-service';
 import type { AbstractTokenPricesService } from './token-prices-service';
-import { type ContractExchangeRates } from './TokenRatesController';
+import type { EvmAssetWithMarketData } from './token-prices-service/abstract-token-prices-service';
+import type { ContractExchangeRates } from './TokenRatesController';
 
 /**
  * The maximum number of token addresses that should be sent to the Price API in
@@ -137,34 +139,35 @@ export const formatIconUrlWithProxy = ({
  * Networks where token detection is supported - Values are in hex format
  */
 export enum SupportedTokenDetectionNetworks {
-  mainnet = '0x1', // decimal: 1
-  bsc = '0x38', // decimal: 56
-  polygon = '0x89', // decimal: 137
-  avax = '0xa86a', // decimal: 43114
-  aurora = '0x4e454152', // decimal: 1313161554
-  linea_goerli = '0xe704', // decimal: 59140
-  linea_mainnet = '0xe708', // decimal: 59144
-  arbitrum = '0xa4b1', // decimal: 42161
-  optimism = '0xa', // decimal: 10
-  base = '0x2105', // decimal: 8453
-  zksync = '0x144', // decimal: 324
-  cronos = '0x19', // decimal: 25
-  celo = '0xa4ec', // decimal: 42220
-  gnosis = '0x64', // decimal: 100
-  fantom = '0xfa', // decimal: 250
-  polygon_zkevm = '0x44d', // decimal: 1101
-  moonbeam = '0x504', // decimal: 1284
-  moonriver = '0x505', // decimal: 1285
-  sei = '0x531', // decimal: 1329
-  monad_mainnet = '0x8f', // decimal: 143
+  Mainnet = '0x1', // decimal: 1
+  Bsc = '0x38', // decimal: 56
+  Polygon = '0x89', // decimal: 137
+  Avax = '0xa86a', // decimal: 43114
+  Aurora = '0x4e454152', // decimal: 1313161554
+  LineaGoerli = '0xe704', // decimal: 59140
+  LineaMainnet = '0xe708', // decimal: 59144
+  Arbitrum = '0xa4b1', // decimal: 42161
+  Optimism = '0xa', // decimal: 10
+  Base = '0x2105', // decimal: 8453
+  Zksync = '0x144', // decimal: 324
+  Cronos = '0x19', // decimal: 25
+  Celo = '0xa4ec', // decimal: 42220
+  Gnosis = '0x64', // decimal: 100
+  Fantom = '0xfa', // decimal: 250
+  PolygonZkevm = '0x44d', // decimal: 1101
+  Moonbeam = '0x504', // decimal: 1284
+  Moonriver = '0x505', // decimal: 1285
+  Sei = '0x531', // decimal: 1329
+  MonadMainnet = '0x8f', // decimal: 143
+  Hyperevm = '0x3e7', // decimal: 999
 }
 
 /**
  * Networks where staked balance is supported - Values are in hex format
  */
 export enum SupportedStakedBalanceNetworks {
-  mainnet = '0x1', // decimal: 1
-  hoodi = '0x88bb0', // decimal: 560048
+  Mainnet = '0x1', // decimal: 1
+  Hoodi = '0x88bb0', // decimal: 560048
 }
 
 /**
@@ -370,17 +373,23 @@ export async function fetchTokenContractExchangeRates({
 
   const tokenPricesByTokenAddress = await reduceInBatchesSerially<
     Hex,
-    Awaited<ReturnType<AbstractTokenPricesService['fetchTokenPrices']>>
+    Record<Hex, EvmAssetWithMarketData>
   >({
-    values: [...tokenAddresses].sort(),
+    values: [...tokenAddresses, getNativeTokenAddress(chainId)].sort(),
     batchSize: TOKEN_PRICES_BATCH_SIZE,
     eachBatch: async (allTokenPricesByTokenAddress, batch) => {
-      const tokenPricesByTokenAddressForBatch =
+      const tokenPricesByTokenAddressForBatch = (
         await tokenPricesService.fetchTokenPrices({
-          tokenAddresses: batch,
-          chainId,
+          assets: batch.map((tokenAddress) => ({
+            chainId,
+            tokenAddress,
+          })),
           currency: nativeCurrency,
-        });
+        })
+      ).reduce<Record<Hex, EvmAssetWithMarketData>>((acc, tokenPrice) => {
+        acc[tokenPrice.tokenAddress] = tokenPrice;
+        return acc;
+      }, {});
 
       return {
         ...allTokenPricesByTokenAddress,

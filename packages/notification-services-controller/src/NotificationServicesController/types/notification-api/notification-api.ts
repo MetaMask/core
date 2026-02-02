@@ -1,3 +1,5 @@
+// Types derived from external Notification API schema - naming follows API conventions
+/* eslint-disable @typescript-eslint/naming-convention */
 import type { components } from './schema';
 import type { TRIGGER_TYPES } from '../../constants/notification-schema';
 import type { Compute } from '../type-utils';

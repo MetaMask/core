@@ -1,32 +1,30 @@
 import type { AccountsControllerState } from '@metamask/accounts-controller';
-import type { TxData } from '@metamask/bridge-controller';
 import {
   ChainId,
-  formatChainIdToCaip,
-  formatChainIdToHex,
-  getEthUsdtResetData,
-  isCrossChain,
-  isEthUsdt,
-  type QuoteMetadata,
-  type QuoteResponse,
-} from '@metamask/bridge-controller';
-import {
   extractTradeData,
   isTronTrade,
-  type Trade,
+  formatChainIdToCaip,
+  formatChainIdToHex,
+  isCrossChain,
+} from '@metamask/bridge-controller';
+import type {
+  Intent,
+  QuoteMetadata,
+  QuoteResponse,
+  Trade,
+  TxData,
 } from '@metamask/bridge-controller';
 import { toHex } from '@metamask/controller-utils';
-import type {
-  BatchTransactionParams,
-  TransactionController,
-} from '@metamask/transaction-controller';
 import {
   TransactionStatus,
   TransactionType,
-  type TransactionMeta,
+} from '@metamask/transaction-controller';
+import type {
+  BatchTransactionParams,
+  TransactionController,
+  TransactionMeta,
 } from '@metamask/transaction-controller';
 import { createProjectLogger } from '@metamask/utils';
-import { BigNumber } from 'bignumber.js';
 import { v4 as uuid } from 'uuid';
 
 import { calculateGasFees } from './gas';
@@ -39,31 +37,6 @@ import type {
 } from '../types';
 
 export const generateActionId = () => (Date.now() + Math.random()).toString();
-
-export const getUSDTAllowanceResetTx = async (
-  messenger: BridgeStatusControllerMessenger,
-  quoteResponse: QuoteResponse & Partial<QuoteMetadata>,
-) => {
-  const hexChainId = formatChainIdToHex(quoteResponse.quote.srcChainId);
-  if (
-    quoteResponse.approval &&
-    isEthUsdt(hexChainId, quoteResponse.quote.srcAsset.address)
-  ) {
-    const allowance = new BigNumber(
-      await messenger.call(
-        'BridgeController:getBridgeERC20Allowance',
-        quoteResponse.quote.srcAsset.address,
-        hexChainId,
-      ),
-    );
-    const shouldResetApproval =
-      allowance.lt(quoteResponse.sentAmount?.amount ?? '0') && allowance.gt(0);
-    if (shouldResetApproval) {
-      return { ...quoteResponse.approval, data: getEthUsdtResetData() };
-    }
-  }
-  return undefined;
-};
 
 export const getStatusRequestParams = (quoteResponse: QuoteResponse) => {
   return {
@@ -196,8 +169,10 @@ export const handleNonEvmTxResponse = (
   };
 };
 
-export const handleApprovalDelay = async (quoteResponse: QuoteResponse) => {
-  if ([ChainId.LINEA, ChainId.BASE].includes(quoteResponse.quote.srcChainId)) {
+export const handleApprovalDelay = async (
+  srcChainId: QuoteResponse['quote']['srcChainId'],
+) => {
+  if ([ChainId.LINEA, ChainId.BASE].includes(srcChainId)) {
     const debugLog = createProjectLogger('bridge');
     debugLog(
       'Delaying submitting bridge tx to make Linea and Base confirmation more likely',
@@ -479,3 +454,42 @@ export const findAndUpdateTransactionsInBatch = ({
 
   return txBatch;
 };
+
+/**
+ * Determines the key to use for storing a bridge history item.
+ * Uses actionId for pre-submission tracking, or bridgeTxMetaId for post-submission.
+ *
+ * @param actionId - The action ID used for pre-submission tracking
+ * @param bridgeTxMetaId - The transaction meta ID from bridgeTxMeta
+ * @returns The key to use for the history item
+ * @throws Error if neither actionId nor bridgeTxMetaId is provided
+ */
+export function getHistoryKey(
+  actionId: string | undefined,
+  bridgeTxMetaId: string | undefined,
+): string {
+  const historyKey = actionId ?? bridgeTxMetaId;
+  if (!historyKey) {
+    throw new Error(
+      'Cannot add tx to history: either actionId or bridgeTxMeta.id must be provided',
+    );
+  }
+  return historyKey;
+}
+
+/**
+ * Extracts and validates the intent data from a quote response.
+ *
+ * @param quoteResponse - The quote response that may contain intent data
+ * @returns The intent data from the quote
+ * @throws Error if the quote does not contain intent data
+ */
+export function getIntentFromQuote(
+  quoteResponse: QuoteResponse & { quote: { intent?: Intent } },
+): Intent {
+  const { intent } = quoteResponse.quote;
+  if (!intent) {
+    throw new Error('submitIntent: missing intent data');
+  }
+  return intent;
+}

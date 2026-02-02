@@ -7,6 +7,8 @@ module.exports = class CustomTestEnvironment extends TestEnvironment {
   async setup() {
     await super.setup();
     if (typeof this.global.TextEncoder === 'undefined') {
+      // Needed for the JSDOM environment.
+      // eslint-disable-next-line no-shadow, n/prefer-global/text-encoder, n/prefer-global/text-decoder
       const { TextEncoder, TextDecoder } = require('util');
       this.global.TextEncoder = TextEncoder;
       this.global.TextDecoder = TextDecoder;

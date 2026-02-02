@@ -22,7 +22,7 @@ const CURSOR_MOCK = '0x456';
 const END_TIMESTAMP_MOCK = 123;
 const START_TIMESTAMP_MOCK = 456;
 const CHAIN_ID_SUPPORTED = 1;
-const CHAIN_ID_UNSUPPORTED = 999;
+const CHAIN_ID_UNSUPPORTED = 123456789;
 const FROM_ADDRESS = '0xSender';
 const TO_ADDRESS = '0xRecipient';
 const TAG_MOCK = 'test1';
@@ -48,7 +48,10 @@ describe('Accounts API', () => {
    * @param status - The status code.
    * @returns The fetch mock.
    */
-  function mockFetch(responseJson: Record<string, unknown>, status = 200) {
+  function mockFetch(
+    responseJson: Record<string, unknown>,
+    status = 200,
+  ): jest.MockedFunction<typeof successfulFetch> {
     return jest.mocked(successfulFetch).mockResolvedValueOnce({
       status,
       json: async () => responseJson,

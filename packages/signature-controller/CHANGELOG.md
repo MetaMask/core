@@ -9,6 +9,57 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ### Changed
 
+- Bump `@metamask/keyring-controller` from `^25.0.0` to `^25.1.0` ([#7713](https://github.com/MetaMask/core/pull/7713))
+- Bump `@metamask/gator-permissions-controller` from `^1.0.0` to `^1.1.2` ([#7682](https://github.com/MetaMask/core/pull/7682), [#7739](https://github.com/MetaMask/core/pull/7739), [#7767](https://github.com/MetaMask/core/pull/7767))
+
+## [39.0.1]
+
+### Changed
+
+- Bump `@metamask/accounts-controller` from `^35.0.1` to `^35.0.2` ([#7642](https://github.com/MetaMask/core/pull/7642))
+- Bump `@metamask/network-controller` from `^28.0.0` to `^29.0.0` ([#7642](https://github.com/MetaMask/core/pull/7642))
+
+## [39.0.0]
+
+### Changed
+
+- Bump `@metamask/gator-permissions-controller` from `0.8.0` to `1.0.0` ([#7634](https://github.com/MetaMask/core/pull/7634))
+
+## [38.0.1]
+
+### Changed
+
+- Upgrade `@metamask/utils` from `^11.8.1` to `^11.9.0` ([#7511](https://github.com/MetaMask/core/pull/7511))
+- Bump `@metamask/network-controller` from `^27.0.0` to `^28.0.0` ([#7534](https://github.com/MetaMask/core/pull/7534), [#7583](https://github.com/MetaMask/core/pull/7583), [#7604](https://github.com/MetaMask/core/pull/7604))
+- Bump `@metamask/controller-utils` from `^11.16.0` to `^11.18.0` ([#7534](https://github.com/MetaMask/core/pull/7534), [#7583](https://github.com/MetaMask/core/pull/7583))
+- Bump `@metamask/accounts-controller` from `^35.0.0` to `^35.0.1` ([#7604](https://github.com/MetaMask/core/pull/7604))
+
+## [38.0.0]
+
+### Changed
+
+- Bump `@metamask/gator-permissions-controller` from `^0.6.0` to `^0.8.0` ([#7274](https://github.com/MetaMask/core/pull/7274)), ([#7330](https://github.com/MetaMask/core/pull/7330))
+- Move peer dependencies for controller and service packages to direct dependencies ([#7209](https://github.com/MetaMask/core/pull/7209), [#7258](https://github.com/MetaMask/core/pull/7258))
+  - The dependencies moved are:
+    - `@metamask/accounts-controller` (^35.0.0)
+    - `@metamask/approval-controller` (^8.0.0)
+    - `@metamask/gator-permissions-controller` (^0.6.0)
+    - `@metamask/keyring-controller` (^25.0.0)
+    - `@metamask/logging-controller` (^7.0.1)
+    - `@metamask/network-controller` (^27.0.0)
+  - In clients, it is now possible for multiple versions of these packages to exist in the dependency tree.
+    - For example, this scenario would be valid: a client relies on `@metamask/controller-a` 1.0.0 and `@metamask/controller-b` 1.0.0, and `@metamask/controller-b` depends on `@metamask/controller-a` 1.1.0.
+  - Note, however, that the versions specified in the client's `package.json` always "win", and you are expected to keep them up to date so as not to break controller and service intercommunication.
+
+## [37.0.0]
+
+### Changed
+
+- Bump `@metamask/controller-utils` from `^11.15.0` to `^11.16.0` ([#7202](https://github.com/MetaMask/core/pull/7202))
+- **BREAKING:** Bump `@metamask/network-controller` from `^25.0.0` to `^26.0.0` ([#7202](https://github.com/MetaMask/core/pull/7202))
+- **BREAKING:** Bump `@metamask/keyring-controller` from `^24.0.0` to `^25.0.0` ([#7202](https://github.com/MetaMask/core/pull/7202))
+- **BREAKING:** Bump `@metamask/gator-permissions-controller` from `^0.5.0` to `^0.6.0` ([#7202](https://github.com/MetaMask/core/pull/7202))
+- **BREAKING:** Bump `@metamask/accounts-controller` from `^34.0.0` to `^35.0.0` ([#7202](https://github.com/MetaMask/core/pull/7202))
 - Permit string `id` values in `OriginalRequest` type ([#7065](https://github.com/MetaMask/core/pull/7065))
   - Previously, only number values were permitted for the `id` property.
 
@@ -615,7 +666,12 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 - Initial release ([#1214](https://github.com/MetaMask/core/pull/1214))
 
-[Unreleased]: https://github.com/MetaMask/core/compare/@metamask/signature-controller@36.0.0...HEAD
+[Unreleased]: https://github.com/MetaMask/core/compare/@metamask/signature-controller@39.0.1...HEAD
+[39.0.1]: https://github.com/MetaMask/core/compare/@metamask/signature-controller@39.0.0...@metamask/signature-controller@39.0.1
+[39.0.0]: https://github.com/MetaMask/core/compare/@metamask/signature-controller@38.0.1...@metamask/signature-controller@39.0.0
+[38.0.1]: https://github.com/MetaMask/core/compare/@metamask/signature-controller@38.0.0...@metamask/signature-controller@38.0.1
+[38.0.0]: https://github.com/MetaMask/core/compare/@metamask/signature-controller@37.0.0...@metamask/signature-controller@38.0.0
+[37.0.0]: https://github.com/MetaMask/core/compare/@metamask/signature-controller@36.0.0...@metamask/signature-controller@37.0.0
 [36.0.0]: https://github.com/MetaMask/core/compare/@metamask/signature-controller@35.0.0...@metamask/signature-controller@36.0.0
 [35.0.0]: https://github.com/MetaMask/core/compare/@metamask/signature-controller@34.0.2...@metamask/signature-controller@35.0.0
 [34.0.2]: https://github.com/MetaMask/core/compare/@metamask/signature-controller@34.0.1...@metamask/signature-controller@34.0.2

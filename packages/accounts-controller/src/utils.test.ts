@@ -28,9 +28,9 @@ describe('utils', () => {
         name: '',
       },
     };
-    const toLowerCase = (address: string) => address.toLowerCase();
-    const toUpperCase = (address: string) => address.toUpperCase();
-    const toSameValue = (address: string) => address;
+    const toLowerCase = (address: string): string => address.toLowerCase();
+    const toUpperCase = (address: string): string => address.toUpperCase();
+    const toSameValue = (address: string): string => address;
 
     it('returns the group index for a valid address', () => {
       expect(

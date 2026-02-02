@@ -48,12 +48,12 @@
   },
   "dependencies": {
     "@metamask/messenger": "^0.3.0",
-    "@metamask/utils": "^11.8.1",
+    "@metamask/utils": "^11.9.0",
     "immer": "^9.0.6"
   },
   "devDependencies": {
     "@metamask/auto-changelog": "^3.4.4",
-    "@metamask/json-rpc-engine": "^10.1.1",
+    "@metamask/json-rpc-engine": "^10.2.1",
     "@ts-bridge/cli": "^0.6.4",
     "@types/jest": "^28.0.0",
     "@types/sinon": "^9.0.10",

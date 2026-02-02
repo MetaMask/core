@@ -7,7 +7,7 @@ import {
 import type { DecodedPermission } from '@metamask/gator-permissions-controller';
 import { SignTypedDataVersion } from '@metamask/keyring-controller';
 import type { Json } from '@metamask/utils';
-import { type Hex } from '@metamask/utils';
+import type { Hex } from '@metamask/utils';
 import { validate } from 'jsonschema';
 
 import { isDelegationRequest } from './delegations';

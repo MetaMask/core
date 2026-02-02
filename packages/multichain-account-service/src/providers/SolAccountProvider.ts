@@ -1,4 +1,5 @@
-import { assertIsBip44Account, type Bip44Account } from '@metamask/account-api';
+import { assertIsBip44Account } from '@metamask/account-api';
+import type { Bip44Account } from '@metamask/account-api';
 import type { TraceCallback } from '@metamask/controller-utils';
 import type { EntropySourceId, KeyringAccount } from '@metamask/keyring-api';
 import { SolScope } from '@metamask/keyring-api';
@@ -10,9 +11,10 @@ import { KeyringTypes } from '@metamask/keyring-controller';
 import type { InternalAccount } from '@metamask/keyring-internal-api';
 import type { SnapId } from '@metamask/snaps-sdk';
 
-import {
-  SnapAccountProvider,
-  type SnapAccountProviderConfig,
+import { SnapAccountProvider } from './SnapAccountProvider';
+import type {
+  RestrictedSnapKeyring,
+  SnapAccountProviderConfig,
 } from './SnapAccountProvider';
 import { withRetry, withTimeout } from './utils';
 import { traceFallback } from '../analytics';
@@ -21,7 +23,20 @@ import type { MultichainAccountServiceMessenger } from '../types';
 
 export type SolAccountProviderConfig = SnapAccountProviderConfig;
 
-export const SOL_ACCOUNT_PROVIDER_NAME = 'Solana' as const;
+export const SOL_ACCOUNT_PROVIDER_NAME = 'Solana';
+
+export const SOL_ACCOUNT_PROVIDER_DEFAULT_CONFIG: SnapAccountProviderConfig = {
+  maxConcurrency: 3,
+  discovery: {
+    enabled: true,
+    timeoutMs: 2000,
+    maxAttempts: 3,
+    backOffMs: 1000,
+  },
+  createAccounts: {
+    timeoutMs: 3000,
+  },
+};
 
 export class SolAccountProvider extends SnapAccountProvider {
   static NAME = SOL_ACCOUNT_PROVIDER_NAME;
@@ -30,17 +45,7 @@ export class SolAccountProvider extends SnapAccountProvider {
 
   constructor(
     messenger: MultichainAccountServiceMessenger,
-    config: SolAccountProviderConfig = {
-      maxConcurrency: 3,
-      discovery: {
-        timeoutMs: 2000,
-        maxAttempts: 3,
-        backOffMs: 1000,
-      },
-      createAccounts: {
-        timeoutMs: 3000,
-      },
-    },
+    config: SolAccountProviderConfig = SOL_ACCOUNT_PROVIDER_DEFAULT_CONFIG,
     trace: TraceCallback = traceFallback,
   ) {
     super(SolAccountProvider.SOLANA_SNAP_ID, messenger, config, trace);
@@ -58,17 +63,18 @@ export class SolAccountProvider extends SnapAccountProvider {
   }
 
   async #createAccount({
+    keyring,
     entropySource,
     groupIndex,
     derivationPath,
   }: {
+    keyring: RestrictedSnapKeyring;
     entropySource: EntropySourceId;
     groupIndex: number;
     derivationPath: string;
   }): Promise<Bip44Account<KeyringAccount>> {
-    const createAccount = await this.getRestrictedSnapAccountCreator();
     const account = await withTimeout(
-      createAccount({ entropySource, derivationPath }),
+      keyring.createAccount({ entropySource, derivationPath }),
       this.config.createAccounts.timeoutMs,
     );
 
@@ -91,15 +97,18 @@ export class SolAccountProvider extends SnapAccountProvider {
     entropySource: EntropySourceId;
     groupIndex: number;
   }): Promise<Bip44Account<KeyringAccount>[]> {
-    return this.withMaxConcurrency(async () => {
-      const derivationPath = `m/44'/501'/${groupIndex}'/0'`;
-      const account = await this.#createAccount({
-        entropySource,
-        groupIndex,
-        derivationPath,
-      });
+    return this.withSnap(async ({ keyring }) => {
+      return this.withMaxConcurrency(async () => {
+        const derivationPath = `m/44'/501'/${groupIndex}'/0'`;
+        const account = await this.#createAccount({
+          keyring,
+          entropySource,
+          groupIndex,
+          derivationPath,
+        });
 
-      return [account];
+        return [account];
+      });
     });
   }
 
@@ -110,46 +119,53 @@ export class SolAccountProvider extends SnapAccountProvider {
     entropySource: EntropySourceId;
     groupIndex: number;
   }): Promise<Bip44Account<KeyringAccount>[]> {
-    return await super.trace(
-      {
-        name: TraceName.SnapDiscoverAccounts,
-        data: {
-          provider: this.getName(),
+    return this.withSnap(async ({ client, keyring }) => {
+      return await super.trace(
+        {
+          name: TraceName.SnapDiscoverAccounts,
+          data: {
+            provider: this.getName(),
+          },
         },
-      },
-      async () => {
-        const discoveredAccounts = await withRetry(
-          () =>
-            withTimeout(
-              this.client.discoverAccounts(
-                [SolScope.Mainnet],
+        async () => {
+          if (!this.config.discovery.enabled) {
+            return [];
+          }
+
+          const discoveredAccounts = await withRetry(
+            () =>
+              withTimeout(
+                client.discoverAccounts(
+                  [SolScope.Mainnet],
+                  entropySource,
+                  groupIndex,
+                ),
+                this.config.discovery.timeoutMs,
+              ),
+            {
+              maxAttempts: this.config.discovery.maxAttempts,
+              backOffMs: this.config.discovery.backOffMs,
+            },
+          );
+
+          if (!discoveredAccounts.length) {
+            return [];
+          }
+
+          const createdAccounts = await Promise.all(
+            discoveredAccounts.map((d) =>
+              this.#createAccount({
+                keyring,
                 entropySource,
                 groupIndex,
-              ),
-              this.config.discovery.timeoutMs,
+                derivationPath: d.derivationPath,
+              }),
             ),
-          {
-            maxAttempts: this.config.discovery.maxAttempts,
-            backOffMs: this.config.discovery.backOffMs,
-          },
-        );
+          );
 
-        if (!discoveredAccounts.length) {
-          return [];
-        }
-
-        const createdAccounts = await Promise.all(
-          discoveredAccounts.map((d) =>
-            this.#createAccount({
-              entropySource,
-              groupIndex,
-              derivationPath: d.derivationPath,
-            }),
-          ),
-        );
-
-        return createdAccounts;
-      },
-    );
+          return createdAccounts;
+        },
+      );
+    });
   }
 }

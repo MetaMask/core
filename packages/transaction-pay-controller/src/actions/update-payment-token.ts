@@ -1,4 +1,5 @@
-import { createModuleLogger, type Hex } from '@metamask/utils';
+import { createModuleLogger } from '@metamask/utils';
+import type { Hex } from '@metamask/utils';
 import { BigNumber } from 'bignumber.js';
 
 import type { TransactionPayControllerMessenger } from '..';
@@ -31,7 +32,7 @@ export type UpdatePaymentTokenOptions = {
 export function updatePaymentToken(
   request: UpdatePaymentTokenRequest,
   options: UpdatePaymentTokenOptions,
-) {
+): void {
   const { transactionId, tokenAddress, chainId } = request;
   const { messenger, updateTransactionData } = options;
 

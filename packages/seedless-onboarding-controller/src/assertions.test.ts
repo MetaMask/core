@@ -3,6 +3,7 @@ import {
   assertIsValidVaultData,
 } from './assertions';
 import { SeedlessOnboardingControllerErrorMessage } from './constants';
+import { VaultData } from './types';
 
 describe('assertIsValidVaultData', () => {
   /**
@@ -10,7 +11,7 @@ describe('assertIsValidVaultData', () => {
    *
    * @returns The valid vault data.
    */
-  const createValidVaultData = () => ({
+  const createValidVaultData = (): VaultData => ({
     toprfEncryptionKey: 'mock_encryption_key',
     toprfPwEncryptionKey: 'mock_pw_encryption_key',
     toprfAuthKeyPair: 'mock_auth_key_pair',

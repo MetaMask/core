@@ -2,6 +2,9 @@ import type { Messenger } from '@metamask/messenger';
 
 /**
  * The action which can be used to report an error.
+ *
+ * @deprecated This action is deprecated and will be removed in a future
+ * release. Please use `Messenger.captureException` directly instead.
  */
 export type ErrorReportingServiceCaptureExceptionAction = {
   type: 'ErrorReportingService:captureException';
@@ -142,6 +145,9 @@ type ErrorReportingServiceOptions = {
  * // Now this will report an error without throwing it.
  * exampleController.doSomething();
  * ```
+ *
+ * @deprecated This service is deprecated and will be removed in a future
+ * release. Please use `Messenger.captureException` directly instead.
  */
 export class ErrorReportingService {
   name: 'ErrorReportingService' = 'ErrorReportingService' as const;
@@ -175,6 +181,8 @@ export class ErrorReportingService {
    * Reports the given error to an external location.
    *
    * @param error - The error to report.
+   * @deprecated This function is deprecated and will be removed in a future
+   * release. Please use `Messenger.captureException` directly instead.
    */
   captureException(error: Error): void {
     this.#captureException(error);

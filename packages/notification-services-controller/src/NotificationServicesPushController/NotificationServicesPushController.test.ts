@@ -16,11 +16,16 @@ const MOCK_FCM_TOKEN = 'mockFcmToken';
 const MOCK_ADDRESSES = ['0x123', '0x456', '0x789'];
 
 // Testing util to clean up verbose logs when testing errors
-const mockErrorLog = () =>
+const mockErrorLog = (): jest.SpyInstance =>
   jest.spyOn(log, 'error').mockImplementation(jest.fn());
 
 describe('NotificationServicesPushController', () => {
-  const arrangeServicesMocks = (token?: string) => {
+  const arrangeServicesMocks = (
+    token?: string,
+  ): {
+    activatePushNotificationsMock: jest.SpyInstance;
+    deactivatePushNotificationsMock: jest.SpyInstance;
+  } => {
     const activatePushNotificationsMock = jest
       .spyOn(services, 'activatePushNotifications')
       .mockResolvedValue(token ?? MOCK_FCM_TOKEN);
@@ -359,8 +364,12 @@ function arrangeMockMessenger(
       state?: Partial<NotificationServicesPushController['state']>;
     }
   >,
-) {
-  const { state: stateOverride, ...configOverride } = controllerConfig || {};
+): {
+  controller: NotificationServicesPushController;
+  initialState: NotificationServicesPushController['state'];
+  messenger: NotificationServicesPushControllerMessenger;
+} {
+  const { state: stateOverride, ...configOverride } = controllerConfig ?? {};
 
   const config: ControllerConfig = {
     isPushFeatureEnabled: true,
@@ -403,7 +412,14 @@ function arrangeMockMessenger(
  */
 function mockAuthBearerTokenCall(
   messenger: NotificationServicesPushControllerMessenger,
-) {
+): jest.Mock<
+  ReturnType<
+    AuthenticationController.AuthenticationControllerGetBearerToken['handler']
+  >,
+  Parameters<
+    AuthenticationController.AuthenticationControllerGetBearerToken['handler']
+  >
+> {
   type Fn =
     AuthenticationController.AuthenticationControllerGetBearerToken['handler'];
   const mockAuthGetBearerToken = jest

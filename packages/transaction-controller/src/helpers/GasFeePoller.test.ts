@@ -1,3 +1,4 @@
+/* eslint-disable no-new */
 import EthQuery from '@metamask/eth-query';
 import type { Provider } from '@metamask/network-controller';
 import type { Hex } from '@metamask/utils';
@@ -10,21 +11,19 @@ import {
 import { flushPromises } from '../../../../tests/helpers';
 import { DefaultGasFeeFlow } from '../gas-flows/DefaultGasFeeFlow';
 import type { TransactionControllerMessenger } from '../TransactionController';
-import type {
-  GasFeeFlowResponse,
-  Layer1GasFeeFlow,
-  TransactionBatchMeta,
-} from '../types';
 import {
   GasFeeEstimateLevel,
   GasFeeEstimateType,
   TransactionEnvelopeType,
   TransactionStatus,
   UserFeeLevel,
-  type GasFeeFlow,
-  type GasFeeEstimates,
-  type TransactionMeta,
 } from '../types';
+import type {
+  GasFeeFlowResponse,
+  Layer1GasFeeFlow,
+  TransactionBatchMeta,
+} from '../types';
+import type { GasFeeFlow, GasFeeEstimates, TransactionMeta } from '../types';
 import { getTransactionLayer1GasFee } from '../utils/layer1-gas-fee-flow';
 
 jest.mock('../utils/feature-flags');
@@ -163,10 +162,10 @@ describe('GasFeePoller', () => {
       getTransactionBatches: getTransactionBatchesMock,
       layer1GasFeeFlows: layer1GasFeeFlowsMock,
       messenger: messengerMock,
-      onStateChange: (listener: () => void) => {
+      onStateChange: (listener: () => void): void => {
         triggerOnStateChange = listener;
       },
-      getProvider: () => ({}) as Provider,
+      getProvider: (): jest.Mocked<Provider> => ({}) as jest.Mocked<Provider>,
     };
   });
 

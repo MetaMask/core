@@ -26,7 +26,8 @@ export type SwapsTokenObject = {
   iconUrl: string;
 };
 
-const DEFAULT_TOKEN_ADDRESS = '0x0000000000000000000000000000000000000000';
+export const DEFAULT_TOKEN_ADDRESS =
+  '0x0000000000000000000000000000000000000000';
 
 const CURRENCY_SYMBOLS = {
   ARBITRUM: 'ETH',
@@ -56,6 +57,7 @@ const CURRENCY_SYMBOLS = {
   BTC: 'BTC',
   TRX: 'TRX',
   MON: 'MON',
+  HYPE: 'HYPE',
 } as const;
 
 const ETH_SWAPS_TOKEN_OBJECT = {
@@ -174,11 +176,17 @@ const MONAD_SWAPS_TOKEN_OBJECT = {
   iconUrl: '',
 } as const;
 
-const SWAPS_TESTNET_CHAIN_ID = '0x539';
+const HYPEREVM_SWAPS_TOKEN_OBJECT = {
+  symbol: CURRENCY_SYMBOLS.HYPE,
+  name: 'Hyperliquid',
+  address: DEFAULT_TOKEN_ADDRESS,
+  decimals: 18,
+  iconUrl: '',
+} as const;
 
 export const SWAPS_CHAINID_DEFAULT_TOKEN_MAP = {
   [CHAIN_IDS.MAINNET]: ETH_SWAPS_TOKEN_OBJECT,
-  [SWAPS_TESTNET_CHAIN_ID]: TEST_ETH_SWAPS_TOKEN_OBJECT,
+  [CHAIN_IDS.LOCALHOST]: TEST_ETH_SWAPS_TOKEN_OBJECT,
   [CHAIN_IDS.BSC]: BNB_SWAPS_TOKEN_OBJECT,
   [CHAIN_IDS.POLYGON]: MATIC_SWAPS_TOKEN_OBJECT,
   [CHAIN_IDS.GOERLI]: GOERLI_SWAPS_TOKEN_OBJECT,
@@ -191,6 +199,7 @@ export const SWAPS_CHAINID_DEFAULT_TOKEN_MAP = {
   [CHAIN_IDS.BASE]: BASE_SWAPS_TOKEN_OBJECT,
   [CHAIN_IDS.SEI]: SEI_SWAPS_TOKEN_OBJECT,
   [CHAIN_IDS.MONAD]: MONAD_SWAPS_TOKEN_OBJECT,
+  [CHAIN_IDS.HYPEREVM]: HYPEREVM_SWAPS_TOKEN_OBJECT,
   [SolScope.Mainnet]: SOLANA_SWAPS_TOKEN_OBJECT,
   [SolScope.Devnet]: SOLANA_SWAPS_TOKEN_OBJECT,
   [BtcScope.Mainnet]: BTC_SWAPS_TOKEN_OBJECT,
@@ -200,7 +209,7 @@ export const SWAPS_CHAINID_DEFAULT_TOKEN_MAP = {
 export type SupportedSwapsNativeCurrencySymbols =
   (typeof SWAPS_CHAINID_DEFAULT_TOKEN_MAP)[
     | AllowedBridgeChainIds
-    | typeof SWAPS_TESTNET_CHAIN_ID]['symbol'];
+    | typeof CHAIN_IDS.LOCALHOST]['symbol'];
 
 /**
  * A map of native currency symbols to their SLIP-44 representation
@@ -220,4 +229,5 @@ export const SYMBOL_TO_SLIP44_MAP: Record<
   SEI: 'slip44:19000118',
   TRX: 'slip44:195',
   MON: 'slip44:268435779',
+  HYPE: 'slip44:2457',
 };

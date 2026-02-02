@@ -7,6 +7,76 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+### Changed
+
+- Bump `@metamask/keyring-controller` from `^25.0.0` to `^25.1.0` ([#7713](https://github.com/MetaMask/core/pull/7713))
+
+## [5.1.0]
+
+### Added
+
+- Recover from Snap account de-sync when Snap has more accounts than MetaMask ([#7671](https://github.com/MetaMask/core/pull/7671))
+
+### Changed
+
+- Bump `@metamask/accounts-controller` from `^35.0.0` to `^35.0.2` ([#7604](https://github.com/MetaMask/core/pull/7604), [#7642](https://github.com/MetaMask/core/pull/7642))
+- Remove Sentry log before attempting Snap account re-sync ([#7675](https://github.com/MetaMask/core/pull/7675))
+
+## [5.0.0]
+
+### Added
+
+- Wait for Snap platform to be ready before any wallet/group operations ([#7266](https://github.com/MetaMask/core/pull/7266))
+- Add `SnapAccountProvider.withSnap` protected helper ([#7266](https://github.com/MetaMask/core/pull/7266))
+  - This is used to protect any Snap operation behind a guard that checks if the Snap platform is ready.
+- Add `MultichainAccountService:ensureCanUseSnapPlatform` method and action.
+  - This will resolve once the Snap platform is ready for the first time and will throw afterward if Snap platform has been disabled dynamically.
+  - This action is mostly used internally by any Snap-based account providers.
+
+### Changed
+
+- **BREAKING:** The `SnapAccountProvider.client` property is now private ([#7266](https://github.com/MetaMask/core/pull/7266))
+  - You now need to use `SnapAccountProvider.withSnap` to access to it.
+- Bump `@metamask/snaps-controllers` from `^14.0.1` to `^17.2.0` ([#7550](https://github.com/MetaMask/core/pull/7550))
+- Bump `@metamask/snaps-sdk` from `^9.0.0` to `^10.3.0` ([#7550](https://github.com/MetaMask/core/pull/7550))
+- Bump `@metamask/snaps-utils` from `^11.0.0` to `^11.7.0` ([#7550](https://github.com/MetaMask/core/pull/7550))
+- Upgrade `@metamask/utils` from `^11.8.1` to `^11.9.0` ([#7511](https://github.com/MetaMask/core/pull/7511))
+- Remove dependency on `@metamask/error-reporting-service` ([#7542](https://github.com/MetaMask/core/pull/7542))
+  - The service no longer needs `ErrorReportingService:captureException`.
+
+## [4.1.0]
+
+### Added
+
+- Add `config.discovery.enabled` option for all account provider config objects ([#7447](https://github.com/MetaMask/core/pull/7447))
+- Add `{EVM,SOL,BTC,TRX}_ACCOUNT_PROVIDER_DEFAULT_CONFIG` ([#7447](https://github.com/MetaMask/core/pull/7447))
+
+## [4.0.1]
+
+### Changed
+
+- Move peer dependencies for controller and service packages to direct dependencies ([#7209](https://github.com/MetaMask/core/pull/7209))
+  - The dependencies moved are:
+    - `@metamask/accounts-controller` (^35.0.0)
+    - `@metamask/error-reporting-service` (^3.0.0)
+    - `@metamask/keyring-controller` (^25.0.0)
+    - `@metamask/snaps-controllers` (^14.0.1)
+  - In clients, it is now possible for multiple versions of these packages to exist in the dependency tree.
+    - For example, this scenario would be valid: a client relies on `@metamask/controller-a` 1.0.0 and `@metamask/controller-b` 1.0.0, and `@metamask/controller-b` depends on `@metamask/controller-a` 1.1.0.
+  - Note, however, that the versions specified in the client's `package.json` always "win", and you are expected to keep them up to date so as not to break controller and service intercommunication.
+
+### Fixed
+
+- Harden EVM discovery in case of bad RPC response ([#7434](https://github.com/MetaMask/core/pull/7434))
+  - If the response was not hex-formatted, then the EVM discovery was continuously running.
+
+## [4.0.0]
+
+### Changed
+
+- **BREAKING:** Bump `@metamask/keyring-controller` from `^24.0.0` to `^25.0.0` ([#7202](https://github.com/MetaMask/core/pull/7202))
+- **BREAKING:** Bump `@metamask/accounts-controller` from `^34.0.0` to `^35.0.0` ([#7202](https://github.com/MetaMask/core/pull/7202))
+
 ## [3.0.0]
 
 ### Added
@@ -275,7 +345,12 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 - Add `MultichainAccountService` ([#6141](https://github.com/MetaMask/core/pull/6141)), ([#6165](https://github.com/MetaMask/core/pull/6165))
   - This service manages multichain accounts/wallets.
 
-[Unreleased]: https://github.com/MetaMask/core/compare/@metamask/multichain-account-service@3.0.0...HEAD
+[Unreleased]: https://github.com/MetaMask/core/compare/@metamask/multichain-account-service@5.1.0...HEAD
+[5.1.0]: https://github.com/MetaMask/core/compare/@metamask/multichain-account-service@5.0.0...@metamask/multichain-account-service@5.1.0
+[5.0.0]: https://github.com/MetaMask/core/compare/@metamask/multichain-account-service@4.1.0...@metamask/multichain-account-service@5.0.0
+[4.1.0]: https://github.com/MetaMask/core/compare/@metamask/multichain-account-service@4.0.1...@metamask/multichain-account-service@4.1.0
+[4.0.1]: https://github.com/MetaMask/core/compare/@metamask/multichain-account-service@4.0.0...@metamask/multichain-account-service@4.0.1
+[4.0.0]: https://github.com/MetaMask/core/compare/@metamask/multichain-account-service@3.0.0...@metamask/multichain-account-service@4.0.0
 [3.0.0]: https://github.com/MetaMask/core/compare/@metamask/multichain-account-service@2.1.0...@metamask/multichain-account-service@3.0.0
 [2.1.0]: https://github.com/MetaMask/core/compare/@metamask/multichain-account-service@2.0.1...@metamask/multichain-account-service@2.1.0
 [2.0.1]: https://github.com/MetaMask/core/compare/@metamask/multichain-account-service@2.0.0...@metamask/multichain-account-service@2.0.1

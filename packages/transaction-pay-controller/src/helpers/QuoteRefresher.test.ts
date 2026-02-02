@@ -1,3 +1,5 @@
+/* eslint-disable no-new */
+
 import { createDeferredPromise } from '@metamask/utils';
 
 import { QuoteRefresher } from './QuoteRefresher';
@@ -24,7 +26,7 @@ describe('QuoteRefresher', () => {
    * @param options - Options object.
    * @param options.hasQuotes - Whether to include quotes in the state.
    */
-  function publishStateChange({ hasQuotes }: { hasQuotes: boolean }) {
+  function publishStateChange({ hasQuotes }: { hasQuotes: boolean }): void {
     const transactionData = {
       '123': (hasQuotes ? { quotes: [{}] } : {}) as TransactionData,
     };

@@ -9,7 +9,7 @@ describe('inflight cache', () => {
     const engine = JsonRpcEngineV2.create({
       middleware: [
         createInflightCacheMiddleware(),
-        async () => {
+        async (): Promise<boolean> => {
           hitCount += 1;
           if (hitCount === 1) {
             await new Promise((resolve) => setTimeout(resolve, 100));

@@ -1,7 +1,5 @@
-import {
-  TransactionStatus,
-  type TransactionMeta,
-} from '@metamask/transaction-controller';
+import { TransactionStatus } from '@metamask/transaction-controller';
+import type { TransactionMeta } from '@metamask/transaction-controller';
 import type { BatchTransaction } from '@metamask/transaction-controller';
 import type { Hex, Json } from '@metamask/utils';
 import { cloneDeep } from 'lodash';
@@ -75,6 +73,12 @@ const TOTALS_MOCK = {
       },
     },
   },
+  targetAmount: {
+    fiat: '5.67',
+    human: '5.67',
+    raw: '567000',
+    usd: '6.78',
+  },
   total: {
     fiat: '1.23',
     usd: '4.56',
@@ -102,7 +106,7 @@ describe('Quotes Utils', () => {
    * @param params - Partial params to override the defaults.
    * @returns Return value from updateQuotes.
    */
-  async function run(params?: Partial<UpdateQuotesRequest>) {
+  async function run(params?: Partial<UpdateQuotesRequest>): Promise<boolean> {
     return await updateQuotes({
       messenger,
       transactionData: cloneDeep(TRANSACTION_DATA_MOCK),
@@ -224,6 +228,7 @@ describe('Quotes Utils', () => {
         messenger,
         requests: [
           {
+            isMaxAmount: false,
             from: TRANSACTION_META_MOCK.txParams.from,
             sourceBalanceRaw: TRANSACTION_DATA_MOCK.paymentToken?.balanceRaw,
             sourceTokenAmount:
@@ -302,6 +307,7 @@ describe('Quotes Utils', () => {
           bridgeFeeFiat: TOTALS_MOCK.fees.provider.usd,
           chainId: TRANSACTION_DATA_MOCK.paymentToken?.chainId,
           networkFeeFiat: TOTALS_MOCK.fees.sourceNetwork.estimate.usd,
+          targetFiat: TOTALS_MOCK.targetAmount.usd,
           tokenAddress: TRANSACTION_DATA_MOCK.paymentToken?.address,
           totalFiat: TOTALS_MOCK.total.usd,
         },

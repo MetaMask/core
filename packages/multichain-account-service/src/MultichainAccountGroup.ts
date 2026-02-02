@@ -1,12 +1,12 @@
 import { AccountGroupType, select, selectOne } from '@metamask/account-api';
-import {
-  toMultichainAccountGroupId,
-  type MultichainAccountGroupId,
-  type MultichainAccountGroup as MultichainAccountGroupDefinition,
+import { toMultichainAccountGroupId } from '@metamask/account-api';
+import type {
+  MultichainAccountGroupId,
+  MultichainAccountGroup as MultichainAccountGroupDefinition,
 } from '@metamask/account-api';
 import type { Bip44Account } from '@metamask/account-api';
 import type { AccountSelector } from '@metamask/account-api';
-import { type KeyringAccount } from '@metamask/keyring-api';
+import type { KeyringAccount } from '@metamask/keyring-api';
 
 import type { Logger } from './logger';
 import {
@@ -265,10 +265,7 @@ export class MultichainAccountGroup<
               provider: provider.getName(),
             },
           );
-          this.#messenger.call(
-            'ErrorReportingService:captureException',
-            sentryError,
-          );
+          this.#messenger.captureException?.(sentryError);
           throw error;
         }
       }),

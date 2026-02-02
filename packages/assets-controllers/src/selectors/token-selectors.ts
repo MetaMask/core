@@ -2,10 +2,13 @@ import type { AccountGroupId } from '@metamask/account-api';
 import type { AccountTreeControllerState } from '@metamask/account-tree-controller';
 import type { AccountsControllerState } from '@metamask/accounts-controller';
 import { convertHexToDecimal } from '@metamask/controller-utils';
+import { TrxScope } from '@metamask/keyring-api';
 import type { InternalAccount } from '@metamask/keyring-internal-api';
 import type { NetworkState } from '@metamask/network-controller';
-import { hexToBigInt, parseCaipAssetType, type Hex } from '@metamask/utils';
-import { createSelector } from 'reselect';
+import { hexToBigInt, parseCaipAssetType } from '@metamask/utils';
+import type { Hex } from '@metamask/utils';
+import { createSelector, weakMapMemoize } from 'reselect';
+import { TokenRwaData } from 'src/token-service';
 
 import {
   parseBalanceWithDecimals,
@@ -19,6 +22,26 @@ import { getNativeTokenAddress } from '../token-prices-service/codefi-v2';
 import type { TokenBalancesControllerState } from '../TokenBalancesController';
 import type { Token, TokenRatesControllerState } from '../TokenRatesController';
 import type { TokensControllerState } from '../TokensController';
+
+// Asset Tron Filters
+export const TRON_RESOURCE = {
+  ENERGY: 'energy',
+  BANDWIDTH: 'bandwidth',
+  MAX_ENERGY: 'max-energy',
+  MAX_BANDWIDTH: 'max-bandwidth',
+  STRX_ENERGY: 'strx-energy',
+  STRX_BANDWIDTH: 'strx-bandwidth',
+} as const;
+
+export type TronResourceSymbol =
+  (typeof TRON_RESOURCE)[keyof typeof TRON_RESOURCE];
+
+export const TRON_RESOURCE_SYMBOLS = Object.values(
+  TRON_RESOURCE,
+) as readonly TronResourceSymbol[];
+
+export const TRON_RESOURCE_SYMBOLS_SET: ReadonlySet<TronResourceSymbol> =
+  new Set(TRON_RESOURCE_SYMBOLS);
 
 export type AssetsByAccountGroup = {
   [accountGroupId: AccountGroupId]: AccountGroupAssets;
@@ -62,6 +85,7 @@ export type Asset = (
         conversionRate: number;
       }
     | undefined;
+  rwaData?: TokenRwaData;
 };
 
 export type AssetListState = {
@@ -184,6 +208,7 @@ const selectAllEvmAccountNativeBalances = createAssetListSelector(
           currencyRates,
           chainId,
           nativeToken.address,
+          nativeCurrency, // Pass native currency symbol for fallback when market data is missing
         );
 
         groupChainAssets.push({
@@ -303,6 +328,7 @@ const selectAllEvmAssets = createAssetListSelector(
                 }
               : undefined,
             chainId,
+            ...(token.rwaData && { rwaData: token.rwaData }),
           });
         }
       }
@@ -369,7 +395,7 @@ const selectAllMultichainAssets = createAssetListSelector(
             }
           | undefined = multichainBalances[accountId]?.[assetId];
 
-        const decimals = assetMetadata.units.find(
+        const decimals = assetMetadata.units?.find(
           (unit) =>
             unit.name === assetMetadata.name &&
             unit.symbol === assetMetadata.symbol,
@@ -419,7 +445,7 @@ const selectAllMultichainAssets = createAssetListSelector(
   },
 );
 
-const selectAllAssets = createAssetListSelector(
+export const selectAllAssets = createAssetListSelector(
   [
     selectAllEvmAssets,
     selectAllMultichainAssets,
@@ -438,14 +464,66 @@ const selectAllAssets = createAssetListSelector(
   },
 );
 
+export type SelectAccountGroupAssetOpts = {
+  filterTronStakedTokens: boolean;
+};
+
+const defaultSelectAccountGroupAssetOpts: SelectAccountGroupAssetOpts = {
+  filterTronStakedTokens: true,
+};
+
+const filterTronStakedTokens = (assetsByAccountGroup: AccountGroupAssets) => {
+  const newAssetsByAccountGroup = { ...assetsByAccountGroup };
+
+  Object.values(TrxScope).forEach((tronChainId) => {
+    if (!newAssetsByAccountGroup[tronChainId]) {
+      return;
+    }
+
+    newAssetsByAccountGroup[tronChainId] = newAssetsByAccountGroup[
+      tronChainId
+    ].filter((asset: Asset) => {
+      if (
+        asset.chainId.startsWith('tron:') &&
+        TRON_RESOURCE_SYMBOLS_SET.has(
+          asset.symbol?.toLowerCase() as TronResourceSymbol,
+        )
+      ) {
+        return false;
+      }
+      return true;
+    });
+  });
+
+  return newAssetsByAccountGroup;
+};
+
 export const selectAssetsBySelectedAccountGroup = createAssetListSelector(
-  [selectAllAssets, (state) => state.accountTree],
-  (groupAssets, accountTree) => {
+  [
+    selectAllAssets,
+    (state) => state.accountTree,
+    (
+      _state,
+      opts: SelectAccountGroupAssetOpts = defaultSelectAccountGroupAssetOpts,
+    ) => opts,
+  ],
+  (groupAssets, accountTree, opts) => {
     const { selectedAccountGroup } = accountTree;
     if (!selectedAccountGroup) {
       return {};
     }
-    return groupAssets[selectedAccountGroup] || {};
+
+    let result = groupAssets[selectedAccountGroup] || {};
+
+    if (opts.filterTronStakedTokens) {
+      result = filterTronStakedTokens(result);
+    }
+
+    return result;
+  },
+  {
+    memoize: weakMapMemoize,
+    argsMemoize: weakMapMemoize,
   },
 );
 
@@ -487,6 +565,7 @@ function mergeAssets(
  * @param currencyRates - The currency rates for the token
  * @param chainId - The chain id of the token
  * @param tokenAddress - The address of the token
+ * @param nativeCurrencySymbol - The native currency symbol (e.g., 'ETH', 'BNB') - used for fallback when market data is missing for native tokens
  * @returns The price and currency of the token in the current currency. Returns undefined if the asset is not found in the market data or currency rates.
  */
 function getFiatBalanceForEvmToken(
@@ -496,8 +575,28 @@ function getFiatBalanceForEvmToken(
   currencyRates: CurrencyRateState['currencyRates'],
   chainId: Hex,
   tokenAddress: Hex,
+  nativeCurrencySymbol?: string,
 ) {
   const tokenMarketData = marketData[chainId]?.[tokenAddress];
+
+  // For native tokens: if no market data exists, use price=1 and look up currency rate directly
+  // This is because native tokens are priced in themselves (1 ETH = 1 ETH)
+  if (!tokenMarketData && nativeCurrencySymbol) {
+    const currencyRate = currencyRates[nativeCurrencySymbol];
+
+    if (!currencyRate?.conversionRate) {
+      return undefined;
+    }
+
+    const fiatBalance =
+      (convertHexToDecimal(rawBalance) / 10 ** decimals) *
+      currencyRate.conversionRate;
+
+    return {
+      balance: fiatBalance,
+      conversionRate: currencyRate.conversionRate,
+    };
+  }
 
   if (!tokenMarketData) {
     return undefined;

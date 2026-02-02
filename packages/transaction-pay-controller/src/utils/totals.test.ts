@@ -2,10 +2,8 @@ import type { TransactionMeta } from '@metamask/transaction-controller';
 
 import { calculateTransactionGasCost } from './gas';
 import { calculateTotals } from './totals';
-import {
-  TransactionPayStrategy,
-  type TransactionPayControllerMessenger,
-} from '..';
+import { TransactionPayStrategy } from '..';
+import type { TransactionPayControllerMessenger } from '..';
 import type {
   QuoteRequest,
   TransactionPayQuote,
@@ -55,6 +53,12 @@ const QUOTE_1_MOCK: TransactionPayQuote<unknown> = {
     usd: '8.88',
   },
   strategy: TransactionPayStrategy.Test,
+  targetAmount: {
+    human: '9.99',
+    fiat: '9.99',
+    raw: '999000000000000',
+    usd: '10.10',
+  },
 };
 
 const TOKEN_1_MOCK = {
@@ -74,6 +78,7 @@ const QUOTE_2_MOCK: TransactionPayQuote<unknown> = {
   },
   estimatedDuration: 234,
   fees: {
+    isSourceGasFeeToken: true,
     provider: {
       fiat: '7.77',
       usd: '8.88',
@@ -106,6 +111,12 @@ const QUOTE_2_MOCK: TransactionPayQuote<unknown> = {
     usd: '14.14',
   },
   strategy: TransactionPayStrategy.Test,
+  targetAmount: {
+    human: '15.15',
+    fiat: '15.15',
+    raw: '1515000000000000',
+    usd: '16.16',
+  },
 };
 
 const TRANSACTION_META_MOCK = {} as TransactionMeta;
@@ -149,6 +160,19 @@ describe('Totals Utils', () => {
 
       expect(result.total.fiat).toBe('43.3');
       expect(result.total.usd).toBe('51.08');
+    });
+
+    it('returns adjusted total when isMaxAmount is true', () => {
+      const result = calculateTotals({
+        isMaxAmount: true,
+        quotes: [QUOTE_1_MOCK, QUOTE_2_MOCK],
+        tokens: [TOKEN_1_MOCK, TOKEN_2_MOCK],
+        messenger: MESSENGER_MOCK,
+        transaction: TRANSACTION_META_MOCK,
+      });
+
+      expect(result.total.fiat).toBe('64');
+      expect(result.total.usd).toBe('70.68');
     });
 
     it('returns total excluding token amount not in quote', () => {
@@ -232,6 +256,7 @@ describe('Totals Utils', () => {
 
       expect(result.sourceAmount.fiat).toBe('20.9');
       expect(result.sourceAmount.usd).toBe('23.02');
+      expect(result.fees.isSourceGasFeeToken).toBe(true);
     });
   });
 });

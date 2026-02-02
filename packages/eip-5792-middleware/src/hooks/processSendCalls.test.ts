@@ -5,12 +5,8 @@ import type {
 } from '@metamask/accounts-controller';
 import { KeyringTypes } from '@metamask/keyring-controller';
 import type { InternalAccount } from '@metamask/keyring-internal-api';
-import {
-  type MessengerActions,
-  type MockAnyNamespace,
-  Messenger,
-  MOCK_ANY_NAMESPACE,
-} from '@metamask/messenger';
+import { Messenger, MOCK_ANY_NAMESPACE } from '@metamask/messenger';
+import type { MessengerActions, MockAnyNamespace } from '@metamask/messenger';
 import type {
   AutoManagedNetworkClient,
   CustomNetworkClientConfiguration,
@@ -214,6 +210,7 @@ describe('EIP-5792', () => {
         from: SEND_CALLS_MOCK.from,
         networkClientId: NETWORK_CLIENT_ID_MOCK,
         origin: ORIGIN_MOCK,
+        requestId: '1',
         securityAlertId: expect.any(String),
         transactions: [
           { params: SEND_CALLS_MOCK.calls[0] },
@@ -241,6 +238,7 @@ describe('EIP-5792', () => {
           batchId: expect.any(String),
           networkClientId: 'test-client',
           origin: 'test.com',
+          requestId: '1',
           securityAlertResponse: {
             securityAlertId: expect.any(String),
           },

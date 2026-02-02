@@ -9,6 +9,34 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ### Added
 
+- Add prototype pollution validation for `signTypedData` methods (V1, V3, V4) to block dangerous properties (`__proto__`, `constructor`, `prototype`, etc.) in message data. ([#7732](https://github.com/MetaMask/core/pull/7732))
+
+### Changed
+
+- Bump `@metamask/eth-block-tracker` from `^15.0.0` to `^15.0.1` ([#7642](https://github.com/MetaMask/core/pull/7642))
+- Bump `@metamask/json-rpc-engine` from `^10.2.0` to `^10.2.1` ([#7642](https://github.com/MetaMask/core/pull/7642))
+
+## [23.0.0]
+
+### Added
+
+- Support for `wallet_getSupportedExecutionPermissions` and `wallet_getGrantedExecutionPermissions` RPC methods ([#7603](https://github.com/MetaMask/core/pull/7603))
+
+### Changed
+
+- Upgrade `@metamask/utils` from `^11.8.1` to `^11.9.0` ([#7511](https://github.com/MetaMask/core/pull/7511))
+- **BREAKING:** Changed `wallet_requestExecutionPermissions` to comply with 7715 spec revisions.
+
+## [22.0.1]
+
+### Fixed
+
+- Include `WalletContext` in EIP-7715 requests ([#7331](https://github.com/MetaMask/core/pull/7331))
+
+## [22.0.0]
+
+### Added
+
 - Add new function `providerAsMiddlewareV2` for converting an `InternalProvider` into a `JsonRpcEngine` v2-compatible middleware ([#7138](https://github.com/MetaMask/core/pull/7138))
 
 ### Changed
@@ -28,6 +56,10 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
     a request with a later block number than the originally requested block number.
   - In practice, this should happen rarely if ever.
 - **BREAKING:** Migrate all uses of `interface` to `type` ([#6885](https://github.com/MetaMask/core/pull/6885))
+- Bump `@metamask/message-manager` from `^14.0.0` to `^14.1.0` ([#7202](https://github.com/MetaMask/core/pull/7202))
+- Bump `@metamask/json-rpc-engine` from `^10.1.1` to `^10.2.0` ([#7202](https://github.com/MetaMask/core/pull/7202))
+- Bump `@metamask/eth-json-rpc-provider` from `^5.0.1` to `^6.0.0` ([#7202](https://github.com/MetaMask/core/pull/7202))
+- Bump `@metamask/eth-block-tracker` from `^14.0.0` to `^15.0.0` ([#7202](https://github.com/MetaMask/core/pull/7202))
 
 ## [21.0.0]
 
@@ -41,5 +73,8 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
   - See [`MetaMask/eth-json-rpc-middleware`](https://github.com/MetaMask/eth-json-rpc-middleware/blob/main/CHANGELOG.md)
     for the original changelog.
 
-[Unreleased]: https://github.com/MetaMask/core/compare/@metamask/eth-json-rpc-middleware@21.0.0...HEAD
+[Unreleased]: https://github.com/MetaMask/core/compare/@metamask/eth-json-rpc-middleware@23.0.0...HEAD
+[23.0.0]: https://github.com/MetaMask/core/compare/@metamask/eth-json-rpc-middleware@22.0.1...@metamask/eth-json-rpc-middleware@23.0.0
+[22.0.1]: https://github.com/MetaMask/core/compare/@metamask/eth-json-rpc-middleware@22.0.0...@metamask/eth-json-rpc-middleware@22.0.1
+[22.0.0]: https://github.com/MetaMask/core/compare/@metamask/eth-json-rpc-middleware@21.0.0...@metamask/eth-json-rpc-middleware@22.0.0
 [21.0.0]: https://github.com/MetaMask/core/releases/tag/@metamask/eth-json-rpc-middleware@21.0.0

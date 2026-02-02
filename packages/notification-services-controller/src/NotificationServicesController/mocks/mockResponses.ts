@@ -17,6 +17,8 @@ type MockResponse = {
 
 export const CONTENTFUL_RESPONSE = createMockFeatureAnnouncementAPIResult();
 
+// Using `satisfies` to preserve narrow return types while ensuring type safety; explicit return types would widen to MockResponse
+/* eslint-disable @typescript-eslint/explicit-function-return-type */
 export const getMockFeatureAnnouncementResponse = () => {
   return {
     url: FEATURE_ANNOUNCEMENT_API,
@@ -40,10 +42,13 @@ export const getMockOnChainNotificationsConfig = () => {
     response: [{ address: '0xTestAddress', enabled: true }],
   } satisfies MockResponse;
 };
+/* eslint-enable @typescript-eslint/explicit-function-return-type */
 
 export const MOCK_RAW_ON_CHAIN_NOTIFICATIONS =
   createMockRawOnChainNotifications();
 
+// Using `satisfies` to preserve narrow return types while ensuring type safety; explicit return types would widen to MockResponse
+/* eslint-disable @typescript-eslint/explicit-function-return-type */
 export const getMockListNotificationsResponse = () => {
   return {
     url: NOTIFICATION_API_LIST_ENDPOINT(),
@@ -67,3 +72,4 @@ export const getMockCreatePerpOrderNotification = () => {
     response: null,
   } satisfies MockResponse;
 };
+/* eslint-enable @typescript-eslint/explicit-function-return-type */

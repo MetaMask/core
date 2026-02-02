@@ -5,11 +5,13 @@ import {
   toHex,
   toChecksumHexAddress,
 } from '@metamask/controller-utils';
-import { add0x, type Hex } from '@metamask/utils';
+import { add0x } from '@metamask/utils';
+import type { Hex } from '@metamask/utils';
 
 import * as assetsUtil from './assetsUtil';
 import { TOKEN_PRICES_BATCH_SIZE } from './assetsUtil';
 import type { Nft, NftMetadata } from './NftController';
+import { getNativeTokenAddress } from './token-prices-service';
 import type { AbstractTokenPricesService } from './token-prices-service';
 
 const DEFAULT_IPFS_URL_FORMAT = 'ipfs://';
@@ -249,7 +251,7 @@ describe('assetsUtil', () => {
     it('returns true for Mainnet', () => {
       expect(
         assetsUtil.isTokenDetectionSupportedForNetwork(
-          assetsUtil.SupportedTokenDetectionNetworks.mainnet,
+          assetsUtil.SupportedTokenDetectionNetworks.Mainnet,
         ),
       ).toBe(true);
     });
@@ -257,7 +259,7 @@ describe('assetsUtil', () => {
     it('returns true for custom network such as BSC', () => {
       expect(
         assetsUtil.isTokenDetectionSupportedForNetwork(
-          assetsUtil.SupportedTokenDetectionNetworks.bsc,
+          assetsUtil.SupportedTokenDetectionNetworks.Bsc,
         ),
       ).toBe(true);
     });
@@ -265,7 +267,7 @@ describe('assetsUtil', () => {
     it('returns true for the Aurora network', () => {
       expect(
         assetsUtil.isTokenDetectionSupportedForNetwork(
-          assetsUtil.SupportedTokenDetectionNetworks.aurora,
+          assetsUtil.SupportedTokenDetectionNetworks.Aurora,
         ),
       ).toBe(true);
     });
@@ -281,7 +283,7 @@ describe('assetsUtil', () => {
     it('returns true for Mainnet', () => {
       expect(
         assetsUtil.isTokenListSupportedForNetwork(
-          assetsUtil.SupportedTokenDetectionNetworks.mainnet,
+          assetsUtil.SupportedTokenDetectionNetworks.Mainnet,
         ),
       ).toBe(true);
     });
@@ -295,7 +297,7 @@ describe('assetsUtil', () => {
     it('returns true for custom network such as Polygon', () => {
       expect(
         assetsUtil.isTokenListSupportedForNetwork(
-          assetsUtil.SupportedTokenDetectionNetworks.polygon,
+          assetsUtil.SupportedTokenDetectionNetworks.Polygon,
         ),
       ).toBe(true);
     });
@@ -622,9 +624,10 @@ describe('assetsUtil', () => {
       const testChainId = '0x1';
       const mockPriceService = createMockPriceService();
 
-      jest.spyOn(mockPriceService, 'fetchTokenPrices').mockResolvedValue({
-        [testTokenAddress]: {
+      jest.spyOn(mockPriceService, 'fetchTokenPrices').mockResolvedValue([
+        {
           tokenAddress: testTokenAddress,
+          chainId: testChainId,
           currency: testNativeCurrency,
           allTimeHigh: 4000,
           allTimeLow: 900,
@@ -645,7 +648,7 @@ describe('assetsUtil', () => {
           priceChange1d: 100,
           pricePercentChange1d: 100,
         },
-      });
+      ]);
 
       const result = await assetsUtil.fetchTokenContractExchangeRates({
         tokenPricesService: mockPriceService,
@@ -685,13 +688,21 @@ describe('assetsUtil', () => {
       );
       expect(fetchTokenPricesSpy).toHaveBeenCalledTimes(numBatches);
 
+      const tokenAddressesWithNativeToken = [
+        getNativeTokenAddress(testChainId),
+        ...tokenAddresses,
+      ];
       for (let i = 1; i <= numBatches; i++) {
         expect(fetchTokenPricesSpy).toHaveBeenNthCalledWith(i, {
-          chainId: testChainId,
-          tokenAddresses: tokenAddresses.slice(
-            (i - 1) * TOKEN_PRICES_BATCH_SIZE,
-            i * TOKEN_PRICES_BATCH_SIZE,
-          ),
+          assets: tokenAddressesWithNativeToken
+            .slice(
+              (i - 1) * TOKEN_PRICES_BATCH_SIZE,
+              i * TOKEN_PRICES_BATCH_SIZE,
+            )
+            .map((tokenAddress) => ({
+              chainId: testChainId,
+              tokenAddress,
+            })),
           currency: testNativeCurrency,
         });
       }
@@ -729,13 +740,21 @@ describe('assetsUtil', () => {
       );
       expect(fetchTokenPricesSpy).toHaveBeenCalledTimes(numBatches);
 
+      const tokenAddressesWithNativeToken = [
+        getNativeTokenAddress(testChainId),
+        ...tokenAddresses,
+      ];
       for (let i = 1; i <= numBatches; i++) {
         expect(fetchTokenPricesSpy).toHaveBeenNthCalledWith(i, {
-          chainId: testChainId,
-          tokenAddresses: tokenAddresses.slice(
-            (i - 1) * TOKEN_PRICES_BATCH_SIZE,
-            i * TOKEN_PRICES_BATCH_SIZE,
-          ),
+          assets: tokenAddressesWithNativeToken
+            .slice(
+              (i - 1) * TOKEN_PRICES_BATCH_SIZE,
+              i * TOKEN_PRICES_BATCH_SIZE,
+            )
+            .map((tokenAddress) => ({
+              chainId: testChainId,
+              tokenAddress,
+            })),
           currency: testNativeCurrency,
         });
       }
@@ -779,7 +798,7 @@ function createMockPriceService(): AbstractTokenPricesService {
       return true;
     },
     async fetchTokenPrices() {
-      return {};
+      return [];
     },
     async fetchExchangeRates() {
       return {};

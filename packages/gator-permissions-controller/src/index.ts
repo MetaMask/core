@@ -13,11 +13,14 @@ export type {
   GatorPermissionsControllerDisableGatorPermissionsAction,
   GatorPermissionsControllerSubmitRevocationAction,
   GatorPermissionsControllerAddPendingRevocationAction,
+  GatorPermissionsControllerSubmitDirectRevocationAction,
+  GatorPermissionsControllerIsPendingRevocationAction,
   GatorPermissionsControllerActions,
   GatorPermissionsControllerEvents,
   GatorPermissionsControllerStateChangeEvent,
 } from './GatorPermissionsController';
 export type { DecodedPermission } from './decodePermission';
+export { DELEGATION_FRAMEWORK_VERSION } from './constants';
 export type {
   GatorPermissionsControllerErrorCode,
   GatorPermissionsSnapRpcMethod,
@@ -34,6 +37,7 @@ export type {
   GatorPermissionsListByPermissionTypeAndChainId,
   DelegationDetails,
   RevocationParams,
+  RevocationMetadata,
 } from './types';
 
 export type {
@@ -41,8 +45,5 @@ export type {
   NativeTokenPeriodicPermission,
   Erc20TokenStreamPermission,
   Erc20TokenPeriodicPermission,
-  AccountSigner,
-  WalletSigner,
-  Signer,
   MetaMaskBasePermissionData,
 } from '@metamask/7715-permission-types';

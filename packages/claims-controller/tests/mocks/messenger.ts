@@ -1,9 +1,8 @@
-import {
-  Messenger,
-  MOCK_ANY_NAMESPACE,
-  type MessengerActions,
-  type MessengerEvents,
-  type MockAnyNamespace,
+import { Messenger, MOCK_ANY_NAMESPACE } from '@metamask/messenger';
+import type {
+  MessengerActions,
+  MessengerEvents,
+  MockAnyNamespace,
 } from '@metamask/messenger';
 
 import type {
@@ -125,10 +124,12 @@ export type RootServiceMessenger = Messenger<
  * Create a mock messenger for the claims service.
  *
  * @param mockAuthenticationControllerGetBearerToken - A mock function for the authentication controller get bearer token.
+ * @param mockCaptureException - A mock function for the capture exception.
  * @returns A mock messenger for the claims service.
  */
 export function createMockClaimsServiceMessenger(
   mockAuthenticationControllerGetBearerToken: jest.Mock,
+  mockCaptureException: jest.Mock,
 ): {
   rootMessenger: RootServiceMessenger;
   messenger: ClaimsServiceMessenger;
@@ -150,6 +151,7 @@ export function createMockClaimsServiceMessenger(
   >({
     namespace: SERVICE_NAME,
     parent: rootMessenger,
+    captureException: mockCaptureException,
   });
 
   rootMessenger.delegate({

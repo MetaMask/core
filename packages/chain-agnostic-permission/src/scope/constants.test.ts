@@ -64,7 +64,9 @@ describe('KnownSessionProperties', () => {
   it('should match the snapshot', () => {
     expect(KnownSessionProperties).toMatchInlineSnapshot(`
       Object {
+        "Bip122AccountChangedNotifications": "bip122_accountChanged_notifications",
         "SolanaAccountChangedNotifications": "solana_accountChanged_notifications",
+        "TronAccountChangedNotifications": "tron_accountChanged_notifications",
       }
     `);
   });
@@ -74,6 +76,12 @@ describe('isKnownSessionPropertyValue', () => {
   it('should return true for known session property values', () => {
     expect(
       isKnownSessionPropertyValue('solana_accountChanged_notifications'),
+    ).toBe(true);
+    expect(
+      isKnownSessionPropertyValue('tron_accountChanged_notifications'),
+    ).toBe(true);
+    expect(
+      isKnownSessionPropertyValue('bip122_accountChanged_notifications'),
     ).toBe(true);
   });
   it('should return false for unknown session property values', () => {

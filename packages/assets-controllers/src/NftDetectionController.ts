@@ -1,9 +1,9 @@
 import type { AccountsControllerGetSelectedAccountAction } from '@metamask/accounts-controller';
 import type { AddApprovalRequest } from '@metamask/approval-controller';
-import {
-  BaseController,
-  type ControllerGetStateAction,
-  type ControllerStateChangeEvent,
+import { BaseController } from '@metamask/base-controller';
+import type {
+  ControllerGetStateAction,
+  ControllerStateChangeEvent,
 } from '@metamask/base-controller';
 import {
   toChecksumHexAddress,
@@ -12,7 +12,6 @@ import {
   NFT_API_VERSION,
   convertHexToDecimal,
   handleFetch,
-  toHex,
 } from '@metamask/controller-utils';
 import type { Messenger } from '@metamask/messenger';
 import type {
@@ -26,13 +25,14 @@ import type {
   PreferencesControllerStateChangeEvent,
   PreferencesState,
 } from '@metamask/preferences-controller';
-import { createDeferredPromise, type Hex } from '@metamask/utils';
+import { createDeferredPromise } from '@metamask/utils';
+import type { Hex } from '@metamask/utils';
 
 import { Source } from './constants';
-import {
-  type NftController,
-  type NftControllerState,
-  type NftMetadata,
+import type {
+  NftController,
+  NftControllerState,
+  NftMetadata,
 } from './NftController';
 import type { NetworkControllerFindNetworkClientIdByChainIdAction } from '../../network-controller/src/NetworkController';
 
@@ -64,14 +64,17 @@ export type NftDetectionControllerMessenger = Messenger<
 >;
 
 /**
- * A set of supported networks for NFT detection.
+ * Set of supported networks for NFT detection.
  */
 const supportedNftDetectionNetworks: Set<Hex> = new Set([
-  // TODO: We should consider passing this constant from the NftDetectionController contructor
-  // to reduce the complexity to add further network into this constant
   '0x1', // Mainnet
+  '0x38', // BSC
+  '0x89', // Polygon
+  '0xa86a', // Avalanche
   '0xe708', // Linea Mainnet
+  '0x2105', // Base
   '0x531', // Sei
+  '0x8f', // Monad
 ]);
 
 /**
@@ -96,6 +99,7 @@ const supportedNftDetectionNetworks: Set<Hex> = new Set([
  * @property creator - The NFT owner information object
  * @property lastSale - When this item was last sold
  */
+/* eslint-disable @typescript-eslint/naming-convention */
 export type ApiNft = {
   token_id: string;
   num_sales: number | null;
@@ -113,6 +117,7 @@ export type ApiNft = {
   creator: ApiNftCreator;
   last_sale: ApiNftLastSale | null;
 };
+/* eslint-enable @typescript-eslint/naming-convention */
 
 /**
  * @type ApiNftContract
@@ -129,6 +134,7 @@ export type ApiNft = {
  * @property description - The NFT contract description
  * @property external_link - External link containing additional information
  */
+/* eslint-disable @typescript-eslint/naming-convention */
 export type ApiNftContract = {
   address: string;
   asset_contract_type: string | null;
@@ -144,6 +150,7 @@ export type ApiNftContract = {
     tokenCount?: string | null;
   };
 };
+/* eslint-enable @typescript-eslint/naming-convention */
 
 /**
  * @type ApiNftLastSale
@@ -154,11 +161,13 @@ export type ApiNftContract = {
  * @property total_price - URI of NFT image associated with this owner
  * @property transaction - Object containing transaction_hash and block_hash
  */
+/* eslint-disable @typescript-eslint/naming-convention */
 export type ApiNftLastSale = {
   event_timestamp: string;
   total_price: string;
   transaction: { transaction_hash: string; block_hash: string };
 };
+/* eslint-enable @typescript-eslint/naming-convention */
 
 /**
  * @type ApiNftCreator
@@ -169,11 +178,13 @@ export type ApiNftLastSale = {
  * @property profile_img_url - URI of NFT image associated with this owner
  * @property address - The owner address
  */
+/* eslint-disable @typescript-eslint/naming-convention */
 export type ApiNftCreator = {
   user: { username: string };
   profile_img_url: string;
   address: string;
 };
+/* eslint-enable @typescript-eslint/naming-convention */
 
 export type ReservoirResponse = {
   tokens: TokensResponse[];
@@ -194,6 +205,7 @@ export enum BlockaidResultType {
   Malicious = 'Malicious',
 }
 
+/* eslint-disable @typescript-eslint/naming-convention */
 export type Blockaid = {
   contract: string;
   chainId: number;
@@ -201,6 +213,7 @@ export type Blockaid = {
   malicious_score: string;
   attack_types: object;
 };
+/* eslint-enable @typescript-eslint/naming-convention */
 
 export type Market = {
   floorAsk?: FloorAsk;
@@ -422,7 +435,7 @@ export class NftDetectionController extends BaseController<
 > {
   #disabled: boolean;
 
-  readonly #addNft: NftController['addNft'];
+  readonly #addNfts: NftController['addNfts'];
 
   readonly #getNftState: () => NftControllerState;
 
@@ -434,18 +447,18 @@ export class NftDetectionController extends BaseController<
    * @param options - The controller options.
    * @param options.messenger - A reference to the messaging system.
    * @param options.disabled - Represents previous value of useNftDetection. Used to detect changes of useNftDetection. Default value is true.
-   * @param options.addNft - Add an NFT.
+   * @param options.addNfts - Add multiple NFTs.
    * @param options.getNftState - Gets the current state of the Assets controller.
    */
   constructor({
     messenger,
     disabled = false,
-    addNft,
+    addNfts,
     getNftState,
   }: {
     messenger: NftDetectionControllerMessenger;
     disabled: boolean;
-    addNft: NftController['addNft'];
+    addNfts: NftController['addNfts'];
     getNftState: () => NftControllerState;
   }) {
     super({
@@ -458,7 +471,7 @@ export class NftDetectionController extends BaseController<
     this.#inProcessNftFetchingUpdates = {};
 
     this.#getNftState = getNftState;
-    this.#addNft = addNft;
+    this.#addNfts = addNfts;
 
     this.messenger.subscribe(
       'PreferencesController:stateChange',
@@ -494,7 +507,9 @@ export class NftDetectionController extends BaseController<
    * @param preferencesState - The new state of the preference controller.
    * @param preferencesState.useNftDetection - Boolean indicating user preference on NFT detection.
    */
-  #onPreferencesControllerStateChange({ useNftDetection }: PreferencesState) {
+  #onPreferencesControllerStateChange({
+    useNftDetection,
+  }: PreferencesState): void {
     if (!useNftDetection !== this.#disabled) {
       this.#disabled = !useNftDetection;
     }
@@ -508,7 +523,7 @@ export class NftDetectionController extends BaseController<
     chainIds: string[];
     address: string;
     next?: string;
-  }) {
+  }): string {
     // from chainIds construct a string of chainIds that can be used like chainIds=1&chainIds=56
     const chainIdsString = chainIds.join('&chainIds=');
     return `${
@@ -520,7 +535,7 @@ export class NftDetectionController extends BaseController<
     address: string,
     chainIds: Hex[],
     cursor: string | undefined,
-  ) {
+  ): Promise<ReservoirResponse> {
     // Convert hex chainId to number
     const convertedChainIds = chainIds.map((chainId) =>
       convertHexToDecimal(chainId).toString(),
@@ -545,8 +560,17 @@ export class NftDetectionController extends BaseController<
    * @param chainIds - The chain IDs to detect NFTs on.
    * @param options - Options bag.
    * @param options.userAddress - The address to detect NFTs for.
+   * @param options.firstPageOnly - Whether to only detect the first page of NFTs.
+   * @param options.signal - An optional abort signal to cancel the operation.
    */
-  async detectNfts(chainIds: Hex[], options?: { userAddress?: string }) {
+  async detectNfts(
+    chainIds: Hex[],
+    options?: {
+      userAddress?: string;
+      firstPageOnly?: boolean;
+      signal?: AbortSignal;
+    },
+  ): Promise<void> {
     const userAddress =
       options?.userAddress ??
       this.messenger.call('AccountsController:getSelectedAccount').address;
@@ -601,73 +625,79 @@ export class NftDetectionController extends BaseController<
         );
 
         // Proceed to add NFTs
-        const addNftPromises = apiNfts.map(async (nft) => {
-          const {
-            tokenId,
-            contract,
-            kind,
-            image: imageUrl,
-            imageSmall: imageThumbnailUrl,
-            metadata,
-            name,
-            description,
-            attributes,
-            topBid,
-            lastSale,
-            rarityRank,
-            rarityScore,
-            collection,
-            chainId,
-          } = nft.token;
+        const nftsToAdd = apiNfts
+          .map((nft) => {
+            const {
+              tokenId,
+              contract,
+              kind,
+              image: imageUrl,
+              imageSmall: imageThumbnailUrl,
+              metadata,
+              name,
+              description,
+              attributes,
+              topBid,
+              lastSale,
+              rarityRank,
+              rarityScore,
+              collection,
+              chainId,
+            } = nft.token;
 
-          // Use a fallback if metadata is null
-          const { imageOriginal: imageOriginalUrl } = metadata || {};
+            // Use a fallback if metadata is null
+            const { imageOriginal: imageOriginalUrl } = metadata ?? {};
 
-          let ignored;
-          /* istanbul ignore else */
-          const { ignoredNfts } = this.#getNftState();
-          if (ignoredNfts.length) {
-            ignored = ignoredNfts.find((c) => {
+            let ignored;
+            /* istanbul ignore else */
+            const { ignoredNfts } = this.#getNftState();
+            if (ignoredNfts.length) {
+              ignored = ignoredNfts.find((ignoredNft) => {
+                /* istanbul ignore next */
+                return (
+                  ignoredNft.address === toChecksumHexAddress(contract) &&
+                  ignoredNft.tokenId === tokenId
+                );
+              });
+            }
+
+            /* istanbul ignore else */
+            if (!ignored) {
               /* istanbul ignore next */
-              return (
-                c.address === toChecksumHexAddress(contract) &&
-                c.tokenId === tokenId
-              );
-            });
-          }
+              const nftMetadata: NftMetadata & { chainId: number } =
+                Object.assign(
+                  {},
+                  { name },
+                  description && { description },
+                  imageUrl && { image: imageUrl },
+                  imageThumbnailUrl && { imageThumbnail: imageThumbnailUrl },
+                  imageOriginalUrl && { imageOriginal: imageOriginalUrl },
+                  kind && { standard: kind.toUpperCase() },
+                  lastSale && { lastSale },
+                  attributes && { attributes },
+                  topBid && { topBid },
+                  rarityRank && { rarityRank },
+                  rarityScore && { rarityScore },
+                  collection && { collection },
+                  chainId && { chainId },
+                );
 
-          /* istanbul ignore else */
-          if (!ignored) {
-            /* istanbul ignore next */
-            const nftMetadata: NftMetadata = Object.assign(
-              {},
-              { name },
-              description && { description },
-              imageUrl && { image: imageUrl },
-              imageThumbnailUrl && { imageThumbnail: imageThumbnailUrl },
-              imageOriginalUrl && { imageOriginal: imageOriginalUrl },
-              kind && { standard: kind.toUpperCase() },
-              lastSale && { lastSale },
-              attributes && { attributes },
-              topBid && { topBid },
-              rarityRank && { rarityRank },
-              rarityScore && { rarityScore },
-              collection && { collection },
-              chainId && { chainId },
-            );
-            const networkClientId = this.messenger.call(
-              'NetworkController:findNetworkClientIdByChainId',
-              toHex(chainId),
-            );
-            await this.#addNft(contract, tokenId, networkClientId, {
-              nftMetadata,
-              userAddress,
-              source: Source.Detected,
-            });
-          }
-        });
-        await Promise.all(addNftPromises);
-      } while ((next = resultNftApi.continuation));
+              return {
+                tokenAddress: contract,
+                tokenId,
+                nftMetadata,
+              };
+            }
+            return undefined;
+          })
+          .filter((nft): nft is NonNullable<typeof nft> => nft !== undefined);
+
+        await this.#addNfts(nftsToAdd, userAddress, Source.Detected);
+      } while (
+        (next = resultNftApi.continuation) &&
+        !options?.firstPageOnly &&
+        !options?.signal?.aborted
+      );
       updateSucceeded();
     } catch (error) {
       updateFailed(error);

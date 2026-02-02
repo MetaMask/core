@@ -12,7 +12,7 @@ import { JsonRpcEngine } from './JsonRpcEngine';
  */
 export function mergeMiddleware(
   middlewareStack: JsonRpcMiddleware<JsonRpcParams, Json>[],
-) {
+): JsonRpcMiddleware<JsonRpcParams, Json> {
   const engine = new JsonRpcEngine();
   middlewareStack.forEach((middleware) => engine.push(middleware));
   return engine.asMiddleware();

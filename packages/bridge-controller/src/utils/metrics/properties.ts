@@ -8,11 +8,13 @@ import type {
   RequestParams,
 } from './types';
 import { DEFAULT_BRIDGE_CONTROLLER_STATE } from '../../constants/bridge';
-import type { QuoteMetadata, QuoteResponse, TxData } from '../../types';
-import {
-  ChainId,
-  type GenericQuoteRequest,
-  type QuoteRequest,
+import { ChainId } from '../../types';
+import type {
+  GenericQuoteRequest,
+  QuoteMetadata,
+  QuoteRequest,
+  QuoteResponse,
+  TxData,
 } from '../../types';
 import { getNativeAssetForChainId, isCrossChain } from '../bridge';
 import {
@@ -125,6 +127,7 @@ export const getQuotesReceivedProperties = (
   warnings: QuoteWarning[] = [],
   isSubmittable: boolean = true,
   recommendedQuote?: null | (QuoteResponse & Partial<QuoteMetadata>),
+  usdBalanceSource?: number,
 ) => {
   const provider = activeQuote ? formatProviderLabel(activeQuote.quote) : '_';
   return {
@@ -136,6 +139,7 @@ export const getQuotesReceivedProperties = (
       : 0,
     usd_quoted_gas: Number(activeQuote?.gasFee?.effective?.usd ?? 0),
     usd_quoted_return: Number(activeQuote?.toTokenAmount?.usd ?? 0),
+    usd_balance_source: usdBalanceSource ?? 0,
     best_quote_provider: recommendedQuote
       ? formatProviderLabel(recommendedQuote.quote)
       : provider,

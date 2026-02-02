@@ -25,7 +25,10 @@ const MESSENGER_MOCK = {
 } as unknown as jest.Mocked<TransactionControllerMessenger>;
 
 jest.mock('../utils/feature-flags', () => ({
-  getAcceleratedPollingParams: () => ({
+  getAcceleratedPollingParams: (): {
+    countMax: number;
+    intervalMs: number;
+  } => ({
     countMax: DEFAULT_ACCELERATED_COUNT_MAX,
     intervalMs: DEFAULT_ACCELERATED_POLLING_INTERVAL_MS,
   }),
@@ -38,7 +41,7 @@ jest.mock('../utils/feature-flags', () => ({
  * @param id - The transaction ID.
  * @returns The mock transaction metadata object.
  */
-function createTransactionMetaMock(id: string) {
+function createTransactionMetaMock(id: string): TransactionMeta {
   return { id } as TransactionMeta;
 }
 

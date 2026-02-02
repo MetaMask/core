@@ -8,6 +8,7 @@ class CustomTestEnvironment extends TestEnvironment {
   async setup() {
     await super.setup();
     if (typeof this.global.crypto === 'undefined') {
+      // eslint-disable-next-line n/no-unsupported-features/node-builtins -- this is a test environment
       this.global.crypto = require('crypto').webcrypto;
     }
   }

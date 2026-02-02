@@ -1,13 +1,14 @@
-import { KnownCaipNamespace, type CaipAccountId } from '@metamask/utils';
+import { KnownCaipNamespace } from '@metamask/utils';
+import type { CaipAccountId } from '@metamask/utils';
 import { chunk } from 'lodash';
 
 import { MultichainNetworkService } from './MultichainNetworkService';
 import {
-  type ActiveNetworksResponse,
   MULTICHAIN_ACCOUNTS_CLIENT_HEADER,
   MULTICHAIN_ACCOUNTS_CLIENT_ID,
   MULTICHAIN_ACCOUNTS_BASE_URL,
 } from '../api/accounts-api';
+import type { ActiveNetworksResponse } from '../api/accounts-api';
 
 describe('MultichainNetworkService', () => {
   beforeEach(() => {

@@ -5,14 +5,16 @@ import type { Hex } from '@metamask/utils';
 import {
   CLAIMS_API_URL_MAP,
   ClaimsServiceErrorMessages,
-  type Env,
   SERVICE_NAME,
 } from './constants';
+import type { Env } from './constants';
+import { createModuleLogger, projectLogger } from './logger';
 import type {
   Claim,
   ClaimsConfigurationsResponse,
   GenerateSignatureMessageResponse,
 } from './types';
+import { createSentryError, getErrorFromResponse } from './utils';
 
 export type ClaimsServiceFetchClaimsConfigurationsAction = {
   type: `${typeof SERVICE_NAME}:fetchClaimsConfigurations`;
@@ -68,6 +70,8 @@ export type ClaimsServiceConfig = {
   fetchFunction: typeof fetch;
 };
 
+const log = createModuleLogger(projectLogger, 'ClaimsService');
+
 export class ClaimsService {
   readonly name = SERVICE_NAME; // required for Modular Initialization
 
@@ -114,20 +118,32 @@ export class ClaimsService {
    * @returns The required configurations for the claims service.
    */
   async fetchClaimsConfigurations(): Promise<ClaimsConfigurationsResponse> {
-    const headers = await this.getRequestHeaders();
-    const url = `${this.getClaimsApiUrl()}/configurations`;
-    const response = await this.#fetch(url, {
-      headers,
-    });
+    try {
+      const headers = await this.getRequestHeaders();
+      const url = `${this.getClaimsApiUrl()}/configurations`;
+      const response = await this.#fetch(url, {
+        headers,
+      });
 
-    if (!response.ok) {
+      if (!response.ok) {
+        const error = await getErrorFromResponse(response);
+        throw error;
+      }
+
+      const configurations = await response.json();
+      return configurations;
+    } catch (error) {
+      log('fetchClaimsConfigurations', error);
+      this.#messenger.captureException?.(
+        createSentryError(
+          ClaimsServiceErrorMessages.FAILED_TO_FETCH_CONFIGURATIONS,
+          error as Error,
+        ),
+      );
       throw new Error(
         ClaimsServiceErrorMessages.FAILED_TO_FETCH_CONFIGURATIONS,
       );
     }
-
-    const configurations = await response.json();
-    return configurations;
   }
 
   /**
@@ -136,18 +152,30 @@ export class ClaimsService {
    * @returns The claims for the current user.
    */
   async getClaims(): Promise<Claim[]> {
-    const headers = await this.getRequestHeaders();
-    const url = `${this.getClaimsApiUrl()}/claims`;
-    const response = await this.#fetch(url, {
-      headers,
-    });
+    try {
+      const headers = await this.getRequestHeaders();
+      const url = `${this.getClaimsApiUrl()}/claims`;
+      const response = await this.#fetch(url, {
+        headers,
+      });
 
-    if (!response.ok) {
+      if (!response.ok) {
+        const error = await getErrorFromResponse(response);
+        throw error;
+      }
+
+      const claims = await response.json();
+      return claims;
+    } catch (error) {
+      log('getClaims', error);
+      this.#messenger.captureException?.(
+        createSentryError(
+          ClaimsServiceErrorMessages.FAILED_TO_GET_CLAIMS,
+          error as Error,
+        ),
+      );
       throw new Error(ClaimsServiceErrorMessages.FAILED_TO_GET_CLAIMS);
     }
-
-    const claims = await response.json();
-    return claims;
   }
 
   /**
@@ -157,18 +185,30 @@ export class ClaimsService {
    * @returns The claim by id.
    */
   async getClaimById(id: string): Promise<Claim> {
-    const headers = await this.getRequestHeaders();
-    const url = `${this.getClaimsApiUrl()}/claims/byId/${id}`;
-    const response = await this.#fetch(url, {
-      headers,
-    });
+    try {
+      const headers = await this.getRequestHeaders();
+      const url = `${this.getClaimsApiUrl()}/claims/byId/${id}`;
+      const response = await this.#fetch(url, {
+        headers,
+      });
 
-    if (!response.ok) {
+      if (!response.ok) {
+        const error = await getErrorFromResponse(response);
+        throw error;
+      }
+
+      const claim = await response.json();
+      return claim;
+    } catch (error) {
+      log('getClaimById', error);
+      this.#messenger.captureException?.(
+        createSentryError(
+          ClaimsServiceErrorMessages.FAILED_TO_GET_CLAIM_BY_ID,
+          error as Error,
+        ),
+      );
       throw new Error(ClaimsServiceErrorMessages.FAILED_TO_GET_CLAIM_BY_ID);
     }
-
-    const claim = await response.json();
-    return claim;
   }
 
   /**
@@ -182,28 +222,40 @@ export class ClaimsService {
     chainId: number,
     walletAddress: Hex,
   ): Promise<GenerateSignatureMessageResponse> {
-    const headers = await this.getRequestHeaders();
-    const url = `${this.getClaimsApiUrl()}/signature/generateMessage`;
-    const response = await this.#fetch(url, {
-      method: 'POST',
-      headers: {
-        ...headers,
-        'Content-Type': 'application/json',
-      },
-      body: JSON.stringify({
-        chainId,
-        walletAddress,
-      }),
-    });
+    try {
+      const headers = await this.getRequestHeaders();
+      const url = `${this.getClaimsApiUrl()}/signature/generateMessage`;
+      const response = await this.#fetch(url, {
+        method: 'POST',
+        headers: {
+          ...headers,
+          'Content-Type': 'application/json',
+        },
+        body: JSON.stringify({
+          chainId,
+          walletAddress,
+        }),
+      });
 
-    if (!response.ok) {
+      if (!response.ok) {
+        const error = await getErrorFromResponse(response);
+        throw error;
+      }
+
+      const message = await response.json();
+      return message;
+    } catch (error) {
+      log('generateMessageForClaimSignature', error);
+      this.#messenger.captureException?.(
+        createSentryError(
+          ClaimsServiceErrorMessages.SIGNATURE_MESSAGE_GENERATION_FAILED,
+          error as Error,
+        ),
+      );
       throw new Error(
         ClaimsServiceErrorMessages.SIGNATURE_MESSAGE_GENERATION_FAILED,
       );
     }
-
-    const message = await response.json();
-    return message;
   }
 
   /**

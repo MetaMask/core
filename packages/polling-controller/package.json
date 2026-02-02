@@ -1,6 +1,6 @@
 {
   "name": "@metamask/polling-controller",
-  "version": "15.0.0",
+  "version": "16.0.2",
   "description": "Polling Controller is the base for controllers that polling by networkClientId",
   "keywords": [
     "MetaMask",
@@ -49,15 +49,15 @@
   },
   "dependencies": {
     "@metamask/base-controller": "^9.0.0",
-    "@metamask/controller-utils": "^11.15.0",
-    "@metamask/utils": "^11.8.1",
+    "@metamask/controller-utils": "^11.18.0",
+    "@metamask/network-controller": "^29.0.0",
+    "@metamask/utils": "^11.9.0",
     "@types/uuid": "^8.3.0",
     "fast-json-stable-stringify": "^2.1.0",
     "uuid": "^8.3.2"
   },
   "devDependencies": {
     "@metamask/auto-changelog": "^3.4.4",
-    "@metamask/network-controller": "^25.0.0",
     "@ts-bridge/cli": "^0.6.4",
     "@types/jest": "^28.0.0",
     "deepmerge": "^4.2.2",
@@ -67,9 +67,6 @@
     "typedoc": "^0.24.8",
     "typedoc-plugin-missing-exports": "^2.0.0",
     "typescript": "~5.3.3"
-  },
-  "peerDependencies": {
-    "@metamask/network-controller": "^25.0.0"
   },
   "engines": {
     "node": "^18.18 || >=20"

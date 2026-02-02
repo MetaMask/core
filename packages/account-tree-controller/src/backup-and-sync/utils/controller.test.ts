@@ -5,9 +5,9 @@ import {
   getLocalGroupsForEntropyWallet,
   createStateSnapshot,
   restoreStateFromSnapshot,
-  type StateSnapshot,
   getLocalGroupForEntropyWallet,
 } from './controller';
+import type { StateSnapshot } from './controller';
 import type { AccountTreeController } from '../../AccountTreeController';
 import type {
   AccountWalletEntropyObject,

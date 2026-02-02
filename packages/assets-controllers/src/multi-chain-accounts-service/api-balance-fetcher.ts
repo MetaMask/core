@@ -8,10 +8,12 @@ import {
   toChecksumHexAddress,
 } from '@metamask/controller-utils';
 import type { InternalAccount } from '@metamask/keyring-internal-api';
-import type { CaipAccountAddress, Hex } from '@metamask/utils';
+import type { CaipAccountAddress, CaipChainId, Hex } from '@metamask/utils';
+import { parseCaipChainId } from '@metamask/utils';
 import BN from 'bn.js';
 
 import { fetchMultiChainBalancesV4 } from './multi-chain-accounts';
+import type { GetBalancesResponse } from './types';
 import { STAKING_CONTRACT_ADDRESS_BY_CHAINID } from '../AssetsContractController';
 import {
   accountAddressToCaipReference,
@@ -21,10 +23,10 @@ import {
 import { SUPPORTED_NETWORKS_ACCOUNTS_API_V4 } from '../constants';
 
 // Maximum number of account addresses that can be sent to the accounts API in a single request
-const ACCOUNTS_API_BATCH_SIZE = 50;
+const ACCOUNTS_API_BATCH_SIZE = 20;
 
-// Timeout for accounts API requests (30 seconds)
-const ACCOUNTS_API_TIMEOUT_MS = 30_000;
+// Timeout for accounts API requests (10 seconds)
+const ACCOUNTS_API_TIMEOUT_MS = 10_000;
 
 export type ChainIdHex = Hex;
 export type ChecksumAddress = Hex;
@@ -49,6 +51,7 @@ export type BalanceFetcher = {
     queryAllAccounts: boolean;
     selectedAccount: ChecksumAddress;
     allAccounts: InternalAccount[];
+    jwtToken?: string;
   }): Promise<BalanceFetchResult>;
 };
 
@@ -94,7 +97,7 @@ export class AccountsApiBalanceFetcher implements BalanceFetcher {
 
     for (const caipAddr of addrs) {
       const [, chainRef, address] = caipAddr.split(':');
-      const chainId = toHex(parseInt(chainRef, 10)) as ChainIdHex;
+      const chainId = toHex(parseInt(chainRef, 10));
       const checksumAddress = checksum(address);
 
       if (!addressesByChain[chainId]) {
@@ -110,8 +113,8 @@ export class AccountsApiBalanceFetcher implements BalanceFetcher {
       // Only fetch staked balance on supported networks (mainnet and hoodi)
       if (
         ![
-          SupportedStakedBalanceNetworks.mainnet,
-          SupportedStakedBalanceNetworks.hoodi,
+          SupportedStakedBalanceNetworks.Mainnet,
+          SupportedStakedBalanceNetworks.Hoodi,
         ].includes(chainIdHex as SupportedStakedBalanceNetworks)
       ) {
         continue;
@@ -122,10 +125,7 @@ export class AccountsApiBalanceFetcher implements BalanceFetcher {
         continue;
       }
 
-      const contractAddress =
-        STAKING_CONTRACT_ADDRESS_BY_CHAINID[
-          chainIdHex as keyof typeof STAKING_CONTRACT_ADDRESS_BY_CHAINID
-        ];
+      const contractAddress = STAKING_CONTRACT_ADDRESS_BY_CHAINID[chainIdHex];
       const provider = this.#getProvider(chainIdHex);
 
       const abi = [
@@ -172,7 +172,7 @@ export class AccountsApiBalanceFetcher implements BalanceFetcher {
                   success: true,
                   value: new BN((assets as BigNumber).toString()),
                   account: address,
-                  token: checksum(contractAddress) as ChecksumAddress,
+                  token: checksum(contractAddress),
                   chainId: chainIdHex,
                 });
               }
@@ -182,7 +182,7 @@ export class AccountsApiBalanceFetcher implements BalanceFetcher {
                 success: true,
                 value: new BN('0'),
                 account: address,
-                token: checksum(contractAddress) as ChecksumAddress,
+                token: checksum(contractAddress),
                 chainId: chainIdHex,
               });
             }
@@ -195,7 +195,7 @@ export class AccountsApiBalanceFetcher implements BalanceFetcher {
             results.push({
               success: false,
               account: address,
-              token: checksum(contractAddress) as ChecksumAddress,
+              token: checksum(contractAddress),
               chainId: chainIdHex,
             });
           }
@@ -211,12 +211,13 @@ export class AccountsApiBalanceFetcher implements BalanceFetcher {
     return results;
   }
 
-  async #fetchBalances(addrs: CaipAccountAddress[]) {
+  async #fetchBalances(addrs: CaipAccountAddress[], jwtToken?: string) {
     // If we have fewer than or equal to the batch size, make a single request
     if (addrs.length <= ACCOUNTS_API_BATCH_SIZE) {
       return await fetchMultiChainBalancesV4(
         { accountAddresses: addrs },
         this.#platform,
+        jwtToken,
       );
     }
 
@@ -227,7 +228,7 @@ export class AccountsApiBalanceFetcher implements BalanceFetcher {
 
     type ResponseData = Awaited<ReturnType<typeof fetchMultiChainBalancesV4>>;
 
-    const allUnprocessedNetworks = new Set<number>();
+    const allUnprocessedNetworks = new Set<number | string>();
     const allBalances = await reduceInBatchesSerially<
       CaipAccountAddress,
       BalanceData[]
@@ -238,6 +239,7 @@ export class AccountsApiBalanceFetcher implements BalanceFetcher {
         const response = await fetchMultiChainBalancesV4(
           { accountAddresses: batch },
           this.#platform,
+          jwtToken,
         );
         // Collect unprocessed networks from each batch
         if (response.unprocessedNetworks) {
@@ -261,6 +263,7 @@ export class AccountsApiBalanceFetcher implements BalanceFetcher {
     queryAllAccounts,
     selectedAccount,
     allAccounts,
+    jwtToken,
   }: Parameters<BalanceFetcher['fetch']>[0]): Promise<BalanceFetchResult> {
     const caipAddrs: CaipAccountAddress[] = [];
 
@@ -281,7 +284,7 @@ export class AccountsApiBalanceFetcher implements BalanceFetcher {
     // Let errors propagate to TokenBalancesController for RPC fallback
     // Use timeout to prevent hanging API calls (30 seconds)
     const apiResponse = await safelyExecuteWithTimeout(
-      () => this.#fetchBalances(caipAddrs),
+      () => this.#fetchBalances(caipAddrs, jwtToken),
       false, // don't log error here, let it propagate
       ACCOUNTS_API_TIMEOUT_MS,
     );
@@ -292,12 +295,19 @@ export class AccountsApiBalanceFetcher implements BalanceFetcher {
     }
 
     // Extract unprocessed networks and convert to hex chain IDs
-    const unprocessedChainIds: ChainIdHex[] | undefined =
-      apiResponse.unprocessedNetworks
-        ? apiResponse.unprocessedNetworks.map(
-            (chainId) => toHex(chainId) as ChainIdHex,
-          )
-        : undefined;
+    // V4 API returns CAIP chain IDs like 'eip155:1329', need to parse them
+    // V2 API returns decimal numbers, handle both cases
+    const unprocessedChainIds: ChainIdHex[] | undefined = apiResponse
+      .unprocessedNetworks?.length
+      ? apiResponse.unprocessedNetworks.map((network) => {
+          if (typeof network === 'string') {
+            // CAIP chain ID format: 'eip155:1329'
+            return toHex(parseCaipChainId(network as CaipChainId).reference);
+          }
+          // Decimal number format
+          return toHex(network);
+        })
+      : undefined;
 
     const stakedBalances = await this.#fetchStakedBalances(caipAddrs);
 
@@ -307,7 +317,7 @@ export class AccountsApiBalanceFetcher implements BalanceFetcher {
     const addressChainMap = new Map<string, Set<ChainIdHex>>();
     caipAddrs.forEach((caipAddr) => {
       const [, chainRef, address] = caipAddr.split(':');
-      const chainId = toHex(parseInt(chainRef, 10)) as ChainIdHex;
+      const chainId = toHex(parseInt(chainRef, 10));
       const checksumAddress = checksum(address);
 
       if (!addressChainMap.has(checksumAddress)) {
@@ -323,55 +333,57 @@ export class AccountsApiBalanceFetcher implements BalanceFetcher {
 
     // Process regular API balances
     if (apiResponse.balances) {
-      const apiBalances = apiResponse.balances.flatMap((b) => {
-        const addressPart = b.accountAddress?.split(':')[2];
-        if (!addressPart) {
-          return [];
-        }
-        const account = checksum(addressPart);
-        const token = checksum(b.address);
-        // Use original address for zero address tokens, checksummed for others
-        // TODO: this is a hack to get the correct account address type but needs to be fixed
-        // by mgrating tokenBalancesController to checksum addresses
-        const finalAccount: ChecksumAddress | string =
-          token === ZERO_ADDRESS ? account : addressPart;
-        const chainId = toHex(b.chainId) as ChainIdHex;
+      const apiBalances = apiResponse.balances.flatMap(
+        (b: GetBalancesResponse['balances'][number]) => {
+          const addressPart = b.accountAddress?.split(':')[2];
+          if (!addressPart) {
+            return [];
+          }
+          const account = checksum(addressPart);
+          const token = checksum(b.address);
+          // Use original address for zero address tokens, checksummed for others
+          // TODO: this is a hack to get the correct account address type but needs to be fixed
+          // by mgrating tokenBalancesController to checksum addresses
+          const finalAccount: ChecksumAddress | string =
+            token === ZERO_ADDRESS ? account : addressPart;
+          const chainId = toHex(b.chainId);
 
-        let value: BN | undefined;
-        try {
-          // Convert string balance to BN avoiding floating point precision issues
-          const { balance: balanceStr, decimals } = b;
+          let value: BN | undefined;
+          try {
+            // Convert string balance to BN avoiding floating point precision issues
+            const { balance: balanceStr, decimals } = b;
 
-          // Split the balance string into integer and decimal parts
-          const [integerPart = '0', decimalPart = ''] = balanceStr.split('.');
+            // Split the balance string into integer and decimal parts
+            const [integerPart = '0', decimalPart = ''] = balanceStr.split('.');
 
-          // Pad or truncate decimal part to match token decimals
-          const paddedDecimalPart = decimalPart
-            .padEnd(decimals, '0')
-            .slice(0, decimals);
+            // Pad or truncate decimal part to match token decimals
+            const paddedDecimalPart = decimalPart
+              .padEnd(decimals, '0')
+              .slice(0, decimals);
 
-          // Combine and create BN
-          const fullIntegerStr = integerPart + paddedDecimalPart;
-          value = new BN(fullIntegerStr);
-        } catch {
-          value = undefined;
-        }
+            // Combine and create BN
+            const fullIntegerStr = integerPart + paddedDecimalPart;
+            value = new BN(fullIntegerStr);
+          } catch {
+            value = undefined;
+          }
 
-        // Track native balances for later
-        if (token === ZERO_ADDRESS && value !== undefined) {
-          nativeBalancesFromAPI.set(`${finalAccount}-${chainId}`, value);
-        }
+          // Track native balances for later
+          if (token === ZERO_ADDRESS && value !== undefined) {
+            nativeBalancesFromAPI.set(`${finalAccount}-${chainId}`, value);
+          }
 
-        return [
-          {
-            success: value !== undefined,
-            value,
-            account: finalAccount,
-            token,
-            chainId,
-          },
-        ];
-      });
+          return [
+            {
+              success: value !== undefined,
+              value,
+              account: finalAccount,
+              token,
+              chainId,
+            },
+          ];
+        },
+      );
       results.push(...apiBalances);
     }
 

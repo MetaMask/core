@@ -3,7 +3,8 @@ import { Interface } from '@ethersproject/abi';
 import { hexToBN, toHex } from '@metamask/controller-utils';
 import type EthQuery from '@metamask/eth-query';
 import { abiERC20, abiERC721, abiERC1155 } from '@metamask/metamask-eth-abis';
-import { createModuleLogger, type Hex } from '@metamask/utils';
+import { createModuleLogger } from '@metamask/utils';
+import type { Hex } from '@metamask/utils';
 import BN from 'bn.js';
 
 import { getNativeBalance } from './balance';
@@ -41,7 +42,9 @@ export enum SupportedToken {
   ERC20 = 'erc20',
   ERC721 = 'erc721',
   ERC1155 = 'erc1155',
+  // eslint-disable-next-line @typescript-eslint/naming-convention
   ERC20_WRAPPED = 'erc20Wrapped',
+  // eslint-disable-next-line @typescript-eslint/naming-convention
   ERC721_LEGACY = 'erc721Legacy',
 }
 
@@ -118,6 +121,8 @@ export async function getBalanceChanges(
 ): Promise<{ simulationData: SimulationData; gasUsed?: Hex }> {
   log('Request', request);
 
+  let callTraceErrors: string[] | undefined;
+
   try {
     const response = await baseRequest({
       request,
@@ -127,7 +132,9 @@ export async function getBalanceChanges(
       },
     });
 
-    const transactionError = response.transactions?.[0]?.error;
+    const transactionResponse = response.transactions?.[0];
+    callTraceErrors = extractCallTraceErrors(transactionResponse?.callTrace);
+    const transactionError = transactionResponse?.error;
 
     if (transactionError) {
       throw new SimulationError(transactionError);
@@ -140,8 +147,9 @@ export async function getBalanceChanges(
 
     const tokenBalanceChanges = await getTokenBalanceChanges(request, events);
 
-    const gasUsed = response.transactions?.[0]?.gasUsed;
+    const gasUsed = transactionResponse?.gasUsed;
     const simulationData = {
+      callTraceErrors,
       nativeBalanceChange,
       tokenBalanceChanges,
     };
@@ -164,6 +172,7 @@ export async function getBalanceChanges(
 
     return {
       simulationData: {
+        callTraceErrors,
         tokenBalanceChanges: [],
         error: {
           code,
@@ -236,7 +245,9 @@ function getEvents(response: SimulationResponse): ParsedEvent[] {
       }
 
       /* istanbul ignore next */
-      const inputs = event.abi.find((e) => e.name === event.name)?.inputs;
+      const inputs = event.abi.find(
+        (eventAbi) => eventAbi.name === event.name,
+      )?.inputs;
 
       /* istanbul ignore if */
       if (!inputs) {
@@ -261,7 +272,7 @@ function getEvents(response: SimulationResponse): ParsedEvent[] {
         abi: event.abi,
       };
     })
-    .filter((e) => e !== undefined) as ParsedEvent[];
+    .filter((parsedEvent) => parsedEvent !== undefined) as ParsedEvent[];
 }
 
 /**
@@ -598,9 +609,7 @@ function parseLog(
         abi,
         standard,
       };
-      // Not used
-      // eslint-disable-next-line @typescript-eslint/no-unused-vars
-    } catch (e) {
+    } catch {
       continue;
     }
   }
@@ -627,6 +636,26 @@ function extractLogs(
     ...logs,
     ...nestedCalls.map((nestedCall) => extractLogs(nestedCall)).flat(),
   ];
+}
+
+/**
+ * Extract all error messages from a call trace tree.
+ *
+ * @param call - The root call trace.
+ * @returns An array of error messages.
+ */
+function extractCallTraceErrors(call?: SimulationResponseCallTrace): string[] {
+  if (!call) {
+    return [];
+  }
+
+  const errors = call.error ? [call.error] : [];
+  const nestedCalls = call.calls ?? [];
+  const nestedErrors = nestedCalls.flatMap((nestedCall) =>
+    extractCallTraceErrors(nestedCall),
+  );
+
+  return [...errors, ...nestedErrors];
 }
 
 /**

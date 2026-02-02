@@ -1,5 +1,6 @@
 import { Contract } from '@ethersproject/contracts';
-import { Web3Provider, type ExternalProvider } from '@ethersproject/providers';
+import { Web3Provider } from '@ethersproject/providers';
+import type { ExternalProvider } from '@ethersproject/providers';
 import type { Hex } from '@metamask/utils';
 import { add0x, createModuleLogger } from '@metamask/utils';
 import BN from 'bn.js';
@@ -128,7 +129,7 @@ export abstract class OracleLayer1GasFeeFlow implements Layer1GasFeeFlow {
       return {
         layer1Fee: add0x(
           padHexToEvenLength(oracleFee.add(operatorFee).toString(16)),
-        ) as Hex,
+        ),
       };
     } catch (error) {
       log('Failed to get oracle layer 1 gas fee', error);
@@ -181,13 +182,14 @@ export abstract class OracleLayer1GasFeeFlow implements Layer1GasFeeFlow {
   #buildUnserializedTransaction(
     transactionMeta: TransactionMeta,
     sign: boolean,
-  ) {
+  ): ReturnType<typeof prepareTransaction> {
     const txParams = this.#buildTransactionParams(transactionMeta);
     const { chainId } = transactionMeta;
 
     let unserializedTransaction = prepareTransaction(chainId, txParams);
 
     if (sign) {
+      // eslint-disable-next-line no-restricted-globals
       const keyBuffer = Buffer.from(DUMMY_KEY, 'hex');
       const keyBytes = Uint8Array.from(keyBuffer);
       unserializedTransaction = unserializedTransaction.sign(keyBytes);
@@ -208,7 +210,7 @@ export abstract class OracleLayer1GasFeeFlow implements Layer1GasFeeFlow {
   #getGasPriceOracleContract(
     provider: Layer1GasFeeFlowRequest['provider'],
     chainId: Hex,
-  ) {
+  ): Contract {
     return new Contract(
       this.getOracleAddressForChain(chainId),
       GAS_PRICE_ORACLE_ABI,

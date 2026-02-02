@@ -1,19 +1,10 @@
 import type { AccountsControllerState } from '@metamask/accounts-controller';
-import type {
-  QuoteResponse,
-  QuoteMetadata,
-  QuoteFetchData,
-} from '@metamask/bridge-controller';
 import {
-  type TxStatusData,
   StatusTypes,
   formatChainIdToHex,
   isEthUsdt,
-  type RequestParams,
   formatChainIdToCaip,
-  type TradeData,
   formatProviderLabel,
-  type RequestMetadata,
   isCustomSlippage,
   getSwapType,
   isHardwareWallet,
@@ -21,11 +12,20 @@ import {
   MetricsActionType,
   MetricsSwapType,
 } from '@metamask/bridge-controller';
+import type {
+  QuoteFetchData,
+  QuoteMetadata,
+  QuoteResponse,
+  TxStatusData,
+  RequestParams,
+  TradeData,
+  RequestMetadata,
+} from '@metamask/bridge-controller';
 import {
   TransactionStatus,
   TransactionType,
-  type TransactionMeta,
 } from '@metamask/transaction-controller';
+import type { TransactionMeta } from '@metamask/transaction-controller';
 import type { CaipAssetType } from '@metamask/utils';
 import { BigNumber } from 'bignumber.js';
 

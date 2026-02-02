@@ -4,6 +4,7 @@ import { toHex } from '@metamask/controller-utils';
 import { SolScope } from '@metamask/keyring-api';
 import { BigNumber } from 'bignumber.js';
 
+import { DEFAULT_CHAIN_RANKING } from './constants/bridge';
 import type { BridgeAppState } from './selectors';
 import {
   selectExchangeRateByChainIdAndAddress,
@@ -194,6 +195,7 @@ describe('Bridge Selectors', () => {
         bridgeConfig: {
           maxRefreshCount: 5,
           refreshRate: 30000,
+          chainRanking: [],
           chains: {},
           support: true,
           minimumVersion: '0.0.0',
@@ -208,11 +210,11 @@ describe('Bridge Selectors', () => {
         estimatedBaseFee: '50',
         medium: {
           suggestedMaxPriorityFeePerGas: '75',
-          suggestedMaxFeePerGas: '1',
+          suggestedMaxFeePerGas: '77',
         },
         high: {
           suggestedMaxPriorityFeePerGas: '100',
-          suggestedMaxFeePerGas: '2',
+          suggestedMaxFeePerGas: '102',
         },
       },
     } as unknown as BridgeAppState;
@@ -255,6 +257,7 @@ describe('Bridge Selectors', () => {
           bridgeConfig: {
             // eslint-disable-next-line @typescript-eslint/no-explicit-any
             ...(mockState.remoteFeatureFlags.bridgeConfig as any),
+            chainRanking: [],
             chains: {
               '1': {
                 refreshRate: 41000,
@@ -287,6 +290,7 @@ describe('Bridge Selectors', () => {
           bridgeConfig: {
             // eslint-disable-next-line @typescript-eslint/no-explicit-any
             ...(mockState.remoteFeatureFlags.bridgeConfig as any),
+            chainRanking: [],
             chains: {
               '1': {
                 refreshRate: 41000,
@@ -373,6 +377,7 @@ describe('Bridge Selectors', () => {
           minimumVersion: '0.0.0',
           maxRefreshCount: 5,
           refreshRate: 30000,
+          chainRanking: [],
           chains: {},
           support: true,
         },
@@ -395,7 +400,7 @@ describe('Bridge Selectors', () => {
         },
         high: {
           suggestedMaxPriorityFeePerGas: '.1',
-          suggestedMaxFeePerGas: '.1',
+          suggestedMaxFeePerGas: '.2',
         },
       },
     } as unknown as BridgeAppState;
@@ -1087,6 +1092,7 @@ describe('Bridge Selectors', () => {
       refreshRate: 3,
       maxRefreshCount: 1,
       support: true,
+      chainRanking: [],
       chains: {
         '1': {
           isActiveSrc: true,
@@ -1138,6 +1144,7 @@ describe('Bridge Selectors', () => {
         refreshRate: 3,
         maxRefreshCount: 1,
         support: true,
+        chainRanking: [...DEFAULT_CHAIN_RANKING],
         chains: {
           'eip155:1': {
             isActiveSrc: true,
@@ -1182,6 +1189,7 @@ describe('Bridge Selectors', () => {
         minimumVersion: '0.0.0',
         maxRefreshCount: 5,
         refreshRate: 30000,
+        chainRanking: [...DEFAULT_CHAIN_RANKING],
         chains: {},
         support: false,
       });
@@ -1197,6 +1205,7 @@ describe('Bridge Selectors', () => {
         minimumVersion: '0.0.0',
         maxRefreshCount: 5,
         refreshRate: 30000,
+        chainRanking: [...DEFAULT_CHAIN_RANKING],
         chains: {},
         support: false,
       });
@@ -1213,6 +1222,7 @@ describe('Bridge Selectors', () => {
         minimumVersion: '0.0.0',
         maxRefreshCount: 5,
         refreshRate: 30000,
+        chainRanking: [...DEFAULT_CHAIN_RANKING],
         chains: {},
         support: false,
       });
@@ -1265,6 +1275,7 @@ describe('Bridge Selectors', () => {
       refreshRate: 3,
       maxRefreshCount: 1,
       support: true,
+      chainRanking: [],
       chains: {
         '1': {
           isActiveSrc: true,

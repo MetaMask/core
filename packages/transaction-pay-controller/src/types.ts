@@ -19,14 +19,19 @@ import type { RemoteFeatureFlagControllerGetStateAction } from '@metamask/remote
 import type {
   AuthorizationList,
   TransactionControllerAddTransactionBatchAction,
+  TransactionControllerEstimateGasAction,
+  TransactionControllerEstimateGasBatchAction,
   TransactionControllerUnapprovedTransactionAddedEvent,
 } from '@metamask/transaction-controller';
-import type { TransactionControllerGetStateAction } from '@metamask/transaction-controller';
-import type { TransactionControllerStateChangeEvent } from '@metamask/transaction-controller';
-import type { TransactionMeta } from '@metamask/transaction-controller';
-import type { TransactionControllerAddTransactionAction } from '@metamask/transaction-controller';
-import type { TransactionControllerUpdateTransactionAction } from '@metamask/transaction-controller';
-import type { BatchTransaction } from '@metamask/transaction-controller';
+import type {
+  BatchTransaction,
+  TransactionControllerAddTransactionAction,
+  TransactionControllerGetGasFeeTokensAction,
+  TransactionControllerGetStateAction,
+  TransactionControllerStateChangeEvent,
+  TransactionControllerUpdateTransactionAction,
+  TransactionMeta,
+} from '@metamask/transaction-controller';
 import type { Hex, Json } from '@metamask/utils';
 import type { Draft } from 'immer';
 
@@ -47,6 +52,9 @@ export type AllowedActions =
   | TokensControllerGetStateAction
   | TransactionControllerAddTransactionAction
   | TransactionControllerAddTransactionBatchAction
+  | TransactionControllerEstimateGasAction
+  | TransactionControllerEstimateGasBatchAction
+  | TransactionControllerGetGasFeeTokensAction
   | TransactionControllerGetStateAction
   | TransactionControllerUpdateTransactionAction;
 
@@ -77,6 +85,12 @@ export type TransactionPayControllerUpdatePaymentTokenAction = {
   handler: (request: UpdatePaymentTokenRequest) => void;
 };
 
+/** Action to set the max amount flag for a transaction. */
+export type TransactionPayControllerSetIsMaxAmountAction = {
+  type: `${typeof CONTROLLER_NAME}:setIsMaxAmount`;
+  handler: (transactionId: string, isMaxAmount: boolean) => void;
+};
+
 export type TransactionPayControllerStateChangeEvent =
   ControllerStateChangeEvent<
     typeof CONTROLLER_NAME,
@@ -87,6 +101,7 @@ export type TransactionPayControllerActions =
   | TransactionPayControllerGetDelegationTransactionAction
   | TransactionPayControllerGetStateAction
   | TransactionPayControllerGetStrategyAction
+  | TransactionPayControllerSetIsMaxAmountAction
   | TransactionPayControllerUpdatePaymentTokenAction;
 
 export type TransactionPayControllerEvents =
@@ -123,6 +138,9 @@ export type TransactionPayControllerState = {
 export type TransactionData = {
   /** Whether quotes are currently being retrieved. */
   isLoading: boolean;
+
+  /** Whether the user has selected the maximum amount. */
+  isMaxAmount?: boolean;
 
   /** Source token selected for the transaction. */
   paymentToken?: TransactionPaymentToken;
@@ -249,6 +267,9 @@ export type QuoteRequest = {
   /** Address of the user's account. */
   from: Hex;
 
+  /** Whether the transaction is a maximum amount transaction. */
+  isMaxAmount?: boolean;
+
   /** Balance of the source token in atomic format without factoring token decimals. */
   sourceBalanceRaw: string;
 
@@ -273,6 +294,9 @@ export type QuoteRequest = {
 
 /** Fees associated with a transaction pay quote. */
 export type TransactionPayFees = {
+  /** Whether a gas fee token is used to pay source network fees. */
+  isSourceGasFeeToken?: boolean;
+
   /** Whether a gas fee token is used to pay target network fees. */
   isTargetGasFeeToken?: boolean;
 
@@ -311,6 +335,9 @@ export type TransactionPayQuote<OriginalQuote> = {
 
   /** Name of the strategy used to retrieve the quote. */
   strategy: TransactionPayStrategy;
+
+  /** Amount of target token provided. */
+  targetAmount: Amount;
 };
 
 /** Request to get quotes for a transaction. */
@@ -403,6 +430,9 @@ export type TransactionPayTotals = {
 
   /** Total amount of source token required. */
   sourceAmount: Amount;
+
+  /** Total amount of target token provided. */
+  targetAmount: Amount;
 
   /** Overall total cost for the target transaction and all quotes. */
   total: FiatValue;

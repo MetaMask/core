@@ -71,6 +71,12 @@ describe('TestStrategy', () => {
             usd: expect.any(String),
           },
           strategy: TransactionPayStrategy.Test,
+          targetAmount: {
+            fiat: expect.any(String),
+            human: expect.any(String),
+            raw: expect.any(String),
+            usd: expect.any(String),
+          },
         },
       ]);
     });
