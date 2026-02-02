@@ -1,5 +1,6 @@
 import { convertHexToDecimal } from '@metamask/controller-utils';
-import { createModuleLogger, type Hex } from '@metamask/utils';
+import { createModuleLogger } from '@metamask/utils';
+import type { Hex } from '@metamask/utils';
 import { cloneDeep } from 'lodash';
 
 import {
@@ -134,10 +135,13 @@ export type SimulationResponseLog = {
 /** Call trace of a single simulated transaction. */
 export type SimulationResponseCallTrace = {
   /** Nested calls. */
-  calls: SimulationResponseCallTrace[];
+  calls?: SimulationResponseCallTrace[] | null;
+
+  /** Error message for the call, if any. */
+  error?: string;
 
   /** Raw event logs created by the call. */
-  logs: SimulationResponseLog[];
+  logs?: SimulationResponseLog[] | null;
 };
 
 /**
@@ -388,7 +392,7 @@ function finalizeRequest(request: SimulationRequest): SimulationRequest {
       continue;
     }
 
-    newRequest.overrides = newRequest.overrides || {};
+    newRequest.overrides = newRequest.overrides ?? {};
 
     newRequest.overrides[normalizedTo] = {
       code: CODE_DELEGATION_MANAGER_NO_SIGNATURE_ERRORS,

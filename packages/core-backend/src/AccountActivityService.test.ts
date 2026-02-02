@@ -1,17 +1,16 @@
 import type { InternalAccount } from '@metamask/keyring-internal-api';
-import {
-  Messenger,
-  MOCK_ANY_NAMESPACE,
-  type MessengerActions,
-  type MessengerEvents,
-  type MockAnyNamespace,
+import { Messenger, MOCK_ANY_NAMESPACE } from '@metamask/messenger';
+import type {
+  MessengerActions,
+  MessengerEvents,
+  MockAnyNamespace,
 } from '@metamask/messenger';
 import type { Hex } from '@metamask/utils';
 
-import {
-  AccountActivityService,
-  type AccountActivityServiceMessenger,
-  type SubscriptionOptions,
+import { AccountActivityService } from './AccountActivityService';
+import type {
+  AccountActivityServiceMessenger,
+  SubscriptionOptions,
 } from './AccountActivityService';
 import type { ServerNotificationMessage } from './BackendWebSocketService';
 import { WebSocketState } from './BackendWebSocketService';
@@ -32,7 +31,7 @@ type RootMessenger = Messenger<
 >;
 
 // Helper function for completing async operations
-const completeAsyncOperations = async (timeoutMs = 0) => {
+const completeAsyncOperations = async (timeoutMs = 0): Promise<void> => {
   await flushPromises();
   // Allow nested async operations to complete
   if (timeoutMs > 0) {
@@ -201,7 +200,23 @@ const getMessenger = (): {
  */
 const createIndependentService = (options?: {
   subscriptionNamespace?: string;
-}) => {
+}): {
+  service: AccountActivityService;
+  messenger: AccountActivityServiceMessenger;
+  rootMessenger: RootMessenger;
+  mocks: {
+    getSelectedAccount: jest.Mock;
+    connect: jest.Mock;
+    subscribe: jest.Mock;
+    channelHasSubscription: jest.Mock;
+    getSubscriptionsByChannel: jest.Mock;
+    findSubscriptionsByChannelPrefix: jest.Mock;
+    forceReconnection: jest.Mock;
+    addChannelCallback: jest.Mock;
+    removeChannelCallback: jest.Mock;
+  };
+  destroy: () => void;
+} => {
   const { subscriptionNamespace } = options ?? {};
 
   const messengerSetup = getMessenger();
@@ -217,7 +232,7 @@ const createIndependentService = (options?: {
     rootMessenger: messengerSetup.rootMessenger,
     mocks: messengerSetup.mocks,
     // Convenience cleanup method
-    destroy: () => {
+    destroy: (): void => {
       service.destroy();
     },
   };
@@ -231,7 +246,24 @@ const createIndependentService = (options?: {
  */
 const createServiceWithTestAccount = (
   accountAddress: string = '0x1234567890123456789012345678901234567890',
-) => {
+): {
+  service: AccountActivityService;
+  messenger: AccountActivityServiceMessenger;
+  rootMessenger: RootMessenger;
+  mocks: {
+    getSelectedAccount: jest.Mock;
+    connect: jest.Mock;
+    subscribe: jest.Mock;
+    channelHasSubscription: jest.Mock;
+    getSubscriptionsByChannel: jest.Mock;
+    findSubscriptionsByChannelPrefix: jest.Mock;
+    forceReconnection: jest.Mock;
+    addChannelCallback: jest.Mock;
+    removeChannelCallback: jest.Mock;
+  };
+  destroy: () => void;
+  mockSelectedAccount: InternalAccount;
+} => {
   const serviceSetup = createIndependentService();
 
   // Create mock selected account
@@ -686,11 +718,11 @@ describe('AccountActivityService', () => {
             timestamp: 1760344704595,
           });
 
-          // Publish WebSocket ERROR state event - should flush tracked chains as down
+          // Publish WebSocket DISCONNECTED state event - should flush tracked chains as down
           rootMessenger.publish(
             'BackendWebSocketService:connectionStateChanged',
             {
-              state: WebSocketState.ERROR,
+              state: WebSocketState.DISCONNECTED,
               url: 'ws://test',
               reconnectAttempts: 2,
               timeout: 10000,
@@ -701,7 +733,7 @@ describe('AccountActivityService', () => {
           );
           await completeAsyncOperations(100);
 
-          // Verify that the ERROR state triggered the status change for tracked chains
+          // Verify that the DISCONNECTED state triggered the status change for tracked chains
           expect(statusChangedEventListener).toHaveBeenCalledWith({
             chainIds: ['eip155:1', 'eip155:137', 'eip155:56'],
             status: 'down',
@@ -720,11 +752,11 @@ describe('AccountActivityService', () => {
 
           mocks.getSelectedAccount.mockReturnValue(null);
 
-          // Publish WebSocket ERROR state event without any tracked chains
+          // Publish WebSocket DISCONNECTED state event without any tracked chains
           rootMessenger.publish(
             'BackendWebSocketService:connectionStateChanged',
             {
-              state: WebSocketState.ERROR,
+              state: WebSocketState.DISCONNECTED,
               url: 'ws://test',
               reconnectAttempts: 2,
               timeout: 10000,

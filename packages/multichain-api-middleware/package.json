@@ -1,6 +1,6 @@
 {
   "name": "@metamask/multichain-api-middleware",
-  "version": "1.2.4",
+  "version": "1.2.6",
   "description": "JSON-RPC methods and middleware to support the MetaMask Multichain API",
   "keywords": [
     "MetaMask",
@@ -49,13 +49,13 @@
   },
   "dependencies": {
     "@metamask/api-specs": "^0.14.0",
-    "@metamask/chain-agnostic-permission": "^1.2.2",
-    "@metamask/controller-utils": "^11.15.0",
-    "@metamask/json-rpc-engine": "^10.1.1",
-    "@metamask/network-controller": "^25.0.0",
-    "@metamask/permission-controller": "^12.1.0",
+    "@metamask/chain-agnostic-permission": "^1.4.0",
+    "@metamask/controller-utils": "^11.18.0",
+    "@metamask/json-rpc-engine": "^10.2.1",
+    "@metamask/network-controller": "^29.0.0",
+    "@metamask/permission-controller": "^12.2.0",
     "@metamask/rpc-errors": "^7.0.2",
-    "@metamask/utils": "^11.8.1",
+    "@metamask/utils": "^11.9.0",
     "@open-rpc/meta-schema": "^1.14.6",
     "@open-rpc/schema-utils-js": "^2.0.5",
     "jsonschema": "^1.4.1"
@@ -63,13 +63,13 @@
   "devDependencies": {
     "@metamask/auto-changelog": "^3.4.4",
     "@metamask/eth-json-rpc-filters": "^9.0.0",
-    "@metamask/multichain-transactions-controller": "^6.0.0",
+    "@metamask/multichain-transactions-controller": "^7.0.0",
     "@metamask/safe-event-emitter": "^3.0.0",
     "@ts-bridge/cli": "^0.6.4",
-    "@types/jest": "^27.4.1",
+    "@types/jest": "^27.5.2",
     "deepmerge": "^4.2.2",
     "jest": "^27.5.1",
-    "ts-jest": "^27.1.4",
+    "ts-jest": "^27.1.5",
     "typedoc": "^0.24.8",
     "typedoc-plugin-missing-exports": "^2.0.0",
     "typescript": "~5.3.3"

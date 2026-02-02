@@ -8,12 +8,17 @@ import {
   FALL_BACK_VS_CURRENCY,
 } from '@metamask/controller-utils';
 import type { Messenger } from '@metamask/messenger';
-import type { NetworkControllerGetNetworkClientByIdAction } from '@metamask/network-controller';
+import type {
+  NetworkControllerGetNetworkClientByIdAction,
+  NetworkControllerGetStateAction,
+  NetworkConfiguration,
+} from '@metamask/network-controller';
 import { StaticIntervalPollingController } from '@metamask/polling-controller';
+import type { Hex } from '@metamask/utils';
 import { Mutex } from 'async-mutex';
 
-import { fetchMultiExchangeRate as defaultFetchMultiExchangeRate } from './crypto-compare-service';
 import type { AbstractTokenPricesService } from './token-prices-service/abstract-token-prices-service';
+import { getNativeTokenAddress } from './token-prices-service/codefi-v2';
 
 /**
  * currencyRates - Object keyed by native currency
@@ -54,7 +59,9 @@ export type GetCurrencyRateState = ControllerGetStateAction<
 
 export type CurrencyRateControllerActions = GetCurrencyRateState;
 
-type AllowedActions = NetworkControllerGetNetworkClientByIdAction;
+type AllowedActions =
+  | NetworkControllerGetNetworkClientByIdAction
+  | NetworkControllerGetStateAction;
 
 export type CurrencyRateMessenger = Messenger<
   typeof name,
@@ -93,6 +100,21 @@ type CurrencyRatePollingInput = {
   nativeCurrencies: string[];
 };
 
+const boundedPrecisionNumber = (value: number, precision = 9): number =>
+  Number(value.toFixed(precision));
+
+/**
+ * Controller that passively polls on a set interval for an exchange rate from the current network
+ * asset to the user's preferred currency.
+ */
+/** Result from attempting to fetch rates from an API */
+type FetchRatesResult = {
+  /** Successfully fetched rates */
+  rates: CurrencyRateState['currencyRates'];
+  /** Currencies that failed and need fallback or null state */
+  failedCurrencies: Record<string, string>;
+};
+
 /**
  * Controller that passively polls on a set interval for an exchange rate from the current network
  * asset to the user's preferred currency.
@@ -102,13 +124,11 @@ export class CurrencyRateController extends StaticIntervalPollingController<Curr
   CurrencyRateState,
   CurrencyRateMessenger
 > {
-  private readonly mutex = new Mutex();
+  readonly #mutex = new Mutex();
 
-  private readonly fetchMultiExchangeRate;
+  readonly #includeUsdRate: boolean;
 
-  private readonly includeUsdRate;
-
-  private readonly useExternalServices: () => boolean;
+  readonly #useExternalServices: () => boolean;
 
   readonly #tokenPricesService: AbstractTokenPricesService;
 
@@ -121,7 +141,6 @@ export class CurrencyRateController extends StaticIntervalPollingController<Curr
    * @param options.messenger - A reference to the messenger.
    * @param options.state - Initial state to set on this controller.
    * @param options.useExternalServices - Feature Switch for using external services (default: true)
-   * @param options.fetchMultiExchangeRate - Fetches the exchange rate from an external API. This option is primarily meant for use in unit tests.
    * @param options.tokenPricesService - An object in charge of retrieving token prices
    */
   constructor({
@@ -130,7 +149,6 @@ export class CurrencyRateController extends StaticIntervalPollingController<Curr
     useExternalServices = () => true,
     messenger,
     state,
-    fetchMultiExchangeRate = defaultFetchMultiExchangeRate,
     tokenPricesService,
   }: {
     includeUsdRate?: boolean;
@@ -138,7 +156,6 @@ export class CurrencyRateController extends StaticIntervalPollingController<Curr
     messenger: CurrencyRateMessenger;
     state?: Partial<CurrencyRateState>;
     useExternalServices?: () => boolean;
-    fetchMultiExchangeRate?: typeof defaultFetchMultiExchangeRate;
     tokenPricesService: AbstractTokenPricesService;
   }) {
     super({
@@ -147,10 +164,9 @@ export class CurrencyRateController extends StaticIntervalPollingController<Curr
       messenger,
       state: { ...defaultState, ...state },
     });
-    this.includeUsdRate = includeUsdRate;
-    this.useExternalServices = useExternalServices;
+    this.#includeUsdRate = includeUsdRate;
+    this.#useExternalServices = useExternalServices;
     this.setIntervalLength(interval);
-    this.fetchMultiExchangeRate = fetchMultiExchangeRate;
     this.#tokenPricesService = tokenPricesService;
   }
 
@@ -159,8 +175,8 @@ export class CurrencyRateController extends StaticIntervalPollingController<Curr
    *
    * @param currentCurrency - ISO 4217 currency code.
    */
-  async setCurrentCurrency(currentCurrency: string) {
-    const releaseLock = await this.mutex.acquire();
+  async setCurrentCurrency(currentCurrency: string): Promise<void> {
+    const releaseLock = await this.#mutex.acquire();
     const nativeCurrencies = Object.keys(this.state.currencyRates);
     try {
       this.update(() => {
@@ -177,71 +193,222 @@ export class CurrencyRateController extends StaticIntervalPollingController<Curr
     this.updateExchangeRate(nativeCurrencies);
   }
 
+  /**
+   * Attempts to fetch exchange rates from the primary Price API.
+   *
+   * @param nativeCurrenciesToFetch - Map of native currency to the currency symbol to fetch.
+   * @param currentCurrency - The current fiat currency to get rates for.
+   * @returns Object containing successful rates and currencies that failed.
+   */
+  async #fetchRatesFromPriceApi(
+    nativeCurrenciesToFetch: Record<string, string>,
+    currentCurrency: string,
+  ): Promise<FetchRatesResult> {
+    const rates: CurrencyRateState['currencyRates'] = {};
+    let failedCurrencies: Record<string, string> = {};
+
+    try {
+      const response = await this.#tokenPricesService.fetchExchangeRates({
+        baseCurrency: currentCurrency,
+        includeUsdRate: this.#includeUsdRate,
+        cryptocurrencies: [...new Set(Object.values(nativeCurrenciesToFetch))],
+      });
+
+      Object.entries(nativeCurrenciesToFetch).forEach(
+        ([nativeCurrency, fetchedCurrency]) => {
+          const rate = response[fetchedCurrency.toLowerCase()];
+
+          if (rate?.value) {
+            rates[nativeCurrency] = {
+              conversionDate: Date.now() / 1000,
+              conversionRate: boundedPrecisionNumber(1 / rate.value),
+              usdConversionRate: rate?.usd
+                ? boundedPrecisionNumber(1 / rate.usd)
+                : null,
+            };
+          } else {
+            failedCurrencies[nativeCurrency] = fetchedCurrency;
+          }
+        },
+      );
+    } catch (error) {
+      console.error('Failed to fetch exchange rates.', error);
+      failedCurrencies = { ...nativeCurrenciesToFetch };
+    }
+
+    return { rates, failedCurrencies };
+  }
+
+  /**
+   * Fetches exchange rates from the token prices service as a fallback.
+   * This method is designed to never throw - all errors are handled internally
+   * and result in currencies being marked as failed.
+   *
+   * @param currenciesToFetch - Map of native currencies that need fallback fetching.
+   * @param currentCurrency - The current fiat currency to get rates for.
+   * @returns Object containing successful rates and currencies that failed.
+   */
+  async #fetchRatesFromTokenPricesService(
+    currenciesToFetch: Record<string, string>,
+    currentCurrency: string,
+  ): Promise<FetchRatesResult> {
+    try {
+      const rates: CurrencyRateState['currencyRates'] = {};
+      const failedCurrencies: Record<string, string> = {};
+
+      const networkControllerState = this.messenger.call(
+        'NetworkController:getState',
+      );
+      const networkConfigurations =
+        networkControllerState.networkConfigurationsByChainId;
+
+      // Build a map of nativeCurrency -> chainId for currencies to fetch
+      const currencyToChainIds = Object.entries(currenciesToFetch).reduce<
+        Record<string, { fetchedCurrency: string; chainId: Hex }>
+      >((acc, [nativeCurrency, fetchedCurrency]) => {
+        const matchingEntry = (
+          Object.entries(networkConfigurations) as [Hex, NetworkConfiguration][]
+        ).find(
+          ([, config]) =>
+            config.nativeCurrency.toUpperCase() ===
+            fetchedCurrency.toUpperCase(),
+        );
+
+        if (matchingEntry) {
+          acc[nativeCurrency] = { fetchedCurrency, chainId: matchingEntry[0] };
+        } else {
+          // No matching network configuration - mark as failed
+          failedCurrencies[nativeCurrency] = fetchedCurrency;
+        }
+        return acc;
+      }, {});
+
+      const currencyToChainIdsEntries = Object.entries(currencyToChainIds);
+      const ratesResults = await Promise.allSettled(
+        currencyToChainIdsEntries.map(async ([nativeCurrency, { chainId }]) => {
+          const nativeTokenAddress = getNativeTokenAddress(chainId);
+          const tokenPrices = await this.#tokenPricesService.fetchTokenPrices({
+            assets: [{ chainId, tokenAddress: nativeTokenAddress }],
+            currency: currentCurrency,
+          });
+
+          const tokenPrice = tokenPrices.find(
+            (item) =>
+              item.tokenAddress.toLowerCase() ===
+              nativeTokenAddress.toLowerCase(),
+          );
+
+          return {
+            nativeCurrency,
+            conversionDate: tokenPrice ? Date.now() / 1000 : null,
+            conversionRate: tokenPrice?.price
+              ? boundedPrecisionNumber(tokenPrice.price)
+              : null,
+            usdConversionRate: null,
+          };
+        }),
+      );
+
+      ratesResults.forEach((result, index) => {
+        const [nativeCurrency, { fetchedCurrency, chainId }] =
+          currencyToChainIdsEntries[index];
+
+        if (result.status === 'fulfilled' && result.value.conversionRate) {
+          rates[nativeCurrency] = {
+            conversionDate: result.value.conversionDate,
+            conversionRate: result.value.conversionRate,
+            usdConversionRate: result.value.usdConversionRate,
+          };
+        } else {
+          if (result.status === 'rejected') {
+            console.error(
+              `Failed to fetch token price for ${nativeCurrency} on chain ${chainId}`,
+              result.reason,
+            );
+          }
+          failedCurrencies[nativeCurrency] = fetchedCurrency;
+        }
+      });
+
+      return { rates, failedCurrencies };
+    } catch (error) {
+      console.error(
+        'Failed to fetch exchange rates from token prices service.',
+        error,
+      );
+      // Return all currencies as failed
+      return { rates: {}, failedCurrencies: { ...currenciesToFetch } };
+    }
+  }
+
+  /**
+   * Creates null rate entries for currencies that couldn't be fetched.
+   *
+   * @param currencies - Array of currency symbols to create null entries for.
+   * @returns Null rate entries for all provided currencies.
+   */
+  #createNullRatesForCurrencies(
+    currencies: string[],
+  ): CurrencyRateState['currencyRates'] {
+    return currencies.reduce<CurrencyRateState['currencyRates']>(
+      (acc, nativeCurrency) => {
+        acc[nativeCurrency] = {
+          conversionDate: null,
+          conversionRate: null,
+          usdConversionRate: null,
+        };
+        return acc;
+      },
+      {},
+    );
+  }
+
+  /**
+   * Fetches exchange rates with fallback logic.
+   * First tries the Price API, then falls back to token prices service for any failed currencies.
+   *
+   * @param nativeCurrenciesToFetch - Map of native currency to the currency symbol to fetch.
+   * @returns Exchange rates for all requested currencies.
+   */
   async #fetchExchangeRatesWithFallback(
     nativeCurrenciesToFetch: Record<string, string>,
   ): Promise<CurrencyRateState['currencyRates']> {
     const { currentCurrency } = this.state;
 
-    try {
-      const priceApiExchangeRatesResponse =
-        await this.#tokenPricesService.fetchExchangeRates({
-          baseCurrency: currentCurrency,
-          includeUsdRate: this.includeUsdRate,
-          cryptocurrencies: [
-            ...new Set(Object.values(nativeCurrenciesToFetch)),
-          ],
-        });
+    // Step 1: Try the Price API exchange rates first
+    const {
+      rates: ratesPriceApi,
+      failedCurrencies: failedCurrenciesFromPriceApi,
+    } = await this.#fetchRatesFromPriceApi(
+      nativeCurrenciesToFetch,
+      currentCurrency,
+    );
 
-      const ratesPriceApi = Object.entries(nativeCurrenciesToFetch).reduce(
-        (acc, [nativeCurrency, fetchedCurrency]) => {
-          const rate =
-            priceApiExchangeRatesResponse[fetchedCurrency.toLowerCase()];
-
-          acc[nativeCurrency] = {
-            conversionDate: rate !== undefined ? Date.now() / 1000 : null,
-            conversionRate: rate?.value
-              ? Number((1 / rate?.value).toFixed(2))
-              : null,
-            usdConversionRate: rate?.usd
-              ? Number((1 / rate?.usd).toFixed(2))
-              : null,
-          };
-          return acc;
-        },
-        {} as CurrencyRateState['currencyRates'],
-      );
+    // Step 2: If all currencies succeeded, return early
+    if (Object.keys(failedCurrenciesFromPriceApi).length === 0) {
       return ratesPriceApi;
-    } catch (error) {
-      console.error('Failed to fetch exchange rates.', error);
     }
 
-    // fallback to crypto compare
+    // Step 3: Fallback using token prices service for failed currencies
+    const {
+      rates: ratesFromFallback,
+      failedCurrencies: failedCurrenciesFromFallback,
+    } = await this.#fetchRatesFromTokenPricesService(
+      failedCurrenciesFromPriceApi,
+      currentCurrency,
+    );
 
-    try {
-      const fetchExchangeRateResponse = await this.fetchMultiExchangeRate(
-        currentCurrency,
-        [...new Set(Object.values(nativeCurrenciesToFetch))],
-        this.includeUsdRate,
-      );
+    // Step 4: Create null rates for currencies that failed both approaches
+    const nullRates = this.#createNullRatesForCurrencies(
+      Object.keys(failedCurrenciesFromFallback),
+    );
 
-      const rates = Object.entries(nativeCurrenciesToFetch).reduce(
-        (acc, [nativeCurrency, fetchedCurrency]) => {
-          const rate = fetchExchangeRateResponse[fetchedCurrency.toLowerCase()];
-          acc[nativeCurrency] = {
-            conversionDate: rate !== undefined ? Date.now() / 1000 : null,
-            conversionRate: rate?.[currentCurrency.toLowerCase()] ?? null,
-            usdConversionRate: rate?.usd ?? null,
-          };
-          return acc;
-        },
-        {} as CurrencyRateState['currencyRates'],
-      );
-
-      return rates;
-    } catch (error) {
-      console.error('Failed to fetch exchange rates.', error);
-      throw error;
-    }
+    // Step 5: Merge all results - Price API rates take priority, then fallback, then null rates
+    return {
+      ...nullRates,
+      ...ratesFromFallback,
+      ...ratesPriceApi,
+    };
   }
 
   /**
@@ -252,28 +419,27 @@ export class CurrencyRateController extends StaticIntervalPollingController<Curr
   async updateExchangeRate(
     nativeCurrencies: (string | undefined)[],
   ): Promise<void> {
-    if (!this.useExternalServices()) {
+    if (!this.#useExternalServices()) {
       return;
     }
 
-    const releaseLock = await this.mutex.acquire();
+    const releaseLock = await this.#mutex.acquire();
     try {
       // For preloaded testnets (Goerli, Sepolia) we want to fetch exchange rate for real ETH.
       // Map each native currency to the symbol we want to fetch for it.
       const testnetSymbols = Object.values(TESTNET_TICKER_SYMBOLS);
-      const nativeCurrenciesToFetch = nativeCurrencies.reduce(
-        (acc, nativeCurrency) => {
-          if (!nativeCurrency) {
-            return acc;
-          }
-
-          acc[nativeCurrency] = testnetSymbols.includes(nativeCurrency)
-            ? FALL_BACK_VS_CURRENCY
-            : nativeCurrency;
+      const nativeCurrenciesToFetch = nativeCurrencies.reduce<
+        Record<string, string>
+      >((acc, nativeCurrency) => {
+        if (!nativeCurrency) {
           return acc;
-        },
-        {} as Record<string, string>,
-      );
+        }
+
+        acc[nativeCurrency] = testnetSymbols.includes(nativeCurrency)
+          ? FALL_BACK_VS_CURRENCY
+          : nativeCurrency;
+        return acc;
+      }, {});
 
       const rates = await this.#fetchExchangeRatesWithFallback(
         nativeCurrenciesToFetch,
@@ -298,7 +464,7 @@ export class CurrencyRateController extends StaticIntervalPollingController<Curr
    *
    * This stops any active polling.
    */
-  override destroy() {
+  override destroy(): void {
     super.destroy();
     this.stopAllPolling();
   }

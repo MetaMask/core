@@ -3,11 +3,8 @@ import type { InternalAccount } from '@metamask/keyring-internal-api';
 import type { NetworkClient } from '@metamask/network-controller';
 import BN from 'bn.js';
 
-import {
-  RpcBalanceFetcher,
-  type ChainIdHex,
-  type ChecksumAddress,
-} from './rpc-balance-fetcher';
+import { RpcBalanceFetcher } from './rpc-balance-fetcher';
+import type { ChainIdHex, ChecksumAddress } from './rpc-balance-fetcher';
 import type { TokensControllerState } from '../TokensController';
 
 const MOCK_ADDRESS_1 = '0xd8dA6BF26964aF9D7eEd9e03E53415D37aA96045';

@@ -9,7 +9,7 @@ type MockReply = {
 
 export const mockEndpointUpdatePushNotificationLinks = (
   mockReply?: MockReply,
-) => {
+): nock.Scope => {
   const mockResponse = getMockUpdatePushNotificationLinksResponse();
   const reply = mockReply ?? {
     status: 204,

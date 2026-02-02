@@ -9,11 +9,8 @@ import type {
 } from '..';
 import { TransactionPayStrategy } from '..';
 import type { TransactionMeta } from '../../../transaction-controller/src';
+import { ARBITRUM_USDC_ADDRESS, CHAIN_ID_ARBITRUM } from '../constants';
 import { projectLogger } from '../logger';
-import {
-  ARBITRUM_USDC_ADDRESS,
-  CHAIN_ID_ARBITRUM,
-} from '../strategy/relay/constants';
 import type {
   TransactionPaySourceAmount,
   TransactionData,
@@ -33,20 +30,26 @@ export function updateSourceAmounts(
   transactionId: string,
   transactionData: TransactionData | undefined,
   messenger: TransactionPayControllerMessenger,
-) {
+): void {
   if (!transactionData) {
     return;
   }
 
-  const { paymentToken, tokens } = transactionData;
+  const { isMaxAmount, paymentToken, tokens } = transactionData;
 
   if (!tokens.length || !paymentToken) {
     return;
   }
 
   const sourceAmounts = tokens
-    .map((t) =>
-      calculateSourceAmount(paymentToken, t, messenger, transactionId),
+    .map((singleToken) =>
+      calculateSourceAmount(
+        paymentToken,
+        singleToken,
+        messenger,
+        transactionId,
+        isMaxAmount ?? false,
+      ),
     )
     .filter(Boolean) as TransactionPaySourceAmount[];
 
@@ -62,6 +65,7 @@ export function updateSourceAmounts(
  * @param token - Target token to cover.
  * @param messenger - Controller messenger.
  * @param transactionId - ID of the transaction.
+ * @param isMaxAmount - Whether the transaction is a maximum amount transaction.
  * @returns The source amount or undefined if calculation failed.
  */
 function calculateSourceAmount(
@@ -69,6 +73,7 @@ function calculateSourceAmount(
   token: TransactionPayRequiredToken,
   messenger: TransactionPayControllerMessenger,
   transactionId: string,
+  isMaxAmount: boolean,
 ): TransactionPaySourceAmount | undefined {
   const paymentTokenFiatRate = getTokenFiatRate(
     messenger,
@@ -117,6 +122,14 @@ function calculateSourceAmount(
     return undefined;
   }
 
+  if (isMaxAmount) {
+    return {
+      sourceAmountHuman: paymentToken.balanceHuman,
+      sourceAmountRaw: paymentToken.balanceRaw,
+      targetTokenAddress: token.address,
+    };
+  }
+
   return {
     sourceAmountHuman,
     sourceAmountRaw,
@@ -134,7 +147,7 @@ function calculateSourceAmount(
 function isQuoteAlwaysRequired(
   token: TransactionPayRequiredToken,
   strategy: TransactionPayStrategy,
-) {
+): boolean {
   const isHyperliquidDeposit =
     token.chainId === CHAIN_ID_ARBITRUM &&
     token.address.toLowerCase() === ARBITRUM_USDC_ADDRESS.toLowerCase();
@@ -152,7 +165,7 @@ function isQuoteAlwaysRequired(
 function getStrategyType(
   transactionId: string,
   messenger: TransactionPayControllerMessenger,
-) {
+): TransactionPayStrategy {
   const transaction = getTransaction(
     transactionId,
     messenger,

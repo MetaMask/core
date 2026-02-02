@@ -10,20 +10,22 @@ import type {
   ClaimsConfigurationsResponse,
   GenerateSignatureMessageResponse,
 } from './types';
+import { createSentryError } from './utils';
 import { createMockClaimsServiceMessenger } from '../tests/mocks/messenger';
 
 const mockAuthenticationControllerGetBearerToken = jest.fn();
 const mockFetchFunction = jest.fn();
-
+const mockCaptureException = jest.fn();
 /**
  * Create a mock claims service.
  *
  * @param env - The environment to use for the mock claims service. Defaults to Env.DEV.
- * @returns A mock claims service.
+ * @returns A mock claims service and its messenger.
  */
-function createMockClaimsService(env: Env = Env.DEV) {
+function createMockClaimsService(env: Env = Env.DEV): ClaimsService {
   const { messenger } = createMockClaimsServiceMessenger(
     mockAuthenticationControllerGetBearerToken,
+    mockCaptureException,
   );
   return new ClaimsService({
     env,
@@ -68,7 +70,10 @@ describe('ClaimsService', () => {
     });
 
     it('should create instance with valid config', () => {
-      const { messenger } = createMockClaimsServiceMessenger(jest.fn());
+      const { messenger } = createMockClaimsServiceMessenger(
+        jest.fn(),
+        jest.fn(),
+      );
       const service = new ClaimsService({
         env: Env.DEV,
         messenger,
@@ -231,6 +236,25 @@ describe('ClaimsService', () => {
         ClaimsServiceErrorMessages.FAILED_TO_GET_CLAIM_BY_ID,
       );
     });
+
+    it('should handle fetch error and capture exception', async () => {
+      mockFetchFunction.mockRestore();
+
+      mockFetchFunction.mockRejectedValueOnce(new Error('Fetch error'));
+
+      const service = createMockClaimsService();
+
+      await expect(service.getClaimById('1')).rejects.toThrow(
+        ClaimsServiceErrorMessages.FAILED_TO_GET_CLAIM_BY_ID,
+      );
+
+      expect(mockCaptureException).toHaveBeenCalledWith(
+        createSentryError(
+          ClaimsServiceErrorMessages.FAILED_TO_GET_CLAIM_BY_ID,
+          new Error('Fetch error'),
+        ),
+      );
+    });
   });
 
   describe('generateMessageForClaimSignature', () => {
@@ -289,6 +313,7 @@ describe('ClaimsService', () => {
 
       mockFetchFunction.mockResolvedValueOnce({
         ok: false,
+        status: 500,
         json: jest.fn().mockResolvedValueOnce(null),
       });
 
@@ -298,6 +323,13 @@ describe('ClaimsService', () => {
         service.generateMessageForClaimSignature(1, '0x123'),
       ).rejects.toThrow(
         ClaimsServiceErrorMessages.SIGNATURE_MESSAGE_GENERATION_FAILED,
+      );
+
+      expect(mockCaptureException).toHaveBeenCalledWith(
+        createSentryError(
+          ClaimsServiceErrorMessages.SIGNATURE_MESSAGE_GENERATION_FAILED,
+          new Error('error: Unknown error, statusCode: 500'),
+        ),
       );
     });
   });

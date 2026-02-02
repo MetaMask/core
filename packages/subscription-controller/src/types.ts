@@ -1,4 +1,4 @@
-import type { Hex } from '@metamask/utils';
+import type { CaipAccountId, Hex } from '@metamask/utils';
 
 export const PRODUCT_TYPES = {
   SHIELD: 'shield',
@@ -40,6 +40,15 @@ export const SUBSCRIPTION_STATUSES = {
 
 export type SubscriptionStatus =
   (typeof SUBSCRIPTION_STATUSES)[keyof typeof SUBSCRIPTION_STATUSES];
+
+export const CANCEL_TYPES = {
+  ALLOWED_IMMEDIATE: 'allowed_immediate',
+  ALLOWED_AT_PERIOD_END: 'allowed_at_period_end',
+  NOT_ALLOWED: 'not_allowed',
+  NOT_ALLOWED_PENDING_VERIFICATION: 'not_allowed_pending_verification',
+} as const;
+
+export type CancelType = (typeof CANCEL_TYPES)[keyof typeof CANCEL_TYPES];
 
 export const CRYPTO_PAYMENT_METHOD_ERRORS = {
   APPROVAL_TRANSACTION_TOO_OLD: 'approval_transaction_too_old',
@@ -88,6 +97,8 @@ export type Subscription = {
   endDate?: string; // ISO 8601
   /** The date the subscription was canceled. */
   canceledAt?: string; // ISO 8601
+  /** The cancellation type indicating what cancellation options are available for this subscription. */
+  cancelType: CancelType;
   /** The date the subscription was marked as inactive (paused/past_due/canceled). */
   inactiveAt?: string; // ISO 8601
   /** Whether the user is eligible for support features (priority support and filing claims). True for active subscriptions and inactive subscriptions within grace period. */
@@ -125,6 +136,8 @@ export type GetSubscriptionsResponse = {
   trialedProducts: ProductType[];
   /** The last subscription that user has subscribed to if any. */
   lastSubscription?: Subscription;
+  /** The reward account ID if user has linked rewards to the subscription. */
+  rewardAccountId?: CaipAccountId;
 };
 
 export type StartSubscriptionRequest = {
@@ -132,7 +145,18 @@ export type StartSubscriptionRequest = {
   isTrialRequested: boolean;
   recurringInterval: RecurringInterval;
   successUrl?: string;
+  cancelUrl?: string;
   useTestClock?: boolean;
+
+  /**
+   * The optional ID of the reward subscription to be opt in along with the main `shield` subscription.
+   * This is required if user wants to opt in to the reward subscription during the `shield` subscription creation.
+   *
+   * @example {
+   *   rewardAccountId: 'eip155:1:0x1234567890123456789012345678901234567890',
+   * }
+   */
+  rewardAccountId?: CaipAccountId;
 };
 
 export type StartSubscriptionResponse = {
@@ -153,11 +177,41 @@ export type StartCryptoSubscriptionRequest = {
   rawTransaction: Hex;
   isSponsored?: boolean;
   useTestClock?: boolean;
+  /**
+   * The optional ID of the reward subscription to be opt in along with the main `shield` subscription.
+   * This is required if user wants to opt in to the reward subscription during the `shield` subscription creation.
+   *
+   * @example {
+   *   rewardAccountId: 'eip155:1:0x1234567890123456789012345678901234567890',
+   * }
+   */
+  rewardAccountId?: CaipAccountId;
 };
 
 export type StartCryptoSubscriptionResponse = {
   subscriptionId: string;
   status: SubscriptionStatus;
+};
+
+/**
+ * General response type for the subscription API requests
+ * which doesn't require any specific response data.
+ */
+export type SubscriptionApiGeneralResponse = {
+  /**
+   * Whether the request was successful.
+   */
+  success: boolean;
+  /**
+   * The message of the response.
+   */
+  message?: string;
+};
+
+export type CancelSubscriptionRequest = {
+  subscriptionId: string;
+  /** Whether to cancel at the end of the current period */
+  cancelAtPeriodEnd?: boolean;
 };
 
 export type AuthUtils = {
@@ -171,7 +225,10 @@ export type ProductPrice = {
   /** only usd for now */
   currency: Currency;
   trialPeriodDays: number;
+  /** min billing cycles for approval */
   minBillingCycles: number;
+  /** min billing cycles for account balance check */
+  minBillingCyclesForBalance: number;
 };
 
 export type ProductPricing = {
@@ -273,7 +330,6 @@ export type Cohort = {
 export type SubscriptionEligibility = {
   product: ProductType;
   canSubscribe: boolean;
-  minBalanceUSD: number;
   canViewEntryModal: boolean;
   modalType?: ModalType;
   cohorts: Cohort[];
@@ -321,9 +377,7 @@ export type SubmitSponsorshipIntentsMethodParams = Pick<
 
 export type ISubscriptionService = {
   getSubscriptions(): Promise<GetSubscriptionsResponse>;
-  cancelSubscription(request: {
-    subscriptionId: string;
-  }): Promise<Subscription>;
+  cancelSubscription(request: CancelSubscriptionRequest): Promise<Subscription>;
   unCancelSubscription(request: {
     subscriptionId: string;
   }): Promise<Subscription>;
@@ -346,6 +400,13 @@ export type ISubscriptionService = {
   ): Promise<SubscriptionEligibility[]>;
   submitUserEvent(request: SubmitUserEventRequest): Promise<void>;
   assignUserToCohort(request: AssignCohortRequest): Promise<void>;
+
+  /**
+   * Link rewards to a subscription.
+   */
+  linkRewards(
+    request: LinkRewardsRequest,
+  ): Promise<SubscriptionApiGeneralResponse>;
 
   /**
    * Submit sponsorship intents to the Subscription Service backend.
@@ -385,6 +446,7 @@ export type UpdatePaymentMethodCardRequest = {
    */
   recurringInterval: RecurringInterval;
   successUrl?: string;
+  cancelUrl?: string;
 };
 
 export type UpdatePaymentMethodCardResponse = {
@@ -419,4 +481,18 @@ export type CachedLastSelectedPaymentMethod = {
   paymentTokenSymbol?: string;
   plan: RecurringInterval;
   useTestClock?: boolean;
+};
+
+/**
+ * Request object for linking rewards to a subscription.
+ */
+export type LinkRewardsRequest = {
+  /**
+   * The ID of the reward subscription to be linked to the subscription.
+   *
+   * @example {
+   *   rewardAccountId: 'eip155:1:0x1234567890123456789012345678901234567890',
+   * }
+   */
+  rewardAccountId: CaipAccountId;
 };

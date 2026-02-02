@@ -1,8 +1,5 @@
-import {
-  MOCK_ANY_NAMESPACE,
-  Messenger,
-  type MockAnyNamespace,
-} from '@metamask/messenger';
+import { MOCK_ANY_NAMESPACE, Messenger } from '@metamask/messenger';
+import type { MockAnyNamespace } from '@metamask/messenger';
 import type { NetworkClient } from '@metamask/network-controller';
 import EventEmitter from 'events';
 import { useFakeTimers } from 'sinon';

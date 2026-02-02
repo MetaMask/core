@@ -16,6 +16,12 @@ const SERVICE_NAME = 'BackendWebSocketService' as const;
 
 const log = createModuleLogger(projectLogger, SERVICE_NAME);
 
+// WebSocket close codes and reasons for internal operations
+const MANUAL_DISCONNECT_CODE = 4999 as const;
+const MANUAL_DISCONNECT_REASON = 'Internal: Manual disconnect' as const;
+const FORCE_RECONNECT_CODE = 4998 as const;
+const FORCE_RECONNECT_REASON = 'Internal: Force reconnect' as const;
+
 const MESSENGER_EXPOSED_METHODS = [
   'connect',
   'disconnect',
@@ -89,8 +95,10 @@ export function getCloseReason(code: number): string {
 export enum WebSocketState {
   CONNECTING = 'connecting',
   CONNECTED = 'connected',
+  /** @deprecated This value is no longer used internally and will be removed in a future major release */
   DISCONNECTING = 'disconnecting',
   DISCONNECTED = 'disconnected',
+  /** @deprecated TThis value is no longer used internally and will be removed in a future major release */
   ERROR = 'error',
 }
 
@@ -119,10 +127,10 @@ export type BackendWebSocketServiceOptions = {
   /** Connection timeout in milliseconds (default: 10000) */
   timeout?: number;
 
-  /** Initial reconnection delay in milliseconds (default: 500) */
+  /** Initial reconnection delay in milliseconds (default: 10000) */
   reconnectDelay?: number;
 
-  /** Maximum reconnection delay in milliseconds (default: 5000) */
+  /** Maximum reconnection delay in milliseconds (default: 60000) */
   maxReconnectDelay?: number;
 
   /** Request timeout in milliseconds (default: 30000) */
@@ -315,9 +323,6 @@ export class BackendWebSocketService {
 
   #connectedAt: number = 0;
 
-  // Track manual disconnects to prevent automatic reconnection
-  #manualDisconnect = false;
-
   // Simplified subscription storage (single flat map)
   // Key: subscription ID string (e.g., 'sub_abc123def456')
   // Value: WebSocketSubscription object with channels, callback and metadata
@@ -352,8 +357,8 @@ export class BackendWebSocketService {
     this.#options = {
       url: options.url,
       timeout: options.timeout ?? 10000,
-      reconnectDelay: options.reconnectDelay ?? 500,
-      maxReconnectDelay: options.maxReconnectDelay ?? 5000,
+      reconnectDelay: options.reconnectDelay ?? 10000,
+      maxReconnectDelay: options.maxReconnectDelay ?? 60000,
       requestTimeout: options.requestTimeout ?? 30000,
     };
 
@@ -425,9 +430,6 @@ export class BackendWebSocketService {
    * @returns Promise that resolves when connection is established
    */
   async connect(): Promise<void> {
-    // Reset manual disconnect flag when explicitly connecting
-    this.#manualDisconnect = false;
-
     // Priority 1: Check if feature is enabled via callback (feature flag check)
     // If feature is disabled, stop all connection attempts
     if (this.#isEnabled && !this.#isEnabled()) {
@@ -456,7 +458,7 @@ export class BackendWebSocketService {
 
     // Create and store the connection promise IMMEDIATELY (before any async operations)
     // This ensures subsequent connect() calls will wait for this promise instead of creating new connections
-    this.#connectionPromise = (async () => {
+    this.#connectionPromise = (async (): Promise<void> => {
       // Priority 2: Check authentication requirements (signed in)
       let bearerToken: string;
       try {
@@ -472,17 +474,8 @@ export class BackendWebSocketService {
         throw error;
       }
 
-      this.#setState(WebSocketState.CONNECTING);
-
       // Establish the actual WebSocket connection
-      try {
-        await this.#establishConnection(bearerToken);
-      } catch (error) {
-        const errorMessage = getErrorMessage(error);
-        log('Connection attempt failed', { errorMessage, error });
-        this.#setState(WebSocketState.ERROR);
-        throw error;
-      }
+      await this.#establishConnection(bearerToken);
     })();
 
     try {
@@ -501,29 +494,12 @@ export class BackendWebSocketService {
    * Closes WebSocket connection
    */
   disconnect(): void {
-    if (
-      this.#state === WebSocketState.DISCONNECTED ||
-      this.#state === WebSocketState.DISCONNECTING
-    ) {
+    if (this.#state === WebSocketState.DISCONNECTED || !this.#ws) {
       return;
     }
 
-    // Mark this as a manual disconnect to prevent automatic reconnection
-    this.#manualDisconnect = true;
-
-    this.#setState(WebSocketState.DISCONNECTING);
-    this.#clearTimers();
-    this.#clearPendingRequests(new Error('WebSocket disconnected'));
-
-    // Clear any pending connection promise
-    this.#connectionPromise = null;
-
-    // Reset reconnect attempts on manual disconnect
-    this.#reconnectAttempts = 0;
-
-    if (this.#ws) {
-      this.#ws.close(1000, 'Normal closure');
-    }
+    // Close WebSocket with manual disconnect code and reason
+    this.#ws.close(MANUAL_DISCONNECT_CODE, MANUAL_DISCONNECT_REASON);
 
     log('WebSocket manually disconnected');
   }
@@ -545,19 +521,16 @@ export class BackendWebSocketService {
    * @returns Promise that resolves when disconnection is complete (reconnection is scheduled)
    */
   async forceReconnection(): Promise<void> {
-    // If a reconnect is already scheduled, don't force another one
-    if (this.#reconnectTimer) {
-      log('Reconnect already scheduled, skipping force reconnection');
+    if (this.#state === WebSocketState.DISCONNECTED || !this.#ws) {
+      log('WebSocket already disconnected, scheduling reconnect');
+      this.#scheduleReconnect();
       return;
     }
 
     log('Forcing WebSocket reconnection to clean up subscription state');
 
-    // Perform controlled disconnect
-    this.disconnect();
-
-    // Schedule reconnection with exponential backoff
-    this.#scheduleReconnect();
+    // This ensures ws.onclose will schedule a reconnect (not treat it as manual disconnect)
+    this.#ws.close(FORCE_RECONNECT_CODE, FORCE_RECONNECT_REASON);
   }
 
   /**
@@ -607,13 +580,13 @@ export class BackendWebSocketService {
    *
    * @see sendMessage for fire-and-forget messaging without response handling
    */
-  async sendRequest<T = ServerResponseMessage['data']>(
+  async sendRequest<Type = ServerResponseMessage['data']>(
     message: Omit<ClientRequestMessage, 'data'> & {
       data?: Omit<ClientRequestMessage['data'], 'requestId'> & {
         requestId?: string;
       };
     },
-  ): Promise<T> {
+  ): Promise<Type> {
     if (this.#state !== WebSocketState.CONNECTED) {
       throw new Error(`Cannot send request: WebSocket is ${this.#state}`);
     }
@@ -834,21 +807,15 @@ export class BackendWebSocketService {
    * Called when service is being destroyed or app is terminating
    */
   destroy(): void {
+    // Always clear timers first to prevent reconnection attempts after destruction
+    // This handles the case where destroy() is called while DISCONNECTED with a pending reconnect timer
     this.#clearTimers();
-    this.#clearSubscriptions();
 
-    // Clear any pending connection promise
-    this.#connectionPromise = null;
+    // Reset reconnect attempts to prevent any future reconnection logic
+    this.#reconnectAttempts = 0;
 
-    // Clear all pending requests
-    this.#clearPendingRequests(new Error('Service cleanup'));
-
-    if (this.#ws && this.#ws.readyState === WebSocket.OPEN) {
-      this.#ws.close(1000, 'Service cleanup');
-    }
-
-    // Set state to disconnected immediately
-    this.#setState(WebSocketState.DISCONNECTED);
+    // Disconnect the WebSocket if connected (will be no-op if already disconnected)
+    this.disconnect();
   }
 
   /**
@@ -992,46 +959,37 @@ export class BackendWebSocketService {
    */
   async #establishConnection(bearerToken: string): Promise<void> {
     const wsUrl = this.#buildAuthenticatedUrl(bearerToken);
-    const connectionStartTime = Date.now();
 
-    return new Promise<void>((resolve, reject) => {
-      const ws = new WebSocket(wsUrl);
-      this.#connectionTimeout = setTimeout(() => {
-        log('WebSocket connection timeout - forcing close', {
-          timeout: this.#options.timeout,
-        });
-        ws.close();
-        reject(
-          new Error(
-            `Failed to connect to WebSocket: Connection timeout after ${this.#options.timeout}ms`,
-          ),
-        );
-      }, this.#options.timeout);
+    // Transition to CONNECTING state before creating WebSocket
+    this.#setState(WebSocketState.CONNECTING);
+    return this.#trace(
+      {
+        name: `${SERVICE_NAME} Connection`,
+        data: {
+          reconnectAttempt: this.#reconnectAttempts,
+        },
+        tags: {
+          service: SERVICE_NAME,
+        },
+      },
+      () => {
+        return new Promise<void>((resolve, reject) => {
+          // eslint-disable-next-line no-restricted-globals
+          const ws = new WebSocket(wsUrl);
+          this.#connectionTimeout = setTimeout(() => {
+            log('WebSocket connection timeout - forcing close', {
+              timeout: this.#options.timeout,
+            });
+            // Close the WebSocket - onclose will handle rejection and state change
+            ws.close();
+          }, this.#options.timeout);
 
-      ws.onopen = () => {
-        if (this.#connectionTimeout) {
-          clearTimeout(this.#connectionTimeout);
-          this.#connectionTimeout = null;
-        }
+          ws.onopen = (): void => {
+            if (this.#connectionTimeout) {
+              clearTimeout(this.#connectionTimeout);
+              this.#connectionTimeout = null;
+            }
 
-        // Calculate connection latency
-        const connectionLatency = Date.now() - connectionStartTime;
-
-        // Trace successful connection with latency
-        // Promise result intentionally not awaited
-        // eslint-disable-next-line @typescript-eslint/no-floating-promises
-        this.#trace(
-          {
-            name: `${SERVICE_NAME} Connection`,
-            data: {
-              reconnectAttempt: this.#reconnectAttempts,
-              latency_ms: connectionLatency,
-            },
-            tags: {
-              service: SERVICE_NAME,
-            },
-          },
-          () => {
             this.#ws = ws;
             this.#setState(WebSocketState.CONNECTED);
             this.#connectedAt = Date.now();
@@ -1047,52 +1005,103 @@ export class BackendWebSocketService {
             }, 10000);
 
             resolve();
-          },
-        );
-      };
+          };
 
-      ws.onerror = (event: Event) => {
-        log('WebSocket onerror event triggered', { event });
-        if (this.#connectionTimeout) {
-          clearTimeout(this.#connectionTimeout);
-          this.#connectionTimeout = null;
-        }
-        const error = new Error(`WebSocket connection error to ${wsUrl}`);
-        reject(error);
-      };
+          ws.onclose = (event: CloseEvent): void => {
+            log('WebSocket onclose event triggered', {
+              code: event.code,
+              reason: event.reason || getCloseReason(event.code),
+              wasClean: event.wasClean,
+            });
 
-      ws.onclose = (event: CloseEvent) => {
-        log('WebSocket onclose event triggered', {
-          code: event.code,
-          reason: event.reason,
-          wasClean: event.wasClean,
+            // Guard against duplicate close events
+            if (this.#state === WebSocketState.DISCONNECTED) {
+              return;
+            }
+
+            // Detect if this is a manual disconnect or service cleanup based on close code
+            const isManualDisconnect =
+              event.code === MANUAL_DISCONNECT_CODE &&
+              event.reason === MANUAL_DISCONNECT_REASON;
+
+            // If connection hasn't been established yet, handle the connection promise
+            if (this.#state === WebSocketState.CONNECTING) {
+              if (isManualDisconnect) {
+                // Manual disconnect during connection - resolve to prevent reconnection
+                resolve();
+              } else {
+                // Failed connection attempt - reject to trigger reconnection
+                reject(
+                  new Error(
+                    `WebSocket connection closed during connection: ${event.code} ${event.reason}`,
+                  ),
+                );
+              }
+            }
+
+            // Calculate connection duration before we clear state (only if we were connected)
+            const connectionDurationMs =
+              this.#connectedAt > 0 ? Date.now() - this.#connectedAt : 0;
+
+            // Clear all timers
+            this.#clearTimers();
+
+            // Clear WebSocket reference to allow garbage collection
+            this.#ws = undefined;
+
+            // Clear connection tracking
+            this.#connectionPromise = null;
+            this.#connectedAt = 0;
+
+            this.#clearPendingRequests(
+              new Error(
+                `WebSocket connection closed: ${event.code} ${event.reason || getCloseReason(event.code)}`,
+              ),
+            );
+            this.#clearSubscriptions();
+
+            // Update state to disconnected
+            this.#setState(WebSocketState.DISCONNECTED);
+
+            // Check if this was a manual disconnect
+            if (isManualDisconnect) {
+              // Manual disconnect - reset attempts and don't reconnect
+              this.#reconnectAttempts = 0;
+            } else {
+              // Unexpected disconnect - schedule reconnection
+              this.#scheduleReconnect();
+            }
+
+            // eslint-disable-next-line @typescript-eslint/no-floating-promises
+            this.#trace({
+              name: `${SERVICE_NAME} Disconnection`,
+              data: {
+                code: event.code,
+                reason: event.reason || getCloseReason(event.code),
+                wasClean: event.wasClean,
+                reconnectAttempts: this.#reconnectAttempts,
+                ...(connectionDurationMs > 0 && {
+                  connectionDuration_ms: connectionDurationMs,
+                }),
+              },
+              tags: {
+                service: SERVICE_NAME,
+              },
+            });
+          };
+
+          // Set up message handler immediately - no need to wait for connection
+          ws.onmessage = (event: MessageEvent): void => {
+            try {
+              const message = this.#parseMessage(event.data);
+              this.#handleMessage(message);
+            } catch {
+              // Silently ignore invalid JSON messages
+            }
+          };
         });
-        if (this.#state === WebSocketState.CONNECTING) {
-          // Handle connection-phase close events
-          if (this.#connectionTimeout) {
-            clearTimeout(this.#connectionTimeout);
-            this.#connectionTimeout = null;
-          }
-          reject(
-            new Error(
-              `WebSocket connection closed during connection: ${event.code} ${event.reason}`,
-            ),
-          );
-        } else {
-          this.#handleClose(event);
-        }
-      };
-
-      // Set up message handler immediately - no need to wait for connection
-      ws.onmessage = (event: MessageEvent) => {
-        try {
-          const message = this.#parseMessage(event.data);
-          this.#handleMessage(message);
-        } catch {
-          // Silently ignore invalid JSON messages
-        }
-      };
-    });
+      },
+    );
   }
 
   // =============================================================================
@@ -1123,7 +1132,7 @@ export class BackendWebSocketService {
 
     // Trigger channel callbacks for any message with a channel property
     if (this.#isChannelMessage(message)) {
-      const channelMsg = message as ServerNotificationMessage;
+      const channelMsg = message;
       this.#handleChannelMessage(channelMsg);
     }
   }
@@ -1203,29 +1212,7 @@ export class BackendWebSocketService {
       return;
     }
 
-    // Calculate notification latency: time from server sent to client received
-    const receivedAt = Date.now();
-    const latency = receivedAt - message.timestamp;
-
-    // Trace channel message processing with latency data
-    // Promise result intentionally not awaited
-    // eslint-disable-next-line @typescript-eslint/no-floating-promises
-    this.#trace(
-      {
-        name: `${SERVICE_NAME} Channel Message`,
-        data: {
-          latency_ms: latency,
-          event: message.event,
-        },
-        tags: {
-          service: SERVICE_NAME,
-        },
-      },
-      () => {
-        // Direct lookup for exact channel match
-        this.#channelCallbacks.get(message.channel)?.callback(message);
-      },
-    );
+    this.#channelCallbacks.get(message.channel)?.callback(message);
   }
 
   /**
@@ -1290,67 +1277,6 @@ export class BackendWebSocketService {
   // =============================================================================
 
   /**
-   * Handles WebSocket close events (mobile optimized)
-   *
-   * @param event - The WebSocket close event
-   */
-  #handleClose(event: CloseEvent): void {
-    // Calculate connection duration before we clear state
-    const connectionDuration = Date.now() - this.#connectedAt;
-
-    if (this.#connectionTimeout) {
-      clearTimeout(this.#connectionTimeout);
-      this.#connectionTimeout = null;
-    }
-    if (this.#stableConnectionTimer) {
-      clearTimeout(this.#stableConnectionTimer);
-      this.#stableConnectionTimer = null;
-    }
-
-    this.#connectedAt = 0;
-
-    // Clear any pending connection promise
-    this.#connectionPromise = null;
-
-    // Clear subscriptions and pending requests on any disconnect
-    // This ensures clean state for reconnection
-    this.#clearPendingRequests(new Error('WebSocket connection closed'));
-    this.#clearSubscriptions();
-
-    // Update state to disconnected
-    this.#setState(WebSocketState.DISCONNECTED);
-
-    // Check if this was a manual disconnect
-    if (this.#manualDisconnect) {
-      // Manual disconnect - don't reconnect
-      return;
-    }
-
-    // Trace unexpected disconnect with details
-    // Promise result intentionally not awaited
-    // eslint-disable-next-line @typescript-eslint/no-floating-promises
-    this.#trace(
-      {
-        name: `${SERVICE_NAME} Disconnect`,
-        data: {
-          code: event.code,
-          reason: event.reason || getCloseReason(event.code),
-          connectionDuration_ms: connectionDuration,
-        },
-        tags: {
-          service: SERVICE_NAME,
-          disconnect_type: 'unexpected',
-        },
-      },
-      () => {
-        // Empty trace callback - just measuring the event
-      },
-    );
-
-    this.#scheduleReconnect();
-  }
-
-  /**
    * Handles WebSocket errors
    *
    * @param _error - Error that occurred (unused)
@@ -1374,7 +1300,7 @@ export class BackendWebSocketService {
    *
    * Call this from:
    * - connect() catch block (on connection failure)
-   * - #handleClose() (on unexpected disconnect)
+   * - ws.onclose handler (on unexpected disconnect)
    *
    * For user-initiated actions (sign in, unlock), call connect() directly instead.
    *
@@ -1431,9 +1357,6 @@ export class BackendWebSocketService {
     }).next();
   }
 
-  /**
-   * Clears all active timers
-   */
   #clearTimers(): void {
     if (this.#reconnectTimer) {
       clearTimeout(this.#reconnectTimer);

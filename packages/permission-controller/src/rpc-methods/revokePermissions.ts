@@ -1,10 +1,10 @@
 import type { JsonRpcEngineEndCallback } from '@metamask/json-rpc-engine';
-import {
-  isNonEmptyArray,
-  type Json,
-  type JsonRpcRequest,
-  type NonEmptyArray,
-  type PendingJsonRpcResponse,
+import { isNonEmptyArray } from '@metamask/utils';
+import type {
+  Json,
+  JsonRpcRequest,
+  NonEmptyArray,
+  PendingJsonRpcResponse,
 } from '@metamask/utils';
 
 import { invalidParams } from '../errors';

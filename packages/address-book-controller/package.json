@@ -1,6 +1,6 @@
 {
   "name": "@metamask/address-book-controller",
-  "version": "7.0.0",
+  "version": "7.0.1",
   "description": "Manages a list of recipient addresses associated with nicknames",
   "keywords": [
     "MetaMask",
@@ -49,17 +49,17 @@
   },
   "dependencies": {
     "@metamask/base-controller": "^9.0.0",
-    "@metamask/controller-utils": "^11.15.0",
+    "@metamask/controller-utils": "^11.18.0",
     "@metamask/messenger": "^0.3.0",
-    "@metamask/utils": "^11.8.1"
+    "@metamask/utils": "^11.9.0"
   },
   "devDependencies": {
     "@metamask/auto-changelog": "^3.4.4",
     "@ts-bridge/cli": "^0.6.4",
-    "@types/jest": "^27.4.1",
+    "@types/jest": "^27.5.2",
     "deepmerge": "^4.2.2",
     "jest": "^27.5.1",
-    "ts-jest": "^27.1.4",
+    "ts-jest": "^27.1.5",
     "typedoc": "^0.24.8",
     "typedoc-plugin-missing-exports": "^2.0.0",
     "typescript": "~5.3.3"

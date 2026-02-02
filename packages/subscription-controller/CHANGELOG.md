@@ -9,7 +9,92 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ### Changed
 
-- Bump `@metamask/transaction-controller` from `^61.2.0` to `^61.3.0` ([#7153](https://github.com/MetaMask/core/pull/7153))
+- Bump `@metamask/transaction-controller` from `^62.12.0` to `^62.13.0` ([#7802](https://github.com/MetaMask/core/pull/7802))
+
+## [5.4.2]
+
+### Added
+
+- Added new public method `clearState` to clear/reset the subscription controller state. ([#7780](https://github.com/MetaMask/core/pull/7780))
+- Added SubscriptionController `clearLastSelectedPaymentMethod` method ([#7768](https://github.com/MetaMask/core/pull/7768))
+
+### Changed
+
+- Bump `@metamask/transaction-controller` from `^62.9.2` to `^62.12.0` ([#7737](https://github.com/MetaMask/core/pull/7737), [#7760](https://github.com/MetaMask/core/pull/7760), [#7775](https://github.com/MetaMask/core/pull/7775))
+
+## [5.4.1]
+
+### Added
+
+- Added `CancelType` to `Subscription` and `CancelSubscriptionRequest` for `cancelSubscription` method ([#7720](https://github.com/MetaMask/core/pull/7720))
+- Added `cancelUrl` property to `StartSubscriptionRequest` and `UpdatePaymentMethodCardRequest` ([#7719](https://github.com/MetaMask/core/pull/7719))
+
+### Changed
+
+- Bump `@metamask/polling-controller` from `^16.0.0` to `^16.0.2` ([#7604](https://github.com/MetaMask/core/pull/7604), [#7642](https://github.com/MetaMask/core/pull/7642))
+- Bump `@metamask/transaction-controller` from `^62.4.0` to `^62.9.2` ([#7325](https://github.com/MetaMask/core/pull/7325), [#7430](https://github.com/MetaMask/core/pull/7430), [#7494](https://github.com/MetaMask/core/pull/7494), [#7596](https://github.com/MetaMask/core/pull/7596), [#7602](https://github.com/MetaMask/core/pull/7602), [#7604](https://github.com/MetaMask/core/pull/7604), [#7642](https://github.com/MetaMask/core/pull/7642))
+- Bump `@metamask/utils` from `^11.8.1` to `^11.9.0` ([#7511](https://github.com/MetaMask/core/pull/7511))
+- Bump `@metamask/controller-utils` from `^11.16.0` to `^11.18.0` ([#7534](https://github.com/MetaMask/core/pull/7534), [#7583](https://github.com/MetaMask/core/pull/7583))
+
+## [5.4.0]
+
+### Changed
+
+- Updated `GetSubscriptionsResponse` and controller state to include `rewardAccountId` property ([#7319](https://github.com/MetaMask/core/pull/7319))
+
+## [5.3.1]
+
+### Changed
+
+- Renamed parameters related to rewards linking with shield. ([#7311](https://github.com/MetaMask/core/pull/7311))
+  - Renamed from `rewardSubscriptionId` to `rewardAccountId`.
+
+## [5.3.0]
+
+### Added
+
+- Added new method, `linkRewards` to link rewards to the existing subscription. ([#7283](https://github.com/MetaMask/core/pull/7283))
+- Added an optional param, `rewardSubscriptionId` to start subscription requests to opt in to rewards together with the main subscription. ([#7283](https://github.com/MetaMask/core/pull/7283))
+- Added an option param, `rewardSubscriptionId` in `submitShieldSubscriptionCryptoApproval` to support rewards with crypto subscriptions. ([#7298](https://github.com/MetaMask/core/pull/7298))
+- Added `SubscriptionControllerSubmitShieldSubscriptionCryptoApprovalAction` and `SubscriptionControllerLinkRewardsAction` to exports. ([#7298](https://github.com/MetaMask/core/pull/7298))
+
+### Changed
+
+- Bump `@metamask/transaction-controller` from `^62.3.1` to `^62.4.0` ([#7289](https://github.com/MetaMask/core/pull/7289))
+
+## [5.2.0]
+
+### Added
+
+- Added `minBillingCyclesForBalance` property to `ProductPrice` type ([#7269](https://github.com/MetaMask/core/pull/7269))
+- Added `getTokenMinimumBalanceAmount` method to `SubscriptonController` ([#7269](https://github.com/MetaMask/core/pull/7269))
+
+### Changed
+
+- Bump `@metamask/transaction-controller` from `^62.3.0` to `^62.3.1` ([#7257](https://github.com/MetaMask/core/pull/7257))
+
+## [5.1.0]
+
+### Changed
+
+- Removed `minBalanceUSD` field from the `SubscriptionEligibility` type. ([#7248](https://github.com/MetaMask/core/pull/7248))
+- Updated `submitShieldSubscriptionCryptoApproval` to handle change payment method transaction if subscription already existed ([#7231](https://github.com/MetaMask/core/pull/7231))
+- Bump `@metamask/transaction-controller` from `^62.0.0` to `^62.3.0` ([#7215](https://github.com/MetaMask/core/pull/7215), [#7220](https://github.com/MetaMask/core/pull/7220), [#7236](https://github.com/MetaMask/core/pull/7236))
+- Move peer dependencies for controller and service packages to direct dependencies ([#7209](https://github.com/MetaMask/core/pull/7209))
+  - The dependencies moved are:
+    - `@metamask/profile-sync-controller` (^27.0.0)
+  - In clients, it is now possible for multiple versions of these packages to exist in the dependency tree.
+    - For example, this scenario would be valid: a client relies on `@metamask/controller-a` 1.0.0 and `@metamask/controller-b` 1.0.0, and `@metamask/controller-b` depends on `@metamask/controller-a` 1.1.0.
+  - Note, however, that the versions specified in the client's `package.json` always "win", and you are expected to keep them up to date so as not to break controller and service intercommunication.
+
+## [5.0.0]
+
+### Changed
+
+- Bump `@metamask/polling-controller` from `^15.0.0` to `^16.0.0` ([#7202](https://github.com/MetaMask/core/pull/7202))
+- Bump `@metamask/controller-utils` from `^11.15.0` to `^11.16.0` ([#7202](https://github.com/MetaMask/core/pull/7202))
+- **BREAKING:** Bump `@metamask/profile-sync-controller` from `^26.0.0` to `^27.0.0` ([#7202](https://github.com/MetaMask/core/pull/7202))
+- Bump `@metamask/transaction-controller` from `^61.3.0` to `^62.0.0` ([#7153](https://github.com/MetaMask/core/pull/7153), [#7202](https://github.com/MetaMask/core/pull/7202))
 
 ## [4.2.2]
 
@@ -75,7 +160,6 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 - Bump `@metamask/controller-utils` from `^11.14.1` to `^11.15.0`. ([#7003](https://github.com/MetaMask/core/pull/7003))
 - Bump `@metamask/transaction-controller` from `^61.0.0` to `^61.1.0` ([#7007](https://github.com/MetaMask/core/pull/7007))
 - Updated `submitSponsorshipIntents` method with chain validation. ([#7035](https://github.com/MetaMask/core/pull/7035))
-- fix: Fix build script not working because of missing `@ts-bridge/cli` dependency ([#7040](https://github.com/MetaMask/core/pull/7040))
 
 ## [3.1.0]
 
@@ -199,7 +283,15 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 - Bump `@metamask/controller-utils` from `^11.12.0` to `^11.14.0` ([#6620](https://github.com/MetaMask/core/pull/6620), [#6629](https://github.com/MetaMask/core/pull/6629))
 - Bump `@metamask/utils` from `^11.4.2` to `^11.8.0` ([#6588](https://github.com/MetaMask/core/pull/6588))
 
-[Unreleased]: https://github.com/MetaMask/core/compare/@metamask/subscription-controller@4.2.2...HEAD
+[Unreleased]: https://github.com/MetaMask/core/compare/@metamask/subscription-controller@5.4.2...HEAD
+[5.4.2]: https://github.com/MetaMask/core/compare/@metamask/subscription-controller@5.4.1...@metamask/subscription-controller@5.4.2
+[5.4.1]: https://github.com/MetaMask/core/compare/@metamask/subscription-controller@5.4.0...@metamask/subscription-controller@5.4.1
+[5.4.0]: https://github.com/MetaMask/core/compare/@metamask/subscription-controller@5.3.1...@metamask/subscription-controller@5.4.0
+[5.3.1]: https://github.com/MetaMask/core/compare/@metamask/subscription-controller@5.3.0...@metamask/subscription-controller@5.3.1
+[5.3.0]: https://github.com/MetaMask/core/compare/@metamask/subscription-controller@5.2.0...@metamask/subscription-controller@5.3.0
+[5.2.0]: https://github.com/MetaMask/core/compare/@metamask/subscription-controller@5.1.0...@metamask/subscription-controller@5.2.0
+[5.1.0]: https://github.com/MetaMask/core/compare/@metamask/subscription-controller@5.0.0...@metamask/subscription-controller@5.1.0
+[5.0.0]: https://github.com/MetaMask/core/compare/@metamask/subscription-controller@4.2.2...@metamask/subscription-controller@5.0.0
 [4.2.2]: https://github.com/MetaMask/core/compare/@metamask/subscription-controller@4.2.1...@metamask/subscription-controller@4.2.2
 [4.2.1]: https://github.com/MetaMask/core/compare/@metamask/subscription-controller@4.2.0...@metamask/subscription-controller@4.2.1
 [4.2.0]: https://github.com/MetaMask/core/compare/@metamask/subscription-controller@4.1.0...@metamask/subscription-controller@4.2.0

@@ -7,6 +7,18 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+## [10.2.1]
+
+### Changed
+
+- Upgrade `@metamask/utils` from `^11.8.1` to `^11.9.0` ([#7511](https://github.com/MetaMask/core/pull/7511))
+
+### Fixed
+
+- Ensure non-object data in RPC errors is deserialized correctly when using JsonRpcEngine compatibility tools ([#7638](https://github.com/MetaMask/core/pull/7638))
+
+## [10.2.0]
+
 ### Added
 
 - Add `JsonRpcEngineV2` ([#6176](https://github.com/MetaMask/core/pull/6176), [#6971](https://github.com/MetaMask/core/pull/6971), [#6975](https://github.com/MetaMask/core/pull/6975), [#6990](https://github.com/MetaMask/core/pull/6990), [#6991](https://github.com/MetaMask/core/pull/6991), [#7032](https://github.com/MetaMask/core/pull/7032), [#7001](https://github.com/MetaMask/core/pull/7001), [#7061](https://github.com/MetaMask/core/pull/7061), [#7065](https://github.com/MetaMask/core/pull/7065))
@@ -252,7 +264,9 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
     This change may affect consumers that depend on the eager execution of middleware _during_ request processing, _outside of_ middleware functions and request handlers.
     - In general, it is a bad practice to work with state that depends on middleware execution, while the middleware are executing.
 
-[Unreleased]: https://github.com/MetaMask/core/compare/@metamask/json-rpc-engine@10.1.1...HEAD
+[Unreleased]: https://github.com/MetaMask/core/compare/@metamask/json-rpc-engine@10.2.1...HEAD
+[10.2.1]: https://github.com/MetaMask/core/compare/@metamask/json-rpc-engine@10.2.0...@metamask/json-rpc-engine@10.2.1
+[10.2.0]: https://github.com/MetaMask/core/compare/@metamask/json-rpc-engine@10.1.1...@metamask/json-rpc-engine@10.2.0
 [10.1.1]: https://github.com/MetaMask/core/compare/@metamask/json-rpc-engine@10.1.0...@metamask/json-rpc-engine@10.1.1
 [10.1.0]: https://github.com/MetaMask/core/compare/@metamask/json-rpc-engine@10.0.3...@metamask/json-rpc-engine@10.1.0
 [10.0.3]: https://github.com/MetaMask/core/compare/@metamask/json-rpc-engine@10.0.2...@metamask/json-rpc-engine@10.0.3

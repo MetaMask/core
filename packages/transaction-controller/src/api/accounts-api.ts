@@ -109,6 +109,7 @@ const SUPPORTED_CHAIN_IDS_FOR_RELATIONSHIP_API = [
   534352, // Scroll
   1329, // Sei
   143, // Monad
+  999, // HyperEVM
 ];
 
 const log = createModuleLogger(projectLogger, 'accounts-api');
@@ -206,7 +207,7 @@ export async function getAccountTransactions(
 
   log('Getting account transactions', { request, url });
 
-  const clientId = [CLIENT_ID, ...(tags || [])].join('__');
+  const clientId = [CLIENT_ID, ...(tags ?? [])].join('__');
 
   const headers = {
     [CLIENT_HEADER]: clientId,

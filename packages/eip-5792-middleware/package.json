@@ -1,6 +1,6 @@
 {
   "name": "@metamask/eip-5792-middleware",
-  "version": "2.0.0",
+  "version": "2.1.0",
   "description": "Implements the JSON-RPC methods for sending multiple calls from the user's wallet, and checking their status, as referenced in EIP-5792",
   "keywords": [
     "MetaMask",
@@ -50,21 +50,21 @@
   "dependencies": {
     "@metamask/messenger": "^0.3.0",
     "@metamask/superstruct": "^3.1.0",
-    "@metamask/transaction-controller": "^61.3.0",
-    "@metamask/utils": "^11.8.1",
+    "@metamask/transaction-controller": "^62.13.0",
+    "@metamask/utils": "^11.9.0",
     "lodash": "^4.17.21",
     "uuid": "^8.3.2"
   },
   "devDependencies": {
     "@metamask/auto-changelog": "^3.4.4",
-    "@metamask/keyring-controller": "^24.0.0",
+    "@metamask/keyring-controller": "^25.1.0",
     "@metamask/rpc-errors": "^7.0.2",
     "@ts-bridge/cli": "^0.6.4",
-    "@types/jest": "^27.4.1",
+    "@types/jest": "^27.5.2",
     "deepmerge": "^4.2.2",
     "jest": "^27.5.1",
     "klona": "^2.0.6",
-    "ts-jest": "^27.1.4",
+    "ts-jest": "^27.1.5",
     "typedoc": "^0.24.8",
     "typedoc-plugin-missing-exports": "^2.0.0",
     "typescript": "~5.3.3"

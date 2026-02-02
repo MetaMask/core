@@ -1,6 +1,6 @@
 import type { TokenAmountValues } from '@metamask/bridge-controller';
 import { isNativeAddress } from '@metamask/bridge-controller';
-import { type TransactionMeta } from '@metamask/transaction-controller';
+import type { TransactionMeta } from '@metamask/transaction-controller';
 import { BigNumber } from 'bignumber.js';
 
 import type { BridgeHistoryItem } from '../types';
@@ -33,7 +33,7 @@ const getReceivedERC20Amount = (
   txMeta: TransactionMeta,
 ) => {
   const { txReceipt } = txMeta;
-  if (!txReceipt || !txReceipt.logs || txReceipt.status === '0x0') {
+  if (!txReceipt?.logs || txReceipt.status === '0x0') {
     return null;
   }
   const { account: accountAddress, quote } = historyItem;
@@ -42,15 +42,14 @@ const getReceivedERC20Amount = (
     '0xddf252ad1be2c89b69c2b068fc378daa952ba7f163c4a11628f55a4df523b3ef';
 
   const tokenTransferLog = txReceipt.logs.find((txReceiptLog) => {
-    const isTokenTransfer =
-      txReceiptLog.topics &&
-      txReceiptLog.topics[0]?.startsWith(TOKEN_TRANSFER_LOG_TOPIC_HASH);
+    const isTokenTransfer = txReceiptLog.topics?.[0]?.startsWith(
+      TOKEN_TRANSFER_LOG_TOPIC_HASH,
+    );
     const isTransferFromGivenToken =
       txReceiptLog.address?.toLowerCase() ===
       quote.destAsset.address?.toLowerCase();
     const isTransferFromGivenAddress =
-      txReceiptLog.topics &&
-      txReceiptLog.topics[2] &&
+      txReceiptLog.topics?.[2] &&
       (txReceiptLog.topics[2] === accountAddress ||
         txReceiptLog.topics[2].match(accountAddress?.slice(2)));
 

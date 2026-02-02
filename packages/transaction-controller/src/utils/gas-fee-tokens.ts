@@ -12,11 +12,11 @@ import type {
   TransactionControllerMessenger,
   TransactionMeta,
 } from '..';
+import { simulateTransactions } from '../api/simulation-api';
 import type { SimulationRequestTransaction } from '../api/simulation-api';
-import {
-  simulateTransactions,
-  type SimulationResponse,
-  type SimulationResponseTransaction,
+import type {
+  SimulationResponse,
+  SimulationResponseTransaction,
 } from '../api/simulation-api';
 import { projectLogger } from '../logger';
 import type { GetSimulationConfig } from '../types';
@@ -53,7 +53,10 @@ export async function getGasFeeTokens({
   publicKeyEIP7702,
   transactionMeta,
   getSimulationConfig,
-}: GetGasFeeTokensRequest) {
+}: GetGasFeeTokensRequest): Promise<{
+  gasFeeTokens: GasFeeToken[];
+  isGasFeeSponsored: boolean;
+}> {
   const { delegationAddress, txParams } = transactionMeta;
   const { authorizationList: authorizationListRequest } = txParams;
   const data = txParams.data as Hex;
@@ -73,13 +76,13 @@ export async function getGasFeeTokens({
     | SimulationRequestTransaction['authorizationList']
     | undefined = authorizationListRequest?.map((authorization) => ({
     address: authorization.address,
-    from: from as Hex,
+    from,
   }));
 
   if (with7702 && !delegationAddress && !authorizationList) {
     authorizationList = buildAuthorizationList({
       chainId,
-      from: from as Hex,
+      from,
       messenger,
       publicKeyEIP7702,
     });
@@ -139,13 +142,14 @@ export async function checkGasFeeTokenBeforePublish({
     transactionId: string,
     fn: (tx: TransactionMeta) => void,
   ) => void;
-}) {
-  const { gasFeeTokens, isGasFeeTokenIgnoredIfBalance, selectedGasFeeToken } =
-    transaction;
+}): Promise<void> {
+  const { isGasFeeTokenIgnoredIfBalance, selectedGasFeeToken } = transaction;
 
   if (!selectedGasFeeToken || !isGasFeeTokenIgnoredIfBalance) {
     return;
   }
+
+  log('Checking gas fee token before publish', { selectedGasFeeToken });
 
   const hasNativeBalance = await isNativeBalanceSufficientForGas(
     transaction,
@@ -165,31 +169,29 @@ export async function checkGasFeeTokenBeforePublish({
     return;
   }
 
-  updateTransaction(transaction.id, (tx) => {
-    tx.isExternalSign = true;
+  const gasFeeTokens = await fetchGasFeeTokens({
+    ...transaction,
+    isExternalSign: true,
   });
 
-  let finalGasFeeTokens = gasFeeTokens;
+  updateTransaction(transaction.id, (tx) => {
+    tx.gasFeeTokens = gasFeeTokens;
+    tx.isExternalSign = true;
+    tx.txParams.nonce = undefined;
+  });
 
-  if (finalGasFeeTokens === undefined) {
-    const newGasFeeTokens = await fetchGasFeeTokens(transaction);
-
-    updateTransaction(transaction.id, (tx) => {
-      tx.gasFeeTokens = newGasFeeTokens;
-    });
-
-    log('Updated gas fee tokens before publish', newGasFeeTokens);
-
-    finalGasFeeTokens = newGasFeeTokens;
-  }
+  log('Updated gas fee tokens before publish', gasFeeTokens);
 
   if (
-    !finalGasFeeTokens?.some(
-      (t) => t.tokenAddress.toLowerCase() === selectedGasFeeToken.toLowerCase(),
+    !gasFeeTokens?.some(
+      (token) =>
+        token.tokenAddress.toLowerCase() === selectedGasFeeToken.toLowerCase(),
     )
   ) {
     throw new Error('Gas fee token not found and insufficient native balance');
   }
+
+  log('Publishing with selected gas fee token', { selectedGasFeeToken });
 }
 
 /**
@@ -266,7 +268,7 @@ function buildAuthorizationList({
   return [
     {
       address: upgradeAddress,
-      from: from as Hex,
+      from,
     },
   ];
 }

@@ -14,7 +14,8 @@ import type {
   Provider,
 } from '@metamask/network-controller';
 import type { PreferencesControllerStateChangeEvent } from '@metamask/preferences-controller';
-import { getKnownPropertyNames, type Hex } from '@metamask/utils';
+import { getKnownPropertyNames } from '@metamask/utils';
+import type { Hex } from '@metamask/utils';
 import type BN from 'bn.js';
 import abiSingleCallBalancesContract from 'single-call-balance-checker-abi';
 
@@ -35,48 +36,48 @@ import { ERC721Standard } from './Standards/NftStandards/ERC721/ERC721Standard';
  * @returns Whether the current network supports token detection
  */
 export const SINGLE_CALL_BALANCES_ADDRESS_BY_CHAINID = {
-  [SupportedTokenDetectionNetworks.mainnet]:
+  [SupportedTokenDetectionNetworks.Mainnet]:
     '0xb1f8e55c7f64d203c1400b9d8555d050f94adf39',
-  [SupportedTokenDetectionNetworks.bsc]:
+  [SupportedTokenDetectionNetworks.Bsc]:
     '0x2352c63A83f9Fd126af8676146721Fa00924d7e4',
-  [SupportedTokenDetectionNetworks.polygon]:
+  [SupportedTokenDetectionNetworks.Polygon]:
     '0x2352c63A83f9Fd126af8676146721Fa00924d7e4',
-  [SupportedTokenDetectionNetworks.avax]:
+  [SupportedTokenDetectionNetworks.Avax]:
     '0xD023D153a0DFa485130ECFdE2FAA7e612EF94818',
-  [SupportedTokenDetectionNetworks.aurora]:
+  [SupportedTokenDetectionNetworks.Aurora]:
     '0x1286415D333855237f89Df27D388127181448538',
-  [SupportedTokenDetectionNetworks.linea_goerli]:
+  [SupportedTokenDetectionNetworks.LineaGoerli]:
     '0x10dAd7Ca3921471f616db788D9300DC97Db01783',
-  [SupportedTokenDetectionNetworks.linea_mainnet]:
+  [SupportedTokenDetectionNetworks.LineaMainnet]:
     '0xF62e6a41561b3650a69Bb03199C735e3E3328c0D',
-  [SupportedTokenDetectionNetworks.arbitrum]:
+  [SupportedTokenDetectionNetworks.Arbitrum]:
     '0x151E24A486D7258dd7C33Fb67E4bB01919B7B32c',
-  [SupportedTokenDetectionNetworks.optimism]:
+  [SupportedTokenDetectionNetworks.Optimism]:
     '0xB1c568e9C3E6bdaf755A60c7418C269eb11524FC',
-  [SupportedTokenDetectionNetworks.base]:
+  [SupportedTokenDetectionNetworks.Base]:
     '0x6AA75276052D96696134252587894ef5FFA520af',
-  [SupportedTokenDetectionNetworks.zksync]:
+  [SupportedTokenDetectionNetworks.Zksync]:
     '0x458fEd3144680a5b8bcfaa0F9594aa19B4Ea2D34',
-  [SupportedTokenDetectionNetworks.cronos]:
+  [SupportedTokenDetectionNetworks.Cronos]:
     '0x768ca200f0fc702ac9ea502498c18f5eff176378',
-  [SupportedTokenDetectionNetworks.celo]:
+  [SupportedTokenDetectionNetworks.Celo]:
     '0x6aa75276052d96696134252587894ef5ffa520af',
-  [SupportedTokenDetectionNetworks.gnosis]:
+  [SupportedTokenDetectionNetworks.Gnosis]:
     '0x6aa75276052d96696134252587894ef5ffa520af',
-  [SupportedTokenDetectionNetworks.fantom]:
+  [SupportedTokenDetectionNetworks.Fantom]:
     '0x6aa75276052d96696134252587894ef5ffa520af',
-  [SupportedTokenDetectionNetworks.polygon_zkevm]:
+  [SupportedTokenDetectionNetworks.PolygonZkevm]:
     '0x6aa75276052d96696134252587894ef5ffa520af',
-  [SupportedTokenDetectionNetworks.moonbeam]:
+  [SupportedTokenDetectionNetworks.Moonbeam]:
     '0x6aa75276052d96696134252587894ef5ffa520af',
-  [SupportedTokenDetectionNetworks.moonriver]:
+  [SupportedTokenDetectionNetworks.Moonriver]:
     '0x6aa75276052d96696134252587894ef5ffa520af',
 } as const satisfies Record<Hex, string>;
 
 export const STAKING_CONTRACT_ADDRESS_BY_CHAINID = {
-  [SupportedStakedBalanceNetworks.mainnet]:
+  [SupportedStakedBalanceNetworks.Mainnet]:
     '0x4fef9d741011476750a243ac70b9789a63dd47df',
-  [SupportedStakedBalanceNetworks.hoodi]:
+  [SupportedStakedBalanceNetworks.Hoodi]:
     '0xe96ac18cfe5a7af8fe1fe7bc37ff110d88bc67ff',
 } as Record<Hex, string>;
 
@@ -727,8 +728,8 @@ export class AssetsContractController {
     // Only fetch staked balance on supported networks
     if (
       ![
-        SupportedStakedBalanceNetworks.mainnet,
-        SupportedStakedBalanceNetworks.hoodi,
+        SupportedStakedBalanceNetworks.Mainnet,
+        SupportedStakedBalanceNetworks.Hoodi,
       ].includes(chainId as SupportedStakedBalanceNetworks)
     ) {
       return {};

@@ -7,6 +7,51 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+## [11.18.0]
+
+### Changed
+
+- Upgrade `@metamask/utils` from `^11.8.1` to `^11.9.0` ([#7511](https://github.com/MetaMask/core/pull/7511))
+- Update MegaETH Testnet "v2" RPC constants ([#7566](https://github.com/MetaMask/core/pull/7566))
+  - Change RPC endpoint from `https://timothy.megaeth.com/rpc` to `https://carrot.megaeth.com/rpc`
+
+## [11.17.0]
+
+### Added
+
+- Add MegaETH Testnet "v2" to various constants, enums, and types ([#7272](https://github.com/MetaMask/core/pull/7272))
+  - Add `megaeth-testnet-v2` to `BUILT_IN_NETWORKS`
+  - Add `megaeth-testnet-v2` to `BUILT_IN_CUSTOM_NETWORKS_RPC`
+  - Add `MegaETHTestnetV2` to `BuiltInNetworkName` enum
+  - Add `megaeth-testnet-v2` to `ChainId` type
+  - Add `MegaETHTestnetV2` to `NetworksTicker` enum
+  - Add `MegaETHTestnetV2` to `BlockExplorerUrl` quasi-enum
+  - Add `MegaETHTestnetV2` to `NetworkNickname` quasi-enum
+
+### Deprecated
+
+- Deprecate references to MegaETH Testnet "v1" in favor of "v2" ([#7272](https://github.com/MetaMask/core/pull/7272))
+  - Deprecate `BUILT_IN_CUSTOM_NETWORKS_RPC["megaeth-testnet"]`
+  - Deprecate `CustomNetworkType["megaeth-testnet"]`
+  - Deprecate `BuiltInNetworkName["megaeth-testnet"]`
+  - Deprecate `ChainId["megaeth-testnet"]`
+  - Deprecate `NetworksTicker["megaeth-testnet"]`
+  - Deprecate `BlockExplorerUrl["megaeth-testnet"]`
+  - Deprecate `NetworkNickname["megaeth-testnet"]`
+
+## [11.16.0]
+
+### Added
+
+- Add `getCircuitState` method to `ServicePolicy` ([#7164](https://github.com/MetaMask/core/pull/7164))
+  - This can be used when working with a chain of services to know whether a service's underlying circuit is open or closed.
+- Add `onAvailable` method to `ServicePolicy` ([#7164](https://github.com/MetaMask/core/pull/7164))
+  - This can be used to listen for the initial successful execution of the service, or the first successful execution after the service becomes degraded or the circuit breaks.
+- Add `reset` method to `ServicePolicy` ([#7164](https://github.com/MetaMask/core/pull/7164))
+  - This can be used when working with a chain of services to reset the state of the circuit breaker policy (e.g. if a primary recovers and we want to reset the failovers).
+- Export `CockatielEventEmitter` and `CockatielFailureReason` from Cockatiel ([#7164](https://github.com/MetaMask/core/pull/7164))
+  - These can be used to further transform types for event emitters/listeners.
+
 ## [11.15.0]
 
 ### Added
@@ -596,7 +641,10 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
     All changes listed after this point were applied to this package following the monorepo conversion.
 
-[Unreleased]: https://github.com/MetaMask/core/compare/@metamask/controller-utils@11.15.0...HEAD
+[Unreleased]: https://github.com/MetaMask/core/compare/@metamask/controller-utils@11.18.0...HEAD
+[11.18.0]: https://github.com/MetaMask/core/compare/@metamask/controller-utils@11.17.0...@metamask/controller-utils@11.18.0
+[11.17.0]: https://github.com/MetaMask/core/compare/@metamask/controller-utils@11.16.0...@metamask/controller-utils@11.17.0
+[11.16.0]: https://github.com/MetaMask/core/compare/@metamask/controller-utils@11.15.0...@metamask/controller-utils@11.16.0
 [11.15.0]: https://github.com/MetaMask/core/compare/@metamask/controller-utils@11.14.1...@metamask/controller-utils@11.15.0
 [11.14.1]: https://github.com/MetaMask/core/compare/@metamask/controller-utils@11.14.0...@metamask/controller-utils@11.14.1
 [11.14.0]: https://github.com/MetaMask/core/compare/@metamask/controller-utils@11.13.0...@metamask/controller-utils@11.14.0

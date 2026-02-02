@@ -451,6 +451,15 @@ export class AccountActivityService {
       status: data.status,
       timestamp,
     });
+
+    log(
+      `WebSocket status change - Published tracked chains as ${data.status}`,
+      {
+        count: data.chainIds.length,
+        chains: data.chainIds,
+        status: data.status,
+      },
+    );
   }
 
   /**
@@ -467,11 +476,8 @@ export class AccountActivityService {
       // WebSocket connected - resubscribe to selected account
       // The system notification will automatically provide the list of chains that are up
       await this.#subscribeToSelectedAccount();
-    } else if (
-      state === WebSocketState.DISCONNECTED ||
-      state === WebSocketState.ERROR
-    ) {
-      // On disconnect/error, flush all tracked chains as down
+    } else if (state === WebSocketState.DISCONNECTED) {
+      // On disconnect, flush all tracked chains as down
       const chainsToMarkDown = Array.from(this.#chainsUp);
 
       if (chainsToMarkDown.length > 0) {
@@ -481,13 +487,10 @@ export class AccountActivityService {
           timestamp: Date.now(),
         });
 
-        log(
-          'WebSocket error/disconnection - Published tracked chains as down',
-          {
-            count: chainsToMarkDown.length,
-            chains: chainsToMarkDown,
-          },
-        );
+        log('WebSocket disconnection - Published tracked chains as down', {
+          count: chainsToMarkDown.length,
+          chains: chainsToMarkDown,
+        });
 
         // Clear the tracking set since all chains are now down
         this.#chainsUp.clear();
@@ -507,7 +510,7 @@ export class AccountActivityService {
       'AccountsController:getSelectedAccount',
     );
 
-    if (!selectedAccount || !selectedAccount.address) {
+    if (!selectedAccount?.address) {
       return;
     }
 

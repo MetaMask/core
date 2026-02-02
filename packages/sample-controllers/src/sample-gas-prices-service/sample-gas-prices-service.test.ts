@@ -1,10 +1,9 @@
 import { HttpError } from '@metamask/controller-utils';
-import {
-  Messenger,
-  MOCK_ANY_NAMESPACE,
-  type MockAnyNamespace,
-  type MessengerActions,
-  type MessengerEvents,
+import { Messenger, MOCK_ANY_NAMESPACE } from '@metamask/messenger';
+import type {
+  MockAnyNamespace,
+  MessengerActions,
+  MessengerEvents,
 } from '@metamask/messenger';
 import nock from 'nock';
 import { useFakeTimers } from 'sinon';
@@ -132,8 +131,8 @@ describe('SampleGasPricesService', () => {
         .times(4)
         .reply(500);
       const { service, rootMessenger } = getService();
-      service.onRetry(async () => {
-        await clock.nextAsync();
+      service.onRetry(() => {
+        clock.nextAsync().catch(console.error);
       });
 
       await expect(
@@ -150,8 +149,8 @@ describe('SampleGasPricesService', () => {
         .times(4)
         .reply(500);
       const { service, rootMessenger } = getService();
-      service.onRetry(async () => {
-        await clock.nextAsync();
+      service.onRetry(() => {
+        clock.nextAsync().catch(console.error);
       });
       const onDegradedListener = jest.fn();
       service.onDegraded(onDegradedListener);
@@ -171,8 +170,8 @@ describe('SampleGasPricesService', () => {
         .times(12)
         .reply(500);
       const { service, rootMessenger } = getService();
-      service.onRetry(async () => {
-        await clock.nextAsync();
+      service.onRetry(() => {
+        clock.nextAsync().catch(console.error);
       });
       const onBreakListener = jest.fn();
       service.onBreak(onBreakListener);
@@ -231,8 +230,8 @@ describe('SampleGasPricesService', () => {
           policyOptions: { circuitBreakDuration },
         },
       });
-      service.onRetry(async () => {
-        await clock.nextAsync();
+      service.onRetry(() => {
+        clock.nextAsync().catch(console.error);
       });
 
       await expect(

@@ -8,29 +8,149 @@ import { AuthType } from './types';
 import type { Env, Platform } from '../../shared/env';
 import { getEnvUrls, getOidcClientId } from '../../shared/env';
 import type { MetaMetricsAuth } from '../../shared/types/services';
+import { HTTP_STATUS_CODES } from '../constants';
 import {
   NonceRetrievalError,
   PairError,
   SignInError,
   ValidationError,
+  RateLimitedError,
 } from '../errors';
 
-export const NONCE_URL = (env: Env) =>
+/**
+ * Parse Retry-After header into milliseconds if possible.
+ * Supports seconds or HTTP-date formats.
+ *
+ * @param retryAfterHeader - The Retry-After header value (seconds or HTTP-date)
+ * @returns The retry delay in milliseconds, or null if parsing fails
+ */
+function parseRetryAfter(retryAfterHeader: string | null): number | null {
+  if (!retryAfterHeader) {
+    return null;
+  }
+  const seconds = Number(retryAfterHeader);
+  if (!Number.isNaN(seconds)) {
+    return seconds * 1000;
+  }
+  const date = Date.parse(retryAfterHeader);
+  if (!Number.isNaN(date)) {
+    const diff = date - Date.now();
+    return diff > 0 ? diff : null;
+  }
+  return null;
+}
+
+/**
+ * Extracts error details from a Response object.
+ *
+ * @param response - The HTTP response object
+ * @returns Formatted error message with HTTP status and response body
+ */
+async function getResponseErrorMessage(response: Response): Promise<string> {
+  const { status } = response;
+  const clonedResponse = response.clone();
+
+  let message = 'Unknown error';
+  let error = 'unknown';
+
+  try {
+    const responseBody = (await response.json()) as
+      | ErrorMessage
+      // eslint-disable-next-line @typescript-eslint/naming-convention
+      | { error_description: string; error: string };
+
+    message =
+      'message' in responseBody
+        ? responseBody.message
+        : responseBody.error_description;
+    error = responseBody.error ?? 'unknown';
+  } catch {
+    try {
+      const textContent = await clonedResponse.text();
+      message = textContent
+        ? textContent.slice(0, 150)
+        : 'Non-JSON error response';
+      error = 'non_json_response';
+    } catch {
+      message = 'Unable to parse error response';
+      error = 'unparseable_response';
+    }
+  }
+
+  return `HTTP ${status} - ${message} (error: ${error})`;
+}
+
+/**
+ * Type guard to check if an object is a Response-like object.
+ *
+ * @param obj - The object to check
+ * @returns True if the object is a Response-like object, false otherwise
+ */
+const isErrorResponse = (obj: unknown): obj is Response =>
+  typeof obj === 'object' &&
+  obj !== null &&
+  'status' in obj &&
+  'headers' in obj;
+
+/**
+ * Throws a domain-specific error for service failures.
+ * Handles both HTTP error responses and regular errors (network failures, etc.).
+ * For HTTP 429, throws RateLimitedError with Retry-After header parsing.
+ *
+ * @param error - The error (Response object or caught error)
+ * @param errorPrefix - Context prefix for the error message
+ * @param ErrorClass - The domain-specific error class to throw
+ * @throws RateLimitedError for 429, otherwise ErrorClass
+ */
+async function throwServiceError(
+  error: unknown,
+  errorPrefix: string,
+  ErrorClass: new (message: string) => Error,
+): Promise<never> {
+  // Re-throw RateLimitedError or matching ErrorClass as-is (don't double-wrap)
+  if (error instanceof RateLimitedError || error instanceof ErrorClass) {
+    throw error;
+  }
+
+  // Not a Response-like object - handle as regular error
+  if (!isErrorResponse(error)) {
+    const errorMessage = error instanceof Error ? error.message : String(error);
+    throw new ErrorClass(`${errorPrefix}: ${errorMessage}`);
+  }
+
+  // Handle HTTP error response
+  const response = error;
+  const { status } = response;
+  const responseMessage = await getResponseErrorMessage(response);
+
+  if (status === HTTP_STATUS_CODES.TOO_MANY_REQUESTS) {
+    const retryAfterHeader = response.headers.get('Retry-After');
+    const retryAfterMs = parseRetryAfter(retryAfterHeader);
+    throw new RateLimitedError(
+      `${errorPrefix}: ${responseMessage}`,
+      retryAfterMs ?? undefined,
+    );
+  }
+
+  throw new ErrorClass(`${errorPrefix}: ${responseMessage}`);
+}
+
+export const NONCE_URL = (env: Env): string =>
   `${getEnvUrls(env).authApiUrl}/api/v2/nonce`;
 
-export const PAIR_IDENTIFIERS = (env: Env) =>
+export const PAIR_IDENTIFIERS = (env: Env): string =>
   `${getEnvUrls(env).authApiUrl}/api/v2/identifiers/pair`;
 
-export const OIDC_TOKEN_URL = (env: Env) =>
+export const OIDC_TOKEN_URL = (env: Env): string =>
   `${getEnvUrls(env).oidcApiUrl}/oauth2/token`;
 
-export const SRP_LOGIN_URL = (env: Env) =>
+export const SRP_LOGIN_URL = (env: Env): string =>
   `${getEnvUrls(env).authApiUrl}/api/v2/srp/login`;
 
-export const SIWE_LOGIN_URL = (env: Env) =>
+export const SIWE_LOGIN_URL = (env: Env): string =>
   `${getEnvUrls(env).authApiUrl}/api/v2/siwe/login`;
 
-export const PROFILE_LINEAGE_URL = (env: Env) =>
+export const PROFILE_LINEAGE_URL = (env: Env): string =>
   `${getEnvUrls(env).authApiUrl}/api/v2/profile/lineage`;
 
 const getAuthenticationUrl = (authType: AuthType, env: Env): string => {
@@ -55,8 +175,11 @@ type NonceResponse = {
 
 type PairRequest = {
   signature: string;
+  // eslint-disable-next-line @typescript-eslint/naming-convention
   raw_message: string;
+  // eslint-disable-next-line @typescript-eslint/naming-convention
   encrypted_storage_key: string;
+  // eslint-disable-next-line @typescript-eslint/naming-convention
   identifier_type: 'SIWE' | 'SRP';
 };
 
@@ -91,16 +214,19 @@ export async function pairIdentifiers(
     });
 
     if (!response.ok) {
-      const responseBody = (await response.json()) as ErrorMessage;
-      throw new Error(
-        `HTTP error message: ${responseBody.message}, error: ${responseBody.error}`,
+      return await throwServiceError(
+        response,
+        'Failed to pair identifiers',
+        PairError,
       );
     }
-  } catch (e) {
-    /* istanbul ignore next */
-    const errorMessage =
-      e instanceof Error ? e.message : JSON.stringify(e ?? '');
-    throw new PairError(`unable to pair identifiers: ${errorMessage}`);
+    return undefined;
+  } catch (error) {
+    return await throwServiceError(
+      error,
+      'Failed to pair identifiers',
+      PairError,
+    );
   }
 }
 
@@ -118,9 +244,10 @@ export async function getNonce(id: string, env: Env): Promise<NonceResponse> {
   try {
     const nonceResponse = await fetch(nonceUrl.toString());
     if (!nonceResponse.ok) {
-      const responseBody = (await nonceResponse.json()) as ErrorMessage;
-      throw new Error(
-        `HTTP error message: ${responseBody.message}, error: ${responseBody.error}`,
+      return await throwServiceError(
+        nonceResponse,
+        'Failed to get nonce',
+        NonceRetrievalError,
       );
     }
 
@@ -130,11 +257,12 @@ export async function getNonce(id: string, env: Env): Promise<NonceResponse> {
       identifier: nonceJson.identifier,
       expiresIn: nonceJson.expires_in,
     };
-  } catch (e) {
-    /* istanbul ignore next */
-    const errorMessage =
-      e instanceof Error ? e.message : JSON.stringify(e ?? '');
-    throw new NonceRetrievalError(`failed to generate nonce: ${errorMessage}`);
+  } catch (error) {
+    return await throwServiceError(
+      error,
+      'Failed to get nonce',
+      NonceRetrievalError,
+    );
   }
 }
 
@@ -152,9 +280,9 @@ export async function authorizeOIDC(
   platform: Platform,
 ): Promise<AccessToken> {
   const grantType = 'urn:ietf:params:oauth:grant-type:jwt-bearer';
-  const headers = new Headers({
+  const headers = {
     'Content-Type': 'application/x-www-form-urlencoded',
-  });
+  };
 
   const urlEncodedBody = new URLSearchParams();
   urlEncodedBody.append('grant_type', grantType);
@@ -169,12 +297,10 @@ export async function authorizeOIDC(
     });
 
     if (!response.ok) {
-      const responseBody = (await response.json()) as {
-        error_description: string;
-        error: string;
-      };
-      throw new Error(
-        `HTTP error: ${responseBody.error_description}, error code: ${responseBody.error}`,
+      return await throwServiceError(
+        response,
+        'Failed to get access token',
+        SignInError,
       );
     }
 
@@ -184,11 +310,12 @@ export async function authorizeOIDC(
       expiresIn: accessTokenResponse.expires_in,
       obtainedAt: Date.now(),
     };
-  } catch (e) {
-    /* istanbul ignore next */
-    const errorMessage =
-      e instanceof Error ? e.message : JSON.stringify(e ?? '');
-    throw new SignInError(`unable to get access token: ${errorMessage}`);
+  } catch (error) {
+    return await throwServiceError(
+      error,
+      'Failed to get access token',
+      SignInError,
+    );
   }
 }
 
@@ -237,9 +364,10 @@ export async function authenticate(
     });
 
     if (!response.ok) {
-      const responseBody = (await response.json()) as ErrorMessage;
-      throw new Error(
-        `${authType} login HTTP error: ${responseBody.message}, error code: ${responseBody.error}`,
+      return await throwServiceError(
+        response,
+        `Failed to login with ${authType}`,
+        SignInError,
       );
     }
 
@@ -253,11 +381,12 @@ export async function authenticate(
         profileId: loginResponse.profile.profile_id,
       },
     };
-  } catch (e) {
-    /* istanbul ignore next */
-    const errorMessage =
-      e instanceof Error ? e.message : JSON.stringify(e ?? '');
-    throw new SignInError(`unable to perform SRP login: ${errorMessage}`);
+  } catch (error) {
+    return await throwServiceError(
+      error,
+      `Failed to login with ${authType}`,
+      SignInError,
+    );
   }
 }
 
@@ -283,19 +412,20 @@ export async function getUserProfileLineage(
     });
 
     if (!response.ok) {
-      const responseBody = (await response.json()) as ErrorMessage;
-      throw new Error(
-        `HTTP error message: ${responseBody.message}, error: ${responseBody.error}`,
+      return await throwServiceError(
+        response,
+        'Failed to get profile lineage',
+        SignInError,
       );
     }
 
     const profileJson: UserProfileLineage = await response.json();
-
     return profileJson;
-  } catch (e) {
-    /* istanbul ignore next */
-    const errorMessage =
-      e instanceof Error ? e.message : JSON.stringify(e ?? '');
-    throw new SignInError(`failed to get profile lineage: ${errorMessage}`);
+  } catch (error) {
+    return await throwServiceError(
+      error,
+      'Failed to get profile lineage',
+      SignInError,
+    );
   }
 }

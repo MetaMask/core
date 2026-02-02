@@ -4,6 +4,7 @@ import { toHex } from '@metamask/controller-utils';
 import { SolScope } from '@metamask/keyring-api';
 import { BigNumber } from 'bignumber.js';
 
+import { DEFAULT_CHAIN_RANKING } from './constants/bridge';
 import type { BridgeAppState } from './selectors';
 import {
   selectExchangeRateByChainIdAndAddress,
@@ -194,6 +195,7 @@ describe('Bridge Selectors', () => {
         bridgeConfig: {
           maxRefreshCount: 5,
           refreshRate: 30000,
+          chainRanking: [],
           chains: {},
           support: true,
           minimumVersion: '0.0.0',
@@ -208,11 +210,11 @@ describe('Bridge Selectors', () => {
         estimatedBaseFee: '50',
         medium: {
           suggestedMaxPriorityFeePerGas: '75',
-          suggestedMaxFeePerGas: '1',
+          suggestedMaxFeePerGas: '77',
         },
         high: {
           suggestedMaxPriorityFeePerGas: '100',
-          suggestedMaxFeePerGas: '2',
+          suggestedMaxFeePerGas: '102',
         },
       },
     } as unknown as BridgeAppState;
@@ -255,6 +257,7 @@ describe('Bridge Selectors', () => {
           bridgeConfig: {
             // eslint-disable-next-line @typescript-eslint/no-explicit-any
             ...(mockState.remoteFeatureFlags.bridgeConfig as any),
+            chainRanking: [],
             chains: {
               '1': {
                 refreshRate: 41000,
@@ -287,6 +290,7 @@ describe('Bridge Selectors', () => {
           bridgeConfig: {
             // eslint-disable-next-line @typescript-eslint/no-explicit-any
             ...(mockState.remoteFeatureFlags.bridgeConfig as any),
+            chainRanking: [],
             chains: {
               '1': {
                 refreshRate: 41000,
@@ -373,6 +377,7 @@ describe('Bridge Selectors', () => {
           minimumVersion: '0.0.0',
           maxRefreshCount: 5,
           refreshRate: 30000,
+          chainRanking: [],
           chains: {},
           support: true,
         },
@@ -395,7 +400,7 @@ describe('Bridge Selectors', () => {
         },
         high: {
           suggestedMaxPriorityFeePerGas: '.1',
-          suggestedMaxFeePerGas: '.1',
+          suggestedMaxFeePerGas: '.2',
         },
       },
     } as unknown as BridgeAppState;
@@ -427,6 +432,7 @@ describe('Bridge Selectors', () => {
           amount: string;
           asset: Pick<BridgeAsset, 'address' | 'decimals' | 'assetId'>;
         },
+        gasIncluded7702?: boolean,
       ): BridgeAppState => {
         const chainId = 56;
         const currencyRates = {
@@ -444,6 +450,10 @@ describe('Bridge Selectors', () => {
             },
             '0x0000000000000000000000000000000000000000': {
               price: '1',
+              currency: 'BNB',
+            },
+            '0x0000000000000000000000000000000000000001': {
+              price: '1.5498387253001357',
               currency: 'BNB',
             },
           },
@@ -473,8 +483,8 @@ describe('Bridge Selectors', () => {
                   },
                   txFee,
                 },
-                gasIncluded: Boolean(txFee),
-                gasIncluded7702: false,
+                gasIncluded: Boolean(txFee) && !gasIncluded7702,
+                gasIncluded7702: Boolean(gasIncluded7702),
                 srcTokenAmount,
                 destTokenAmount: new BigNumber('9')
                   .dividedBy(marketData['0x38'][destAsset.address].price)
@@ -875,6 +885,104 @@ describe('Bridge Selectors', () => {
           }
         `);
       });
+
+      it('when gasIncluded7702=true and is taken from dest token', () => {
+        const newState = getMockSwapState(
+          {
+            address: '0x8AC76a51cc950d9822D68b83fE1Ad97B32Cd580d',
+            decimals: 18,
+            assetId:
+              'eip155:1/erc20:0x8AC76a51cc950d9822D68b83fE1Ad97B32Cd580d',
+          },
+          {
+            address: '0x0000000000000000000000000000000000000001',
+            decimals: 18,
+            assetId:
+              'eip155:1/erc20:0x0000000000000000000000000000000000000001',
+          },
+          {
+            amount: '1000000000000000000',
+            asset: {
+              address:
+                'eip155:1/erc20:0x0000000000000000000000000000000000000001',
+              decimals: 18,
+              assetId:
+                'eip155:1/erc20:0x0000000000000000000000000000000000000001',
+            },
+          },
+          true,
+        );
+
+        const { sortedQuotes } = selectBridgeQuotes(newState, mockClientParams);
+
+        const {
+          quote,
+          trade,
+          approval,
+          estimatedProcessingTimeInSeconds,
+          ...quoteMetadata
+        } = sortedQuotes[0];
+        expect(quoteMetadata).toMatchInlineSnapshot(`
+          Object {
+            "adjustedReturn": Object {
+              "usd": "10.518641979781876096240273601395823616",
+              "valueInCurrency": "8.999999999999999949780980627632791914",
+            },
+            "cost": Object {
+              "usd": "1.168737997753541853682403691190760358912",
+              "valueInCurrency": "1.000000000000000050216414294183215375298",
+            },
+            "gasFee": Object {
+              "effective": Object {
+                "amount": "0.000008087",
+                "usd": "0.00521708544",
+                "valueInCurrency": "0.00446386226",
+              },
+              "max": Object {
+                "amount": "0.000016174",
+                "usd": "0.01043417088",
+                "valueInCurrency": "0.00892772452",
+              },
+              "total": Object {
+                "amount": "0.000008087",
+                "usd": "0.00521708544",
+                "valueInCurrency": "0.00446386226",
+              },
+            },
+            "includedTxFees": Object {
+              "amount": "1",
+              "usd": "999.831958465623542784",
+              "valueInCurrency": "855.479979591168903686",
+            },
+            "minToTokenAmount": Object {
+              "amount": "0.009994389353314869",
+              "usd": "9.992709880792782241436661998044855296",
+              "valueInCurrency": "8.549999999999999909517932616692707134",
+            },
+            "sentAmount": Object {
+              "amount": "11.689344272882887843",
+              "usd": "11.687379977535417949922677292586583974912",
+              "valueInCurrency": "9.999999999999999999997394921816007289298",
+            },
+            "swapRate": "0.00089999999999999999",
+            "toTokenAmount": Object {
+              "amount": "0.010520409845594599",
+              "usd": "10.518641979781876096240273601395823616",
+              "valueInCurrency": "8.999999999999999949780980627632791914",
+            },
+            "totalMaxNetworkFee": Object {
+              "amount": "0.000016174",
+              "usd": "0.01043417088",
+              "valueInCurrency": "0.00892772452",
+            },
+            "totalNetworkFee": Object {
+              "amount": "0.000008087",
+              "usd": "0.00521708544",
+              "valueInCurrency": "0.00446386226",
+            },
+          }
+        `);
+      });
     });
 
     it('should only fetch quotes once if balance is insufficient', () => {
@@ -984,6 +1092,7 @@ describe('Bridge Selectors', () => {
       refreshRate: 3,
       maxRefreshCount: 1,
       support: true,
+      chainRanking: [],
       chains: {
         '1': {
           isActiveSrc: true,
@@ -1035,6 +1144,7 @@ describe('Bridge Selectors', () => {
         refreshRate: 3,
         maxRefreshCount: 1,
         support: true,
+        chainRanking: [...DEFAULT_CHAIN_RANKING],
         chains: {
           'eip155:1': {
             isActiveSrc: true,
@@ -1079,6 +1189,7 @@ describe('Bridge Selectors', () => {
         minimumVersion: '0.0.0',
         maxRefreshCount: 5,
         refreshRate: 30000,
+        chainRanking: [...DEFAULT_CHAIN_RANKING],
         chains: {},
         support: false,
       });
@@ -1094,6 +1205,7 @@ describe('Bridge Selectors', () => {
         minimumVersion: '0.0.0',
         maxRefreshCount: 5,
         refreshRate: 30000,
+        chainRanking: [...DEFAULT_CHAIN_RANKING],
         chains: {},
         support: false,
       });
@@ -1110,6 +1222,7 @@ describe('Bridge Selectors', () => {
         minimumVersion: '0.0.0',
         maxRefreshCount: 5,
         refreshRate: 30000,
+        chainRanking: [...DEFAULT_CHAIN_RANKING],
         chains: {},
         support: false,
       });
@@ -1162,6 +1275,7 @@ describe('Bridge Selectors', () => {
       refreshRate: 3,
       maxRefreshCount: 1,
       support: true,
+      chainRanking: [],
       chains: {
         '1': {
           isActiveSrc: true,

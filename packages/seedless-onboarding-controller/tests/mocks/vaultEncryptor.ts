@@ -12,21 +12,21 @@ export default class MockVaultEncryptor
   implements
     VaultEncryptor<EncryptionKey | webcrypto.CryptoKey, KeyDerivationOptions>
 {
-  DEFAULT_DERIVATION_PARAMS: KeyDerivationOptions = {
+  defaultDerivationParams: KeyDerivationOptions = {
     algorithm: 'PBKDF2',
     params: {
       iterations: 10_000,
     },
   };
 
-  DEFAULT_SALT = 'RANDOM_SALT';
+  defaultSalt = 'RANDOM_SALT';
 
   async encryptWithDetail(
     password: string,
     dataObj: Json,
-    salt: string = this.DEFAULT_SALT,
-    keyDerivationOptions: KeyDerivationOptions = this.DEFAULT_DERIVATION_PARAMS,
-  ) {
+    salt: string = this.defaultSalt,
+    keyDerivationOptions: KeyDerivationOptions = this.defaultDerivationParams,
+  ): Promise<{ vault: string; exportedKeyString: string }> {
     const key = await this.keyFromPassword(
       password,
       salt,
@@ -42,12 +42,15 @@ export default class MockVaultEncryptor
     };
   }
 
-  async decryptWithDetail(password: string, text: string) {
+  async decryptWithDetail(
+    password: string,
+    text: string,
+  ): Promise<{ vault: string; exportedKeyString: string; salt: string }> {
     const payload = JSON.parse(text);
     const { salt, keyMetadata } = payload;
     const key = await this.keyFromPassword(password, salt, true, keyMetadata);
     const exportedKeyString = await this.exportKey(key);
-    const vault = await this.decrypt(password, text, key);
+    const vault = (await this.decrypt(password, text, key)) as string;
 
     return {
       exportedKeyString,
@@ -68,7 +71,7 @@ export default class MockVaultEncryptor
       );
       return {
         key,
-        derivationOptions: this.DEFAULT_DERIVATION_PARAMS,
+        derivationOptions: this.defaultDerivationParams,
       };
     } catch (error) {
       console.error(error);
@@ -86,10 +89,10 @@ export default class MockVaultEncryptor
 
   async keyFromPassword(
     password: string,
-    salt: string = this.DEFAULT_SALT,
+    salt: string,
     exportable: boolean = true,
-    opts: KeyDerivationOptions = this.DEFAULT_DERIVATION_PARAMS,
-  ) {
+    opts: KeyDerivationOptions = this.defaultDerivationParams,
+  ): Promise<EncryptionKey | webcrypto.CryptoKey> {
     const passBuffer = Buffer.from(password);
     const saltBuffer = Buffer.from(salt, 'base64');
 
@@ -120,7 +123,7 @@ export default class MockVaultEncryptor
   async encryptWithKey(
     encryptionKey: EncryptionKey | webcrypto.CryptoKey,
     data: unknown,
-  ) {
+  ): Promise<EncryptionResult> {
     const dataString = JSON.stringify(data);
     const dataBuffer = Buffer.from(dataString);
     const vector = webcrypto.getRandomValues(new Uint8Array(16));
@@ -153,7 +156,7 @@ export default class MockVaultEncryptor
   async decryptWithKey(
     encryptionKey: EncryptionKey | webcrypto.CryptoKey,
     payload: EncryptionResult,
-  ) {
+  ): Promise<unknown> {
     let encData: EncryptionResult;
     if (typeof payload === 'string') {
       encData = JSON.parse(payload);
@@ -183,11 +186,11 @@ export default class MockVaultEncryptor
     dataObj: Json,
     // eslint-disable-next-line n/no-unsupported-features/node-builtins
     key?: EncryptionKey | CryptoKey,
-    salt: string = this.DEFAULT_SALT,
-    keyDerivationOptions = this.DEFAULT_DERIVATION_PARAMS,
+    salt: string = this.defaultSalt,
+    keyDerivationOptions = this.defaultDerivationParams,
   ): Promise<string> {
     const cryptoKey =
-      key ||
+      key ??
       (await this.keyFromPassword(password, salt, false, keyDerivationOptions));
     const payload = await this.encryptWithKey(cryptoKey, dataObj);
     payload.salt = salt;
@@ -204,18 +207,20 @@ export default class MockVaultEncryptor
     const { salt, keyMetadata } = payload;
 
     let cryptoKey = encryptionKey;
-    if (!cryptoKey) {
-      cryptoKey = await this.keyFromPassword(
-        password,
-        salt,
-        false,
-        keyMetadata,
-      );
-    }
+    cryptoKey ??= await this.keyFromPassword(
+      password,
+      salt,
+      false,
+      keyMetadata,
+    );
 
     const key = 'key' in cryptoKey ? cryptoKey.key : cryptoKey;
 
     const result = await this.decryptWithKey(key, payload);
     return result;
+  }
+
+  generateSalt(): string {
+    return this.defaultSalt;
   }
 }

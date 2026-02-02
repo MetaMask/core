@@ -9,8 +9,21 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ### Changed
 
+- Upgrade `@metamask/utils` from `^11.8.1` to `^11.9.0` ([#7511](https://github.com/MetaMask/core/pull/7511))
+- Bump `@metamask/controller-utils` from `^11.16.0` to `^11.18.0` ([#7534](https://github.com/MetaMask/core/pull/7534), [#7583](https://github.com/MetaMask/core/pull/7583))
+
+## [14.1.0]
+
+### Changed
+
+- Bump `@metamask/controller-utils` from `^11.15.0` to `^11.16.0` ([#7202](https://github.com/MetaMask/core/pull/7202))
 - Rename `OriginalRequest` type to `MessageRequest` and permit string `id` values ([#7065](https://github.com/MetaMask/core/pull/7065))
   - Previously, only number values were permitted for the `id` property.
+  - `OriginalRequest` is kept for backward compatibility.
+
+### Deprecated
+
+- Deprecate `OriginalRequest`; use `MessageRequest` instead ([#7138](https://github.com/MetaMask/core/pull/7138))
 
 ## [14.0.0]
 
@@ -418,7 +431,8 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
     All changes listed after this point were applied to this package following the monorepo conversion.
 
-[Unreleased]: https://github.com/MetaMask/core/compare/@metamask/message-manager@14.0.0...HEAD
+[Unreleased]: https://github.com/MetaMask/core/compare/@metamask/message-manager@14.1.0...HEAD
+[14.1.0]: https://github.com/MetaMask/core/compare/@metamask/message-manager@14.0.0...@metamask/message-manager@14.1.0
 [14.0.0]: https://github.com/MetaMask/core/compare/@metamask/message-manager@13.0.2...@metamask/message-manager@14.0.0
 [13.0.2]: https://github.com/MetaMask/core/compare/@metamask/message-manager@13.0.1...@metamask/message-manager@13.0.2
 [13.0.1]: https://github.com/MetaMask/core/compare/@metamask/message-manager@13.0.0...@metamask/message-manager@13.0.1

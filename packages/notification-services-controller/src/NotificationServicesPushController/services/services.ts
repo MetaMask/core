@@ -1,3 +1,4 @@
+import type { ENV } from './endpoints';
 import * as endpoints from './endpoints';
 import type { PushNotificationEnv } from '../types';
 import type {
@@ -17,6 +18,8 @@ export type RegToken = {
  */
 export type PushTokenRequest = {
   addresses: string[];
+  // API response uses snake_case for this property
+  // eslint-disable-next-line @typescript-eslint/naming-convention
   registration_token: {
     token: string;
     platform: 'extension' | 'mobile' | 'portfolio';
@@ -29,6 +32,7 @@ type UpdatePushTokenParams = {
   bearerToken: string;
   addresses: string[];
   regToken: RegToken;
+  env?: ENV;
 };
 
 /**
@@ -45,14 +49,17 @@ export async function updateLinksAPI(
       addresses: params.addresses,
       registration_token: params.regToken,
     };
-    const response = await fetch(endpoints.REGISTRATION_TOKENS_ENDPOINT, {
-      method: 'POST',
-      headers: {
-        Authorization: `Bearer ${params.bearerToken}`,
-        'Content-Type': 'application/json',
+    const response = await fetch(
+      endpoints.REGISTRATION_TOKENS_ENDPOINT(params.env),
+      {
+        method: 'POST',
+        headers: {
+          Authorization: `Bearer ${params.bearerToken}`,
+          'Content-Type': 'application/json',
+        },
+        body: JSON.stringify(body),
       },
-      body: JSON.stringify(body),
-    });
+    );
     return response.ok;
   } catch {
     return false;
@@ -63,6 +70,7 @@ type ActivatePushNotificationsParams = {
   // Create Push Token
   env: PushNotificationEnv;
   createRegToken: CreateRegToken;
+  controllerEnv?: ENV;
 
   // Other Request Parameters
   bearerToken: string;
@@ -95,6 +103,7 @@ export async function activatePushNotifications(
       locale: params.regToken.locale,
       oldToken: params.regToken.oldToken,
     },
+    env: params.controllerEnv,
   });
 
   return regToken;

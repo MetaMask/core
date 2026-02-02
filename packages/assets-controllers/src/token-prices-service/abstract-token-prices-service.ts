@@ -1,31 +1,12 @@
 import type { ServicePolicy } from '@metamask/controller-utils';
-import type { Hex } from '@metamask/utils';
+import type { CaipAssetType, CaipChainId, Hex } from '@metamask/utils';
+
+import type { MarketDataDetails } from '../TokenRatesController';
 
 /**
- * Represents the price of a token in a currency.
+ * A map of CAIP-2 chain IDs to their native asset identifiers (CAIP-19 format).
  */
-export type TokenPrice<TokenAddress extends Hex, Currency extends string> = {
-  tokenAddress: TokenAddress;
-  currency: Currency;
-  allTimeHigh: number;
-  allTimeLow: number;
-  circulatingSupply: number;
-  dilutedMarketCap: number;
-  high1d: number;
-  low1d: number;
-  marketCap: number;
-  marketCapPercentChange1d: number;
-  price: number;
-  priceChange1d: number;
-  pricePercentChange1d: number;
-  pricePercentChange1h: number;
-  pricePercentChange1y: number;
-  pricePercentChange7d: number;
-  pricePercentChange14d: number;
-  pricePercentChange30d: number;
-  pricePercentChange200d: number;
-  totalVolume: number;
-};
+export type NativeAssetIdentifiersMap = Record<CaipChainId, CaipAssetType>;
 
 /**
  * Represents an exchange rate.
@@ -39,21 +20,27 @@ export type ExchangeRate = {
 };
 
 /**
- * A map of token address to its price.
- */
-export type TokenPricesByTokenAddress<
-  TokenAddress extends Hex,
-  Currency extends string,
-> = {
-  [A in TokenAddress]: TokenPrice<A, Currency>;
-};
-
-/**
  * A map of currency to its exchange rate.
  */
 export type ExchangeRatesByCurrency<Currency extends string> = {
   [C in Currency]: ExchangeRate;
 };
+
+export type EvmAssetAddressWithChain<ChainId extends Hex = Hex> = {
+  tokenAddress: Hex;
+  chainId: ChainId;
+};
+
+export type EvmAssetWithId<ChainId extends Hex = Hex> =
+  EvmAssetAddressWithChain<ChainId> & {
+    assetId: CaipAssetType;
+  };
+
+export type EvmAssetWithMarketData<
+  ChainId extends Hex = Hex,
+  Currency extends string = string,
+> = EvmAssetAddressWithChain<ChainId> &
+  MarketDataDetails & { currency: Currency };
 
 /**
  * An ideal token prices service. All implementations must confirm to this
@@ -61,16 +48,11 @@ export type ExchangeRatesByCurrency<Currency extends string> = {
  *
  * @template ChainId - A type union of valid arguments for the `chainId`
  * argument to `fetchTokenPrices`.
- * @template TokenAddress - A type union of all token addresses. The reason this
- * type parameter exists is so that we can guarantee that same addresses that
- * `fetchTokenPrices` receives are the same addresses that shown up in the
- * return value.
  * @template Currency - A type union of valid arguments for the `currency`
  * argument to `fetchTokenPrices`.
  */
 export type AbstractTokenPricesService<
   ChainId extends Hex = Hex,
-  TokenAddress extends Hex = Hex,
   Currency extends string = string,
 > = Partial<Pick<ServicePolicy, 'onBreak' | 'onDegraded'>> & {
   /**
@@ -78,20 +60,17 @@ export type AbstractTokenPricesService<
    * given addresses which are expected to live on the given chain.
    *
    * @param args - The arguments to this function.
-   * @param args.chainId - An EIP-155 chain ID.
-   * @param args.tokenAddresses - Addresses for tokens that live on the chain.
+   * @param args.assets - The assets to get prices for.
    * @param args.currency - The desired currency of the token prices.
    * @returns The prices for the requested tokens.
    */
   fetchTokenPrices({
-    chainId,
-    tokenAddresses,
+    assets,
     currency,
   }: {
-    chainId: ChainId;
-    tokenAddresses: TokenAddress[];
+    assets: EvmAssetAddressWithChain<ChainId>[];
     currency: Currency;
-  }): Promise<Partial<TokenPricesByTokenAddress<TokenAddress, Currency>>>;
+  }): Promise<EvmAssetWithMarketData<ChainId, Currency>[]>;
 
   /**
    * Retrieves exchange rates in the given currency.
@@ -129,4 +108,14 @@ export type AbstractTokenPricesService<
    * @returns True if the API supports the currency, false otherwise.
    */
   validateCurrencySupported(currency: unknown): currency is Currency;
+
+  /**
+   * Sets the native asset identifiers map for resolving native token CAIP-19 IDs.
+   * This should be called with data from NetworkEnablementController.state.nativeAssetIdentifiers.
+   *
+   * @param nativeAssetIdentifiers - Map of CAIP-2 chain IDs to native asset identifiers.
+   */
+  setNativeAssetIdentifiers?(
+    nativeAssetIdentifiers: NativeAssetIdentifiersMap,
+  ): void;
 };

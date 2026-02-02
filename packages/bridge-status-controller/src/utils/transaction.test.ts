@@ -3,9 +3,11 @@ import {
   FeeType,
   formatChainIdToCaip,
   formatChainIdToHex,
-  type QuoteMetadata,
-  type QuoteResponse,
-  type TxData,
+} from '@metamask/bridge-controller';
+import type {
+  QuoteMetadata,
+  QuoteResponse,
+  TxData,
 } from '@metamask/bridge-controller';
 import {
   TransactionStatus,
@@ -22,6 +24,8 @@ import {
   toBatchTxParams,
   getAddTransactionBatchParams,
   findAndUpdateTransactionsInBatch,
+  getHistoryKey,
+  getIntentFromQuote,
 } from './transaction';
 import { APPROVAL_DELAY_MS } from '../constants';
 import type { BridgeStatusControllerMessenger } from '../types';
@@ -1271,7 +1275,9 @@ describe('Bridge Status Controller Transaction Utils', () => {
       } as unknown as QuoteResponse;
 
       // Create a promise that will resolve after the delay
-      const delayPromise = handleApprovalDelay(mockQuoteResponse);
+      const delayPromise = handleApprovalDelay(
+        mockQuoteResponse.quote.srcChainId,
+      );
 
       // Verify that the timer was set with the correct delay
       expect(jest.getTimerCount()).toBe(1);
@@ -1309,7 +1315,9 @@ describe('Bridge Status Controller Transaction Utils', () => {
       } as unknown as QuoteResponse;
 
       // Create a promise that will resolve after the delay
-      const delayPromise = handleApprovalDelay(mockQuoteResponse);
+      const delayPromise = handleApprovalDelay(
+        mockQuoteResponse.quote.srcChainId,
+      );
 
       // Verify that the timer was set with the correct delay
       expect(jest.getTimerCount()).toBe(1);
@@ -1347,7 +1355,9 @@ describe('Bridge Status Controller Transaction Utils', () => {
       } as unknown as QuoteResponse;
 
       // Create a promise that will resolve after the delay
-      const delayPromise = handleApprovalDelay(mockQuoteResponse);
+      const delayPromise = handleApprovalDelay(
+        mockQuoteResponse.quote.srcChainId,
+      );
 
       // Verify that no timer was set
       expect(jest.getTimerCount()).toBe(0);
@@ -2027,6 +2037,68 @@ describe('Bridge Status Controller Transaction Utils', () => {
 
       // Should not match since it's looking for bridge but finds batch type
       expect(mockUpdateTransactionFn).not.toHaveBeenCalled();
+    });
+  });
+
+  describe('getHistoryKey', () => {
+    it('returns actionId when both actionId and bridgeTxMetaId are provided', () => {
+      expect(getHistoryKey('action-123', 'tx-456')).toBe('action-123');
+    });
+
+    it('returns bridgeTxMetaId when only bridgeTxMetaId is provided', () => {
+      expect(getHistoryKey(undefined, 'tx-456')).toBe('tx-456');
+    });
+
+    it('returns actionId when only actionId is provided', () => {
+      expect(getHistoryKey('action-123', undefined)).toBe('action-123');
+    });
+
+    it('throws error when neither actionId nor bridgeTxMetaId is provided', () => {
+      expect(() => getHistoryKey(undefined, undefined)).toThrow(
+        'Cannot add tx to history: either actionId or bridgeTxMeta.id must be provided',
+      );
+    });
+  });
+
+  describe('getIntentFromQuote', () => {
+    it('returns intent when present in quote response', () => {
+      const mockIntent = { protocol: 'cowswap', order: { some: 'data' } };
+      const quoteResponse = {
+        quote: {
+          intent: mockIntent,
+          srcChainId: 1,
+          destChainId: 1,
+        },
+      } as never;
+
+      expect(getIntentFromQuote(quoteResponse)).toBe(mockIntent);
+    });
+
+    it('throws error when intent is missing from quote', () => {
+      const quoteResponse = {
+        quote: {
+          srcChainId: 1,
+          destChainId: 1,
+        },
+      } as never;
+
+      expect(() => getIntentFromQuote(quoteResponse)).toThrow(
+        'submitIntent: missing intent data',
+      );
+    });
+
+    it('throws error when intent is undefined', () => {
+      const quoteResponse = {
+        quote: {
+          intent: undefined,
+          srcChainId: 1,
+          destChainId: 1,
+        },
+      } as never;
+
+      expect(() => getIntentFromQuote(quoteResponse)).toThrow(
+        'submitIntent: missing intent data',
+      );
     });
   });
 });

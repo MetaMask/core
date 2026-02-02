@@ -1,9 +1,9 @@
 import nock from 'nock';
 
-import {
-  USER_STORAGE_FEATURE_NAMES,
-  type UserStorageGenericPathWithFeatureAndKey,
-  type UserStorageGenericPathWithFeatureOnly,
+import { USER_STORAGE_FEATURE_NAMES } from '../../../shared/storage-schema';
+import type {
+  UserStorageGenericPathWithFeatureAndKey,
+  UserStorageGenericPathWithFeatureOnly,
 } from '../../../shared/storage-schema';
 import {
   getMockUserStorageGetResponse,

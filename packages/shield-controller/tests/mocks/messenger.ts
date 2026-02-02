@@ -1,19 +1,18 @@
-import {
-  Messenger,
-  MOCK_ANY_NAMESPACE,
-  type MessengerActions,
-  type MessengerEvents,
-  type MockAnyNamespace,
+import { Messenger, MOCK_ANY_NAMESPACE } from '@metamask/messenger';
+import type {
+  MessengerActions,
+  MessengerEvents,
+  MockAnyNamespace,
 } from '@metamask/messenger';
 
-import { type ShieldControllerMessenger } from '../../src';
+import type { ShieldControllerMessenger } from '../../src';
 import { controllerName } from '../../src/constants';
 
 type AllShieldControllerActions = MessengerActions<ShieldControllerMessenger>;
 
 type AllShieldControllerEvents = MessengerEvents<ShieldControllerMessenger>;
 
-type RootMessenger = Messenger<
+export type RootMessenger = Messenger<
   MockAnyNamespace,
   AllShieldControllerActions,
   AllShieldControllerEvents

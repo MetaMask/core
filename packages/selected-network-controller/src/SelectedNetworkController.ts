@@ -1,7 +1,7 @@
-import {
-  BaseController,
-  type ControllerGetStateAction,
-  type ControllerStateChangeEvent,
+import { BaseController } from '@metamask/base-controller';
+import type {
+  ControllerGetStateAction,
+  ControllerStateChangeEvent,
 } from '@metamask/base-controller';
 import type { Messenger } from '@metamask/messenger';
 import type {
@@ -199,16 +199,12 @@ export class SelectedNetworkController extends BaseController<
         if (patch) {
           const networkClientIdToChainId = Object.values(
             networkConfigurationsByChainId,
-          ).reduce(
-            (acc, network) => {
-              network.rpcEndpoints.forEach(
-                ({ networkClientId }) =>
-                  (acc[networkClientId] = network.chainId),
-              );
-              return acc;
-            },
-            {} as Record<string, Hex>,
-          );
+          ).reduce<Record<string, Hex>>((acc, network) => {
+            network.rpcEndpoints.forEach(
+              ({ networkClientId }) => (acc[networkClientId] = network.chainId),
+            );
+            return acc;
+          }, {});
 
           Object.entries(this.state.domains).forEach(
             ([domain, networkClientIdForDomain]) => {

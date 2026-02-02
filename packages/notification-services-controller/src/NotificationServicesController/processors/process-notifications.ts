@@ -17,18 +17,19 @@ import type { NormalisedAPINotification } from '../types/notification-api/notifi
 import type { RawSnapNotification } from '../types/snaps';
 
 const isOnChainNotification = (
-  n: RawNotificationUnion,
-): n is NormalisedAPINotification =>
-  NOTIFICATION_API_TRIGGER_TYPES_SET.has(n.type);
+  notification: RawNotificationUnion,
+): notification is NormalisedAPINotification =>
+  NOTIFICATION_API_TRIGGER_TYPES_SET.has(notification.type);
 
 const isFeatureAnnouncement = (
-  n: RawNotificationUnion,
-): n is FeatureAnnouncementRawNotification =>
-  n.type === TRIGGER_TYPES.FEATURES_ANNOUNCEMENT;
+  notification: RawNotificationUnion,
+): notification is FeatureAnnouncementRawNotification =>
+  notification.type === TRIGGER_TYPES.FEATURES_ANNOUNCEMENT;
 
 const isSnapNotification = (
-  n: RawNotificationUnion,
-): n is RawSnapNotification => n.type === TRIGGER_TYPES.SNAP;
+  notification: RawNotificationUnion,
+): notification is RawSnapNotification =>
+  notification.type === TRIGGER_TYPES.SNAP;
 
 /**
  * Process feature announcement and wallet notifications into a shared/normalised notification shape.
@@ -42,17 +43,18 @@ export function processNotification(
   notification: RawNotificationUnion,
   readNotifications: string[] = [],
 ): INotification {
-  const exhaustedAllCases = (_: never) => {
+  const exhaustedAllCases = (_uncheckedCase: never): never => {
     const type: string = notification?.type;
     throw new Error(`No processor found for notification kind ${type}`);
   };
 
   if (isFeatureAnnouncement(notification)) {
-    const n = processFeatureAnnouncement(
-      notification as FeatureAnnouncementRawNotification,
+    const processedNotification = processFeatureAnnouncement(notification);
+    processedNotification.isRead = isFeatureAnnouncementRead(
+      processedNotification,
+      readNotifications,
     );
-    n.isRead = isFeatureAnnouncementRead(n, readNotifications);
-    return n;
+    return processedNotification;
   }
 
   if (isSnapNotification(notification)) {
@@ -63,7 +65,7 @@ export function processNotification(
     return processAPINotifications(notification);
   }
 
-  return exhaustedAllCases(notification as never);
+  return exhaustedAllCases(notification);
 }
 
 /**
@@ -88,8 +90,11 @@ export function safeProcessNotification(
   }
 }
 
-const isNotUndefined = <Item>(t?: Item): t is Item => Boolean(t);
+const isNotUndefined = <Item>(item?: Item): item is Item => Boolean(item);
 export const processAndFilterNotifications = (
-  ns: RawNotificationUnion[],
+  notifications: RawNotificationUnion[],
   readIds: string[],
-) => ns.map((n) => safeProcessNotification(n, readIds)).filter(isNotUndefined);
+): INotification[] =>
+  notifications
+    .map((notification) => safeProcessNotification(notification, readIds))
+    .filter(isNotUndefined);

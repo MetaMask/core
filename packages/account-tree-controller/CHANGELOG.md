@@ -7,6 +7,36 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+### Added
+
+- Add `getAccountContext` method and `AccountTreeController:getAccountContext` action ([#7741](https://github.com/MetaMask/core/pull/7741))
+  - This can be used to map an account back to its position (wallet, group) in the account tree.
+
+### Changed
+
+- Bump `@metamask/snaps-sdk` from `^9.0.0` to `^10.3.0` ([#7550](https://github.com/MetaMask/core/pull/7550))
+- Bump `@metamask/snaps-utils` from `^11.0.0` to `^11.7.0` ([#7550](https://github.com/MetaMask/core/pull/7550))
+- Upgrade `@metamask/utils` from `^11.8.1` to `^11.9.0` ([#7511](https://github.com/MetaMask/core/pull/7511))
+- Move peer dependencies for controller and service packages to direct dependencies ([#7209](https://github.com/MetaMask/core/pull/7209), [#7437](https://github.com/MetaMask/core/pull/7437), [#7515](https://github.com/MetaMask/core/pull/7515), [#7594](https://github.com/MetaMask/core/pull/7594), [#7550](https://github.com/MetaMask/core/pull/7550), [#7604](https://github.com/MetaMask/core/pull/7604), [#7642](https://github.com/MetaMask/core/pull/7642)), ([#7678](https://github.com/MetaMask/core/pull/7678), [#7713](https://github.com/MetaMask/core/pull/7713))
+  - The dependencies moved are:
+    - `@metamask/accounts-controller` (^35.0.2)
+    - `@metamask/keyring-controller` (^25.1.0)
+    - `@metamask/multichain-account-service` (^5.1.0)
+    - `@metamask/profile-sync-controller` (^27.0.0)
+    - `@metamask/snaps-controllers` (^17.2.0)
+  - In clients, it is now possible for multiple versions of these packages to exist in the dependency tree.
+    - For example, this scenario would be valid: a client relies on `@metamask/controller-a` 1.0.0 and `@metamask/controller-b` 1.0.0, and `@metamask/controller-b` depends on `@metamask/controller-a` 1.1.0.
+  - Note, however, that the versions specified in the client's `package.json` always "win", and you are expected to keep them up to date so as not to break controller and service intercommunication.
+
+## [4.0.0]
+
+### Changed
+
+- **BREAKING:** Bump `@metamask/profile-sync-controller` from `^26.0.0` to `^27.0.0` ([#7202](https://github.com/MetaMask/core/pull/7202))
+- **BREAKING:** Bump `@metamask/multichain-account-service` from `^3.0.0` to `^4.0.0` ([#7202](https://github.com/MetaMask/core/pull/7202))
+- **BREAKING:** Bump `@metamask/keyring-controller` from `^24.0.0` to `^25.0.0` ([#7202](https://github.com/MetaMask/core/pull/7202))
+- **BREAKING:** Bump `@metamask/accounts-controller` from `^34.0.0` to `^35.0.0` ([#7202](https://github.com/MetaMask/core/pull/7202))
+
 ## [3.0.0]
 
 ### Changed
@@ -399,7 +429,8 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 - Initial release ([#5847](https://github.com/MetaMask/core/pull/5847))
   - Grouping accounts into 3 main categories: Entropy source, Snap ID, keyring types.
 
-[Unreleased]: https://github.com/MetaMask/core/compare/@metamask/account-tree-controller@3.0.0...HEAD
+[Unreleased]: https://github.com/MetaMask/core/compare/@metamask/account-tree-controller@4.0.0...HEAD
+[4.0.0]: https://github.com/MetaMask/core/compare/@metamask/account-tree-controller@3.0.0...@metamask/account-tree-controller@4.0.0
 [3.0.0]: https://github.com/MetaMask/core/compare/@metamask/account-tree-controller@2.0.0...@metamask/account-tree-controller@3.0.0
 [2.0.0]: https://github.com/MetaMask/core/compare/@metamask/account-tree-controller@1.6.0...@metamask/account-tree-controller@2.0.0
 [1.6.0]: https://github.com/MetaMask/core/compare/@metamask/account-tree-controller@1.5.0...@metamask/account-tree-controller@1.6.0

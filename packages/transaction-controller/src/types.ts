@@ -1,3 +1,5 @@
+/* eslint-disable @typescript-eslint/naming-convention */
+
 import type { AccessList } from '@ethereumjs/tx';
 import type { AccountsController } from '@metamask/accounts-controller';
 import type EthQuery from '@metamask/eth-query';
@@ -228,6 +230,11 @@ export type TransactionMeta = {
    */
   isGasFeeSponsored?: boolean;
 
+  /**
+   * Whether the transaction has no lifecycle and is not signed or published.
+   */
+  isStateOnly?: boolean;
+
   /** Alternate EIP-1559 gas fee estimates for multiple priority levels. */
   gasFeeEstimates?: GasFeeEstimates;
 
@@ -250,7 +257,7 @@ export type TransactionMeta = {
   hash?: string;
 
   /**
-   * A history of mutations to TransactionMeta.
+   * @deprecated A history of mutations to TransactionMeta.
    */
   history?: TransactionHistory;
 
@@ -383,6 +390,11 @@ export type TransactionMeta = {
   replacedById?: string;
 
   /**
+   * ID of JSON-RPC request from DAPP.
+   */
+  requestId?: string;
+
+  /**
    * IDs of any transactions that must be confirmed before this one is submitted.
    * Unlike a transaction batch, these transactions can be on alternate chains.
    */
@@ -417,7 +429,7 @@ export type TransactionMeta = {
   selectedGasFeeToken?: Hex;
 
   /**
-   * An array of entries that describe the user's journey through the send flow.
+   * @deprecated An array of entries that describe the user's journey through the send flow.
    * This is purely attached to state logs for troubleshooting and support.
    */
   sendFlowHistory?: SendFlowHistoryEntry[];
@@ -590,6 +602,11 @@ export type TransactionBatchMeta = {
    */
   origin?: string;
 
+  /**
+   * ID of the JSON-RPC request from DAPP.
+   */
+  requestId?: string;
+
   /** Current status of the transaction. */
   status: TransactionStatus;
 
@@ -599,6 +616,7 @@ export type TransactionBatchMeta = {
   transactions?: NestedTransactionMetadata[];
 };
 
+/** @deprecated An entry in the send flow history. */
 export type SendFlowHistoryEntry = {
   /**
    * String to indicate user interaction information.
@@ -753,9 +771,25 @@ export enum TransactionType {
   lendingWithdraw = 'lendingWithdraw',
 
   /**
+   * A transaction that claims yield from a mUSD contract.
+   */
+  musdClaim = 'musdClaim',
+
+  /**
+   * A transaction that converts tokens to mUSD.
+   */
+  musdConversion = 'musdConversion',
+
+  /**
    * Deposit funds to be available for trading via Perps.
    */
   perpsDeposit = 'perpsDeposit',
+
+  /**
+   * Deposit funds and place an order for trading via Perps.
+   * Supports paying with any token, not just native assets.
+   */
+  perpsDepositAndOrder = 'perpsDepositAndOrder',
 
   /**
    * A transaction for personal sign.
@@ -790,6 +824,11 @@ export enum TransactionType {
    * Withdraw funds from Predict.
    */
   predictWithdraw = 'predictWithdraw',
+
+  /**
+   * Deposit funds for Relay quote.
+   */
+  relayDeposit = 'relayDeposit',
 
   /**
    * When a transaction is failed it can be retried by
@@ -1090,6 +1129,12 @@ export interface RemoteTransactionSourceRequest {
   address: Hex;
 
   /**
+   * Optional array of chain IDs to fetch transactions for.
+   * If not provided, defaults to all supported chains.
+   */
+  chainIds?: Hex[];
+
+  /**
    * Whether to also include incoming token transfers.
    */
   includeTokenTransfers: boolean;
@@ -1156,7 +1201,7 @@ type ExtendedHistoryOperation = JsonCompatibleOperation & {
 };
 
 /**
- * A transaction history entry that includes the ExtendedHistoryOperation as the first element.
+ * @deprecated A transaction history entry that includes the ExtendedHistoryOperation as the first element.
  */
 export type TransactionHistoryEntry = [
   ExtendedHistoryOperation,
@@ -1164,7 +1209,7 @@ export type TransactionHistoryEntry = [
 ];
 
 /**
- * A transaction history that includes the transaction meta as the first element.
+ * @deprecated A transaction history that includes the transaction meta as the first element.
  * And the rest of the elements are the operation arrays that were applied to the transaction meta.
  */
 export type TransactionHistory = [
@@ -1517,6 +1562,9 @@ export type SimulationError = {
 
 /** Simulation data for a transaction. */
 export type SimulationData = {
+  /** Error messages extracted from call traces, if any. */
+  callTraceErrors?: string[];
+
   /** Error data if the simulation failed or the transaction reverted. */
   error?: SimulationError;
 
@@ -1723,11 +1771,17 @@ export type TransactionBatchRequest = {
   /** Whether to disable batch transaction via sequential transactions. */
   disableSequential?: boolean;
 
+  /** Whether to disable upgrading the account to an EIP-7702. */
+  disableUpgrade?: boolean;
+
   /** Address of the account to submit the transaction batch. */
   from: Hex;
 
   /** Address of an ERC-20 token to pay for the gas fee, if the user has insufficient native balance. */
   gasFeeToken?: Hex;
+
+  /** Gas limit for the transaction batch if submitted via EIP-7702. */
+  gasLimit7702?: Hex;
 
   /** Whether MetaMask will be compensated for the gas fee by the transaction. */
   isGasFeeIncluded?: boolean;
@@ -1741,11 +1795,20 @@ export type TransactionBatchRequest = {
   /** Origin of the request, such as a dApp hostname or `ORIGIN_METAMASK` if internal. */
   origin?: string;
 
+  /** Whether to overwrite existing EIP-7702 delegation with MetaMask contract. */
+  overwriteUpgrade?: boolean;
+
+  /** ID of the JSON-RPC request from DAPP. */
+  requestId?: string;
+
   /** Whether an approval request should be created to require confirmation from the user. */
   requireApproval?: boolean;
 
   /** Security alert ID to persist on the transaction. */
   securityAlertId?: string;
+
+  /** Whether to skip the initial gas calculation and rely only on the polling. */
+  skipInitialGasEstimate?: boolean;
 
   /** Transactions to be submitted as part of the batch. */
   transactions: TransactionBatchSingleRequest[];
@@ -2028,6 +2091,9 @@ export type MetamaskPayMetadata = {
   /** Total network fee in fiat currency, including the original and bridge transactions. */
   networkFeeFiat?: string;
 
+  /** Total amount of target token provided in fiat currency. */
+  targetFiat?: string;
+
   /** Address of the payment token that the transaction funds were sourced from. */
   tokenAddress?: Hex;
 
@@ -2076,6 +2142,13 @@ export type AddTransactionOptions = {
   /** Whether MetaMask will sponsor the gas fee for the transaction. */
   isGasFeeSponsored?: boolean;
 
+  /**
+   * Whether the transaction has no lifecycle and is not signed or published.
+   *
+   * @deprecated If absolutely necessary, update state instead via `TranasctionController:emulateTransactionUpdate`.
+   */
+  isStateOnly?: boolean;
+
   /** RPC method that requested the transaction. */
   method?: string;
 
@@ -2091,6 +2164,9 @@ export type AddTransactionOptions = {
   /** Custom logic to publish the transaction. */
   publishHook?: PublishHook;
 
+  /** ID of JSON-RPC request from DAPP.  */
+  requestId?: string;
+
   /** Whether the transaction requires approval by the user, defaults to true unless explicitly disabled. */
   requireApproval?: boolean | undefined;
 
@@ -2100,7 +2176,14 @@ export type AddTransactionOptions = {
   /** Entries to add to the `sendFlowHistory`. */
   sendFlowHistory?: SendFlowHistoryEntry[];
 
-  /** Options for swaps transactions. */
+  /** Whether to skip the initial gas calculation and rely only on the polling. */
+  skipInitialGasEstimate?: boolean;
+
+  /**
+   * Options for swaps transactions.
+   *
+   * @deprecated Usage is pending removal as only used by legacy features.
+   */
   swaps?: {
     /** Whether the transaction has an approval transaction. */
     hasApproveTx?: boolean;
@@ -2114,4 +2197,24 @@ export type AddTransactionOptions = {
 
   /** Type of transaction to add, such as 'cancel' or 'swap'. */
   type?: TransactionType;
+};
+
+/**
+ * Request to get gas fee tokens.
+ */
+export type GetGasFeeTokensRequest = {
+  /** ID of the chain. */
+  chainId: Hex;
+
+  /** Data of the transaction. */
+  data?: Hex;
+
+  /** Address of the sender. */
+  from: Hex;
+
+  /** Address of the recipient. */
+  to: Hex;
+
+  /** Value of the transaction. */
+  value?: Hex;
 };

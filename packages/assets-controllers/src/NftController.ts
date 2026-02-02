@@ -5,11 +5,11 @@ import type {
   AccountsControllerGetSelectedAccountAction,
 } from '@metamask/accounts-controller';
 import type { AddApprovalRequest } from '@metamask/approval-controller';
-import {
-  BaseController,
-  type ControllerStateChangeEvent,
-  type ControllerGetStateAction,
-  type StateMetadata,
+import { BaseController } from '@metamask/base-controller';
+import type {
+  ControllerStateChangeEvent,
+  ControllerGetStateAction,
+  StateMetadata,
 } from '@metamask/base-controller';
 import {
   safelyExecute,
@@ -26,7 +26,7 @@ import {
   convertHexToDecimal,
   toHex,
 } from '@metamask/controller-utils';
-import { type InternalAccount } from '@metamask/keyring-internal-api';
+import type { InternalAccount } from '@metamask/keyring-internal-api';
 import type { Messenger } from '@metamask/messenger';
 import type {
   NetworkClientId,
@@ -54,6 +54,7 @@ import {
   compareNftMetadata,
   getFormattedIpfsUrl,
   hasNewCollectionFields,
+  reduceInBatchesSerially,
 } from './assetsUtil';
 import { Source } from './constants';
 import type {
@@ -62,7 +63,6 @@ import type {
   Collection,
   Attributes,
   LastSale,
-  GetCollectionsResponse,
   TopBid,
 } from './NftDetectionController';
 import type { NetworkControllerFindNetworkClientIdByChainIdAction } from '../../network-controller/src/NetworkController';
@@ -437,7 +437,7 @@ export class NftController extends BaseController<
     // TODO: Replace this type with PreferencesState once both clients use the same PreferencesController
     displayNftMedia?: boolean;
     openSeaEnabled?: boolean;
-  }) {
+  }): Promise<void> {
     const selectedAccount = this.messenger.call(
       'AccountsController:getSelectedAccount',
     );
@@ -467,7 +467,9 @@ export class NftController extends BaseController<
    *
    * @param internalAccount - The new selected account.
    */
-  async #onSelectedAccountChange(internalAccount: InternalAccount) {
+  async #onSelectedAccountChange(
+    internalAccount: InternalAccount,
+  ): Promise<void> {
     const oldSelectedAccountId = this.#selectedAccountId;
     this.#selectedAccountId = internalAccount.id;
 
@@ -481,7 +483,7 @@ export class NftController extends BaseController<
     }
   }
 
-  getNftApi() {
+  getNftApi(): string {
     return `${NFT_API_BASE_URL}/tokens`;
   }
 
@@ -503,7 +505,7 @@ export class NftController extends BaseController<
     newCollection: NftCollection,
     baseStateKey: Key,
     { userAddress, chainId }: { userAddress: string; chainId: Hex },
-  ) {
+  ): void {
     // userAddress can be an empty string if it is not set via an account change or in constructor
     // while this doesn't cause any issues, we want to ensure that we don't store assets to an empty string address
     if (!userAddress) {
@@ -522,10 +524,6 @@ export class NftController extends BaseController<
         [userAddress]: newAddressState,
       };
     });
-  }
-
-  #getNftCollectionApi(): string {
-    return `${NFT_API_BASE_URL}/collections`;
   }
 
   /**
@@ -559,21 +557,7 @@ export class NftController extends BaseController<
           },
         },
       });
-    // Params for getCollections API call
-    const getCollectionParams = new URLSearchParams({
-      chainId: '1',
-      id: `${nftInformation?.tokens[0]?.token?.collection?.id as string}`,
-    }).toString();
-    // Fetch collection information using collectionId
-    const collectionInformation: GetCollectionsResponse | undefined =
-      await fetchWithErrorHandling({
-        url: `${NFT_API_BASE_URL as string}/collections?${getCollectionParams}`,
-        options: {
-          headers: {
-            Version: NFT_API_VERSION,
-          },
-        },
-      });
+
     // if we were still unable to fetch the data we return out the default/null of `NftMetadata`
     if (!nftInformation?.tokens?.[0]?.token) {
       return {
@@ -618,20 +602,7 @@ export class NftController extends BaseController<
       },
       rarityRank && { rarityRank },
       rarity && { rarity },
-      (collection || collectionInformation) && {
-        collection: {
-          ...(collection || {}),
-          creator:
-            collection?.creator ||
-            collectionInformation?.collections[0].creator,
-          openseaVerificationStatus:
-            collectionInformation?.collections[0].openseaVerificationStatus,
-          contractDeployedAt:
-            collectionInformation?.collections[0].contractDeployedAt,
-          ownerCount: collectionInformation?.collections[0].ownerCount,
-          topBid: collectionInformation?.collections[0].topBid,
-        },
-      },
+      collection && { collection },
     );
 
     return nftMetadata;
@@ -1052,7 +1023,7 @@ export class NftController extends BaseController<
         configuration: { chainId },
       } = this.messenger.call(
         'NetworkController:getNetworkClientById',
-        networkClientId as NetworkClientId,
+        networkClientId,
       );
 
       const nftContracts = allNftContracts[userAddress]?.[chainId] || [];
@@ -1150,7 +1121,7 @@ export class NftController extends BaseController<
       chainId: Hex;
       userAddress: string;
     },
-  ) {
+  ): void {
     const checksumHexAddress = toChecksumHexAddress(address);
     const { allNfts, ignoredNfts } = this.state;
     const newIgnoredNfts = [...ignoredNfts];
@@ -1192,7 +1163,7 @@ export class NftController extends BaseController<
     address: string,
     tokenId: string,
     { chainId, userAddress }: { chainId: Hex; userAddress: string },
-  ) {
+  ): void {
     const checksumHexAddress = toChecksumHexAddress(address);
     const { allNfts } = this.state;
     const nfts = allNfts[userAddress]?.[chainId] || [];
@@ -1245,7 +1216,7 @@ export class NftController extends BaseController<
     type: NFTStandardType,
     userAddress: string,
     networkClientId: NetworkClientId,
-  ) {
+  ): Promise<void> {
     const { address: contractAddress, tokenId } = asset;
 
     // Validate parameters
@@ -1318,7 +1289,7 @@ export class NftController extends BaseController<
     }: {
       userAddress?: string;
     } = {},
-  ) {
+  ): Promise<void> {
     const addressToSearch = this.#getAddressOrSelectedAddress(userAddress);
     if (!addressToSearch) {
       return;
@@ -1435,7 +1406,7 @@ export class NftController extends BaseController<
       userAddress?: string;
       source?: Source;
     } = {},
-  ) {
+  ): Promise<void> {
     const addressToSearch = this.#getAddressOrSelectedAddress(userAddress);
 
     if (
@@ -1480,7 +1451,7 @@ export class NftController extends BaseController<
       userAddress?: string;
       source?: Source;
     } = {},
-  ) {
+  ): Promise<void> {
     const addressToSearch = this.#getAddressOrSelectedAddress(userAddress);
     if (!addressToSearch) {
       return;
@@ -1540,6 +1511,74 @@ export class NftController extends BaseController<
   }
 
   /**
+   * Adds multiple NFTs and respective NFT contracts to the stored NFT and NFT contracts lists.
+   *
+   * @param nfts - An array of NFT objects to add.
+   * @param nfts[].tokenAddress - Hex address of the NFT contract.
+   * @param nfts[].tokenId - The NFT identifier.
+   * @param nfts[].nftMetadata - NFT metadata including chainId.
+   * @param userAddress - The address of the current user.
+   * @param source - Whether the NFT was detected, added manually or suggested by a dapp. Defaults to Source.Custom.
+   * @returns Promise resolving to the current NFT list.
+   */
+  async addNfts(
+    nfts: {
+      tokenAddress: string;
+      tokenId: string;
+      nftMetadata: NftMetadata & { chainId: number };
+    }[],
+    userAddress: string,
+    source: Source = Source.Custom,
+  ): Promise<void> {
+    const addressToSearch = this.#getAddressOrSelectedAddress(userAddress);
+    if (!addressToSearch) {
+      return;
+    }
+
+    // Remember max number of urls this allows is 250
+    const sanitizedNftMetadata = await this.#bulkSanitizeNftMetadata(
+      nfts.map((nft) => nft.nftMetadata),
+    );
+
+    for (const [index, nft] of nfts.entries()) {
+      const checksumHexAddress = toChecksumHexAddress(nft.tokenAddress);
+
+      const hexChainId = toHex(nft.nftMetadata.chainId);
+
+      const networkClientId = this.messenger.call(
+        'NetworkController:findNetworkClientIdByChainId',
+        hexChainId,
+      );
+
+      const newNftContracts = await this.#addNftContract(networkClientId, {
+        tokenAddress: checksumHexAddress,
+        userAddress: addressToSearch,
+        source,
+        nftMetadata: sanitizedNftMetadata[index],
+      });
+
+      // If NFT contract was not added, do not add individual NFT
+      const nftContract = newNftContracts.find(
+        (contract) =>
+          contract.address.toLowerCase() === checksumHexAddress.toLowerCase(),
+      );
+
+      // If NFT contract information, add individual NFT
+      if (nftContract) {
+        await this.#addIndividualNft(
+          checksumHexAddress,
+          nft.tokenId,
+          sanitizedNftMetadata[index],
+          nftContract,
+          hexChainId,
+          addressToSearch,
+          source,
+        );
+      }
+    }
+  }
+
+  /**
    * Refetches NFT metadata and updates the state
    *
    * @param options - Options for refetching NFT metadata
@@ -1552,7 +1591,7 @@ export class NftController extends BaseController<
   }: {
     nfts: Nft[];
     userAddress?: string;
-  }) {
+  }): Promise<void> {
     const addressToSearch = this.#getAddressOrSelectedAddress(userAddress);
 
     const releaseLock = await this.#mutex.acquire();
@@ -1669,14 +1708,14 @@ export class NftController extends BaseController<
     tokenId: string,
     networkClientId: NetworkClientId,
     { userAddress }: { userAddress?: string } = {},
-  ) {
+  ): void {
     const addressToSearch = this.#getAddressOrSelectedAddress(userAddress);
 
     const {
       configuration: { chainId },
     } = this.messenger.call(
       'NetworkController:getNetworkClientById',
-      networkClientId as NetworkClientId,
+      networkClientId,
     );
 
     const checksumHexAddress = toChecksumHexAddress(address);
@@ -1712,13 +1751,13 @@ export class NftController extends BaseController<
     tokenId: string,
     networkClientId: NetworkClientId,
     { userAddress }: { userAddress?: string } = {},
-  ) {
+  ): void {
     const addressToSearch = this.#getAddressOrSelectedAddress(userAddress);
     const {
       configuration: { chainId },
     } = this.messenger.call(
       'NetworkController:getNetworkClientById',
-      networkClientId as NetworkClientId,
+      networkClientId,
     );
     const checksumHexAddress = toChecksumHexAddress(address);
     this.#removeAndIgnoreIndividualNft(checksumHexAddress, tokenId, {
@@ -1741,7 +1780,7 @@ export class NftController extends BaseController<
   /**
    * Removes all NFTs from the ignored list.
    */
-  clearIgnoredNfts() {
+  clearIgnoredNfts(): void {
     this.update((state) => {
       state.ignoredNfts = [];
     });
@@ -1763,13 +1802,13 @@ export class NftController extends BaseController<
     batch: boolean,
     networkClientId: NetworkClientId,
     { userAddress }: { userAddress?: string } = {},
-  ) {
+  ): Promise<Nft> {
     const addressToSearch = this.#getAddressOrSelectedAddress(userAddress);
     const {
       configuration: { chainId },
     } = this.messenger.call(
       'NetworkController:getNetworkClientById',
-      networkClientId as NetworkClientId,
+      networkClientId,
     );
     const { address, tokenId } = nft;
     let isOwned = nft.isCurrentlyOwned;
@@ -1839,13 +1878,13 @@ export class NftController extends BaseController<
     }: {
       userAddress?: string;
     } = {},
-  ) {
+  ): Promise<void> {
     const addressToSearch = this.#getAddressOrSelectedAddress(userAddress);
     const {
       configuration: { chainId },
     } = this.messenger.call(
       'NetworkController:getNetworkClientById',
-      networkClientId as NetworkClientId,
+      networkClientId,
     );
     const { allNfts } = this.state;
     const nfts = allNfts[addressToSearch]?.[chainId] || [];
@@ -1890,13 +1929,13 @@ export class NftController extends BaseController<
     }: {
       userAddress?: string;
     } = {},
-  ) {
+  ): void {
     const addressToSearch = this.#getAddressOrSelectedAddress(userAddress);
     const {
       configuration: { chainId },
     } = this.messenger.call(
       'NetworkController:getNetworkClientById',
-      networkClientId as NetworkClientId,
+      networkClientId,
     );
     const { allNfts } = this.state;
     const nfts = [...(allNfts[addressToSearch]?.[chainId] || [])];
@@ -1965,7 +2004,7 @@ export class NftController extends BaseController<
     updates: Partial<Nft>,
     selectedAddress: string,
     chainId: Hex,
-  ) {
+  ): void {
     const { allNfts } = this.state;
     const nfts = allNfts[selectedAddress]?.[chainId] || [];
     const nftInfo = this.findNftByAddressAndTokenId(
@@ -2036,35 +2075,7 @@ export class NftController extends BaseController<
     return true;
   }
 
-  /**
-   * Fetches NFT Collection Metadata from the NFT API.
-   *
-   * @param contractAddresses - The contract addresses of the NFTs.
-   * @param chainId - The chain ID of the network where the NFT is located.
-   * @returns NFT collections metadata.
-   */
-  async getNFTContractInfo(
-    contractAddresses: string[],
-    chainId: Hex,
-  ): Promise<{
-    collections: Collection[];
-  }> {
-    const url = new URL(this.#getNftCollectionApi());
-
-    url.searchParams.append('chainId', chainId);
-
-    for (const address of contractAddresses) {
-      url.searchParams.append('contract', address);
-    }
-
-    return await handleFetch(url, {
-      headers: {
-        Version: NFT_API_VERSION,
-      },
-    });
-  }
-
-  async _requestApproval(suggestedNftMeta: SuggestedNftMeta) {
+  async _requestApproval(suggestedNftMeta: SuggestedNftMeta): Promise<unknown> {
     return this.messenger.call(
       'ApprovalController:addRequest',
       {
@@ -2107,7 +2118,7 @@ export class NftController extends BaseController<
    *
    * @param account - The account to update the NFT metadata for.
    */
-  async #updateNftUpdateForAccount(account: InternalAccount) {
+  async #updateNftUpdateForAccount(account: InternalAccount): Promise<void> {
     // get all nfts for the account for all chains
     const nfts: Nft[] = Object.values(
       this.state.allNfts[account.address] || {},
@@ -2132,7 +2143,7 @@ export class NftController extends BaseController<
   /**
    * Reset the controller state to the default state.
    */
-  resetState() {
+  resetState(): void {
     this.update(() => {
       return getDefaultNftControllerState();
     });
@@ -2206,32 +2217,50 @@ export class NftController extends BaseController<
     }
 
     try {
-      // Use bulkScanUrls to check all URLs at once
-      const bulkScanResponse = await this.messenger.call(
-        'PhishingController:bulkScanUrls',
-        urlsToCheck,
-      );
-      // Apply scan results to all metadata objects
-      Object.entries(bulkScanResponse.results).forEach(([url, result]) => {
-        if (result.recommendedAction === RecommendedAction.Block) {
-          // Remove this URL from all metadata objects where it appears
-          urlMap[url].forEach(({ metadataIndex, fieldName }) => {
-            if (
-              fieldName === 'collection.externalLink' &&
-              sanitizedMetadataList[metadataIndex].collection // Check if collection exists
-            ) {
-              const { collection } = sanitizedMetadataList[metadataIndex];
-              // Ensure collection is not undefined again just to be safe before using 'in'
-              if (collection && 'externalLink' in collection) {
-                delete (collection as Record<string, unknown>).externalLink;
-              }
-            } else {
-              delete sanitizedMetadataList[metadataIndex][
-                fieldName as keyof NftMetadata
-              ];
+      // PhishingController has a 250 URL limit, so batch if needed
+      const MAX_URLS_PER_BATCH = 250;
+
+      // Process URLs in batches serially
+      const blockedUrls = await reduceInBatchesSerially<string, Set<string>>({
+        values: urlsToCheck,
+        batchSize: MAX_URLS_PER_BATCH,
+        eachBatch: async (workingBlockedUrls, batch) => {
+          // Use bulkScanUrls to check this batch
+          const bulkScanResponse = await this.messenger.call(
+            'PhishingController:bulkScanUrls',
+            batch,
+          );
+
+          // Collect blocked URLs from this batch
+          Object.entries(bulkScanResponse.results).forEach(([url, result]) => {
+            if (result.recommendedAction === RecommendedAction.Block) {
+              // Type assertion is safe here as we always initialize with a Set and return a Set
+              (workingBlockedUrls as Set<string>).add(url);
             }
           });
-        }
+
+          return workingBlockedUrls;
+        },
+        initialResult: new Set<string>(),
+      });
+
+      // Apply scan results to all metadata objects
+      blockedUrls.forEach((url) => {
+        urlMap[url].forEach(({ metadataIndex, fieldName }) => {
+          if (
+            fieldName === 'collection.externalLink' &&
+            sanitizedMetadataList[metadataIndex].collection
+          ) {
+            const { collection } = sanitizedMetadataList[metadataIndex];
+            if (collection && 'externalLink' in collection) {
+              delete (collection as Record<string, unknown>).externalLink;
+            }
+          } else {
+            delete sanitizedMetadataList[metadataIndex][
+              fieldName as keyof NftMetadata
+            ];
+          }
+        });
       });
     } catch (error) {
       console.error('Error during bulk URL scanning:', error);

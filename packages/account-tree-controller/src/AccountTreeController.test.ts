@@ -1,4 +1,8 @@
-import type { AccountWalletId, Bip44Account } from '@metamask/account-api';
+import type {
+  AccountGroupId,
+  AccountWalletId,
+  Bip44Account,
+} from '@metamask/account-api';
 import {
   AccountGroupType,
   AccountWalletType,
@@ -6,7 +10,6 @@ import {
   toAccountWalletId,
   toMultichainAccountGroupId,
   toMultichainAccountWalletId,
-  type AccountGroupId,
 } from '@metamask/account-api';
 import type { AccountId } from '@metamask/accounts-controller';
 import { deriveStateFromMetadata } from '@metamask/base-controller';
@@ -36,7 +39,7 @@ import type { BackupAndSyncAnalyticsEventPayload } from './backup-and-sync/analy
 import { BackupAndSyncService } from './backup-and-sync/service';
 import { isAccountGroupNameUnique } from './group';
 import { getAccountWalletNameFromKeyringType } from './rules/keyring';
-import { type AccountTreeControllerState } from './types';
+import type { AccountTreeControllerState } from './types';
 import {
   getAccountTreeControllerMessenger,
   getRootMessenger,
@@ -999,6 +1002,66 @@ describe('AccountTreeController', () => {
       );
       const groupId = toAccountGroupId(walletId, 'bad');
       expect(controller.getAccountGroupObject(groupId)).toBeUndefined();
+    });
+  });
+
+  describe('getAccountContext', () => {
+    it('returns account context for a valid account', () => {
+      const { controller } = setup({
+        accounts: [MOCK_HD_ACCOUNT_1, MOCK_HD_ACCOUNT_2],
+        keyrings: [MOCK_HD_KEYRING_1, MOCK_HD_KEYRING_2],
+      });
+
+      controller.init();
+
+      const context = controller.getAccountContext(MOCK_HD_ACCOUNT_1.id);
+
+      expect(context).toBeDefined();
+      expect(context?.walletId).toBe(
+        toMultichainAccountWalletId(MOCK_HD_KEYRING_1.metadata.id),
+      );
+      expect(context?.groupId).toBe(
+        toMultichainAccountGroupId(
+          toMultichainAccountWalletId(MOCK_HD_KEYRING_1.metadata.id),
+          MOCK_HD_ACCOUNT_1.options.entropy.groupIndex,
+        ),
+      );
+      expect(context?.sortOrder).toBeDefined();
+    });
+
+    it('returns undefined for an unknown account', () => {
+      const { controller } = setup({
+        accounts: [MOCK_HD_ACCOUNT_1],
+        keyrings: [MOCK_HD_KEYRING_1],
+      });
+
+      controller.init();
+
+      const context = controller.getAccountContext('unknown-account-id');
+
+      expect(context).toBeUndefined();
+    });
+
+    it('returns correct context for different account types', () => {
+      const { controller } = setup({
+        accounts: [MOCK_HD_ACCOUNT_1, MOCK_SNAP_ACCOUNT_1],
+        keyrings: [MOCK_HD_KEYRING_1, MOCK_HD_KEYRING_2],
+      });
+
+      controller.init();
+
+      const hdContext = controller.getAccountContext(MOCK_HD_ACCOUNT_1.id);
+      const snapContext = controller.getAccountContext(MOCK_SNAP_ACCOUNT_1.id);
+
+      expect(hdContext).toBeDefined();
+      expect(snapContext).toBeDefined();
+
+      expect(hdContext?.walletId).toBe(
+        toMultichainAccountWalletId(MOCK_HD_KEYRING_1.metadata.id),
+      );
+      expect(snapContext?.walletId).toBe(
+        toMultichainAccountWalletId(MOCK_HD_KEYRING_2.metadata.id),
+      );
     });
   });
 
@@ -3666,6 +3729,26 @@ describe('AccountTreeController', () => {
         'AccountTreeController:getAccountsFromSelectedAccountGroup',
       );
       expect(spy).toHaveBeenCalled();
+    });
+
+    it('gets account context with AccountTreeController:getAccountContext', () => {
+      const spy = jest.spyOn(
+        AccountTreeController.prototype,
+        'getAccountContext',
+      );
+
+      const { controller, messenger } = setup({
+        accounts: [MOCK_HD_ACCOUNT_1],
+        keyrings: [MOCK_HD_KEYRING_1],
+      });
+
+      controller.init();
+
+      messenger.call(
+        'AccountTreeController:getAccountContext',
+        MOCK_HD_ACCOUNT_1.id,
+      );
+      expect(spy).toHaveBeenCalledWith(MOCK_HD_ACCOUNT_1.id);
     });
 
     it('gets a multichain account with AccountTreeController:setAccountWalletName', () => {

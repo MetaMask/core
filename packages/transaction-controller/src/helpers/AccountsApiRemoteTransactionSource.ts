@@ -30,6 +30,7 @@ export const SUPPORTED_CHAIN_IDS: Hex[] = [
   CHAIN_IDS.SCROLL,
   CHAIN_IDS.SEI,
   CHAIN_IDS.MONAD,
+  CHAIN_IDS.HYPEREVM,
 ];
 
 const log = createModuleLogger(
@@ -50,11 +51,11 @@ export class AccountsApiRemoteTransactionSource
   async fetchTransactions(
     request: RemoteTransactionSourceRequest,
   ): Promise<TransactionMeta[]> {
-    const { address } = request;
+    const { address, chainIds } = request;
 
     const responseTransactions = await this.#queryTransactions(
       request,
-      SUPPORTED_CHAIN_IDS,
+      chainIds ?? SUPPORTED_CHAIN_IDS,
     );
 
     log(
@@ -111,7 +112,7 @@ export class AccountsApiRemoteTransactionSource
   #filterTransactions(
     request: RemoteTransactionSourceRequest,
     transactions: TransactionMeta[],
-  ) {
+  ): TransactionMeta[] {
     const { address, includeTokenTransfers, updateTransactions } = request;
 
     let filteredTransactions = transactions;
@@ -136,7 +137,7 @@ export class AccountsApiRemoteTransactionSource
     responseTransaction: GetAccountTransactionsResponse['data'][0],
   ): Promise<TransactionMeta> {
     const blockNumber = String(responseTransaction.blockNumber);
-    const chainId = `0x${responseTransaction.chainId.toString(16)}` as Hex;
+    const chainId = `0x${responseTransaction.chainId.toString(16)}` as const;
     const { hash } = responseTransaction;
     const time = new Date(responseTransaction.timestamp).getTime();
     const id = random({ msecs: time });

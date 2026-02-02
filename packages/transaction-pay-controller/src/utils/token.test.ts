@@ -10,7 +10,11 @@ import {
   getAllTokenBalances,
   getNativeToken,
 } from './token';
-import { NATIVE_TOKEN_ADDRESS } from '../constants';
+import {
+  CHAIN_ID_POLYGON,
+  NATIVE_TOKEN_ADDRESS,
+  POLYGON_USDCE_ADDRESS,
+} from '../constants';
 import { getMessengerMock } from '../tests/messenger-mock';
 
 const TOKEN_ADDRESS_MOCK = '0x559B65722aD62AD6DAC4Fa5a1c6B23A2e8ce57Ec' as Hex;
@@ -261,7 +265,7 @@ describe('Token Utils', () => {
 
       const result = getTokenFiatRate(
         messenger,
-        TOKEN_ADDRESS_MOCK as Hex,
+        TOKEN_ADDRESS_MOCK,
         CHAIN_ID_MOCK,
       );
 
@@ -277,7 +281,7 @@ describe('Token Utils', () => {
 
       const result = getTokenFiatRate(
         messenger,
-        TOKEN_ADDRESS_MOCK as Hex,
+        TOKEN_ADDRESS_MOCK,
         CHAIN_ID_MOCK,
       );
 
@@ -299,7 +303,7 @@ describe('Token Utils', () => {
 
       const result = getTokenFiatRate(
         messenger,
-        TOKEN_ADDRESS_MOCK as Hex,
+        TOKEN_ADDRESS_MOCK,
         CHAIN_ID_MOCK,
       );
 
@@ -329,7 +333,7 @@ describe('Token Utils', () => {
 
       const result = getTokenFiatRate(
         messenger,
-        TOKEN_ADDRESS_MOCK as Hex,
+        TOKEN_ADDRESS_MOCK,
         CHAIN_ID_MOCK,
       );
 
@@ -365,6 +369,44 @@ describe('Token Utils', () => {
       expect(result).toStrictEqual({
         fiatRate: '3',
         usdRate: '4',
+      });
+    });
+
+    it('returns fixed usd rate for stablecoins', () => {
+      findNetworkClientIdByChainIdMock.mockReturnValue(NETWORK_CLIENT_ID_MOCK);
+
+      getNetworkClientByIdMock.mockReturnValue({
+        configuration: { ticker: TICKER_MOCK },
+      } as never);
+
+      getTokenRatesControllerStateMock.mockReturnValue({
+        marketData: {
+          [CHAIN_ID_POLYGON]: {
+            [POLYGON_USDCE_ADDRESS]: {
+              price: 1.0,
+            },
+          },
+        },
+      } as TokenRatesControllerState);
+
+      getCurrencyRateControllerStateMock.mockReturnValue({
+        currencyRates: {
+          [TICKER_MOCK]: {
+            conversionRate: 3.0,
+            usdConversionRate: 4.0,
+          },
+        },
+      });
+
+      const result = getTokenFiatRate(
+        messenger,
+        POLYGON_USDCE_ADDRESS,
+        CHAIN_ID_POLYGON,
+      );
+
+      expect(result).toStrictEqual({
+        fiatRate: '3',
+        usdRate: '1',
       });
     });
   });

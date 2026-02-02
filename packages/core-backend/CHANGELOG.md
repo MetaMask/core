@@ -7,6 +7,57 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+### Added
+
+- Add `ApiPlatformClient` for unified access to MetaMask backend APIs with TanStack Query caching ([#7658](https://github.com/MetaMask/core/pull/7658))
+  - Automatic request deduplication and intelligent caching
+  - Automatic retries with exponential backoff for transient failures
+  - Support for Accounts API, Price API, Token API, and Tokens API endpoints
+  - Export helper functions `shouldRetry` and `calculateRetryDelay` for custom retry logic
+  - Export API types for external consumers
+
+### Changed
+
+- Upgrade `@metamask/utils` from `^11.8.1` to `^11.9.0` ([#7511](https://github.com/MetaMask/core/pull/7511))
+- Move peer dependencies for controller and service packages to direct dependencies ([#7209](https://github.com/MetaMask/core/pull/7209), [#7604](https://github.com/MetaMask/core/pull/7604), [#7642](https://github.com/MetaMask/core/pull/7642), [#7713](https://github.com/MetaMask/core/pull/7713))
+  - The dependencies moved are:
+    - `@metamask/accounts-controller` (^35.0.2)
+    - `@metamask/keyring-controller` (^25.1.0)
+  - In clients, it is now possible for multiple versions of these packages to exist in the dependency tree.
+    - For example, this scenario would be valid: a client relies on `@metamask/controller-a` 1.0.0 and `@metamask/controller-b` 1.0.0, and `@metamask/controller-b` depends on `@metamask/controller-a` 1.1.0.
+  - Note, however, that the versions specified in the client's `package.json` always "win", and you are expected to keep them up to date so as not to break controller and service intercommunication.
+- Bump `@metamask/controller-utils` from `^11.16.0` to `^11.18.0` ([#7534](https://github.com/MetaMask/core/pull/7534), [#7583](https://github.com/MetaMask/core/pull/7583))
+
+## [5.0.0]
+
+### Changed
+
+- Bump `@metamask/profile-sync-controller` from `^26.0.0` to `^27.0.0` ([#7202](https://github.com/MetaMask/core/pull/7202))
+- Bump `@metamask/controller-utils` from `^11.15.0` to `^11.16.0` ([#7202](https://github.com/MetaMask/core/pull/7202))
+- **BREAKING:** Bump `@metamask/keyring-controller` from `^24.0.0` to `^25.0.0` ([#7202](https://github.com/MetaMask/core/pull/7202))
+- **BREAKING:** Bump `@metamask/accounts-controller` from `^34.0.0` to `^35.0.0` ([#7202](https://github.com/MetaMask/core/pull/7202))
+
+## [4.1.0]
+
+### Changed
+
+- Improve WebSocket connection lifecycle tracing in `BackendWebSocketService` ([#7101](https://github.com/MetaMask/core/pull/7101))
+  - WebSocket connection duration is now properly reflected in trace span duration instead of only in custom data
+  - Trace all disconnections (both manual and unexpected) to provide complete connection lifecycle visibility in traces
+  - Omit `connectionDuration_ms` from disconnection traces when connection never established (onClose without onOpen)
+- Update `BackendWebSocketService` default exponential backoff options for reconnection ([#7101](https://github.com/MetaMask/core/pull/7101))
+  - Increase default `reconnectDelay` from 500 milliseconds to 10 seconds
+  - Increase default `maxReconnectDelay` from 30 seconds to 60 seconds
+- Simplify WebSocket disconnection code in `BackendWebSocketService` ([#7101](https://github.com/MetaMask/core/pull/7101))
+  - Centralize all disconnection logic in `ws.onclose` handler for single source of truth
+  - Centralize all state changes within `#establishConnection` method - state transitions only occur in `onopen` (CONNECTING → CONNECTED) and `onclose` (any state → DISCONNECTED)
+  - Add `MANUAL_DISCONNECT_CODE` (4999) and `MANUAL_DISCONNECT_REASON` constants to distinguish manual from unexpected disconnects
+- Bump `@ts-bridge/cli` from `^0.6.1` to `^0.6.4` ([#7039](https://github.com/MetaMask/core/pull/7039))
+
+### Removed
+
+- Remove `BackendWebSocketService Channel Message` trace as it provided no useful performance insights ([#7101](https://github.com/MetaMask/core/pull/7101))
+
 ## [4.0.0]
 
 ### Changed
@@ -133,7 +184,9 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 - **Type definitions** - Comprehensive TypeScript types for transactions, balances, WebSocket messages, and service configurations
 - **Logging infrastructure** - Structured logging with module-specific loggers for debugging and monitoring
 
-[Unreleased]: https://github.com/MetaMask/core/compare/@metamask/core-backend@4.0.0...HEAD
+[Unreleased]: https://github.com/MetaMask/core/compare/@metamask/core-backend@5.0.0...HEAD
+[5.0.0]: https://github.com/MetaMask/core/compare/@metamask/core-backend@4.1.0...@metamask/core-backend@5.0.0
+[4.1.0]: https://github.com/MetaMask/core/compare/@metamask/core-backend@4.0.0...@metamask/core-backend@4.1.0
 [4.0.0]: https://github.com/MetaMask/core/compare/@metamask/core-backend@3.0.0...@metamask/core-backend@4.0.0
 [3.0.0]: https://github.com/MetaMask/core/compare/@metamask/core-backend@2.1.0...@metamask/core-backend@3.0.0
 [2.1.0]: https://github.com/MetaMask/core/compare/@metamask/core-backend@2.0.0...@metamask/core-backend@2.1.0

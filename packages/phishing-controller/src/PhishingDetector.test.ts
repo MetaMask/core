@@ -1,7 +1,5 @@
-import {
-  PhishingDetector,
-  type PhishingDetectorOptions,
-} from './PhishingDetector';
+import { PhishingDetector } from './PhishingDetector';
+import type { PhishingDetectorOptions } from './PhishingDetector';
 import { formatHostnameToUrl } from './tests/utils';
 import { PhishingDetectorResultType } from './types';
 import { sha256Hash } from './utils';

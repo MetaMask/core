@@ -23,7 +23,11 @@ export type InfuraNetworkType =
  * Custom network types that are not part of Infura.
  */
 export const CustomNetworkType = {
+  /**
+   * @deprecated `megaeth-testnet` is migrated to `megaeth-testnet-v2`.
+   */
   'megaeth-testnet': 'megaeth-testnet',
+  'megaeth-testnet-v2': 'megaeth-testnet-v2',
   'monad-testnet': 'monad-testnet',
 } as const;
 export type CustomNetworkType =
@@ -82,7 +86,11 @@ export enum BuiltInNetworkName {
   LineaSepolia = 'linea-sepolia',
   LineaMainnet = 'linea-mainnet',
   Aurora = 'aurora',
+  /**
+   * @deprecated `MegaETHTestnet` is migrated to `MegaETHTestnetV2`.
+   */
   MegaETHTestnet = 'megaeth-testnet',
+  MegaETHTestnetV2 = 'megaeth-testnet-v2',
   MonadTestnet = 'monad-testnet',
   BaseMainnet = 'base-mainnet',
   ArbitrumOne = 'arbitrum-mainnet',
@@ -105,7 +113,11 @@ export const ChainId = {
   [BuiltInNetworkName.LineaGoerli]: '0xe704', // toHex(59140)
   [BuiltInNetworkName.LineaSepolia]: '0xe705', // toHex(59141)
   [BuiltInNetworkName.LineaMainnet]: '0xe708', // toHex(59144)
+  /**
+   * @deprecated `MegaETHTestnet` is migrated to `MegaETHTestnetV2`.
+   */
   [BuiltInNetworkName.MegaETHTestnet]: '0x18c6', // toHex(6342)
+  [BuiltInNetworkName.MegaETHTestnetV2]: '0x18c7', // toHex(6343)
   [BuiltInNetworkName.MonadTestnet]: '0x279f', // toHex(10143)
   [BuiltInNetworkName.BaseMainnet]: '0x2105', // toHex(8453)
   [BuiltInNetworkName.ArbitrumOne]: '0xa4b1', // toHex(42161)
@@ -116,6 +128,7 @@ export const ChainId = {
 } as const;
 export type ChainId = (typeof ChainId)[keyof typeof ChainId];
 
+/* eslint-disable @typescript-eslint/naming-convention */
 export enum NetworksTicker {
   mainnet = 'ETH',
   goerli = 'GoerliETH',
@@ -125,7 +138,12 @@ export enum NetworksTicker {
   'linea-sepolia' = 'LineaETH',
   // eslint-disable-next-line @typescript-eslint/no-duplicate-enum-values
   'linea-mainnet' = 'ETH',
+  /**
+   * @deprecated `megaeth-testnet` is migrated to `megaeth-testnet-v2`.
+   */
   'megaeth-testnet' = 'MegaETH',
+  // eslint-disable-next-line @typescript-eslint/no-duplicate-enum-values
+  'megaeth-testnet-v2' = 'MegaETH',
   'monad-testnet' = 'MON',
   // eslint-disable-next-line @typescript-eslint/no-duplicate-enum-values
   'base-mainnet' = 'ETH',
@@ -138,6 +156,7 @@ export enum NetworksTicker {
   'sei-mainnet' = 'SEI',
   rpc = '',
 }
+/* eslint-enable @typescript-eslint/naming-convention */
 
 export const BlockExplorerUrl = {
   [BuiltInNetworkName.Mainnet]: 'https://etherscan.io',
@@ -146,7 +165,12 @@ export const BlockExplorerUrl = {
   [BuiltInNetworkName.LineaGoerli]: 'https://goerli.lineascan.build',
   [BuiltInNetworkName.LineaSepolia]: 'https://sepolia.lineascan.build',
   [BuiltInNetworkName.LineaMainnet]: 'https://lineascan.build',
+  /**
+   * @deprecated `MegaETHTestnet` is migrated to `MegaETHTestnetV2`.
+   */
   [BuiltInNetworkName.MegaETHTestnet]: 'https://megaexplorer.xyz',
+  [BuiltInNetworkName.MegaETHTestnetV2]:
+    'https://megaeth-testnet-v2.blockscout.com',
   [BuiltInNetworkName.MonadTestnet]: 'https://testnet.monadexplorer.com',
   [BuiltInNetworkName.BaseMainnet]: 'https://basescan.org',
   [BuiltInNetworkName.ArbitrumOne]: 'https://arbiscan.io',
@@ -165,7 +189,11 @@ export const NetworkNickname = {
   [BuiltInNetworkName.LineaGoerli]: 'Linea Goerli',
   [BuiltInNetworkName.LineaSepolia]: 'Linea Sepolia',
   [BuiltInNetworkName.LineaMainnet]: 'Linea',
+  /**
+   * @deprecated `MegaETHTestnet` is migrated to `MegaETHTestnetV2`.
+   */
   [BuiltInNetworkName.MegaETHTestnet]: 'Mega Testnet',
+  [BuiltInNetworkName.MegaETHTestnetV2]: 'MegaETH Testnet',
   [BuiltInNetworkName.MonadTestnet]: 'Monad Testnet',
   [BuiltInNetworkName.BaseMainnet]: 'Base Mainnet',
   [BuiltInNetworkName.ArbitrumOne]: 'Arbitrum One',

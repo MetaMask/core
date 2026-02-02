@@ -2,16 +2,16 @@ import type {
   JsonRpcMiddleware,
   MiddlewareContext,
 } from '@metamask/json-rpc-engine/v2';
-import {
-  type Json,
-  type JsonRpcRequest,
-  createDeferredPromise,
-} from '@metamask/utils';
+import { createDeferredPromise } from '@metamask/utils';
+import type { Json, JsonRpcRequest } from '@metamask/utils';
 
 import { projectLogger, createModuleLogger } from './logging-utils';
 import { cacheIdentifierForRequest } from './utils/cache';
 
-type RequestHandler = [(result: Json) => void, (error: Error) => void];
+type RequestHandler = [
+  (result: Readonly<Json>) => void,
+  (error: unknown) => void,
+];
 
 type InflightRequest = {
   [cacheId: string]: RequestHandler[];
@@ -64,7 +64,7 @@ export function createInflightCacheMiddleware(): JsonRpcMiddleware<
     // allow request to be handled normally
     log('Carrying original request forward %o', request);
     try {
-      const result = (await next()) as Json;
+      const result = (await next()) as Readonly<Json>;
       log(
         'Running %i collected handler(s) for successful request %o',
         activeRequestHandlers.length,
@@ -78,7 +78,7 @@ export function createInflightCacheMiddleware(): JsonRpcMiddleware<
         activeRequestHandlers.length,
         request,
       );
-      runRequestHandlers({ error: error as Error }, activeRequestHandlers);
+      runRequestHandlers({ error }, activeRequestHandlers);
       throw error;
     } finally {
       delete inflightRequests[cacheId];
@@ -94,11 +94,11 @@ export function createInflightCacheMiddleware(): JsonRpcMiddleware<
  */
 function createActiveRequestHandler(
   activeRequestHandlers: RequestHandler[],
-): Promise<Json> {
-  const { resolve, promise, reject } = createDeferredPromise<Json>();
+): Promise<Readonly<Json>> {
+  const { resolve, promise, reject } = createDeferredPromise<Readonly<Json>>();
   activeRequestHandlers.push([
-    (result: Json) => resolve(result),
-    (error: Error) => reject(error),
+    (result: Readonly<Json>): void => resolve(result),
+    (error: unknown): void => reject(error),
   ]);
   return promise;
 }
@@ -110,7 +110,7 @@ function createActiveRequestHandler(
  * @param activeRequestHandlers - The active request handlers.
  */
 function runRequestHandlers(
-  resultOrError: { result: Json } | { error: Error },
+  resultOrError: { result: Readonly<Json> } | { error: unknown },
   activeRequestHandlers: RequestHandler[],
 ): void {
   // use setTimeout so we can handle the original request first

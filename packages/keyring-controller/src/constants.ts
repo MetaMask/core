@@ -1,8 +1,9 @@
-export enum KeyringControllerError {
+export enum KeyringControllerErrorMessage {
   NoKeyring = 'KeyringController - No keyring found',
   KeyringNotFound = 'KeyringController - Keyring not found.',
   UnsafeDirectKeyringAccess = 'KeyringController - Returning keyring instances is unsafe',
   WrongPasswordType = 'KeyringController - Password must be of type string.',
+  WrongEncryptionKeyType = 'KeyringController - Encryption key must be of type string.',
   InvalidEmptyPassword = 'KeyringController - Password cannot be empty.',
   NoFirstAccount = 'KeyringController - First Account not found.',
   DuplicatedAccount = 'KeyringController - The account you are trying to import is a duplicate',

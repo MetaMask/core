@@ -1,6 +1,6 @@
 {
   "name": "@metamask/analytics-controller",
-  "version": "0.0.0",
+  "version": "1.0.0",
   "description": "Common Analytics controller for event tracking",
   "keywords": [
     "MetaMask",
@@ -14,7 +14,7 @@
     "type": "git",
     "url": "https://github.com/MetaMask/core.git"
   },
-  "license": "MIT",
+  "license": "(MIT OR Apache-2.0)",
   "sideEffects": false,
   "exports": {
     ".": {
@@ -50,16 +50,15 @@
   "dependencies": {
     "@metamask/base-controller": "^9.0.0",
     "@metamask/messenger": "^0.3.0",
-    "@metamask/utils": "^11.8.1",
-    "uuid": "^8.3.2"
+    "@metamask/utils": "^11.9.0"
   },
   "devDependencies": {
     "@metamask/auto-changelog": "^3.4.4",
     "@ts-bridge/cli": "^0.6.4",
-    "@types/jest": "^27.4.1",
+    "@types/jest": "^27.5.2",
     "deepmerge": "^4.2.2",
     "jest": "^27.5.1",
-    "ts-jest": "^27.1.4",
+    "ts-jest": "^27.1.5",
     "typedoc": "^0.24.8",
     "typedoc-plugin-missing-exports": "^2.0.0",
     "typescript": "~5.3.3"

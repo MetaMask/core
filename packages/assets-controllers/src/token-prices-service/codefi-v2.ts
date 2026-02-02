@@ -7,21 +7,30 @@ import {
   handleFetch,
 } from '@metamask/controller-utils';
 import type { ServicePolicy } from '@metamask/controller-utils';
-import type { Hex } from '@metamask/utils';
-import { hexToNumber } from '@metamask/utils';
+import type { CaipAssetType, Hex } from '@metamask/utils';
+import {
+  hexToNumber,
+  KnownCaipNamespace,
+  numberToHex,
+  toCaipChainId,
+} from '@metamask/utils';
 
 import type {
   AbstractTokenPricesService,
+  EvmAssetAddressWithChain,
+  EvmAssetWithId,
+  EvmAssetWithMarketData,
   ExchangeRatesByCurrency,
-  TokenPrice,
-  TokenPricesByTokenAddress,
+  NativeAssetIdentifiersMap,
 } from './abstract-token-prices-service';
+import type { MarketDataDetails } from '../TokenRatesController';
 
 /**
  * The list of currencies that can be supplied as the `vsCurrency` parameter to
  * the `/spot-prices` endpoint, in lowercase form.
+ * This is the fallback list used when the API is unavailable.
  */
-export const SUPPORTED_CURRENCIES = [
+export const SUPPORTED_CURRENCIES_FALLBACK = [
   // Bitcoin
   'btc',
   // Ether
@@ -76,6 +85,8 @@ export const SUPPORTED_CURRENCIES = [
   'eur',
   // British Pound Sterling
   'gbp',
+  // Georgian Lari
+  'gel',
   // Hong Kong Dollar
   'hkd',
   // Hungarian Forint
@@ -100,6 +111,8 @@ export const SUPPORTED_CURRENCIES = [
   'mxn',
   // Malaysian Ringgit
   'myr',
+  // Monad
+  'mon',
   // Nigerian Naira
   'ngn',
   // Norwegian Krone
@@ -144,7 +157,61 @@ export const SUPPORTED_CURRENCIES = [
   'bits',
   // Satoshi
   'sats',
+  // Colombian Peso
+  'cop',
+  // Kenyan Shilling
+  'kes',
+  // Romanian Leu
+  'ron',
+  // Dominican Peso
+  'dop',
+  // Costa Rican Colón
+  'crc',
+  // Honduran Lempira
+  'hnl',
+  // Zambian Kwacha
+  'zmw',
+  // Salvadoran Colón
+  'svc',
+  // Bosnia-Herzegovina Convertible Mark
+  'bam',
+  // Peruvian Sol
+  'pen',
+  // Guatemalan Quetzal
+  'gtq',
+  // Lebanese Pound
+  'lbp',
+  // Armenian Dram
+  'amd',
+  // Solana
+  'sol',
+  // Sei
+  'sei',
+  // Sonic
+  'sonic',
+  // Tron
+  'trx',
+  // Taiko
+  'taiko',
+  // Pepu
+  'pepu',
+  // Polygon
+  'pol',
+  // Mantle
+  'mnt',
+  // Onomy
+  'nom',
+  // Avalanche
+  'avax',
+  // Apechain
+  'ape',
 ] as const;
+
+/**
+ * @deprecated Use `getSupportedCurrencies()` or `fetchSupportedCurrencies()` instead.
+ * This is an alias for backward compatibility.
+ */
+export const SUPPORTED_CURRENCIES = SUPPORTED_CURRENCIES_FALLBACK;
 
 /**
  * Represents the zero address, commonly used as a placeholder in blockchain transactions.
@@ -160,7 +227,12 @@ export const ZERO_ADDRESS: Hex =
  * Only for chains whose native tokens have a specific address.
  */
 const chainIdToNativeTokenAddress: Record<Hex, Hex> = {
-  '0x89': '0x0000000000000000000000000000000000001010',
+  '0x89': '0x0000000000000000000000000000000000001010', // Polygon
+  '0x440': '0xdeaddeaddeaddeaddeaddeaddeaddeaddead0000', // Metis Andromeda
+  '0x1388': '0xdeaddeaddeaddeaddeaddeaddeaddeaddead0000', // Mantle
+  '0x64': '0xe91d153e0b41518a2ce8dd3d7944fa863463a97d', // Gnosis
+  '0x1e': '0x542fda317318ebf1d3deaf76e0b632741a7e677d', // Rootstock Mainnet - Native symbol: RBTC
+  '0x2611': '0xeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeee', // Plasma mainnet - native symbol: XPL
 };
 
 /**
@@ -174,13 +246,86 @@ const chainIdToNativeTokenAddress: Record<Hex, Hex> = {
 export const getNativeTokenAddress = (chainId: Hex): Hex =>
   chainIdToNativeTokenAddress[chainId] ?? ZERO_ADDRESS;
 
+// Source: https://github.com/consensys-vertical-apps/va-mmcx-price-api/blob/main/src/constants/slip44.ts
+// We can only support PricesAPI V3 for EVM chains that have a CAIP-19 native asset mapping.
+export const SPOT_PRICES_SUPPORT_INFO = {
+  '0x1': 'eip155:1/slip44:60', // Ethereum Mainnet - Native symbol: ETH
+  '0xa': 'eip155:10/slip44:60', // OP Mainnet - Native symbol: ETH
+  '0x19': 'eip155:25/slip44:394', // Cronos Mainnet - Native symbol: CRO
+  '0x1e': 'eip155:30/slip44:137', // Rootstock Mainnet - Native symbol: RBTC
+  '0x2a': 'eip155:42/erc20:0x0000000000000000000000000000000000000000', // Lukso - native symbol: LYX
+  '0x32': 'eip155:50/erc20:0x0000000000000000000000000000000000000000', // xdc-network - native symbol: XDC
+  '0x38': 'eip155:56/slip44:714', // BNB Smart Chain Mainnet - Native symbol: BNB
+  '0x39': 'eip155:57/slip44:57', // Syscoin Mainnet - Native symbol: SYS
+  '0x52': 'eip155:82/slip44:18000', // Meter Mainnet - Native symbol: MTR
+  '0x58': 'eip155:88/slip44:889', // TomoChain - Native symbol: TOMO
+  '0x64': 'eip155:100/slip44:700', // Gnosis (formerly xDAI Chain) - Native symbol: xDAI
+  '0x6a': 'eip155:106/slip44:5655640', // Velas EVM Mainnet - Native symbol: VLX
+  '0x7a': 'eip155:122/erc20:0x0000000000000000000000000000000000000000', // Fuse Mainnet - Native symbol: FUSE
+  '0x80': 'eip155:128/slip44:1010', // Huobi ECO Chain Mainnet - Native symbol: HT
+  '0x89': 'eip155:137/slip44:966', // Polygon Mainnet - Native symbol: POL
+  '0x8f': 'eip155:143/slip44:268435779', // Monad Mainnet - Native symbol: MON
+  '0x92': 'eip155:146/slip44:10007', // Sonic Mainnet - Native symbol: S
+  '0xc4': 'eip155:196/erc20:0x0000000000000000000000000000000000000000', // X Layer Mainnet - Native symbol: OKB
+  '0xe8': 'eip155:232/erc20:0x0000000000000000000000000000000000000000', // Lens Mainnet - Native symbol: GHO
+  '0xfa': 'eip155:250/slip44:1007', // Fantom Opera - Native symbol: FTM
+  '0xfc': 'eip155:252/erc20:0x0000000000000000000000000000000000000000', // Fraxtal - native symbol: FRAX
+  '0x10b3e': 'eip155:68414/erc20:0x0000000000000000000000000000000000000000', // MapleStory Universe - no slip44
+  '0x120': 'eip155:288/slip44:60', // Boba Network (Ethereum L2) - Native symbol: ETH
+  '0x141': 'eip155:321/slip44:641', // KCC Mainnet - Native symbol: KCS
+  '0x144': 'eip155:324/slip44:60', // zkSync Era Mainnet (Ethereum L2) - Native symbol: ETH
+  '0x150': 'eip155:336/slip44:809', // Shiden - Native symbol: SDN
+  '0x169': 'eip155:361/slip44:589', // Theta Mainnet - Native symbol: TFUEL
+  '0x2eb': 'eip155:747/slip44:539', // Flow evm - Native symbol: Flow
+  '0x3e7': 'eip155:999/slip44:2457', // HyperEVM - Native symbol: HYPE
+  '0x440': 'eip155:1088/erc20:0xdeaddeaddeaddeaddeaddeaddeaddeaddead0000', // Metis Andromeda Mainnet (Ethereum L2) - Native symbol: METIS
+  '0x44d': 'eip155:1101/slip44:60', // Polygon zkEVM mainnet - Native symbol: ETH
+  '0x504': 'eip155:1284/slip44:1284', // Moonbeam - Native symbol: GLMR
+  '0x505': 'eip155:1285/slip44:1285', // Moonriver - Native symbol: MOVR
+  '0x531': 'eip155:1329/slip44:19000118', // Sei Mainnet - Native symbol: SEI
+  '0x74c': 'eip155:1868/erc20:0x0000000000000000000000000000000000000000', // Soneium - Native symbol: ETH
+  '0xa729': 'eip155:42793/erc20:0x0000000000000000000000000000000000000000', // Etherlink - Native symbol: XTZ (Tezos L2)
+  '0xab5': 'eip155:2741/erc20:0x0000000000000000000000000000000000000000', // Abstract - Native symbol: ETH
+  '0x10e6': 'eip155:4326/erc20:0x0000000000000000000000000000000000000000', // MegaETH Mainnet - Native symbol: ETH
+  '0x1388': 'eip155:5000/erc20:0xdeaddeaddeaddeaddeaddeaddeaddeaddead0000', // Mantle - Native symbol: MNT
+  '0x2105': 'eip155:8453/slip44:60', // Base - Native symbol: ETH
+  '0x2611': 'eip155:9745/erc20:0xeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeee', // Plasma mainnet - native symbol: XPL
+  '0x2710': 'eip155:10000/slip44:145', // Smart Bitcoin Cash - Native symbol: BCH
+  '0x8173': 'eip155:33139/erc20:0x0000000000000000000000000000000000000000', // Apechain Mainnet - Native symbol: APE
+  '0xa3c3': 'eip155:41923/erc20:0x0000000000000000000000000000000000000000', // EDU Chain - Native symbol: EDU
+  '0xa4b1': 'eip155:42161/slip44:60', // Arbitrum One - Native symbol: ETH
+  '0xa4ec': 'eip155:42220/slip44:52752', // Celo Mainnet - Native symbol: CELO
+  '0xa516': 'eip155:42262/slip44:474', // Oasis Emerald - Native symbol: ROSE
+  '0xa867': 'eip155:43111/erc20:0x0000000000000000000000000000000000000000', // Hemi - Native symbol: ETH
+  '0xa86a': 'eip155:43114/slip44:9005', // Avalanche C-Chain - Native symbol: AVAX
+  '0xe708': 'eip155:59144/slip44:60', // Linea Mainnet - Native symbol: ETH
+  '0xed88': 'eip155:60808/erc20:0x0000000000000000000000000000000000000000', // BOB - Native symbol: ETH
+  '0x138de': 'eip155:80094/erc20:0x0000000000000000000000000000000000000000', // Berachain - Native symbol: Bera',
+  '0x13c31': 'eip155:81457/slip44:60', // Blast Mainnet - Native symbol: ETH
+  '0x17dcd': 'eip155:97741/erc20:0x0000000000000000000000000000000000000000', // Pepe Unchained Mainnet - Native symbol: PEPU
+  '0x18232': 'eip155:98866/erc20:0x0000000000000000000000000000000000000000', // Plume Mainnet - Narive symbol: Plume
+  '0x28c58': 'eip155:167000/slip44:60', // Taiko Mainnet - Native symbol: ETH
+  '0x518af': 'eip155:333999/slip44:1997', // Polis Mainnet - Native symbol: POLIS
+  '0x82750': 'eip155:534352/slip44:60', // Scroll Mainnet - Native symbol: ETH
+  '0xb67d2': 'eip155:747474/erc20:0x0000000000000000000000000000000000000000', // katana - Native symbol: ETH
+  '0x15f900': 'eip155:1440000/erc20:0x0000000000000000000000000000000000000000', // xrpl-evm - native symbol: XRP
+  '0x4e454152': 'eip155:1313161554/slip44:60', // Aurora Mainnet (Ethereum L2 on NEAR) - Native symbol: ETH
+  '0x63564c40': 'eip155:1666600000/slip44:1023', // Harmony Mainnet Shard 0 - Native symbol: ONE
+} as const;
+
+// MISSING CHAINS WITH NO NATIVE ASSET PRICES
+// '0x42': 'eip155:66/slip44:996', // OKXChain Mainnet - Native symbol: OKT
+// '0x46': 'eip155:70/slip44:1170', // Hoo Smart Chain - Native symbol: HOO
+// '0x926': 'eip155:2342/erc20:0x0000000000000000000000000000000000000000', // Omnia Chain - Native symbol: OMNIA
+// '0x407b': 'eip155:16507/erc20:0x0000000000000000000000000000000000000000', // Genesys Mainnet - Native symbol: GSYS
+
 /**
  * A currency that can be supplied as the `vsCurrency` parameter to
  * the `/spot-prices` endpoint. Covers both uppercase and lowercase versions.
  */
 type SupportedCurrency =
-  | (typeof SUPPORTED_CURRENCIES)[number]
-  | Uppercase<(typeof SUPPORTED_CURRENCIES)[number]>;
+  | (typeof SUPPORTED_CURRENCIES_FALLBACK)[number]
+  | Uppercase<(typeof SUPPORTED_CURRENCIES_FALLBACK)[number]>;
 
 /**
  * The list of chain IDs that can be supplied in the URL for the `/spot-prices`
@@ -189,82 +334,9 @@ type SupportedCurrency =
  *
  * @see Used by {@link CodefiTokenPricesServiceV2} to validate that a given chain ID is supported by V2 of the Codefi Price API.
  */
-export const SUPPORTED_CHAIN_IDS = [
-  // Ethereum Mainnet
-  '0x1',
-  // OP Mainnet
-  '0xa',
-  // Cronos Mainnet
-  '0x19',
-  // BNB Smart Chain Mainnet
-  '0x38',
-  // Syscoin Mainnet
-  '0x39',
-  // OKXChain Mainnet
-  '0x42',
-  // Hoo Smart Chain
-  '0x46',
-  // Meter Mainnet
-  '0x52',
-  // TomoChain
-  '0x58',
-  // Gnosis
-  '0x64',
-  // Velas EVM Mainnet
-  '0x6a',
-  // Fuse Mainnet
-  '0x7a',
-  // Huobi ECO Chain Mainnet
-  '0x80',
-  // Polygon Mainnet
-  '0x89',
-  // Fantom Opera
-  '0xfa',
-  // Boba Network
-  '0x120',
-  // KCC Mainnet
-  '0x141',
-  // zkSync Era Mainnet
-  '0x144',
-  // Theta Mainnet
-  '0x169',
-  // Metis Andromeda Mainnet
-  '0x440',
-  // Moonbeam
-  '0x504',
-  // Moonriver
-  '0x505',
-  // Mantle
-  '0x1388',
-  // Base
-  '0x2105',
-  // Shiden
-  '0x150',
-  // Smart Bitcoin Cash
-  '0x2710',
-  // Arbitrum One
-  '0xa4b1',
-  // Celo Mainnet
-  '0xa4ec',
-  // Oasis Emerald
-  '0xa516',
-  // Avalanche C-Chain
-  '0xa86a',
-  // Polis Mainnet
-  '0x518af',
-  // Aurora Mainnet
-  '0x4e454152',
-  // Harmony Mainnet Shard 0
-  '0x63564c40',
-  // Linea Mainnet
-  '0xe708',
-  // Sei Mainnet
-  '0x531',
-  // Sonic Mainnet
-  '0x92',
-  // Monad Mainnet
-  '0x8f',
-] as const;
+export const SUPPORTED_CHAIN_IDS = Object.keys(
+  SPOT_PRICES_SUPPORT_INFO,
+) as (keyof typeof SPOT_PRICES_SUPPORT_INFO)[];
 
 /**
  * A chain ID that can be supplied in the URL for the `/spot-prices` endpoint,
@@ -273,101 +345,202 @@ export const SUPPORTED_CHAIN_IDS = [
  */
 type SupportedChainId = (typeof SUPPORTED_CHAIN_IDS)[number];
 
-/**
- * All requests to V2 of the Price API start with this.
- */
-const BASE_URL = 'https://price.api.cx.metamask.io/v2';
-
 const BASE_URL_V1 = 'https://price.api.cx.metamask.io/v1';
 
+const BASE_URL_V2 = 'https://price.api.cx.metamask.io/v2';
+
+const BASE_URL_V3 = 'https://price.api.cx.metamask.io/v3';
+
 /**
- * The shape of the data that the /spot-prices endpoint returns.
+ * Response type for the /v2/supportedNetworks endpoint.
  */
-type MarketData = {
-  /**
-   * The all-time highest price of the token.
-   */
-  allTimeHigh: number;
-  /**
-   * The all-time lowest price of the token.
-   */
-  allTimeLow: number;
-  /**
-   * The number of tokens currently in circulation.
-   */
-  circulatingSupply: number;
-  /**
-   * The market cap calculated using the diluted supply.
-   */
-  dilutedMarketCap: number;
-  /**
-   * The highest price of the token in the last 24 hours.
-   */
-  high1d: number;
-  /**
-   * The lowest price of the token in the last 24 hours.
-   */
-  low1d: number;
-  /**
-   * The current market capitalization of the token.
-   */
-  marketCap: number;
-  /**
-   * The percentage change in market capitalization over the last 24 hours.
-   */
-  marketCapPercentChange1d: number;
-  /**
-   * The current price of the token.
-   */
-  price: number;
-  /**
-   * The absolute change in price over the last 24 hours.
-   */
-  priceChange1d: number;
-  /**
-   * The percentage change in price over the last 24 hours.
-   */
-  pricePercentChange1d: number;
-  /**
-   * The percentage change in price over the last hour.
-   */
-  pricePercentChange1h: number;
-  /**
-   * The percentage change in price over the last year.
-   */
-  pricePercentChange1y: number;
-  /**
-   * The percentage change in price over the last 7 days.
-   */
-  pricePercentChange7d: number;
-  /**
-   * The percentage change in price over the last 14 days.
-   */
-  pricePercentChange14d: number;
-  /**
-   * The percentage change in price over the last 30 days.
-   */
-  pricePercentChange30d: number;
-  /**
-   * The percentage change in price over the last 200 days.
-   */
-  pricePercentChange200d: number;
-  /**
-   * The total trading volume of the token in the last 24 hours.
-   */
-  totalVolume: number;
+type SupportedNetworksResponse = {
+  fullSupport: string[];
+  partialSupport: {
+    spotPricesV2: string[];
+    spotPricesV3: string[];
+  };
 };
 
-type MarketDataByTokenAddress = { [address: Hex]: MarketData };
+/**
+ * In-memory store for the last successfully fetched supported networks.
+ */
+let lastFetchedSupportedNetworks: SupportedNetworksResponse | null = null;
+
+/**
+ * Converts a CAIP-2 chain ID (e.g., 'eip155:1') to a hex chain ID (e.g., '0x1').
+ *
+ * @param caipChainId - The CAIP-2 chain ID string.
+ * @returns The hex chain ID or null if not an EIP-155 chain.
+ */
+function caipChainIdToHex(caipChainId: string): Hex | null {
+  const match = caipChainId.match(/^eip155:(\d+)$/u);
+  if (!match) {
+    return null;
+  }
+  return numberToHex(parseInt(match[1], 10));
+}
+
+/**
+ * Fetches the list of supported networks from the API.
+ * Falls back to the hardcoded list if the fetch fails.
+ *
+ * @returns The supported networks response.
+ */
+export async function fetchSupportedNetworks(): Promise<SupportedNetworksResponse> {
+  try {
+    const url = `${BASE_URL_V2}/supportedNetworks`;
+    const response = await handleFetch(url, {
+      headers: { 'Cache-Control': 'no-cache' },
+    });
+
+    if (
+      response &&
+      typeof response === 'object' &&
+      'fullSupport' in response &&
+      'partialSupport' in response
+    ) {
+      lastFetchedSupportedNetworks = response as SupportedNetworksResponse;
+      return lastFetchedSupportedNetworks;
+    }
+
+    // Invalid response format, fall back to hardcoded list
+    return getSupportedNetworksFallback();
+  } catch {
+    // On any error, fall back to the hardcoded list
+    return getSupportedNetworksFallback();
+  }
+}
+
+/**
+ * Synchronously gets the list of supported networks.
+ * Returns the last fetched value if available, otherwise returns the fallback list.
+ *
+ * @returns The supported networks response.
+ */
+export function getSupportedNetworks(): SupportedNetworksResponse {
+  if (lastFetchedSupportedNetworks !== null) {
+    return lastFetchedSupportedNetworks;
+  }
+  return getSupportedNetworksFallback();
+}
+
+/**
+ * Generates a fallback supported networks response from the hardcoded SPOT_PRICES_SUPPORT_INFO.
+ *
+ * @returns A SupportedNetworksResponse derived from hardcoded data.
+ */
+function getSupportedNetworksFallback(): SupportedNetworksResponse {
+  const caipChainIds = Object.keys(SPOT_PRICES_SUPPORT_INFO).map((hexChainId) =>
+    toCaipChainId(
+      KnownCaipNamespace.Eip155,
+      hexToNumber(hexChainId as Hex).toString(),
+    ),
+  );
+
+  return {
+    fullSupport: caipChainIds.slice(0, 11), // First 11 chains as "full support"
+    partialSupport: {
+      spotPricesV2: caipChainIds,
+      spotPricesV3: caipChainIds,
+    },
+  };
+}
+
+/**
+ * Resets the supported networks cache.
+ * This is primarily intended for testing purposes.
+ */
+export function resetSupportedNetworksCache(): void {
+  lastFetchedSupportedNetworks = null;
+}
+
+/**
+ * Gets the list of supported chain IDs for spot prices v3 as hex values.
+ *
+ * @returns Array of hex chain IDs supported by spot prices v3.
+ */
+function getSupportedChainIdsV3AsHex(): Hex[] {
+  const supportedNetworks = getSupportedNetworks();
+  const allV3Chains = [
+    ...supportedNetworks.fullSupport,
+    ...supportedNetworks.partialSupport.spotPricesV3,
+  ];
+
+  return allV3Chains
+    .map(caipChainIdToHex)
+    .filter((hexChainId): hexChainId is Hex => hexChainId !== null);
+}
+
+/**
+ * In-memory store for the last successfully fetched supported currencies.
+ */
+let lastFetchedCurrencies: string[] | null = null;
+
+/**
+ * Fetches the list of supported currencies from the API.
+ * Falls back to the hardcoded list if the fetch fails.
+ *
+ * @returns The list of supported currencies in lowercase.
+ */
+export async function fetchSupportedCurrencies(): Promise<string[]> {
+  try {
+    const url = `${BASE_URL_V1}/supportedVsCurrencies`;
+    const response = await handleFetch(url, {
+      headers: { 'Cache-Control': 'no-cache' },
+    });
+
+    if (Array.isArray(response)) {
+      const currencies = response.map((currency: string) =>
+        currency.toLowerCase(),
+      );
+      lastFetchedCurrencies = currencies;
+      return currencies;
+    }
+
+    // Invalid response format, fall back to hardcoded list
+    return [...SUPPORTED_CURRENCIES_FALLBACK];
+  } catch {
+    // On any error, fall back to the hardcoded list
+    return [...SUPPORTED_CURRENCIES_FALLBACK];
+  }
+}
+
+/**
+ * Synchronously gets the list of supported currencies.
+ * Returns the last fetched value if available, otherwise returns the fallback list.
+ *
+ * @returns The list of supported currencies in lowercase.
+ */
+export function getSupportedCurrencies(): readonly string[] {
+  if (lastFetchedCurrencies !== null) {
+    return lastFetchedCurrencies;
+  }
+  return SUPPORTED_CURRENCIES_FALLBACK;
+}
+
+/**
+ * Resets the supported currencies cache.
+ * This is primarily intended for testing purposes.
+ */
+export function resetSupportedCurrenciesCache(): void {
+  lastFetchedCurrencies = null;
+}
+
 /**
  * This version of the token prices service uses V2 of the Codefi Price API to
  * fetch token prices.
  */
 export class CodefiTokenPricesServiceV2
-  implements
-    AbstractTokenPricesService<SupportedChainId, Hex, SupportedCurrency>
+  implements AbstractTokenPricesService<SupportedChainId, SupportedCurrency>
 {
   readonly #policy: ServicePolicy;
+
+  /**
+   * Map of CAIP-2 chain IDs to their native asset identifiers.
+   * Updated via setNativeAssetIdentifiers().
+   */
+  #nativeAssetIdentifiers: NativeAssetIdentifiersMap = {};
 
   /**
    * Construct a Codefi Token Price Service.
@@ -454,7 +627,9 @@ export class CodefiTokenPricesServiceV2
    * takes.
    * @returns What {@link ServicePolicy.onBreak} returns.
    */
-  onBreak(...args: Parameters<ServicePolicy['onBreak']>) {
+  onBreak(
+    ...args: Parameters<ServicePolicy['onBreak']>
+  ): ReturnType<ServicePolicy['onBreak']> {
     return this.#policy.onBreak(...args);
   }
 
@@ -465,8 +640,32 @@ export class CodefiTokenPricesServiceV2
    * takes.
    * @returns What {@link ServicePolicy.onDegraded} returns.
    */
-  onDegraded(...args: Parameters<ServicePolicy['onDegraded']>) {
+  onDegraded(
+    ...args: Parameters<ServicePolicy['onDegraded']>
+  ): ReturnType<ServicePolicy['onDegraded']> {
     return this.#policy.onDegraded(...args);
+  }
+
+  /**
+   * Sets the native asset identifiers map for resolving native token CAIP-19 IDs.
+   * This should be called with data from NetworkEnablementController.state.nativeAssetIdentifiers.
+   *
+   * @param nativeAssetIdentifiers - Map of CAIP-2 chain IDs to native asset identifiers.
+   */
+  setNativeAssetIdentifiers(
+    nativeAssetIdentifiers: NativeAssetIdentifiersMap,
+  ): void {
+    this.#nativeAssetIdentifiers = nativeAssetIdentifiers;
+  }
+
+  /**
+   * Updates the supported networks cache by fetching from the API.
+   * This should be called periodically to keep the supported networks list fresh.
+   *
+   * @returns The updated supported networks response.
+   */
+  async updateSupportedNetworks(): Promise<SupportedNetworksResponse> {
+    return fetchSupportedNetworks();
   }
 
   /**
@@ -474,64 +673,101 @@ export class CodefiTokenPricesServiceV2
    * given addresses which are expected to live on the given chain.
    *
    * @param args - The arguments to function.
-   * @param args.chainId - An EIP-155 chain ID.
-   * @param args.tokenAddresses - Addresses for tokens that live on the chain.
+   * @param args.assets - The assets to get prices for.
    * @param args.currency - The desired currency of the token prices.
    * @returns The prices for the requested tokens.
    */
   async fetchTokenPrices({
-    chainId,
-    tokenAddresses,
+    assets,
     currency,
   }: {
-    chainId: SupportedChainId;
-    tokenAddresses: Hex[];
+    assets: EvmAssetAddressWithChain<SupportedChainId>[];
     currency: SupportedCurrency;
-  }): Promise<Partial<TokenPricesByTokenAddress<Hex, SupportedCurrency>>> {
-    const chainIdAsNumber = hexToNumber(chainId);
+  }): Promise<EvmAssetWithMarketData<SupportedChainId, SupportedCurrency>[]> {
+    // Refresh supported networks in background (non-blocking)
+    // This ensures the list stays fresh during normal polling
+    // Note: fetchSupportedNetworks handles errors internally and always resolves
+    // eslint-disable-next-line @typescript-eslint/no-floating-promises
+    fetchSupportedNetworks();
 
-    const url = new URL(`${BASE_URL}/chains/${chainIdAsNumber}/spot-prices`);
+    // Get dynamically fetched supported chain IDs for V3
+    const supportedChainIdsV3 = getSupportedChainIdsV3AsHex();
+
+    const assetsWithIds: EvmAssetWithId<SupportedChainId>[] = assets
+      // Filter out assets that are not supported by V3 of the Price API.
+      .filter((asset) => supportedChainIdsV3.includes(asset.chainId))
+      .map((asset) => {
+        const caipChainId = toCaipChainId(
+          KnownCaipNamespace.Eip155,
+          hexToNumber(asset.chainId).toString(),
+        );
+
+        const nativeAddress = getNativeTokenAddress(asset.chainId);
+        const isNativeToken =
+          nativeAddress.toLowerCase() === asset.tokenAddress.toLowerCase();
+
+        let assetId: string | undefined;
+        if (isNativeToken) {
+          // For native tokens, use nativeAssetIdentifiers from NetworkEnablementController,
+          // falling back to hardcoded SPOT_PRICES_SUPPORT_INFO
+          assetId =
+            this.#nativeAssetIdentifiers[caipChainId] ??
+            SPOT_PRICES_SUPPORT_INFO[asset.chainId];
+        } else {
+          // For ERC20 tokens, construct the CAIP-19 ID dynamically
+          assetId = `${caipChainId}/erc20:${asset.tokenAddress.toLowerCase()}`;
+        }
+
+        if (!assetId) {
+          return undefined;
+        }
+
+        return {
+          ...asset,
+          assetId: assetId as CaipAssetType,
+        };
+      })
+      .filter(
+        (asset): asset is EvmAssetWithId<SupportedChainId> =>
+          asset !== undefined,
+      );
+
+    if (assetsWithIds.length === 0) {
+      return [];
+    }
+
+    const url = new URL(`${BASE_URL_V3}/spot-prices`);
     url.searchParams.append(
-      'tokenAddresses',
-      [getNativeTokenAddress(chainId), ...tokenAddresses].join(','),
+      'assetIds',
+      assetsWithIds.map((asset) => asset.assetId).join(','),
     );
     url.searchParams.append('vsCurrency', currency);
     url.searchParams.append('includeMarketData', 'true');
 
-    const addressCryptoDataMap: MarketDataByTokenAddress =
-      await this.#policy.execute(() =>
-        handleFetch(url, { headers: { 'Cache-Control': 'no-cache' } }),
-      );
+    const addressCryptoDataMap: {
+      [assetId: CaipAssetType]: Omit<
+        MarketDataDetails,
+        'currency' | 'tokenAddress'
+      >;
+    } = await this.#policy.execute(() =>
+      handleFetch(url, { headers: { 'Cache-Control': 'no-cache' } }),
+    );
 
-    return [getNativeTokenAddress(chainId), ...tokenAddresses].reduce(
-      (
-        obj: Partial<TokenPricesByTokenAddress<Hex, SupportedCurrency>>,
-        tokenAddress,
-      ) => {
-        // The Price API lowercases both currency and token addresses, so we have
-        // to keep track of them and make sure we return the original versions.
-        const lowercasedTokenAddress =
-          tokenAddress.toLowerCase() as Lowercase<Hex>;
-
-        const marketData = addressCryptoDataMap[lowercasedTokenAddress];
+    return assetsWithIds
+      .map((assetWithId) => {
+        const marketData = addressCryptoDataMap[assetWithId.assetId];
 
         if (!marketData) {
-          return obj;
+          return undefined;
         }
 
-        const token: TokenPrice<Hex, SupportedCurrency> = {
-          tokenAddress,
-          currency,
-          ...marketData,
-        };
-
         return {
-          ...obj,
-          [tokenAddress]: token,
+          ...marketData,
+          ...assetWithId,
+          currency,
         };
-      },
-      {},
-    ) as Partial<TokenPricesByTokenAddress<Hex, SupportedCurrency>>;
+      })
+      .filter((entry): entry is NonNullable<typeof entry> => Boolean(entry));
   }
 
   /**
@@ -552,6 +788,12 @@ export class CodefiTokenPricesServiceV2
     includeUsdRate: boolean;
     cryptocurrencies: string[];
   }): Promise<ExchangeRatesByCurrency<SupportedCurrency>> {
+    // Refresh supported currencies in background (non-blocking)
+    // This ensures the list stays fresh during normal polling
+    // Note: fetchSupportedCurrencies handles errors internally and always resolves
+    // eslint-disable-next-line @typescript-eslint/no-floating-promises
+    fetchSupportedCurrencies();
+
     const url = new URL(`${BASE_URL_V1}/exchange-rates`);
     url.searchParams.append('baseCurrency', baseCurrency);
 
@@ -644,8 +886,15 @@ export class CodefiTokenPricesServiceV2
    * @returns True if the API supports the chain ID, false otherwise.
    */
   validateChainIdSupported(chainId: unknown): chainId is SupportedChainId {
-    const supportedChainIds: readonly string[] = SUPPORTED_CHAIN_IDS;
-    return typeof chainId === 'string' && supportedChainIds.includes(chainId);
+    // Use dynamically fetched supported networks
+    const supportedChainIds = getSupportedChainIdsV3AsHex();
+    // Also include the hardcoded fallback list for backwards compatibility
+    const allSupportedChainIds: readonly string[] = [
+      ...new Set([...supportedChainIds, ...SUPPORTED_CHAIN_IDS]),
+    ];
+    return (
+      typeof chainId === 'string' && allSupportedChainIds.includes(chainId)
+    );
   }
 
   /**
@@ -657,10 +906,19 @@ export class CodefiTokenPricesServiceV2
    * @returns True if the API supports the currency, false otherwise.
    */
   validateCurrencySupported(currency: unknown): currency is SupportedCurrency {
-    const supportedCurrencies: readonly string[] = SUPPORTED_CURRENCIES;
+    const supportedCurrencies = getSupportedCurrencies();
     return (
       typeof currency === 'string' &&
       supportedCurrencies.includes(currency.toLowerCase())
     );
+  }
+
+  /**
+   * Fetches the list of supported currencies from the API.
+   *
+   * @returns The list of supported currencies.
+   */
+  async updateSupportedCurrencies(): Promise<string[]> {
+    return fetchSupportedCurrencies();
   }
 }

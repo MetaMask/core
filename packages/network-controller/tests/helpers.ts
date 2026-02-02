@@ -1,3 +1,5 @@
+import { CONNECTIVITY_STATUSES } from '@metamask/connectivity-controller';
+import type { ConnectivityStatus } from '@metamask/connectivity-controller';
 import {
   ChainId,
   InfuraNetworkType,
@@ -5,14 +7,12 @@ import {
   NetworksTicker,
   toHex,
 } from '@metamask/controller-utils';
-import type { ErrorReportingServiceCaptureExceptionAction } from '@metamask/error-reporting-service';
 import type { InternalProvider } from '@metamask/eth-json-rpc-provider';
-import {
-  Messenger,
-  type MockAnyNamespace,
-  type MessengerActions,
-  type MessengerEvents,
-  MOCK_ANY_NAMESPACE,
+import { Messenger, MOCK_ANY_NAMESPACE } from '@metamask/messenger';
+import type {
+  MockAnyNamespace,
+  MessengerActions,
+  MessengerEvents,
 } from '@metamask/messenger';
 import type { Hex } from '@metamask/utils';
 import { v4 as uuidV4 } from 'uuid';
@@ -21,14 +21,14 @@ import { FakeBlockTracker } from '../../../tests/fake-block-tracker';
 import { FakeProvider } from '../../../tests/fake-provider';
 import type { FakeProviderStub } from '../../../tests/fake-provider';
 import { buildTestObject } from '../../../tests/helpers';
-import {
-  type BuiltInNetworkClientId,
-  type CustomNetworkClientId,
-  type NetworkClient,
-  type NetworkClientConfiguration,
-  type NetworkClientId,
-  type NetworkConfiguration,
-  type NetworkController,
+import { NetworkController } from '../src';
+import type {
+  BuiltInNetworkClientId,
+  CustomNetworkClientId,
+  NetworkClient,
+  NetworkClientConfiguration,
+  NetworkClientId,
+  NetworkConfiguration,
 } from '../src';
 import type { AutoManagedNetworkClient } from '../src/create-auto-managed-network-client';
 import type {
@@ -37,9 +37,11 @@ import type {
   CustomRpcEndpoint,
   InfuraRpcEndpoint,
   NetworkControllerMessenger,
+  NetworkControllerOptions,
   UpdateNetworkCustomRpcEndpointFields,
 } from '../src/NetworkController';
 import { RpcEndpointType } from '../src/NetworkController';
+import { RpcServiceOptions } from '../src/rpc-service/rpc-service';
 import type {
   CustomNetworkClientConfiguration,
   InfuraNetworkClientConfiguration,
@@ -84,28 +86,29 @@ export const TESTNET = {
  * Build a root messenger that includes all events used by the network
  * controller.
  *
- * @param options - Options.
- * @param options.actionHandlers - Handlers for actions that are pre-registered
- * on the messenger.
+ * @param options - Optional configuration.
+ * @param options.connectivityStatus - The connectivity status to return by default.
+ * If not provided, defaults to Online.
  * @returns The messenger.
  */
 export function buildRootMessenger({
-  actionHandlers = {},
+  connectivityStatus = CONNECTIVITY_STATUSES.Online,
 }: {
-  actionHandlers?: {
-    'ErrorReportingService:captureException'?: ErrorReportingServiceCaptureExceptionAction['handler'];
-  };
+  connectivityStatus?: ConnectivityStatus;
 } = {}): RootMessenger {
   const rootMessenger = new Messenger<
     MockAnyNamespace,
     MessengerActions<NetworkControllerMessenger>,
     MessengerEvents<NetworkControllerMessenger>
-  >({ namespace: MOCK_ANY_NAMESPACE });
+  >({ namespace: MOCK_ANY_NAMESPACE, captureException: jest.fn() });
+
   rootMessenger.registerActionHandler(
-    'ErrorReportingService:captureException',
-    actionHandlers['ErrorReportingService:captureException'] ??
-      ((error) => console.error(error)),
+    'ConnectivityController:getState',
+    () => ({
+      connectivityStatus,
+    }),
   );
+
   return rootMessenger;
 }
 
@@ -127,10 +130,12 @@ export function buildNetworkControllerMessenger(
     namespace: 'NetworkController',
     parent: rootMessenger,
   });
+
   rootMessenger.delegate({
     messenger: networkControllerMessenger,
-    actions: ['ErrorReportingService:captureException'],
+    actions: ['ConnectivityController:getState'],
   });
+
   return networkControllerMessenger;
 }
 
@@ -158,7 +163,7 @@ function buildFakeNetworkClient({
     blockTracker: new FakeBlockTracker({
       provider: provider as unknown as InternalProvider,
     }),
-    destroy: () => {
+    destroy: (): void => {
       // do nothing
     },
   };
@@ -217,7 +222,7 @@ export function buildMockGetNetworkClientById(
   function getNetworkClientById(
     networkClientId: CustomNetworkClientId,
   ): AutoManagedNetworkClient<CustomNetworkClientConfiguration>;
-  // eslint-disable-next-line jsdoc/require-jsdoc
+
   function getNetworkClientById(networkClientId: string): NetworkClient {
     const mockNetworkClientConfiguration =
       mergedMockNetworkClientConfigurationsByNetworkClientId[networkClientId];
@@ -270,7 +275,7 @@ export function buildMockFindNetworkClientIdByChainId(
   };
 
   function findNetworkClientIdByChainId(chainId: Hex): NetworkClientId;
-  // eslint-disable-next-line jsdoc/require-jsdoc
+
   function findNetworkClientIdByChainId(chainId: Hex): NetworkClientId {
     const networkClientConfigForChainId =
       mergedMockNetworkClientConfigurationsByNetworkClientId[chainId];
@@ -597,4 +602,55 @@ function generateCustomRpcEndpointUrl(): string {
   const url = `https://test.endpoint/${testEndpointCounter}`;
   testEndpointCounter += 1;
   return url;
+}
+
+type WithControllerCallback<ReturnValue> = ({
+  controller,
+}: {
+  controller: NetworkController;
+  messenger: RootMessenger;
+  networkControllerMessenger: NetworkControllerMessenger;
+}) => Promise<ReturnValue> | ReturnValue;
+
+type WithControllerOptions = Partial<NetworkControllerOptions>;
+
+type WithControllerArgs<ReturnValue> =
+  | [WithControllerCallback<ReturnValue>]
+  | [WithControllerOptions, WithControllerCallback<ReturnValue>];
+
+/**
+ * Builds a controller based on the given options, and calls the given function
+ * with that controller.
+ *
+ * @param args - Either a function, or an options bag + a function. The options
+ * bag is equivalent to the options that NetworkController takes (although
+ * `messenger` and `infuraProjectId` are  filled in if not given); the function
+ * will be called with the built controller.
+ * @returns Whatever the callback returns.
+ */
+export async function withController<ReturnValue>(
+  ...args: WithControllerArgs<ReturnValue>
+): Promise<ReturnValue> {
+  const [{ ...rest }, fn] = args.length === 2 ? args : [{}, args[0]];
+  const messenger = buildRootMessenger();
+  const networkControllerMessenger = buildNetworkControllerMessenger(messenger);
+  const controller = new NetworkController({
+    messenger: networkControllerMessenger,
+    infuraProjectId: 'infura-project-id',
+    getRpcServiceOptions: (): Omit<
+      RpcServiceOptions,
+      'failoverService' | 'endpointUrl'
+    > => ({
+      fetch,
+      btoa,
+      isOffline: (): boolean => false,
+    }),
+    ...rest,
+  });
+  try {
+    return await fn({ controller, messenger, networkControllerMessenger });
+  } finally {
+    const { blockTracker } = controller.getProviderAndBlockTracker();
+    await blockTracker?.destroy();
+  }
 }

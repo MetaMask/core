@@ -11,8 +11,22 @@ concurrency:
   cancel-in-progress: ${{ !contains(github.ref, 'refs/heads/main') }}
 
 jobs:
+  check-skip-merge-queue:
+    name: Check if pull request can skip merge queue
+    runs-on: ubuntu-latest
+    outputs:
+      skip-merge-queue: ${{ steps.check-skip-merge-queue.outputs.up-to-date }}
+    steps:
+      - name: Check pull request merge queue status
+        id: check-skip-merge-queue
+        if: github.event_name == 'merge_group'
+        uses: MetaMask/github-tools/.github/actions/check-skip-merge-queue@v1
+
   check-workflows:
     name: Check workflows
+    needs:
+      - check-skip-merge-queue
+    if: github.event_name != 'merge_group' || needs.check-skip-merge-queue.outputs.skip-merge-queue != 'true'
     runs-on: ubuntu-latest
     steps:
       - uses: actions/checkout@v5
@@ -67,54 +81,15 @@ jobs:
     name: Check release
     needs: check-workflows
     runs-on: ubuntu-latest
+    permissions:
+      contents: read
+      pull-requests: write
     steps:
       - name: Checkout repository
-        uses: actions/checkout@v4
-        with:
-          fetch-depth: 0
-
-      - name: Get merge base
-        id: merge-base
-        if: github.event_name != 'push'
-        env:
-          BASE_REF: ${{ github.event.pull_request.base.ref || github.event.merge_group.base_ref }}
-        run: |
-          echo "MERGE_BASE=$(git merge-base HEAD "refs/remotes/origin/$BASE_REF")" >> "$GITHUB_OUTPUT"
-
-      - name: Check if the commit or pull request is a release
-        id: is-release
-        if: github.event_name != 'push'
-        uses: MetaMask/action-is-release@d063725cd15ee145d7e795a2e77db31a3e3f2c92
-        with:
-          commit-starts-with: 'Release [version],Release v[version],Release/[version],Release/v[version],Release `[version]`'
-          commit-message: ${{ github.event.pull_request.title }}
-          before: ${{ steps.merge-base.outputs.MERGE_BASE }}
-
-      - name: Get pull request number
-        if: github.event_name != 'push'
-        id: pr-number
-        env:
-          EVENT_NAME: ${{ github.event_name }}
-          PULL_REQUEST_NUMBER: ${{ github.event.pull_request.number }}
-          MERGE_GROUP_HEAD_REF: ${{ github.event.merge_group.head_ref }}
-        run: |
-          if [ "$EVENT_NAME" = "pull_request" ]; then
-            echo "PR_NUMBER=$PULL_REQUEST_NUMBER" >> "$GITHUB_OUTPUT"
-          elif [ "$EVENT_NAME" = "merge_group" ]; then
-            PR_NUMBER_REGEX='/pr-([0-9]+)-'
-            if [[ "$MERGE_GROUP_HEAD_REF" =~ $PR_NUMBER_REGEX ]]; then
-              echo "PR_NUMBER=${BASH_REMATCH[1]}" >> "$GITHUB_OUTPUT"
-            else
-              echo "::error::Could not extract PR number from merge group head ref: $MERGE_GROUP_HEAD_REF."
-              exit 1
-            fi
-          fi
-
+        uses: actions/checkout@v5
       - name: Check release
-        if: github.event_name != 'push' && steps.is-release.outputs.IS_RELEASE == 'true'
+        if: github.event_name != 'push'
         uses: ./.github/actions/check-release
-        with:
-          pull-request: ${{ steps.pr-number.outputs.PR_NUMBER }}
 
   is-release:
     name: Determine whether this is a release merge commit
@@ -166,11 +141,14 @@ jobs:
     name: All jobs pass
     if: ${{ always() }}
     runs-on: ubuntu-latest
-    needs: all-jobs-complete
+    needs:
+      - all-jobs-complete
+      - check-skip-merge-queue
+    env:
+      PASSED: ${{ needs.all-jobs-complete.outputs.passed == 'true' || needs.check-skip-merge-queue.outputs.skip-merge-queue == 'true' }}
     steps:
       - name: Check that all jobs have passed
         run: |
-          passed="${{ needs.all-jobs-complete.outputs.passed }}"
-          if [[ $passed != "true" ]]; then
+          if [[ "$PASSED" != "true" ]]; then
             exit 1
           fi

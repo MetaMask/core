@@ -3,27 +3,23 @@ import type {
   JsonRpcEngineReturnHandler,
   JsonRpcEngineNextCallback,
 } from '@metamask/json-rpc-engine';
-import {
-  Messenger,
-  MOCK_ANY_NAMESPACE,
-  type MessengerActions,
-  type MessengerEvents,
-  type MockAnyNamespace,
+import { Messenger, MOCK_ANY_NAMESPACE } from '@metamask/messenger';
+import type {
+  MessengerActions,
+  MessengerEvents,
+  MockAnyNamespace,
 } from '@metamask/messenger';
-import {
-  type PendingJsonRpcResponse,
-  type JsonRpcRequest,
-  PendingJsonRpcResponseStruct,
-} from '@metamask/utils';
+import { PendingJsonRpcResponseStruct } from '@metamask/utils';
+import type { PendingJsonRpcResponse, JsonRpcRequest } from '@metamask/utils';
 import { nanoid } from 'nanoid';
 
 import { constants, getters, noop } from './helpers';
 import { LOG_LIMIT, LOG_METHOD_TYPES } from '../src/enums';
-import {
-  PermissionLogController,
-  type Permission,
-  type PermissionLogControllerState,
-  type PermissionLogControllerMessenger,
+import { PermissionLogController } from '../src/PermissionLogController';
+import type {
+  Permission,
+  PermissionLogControllerState,
+  PermissionLogControllerMessenger,
 } from '../src/PermissionLogController';
 
 const { PERMS, RPC_REQUESTS } = getters;
@@ -97,12 +93,12 @@ const mockNext =
     handler?.(noop);
   };
 
-const initClock = () => {
+const initClock = (): void => {
   jest.useFakeTimers('modern');
   jest.setSystemTime(new Date(1));
 };
 
-const tearDownClock = () => {
+const tearDownClock = (): void => {
   jest.useRealTimers();
 };
 
@@ -745,8 +741,8 @@ describe('PermissionLogController', () => {
         const handlers1: JsonRpcEngineReturnHandler[] = [];
 
         // make requests and process responses out of order
-        round1.forEach((x) => {
-          logMiddleware(x.req, x.res, getSavedMockNext(handlers1, false), noop);
+        round1.forEach(({ req, res }) => {
+          logMiddleware(req, res, getSavedMockNext(handlers1, false), noop);
         });
 
         for (const i of [1, 2, 0]) {
@@ -786,8 +782,8 @@ describe('PermissionLogController', () => {
           },
         ];
 
-        round2.forEach((x) => {
-          logMiddleware(x.req, x.res, mockNext(false), noop);
+        round2.forEach(({ req, res }) => {
+          logMiddleware(req, res, mockNext(false), noop);
         });
 
         expect(controller.state.permissionHistory).toStrictEqual(

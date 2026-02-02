@@ -7,6 +7,51 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+### Added
+
+- Add support for Monad network (`0x8f`) in token scanning ([#7237](https://github.com/MetaMask/core/pull/7237))
+
+### Changed
+
+- Bump `@metamask/transaction-controller` from `^62.1.0` to `^62.13.0` ([#7220](https://github.com/MetaMask/core/pull/7220), [#7236](https://github.com/MetaMask/core/pull/7236), [#7257](https://github.com/MetaMask/core/pull/7257), [#7289](https://github.com/MetaMask/core/pull/7289), [#7325](https://github.com/MetaMask/core/pull/7325), [#7430](https://github.com/MetaMask/core/pull/7430), [#7494](https://github.com/MetaMask/core/pull/7494), [#7596](https://github.com/MetaMask/core/pull/7596), [#7602](https://github.com/MetaMask/core/pull/7602), [#7604](https://github.com/MetaMask/core/pull/7604), [#7642](https://github.com/MetaMask/core/pull/7642), [#7737](https://github.com/MetaMask/core/pull/7737), [#7760](https://github.com/MetaMask/core/pull/7760), [#7775](https://github.com/MetaMask/core/pull/7775), [#7802](https://github.com/MetaMask/core/pull/7802))
+- Bump `@metamask/controller-utils` from `^11.16.0` to `^11.18.0` ([#7534](https://github.com/MetaMask/core/pull/7534), [#7583](https://github.com/MetaMask/core/pull/7583))
+
+## [16.1.0]
+
+### Added
+
+- Export `TokenScanCacheData` and `TokenScanResultType` to allow consumers to have a type to reference if grabbing values directly from the controller's state ([#7208](https://github.com/MetaMask/core/pull/7208))
+
+### Changed
+
+- Move peer dependencies for controller and service packages to direct dependencies ([#7209](https://github.com/MetaMask/core/pull/7209))
+  - The dependencies moved are:
+    - `@metamask/transaction-controller` (^62.1.0)
+  - In clients, it is now possible for multiple versions of these packages to exist in the dependency tree.
+    - For example, this scenario would be valid: a client relies on `@metamask/controller-a` 1.0.0 and `@metamask/controller-b` 1.0.0, and `@metamask/controller-b` depends on `@metamask/controller-a` 1.1.0.
+  - Note, however, that the versions specified in the client's `package.json` always "win", and you are expected to keep them up to date so as not to break controller and service intercommunication.
+
+## [16.0.0]
+
+### Added
+
+- Add address scanning to detect malicious addresses ([#7118](https://github.com/MetaMask/core/pull/7118))
+  - Add `scanAddress` method to scan addresses for security alerts
+  - Add `AddressScanResult` type
+  - Add `addressScanCache` to `PhishingControllerState`
+  - Add action registration for `scanAddress` method as `PhishingControllerScanAddressAction`
+
+### Changed
+
+- **BREAKING:** Bump `@metamask/transaction-controller` from `^61.0.0` to `^62.0.0` ([#7202](https://github.com/MetaMask/core/pull/7202))
+- Bump `@metamask/controller-utils` from `^11.15.0` to `^11.16.0` ([#7202](https://github.com/MetaMask/core/pull/7202))
+
+## [15.0.1]
+
+### Fixed
+
+- Fixed the Transaction Controller listener to correctly pick up state changes for mobile ([#7139](https://github.com/MetaMask/core/pull/7139))
+
 ## [15.0.0]
 
 ### Changed
@@ -466,7 +511,10 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
     All changes listed after this point were applied to this package following the monorepo conversion.
 
-[Unreleased]: https://github.com/MetaMask/core/compare/@metamask/phishing-controller@15.0.0...HEAD
+[Unreleased]: https://github.com/MetaMask/core/compare/@metamask/phishing-controller@16.1.0...HEAD
+[16.1.0]: https://github.com/MetaMask/core/compare/@metamask/phishing-controller@16.0.0...@metamask/phishing-controller@16.1.0
+[16.0.0]: https://github.com/MetaMask/core/compare/@metamask/phishing-controller@15.0.1...@metamask/phishing-controller@16.0.0
+[15.0.1]: https://github.com/MetaMask/core/compare/@metamask/phishing-controller@15.0.0...@metamask/phishing-controller@15.0.1
 [15.0.0]: https://github.com/MetaMask/core/compare/@metamask/phishing-controller@14.1.3...@metamask/phishing-controller@15.0.0
 [14.1.3]: https://github.com/MetaMask/core/compare/@metamask/phishing-controller@14.1.2...@metamask/phishing-controller@14.1.3
 [14.1.2]: https://github.com/MetaMask/core/compare/@metamask/phishing-controller@14.1.1...@metamask/phishing-controller@14.1.2

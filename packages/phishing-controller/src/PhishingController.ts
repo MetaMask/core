@@ -1,14 +1,14 @@
-import {
-  BaseController,
-  type StateMetadata,
-  type ControllerGetStateAction,
-  type ControllerStateChangeEvent,
+import { BaseController } from '@metamask/base-controller';
+import type {
+  StateMetadata,
+  ControllerGetStateAction,
+  ControllerStateChangeEvent,
 } from '@metamask/base-controller';
 import {
   safelyExecute,
   safelyExecuteWithTimeout,
 } from '@metamask/controller-utils';
-import { type Messenger } from '@metamask/messenger';
+import type { Messenger } from '@metamask/messenger';
 import type {
   TransactionControllerStateChangeEvent,
   TransactionMeta,
@@ -16,23 +16,25 @@ import type {
 import type { Patch } from 'immer';
 import { toASCII } from 'punycode/punycode.js';
 
-import { CacheManager, type CacheEntry } from './CacheManager';
-import {
-  type PathTrie,
-  convertListToTrie,
-  insertToTrie,
-  matchedPathPrefix,
-} from './PathTrie';
+import { CacheManager } from './CacheManager';
+import type { CacheEntry } from './CacheManager';
+import { convertListToTrie, insertToTrie, matchedPathPrefix } from './PathTrie';
+import type { PathTrie } from './PathTrie';
 import { PhishingDetector } from './PhishingDetector';
 import {
   PhishingDetectorResultType,
-  type PhishingDetectorResult,
-  type PhishingDetectionScanResult,
   RecommendedAction,
-  type TokenScanCacheData,
-  type BulkTokenScanResponse,
-  type BulkTokenScanRequest,
-  type TokenScanApiResponse,
+  AddressScanResultType,
+} from './types';
+import type {
+  PhishingDetectorResult,
+  PhishingDetectionScanResult,
+  TokenScanCacheData,
+  BulkTokenScanResponse,
+  BulkTokenScanRequest,
+  TokenScanApiResponse,
+  AddressScanCacheData,
+  AddressScanResult,
 } from './types';
 import {
   applyDiffs,
@@ -63,12 +65,15 @@ export const PHISHING_DETECTION_BULK_SCAN_ENDPOINT = 'bulk-scan';
 export const SECURITY_ALERTS_BASE_URL =
   'https://security-alerts.api.cx.metamask.io';
 export const TOKEN_BULK_SCANNING_ENDPOINT = '/token/scan-bulk';
+export const ADDRESS_SCAN_ENDPOINT = '/address/evm/scan';
 
 // Cache configuration defaults
 export const DEFAULT_URL_SCAN_CACHE_TTL = 15 * 60; // 15 minutes in seconds
 export const DEFAULT_URL_SCAN_CACHE_MAX_SIZE = 250;
 export const DEFAULT_TOKEN_SCAN_CACHE_TTL = 15 * 60; // 15 minutes in seconds
 export const DEFAULT_TOKEN_SCAN_CACHE_MAX_SIZE = 1000;
+export const DEFAULT_ADDRESS_SCAN_CACHE_TTL = 15 * 60; // 15 minutes in seconds
+export const DEFAULT_ADDRESS_SCAN_CACHE_MAX_SIZE = 1000;
 
 export const C2_DOMAIN_BLOCKLIST_REFRESH_INTERVAL = 5 * 60; // 5 mins in seconds
 export const HOTLIST_REFRESH_INTERVAL = 5 * 60; // 5 mins in seconds
@@ -288,6 +293,12 @@ const metadata: StateMetadata<PhishingControllerState> = {
     includeInDebugSnapshot: false,
     usedInUi: true,
   },
+  addressScanCache: {
+    includeInStateLogs: false,
+    persist: true,
+    includeInDebugSnapshot: false,
+    usedInUi: true,
+  },
 };
 
 /**
@@ -305,6 +316,7 @@ const getDefaultState = (): PhishingControllerState => {
     c2DomainBlocklistLastFetched: 0,
     urlScanCache: {},
     tokenScanCache: {},
+    addressScanCache: {},
   };
 };
 
@@ -318,7 +330,9 @@ const getDefaultState = (): PhishingControllerState => {
  * hotlistLastFetched - timestamp of the last hotlist fetch
  * stalelistLastFetched - timestamp of the last stalelist fetch
  * c2DomainBlocklistLastFetched - timestamp of the last c2 domain blocklist fetch
- * urlScanCache - cache of scan results
+ * urlScanCache - cache of URL scan results
+ * tokenScanCache - cache of token scan results
+ * addressScanCache - cache of address scan results
  */
 export type PhishingControllerState = {
   phishingLists: PhishingListState[];
@@ -329,6 +343,7 @@ export type PhishingControllerState = {
   c2DomainBlocklistLastFetched: number;
   urlScanCache: Record<string, CacheEntry<PhishingDetectionScanResult>>;
   tokenScanCache: Record<string, CacheEntry<TokenScanCacheData>>;
+  addressScanCache: Record<string, CacheEntry<AddressScanCacheData>>;
 };
 
 /**
@@ -342,6 +357,8 @@ export type PhishingControllerState = {
  * urlScanCacheMaxSize - Maximum number of entries in the scan cache.
  * tokenScanCacheTTL - Time to live in seconds for cached token scan results.
  * tokenScanCacheMaxSize - Maximum number of entries in the token scan cache.
+ * addressScanCacheTTL - Time to live in seconds for cached address scan results.
+ * addressScanCacheMaxSize - Maximum number of entries in the address scan cache.
  */
 export type PhishingControllerOptions = {
   stalelistRefreshInterval?: number;
@@ -351,6 +368,8 @@ export type PhishingControllerOptions = {
   urlScanCacheMaxSize?: number;
   tokenScanCacheTTL?: number;
   tokenScanCacheMaxSize?: number;
+  addressScanCacheTTL?: number;
+  addressScanCacheMaxSize?: number;
   messenger: PhishingControllerMessenger;
   state?: Partial<PhishingControllerState>;
 };
@@ -375,6 +394,11 @@ export type PhishingControllerBulkScanTokensAction = {
   handler: PhishingController['bulkScanTokens'];
 };
 
+export type PhishingControllerScanAddressAction = {
+  type: `${typeof controllerName}:scanAddress`;
+  handler: PhishingController['scanAddress'];
+};
+
 export type PhishingControllerGetStateAction = ControllerGetStateAction<
   typeof controllerName,
   PhishingControllerState
@@ -385,7 +409,8 @@ export type PhishingControllerActions =
   | MaybeUpdateState
   | TestOrigin
   | PhishingControllerBulkScanUrlsAction
-  | PhishingControllerBulkScanTokensAction;
+  | PhishingControllerBulkScanTokensAction
+  | PhishingControllerScanAddressAction;
 
 export type PhishingControllerStateChangeEvent = ControllerStateChangeEvent<
   typeof controllerName,
@@ -445,6 +470,8 @@ export class PhishingController extends BaseController<
 
   readonly #tokenScanCache: CacheManager<TokenScanCacheData>;
 
+  readonly #addressScanCache: CacheManager<AddressScanCacheData>;
+
   #inProgressHotlistUpdate?: Promise<void>;
 
   #inProgressStalelistUpdate?: Promise<void>;
@@ -467,6 +494,8 @@ export class PhishingController extends BaseController<
    * @param config.urlScanCacheMaxSize - Maximum number of entries in the scan cache.
    * @param config.tokenScanCacheTTL - Time to live in seconds for cached token scan results.
    * @param config.tokenScanCacheMaxSize - Maximum number of entries in the token scan cache.
+   * @param config.addressScanCacheTTL - Time to live in seconds for cached address scan results.
+   * @param config.addressScanCacheMaxSize - Maximum number of entries in the address scan cache.
    * @param config.messenger - The controller restricted messenger.
    * @param config.state - Initial state to set on this controller.
    */
@@ -478,6 +507,8 @@ export class PhishingController extends BaseController<
     urlScanCacheMaxSize = DEFAULT_URL_SCAN_CACHE_MAX_SIZE,
     tokenScanCacheTTL = DEFAULT_TOKEN_SCAN_CACHE_TTL,
     tokenScanCacheMaxSize = DEFAULT_TOKEN_SCAN_CACHE_MAX_SIZE,
+    addressScanCacheTTL = DEFAULT_ADDRESS_SCAN_CACHE_TTL,
+    addressScanCacheMaxSize = DEFAULT_ADDRESS_SCAN_CACHE_MAX_SIZE,
     messenger,
     state = {},
   }: PhishingControllerOptions) {
@@ -513,6 +544,16 @@ export class PhishingController extends BaseController<
       updateState: (cache) => {
         this.update((draftState) => {
           draftState.tokenScanCache = cache;
+        });
+      },
+    });
+    this.#addressScanCache = new CacheManager<AddressScanCacheData>({
+      cacheTTL: addressScanCacheTTL,
+      maxCacheSize: addressScanCacheMaxSize,
+      initialCache: this.state.addressScanCache,
+      updateState: (cache) => {
+        this.update((draftState) => {
+          draftState.addressScanCache = cache;
         });
       },
     });
@@ -554,6 +595,11 @@ export class PhishingController extends BaseController<
       `${controllerName}:bulkScanTokens` as const,
       this.bulkScanTokens.bind(this),
     );
+
+    this.messenger.registerActionHandler(
+      `${controllerName}:scanAddress` as const,
+      this.scanAddress.bind(this),
+    );
   }
 
   /**
@@ -568,6 +614,22 @@ export class PhishingController extends BaseController<
       path.length === 2 &&
       path[0] === 'transactions' &&
       typeof path[1] === 'number'
+    );
+  }
+
+  /**
+   * Checks if a patch represents a simulation data change
+   *
+   * @param patch - Immer patch to check
+   * @returns True if patch represents a simulation data change
+   */
+  #isSimulationDataPatch(patch: Patch): boolean {
+    const { path } = patch;
+    return (
+      path.length === 3 &&
+      path[0] === 'transactions' &&
+      typeof path[1] === 'number' &&
+      path[2] === 'simulationData'
     );
   }
 
@@ -594,6 +656,10 @@ export class PhishingController extends BaseController<
         // Handle transaction-level patches (includes simulation data updates)
         if (this.#isTransactionPatch(patch)) {
           const transaction = patch.value as TransactionMeta;
+          this.#getTokensFromTransaction(transaction, tokensByChain);
+        } else if (this.#isSimulationDataPatch(patch)) {
+          const transactionIndex = patch.path[1] as number;
+          const transaction = _state.transactions?.[transactionIndex];
           this.#getTokensFromTransaction(transaction, tokensByChain);
         }
       }
@@ -1150,6 +1216,97 @@ export class PhishingController extends BaseController<
     }
 
     return apiResponse as TokenScanApiResponse;
+  };
+
+  /**
+   * Scan an address for security alerts.
+   *
+   * @param chainId - The chain ID in hex format (e.g., '0x1' for Ethereum).
+   * @param address - The address to scan.
+   * @returns The address scan result.
+   */
+  scanAddress = async (
+    chainId: string,
+    address: string,
+  ): Promise<AddressScanResult> => {
+    if (!address || !chainId) {
+      return {
+        result_type: AddressScanResultType.ErrorResult,
+        label: '',
+      };
+    }
+
+    const normalizedChainId = chainId.toLowerCase();
+    const normalizedAddress = address.toLowerCase();
+    const chain = resolveChainName(normalizedChainId);
+
+    if (!chain) {
+      return {
+        result_type: AddressScanResultType.ErrorResult,
+        label: '',
+      };
+    }
+
+    const cacheKey = buildCacheKey(normalizedChainId, normalizedAddress);
+    const cachedResult = this.#addressScanCache.get(cacheKey);
+    if (cachedResult) {
+      return {
+        result_type: cachedResult.result_type,
+        label: cachedResult.label,
+      };
+    }
+
+    const apiResponse = await safelyExecuteWithTimeout(
+      async () => {
+        const res = await fetch(
+          `${SECURITY_ALERTS_BASE_URL}${ADDRESS_SCAN_ENDPOINT}`,
+          {
+            method: 'POST',
+            headers: {
+              Accept: 'application/json',
+              'Content-Type': 'application/json',
+            },
+            body: JSON.stringify({
+              chain,
+              address: normalizedAddress,
+            }),
+          },
+        );
+        if (!res.ok) {
+          return {
+            error: `${res.status} ${res.statusText}`,
+          };
+        }
+        const data: AddressScanResult = await res.json();
+        return data;
+      },
+      true,
+      5000,
+    );
+
+    if (!apiResponse) {
+      return {
+        result_type: AddressScanResultType.ErrorResult,
+        label: '',
+      };
+    } else if ('error' in apiResponse) {
+      return {
+        result_type: AddressScanResultType.ErrorResult,
+        label: '',
+      };
+    }
+
+    const result: AddressScanCacheData = {
+      result_type: apiResponse.result_type,
+      label: apiResponse.label,
+    };
+
+    this.#addressScanCache.set(cacheKey, result);
+
+    return {
+      result_type: apiResponse.result_type,
+      label: apiResponse.label,
+    };
   };
 
   /**

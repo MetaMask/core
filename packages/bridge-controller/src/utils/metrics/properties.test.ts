@@ -8,6 +8,7 @@ import {
   getSwapTypeFromQuote,
   formatProviderLabel,
   getRequestParams,
+  getQuotesReceivedProperties,
 } from './properties';
 import type { QuoteResponse } from '../../types';
 import { getNativeAssetForChainId } from '../bridge';
@@ -291,6 +292,89 @@ describe('properties', () => {
         token_address_destination: null,
         token_address_source: 'eip155:1/slip44:60',
       });
+    });
+  });
+
+  describe('getQuotesReceivedProperties', () => {
+    it('should return quotes received properties correctly', () => {
+      const mockQuoteResponse: QuoteResponse = {
+        quote: {
+          requestId: 'request1',
+          srcChainId: 1,
+          srcAsset: {
+            chainId: 1,
+            address: '0x123',
+            symbol: 'ETH',
+            name: 'Ethereum',
+            decimals: 18,
+            assetId: 'eip155:1/slip44:60',
+          },
+          srcTokenAmount: '1000000000000000000',
+          destChainId: 1,
+          destAsset: {
+            chainId: 1,
+            address: '0x456',
+            symbol: 'USDC',
+            name: 'USD Coin',
+            decimals: 6,
+            assetId: 'eip155:1/erc20:0x456',
+          },
+          destTokenAmount: '1000000',
+          minDestTokenAmount: '950000',
+          feeData: {
+            metabridge: {
+              amount: '10000000000000000',
+              asset: {
+                chainId: 1,
+                address: '0x123',
+                symbol: 'ETH',
+                name: 'Ethereum',
+                decimals: 18,
+                assetId: 'eip155:1/slip44:60',
+              },
+            },
+          },
+          bridgeId: 'bridge1',
+          bridges: ['bridge1'],
+          steps: [],
+        },
+        trade: {
+          chainId: 1,
+          to: '0x789',
+          from: '0xabc',
+          value: '0',
+          data: '0x',
+          gasLimit: 100000,
+        },
+        estimatedProcessingTimeInSeconds: 60,
+      };
+
+      const result = getQuotesReceivedProperties(mockQuoteResponse, [], false, {
+        ...mockQuoteResponse,
+        quote: {
+          ...mockQuoteResponse.quote,
+          bridges: ['bridge2'],
+          bridgeId: 'bridge2',
+        },
+      });
+
+      expect(result).toMatchInlineSnapshot(
+        `
+        Object {
+          "best_quote_provider": "bridge2_bridge2",
+          "can_submit": false,
+          "gas_included": false,
+          "gas_included_7702": false,
+          "price_impact": 0,
+          "provider": "bridge1_bridge1",
+          "quoted_time_minutes": 1,
+          "usd_balance_source": 0,
+          "usd_quoted_gas": 0,
+          "usd_quoted_return": 0,
+          "warnings": Array [],
+        }
+      `,
+      );
     });
   });
 });

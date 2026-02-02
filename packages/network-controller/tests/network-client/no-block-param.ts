@@ -33,7 +33,7 @@ export function testsForRpcMethodAssumingNoBlockParam(
     numberOfParameters,
     providerType,
   }: TestsForRpcMethodAssumingNoBlockParamOptions,
-) {
+): void {
   it('does not hit the RPC endpoint more than once for identical requests', async () => {
     const requests = [{ method }, { method }];
     const mockResults = ['first result', 'second result'];

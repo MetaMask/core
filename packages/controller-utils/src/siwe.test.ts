@@ -8,7 +8,7 @@ const parsedMessage = new ParsedMessage(siweMessage);
 
 describe('siwe', () => {
   describe('detectSIWE', () => {
-    const textAsHex = (string: string) => {
+    const textAsHex = (string: string): string => {
       return Buffer.from(string, 'utf8').toString('hex');
     };
 

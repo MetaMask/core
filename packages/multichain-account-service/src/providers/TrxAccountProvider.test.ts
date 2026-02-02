@@ -5,9 +5,12 @@ import type {
   EthKeyring,
   InternalAccount,
 } from '@metamask/keyring-internal-api';
+import { SnapControllerState } from '@metamask/snaps-controllers';
 
 import { AccountProviderWrapper } from './AccountProviderWrapper';
+import { SnapAccountProviderConfig } from './SnapAccountProvider';
 import {
+  TRX_ACCOUNT_PROVIDER_DEFAULT_CONFIG,
   TRX_ACCOUNT_PROVIDER_NAME,
   TrxAccountProvider,
 } from './TrxAccountProvider';
@@ -20,8 +23,8 @@ import {
   MOCK_TRX_ACCOUNT_1,
   MOCK_TRX_DISCOVERED_ACCOUNT_1,
   MockAccountBuilder,
-  type RootMessenger,
 } from '../tests';
+import type { RootMessenger } from '../tests';
 
 class MockTronKeyring {
   readonly type = 'MockTronKeyring';
@@ -41,7 +44,7 @@ class MockTronKeyring {
     .fn()
     .mockImplementation((_, { index }) => {
       // Use the provided index or fallback to accounts length
-      const groupIndex = index !== undefined ? index : this.accounts.length;
+      const groupIndex = index ?? this.accounts.length;
 
       // Check if an account already exists for this group index (idempotent behavior)
       const found = this.accounts.find(
@@ -68,6 +71,11 @@ class MockTronKeyring {
   // Add discoverAccounts method to match the provider's usage
   discoverAccounts = jest.fn().mockResolvedValue([]);
 }
+class MockTrxAccountProvider extends TrxAccountProvider {
+  override async ensureCanUseSnapPlatform(): Promise<void> {
+    // Override to avoid waiting during tests.
+  }
+}
 
 /**
  * Sets up a TrxAccountProvider for testing.
@@ -75,14 +83,17 @@ class MockTronKeyring {
  * @param options - Configuration options for setup.
  * @param options.messenger - An optional messenger instance to use. Defaults to a new Messenger.
  * @param options.accounts - List of accounts to use.
+ * @param options.config - Provider config.
  * @returns An object containing the controller instance and the messenger.
  */
 function setup({
   messenger = getRootMessenger(),
   accounts = [],
+  config,
 }: {
   messenger?: RootMessenger;
   accounts?: InternalAccount[];
+  config?: SnapAccountProviderConfig;
 } = {}): {
   provider: AccountProviderWrapper;
   messenger: RootMessenger;
@@ -96,6 +107,11 @@ function setup({
   };
 } {
   const keyring = new MockTronKeyring(accounts);
+
+  messenger.registerActionHandler(
+    'SnapController:getState',
+    () => ({ isReady: true }) as SnapControllerState,
+  );
 
   messenger.registerActionHandler(
     'AccountsController:listMultichainAccounts',
@@ -132,7 +148,7 @@ function setup({
   const multichainMessenger = getMultichainAccountServiceMessenger(messenger);
   const provider = new AccountProviderWrapper(
     multichainMessenger,
-    new TrxAccountProvider(multichainMessenger),
+    new MockTrxAccountProvider(multichainMessenger, config),
   );
 
   return {
@@ -143,7 +159,7 @@ function setup({
       handleRequest: mockHandleRequest,
       keyring: {
         createAccount: keyring.createAccount as jest.Mock,
-        discoverAccounts: keyring.discoverAccounts as jest.Mock,
+        discoverAccounts: keyring.discoverAccounts,
       },
     },
   };
@@ -313,6 +329,26 @@ describe('TrxAccountProvider', () => {
     expect(discovered).toStrictEqual([]);
   });
 
+  it('does not run discovery if disabled', async () => {
+    const { provider } = setup({
+      accounts: [MOCK_TRX_ACCOUNT_1],
+      config: {
+        ...TRX_ACCOUNT_PROVIDER_DEFAULT_CONFIG,
+        discovery: {
+          ...TRX_ACCOUNT_PROVIDER_DEFAULT_CONFIG.discovery,
+          enabled: false,
+        },
+      },
+    });
+
+    expect(
+      await provider.discoverAccounts({
+        entropySource: MOCK_HD_KEYRING_1.metadata.id,
+        groupIndex: 0,
+      }),
+    ).toStrictEqual([]);
+  });
+
   describe('trace functionality', () => {
     it('calls trace callback during account discovery', async () => {
       const mockTrace = jest.fn().mockImplementation(async (request, fn) => {
@@ -334,7 +370,7 @@ describe('TrxAccountProvider', () => {
 
       const multichainMessenger =
         getMultichainAccountServiceMessenger(messenger);
-      const trxProvider = new TrxAccountProvider(
+      const trxProvider = new MockTrxAccountProvider(
         multichainMessenger,
         undefined,
         mockTrace,
@@ -388,7 +424,7 @@ describe('TrxAccountProvider', () => {
 
       const multichainMessenger =
         getMultichainAccountServiceMessenger(messenger);
-      const trxProvider = new TrxAccountProvider(
+      const trxProvider = new MockTrxAccountProvider(
         multichainMessenger,
         undefined,
         mockTrace,
@@ -421,7 +457,7 @@ describe('TrxAccountProvider', () => {
 
       const multichainMessenger =
         getMultichainAccountServiceMessenger(messenger);
-      const trxProvider = new TrxAccountProvider(
+      const trxProvider = new MockTrxAccountProvider(
         multichainMessenger,
         undefined,
         mockTrace,

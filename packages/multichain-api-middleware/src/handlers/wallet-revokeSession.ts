@@ -14,11 +14,8 @@ import {
   UnrecognizedSubjectError,
 } from '@metamask/permission-controller';
 import { rpcErrors } from '@metamask/rpc-errors';
-import {
-  type JsonRpcSuccess,
-  type JsonRpcRequest,
-  isObject,
-} from '@metamask/utils';
+import { isObject } from '@metamask/utils';
+import type { JsonRpcSuccess, JsonRpcRequest } from '@metamask/utils';
 
 import type { WalletRevokeSessionHooks } from './types';
 
@@ -123,13 +120,9 @@ async function walletRevokeSessionHandler(
   end: JsonRpcEngineEndCallback,
   hooks: WalletRevokeSessionHooks,
 ) {
-  const {
-    params: { scopes },
-  } = request;
-
   try {
-    if (scopes?.length) {
-      partialRevokePermissions(scopes, hooks);
+    if (request.params?.scopes?.length) {
+      partialRevokePermissions(request.params.scopes, hooks);
     } else {
       hooks.revokePermissionForOrigin(Caip25EndowmentPermissionName);
     }

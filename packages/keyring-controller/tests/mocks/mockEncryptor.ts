@@ -1,5 +1,4 @@
 // Omitting jsdoc because mock is only internal and simple enough.
-/* eslint-disable jsdoc/require-jsdoc */
 
 import type {
   DetailedDecryptResult,
@@ -17,17 +16,21 @@ export const MOCK_ENCRYPTION_KEY = JSON.stringify({
   password: PASSWORD,
   salt: SALT,
 });
+export const MOCK_KEY = Buffer.alloc(32);
 
 export const DECRYPTION_ERROR = 'Decryption failed.';
 
-function deriveKey(password: string, salt: string) {
+function deriveKey(
+  password: string,
+  salt: string,
+): { password: string; salt: string } {
   return {
     password,
     salt,
   };
 }
 
-export default class MockEncryptor implements Encryptor {
+export default class MockEncryptor implements Encryptor<unknown> {
   async encrypt(password: string, dataObj: Json): Promise<string> {
     const salt = this.generateSalt();
     const key = deriveKey(password, salt);
@@ -100,24 +103,37 @@ export default class MockEncryptor implements Encryptor {
     return data.value;
   }
 
-  async importKey(key: string) {
+  async keyFromPassword(_password: string, _salt: string): Promise<string> {
+    return JSON.parse(MOCK_ENCRYPTION_KEY);
+  }
+
+  async importKey(key: string): Promise<string> {
     return JSON.parse(key);
   }
 
-  async updateVault(_vault: string, _password: string) {
+  async exportKey(key: unknown): Promise<string> {
+    return JSON.stringify(key);
+  }
+
+  async updateVault(_vault: string, _password: string): Promise<string> {
     return _vault;
   }
 
-  generateSalt() {
+  generateSalt(): string {
     return SALT;
   }
 
-  isVaultUpdated(_vault: string) {
+  isVaultUpdated(_vault: string): boolean {
     return true;
+  }
+
+  asEncryptor(): Encryptor {
+    // This mock is not using the right crypto types, but that's ok for the tests.
+    return this as unknown as Encryptor;
   }
 }
 
-function generateIV() {
+function generateIV(): string {
   // Generate random salt.
 
   // return crypto.randomUUID();

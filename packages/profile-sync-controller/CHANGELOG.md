@@ -7,6 +7,35 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+### Changed
+
+- Centralize authentication error handling into a single `throwServiceError` helper for consistent error management across all service functions ([#7721](https://github.com/MetaMask/core/pull/7721))
+  - This fixes authentication services crashing when server returns non-JSON error responses.
+- Bump `@metamask/snaps-controllers` from `^14.0.1` to `^17.2.0` ([#7550](https://github.com/MetaMask/core/pull/7550))
+- Bump `@metamask/snaps-sdk` from `^9.0.0` to `^10.3.0` ([#7550](https://github.com/MetaMask/core/pull/7550))
+- Bump `@metamask/snaps-utils` from `^11.0.0` to `^11.7.0` ([#7550](https://github.com/MetaMask/core/pull/7550))
+- Upgrade `@metamask/utils` from `^11.8.1` to `^11.9.0` ([#7511](https://github.com/MetaMask/core/pull/7511))
+- Move peer dependencies for controller and service packages to direct dependencies ([#7209](https://github.com/MetaMask/core/pull/7209), [#7713](https://github.com/MetaMask/core/pull/7713))
+  - The dependencies moved are:
+    - `@metamask/address-book-controller` (^7.0.1)
+    - `@metamask/keyring-controller` (^25.1.0)
+    - `@metamask/snaps-controllers` (^14.0.1)
+  - In clients, it is now possible for multiple versions of these packages to exist in the dependency tree.
+    - For example, this scenario would be valid: a client relies on `@metamask/controller-a` 1.0.0 and `@metamask/controller-b` 1.0.0, and `@metamask/controller-b` depends on `@metamask/controller-a` 1.1.0.
+  - Note, however, that the versions specified in the client's `package.json` always "win", and you are expected to keep them up to date so as not to break controller and service intercommunication.
+
+## [27.0.0]
+
+### Changed
+
+- **BREAKING:** Bump `@metamask/keyring-controller` from `^24.0.0` to `^25.0.0` ([#7202](https://github.com/MetaMask/core/pull/7202))
+- Bump `@metamask/address-book-controller` from `^7.0.0` to `^7.0.1` ([#7202](https://github.com/MetaMask/core/pull/7202))
+- Add rate limit (429) handling with automatic retry in authentication flow ([#6993](https://github.com/MetaMask/core/pull/6993))
+  - Update authentication services to throw `RateLimitedError` when encountering 429 responses.
+  - Improve Authentication errors by adding the HTTP code in error messages.
+  - Add rate limit retry logic to `SRPJwtBearerAuth` with configurable cooldown via `rateLimitRetry.cooldownDefaultMs` option (defaults to 10 seconds).
+  - Non-429 errors are thrown immediately without retry, delegating retry logic to consumers.
+
 ## [26.0.0]
 
 ### Changed
@@ -762,7 +791,8 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 - Initial release
 
-[Unreleased]: https://github.com/MetaMask/core/compare/@metamask/profile-sync-controller@26.0.0...HEAD
+[Unreleased]: https://github.com/MetaMask/core/compare/@metamask/profile-sync-controller@27.0.0...HEAD
+[27.0.0]: https://github.com/MetaMask/core/compare/@metamask/profile-sync-controller@26.0.0...@metamask/profile-sync-controller@27.0.0
 [26.0.0]: https://github.com/MetaMask/core/compare/@metamask/profile-sync-controller@25.1.2...@metamask/profile-sync-controller@26.0.0
 [25.1.2]: https://github.com/MetaMask/core/compare/@metamask/profile-sync-controller@25.1.1...@metamask/profile-sync-controller@25.1.2
 [25.1.1]: https://github.com/MetaMask/core/compare/@metamask/profile-sync-controller@25.1.0...@metamask/profile-sync-controller@25.1.1

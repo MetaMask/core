@@ -1,3 +1,4 @@
+import { MessageTypes, TypedMessage } from '@metamask/eth-sig-util';
 import { JsonRpcEngineV2 } from '@metamask/json-rpc-engine/v2';
 
 import type {
@@ -7,6 +8,7 @@ import type {
   TypedMessageV1Params,
 } from '.';
 import { createWalletMiddleware } from '.';
+import { DANGEROUS_PROTOTYPE_PROPERTIES } from './utils/validation';
 import { createHandleParams, createRequest } from '../test/util/helpers';
 
 const testAddresses = [
@@ -22,7 +24,7 @@ const testMsgSig =
 describe('wallet', () => {
   describe('accounts', () => {
     it('returns null for coinbase when no accounts', async () => {
-      const getAccounts = async () => [];
+      const getAccounts = async (): Promise<never[]> => [];
       const engine = JsonRpcEngineV2.create({
         middleware: [createWalletMiddleware({ getAccounts })],
       });
@@ -35,7 +37,7 @@ describe('wallet', () => {
     });
 
     it('should return the correct value from getAccounts', async () => {
-      const getAccounts = async () => testAddresses.slice();
+      const getAccounts = async (): Promise<string[]> => testAddresses.slice();
       const engine = JsonRpcEngineV2.create({
         middleware: [createWalletMiddleware({ getAccounts })],
       });
@@ -48,7 +50,8 @@ describe('wallet', () => {
     });
 
     it('should return the correct value from getAccounts with multiple accounts', async () => {
-      const getAccounts = async () => testAddresses.slice(0, 2);
+      const getAccounts = async (): Promise<string[]> =>
+        testAddresses.slice(0, 2);
       const engine = JsonRpcEngineV2.create({
         middleware: [createWalletMiddleware({ getAccounts })],
       });
@@ -63,9 +66,12 @@ describe('wallet', () => {
 
   describe('transactions', () => {
     it('processes transaction with valid address', async () => {
-      const getAccounts = async () => testAddresses.slice(0, 2);
+      const getAccounts = async (): Promise<string[]> =>
+        testAddresses.slice(0, 2);
       const witnessedTxParams: TransactionParams[] = [];
-      const processTransaction = async (_txParams: TransactionParams) => {
+      const processTransaction = async (
+        _txParams: TransactionParams,
+      ): Promise<string> => {
         witnessedTxParams.push(_txParams);
         return testTxHash;
       };
@@ -87,9 +93,12 @@ describe('wallet', () => {
     });
 
     it('throws when provided an invalid address', async () => {
-      const getAccounts = async () => testAddresses.slice(0, 2);
+      const getAccounts = async (): Promise<string[]> =>
+        testAddresses.slice(0, 2);
       const witnessedTxParams: TransactionParams[] = [];
-      const processTransaction = async (_txParams: TransactionParams) => {
+      const processTransaction = async (
+        _txParams: TransactionParams,
+      ): Promise<string> => {
         witnessedTxParams.push(_txParams);
         return testTxHash;
       };
@@ -112,9 +121,12 @@ describe('wallet', () => {
     });
 
     it('throws unauthorized for unknown addresses', async () => {
-      const getAccounts = async () => testAddresses.slice(0, 2);
+      const getAccounts = async (): Promise<string[]> =>
+        testAddresses.slice(0, 2);
       const witnessedTxParams: TransactionParams[] = [];
-      const processTransaction = async (_txParams: TransactionParams) => {
+      const processTransaction = async (
+        _txParams: TransactionParams,
+      ): Promise<string> => {
         witnessedTxParams.push(_txParams);
         return testTxHash;
       };
@@ -139,9 +151,12 @@ describe('wallet', () => {
     });
 
     it('should not override other request params', async () => {
-      const getAccounts = async () => testAddresses.slice(0, 2);
+      const getAccounts = async (): Promise<string[]> =>
+        testAddresses.slice(0, 2);
       const witnessedTxParams: TransactionParams[] = [];
-      const processTransaction = async (_txParams: TransactionParams) => {
+      const processTransaction = async (
+        _txParams: TransactionParams,
+      ): Promise<string> => {
         witnessedTxParams.push(_txParams);
         return testTxHash;
       };
@@ -167,9 +182,12 @@ describe('wallet', () => {
 
   describe('signTransaction', () => {
     it('should process sign transaction when provided a valid address', async () => {
-      const getAccounts = async () => testAddresses.slice(0, 2);
+      const getAccounts = async (): Promise<string[]> =>
+        testAddresses.slice(0, 2);
       const witnessedTxParams: TransactionParams[] = [];
-      const processSignTransaction = async (_txParams: TransactionParams) => {
+      const processSignTransaction = async (
+        _txParams: TransactionParams,
+      ): Promise<string> => {
         witnessedTxParams.push(_txParams);
         return testTxHash;
       };
@@ -191,9 +209,12 @@ describe('wallet', () => {
     });
 
     it('should not override other request params', async () => {
-      const getAccounts = async () => testAddresses.slice(0, 2);
+      const getAccounts = async (): Promise<string[]> =>
+        testAddresses.slice(0, 2);
       const witnessedTxParams: TransactionParams[] = [];
-      const processSignTransaction = async (_txParams: TransactionParams) => {
+      const processSignTransaction = async (
+        _txParams: TransactionParams,
+      ): Promise<string> => {
         witnessedTxParams.push(_txParams);
         return testTxHash;
       };
@@ -214,9 +235,12 @@ describe('wallet', () => {
     });
 
     it('should throw when provided invalid address', async () => {
-      const getAccounts = async () => testAddresses.slice(0, 2);
+      const getAccounts = async (): Promise<string[]> =>
+        testAddresses.slice(0, 2);
       const witnessedTxParams: TransactionParams[] = [];
-      const processSignTransaction = async (_txParams: TransactionParams) => {
+      const processSignTransaction = async (
+        _txParams: TransactionParams,
+      ): Promise<string> => {
         witnessedTxParams.push(_txParams);
         return testTxHash;
       };
@@ -238,9 +262,12 @@ describe('wallet', () => {
     });
 
     it('should throw when provided unknown address', async () => {
-      const getAccounts = async () => testAddresses.slice(0, 2);
+      const getAccounts = async (): Promise<string[]> =>
+        testAddresses.slice(0, 2);
       const witnessedTxParams: TransactionParams[] = [];
-      const processSignTransaction = async (_txParams: TransactionParams) => {
+      const processSignTransaction = async (
+        _txParams: TransactionParams,
+      ): Promise<string> => {
         witnessedTxParams.push(_txParams);
         return testTxHash;
       };
@@ -264,9 +291,11 @@ describe('wallet', () => {
 
   describe('signTypedData', () => {
     it('should sign with a valid address', async () => {
-      const getAccounts = async () => testAddresses.slice();
+      const getAccounts = async (): Promise<string[]> => testAddresses.slice();
       const witnessedMsgParams: TypedMessageV1Params[] = [];
-      const processTypedMessage = async (msgParams: TypedMessageV1Params) => {
+      const processTypedMessage = async (
+        msgParams: TypedMessageV1Params,
+      ): Promise<string> => {
         witnessedMsgParams.push(msgParams);
         return testMsgSig;
       };
@@ -301,9 +330,11 @@ describe('wallet', () => {
     });
 
     it('should throw with invalid address', async () => {
-      const getAccounts = async () => testAddresses.slice();
+      const getAccounts = async (): Promise<string[]> => testAddresses.slice();
       const witnessedMsgParams: TypedMessageV1Params[] = [];
-      const processTypedMessage = async (msgParams: TypedMessageV1Params) => {
+      const processTypedMessage = async (
+        msgParams: TypedMessageV1Params,
+      ): Promise<string> => {
         witnessedMsgParams.push(msgParams);
         return testMsgSig;
       };
@@ -332,9 +363,11 @@ describe('wallet', () => {
     });
 
     it('should throw with unknown address', async () => {
-      const getAccounts = async () => testAddresses.slice();
+      const getAccounts = async (): Promise<string[]> => testAddresses.slice();
       const witnessedMsgParams: TypedMessageV1Params[] = [];
-      const processTypedMessage = async (msgParams: TypedMessageV1Params) => {
+      const processTypedMessage = async (
+        msgParams: TypedMessageV1Params,
+      ): Promise<string> => {
         witnessedMsgParams.push(msgParams);
         return testMsgSig;
       };
@@ -365,9 +398,11 @@ describe('wallet', () => {
 
   describe('signTypedDataV3', () => {
     it('should sign data and normalizes verifyingContract', async () => {
-      const getAccounts = async () => testAddresses.slice();
+      const getAccounts = async (): Promise<string[]> => testAddresses.slice();
       const witnessedMsgParams: TypedMessageParams[] = [];
-      const processTypedMessageV3 = async (msgParams: TypedMessageParams) => {
+      const processTypedMessageV3 = async (
+        msgParams: TypedMessageParams,
+      ): Promise<string> => {
         witnessedMsgParams.push(msgParams);
         // Assume testMsgSig is the expected signature result
         return testMsgSig;
@@ -423,9 +458,11 @@ describe('wallet', () => {
     });
 
     it('should throw if verifyingContract is invalid hex value', async () => {
-      const getAccounts = async () => testAddresses.slice();
+      const getAccounts = async (): Promise<string[]> => testAddresses.slice();
       const witnessedMsgParams: TypedMessageParams[] = [];
-      const processTypedMessageV3 = async (msgParams: TypedMessageParams) => {
+      const processTypedMessageV3 = async (
+        msgParams: TypedMessageParams,
+      ): Promise<string> => {
         witnessedMsgParams.push(msgParams);
         // Assume testMsgSig is the expected signature result
         return testMsgSig;
@@ -465,9 +502,11 @@ describe('wallet', () => {
     });
 
     it('should not throw if verifyingContract is undefined', async () => {
-      const getAccounts = async () => testAddresses.slice();
+      const getAccounts = async (): Promise<string[]> => testAddresses.slice();
       const witnessedMsgParams: TypedMessageParams[] = [];
-      const processTypedMessageV3 = async (msgParams: TypedMessageParams) => {
+      const processTypedMessageV3 = async (
+        msgParams: TypedMessageParams,
+      ): Promise<string> => {
         witnessedMsgParams.push(msgParams);
         // Assume testMsgSig is the expected signature result
         return testMsgSig;
@@ -506,7 +545,9 @@ describe('wallet', () => {
   });
 
   describe('signTypedDataV4', () => {
-    const getMsgParams = (verifyingContract?: string) => ({
+    const getMsgParams = (
+      verifyingContract?: string,
+    ): TypedMessage<MessageTypes> => ({
       types: {
         EIP712Domain: [
           { name: 'name', type: 'string' },
@@ -528,6 +569,9 @@ describe('wallet', () => {
         version: '1',
         verifyingContract:
           verifyingContract ?? '0xCcCCccccCCCCcCCCCCCcCcCccCcCCCcCcccccccC',
+        // TODO: Investigate this further.
+        // @ts-expect-error: This expects a number, but hex string is used in
+        // practice.
         chainId: '0x1',
       },
       message: {
@@ -540,9 +584,11 @@ describe('wallet', () => {
     });
 
     it('should not throw if request is permit with valid hex value for verifyingContract address', async () => {
-      const getAccounts = async () => testAddresses.slice();
+      const getAccounts = async (): Promise<string[]> => testAddresses.slice();
       const witnessedMsgParams: TypedMessageParams[] = [];
-      const processTypedMessageV4 = async (msgParams: TypedMessageParams) => {
+      const processTypedMessageV4 = async (
+        msgParams: TypedMessageParams,
+      ): Promise<string> => {
         witnessedMsgParams.push(msgParams);
         // Assume testMsgSig is the expected signature result
         return testMsgSig;
@@ -565,9 +611,11 @@ describe('wallet', () => {
     });
 
     it('should throw if request is permit with invalid hex value for verifyingContract address', async () => {
-      const getAccounts = async () => testAddresses.slice();
+      const getAccounts = async (): Promise<string[]> => testAddresses.slice();
       const witnessedMsgParams: TypedMessageParams[] = [];
-      const processTypedMessageV4 = async (msgParams: TypedMessageParams) => {
+      const processTypedMessageV4 = async (
+        msgParams: TypedMessageParams,
+      ): Promise<string> => {
         witnessedMsgParams.push(msgParams);
         // Assume testMsgSig is the expected signature result
         return testMsgSig;
@@ -594,9 +642,11 @@ describe('wallet', () => {
     });
 
     it('should not throw if request is permit with undefined value for verifyingContract address', async () => {
-      const getAccounts = async () => testAddresses.slice();
+      const getAccounts = async (): Promise<string[]> => testAddresses.slice();
       const witnessedMsgParams: TypedMessageParams[] = [];
-      const processTypedMessageV4 = async (msgParams: TypedMessageParams) => {
+      const processTypedMessageV4 = async (
+        msgParams: TypedMessageParams,
+      ): Promise<string> => {
         witnessedMsgParams.push(msgParams);
         // Assume testMsgSig is the expected signature result
         return testMsgSig;
@@ -619,9 +669,11 @@ describe('wallet', () => {
     });
 
     it('should not throw if request is permit with verifyingContract address equal to "cosmos"', async () => {
-      const getAccounts = async () => testAddresses.slice();
+      const getAccounts = async (): Promise<string[]> => testAddresses.slice();
       const witnessedMsgParams: TypedMessageParams[] = [];
-      const processTypedMessageV4 = async (msgParams: TypedMessageParams) => {
+      const processTypedMessageV4 = async (
+        msgParams: TypedMessageParams,
+      ): Promise<string> => {
         witnessedMsgParams.push(msgParams);
         // Assume testMsgSig is the expected signature result
         return testMsgSig;
@@ -644,9 +696,11 @@ describe('wallet', () => {
     });
 
     it('should throw if message does not have types defined', async () => {
-      const getAccounts = async () => testAddresses.slice();
+      const getAccounts = async (): Promise<string[]> => testAddresses.slice();
       const witnessedMsgParams: TypedMessageParams[] = [];
-      const processTypedMessageV4 = async (msgParams: TypedMessageParams) => {
+      const processTypedMessageV4 = async (
+        msgParams: TypedMessageParams,
+      ): Promise<string> => {
         witnessedMsgParams.push(msgParams);
         // Assume testMsgSig is the expected signature result
         return testMsgSig;
@@ -672,9 +726,11 @@ describe('wallet', () => {
     });
 
     it('should throw if type of primaryType is not defined', async () => {
-      const getAccounts = async () => testAddresses.slice();
+      const getAccounts = async (): Promise<string[]> => testAddresses.slice();
       const witnessedMsgParams: TypedMessageParams[] = [];
-      const processTypedMessageV4 = async (msgParams: TypedMessageParams) => {
+      const processTypedMessageV4 = async (
+        msgParams: TypedMessageParams,
+      ): Promise<string> => {
         witnessedMsgParams.push(msgParams);
         // Assume testMsgSig is the expected signature result
         return testMsgSig;
@@ -705,9 +761,11 @@ describe('wallet', () => {
 
   describe('sign', () => {
     it('should sign with a valid address', async () => {
-      const getAccounts = async () => testAddresses.slice();
+      const getAccounts = async (): Promise<string[]> => testAddresses.slice();
       const witnessedMsgParams: MessageParams[] = [];
-      const processPersonalMessage = async (msgParams: MessageParams) => {
+      const processPersonalMessage = async (
+        msgParams: MessageParams,
+      ): Promise<string> => {
         witnessedMsgParams.push(msgParams);
         return testMsgSig;
       };
@@ -735,9 +793,11 @@ describe('wallet', () => {
     });
 
     it('should error when provided invalid address', async () => {
-      const getAccounts = async () => testAddresses.slice();
+      const getAccounts = async (): Promise<string[]> => testAddresses.slice();
       const witnessedMsgParams: MessageParams[] = [];
-      const processPersonalMessage = async (msgParams: MessageParams) => {
+      const processPersonalMessage = async (
+        msgParams: MessageParams,
+      ): Promise<string> => {
         witnessedMsgParams.push(msgParams);
         return testMsgSig;
       };
@@ -761,9 +821,11 @@ describe('wallet', () => {
     });
 
     it('should error when provided unknown address', async () => {
-      const getAccounts = async () => testAddresses.slice();
+      const getAccounts = async (): Promise<string[]> => testAddresses.slice();
       const witnessedMsgParams: MessageParams[] = [];
-      const processPersonalMessage = async (msgParams: MessageParams) => {
+      const processPersonalMessage = async (
+        msgParams: MessageParams,
+      ): Promise<string> => {
         witnessedMsgParams.push(msgParams);
         return testMsgSig;
       };
@@ -789,7 +851,7 @@ describe('wallet', () => {
 
   describe('personalRecover', () => {
     it('should recover with "geth kumavis manual recover"', async () => {
-      const getAccounts = async () => testAddresses.slice();
+      const getAccounts = async (): Promise<string[]> => testAddresses.slice();
       const signParams = {
         testLabel: 'geth kumavis manual I recover',
         // "hello world"
@@ -815,7 +877,7 @@ describe('wallet', () => {
     });
 
     it('should recover with "geth kumavis manual recover II"', async () => {
-      const getAccounts = async () => testAddresses.slice();
+      const getAccounts = async (): Promise<string[]> => testAddresses.slice();
       const signParams = {
         testLabel: 'geth kumavis manual II recover',
         // message from parity's test - note result is different than what they are testing against
@@ -840,6 +902,115 @@ describe('wallet', () => {
       );
       expect(ecrecoverResult).toBeDefined();
       expect(ecrecoverResult).toStrictEqual(signParams.addressHex);
+    });
+  });
+
+  describe('prototype pollution validation', () => {
+    describe('signTypedData (V1)', () => {
+      DANGEROUS_PROTOTYPE_PROPERTIES.forEach((dangerousProperty) => {
+        it(`should throw if value contains nested ${dangerousProperty}`, async () => {
+          const getAccounts = async (): Promise<string[]> =>
+            testAddresses.slice();
+          const processTypedMessage = async (): Promise<string> => testMsgSig;
+          const engine = JsonRpcEngineV2.create({
+            middleware: [
+              createWalletMiddleware({ getAccounts, processTypedMessage }),
+            ],
+          });
+
+          const value = {};
+          Object.defineProperty(value, dangerousProperty, {
+            value: 'malicious',
+            enumerable: true,
+          });
+          const message = [{ type: 'object', name: 'data', value }];
+          const payload = {
+            method: 'eth_signTypedData',
+            params: [message, testAddresses[0]],
+          };
+
+          await expect(
+            engine.handle(...createHandleParams(payload)),
+          ).rejects.toThrow('Invalid input.');
+        });
+      });
+    });
+
+    describe('signTypedDataV3', () => {
+      DANGEROUS_PROTOTYPE_PROPERTIES.forEach((dangerousProperty) => {
+        it(`should throw if message contains ${dangerousProperty}`, async () => {
+          const getAccounts = async (): Promise<string[]> =>
+            testAddresses.slice();
+          const processTypedMessageV3 = async (): Promise<string> => testMsgSig;
+          const engine = JsonRpcEngineV2.create({
+            middleware: [
+              createWalletMiddleware({ getAccounts, processTypedMessageV3 }),
+            ],
+          });
+
+          const msgObj = {};
+          Object.defineProperty(msgObj, dangerousProperty, {
+            value: 'malicious',
+            enumerable: true,
+          });
+          const message = {
+            types: {
+              EIP712Domain: [{ name: 'name', type: 'string' }],
+            },
+            primaryType: 'EIP712Domain',
+            domain: {},
+            message: msgObj,
+          };
+
+          const payload = {
+            method: 'eth_signTypedData_v3',
+            params: [testAddresses[0], JSON.stringify(message)],
+          };
+
+          await expect(
+            engine.handle(...createHandleParams(payload)),
+          ).rejects.toThrow('Invalid input.');
+        });
+      });
+    });
+
+    describe('signTypedDataV4', () => {
+      DANGEROUS_PROTOTYPE_PROPERTIES.forEach((dangerousProperty) => {
+        it(`should throw if message contains ${dangerousProperty}`, async () => {
+          const getAccounts = async (): Promise<string[]> =>
+            testAddresses.slice();
+          const processTypedMessageV4 = async (): Promise<string> => testMsgSig;
+          const engine = JsonRpcEngineV2.create({
+            middleware: [
+              createWalletMiddleware({ getAccounts, processTypedMessageV4 }),
+            ],
+          });
+
+          const msgObj = {};
+          Object.defineProperty(msgObj, dangerousProperty, {
+            value: 'malicious',
+            enumerable: true,
+          });
+          const message = {
+            types: {
+              EIP712Domain: [{ name: 'name', type: 'string' }],
+              Permit: [{ name: 'owner', type: 'address' }],
+            },
+            primaryType: 'Permit',
+            domain: {},
+            message: msgObj,
+          };
+
+          const payload = {
+            method: 'eth_signTypedData_v4',
+            params: [testAddresses[0], JSON.stringify(message)],
+          };
+
+          await expect(
+            engine.handle(...createHandleParams(payload)),
+          ).rejects.toThrow('Invalid input.');
+        });
+      });
     });
   });
 });

@@ -4,11 +4,10 @@ import { hexToNumber } from '@metamask/utils';
 
 import { decodeTransactionData } from './transaction-type';
 import { validateParamTo } from './validation';
-import {
-  getAccountAddressRelationship,
-  type GetAccountAddressRelationshipRequest,
-} from '../api/accounts-api';
+import { getAccountAddressRelationship } from '../api/accounts-api';
+import type { GetAccountAddressRelationshipRequest } from '../api/accounts-api';
 import { projectLogger as log } from '../logger';
+import { TransactionType } from '../types';
 import type { TransactionMeta } from '../types';
 
 type UpdateFirstTimeInteractionRequest = {
@@ -57,20 +56,25 @@ export async function updateFirstTimeInteraction({
     chainId,
     id: transactionId,
     txParams: { data, from, to },
+    type,
   } = transactionMeta;
 
   let recipient;
-  if (data) {
+  if (
+    data &&
+    [
+      TransactionType.tokenMethodTransfer,
+      TransactionType.tokenMethodTransferFrom,
+    ].includes(type as TransactionType)
+  ) {
     const parsedData = decodeTransactionData(data) as TransactionDescription;
     // _to is for ERC20, ERC721 and USDC
     // to is for ERC1155
-    recipient = parsedData?.args?._to || parsedData?.args?.to;
+    recipient = parsedData?.args?._to ?? parsedData?.args?.to;
   }
 
-  if (!recipient) {
-    // Use as fallback if no recipient is found from decode or no data is present
-    recipient = to;
-  }
+  // Use as fallback if no recipient is found from decode or no data is present
+  recipient ??= to;
 
   const request: GetAccountAddressRelationshipRequest = {
     chainId: hexToNumber(chainId),

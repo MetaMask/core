@@ -1,7 +1,5 @@
-import {
-  TransactionStatus,
-  type BatchTransaction,
-} from '@metamask/transaction-controller';
+import { TransactionStatus } from '@metamask/transaction-controller';
+import type { BatchTransaction } from '@metamask/transaction-controller';
 import type { TransactionMeta } from '@metamask/transaction-controller';
 import type { Hex, Json } from '@metamask/utils';
 import { createModuleLogger } from '@metamask/utils';
@@ -57,10 +55,11 @@ export async function updateQuotes(
 
   log('Updating quotes', { transactionId });
 
-  const { paymentToken, sourceAmounts, tokens } = transactionData;
+  const { isMaxAmount, paymentToken, sourceAmounts, tokens } = transactionData;
 
   const requests = buildQuoteRequests({
     from: transaction.txParams.from as Hex,
+    isMaxAmount: isMaxAmount ?? false,
     paymentToken,
     sourceAmounts,
     tokens,
@@ -79,8 +78,9 @@ export async function updateQuotes(
     );
 
     const totals = calculateTotals({
-      quotes: quotes as TransactionPayQuote<unknown>[],
+      isMaxAmount,
       messenger,
+      quotes: quotes as TransactionPayQuote<unknown>[],
       tokens,
       transaction,
     });
@@ -131,7 +131,7 @@ function syncTransaction({
   paymentToken: TransactionPaymentToken | undefined;
   totals: TransactionPayTotals;
   transactionId: string;
-}) {
+}): void {
   if (!paymentToken) {
     return;
   }
@@ -149,7 +149,8 @@ function syncTransaction({
       tx.metamaskPay = {
         bridgeFeeFiat: totals.fees.provider.usd,
         chainId: paymentToken.chainId,
-        networkFeeFiat: totals.fees.sourceNetwork.usd,
+        networkFeeFiat: totals.fees.sourceNetwork.estimate.usd,
+        targetFiat: totals.targetAmount.usd,
         tokenAddress: paymentToken.address,
         totalFiat: totals.total.usd,
       };
@@ -166,7 +167,7 @@ function syncTransaction({
 export async function refreshQuotes(
   messenger: TransactionPayControllerMessenger,
   updateTransactionData: UpdateTransactionDataCallback,
-) {
+): Promise<void> {
   const state = messenger.call('TransactionPayController:getState');
   const transactionIds = Object.keys(state.transactionData);
 
@@ -211,6 +212,7 @@ export async function refreshQuotes(
  *
  * @param request - Request parameters.
  * @param request.from - Address from which the transaction is sent.
+ * @param request.isMaxAmount - Whether the transaction is a maximum amount transaction.
  * @param request.paymentToken - Payment token used for the transaction.
  * @param request.sourceAmounts - Source amounts for the transaction.
  * @param request.tokens - Required tokens for the transaction.
@@ -219,12 +221,14 @@ export async function refreshQuotes(
  */
 function buildQuoteRequests({
   from,
+  isMaxAmount,
   paymentToken,
   sourceAmounts,
   tokens,
   transactionId,
 }: {
   from: Hex;
+  isMaxAmount: boolean;
   paymentToken: TransactionPaymentToken | undefined;
   sourceAmounts: TransactionPaySourceAmount[] | undefined;
   tokens: TransactionPayRequiredToken[];
@@ -236,11 +240,12 @@ function buildQuoteRequests({
 
   const requests = (sourceAmounts ?? []).map((sourceAmount) => {
     const token = tokens.find(
-      (t) => t.address === sourceAmount.targetTokenAddress,
+      (singleToken) => singleToken.address === sourceAmount.targetTokenAddress,
     ) as TransactionPayRequiredToken;
 
     return {
       from,
+      isMaxAmount,
       sourceBalanceRaw: paymentToken.balanceRaw,
       sourceTokenAmount: sourceAmount.sourceAmountRaw,
       sourceChainId: paymentToken.chainId,
@@ -270,7 +275,10 @@ async function getQuotes(
   transaction: TransactionMeta,
   requests: QuoteRequest[],
   messenger: TransactionPayControllerMessenger,
-) {
+): Promise<{
+  batchTransactions: BatchTransaction[];
+  quotes: TransactionPayQuote<Json>[];
+}> {
   const { id: transactionId } = transaction;
   const strategy = getStrategy(messenger as never, transaction);
   let quotes: TransactionPayQuote<Json>[] | undefined = [];

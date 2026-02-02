@@ -40,7 +40,7 @@ export function testsForRpcMethodSupportingBlockParam(
     numberOfParameters,
     providerType,
   }: TestsForRpcMethodSupportingBlockParam,
-) {
+): void {
   describe.each([
     ['given no block tag', undefined],
     ['given a block tag of "latest"', 'latest'],
