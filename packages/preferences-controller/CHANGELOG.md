@@ -9,12 +9,6 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [22.1.0]
 
-### Uncategorized
-
-- chore: upgrade Jest-related packages to latest 27.x versions ([#7792](https://github.com/MetaMask/core/pull/7792))
-- chore(lint): Fix suppressed ESLint errors in `preferences-controller` package ([#7433](https://github.com/MetaMask/core/pull/7433))
-- chore: Update ESLint config packages to v15 ([#7305](https://github.com/MetaMask/core/pull/7305))
-
 ### Added
 
 - Add support for HYPEREVM (chain ID `0x3e7`) ([#7770](https://github.com/MetaMask/core/pull/7770))

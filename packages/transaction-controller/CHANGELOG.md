@@ -9,10 +9,6 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [62.13.0]
 
-### Uncategorized
-
-- chore: upgrade Jest-related packages to latest 27.x versions ([#7792](https://github.com/MetaMask/core/pull/7792))
-
 ### Added
 
 - Add `HYPEREVM` network support ([#7770](https://github.com/MetaMask/core/pull/7770))

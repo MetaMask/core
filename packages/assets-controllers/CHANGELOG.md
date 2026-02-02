@@ -9,12 +9,6 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [99.2.0]
 
-### Uncategorized
-
-- chore: removed token-search-discovery-controller package ([#7789](https://github.com/MetaMask/core/pull/7789))
-- chore: Simplify TokenListController initialization ([#7740](https://github.com/MetaMask/core/pull/7740))
-- chore: upgrade Jest-related packages to latest 27.x versions ([#7792](https://github.com/MetaMask/core/pull/7792))
-
 ### Added
 
 - Add `HYPEREVM` support ([#7790](https://github.com/MetaMask/core/pull/7790))
@@ -23,9 +17,14 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ### Changed
 
+- Simplify TokenListController initialization ([#7740](https://github.com/MetaMask/core/pull/7740))
 - Bump `@metamask/storage-service` from `^0.0.1` to `^1.0.0` ([#7797](https://github.com/MetaMask/core/pull/7797))
 - Bump `@metamask/transaction-controller` from `^62.11.0` to `^62.13.0` ([#7775](https://github.com/MetaMask/core/pull/7775), [#7802](https://github.com/MetaMask/core/pull/7802))
 - Bump `@metamask/preferences-controller` from `^22.0.0` to `^22.1.0` ([#7802](https://github.com/MetaMask/core/pull/7802))
+
+### Removed
+
+- Removed token-search-discovery-controller package ([#7789](https://github.com/MetaMask/core/pull/7789))
 
 ## [99.1.0]
 
