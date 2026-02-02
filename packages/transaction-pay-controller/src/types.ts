@@ -244,7 +244,16 @@ export type TransactionPaySourceAmount = {
   /** Amount of payment token required in atomic format without factoring token decimals. */
   sourceAmountRaw: string;
 
-  /** Address of the required token. */
+  /** Balance of the source token in atomic format (for post-quote flows). */
+  sourceBalanceRaw?: string;
+
+  /** Chain ID of the source token (for post-quote flows). */
+  sourceChainId?: Hex;
+
+  /** Address of the source token (for post-quote flows). */
+  sourceTokenAddress?: Hex;
+
+  /** Address of the target token. */
   targetTokenAddress: Hex;
 };
 

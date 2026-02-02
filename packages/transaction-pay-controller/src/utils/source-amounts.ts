@@ -85,6 +85,9 @@ function calculatePostQuoteSourceAmounts(
     .map((token) => ({
       sourceAmountHuman: token.amountHuman,
       sourceAmountRaw: token.amountRaw,
+      sourceBalanceRaw: token.balanceRaw,
+      sourceChainId: token.chainId,
+      sourceTokenAddress: token.address,
       targetTokenAddress: paymentToken.address,
     }));
 }
