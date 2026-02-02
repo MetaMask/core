@@ -16,6 +16,7 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 ### Added
 
 - Add quotes functionality to RampsController ([#7747](https://github.com/MetaMask/core/pull/7747))
+
 ### Fixed
 
 - Fix `getQuotes()` to trim `assetId` and `walletAddress` parameters before use ([#7793](https://github.com/MetaMask/core/pull/7793))
