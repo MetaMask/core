@@ -649,6 +649,322 @@ describe('BridgeController', function () {
     expect(trackMetaMetricsFn.mock.calls).toMatchSnapshot();
   });
 
+  it('updateBridgeQuoteRequestParams should reset minimumBalanceForRentExemptionInLamports if getMinimumBalanceForRentExemption call fails', async function () {
+    jest.useFakeTimers();
+    jest.clearAllMocks();
+    jest.spyOn(balanceUtils, 'hasSufficientBalance').mockResolvedValue(false);
+    const consoleErrorSpy = jest
+      .spyOn(console, 'error')
+      .mockImplementation(jest.fn());
+    const consoleWarnSpy = jest
+      .spyOn(console, 'warn')
+      .mockImplementation(jest.fn());
+
+    const setupMessengerMock = (shouldMinBalanceFail = false) => {
+      messengerMock.call.mockImplementation(
+        (
+          ...args: Parameters<BridgeControllerMessenger['call']>
+        ): ReturnType<BridgeControllerMessenger['call']> => {
+          const [actionType, params] = args;
+
+          if (actionType === 'CurrencyRateController:getState') {
+            throw new Error('Currency rate error');
+          }
+
+          if (actionType === 'AccountsController:getAccountByAddress') {
+            return {
+              type: SolAccountType.DataAccount,
+              id: 'account1',
+              scopes: [SolScope.Mainnet],
+              methods: [],
+              address: '0x123',
+              metadata: {
+                name: 'Account 1',
+                importTime: 1717334400,
+                keyring: {
+                  type: 'Keyring',
+                },
+                snap: {
+                  id: 'npm:@metamask/solana-snap',
+                  name: 'Solana Snap',
+                  enabled: true,
+                },
+              },
+              options: {
+                scope: SolScope.Mainnet,
+              },
+            };
+          }
+
+          if (actionType === 'SnapController:handleRequest') {
+            return new Promise((resolve, reject) => {
+              if (
+                (params as { handler: string })?.handler === 'onProtocolRequest'
+              ) {
+                if (shouldMinBalanceFail) {
+                  return setTimeout(() => {
+                    reject(new Error('Min balance error'));
+                  }, 200);
+                }
+                return setTimeout(() => {
+                  resolve('5000');
+                }, 200);
+              }
+              if (
+                (params as { handler: string })?.handler ===
+                  'onClientRequest' &&
+                (params as { request?: { method: string } })?.request
+                  ?.method === 'computeFee'
+              ) {
+                return setTimeout(() => {
+                  resolve([
+                    {
+                      type: 'base',
+                      asset: {
+                        unit: 'SOL',
+                        type: 'solana:5eykt4UsFv8P8NJdTREpY1vzqKqZKvdp/token:11111111111111111111111111111111',
+                        amount: '0.000000014', // 14 lamports in SOL
+                        fungible: true,
+                      },
+                    },
+                  ]);
+                }, 100);
+              }
+              return setTimeout(() => {
+                resolve({ value: '14' });
+              }, 100);
+            });
+          }
+          return {
+            provider: jest.fn() as never,
+          } as never;
+        },
+      );
+    };
+    jest
+      .spyOn(selectors, 'selectIsAssetExchangeRateInState')
+      .mockReturnValue(true);
+
+    setupMessengerMock();
+    const fetchBridgeQuotesSpy = jest
+      .spyOn(fetchUtils, 'fetchBridgeQuotes')
+      .mockImplementation(async () => {
+        return await new Promise((resolve) => {
+          return setTimeout(() => {
+            resolve({
+              quotes: mockBridgeQuotesSolErc20 as never,
+              validationFailures: [],
+            });
+          }, 2000);
+        });
+      });
+
+    const quoteParams = {
+      srcChainId: SolScope.Mainnet,
+      destChainId: SolScope.Mainnet,
+      srcTokenAddress: '0x0000000000000000000000000000000000000000',
+      destTokenAddress: '0x123',
+      srcTokenAmount: '1000000000000000000',
+      walletAddress: '0x123',
+      slippage: 0.5,
+    };
+
+    /*
+    Set quote request with Solana srcChainId
+    */
+    await bridgeController.updateBridgeQuoteRequestParams(
+      quoteParams,
+      metricsContext,
+    );
+
+    // Initial state check
+    expect(bridgeController.state).toStrictEqual(
+      expect.objectContaining({
+        quoteRequest: { ...quoteParams },
+        minimumBalanceForRentExemptionInLamports: '0',
+        quotesLoadingStatus:
+          DEFAULT_BRIDGE_CONTROLLER_STATE.quotesLoadingStatus,
+      }),
+    );
+
+    // Advance timers and check loading state
+    jest.advanceTimersToNextTimer();
+    await flushPromises();
+    jest.advanceTimersToNextTimer();
+    await flushPromises();
+    expect(fetchBridgeQuotesSpy).toHaveBeenCalledTimes(1);
+    expect(bridgeController.state).toStrictEqual(
+      expect.objectContaining({
+        minimumBalanceForRentExemptionInLamports: '5000',
+        quotes: [],
+        quotesLoadingStatus: RequestStatus.LOADING,
+      }),
+    );
+
+    // Advance timers and check final state
+    jest.advanceTimersToNextTimer();
+    await flushPromises();
+    jest.advanceTimersToNextTimer();
+    await flushPromises();
+    expect(bridgeController.state).toStrictEqual(
+      expect.objectContaining({
+        minimumBalanceForRentExemptionInLamports: '5000',
+        quotes: mockBridgeQuotesSolErc20.map((quote) => ({
+          ...quote,
+          nonEvmFeesInNative: '0.000000014',
+        })),
+        quotesLoadingStatus: RequestStatus.FETCHED,
+        quoteRequest: {
+          ...quoteParams,
+          resetApproval: false,
+          insufficientBal: undefined,
+        },
+        quoteFetchError: null,
+        assetExchangeRates: {},
+        quotesRefreshCount: 1,
+        quotesInitialLoadTime: 2100,
+        quotesLastFetched: expect.any(Number),
+      }),
+    );
+    expect(consoleErrorSpy).not.toHaveBeenCalled();
+    expect(
+      messengerMock.call.mock.calls.filter(([action]) =>
+        action.includes('SnapController'),
+      ),
+    ).toHaveLength(3);
+
+    /*
+    Update quote request params to EVM and back to Solana
+    */
+    await bridgeController.updateBridgeQuoteRequestParams(
+      { ...quoteParams, srcChainId: '0x1' },
+      metricsContext,
+    );
+    jest.advanceTimersByTime(2000);
+    expect(bridgeController.state).toStrictEqual(
+      expect.objectContaining({
+        minimumBalanceForRentExemptionInLamports: '0',
+        quotes: [],
+        quotesLoadingStatus: null,
+      }),
+    );
+
+    /*
+    Add destWalletAddress
+    */
+    await bridgeController.updateBridgeQuoteRequestParams(
+      { ...quoteParams, destWalletAddress: 'SolanaWalletAddres1234' },
+      metricsContext,
+    );
+    jest.advanceTimersByTime(2000);
+    expect(bridgeController.state).toStrictEqual(
+      expect.objectContaining({
+        minimumBalanceForRentExemptionInLamports: '0',
+        quotes: [],
+        quotesLoadingStatus: RequestStatus.LOADING,
+      }),
+    );
+
+    await bridgeController.updateBridgeQuoteRequestParams(
+      quoteParams,
+      metricsContext,
+    );
+    jest.advanceTimersToNextTimer();
+    await flushPromises();
+    jest.advanceTimersToNextTimer();
+    await flushPromises();
+    jest.advanceTimersToNextTimer();
+    await flushPromises();
+    jest.advanceTimersToNextTimer();
+    await flushPromises();
+    expect(fetchBridgeQuotesSpy).toHaveBeenCalledTimes(3);
+    expect(bridgeController.state).toStrictEqual(
+      expect.objectContaining({
+        minimumBalanceForRentExemptionInLamports: '5000',
+        quotes: mockBridgeQuotesSolErc20.map((quote) => ({
+          ...quote,
+          nonEvmFeesInNative: '0.000000014',
+        })),
+        quotesLoadingStatus: RequestStatus.FETCHED,
+        quoteRequest: {
+          ...quoteParams,
+          resetApproval: false,
+          insufficientBal: undefined,
+        },
+        quoteFetchError: null,
+        assetExchangeRates: {},
+        quotesRefreshCount: expect.any(Number),
+        quotesInitialLoadTime: expect.any(Number),
+        quotesLastFetched: expect.any(Number),
+      }),
+    );
+    expect(consoleErrorSpy).not.toHaveBeenCalled();
+    expect(
+      messengerMock.call.mock.calls.filter(([action]) =>
+        action.includes('SnapController'),
+      ),
+    ).toHaveLength(9);
+
+    /*
+    Test min balance fetch failure
+    */
+    setupMessengerMock(true);
+    await bridgeController.updateBridgeQuoteRequestParams(
+      { ...quoteParams, srcTokenAmount: '11111' },
+      metricsContext,
+    );
+
+    // Check states during failure scenario
+    jest.advanceTimersToNextTimer();
+    await flushPromises();
+    jest.advanceTimersToNextTimer();
+    await flushPromises();
+    jest.advanceTimersToNextTimer();
+    await flushPromises();
+    jest.advanceTimersToNextTimer();
+    await flushPromises();
+    expect(fetchBridgeQuotesSpy).toHaveBeenCalledTimes(4);
+    expect(bridgeController.state).toStrictEqual(
+      expect.objectContaining({
+        minimumBalanceForRentExemptionInLamports: '0',
+        quotes: mockBridgeQuotesSolErc20.map((quote) => ({
+          ...quote,
+          nonEvmFeesInNative: '0.000000014',
+        })),
+        quotesLoadingStatus: RequestStatus.FETCHED,
+        quoteRequest: {
+          ...quoteParams,
+          srcTokenAmount: '11111',
+          insufficientBal: undefined,
+          resetApproval: false,
+        },
+        quoteFetchError: null,
+        assetExchangeRates: {},
+        quotesRefreshCount: 1,
+        quotesInitialLoadTime: 2100,
+        quotesLastFetched: expect.any(Number),
+      }),
+    );
+
+    // Verify error handling
+    expect(consoleErrorSpy.mock.calls).toMatchSnapshot();
+    expect(
+      messengerMock.call.mock.calls.filter(([action]) =>
+        action.includes('SnapController'),
+      ),
+    ).toHaveLength(12);
+    expect(
+      messengerMock.call.mock.calls.filter(([action]) =>
+        action.includes('SnapController'),
+      ),
+    ).toMatchSnapshot();
+    expect(consoleWarnSpy).toHaveBeenCalledTimes(5);
+    expect(consoleWarnSpy).toHaveBeenCalledWith(
+      'Failed to fetch asset exchange rates',
+      new Error('Currency rate error'),
+    );
+  });
+
   it('updateBridgeQuoteRequestParams should only poll once if insufficientBal=true', async function () {
     jest.useFakeTimers();
     const stopAllPollingSpy = jest.spyOn(bridgeController, 'stopAllPolling');
@@ -1420,6 +1736,7 @@ describe('BridgeController', function () {
       [],
       2,
       '0.000005000', // SOL amount (5000 lamports)
+      '300',
     ],
     [
       'should not append solanaFees if selected account is not a snap',
@@ -1427,6 +1744,7 @@ describe('BridgeController', function () {
       [],
       2,
       undefined,
+      '0',
       true,
     ],
     [
@@ -1438,6 +1756,7 @@ describe('BridgeController', function () {
       [],
       8,
       undefined,
+      '1',
     ],
     [
       'should handle malformed quotes',
@@ -1452,6 +1771,7 @@ describe('BridgeController', function () {
       ],
       8,
       undefined,
+      '1',
     ],
   ])(
     'updateBridgeQuoteRequestParams: %s',
@@ -1461,6 +1781,7 @@ describe('BridgeController', function () {
       validationFailures: string[],
       expectedQuotesLength: number,
       expectedFees: string | undefined,
+      expectedMinBalance: string | undefined,
       isEvmAccount = false,
     ) => {
       jest.useFakeTimers();
@@ -1522,6 +1843,13 @@ describe('BridgeController', function () {
 
           if (actionType === 'SnapController:handleRequest') {
             return new Promise((resolve) => {
+              if (
+                (params as { handler: string })?.handler === 'onProtocolRequest'
+              ) {
+                return setTimeout(() => {
+                  resolve(expectedMinBalance);
+                }, 200);
+              }
               if (
                 (params as { handler: string })?.handler ===
                   'onClientRequest' &&
@@ -1593,6 +1921,7 @@ describe('BridgeController', function () {
         expect.objectContaining({
           quotesLoadingStatus: RequestStatus.LOADING,
           quotes: [],
+          minimumBalanceForRentExemptionInLamports: expectedMinBalance,
         }),
       );
       jest.advanceTimersByTime(295);
@@ -2679,6 +3008,7 @@ describe('BridgeController', function () {
       ).toMatchInlineSnapshot(`
         Object {
           "assetExchangeRates": Object {},
+          "minimumBalanceForRentExemptionInLamports": "0",
           "quoteFetchError": null,
           "quoteRequest": Object {
             "srcTokenAddress": "0x0000000000000000000000000000000000000000",
@@ -2712,6 +3042,7 @@ describe('BridgeController', function () {
       ).toMatchInlineSnapshot(`
         Object {
           "assetExchangeRates": Object {},
+          "minimumBalanceForRentExemptionInLamports": "0",
           "quoteFetchError": null,
           "quoteRequest": Object {
             "srcTokenAddress": "0x0000000000000000000000000000000000000000",

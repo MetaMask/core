@@ -5832,21 +5832,16 @@ describe('SeedlessOnboardingController', () => {
             ),
           ).toMatchInlineSnapshot(`
             Object {
-              "accessToken": true,
               "authConnection": "google",
               "authConnectionId": "authConnectionId",
               "authPubKey": "authPubKey",
               "groupedAuthConnectionId": "groupedAuthConnectionId",
               "isSeedlessOnboardingUserAuthenticated": false,
-              "metadataAccessToken": true,
               "nodeAuthTokens": true,
               "passwordOutdatedCache": Object {
                 "isExpiredPwd": false,
                 "timestamp": 1234567890,
               },
-              "pendingToBeRevokedTokens": true,
-              "refreshToken": true,
-              "revokeToken": true,
               "userId": "userId",
             }
           `);

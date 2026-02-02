@@ -103,6 +103,7 @@ const QUOTE_MOCK = {
   },
   steps: [
     {
+      id: 'swap',
       items: [
         {
           check: {

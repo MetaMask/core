@@ -1,12 +1,12 @@
 {
-  "name": "@metamask/token-search-discovery-controller",
-  "version": "4.0.0",
-  "description": "Manages token search and discovery through the Portfolio API",
+  "name": "@metamask/analytics-data-regulation-controller",
+  "version": "0.0.0",
+  "description": "Controller for managing analytics privacy and GDPR/CCPA data deletion functionality",
   "keywords": [
     "MetaMask",
     "Ethereum"
   ],
-  "homepage": "https://github.com/MetaMask/core/tree/main/packages/token-search-discovery-controller#readme",
+  "homepage": "https://github.com/MetaMask/core/tree/main/packages/analytics-data-regulation-controller#readme",
   "bugs": {
     "url": "https://github.com/MetaMask/core/issues"
   },
@@ -38,8 +38,8 @@
     "build": "ts-bridge --project tsconfig.build.json --verbose --clean --no-references",
     "build:all": "ts-bridge --project tsconfig.build.json --verbose --clean",
     "build:docs": "typedoc",
-    "changelog:update": "../../scripts/update-changelog.sh @metamask/token-search-discovery-controller",
-    "changelog:validate": "../../scripts/validate-changelog.sh @metamask/token-search-discovery-controller",
+    "changelog:update": "../../scripts/update-changelog.sh @metamask/analytics-data-regulation-controller",
+    "changelog:validate": "../../scripts/validate-changelog.sh @metamask/analytics-data-regulation-controller",
     "publish:preview": "yarn npm publish --tag preview",
     "since-latest-release": "../../scripts/since-latest-release.sh",
     "test": "NODE_OPTIONS=--experimental-vm-modules jest --reporters=jest-silent-reporter",
@@ -49,17 +49,19 @@
   },
   "dependencies": {
     "@metamask/base-controller": "^9.0.0",
+    "@metamask/controller-utils": "^11.18.0",
     "@metamask/messenger": "^0.3.0",
     "@metamask/utils": "^11.9.0"
   },
   "devDependencies": {
     "@metamask/auto-changelog": "^3.4.4",
     "@ts-bridge/cli": "^0.6.4",
-    "@types/jest": "^27.4.1",
+    "@types/jest": "^27.5.2",
     "deepmerge": "^4.2.2",
     "jest": "^27.5.1",
     "nock": "^13.3.1",
-    "ts-jest": "^27.1.4",
+    "sinon": "^9.2.4",
+    "ts-jest": "^27.1.5",
     "typedoc": "^0.24.8",
     "typedoc-plugin-missing-exports": "^2.0.0",
     "typescript": "~5.3.3"

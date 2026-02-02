@@ -24,6 +24,9 @@
       "path": "./packages/analytics-controller"
     },
     {
+      "path": "./packages/analytics-data-regulation-controller"
+    },
+    {
       "path": "./packages/announcement-controller"
     },
     {
@@ -190,9 +193,6 @@
     },
     {
       "path": "./packages/subscription-controller"
-    },
-    {
-      "path": "./packages/token-search-discovery-controller"
     },
     {
       "path": "./packages/transaction-controller"

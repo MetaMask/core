@@ -277,7 +277,7 @@ export const SPOT_PRICES_SUPPORT_INFO = {
   '0x150': 'eip155:336/slip44:809', // Shiden - Native symbol: SDN
   '0x169': 'eip155:361/slip44:589', // Theta Mainnet - Native symbol: TFUEL
   '0x2eb': 'eip155:747/slip44:539', // Flow evm - Native symbol: Flow
-  '0x3e7': 'eip155:999/slip44:2457', // HyperEVM - Native symbol: ETH
+  '0x3e7': 'eip155:999/slip44:2457', // HyperEVM - Native symbol: HYPE
   '0x440': 'eip155:1088/erc20:0xdeaddeaddeaddeaddeaddeaddeaddeaddead0000', // Metis Andromeda Mainnet (Ethereum L2) - Native symbol: METIS
   '0x44d': 'eip155:1101/slip44:60', // Polygon zkEVM mainnet - Native symbol: ETH
   '0x504': 'eip155:1284/slip44:1284', // Moonbeam - Native symbol: GLMR

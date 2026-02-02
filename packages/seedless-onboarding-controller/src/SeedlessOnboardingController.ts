@@ -111,6 +111,8 @@ const seedlessOnboardingMetadata: StateMetadata<SeedlessOnboardingControllerStat
       usedInUi: false,
     },
     nodeAuthTokens: {
+      // We sanitize the `authToken` field from the `nodeAuthTokens` to avoid logging the actual token.
+      // The reason we include this in the state logs is to help with debugging in case of any issues.
       includeInStateLogs: (nodeAuthTokens) =>
         !isNullOrUndefined(nodeAuthTokens),
       persist: true,
@@ -172,28 +174,26 @@ const seedlessOnboardingMetadata: StateMetadata<SeedlessOnboardingControllerStat
       usedInUi: false,
     },
     refreshToken: {
-      includeInStateLogs: (refreshToken) => !isNullOrUndefined(refreshToken),
+      includeInStateLogs: false,
       persist: true,
       includeInDebugSnapshot: false,
       usedInUi: false,
     },
     revokeToken: {
-      includeInStateLogs: (revokeToken) => !isNullOrUndefined(revokeToken),
+      includeInStateLogs: false,
       persist: false,
       includeInDebugSnapshot: false,
       usedInUi: false,
     },
     pendingToBeRevokedTokens: {
-      includeInStateLogs: (pendingToBeRevokedTokens) =>
-        !isNullOrUndefined(pendingToBeRevokedTokens) &&
-        pendingToBeRevokedTokens.length > 0,
+      includeInStateLogs: false,
       persist: true,
       includeInDebugSnapshot: false,
       usedInUi: false,
     },
     // stays in vault
     accessToken: {
-      includeInStateLogs: (accessToken) => !isNullOrUndefined(accessToken),
+      includeInStateLogs: false,
       persist: false,
       includeInDebugSnapshot: false,
       usedInUi: false,
@@ -201,8 +201,7 @@ const seedlessOnboardingMetadata: StateMetadata<SeedlessOnboardingControllerStat
     // stays outside of vault as this token is accessed by the metadata service
     // before the vault is created or unlocked.
     metadataAccessToken: {
-      includeInStateLogs: (metadataAccessToken) =>
-        !isNullOrUndefined(metadataAccessToken),
+      includeInStateLogs: false,
       persist: true,
       includeInDebugSnapshot: false,
       usedInUi: false,

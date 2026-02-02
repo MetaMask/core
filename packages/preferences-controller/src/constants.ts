@@ -21,4 +21,5 @@ export const ETHERSCAN_SUPPORTED_CHAIN_IDS = {
   GNOSIS: '0x64',
   SEI: '0x531',
   MONAD: '0x8f',
+  HYPEREVM: '0x3e7',
 } as const;

@@ -223,7 +223,7 @@ describe('AssetsContractController', () => {
       chainId: assetsContract.chainId,
       ipfsGateway: assetsContract.ipfsGateway,
     }).toStrictEqual({
-      chainId: SupportedTokenDetectionNetworks.mainnet,
+      chainId: SupportedTokenDetectionNetworks.Mainnet,
       ipfsGateway: IPFS_DEFAULT_GATEWAY_URL,
     });
     messenger.clearEventSubscriptions('NetworkController:networkDidChange');
@@ -236,7 +236,7 @@ describe('AssetsContractController', () => {
       chainId: assetsContract.chainId,
       ipfsGateway: assetsContract.ipfsGateway,
     }).toStrictEqual({
-      chainId: SupportedTokenDetectionNetworks.mainnet,
+      chainId: SupportedTokenDetectionNetworks.Mainnet,
       ipfsGateway: IPFS_DEFAULT_GATEWAY_URL,
     });
 
@@ -250,7 +250,7 @@ describe('AssetsContractController', () => {
       ipfsGateway: assetsContract.ipfsGateway,
     }).toStrictEqual({
       ipfsGateway: 'newIPFSGateWay',
-      chainId: SupportedTokenDetectionNetworks.mainnet,
+      chainId: SupportedTokenDetectionNetworks.Mainnet,
     });
 
     messenger.clearEventSubscriptions('NetworkController:networkDidChange');

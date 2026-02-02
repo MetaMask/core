@@ -9,7 +9,18 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ### Changed
 
-- Bump `@metamask/transaction-controller` from `^62.9.2` to `^62.11.0` ([#7737](https://github.com/MetaMask/core/pull/7737), [#7760](https://github.com/MetaMask/core/pull/7760))
+- Bump `@metamask/transaction-controller` from `^62.12.0` to `^62.13.0` ([#7802](https://github.com/MetaMask/core/pull/7802))
+
+## [5.4.2]
+
+### Added
+
+- Added new public method `clearState` to clear/reset the subscription controller state. ([#7780](https://github.com/MetaMask/core/pull/7780))
+- Added SubscriptionController `clearLastSelectedPaymentMethod` method ([#7768](https://github.com/MetaMask/core/pull/7768))
+
+### Changed
+
+- Bump `@metamask/transaction-controller` from `^62.9.2` to `^62.12.0` ([#7737](https://github.com/MetaMask/core/pull/7737), [#7760](https://github.com/MetaMask/core/pull/7760), [#7775](https://github.com/MetaMask/core/pull/7775))
 
 ## [5.4.1]
 
@@ -272,7 +283,8 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 - Bump `@metamask/controller-utils` from `^11.12.0` to `^11.14.0` ([#6620](https://github.com/MetaMask/core/pull/6620), [#6629](https://github.com/MetaMask/core/pull/6629))
 - Bump `@metamask/utils` from `^11.4.2` to `^11.8.0` ([#6588](https://github.com/MetaMask/core/pull/6588))
 
-[Unreleased]: https://github.com/MetaMask/core/compare/@metamask/subscription-controller@5.4.1...HEAD
+[Unreleased]: https://github.com/MetaMask/core/compare/@metamask/subscription-controller@5.4.2...HEAD
+[5.4.2]: https://github.com/MetaMask/core/compare/@metamask/subscription-controller@5.4.1...@metamask/subscription-controller@5.4.2
 [5.4.1]: https://github.com/MetaMask/core/compare/@metamask/subscription-controller@5.4.0...@metamask/subscription-controller@5.4.1
 [5.4.0]: https://github.com/MetaMask/core/compare/@metamask/subscription-controller@5.3.1...@metamask/subscription-controller@5.4.0
 [5.3.1]: https://github.com/MetaMask/core/compare/@metamask/subscription-controller@5.3.0...@metamask/subscription-controller@5.3.1

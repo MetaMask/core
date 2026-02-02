@@ -111,7 +111,7 @@ export function getDefaultTokenSearchDiscoveryDataControllerState(): TokenSearch
 
 /**
  * The TokenSearchDiscoveryDataController manages the retrieval of token search results and token discovery.
- * It fetches token search results and discovery data from the Portfolio API.
+ * It fetches token metadata from the Token API and token prices from the token prices service.
  */
 export class TokenSearchDiscoveryDataController extends BaseController<
   typeof controllerName,

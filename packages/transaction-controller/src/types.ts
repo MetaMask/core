@@ -771,6 +771,11 @@ export enum TransactionType {
   lendingWithdraw = 'lendingWithdraw',
 
   /**
+   * A transaction that claims yield from a mUSD contract.
+   */
+  musdClaim = 'musdClaim',
+
+  /**
    * A transaction that converts tokens to mUSD.
    */
   musdConversion = 'musdConversion',
@@ -1122,6 +1127,12 @@ export interface RemoteTransactionSourceRequest {
    * The address of the account to fetch transactions for.
    */
   address: Hex;
+
+  /**
+   * Optional array of chain IDs to fetch transactions for.
+   * If not provided, defaults to all supported chains.
+   */
+  chainIds?: Hex[];
 
   /**
    * Whether to also include incoming token transfers.
