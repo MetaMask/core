@@ -72,6 +72,7 @@ import {
   MULTIPLE_MOCK_SECRET_METADATA,
 } from '../tests/mocks/toprf';
 import { MockToprfEncryptorDecryptor } from '../tests/mocks/toprfEncryptor';
+import { createMockJWTToken } from '../tests/mocks/utils';
 import MockVaultEncryptor from '../tests/mocks/vaultEncryptor';
 
 const authConnection = AuthConnection.Google;
@@ -3897,6 +3898,7 @@ describe('SeedlessOnboardingController', () => {
   describe('syncLatestGlobalPassword', () => {
     const OLD_PASSWORD = 'old-mock-password';
     const GLOBAL_PASSWORD = 'new-global-password';
+    const mockToprfEncryptor = createMockToprfEncryptor();
     let MOCK_VAULT: string;
     let MOCK_VAULT_ENCRYPTION_KEY: string;
     let MOCK_VAULT_ENCRYPTION_SALT: string;
@@ -3905,10 +3907,12 @@ describe('SeedlessOnboardingController', () => {
     let initialEncKey: Uint8Array; // Store initial encKey for vault creation
     let initialPwEncKey: Uint8Array; // Store initial pwEncKey for vault creation
     let initialEncryptedSeedlessEncryptionKey: Uint8Array; // Store initial encryptedSeedlessEncryptionKey for vault creation
+    let newEncKey: Uint8Array;
+    let newPwEncKey: Uint8Array;
+    let newAuthKeyPair: KeyPair;
 
     // Generate initial keys and vault state before tests run
     beforeAll(async () => {
-      const mockToprfEncryptor = createMockToprfEncryptor();
       initialEncKey = mockToprfEncryptor.deriveEncKey(OLD_PASSWORD);
       initialPwEncKey = mockToprfEncryptor.derivePwEncKey(OLD_PASSWORD);
       initialAuthKeyPair = mockToprfEncryptor.deriveAuthKeyPair(OLD_PASSWORD);
@@ -3933,6 +3937,12 @@ describe('SeedlessOnboardingController', () => {
     });
 
     // Remove beforeEach as setup is done in beforeAll now
+    beforeEach(() => {
+      // Mock recoverEncKey for the new global password
+      newEncKey = mockToprfEncryptor.deriveEncKey(GLOBAL_PASSWORD);
+      newPwEncKey = mockToprfEncryptor.derivePwEncKey(GLOBAL_PASSWORD);
+      newAuthKeyPair = mockToprfEncryptor.deriveAuthKeyPair(GLOBAL_PASSWORD);
+    });
 
     it('should successfully sync the latest global password', async () => {
       const b64EncKey = bytesToBase64(initialEncryptedSeedlessEncryptionKey);
@@ -3958,14 +3968,6 @@ describe('SeedlessOnboardingController', () => {
 
           const recoverEncKeySpy = jest.spyOn(toprfClient, 'recoverEncKey');
           const encryptorSpy = jest.spyOn(encryptor, 'encryptWithDetail');
-
-          // Mock recoverEncKey for the new global password
-          const mockToprfEncryptor = createMockToprfEncryptor();
-          const newEncKey = mockToprfEncryptor.deriveEncKey(GLOBAL_PASSWORD);
-          const newPwEncKey =
-            mockToprfEncryptor.derivePwEncKey(GLOBAL_PASSWORD);
-          const newAuthKeyPair =
-            mockToprfEncryptor.deriveAuthKeyPair(GLOBAL_PASSWORD);
 
           recoverEncKeySpy.mockResolvedValueOnce({
             encKey: newEncKey,
@@ -4039,6 +4041,109 @@ describe('SeedlessOnboardingController', () => {
       );
     });
 
+    it('should persist the latest accessToken when state token is newer than vault token', async () => {
+      const newerAccessToken = createMockJWTToken({ exp: 2000000000 }); // refreshed accessToken
+      const b64EncKey = bytesToBase64(initialEncryptedSeedlessEncryptionKey);
+
+      await withController(
+        {
+          state: getMockInitialControllerState({
+            withMockAuthenticatedUser: true,
+            authPubKey: INITIAL_AUTH_PUB_KEY, // Use the base64 encoded key
+            vault: MOCK_VAULT,
+            vaultEncryptionKey: MOCK_VAULT_ENCRYPTION_KEY,
+            vaultEncryptionSalt: MOCK_VAULT_ENCRYPTION_SALT,
+            withMockAuthPubKey: true,
+            encryptedSeedlessEncryptionKey: b64EncKey,
+          }),
+        },
+        async ({ controller, toprfClient, encryptor, mockRefreshJWTToken }) => {
+          // Unlock controller first - requires vaultEncryptionKey/Salt or password
+          // Since we provide key/salt in state, submitPassword isn't strictly needed here
+          // but we keep it to match the method's requirement of being unlocked
+          // We'll use the key/salt implicitly by not providing password to unlockVaultAndGetBackupEncKey
+          await controller.submitPassword(OLD_PASSWORD); // Unlock using the standard method
+
+          const recoverEncKeySpy = jest.spyOn(toprfClient, 'recoverEncKey');
+          const encryptorSpy = jest.spyOn(encryptor, 'encryptWithDetail');
+
+          recoverEncKeySpy.mockResolvedValueOnce({
+            encKey: newEncKey,
+            pwEncKey: newPwEncKey,
+            authKeyPair: newAuthKeyPair,
+            rateLimitResetResult: Promise.resolve(),
+            keyShareIndex: 1,
+          });
+          // Lock the wallet
+          await controller.setLocked();
+
+          // The following mocks are to simulate the token expiry and refresh.
+          // mock token expiry
+          jest
+            .spyOn(controller, 'checkNodeAuthTokenExpired')
+            .mockReturnValueOnce(true);
+          // mock token refresh
+          mockRefreshJWTToken.mockResolvedValueOnce({
+            idTokens: ['newIdToken'],
+            accessToken: newerAccessToken,
+            metadataAccessToken: 'new-metadata-access-token',
+          });
+          // mock toprfClient.authenticate which is called to generate new NodeAuthTokens
+          jest.spyOn(toprfClient, 'authenticate').mockResolvedValueOnce({
+            nodeAuthTokens: MOCK_NODE_AUTH_TOKENS,
+            isNewUser: false,
+          });
+
+          // Mock recoverEncKey for the global password
+          const encKey = mockToprfEncryptor.deriveEncKey(GLOBAL_PASSWORD);
+          const pwEncKey = mockToprfEncryptor.derivePwEncKey(GLOBAL_PASSWORD);
+          const authKeyPair =
+            mockToprfEncryptor.deriveAuthKeyPair(GLOBAL_PASSWORD);
+          jest.spyOn(toprfClient, 'recoverEncKey').mockResolvedValueOnce({
+            encKey,
+            pwEncKey,
+            authKeyPair,
+            rateLimitResetResult: Promise.resolve(),
+            keyShareIndex: 1,
+          });
+
+          // Mock toprfClient.recoverPwEncKey
+          const recoveredPwEncKey =
+            mockToprfEncryptor.derivePwEncKey(OLD_PASSWORD);
+          jest.spyOn(toprfClient, 'recoverPwEncKey').mockResolvedValueOnce({
+            pwEncKey: recoveredPwEncKey,
+          });
+
+          await controller.submitGlobalPassword({
+            globalPassword: GLOBAL_PASSWORD,
+          });
+
+          // assert that the newer access token is set in the state
+          expect(controller.state.accessToken).toBe(newerAccessToken);
+
+          await controller.syncLatestGlobalPassword({
+            globalPassword: GLOBAL_PASSWORD,
+          });
+
+          // Check if vault was re-encrypted with the new password and keys
+          const expectedSerializedVaultData = JSON.stringify({
+            toprfEncryptionKey: bytesToBase64(newEncKey),
+            toprfPwEncryptionKey: bytesToBase64(newPwEncKey),
+            toprfAuthKeyPair: JSON.stringify({
+              sk: bigIntToHex(newAuthKeyPair.sk),
+              pk: bytesToBase64(newAuthKeyPair.pk),
+            }),
+            revokeToken: controller.state.revokeToken,
+            accessToken: newerAccessToken,
+          });
+          expect(encryptorSpy).toHaveBeenCalledWith(
+            GLOBAL_PASSWORD,
+            expectedSerializedVaultData,
+          );
+        },
+      );
+    });
+
     it('should throw an error if recovering the encryption key for the global password fails', async () => {
       await withController(
         {
@@ -4100,13 +4205,6 @@ describe('SeedlessOnboardingController', () => {
           const encryptorSpy = jest.spyOn(encryptor, 'encryptWithDetail');
 
           // Make recoverEncKey succeed
-          const mockToprfEncryptor = createMockToprfEncryptor();
-          const newEncKey = mockToprfEncryptor.deriveEncKey(GLOBAL_PASSWORD);
-          const newPwEncKey =
-            mockToprfEncryptor.derivePwEncKey(GLOBAL_PASSWORD);
-          const newAuthKeyPair =
-            mockToprfEncryptor.deriveAuthKeyPair(GLOBAL_PASSWORD);
-
           recoverEncKeySpy.mockResolvedValueOnce({
             encKey: newEncKey,
             pwEncKey: newPwEncKey,
@@ -4158,13 +4256,6 @@ describe('SeedlessOnboardingController', () => {
         async ({ controller, toprfClient }) => {
           // Here we are creating mock keys associated with the new global password
           // and these values are used as mock return values for the recoverEncKey and recoverPwEncKey calls
-          const mockToprfEncryptor = createMockToprfEncryptor();
-          const newEncKey = mockToprfEncryptor.deriveEncKey(GLOBAL_PASSWORD);
-          const newPwEncKey =
-            mockToprfEncryptor.derivePwEncKey(GLOBAL_PASSWORD);
-          const newAuthKeyPair =
-            mockToprfEncryptor.deriveAuthKeyPair(GLOBAL_PASSWORD);
-
           const recoverEncKeySpy = jest
             .spyOn(toprfClient, 'recoverEncKey')
             .mockResolvedValueOnce({
@@ -5314,15 +5405,9 @@ describe('SeedlessOnboardingController', () => {
   });
 
   describe('fetchMetadataAccessCreds', () => {
-    const createMockJWTToken = (exp: number): string => {
-      const payload = { exp };
-      const encodedPayload = btoa(JSON.stringify(payload));
-      return `header.${encodedPayload}.signature`;
-    };
-
     it('should return the current metadata access token if not expired', async () => {
       const futureExp = Math.floor(Date.now() / 1000) + 3600; // 1 hour from now
-      const validToken = createMockJWTToken(futureExp);
+      const validToken = createMockJWTToken({ exp: futureExp });
 
       const { messenger } = mockSeedlessOnboardingMessenger();
       const controller = new SeedlessOnboardingController({
@@ -5366,7 +5451,7 @@ describe('SeedlessOnboardingController', () => {
 
     it('should call refreshAuthTokens if metadataAccessToken is expired', async () => {
       const pastExp = Math.floor(Date.now() / 1000) - 3600; // 1 hour ago
-      const expiredToken = createMockJWTToken(pastExp);
+      const expiredToken = createMockJWTToken({ exp: pastExp });
       const { messenger } = mockSeedlessOnboardingMessenger();
       const controller = new SeedlessOnboardingController({
         messenger,
@@ -5390,15 +5475,9 @@ describe('SeedlessOnboardingController', () => {
   });
 
   describe('checkMetadataAccessTokenExpired', () => {
-    const createMockJWTToken = (exp: number): string => {
-      const payload = { exp };
-      const encodedPayload = btoa(JSON.stringify(payload));
-      return `header.${encodedPayload}.signature`;
-    };
-
     it('should return false if metadata access token is not expired', async () => {
       const futureExp = Math.floor(Date.now() / 1000) + 3600; // 1 hour from now
-      const validToken = createMockJWTToken(futureExp);
+      const validToken = createMockJWTToken({ exp: futureExp });
 
       await withController(
         {
@@ -5421,7 +5500,7 @@ describe('SeedlessOnboardingController', () => {
 
     it('should return true if metadata access token is expired', async () => {
       const pastExp = Math.floor(Date.now() / 1000) - 3600; // 1 hour ago
-      const expiredToken = createMockJWTToken(pastExp);
+      const expiredToken = createMockJWTToken({ exp: pastExp });
 
       await withController(
         {
@@ -5474,15 +5553,9 @@ describe('SeedlessOnboardingController', () => {
   });
 
   describe('checkAccessTokenExpired', () => {
-    const createMockJWTToken = (exp: number): string => {
-      const payload = { exp };
-      const encodedPayload = btoa(JSON.stringify(payload));
-      return `header.${encodedPayload}.signature`;
-    };
-
     it('should return false if access token is not expired', async () => {
       const futureExp = Math.floor(Date.now() / 1000) + 3600; // 1 hour from now
-      const validToken = createMockJWTToken(futureExp);
+      const validToken = createMockJWTToken({ exp: futureExp });
 
       await withController(
         {
@@ -5503,7 +5576,7 @@ describe('SeedlessOnboardingController', () => {
 
     it('should return true if access token is expired', async () => {
       const pastExp = Math.floor(Date.now() / 1000) - 3600; // 1 hour ago
-      const expiredToken = createMockJWTToken(pastExp);
+      const expiredToken = createMockJWTToken({ exp: pastExp });
 
       await withController(
         {

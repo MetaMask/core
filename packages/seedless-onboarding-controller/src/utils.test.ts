@@ -1,38 +1,13 @@
 import { bytesToBase64 } from '@metamask/utils';
 import { utf8ToBytes } from '@noble/ciphers/utils';
 
-import type { DecodedNodeAuthToken, DecodedBaseJWTToken } from './types';
+import type { DecodedNodeAuthToken } from './types';
 import {
   decodeNodeAuthToken,
   decodeJWTToken,
   compareAndGetLatestToken,
 } from './utils';
-
-/**
- * Creates a mock JWT token for testing
- *
- * @param payload - The payload to encode
- * @returns The JWT token string
- */
-const createMockJWTToken = (
-  payload: Partial<DecodedBaseJWTToken> = {},
-): string => {
-  const defaultPayload: DecodedBaseJWTToken = {
-    exp: Math.floor(Date.now() / 1000) + 3600, // 1 hour from now
-    iat: Math.floor(Date.now() / 1000), // issued now
-    aud: 'mock_audience',
-    iss: 'mock_issuer',
-    sub: 'mock_subject',
-    ...payload,
-  };
-  const header = { alg: 'HS256', typ: 'JWT' };
-  const encodedHeader = Buffer.from(JSON.stringify(header)).toString('base64');
-  const encodedPayload = Buffer.from(JSON.stringify(defaultPayload)).toString(
-    'base64',
-  );
-  const signature = 'mock_signature';
-  return `${encodedHeader}.${encodedPayload}.${signature}`;
-};
+import { createMockJWTToken } from '../tests/mocks/utils';
 
 describe('utils', () => {
   describe('decodeNodeAuthToken', () => {

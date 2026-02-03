@@ -1020,25 +1020,51 @@ export class SeedlessOnboardingController<
     globalPassword: string;
     maxKeyChainLength: number;
   }): Promise<void> {
-    const { pwEncKey: curPwEncKey, authKeyPair: curAuthKeyPair } =
+    const { pwEncKey: globalPwEncKey, authKeyPair: globalAuthKeyPair } =
       await this.#recoverEncKey(globalPassword);
 
     try {
       // Recover vault encryption key.
       const res = await this.toprfClient.recoverPwEncKey({
         targetAuthPubKey,
-        curPwEncKey,
-        curAuthKeyPair,
+        curPwEncKey: globalPwEncKey,
+        curAuthKeyPair: globalAuthKeyPair,
         maxPwChainLength: maxKeyChainLength,
       });
       const { pwEncKey } = res;
       const vaultKey = await this.#loadSeedlessEncryptionKey(pwEncKey);
 
+      // accessToken before unlocking vault and flooding the state with values from the decrypted vault
+      // it might be the new token set from the `refreshAuthTokens` method.
+      const { accessToken: accessTokenBeforeUnlock } = this.state;
+
       // Unlock the controller
-      await this.#unlockVaultAndGetVaultData({
+      const decryptedVaultData = await this.#unlockVaultAndGetVaultData({
         encryptionKey: vaultKey,
       });
       this.#setUnlocked();
+
+      // accessToken from decrypted vault
+      const accessTokenFromDecryptedVault = decryptedVaultData.accessToken;
+
+      // compare the two access tokens, take the latest access token if it's different.
+      if (
+        accessTokenBeforeUnlock &&
+        accessTokenFromDecryptedVault &&
+        accessTokenBeforeUnlock !== accessTokenFromDecryptedVault
+      ) {
+        const latestAccessToken = compareAndGetLatestToken(
+          accessTokenBeforeUnlock,
+          accessTokenFromDecryptedVault,
+        );
+        // update the access token in the state with the latest access token if it's different from the decrypted access token after unlocking
+        // later when we call `syncLatestGlobalPassword`, the encrypted vault will be updated with the latest access token.
+        this.update((state) => {
+          state.accessToken = latestAccessToken;
+        });
+      }
+
+      this.#resetPasswordOutdatedCache();
     } catch (error) {
       if (this.#isAuthTokenError(error)) {
         throw error;
