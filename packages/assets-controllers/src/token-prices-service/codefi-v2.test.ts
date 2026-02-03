@@ -1,6 +1,6 @@
 import { KnownCaipNamespace } from '@metamask/utils';
 import type { Hex } from '@metamask/utils';
-import nock from 'nock';
+import nock, { isDone } from 'nock';
 import { useFakeTimers } from 'sinon';
 
 import {
@@ -2018,7 +2018,7 @@ describe('CodefiTokenPricesServiceV2', () => {
       });
 
       // Verify no pending mocks (i.e., only one request was made)
-      expect(nock.isDone()).toBe(true);
+      expect(isDone()).toBe(true);
     });
   });
 
