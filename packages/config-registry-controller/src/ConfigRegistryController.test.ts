@@ -4,9 +4,9 @@ import type {
   MessengerEvents,
 } from '@metamask/messenger';
 import { Messenger, MOCK_ANY_NAMESPACE } from '@metamask/messenger';
-import type { NetworkConfiguration } from '@metamask/network-controller';
 import { useFakeTimers } from 'sinon';
 
+import type { RegistryNetworkConfig } from './config-registry-api-service';
 import type { FetchConfigResult } from './config-registry-api-service';
 import type {
   ConfigRegistryMessenger,
@@ -16,6 +16,7 @@ import {
   ConfigRegistryController,
   DEFAULT_POLLING_INTERVAL,
 } from './ConfigRegistryController';
+import { selectFeaturedNetworks, selectNetworks } from './selectors';
 import { createMockNetworkConfig } from './test-helpers';
 import { advanceTime } from '../../../tests/helpers';
 
@@ -64,11 +65,11 @@ function getConfigRegistryControllerMessenger(): {
   return { messenger: configRegistryControllerMessenger, rootMessenger };
 }
 
-const MOCK_FALLBACK_CONFIG: Record<string, NetworkConfiguration> = {
+const MOCK_FALLBACK_CONFIG: Record<string, RegistryNetworkConfig> = {
   'fallback-key': createMockNetworkConfig({
     chainId: '0x2',
     name: 'Fallback Network',
-  }) as NetworkConfiguration,
+  }),
 };
 
 /**
@@ -174,11 +175,11 @@ describe('ConfigRegistryController', () => {
     });
 
     it('sets initial state when provided', async () => {
-      const initialNetworks: Record<string, NetworkConfiguration> = {
+      const initialNetworks: Record<string, RegistryNetworkConfig> = {
         'test-key': createMockNetworkConfig({
           chainId: '0x1',
           name: 'Test Network',
-        }) as NetworkConfiguration,
+        }),
       };
       const initialState: Partial<ConfigRegistryState> = {
         configs: { networks: initialNetworks },
@@ -370,11 +371,11 @@ describe('ConfigRegistryController', () => {
     });
 
     it('keeps existing configs when fetch fails and configs already exist', async () => {
-      const existingNetworks: Record<string, NetworkConfiguration> = {
+      const existingNetworks: Record<string, RegistryNetworkConfig> = {
         'existing-key': createMockNetworkConfig({
           chainId: '0x3',
           name: 'Existing Network',
-        }) as NetworkConfiguration,
+        }),
       };
       const existingConfigs = { networks: existingNetworks };
 
@@ -1575,7 +1576,7 @@ describe('ConfigRegistryController', () => {
       );
     });
 
-    it('filters networks to only include featured, active, non-testnet networks', async () => {
+    it('stores all networks in state; selectFeaturedNetworks filters for default list', async () => {
       await withController(
         async ({
           controller,
@@ -1700,13 +1701,21 @@ describe('ConfigRegistryController', () => {
 
           await controller._executePoll(null);
 
-          expect(controller.state.configs.networks['0x1']).toBeDefined();
-          expect(controller.state.configs.networks['0x5']).toBeUndefined();
-          expect(controller.state.configs.networks['0xa']).toBeUndefined();
-          expect(controller.state.configs.networks['0x89']).toBeUndefined();
-          expect(Object.keys(controller.state.configs.networks)).toHaveLength(
-            1,
-          );
+          // All networks stored in state
+          const allNetworks = selectNetworks(controller.state);
+          expect(allNetworks['0x1']).toBeDefined();
+          expect(allNetworks['0x5']).toBeDefined();
+          expect(allNetworks['0xa']).toBeDefined();
+          expect(allNetworks['0x89']).toBeDefined();
+          expect(Object.keys(allNetworks)).toHaveLength(4);
+
+          // selectFeaturedNetworks returns only featured, active, non-testnet
+          const featuredNetworks = selectFeaturedNetworks(controller.state);
+          expect(featuredNetworks['0x1']).toBeDefined();
+          expect(featuredNetworks['0x5']).toBeUndefined();
+          expect(featuredNetworks['0xa']).toBeUndefined();
+          expect(featuredNetworks['0x89']).toBeUndefined();
+          expect(Object.keys(featuredNetworks)).toHaveLength(1);
         },
       );
     });

@@ -13,6 +13,7 @@ export {
   ConfigRegistryController,
   DEFAULT_POLLING_INTERVAL,
 } from './ConfigRegistryController';
+export { selectFeaturedNetworks, selectNetworks } from './selectors';
 export type {
   FetchConfigOptions,
   FetchConfigResult,

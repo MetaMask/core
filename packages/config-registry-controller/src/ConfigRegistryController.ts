@@ -8,7 +8,6 @@ import type {
   KeyringControllerUnlockEvent,
 } from '@metamask/keyring-controller';
 import type { Messenger } from '@metamask/messenger';
-import type { NetworkConfiguration } from '@metamask/network-controller';
 import { StaticIntervalPollingController } from '@metamask/polling-controller';
 import { RemoteFeatureFlagControllerGetStateAction } from '@metamask/remote-feature-flag-controller';
 import { Duration, inMilliseconds } from '@metamask/utils';
@@ -16,8 +15,8 @@ import { Duration, inMilliseconds } from '@metamask/utils';
 import type {
   FetchConfigOptions,
   FetchConfigResult,
+  RegistryNetworkConfig,
 } from './config-registry-api-service';
-import { filterNetworks } from './config-registry-api-service';
 import { isConfigRegistryApiEnabled as defaultIsConfigRegistryApiEnabled } from './utils/feature-flags';
 
 const controllerName = 'ConfigRegistryController';
@@ -33,10 +32,11 @@ export const DEFAULT_POLLING_INTERVAL = inMilliseconds(1, Duration.Day);
 export type ConfigRegistryState = {
   /**
    * Network configurations organized by chain ID.
-   * Uses the same shape as NetworkController for compatibility.
+   * Stores the full API response including isFeatured, isTestnet, etc.
+   * Use selectors (e.g. selectFeaturedNetworks) to filter when needed.
    */
   configs: {
-    networks: Record<string, NetworkConfiguration>;
+    networks: Record<string, RegistryNetworkConfig>;
   };
   /**
    * Semantic version string of the configuration data from the API.
@@ -88,7 +88,7 @@ const stateMetadata = {
   },
 } satisfies StateMetadata<ConfigRegistryState>;
 
-const DEFAULT_FALLBACK_CONFIG: Record<string, NetworkConfiguration> = {};
+const DEFAULT_FALLBACK_CONFIG: Record<string, RegistryNetworkConfig> = {};
 
 export type ConfigRegistryControllerStateChangeEvent =
   ControllerStateChangeEvent<typeof controllerName, ConfigRegistryState>;
@@ -133,7 +133,7 @@ export type ConfigRegistryControllerOptions = {
   messenger: ConfigRegistryMessenger;
   state?: Partial<ConfigRegistryState>;
   pollingInterval?: number;
-  fallbackConfig?: Record<string, NetworkConfiguration>;
+  fallbackConfig?: Record<string, RegistryNetworkConfig>;
   isConfigRegistryApiEnabled?: (messenger: ConfigRegistryMessenger) => boolean;
 };
 
@@ -228,15 +228,10 @@ export class ConfigRegistryController extends StaticIntervalPollingController<nu
       }
 
       const apiNetworks = result.data.data.networks;
-      const filteredNetworks = filterNetworks(apiNetworks, {
-        isFeatured: true,
-        isActive: true,
-        isTestnet: false,
-      });
-      const newConfigs: Record<string, NetworkConfiguration> = {};
-      filteredNetworks.forEach((registryConfig) => {
+      const newConfigs: Record<string, RegistryNetworkConfig> = {};
+      apiNetworks.forEach((registryConfig) => {
         const { chainId } = registryConfig;
-        newConfigs[chainId] = registryConfig as unknown as NetworkConfiguration;
+        newConfigs[chainId] = registryConfig;
       });
 
       this.update((state) => {
