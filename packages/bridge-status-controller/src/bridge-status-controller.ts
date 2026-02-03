@@ -15,6 +15,7 @@ import {
   UnifiedSwapBridgeEventName,
   formatChainIdToCaip,
   isCrossChain,
+  isTronChainId,
   isEvmTxData,
   isHardwareWallet,
   MetricsActionType,
@@ -396,13 +397,8 @@ export class BridgeStatusController extends StaticIntervalPollingController<Brid
       }
     });
 
-    // Restart polling if it was stopped and this is a bridge transaction
-    const isBridgeTx = isCrossChain(
-      historyItem.quote.srcChainId,
-      historyItem.quote.destChainId,
-    );
-
-    if (isBridgeTx) {
+    // Restart polling if it was stopped and this tx still needs status updates
+    if (this.#shouldPollHistoryItem(historyItem)) {
       // Check if polling was stopped (no active polling token)
       const existingPollingToken =
         this.#pollingTokensByTxMetaId[targetTxMetaId];
@@ -453,13 +449,9 @@ export class BridgeStatusController extends StaticIntervalPollingController<Brid
           this.#pollingTokensByTxMetaId[historyItem.txMetaId];
         return !pollingToken;
       })
-      // Swap txs don't need to have their statuses polled
+      // Only restart polling for items that still require status updates
       .filter((historyItem) => {
-        const isBridgeTx = isCrossChain(
-          historyItem.quote.srcChainId,
-          historyItem.quote.destChainId,
-        );
-        return isBridgeTx;
+        return this.#shouldPollHistoryItem(historyItem);
       });
 
     incompleteHistoryItems.forEach((historyItem) => {
@@ -572,14 +564,24 @@ export class BridgeStatusController extends StaticIntervalPollingController<Brid
     if (!txHistoryItem) {
       return;
     }
-    const { quote } = txHistoryItem;
-    const isIntent = Boolean(quote.intent);
-    const isBridgeTx = isCrossChain(quote.srcChainId, quote.destChainId);
-    if (isBridgeTx || isIntent) {
+    if (this.#shouldPollHistoryItem(txHistoryItem)) {
       this.#pollingTokensByTxMetaId[txId] = this.startPolling({
         bridgeTxMetaId: txId,
       });
     }
+  };
+
+  readonly #shouldPollHistoryItem = (
+    historyItem: BridgeHistoryItem,
+  ): boolean => {
+    const isIntent = Boolean(historyItem?.quote?.intent);
+    const isBridgeTx = isCrossChain(
+      historyItem.quote.srcChainId,
+      historyItem.quote.destChainId,
+    );
+    const isTronTx = isTronChainId(historyItem.quote.srcChainId);
+
+    return [isBridgeTx, isIntent, isTronTx].some(Boolean);
   };
 
   /**
@@ -1271,6 +1273,7 @@ export class BridgeStatusController extends StaticIntervalPollingController<Brid
       quoteResponse.quote.srcChainId,
       quoteResponse.quote.destChainId,
     );
+    const isTronTx = isTronChainId(quoteResponse.quote.srcChainId);
 
     // Submit non-EVM tx (Solana, BTC, Tron)
     if (isNonEvmChainId(quoteResponse.quote.srcChainId)) {
@@ -1487,7 +1490,7 @@ export class BridgeStatusController extends StaticIntervalPollingController<Brid
         // Start polling for bridge tx status
         this.#startPollingForTxId(txMeta.id);
         // Track non-EVM Swap completed event
-        if (!isBridgeTx) {
+        if (!(isBridgeTx || isTronTx)) {
           this.#trackUnifiedSwapBridgeEvent(
             UnifiedSwapBridgeEventName.Completed,
             txMeta.id,
