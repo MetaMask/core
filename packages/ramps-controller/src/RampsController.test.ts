@@ -494,7 +494,7 @@ describe('RampsController', () => {
           const result = await controller.getProviders('us-ca');
 
           expect(serviceCalled).toBe(true);
-          expect(result.providers).toEqual(mockProviders);
+          expect(result.providers).toStrictEqual(mockProviders);
         },
       );
     });

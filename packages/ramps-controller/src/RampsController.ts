@@ -275,8 +275,7 @@ function resetResource(
   resourceType: DependentResourceKey,
   defaultResource?: RampsControllerState[DependentResourceKey],
 ): void {
-  const def =
-    defaultResource ?? getDefaultRampsControllerState()[resourceType];
+  const def = defaultResource ?? getDefaultRampsControllerState()[resourceType];
   const resource = state[resourceType];
   resource.data = def.data;
   resource.selected = def.selected;
@@ -573,7 +572,6 @@ export class RampsController extends BaseController<
     // Update the request state to loading
     this.#updateRequestState(cacheKey, createLoadingState());
 
-
     // Execute the request via IIFE (Immediately Invoked Function Expression)
     const promise = (async (): Promise<TResult> => {
       try {
@@ -606,11 +604,17 @@ export class RampsController extends BaseController<
         }
         throw error;
       } finally {
-        if (this.#pendingRequests.get(cacheKey)?.abortController === abortController) {
-          this.#pendingRequests.delete(cacheKey);
-        }
-        if (resourceType && !abortController.signal.aborted) {
-          this.#setResourceLoading(resourceType, false);
+        if (resourceType) {
+          const notAborted =
+            this.#pendingRequests.get(cacheKey)?.abortController !==
+            abortController;
+
+          if (notAborted) {
+            this.#pendingRequests.delete(cacheKey);
+          }
+          if (!this.#hasPendingRequestForResource(resourceType)) {
+            this.#setResourceLoading(resourceType, false);
+          }
         }
       }
     })();
@@ -694,6 +698,15 @@ export class RampsController extends BaseController<
         (resource as Record<string, unknown>)[field] = value;
       }
     });
+  }
+
+  #hasPendingRequestForResource(resourceType: ResourceType): boolean {
+    for (const pending of this.#pendingRequests.values()) {
+      if (pending.resourceType === resourceType) {
+        return true;
+      }
+    }
+    return false;
   }
 
   /**
@@ -893,10 +906,7 @@ export class RampsController extends BaseController<
 
     this.update((state) => {
       state.providers.selected = provider;
-      resetResource(
-        state as unknown as RampsControllerState,
-        'paymentMethods',
-      );
+      resetResource(state as unknown as RampsControllerState, 'paymentMethods');
     });
 
     this.#fireAndForget(
@@ -1074,10 +1084,7 @@ export class RampsController extends BaseController<
 
     this.update((state) => {
       state.tokens.selected = token;
-      resetResource(
-        state as unknown as RampsControllerState,
-        'paymentMethods',
-      );
+      resetResource(state as unknown as RampsControllerState, 'paymentMethods');
     });
 
     this.#fireAndForget(
