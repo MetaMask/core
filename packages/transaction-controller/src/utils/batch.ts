@@ -641,7 +641,7 @@ async function processTransactionWithHook(
     updateTransaction,
   } = request;
 
-  const { from, networkClientId, origin } = userRequest;
+  const { from, networkClientId, origin, requiredAssets } = userRequest;
 
   if (existingTransaction) {
     const { id, onPublish } = existingTransaction;
@@ -714,6 +714,7 @@ async function processTransactionWithHook(
       networkClientId,
       origin,
       publishHook,
+      requiredAssets,
       requireApproval: false,
       type,
     },
