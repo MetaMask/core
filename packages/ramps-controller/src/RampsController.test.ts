@@ -5076,6 +5076,107 @@ describe('RampsController', () => {
     });
   });
 
+  describe('destroy', () => {
+    beforeEach(() => {
+      jest.useFakeTimers();
+    });
+
+    afterEach(() => {
+      jest.useRealTimers();
+    });
+
+    it('stops quote polling when called', async () => {
+      const mockQuotesResponse: QuotesResponse = {
+        success: [
+          {
+            provider: '/providers/moonpay',
+            quote: {
+              amountIn: 100,
+              amountOut: '0.05',
+              paymentMethod: '/payments/debit-credit-card',
+            },
+          },
+        ],
+        sorted: [],
+        error: [],
+        customActions: [],
+      };
+
+      await withController(
+        {
+          options: {
+            state: {
+              userRegion: createMockUserRegion('us'),
+              tokens: createResourceState(
+                { topTokens: [], allTokens: [] },
+                {
+                  assetId: 'eip155:1/slip44:60',
+                  chainId: 'eip155:1',
+                  name: 'Ethereum',
+                  symbol: 'ETH',
+                  decimals: 18,
+                  iconUrl: 'https://example.com/eth.png',
+                  tokenSupported: true,
+                },
+              ),
+              paymentMethods: createResourceState(
+                [
+                  {
+                    id: '/payments/debit-credit-card',
+                    paymentType: 'debit-credit-card',
+                    name: 'Debit or Credit',
+                    score: 90,
+                    icon: 'card',
+                  },
+                ],
+                {
+                  id: '/payments/debit-credit-card',
+                  paymentType: 'debit-credit-card',
+                  name: 'Debit or Credit',
+                  score: 90,
+                  icon: 'card',
+                },
+              ),
+            },
+          },
+        },
+        async ({ controller, rootMessenger }) => {
+          let callCount = 0;
+          rootMessenger.registerActionHandler(
+            'RampsService:getQuotes',
+            async () => {
+              callCount += 1;
+              return mockQuotesResponse;
+            },
+          );
+
+          controller.startQuotePolling({
+            walletAddress: '0x1234567890abcdef1234567890abcdef12345678',
+            amount: 100,
+          });
+
+          for (let i = 0; i < 10; i++) {
+            await Promise.resolve();
+          }
+
+          expect(callCount).toBe(1);
+
+          // Call destroy
+          controller.destroy();
+
+          // Advance time - polling should not fire
+          jest.advanceTimersByTime(30000);
+          for (let i = 0; i < 10; i++) {
+            await Promise.resolve();
+          }
+
+          // Call count should still be 1
+          expect(callCount).toBe(1);
+        },
+      );
+    });
+  });
+
   describe('getWidgetUrl', () => {
     it('returns widget URL when present in quote', async () => {
       await withController(({ controller }) => {

@@ -463,12 +463,6 @@ export class RampsController extends BaseController<
   readonly #pendingResourceCount: Map<ResourceType, number> = new Map();
 
   /**
-   * Count of in-flight setUserRegion refetch batches.
-   * Used so userRegion.isLoading is only cleared when the last batch's refetches finish (avoids race when region is changed rapidly or when init() clears loading before refetches complete).
-   */
-  #setUserRegionRefetchCount = 0;
-
-  /**
    * Interval ID for automatic quote polling.
    * Set when startQuotePolling() is called, cleared when stopQuotePolling() is called.
    */
@@ -955,14 +949,15 @@ export class RampsController extends BaseController<
       state.providers.selected = provider;
       state.paymentMethods.data = [];
       state.paymentMethods.selected = null;
+      state.quotes.selected = null;
     });
 
     this.#fireAndForget(
-      this.getPaymentMethods(regionCode, { provider: provider.id }),
+      this.getPaymentMethods(regionCode, { provider: provider.id }).then(() => {
+        // Restart quote polling after payment methods are fetched
+        this.#restartPollingIfActive();
+      }),
     );
-
-    // Restart quote polling if active
-    this.#restartPollingIfActive();
   }
 
   /**
@@ -1138,6 +1133,7 @@ export class RampsController extends BaseController<
       state.tokens.selected = token;
       state.paymentMethods.data = [];
       state.paymentMethods.selected = null;
+      state.quotes.selected = null;
     });
 
     this.#fireAndForget(
@@ -1524,11 +1520,11 @@ export class RampsController extends BaseController<
       );
     }
 
-    // Store options for restarts
-    this.#quotePollingOptions = options;
-
-    // Stop any existing polling
+    // Stop any existing polling first
     this.stopQuotePolling();
+
+    // Store options for restarts (must be after stop to avoid being cleared)
+    this.#quotePollingOptions = options;
 
     // Define the fetch function
     const fetchQuotes = () => {
@@ -1592,6 +1588,15 @@ export class RampsController extends BaseController<
     this.update((state) => {
       state.quotes.selected = quote;
     });
+  }
+
+  /**
+   * Cleans up controller resources.
+   * Stops any active quote polling to prevent memory leaks.
+   * Should be called when the controller is no longer needed.
+   */
+  destroy(): void {
+    this.stopQuotePolling();
   }
 
   /**

@@ -9,7 +9,7 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ### Added
 
-- Add automatic quote polling with `startQuotePolling()`, `stopQuotePolling()`, and `setSelectedQuote()` methods, with auto-selection when a single quote is returned
+- Add automatic quote polling with `startQuotePolling()`, `stopQuotePolling()`, and `setSelectedQuote()` methods, with auto-selection when a single quote is returned ([#7824](https://github.com/MetaMask/core/pull/7824))
 
 ## [6.0.0]
 
