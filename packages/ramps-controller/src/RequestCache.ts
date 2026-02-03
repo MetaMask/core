@@ -147,11 +147,6 @@ export type ExecuteRequestOptions = {
   ttl?: number;
   /** Resource type to update loading/error states for */
   resourceType?: ResourceType;
-  /**
-   * When provided, resource-level error is only set/cleared if this returns true.
-   * Used to avoid applying stale errors after e.g. region or selection changes.
-   */
-  isResultCurrent?: () => boolean;
 };
 
 /**
@@ -160,4 +155,6 @@ export type ExecuteRequestOptions = {
 export type PendingRequest<TResult = unknown> = {
   promise: Promise<TResult>;
   abortController: AbortController;
+  /** When set, used to abort other in-flight requests for this resource when a new one starts. */
+  resourceType?: ResourceType;
 };

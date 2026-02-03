@@ -470,6 +470,61 @@ describe('RampsController', () => {
         );
       });
     });
+
+    it('returns providers for region when state has providers (fetches and returns result)', async () => {
+      await withController(
+        {
+          options: {
+            state: {
+              userRegion: createMockUserRegion('us-ca'),
+              providers: createResourceState(mockProviders, null),
+            },
+          },
+        },
+        async ({ controller, rootMessenger }) => {
+          let serviceCalled = false;
+          rootMessenger.registerActionHandler(
+            'RampsService:getProviders',
+            async () => {
+              serviceCalled = true;
+              return { providers: mockProviders };
+            },
+          );
+
+          const result = await controller.getProviders('us-ca');
+
+          expect(serviceCalled).toBe(true);
+          expect(result.providers).toEqual(mockProviders);
+        },
+      );
+    });
+
+    it('calls service when getProviders is called with filter options even if state has providers', async () => {
+      await withController(
+        {
+          options: {
+            state: {
+              userRegion: createMockUserRegion('us-ca'),
+              providers: createResourceState(mockProviders, null),
+            },
+          },
+        },
+        async ({ controller, rootMessenger }) => {
+          let serviceCalled = false;
+          rootMessenger.registerActionHandler(
+            'RampsService:getProviders',
+            async () => {
+              serviceCalled = true;
+              return { providers: mockProviders };
+            },
+          );
+
+          await controller.getProviders('us-ca', { provider: 'moonpay' });
+
+          expect(serviceCalled).toBe(true);
+        },
+      );
+    });
   });
 
   describe('metadata', () => {
@@ -745,18 +800,19 @@ describe('RampsController', () => {
       });
     });
 
-    it('keeps resource isLoading true until last concurrent request (different cache keys) finishes', async () => {
+    it('aborts previous request for same resource when a new one starts', async () => {
       await withController(async ({ controller }) => {
-        let resolveFirst: (value: string) => void;
-        let resolveSecond: (value: string) => void;
-        const fetcherA = async (): Promise<string> => {
-          return new Promise<string>((resolve) => {
-            resolveFirst = resolve;
+        let resolveB: (value: string) => void;
+        const fetcherA = async (signal: AbortSignal): Promise<string> => {
+          return new Promise<string>((_resolve, reject) => {
+            signal.addEventListener('abort', () =>
+              reject(new Error('Request was aborted')),
+            );
           });
         };
         const fetcherB = async (): Promise<string> => {
           return new Promise<string>((resolve) => {
-            resolveSecond = resolve;
+            resolveB = resolve;
           });
         };
 
@@ -773,42 +829,11 @@ describe('RampsController', () => {
 
         expect(controller.state.providers.isLoading).toBe(true);
 
-        // eslint-disable-next-line @typescript-eslint/no-non-null-assertion
-        resolveFirst!('result-a');
-        await promiseA;
-
-        expect(controller.state.providers.isLoading).toBe(true);
+        await expect(promiseA).rejects.toThrow('Request was aborted');
 
         // eslint-disable-next-line @typescript-eslint/no-non-null-assertion
-        resolveSecond!('result-b');
-        await promiseB;
-
-        expect(controller.state.providers.isLoading).toBe(false);
-      });
-    });
-
-    it('clears resource loading when ref-count hits zero even if map was cleared (defensive)', async () => {
-      await withController(async ({ controller }) => {
-        let resolveFetcher: (value: string) => void;
-        const fetcher = async (): Promise<string> => {
-          return new Promise<string>((resolve) => {
-            resolveFetcher = resolve;
-          });
-        };
-
-        const promise = controller.executeRequest(
-          'providers-defensive-key',
-          fetcher,
-          { resourceType: 'providers' },
-        );
-
-        expect(controller.state.providers.isLoading).toBe(true);
-
-        controller.clearPendingResourceCountForTest();
-
-        // eslint-disable-next-line @typescript-eslint/no-non-null-assertion
-        resolveFetcher!('result');
-        await promise;
+        resolveB!('result-b');
+        expect(await promiseB).toBe('result-b');
 
         expect(controller.state.providers.isLoading).toBe(false);
       });
@@ -1368,6 +1393,50 @@ describe('RampsController', () => {
           'Region code is required. Cannot hydrate state without valid region information.',
         );
       });
+    });
+
+    it('calls getTokens and getProviders when hydrating even if state has data', async () => {
+      const existingProviders: Provider[] = [
+        {
+          id: '/providers/test',
+          name: 'Test Provider',
+          environmentType: 'STAGING',
+          description: 'Test',
+          hqAddress: '123 Test St',
+          links: [],
+          logos: { light: '', dark: '', height: 24, width: 77 },
+        },
+      ];
+      await withController(
+        {
+          options: {
+            state: {
+              userRegion: createMockUserRegion('us-ca'),
+              providers: createResourceState(existingProviders, null),
+            },
+          },
+        },
+        async ({ controller, rootMessenger }) => {
+          let providersCalled = false;
+          rootMessenger.registerActionHandler(
+            'RampsService:getTokens',
+            async () => ({ topTokens: [], allTokens: [] }),
+          );
+          rootMessenger.registerActionHandler(
+            'RampsService:getProviders',
+            async () => {
+              providersCalled = true;
+              return { providers: [] };
+            },
+          );
+
+          controller.hydrateState();
+
+          await new Promise((resolve) => setTimeout(resolve, 10));
+
+          expect(providersCalled).toBe(true);
+        },
+      );
     });
   });
 
@@ -2069,6 +2138,8 @@ describe('RampsController', () => {
           expect(controller.state.providers.selected).toBeNull();
           expect(controller.state.paymentMethods.data).toStrictEqual([]);
           expect(controller.state.paymentMethods.selected).toBeNull();
+          expect(controller.state.paymentMethods.isLoading).toBe(false);
+          expect(controller.state.paymentMethods.error).toBeNull();
         },
       );
     });
@@ -2263,6 +2334,8 @@ describe('RampsController', () => {
           expect(controller.state.tokens.selected).toBeNull();
           expect(controller.state.paymentMethods.data).toStrictEqual([]);
           expect(controller.state.paymentMethods.selected).toBeNull();
+          expect(controller.state.paymentMethods.isLoading).toBe(false);
+          expect(controller.state.paymentMethods.error).toBeNull();
         },
       );
     });
@@ -2635,6 +2708,61 @@ describe('RampsController', () => {
           'Region is required. Either provide a region parameter or ensure userRegion is set in controller state.',
         );
       });
+    });
+
+    it('returns tokens for region when state has tokens (fetches and returns result)', async () => {
+      await withController(
+        {
+          options: {
+            state: {
+              userRegion: createMockUserRegion('us-ca'),
+              tokens: createResourceState(mockTokens, null),
+            },
+          },
+        },
+        async ({ controller, rootMessenger }) => {
+          let serviceCalled = false;
+          rootMessenger.registerActionHandler(
+            'RampsService:getTokens',
+            async () => {
+              serviceCalled = true;
+              return mockTokens;
+            },
+          );
+
+          const result = await controller.getTokens('us-ca', 'buy');
+
+          expect(serviceCalled).toBe(true);
+          expect(result).toStrictEqual(mockTokens);
+        },
+      );
+    });
+
+    it('calls service when getTokens is called with provider filter even if state has tokens', async () => {
+      await withController(
+        {
+          options: {
+            state: {
+              userRegion: createMockUserRegion('us-ca'),
+              tokens: createResourceState(mockTokens, null),
+            },
+          },
+        },
+        async ({ controller, rootMessenger }) => {
+          let serviceCalled = false;
+          rootMessenger.registerActionHandler(
+            'RampsService:getTokens',
+            async () => {
+              serviceCalled = true;
+              return mockTokens;
+            },
+          );
+
+          await controller.getTokens('us-ca', 'buy', { provider: 'moonpay' });
+
+          expect(serviceCalled).toBe(true);
+        },
+      );
     });
 
     it('prefers provided region over userRegion in state', async () => {
@@ -3402,10 +3530,12 @@ describe('RampsController', () => {
           );
 
           controller.setSelectedToken(tokenB.assetId);
-          await new Promise((resolve) => setTimeout(resolve, 10));
 
           resolveTokenARequest({ payments: paymentMethodsForTokenA });
-          await tokenAPaymentMethodsPromise;
+          await expect(tokenAPaymentMethodsPromise).rejects.toThrow(
+            'Request was aborted',
+          );
+          await new Promise((resolve) => setTimeout(resolve, 10));
 
           expect(controller.state.tokens.selected).toStrictEqual(tokenB);
           expect(controller.state.paymentMethods.data).toStrictEqual(
@@ -3510,10 +3640,12 @@ describe('RampsController', () => {
           );
 
           controller.setSelectedProvider(providerB.id);
-          await new Promise((resolve) => setTimeout(resolve, 10));
 
           resolveProviderARequest({ payments: paymentMethodsForProviderA });
-          await providerAPaymentMethodsPromise;
+          await expect(providerAPaymentMethodsPromise).rejects.toThrow(
+            'Request was aborted',
+          );
+          await new Promise((resolve) => setTimeout(resolve, 10));
 
           expect(controller.state.providers.selected).toStrictEqual(providerB);
           expect(controller.state.paymentMethods.data).toStrictEqual(
