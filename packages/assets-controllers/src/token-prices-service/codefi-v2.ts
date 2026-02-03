@@ -368,9 +368,10 @@ type SupportedNetworksResponse = {
 let lastFetchedSupportedNetworks: SupportedNetworksResponse | null = null;
 
 /**
- * In-flight promise to prevent concurrent requests to the same endpoint.
+ * In-flight promise to prevent concurrent requests to the supported networks endpoint.
  */
-let inFlightFetchPromise: Promise<SupportedNetworksResponse> | null = null;
+let runningSupportedNetworksRequest: Promise<SupportedNetworksResponse> | null =
+  null;
 
 /**
  * Converts a CAIP-2 chain ID (e.g., 'eip155:1') to a hex chain ID (e.g., '0x1').
@@ -395,40 +396,41 @@ function caipChainIdToHex(caipChainId: string): Hex | null {
  */
 export async function fetchSupportedNetworks(): Promise<SupportedNetworksResponse> {
   // If a fetch is already in progress, return the same promise
-  if (inFlightFetchPromise) {
-    return inFlightFetchPromise;
+  if (runningSupportedNetworksRequest) {
+    return runningSupportedNetworksRequest;
   }
 
   // Start a new fetch and cache the promise
-  inFlightFetchPromise = (async (): Promise<SupportedNetworksResponse> => {
-    try {
-      const url = `${BASE_URL_V2}/supportedNetworks`;
-      const response = await handleFetch(url, {
-        headers: { 'Cache-Control': 'no-cache' },
-      });
+  runningSupportedNetworksRequest =
+    (async (): Promise<SupportedNetworksResponse> => {
+      try {
+        const url = `${BASE_URL_V2}/supportedNetworks`;
+        const response = await handleFetch(url, {
+          headers: { 'Cache-Control': 'no-cache' },
+        });
 
-      if (
-        response &&
-        typeof response === 'object' &&
-        'fullSupport' in response &&
-        'partialSupport' in response
-      ) {
-        lastFetchedSupportedNetworks = response as SupportedNetworksResponse;
-        return lastFetchedSupportedNetworks;
+        if (
+          response &&
+          typeof response === 'object' &&
+          'fullSupport' in response &&
+          'partialSupport' in response
+        ) {
+          lastFetchedSupportedNetworks = response as SupportedNetworksResponse;
+          return lastFetchedSupportedNetworks;
+        }
+
+        // Invalid response format, fall back to hardcoded list
+        return getSupportedNetworksFallback();
+      } catch {
+        // On any error, fall back to the hardcoded list
+        return getSupportedNetworksFallback();
+      } finally {
+        // Clear the in-flight promise once the request completes
+        runningSupportedNetworksRequest = null;
       }
+    })();
 
-      // Invalid response format, fall back to hardcoded list
-      return getSupportedNetworksFallback();
-    } catch {
-      // On any error, fall back to the hardcoded list
-      return getSupportedNetworksFallback();
-    } finally {
-      // Clear the in-flight promise once the request completes
-      inFlightFetchPromise = null;
-    }
-  })();
-
-  return inFlightFetchPromise;
+  return runningSupportedNetworksRequest;
 }
 
 /**
@@ -472,7 +474,7 @@ function getSupportedNetworksFallback(): SupportedNetworksResponse {
  */
 export function resetSupportedNetworksCache(): void {
   lastFetchedSupportedNetworks = null;
-  inFlightFetchPromise = null;
+  runningSupportedNetworksRequest = null;
 }
 
 /**
