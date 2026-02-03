@@ -11,7 +11,7 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ### Added
 
-- Add `ApiPlatformClient` for unified access to MetaMask backend APIs with TanStack Query caching ([#7658](https://github.com/MetaMask/core/pull/7658))
+- Add `ApiPlatformClient` for unified access to MetaMask backend APIs with TanStack Query caching ([#7658](https://github.com/MetaMask/core/pull/7658), [#7735](https://github.com/MetaMask/core/pull/7735), [#7686](https://github.com/MetaMask/core/pull/7686))
   - Automatic request deduplication and intelligent caching
   - Automatic retries with exponential backoff for transient failures
   - Support for Accounts API, Price API, Token API, and Tokens API endpoints
