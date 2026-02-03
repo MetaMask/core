@@ -665,6 +665,38 @@ export class BridgeStatusController extends StaticIntervalPollingController<Brid
     if (newAttempts.counter >= MAX_ATTEMPTS && pollingToken) {
       this.stopPollingByPollingToken(pollingToken);
       delete this.#pollingTokensByTxMetaId[bridgeTxMetaId];
+
+      // Track max polling reached event
+      const historyItem = this.state.txHistory[bridgeTxMetaId];
+      if (historyItem && !historyItem.featureId) {
+        const selectedAccount = this.messenger.call(
+          'AccountsController:getAccountByAddress',
+          historyItem.account,
+        );
+        const requestParams = getRequestParamFromHistory(historyItem);
+        const requestMetadata = getRequestMetadataFromHistory(
+          historyItem,
+          selectedAccount,
+        );
+        const { security_warnings: _, ...metadataWithoutWarnings } =
+          requestMetadata;
+
+        this.#trackUnifiedSwapBridgeEvent(
+          UnifiedSwapBridgeEventName.MaxPollingReached,
+          bridgeTxMetaId,
+          {
+            ...getTradeDataFromHistory(historyItem),
+            ...getPriceImpactFromQuote(historyItem.quote),
+            ...metadataWithoutWarnings,
+            chain_id_source: requestParams.chain_id_source,
+            chain_id_destination: requestParams.chain_id_destination,
+            token_symbol_source: requestParams.token_symbol_source,
+            token_symbol_destination: requestParams.token_symbol_destination,
+            action_type: MetricsActionType.SWAPBRIDGE_V1,
+            polling_attempts: newAttempts.counter,
+          },
+        );
+      }
     }
 
     // Update the attempts counter
@@ -1915,7 +1947,8 @@ export class BridgeStatusController extends StaticIntervalPollingController<Brid
       | typeof UnifiedSwapBridgeEventName.Submitted
       | typeof UnifiedSwapBridgeEventName.Failed
       | typeof UnifiedSwapBridgeEventName.Completed
-      | typeof UnifiedSwapBridgeEventName.StatusValidationFailed,
+      | typeof UnifiedSwapBridgeEventName.StatusValidationFailed
+      | typeof UnifiedSwapBridgeEventName.MaxPollingReached,
   >(
     eventName: EventName,
     txMetaId?: string,

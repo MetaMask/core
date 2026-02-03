@@ -1,3 +1,4 @@
+/* eslint-disable @typescript-eslint/naming-convention */
 export const UNIFIED_SWAP_BRIDGE_EVENT_CATEGORY = 'Unified SwapBridge';
 
 /**
@@ -20,6 +21,7 @@ export enum UnifiedSwapBridgeEventName {
   AssetDetailTooltipClicked = `${UNIFIED_SWAP_BRIDGE_EVENT_CATEGORY} Asset Detail Tooltip Clicked`,
   QuotesValidationFailed = `${UNIFIED_SWAP_BRIDGE_EVENT_CATEGORY} Quotes Failed Validation`,
   StatusValidationFailed = `${UNIFIED_SWAP_BRIDGE_EVENT_CATEGORY} Status Failed Validation`,
+  MaxPollingReached = `${UNIFIED_SWAP_BRIDGE_EVENT_CATEGORY} Max Polling Reached`,
 }
 
 export enum AbortReason {
