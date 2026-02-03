@@ -604,17 +604,18 @@ export class RampsController extends BaseController<
         }
         throw error;
       } finally {
-        if (resourceType) {
-          const notAborted =
-            this.#pendingRequests.get(cacheKey)?.abortController !==
-            abortController;
+        if (
+          this.#pendingRequests.get(cacheKey)?.abortController ===
+          abortController
+        ) {
+          this.#pendingRequests.delete(cacheKey);
+        }
 
-          if (notAborted) {
-            this.#pendingRequests.delete(cacheKey);
-          }
-          if (!this.#hasPendingRequestForResource(resourceType)) {
-            this.#setResourceLoading(resourceType, false);
-          }
+        if (
+          resourceType &&
+          !this.#hasPendingRequestForResource(resourceType)
+        ) {
+          this.#setResourceLoading(resourceType, false);
         }
       }
     })();
