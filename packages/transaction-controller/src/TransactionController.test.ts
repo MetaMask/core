@@ -83,7 +83,6 @@ import type {
 import {
   GasFeeEstimateLevel,
   GasFeeEstimateType,
-  RequiredAssetStandard,
   SimulationErrorCode,
   SimulationTokenStandard,
   TransactionContainerType,
@@ -1648,7 +1647,7 @@ describe('TransactionController', () => {
         {
           address: '0x1234567890123456789012345678901234567890' as Hex,
           amount: '0x1' as Hex,
-          standard: RequiredAssetStandard.ERC20,
+          standard: 'erc20',
         },
       ];
 

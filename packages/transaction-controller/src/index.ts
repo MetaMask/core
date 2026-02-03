@@ -100,7 +100,6 @@ export type {
 export {
   GasFeeEstimateLevel,
   GasFeeEstimateType,
-  RequiredAssetStandard,
   SimulationErrorCode,
   SimulationTokenStandard,
   TransactionContainerType,

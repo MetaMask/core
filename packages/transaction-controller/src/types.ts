@@ -2230,11 +2230,6 @@ export type GetGasFeeTokensRequest = {
   value?: Hex;
 };
 
-/** Supported standards for required assets. */
-export enum RequiredAssetStandard {
-  ERC20 = 'erc20',
-}
-
 /**
  * An asset required by a transaction.
  */

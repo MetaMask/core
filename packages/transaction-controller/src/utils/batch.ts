@@ -436,6 +436,7 @@ async function addTransactionBatchWith7702(
     origin,
     requestId,
     requireApproval,
+    requiredAssets: userRequest.requiredAssets,
     securityAlertResponse,
     skipInitialGasEstimate,
     type: TransactionType.batch,
@@ -641,7 +642,7 @@ async function processTransactionWithHook(
     updateTransaction,
   } = request;
 
-  const { from, networkClientId, origin, requiredAssets } = userRequest;
+  const { from, networkClientId, origin } = userRequest;
 
   if (existingTransaction) {
     const { id, onPublish } = existingTransaction;
@@ -714,7 +715,6 @@ async function processTransactionWithHook(
       networkClientId,
       origin,
       publishHook,
-      requiredAssets,
       requireApproval: false,
       type,
     },

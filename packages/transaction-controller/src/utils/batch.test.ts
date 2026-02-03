@@ -43,7 +43,7 @@ import type {
   RequiredAsset,
   TransactionBatchSingleRequest,
 } from '../types';
-import { RequiredAssetStandard } from '../types';
+
 
 jest.mock('./eip7702');
 jest.mock('./feature-flags');
@@ -399,6 +399,46 @@ describe('Batch Utils', () => {
       const result = await addTransactionBatch(request);
 
       expect(result.batchId).toMatch(/^0x[0-9a-f]{32}$/u);
+    });
+
+    it('passes requiredAssets from batch request to addTransaction for 7702 flow', async () => {
+      isAccountUpgradedToEIP7702Mock.mockResolvedValueOnce({
+        delegationAddress: undefined,
+        isSupported: true,
+      });
+
+      const requiredAssets: RequiredAsset[] = [
+        {
+          address: '0x1234567890123456789012345678901234567890',
+          amount: '0x1',
+          standard: 'erc20',
+        },
+      ];
+
+      addTransactionMock.mockResolvedValueOnce({
+        transactionMeta: TRANSACTION_META_MOCK,
+        result: Promise.resolve(''),
+      });
+
+      await addTransactionBatch({
+        ...request,
+        request: {
+          ...request.request,
+          requiredAssets,
+          transactions: [
+            {
+              params: TRANSACTION_BATCH_PARAMS_MOCK,
+            },
+          ],
+        },
+      });
+
+      expect(addTransactionMock).toHaveBeenCalledWith(
+        expect.any(Object),
+        expect.objectContaining({
+          requiredAssets,
+        }),
+      );
     });
 
     it('preserves nested transaction types when disable7702 is true', async () => {
@@ -1225,49 +1265,6 @@ describe('Batch Utils', () => {
             requireApproval: false,
             type: undefined,
           },
-        );
-      });
-
-      it('passes requiredAssets from batch request to addTransaction', async () => {
-        const publishBatchHook = jest.fn();
-
-        const requiredAssets: RequiredAsset[] = [
-          {
-            address: '0x1234567890123456789012345678901234567890',
-            amount: '0x1',
-            standard: RequiredAssetStandard.ERC20,
-          },
-        ];
-
-        addTransactionMock.mockResolvedValueOnce({
-          transactionMeta: TRANSACTION_META_MOCK,
-          result: Promise.resolve(''),
-        });
-
-        addTransactionBatch({
-          ...request,
-          publishBatchHook,
-          request: {
-            ...request.request,
-            disable7702: true,
-            requiredAssets,
-            transactions: [
-              {
-                params: TRANSACTION_BATCH_PARAMS_MOCK,
-              },
-            ],
-          },
-        }).catch(() => {
-          // Intentionally empty
-        });
-
-        await flushPromises();
-
-        expect(addTransactionMock).toHaveBeenCalledWith(
-          expect.any(Object),
-          expect.objectContaining({
-            requiredAssets,
-          }),
         );
       });
 
