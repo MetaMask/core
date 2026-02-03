@@ -44,7 +44,6 @@ import type {
   TransactionBatchSingleRequest,
 } from '../types';
 
-
 jest.mock('./eip7702');
 jest.mock('./feature-flags');
 jest.mock('./transaction-type');
