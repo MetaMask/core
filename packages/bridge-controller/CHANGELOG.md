@@ -11,6 +11,7 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 - Add `HYPEREVM` network support ([#7787](https://github.com/MetaMask/core/pull/7787))
   - Add `HYPEREVM` into constants `ALLOWED_BRIDGE_CHAIN_IDS`, `SWAPS_TOKEN_OBJECT` and `NETWORK_TO_NAME_MAP`
+- Add `MaxPollingReached` and `PollingManuallyRestarted` to `UnifiedSwapBridgeEventName` enum ([#7825](https://github.com/MetaMask/core/pull/7825))
 
 ### Changed
 

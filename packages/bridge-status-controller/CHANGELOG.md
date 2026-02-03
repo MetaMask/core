@@ -7,6 +7,11 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+### Added
+
+- Add `Unified SwapBridge Max Polling Reached` metrics event, emitted when polling stops due to max attempts ([#7825](https://github.com/MetaMask/core/pull/7825))
+- Add `Unified SwapBridge Polling Manually Restarted` metrics event, emitted when polling is restarted via `restartPollingForFailedAttempts` ([#7825](https://github.com/MetaMask/core/pull/7825))
+
 ### Changed
 
 - Bump `@metamask/transaction-controller` from `^62.11.0` to `^62.12.0` ([#7775](https://github.com/MetaMask/core/pull/7775))
