@@ -5,6 +5,7 @@ import type {
   MessengerEvents,
   MockAnyNamespace,
 } from '@metamask/messenger';
+import type { SemVerVersion } from '@metamask/utils';
 
 import type { AbstractClientConfigApiService } from './client-config-api-service/abstract-client-config-api-service';
 import {
@@ -207,7 +208,7 @@ describe('RemoteFeatureFlagController', () => {
         clientConfigApiService,
         clientVersion: '7.64.0',
         state: {
-          previousClientVersion: '7.62.0',
+          previousClientVersion: '7.62.0' as SemVerVersion,
           remoteFeatureFlags: { exploreFeature: { enabled: false } },
           cacheTimestamp: Date.now(),
         },
