@@ -1604,8 +1604,9 @@ export class RampsController extends BaseController<
    * Stops any active quote polling to prevent memory leaks.
    * Should be called when the controller is no longer needed.
    */
-  destroy(): void {
+  override destroy(): void {
     this.stopQuotePolling();
+    super.destroy();
   }
 
   /**
