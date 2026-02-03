@@ -836,9 +836,14 @@ export enum TransactionType {
   relayDeposit = 'relayDeposit',
 
   /**
-   * Deposit funds for Across quote.
+   * Deposit funds for Across quote via Perps.
    */
-  acrossDeposit = 'acrossDeposit',
+  perpsAcrossDeposit = 'perpsAcrossDeposit',
+
+  /**
+   * Deposit funds for Across quote via Predict.
+   */
+  predictAcrossDeposit = 'predictAcrossDeposit',
 
   /**
    * When a transaction is failed it can be retried by
@@ -2101,6 +2106,9 @@ export type MetamaskPayMetadata = {
   /** Chain ID of the payment token. */
   chainId?: Hex;
 
+  /** Total time spent submitting the MetaMask Pay flow, in milliseconds. */
+  executionLatencyMs?: number;
+
   /** Total network fee in fiat currency, including the original and bridge transactions. */
   networkFeeFiat?: string;
 
@@ -2112,9 +2120,6 @@ export type MetamaskPayMetadata = {
 
   /** Total cost of the transaction in fiat currency, including gas, fees, and the funds themselves. */
   totalFiat?: string;
-
-  /** Total time spent executing the MetaMask Pay flow, in milliseconds. */
-  executionLatencyMs?: number;
 };
 
 /**

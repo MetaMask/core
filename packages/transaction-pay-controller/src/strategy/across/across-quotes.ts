@@ -22,12 +22,11 @@ import type {
   TransactionPayControllerMessenger,
   TransactionPayQuote,
 } from '../../types';
+import { getSlippage, getPayStrategiesConfig } from '../../utils/feature-flags';
 import {
-  getGasBuffer,
-  getSlippage,
-  getTokenPayConfig,
-} from '../../utils/feature-flags';
-import { calculateGasCost } from '../../utils/gas';
+  calculateGasCost,
+  estimateGasWithBufferOrFallback,
+} from '../../utils/gas';
 import { getTokenFiatRate } from '../../utils/token';
 import { TOKEN_TRANSFER_FOUR_BYTE } from '../relay/constants';
 
@@ -35,10 +34,6 @@ const log = createModuleLogger(projectLogger, 'across-strategy');
 
 const TOKEN_TRANSFER_INTERFACE = new Interface([
   'function transfer(address to, uint256 amount)',
-]);
-
-const DELEGATION_REDEEM_INTERFACE = new Interface([
-  'function redeemDelegations(bytes[] delegations, bytes32[] modes, bytes[] executions)',
 ]);
 
 /**
@@ -87,10 +82,12 @@ async function getSingleQuote(
     targetTokenAddress,
   } = request;
 
-  const config = getTokenPayConfig(messenger);
-  const slippageDecimal =
-    config.providers.across.slippage ??
-    getSlippage(messenger, sourceChainId, sourceTokenAddress);
+  const config = getPayStrategiesConfig(messenger);
+  const slippageDecimal = getSlippage(
+    messenger,
+    sourceChainId,
+    sourceTokenAddress,
+  );
 
   const amount = isMaxAmount ? sourceTokenAmount : targetAmountMinimum;
   const tradeType = isMaxAmount ? 'exactInput' : 'exactOutput';
@@ -119,28 +116,28 @@ async function getSingleQuote(
     params.set('slippage', String(slippageDecimal));
   }
 
-  if (config.providers.across.integratorId) {
-    params.set('integratorId', config.providers.across.integratorId);
+  if (config.across.integratorId) {
+    params.set('integratorId', config.across.integratorId);
   }
 
-  if (config.providers.across.appFee) {
-    params.set('appFee', config.providers.across.appFee);
-    if (config.providers.across.appFeeRecipient) {
-      params.set('appFeeRecipient', config.providers.across.appFeeRecipient);
+  if (config.across.appFee) {
+    params.set('appFee', config.across.appFee);
+    if (config.across.appFeeRecipient) {
+      params.set('appFeeRecipient', config.across.appFeeRecipient);
     }
   }
 
-  const url = `${config.providers.across.apiBase}/swap/approval?${params.toString()}`;
+  const url = `${config.across.apiBase}/swap/approval?${params.toString()}`;
 
   const headers: Record<string, string> = {
     Accept: 'application/json',
   };
 
-  if (config.providers.across.apiKey) {
-    const header = config.providers.across.apiKeyHeader ?? 'Authorization';
-    const value = config.providers.across.apiKeyPrefix
-      ? `${config.providers.across.apiKeyPrefix} ${config.providers.across.apiKey}`
-      : config.providers.across.apiKey;
+  if (config.across.apiKey) {
+    const header = config.across.apiKeyHeader ?? 'Authorization';
+    const value = config.across.apiKeyPrefix
+      ? `${config.across.apiKeyPrefix} ${config.across.apiKey}`
+      : config.across.apiKey;
     headers[header] = value;
   }
 
@@ -229,10 +226,12 @@ async function buildAcrossActions(
     tokenAddress: targetTokenAddress,
   });
 
-  const delegationAction = buildDelegationAction(delegation);
+  if (!delegation.action) {
+    throw new Error('Delegation action missing from client callback');
+  }
 
   return {
-    actions: [tokenTransferAction, delegationAction],
+    actions: [tokenTransferAction, delegation.action],
     recipient,
   };
 }
@@ -275,39 +274,6 @@ function buildTokenTransferAction({
   };
 }
 
-function buildDelegationAction(delegation: {
-  data: Hex;
-  to: Hex;
-  value?: Hex;
-}): AcrossAction {
-  const decoded = DELEGATION_REDEEM_INTERFACE.decodeFunctionData(
-    'redeemDelegations',
-    delegation.data,
-  ) as [string[], string[], string[]];
-
-  return {
-    target: delegation.to,
-    functionSignature:
-      'function redeemDelegations(bytes[] delegations, bytes32[] modes, bytes[] executions)',
-    args: [
-      {
-        value: decoded[0],
-        populateDynamically: false,
-      },
-      {
-        value: decoded[1],
-        populateDynamically: false,
-      },
-      {
-        value: decoded[2],
-        populateDynamically: false,
-      },
-    ],
-    value: delegation.value ?? '0x0',
-    isNativeTransfer: false,
-  };
-}
-
 function getTransferRecipient(data: Hex): Hex {
   return TOKEN_TRANSFER_INTERFACE.decodeFunctionData(
     'transfer',
@@ -331,9 +297,6 @@ async function normalizeQuote(
   const dustUsd = calculateDustUsd(quote, request, targetFiatRate);
   const dust = getFiatValueFromUsd(dustUsd, usdToFiatRate);
 
-  const providerUsd = calculateProviderFeeUsd(quote);
-  const provider = getFiatValueFromUsd(providerUsd, usdToFiatRate);
-
   const sourceNetwork = await calculateSourceNetworkCost(
     quote,
     messenger,
@@ -347,14 +310,50 @@ async function normalizeQuote(
   const targetNetwork = getFiatValueFromUsd(targetNetworkUsd, usdToFiatRate);
 
   const inputAmountRaw = quote.inputAmount ?? '0';
-  const outputAmountRaw =
-    quote.expectedOutputAmount ?? quote.minOutputAmount ?? '0';
+  const expectedOutputRaw = new BigNumber(
+    quote.expectedOutputAmount ??
+      quote.minOutputAmount ??
+      request.targetAmountMinimum ??
+      '0',
+  );
+  const minOutputRaw = new BigNumber(
+    quote.minOutputAmount ?? request.targetAmountMinimum ?? '0',
+  );
+  const outputAmountRaw = expectedOutputRaw.toString(10);
 
   const sourceAmount = getAmountFromTokenAmount({
     amountRaw: inputAmountRaw,
     decimals: quote.inputToken.decimals,
     fiatRate: sourceFiatRate,
   });
+
+  const expectedOutputUsd = expectedOutputRaw.gt(0)
+    ? expectedOutputRaw
+        .shiftedBy(-quote.outputToken.decimals)
+        .multipliedBy(targetFiatRate.usdRate)
+    : new BigNumber(0);
+
+  const impactUsd = calculateImpactUsd(
+    quote,
+    expectedOutputRaw,
+    minOutputRaw,
+    targetFiatRate,
+  );
+
+  let impact: ReturnType<typeof getFiatValueFromUsd> | undefined;
+
+  if (impactUsd !== undefined) {
+    impact = getFiatValueFromUsd(impactUsd, usdToFiatRate);
+  }
+
+  let impactRatio: string | undefined;
+
+  if (impactUsd !== undefined && expectedOutputUsd.gt(0)) {
+    impactRatio = impactUsd.dividedBy(expectedOutputUsd).toString(10);
+  }
+
+  const providerUsd = impactUsd ?? new BigNumber(0);
+  const provider = getFiatValueFromUsd(providerUsd, usdToFiatRate);
 
   const targetAmount = getAmountFromTokenAmount({
     amountRaw: outputAmountRaw,
@@ -366,6 +365,8 @@ async function normalizeQuote(
     dust,
     estimatedDuration: quote.expectedFillTime ?? 0,
     fees: {
+      impact,
+      impactRatio,
       provider,
       sourceNetwork,
       targetNetwork,
@@ -376,7 +377,7 @@ async function normalizeQuote(
     request,
     sourceAmount,
     targetAmount,
-    strategy: TransactionPayStrategy.TokenPay,
+    strategy: TransactionPayStrategy.Across,
   } as TransactionPayQuote<AcrossQuote>;
 }
 
@@ -428,17 +429,32 @@ function calculateDustUsd(
   return dustHuman.multipliedBy(targetFiatRate.usdRate);
 }
 
-function calculateProviderFeeUsd(quote: AcrossSwapApprovalResponse): BigNumber {
-  const total = quote.fees?.total?.amountUsd;
+function calculateImpactUsd(
+  quote: AcrossSwapApprovalResponse,
+  expectedOutputRaw: BigNumber,
+  minOutputRaw: BigNumber,
+  targetFiatRate: FiatRates,
+): BigNumber | undefined {
+  const swapImpactUsd = quote.fees?.swapImpact?.amountUsd;
 
-  if (total !== undefined) {
-    return new BigNumber(total);
+  if (swapImpactUsd !== undefined) {
+    return new BigNumber(swapImpactUsd).abs();
   }
 
-  const relayer = quote.fees?.relayerTotal?.amountUsd ?? '0';
-  const app = quote.fees?.app?.amountUsd ?? '0';
+  if (expectedOutputRaw.lte(0)) {
+    return undefined;
+  }
 
-  return new BigNumber(relayer).plus(app);
+  const rawImpact = expectedOutputRaw.minus(minOutputRaw);
+  const normalizedRawImpact = rawImpact.isNegative()
+    ? new BigNumber(0)
+    : rawImpact;
+
+  const impactHuman = normalizedRawImpact.shiftedBy(
+    -quote.outputToken.decimals,
+  );
+
+  return impactHuman.multipliedBy(targetFiatRate.usdRate);
 }
 
 function getFiatValueFromUsd(
@@ -488,16 +504,20 @@ async function calculateSourceNetworkCost(
   const { swapTx } = quote;
   const chainId = toHex(swapTx.chainId);
 
-  const gasLimit = await estimateGasWithBuffer(
-    {
-      data: swapTx.data,
-      to: swapTx.to,
-      value: swapTx.value ?? '0x0',
-      chainId,
-    },
+  const gasResult = await estimateGasWithBufferOrFallback({
+    chainId,
+    data: swapTx.data,
     from,
     messenger,
-  );
+    to: swapTx.to,
+    value: swapTx.value ?? '0x0',
+  });
+
+  if (gasResult.usedFallback) {
+    log('Gas estimate failed, using fallback', { error: gasResult.error });
+  }
+
+  const gasLimit = gasResult.estimate;
 
   const estimate = calculateGasCost({
     chainId,
@@ -518,38 +538,4 @@ async function calculateSourceNetworkCost(
     estimate,
     max,
   };
-}
-
-async function estimateGasWithBuffer(
-  params: {
-    chainId: Hex;
-    data: Hex;
-    to: Hex;
-    value: Hex;
-  },
-  from: Hex,
-  messenger: TransactionPayControllerMessenger,
-): Promise<number> {
-  const { chainId, data, to, value } = params;
-
-  const networkClientId = messenger.call(
-    'NetworkController:findNetworkClientIdByChainId',
-    chainId,
-  );
-
-  try {
-    const { gas: gasHex } = await messenger.call(
-      'TransactionController:estimateGas',
-      { from, data, to, value },
-      networkClientId,
-    );
-
-    const estimatedGas = new BigNumber(gasHex).toNumber();
-    const gasBuffer = getGasBuffer(messenger, chainId);
-
-    return Math.ceil(estimatedGas * gasBuffer);
-  } catch (error) {
-    log('Gas estimate failed, using fallback', { error });
-    return new BigNumber(900000).toNumber();
-  }
 }

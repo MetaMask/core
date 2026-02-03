@@ -12,6 +12,7 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 ### Added
 
 - Generate required tokens using `requiredAssets` from transaction metadata ([#7820](https://github.com/MetaMask/core/pull/7820))
+- Add standalone Across pay strategy with core-level selection and fallback ([#7806](https://github.com/MetaMask/core/pull/7806))
 
 ### Changed
 

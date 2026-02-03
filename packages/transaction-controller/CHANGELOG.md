@@ -14,6 +14,7 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 ### Changed
 
 - Lock `@metamask/core-backend` to `5.0.0` ([#7852](https://github.com/MetaMask/core/pull/7852))
+- Add `perpsAcrossDeposit` and `predictAcrossDeposit` transaction types ([#7806](https://github.com/MetaMask/core/pull/7806))
 
 ## [62.14.0]
 

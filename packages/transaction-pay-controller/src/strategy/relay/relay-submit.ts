@@ -5,10 +5,7 @@ import {
 } from '@metamask/controller-utils';
 import { TransactionType } from '@metamask/transaction-controller';
 import type { TransactionParams } from '@metamask/transaction-controller';
-import type {
-  AuthorizationList,
-  TransactionMeta,
-} from '@metamask/transaction-controller';
+import type { AuthorizationList } from '@metamask/transaction-controller';
 import type { Hex } from '@metamask/utils';
 import { createModuleLogger } from '@metamask/utils';
 
@@ -22,11 +19,10 @@ import type {
 } from '../../types';
 import { getFeatureFlags } from '../../utils/feature-flags';
 import {
-  collectTransactionIds,
-  getTransaction,
-  updateTransaction,
-  waitForTransactionConfirmed,
-} from '../../utils/transaction';
+  SourceTransaction,
+  submitSourceTransactions,
+} from '../../utils/strategy-helpers';
+import { updateTransaction } from '../../utils/transaction';
 
 const FALLBACK_HASH = '0x0' as Hex;
 
@@ -43,16 +39,12 @@ export async function submitRelayQuotes(
 ): Promise<{ transactionHash?: Hex }> {
   log('Executing quotes', request);
 
-  const { quotes, messenger, transaction } = request;
+  const { quotes } = request;
 
   let transactionHash: Hex | undefined;
 
   for (const quote of quotes) {
-    ({ transactionHash } = await executeSingleQuote(
-      quote,
-      messenger,
-      transaction,
-    ));
+    ({ transactionHash } = await executeSingleQuote(quote, request));
   }
 
   return { transactionHash };
@@ -62,29 +54,26 @@ export async function submitRelayQuotes(
  * Executes a single Relay quote.
  *
  * @param quote - Relay quote to execute.
- * @param messenger - Controller messenger.
- * @param transaction - Original transaction meta.
+ * @param request - Original request.
  * @returns An object containing the transaction hash if available.
  */
 async function executeSingleQuote(
   quote: TransactionPayQuote<RelayQuote>,
-  messenger: TransactionPayControllerMessenger,
-  transaction: TransactionMeta,
+  request: PayStrategyExecuteRequest<RelayQuote>,
 ): Promise<{ transactionHash?: Hex }> {
   log('Executing single quote', quote);
 
-  updateTransaction(
-    {
-      transactionId: transaction.id,
-      messenger,
-      note: 'Remove nonce from skipped transaction',
+  await submitSourceTransactions({
+    request: {
+      ...request,
+      quotes: [quote],
     },
-    (tx) => {
-      tx.txParams.nonce = undefined;
-    },
-  );
-
-  await submitTransactions(quote, transaction.id, messenger);
+    requiredTransactionNote:
+      'Add required transaction ID from Relay submission',
+    markIntentComplete: false,
+    buildTransactions: async (singleQuote) =>
+      buildTransactions(singleQuote, request.messenger),
+  });
 
   const targetHash = await waitForRelayCompletion(quote.original);
 
@@ -92,8 +81,8 @@ async function executeSingleQuote(
 
   updateTransaction(
     {
-      transactionId: transaction.id,
-      messenger,
+      transactionId: request.transaction.id,
+      messenger: request.messenger,
       note: 'Intent complete after Relay completion',
     },
     (tx) => {
@@ -170,18 +159,21 @@ function normalizeParams(
 }
 
 /**
- * Submit transactions for a relay quote.
+ * Build transactions for a relay quote.
  *
  * @param quote - Relay quote.
- * @param parentTransactionId - ID of the parent transaction.
  * @param messenger - Controller messenger.
- * @returns Hash of the last submitted transaction.
+ * @returns Prepared transactions and submission callback.
  */
-async function submitTransactions(
+async function buildTransactions(
   quote: TransactionPayQuote<RelayQuote>,
-  parentTransactionId: string,
   messenger: TransactionPayControllerMessenger,
-): Promise<Hex> {
+): Promise<{
+  chainId: Hex;
+  from: Hex;
+  transactions: SourceTransaction[];
+  submit: (transactions: SourceTransaction[]) => Promise<void>;
+}> {
   const { steps } = quote.original;
   const params = steps.flatMap((step) => step.items).map((item) => item.data);
   const invalidKind = steps.find((step) => step.kind !== 'transaction')?.kind;
@@ -194,47 +186,8 @@ async function submitTransactions(
     normalizeParams(singleParams, messenger),
   );
 
-  const transactionIds: string[] = [];
   const { from, sourceChainId, sourceTokenAddress } = quote.request;
-
-  const networkClientId = messenger.call(
-    'NetworkController:findNetworkClientIdByChainId',
-    sourceChainId,
-  );
-
-  log('Adding transactions', {
-    normalizedParams,
-    sourceChainId,
-    from,
-    networkClientId,
-  });
-
-  const { end } = collectTransactionIds(
-    sourceChainId,
-    from,
-    messenger,
-    (transactionId) => {
-      transactionIds.push(transactionId);
-
-      updateTransaction(
-        {
-          transactionId: parentTransactionId,
-          messenger,
-          note: 'Add required transaction ID from Relay submission',
-        },
-        (tx) => {
-          tx.requiredTransactionIds ??= [];
-          tx.requiredTransactionIds.push(transactionId);
-        },
-      );
-    },
-  );
-
-  let result: { result: Promise<string> } | undefined;
-
-  const gasFeeToken = quote.fees.isSourceGasFeeToken
-    ? sourceTokenAddress
-    : undefined;
+  const chainId = sourceChainId;
 
   const isSameChain =
     quote.original.details.currencyIn.currency.chainId ===
@@ -248,76 +201,97 @@ async function submitTransactions(
         }))
       : undefined;
 
+  const gasFeeToken = quote.fees.isSourceGasFeeToken
+    ? sourceTokenAddress
+    : undefined;
+
   const { gasLimits } = quote.original.metamask;
 
-  if (params.length === 1) {
-    const transactionParams = {
-      ...normalizedParams[0],
-      authorizationList,
-      gas: toHex(gasLimits[0]),
-    };
-
-    result = await messenger.call(
-      'TransactionController:addTransaction',
-      transactionParams,
-      {
-        gasFeeToken,
-        networkClientId,
-        origin: ORIGIN_METAMASK,
-        requireApproval: false,
-        type: TransactionType.relayDeposit,
-      },
-    );
-  } else {
-    const gasLimit7702 =
-      gasLimits.length === 1 ? toHex(gasLimits[0]) : undefined;
-
-    const transactions = normalizedParams.map((singleParams, index) => ({
-      params: {
-        data: singleParams.data as Hex,
-        gas: gasLimit7702 ? undefined : toHex(gasLimits[index]),
-        maxFeePerGas: singleParams.maxFeePerGas as Hex,
-        maxPriorityFeePerGas: singleParams.maxPriorityFeePerGas as Hex,
-        to: singleParams.to as Hex,
-        value: singleParams.value as Hex,
-      },
+  const transactions: SourceTransaction[] = normalizedParams.map(
+    (singleParams, index) => ({
+      params: singleParams,
       type:
-        index === 0
-          ? TransactionType.tokenMethodApprove
-          : TransactionType.relayDeposit,
-    }));
-
-    await messenger.call('TransactionController:addTransactionBatch', {
-      from,
-      disable7702: !gasLimit7702,
-      disableHook: Boolean(gasLimit7702),
-      disableSequential: Boolean(gasLimit7702),
-      gasFeeToken,
-      gasLimit7702,
-      networkClientId,
-      origin: ORIGIN_METAMASK,
-      overwriteUpgrade: true,
-      requireApproval: false,
-      transactions,
-    });
-  }
-
-  end();
-
-  log('Added transactions', transactionIds);
-
-  if (result) {
-    const txHash = await result.result;
-    log('Submitted transaction', txHash);
-  }
-
-  await Promise.all(
-    transactionIds.map((txId) => waitForTransactionConfirmed(txId, messenger)),
+        params.length === 1 || index > 0
+          ? TransactionType.relayDeposit
+          : TransactionType.tokenMethodApprove,
+    }),
   );
 
-  log('All transactions confirmed', transactionIds);
+  return {
+    chainId,
+    from,
+    transactions,
+    submit: async (preparedTransactions): Promise<void> => {
+      const networkClientId = messenger.call(
+        'NetworkController:findNetworkClientIdByChainId',
+        sourceChainId,
+      );
 
-  const hash = getTransaction(transactionIds.slice(-1)[0], messenger)?.hash;
+      log('Adding transactions', {
+        normalizedParams,
+        sourceChainId,
+        from,
+        networkClientId,
+      });
 
-  return hash as Hex;
+      if (preparedTransactions.length === 1) {
+        const transactionParams = {
+          ...preparedTransactions[0].params,
+          authorizationList,
+          gas: toHex(gasLimits[0]),
+        };
+
+        const result = await messenger.call(
+          'TransactionController:addTransaction',
+          transactionParams,
+          {
+            gasFeeToken,
+            networkClientId,
+            origin: ORIGIN_METAMASK,
+            requireApproval: false,
+            type: TransactionType.relayDeposit,
+          },
+        );
+
+        const txHash = await result.result;
+        log('Submitted transaction', txHash);
+        return;
+      }
+
+      const gasLimit7702 =
+        gasLimits.length === 1 ? toHex(gasLimits[0]) : undefined;
+
+      const batchTransactions = preparedTransactions.map(
+        (singleParams, index) => ({
+          params: {
+            data: singleParams.params.data as Hex,
+            gas: gasLimit7702 ? undefined : toHex(gasLimits[index]),
+            maxFeePerGas: singleParams.params.maxFeePerGas as Hex,
+            maxPriorityFeePerGas: singleParams.params
+              .maxPriorityFeePerGas as Hex,
+            to: singleParams.params.to as Hex,
+            value: singleParams.params.value as Hex,
+          },
+          type:
+            index === 0
+              ? TransactionType.tokenMethodApprove
+              : TransactionType.relayDeposit,
+        }),
+      );
+
+      await messenger.call('TransactionController:addTransactionBatch', {
+        from,
+        disable7702: !gasLimit7702,
+        disableHook: Boolean(gasLimit7702),
+        disableSequential: Boolean(gasLimit7702),
+        gasFeeToken,
+        gasLimit7702,
+        networkClientId,
+        origin: ORIGIN_METAMASK,
+        overwriteUpgrade: true,
+        requireApproval: false,
+        transactions: batchTransactions,
+      });
+    },
+  };
 }

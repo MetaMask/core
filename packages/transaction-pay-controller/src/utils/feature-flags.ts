@@ -2,6 +2,7 @@ import type { Hex } from '@metamask/utils';
 import { createModuleLogger } from '@metamask/utils';
 
 import type { TransactionPayControllerMessenger } from '..';
+import { TransactionPayStrategy } from '../constants';
 import { projectLogger } from '../logger';
 import { RELAY_URL_BASE } from '../strategy/relay/constants';
 
@@ -13,8 +14,10 @@ export const DEFAULT_RELAY_FALLBACK_GAS_MAX = 1500000;
 export const DEFAULT_RELAY_QUOTE_URL = `${RELAY_URL_BASE}/quote`;
 export const DEFAULT_SLIPPAGE = 0.005;
 export const DEFAULT_ACROSS_API_BASE = 'https://app.across.to/api';
-
-export type TokenPayProviderId = 'relay' | 'across';
+export const DEFAULT_STRATEGY_ORDER = [
+  TransactionPayStrategy.Relay,
+  TransactionPayStrategy.Across,
+];
 
 type FeatureFlagsRaw = {
   gasBuffer?: {
@@ -35,7 +38,7 @@ type FeatureFlagsRaw = {
   relayQuoteUrl?: string;
   slippage?: number;
   slippageTokens?: Record<Hex, Record<Hex, number>>;
-  tokenPay?: TokenPayConfigRaw;
+  payStrategies?: PayStrategiesConfigRaw;
 };
 
 export type FeatureFlags = {
@@ -48,7 +51,7 @@ export type FeatureFlags = {
   slippage: number;
 };
 
-export type TokenPayProviderConfigRaw = {
+export type PayStrategyConfigRaw = {
   allowSameChain?: boolean;
   apiBase?: string;
   apiKey?: string;
@@ -58,34 +61,25 @@ export type TokenPayProviderConfigRaw = {
   appFeeRecipient?: string;
   enabled?: boolean;
   integratorId?: string;
-  slippage?: number;
 };
 
-export type TokenPayConfigRaw = {
-  primaryProvider?: TokenPayProviderId;
-  providerOrder?: TokenPayProviderId[];
-  providers?: {
-    across?: TokenPayProviderConfigRaw;
-    relay?: {
-      enabled?: boolean;
-      relayQuoteUrl?: string;
-    };
+export type PayStrategiesConfigRaw = {
+  across?: PayStrategyConfigRaw;
+  relay?: {
+    enabled?: boolean;
+    relayQuoteUrl?: string;
   };
 };
 
-export type TokenPayConfig = {
-  primaryProvider: TokenPayProviderId;
-  providerOrder: TokenPayProviderId[];
-  providers: {
-    across: TokenPayProviderConfigRaw & {
-      allowSameChain: boolean;
-      apiBase: string;
-      enabled: boolean;
-    };
-    relay: {
-      enabled: boolean;
-      relayQuoteUrl: string;
-    };
+export type PayStrategiesConfig = {
+  across: PayStrategyConfigRaw & {
+    allowSameChain: boolean;
+    apiBase: string;
+    enabled: boolean;
+  };
+  relay: {
+    enabled: boolean;
+    relayQuoteUrl: string;
   };
 };
 
@@ -130,29 +124,19 @@ export function getFeatureFlags(
 }
 
 /**
- * Get Token Pay configuration.
+ * Get Pay Strategies configuration.
  *
  * @param messenger - Controller messenger.
- * @returns Token Pay configuration.
+ * @returns Pay Strategies configuration.
  */
-export function getTokenPayConfig(
+export function getPayStrategiesConfig(
   messenger: TransactionPayControllerMessenger,
-): TokenPayConfig {
+): PayStrategiesConfig {
   const featureFlags = getFeatureFlagsRaw(messenger);
-  const tokenPay = featureFlags.tokenPay ?? {};
+  const payStrategies = featureFlags.payStrategies ?? {};
 
-  const primaryProvider = tokenPay.primaryProvider ?? 'relay';
-  const providerOrder = tokenPay.providerOrder ?? [
-    primaryProvider,
-    'relay',
-    'across',
-  ];
-
-  // dedupe
-  const normalizedOrder = Array.from(new Set(providerOrder.filter(Boolean)));
-
-  const acrossRaw = tokenPay.providers?.across ?? {};
-  const relayRaw = tokenPay.providers?.relay ?? {};
+  const acrossRaw = payStrategies.across ?? {};
+  const relayRaw = payStrategies.relay ?? {};
 
   const across = {
     allowSameChain: acrossRaw.allowSameChain ?? false,
@@ -164,7 +148,6 @@ export function getTokenPayConfig(
     appFeeRecipient: acrossRaw.appFeeRecipient,
     enabled: acrossRaw.enabled ?? true,
     integratorId: acrossRaw.integratorId,
-    slippage: acrossRaw.slippage,
   };
 
   const relay = {
@@ -176,13 +159,21 @@ export function getTokenPayConfig(
   };
 
   return {
-    primaryProvider,
-    providerOrder: normalizedOrder.length ? normalizedOrder : [primaryProvider],
-    providers: {
-      across,
-      relay,
-    },
+    across,
+    relay,
   };
+}
+
+/**
+ * Get ordered list of strategies to try.
+ *
+ * @param _messenger - Controller messenger.
+ * @returns Ordered strategy list.
+ */
+export function getStrategyOrder(
+  _messenger: TransactionPayControllerMessenger,
+): TransactionPayStrategy[] {
+  return [...DEFAULT_STRATEGY_ORDER];
 }
 
 /**
@@ -271,12 +262,18 @@ function getCaseInsensitive<Value>(
 export function getEIP7702SupportedChains(
   messenger: TransactionPayControllerMessenger,
 ): Hex[] {
-  const state = messenger.call('RemoteFeatureFlagController:getState');
-  const eip7702Flags = state.remoteFeatureFlags.confirmations_eip_7702 as
-    | { supportedChains?: Hex[] }
-    | undefined;
+  try {
+    const state = messenger.call('RemoteFeatureFlagController:getState') as
+      | { remoteFeatureFlags?: Record<string, unknown> }
+      | undefined;
+    const eip7702Flags = state?.remoteFeatureFlags?.confirmations_eip_7702 as
+      | { supportedChains?: Hex[] }
+      | undefined;
 
-  return eip7702Flags?.supportedChains ?? [];
+    return eip7702Flags?.supportedChains ?? [];
+  } catch {
+    return [];
+  }
 }
 
 /**
@@ -288,6 +285,13 @@ export function getEIP7702SupportedChains(
 function getFeatureFlagsRaw(
   messenger: TransactionPayControllerMessenger,
 ): FeatureFlagsRaw {
-  const state = messenger.call('RemoteFeatureFlagController:getState');
-  return (state.remoteFeatureFlags.confirmations_pay as FeatureFlagsRaw) ?? {};
+  try {
+    const state = messenger.call('RemoteFeatureFlagController:getState') as
+      | { remoteFeatureFlags?: Record<string, FeatureFlagsRaw> }
+      | undefined;
+
+    return state?.remoteFeatureFlags?.confirmations_pay ?? {};
+  } catch {
+    return {};
+  }
 }

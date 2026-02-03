@@ -3,26 +3,23 @@ import { TransactionType } from '@metamask/transaction-controller';
 import type {
   BatchTransactionParams,
   TransactionParams,
-  TransactionMeta,
 } from '@metamask/transaction-controller';
 import type { Hex } from '@metamask/utils';
 import { createModuleLogger } from '@metamask/utils';
 import { BigNumber } from 'bignumber.js';
 
 import type { AcrossQuote, AcrossSwapApprovalResponse } from './types';
+import { projectLogger } from '../../logger';
 import type {
   PayStrategyExecuteRequest,
   TransactionPayControllerMessenger,
   TransactionPayQuote,
 } from '../../types';
-import { projectLogger } from '../../logger';
 import { getGasBuffer } from '../../utils/feature-flags';
 import {
-  collectTransactionIds,
-  getTransaction,
-  updateTransaction,
-  waitForTransactionConfirmed,
-} from '../../utils/transaction';
+  SourceTransaction,
+  submitSourceTransactions,
+} from '../../utils/strategy-helpers';
 
 const log = createModuleLogger(projectLogger, 'across-strategy');
 
@@ -37,148 +34,107 @@ export async function submitAcrossQuotes(
 ): Promise<{ transactionHash?: Hex }> {
   log('Executing quotes', request);
 
-  const { quotes, messenger, transaction } = request;
+  const acrossDepositType = getAcrossDepositType(request.transaction.type);
+  const { messenger } = request;
 
-  let transactionHash: Hex | undefined;
+  return submitSourceTransactions({
+    request,
+    requiredTransactionNote:
+      'Add required transaction ID from Across submission',
+    intentCompleteNote: 'Intent complete after Across submission',
+    buildTransactions: async (quote) => {
+      log('Executing single quote', quote);
 
-  for (const quote of quotes) {
-    ({ transactionHash } = await executeSingleQuote(
-      quote,
-      messenger,
-      transaction,
-    ));
-  }
+      const { swapTx, approvalTxns } = quote.original.quote;
+      const { from } = quote.request;
+      const chainId = toHex(swapTx.chainId);
 
-  return { transactionHash };
-}
+      const networkClientId = messenger.call(
+        'NetworkController:findNetworkClientIdByChainId',
+        chainId,
+      );
 
-async function executeSingleQuote(
-  quote: TransactionPayQuote<AcrossQuote>,
-  messenger: TransactionPayControllerMessenger,
-  transaction: TransactionMeta,
-): Promise<{ transactionHash?: Hex }> {
-  log('Executing single quote', quote);
+      const transactions: SourceTransaction[] = [];
 
-  updateTransaction(
-    {
-      transactionId: transaction.id,
-      messenger,
-      note: 'Remove nonce from skipped transaction',
-    },
-    (tx) => {
-      tx.txParams.nonce = undefined;
-    },
-  );
+      if (approvalTxns?.length) {
+        for (const approval of approvalTxns) {
+          transactions.push({
+            params: await buildTransactionParams(messenger, from, {
+              chainId: approval.chainId,
+              data: approval.data,
+              to: approval.to,
+              value: approval.value,
+            }),
+            type: TransactionType.tokenMethodApprove,
+          });
+        }
+      }
 
-  const { swapTx, approvalTxns } = quote.original.quote;
-  const { from } = quote.request;
-  const chainId = toHex(swapTx.chainId);
-
-  const networkClientId = messenger.call(
-    'NetworkController:findNetworkClientIdByChainId',
-    chainId,
-  );
-
-  const transactions = [] as {
-    params: TransactionParams;
-    type: TransactionType;
-  }[];
-
-  if (approvalTxns?.length) {
-    for (const approval of approvalTxns) {
       transactions.push({
         params: await buildTransactionParams(messenger, from, {
-          chainId: approval.chainId,
-          data: approval.data,
-          to: approval.to,
-          value: approval.value,
+          chainId: swapTx.chainId,
+          data: swapTx.data,
+          to: swapTx.to,
+          value: swapTx.value,
+          maxFeePerGas: swapTx.maxFeePerGas,
+          maxPriorityFeePerGas: swapTx.maxPriorityFeePerGas,
         }),
-        type: TransactionType.tokenMethodApprove,
+        type: acrossDepositType,
       });
-    }
-  }
 
-  transactions.push({
-    params: await buildTransactionParams(messenger, from, {
-      chainId: swapTx.chainId,
-      data: swapTx.data,
-      to: swapTx.to,
-      value: swapTx.value,
-      maxFeePerGas: swapTx.maxFeePerGas,
-      maxPriorityFeePerGas: swapTx.maxPriorityFeePerGas,
-    }),
-    type: TransactionType.acrossDeposit,
-  });
+      return {
+        chainId,
+        from,
+        transactions,
+        submit: async (preparedTransactions): Promise<void> => {
+          if (preparedTransactions.length === 1) {
+            const result = await messenger.call(
+              'TransactionController:addTransaction',
+              preparedTransactions[0].params,
+              {
+                networkClientId,
+                origin: ORIGIN_METAMASK,
+                requireApproval: false,
+                type: preparedTransactions[0].type,
+              },
+            );
 
-  const transactionIds: string[] = [];
+            const txHash = await result.result;
+            log('Submitted transaction', txHash);
+            return;
+          }
 
-  const { end } = collectTransactionIds(chainId, from, messenger, (id) => {
-    transactionIds.push(id);
+          const batchTransactions = preparedTransactions.map(
+            ({ params, type }) => ({
+              params: toBatchTransactionParams(params),
+              type,
+            }),
+          );
 
-    updateTransaction(
-      {
-        transactionId: transaction.id,
-        messenger,
-        note: 'Add required transaction ID from Across submission',
-      },
-      (tx) => {
-        tx.requiredTransactionIds ??= [];
-        tx.requiredTransactionIds.push(id);
-      },
-    );
-  });
-
-  if (transactions.length === 1) {
-    const result = await messenger.call(
-      'TransactionController:addTransaction',
-      transactions[0].params,
-      {
-        networkClientId,
-        origin: ORIGIN_METAMASK,
-        requireApproval: false,
-        type: transactions[0].type,
-      },
-    );
-
-    const txHash = await result.result;
-    log('Submitted transaction', txHash);
-  } else {
-    const batchTransactions = transactions.map(({ params, type }) => ({
-      params: toBatchTransactionParams(params),
-      type,
-    }));
-
-    await messenger.call('TransactionController:addTransactionBatch', {
-      from,
-      networkClientId,
-      origin: ORIGIN_METAMASK,
-      requireApproval: false,
-      transactions: batchTransactions,
-    });
-  }
-
-  end();
-
-  await Promise.all(
-    transactionIds.map((txId) => waitForTransactionConfirmed(txId, messenger)),
-  );
-
-  log('All transactions confirmed', transactionIds);
-
-  updateTransaction(
-    {
-      transactionId: transaction.id,
-      messenger,
-      note: 'Intent complete after Across submission',
+          await messenger.call('TransactionController:addTransactionBatch', {
+            from,
+            networkClientId,
+            origin: ORIGIN_METAMASK,
+            requireApproval: false,
+            transactions: batchTransactions,
+          });
+        },
+      };
     },
-    (tx) => {
-      tx.isIntentComplete = true;
-    },
-  );
+  });
+}
 
-  const hash = getTransaction(transactionIds.slice(-1)[0], messenger)?.hash;
-
-  return { transactionHash: hash as Hex };
+function getAcrossDepositType(
+  transactionType?: TransactionType,
+): TransactionType {
+  switch (transactionType) {
+    case TransactionType.perpsDeposit:
+      return TransactionType.perpsAcrossDeposit;
+    case TransactionType.predictDeposit:
+      return TransactionType.predictAcrossDeposit;
+    default:
+      return TransactionType.perpsAcrossDeposit;
+  }
 }
 
 async function buildTransactionParams(

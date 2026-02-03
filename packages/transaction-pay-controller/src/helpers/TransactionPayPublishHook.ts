@@ -7,9 +7,11 @@ import { createModuleLogger } from '@metamask/utils';
 import { projectLogger } from '../logger';
 import type {
   TransactionPayControllerMessenger,
+  TransactionData,
   TransactionPayQuote,
 } from '../types';
-import { getStrategy } from '../utils/strategy';
+import { buildQuoteRequests } from '../utils/quotes';
+import { getStrategies, getStrategyByName } from '../utils/strategy';
 import { updateTransaction } from '../utils/transaction';
 
 const log = createModuleLogger(projectLogger, 'pay-publish-hook');
@@ -60,27 +62,61 @@ export class TransactionPayPublishHook {
       'TransactionPayController:getState',
     );
 
+    const transactionData = controllerState.transactionData?.[transactionId];
+
     const quotes =
-      (controllerState.transactionData?.[transactionId]
-        ?.quotes as TransactionPayQuote<unknown>[]) ?? [];
+      (transactionData?.quotes as TransactionPayQuote<unknown>[]) ?? [];
 
     if (!quotes?.length) {
       log('Skipping as no quotes found');
       return EMPTY_RESULT;
     }
 
-    const strategy = getStrategy(this.#messenger, transactionMeta);
+    const primaryStrategyName = quotes[0].strategy;
+    const primaryStrategy = getStrategyByName(primaryStrategyName);
+    let hasRecordedLatency = false;
 
-    const start = Date.now();
-    const result = await strategy.execute({
-      isSmartTransaction: this.#isSmartTransaction,
-      quotes,
-      messenger: this.#messenger,
-      transaction: transactionMeta,
-    });
+    const recordExecutionLatency = (latencyMs: number): void => {
+      if (hasRecordedLatency) {
+        return;
+      }
 
-    const executionLatencyMs = Date.now() - start;
+      hasRecordedLatency = true;
+      this.#recordExecutionMetrics(transactionId, latencyMs);
+    };
 
+    try {
+      const result = await primaryStrategy.execute({
+        isSmartTransaction: this.#isSmartTransaction,
+        quotes,
+        messenger: this.#messenger,
+        onSubmitted: recordExecutionLatency,
+        transaction: transactionMeta,
+      });
+
+      return result;
+    } catch (error) {
+      log('Primary strategy failed, attempting fallback', {
+        error,
+        strategy: primaryStrategyName,
+      });
+
+      const result = await this.#executeFallback({
+        transactionMeta,
+        transactionData,
+        primaryStrategy,
+        originalError: error,
+        onSubmitted: recordExecutionLatency,
+      });
+
+      return result;
+    }
+  }
+
+  #recordExecutionMetrics(
+    transactionId: string,
+    executionLatencyMs: number,
+  ): void {
     try {
       updateTransaction(
         {
@@ -98,7 +134,79 @@ export class TransactionPayPublishHook {
     } catch (error) {
       log('Failed to update execution metrics', error);
     }
+  }
 
-    return result;
+  async #executeFallback({
+    transactionMeta,
+    transactionData,
+    primaryStrategy,
+    originalError,
+    onSubmitted,
+  }: {
+    transactionMeta: TransactionMeta;
+    transactionData: TransactionData | undefined;
+    primaryStrategy: ReturnType<typeof getStrategyByName>;
+    originalError: unknown;
+    onSubmitted: (latencyMs: number) => void;
+  }): Promise<PublishHookResult> {
+    /* istanbul ignore next */
+    if (!transactionData) {
+      throw originalError;
+    }
+
+    const { isMaxAmount, paymentToken, sourceAmounts, tokens } =
+      transactionData;
+
+    const requests = buildQuoteRequests({
+      from: transactionMeta.txParams.from as Hex,
+      isMaxAmount: isMaxAmount ?? false,
+      paymentToken,
+      sourceAmounts,
+      tokens: tokens ?? [],
+      transactionId: transactionMeta.id,
+    });
+
+    if (!requests.length) {
+      throw originalError;
+    }
+
+    const strategies = getStrategies(this.#messenger, transactionMeta);
+    const request = {
+      messenger: this.#messenger,
+      onSubmitted,
+      requests,
+      transaction: transactionMeta,
+    };
+
+    for (const strategy of strategies) {
+      if (strategy.constructor === primaryStrategy.constructor) {
+        continue;
+      }
+
+      if (strategy.supports && !strategy.supports(request)) {
+        continue;
+      }
+
+      try {
+        const quotes = await strategy.getQuotes(request);
+
+        if (!quotes?.length) {
+          continue;
+        }
+
+        return await strategy.execute({
+          isSmartTransaction: this.#isSmartTransaction,
+          quotes,
+          messenger: this.#messenger,
+          onSubmitted,
+          transaction: transactionMeta,
+        });
+      } catch (error) {
+        log('Strategy failed, trying next', { error });
+        continue;
+      }
+    }
+
+    throw originalError;
   }
 }

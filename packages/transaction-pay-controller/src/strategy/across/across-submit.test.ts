@@ -16,6 +16,7 @@ import {
 } from './across-submit';
 import type { AcrossQuote } from './types';
 import { getDefaultRemoteFeatureFlagControllerState } from '../../../../remote-feature-flag-controller/src/remote-feature-flag-controller';
+import { TransactionPayStrategy } from '../../constants';
 import { getMessengerMock } from '../../tests/messenger-mock';
 import type { TransactionPayQuote } from '../../types';
 import { getGasBuffer } from '../../utils/feature-flags';
@@ -29,6 +30,7 @@ const FROM_MOCK = '0x1234567890123456789012345678901234567891' as Hex;
 
 const TRANSACTION_META_MOCK = {
   id: 'tx-1',
+  type: TransactionType.perpsDeposit,
   txParams: {
     from: FROM_MOCK,
   },
@@ -89,7 +91,7 @@ const QUOTE_MOCK: TransactionPayQuote<AcrossQuote> = {
   },
   sourceAmount: { usd: '0', fiat: '0', human: '0', raw: '0' },
   targetAmount: { usd: '0', fiat: '0', human: '0', raw: '0' },
-  strategy: 'tokenPay' as never,
+  strategy: TransactionPayStrategy.Across,
 };
 
 describe('Across Submit', () => {
@@ -153,7 +155,7 @@ describe('Across Submit', () => {
               type: TransactionType.tokenMethodApprove,
             }),
             expect.objectContaining({
-              type: TransactionType.acrossDeposit,
+              type: TransactionType.perpsAcrossDeposit,
             }),
           ],
         }),
@@ -183,7 +185,67 @@ describe('Across Submit', () => {
       expect(addTransactionMock).toHaveBeenCalledWith(
         expect.anything(),
         expect.objectContaining({
-          type: TransactionType.acrossDeposit,
+          type: TransactionType.perpsAcrossDeposit,
+        }),
+      );
+    });
+
+    it('uses predict deposit type when transaction is predict deposit', async () => {
+      const noApprovalQuote = {
+        ...QUOTE_MOCK,
+        original: {
+          ...QUOTE_MOCK.original,
+          quote: {
+            ...QUOTE_MOCK.original.quote,
+            approvalTxns: [],
+          },
+        },
+      } as TransactionPayQuote<AcrossQuote>;
+
+      await submitAcrossQuotes({
+        messenger,
+        quotes: [noApprovalQuote],
+        transaction: {
+          ...TRANSACTION_META_MOCK,
+          type: TransactionType.predictDeposit,
+        },
+        isSmartTransaction: jest.fn(),
+      });
+
+      expect(addTransactionMock).toHaveBeenCalledWith(
+        expect.anything(),
+        expect.objectContaining({
+          type: TransactionType.predictAcrossDeposit,
+        }),
+      );
+    });
+
+    it('defaults to perps across deposit when transaction type is not perps or predict', async () => {
+      const noApprovalQuote = {
+        ...QUOTE_MOCK,
+        original: {
+          ...QUOTE_MOCK.original,
+          quote: {
+            ...QUOTE_MOCK.original.quote,
+            approvalTxns: [],
+          },
+        },
+      } as TransactionPayQuote<AcrossQuote>;
+
+      await submitAcrossQuotes({
+        messenger,
+        quotes: [noApprovalQuote],
+        transaction: {
+          ...TRANSACTION_META_MOCK,
+          type: TransactionType.swap,
+        },
+        isSmartTransaction: jest.fn(),
+      });
+
+      expect(addTransactionMock).toHaveBeenCalledWith(
+        expect.anything(),
+        expect.objectContaining({
+          type: TransactionType.perpsAcrossDeposit,
         }),
       );
     });

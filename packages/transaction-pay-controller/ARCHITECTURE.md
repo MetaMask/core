@@ -44,22 +44,20 @@ Quotes are retrieved from the [Relay API](https://docs.relay.link/what-is-relay)
 
 The resulting transaction deposits the necessary funds (on the source network), then a Relayer on the target chain immediately transfers the necessary funds and optionally executes any requested call data.
 
-### TokenPay (provider routing)
+### Across
 
-The `TokenPayStrategy` routes quote and execution requests through provider adapters (currently Relay and Across).
+The `AcrossStrategy` retrieves quotes from the Across API and submits approvals and deposit transactions via the `TransactionController`.
 
-Provider selection is determined by feature flags:
+### Strategy Selection and Fallback
 
-- `tokenPay.providerOrder` controls priority (default: `[primaryProvider, 'relay', 'across']`).
-- Each provider can be enabled/disabled via `tokenPay.providers.<id>.enabled`.
-- Providers may also implement capability gating in `supports(...)` (e.g., Across rejects same-chain swaps).
+Strategy order and configuration are determined by feature flags:
 
-Routing behavior:
+- `payStrategies.strategyOrder` controls the ordered strategy list (default: `[Relay, Across]`).
+- Each strategy can be enabled/disabled via `payStrategies.<strategy>.enabled`.
+- Strategies may implement capability gating in `supports(...)` (e.g., Across rejects same-chain swaps).
 
-- The strategy selects the **first** provider in order that is enabled and returns `supports(...) === true`.
-- If no provider supports the request, the strategy throws, and the controller returns no quotes.
-- There is **no automatic fallback** if the selected provider throws during quote retrieval or execution; errors surface and quotes are left empty. (Future work could introduce fallback on specific error types.)
-- Current limitation: provider-specific capability checks that happen during quote building (e.g., Across rejecting type-4/EIP-7702 transactions) do not fall back to lower-priority providers. If we add a third provider after Across that supports type-4, we should consider adding fallback logic or moving that check into `supports(...)` to avoid returning no quotes.
+- The controller selects the **first** strategy in order that returns `supports(...) === true`.
+- If the selected strategy fails during quote retrieval or execution, the next compatible strategy is attempted.
 
 ## Lifecycle
 
@@ -71,11 +69,11 @@ The high level interaction with the `TransactionPayController` is as follows:
 4. Controller identifies any required tokens and adds them to its state.
 5. If a client confirmation is using `MetaMask Pay`, the user selects a payment token (or it is done automatically) which invokes the `updatePaymentToken` action.
    - The below steps are also triggered if the transaction `data` is updated.
-6. Controller selects an appropriate `PayStrategy` using the `getStrategy` action.
-7. Controller requests quotes from the `PayStrategy` and persists them in state, including associated totals.
+6. Controller requests an ordered list of strategies via the `getStrategies` action.
+7. Controller selects the first compatible strategy and requests quotes, falling back to the next strategy if quote retrieval fails.
 8. Resulting fees and totals are presented in the client transaction confirmation.
 9. If approved by the user, the target transaction is signed and published.
-10. The `TransactionPayPublishHook` is invoked and submits the relevant quotes via the same `PayStrategy`.
+10. The `TransactionPayPublishHook` is invoked and submits the relevant quotes via the strategy indicated by the quotes, with fallback on execution errors.
 11. The hook waits for any transactions and quotes to complete.
 12. Depending on the pay strategy and required tokens, the original target transaction is also published as the required funds are now in place on the user's account on the target chain.
 13. Target transaction is finalized and any related controller state is removed.

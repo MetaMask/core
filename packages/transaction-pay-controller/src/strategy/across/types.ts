@@ -23,6 +23,7 @@ export type AcrossFees = {
   relayerTotal?: AcrossFeeComponent;
   lpFee?: AcrossFeeComponent;
   app?: AcrossFeeComponent;
+  swapImpact?: AcrossFeeComponent;
 };
 
 export type AcrossApprovalTransaction = {

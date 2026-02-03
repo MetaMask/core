@@ -14,7 +14,10 @@ import { calculateGasCost } from '../../utils/gas';
 import { getTokenFiatRate } from '../../utils/token';
 
 jest.mock('../../utils/token');
-jest.mock('../../utils/gas');
+jest.mock('../../utils/gas', () => ({
+  ...jest.requireActual('../../utils/gas'),
+  calculateGasCost: jest.fn(),
+}));
 jest.mock('../../utils/feature-flags', () => ({
   ...jest.requireActual('../../utils/feature-flags'),
   getGasBuffer: jest.fn(),
@@ -81,11 +84,28 @@ const TOKEN_TRANSFER_INTERFACE = new Interface([
   'function transfer(address to, uint256 amount)',
 ]);
 
-const DELEGATION_INTERFACE = new Interface([
-  'function redeemDelegations(bytes[] delegations, bytes32[] modes, bytes[] executions)',
-]);
-
 const TRANSFER_RECIPIENT = '0xabcdefabcdefabcdefabcdefabcdefabcdefabcd';
+const DELEGATION_ACTION_MOCK = {
+  target: '0xde1e9a7e' as Hex,
+  functionSignature:
+    'function redeemDelegations(bytes[] delegations, bytes32[] modes, bytes[] executions)',
+  args: [
+    {
+      value: ['0xdead'],
+      populateDynamically: false,
+    },
+    {
+      value: ['0x00'],
+      populateDynamically: false,
+    },
+    {
+      value: ['0xbeef'],
+      populateDynamically: false,
+    },
+  ],
+  value: '0x0',
+  isNativeTransfer: false,
+};
 
 function buildTransferData(
   recipient: string = TRANSFER_RECIPIENT,
@@ -94,15 +114,6 @@ function buildTransferData(
   return TOKEN_TRANSFER_INTERFACE.encodeFunctionData('transfer', [
     recipient,
     amount,
-  ]) as Hex;
-}
-
-function buildDelegationData(): Hex {
-  const zeroMode = `0x${'00'.repeat(32)}`;
-  return DELEGATION_INTERFACE.encodeFunctionData('redeemDelegations', [
-    ['0xdead'],
-    [zeroMode],
-    ['0xbeef'],
   ]) as Hex;
 }
 
@@ -128,14 +139,10 @@ describe('Across Quotes', () => {
       ...getDefaultRemoteFeatureFlagControllerState(),
       remoteFeatureFlags: {
         confirmations_pay: {
-          tokenPay: {
-            primaryProvider: 'across',
-            providerOrder: ['across'],
-            providers: {
-              across: {
-                enabled: true,
-                apiBase: 'https://test.across.to/api',
-              },
+          payStrategies: {
+            across: {
+              enabled: true,
+              apiBase: 'https://test.across.to/api',
             },
           },
         },
@@ -177,9 +184,11 @@ describe('Across Quotes', () => {
       });
 
       expect(result).toHaveLength(1);
-      expect(result[0].strategy).toBe(TransactionPayStrategy.TokenPay);
+      expect(result[0].strategy).toBe(TransactionPayStrategy.Across);
       expect(result[0].estimatedDuration).toBe(300);
-      expect(result[0].fees.provider.usd).toBe('1.23');
+      expect(result[0].fees.provider.usd).toBe('0.0001');
+      expect(result[0].fees.impact?.usd).toBe('0.0001');
+      expect(result[0].fees.impactRatio).toBe('0.25');
     });
 
     it('attaches quote latency metrics', async () => {
@@ -268,22 +277,8 @@ describe('Across Quotes', () => {
       expect(params.get('amount')).toBe(QUOTE_REQUEST_MOCK.targetAmountMinimum);
     });
 
-    it('includes slippage from config when available', async () => {
-      getRemoteFeatureFlagControllerStateMock.mockReturnValue({
-        ...getDefaultRemoteFeatureFlagControllerState(),
-        remoteFeatureFlags: {
-          confirmations_pay: {
-            tokenPay: {
-              providers: {
-                across: {
-                  enabled: true,
-                  slippage: 0.02,
-                },
-              },
-            },
-          },
-        },
-      });
+    it('includes slippage when available', async () => {
+      getSlippageMock.mockReturnValue(0.02);
 
       successfulFetchMock.mockResolvedValue({
         json: async () => QUOTE_MOCK,
@@ -306,14 +301,12 @@ describe('Across Quotes', () => {
         ...getDefaultRemoteFeatureFlagControllerState(),
         remoteFeatureFlags: {
           confirmations_pay: {
-            tokenPay: {
-              providers: {
-                across: {
-                  enabled: true,
-                  integratorId: 'test-integrator',
-                  appFee: '0.01',
-                  appFeeRecipient: '0xfee',
-                },
+            payStrategies: {
+              across: {
+                enabled: true,
+                integratorId: 'test-integrator',
+                appFee: '0.01',
+                appFeeRecipient: '0xfee',
               },
             },
           },
@@ -343,14 +336,12 @@ describe('Across Quotes', () => {
         ...getDefaultRemoteFeatureFlagControllerState(),
         remoteFeatureFlags: {
           confirmations_pay: {
-            tokenPay: {
-              providers: {
-                across: {
-                  enabled: true,
-                  apiKey: 'test-api-key',
-                  apiKeyHeader: 'X-Api-Key',
-                  apiKeyPrefix: 'Bearer',
-                },
+            payStrategies: {
+              across: {
+                enabled: true,
+                apiKey: 'test-api-key',
+                apiKeyHeader: 'X-Api-Key',
+                apiKeyPrefix: 'Bearer',
               },
             },
           },
@@ -381,12 +372,10 @@ describe('Across Quotes', () => {
         ...getDefaultRemoteFeatureFlagControllerState(),
         remoteFeatureFlags: {
           confirmations_pay: {
-            tokenPay: {
-              providers: {
-                across: {
-                  enabled: true,
-                  apiKey: 'test-api-key',
-                },
+            payStrategies: {
+              across: {
+                enabled: true,
+                apiKey: 'test-api-key',
               },
             },
           },
@@ -461,7 +450,8 @@ describe('Across Quotes', () => {
 
     it('includes actions for delegation transactions', async () => {
       getDelegationTransactionMock.mockResolvedValue({
-        data: buildDelegationData(),
+        action: DELEGATION_ACTION_MOCK,
+        data: '0xdead' as Hex,
         to: '0xde1e9a7e' as Hex,
         value: '0x0' as Hex,
       });
@@ -491,7 +481,8 @@ describe('Across Quotes', () => {
 
     it('builds native token transfer action for native target token', async () => {
       getDelegationTransactionMock.mockResolvedValue({
-        data: buildDelegationData(),
+        action: DELEGATION_ACTION_MOCK,
+        data: '0xdead' as Hex,
         to: '0xde1e9a7e' as Hex,
         value: '0x0' as Hex,
       });
@@ -530,7 +521,8 @@ describe('Across Quotes', () => {
 
     it('builds ERC20 transfer action for token target', async () => {
       getDelegationTransactionMock.mockResolvedValue({
-        data: buildDelegationData(),
+        action: DELEGATION_ACTION_MOCK,
+        data: '0xdead' as Hex,
         to: '0xde1e9a7e' as Hex,
         value: '0x0' as Hex,
       });
@@ -566,7 +558,8 @@ describe('Across Quotes', () => {
     it('throws when delegation requires authorization list', async () => {
       getDelegationTransactionMock.mockResolvedValue({
         authorizationList: [{ address: '0xabc' as Hex }],
-        data: buildDelegationData(),
+        action: DELEGATION_ACTION_MOCK,
+        data: '0xdead' as Hex,
         to: '0xde1e9a7e' as Hex,
         value: '0x0' as Hex,
       });
@@ -588,7 +581,8 @@ describe('Across Quotes', () => {
 
     it('throws when actions present for max amount quotes', async () => {
       getDelegationTransactionMock.mockResolvedValue({
-        data: buildDelegationData(),
+        action: DELEGATION_ACTION_MOCK,
+        data: '0xdead' as Hex,
         to: '0xde1e9a7e' as Hex,
         value: '0x0' as Hex,
       });
@@ -605,7 +599,9 @@ describe('Across Quotes', () => {
             },
           },
         }),
-      ).rejects.toThrow(/Max amount quotes do not support included transactions/u);
+      ).rejects.toThrow(
+        /Max amount quotes do not support included transactions/u,
+      );
     });
 
     it('calculates dust from expected vs minimum output', async () => {
@@ -626,14 +622,13 @@ describe('Across Quotes', () => {
       expect(parseFloat(result[0].dust.usd)).toBeGreaterThan(0);
     });
 
-    it('calculates provider fee from relayer and app fees when total missing', async () => {
+    it('uses swap impact fee when provided', async () => {
       successfulFetchMock.mockResolvedValue({
         json: async () => ({
           ...QUOTE_MOCK,
           fees: {
-            relayerTotal: { amountUsd: '0.5' },
-            app: { amountUsd: '1.0' },
-            destinationGas: { amountUsd: '0.67' },
+            ...QUOTE_MOCK.fees,
+            swapImpact: { amountUsd: '0.5' },
           },
         }),
       } as Response);
@@ -644,47 +639,49 @@ describe('Across Quotes', () => {
         transaction: TRANSACTION_META_MOCK,
       });
 
-      expect(result[0].fees.provider.usd).toBe('1.5');
-    });
-
-    it('handles missing relayer fee when calculating provider fee', async () => {
-      successfulFetchMock.mockResolvedValue({
-        json: async () => ({
-          ...QUOTE_MOCK,
-          fees: {
-            app: { amountUsd: '1.0' },
-            destinationGas: { amountUsd: '0.67' },
-          },
-        }),
-      } as Response);
-
-      const result = await getAcrossQuotes({
-        messenger,
-        requests: [QUOTE_REQUEST_MOCK],
-        transaction: TRANSACTION_META_MOCK,
-      });
-
-      expect(result[0].fees.provider.usd).toBe('1');
-    });
-
-    it('handles missing app fee when calculating provider fee', async () => {
-      successfulFetchMock.mockResolvedValue({
-        json: async () => ({
-          ...QUOTE_MOCK,
-          fees: {
-            relayerTotal: { amountUsd: '0.5' },
-            destinationGas: { amountUsd: '0.67' },
-          },
-        }),
-      } as Response);
-
-      const result = await getAcrossQuotes({
-        messenger,
-        requests: [QUOTE_REQUEST_MOCK],
-        transaction: TRANSACTION_META_MOCK,
-      });
-
+      expect(result[0].fees.impact?.usd).toBe('0.5');
+      expect(result[0].fees.impact?.fiat).toBe('1');
       expect(result[0].fees.provider.usd).toBe('0.5');
+      expect(result[0].fees.provider.fiat).toBe('1');
+    });
+
+    it('returns undefined impact when expected output is zero', async () => {
+      successfulFetchMock.mockResolvedValue({
+        json: async () => ({
+          ...QUOTE_MOCK,
+          expectedOutputAmount: '0',
+          minOutputAmount: '0',
+        }),
+      } as Response);
+
+      const result = await getAcrossQuotes({
+        messenger,
+        requests: [QUOTE_REQUEST_MOCK],
+        transaction: TRANSACTION_META_MOCK,
+      });
+
+      expect(result[0].fees.impact).toBeUndefined();
+      expect(result[0].fees.impactRatio).toBeUndefined();
+    });
+
+    it('normalizes negative impact to zero', async () => {
+      successfulFetchMock.mockResolvedValue({
+        json: async () => ({
+          ...QUOTE_MOCK,
+          expectedOutputAmount: '100',
+          minOutputAmount: '150',
+        }),
+      } as Response);
+
+      const result = await getAcrossQuotes({
+        messenger,
+        requests: [QUOTE_REQUEST_MOCK],
+        transaction: TRANSACTION_META_MOCK,
+      });
+
+      expect(result[0].fees.impact?.usd).toBe('0');
+      expect(result[0].fees.impact?.fiat).toBe('0');
+      expect(result[0].fees.impactRatio).toBe('0');
     });
 
     it('uses zero for estimated duration when not provided', async () => {
@@ -764,10 +761,8 @@ describe('Across Quotes', () => {
             gasBuffer: {
               default: 1.5,
             },
-            tokenPay: {
-              providers: {
-                across: { enabled: true },
-              },
+            payStrategies: {
+              across: { enabled: true },
             },
           },
         },
@@ -826,7 +821,33 @@ describe('Across Quotes', () => {
         transaction: TRANSACTION_META_MOCK,
       });
 
+      expect(result[0].targetAmount.raw).toBe(
+        QUOTE_REQUEST_MOCK.targetAmountMinimum,
+      );
+    });
+
+    it('handles missing target amount minimum', async () => {
+      const request = {
+        ...QUOTE_REQUEST_MOCK,
+        targetAmountMinimum: undefined,
+      } as unknown as QuoteRequest;
+
+      successfulFetchMock.mockResolvedValue({
+        json: async () => ({
+          ...QUOTE_MOCK,
+          expectedOutputAmount: undefined,
+          minOutputAmount: undefined,
+        }),
+      } as Response);
+
+      const result = await getAcrossQuotes({
+        messenger,
+        requests: [request],
+        transaction: TRANSACTION_META_MOCK,
+      });
+
       expect(result[0].targetAmount.raw).toBe('0');
+      expect(result[0].fees.impact).toBeUndefined();
     });
 
     it('uses from address as recipient when no transfer data', async () => {
@@ -848,7 +869,11 @@ describe('Across Quotes', () => {
 
     it('includes delegation value in action when present', async () => {
       getDelegationTransactionMock.mockResolvedValue({
-        data: buildDelegationData(),
+        action: {
+          ...DELEGATION_ACTION_MOCK,
+          value: '0x123',
+        },
+        data: '0xdead' as Hex,
         to: '0xde1e9a7e' as Hex,
         value: '0x123' as Hex,
       });
@@ -875,40 +900,34 @@ describe('Across Quotes', () => {
       expect(body.actions[1].value).toBe('0x123');
     });
 
-    it('uses default delegation value when not provided', async () => {
+    it('throws when delegation action is missing', async () => {
       getDelegationTransactionMock.mockResolvedValue({
-        data: buildDelegationData(),
+        data: '0xdead' as Hex,
         to: '0xde1e9a7e' as Hex,
-        value: undefined as unknown as Hex,
+        value: '0x0' as Hex,
       });
 
-      successfulFetchMock.mockResolvedValue({
-        json: async () => QUOTE_MOCK,
-      } as Response);
-
-      await getAcrossQuotes({
-        messenger,
-        requests: [QUOTE_REQUEST_MOCK],
-        transaction: {
-          ...TRANSACTION_META_MOCK,
-          txParams: {
-            from: FROM_MOCK,
-            data: '0xabc' as Hex,
+      await expect(
+        getAcrossQuotes({
+          messenger,
+          requests: [QUOTE_REQUEST_MOCK],
+          transaction: {
+            ...TRANSACTION_META_MOCK,
+            txParams: {
+              from: FROM_MOCK,
+              data: '0xabc' as Hex,
+            },
           },
-        },
-      });
-
-      const [, options] = successfulFetchMock.mock.calls[0];
-      const body = JSON.parse(options?.body as string);
-
-      expect(body.actions[1].value).toBe('0x0');
+        }),
+      ).rejects.toThrow(/Delegation action missing/u);
     });
 
     it('uses nested transaction transfer recipient when available', async () => {
       const transferData = buildTransferData(TRANSFER_RECIPIENT);
 
       getDelegationTransactionMock.mockResolvedValue({
-        data: buildDelegationData(),
+        action: DELEGATION_ACTION_MOCK,
+        data: '0xdead' as Hex,
         to: '0xde1e9a7e' as Hex,
         value: '0x0' as Hex,
       });
@@ -941,21 +960,6 @@ describe('Across Quotes', () => {
 
     it('omits slippage param when slippage is undefined', async () => {
       getSlippageMock.mockReturnValue(undefined as never);
-
-      getRemoteFeatureFlagControllerStateMock.mockReturnValue({
-        ...getDefaultRemoteFeatureFlagControllerState(),
-        remoteFeatureFlags: {
-          confirmations_pay: {
-            tokenPay: {
-              providers: {
-                across: {
-                  enabled: true,
-                },
-              },
-            },
-          },
-        },
-      });
 
       successfulFetchMock.mockResolvedValue({
         json: async () => QUOTE_MOCK,
@@ -1014,7 +1018,8 @@ describe('Across Quotes', () => {
       const transferData = buildTransferData(TRANSFER_RECIPIENT);
 
       getDelegationTransactionMock.mockResolvedValue({
-        data: buildDelegationData(),
+        action: DELEGATION_ACTION_MOCK,
+        data: '0xdead' as Hex,
         to: '0xde1e9a7e' as Hex,
         value: '0x0' as Hex,
       });
@@ -1049,7 +1054,8 @@ describe('Across Quotes', () => {
       const transferData = buildTransferData(TRANSFER_RECIPIENT);
 
       getDelegationTransactionMock.mockResolvedValue({
-        data: buildDelegationData(),
+        action: DELEGATION_ACTION_MOCK,
+        data: '0xdead' as Hex,
         to: '0xde1e9a7e' as Hex,
         value: '0x0' as Hex,
       });
@@ -1063,10 +1069,7 @@ describe('Across Quotes', () => {
         requests: [QUOTE_REQUEST_MOCK],
         transaction: {
           ...TRANSACTION_META_MOCK,
-          nestedTransactions: [
-            { to: '0xabc' as Hex },
-            { data: transferData },
-          ],
+          nestedTransactions: [{ to: '0xabc' as Hex }, { data: transferData }],
           txParams: {
             from: FROM_MOCK,
             data: '0xnonTransferData' as Hex,

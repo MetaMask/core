@@ -68,9 +68,11 @@ export class TestStrategy implements PayStrategy<void> {
   async execute(
     request: PayStrategyExecuteRequest<void>,
   ): ReturnType<PayStrategy<void>['execute']> {
-    const { quotes } = request;
+    const { onSubmitted, quotes } = request;
 
     log('Executing', quotes);
+
+    onSubmitted?.(0);
 
     await this.#timeout(5000);
 

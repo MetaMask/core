@@ -10,8 +10,8 @@ import {
   getEIP7702SupportedChains,
   getFeatureFlags,
   getGasBuffer,
+  getPayStrategiesConfig,
   getSlippage,
-  getTokenPayConfig,
 } from './feature-flags';
 import { getDefaultRemoteFeatureFlagControllerState } from '../../../remote-feature-flag-controller/src/remote-feature-flag-controller';
 import { getMessengerMock } from '../tests/messenger-mock';
@@ -83,6 +83,24 @@ describe('Feature Flags Utils', () => {
         },
         relayQuoteUrl: RELAY_QUOTE_URL_MOCK,
         slippage: SLIPPAGE_MOCK,
+      });
+    });
+
+    it('returns defaults when feature flag controller throws', () => {
+      getRemoteFeatureFlagControllerStateMock.mockImplementation(() => {
+        throw new Error('boom');
+      });
+
+      const featureFlags = getFeatureFlags(messenger);
+
+      expect(featureFlags).toStrictEqual({
+        relayDisabledGasStationChains: [],
+        relayFallbackGas: {
+          estimate: DEFAULT_RELAY_FALLBACK_GAS_ESTIMATE,
+          max: DEFAULT_RELAY_FALLBACK_GAS_MAX,
+        },
+        relayQuoteUrl: DEFAULT_RELAY_QUOTE_URL,
+        slippage: DEFAULT_SLIPPAGE,
       });
     });
   });
@@ -386,66 +404,33 @@ describe('Feature Flags Utils', () => {
 
       expect(supportedChains).toStrictEqual([]);
     });
+
+    it('returns empty array when feature flag controller throws', () => {
+      getRemoteFeatureFlagControllerStateMock.mockImplementation(() => {
+        throw new Error('Boom');
+      });
+
+      const supportedChains = getEIP7702SupportedChains(messenger);
+
+      expect(supportedChains).toStrictEqual([]);
+    });
   });
 
-  describe('getTokenPayConfig', () => {
-    it('returns defaults when token pay config is missing', () => {
-      const config = getTokenPayConfig(messenger);
+  describe('getPayStrategiesConfig', () => {
+    it('returns defaults when pay strategies config is missing', () => {
+      const config = getPayStrategiesConfig(messenger);
 
-      expect(config.primaryProvider).toBe('relay');
-      expect(config.providerOrder).toStrictEqual(['relay', 'across']);
-      expect(config.providers.across).toStrictEqual(
+      expect(config.across).toStrictEqual(
         expect.objectContaining({
           allowSameChain: false,
           apiBase: DEFAULT_ACROSS_API_BASE,
           enabled: true,
         }),
       );
-      expect(config.providers.relay).toStrictEqual(
+      expect(config.relay).toStrictEqual(
         expect.objectContaining({
           enabled: true,
           relayQuoteUrl: DEFAULT_RELAY_QUOTE_URL,
-        }),
-      );
-    });
-
-    it('falls back to the primary provider when provider order is empty', () => {
-      getRemoteFeatureFlagControllerStateMock.mockReturnValue({
-        ...getDefaultRemoteFeatureFlagControllerState(),
-        remoteFeatureFlags: {
-          confirmations_pay: {
-            tokenPay: {
-              primaryProvider: 'across',
-              providerOrder: [],
-              providers: {
-                across: {
-                  allowSameChain: true,
-                  enabled: false,
-                },
-                relay: {
-                  enabled: false,
-                  relayQuoteUrl: RELAY_QUOTE_URL_MOCK,
-                },
-              },
-            },
-          },
-        },
-      });
-
-      const config = getTokenPayConfig(messenger);
-
-      expect(config.primaryProvider).toBe('across');
-      expect(config.providerOrder).toStrictEqual(['across']);
-      expect(config.providers.across).toStrictEqual(
-        expect.objectContaining({
-          allowSameChain: true,
-          enabled: false,
-        }),
-      );
-      expect(config.providers.relay).toStrictEqual(
-        expect.objectContaining({
-          enabled: false,
-          relayQuoteUrl: RELAY_QUOTE_URL_MOCK,
         }),
       );
     });

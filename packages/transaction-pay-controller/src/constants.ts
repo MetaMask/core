@@ -14,8 +14,8 @@ export const POLYGON_USDCE_ADDRESS =
   '0x2791Bca1f2de4661ED88A30C99A7a9449Aa84174' as Hex;
 
 export enum TransactionPayStrategy {
+  Across = 'across',
   Bridge = 'bridge',
   Relay = 'relay',
-  TokenPay = 'tokenPay',
   Test = 'test',
 }

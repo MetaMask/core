@@ -168,6 +168,61 @@ describe('Bridge Submit Utils', () => {
       );
     });
 
+    it('records submit latency once', async () => {
+      const originalPerformance = globalThis.performance;
+      const nowMock = jest
+        .fn()
+        .mockReturnValueOnce(1000)
+        .mockReturnValueOnce(1400);
+      Object.defineProperty(globalThis, 'performance', {
+        value: { now: nowMock },
+        configurable: true,
+      });
+
+      const onSubmittedMock = jest.fn();
+
+      request.onSubmitted = onSubmittedMock;
+      request.quotes = [cloneDeep(QUOTE_MOCK)];
+
+      await submitBridgeQuotes(request);
+
+      expect(onSubmittedMock).toHaveBeenCalledTimes(1);
+      expect(onSubmittedMock).toHaveBeenCalledWith(400);
+      Object.defineProperty(globalThis, 'performance', {
+        value: originalPerformance,
+        configurable: true,
+      });
+    });
+
+    it('falls back to Date.now when performance.now is unavailable', async () => {
+      const originalPerformance = globalThis.performance;
+      Object.defineProperty(globalThis, 'performance', {
+        value: { now: undefined },
+        configurable: true,
+      });
+
+      const onSubmittedMock = jest.fn();
+      const dateSpy = jest.spyOn(Date, 'now');
+      dateSpy
+        .mockReturnValueOnce(2000)
+        .mockReturnValueOnce(2400)
+        .mockReturnValue(2400);
+
+      request.onSubmitted = onSubmittedMock;
+      request.quotes = [cloneDeep(QUOTE_MOCK)];
+
+      await submitBridgeQuotes(request);
+
+      expect(onSubmittedMock).toHaveBeenCalledTimes(1);
+      expect(onSubmittedMock).toHaveBeenCalledWith(400);
+
+      dateSpy.mockRestore();
+      Object.defineProperty(globalThis, 'performance', {
+        value: originalPerformance,
+        configurable: true,
+      });
+    });
+
     it('indicates if smart transactions is enabled', async () => {
       request.isSmartTransaction = (): boolean => true;
 
