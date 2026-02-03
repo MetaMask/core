@@ -10,6 +10,38 @@ type TestRootState = {
   ramps: RampsControllerState;
 };
 
+function createDefaultResourceState<TData, TSelected = null>(
+  data: TData,
+  selected: TSelected = null as TSelected,
+): {
+  data: TData;
+  selected: TSelected;
+  isLoading: boolean;
+  error: null;
+} {
+  return {
+    data,
+    selected,
+    isLoading: false,
+    error: null,
+  };
+}
+
+function createMockRampsState(
+  overrides: Partial<RampsControllerState> = {},
+): RampsControllerState {
+  return {
+    userRegion: null,
+    countries: createDefaultResourceState([]),
+    providers: createDefaultResourceState([], null),
+    tokens: createDefaultResourceState(null, null),
+    paymentMethods: createDefaultResourceState([], null),
+    quotes: createDefaultResourceState(null),
+    requests: {},
+    ...overrides,
+  };
+}
+
 describe('createRequestSelector', () => {
   const getState = (state: TestRootState): RampsControllerState => state.ramps;
 
@@ -23,20 +55,11 @@ describe('createRequestSelector', () => {
 
       const loadingRequest = createLoadingState();
       const state: TestRootState = {
-        ramps: {
-          userRegion: null,
-          countries: [],
-          selectedProvider: null,
-          providers: [],
-          tokens: null,
-          selectedToken: null,
-          paymentMethods: [],
-          selectedPaymentMethod: null,
-          quotes: null,
+        ramps: createMockRampsState({
           requests: {
             'getCryptoCurrencies:["US"]': loadingRequest,
           },
-        },
+        }),
       };
 
       const result = selector(state);
@@ -59,20 +82,11 @@ describe('createRequestSelector', () => {
 
       const successRequest = createSuccessState(['ETH', 'BTC'], Date.now());
       const state: TestRootState = {
-        ramps: {
-          userRegion: null,
-          countries: [],
-          selectedProvider: null,
-          providers: [],
-          tokens: null,
-          selectedToken: null,
-          paymentMethods: [],
-          selectedPaymentMethod: null,
-          quotes: null,
+        ramps: createMockRampsState({
           requests: {
             'getCryptoCurrencies:["US"]': successRequest,
           },
-        },
+        }),
       };
 
       const result = selector(state);
@@ -98,20 +112,11 @@ describe('createRequestSelector', () => {
 
       const errorRequest = createErrorState('Network error', Date.now());
       const state: TestRootState = {
-        ramps: {
-          userRegion: null,
-          countries: [],
-          selectedProvider: null,
-          providers: [],
-          tokens: null,
-          selectedToken: null,
-          paymentMethods: [],
-          selectedPaymentMethod: null,
-          quotes: null,
+        ramps: createMockRampsState({
           requests: {
             'getCryptoCurrencies:["US"]': errorRequest,
           },
-        },
+        }),
       };
 
       const result = selector(state);
@@ -133,18 +138,7 @@ describe('createRequestSelector', () => {
       );
 
       const state: TestRootState = {
-        ramps: {
-          userRegion: null,
-          countries: [],
-          selectedProvider: null,
-          providers: [],
-          tokens: null,
-          selectedToken: null,
-          paymentMethods: [],
-          selectedPaymentMethod: null,
-          quotes: null,
-          requests: {},
-        },
+        ramps: createMockRampsState(),
       };
 
       const result = selector(state);
@@ -191,20 +185,11 @@ describe('createRequestSelector', () => {
 
       const successRequest = createSuccessState(['ETH', 'BTC'], Date.now());
       const state: TestRootState = {
-        ramps: {
-          userRegion: null,
-          countries: [],
-          selectedProvider: null,
-          providers: [],
-          tokens: null,
-          selectedToken: null,
-          paymentMethods: [],
-          selectedPaymentMethod: null,
-          quotes: null,
+        ramps: createMockRampsState({
           requests: {
             'getCryptoCurrencies:["US"]': successRequest,
           },
-        },
+        }),
       };
 
       const result1 = selector(state);
@@ -222,40 +207,22 @@ describe('createRequestSelector', () => {
 
       const successRequest1 = createSuccessState(['ETH'], Date.now());
       const state1: TestRootState = {
-        ramps: {
-          userRegion: null,
-          countries: [],
-          selectedProvider: null,
-          providers: [],
-          tokens: null,
-          selectedToken: null,
-          paymentMethods: [],
-          selectedPaymentMethod: null,
-          quotes: null,
+        ramps: createMockRampsState({
           requests: {
             'getCryptoCurrencies:["US"]': successRequest1,
           },
-        },
+        }),
       };
 
       const result1 = selector(state1);
 
       const successRequest2 = createSuccessState(['ETH', 'BTC'], Date.now());
       const state2: TestRootState = {
-        ramps: {
-          userRegion: null,
-          countries: [],
-          selectedProvider: null,
-          providers: [],
-          tokens: null,
-          selectedToken: null,
-          paymentMethods: [],
-          selectedPaymentMethod: null,
-          quotes: null,
+        ramps: createMockRampsState({
           requests: {
             'getCryptoCurrencies:["US"]': successRequest2,
           },
-        },
+        }),
       };
 
       const result2 = selector(state2);
@@ -274,20 +241,11 @@ describe('createRequestSelector', () => {
       const largeArray = Array.from({ length: 1000 }, (_, i) => `item-${i}`);
       const successRequest = createSuccessState(largeArray, Date.now());
       const state: TestRootState = {
-        ramps: {
-          userRegion: null,
-          countries: [],
-          selectedProvider: null,
-          providers: [],
-          tokens: null,
-          selectedToken: null,
-          paymentMethods: [],
-          selectedPaymentMethod: null,
-          quotes: null,
+        ramps: createMockRampsState({
           requests: {
             'getCryptoCurrencies:["US"]': successRequest,
           },
-        },
+        }),
       };
 
       const result1 = selector(state);
@@ -309,20 +267,11 @@ describe('createRequestSelector', () => {
       };
       const successRequest = createSuccessState(complexData, Date.now());
       const state: TestRootState = {
-        ramps: {
-          userRegion: null,
-          countries: [],
-          selectedProvider: null,
-          providers: [],
-          tokens: null,
-          selectedToken: null,
-          paymentMethods: [],
-          selectedPaymentMethod: null,
-          quotes: null,
+        ramps: createMockRampsState({
           requests: {
             'getData:[]': successRequest,
           },
-        },
+        }),
       };
 
       const result1 = selector(state);
@@ -343,20 +292,11 @@ describe('createRequestSelector', () => {
 
       const loadingRequest = createLoadingState();
       const loadingState: TestRootState = {
-        ramps: {
-          userRegion: null,
-          countries: [],
-          selectedProvider: null,
-          providers: [],
-          tokens: null,
-          selectedToken: null,
-          paymentMethods: [],
-          selectedPaymentMethod: null,
-          quotes: null,
+        ramps: createMockRampsState({
           requests: {
             'getCryptoCurrencies:["US"]': loadingRequest,
           },
-        },
+        }),
       };
 
       const loadingResult = selector(loadingState);
@@ -365,20 +305,11 @@ describe('createRequestSelector', () => {
 
       const successRequest = createSuccessState(['ETH'], Date.now());
       const successState: TestRootState = {
-        ramps: {
-          userRegion: null,
-          countries: [],
-          selectedProvider: null,
-          providers: [],
-          tokens: null,
-          selectedToken: null,
-          paymentMethods: [],
-          selectedPaymentMethod: null,
-          quotes: null,
+        ramps: createMockRampsState({
           requests: {
             'getCryptoCurrencies:["US"]': successRequest,
           },
-        },
+        }),
       };
 
       const successResult = selector(successState);
@@ -395,20 +326,11 @@ describe('createRequestSelector', () => {
 
       const successRequest = createSuccessState(['ETH'], Date.now());
       const successState: TestRootState = {
-        ramps: {
-          userRegion: null,
-          countries: [],
-          selectedProvider: null,
-          providers: [],
-          tokens: null,
-          selectedToken: null,
-          paymentMethods: [],
-          selectedPaymentMethod: null,
-          quotes: null,
+        ramps: createMockRampsState({
           requests: {
             'getCryptoCurrencies:["US"]': successRequest,
           },
-        },
+        }),
       };
 
       const successResult = selector(successState);
@@ -416,20 +338,11 @@ describe('createRequestSelector', () => {
 
       const errorRequest = createErrorState('Failed to fetch', Date.now());
       const errorState: TestRootState = {
-        ramps: {
-          userRegion: null,
-          countries: [],
-          selectedProvider: null,
-          providers: [],
-          tokens: null,
-          selectedToken: null,
-          paymentMethods: [],
-          selectedPaymentMethod: null,
-          quotes: null,
+        ramps: createMockRampsState({
           requests: {
             'getCryptoCurrencies:["US"]': errorRequest,
           },
-        },
+        }),
       };
 
       const errorResult = selector(errorState);
@@ -452,16 +365,7 @@ describe('createRequestSelector', () => {
       );
 
       const state: TestRootState = {
-        ramps: {
-          userRegion: null,
-          countries: [],
-          selectedProvider: null,
-          providers: [],
-          tokens: null,
-          selectedToken: null,
-          paymentMethods: [],
-          selectedPaymentMethod: null,
-          quotes: null,
+        ramps: createMockRampsState({
           requests: {
             'getCryptoCurrencies:["US"]': createSuccessState(
               ['ETH'],
@@ -469,7 +373,7 @@ describe('createRequestSelector', () => {
             ),
             'getPrice:["US"]': createSuccessState(100, Date.now()),
           },
-        },
+        }),
       };
 
       const result1 = selector1(state);
@@ -492,16 +396,7 @@ describe('createRequestSelector', () => {
       );
 
       const state: TestRootState = {
-        ramps: {
-          userRegion: null,
-          countries: [],
-          selectedProvider: null,
-          providers: [],
-          tokens: null,
-          selectedToken: null,
-          paymentMethods: [],
-          selectedPaymentMethod: null,
-          quotes: null,
+        ramps: createMockRampsState({
           requests: {
             'getCryptoCurrencies:["US"]': createSuccessState(
               ['ETH'],
@@ -512,7 +407,7 @@ describe('createRequestSelector', () => {
               Date.now(),
             ),
           },
-        },
+        }),
       };
 
       const result1 = selector1(state);
