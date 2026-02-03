@@ -19,7 +19,9 @@ const BLOCK_TRACKER_MOCK = {
   removeListener: jest.fn(),
 } as unknown as jest.Mocked<BlockTracker>;
 
-const createMessengerMock = (useWebsockets = true) =>
+const createMessengerMock = (
+  useWebsockets = true,
+): jest.Mocked<TransactionControllerMessenger> =>
   ({
     call: jest.fn().mockReturnValue({
       remoteFeatureFlags: {

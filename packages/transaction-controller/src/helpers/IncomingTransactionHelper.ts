@@ -13,11 +13,11 @@ import { SUPPORTED_CHAIN_IDS } from './AccountsApiRemoteTransactionSource';
 import type { TransactionControllerMessenger } from '..';
 import { incomingTransactionsLogger as log } from '../logger';
 import type { RemoteTransactionSource, TransactionMeta } from '../types';
-import { caip2ToHex } from '../utils/utils';
 import {
   getIncomingTransactionsPollingInterval,
   isIncomingTransactionsUseWebsocketsEnabled,
 } from '../utils/feature-flags';
+import { caip2ToHex } from '../utils/utils';
 
 export type IncomingTransactionOptions = {
   /** Name of the client to include in requests. */
