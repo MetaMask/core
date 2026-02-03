@@ -5,7 +5,6 @@ import { TransactionMeta } from '@metamask/transaction-controller';
 import type { BridgeStatusControllerMessenger } from './types';
 import type { BridgeHistoryItem } from './types';
 import { IntentStatusTranslation } from './utils/intent-api';
-import { IntentOrderStatus } from './utils/validators';
 
 export class IntentStatusManager {
   readonly #messenger: BridgeStatusControllerMessenger;
@@ -27,7 +26,7 @@ export class IntentStatusManager {
     bridgeTxMetaId: string,
     historyItem: BridgeHistoryItem,
     intentTranslation: IntentStatusTranslation,
-    intentOrderStatus: IntentOrderStatus,
+    intentOrderStatus: string,
   ): void => {
     // Update the actual transaction in TransactionController to sync with intent status
     // Use the original transaction ID (not the bridge history key)
