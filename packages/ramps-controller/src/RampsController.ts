@@ -732,15 +732,6 @@ export class RampsController extends BaseController<
     });
   }
 
-  #hasPendingRequestForResource(resourceType: ResourceType): boolean {
-    for (const pending of this.#pendingRequests.values()) {
-      if (pending.resourceType === resourceType) {
-        return true;
-      }
-    }
-    return false;
-  }
-
   /**
    * Sets the loading state for a resource type.
    *
