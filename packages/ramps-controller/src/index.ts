@@ -7,10 +7,12 @@ export type {
   RampsControllerStateChangeEvent,
   RampsControllerOptions,
   UserRegion,
+  ResourceState,
 } from './RampsController';
 export {
   RampsController,
   getDefaultRampsControllerState,
+  RAMPS_CONTROLLER_REQUIRED_SERVICE_ACTIONS,
 } from './RampsController';
 export type {
   RampsServiceActions,
@@ -34,6 +36,8 @@ export type {
   QuoteCustomAction,
   QuotesResponse,
   GetQuotesParams,
+  RampsToken,
+  TokensResponse,
 } from './RampsService';
 export {
   RampsService,
@@ -52,6 +56,7 @@ export type {
   RequestState,
   ExecuteRequestOptions,
   PendingRequest,
+  ResourceType,
 } from './RequestCache';
 export {
   RequestStatus,

@@ -7,6 +7,12 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+## [6.0.0]
+
+### Changed
+
+- **BREAKING:** Restructure `RampsControllerState` to use nested `ResourceState` objects for each resource with `data`, `selected`, `isLoading`, and `error` ([#7779](https://github.com/MetaMask/core/pull/7779))
+
 ## [5.1.0]
 
 ### Added
@@ -122,7 +128,8 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
   - Add `OnRampService` for interacting with the OnRamp API
   - Add geolocation detection via IP address lookup
 
-[Unreleased]: https://github.com/MetaMask/core/compare/@metamask/ramps-controller@5.1.0...HEAD
+[Unreleased]: https://github.com/MetaMask/core/compare/@metamask/ramps-controller@6.0.0...HEAD
+[6.0.0]: https://github.com/MetaMask/core/compare/@metamask/ramps-controller@5.1.0...@metamask/ramps-controller@6.0.0
 [5.1.0]: https://github.com/MetaMask/core/compare/@metamask/ramps-controller@5.0.0...@metamask/ramps-controller@5.1.0
 [5.0.0]: https://github.com/MetaMask/core/compare/@metamask/ramps-controller@4.1.0...@metamask/ramps-controller@5.0.0
 [4.1.0]: https://github.com/MetaMask/core/compare/@metamask/ramps-controller@4.0.0...@metamask/ramps-controller@4.1.0
