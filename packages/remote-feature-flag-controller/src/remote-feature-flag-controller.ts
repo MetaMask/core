@@ -32,6 +32,7 @@ export type RemoteFeatureFlagControllerState = {
   rawRemoteFeatureFlags?: FeatureFlags;
   cacheTimestamp: number;
   thresholdCache?: Record<string, number>;
+  previousClientVersion?: SemVerVersion;
 };
 
 const remoteFeatureFlagControllerMetadata = {
@@ -63,6 +64,12 @@ const remoteFeatureFlagControllerMetadata = {
     includeInStateLogs: false,
     persist: true,
     includeInDebugSnapshot: false,
+    usedInUi: false,
+  },
+  previousClientVersion: {
+    includeInStateLogs: true,
+    persist: true,
+    includeInDebugSnapshot: true,
     usedInUi: false,
   },
 };
@@ -131,6 +138,7 @@ export function getDefaultRemoteFeatureFlagControllerState(): RemoteFeatureFlagC
     localOverrides: {},
     rawRemoteFeatureFlags: {},
     cacheTimestamp: 0,
+    previousClientVersion: undefined,
   };
 }
 
@@ -192,13 +200,27 @@ export class RemoteFeatureFlagController extends BaseController<
       );
     }
 
+    const initialState: RemoteFeatureFlagControllerState = {
+      ...getDefaultRemoteFeatureFlagControllerState(),
+      ...state,
+    };
+
+    const previousClientVersion = initialState.previousClientVersion;
+    const hasPreviousClientVersion = typeof previousClientVersion === 'string';
+    const hasValidPreviousClientVersion =
+      hasPreviousClientVersion && isValidSemVerVersion(previousClientVersion);
+    const shouldInvalidateCache =
+      hasPreviousClientVersion &&
+      (!hasValidPreviousClientVersion || previousClientVersion !== clientVersion);
+
     super({
       name: controllerName,
       metadata: remoteFeatureFlagControllerMetadata,
       messenger,
       state: {
-        ...getDefaultRemoteFeatureFlagControllerState(),
-        ...state,
+        ...initialState,
+        cacheTimestamp: shouldInvalidateCache ? 0 : initialState.cacheTimestamp,
+        previousClientVersion: clientVersion,
       },
     });
 

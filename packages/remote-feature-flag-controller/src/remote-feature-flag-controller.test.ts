@@ -90,6 +90,7 @@ describe('RemoteFeatureFlagController', () => {
         localOverrides: {},
         rawRemoteFeatureFlags: {},
         cacheTimestamp: 0,
+        previousClientVersion: MOCK_BASE_VERSION,
       });
     });
 
@@ -101,6 +102,7 @@ describe('RemoteFeatureFlagController', () => {
         localOverrides: {},
         rawRemoteFeatureFlags: {},
         cacheTimestamp: 0,
+        previousClientVersion: MOCK_BASE_VERSION,
       });
     });
 
@@ -114,7 +116,10 @@ describe('RemoteFeatureFlagController', () => {
 
       const controller = createController({ state: customState });
 
-      expect(controller.state).toStrictEqual(customState);
+      expect(controller.state).toStrictEqual({
+        ...customState,
+        previousClientVersion: MOCK_BASE_VERSION,
+      });
     });
 
     it('accepts valid 3-part SemVer clientVersion', () => {
@@ -184,6 +189,41 @@ describe('RemoteFeatureFlagController', () => {
         clientConfigApiService.fetchRemoteFeatureFlags,
       ).not.toHaveBeenCalled();
       expect(controller.state.remoteFeatureFlags).toStrictEqual(MOCK_FLAGS);
+    });
+
+    it('invalidates the cache when clientVersion changes and fetches new flags', async () => {
+      const versionedFlags = {
+        exploreFeature: {
+          versions: {
+            '7.62.0': { enabled: false },
+            '7.64.0': { enabled: true },
+          },
+        },
+      };
+      const clientConfigApiService = buildClientConfigApiService({
+        remoteFeatureFlags: versionedFlags,
+      });
+      const controller = createController({
+        clientConfigApiService,
+        clientVersion: '7.64.0',
+        state: {
+          previousClientVersion: '7.62.0',
+          remoteFeatureFlags: { exploreFeature: { enabled: false } },
+          cacheTimestamp: Date.now(),
+        },
+      });
+
+      expect(controller.state.cacheTimestamp).toBe(0);
+
+      await controller.updateRemoteFeatureFlags();
+
+      expect(
+        clientConfigApiService.fetchRemoteFeatureFlags,
+      ).toHaveBeenCalledTimes(1);
+      expect(controller.state.remoteFeatureFlags.exploreFeature).toStrictEqual({
+        enabled: true,
+      });
+      expect(controller.state.previousClientVersion).toBe('7.64.0');
     });
 
     it('makes a network request to fetch when cache is expired, and then updates the cache', async () => {
@@ -798,6 +838,7 @@ describe('RemoteFeatureFlagController', () => {
         localOverrides: {},
         rawRemoteFeatureFlags: {},
         cacheTimestamp: 0,
+        previousClientVersion: undefined,
       });
     });
   });
@@ -1286,6 +1327,7 @@ describe('RemoteFeatureFlagController', () => {
         Object {
           "cacheTimestamp": 0,
           "localOverrides": Object {},
+          "previousClientVersion": "13.10.0",
           "rawRemoteFeatureFlags": Object {},
           "remoteFeatureFlags": Object {},
         }
@@ -1305,6 +1347,7 @@ describe('RemoteFeatureFlagController', () => {
         Object {
           "cacheTimestamp": 0,
           "localOverrides": Object {},
+          "previousClientVersion": "13.10.0",
           "rawRemoteFeatureFlags": Object {},
           "remoteFeatureFlags": Object {},
         }
@@ -1324,6 +1367,7 @@ describe('RemoteFeatureFlagController', () => {
         Object {
           "cacheTimestamp": 0,
           "localOverrides": Object {},
+          "previousClientVersion": "13.10.0",
           "rawRemoteFeatureFlags": Object {},
           "remoteFeatureFlags": Object {},
         }
