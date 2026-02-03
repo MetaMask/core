@@ -1795,7 +1795,7 @@ export class SeedlessOnboardingController<
   }: {
     password: string;
     vaultData: DeserializedVaultData;
-    pwEncKey?: Uint8Array;
+    pwEncKey: Uint8Array;
   }): Promise<void> {
     await this.#withVaultLock(async () => {
       assertIsValidPassword(password);
@@ -1814,26 +1814,15 @@ export class SeedlessOnboardingController<
           serializedVaultData,
         );
 
-      const updatedState: Partial<SeedlessOnboardingControllerState> = {
-        vault,
-        vaultEncryptionKey: exportedKeyString,
-        vaultEncryptionSalt: JSON.parse(vault).salt,
-      };
-
-      // Encrypt vault key.
-      if (pwEncKey) {
-        const aes = managedNonce(gcm)(pwEncKey);
-        const encryptedKey = aes.encrypt(utf8ToBytes(exportedKeyString));
-        updatedState.encryptedSeedlessEncryptionKey =
-          bytesToBase64(encryptedKey);
-      }
+      const aes = managedNonce(gcm)(pwEncKey);
+      const encryptedKey = aes.encrypt(utf8ToBytes(exportedKeyString));
+      const encryptedSeedlessEncryptionKey = bytesToBase64(encryptedKey);
 
       this.update((state) => {
-        state.vault = updatedState.vault;
-        state.vaultEncryptionKey = updatedState.vaultEncryptionKey;
-        state.vaultEncryptionSalt = updatedState.vaultEncryptionSalt;
-        state.encryptedSeedlessEncryptionKey =
-          updatedState.encryptedSeedlessEncryptionKey;
+        state.vault = vault;
+        state.vaultEncryptionKey = exportedKeyString;
+        state.vaultEncryptionSalt = JSON.parse(vault).salt;
+        state.encryptedSeedlessEncryptionKey = encryptedSeedlessEncryptionKey;
       });
     });
   }
@@ -2301,56 +2290,58 @@ export class SeedlessOnboardingController<
   }
 
   async #updateVaultAfterAuthTokenRefresh(accessToken: string): Promise<void> {
-    if (!this.#isUnlocked) {
-      // we just temporarily store the access token in the state
-      // when user attempts to unlock the vault, we will use this access token to update the vault
-      this.update((state) => {
-        state.accessToken = accessToken;
+    await this.#withVaultLock(async () => {
+      if (!this.#isUnlocked) {
+        // we just temporarily store the access token in the state
+        // when user attempts to unlock the vault, we will use this access token to update the vault
+        this.update((state) => {
+          state.accessToken = accessToken;
+        });
+        return;
+      }
+
+      const { vaultEncryptionKey, vaultEncryptionSalt } = this.state;
+      if (
+        !vaultEncryptionKey ||
+        !vaultEncryptionSalt ||
+        !this.#cachedDecryptedVaultData
+      ) {
+        throw new Error(
+          SeedlessOnboardingControllerErrorMessage.MissingCredentials,
+        );
+      }
+
+      const serializedVaultData = serializeVaultData({
+        ...this.#cachedDecryptedVaultData,
+        accessToken,
       });
-      return;
-    }
 
-    const { vaultEncryptionKey, vaultEncryptionSalt } = this.state;
-    if (
-      !vaultEncryptionKey ||
-      !vaultEncryptionSalt ||
-      !this.#cachedDecryptedVaultData
-    ) {
-      throw new Error(
-        SeedlessOnboardingControllerErrorMessage.MissingCredentials,
+      const encryptionKey =
+        await this.#vaultEncryptor.importKey(vaultEncryptionKey);
+      const updatedEncVault = await this.#vaultEncryptor.encryptWithKey(
+        encryptionKey,
+        serializedVaultData,
       );
-    }
 
-    const serializedVaultData = serializeVaultData({
-      ...this.#cachedDecryptedVaultData,
-      accessToken,
+      // NOTE: Referenced from keyring-controller!
+      // We need to include the salt used to derive
+      // the encryption key, to be able to derive it
+      // from password again.
+      updatedEncVault.salt = vaultEncryptionSalt;
+
+      this.update((state) => {
+        state.vault = JSON.stringify(updatedEncVault);
+        state.vaultEncryptionSalt = vaultEncryptionSalt;
+        state.accessToken = accessToken;
+        state.vaultEncryptionKey = vaultEncryptionKey;
+      });
+
+      // update the cached decrypted vault data with the new access token
+      this.#cachedDecryptedVaultData = {
+        ...this.#cachedDecryptedVaultData,
+        accessToken,
+      };
     });
-
-    const encryptionKey =
-      await this.#vaultEncryptor.importKey(vaultEncryptionKey);
-    const updatedEncVault = await this.#vaultEncryptor.encryptWithKey(
-      encryptionKey,
-      serializedVaultData,
-    );
-
-    // NOTE: Referenced from keyring-controller!
-    // We need to include the salt used to derive
-    // the encryption key, to be able to derive it
-    // from password again.
-    updatedEncVault.salt = vaultEncryptionSalt;
-
-    this.update((state) => {
-      state.vault = JSON.stringify(updatedEncVault);
-      state.vaultEncryptionSalt = vaultEncryptionSalt;
-      state.accessToken = accessToken;
-      state.vaultEncryptionKey = vaultEncryptionKey;
-    });
-
-    // update the cached decrypted vault data with the new access token
-    this.#cachedDecryptedVaultData = {
-      ...this.#cachedDecryptedVaultData,
-      accessToken,
-    };
   }
 
   /**
