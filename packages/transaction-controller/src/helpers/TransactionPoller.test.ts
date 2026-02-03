@@ -454,40 +454,6 @@ describe('TransactionPoller', () => {
       expect(listener).toHaveBeenCalledTimes(1);
     });
 
-    it('triggers interval when transaction with matching chainId and finalized status is received', async () => {
-      const poller = new TransactionPoller({
-        blockTracker: BLOCK_TRACKER_MOCK,
-        messenger: MESSENGER_MOCK,
-        chainId: CHAIN_ID_MOCK,
-      });
-
-      BLOCK_TRACKER_MOCK.getLatestBlock.mockResolvedValue(BLOCK_NUMBER_MOCK);
-
-      const listener = jest.fn();
-      poller.start(listener);
-
-      const subscribeCall = MESSENGER_MOCK.subscribe.mock.calls.find(
-        (call) => call[0] === 'AccountActivityService:transactionUpdated',
-      );
-      const eventHandler = subscribeCall?.[1] as (
-        transaction: Transaction,
-      ) => void;
-
-      const transaction: Transaction = {
-        id: '0xabc',
-        chain: 'eip155:1',
-        status: 'finalized',
-        timestamp: Date.now(),
-        from: '0x123',
-        to: '0x456',
-      };
-
-      eventHandler(transaction);
-      await flushPromises();
-
-      expect(listener).toHaveBeenCalledTimes(1);
-    });
-
     it('does not trigger interval when transaction with non-matching chainId is received', async () => {
       const poller = new TransactionPoller({
         blockTracker: BLOCK_TRACKER_MOCK,

@@ -221,14 +221,11 @@ export class TransactionPoller {
       return;
     }
 
-    if (
-      transaction.status !== 'confirmed' &&
-      transaction.status !== 'finalized'
-    ) {
+    if (transaction.status !== 'confirmed') {
       return;
     }
 
-    this.#interval(true, undefined, true).catch(() => {
+    this.#interval(false, undefined, true).catch(() => {
       // Silently catch errors to prevent unhandled rejections
     });
   };
