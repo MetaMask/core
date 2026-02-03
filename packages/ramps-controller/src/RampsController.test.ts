@@ -4519,7 +4519,9 @@ describe('RampsController', () => {
           }
 
           // Verify only the selected payment method is passed, not all available
-          expect(capturedPaymentMethods).toStrictEqual(['/payments/bank-transfer']);
+          expect(capturedPaymentMethods).toStrictEqual([
+            '/payments/bank-transfer',
+          ]);
 
           controller.stopQuotePolling();
         },
@@ -4613,7 +4615,9 @@ describe('RampsController', () => {
           await Promise.resolve();
           await Promise.resolve();
 
-          expect(controller.state.quotes.selected).toStrictEqual(initialSelection);
+          expect(controller.state.quotes.selected).toStrictEqual(
+            initialSelection,
+          );
 
           controller.stopQuotePolling();
         },
