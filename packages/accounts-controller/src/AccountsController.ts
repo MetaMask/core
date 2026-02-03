@@ -17,7 +17,6 @@ import {
   isEvmAccountType,
   KeyringAccountEntropyTypeOption,
 } from '@metamask/keyring-api';
-import { KeyringTypes } from '@metamask/keyring-controller';
 import type {
   KeyringControllerState,
   KeyringControllerGetKeyringsByTypeAction,
@@ -48,7 +47,6 @@ import {
   getUUIDFromAddressOfNormalAccount,
   isHdKeyringType,
   isHdSnapKeyringAccount,
-  isSimpleKeyringType,
   isSnapKeyringType,
   keyringTypeToName,
 } from './utils';
@@ -1016,33 +1014,6 @@ export class AccountsController extends BaseController<
         }
       });
     }
-  }
-
-  /**
-   * Returns the list of accounts for a given keyring type.
-   *
-   * @param keyringType - The type of keyring.
-   * @param accounts - Accounts to filter by keyring type.
-   * @returns The list of accounts associcated with this keyring type.
-   */
-  #getAccountsByKeyringType(
-    keyringType: string,
-    accounts?: InternalAccount[],
-  ): InternalAccount[] {
-    return (accounts ?? this.listMultichainAccounts()).filter(
-      (internalAccount) => {
-        // We do consider `hd` and `simple` keyrings to be of same type. So we check those 2 types
-        // to group those accounts together!
-        if (isHdKeyringType(keyringType) || isSimpleKeyringType(keyringType)) {
-          return (
-            isHdKeyringType(internalAccount.metadata.keyring.type) ||
-            isSimpleKeyringType(internalAccount.metadata.keyring.type)
-          );
-        }
-
-        return internalAccount.metadata.keyring.type === keyringType;
-      },
-    );
   }
 
   /**
