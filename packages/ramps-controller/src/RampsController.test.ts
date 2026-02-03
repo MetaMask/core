@@ -1872,9 +1872,7 @@ describe('RampsController', () => {
 
           expect(controller.state.userRegion?.regionCode).toBe('us-ny');
           expect(controller.state.userRegion?.country.isoCode).toBe('US');
-          expect(controller.state.userRegion?.state?.name).toBe(
-            'New York',
-          );
+          expect(controller.state.userRegion?.state?.name).toBe('New York');
         },
       );
     });
@@ -1920,9 +1918,7 @@ describe('RampsController', () => {
 
           expect(controller.state.userRegion?.regionCode).toBe('us-ca');
           expect(controller.state.userRegion?.country.isoCode).toBe('US');
-          expect(controller.state.userRegion?.state?.name).toBe(
-            'California',
-          );
+          expect(controller.state.userRegion?.state?.name).toBe('California');
         },
       );
     });
