@@ -4042,7 +4042,8 @@ describe('SeedlessOnboardingController', () => {
     });
 
     it('should persist the latest accessToken when state token is newer than vault token', async () => {
-      const newerAccessToken = createMockJWTToken({ exp: 2000000000 }); // refreshed accessToken
+      const futureExp = Math.floor(Date.now() / 1000) + 3600; // 1 hour from now
+      const newerAccessToken = createMockJWTToken({ exp: futureExp }); // refreshed accessToken
       const b64EncKey = bytesToBase64(initialEncryptedSeedlessEncryptionKey);
 
       await withController(

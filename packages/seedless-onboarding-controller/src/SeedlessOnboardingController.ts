@@ -2321,12 +2321,10 @@ export class SeedlessOnboardingController<
       );
     }
 
-    // update the cached decrypted vault data with the new access token
-    this.#cachedDecryptedVaultData.accessToken = accessToken;
-
-    const serializedVaultData = serializeVaultData(
-      this.#cachedDecryptedVaultData,
-    );
+    const serializedVaultData = serializeVaultData({
+      ...this.#cachedDecryptedVaultData,
+      accessToken,
+    });
 
     const encryptionKey =
       await this.#vaultEncryptor.importKey(vaultEncryptionKey);
@@ -2347,6 +2345,12 @@ export class SeedlessOnboardingController<
       state.accessToken = accessToken;
       state.vaultEncryptionKey = vaultEncryptionKey;
     });
+
+    // update the cached decrypted vault data with the new access token
+    this.#cachedDecryptedVaultData = {
+      ...this.#cachedDecryptedVaultData,
+      accessToken,
+    };
   }
 
   /**
