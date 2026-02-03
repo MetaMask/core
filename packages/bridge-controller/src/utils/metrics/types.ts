@@ -226,6 +226,19 @@ export type RequiredEventContextFromClient = {
       action_type: MetricsActionType;
       polling_attempts: number;
     };
+  [UnifiedSwapBridgeEventName.PollingManuallyRestarted]: TradeData &
+    Pick<QuoteFetchData, 'price_impact'> &
+    Omit<RequestMetadata, 'security_warnings'> &
+    Pick<
+      RequestParams,
+      | 'token_symbol_source'
+      | 'token_symbol_destination'
+      | 'chain_id_source'
+      | 'chain_id_destination'
+    > & {
+      action_type: MetricsActionType;
+      polling_attempts: number;
+    };
 };
 
 /**
@@ -283,6 +296,7 @@ export type EventPropertiesFromControllerState = {
     refresh_count: number;
   };
   [UnifiedSwapBridgeEventName.MaxPollingReached]: null;
+  [UnifiedSwapBridgeEventName.PollingManuallyRestarted]: null;
 };
 
 /**

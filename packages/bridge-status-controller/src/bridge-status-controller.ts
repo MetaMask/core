@@ -379,6 +379,9 @@ export class BridgeStatusController extends StaticIntervalPollingController<Brid
 
     const historyItem = this.state.txHistory[targetTxMetaId];
 
+    // Capture attempts count before resetting for metrics
+    const previousAttempts = historyItem.attempts?.counter ?? 0;
+
     // Reset the attempts counter
     this.update((state) => {
       if (targetTxMetaId) {
@@ -400,6 +403,37 @@ export class BridgeStatusController extends StaticIntervalPollingController<Brid
       if (!existingPollingToken) {
         // Restart polling
         this.#startPollingForTxId(targetTxMetaId);
+
+        // Track polling manually restarted event
+        if (!historyItem.featureId) {
+          const selectedAccount = this.messenger.call(
+            'AccountsController:getAccountByAddress',
+            historyItem.account,
+          );
+          const requestParams = getRequestParamFromHistory(historyItem);
+          const requestMetadata = getRequestMetadataFromHistory(
+            historyItem,
+            selectedAccount,
+          );
+          const { security_warnings: _, ...metadataWithoutWarnings } =
+            requestMetadata;
+
+          this.#trackUnifiedSwapBridgeEvent(
+            UnifiedSwapBridgeEventName.PollingManuallyRestarted,
+            targetTxMetaId,
+            {
+              ...getTradeDataFromHistory(historyItem),
+              ...getPriceImpactFromQuote(historyItem.quote),
+              ...metadataWithoutWarnings,
+              chain_id_source: requestParams.chain_id_source,
+              chain_id_destination: requestParams.chain_id_destination,
+              token_symbol_source: requestParams.token_symbol_source,
+              token_symbol_destination: requestParams.token_symbol_destination,
+              action_type: MetricsActionType.SWAPBRIDGE_V1,
+              polling_attempts: previousAttempts,
+            },
+          );
+        }
       }
     }
   };
@@ -1948,7 +1982,8 @@ export class BridgeStatusController extends StaticIntervalPollingController<Brid
       | typeof UnifiedSwapBridgeEventName.Failed
       | typeof UnifiedSwapBridgeEventName.Completed
       | typeof UnifiedSwapBridgeEventName.StatusValidationFailed
-      | typeof UnifiedSwapBridgeEventName.MaxPollingReached,
+      | typeof UnifiedSwapBridgeEventName.MaxPollingReached
+      | typeof UnifiedSwapBridgeEventName.PollingManuallyRestarted,
   >(
     eventName: EventName,
     txMetaId?: string,
