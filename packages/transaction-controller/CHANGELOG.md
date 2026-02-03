@@ -7,6 +7,10 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+### Added
+
+- Add event-driven transaction polling via `AccountActivityService:transactionUpdated` ([#7822](https://github.com/MetaMask/core/pull/7822))
+
 ## [62.13.0]
 
 ### Added
