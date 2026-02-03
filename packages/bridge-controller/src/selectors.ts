@@ -1,10 +1,11 @@
+/* eslint-disable @typescript-eslint/explicit-function-return-type */
 import { AddressZero } from '@ethersproject/constants';
 import type {
   CurrencyRateState,
   MultichainAssetsRatesControllerState,
   TokenRatesControllerState,
 } from '@metamask/assets-controllers';
-import type { GasFeeEstimates } from '@metamask/gas-fee-controller';
+import type { GasFeeEstimatesByChainId } from '@metamask/gas-fee-controller';
 import type { CaipAssetType } from '@metamask/utils';
 import { isStrictHexString } from '@metamask/utils';
 import { BigNumber } from 'bignumber.js';
@@ -220,16 +221,37 @@ export const selectIsAssetExchangeRateInState = (
  * Selects the gas fee estimates from the gas fee controller. All potential networks
  * support EIP1559 gas fees so assume that gasFeeEstimates is of type GasFeeEstimates
  *
+ * @param options - The gas fee estimates by chain ID
+ * @param options.gasFeeEstimatesByChainId - gasEstimates by Hex ChainId
+ * @param options.quotes - Fetched bridge/swap quotes
  * @returns The gas fee estimates in decGWEI
  */
-const selectBridgeFeesPerGas = createStructuredBridgeSelector({
-  estimatedBaseFeeInDecGwei: ({ gasFeeEstimates }) =>
-    gasFeeEstimates?.estimatedBaseFee,
-  feePerGasInDecGwei: ({ gasFeeEstimates }) =>
-    gasFeeEstimates?.[BRIDGE_PREFERRED_GAS_ESTIMATE]?.suggestedMaxFeePerGas,
-  maxFeePerGasInDecGwei: ({ gasFeeEstimates }) =>
-    gasFeeEstimates?.high?.suggestedMaxFeePerGas,
-});
+const selectBridgeFeesPerGas = createBridgeSelector(
+  [
+    ({ gasFeeEstimatesByChainId }): GasFeeEstimatesByChainId =>
+      gasFeeEstimatesByChainId,
+    ({ quotes }): ChainId => quotes?.[0]?.quote.srcChainId,
+  ],
+  (estimatesByChainId, srcChainId) => {
+    if (!srcChainId) {
+      return null;
+    }
+    if (isNonEvmChainId(srcChainId)) {
+      return null;
+    }
+    const gasFeeEstimates =
+      estimatesByChainId?.[formatChainIdToHex(srcChainId)]?.gasFeeEstimates;
+    if (!gasFeeEstimates) {
+      return null;
+    }
+    return {
+      estimatedBaseFeeInDecGwei: gasFeeEstimates.estimatedBaseFee,
+      feePerGasInDecGwei:
+        gasFeeEstimates?.[BRIDGE_PREFERRED_GAS_ESTIMATE]?.suggestedMaxFeePerGas,
+      maxFeePerGasInDecGwei: gasFeeEstimates.high?.suggestedMaxFeePerGas,
+    };
+  },
+);
 
 // Selects cross-chain swap quotes including their metadata
 const selectBridgeQuotesWithMetadata = createBridgeSelector(
@@ -289,19 +311,7 @@ const selectBridgeQuotesWithMetadata = createBridgeSelector(
         relayerFee,
         gasFee: QuoteMetadata['gasFee'];
 
-      if (!isEvmQuoteResponse(quote)) {
-        // Use the new generic function for all non-EVM chains
-        totalEstimatedNetworkFee = calcNonEvmTotalNetworkFee(
-          quote,
-          nativeExchangeRate,
-        );
-        gasFee = {
-          effective: totalEstimatedNetworkFee,
-          total: totalEstimatedNetworkFee,
-          max: totalEstimatedNetworkFee,
-        };
-        totalMaxNetworkFee = totalEstimatedNetworkFee;
-      } else {
+      if (isEvmQuoteResponse(quote)) {
         relayerFee = calcRelayerFee(quote, nativeExchangeRate);
         gasFee = calcEstimatedAndMaxTotalGasFee({
           bridgeQuote: quote,
@@ -314,6 +324,18 @@ const selectBridgeQuotesWithMetadata = createBridgeSelector(
           relayerFee,
         );
         totalMaxNetworkFee = calcTotalMaxNetworkFee(gasFee, relayerFee);
+      } else {
+        // Use the new generic function for all non-EVM chains
+        totalEstimatedNetworkFee = calcNonEvmTotalNetworkFee(
+          quote,
+          nativeExchangeRate,
+        );
+        gasFee = {
+          effective: totalEstimatedNetworkFee,
+          total: totalEstimatedNetworkFee,
+          max: totalEstimatedNetworkFee,
+        };
+        totalMaxNetworkFee = totalEstimatedNetworkFee;
       }
 
       const adjustedReturn = calcAdjustedReturn(
