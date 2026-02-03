@@ -1,3 +1,4 @@
+/* eslint-disable @typescript-eslint/explicit-function-return-type */
 import {
   convertHexToDecimal,
   toHex,
@@ -317,12 +318,12 @@ export const calcTotalEstimatedNetworkFee = (
       .toString(),
     valueInCurrency: gasFeeToDisplay?.valueInCurrency
       ? new BigNumber(gasFeeToDisplay.valueInCurrency)
-          .plus(relayerFee.valueInCurrency || '0')
+          .plus(relayerFee.valueInCurrency ?? '0')
           .toString()
       : null,
     usd: gasFeeToDisplay?.usd
       ? new BigNumber(gasFeeToDisplay.usd)
-          .plus(relayerFee.usd || '0')
+          .plus(relayerFee.usd ?? '0')
           .toString()
       : null,
   };
@@ -336,11 +337,11 @@ export const calcTotalMaxNetworkFee = (
     amount: new BigNumber(gasFee.max.amount).plus(relayerFee.amount).toString(),
     valueInCurrency: gasFee.max.valueInCurrency
       ? new BigNumber(gasFee.max.valueInCurrency)
-          .plus(relayerFee.valueInCurrency || '0')
+          .plus(relayerFee.valueInCurrency ?? '0')
           .toString()
       : null,
     usd: gasFee.max.usd
-      ? new BigNumber(gasFee.max.usd).plus(relayerFee.usd || '0').toString()
+      ? new BigNumber(gasFee.max.usd).plus(relayerFee.usd ?? '0').toString()
       : null,
   };
 };
