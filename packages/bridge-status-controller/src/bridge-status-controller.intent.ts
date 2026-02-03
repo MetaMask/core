@@ -5,6 +5,7 @@ import { TransactionMeta } from '@metamask/transaction-controller';
 import type { BridgeStatusControllerMessenger } from './types';
 import type { BridgeHistoryItem } from './types';
 import { IntentStatusTranslation } from './utils/intent-api';
+import { IntentOrderStatus } from './utils/validators';
 
 export class IntentStatusManager {
   readonly #messenger: BridgeStatusControllerMessenger;
