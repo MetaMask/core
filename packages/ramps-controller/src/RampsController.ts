@@ -61,16 +61,15 @@ export const controllerName = 'RampsController';
  * Any host (e.g. mobile) that creates a RampsController messenger must delegate
  * these actions from the root messenger so the controller can function.
  */
-export const RAMPS_CONTROLLER_REQUIRED_SERVICE_ACTIONS: ReadonlyArray<
-  RampsServiceActions['type']
-> = [
-  'RampsService:getGeolocation',
-  'RampsService:getCountries',
-  'RampsService:getTokens',
-  'RampsService:getProviders',
-  'RampsService:getPaymentMethods',
-  'RampsService:getQuotes',
-];
+export const RAMPS_CONTROLLER_REQUIRED_SERVICE_ACTIONS: readonly RampsServiceActions['type'][] =
+  [
+    'RampsService:getGeolocation',
+    'RampsService:getCountries',
+    'RampsService:getTokens',
+    'RampsService:getProviders',
+    'RampsService:getPaymentMethods',
+    'RampsService:getQuotes',
+  ];
 
 /**
  * Default TTL for quotes requests (15 seconds).
@@ -588,6 +587,9 @@ export class RampsController extends BaseController<
         );
 
         if (resourceType) {
+          // We need the extra logic because there are two situations where we’re allowed to clear the error:
+          // No callback → always clear
+          // Callback present → clear only when isResultCurrent() returns true.
           const isCurrent =
             !options?.isResultCurrent || options.isResultCurrent();
           if (isCurrent) {

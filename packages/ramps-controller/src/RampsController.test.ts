@@ -1,6 +1,3 @@
-import * as fs from 'fs';
-import * as path from 'path';
-
 import { deriveStateFromMetadata } from '@metamask/base-controller';
 import { Messenger, MOCK_ANY_NAMESPACE } from '@metamask/messenger';
 import type {
@@ -8,6 +5,8 @@ import type {
   MessengerActions,
   MessengerEvents,
 } from '@metamask/messenger';
+import * as fs from 'fs';
+import * as path from 'path';
 
 import type {
   RampsControllerMessenger,
@@ -41,11 +40,12 @@ import { RequestStatus } from './RequestCache';
 
 describe('RampsController', () => {
   describe('RAMPS_CONTROLLER_REQUIRED_SERVICE_ACTIONS', () => {
-    it('includes every RampsService action that RampsController calls', () => {
+    it('includes every RampsService action that RampsController calls', async () => {
+      expect.hasAssertions();
       const controllerPath = path.join(__dirname, 'RampsController.ts');
-      const source = fs.readFileSync(controllerPath, 'utf-8');
+      const source = await fs.promises.readFile(controllerPath, 'utf-8');
       const callPattern =
-        /messenger\.call\s*\(\s*['"](RampsService:[^'"]+)['"]/g;
+        /messenger\.call\s*\(\s*['"](RampsService:[^'"]+)['"]/gu;
       const calledActions = new Set<string>();
       let match: RegExpExecArray | null;
       while ((match = callPattern.exec(source)) !== null) {
@@ -56,16 +56,8 @@ describe('RampsController', () => {
       );
       const missing = [...calledActions].filter((a) => !requiredSet.has(a));
       const extra = [...requiredSet].filter((a) => !calledActions.has(a));
-      if (missing.length > 0) {
-        throw new Error(
-          `RampsController calls these actions but they are not in RAMPS_CONTROLLER_REQUIRED_SERVICE_ACTIONS: ${missing.join(', ')}. Add them so hosts (e.g. mobile) delegate them.`,
-        );
-      }
-      if (extra.length > 0) {
-        throw new Error(
-          `RAMPS_CONTROLLER_REQUIRED_SERVICE_ACTIONS contains actions not called by RampsController: ${extra.join(', ')}. Remove them or use them.`,
-        );
-      }
+      expect(missing).toHaveLength(0);
+      expect(extra).toHaveLength(0);
     });
   });
 
