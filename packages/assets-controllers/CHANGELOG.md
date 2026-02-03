@@ -11,6 +11,10 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 - Add INK (0xdef1) mapping to eip155:57073/slip44:60 ([#7688](https://github.com/MetaMask/core/pull/7688))
 
+### Changed
+
+- Bump `@metamask/core-backend` from `^5.0.0` to `^5.1.0` ([#7817](https://github.com/MetaMask/core/pull/7817))
+
 ## [99.2.0]
 
 ### Added
