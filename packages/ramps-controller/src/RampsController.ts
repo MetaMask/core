@@ -691,6 +691,7 @@ export class RampsController extends BaseController<
   }
 
   #cleanupState(): void {
+    this.stopQuotePolling();
     this.#clearPendingResourceCountForDependentResources();
     this.update((state) =>
       resetDependentResources(state as unknown as RampsControllerState, {
@@ -875,6 +876,9 @@ export class RampsController extends BaseController<
       if (regionChanged) {
         this.#clearPendingResourceCountForDependentResources();
       }
+      if (regionChanged) {
+        this.stopQuotePolling();
+      }
       this.update((state) => {
         if (regionChanged) {
           resetDependentResources(state as unknown as RampsControllerState);
@@ -916,6 +920,7 @@ export class RampsController extends BaseController<
    */
   setSelectedProvider(providerId: string | null): void {
     if (providerId === null) {
+      this.stopQuotePolling();
       this.update((state) => {
         state.providers.selected = null;
         state.paymentMethods.data = [];
@@ -1098,6 +1103,7 @@ export class RampsController extends BaseController<
    */
   setSelectedToken(assetId?: string): void {
     if (!assetId) {
+      this.stopQuotePolling();
       this.update((state) => {
         state.tokens.selected = null;
         state.paymentMethods.data = [];
@@ -1544,18 +1550,17 @@ export class RampsController extends BaseController<
             if (response.success.length === 1) {
               state.quotes.selected = response.success[0];
             } else {
-              // Keep existing selection if still valid
+              // Keep existing selection if still valid, but update with fresh data
               const currentSelection = state.quotes.selected;
               if (currentSelection) {
-                const stillValid = response.success.some(
+                const freshQuote = response.success.find(
                   (quote) =>
                     quote.provider === currentSelection.provider &&
                     quote.quote.paymentMethod ===
                       currentSelection.quote.paymentMethod,
                 );
-                if (!stillValid) {
-                  state.quotes.selected = null;
-                }
+                // Update with fresh quote data, or clear if no longer valid
+                state.quotes.selected = freshQuote ?? null;
               }
             }
           });
