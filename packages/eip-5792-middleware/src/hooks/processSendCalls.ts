@@ -600,22 +600,14 @@ function validateUpgrade(
 function dedupeAuxiliaryFundsRequiredAssets(
   sendCalls: SendCallsPayload,
 ): RequiredAsset[] | undefined {
-  const allRequiredAssets: SendCallsRequiredAssetsParam[] = [];
+  const rootRequiredAssets =
+    sendCalls.capabilities?.auxiliaryFunds?.requiredAssets ?? [];
 
-  if (sendCalls.capabilities?.auxiliaryFunds?.requiredAssets) {
-    allRequiredAssets.push(
-      ...sendCalls.capabilities.auxiliaryFunds.requiredAssets,
-    );
-  }
+  const callRequiredAssets = sendCalls.calls.flatMap(
+    (call) => call.capabilities?.auxiliaryFunds?.requiredAssets ?? [],
+  );
 
-  for (const call of sendCalls.calls) {
-    const callRequiredAssets =
-      call.capabilities?.auxiliaryFunds?.requiredAssets;
-
-    if (callRequiredAssets) {
-      allRequiredAssets.push(...callRequiredAssets);
-    }
-  }
+  const allRequiredAssets = [...rootRequiredAssets, ...callRequiredAssets];
 
   if (allRequiredAssets.length === 0) {
     return undefined;
