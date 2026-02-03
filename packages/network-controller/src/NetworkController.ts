@@ -2701,7 +2701,10 @@ export class NetworkController extends BaseController<
       );
     }
 
-    if (networkFields.chainId !== existingNetworkConfiguration?.chainId) {
+    if (
+      existingNetworkConfiguration === null ||
+      networkFields.chainId !== existingNetworkConfiguration.chainId
+    ) {
       const existingNetworkConfigurationViaChainId =
         this.state.networkConfigurationsByChainId[networkFields.chainId];
       if (existingNetworkConfigurationViaChainId !== undefined) {

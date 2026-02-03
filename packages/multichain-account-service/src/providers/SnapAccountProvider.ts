@@ -159,7 +159,8 @@ export abstract class SnapAccountProvider extends BaseBip44AccountProvider {
   ): Promise<void> {
     await this.withSnap(async ({ keyring }) => {
       const localSnapAccounts = accounts.filter(
-        (account) => account.metadata.snap?.id === this.snapId,
+        (account) =>
+          account.metadata.snap && account.metadata.snap.id === this.snapId,
       );
       const snapAccounts = new Set(
         (await this.#client.listAccounts()).map((account) => account.id),

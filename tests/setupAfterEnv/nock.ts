@@ -1,12 +1,10 @@
-/* eslint-disable import-x/no-named-as-default-member */
-import nock from 'nock';
+import { disableNetConnect, cleanAll, enableNetConnect } from 'nock';
 
 beforeEach(() => {
-  nock.disableNetConnect();
+  disableNetConnect();
 });
 
 afterEach(() => {
-  // Clean up all nock interceptors and restore network connections
-  nock.cleanAll();
-  nock.enableNetConnect();
+  cleanAll();
+  enableNetConnect();
 });
