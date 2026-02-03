@@ -1181,10 +1181,12 @@ export class RampsController extends BaseController<
     const regionCode = region ?? this.state.userRegion?.regionCode ?? null;
     const fiatToUse =
       options?.fiat ?? this.state.userRegion?.country?.currency ?? null;
-    const assetIdToUse =
-      options?.assetId ?? this.state.tokens.selected?.assetId ?? '';
-    const providerToUse =
-      options?.provider ?? this.state.providers.selected?.id ?? '';
+      const assetIdToUse = (
+        options?.assetId ?? this.state.tokens.selected?.assetId ?? ''
+      ).trim();
+      const providerToUse = (
+        options?.provider ?? this.state.providers.selected?.id ?? ''
+      ).trim();
 
     if (!regionCode) {
       throw new Error(
