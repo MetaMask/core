@@ -7,6 +7,10 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+### Added
+
+- Add automatic quote polling with `startQuotePolling()`, `stopQuotePolling()`, and `setSelectedQuote()` methods, with auto-selection when a single quote is returned
+
 ## [6.0.0]
 
 ### Changed
