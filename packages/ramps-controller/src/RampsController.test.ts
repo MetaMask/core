@@ -800,19 +800,18 @@ describe('RampsController', () => {
       });
     });
 
-    it('aborts previous request for same resource when a new one starts', async () => {
+    it('keeps resource isLoading true until last concurrent request (different cache keys) finishes', async () => {
       await withController(async ({ controller }) => {
-        let resolveB: (value: string) => void;
-        const fetcherA = async (signal: AbortSignal): Promise<string> => {
-          return new Promise<string>((_resolve, reject) => {
-            signal.addEventListener('abort', () =>
-              reject(new Error('Request was aborted')),
-            );
+        let resolveFirst: (value: string) => void;
+        let resolveSecond: (value: string) => void;
+        const fetcherA = async (): Promise<string> => {
+          return new Promise<string>((resolve) => {
+            resolveFirst = resolve;
           });
         };
         const fetcherB = async (): Promise<string> => {
           return new Promise<string>((resolve) => {
-            resolveB = resolve;
+            resolveSecond = resolve;
           });
         };
 
@@ -829,11 +828,42 @@ describe('RampsController', () => {
 
         expect(controller.state.providers.isLoading).toBe(true);
 
-        await expect(promiseA).rejects.toThrow('Request was aborted');
+        // eslint-disable-next-line @typescript-eslint/no-non-null-assertion
+        resolveFirst!('result-a');
+        await promiseA;
+
+        expect(controller.state.providers.isLoading).toBe(true);
 
         // eslint-disable-next-line @typescript-eslint/no-non-null-assertion
-        resolveB!('result-b');
-        expect(await promiseB).toBe('result-b');
+        resolveSecond!('result-b');
+        await promiseB;
+
+        expect(controller.state.providers.isLoading).toBe(false);
+      });
+    });
+
+    it('clears resource loading when ref-count hits zero even if map was cleared (defensive)', async () => {
+      await withController(async ({ controller }) => {
+        let resolveFetcher: (value: string) => void;
+        const fetcher = async (): Promise<string> => {
+          return new Promise<string>((resolve) => {
+            resolveFetcher = resolve;
+          });
+        };
+
+        const promise = controller.executeRequest(
+          'providers-defensive-key',
+          fetcher,
+          { resourceType: 'providers' },
+        );
+
+        expect(controller.state.providers.isLoading).toBe(true);
+
+        controller.clearPendingResourceCountForTest();
+
+        // eslint-disable-next-line @typescript-eslint/no-non-null-assertion
+        resolveFetcher!('result');
+        await promise;
 
         expect(controller.state.providers.isLoading).toBe(false);
       });
@@ -3532,9 +3562,7 @@ describe('RampsController', () => {
           controller.setSelectedToken(tokenB.assetId);
 
           resolveTokenARequest({ payments: paymentMethodsForTokenA });
-          await expect(tokenAPaymentMethodsPromise).rejects.toThrow(
-            'Request was aborted',
-          );
+          await tokenAPaymentMethodsPromise;
           await new Promise((resolve) => setTimeout(resolve, 10));
 
           expect(controller.state.tokens.selected).toStrictEqual(tokenB);
@@ -3642,9 +3670,7 @@ describe('RampsController', () => {
           controller.setSelectedProvider(providerB.id);
 
           resolveProviderARequest({ payments: paymentMethodsForProviderA });
-          await expect(providerAPaymentMethodsPromise).rejects.toThrow(
-            'Request was aborted',
-          );
+          await providerAPaymentMethodsPromise;
           await new Promise((resolve) => setTimeout(resolve, 10));
 
           expect(controller.state.providers.selected).toStrictEqual(providerB);

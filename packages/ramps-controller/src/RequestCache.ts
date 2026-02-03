@@ -147,6 +147,11 @@ export type ExecuteRequestOptions = {
   ttl?: number;
   /** Resource type to update loading/error states for */
   resourceType?: ResourceType;
+  /**
+   * When provided, resource-level error is only set/cleared if this returns true.
+   * Used to avoid applying stale errors after e.g. region or selection changes.
+   */
+  isResultCurrent?: () => boolean;
 };
 
 /**

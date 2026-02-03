@@ -463,6 +463,34 @@ export class RampsController extends BaseController<
   readonly #pendingRequests: Map<string, PendingRequest> = new Map();
 
   /**
+   * Count of in-flight requests per resource type.
+   * Used so isLoading is only cleared when the last request for that resource finishes.
+   */
+  readonly #pendingResourceCount: Map<ResourceType, number> = new Map();
+
+  /**
+   * Clears the pending resource count map. Used only in tests to exercise the
+   * defensive path when get() returns undefined in the finally block.
+   *
+   * @internal
+   */
+  clearPendingResourceCountForTest(): void {
+    this.#pendingResourceCount.clear();
+  }
+
+  #clearPendingResourceCountForDependentResources(): void {
+    const types: ResourceType[] = [
+      'providers',
+      'tokens',
+      'paymentMethods',
+      'quotes',
+    ];
+    for (const resourceType of types) {
+      this.#pendingResourceCount.delete(resourceType);
+    }
+  }
+
+  /**
    * Constructs a new {@link RampsController}.
    *
    * @param args - The constructor arguments.
@@ -541,38 +569,26 @@ export class RampsController extends BaseController<
       }
     }
 
-    // NEW REQUEST:
-    // deduplicate requests for the same resource type
-    // (countries, tokens, providers, payment methods, quotes)
-    const { resourceType } = options ?? {};
-
-    if (resourceType) {
-      // Abort any in-flight request for this resource so only one runs at a time
-      const keysToAbort: string[] = [];
-      for (const [key, pendingReq] of this.#pendingRequests) {
-        if (pendingReq.resourceType === resourceType) {
-          keysToAbort.push(key);
-        }
-      }
-      for (const key of keysToAbort) {
-        const pendingReq = this.#pendingRequests.get(key);
-        if (pendingReq) {
-          pendingReq.abortController.abort();
-          this.#pendingRequests.delete(key);
-          this.#removeRequestState(key);
-        }
-      }
-      this.#setResourceLoading(resourceType, true);
-    }
-
     // Create a new abort controller for this request
     // Record the time the request was started
     const abortController = new AbortController();
     const lastFetchedAt = Date.now();
-    // Update the request state to loading
+    const { resourceType } = options ?? {};
+
+    // Update state to loading
     this.#updateRequestState(cacheKey, createLoadingState());
 
-    // Execute the request via IIFE (Immediately Invoked Function Expression)
+    // Set resource-level loading state (only on cache miss). Ref-count so concurrent
+    // requests for the same resource type (different cache keys) keep isLoading true.
+    if (resourceType) {
+      const count = this.#pendingResourceCount.get(resourceType) ?? 0;
+      this.#pendingResourceCount.set(resourceType, count + 1);
+      if (count === 0) {
+        this.#setResourceLoading(resourceType, true);
+      }
+    }
+
+    // Create the fetch promise
     const promise = (async (): Promise<TResult> => {
       try {
         const data = await fetcher(abortController.signal);
@@ -585,8 +601,13 @@ export class RampsController extends BaseController<
           cacheKey,
           createSuccessState(data as Json, lastFetchedAt),
         );
+
         if (resourceType) {
-          this.#setResourceError(resourceType, null);
+          const isCurrent =
+            !options?.isResultCurrent || options.isResultCurrent();
+          if (isCurrent) {
+            this.#setResourceError(resourceType, null);
+          }
         }
         return data;
       } catch (error) {
@@ -600,7 +621,11 @@ export class RampsController extends BaseController<
           createErrorState(errorMessage, lastFetchedAt),
         );
         if (resourceType) {
-          this.#setResourceError(resourceType, errorMessage);
+          const isCurrent =
+            !options?.isResultCurrent || options.isResultCurrent();
+          if (isCurrent) {
+            this.#setResourceError(resourceType, errorMessage);
+          }
         }
         throw error;
       } finally {
@@ -611,8 +636,16 @@ export class RampsController extends BaseController<
           this.#pendingRequests.delete(cacheKey);
         }
 
-        if (resourceType && !this.#hasPendingRequestForResource(resourceType)) {
-          this.#setResourceLoading(resourceType, false);
+        // Clear resource-level loading state only when no requests for this resource remain
+        if (resourceType) {
+          const count = this.#pendingResourceCount.get(resourceType) ?? 0;
+          const next = Math.max(0, count - 1);
+          if (next === 0) {
+            this.#pendingResourceCount.delete(resourceType);
+            this.#setResourceLoading(resourceType, false);
+          } else {
+            this.#pendingResourceCount.set(resourceType, next);
+          }
         }
       }
     })();
@@ -659,6 +692,7 @@ export class RampsController extends BaseController<
   }
 
   #cleanupState(): void {
+    this.#clearPendingResourceCountForDependentResources();
     this.update((state) =>
       resetDependentResources(state as unknown as RampsControllerState, {
         clearUserRegionData: true,
@@ -830,6 +864,9 @@ export class RampsController extends BaseController<
         !this.state.tokens.data ||
         this.state.providers.data.length === 0;
 
+      if (regionChanged) {
+        this.#clearPendingResourceCountForDependentResources();
+      }
       this.update((state) => {
         if (regionChanged) {
           resetDependentResources(state as unknown as RampsControllerState);
@@ -1022,6 +1059,9 @@ export class RampsController extends BaseController<
       {
         ...options,
         resourceType: 'tokens',
+        isResultCurrent: () =>
+          this.state.userRegion?.regionCode === undefined ||
+          this.state.userRegion?.regionCode === normalizedRegion,
       },
     );
 
@@ -1145,6 +1185,9 @@ export class RampsController extends BaseController<
       {
         ...options,
         resourceType: 'providers',
+        isResultCurrent: () =>
+          this.state.userRegion?.regionCode === undefined ||
+          this.state.userRegion?.regionCode === normalizedRegion,
       },
     );
 
@@ -1181,12 +1224,10 @@ export class RampsController extends BaseController<
     const regionCode = region ?? this.state.userRegion?.regionCode ?? null;
     const fiatToUse =
       options?.fiat ?? this.state.userRegion?.country?.currency ?? null;
-      const assetIdToUse = (
-        options?.assetId ?? this.state.tokens.selected?.assetId ?? ''
-      ).trim();
-      const providerToUse = (
-        options?.provider ?? this.state.providers.selected?.id ?? ''
-      ).trim();
+    const assetIdToUse =
+      options?.assetId ?? this.state.tokens.selected?.assetId ?? '';
+    const providerToUse =
+      options?.provider ?? this.state.providers.selected?.id ?? '';
 
     if (!regionCode) {
       throw new Error(
@@ -1222,6 +1263,16 @@ export class RampsController extends BaseController<
       {
         ...options,
         resourceType: 'paymentMethods',
+        isResultCurrent: () => {
+          const regionMatch =
+            this.state.userRegion?.regionCode === undefined ||
+            this.state.userRegion?.regionCode === normalizedRegion;
+          const tokenMatch =
+            (this.state.tokens.selected?.assetId ?? '') === assetIdToUse;
+          const providerMatch =
+            (this.state.providers.selected?.id ?? '') === providerToUse;
+          return regionMatch && tokenMatch && providerMatch;
+        },
       },
     );
 
@@ -1393,6 +1444,9 @@ export class RampsController extends BaseController<
         forceRefresh: options.forceRefresh,
         ttl: options.ttl ?? DEFAULT_QUOTES_TTL,
         resourceType: 'quotes',
+        isResultCurrent: () =>
+          this.state.userRegion?.regionCode === undefined ||
+          this.state.userRegion?.regionCode === normalizedRegion,
       },
     );
 
