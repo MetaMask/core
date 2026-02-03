@@ -7,6 +7,11 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+### Added
+
+- Add `RequiredAsset` type and `requiredAssets` property to batch transaction requests ([#7820](https://github.com/MetaMask/core/pull/7820))
+  - Persists required asset information on transaction metadata for EIP-7702 batch transactions.
+
 ## [62.14.0]
 
 ### Changed
