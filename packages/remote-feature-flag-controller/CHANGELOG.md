@@ -11,6 +11,10 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 - Bump `@metamask/controller-utils` from `^11.17.0` to `^11.18.0` ([#7583](https://github.com/MetaMask/core/pull/7583))
 
+### Fixed
+
+- Invalidate cached feature flags when the client version changes to avoid stale versioned flags after upgrades ([#7827](https://github.com/MetaMask/core/pull/7827))
+
 ## [4.0.0]
 
 ### Changed
