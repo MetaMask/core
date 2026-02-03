@@ -863,7 +863,7 @@ export class RampsController extends BaseController<
       this.update((state) => {
         state.providers.selected = null;
         resetResource(
-          state,
+          state as unknown as RampsControllerState,
           'paymentMethods',
         );
       });
@@ -894,7 +894,7 @@ export class RampsController extends BaseController<
     this.update((state) => {
       state.providers.selected = provider;
       resetResource(
-        state,
+        state as unknown as RampsControllerState,
         'paymentMethods',
       );
     });
@@ -1041,7 +1041,7 @@ export class RampsController extends BaseController<
       this.update((state) => {
         state.tokens.selected = null;
         resetResource(
-          state,
+          state as unknown as RampsControllerState,
           'paymentMethods',
         );
       });
@@ -1075,7 +1075,7 @@ export class RampsController extends BaseController<
     this.update((state) => {
       state.tokens.selected = token;
       resetResource(
-        state,
+        state as unknown as RampsControllerState,
         'paymentMethods',
       );
     });
