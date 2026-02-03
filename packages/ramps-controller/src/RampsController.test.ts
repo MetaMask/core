@@ -4331,7 +4331,7 @@ describe('RampsController', () => {
           }
 
           expect(callCount).toBe(1);
-          expect(controller.state.quotes.selected).toEqual(
+          expect(controller.state.quotes.selected).toStrictEqual(
             mockQuotesResponse.success[0],
           );
 
@@ -4427,9 +4427,99 @@ describe('RampsController', () => {
             await Promise.resolve();
           }
 
-          expect(controller.state.quotes.selected).toEqual(
+          expect(controller.state.quotes.selected).toStrictEqual(
             mockQuotesResponse.success[0],
           );
+
+          controller.stopQuotePolling();
+        },
+      );
+    });
+
+    it('passes selected payment method to getQuotes', async () => {
+      const mockQuotesResponse: QuotesResponse = {
+        success: [
+          {
+            provider: '/providers/moonpay',
+            quote: {
+              amountIn: 100,
+              amountOut: '0.05',
+              paymentMethod: '/payments/bank-transfer',
+            },
+          },
+        ],
+        sorted: [],
+        error: [],
+        customActions: [],
+      };
+
+      await withController(
+        {
+          options: {
+            state: {
+              userRegion: createMockUserRegion('us'),
+              tokens: createResourceState(
+                { topTokens: [], allTokens: [] },
+                {
+                  assetId: 'eip155:1/slip44:60',
+                  chainId: 'eip155:1',
+                  name: 'Ethereum',
+                  symbol: 'ETH',
+                  decimals: 18,
+                  iconUrl: 'https://example.com/eth.png',
+                  tokenSupported: true,
+                },
+              ),
+              paymentMethods: createResourceState(
+                [
+                  {
+                    id: '/payments/debit-credit-card',
+                    paymentType: 'debit-credit-card',
+                    name: 'Debit or Credit',
+                    score: 90,
+                    icon: 'card',
+                  },
+                  {
+                    id: '/payments/bank-transfer',
+                    paymentType: 'bank-transfer',
+                    name: 'Bank Transfer',
+                    score: 80,
+                    icon: 'bank',
+                  },
+                ],
+                {
+                  id: '/payments/bank-transfer',
+                  paymentType: 'bank-transfer',
+                  name: 'Bank Transfer',
+                  score: 80,
+                  icon: 'bank',
+                },
+              ),
+            },
+          },
+        },
+        async ({ controller, rootMessenger }) => {
+          let capturedPaymentMethods: string[] | undefined;
+          rootMessenger.registerActionHandler(
+            'RampsService:getQuotes',
+            async (params) => {
+              capturedPaymentMethods = params.paymentMethods;
+              return mockQuotesResponse;
+            },
+          );
+
+          controller.startQuotePolling({
+            walletAddress: '0x1234567890abcdef1234567890abcdef12345678',
+            amount: 100,
+          });
+
+          // Need multiple Promise.resolve() to flush microtask queue
+          for (let i = 0; i < 10; i++) {
+            await Promise.resolve();
+          }
+
+          // Verify only the selected payment method is passed, not all available
+          expect(capturedPaymentMethods).toStrictEqual(['/payments/bank-transfer']);
 
           controller.stopQuotePolling();
         },
@@ -4523,7 +4613,7 @@ describe('RampsController', () => {
           await Promise.resolve();
           await Promise.resolve();
 
-          expect(controller.state.quotes.selected).toEqual(initialSelection);
+          expect(controller.state.quotes.selected).toStrictEqual(initialSelection);
 
           controller.stopQuotePolling();
         },
@@ -4794,8 +4884,8 @@ describe('RampsController', () => {
 
           controller.stopQuotePolling();
 
-          expect(controller.state.quotes.data).toEqual(quotesData);
-          expect(controller.state.quotes.selected).toEqual(selectedQuote);
+          expect(controller.state.quotes.data).toStrictEqual(quotesData);
+          expect(controller.state.quotes.selected).toStrictEqual(selectedQuote);
         },
       );
     });
@@ -4815,7 +4905,7 @@ describe('RampsController', () => {
 
         controller.setSelectedQuote(quote);
 
-        expect(controller.state.quotes.selected).toEqual(quote);
+        expect(controller.state.quotes.selected).toStrictEqual(quote);
       });
     });
 
@@ -4851,127 +4941,6 @@ describe('RampsController', () => {
 
     afterEach(() => {
       jest.useRealTimers();
-    });
-
-    it.skip('restarts polling when token changes', async () => {
-      const mockQuotesResponse: QuotesResponse = {
-        success: [
-          {
-            provider: '/providers/moonpay',
-            quote: {
-              amountIn: 100,
-              amountOut: '0.05',
-              paymentMethod: '/payments/debit-credit-card',
-            },
-          },
-        ],
-        sorted: [],
-        error: [],
-        customActions: [],
-      };
-
-      const mockTokens: TokensResponse = {
-        topTokens: [
-          {
-            assetId: 'eip155:1/slip44:60',
-            chainId: 'eip155:1',
-            name: 'Ethereum',
-            symbol: 'ETH',
-            decimals: 18,
-            iconUrl: 'https://example.com/eth.png',
-            tokenSupported: true,
-          },
-          {
-            assetId: 'eip155:1/erc20:0xusdc',
-            chainId: 'eip155:1',
-            name: 'USD Coin',
-            symbol: 'USDC',
-            decimals: 6,
-            iconUrl: 'https://example.com/usdc.png',
-            tokenSupported: true,
-          },
-        ],
-        allTokens: [],
-      };
-
-      await withController(
-        {
-          options: {
-            state: {
-              userRegion: createMockUserRegion('us'),
-              tokens: createResourceState(mockTokens, mockTokens.topTokens[0]),
-              paymentMethods: createResourceState(
-                [
-                  {
-                    id: '/payments/debit-credit-card',
-                    paymentType: 'debit-credit-card',
-                    name: 'Debit or Credit',
-                    score: 90,
-                    icon: 'card',
-                  },
-                ],
-                {
-                  id: '/payments/debit-credit-card',
-                  paymentType: 'debit-credit-card',
-                  name: 'Debit or Credit',
-                  score: 90,
-                  icon: 'card',
-                },
-              ),
-            },
-          },
-        },
-        async ({ controller, rootMessenger }) => {
-          const callTimes: number[] = [];
-          rootMessenger.registerActionHandler(
-            'RampsService:getQuotes',
-            async () => {
-              callTimes.push(Date.now());
-              return mockQuotesResponse;
-            },
-          );
-          rootMessenger.registerActionHandler(
-            'RampsService:getPaymentMethods',
-            async () => ({
-              payments: [
-                {
-                  id: '/payments/debit-credit-card',
-                  paymentType: 'debit-credit-card',
-                  name: 'Debit or Credit',
-                  score: 90,
-                  icon: 'card',
-                },
-              ],
-            }),
-          );
-
-          controller.startQuotePolling({
-            walletAddress: '0x1234567890abcdef1234567890abcdef12345678',
-            amount: 100,
-          });
-
-          for (let i = 0; i < 10; i++) {
-            await Promise.resolve();
-          }
-
-          const initialCallCount = callTimes.length;
-          expect(initialCallCount).toBeGreaterThan(0);
-
-          // Change token - this should restart polling after payment methods are fetched
-          controller.setSelectedToken('eip155:1/erc20:0xusdc');
-
-          // Advance time to trigger the next poll
-          jest.advanceTimersByTime(16000);
-          for (let i = 0; i < 20; i++) {
-            await Promise.resolve();
-          }
-
-          // Polling should still be active (call count increased)
-          expect(callTimes.length).toBeGreaterThan(initialCallCount);
-
-          controller.stopQuotePolling();
-        },
-      );
     });
 
     it('restarts polling when payment method changes', async () => {

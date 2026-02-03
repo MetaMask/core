@@ -720,7 +720,7 @@ export class RampsController extends BaseController<
       this.stopQuotePolling();
       try {
         this.startQuotePolling(options);
-      } catch (error) {
+      } catch {
         // Dependencies not met yet, polling will need to be manually restarted
         // when dependencies are available
       }
@@ -956,6 +956,7 @@ export class RampsController extends BaseController<
       this.getPaymentMethods(regionCode, { provider: provider.id }).then(() => {
         // Restart quote polling after payment methods are fetched
         this.#restartPollingIfActive();
+        return undefined;
       }),
     );
   }
@@ -1141,6 +1142,7 @@ export class RampsController extends BaseController<
         () => {
           // Restart quote polling after payment methods are fetched
           this.#restartPollingIfActive();
+          return undefined;
         },
       ),
     );
@@ -1527,13 +1529,14 @@ export class RampsController extends BaseController<
     this.#quotePollingOptions = options;
 
     // Define the fetch function
-    const fetchQuotes = () => {
+    const fetchQuotes = (): void => {
       this.#fireAndForget(
         this.getQuotes({
           assetId: token.assetId,
           amount: options.amount,
           walletAddress: options.walletAddress,
           redirectUrl: options.redirectUrl,
+          paymentMethods: [paymentMethod.id],
           forceRefresh: true,
         }).then((response) => {
           // Auto-select logic: only when exactly one quote is returned
@@ -1545,9 +1548,9 @@ export class RampsController extends BaseController<
               const currentSelection = state.quotes.selected;
               if (currentSelection) {
                 const stillValid = response.success.some(
-                  (q) =>
-                    q.provider === currentSelection.provider &&
-                    q.quote.paymentMethod ===
+                  (quote) =>
+                    quote.provider === currentSelection.provider &&
+                    quote.quote.paymentMethod ===
                       currentSelection.quote.paymentMethod,
                 );
                 if (!stillValid) {
@@ -1556,6 +1559,7 @@ export class RampsController extends BaseController<
               }
             }
           });
+          return undefined;
         }),
       );
     };
