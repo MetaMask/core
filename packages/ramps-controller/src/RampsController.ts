@@ -763,8 +763,7 @@ export class RampsController extends BaseController<
       for (const key of keys) {
         const entry = requests[key];
         if (
-          entry &&
-          entry.status === RequestStatus.SUCCESS &&
+          entry?.status === RequestStatus.SUCCESS &&
           isCacheExpired(entry, ttl)
         ) {
           delete requests[key];
