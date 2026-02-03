@@ -1,12 +1,10 @@
 import type { AccountsController } from '@metamask/accounts-controller';
-import { toHex } from '@metamask/controller-utils';
 import type {
   Transaction as AccountActivityTransaction,
   WebSocketConnectionInfo,
 } from '@metamask/core-backend';
 import { WebSocketState } from '@metamask/core-backend';
 import type { Hex } from '@metamask/utils';
-import { isCaipChainId, parseCaipChainId } from '@metamask/utils';
 // This package purposefully relies on Node's EventEmitter module.
 // eslint-disable-next-line import-x/no-nodejs-modules
 import EventEmitter from 'events';
@@ -15,6 +13,7 @@ import { SUPPORTED_CHAIN_IDS } from './AccountsApiRemoteTransactionSource';
 import type { TransactionControllerMessenger } from '..';
 import { incomingTransactionsLogger as log } from '../logger';
 import type { RemoteTransactionSource, TransactionMeta } from '../types';
+import { caip2ToHex } from '../utils/utils';
 import {
   getIncomingTransactionsPollingInterval,
   isIncomingTransactionsUseWebsocketsEnabled,
@@ -420,24 +419,6 @@ export class IncomingTransactionHelper {
     return tags?.length ? tags : undefined;
   }
 
-  /**
-   * Convert CAIP-2 chain ID to hex format.
-   *
-   * @param caip2ChainId - Chain ID in CAIP-2 format (e.g., 'eip155:1')
-   * @returns Hex chain ID (e.g., '0x1') or undefined if invalid format
-   */
-  #caip2ToHex(caip2ChainId: string): Hex | undefined {
-    if (!isCaipChainId(caip2ChainId)) {
-      return undefined;
-    }
-    try {
-      const { reference } = parseCaipChainId(caip2ChainId);
-      return toHex(reference);
-    } catch {
-      return undefined;
-    }
-  }
-
   #onNetworkStatusChanged(chainIds: string[], status: 'up' | 'down'): void {
     if (!this.#useWebsockets) {
       return;
@@ -446,7 +427,7 @@ export class IncomingTransactionHelper {
     let hasChanges = false;
 
     for (const caip2ChainId of chainIds) {
-      const hexChainId = this.#caip2ToHex(caip2ChainId);
+      const hexChainId = caip2ToHex(caip2ChainId);
 
       if (!hexChainId || !SUPPORTED_CHAIN_IDS.includes(hexChainId)) {
         log('Chain ID not recognized or not supported', {

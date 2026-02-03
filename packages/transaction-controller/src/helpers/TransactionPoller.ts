@@ -1,3 +1,4 @@
+import type { Transaction } from '@metamask/core-backend';
 import type { BlockTracker } from '@metamask/network-controller';
 import { createModuleLogger } from '@metamask/utils';
 import type { Hex } from '@metamask/utils';
@@ -6,7 +7,12 @@ import { isEqual } from 'lodash';
 import { projectLogger } from '../logger';
 import type { TransactionControllerMessenger } from '../TransactionController';
 import type { TransactionMeta } from '../types';
-import { getAcceleratedPollingParams } from '../utils/feature-flags';
+import { caip2ToHex } from '../utils/utils';
+import {
+  FeatureFlag,
+  getAcceleratedPollingParams,
+  type TransactionControllerFeatureFlags,
+} from '../utils/feature-flags';
 
 const log = createModuleLogger(projectLogger, 'transaction-poller');
 
@@ -34,6 +40,8 @@ export class TransactionPoller {
 
   #timeout?: NodeJS.Timeout;
 
+  #useWebsockets: boolean;
+
   constructor({
     blockTracker,
     chainId,
@@ -46,6 +54,13 @@ export class TransactionPoller {
     this.#blockTracker = blockTracker;
     this.#chainId = chainId;
     this.#messenger = messenger;
+
+    const featureFlags = messenger.call(
+      'RemoteFeatureFlagController:getState',
+    ).remoteFeatureFlags as TransactionControllerFeatureFlags;
+
+    this.#useWebsockets =
+      featureFlags?.[FeatureFlag.Transactions]?.useWebsockets ?? false;
   }
 
   /**
@@ -60,6 +75,8 @@ export class TransactionPoller {
 
     this.#listener = listener;
     this.#running = true;
+
+    this.#subscribeToTransactionUpdates();
 
     this.#queue();
 
@@ -82,6 +99,7 @@ export class TransactionPoller {
 
     this.#stopTimeout();
     this.#stopBlockTracker();
+    this.#unsubscribeFromTransactionUpdates();
 
     log('Stopped');
   }
@@ -155,8 +173,11 @@ export class TransactionPoller {
   async #interval(
     isAccelerated: boolean,
     latestBlockNumber?: string,
+    transactionUpdateReceived: boolean = false,
   ): Promise<void> {
-    if (isAccelerated) {
+    if (transactionUpdateReceived) {
+      log('AccountActivityService:transactionUpdated received');
+    } else if (isAccelerated) {
       log('Accelerated interval', this.#acceleratedCount + 1);
     } else {
       log('Block tracker interval', latestBlockNumber);
@@ -167,7 +188,7 @@ export class TransactionPoller {
 
     await this.#listener?.(latestBlockNumberFinal);
 
-    if (isAccelerated && this.#running) {
+    if (isAccelerated && this.#running && !transactionUpdateReceived) {
       this.#acceleratedCount += 1;
     }
   }
@@ -188,5 +209,49 @@ export class TransactionPoller {
 
     this.#blockTracker.removeListener('latest', this.#blockTrackerListener);
     this.#blockTrackerListener = undefined;
+  }
+
+  #transactionUpdatedHandler = (transaction: Transaction): void => {
+    if (!this.#running) {
+      return;
+    }
+
+    const hexChainId = caip2ToHex(transaction.chain);
+    if (hexChainId !== this.#chainId) {
+      return;
+    }
+
+    if (
+      transaction.status !== 'confirmed' &&
+      transaction.status !== 'finalized'
+    ) {
+      return;
+    }
+
+    this.#interval(true, undefined, true).catch(() => {
+      // Silently catch errors to prevent unhandled rejections
+    });
+  };
+
+  #subscribeToTransactionUpdates(): void {
+    if (!this.#useWebsockets) {
+      return;
+    }
+
+    this.#messenger.subscribe(
+      'AccountActivityService:transactionUpdated',
+      this.#transactionUpdatedHandler,
+    );
+  }
+
+  #unsubscribeFromTransactionUpdates(): void {
+    if (!this.#useWebsockets) {
+      return;
+    }
+
+    this.#messenger.unsubscribe(
+      'AccountActivityService:transactionUpdated',
+      this.#transactionUpdatedHandler,
+    );
   }
 }

@@ -189,6 +189,9 @@ export type TransactionControllerFeatureFlags = {
        */
       default?: number;
     };
+
+    /** Whether to use WebSocket for event-driven transaction updates instead of polling. */
+    useWebsockets?: boolean;
   };
 };
 
