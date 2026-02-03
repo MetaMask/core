@@ -42,7 +42,7 @@ jobs:
         env:
           # Optimize Node.js memory for ESLint performance in large monorepos
           # See: https://typescript-eslint.io/troubleshooting/typed-linting/performance
-          NODE_OPTIONS: '--max-semi-space-size=256'
+          NODE_OPTIONS: '--max-semi-space-size=256 --max-old-space-size=8192'
       - name: Require clean working directory
         shell: bash
         run: |
