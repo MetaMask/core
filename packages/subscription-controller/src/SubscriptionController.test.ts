@@ -1032,7 +1032,7 @@ describe('SubscriptionController', () => {
   describe('startPolling', () => {
     let clock: sinon.SinonFakeTimers;
     beforeEach(() => {
-      // eslint-disable-next-line import-x/namespace
+       
       clock = sinon.useFakeTimers();
     });
 

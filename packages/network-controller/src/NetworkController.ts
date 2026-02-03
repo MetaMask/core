@@ -2702,8 +2702,7 @@ export class NetworkController extends BaseController<
     }
 
     if (
-      existingNetworkConfiguration === null ||
-      networkFields.chainId !== existingNetworkConfiguration.chainId
+      networkFields.chainId !== existingNetworkConfiguration?.chainId
     ) {
       const existingNetworkConfigurationViaChainId =
         this.state.networkConfigurationsByChainId[networkFields.chainId];

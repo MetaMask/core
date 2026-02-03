@@ -41,7 +41,6 @@ import type { Hex } from '@metamask/utils';
 import { createDeferredPromise } from '@metamask/utils';
 import assert from 'assert';
 // Necessary for mocking
-// eslint-disable-next-line import-x/namespace
 import * as uuidModule from 'uuid';
 
 import { CHAIN_IDS } from './constants';
