@@ -7,6 +7,11 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+### Added
+
+- Collect and deduplicate `requiredAssets` from `auxiliaryFunds` capability in `wallet_sendCalls` ([#7819](https://github.com/MetaMask/core/pull/7819))
+  - Supports both top-level and per-call capabilities.
+
 ### Changed
 
 - Bump `@metamask/transaction-controller` from `^62.7.0` to `^62.14.0` ([#7596](https://github.com/MetaMask/core/pull/7596), [#7602](https://github.com/MetaMask/core/pull/7602), [#7604](https://github.com/MetaMask/core/pull/7604), [#7642](https://github.com/MetaMask/core/pull/7642), [#7737](https://github.com/MetaMask/core/pull/7737), [#7760](https://github.com/MetaMask/core/pull/7760), [#7775](https://github.com/MetaMask/core/pull/7775), [#7802](https://github.com/MetaMask/core/pull/7802), [#7832](https://github.com/MetaMask/core/pull/7832))
