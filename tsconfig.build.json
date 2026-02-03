@@ -206,9 +206,6 @@
       "path": "./packages/subscription-controller/tsconfig.build.json"
     },
     {
-      "path": "./packages/token-search-discovery-controller/tsconfig.build.json"
-    },
-    {
       "path": "./packages/transaction-controller/tsconfig.build.json"
     },
     {

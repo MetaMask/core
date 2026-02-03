@@ -15,7 +15,11 @@ import type {
   RampAction,
   PaymentMethod,
   PaymentMethodsResponse,
+  QuotesResponse,
+  Quote,
+  GetQuotesParams,
   RampsToken,
+  RampsServiceActions,
 } from './RampsService';
 import type {
   RampsServiceGetGeolocationAction,
@@ -23,12 +27,14 @@ import type {
   RampsServiceGetTokensAction,
   RampsServiceGetProvidersAction,
   RampsServiceGetPaymentMethodsAction,
+  RampsServiceGetQuotesAction,
 } from './RampsService-method-action-types';
 import type {
   RequestCache as RequestCacheType,
   RequestState,
   ExecuteRequestOptions,
   PendingRequest,
+  ResourceType,
 } from './RequestCache';
 import {
   DEFAULT_REQUEST_CACHE_TTL,
@@ -49,6 +55,27 @@ import {
  * when composed with other controllers.
  */
 export const controllerName = 'RampsController';
+
+/**
+ * RampsService action types that RampsController calls via the messenger.
+ * Any host (e.g. mobile) that creates a RampsController messenger must delegate
+ * these actions from the root messenger so the controller can function.
+ */
+export const RAMPS_CONTROLLER_REQUIRED_SERVICE_ACTIONS: readonly RampsServiceActions['type'][] =
+  [
+    'RampsService:getGeolocation',
+    'RampsService:getCountries',
+    'RampsService:getTokens',
+    'RampsService:getProviders',
+    'RampsService:getPaymentMethods',
+    'RampsService:getQuotes',
+  ];
+
+/**
+ * Default TTL for quotes requests (15 seconds).
+ * Quotes are time-sensitive and should have a shorter cache duration.
+ */
+const DEFAULT_QUOTES_TTL = 15000;
 
 // === STATE ===
 
@@ -71,49 +98,64 @@ export type UserRegion = {
 };
 
 /**
+ * Generic type for resource state that bundles data with loading/error states.
+ *
+ * @template TData - The type of the resource data
+ * @template TSelected - The type of the selected item (defaults to null for resources without selection)
+ */
+export type ResourceState<TData, TSelected = null> = {
+  /**
+   * The resource data.
+   */
+  data: TData;
+  /**
+   * The currently selected item, or null if none selected.
+   */
+  selected: TSelected;
+  /**
+   * Whether the resource is currently being fetched.
+   */
+  isLoading: boolean;
+  /**
+   * Error message if the fetch failed, or null.
+   */
+  error: string | null;
+};
+
+/**
  * Describes the shape of the state object for {@link RampsController}.
  */
 export type RampsControllerState = {
   /**
-   * The user's selected region with full country and state objects.
+   * The user's region (full country and state objects).
    * Initially set via geolocation fetch, but can be manually changed by the user.
-   * Once set (either via geolocation or manual selection), it will not be overwritten
-   * by subsequent geolocation fetches.
    */
   userRegion: UserRegion | null;
   /**
-   * The user's selected provider.
-   * Can be manually set by the user.
+   * Countries resource state with data, loading, and error.
+   * Data contains the list of countries available for ramp actions.
    */
-  selectedProvider: Provider | null;
+  countries: ResourceState<Country[]>;
   /**
-   * List of countries available for ramp actions.
+   * Providers resource state with data, selected, loading, and error.
+   * Data contains the list of providers available for the current region.
    */
-  countries: Country[];
+  providers: ResourceState<Provider[], Provider | null>;
   /**
-   * List of providers available for the current region.
+   * Tokens resource state with data, selected, loading, and error.
+   * Data contains topTokens and allTokens arrays.
    */
-  providers: Provider[];
+  tokens: ResourceState<TokensResponse | null, RampsToken | null>;
   /**
-   * Tokens fetched for the current region and action.
-   * Contains topTokens and allTokens arrays.
+   * Payment methods resource state with data, selected, loading, and error.
+   * Data contains payment methods filtered by region, fiat, asset, and provider.
    */
-  tokens: TokensResponse | null;
+  paymentMethods: ResourceState<PaymentMethod[], PaymentMethod | null>;
   /**
-   * The user's selected token.
-   * When set, automatically fetches and sets payment methods for that token.
+   * Quotes resource state with data, loading, and error.
+   * Data contains quotes from multiple providers for the given parameters.
    */
-  selectedToken: RampsToken | null;
-  /**
-   * Payment methods available for the current context.
-   * Filtered by region, fiat, asset, and provider.
-   */
-  paymentMethods: PaymentMethod[];
-  /**
-   * The user's selected payment method.
-   * Can be manually set by the user.
-   */
-  selectedPaymentMethod: PaymentMethod | null;
+  quotes: ResourceState<QuotesResponse | null>;
   /**
    * Cache of request states, keyed by cache key.
    * This stores loading, success, and error states for API requests.
@@ -127,12 +169,6 @@ export type RampsControllerState = {
 const rampsControllerMetadata = {
   userRegion: {
     persist: true,
-    includeInDebugSnapshot: true,
-    includeInStateLogs: true,
-    usedInUi: true,
-  },
-  selectedProvider: {
-    persist: false,
     includeInDebugSnapshot: true,
     includeInStateLogs: true,
     usedInUi: true,
@@ -155,22 +191,16 @@ const rampsControllerMetadata = {
     includeInStateLogs: true,
     usedInUi: true,
   },
-  selectedToken: {
-    persist: false,
-    includeInDebugSnapshot: true,
-    includeInStateLogs: true,
-    usedInUi: true,
-  },
   paymentMethods: {
     persist: false,
     includeInDebugSnapshot: true,
     includeInStateLogs: true,
     usedInUi: true,
   },
-  selectedPaymentMethod: {
+  quotes: {
     persist: false,
     includeInDebugSnapshot: true,
-    includeInStateLogs: true,
+    includeInStateLogs: false,
     usedInUi: true,
   },
   requests: {
@@ -180,6 +210,27 @@ const rampsControllerMetadata = {
     usedInUi: true,
   },
 } satisfies StateMetadata<RampsControllerState>;
+
+/**
+ * Creates a default resource state object.
+ *
+ * @template TData - The type of the resource data.
+ * @template TSelected - The type of the selected item.
+ * @param data - The initial data value.
+ * @param selected - The initial selected value.
+ * @returns A ResourceState object with default loading and error values.
+ */
+function createDefaultResourceState<TData, TSelected = null>(
+  data: TData,
+  selected: TSelected = null as TSelected,
+): ResourceState<TData, TSelected> {
+  return {
+    data,
+    selected,
+    isLoading: false,
+    error: null,
+  };
+}
 
 /**
  * Constructs the default {@link RampsController} state. This allows
@@ -192,15 +243,54 @@ const rampsControllerMetadata = {
 export function getDefaultRampsControllerState(): RampsControllerState {
   return {
     userRegion: null,
-    selectedProvider: null,
-    countries: [],
-    providers: [],
-    tokens: null,
-    selectedToken: null,
-    paymentMethods: [],
-    selectedPaymentMethod: null,
+    countries: createDefaultResourceState<Country[]>([]),
+    providers: createDefaultResourceState<Provider[], Provider | null>(
+      [],
+      null,
+    ),
+    tokens: createDefaultResourceState<
+      TokensResponse | null,
+      RampsToken | null
+    >(null, null),
+    paymentMethods: createDefaultResourceState<
+      PaymentMethod[],
+      PaymentMethod | null
+    >([], null),
+    quotes: createDefaultResourceState<QuotesResponse | null>(null),
     requests: {},
   };
+}
+
+/**
+ * Resets region-dependent resources (userRegion, providers, tokens, paymentMethods, quotes).
+ * Mutates state in place; use from within controller update() for atomic updates.
+ *
+ * @param state - The state object to mutate.
+ * @param options - Options for the reset.
+ * @param options.clearUserRegionData - When true, sets userRegion to null (e.g. for full cleanup).
+ */
+function resetDependentResources(
+  state: RampsControllerState,
+  options?: { clearUserRegionData?: boolean },
+): void {
+  if (options?.clearUserRegionData) {
+    state.userRegion = null;
+  }
+  state.providers.selected = null;
+  state.providers.data = [];
+  state.providers.isLoading = false;
+  state.providers.error = null;
+  state.tokens.selected = null;
+  state.tokens.data = null;
+  state.tokens.isLoading = false;
+  state.tokens.error = null;
+  state.paymentMethods.data = [];
+  state.paymentMethods.selected = null;
+  state.paymentMethods.isLoading = false;
+  state.paymentMethods.error = null;
+  state.quotes.data = null;
+  state.quotes.isLoading = false;
+  state.quotes.error = null;
 }
 
 // === MESSENGER ===
@@ -226,7 +316,8 @@ type AllowedActions =
   | RampsServiceGetCountriesAction
   | RampsServiceGetTokensAction
   | RampsServiceGetProvidersAction
-  | RampsServiceGetPaymentMethodsAction;
+  | RampsServiceGetPaymentMethodsAction
+  | RampsServiceGetQuotesAction;
 
 /**
  * Published when the state of {@link RampsController} changes.
@@ -361,6 +452,34 @@ export class RampsController extends BaseController<
   readonly #pendingRequests: Map<string, PendingRequest> = new Map();
 
   /**
+   * Count of in-flight requests per resource type.
+   * Used so isLoading is only cleared when the last request for that resource finishes.
+   */
+  readonly #pendingResourceCount: Map<ResourceType, number> = new Map();
+
+  /**
+   * Clears the pending resource count map. Used only in tests to exercise the
+   * defensive path when get() returns undefined in the finally block.
+   *
+   * @internal
+   */
+  clearPendingResourceCountForTest(): void {
+    this.#pendingResourceCount.clear();
+  }
+
+  #clearPendingResourceCountForDependentResources(): void {
+    const types: ResourceType[] = [
+      'providers',
+      'tokens',
+      'paymentMethods',
+      'quotes',
+    ];
+    for (const resourceType of types) {
+      this.#pendingResourceCount.delete(resourceType);
+    }
+  }
+
+  /**
    * Constructs a new {@link RampsController}.
    *
    * @param args - The constructor arguments.
@@ -427,9 +546,20 @@ export class RampsController extends BaseController<
     // Create abort controller for this request
     const abortController = new AbortController();
     const lastFetchedAt = Date.now();
+    const { resourceType } = options ?? {};
 
     // Update state to loading
     this.#updateRequestState(cacheKey, createLoadingState());
+
+    // Set resource-level loading state (only on cache miss). Ref-count so concurrent
+    // requests for the same resource type (different cache keys) keep isLoading true.
+    if (resourceType) {
+      const count = this.#pendingResourceCount.get(resourceType) ?? 0;
+      this.#pendingResourceCount.set(resourceType, count + 1);
+      if (count === 0) {
+        this.#setResourceLoading(resourceType, true);
+      }
+    }
 
     // Create the fetch promise
     const promise = (async (): Promise<TResult> => {
@@ -445,6 +575,18 @@ export class RampsController extends BaseController<
           cacheKey,
           createSuccessState(data as Json, lastFetchedAt),
         );
+
+        if (resourceType) {
+          // We need the extra logic because there are two situations where we’re allowed to clear the error:
+          // No callback → always clear
+          // Callback present → clear only when isResultCurrent() returns true.
+          const isCurrent =
+            !options?.isResultCurrent || options.isResultCurrent();
+          if (isCurrent) {
+            this.#setResourceError(resourceType, null);
+          }
+        }
+
         return data;
       } catch (error) {
         // Don't update state if aborted
@@ -452,18 +594,39 @@ export class RampsController extends BaseController<
           throw error;
         }
 
-        const errorMessage = (error as Error)?.message;
+        const errorMessage = (error as Error)?.message ?? 'Unknown error';
 
         this.#updateRequestState(
           cacheKey,
-          createErrorState(errorMessage ?? 'Unknown error', lastFetchedAt),
+          createErrorState(errorMessage, lastFetchedAt),
         );
+
+        if (resourceType) {
+          const isCurrent =
+            !options?.isResultCurrent || options.isResultCurrent();
+          if (isCurrent) {
+            this.#setResourceError(resourceType, errorMessage);
+          }
+        }
+
         throw error;
       } finally {
         // Only delete if this is still our entry (not replaced by a new request)
         const currentPending = this.#pendingRequests.get(cacheKey);
         if (currentPending?.abortController === abortController) {
           this.#pendingRequests.delete(cacheKey);
+        }
+
+        // Clear resource-level loading state only when no requests for this resource remain
+        if (resourceType) {
+          const count = this.#pendingResourceCount.get(resourceType) ?? 0;
+          const next = Math.max(0, count - 1);
+          if (next === 0) {
+            this.#pendingResourceCount.delete(resourceType);
+            this.#setResourceLoading(resourceType, false);
+          } else {
+            this.#pendingResourceCount.set(resourceType, next);
+          }
         }
       }
     })();
@@ -507,15 +670,64 @@ export class RampsController extends BaseController<
   }
 
   #cleanupState(): void {
+    this.#clearPendingResourceCountForDependentResources();
+    this.update((state) =>
+      resetDependentResources(state as unknown as RampsControllerState, {
+        clearUserRegionData: true,
+      }),
+    );
+  }
+
+  /**
+   * Executes a promise without awaiting, swallowing errors.
+   * Errors are stored in state via executeRequest.
+   *
+   * @param promise - The promise to execute.
+   */
+  #fireAndForget<Result>(promise: Promise<Result>): void {
+    promise.catch((_error: unknown) => undefined);
+  }
+
+  /**
+   * Updates a single field (isLoading or error) on a resource state.
+   * All resources share the same ResourceState structure, so we use
+   * dynamic property access to avoid duplicating switch statements.
+   *
+   * @param resourceType - The type of resource.
+   * @param field - The field to update ('isLoading' or 'error').
+   * @param value - The value to set.
+   */
+  #updateResourceField(
+    resourceType: ResourceType,
+    field: 'isLoading' | 'error',
+    value: boolean | string | null,
+  ): void {
     this.update((state) => {
-      state.userRegion = null;
-      state.selectedProvider = null;
-      state.selectedToken = null;
-      state.tokens = null;
-      state.providers = [];
-      state.paymentMethods = [];
-      state.selectedPaymentMethod = null;
+      const resource = state[resourceType];
+      if (resource) {
+        (resource as Record<string, unknown>)[field] = value;
+      }
     });
+  }
+
+  /**
+   * Sets the loading state for a resource type.
+   *
+   * @param resourceType - The type of resource.
+   * @param loading - Whether the resource is loading.
+   */
+  #setResourceLoading(resourceType: ResourceType, loading: boolean): void {
+    this.#updateResourceField(resourceType, 'isLoading', loading);
+  }
+
+  /**
+   * Sets the error state for a resource type.
+   *
+   * @param resourceType - The type of resource.
+   * @param error - The error message, or null to clear.
+   */
+  #setResourceError(resourceType: ResourceType, error: string | null): void {
+    this.#updateResourceField(resourceType, 'error', error);
   }
 
   /**
@@ -596,15 +808,15 @@ export class RampsController extends BaseController<
     const normalizedRegion = region.toLowerCase().trim();
 
     try {
-      const { countries } = this.state;
-      if (!countries || countries.length === 0) {
+      const countriesData = this.state.countries.data;
+      if (!countriesData || countriesData.length === 0) {
         this.#cleanupState();
         throw new Error(
           'No countries found. Cannot set user region without valid country information.',
         );
       }
 
-      const userRegion = findRegionFromCode(normalizedRegion, countries);
+      const userRegion = findRegionFromCode(normalizedRegion, countriesData);
 
       if (!userRegion) {
         this.#cleanupState();
@@ -613,29 +825,39 @@ export class RampsController extends BaseController<
         );
       }
 
-      // Only cleanup state if region is actually changing
       const regionChanged =
         normalizedRegion !== this.state.userRegion?.regionCode;
 
-      // Set the new region atomically with cleanup to avoid intermediate null state
+      const needsRefetch =
+        regionChanged ||
+        !this.state.tokens.data ||
+        this.state.providers.data.length === 0;
+
+      if (regionChanged) {
+        this.#clearPendingResourceCountForDependentResources();
+      }
       this.update((state) => {
         if (regionChanged) {
-          state.selectedProvider = null;
-          state.selectedToken = null;
-          state.tokens = null;
-          state.providers = [];
-          state.paymentMethods = [];
-          state.selectedPaymentMethod = null;
+          resetDependentResources(state as unknown as RampsControllerState);
         }
         state.userRegion = userRegion;
       });
 
-      // Only trigger fetches if region changed or if data is missing
-      if (regionChanged || !this.state.tokens) {
-        this.triggerGetTokens(userRegion.regionCode, 'buy', options);
-      }
-      if (regionChanged || this.state.providers.length === 0) {
-        this.triggerGetProviders(userRegion.regionCode, options);
+      if (needsRefetch) {
+        const refetchPromises: Promise<unknown>[] = [];
+        if (regionChanged || !this.state.tokens.data) {
+          refetchPromises.push(
+            this.getTokens(userRegion.regionCode, 'buy', options),
+          );
+        }
+        if (regionChanged || this.state.providers.data.length === 0) {
+          refetchPromises.push(
+            this.getProviders(userRegion.regionCode, options),
+          );
+        }
+        if (refetchPromises.length > 0) {
+          this.#fireAndForget(Promise.all(refetchPromises));
+        }
       }
 
       return userRegion;
@@ -656,9 +878,9 @@ export class RampsController extends BaseController<
   setSelectedProvider(providerId: string | null): void {
     if (providerId === null) {
       this.update((state) => {
-        state.selectedProvider = null;
-        state.paymentMethods = [];
-        state.selectedPaymentMethod = null;
+        state.providers.selected = null;
+        state.paymentMethods.data = [];
+        state.paymentMethods.selected = null;
       });
       return;
     }
@@ -670,7 +892,7 @@ export class RampsController extends BaseController<
       );
     }
 
-    const { providers } = this.state;
+    const providers = this.state.providers.data;
     if (!providers || providers.length === 0) {
       throw new Error(
         'Providers not loaded. Cannot set selected provider before providers are fetched.',
@@ -685,17 +907,14 @@ export class RampsController extends BaseController<
     }
 
     this.update((state) => {
-      state.selectedProvider = provider;
-      state.paymentMethods = [];
-      state.selectedPaymentMethod = null;
+      state.providers.selected = provider;
+      state.paymentMethods.data = [];
+      state.paymentMethods.selected = null;
     });
 
-    // fetch payment methods for the new provider
-    // this is needed because you can change providers without changing the token
-    // (getPaymentMethods will use state as its default)
-    this.triggerGetPaymentMethods(regionCode, {
-      provider: provider.id,
-    });
+    this.#fireAndForget(
+      this.getPaymentMethods(regionCode, { provider: provider.id }),
+    );
   }
 
   /**
@@ -731,8 +950,8 @@ export class RampsController extends BaseController<
       );
     }
 
-    this.triggerGetTokens(regionCode, 'buy', options);
-    this.triggerGetProviders(regionCode, options);
+    this.#fireAndForget(this.getTokens(regionCode, 'buy', options));
+    this.#fireAndForget(this.getProviders(regionCode, options));
   }
 
   /**
@@ -751,11 +970,11 @@ export class RampsController extends BaseController<
       async () => {
         return this.messenger.call('RampsService:getCountries');
       },
-      options,
+      { ...options, resourceType: 'countries' },
     );
 
     this.update((state) => {
-      state.countries = countries;
+      state.countries.data = countries;
     });
 
     return countries;
@@ -805,14 +1024,20 @@ export class RampsController extends BaseController<
           },
         );
       },
-      options,
+      {
+        ...options,
+        resourceType: 'tokens',
+        isResultCurrent: () =>
+          this.state.userRegion?.regionCode === undefined ||
+          this.state.userRegion?.regionCode === normalizedRegion,
+      },
     );
 
     this.update((state) => {
       const userRegionCode = state.userRegion?.regionCode;
 
       if (userRegionCode === undefined || userRegionCode === normalizedRegion) {
-        state.tokens = tokens;
+        state.tokens.data = tokens;
       }
     });
 
@@ -830,9 +1055,9 @@ export class RampsController extends BaseController<
   setSelectedToken(assetId?: string): void {
     if (!assetId) {
       this.update((state) => {
-        state.selectedToken = null;
-        state.paymentMethods = [];
-        state.selectedPaymentMethod = null;
+        state.tokens.selected = null;
+        state.paymentMethods.data = [];
+        state.paymentMethods.selected = null;
       });
       return;
     }
@@ -844,7 +1069,7 @@ export class RampsController extends BaseController<
       );
     }
 
-    const { tokens } = this.state;
+    const tokens = this.state.tokens.data;
     if (!tokens) {
       throw new Error(
         'Tokens not loaded. Cannot set selected token before tokens are fetched.',
@@ -862,14 +1087,14 @@ export class RampsController extends BaseController<
     }
 
     this.update((state) => {
-      state.selectedToken = token;
-      state.paymentMethods = [];
-      state.selectedPaymentMethod = null;
+      state.tokens.selected = token;
+      state.paymentMethods.data = [];
+      state.paymentMethods.selected = null;
     });
 
-    this.triggerGetPaymentMethods(regionCode, {
-      assetId: token.assetId,
-    });
+    this.#fireAndForget(
+      this.getPaymentMethods(regionCode, { assetId: token.assetId }),
+    );
   }
 
   /**
@@ -924,14 +1149,20 @@ export class RampsController extends BaseController<
           },
         );
       },
-      options,
+      {
+        ...options,
+        resourceType: 'providers',
+        isResultCurrent: () =>
+          this.state.userRegion?.regionCode === undefined ||
+          this.state.userRegion?.regionCode === normalizedRegion,
+      },
     );
 
     this.update((state) => {
       const userRegionCode = state.userRegion?.regionCode;
 
       if (userRegionCode === undefined || userRegionCode === normalizedRegion) {
-        state.providers = providers;
+        state.providers.data = providers;
       }
     });
 
@@ -961,9 +1192,9 @@ export class RampsController extends BaseController<
     const fiatToUse =
       options?.fiat ?? this.state.userRegion?.country?.currency ?? null;
     const assetIdToUse =
-      options?.assetId ?? this.state.selectedToken?.assetId ?? '';
+      options?.assetId ?? this.state.tokens.selected?.assetId ?? '';
     const providerToUse =
-      options?.provider ?? this.state.selectedProvider?.id ?? '';
+      options?.provider ?? this.state.providers.selected?.id ?? '';
 
     if (!regionCode) {
       throw new Error(
@@ -996,12 +1227,25 @@ export class RampsController extends BaseController<
           provider: providerToUse,
         });
       },
-      options,
+      {
+        ...options,
+        resourceType: 'paymentMethods',
+        isResultCurrent: () => {
+          const regionMatch =
+            this.state.userRegion?.regionCode === undefined ||
+            this.state.userRegion?.regionCode === normalizedRegion;
+          const tokenMatch =
+            (this.state.tokens.selected?.assetId ?? '') === assetIdToUse;
+          const providerMatch =
+            (this.state.providers.selected?.id ?? '') === providerToUse;
+          return regionMatch && tokenMatch && providerMatch;
+        },
+      },
     );
 
     this.update((state) => {
-      const currentAssetId = state.selectedToken?.assetId ?? '';
-      const currentProviderId = state.selectedProvider?.id ?? '';
+      const currentAssetId = state.tokens.selected?.assetId ?? '';
+      const currentProviderId = state.providers.selected?.id ?? '';
 
       const tokenSelectionUnchanged = assetIdToUse === currentAssetId;
       const providerSelectionUnchanged = providerToUse === currentProviderId;
@@ -1010,14 +1254,14 @@ export class RampsController extends BaseController<
       // ex: if the user rapidly changes the token or provider, the in-flight payment methods might not be valid
       // so this check will ensure that the payment methods are still valid for the token and provider that were requested
       if (tokenSelectionUnchanged && providerSelectionUnchanged) {
-        state.paymentMethods = response.payments;
+        state.paymentMethods.data = response.payments;
 
         // this will auto-select the first payment method if the selected payment method is not in the new payment methods
         const currentSelectionStillValid = response.payments.some(
-          (pm: PaymentMethod) => pm.id === state.selectedPaymentMethod?.id,
+          (pm: PaymentMethod) => pm.id === state.paymentMethods.selected?.id,
         );
         if (!currentSelectionStillValid) {
-          state.selectedPaymentMethod = response.payments[0] ?? null;
+          state.paymentMethods.selected = response.payments[0] ?? null;
         }
       }
     });
@@ -1035,12 +1279,12 @@ export class RampsController extends BaseController<
   setSelectedPaymentMethod(paymentMethodId?: string): void {
     if (!paymentMethodId) {
       this.update((state) => {
-        state.selectedPaymentMethod = null;
+        state.paymentMethods.selected = null;
       });
       return;
     }
 
-    const { paymentMethods } = this.state;
+    const paymentMethods = this.state.paymentMethods.data;
     if (!paymentMethods || paymentMethods.length === 0) {
       throw new Error(
         'Payment methods not loaded. Cannot set selected payment method before payment methods are fetched.',
@@ -1057,95 +1301,141 @@ export class RampsController extends BaseController<
     }
 
     this.update((state) => {
-      state.selectedPaymentMethod = paymentMethod;
-    });
-  }
-
-  // ============================================================
-  // Sync Trigger Methods
-  // These fire-and-forget methods are for use in React effects.
-  // Errors are stored in state and available via selectors.
-  // ============================================================
-
-  /**
-   * Triggers setting the user region without throwing.
-   *
-   * @param region - The region code to set (e.g., "US-CA").
-   * @param options - Options for cache behavior.
-   */
-  triggerSetUserRegion(region: string, options?: ExecuteRequestOptions): void {
-    this.setUserRegion(region, options).catch(() => {
-      // Error stored in state
+      state.paymentMethods.selected = paymentMethod;
     });
   }
 
   /**
-   * Triggers fetching countries without throwing.
+   * Fetches quotes from all providers for a given set of parameters.
+   * The quotes are saved in the controller state once fetched.
    *
-   * @param options - Options for cache behavior.
-   */
-  triggerGetCountries(options?: ExecuteRequestOptions): void {
-    this.getCountries(options).catch(() => {
-      // Error stored in state
-    });
-  }
-
-  /**
-   * Triggers fetching tokens without throwing.
-   *
-   * @param region - The region code. If not provided, uses userRegion from state.
-   * @param action - The ramp action type ('buy' or 'sell').
-   * @param options - Options for cache behavior.
-   */
-  triggerGetTokens(
-    region?: string,
-    action: 'buy' | 'sell' = 'buy',
-    options?: ExecuteRequestOptions,
-  ): void {
-    this.getTokens(region, action, options).catch(() => {
-      // Error stored in state
-    });
-  }
-
-  /**
-   * Triggers fetching providers without throwing.
-   *
-   * @param region - The region code. If not provided, uses userRegion from state.
-   * @param options - Options for cache behavior and query filters.
-   */
-  triggerGetProviders(
-    region?: string,
-    options?: ExecuteRequestOptions & {
-      provider?: string | string[];
-      crypto?: string | string[];
-      fiat?: string | string[];
-      payments?: string | string[];
-    },
-  ): void {
-    this.getProviders(region, options).catch(() => {
-      // Error stored in state
-    });
-  }
-
-  /**
-   * Triggers fetching payment methods without throwing.
-   *
-   * @param region - User's region code (e.g., "us", "fr", "us-ny").
-   * @param options - Query parameters for filtering payment methods.
+   * @param options - The parameters for fetching quotes.
+   * @param options.region - User's region code. If not provided, uses userRegion from state.
    * @param options.fiat - Fiat currency code. If not provided, uses userRegion currency.
    * @param options.assetId - CAIP-19 cryptocurrency identifier.
-   * @param options.provider - Provider ID path.
+   * @param options.amount - The amount (in fiat for buy, crypto for sell).
+   * @param options.walletAddress - The destination wallet address.
+   * @param options.paymentMethods - Array of payment method IDs. If not provided, uses paymentMethods from state.
+   * @param options.provider - Optional provider ID to filter quotes.
+   * @param options.redirectUrl - Optional redirect URL after order completion.
+   * @param options.action - The ramp action type. Defaults to 'buy'.
+   * @param options.forceRefresh - Whether to bypass cache.
+   * @param options.ttl - Custom TTL for this request.
+   * @returns The quotes response containing success, sorted, error, and customActions.
    */
-  triggerGetPaymentMethods(
-    region?: string,
-    options?: ExecuteRequestOptions & {
-      fiat?: string;
-      assetId?: string;
-      provider?: string;
-    },
-  ): void {
-    this.getPaymentMethods(region, options).catch(() => {
-      // Error stored in state
+  async getQuotes(options: {
+    region?: string;
+    fiat?: string;
+    assetId: string;
+    amount: number;
+    walletAddress: string;
+    paymentMethods?: string[];
+    provider?: string;
+    redirectUrl?: string;
+    action?: RampAction;
+    forceRefresh?: boolean;
+    ttl?: number;
+  }): Promise<QuotesResponse> {
+    const regionToUse = options.region ?? this.state.userRegion?.regionCode;
+    const fiatToUse = options.fiat ?? this.state.userRegion?.country?.currency;
+    const paymentMethodsToUse =
+      options.paymentMethods ??
+      this.state.paymentMethods.data.map((pm: PaymentMethod) => pm.id);
+    const action = options.action ?? 'buy';
+
+    if (!regionToUse) {
+      throw new Error(
+        'Region is required. Either provide a region parameter or ensure userRegion is set in controller state.',
+      );
+    }
+
+    if (!fiatToUse) {
+      throw new Error(
+        'Fiat currency is required. Either provide a fiat parameter or ensure userRegion is set in controller state.',
+      );
+    }
+
+    if (!paymentMethodsToUse || paymentMethodsToUse.length === 0) {
+      throw new Error(
+        'Payment methods are required. Either provide paymentMethods parameter or ensure paymentMethods are set in controller state.',
+      );
+    }
+
+    if (options.amount <= 0 || !Number.isFinite(options.amount)) {
+      throw new Error('Amount must be a positive finite number.');
+    }
+
+    if (!options.assetId || options.assetId.trim() === '') {
+      throw new Error('assetId is required.');
+    }
+
+    if (!options.walletAddress || options.walletAddress.trim() === '') {
+      throw new Error('walletAddress is required.');
+    }
+
+    const normalizedRegion = regionToUse.toLowerCase().trim();
+    const normalizedFiat = fiatToUse.toLowerCase().trim();
+    const normalizedAssetId = options.assetId.trim();
+    const normalizedWalletAddress = options.walletAddress.trim();
+
+    const cacheKey = createCacheKey('getQuotes', [
+      normalizedRegion,
+      normalizedFiat,
+      normalizedAssetId,
+      options.amount,
+      normalizedWalletAddress,
+      [...paymentMethodsToUse].sort().join(','),
+      options.provider,
+      options.redirectUrl,
+      action,
+    ]);
+
+    const params: GetQuotesParams = {
+      region: normalizedRegion,
+      fiat: normalizedFiat,
+      assetId: normalizedAssetId,
+      amount: options.amount,
+      walletAddress: normalizedWalletAddress,
+      paymentMethods: paymentMethodsToUse,
+      provider: options.provider,
+      redirectUrl: options.redirectUrl,
+      action,
+    };
+
+    const response = await this.executeRequest(
+      cacheKey,
+      async () => {
+        return this.messenger.call('RampsService:getQuotes', params);
+      },
+      {
+        forceRefresh: options.forceRefresh,
+        ttl: options.ttl ?? DEFAULT_QUOTES_TTL,
+        resourceType: 'quotes',
+        isResultCurrent: () =>
+          this.state.userRegion?.regionCode === undefined ||
+          this.state.userRegion?.regionCode === normalizedRegion,
+      },
+    );
+
+    this.update((state) => {
+      const userRegionCode = state.userRegion?.regionCode;
+
+      if (userRegionCode === undefined || userRegionCode === normalizedRegion) {
+        state.quotes.data = response;
+      }
     });
+
+    return response;
+  }
+
+  /**
+   * Extracts the widget URL from a quote for redirect providers.
+   * Returns the widget URL if available, or null if the quote doesn't have one.
+   *
+   * @param quote - The quote to extract the widget URL from.
+   * @returns The widget URL string, or null if not available.
+   */
+  getWidgetUrl(quote: Quote): string | null {
+    return quote.quote?.widgetUrl ?? null;
   }
 }

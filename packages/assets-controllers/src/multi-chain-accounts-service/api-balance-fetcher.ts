@@ -113,8 +113,8 @@ export class AccountsApiBalanceFetcher implements BalanceFetcher {
       // Only fetch staked balance on supported networks (mainnet and hoodi)
       if (
         ![
-          SupportedStakedBalanceNetworks.mainnet,
-          SupportedStakedBalanceNetworks.hoodi,
+          SupportedStakedBalanceNetworks.Mainnet,
+          SupportedStakedBalanceNetworks.Hoodi,
         ].includes(chainIdHex as SupportedStakedBalanceNetworks)
       ) {
         continue;
