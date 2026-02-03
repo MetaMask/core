@@ -873,31 +873,17 @@ export class SeedlessOnboardingController<
         password,
       });
 
-      const { accessToken: accessTokenAfterUnlock } = this.state;
+      const accessTokenFromDecryptedVault = deserializedVaultData.accessToken;
 
-      let latestAccessToken = accessTokenAfterUnlock;
+      // Pick the latest access token - the token from state might be newer (from refreshAuthTokens)
+      // than the token stored in the vault.
+      const latestAccessToken = this.#pickLatestAccessToken(
+        accessTokenBeforeUnlock,
+        accessTokenFromDecryptedVault,
+      );
 
-      // compare the access token from state before unlocking and after unlocking, take the latest access token if it's different.
-      if (
-        accessTokenBeforeUnlock &&
-        accessTokenAfterUnlock &&
-        accessTokenBeforeUnlock !== accessTokenAfterUnlock
-      ) {
-        // If there was an access token in the state before unlocking, it might be the token set from the `refreshAuthTokens` method.
-        // Compare it with the access token value from decrypted vault after unlocking and take the latest access token.
-        latestAccessToken = compareAndGetLatestToken(
-          accessTokenBeforeUnlock,
-          accessTokenAfterUnlock,
-        );
-      }
-
-      // update the state and vault with the latest access token if it's different from the current access token in the state.
-      if (latestAccessToken && latestAccessToken !== accessTokenAfterUnlock) {
-        // update the access token in the state with the latest access token if it's different from the decrypted access token after unlocking
-        this.update((state) => {
-          state.accessToken = latestAccessToken;
-        });
-
+      // update the state and vault with the latest access token `ONLY` if it's different from the current access token in the state.
+      if (latestAccessToken !== accessTokenFromDecryptedVault) {
         const updatedVaultData = {
           ...deserializedVaultData,
           accessToken: latestAccessToken,
@@ -1044,27 +1030,12 @@ export class SeedlessOnboardingController<
       });
       this.#setUnlocked();
 
-      // accessToken from decrypted vault
-      const accessTokenFromDecryptedVault = decryptedVaultData.accessToken;
-
-      // compare the two access tokens, take the latest access token if it's different.
-      if (
-        accessTokenBeforeUnlock &&
-        accessTokenFromDecryptedVault &&
-        accessTokenBeforeUnlock !== accessTokenFromDecryptedVault
-      ) {
-        const latestAccessToken = compareAndGetLatestToken(
-          accessTokenBeforeUnlock,
-          accessTokenFromDecryptedVault,
-        );
-        // update the access token in the state with the latest access token if it's different from the decrypted access token after unlocking
-        // later when we call `syncLatestGlobalPassword`, the encrypted vault will be updated with the latest access token.
-        this.update((state) => {
-          state.accessToken = latestAccessToken;
-        });
-      }
-
-      this.#resetPasswordOutdatedCache();
+      // Pick the latest access token - the token from state might be newer (from refreshAuthTokens)
+      // than the token stored in the vault. The vault will be updated later by syncLatestGlobalPassword.
+      this.#pickLatestAccessToken(
+        accessTokenBeforeUnlock,
+        decryptedVaultData.accessToken,
+      );
     } catch (error) {
       if (this.#isAuthTokenError(error)) {
         throw error;
@@ -1179,6 +1150,39 @@ export class SeedlessOnboardingController<
 
   #setUnlocked(): void {
     this.#isUnlocked = true;
+  }
+
+  /**
+   * Compares two access tokens and picks the latest one based on JWT expiration.
+   * If the tokens are different, the state is updated with the latest token.
+   *
+   * @param tokenBeforeUnlock - The access token from state before unlocking (may have been set by refreshAuthTokens).
+   * @param tokenAfterUnlock - The access token from the decrypted vault after unlocking.
+   * @returns The latest access token, or the token after unlock if no reconciliation was needed.
+   */
+  #pickLatestAccessToken(
+    tokenBeforeUnlock: string | undefined,
+    tokenAfterUnlock: string,
+  ): string {
+    let latestToken = tokenAfterUnlock;
+
+    if (
+      tokenBeforeUnlock &&
+      tokenAfterUnlock &&
+      tokenBeforeUnlock !== tokenAfterUnlock
+    ) {
+      latestToken = compareAndGetLatestToken(
+        tokenBeforeUnlock,
+        tokenAfterUnlock,
+      );
+
+      // Update the access token in the state with the latest access token
+      this.update((state) => {
+        state.accessToken = latestToken;
+      });
+    }
+
+    return latestToken;
   }
 
   /**
