@@ -249,6 +249,9 @@
     },
     "id-denylist": {
       "count": 1
+    },
+    "import-x/namespace": {
+      "count": 9
     }
   },
   "packages/assets-controllers/src/NftController.ts": {
@@ -338,6 +341,9 @@
     },
     "id-denylist": {
       "count": 2
+    },
+    "import-x/namespace": {
+      "count": 7
     }
   },
   "packages/assets-controllers/src/TokenRatesController.test.ts": {
@@ -366,6 +372,9 @@
   "packages/assets-controllers/src/TokensController.test.ts": {
     "@typescript-eslint/explicit-function-return-type": {
       "count": 6
+    },
+    "import-x/namespace": {
+      "count": 1
     }
   },
   "packages/assets-controllers/src/TokensController.ts": {
@@ -1041,6 +1050,9 @@
     },
     "@typescript-eslint/naming-convention": {
       "count": 1
+    },
+    "import-x/namespace": {
+      "count": 2
     }
   },
   "packages/gas-fee-controller/src/GasFeeController.ts": {
@@ -1070,6 +1082,9 @@
   },
   "packages/logging-controller/src/LoggingController.test.ts": {
     "@typescript-eslint/explicit-function-return-type": {
+      "count": 1
+    },
+    "import-x/namespace": {
       "count": 1
     }
   },
@@ -1468,6 +1483,9 @@
   "packages/phishing-controller/src/utils.test.ts": {
     "@typescript-eslint/explicit-function-return-type": {
       "count": 2
+    },
+    "import-x/namespace": {
+      "count": 5
     }
   },
   "packages/phishing-controller/src/utils.ts": {

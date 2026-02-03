@@ -28,13 +28,6 @@ const config = createConfig([
       // Enabling it with error suppression breaks `--fix`, because the autofixer for this rule
       // does not work very well.
       'jsdoc/require-jsdoc': 'off',
-
-      // Performance optimizations for large monorepos
-      // See: https://typescript-eslint.io/troubleshooting/typed-linting/performance
-      // Prettier runs separately via `yarn lint:misc`, no need to run through ESLint (~30% savings)
-      'prettier/prettier': 'off',
-      // This rule is very expensive (~22% of lint time) and provides limited value
-      'import-x/namespace': 'off',
     },
     settings: {
       jsdoc: {

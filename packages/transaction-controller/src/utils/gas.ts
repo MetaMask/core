@@ -361,7 +361,8 @@ export async function simulateGasBatch({
     });
 
     if (
-      response?.transactions?.length !== transactions.length
+      !response?.transactions ||
+      response.transactions.length !== transactions.length
     ) {
       throw new Error('Simulation response does not match transaction count');
     }
