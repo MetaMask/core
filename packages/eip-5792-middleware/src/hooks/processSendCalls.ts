@@ -3,6 +3,7 @@ import { JsonRpcError, providerErrors, rpcErrors } from '@metamask/rpc-errors';
 import type {
   BatchTransactionParams,
   IsAtomicBatchSupportedResultEntry,
+  RequiredAsset,
   SecurityAlertResponse,
   TransactionController,
   ValidateSecurityRequest,
@@ -217,16 +218,17 @@ async function processSingleTransaction({
   };
   validateSecurity(securityRequest, chainId);
 
-  dedupeAuxiliaryFundsRequiredAssets(sendCalls);
+  const requiredAssets = dedupeAuxiliaryFundsRequiredAssets(sendCalls);
 
   const batchId = generateBatchId();
 
   await addTransaction(txParams, {
-    requestId,
+    batchId,
     networkClientId,
     origin,
+    requestId,
+    requiredAssets,
     securityAlertResponse: { securityAlertId } as SecurityAlertResponse,
-    batchId,
   });
   return batchId;
 }
@@ -306,13 +308,14 @@ async function processMultipleTransaction({
     isAuxiliaryFundsSupported,
   );
 
-  dedupeAuxiliaryFundsRequiredAssets(sendCalls);
+  const requiredAssets = dedupeAuxiliaryFundsRequiredAssets(sendCalls);
 
   const result = await addTransactionBatch({
     from,
     networkClientId,
     origin,
     requestId,
+    requiredAssets,
     securityAlertId,
     transactions,
     validateSecurity,
@@ -588,36 +591,55 @@ function validateUpgrade(
 }
 
 /**
- * Function to possibly deduplicate `auxiliaryFunds` capability `requiredAssets`.
- * Does nothing if no `requiredAssets` exists in `auxiliaryFunds` capability.
+ * Collects and deduplicates `auxiliaryFunds` capability `requiredAssets` from
+ * both top-level capabilities and individual call capabilities.
  *
  * @param sendCalls - The original sendCalls request.
+ * @returns The deduplicated required assets array, or undefined if none exist.
  */
-function dedupeAuxiliaryFundsRequiredAssets(sendCalls: SendCallsPayload): void {
+function dedupeAuxiliaryFundsRequiredAssets(
+  sendCalls: SendCallsPayload,
+): RequiredAsset[] | undefined {
+  const allRequiredAssets: SendCallsRequiredAssetsParam[] = [];
+
   if (sendCalls.capabilities?.auxiliaryFunds?.requiredAssets) {
-    const { requiredAssets } = sendCalls.capabilities.auxiliaryFunds;
-    // Group assets by their address (lowercased) and standard
-    const grouped = groupBy(
-      requiredAssets,
-      (asset) => `${asset.address.toLowerCase()}-${asset.standard}`,
+    allRequiredAssets.push(
+      ...sendCalls.capabilities.auxiliaryFunds.requiredAssets,
     );
-
-    // For each group, sum the amounts and return a single asset
-    const deduplicatedAssets = Object.values(grouped).map((group) => {
-      if (group.length === 1) {
-        return group[0];
-      }
-
-      const totalAmount = group.reduce((sum, asset) => {
-        return sum + BigInt(asset.amount);
-      }, 0n);
-
-      return {
-        ...group[0],
-        amount: add0x(totalAmount.toString(16)),
-      };
-    });
-
-    sendCalls.capabilities.auxiliaryFunds.requiredAssets = deduplicatedAssets;
   }
+
+  for (const call of sendCalls.calls) {
+    const callRequiredAssets =
+      call.capabilities?.auxiliaryFunds?.requiredAssets;
+
+    if (callRequiredAssets) {
+      allRequiredAssets.push(...callRequiredAssets);
+    }
+  }
+
+  if (allRequiredAssets.length === 0) {
+    return undefined;
+  }
+
+  const grouped = groupBy(
+    allRequiredAssets,
+    (asset) => `${asset.address.toLowerCase()}-${asset.standard}`,
+  );
+
+  const deduplicatedAssets = Object.values(grouped).map((group) => {
+    if (group.length === 1) {
+      return group[0];
+    }
+
+    const totalAmount = group.reduce((sum, asset) => {
+      return sum + BigInt(asset.amount);
+    }, 0n);
+
+    return {
+      ...group[0],
+      amount: add0x(totalAmount.toString(16)),
+    };
+  });
+
+  return deduplicatedAssets;
 }
