@@ -7,6 +7,14 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+### Changed
+
+- Simplified controller state and API service structure
+  - **BREAKING:** `configs.networks` is now `Record<string, NetworkConfiguration>` (removed `NetworkConfigEntry` wrapper; consumers should use `state.configs.networks[chainId]` directly instead of `state.configs.networks[chainId]?.value`)
+  - **BREAKING:** Removed `fetchError` from state; errors are reported via `messenger.captureException` instead
+  - Renamed `transformers.ts` to `filters.ts` in config-registry-api-service
+  - Simplified `filterNetworks` implementation
+
 ### Added
 
 - Initial release of `@metamask/config-registry-controller` ([#7668](https://github.com/MetaMask/core/pull/7668))

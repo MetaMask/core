@@ -8,7 +8,6 @@ export type {
   ConfigRegistryControllerEvents,
   ConfigRegistryControllerStateChangeEvent,
   ConfigRegistryMessenger,
-  NetworkConfigEntry,
 } from './ConfigRegistryController';
 export {
   ConfigRegistryController,

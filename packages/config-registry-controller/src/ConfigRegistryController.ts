@@ -12,12 +12,10 @@ import type { NetworkConfiguration } from '@metamask/network-controller';
 import { StaticIntervalPollingController } from '@metamask/polling-controller';
 import { RemoteFeatureFlagControllerGetStateAction } from '@metamask/remote-feature-flag-controller';
 import { Duration, inMilliseconds } from '@metamask/utils';
-import type { Json } from '@metamask/utils';
 
 import type {
   FetchConfigOptions,
   FetchConfigResult,
-  RegistryNetworkConfig,
 } from './config-registry-api-service';
 import { filterNetworks } from './config-registry-api-service';
 import { isConfigRegistryApiEnabled as defaultIsConfigRegistryApiEnabled } from './utils/feature-flags';
@@ -25,12 +23,6 @@ import { isConfigRegistryApiEnabled as defaultIsConfigRegistryApiEnabled } from 
 const controllerName = 'ConfigRegistryController';
 
 export const DEFAULT_POLLING_INTERVAL = inMilliseconds(1, Duration.Day);
-
-export type NetworkConfigEntry = {
-  key: string;
-  value: RegistryNetworkConfig;
-  metadata?: Json;
-};
 
 /**
  * State for the ConfigRegistryController.
@@ -113,7 +105,7 @@ export type ConfigRegistryControllerStartPollingAction = {
 
 export type ConfigRegistryControllerStopPollingAction = {
   type: `${typeof controllerName}:stopPolling`;
-  handler: (token?: string) => void;
+  handler: () => void;
 };
 
 export type ConfigRegistryControllerActions =
@@ -210,7 +202,6 @@ export class ConfigRegistryController extends StaticIntervalPollingController<nu
     const isApiEnabled = this.#isConfigRegistryApiEnabled(this.messenger);
 
     if (!isApiEnabled) {
-      // The config registry API will use the configuration that is already
       return;
     }
 

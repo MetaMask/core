@@ -2365,8 +2365,8 @@ describe('ConfigRegistryController', () => {
         expect(executePollSpy).toHaveBeenCalledTimes(1);
         executePollSpy.mockClear();
 
-        // Stop with token via messenger
-        messenger.call('ConfigRegistryController:stopPolling', token);
+        // Stop via messenger action (stops all polling)
+        messenger.call('ConfigRegistryController:stopPolling');
         await advanceTime({ clock, duration: DEFAULT_POLLING_INTERVAL });
         expect(executePollSpy).not.toHaveBeenCalled();
       });
