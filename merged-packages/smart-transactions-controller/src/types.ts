@@ -10,6 +10,7 @@ export type SentinelMeta = {
   kind?: Kind;
   client?: string;
   wallet?: string;
+  origin?: string;
 };
 
 // This list does not belong here, but as these are reported to tx-sentinel, it is ok to have it here for now.
