@@ -233,7 +233,6 @@ const chainIdToNativeTokenAddress: Record<Hex, Hex> = {
   '0x64': '0xe91d153e0b41518a2ce8dd3d7944fa863463a97d', // Gnosis
   '0x1e': '0x542fda317318ebf1d3deaf76e0b632741a7e677d', // Rootstock Mainnet - Native symbol: RBTC
   '0x2611': '0xeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeee', // Plasma mainnet - native symbol: XPL
-  '0x15b38': '0x677f7e16c7dd57be1d4c8ad1244883214953dc47', // Chiliz Mainnet - Native symbol: CHZ
 };
 
 /**

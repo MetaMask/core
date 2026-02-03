@@ -9,7 +9,7 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ### Added
 
-- Add CHZ (0x15b38) mapping to eip155:88888/erc20:0x677F7e16C7Dd57be1D4C8aD1244883214953DC47 ([#7794](https://github.com/MetaMask/core/pull/7794))
+- Add CHZ (0x15b38) mapping to eip155:88888/erc20:0x677f7e16c7dd57be1d4c8ad1244883214953dc47 ([#7794](https://github.com/MetaMask/core/pull/7794))
 
 ## [99.2.0]
 
@@ -29,7 +29,7 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 ### Removed
 
 - Removed token-search-discovery-controller package ([#7789](https://github.com/MetaMask/core/pull/7789))
-- Adds CHZ (0x15b38) mapping to eip155:88888/erc20:0x677F7e16C7Dd57be1D4C8aD1244883214953DC47 ([#7794](https://github.com/MetaMask/core/pull/7794))
+- Adds CHZ (0x15b38) mapping to eip155:88888/erc20:0x677f7e16c7dd57be1d4c8ad1244883214953dc47 ([#7794](https://github.com/MetaMask/core/pull/7794))
 
 ## [99.1.0]
 
