@@ -9,17 +9,6 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [5.1.0]
 
-### Uncategorized
-
-- chore: upgrade Jest-related packages to latest 27.x versions ([#7792](https://github.com/MetaMask/core/pull/7792))
-- fix(AssetController): get relevant metadata ([#7735](https://github.com/MetaMask/core/pull/7735))
-- fix(core-backend): fix auth token caching to not cache null/undefines values ([#7686](https://github.com/MetaMask/core/pull/7686))
-- Reorganize contributor docs ([#7586](https://github.com/MetaMask/core/pull/7586))
-- chore(lint): Fix suppressed ESLint errors in `core-backend` package ([#7490](https://github.com/MetaMask/core/pull/7490))
-- chore: Re-enable `@typescript-eslint/prefer-optional-chain` ([#7314](https://github.com/MetaMask/core/pull/7314))
-- chore: Update ESLint config packages to v15 ([#7305](https://github.com/MetaMask/core/pull/7305))
-- chore: Re-enable `@typescript-eslint/no-unnecessary-type-assertions` ([#7296](https://github.com/MetaMask/core/pull/7296))
-
 ### Added
 
 - Add `ApiPlatformClient` for unified access to MetaMask backend APIs with TanStack Query caching ([#7658](https://github.com/MetaMask/core/pull/7658))
