@@ -868,8 +868,6 @@ export class AccountsController extends BaseController<
             );
 
             if (account) {
-              // Re-compute the list of accounts everytime, so we can make sure new names
-              // are also considered.
               const accounts = Object.values(
                 internalAccounts.accounts,
               ) as InternalAccount[];
