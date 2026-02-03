@@ -9,8 +9,7 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ### Added
 
-- Collect and deduplicate `requiredAssets` from `auxiliaryFunds` capability in `wallet_sendCalls` ([#7819](https://github.com/MetaMask/core/pull/7819))
-  - Supports both top-level and per-call capabilities.
+- Pass `requiredAssets` from `wallet_sendCalls` to `addTransaction` and `addTransactionBatch` ([#7819](https://github.com/MetaMask/core/pull/7819))
 
 ### Changed
 
