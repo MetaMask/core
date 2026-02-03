@@ -5,7 +5,10 @@ import type {
   MultichainAssetsRatesControllerState,
   TokenRatesControllerState,
 } from '@metamask/assets-controllers';
-import type { GasFeeEstimatesByChainId } from '@metamask/gas-fee-controller';
+import type {
+  GasFeeEstimates,
+  GasFeeEstimatesByChainId,
+} from '@metamask/gas-fee-controller';
 import type { CaipAssetType } from '@metamask/utils';
 import { isStrictHexString } from '@metamask/utils';
 import { BigNumber } from 'bignumber.js';
@@ -67,7 +70,7 @@ type RemoteFeatureFlagControllerState = {
   };
 };
 export type BridgeAppState = BridgeControllerState & {
-  gasFeeEstimates: GasFeeEstimates;
+  gasFeeEstimatesByChainId: GasFeeEstimatesByChainId;
 } & ExchangeRateControllerState & {
     participateInMetaMetrics: boolean;
   } & RemoteFeatureFlagControllerState;
@@ -221,33 +224,35 @@ export const selectIsAssetExchangeRateInState = (
  * Selects the gas fee estimates from the gas fee controller. All potential networks
  * support EIP1559 gas fees so assume that gasFeeEstimates is of type GasFeeEstimates
  *
- * @param options - The gas fee estimates by chain ID
- * @param options.gasFeeEstimatesByChainId - gasEstimates by Hex ChainId
- * @param options.quotes - Fetched bridge/swap quotes
+ * @param state - The state of the bridge controller and its dependency controllers
+ * @param state.gasFeeEstimatesByChainId - gasEstimates by Hex ChainId
+ * @param state.quotes - Fetched bridge/swap quotes
  * @returns The gas fee estimates in decGWEI
  */
 const selectBridgeFeesPerGas = createBridgeSelector(
   [
-    ({ gasFeeEstimatesByChainId }): GasFeeEstimatesByChainId =>
-      gasFeeEstimatesByChainId,
-    ({ quotes }): ChainId => quotes?.[0]?.quote.srcChainId,
+    (state) => state.gasFeeEstimatesByChainId,
+    (state) => state.quotes?.[0]?.quote.srcChainId,
   ],
-  (estimatesByChainId, srcChainId) => {
+  (gasFeeEstimatesByChainId, srcChainId) => {
     if (!srcChainId) {
       return null;
     }
     if (isNonEvmChainId(srcChainId)) {
       return null;
     }
-    const gasFeeEstimates =
-      estimatesByChainId?.[formatChainIdToHex(srcChainId)]?.gasFeeEstimates;
+    // @ts-expect-error - all supported networks use this type of estimates
+    const gasFeeEstimates: GasFeeEstimates | undefined =
+      gasFeeEstimatesByChainId?.[
+        formatChainIdToHex(srcChainId) as keyof typeof gasFeeEstimatesByChainId
+      ]?.gasFeeEstimates;
     if (!gasFeeEstimates) {
       return null;
     }
     return {
       estimatedBaseFeeInDecGwei: gasFeeEstimates.estimatedBaseFee,
       feePerGasInDecGwei:
-        gasFeeEstimates?.[BRIDGE_PREFERRED_GAS_ESTIMATE]?.suggestedMaxFeePerGas,
+        gasFeeEstimates[BRIDGE_PREFERRED_GAS_ESTIMATE]?.suggestedMaxFeePerGas,
       maxFeePerGasInDecGwei: gasFeeEstimates.high?.suggestedMaxFeePerGas,
     };
   },
@@ -435,7 +440,7 @@ export const selectIsQuoteExpired = createBridgeSelector(
     selectIsQuoteGoingToRefresh,
     ({ quotesLastFetched }) => quotesLastFetched,
     selectQuoteRefreshRate,
-    (_, __, currentTimeInMs: number) => currentTimeInMs,
+    (_, _ignoredParam, currentTimeInMs: number) => currentTimeInMs,
   ],
   (isQuoteGoingToRefresh, quotesLastFetched, refreshRate, currentTimeInMs) =>
     Boolean(

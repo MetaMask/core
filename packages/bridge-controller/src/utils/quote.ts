@@ -199,7 +199,7 @@ const calcTotalGasFee = ({
   resetApprovalGasLimit?: number | null;
   tradeGasLimit?: number | null;
   l1GasFeesInHexWei?: string | null;
-  feePerGasInDecGwei: string;
+  feePerGasInDecGwei?: string;
   nativeToDisplayCurrencyExchangeRate?: string;
   nativeToUsdExchangeRate?: string;
 }) => {
@@ -209,7 +209,7 @@ const calcTotalGasFee = ({
 
   const l1GasFeesInDecGWei = weiHexToGweiDec(toHex(l1GasFeesInHexWei ?? '0'));
   const gasFeesInDecGwei = totalGasLimitInDec
-    .times(feePerGasInDecGwei)
+    .times(feePerGasInDecGwei ?? '0')
     .plus(l1GasFeesInDecGWei);
   const gasFeesInDecEth = gasFeesInDecGwei.times(new BigNumber(10).pow(-9));
 
@@ -235,8 +235,8 @@ export const calcEstimatedAndMaxTotalGasFee = ({
   usdExchangeRate: nativeToUsdExchangeRate,
 }: {
   bridgeQuote: QuoteResponse<TxData, TxData> & L1GasFees;
-  maxFeePerGasInDecGwei: string;
-  feePerGasInDecGwei: string;
+  maxFeePerGasInDecGwei?: string;
+  feePerGasInDecGwei?: string;
 } & ExchangeRate): QuoteMetadata['gasFee'] => {
   // Estimated gas fees spent after receiving refunds, this is shown to the user
   const {
