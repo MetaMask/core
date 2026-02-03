@@ -611,10 +611,7 @@ export class RampsController extends BaseController<
           this.#pendingRequests.delete(cacheKey);
         }
 
-        if (
-          resourceType &&
-          !this.#hasPendingRequestForResource(resourceType)
-        ) {
+        if (resourceType && !this.#hasPendingRequestForResource(resourceType)) {
           this.#setResourceLoading(resourceType, false);
         }
       }
