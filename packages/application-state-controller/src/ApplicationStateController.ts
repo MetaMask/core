@@ -61,8 +61,8 @@ export type ApplicationStateControllerGetStateAction = ControllerGetStateAction<
 /**
  * Sets whether the client (UI) is open.
  */
-export type ApplicationStateControllerSetClientStateAction = {
-  type: `${typeof controllerName}:setClientState`;
+export type ApplicationStateControllerSetClientOpenAction = {
+  type: `${typeof controllerName}:setClientOpen`;
   handler: (open: boolean) => void;
 };
 
@@ -71,7 +71,7 @@ export type ApplicationStateControllerSetClientStateAction = {
  */
 export type ApplicationStateControllerActions =
   | ApplicationStateControllerGetStateAction
-  | ApplicationStateControllerSetClientStateAction;
+  | ApplicationStateControllerSetClientOpenAction;
 
 /**
  * Actions from other messengers that {@link ApplicationStateController} calls.
@@ -135,13 +135,13 @@ export type ApplicationStateControllerOptions = {
  * - Real-time subscriptions can pause when not visible
  *
  * **Platform Integration:**
- * Platform code should call `ApplicationStateController:setClientState` via messenger.
+ * Platform code should call `ApplicationStateController:setClientOpen` via messenger.
  *
  * @example
  * ```typescript
  * // In MetamaskController or platform code
  * set isClientOpen(open) {
- *   this.controllerMessenger.call('ApplicationStateController:setClientState', open);
+ *   this.controllerMessenger.call('ApplicationStateController:setClientOpen', open);
  * }
  *
  * // Consumer controller subscribing to state changes
@@ -186,10 +186,10 @@ export class ApplicationStateController extends BaseController<
       },
     });
 
-    // Register the setClientState action
+    // Register the setClientOpen action
     this.messenger.registerActionHandler(
-      `${controllerName}:setClientState`,
-      this.setClientState.bind(this),
+      `${controllerName}:setClientOpen`,
+      this.setClientOpen.bind(this),
     );
   }
 
@@ -202,7 +202,7 @@ export class ApplicationStateController extends BaseController<
    *
    * @param open - Whether the client is open.
    */
-  setClientState(open: boolean): void {
+  setClientOpen(open: boolean): void {
     if (this.state.isClientOpen !== open) {
       this.update((state) => {
         state.isClientOpen = open;

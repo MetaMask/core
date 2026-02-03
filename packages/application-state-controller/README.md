@@ -4,7 +4,7 @@ Manages application lifecycle state (client open/closed) for cross-platform Meta
 
 ## Overview
 
-The `ApplicationStateController` provides a centralized way for controllers to respond to application lifecycle changes. Platform code calls `ApplicationStateController:setClientState` via messenger, and other controllers subscribe to `stateChange` events.
+The `ApplicationStateController` provides a centralized way for controllers to respond to application lifecycle changes. Platform code calls `ApplicationStateController:setClientOpen` via messenger, and other controllers subscribe to `stateChange` events.
 
 ### The Problem It Solves
 
@@ -31,7 +31,7 @@ With `ApplicationStateController`, controllers manage themselves:
 ```typescript
 // Platform code calls the controller via messenger
 set isClientOpen(open) {
-  this.controllerMessenger.call('ApplicationStateController:setClientState', open);
+  this.controllerMessenger.call('ApplicationStateController:setClientOpen', open);
 }
 
 // Controllers subscribe to stateChange and manage themselves
@@ -92,7 +92,7 @@ class MetamaskController {
   // Platform calls this when UI opens/closes
   set isClientOpen(open) {
     this.controllerMessenger.call(
-      'ApplicationStateController:setClientState',
+      'ApplicationStateController:setClientOpen',
       open,
     );
   }
@@ -110,7 +110,7 @@ AppState.addEventListener('change', (nextAppState) => {
     return;
   }
   controllerMessenger.call(
-    'ApplicationStateController:setClientState',
+    'ApplicationStateController:setClientOpen',
     nextAppState === 'active',
   );
 });
@@ -197,7 +197,7 @@ Note: State is not persisted. It always starts as `false`.
 | Action                                      | Parameters      | Description                      |
 | ------------------------------------------- | --------------- | -------------------------------- |
 | `ApplicationStateController:getState`       | none            | Returns current state.           |
-| `ApplicationStateController:setClientState` | `open: boolean` | Sets whether the client is open. |
+| `ApplicationStateController:setClientOpen` | `open: boolean` | Sets whether the client is open. |
 
 ### Events
 

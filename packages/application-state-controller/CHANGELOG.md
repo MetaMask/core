@@ -11,7 +11,7 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 - Initial release of `@metamask/application-state-controller` ([#7808](https://github.com/MetaMask/core/pull/7808))
   - `ApplicationStateController` for managing client (UI) open/closed state
-  - `ApplicationStateController:setClientState` messenger action for platform code to call
+  - `ApplicationStateController:setClientOpen` messenger action for platform code to call
   - `ApplicationStateController:stateChange` event for controllers to subscribe to lifecycle changes
   - `isClientOpen` state property (not persisted - always starts as `false`)
   - `selectIsClientOpen` selector for derived state access

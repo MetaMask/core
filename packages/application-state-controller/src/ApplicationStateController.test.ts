@@ -84,11 +84,11 @@ describe('ApplicationStateController', () => {
     });
   });
 
-  describe('setClientState', () => {
+  describe('setClientOpen', () => {
     it('updates state when client opens', () => {
       const { controller } = createController();
 
-      controller.setClientState(true);
+      controller.setClientOpen(true);
 
       expect(controller.state.isClientOpen).toBe(true);
       expect(controller.isClientOpen).toBe(true);
@@ -96,9 +96,9 @@ describe('ApplicationStateController', () => {
 
     it('updates state when client closes', () => {
       const { controller } = createController();
-      controller.setClientState(true);
+      controller.setClientOpen(true);
 
-      controller.setClientState(false);
+      controller.setClientOpen(false);
 
       expect(controller.state.isClientOpen).toBe(false);
       expect(controller.isClientOpen).toBe(false);
@@ -106,11 +106,11 @@ describe('ApplicationStateController', () => {
 
     it('does not update state when setting the same value', () => {
       const { controller, messenger } = createController();
-      controller.setClientState(true);
+      controller.setClientOpen(true);
       const listener = jest.fn();
       messenger.subscribe(`${controllerName}:stateChange`, listener);
 
-      controller.setClientState(true);
+      controller.setClientOpen(true);
 
       expect(listener).not.toHaveBeenCalled();
     });
@@ -120,7 +120,7 @@ describe('ApplicationStateController', () => {
       const listener = jest.fn();
 
       messenger.subscribe(`${controllerName}:stateChange`, listener);
-      controller.setClientState(true);
+      controller.setClientOpen(true);
 
       expect(listener).toHaveBeenCalledTimes(1);
       const [newState] = listener.mock.calls[0];
@@ -129,11 +129,11 @@ describe('ApplicationStateController', () => {
 
     it('publishes stateChange event when client closes', () => {
       const { controller, messenger } = createController();
-      controller.setClientState(true);
+      controller.setClientOpen(true);
       const listener = jest.fn();
 
       messenger.subscribe(`${controllerName}:stateChange`, listener);
-      controller.setClientState(false);
+      controller.setClientOpen(false);
 
       expect(listener).toHaveBeenCalledTimes(1);
       const [newState] = listener.mock.calls[0];
@@ -142,11 +142,11 @@ describe('ApplicationStateController', () => {
 
     it('does not publish stateChange when state does not change', () => {
       const { controller, messenger } = createController();
-      controller.setClientState(true);
+      controller.setClientOpen(true);
       const listener = jest.fn();
 
       messenger.subscribe(`${controllerName}:stateChange`, listener);
-      controller.setClientState(true);
+      controller.setClientOpen(true);
 
       expect(listener).not.toHaveBeenCalled();
     });
@@ -155,7 +155,7 @@ describe('ApplicationStateController', () => {
   describe('isClientOpen getter', () => {
     it('returns true when client is open', () => {
       const { controller } = createController();
-      controller.setClientState(true);
+      controller.setClientOpen(true);
 
       expect(controller.isClientOpen).toBe(true);
     });
@@ -170,7 +170,7 @@ describe('ApplicationStateController', () => {
   describe('messenger actions', () => {
     it('allows getting state via messenger action', () => {
       const { controller, messenger } = createController();
-      controller.setClientState(true);
+      controller.setClientOpen(true);
 
       const state = messenger.call(`${controllerName}:getState`);
 
@@ -180,16 +180,16 @@ describe('ApplicationStateController', () => {
     it('allows setting client open via messenger action', () => {
       const { controller, messenger } = createController();
 
-      messenger.call(`${controllerName}:setClientState`, true);
+      messenger.call(`${controllerName}:setClientOpen`, true);
 
       expect(controller.state.isClientOpen).toBe(true);
     });
 
     it('allows setting client closed via messenger action', () => {
       const { controller, messenger } = createController();
-      controller.setClientState(true);
+      controller.setClientOpen(true);
 
-      messenger.call(`${controllerName}:setClientState`, false);
+      messenger.call(`${controllerName}:setClientOpen`, false);
 
       expect(controller.state.isClientOpen).toBe(false);
     });
@@ -199,7 +199,7 @@ describe('ApplicationStateController', () => {
       const listener = jest.fn();
 
       messenger.subscribe(`${controllerName}:stateChange`, listener);
-      messenger.call(`${controllerName}:setClientState`, true);
+      messenger.call(`${controllerName}:setClientOpen`, true);
 
       expect(listener).toHaveBeenCalledTimes(1);
       const [newState] = listener.mock.calls[0];
@@ -234,10 +234,10 @@ describe('ApplicationStateController', () => {
 
       messenger.subscribe(`${controllerName}:stateChange`, listener);
 
-      controller.setClientState(true);
-      controller.setClientState(false);
-      controller.setClientState(true);
-      controller.setClientState(false);
+      controller.setClientOpen(true);
+      controller.setClientOpen(false);
+      controller.setClientOpen(true);
+      controller.setClientOpen(false);
 
       expect(listener).toHaveBeenCalledTimes(4);
       expect(controller.isClientOpen).toBe(false);
@@ -249,9 +249,9 @@ describe('ApplicationStateController', () => {
 
       messenger.subscribe(`${controllerName}:stateChange`, listener);
 
-      controller.setClientState(true);
-      controller.setClientState(true);
-      controller.setClientState(true);
+      controller.setClientOpen(true);
+      controller.setClientOpen(true);
+      controller.setClientOpen(true);
 
       expect(listener).toHaveBeenCalledTimes(1);
     });
