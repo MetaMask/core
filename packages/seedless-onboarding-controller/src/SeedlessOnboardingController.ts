@@ -60,6 +60,7 @@ import type {
   ToprfKeyDeriver,
 } from './types';
 import {
+  compareAndGetLatestToken,
   decodeJWTToken,
   decodeNodeAuthToken,
   deserializeVaultData,
@@ -855,7 +856,7 @@ export class SeedlessOnboardingController<
   /**
    * Submit the password to the controller, verify the password validity and unlock the controller.
    *
-   * This method will be used especially when user rehydrate/unlock the wallet.
+   * This method will be used especially when user unlock the wallet.
    * The provided password will be verified against the encrypted vault, encryption key will be derived and saved in the controller state.
    *
    * This operation is useful when user performs some actions that requires the user password/encryption key. e.g. add new srp backup
@@ -865,7 +866,50 @@ export class SeedlessOnboardingController<
    */
   async submitPassword(password: string): Promise<void> {
     return await this.#withControllerLock(async () => {
-      await this.#unlockVaultAndGetVaultData({ password });
+      // get the access token from the state before unlocking, it might be the new token set from the `refreshAuthTokens` method.
+      const { accessToken: accessTokenBeforeUnlock } = this.state;
+
+      const deserializedVaultData = await this.#unlockVaultAndGetVaultData({
+        password,
+      });
+
+      const { accessToken: accessTokenAfterUnlock } = this.state;
+
+      let latestAccessToken = accessTokenAfterUnlock;
+
+      // compare the access token from state before unlocking and after unlocking, take the latest access token if it's different.
+      if (
+        accessTokenBeforeUnlock &&
+        accessTokenAfterUnlock &&
+        accessTokenBeforeUnlock !== accessTokenAfterUnlock
+      ) {
+        // If there was an access token in the state before unlocking, it might be the token set from the `refreshAuthTokens` method.
+        // Compare it with the access token value from decrypted vault after unlocking and take the latest access token.
+        latestAccessToken = compareAndGetLatestToken(
+          accessTokenBeforeUnlock,
+          accessTokenAfterUnlock,
+        );
+      }
+
+      // update the state and vault with the latest access token if it's different from the current access token in the state.
+      if (latestAccessToken && latestAccessToken !== accessTokenAfterUnlock) {
+        // update the access token in the state with the latest access token if it's different from the decrypted access token after unlocking
+        this.update((state) => {
+          state.accessToken = latestAccessToken;
+        });
+
+        const updatedVaultData = {
+          ...deserializedVaultData,
+          accessToken: latestAccessToken,
+        };
+
+        await this.#updateVault({
+          password,
+          vaultData: updatedVaultData,
+          pwEncKey: deserializedVaultData.toprfPwEncryptionKey,
+        });
+      }
+
       this.#setUnlocked();
     });
   }
@@ -1725,7 +1769,7 @@ export class SeedlessOnboardingController<
   }: {
     password: string;
     vaultData: DeserializedVaultData;
-    pwEncKey: Uint8Array;
+    pwEncKey?: Uint8Array;
   }): Promise<void> {
     await this.#withVaultLock(async () => {
       assertIsValidPassword(password);
@@ -1744,15 +1788,26 @@ export class SeedlessOnboardingController<
           serializedVaultData,
         );
 
+      const updatedState: Partial<SeedlessOnboardingControllerState> = {
+        vault,
+        vaultEncryptionKey: exportedKeyString,
+        vaultEncryptionSalt: JSON.parse(vault).salt,
+      };
+
       // Encrypt vault key.
-      const aes = managedNonce(gcm)(pwEncKey);
-      const encryptedKey = aes.encrypt(utf8ToBytes(exportedKeyString));
+      if (pwEncKey) {
+        const aes = managedNonce(gcm)(pwEncKey);
+        const encryptedKey = aes.encrypt(utf8ToBytes(exportedKeyString));
+        updatedState.encryptedSeedlessEncryptionKey =
+          bytesToBase64(encryptedKey);
+      }
 
       this.update((state) => {
-        state.vault = vault;
-        state.vaultEncryptionKey = exportedKeyString;
-        state.vaultEncryptionSalt = JSON.parse(vault).salt;
-        state.encryptedSeedlessEncryptionKey = bytesToBase64(encryptedKey);
+        state.vault = updatedState.vault;
+        state.vaultEncryptionKey = updatedState.vaultEncryptionKey;
+        state.vaultEncryptionSalt = updatedState.vaultEncryptionSalt;
+        state.encryptedSeedlessEncryptionKey =
+          updatedState.encryptedSeedlessEncryptionKey;
       });
     });
   }
