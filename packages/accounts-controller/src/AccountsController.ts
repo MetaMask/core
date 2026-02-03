@@ -114,11 +114,6 @@ export type AccountsControllerGetAccountByAddressAction = {
   handler: AccountsController['getAccountByAddress'];
 };
 
-export type AccountsControllerGetNextAvailableAccountNameAction = {
-  type: `${typeof controllerName}:getNextAvailableAccountName`;
-  handler: AccountsController['getNextAvailableAccountName'];
-};
-
 export type AccountsControllerGetAccountAction = {
   type: `${typeof controllerName}:getAccount`;
   handler: AccountsController['getAccount'];
@@ -148,7 +143,6 @@ export type AccountsControllerActions =
   | AccountsControllerUpdateAccountsAction
   | AccountsControllerGetAccountByAddressAction
   | AccountsControllerGetSelectedAccountAction
-  | AccountsControllerGetNextAvailableAccountNameAction
   | AccountsControllerGetAccountAction
   | AccountsControllerGetAccountsAction
   | AccountsControllerGetSelectedMultichainAccountAction
@@ -1072,52 +1066,6 @@ export class AccountsController extends BaseController<
   }
 
   /**
-   * Returns the next account number for a given keyring type.
-   *
-   * @param keyringType - The type of keyring.
-   * @param accounts - Existing accounts to check for the next available account number.
-   * @returns An object containing the account prefix and index to use.
-   */
-  getNextAvailableAccountName(
-    keyringType: string = KeyringTypes.hd,
-    accounts?: InternalAccount[],
-  ): string {
-    const keyringName = keyringTypeToName(keyringType);
-    const keyringAccounts = this.#getAccountsByKeyringType(
-      keyringType,
-      accounts,
-    );
-    const lastDefaultIndexUsedForKeyringType = keyringAccounts.reduce(
-      (maxInternalAccountIndex, internalAccount) => {
-        // We **DO NOT USE** `\d+` here to only consider valid "human"
-        // number (rounded decimal number)
-        const match = new RegExp(`${keyringName} ([0-9]+)$`, 'u').exec(
-          internalAccount.metadata.name,
-        );
-
-        if (match) {
-          // Quoting `RegExp.exec` documentation:
-          // > The returned array has the matched text as the first item, and then one item for
-          // > each capturing group of the matched text.
-          // So use `match[1]` to get the captured value
-          const internalAccountIndex = parseInt(match[1], 10);
-          return Math.max(maxInternalAccountIndex, internalAccountIndex);
-        }
-
-        return maxInternalAccountIndex;
-      },
-      0,
-    );
-
-    const index = Math.max(
-      keyringAccounts.length + 1,
-      lastDefaultIndexUsedForKeyringType + 1,
-    );
-
-    return `${keyringName} ${index}`;
-  }
-
-  /**
    * Retrieves the index value for `metadata.lastSelected`.
    *
    * @returns The index value.
@@ -1309,11 +1257,6 @@ export class AccountsController extends BaseController<
     this.messenger.registerActionHandler(
       `${controllerName}:getAccountByAddress`,
       this.getAccountByAddress.bind(this),
-    );
-
-    this.messenger.registerActionHandler(
-      `${controllerName}:getNextAvailableAccountName`,
-      this.getNextAvailableAccountName.bind(this),
     );
 
     this.messenger.registerActionHandler(
