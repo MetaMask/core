@@ -26,7 +26,7 @@ export class IntentStatusManager {
     bridgeTxMetaId: string,
     historyItem: BridgeHistoryItem,
     intentTranslation: IntentStatusTranslation,
-    intentOrderStatus: string,
+    intentOrderStatus: IntentOrderStatus,
   ): void => {
     // Update the actual transaction in TransactionController to sync with intent status
     // Use the original transaction ID (not the bridge history key)
