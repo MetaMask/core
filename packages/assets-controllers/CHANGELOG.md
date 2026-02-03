@@ -7,6 +7,12 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+### Changed
+
+- Optimize Price API performance by deduplicating concurrent API calls ([#7811](https://github.com/MetaMask/core/pull/7811))
+  - Add in-flight promise caching for `fetchSupportedNetworks()` to prevent duplicate concurrent requests
+  - Update `fetchTokenPrices()` and `fetchExchangeRates()` to only refresh supported networks/currencies when no cached value exists
+
 ## [99.2.0]
 
 ### Added
