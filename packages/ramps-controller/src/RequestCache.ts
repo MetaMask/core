@@ -4,7 +4,6 @@ import type { Json } from '@metamask/utils';
  * Types of resources that can have loading/error states.
  */
 export type ResourceType =
-  | 'userRegion'
   | 'countries'
   | 'providers'
   | 'tokens'

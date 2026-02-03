@@ -31,7 +31,7 @@ function createMockRampsState(
   overrides: Partial<RampsControllerState> = {},
 ): RampsControllerState {
   return {
-    userRegion: createDefaultResourceState(null),
+    userRegion: null,
     countries: createDefaultResourceState([]),
     providers: createDefaultResourceState([], null),
     tokens: createDefaultResourceState(null, null),

@@ -97,12 +97,7 @@ describe('RampsController', () => {
               "isLoading": false,
               "selected": null,
             },
-            "userRegion": Object {
-              "data": null,
-              "error": null,
-              "isLoading": false,
-              "selected": null,
-            },
+            "userRegion": null,
           }
         `);
       });
@@ -110,13 +105,13 @@ describe('RampsController', () => {
 
     it('accepts initial state', async () => {
       const givenState = {
-        userRegion: createResourceState(createMockUserRegion('us-ca')),
+        userRegion: createMockUserRegion('us-ca'),
       };
 
       await withController(
         { options: { state: givenState } },
         ({ controller }) => {
-          expect(controller.state.userRegion.data?.regionCode).toBe('us-ca');
+          expect(controller.state.userRegion?.regionCode).toBe('us-ca');
           expect(controller.state.providers.selected).toBeNull();
           expect(controller.state.tokens.data).toBeNull();
           expect(controller.state.requests).toStrictEqual({});
@@ -159,12 +154,7 @@ describe('RampsController', () => {
               "isLoading": false,
               "selected": null,
             },
-            "userRegion": Object {
-              "data": null,
-              "error": null,
-              "isLoading": false,
-              "selected": null,
-            },
+            "userRegion": null,
           }
         `);
       });
@@ -172,7 +162,7 @@ describe('RampsController', () => {
 
     it('always resets requests cache on initialization', async () => {
       const givenState = {
-        userRegion: createResourceState(createMockUserRegion('us-ca')),
+        userRegion: createMockUserRegion('us-ca'),
         requests: {
           someKey: {
             status: RequestStatus.SUCCESS,
@@ -306,7 +296,7 @@ describe('RampsController', () => {
         {
           options: {
             state: {
-              userRegion: createResourceState(createMockUserRegion('fr')),
+              userRegion: createMockUserRegion('fr'),
             },
           },
         },
@@ -332,7 +322,7 @@ describe('RampsController', () => {
         {
           options: {
             state: {
-              userRegion: createResourceState(createMockUserRegion('fr')),
+              userRegion: createMockUserRegion('fr'),
             },
           },
         },
@@ -358,7 +348,7 @@ describe('RampsController', () => {
         {
           options: {
             state: {
-              userRegion: createResourceState(createMockUserRegion('us-ca')),
+              userRegion: createMockUserRegion('us-ca'),
             },
           },
         },
@@ -371,7 +361,7 @@ describe('RampsController', () => {
             },
           );
 
-          expect(controller.state.userRegion.data?.regionCode).toBe('us-ca');
+          expect(controller.state.userRegion?.regionCode).toBe('us-ca');
           expect(controller.state.providers.data).toStrictEqual([]);
 
           await controller.getProviders('US-ca');
@@ -403,7 +393,7 @@ describe('RampsController', () => {
         {
           options: {
             state: {
-              userRegion: createResourceState(createMockUserRegion('us-ca')),
+              userRegion: createMockUserRegion('us-ca'),
               providers: createResourceState(existingProviders, null),
             },
           },
@@ -417,7 +407,7 @@ describe('RampsController', () => {
             },
           );
 
-          expect(controller.state.userRegion.data?.regionCode).toBe('us-ca');
+          expect(controller.state.userRegion?.regionCode).toBe('us-ca');
           expect(controller.state.providers.data).toStrictEqual(
             existingProviders,
           );
@@ -524,12 +514,7 @@ describe('RampsController', () => {
               "isLoading": false,
               "selected": null,
             },
-            "userRegion": Object {
-              "data": null,
-              "error": null,
-              "isLoading": false,
-              "selected": null,
-            },
+            "userRegion": null,
           }
         `);
       });
@@ -569,12 +554,7 @@ describe('RampsController', () => {
               "isLoading": false,
               "selected": null,
             },
-            "userRegion": Object {
-              "data": null,
-              "error": null,
-              "isLoading": false,
-              "selected": null,
-            },
+            "userRegion": null,
           }
         `);
       });
@@ -608,12 +588,7 @@ describe('RampsController', () => {
               "isLoading": false,
               "selected": null,
             },
-            "userRegion": Object {
-              "data": null,
-              "error": null,
-              "isLoading": false,
-              "selected": null,
-            },
+            "userRegion": null,
           }
         `);
       });
@@ -660,12 +635,7 @@ describe('RampsController', () => {
               "isLoading": false,
               "selected": null,
             },
-            "userRegion": Object {
-              "data": null,
-              "error": null,
-              "isLoading": false,
-              "selected": null,
-            },
+            "userRegion": null,
           }
         `);
       });
@@ -1193,7 +1163,7 @@ describe('RampsController', () => {
         expect(controller.state.countries.data).toStrictEqual(
           createMockCountries(),
         );
-        expect(controller.state.userRegion.data?.regionCode).toBe('us-ca');
+        expect(controller.state.userRegion?.regionCode).toBe('us-ca');
       });
     });
 
@@ -1203,7 +1173,7 @@ describe('RampsController', () => {
         {
           options: {
             state: {
-              userRegion: createResourceState(existingRegion),
+              userRegion: existingRegion,
             },
           },
         },
@@ -1218,7 +1188,7 @@ describe('RampsController', () => {
           expect(controller.state.countries.data).toStrictEqual(
             createMockCountries(),
           );
-          expect(controller.state.userRegion.data?.regionCode).toBe('us-ca');
+          expect(controller.state.userRegion?.regionCode).toBe('us-ca');
         },
       );
     });
@@ -1264,7 +1234,7 @@ describe('RampsController', () => {
           options: {
             state: {
               countries: createResourceState(createMockCountries()),
-              userRegion: createResourceState(createMockUserRegion('us-ca')),
+              userRegion: createMockUserRegion('us-ca'),
               tokens: createResourceState(mockTokens, null),
               providers: createResourceState(
                 mockProviders,
@@ -1290,7 +1260,7 @@ describe('RampsController', () => {
           await controller.init();
 
           // Verify persisted state is preserved
-          expect(controller.state.userRegion.data?.regionCode).toBe('us-ca');
+          expect(controller.state.userRegion?.regionCode).toBe('us-ca');
           expect(controller.state.tokens.data).toStrictEqual(mockTokens);
           expect(controller.state.providers.data).toStrictEqual(mockProviders);
           expect(controller.state.providers.selected).toStrictEqual(
@@ -1332,7 +1302,7 @@ describe('RampsController', () => {
       });
     });
 
-    it('sets userRegionError to Unknown error when error has no message', async () => {
+    it('rejects when init fails with error that has no message', async () => {
       await withController(async ({ controller, rootMessenger }) => {
         const errorWithoutMessage = Object.assign(new Error(), {
           code: 'ERR_NO_MESSAGE',
@@ -1349,7 +1319,6 @@ describe('RampsController', () => {
         await expect(controller.init()).rejects.toMatchObject({
           code: 'ERR_NO_MESSAGE',
         });
-        expect(controller.state.userRegion.error).toBe('Unknown error');
       });
     });
   });
@@ -1360,7 +1329,7 @@ describe('RampsController', () => {
         {
           options: {
             state: {
-              userRegion: createResourceState(createMockUserRegion('us-ca')),
+              userRegion: createMockUserRegion('us-ca'),
             },
           },
         },
@@ -1424,9 +1393,9 @@ describe('RampsController', () => {
 
           await controller.setUserRegion('US-CA');
 
-          expect(controller.state.userRegion.data?.regionCode).toBe('us-ca');
-          expect(controller.state.userRegion.data?.country.isoCode).toBe('US');
-          expect(controller.state.userRegion.data?.state?.stateId).toBe('CA');
+          expect(controller.state.userRegion?.regionCode).toBe('us-ca');
+          expect(controller.state.userRegion?.country.isoCode).toBe('US');
+          expect(controller.state.userRegion?.state?.stateId).toBe('CA');
         },
       );
     });
@@ -1550,7 +1519,7 @@ describe('RampsController', () => {
           options: {
             state: {
               countries: createResourceState(createMockCountries()),
-              userRegion: createResourceState(createMockUserRegion('us-ca')),
+              userRegion: createMockUserRegion('us-ca'),
               tokens: createResourceState(mockTokens, null),
               providers: createResourceState(
                 mockProviders,
@@ -1573,7 +1542,7 @@ describe('RampsController', () => {
           await controller.setUserRegion('US-ca');
 
           // Verify persisted state is preserved
-          expect(controller.state.userRegion.data?.regionCode).toBe('us-ca');
+          expect(controller.state.userRegion?.regionCode).toBe('us-ca');
           expect(controller.state.tokens.data).toStrictEqual(mockTokens);
           expect(controller.state.providers.data).toStrictEqual(mockProviders);
           expect(controller.state.providers.selected).toStrictEqual(
@@ -1633,7 +1602,7 @@ describe('RampsController', () => {
           options: {
             state: {
               countries: createResourceState(createMockCountries()),
-              userRegion: createResourceState(createMockUserRegion('us-ca')),
+              userRegion: createMockUserRegion('us-ca'),
               tokens: createResourceState(mockTokens, mockSelectedToken),
               providers: createResourceState(
                 mockProviders,
@@ -1656,7 +1625,7 @@ describe('RampsController', () => {
           await controller.setUserRegion('FR');
 
           // Verify persisted state is cleared
-          expect(controller.state.userRegion.data?.regionCode).toBe('fr');
+          expect(controller.state.userRegion?.regionCode).toBe('fr');
           expect(controller.state.tokens.data).toBeNull();
           expect(controller.state.providers.data).toStrictEqual([]);
           expect(controller.state.providers.selected).toBeNull();
@@ -1705,8 +1674,8 @@ describe('RampsController', () => {
 
           await controller.setUserRegion('us-ca');
 
-          expect(controller.state.userRegion.data?.regionCode).toBe('us-ca');
-          expect(controller.state.userRegion.data?.country.name).toBe(
+          expect(controller.state.userRegion?.regionCode).toBe('us-ca');
+          expect(controller.state.userRegion?.country.name).toBe(
             'United States',
           );
         },
@@ -1746,8 +1715,8 @@ describe('RampsController', () => {
 
           await controller.setUserRegion('fr');
 
-          expect(controller.state.userRegion.data?.regionCode).toBe('fr');
-          expect(controller.state.userRegion.data?.country.name).toBe('France');
+          expect(controller.state.userRegion?.regionCode).toBe('fr');
+          expect(controller.state.userRegion?.country.name).toBe('France');
         },
       );
     });
@@ -1792,8 +1761,8 @@ describe('RampsController', () => {
 
           await controller.setUserRegion('us-ca');
 
-          expect(controller.state.userRegion.data?.regionCode).toBe('us-ca');
-          expect(controller.state.userRegion.data?.country.name).toBe(
+          expect(controller.state.userRegion?.regionCode).toBe('us-ca');
+          expect(controller.state.userRegion?.country.name).toBe(
             'United States',
           );
         },
@@ -1825,7 +1794,7 @@ describe('RampsController', () => {
             'Region "xx" not found in countries data',
           );
 
-          expect(controller.state.userRegion.data).toBeNull();
+          expect(controller.state.userRegion).toBeNull();
         },
       );
     });
@@ -1836,7 +1805,7 @@ describe('RampsController', () => {
           'No countries found. Cannot set user region without valid country information.',
         );
 
-        expect(controller.state.userRegion.data).toBeNull();
+        expect(controller.state.userRegion).toBeNull();
         expect(controller.state.tokens.data).toBeNull();
       });
     });
@@ -1847,7 +1816,7 @@ describe('RampsController', () => {
           options: {
             state: {
               countries: createResourceState([]),
-              userRegion: createResourceState(createMockUserRegion('us-ca')),
+              userRegion: createMockUserRegion('us-ca'),
             },
           },
         },
@@ -1856,7 +1825,7 @@ describe('RampsController', () => {
             'No countries found. Cannot set user region without valid country information.',
           );
 
-          expect(controller.state.userRegion.data).toBeNull();
+          expect(controller.state.userRegion).toBeNull();
           expect(controller.state.tokens.data).toBeNull();
         },
       );
@@ -1901,9 +1870,9 @@ describe('RampsController', () => {
 
           await controller.setUserRegion('us-ny');
 
-          expect(controller.state.userRegion.data?.regionCode).toBe('us-ny');
-          expect(controller.state.userRegion.data?.country.isoCode).toBe('US');
-          expect(controller.state.userRegion.data?.state?.name).toBe(
+          expect(controller.state.userRegion?.regionCode).toBe('us-ny');
+          expect(controller.state.userRegion?.country.isoCode).toBe('US');
+          expect(controller.state.userRegion?.state?.name).toBe(
             'New York',
           );
         },
@@ -1949,9 +1918,9 @@ describe('RampsController', () => {
 
           await controller.setUserRegion('us-ca');
 
-          expect(controller.state.userRegion.data?.regionCode).toBe('us-ca');
-          expect(controller.state.userRegion.data?.country.isoCode).toBe('US');
-          expect(controller.state.userRegion.data?.state?.name).toBe(
+          expect(controller.state.userRegion?.regionCode).toBe('us-ca');
+          expect(controller.state.userRegion?.country.isoCode).toBe('US');
+          expect(controller.state.userRegion?.state?.name).toBe(
             'California',
           );
         },
@@ -2002,9 +1971,9 @@ describe('RampsController', () => {
 
           await controller.setUserRegion('us-xx');
 
-          expect(controller.state.userRegion.data?.regionCode).toBe('us-xx');
-          expect(controller.state.userRegion.data?.country.isoCode).toBe('US');
-          expect(controller.state.userRegion.data?.state).toBeNull();
+          expect(controller.state.userRegion?.regionCode).toBe('us-xx');
+          expect(controller.state.userRegion?.country.isoCode).toBe('US');
+          expect(controller.state.userRegion?.state).toBeNull();
         },
       );
     });
@@ -2044,7 +2013,7 @@ describe('RampsController', () => {
         {
           options: {
             state: {
-              userRegion: createResourceState(createMockUserRegion('us-ca')),
+              userRegion: createMockUserRegion('us-ca'),
               providers: createResourceState([mockProvider], null),
             },
           },
@@ -2079,7 +2048,7 @@ describe('RampsController', () => {
         {
           options: {
             state: {
-              userRegion: createResourceState(createMockUserRegion('us-ca')),
+              userRegion: createMockUserRegion('us-ca'),
               providers: createResourceState([mockProvider], mockProvider),
               paymentMethods: createResourceState(
                 [mockPaymentMethod],
@@ -2132,7 +2101,7 @@ describe('RampsController', () => {
         {
           options: {
             state: {
-              userRegion: createResourceState(createMockUserRegion('us-ca')),
+              userRegion: createMockUserRegion('us-ca'),
             },
           },
         },
@@ -2151,7 +2120,7 @@ describe('RampsController', () => {
         {
           options: {
             state: {
-              userRegion: createResourceState(createMockUserRegion('us-ca')),
+              userRegion: createMockUserRegion('us-ca'),
               providers: createResourceState([mockProvider], null),
             },
           },
@@ -2185,7 +2154,7 @@ describe('RampsController', () => {
         {
           options: {
             state: {
-              userRegion: createResourceState(createMockUserRegion('us-ca')),
+              userRegion: createMockUserRegion('us-ca'),
               providers: createResourceState(
                 [mockProvider, newProvider],
                 mockProvider,
@@ -2254,7 +2223,7 @@ describe('RampsController', () => {
         {
           options: {
             state: {
-              userRegion: createResourceState(createMockUserRegion('us-ca')),
+              userRegion: createMockUserRegion('us-ca'),
               tokens: createResourceState(mockTokensResponse, null),
             },
           },
@@ -2279,7 +2248,7 @@ describe('RampsController', () => {
         {
           options: {
             state: {
-              userRegion: createResourceState(createMockUserRegion('us-ca')),
+              userRegion: createMockUserRegion('us-ca'),
               tokens: createResourceState(mockTokensResponse, mockToken),
               paymentMethods: createResourceState(
                 [mockPaymentMethod],
@@ -2324,7 +2293,7 @@ describe('RampsController', () => {
         {
           options: {
             state: {
-              userRegion: createResourceState(createMockUserRegion('us-ca')),
+              userRegion: createMockUserRegion('us-ca'),
             },
           },
         },
@@ -2341,7 +2310,7 @@ describe('RampsController', () => {
         {
           options: {
             state: {
-              userRegion: createResourceState(createMockUserRegion('us-ca')),
+              userRegion: createMockUserRegion('us-ca'),
               tokens: createResourceState(mockTokensResponse, null),
             },
           },
@@ -2361,7 +2330,7 @@ describe('RampsController', () => {
         {
           options: {
             state: {
-              userRegion: createResourceState(createMockUserRegion('us-ca')),
+              userRegion: createMockUserRegion('us-ca'),
               tokens: createResourceState(mockTokensResponse, null),
             },
           },
@@ -2406,7 +2375,7 @@ describe('RampsController', () => {
         {
           options: {
             state: {
-              userRegion: createResourceState(createMockUserRegion('us-ca')),
+              userRegion: createMockUserRegion('us-ca'),
               tokens: createResourceState(tokensWithBoth, mockToken),
               paymentMethods: createResourceState(
                 [mockPaymentMethod],
@@ -2639,7 +2608,7 @@ describe('RampsController', () => {
         {
           options: {
             state: {
-              userRegion: createResourceState(createMockUserRegion('fr')),
+              userRegion: createMockUserRegion('fr'),
             },
           },
         },
@@ -2677,7 +2646,7 @@ describe('RampsController', () => {
         {
           options: {
             state: {
-              userRegion: createResourceState(createMockUserRegion('fr')),
+              userRegion: createMockUserRegion('fr'),
             },
           },
         },
@@ -2707,7 +2676,7 @@ describe('RampsController', () => {
         {
           options: {
             state: {
-              userRegion: createResourceState(createMockUserRegion('us-ca')),
+              userRegion: createMockUserRegion('us-ca'),
             },
           },
         },
@@ -2724,7 +2693,7 @@ describe('RampsController', () => {
             },
           );
 
-          expect(controller.state.userRegion.data?.regionCode).toBe('us-ca');
+          expect(controller.state.userRegion?.regionCode).toBe('us-ca');
           expect(controller.state.tokens.data).toBeNull();
 
           await controller.getTokens('US-ca');
@@ -2764,7 +2733,7 @@ describe('RampsController', () => {
         {
           options: {
             state: {
-              userRegion: createResourceState(createMockUserRegion('us-ca')),
+              userRegion: createMockUserRegion('us-ca'),
               tokens: createResourceState(existingTokens, null),
             },
           },
@@ -2782,7 +2751,7 @@ describe('RampsController', () => {
             },
           );
 
-          expect(controller.state.userRegion.data?.regionCode).toBe('us-ca');
+          expect(controller.state.userRegion?.regionCode).toBe('us-ca');
           expect(controller.state.tokens.data).toStrictEqual(existingTokens);
 
           await controller.getTokens('fr');
@@ -2909,7 +2878,7 @@ describe('RampsController', () => {
         {
           options: {
             state: {
-              userRegion: createResourceState(createMockUserRegion('us-ca')),
+              userRegion: createMockUserRegion('us-ca'),
               paymentMethods: createResourceState(
                 [mockPaymentMethod1, mockPaymentMethod2],
                 mockPaymentMethod1,
@@ -2958,7 +2927,7 @@ describe('RampsController', () => {
         {
           options: {
             state: {
-              userRegion: createResourceState(createMockUserRegion('us-ca')),
+              userRegion: createMockUserRegion('us-ca'),
               paymentMethods: createResourceState(
                 [removedPaymentMethod],
                 removedPaymentMethod,
@@ -2999,7 +2968,7 @@ describe('RampsController', () => {
         {
           options: {
             state: {
-              userRegion: createResourceState(createMockUserRegion('us-ca')),
+              userRegion: createMockUserRegion('us-ca'),
               paymentMethods: createResourceState([], null),
               tokens: createResourceState(null, mockSelectedToken),
               providers: createResourceState([], mockSelectedProvider),
@@ -3035,7 +3004,7 @@ describe('RampsController', () => {
         {
           options: {
             state: {
-              userRegion: createResourceState(createMockUserRegion('us-ca')),
+              userRegion: createMockUserRegion('us-ca'),
               tokens: createResourceState(null, mockSelectedToken),
               providers: createResourceState([], mockSelectedProvider),
             },
@@ -3067,7 +3036,7 @@ describe('RampsController', () => {
         {
           options: {
             state: {
-              userRegion: createResourceState(createMockUserRegion('us-ca')),
+              userRegion: createMockUserRegion('us-ca'),
             },
           },
         },
@@ -3114,7 +3083,7 @@ describe('RampsController', () => {
         {
           options: {
             state: {
-              userRegion: createResourceState(regionWithoutCurrency),
+              userRegion: regionWithoutCurrency,
             },
           },
         },
@@ -3146,7 +3115,7 @@ describe('RampsController', () => {
         {
           options: {
             state: {
-              userRegion: createResourceState(createMockUserRegion('us-ca')),
+              userRegion: createMockUserRegion('us-ca'),
               tokens: createResourceState(null, mockToken),
             },
           },
@@ -3195,7 +3164,7 @@ describe('RampsController', () => {
         {
           options: {
             state: {
-              userRegion: createResourceState(createMockUserRegion('us-ca')),
+              userRegion: createMockUserRegion('us-ca'),
               providers: createResourceState([], testProvider),
             },
           },
@@ -3229,7 +3198,7 @@ describe('RampsController', () => {
         {
           options: {
             state: {
-              userRegion: createResourceState(createMockUserRegion('fr')),
+              userRegion: createMockUserRegion('fr'),
             },
           },
         },
@@ -3271,7 +3240,7 @@ describe('RampsController', () => {
         {
           options: {
             state: {
-              userRegion: createResourceState(createMockUserRegion('us-ca')),
+              userRegion: createMockUserRegion('us-ca'),
               paymentMethods: createResourceState(
                 [removedPaymentMethod],
                 removedPaymentMethod,
@@ -3316,7 +3285,7 @@ describe('RampsController', () => {
         {
           options: {
             state: {
-              userRegion: createResourceState(createMockUserRegion('us-ca')),
+              userRegion: createMockUserRegion('us-ca'),
               tokens: createResourceState(null, null),
               providers: createResourceState([], null),
             },
@@ -3392,7 +3361,7 @@ describe('RampsController', () => {
         {
           options: {
             state: {
-              userRegion: createResourceState(createMockUserRegion('us-ca')),
+              userRegion: createMockUserRegion('us-ca'),
               tokens: createResourceState(
                 {
                   topTokens: [tokenA, tokenB],
@@ -3506,7 +3475,7 @@ describe('RampsController', () => {
         {
           options: {
             state: {
-              userRegion: createResourceState(createMockUserRegion('us-ca')),
+              userRegion: createMockUserRegion('us-ca'),
               tokens: createResourceState(null, null),
               providers: createResourceState([providerA, providerB], providerA),
               paymentMethods: createResourceState([], null),
@@ -3599,7 +3568,7 @@ describe('RampsController', () => {
         {
           options: {
             state: {
-              userRegion: createResourceState(createMockUserRegion('us-ca')),
+              userRegion: createMockUserRegion('us-ca'),
               tokens: createResourceState(null, token),
               providers: createResourceState([], provider),
               paymentMethods: createResourceState([], null),
@@ -3747,7 +3716,7 @@ describe('RampsController', () => {
         {
           options: {
             state: {
-              userRegion: createResourceState(createMockUserRegion('us')),
+              userRegion: createMockUserRegion('us'),
               paymentMethods: createResourceState(
                 [
                   {
@@ -3791,7 +3760,7 @@ describe('RampsController', () => {
         {
           options: {
             state: {
-              userRegion: createResourceState(createMockUserRegion('us')),
+              userRegion: createMockUserRegion('us'),
               paymentMethods: createResourceState(
                 [
                   {
@@ -3844,18 +3813,18 @@ describe('RampsController', () => {
         {
           options: {
             state: {
-              userRegion: createResourceState({
+              userRegion: {
                 country: {
                   isoCode: 'US',
                   name: 'United States',
                   flag: '🇺🇸',
-                  currency: '', // No currency
+                  currency: '',
                   phone: { prefix: '+1', placeholder: '', template: '' },
                   supported: { buy: true, sell: true },
                 },
                 state: null,
                 regionCode: 'us',
-              }),
+              },
             },
           },
         },
@@ -3877,7 +3846,7 @@ describe('RampsController', () => {
         {
           options: {
             state: {
-              userRegion: createResourceState(createMockUserRegion('us')),
+              userRegion: createMockUserRegion('us'),
               paymentMethods: createResourceState([], null),
             },
           },
@@ -3899,7 +3868,7 @@ describe('RampsController', () => {
         {
           options: {
             state: {
-              userRegion: createResourceState(createMockUserRegion('us')),
+              userRegion: createMockUserRegion('us'),
               paymentMethods: createResourceState(
                 [
                   {
@@ -3948,7 +3917,7 @@ describe('RampsController', () => {
         {
           options: {
             state: {
-              userRegion: createResourceState(createMockUserRegion('us')),
+              userRegion: createMockUserRegion('us'),
               paymentMethods: createResourceState(
                 [
                   {
@@ -3989,7 +3958,7 @@ describe('RampsController', () => {
         {
           options: {
             state: {
-              userRegion: createResourceState(createMockUserRegion('us')),
+              userRegion: createMockUserRegion('us'),
               paymentMethods: createResourceState(
                 [
                   {
@@ -4030,7 +3999,7 @@ describe('RampsController', () => {
         {
           options: {
             state: {
-              userRegion: createResourceState(createMockUserRegion('us')),
+              userRegion: createMockUserRegion('us'),
               paymentMethods: createResourceState(
                 [
                   {
@@ -4099,7 +4068,7 @@ describe('RampsController', () => {
         {
           options: {
             state: {
-              userRegion: createResourceState(createMockUserRegion('us')),
+              userRegion: createMockUserRegion('us'),
               paymentMethods: createResourceState(
                 [
                   {
@@ -4141,7 +4110,7 @@ describe('RampsController', () => {
         {
           options: {
             state: {
-              userRegion: createResourceState(createMockUserRegion('us')),
+              userRegion: createMockUserRegion('us'),
               countries: createResourceState([
                 {
                   isoCode: 'US',

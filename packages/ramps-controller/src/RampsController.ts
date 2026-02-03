@@ -127,11 +127,10 @@ export type ResourceState<TData, TSelected = null> = {
  */
 export type RampsControllerState = {
   /**
-   * The user's region state with data, loading, and error.
-   * Data contains the full country and state objects.
+   * The user's region (full country and state objects).
    * Initially set via geolocation fetch, but can be manually changed by the user.
    */
-  userRegion: ResourceState<UserRegion | null>;
+  userRegion: UserRegion | null;
   /**
    * Countries resource state with data, loading, and error.
    * Data contains the list of countries available for ramp actions.
@@ -243,7 +242,7 @@ function createDefaultResourceState<TData, TSelected = null>(
  */
 export function getDefaultRampsControllerState(): RampsControllerState {
   return {
-    userRegion: createDefaultResourceState<UserRegion | null>(null),
+    userRegion: null,
     countries: createDefaultResourceState<Country[]>([]),
     providers: createDefaultResourceState<Provider[], Provider | null>(
       [],
@@ -268,17 +267,15 @@ export function getDefaultRampsControllerState(): RampsControllerState {
  *
  * @param state - The state object to mutate.
  * @param options - Options for the reset.
- * @param options.clearUserRegionData - When true, sets userRegion.data to null (e.g. for full cleanup).
+ * @param options.clearUserRegionData - When true, sets userRegion to null (e.g. for full cleanup).
  */
 function resetDependentResources(
   state: RampsControllerState,
   options?: { clearUserRegionData?: boolean },
 ): void {
   if (options?.clearUserRegionData) {
-    state.userRegion.data = null;
+    state.userRegion = null;
   }
-  state.userRegion.isLoading = false;
-  state.userRegion.error = null;
   state.providers.selected = null;
   state.providers.data = [];
   state.providers.isLoading = false;
@@ -461,12 +458,6 @@ export class RampsController extends BaseController<
   readonly #pendingResourceCount: Map<ResourceType, number> = new Map();
 
   /**
-   * Count of in-flight setUserRegion refetch batches.
-   * Used so userRegion.isLoading is only cleared when the last batch's refetches finish (avoids race when region is changed rapidly or when init() clears loading before refetches complete).
-   */
-  #setUserRegionRefetchCount = 0;
-
-  /**
    * Clears the pending resource count map. Used only in tests to exercise the
    * defensive path when get() returns undefined in the finally block.
    *
@@ -478,7 +469,6 @@ export class RampsController extends BaseController<
 
   #clearPendingResourceCountForDependentResources(): void {
     const types: ResourceType[] = [
-      'userRegion',
       'providers',
       'tokens',
       'paymentMethods',
@@ -807,12 +797,6 @@ export class RampsController extends BaseController<
    * Sets the user's region manually (without fetching geolocation).
    * This allows users to override the detected region.
    *
-   * Sets userRegion.isLoading to true while the region is being applied and
-   * tokens/providers are refetched (when the region actually changes), so
-   * the UI can show a loading indicator when called directly (e.g. from a
-   * region selector). Clears loading when refetches complete or when no
-   * refetch is needed.
-   *
    * @param region - The region code to set (e.g., "US-CA").
    * @param options - Options for cache behavior.
    * @returns The user region object.
@@ -842,16 +826,12 @@ export class RampsController extends BaseController<
       }
 
       const regionChanged =
-        normalizedRegion !== this.state.userRegion.data?.regionCode;
+        normalizedRegion !== this.state.userRegion?.regionCode;
 
       const needsRefetch =
         regionChanged ||
         !this.state.tokens.data ||
         this.state.providers.data.length === 0;
-
-      if (needsRefetch) {
-        this.#setUserRegionRefetchCount += 1;
-      }
 
       if (regionChanged) {
         this.#clearPendingResourceCountForDependentResources();
@@ -860,36 +840,24 @@ export class RampsController extends BaseController<
         if (regionChanged) {
           resetDependentResources(state as unknown as RampsControllerState);
         }
-        state.userRegion.data = userRegion;
+        state.userRegion = userRegion;
       });
 
       if (needsRefetch) {
-        this.#setResourceLoading('userRegion', true);
-      }
-      // this code is needed to prevent race conditions in the unlikely event that the user's region is changed rapidly
-      const refetchPromises: Promise<unknown>[] = [];
-      if (regionChanged || !this.state.tokens.data) {
-        refetchPromises.push(
-          this.getTokens(userRegion.regionCode, 'buy', options),
-        );
-      }
-      if (regionChanged || this.state.providers.data.length === 0) {
-        refetchPromises.push(this.getProviders(userRegion.regionCode, options));
-      }
-      if (refetchPromises.length > 0) {
-        this.#fireAndForget(
-          Promise.all(refetchPromises).finally(() => {
-            this.#setUserRegionRefetchCount = Math.max(
-              0,
-              this.#setUserRegionRefetchCount - 1,
-            );
-            if (this.#setUserRegionRefetchCount === 0) {
-              this.#setResourceLoading('userRegion', false);
-            }
-          }),
-        );
-      } else {
-        this.#setResourceLoading('userRegion', false);
+        const refetchPromises: Promise<unknown>[] = [];
+        if (regionChanged || !this.state.tokens.data) {
+          refetchPromises.push(
+            this.getTokens(userRegion.regionCode, 'buy', options),
+          );
+        }
+        if (regionChanged || this.state.providers.data.length === 0) {
+          refetchPromises.push(
+            this.getProviders(userRegion.regionCode, options),
+          );
+        }
+        if (refetchPromises.length > 0) {
+          this.#fireAndForget(Promise.all(refetchPromises));
+        }
       }
 
       return userRegion;
@@ -917,7 +885,7 @@ export class RampsController extends BaseController<
       return;
     }
 
-    const regionCode = this.state.userRegion.data?.regionCode;
+    const regionCode = this.state.userRegion?.regionCode;
     if (!regionCode) {
       throw new Error(
         'Region is required. Cannot set selected provider without valid region information.',
@@ -960,39 +928,22 @@ export class RampsController extends BaseController<
    * @returns Promise that resolves when initialization is complete.
    */
   async init(options?: ExecuteRequestOptions): Promise<void> {
-    this.#setResourceLoading('userRegion', true);
+    await this.getCountries(options);
 
-    let setUserRegionCompleted = false;
-    try {
-      await this.getCountries(options);
+    let regionCode = this.state.userRegion?.regionCode;
+    regionCode ??= await this.messenger.call('RampsService:getGeolocation');
 
-      let regionCode = this.state.userRegion.data?.regionCode;
-      regionCode ??= await this.messenger.call('RampsService:getGeolocation');
-
-      if (!regionCode) {
-        throw new Error(
-          'Failed to fetch geolocation. Cannot initialize controller without valid region information.',
-        );
-      }
-
-      await this.setUserRegion(regionCode, options);
-      setUserRegionCompleted = true;
-      this.#setResourceError('userRegion', null);
-    } catch (error) {
-      this.#setResourceError(
-        'userRegion',
-        (error as Error)?.message ?? 'Unknown error',
+    if (!regionCode) {
+      throw new Error(
+        'Failed to fetch geolocation. Cannot initialize controller without valid region information.',
       );
-      throw error;
-    } finally {
-      if (!setUserRegionCompleted) {
-        this.#setResourceLoading('userRegion', false);
-      }
     }
+
+    await this.setUserRegion(regionCode, options);
   }
 
   hydrateState(options?: ExecuteRequestOptions): void {
-    const regionCode = this.state.userRegion.data?.regionCode;
+    const regionCode = this.state.userRegion?.regionCode;
     if (!regionCode) {
       throw new Error(
         'Region code is required. Cannot hydrate state without valid region information.',
@@ -1046,7 +997,7 @@ export class RampsController extends BaseController<
       provider?: string | string[];
     },
   ): Promise<TokensResponse> {
-    const regionToUse = region ?? this.state.userRegion.data?.regionCode;
+    const regionToUse = region ?? this.state.userRegion?.regionCode;
 
     if (!regionToUse) {
       throw new Error(
@@ -1077,13 +1028,13 @@ export class RampsController extends BaseController<
         ...options,
         resourceType: 'tokens',
         isResultCurrent: () =>
-          this.state.userRegion.data?.regionCode === undefined ||
-          this.state.userRegion.data?.regionCode === normalizedRegion,
+          this.state.userRegion?.regionCode === undefined ||
+          this.state.userRegion?.regionCode === normalizedRegion,
       },
     );
 
     this.update((state) => {
-      const userRegionCode = state.userRegion.data?.regionCode;
+      const userRegionCode = state.userRegion?.regionCode;
 
       if (userRegionCode === undefined || userRegionCode === normalizedRegion) {
         state.tokens.data = tokens;
@@ -1111,7 +1062,7 @@ export class RampsController extends BaseController<
       return;
     }
 
-    const regionCode = this.state.userRegion.data?.regionCode;
+    const regionCode = this.state.userRegion?.regionCode;
     if (!regionCode) {
       throw new Error(
         'Region is required. Cannot set selected token without valid region information.',
@@ -1167,7 +1118,7 @@ export class RampsController extends BaseController<
       payments?: string | string[];
     },
   ): Promise<{ providers: Provider[] }> {
-    const regionToUse = region ?? this.state.userRegion.data?.regionCode;
+    const regionToUse = region ?? this.state.userRegion?.regionCode;
 
     if (!regionToUse) {
       throw new Error(
@@ -1202,13 +1153,13 @@ export class RampsController extends BaseController<
         ...options,
         resourceType: 'providers',
         isResultCurrent: () =>
-          this.state.userRegion.data?.regionCode === undefined ||
-          this.state.userRegion.data?.regionCode === normalizedRegion,
+          this.state.userRegion?.regionCode === undefined ||
+          this.state.userRegion?.regionCode === normalizedRegion,
       },
     );
 
     this.update((state) => {
-      const userRegionCode = state.userRegion.data?.regionCode;
+      const userRegionCode = state.userRegion?.regionCode;
 
       if (userRegionCode === undefined || userRegionCode === normalizedRegion) {
         state.providers.data = providers;
@@ -1237,9 +1188,9 @@ export class RampsController extends BaseController<
       provider?: string;
     },
   ): Promise<PaymentMethodsResponse> {
-    const regionCode = region ?? this.state.userRegion.data?.regionCode ?? null;
+    const regionCode = region ?? this.state.userRegion?.regionCode ?? null;
     const fiatToUse =
-      options?.fiat ?? this.state.userRegion.data?.country?.currency ?? null;
+      options?.fiat ?? this.state.userRegion?.country?.currency ?? null;
     const assetIdToUse =
       options?.assetId ?? this.state.tokens.selected?.assetId ?? '';
     const providerToUse =
@@ -1281,8 +1232,8 @@ export class RampsController extends BaseController<
         resourceType: 'paymentMethods',
         isResultCurrent: () => {
           const regionMatch =
-            this.state.userRegion.data?.regionCode === undefined ||
-            this.state.userRegion.data?.regionCode === normalizedRegion;
+            this.state.userRegion?.regionCode === undefined ||
+            this.state.userRegion?.regionCode === normalizedRegion;
           const tokenMatch =
             (this.state.tokens.selected?.assetId ?? '') === assetIdToUse;
           const providerMatch =
@@ -1386,9 +1337,9 @@ export class RampsController extends BaseController<
     ttl?: number;
   }): Promise<QuotesResponse> {
     const regionToUse =
-      options.region ?? this.state.userRegion.data?.regionCode;
+      options.region ?? this.state.userRegion?.regionCode;
     const fiatToUse =
-      options.fiat ?? this.state.userRegion.data?.country?.currency;
+      options.fiat ?? this.state.userRegion?.country?.currency;
     const paymentMethodsToUse =
       options.paymentMethods ??
       this.state.paymentMethods.data.map((pm: PaymentMethod) => pm.id);
@@ -1463,13 +1414,13 @@ export class RampsController extends BaseController<
         ttl: options.ttl ?? DEFAULT_QUOTES_TTL,
         resourceType: 'quotes',
         isResultCurrent: () =>
-          this.state.userRegion.data?.regionCode === undefined ||
-          this.state.userRegion.data?.regionCode === normalizedRegion,
+          this.state.userRegion?.regionCode === undefined ||
+          this.state.userRegion?.regionCode === normalizedRegion,
       },
     );
 
     this.update((state) => {
-      const userRegionCode = state.userRegion.data?.regionCode;
+      const userRegionCode = state.userRegion?.regionCode;
 
       if (userRegionCode === undefined || userRegionCode === normalizedRegion) {
         state.quotes.data = response;
