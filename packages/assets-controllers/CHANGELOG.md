@@ -38,7 +38,7 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ### Added
 
-- Add multicall3 address for chain: `Tempo Testnet` ([#7753](https://github.com/MetaMask/core/pull/7753))
+- Add multicall address for the chain: `Tempo Testnet` ([#7753](https://github.com/MetaMask/core/pull/7753))
 
 ### Changed
 
