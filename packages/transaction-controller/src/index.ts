@@ -75,6 +75,7 @@ export type {
   PublishBatchHookTransaction,
   PublishHook,
   PublishHookResult,
+  RequiredAsset,
   SavedGasFees,
   SecurityAlertResponse,
   SecurityProviderRequest,
@@ -87,6 +88,7 @@ export type {
   TransactionBatchMeta,
   TransactionBatchRequest,
   TransactionBatchResult,
+  TransactionBatchSingleRequest,
   TransactionError,
   TransactionHistory,
   TransactionHistoryEntry,
@@ -98,6 +100,7 @@ export type {
 export {
   GasFeeEstimateLevel,
   GasFeeEstimateType,
+  RequiredAssetStandard,
   SimulationErrorCode,
   SimulationTokenStandard,
   TransactionContainerType,

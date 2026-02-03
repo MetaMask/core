@@ -83,6 +83,7 @@ import type {
 import {
   GasFeeEstimateLevel,
   GasFeeEstimateType,
+  RequiredAssetStandard,
   SimulationErrorCode,
   SimulationTokenStandard,
   TransactionContainerType,
@@ -1638,6 +1639,35 @@ describe('TransactionController', () => {
         mockSecurityAlertResponse,
       );
       expect(updateFirstTimeInteractionMock).toHaveBeenCalledTimes(1);
+    });
+
+    it('persists requiredAssets on transaction meta', async () => {
+      const { controller } = setupController();
+
+      const requiredAssets = [
+        {
+          address: '0x1234567890123456789012345678901234567890' as Hex,
+          amount: '0x1' as Hex,
+          standard: RequiredAssetStandard.ERC20,
+        },
+      ];
+
+      await controller.addTransaction(
+        {
+          from: ACCOUNT_MOCK,
+          to: ACCOUNT_MOCK,
+        },
+        {
+          networkClientId: NETWORK_CLIENT_ID_MOCK,
+          requiredAssets,
+        },
+      );
+
+      await flushPromises();
+
+      const transactionMeta = controller.state.transactions[0];
+
+      expect(transactionMeta.requiredAssets).toStrictEqual(requiredAssets);
     });
 
     it.each([

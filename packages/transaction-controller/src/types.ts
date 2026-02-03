@@ -395,6 +395,11 @@ export type TransactionMeta = {
   requestId?: string;
 
   /**
+   * Assets required by the transaction.
+   */
+  requiredAssets?: RequiredAsset[];
+
+  /**
    * IDs of any transactions that must be confirmed before this one is submitted.
    * Unlike a transaction batch, these transactions can be on alternate chains.
    */
@@ -1804,6 +1809,9 @@ export type TransactionBatchRequest = {
   /** Whether an approval request should be created to require confirmation from the user. */
   requireApproval?: boolean;
 
+  /** Assets required by the batch transaction. */
+  requiredAssets?: RequiredAsset[];
+
   /** Security alert ID to persist on the transaction. */
   securityAlertId?: string;
 
@@ -2167,6 +2175,9 @@ export type AddTransactionOptions = {
   /** ID of JSON-RPC request from DAPP.  */
   requestId?: string;
 
+  /** Assets required by the transaction. */
+  requiredAssets?: RequiredAsset[];
+
   /** Whether the transaction requires approval by the user, defaults to true unless explicitly disabled. */
   requireApproval?: boolean | undefined;
 
@@ -2217,4 +2228,23 @@ export type GetGasFeeTokensRequest = {
 
   /** Value of the transaction. */
   value?: Hex;
+};
+
+/** Supported standards for required assets. */
+export enum RequiredAssetStandard {
+  ERC20 = 'erc20',
+}
+
+/**
+ * An asset required by a transaction.
+ */
+export type RequiredAsset = {
+  /** Contract address of the asset. */
+  address: Hex;
+
+  /** Amount of the asset required. */
+  amount: Hex;
+
+  /** Token standard of the asset (e.g., 'erc20'). */
+  standard: string;
 };
