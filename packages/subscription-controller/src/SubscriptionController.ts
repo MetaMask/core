@@ -410,6 +410,7 @@ export class SubscriptionController extends StaticIntervalPollingController()<
       currentSubscriptions,
       newSubscriptions,
     );
+    console.log('areSubscriptionsEqual', areSubscriptionsEqual);
     // check if the new trialed products are different from the current trialed products
     const areTrialedProductsEqual = this.#areTrialedProductsEqual(
       currentTrialedProducts,
@@ -440,8 +441,11 @@ export class SubscriptionController extends StaticIntervalPollingController()<
         state.lastSubscription = newLastSubscription;
         state.rewardAccountId = newRewardAccountId;
       });
+      console.log('update state');
+      console.log('trigger access token refresh');
       // trigger access token refresh to ensure the user has the latest access token if subscription state change
       this.triggerAccessTokenRefresh();
+      console.log('trigger access token refresh done');
     }
 
     return newSubscriptions;
@@ -960,7 +964,16 @@ export class SubscriptionController extends StaticIntervalPollingController()<
     // We perform a sign out to clear the access token from the authentication
     // controller. Next time the access token is requested, a new access token
     // will be fetched.
-    this.messenger.call('AuthenticationController:performSignOut');
+    try {
+      this.messenger.call('AuthenticationController:performSignOut');
+    } catch (error) {
+      const errorMessage =
+        error instanceof Error ? error.message : JSON.stringify(error);
+
+      throw new Error(
+        `Failed to trigger access token refresh. ${errorMessage}`,
+      );
+    }
   }
 
   #getProductPriceByProductAndPlan(

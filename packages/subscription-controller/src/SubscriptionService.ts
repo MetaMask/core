@@ -1,4 +1,4 @@
-import { handleFetch } from '@metamask/controller-utils';
+import { fetchWithErrorHandling, HttpError } from '@metamask/controller-utils';
 
 import { getEnvUrls, SubscriptionControllerErrorMessage } from './constants';
 import type { Env } from './constants';
@@ -203,40 +203,103 @@ export class SubscriptionService implements ISubscriptionService {
     body?: Record<string, unknown>,
     queryParams?: Record<string, string>,
   ): Promise<Result> {
-    try {
-      const headers = await this.#getAuthorizationHeader();
-      const url = new URL(SUBSCRIPTION_URL(this.#env, path));
+    const headers = await this.#getAuthorizationHeader();
+    const url = new URL(SUBSCRIPTION_URL(this.#env, path));
 
+    try {
       if (queryParams) {
         Object.entries(queryParams).forEach(([key, value]) => {
           url.searchParams.append(key, value);
         });
       }
 
-      const response = await handleFetch(url.toString(), {
-        method,
-        headers: {
-          'Content-Type': 'application/json',
-          ...headers,
+      const response = await fetchWithErrorHandling({
+        url: url.toString(),
+        options: {
+          method,
+          headers: {
+            'Content-Type': 'application/json',
+            ...headers,
+          },
+          body: body ? JSON.stringify(body) : undefined,
         },
-        body: body ? JSON.stringify(body) : undefined,
       });
 
       return response;
+    } catch (error) {
+      const errorContext = this.#buildErrorContext(error);
+      const errorMessage = errorContext.message;
+
+      throw new SubscriptionServiceError(
+        `Failed to make request. ${errorMessage}`,
+        {
+          cause: error instanceof Error ? error : undefined,
+          details: {
+            request: {
+              method,
+              url: url.toString(),
+            },
+            error: errorContext.details,
+          },
+        },
+      );
+    }
+  }
+
+  /**
+   * Builds the error context for the SubscriptionService error.
+   *
+   * @param error - The error to build the context for.
+   * @returns The SubscriptionService error context.
+   */
+  #buildErrorContext(error: unknown): {
+    message: string;
+    details: Record<string, unknown>;
+  } {
+    if (error instanceof HttpError) {
+      return {
+        message: `${error.message} (status=${error.httpStatus})`,
+        details: {
+          name: 'HttpError',
+          message: error.message,
+          stack: error.stack,
+          httpStatus: error.httpStatus,
+        },
+      };
+    }
+
+    if (error instanceof Error) {
+      return {
+        message: error.message,
+        details: {
+          name: error.name,
+          message: error.message,
+          stack: error.stack,
+        },
+      };
+    }
+
+    return {
+      message: `Non-Error thrown: ${JSON.stringify(error)}`,
+      details: {
+        nonErrorThrown: JSON.stringify(error),
+      },
+    };
+  }
+
+  // eslint-disable-next-line @typescript-eslint/naming-convention
+  async #getAuthorizationHeader(): Promise<{ Authorization: string }> {
+    try {
+      const accessToken = await this.authUtils.getAccessToken();
+      return { Authorization: `Bearer ${accessToken}` };
     } catch (error) {
       const errorMessage =
         error instanceof Error ? error.message : JSON.stringify(error);
 
       throw new SubscriptionServiceError(
-        `failed to make request. ${errorMessage}`,
+        `Failed to get authorization header. ${errorMessage}`,
       );
     }
-  }
-
-  // eslint-disable-next-line @typescript-eslint/naming-convention
-  async #getAuthorizationHeader(): Promise<{ Authorization: string }> {
-    const accessToken = await this.authUtils.getAccessToken();
-    return { Authorization: `Bearer ${accessToken}` };
   }
 
   async getPricing(): Promise<PricingResponse> {
