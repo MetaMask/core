@@ -7,13 +7,13 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
-### Fixed
-
-- Fix "Proxy handler is null" when updating resource loading/error state by avoiding reads from Immer draft in `#updateResourceField` ([#7842](https://github.com/MetaMask/core/pull/7842))
-
 ### Added
 
 - Add automatic quote polling with `startQuotePolling()`, `stopQuotePolling()`, and `setSelectedQuote()` methods, with auto-selection when a single quote is returned ([#7824](https://github.com/MetaMask/core/pull/7824))
+
+### Fixed
+
+- Fix "Proxy handler is null" when updating resource loading/error state by avoiding reads from Immer draft in `#updateResourceField` ([#7842](https://github.com/MetaMask/core/pull/7842))
 
 ## [6.0.0]
 
