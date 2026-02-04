@@ -9,6 +9,7 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ### Changed
 
+- Updated SubscriptionServiceError to include more information for Sentry reporting. ([#7835](https://github.com/MetaMask/core/pull/7835))
 - Bump `@metamask/transaction-controller` from `^62.12.0` to `^62.13.0` ([#7802](https://github.com/MetaMask/core/pull/7802))
 
 ## [5.4.2]

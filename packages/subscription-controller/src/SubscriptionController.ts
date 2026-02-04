@@ -410,7 +410,6 @@ export class SubscriptionController extends StaticIntervalPollingController()<
       currentSubscriptions,
       newSubscriptions,
     );
-    console.log('areSubscriptionsEqual', areSubscriptionsEqual);
     // check if the new trialed products are different from the current trialed products
     const areTrialedProductsEqual = this.#areTrialedProductsEqual(
       currentTrialedProducts,
@@ -441,11 +440,8 @@ export class SubscriptionController extends StaticIntervalPollingController()<
         state.lastSubscription = newLastSubscription;
         state.rewardAccountId = newRewardAccountId;
       });
-      console.log('update state');
-      console.log('trigger access token refresh');
       // trigger access token refresh to ensure the user has the latest access token if subscription state change
       this.triggerAccessTokenRefresh();
-      console.log('trigger access token refresh done');
     }
 
     return newSubscriptions;
