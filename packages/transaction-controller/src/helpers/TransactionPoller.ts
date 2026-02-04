@@ -7,11 +7,7 @@ import { isEqual } from 'lodash';
 import { projectLogger } from '../logger';
 import type { TransactionControllerMessenger } from '../TransactionController';
 import type { TransactionMeta } from '../types';
-import {
-  FeatureFlag,
-  getAcceleratedPollingParams,
-} from '../utils/feature-flags';
-import type { TransactionControllerFeatureFlags } from '../utils/feature-flags';
+import { getAcceleratedPollingParams } from '../utils/feature-flags';
 import { caip2ToHex } from '../utils/utils';
 
 const log = createModuleLogger(projectLogger, 'transaction-poller');
@@ -40,8 +36,6 @@ export class TransactionPoller {
 
   #timeout?: NodeJS.Timeout;
 
-  readonly #useWebsockets: boolean;
-
   constructor({
     blockTracker,
     chainId,
@@ -54,12 +48,6 @@ export class TransactionPoller {
     this.#blockTracker = blockTracker;
     this.#chainId = chainId;
     this.#messenger = messenger;
-
-    const featureFlags = messenger.call('RemoteFeatureFlagController:getState')
-      .remoteFeatureFlags as TransactionControllerFeatureFlags;
-
-    this.#useWebsockets =
-      featureFlags?.[FeatureFlag.Transactions]?.useWebsockets ?? false;
   }
 
   /**
@@ -239,10 +227,6 @@ export class TransactionPoller {
   };
 
   #subscribeToTransactionUpdates(): void {
-    if (!this.#useWebsockets) {
-      return;
-    }
-
     this.#messenger.subscribe(
       'AccountActivityService:transactionUpdated',
       this.#transactionUpdatedHandler,
@@ -250,10 +234,6 @@ export class TransactionPoller {
   }
 
   #unsubscribeFromTransactionUpdates(): void {
-    if (!this.#useWebsockets) {
-      return;
-    }
-
     this.#messenger.unsubscribe(
       'AccountActivityService:transactionUpdated',
       this.#transactionUpdatedHandler,

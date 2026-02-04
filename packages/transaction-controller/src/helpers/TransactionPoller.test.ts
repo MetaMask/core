@@ -23,21 +23,13 @@ const SELECTED_ACCOUNT_MOCK = {
   address: '0x123',
 };
 
-const createMessengerMock = (
-  useWebsockets = true,
-): jest.Mocked<TransactionControllerMessenger> =>
+const createMessengerMock = (): jest.Mocked<TransactionControllerMessenger> =>
   ({
     call: jest.fn().mockImplementation((action: string) => {
       if (action === 'AccountsController:getSelectedAccount') {
         return SELECTED_ACCOUNT_MOCK;
       }
-      return {
-        remoteFeatureFlags: {
-          confirmations_transactions: {
-            useWebsockets,
-          },
-        },
-      };
+      return {};
     }),
     subscribe: jest.fn(),
     unsubscribe: jest.fn(),
@@ -46,9 +38,6 @@ const createMessengerMock = (
 let MESSENGER_MOCK: jest.Mocked<TransactionControllerMessenger>;
 
 jest.mock('../utils/feature-flags', () => ({
-  FeatureFlag: {
-    Transactions: 'confirmations_transactions',
-  },
   getAcceleratedPollingParams: (): {
     countMax: number;
     intervalMs: number;
@@ -72,7 +61,7 @@ describe('TransactionPoller', () => {
   beforeEach(() => {
     jest.resetAllMocks();
     jest.clearAllTimers();
-    MESSENGER_MOCK = createMessengerMock(true);
+    MESSENGER_MOCK = createMessengerMock();
   });
 
   describe('Accelerated Polling', () => {
@@ -361,7 +350,7 @@ describe('TransactionPoller', () => {
   });
 
   describe('AccountActivityService:transactionUpdated event', () => {
-    it('subscribes to event when started and useWebsockets is enabled', () => {
+    it('subscribes to event when started', () => {
       const poller = new TransactionPoller({
         blockTracker: BLOCK_TRACKER_MOCK,
         messenger: MESSENGER_MOCK,
@@ -377,25 +366,7 @@ describe('TransactionPoller', () => {
       );
     });
 
-    it('does NOT subscribe to event when useWebsockets is disabled', () => {
-      const messengerWithoutWebsockets = createMessengerMock(false);
-
-      const poller = new TransactionPoller({
-        blockTracker: BLOCK_TRACKER_MOCK,
-        messenger: messengerWithoutWebsockets,
-        chainId: CHAIN_ID_MOCK,
-      });
-
-      const listener = jest.fn();
-      poller.start(listener);
-
-      expect(messengerWithoutWebsockets.subscribe).not.toHaveBeenCalledWith(
-        'AccountActivityService:transactionUpdated',
-        expect.any(Function),
-      );
-    });
-
-    it('unsubscribes from event when stopped and useWebsockets is enabled', () => {
+    it('unsubscribes from event when stopped', () => {
       const poller = new TransactionPoller({
         blockTracker: BLOCK_TRACKER_MOCK,
         messenger: MESSENGER_MOCK,
@@ -407,25 +378,6 @@ describe('TransactionPoller', () => {
       poller.stop();
 
       expect(MESSENGER_MOCK.unsubscribe).toHaveBeenCalledWith(
-        'AccountActivityService:transactionUpdated',
-        expect.any(Function),
-      );
-    });
-
-    it('does NOT unsubscribe from event when useWebsockets is disabled and stop is called', () => {
-      const messengerWithoutWebsockets = createMessengerMock(false);
-
-      const poller = new TransactionPoller({
-        blockTracker: BLOCK_TRACKER_MOCK,
-        messenger: messengerWithoutWebsockets,
-        chainId: CHAIN_ID_MOCK,
-      });
-
-      const listener = jest.fn();
-      poller.start(listener);
-      poller.stop();
-
-      expect(messengerWithoutWebsockets.unsubscribe).not.toHaveBeenCalledWith(
         'AccountActivityService:transactionUpdated',
         expect.any(Function),
       );
