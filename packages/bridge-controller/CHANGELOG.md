@@ -7,6 +7,16 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+### Added
+
+- Add `MEGAETH` network support ([#7823](https://github.com/MetaMask/core/pull/7823))
+  - Add `MEGAETH` into constants `ALLOWED_BRIDGE_CHAIN_IDS`, `DEFAULT_CHAIN_RANKING`, `CHAIN_IDS`, `CURRENCY_SYMBOLS` and `SWAPS_CHAINID_DEFAULT_TOKEN_MAP`
+- Export `isTronChainId` from the package entrypoint ([#7697](https://github.com/MetaMask/core/pull/7697))
+
+### Changed
+
+- Bump `@metamask/transaction-controller` from `^62.13.0` to `^62.14.0` ([#7832](https://github.com/MetaMask/core/pull/7832))
+
 ## [65.2.0]
 
 ### Added

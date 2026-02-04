@@ -2335,8 +2335,8 @@ describe('BridgeStatusController', () => {
 
       expect(mockMessengerCall.mock.calls).toMatchSnapshot();
       expect(result).toMatchSnapshot();
-      // Swaps don't start polling (only bridges do)
-      expect(startPollingForBridgeTxStatusSpy).toHaveBeenCalledTimes(0);
+      // Tron swaps start polling for async settlement
+      expect(startPollingForBridgeTxStatusSpy).toHaveBeenCalledTimes(1);
       expect(controller.state.txHistory[result.id]).toMatchSnapshot();
     });
 

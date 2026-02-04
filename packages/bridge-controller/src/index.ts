@@ -119,6 +119,7 @@ export {
   isNativeAddress,
   isSolanaChainId,
   isBitcoinChainId,
+  isTronChainId,
   isNonEvmChainId,
   getNativeAssetForChainId,
   getDefaultBridgeControllerState,
