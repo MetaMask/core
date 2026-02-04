@@ -33,6 +33,7 @@ import { Mutex } from 'async-mutex';
 import {
   assertIsPasswordOutdatedCacheValid,
   assertIsSeedlessOnboardingUserAuthenticated,
+  assertIsValidPassword,
   assertIsValidVaultData,
 } from './assertions';
 import type { AuthConnection } from './constants';
@@ -1787,7 +1788,7 @@ export class SeedlessOnboardingController<
    * Encrypt and update the vault with the given authentication data.
    *
    * @param params - The parameters for updating the vault.
-   * @param params.password - The password to encrypt the vault.
+   * @param params.password - The optional password to encrypt the vault. If not provided, the vault will be encrypted with the encryption key in the state.
    * @param params.vaultData - The raw vault data to update the vault with.
    * @param params.pwEncKey - The global password encryption key.
    * @returns A promise that resolves to the updated vault.
@@ -1797,38 +1798,95 @@ export class SeedlessOnboardingController<
     vaultData,
     pwEncKey,
   }: {
-    password: string;
+    password?: string;
     vaultData: DeserializedVaultData;
     pwEncKey: Uint8Array;
   }): Promise<void> {
     await this.#withVaultLock(async () => {
-      assertIsValidPassword(password);
-
-      // cache the vault data to avoid decrypting the vault data multiple times
-      this.#cachedDecryptedVaultData = vaultData;
-
       const serializedVaultData = serializeVaultData(vaultData);
 
-      // Note that vault encryption using the password is a very costly operation as it involves deriving the encryption key
-      // from the password using an intentionally slow key derivation function.
-      // We should make sure that we only call it very intentionally.
-      const { vault, exportedKeyString } =
-        await this.#vaultEncryptor.encryptWithDetail(
-          password,
+      const { vaultEncryptionKey, vaultEncryptionSalt, vault } = this.state;
+
+      const updatedState: Partial<SeedlessOnboardingControllerState> = {
+        vault,
+        vaultEncryptionKey,
+        vaultEncryptionSalt,
+        encryptedSeedlessEncryptionKey:
+          this.state.encryptedSeedlessEncryptionKey,
+      };
+
+      // if the password is provided, encrypt the vault with the password
+      // We gonna prioritize the password encryption here, in case of the operation is `Change Password`.
+      // We don't wanna re-use the old encryption key from the state.
+      if (password) {
+        assertIsValidPassword(password);
+
+        // Note that vault encryption using the password is a very costly operation as it involves deriving the encryption key
+        // from the password using an intentionally slow key derivation function.
+        // We should make sure that we only call it very intentionally.
+        const { vault: updatedEncVault, exportedKeyString } =
+          await this.#vaultEncryptor.encryptWithDetail(
+            password,
+            serializedVaultData,
+          );
+
+        updatedState.vault = updatedEncVault;
+        updatedState.vaultEncryptionKey = exportedKeyString;
+        updatedState.vaultEncryptionSalt = JSON.parse(updatedEncVault).salt;
+
+        // encrypt the seedless encryption key with the password encryption key from TOPRF network
+        updatedState.encryptedSeedlessEncryptionKey =
+          this.#encryptSeedlessEncryptionKey(exportedKeyString, pwEncKey);
+      } else if (vaultEncryptionKey && vaultEncryptionSalt) {
+        const encryptionKey =
+          await this.#vaultEncryptor.importKey(vaultEncryptionKey);
+        const updatedEncVault = await this.#vaultEncryptor.encryptWithKey(
+          encryptionKey,
           serializedVaultData,
         );
 
-      const aes = managedNonce(gcm)(pwEncKey);
-      const encryptedKey = aes.encrypt(utf8ToBytes(exportedKeyString));
-      const encryptedSeedlessEncryptionKey = bytesToBase64(encryptedKey);
+        // NOTE: Referenced from keyring-controller!
+        // We need to include the salt used to derive the encryption key, to be able to derive it from password again.
+        updatedEncVault.salt = vaultEncryptionSalt;
 
+        updatedState.vault = JSON.stringify(updatedEncVault);
+        updatedState.vaultEncryptionKey = vaultEncryptionKey;
+        updatedState.vaultEncryptionSalt = vaultEncryptionSalt;
+      } else {
+        // neither password nor encryption key is provided
+        throw new Error(
+          SeedlessOnboardingControllerErrorMessage.MissingCredentials,
+        );
+      }
+
+      // update the state with the updated vault data
       this.update((state) => {
-        state.vault = vault;
-        state.vaultEncryptionKey = exportedKeyString;
-        state.vaultEncryptionSalt = JSON.parse(vault).salt;
-        state.encryptedSeedlessEncryptionKey = encryptedSeedlessEncryptionKey;
+        state.vault = updatedState.vault;
+        state.vaultEncryptionKey = updatedState.vaultEncryptionKey;
+        state.vaultEncryptionSalt = updatedState.vaultEncryptionSalt;
+        state.encryptedSeedlessEncryptionKey =
+          updatedState.encryptedSeedlessEncryptionKey;
       });
+
+      // cache the vault data to avoid decrypting the vault data multiple times
+      this.#cachedDecryptedVaultData = vaultData;
     });
+  }
+
+  /**
+   * Encrypt the seedless encryption key with the password encryption key from TOPRF network.
+   *
+   * @param vaultEncryptionKey - The key which is used to encrypt the vault.
+   * @param pwEncKey - The password encryption key from TOPRF network.
+   * @returns The encrypted seedless encryption key.
+   */
+  #encryptSeedlessEncryptionKey(
+    vaultEncryptionKey: string,
+    pwEncKey: Uint8Array,
+  ): string {
+    const aes = managedNonce(gcm)(pwEncKey);
+    const encryptedKey = aes.encrypt(utf8ToBytes(vaultEncryptionKey));
+    return bytesToBase64(encryptedKey);
   }
 
   /**
@@ -2058,8 +2116,19 @@ export class SeedlessOnboardingController<
         skipLock: true,
       });
 
-      // update the vault with new access token
-      await this.#updateVaultAfterAuthTokenRefresh(accessToken);
+      // update the vault with new access token if wallet is unlocked
+      if (this.#isUnlocked && this.#cachedDecryptedVaultData) {
+        const updatedVaultData = {
+          ...this.#cachedDecryptedVaultData,
+          accessToken,
+        };
+        const pwEncKey = this.#cachedDecryptedVaultData.toprfPwEncryptionKey;
+
+        await this.#updateVault({
+          vaultData: updatedVaultData,
+          pwEncKey,
+        });
+      }
     } catch (error) {
       log('Error refreshing node auth tokens', error);
       throw new Error(
@@ -2293,61 +2362,6 @@ export class SeedlessOnboardingController<
     }
   }
 
-  async #updateVaultAfterAuthTokenRefresh(accessToken: string): Promise<void> {
-    await this.#withVaultLock(async () => {
-      if (!this.#isUnlocked) {
-        // we just temporarily store the access token in the state
-        // when user attempts to unlock the vault, we will use this access token to update the vault
-        this.update((state) => {
-          state.accessToken = accessToken;
-        });
-        return;
-      }
-
-      const { vaultEncryptionKey, vaultEncryptionSalt } = this.state;
-      if (
-        !vaultEncryptionKey ||
-        !vaultEncryptionSalt ||
-        !this.#cachedDecryptedVaultData
-      ) {
-        throw new Error(
-          SeedlessOnboardingControllerErrorMessage.MissingCredentials,
-        );
-      }
-
-      const serializedVaultData = serializeVaultData({
-        ...this.#cachedDecryptedVaultData,
-        accessToken,
-      });
-
-      const encryptionKey =
-        await this.#vaultEncryptor.importKey(vaultEncryptionKey);
-      const updatedEncVault = await this.#vaultEncryptor.encryptWithKey(
-        encryptionKey,
-        serializedVaultData,
-      );
-
-      // NOTE: Referenced from keyring-controller!
-      // We need to include the salt used to derive
-      // the encryption key, to be able to derive it
-      // from password again.
-      updatedEncVault.salt = vaultEncryptionSalt;
-
-      this.update((state) => {
-        state.vault = JSON.stringify(updatedEncVault);
-        state.vaultEncryptionSalt = vaultEncryptionSalt;
-        state.accessToken = accessToken;
-        state.vaultEncryptionKey = vaultEncryptionKey;
-      });
-
-      // update the cached decrypted vault data with the new access token
-      this.#cachedDecryptedVaultData = {
-        ...this.#cachedDecryptedVaultData,
-        accessToken,
-      };
-    });
-  }
-
   /**
    * Check if the tokens are expired.
    *
@@ -2423,24 +2437,6 @@ export class SeedlessOnboardingController<
     } catch {
       return true; // Consider unauthenticated user as having expired tokens
     }
-  }
-}
-
-/**
- * Assert that the provided password is a valid non-empty string.
- *
- * @param password - The password to check.
- * @throws If the password is not a valid string.
- */
-function assertIsValidPassword(password: unknown): asserts password is string {
-  if (typeof password !== 'string') {
-    throw new Error(SeedlessOnboardingControllerErrorMessage.WrongPasswordType);
-  }
-
-  if (!password?.length) {
-    throw new Error(
-      SeedlessOnboardingControllerErrorMessage.InvalidEmptyPassword,
-    );
   }
 }
 
