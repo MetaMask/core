@@ -1,6 +1,11 @@
 import type { Caveat, Hex } from '@metamask/delegation-core';
 import { ROOT_AUTHORITY } from '@metamask/delegation-core';
-import { getChecksumAddress, hexToNumber, numberToHex } from '@metamask/utils';
+import {
+  getChecksumAddress,
+  hexToBigInt,
+  hexToNumber,
+  numberToHex,
+} from '@metamask/utils';
 
 import type {
   DecodedPermission,
@@ -206,12 +211,28 @@ export const getPermissionDataAndExpiry = ({
         startTimeRaw,
       ] = splitHex(erc20StreamingTerms, [20, 32, 32, 32, 32]);
 
+      const startTime = hexToNumber(startTimeRaw);
+      const initialAmountBigInt = hexToBigInt(initialAmount);
+      const maxAmountBigInt = hexToBigInt(maxAmount);
+
+      if (maxAmountBigInt < initialAmountBigInt) {
+        throw new Error(
+          'Invalid erc20-token-stream terms: maxAmount must be greater than initialAmount',
+        );
+      }
+
+      if (startTime <= 0) {
+        throw new Error(
+          'Invalid erc20-token-stream terms: startTime must be a positive number',
+        );
+      }
+
       data = {
         tokenAddress,
         initialAmount,
         maxAmount,
         amountPerSecond,
-        startTime: hexToNumber(startTimeRaw),
+        startTime,
       };
       break;
     }
@@ -224,11 +245,26 @@ export const getPermissionDataAndExpiry = ({
       const [tokenAddress, periodAmount, periodDurationRaw, startTimeRaw] =
         splitHex(erc20PeriodicTerms, [20, 32, 32, 32]);
 
+      const periodDuration = hexToNumber(periodDurationRaw);
+      const startTime = hexToNumber(startTimeRaw);
+
+      if (periodDuration <= 0) {
+        throw new Error(
+          'Invalid erc20-token-periodic terms: periodDuration must be a positive number',
+        );
+      }
+
+      if (startTime <= 0) {
+        throw new Error(
+          'Invalid erc20-token-periodic terms: startTime must be a positive number',
+        );
+      }
+
       data = {
         tokenAddress,
         periodAmount,
-        periodDuration: hexToNumber(periodDurationRaw),
-        startTime: hexToNumber(startTimeRaw),
+        periodDuration,
+        startTime,
       };
       break;
     }
@@ -242,11 +278,40 @@ export const getPermissionDataAndExpiry = ({
       const [initialAmount, maxAmount, amountPerSecond, startTimeRaw] =
         splitHex(nativeTokenStreamingTerms, [32, 32, 32, 32]);
 
+      const initialAmountBigInt = hexToBigInt(initialAmount);
+      const maxAmountBigInt = hexToBigInt(maxAmount);
+      const amountPerSecondBigInt = hexToBigInt(amountPerSecond);
+      const startTime = hexToNumber(startTimeRaw);
+
+      if (initialAmountBigInt <= 0n) {
+        throw new Error(
+          'Invalid native-token-stream terms: initialAmount must be a positive number',
+        );
+      }
+
+      if (maxAmountBigInt <= 0n) {
+        throw new Error(
+          'Invalid native-token-stream terms: maxAmount must be a positive number',
+        );
+      }
+
+      if (amountPerSecondBigInt <= 0n) {
+        throw new Error(
+          'Invalid native-token-stream terms: amountPerSecond must be a positive number',
+        );
+      }
+
+      if (startTime <= 0) {
+        throw new Error(
+          'Invalid native-token-stream terms: startTime must be a positive number',
+        );
+      }
+
       data = {
         initialAmount,
         maxAmount,
         amountPerSecond,
-        startTime: hexToNumber(startTimeRaw),
+        startTime,
       };
       break;
     }
@@ -261,10 +326,25 @@ export const getPermissionDataAndExpiry = ({
         [32, 32, 32],
       );
 
+      const periodDuration = hexToNumber(periodDurationRaw);
+      const startTime = hexToNumber(startTimeRaw);
+
+      if (periodDuration <= 0) {
+        throw new Error(
+          'Invalid native-token-periodic terms: periodDuration must be a positive number',
+        );
+      }
+
+      if (startTime <= 0) {
+        throw new Error(
+          'Invalid native-token-periodic terms: startTime must be a positive number',
+        );
+      }
+
       data = {
         periodAmount,
-        periodDuration: hexToNumber(periodDurationRaw),
-        startTime: hexToNumber(startTimeRaw),
+        periodDuration,
+        startTime,
       };
       break;
     }
