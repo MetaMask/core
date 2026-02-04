@@ -7,6 +7,8 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+## [99.3.0]
+
 ### Changed
 
 - Bump `@metamask/core-backend` from `^5.0.0` to `^5.1.0` ([#7817](https://github.com/MetaMask/core/pull/7817))
@@ -2634,7 +2636,8 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 - Use Ethers for AssetsContractController ([#845](https://github.com/MetaMask/core/pull/845))
 
-[Unreleased]: https://github.com/MetaMask/core/compare/@metamask/assets-controllers@99.2.0...HEAD
+[Unreleased]: https://github.com/MetaMask/core/compare/@metamask/assets-controllers@99.3.0...HEAD
+[99.3.0]: https://github.com/MetaMask/core/compare/@metamask/assets-controllers@99.2.0...@metamask/assets-controllers@99.3.0
 [99.2.0]: https://github.com/MetaMask/core/compare/@metamask/assets-controllers@99.1.0...@metamask/assets-controllers@99.2.0
 [99.1.0]: https://github.com/MetaMask/core/compare/@metamask/assets-controllers@99.0.0...@metamask/assets-controllers@99.1.0
 [99.0.0]: https://github.com/MetaMask/core/compare/@metamask/assets-controllers@98.0.0...@metamask/assets-controllers@99.0.0
