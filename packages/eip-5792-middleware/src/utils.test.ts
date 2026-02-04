@@ -2,7 +2,7 @@ import { KeyringTypes } from '@metamask/keyring-controller';
 import { JsonRpcError, providerErrors } from '@metamask/rpc-errors';
 import type { StructError } from '@metamask/superstruct';
 import { any, validate } from '@metamask/superstruct';
-import type { Hex, JsonRpcRequest } from '@metamask/utils';
+import type { Hex } from '@metamask/utils';
 
 import { EIP5792ErrorCode } from './constants';
 import type { EIP5792Messenger } from './types';
@@ -307,23 +307,20 @@ describe('getAccountKeyringType', () => {
 describe('validateAndNormalizeKeyholder', () => {
   const ADDRESS_MOCK = '0xABCDabcdABCDabcdABCDabcdABCDabcdABCDabcd';
 
-  let getPermittedAccountsForOriginMock: jest.MockedFn<
-    () => Promise<string[]>
-  >;
+  let getPermittedAccountsForOriginMock: jest.MockedFn<() => Promise<string[]>>;
 
   beforeEach(() => {
     jest.resetAllMocks();
 
-    getPermittedAccountsForOriginMock = jest.fn().mockResolvedValue([ADDRESS_MOCK]);
+    getPermittedAccountsForOriginMock = jest
+      .fn()
+      .mockResolvedValue([ADDRESS_MOCK]);
   });
 
   it('returns lowercase address', async () => {
-    const result = await validateAndNormalizeKeyholder(
-      ADDRESS_MOCK,
-      {
-        getPermittedAccountsForOrigin: getPermittedAccountsForOriginMock,
-      },
-    );
+    const result = await validateAndNormalizeKeyholder(ADDRESS_MOCK, {
+      getPermittedAccountsForOrigin: getPermittedAccountsForOriginMock,
+    });
 
     expect(result).toBe(ADDRESS_MOCK.toLowerCase());
   });

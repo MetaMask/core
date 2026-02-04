@@ -51,7 +51,9 @@ describe('wallet_getCapabilities', () => {
     params = request.params as GetCapabilitiesParams;
     response = {} as PendingJsonRpcResponse<GetCapabilitiesResult>;
 
-    getPermittedAccountsForOriginMock = jest.fn().mockResolvedValue([ADDRESS_MOCK]);
+    getPermittedAccountsForOriginMock = jest
+      .fn()
+      .mockResolvedValue([ADDRESS_MOCK]);
     getCapabilitiesMock = jest.fn().mockResolvedValue(RESULT_MOCK);
   });
 

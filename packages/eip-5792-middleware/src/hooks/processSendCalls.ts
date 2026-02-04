@@ -97,7 +97,7 @@ export async function processSendCalls(
   ).configuration;
 
   // The first account returned by `getPermittedAccountsForOrigin` is the selected account for the origin
-  const [selectedAccount] = await getPermittedAccountsForOrigin()
+  const [selectedAccount] = await getPermittedAccountsForOrigin();
   const from = paramFrom ?? selectedAccount;
 
   if (!from) {

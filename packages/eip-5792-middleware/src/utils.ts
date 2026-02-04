@@ -2,7 +2,7 @@ import type { KeyringTypes } from '@metamask/keyring-controller';
 import { JsonRpcError, providerErrors, rpcErrors } from '@metamask/rpc-errors';
 import type { Struct, StructError } from '@metamask/superstruct';
 import { validate } from '@metamask/superstruct';
-import type { Hex, JsonRpcRequest } from '@metamask/utils';
+import type { Hex } from '@metamask/utils';
 
 import { EIP5792ErrorCode } from './constants';
 import type { EIP5792Messenger } from './types';
@@ -51,7 +51,9 @@ export function getAccountKeyringType(
  */
 export async function validateAndNormalizeKeyholder(
   address: Hex,
-  { getPermittedAccountsForOrigin }: { getPermittedAccountsForOrigin: () => Promise<string[]> },
+  {
+    getPermittedAccountsForOrigin,
+  }: { getPermittedAccountsForOrigin: () => Promise<string[]> },
 ): Promise<Hex> {
   if (
     typeof address === 'string' &&

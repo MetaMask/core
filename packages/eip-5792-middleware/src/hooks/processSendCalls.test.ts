@@ -90,9 +90,8 @@ describe('EIP-5792', () => {
 
   const isAuxiliaryFundsSupportedMock: jest.Mock = jest.fn();
 
-  const getPermittedAccountsForOriginMock: jest.MockedFn<
-    () => Promise<Hex[]>
-  > = jest.fn();
+  const getPermittedAccountsForOriginMock: jest.MockedFn<() => Promise<Hex[]>> =
+    jest.fn();
 
   let rootMessenger: RootMessenger;
 
