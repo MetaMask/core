@@ -189,9 +189,6 @@ export type TransactionControllerFeatureFlags = {
        */
       default?: number;
     };
-
-    /** Whether to use WebSocket for event-driven transaction updates instead of polling. */
-    useWebsockets?: boolean;
   };
 };
 
@@ -227,7 +224,7 @@ export function getEIP7702ContractAddresses(
 
   const contracts =
     featureFlags?.[FeatureFlag.EIP7702]?.contracts?.[
-      chainId.toLowerCase() as Hex
+    chainId.toLowerCase() as Hex
     ] ?? [];
 
   return contracts
