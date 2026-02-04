@@ -224,6 +224,15 @@ export class TransactionPoller {
       return;
     }
 
+    const selectedAccount = this.#messenger.call(
+      'AccountsController:getSelectedAccount',
+    );
+    if (
+      selectedAccount.address.toLowerCase() !== transaction.from.toLowerCase()
+    ) {
+      return;
+    }
+
     this.#interval(false, undefined, true).catch(() => {
       // Silently catch errors to prevent unhandled rejections
     });
