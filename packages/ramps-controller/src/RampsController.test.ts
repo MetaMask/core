@@ -10,11 +10,13 @@ import * as path from 'path';
 
 import type {
   RampsControllerMessenger,
+  RampsControllerState,
   ResourceState,
   UserRegion,
 } from './RampsController';
 import {
   RampsController,
+  getDefaultRampsControllerState,
   RAMPS_CONTROLLER_REQUIRED_SERVICE_ACTIONS,
 } from './RampsController';
 import type {
@@ -1198,6 +1200,42 @@ describe('RampsController', () => {
         `);
         expect(controller.state.countries.data).toStrictEqual(mockCountries);
       });
+    });
+
+    it('stores empty array when getCountries returns non-array (defensive)', async () => {
+      await withController(async ({ controller, rootMessenger }) => {
+        rootMessenger.registerActionHandler(
+          'RampsService:getCountries',
+          async () => 'not an array' as unknown as Country[],
+        );
+
+        const countries = await controller.getCountries();
+
+        expect(countries).toBe('not an array');
+        expect(controller.state.countries.data).toStrictEqual([]);
+      });
+    });
+
+    it('does not throw when updating resource field and resource is null (defensive)', async () => {
+      const stateWithNullCountries = {
+        ...getDefaultRampsControllerState(),
+        countries: null,
+      } as unknown as RampsControllerState;
+
+      await withController(
+        {
+          options: {
+            state: stateWithNullCountries,
+          },
+        },
+        async ({ controller, rootMessenger }) => {
+          rootMessenger.registerActionHandler(
+            'RampsService:getCountries',
+            async () => mockCountries,
+          );
+          await expect(controller.getCountries()).rejects.toThrow();
+        },
+      );
     });
   });
 
