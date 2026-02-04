@@ -1147,7 +1147,7 @@ describe('RampsController', () => {
       });
     });
 
-    it('stores empty array when getCountries returns non-array (defensive)', async () => {
+    it('returns and stores empty array when getCountries returns non-array (defensive)', async () => {
       await withController(async ({ controller, rootMessenger }) => {
         rootMessenger.registerActionHandler(
           'RampsService:getCountries',
@@ -1156,7 +1156,7 @@ describe('RampsController', () => {
 
         const countries = await controller.getCountries();
 
-        expect(countries).toBe('not an array');
+        expect(countries).toStrictEqual([]);
         expect(controller.state.countries.data).toStrictEqual([]);
       });
     });
@@ -1179,7 +1179,7 @@ describe('RampsController', () => {
             async () => mockCountries,
           );
           await expect(controller.getCountries()).rejects.toThrow(
-            /null|Cannot set property|Proxy/,
+            /null|Cannot set property|Proxy/u,
           );
         },
       );

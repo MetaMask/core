@@ -1029,11 +1029,15 @@ export class RampsController extends BaseController<
       { ...options, resourceType: 'countries' },
     );
 
+    const normalizedCountries: Country[] = Array.isArray(countries)
+      ? [...countries]
+      : [];
+
     this.update((state) => {
-      state.countries.data = Array.isArray(countries) ? [...countries] : [];
+      state.countries.data = normalizedCountries;
     });
 
-    return countries;
+    return normalizedCountries;
   }
 
   /**
