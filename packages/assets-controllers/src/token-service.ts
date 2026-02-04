@@ -93,6 +93,7 @@ function getTokenSearchURL(options: {
  * @param options.maxMarketCap - The maximum market cap.
  * @param options.excludeLabels - Array of labels to exclude (e.g., ['stable_coin', 'blue_chip']).
  * @param options.includeRwaData - Optional flag to include RWA data in the results (defaults to false).
+ * @param options.usePriceApiData - Optional flag to use price API data in the results (defaults to false).
  * @returns The trending tokens URL.
  */
 function getTrendingTokensURL(options: {
@@ -105,6 +106,7 @@ function getTrendingTokensURL(options: {
   maxMarketCap?: number;
   excludeLabels?: string[];
   includeRwaData?: boolean;
+  usePriceApiData?: boolean;
 }): string {
   const encodedChainIds = options.chainIds
     .map((id) => encodeURIComponent(id))
@@ -278,7 +280,8 @@ export type TrendingAsset = {
  * @param options.minMarketCap - The minimum market cap.
  * @param options.maxMarketCap - The maximum market cap.
  * @param options.excludeLabels - Array of labels to exclude (e.g., ['stable_coin', 'blue_chip']).
- * @param options.includeRwaData - Optional flag to include RWA data in the results (defaults to false).
+ * @param options.includeRwaData - Optional flag to include RWA data in the results (defaults to true).
+ * @param options.usePriceApiData - Optional flag to use price API data in the results (defaults to true).
  * @returns The trending tokens.
  * @throws Will throw if the request fails.
  */
@@ -292,6 +295,7 @@ export async function getTrendingTokens({
   maxMarketCap,
   excludeLabels,
   includeRwaData = true,
+  usePriceApiData = true,
 }: {
   chainIds: CaipChainId[];
   sortBy?: SortTrendingBy;
@@ -302,6 +306,7 @@ export async function getTrendingTokens({
   maxMarketCap?: number;
   excludeLabels?: string[];
   includeRwaData?: boolean;
+  usePriceApiData?: boolean;
 }): Promise<TrendingAsset[]> {
   if (chainIds.length === 0) {
     console.error('No chains provided');
@@ -318,6 +323,7 @@ export async function getTrendingTokens({
     maxMarketCap,
     excludeLabels,
     includeRwaData,
+    usePriceApiData,
   });
 
   try {
