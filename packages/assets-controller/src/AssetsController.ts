@@ -19,7 +19,6 @@ import type {
   NetworkEnablementControllerEvents,
   NetworkEnablementControllerState,
 } from '@metamask/network-enablement-controller';
-import type { Json } from '@metamask/utils';
 import { parseCaipAssetType } from '@metamask/utils';
 import { Mutex } from 'async-mutex';
 import BigNumberJS from 'bignumber.js';
@@ -39,6 +38,7 @@ import { projectLogger, createModuleLogger } from './logger';
 import type { DetectionMiddlewareGetAssetsMiddlewareAction } from './middlewares/DetectionMiddleware';
 import type {
   AccountId,
+  AssetPreferences,
   ChainId,
   Caip19AssetId,
   AssetMetadata,
@@ -75,29 +75,28 @@ const log = createModuleLogger(projectLogger, CONTROLLER_NAME);
 /**
  * State structure for AssetsController.
  *
- * All values are JSON-serializable. The type is widened to satisfy
- * StateConstraint from BaseController, but the actual runtime values
- * conform to AssetMetadata, AssetPrice, and AssetBalance interfaces.
+ * All values are JSON-serializable. UI preferences (e.g. hidden) are in
+ * assetPreferences, not in metadata.
  *
  * @see AssetsControllerStateInternal for the semantic type structure
  */
 export type AssetsControllerState = {
   /** Shared metadata for all assets (stored once per asset) */
-  assetsMetadata: { [assetId: string]: Json };
+  assetsMetadata: { [assetId: string]: AssetMetadata };
   /** Per-account balance data */
-  assetsBalance: { [accountId: string]: { [assetId: string]: Json } };
+  assetsBalance: { [accountId: string]: { [assetId: string]: AssetBalance } };
   /** Price data for assets */
-  assetsPrice: { [assetId: string]: Json };
+  assetsPrice: { [assetId: string]: AssetPrice };
   /** Custom assets added by users per account (CAIP-19 asset IDs) */
-  customAssets: { [accountId: string]: string[] };
-  /** Hidden assets per account (CAIP-19 asset IDs) - assets user chose to hide */
-  hiddenAssets: { [accountId: string]: string[] };
+  customAssets: { [accountId: string]: Caip19AssetId[] };
+  /** UI preferences per asset (e.g. hidden) */
+  assetPreferences: { [assetId: string]: AssetPreferences };
 };
 
 /**
  * Returns the default state for AssetsController.
  *
- * @returns The default AssetsController state with empty metadata, balance, price, customAssets, and hiddenAssets maps.
+ * @returns The default AssetsController state with empty maps.
  */
 export function getDefaultAssetsControllerState(): AssetsControllerState {
   return {
@@ -105,7 +104,7 @@ export function getDefaultAssetsControllerState(): AssetsControllerState {
     assetsBalance: {},
     assetsPrice: {},
     customAssets: {},
-    hiddenAssets: {},
+    assetPreferences: {},
   };
 }
 
@@ -173,11 +172,6 @@ export type AssetsControllerUnhideAssetAction = {
   handler: AssetsController['unhideAsset'];
 };
 
-export type AssetsControllerGetHiddenAssetsAction = {
-  type: `${typeof CONTROLLER_NAME}:getHiddenAssets`;
-  handler: AssetsController['getHiddenAssets'];
-};
-
 export type AssetsControllerActions =
   | AssetsControllerGetStateAction
   | AssetsControllerGetAssetsAction
@@ -190,8 +184,7 @@ export type AssetsControllerActions =
   | AssetsControllerRemoveCustomAssetAction
   | AssetsControllerGetCustomAssetsAction
   | AssetsControllerHideAssetAction
-  | AssetsControllerUnhideAssetAction
-  | AssetsControllerGetHiddenAssetsAction;
+  | AssetsControllerUnhideAssetAction;
 
 export type AssetsControllerStateChangeEvent = ControllerStateChangeEvent<
   typeof CONTROLLER_NAME,
@@ -313,7 +306,7 @@ const stateMetadata: StateMetadata<AssetsControllerState> = {
     includeInDebugSnapshot: false,
     usedInUi: true,
   },
-  hiddenAssets: {
+  assetPreferences: {
     persist: true,
     includeInStateLogs: false,
     includeInDebugSnapshot: false,
@@ -664,11 +657,6 @@ export class AssetsController extends BaseController<
       'AssetsController:unhideAsset',
       this.unhideAsset.bind(this),
     );
-
-    this.messenger.registerActionHandler(
-      'AssetsController:getHiddenAssets',
-      this.getHiddenAssets.bind(this),
-    );
   }
 
   // ============================================================================
@@ -938,16 +926,12 @@ export class AssetsController extends BaseController<
         customAssets[accountId].push(normalizedAssetId);
       }
 
-      // Remove from hidden assets if it was hidden (unhide the asset)
-      const hiddenAssets = state.hiddenAssets as Record<string, string[]>;
-      if (hiddenAssets[accountId]) {
-        hiddenAssets[accountId] = hiddenAssets[accountId].filter(
-          (id) => id !== normalizedAssetId,
-        );
-
-        // Clean up empty arrays
-        if (hiddenAssets[accountId].length === 0) {
-          delete hiddenAssets[accountId];
+      // Unhide the asset if it was hidden (via assetPreferences)
+      const prefs = state.assetPreferences[normalizedAssetId];
+      if (prefs?.hidden) {
+        delete prefs.hidden;
+        if (Object.keys(prefs).length === 0) {
+          delete state.assetPreferences[normalizedAssetId];
         }
       }
     });
@@ -975,15 +959,14 @@ export class AssetsController extends BaseController<
     log('Removing custom asset', { accountId, assetId: normalizedAssetId });
 
     this.update((state) => {
-      const customAssets = state.customAssets as Record<string, string[]>;
-      if (customAssets[accountId]) {
-        customAssets[accountId] = customAssets[accountId].filter(
+      if (state.customAssets[accountId]) {
+        state.customAssets[accountId] = state.customAssets[accountId].filter(
           (id) => id !== normalizedAssetId,
         );
 
         // Clean up empty arrays
-        if (customAssets[accountId].length === 0) {
-          delete customAssets[accountId];
+        if (state.customAssets[accountId].length === 0) {
+          delete state.customAssets[accountId];
         }
       }
     });
@@ -996,7 +979,7 @@ export class AssetsController extends BaseController<
    * @returns Array of CAIP-19 asset IDs for the account's custom assets.
    */
   getCustomAssets(accountId: AccountId): Caip19AssetId[] {
-    return (this.state.customAssets[accountId] ?? []) as Caip19AssetId[];
+    return this.state.customAssets[accountId] ?? [];
   }
 
   // ============================================================================
@@ -1004,78 +987,44 @@ export class AssetsController extends BaseController<
   // ============================================================================
 
   /**
-   * Hide an asset for an account.
+   * Hide an asset globally.
    * Hidden assets are excluded from the asset list returned by getAssets.
+   * The hidden state is stored in assetPreferences.
    *
-   * @param accountId - The account ID to hide the asset for.
    * @param assetId - The CAIP-19 asset ID to hide.
    */
-  hideAsset(accountId: AccountId, assetId: Caip19AssetId): void {
+  hideAsset(assetId: Caip19AssetId): void {
     const normalizedAssetId = normalizeAssetId(assetId);
 
-    log('Hiding asset', { accountId, assetId: normalizedAssetId });
+    log('Hiding asset', { assetId: normalizedAssetId });
 
     this.update((state) => {
-      const hiddenAssets = state.hiddenAssets as Record<string, string[]>;
-      if (!hiddenAssets[accountId]) {
-        hiddenAssets[accountId] = [];
+      if (!state.assetPreferences[normalizedAssetId]) {
+        state.assetPreferences[normalizedAssetId] = {};
       }
-
-      // Only add if not already present
-      if (!hiddenAssets[accountId].includes(normalizedAssetId)) {
-        hiddenAssets[accountId].push(normalizedAssetId);
-      }
+      state.assetPreferences[normalizedAssetId].hidden = true;
     });
   }
 
   /**
-   * Unhide an asset for an account.
+   * Unhide an asset globally.
    *
-   * @param accountId - The account ID to unhide the asset for.
    * @param assetId - The CAIP-19 asset ID to unhide.
    */
-  unhideAsset(accountId: AccountId, assetId: Caip19AssetId): void {
+  unhideAsset(assetId: Caip19AssetId): void {
     const normalizedAssetId = normalizeAssetId(assetId);
 
-    log('Unhiding asset', { accountId, assetId: normalizedAssetId });
+    log('Unhiding asset', { assetId: normalizedAssetId });
 
     this.update((state) => {
-      const hiddenAssets = state.hiddenAssets as Record<string, string[]>;
-      if (hiddenAssets[accountId]) {
-        hiddenAssets[accountId] = hiddenAssets[accountId].filter(
-          (id) => id !== normalizedAssetId,
-        );
-
-        // Clean up empty arrays
-        if (hiddenAssets[accountId].length === 0) {
-          delete hiddenAssets[accountId];
+      const prefs = state.assetPreferences[normalizedAssetId];
+      if (prefs) {
+        delete prefs.hidden;
+        if (Object.keys(prefs).length === 0) {
+          delete state.assetPreferences[normalizedAssetId];
         }
       }
     });
-  }
-
-  /**
-   * Get all hidden assets for an account.
-   *
-   * @param accountId - The account ID to get hidden assets for.
-   * @returns Array of CAIP-19 asset IDs for the account's hidden assets.
-   */
-  getHiddenAssets(accountId: AccountId): Caip19AssetId[] {
-    return (this.state.hiddenAssets[accountId] ?? []) as Caip19AssetId[];
-  }
-
-  /**
-   * Check if an asset is hidden for an account.
-   *
-   * @param accountId - The account ID to check.
-   * @param assetId - The CAIP-19 asset ID to check.
-   * @returns True if the asset is hidden, false otherwise.
-   */
-  isAssetHidden(accountId: AccountId, assetId: Caip19AssetId): boolean {
-    const normalizedAssetId = normalizeAssetId(assetId);
-    return (
-      this.state.hiddenAssets[accountId]?.includes(normalizedAssetId) ?? false
-    );
   }
 
   // ============================================================================
@@ -1218,16 +1167,13 @@ export class AssetsController extends BaseController<
       const changedMetadata: string[] = [];
 
       this.update((state) => {
-        // Use type assertions to avoid deep type instantiation issues with Draft<Json>
-        const metadata = state.assetsMetadata as unknown as Record<
+        // Use type assertions to avoid deep type instantiation issues with Immer Draft types
+        const metadata = state.assetsMetadata as Record<string, AssetMetadata>;
+        const balances = state.assetsBalance as Record<
           string,
-          unknown
+          Record<string, AssetBalance>
         >;
-        const balances = state.assetsBalance as unknown as Record<
-          string,
-          Record<string, unknown>
-        >;
-        const prices = state.assetsPrice as unknown as Record<string, unknown>;
+        const prices = state.assetsPrice as Record<string, AssetPrice>;
 
         if (normalizedResponse.assetsMetadata) {
           for (const [key, value] of Object.entries(
@@ -1379,16 +1325,22 @@ export class AssetsController extends BaseController<
       result[account.id] = {};
 
       const accountBalances = this.state.assetsBalance[account.id] ?? {};
-      // Get hidden assets for this account
-      const hiddenAssets = new Set(
-        (this.state.hiddenAssets[account.id] ?? []) as string[],
-      );
 
       for (const [assetId, balance] of Object.entries(accountBalances)) {
         const typedAssetId = assetId as Caip19AssetId;
 
-        // Skip hidden assets
-        if (hiddenAssets.has(typedAssetId)) {
+        const metadataRaw = this.state.assetsMetadata[typedAssetId];
+
+        // Skip assets without metadata
+        if (!metadataRaw) {
+          continue;
+        }
+
+        const metadata = metadataRaw;
+
+        // Skip hidden assets (assetPreferences)
+        const prefs = this.state.assetPreferences[typedAssetId];
+        if (prefs?.hidden) {
           continue;
         }
 
@@ -1398,23 +1350,14 @@ export class AssetsController extends BaseController<
           continue;
         }
 
-        const metadataRaw = this.state.assetsMetadata[typedAssetId];
-
-        // Skip assets without metadata
-        if (!metadataRaw) {
-          continue;
-        }
-
-        const metadata = metadataRaw as AssetMetadata;
-
         // Filter by asset type
         const tokenAssetType = this.#tokenStandardToAssetType(metadata.type);
         if (!assetTypeSet.has(tokenAssetType)) {
           continue;
         }
 
-        const typedBalance = balance as AssetBalance;
-        const priceRaw = this.state.assetsPrice[typedAssetId] as AssetPrice;
+        const typedBalance = balance;
+        const priceRaw = this.state.assetsPrice[typedAssetId];
         const price: AssetPrice = priceRaw ?? {
           price: 0,
           lastUpdated: 0,
@@ -1930,6 +1873,5 @@ export class AssetsController extends BaseController<
     this.messenger.unregisterActionHandler('AssetsController:getCustomAssets');
     this.messenger.unregisterActionHandler('AssetsController:hideAsset');
     this.messenger.unregisterActionHandler('AssetsController:unhideAsset');
-    this.messenger.unregisterActionHandler('AssetsController:getHiddenAssets');
   }
 }

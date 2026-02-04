@@ -187,12 +187,8 @@ async function withController<ReturnValue>(
 
   // Mock AssetsController:getState
   messenger.registerActionHandler('AssetsController:getState', () => ({
-    allTokens: {},
-    allDetectedTokens: {},
-    allIgnoredTokens: {},
     assetsMetadata: {},
     assetsBalance: {},
-    hiddenAssets: {},
   }));
 
   // Mock TokenListController:getState

@@ -21,7 +21,6 @@ export type {
   AssetsControllerGetCustomAssetsAction,
   AssetsControllerHideAssetAction,
   AssetsControllerUnhideAssetAction,
-  AssetsControllerGetHiddenAssetsAction,
   AssetsControllerActions,
   AssetsControllerStateChangeEvent,
   AssetsControllerBalanceChangedEvent,

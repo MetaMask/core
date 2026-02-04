@@ -51,6 +51,14 @@ export type TokenStandard =
 // ============================================================================
 
 /**
+ * UI preferences for an asset (stored in assetPreferences state, not in metadata).
+ */
+export type AssetPreferences = {
+  /** Whether the asset is hidden from display */
+  hidden?: boolean;
+};
+
+/**
  * Base metadata attributes shared by ALL asset types.
  */
 export type BaseAssetMetadata = {
@@ -358,8 +366,7 @@ export type DataResponse = {
  * - assetsPrice keys: CAIP-19 asset IDs
  * - customAssets outer keys: Account IDs (InternalAccount.id UUIDs)
  * - customAssets inner values: CAIP-19 asset IDs array
- * - hiddenAssets outer keys: Account IDs (InternalAccount.id UUIDs)
- * - hiddenAssets inner values: CAIP-19 asset IDs array
+ * - assetPreferences keys: CAIP-19 asset IDs
  */
 export type AssetsControllerStateInternal = {
   /** Shared metadata for all assets (stored once per asset) */
@@ -370,8 +377,8 @@ export type AssetsControllerStateInternal = {
   assetsPrice: Record<Caip19AssetId, AssetPrice>;
   /** Custom assets added by users per account */
   customAssets: Record<AccountId, Caip19AssetId[]>;
-  /** Hidden assets per account - assets user chose to hide */
-  hiddenAssets: Record<AccountId, Caip19AssetId[]>;
+  /** UI preferences per asset (e.g. hidden) - separate from metadata */
+  assetPreferences: Record<Caip19AssetId, AssetPreferences>;
 };
 
 /**

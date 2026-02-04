@@ -170,16 +170,12 @@ type TokenListControllerGetStateAction = {
   };
 };
 
-// AssetsController:getState action (for user tokens state and assets balance)
+// AssetsController:getState action (for assets balance and metadata)
 type AssetsControllerGetStateAction = {
   type: 'AssetsController:getState';
   handler: () => {
-    allTokens: Record<string, Record<string, { address: string }[]>>;
-    allDetectedTokens: Record<string, Record<string, { address: string }[]>>;
-    allIgnoredTokens: Record<string, Record<string, string[]>>;
     assetsMetadata: Record<Caip19AssetId, AssetMetadata>;
     assetsBalance: Record<string, Record<string, { amount: string }>>;
-    hiddenAssets: Record<string, string[]>;
   };
 };
 
@@ -347,7 +343,6 @@ export class RpcDataSource extends BaseController<
         _action: 'AssetsController:getState',
       ): {
         assetsBalance: Record<string, Record<string, { amount: string }>>;
-        hiddenAssets?: Record<string, string[]>;
       } => {
         const state = this.messenger.call('AssetsController:getState');
         return {
@@ -355,7 +350,6 @@ export class RpcDataSource extends BaseController<
             string,
             Record<string, { amount: string }>
           >,
-          hiddenAssets: state.hiddenAssets ?? {},
         };
       },
     };
@@ -1307,7 +1301,9 @@ export class RpcDataSource extends BaseController<
    */
   #getExistingAssetsMetadata(): Record<Caip19AssetId, AssetMetadata> {
     try {
-      const state = this.messenger.call('AssetsController:getState');
+      const state = this.messenger.call('AssetsController:getState') as {
+        assetsMetadata?: Record<Caip19AssetId, AssetMetadata>;
+      };
       return (state.assetsMetadata ?? {}) as unknown as Record<
         Caip19AssetId,
         AssetMetadata
