@@ -219,8 +219,7 @@ export class TransactionPoller {
       return;
     }
 
-    const finalStatuses = ['confirmed', 'dropped', 'failed'];
-    if (!finalStatuses.includes(transaction.status)) {
+    if (transaction.status !== 'confirmed') {
       return;
     }
 
