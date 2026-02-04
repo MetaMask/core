@@ -1,3 +1,4 @@
+import { defaultAbiCoder, Interface } from '@ethersproject/abi';
 import type { Hex } from '@metamask/utils';
 
 import {
@@ -35,30 +36,11 @@ const MAINNET_CHAIN_ID: ChainId = '0x1' as ChainId;
 const UNSUPPORTED_CHAIN_ID: ChainId = '0xfffff' as ChainId;
 
 // =============================================================================
-// MANUAL ABI ENCODING HELPERS FOR TESTS
+// ABI ENCODING HELPERS FOR TESTS
 // =============================================================================
 
-function leftPad32(hexNo0x: string): string {
-  return hexNo0x.padStart(64, '0');
-}
-
-function rightPad32Bytes(hexNo0x: string): string {
-  const byteLen = Math.ceil(hexNo0x.length / 2);
-  const paddedByteLen = Math.ceil(byteLen / 32) * 32;
-  const paddedHexLen = paddedByteLen * 2;
-  return hexNo0x.padEnd(paddedHexLen, '0');
-}
-
-function encodeUint256(value: bigint): string {
-  return leftPad32(value.toString(16));
-}
-
-function encodeBool(value: boolean): string {
-  return leftPad32(value ? '1' : '0');
-}
-
 /**
- * Build a mock aggregate3 response using manual ABI encoding.
+ * Build a mock aggregate3 response using ethers ABI encoding.
  * Encodes (bool success, bytes returnData)[]
  *
  * @param results - Array of result objects with success flag and optional balance
@@ -67,79 +49,24 @@ function encodeBool(value: boolean): string {
 function buildMockAggregate3Response(
   results: { success: boolean; balance?: string }[],
 ): `0x${string}` {
-  // First, encode each result's returnData (balance as uint256, or empty bytes)
+  // Build the results array with encoded returnData
   const encodedResults = results.map((result) => {
-    let returnDataHex = '';
+    let returnData: string = '0x';
     if (result.balance !== undefined) {
-      // uint256 is 32 bytes
-      returnDataHex = encodeUint256(BigInt(result.balance));
+      // Encode balance as uint256
+      returnData = defaultAbiCoder.encode(['uint256'], [result.balance]);
     }
     return {
       success: result.success,
-      returnDataHex,
+      returnData,
     };
   });
 
-  // ABI encoding for (bool, bytes)[]:
-  // - Offset to array data (0x20 = 32)
-  // - Array length
-  // - Offsets to each tuple (relative to start of offsets area)
-  // - Each tuple: bool, offset to bytes, bytes (length + data)
-
-  const parts: string[] = [];
-
-  // Word 0: offset to array (always 0x20 for single return value)
-  parts.push(encodeUint256(32n));
-
-  // At offset 32: array length
-  parts.push(encodeUint256(BigInt(results.length)));
-
-  // Calculate tuple offsets and build tuple data
-  // Offsets area starts after length word
-  // Each tuple offset is relative to the start of the offsets area
-
-  // First, calculate the size of the offsets area
-  const offsetsAreaSize = results.length * 32;
-
-  // Build tuple data and collect offsets
-  const tupleOffsets: bigint[] = [];
-  const tupleDataParts: string[] = [];
-
-  let currentOffset = offsetsAreaSize; // Start after all offsets
-
-  for (const { success, returnDataHex } of encodedResults) {
-    tupleOffsets.push(BigInt(currentOffset));
-
-    // Tuple: bool (32 bytes) + offset to bytes (32 bytes) + bytes data
-    const boolEncoded = encodeBool(success);
-
-    // Offset to bytes within tuple is always 64 (after bool and offset words)
-    const bytesOffsetInTuple = encodeUint256(64n);
-
-    // Bytes encoding: length (32 bytes) + padded data
-    const bytesLength = returnDataHex.length / 2;
-    const bytesLengthEncoded = encodeUint256(BigInt(bytesLength));
-    const bytesPadded = rightPad32Bytes(returnDataHex);
-
-    const tupleData = `${boolEncoded}${bytesOffsetInTuple}${bytesLengthEncoded}${bytesPadded}`;
-    tupleDataParts.push(tupleData);
-
-    // Calculate size of this tuple: bool(32) + offset(32) + length(32) + padded data
-    const tupleSize = 32 + 32 + 32 + bytesPadded.length / 2;
-    currentOffset += tupleSize;
-  }
-
-  // Add tuple offsets
-  for (const offset of tupleOffsets) {
-    parts.push(encodeUint256(offset));
-  }
-
-  // Add tuple data
-  for (const tupleData of tupleDataParts) {
-    parts.push(tupleData);
-  }
-
-  return `0x${parts.join('')}`;
+  // Encode the full response: (bool success, bytes returnData)[]
+  return defaultAbiCoder.encode(
+    ['(bool success, bytes returnData)[]'],
+    [encodedResults],
+  ) as `0x${string}`;
 }
 
 // =============================================================================
@@ -759,66 +686,45 @@ describe('encodeAggregate3', () => {
     expect(typeof result).toBe('string');
   });
 
-  it('should encode with correct ABI structure including tuple offsets', () => {
-    // Test with 2 calls to verify offset calculation
+  it('should produce valid ABI-encoded calldata that can be decoded', () => {
+    // Test with multiple calls to verify encoding is correct
     const calls = [
       {
         target: '0x1111111111111111111111111111111111111111' as Address,
         allowFailure: true,
-        callData: '0xabcd' as Hex, // 2 bytes of data
+        callData: '0xabcd' as Hex,
       },
       {
         target: '0x2222222222222222222222222222222222222222' as Address,
         allowFailure: false,
-        callData: '0x1234' as Hex, // 2 bytes of data
+        callData: '0x1234567890' as Hex,
       },
     ];
 
     const result = encodeAggregate3(calls);
-    const hexNo0x = result.slice(2); // Remove 0x prefix
 
-    // Helper to read a 32-byte word at a given byte offset
-    const readWordAtByte = (byteOffset: number): string => {
-      const start = byteOffset * 2;
-      return hexNo0x.slice(start, start + 64);
-    };
+    // Verify selector is correct (aggregate3)
+    expect(result).toMatch(/^0x82ad56cb/u);
 
-    // Word at byte 0: selector (4 bytes) - skip for structure validation
-    // After selector (byte 4): offset to array (should be 0x20 = 32)
-    const arrayOffset = BigInt(`0x${readWordAtByte(4)}`);
-    expect(arrayOffset).toBe(32n);
+    // Decode the calldata using the same interface to verify it's valid
+    const multicall3Abi = new Interface([
+      'function aggregate3((address target, bool allowFailure, bytes callData)[] calls) payable returns ((bool success, bytes returnData)[])',
+    ]);
 
-    // At byte 4 + 32 = 36: array length (should be 2)
-    const arrayLength = BigInt(`0x${readWordAtByte(36)}`);
-    expect(arrayLength).toBe(2n);
+    const decoded = multicall3Abi.decodeFunctionData('aggregate3', result);
+    const decodedCalls = decoded[0] as {
+      target: string;
+      allowFailure: boolean;
+      callData: string;
+    }[];
 
-    // At byte 36 + 32 = 68: first tuple offset (relative to offsets area start)
-    // Offsets area is 2 * 32 = 64 bytes, so first tuple is at offset 64
-    const tuple0Offset = BigInt(`0x${readWordAtByte(68)}`);
-    expect(tuple0Offset).toBe(64n); // 2 offsets * 32 bytes each
-
-    // At byte 68 + 32 = 100: second tuple offset
-    // First tuple size: target(32) + allowFailure(32) + bytesOffset(32) + bytesLen(32) + bytesPadded(32) = 160
-    const tuple1Offset = BigInt(`0x${readWordAtByte(100)}`);
-    expect(tuple1Offset).toBe(64n + 160n); // 224
-
-    // Verify first tuple at correct position
-    // Tuple 0 starts at: offsetsAreaStart + tuple0Offset = 68 + 64 = 132
-    const tuple0Start = 132;
-
-    // First word of tuple 0: target address (padded to 32 bytes)
-    const tuple0Target = readWordAtByte(tuple0Start);
-    expect(tuple0Target.toLowerCase()).toBe(
-      '0000000000000000000000001111111111111111111111111111111111111111',
-    );
-
-    // Second word: allowFailure (should be 1 for true)
-    const tuple0AllowFailure = BigInt(`0x${readWordAtByte(tuple0Start + 32)}`);
-    expect(tuple0AllowFailure).toBe(1n);
-
-    // Third word: offset to bytes (always 0x60 = 96)
-    const tuple0BytesOffset = BigInt(`0x${readWordAtByte(tuple0Start + 64)}`);
-    expect(tuple0BytesOffset).toBe(96n);
+    expect(decodedCalls).toHaveLength(2);
+    expect(decodedCalls[0].target.toLowerCase()).toBe(calls[0].target);
+    expect(decodedCalls[0].allowFailure).toBe(true);
+    expect(decodedCalls[0].callData.toLowerCase()).toBe(calls[0].callData);
+    expect(decodedCalls[1].target.toLowerCase()).toBe(calls[1].target);
+    expect(decodedCalls[1].allowFailure).toBe(false);
+    expect(decodedCalls[1].callData.toLowerCase()).toBe(calls[1].callData);
   });
 });
 

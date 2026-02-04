@@ -1,3 +1,4 @@
+import { Interface } from '@ethersproject/abi';
 import type { Hex } from '@metamask/utils';
 
 import type {
@@ -11,17 +12,68 @@ import type {
 import { reduceInBatchesSerially } from '../utils';
 
 // =============================================================================
-// CONSTANTS / SELECTORS
+// ABI DEFINITIONS
 // =============================================================================
 
-// ERC-20 balanceOf(address)
-const SELECTOR_BALANCE_OF = '0x70a08231' as const;
+/**
+ * Multicall3 contract ABI (subset for aggregate3 and getEthBalance).
+ *
+ * @see https://github.com/mds1/multicall
+ */
+const MULTICALL3_ABI = [
+  {
+    name: 'aggregate3',
+    type: 'function',
+    stateMutability: 'payable',
+    inputs: [
+      {
+        name: 'calls',
+        type: 'tuple[]',
+        components: [
+          { name: 'target', type: 'address' },
+          { name: 'allowFailure', type: 'bool' },
+          { name: 'callData', type: 'bytes' },
+        ],
+      },
+    ],
+    outputs: [
+      {
+        name: 'returnData',
+        type: 'tuple[]',
+        components: [
+          { name: 'success', type: 'bool' },
+          { name: 'returnData', type: 'bytes' },
+        ],
+      },
+    ],
+  },
+  {
+    name: 'getEthBalance',
+    type: 'function',
+    stateMutability: 'view',
+    inputs: [{ name: 'addr', type: 'address' }],
+    outputs: [{ name: 'balance', type: 'uint256' }],
+  },
+];
 
-// Multicall3 getEthBalance(address)
-const SELECTOR_GET_ETH_BALANCE = '0x4d2301cc' as const;
+/**
+ * ERC-20 ABI (subset for balanceOf).
+ */
+const ERC20_ABI = [
+  {
+    name: 'balanceOf',
+    type: 'function',
+    stateMutability: 'view',
+    inputs: [{ name: 'account', type: 'address' }],
+    outputs: [{ name: 'balance', type: 'uint256' }],
+  },
+];
 
-// Multicall3 aggregate3((address,bool,bytes)[])
-const SELECTOR_AGGREGATE3 = '0x82ad56cb' as const;
+/**
+ * Interface instances for ABI encoding/decoding.
+ */
+const multicall3Interface = new Interface(MULTICALL3_ABI);
+const erc20Interface = new Interface(ERC20_ABI);
 
 // =============================================================================
 // CONSTANTS
@@ -316,111 +368,35 @@ const MULTICALL3_ADDRESS_BY_CHAIN: Record<Hex, Hex> = {
 };
 
 // =============================================================================
-// HEX / ABI ENCODING PRIMITIVES
-// =============================================================================
-
-function assertHex(value: string): asserts value is Hex {
-  if (!value.startsWith('0x')) {
-    throw new Error(`Expected 0x-prefixed hex, got: ${value}`);
-  }
-}
-
-function strip0x(value: string): string {
-  return value.startsWith('0x') ? value.slice(2) : value;
-}
-
-function padToEven(value: string): string {
-  return value.length % 2 === 0 ? value : `0${value}`;
-}
-
-function leftPad32(hexNo0x: string): string {
-  return hexNo0x.padStart(64, '0');
-}
-
-function rightPad32Bytes(hexNo0x: string): string {
-  const byteLen = Math.ceil(hexNo0x.length / 2);
-  const paddedByteLen = Math.ceil(byteLen / 32) * 32;
-  const paddedHexLen = paddedByteLen * 2;
-  return hexNo0x.padEnd(paddedHexLen, '0');
-}
-
-function encodeUint256(value: bigint): string {
-  if (value < 0n) {
-    throw new Error('uint256 cannot be negative');
-  }
-  return leftPad32(value.toString(16));
-}
-
-function encodeBool(value: boolean): string {
-  return leftPad32(value ? '1' : '0');
-}
-
-function encodeAddress(address: Address): string {
-  const a = strip0x(address).toLowerCase();
-  if (a.length !== 40) {
-    throw new Error(`Invalid address length: ${address}`);
-  }
-  return leftPad32(a);
-}
-
-function encodeBytesDynamic(data: Hex): { head: string; tail: string } {
-  const hexNo0x = strip0x(data);
-  const hexEven = padToEven(hexNo0x);
-  const lenBytes = BigInt(hexEven.length / 2);
-  const lenWord = encodeUint256(lenBytes);
-  const dataPadded = rightPad32Bytes(hexEven);
-  return {
-    head: '', // offset is handled by caller
-    tail: `${lenWord}${dataPadded}`,
-  };
-}
-
-function hexFromParts(parts: string[], with0x = true): Hex {
-  const joined = parts.join('');
-  const out = (with0x ? `0x${joined}` : joined) as Hex;
-  assertHex(out);
-  return out;
-}
-
-// =============================================================================
-// ENCODING FOR OUR 3 FUNCTIONS
+// ENCODING/DECODING UTILITIES (using @ethersproject/abi)
 // =============================================================================
 
 /**
  * Encode a balanceOf call for an ERC-20 token.
- * balanceOf(address account) -> bytes
  *
  * @param accountAddress - The account address.
  * @returns The encoded call data.
  */
 function encodeBalanceOf(accountAddress: Address): Hex {
-  return `0x${strip0x(SELECTOR_BALANCE_OF)}${encodeAddress(accountAddress)}`;
+  return erc20Interface.encodeFunctionData('balanceOf', [
+    accountAddress,
+  ]) as Hex;
 }
 
 /**
  * Encode a getEthBalance call for native token via Multicall3.
- * getEthBalance(address addr) -> bytes
  *
  * @param accountAddress - The account address.
  * @returns The encoded call data.
  */
 function encodeGetEthBalance(accountAddress: Address): Hex {
-  return `0x${strip0x(SELECTOR_GET_ETH_BALANCE)}${encodeAddress(accountAddress)}`;
+  return multicall3Interface.encodeFunctionData('getEthBalance', [
+    accountAddress,
+  ]) as Hex;
 }
 
 /**
  * Encode a Multicall3 aggregate3 call.
- * aggregate3((address target,bool allowFailure,bytes callData)[] calls) -> bytes
- *
- * Encoding:
- *  - selector
- *  - head: offset to calls data (0x20)
- *  - tail: calls array encoding
- *
- * ABI encoding for dynamic array of tuples with dynamic bytes:
- *  - Array length
- *  - Offsets to each tuple (relative to start of offsets area)
- *  - Tuple data (each tuple: target, allowFailure, offset to bytes, bytes data)
  *
  * @param calls - Array of calls with target, allowFailure, and callData.
  * @returns The encoded aggregate3 call data.
@@ -428,103 +404,18 @@ function encodeGetEthBalance(accountAddress: Address): Hex {
 export function encodeAggregate3(
   calls: readonly { target: Address; allowFailure: boolean; callData: Hex }[],
 ): Hex {
-  // function has one argument, so head is one 32-byte offset to the start of tail (= 0x20)
-  const selector = strip0x(SELECTOR_AGGREGATE3);
-  const head = encodeUint256(32n); // offset to tail
-
-  // Tail = dynamic array of tuples
-  const arrayLen = encodeUint256(BigInt(calls.length));
-
-  // Build each tuple's encoded data
-  // Tuple structure: (address target, bool allowFailure, bytes callData)
-  // - target: 32 bytes
-  // - allowFailure: 32 bytes
-  // - offset to callData bytes: 32 bytes (always 0x60 = 96, relative to tuple start)
-  // - callData: length word + padded data
-  const tupleDataList: string[] = [];
-
-  for (const call of calls) {
-    const target = encodeAddress(call.target);
-    const allowFailure = encodeBool(call.allowFailure);
-    const callDataOffset = encodeUint256(96n); // 0x60 - offset to bytes, relative to tuple start
-
-    const callDataEnc = encodeBytesDynamic(call.callData);
-    const tupleData = `${target}${allowFailure}${callDataOffset}${callDataEnc.tail}`;
-    tupleDataList.push(tupleData);
-  }
-
-  // Calculate tuple sizes (in bytes) and offsets
-  // Offsets are relative to the start of the offsets area (right after the length word)
-  // The offsets area itself takes N * 32 bytes (one word per tuple offset)
-  const offsetsAreaSize = calls.length * 32;
-  const tupleOffsets: string[] = [];
-  const tupleSizes: number[] = tupleDataList.map((data) => data.length / 2);
-
-  let currentOffset = offsetsAreaSize; // First tuple starts right after all offset words
-  for (let i = 0; i < calls.length; i++) {
-    tupleOffsets.push(encodeUint256(BigInt(currentOffset)));
-    currentOffset += tupleSizes[i];
-  }
-
-  // Assemble: length + offsets + tuple data
-  const tail = `${arrayLen}${tupleOffsets.join('')}${tupleDataList.join('')}`;
-
-  return hexFromParts([selector, head, tail]);
-}
-
-// =============================================================================
-// DECODING
-// =============================================================================
-
-function readWord(hexNo0x: string, wordIndex: number): string {
-  const start = wordIndex * 64;
-  return hexNo0x.slice(start, start + 64);
-}
-
-function readWordAtByte(hexNo0x: string, byteOffset: number): string {
-  const start = byteOffset * 2;
-  return hexNo0x.slice(start, start + 64);
-}
-
-function wordToBigInt(wordHex: string): bigint {
-  return BigInt(`0x${wordHex}`);
-}
-
-function wordToBool(wordHex: string): boolean {
-  return wordToBigInt(wordHex) !== 0n;
-}
-
-function wordToNumber(wordHex: string): number {
-  const val = wordToBigInt(wordHex);
-  if (val > BigInt(Number.MAX_SAFE_INTEGER)) {
-    throw new Error('Value too large');
-  }
-  return Number(val);
-}
-
-function sliceHexBytes(
-  hexNo0x: string,
-  byteOffset: number,
-  byteLength: number,
-): string {
-  const start = byteOffset * 2;
-  const end = start + byteLength * 2;
-  return hexNo0x.slice(start, end);
+  return multicall3Interface.encodeFunctionData('aggregate3', [
+    calls.map((call) => ({
+      target: call.target,
+      allowFailure: call.allowFailure,
+      callData: call.callData,
+    })),
+  ]) as Hex;
 }
 
 /**
  * Decode the response from aggregate3.
- * Decode aggregate3 return value: (bool success, bytes returnData)[]
- *
- * ABI encoding structure for dynamic array of tuples with dynamic bytes:
- *  - Word 0: offset to array data (typically 0x20 = 32)
- *  - At array offset:
- *    - Word: array length
- *    - Words: offsets to each tuple (relative to start of offsets area)
- *  - Each tuple:
- *    - Word: bool success
- *    - Word: offset to bytes (relative to tuple start)
- *    - At bytes offset: length word + padded data
+ * Returns array of (success, returnData) tuples.
  *
  * @param data - The raw response data.
  * @param callCount - Number of calls made (used for validation).
@@ -534,55 +425,22 @@ export function decodeAggregate3Response(
   data: Hex,
   callCount: number,
 ): { success: boolean; returnData: Hex }[] {
-  const hexNo0x = strip0x(data);
-  if (hexNo0x.length < 64) {
-    throw new Error('Invalid return data');
+  const decoded = multicall3Interface.decodeFunctionResult('aggregate3', data);
+
+  // decoded[0] is the array of (success, returnData) tuples
+  const results = decoded[0] as readonly {
+    success: boolean;
+    returnData: string;
+  }[];
+
+  if (results.length !== callCount) {
+    throw new Error(`Expected ${callCount} results, got ${results.length}`);
   }
 
-  // Word 0: offset to array (in bytes)
-  const arrayOffsetBytes = wordToNumber(readWord(hexNo0x, 0));
-
-  // At array offset: first word is length
-  const length = wordToNumber(readWordAtByte(hexNo0x, arrayOffsetBytes));
-  if (length !== callCount) {
-    throw new Error(`Expected ${callCount} results, got ${length}`);
-  }
-
-  const results: { success: boolean; returnData: Hex }[] = [];
-
-  // After length: `length` words of offsets to each tuple
-  // These offsets are relative to the start of the offsets area (arrayOffsetBytes + 32)
-  const offsetsAreaStart = arrayOffsetBytes + 32;
-
-  for (let i = 0; i < length; i++) {
-    // Read tuple offset (relative to offsetsAreaStart)
-    const tupleOffsetBytes = wordToNumber(
-      readWordAtByte(hexNo0x, offsetsAreaStart + i * 32),
-    );
-    const tupleAbsStart = offsetsAreaStart + tupleOffsetBytes;
-
-    // Tuple structure: (bool success, bytes returnData)
-    // Word 0: success (bool as uint256)
-    // Word 1: offset to returnData bytes (relative to tuple start)
-    const successWord = readWordAtByte(hexNo0x, tupleAbsStart);
-    const success = wordToBool(successWord);
-
-    const bytesOffsetBytes = wordToNumber(
-      readWordAtByte(hexNo0x, tupleAbsStart + 32),
-    );
-    const bytesAbsStart = tupleAbsStart + bytesOffsetBytes;
-
-    // At bytes location: length word + data
-    const bytesLength = wordToNumber(readWordAtByte(hexNo0x, bytesAbsStart));
-    const bytesData = sliceHexBytes(hexNo0x, bytesAbsStart + 32, bytesLength);
-
-    results.push({
-      success,
-      returnData: `0x${bytesData}`,
-    });
-  }
-
-  return results;
+  return results.map((result) => ({
+    success: result.success,
+    returnData: result.returnData as Hex,
+  }));
 }
 
 /**
@@ -592,13 +450,12 @@ export function decodeAggregate3Response(
  * @returns The decoded balance as a string.
  */
 function decodeUint256(data: Hex): string {
-  const hexNo0x = strip0x(data);
-  if (hexNo0x.length < 64) {
-    // Some failures return empty bytes; treat as 0
+  if (data === '0x' || data.length < 66) {
+    // Empty or invalid data; treat as 0
     return '0';
   }
-  const word = hexNo0x.slice(0, 64);
-  return BigInt(`0x${word}`).toString();
+  const decoded = erc20Interface.decodeFunctionResult('balanceOf', data);
+  return decoded[0].toString();
 }
 
 // =============================================================================
