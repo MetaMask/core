@@ -1,5 +1,4 @@
 import type { Hex } from '@metamask/utils';
-import { encodeAbiParameters, parseAbiParameters } from 'viem';
 
 import {
   decodeAggregate3Response,
@@ -36,12 +35,31 @@ const MAINNET_CHAIN_ID: ChainId = '0x1' as ChainId;
 const UNSUPPORTED_CHAIN_ID: ChainId = '0xfffff' as ChainId;
 
 // =============================================================================
-// HELPER FUNCTIONS
+// MANUAL ABI ENCODING HELPERS FOR TESTS
 // =============================================================================
 
+function leftPad32(hexNo0x: string): string {
+  return hexNo0x.padStart(64, '0');
+}
+
+function rightPad32Bytes(hexNo0x: string): string {
+  const byteLen = Math.ceil(hexNo0x.length / 2);
+  const paddedByteLen = Math.ceil(byteLen / 32) * 32;
+  const paddedHexLen = paddedByteLen * 2;
+  return hexNo0x.padEnd(paddedHexLen, '0');
+}
+
+function encodeUint256(value: bigint): string {
+  return leftPad32(value.toString(16));
+}
+
+function encodeBool(value: boolean): string {
+  return leftPad32(value ? '1' : '0');
+}
+
 /**
- * Build a mock aggregate3 response using viem's ABI encoding.
- * Each result is (success: bool, returnData: bytes).
+ * Build a mock aggregate3 response using manual ABI encoding.
+ * Encodes (bool success, bytes returnData)[]
  *
  * @param results - Array of result objects with success flag and optional balance
  * @returns The encoded aggregate3 response as hex
@@ -49,26 +67,79 @@ const UNSUPPORTED_CHAIN_ID: ChainId = '0xfffff' as ChainId;
 function buildMockAggregate3Response(
   results: { success: boolean; balance?: string }[],
 ): `0x${string}` {
-  // Encode each result's returnData (balance as uint256)
-  const resultsWithEncodedData = results.map((result) => {
-    let returnData: `0x${string}` = '0x';
+  // First, encode each result's returnData (balance as uint256, or empty bytes)
+  const encodedResults = results.map((result) => {
+    let returnDataHex = '';
     if (result.balance !== undefined) {
-      // Encode the balance as a uint256
-      returnData = encodeAbiParameters(parseAbiParameters('uint256'), [
-        BigInt(result.balance),
-      ]);
+      // uint256 is 32 bytes
+      returnDataHex = encodeUint256(BigInt(result.balance));
     }
     return {
       success: result.success,
-      returnData,
+      returnDataHex,
     };
   });
 
-  // Encode the full aggregate3 response: (bool success, bytes returnData)[]
-  return encodeAbiParameters(
-    parseAbiParameters('(bool success, bytes returnData)[]'),
-    [resultsWithEncodedData],
-  );
+  // ABI encoding for (bool, bytes)[]:
+  // - Offset to array data (0x20 = 32)
+  // - Array length
+  // - Offsets to each tuple (relative to start of offsets area)
+  // - Each tuple: bool, offset to bytes, bytes (length + data)
+
+  const parts: string[] = [];
+
+  // Word 0: offset to array (always 0x20 for single return value)
+  parts.push(encodeUint256(32n));
+
+  // At offset 32: array length
+  parts.push(encodeUint256(BigInt(results.length)));
+
+  // Calculate tuple offsets and build tuple data
+  // Offsets area starts after length word
+  // Each tuple offset is relative to the start of the offsets area
+
+  // First, calculate the size of the offsets area
+  const offsetsAreaSize = results.length * 32;
+
+  // Build tuple data and collect offsets
+  const tupleOffsets: bigint[] = [];
+  const tupleDataParts: string[] = [];
+
+  let currentOffset = offsetsAreaSize; // Start after all offsets
+
+  for (const { success, returnDataHex } of encodedResults) {
+    tupleOffsets.push(BigInt(currentOffset));
+
+    // Tuple: bool (32 bytes) + offset to bytes (32 bytes) + bytes data
+    const boolEncoded = encodeBool(success);
+
+    // Offset to bytes within tuple is always 64 (after bool and offset words)
+    const bytesOffsetInTuple = encodeUint256(64n);
+
+    // Bytes encoding: length (32 bytes) + padded data
+    const bytesLength = returnDataHex.length / 2;
+    const bytesLengthEncoded = encodeUint256(BigInt(bytesLength));
+    const bytesPadded = rightPad32Bytes(returnDataHex);
+
+    const tupleData = `${boolEncoded}${bytesOffsetInTuple}${bytesLengthEncoded}${bytesPadded}`;
+    tupleDataParts.push(tupleData);
+
+    // Calculate size of this tuple: bool(32) + offset(32) + length(32) + padded data
+    const tupleSize = 32 + 32 + 32 + bytesPadded.length / 2;
+    currentOffset += tupleSize;
+  }
+
+  // Add tuple offsets
+  for (const offset of tupleOffsets) {
+    parts.push(encodeUint256(offset));
+  }
+
+  // Add tuple data
+  for (const tupleData of tupleDataParts) {
+    parts.push(tupleData);
+  }
+
+  return `0x${parts.join('')}`;
 }
 
 // =============================================================================

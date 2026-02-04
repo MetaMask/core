@@ -1,6 +1,4 @@
 import type { Hex } from '@metamask/utils';
-import type { Abi } from 'viem';
-import { decodeFunctionResult, encodeFunctionData } from 'viem';
 
 import type {
   Address,
@@ -13,62 +11,17 @@ import type {
 import { reduceInBatchesSerially } from '../utils';
 
 // =============================================================================
-// ABI DEFINITIONS
+// CONSTANTS / SELECTORS
 // =============================================================================
 
-/**
- * Multicall3 contract ABI (subset for aggregate3 and getEthBalance).
- *
- * @see https://github.com/mds1/multicall
- */
-const MULTICALL3_ABI = [
-  {
-    name: 'aggregate3',
-    type: 'function',
-    stateMutability: 'payable',
-    inputs: [
-      {
-        name: 'calls',
-        type: 'tuple[]',
-        components: [
-          { name: 'target', type: 'address' },
-          { name: 'allowFailure', type: 'bool' },
-          { name: 'callData', type: 'bytes' },
-        ],
-      },
-    ],
-    outputs: [
-      {
-        name: 'returnData',
-        type: 'tuple[]',
-        components: [
-          { name: 'success', type: 'bool' },
-          { name: 'returnData', type: 'bytes' },
-        ],
-      },
-    ],
-  },
-  {
-    name: 'getEthBalance',
-    type: 'function',
-    stateMutability: 'view',
-    inputs: [{ name: 'addr', type: 'address' }],
-    outputs: [{ name: 'balance', type: 'uint256' }],
-  },
-] as const satisfies Abi;
+// ERC-20 balanceOf(address)
+const SELECTOR_BALANCE_OF = '0x70a08231' as const;
 
-/**
- * ERC-20 ABI (subset for balanceOf).
- */
-const ERC20_ABI = [
-  {
-    name: 'balanceOf',
-    type: 'function',
-    stateMutability: 'view',
-    inputs: [{ name: 'account', type: 'address' }],
-    outputs: [{ name: 'balance', type: 'uint256' }],
-  },
-] as const satisfies Abi;
+// Multicall3 getEthBalance(address)
+const SELECTOR_GET_ETH_BALANCE = '0x4d2301cc' as const;
+
+// Multicall3 aggregate3((address,bool,bytes)[])
+const SELECTOR_AGGREGATE3 = '0x82ad56cb' as const;
 
 // =============================================================================
 // CONSTANTS
@@ -363,39 +316,106 @@ const MULTICALL3_ADDRESS_BY_CHAIN: Record<Hex, Hex> = {
 };
 
 // =============================================================================
-// ENCODING/DECODING UTILITIES (using viem)
+// HEX / ABI ENCODING PRIMITIVES
+// =============================================================================
+
+function assertHex(value: string): asserts value is Hex {
+  if (!value.startsWith('0x')) {
+    throw new Error(`Expected 0x-prefixed hex, got: ${value}`);
+  }
+}
+
+function strip0x(value: string): string {
+  return value.startsWith('0x') ? value.slice(2) : value;
+}
+
+function padToEven(value: string): string {
+  return value.length % 2 === 0 ? value : `0${value}`;
+}
+
+function leftPad32(hexNo0x: string): string {
+  return hexNo0x.padStart(64, '0');
+}
+
+function rightPad32Bytes(hexNo0x: string): string {
+  const byteLen = Math.ceil(hexNo0x.length / 2);
+  const paddedByteLen = Math.ceil(byteLen / 32) * 32;
+  const paddedHexLen = paddedByteLen * 2;
+  return hexNo0x.padEnd(paddedHexLen, '0');
+}
+
+function encodeUint256(value: bigint): string {
+  if (value < 0n) {
+    throw new Error('uint256 cannot be negative');
+  }
+  return leftPad32(value.toString(16));
+}
+
+function encodeBool(value: boolean): string {
+  return leftPad32(value ? '1' : '0');
+}
+
+function encodeAddress(address: Address): string {
+  const a = strip0x(address).toLowerCase();
+  if (a.length !== 40) {
+    throw new Error(`Invalid address length: ${address}`);
+  }
+  return leftPad32(a);
+}
+
+function encodeBytesDynamic(data: Hex): { head: string; tail: string } {
+  const hexNo0x = strip0x(data);
+  const hexEven = padToEven(hexNo0x);
+  const lenBytes = BigInt(hexEven.length / 2);
+  const lenWord = encodeUint256(lenBytes);
+  const dataPadded = rightPad32Bytes(hexEven);
+  return {
+    head: '', // offset is handled by caller
+    tail: `${lenWord}${dataPadded}`,
+  };
+}
+
+function hexFromParts(parts: string[], with0x = true): Hex {
+  const joined = parts.join('');
+  const out = (with0x ? `0x${joined}` : joined) as Hex;
+  assertHex(out);
+  return out;
+}
+
+// =============================================================================
+// ENCODING FOR OUR 3 FUNCTIONS
 // =============================================================================
 
 /**
  * Encode a balanceOf call for an ERC-20 token.
+ * balanceOf(address account) -> bytes
  *
  * @param accountAddress - The account address.
  * @returns The encoded call data.
  */
 function encodeBalanceOf(accountAddress: Address): Hex {
-  return encodeFunctionData({
-    abi: ERC20_ABI,
-    functionName: 'balanceOf',
-    args: [accountAddress],
-  });
+  return `0x${strip0x(SELECTOR_BALANCE_OF)}${encodeAddress(accountAddress)}`;
 }
 
 /**
  * Encode a getEthBalance call for native token via Multicall3.
+ * getEthBalance(address addr) -> bytes
  *
  * @param accountAddress - The account address.
  * @returns The encoded call data.
  */
 function encodeGetEthBalance(accountAddress: Address): Hex {
-  return encodeFunctionData({
-    abi: MULTICALL3_ABI,
-    functionName: 'getEthBalance',
-    args: [accountAddress],
-  });
+  return `0x${strip0x(SELECTOR_GET_ETH_BALANCE)}${encodeAddress(accountAddress)}`;
 }
 
 /**
  * Encode a Multicall3 aggregate3 call.
+ * aggregate3((address target,bool allowFailure,bytes callData)[] calls) -> bytes
+ *
+ * Encoding:
+ *  - selector
+ *  - head: offset to calls data (0x20)
+ *  - tail: calls array encoding
  *
  * @param calls - Array of calls with target, allowFailure, and callData.
  * @returns The encoded aggregate3 call data.
@@ -403,22 +423,95 @@ function encodeGetEthBalance(accountAddress: Address): Hex {
 export function encodeAggregate3(
   calls: readonly { target: Address; allowFailure: boolean; callData: Hex }[],
 ): Hex {
-  return encodeFunctionData({
-    abi: MULTICALL3_ABI,
-    functionName: 'aggregate3',
-    args: [
-      calls.map((call) => ({
-        target: call.target,
-        allowFailure: call.allowFailure,
-        callData: call.callData,
-      })),
-    ],
-  });
+  // function has one argument, so head is one 32-byte offset to the start of tail (= 0x20)
+  const selector = strip0x(SELECTOR_AGGREGATE3);
+  const head = encodeUint256(32n); // offset to tail
+
+  // Tail = dynamic array of tuples
+  // Array encoding: length + elements (each element is tuple head; tuple contains dynamic bytes so uses offsets)
+  const arrayLen = encodeUint256(BigInt(calls.length));
+
+  // Each tuple head is 3 words: target, allowFailure, offset(callData)
+  // Offsets inside the tuple are from the start of the tuple.
+  // Tuple head size = 3 * 32 = 96 bytes => callData tail starts at 0x60
+  const tupleHeads: string[] = [];
+  const tupleTails: string[] = [];
+
+  for (const call of calls) {
+    const target = encodeAddress(call.target);
+    const allowFailure = encodeBool(call.allowFailure);
+
+    const callDataEnc = encodeBytesDynamic(call.callData);
+    const callDataOffset = encodeUint256(96n); // 0x60
+
+    tupleHeads.push(`${target}${allowFailure}${callDataOffset}`);
+    tupleTails.push(callDataEnc.tail);
+  }
+
+  // Concatenate each tuple as head+tail in order (ABI array is just elements back-to-back)
+  const elements: string[] = [];
+  for (let i = 0; i < calls.length; i++) {
+    elements.push(tupleHeads[i], tupleTails[i]);
+  }
+
+  const tail = `${arrayLen}${elements.join('')}`;
+
+  return hexFromParts([selector, head, tail]);
+}
+
+// =============================================================================
+// DECODING
+// =============================================================================
+
+function readWord(hexNo0x: string, wordIndex: number): string {
+  const start = wordIndex * 64;
+  return hexNo0x.slice(start, start + 64);
+}
+
+function readWordAtByte(hexNo0x: string, byteOffset: number): string {
+  const start = byteOffset * 2;
+  return hexNo0x.slice(start, start + 64);
+}
+
+function wordToBigInt(wordHex: string): bigint {
+  return BigInt(`0x${wordHex}`);
+}
+
+function wordToBool(wordHex: string): boolean {
+  return wordToBigInt(wordHex) !== 0n;
+}
+
+function wordToNumber(wordHex: string): number {
+  const val = wordToBigInt(wordHex);
+  if (val > BigInt(Number.MAX_SAFE_INTEGER)) {
+    throw new Error('Value too large');
+  }
+  return Number(val);
+}
+
+function sliceHexBytes(
+  hexNo0x: string,
+  byteOffset: number,
+  byteLength: number,
+): string {
+  const start = byteOffset * 2;
+  const end = start + byteLength * 2;
+  return hexNo0x.slice(start, end);
 }
 
 /**
  * Decode the response from aggregate3.
- * Returns array of (success, returnData) tuples.
+ * Decode aggregate3 return value: (bool success, bytes returnData)[]
+ *
+ * ABI encoding structure for dynamic array of tuples with dynamic bytes:
+ *  - Word 0: offset to array data (typically 0x20 = 32)
+ *  - At array offset:
+ *    - Word: array length
+ *    - Words: offsets to each tuple (relative to start of offsets area)
+ *  - Each tuple:
+ *    - Word: bool success
+ *    - Word: offset to bytes (relative to tuple start)
+ *    - At bytes offset: length word + padded data
  *
  * @param data - The raw response data.
  * @param callCount - Number of calls made (used for validation).
@@ -428,26 +521,55 @@ export function decodeAggregate3Response(
   data: Hex,
   callCount: number,
 ): { success: boolean; returnData: Hex }[] {
-  const decoded = decodeFunctionResult({
-    abi: MULTICALL3_ABI,
-    functionName: 'aggregate3',
-    data,
-  });
-
-  // decoded is an array of { success: boolean, returnData: `0x${string}` }
-  const results = decoded as readonly {
-    success: boolean;
-    returnData: Hex;
-  }[];
-
-  if (results.length !== callCount) {
-    throw new Error(`Expected ${callCount} results, got ${results.length}`);
+  const hexNo0x = strip0x(data);
+  if (hexNo0x.length < 64) {
+    throw new Error('Invalid return data');
   }
 
-  return results.map((result) => ({
-    success: result.success,
-    returnData: result.returnData,
-  }));
+  // Word 0: offset to array (in bytes)
+  const arrayOffsetBytes = wordToNumber(readWord(hexNo0x, 0));
+
+  // At array offset: first word is length
+  const length = wordToNumber(readWordAtByte(hexNo0x, arrayOffsetBytes));
+  if (length !== callCount) {
+    throw new Error(`Expected ${callCount} results, got ${length}`);
+  }
+
+  const results: { success: boolean; returnData: Hex }[] = [];
+
+  // After length: `length` words of offsets to each tuple
+  // These offsets are relative to the start of the offsets area (arrayOffsetBytes + 32)
+  const offsetsAreaStart = arrayOffsetBytes + 32;
+
+  for (let i = 0; i < length; i++) {
+    // Read tuple offset (relative to offsetsAreaStart)
+    const tupleOffsetBytes = wordToNumber(
+      readWordAtByte(hexNo0x, offsetsAreaStart + i * 32),
+    );
+    const tupleAbsStart = offsetsAreaStart + tupleOffsetBytes;
+
+    // Tuple structure: (bool success, bytes returnData)
+    // Word 0: success (bool as uint256)
+    // Word 1: offset to returnData bytes (relative to tuple start)
+    const successWord = readWordAtByte(hexNo0x, tupleAbsStart);
+    const success = wordToBool(successWord);
+
+    const bytesOffsetBytes = wordToNumber(
+      readWordAtByte(hexNo0x, tupleAbsStart + 32),
+    );
+    const bytesAbsStart = tupleAbsStart + bytesOffsetBytes;
+
+    // At bytes location: length word + data
+    const bytesLength = wordToNumber(readWordAtByte(hexNo0x, bytesAbsStart));
+    const bytesData = sliceHexBytes(hexNo0x, bytesAbsStart + 32, bytesLength);
+
+    results.push({
+      success,
+      returnData: `0x${bytesData}`,
+    });
+  }
+
+  return results;
 }
 
 /**
@@ -457,13 +579,13 @@ export function decodeAggregate3Response(
  * @returns The decoded balance as a string.
  */
 function decodeUint256(data: Hex): string {
-  const hexData = data.slice(2);
-  if (hexData.length === 0) {
+  const hexNo0x = strip0x(data);
+  if (hexNo0x.length < 64) {
+    // Some failures return empty bytes; treat as 0
     return '0';
   }
-  // Take first 64 chars (32 bytes) for uint256
-  const normalizedHex = hexData.length > 64 ? hexData.slice(0, 64) : hexData;
-  return BigInt(`0x${normalizedHex}`).toString();
+  const word = hexNo0x.slice(0, 64);
+  return BigInt(`0x${word}`).toString();
 }
 
 // =============================================================================
