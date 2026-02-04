@@ -210,7 +210,7 @@ describe('RemoteFeatureFlagController', () => {
        * @param opts - The options for the arrangeActAssertClientVersionChange test
        * @param opts.clientVersion - The client version to use
        * @param opts.controllerState - The controller state to use
-       * @param opts.expectedFeatureFlagState - The expected feature flag state\
+       * @param opts.expectedFeatureFlagState - The expected feature flag state
        * @returns The controller state after the arrangeActAssertClientVersionChange test
        */
       const arrangeActAssertClientVersionChange = async (opts: {
@@ -250,6 +250,9 @@ describe('RemoteFeatureFlagController', () => {
         ).toStrictEqual({
           enabled: expectedFeatureFlagState,
         });
+
+        // Assert - cache timestamp has been updated
+        expect(controller.state.cacheTimestamp).toBeGreaterThan(0);
 
         return controller.state;
       };
