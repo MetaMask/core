@@ -1,5 +1,11 @@
 /* eslint-disable @typescript-eslint/no-explicit-any */
-import { IntentApiImpl } from './intent-api';
+import { StatusTypes } from '@metamask/bridge-controller';
+import { TransactionStatus } from '@metamask/transaction-controller';
+
+import {
+  IntentApiImpl,
+  translateIntentOrderToBridgeStatus,
+} from './intent-api';
 import type { IntentSubmissionParams } from './intent-api';
 import { IntentOrderStatus } from './validators';
 import type { FetchFunction } from '../types';
@@ -137,5 +143,85 @@ describe('IntentApiImpl', () => {
     ).rejects.toThrow(
       'Failed to get order status: Invalid getOrderStatus response',
     );
+  });
+
+  describe('translateIntentOrderToBridgeStatus', () => {
+    it('maps completed intent to COMPLETE and confirmed transaction status', () => {
+      const translation = translateIntentOrderToBridgeStatus(
+        {
+          id: 'order-1',
+          status: IntentOrderStatus.COMPLETED,
+          txHash: '0xhash1',
+          metadata: { txHashes: ['0xhash1', '0xhash2'] },
+        },
+        1,
+      );
+
+      expect(translation.status).toStrictEqual({
+        status: StatusTypes.COMPLETE,
+        srcChain: {
+          chainId: 1,
+          txHash: '0xhash1',
+        },
+      });
+      expect(translation.transactionStatus).toBe(TransactionStatus.confirmed);
+    });
+
+    it('maps cancelled intent to FAILED and falls back to metadata tx hash', () => {
+      const translation = translateIntentOrderToBridgeStatus(
+        {
+          id: 'order-2',
+          status: IntentOrderStatus.CANCELLED,
+          metadata: { txHashes: '0xmetadatahash' },
+        },
+        10,
+        '0xfallback',
+      );
+
+      expect(translation.status.status).toBe(StatusTypes.FAILED);
+      expect(translation.status.srcChain).toStrictEqual({
+        chainId: 10,
+        txHash: '0xfallback',
+      });
+      expect(translation.transactionStatus).toBe(TransactionStatus.failed);
+    });
+    it('prefers txHash when metadata is empty and returns empty hashes when none exist', () => {
+      const withTxHash = translateIntentOrderToBridgeStatus(
+        {
+          id: 'order-3',
+          status: IntentOrderStatus.SUBMITTED,
+          txHash: '0xonlyhash',
+          metadata: { txHashes: [] },
+        },
+        1,
+      );
+
+      expect(withTxHash.status.srcChain.txHash).toBe('0xonlyhash');
+
+      const withoutHashes = translateIntentOrderToBridgeStatus(
+        {
+          id: 'order-4',
+          status: IntentOrderStatus.SUBMITTED,
+          metadata: { txHashes: '' },
+        },
+        1,
+      );
+
+      expect(withoutHashes.status.status).toBe(StatusTypes.SUBMITTED);
+
+      const emptyMetadataWithTxHash = translateIntentOrderToBridgeStatus(
+        {
+          id: 'order-5',
+          status: IntentOrderStatus.SUBMITTED,
+          txHash: '0xfallbackhash',
+          metadata: { txHashes: '' },
+        },
+        1,
+      );
+
+      expect(emptyMetadataWithTxHash.status.srcChain.txHash).toBe(
+        '0xfallbackhash',
+      );
+    });
   });
 });
