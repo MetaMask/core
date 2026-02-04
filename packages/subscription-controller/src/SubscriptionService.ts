@@ -1,4 +1,4 @@
-import { fetchWithErrorHandling, HttpError } from '@metamask/controller-utils';
+import { handleFetch, HttpError } from '@metamask/controller-utils';
 
 import { getEnvUrls, SubscriptionControllerErrorMessage } from './constants';
 import type { Env } from './constants';
@@ -213,16 +213,13 @@ export class SubscriptionService implements ISubscriptionService {
         });
       }
 
-      const response = await fetchWithErrorHandling({
-        url: url.toString(),
-        options: {
-          method,
-          headers: {
-            'Content-Type': 'application/json',
-            ...headers,
-          },
-          body: body ? JSON.stringify(body) : undefined,
+      const response = await handleFetch(url.toString(), {
+        method,
+        headers: {
+          'Content-Type': 'application/json',
+          ...headers,
         },
+        body: body ? JSON.stringify(body) : undefined,
       });
 
       return response;
@@ -239,6 +236,37 @@ export class SubscriptionService implements ISubscriptionService {
               method,
               url: url.toString(),
             },
+            error: errorContext.details,
+          },
+        },
+      );
+    }
+  }
+
+  async getPricing(): Promise<PricingResponse> {
+    const path = 'pricing';
+    return await this.#makeRequest<PricingResponse>(path);
+  }
+
+  async getBillingPortalUrl(): Promise<BillingPortalResponse> {
+    const path = 'billing-portal';
+    return await this.#makeRequest<BillingPortalResponse>(path);
+  }
+
+  // eslint-disable-next-line @typescript-eslint/naming-convention
+  async #getAuthorizationHeader(): Promise<{ Authorization: string }> {
+    try {
+      const accessToken = await this.authUtils.getAccessToken();
+      return { Authorization: `Bearer ${accessToken}` };
+    } catch (error) {
+      const errorContext = this.#buildErrorContext(error);
+      const errorMessage = errorContext.message;
+
+      throw new SubscriptionServiceError(
+        `Failed to get authorization header. ${errorMessage}`,
+        {
+          cause: error instanceof Error ? error : undefined,
+          details: {
             error: errorContext.details,
           },
         },
@@ -285,30 +313,5 @@ export class SubscriptionService implements ISubscriptionService {
         nonErrorThrown: JSON.stringify(error),
       },
     };
-  }
-
-  // eslint-disable-next-line @typescript-eslint/naming-convention
-  async #getAuthorizationHeader(): Promise<{ Authorization: string }> {
-    try {
-      const accessToken = await this.authUtils.getAccessToken();
-      return { Authorization: `Bearer ${accessToken}` };
-    } catch (error) {
-      const errorMessage =
-        error instanceof Error ? error.message : JSON.stringify(error);
-
-      throw new SubscriptionServiceError(
-        `Failed to get authorization header. ${errorMessage}`,
-      );
-    }
-  }
-
-  async getPricing(): Promise<PricingResponse> {
-    const path = 'pricing';
-    return await this.#makeRequest<PricingResponse>(path);
-  }
-
-  async getBillingPortalUrl(): Promise<BillingPortalResponse> {
-    const path = 'billing-portal';
-    return await this.#makeRequest<BillingPortalResponse>(path);
   }
 }
