@@ -417,6 +417,11 @@ function encodeGetEthBalance(accountAddress: Address): Hex {
  *  - head: offset to calls data (0x20)
  *  - tail: calls array encoding
  *
+ * ABI encoding for dynamic array of tuples with dynamic bytes:
+ *  - Array length
+ *  - Offsets to each tuple (relative to start of offsets area)
+ *  - Tuple data (each tuple: target, allowFailure, offset to bytes, bytes data)
+ *
  * @param calls - Array of calls with target, allowFailure, and callData.
  * @returns The encoded aggregate3 call data.
  */
@@ -428,33 +433,41 @@ export function encodeAggregate3(
   const head = encodeUint256(32n); // offset to tail
 
   // Tail = dynamic array of tuples
-  // Array encoding: length + elements (each element is tuple head; tuple contains dynamic bytes so uses offsets)
   const arrayLen = encodeUint256(BigInt(calls.length));
 
-  // Each tuple head is 3 words: target, allowFailure, offset(callData)
-  // Offsets inside the tuple are from the start of the tuple.
-  // Tuple head size = 3 * 32 = 96 bytes => callData tail starts at 0x60
-  const tupleHeads: string[] = [];
-  const tupleTails: string[] = [];
+  // Build each tuple's encoded data
+  // Tuple structure: (address target, bool allowFailure, bytes callData)
+  // - target: 32 bytes
+  // - allowFailure: 32 bytes
+  // - offset to callData bytes: 32 bytes (always 0x60 = 96, relative to tuple start)
+  // - callData: length word + padded data
+  const tupleDataList: string[] = [];
 
   for (const call of calls) {
     const target = encodeAddress(call.target);
     const allowFailure = encodeBool(call.allowFailure);
+    const callDataOffset = encodeUint256(96n); // 0x60 - offset to bytes, relative to tuple start
 
     const callDataEnc = encodeBytesDynamic(call.callData);
-    const callDataOffset = encodeUint256(96n); // 0x60
-
-    tupleHeads.push(`${target}${allowFailure}${callDataOffset}`);
-    tupleTails.push(callDataEnc.tail);
+    const tupleData = `${target}${allowFailure}${callDataOffset}${callDataEnc.tail}`;
+    tupleDataList.push(tupleData);
   }
 
-  // Concatenate each tuple as head+tail in order (ABI array is just elements back-to-back)
-  const elements: string[] = [];
+  // Calculate tuple sizes (in bytes) and offsets
+  // Offsets are relative to the start of the offsets area (right after the length word)
+  // The offsets area itself takes N * 32 bytes (one word per tuple offset)
+  const offsetsAreaSize = calls.length * 32;
+  const tupleOffsets: string[] = [];
+  const tupleSizes: number[] = tupleDataList.map((data) => data.length / 2);
+
+  let currentOffset = offsetsAreaSize; // First tuple starts right after all offset words
   for (let i = 0; i < calls.length; i++) {
-    elements.push(tupleHeads[i], tupleTails[i]);
+    tupleOffsets.push(encodeUint256(BigInt(currentOffset)));
+    currentOffset += tupleSizes[i];
   }
 
-  const tail = `${arrayLen}${elements.join('')}`;
+  // Assemble: length + offsets + tuple data
+  const tail = `${arrayLen}${tupleOffsets.join('')}${tupleDataList.join('')}`;
 
   return hexFromParts([selector, head, tail]);
 }

@@ -758,6 +758,68 @@ describe('encodeAggregate3', () => {
     expect(result).toMatch(/^0x82ad56cb/u);
     expect(typeof result).toBe('string');
   });
+
+  it('should encode with correct ABI structure including tuple offsets', () => {
+    // Test with 2 calls to verify offset calculation
+    const calls = [
+      {
+        target: '0x1111111111111111111111111111111111111111' as Address,
+        allowFailure: true,
+        callData: '0xabcd' as Hex, // 2 bytes of data
+      },
+      {
+        target: '0x2222222222222222222222222222222222222222' as Address,
+        allowFailure: false,
+        callData: '0x1234' as Hex, // 2 bytes of data
+      },
+    ];
+
+    const result = encodeAggregate3(calls);
+    const hexNo0x = result.slice(2); // Remove 0x prefix
+
+    // Helper to read a 32-byte word at a given byte offset
+    const readWordAtByte = (byteOffset: number): string => {
+      const start = byteOffset * 2;
+      return hexNo0x.slice(start, start + 64);
+    };
+
+    // Word at byte 0: selector (4 bytes) - skip for structure validation
+    // After selector (byte 4): offset to array (should be 0x20 = 32)
+    const arrayOffset = BigInt(`0x${readWordAtByte(4)}`);
+    expect(arrayOffset).toBe(32n);
+
+    // At byte 4 + 32 = 36: array length (should be 2)
+    const arrayLength = BigInt(`0x${readWordAtByte(36)}`);
+    expect(arrayLength).toBe(2n);
+
+    // At byte 36 + 32 = 68: first tuple offset (relative to offsets area start)
+    // Offsets area is 2 * 32 = 64 bytes, so first tuple is at offset 64
+    const tuple0Offset = BigInt(`0x${readWordAtByte(68)}`);
+    expect(tuple0Offset).toBe(64n); // 2 offsets * 32 bytes each
+
+    // At byte 68 + 32 = 100: second tuple offset
+    // First tuple size: target(32) + allowFailure(32) + bytesOffset(32) + bytesLen(32) + bytesPadded(32) = 160
+    const tuple1Offset = BigInt(`0x${readWordAtByte(100)}`);
+    expect(tuple1Offset).toBe(64n + 160n); // 224
+
+    // Verify first tuple at correct position
+    // Tuple 0 starts at: offsetsAreaStart + tuple0Offset = 68 + 64 = 132
+    const tuple0Start = 132;
+
+    // First word of tuple 0: target address (padded to 32 bytes)
+    const tuple0Target = readWordAtByte(tuple0Start);
+    expect(tuple0Target.toLowerCase()).toBe(
+      '0000000000000000000000001111111111111111111111111111111111111111',
+    );
+
+    // Second word: allowFailure (should be 1 for true)
+    const tuple0AllowFailure = BigInt(`0x${readWordAtByte(tuple0Start + 32)}`);
+    expect(tuple0AllowFailure).toBe(1n);
+
+    // Third word: offset to bytes (always 0x60 = 96)
+    const tuple0BytesOffset = BigInt(`0x${readWordAtByte(tuple0Start + 64)}`);
+    expect(tuple0BytesOffset).toBe(96n);
+  });
 });
 
 describe('decodeAggregate3Response', () => {
