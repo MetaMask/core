@@ -3,6 +3,7 @@ export { BridgeController } from './bridge-controller';
 export {
   UnifiedSwapBridgeEventName,
   UNIFIED_SWAP_BRIDGE_EVENT_CATEGORY,
+  PollingStatus,
 } from './utils/metrics/constants';
 
 export type {

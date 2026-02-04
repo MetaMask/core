@@ -9,8 +9,7 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ### Added
 
-- Add `Unified SwapBridge Max Polling Reached` metrics event, emitted when polling stops due to max attempts ([#7825](https://github.com/MetaMask/core/pull/7825))
-- Add `Unified SwapBridge Polling Manually Restarted` metrics event, emitted when polling is restarted via `restartPollingForFailedAttempts` ([#7825](https://github.com/MetaMask/core/pull/7825))
+- Add `Unified SwapBridge Polling Status Updated` metrics event with `status` property (`max_polling_reached` or `manually_restarted`), emitted when polling stops due to max attempts or is manually restarted ([#7825](https://github.com/MetaMask/core/pull/7825))
 
 ### Changed
 

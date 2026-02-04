@@ -21,8 +21,12 @@ export enum UnifiedSwapBridgeEventName {
   AssetDetailTooltipClicked = `${UNIFIED_SWAP_BRIDGE_EVENT_CATEGORY} Asset Detail Tooltip Clicked`,
   QuotesValidationFailed = `${UNIFIED_SWAP_BRIDGE_EVENT_CATEGORY} Quotes Failed Validation`,
   StatusValidationFailed = `${UNIFIED_SWAP_BRIDGE_EVENT_CATEGORY} Status Failed Validation`,
-  MaxPollingReached = `${UNIFIED_SWAP_BRIDGE_EVENT_CATEGORY} Max Polling Reached`,
-  PollingManuallyRestarted = `${UNIFIED_SWAP_BRIDGE_EVENT_CATEGORY} Polling Manually Restarted`,
+  PollingStatusUpdated = `${UNIFIED_SWAP_BRIDGE_EVENT_CATEGORY} Polling Status Updated`,
+}
+
+export enum PollingStatus {
+  MaxPollingReached = 'max_polling_reached',
+  ManuallyRestarted = 'manually_restarted',
 }
 
 export enum AbortReason {

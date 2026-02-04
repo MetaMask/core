@@ -21,6 +21,7 @@ import {
   isBitcoinTrade,
   isTronTrade,
   AbortReason,
+  PollingStatus,
 } from '@metamask/bridge-controller';
 import type { TraceCallback } from '@metamask/controller-utils';
 import { toHex } from '@metamask/controller-utils';
@@ -419,7 +420,7 @@ export class BridgeStatusController extends StaticIntervalPollingController<Brid
             requestMetadata;
 
           this.#trackUnifiedSwapBridgeEvent(
-            UnifiedSwapBridgeEventName.PollingManuallyRestarted,
+            UnifiedSwapBridgeEventName.PollingStatusUpdated,
             targetTxMetaId,
             {
               ...getTradeDataFromHistory(historyItem),
@@ -430,7 +431,8 @@ export class BridgeStatusController extends StaticIntervalPollingController<Brid
               token_symbol_source: requestParams.token_symbol_source,
               token_symbol_destination: requestParams.token_symbol_destination,
               action_type: MetricsActionType.SWAPBRIDGE_V1,
-              polling_attempts: previousAttempts,
+              polling_status: PollingStatus.ManuallyRestarted,
+              retry_attempts: previousAttempts,
             },
           );
         }
@@ -716,7 +718,7 @@ export class BridgeStatusController extends StaticIntervalPollingController<Brid
           requestMetadata;
 
         this.#trackUnifiedSwapBridgeEvent(
-          UnifiedSwapBridgeEventName.MaxPollingReached,
+          UnifiedSwapBridgeEventName.PollingStatusUpdated,
           bridgeTxMetaId,
           {
             ...getTradeDataFromHistory(historyItem),
@@ -727,7 +729,8 @@ export class BridgeStatusController extends StaticIntervalPollingController<Brid
             token_symbol_source: requestParams.token_symbol_source,
             token_symbol_destination: requestParams.token_symbol_destination,
             action_type: MetricsActionType.SWAPBRIDGE_V1,
-            polling_attempts: newAttempts.counter,
+            polling_status: PollingStatus.MaxPollingReached,
+            retry_attempts: newAttempts.counter,
           },
         );
       }
@@ -1982,8 +1985,7 @@ export class BridgeStatusController extends StaticIntervalPollingController<Brid
       | typeof UnifiedSwapBridgeEventName.Failed
       | typeof UnifiedSwapBridgeEventName.Completed
       | typeof UnifiedSwapBridgeEventName.StatusValidationFailed
-      | typeof UnifiedSwapBridgeEventName.MaxPollingReached
-      | typeof UnifiedSwapBridgeEventName.PollingManuallyRestarted,
+      | typeof UnifiedSwapBridgeEventName.PollingStatusUpdated,
   >(
     eventName: EventName,
     txMetaId?: string,
