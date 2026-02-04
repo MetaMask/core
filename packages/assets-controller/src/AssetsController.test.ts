@@ -201,6 +201,7 @@ describe('AssetsController', () => {
         assetsBalance: {},
         assetsPrice: {},
         customAssets: {},
+        assetPreferences: {},
       });
     });
   });
@@ -213,6 +214,7 @@ describe('AssetsController', () => {
           assetsBalance: {},
           assetsPrice: {},
           customAssets: {},
+          assetPreferences: {},
         });
       });
     });
@@ -238,6 +240,94 @@ describe('AssetsController', () => {
           name: 'USD Coin',
           decimals: 6,
         });
+      });
+    });
+
+    it('skips initialization when isEnabled returns false', () => {
+      const messenger: RootMessenger = new Messenger({
+        namespace: MOCK_ANY_NAMESPACE,
+      });
+
+      const assetsControllerMessenger = new Messenger<
+        'AssetsController',
+        MessengerActions<AssetsControllerMessenger>,
+        MessengerEvents<AssetsControllerMessenger>,
+        RootMessenger
+      >({
+        namespace: 'AssetsController',
+        parent: messenger,
+      });
+
+      messenger.delegate({
+        messenger: assetsControllerMessenger,
+        actions: [
+          'AccountTreeController:getAccountsFromSelectedAccountGroup',
+          'NetworkEnablementController:getState',
+          'AccountsApiDataSource:getAssetsMiddleware',
+          'SnapDataSource:getAssetsMiddleware',
+          'RpcDataSource:getAssetsMiddleware',
+          'TokenDataSource:getAssetsMiddleware',
+          'PriceDataSource:getAssetsMiddleware',
+          'PriceDataSource:fetch',
+          'PriceDataSource:subscribe',
+          'PriceDataSource:unsubscribe',
+          'DetectionMiddleware:getAssetsMiddleware',
+        ],
+        events: [
+          'AccountTreeController:selectedAccountGroupChange',
+          'NetworkEnablementController:stateChange',
+          'AppStateController:appOpened',
+          'AppStateController:appClosed',
+          'KeyringController:lock',
+          'KeyringController:unlock',
+        ],
+      });
+
+      // Note: We don't register action handlers since they should not be called when disabled
+
+      const controller = new AssetsController({
+        messenger:
+          assetsControllerMessenger as unknown as AssetsControllerMessenger,
+        isEnabled: (): boolean => false,
+      });
+
+      // Controller should still have default state (from super() call)
+      expect(controller.state).toStrictEqual({
+        assetPreferences: {},
+        assetsMetadata: {},
+        assetsBalance: {},
+        assetsPrice: {},
+        customAssets: {},
+      });
+
+      // Action handlers should NOT be registered when disabled
+      expect(() => {
+        (messenger.call as CallableFunction)('AssetsController:getAssets', [
+          createMockInternalAccount(),
+        ]);
+      }).toThrow(
+        'A handler for AssetsController:getAssets has not been registered',
+      );
+    });
+
+    it('initializes normally when isEnabled returns true', async () => {
+      await withController(({ controller, messenger }) => {
+        // Controller should have default state
+        expect(controller.state).toStrictEqual({
+          assetPreferences: {},
+          assetsMetadata: {},
+          assetsBalance: {},
+          assetsPrice: {},
+          customAssets: {},
+        });
+
+        // Action handlers should be registered
+        expect(() => {
+          (messenger.call as CallableFunction)(
+            'AssetsController:getCustomAssets',
+            MOCK_ACCOUNT_ID,
+          );
+        }).not.toThrow();
       });
     });
   });

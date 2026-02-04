@@ -1,5 +1,5 @@
+import { defaultAbiCoder, Interface } from '@ethersproject/abi';
 import type { Hex } from '@metamask/utils';
-import { encodeAbiParameters, parseAbiParameters } from 'viem';
 
 import {
   decodeAggregate3Response,
@@ -36,12 +36,12 @@ const MAINNET_CHAIN_ID: ChainId = '0x1' as ChainId;
 const UNSUPPORTED_CHAIN_ID: ChainId = '0xfffff' as ChainId;
 
 // =============================================================================
-// HELPER FUNCTIONS
+// ABI ENCODING HELPERS FOR TESTS
 // =============================================================================
 
 /**
- * Build a mock aggregate3 response using viem's ABI encoding.
- * Each result is (success: bool, returnData: bytes).
+ * Build a mock aggregate3 response using ethers ABI encoding.
+ * Encodes (bool success, bytes returnData)[]
  *
  * @param results - Array of result objects with success flag and optional balance
  * @returns The encoded aggregate3 response as hex
@@ -49,14 +49,12 @@ const UNSUPPORTED_CHAIN_ID: ChainId = '0xfffff' as ChainId;
 function buildMockAggregate3Response(
   results: { success: boolean; balance?: string }[],
 ): `0x${string}` {
-  // Encode each result's returnData (balance as uint256)
-  const resultsWithEncodedData = results.map((result) => {
-    let returnData: `0x${string}` = '0x';
+  // Build the results array with encoded returnData
+  const encodedResults = results.map((result) => {
+    let returnData: string = '0x';
     if (result.balance !== undefined) {
-      // Encode the balance as a uint256
-      returnData = encodeAbiParameters(parseAbiParameters('uint256'), [
-        BigInt(result.balance),
-      ]);
+      // Encode balance as uint256
+      returnData = defaultAbiCoder.encode(['uint256'], [result.balance]);
     }
     return {
       success: result.success,
@@ -64,11 +62,11 @@ function buildMockAggregate3Response(
     };
   });
 
-  // Encode the full aggregate3 response: (bool success, bytes returnData)[]
-  return encodeAbiParameters(
-    parseAbiParameters('(bool success, bytes returnData)[]'),
-    [resultsWithEncodedData],
-  );
+  // Encode the full response: (bool success, bytes returnData)[]
+  return defaultAbiCoder.encode(
+    ['(bool success, bytes returnData)[]'],
+    [encodedResults],
+  ) as `0x${string}`;
 }
 
 // =============================================================================
@@ -686,6 +684,47 @@ describe('encodeAggregate3', () => {
 
     expect(result).toMatch(/^0x82ad56cb/u);
     expect(typeof result).toBe('string');
+  });
+
+  it('should produce valid ABI-encoded calldata that can be decoded', () => {
+    // Test with multiple calls to verify encoding is correct
+    const calls = [
+      {
+        target: '0x1111111111111111111111111111111111111111' as Address,
+        allowFailure: true,
+        callData: '0xabcd' as Hex,
+      },
+      {
+        target: '0x2222222222222222222222222222222222222222' as Address,
+        allowFailure: false,
+        callData: '0x1234567890' as Hex,
+      },
+    ];
+
+    const result = encodeAggregate3(calls);
+
+    // Verify selector is correct (aggregate3)
+    expect(result).toMatch(/^0x82ad56cb/u);
+
+    // Decode the calldata using the same interface to verify it's valid
+    const multicall3Abi = new Interface([
+      'function aggregate3((address target, bool allowFailure, bytes callData)[] calls) payable returns ((bool success, bytes returnData)[])',
+    ]);
+
+    const decoded = multicall3Abi.decodeFunctionData('aggregate3', result);
+    const decodedCalls = decoded[0] as {
+      target: string;
+      allowFailure: boolean;
+      callData: string;
+    }[];
+
+    expect(decodedCalls).toHaveLength(2);
+    expect(decodedCalls[0].target.toLowerCase()).toBe(calls[0].target);
+    expect(decodedCalls[0].allowFailure).toBe(true);
+    expect(decodedCalls[0].callData.toLowerCase()).toBe(calls[0].callData);
+    expect(decodedCalls[1].target.toLowerCase()).toBe(calls[1].target);
+    expect(decodedCalls[1].allowFailure).toBe(false);
+    expect(decodedCalls[1].callData.toLowerCase()).toBe(calls[1].callData);
   });
 });
 

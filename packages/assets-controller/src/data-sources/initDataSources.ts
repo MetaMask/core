@@ -127,6 +127,8 @@ export type InitMessengersOptions<
 > = {
   /** The root controller messenger */
   messenger: RootMessenger<AllowedActions, AllowedEvents>;
+  /** Function to determine if initialization should proceed. Defaults to true. */
+  isEnabled?: () => boolean;
 };
 
 // ============================================================================
@@ -172,6 +174,9 @@ export type InitDataSourcesOptions = {
 
   /** Optional configuration for RpcDataSource */
   rpcDataSourceConfig?: RpcDataSourceConfig;
+
+  /** Function to determine if initialization should proceed. Defaults to true. */
+  isEnabled?: () => boolean;
 };
 
 // ============================================================================
@@ -192,15 +197,19 @@ export type InitDataSourcesOptions = {
  * ```
  *
  * @param options - Configuration options
- * @returns Object containing all messengers
+ * @returns Object containing all messengers, or null if disabled
  */
 export function initMessengers<
   AllowedActions extends ActionConstraint,
   AllowedEvents extends EventConstraint,
 >(
   options: InitMessengersOptions<AllowedActions, AllowedEvents>,
-): DataSourceMessengers {
-  const { messenger } = options;
+): DataSourceMessengers | null {
+  const { messenger, isEnabled = (): boolean => true } = options;
+
+  if (!isEnabled()) {
+    return null;
+  }
 
   // eslint-disable-next-line @typescript-eslint/no-explicit-any
   const rootMessenger = messenger as any;
@@ -347,10 +356,21 @@ export function initMessengers<
  * ```
  *
  * @param options - Configuration options
- * @returns Object containing all data source instances
+ * @returns Object containing all data source instances, or null if disabled
  */
-export function initDataSources(options: InitDataSourcesOptions): DataSources {
-  const { messengers, queryApiClient, rpcDataSourceConfig } = options;
+export function initDataSources(
+  options: InitDataSourcesOptions,
+): DataSources | null {
+  const {
+    messengers,
+    queryApiClient,
+    rpcDataSourceConfig,
+    isEnabled = (): boolean => true,
+  } = options;
+
+  if (!isEnabled()) {
+    return null;
+  }
 
   // Initialize primary data sources (provide balance data)
   const rpcDataSource = new RpcDataSource({
