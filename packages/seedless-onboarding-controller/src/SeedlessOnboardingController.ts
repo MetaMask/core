@@ -6,7 +6,7 @@ import type {
   StateMetadata,
 } from '@metamask/base-controller';
 import type * as encryptionUtils from '@metamask/browser-passworder';
-import { Messenger } from '@metamask/messenger';
+import type { Messenger } from '@metamask/messenger';
 import type {
   AuthenticateResult,
   ChangeEncryptionKeyResult,
@@ -437,7 +437,7 @@ export class SeedlessOnboardingController<
     this.#renewRefreshToken = renewRefreshToken;
 
     this.messenger.registerActionHandler(
-      'SeedlessOnboardingController:getAccessToken',
+      `${controllerName}:getAccessToken`,
       this.getAccessToken.bind(this),
     );
   }
