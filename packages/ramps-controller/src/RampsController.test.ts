@@ -1178,7 +1178,9 @@ describe('RampsController', () => {
             'RampsService:getCountries',
             async () => mockCountries,
           );
-          await expect(controller.getCountries()).rejects.toThrow();
+          await expect(controller.getCountries()).rejects.toThrow(
+            /null|Cannot set property|Proxy/,
+          );
         },
       );
     });
