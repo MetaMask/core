@@ -1,6 +1,6 @@
 {
   "name": "@metamask/transaction-pay-controller",
-  "version": "12.0.2",
+  "version": "12.1.0",
   "description": "Manages alternate payment strategies to provide required funds for transactions in MetaMask",
   "keywords": [
     "MetaMask",
@@ -61,7 +61,7 @@
     "@metamask/metamask-eth-abis": "^3.1.1",
     "@metamask/network-controller": "^29.0.0",
     "@metamask/remote-feature-flag-controller": "^4.0.0",
-    "@metamask/transaction-controller": "^62.13.0",
+    "@metamask/transaction-controller": "^62.14.0",
     "@metamask/utils": "^11.9.0",
     "bignumber.js": "^9.1.2",
     "bn.js": "^5.2.1",

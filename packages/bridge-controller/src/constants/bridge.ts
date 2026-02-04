@@ -21,6 +21,7 @@ export const ALLOWED_BRIDGE_CHAIN_IDS = [
   CHAIN_IDS.SEI,
   CHAIN_IDS.MONAD,
   CHAIN_IDS.HYPEREVM,
+  CHAIN_IDS.MEGAETH,
   SolScope.Mainnet,
   BtcScope.Mainnet,
   TrxScope.Mainnet,
@@ -64,6 +65,7 @@ export const DEFAULT_CHAIN_RANKING = [
   { chainId: 'eip155:143', name: 'Monad' },
   { chainId: 'eip155:1329', name: 'Sei' },
   { chainId: 'eip155:999', name: 'HyperEVM' },
+  { chainId: 'eip155:4326', name: 'MegaETH' },
   { chainId: 'eip155:324', name: 'zkSync' },
 ] as const;
 
