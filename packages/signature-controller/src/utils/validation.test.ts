@@ -406,6 +406,47 @@ describe('Validation Utils', () => {
               }),
             ).not.toThrow();
           });
+
+          it('does not throw if external origin and verifying contract equals signer address (EIP-7702)', () => {
+            // EIP-7702 allows EOAs to temporarily delegate to smart contracts.
+            // When delegated, the user's address becomes the verifying contract.
+            // This is a legitimate use case that should be allowed.
+            const signerAddress = '0x3244e191f1b4903970224322180f1fbbc415696b';
+            const data = JSON.parse(DATA_TYPED_MOCK);
+            data.domain.verifyingContract = signerAddress;
+
+            expect(() =>
+              validateTypedSignatureRequest({
+                currentChainId: CHAIN_ID_MOCK,
+                internalAccounts: ['0x1234', signerAddress as Hex],
+                messageData: {
+                  data,
+                  from: signerAddress,
+                },
+                request: { origin: ORIGIN_MOCK } as OriginalRequest,
+                version,
+              }),
+            ).not.toThrow();
+          });
+
+          it('does not throw if external origin and verifying contract equals signer address with different case (EIP-7702)', () => {
+            const signerAddress = '0x3244e191f1b4903970224322180f1fbbc415696b';
+            const data = JSON.parse(DATA_TYPED_MOCK);
+            data.domain.verifyingContract = signerAddress.toUpperCase();
+
+            expect(() =>
+              validateTypedSignatureRequest({
+                currentChainId: CHAIN_ID_MOCK,
+                internalAccounts: ['0x1234', signerAddress as Hex],
+                messageData: {
+                  data,
+                  from: signerAddress,
+                },
+                request: { origin: ORIGIN_MOCK } as OriginalRequest,
+                version,
+              }),
+            ).not.toThrow();
+          });
         });
 
         describe('delegation', () => {
