@@ -19,6 +19,8 @@ export type {
   AssetsControllerAddCustomAssetAction,
   AssetsControllerRemoveCustomAssetAction,
   AssetsControllerGetCustomAssetsAction,
+  AssetsControllerHideAssetAction,
+  AssetsControllerUnhideAssetAction,
   AssetsControllerActions,
   AssetsControllerStateChangeEvent,
   AssetsControllerBalanceChangedEvent,
