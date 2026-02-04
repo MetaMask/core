@@ -5,7 +5,6 @@ import type {
   MessengerEvents,
   MockAnyNamespace,
 } from '@metamask/messenger';
-import type { SemVerVersion } from '@metamask/utils';
 
 import type { AbstractClientConfigApiService } from './client-config-api-service/abstract-client-config-api-service';
 import {
@@ -192,7 +191,7 @@ describe('RemoteFeatureFlagController', () => {
       expect(controller.state.remoteFeatureFlags).toStrictEqual(MOCK_FLAGS);
     });
 
-    it('invalidates the cache when clientVersion changes and fetches new flags', async () => {
+    it('resets cache and fetch when clientVersion changes', async () => {
       const versionedFlags = {
         exploreFeature: {
           versions: {
@@ -204,27 +203,67 @@ describe('RemoteFeatureFlagController', () => {
       const clientConfigApiService = buildClientConfigApiService({
         remoteFeatureFlags: versionedFlags,
       });
-      const controller = createController({
-        clientConfigApiService,
+
+      /**
+       * Test Util - Arrange, Act, Assert for client version change
+       *
+       * @param opts - The options for the arrangeActAssertClientVersionChange test
+       * @param opts.clientVersion - The client version to use
+       * @param opts.controllerState - The controller state to use
+       * @param opts.expectedFeatureFlagState - The expected feature flag state\
+       * @returns The controller state after the arrangeActAssertClientVersionChange test
+       */
+      const arrangeActAssertClientVersionChange = async (opts: {
+        clientVersion: string;
+        controllerState?: RemoteFeatureFlagControllerState;
+        expectedFeatureFlagState: boolean;
+      }): Promise<RemoteFeatureFlagControllerState> => {
+        const { clientVersion, controllerState, expectedFeatureFlagState } =
+          opts;
+
+        // Arrange - setup controller
+        jest.clearAllMocks();
+        const controller = createController({
+          clientConfigApiService,
+          clientVersion,
+          state: controllerState,
+        });
+
+        // Assert - controller cache is set to 0 (either by initial state or reset by client version change)
+        expect(controller.state.cacheTimestamp).toBe(0);
+
+        // Act / Assert - We should make a network request and update the cache (cache is reset to 0)
+        await controller.updateRemoteFeatureFlags();
+        expect(
+          clientConfigApiService.fetchRemoteFeatureFlags,
+        ).toHaveBeenCalledTimes(1);
+
+        // Act / Assert - subsequent fetches should not call network again (cache is populated)
+        await controller.updateRemoteFeatureFlags();
+        expect(
+          clientConfigApiService.fetchRemoteFeatureFlags,
+        ).toHaveBeenCalledTimes(1);
+
+        // Assert - flag state is as expected
+        expect(
+          controller.state.remoteFeatureFlags.exploreFeature,
+        ).toStrictEqual({
+          enabled: expectedFeatureFlagState,
+        });
+
+        return controller.state;
+      };
+
+      const previousState = await arrangeActAssertClientVersionChange({
+        clientVersion: '7.62.0',
+        expectedFeatureFlagState: false,
+      });
+
+      await arrangeActAssertClientVersionChange({
         clientVersion: '7.64.0',
-        state: {
-          previousClientVersion: '7.62.0' as SemVerVersion,
-          remoteFeatureFlags: { exploreFeature: { enabled: false } },
-          cacheTimestamp: Date.now(),
-        },
+        controllerState: previousState,
+        expectedFeatureFlagState: true,
       });
-
-      expect(controller.state.cacheTimestamp).toBe(0);
-
-      await controller.updateRemoteFeatureFlags();
-
-      expect(
-        clientConfigApiService.fetchRemoteFeatureFlags,
-      ).toHaveBeenCalledTimes(1);
-      expect(controller.state.remoteFeatureFlags.exploreFeature).toStrictEqual({
-        enabled: true,
-      });
-      expect(controller.state.previousClientVersion).toBe('7.64.0');
     });
 
     it('makes a network request to fetch when cache is expired, and then updates the cache', async () => {

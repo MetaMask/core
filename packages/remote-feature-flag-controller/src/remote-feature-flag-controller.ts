@@ -205,13 +205,9 @@ export class RemoteFeatureFlagController extends BaseController<
       ...state,
     };
 
-    const previousClientVersion = initialState.previousClientVersion;
-    const hasPreviousClientVersion = typeof previousClientVersion === 'string';
-    const hasValidPreviousClientVersion =
-      hasPreviousClientVersion && isValidSemVerVersion(previousClientVersion);
-    const shouldInvalidateCache =
-      hasPreviousClientVersion &&
-      (!hasValidPreviousClientVersion || previousClientVersion !== clientVersion);
+    const hasClientVersionChanged =
+      isValidSemVerVersion(initialState.previousClientVersion) &&
+      initialState.previousClientVersion !== clientVersion;
 
     super({
       name: controllerName,
@@ -219,7 +215,9 @@ export class RemoteFeatureFlagController extends BaseController<
       messenger,
       state: {
         ...initialState,
-        cacheTimestamp: shouldInvalidateCache ? 0 : initialState.cacheTimestamp,
+        cacheTimestamp: hasClientVersionChanged
+          ? 0
+          : initialState.cacheTimestamp,
         previousClientVersion: clientVersion,
       },
     });
