@@ -2,7 +2,6 @@ import type {
   Transaction as AccountActivityTransaction,
   WebSocketConnectionInfo,
 } from '@metamask/core-backend';
-import { WebSocketState } from '@metamask/core-backend';
 import type { Hex } from '@metamask/utils';
 
 import { SUPPORTED_CHAIN_IDS } from './AccountsApiRemoteTransactionSource';
@@ -15,6 +14,11 @@ import {
   getIncomingTransactionsPollingInterval,
   isIncomingTransactionsUseWebsocketsEnabled,
 } from '../utils/feature-flags';
+
+enum WebSocketState {
+  CONNECTED = 'connected',
+  DISCONNECTED = 'disconnected',
+}
 
 jest.useFakeTimers();
 
