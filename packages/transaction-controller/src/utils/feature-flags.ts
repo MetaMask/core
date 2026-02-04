@@ -224,7 +224,7 @@ export function getEIP7702ContractAddresses(
 
   const contracts =
     featureFlags?.[FeatureFlag.EIP7702]?.contracts?.[
-    chainId.toLowerCase() as Hex
+      chainId.toLowerCase() as Hex
     ] ?? [];
 
   return contracts
