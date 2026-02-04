@@ -201,6 +201,7 @@ describe('AssetsController', () => {
         assetsBalance: {},
         assetsPrice: {},
         customAssets: {},
+        assetPreferences: {},
       });
     });
   });
@@ -213,6 +214,7 @@ describe('AssetsController', () => {
           assetsBalance: {},
           assetsPrice: {},
           customAssets: {},
+          assetPreferences: {},
         });
       });
     });
@@ -291,6 +293,7 @@ describe('AssetsController', () => {
 
       // Controller should still have default state (from super() call)
       expect(controller.state).toStrictEqual({
+        assetPreferences: {},
         assetsMetadata: {},
         assetsBalance: {},
         assetsPrice: {},
@@ -311,6 +314,7 @@ describe('AssetsController', () => {
       await withController(({ controller, messenger }) => {
         // Controller should have default state
         expect(controller.state).toStrictEqual({
+          assetPreferences: {},
           assetsMetadata: {},
           assetsBalance: {},
           assetsPrice: {},
