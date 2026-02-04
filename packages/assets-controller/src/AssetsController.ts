@@ -259,6 +259,8 @@ export type AssetsControllerOptions = {
   state?: Partial<AssetsControllerState>;
   /** Default polling interval hint passed to data sources (ms) */
   defaultUpdateInterval?: number;
+  /** Function to determine if the controller is enabled. Defaults to true. */
+  isEnabled?: () => boolean;
 };
 
 // ============================================================================
@@ -400,6 +402,9 @@ export class AssetsController extends BaseController<
   AssetsControllerState,
   AssetsControllerMessenger
 > {
+  /** Whether the controller is enabled */
+  readonly #isEnabled: boolean;
+
   /** Default update interval hint passed to data sources */
   readonly #defaultUpdateInterval: number;
 
@@ -440,6 +445,7 @@ export class AssetsController extends BaseController<
     messenger,
     state = {},
     defaultUpdateInterval = DEFAULT_POLLING_INTERVAL_MS,
+    isEnabled = (): boolean => true,
   }: AssetsControllerOptions) {
     super({
       name: CONTROLLER_NAME,
@@ -451,7 +457,13 @@ export class AssetsController extends BaseController<
       },
     });
 
+    this.#isEnabled = isEnabled();
     this.#defaultUpdateInterval = defaultUpdateInterval;
+
+    if (!this.#isEnabled) {
+      log('AssetsController is disabled, skipping initialization');
+      return;
+    }
 
     log('Initializing AssetsController', {
       defaultUpdateInterval,
