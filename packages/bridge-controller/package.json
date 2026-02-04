@@ -45,7 +45,11 @@
     "test": "NODE_OPTIONS=--experimental-vm-modules jest --reporters=jest-silent-reporter",
     "test:clean": "NODE_OPTIONS=--experimental-vm-modules jest --clearCache",
     "test:verbose": "NODE_OPTIONS=--experimental-vm-modules jest --verbose",
-    "test:watch": "NODE_OPTIONS=--experimental-vm-modules jest --watch"
+    "test:watch": "NODE_OPTIONS=--experimental-vm-modules jest --watch",
+    "fetch:spec": "curl -s https://bridge.api.cx.metamask.io/docs-json > ./src/api-spec.json",
+    "fetch:spec:local": "curl -s http://localhost:4000/docs-json > ./src/api-spec.json",
+    "generate:api": "yarn fetch:spec && openapi-ts",
+    "generate:api:local": "yarn fetch:spec:local && openapi-ts"
   },
   "dependencies": {
     "@ethersproject/address": "^5.7.0",
@@ -71,9 +75,11 @@
     "bignumber.js": "^9.1.2",
     "openapi-fetch": "^0.15.0",
     "reselect": "^5.1.1",
-    "uuid": "^8.3.2"
+    "uuid": "^8.3.2",
+    "zod": "^4.3.6"
   },
   "devDependencies": {
+    "@hey-api/openapi-ts": "^0.85.2",
     "@metamask/auto-changelog": "^3.4.4",
     "@metamask/eth-json-rpc-provider": "^6.0.0",
     "@metamask/superstruct": "^3.1.0",
