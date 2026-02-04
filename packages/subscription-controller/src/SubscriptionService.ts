@@ -224,22 +224,18 @@ export class SubscriptionService implements ISubscriptionService {
 
       return response;
     } catch (error) {
-      const errorContext = this.#buildErrorContext(error);
-      const errorMessage = errorContext.message;
+      const { message, details } = this.#buildErrorContext(error);
 
-      throw new SubscriptionServiceError(
-        `Failed to make request. ${errorMessage}`,
-        {
-          cause: error instanceof Error ? error : undefined,
-          details: {
-            request: {
-              method,
-              url: url.toString(),
-            },
-            error: errorContext.details,
+      throw new SubscriptionServiceError(`Failed to make request. ${message}`, {
+        cause: error instanceof Error ? error : undefined,
+        details: {
+          request: {
+            method,
+            url: url.toString(),
           },
+          error: details,
         },
-      );
+      });
     }
   }
 
@@ -290,7 +286,6 @@ export class SubscriptionService implements ISubscriptionService {
         details: {
           name: 'HttpError',
           message: error.message,
-          stack: error.stack,
           httpStatus: error.httpStatus,
         },
       };
@@ -302,7 +297,6 @@ export class SubscriptionService implements ISubscriptionService {
         details: {
           name: error.name,
           message: error.message,
-          stack: error.stack,
         },
       };
     }
