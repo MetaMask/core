@@ -436,6 +436,39 @@ describe('SubscriptionController', () => {
       });
     });
 
+    it('should surface triggerAccessTokenRefresh errors', async () => {
+      await withController(
+        async ({ controller, mockService, mockPerformSignOut }) => {
+          mockService.getSubscriptions.mockResolvedValue(
+            MOCK_GET_SUBSCRIPTIONS_RESPONSE,
+          );
+          mockPerformSignOut.mockImplementation(() => {
+            throw new Error('Wallet is locked');
+          });
+
+          await expect(controller.getSubscriptions()).rejects.toThrow(
+            'Failed to trigger access token refresh. Wallet is locked',
+          );
+        },
+      );
+
+      await withController(
+        async ({ controller, mockService, mockPerformSignOut }) => {
+          mockService.getSubscriptions.mockResolvedValue(
+            MOCK_GET_SUBSCRIPTIONS_RESPONSE,
+          );
+          mockPerformSignOut.mockImplementation(() => {
+            // eslint-disable-next-line @typescript-eslint/only-throw-error
+            throw 'string error';
+          });
+
+          await expect(controller.getSubscriptions()).rejects.toThrow(
+            `Failed to trigger access token refresh. ${JSON.stringify('string error')}`,
+          );
+        },
+      );
+    });
+
     it('should update state when subscription is fetched', async () => {
       const initialSubscription = { ...MOCK_SUBSCRIPTION, id: 'sub_old' };
       const newSubscription = { ...MOCK_SUBSCRIPTION, id: 'sub_new' };

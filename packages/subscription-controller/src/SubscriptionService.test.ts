@@ -1,4 +1,4 @@
-import { handleFetch } from '@metamask/controller-utils';
+import { fetchWithErrorHandling, HttpError } from '@metamask/controller-utils';
 
 import {
   Env,
@@ -31,10 +31,11 @@ import {
 
 // Mock the handleFetch function
 jest.mock('@metamask/controller-utils', () => ({
-  handleFetch: jest.fn(),
+  ...jest.requireActual('@metamask/controller-utils'),
+  fetchWithErrorHandling: jest.fn(),
 }));
 
-const handleFetchMock = handleFetch as jest.Mock;
+const fetchWithErrorHandlingMock = fetchWithErrorHandling as jest.Mock;
 
 // Mock data
 const MOCK_SUBSCRIPTION: Subscription = {
@@ -189,7 +190,7 @@ describe('SubscriptionService', () => {
   describe('getSubscriptions', () => {
     it('should fetch subscriptions successfully', async () => {
       await withMockSubscriptionService(async ({ service, config }) => {
-        handleFetchMock.mockResolvedValue({
+        fetchWithErrorHandlingMock.mockResolvedValue({
           customerId: 'cus_1',
           subscriptions: [MOCK_SUBSCRIPTION],
           trialedProducts: [],
@@ -206,9 +207,31 @@ describe('SubscriptionService', () => {
       });
     });
 
-    it('should throw SubscriptionServiceError for error responses', async () => {
+    it('should throw SubscriptionServiceError for network errors', async () => {
       await withMockSubscriptionService(async ({ service }) => {
-        handleFetchMock.mockRejectedValue(new Error('Network error'));
+        fetchWithErrorHandlingMock.mockRejectedValue(
+          new Error('Network error'),
+        );
+
+        const error = await service.getSubscriptions().then(
+          () => {
+            throw new Error('Expected getSubscriptions to throw');
+          },
+          (rejection) => rejection,
+        );
+
+        expect(error).toBeInstanceOf(SubscriptionServiceError);
+        const serviceError = error as SubscriptionServiceError;
+        expect(serviceError.details).toMatchObject({
+          request: {
+            method: 'GET',
+            url: `${getTestUrl(Env.DEV)}/v1/subscriptions`,
+          },
+        });
+      });
+
+      await withMockSubscriptionService(async ({ service }) => {
+        fetchWithErrorHandlingMock.mockRejectedValue('string error');
 
         await expect(service.getSubscriptions()).rejects.toThrow(
           SubscriptionServiceError,
@@ -216,13 +239,33 @@ describe('SubscriptionService', () => {
       });
     });
 
-    it('should throw SubscriptionServiceError for network errors', async () => {
+    it('should include httpStatus details for HttpError responses', async () => {
       await withMockSubscriptionService(async ({ service }) => {
-        handleFetchMock.mockRejectedValue(new Error('Network error'));
-
-        await expect(service.getSubscriptions()).rejects.toThrow(
-          SubscriptionServiceError,
+        fetchWithErrorHandlingMock.mockRejectedValue(
+          new HttpError(503, 'Service unavailable'),
         );
+
+        const error = await service.getSubscriptions().then(
+          () => {
+            throw new Error('Expected getSubscriptions to throw');
+          },
+          (rejection) => rejection,
+        );
+
+        expect(error).toBeInstanceOf(SubscriptionServiceError);
+        const serviceError = error as SubscriptionServiceError;
+        expect(serviceError.message).toContain('status=503');
+        expect(serviceError.details).toMatchObject({
+          request: {
+            method: 'GET',
+            url: `${getTestUrl(Env.DEV)}/v1/subscriptions`,
+          },
+          error: {
+            httpStatus: 503,
+            message: 'Service unavailable',
+            name: 'HttpError',
+          },
+        });
       });
     });
 
@@ -237,13 +280,24 @@ describe('SubscriptionService', () => {
           SubscriptionServiceError,
         );
       });
+
+      await withMockSubscriptionService(async ({ service, config }) => {
+        // Simulate a non-Error thrown from the auth.getAccessToken mock
+        (config.auth.getAccessToken as jest.Mock).mockRejectedValue(
+          new Error('Wallet is locked'),
+        );
+
+        await expect(service.getSubscriptions()).rejects.toThrow(
+          SubscriptionServiceError,
+        );
+      });
     });
   });
 
   describe('cancelSubscription', () => {
     it('should cancel subscription successfully', async () => {
       await withMockSubscriptionService(async ({ service, config }) => {
-        handleFetchMock.mockResolvedValue({});
+        fetchWithErrorHandlingMock.mockResolvedValue({});
 
         await service.cancelSubscription({ subscriptionId: 'sub_123456789' });
 
@@ -253,7 +307,9 @@ describe('SubscriptionService', () => {
 
     it('should throw SubscriptionServiceError for network errors', async () => {
       await withMockSubscriptionService(async ({ service }) => {
-        handleFetchMock.mockRejectedValue(new Error('Network error'));
+        fetchWithErrorHandlingMock.mockRejectedValue(
+          new Error('Network error'),
+        );
 
         await expect(
           service.cancelSubscription({ subscriptionId: 'sub_123456789' }),
@@ -265,7 +321,7 @@ describe('SubscriptionService', () => {
   describe('uncancelSubscription', () => {
     it('should cancel subscription successfully', async () => {
       await withMockSubscriptionService(async ({ service, config }) => {
-        handleFetchMock.mockResolvedValue({});
+        fetchWithErrorHandlingMock.mockResolvedValue({});
 
         await service.unCancelSubscription({ subscriptionId: 'sub_123456789' });
 
@@ -275,7 +331,9 @@ describe('SubscriptionService', () => {
 
     it('should throw SubscriptionServiceError for network errors', async () => {
       await withMockSubscriptionService(async ({ service }) => {
-        handleFetchMock.mockRejectedValue(new Error('Network error'));
+        fetchWithErrorHandlingMock.mockRejectedValue(
+          new Error('Network error'),
+        );
 
         await expect(
           service.unCancelSubscription({ subscriptionId: 'sub_123456789' }),
@@ -287,7 +345,9 @@ describe('SubscriptionService', () => {
   describe('startSubscription', () => {
     it('should start subscription successfully', async () => {
       await withMockSubscriptionService(async ({ service }) => {
-        handleFetchMock.mockResolvedValue(MOCK_START_SUBSCRIPTION_RESPONSE);
+        fetchWithErrorHandlingMock.mockResolvedValue(
+          MOCK_START_SUBSCRIPTION_RESPONSE,
+        );
 
         const result = await service.startSubscriptionWithCard(
           MOCK_START_SUBSCRIPTION_REQUEST,
@@ -306,7 +366,9 @@ describe('SubscriptionService', () => {
         recurringInterval: RECURRING_INTERVALS.month,
       };
 
-      handleFetchMock.mockResolvedValue(MOCK_START_SUBSCRIPTION_RESPONSE);
+      fetchWithErrorHandlingMock.mockResolvedValue(
+        MOCK_START_SUBSCRIPTION_RESPONSE,
+      );
 
       const result = await service.startSubscriptionWithCard(request);
 
@@ -347,7 +409,7 @@ describe('SubscriptionService', () => {
           status: SUBSCRIPTION_STATUSES.active,
         };
 
-        handleFetchMock.mockResolvedValue(response);
+        fetchWithErrorHandlingMock.mockResolvedValue(response);
 
         const result = await service.startSubscriptionWithCrypto(request);
 
@@ -366,7 +428,7 @@ describe('SubscriptionService', () => {
       const config = createMockConfig();
       const service = new SubscriptionService(config);
 
-      handleFetchMock.mockResolvedValue(mockPricingResponse);
+      fetchWithErrorHandlingMock.mockResolvedValue(mockPricingResponse);
 
       const result = await service.getPricing();
 
@@ -382,16 +444,16 @@ describe('SubscriptionService', () => {
           recurringInterval: RECURRING_INTERVALS.month,
         };
 
-        handleFetchMock.mockResolvedValue({});
+        fetchWithErrorHandlingMock.mockResolvedValue({});
 
         await service.updatePaymentMethodCard(request);
 
-        expect(handleFetchMock).toHaveBeenCalledWith(
-          SUBSCRIPTION_URL(
+        expect(fetchWithErrorHandlingMock).toHaveBeenCalledWith({
+          url: SUBSCRIPTION_URL(
             config.env,
             'subscriptions/sub_123456789/payment-method/card',
           ),
-          {
+          options: {
             method: 'PATCH',
             headers: MOCK_HEADERS,
             body: JSON.stringify({
@@ -399,7 +461,7 @@ describe('SubscriptionService', () => {
               subscriptionId: undefined,
             }),
           },
-        );
+        });
       });
     });
 
@@ -415,16 +477,16 @@ describe('SubscriptionService', () => {
           billingCycles: 3,
         };
 
-        handleFetchMock.mockResolvedValue({});
+        fetchWithErrorHandlingMock.mockResolvedValue({});
 
         await service.updatePaymentMethodCrypto(request);
 
-        expect(handleFetchMock).toHaveBeenCalledWith(
-          SUBSCRIPTION_URL(
+        expect(fetchWithErrorHandlingMock).toHaveBeenCalledWith({
+          url: SUBSCRIPTION_URL(
             config.env,
             'subscriptions/sub_123456789/payment-method/crypto',
           ),
-          {
+          options: {
             method: 'PATCH',
             headers: MOCK_HEADERS,
             body: JSON.stringify({
@@ -432,7 +494,7 @@ describe('SubscriptionService', () => {
               subscriptionId: undefined,
             }),
           },
-        );
+        });
       });
     });
   });
@@ -440,7 +502,7 @@ describe('SubscriptionService', () => {
   describe('getBillingPortalUrl', () => {
     it('should get billing portal url successfully', async () => {
       await withMockSubscriptionService(async ({ service }) => {
-        handleFetchMock.mockResolvedValue({
+        fetchWithErrorHandlingMock.mockResolvedValue({
           url: 'https://billing-portal.com',
         });
 
@@ -455,7 +517,7 @@ describe('SubscriptionService', () => {
     it('should get shield subscription eligibility successfully', async () => {
       await withMockSubscriptionService(async ({ service }) => {
         const mockResponse = createMockEligibilityResponse();
-        handleFetchMock.mockResolvedValue([mockResponse]);
+        fetchWithErrorHandlingMock.mockResolvedValue([mockResponse]);
 
         const results = await service.getSubscriptionsEligibilities();
 
@@ -471,7 +533,7 @@ describe('SubscriptionService', () => {
           assignedAt: '2024-01-01T00:00:00Z',
         });
 
-        handleFetchMock.mockResolvedValue([mockResponse]);
+        fetchWithErrorHandlingMock.mockResolvedValue([mockResponse]);
 
         const results = await service.getSubscriptionsEligibilities({
           balanceCategory: '1k-9.9k',
@@ -483,7 +545,7 @@ describe('SubscriptionService', () => {
 
     it('should get shield subscription eligibility with default values', async () => {
       await withMockSubscriptionService(async ({ service }) => {
-        handleFetchMock.mockResolvedValue([
+        fetchWithErrorHandlingMock.mockResolvedValue([
           {
             product: PRODUCT_TYPES.SHIELD,
           },
@@ -504,17 +566,19 @@ describe('SubscriptionService', () => {
     it('should pass balanceCategory as query parameter when provided', async () => {
       await withMockSubscriptionService(async ({ service, config }) => {
         const mockResponse = createMockEligibilityResponse();
-        handleFetchMock.mockResolvedValue([mockResponse]);
+        fetchWithErrorHandlingMock.mockResolvedValue([mockResponse]);
 
         await service.getSubscriptionsEligibilities({
           balanceCategory: '100-999',
         });
 
-        expect(handleFetchMock).toHaveBeenCalledWith(
-          expect.stringContaining('balanceCategory=100-999'),
+        expect(fetchWithErrorHandlingMock).toHaveBeenCalledWith(
           expect.objectContaining({
-            method: 'GET',
-            headers: MOCK_HEADERS,
+            url: expect.stringContaining('balanceCategory=100-999'),
+            options: expect.objectContaining({
+              method: 'GET',
+              headers: MOCK_HEADERS,
+            }),
           }),
         );
         expect(config.auth.getAccessToken).toHaveBeenCalledTimes(1);
@@ -524,15 +588,17 @@ describe('SubscriptionService', () => {
     it('should not pass balanceCategory query parameter when not provided', async () => {
       await withMockSubscriptionService(async ({ service, config }) => {
         const mockResponse = createMockEligibilityResponse();
-        handleFetchMock.mockResolvedValue([mockResponse]);
+        fetchWithErrorHandlingMock.mockResolvedValue([mockResponse]);
 
         await service.getSubscriptionsEligibilities();
 
-        expect(handleFetchMock).toHaveBeenCalledWith(
-          expect.not.stringContaining('balanceCategory'),
+        expect(fetchWithErrorHandlingMock).toHaveBeenCalledWith(
           expect.objectContaining({
-            method: 'GET',
-            headers: MOCK_HEADERS,
+            url: expect.not.stringMatching(/balanceCategory/u),
+            options: expect.objectContaining({
+              method: 'GET',
+              headers: MOCK_HEADERS,
+            }),
           }),
         );
         expect(config.auth.getAccessToken).toHaveBeenCalledTimes(1);
@@ -543,37 +609,37 @@ describe('SubscriptionService', () => {
   describe('submitUserEvent', () => {
     it('should submit user event successfully', async () => {
       await withMockSubscriptionService(async ({ service, config }) => {
-        handleFetchMock.mockResolvedValue({});
+        fetchWithErrorHandlingMock.mockResolvedValue({});
 
         await service.submitUserEvent({
           event: SubscriptionUserEvent.ShieldEntryModalViewed,
         });
 
-        expect(handleFetchMock).toHaveBeenCalledWith(
-          SUBSCRIPTION_URL(config.env, 'user-events'),
-          {
+        expect(fetchWithErrorHandlingMock).toHaveBeenCalledWith({
+          url: SUBSCRIPTION_URL(config.env, 'user-events'),
+          options: {
             method: 'POST',
             headers: MOCK_HEADERS,
             body: JSON.stringify({
               event: SubscriptionUserEvent.ShieldEntryModalViewed,
             }),
           },
-        );
+        });
       });
     });
 
     it('should submit user event with cohort successfully', async () => {
       await withMockSubscriptionService(async ({ service, config }) => {
-        handleFetchMock.mockResolvedValue({});
+        fetchWithErrorHandlingMock.mockResolvedValue({});
 
         await service.submitUserEvent({
           event: SubscriptionUserEvent.ShieldEntryModalViewed,
           cohort: 'post_tx',
         });
 
-        expect(handleFetchMock).toHaveBeenCalledWith(
-          SUBSCRIPTION_URL(config.env, 'user-events'),
-          {
+        expect(fetchWithErrorHandlingMock).toHaveBeenCalledWith({
+          url: SUBSCRIPTION_URL(config.env, 'user-events'),
+          options: {
             method: 'POST',
             headers: MOCK_HEADERS,
             body: JSON.stringify({
@@ -581,7 +647,7 @@ describe('SubscriptionService', () => {
               cohort: 'post_tx',
             }),
           },
-        );
+        });
       });
     });
   });
@@ -589,27 +655,29 @@ describe('SubscriptionService', () => {
   describe('assignUserToCohort', () => {
     it('should assign user to cohort successfully', async () => {
       await withMockSubscriptionService(async ({ service, config }) => {
-        handleFetchMock.mockResolvedValue({});
+        fetchWithErrorHandlingMock.mockResolvedValue({});
 
         await service.assignUserToCohort({ cohort: 'post_tx' });
 
-        expect(handleFetchMock).toHaveBeenCalledWith(
-          SUBSCRIPTION_URL(config.env, 'cohorts/assign'),
-          {
+        expect(fetchWithErrorHandlingMock).toHaveBeenCalledWith({
+          url: SUBSCRIPTION_URL(config.env, 'cohorts/assign'),
+          options: {
             method: 'POST',
             headers: MOCK_HEADERS,
             body: JSON.stringify({
               cohort: 'post_tx',
             }),
           },
-        );
+        });
         expect(config.auth.getAccessToken).toHaveBeenCalledTimes(1);
       });
     });
 
     it('should handle cohort assignment errors', async () => {
       await withMockSubscriptionService(async ({ service }) => {
-        handleFetchMock.mockRejectedValue(new Error('Network error'));
+        fetchWithErrorHandlingMock.mockRejectedValue(
+          new Error('Network error'),
+        );
 
         await expect(
           service.assignUserToCohort({ cohort: 'wallet_home' }),
@@ -621,7 +689,7 @@ describe('SubscriptionService', () => {
   describe('submitSponsorshipIntents', () => {
     it('should submit sponsorship intents successfully', async () => {
       await withMockSubscriptionService(async ({ service, config }) => {
-        handleFetchMock.mockResolvedValue({});
+        fetchWithErrorHandlingMock.mockResolvedValue({});
 
         await service.submitSponsorshipIntents({
           chainId: '0x1',
@@ -632,9 +700,9 @@ describe('SubscriptionService', () => {
           paymentTokenSymbol: 'USDT',
         });
 
-        expect(handleFetchMock).toHaveBeenCalledWith(
-          SUBSCRIPTION_URL(config.env, 'transaction-sponsorship/intents'),
-          {
+        expect(fetchWithErrorHandlingMock).toHaveBeenCalledWith({
+          url: SUBSCRIPTION_URL(config.env, 'transaction-sponsorship/intents'),
+          options: {
             method: 'POST',
             headers: MOCK_HEADERS,
             body: JSON.stringify({
@@ -646,7 +714,7 @@ describe('SubscriptionService', () => {
               paymentTokenSymbol: 'USDT',
             }),
           },
-        );
+        });
       });
     });
   });
@@ -654,16 +722,16 @@ describe('SubscriptionService', () => {
   describe('linkRewards', () => {
     it('should link rewards successfully', async () => {
       await withMockSubscriptionService(async ({ service, config }) => {
-        handleFetchMock.mockResolvedValue({});
+        fetchWithErrorHandlingMock.mockResolvedValue({});
 
         await service.linkRewards({
           rewardAccountId:
             'eip155:1:0x1234567890123456789012345678901234567890',
         });
 
-        expect(handleFetchMock).toHaveBeenCalledWith(
-          SUBSCRIPTION_URL(config.env, 'rewards/link'),
-          {
+        expect(fetchWithErrorHandlingMock).toHaveBeenCalledWith({
+          url: SUBSCRIPTION_URL(config.env, 'rewards/link'),
+          options: {
             method: 'POST',
             headers: MOCK_HEADERS,
             body: JSON.stringify({
@@ -671,7 +739,7 @@ describe('SubscriptionService', () => {
                 'eip155:1:0x1234567890123456789012345678901234567890',
             }),
           },
-        );
+        });
       });
     });
   });
