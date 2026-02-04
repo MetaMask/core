@@ -3195,7 +3195,7 @@ describe('SeedlessOnboardingController', () => {
               MOCK_KEYRING_ID,
             ),
           ).rejects.toThrow(
-            SeedlessOnboardingControllerErrorMessage.MissingCredentials,
+            SeedlessOnboardingControllerErrorMessage.InvalidEmptyPassword,
           );
 
           expect(mockSecretDataAdd.isDone()).toBe(true);

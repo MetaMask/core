@@ -1815,10 +1815,10 @@ export class SeedlessOnboardingController<
           this.state.encryptedSeedlessEncryptionKey,
       };
 
-      // if the password is provided, encrypt the vault with the password
+      // if the password is provided (not undefined), encrypt the vault with the password
       // We gonna prioritize the password encryption here, in case of the operation is `Change Password`.
       // We don't wanna re-use the old encryption key from the state.
-      if (password) {
+      if (password !== undefined) {
         assertIsValidPassword(password);
 
         // Note that vault encryption using the password is a very costly operation as it involves deriving the encryption key
