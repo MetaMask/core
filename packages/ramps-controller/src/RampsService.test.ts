@@ -1495,7 +1495,7 @@ describe('RampsService', () => {
           icon: 'card',
           disclaimer:
             "Credit card purchases may incur your bank's cash advance fees.",
-          delay: '5 to 10 minutes.',
+          delay: [5,10],
           pendingOrderDescription:
             'Card purchases may take a few minutes to complete.',
         },
@@ -1505,7 +1505,7 @@ describe('RampsService', () => {
           name: 'Venmo',
           score: 95,
           icon: 'bank',
-          delay: 'Up to 10 minutes.',
+          delay: [0, 10],
           pendingOrderDescription:
             'Instant transfers may take a few minutes to complete.',
         },
