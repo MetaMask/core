@@ -13,7 +13,7 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ### Fixed
 
-- Invalidate cached feature flags when the client version changes to avoid stale versioned flags after upgrades ([#7827](https://github.com/MetaMask/core/pull/7827))
+- Add optional `prevClientVersion` constructor argument to invalidate cached flags when the client version changes ([#7827](https://github.com/MetaMask/core/pull/7827))
 
 ## [4.0.0]
 

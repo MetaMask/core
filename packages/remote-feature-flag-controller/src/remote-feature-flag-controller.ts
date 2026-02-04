@@ -32,7 +32,6 @@ export type RemoteFeatureFlagControllerState = {
   rawRemoteFeatureFlags?: FeatureFlags;
   cacheTimestamp: number;
   thresholdCache?: Record<string, number>;
-  previousClientVersion?: SemVerVersion;
 };
 
 const remoteFeatureFlagControllerMetadata = {
@@ -64,12 +63,6 @@ const remoteFeatureFlagControllerMetadata = {
     includeInStateLogs: false,
     persist: true,
     includeInDebugSnapshot: false,
-    usedInUi: false,
-  },
-  previousClientVersion: {
-    includeInStateLogs: true,
-    persist: true,
-    includeInDebugSnapshot: true,
     usedInUi: false,
   },
 };
@@ -138,7 +131,6 @@ export function getDefaultRemoteFeatureFlagControllerState(): RemoteFeatureFlagC
     localOverrides: {},
     rawRemoteFeatureFlags: {},
     cacheTimestamp: 0,
-    previousClientVersion: undefined,
   };
 }
 
@@ -176,6 +168,7 @@ export class RemoteFeatureFlagController extends BaseController<
    * @param options.disabled - Determines if the controller should be disabled initially. Defaults to false.
    * @param options.getMetaMetricsId - Returns metaMetricsId.
    * @param options.clientVersion - The current client version for version-based feature flag filtering. Must be a valid 3-part SemVer version string.
+   * @param options.prevClientVersion - The previous client version for feature flag cache invalidation.
    */
   constructor({
     messenger,
@@ -185,6 +178,7 @@ export class RemoteFeatureFlagController extends BaseController<
     disabled = false,
     getMetaMetricsId,
     clientVersion,
+    prevClientVersion,
   }: {
     messenger: RemoteFeatureFlagControllerMessenger;
     state?: Partial<RemoteFeatureFlagControllerState>;
@@ -193,6 +187,7 @@ export class RemoteFeatureFlagController extends BaseController<
     fetchInterval?: number;
     disabled?: boolean;
     clientVersion: string;
+    prevClientVersion?: string;
   }) {
     if (!isValidSemVerVersion(clientVersion)) {
       throw new Error(
@@ -206,8 +201,8 @@ export class RemoteFeatureFlagController extends BaseController<
     };
 
     const hasClientVersionChanged =
-      isValidSemVerVersion(initialState.previousClientVersion) &&
-      initialState.previousClientVersion !== clientVersion;
+      isValidSemVerVersion(prevClientVersion) &&
+      prevClientVersion !== clientVersion;
 
     super({
       name: controllerName,
@@ -218,7 +213,6 @@ export class RemoteFeatureFlagController extends BaseController<
         cacheTimestamp: hasClientVersionChanged
           ? 0
           : initialState.cacheTimestamp,
-        previousClientVersion: clientVersion,
       },
     });
 

@@ -65,6 +65,7 @@ function createController(
     disabled: boolean;
     getMetaMetricsId: () => string;
     clientVersion: string;
+    prevClientVersion: string;
   }> = {},
 ): RemoteFeatureFlagController {
   return new RemoteFeatureFlagController({
@@ -77,6 +78,7 @@ function createController(
       options.getMetaMetricsId ??
       ((): typeof MOCK_METRICS_ID => MOCK_METRICS_ID),
     clientVersion: options.clientVersion ?? MOCK_BASE_VERSION,
+    prevClientVersion: options.prevClientVersion,
   });
 }
 
@@ -90,7 +92,6 @@ describe('RemoteFeatureFlagController', () => {
         localOverrides: {},
         rawRemoteFeatureFlags: {},
         cacheTimestamp: 0,
-        previousClientVersion: MOCK_BASE_VERSION,
       });
     });
 
@@ -102,7 +103,6 @@ describe('RemoteFeatureFlagController', () => {
         localOverrides: {},
         rawRemoteFeatureFlags: {},
         cacheTimestamp: 0,
-        previousClientVersion: MOCK_BASE_VERSION,
       });
     });
 
@@ -116,10 +116,7 @@ describe('RemoteFeatureFlagController', () => {
 
       const controller = createController({ state: customState });
 
-      expect(controller.state).toStrictEqual({
-        ...customState,
-        previousClientVersion: MOCK_BASE_VERSION,
-      });
+      expect(controller.state).toStrictEqual(customState);
     });
 
     it('accepts valid 3-part SemVer clientVersion', () => {
@@ -209,23 +206,30 @@ describe('RemoteFeatureFlagController', () => {
        *
        * @param opts - The options for the arrangeActAssertClientVersionChange test
        * @param opts.clientVersion - The client version to use
+       * @param opts.prevClientVersion - The previous client version to use
        * @param opts.controllerState - The controller state to use
        * @param opts.expectedFeatureFlagState - The expected feature flag state
        * @returns The controller state after the arrangeActAssertClientVersionChange test
        */
       const arrangeActAssertClientVersionChange = async (opts: {
         clientVersion: string;
+        prevClientVersion?: string;
         controllerState?: RemoteFeatureFlagControllerState;
         expectedFeatureFlagState: boolean;
       }): Promise<RemoteFeatureFlagControllerState> => {
-        const { clientVersion, controllerState, expectedFeatureFlagState } =
-          opts;
+        const {
+          clientVersion,
+          prevClientVersion,
+          controllerState,
+          expectedFeatureFlagState,
+        } = opts;
 
         // Arrange - setup controller
         jest.clearAllMocks();
         const controller = createController({
           clientConfigApiService,
           clientVersion,
+          prevClientVersion,
           state: controllerState,
         });
 
@@ -257,14 +261,17 @@ describe('RemoteFeatureFlagController', () => {
         return controller.state;
       };
 
-      const previousState = await arrangeActAssertClientVersionChange({
+      // Test: New controller initialized (no previous state)
+      const controllerState = await arrangeActAssertClientVersionChange({
         clientVersion: '7.62.0',
         expectedFeatureFlagState: false,
       });
 
+      // Test: Updated controller with a previous client version
       await arrangeActAssertClientVersionChange({
         clientVersion: '7.64.0',
-        controllerState: previousState,
+        prevClientVersion: '7.62.0',
+        controllerState,
         expectedFeatureFlagState: true,
       });
     });
@@ -881,7 +888,6 @@ describe('RemoteFeatureFlagController', () => {
         localOverrides: {},
         rawRemoteFeatureFlags: {},
         cacheTimestamp: 0,
-        previousClientVersion: undefined,
       });
     });
   });
@@ -1370,7 +1376,6 @@ describe('RemoteFeatureFlagController', () => {
         Object {
           "cacheTimestamp": 0,
           "localOverrides": Object {},
-          "previousClientVersion": "13.10.0",
           "rawRemoteFeatureFlags": Object {},
           "remoteFeatureFlags": Object {},
         }
@@ -1390,7 +1395,6 @@ describe('RemoteFeatureFlagController', () => {
         Object {
           "cacheTimestamp": 0,
           "localOverrides": Object {},
-          "previousClientVersion": "13.10.0",
           "rawRemoteFeatureFlags": Object {},
           "remoteFeatureFlags": Object {},
         }
@@ -1410,7 +1414,6 @@ describe('RemoteFeatureFlagController', () => {
         Object {
           "cacheTimestamp": 0,
           "localOverrides": Object {},
-          "previousClientVersion": "13.10.0",
           "rawRemoteFeatureFlags": Object {},
           "remoteFeatureFlags": Object {},
         }
