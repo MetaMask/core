@@ -12,6 +12,12 @@ import { caip2ToHex } from '../utils/utils';
 
 const log = createModuleLogger(projectLogger, 'transaction-poller');
 
+enum IntervalTrigger {
+  Accelerated = 'Accelerated',
+  BlockTracker = 'BlockTracker',
+  TransactionUpdate = 'TransactionUpdate',
+}
+
 /**
  * Helper class to orchestrate when to poll pending transactions.
  * Initially starts polling via a timeout chain every 2 seconds up to 5 times.
@@ -139,7 +145,7 @@ export class TransactionPoller {
     if (this.#acceleratedCount >= countMax) {
       // eslint-disable-next-line @typescript-eslint/no-misused-promises
       this.#blockTrackerListener = (latestBlockNumber): Promise<void> =>
-        this.#interval(false, latestBlockNumber);
+        this.#interval(IntervalTrigger.BlockTracker, latestBlockNumber);
 
       this.#blockTracker.on('latest', this.#blockTrackerListener);
 
@@ -152,22 +158,27 @@ export class TransactionPoller {
 
     // eslint-disable-next-line @typescript-eslint/no-misused-promises
     this.#timeout = setTimeout(async () => {
-      await this.#interval(true);
+      await this.#interval(IntervalTrigger.Accelerated);
       this.#queue();
     }, intervalMs);
   }
 
   async #interval(
-    isAccelerated: boolean,
+    trigger: IntervalTrigger,
     latestBlockNumber?: string,
-    transactionUpdateReceived: boolean = false,
   ): Promise<void> {
-    if (transactionUpdateReceived) {
-      log('AccountActivityService:transactionUpdated received');
-    } else if (isAccelerated) {
-      log('Accelerated interval', this.#acceleratedCount + 1);
-    } else {
-      log('Block tracker interval', latestBlockNumber);
+    switch (trigger) {
+      case IntervalTrigger.TransactionUpdate:
+        log('AccountActivityService:transactionUpdated received');
+        break;
+      case IntervalTrigger.Accelerated:
+        log('Accelerated interval', this.#acceleratedCount + 1);
+        break;
+      case IntervalTrigger.BlockTracker:
+        log('Block tracker interval', latestBlockNumber);
+        break;
+      default:
+        break;
     }
 
     const latestBlockNumberFinal =
@@ -175,7 +186,7 @@ export class TransactionPoller {
 
     await this.#listener?.(latestBlockNumberFinal);
 
-    if (isAccelerated && this.#running && !transactionUpdateReceived) {
+    if (trigger === IntervalTrigger.Accelerated && this.#running) {
       this.#acceleratedCount += 1;
     }
   }
@@ -221,7 +232,7 @@ export class TransactionPoller {
       return;
     }
 
-    this.#interval(false, undefined, true).catch(() => {
+    this.#interval(IntervalTrigger.TransactionUpdate).catch(() => {
       // Silently catch errors to prevent unhandled rejections
     });
   };
