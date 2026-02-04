@@ -20,6 +20,14 @@ export function createMockNotificationEthSent(): NormalisedAPINotification {
       tx_hash:
         '0xb2256b183f2fb3872f99294ab55fb03e6a479b0d4aca556a3b27568b712505a6',
       address: '0x881D40237659C251811CEC9c364ef91dC08D300C',
+      network: {
+        name: 'Ethereum',
+        native_symbol: 'ETH',
+        block_explorer: {
+          url: 'https://etherscan.io',
+          name: 'Etherscan',
+        },
+      },
       data: {
         kind: 'eth_sent',
         network_fee: {
@@ -58,6 +66,14 @@ export function createMockNotificationEthReceived(): NormalisedAPINotification {
       tx_hash:
         '0xb2256b183f2fb3872f99294ab55fb03e6a479b0d4aca556a3b27568b712505a6',
       address: '0x881D40237659C251811CEC9c364ef91dC08D300C',
+      network: {
+        name: 'Ethereum',
+        native_symbol: 'ETH',
+        block_explorer: {
+          url: 'https://etherscan.io',
+          name: 'Etherscan',
+        },
+      },
       data: {
         kind: 'eth_received',
         network_fee: {

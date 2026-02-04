@@ -1,10 +1,6 @@
 import { getAmount, formatAmount } from './get-notification-data';
-import type {
-  NOTIFICATION_CHAINS_IDS,
-  Types,
-} from '../../NotificationServicesController';
+import type { Types } from '../../NotificationServicesController';
 import type { Constants } from '../../NotificationServicesController';
-import { NOTIFICATION_NETWORK_CURRENCY_SYMBOL } from '../../NotificationServicesController/ui';
 
 export type TranslationKeys = {
   pushPlatformNotificationsFundsSentTitle: () => string;
@@ -108,7 +104,7 @@ export const createOnChainPushNotificationMessages = (
       defaultDescription: (): string | null =>
         translate('pushPlatformNotificationsFundsSentDescriptionDefault'),
       getDescription: (notification): string | null => {
-        const symbol = getChainSymbol(notification?.payload?.chain_id);
+        const symbol = notification?.payload?.network?.native_symbol;
         const tokenAmount = notification?.payload?.data?.amount?.eth;
         if (!symbol || !tokenAmount) {
           return null;
@@ -153,7 +149,7 @@ export const createOnChainPushNotificationMessages = (
       defaultDescription: (): string | null =>
         translate('pushPlatformNotificationsFundsReceivedDescriptionDefault'),
       getDescription: (notification): string | null => {
-        const symbol = getChainSymbol(notification?.payload?.chain_id);
+        const symbol = notification?.payload?.network?.native_symbol;
         const tokenAmount = notification?.payload?.data?.amount?.eth;
         if (!symbol || !tokenAmount) {
           return null;
@@ -266,20 +262,6 @@ export const createOnChainPushNotificationMessages = (
     },
   };
 };
-
-/**
- * Retrieves the symbol associated with a given chain ID.
- *
- * @param chainId - The ID of the chain.
- * @returns The symbol associated with the chain ID, or null if not found.
- */
-function getChainSymbol(chainId: number): string | null {
-  return (
-    NOTIFICATION_NETWORK_CURRENCY_SYMBOL[
-      chainId.toString() as NOTIFICATION_CHAINS_IDS
-    ] ?? null
-  );
-}
 
 /**
  * Creates a push notification message based on the given on-chain raw notification.
