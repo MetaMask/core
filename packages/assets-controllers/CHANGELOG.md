@@ -7,6 +7,10 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+### Added
+
+- Add INK (0xdef1) mapping to eip155:57073/slip44:60 ([#7688](https://github.com/MetaMask/core/pull/7688))
+
 ### Changed
 
 - Fix trending tokens showing incorrect market cap values by adding `usePriceApiData` parameter (defaults to `true`) to use price API data for accurate market data ([#7829](https://github.com/MetaMask/core/pull/7829))
