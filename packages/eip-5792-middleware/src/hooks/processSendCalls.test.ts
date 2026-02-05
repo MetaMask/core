@@ -570,6 +570,38 @@ describe('EIP-5792', () => {
       );
     });
 
+    it('validates call-level auxiliary funds with unsupported token standard', async () => {
+      await expect(
+        processSendCalls(
+          sendCallsHooks,
+          messenger,
+          {
+            ...SEND_CALLS_MOCK,
+            calls: [
+              {
+                to: '0x123',
+                capabilities: {
+                  auxiliaryFunds: {
+                    optional: false,
+                    requiredAssets: [
+                      {
+                        address: '0x456',
+                        amount: '0x1',
+                        standard: 'erc777',
+                      },
+                    ],
+                  },
+                },
+              },
+            ],
+          },
+          REQUEST_MOCK,
+        ),
+      ).rejects.toThrow(
+        /The requested asset 0x456 is not available through the wallet.*s auxiliary fund system: unsupported token standard erc777/u,
+      );
+    });
+
     it('validates auxiliary funds with valid ERC-20 asset', async () => {
       const result = await processSendCalls(
         sendCallsHooks,

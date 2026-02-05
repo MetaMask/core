@@ -492,6 +492,17 @@ function validateCapabilities(
       isAuxiliaryFundsSupported,
     });
   }
+
+  for (const call of calls) {
+    if (call.capabilities?.auxiliaryFunds) {
+      validateAuxFundsSupportAndRequiredAssets({
+        auxiliaryFunds: call.capabilities.auxiliaryFunds,
+        chainId,
+        keyringType,
+        isAuxiliaryFundsSupported,
+      });
+    }
+  }
 }
 
 /**
