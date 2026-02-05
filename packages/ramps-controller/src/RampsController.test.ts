@@ -1233,7 +1233,9 @@ describe('RampsController', () => {
             'RampsService:getCountries',
             async () => mockCountries,
           );
-          await expect(controller.getCountries()).rejects.toThrow();
+          await expect(controller.getCountries()).rejects.toThrow(
+            /Cannot set propert(y|ies) of null/,
+          );
         },
       );
     });

@@ -763,18 +763,11 @@ export class RampsController extends BaseController<
     field: 'isLoading' | 'error',
     value: boolean | string | null,
   ): void {
-    const current = this.state[resourceType] as
-      | Record<string, unknown>
-      | undefined
-      | null;
-
-    if (!current || typeof current !== 'object') {
-      return;
-    }
-
-    const next = { ...current, [field]: value };
     this.update((state) => {
-      (state as Record<string, unknown>)[resourceType] = next;
+      const resource = state[resourceType];
+      if (resource) {
+        (resource as Record<string, unknown>)[field] = value;
+      }
     });
   }
 
