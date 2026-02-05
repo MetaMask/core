@@ -13,9 +13,9 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ### Changed
 
+- Revert `@metamask/core-backend` from `^5.1.0` to `5.0.0` ([#7852](https://github.com/MetaMask/core/pull/7852))
 - Bump `@metamask/profile-sync-controller` from `^27.0.0` to `^27.1.0` ([#7849](https://github.com/MetaMask/core/pull/7849))
 - Fix trending tokens showing incorrect market cap values by adding `usePriceApiData` parameter (defaults to `true`) to use price API data for accurate market data ([#7829](https://github.com/MetaMask/core/pull/7829))
-- Bump `@metamask/core-backend` from `^5.0.0` to `^5.1.0` ([#7817](https://github.com/MetaMask/core/pull/7817))
 - Bump `@metamask/transaction-controller` from `^62.13.0` to `^62.14.0` ([#7832](https://github.com/MetaMask/core/pull/7832))
 
 ## [99.2.0]

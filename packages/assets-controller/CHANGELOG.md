@@ -7,6 +7,10 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+### Changed
+
+- Revert `@metamask/core-backend` from `^5.1.0` to `5.0.0` ([#7852](https://github.com/MetaMask/core/pull/7852))
+
 ## [0.2.0]
 
 ### Added
