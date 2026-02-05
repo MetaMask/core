@@ -1,35 +1,35 @@
 import { Messenger } from '@metamask/messenger';
 
 import type {
-  ApplicationStateControllerActions,
-  ApplicationStateControllerEvents,
-  ApplicationStateControllerMessenger,
-  ApplicationStateControllerState,
-} from './ApplicationStateController';
+  ClientStateControllerActions,
+  ClientStateControllerEvents,
+  ClientStateControllerMessenger,
+  ClientStateControllerState,
+} from './ClientStateController';
 import {
-  ApplicationStateController,
+  ClientStateController,
   controllerName,
-  getDefaultApplicationStateControllerState,
+  getDefaultClientStateControllerState,
   selectIsClientOpen,
-} from './ApplicationStateController';
+} from './ClientStateController';
 
-describe('ApplicationStateController', () => {
+describe('ClientStateController', () => {
   /**
-   * Creates a messenger for the ApplicationStateController.
+   * Creates a messenger for the ClientStateController.
    *
    * @returns A messenger for the controller.
    */
-  function createMessenger(): ApplicationStateControllerMessenger {
+  function createMessenger(): ClientStateControllerMessenger {
     const rootMessenger = new Messenger<
       'Root',
-      ApplicationStateControllerActions,
-      ApplicationStateControllerEvents
+      ClientStateControllerActions,
+      ClientStateControllerEvents
     >({ namespace: 'Root' });
 
     return new Messenger<
       typeof controllerName,
-      ApplicationStateControllerActions,
-      ApplicationStateControllerEvents,
+      ClientStateControllerActions,
+      ClientStateControllerEvents,
       typeof rootMessenger
     >({
       namespace: controllerName,
@@ -38,20 +38,20 @@ describe('ApplicationStateController', () => {
   }
 
   /**
-   * Creates an ApplicationStateController.
+   * Creates a ClientStateController.
    *
    * @param options - Options for creating the controller.
    * @param options.state - Initial state to set on the controller.
    * @returns The controller and messenger.
    */
   function createController(options?: {
-    state?: Partial<ApplicationStateControllerState>;
+    state?: Partial<ClientStateControllerState>;
   }): {
-    controller: ApplicationStateController;
-    messenger: ApplicationStateControllerMessenger;
+    controller: ClientStateController;
+    messenger: ClientStateControllerMessenger;
   } {
     const messenger = createMessenger();
-    const controller = new ApplicationStateController({
+    const controller = new ClientStateController({
       messenger,
       state: options?.state,
     });
@@ -207,9 +207,9 @@ describe('ApplicationStateController', () => {
     });
   });
 
-  describe('getDefaultApplicationStateControllerState', () => {
+  describe('getDefaultClientStateControllerState', () => {
     it('returns default state with client closed', () => {
-      const defaultState = getDefaultApplicationStateControllerState();
+      const defaultState = getDefaultClientStateControllerState();
 
       expect(defaultState.isClientOpen).toBe(false);
     });

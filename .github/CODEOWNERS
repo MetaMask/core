@@ -71,7 +71,7 @@
 /packages/eip-5792-middleware              @MetaMask/wallet-integrations
 
 ## Core Platform Team
-/packages/application-state-controller @MetaMask/core-platform
+/packages/client-state-controller @MetaMask/core-platform
 /packages/base-controller              @MetaMask/core-platform
 /packages/build-utils                  @MetaMask/core-platform
 /packages/composable-controller        @MetaMask/core-platform
