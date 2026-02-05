@@ -7,6 +7,10 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+### Added
+
+- Add CHZ (0x15b38) mapping to eip155:88888/erc20:0x677f7e16c7dd57be1d4c8ad1244883214953dc47 ([#7794](https://github.com/MetaMask/core/pull/7794))
+
 ### Changed
 
 - Fix trending tokens showing incorrect market cap values by adding `usePriceApiData` parameter (defaults to `true`) to use price API data for accurate market data ([#7829](https://github.com/MetaMask/core/pull/7829))
