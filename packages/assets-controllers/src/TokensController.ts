@@ -285,7 +285,7 @@ export class TokensController extends BaseController<
               const tokens = updatedAllTokens[chainId as Hex][selectedAddress];
 
               for (const [, token] of Object.entries(tokens)) {
-                const cachedToken = chainData[token.address];
+                const cachedToken = chainData[token.address.toLowerCase()];
                 if (cachedToken && cachedToken.name && !token.name) {
                   token.name = cachedToken.name; // Update the token name
                 }
