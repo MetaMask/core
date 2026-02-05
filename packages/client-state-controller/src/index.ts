@@ -1,9 +1,8 @@
 export {
   ClientStateController,
-  controllerName,
   getDefaultClientStateControllerState,
-  selectIsClientOpen,
 } from './ClientStateController';
+export { clientStateControllerSelectors } from './selectors';
 
 export type {
   ClientStateControllerState,
