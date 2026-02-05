@@ -1,8 +1,14 @@
-import { handleFetch, HttpError } from '@metamask/controller-utils';
-
-import { getEnvUrls, SubscriptionControllerErrorMessage } from './constants';
+import {
+  getEnvUrls,
+  SubscriptionControllerErrorMessage,
+  SubscriptionServiceErrorMessage,
+} from './constants';
 import type { Env } from './constants';
-import { SubscriptionServiceError } from './errors';
+import {
+  createSentryError,
+  getErrorFromResponse,
+  SubscriptionServiceError,
+} from './errors';
 import type {
   AssignCohortRequest,
   AuthUtils,
@@ -30,6 +36,8 @@ import type {
 export type SubscriptionServiceConfig = {
   env: Env;
   auth: AuthUtils;
+  fetchFunction: typeof fetch;
+  captureException?: (error: Error) => void;
 };
 
 export const SUBSCRIPTION_URL = (env: Env, path: string): string =>
@@ -38,24 +46,38 @@ export const SUBSCRIPTION_URL = (env: Env, path: string): string =>
 export class SubscriptionService implements ISubscriptionService {
   readonly #env: Env;
 
+  readonly #fetch: typeof fetch;
+
+  readonly #captureException?: (error: Error) => void;
+
   public authUtils: AuthUtils;
 
   constructor(config: SubscriptionServiceConfig) {
     this.#env = config.env;
     this.authUtils = config.auth;
+    this.#fetch = config.fetchFunction;
+    this.#captureException = config.captureException;
   }
 
   async getSubscriptions(): Promise<GetSubscriptionsResponse> {
     const path = 'subscriptions';
-    return await this.#makeRequest(path);
+    return await this.#makeRequest<GetSubscriptionsResponse>({
+      path,
+      errorMessage: SubscriptionServiceErrorMessage.FailedToGetSubscriptions,
+    });
   }
 
   async cancelSubscription(
     params: CancelSubscriptionRequest,
   ): Promise<Subscription> {
     const path = `subscriptions/${params.subscriptionId}/cancel`;
-    return await this.#makeRequest(path, 'POST', {
-      cancelAtPeriodEnd: params.cancelAtPeriodEnd,
+    return await this.#makeRequest<Subscription>({
+      path,
+      method: 'POST',
+      body: {
+        cancelAtPeriodEnd: params.cancelAtPeriodEnd,
+      },
+      errorMessage: SubscriptionServiceErrorMessage.FailedToCancelSubscription,
     });
   }
 
@@ -63,7 +85,13 @@ export class SubscriptionService implements ISubscriptionService {
     subscriptionId: string;
   }): Promise<Subscription> {
     const path = `subscriptions/${params.subscriptionId}/uncancel`;
-    return await this.#makeRequest(path, 'POST', {});
+    return await this.#makeRequest<Subscription>({
+      path,
+      method: 'POST',
+      body: {},
+      errorMessage:
+        SubscriptionServiceErrorMessage.FailedToUncancelSubscription,
+    });
   }
 
   async startSubscriptionWithCard(
@@ -76,37 +104,57 @@ export class SubscriptionService implements ISubscriptionService {
     }
     const path = 'subscriptions/card';
 
-    return await this.#makeRequest(path, 'POST', request);
+    return await this.#makeRequest<StartSubscriptionResponse>({
+      path,
+      method: 'POST',
+      body: request,
+      errorMessage:
+        SubscriptionServiceErrorMessage.FailedToStartSubscriptionWithCard,
+    });
   }
 
   async startSubscriptionWithCrypto(
     request: StartCryptoSubscriptionRequest,
   ): Promise<StartCryptoSubscriptionResponse> {
     const path = 'subscriptions/crypto';
-    return await this.#makeRequest(path, 'POST', request);
+    return await this.#makeRequest<StartCryptoSubscriptionResponse>({
+      path,
+      method: 'POST',
+      body: request,
+      errorMessage:
+        SubscriptionServiceErrorMessage.FailedToStartSubscriptionWithCrypto,
+    });
   }
 
   async updatePaymentMethodCard(
     request: UpdatePaymentMethodCardRequest,
   ): Promise<UpdatePaymentMethodCardResponse> {
     const path = `subscriptions/${request.subscriptionId}/payment-method/card`;
-    return await this.#makeRequest<UpdatePaymentMethodCardResponse>(
+    return await this.#makeRequest<UpdatePaymentMethodCardResponse>({
       path,
-      'PATCH',
-      {
+      method: 'PATCH',
+      body: {
         ...request,
         subscriptionId: undefined,
       },
-    );
+      errorMessage:
+        SubscriptionServiceErrorMessage.FailedToUpdatePaymentMethodCard,
+    });
   }
 
   async updatePaymentMethodCrypto(
     request: UpdatePaymentMethodCryptoRequest,
   ): Promise<void> {
     const path = `subscriptions/${request.subscriptionId}/payment-method/crypto`;
-    await this.#makeRequest(path, 'PATCH', {
-      ...request,
-      subscriptionId: undefined,
+    await this.#makeRequest({
+      path,
+      method: 'PATCH',
+      body: {
+        ...request,
+        subscriptionId: undefined,
+      },
+      errorMessage:
+        SubscriptionServiceErrorMessage.FailedToUpdatePaymentMethodCrypto,
     });
   }
 
@@ -124,12 +172,12 @@ export class SubscriptionService implements ISubscriptionService {
     if (request?.balanceCategory !== undefined) {
       query = { balanceCategory: request.balanceCategory };
     }
-    const results = await this.#makeRequest<SubscriptionEligibility[]>(
+    const results = await this.#makeRequest<SubscriptionEligibility[]>({
       path,
-      'GET',
-      undefined,
-      query,
-    );
+      queryParams: query,
+      errorMessage:
+        SubscriptionServiceErrorMessage.FailedToGetSubscriptionsEligibilities,
+    });
 
     return results.map((result) => ({
       ...result,
@@ -149,7 +197,12 @@ export class SubscriptionService implements ISubscriptionService {
    */
   async submitUserEvent(request: SubmitUserEventRequest): Promise<void> {
     const path = 'user-events';
-    await this.#makeRequest(path, 'POST', request);
+    await this.#makeRequest({
+      path,
+      method: 'POST',
+      body: request,
+      errorMessage: SubscriptionServiceErrorMessage.FailedToSubmitUserEvent,
+    });
   }
 
   /**
@@ -160,7 +213,12 @@ export class SubscriptionService implements ISubscriptionService {
    */
   async assignUserToCohort(request: AssignCohortRequest): Promise<void> {
     const path = 'cohorts/assign';
-    await this.#makeRequest(path, 'POST', request);
+    await this.#makeRequest({
+      path,
+      method: 'POST',
+      body: request,
+      errorMessage: SubscriptionServiceErrorMessage.FailedToAssignUserToCohort,
+    });
   }
 
   /**
@@ -176,7 +234,13 @@ export class SubscriptionService implements ISubscriptionService {
     request: SubmitSponsorshipIntentsRequest,
   ): Promise<void> {
     const path = 'transaction-sponsorship/intents';
-    await this.#makeRequest(path, 'POST', request);
+    await this.#makeRequest({
+      path,
+      method: 'POST',
+      body: request,
+      errorMessage:
+        SubscriptionServiceErrorMessage.FailedToSubmitSponsorshipIntents,
+    });
   }
 
   /**
@@ -190,20 +254,54 @@ export class SubscriptionService implements ISubscriptionService {
     request: LinkRewardsRequest,
   ): Promise<SubscriptionApiGeneralResponse> {
     const path = 'rewards/link';
-    return await this.#makeRequest<SubscriptionApiGeneralResponse>(
+    return await this.#makeRequest<SubscriptionApiGeneralResponse>({
       path,
-      'POST',
-      request,
-    );
+      method: 'POST',
+      body: request,
+      errorMessage: SubscriptionServiceErrorMessage.FailedToLinkRewards,
+    });
   }
 
-  async #makeRequest<Result>(
-    path: string,
-    method: 'GET' | 'POST' | 'DELETE' | 'PUT' | 'PATCH' = 'GET',
-    body?: Record<string, unknown>,
-    queryParams?: Record<string, string>,
-  ): Promise<Result> {
-    const headers = await this.#getAuthorizationHeader();
+  async getPricing(): Promise<PricingResponse> {
+    const path = 'pricing';
+    return await this.#makeRequest<PricingResponse>({
+      path,
+      errorMessage: SubscriptionServiceErrorMessage.FailedToGetPricing,
+    });
+  }
+
+  async getBillingPortalUrl(): Promise<BillingPortalResponse> {
+    const path = 'billing-portal';
+    return await this.#makeRequest<BillingPortalResponse>({
+      path,
+      errorMessage: SubscriptionServiceErrorMessage.FailedToGetBillingPortalUrl,
+    });
+  }
+
+  /**
+   * Makes a request to the Subscription Service backend.
+   *
+   * @param params - The request object containing the path, method, body, query parameters, and error message.
+   * @param params.path - The path of the request.
+   * @param params.method - The method of the request.
+   * @param params.body - The body of the request.
+   * @param params.queryParams - The query parameters of the request.
+   * @param params.errorMessage - The error message to throw if the request fails.
+   * @returns The result of the request.
+   */
+  async #makeRequest<Result>({
+    path,
+    method = 'GET',
+    body,
+    queryParams,
+    errorMessage,
+  }: {
+    path: string;
+    method?: 'GET' | 'POST' | 'DELETE' | 'PUT' | 'PATCH';
+    body?: Record<string, unknown>;
+    queryParams?: Record<string, string>;
+    errorMessage: string;
+  }): Promise<Result> {
     const url = new URL(SUBSCRIPTION_URL(this.#env, path));
 
     try {
@@ -213,7 +311,8 @@ export class SubscriptionService implements ISubscriptionService {
         });
       }
 
-      const response = await handleFetch(url.toString(), {
+      const headers = await this.#getAuthorizationHeader();
+      const response = await this.#fetch(url.toString(), {
         method,
         headers: {
           'Content-Type': 'application/json',
@@ -222,31 +321,27 @@ export class SubscriptionService implements ISubscriptionService {
         body: body ? JSON.stringify(body) : undefined,
       });
 
-      return response;
+      if (!response.ok) {
+        const error = await getErrorFromResponse(response);
+        throw error;
+      }
+
+      const data = await response.json();
+      return data;
     } catch (error) {
-      const { message, details } = this.#buildErrorContext(error);
+      console.error(errorMessage, error);
+      const errorMessageWithUrl = `${errorMessage} (url: ${url.toString()})`;
+      this.#captureException?.(
+        createSentryError(errorMessageWithUrl, error as Error),
+      );
 
-      throw new SubscriptionServiceError(`Failed to make request. ${message}`, {
-        cause: error instanceof Error ? error : undefined,
-        details: {
-          request: {
-            method,
-            url: url.toString(),
-          },
-          error: details,
+      throw new SubscriptionServiceError(
+        `Failed to make request. ${errorMessageWithUrl}`,
+        {
+          cause: error instanceof Error ? error : undefined,
         },
-      });
+      );
     }
-  }
-
-  async getPricing(): Promise<PricingResponse> {
-    const path = 'pricing';
-    return await this.#makeRequest<PricingResponse>(path);
-  }
-
-  async getBillingPortalUrl(): Promise<BillingPortalResponse> {
-    const path = 'billing-portal';
-    return await this.#makeRequest<BillingPortalResponse>(path);
   }
 
   // eslint-disable-next-line @typescript-eslint/naming-convention
@@ -255,57 +350,12 @@ export class SubscriptionService implements ISubscriptionService {
       const accessToken = await this.authUtils.getAccessToken();
       return { Authorization: `Bearer ${accessToken}` };
     } catch (error) {
-      const errorContext = this.#buildErrorContext(error);
-      const errorMessage = errorContext.message;
+      const errorMessage =
+        error instanceof Error
+          ? error.message
+          : 'Unknown error when getting authorization header';
 
-      throw new SubscriptionServiceError(
-        `Failed to get authorization header. ${errorMessage}`,
-        {
-          cause: error instanceof Error ? error : undefined,
-          details: {
-            error: errorContext.details,
-          },
-        },
-      );
+      throw new Error(`Failed to get authorization header. ${errorMessage}`);
     }
-  }
-
-  /**
-   * Builds the error context for the SubscriptionService error.
-   *
-   * @param error - The error to build the context for.
-   * @returns The SubscriptionService error context.
-   */
-  #buildErrorContext(error: unknown): {
-    message: string;
-    details: Record<string, unknown>;
-  } {
-    if (error instanceof HttpError) {
-      return {
-        message: `${error.message} (status=${error.httpStatus})`,
-        details: {
-          name: 'HttpError',
-          message: error.message,
-          httpStatus: error.httpStatus,
-        },
-      };
-    }
-
-    if (error instanceof Error) {
-      return {
-        message: error.message,
-        details: {
-          name: error.name,
-          message: error.message,
-        },
-      };
-    }
-
-    return {
-      message: `Non-Error thrown: ${JSON.stringify(error)}`,
-      details: {
-        nonErrorThrown: JSON.stringify(error),
-      },
-    };
   }
 }

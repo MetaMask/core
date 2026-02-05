@@ -49,6 +49,26 @@ export enum SubscriptionControllerErrorMessage {
   LinkRewardsFailed = `${controllerName} - Failed to link rewards`,
 }
 
+export enum SubscriptionServiceErrorMessage {
+  // Default error message for API Error
+  FailedToMakeRequest = 'Failed to make request',
+
+  FailedToGetSubscriptions = 'Failed to get subscriptions',
+  FailedToCancelSubscription = 'Failed to cancel subscription',
+  FailedToUncancelSubscription = 'Failed to uncancel subscription',
+  FailedToStartSubscriptionWithCard = 'Failed to start subscription with card',
+  FailedToStartSubscriptionWithCrypto = 'Failed to start subscription with crypto',
+  FailedToUpdatePaymentMethodCard = 'Failed to update payment method card',
+  FailedToUpdatePaymentMethodCrypto = 'Failed to update payment method crypto',
+  FailedToGetSubscriptionsEligibilities = 'Failed to get subscriptions eligibilities',
+  FailedToSubmitUserEvent = 'Failed to submit user event',
+  FailedToAssignUserToCohort = 'Failed to assign user to cohort',
+  FailedToSubmitSponsorshipIntents = 'Failed to submit sponsorship intents',
+  FailedToLinkRewards = 'Failed to link rewards',
+  FailedToGetPricing = 'Failed to get pricing',
+  FailedToGetBillingPortalUrl = 'Failed to get billing portal url',
+}
+
 export const DEFAULT_POLLING_INTERVAL = 5 * 60 * 1_000; // 5 minutes
 
 export const ACTIVE_SUBSCRIPTION_STATUSES = [
