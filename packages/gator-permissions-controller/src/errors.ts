@@ -55,16 +55,6 @@ export class GatorPermissionsMapSerializationError extends GatorPermissionsContr
   }
 }
 
-export class GatorPermissionsNotEnabledError extends GatorPermissionsControllerError {
-  constructor() {
-    super({
-      cause: new Error('Gator permissions are not enabled'),
-      message: 'Gator permissions are not enabled',
-      code: GatorPermissionsControllerErrorCode.GatorPermissionsNotEnabled,
-    });
-  }
-}
-
 export class GatorPermissionsProviderError extends GatorPermissionsControllerError {
   constructor({
     cause,
