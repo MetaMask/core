@@ -9,29 +9,18 @@ describe('mockGatorPermissionsStorageEntriesFactory', () => {
         nativeTokenPeriodic: 1,
         erc20TokenStream: 3,
         erc20TokenPeriodic: 1,
-        custom: {
-          count: 2,
-          data: [
-            { customField1: 'value1', customField2: 123 },
-            { customField3: 'value3', customField4: true },
-          ],
-        },
       },
       '0x5': {
         nativeTokenStream: 1,
         nativeTokenPeriodic: 2,
         erc20TokenStream: 1,
         erc20TokenPeriodic: 2,
-        custom: {
-          count: 1,
-          data: [{ customField5: 'value5' }],
-        },
       },
     };
 
     const result = mockGatorPermissionsStorageEntriesFactory(config);
 
-    expect(result).toHaveLength(16);
+    expect(result).toHaveLength(13);
 
     // Check that all entries have the correct chainId
     const chainIds = result.map((entry) => entry.permissionResponse.chainId);
@@ -46,16 +35,12 @@ describe('mockGatorPermissionsStorageEntriesFactory', () => {
         nativeTokenPeriodic: 1,
         erc20TokenStream: 1,
         erc20TokenPeriodic: 1,
-        custom: {
-          count: 1,
-          data: [{ testField: 'testValue' }],
-        },
       },
     };
 
     const result = mockGatorPermissionsStorageEntriesFactory(config);
 
-    expect(result).toHaveLength(5);
+    expect(result).toHaveLength(4);
 
     // Check native-token-stream permission
     const nativeTokenStreamEntry = result.find(
@@ -124,17 +109,6 @@ describe('mockGatorPermissionsStorageEntriesFactory', () => {
       justification:
         'This is a very important request for streaming allowance for some very important thing',
     });
-
-    // Check custom permission
-    const customEntry = result.find(
-      (entry) => entry.permissionResponse.permission.type === 'custom',
-    );
-    expect(customEntry).toBeDefined();
-    expect(customEntry?.permissionResponse.permission.data).toMatchObject({
-      justification:
-        'This is a very important request for streaming allowance for some very important thing',
-      testField: 'testValue',
-    });
   });
 
   it('should handle empty counts for all permission types', () => {
@@ -144,10 +118,6 @@ describe('mockGatorPermissionsStorageEntriesFactory', () => {
         nativeTokenPeriodic: 0,
         erc20TokenStream: 0,
         erc20TokenPeriodic: 0,
-        custom: {
-          count: 0,
-          data: [],
-        },
       },
     };
 
@@ -163,30 +133,18 @@ describe('mockGatorPermissionsStorageEntriesFactory', () => {
         nativeTokenPeriodic: 0,
         erc20TokenStream: 0,
         erc20TokenPeriodic: 0,
-        custom: {
-          count: 0,
-          data: [],
-        },
       },
       '0x5': {
         nativeTokenStream: 0,
         nativeTokenPeriodic: 1,
         erc20TokenStream: 0,
         erc20TokenPeriodic: 0,
-        custom: {
-          count: 0,
-          data: [],
-        },
       },
       '0xa': {
         nativeTokenStream: 0,
         nativeTokenPeriodic: 0,
         erc20TokenStream: 1,
         erc20TokenPeriodic: 0,
-        custom: {
-          count: 0,
-          data: [],
-        },
       },
     };
 
@@ -223,77 +181,6 @@ describe('mockGatorPermissionsStorageEntriesFactory', () => {
     );
   });
 
-  it('should handle custom permissions with different data', () => {
-    const config: MockGatorPermissionsStorageEntriesConfig = {
-      '0x1': {
-        nativeTokenStream: 0,
-        nativeTokenPeriodic: 0,
-        erc20TokenStream: 0,
-        erc20TokenPeriodic: 0,
-        custom: {
-          count: 3,
-          data: [
-            { field1: 'value1', number1: 123 },
-            { field2: 'value2', boolean1: true },
-            { field3: 'value3', object1: { nested: 'value' } },
-          ],
-        },
-      },
-    };
-
-    const result = mockGatorPermissionsStorageEntriesFactory(config);
-
-    expect(result).toHaveLength(3);
-
-    // Check that all entries are custom permissions
-    const permissionTypes = result.map(
-      (entry) => entry.permissionResponse.permission.type,
-    );
-    expect(permissionTypes.every((type) => type === 'custom')).toBe(true);
-
-    // Check that each entry has the correct custom data
-    const customData = result.map(
-      (entry) => entry.permissionResponse.permission.data,
-    );
-    expect(customData[0]).toMatchObject({
-      justification:
-        'This is a very important request for streaming allowance for some very important thing',
-      field1: 'value1',
-      number1: 123,
-    });
-    expect(customData[1]).toMatchObject({
-      justification:
-        'This is a very important request for streaming allowance for some very important thing',
-      field2: 'value2',
-      boolean1: true,
-    });
-    expect(customData[2]).toMatchObject({
-      justification:
-        'This is a very important request for streaming allowance for some very important thing',
-      field3: 'value3',
-      object1: { nested: 'value' },
-    });
-  });
-
-  it('should throw error when custom count and data length mismatch', () => {
-    const config: MockGatorPermissionsStorageEntriesConfig = {
-      '0x1': {
-        nativeTokenStream: 0,
-        nativeTokenPeriodic: 0,
-        erc20TokenStream: 0,
-        erc20TokenPeriodic: 0,
-        custom: {
-          count: 2,
-          data: [{ field1: 'value1' }],
-        },
-      },
-    };
-
-    expect(() => mockGatorPermissionsStorageEntriesFactory(config)).toThrow(
-      'Custom permission count and data length mismatch',
-    );
-  });
-
   it('should handle complex configuration with multiple chain IDs and permission types', () => {
     const config: MockGatorPermissionsStorageEntriesConfig = {
       '0x1': {
@@ -301,34 +188,26 @@ describe('mockGatorPermissionsStorageEntriesFactory', () => {
         nativeTokenPeriodic: 1,
         erc20TokenStream: 1,
         erc20TokenPeriodic: 2,
-        custom: {
-          count: 1,
-          data: [{ complexField: { nested: { deep: 'value' } } }],
-        },
       },
       '0x5': {
         nativeTokenStream: 1,
         nativeTokenPeriodic: 3,
         erc20TokenStream: 2,
         erc20TokenPeriodic: 1,
-        custom: {
-          count: 2,
-          data: [{ arrayField: [1, 2, 3] }, { nullField: null }],
-        },
       },
     };
 
     const result = mockGatorPermissionsStorageEntriesFactory(config);
 
-    // Total expected entries
-    expect(result).toHaveLength(16);
+    // Total expected entries: 0x1: 2+1+1+2 = 6, 0x5: 1+3+2+1 = 7
+    expect(result).toHaveLength(13);
 
     // Verify chain IDs are correct
     const chainIds = result.map((entry) => entry.permissionResponse.chainId);
     const chain0x1Count = chainIds.filter((id) => id === '0x1').length;
     const chain0x5Count = chainIds.filter((id) => id === '0x5').length;
-    expect(chain0x1Count).toBe(7);
-    expect(chain0x5Count).toBe(9);
+    expect(chain0x1Count).toBe(6);
+    expect(chain0x5Count).toBe(7);
 
     // Verify permission types are distributed correctly
     const permissionTypes = result.map(
@@ -346,14 +225,10 @@ describe('mockGatorPermissionsStorageEntriesFactory', () => {
     const erc20TokenPeriodicCount = permissionTypes.filter(
       (type) => type === 'erc20-token-periodic',
     ).length;
-    const customCount = permissionTypes.filter(
-      (type) => type === 'custom',
-    ).length;
 
     expect(nativeTokenStreamCount).toBe(3);
     expect(nativeTokenPeriodicCount).toBe(4);
     expect(erc20TokenStreamCount).toBe(3);
     expect(erc20TokenPeriodicCount).toBe(3);
-    expect(customCount).toBe(3);
   });
 });
