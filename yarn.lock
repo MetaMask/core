@@ -2485,9 +2485,9 @@ __metadata:
   languageName: unknown
   linkType: soft
 
-"@metamask/application-state-controller@workspace:packages/application-state-controller":
+"@metamask/client-state-controller@workspace:packages/client-state-controller":
   version: 0.0.0-use.local
-  resolution: "@metamask/application-state-controller@workspace:packages/application-state-controller"
+  resolution: "@metamask/client-state-controller@workspace:packages/client-state-controller"
   dependencies:
     "@metamask/auto-changelog": "npm:^3.4.4"
     "@metamask/base-controller": "npm:^9.0.0"

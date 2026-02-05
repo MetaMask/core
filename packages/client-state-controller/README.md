@@ -1,10 +1,10 @@
-# `@metamask/application-state-controller`
+# `@metamask/client-state-controller`
 
-Manages application lifecycle state (client open/closed) for cross-platform MetaMask applications.
+Manages client lifecycle state (client open/closed) for cross-platform MetaMask applications.
 
 ## Overview
 
-The `ApplicationStateController` provides a centralized way for controllers to respond to application lifecycle changes. Platform code calls `ApplicationStateController:setClientOpen` via messenger, and other controllers subscribe to `stateChange` events.
+The `ClientStateController` provides a centralized way for controllers to respond to application lifecycle changes. Platform code calls `ClientStateController:setClientOpen` via messenger, and other controllers subscribe to `stateChange` events.
 
 ### The Problem It Solves
 
@@ -26,18 +26,18 @@ set isClientOpen(open) {
 
 ### The Solution
 
-With `ApplicationStateController`, controllers manage themselves:
+With `ClientStateController`, controllers manage themselves:
 
 ```typescript
 // Platform code calls the controller via messenger
 set isClientOpen(open) {
-  this.controllerMessenger.call('ApplicationStateController:setClientOpen', open);
+  this.controllerMessenger.call('ClientStateController:setClientOpen', open);
 }
 
 // Controllers subscribe to stateChange and manage themselves
 class MyController extends BaseController {
   constructor({ messenger }) {
-    messenger.subscribe('ApplicationStateController:stateChange', (newState) => {
+    messenger.subscribe('ClientStateController:stateChange', (newState) => {
       if (newState.isClientOpen) {
         this.start();
       } else {
@@ -50,11 +50,11 @@ class MyController extends BaseController {
 
 ## Installation
 
-`yarn add @metamask/application-state-controller`
+`yarn add @metamask/client-state-controller`
 
 or
 
-`npm install @metamask/application-state-controller`
+`npm install @metamask/client-state-controller`
 
 ## Usage
 
@@ -63,23 +63,23 @@ or
 ```typescript
 import { Messenger } from '@metamask/messenger';
 import {
-  ApplicationStateController,
-  ApplicationStateControllerActions,
-  ApplicationStateControllerEvents,
-} from '@metamask/application-state-controller';
+  ClientStateController,
+  ClientStateControllerActions,
+  ClientStateControllerEvents,
+} from '@metamask/client-state-controller';
 
 const rootMessenger = new Messenger<
   'Root',
-  ApplicationStateControllerActions,
-  ApplicationStateControllerEvents
+  ClientStateControllerActions,
+  ClientStateControllerEvents
 >({ namespace: 'Root' });
 
 const controllerMessenger = new Messenger({
-  namespace: 'ApplicationStateController',
+  namespace: 'ClientStateController',
   parent: rootMessenger,
 });
 
-const applicationStateController = new ApplicationStateController({
+const clientStateController = new ClientStateController({
   messenger: controllerMessenger,
 });
 ```
@@ -92,7 +92,7 @@ class MetamaskController {
   // Platform calls this when UI opens/closes
   set isClientOpen(open) {
     this.controllerMessenger.call(
-      'ApplicationStateController:setClientOpen',
+      'ClientStateController:setClientOpen',
       open,
     );
   }
@@ -110,7 +110,7 @@ AppState.addEventListener('change', (nextAppState) => {
     return;
   }
   controllerMessenger.call(
-    'ApplicationStateController:setClientOpen',
+    'ClientStateController:setClientOpen',
     nextAppState === 'active',
   );
 });
@@ -125,7 +125,7 @@ class TokenBalancesController extends BaseController {
 
     // Subscribe to lifecycle state changes
     this.messenger.subscribe(
-      'ApplicationStateController:stateChange',
+      'ClientStateController:stateChange',
       (newState) => {
         if (newState.isClientOpen) {
           this.startPolling();
@@ -156,7 +156,7 @@ class WebSocketController extends BaseController {
     super({ messenger, ... });
 
     messenger.subscribe(
-      'ApplicationStateController:stateChange',
+      'ClientStateController:stateChange',
       (newState) => {
         if (newState.isClientOpen) {
           this.connect();
@@ -194,23 +194,23 @@ Note: State is not persisted. It always starts as `false`.
 
 ### Actions
 
-| Action                                      | Parameters      | Description                      |
-| ------------------------------------------- | --------------- | -------------------------------- |
-| `ApplicationStateController:getState`       | none            | Returns current state.           |
-| `ApplicationStateController:setClientOpen` | `open: boolean` | Sets whether the client is open. |
+| Action                                    | Parameters      | Description                      |
+| ----------------------------------------- | --------------- | -------------------------------- |
+| `ClientStateController:getState`       | none            | Returns current state.           |
+| `ClientStateController:setClientOpen` | `open: boolean` | Sets whether the client is open. |
 
 ### Events
 
-| Event                                    | Payload            | Description                  |
-| ---------------------------------------- | ------------------ | ---------------------------- |
-| `ApplicationStateController:stateChange` | `[state, patches]` | Standard state change event. |
+| Event                                  | Payload            | Description                  |
+| -------------------------------------- | ------------------ | ---------------------------- |
+| `ClientStateController:stateChange` | `[state, patches]` | Standard state change event. |
 
 ### Selectors
 
 ```typescript
-import { selectIsClientOpen } from '@metamask/application-state-controller';
+import { selectIsClientOpen } from '@metamask/client-state-controller';
 
-const state = messenger.call('ApplicationStateController:getState');
+const state = messenger.call('ClientStateController:getState');
 const isOpen = selectIsClientOpen(state);
 ```
 

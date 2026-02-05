@@ -9,16 +9,16 @@ import type { Messenger } from '@metamask/messenger';
 // === GENERAL ===
 
 /**
- * The name of the {@link ApplicationStateController}.
+ * The name of the {@link ClientStateController}.
  */
-export const controllerName = 'ApplicationStateController';
+export const controllerName = 'ClientStateController';
 
 // === STATE ===
 
 /**
- * Describes the shape of the state object for {@link ApplicationStateController}.
+ * Describes the shape of the state object for {@link ClientStateController}.
  */
-export type ApplicationStateControllerState = {
+export type ClientStateControllerState = {
   /**
    * Whether the client (UI) is currently open.
    */
@@ -26,18 +26,18 @@ export type ApplicationStateControllerState = {
 };
 
 /**
- * Constructs the default {@link ApplicationStateController} state.
+ * Constructs the default {@link ClientStateController} state.
  *
- * @returns The default {@link ApplicationStateController} state.
+ * @returns The default {@link ClientStateController} state.
  */
-export function getDefaultApplicationStateControllerState(): ApplicationStateControllerState {
+export function getDefaultClientStateControllerState(): ClientStateControllerState {
   return {
     isClientOpen: false,
   };
 }
 
 /**
- * The metadata for each property in {@link ApplicationStateControllerState}.
+ * The metadata for each property in {@link ClientStateControllerState}.
  */
 const controllerMetadata = {
   isClientOpen: {
@@ -46,85 +46,85 @@ const controllerMetadata = {
     persist: false,
     usedInUi: false,
   },
-} satisfies StateMetadata<ApplicationStateControllerState>;
+} satisfies StateMetadata<ClientStateControllerState>;
 
 // === MESSENGER ===
 
 /**
- * Retrieves the state of the {@link ApplicationStateController}.
+ * Retrieves the state of the {@link ClientStateController}.
  */
-export type ApplicationStateControllerGetStateAction = ControllerGetStateAction<
+export type ClientStateControllerGetStateAction = ControllerGetStateAction<
   typeof controllerName,
-  ApplicationStateControllerState
+  ClientStateControllerState
 >;
 
 /**
  * Sets whether the client (UI) is open.
  */
-export type ApplicationStateControllerSetClientOpenAction = {
+export type ClientStateControllerSetClientOpenAction = {
   type: `${typeof controllerName}:setClientOpen`;
   handler: (open: boolean) => void;
 };
 
 /**
- * Actions that {@link ApplicationStateController} exposes.
+ * Actions that {@link ClientStateController} exposes.
  */
-export type ApplicationStateControllerActions =
-  | ApplicationStateControllerGetStateAction
-  | ApplicationStateControllerSetClientOpenAction;
+export type ClientStateControllerActions =
+  | ClientStateControllerGetStateAction
+  | ClientStateControllerSetClientOpenAction;
 
 /**
- * Actions from other messengers that {@link ApplicationStateController} calls.
+ * Actions from other messengers that {@link ClientStateController} calls.
  */
 type AllowedActions = never;
 
 /**
- * Published when the state of {@link ApplicationStateController} changes.
+ * Published when the state of {@link ClientStateController} changes.
  */
-export type ApplicationStateControllerStateChangeEvent =
+export type ClientStateControllerStateChangeEvent =
   ControllerStateChangeEvent<
     typeof controllerName,
-    ApplicationStateControllerState
+    ClientStateControllerState
   >;
 
 /**
- * Events that {@link ApplicationStateController} exposes.
+ * Events that {@link ClientStateController} exposes.
  */
-export type ApplicationStateControllerEvents =
-  ApplicationStateControllerStateChangeEvent;
+export type ClientStateControllerEvents =
+  ClientStateControllerStateChangeEvent;
 
 /**
- * Events from other messengers that {@link ApplicationStateController} subscribes to.
+ * Events from other messengers that {@link ClientStateController} subscribes to.
  */
 type AllowedEvents = never;
 
 /**
- * The messenger for {@link ApplicationStateController}.
+ * The messenger for {@link ClientStateController}.
  */
-export type ApplicationStateControllerMessenger = Messenger<
+export type ClientStateControllerMessenger = Messenger<
   typeof controllerName,
-  ApplicationStateControllerActions | AllowedActions,
-  ApplicationStateControllerEvents | AllowedEvents
+  ClientStateControllerActions | AllowedActions,
+  ClientStateControllerEvents | AllowedEvents
 >;
 
 // === CONTROLLER DEFINITION ===
 
 /**
- * The options for constructing an {@link ApplicationStateController}.
+ * The options for constructing a {@link ClientStateController}.
  */
-export type ApplicationStateControllerOptions = {
+export type ClientStateControllerOptions = {
   /**
    * The messenger suited for this controller.
    */
-  messenger: ApplicationStateControllerMessenger;
+  messenger: ClientStateControllerMessenger;
   /**
    * The initial state to set on this controller.
    */
-  state?: Partial<ApplicationStateControllerState>;
+  state?: Partial<ClientStateControllerState>;
 };
 
 /**
- * `ApplicationStateController` manages the application lifecycle state.
+ * `ClientStateController` manages the application lifecycle state.
  *
  * This controller tracks whether the client (UI) is open and publishes state
  * change events that other controllers can subscribe to for adjusting their behavior.
@@ -135,13 +135,13 @@ export type ApplicationStateControllerOptions = {
  * - Real-time subscriptions can pause when not visible
  *
  * **Platform Integration:**
- * Platform code should call `ApplicationStateController:setClientOpen` via messenger.
+ * Platform code should call `ClientStateController:setClientOpen` via messenger.
  *
  * @example
  * ```typescript
  * // In MetamaskController or platform code
  * set isClientOpen(open) {
- *   this.controllerMessenger.call('ApplicationStateController:setClientOpen', open);
+ *   this.controllerMessenger.call('ClientStateController:setClientOpen', open);
  * }
  *
  * // Consumer controller subscribing to state changes
@@ -150,7 +150,7 @@ export type ApplicationStateControllerOptions = {
  *     super({ messenger, ... });
  *
  *     messenger.subscribe(
- *       'ApplicationStateController:stateChange',
+ *       'ClientStateController:stateChange',
  *       (newState) => {
  *         if (newState.isClientOpen) {
  *           this.startPolling();
@@ -163,25 +163,25 @@ export type ApplicationStateControllerOptions = {
  * }
  * ```
  */
-export class ApplicationStateController extends BaseController<
+export class ClientStateController extends BaseController<
   typeof controllerName,
-  ApplicationStateControllerState,
-  ApplicationStateControllerMessenger
+  ClientStateControllerState,
+  ClientStateControllerMessenger
 > {
   /**
-   * Constructs a new {@link ApplicationStateController}.
+   * Constructs a new {@link ClientStateController}.
    *
    * @param options - The constructor options.
    * @param options.messenger - The messenger suited for this controller.
    * @param options.state - The initial state to set on this controller.
    */
-  constructor({ messenger, state = {} }: ApplicationStateControllerOptions) {
+  constructor({ messenger, state = {} }: ClientStateControllerOptions) {
     super({
       messenger,
       metadata: controllerMetadata,
       name: controllerName,
       state: {
-        ...getDefaultApplicationStateControllerState(),
+        ...getDefaultClientStateControllerState(),
         ...state,
       },
     });
@@ -225,11 +225,11 @@ export class ApplicationStateController extends BaseController<
 /**
  * Selects whether the client is currently open.
  *
- * @param state - The ApplicationStateController state.
+ * @param state - The ClientStateController state.
  * @returns True if the client is open.
  */
 export function selectIsClientOpen(
-  state: ApplicationStateControllerState,
+  state: ClientStateControllerState,
 ): boolean {
   return state.isClientOpen;
 }
