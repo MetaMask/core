@@ -71,6 +71,7 @@ describe('initDataSources', () => {
 
       const messengers = initMessengers({ messenger: rootMessenger });
 
+      expect(messengers).not.toBeNull();
       expect(messengers).toHaveProperty('rpcMessenger');
       expect(messengers).toHaveProperty('backendWebsocketMessenger');
       expect(messengers).toHaveProperty('accountsApiMessenger');
@@ -80,12 +81,53 @@ describe('initDataSources', () => {
       expect(messengers).toHaveProperty('detectionMessenger');
     });
 
+    it('returns null when isEnabled returns false', () => {
+      const rootMessenger = createMockRootMessenger();
+
+      const messengers = initMessengers({
+        messenger: rootMessenger,
+        isEnabled: () => false,
+      });
+
+      expect(messengers).toBeNull();
+    });
+
+    it('creates messengers when isEnabled returns true', () => {
+      const rootMessenger = createMockRootMessenger();
+
+      const messengers = initMessengers({
+        messenger: rootMessenger,
+        isEnabled: () => true,
+      });
+
+      expect(messengers).not.toBeNull();
+      expect(messengers).toHaveProperty('rpcMessenger');
+      expect(messengers).toHaveProperty('backendWebsocketMessenger');
+      expect(messengers).toHaveProperty('accountsApiMessenger');
+      expect(messengers).toHaveProperty('snapMessenger');
+      expect(messengers).toHaveProperty('tokenMessenger');
+      expect(messengers).toHaveProperty('priceMessenger');
+      expect(messengers).toHaveProperty('detectionMessenger');
+    });
+
+    it('does not call delegate when isEnabled returns false', () => {
+      const rootMessenger = createMockRootMessenger();
+
+      initMessengers({
+        messenger: rootMessenger,
+        isEnabled: () => false,
+      });
+
+      expect(rootMessenger.delegate).not.toHaveBeenCalled();
+    });
+
     it('creates RpcDataSource messenger with correct namespace', () => {
       const rootMessenger = createMockRootMessenger();
 
       const messengers = initMessengers({ messenger: rootMessenger });
 
-      expect(messengers.rpcMessenger).toBeDefined();
+      expect(messengers).not.toBeNull();
+      expect(messengers?.rpcMessenger).toBeDefined();
     });
 
     it('creates BackendWebsocketDataSource messenger with correct namespace', () => {
@@ -93,7 +135,8 @@ describe('initDataSources', () => {
 
       const messengers = initMessengers({ messenger: rootMessenger });
 
-      expect(messengers.backendWebsocketMessenger).toBeDefined();
+      expect(messengers).not.toBeNull();
+      expect(messengers?.backendWebsocketMessenger).toBeDefined();
     });
 
     it('creates AccountsApiDataSource messenger with correct namespace', () => {
@@ -101,7 +144,8 @@ describe('initDataSources', () => {
 
       const messengers = initMessengers({ messenger: rootMessenger });
 
-      expect(messengers.accountsApiMessenger).toBeDefined();
+      expect(messengers).not.toBeNull();
+      expect(messengers?.accountsApiMessenger).toBeDefined();
     });
 
     it('creates SnapDataSource messenger with correct namespace', () => {
@@ -109,7 +153,8 @@ describe('initDataSources', () => {
 
       const messengers = initMessengers({ messenger: rootMessenger });
 
-      expect(messengers.snapMessenger).toBeDefined();
+      expect(messengers).not.toBeNull();
+      expect(messengers?.snapMessenger).toBeDefined();
     });
 
     it('creates TokenDataSource messenger with correct namespace', () => {
@@ -117,7 +162,8 @@ describe('initDataSources', () => {
 
       const messengers = initMessengers({ messenger: rootMessenger });
 
-      expect(messengers.tokenMessenger).toBeDefined();
+      expect(messengers).not.toBeNull();
+      expect(messengers?.tokenMessenger).toBeDefined();
     });
 
     it('creates PriceDataSource messenger with correct namespace', () => {
@@ -125,7 +171,8 @@ describe('initDataSources', () => {
 
       const messengers = initMessengers({ messenger: rootMessenger });
 
-      expect(messengers.priceMessenger).toBeDefined();
+      expect(messengers).not.toBeNull();
+      expect(messengers?.priceMessenger).toBeDefined();
     });
 
     it('creates DetectionMiddleware messenger with correct namespace', () => {
@@ -133,7 +180,8 @@ describe('initDataSources', () => {
 
       const messengers = initMessengers({ messenger: rootMessenger });
 
-      expect(messengers.detectionMessenger).toBeDefined();
+      expect(messengers).not.toBeNull();
+      expect(messengers?.detectionMessenger).toBeDefined();
     });
 
     it('delegates actions and events for RpcDataSource', () => {
@@ -231,7 +279,9 @@ describe('initDataSources', () => {
   describe('initDataSources', () => {
     function createMockMessengers(): DataSourceMessengers {
       const rootMessenger = createMockRootMessenger();
-      return initMessengers({ messenger: rootMessenger });
+      const messengers = initMessengers({ messenger: rootMessenger });
+      // initMessengers can return null, but in this helper we always want messengers
+      return messengers as DataSourceMessengers;
     }
 
     it('creates all data source instances', () => {
@@ -243,6 +293,7 @@ describe('initDataSources', () => {
         queryApiClient,
       });
 
+      expect(dataSources).not.toBeNull();
       expect(dataSources).toHaveProperty('rpcDataSource');
       expect(dataSources).toHaveProperty('backendWebsocketDataSource');
       expect(dataSources).toHaveProperty('accountsApiDataSource');
@@ -250,6 +301,61 @@ describe('initDataSources', () => {
       expect(dataSources).toHaveProperty('tokenDataSource');
       expect(dataSources).toHaveProperty('priceDataSource');
       expect(dataSources).toHaveProperty('detectionMiddleware');
+    });
+
+    it('returns null when isEnabled returns false', () => {
+      const messengers = createMockMessengers();
+      const queryApiClient = createMockQueryApiClient();
+
+      const dataSources = initDataSources({
+        messengers,
+        queryApiClient,
+        isEnabled: () => false,
+      });
+
+      expect(dataSources).toBeNull();
+    });
+
+    it('creates data sources when isEnabled returns true', () => {
+      const messengers = createMockMessengers();
+      const queryApiClient = createMockQueryApiClient();
+
+      const dataSources = initDataSources({
+        messengers,
+        queryApiClient,
+        isEnabled: () => true,
+      });
+
+      expect(dataSources).not.toBeNull();
+      expect(dataSources).toHaveProperty('rpcDataSource');
+      expect(dataSources).toHaveProperty('backendWebsocketDataSource');
+      expect(dataSources).toHaveProperty('accountsApiDataSource');
+      expect(dataSources).toHaveProperty('snapDataSource');
+      expect(dataSources).toHaveProperty('tokenDataSource');
+      expect(dataSources).toHaveProperty('priceDataSource');
+      expect(dataSources).toHaveProperty('detectionMiddleware');
+    });
+
+    it('does not instantiate data sources when isEnabled returns false', () => {
+      const messengers = createMockMessengers();
+      const queryApiClient = createMockQueryApiClient();
+
+      // Clear mocks to check they're not called
+      jest.clearAllMocks();
+
+      initDataSources({
+        messengers,
+        queryApiClient,
+        isEnabled: () => false,
+      });
+
+      expect(MockRpcDataSource).not.toHaveBeenCalled();
+      expect(MockBackendWebsocketDataSource).not.toHaveBeenCalled();
+      expect(MockAccountsApiDataSource).not.toHaveBeenCalled();
+      expect(MockSnapDataSource).not.toHaveBeenCalled();
+      expect(MockTokenDataSource).not.toHaveBeenCalled();
+      expect(MockPriceDataSource).not.toHaveBeenCalled();
+      expect(MockDetectionMiddleware).not.toHaveBeenCalled();
     });
 
     it('creates RpcDataSource with correct messenger', () => {
@@ -362,17 +468,18 @@ describe('initDataSources', () => {
         queryApiClient,
       });
 
-      expect(dataSources.rpcDataSource).toBeInstanceOf(MockRpcDataSource);
-      expect(dataSources.backendWebsocketDataSource).toBeInstanceOf(
+      expect(dataSources).not.toBeNull();
+      expect(dataSources?.rpcDataSource).toBeInstanceOf(MockRpcDataSource);
+      expect(dataSources?.backendWebsocketDataSource).toBeInstanceOf(
         MockBackendWebsocketDataSource,
       );
-      expect(dataSources.accountsApiDataSource).toBeInstanceOf(
+      expect(dataSources?.accountsApiDataSource).toBeInstanceOf(
         MockAccountsApiDataSource,
       );
-      expect(dataSources.snapDataSource).toBeInstanceOf(MockSnapDataSource);
-      expect(dataSources.tokenDataSource).toBeInstanceOf(MockTokenDataSource);
-      expect(dataSources.priceDataSource).toBeInstanceOf(MockPriceDataSource);
-      expect(dataSources.detectionMiddleware).toBeInstanceOf(
+      expect(dataSources?.snapDataSource).toBeInstanceOf(MockSnapDataSource);
+      expect(dataSources?.tokenDataSource).toBeInstanceOf(MockTokenDataSource);
+      expect(dataSources?.priceDataSource).toBeInstanceOf(MockPriceDataSource);
+      expect(dataSources?.detectionMiddleware).toBeInstanceOf(
         MockDetectionMiddleware,
       );
     });

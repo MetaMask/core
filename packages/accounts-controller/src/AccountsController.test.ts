@@ -80,7 +80,7 @@ const mockAccount: InternalAccount = {
   type: EthAccountType.Eoa,
   scopes: [EthScope.Eoa],
   metadata: {
-    name: 'Account 1',
+    name: '',
     keyring: { type: KeyringTypes.hd },
     importTime: 1691565967600,
     lastSelected: 1691565967656,
@@ -96,7 +96,7 @@ const mockAccount2: InternalAccount = {
   type: EthAccountType.Eoa,
   scopes: [EthScope.Eoa],
   metadata: {
-    name: 'Account 2',
+    name: '',
     keyring: { type: KeyringTypes.hd },
     importTime: 1691565967600,
     lastSelected: 1955565967656,
@@ -797,7 +797,7 @@ describe('AccountsController', () => {
           setExpectedLastSelectedAsAny(
             createExpectedInternalAccount({
               id: 'mock-id3',
-              name: 'Snap Account 2',
+              name: '',
               address: mockAccount3.address,
               keyringType: mockAccount3.metadata.keyring.type as KeyringTypes,
               snap: mockAccount3.metadata.snap,
@@ -981,7 +981,7 @@ describe('AccountsController', () => {
           MockExpectedInternalAccountBuilder.from(
             createExpectedInternalAccount({
               id: 'mock-id3',
-              name: 'Account 3',
+              name: '',
               address: mockAccount3.address,
               keyringType: KeyringTypes.hd,
             }),
@@ -1050,7 +1050,7 @@ describe('AccountsController', () => {
           MockExpectedInternalAccountBuilder.from(
             createExpectedInternalAccount({
               id: 'mock-id3',
-              name: 'Account 3',
+              name: '',
               address: mockAccount3.address,
               keyringType: KeyringTypes.hd,
             }),
@@ -1521,13 +1521,13 @@ describe('AccountsController', () => {
       const messenger = buildMessenger();
       const mockInitialAccount = createMockInternalAccount({
         id: 'mock-id',
-        name: 'Account 1',
+        name: '',
         address: '0x123',
         keyringType: KeyringTypes.hd,
       });
       const mockReinitialisedAccount = createMockInternalAccount({
         id: 'mock-id2',
-        name: 'Account 1',
+        name: '',
         address: '0x456',
         keyringType: KeyringTypes.hd,
         // Entropy options are added automatically by the controller.
@@ -3324,27 +3324,6 @@ describe('AccountsController', () => {
         accountsController.getAccountExpect(mockAccount.id),
       );
     });
-
-    it('throw an error if the account name already exists', () => {
-      const { accountsController } = setupAccountsController({
-        initialState: {
-          internalAccounts: {
-            accounts: {
-              [mockAccount.id]: mockAccount,
-              [mockAccount2.id]: mockAccount2,
-            },
-            selectedAccount: mockAccount.id,
-          },
-        },
-      });
-
-      expect(() =>
-        accountsController.setAccountNameAndSelectAccount(
-          mockAccount.id,
-          mockAccount2.metadata.name,
-        ),
-      ).toThrow('Account name already exists');
-    });
   });
 
   describe('setAccountName', () => {
@@ -3407,13 +3386,21 @@ describe('AccountsController', () => {
       );
     });
 
-    it('throw an error if the account name already exists', () => {
+    it('throws when renaming to an existing account name', () => {
+      const existingName = 'Existing Name';
+      const mockAccountWithName = createMockInternalAccount({
+        id: 'mock-id-2',
+        name: existingName,
+        address: '0xabc',
+        keyringType: KeyringTypes.hd,
+      });
+
       const { accountsController } = setupAccountsController({
         initialState: {
           internalAccounts: {
             accounts: {
               [mockAccount.id]: mockAccount,
-              [mockAccount2.id]: mockAccount2,
+              [mockAccountWithName.id]: mockAccountWithName,
             },
             selectedAccount: mockAccount.id,
           },
@@ -3421,7 +3408,7 @@ describe('AccountsController', () => {
       });
 
       expect(() =>
-        accountsController.setAccountName(mockAccount.id, 'Account 2'),
+        accountsController.setAccountName(mockAccount.id, existingName),
       ).toThrow('Account name already exists');
     });
   });
@@ -3452,19 +3439,19 @@ describe('AccountsController', () => {
     // those keyring types are "grouped" together)
     const mockSimpleKeyring1 = createMockInternalAccount({
       id: 'mock-id2',
-      name: 'Account 2',
+      name: '',
       address: '0x555',
       keyringType: KeyringTypes.simple,
     });
     const mockSimpleKeyring2 = createMockInternalAccount({
       id: 'mock-id3',
-      name: 'Account 3',
+      name: '',
       address: '0x666',
       keyringType: KeyringTypes.simple,
     });
     const mockSimpleKeyring3 = createMockInternalAccount({
       id: 'mock-id4',
-      name: 'Account 4',
+      name: '',
       address: '0x777',
       keyringType: KeyringTypes.simple,
     });
@@ -3900,63 +3887,6 @@ describe('AccountsController', () => {
           mockAccount.id,
         );
         expect(account).toStrictEqual(mockAccount);
-      });
-
-      describe('getNextAvailableAccountName', () => {
-        it('gets the next account name', async () => {
-          const messenger = buildMessenger();
-
-          // eslint-disable-next-line @typescript-eslint/no-unused-vars
-          const accountsController = setupAccountsController({
-            initialState: {
-              internalAccounts: {
-                accounts: {
-                  [mockAccount.id]: mockAccount,
-                  // Next name should be: "Account 2"
-                },
-                selectedAccount: mockAccount.id,
-              },
-            },
-            messenger,
-          });
-
-          const accountName = messenger.call(
-            'AccountsController:getNextAvailableAccountName',
-          );
-          expect(accountName).toBe('Account 2');
-        });
-
-        it('gets the next account name with a gap', async () => {
-          const messenger = buildMessenger();
-
-          // eslint-disable-next-line @typescript-eslint/no-unused-vars
-          const accountsController = setupAccountsController({
-            initialState: {
-              internalAccounts: {
-                accounts: {
-                  [mockAccount.id]: mockAccount,
-                  // We have a gap, cause there is no "Account 2"
-                  [mockAccount3.id]: {
-                    ...mockAccount3,
-                    metadata: {
-                      ...mockAccount3.metadata,
-                      name: 'Account 3',
-                      keyring: { type: KeyringTypes.hd },
-                    },
-                  },
-                  // Next name should be: "Account 4"
-                },
-                selectedAccount: mockAccount.id,
-              },
-            },
-            messenger,
-          });
-
-          const accountName = messenger.call(
-            'AccountsController:getNextAvailableAccountName',
-          );
-          expect(accountName).toBe('Account 4');
-        });
       });
     });
   });
