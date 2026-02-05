@@ -56,7 +56,7 @@
   "devDependencies": {
     "@metamask/auto-changelog": "^3.4.4",
     "@metamask/keyring-controller": "^25.1.0",
-    "@metamask/profile-sync-controller": "^27.0.0",
+    "@metamask/profile-sync-controller": "^27.1.0",
     "@ts-bridge/cli": "^0.6.4",
     "@types/jest": "^28.1.8",
     "deepmerge": "^4.2.2",

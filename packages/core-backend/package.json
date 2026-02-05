@@ -52,7 +52,7 @@
     "@metamask/controller-utils": "^11.18.0",
     "@metamask/keyring-controller": "^25.1.0",
     "@metamask/messenger": "^0.3.0",
-    "@metamask/profile-sync-controller": "^27.0.0",
+    "@metamask/profile-sync-controller": "^27.1.0",
     "@metamask/utils": "^11.9.0",
     "@tanstack/query-core": "^5.62.16",
     "uuid": "^8.3.2"
