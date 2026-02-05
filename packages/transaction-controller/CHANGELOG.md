@@ -13,7 +13,7 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ### Changed
 
-- Revert `@metamask/core-backend` from `^5.1.0` to `5.0.0` ([#7852](https://github.com/MetaMask/core/pull/7852))
+- Lock `@metamask/core-backend` to `5.0.0` ([#7852](https://github.com/MetaMask/core/pull/7852))
 
 ## [62.14.0]
 
