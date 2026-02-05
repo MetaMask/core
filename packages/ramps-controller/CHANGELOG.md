@@ -13,8 +13,7 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ### Changed
 
-- **BREAKING:** `startQuotePolling()` now requires a provider to be selected before calling. The method will throw an error if `state.providers.selected` is not set.
-- Update quotes API endpoint from `/v2/orders/all/quotes` to `/v2/quotes`
+- **BREAKING:** Require provider selection for quote polling and update quotes API endpoint to `/v2/quotes` ([#7846](https://github.com/MetaMask/core/pull/7846))
 
 ## [6.0.0]
 
