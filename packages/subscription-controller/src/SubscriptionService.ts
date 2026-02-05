@@ -302,7 +302,8 @@ export class SubscriptionService implements ISubscriptionService {
     queryParams?: Record<string, string>;
     errorMessage: string;
   }): Promise<Result> {
-    const url = new URL(SUBSCRIPTION_URL(this.#env, path));
+    const url = this.#getSubscriptionApiUrl(path);
+    const headers = await this.#getAuthorizationHeader();
 
     try {
       if (queryParams) {
@@ -311,7 +312,6 @@ export class SubscriptionService implements ISubscriptionService {
         });
       }
 
-      const headers = await this.#getAuthorizationHeader();
       const response = await this.#fetch(url.toString(), {
         method,
         headers: {
@@ -332,17 +332,16 @@ export class SubscriptionService implements ISubscriptionService {
       console.error(errorMessage, error);
 
       const errorMessageWithUrl = `${errorMessage} (url: ${url.toString()})`;
+      const errorToCapture =
+        error instanceof Error ? error : new Error(errorMessage);
       this.#captureException?.(
-        createSentryError(
-          errorMessageWithUrl,
-          error instanceof Error ? error : new Error(errorMessage),
-        ),
+        createSentryError(errorMessageWithUrl, errorToCapture),
       );
 
       throw new SubscriptionServiceError(
         `Failed to make request. ${errorMessageWithUrl}`,
         {
-          cause: error instanceof Error ? error : undefined,
+          cause: errorToCapture,
         },
       );
     }
@@ -359,7 +358,39 @@ export class SubscriptionService implements ISubscriptionService {
           ? error.message
           : 'Unknown error when getting authorization header';
 
-      throw new Error(`Failed to get authorization header. ${errorMessage}`);
+      this.#captureException?.(
+        createSentryError(
+          `Failed to get authorization header. ${errorMessage}`,
+          error instanceof Error ? error : new Error(errorMessage),
+        ),
+      );
+
+      throw new SubscriptionServiceError(
+        `Failed to get authorization header. ${errorMessage}`,
+        {
+          cause: error instanceof Error ? error : new Error(errorMessage),
+        },
+      );
+    }
+  }
+
+  #getSubscriptionApiUrl(path: string): URL {
+    try {
+      const url = new URL(SUBSCRIPTION_URL(this.#env, path));
+      return url;
+    } catch (error) {
+      const errorMessage =
+        error instanceof Error
+          ? error.message
+          : 'Unknown error when getting subscription API URL';
+      this.#captureException?.(
+        createSentryError(
+          `Failed to get subscription API URL. ${errorMessage}`,
+          error instanceof Error ? error : new Error(errorMessage),
+        ),
+      );
+
+      throw error;
     }
   }
 }

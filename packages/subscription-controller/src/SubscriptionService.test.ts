@@ -4,6 +4,7 @@ import {
   SubscriptionControllerErrorMessage,
   SubscriptionServiceErrorMessage,
 } from './constants';
+import * as constants from './constants';
 import { SubscriptionServiceError } from './errors';
 import {
   SUBSCRIPTION_URL,
@@ -239,6 +240,54 @@ describe('SubscriptionService', () => {
       });
     });
 
+    it('should throw when URL construction fails', async () => {
+      const config = createMockConfig({ env: 'invalid' as Env });
+      const service = new SubscriptionService(config);
+
+      await expect(service.getSubscriptions()).rejects.toThrow(
+        'invalid environment configuration',
+      );
+      expect(config.fetchMock).not.toHaveBeenCalled();
+      expect(config.captureExceptionMock).toHaveBeenCalledTimes(1);
+      const capturedError = config.captureExceptionMock.mock
+        .calls[0][0] as Error & { cause?: Error };
+      expect(capturedError.message).toBe(
+        'Failed to get subscription API URL. invalid environment configuration',
+      );
+    });
+
+    it('should capture non-Error URL construction failures', async () => {
+      const config = createMockConfig();
+      const service = new SubscriptionService(config);
+      const getEnvUrlsSpy = jest
+        .spyOn(constants, 'getEnvUrls')
+        .mockImplementation(() => {
+          // eslint-disable-next-line @typescript-eslint/only-throw-error
+          throw 'string error';
+        });
+
+      try {
+        const error = await service
+          .getSubscriptions()
+          .catch((rejection) => rejection);
+        expect(error).toBe('string error');
+      } finally {
+        getEnvUrlsSpy.mockRestore();
+      }
+
+      expect(config.fetchMock).not.toHaveBeenCalled();
+      expect(config.captureExceptionMock).toHaveBeenCalledTimes(1);
+      const capturedError = config.captureExceptionMock.mock
+        .calls[0][0] as Error & { cause?: Error };
+      expect(capturedError.message).toBe(
+        'Failed to get subscription API URL. Unknown error when getting subscription API URL',
+      );
+      expect(capturedError.cause).toBeInstanceOf(Error);
+      expect(capturedError.cause?.message).toBe(
+        'Unknown error when getting subscription API URL',
+      );
+    });
+
     it('should throw SubscriptionServiceError for network errors', async () => {
       await withMockSubscriptionService(async ({ service, config }) => {
         const networkError = new Error('Network error');
@@ -268,6 +317,13 @@ describe('SubscriptionService', () => {
         await expect(requestPromise).rejects.toThrow(SubscriptionServiceError);
         await expect(requestPromise).rejects.toThrow(
           `Failed to make request. ${SubscriptionServiceErrorMessage.FailedToGetSubscriptions} (url: ${getTestUrl(Env.DEV)}/v1/subscriptions)`,
+        );
+        const error = await requestPromise.catch((rejection) => rejection);
+        expect(error).toBeInstanceOf(SubscriptionServiceError);
+        const serviceError = error as SubscriptionServiceError;
+        expect(serviceError.cause).toBeInstanceOf(Error);
+        expect(serviceError.cause?.message).toBe(
+          SubscriptionServiceErrorMessage.FailedToGetSubscriptions,
         );
         expect(config.captureExceptionMock).toHaveBeenCalledTimes(1);
       });
@@ -304,7 +360,7 @@ describe('SubscriptionService', () => {
 
         await expect(requestPromise).rejects.toThrow(SubscriptionServiceError);
         await expect(requestPromise).rejects.toThrow(
-          `Failed to make request. ${SubscriptionServiceErrorMessage.FailedToGetSubscriptions} (url: ${getTestUrl(Env.DEV)}/v1/subscriptions)`,
+          'Failed to get authorization header. Unknown error when getting authorization header',
         );
       });
 
@@ -318,7 +374,7 @@ describe('SubscriptionService', () => {
 
         await expect(requestPromise).rejects.toThrow(SubscriptionServiceError);
         await expect(requestPromise).rejects.toThrow(
-          `Failed to make request. ${SubscriptionServiceErrorMessage.FailedToGetSubscriptions} (url: ${getTestUrl(Env.DEV)}/v1/subscriptions)`,
+          'Failed to get authorization header. Wallet is locked',
         );
       });
     });
