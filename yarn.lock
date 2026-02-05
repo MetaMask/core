@@ -3086,7 +3086,7 @@ __metadata:
   languageName: unknown
   linkType: soft
 
-"@metamask/core-backend@npm:^5.1.0, @metamask/core-backend@workspace:packages/core-backend":
+"@metamask/core-backend@npm:^5.0.0, @metamask/core-backend@npm:^5.1.0, @metamask/core-backend@workspace:packages/core-backend":
   version: 0.0.0-use.local
   resolution: "@metamask/core-backend@workspace:packages/core-backend"
   dependencies:
@@ -5139,7 +5139,7 @@ __metadata:
     "@metamask/auto-changelog": "npm:^3.4.4"
     "@metamask/base-controller": "npm:^9.0.0"
     "@metamask/controller-utils": "npm:^11.18.0"
-    "@metamask/core-backend": "npm:^5.1.0"
+    "@metamask/core-backend": "npm:^5.0.0"
     "@metamask/eth-block-tracker": "npm:^15.0.0"
     "@metamask/eth-json-rpc-provider": "npm:^6.0.0"
     "@metamask/eth-query": "npm:^4.0.0"

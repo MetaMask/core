@@ -2,11 +2,10 @@ import type {
   Transaction as AccountActivityTransaction,
   WebSocketConnectionInfo,
 } from '@metamask/core-backend';
-import { WebSocketState } from '@metamask/core-backend';
 import type { Hex } from '@metamask/utils';
 
 import { SUPPORTED_CHAIN_IDS } from './AccountsApiRemoteTransactionSource';
-import { IncomingTransactionHelper } from './IncomingTransactionHelper';
+import { IncomingTransactionHelper, WebSocketState } from './IncomingTransactionHelper';
 import type { TransactionControllerMessenger } from '..';
 import { flushPromises } from '../../../../tests/helpers';
 import { TransactionStatus, TransactionType } from '../types';
