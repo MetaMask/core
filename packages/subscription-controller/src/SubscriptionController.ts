@@ -960,16 +960,7 @@ export class SubscriptionController extends StaticIntervalPollingController()<
     // We perform a sign out to clear the access token from the authentication
     // controller. Next time the access token is requested, a new access token
     // will be fetched.
-    try {
-      this.messenger.call('AuthenticationController:performSignOut');
-    } catch (error) {
-      const errorMessage =
-        error instanceof Error ? error.message : JSON.stringify(error);
-
-      throw new Error(
-        `Failed to trigger access token refresh. ${errorMessage}`,
-      );
-    }
+    this.messenger.call('AuthenticationController:performSignOut');
   }
 
   #getProductPriceByProductAndPlan(

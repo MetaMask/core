@@ -330,9 +330,13 @@ export class SubscriptionService implements ISubscriptionService {
       return data;
     } catch (error) {
       console.error(errorMessage, error);
+
       const errorMessageWithUrl = `${errorMessage} (url: ${url.toString()})`;
       this.#captureException?.(
-        createSentryError(errorMessageWithUrl, error as Error),
+        createSentryError(
+          errorMessageWithUrl,
+          error instanceof Error ? error : new Error(errorMessage),
+        ),
       );
 
       throw new SubscriptionServiceError(

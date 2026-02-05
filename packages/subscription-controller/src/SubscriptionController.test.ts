@@ -447,23 +447,7 @@ describe('SubscriptionController', () => {
           });
 
           await expect(controller.getSubscriptions()).rejects.toThrow(
-            'Failed to trigger access token refresh. Wallet is locked',
-          );
-        },
-      );
-
-      await withController(
-        async ({ controller, mockService, mockPerformSignOut }) => {
-          mockService.getSubscriptions.mockResolvedValue(
-            MOCK_GET_SUBSCRIPTIONS_RESPONSE,
-          );
-          mockPerformSignOut.mockImplementation(() => {
-            // eslint-disable-next-line @typescript-eslint/only-throw-error
-            throw 'string error';
-          });
-
-          await expect(controller.getSubscriptions()).rejects.toThrow(
-            `Failed to trigger access token refresh. ${JSON.stringify('string error')}`,
+            'Wallet is locked',
           );
         },
       );

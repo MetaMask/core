@@ -50,9 +50,6 @@ export enum SubscriptionControllerErrorMessage {
 }
 
 export enum SubscriptionServiceErrorMessage {
-  // Default error message for API Error
-  FailedToMakeRequest = 'Failed to make request',
-
   FailedToGetSubscriptions = 'Failed to get subscriptions',
   FailedToCancelSubscription = 'Failed to cancel subscription',
   FailedToUncancelSubscription = 'Failed to uncancel subscription',

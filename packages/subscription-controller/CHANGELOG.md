@@ -7,6 +7,12 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+### Added
+
+- **BREAKING**: Added two new params, `captureException` and `fetchFunction` to `SubscriptionService` constructor args. ([#7835](https://github.com/MetaMask/core/pull/7835))
+  - `fetchFunction` is to use the client provided `Fetch` API.
+  - `captureException` is to capture the error thrown and report to Sentry.
+
 ### Changed
 
 - Updated `SubscriptionServiceError` to include more information for Sentry reporting. ([#7835](https://github.com/MetaMask/core/pull/7835))
