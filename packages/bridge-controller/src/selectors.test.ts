@@ -18,6 +18,7 @@ import {
 import type { BridgeAsset, QuoteResponse } from './types';
 import { SortOrder, RequestStatus, ChainId } from './types';
 import { isNativeAddress } from './utils/bridge';
+import { formatChainIdToHex } from './utils/caip-formatters';
 
 describe('Bridge Selectors', () => {
   describe('selectExchangeRateByChainIdAndAddress', () => {
@@ -206,15 +207,19 @@ describe('Bridge Selectors', () => {
       marketData: {},
       conversionRates: {},
       participateInMetaMetrics: true,
-      gasFeeEstimates: {
-        estimatedBaseFee: '50',
-        medium: {
-          suggestedMaxPriorityFeePerGas: '75',
-          suggestedMaxFeePerGas: '77',
-        },
-        high: {
-          suggestedMaxPriorityFeePerGas: '100',
-          suggestedMaxFeePerGas: '102',
+      gasFeeEstimatesByChainId: {
+        '0x1': {
+          gasFeeEstimates: {
+            estimatedBaseFee: '50',
+            medium: {
+              suggestedMaxPriorityFeePerGas: '75',
+              suggestedMaxFeePerGas: '77',
+            },
+            high: {
+              suggestedMaxPriorityFeePerGas: '100',
+              suggestedMaxFeePerGas: '102',
+            },
+          },
         },
       },
     } as unknown as BridgeAppState;
@@ -355,55 +360,62 @@ describe('Bridge Selectors', () => {
       },
     };
 
-    const mockState = {
-      quotes: [
-        mockQuote,
-        { ...mockQuote, quote: { ...mockQuote.quote, requestId: '456' } },
-      ],
-      quoteRequest: {
-        srcChainId: '1',
-        destChainId: '137',
-        srcTokenAddress: '0x0000000000000000000000000000000000000000',
-        destTokenAddress: '0x0000000000000000000000000000000000000000',
-        insufficientBal: false,
-      },
-      quotesLastFetched: Date.now(),
-      quotesLoadingStatus: RequestStatus.FETCHED,
-      quoteFetchError: null,
-      quotesRefreshCount: 0,
-      quotesInitialLoadTime: Date.now(),
-      remoteFeatureFlags: {
-        bridgeConfig: {
-          minimumVersion: '0.0.0',
-          maxRefreshCount: 5,
-          refreshRate: 30000,
-          chainRanking: [],
-          chains: {},
-          support: true,
+    const getMockState = (chainId: string): BridgeAppState =>
+      ({
+        quotes: [
+          mockQuote,
+          { ...mockQuote, quote: { ...mockQuote.quote, requestId: '456' } },
+        ],
+        quoteRequest: {
+          srcChainId: '1',
+          destChainId: '137',
+          srcTokenAddress: '0x0000000000000000000000000000000000000000',
+          destTokenAddress: '0x0000000000000000000000000000000000000000',
+          insufficientBal: false,
         },
-      },
-      assetExchangeRates: {},
-      currencyRates: {
-        ETH: {
-          conversionRate: 1800,
-          usdConversionRate: 1800,
+        quotesLastFetched: Date.now(),
+        quotesLoadingStatus: RequestStatus.FETCHED,
+        quoteFetchError: null,
+        quotesRefreshCount: 0,
+        quotesInitialLoadTime: Date.now(),
+        remoteFeatureFlags: {
+          bridgeConfig: {
+            minimumVersion: '0.0.0',
+            maxRefreshCount: 5,
+            refreshRate: 30000,
+            chainRanking: [],
+            chains: {},
+            support: true,
+          },
         },
-      },
-      marketData: {},
-      conversionRates: {},
-      participateInMetaMetrics: true,
-      gasFeeEstimates: {
-        estimatedBaseFee: '0',
-        medium: {
-          suggestedMaxPriorityFeePerGas: '.1',
-          suggestedMaxFeePerGas: '.1',
+        assetExchangeRates: {},
+        currencyRates: {
+          ETH: {
+            conversionRate: 1800,
+            usdConversionRate: 1800,
+          },
         },
-        high: {
-          suggestedMaxPriorityFeePerGas: '.1',
-          suggestedMaxFeePerGas: '.2',
+        marketData: {},
+        conversionRates: {},
+        participateInMetaMetrics: true,
+        gasFeeEstimatesByChainId: {
+          [formatChainIdToHex(chainId)]: {
+            gasFeeEstimates: {
+              estimatedBaseFee: '0',
+              medium: {
+                suggestedMaxPriorityFeePerGas: '.1',
+                suggestedMaxFeePerGas: '.1',
+              },
+              high: {
+                suggestedMaxPriorityFeePerGas: '.1',
+                suggestedMaxFeePerGas: '.2',
+              },
+            },
+          },
         },
-      },
-    } as unknown as BridgeAppState;
+      }) as unknown as BridgeAppState;
+
+    const mockState = getMockState(mockQuote.quote.srcChainId);
 
     const mockClientParams = {
       sortOrder: SortOrder.COST_ASC,
@@ -464,7 +476,7 @@ describe('Bridge Selectors', () => {
           .multipliedBy(10 ** srcAsset.decimals)
           .toFixed(0);
         return {
-          ...mockState,
+          ...getMockState(chainId.toString()),
           quotes: [
             {
               quote: {
@@ -507,7 +519,7 @@ describe('Bridge Selectors', () => {
                 value: isNativeAddress(srcAsset.address)
                   ? toHex(
                       new BigNumber(srcTokenAmount)
-                        .plus(txFee?.amount || '0')
+                        .plus(txFee?.amount ?? '0')
                         .toString(),
                     )
                   : '0x0',
