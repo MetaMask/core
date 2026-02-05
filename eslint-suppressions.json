@@ -562,30 +562,6 @@
       "count": 1
     }
   },
-  "packages/bridge-controller/src/bridge-controller.ts": {
-    "@typescript-eslint/explicit-function-return-type": {
-      "count": 18
-    },
-    "@typescript-eslint/naming-convention": {
-      "count": 4
-    }
-  },
-  "packages/bridge-controller/src/selectors.test.ts": {
-    "@typescript-eslint/prefer-nullish-coalescing": {
-      "count": 1
-    }
-  },
-  "packages/bridge-controller/src/selectors.ts": {
-    "@typescript-eslint/explicit-function-return-type": {
-      "count": 25
-    },
-    "@typescript-eslint/naming-convention": {
-      "count": 1
-    },
-    "no-negated-condition": {
-      "count": 1
-    }
-  },
   "packages/bridge-controller/src/types.ts": {
     "@typescript-eslint/naming-convention": {
       "count": 12
@@ -610,11 +586,6 @@
     },
     "id-denylist": {
       "count": 1
-    }
-  },
-  "packages/bridge-controller/src/utils/caip-formatters.ts": {
-    "@typescript-eslint/explicit-function-return-type": {
-      "count": 2
     }
   },
   "packages/bridge-controller/src/utils/feature-flags.ts": {
@@ -650,19 +621,9 @@
       "count": 1
     }
   },
-  "packages/bridge-controller/src/utils/metrics/constants.ts": {
-    "@typescript-eslint/naming-convention": {
-      "count": 2
-    }
-  },
   "packages/bridge-controller/src/utils/metrics/properties.ts": {
     "@typescript-eslint/explicit-function-return-type": {
       "count": 5
-    }
-  },
-  "packages/bridge-controller/src/utils/metrics/types.ts": {
-    "@typescript-eslint/naming-convention": {
-      "count": 83
     }
   },
   "packages/bridge-controller/src/utils/quote-fees.ts": {
@@ -674,14 +635,6 @@
     },
     "id-length": {
       "count": 2
-    }
-  },
-  "packages/bridge-controller/src/utils/quote.ts": {
-    "@typescript-eslint/explicit-function-return-type": {
-      "count": 15
-    },
-    "@typescript-eslint/prefer-nullish-coalescing": {
-      "count": 4
     }
   },
   "packages/bridge-controller/src/utils/slippage.ts": {
