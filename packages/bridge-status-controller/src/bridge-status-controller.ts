@@ -22,6 +22,7 @@ import {
   isBitcoinTrade,
   isTronTrade,
   AbortReason,
+  PollingStatus,
 } from '@metamask/bridge-controller';
 import type { TraceCallback } from '@metamask/controller-utils';
 import { toHex } from '@metamask/controller-utils';
@@ -390,6 +391,9 @@ export class BridgeStatusController extends StaticIntervalPollingController<Brid
 
     const historyItem = this.state.txHistory[targetTxMetaId];
 
+    // Capture attempts count before resetting for metrics
+    const previousAttempts = historyItem.attempts?.counter ?? 0;
+
     // Reset the attempts counter
     this.update((state) => {
       if (targetTxMetaId) {
@@ -406,6 +410,38 @@ export class BridgeStatusController extends StaticIntervalPollingController<Brid
       if (!existingPollingToken) {
         // Restart polling
         this.#startPollingForTxId(targetTxMetaId);
+
+        // Track polling manually restarted event
+        if (!historyItem.featureId) {
+          const selectedAccount = this.messenger.call(
+            'AccountsController:getAccountByAddress',
+            historyItem.account,
+          );
+          const requestParams = getRequestParamFromHistory(historyItem);
+          const requestMetadata = getRequestMetadataFromHistory(
+            historyItem,
+            selectedAccount,
+          );
+          const { security_warnings: _, ...metadataWithoutWarnings } =
+            requestMetadata;
+
+          this.#trackUnifiedSwapBridgeEvent(
+            UnifiedSwapBridgeEventName.PollingStatusUpdated,
+            targetTxMetaId,
+            {
+              ...getTradeDataFromHistory(historyItem),
+              ...getPriceImpactFromQuote(historyItem.quote),
+              ...metadataWithoutWarnings,
+              chain_id_source: requestParams.chain_id_source,
+              chain_id_destination: requestParams.chain_id_destination,
+              token_symbol_source: requestParams.token_symbol_source,
+              token_symbol_destination: requestParams.token_symbol_destination,
+              action_type: MetricsActionType.SWAPBRIDGE_V1,
+              polling_status: PollingStatus.ManuallyRestarted,
+              retry_attempts: previousAttempts,
+            },
+          );
+        }
       }
     }
   };
@@ -655,6 +691,39 @@ export class BridgeStatusController extends StaticIntervalPollingController<Brid
     if (newAttempts.counter >= MAX_ATTEMPTS && pollingToken) {
       this.stopPollingByPollingToken(pollingToken);
       delete this.#pollingTokensByTxMetaId[bridgeTxMetaId];
+
+      // Track max polling reached event
+      const historyItem = this.state.txHistory[bridgeTxMetaId];
+      if (historyItem && !historyItem.featureId) {
+        const selectedAccount = this.messenger.call(
+          'AccountsController:getAccountByAddress',
+          historyItem.account,
+        );
+        const requestParams = getRequestParamFromHistory(historyItem);
+        const requestMetadata = getRequestMetadataFromHistory(
+          historyItem,
+          selectedAccount,
+        );
+        const { security_warnings: _, ...metadataWithoutWarnings } =
+          requestMetadata;
+
+        this.#trackUnifiedSwapBridgeEvent(
+          UnifiedSwapBridgeEventName.PollingStatusUpdated,
+          bridgeTxMetaId,
+          {
+            ...getTradeDataFromHistory(historyItem),
+            ...getPriceImpactFromQuote(historyItem.quote),
+            ...metadataWithoutWarnings,
+            chain_id_source: requestParams.chain_id_source,
+            chain_id_destination: requestParams.chain_id_destination,
+            token_symbol_source: requestParams.token_symbol_source,
+            token_symbol_destination: requestParams.token_symbol_destination,
+            action_type: MetricsActionType.SWAPBRIDGE_V1,
+            polling_status: PollingStatus.MaxPollingReached,
+            retry_attempts: newAttempts.counter,
+          },
+        );
+      }
     }
 
     // Update the attempts counter
@@ -1712,7 +1781,8 @@ export class BridgeStatusController extends StaticIntervalPollingController<Brid
       | typeof UnifiedSwapBridgeEventName.Submitted
       | typeof UnifiedSwapBridgeEventName.Failed
       | typeof UnifiedSwapBridgeEventName.Completed
-      | typeof UnifiedSwapBridgeEventName.StatusValidationFailed,
+      | typeof UnifiedSwapBridgeEventName.StatusValidationFailed
+      | typeof UnifiedSwapBridgeEventName.PollingStatusUpdated,
   >(
     eventName: EventName,
     txMetaId?: string,

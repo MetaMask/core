@@ -1,3 +1,4 @@
+/* eslint-disable @typescript-eslint/naming-convention */
 import type { CaipAssetType, CaipChainId } from '@metamask/utils';
 
 import type {
@@ -5,6 +6,7 @@ import type {
   MetaMetricsSwapsEventSource,
   MetricsActionType,
   MetricsSwapType,
+  PollingStatus,
 } from './constants';
 import type { SortOrder, StatusTypes } from '../../types';
 
@@ -212,6 +214,20 @@ export type RequiredEventContextFromClient = {
   [UnifiedSwapBridgeEventName.StatusValidationFailed]: {
     failures: string[];
   };
+  [UnifiedSwapBridgeEventName.PollingStatusUpdated]: TradeData &
+    Pick<QuoteFetchData, 'price_impact'> &
+    Omit<RequestMetadata, 'security_warnings'> &
+    Pick<
+      RequestParams,
+      | 'token_symbol_source'
+      | 'token_symbol_destination'
+      | 'chain_id_source'
+      | 'chain_id_destination'
+    > & {
+      action_type: MetricsActionType;
+      polling_status: PollingStatus;
+      retry_attempts: number;
+    };
 };
 
 /**
@@ -268,6 +284,7 @@ export type EventPropertiesFromControllerState = {
   [UnifiedSwapBridgeEventName.StatusValidationFailed]: RequestParams & {
     refresh_count: number;
   };
+  [UnifiedSwapBridgeEventName.PollingStatusUpdated]: null;
 };
 
 /**
