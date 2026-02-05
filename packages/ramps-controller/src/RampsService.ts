@@ -120,9 +120,9 @@ export type PaymentMethod = {
    */
   disclaimer?: string;
   /**
-   * Human-readable delay description (e.g., "5 to 10 minutes.").
+   * Delay in minutes (e.g., [5, 10]).
    */
-  delay?: string;
+  delay?: number[];
   /**
    * Localized pending order description (optional).
    */
