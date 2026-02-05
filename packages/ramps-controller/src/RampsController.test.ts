@@ -4273,23 +4273,20 @@ describe('RampsController', () => {
                   tokenSupported: true,
                 },
               ),
-              providers: createResourceState(
-                [],
-                {
-                  id: '/providers/moonpay',
-                  name: 'MoonPay',
-                  environmentType: 'PRODUCTION',
-                  description: 'MoonPay provider',
-                  hqAddress: '123 Test St',
-                  links: [],
-                  logos: {
-                    light: '/assets/providers/moonpay_light.png',
-                    dark: '/assets/providers/moonpay_dark.png',
-                    height: 24,
-                    width: 77,
-                  },
+              providers: createResourceState([], {
+                id: '/providers/moonpay',
+                name: 'MoonPay',
+                environmentType: 'PRODUCTION',
+                description: 'MoonPay provider',
+                hqAddress: '123 Test St',
+                links: [],
+                logos: {
+                  light: '/assets/providers/moonpay_light.png',
+                  dark: '/assets/providers/moonpay_dark.png',
+                  height: 24,
+                  width: 77,
                 },
-              ),
+              }),
             },
           },
         },
@@ -4340,23 +4337,20 @@ describe('RampsController', () => {
                   tokenSupported: true,
                 },
               ),
-              providers: createResourceState(
-                [],
-                {
-                  id: '/providers/moonpay',
-                  name: 'MoonPay',
-                  environmentType: 'PRODUCTION',
-                  description: 'MoonPay provider',
-                  hqAddress: '123 Test St',
-                  links: [],
-                  logos: {
-                    light: '/assets/providers/moonpay_light.png',
-                    dark: '/assets/providers/moonpay_dark.png',
-                    height: 24,
-                    width: 77,
-                  },
+              providers: createResourceState([], {
+                id: '/providers/moonpay',
+                name: 'MoonPay',
+                environmentType: 'PRODUCTION',
+                description: 'MoonPay provider',
+                hqAddress: '123 Test St',
+                links: [],
+                logos: {
+                  light: '/assets/providers/moonpay_light.png',
+                  dark: '/assets/providers/moonpay_dark.png',
+                  height: 24,
+                  width: 77,
                 },
-              ),
+              }),
               paymentMethods: createResourceState(
                 [
                   {
@@ -4458,23 +4452,20 @@ describe('RampsController', () => {
                   tokenSupported: true,
                 },
               ),
-              providers: createResourceState(
-                [],
-                {
-                  id: '/providers/moonpay',
-                  name: 'MoonPay',
-                  environmentType: 'PRODUCTION',
-                  description: 'MoonPay provider',
-                  hqAddress: '123 Test St',
-                  links: [],
-                  logos: {
-                    light: '/assets/providers/moonpay_light.png',
-                    dark: '/assets/providers/moonpay_dark.png',
-                    height: 24,
-                    width: 77,
-                  },
+              providers: createResourceState([], {
+                id: '/providers/moonpay',
+                name: 'MoonPay',
+                environmentType: 'PRODUCTION',
+                description: 'MoonPay provider',
+                hqAddress: '123 Test St',
+                links: [],
+                logos: {
+                  light: '/assets/providers/moonpay_light.png',
+                  dark: '/assets/providers/moonpay_dark.png',
+                  height: 24,
+                  width: 77,
                 },
-              ),
+              }),
               paymentMethods: createResourceState(
                 [
                   {
@@ -4555,23 +4546,20 @@ describe('RampsController', () => {
                   tokenSupported: true,
                 },
               ),
-              providers: createResourceState(
-                [],
-                {
-                  id: '/providers/moonpay',
-                  name: 'MoonPay',
-                  environmentType: 'PRODUCTION',
-                  description: 'MoonPay provider',
-                  hqAddress: '123 Test St',
-                  links: [],
-                  logos: {
-                    light: '/assets/providers/moonpay_light.png',
-                    dark: '/assets/providers/moonpay_dark.png',
-                    height: 24,
-                    width: 77,
-                  },
+              providers: createResourceState([], {
+                id: '/providers/moonpay',
+                name: 'MoonPay',
+                environmentType: 'PRODUCTION',
+                description: 'MoonPay provider',
+                hqAddress: '123 Test St',
+                links: [],
+                logos: {
+                  light: '/assets/providers/moonpay_light.png',
+                  dark: '/assets/providers/moonpay_dark.png',
+                  height: 24,
+                  width: 77,
                 },
-              ),
+              }),
               paymentMethods: createResourceState(
                 [
                   {
@@ -4672,23 +4660,20 @@ describe('RampsController', () => {
                   tokenSupported: true,
                 },
               ),
-              providers: createResourceState(
-                [],
-                {
-                  id: '/providers/moonpay',
-                  name: 'MoonPay',
-                  environmentType: 'PRODUCTION',
-                  description: 'MoonPay provider',
-                  hqAddress: '123 Test St',
-                  links: [],
-                  logos: {
-                    light: '/assets/providers/moonpay_light.png',
-                    dark: '/assets/providers/moonpay_dark.png',
-                    height: 24,
-                    width: 77,
-                  },
+              providers: createResourceState([], {
+                id: '/providers/moonpay',
+                name: 'MoonPay',
+                environmentType: 'PRODUCTION',
+                description: 'MoonPay provider',
+                hqAddress: '123 Test St',
+                links: [],
+                logos: {
+                  light: '/assets/providers/moonpay_light.png',
+                  dark: '/assets/providers/moonpay_dark.png',
+                  height: 24,
+                  width: 77,
                 },
-              ),
+              }),
               paymentMethods: createResourceState(
                 [
                   {
@@ -4795,23 +4780,20 @@ describe('RampsController', () => {
                   tokenSupported: true,
                 },
               ),
-              providers: createResourceState(
-                [],
-                {
-                  id: '/providers/moonpay',
-                  name: 'MoonPay',
-                  environmentType: 'PRODUCTION',
-                  description: 'MoonPay provider',
-                  hqAddress: '123 Test St',
-                  links: [],
-                  logos: {
-                    light: '/assets/providers/moonpay_light.png',
-                    dark: '/assets/providers/moonpay_dark.png',
-                    height: 24,
-                    width: 77,
-                  },
+              providers: createResourceState([], {
+                id: '/providers/moonpay',
+                name: 'MoonPay',
+                environmentType: 'PRODUCTION',
+                description: 'MoonPay provider',
+                hqAddress: '123 Test St',
+                links: [],
+                logos: {
+                  light: '/assets/providers/moonpay_light.png',
+                  dark: '/assets/providers/moonpay_dark.png',
+                  height: 24,
+                  width: 77,
                 },
-              ),
+              }),
               paymentMethods: createResourceState(
                 [
                   {
@@ -4908,23 +4890,20 @@ describe('RampsController', () => {
                   tokenSupported: true,
                 },
               ),
-              providers: createResourceState(
-                [],
-                {
-                  id: '/providers/moonpay',
-                  name: 'MoonPay',
-                  environmentType: 'PRODUCTION',
-                  description: 'MoonPay provider',
-                  hqAddress: '123 Test St',
-                  links: [],
-                  logos: {
-                    light: '/assets/providers/moonpay_light.png',
-                    dark: '/assets/providers/moonpay_dark.png',
-                    height: 24,
-                    width: 77,
-                  },
+              providers: createResourceState([], {
+                id: '/providers/moonpay',
+                name: 'MoonPay',
+                environmentType: 'PRODUCTION',
+                description: 'MoonPay provider',
+                hqAddress: '123 Test St',
+                links: [],
+                logos: {
+                  light: '/assets/providers/moonpay_light.png',
+                  dark: '/assets/providers/moonpay_dark.png',
+                  height: 24,
+                  width: 77,
                 },
-              ),
+              }),
               paymentMethods: createResourceState(
                 [
                   {
@@ -5020,23 +4999,20 @@ describe('RampsController', () => {
                   tokenSupported: true,
                 },
               ),
-              providers: createResourceState(
-                [],
-                {
-                  id: '/providers/moonpay',
-                  name: 'MoonPay',
-                  environmentType: 'PRODUCTION',
-                  description: 'MoonPay provider',
-                  hqAddress: '123 Test St',
-                  links: [],
-                  logos: {
-                    light: '/assets/providers/moonpay_light.png',
-                    dark: '/assets/providers/moonpay_dark.png',
-                    height: 24,
-                    width: 77,
-                  },
+              providers: createResourceState([], {
+                id: '/providers/moonpay',
+                name: 'MoonPay',
+                environmentType: 'PRODUCTION',
+                description: 'MoonPay provider',
+                hqAddress: '123 Test St',
+                links: [],
+                logos: {
+                  light: '/assets/providers/moonpay_light.png',
+                  dark: '/assets/providers/moonpay_dark.png',
+                  height: 24,
+                  width: 77,
                 },
-              ),
+              }),
               paymentMethods: createResourceState(
                 [
                   {
@@ -5124,23 +5100,20 @@ describe('RampsController', () => {
                   tokenSupported: true,
                 },
               ),
-              providers: createResourceState(
-                [],
-                {
-                  id: '/providers/moonpay',
-                  name: 'MoonPay',
-                  environmentType: 'PRODUCTION',
-                  description: 'MoonPay provider',
-                  hqAddress: '123 Test St',
-                  links: [],
-                  logos: {
-                    light: '/assets/providers/moonpay_light.png',
-                    dark: '/assets/providers/moonpay_dark.png',
-                    height: 24,
-                    width: 77,
-                  },
+              providers: createResourceState([], {
+                id: '/providers/moonpay',
+                name: 'MoonPay',
+                environmentType: 'PRODUCTION',
+                description: 'MoonPay provider',
+                hqAddress: '123 Test St',
+                links: [],
+                logos: {
+                  light: '/assets/providers/moonpay_light.png',
+                  dark: '/assets/providers/moonpay_dark.png',
+                  height: 24,
+                  width: 77,
                 },
-              ),
+              }),
               paymentMethods: createResourceState(
                 [
                   {
@@ -5221,23 +5194,20 @@ describe('RampsController', () => {
                   tokenSupported: true,
                 },
               ),
-              providers: createResourceState(
-                [],
-                {
-                  id: '/providers/moonpay',
-                  name: 'MoonPay',
-                  environmentType: 'PRODUCTION',
-                  description: 'MoonPay provider',
-                  hqAddress: '123 Test St',
-                  links: [],
-                  logos: {
-                    light: '/assets/providers/moonpay_light.png',
-                    dark: '/assets/providers/moonpay_dark.png',
-                    height: 24,
-                    width: 77,
-                  },
+              providers: createResourceState([], {
+                id: '/providers/moonpay',
+                name: 'MoonPay',
+                environmentType: 'PRODUCTION',
+                description: 'MoonPay provider',
+                hqAddress: '123 Test St',
+                links: [],
+                logos: {
+                  light: '/assets/providers/moonpay_light.png',
+                  dark: '/assets/providers/moonpay_dark.png',
+                  height: 24,
+                  width: 77,
                 },
-              ),
+              }),
               paymentMethods: createResourceState(
                 [
                   {
@@ -5328,23 +5298,20 @@ describe('RampsController', () => {
                   tokenSupported: true,
                 },
               ),
-              providers: createResourceState(
-                [],
-                {
-                  id: '/providers/moonpay',
-                  name: 'MoonPay',
-                  environmentType: 'PRODUCTION',
-                  description: 'MoonPay provider',
-                  hqAddress: '123 Test St',
-                  links: [],
-                  logos: {
-                    light: '/assets/providers/moonpay_light.png',
-                    dark: '/assets/providers/moonpay_dark.png',
-                    height: 24,
-                    width: 77,
-                  },
+              providers: createResourceState([], {
+                id: '/providers/moonpay',
+                name: 'MoonPay',
+                environmentType: 'PRODUCTION',
+                description: 'MoonPay provider',
+                hqAddress: '123 Test St',
+                links: [],
+                logos: {
+                  light: '/assets/providers/moonpay_light.png',
+                  dark: '/assets/providers/moonpay_dark.png',
+                  height: 24,
+                  width: 77,
                 },
-              ),
+              }),
               paymentMethods: createResourceState(
                 [
                   {
@@ -5488,23 +5455,20 @@ describe('RampsController', () => {
                   tokenSupported: true,
                 },
               ),
-              providers: createResourceState(
-                [],
-                {
-                  id: '/providers/moonpay',
-                  name: 'MoonPay',
-                  environmentType: 'PRODUCTION',
-                  description: 'MoonPay provider',
-                  hqAddress: '123 Test St',
-                  links: [],
-                  logos: {
-                    light: '/assets/providers/moonpay_light.png',
-                    dark: '/assets/providers/moonpay_dark.png',
-                    height: 24,
-                    width: 77,
-                  },
+              providers: createResourceState([], {
+                id: '/providers/moonpay',
+                name: 'MoonPay',
+                environmentType: 'PRODUCTION',
+                description: 'MoonPay provider',
+                hqAddress: '123 Test St',
+                links: [],
+                logos: {
+                  light: '/assets/providers/moonpay_light.png',
+                  dark: '/assets/providers/moonpay_dark.png',
+                  height: 24,
+                  width: 77,
                 },
-              ),
+              }),
               paymentMethods: createResourceState(
                 [
                   {
@@ -5616,23 +5580,20 @@ describe('RampsController', () => {
                   tokenSupported: true,
                 },
               ),
-              providers: createResourceState(
-                [],
-                {
-                  id: '/providers/moonpay',
-                  name: 'MoonPay',
-                  environmentType: 'PRODUCTION',
-                  description: 'MoonPay provider',
-                  hqAddress: '123 Test St',
-                  links: [],
-                  logos: {
-                    light: '/assets/providers/moonpay_light.png',
-                    dark: '/assets/providers/moonpay_dark.png',
-                    height: 24,
-                    width: 77,
-                  },
+              providers: createResourceState([], {
+                id: '/providers/moonpay',
+                name: 'MoonPay',
+                environmentType: 'PRODUCTION',
+                description: 'MoonPay provider',
+                hqAddress: '123 Test St',
+                links: [],
+                logos: {
+                  light: '/assets/providers/moonpay_light.png',
+                  dark: '/assets/providers/moonpay_dark.png',
+                  height: 24,
+                  width: 77,
                 },
-              ),
+              }),
               paymentMethods: createResourceState(
                 [
                   {
