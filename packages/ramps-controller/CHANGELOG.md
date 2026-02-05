@@ -11,6 +11,10 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 - Add automatic quote polling with `startQuotePolling()`, `stopQuotePolling()`, and `setSelectedQuote()` methods, with auto-selection when a single quote is returned ([#7824](https://github.com/MetaMask/core/pull/7824))
 
+### Changed
+
+- **BREAKING:** Require provider selection for quote polling and update quotes API endpoint to `/v2/quotes` ([#7846](https://github.com/MetaMask/core/pull/7846))
+
 ## [6.0.0]
 
 ### Changed

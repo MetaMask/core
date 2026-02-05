@@ -1497,7 +1497,7 @@ export class RampsController extends BaseController<
    * @param options.walletAddress - The destination wallet address.
    * @param options.amount - The amount (in fiat for buy, crypto for sell).
    * @param options.redirectUrl - Optional redirect URL after order completion.
-   * @throws If required dependencies (region, token, payment method) are not set.
+   * @throws If required dependencies (region, token, provider, payment method) are not set.
    */
   startQuotePolling(options: {
     walletAddress: string;
@@ -1507,6 +1507,7 @@ export class RampsController extends BaseController<
     // Validate required dependencies
     const regionCode = this.state.userRegion?.regionCode;
     const token = this.state.tokens.selected;
+    const provider = this.state.providers.selected;
     const paymentMethod = this.state.paymentMethods.selected;
 
     if (!regionCode) {
@@ -1518,6 +1519,12 @@ export class RampsController extends BaseController<
     if (!token) {
       throw new Error(
         'Token is required. Cannot start quote polling without a selected token.',
+      );
+    }
+
+    if (!provider) {
+      throw new Error(
+        'Provider is required. Cannot start quote polling without a selected provider.',
       );
     }
 
@@ -1542,6 +1549,7 @@ export class RampsController extends BaseController<
           walletAddress: options.walletAddress,
           redirectUrl: options.redirectUrl,
           paymentMethods: [paymentMethod.id],
+          provider: provider.id,
           forceRefresh: true,
         }).then((response) => {
           // Auto-select logic: only when exactly one quote is returned
