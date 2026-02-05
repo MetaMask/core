@@ -7,6 +7,10 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+### Fixed
+
+- Preserve `data.cause` in RPC errors when using JsonRpcEngine compatibility tools ([#7838](https://github.com/MetaMask/core/pull/7838))
+
 ## [10.2.1]
 
 ### Changed
