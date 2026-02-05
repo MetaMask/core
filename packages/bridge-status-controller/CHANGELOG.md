@@ -19,7 +19,6 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 ### Fixed
 
 - Fix Tron same-chain swap polling and Completed event tracking ([#7697](https://github.com/MetaMask/core/pull/7697))
-- Fix: add changelog entry for breaking intent tx history change ([#7843](https://github.com/MetaMask/core/pull/7843))
 
 ## [65.0.1]
 
