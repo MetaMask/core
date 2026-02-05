@@ -11,7 +11,6 @@ export type {
   AccountsControllerGetSelectedAccountAction,
   AccountsControllerGetSelectedMultichainAccountAction,
   AccountsControllerGetAccountByAddressAction,
-  AccountsControllerGetNextAvailableAccountNameAction,
   AccountsControllerGetAccountAction,
   AccountsControllerGetAccountsAction,
   AccountsControllerUpdateAccountMetadataAction,

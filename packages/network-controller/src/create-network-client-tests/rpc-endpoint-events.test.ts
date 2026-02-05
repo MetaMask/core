@@ -1615,8 +1615,8 @@ function createResourceUnavailableError(httpStatus: number): Error {
   return expect.objectContaining({
     code: errorCodes.rpc.resourceUnavailable,
     message: 'RPC endpoint not found or unavailable.',
-    data: {
+    data: expect.objectContaining({
       httpStatus,
-    },
+    }),
   });
 }

@@ -1,6 +1,5 @@
+import { Interface } from '@ethersproject/abi';
 import type { Hex } from '@metamask/utils';
-import type { Abi } from 'viem';
-import { decodeFunctionResult, encodeFunctionData } from 'viem';
 
 import type {
   Address,
@@ -55,7 +54,7 @@ const MULTICALL3_ABI = [
     inputs: [{ name: 'addr', type: 'address' }],
     outputs: [{ name: 'balance', type: 'uint256' }],
   },
-] as const satisfies Abi;
+];
 
 /**
  * ERC-20 ABI (subset for balanceOf).
@@ -68,7 +67,13 @@ const ERC20_ABI = [
     inputs: [{ name: 'account', type: 'address' }],
     outputs: [{ name: 'balance', type: 'uint256' }],
   },
-] as const satisfies Abi;
+];
+
+/**
+ * Interface instances for ABI encoding/decoding.
+ */
+const multicall3Interface = new Interface(MULTICALL3_ABI);
+const erc20Interface = new Interface(ERC20_ABI);
 
 // =============================================================================
 // CONSTANTS
@@ -363,7 +368,7 @@ const MULTICALL3_ADDRESS_BY_CHAIN: Record<Hex, Hex> = {
 };
 
 // =============================================================================
-// ENCODING/DECODING UTILITIES (using viem)
+// ENCODING/DECODING UTILITIES (using @ethersproject/abi)
 // =============================================================================
 
 /**
@@ -373,11 +378,9 @@ const MULTICALL3_ADDRESS_BY_CHAIN: Record<Hex, Hex> = {
  * @returns The encoded call data.
  */
 function encodeBalanceOf(accountAddress: Address): Hex {
-  return encodeFunctionData({
-    abi: ERC20_ABI,
-    functionName: 'balanceOf',
-    args: [accountAddress],
-  });
+  return erc20Interface.encodeFunctionData('balanceOf', [
+    accountAddress,
+  ]) as Hex;
 }
 
 /**
@@ -387,11 +390,9 @@ function encodeBalanceOf(accountAddress: Address): Hex {
  * @returns The encoded call data.
  */
 function encodeGetEthBalance(accountAddress: Address): Hex {
-  return encodeFunctionData({
-    abi: MULTICALL3_ABI,
-    functionName: 'getEthBalance',
-    args: [accountAddress],
-  });
+  return multicall3Interface.encodeFunctionData('getEthBalance', [
+    accountAddress,
+  ]) as Hex;
 }
 
 /**
@@ -403,17 +404,13 @@ function encodeGetEthBalance(accountAddress: Address): Hex {
 export function encodeAggregate3(
   calls: readonly { target: Address; allowFailure: boolean; callData: Hex }[],
 ): Hex {
-  return encodeFunctionData({
-    abi: MULTICALL3_ABI,
-    functionName: 'aggregate3',
-    args: [
-      calls.map((call) => ({
-        target: call.target,
-        allowFailure: call.allowFailure,
-        callData: call.callData,
-      })),
-    ],
-  });
+  return multicall3Interface.encodeFunctionData('aggregate3', [
+    calls.map((call) => ({
+      target: call.target,
+      allowFailure: call.allowFailure,
+      callData: call.callData,
+    })),
+  ]) as Hex;
 }
 
 /**
@@ -428,16 +425,12 @@ export function decodeAggregate3Response(
   data: Hex,
   callCount: number,
 ): { success: boolean; returnData: Hex }[] {
-  const decoded = decodeFunctionResult({
-    abi: MULTICALL3_ABI,
-    functionName: 'aggregate3',
-    data,
-  });
+  const decoded = multicall3Interface.decodeFunctionResult('aggregate3', data);
 
-  // decoded is an array of { success: boolean, returnData: `0x${string}` }
-  const results = decoded as readonly {
+  // decoded[0] is the array of (success, returnData) tuples
+  const results = decoded[0] as readonly {
     success: boolean;
-    returnData: Hex;
+    returnData: string;
   }[];
 
   if (results.length !== callCount) {
@@ -446,7 +439,7 @@ export function decodeAggregate3Response(
 
   return results.map((result) => ({
     success: result.success,
-    returnData: result.returnData,
+    returnData: result.returnData as Hex,
   }));
 }
 
@@ -457,13 +450,12 @@ export function decodeAggregate3Response(
  * @returns The decoded balance as a string.
  */
 function decodeUint256(data: Hex): string {
-  const hexData = data.slice(2);
-  if (hexData.length === 0) {
+  if (data === '0x' || data.length < 66) {
+    // Empty or invalid data; treat as 0
     return '0';
   }
-  // Take first 64 chars (32 bytes) for uint256
-  const normalizedHex = hexData.length > 64 ? hexData.slice(0, 64) : hexData;
-  return BigInt(`0x${normalizedHex}`).toString();
+  const decoded = erc20Interface.decodeFunctionResult('balanceOf', data);
+  return decoded[0].toString();
 }
 
 // =============================================================================
