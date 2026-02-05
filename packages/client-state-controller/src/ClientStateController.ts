@@ -81,17 +81,15 @@ type AllowedActions = never;
 /**
  * Published when the state of {@link ClientStateController} changes.
  */
-export type ClientStateControllerStateChangeEvent =
-  ControllerStateChangeEvent<
-    typeof controllerName,
-    ClientStateControllerState
-  >;
+export type ClientStateControllerStateChangeEvent = ControllerStateChangeEvent<
+  typeof controllerName,
+  ClientStateControllerState
+>;
 
 /**
  * Events that {@link ClientStateController} exposes.
  */
-export type ClientStateControllerEvents =
-  ClientStateControllerStateChangeEvent;
+export type ClientStateControllerEvents = ClientStateControllerStateChangeEvent;
 
 /**
  * Events from other messengers that {@link ClientStateController} subscribes to.
@@ -188,7 +186,7 @@ export class ClientStateController extends BaseController<
 
     // Register the setClientOpen action
     this.messenger.registerActionHandler(
-      `${controllerName}:setClientOpen`,
+      `ClientStateController:setClientOpen`,
       this.setClientOpen.bind(this),
     );
   }
@@ -209,27 +207,4 @@ export class ClientStateController extends BaseController<
       });
     }
   }
-
-  /**
-   * Returns whether the client is currently open.
-   *
-   * @returns True if the client is open.
-   */
-  get isClientOpen(): boolean {
-    return this.state.isClientOpen;
-  }
-}
-
-// === SELECTORS ===
-
-/**
- * Selects whether the client is currently open.
- *
- * @param state - The ClientStateController state.
- * @returns True if the client is open.
- */
-export function selectIsClientOpen(
-  state: ClientStateControllerState,
-): boolean {
-  return state.isClientOpen;
 }

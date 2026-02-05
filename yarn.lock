@@ -2485,24 +2485,6 @@ __metadata:
   languageName: unknown
   linkType: soft
 
-"@metamask/client-state-controller@workspace:packages/client-state-controller":
-  version: 0.0.0-use.local
-  resolution: "@metamask/client-state-controller@workspace:packages/client-state-controller"
-  dependencies:
-    "@metamask/auto-changelog": "npm:^3.4.4"
-    "@metamask/base-controller": "npm:^9.0.0"
-    "@metamask/messenger": "npm:^0.3.0"
-    "@ts-bridge/cli": "npm:^0.6.4"
-    "@types/jest": "npm:^27.5.2"
-    deepmerge: "npm:^4.2.2"
-    jest: "npm:^27.5.1"
-    ts-jest: "npm:^27.1.5"
-    typedoc: "npm:^0.24.8"
-    typedoc-plugin-missing-exports: "npm:^2.0.0"
-    typescript: "npm:~5.3.3"
-  languageName: unknown
-  linkType: soft
-
 "@metamask/approval-controller@npm:^8.0.0, @metamask/approval-controller@workspace:packages/approval-controller":
   version: 0.0.0-use.local
   resolution: "@metamask/approval-controller@workspace:packages/approval-controller"
@@ -2872,6 +2854,24 @@ __metadata:
     jest: "npm:^29.7.0"
     ts-jest: "npm:^29.2.5"
     typedoc: "npm:^0.25.13"
+    typedoc-plugin-missing-exports: "npm:^2.0.0"
+    typescript: "npm:~5.3.3"
+  languageName: unknown
+  linkType: soft
+
+"@metamask/client-state-controller@workspace:packages/client-state-controller":
+  version: 0.0.0-use.local
+  resolution: "@metamask/client-state-controller@workspace:packages/client-state-controller"
+  dependencies:
+    "@metamask/auto-changelog": "npm:^3.4.4"
+    "@metamask/base-controller": "npm:^9.0.0"
+    "@metamask/messenger": "npm:^0.3.0"
+    "@ts-bridge/cli": "npm:^0.6.4"
+    "@types/jest": "npm:^27.5.2"
+    deepmerge: "npm:^4.2.2"
+    jest: "npm:^27.5.1"
+    ts-jest: "npm:^27.1.5"
+    typedoc: "npm:^0.24.8"
     typedoc-plugin-missing-exports: "npm:^2.0.0"
     typescript: "npm:~5.3.3"
   languageName: unknown
