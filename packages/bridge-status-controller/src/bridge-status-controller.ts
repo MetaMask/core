@@ -22,6 +22,7 @@ import {
   isBitcoinTrade,
   isTronTrade,
   AbortReason,
+  FeatureId,
 } from '@metamask/bridge-controller';
 import type { TraceCallback } from '@metamask/controller-utils';
 import { toHex } from '@metamask/controller-utils';
@@ -81,10 +82,12 @@ import {
 import {
   findAndUpdateTransactionsInBatch,
   getAddTransactionBatchParams,
+  getApprovalTransactionType,
   getClientRequest,
   getHistoryKey,
   getIntentFromQuote,
   getStatusRequestParams,
+  getTransactionType,
   handleApprovalDelay,
   handleMobileHardwareWalletDelay,
   handleNonEvmTxResponse,
@@ -231,6 +234,7 @@ export class BridgeStatusController extends StaticIntervalPollingController<Brid
         if (
           type &&
           [
+            // TODO: Handle all cases here.
             TransactionType.bridge,
             TransactionType.swap,
             TransactionType.bridgeApproval,
@@ -992,15 +996,18 @@ export class BridgeStatusController extends StaticIntervalPollingController<Brid
     approval?: TxData,
     resetApproval?: TxData,
     requireApproval?: boolean,
+    featureId?: FeatureId,
   ): Promise<TransactionMeta | undefined> => {
     if (approval) {
       const approveTx = async (): Promise<TransactionMeta> => {
-        await this.#handleUSDTAllowanceReset(resetApproval);
+        await this.#handleUSDTAllowanceReset(
+          resetApproval,
+          isBridgeTx,
+          featureId,
+        );
 
         const approvalTxMeta = await this.#handleEvmTransaction({
-          transactionType: isBridgeTx
-            ? TransactionType.bridgeApproval
-            : TransactionType.swapApproval,
+          transactionType: getApprovalTransactionType(isBridgeTx, featureId),
           trade: approval,
           requireApproval,
         });
@@ -1112,10 +1119,15 @@ export class BridgeStatusController extends StaticIntervalPollingController<Brid
 
   readonly #handleUSDTAllowanceReset = async (
     resetApproval?: TxData,
+    isBridgeTx?: boolean,
+    featureId?: FeatureId,
   ): Promise<void> => {
     if (resetApproval) {
       await this.#handleEvmTransaction({
-        transactionType: TransactionType.bridgeApproval,
+        transactionType: getApprovalTransactionType(
+          isBridgeTx ?? true,
+          featureId,
+        ),
         trade: resetApproval,
       });
     }
@@ -1412,6 +1424,7 @@ export class BridgeStatusController extends StaticIntervalPollingController<Brid
               : undefined,
             quoteResponse.resetApproval,
             requireApproval,
+            quoteResponse.featureId,
           );
 
           approvalTxId = approvalTxMeta?.id;
@@ -1442,9 +1455,10 @@ export class BridgeStatusController extends StaticIntervalPollingController<Brid
           // Pass txFee when gasIncluded is true to use the quote's gas fees
           // instead of re-estimating (which would fail for max native token swaps)
           const tradeTxMeta = await this.#handleEvmTransaction({
-            transactionType: isBridgeTx
-              ? TransactionType.bridge
-              : TransactionType.swap,
+            transactionType: getTransactionType(
+              isBridgeTx,
+              quoteResponse.featureId,
+            ),
             trade: quoteResponse.trade,
             requireApproval,
             txFee: quoteResponse.quote.gasIncluded
@@ -1557,6 +1571,7 @@ export class BridgeStatusController extends StaticIntervalPollingController<Brid
             : undefined,
           quoteResponse.resetApproval,
           /* requireApproval */ false,
+          quoteResponse.featureId,
         );
         approvalTxId = approvalTxMeta?.id;
 

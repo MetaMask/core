@@ -224,6 +224,10 @@ export type QuoteRequest<
    * The fee that will be charged by MetaMask
    */
   fee?: number;
+  /**
+   * Optional feature ID for feature-specific quote overrides and transaction types
+   */
+  featureId?: FeatureId;
 };
 
 export enum StatusTypes {

@@ -31,6 +31,8 @@ export enum FeeType {
 
 export enum FeatureId {
   PERPS = 'perps',
+  PREDICT = 'predict',
+  CARD = 'card',
 }
 
 export enum ActionTypes {
