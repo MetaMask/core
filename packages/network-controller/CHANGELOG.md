@@ -7,6 +7,11 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+### Uncategorized
+
+- fix: Preserve `data.cause` when deserializing ([#7838](https://github.com/MetaMask/core/pull/7838))
+- chore: upgrade Jest-related packages to latest 27.x versions ([#7792](https://github.com/MetaMask/core/pull/7792))
+
 ### Changed
 
 - Bump `@metamask/eth-json-rpc-middleware` from `^23.0.0` to `^23.1.0` ([#7810](https://github.com/MetaMask/core/pull/7810))
