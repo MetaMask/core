@@ -7,6 +7,12 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+### Uncategorized
+
+- fix: add changelog entry for breaking intent tx history change ([#7843](https://github.com/MetaMask/core/pull/7843))
+- refactor: handle intent orders in fetch bridge tx function ([#7756](https://github.com/MetaMask/core/pull/7756))
+- chore: upgrade Jest-related packages to latest 27.x versions ([#7792](https://github.com/MetaMask/core/pull/7792))
+
 ### Changed
 
 - **BREAKING** Re-key intent history items and extract intent code into a new IntentManager class
