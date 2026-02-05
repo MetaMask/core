@@ -74,7 +74,7 @@
     "@metamask/phishing-controller": "^16.1.0",
     "@metamask/polling-controller": "^16.0.2",
     "@metamask/preferences-controller": "^22.1.0",
-    "@metamask/profile-sync-controller": "^27.0.0",
+    "@metamask/profile-sync-controller": "^27.1.0",
     "@metamask/rpc-errors": "^7.0.2",
     "@metamask/snaps-controllers": "^17.2.0",
     "@metamask/snaps-sdk": "^10.3.0",
