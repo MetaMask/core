@@ -7,6 +7,17 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+### Added
+
+- Update payment method delay type to match API response structure ([#7845](https://github.com/MetaMask/core/pull/7845))
+- Add automatic quote polling with `startQuotePolling()`, `stopQuotePolling()`, and `setSelectedQuote()` methods, with auto-selection when a single quote is returned ([#7824](https://github.com/MetaMask/core/pull/7824))
+
+### Changed
+
+- **BREAKING:** Require provider selection for quote polling and update quotes API endpoint to `/v2/quotes` ([#7846](https://github.com/MetaMask/core/pull/7846))
+
+## [6.0.0]
+
 ### Changed
 
 - Refactor: Consolidate reset logic with a shared resetResource helper and fix abort handling for dependent resources ([#7818](https://github.com/MetaMask/core/pull/7818))
@@ -45,14 +56,12 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 ### Added
 
 - Add sync trigger methods to RampsController ([#7662](https://github.com/MetaMask/core/pull/7662))
-
 - Export `RampAction` type for `'buy' | 'sell'` ramp actions ([#7663](https://github.com/MetaMask/core/pull/7663))
 - Add payment methods support with `getPaymentMethods()` method, `paymentMethods` and `selectedPaymentMethod` state ([#7665](https://github.com/MetaMask/core/pull/7665))
 
 ### Changed
 
 - Evict expired cache entries based on TTL in addition to size-based eviction ([#7674](https://github.com/MetaMask/core/pull/7674))
-
 - Update `getTokens()` to use v2 API endpoint and support optional provider parameter ([#7664](https://github.com/MetaMask/core/pull/7664))
 
 ## [4.0.0]
@@ -60,19 +69,14 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 ### Added
 
 - Add `preferredProvider` state and `setPreferredProvider()` method to RampsController ([#7617](https://github.com/MetaMask/core/pull/7617))
-
 - Export `UserRegion` type ([#7646](https://github.com/MetaMask/core/pull/7646))
-
 - Add `defaultAmount` and `quickAmounts` fields to the `Country` type ([#7645](https://github.com/MetaMask/core/pull/7645))
-
 - Add `providers` state and `getProviders()` method to RampsController. Providers are automatically fetched on init and when the region changes ([#7652](https://github.com/MetaMask/core/pull/7652))
 
 ### Changed
 
 - **BREAKING:** Change `userRegion` from `string | null` to `UserRegion | null`. Access region code via `userRegion.regionCode`. ([#7646](https://github.com/MetaMask/core/pull/7646))
-
 - Update `getCountries()` endpoint to use v2 API (`v2/regions/countries`) ([#7645](https://github.com/MetaMask/core/pull/7645))
-
 - Add `getApiPath()` helper function for versioned API paths with v2 default ([#7645](https://github.com/MetaMask/core/pull/7645))
 
 ### Removed
@@ -88,7 +92,6 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 ### Changed
 
 - **BREAKING:** Rename `geolocation` to `userRegion` and `updateGeolocation()` to `updateUserRegion()` in RampsController ([#7563](https://github.com/MetaMask/core/pull/7563))
-
 - Bump `@metamask/controller-utils` from `^11.17.0` to `^11.18.0` ([#7583](https://github.com/MetaMask/core/pull/7583))
 
 ## [2.1.0]
@@ -96,11 +99,8 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 ### Added
 
 - Add eligibility state ([#7539](https://github.com/MetaMask/core/pull/7539))
-
 - Add `createRequestSelector` utility function for creating memoized selectors for RampsController request states ([#7554](https://github.com/MetaMask/core/pull/7554))
-
 - Add request caching infrastructure with TTL, deduplication, and abort support ([#7536](https://github.com/MetaMask/core/pull/7536))
-
 - Add `init()` and `setUserRegion()` methods to RampsController ([#7563](https://github.com/MetaMask/core/pull/7563))
 
 ### Changed
@@ -127,7 +127,8 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
   - Add `OnRampService` for interacting with the OnRamp API
   - Add geolocation detection via IP address lookup
 
-[Unreleased]: https://github.com/MetaMask/core/compare/@metamask/ramps-controller@5.1.0...HEAD
+[Unreleased]: https://github.com/MetaMask/core/compare/@metamask/ramps-controller@6.0.0...HEAD
+[6.0.0]: https://github.com/MetaMask/core/compare/@metamask/ramps-controller@5.1.0...@metamask/ramps-controller@6.0.0
 [5.1.0]: https://github.com/MetaMask/core/compare/@metamask/ramps-controller@5.0.0...@metamask/ramps-controller@5.1.0
 [5.0.0]: https://github.com/MetaMask/core/compare/@metamask/ramps-controller@4.1.0...@metamask/ramps-controller@5.0.0
 [4.1.0]: https://github.com/MetaMask/core/compare/@metamask/ramps-controller@4.0.0...@metamask/ramps-controller@4.1.0

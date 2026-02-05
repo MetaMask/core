@@ -19,7 +19,6 @@ import type {
   NetworkEnablementControllerEvents,
   NetworkEnablementControllerState,
 } from '@metamask/network-enablement-controller';
-import type { Json } from '@metamask/utils';
 import { parseCaipAssetType } from '@metamask/utils';
 import { Mutex } from 'async-mutex';
 import BigNumberJS from 'bignumber.js';
@@ -39,6 +38,7 @@ import { projectLogger, createModuleLogger } from './logger';
 import type { DetectionMiddlewareGetAssetsMiddlewareAction } from './middlewares/DetectionMiddleware';
 import type {
   AccountId,
+  AssetPreferences,
   ChainId,
   Caip19AssetId,
   AssetMetadata,
@@ -75,27 +75,28 @@ const log = createModuleLogger(projectLogger, CONTROLLER_NAME);
 /**
  * State structure for AssetsController.
  *
- * All values are JSON-serializable. The type is widened to satisfy
- * StateConstraint from BaseController, but the actual runtime values
- * conform to AssetMetadata, AssetPrice, and AssetBalance interfaces.
+ * All values are JSON-serializable. UI preferences (e.g. hidden) are in
+ * assetPreferences, not in metadata.
  *
  * @see AssetsControllerStateInternal for the semantic type structure
  */
 export type AssetsControllerState = {
   /** Shared metadata for all assets (stored once per asset) */
-  assetsMetadata: { [assetId: string]: Json };
+  assetsMetadata: { [assetId: string]: AssetMetadata };
   /** Per-account balance data */
-  assetsBalance: { [accountId: string]: { [assetId: string]: Json } };
+  assetsBalance: { [accountId: string]: { [assetId: string]: AssetBalance } };
   /** Price data for assets */
-  assetsPrice: { [assetId: string]: Json };
+  assetsPrice: { [assetId: string]: AssetPrice };
   /** Custom assets added by users per account (CAIP-19 asset IDs) */
-  customAssets: { [accountId: string]: string[] };
+  customAssets: { [accountId: string]: Caip19AssetId[] };
+  /** UI preferences per asset (e.g. hidden) */
+  assetPreferences: { [assetId: string]: AssetPreferences };
 };
 
 /**
  * Returns the default state for AssetsController.
  *
- * @returns The default AssetsController state with empty metadata, balance, price, and customAssets maps.
+ * @returns The default AssetsController state with empty maps.
  */
 export function getDefaultAssetsControllerState(): AssetsControllerState {
   return {
@@ -103,6 +104,7 @@ export function getDefaultAssetsControllerState(): AssetsControllerState {
     assetsBalance: {},
     assetsPrice: {},
     customAssets: {},
+    assetPreferences: {},
   };
 }
 
@@ -160,6 +162,16 @@ export type AssetsControllerGetCustomAssetsAction = {
   handler: AssetsController['getCustomAssets'];
 };
 
+export type AssetsControllerHideAssetAction = {
+  type: `${typeof CONTROLLER_NAME}:hideAsset`;
+  handler: AssetsController['hideAsset'];
+};
+
+export type AssetsControllerUnhideAssetAction = {
+  type: `${typeof CONTROLLER_NAME}:unhideAsset`;
+  handler: AssetsController['unhideAsset'];
+};
+
 export type AssetsControllerActions =
   | AssetsControllerGetStateAction
   | AssetsControllerGetAssetsAction
@@ -170,7 +182,9 @@ export type AssetsControllerActions =
   | AssetsControllerAssetsUpdateAction
   | AssetsControllerAddCustomAssetAction
   | AssetsControllerRemoveCustomAssetAction
-  | AssetsControllerGetCustomAssetsAction;
+  | AssetsControllerGetCustomAssetsAction
+  | AssetsControllerHideAssetAction
+  | AssetsControllerUnhideAssetAction;
 
 export type AssetsControllerStateChangeEvent = ControllerStateChangeEvent<
   typeof CONTROLLER_NAME,
@@ -259,6 +273,8 @@ export type AssetsControllerOptions = {
   state?: Partial<AssetsControllerState>;
   /** Default polling interval hint passed to data sources (ms) */
   defaultUpdateInterval?: number;
+  /** Function to determine if the controller is enabled. Defaults to true. */
+  isEnabled?: () => boolean;
 };
 
 // ============================================================================
@@ -285,6 +301,12 @@ const stateMetadata: StateMetadata<AssetsControllerState> = {
     usedInUi: true,
   },
   customAssets: {
+    persist: true,
+    includeInStateLogs: false,
+    includeInDebugSnapshot: false,
+    usedInUi: true,
+  },
+  assetPreferences: {
     persist: true,
     includeInStateLogs: false,
     includeInDebugSnapshot: false,
@@ -400,6 +422,9 @@ export class AssetsController extends BaseController<
   AssetsControllerState,
   AssetsControllerMessenger
 > {
+  /** Whether the controller is enabled */
+  readonly #isEnabled: boolean;
+
   /** Default update interval hint passed to data sources */
   readonly #defaultUpdateInterval: number;
 
@@ -440,6 +465,7 @@ export class AssetsController extends BaseController<
     messenger,
     state = {},
     defaultUpdateInterval = DEFAULT_POLLING_INTERVAL_MS,
+    isEnabled = (): boolean => true,
   }: AssetsControllerOptions) {
     super({
       name: CONTROLLER_NAME,
@@ -451,7 +477,13 @@ export class AssetsController extends BaseController<
       },
     });
 
+    this.#isEnabled = isEnabled();
     this.#defaultUpdateInterval = defaultUpdateInterval;
+
+    if (!this.#isEnabled) {
+      log('AssetsController is disabled, skipping initialization');
+      return;
+    }
 
     log('Initializing AssetsController', {
       defaultUpdateInterval,
@@ -614,6 +646,16 @@ export class AssetsController extends BaseController<
     this.messenger.registerActionHandler(
       'AssetsController:getCustomAssets',
       this.getCustomAssets.bind(this),
+    );
+
+    this.messenger.registerActionHandler(
+      'AssetsController:hideAsset',
+      this.hideAsset.bind(this),
+    );
+
+    this.messenger.registerActionHandler(
+      'AssetsController:unhideAsset',
+      this.unhideAsset.bind(this),
     );
   }
 
@@ -860,6 +902,7 @@ export class AssetsController extends BaseController<
   /**
    * Add a custom asset for an account.
    * Custom assets are included in subscription and fetch operations.
+   * Adding a custom asset also unhides it if it was previously hidden.
    *
    * @param accountId - The account ID to add the custom asset for.
    * @param assetId - The CAIP-19 asset ID to add.
@@ -881,6 +924,15 @@ export class AssetsController extends BaseController<
       // Only add if not already present
       if (!customAssets[accountId].includes(normalizedAssetId)) {
         customAssets[accountId].push(normalizedAssetId);
+      }
+
+      // Unhide the asset if it was hidden (via assetPreferences)
+      const prefs = state.assetPreferences[normalizedAssetId];
+      if (prefs?.hidden) {
+        delete prefs.hidden;
+        if (Object.keys(prefs).length === 0) {
+          delete state.assetPreferences[normalizedAssetId];
+        }
       }
     });
 
@@ -907,15 +959,14 @@ export class AssetsController extends BaseController<
     log('Removing custom asset', { accountId, assetId: normalizedAssetId });
 
     this.update((state) => {
-      const customAssets = state.customAssets as Record<string, string[]>;
-      if (customAssets[accountId]) {
-        customAssets[accountId] = customAssets[accountId].filter(
+      if (state.customAssets[accountId]) {
+        state.customAssets[accountId] = state.customAssets[accountId].filter(
           (id) => id !== normalizedAssetId,
         );
 
         // Clean up empty arrays
-        if (customAssets[accountId].length === 0) {
-          delete customAssets[accountId];
+        if (state.customAssets[accountId].length === 0) {
+          delete state.customAssets[accountId];
         }
       }
     });
@@ -928,7 +979,52 @@ export class AssetsController extends BaseController<
    * @returns Array of CAIP-19 asset IDs for the account's custom assets.
    */
   getCustomAssets(accountId: AccountId): Caip19AssetId[] {
-    return (this.state.customAssets[accountId] ?? []) as Caip19AssetId[];
+    return this.state.customAssets[accountId] ?? [];
+  }
+
+  // ============================================================================
+  // HIDDEN ASSETS MANAGEMENT
+  // ============================================================================
+
+  /**
+   * Hide an asset globally.
+   * Hidden assets are excluded from the asset list returned by getAssets.
+   * The hidden state is stored in assetPreferences.
+   *
+   * @param assetId - The CAIP-19 asset ID to hide.
+   */
+  hideAsset(assetId: Caip19AssetId): void {
+    const normalizedAssetId = normalizeAssetId(assetId);
+
+    log('Hiding asset', { assetId: normalizedAssetId });
+
+    this.update((state) => {
+      if (!state.assetPreferences[normalizedAssetId]) {
+        state.assetPreferences[normalizedAssetId] = {};
+      }
+      state.assetPreferences[normalizedAssetId].hidden = true;
+    });
+  }
+
+  /**
+   * Unhide an asset globally.
+   *
+   * @param assetId - The CAIP-19 asset ID to unhide.
+   */
+  unhideAsset(assetId: Caip19AssetId): void {
+    const normalizedAssetId = normalizeAssetId(assetId);
+
+    log('Unhiding asset', { assetId: normalizedAssetId });
+
+    this.update((state) => {
+      const prefs = state.assetPreferences[normalizedAssetId];
+      if (prefs) {
+        delete prefs.hidden;
+        if (Object.keys(prefs).length === 0) {
+          delete state.assetPreferences[normalizedAssetId];
+        }
+      }
+    });
   }
 
   // ============================================================================
@@ -1071,16 +1167,13 @@ export class AssetsController extends BaseController<
       const changedMetadata: string[] = [];
 
       this.update((state) => {
-        // Use type assertions to avoid deep type instantiation issues with Draft<Json>
-        const metadata = state.assetsMetadata as unknown as Record<
+        // Use type assertions to avoid deep type instantiation issues with Immer Draft types
+        const metadata = state.assetsMetadata as Record<string, AssetMetadata>;
+        const balances = state.assetsBalance as Record<
           string,
-          unknown
+          Record<string, AssetBalance>
         >;
-        const balances = state.assetsBalance as unknown as Record<
-          string,
-          Record<string, unknown>
-        >;
-        const prices = state.assetsPrice as unknown as Record<string, unknown>;
+        const prices = state.assetsPrice as Record<string, AssetPrice>;
 
         if (normalizedResponse.assetsMetadata) {
           for (const [key, value] of Object.entries(
@@ -1235,11 +1328,6 @@ export class AssetsController extends BaseController<
 
       for (const [assetId, balance] of Object.entries(accountBalances)) {
         const typedAssetId = assetId as Caip19AssetId;
-        const assetChainId = extractChainId(typedAssetId);
-
-        if (!chainIdSet.has(assetChainId)) {
-          continue;
-        }
 
         const metadataRaw = this.state.assetsMetadata[typedAssetId];
 
@@ -1248,7 +1336,19 @@ export class AssetsController extends BaseController<
           continue;
         }
 
-        const metadata = metadataRaw as AssetMetadata;
+        const metadata = metadataRaw;
+
+        // Skip hidden assets (assetPreferences)
+        const prefs = this.state.assetPreferences[typedAssetId];
+        if (prefs?.hidden) {
+          continue;
+        }
+
+        const assetChainId = extractChainId(typedAssetId);
+
+        if (!chainIdSet.has(assetChainId)) {
+          continue;
+        }
 
         // Filter by asset type
         const tokenAssetType = this.#tokenStandardToAssetType(metadata.type);
@@ -1256,8 +1356,8 @@ export class AssetsController extends BaseController<
           continue;
         }
 
-        const typedBalance = balance as AssetBalance;
-        const priceRaw = this.state.assetsPrice[typedAssetId] as AssetPrice;
+        const typedBalance = balance;
+        const priceRaw = this.state.assetsPrice[typedAssetId];
         const price: AssetPrice = priceRaw ?? {
           price: 0,
           lastUpdated: 0,
@@ -1771,5 +1871,7 @@ export class AssetsController extends BaseController<
       'AssetsController:removeCustomAsset',
     );
     this.messenger.unregisterActionHandler('AssetsController:getCustomAssets');
+    this.messenger.unregisterActionHandler('AssetsController:hideAsset');
+    this.messenger.unregisterActionHandler('AssetsController:unhideAsset');
   }
 }

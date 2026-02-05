@@ -7,10 +7,19 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+### Added
+
+- Add `Unified SwapBridge Polling Status Updated` metrics event with `status` property (`max_polling_reached` or `manually_restarted`), emitted when polling stops due to max attempts or is manually restarted ([#7825](https://github.com/MetaMask/core/pull/7825))
+
 ### Changed
 
-- Bump `@metamask/transaction-controller` from `^62.11.0` to `^62.13.0` ([#7775](https://github.com/MetaMask/core/pull/7775), [#7802](https://github.com/MetaMask/core/pull/7802))
-- Bump `@metamask/bridge-controller` from `^65.1.0` to `^65.2.0` ([#7802](https://github.com/MetaMask/core/pull/7802))
+- **BREAKING** Re-key intent history items and extract intent code into a new IntentManager class
+- Bump `@metamask/transaction-controller` from `^62.11.0` to `^62.14.0` ([#7775](https://github.com/MetaMask/core/pull/7775), [#7802](https://github.com/MetaMask/core/pull/7802), [#7832](https://github.com/MetaMask/core/pull/7832))
+- Bump `@metamask/bridge-controller` from `^65.1.0` to `^65.3.0` ([#7802](https://github.com/MetaMask/core/pull/7802), [#7837](https://github.com/MetaMask/core/pull/7837))
+
+### Fixed
+
+- Fix Tron same-chain swap polling and Completed event tracking ([#7697](https://github.com/MetaMask/core/pull/7697))
 
 ## [65.0.1]
 
@@ -40,6 +49,10 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 ### Changed
 
 - Bump `@metamask/bridge-controller` from `^64.5.1` to `^64.8.1` ([#7667](https://github.com/MetaMask/core/pull/7667), [#7672](https://github.com/MetaMask/core/pull/7672), [#7694](https://github.com/MetaMask/core/pull/7694), [#7700](https://github.com/MetaMask/core/pull/7700), [#7704](https://github.com/MetaMask/core/pull/7704))
+
+### Fixed
+
+- Fix Tron same-chain swap polling and Completed event tracking ([#7697](https://github.com/MetaMask/core/pull/7697))
 
 ## [64.4.3]
 
