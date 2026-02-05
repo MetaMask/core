@@ -17,7 +17,7 @@ import type {
   TransactionControllerTransactionFailedEvent,
   TransactionControllerTransactionRejectedEvent,
 } from '@metamask/transaction-controller';
-import type { Hex, Json } from '@metamask/utils';
+import type { Hex } from '@metamask/utils';
 
 import { DELEGATION_FRAMEWORK_VERSION } from './constants';
 import type { DecodedPermission } from './decodePermission';
@@ -28,26 +28,21 @@ import {
 } from './decodePermission';
 import {
   GatorPermissionsFetchError,
-  GatorPermissionsNotEnabledError,
   GatorPermissionsProviderError,
   OriginNotAllowedError,
   PermissionDecodingError,
 } from './errors';
 import { controllerLog } from './logger';
 import { GatorPermissionsSnapRpcMethod } from './types';
-import type { StoredGatorPermissionSanitized } from './types';
 import type {
-  GatorPermissionsMap,
-  PermissionTypesWithCustom,
   StoredGatorPermission,
+  PermissionInfoWithMetadata,
+  SupportedPermissionType,
   DelegationDetails,
   RevocationParams,
   PendingRevocationParams,
 } from './types';
-import {
-  deserializeGatorPermissionsMap,
-  serializeGatorPermissionsMap,
-} from './utils';
+import { executeSnapRpc } from './utils';
 
 // === GENERAL ===
 
@@ -58,17 +53,6 @@ const controllerName = 'GatorPermissionsController';
 const defaultGatorPermissionsProviderSnapId =
   'npm:@metamask/gator-permissions-snap' as SnapId;
 
-const createEmptyGatorPermissionsMap: () => GatorPermissionsMap = () => {
-  return {
-    'erc20-token-revocation': {},
-    'native-token-stream': {},
-    'native-token-periodic': {},
-    'erc20-token-stream': {},
-    'erc20-token-periodic': {},
-    other: {},
-  };
-};
-
 /**
  * Timeout duration for pending revocations (2 hours in milliseconds).
  * After this time, event listeners will be cleaned up to prevent memory leaks.
@@ -77,36 +61,41 @@ const PENDING_REVOCATION_TIMEOUT = 2 * 60 * 60 * 1000;
 
 const contractsByChainId = DELEGATOR_CONTRACTS[DELEGATION_FRAMEWORK_VERSION];
 
+// === CONFIG ===
+
+/**
+ * Configuration for {@link GatorPermissionsController}.
+ */
+export type GatorPermissionsControllerConfig = {
+  /**
+   * Permission types the controller supports (e.g. 'native-token-stream', 'erc20-token-periodic').
+   */
+  supportedPermissionTypes: SupportedPermissionType[];
+  /**
+   * Optional ID of the gator permissions provider Snap. Defaults to npm:@metamask/gator-permissions-snap.
+   */
+  gatorPermissionsProviderSnapId?: SnapId;
+};
+
 // === STATE ===
 
 /**
- * State shape for GatorPermissionsController
+ * State shape for {@link GatorPermissionsController}.
  */
 export type GatorPermissionsControllerState = {
   /**
-   * Flag that indicates if the gator permissions feature is enabled
+   * List of granted permissions with metadata (siteOrigin, revocationMetadata).
    */
-  isGatorPermissionsEnabled: boolean;
-
-  /**
-   * JSON serialized object containing gator permissions fetched from profile sync
-   */
-  gatorPermissionsMapSerialized: string;
+  grantedPermissions: PermissionInfoWithMetadata[];
 
   /**
    * Flag that indicates that fetching permissions is in progress
-   * This is used to show a loading spinner in the UI
+   * This can be used to show a loading spinner in the UI
    */
   isFetchingGatorPermissions: boolean;
 
   /**
-   * The ID of the Snap of the gator permissions provider snap
-   * Default value is `@metamask/gator-permissions-snap`
-   */
-  gatorPermissionsProviderSnapId: SnapId;
-
-  /**
-   * List of gator permission pending a revocation transaction
+   * List of gator permissions pending a revocation transaction
    */
   pendingRevocations: {
     txId: string;
@@ -116,13 +105,7 @@ export type GatorPermissionsControllerState = {
 
 const gatorPermissionsControllerMetadata: StateMetadata<GatorPermissionsControllerState> =
   {
-    isGatorPermissionsEnabled: {
-      includeInStateLogs: true,
-      persist: true,
-      includeInDebugSnapshot: false,
-      usedInUi: false,
-    },
-    gatorPermissionsMapSerialized: {
+    grantedPermissions: {
       includeInStateLogs: true,
       persist: true,
       includeInDebugSnapshot: false,
@@ -132,13 +115,7 @@ const gatorPermissionsControllerMetadata: StateMetadata<GatorPermissionsControll
       includeInStateLogs: true,
       persist: false,
       includeInDebugSnapshot: false,
-      usedInUi: false,
-    },
-    gatorPermissionsProviderSnapId: {
-      includeInStateLogs: true,
-      persist: false,
-      includeInDebugSnapshot: false,
-      usedInUi: false,
+      usedInUi: true,
     },
     pendingRevocations: {
       includeInStateLogs: true,
@@ -149,22 +126,21 @@ const gatorPermissionsControllerMetadata: StateMetadata<GatorPermissionsControll
   } satisfies StateMetadata<GatorPermissionsControllerState>;
 
 /**
- * Constructs the default {@link GatorPermissionsController} state. This allows
- * consumers to provide a partial state object when initializing the controller
- * and also helps in constructing complete state objects for this controller in
- * tests.
+ * Creates initial controller state, merging defaults with optional partial state.
+ * Internal use only (e.g. constructor, tests).
  *
- * @returns The default {@link GatorPermissionsController} state.
+ * @param state - Optional partial state to merge with defaults.
+ * @returns Complete {@link GatorPermissionsController} state.
  */
-export function getDefaultGatorPermissionsControllerState(): GatorPermissionsControllerState {
+function createGatorPermissionsControllerState(
+  state?: Partial<GatorPermissionsControllerState>,
+): GatorPermissionsControllerState {
   return {
-    isGatorPermissionsEnabled: false,
-    gatorPermissionsMapSerialized: serializeGatorPermissionsMap(
-      createEmptyGatorPermissionsMap(),
-    ),
-    isFetchingGatorPermissions: false,
-    gatorPermissionsProviderSnapId: defaultGatorPermissionsProviderSnapId,
+    grantedPermissions: [],
     pendingRevocations: [],
+    ...state,
+    // isFetchingGatorPermissions is _always_ false when the controller is created
+    isFetchingGatorPermissions: false,
   };
 }
 
@@ -185,22 +161,6 @@ export type GatorPermissionsControllerGetStateAction = ControllerGetStateAction<
 export type GatorPermissionsControllerFetchAndUpdateGatorPermissionsAction = {
   type: `${typeof controllerName}:fetchAndUpdateGatorPermissions`;
   handler: GatorPermissionsController['fetchAndUpdateGatorPermissions'];
-};
-
-/**
- * The action which can be used to enable gator permissions.
- */
-export type GatorPermissionsControllerEnableGatorPermissionsAction = {
-  type: `${typeof controllerName}:enableGatorPermissions`;
-  handler: GatorPermissionsController['enableGatorPermissions'];
-};
-
-/**
- * The action which can be used to disable gator permissions.
- */
-export type GatorPermissionsControllerDisableGatorPermissionsAction = {
-  type: `${typeof controllerName}:disableGatorPermissions`;
-  handler: GatorPermissionsController['disableGatorPermissions'];
 };
 
 export type GatorPermissionsControllerDecodePermissionFromPermissionContextForOriginAction =
@@ -249,8 +209,6 @@ export type GatorPermissionsControllerIsPendingRevocationAction = {
 export type GatorPermissionsControllerActions =
   | GatorPermissionsControllerGetStateAction
   | GatorPermissionsControllerFetchAndUpdateGatorPermissionsAction
-  | GatorPermissionsControllerEnableGatorPermissionsAction
-  | GatorPermissionsControllerDisableGatorPermissionsAction
   | GatorPermissionsControllerDecodePermissionFromPermissionContextForOriginAction
   | GatorPermissionsControllerSubmitRevocationAction
   | GatorPermissionsControllerAddPendingRevocationAction
@@ -260,7 +218,7 @@ export type GatorPermissionsControllerActions =
 /**
  * All actions that {@link GatorPermissionsController} calls internally.
  *
- * SnapsController:handleRequest and SnapsController:has are allowed to be called
+ * SnapController:handleRequest and SnapController:has are allowed to be called
  * internally because they are used to fetch gator permissions from the Snap.
  */
 type AllowedActions = HandleSnapRequest | HasSnap;
@@ -302,50 +260,71 @@ export type GatorPermissionsControllerMessenger = Messenger<
 >;
 
 /**
- * Controller that manages gator permissions by reading from profile sync
+ * Controller that manages gator permissions by reading from the gator permissions provider Snap.
  */
 export default class GatorPermissionsController extends BaseController<
   typeof controllerName,
   GatorPermissionsControllerState,
   GatorPermissionsControllerMessenger
 > {
+  readonly #supportedPermissionTypes: readonly SupportedPermissionType[];
+
+  /**
+   * The Snap ID of the gator permissions provider.
+   *
+   * @returns The Snap ID of the gator permissions provider.
+   */
+  get gatorPermissionsProviderSnapId(): SnapId {
+    return this.#gatorPermissionsProviderSnapId;
+  }
+
+  readonly #gatorPermissionsProviderSnapId: SnapId;
+
   /**
    * Creates a GatorPermissionsController instance.
    *
    * @param args - The arguments to this function.
-   * @param args.messenger - Messenger used to communicate with BaseV2 controller.
-   * @param args.state - Initial state to set on this controller.
+   * @param args.messenger - Messenger used to communicate with other controllers.
+   * @param args.config - Configuration (supported permission types and optional Snap id).
+   * @param args.state - Optional partial state to merge with defaults.
    */
   constructor({
     messenger,
+    config,
     state,
   }: {
     messenger: GatorPermissionsControllerMessenger;
+    config: GatorPermissionsControllerConfig;
     state?: Partial<GatorPermissionsControllerState>;
   }) {
+    const initialState = createGatorPermissionsControllerState(state);
+
     super({
       name: controllerName,
       metadata: gatorPermissionsControllerMetadata,
       messenger,
-      state: {
-        ...getDefaultGatorPermissionsControllerState(),
-        ...state,
-        isFetchingGatorPermissions: false,
-      },
+      state: initialState,
     });
 
+    this.#supportedPermissionTypes = config.supportedPermissionTypes;
+    this.#gatorPermissionsProviderSnapId =
+      config.gatorPermissionsProviderSnapId ??
+      defaultGatorPermissionsProviderSnapId;
     this.#registerMessageHandlers();
+  }
+
+  /**
+   * Supported permission types this controller was configured with.
+   *
+   * @returns The supported permission types.
+   */
+  get supportedPermissionTypes(): readonly SupportedPermissionType[] {
+    return this.#supportedPermissionTypes;
   }
 
   #setIsFetchingGatorPermissions(isFetchingGatorPermissions: boolean): void {
     this.update((state) => {
       state.isFetchingGatorPermissions = isFetchingGatorPermissions;
-    });
-  }
-
-  #setIsGatorPermissionsEnabled(isGatorPermissionsEnabled: boolean): void {
-    this.update((state) => {
-      state.isGatorPermissionsEnabled = isGatorPermissionsEnabled;
     });
   }
 
@@ -385,16 +364,6 @@ export default class GatorPermissionsController extends BaseController<
     );
 
     this.messenger.registerActionHandler(
-      `${controllerName}:enableGatorPermissions`,
-      this.enableGatorPermissions.bind(this),
-    );
-
-    this.messenger.registerActionHandler(
-      `${controllerName}:disableGatorPermissions`,
-      this.disableGatorPermissions.bind(this),
-    );
-
-    this.messenger.registerActionHandler(
       `${controllerName}:decodePermissionFromPermissionContextForOrigin`,
       this.decodePermissionFromPermissionContextForOrigin.bind(this),
     );
@@ -423,204 +392,82 @@ export default class GatorPermissionsController extends BaseController<
   }
 
   /**
-   * Asserts that the gator permissions are enabled.
+   * Converts a stored gator permission to permission info with metadata.
+   * Strips internal fields (dependencies, to) from the permission response.
    *
-   * @throws {GatorPermissionsNotEnabledError} If the gator permissions are not enabled.
+   * @param storedGatorPermission - The stored gator permission from the Snap.
+   * @returns Permission info with metadata for state/UI.
    */
-  #assertGatorPermissionsEnabled(): void {
-    if (!this.state.isGatorPermissionsEnabled) {
-      throw new GatorPermissionsNotEnabledError();
-    }
-  }
+  #storedPermissionToPermissionInfo(
+    storedGatorPermission: StoredGatorPermission,
+  ): PermissionInfoWithMetadata {
+    const { permissionResponse: fullPermissionResponse } =
+      storedGatorPermission;
+    const {
+      dependencies: _dependencies,
+      to: _to,
+      ...permissionResponse
+    } = fullPermissionResponse;
 
-  /**
-   * Forwards a Snap request to the SnapController.
-   *
-   * @param args - The request parameters.
-   * @param args.snapId - The ID of the Snap of the gator permissions provider snap.
-   * @param args.params - Optional parameters to pass to the snap method.
-   * @returns A promise that resolves with the gator permissions.
-   */
-  async #handleSnapRequestToGatorPermissionsProvider({
-    snapId,
-    params,
-  }: {
-    snapId: SnapId;
-    params?: Json;
-  }): Promise<StoredGatorPermission<PermissionTypesWithCustom>[] | null> {
-    try {
-      const response = (await this.messenger.call(
-        'SnapController:handleRequest',
-        {
-          snapId,
-          origin: 'metamask',
-          handler: HandlerType.OnRpcRequest,
-          request: {
-            jsonrpc: '2.0',
-            method:
-              GatorPermissionsSnapRpcMethod.PermissionProviderGetGrantedPermissions,
-            ...(params !== undefined && { params }),
-          },
-        },
-      )) as StoredGatorPermission<PermissionTypesWithCustom>[] | null;
-
-      return response;
-    } catch (error) {
-      controllerLog(
-        'Failed to handle snap request to gator permissions provider',
-        error,
-      );
-      throw new GatorPermissionsProviderError({
-        method:
-          GatorPermissionsSnapRpcMethod.PermissionProviderGetGrantedPermissions,
-        cause: error as Error,
-      });
-    }
-  }
-
-  /**
-   * Sanitizes a stored gator permission for client exposure.
-   * Removes internal fields (dependencies, to)
-   *
-   * @param storedGatorPermission - The stored gator permission to sanitize.
-   * @returns The sanitized stored gator permission.
-   */
-  #sanitizeStoredGatorPermission(
-    storedGatorPermission: StoredGatorPermission<PermissionTypesWithCustom>,
-  ): StoredGatorPermissionSanitized<PermissionTypesWithCustom> {
-    const { permissionResponse } = storedGatorPermission;
-    const { dependencies, to, ...rest } = permissionResponse;
     return {
       ...storedGatorPermission,
-      permissionResponse: {
-        ...rest,
-      },
+      permissionResponse,
     };
   }
 
   /**
-   * Categorizes stored gator permissions by type and chainId.
+   * Converts stored gator permissions from the Snap into permission info with metadata.
    *
-   * @param storedGatorPermissions - An array of stored gator permissions.
-   * @returns The gator permissions map.
+   * @param storedGatorPermissions - Stored gator permissions returned by the Snap, or null.
+   * @returns Array of permission info with metadata for state.
    */
-  #categorizePermissionsDataByTypeAndChainId(
-    storedGatorPermissions:
-      | StoredGatorPermission<PermissionTypesWithCustom>[]
-      | null,
-  ): GatorPermissionsMap {
-    const gatorPermissionsMap = createEmptyGatorPermissionsMap();
-
+  #storedPermissionsToPermissionInfoWithMetadata(
+    storedGatorPermissions: StoredGatorPermission[] | null,
+  ): PermissionInfoWithMetadata[] {
     if (!storedGatorPermissions) {
-      return gatorPermissionsMap;
+      return [];
     }
 
-    for (const storedGatorPermission of storedGatorPermissions) {
-      const {
-        permissionResponse: {
-          permission: { type: permissionType },
-          chainId,
-        },
-      } = storedGatorPermission;
-
-      const isPermissionTypeKnown = Object.prototype.hasOwnProperty.call(
-        gatorPermissionsMap,
-        permissionType,
-      );
-
-      const permissionTypeKey = isPermissionTypeKnown
-        ? (permissionType as keyof GatorPermissionsMap)
-        : 'other';
-
-      type PermissionsMapElementArray =
-        GatorPermissionsMap[typeof permissionTypeKey][typeof chainId];
-
-      gatorPermissionsMap[permissionTypeKey][chainId] = [
-        ...(gatorPermissionsMap[permissionTypeKey][chainId] || []),
-        this.#sanitizeStoredGatorPermission(storedGatorPermission),
-      ] as PermissionsMapElementArray;
-    }
-
-    return gatorPermissionsMap;
-  }
-
-  /**
-   * Gets the gator permissions map from the state.
-   *
-   * @returns The gator permissions map.
-   */
-  get gatorPermissionsMap(): GatorPermissionsMap {
-    return deserializeGatorPermissionsMap(
-      this.state.gatorPermissionsMapSerialized,
+    return storedGatorPermissions.map((storedPermission) =>
+      this.#storedPermissionToPermissionInfo(storedPermission),
     );
   }
 
   /**
-   * Gets the gator permissions provider snap id that is used to fetch gator permissions.
+   * Fetches granted permissions from the gator permissions provider Snap and updates state.
    *
-   * @returns The gator permissions provider snap id.
-   */
-  get permissionsProviderSnapId(): SnapId {
-    return this.state.gatorPermissionsProviderSnapId;
-  }
-
-  /**
-   * Enables gator permissions for the user.
-   */
-  public async enableGatorPermissions(): Promise<void> {
-    this.#setIsGatorPermissionsEnabled(true);
-  }
-
-  /**
-   * Clears the gator permissions map and disables the feature.
-   */
-  public async disableGatorPermissions(): Promise<void> {
-    this.update((state) => {
-      state.isGatorPermissionsEnabled = false;
-      state.gatorPermissionsMapSerialized = serializeGatorPermissionsMap(
-        createEmptyGatorPermissionsMap(),
-      );
-    });
-  }
-
-  /**
-   * Gets the pending revocations list.
-   *
-   * @returns The pending revocations list.
-   */
-  get pendingRevocations(): { txId: string; permissionContext: Hex }[] {
-    return this.state.pendingRevocations;
-  }
-
-  /**
-   * Fetches the gator permissions from profile sync and updates the state.
-   *
-   * @param params - Optional parameters to pass to the snap's getGrantedPermissions method.
-   * @returns A promise that resolves to the gator permissions map.
+   * @returns A promise that resolves to the list of granted permissions with metadata.
    * @throws {GatorPermissionsFetchError} If the gator permissions fetch fails.
    */
-  public async fetchAndUpdateGatorPermissions(
-    params?: Json,
-  ): Promise<GatorPermissionsMap> {
+  public async fetchAndUpdateGatorPermissions(): Promise<
+    PermissionInfoWithMetadata[]
+  > {
     try {
       this.#setIsFetchingGatorPermissions(true);
-      this.#assertGatorPermissionsEnabled();
 
-      const permissionsData =
-        await this.#handleSnapRequestToGatorPermissionsProvider({
-          snapId: this.state.gatorPermissionsProviderSnapId,
-          params,
-        });
+      // Only ever fetch non-revoked permissions. Revoked permissions may be
+      // left in storage by the gator permissions snap, but we don't need to
+      // fetch them.
+      const params = { isRevoked: false };
 
-      const gatorPermissionsMap =
-        this.#categorizePermissionsDataByTypeAndChainId(permissionsData);
-
-      this.update((state) => {
-        state.gatorPermissionsMapSerialized =
-          serializeGatorPermissionsMap(gatorPermissionsMap);
+      const permissionsData = await executeSnapRpc<
+        StoredGatorPermission[] | null
+      >({
+        messenger: this.messenger,
+        snapId: this.#gatorPermissionsProviderSnapId,
+        method:
+          GatorPermissionsSnapRpcMethod.PermissionProviderGetGrantedPermissions,
+        params,
       });
 
-      return gatorPermissionsMap;
+      const grantedPermissions =
+        this.#storedPermissionsToPermissionInfoWithMetadata(permissionsData);
+
+      this.update((state) => {
+        state.grantedPermissions = grantedPermissions;
+      });
+
+      return grantedPermissions;
     } catch (error) {
       controllerLog('Failed to fetch gator permissions', error);
       throw new GatorPermissionsFetchError({
@@ -666,7 +513,7 @@ export default class GatorPermissionsController extends BaseController<
     };
     delegation: DelegationDetails;
   }): DecodedPermission {
-    if (origin !== this.permissionsProviderSnapId) {
+    if (origin !== this.#gatorPermissionsProviderSnapId) {
       throw new OriginNotAllowedError({ origin });
     }
 
@@ -715,7 +562,6 @@ export default class GatorPermissionsController extends BaseController<
    *
    * @param revocationParams - The revocation parameters containing the permission context.
    * @returns A promise that resolves when the revocation is submitted successfully.
-   * @throws {GatorPermissionsNotEnabledError} If the gator permissions are not enabled.
    * @throws {GatorPermissionsProviderError} If the snap request fails.
    */
   public async submitRevocation(
@@ -725,10 +571,8 @@ export default class GatorPermissionsController extends BaseController<
       permissionContext: revocationParams.permissionContext,
     });
 
-    this.#assertGatorPermissionsEnabled();
-
     const snapRequest = {
-      snapId: this.state.gatorPermissionsProviderSnapId,
+      snapId: this.#gatorPermissionsProviderSnapId,
       origin: 'metamask',
       handler: HandlerType.OnRpcRequest,
       request: {
@@ -746,7 +590,7 @@ export default class GatorPermissionsController extends BaseController<
       );
 
       // Refresh list first (permission removed from list)
-      await this.fetchAndUpdateGatorPermissions({ isRevoked: false });
+      await this.fetchAndUpdateGatorPermissions();
 
       controllerLog('Successfully submitted revocation', {
         permissionContext: revocationParams.permissionContext,
@@ -815,8 +659,6 @@ export default class GatorPermissionsController extends BaseController<
       permissionContext,
     });
 
-    this.#assertGatorPermissionsEnabled();
-
     type PendingRevocationHandlers = {
       approved?: (
         ...args: TransactionControllerTransactionApprovedEvent['payload']
@@ -848,15 +690,13 @@ export default class GatorPermissionsController extends BaseController<
 
     // Helper to refresh permissions after transaction state change
     const refreshPermissions = (context: string): void => {
-      this.fetchAndUpdateGatorPermissions({ isRevoked: false }).catch(
-        (error) => {
-          controllerLog(`Failed to refresh permissions after ${context}`, {
-            txId,
-            permissionContext,
-            error,
-          });
-        },
-      );
+      this.fetchAndUpdateGatorPermissions().catch((error) => {
+        controllerLog(`Failed to refresh permissions after ${context}`, {
+          txId,
+          permissionContext,
+          error,
+        });
+      });
     };
 
     // Helper to unsubscribe from approval/rejection events after decision is made
@@ -1066,12 +906,9 @@ export default class GatorPermissionsController extends BaseController<
    *
    * @param params - The revocation parameters containing the permission context.
    * @returns A promise that resolves when the revocation is submitted successfully.
-   * @throws {GatorPermissionsNotEnabledError} If the gator permissions are not enabled.
    * @throws {GatorPermissionsProviderError} If the snap request fails.
    */
   public async submitDirectRevocation(params: RevocationParams): Promise<void> {
-    this.#assertGatorPermissionsEnabled();
-
     // Use a placeholder txId that doesn't conflict with real transaction IDs
     const placeholderTxId = `no-tx-${params.permissionContext}`;
 
@@ -1092,10 +929,12 @@ export default class GatorPermissionsController extends BaseController<
    * @returns `true` if the permission context is pending revocation, `false` otherwise.
    */
   public isPendingRevocation(permissionContext: Hex): boolean {
+    const requestedPermissionContextLowercase = permissionContext.toLowerCase();
+
     return this.state.pendingRevocations.some(
       (pendingRevocation) =>
         pendingRevocation.permissionContext.toLowerCase() ===
-        permissionContext.toLowerCase(),
+        requestedPermissionContextLowercase,
     );
   }
 }
