@@ -1,12 +1,12 @@
 {
-  "name": "@metamask/client-state-controller",
+  "name": "@metamask/ui-state-controller",
   "version": "0.0.0",
-  "description": "Tracks and manages the lifecycle state of MetaMask as a client.",
+  "description": "Tracks and manages the lifecycle state of MetaMask as an application",
   "keywords": [
     "MetaMask",
     "Ethereum"
   ],
-  "homepage": "https://github.com/MetaMask/core/tree/main/packages/client-state-controller#readme",
+  "homepage": "https://github.com/MetaMask/core/tree/main/packages/ui-state-controller#readme",
   "bugs": {
     "url": "https://github.com/MetaMask/core/issues"
   },
@@ -38,8 +38,8 @@
     "build": "ts-bridge --project tsconfig.build.json --verbose --clean --no-references",
     "build:all": "ts-bridge --project tsconfig.build.json --verbose --clean",
     "build:docs": "typedoc",
-    "changelog:update": "../../scripts/update-changelog.sh @metamask/client-state-controller",
-    "changelog:validate": "../../scripts/validate-changelog.sh @metamask/client-state-controller",
+    "changelog:update": "../../scripts/update-changelog.sh @metamask/ui-state-controller",
+    "changelog:validate": "../../scripts/validate-changelog.sh @metamask/ui-state-controller",
     "publish:preview": "yarn npm publish --tag preview",
     "since-latest-release": "../../scripts/since-latest-release.sh",
     "test": "NODE_OPTIONS=--experimental-vm-modules jest --reporters=jest-silent-reporter",
