@@ -14,7 +14,7 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ### Changed
 
-- Downgrade `@metamask/core-backend` from `^5.1.0` to `^5.0.0` ([#7817](https://github.com/MetaMask/core/pull/7817))
+- Downgrade `@metamask/core-backend` from `^5.1.0` to `^5.0.0` ([#7851](https://github.com/MetaMask/core/pull/7851))
 
 ## [62.14.0]
 
