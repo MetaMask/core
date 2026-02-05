@@ -9,21 +9,18 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [66.0.0]
 
-### Uncategorized
-
-- fix: add changelog entry for breaking intent tx history change ([#7843](https://github.com/MetaMask/core/pull/7843))
-- refactor: handle intent orders in fetch bridge tx function ([#7756](https://github.com/MetaMask/core/pull/7756))
-- chore: upgrade Jest-related packages to latest 27.x versions ([#7792](https://github.com/MetaMask/core/pull/7792))
-
 ### Changed
 
 - **BREAKING** Re-key intent history items and extract intent code into a new IntentManager class
 - Bump `@metamask/transaction-controller` from `^62.11.0` to `^62.14.0` ([#7775](https://github.com/MetaMask/core/pull/7775), [#7802](https://github.com/MetaMask/core/pull/7802), [#7832](https://github.com/MetaMask/core/pull/7832))
 - Bump `@metamask/bridge-controller` from `^65.1.0` to `^65.3.0` ([#7802](https://github.com/MetaMask/core/pull/7802), [#7837](https://github.com/MetaMask/core/pull/7837))
+- refactor: handle intent orders in fetch bridge tx function ([#7756](https://github.com/MetaMask/core/pull/7756))
+- chore: upgrade Jest-related packages to latest 27.x versions ([#7792](https://github.com/MetaMask/core/pull/7792))
 
 ### Fixed
 
 - Fix Tron same-chain swap polling and Completed event tracking ([#7697](https://github.com/MetaMask/core/pull/7697))
+- Fix: add changelog entry for breaking intent tx history change ([#7843](https://github.com/MetaMask/core/pull/7843))
 
 ## [65.0.1]
 
