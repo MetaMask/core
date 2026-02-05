@@ -23,6 +23,9 @@ const FOUR_BYTE_TOKEN_TRANSFER = '0xa9059cbb';
 /**
  * Parse required tokens from a transaction.
  *
+ * If the transaction has `requiredAssets`, those are used to determine required tokens.
+ * Otherwise, falls back to parsing the transaction data for token transfers.
+ *
  * @param transaction - Transaction metadata.
  * @param messenger - Controller messenger.
  * @returns An array of required tokens.
@@ -31,6 +34,18 @@ export function parseRequiredTokens(
   transaction: TransactionMeta,
   messenger: TransactionPayControllerMessenger,
 ): TransactionPayRequiredToken[] {
+  const { requiredAssets } = transaction;
+
+  if (requiredAssets?.length) {
+    const assetTokens = requiredAssets
+      .map((asset) =>
+        buildRequiredToken(transaction, asset.address, asset.amount, messenger),
+      )
+      .filter(Boolean) as TransactionPayRequiredToken[];
+
+    return assetTokens;
+  }
+
   return [
     getTokenTransferToken(transaction, messenger),
     getGasFeeToken(transaction, messenger),

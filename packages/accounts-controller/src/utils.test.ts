@@ -2,7 +2,11 @@ import { toChecksumAddress } from '@ethereumjs/util';
 import type { KeyringObject } from '@metamask/keyring-controller';
 import { KeyringTypes } from '@metamask/keyring-controller';
 
-import { getEvmGroupIndexFromAddressIndex, isNormalKeyringType } from './utils';
+import {
+  getEvmGroupIndexFromAddressIndex,
+  isNormalKeyringType,
+  isSimpleKeyringType,
+} from './utils';
 
 describe('utils', () => {
   describe('isNormalKeyringType', () => {
@@ -16,6 +20,21 @@ describe('utils', () => {
 
     it('returns false for snap keyring type', () => {
       expect(isNormalKeyringType(snapKeyringType)).toBe(false);
+    });
+  });
+
+  describe('isSimpleKeyringType', () => {
+    it('returns true for simple keyring type', () => {
+      expect(isSimpleKeyringType(KeyringTypes.simple)).toBe(true);
+    });
+
+    it('returns false for non-simple keyring type', () => {
+      expect(isSimpleKeyringType(KeyringTypes.hd)).toBe(false);
+      expect(isSimpleKeyringType(KeyringTypes.snap)).toBe(false);
+      expect(isSimpleKeyringType(KeyringTypes.trezor)).toBe(false);
+      expect(isSimpleKeyringType(KeyringTypes.oneKey)).toBe(false);
+      expect(isSimpleKeyringType(KeyringTypes.ledger)).toBe(false);
+      expect(isSimpleKeyringType(KeyringTypes.lattice)).toBe(false);
     });
   });
 

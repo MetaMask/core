@@ -1,6 +1,6 @@
 {
   "name": "@metamask/assets-controller",
-  "version": "0.1.0",
+  "version": "0.2.0",
   "description": "Tracks assets balances/prices and handles token detection across all digital assets",
   "keywords": [
     "MetaMask",
@@ -49,6 +49,7 @@
   },
   "dependencies": {
     "@ethereumjs/util": "^9.1.0",
+    "@ethersproject/abi": "^5.7.0",
     "@ethersproject/providers": "^5.7.0",
     "@metamask/account-tree-controller": "^4.0.0",
     "@metamask/base-controller": "^9.0.0",
@@ -68,8 +69,7 @@
     "@metamask/utils": "^11.9.0",
     "async-mutex": "^0.5.0",
     "bignumber.js": "^9.1.2",
-    "lodash": "^4.17.21",
-    "viem": "^2.44.4"
+    "lodash": "^4.17.21"
   },
   "devDependencies": {
     "@metamask/auto-changelog": "^3.4.4",
