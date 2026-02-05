@@ -1082,7 +1082,7 @@ export class RampsService {
     const action = params.action ?? 'buy';
 
     const url = new URL(
-      getApiPath('orders/all/quotes'),
+      getApiPath('quotes'),
       getBaseUrl(this.#environment, RampsApiService.Orders),
     );
     this.#addCommonParams(url, action);

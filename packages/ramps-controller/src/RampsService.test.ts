@@ -1753,7 +1753,7 @@ describe('RampsService', () => {
 
     it('fetches quotes from the API', async () => {
       nock('https://on-ramp.uat-api.cx.metamask.io')
-        .get('/v2/orders/all/quotes')
+        .get('/v2/quotes')
         .query({
           action: 'buy',
           sdk: '2.1.6',
@@ -1789,7 +1789,7 @@ describe('RampsService', () => {
 
     it('normalizes region and fiat case', async () => {
       nock('https://on-ramp.uat-api.cx.metamask.io')
-        .get('/v2/orders/all/quotes')
+        .get('/v2/quotes')
         .query({
           action: 'buy',
           sdk: '2.1.6',
@@ -1822,7 +1822,7 @@ describe('RampsService', () => {
 
     it('includes multiple payment methods', async () => {
       nock('https://on-ramp.uat-api.cx.metamask.io')
-        .get('/v2/orders/all/quotes')
+        .get('/v2/quotes')
         .query({
           action: 'buy',
           sdk: '2.1.6',
@@ -1858,7 +1858,7 @@ describe('RampsService', () => {
 
     it('includes provider filter when specified', async () => {
       nock('https://on-ramp.uat-api.cx.metamask.io')
-        .get('/v2/orders/all/quotes')
+        .get('/v2/quotes')
         .query({
           action: 'buy',
           sdk: '2.1.6',
@@ -1893,7 +1893,7 @@ describe('RampsService', () => {
 
     it('includes redirect URL when specified', async () => {
       nock('https://on-ramp.uat-api.cx.metamask.io')
-        .get('/v2/orders/all/quotes')
+        .get('/v2/quotes')
         .query({
           action: 'buy',
           sdk: '2.1.6',
@@ -1928,7 +1928,7 @@ describe('RampsService', () => {
 
     it('handles sell action', async () => {
       nock('https://on-ramp.uat-api.cx.metamask.io')
-        .get('/v2/orders/all/quotes')
+        .get('/v2/quotes')
         .query({
           action: 'sell',
           sdk: '2.1.6',
@@ -1962,7 +1962,7 @@ describe('RampsService', () => {
 
     it('throws error for malformed response', async () => {
       nock('https://on-ramp.uat-api.cx.metamask.io')
-        .get('/v2/orders/all/quotes')
+        .get('/v2/quotes')
         .query({
           action: 'buy',
           sdk: '2.1.6',
@@ -1996,7 +1996,7 @@ describe('RampsService', () => {
 
     it('throws error when response is null', async () => {
       nock('https://on-ramp.uat-api.cx.metamask.io')
-        .get('/v2/orders/all/quotes')
+        .get('/v2/quotes')
         .query({
           action: 'buy',
           sdk: '2.1.6',
@@ -2030,7 +2030,7 @@ describe('RampsService', () => {
 
     it('throws error when success is not an array', async () => {
       nock('https://on-ramp.uat-api.cx.metamask.io')
-        .get('/v2/orders/all/quotes')
+        .get('/v2/quotes')
         .query({
           action: 'buy',
           sdk: '2.1.6',
@@ -2064,7 +2064,7 @@ describe('RampsService', () => {
 
     it('throws error when sorted is not an array', async () => {
       nock('https://on-ramp.uat-api.cx.metamask.io')
-        .get('/v2/orders/all/quotes')
+        .get('/v2/quotes')
         .query({
           action: 'buy',
           sdk: '2.1.6',
@@ -2103,7 +2103,7 @@ describe('RampsService', () => {
 
     it('throws error when error is not an array', async () => {
       nock('https://on-ramp.uat-api.cx.metamask.io')
-        .get('/v2/orders/all/quotes')
+        .get('/v2/quotes')
         .query({
           action: 'buy',
           sdk: '2.1.6',
@@ -2142,7 +2142,7 @@ describe('RampsService', () => {
 
     it('throws error when customActions is not an array', async () => {
       nock('https://on-ramp.uat-api.cx.metamask.io')
-        .get('/v2/orders/all/quotes')
+        .get('/v2/quotes')
         .query({
           action: 'buy',
           sdk: '2.1.6',
@@ -2181,7 +2181,7 @@ describe('RampsService', () => {
 
     it('throws error for HTTP error response', async () => {
       nock('https://on-ramp.uat-api.cx.metamask.io')
-        .get('/v2/orders/all/quotes')
+        .get('/v2/quotes')
         .query({
           action: 'buy',
           sdk: '2.1.6',
@@ -2217,7 +2217,7 @@ describe('RampsService', () => {
 
     it('uses production URL when environment is Production', async () => {
       nock('https://on-ramp.api.cx.metamask.io')
-        .get('/v2/orders/all/quotes')
+        .get('/v2/quotes')
         .query({
           action: 'buy',
           sdk: '2.1.6',
