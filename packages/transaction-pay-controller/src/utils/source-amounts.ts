@@ -1,7 +1,7 @@
 import { createModuleLogger } from '@metamask/utils';
 import { BigNumber } from 'bignumber.js';
 
-import { getTokenFiatRate } from './token';
+import { getTokenFiatRate, isSameToken } from './token';
 import { getTransaction } from './transaction';
 import type {
   TransactionPayControllerMessenger,
@@ -35,9 +35,22 @@ export function updateSourceAmounts(
     return;
   }
 
-  const { isMaxAmount, paymentToken, tokens } = transactionData;
+  const { isMaxAmount, isPostQuote, paymentToken, tokens } = transactionData;
 
   if (!tokens.length || !paymentToken) {
+    return;
+  }
+
+  // For post-quote flows, source amounts are calculated differently
+  // The source is the transaction's required token, not the selected token
+  if (isPostQuote) {
+    const sourceAmounts = calculatePostQuoteSourceAmounts(
+      tokens,
+      paymentToken,
+      isMaxAmount ?? false,
+    );
+    log('Updated post-quote source amounts', { transactionId, sourceAmounts });
+    transactionData.sourceAmounts = sourceAmounts;
     return;
   }
 
@@ -56,6 +69,51 @@ export function updateSourceAmounts(
   log('Updated source amounts', { transactionId, sourceAmounts });
 
   transactionData.sourceAmounts = sourceAmounts;
+}
+
+/**
+ * Calculate source amounts for post-quote flows.
+ * In this flow, the required tokens ARE the source tokens,
+ * and the payment token is the target (destination).
+ *
+ * @param tokens - Required tokens from the transaction.
+ * @param paymentToken - Selected payment/destination token.
+ * @param isMaxAmount - Whether the transaction is a maximum amount transaction.
+ * @returns Array of source amounts.
+ */
+function calculatePostQuoteSourceAmounts(
+  tokens: TransactionPayRequiredToken[],
+  paymentToken: TransactionPaymentToken,
+  isMaxAmount: boolean,
+): TransactionPaySourceAmount[] {
+  return tokens
+    .filter((token) => {
+      if (token.skipIfBalance) {
+        return false;
+      }
+
+      // Skip zero amounts (unless max amount, where we use balance)
+      if (token.amountRaw === '0' && !isMaxAmount) {
+        log('Skipping token as zero amount', { tokenAddress: token.address });
+        return false;
+      }
+
+      // Skip same token on same chain
+      if (isSameToken(token, paymentToken)) {
+        log('Skipping token as same as destination token');
+        return false;
+      }
+
+      return true;
+    })
+    .map((token) => ({
+      sourceAmountHuman: isMaxAmount ? token.balanceHuman : token.amountHuman,
+      sourceAmountRaw: isMaxAmount ? token.balanceRaw : token.amountRaw,
+      sourceBalanceRaw: token.balanceRaw,
+      sourceChainId: token.chainId,
+      sourceTokenAddress: token.address,
+      targetTokenAddress: paymentToken.address,
+    }));
 }
 
 /**
@@ -95,14 +153,9 @@ function calculateSourceAmount(
   }
 
   const strategy = getStrategyType(transactionId, messenger);
-
-  const isSameTokenSelected =
-    token.address.toLowerCase() === paymentToken.address.toLowerCase() &&
-    token.chainId === paymentToken.chainId;
-
   const isAlwaysRequired = isQuoteAlwaysRequired(token, strategy);
 
-  if (isSameTokenSelected && !isAlwaysRequired) {
+  if (isSameToken(token, paymentToken) && !isAlwaysRequired) {
     log('Skipping token as same as payment token');
     return undefined;
   }

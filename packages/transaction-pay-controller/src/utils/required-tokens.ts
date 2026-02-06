@@ -285,7 +285,7 @@ function getTokenTransferData(transactionMeta: TransactionMeta):
   );
 
   const nestedCall =
-    nestedCallIndex === undefined
+    nestedCallIndex === undefined || nestedCallIndex === -1
       ? undefined
       : nestedTransactions?.[nestedCallIndex];
 
