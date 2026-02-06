@@ -11,17 +11,17 @@ import { validateAndNormalizeKeyholder, validateParams } from '../utils';
  * @param req - The JSON RPC request's end callback.
  * @param res - The JSON RPC request's pending response object.
  * @param hooks - The hooks object.
- * @param hooks.getAccounts - Function that retrieves available accounts.
+ * @param hooks.getPermittedAccountsForOrigin - Function that retrieves permitted accounts for the requester's origin.
  * @param hooks.processSendCalls - Function that processes a sendCalls request for EIP-5792 transactions.
  */
 export async function walletSendCalls(
-  req: JsonRpcRequest,
+  req: JsonRpcRequest & { origin: string },
   res: PendingJsonRpcResponse,
   {
-    getAccounts,
+    getPermittedAccountsForOrigin,
     processSendCalls,
   }: {
-    getAccounts: (req: JsonRpcRequest) => Promise<string[]>;
+    getPermittedAccountsForOrigin: () => Promise<string[]>;
     processSendCalls?: ProcessSendCallsHook;
   },
 ): Promise<void> {
@@ -34,8 +34,8 @@ export async function walletSendCalls(
   const params = req.params[0];
 
   const from = params.from
-    ? await validateAndNormalizeKeyholder(params.from, req, {
-        getAccounts,
+    ? await validateAndNormalizeKeyholder(params.from, {
+        getPermittedAccountsForOrigin,
       })
     : undefined;
 

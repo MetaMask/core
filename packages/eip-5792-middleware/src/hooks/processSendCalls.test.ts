@@ -12,6 +12,7 @@ import type {
   CustomNetworkClientConfiguration,
   NetworkControllerGetNetworkClientByIdAction,
 } from '@metamask/network-controller';
+import { providerErrors } from '@metamask/rpc-errors';
 import type { TransactionController } from '@metamask/transaction-controller';
 import type { Hex, JsonRpcRequest } from '@metamask/utils';
 
@@ -89,6 +90,9 @@ describe('EIP-5792', () => {
 
   const isAuxiliaryFundsSupportedMock: jest.Mock = jest.fn();
 
+  const getPermittedAccountsForOriginMock: jest.MockedFn<() => Promise<Hex[]>> =
+    jest.fn();
+
   let rootMessenger: RootMessenger;
 
   let messenger: Messenger<'EIP5792', AllActions, never, RootMessenger>;
@@ -100,6 +104,7 @@ describe('EIP-5792', () => {
       getDismissSmartAccountSuggestionEnabledMock,
     isAtomicBatchSupported: isAtomicBatchSupportedMock,
     validateSecurity: validateSecurityMock,
+    getPermittedAccountsForOrigin: getPermittedAccountsForOriginMock,
     isAuxiliaryFundsSupported: isAuxiliaryFundsSupportedMock,
   };
 
@@ -116,11 +121,6 @@ describe('EIP-5792', () => {
     );
 
     rootMessenger.registerActionHandler(
-      'AccountsController:getSelectedAccount',
-      getSelectedAccountMock,
-    );
-
-    rootMessenger.registerActionHandler(
       'AccountsController:getState',
       getAccountsStateMock,
     );
@@ -134,7 +134,6 @@ describe('EIP-5792', () => {
       messenger,
       actions: [
         'AccountsController:getState',
-        'AccountsController:getSelectedAccount',
         'PreferencesController:getState',
         'NetworkController:getNetworkClientById',
         'NetworkController:getState',
@@ -155,6 +154,8 @@ describe('EIP-5792', () => {
     getDismissSmartAccountSuggestionEnabledMock.mockReturnValue(false);
 
     isAuxiliaryFundsSupportedMock.mockReturnValue(true);
+
+    getPermittedAccountsForOriginMock.mockResolvedValue([FROM_MOCK] as Hex[]);
 
     isAtomicBatchSupportedMock.mockResolvedValue([
       {
@@ -258,7 +259,7 @@ describe('EIP-5792', () => {
       expect(addTransactionBatchMock).toHaveBeenCalledTimes(1);
     });
 
-    it('calls adds transaction batch hook with selected account if no from', async () => {
+    it('calls adds transaction batch hook with selected permitted account if no `from` param is provided', async () => {
       getSelectedAccountMock.mockReturnValue({
         address: SEND_CALLS_MOCK.from,
       } as InternalAccount);
@@ -465,6 +466,19 @@ describe('EIP-5792', () => {
       ).rejects.toThrow(
         `EIP-7702 upgrade not supported as account type is unknown`,
       );
+    });
+
+    it('throws if no `from` param is provided and no accounts are returned by `getPermittedAccountsForOrigin`', async () => {
+      getPermittedAccountsForOriginMock.mockResolvedValueOnce([]);
+
+      await expect(
+        processSendCalls(
+          sendCallsHooks,
+          messenger,
+          { ...SEND_CALLS_MOCK, from: undefined },
+          REQUEST_MOCK,
+        ),
+      ).rejects.toThrow(providerErrors.unauthorized());
     });
 
     it('validates auxiliary funds with unsupported account type', async () => {

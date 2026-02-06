@@ -1,6 +1,6 @@
 {
   "name": "@metamask/bridge-status-controller",
-  "version": "65.0.1",
+  "version": "66.0.0",
   "description": "Manages bridge-related status fetching functionality for MetaMask",
   "keywords": [
     "MetaMask",
@@ -57,7 +57,7 @@
     "@metamask/polling-controller": "^16.0.2",
     "@metamask/snaps-controllers": "^17.2.0",
     "@metamask/superstruct": "^3.1.0",
-    "@metamask/transaction-controller": "^62.14.0",
+    "@metamask/transaction-controller": "^62.15.0",
     "@metamask/utils": "^11.9.0",
     "bignumber.js": "^9.1.2",
     "uuid": "^8.3.2"

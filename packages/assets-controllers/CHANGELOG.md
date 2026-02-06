@@ -7,12 +7,18 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+## [99.3.0]
+
+### Added
+
+- Add optional `rwaData` support when adding tokens in `TokensController` ([#7804](https://github.com/MetaMask/core/pull/7804)).
+
 ### Changed
 
+- Lock `@metamask/core-backend` to `5.0.0` ([#7852](https://github.com/MetaMask/core/pull/7852))
 - Bump `@metamask/profile-sync-controller` from `^27.0.0` to `^27.1.0` ([#7849](https://github.com/MetaMask/core/pull/7849))
 - Fix trending tokens showing incorrect market cap values by adding `usePriceApiData` parameter (defaults to `true`) to use price API data for accurate market data ([#7829](https://github.com/MetaMask/core/pull/7829))
-- Bump `@metamask/core-backend` from `^5.0.0` to `^5.1.0` ([#7817](https://github.com/MetaMask/core/pull/7817))
-- Bump `@metamask/transaction-controller` from `^62.13.0` to `^62.14.0` ([#7832](https://github.com/MetaMask/core/pull/7832))
+- Bump `@metamask/transaction-controller` from `^62.13.0` to `^62.15.0` ([#7832](https://github.com/MetaMask/core/pull/7832), [#7854](https://github.com/MetaMask/core/pull/7854))
 
 ## [99.2.0]
 
@@ -2637,7 +2643,8 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 - Use Ethers for AssetsContractController ([#845](https://github.com/MetaMask/core/pull/845))
 
-[Unreleased]: https://github.com/MetaMask/core/compare/@metamask/assets-controllers@99.2.0...HEAD
+[Unreleased]: https://github.com/MetaMask/core/compare/@metamask/assets-controllers@99.3.0...HEAD
+[99.3.0]: https://github.com/MetaMask/core/compare/@metamask/assets-controllers@99.2.0...@metamask/assets-controllers@99.3.0
 [99.2.0]: https://github.com/MetaMask/core/compare/@metamask/assets-controllers@99.1.0...@metamask/assets-controllers@99.2.0
 [99.1.0]: https://github.com/MetaMask/core/compare/@metamask/assets-controllers@99.0.0...@metamask/assets-controllers@99.1.0
 [99.0.0]: https://github.com/MetaMask/core/compare/@metamask/assets-controllers@98.0.0...@metamask/assets-controllers@99.0.0
